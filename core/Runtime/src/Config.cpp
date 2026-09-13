@@ -86,4 +86,28 @@ namespace Aurora::Runtime
   {
     m_data.transitionSmoothing = std::clamp(transitionSmoothing, 0.f, 0.97f);
   }
+
+
+  const std::string& Config::activeInputName() const
+  {
+    return m_data.activeInputName;
+  }
+
+
+  void Config::setActiveInputName(std::string name)
+  {
+    m_data.activeInputName = std::move(name);
+  }
+
+
+  const std::vector<std::string>& Config::activeOutputNames() const
+  {
+    return m_data.activeOutputNames;
+  }
+
+
+  void Config::setActiveOutputNames(std::vector<std::string> names)
+  {
+    m_data.activeOutputNames = std::move(names);
+  }
 }

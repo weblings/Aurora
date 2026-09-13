@@ -1,6 +1,7 @@
 #pragma once
 
 #include <string>
+#include <vector>
 
 #include <Aurora/Contracts/Interpolation.hpp>
 
@@ -17,6 +18,12 @@ namespace Aurora::Runtime
     unsigned subsampleWidth{0};   // 0 == unset, derive from the display
     Contracts::Interpolation::Type interpolation{Contracts::Interpolation::Type::Area};
     float transitionSmoothing{0.f};
+
+    // Which of an app's compiled-in plugins are active, by name -- looked
+    // up in that app's own registry, not known to Aurora core at all.
+    // Empty means unconfigured. See Analysis/DistributedArchitecturePlan.md.
+    std::string activeInputName;
+    std::vector<std::string> activeOutputNames;
   };
 
 
@@ -44,6 +51,12 @@ namespace Aurora::Runtime
 
     float transitionSmoothing() const;
     void setTransitionSmoothing(float transitionSmoothing); // clamped to [0, 0.97]
+
+    const std::string& activeInputName() const;
+    void setActiveInputName(std::string name);
+
+    const std::vector<std::string>& activeOutputNames() const;
+    void setActiveOutputNames(std::vector<std::string> names);
 
   private:
     ConfigData m_data;

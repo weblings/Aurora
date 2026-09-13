@@ -18,7 +18,9 @@ namespace Aurora::Runtime
         {"refreshRate", data.refreshRate},
         {"subsampleWidth", data.subsampleWidth},
         {"interpolation", static_cast<int>(data.interpolation)},
-        {"transitionSmoothing", data.transitionSmoothing}
+        {"transitionSmoothing", data.transitionSmoothing},
+        {"activeInputName", data.activeInputName},
+        {"activeOutputNames", data.activeOutputNames}
       };
     }
 
@@ -39,6 +41,9 @@ namespace Aurora::Runtime
       data.interpolation = (interpolation >= 0 && interpolation <= 2)
         ? static_cast<Contracts::Interpolation::Type>(interpolation)
         : defaults.interpolation;
+
+      data.activeInputName = json.value("activeInputName", defaults.activeInputName);
+      data.activeOutputNames = json.value("activeOutputNames", defaults.activeOutputNames);
 
       return data;
     }

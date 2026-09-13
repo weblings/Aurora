@@ -112,8 +112,8 @@ which seam-count answer wins above.
 
 ## What this means for today's work
 
-Nothing changes for `Aurora-App-Linux` — a single local process, no
-network code yet. Nothing in `IInput`/`IOutput`/`Orchestrator`'s current
+`Aurora-App-Linux` now exists — a single local process, no network code
+yet. Nothing in `IInput`/`IOutput`/`Orchestrator`'s current
 shape commits to either seam count: they're already clean interfaces, not
 things wired together in a way that would need undoing. The registry/
 config-driven plugin-selection work (see the "app" repo discussion) is

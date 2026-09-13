@@ -125,6 +125,17 @@ Aurora-Output-Hue/        <- plugin repo, DONE (see HueOutputAnalysis.md): pure
                              IOutput tying it all together. Builds against real
                              libcurl/Mbed TLS; needs a real bridge to manually
                              verify capture actually reaches real lights.
+Aurora-App-Linux/         <- new app repo, DONE (see DistributedArchitecturePlan.md
+                             for why this got its own repo): Registry (name ->
+                             factory for compiled-in plugins, tested) + main.cpp
+                             (registers plugins per AURORA_APP_ENABLE_*, picks
+                             which to run from Config::activeInputName()/
+                             activeOutputNames(), drives Orchestrator::update()
+                             in a real timed loop). First executable combining
+                             all three repos -- builds and links clean against
+                             every native dependency (X11, Pipewire/glib,
+                             libcurl, Mbed TLS). Real end-to-end run (real
+                             display + real bridge) pending the Ubuntu device.
 ```
 
 **Aurora core build-verified.** No toolchain existed on the Windows dev
@@ -234,6 +245,25 @@ by adding `gamma` to both `Runtime::ZoneConfig` and `Contracts::Zone`
 `HueOutputAnalysis.md`). **Result: 22/22 `Aurora-Output-Hue` tests
 passing.** Rebuilt `Aurora` core (24/24) and `Aurora-Input-Linux` (11/11)
 against the `Contracts::Zone` field addition — both still clean.
+
+**`Aurora-App-Linux` build-verified — first assembled multi-plugin
+executable.** Extended `Runtime::Config` with `activeInputName`/
+`activeOutputNames` (24/24 core tests still passing) so `main()` picks
+plugins by name instead of hardcoding which classes to construct. New
+repo's `Registry` (4/4 tests) is the name→factory seam; `main.cpp` wires it
+to a real timed loop. Configuring pulled in every dependency across all
+three repos at once (OpenCV, glm, nlohmann_json, X11, Pipewire/glib,
+libcurl, Mbed TLS, Threads) with no collisions — confirmed by the resulting
+binary's `ldd` output resolving every native library cleanly. **Real bug
+found on the first actual run:** the "linux" auto-select input threw
+`std::runtime_error` when no capture backend was available (expected in
+WSL2, no real X11/Wayland session), and nothing in `main()` caught it —
+`std::terminate`/abort instead of a clean error. Fixed with a function-try
+block around `main()`. Confirmed both failure paths now exit cleanly with a
+message (no backend available; no output configured) rather than aborting.
+Real end-to-end verification (real display + real bridge) is next, on the
+Ubuntu device — see `DistributedArchitecturePlan.md` for the architecture
+question this app's shape feeds into.
 
 ## Phase 1 — Refactor into three modules; Linux input + Hue output plugins
 

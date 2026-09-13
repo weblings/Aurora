@@ -70,6 +70,8 @@ TEST_CASE("ConfigStore round-trips through a real file and defaults on missing f
   toSave.setSubsampleWidth(64);
   toSave.setTransitionSmoothing(0.5f);
   toSave.setInterpolation(Interpolation::Type::Nearest);
+  toSave.setActiveInputName("x11");
+  toSave.setActiveOutputNames({"hue", "dmx"});
   store.save(toSave);
 
   Config reloaded = store.load();
@@ -77,6 +79,8 @@ TEST_CASE("ConfigStore round-trips through a real file and defaults on missing f
   CHECK(reloaded.subsampleWidth() == 64);
   CHECK(reloaded.transitionSmoothing() == Catch::Approx(0.5f));
   CHECK(reloaded.interpolation() == Interpolation::Type::Nearest);
+  CHECK(reloaded.activeInputName() == "x11");
+  CHECK(reloaded.activeOutputNames() == std::vector<std::string>{"hue", "dmx"});
 }
 
 
