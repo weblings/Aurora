@@ -17,7 +17,10 @@ Aurora's own module boundaries instead of RockyRoad's.
 
 - [`engineering-hygiene.md`](engineering-hygiene.md) — general design/build-tooling
   principles: CTest's `enable_testing()` scoping, why not to build on a
-  Windows-mounted drive from WSL2.
+  Windows-mounted drive from WSL2 (and the git safe-directory corollary),
+  `using namespace` not resolving a sibling namespace's own name, relative-path
+  casing across Windows/Linux, `FetchContent`-ed subproject CACHE variable
+  collisions.
 
 Buckets below are anticipated based on [`ModuleSplitPlan.md`](../ModuleSplitPlan.md)'s
 module boundaries but don't exist yet — a file only gets created once it has a real

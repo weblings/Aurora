@@ -30,3 +30,57 @@ needs, unlike a native Linux filesystem.
 **Fix:** clone/build from WSL's own filesystem (e.g. `~/aurora`), not the
 Windows-mounted path. Keep the Windows-side repo as the source of truth and
 mirror changed files across, rather than building in place on `/mnt/*`.
+
+Same DrvFs root cause (it doesn't report real POSIX ownership) also trips
+git's "dubious ownership" safe-directory check on `/mnt/*` repos — a false
+positive, not a real multi-user trust issue; scope the exception to the exact
+path (`git config --global --add safe.directory <path>`), never a wildcard.
+
+---
+
+## `using namespace` doesn't make a sibling namespace's own name resolvable
+
+Wrote `using namespace Aurora::Output::Hue;` in a test file, then referenced
+`Contracts::UVCorner::TopLeft` expecting it to resolve — it didn't, compile
+error. `using namespace` injects a namespace's *contents* into scope; it
+doesn't make `Contracts` itself a name you can write, since `Aurora::Contracts`
+was never brought in.
+
+**Fix:** `using namespace Aurora::Contracts;` too (or fully qualify), then
+drop the now-redundant `Contracts::` prefix at each call site. Worth watching
+for specifically in this codebase's shape — plugin repos routinely reference
+sibling `Aurora::Contracts` types from inside their own namespace, and this
+will keep coming up as more plugins (`Input::Windows`, `Output::DMX`, ...) do
+the same thing.
+
+---
+
+## A relative path baked into a build file assumes consistent directory casing across platforms
+
+`Aurora-Output-Hue`'s `CMakeLists.txt` resolves Aurora core via
+`../Aurora/core` (relative `FetchContent` `SOURCE_DIR`). Windows is
+case-insensitive, so authoring and testing this on Windows never surfaced a
+problem — but the user's own earlier WSL clone of Aurora core was named
+lowercase `~/aurora`, and Linux filesystems are case-sensitive, so the exact
+same repo checked out with different casing would silently fail to resolve.
+
+**Fix:** when reproducing a multi-repo sibling layout on Linux, match the
+casing the relative path actually expects (or make the path configurable)
+rather than assuming a repo layout that "just works" on Windows carries over.
+
+---
+
+## Nested `FetchContent`-ed CMake subprojects can collide on shared CACHE variable names
+
+Aurora core's own `CMakeLists.txt` uses a `BUILD_TESTS` cache variable to gate
+its test suite. A plugin repo (`Aurora-Output-Hue`) pulling Aurora core in via
+`FetchContent` needs to suppress that inner test suite — but doing so by
+setting a variable literally named `BUILD_TESTS` would also silently gate the
+plugin's *own* tests if it reused the same name for its own toggle, since
+CMake cache variables are process-global, not scoped per subproject.
+
+**Fix:** avoided rather than hit — gave the plugin its own uniquely-prefixed
+option (`AURORA_OUTPUT_HUE_BUILD_TESTS`) instead of reusing `BUILD_TESTS`, and
+force-set the *inner* project's `BUILD_TESTS` to `FALSE` explicitly before
+`FetchContent_MakeAvailable`. Worth a name-collision check like this whenever
+a new plugin repo's `CMakeLists.txt` is being written against this pattern.
