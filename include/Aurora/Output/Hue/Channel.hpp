@@ -1,6 +1,8 @@
 #pragma once
 
+#include <cstdint>
 #include <unordered_map>
+#include <vector>
 
 #include <glm/exponential.hpp>
 
@@ -12,6 +14,17 @@ namespace Aurora::Output::Hue
 {
   struct Channel;
   using Channels = std::unordered_map<uint8_t, Channel>;
+
+  // One channel's color entry for Streamer::streamChannels() -- r/g/b are
+  // XYB components (x, y, brightness) by the time they reach here, not RGB.
+  struct ChannelStream
+  {
+    uint8_t id;
+    float r{0.f};
+    float g{0.f};
+    float b{0.f};
+  };
+  using ChannelStreams = std::vector<ChannelStream>;
 
   // Wrapper around a Hue entertainment channel, extended with UV zone + gamma control.
   struct Channel

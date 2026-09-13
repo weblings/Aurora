@@ -19,6 +19,10 @@ add_executable(AuroraOutputHueTests
   HueOutputTests.cpp
 )
 
+if(AURORA_OUTPUT_HUE_ENABLE_IO)
+  target_sources(AuroraOutputHueTests PRIVATE ApiToolsTests.cpp StreamerTests.cpp)
+endif()
+
 target_link_libraries(AuroraOutputHueTests PRIVATE
   AuroraOutputHue
   Catch2::Catch2WithMain
