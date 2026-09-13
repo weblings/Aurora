@@ -1,0 +1,59 @@
+# --- C++ / CMake (core/) ---
+build/
+cmake-build-*/
+CMakeFiles/
+CMakeCache.txt
+compile_commands.json
+*.o
+*.obj
+*.dll
+*.so
+*.dylib
+*.exe
+*.pdb
+
+# Visual Studio / MSVC (phase 2 Windows work will likely use these)
+.vs/
+*.sln
+*.vcxproj
+*.vcxproj.filters
+*.vcxproj.user
+out/
+
+# CLion / other JetBrains IDEs
+.idea/
+
+# --- Node / web (web/, phases 3-5) ---
+node_modules/
+dist/
+.vite/
+*.local
+.env
+.env.*
+# Lockfiles are NOT ignored (package-lock.json / pnpm-lock.yaml) --
+# commit those for reproducible installs.
+
+# --- Editors / OS cruft ---
+.vscode/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# --- Project-specific: local/secret config, never real credentials ---
+# Real Hue bridge credentials (username/clientkey) live in the OS config dir
+# (~/.config/huenicorn or %APPDATA%/Huenicorn) -- outside this repo entirely,
+# so they can't be committed by accident. This is a backstop for anything
+# checked out *inside* the repo for local dev/testing (a scratch profile, a
+# bridge address override, etc.) -- name those files/dirs so this catches them:
+*.local.json
+*.local.yaml
+local/
+.local/
+
+# --- Generated test output (golden-value / visual-diff fixtures) ---
+# Input fixtures stay tracked; only generated comparison output is ignored.
+**/test-output/
+**/Outputs/
