@@ -47,11 +47,14 @@ doesn't make `Contracts` itself a name you can write, since `Aurora::Contracts`
 was never brought in.
 
 **Fix:** `using namespace Aurora::Contracts;` too (or fully qualify), then
-drop the now-redundant `Contracts::` prefix at each call site. Worth watching
-for specifically in this codebase's shape — plugin repos routinely reference
-sibling `Aurora::Contracts` types from inside their own namespace, and this
-will keep coming up as more plugins (`Input::Windows`, `Output::DMX`, ...) do
-the same thing.
+drop the now-redundant `Contracts::` prefix at each call site.
+
+**Recurred** in `Aurora-Input-Linux`'s test file right after this was first
+fixed in `Aurora-Output-Hue`'s — knowing the lesson didn't stop it happening
+again in the next plugin repo. Treat as a checklist item, not a one-off fix:
+any new plugin test file that references `Contracts::` types needs `using
+namespace Aurora::Contracts;` from the start, checked before the first build
+attempt, not discovered by it.
 
 ---
 

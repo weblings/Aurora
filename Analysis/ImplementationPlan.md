@@ -73,16 +73,26 @@ Aurora/                  <- core repo
       include/Aurora/Processing/ImageProcessing.hpp
       src/ImageProcessing.cpp
       ISF/                 <- new (phase 5, native side is minimal — see below)
-    Input/                 <- DONE: IInput.hpp only, header-only interface target.
-      include/Aurora/Input/IInput.hpp                Concrete plugins live in their own repos now.
+    Input/                 <- DONE: IInput.hpp (refined with monitor selection +
+                               divisor math, see LinuxCaptureAnalysis.md) + MonitorData.hpp.
+      include/Aurora/Input/                          Concrete plugins live in their own repos now.
     Output/                <- DONE: IOutput.hpp only, same shape.
       include/Aurora/Output/IOutput.hpp
     tests/                 <- DONE (Processing coverage): Catch2, see
                                ProcessingAnalysis.md's test plan
   web/                    <- new: the browser client (phases 3-5)
   Analysis/               <- already exists
-Aurora-Input-Linux/       <- plugin repo, SCAFFOLD ONLY (LICENSE/README, no
-                             capture code) — pending its own analysis pass
+Aurora-Input-Linux/       <- plugin repo, DONE for X11 (see LinuxCaptureAnalysis.md):
+                             DummyGrabber, SessionDispatch (tested pure logic),
+                             X11Grabber (mechanically ported, builds against real
+                             X11/Xext/Xrandr, needs a real X11 session to manually
+                             verify actual capture). One CMake option per backend
+                             (AURORA_INPUT_LINUX_ENABLE_X11/_PIPEWIRE) so unrelated
+                             deps aren't forced — X11 and Wayland are one plugin's
+                             two auto-selected backends, not two separate plugins
+                             (see ModuleSplitPlan.md's repo-split section).
+                             Pipewire/Wayland capture not ported yet — deferred,
+                             1091 lines of D-Bus/GLib glue, its own follow-up pass.
 Aurora-Output-Hue/        <- plugin repo, pure logic DONE (see HueOutputAnalysis.md):
                              Colorimetry (toXYB), Channel, HuestreamHeader/Payload,
                              BridgeAddress, Credentials byte-conversion, all tested.
@@ -118,6 +128,21 @@ Aurora::Output::Hue;` didn't bring `Aurora::Contracts` into scope, so
 Aurora::Contracts;` with the now-redundant `Contracts::` prefix dropped at
 each call site.
 
+**`Aurora-Input-Linux` build-verified (X11 backend)** — needed one new `apt`
+package set installed by the user (`libx11-dev libxext-dev libxrandr-dev`;
+this session doesn't run `sudo`), otherwise same WSL2 flow. **Result: 5/5
+tests passing**, including the `_divisors()` regression test (a 12×6 input
+now correctly yields all 4 valid candidate resolutions, not the 2 the
+off-by-one bug limited it to). Hit the identical `using namespace
+Aurora::Output::Hue;`-shaped mistake again — added `using namespace
+Aurora::Contracts;` to the test file but forgot to strip the still-present
+`Contracts::` prefixes at each call site, so it didn't actually fix anything
+the first time. Recorded as a recurrence in `engineering-hygiene.md`, not
+just a repeat fix. `X11Grabber.cpp` itself compiled cleanly against real
+X11/Xext/Xrandr; actually verifying capture still needs a real X11 session,
+which neither this Windows machine nor WSL2 (WSLg is a virtualized Wayland
+compositor, not real X11 hardware capture) can provide.
+
 ## Phase 1 — Refactor into three modules; Linux input + Hue output plugins
 
 Pure restructuring, zero new features. **Demonstrable:** the restructured app
@@ -125,15 +150,14 @@ captures the Linux screen and drives real Hue lights exactly like huenicorn does
 today — this is the regression check everything else builds on.
 
 1. **Analysis pass first.** Three docs, each covering its section holistically
-   before any code moves. **Done:** `Analysis/ProcessingAnalysis.md` (the
-   `Contracts` vs `Processing` split, three real bugs found during the
-   read/port) and `Analysis/HueOutputAnalysis.md` (the pure-vs-I/O split that
-   scoped this pass, the `Contracts::Frame` naming correction, the
-   SSL-verification-disabled constraint worth carrying forward carefully).
-   **Still pending:** `Analysis/LinuxCaptureAnalysis.md`
-   (`PipewireGrabber`/`X11Grabber`/`DummyGrabber`/`GnuLinuxAdapter` — how
-   session-type dispatch actually works, what each grabber assumes, the
-   Gamescope special-case). `FirstScan.md` already covers the interfaces at a
+   before any code moves. **All three done:** `Analysis/ProcessingAnalysis.md`
+   (the `Contracts` vs `Processing` split, three real bugs found during the
+   read/port), `Analysis/HueOutputAnalysis.md` (the pure-vs-I/O split that
+   scoped that pass, the `Contracts::Frame` naming correction, the
+   SSL-verification-disabled constraint worth carrying forward carefully), and
+   `Analysis/LinuxCaptureAnalysis.md` (why X11 ports now but Pipewire doesn't,
+   a fourth bug found — `_divisors()`'s off-by-one — and the `IInput`
+   refinement it drove). `FirstScan.md` already covers the interfaces at a
    high level; these go one level deeper, per section, right before that
    section's code is actually touched.
 
@@ -168,11 +192,16 @@ today — this is the regression check everything else builds on.
      non-black, log average FPS) rather than pretending they're automatable.
 2. **Done.** Stood up `Aurora/core` as a new CMake project seeded from
    huenicorn's, not an edit of `huenicorn/` itself.
-3. **Not yet.** Introduce `IInput` (`IGrabber`, generalized/renamed;
-   `ImageData`/`PixelFormat` unchanged) and move Linux capture
-   (`PipewireGrabber`, `X11Grabber`, `DummyGrabber`, `GnuLinuxAdapter`'s
-   grabber factory) under `Input/Linux/` as its own CMake target — the "Linux
-   input plugin."
+3. **Done for X11/Dummy; Pipewire deferred.** Introduced `IInput` in Aurora
+   core (generalized from `IGrabber`, refined with monitor selection + the
+   pure divisor math — see `ModuleSplitPlan.md`), and started
+   `Aurora-Input-Linux` as its own repo (repo-split decision, same doc).
+   Ported and tested `DummyGrabber` and the session-dispatch decision logic
+   (`SessionDispatch`); mechanically ported `X11Grabber` (builds, needs a
+   real X11 session to manually verify capture). **Deferred:**
+   `PipewireGrabber`/`XdgDesktopPortal` — 1091 lines of D-Bus/GLib glue with
+   nothing pure to extract, its own follow-up pass, tracked in
+   `LinuxCaptureAnalysis.md`.
 4. **Done.** Introduced the `Processing` module (plus, as it turned out,
    `Contracts` underneath it — see `ModuleSplitPlan.md`): moved
    `ImageProcessing` into `Aurora::Processing`, and `Color`'s generic parts
