@@ -147,3 +147,30 @@ that uses `URL` (not needed for `GIT_REPOSITORY`). When adding a new one,
 also check sibling `FetchContent_Declare` blocks in the same file for the
 same gap — a find-package-else-fetch pattern means the fetch branch can sit
 unexercised (and unverified) on any given machine indefinitely.
+
+---
+
+## When splitting legacy state into "generic" vs. "plugin-specific," classify each field by where it's authored, not where its formula is applied
+
+`Hue::Api::Channel` was correctly split into generic (`Runtime::ZoneMap`:
+`uvs`/`active`) and Hue-specific (`Channel`: `gammaFactor`, `devices`)
+pieces during the Runtime analysis pass. Gamma landed on the Hue-specific
+side because its *consumption* is Hue-specific — the `2^(-gamma·2))`
+formula, applied to an XYB brightness channel, is real Hue colorimetry.
+But its *authorship* is identical to `uvs`/`active`: a value the user sets
+once per zone, needing the exact same persist-and-reconcile lifecycle. The
+analysis pass never checked that; it only surfaced while actually writing
+`HueOutput::send()` and finding nowhere for the value to live, one port
+later.
+
+**Fix:** when sorting a field into "generic" vs. "specific to this plugin,"
+ask where it's *set and persisted*, not just where its formula or
+interpretation lives. A field can have fully generic authorship and
+lifecycle while still being interpreted differently by every consumer
+(exactly what happened once fixed — gamma's *value* moved to
+`Contracts::Zone`, its *formula* stayed in `Aurora-Output-Hue`) — that's not
+a contradiction, it's the correct split. Also worth noting: the module
+dependency direction (`Runtime` → `Output`, one way only) is what forced
+the fix through the passing contract (`Contracts::Frame`) rather than a
+back-channel read from `IOutput` into `Runtime::ZoneMap` — that direction
+would have been circular and simply wouldn't build.

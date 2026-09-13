@@ -464,7 +464,10 @@ than any lighting-specific format.
   (WebXR pose back to the native core, browser-side effect selection persisted
   server-side) actually need it, replace phase 3's SSE+chunked-MJPEG channel
   with a WebSocket one (new dependency — e.g. uWebSockets, IXWebSocket, Boost.Beast).
-  Not needed for phases 1–5 to work end to end.
+  Not needed for phases 1–5 to work end to end. **This is also the fork
+  where the open one-seam-vs-double-seam question in
+  `DistributedArchitecturePlan.md` needs an actual answer** — pick it up
+  again when this stretch goal gets picked up, not before.
 - **Object detection (YOLO-style)** — designed in `OpenFormatsResearch.md`, not
   part of this pass; slots into `Processing` after phase 5.
 - **Additional Output targets** (DMX/Art-Net/sACN, OPC/DDP) — deferred the same way.

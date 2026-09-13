@@ -5,6 +5,11 @@ Survey done while scoping the Processing module (see
 "analyze media, produce zone/color/effect data, send it to fixtures," so Aurora
 isn't reinventing one?
 
+See [`DistributedArchitecturePlan.md`](DistributedArchitecturePlan.md) for
+how VJ I/O (NDI/Syphon/Spout, Art-Net/sACN/OSC) and authored-track playback
+map onto Aurora's Input/Processing/Output boundaries if any of them end up
+running over a network.
+
 ## Transport/output layer — yes, mature open standards exist
 
 These solve "push per-zone color/intensity data to physical fixtures over a

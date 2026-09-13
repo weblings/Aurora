@@ -23,9 +23,11 @@ Aurora's own module boundaries instead of RockyRoad's.
   Windows/Linux, `FetchContent`-ed subproject CACHE variable collisions,
   environment-selected variants (X11 vs. Wayland) being one plugin with
   backends rather than separate plugins, not porting a logger early costing
-  real diagnostics twice over, and `FetchContent_Declare(... URL ...)`
+  real diagnostics twice over, `FetchContent_Declare(... URL ...)`
   needing `DOWNLOAD_EXTRACT_TIMESTAMP` (plus checking sibling fetch blocks
-  for the same gap, since an unexercised fetch path hides it).
+  for the same gap, since an unexercised fetch path hides it), and
+  classifying a "generic vs. plugin-specific" field by where it's authored
+  rather than where its formula is applied (the gamma-storage gap).
 
 Buckets below are anticipated based on [`ModuleSplitPlan.md`](../ModuleSplitPlan.md)'s
 module boundaries but don't exist yet — a file only gets created once it has a real

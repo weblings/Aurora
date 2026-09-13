@@ -261,3 +261,11 @@ clean, since `Orchestrator`'s new dependency on `AuroraInputInterface`/
 `IInput`/`IOutput` pair, calls `Orchestrator::init()` once, and drives
 `update()` in an actual timed loop — that's `Aurora-Output-Hue`'s I/O layer
 plus a small `main()`, not `Orchestrator` itself.
+
+See [`DistributedArchitecturePlan.md`](DistributedArchitecturePlan.md) for
+an open question this shape feeds into: whether `Orchestrator` should
+eventually accept a `Frame` from more than one kind of upstream source
+(live-composited via `IInput`, or handed directly by an authored-track/VJ
+bridge that skips cropping entirely), and how far Input/Processing/Output
+might eventually be split across separate devices. Not resolved, doesn't
+block anything built so far.

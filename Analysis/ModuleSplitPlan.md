@@ -5,6 +5,11 @@ stream to Hue bridge" pipeline and split it into three modules with a
 platform-agnostic core in the middle. See [`FirstScan.md`](FirstScan.md) for the
 original pipeline read that this plan builds on.
 
+These boundaries are also where a future network seam would go if any
+module ends up running on a separate device — see
+[`DistributedArchitecturePlan.md`](DistributedArchitecturePlan.md) for that
+open question (not resolved, doesn't block anything built so far).
+
 - **Input** — any 2D video source (screen, file, camera, eventually
   Windows/Android/Web). Platform-specific by nature.
 - **Processing** — turns frames into effect/color data. Platform-agnostic. Room to
