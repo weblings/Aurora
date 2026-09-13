@@ -70,60 +70,95 @@ Today's per-tick data that crosses module boundaries, generalized:
   correction) is deferred until a concrete second target shows it's actually
   needed — no target-agnostic gamma exists yet to design around.
 
-## `IOutput` — draft shape
+## `IOutput` and `Contracts::Frame` — built
 
-Mirrors `IGrabber`'s pattern (see `FirstScan.md`), but one piece has to stay a
-placeholder: **the type of the per-tick payload Output consumes is the same type
-Processing produces, and that type isn't decided yet** (see
-`OpenFormatsResearch.md`'s per-frame-shape section — it's larger than the current
-`ChannelStream` r/g/b triple once positions/effects/detections are in scope). What
-*can* be pinned down now, independent of that payload:
+The payload question is resolved for v1: `Contracts::Frame` is `std::vector<Zone>`,
+`Zone` is `{ uint8_t id; Contracts::Color color; }` — generic linear color, no
+target-specific transform baked in. Naming/placement correction made while
+actually porting Hue (see `HueOutputAnalysis.md`): this was called
+`Processing::Frame` earlier in this doc; it belongs in **`Contracts`**, not
+`Processing`, for the same reason `ImageData` does — it's a boundary type, not
+Processing's own logic. Richer fields (positions, effect metadata, detections —
+`OpenFormatsResearch.md`) extend `Zone` later without changing this shape's role.
+
+`IOutput` (`Aurora/core/Output/IOutput.hpp`, header-only interface target
+`AuroraOutputInterface`) dropped the `Core::Config*` constructor param the first
+draft mirrored from `IGrabber` — checking `Streamer`'s actual constructor
+(`Credentials` + `bridgeAddress`) showed target addressing is always
+plugin-specific, never generic config, so it doesn't belong on the base class
+at all:
 
 ```cpp
 class IOutput
 {
 public:
-  IOutput(Core::Config* config);
-  virtual ~IOutput();
-
+  virtual ~IOutput() = default;
   virtual const std::string& name() const = 0;
-
-  // Connection lifecycle — mirrors DtlsClient::init()/Streamer's constructor today.
-  // Target addressing/credentials (bridge address + username, a DMX universe +
-  // node IP, ...) are target-specific, passed to the concrete subclass's
-  // constructor the same way Streamer takes Credentials + bridgeAddress now.
   virtual void init() = 0;
   virtual bool isConnected() const = 0;
   virtual void shutdown() = 0;
-
-  // Push model — Runtime calls this once per tick, same as
-  // Streamer::streamChannels() today. Payload type TBD.
-  virtual void send(const Processing::Frame& frame) = 0;
-
-protected:
-  Core::Config* m_config;
+  virtual void send(const Contracts::Frame& frame) = 0;
 };
 ```
 
-Also known regardless of payload shape, from how `Streamer` already behaves:
+Still true, from how `Streamer` behaves, and still not yet acted on:
 
-- **Push, not pull** — the opposite of `IGrabber` (Runtime pulls frames from Input,
-  but pushes results to Output). No change needed there.
-- **Target capability negotiation is needed.** Hue's "pick an entertainment
-  configuration, then its channels" step
-  (`EntertainmentConfigurationSelector`/`setEntertainmentConfigurationId`) is the
-  Output-side analog of `IGrabber`'s monitor selection — some targets need a
-  discovery/pairing step before `send()` works, some (a bare DMX universe) don't.
-  `IOutput` needs an optional pre-`init()` negotiation phase, not a mandatory one.
-- **Fallback behavior** — `IAdapter::getGrabber`'s catch-and-fall-back-to-DummyGrabber
-  pattern is worth mirroring with a `DummyOutput`/no-op sink for the same reasons
-  (lets Processing run and be inspected with no bridge/fixture reachable).
+- **Push, not pull** — the opposite of `IInput` (the app pulls frames from
+  Input, pushes results to Output).
+- **Target capability negotiation is needed** — Hue's entertainment-config
+  selection is the Output-side analog of `IInput`'s monitor selection; some
+  targets need a discovery/pairing step before `send()` works, some don't.
+  `IOutput` needs an optional pre-`init()` negotiation phase, not mandatory.
+- **Fallback behavior** — a `DummyOutput`/no-op sink (mirroring `DummyGrabber`)
+  isn't built yet; still worth doing for the same reason (inspect Processing's
+  output with no bridge/fixture reachable).
 
-What's genuinely blocked on the payload decision: the `send()` signature itself,
-and therefore how much of `Hue::Api::ChannelStream`'s shape (a flat id+color per
-zone) versus a richer per-tick `Frame` (positions, effect metadata, detections —
-see `OpenFormatsResearch.md`) `IOutput` needs to expose to every target, including
-ones (DMX) that can't represent most of that richness anyway.
+## Repo split (2026-09-13)
+
+Plugins (Input and Output implementations) live in their **own repos**, not
+inside Aurora core, decided once a real dependency-bloat concern came up: a
+Linux capture plugin needs `pipewire`/`libX11` dev packages, a Hue output
+plugin needs `mbedtls`/`CURL` for DTLS+REST — neither should be a precondition
+for building Aurora core or an unrelated plugin.
+
+**What actually achieves what, worked out carefully since it's easy to
+conflate these:**
+- Repo separation + dependency isolation: **yes**, cleanly — each plugin repo
+  declares only its own dependencies, `FetchContent`-pulled into a future
+  app build only if that plugin is enabled.
+- Repo separation → license independence between plugins in the *same
+  compiled binary*: **no** — GPLv3's reach is about the combined work as
+  linked/run together, not which repo the source sits in. A build that links
+  `Aurora-Output-Hue` (GPLv3, huenicorn-derived) in is a GPLv3 binary
+  regardless of repo layout. A build that never enables/fetches it isn't
+  encumbered by it at all — that's real, but it's a per-*build* effect of
+  optional linking, not a per-*repo* one.
+- Genuine license independence for one plugin from another requires them to
+  run as **separate processes** communicating over an interface (sockets,
+  HTTP), not just separate repos or separate `.so`/`.dll` files still loaded
+  into one running program. `web/`'s planned browser client already qualifies,
+  by accident of its architecture (phase 3) — `core`-linked plugins don't.
+
+**Structure**: Aurora core exposes only `Contracts` + header-only
+`AuroraInputInterface`/`AuroraOutputInterface` targets. Each plugin repo
+(`Aurora-Input-Linux`, `Aurora-Output-Hue`, future ones) is its own standalone,
+independently buildable/testable CMake project, consuming Aurora core via
+`FetchContent` (`SOURCE_DIR` to a local sibling path for now; swap for
+`GIT_REPOSITORY`+`GIT_TAG` once Aurora core has a real remote). A future
+top-level app assembles whichever plugins are wanted via `option()`-gated
+`FetchContent` calls — not built yet, since `Core::Config`/`Runtime` haven't
+been ported to Aurora at all yet (that's what would actually link plugins
+together).
+
+**A related finding, deferred rather than fixed**: `AuroraContracts` bundles
+`ImageData` (needs OpenCV) together with `Color`/`UV`/`Interpolation` (don't)
+in one library with a blanket `PUBLIC` OpenCV link — so today, *any* consumer
+of `Contracts`, including an Output plugin that never touches a `cv::Mat`,
+is forced to have OpenCV installed. `Aurora-Output-Hue` hits this now (needs
+OpenCV solely because it depends on `Contracts` for `Color`). Splitting
+`Contracts` further (an OpenCV-free core + an `ImageData`-specific piece)
+would fix this properly; not done this pass, recorded here so it doesn't get
+forgotten now that a real plugin has actually hit it.
 
 ## Other open questions / follow-ups
 

@@ -25,6 +25,12 @@ endif()
 add_subdirectory(Contracts)
 add_subdirectory(Processing)
 
+# Interface-only -- concrete plugins (Aurora-Input-Linux, Aurora-Output-Hue,
+# ...) live in their own repos and depend on these, not the other way round.
+# See Analysis/ModuleSplitPlan.md's repo-split section.
+add_subdirectory(Input)
+add_subdirectory(Output)
+
 if(BUILD_TESTS)
   # enable_testing() must happen here, at the parent scope, *before*
   # add_subdirectory(tests) -- CTest only wires the top-level

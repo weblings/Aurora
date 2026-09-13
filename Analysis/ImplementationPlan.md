@@ -14,13 +14,19 @@ plus one deferred stretch. Order matches how the phases were scoped.
   code goes in a new sibling directory, never edited in place — the same
   relationship RockyRoad keeps to ChartPlayer (`MusicThing/ChartPlayer` stays
   pristine; `RockyRoad/v2` is the distillation).
-- **Compile-time modules, not dynamic plugins.** "Plugin" here means a
-  self-contained module implementing the shared `IInput`/`IOutput` interface,
-  selected and linked at build time per target — separate CMake targets, the
-  same shape as huenicorn's existing `Platform::Selector` (`#ifdef`-based
-  compile-time adapter choice), just generalized. A real hot-swappable
-  runtime-loaded plugin system (stable ABI, `.dll`/`.so` loading) is real extra
-  complexity with no payoff at this scope — deferred, see Stretch.
+- **Compile-time modules, not dynamic plugins — and, as of 2026-09-13, separate
+  repos per plugin.** A plugin implements the shared `IInput`/`IOutput`
+  interface and gets linked at build time, same shape as huenicorn's
+  `Platform::Selector` (`#ifdef`-based compile-time adapter choice), just
+  generalized — still true. What changed: each plugin now lives in its **own
+  repo** (`Aurora-Input-Linux`, `Aurora-Output-Hue`, ...), not inside Aurora
+  core, so a plugin's own dependencies (`pipewire`/`libX11` for Linux capture,
+  `mbedtls`/`CURL` for Hue's DTLS+REST) aren't forced onto Aurora core or onto
+  unrelated plugins. See `ModuleSplitPlan.md`'s "Repo split" section for the
+  full reasoning, including why this is *not* the same thing as license
+  independence between plugins. A real hot-swappable runtime-loaded plugin
+  system (stable ABI, `.dll`/`.so` loading, discovered by the web UI) is a
+  separate, bigger decision — still deferred, see Stretch.
 - **WebSockets deferred.** The browser bridge (phase 3) uses the existing
   httplib-based HTTP server with chunked responses (MJPEG for video preview,
   Server-Sent Events for effect/zone ticks) — zero new network dependency. True
@@ -50,46 +56,67 @@ prose (`https://gitlab.com/openjowelsofts/huenicorn.git`), not linked in git.
 Submodules stay reserved for an actual future build-time dependency, if one
 ever gets vendored as source.
 
+Repo layout as of the 2026-09-13 split — one core repo, one repo per plugin,
+all siblings on disk (not architecturally required, just this machine's
+arrangement, same as `huenicorn/`):
+
 ```
-../huenicorn/      <- untouched upstream reference clone, sibling on disk, not in this repo
-Aurora/            <- this repo's root
-  core/             <- new: the distilled, module-split C++ app (name TBD)
-    Contracts/        <- DONE: neutral shared types, see ModuleSplitPlan.md's
-                          "middle contract" update and ProcessingAnalysis.md
-      include/Aurora/Contracts/ (ImageData, UV, Color, Interpolation)
+../huenicorn/            <- untouched upstream reference clone, not in any Aurora repo
+Aurora/                  <- core repo
+  core/
+    Contracts/             <- DONE: neutral shared types (ImageData, UV, Color,
+                               Interpolation, Frame/Zone) — see ModuleSplitPlan.md
+      include/Aurora/Contracts/
       src/Interpolation.cpp
-    Processing/       <- DONE (ImageProcessing part): ported with 3 bug
-                          fixes found during the port, see ProcessingAnalysis.md
+    Processing/            <- DONE: ImageProcessing, ported with 3 bug fixes
+                               found during the port, see ProcessingAnalysis.md
       include/Aurora/Processing/ImageProcessing.hpp
       src/ImageProcessing.cpp
-      Frame.hpp        <- NOT YET: the Processing->Output contract type,
-                          still pending IOutput's actual implementation
-      ISF/             <- new (phase 5, native side is minimal — see below)
-    Input/            <- NOT YET
-      IInput.hpp        (generalized from IGrabber — same shape)
-      Linux/            <- Pipewire/X11 grabbers, ported from huenicorn (phase 1)
-      Windows/          <- new (phase 2)
-    Output/           <- NOT YET
-      IOutput.hpp
-      Hue/            <- ported from huenicorn's Hue::Api + Stream (phase 1)
-      ThreeJS/        <- new: HTTP server extensions (phase 3)
-    tests/            <- DONE (Processing coverage): Catch2, see
-                          ProcessingAnalysis.md's test plan
-  web/               <- new: the browser client (phases 3-5)
-  Analysis/          <- already exists
+      ISF/                 <- new (phase 5, native side is minimal — see below)
+    Input/                 <- DONE: IInput.hpp only, header-only interface target.
+      include/Aurora/Input/IInput.hpp                Concrete plugins live in their own repos now.
+    Output/                <- DONE: IOutput.hpp only, same shape.
+      include/Aurora/Output/IOutput.hpp
+    tests/                 <- DONE (Processing coverage): Catch2, see
+                               ProcessingAnalysis.md's test plan
+  web/                    <- new: the browser client (phases 3-5)
+  Analysis/               <- already exists
+Aurora-Input-Linux/       <- plugin repo, SCAFFOLD ONLY (LICENSE/README, no
+                             capture code) — pending its own analysis pass
+Aurora-Output-Hue/        <- plugin repo, pure logic DONE (see HueOutputAnalysis.md):
+                             Colorimetry (toXYB), Channel, HuestreamHeader/Payload,
+                             BridgeAddress, Credentials byte-conversion, all tested.
+                             I/O layer (ApiTools, EntertainmentConfigurationSelector,
+                             Streamer/DtlsClient, Network::Http::Client) analyzed,
+                             deferred — needs Aurora core's Config/Runtime to exist
+                             first, and its own real-bridge manual verification.
 ```
 
-**Build-verified.** No toolchain existed on the Windows dev machine, so a WSL2
-Ubuntu environment was set up (`build-essential`, `cmake`, `libopencv-dev`,
-`libglm-dev` via `apt`) — built from `~/aurora` on WSL's native filesystem, not
-the Windows-mounted `/mnt/d` path, which hit real CMake `configure_file`
-permission failures (a known DrvFs limitation, not a code problem). One real
-CMake bug found and fixed along the way: `enable_testing()` was called inside
-`tests/CMakeLists.txt` instead of the parent `core/CMakeLists.txt`, so the test
-binary built fine but `ctest` couldn't discover it — fixed by moving
-`enable_testing()` to the parent scope, before `add_subdirectory(tests)`.
-**Result: 8/8 tests passing**, covering all three regression fixes plus the
-pure `Color` math.
+**Aurora core build-verified.** No toolchain existed on the Windows dev
+machine, so a WSL2 Ubuntu environment was set up (`build-essential`, `cmake`,
+`libopencv-dev`, `libglm-dev` via `apt`) — built from `~/aurora` on WSL's
+native filesystem, not the Windows-mounted `/mnt/d` path, which hit real CMake
+`configure_file` permission failures (a known DrvFs limitation, not a code
+problem). One real CMake bug found and fixed along the way: `enable_testing()`
+was called inside `tests/CMakeLists.txt` instead of the parent
+`core/CMakeLists.txt`, so the test binary built fine but `ctest` couldn't
+discover it — fixed by moving `enable_testing()` to the parent scope, before
+`add_subdirectory(tests)`. **Result: 8/8 tests passing**, covering all three
+regression fixes plus the pure `Color` math. Both lessons recorded in
+`Analysis/lessons/engineering-hygiene.md`.
+
+**`Aurora-Output-Hue` build-verified** — same WSL2 flow, copied into
+`~/AuroraProjects/{Aurora,Aurora-Output-Hue}` (matching casing needed for the
+`../Aurora/core` sibling path in its `CMakeLists.txt`). No new `apt` packages
+needed — the ported pure logic only needs OpenCV+glm, already installed.
+**Result: 10/10 tests passing**, including a sanity check that white maps
+within 0.001 of the real CIE D65 white point (0.3127, 0.3290) — confirms the
+colorimetry port is actually correct, not just internally self-consistent.
+One real bug found and fixed: the test file's `using namespace
+Aurora::Output::Hue;` didn't bring `Aurora::Contracts` into scope, so
+`Contracts::UVCorner` didn't resolve — fixed to `using namespace
+Aurora::Contracts;` with the now-redundant `Contracts::` prefix dropped at
+each call site.
 
 ## Phase 1 — Refactor into three modules; Linux input + Hue output plugins
 
@@ -98,19 +125,17 @@ captures the Linux screen and drives real Hue lights exactly like huenicorn does
 today — this is the regression check everything else builds on.
 
 1. **Analysis pass first.** Three docs, each covering its section holistically
-   before any code moves. **Done:** `Analysis/ProcessingAnalysis.md` — covers
-   `ImageData`/`UV`/`Color`/`Interpolation`/`ImageProcessing`, and is where the
-   `Contracts` vs `Processing` split (recorded back into `ModuleSplitPlan.md`)
-   and three real bugs (found during the read/port, not just theorized) came
-   from. **Still pending:** `Analysis/LinuxCaptureAnalysis.md`
+   before any code moves. **Done:** `Analysis/ProcessingAnalysis.md` (the
+   `Contracts` vs `Processing` split, three real bugs found during the
+   read/port) and `Analysis/HueOutputAnalysis.md` (the pure-vs-I/O split that
+   scoped this pass, the `Contracts::Frame` naming correction, the
+   SSL-verification-disabled constraint worth carrying forward carefully).
+   **Still pending:** `Analysis/LinuxCaptureAnalysis.md`
    (`PipewireGrabber`/`X11Grabber`/`DummyGrabber`/`GnuLinuxAdapter` — how
    session-type dispatch actually works, what each grabber assumes, the
-   Gamescope special-case) and `Analysis/HueOutputAnalysis.md`
-   (`Hue::Api::*`/`Stream::*` — auth/pairing flow, the entertainment-config
-   selection lifecycle, the DTLS/HueStream wire format, plus where
-   `Color::toXYB()` lands as a free function and its own tests). `FirstScan.md`
-   already covers the interfaces at a high level; these go one level deeper,
-   per section, right before that section's code is actually touched.
+   Gamescope special-case). `FirstScan.md` already covers the interfaces at a
+   high level; these go one level deeper, per section, right before that
+   section's code is actually touched.
 
    **Existing tests — checked, not usable as-is.** huenicorn's `tests/` has no
    working automated test today: `TestImageProcessing` and `TestGrabber`
@@ -153,18 +178,24 @@ today — this is the regression check everything else builds on.
    `ImageProcessing` into `Aurora::Processing`, and `Color`'s generic parts
    (`toNormalized()`/`brightness()`) plus `ImageData`/`UV`/`Interpolation`
    into `Aurora::Contracts`. Per the earlier gamma decision, `Color::toXYB()`
-   was **not** ported here — it (and `Channel::gammaExponent()`) still need to
-   move into `Output/Hue/` as a free function when that section is ported;
-   `Color` in `Contracts` has no Hue-shaped method on it at all now, by
-   construction, not just convention.
-5. **Not yet.** Introduce `IOutput` (drafted in `ModuleSplitPlan.md`) and move
-   `Hue::Api::*`/`Stream::*` under `Output/Hue/` as its own CMake target — the
-   "Hue output plugin."
-6. **Not yet.** Define `Processing::Frame` — the neutral Input→Processing and
-   Processing→Output contract. Phase 1 only needs the minimal version (mirrors
-   today's `ChannelStream`: zone id + color); positions/effects/detections
-   aren't needed until phases 3 and 5. Blocked on step 5 (`IOutput`) existing
-   first, since `Frame` is what it consumes.
+   was **not** ported here — see step 5, it landed in `Aurora-Output-Hue`
+   instead, as a free function; `Color` in `Contracts` has no Hue-shaped
+   method on it at all now, by construction, not just convention.
+5. **Done (pure logic).** Introduced `IOutput` in Aurora core (header-only
+   interface target, no `Config*` param — see `ModuleSplitPlan.md`), and
+   started `Aurora-Output-Hue` as its own repo (repo-split decision, same doc).
+   Ported and tested `toXYB()`, `Channel`, `HuestreamHeader`/`HuestreamPayload`,
+   `sanitizeBridgeAddress`, `Credentials`'s byte-conversion — everything pure.
+   **Deferred**, tracked not forgotten: `ApiTools`, `EntertainmentConfigurationSelector`,
+   `Streamer`/`DtlsClient`, and the `Network::Http::Client` dependency they all
+   need — genuine I/O needing a live bridge to verify, and blocked on
+   `Config`/`Runtime` existing in Aurora core to actually wire a concrete
+   `HueOutput : IOutput` together.
+6. **Done.** `Contracts::Frame`/`Zone` — the neutral Input→Processing and
+   Processing→Output contract (renamed from the `Processing::Frame` this step
+   originally described — see `ModuleSplitPlan.md`'s naming correction).
+   Minimal v1 shape (zone id + linear color); positions/effects/detections
+   aren't needed until phases 3 and 5.
 7. **Not yet.** Rewire `Runtime` to depend on `IInput`/`IOutput`, selecting
    `Input::Linux` + `Output::Hue` at compile time (generalizes today's
    `Platform::Selector` pattern rather than replacing it).
