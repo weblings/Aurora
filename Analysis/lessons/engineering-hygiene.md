@@ -128,3 +128,22 @@ occurrence, so treat "Aurora core needs a minimal logging interface" as
 higher priority than its absence from the original 5-phase plan suggests,
 worth doing before porting the next I/O-heavy module (Hue's `Streamer`/DTLS
 layer) rather than after.
+
+---
+
+## A `FetchContent_Declare(... URL ...)` needs `DOWNLOAD_EXTRACT_TIMESTAMP` explicitly, and an existing block having it wrong stays invisible until its fetch path actually runs
+
+Adding `nlohmann_json` via `FetchContent_Declare(... URL ...)` immediately
+hit CMake's `CMP0135` dev warning (extracted-file timestamps default to the
+archive's own, not extraction time — usually not what you want). Fixing it
+prompted checking the project's other URL-based fetch (glm) for the same
+issue — it had it too, just silently, because glm is apt-installed in this
+dev environment so its `FetchContent` branch never executes here. It would
+have surfaced the identical warning the moment someone built without
+`libglm-dev` present (a fresh CI box, a contributor without it installed).
+
+**Fix:** add `DOWNLOAD_EXTRACT_TIMESTAMP TRUE` to every `FetchContent_Declare`
+that uses `URL` (not needed for `GIT_REPOSITORY`). When adding a new one,
+also check sibling `FetchContent_Declare` blocks in the same file for the
+same gap — a find-package-else-fetch pattern means the fetch branch can sit
+unexercised (and unverified) on any given machine indefinitely.

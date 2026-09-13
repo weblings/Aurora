@@ -15,6 +15,7 @@ if(NOT glm_FOUND)
   FetchContent_Declare(
     glm
     URL https://github.com/g-truc/glm/archive/refs/tags/1.0.3.tar.gz
+    DOWNLOAD_EXTRACT_TIMESTAMP TRUE
   )
   FetchContent_MakeAvailable(glm)
 else()
