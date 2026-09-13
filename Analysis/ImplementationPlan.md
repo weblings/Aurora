@@ -115,13 +115,16 @@ Aurora-Input-Linux/       <- plugin repo, DONE for X11 + Pipewire (see
                              deps aren't forced — X11 and Wayland are one plugin's
                              two auto-selected backends, not two separate plugins
                              (see ModuleSplitPlan.md's repo-split section).
-Aurora-Output-Hue/        <- plugin repo, pure logic DONE (see HueOutputAnalysis.md):
-                             Colorimetry (toXYB), Channel, HuestreamHeader/Payload,
-                             BridgeAddress, Credentials byte-conversion, all tested.
-                             I/O layer (ApiTools, EntertainmentConfigurationSelector,
-                             Streamer/DtlsClient, Network::Http::Client) analyzed,
-                             deferred — needs Aurora core's Config/Runtime to exist
-                             first, and its own real-bridge manual verification.
+Aurora-Output-Hue/        <- plugin repo, DONE (see HueOutputAnalysis.md): pure
+                             logic (Colorimetry, Channel, HuestreamHeader/Payload,
+                             BridgeAddress, Credentials byte-conversion) plus the
+                             full I/O layer -- HttpClient (libcurl), ApiTools
+                             (5 pure JSON-parsers + mechanical REST wrappers),
+                             EntertainmentConfigurationSelector, DtlsClient/
+                             MbedTlsImpl (Mbed TLS v3)/Streamer, and HueOutput :
+                             IOutput tying it all together. Builds against real
+                             libcurl/Mbed TLS; needs a real bridge to manually
+                             verify capture actually reaches real lights.
 ```
 
 **Aurora core build-verified.** No toolchain existed on the Windows dev
@@ -216,6 +219,22 @@ on both interfaces — rebuilt `Aurora-Output-Hue` (10/10) and
 `Aurora-Input-Linux` (11/11) against the reordered core to confirm neither
 plugin was affected.
 
+**Hue's full I/O layer build-verified, `HueOutput` now exists.** Two new
+native dependencies installed by the user (`libcurl4-openssl-dev`,
+`libmbedtls-dev`); built and tested in three stages, each verified before
+the next: (1) `HttpClient`/`ApiTools`/`EntertainmentConfigurationSelector`
+against real `libcurl` — 2 real upstream bugs found and fixed, also logged
+in `UpstreamFindings.md`; (2) `DtlsClient`/`MbedTlsImpl`/`Streamer` against
+real Mbed TLS (v3 API only — the installed 3.6.5 doesn't need huenicorn's
+v4 branch); (3) `HueOutput : IOutput` itself, the first concrete `IOutput`
+implementation to exist in Aurora. Writing `HueOutput::send()` surfaced a
+real gap — nowhere for a user's per-zone gamma setting to persist — closed
+by adding `gamma` to both `Runtime::ZoneConfig` and `Contracts::Zone`
+(reversing the earlier "gamma is Hue-specific" call; see
+`HueOutputAnalysis.md`). **Result: 22/22 `Aurora-Output-Hue` tests
+passing.** Rebuilt `Aurora` core (24/24) and `Aurora-Input-Linux` (11/11)
+against the `Contracts::Zone` field addition — both still clean.
+
 ## Phase 1 — Refactor into three modules; Linux input + Hue output plugins
 
 Pure restructuring, zero new features. **Demonstrable:** the restructured app
@@ -286,27 +305,31 @@ today — this is the regression check everything else builds on.
    was **not** ported here — see step 5, it landed in `Aurora-Output-Hue`
    instead, as a free function; `Color` in `Contracts` has no Hue-shaped
    method on it at all now, by construction, not just convention.
-5. **Done (pure logic).** Introduced `IOutput` in Aurora core (header-only
-   interface target, no `Config*` param — see `ModuleSplitPlan.md`), and
-   started `Aurora-Output-Hue` as its own repo (repo-split decision, same doc).
+5. **Done.** Introduced `IOutput` in Aurora core (header-only interface
+   target, no `Config*` param, later gaining `zoneIds()` — see
+   `ModuleSplitPlan.md`/`RuntimeAnalysis.md`), and started
+   `Aurora-Output-Hue` as its own repo (repo-split decision, same doc).
    Ported and tested `toXYB()`, `Channel`, `HuestreamHeader`/`HuestreamPayload`,
-   `sanitizeBridgeAddress`, `Credentials`'s byte-conversion — everything pure.
-   **Deferred**, tracked not forgotten: `ApiTools`, `EntertainmentConfigurationSelector`,
-   `Streamer`/`DtlsClient`, and the `Network::Http::Client` dependency they all
-   need — genuine I/O needing a live bridge to verify, and blocked on
-   `Config`/`Runtime` existing in Aurora core to actually wire a concrete
-   `HueOutput : IOutput` together.
+   `sanitizeBridgeAddress`, `Credentials`'s byte-conversion first (everything
+   pure), then the full I/O layer once `Config`/`Runtime` existed:
+   `HttpClient` (libcurl), `ApiTools`, `EntertainmentConfigurationSelector`,
+   `DtlsClient`/`MbedTlsImpl` (Mbed TLS), `Streamer`, and finally
+   `HueOutput : IOutput` itself — see `HueOutputAnalysis.md`'s staged
+   follow-up pass. Genuine I/O still needs a live bridge to verify
+   end-to-end, same category as `X11Grabber`.
 6. **Done.** `Contracts::Frame`/`Zone` — the neutral Input→Processing and
    Processing→Output contract (renamed from the `Processing::Frame` this step
    originally described — see `ModuleSplitPlan.md`'s naming correction).
    Minimal v1 shape (zone id + linear color); positions/effects/detections
    aren't needed until phases 3 and 5.
-7. **Done (against fakes; real plugins not wired yet).** Built
-   `Runtime::Orchestrator`, depending on both `IInput`/`IOutput`, tested with
-   a `FakeInput`/`FakeOutput` pair standing in for `Input::Linux`/
-   `Output::Hue` — see `RuntimeAnalysis.md`'s follow-up pass. Wiring the real
-   `X11Grabber`/`HueOutput` in (a real `main()`, compile-time or config-time
-   selection) waits on step 5's Hue I/O layer existing.
+7. **Done against fakes; `HueOutput` now exists too (step 5), so real
+   plugins can be wired in next.** Built `Runtime::Orchestrator`, depending
+   on both `IInput`/`IOutput`, tested with a `FakeInput`/`FakeOutput` pair
+   standing in for `Input::Linux`/`Output::Hue` — see `RuntimeAnalysis.md`'s
+   follow-up pass. What's left is a real `main()` (compile-time or
+   config-time plugin selection) constructing real `X11Grabber`/`HueOutput`
+   instances and driving `Orchestrator::update()` in an actual timed loop —
+   not `Orchestrator` itself, which is unchanged by this.
 8. **Done for `Processing`** — golden-value tests run on WSL2 Ubuntu, 8/8
    passing. The manual runbook against a real bridge stays blocked on
    `Input::Linux`/`Output::Hue` existing. Carry the setup/config REST server

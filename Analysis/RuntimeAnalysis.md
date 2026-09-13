@@ -120,18 +120,20 @@ universe/address instead of gamma+bridge device IDs).
 **Decided split for the Runtime/Config port** (design settled; not yet
 implemented — same status the X11-vs-Wayland split had before being built):
 
-- **Generic, Core-owned:** a zone map — `{zoneId, uvs, active}` — plus the
-  crop/dominant-color loop that turns `IInput`'s frame into a `Contracts::Frame`
-  by walking it. This is what actually replaces `_update()`'s middle section
-  and belongs in Aurora core, not any plugin.
+- **Generic, Core-owned:** a zone map — `{zoneId, uvs, active}`, later
+  joined by `gamma` (see the correction below) — plus the crop/dominant-color
+  loop that turns `IInput`'s frame into a `Contracts::Frame` by walking it.
+  This is what actually replaces `_update()`'s middle section and belongs
+  in Aurora core, not any plugin.
 - **`IOutput`-owned:** which zone IDs exist right now (Hue: fetch the live
   entertainment configuration's channels; a future DMX plugin: fixture
   addresses from its own config) — mirrors `ApiTools::loadEntertainmentConfigurationsChannels`,
   needs an interface method like `zoneIds()` alongside the existing
-  `init()`/`send()`. Also owns whatever per-zone correction its protocol
-  needs (Hue: XYB conversion + gamma, applied inside `send()` on the
-  already-generic `Frame` it receives) — gamma/colorspace has no business
-  being generic.
+  `init()`/`send()`. Also owns whatever per-zone *formula*/colorspace its
+  protocol needs (Hue: XYB conversion, then gamma-correcting the brightness
+  component), applied inside `send()` on the `Frame` it receives — the raw
+  gamma *value* itself turned out to belong on the generic side after all,
+  see the correction below.
 - **Decided: `transitionSmoothing` lives in Runtime, in plain RGB.** Runtime
   keeps one persistent previous-color map, keyed by `(outputId, zoneId)` —
   per-output, not just per-zone, since two concurrent outputs could each
@@ -151,11 +153,21 @@ implemented — same status the X11-vs-Wayland split had before being built):
   only ever needed to name one file) with a fixed convention instead of a
   user-configurable name — simpler, and avoids one plugin's profile
   clobbering another's: `<configRoot>/profiles/<outputPluginName>.json`,
-  each holding that plugin's own zone map (`{zoneId, uvs, active}`, plus
-  whatever plugin-specific extras it wants alongside — Hue: `gammaFactor`,
-  no `previousXyb` per the smoothing decision above). `Config` drops
+  each holding that plugin's own zone map. `Config` drops
   `profileName()`/`setProfileName()` entirely; Runtime derives each active
   plugin's profile path from its name instead of a stored setting.
+
+**Correction, made while writing `HueOutput` (see `HueOutputAnalysis.md`'s
+"Where does a zone's gamma value actually live?"):** gamma turned out not
+to belong on the Hue-specific side of this split after all — there was
+nowhere else for a user's per-zone gamma setting to persist, and the
+concept (a brightness-curve correction per zone) isn't actually Hue-specific
+either. `gamma` is now a field on both `Runtime::ZoneConfig` and
+`Contracts::Zone` itself, carried unchanged through `composeFrame`/
+`Smoother` so it reaches `IOutput::send()` on the `Frame`. Only the
+*formula*/colorspace applied to it (Hue: `2^(-gamma·2)` on the XYB
+brightness component) stays Output-side — the raw value's storage is
+generic after all.
 
 ## What's testable here — built and verified
 

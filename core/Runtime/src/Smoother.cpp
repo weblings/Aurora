@@ -40,7 +40,7 @@ namespace Aurora::Runtime
       }
 
       m_previousColors[key] = easedColor;
-      result.push_back({zone.id, easedColor});
+      result.push_back({zone.id, easedColor, zone.gamma});
     }
 
     return result;

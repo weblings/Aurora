@@ -20,7 +20,7 @@ namespace Aurora::Runtime
       Processing::ImageProcessing::getSubImage(source, crop, zone.uvs);
       Contracts::Color color = Processing::ImageProcessing::getDominantColor(crop);
 
-      frame.push_back({zone.zoneId, color});
+      frame.push_back({zone.zoneId, color, zone.gamma});
     }
 
     return frame;

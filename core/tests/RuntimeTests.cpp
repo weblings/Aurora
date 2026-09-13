@@ -88,7 +88,7 @@ TEST_CASE("ZoneMapStore keeps each plugin's profile in its own file", "[ZoneMapS
   CHECK(store.load("hue").empty()); // no profile saved yet
 
   ZoneMap hueZones{
-    {1, {{0.f, 0.f}, {0.5f, 1.f}}, true},
+    {1, {{0.f, 0.f}, {0.5f, 1.f}}, true, 0.5f},
     {2, {{0.5f, 0.f}, {1.f, 1.f}}, false}
   };
   store.save("hue", hueZones);
@@ -98,7 +98,9 @@ TEST_CASE("ZoneMapStore keeps each plugin's profile in its own file", "[ZoneMapS
   CHECK(loaded[0].zoneId == 1);
   CHECK(loaded[0].active);
   CHECK(loaded[0].uvs.max.x == Catch::Approx(0.5f));
+  CHECK(loaded[0].gamma == Catch::Approx(0.5f));
   CHECK_FALSE(loaded[1].active);
+  CHECK(loaded[1].gamma == Catch::Approx(0.f)); // default when not set
 
   // A different plugin's profile is untouched by hue's save.
   CHECK(store.load("dmx").empty());
@@ -133,8 +135,8 @@ TEST_CASE("composeFrame crops active zones and omits inactive ones", "[FrameComp
   source.imageMatrix(cv::Rect(2, 0, 2, 2)).setTo(cv::Scalar(0, 0, 255));
 
   ZoneMap zoneMap{
-    {1, {{0.f, 0.f}, {0.5f, 1.f}}, true},   // left half, active
-    {2, {{0.5f, 0.f}, {1.f, 1.f}}, false}   // right half, inactive
+    {1, {{0.f, 0.f}, {0.5f, 1.f}}, true, 0.7f},   // left half, active
+    {2, {{0.5f, 0.f}, {1.f, 1.f}}, false}         // right half, inactive
   };
 
   Frame frame = composeFrame(source, zoneMap);
@@ -142,6 +144,20 @@ TEST_CASE("composeFrame crops active zones and omits inactive ones", "[FrameComp
   REQUIRE(frame.size() == 1);
   CHECK(frame[0].id == 1);
   CHECK(frame[0].color == Color(255, 0, 0));
+  CHECK(frame[0].gamma == Catch::Approx(0.7f)); // carried through from the zone map
+}
+
+
+TEST_CASE("Smoother carries gamma through unchanged -- only color is eased", "[Smoother]")
+{
+  Smoother smoother;
+  Frame frame{{1, Color(0, 0, 0), 0.6f}};
+
+  Frame first = smoother.smooth("hue", frame, 0.5f);
+  CHECK(first[0].gamma == Catch::Approx(0.6f));
+
+  Frame second = smoother.smooth("hue", {{1, Color(255, 255, 255), 0.6f}}, 0.5f);
+  CHECK(second[0].gamma == Catch::Approx(0.6f));
 }
 
 
