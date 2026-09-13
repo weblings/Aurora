@@ -237,3 +237,45 @@ dependency direction (`Runtime` → `Output`, one way only) is what forced
 the fix through the passing contract (`Contracts::Frame`) rather than a
 back-channel read from `IOutput` into `Runtime::ZoneMap` — that direction
 would have been circular and simply wouldn't build.
+
+---
+
+## An installer's `--quiet`/`--passive` flag can mean "don't prompt," including the elevation prompt
+
+Ran the Visual Studio installer's `modify` command from a normal (non-admin)
+PowerShell window with `--passive` to add the C++ workload for the Windows
+Input plugin. It didn't fail loudly or throw up a UAC dialog — it printed a
+few telemetry lines, logged `Commands with --quiet or --passive should be run
+elevated from the beginning`, and exited (code 5007) in under a second. No
+installer process, no consent prompt, nothing left running — every
+process/log-based check for "is it still working" came back empty, which
+looked identical to "never started" until the log was actually read.
+
+**Fix:** `--quiet`/`--passive` assume the invoking shell is *already*
+elevated and won't trigger UAC themselves — open the terminal via "Run as
+administrator" first, then run the command unchanged. More generally: an
+unattended/non-interactive install flag can silently fold in "skip the
+elevation prompt too," not just "skip the progress UI" — check for a
+running process or a growing log file within the first few seconds of any
+such command, rather than assuming a clean, fast exit means success.
+
+---
+
+## Installing Visual Studio's C++ workload doesn't put its own tools on PATH
+
+Once the "Desktop development with C++" workload actually finished
+installing (see the entry above), a plain `cmake --version` in a normal
+PowerShell window still failed with "not recognized." The workload does
+install its own CMake and MSVC — just not anywhere the shell can find them:
+CMake lives under `Common7\IDE\CommonExtensions\Microsoft\CMake\CMake\bin`,
+and `cl.exe` is only on `PATH` inside a shell that's run `vcvars64.bat` (or
+the "Developer" shortcuts Visual Studio adds to the Start menu) — neither
+gets added to the normal user/system `PATH`. Looked identical to the
+install having silently failed a second time.
+
+**Fix:** for CMake, either add that bundled `bin` directory to `PATH`
+(session-scoped is enough) or invoke it by full path. For the compiler,
+skip `vcvars64.bat` entirely by configuring with CMake's Visual Studio
+generator (`-G "Visual Studio 17 2022" -A x64`) instead of Ninja/Makefiles —
+that generator locates MSVC through the Visual Studio installation itself,
+so the invoking shell never needs `cl.exe` on `PATH` at all.

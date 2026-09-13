@@ -31,8 +31,13 @@ Aurora's own module boundaries instead of RockyRoad's.
   lacking the `.pc` file its own `pkg_check_modules` call assumed (Mbed TLS
   2.28 vs. 3.6.5), an interface method's return value silently doubling as a
   persisted file path (`IOutput::name()` → `profiles/<name>.json`, case
-  included), and distrusting a run's own evidence once it contradicts the
-  real-world outcome rather than re-reading the same artifact.
+  included), distrusting a run's own evidence once it contradicts the
+  real-world outcome rather than re-reading the same artifact, and an
+  installer's `--quiet`/`--passive` flag silently requiring the shell be
+  pre-elevated rather than prompting for UAC itself (VS Installer exit 5007),
+  and that same workload finishing successfully without putting `cmake`/
+  `cl.exe` on `PATH` (use the bundled CMake's full path; use CMake's Visual
+  Studio generator to avoid needing `vcvars64.bat` for the compiler at all).
 - [`output.md`](output.md) — streaming/protocol gotchas: a bridge having more
   than one entertainment configuration over the same lights being normal,
   not an edge case (empty-ID auto-select isn't "the only one"), and
