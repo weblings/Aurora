@@ -1,0 +1,9 @@
+{
+  "name": "aurora-core",
+  "version": "0.1.0",
+  "dependencies": [
+    "opencv4",
+    "glm",
+    "catch2"
+  ]
+}

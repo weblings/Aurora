@@ -31,17 +31,32 @@ redesign. Authoring tooling itself is out of scope for now.
 
 ## The middle contract (Input → Processing → Output)
 
+**Update from actually porting Processing** (see `ProcessingAnalysis.md`): the
+three-module picture above didn't say where the shared types crossing these
+boundaries physically live. They can't live inside `Processing` itself — every
+`IInput` implementation would then need to link against `Processing`'s logic
+just to know the shape of the struct it fills in, a backwards dependency. So a
+fourth piece exists now: **`Contracts`** — a small library holding only the
+neutral types (`ImageData`, `PixelFormat`, `UV`/`UVs`, `Color`'s generic parts,
+`Interpolation::Type`), no transform logic. `Input` and `Output` implementations
+depend on `Contracts` directly; `Processing` depends on `Contracts` and adds the
+logic. This has already been built (`Aurora/core/Contracts/`,
+`Aurora/core/Processing/`) — the table below still lists Input/Processing/Output
+as the three *logical* modules since that's the boundary that matters for
+swapping implementations; `Contracts` is the shared foundation underneath all
+three, not a fourth swappable thing.
+
 Today's per-tick data that crosses module boundaries, generalized:
 
-- Input → Processing: `Imaging::ImageData` (already generic: `cv::Mat` + `PixelFormat`).
-  Stays as-is.
+- Input → Processing: `Contracts::ImageData` (already generic: `cv::Mat` +
+  `PixelFormat`). Stays as-is — ported unchanged into `Contracts`.
 - Processing → Output: today this is `Hue::Api::ChannelStream` (`id`, `r/g/b` that are
   secretly x/y/brightness). Needs a neutral replacement — something like a "zone"
   keyed by an opaque ID with a color/intensity value in a documented, output-agnostic
   space (plain normalized RGB is the obvious default; a target-specific transform,
   e.g. `toXYB()` for Hue, moves into the Output module next to the Streamer that
   needs it).
-- The zone concept itself (`Imaging::UVs` cropping a screen region, `gammaFactor`)
+- The zone concept itself (`Contracts::UVs` cropping a screen region, `gammaFactor`)
   is generic and worth keeping in Processing rather than Output.
 
 ## Decisions (2026-09-12)

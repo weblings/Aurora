@@ -54,21 +54,37 @@ ever gets vendored as source.
 ../huenicorn/      <- untouched upstream reference clone, sibling on disk, not in this repo
 Aurora/            <- this repo's root
   core/             <- new: the distilled, module-split C++ app (name TBD)
-    Input/
-      IInput.hpp      (generalized from IGrabber — same shape)
-      Linux/          <- Pipewire/X11 grabbers, ported from huenicorn (phase 1)
-      Windows/        <- new (phase 2)
-    Processing/
-      Frame.hpp        (the Input->Processing->Output contract type)
-      ColorSampling/   (rescale/getSubImage/getDominantColor, ported, phase 1)
+    Contracts/        <- DONE: neutral shared types, see ModuleSplitPlan.md's
+                          "middle contract" update and ProcessingAnalysis.md
+      include/Aurora/Contracts/ (ImageData, UV, Color, Interpolation)
+      src/Interpolation.cpp
+    Processing/       <- DONE (ImageProcessing part): ported with 3 bug
+                          fixes found during the port, see ProcessingAnalysis.md
+      include/Aurora/Processing/ImageProcessing.hpp
+      src/ImageProcessing.cpp
+      Frame.hpp        <- NOT YET: the Processing->Output contract type,
+                          still pending IOutput's actual implementation
       ISF/             <- new (phase 5, native side is minimal — see below)
-    Output/
+    Input/            <- NOT YET
+      IInput.hpp        (generalized from IGrabber — same shape)
+      Linux/            <- Pipewire/X11 grabbers, ported from huenicorn (phase 1)
+      Windows/          <- new (phase 2)
+    Output/           <- NOT YET
       IOutput.hpp
       Hue/            <- ported from huenicorn's Hue::Api + Stream (phase 1)
       ThreeJS/        <- new: HTTP server extensions (phase 3)
+    tests/            <- DONE (Processing coverage): Catch2, see
+                          ProcessingAnalysis.md's test plan
   web/               <- new: the browser client (phases 3-5)
   Analysis/          <- already exists
 ```
+
+**Not yet build-verified** — this session had no C++ toolchain available
+(checked: no `cmake`/`g++`/`vcpkg` on PATH; Visual Studio 2022 is installed but
+an actual configure+build wasn't attempted here). The code was written and
+reviewed carefully, including the CMake wiring, but running the actual build —
+ideally on Linux, since that's Input's phase-1 target anyway — is the
+immediate next step before treating this port as verified, not just written.
 
 ## Phase 1 — Refactor into three modules; Linux input + Hue output plugins
 
@@ -76,15 +92,20 @@ Pure restructuring, zero new features. **Demonstrable:** the restructured app
 captures the Linux screen and drives real Hue lights exactly like huenicorn does
 today — this is the regression check everything else builds on.
 
-1. **Analysis pass first.** Two docs, each covering its section holistically
-   before any code moves: `Analysis/LinuxCaptureAnalysis.md`
+1. **Analysis pass first.** Three docs, each covering its section holistically
+   before any code moves. **Done:** `Analysis/ProcessingAnalysis.md` — covers
+   `ImageData`/`UV`/`Color`/`Interpolation`/`ImageProcessing`, and is where the
+   `Contracts` vs `Processing` split (recorded back into `ModuleSplitPlan.md`)
+   and three real bugs (found during the read/port, not just theorized) came
+   from. **Still pending:** `Analysis/LinuxCaptureAnalysis.md`
    (`PipewireGrabber`/`X11Grabber`/`DummyGrabber`/`GnuLinuxAdapter` — how
    session-type dispatch actually works, what each grabber assumes, the
    Gamescope special-case) and `Analysis/HueOutputAnalysis.md`
    (`Hue::Api::*`/`Stream::*` — auth/pairing flow, the entertainment-config
-   selection lifecycle, the DTLS/HueStream wire format). `FirstScan.md` already
-   covers the interfaces at a high level; these go one level deeper, per
-   section, right before that section's code is actually touched.
+   selection lifecycle, the DTLS/HueStream wire format, plus where
+   `Color::toXYB()` lands as a free function and its own tests). `FirstScan.md`
+   already covers the interfaces at a high level; these go one level deeper,
+   per section, right before that section's code is actually touched.
 
    **Existing tests — checked, not usable as-is.** huenicorn's `tests/` has no
    working automated test today: `TestImageProcessing` and `TestGrabber`
@@ -104,42 +125,52 @@ today — this is the regression check everything else builds on.
      matches how huenicorn already pulls in nlohmann_json/glm) as part of this
      phase.
    - **Pin `Processing`'s pure functions with golden-value tests** —
-     `rescale`, `getSubImage`, `getDominantColor`/`Algorithms::mean`, and
-     `Color::toXYB()` are all deterministic (no OS/display/network involved).
-     Capture expected output from *today's* huenicorn against fixture images
-     before moving anything, then assert the refactored module produces
-     identical results. This is the actual regression net for the restructuring
-     itself.
+     `rescale`, `getSubImage`, `getDominantColor`/`Algorithms::mean` are all
+     deterministic (no OS/display/network involved); `Color::toXYB()` turned
+     out to belong in this bucket too but ends up tested alongside
+     `Output/Hue/` instead, since it moved there (see step 4). **Done** for
+     the `Processing` half — see `ProcessingAnalysis.md`'s test plan and
+     `core/tests/ProcessingTests.cpp`; not yet build-verified (no C++
+     toolchain in this session, see the directory-layout note above).
    - **Capture and Hue-streaming stay manual**, by nature — they depend on a
      real display session and (for Hue) a real bridge, so they aren't
      something CI can assert on. Fix `GamescopeGrabTest.cpp`-style checks to
      compile and keep them as a documented manual runbook (run N frames, count
      non-black, log average FPS) rather than pretending they're automatable.
-2. Stand up `Aurora/core` as a new CMake project seeded from huenicorn's, not an
-   edit of `huenicorn/` itself.
-3. Introduce `IInput` (`IGrabber`, generalized/renamed; `ImageData`/`PixelFormat`
-   unchanged) and move Linux capture (`PipewireGrabber`, `X11Grabber`,
-   `DummyGrabber`, `GnuLinuxAdapter`'s grabber factory) under `Input/Linux/` as
-   its own CMake target — the "Linux input plugin."
-4. Introduce the `Processing` module: move `ImageProcessing` and `Color`'s
-   generic parts (`toNormalized()`/`brightness()`) here, with no Hue dependency
-   at all. Per the earlier gamma decision, `Color::toXYB()` and
-   `Channel::gammaExponent()` move **out** of Processing and into `Output/Hue/`
-   — that math is Hue's own colorimetry, not generic.
-5. Introduce `IOutput` (drafted in `ModuleSplitPlan.md`) and move
+2. **Done.** Stood up `Aurora/core` as a new CMake project seeded from
+   huenicorn's, not an edit of `huenicorn/` itself.
+3. **Not yet.** Introduce `IInput` (`IGrabber`, generalized/renamed;
+   `ImageData`/`PixelFormat` unchanged) and move Linux capture
+   (`PipewireGrabber`, `X11Grabber`, `DummyGrabber`, `GnuLinuxAdapter`'s
+   grabber factory) under `Input/Linux/` as its own CMake target — the "Linux
+   input plugin."
+4. **Done.** Introduced the `Processing` module (plus, as it turned out,
+   `Contracts` underneath it — see `ModuleSplitPlan.md`): moved
+   `ImageProcessing` into `Aurora::Processing`, and `Color`'s generic parts
+   (`toNormalized()`/`brightness()`) plus `ImageData`/`UV`/`Interpolation`
+   into `Aurora::Contracts`. Per the earlier gamma decision, `Color::toXYB()`
+   was **not** ported here — it (and `Channel::gammaExponent()`) still need to
+   move into `Output/Hue/` as a free function when that section is ported;
+   `Color` in `Contracts` has no Hue-shaped method on it at all now, by
+   construction, not just convention.
+5. **Not yet.** Introduce `IOutput` (drafted in `ModuleSplitPlan.md`) and move
    `Hue::Api::*`/`Stream::*` under `Output/Hue/` as its own CMake target — the
    "Hue output plugin."
-6. Define `Processing::Frame` — the neutral Input→Processing and
+6. **Not yet.** Define `Processing::Frame` — the neutral Input→Processing and
    Processing→Output contract. Phase 1 only needs the minimal version (mirrors
    today's `ChannelStream`: zone id + color); positions/effects/detections
-   aren't needed until phases 3 and 5.
-7. Rewire `Runtime` to depend on `IInput`/`IOutput`, selecting `Input::Linux` +
-   `Output::Hue` at compile time (generalizes today's `Platform::Selector`
-   pattern rather than replacing it).
-8. **Verify** — the golden-value `Processing` tests pass, then the manual
-   runbook on Linux against a real bridge confirms same capture, same streamed
-   colors, before touching anything else. Carry the setup/config REST server
-   over as-is; it isn't Input/Processing/Output-specific, don't redesign it here.
+   aren't needed until phases 3 and 5. Blocked on step 5 (`IOutput`) existing
+   first, since `Frame` is what it consumes.
+7. **Not yet.** Rewire `Runtime` to depend on `IInput`/`IOutput`, selecting
+   `Input::Linux` + `Output::Hue` at compile time (generalizes today's
+   `Platform::Selector` pattern rather than replacing it).
+8. **Partially done.** The golden-value `Processing` tests exist
+   (`core/tests/ProcessingTests.cpp`) but haven't been run yet — no C++
+   toolchain in this session; running them is the immediate next step, before
+   anything in steps 3/5/6/7. The manual runbook against a real bridge stays
+   blocked on `Input::Linux`/`Output::Hue` existing. Carry the setup/config
+   REST server over as-is; it isn't Input/Processing/Output-specific, don't
+   redesign it here.
 
 ## Phase 2 — Windows input plugin
 
