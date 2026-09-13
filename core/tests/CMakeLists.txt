@@ -29,6 +29,7 @@ target_link_libraries(AuroraProcessingTests PRIVATE
 
 target_compile_features(AuroraProcessingTests PUBLIC cxx_std_20)
 
-include(CTest)
+# enable_testing() lives in the parent CMakeLists.txt now, not here -- see
+# the comment there. Only need Catch2's own CTest-integration module here.
 include(Catch)
 catch_discover_tests(AuroraProcessingTests)

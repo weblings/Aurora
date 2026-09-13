@@ -26,5 +26,12 @@ add_subdirectory(Contracts)
 add_subdirectory(Processing)
 
 if(BUILD_TESTS)
+  # enable_testing() must happen here, at the parent scope, *before*
+  # add_subdirectory(tests) -- CTest only wires the top-level
+  # CTestTestfile.cmake to descend into a subdirectory's tests if testing
+  # was already enabled when that subdirectory was added. Calling it from
+  # inside tests/CMakeLists.txt instead (the original bug here) builds the
+  # test binary fine but leaves it undiscoverable by `ctest --test-dir build`.
+  enable_testing()
   add_subdirectory(tests)
 endif()

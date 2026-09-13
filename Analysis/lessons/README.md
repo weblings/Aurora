@@ -15,9 +15,13 @@ Aurora's own module boundaries instead of RockyRoad's.
 
 ## Index
 
-Empty so far — no lessons have been filed yet. Buckets below are anticipated based on
-[`ModuleSplitPlan.md`](../ModuleSplitPlan.md)'s module boundaries; a file only gets
-created once it has a real entry, not pre-emptively.
+- [`engineering-hygiene.md`](engineering-hygiene.md) — general design/build-tooling
+  principles: CTest's `enable_testing()` scoping, why not to build on a
+  Windows-mounted drive from WSL2.
+
+Buckets below are anticipated based on [`ModuleSplitPlan.md`](../ModuleSplitPlan.md)'s
+module boundaries but don't exist yet — a file only gets created once it has a real
+entry, not pre-emptively.
 
 - `input.md` — capture/grabber/platform-adapter gotchas (screen capture APIs, pixel
   format quirks, per-OS capture backends).
@@ -25,8 +29,6 @@ created once it has a real entry, not pre-emptively.
   sampling/interpolation).
 - `output.md` — streaming/protocol gotchas (Hue and any later DMX/Art-Net/sACN/OPC
   targets, wire-format quirks).
-- `engineering-hygiene.md` — general design principles, demonstrated by a real bug
-  here, that aren't specific to one module.
 
 ## Where a new lesson goes
 

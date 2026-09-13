@@ -79,12 +79,17 @@ Aurora/            <- this repo's root
   Analysis/          <- already exists
 ```
 
-**Not yet build-verified** — this session had no C++ toolchain available
-(checked: no `cmake`/`g++`/`vcpkg` on PATH; Visual Studio 2022 is installed but
-an actual configure+build wasn't attempted here). The code was written and
-reviewed carefully, including the CMake wiring, but running the actual build —
-ideally on Linux, since that's Input's phase-1 target anyway — is the
-immediate next step before treating this port as verified, not just written.
+**Build-verified.** No toolchain existed on the Windows dev machine, so a WSL2
+Ubuntu environment was set up (`build-essential`, `cmake`, `libopencv-dev`,
+`libglm-dev` via `apt`) — built from `~/aurora` on WSL's native filesystem, not
+the Windows-mounted `/mnt/d` path, which hit real CMake `configure_file`
+permission failures (a known DrvFs limitation, not a code problem). One real
+CMake bug found and fixed along the way: `enable_testing()` was called inside
+`tests/CMakeLists.txt` instead of the parent `core/CMakeLists.txt`, so the test
+binary built fine but `ctest` couldn't discover it — fixed by moving
+`enable_testing()` to the parent scope, before `add_subdirectory(tests)`.
+**Result: 8/8 tests passing**, covering all three regression fixes plus the
+pure `Color` math.
 
 ## Phase 1 — Refactor into three modules; Linux input + Hue output plugins
 
@@ -128,10 +133,9 @@ today — this is the regression check everything else builds on.
      `rescale`, `getSubImage`, `getDominantColor`/`Algorithms::mean` are all
      deterministic (no OS/display/network involved); `Color::toXYB()` turned
      out to belong in this bucket too but ends up tested alongside
-     `Output/Hue/` instead, since it moved there (see step 4). **Done** for
-     the `Processing` half — see `ProcessingAnalysis.md`'s test plan and
-     `core/tests/ProcessingTests.cpp`; not yet build-verified (no C++
-     toolchain in this session, see the directory-layout note above).
+     `Output/Hue/` instead, since it moved there (see step 4). **Done and
+     passing** for the `Processing` half — 8/8 tests, see
+     `core/tests/ProcessingTests.cpp` and the directory-layout note above.
    - **Capture and Hue-streaming stay manual**, by nature — they depend on a
      real display session and (for Hue) a real bridge, so they aren't
      something CI can assert on. Fix `GamescopeGrabTest.cpp`-style checks to
@@ -164,13 +168,11 @@ today — this is the regression check everything else builds on.
 7. **Not yet.** Rewire `Runtime` to depend on `IInput`/`IOutput`, selecting
    `Input::Linux` + `Output::Hue` at compile time (generalizes today's
    `Platform::Selector` pattern rather than replacing it).
-8. **Partially done.** The golden-value `Processing` tests exist
-   (`core/tests/ProcessingTests.cpp`) but haven't been run yet — no C++
-   toolchain in this session; running them is the immediate next step, before
-   anything in steps 3/5/6/7. The manual runbook against a real bridge stays
-   blocked on `Input::Linux`/`Output::Hue` existing. Carry the setup/config
-   REST server over as-is; it isn't Input/Processing/Output-specific, don't
-   redesign it here.
+8. **Done for `Processing`** — golden-value tests run on WSL2 Ubuntu, 8/8
+   passing. The manual runbook against a real bridge stays blocked on
+   `Input::Linux`/`Output::Hue` existing. Carry the setup/config REST server
+   over as-is; it isn't Input/Processing/Output-specific, don't redesign it
+   here.
 
 ## Phase 2 — Windows input plugin
 
