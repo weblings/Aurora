@@ -82,17 +82,26 @@ Aurora/                  <- core repo
                                ProcessingAnalysis.md's test plan
   web/                    <- new: the browser client (phases 3-5)
   Analysis/               <- already exists
-Aurora-Input-Linux/       <- plugin repo, DONE for X11 (see LinuxCaptureAnalysis.md):
-                             DummyGrabber, SessionDispatch (tested pure logic),
-                             X11Grabber (mechanically ported, builds against real
-                             X11/Xext/Xrandr, needs a real X11 session to manually
-                             verify actual capture). One CMake option per backend
+Aurora-Input-Linux/       <- plugin repo, DONE for X11 + Pipewire (see
+                             LinuxCaptureAnalysis.md): DummyGrabber,
+                             SessionDispatch (tested pure logic), X11Grabber
+                             (mechanically ported, builds against real
+                             X11/Xext/Xrandr, needs a real X11 session to
+                             manually verify actual capture), PipewireGrabber/
+                             XdgDesktopPortal (mechanically ported, builds
+                             against libpipewire-0.3/glib-2.0, needs a real
+                             Wayland session + portal backend to manually
+                             verify; gamescope-node matching and raw-buffer-
+                             to-ImageData conversion extracted as pure, tested
+                             helpers this pass). Restore-token persistence
+                             (huenicorn's Core::Config dependency) resolved
+                             via a minimal local IRestoreTokenStore interface
+                             rather than waiting on Aurora core's Config/
+                             Runtime. One CMake option per backend
                              (AURORA_INPUT_LINUX_ENABLE_X11/_PIPEWIRE) so unrelated
                              deps aren't forced — X11 and Wayland are one plugin's
                              two auto-selected backends, not two separate plugins
                              (see ModuleSplitPlan.md's repo-split section).
-                             Pipewire/Wayland capture not ported yet — deferred,
-                             1091 lines of D-Bus/GLib glue, its own follow-up pass.
 Aurora-Output-Hue/        <- plugin repo, pure logic DONE (see HueOutputAnalysis.md):
                              Colorimetry (toXYB), Channel, HuestreamHeader/Payload,
                              BridgeAddress, Credentials byte-conversion, all tested.
@@ -143,6 +152,28 @@ X11/Xext/Xrandr; actually verifying capture still needs a real X11 session,
 which neither this Windows machine nor WSL2 (WSLg is a virtualized Wayland
 compositor, not real X11 hardware capture) can provide.
 
+**`Aurora-Input-Linux` build-verified, Pipewire included** —
+`libpipewire-0.3-dev`/`libglib2.0-dev` were missing on first pass (checked
+via `pkg-config`), so per this session's no-`sudo`-via-tool-call rule that
+install was left to the user; once installed, reconfigured with default
+options (both `AURORA_INPUT_LINUX_ENABLE_X11`/`_PIPEWIRE` on) and rebuilt.
+`PipewireGrabber.cpp`/`XdgDesktopPortal.cpp` now compile cleanly against real
+`libpipewire-0.3` (1.6.2) and `glib-2.0`/`gio-2.0`/`gio-unix-2.0` (2.88.0),
+zero errors or warnings. **Result: 11/11 tests passing** (5 pre-existing + 6
+new: gamescope node matching, raw-buffer-to-`ImageData` conversion including
+a stride-vs-tightly-packed regression check). Actually exercising capture
+still needs a real Wayland session + portal backend, which this Windows
+machine/WSL2 can't provide (same caveat as `X11Grabber`).
+
+Two real bugs found while porting `XdgDesktopPortal` (see
+`LinuxCaptureAnalysis.md`): a missing early `return` in
+`onCreateSessionResponseReceivedCallback` that let a denied/cancelled session
+fall through to use an unvalidated result, and a pointless `strdup` leak in
+`getSenderName()`. Both fixed. Also flagged as a lesson (not fixed, since
+consistent with prior ports): dropping `Core::Logger` calls for the lack of
+an Aurora-core logger is now costing real diagnostics twice over, worth
+prioritizing before the next I/O-heavy port (Hue's `Streamer`/DTLS layer).
+
 ## Phase 1 — Refactor into three modules; Linux input + Hue output plugins
 
 Pure restructuring, zero new features. **Demonstrable:** the restructured app
@@ -192,15 +223,18 @@ today — this is the regression check everything else builds on.
      non-black, log average FPS) rather than pretending they're automatable.
 2. **Done.** Stood up `Aurora/core` as a new CMake project seeded from
    huenicorn's, not an edit of `huenicorn/` itself.
-3. **Done for X11/Dummy; Pipewire deferred.** Introduced `IInput` in Aurora
-   core (generalized from `IGrabber`, refined with monitor selection + the
-   pure divisor math — see `ModuleSplitPlan.md`), and started
-   `Aurora-Input-Linux` as its own repo (repo-split decision, same doc).
-   Ported and tested `DummyGrabber` and the session-dispatch decision logic
-   (`SessionDispatch`); mechanically ported `X11Grabber` (builds, needs a
-   real X11 session to manually verify capture). **Deferred:**
-   `PipewireGrabber`/`XdgDesktopPortal` — 1091 lines of D-Bus/GLib glue with
-   nothing pure to extract, its own follow-up pass, tracked in
+3. **Done.** Introduced `IInput` in Aurora core (generalized from `IGrabber`,
+   refined with monitor selection + the pure divisor math — see
+   `ModuleSplitPlan.md`), and started `Aurora-Input-Linux` as its own repo
+   (repo-split decision, same doc). Ported and tested `DummyGrabber` and the
+   session-dispatch decision logic (`SessionDispatch`); mechanically ported
+   `X11Grabber` (builds, needs a real X11 session to manually verify
+   capture). Mechanically ported `PipewireGrabber`/`XdgDesktopPortal` too —
+   1091 lines of D-Bus/GLib glue, but this pass found two genuinely pure,
+   testable pieces inside it (gamescope node matching, raw-buffer-to-
+   `ImageData` conversion) that the first scoping pass hadn't surfaced.
+   Builds cleanly against real `libpipewire`/`gio` dev packages; still needs
+   a real Wayland session to manually verify capture — tracked in
    `LinuxCaptureAnalysis.md`.
 4. **Done.** Introduced the `Processing` module (plus, as it turned out,
    `Contracts` underneath it — see `ModuleSplitPlan.md`): moved

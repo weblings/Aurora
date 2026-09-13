@@ -112,4 +112,91 @@ Aurora-Input-Linux/src/*.cpp
 Aurora-Input-Linux/tests/LinuxInputTests.cpp
 ```
 
-`PipewireGrabber`/`XdgDesktopPortal` intentionally not listed — follow-up pass.
+`PipewireGrabber`/`XdgDesktopPortal` intentionally not listed at the time —
+covered by the follow-up pass below.
+
+---
+
+# Follow-up pass: `PipewireGrabber` / `XdgDesktopPortal`
+
+Full read of both `.cpp` files (previously only structurally scanned).
+**Pipewire itself isn't Wayland-specific** — it's a general audio/video
+routing daemon. What's Wayland-specific is `xdg-desktop-portal`'s ScreenCast
+interface, which exists because Wayland (unlike X11) requires user consent
+before any app can read the screen; Pipewire is just the transport the portal
+hands back a stream over. Noted here since the `_PIPEWIRE` CMake option name
+and this doc's title shorthand "Wayland capture" for that combination, not
+because Pipewire itself is tied to Wayland (relevant later if an audio-input
+plugin reuses the same dependency).
+
+## What's genuinely pure vs. inherent I/O
+
+Same shape as the X11 pass: this is overwhelmingly D-Bus/GLib async-callback
+session negotiation (`XdgDesktopPortal`, ~530 lines) plus Pipewire
+thread/stream setup (`PipewireGrabber`, ~500 lines) — neither is unit-testable
+as a whole, both need a real Wayland compositor + portal backend to verify.
+Two genuinely pure pieces were worth extracting this time (bigger win than
+the X11 pass found, since frame decoding itself turned out separable):
+
+- **Gamescope node matching** (`_onRegistryGlobal`'s string comparison) —
+  extracted as `matchesGamescopeNode(bool isNodeInterface, const char*
+  nodeName)`, zero Pipewire types in its signature, so it's testable without
+  `libpipewire` installed at all.
+- **Raw buffer → owned `ImageData`** (the core of `_onStreamProcess`) —
+  extracted as `toOwnedRgbaImage(data, width, height, stride)`, taking a
+  plain pointer instead of `spa_buffer`. This is the actual frame-capture
+  correctness logic (dimensions, stride-vs-tightly-packed handling, and that
+  the result *owns* its memory rather than aliasing Pipewire's buffer, which
+  becomes invalid after `pw_stream_queue_buffer`) — arguably the most
+  important thing to regression-test in this whole file, and it turned out
+  fully separable from the real `pw_stream`/mmap plumbing around it.
+
+## Bugs found while porting
+
+**Missing early return in `onCreateSessionResponseReceivedCallback`:** on
+`response != 0` (session creation denied/cancelled), the original logs a
+warning but falls through anyway, reading `session_handle` out of a `result`
+that was never validated and calling `selectSource()` on a half-initialized
+`Capture`. Every sibling callback (`onStartResponseReceivedCallback`,
+`onSelectSourceResponseReceivedCallback`) does return in this situation —
+this one just missed it. **Fix:** added the `return`.
+
+**Unnecessary `strdup` leak in `getSenderName()`:** `strdup`'s the D-Bus
+unique name into a raw `char*` to hand to a `std::string` constructor, then
+never frees it — the `strdup` was pointless, since `std::string`'s
+`const char*` constructor already copies. **Fix:** dropped the `strdup`,
+construct directly from the pointer GLib already owns.
+
+## `Core::Config*` dependency, resolved without Config/Runtime existing yet
+
+`XdgDesktopPortal::Capture::config` and `PipewireData::config` exist for
+exactly one purpose: persisting the portal's "restore token" (so the user
+isn't re-prompted for screen selection every launch) via
+`config->restoreToken()`/`setRestoreToken()`. That's a two-method surface,
+not a reason to pull in a full `Config`/`Runtime` system this plugin doesn't
+otherwise need.
+
+**Fix:** defined a minimal `IRestoreTokenStore` (get/set optional string)
+local to this plugin, plus a `NullRestoreTokenStore` default (always prompts,
+matches today's behavior when no store is wired up). When Aurora core gets a
+real `Config`, a `Config`-backed implementation can satisfy the same
+interface without touching `PipewireGrabber`/`XdgDesktopPortal` at all —
+same pattern as the `IInput`/`IOutput` interfaces already used for the
+Input/Output module boundary itself.
+
+## Output files
+
+```
+Aurora-Input-Linux/include/Aurora/Input/Linux/IRestoreTokenStore.hpp
+Aurora-Input-Linux/include/Aurora/Input/Linux/GamescopeNodeMatch.hpp   (pure, tested)
+Aurora-Input-Linux/include/Aurora/Input/Linux/PipewireFrameBuffer.hpp  (pure, tested)
+Aurora-Input-Linux/include/Aurora/Input/Linux/XdgDesktopPortal.hpp
+Aurora-Input-Linux/include/Aurora/Input/Linux/PipewireGrabber.hpp
+Aurora-Input-Linux/src/XdgDesktopPortal.cpp
+Aurora-Input-Linux/src/PipewireGrabber.cpp
+Aurora-Input-Linux/tests/PipewireTests.cpp
+```
+
+Needs a real Wayland session + portal backend to manually verify capture
+actually works end-to-end — same caveat as `X11Grabber`, can't be done from
+this Windows machine or WSL2/WSLg.

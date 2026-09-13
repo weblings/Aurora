@@ -108,3 +108,23 @@ likely later: which GPU API a renderer uses, which discovery protocol finds
 a device). Those stay one repo with optional per-variant CMake components
 (`AURORA_INPUT_LINUX_ENABLE_X11`/`_PIPEWIRE`), so their dependencies are still
 independently skippable without fragmenting the capability itself.
+
+---
+
+## Not porting `Core::Logger` early is now costing real diagnostics, twice
+
+Every ported I/O-heavy module so far (`X11Grabber`, now
+`PipewireGrabber`/`XdgDesktopPortal`) has hit the same call: drop the
+original's `Core::Logger::warn`/`error` calls since Aurora core has no
+logger yet. Tolerable for X11's handful of call sites; `XdgDesktopPortal`
+alone has a dozen, each marking a distinct D-Bus/portal failure mode that a
+real user debugging a black-screen Wayland session will need. Silently
+dropping all of them isn't free — it's deferred debuggability debt that
+compounds with every I/O module ported before a logger exists.
+
+**Fix:** not retroactively fixed here (still dropped, for consistency with
+the modules already ported this way) — but this is now a second independent
+occurrence, so treat "Aurora core needs a minimal logging interface" as
+higher priority than its absence from the original 5-phase plan suggests,
+worth doing before porting the next I/O-heavy module (Hue's `Streamer`/DTLS
+layer) rather than after.
