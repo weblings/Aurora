@@ -79,13 +79,16 @@ Aurora/                  <- core repo
     Output/                <- DONE: IOutput.hpp, now with zoneIds() for live
                                zone discovery (see RuntimeAnalysis.md).
       include/Aurora/Output/IOutput.hpp
-    Runtime/               <- DONE (generic pieces only, see RuntimeAnalysis.md):
-                               Config/ConfigStore, ZoneMap/ZoneMapStore
-                               (one profile file per plugin), reconcileZoneMap,
-                               composeFrame, Smoother (RGB, keyed per
-                               (outputId, zoneId)). The orchestrating
-                               lifecycle class itself is a later pass — no
-                               second real IOutput yet to wire it against.
+    Runtime/               <- DONE, see RuntimeAnalysis.md: Config/ConfigStore,
+                               ZoneMap/ZoneMapStore (one profile file per
+                               plugin), reconcileZoneMap, composeFrame,
+                               Smoother (RGB, keyed per (outputId, zoneId)),
+                               pickDefaultSubsampleWidth, and Orchestrator
+                               (ties one IInput to any number of IOutputs
+                               per-tick, no threading/timing of its own --
+                               tested against FakeInput/FakeOutput). Not yet
+                               built: a real app entry point/main() driving
+                               it with real plugins in a real timed loop.
       include/Aurora/Runtime/
       src/
     tests/                 <- DONE (Processing + Runtime coverage): Catch2, see
@@ -199,6 +202,20 @@ nothing needed updating. As part of the same pass, removed
 (XYB-space smoothing state made obsolete by the RGB-in-Runtime decision) —
 rebuilt clean, no test changes needed.
 
+**`Orchestrator` build-verified against fakes** — added `pickDefaultSubsampleWidth`
+(huenicorn's `_initSettings()` subsample-width search, ported as a pure
+function) and `Orchestrator` itself, gluing `IInput`/`IOutput` together with
+no threading/timing of its own. Tested with a `FakeInput`/`FakeOutput` pair
+in `core/tests/OrchestratorTests.cpp` — first proof that `Config`/`ZoneMap`/
+`reconcileZoneMap`/`composeFrame`/`Smoother` actually compose into a correct
+per-tick loop, not just individually correct in isolation. **Result: 23/23
+core tests passing** (8 Processing + 8 Runtime pieces + 3 subsample-default
++ 4 Orchestrator). `Runtime`'s `add_subdirectory` had to move after
+`Input`/`Output` in `core/CMakeLists.txt` since `Orchestrator` now depends
+on both interfaces — rebuilt `Aurora-Output-Hue` (10/10) and
+`Aurora-Input-Linux` (11/11) against the reordered core to confirm neither
+plugin was affected.
+
 ## Phase 1 — Refactor into three modules; Linux input + Hue output plugins
 
 Pure restructuring, zero new features. **Demonstrable:** the restructured app
@@ -284,9 +301,12 @@ today — this is the regression check everything else builds on.
    originally described — see `ModuleSplitPlan.md`'s naming correction).
    Minimal v1 shape (zone id + linear color); positions/effects/detections
    aren't needed until phases 3 and 5.
-7. **Not yet.** Rewire `Runtime` to depend on `IInput`/`IOutput`, selecting
-   `Input::Linux` + `Output::Hue` at compile time (generalizes today's
-   `Platform::Selector` pattern rather than replacing it).
+7. **Done (against fakes; real plugins not wired yet).** Built
+   `Runtime::Orchestrator`, depending on both `IInput`/`IOutput`, tested with
+   a `FakeInput`/`FakeOutput` pair standing in for `Input::Linux`/
+   `Output::Hue` — see `RuntimeAnalysis.md`'s follow-up pass. Wiring the real
+   `X11Grabber`/`HueOutput` in (a real `main()`, compile-time or config-time
+   selection) waits on step 5's Hue I/O layer existing.
 8. **Done for `Processing`** — golden-value tests run on WSL2 Ubuntu, 8/8
    passing. The manual runbook against a real bridge stays blocked on
    `Input::Linux`/`Output::Hue` existing. Carry the setup/config REST server

@@ -37,17 +37,18 @@ else()
   message(STATUS "nlohmann_json is installed")
 endif()
 
-# Contracts first (no internal deps), then Processing (depends on Contracts),
-# then Runtime (depends on both).
+# Contracts first (no internal deps), then Processing (depends on Contracts).
 add_subdirectory(Contracts)
 add_subdirectory(Processing)
-add_subdirectory(Runtime)
 
 # Interface-only -- concrete plugins (Aurora-Input-Linux, Aurora-Output-Hue,
 # ...) live in their own repos and depend on these, not the other way round.
 # See Analysis/ModuleSplitPlan.md's repo-split section.
 add_subdirectory(Input)
 add_subdirectory(Output)
+
+# Runtime last -- its Orchestrator depends on Contracts/Processing/Input/Output.
+add_subdirectory(Runtime)
 
 if(BUILD_TESTS)
   # enable_testing() must happen here, at the parent scope, *before*

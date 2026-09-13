@@ -1,5 +1,6 @@
-# Generic Config/ZoneMap/compositing pieces from RuntimeAnalysis.md -- the
-# actual orchestrating Runtime lifecycle class is a later pass (see the doc).
+# Generic Config/ZoneMap/compositing pieces from RuntimeAnalysis.md, plus
+# Orchestrator -- the one piece here allowed to depend on both Input and
+# Output interfaces, since gluing them together is its entire job.
 add_library(AuroraRuntime STATIC
   src/Config.cpp
   src/ConfigStore.cpp
@@ -7,6 +8,8 @@ add_library(AuroraRuntime STATIC
   src/ZoneReconciler.cpp
   src/FrameCompositor.cpp
   src/Smoother.cpp
+  src/SubsampleDefaults.cpp
+  src/Orchestrator.cpp
 )
 
 target_include_directories(AuroraRuntime PUBLIC
@@ -16,6 +19,8 @@ target_include_directories(AuroraRuntime PUBLIC
 target_link_libraries(AuroraRuntime PUBLIC
   AuroraContracts
   AuroraProcessing
+  AuroraInputInterface
+  AuroraOutputInterface
   nlohmann_json::nlohmann_json
 )
 
