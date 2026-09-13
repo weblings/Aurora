@@ -1,6 +1,8 @@
 #pragma once
 
+#include <cstdint>
 #include <string>
+#include <vector>
 
 #include <Aurora/Contracts/Frame.hpp>
 
@@ -19,6 +21,11 @@ namespace Aurora::Output
     virtual void init() = 0;
     virtual bool isConnected() const = 0;
     virtual void shutdown() = 0;
+
+    // Live zone IDs this output currently exposes (e.g. Hue: bridge channels
+    // in the active entertainment configuration) -- reconciled by Runtime
+    // against a saved Runtime::ZoneMap. May be empty before init().
+    virtual std::vector<uint8_t> zoneIds() const = 0;
 
     virtual void send(const Contracts::Frame& frame) = 0;
   };

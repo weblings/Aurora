@@ -21,9 +21,26 @@ else()
   message(STATUS "glm is installed")
 endif()
 
-# Contracts first (no internal deps), then Processing (depends on Contracts).
+# nlohmann_json -- same fetch-if-missing pattern as glm; huenicorn already
+# uses this exact library for its own config/profile persistence.
+find_package(nlohmann_json QUIET)
+if(NOT nlohmann_json_FOUND)
+  message(STATUS "nlohmann_json is not installed. Now fetching online...")
+  FetchContent_Declare(
+    nlohmann_json
+    URL https://github.com/nlohmann/json/releases/download/v3.11.3/json.tar.xz
+    DOWNLOAD_EXTRACT_TIMESTAMP TRUE
+  )
+  FetchContent_MakeAvailable(nlohmann_json)
+else()
+  message(STATUS "nlohmann_json is installed")
+endif()
+
+# Contracts first (no internal deps), then Processing (depends on Contracts),
+# then Runtime (depends on both).
 add_subdirectory(Contracts)
 add_subdirectory(Processing)
+add_subdirectory(Runtime)
 
 # Interface-only -- concrete plugins (Aurora-Input-Linux, Aurora-Output-Hue,
 # ...) live in their own repos and depend on these, not the other way round.

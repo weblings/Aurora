@@ -76,10 +76,20 @@ Aurora/                  <- core repo
     Input/                 <- DONE: IInput.hpp (refined with monitor selection +
                                divisor math, see LinuxCaptureAnalysis.md) + MonitorData.hpp.
       include/Aurora/Input/                          Concrete plugins live in their own repos now.
-    Output/                <- DONE: IOutput.hpp only, same shape.
+    Output/                <- DONE: IOutput.hpp, now with zoneIds() for live
+                               zone discovery (see RuntimeAnalysis.md).
       include/Aurora/Output/IOutput.hpp
-    tests/                 <- DONE (Processing coverage): Catch2, see
-                               ProcessingAnalysis.md's test plan
+    Runtime/               <- DONE (generic pieces only, see RuntimeAnalysis.md):
+                               Config/ConfigStore, ZoneMap/ZoneMapStore
+                               (one profile file per plugin), reconcileZoneMap,
+                               composeFrame, Smoother (RGB, keyed per
+                               (outputId, zoneId)). The orchestrating
+                               lifecycle class itself is a later pass — no
+                               second real IOutput yet to wire it against.
+      include/Aurora/Runtime/
+      src/
+    tests/                 <- DONE (Processing + Runtime coverage): Catch2, see
+                               ProcessingAnalysis.md/RuntimeAnalysis.md's test plans
   web/                    <- new: the browser client (phases 3-5)
   Analysis/               <- already exists
 Aurora-Input-Linux/       <- plugin repo, DONE for X11 + Pipewire (see
@@ -173,6 +183,21 @@ fall through to use an unvalidated result, and a pointless `strdup` leak in
 consistent with prior ports): dropping `Core::Logger` calls for the lack of
 an Aurora-core logger is now costing real diagnostics twice over, worth
 prioritizing before the next I/O-heavy port (Hue's `Streamer`/DTLS layer).
+
+**`Aurora/core`'s new `Runtime` module build-verified** — added
+`nlohmann_json` as a new core dependency (same find-package-else-`FetchContent`
+pattern as glm; huenicorn already uses this exact library). Built
+`Config`/`ConfigStore`, `ZoneMap`/`ZoneMapStore`, `reconcileZoneMap`,
+`composeFrame`, `Smoother` per the decided `RuntimeAnalysis.md` shape (RGB
+smoothing in Runtime, one profile file per plugin). **Result: 16/16 core
+tests passing** (8 pre-existing Processing + 8 new Runtime). Also rebuilt
+`Aurora-Output-Hue` (10/10) and `Aurora-Input-Linux` (11/11) against this
+updated core to confirm the `IOutput::zoneIds()` interface addition doesn't
+break either — neither has a concrete `IOutput` implementation yet, so
+nothing needed updating. As part of the same pass, removed
+`Aurora-Output-Hue`'s now-dead `Channel::previousXyb`/`hasPreviousXyb`
+(XYB-space smoothing state made obsolete by the RGB-in-Runtime decision) —
+rebuilt clean, no test changes needed.
 
 ## Phase 1 — Refactor into three modules; Linux input + Hue output plugins
 

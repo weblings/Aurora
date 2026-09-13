@@ -1,0 +1,77 @@
+#include <Aurora/Runtime/ConfigStore.hpp>
+
+#include <fstream>
+
+#include <nlohmann/json.hpp>
+
+namespace Aurora::Runtime
+{
+  namespace
+  {
+    using Json = nlohmann::json;
+
+    Json toJson(const ConfigData& data)
+    {
+      return Json{
+        {"restServerPort", data.restServerPort},
+        {"boundBackendIP", data.boundBackendIP},
+        {"refreshRate", data.refreshRate},
+        {"subsampleWidth", data.subsampleWidth},
+        {"interpolation", static_cast<int>(data.interpolation)},
+        {"transitionSmoothing", data.transitionSmoothing}
+      };
+    }
+
+    // Field-by-field defaulting (not a single all-or-nothing parse) so an
+    // older or hand-edited config.json still loads sensibly.
+    ConfigData fromJson(const Json& json)
+    {
+      ConfigData defaults;
+      ConfigData data;
+
+      data.restServerPort = json.value("restServerPort", defaults.restServerPort);
+      data.boundBackendIP = json.value("boundBackendIP", defaults.boundBackendIP);
+      data.refreshRate = json.value("refreshRate", defaults.refreshRate);
+      data.subsampleWidth = json.value("subsampleWidth", defaults.subsampleWidth);
+      data.transitionSmoothing = json.value("transitionSmoothing", defaults.transitionSmoothing);
+
+      int interpolation = json.value("interpolation", static_cast<int>(defaults.interpolation));
+      data.interpolation = (interpolation >= 0 && interpolation <= 2)
+        ? static_cast<Contracts::Interpolation::Type>(interpolation)
+        : defaults.interpolation;
+
+      return data;
+    }
+  }
+
+
+  ConfigStore::ConfigStore(std::filesystem::path configRoot):
+  m_configFilePath(std::move(configRoot) / "config.json")
+  {}
+
+
+  Config ConfigStore::load() const
+  {
+    if(!std::filesystem::exists(m_configFilePath)){
+      return Config{};
+    }
+
+    std::ifstream file(m_configFilePath);
+    Json json = Json::parse(file, nullptr, /*allow_exceptions*/ false);
+
+    if(json.is_discarded()){
+      return Config{};
+    }
+
+    return Config(fromJson(json));
+  }
+
+
+  void ConfigStore::save(const Config& config) const
+  {
+    std::filesystem::create_directories(m_configFilePath.parent_path());
+
+    std::ofstream file(m_configFilePath);
+    file << toJson(config.data()).dump(2) << "\n";
+  }
+}
