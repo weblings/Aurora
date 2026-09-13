@@ -90,6 +90,69 @@ a new plugin repo's `CMakeLists.txt` is being written against this pattern.
 
 ---
 
+## A distro dev package can lack the `.pc` file its own `find_package`/`pkg_check_modules` call assumes
+
+`Aurora-Output-Hue`'s `CMakeLists.txt` used `pkg_check_modules(MBEDTLS
+REQUIRED ...)` for Mbed TLS, verified against Ubuntu's `libmbedtls-dev`
+3.6.5 in the WSL2 dev environment. The first real-hardware machine had
+2.28.0-1build1 instead — same headers/libs installed, but that package ships
+no `mbedtls.pc`/`mbedx509.pc`/`mbedcrypto.pc` at all, so configure failed
+outright with "package not found," not a version-mismatch error.
+
+**Fix:** `pkg_check_modules(... QUIET ...)` first, then `find_library` as a
+fallback wired into the same imported target name, rather than assuming
+`REQUIRED` pkg-config coverage holds across every distro/version a dev
+package might be installed as. Once configuring succeeded, the ported code
+itself needed zero changes — it only used classic Mbed TLS API calls stable
+across 2.x/3.x, so a comment claiming "only v3 is verified" was also stale
+and worth correcting once actually tested against 2.x.
+
+---
+
+## An interface method's return value silently reused to build a persisted file path is part of that method's contract, case included
+
+`IOutput::name()` reads like a display/logging string. `Runtime::Orchestrator`
+actually uses it as data: `ZoneMapStore::load(output->name())` builds
+`profiles/<name>.json` directly from it. `HueOutput::name()` returned
+`"Hue"` (capitalized); the registry key registering it (`"hue"`) and the
+repo's own README (`profiles/hue.json`) both used lowercase. On a
+case-sensitive filesystem this didn't error anywhere — it silently created
+and reconciled a *second*, always-empty `Hue.json` every run, and
+`reconcileZoneMap`'s "new IDs default inactive" rule then made every real
+zone inactive in that file, so streamed frames carried zero zone data. The
+one file a human had hand-edited (`hue.json`) sat there completely
+untouched, looking exactly like proof of nothing being wrong.
+
+**Fix:** renamed the returned string to lowercase `"hue"`, matching the
+registry key and README. General principle: when a method's contract isn't
+fully described by its own docstring, check every call site for what it's
+*actually* used to construct (a file path, a network key, a lookup) — those
+uses impose real constraints (exact casing, allowed characters) that a purely
+display-string reading of the method would miss entirely.
+
+---
+
+## When a run's own evidence contradicts the real-world outcome, distrust the evidence and re-derive it with narrow, independent probes
+
+A full `aurora-app-linux` run printed clean output and reconciled its saved
+zone map with no changes — read at the time as confirmation the Hue
+transcription was correct. The physical lights never moved. The reconciled
+file being read, though, wasn't the file the run actually used (see the
+entry above) — the "confirmation" was accidentally re-reading a hand-written
+file the app had never opened. Continuing to trust that evidence would have
+stalled on the wrong layer indefinitely.
+
+**Fix:** once a real run's outcome contradicts what its own logs/files
+suggest, stop trusting those artifacts and build a small standalone probe
+per suspected stage instead — a bare `HueOutput` fed explicit test colors (to
+isolate REST+DTLS from capture), a bare `X11Grabber` printing frame means (to
+isolate capture from everything downstream), `ss -u -a -n -p` against the
+running process's PID (to check a real socket exists rather than trusting
+`isConnected()` was even reachable). Each probe either confirms or rules out
+one layer independently of the others' claims about themselves.
+
+---
+
 ## Same capability with environment-selected variants is one plugin with backends, not several plugins
 
 Nearly modeled X11 and Wayland/Pipewire capture as two separate plugin repos,

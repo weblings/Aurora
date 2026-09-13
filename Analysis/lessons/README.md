@@ -25,9 +25,19 @@ Aurora's own module boundaries instead of RockyRoad's.
   backends rather than separate plugins, not porting a logger early costing
   real diagnostics twice over, `FetchContent_Declare(... URL ...)`
   needing `DOWNLOAD_EXTRACT_TIMESTAMP` (plus checking sibling fetch blocks
-  for the same gap, since an unexercised fetch path hides it), and
-  classifying a "generic vs. plugin-specific" field by where it's authored
-  rather than where its formula is applied (the gamma-storage gap).
+  for the same gap, since an unexercised fetch path hides it), classifying a
+  "generic vs. plugin-specific" field by where it's authored rather than
+  where its formula is applied (the gamma-storage gap), a distro dev package
+  lacking the `.pc` file its own `pkg_check_modules` call assumed (Mbed TLS
+  2.28 vs. 3.6.5), an interface method's return value silently doubling as a
+  persisted file path (`IOutput::name()` → `profiles/<name>.json`, case
+  included), and distrusting a run's own evidence once it contradicts the
+  real-world outcome rather than re-reading the same artifact.
+- [`output.md`](output.md) — streaming/protocol gotchas: a bridge having more
+  than one entertainment configuration over the same lights being normal,
+  not an edge case (empty-ID auto-select isn't "the only one"), and
+  `DtlsClient`'s handshake failure being swallowed by design so a clean
+  `HueOutput::init()` isn't proof a connection exists.
 
 Buckets below are anticipated based on [`ModuleSplitPlan.md`](../ModuleSplitPlan.md)'s
 module boundaries but don't exist yet — a file only gets created once it has a real
@@ -37,8 +47,6 @@ entry, not pre-emptively.
   format quirks, per-OS capture backends).
 - `processing.md` — color/effect transform gotchas (colorimetry, zone mapping,
   sampling/interpolation).
-- `output.md` — streaming/protocol gotchas (Hue and any later DMX/Art-Net/sACN/OPC
-  targets, wire-format quirks).
 
 ## Where a new lesson goes
 

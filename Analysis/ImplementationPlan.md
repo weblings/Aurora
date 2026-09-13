@@ -265,6 +265,115 @@ Real end-to-end verification (real display + real bridge) is next, on the
 Ubuntu device — see `DistributedArchitecturePlan.md` for the architecture
 question this app's shape feeds into.
 
+**First real hardware pass, on the actual Ubuntu device (2026-09-13): all
+four repos build clean, first real end-to-end run against a real X11 desktop
+and real Hue bridge succeeded.** Real X11 session this time (`DISPLAY=:1`,
+`XDG_SESSION_TYPE=x11`), not WSL2 — first environment able to actually
+exercise `X11Grabber` and `HueOutput`'s DTLS layer instead of just
+build-verifying them. **One real bug found and fixed:** `Aurora-Output-Hue`'s
+`CMakeLists.txt` did `pkg_check_modules(MBEDTLS REQUIRED ...)` with no
+fallback — this machine's `libmbedtls-dev` (2.28.0-1build1, vs. the WSL2 dev
+environment's 3.6.5) ships no `.pc` files at all, a known Ubuntu packaging
+gap, not a code problem. Fixed by trying `pkg_check_modules` `QUIET` first,
+then falling back to `find_library` for `mbedtls`/`mbedx509`/`mbedcrypto` and
+wiring them into the same `PkgConfig::MBEDTLS` imported target name either
+way. Once that was fixed, `MbedTlsImpl.hpp` (previously commented as
+"only the Mbed TLS v3 API is ported/verified") compiled and ran correctly
+against 2.28.0 unmodified — every call it makes is classic API stable across
+2.x/3.x — so the comment was corrected to record both versions verified,
+rather than left overclaiming a v3-only requirement. All four repos'
+existing test counts unaffected: core 24/24, `Aurora-Input-Linux` 11/11,
+`Aurora-Output-Hue` 22/22, `Aurora-App-Linux` 4/4.
+
+**Credentials/zone-map transcription, not re-pairing.** This machine already
+has a working `huenicorn` setup (`~/.config/huenicorn/{config.json,
+profile.json}`) against the same real bridge — reused rather than re-paired.
+`AURORA_HUE_BRIDGE_ADDRESS`/`_USERNAME`/`_CLIENTKEY` set from
+`config.json`'s `bridgeAddress`/`credentials.{username,clientkey}` verbatim
+(its `refreshRate` field was a corrupted/garbage huge value, not copied —
+Aurora derives its own from the real display instead, landing on `60`).
+`profile.json`'s six `channels` were hand-transcribed to
+`~/.config/aurora/profiles/hue.json`'s `ZoneMap` shape: `uvA`/`uvB` →
+`uvs.min`/`uvs.max` (same corner convention, confirmed by reading both
+`UVs` structs and their JSON serializers), `gammaFactor` → `gamma` directly
+(confirmed identical, not just similarly-named — huenicorn's
+`glm::pow(2, -gammaFactor * factor)` and Aurora's `Hue::gammaExponent()` are
+the same formula), `channelId` → `zoneId` unchanged. No `devices`/
+`entertainmentConfigurationId` fields carried over — genuinely not part of
+Aurora's generic `ZoneMap` by design (device membership and entertainment
+config selection are `HueOutput`'s own live-discovery job now, not saved
+state — see `RuntimeAnalysis.md`'s two-file-split section).
+
+**Confirms the transcription was correct, not just accepted:** `HueOutput`
+was constructed with no `entertainmentConfigurationId` override (empty
+string auto-selects the bridge's first/only one, same as huenicorn's
+default), and `Orchestrator::init()`'s `reconcileZoneMap` — saved zone map
+∩ the output's live `zoneIds()` — kept all six hand-transcribed zones
+active with their `uvs`/`gamma` unchanged after the run, meaning the live
+entertainment configuration's channel IDs really are `{0..5}`, matching the
+transcription exactly rather than silently dropping mismatched IDs to
+inactive.
+
+**The run itself:** `aurora-app-linux` printed `Aurora running: input='linux',
+1 output(s)` — meaning `HueOutput::init()` (bridge REST discovery +
+entertainment config selection + the actual DTLS-PSK handshake against the
+real bridge) succeeded before that line prints, not after — then ran a real
+capture→crop→stream loop against the live X11 desktop for ~12 seconds via
+`timeout -s TERM`, then shut down cleanly (`Stopping...`, no abort) on the
+same signal path phase 1's earlier `std::terminate` fix already covered.
+No errors surfaced from capture, streaming, or shutdown. The lights did not
+actually react — see the follow-up below; the confident-sounding conclusion
+above turned out to be built on an untouched file, not a working run.
+
+**Follow-up: the lights didn't move, and it took two real bugs to find out
+why.** User-reported, then root-caused live against the real bridge rather
+than guessed at:
+
+1. **Wrong entertainment configuration, silently.** The bridge has *two*
+   entertainment configurations over the same six lights ("TV" and "TV
+   area", both 6 channels) — `HueOutput`'s empty-ID default
+   (`unordered_map::begin()`) picked whichever one hashed first, not
+   necessarily "TV" (the one the transcribed `hue.json` assumes). Confirmed
+   live: polled `/clip/v2/resource/entertainment_configuration/<id>` for
+   both IDs while the app ran — "TV area" showed `status: active`, "TV"
+   stayed `inactive`. **Fixed** by adding `AURORA_HUE_ENTERTAINMENT_CONFIG_ID`
+   (optional env var, same stopgap shape as the other three) so `main.cpp`
+   can pin the right one; `HueOutput`'s constructor already took this
+   parameter; only `registerOutputs()` was missing the wiring.
+2. **The real bug: `HueOutput::name()` returned `"Hue"`, capitalized —
+   `profiles/hue.json` (lowercase, per this repo's own README) was never
+   the file being read or written.** `Orchestrator::init()` derives the
+   saved zone-map path directly from `output->name()`
+   (`ZoneMapStore::load(output->name())`); on a case-sensitive filesystem
+   that resolved to `profiles/Hue.json`, a second file the app silently
+   created and reconciled against an *empty* saved map every run —
+   `reconcileZoneMap`'s "new IDs default inactive" rule then zeroed out all
+   six zones, so `composeFrame` omitted every zone and `HueOutput::send()`
+   shipped header-only packets with no channel payloads all along. This is
+   exactly why the earlier "reconciliation preserved all six zones, so the
+   transcription must be correct" conclusion above was wrong — that check
+   was reading `hue.json`, the file the app never touched; the file it
+   actually used (`Hue.json`) told the opposite story. Confirmed empty
+   (`ls -la` showed both files, `Hue.json` full of `"active": false`
+   entries) before fixing. **Fixed** by renaming `HueOutput::name()`'s
+   returned string to lowercase `"hue"`, matching the registry key
+   (`registry.registerOutput("hue", ...)`) and the README's own documented
+   filename — one call site (`HueOutputPluginTests.cpp`) updated to match;
+   `Aurora-Output-Hue` 22/22, `Aurora-App-Linux` 4/4 still passing after.
+   Deleted the stray `Hue.json` this bug had been writing.
+
+**Confirmed working end-to-end after both fixes**, user watching: real X11
+capture drove real color changes on the real lights over the real DTLS
+stream, for the first time. Root-caused via direct probes rather than
+guesswork at each step — a standalone `HueOutput`-only probe (explicit
+config ID, solid RGB cycle) isolated the REST+DTLS path from capture; a
+standalone `X11Grabber`-only probe (10 frames, checked `hasData()`/mean
+color) isolated real capture from everything else; `ss -u -a -n -p` on the
+running app's PID confirmed an `ESTAB` UDP socket to the bridge's port 2100
+existed the whole time, ruling out a silently-swallowed DTLS handshake
+failure (`Streamer`'s constructor deliberately swallows that exception,
+matching huenicorn, which is why this needed checking rather than assuming).
+
 ## Phase 1 — Refactor into three modules; Linux input + Hue output plugins
 
 Pure restructuring, zero new features. **Demonstrable:** the restructured app
