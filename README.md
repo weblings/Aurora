@@ -28,6 +28,9 @@ phase 3 for what's still missing (a pairing flow, a zone-mapping UI).
 - **No pairing flow.** Hue credentials come from environment variables:
   `AURORA_HUE_BRIDGE_ADDRESS`, `AURORA_HUE_USERNAME`, `AURORA_HUE_CLIENTKEY`.
   If any are unset, `hue` just isn't registered as an available output.
+- **No entertainment-config picker.** If the bridge has more than one
+  entertainment configuration, set `AURORA_HUE_ENTERTAINMENT_CONFIG_ID` to
+  the right one's UUID — otherwise `HueOutput` picks arbitrarily.
 - **No zone-mapping UI.** On first run every zone comes back inactive
   (`reconcileZoneMap`'s default) — hand-edit
   `<configRoot>/profiles/hue.json` to mark zones active with real UV rects

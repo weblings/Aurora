@@ -97,12 +97,21 @@ namespace
     const char* bridgeAddress = std::getenv("AURORA_HUE_BRIDGE_ADDRESS");
     const char* username = std::getenv("AURORA_HUE_USERNAME");
     const char* clientkey = std::getenv("AURORA_HUE_CLIENTKEY");
+    // Optional: disambiguates when the bridge has >1 entertainment config --
+    // HueOutput's empty-ID default (unordered_map::begin()) is arbitrary then.
+    const char* entertainmentConfigId = std::getenv("AURORA_HUE_ENTERTAINMENT_CONFIG_ID");
 
     if(bridgeAddress && username && clientkey){
-      registry.registerOutput("hue", [bridgeAddress = std::string(bridgeAddress), username = std::string(username), clientkey = std::string(clientkey)]{
+      registry.registerOutput("hue", [
+        bridgeAddress = std::string(bridgeAddress),
+        username = std::string(username),
+        clientkey = std::string(clientkey),
+        entertainmentConfigId = std::string(entertainmentConfigId ? entertainmentConfigId : "")
+      ]{
         return std::make_unique<Aurora::Output::Hue::HueOutput>(
           Aurora::Output::Hue::Credentials(username, clientkey),
-          bridgeAddress
+          bridgeAddress,
+          entertainmentConfigId
         );
       });
     }
