@@ -87,3 +87,24 @@ option (`AURORA_OUTPUT_HUE_BUILD_TESTS`) instead of reusing `BUILD_TESTS`, and
 force-set the *inner* project's `BUILD_TESTS` to `FALSE` explicitly before
 `FetchContent_MakeAvailable`. Worth a name-collision check like this whenever
 a new plugin repo's `CMakeLists.txt` is being written against this pattern.
+
+---
+
+## Same capability with environment-selected variants is one plugin with backends, not several plugins
+
+Nearly modeled X11 and Wayland/Pipewire capture as two separate plugin repos,
+following the same reasoning that justified splitting Input from Output
+(independent dependencies). The difference: a user doesn't *choose* between
+X11 and Wayland the way they choose between a Linux input and a Hue output —
+`SessionDispatch` already picks the right one automatically from facts about
+the machine. Splitting them would force every consumer to fetch and wire
+together two repos to get one coherent capability ("capture the Linux
+screen, whatever session type") working at all.
+
+**Fix:** the repo boundary tracks *independent, user-facing choices*
+(Input vs. Output, one bulb brand vs. another) — not *implementation variants
+of one capability that get selected automatically* (X11 vs. Wayland, and
+likely later: which GPU API a renderer uses, which discovery protocol finds
+a device). Those stay one repo with optional per-variant CMake components
+(`AURORA_INPUT_LINUX_ENABLE_X11`/`_PIPEWIRE`), so their dependencies are still
+independently skippable without fragmenting the capability itself.
