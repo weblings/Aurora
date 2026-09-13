@@ -65,6 +65,7 @@ if(AURORA_OUTPUT_HUE_ENABLE_IO)
     src/EntertainmentConfigurationSelector.cpp
     src/DtlsClient.cpp
     src/Streamer.cpp
+    src/HueOutput.cpp
   )
   target_compile_definitions(AuroraOutputHue PUBLIC AURORA_OUTPUT_HUE_IO_AVAILABLE=1)
   target_link_libraries(AuroraOutputHue PUBLIC CURL::libcurl PkgConfig::MBEDTLS)

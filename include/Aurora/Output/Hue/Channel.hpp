@@ -26,6 +26,15 @@ namespace Aurora::Output::Hue
   };
   using ChannelStreams = std::vector<ChannelStream>;
 
+  // 2^(-gammaFactor * 2) -- see huenicorn's original Channel::gammaExponent().
+  // Free function so HueOutput can apply it to a Contracts::Zone::gamma
+  // value directly, without needing a full Channel object.
+  inline float gammaExponent(float gammaFactor)
+  {
+    float factor = 2.f;
+    return glm::pow(2.f, -gammaFactor * factor);
+  }
+
   // Wrapper around a Hue entertainment channel, extended with UV zone + gamma control.
   struct Channel
   {
@@ -44,11 +53,9 @@ namespace Aurora::Output::Hue
       const Contracts::UVs& uvs = {{0, 0}, {1, 1}}
     );
 
-    // 2^(-gammaFactor * 2) -- see huenicorn's original Channel::gammaExponent().
     inline float gammaExponent() const
     {
-      float factor = 2.f;
-      return glm::pow(2.f, -gammaFactor * factor);
+      return Hue::gammaExponent(gammaFactor);
     }
 
     void setActive(bool active);
