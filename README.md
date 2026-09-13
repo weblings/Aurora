@@ -1,7 +1,8 @@
 # Aurora Input: Linux
 
 Linux screen-capture input plugin for [Aurora](../Aurora) — implements
-`Aurora::Input::IInput` (X11 today; Pipewire/Wayland is a follow-up).
+`Aurora::Input::IInput` for both X11 and Wayland (via Pipewire/
+`xdg-desktop-portal`), auto-selected at runtime by `SessionDispatch`.
 
 Distilled from [huenicorn](https://gitlab.com/openjowelsofts/huenicorn)
 (GPL-3.0), so this repo carries the same license forward — see `LICENSE`.
@@ -14,16 +15,26 @@ Distilled from [huenicorn](https://gitlab.com/openjowelsofts/huenicorn)
 - `X11Grabber` — mechanically ported, builds against `libX11`/`libXext`/`libXrandr`.
   Not unit-testable (needs a real X11 display) — manual verification pending,
   same category as `Aurora-Output-Hue`'s DTLS streaming.
-- **Not yet ported:** `PipewireGrabber`/`XdgDesktopPortal` (Wayland capture via
-  `xdg-desktop-portal`) — see [`Aurora/Analysis/LinuxCaptureAnalysis.md`](../Aurora/Analysis/LinuxCaptureAnalysis.md)
-  for why this was scoped out of the first pass.
+- `PipewireGrabber`/`XdgDesktopPortal` — mechanically ported (Wayland capture
+  via `xdg-desktop-portal`'s ScreenCast interface, plus Gamescope's direct
+  Pipewire node). Gamescope-node matching and raw-buffer-to-`ImageData`
+  conversion extracted as pure, tested helpers. Not unit-testable as a whole
+  (needs a real Wayland session + portal backend) — see
+  [`Aurora/Analysis/LinuxCaptureAnalysis.md`](../Aurora/Analysis/LinuxCaptureAnalysis.md).
 
 ## Building
 
 Depends on Aurora core (`Contracts`, the `Input` interface), resolved via a
 local sibling-directory path in `CMakeLists.txt` — expects this repo to sit
-next to `Aurora/` on disk. Also needs X11 dev headers
-(`libx11-dev libxext-dev libxrandr-dev` on Debian/Ubuntu).
+next to `Aurora/` on disk. Also needs, on Debian/Ubuntu:
+
+```
+sudo apt install libx11-dev libxext-dev libxrandr-dev libpipewire-0.3-dev libglib2.0-dev
+```
+
+Either capture backend can be skipped independently via
+`-DAURORA_INPUT_LINUX_ENABLE_X11=OFF` / `-DAURORA_INPUT_LINUX_ENABLE_PIPEWIRE=OFF`
+if its dev packages aren't available.
 
 ```
 cmake -S . -B build

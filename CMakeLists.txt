@@ -9,7 +9,7 @@ option(AURORA_INPUT_LINUX_BUILD_TESTS "Build this plugin's own tests" TRUE)
 # same reasoning huenicorn's own X11_GRABBER_AVAILABLE/PIPEWIRE_GRABBER_AVAILABLE
 # flags used, kept in one repo rather than split into two.
 option(AURORA_INPUT_LINUX_ENABLE_X11 "Build X11 capture support" TRUE)
-option(AURORA_INPUT_LINUX_ENABLE_PIPEWIRE "Build Pipewire/Wayland capture support" FALSE) # not ported yet
+option(AURORA_INPUT_LINUX_ENABLE_PIPEWIRE "Build Pipewire/Wayland capture support" TRUE)
 
 include(FetchContent)
 
@@ -48,7 +48,16 @@ if(AURORA_INPUT_LINUX_ENABLE_X11)
 endif()
 
 if(AURORA_INPUT_LINUX_ENABLE_PIPEWIRE)
-  message(FATAL_ERROR "Pipewire/Wayland capture isn't ported yet -- see Analysis/LinuxCaptureAnalysis.md")
+  find_package(PkgConfig REQUIRED)
+  pkg_check_modules(PIPEWIRE REQUIRED IMPORTED_TARGET libpipewire-0.3)
+  pkg_check_modules(GLIB REQUIRED IMPORTED_TARGET glib-2.0 gio-2.0 gio-unix-2.0)
+
+  target_sources(AuroraInputLinux PRIVATE
+    src/XdgDesktopPortal.cpp
+    src/PipewireGrabber.cpp
+  )
+  target_compile_definitions(AuroraInputLinux PUBLIC AURORA_INPUT_LINUX_PIPEWIRE_AVAILABLE=1)
+  target_link_libraries(AuroraInputLinux PUBLIC PkgConfig::PIPEWIRE PkgConfig::GLIB)
 endif()
 
 if(AURORA_INPUT_LINUX_BUILD_TESTS)
