@@ -2,11 +2,9 @@
 
 #include <unordered_map>
 
-#include <glm/vec3.hpp>
 #include <glm/exponential.hpp>
 
 #include <Aurora/Contracts/UV.hpp>
-#include <Aurora/Output/Hue/Colorimetry.hpp>
 #include <Aurora/Output/Hue/Device.hpp>
 
 
@@ -53,9 +51,5 @@ namespace Aurora::Output::Hue
     Devices devices;
     float gammaFactor{0.0};
     Contracts::UVs uvs{};
-
-    // Transient streaming state, not persisted -- eases transitions when smoothing > 0.
-    glm::vec3 previousXyb{XYBBlack};
-    bool hasPreviousXyb{false};
   };
 }
