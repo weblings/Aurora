@@ -57,7 +57,18 @@ target_compile_features(AuroraOutputHue PUBLIC cxx_std_20)
 if(AURORA_OUTPUT_HUE_ENABLE_IO)
   find_package(CURL REQUIRED)
   find_package(PkgConfig REQUIRED)
-  pkg_check_modules(MBEDTLS REQUIRED IMPORTED_TARGET mbedtls mbedx509 mbedcrypto)
+  pkg_check_modules(MBEDTLS QUIET IMPORTED_TARGET mbedtls mbedx509 mbedcrypto)
+
+  if(NOT MBEDTLS_FOUND)
+    # Ubuntu's libmbedtls-dev (2.28.x) ships no .pc files at all -- fall
+    # back to a manual find of the same three libraries pkg-config would
+    # have located.
+    find_library(MBEDTLS_LIB mbedtls REQUIRED)
+    find_library(MBEDX509_LIB mbedx509 REQUIRED)
+    find_library(MBEDCRYPTO_LIB mbedcrypto REQUIRED)
+    add_library(PkgConfig::MBEDTLS INTERFACE IMPORTED)
+    target_link_libraries(PkgConfig::MBEDTLS INTERFACE ${MBEDTLS_LIB} ${MBEDX509_LIB} ${MBEDCRYPTO_LIB})
+  endif()
 
   target_sources(AuroraOutputHue PRIVATE
     src/HttpClient.cpp

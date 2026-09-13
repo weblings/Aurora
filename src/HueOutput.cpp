@@ -46,7 +46,9 @@ namespace Aurora::Output::Hue
 
   const std::string& HueOutput::name() const
   {
-    static const std::string s_name = "Hue";
+    // Lowercase: matches the "hue" registry key and profiles/hue.json --
+    // Runtime derives the saved zone-map filename directly from this.
+    static const std::string s_name = "hue";
     return s_name;
   }
 

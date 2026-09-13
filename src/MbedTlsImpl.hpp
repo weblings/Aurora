@@ -1,9 +1,9 @@
 #pragma once
 
 // Mbed TLS PSK-DTLS handshake/socket implementation behind DtlsClient's
-// pimpl. Ported from huenicorn's Stream::Impl -- only the Mbed TLS v3 API
-// is ported/verified here (apt's libmbedtls-dev is 3.6.5); huenicorn's v4
-// branch isn't carried over since it can't be verified in this environment.
+// pimpl. Ported from huenicorn's Stream::Impl -- huenicorn's v4 branch isn't
+// carried over. Uses only classic API calls stable across 2.x and 3.x;
+// verified building against both 2.28.0 (Ubuntu 22.04) and 3.6.5.
 
 #include <memory>
 #include <span>
