@@ -61,3 +61,34 @@ Hue lights) react immediately. The all-black result earlier was "nothing
 was there," not "this monitor forces black" — an important distinction for
 debugging: a black capture from an off monitor doesn't rule out the
 pipeline working correctly.
+
+---
+
+## Shared-mode WASAPI loopback delivers zero callbacks, not silent ones, when nothing is actively rendering
+
+`AudioGrabber` (miniaudio-backed WASAPI loopback, `Aurora-Input-Windows`)
+built and initialized cleanly, but its first real-hardware run produced
+**no data callbacks at all** across a 3-second sampling window — not empty/
+silent buffers, literally zero callback invocations, failing even
+`sawNonEmptyBuffer`. The system had no audio actively playing at the time.
+Confirmed the cause directly rather than assumed: re-ran the same test
+while concurrently triggering real playback (Windows Speech Synthesis) —
+callbacks started firing within about a second of playback actually
+starting (real data: 48000Hz, stereo, 9600-11520 samples per ~100ms tick,
+matching the negotiated rate read back from the device), and the test
+passed cleanly.
+
+**Fix:** none needed for the default effect's actual use case (reacting to
+music the user is deliberately playing implies something is already
+rendering), but worth remembering as a real behavior, not a bug to chase:
+shared-mode loopback capture is tied to the render engine's own periodic
+buffer processing, which can go idle when nothing is actively outputting
+sound — there's no guaranteed keep-alive stream of silent buffers to poll
+against. Anything that needs to distinguish "definitely silent" from "no
+signal at all, capture hasn't started" (a manual test, a diagnostic UI)
+should treat a run of zero callbacks as informative on its own, not
+retry-and-hope. If a genuine need for guaranteed periodic wake-ups ever
+arises (e.g. detecting "playback just started" reliably), the known
+mitigation is rendering a silent stream on the same device to keep the
+engine active — not attempted here since nothing in this project's scope
+needs it yet.

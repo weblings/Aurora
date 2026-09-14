@@ -29,6 +29,10 @@ namespace Aurora::Runtime
     // replug/reorder. Empty means auto (whatever IVideoInput selects by
     // default, usually primary). See Runtime/MonitorSelector.hpp.
     std::string activeMonitorName;
+
+    // Which registered IAudioInput to run, by name. Video wins if both
+    // could apply -- see main()'s dispatch logic, not a Config concept.
+    std::string activeAudioInputName;
   };
 
 
@@ -65,6 +69,9 @@ namespace Aurora::Runtime
 
     const std::string& activeMonitorName() const;
     void setActiveMonitorName(std::string name);
+
+    const std::string& activeAudioInputName() const;
+    void setActiveAudioInputName(std::string name);
 
   private:
     ConfigData m_data;

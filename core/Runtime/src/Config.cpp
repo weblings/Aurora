@@ -122,4 +122,16 @@ namespace Aurora::Runtime
   {
     m_data.activeMonitorName = std::move(name);
   }
+
+
+  const std::string& Config::activeAudioInputName() const
+  {
+    return m_data.activeAudioInputName;
+  }
+
+
+  void Config::setActiveAudioInputName(std::string name)
+  {
+    m_data.activeAudioInputName = std::move(name);
+  }
 }

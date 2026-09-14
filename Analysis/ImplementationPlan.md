@@ -646,17 +646,30 @@ lets tuning happen by ear without also building audio playback:
    regressions).
 3. **Live-capture plugins**, new CMake target in each existing repo (not
    a new repo — see `AudioAnalysis.md`'s repo/target-structure section):
-   - `Aurora-Input-Windows` gains `AuroraInputWindowsAudio` — miniaudio-
-     backed WASAPI loopback, new `AURORA_INPUT_WINDOWS_ENABLE_AUDIO`
-     option.
-   - `Aurora-Input-Linux` gains `AuroraInputLinuxAudio` — native
-     pipewire-backed capture, reusing the `libpipewire-0.3` dependency
-     already linked for `PipewireGrabber`, new
-     `AURORA_INPUT_LINUX_ENABLE_AUDIO` option.
-   - Both implement `IAudioInput`; each internally adapts its platform's
-     push-driven callback model to the interface's pull-style read (the
-     adaptation lives inside the plugin, not the interface — see
-     `AudioAnalysis.md`'s push/pull note).
+   - **Windows: done, hardware-verified.** `Aurora-Input-Windows` gains
+     `AuroraInputWindowsAudio` (new `AURORA_INPUT_WINDOWS_ENABLE_AUDIO`
+     option) — `AudioGrabber`, miniaudio-backed WASAPI loopback (verified
+     against the real header/docs first: `ma_device_type_loopback`, the
+     `ma_device_config` fields, the data-callback signature — same
+     discipline as the aubio pass). Push-to-pull adaptation is a
+     mutex-protected accumulator filled by miniaudio's real-time callback
+     thread, drained by `readNextBuffer()`. Ran the hidden `[manual]` test
+     against real hardware immediately (this machine has a real
+     interactive desktop, same reasoning as `WindowsGrabber`'s own
+     verification): first run produced zero callbacks in 3 seconds with
+     nothing playing; re-ran while actually triggering real playback
+     (Windows Speech Synthesis) and got real data within ~1s — 48000Hz
+     stereo, correctly read back from the negotiated device config, not
+     assumed. Confirmed real finding, filed in `Analysis/lessons/input.md`:
+     shared-mode WASAPI loopback delivers **zero callbacks, not silent
+     ones**, when nothing is actively rendering — informative for future
+     diagnostics, not a bug, and not a blocker for the actual use case
+     (reacting to music implies something's already playing).
+   - **Linux: not started.** `Aurora-Input-Linux` gains
+     `AuroraInputLinuxAudio` — native pipewire-backed capture, reusing the
+     `libpipewire-0.3` dependency already linked for `PipewireGrabber`, new
+     `AURORA_INPUT_LINUX_ENABLE_AUDIO` option. No Linux toolchain in this
+     session, same limitation as the interface-rename step.
 4. **Orchestration — done, Windows-verified.** `AudioOrchestrator` built as
    a separate class, no shared base with `Orchestrator` (same reasoning
    `IAudioInput`/`IVideoInput` already got no shared base — the two

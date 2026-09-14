@@ -21,7 +21,8 @@ namespace Aurora::Runtime
         {"transitionSmoothing", data.transitionSmoothing},
         {"activeInputName", data.activeInputName},
         {"activeOutputNames", data.activeOutputNames},
-        {"activeMonitorName", data.activeMonitorName}
+        {"activeMonitorName", data.activeMonitorName},
+        {"activeAudioInputName", data.activeAudioInputName}
       };
     }
 
@@ -46,6 +47,7 @@ namespace Aurora::Runtime
       data.activeInputName = json.value("activeInputName", defaults.activeInputName);
       data.activeOutputNames = json.value("activeOutputNames", defaults.activeOutputNames);
       data.activeMonitorName = json.value("activeMonitorName", defaults.activeMonitorName);
+      data.activeAudioInputName = json.value("activeAudioInputName", defaults.activeAudioInputName);
 
       return data;
     }
