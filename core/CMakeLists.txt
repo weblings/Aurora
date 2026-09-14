@@ -40,6 +40,7 @@ endif()
 # Contracts first (no internal deps), then Processing (depends on Contracts).
 add_subdirectory(Contracts)
 add_subdirectory(Processing)
+add_subdirectory(AudioProcessing)
 
 # Interface-only -- concrete plugins (Aurora-Input-Linux, Aurora-Output-Hue,
 # ...) live in their own repos and depend on these, not the other way round.

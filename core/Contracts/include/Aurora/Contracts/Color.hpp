@@ -1,5 +1,7 @@
 #pragma once
 
+#include <algorithm>
+#include <cmath>
 #include <cstdint>
 #include <limits>
 
@@ -86,6 +88,72 @@ namespace Aurora::Contracts
     float brightness() const
     {
       return (m_r * 0.3f + m_g * 0.59f + m_b * 0.11f) / Color::Max;
+    }
+
+
+    /**
+     * @brief Constructs a Color from HSV -- added for the audio-reactive
+     * color model (Analysis/AudioAnalysis.md), which reasons in hue-arc
+     * terms, not RGB. No HSV representation existed anywhere before this.
+     *
+     * @param hueDegrees Hue in degrees, wrapped to [0, 360)
+     * @param saturation 0-1
+     * @param value 0-1
+     */
+    static Color fromHSV(float hueDegrees, float saturation, float value)
+    {
+      float h = std::fmod(hueDegrees, 360.0f);
+      if(h < 0.0f){
+        h += 360.0f;
+      }
+
+      float c = value * saturation;
+      float hPrime = h / 60.0f;
+      float x = c * (1.0f - std::abs(std::fmod(hPrime, 2.0f) - 1.0f));
+      float m = value - c;
+
+      float r1 = 0.0f, g1 = 0.0f, b1 = 0.0f;
+      if(hPrime < 1.0f)      { r1 = c; g1 = x; b1 = 0.0f; }
+      else if(hPrime < 2.0f) { r1 = x; g1 = c; b1 = 0.0f; }
+      else if(hPrime < 3.0f) { r1 = 0.0f; g1 = c; b1 = x; }
+      else if(hPrime < 4.0f) { r1 = 0.0f; g1 = x; b1 = c; }
+      else if(hPrime < 5.0f) { r1 = x; g1 = 0.0f; b1 = c; }
+      else                   { r1 = c; g1 = 0.0f; b1 = x; }
+
+      return Color(
+        static_cast<ChannelDepth>(std::round((r1 + m) * Color::Max)),
+        static_cast<ChannelDepth>(std::round((g1 + m) * Color::Max)),
+        static_cast<ChannelDepth>(std::round((b1 + m) * Color::Max))
+      );
+    }
+
+
+    /**
+     * @brief Returns {hueDegrees, saturation, value} -- the inverse of
+     * fromHSV(). Hue is 0 (not undefined) for a fully desaturated color.
+     *
+     * @return glm::vec3 {hue in [0,360), saturation 0-1, value 0-1}
+     */
+    glm::vec3 toHSV() const
+    {
+      glm::vec3 rgb = toNormalized();
+      float maxC = std::max({rgb.r, rgb.g, rgb.b});
+      float minC = std::min({rgb.r, rgb.g, rgb.b});
+      float delta = maxC - minC;
+
+      float hue = 0.0f;
+      if(delta > 1e-6f){
+        if(maxC == rgb.r)      { hue = 60.0f * std::fmod((rgb.g - rgb.b) / delta, 6.0f); }
+        else if(maxC == rgb.g) { hue = 60.0f * (((rgb.b - rgb.r) / delta) + 2.0f); }
+        else                   { hue = 60.0f * (((rgb.r - rgb.g) / delta) + 4.0f); }
+      }
+      if(hue < 0.0f){
+        hue += 360.0f;
+      }
+
+      float saturation = (maxC <= 1e-6f) ? 0.0f : (delta / maxC);
+
+      return glm::vec3(hue, saturation, maxC);
     }
 
     // Attributes

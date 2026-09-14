@@ -51,9 +51,21 @@ target_link_libraries(AuroraOrchestratorTests PRIVATE
 
 target_compile_features(AuroraOrchestratorTests PUBLIC cxx_std_20)
 
+add_executable(AuroraAudioProcessingTests
+  AudioProcessingTests.cpp
+)
+
+target_link_libraries(AuroraAudioProcessingTests PRIVATE
+  AuroraAudioProcessing
+  Catch2::Catch2WithMain
+)
+
+target_compile_features(AuroraAudioProcessingTests PUBLIC cxx_std_20)
+
 # enable_testing() lives in the parent CMakeLists.txt now, not here -- see
 # the comment there. Only need Catch2's own CTest-integration module here.
 include(Catch)
 catch_discover_tests(AuroraProcessingTests)
 catch_discover_tests(AuroraRuntimeTests)
 catch_discover_tests(AuroraOrchestratorTests)
+catch_discover_tests(AuroraAudioProcessingTests)

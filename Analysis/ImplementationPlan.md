@@ -598,30 +598,35 @@ lets tuning happen by ear without also building audio playback:
    side (`Aurora-Input-Linux`, `Aurora-App-Linux`) mechanically renamed and
    grep-clean, but not build-verified in this session — no Linux toolchain
    here, same limitation as phase 1/2's Linux work; needs a real build on
-   the Ubuntu machine to confirm. Still to add: `IAudioInput` (Core, wholly
-   independent interface, no shared base) and `Contracts::AudioBuffer`
-   (raw samples + sample rate + channel count) — not started yet.
-2. **Core `AudioProcessing` module**, mirroring `ImageProcessing`'s
-   shape:
-   - Add aubio as a Core dependency, detection-only (no `libsndfile`/
-     `libav` — that stays out of Core per the dependency split already
-     decided), same find-package-else-`FetchContent` pattern used for
-     `nlohmann_json` in phase 1.
-   - Add HSV↔RGB conversion — doesn't exist anywhere in `Contracts::Color`
-     today, needed for the hue-arc interpolation model.
-   - `Contracts::AudioFeatures` (onset flag, onset strength, RMS, spectral
-     centroid) and `extractFeatures(AudioBuffer) -> AudioFeatures`
-     (wraps aubio; mono downmix happens here, not per-plugin).
-   - Pure, independently-testable functions for the actual color model:
-     180° complementary pairs, hue-arc interpolation with bounce/drift
-     assigned fixed opposite rotational directions, continuous exponential
-     damping (RockyRoad's formula) for the bounce, onset-strength-scaled
-     swing with a dynamism floor, RMS-driven brightness with a
-     near-silence gate, centroid rolling-average rate-bias nudge on drift,
-     and the six-pair rainbow palette for cold start. All the concrete
-     formulas/starting constants are in `AudioAnalysis.md` — this is
-     where they actually get written as code, tuned by ear against
-     real playback per this phase's demonstrable.
+   the Ubuntu machine to confirm. **Done, also Windows-verified:**
+   `IAudioInput` (Core, wholly independent interface, no shared base) and
+   `Contracts::AudioBuffer` (raw samples + sample rate + channel count).
+2. **Core `AudioProcessing` module, mirroring `ImageProcessing`'s shape —
+   done and Windows-verified except aubio itself.** New `AuroraAudioProcessing`
+   Core target (separate from `AuroraProcessing` deliberately, same
+   dependency-isolation reasoning as the plugin repo split — only
+   audio-enabled consumers need it linked). `Contracts::AudioFeatures`,
+   `Color::fromHSV`/`toHSV` (verified against the palette table's known
+   values, not just round-tripped), and the full color model —
+   `randomAnchorHue` (six named pairs), `updateDrift` (fixed-direction
+   rotation, rate-bias centroid nudge that never reverses direction,
+   verified directly), `updateBounce` (RockyRoad's shortest-arc damping
+   formula, onset-strength-scaled swing with a verified dynamism floor,
+   RMS-driven brightness with a verified never-fully-dark floor) — all as
+   pure functions taking an `AudioEffectSettings` struct (the
+   `Config`-parameterization decided earlier), per `AudioAnalysis.md`'s
+   formulas. **Result: 38/38 core tests passing** (12 new `AudioProcessing`
+   tests + the pre-existing 26), rebuilt clean against `Aurora-App-Windows`
+   too (4/4 still passing) with no regressions.
+
+   **Still open, deliberately not guessed at:** `extractFeatures`'s
+   `onsetDetected`/`onsetStrength`/`spectralCentroid` are placeholders
+   (always false/0) — `rms` is real, pure math, no dependency needed. aubio
+   itself isn't wired in yet; its actual C API hasn't been verified in this
+   pass (only its license/packaging/staleness, back in `AudioAnalysis.md`),
+   and this project's own rule is to verify a library's real behavior
+   before coding against assumed behavior — that verification pass is the
+   next concrete step, not yet done.
 3. **Live-capture plugins**, new CMake target in each existing repo (not
    a new repo — see `AudioAnalysis.md`'s repo/target-structure section):
    - `Aurora-Input-Windows` gains `AuroraInputWindowsAudio` — miniaudio-
@@ -659,13 +664,15 @@ lets tuning happen by ear without also building audio playback:
    `activeInputName` against both factory maps, or a separate mode
    selector plus `activeAudioInputName` — not decided, worth resolving
    here rather than guessing now.
-6. **Tests.** `AudioProcessing`'s pure functions (`extractFeatures`,
-   `updateDrift`, `updateBounce`) are golden-value-testable with no real
-   audio hardware at all, same spirit as `ImageProcessing`'s tests — do
-   this first, before either plugin exists, to validate the color model
-   in isolation. Live capture itself stays a hidden/manual test per
-   platform, same category as `WindowsGrabber`'s `[manual]` case — depends
-   on a real audio session, not something CI can assert on.
+6. **Tests — done for everything not gated on aubio,** per step 2's
+   result above: `extractFeatures`'s real `rms` path, `randomAnchorHue`,
+   `updateDrift`, and `updateBounce` all covered with no real audio
+   hardware at all, same spirit as `ImageProcessing`'s tests, done first as
+   planned, before either plugin exists. `extractFeatures`'s onset/centroid
+   paths need their own tests once aubio is actually wired in. Live capture
+   itself stays a hidden/manual test per platform, same category as
+   `WindowsGrabber`'s `[manual]` case — depends on a real audio session,
+   not something CI can assert on.
 
 **Explicitly deferred, not part of this phase's demonstrable:**
 - **`AudioFile-Input`** (provenance 1) — resequenced to a later,
