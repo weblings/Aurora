@@ -49,6 +49,12 @@ namespace Aurora::Runtime
     float audioBrightnessFloor{0.4f};
     float audioCentroidRangeHz{2250.f};
     float audioBrightnessSmoothTime{0.45f};
+
+    // Linux-only: the exact PipeWire node.name of the sink whose monitor
+    // ports to capture (see `wpctl status` + `pw-cli info <id>`). Empty
+    // isn't "auto" here -- PipeWire has no universal default-sink alias, so
+    // Aurora-Input-Linux's AudioGrabber requires this to be set explicitly.
+    std::string audioTargetSinkName;
   };
 
 
@@ -121,6 +127,9 @@ namespace Aurora::Runtime
 
     float audioBrightnessSmoothTime() const;
     void setAudioBrightnessSmoothTime(float seconds);
+
+    const std::string& audioTargetSinkName() const;
+    void setAudioTargetSinkName(std::string name);
 
   private:
     ConfigData m_data;

@@ -168,4 +168,7 @@ namespace Aurora::Runtime
 
   float Config::audioBrightnessSmoothTime() const { return m_data.audioBrightnessSmoothTime; }
   void Config::setAudioBrightnessSmoothTime(float seconds) { m_data.audioBrightnessSmoothTime = seconds; }
+
+  const std::string& Config::audioTargetSinkName() const { return m_data.audioTargetSinkName; }
+  void Config::setAudioTargetSinkName(std::string name) { m_data.audioTargetSinkName = std::move(name); }
 }
