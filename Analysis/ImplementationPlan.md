@@ -2,7 +2,9 @@
 
 Five phases to prove out the Input/Processing/Output split
 ([`ModuleSplitPlan.md`](ModuleSplitPlan.md)) as a real, running vertical slice,
-plus one deferred stretch. Order matches how the phases were scoped.
+plus one deferred stretch. Order matches how the phases were scoped. Phase
+2.5 (audio) was inserted later, independent of phases 3–5 — it doesn't
+renumber anything since it isn't sequentially gated by the browser work.
 
 ## Guiding principles
 
@@ -565,6 +567,117 @@ Fills in `WindowsAdapter`'s `_createGrabber` stub (currently returns `nullptr`).
   `Analysis/lessons/input.md`): a non-blocking `AcquireNextFrame` poll can
   starve on placeholder frames forever, and a monitor Windows still lists as
   attached can be genuinely powered off with no API-level way to detect it.
+
+## Phase 2.5 — Audio input & processing
+
+Inserted between phases 2 and 3, not phase 6, because it's independent of
+phases 3–5 (browser/WebXR/ISF) — it's a new `Input`+`Processing` track,
+the same kind of foundational native work as phase 2, not something
+gated on or by the browser output work. **Analysis pass already done,
+extensively:** `Analysis/AudioAnalysis.md` — every decision below is
+sourced from it rather than re-derived here.
+
+**Demonstrable:** play music through whatever the user normally uses
+(Spotify, browser, anything), watch real Hue lights bounce between a
+vibrant complementary color pair on the beat, the pair itself slowly
+rotating in hue over time, nudged by the track's own spectral content —
+confirmed live against real hardware, same rigor as phase 2's real
+end-to-end verification.
+
+**In scope for this phase — live capture only** (provenance 3 in
+`AudioAnalysis.md`'s breakdown), because it's the only provenance that
+lets tuning happen by ear without also building audio playback:
+
+1. **Interface layer.** Rename `IInput`→`IVideoInput` (ripples through
+   `Aurora-Input-Windows`/`-Linux`, both App repos' `Registry`/`main.cpp`,
+   `MonitorSelector`/`Orchestrator`, `RuntimeTests.cpp` fixtures — see
+   `AudioAnalysis.md`'s naming section for the full list). Add `IAudioInput`
+   (Core, wholly independent interface, no shared base) and
+   `Contracts::AudioBuffer` (raw samples + sample rate + channel count).
+2. **Core `AudioProcessing` module**, mirroring `ImageProcessing`'s
+   shape:
+   - Add aubio as a Core dependency, detection-only (no `libsndfile`/
+     `libav` — that stays out of Core per the dependency split already
+     decided), same find-package-else-`FetchContent` pattern used for
+     `nlohmann_json` in phase 1.
+   - Add HSV↔RGB conversion — doesn't exist anywhere in `Contracts::Color`
+     today, needed for the hue-arc interpolation model.
+   - `Contracts::AudioFeatures` (onset flag, onset strength, RMS, spectral
+     centroid) and `extractFeatures(AudioBuffer) -> AudioFeatures`
+     (wraps aubio; mono downmix happens here, not per-plugin).
+   - Pure, independently-testable functions for the actual color model:
+     180° complementary pairs, hue-arc interpolation with bounce/drift
+     assigned fixed opposite rotational directions, continuous exponential
+     damping (RockyRoad's formula) for the bounce, onset-strength-scaled
+     swing with a dynamism floor, RMS-driven brightness with a
+     near-silence gate, centroid rolling-average rate-bias nudge on drift,
+     and the six-pair rainbow palette for cold start. All the concrete
+     formulas/starting constants are in `AudioAnalysis.md` — this is
+     where they actually get written as code, tuned by ear against
+     real playback per this phase's demonstrable.
+3. **Live-capture plugins**, new CMake target in each existing repo (not
+   a new repo — see `AudioAnalysis.md`'s repo/target-structure section):
+   - `Aurora-Input-Windows` gains `AuroraInputWindowsAudio` — miniaudio-
+     backed WASAPI loopback, new `AURORA_INPUT_WINDOWS_ENABLE_AUDIO`
+     option.
+   - `Aurora-Input-Linux` gains `AuroraInputLinuxAudio` — native
+     pipewire-backed capture, reusing the `libpipewire-0.3` dependency
+     already linked for `PipewireGrabber`, new
+     `AURORA_INPUT_LINUX_ENABLE_AUDIO` option.
+   - Both implement `IAudioInput`; each internally adapts its platform's
+     push-driven callback model to the interface's pull-style read (the
+     adaptation lives inside the plugin, not the interface — see
+     `AudioAnalysis.md`'s push/pull note).
+4. **Orchestration — decided: a separate `AudioOrchestrator`,** no shared
+   base with `Orchestrator` (same reasoning `IAudioInput`/`IVideoInput`
+   already got no shared base — the two pipelines share almost no real
+   steps beyond "send `Frame` to each `IOutput`"). Validated against real
+   VJ software, not just Aurora's own precedent: TouchDesigner keeps audio
+   (CHOPs) and video (TOPs) as genuinely separate operator families that
+   can't even wire directly together, and Resolume treats audio purely as
+   a *modulator* of video parameters rather than a parallel output
+   producer — see `AudioAnalysis.md`'s orchestration section. `Orchestrator`
+   itself stays completely untouched, zero risk to its existing tests.
+   Also carries the tunable constants (cold-start pair, `smoothTime`,
+   dynamism floor, centroid `strength`) as an `AudioEffectSettings` struct
+   read from `Config` and passed into `updateDrift`/`updateBounce` as
+   parameters — not hardcoded — so a future settings UI needs zero changes
+   to `AudioProcessing` itself, only to read/write the same `Config`
+   fields, the same shape `activeMonitorName` already proved out.
+5. **App wiring.** Both App repos add a new `Registry` factory map for
+   `IAudioInput` (mechanical — `Registry` already isn't polymorphic over
+   one shared interface, see `AudioAnalysis.md`), gated by a new
+   `AURORA_APP_ENABLE_*_AUDIO_INPUT` option. **Also open:** how `Config`
+   picks between a video-mode run and an audio-mode run — reusing
+   `activeInputName` against both factory maps, or a separate mode
+   selector plus `activeAudioInputName` — not decided, worth resolving
+   here rather than guessing now.
+6. **Tests.** `AudioProcessing`'s pure functions (`extractFeatures`,
+   `updateDrift`, `updateBounce`) are golden-value-testable with no real
+   audio hardware at all, same spirit as `ImageProcessing`'s tests — do
+   this first, before either plugin exists, to validate the color model
+   in isolation. Live capture itself stays a hidden/manual test per
+   platform, same category as `WindowsGrabber`'s `[manual]` case — depends
+   on a real audio session, not something CI can assert on.
+
+**Explicitly deferred, not part of this phase's demonstrable:**
+- **`AudioFile-Input`** (provenance 1) — resequenced to a later,
+  lower-priority pass as a reproducible test fixture (libsndfile-backed,
+  already verified in `AudioAnalysis.md`), not needed for the live-capture
+  demonstrable above.
+- **Video-embedded audio** (provenance 2) — needs a genuinely different
+  joint-demux component, tied to phase 3's still-unscoped video-upload
+  idea, not this phase.
+- **Building an actual settings UI** — the `Config` fields/`AudioEffectSettings`
+  struct from step 4 make the values UI-editable *when* a UI exists, but no
+  UI is part of this phase. Unset `fixedAnchorHue` (random pick among the
+  six pairs) stays the only exercised path until something actually writes
+  to that field.
+- Every numeric constant in `AudioAnalysis.md` marked as needing a
+  listening test (`smoothTime`, the dynamism floor, centroid `strength`,
+  vibrancy S/V) — starting points to tune during this phase's actual
+  build, not values to treat as final before real playback exists to
+  tune them against.
 
 ## Phase 3 — Three.js browser output plugin
 

@@ -613,6 +613,92 @@ logic downstream. Consistent with `StackComparison.md`'s finding that the
 capture/input boundary is exactly the kind of thing that legitimately
 varies per platform while everything downstream of it stays shared.
 
+### Orchestration shape — resolved, informed by real VJ software
+
+A different question from the tick-*rate* one above: not *when* a tick
+happens, but *what code runs inside it*. `Orchestrator::update()` is built
+entirely around image-cropping (`rescale`/`dropAlpha`/`composeFrame`/
+`ZoneMap`/`Smoother`) — audio's tick has none of that, it's
+`extractFeatures` → `updateDrift`/`updateBounce` → one `Frame` broadcast to
+every zone. The only genuinely shared step between the two is "send this
+`Frame` to each configured `IOutput`" — a few lines, not a real
+abstraction.
+
+**Decided: a separate `AudioOrchestrator`, no shared base with
+`Orchestrator`** — the same reasoning that gave `IAudioInput`/
+`IVideoInput` no shared base applies identically here: forcing one class
+to generalize over two pipelines that share almost no real steps would
+recreate an abstraction holding next to nothing, for the sake of sharing a
+three-line loop. Zero risk to `Orchestrator`'s existing, well-tested
+behavior either, since it stays untouched.
+
+**Checked against real VJ software rather than left as an internal-only
+argument** — it holds up, and more strongly than expected:
+- **TouchDesigner** keeps audio and video in genuinely separate operator
+  families — CHOPs ("motion, audio, animation, control signals") vs. TOPs
+  (2D image/video) — and **"only operators of the same family can be
+  Wired together."** A CHOP can't connect directly to a TOP at all; the
+  bridge is a distinct, explicit mechanism ("Exporting flows numeric data
+  from CHOPs to all operators" — a scalar becomes another operator's
+  *parameter*, not a native same-shaped connection).
+  ([source](https://docs.derivative.ca/Operator_Family))
+- **Resolume** confirms the same split from the other side: FFT-derived
+  frequency bands *modulate* existing video parameters (scale, color,
+  opacity, effects) — audio doesn't produce its own competing output that
+  gets merged with video's, it feeds numbers into video's own pipeline.
+  BPM sync is kept as a separate mechanism from FFT-band modulation too,
+  mirroring Aurora's own onset/RMS/centroid split into distinct signals
+  for distinct roles rather than one blended value.
+  ([source](https://resolume.com/software/avenue-arena))
+
+For today's audio-only scope (no video running at all), this changes
+nothing — the equivalent of a TouchDesigner network running CHOPs straight
+to output with no TOP involved, a normal supported shape there, not an
+edge case.
+
+**Forward note for later, now evidence-based rather than speculative:**
+when Aurora eventually wants video *and* audio together (provenance 2's
+video-embedded audio, or any future combined live effect), both real
+tools point the same direction — audio's role becomes feeding derived
+values (onset, RMS, centroid) as **modulation inputs into the
+video-driven pipeline's own parameters**, not running two independent
+orchestrators that each produce a competing `Frame` to somehow merge. Not
+designed now — phase 3's video-upload idea is still unscoped — but a
+concrete, precedented shape to reach for then instead of inventing a merge
+strategy from scratch.
+
+### Making the tunable constants genuinely UI-editable later
+
+The numeric knobs scattered through this doc (cold-start pair,
+`smoothTime`, dynamism floor, centroid `strength`, vibrancy S/V) should
+become `Config`/`ConfigStore` fields from the start — the same mechanism
+`activeMonitorName` already established (a `ConfigData` field, a `Config`
+getter/setter, field-by-field defaulting in `toJson`/`fromJson` so an old
+config file degrades gracefully) — rather than retrofitted once a settings
+UI exists.
+
+The part that actually makes this work rather than just gesture at it:
+**`AudioProcessing`'s pure functions take these as parameters, not as
+hardcoded constants in the function bodies.**
+
+```cpp
+struct AudioEffectSettings
+{
+  std::optional<float> fixedAnchorHue; // unset = random pick among the six pairs, matching activeMonitorName's "empty means auto"
+  float bounceSmoothTime = 0.14f;
+  float dynamismFloor = 0.22f;
+  float centroidStrength = 0.5f;
+};
+```
+
+`AudioOrchestrator` reads these from `Config` once and passes the struct
+into `updateDrift`/`updateBounce` each tick. Keeps the functions pure and
+testable with literal values in tests, no `Config` dependency inside
+`AudioProcessing` at all — while every number is already swappable via
+`config.json` today. A future settings UI just needs to read/write the
+same `Config` fields; zero changes to `AudioProcessing` itself when it
+arrives, the same shape `activeMonitorName` already proved out.
+
 ## Related docs
 
 - `DistributedArchitecturePlan.md` — the "`Output` doesn't care about
