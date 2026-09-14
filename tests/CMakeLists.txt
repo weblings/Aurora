@@ -28,3 +28,18 @@ target_compile_features(AuroraInputWindowsTests PUBLIC cxx_std_20)
 
 include(Catch)
 catch_discover_tests(AuroraInputWindowsTests)
+
+if(TARGET AuroraInputWindowsAudio)
+  add_executable(AuroraInputWindowsAudioTests
+    WindowsAudioInputTests.cpp
+  )
+
+  target_link_libraries(AuroraInputWindowsAudioTests PRIVATE
+    AuroraInputWindowsAudio
+    Catch2::Catch2WithMain
+  )
+
+  target_compile_features(AuroraInputWindowsAudioTests PUBLIC cxx_std_20)
+
+  catch_discover_tests(AuroraInputWindowsAudioTests)
+endif()
