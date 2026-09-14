@@ -41,6 +41,7 @@ namespace Aurora::Input::Linux
 
       // Default-sink discovery state (only used when targetSinkName is
       // empty) -- see _resolveDefaultSinkName.
+      pw_core* core{nullptr};
       pw_registry* registry{nullptr};
       pw_metadata* metadata{nullptr};
       spa_hook metadataListener{};
@@ -79,10 +80,8 @@ namespace Aurora::Input::Linux
     static int _onMetadataProperty(void* userdata, uint32_t id, const char* key, const char* type, const char* value);
     static void _onCoreDoneCallback(void* userdata, uint32_t id, int seq);
 
-    // Blocks (on pw->loop) until the default sink's node.name is found via
-    // Pipewire's "default" metadata object, or one core sync roundtrip
-    // passes without it -- returns empty on failure. Only called when the
-    // caller didn't supply an explicit targetSinkName.
+    // Blocks (on pw->loop) until the default sink's node.name is found, or a
+    // sync roundtrip passes without it -- returns empty on failure.
     static std::string _resolveDefaultSinkName(pw_core* core, PipewireAudioData* pw);
 
     static void _pipewireThread(std::string targetSinkName, PipewireAudioData* pw);

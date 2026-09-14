@@ -148,6 +148,10 @@ namespace Aurora::Input::Linux
       _onMetadataProperty
     };
     pw_metadata_add_listener(pw->metadata, &pw->metadataListener, &metadataEvents, pw);
+
+    // This bind is a fresh request sent after the original sync -- re-sync
+    // so loop-exit waits on this reply too, not the earlier one.
+    pw->discoverySyncSeq = pw_core_sync(pw->core, PW_ID_CORE, 0);
   }
 
 
@@ -165,18 +169,29 @@ namespace Aurora::Input::Linux
       return 0;
     }
 
-    // Value is {"name":"<node-name>"} -- SPA's own tiny JSON parser, no new
-    // dependency (already transitively available via the pipewire headers).
+    // Value is {"name":"<node-name>"} -- this pipewire's spa/utils/json.h
+    // (0.3.48) predates object_find(), so walk key/value tokens by hand.
     spa_json iter;
-    spa_json_begin_object(&iter, value, strlen(value));
+    spa_json_init(&iter, value, strlen(value));
 
-    const char* nameValue = nullptr;
-    int nameLen = spa_json_object_find(&iter, "name", &nameValue);
-    if(nameLen > 0){
-      char nameBuf[256];
-      int written = spa_json_parse_stringn(nameValue, static_cast<size_t>(nameLen), nameBuf, sizeof(nameBuf));
-      if(written > 0){
-        pw->resolvedSinkName.assign(nameBuf, static_cast<size_t>(written));
+    spa_json obj;
+    if(spa_json_enter_object(&iter, &obj) > 0){
+      const char* keyToken;
+      int keyLen;
+      while((keyLen = spa_json_next(&obj, &keyToken)) > 0){
+        const char* valueToken;
+        int valueLen = spa_json_next(&obj, &valueToken);
+        if(valueLen <= 0){
+          break;
+        }
+
+        char keyBuf[64];
+        if(spa_json_parse_stringn(keyToken, keyLen, keyBuf, sizeof(keyBuf)) > 0 && spa_streq(keyBuf, "name")){
+          char nameBuf[256];
+          if(spa_json_parse_stringn(valueToken, valueLen, nameBuf, sizeof(nameBuf)) > 0){
+            pw->resolvedSinkName.assign(nameBuf);
+          }
+        }
       }
     }
 
@@ -193,9 +208,8 @@ namespace Aurora::Input::Linux
   {
     PipewireAudioData* pw = static_cast<PipewireAudioData*>(userdata);
 
-    // One roundtrip's worth of patience -- if "default.audio.sink" hasn't
-    // arrived by the time everything already in flight is done, it's not
-    // coming (no session manager, or no default set), not just slow.
+    // discoverySyncSeq tracks whichever sync is the current exit gate --
+    // the original one, or the later one _onRegistryGlobal re-issues.
     if(id == PW_ID_CORE && seq == pw->discoverySyncSeq){
       pw_main_loop_quit(pw->loop);
     }
@@ -212,6 +226,8 @@ namespace Aurora::Input::Linux
     coreEvents.done = _onCoreDoneCallback;
     pw_core_add_listener(core, &pw->coreListener, &coreEvents, pw);
 
+    pw->core = core; // _onRegistryGlobal needs it to re-sync after binding metadata
+
     pw_registry_events registryEvents{};
     registryEvents.version = PW_VERSION_REGISTRY_EVENTS;
     registryEvents.global = _onRegistryGlobal;
@@ -222,6 +238,10 @@ namespace Aurora::Input::Linux
 
     pw->discoverySyncSeq = pw_core_sync(core, PW_ID_CORE, 0);
     pw_main_loop_run(pw->loop); // _onMetadataProperty or _onCoreDoneCallback quits this
+
+    // Unlike registryListener below, this is attached to `core` itself
+    // (outlives this call) -- must remove or a late Done dangles into this stack frame.
+    spa_hook_remove(&pw->coreListener);
 
     spa_hook_remove(&registryListener);
     if(pw->metadata){
