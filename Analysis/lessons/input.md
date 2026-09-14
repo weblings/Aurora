@@ -148,3 +148,62 @@ can query it" is a weaker signal than it looks for anything whose real
 content is a *session manager's* job, not the core service's -- check the
 layer that actually owns device/node creation, not just that the socket
 answers.
+
+---
+
+## The installed SPA/PipeWire dev headers can lack API the code was written against, and it's a compile error, not a version-check failure
+
+`Aurora-Input-Linux`'s `AudioGrabber.cpp` failed to build twice on the real
+target machine (Ubuntu 22.04, `libspa-0.2-dev`/`libpipewire-0.3-dev`
+0.3.48) even though `pkg-config` confirmed both were installed: first
+`#include <spa/param/audio/raw-utils.h>` (no such file --
+`spa_format_audio_raw_parse`/`build` actually live in `format-utils.h` on
+this version), then, once that was fixed and the default-sink-discovery
+code got exercised, `spa_json_begin_object`/`spa_json_object_find` (no
+such functions -- this version's `spa/utils/json.h` only has the older
+token-iterator API: `spa_json_init` + `spa_json_enter_object` +
+repeated `spa_json_next` calls to walk key/value pairs by hand).
+
+**Fix:** read the actual installed header (`grep -n "^static inline" .../json.h`),
+not upstream docs or examples that may target a newer SPA, and rewrite
+against what's really there. General principle: "the dev package is
+installed" only confirms presence, not API surface, for a library whose
+convenience helpers are still being added upstream -- verify against the
+exact header on the exact target machine before trusting an include or
+function name a newer environment (or an LLM's training data) suggested.
+
+---
+
+## Adding a second `pw_core_sync` round-trip can turn a dormant dangling-listener bug into a live, hard-to-place segfault
+
+Fixing the discovery race above (`_onRegistryGlobal` re-issuing
+`pw_core_sync` after binding the "default" metadata object, so loop-exit
+waits on *that* reply instead of the earlier enumeration sync) immediately
+started segfaulting on real hardware. `gdb -batch -ex run -ex bt` pointed
+straight into `pw_main_loop_run()` itself with garbage frames above it
+(`0x18`, `0x0`) -- a stack-corruption signature, not an app-code line to
+stare at. Root cause: `_resolveDefaultSinkName`'s core "done" listener
+(`pw->coreListener`) was registered against a `pw_core_events` struct that
+was **local to that function's stack frame**, attached to `core` itself
+(the long-lived connection, unlike the registry/metadata proxies, which
+get destroyed -- and their listeners cleaned up with them -- before the
+function returns) and never explicitly removed. This was already wrong
+before the discovery-race fix, but harmless in practice: the *original*
+single sync's `Done` reliably arrived and quit the loop before the
+function returned, so no reply was ever left in flight afterward. The
+second sync changed that -- now a reply could genuinely still be in
+transit when `_resolveDefaultSinkName` returned, and when it arrived it
+dispatched through a vtable pointer into stack memory the caller had
+already reused for its own locals (the real audio-capture setup code that
+runs right after).
+
+**Fix:** `spa_hook_remove(&pw->coreListener)` before returning, same as
+the registry listener right below it. General principle: when a fix adds
+a *new* async request from inside an existing callback, re-audit every
+listener's removal lifecycle in that whole call chain, not just the
+listener the new request obviously relates to -- a previously-dormant
+"this listener's owning stack frame is gone before a reply can arrive"
+bug can go from unreachable to reliably reproducible the moment a second
+round-trip actually gets left in flight. Absence of a prior crash is not
+evidence the removal was correct, only that the dangling window was never
+filled.

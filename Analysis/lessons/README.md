@@ -63,9 +63,15 @@ Aurora's own module boundaries instead of RockyRoad's.
   when nothing is actively rendering, a pixel-format tag ported
   verbatim from huenicorn (X11 `RGBA`, really `BGRA`) staying harmless
   there (nothing read it) until Aurora's own downstream code became
-  format-aware and started trusting it, and PipeWire's daemon answering
+  format-aware and started trusting it, PipeWire's daemon answering
   queries fine while zero real audio device nodes exist because the
-  session manager (WirePlumber) wasn't installed at all.
+  session manager (WirePlumber) wasn't installed at all, the installed
+  SPA/PipeWire dev headers lacking API the code was written against
+  (`raw-utils.h`, `spa_json_object_find`) even though `pkg-config`
+  confirmed the package was present, and a second `pw_core_sync` added to
+  fix a discovery race exposing a dormant dangling-listener segfault (a
+  core-connection listener registered against a stack-local event struct,
+  never removed).
 - [`processing.md`](processing.md) — color/effect transform gotchas: a
   periodic test signal (a sine wave) regenerated fresh per call instead of
   continuing its phase injecting broadband noise at each call boundary,
