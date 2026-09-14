@@ -1,6 +1,7 @@
 #include <Aurora/Input/Linux/AudioGrabber.hpp>
 
 #include <chrono>
+#include <cstring>
 #include <stdexcept>
 
 #if defined(__clang__)
@@ -14,6 +15,8 @@
 #endif
 
 #include <spa/param/audio/format-utils.h>
+#include <spa/utils/json.h>
+#include <spa/utils/string.h>
 
 #if defined(__clang__)
   #pragma clang diagnostic pop
@@ -23,37 +26,21 @@
 
 namespace Aurora::Input::Linux
 {
-  namespace
-  {
-    // Loud, not silent -- an empty target wouldn't fail, it would just
-    // capture the default *source* (a mic) with no indication anything's
-    // wrong. See AudioGrabber.hpp's constructor comment.
-    void requireTargetSinkName(const std::string& targetSinkName)
-    {
-      if(targetSinkName.empty()){
-        throw std::runtime_error(
-          "AudioGrabber: targetSinkName is empty -- set Config::audioTargetSinkName "
-          "to a real sink's node.name (see `wpctl status` + `pw-cli info <id>`)"
-        );
-      }
-    }
-  }
-
-
   AudioGrabber::AudioGrabber(std::string targetSinkName)
   {
-    requireTargetSinkName(targetSinkName);
-
     auto readyFuture = m_pwData.readyPromise.get_future();
     m_pipewireThread.emplace(_pipewireThread, std::move(targetSinkName), &m_pwData);
 
-    // Bounded, not indefinite -- a typo'd/missing sink name never fires
-    // param_changed, and this constructor shouldn't hang forever over it.
+    // Bounded, not indefinite -- a typo'd sink name, or default-sink
+    // discovery finding nothing, never fires param_changed, and this
+    // constructor shouldn't hang forever over it.
     if(readyFuture.wait_for(std::chrono::seconds(5)) != std::future_status::ready || !readyFuture.get()){
       _stop();
       throw std::runtime_error(
         "AudioGrabber: Pipewire audio capture didn't become ready within 5s "
-        "-- check that targetSinkName matches a real sink's node.name exactly"
+        "-- if targetSinkName was set explicitly, check it matches a real "
+        "sink's node.name exactly; if left empty, default-sink discovery "
+        "may have failed (no session manager, or no default set)"
       );
     }
   }
@@ -132,6 +119,122 @@ namespace Aurora::Input::Linux
   }
 
 
+  void AudioGrabber::_onRegistryGlobal(
+    void* userdata,
+    uint32_t id,
+    uint32_t /*permissions*/,
+    const char* type,
+    uint32_t /*version*/,
+    const spa_dict* props
+  )
+  {
+    PipewireAudioData* pw = static_cast<PipewireAudioData*>(userdata);
+
+    if(!spa_streq(type, PW_TYPE_INTERFACE_Metadata)){
+      return;
+    }
+
+    const char* metadataName = props ? spa_dict_lookup(props, PW_KEY_METADATA_NAME) : nullptr;
+    if(!metadataName || !spa_streq(metadataName, "default")){
+      return;
+    }
+
+    pw->metadata = static_cast<pw_metadata*>(
+      pw_registry_bind(pw->registry, id, type, PW_VERSION_METADATA, 0)
+    );
+
+    static const pw_metadata_events metadataEvents = {
+      PW_VERSION_METADATA_EVENTS,
+      _onMetadataProperty
+    };
+    pw_metadata_add_listener(pw->metadata, &pw->metadataListener, &metadataEvents, pw);
+  }
+
+
+  int AudioGrabber::_onMetadataProperty(
+    void* userdata,
+    uint32_t /*id*/,
+    const char* key,
+    const char* /*type*/,
+    const char* value
+  )
+  {
+    PipewireAudioData* pw = static_cast<PipewireAudioData*>(userdata);
+
+    if(key == nullptr || value == nullptr || !spa_streq(key, "default.audio.sink")){
+      return 0;
+    }
+
+    // Value is {"name":"<node-name>"} -- SPA's own tiny JSON parser, no new
+    // dependency (already transitively available via the pipewire headers).
+    spa_json iter;
+    spa_json_begin_object(&iter, value, strlen(value));
+
+    const char* nameValue = nullptr;
+    int nameLen = spa_json_object_find(&iter, "name", &nameValue);
+    if(nameLen > 0){
+      char nameBuf[256];
+      int written = spa_json_parse_stringn(nameValue, static_cast<size_t>(nameLen), nameBuf, sizeof(nameBuf));
+      if(written > 0){
+        pw->resolvedSinkName.assign(nameBuf, static_cast<size_t>(written));
+      }
+    }
+
+    pw_main_loop_quit(pw->loop);
+    return 0;
+  }
+
+
+  void AudioGrabber::_onCoreDoneCallback(
+    void* userdata,
+    uint32_t id,
+    int seq
+  )
+  {
+    PipewireAudioData* pw = static_cast<PipewireAudioData*>(userdata);
+
+    // One roundtrip's worth of patience -- if "default.audio.sink" hasn't
+    // arrived by the time everything already in flight is done, it's not
+    // coming (no session manager, or no default set), not just slow.
+    if(id == PW_ID_CORE && seq == pw->discoverySyncSeq){
+      pw_main_loop_quit(pw->loop);
+    }
+  }
+
+
+  std::string AudioGrabber::_resolveDefaultSinkName(
+    pw_core* core,
+    PipewireAudioData* pw
+  )
+  {
+    pw_core_events coreEvents{};
+    coreEvents.version = PW_VERSION_CORE_EVENTS;
+    coreEvents.done = _onCoreDoneCallback;
+    pw_core_add_listener(core, &pw->coreListener, &coreEvents, pw);
+
+    pw_registry_events registryEvents{};
+    registryEvents.version = PW_VERSION_REGISTRY_EVENTS;
+    registryEvents.global = _onRegistryGlobal;
+
+    pw->registry = pw_core_get_registry(core, PW_VERSION_REGISTRY, 0);
+    spa_hook registryListener{};
+    pw_registry_add_listener(pw->registry, &registryListener, &registryEvents, pw);
+
+    pw->discoverySyncSeq = pw_core_sync(core, PW_ID_CORE, 0);
+    pw_main_loop_run(pw->loop); // _onMetadataProperty or _onCoreDoneCallback quits this
+
+    spa_hook_remove(&registryListener);
+    if(pw->metadata){
+      pw_proxy_destroy(reinterpret_cast<pw_proxy*>(pw->metadata));
+      pw->metadata = nullptr;
+    }
+    pw_proxy_destroy(reinterpret_cast<pw_proxy*>(pw->registry));
+    pw->registry = nullptr;
+
+    return pw->resolvedSinkName;
+  }
+
+
   void AudioGrabber::_pipewireThread(
     std::string targetSinkName,
     PipewireAudioData* pw
@@ -160,6 +263,24 @@ namespace Aurora::Input::Linux
       pw_main_loop_destroy(pw->loop);
       pw->loop = nullptr;
       return;
+    }
+
+    // Empty targetSinkName -- matching WASAPI loopback needing no device
+    // name -- resolves Pipewire's current default sink instead of requiring
+    // one to be hand-configured.
+    if(targetSinkName.empty()){
+      targetSinkName = _resolveDefaultSinkName(core, pw);
+      if(targetSinkName.empty()){
+        if(!pw->promiseSetAlready){
+          pw->readyPromise.set_value(false);
+          pw->promiseSetAlready = true;
+        }
+        pw_context_destroy(pw->context);
+        pw->context = nullptr;
+        pw_main_loop_destroy(pw->loop);
+        pw->loop = nullptr;
+        return;
+      }
     }
 
     // target.object + stream.capture.sink=true is Pipewire's documented

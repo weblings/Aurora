@@ -18,6 +18,7 @@
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wpedantic"
 #pragma GCC diagnostic ignored "-Wmissing-field-initializers"
+#include <pipewire/extensions/metadata.h>
 #include <pipewire/pipewire.h>
 #include <spa/param/audio/format-utils.h>
 #pragma GCC diagnostic pop
@@ -37,15 +38,25 @@ namespace Aurora::Input::Linux
       std::vector<float> accumulated;
       std::promise<bool> readyPromise;
       bool promiseSetAlready{false};
+
+      // Default-sink discovery state (only used when targetSinkName is
+      // empty) -- see _resolveDefaultSinkName.
+      pw_registry* registry{nullptr};
+      pw_metadata* metadata{nullptr};
+      spa_hook metadataListener{};
+      spa_hook coreListener{};
+      std::string resolvedSinkName;
+      int discoverySyncSeq{0};
     };
 
 
   public:
     // targetSinkName: the exact PipeWire node.name of the sink to monitor
-    // (see `wpctl status` + `pw-cli info <id>`) -- required. PipeWire has no
-    // universal "default sink" alias; an empty/wrong name would otherwise
-    // silently capture the default *source* (a mic) instead.
-    explicit AudioGrabber(std::string targetSinkName);
+    // (see `wpctl status` + `pw-cli info <id>`). Empty -- the default,
+    // matching WASAPI loopback needing no device name on Windows -- resolves
+    // the system's current default sink automatically via Pipewire's
+    // "default" metadata object at construction time.
+    explicit AudioGrabber(std::string targetSinkName = "");
     ~AudioGrabber() override;
 
     AudioGrabber(const AudioGrabber&) = delete;
@@ -61,6 +72,19 @@ namespace Aurora::Input::Linux
   private:
     static void _onStreamProcess(void* userdata);
     static void _onStreamParamChanged(void* userdata, uint32_t id, const spa_pod* param);
+    static void _onRegistryGlobal(
+      void* userdata, uint32_t id, uint32_t permissions,
+      const char* type, uint32_t version, const spa_dict* props
+    );
+    static int _onMetadataProperty(void* userdata, uint32_t id, const char* key, const char* type, const char* value);
+    static void _onCoreDoneCallback(void* userdata, uint32_t id, int seq);
+
+    // Blocks (on pw->loop) until the default sink's node.name is found via
+    // Pipewire's "default" metadata object, or one core sync roundtrip
+    // passes without it -- returns empty on failure. Only called when the
+    // caller didn't supply an explicit targetSinkName.
+    static std::string _resolveDefaultSinkName(pw_core* core, PipewireAudioData* pw);
+
     static void _pipewireThread(std::string targetSinkName, PipewireAudioData* pw);
 
     void _stop();
