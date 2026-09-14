@@ -6,7 +6,7 @@
 #include <unordered_map>
 #include <vector>
 
-#include <Aurora/Input/IInput.hpp>
+#include <Aurora/Input/IVideoInput.hpp>
 #include <Aurora/Output/IOutput.hpp>
 
 // Name -> factory lookup for this app's compiled-in plugins. Config picks
@@ -18,7 +18,7 @@
 // config schema for them yet. See Analysis/DistributedArchitecturePlan.md.
 namespace Aurora::App
 {
-  using InputFactory = std::function<std::unique_ptr<Input::IInput>()>;
+  using InputFactory = std::function<std::unique_ptr<Input::IVideoInput>()>;
   using OutputFactory = std::function<std::unique_ptr<Output::IOutput>()>;
 
   class Registry
@@ -28,7 +28,7 @@ namespace Aurora::App
     void registerOutput(const std::string& name, OutputFactory factory);
 
     // nullptr if no factory was registered under that name.
-    std::unique_ptr<Input::IInput> createInput(const std::string& name) const;
+    std::unique_ptr<Input::IVideoInput> createInput(const std::string& name) const;
     std::unique_ptr<Output::IOutput> createOutput(const std::string& name) const;
 
     std::vector<std::string> inputNames() const;

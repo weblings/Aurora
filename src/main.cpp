@@ -67,7 +67,7 @@ namespace
     });
 #endif
 
-    registry.registerInput("linux", [x11Available, pipewireAvailable]() -> std::unique_ptr<Aurora::Input::IInput> {
+    registry.registerInput("linux", [x11Available, pipewireAvailable]() -> std::unique_ptr<Aurora::Input::IVideoInput> {
       using namespace Aurora::Input::Linux;
 
       switch(selectBackendFromEnvironment(pipewireAvailable, x11Available)){
