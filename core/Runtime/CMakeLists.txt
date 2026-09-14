@@ -9,6 +9,7 @@ add_library(AuroraRuntime STATIC
   src/FrameCompositor.cpp
   src/Smoother.cpp
   src/SubsampleDefaults.cpp
+  src/MonitorSelector.cpp
   src/Orchestrator.cpp
 )
 

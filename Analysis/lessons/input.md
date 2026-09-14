@@ -51,3 +51,13 @@ monitor to capture on a multi-monitor Windows machine needs to check this
 manually, the same way selecting the wrong monitor index would be a
 configuration mistake on Linux too — not something to build automatic
 detection for without a real, named use case.
+
+**Follow-up, confirmed live once `Config::activeMonitorName` existed:** a
+powered-off-but-connected monitor isn't inherently black — it read black
+above only because nothing was positioned on it. Windows keeps compositing
+real content to a monitor's desktop region even with its physical panel
+dark, and dragging a window onto it made the captured colors (and the real
+Hue lights) react immediately. The all-black result earlier was "nothing
+was there," not "this monitor forces black" — an important distinction for
+debugging: a black capture from an off monitor doesn't rule out the
+pipeline working correctly.

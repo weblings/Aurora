@@ -20,7 +20,8 @@ namespace Aurora::Runtime
         {"interpolation", static_cast<int>(data.interpolation)},
         {"transitionSmoothing", data.transitionSmoothing},
         {"activeInputName", data.activeInputName},
-        {"activeOutputNames", data.activeOutputNames}
+        {"activeOutputNames", data.activeOutputNames},
+        {"activeMonitorName", data.activeMonitorName}
       };
     }
 
@@ -44,6 +45,7 @@ namespace Aurora::Runtime
 
       data.activeInputName = json.value("activeInputName", defaults.activeInputName);
       data.activeOutputNames = json.value("activeOutputNames", defaults.activeOutputNames);
+      data.activeMonitorName = json.value("activeMonitorName", defaults.activeMonitorName);
 
       return data;
     }

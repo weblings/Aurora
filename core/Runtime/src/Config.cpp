@@ -110,4 +110,16 @@ namespace Aurora::Runtime
   {
     m_data.activeOutputNames = std::move(names);
   }
+
+
+  const std::string& Config::activeMonitorName() const
+  {
+    return m_data.activeMonitorName;
+  }
+
+
+  void Config::setActiveMonitorName(std::string name)
+  {
+    m_data.activeMonitorName = std::move(name);
+  }
 }

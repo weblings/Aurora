@@ -4,11 +4,13 @@
 #include <Aurora/Runtime/Config.hpp>
 #include <Aurora/Runtime/ConfigStore.hpp>
 #include <Aurora/Runtime/FrameCompositor.hpp>
+#include <Aurora/Runtime/MonitorSelector.hpp>
 #include <Aurora/Runtime/Smoother.hpp>
 #include <Aurora/Runtime/ZoneMapStore.hpp>
 #include <Aurora/Runtime/ZoneReconciler.hpp>
 
 using namespace Aurora::Contracts;
+using namespace Aurora::Input;
 using namespace Aurora::Runtime;
 
 
@@ -72,6 +74,7 @@ TEST_CASE("ConfigStore round-trips through a real file and defaults on missing f
   toSave.setInterpolation(Interpolation::Type::Nearest);
   toSave.setActiveInputName("x11");
   toSave.setActiveOutputNames({"hue", "dmx"});
+  toSave.setActiveMonitorName("\\\\.\\DISPLAY1");
   store.save(toSave);
 
   Config reloaded = store.load();
@@ -81,6 +84,75 @@ TEST_CASE("ConfigStore round-trips through a real file and defaults on missing f
   CHECK(reloaded.interpolation() == Interpolation::Type::Nearest);
   CHECK(reloaded.activeInputName() == "x11");
   CHECK(reloaded.activeOutputNames() == std::vector<std::string>{"hue", "dmx"});
+  CHECK(reloaded.activeMonitorName() == "\\\\.\\DISPLAY1");
+}
+
+
+namespace
+{
+  // Mirrors X11Grabber/WindowsGrabber's monitor-list shape without needing
+  // a real display -- PipewireGrabber has no equivalent (Wayland's portal
+  // picks the screen itself), so it never overrides these.
+  struct FakeMultiMonitorInput : public IInput
+  {
+    const std::string& name() const override
+    {
+      static const std::string s_name = "FakeMultiMonitorInput";
+      return s_name;
+    }
+
+    bool hasCustomScreenManagement() const override { return true; }
+    Resolution displayResolution() const override { return {1, 1}; }
+    RefreshRate displayRefreshRate() const override { return 60; }
+    void grabFrameSubsample(ImageData&) override {}
+
+    void selectMonitor(unsigned monitorId) override
+    {
+      lastSelectedMonitorId = monitorId;
+      m_monitorSelectionData.selectedMonitorId = monitorId;
+    }
+
+    std::optional<unsigned> lastSelectedMonitorId;
+
+  protected:
+    void _initMonitorsList() override
+    {
+      m_monitorSelectionData.monitors = {
+        std::make_shared<MonitorData>("Primary", 1920, 1080, 60.0, true),
+        std::make_shared<MonitorData>("Secondary", 1280, 720, 60.0, false)
+      };
+      m_monitorSelectionData.selectedMonitorId = 0;
+    }
+  };
+}
+
+
+TEST_CASE("selectConfiguredMonitor resolves a saved name to the matching monitor", "[MonitorSelector]")
+{
+  FakeMultiMonitorInput input;
+  input.init(); // populates monitors() via _initMonitorsList()
+
+  Config config;
+  config.setActiveMonitorName("Secondary");
+  selectConfiguredMonitor(input, config);
+
+  REQUIRE(input.lastSelectedMonitorId.has_value());
+  CHECK(input.lastSelectedMonitorId.value() == 1);
+}
+
+
+TEST_CASE("selectConfiguredMonitor is a no-op for an empty or unmatched name", "[MonitorSelector]")
+{
+  FakeMultiMonitorInput input;
+  input.init();
+
+  selectConfiguredMonitor(input, Config{}); // empty activeMonitorName -- auto/primary
+  CHECK_FALSE(input.lastSelectedMonitorId.has_value());
+
+  Config unmatched;
+  unmatched.setActiveMonitorName("Nonexistent");
+  selectConfiguredMonitor(input, unmatched);
+  CHECK_FALSE(input.lastSelectedMonitorId.has_value());
 }
 
 

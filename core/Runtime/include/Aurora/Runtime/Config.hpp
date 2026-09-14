@@ -24,6 +24,11 @@ namespace Aurora::Runtime
     // Empty means unconfigured. See Analysis/DistributedArchitecturePlan.md.
     std::string activeInputName;
     std::vector<std::string> activeOutputNames;
+
+    // A name (Input::MonitorData::name), not an index -- stable across
+    // replug/reorder. Empty means auto (whatever IInput selects by
+    // default, usually primary). See Runtime/MonitorSelector.hpp.
+    std::string activeMonitorName;
   };
 
 
@@ -57,6 +62,9 @@ namespace Aurora::Runtime
 
     const std::vector<std::string>& activeOutputNames() const;
     void setActiveOutputNames(std::vector<std::string> names);
+
+    const std::string& activeMonitorName() const;
+    void setActiveMonitorName(std::string name);
 
   private:
     ConfigData m_data;

@@ -4,6 +4,7 @@
 
 #include <Aurora/Processing/ImageProcessing.hpp>
 #include <Aurora/Runtime/FrameCompositor.hpp>
+#include <Aurora/Runtime/MonitorSelector.hpp>
 #include <Aurora/Runtime/SubsampleDefaults.hpp>
 #include <Aurora/Runtime/ZoneReconciler.hpp>
 
@@ -24,6 +25,10 @@ namespace Aurora::Runtime
 
   void Orchestrator::init()
   {
+    // Must run before refreshRate/subsampleWidth derivation below -- both
+    // read the input's *currently selected* monitor.
+    selectConfiguredMonitor(m_input, m_config);
+
     if(m_config.refreshRate() == 0){
       m_config.setRefreshRate(m_input.displayRefreshRate());
     }

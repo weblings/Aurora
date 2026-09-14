@@ -406,6 +406,38 @@ drove `WindowsGrabber` against the real desktop and printed real, sensible
 captured color data — the first Windows capture verified end-to-end, not
 just build-verified.
 
+**`Aurora-App-Windows` built and confirmed working end-to-end against real
+lights (2026-09-13), completing phase 2's demonstrable.** New repo, same
+shape as `Aurora-App-Linux` (`Registry` copied verbatim — fully
+platform-neutral; `main.cpp` adapted for `SetConsoleCtrlHandler` and
+`%APPDATA%\Aurora` instead of `std::signal`/`$HOME/.config`). Two real,
+Windows-specific link/portability gaps found and fixed while wiring it to
+`Aurora-Output-Hue`: Mbed TLS's entropy source needs `bcrypt.lib` (plus
+`ws2_32`/`crypt32`) on Windows, and `Aurora-Output-Hue`'s
+`find_package(PkgConfig REQUIRED)` hard-failed outright (no pkg-config
+binary at all on Windows, a step past the earlier Ubuntu `.pc`-file gap) —
+generalized to `QUIET` + a `PkgConfig_FOUND` guard, portable improvement,
+not Windows-only. Also added `Config::activeMonitorName` (a name, not an
+index, resolved via new `Runtime::MonitorSelector`) so monitor choice is a
+real persisted `Config` setting like `activeInputName` — the same growth
+path a future setup UI would use, works unchanged for `X11Grabber` too
+(confirmed by reading its `_initMonitorsList()`; `PipewireGrabber` has no
+monitor list at all, Wayland's portal picks the screen itself, so it
+harmlessly no-ops there). **Result: `Aurora-Input-Windows` 1/1,
+`Aurora-App-Windows` 4/4, and (after clearing an unrelated stale-ACL
+`build/` directory and a vcpkg-manifest-mode/classic-mode Catch2 ABI
+collision from an IDE extension's auto-configure — neither a code issue)
+Aurora core's own suite 26/26, all passing natively on Windows for the
+first time**, not just via WSL2 or a plugin's `FetchContent`. Real run
+against the actual bridge (credentials/zone map transcribed from
+`Aurora_HueProfile0`, the same data already proven on the Ubuntu machine):
+a real UDP socket to the bridge's DTLS port confirmed via `netstat`, and
+user-confirmed live — dragging a window onto the configured (but physically
+powered-off) monitor changed the real lights immediately. That last part
+also sharpened the monitor-powered-off finding above: an off monitor isn't
+inherently black, Windows keeps compositing real content to it regardless —
+see `Analysis/lessons/input.md`'s follow-up note.
+
 ## Phase 1 — Refactor into three modules; Linux input + Hue output plugins
 
 Pure restructuring, zero new features. **Demonstrable:** the restructured app
@@ -525,10 +557,10 @@ Fills in `WindowsAdapter`'s `_createGrabber` stub (currently returns `nullptr`).
   already honors `PixelFormat` per-channel (done as part of phase 1's
   `ProcessingAnalysis.md` finding 1) — the stale claim that phase 2 would be
   the moment to fix it has been corrected in `WindowsInputAnalysis.md`.
-- **Demonstrable, not yet done:** the same app, built on Windows, capturing
-  the Windows desktop and driving Hue lights through the unchanged
-  `Output::Hue` plugin — needs `Aurora-App-Windows` (not started) to combine
-  `WindowsGrabber` with `Aurora-Output-Hue`, same shape as `Aurora-App-Linux`.
+- **Done.** The same app, built on Windows (`Aurora-App-Windows`), capturing
+  the Windows desktop and driving real Hue lights through the unchanged
+  `Output::Hue` plugin — confirmed live against the real bridge. See the
+  narrative paragraph above.
 - Confirmed real, not just a planning-stage concern (see
   `Analysis/lessons/input.md`): a non-blocking `AcquireNextFrame` poll can
   starve on placeholder frames forever, and a monitor Windows still lists as
