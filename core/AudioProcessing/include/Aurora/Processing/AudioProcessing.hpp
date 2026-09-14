@@ -20,8 +20,8 @@ namespace Aurora::Processing
     // passed in here rather than hardcoded, so a future settings UI needs
     // zero changes to this module -- see AudioAnalysis.md's
     // "making the tunable constants genuinely UI-editable" section. Every
-    // default below is a reasoned starting point, explicitly not yet
-    // verified against real listening tests.
+    // default below was tuned against a real listening test (speech and
+    // music, live Hue lights) -- see Analysis/lessons for the tuning notes.
     struct AudioEffectSettings
     {
       // Unset = random pick among the six named pairs at cold start,
@@ -29,26 +29,20 @@ namespace Aurora::Processing
       // Only affects the *starting* anchor -- drift still runs afterward.
       std::optional<float> fixedAnchorHue;
 
-      // bounceSmoothTime/brightnessFloor tuned against a real listening
-      // test (speech, live Hue lights); the rest are still first guesses.
-      // bounceSmoothTime was pushed to 1.0 while brightness's own jitter was
-      // being (mis-)read as "flashing" -- now that brightness is damped
-      // separately (brightnessSmoothTime), this can sit tighter again so
-      // the swing still tracks individual beats instead of blurring them.
-      float bounceSmoothTime = 0.4f;      // seconds, exponential damping time constant
+      float bounceSmoothTime = 0.45f;     // seconds, exponential damping time constant
       float dynamismFloor = 0.22f;        // minimum swing fraction, even for the weakest onset
-      float centroidStrength = 0.5f;      // how much spectral centroid can speed/slow drift; 0 = no effect
+      float centroidStrength = 0.3f;      // how much spectral centroid can speed/slow drift; 0 = no effect
       float driftBaseRateDegPerSec = 6.0f;// base drift speed -- a full rotation every 60s by default
       float vibrancySaturation = 0.95f;   // HSV S for every generated color, constant
       float vibrancyValue = 0.95f;        // HSV V ceiling, before RMS brightness scaling
-      float referenceRms = 0.2f;          // RMS level mapped to full brightness
-      float brightnessFloor = 0.35f;      // never fully dark, even in quiet passages
-      float centroidRangeHz = 1500.0f;    // spread normalizing centroid-vs-rolling-average delta to [-1,1]
+      float referenceRms = 0.5f;          // RMS level mapped to full brightness
+      float brightnessFloor = 0.4f;       // never fully dark, even in quiet passages
+      float centroidRangeHz = 2250.0f;    // spread normalizing centroid-vs-rolling-average delta to [-1,1]
 
       // Brightness gets its own damping, separate from bounceSmoothTime --
       // raw RMS jitters tick-to-tick, so smoothing it at the beat's own
       // (tighter) time constant would either flash or blunt the beat.
-      float brightnessSmoothTime = 0.5f;
+      float brightnessSmoothTime = 0.45f;
     };
 
     // Persistent state for palette drift, owned by whoever drives the tick

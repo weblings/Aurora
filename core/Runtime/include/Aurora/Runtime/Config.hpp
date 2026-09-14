@@ -39,16 +39,16 @@ namespace Aurora::Runtime
     // Processing-module dependency). audioFixedAnchorHue < 0 means unset/
     // random, matching AudioEffectSettings::fixedAnchorHue's optional.
     float audioFixedAnchorHue{-1.f};
-    float audioBounceSmoothTime{1.f};
+    float audioBounceSmoothTime{0.45f};
     float audioDynamismFloor{0.22f};
-    float audioCentroidStrength{0.5f};
+    float audioCentroidStrength{0.3f};
     float audioDriftBaseRateDegPerSec{6.f};
     float audioVibrancySaturation{0.95f};
     float audioVibrancyValue{0.95f};
-    float audioReferenceRms{0.2f};
-    float audioBrightnessFloor{0.35f};
-    float audioCentroidRangeHz{1500.f};
-    float audioBrightnessSmoothTime{0.5f};
+    float audioReferenceRms{0.5f};
+    float audioBrightnessFloor{0.4f};
+    float audioCentroidRangeHz{2250.f};
+    float audioBrightnessSmoothTime{0.45f};
   };
 
 
