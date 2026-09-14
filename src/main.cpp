@@ -177,10 +177,24 @@ try
       return 1;
     }
 
-    // AudioEffectSettings has no Config fields wired in yet -- default-
-    // constructed for now, see Analysis/AudioAnalysis.md.
+    // Built from Config now, not hardcoded -- editing config.json changes
+    // these without a rebuild. audioFixedAnchorHue < 0 means unset/random.
+    Aurora::Processing::AudioProcessing::AudioEffectSettings settings;
+    if(config.audioFixedAnchorHue() >= 0.f){
+      settings.fixedAnchorHue = config.audioFixedAnchorHue();
+    }
+    settings.bounceSmoothTime = config.audioBounceSmoothTime();
+    settings.dynamismFloor = config.audioDynamismFloor();
+    settings.centroidStrength = config.audioCentroidStrength();
+    settings.driftBaseRateDegPerSec = config.audioDriftBaseRateDegPerSec();
+    settings.vibrancySaturation = config.audioVibrancySaturation();
+    settings.vibrancyValue = config.audioVibrancyValue();
+    settings.referenceRms = config.audioReferenceRms();
+    settings.brightnessFloor = config.audioBrightnessFloor();
+    settings.centroidRangeHz = config.audioCentroidRangeHz();
+
     Aurora::Runtime::AudioOrchestrator orchestrator(
-      *audioInput, outputPtrs, Aurora::Runtime::ZoneMapStore(configRoot), {}
+      *audioInput, outputPtrs, Aurora::Runtime::ZoneMapStore(configRoot), settings
     );
     orchestrator.init();
 
