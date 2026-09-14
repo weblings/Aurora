@@ -188,9 +188,12 @@ namespace Aurora::Input::Linux
 
     // Rate/channels left unset -- accept the graph's native values, same as
     // Pipewire's own audio-capture.c example this was verified against.
+    // Named local, not inline -- SPA_AUDIO_INFO_RAW_INIT's compound literal
+    // is an lvalue in C (where the reference examples are) but an rvalue in
+    // C++, so &SPA_AUDIO_INFO_RAW_INIT(...) directly doesn't compile here.
+    spa_audio_info_raw audioInfo = SPA_AUDIO_INFO_RAW_INIT(.format = SPA_AUDIO_FORMAT_F32);
     const spa_pod* params[1] = {
-      spa_format_audio_raw_build(&b, SPA_PARAM_EnumFormat,
-        &SPA_AUDIO_INFO_RAW_INIT(.format = SPA_AUDIO_FORMAT_F32))
+      spa_format_audio_raw_build(&b, SPA_PARAM_EnumFormat, &audioInfo)
     };
 
     pw_stream_connect(
