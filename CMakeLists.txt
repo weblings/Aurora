@@ -10,6 +10,9 @@ option(AURORA_INPUT_LINUX_BUILD_TESTS "Build this plugin's own tests" TRUE)
 # flags used, kept in one repo rather than split into two.
 option(AURORA_INPUT_LINUX_ENABLE_X11 "Build X11 capture support" TRUE)
 option(AURORA_INPUT_LINUX_ENABLE_PIPEWIRE "Build Pipewire/Wayland capture support" TRUE)
+# Same dependency-isolation reasoning as AURORA_INPUT_WINDOWS_ENABLE_AUDIO --
+# off skips Core's aubio requirement entirely for a video-only build.
+option(AURORA_INPUT_LINUX_ENABLE_AUDIO "Build Pipewire audio capture support" TRUE)
 
 include(FetchContent)
 
@@ -17,6 +20,7 @@ include(FetchContent)
 # swap for GIT_REPOSITORY + GIT_TAG once Aurora core has a real remote.
 # Suppress its own test suite -- we only want its libraries here.
 set(BUILD_TESTS FALSE CACHE BOOL "" FORCE)
+set(AURORA_CORE_ENABLE_AUDIO ${AURORA_INPUT_LINUX_ENABLE_AUDIO} CACHE BOOL "" FORCE)
 FetchContent_Declare(
   AuroraCore
   SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../Aurora/core
