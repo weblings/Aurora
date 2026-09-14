@@ -281,7 +281,7 @@ namespace Aurora::Input::Windows
     }
 
     // RowPitch can exceed the tightly-packed row size, and mapped.pData
-    // dies at Unmap() -- own the result, same shape as toOwnedRgbaImage().
+    // dies at Unmap() -- own the result, same shape as Linux's toOwnedImage().
     if(isHdr){
       // scRGB linear, channel order R,G,B,A -- clamp to SDR range and
       // gamma-encode; good enough for averaging, not real HDR tone-mapping.
