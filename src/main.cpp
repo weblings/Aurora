@@ -192,6 +192,7 @@ try
     settings.referenceRms = config.audioReferenceRms();
     settings.brightnessFloor = config.audioBrightnessFloor();
     settings.centroidRangeHz = config.audioCentroidRangeHz();
+    settings.brightnessSmoothTime = config.audioBrightnessSmoothTime();
 
     Aurora::Runtime::AudioOrchestrator orchestrator(
       *audioInput, outputPtrs, Aurora::Runtime::ZoneMapStore(configRoot), settings
