@@ -86,13 +86,13 @@ namespace Aurora::Input::Linux
   }
 
 
-  IInput::Resolution PipewireGrabber::displayResolution() const
+  IVideoInput::Resolution PipewireGrabber::displayResolution() const
   {
     return {m_pwData.format.info.raw.size.width, m_pwData.format.info.raw.size.height};
   }
 
 
-  IInput::RefreshRate PipewireGrabber::displayRefreshRate() const
+  IVideoInput::RefreshRate PipewireGrabber::displayRefreshRate() const
   {
     return m_pwData.format.info.raw.max_framerate.num;
   }

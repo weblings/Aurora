@@ -18,13 +18,13 @@ namespace Aurora::Input::Linux
   }
 
 
-  IInput::Resolution DummyGrabber::displayResolution() const
+  IVideoInput::Resolution DummyGrabber::displayResolution() const
   {
     return m_resolution;
   }
 
 
-  IInput::RefreshRate DummyGrabber::displayRefreshRate() const
+  IVideoInput::RefreshRate DummyGrabber::displayRefreshRate() const
   {
     return m_refreshRate;
   }

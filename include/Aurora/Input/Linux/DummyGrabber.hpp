@@ -2,13 +2,13 @@
 
 #include <chrono>
 
-#include <Aurora/Input/IInput.hpp>
+#include <Aurora/Input/IVideoInput.hpp>
 
 // Ported as-is from huenicorn's DummyGrabber -- animated solid color, zero
 // OS dependency. Useful as a no-display-needed fallback/dev target.
 namespace Aurora::Input::Linux
 {
-  class DummyGrabber : public IInput
+  class DummyGrabber : public IVideoInput
   {
   public:
     DummyGrabber();

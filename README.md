@@ -1,7 +1,7 @@
 # Aurora Input: Linux
 
 Linux screen-capture input plugin for [Aurora](../Aurora) — implements
-`Aurora::Input::IInput` for both X11 and Wayland (via Pipewire/
+`Aurora::Input::IVideoInput` for both X11 and Wayland (via Pipewire/
 `xdg-desktop-portal`), auto-selected at runtime by `SessionDispatch`.
 
 Distilled from [huenicorn](https://gitlab.com/openjowelsofts/huenicorn)

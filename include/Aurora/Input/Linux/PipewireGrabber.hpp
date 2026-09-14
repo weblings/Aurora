@@ -3,7 +3,7 @@
 // ScreenCast interface) and Gamescope (direct node, no portal involved).
 // Ported from huenicorn's Huenicorn::Grabber::PipewireGrabber (GPL-3.0).
 
-#include <Aurora/Input/IInput.hpp>
+#include <Aurora/Input/IVideoInput.hpp>
 
 #include <mutex>
 #include <optional>
@@ -21,7 +21,7 @@
 
 namespace Aurora::Input::Linux
 {
-  class PipewireGrabber : public IInput
+  class PipewireGrabber : public IVideoInput
   {
   private:
     struct SafeDoubleBuffer

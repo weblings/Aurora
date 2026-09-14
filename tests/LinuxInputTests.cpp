@@ -12,10 +12,10 @@ using namespace Aurora::Contracts;
 
 namespace
 {
-  // Test-only IInput with a controllable resolution -- DummyGrabber's fixed
+  // Test-only IVideoInput with a controllable resolution -- DummyGrabber's fixed
   // 16x9 is coprime (only shares divisor 1), too weak to exercise the
   // _divisors() completeness fix.
-  class TestInput : public IInput
+  class TestInput : public IVideoInput
   {
   public:
     explicit TestInput(Resolution resolution) : m_resolution(resolution) {}
@@ -35,7 +35,7 @@ namespace
   };
 
 
-  bool contains(const IInput::Resolutions& resolutions, IInput::Resolution target)
+  bool contains(const IVideoInput::Resolutions& resolutions, IVideoInput::Resolution target)
   {
     return std::any_of(resolutions.begin(), resolutions.end(), [&](const auto& r){
       return r.x == target.x && r.y == target.y;
@@ -44,7 +44,7 @@ namespace
 }
 
 
-TEST_CASE("subsampleResolutionCandidates includes divisors the pre-fix off-by-one excluded", "[IInput][regression]")
+TEST_CASE("subsampleResolutionCandidates includes divisors the pre-fix off-by-one excluded", "[IVideoInput][regression]")
 {
   // Finding (LinuxCaptureAnalysis.md): _divisors() used to exclude number/2
   // itself. For a 12x6 input, that silently dropped divisor 6, which in turn

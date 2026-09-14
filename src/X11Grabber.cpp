@@ -96,7 +96,7 @@ namespace Aurora::Input::Linux
   }
 
 
-  IInput::Resolution X11Grabber::displayResolution() const
+  IVideoInput::Resolution X11Grabber::displayResolution() const
   {
     if(auto* selectedMonitor = m_monitorSelectionData.selectedMonitor()){
       return {selectedMonitor->width, selectedMonitor->height};
@@ -106,10 +106,10 @@ namespace Aurora::Input::Linux
   }
 
 
-  IInput::RefreshRate X11Grabber::displayRefreshRate() const
+  IVideoInput::RefreshRate X11Grabber::displayRefreshRate() const
   {
     if(auto* selectedMonitor = m_monitorSelectionData.selectedMonitor()){
-      return static_cast<IInput::RefreshRate>(selectedMonitor->refreshRate);
+      return static_cast<IVideoInput::RefreshRate>(selectedMonitor->refreshRate);
     }
 
     return 0;

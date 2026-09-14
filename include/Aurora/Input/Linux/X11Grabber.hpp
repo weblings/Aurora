@@ -3,7 +3,7 @@
 #include <memory>
 #include <optional>
 
-#include <Aurora/Input/IInput.hpp>
+#include <Aurora/Input/IVideoInput.hpp>
 #include <Aurora/Input/MonitorData.hpp>
 
 #include <X11/extensions/Xrandr.h>
@@ -15,7 +15,7 @@
 // unit-testable, same category as Hue's DTLS streaming.
 namespace Aurora::Input::Linux
 {
-  class X11Grabber : public IInput
+  class X11Grabber : public IVideoInput
   {
   public:
     template <auto FreeFunc>
