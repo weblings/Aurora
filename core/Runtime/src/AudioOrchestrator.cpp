@@ -41,7 +41,13 @@ namespace Aurora::Runtime
       return;
     }
 
-    auto features = Processing::AudioProcessing::extractFeatures(m_buffer);
+    if(!m_featureExtractor){
+      m_featureExtractor = std::make_unique<Processing::AudioProcessing::AudioFeatureExtractor>(
+        m_buffer.sampleRate
+      );
+    }
+
+    auto features = m_featureExtractor->process(m_buffer);
     Processing::AudioProcessing::updateDrift(m_driftState, features, m_settings, dt);
     Contracts::Color color = Processing::AudioProcessing::updateBounce(
       m_bounceState, m_driftState, features, m_settings, dt

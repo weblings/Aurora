@@ -1,11 +1,13 @@
 #pragma once
 
+#include <memory>
 #include <string>
 #include <unordered_map>
 #include <vector>
 
 #include <Aurora/Input/IAudioInput.hpp>
 #include <Aurora/Output/IOutput.hpp>
+#include <Aurora/Processing/AudioFeatureExtractor.hpp>
 #include <Aurora/Processing/AudioProcessing.hpp>
 #include <Aurora/Runtime/ZoneMap.hpp>
 #include <Aurora/Runtime/ZoneMapStore.hpp>
@@ -60,5 +62,10 @@ namespace Aurora::Runtime
     Processing::AudioProcessing::DriftState m_driftState;
     Processing::AudioProcessing::BounceState m_bounceState;
     Contracts::AudioBuffer m_buffer;
+
+    // Lazily constructed on the first non-empty buffer -- AudioFeatureExtractor
+    // needs a real sampleRate up front (aubio's objects are configured at
+    // construction), which isn't known until the input actually produces data.
+    std::unique_ptr<Processing::AudioProcessing::AudioFeatureExtractor> m_featureExtractor;
   };
 }

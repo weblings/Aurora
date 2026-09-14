@@ -619,14 +619,31 @@ lets tuning happen by ear without also building audio playback:
    tests + the pre-existing 26), rebuilt clean against `Aurora-App-Windows`
    too (4/4 still passing) with no regressions.
 
-   **Still open, deliberately not guessed at:** `extractFeatures`'s
-   `onsetDetected`/`onsetStrength`/`spectralCentroid` are placeholders
-   (always false/0) — `rms` is real, pure math, no dependency needed. aubio
-   itself isn't wired in yet; its actual C API hasn't been verified in this
-   pass (only its license/packaging/staleness, back in `AudioAnalysis.md`),
-   and this project's own rule is to verify a library's real behavior
-   before coding against assumed behavior — that verification pass is the
-   next concrete step, not yet done.
+   **aubio wired in for real, verified against real signals — done.**
+   Verified aubio's actual C API first (`new_aubio_onset`/`aubio_onset_do`,
+   a phase-vocoder→`aubio_specdesc_t`→`aubio_bintofreq` chain for centroid)
+   before writing anything — good thing: the onset output vector isn't a
+   strength value (it's a 0/1+timing-offset signal; real strength needs
+   `aubio_onset_get_descriptor()`), and aubio's objects turned out to be
+   stateful, meaning `extractFeatures` couldn't stay the pure free function
+   as designed. Added `AudioFeatureExtractor` (a small class wrapping
+   aubio's onset/pvoc/specdesc objects, ring-buffering arbitrary incoming
+   buffer sizes into aubio's fixed hop size, normalizing the raw onset
+   descriptor to [0,1] via a leaky-max envelope) — `extractFeatures` itself
+   stays as the pure RMS-only piece, reused internally, so none of its
+   existing tests needed to change. `AudioOrchestrator` now lazily
+   constructs one `AudioFeatureExtractor` once the real sample rate is
+   known from the first buffer. **Real vcpkg finding:** aubio's default
+   `tools` feature pulls in ffmpeg/libflac/libogg/libsndfile/libvorbis —
+   installed with it explicitly disabled (`aubio[core]`, 9.5s vs. what
+   would have been a from-source ffmpeg build) to keep Core's
+   dependency-isolation exception as narrow as originally decided. **Result:
+   47/47 core tests passing** (5 new `AudioFeatureExtractor` tests against
+   real synthetic signals, not placeholders — a continuous pure tone's
+   measured centroid lands within 100Hz of its true frequency, a sudden
+   transient after silence reliably triggers `onsetDetected` — + the
+   pre-existing 42), `Aurora-App-Windows` rebuilt clean too (4/4, no
+   regressions).
 3. **Live-capture plugins**, new CMake target in each existing repo (not
    a new repo — see `AudioAnalysis.md`'s repo/target-structure section):
    - `Aurora-Input-Windows` gains `AuroraInputWindowsAudio` — miniaudio-
@@ -678,15 +695,15 @@ lets tuning happen by ear without also building audio playback:
    `activeInputName` against both factory maps, or a separate mode
    selector plus `activeAudioInputName` — not decided, worth resolving
    here rather than guessing now.
-6. **Tests — done for everything not gated on aubio,** per step 2's
-   result above: `extractFeatures`'s real `rms` path, `randomAnchorHue`,
-   `updateDrift`, and `updateBounce` all covered with no real audio
-   hardware at all, same spirit as `ImageProcessing`'s tests, done first as
-   planned, before either plugin exists. `extractFeatures`'s onset/centroid
-   paths need their own tests once aubio is actually wired in. Live capture
-   itself stays a hidden/manual test per platform, same category as
-   `WindowsGrabber`'s `[manual]` case — depends on a real audio session,
-   not something CI can assert on.
+6. **Tests — done, including aubio's real onset/centroid paths now.** Per
+   step 2's results above: `extractFeatures`'s `rms`, `randomAnchorHue`,
+   `updateDrift`, `updateBounce`, and now `AudioFeatureExtractor`'s
+   onset/centroid pipeline are all covered with no real audio *hardware* —
+   synthetic signals (sine tones, silence-then-transient) stand in for it,
+   same spirit as `ImageProcessing`'s tests, done before either live-capture
+   plugin exists. Live capture itself stays a hidden/manual test per
+   platform, same category as `WindowsGrabber`'s `[manual]` case — depends
+   on a real audio session, not something CI can assert on.
 
 **Explicitly deferred, not part of this phase's demonstrable:**
 - **`AudioFile-Input`** (provenance 1) — resequenced to a later,

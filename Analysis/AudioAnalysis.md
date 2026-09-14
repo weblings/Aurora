@@ -547,6 +547,35 @@ before designing around it" habit already established (`OpenFormatsResearch.md`,
 - No decay/bounce animation included (expected — that part is always
   Aurora's own code either way).
 
+**Real API verified (not assumed) once implementation started — two
+findings that changed the design:**
+- The onset output vector isn't a strength value. `aubio_onset_do` writes
+  `0` (no onset) or `1 + a` (a ∈ [0,1), sub-sample timing offset) — the
+  actual onset-strength signal is a separate call,
+  `aubio_onset_get_descriptor()`, returning the raw unbounded detection-
+  function magnitude. Confirms the rolling-normalization decision above was
+  necessary, not optional — aubio never hands you a pre-normalized value.
+- Spectral centroid needs three aubio objects chained, not one:
+  `aubio_pvoc_t` (raw samples → FFT spectrum) → `aubio_specdesc_t` (method
+  `"centroid"`, spectrum → a bin number) → `aubio_bintofreq()` (bin → Hz).
+  Onset detection does its own separate internal spectral analysis — the
+  FFT is genuinely computed twice per hop, a known first-cut inefficiency.
+- aubio's objects are **stateful** (constructed once with samplerate/buf_size/
+  hop_size, fed hops repeatedly — onset detection inherently needs history).
+  This meant `extractFeatures` couldn't stay a pure free function as
+  originally designed; the real onset/centroid logic lives in a new
+  `AudioFeatureExtractor` class instead. `extractFeatures` itself survives
+  unchanged as the genuinely stateless RMS-only piece, reused internally.
+- **vcpkg-specific:** aubio's default `tools` feature pulls in
+  ffmpeg/libflac/libogg/libsndfile/libvorbis — installing with `aubio[core]`
+  (default features disabled) took 9.5s instead of a from-source ffmpeg
+  build, and keeps Core's dependency-isolation exception as narrow as
+  originally decided rather than silently widening it.
+- Verified against real synthetic signals, not just "it compiles": a
+  continuous pure 1000Hz tone's measured centroid lands within 100Hz of
+  its true frequency; a sudden full-amplitude transient after silence
+  reliably triggers `onsetDetected`.
+
 ### [BeatDetector](https://github.com/stasilo/BeatDetector) (stasilo) — browser candidate
 
 **Pros:**
