@@ -374,6 +374,38 @@ existed the whole time, ruling out a silently-swallowed DTLS handshake
 failure (`Streamer`'s constructor deliberately swallows that exception,
 matching huenicorn, which is why this needed checking rather than assuming).
 
+**Windows toolchain stood up, and phase 2's `WindowsGrabber` built and
+hardware-verified (2026-09-13).** No toolchain existed on the Windows dev
+machine (VS 2022 Community was installed but missing the C++ workload);
+installed it plus vcpkg (for OpenCV — glm/nlohmann_json/Catch2 already had a
+`FetchContent` fallback, so they just needed a working compiler, not vcpkg).
+Two Windows-toolchain-specific gotchas hit and filed in
+`engineering-hygiene.md`: the VS Installer's `--passive` flag needs the
+shell pre-elevated (fails silently, exit 5007, rather than prompting UAC),
+and the workload finishing successfully doesn't put `cmake`/`cl.exe` on
+`PATH` at all. New `Aurora-Input-Windows` repo (mirrors `Aurora-Input-Linux`'s
+shape) built clean against Aurora core via vcpkg's toolchain file — first
+proof the multi-repo `FetchContent`-sibling pattern holds on Windows too.
+
+Wrote `WindowsGrabber` against `WindowsInputAnalysis.md`'s researched DXGI
+shape, then — since this dev machine has a real interactive desktop, unlike
+WSL2 for the Linux plugins — actually ran it against real hardware
+immediately, rather than deferring verification. Two real bugs found this
+way, both corrected in `WindowsInputAnalysis.md` and filed in the new
+`Analysis/lessons/input.md`: (1) `AcquireNextFrame`'s non-blocking `0`ms
+timeout, the shape recommended by the original research, starved forever on
+empty placeholder frames on real hardware — fixed with a real `16`ms
+timeout; (2) the research's claimed-HDR finding turned out to be a
+misread placeholder-frame artifact, not confirmed real HDR content, and was
+corrected rather than left overstated. Also confirmed live: a
+Windows-enumerated "attached" monitor can be genuinely powered off yet read
+back as valid all-black data, indistinguishable from real black content by
+the API. **Result: `Aurora-Input-Windows` 1/1 automated test passing**
+(`DummyGrabber`), plus a hidden/manual Catch2 case (`[manual]` tag) that
+drove `WindowsGrabber` against the real desktop and printed real, sensible
+captured color data — the first Windows capture verified end-to-end, not
+just build-verified.
+
 ## Phase 1 — Refactor into three modules; Linux input + Hue output plugins
 
 Pure restructuring, zero new features. **Demonstrable:** the restructured app
@@ -486,21 +518,21 @@ Fills in `WindowsAdapter`'s `_createGrabber` stub (currently returns `nullptr`).
   acquisition, format, the resize/re-acquire lifecycle) verified against
   Microsoft's docs before coding against assumed behavior — not a full
   conversion-analysis doc since nothing's being converted.
-- Implement `IInput` using **DXGI Desktop Duplication** (the modern Windows
-  screen-capture API) — outputs BGRA natively, which conveniently matches what
-  the pipeline already assumes.
-- This is also the moment to fix `ImageProcessing::Algorithms::mean()` to
-  actually honor `PixelFormat` instead of hardcoding a BGR channel swap
-  (flagged in `FirstScan.md`) — phase 2 is the first time a second real capture
-  source exists to make that bug matter in practice.
-- **Demonstrable:** the same app, built on Windows, captures the Windows desktop
-  and drives Hue lights through the unchanged `Output::Hue` plugin — proof the
-  module boundary actually holds when Input is swapped and nothing else is
-  touched.
-- Known gotcha worth planning for (candidate for `Analysis/lessons/input.md`
-  once actually hit): DXGI Desktop Duplication requires an interactive desktop
-  session and needs its duplication interface re-acquired on resolution/display
-  changes.
+- **Done.** Implemented `IInput` as `WindowsGrabber` using **DXGI Desktop
+  Duplication**, built and hardware-verified — see the narrative paragraph
+  above and `WindowsInputAnalysis.md`'s hardware-verified-pass section.
+- Already fixed, not phase 2's doing: `ImageProcessing::Algorithms::mean()`
+  already honors `PixelFormat` per-channel (done as part of phase 1's
+  `ProcessingAnalysis.md` finding 1) — the stale claim that phase 2 would be
+  the moment to fix it has been corrected in `WindowsInputAnalysis.md`.
+- **Demonstrable, not yet done:** the same app, built on Windows, capturing
+  the Windows desktop and driving Hue lights through the unchanged
+  `Output::Hue` plugin — needs `Aurora-App-Windows` (not started) to combine
+  `WindowsGrabber` with `Aurora-Output-Hue`, same shape as `Aurora-App-Linux`.
+- Confirmed real, not just a planning-stage concern (see
+  `Analysis/lessons/input.md`): a non-blocking `AcquireNextFrame` poll can
+  starve on placeholder frames forever, and a monitor Windows still lists as
+  attached can be genuinely powered off with no API-level way to detect it.
 
 ## Phase 3 — Three.js browser output plugin
 

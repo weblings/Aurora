@@ -43,13 +43,16 @@ Aurora's own module boundaries instead of RockyRoad's.
   not an edge case (empty-ID auto-select isn't "the only one"), and
   `DtlsClient`'s handshake failure being swallowed by design so a clean
   `HueOutput::init()` isn't proof a connection exists.
+- [`input.md`](input.md) — capture/grabber gotchas: a non-blocking poll on an
+  event-driven capture API (DXGI's `AcquireNextFrame`) starving on empty
+  placeholder frames forever instead of ever returning real data, and a
+  monitor Windows still lists as attached (DWM even actively presenting to
+  it) being genuinely powered off with no API-level way to detect that.
 
 Buckets below are anticipated based on [`ModuleSplitPlan.md`](../ModuleSplitPlan.md)'s
 module boundaries but don't exist yet — a file only gets created once it has a real
 entry, not pre-emptively.
 
-- `input.md` — capture/grabber/platform-adapter gotchas (screen capture APIs, pixel
-  format quirks, per-OS capture backends).
 - `processing.md` — color/effect transform gotchas (colorimetry, zone mapping,
   sampling/interpolation).
 

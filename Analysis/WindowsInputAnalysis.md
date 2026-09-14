@@ -58,6 +58,40 @@ Per-tick: `AcquireNextFrame(timeoutMs, &frameInfo, &resource)` →
   rotate a monitor — deferred, but left as a comment/TODO rather than
   silently mishandled.
 
+## Hardware-verified pass — `Aurora-Input-Windows`'s `WindowsGrabber`
+
+Built and manually verified against this machine's real desktop (real
+`AcquireNextFrame`/`Map`, not just a clean compile). Two corrections to the
+research above, found only by actually running it:
+
+- **`AcquireNextFrame(0, ...)` (non-blocking poll, as recommended above) is
+  broken in practice** — it can return `S_OK` with an empty placeholder
+  frame indefinitely instead of ever producing real data or a clean
+  `WAIT_TIMEOUT`. Also: the very first `AcquireNextFrame` call after
+  `DuplicateOutput()` always returns one empty placeholder frame
+  (`AccumulatedFrames`/`LastPresentTime` both `0`), regardless of timeout —
+  expected and harmless for a continuously-ticking loop, not worth
+  special-casing. **Fixed:** use a real short timeout (`16`ms, one 60Hz
+  interval) instead of `0` — verified reliable across repeated runs. Filed
+  as an `input.md` lesson.
+- **The "HDR desktops return `R16G16B16A16_FLOAT`" finding above turned out
+  to be a false positive**, not a confirmed hardware result: the *first*
+  (placeholder) frame's format metadata read as `R16G16B16A16_FLOAT` on this
+  machine, but every real frame after it read `B8G8R8A8_UNORM` — the
+  placeholder frame's format field isn't trustworthy. The defensive
+  HDR-handling code (clamp scRGB linear to SDR range, gamma-encode, tag
+  `RGBA`) is kept since it's cheap and harmless, but it has **not** actually
+  been exercised against genuine HDR content — corrected from the earlier,
+  overstated "verified on hardware" claim.
+- Also confirmed real: a monitor Windows still enumerates as
+  `AttachedToDesktop` (and DWM may still actively present real frames to)
+  can be genuinely powered off, reading back as valid, in-range, all-black
+  data — not an error, not distinguishable from "real black content" by the
+  API. `WindowsGrabber`'s monitor selection (primary-by-default, same as
+  `X11Grabber`) has no way to detect this; whoever configures which monitor
+  to capture needs to check manually, same as picking the wrong monitor
+  index would be a user-configuration mistake on Linux too.
+
 ## Failure modes to handle explicitly
 
 - `DXGI_ERROR_WAIT_TIMEOUT` — not an error, just "no change since last
