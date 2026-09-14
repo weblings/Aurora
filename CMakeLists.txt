@@ -3,6 +3,7 @@ cmake_minimum_required(VERSION 3.14)
 project(AuroraInputWindows)
 
 option(AURORA_INPUT_WINDOWS_BUILD_TESTS "Build this plugin's own tests" TRUE)
+option(AURORA_INPUT_WINDOWS_ENABLE_DXGI "Build DXGI Desktop Duplication capture support" TRUE)
 
 include(FetchContent)
 
@@ -31,9 +32,13 @@ target_link_libraries(AuroraInputWindows PUBLIC
 
 target_compile_features(AuroraInputWindows PUBLIC cxx_std_20)
 
-# WindowsGrabber (DXGI Desktop Duplication) lands here once written -- see
-# Analysis/WindowsInputAnalysis.md. No vcpkg/find_package needed for it:
-# d3d11/dxgi/dxguid are Windows SDK import libraries, not external packages.
+if(AURORA_INPUT_WINDOWS_ENABLE_DXGI)
+  # d3d11/dxgi/dxguid are Windows SDK import libraries, not external
+  # packages -- no vcpkg/find_package needed, unlike Aurora core's OpenCV.
+  target_sources(AuroraInputWindows PRIVATE src/WindowsGrabber.cpp)
+  target_compile_definitions(AuroraInputWindows PUBLIC AURORA_INPUT_WINDOWS_DXGI_AVAILABLE=1)
+  target_link_libraries(AuroraInputWindows PUBLIC d3d11 dxgi dxguid)
+endif()
 
 if(AURORA_INPUT_WINDOWS_BUILD_TESTS)
   enable_testing()
