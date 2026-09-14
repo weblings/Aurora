@@ -13,7 +13,7 @@
   #pragma GCC diagnostic ignored "-Wmissing-field-initializers"
 #endif
 
-#include <spa/param/audio/raw-utils.h>
+#include <spa/param/audio/format-utils.h>
 
 #if defined(__clang__)
   #pragma clang diagnostic pop
