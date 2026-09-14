@@ -4,6 +4,11 @@ project(AuroraCore)
 
 set(BUILD_TESTS TRUE CACHE BOOL "Build tests")
 
+# Off by default for a consumer with no audio input plugin of its own yet
+# (e.g. Aurora-App-Linux) -- AudioProcessing hard-requires aubio via
+# find_package(CONFIG REQUIRED), which shouldn't block a video-only build.
+option(AURORA_CORE_ENABLE_AUDIO "Build the audio-reactive pipeline (AudioProcessing + Runtime's AudioOrchestrator); requires aubio" TRUE)
+
 include(FetchContent)
 
 find_package(OpenCV REQUIRED COMPONENTS imgproc)
@@ -40,7 +45,9 @@ endif()
 # Contracts first (no internal deps), then Processing (depends on Contracts).
 add_subdirectory(Contracts)
 add_subdirectory(Processing)
-add_subdirectory(AudioProcessing)
+if(AURORA_CORE_ENABLE_AUDIO)
+  add_subdirectory(AudioProcessing)
+endif()
 
 # Interface-only -- concrete plugins (Aurora-Input-Linux, Aurora-Output-Hue,
 # ...) live in their own repos and depend on these, not the other way round.

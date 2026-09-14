@@ -51,38 +51,42 @@ target_link_libraries(AuroraOrchestratorTests PRIVATE
 
 target_compile_features(AuroraOrchestratorTests PUBLIC cxx_std_20)
 
-add_executable(AuroraAudioProcessingTests
-  AudioProcessingTests.cpp
-)
+# All three gated on AURORA_CORE_ENABLE_AUDIO -- AuroraAudioProcessing
+# (and the aubio it requires) may not exist in a video-only build.
+if(TARGET AuroraAudioProcessing)
+  add_executable(AuroraAudioProcessingTests
+    AudioProcessingTests.cpp
+  )
 
-target_link_libraries(AuroraAudioProcessingTests PRIVATE
-  AuroraAudioProcessing
-  Catch2::Catch2WithMain
-)
+  target_link_libraries(AuroraAudioProcessingTests PRIVATE
+    AuroraAudioProcessing
+    Catch2::Catch2WithMain
+  )
 
-target_compile_features(AuroraAudioProcessingTests PUBLIC cxx_std_20)
+  target_compile_features(AuroraAudioProcessingTests PUBLIC cxx_std_20)
 
-add_executable(AuroraAudioOrchestratorTests
-  AudioOrchestratorTests.cpp
-)
+  add_executable(AuroraAudioOrchestratorTests
+    AudioOrchestratorTests.cpp
+  )
 
-target_link_libraries(AuroraAudioOrchestratorTests PRIVATE
-  AuroraRuntime
-  Catch2::Catch2WithMain
-)
+  target_link_libraries(AuroraAudioOrchestratorTests PRIVATE
+    AuroraRuntime
+    Catch2::Catch2WithMain
+  )
 
-target_compile_features(AuroraAudioOrchestratorTests PUBLIC cxx_std_20)
+  target_compile_features(AuroraAudioOrchestratorTests PUBLIC cxx_std_20)
 
-add_executable(AuroraAudioFeatureExtractorTests
-  AudioFeatureExtractorTests.cpp
-)
+  add_executable(AuroraAudioFeatureExtractorTests
+    AudioFeatureExtractorTests.cpp
+  )
 
-target_link_libraries(AuroraAudioFeatureExtractorTests PRIVATE
-  AuroraAudioProcessing
-  Catch2::Catch2WithMain
-)
+  target_link_libraries(AuroraAudioFeatureExtractorTests PRIVATE
+    AuroraAudioProcessing
+    Catch2::Catch2WithMain
+  )
 
-target_compile_features(AuroraAudioFeatureExtractorTests PUBLIC cxx_std_20)
+  target_compile_features(AuroraAudioFeatureExtractorTests PUBLIC cxx_std_20)
+endif()
 
 # enable_testing() lives in the parent CMakeLists.txt now, not here -- see
 # the comment there. Only need Catch2's own CTest-integration module here.
@@ -90,6 +94,8 @@ include(Catch)
 catch_discover_tests(AuroraProcessingTests)
 catch_discover_tests(AuroraRuntimeTests)
 catch_discover_tests(AuroraOrchestratorTests)
-catch_discover_tests(AuroraAudioProcessingTests)
-catch_discover_tests(AuroraAudioOrchestratorTests)
-catch_discover_tests(AuroraAudioFeatureExtractorTests)
+if(TARGET AuroraAudioProcessing)
+  catch_discover_tests(AuroraAudioProcessingTests)
+  catch_discover_tests(AuroraAudioOrchestratorTests)
+  catch_discover_tests(AuroraAudioFeatureExtractorTests)
+endif()
