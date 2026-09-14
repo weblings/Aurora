@@ -70,6 +70,12 @@ target_link_libraries(aurora-app-windows PRIVATE
 
 if(AURORA_APP_ENABLE_WINDOWS_INPUT)
   target_link_libraries(aurora-app-windows PRIVATE AuroraInputWindows)
+
+  # Separate target from AuroraInputWindows -- link it too if the plugin
+  # repo's own option built it (default TRUE, see its CMakeLists.txt).
+  if(TARGET AuroraInputWindowsAudio)
+    target_link_libraries(aurora-app-windows PRIVATE AuroraInputWindowsAudio)
+  endif()
 endif()
 
 if(AURORA_APP_ENABLE_HUE_OUTPUT)

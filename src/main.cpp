@@ -14,6 +14,7 @@
 #include <windows.h>
 
 #include <Aurora/App/Registry.hpp>
+#include <Aurora/Runtime/AudioOrchestrator.hpp>
 #include <Aurora/Runtime/ConfigStore.hpp>
 #include <Aurora/Runtime/Orchestrator.hpp>
 #include <Aurora/Runtime/ZoneMapStore.hpp>
@@ -21,6 +22,9 @@
 #include <Aurora/Input/Windows/DummyGrabber.hpp>
 #ifdef AURORA_INPUT_WINDOWS_DXGI_AVAILABLE
 #include <Aurora/Input/Windows/WindowsGrabber.hpp>
+#endif
+#ifdef AURORA_INPUT_WINDOWS_AUDIO_AVAILABLE
+#include <Aurora/Input/Windows/AudioGrabber.hpp>
 #endif
 
 #ifdef AURORA_OUTPUT_HUE_IO_AVAILABLE
@@ -52,6 +56,16 @@ namespace
 #ifdef AURORA_INPUT_WINDOWS_DXGI_AVAILABLE
     registry.registerInput("windows", []{
       return std::make_unique<Aurora::Input::Windows::WindowsGrabber>();
+    });
+#endif
+  }
+
+
+  void registerAudioInputs(Aurora::App::Registry& registry)
+  {
+#ifdef AURORA_INPUT_WINDOWS_AUDIO_AVAILABLE
+    registry.registerAudioInput("windows-audio", []{
+      return std::make_unique<Aurora::Input::Windows::AudioGrabber>();
     });
 #endif
   }
@@ -117,21 +131,17 @@ try
 
   Aurora::App::Registry registry;
   registerInputs(registry);
+  registerAudioInputs(registry);
   registerOutputs(registry);
 
   auto configRoot = resolveConfigRoot();
   Aurora::Runtime::ConfigStore configStore(configRoot);
   Aurora::Runtime::Config config = configStore.load();
 
-  std::string inputName = config.activeInputName().empty() ? "windows" : config.activeInputName();
-  auto input = registry.createInput(inputName);
-  if(!input){
-    std::cerr << "Unknown input '" << inputName << "'. Available: ";
-    for(const auto& name : registry.inputNames()){ std::cerr << name << " "; }
-    std::cerr << "\n";
-    return 1;
-  }
-  input->init();
+  // Video wins if both could apply -- explicit opt-in to audio requires
+  // leaving activeInputName unset. Not a Config-level "mode": both running
+  // together is a real future goal, just not built yet.
+  bool useAudioMode = config.activeInputName().empty() && !config.activeAudioInputName().empty();
 
   std::vector<std::string> outputNames = config.activeOutputNames();
   if(outputNames.empty()){
@@ -158,17 +168,57 @@ try
     return 1;
   }
 
-  Aurora::Runtime::Orchestrator orchestrator(*input, outputPtrs, config, Aurora::Runtime::ZoneMapStore(configRoot));
-  orchestrator.init();
-  configStore.save(orchestrator.config()); // persist any refreshRate/subsampleWidth just derived
+  if(useAudioMode){
+    auto audioInput = registry.createAudioInput(config.activeAudioInputName());
+    if(!audioInput){
+      std::cerr << "Unknown audio input '" << config.activeAudioInputName() << "'. Available: ";
+      for(const auto& name : registry.audioInputNames()){ std::cerr << name << " "; }
+      std::cerr << "\n";
+      return 1;
+    }
 
-  std::cout << "Aurora running: input='" << inputName << "', " << outputPtrs.size() << " output(s). Ctrl+C to stop.\n";
+    // AudioEffectSettings has no Config fields wired in yet -- default-
+    // constructed for now, see Analysis/AudioAnalysis.md.
+    Aurora::Runtime::AudioOrchestrator orchestrator(
+      *audioInput, outputPtrs, Aurora::Runtime::ZoneMapStore(configRoot), {}
+    );
+    orchestrator.init();
 
-  auto tickInterval = std::chrono::duration<double>(1.0 / orchestrator.config().refreshRate());
-  while(!g_stopRequested){
-    auto tickStart = std::chrono::steady_clock::now();
-    orchestrator.update();
-    std::this_thread::sleep_until(tickStart + std::chrono::duration_cast<std::chrono::steady_clock::duration>(tickInterval));
+    std::cout << "Aurora running: audio input='" << config.activeAudioInputName()
+               << "', " << outputPtrs.size() << " output(s). Ctrl+C to stop.\n";
+
+    // No display-derived refreshRate for audio -- 60Hz is a reasonable
+    // starting tick rate, independent of aubio's own internal hop size.
+    auto tickInterval = std::chrono::duration<double>(1.0 / 60.0);
+    while(!g_stopRequested){
+      auto tickStart = std::chrono::steady_clock::now();
+      orchestrator.update(static_cast<float>(tickInterval.count()));
+      std::this_thread::sleep_until(tickStart + std::chrono::duration_cast<std::chrono::steady_clock::duration>(tickInterval));
+    }
+  }
+  else{
+    std::string inputName = config.activeInputName().empty() ? "windows" : config.activeInputName();
+    auto input = registry.createInput(inputName);
+    if(!input){
+      std::cerr << "Unknown input '" << inputName << "'. Available: ";
+      for(const auto& name : registry.inputNames()){ std::cerr << name << " "; }
+      std::cerr << "\n";
+      return 1;
+    }
+    input->init();
+
+    Aurora::Runtime::Orchestrator orchestrator(*input, outputPtrs, config, Aurora::Runtime::ZoneMapStore(configRoot));
+    orchestrator.init();
+    configStore.save(orchestrator.config()); // persist any refreshRate/subsampleWidth just derived
+
+    std::cout << "Aurora running: input='" << inputName << "', " << outputPtrs.size() << " output(s). Ctrl+C to stop.\n";
+
+    auto tickInterval = std::chrono::duration<double>(1.0 / orchestrator.config().refreshRate());
+    while(!g_stopRequested){
+      auto tickStart = std::chrono::steady_clock::now();
+      orchestrator.update();
+      std::this_thread::sleep_until(tickStart + std::chrono::duration_cast<std::chrono::steady_clock::duration>(tickInterval));
+    }
   }
 
   std::cout << "Stopping...\n";

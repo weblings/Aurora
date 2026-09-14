@@ -6,6 +6,7 @@
 #include <unordered_map>
 #include <vector>
 
+#include <Aurora/Input/IAudioInput.hpp>
 #include <Aurora/Input/IVideoInput.hpp>
 #include <Aurora/Output/IOutput.hpp>
 
@@ -19,23 +20,28 @@
 namespace Aurora::App
 {
   using InputFactory = std::function<std::unique_ptr<Input::IVideoInput>()>;
+  using AudioInputFactory = std::function<std::unique_ptr<Input::IAudioInput>()>;
   using OutputFactory = std::function<std::unique_ptr<Output::IOutput>()>;
 
   class Registry
   {
   public:
     void registerInput(const std::string& name, InputFactory factory);
+    void registerAudioInput(const std::string& name, AudioInputFactory factory);
     void registerOutput(const std::string& name, OutputFactory factory);
 
     // nullptr if no factory was registered under that name.
     std::unique_ptr<Input::IVideoInput> createInput(const std::string& name) const;
+    std::unique_ptr<Input::IAudioInput> createAudioInput(const std::string& name) const;
     std::unique_ptr<Output::IOutput> createOutput(const std::string& name) const;
 
     std::vector<std::string> inputNames() const;
+    std::vector<std::string> audioInputNames() const;
     std::vector<std::string> outputNames() const;
 
   private:
     std::unordered_map<std::string, InputFactory> m_inputFactories;
+    std::unordered_map<std::string, AudioInputFactory> m_audioInputFactories;
     std::unordered_map<std::string, OutputFactory> m_outputFactories;
   };
 }

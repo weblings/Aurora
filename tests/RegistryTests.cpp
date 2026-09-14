@@ -27,6 +27,19 @@ namespace
   };
 
 
+  class FakeAudioInput : public IAudioInput
+  {
+  public:
+    const std::string& name() const override
+    {
+      static const std::string s_name = "fake-audio-input";
+      return s_name;
+    }
+
+    void readNextBuffer(AudioBuffer&) override {}
+  };
+
+
   class FakeOutput : public IOutput
   {
   public:
@@ -71,7 +84,20 @@ TEST_CASE("Registry returns nullptr for an unregistered name", "[Registry]")
 {
   Registry registry;
   CHECK(registry.createInput("nope") == nullptr);
+  CHECK(registry.createAudioInput("nope") == nullptr);
   CHECK(registry.createOutput("nope") == nullptr);
+}
+
+
+TEST_CASE("Registry creates the audio input registered under a given name", "[Registry]")
+{
+  Registry registry;
+  registry.registerAudioInput("fake", []{ return std::make_unique<FakeAudioInput>(); });
+
+  auto audioInput = registry.createAudioInput("fake");
+  REQUIRE(audioInput != nullptr);
+  CHECK(audioInput->name() == "fake-audio-input");
+  CHECK(contains(registry.audioInputNames(), "fake"));
 }
 
 
