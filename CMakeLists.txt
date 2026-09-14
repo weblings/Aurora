@@ -64,6 +64,17 @@ if(AURORA_INPUT_LINUX_ENABLE_PIPEWIRE)
   target_link_libraries(AuroraInputLinux PUBLIC PkgConfig::PIPEWIRE PkgConfig::GLIB)
 endif()
 
+if(AURORA_INPUT_LINUX_ENABLE_AUDIO)
+  # Independent of AURORA_INPUT_LINUX_ENABLE_PIPEWIRE -- audio capture needs
+  # libpipewire but not glib/XdgDesktopPortal (no permission portal involved).
+  find_package(PkgConfig REQUIRED)
+  pkg_check_modules(PIPEWIRE REQUIRED IMPORTED_TARGET libpipewire-0.3)
+
+  target_sources(AuroraInputLinux PRIVATE src/AudioGrabber.cpp)
+  target_compile_definitions(AuroraInputLinux PUBLIC AURORA_INPUT_LINUX_AUDIO_AVAILABLE=1)
+  target_link_libraries(AuroraInputLinux PUBLIC PkgConfig::PIPEWIRE)
+endif()
+
 if(AURORA_INPUT_LINUX_BUILD_TESTS)
   enable_testing()
   add_subdirectory(tests)
