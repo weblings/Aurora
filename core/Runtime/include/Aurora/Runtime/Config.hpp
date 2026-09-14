@@ -52,8 +52,10 @@ namespace Aurora::Runtime
 
     // Linux-only: the exact PipeWire node.name of the sink whose monitor
     // ports to capture (see `wpctl status` + `pw-cli info <id>`). Empty
-    // isn't "auto" here -- PipeWire has no universal default-sink alias, so
-    // Aurora-Input-Linux's AudioGrabber requires this to be set explicitly.
+    // means auto -- Aurora-Input-Linux's AudioGrabber resolves the current
+    // default sink itself via Pipewire's "default" metadata object, same
+    // "no device name needed" experience as Windows' WASAPI loopback.
+    // Set explicitly to override (e.g. a non-default sink).
     std::string audioTargetSinkName;
   };
 

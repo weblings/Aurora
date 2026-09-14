@@ -118,9 +118,9 @@ decode path can't handle at all) was actually delivered.
 `toOwnedImage` (renamed) takes the actual negotiated format instead of
 assuming RGBA, and the Pipewire negotiation itself was narrowed to only the
 3 formats the fixed-4-byte decode path can actually handle correctly
-(RGBA/RGBx/BGRx — dropping RGB/YUY2/I420). Since fixed: confirmed compiling
-and passing its tests in a real Linux build (WSL2), still not confirmed
-against real X11/Pipewire hardware output. General principle: when a "port
+(RGBA/RGBx/BGRx — dropping RGB/YUY2/I420). **Confirmed on real hardware**:
+colors matched huenicorn after this fix, closing the original comparison
+that found the bug. General principle: when a "port
 with a fix" changes code from ignoring a piece of metadata to trusting it,
 audit where that metadata was actually set, not just the consuming logic —
 upstream's own bugs can be invisible for as long as nothing reads them.

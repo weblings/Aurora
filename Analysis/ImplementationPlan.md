@@ -588,6 +588,16 @@ end-to-end verification.
 `AudioAnalysis.md`'s breakdown), because it's the only provenance that
 lets tuning happen by ear without also building audio playback:
 
+**Unplanned, discovered mid-phase: X11/Pipewire pixel-format mistagging,
+found and fixed.** A huenicorn-vs-Aurora color-accuracy comparison on
+real hardware turned up wrong colors (blue scenes green/pink, red scenes
+blue). Root cause: `X11Grabber` tagged captures `RGBA` when the real X11
+memory layout is `BGRA` (ported verbatim from huenicorn, harmless there
+since its `mean()` ignored the tag entirely; became live once Aurora's own
+port made that code format-aware). Same class of bug existed in
+`PipewireFrameBuffer.hpp`. Fixed and **confirmed on real hardware** --
+colors now match huenicorn. See `Analysis/lessons/input.md`.
+
 1. **Interface layer — rename done, verified where buildable.**
    `IInput`→`IVideoInput` across Core, `Aurora-Input-Windows`/`-Linux`,
    both App repos' `Registry`/`main.cpp`, `MonitorSelector`/`Orchestrator`,
@@ -665,11 +675,21 @@ lets tuning happen by ear without also building audio playback:
      ones**, when nothing is actively rendering — informative for future
      diagnostics, not a bug, and not a blocker for the actual use case
      (reacting to music implies something's already playing).
-   - **Linux: not started.** `Aurora-Input-Linux` gains
-     `AuroraInputLinuxAudio` — native pipewire-backed capture, reusing the
-     `libpipewire-0.3` dependency already linked for `PipewireGrabber`, new
-     `AURORA_INPUT_LINUX_ENABLE_AUDIO` option. No Linux toolchain in this
-     session, same limitation as the interface-rename step.
+   - **Linux: written, compile-verified, not hardware-verified.**
+     `Aurora-Input-Linux` gains `AudioGrabber` under `AURORA_INPUT_LINUX_ENABLE_AUDIO`
+     (default on) — direct `pw_stream` capture (no portal needed, unlike
+     `PipewireGrabber`'s screen capture) targeting a sink's monitor ports via
+     `PW_KEY_TARGET_OBJECT` + `stream.capture.sink=true`, verified against
+     real Pipewire example source/docs first. New `Config::audioTargetSinkName`
+     (Pipewire has no universal "default sink" alias, unlike WASAPI loopback —
+     required, loud failure if unset/wrong rather than silently capturing a
+     mic). Built and tested via WSL2 Ubuntu against the real target machine's
+     checkout (no toolchain limitation this time) — caught and fixed one real
+     bug this way (a C-vs-C++ compound-literal address-of error, see
+     `Analysis/lessons/engineering-hygiene.md`). **Still open:** actual
+     capture against real hardware (a real sink, `alsa_output.usb-TaiYiLian_
+     B03__...-02.analog-stereo` on the test machine) hasn't been run yet, and
+     neither has App-Linux's own `Registry`/`main.cpp` wiring (see step 5).
 4. **Orchestration — done, Windows-verified.** `AudioOrchestrator` built as
    a separate class, no shared base with `Orchestrator` (same reasoning
    `IAudioInput`/`IVideoInput` already got no shared base — the two
@@ -700,14 +720,18 @@ lets tuning happen by ear without also building audio playback:
    `AudioEffectSettings{}` directly. Wiring real `Config` fields is part of
    step 5's app-wiring work below, the same place `activeAudioInputName`
    needs deciding.
-5. **App wiring.** Both App repos add a new `Registry` factory map for
-   `IAudioInput` (mechanical — `Registry` already isn't polymorphic over
-   one shared interface, see `AudioAnalysis.md`), gated by a new
-   `AURORA_APP_ENABLE_*_AUDIO_INPUT` option. **Also open:** how `Config`
-   picks between a video-mode run and an audio-mode run — reusing
-   `activeInputName` against both factory maps, or a separate mode
-   selector plus `activeAudioInputName` — not decided, worth resolving
-   here rather than guessing now.
+5. **App wiring — Windows done, Linux not started.** `Aurora-App-Windows`'s
+   `Registry` gained an `IAudioInput` factory map (mechanical) and `main.cpp`
+   dispatches on a resolved precedence rule: video wins if
+   `activeInputName` is set, audio only runs if it's empty and
+   `activeAudioInputName` isn't — a deliberately minimal decision (no mode
+   enum, no UI to drive one) rather than the more elaborate design
+   originally sketched here. `AudioEffectSettings` is fully `Config`-backed
+   now (10 fields, all editable in `config.json` with no rebuild).
+   `Aurora-App-Linux`'s `Registry`/`main.cpp` have **none of this yet** —
+   `AudioGrabber` exists and builds, but nothing in the app registers or
+   selects it. This is the concrete next step once Linux hardware-verifies
+   the grabber itself.
 6. **Tests — done, including aubio's real onset/centroid paths now.** Per
    step 2's results above: `extractFeatures`'s `rms`, `randomAnchorHue`,
    `updateDrift`, `updateBounce`, and now `AudioFeatureExtractor`'s
@@ -763,9 +787,11 @@ lights around a screen" preview, and the base scene phase 4 goes immersive with.
   - a Server-Sent Events endpoint pushing each tick's `Processing::Frame` as
     JSON
 - New `Output::ThreeJS` module implements `IOutput`; `send()` forwards the
-  `Frame` to connected SSE clients. Note this needs `Runtime` to hold a **list**
-  of active outputs rather than the single `m_streamer` huenicorn has today —
-  Hue and the browser preview run simultaneously, not one-or-the-other.
+  `Frame` to connected SSE clients. **Already true, not still needed:**
+  `Orchestrator`/`AudioOrchestrator` already take a `vector<IOutput*>` and
+  broadcast to all of them (phase 2.5's audio work exercised this directly),
+  not huenicorn's single `m_streamer` — Hue and the browser preview running
+  simultaneously needs no further `Runtime` change.
 - **Browser side** (new `web/`): a Three.js page rendering the MJPEG preview as
   a plane/texture, subscribing to the SSE endpoint, and drawing each zone as a
   colored 3D element positioned by its UV on the video plane.
