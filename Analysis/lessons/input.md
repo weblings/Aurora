@@ -118,9 +118,33 @@ decode path can't handle at all) was actually delivered.
 `toOwnedImage` (renamed) takes the actual negotiated format instead of
 assuming RGBA, and the Pipewire negotiation itself was narrowed to only the
 3 formats the fixed-4-byte decode path can actually handle correctly
-(RGBA/RGBx/BGRx — dropping RGB/YUY2/I420). **Unverified on real hardware**
-as of this fix — no Linux toolchain was available this session; needs a
-real X11 and Pipewire run to confirm. General principle: when a "port with
-a fix" changes code from ignoring a piece of metadata to trusting it, audit
-where that metadata was actually set, not just the consuming logic —
+(RGBA/RGBx/BGRx — dropping RGB/YUY2/I420). Since fixed: confirmed compiling
+and passing its tests in a real Linux build (WSL2), still not confirmed
+against real X11/Pipewire hardware output. General principle: when a "port
+with a fix" changes code from ignoring a piece of metadata to trusting it,
+audit where that metadata was actually set, not just the consuming logic —
 upstream's own bugs can be invisible for as long as nothing reads them.
+
+---
+
+## PipeWire's daemon running and connectable doesn't mean any real audio device nodes exist
+
+Preparing to test the new `AudioGrabber`, `pw-cli ls Node` on the real
+target machine listed exactly two nodes: `Dummy-Driver` and
+`Freewheel-Driver` -- PipeWire's own internal graph-clock drivers, nothing
+else. Looked like a capture-side bug at first. It wasn't: `aplay -l`
+confirmed real hardware (USB audio, HDA, NVidia HDMI) was present and
+ALSA-visible the whole time, but `wpctl`/`wireplumber` weren't even
+installed. PipeWire itself only manages the graph; a session manager
+(WirePlumber, or the older pipewire-media-session) is what actually
+creates Sink/Source nodes for real hardware and sets defaults. Without one
+running, `pw-cli` connects fine and reports a perfectly healthy graph --
+just one with nothing real in it.
+
+**Fix:** `sudo apt install wireplumber` (this project's actual fix), then
+`systemctl --user restart pipewire pipewire-pulse wireplumber` to pick it
+up without a full logout. General principle: "the daemon is running and I
+can query it" is a weaker signal than it looks for anything whose real
+content is a *session manager's* job, not the core service's -- check the
+layer that actually owns device/node creation, not just that the socket
+answers.

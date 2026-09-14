@@ -44,9 +44,11 @@ Aurora's own module boundaries instead of RockyRoad's.
   toolchain into manifest mode and resolving an ABI-incompatible compiler
   (`-DVCPKG_MANIFEST_MODE=OFF` forces classic mode back), a vcpkg port's
   default features pulling in a much heavier dependency tree than expected
-  (aubio's default `tools` feature wanting ffmpeg; `[core]` avoids it), and
-  a process started from this Bash environment reporting a different PID
-  than Windows sees, needing `/F`/image-name `taskkill` to stop reliably.
+  (aubio's default `tools` feature wanting ffmpeg; `[core]` avoids it), a
+  process started from this Bash environment reporting a different PID
+  than Windows sees, needing `/F`/image-name `taskkill` to stop reliably,
+  and a C library's own example code taking the address of a compound
+  literal — a legal lvalue in C, an illegal prvalue in C++.
 - [`output.md`](output.md) — streaming/protocol gotchas: a bridge having more
   than one entertainment configuration over the same lights being normal,
   not an edge case (empty-ID auto-select isn't "the only one"), and
@@ -58,10 +60,12 @@ Aurora's own module boundaries instead of RockyRoad's.
   monitor Windows still lists as attached (DWM even actively presenting to
   it) being genuinely powered off with no API-level way to detect that,
   shared-mode WASAPI loopback delivering zero callbacks (not silent ones)
-  when nothing is actively rendering, and a pixel-format tag ported
+  when nothing is actively rendering, a pixel-format tag ported
   verbatim from huenicorn (X11 `RGBA`, really `BGRA`) staying harmless
   there (nothing read it) until Aurora's own downstream code became
-  format-aware and started trusting it.
+  format-aware and started trusting it, and PipeWire's daemon answering
+  queries fine while zero real audio device nodes exist because the
+  session manager (WirePlumber) wasn't installed at all.
 - [`processing.md`](processing.md) — color/effect transform gotchas: a
   periodic test signal (a sine wave) regenerated fresh per call instead of
   continuing its phase injecting broadband noise at each call boundary,

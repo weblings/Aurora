@@ -51,6 +51,29 @@ real interactive console.
 
 ---
 
+## A C library's own example code can use patterns that don't compile in C++, even when the header is C++-safe
+
+Porting PipeWire's real `audio-capture.c`/`audio-src.c` example pattern
+(verified against the actual source, not assumed) into `AudioGrabber.cpp`,
+`&SPA_AUDIO_INFO_RAW_INIT(.format = SPA_AUDIO_FORMAT_F32)` failed to
+compile: "taking address of rvalue". `SPA_AUDIO_INFO_RAW_INIT(...)` expands
+to a C99 compound literal, which is an **lvalue** in C (address-of is
+routine) but a **prvalue** in C++ (address-of is illegal without binding it
+to a name first). The header itself compiles fine in both languages; only
+this specific call-site pattern from the reference example doesn't
+transfer as-is.
+
+**Fix:** assign the macro's result to a named local (`spa_audio_info_raw
+audioInfo = SPA_AUDIO_INFO_RAW_INIT(...);`), then pass `&audioInfo`.
+General principle: verifying a C API's behavior against its own real
+example code (the right instinct, and the one that caught this) doesn't
+guarantee every *syntactic pattern* in that example ports unchanged into a
+C++ translation unit -- compound-literal address-of is the specific
+recurring offender, worth a second look whenever porting C example code
+that takes the address of a macro-expanded initializer.
+
+---
+
 ## `enable_testing()` must be called in the parent scope, before `add_subdirectory()`, not inside the test subdirectory itself
 
 CTest only wires a directory's `CTestTestfile.cmake` to descend into a
