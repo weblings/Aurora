@@ -9,12 +9,18 @@ option(AURORA_APP_BUILD_TESTS "Build this app's own tests" TRUE)
 # activeInputName/activeOutputNames, looked up in the Registry these build.
 option(AURORA_APP_ENABLE_LINUX_INPUT "Link in Aurora-Input-Linux" TRUE)
 option(AURORA_APP_ENABLE_HUE_OUTPUT "Link in Aurora-Output-Hue" TRUE)
+# Drives both AURORA_CORE_ENABLE_AUDIO and AURORA_INPUT_LINUX_ENABLE_AUDIO
+# below -- Core fetches before Aurora-Input-Linux does, so Core's own
+# add_subdirectory(AudioProcessing) decision must be set here, not left for
+# Aurora-Input-Linux's own (later) default to decide.
+option(AURORA_APP_ENABLE_LINUX_AUDIO_INPUT "Link in Aurora-Input-Linux's audio capture (requires aubio)" TRUE)
 
 include(FetchContent)
 
 # Aurora core -- needed directly (Config/Orchestrator/Contracts) regardless
 # of which plugins below are enabled, not just transitively through them.
 set(BUILD_TESTS FALSE CACHE BOOL "" FORCE)
+set(AURORA_CORE_ENABLE_AUDIO ${AURORA_APP_ENABLE_LINUX_AUDIO_INPUT} CACHE BOOL "" FORCE)
 FetchContent_Declare(
   AuroraCore
   SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../Aurora/core
@@ -23,6 +29,7 @@ FetchContent_MakeAvailable(AuroraCore)
 
 if(AURORA_APP_ENABLE_LINUX_INPUT)
   set(AURORA_INPUT_LINUX_BUILD_TESTS FALSE CACHE BOOL "" FORCE)
+  set(AURORA_INPUT_LINUX_ENABLE_AUDIO ${AURORA_APP_ENABLE_LINUX_AUDIO_INPUT} CACHE BOOL "" FORCE)
   FetchContent_Declare(
     AuroraInputLinux
     SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../Aurora-Input-Linux
