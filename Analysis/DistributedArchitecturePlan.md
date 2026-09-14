@@ -136,3 +136,10 @@ regardless of how the seam-count question eventually resolves.
   follow-up to it.
 - `ImplementationPlan.md` — the WebSockets stretch goal this question
   actually needs resolving before.
+- `BrowserAnalysis.md` — a phase 3 browser video-upload idea that lands a
+  concrete, non-hypothetical example on the seam question above (a browser
+  tab as a partial `IInput`/`Processing` source), rather than resolving it.
+- `StackComparison.md` — the `ImageData` seam built so far, shown as real
+  data flow across huenicorn and both current Aurora platforms rather than
+  described in the abstract. Doesn't resolve the seam-count question above —
+  it only shows what the one seam that exists today actually looks like.

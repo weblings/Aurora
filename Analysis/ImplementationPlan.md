@@ -572,6 +572,11 @@ A new Output target: a browser page showing the live video preview and a 3D
 visualization of the effect/zone data reacting in real time — the "virtual
 lights around a screen" preview, and the base scene phase 4 goes immersive with.
 
+- **Not yet aligned on shape:** a video-file-upload idea (play a user's video
+  through `Processing`, drive an output from it) is under discussion for
+  this phase — see `Analysis/BrowserAnalysis.md` for the findings so far
+  (native-decode vs. browser-decode fork, whether it needs to reach real
+  bulbs). Recorded as context, not a scoped sub-task yet.
 - **Analysis pass first:** `Analysis/HttpServerAnalysis.md` covering
   `Network::Http::Server` holistically (`HttpServer`/`HttpLibServerImpl` —
   how the existing setup-WebUI routes are wired, request/response lifecycle,

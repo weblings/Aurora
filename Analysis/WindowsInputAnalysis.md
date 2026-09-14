@@ -233,3 +233,6 @@ fallback already added for the Ubuntu device's older Mbed TLS.
 - `DistributedArchitecturePlan.md` — unaffected by this: a Windows `IInput`
   is exactly the kind of swap the one-seam/double-seam question already
   anticipated, nothing here forces a seam-count decision now.
+- `StackComparison.md` — this doc's DXGI/ComPtr findings shown side-by-side
+  against `X11Grabber`'s equivalents and huenicorn's original single-adapter
+  shape.

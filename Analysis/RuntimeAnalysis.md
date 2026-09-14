@@ -269,3 +269,7 @@ eventually accept a `Frame` from more than one kind of upstream source
 bridge that skips cropping entirely), and how far Input/Processing/Output
 might eventually be split across separate devices. Not resolved, doesn't
 block anything built so far.
+
+See [`StackComparison.md`](StackComparison.md) for `Orchestrator`'s
+tick-by-tick data flow shown side-by-side against huenicorn's
+`Runtime::_update()` and both real `IInput` backends now behind it.

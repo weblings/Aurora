@@ -174,3 +174,8 @@ forgotten now that a real plugin has actually hit it.
   Would enter through its own Input-like seam rather than being bolted onto the
   video path, since audio and video are independent capture sources that a shared
   Processing stage could fuse.
+
+See [`StackComparison.md`](StackComparison.md) for how this split's `IInput`
+seam actually looks in practice once two real platforms exist behind it —
+huenicorn vs. Aurora-App-Linux vs. Aurora-App-Windows, with the data flow
+and dependency-library roles at each step.
