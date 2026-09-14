@@ -29,14 +29,16 @@ namespace Aurora::Processing
       // Only affects the *starting* anchor -- drift still runs afterward.
       std::optional<float> fixedAnchorHue;
 
-      float bounceSmoothTime = 0.14f;     // seconds, exponential damping time constant
+      // bounceSmoothTime/brightnessFloor tuned against a real listening
+      // test (speech, live Hue lights); the rest are still first guesses.
+      float bounceSmoothTime = 1.0f;      // seconds, exponential damping time constant
       float dynamismFloor = 0.22f;        // minimum swing fraction, even for the weakest onset
       float centroidStrength = 0.5f;      // how much spectral centroid can speed/slow drift; 0 = no effect
       float driftBaseRateDegPerSec = 6.0f;// base drift speed -- a full rotation every 60s by default
       float vibrancySaturation = 0.95f;   // HSV S for every generated color, constant
       float vibrancyValue = 0.95f;        // HSV V ceiling, before RMS brightness scaling
       float referenceRms = 0.2f;          // RMS level mapped to full brightness
-      float brightnessFloor = 0.15f;      // never fully dark, even in quiet passages
+      float brightnessFloor = 0.35f;      // never fully dark, even in quiet passages
       float centroidRangeHz = 1500.0f;    // spread normalizing centroid-vs-rolling-average delta to [-1,1]
     };
 

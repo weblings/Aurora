@@ -33,6 +33,21 @@ namespace Aurora::Runtime
     // Which registered IAudioInput to run, by name. Video wins if both
     // could apply -- see main()'s dispatch logic, not a Config concept.
     std::string activeAudioInputName;
+
+    // Mirrors Processing::AudioProcessing::AudioEffectSettings field-by-
+    // field (flat here, not a nested struct, so Config stays free of any
+    // Processing-module dependency). audioFixedAnchorHue < 0 means unset/
+    // random, matching AudioEffectSettings::fixedAnchorHue's optional.
+    float audioFixedAnchorHue{-1.f};
+    float audioBounceSmoothTime{1.f};
+    float audioDynamismFloor{0.22f};
+    float audioCentroidStrength{0.5f};
+    float audioDriftBaseRateDegPerSec{6.f};
+    float audioVibrancySaturation{0.95f};
+    float audioVibrancyValue{0.95f};
+    float audioReferenceRms{0.2f};
+    float audioBrightnessFloor{0.35f};
+    float audioCentroidRangeHz{1500.f};
   };
 
 
@@ -72,6 +87,36 @@ namespace Aurora::Runtime
 
     const std::string& activeAudioInputName() const;
     void setActiveAudioInputName(std::string name);
+
+    float audioFixedAnchorHue() const;
+    void setAudioFixedAnchorHue(float hue);
+
+    float audioBounceSmoothTime() const;
+    void setAudioBounceSmoothTime(float seconds);
+
+    float audioDynamismFloor() const;
+    void setAudioDynamismFloor(float floor);
+
+    float audioCentroidStrength() const;
+    void setAudioCentroidStrength(float strength);
+
+    float audioDriftBaseRateDegPerSec() const;
+    void setAudioDriftBaseRateDegPerSec(float degPerSec);
+
+    float audioVibrancySaturation() const;
+    void setAudioVibrancySaturation(float saturation);
+
+    float audioVibrancyValue() const;
+    void setAudioVibrancyValue(float value);
+
+    float audioReferenceRms() const;
+    void setAudioReferenceRms(float rms);
+
+    float audioBrightnessFloor() const;
+    void setAudioBrightnessFloor(float floor);
+
+    float audioCentroidRangeHz() const;
+    void setAudioCentroidRangeHz(float hz);
 
   private:
     ConfigData m_data;

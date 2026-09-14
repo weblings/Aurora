@@ -134,4 +134,35 @@ namespace Aurora::Runtime
   {
     m_data.activeAudioInputName = std::move(name);
   }
+
+
+  float Config::audioFixedAnchorHue() const { return m_data.audioFixedAnchorHue; }
+  void Config::setAudioFixedAnchorHue(float hue) { m_data.audioFixedAnchorHue = hue; }
+
+  float Config::audioBounceSmoothTime() const { return m_data.audioBounceSmoothTime; }
+  void Config::setAudioBounceSmoothTime(float seconds) { m_data.audioBounceSmoothTime = seconds; }
+
+  float Config::audioDynamismFloor() const { return m_data.audioDynamismFloor; }
+  void Config::setAudioDynamismFloor(float floor) { m_data.audioDynamismFloor = floor; }
+
+  float Config::audioCentroidStrength() const { return m_data.audioCentroidStrength; }
+  void Config::setAudioCentroidStrength(float strength) { m_data.audioCentroidStrength = strength; }
+
+  float Config::audioDriftBaseRateDegPerSec() const { return m_data.audioDriftBaseRateDegPerSec; }
+  void Config::setAudioDriftBaseRateDegPerSec(float degPerSec) { m_data.audioDriftBaseRateDegPerSec = degPerSec; }
+
+  float Config::audioVibrancySaturation() const { return m_data.audioVibrancySaturation; }
+  void Config::setAudioVibrancySaturation(float saturation) { m_data.audioVibrancySaturation = saturation; }
+
+  float Config::audioVibrancyValue() const { return m_data.audioVibrancyValue; }
+  void Config::setAudioVibrancyValue(float value) { m_data.audioVibrancyValue = value; }
+
+  float Config::audioReferenceRms() const { return m_data.audioReferenceRms; }
+  void Config::setAudioReferenceRms(float rms) { m_data.audioReferenceRms = rms; }
+
+  float Config::audioBrightnessFloor() const { return m_data.audioBrightnessFloor; }
+  void Config::setAudioBrightnessFloor(float floor) { m_data.audioBrightnessFloor = floor; }
+
+  float Config::audioCentroidRangeHz() const { return m_data.audioCentroidRangeHz; }
+  void Config::setAudioCentroidRangeHz(float hz) { m_data.audioCentroidRangeHz = hz; }
 }

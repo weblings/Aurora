@@ -22,7 +22,17 @@ namespace Aurora::Runtime
         {"activeInputName", data.activeInputName},
         {"activeOutputNames", data.activeOutputNames},
         {"activeMonitorName", data.activeMonitorName},
-        {"activeAudioInputName", data.activeAudioInputName}
+        {"activeAudioInputName", data.activeAudioInputName},
+        {"audioFixedAnchorHue", data.audioFixedAnchorHue},
+        {"audioBounceSmoothTime", data.audioBounceSmoothTime},
+        {"audioDynamismFloor", data.audioDynamismFloor},
+        {"audioCentroidStrength", data.audioCentroidStrength},
+        {"audioDriftBaseRateDegPerSec", data.audioDriftBaseRateDegPerSec},
+        {"audioVibrancySaturation", data.audioVibrancySaturation},
+        {"audioVibrancyValue", data.audioVibrancyValue},
+        {"audioReferenceRms", data.audioReferenceRms},
+        {"audioBrightnessFloor", data.audioBrightnessFloor},
+        {"audioCentroidRangeHz", data.audioCentroidRangeHz}
       };
     }
 
@@ -48,6 +58,16 @@ namespace Aurora::Runtime
       data.activeOutputNames = json.value("activeOutputNames", defaults.activeOutputNames);
       data.activeMonitorName = json.value("activeMonitorName", defaults.activeMonitorName);
       data.activeAudioInputName = json.value("activeAudioInputName", defaults.activeAudioInputName);
+      data.audioFixedAnchorHue = json.value("audioFixedAnchorHue", defaults.audioFixedAnchorHue);
+      data.audioBounceSmoothTime = json.value("audioBounceSmoothTime", defaults.audioBounceSmoothTime);
+      data.audioDynamismFloor = json.value("audioDynamismFloor", defaults.audioDynamismFloor);
+      data.audioCentroidStrength = json.value("audioCentroidStrength", defaults.audioCentroidStrength);
+      data.audioDriftBaseRateDegPerSec = json.value("audioDriftBaseRateDegPerSec", defaults.audioDriftBaseRateDegPerSec);
+      data.audioVibrancySaturation = json.value("audioVibrancySaturation", defaults.audioVibrancySaturation);
+      data.audioVibrancyValue = json.value("audioVibrancyValue", defaults.audioVibrancyValue);
+      data.audioReferenceRms = json.value("audioReferenceRms", defaults.audioReferenceRms);
+      data.audioBrightnessFloor = json.value("audioBrightnessFloor", defaults.audioBrightnessFloor);
+      data.audioCentroidRangeHz = json.value("audioCentroidRangeHz", defaults.audioCentroidRangeHz);
 
       return data;
     }

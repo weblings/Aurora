@@ -42,7 +42,11 @@ Aurora's own module boundaries instead of RockyRoad's.
   account that looks like the same one (compare SID prefixes, not names),
   and a stray IDE-generated `vcpkg.json` silently switching CMake's vcpkg
   toolchain into manifest mode and resolving an ABI-incompatible compiler
-  (`-DVCPKG_MANIFEST_MODE=OFF` forces classic mode back).
+  (`-DVCPKG_MANIFEST_MODE=OFF` forces classic mode back), a vcpkg port's
+  default features pulling in a much heavier dependency tree than expected
+  (aubio's default `tools` feature wanting ffmpeg; `[core]` avoids it), and
+  a process started from this Bash environment reporting a different PID
+  than Windows sees, needing `/F`/image-name `taskkill` to stop reliably.
 - [`output.md`](output.md) — streaming/protocol gotchas: a bridge having more
   than one entertainment configuration over the same lights being normal,
   not an edge case (empty-ID auto-select isn't "the only one"), and
@@ -50,16 +54,16 @@ Aurora's own module boundaries instead of RockyRoad's.
   `HueOutput::init()` isn't proof a connection exists.
 - [`input.md`](input.md) — capture/grabber gotchas: a non-blocking poll on an
   event-driven capture API (DXGI's `AcquireNextFrame`) starving on empty
-  placeholder frames forever instead of ever returning real data, and a
+  placeholder frames forever instead of ever returning real data, a
   monitor Windows still lists as attached (DWM even actively presenting to
-  it) being genuinely powered off with no API-level way to detect that.
-
-Buckets below are anticipated based on [`ModuleSplitPlan.md`](../ModuleSplitPlan.md)'s
-module boundaries but don't exist yet — a file only gets created once it has a real
-entry, not pre-emptively.
-
-- `processing.md` — color/effect transform gotchas (colorimetry, zone mapping,
-  sampling/interpolation).
+  it) being genuinely powered off with no API-level way to detect that, and
+  shared-mode WASAPI loopback delivering zero callbacks (not silent ones)
+  when nothing is actively rendering.
+- [`processing.md`](processing.md) — color/effect transform gotchas: a
+  periodic test signal (a sine wave) regenerated fresh per call instead of
+  continuing its phase injecting broadband noise at each call boundary,
+  skewing a spectral measurement in a way a relative-comparison test alone
+  didn't catch.
 
 ## Where a new lesson goes
 

@@ -6,6 +6,51 @@ here vs. elsewhere.
 
 ---
 
+## Check a vcpkg port's default features before installing -- they can pull in a much heavier dependency tree than expected
+
+Installing `aubio:x64-windows` with its default features (`vcpkg install
+aubio:x64-windows`) would have built the port's `tools` feature, which
+pulls in `ffmpeg`/`libflac`/`libogg`/`libsndfile`/`libvorbis` -- a full
+media-decode stack, directly contradicting the deliberate "Core stays
+detection-only" dependency-isolation decision. Not obvious from the
+package name or from `vcpkg search` -- only visible by reading the port's
+`vcpkg.json` (features + which one is `"default": true`) or portfile
+before installing.
+
+**Fix:** installed with `aubio[core]` (default features explicitly
+disabled) instead -- confirmed via timing alone that this mattered: 9.5s
+vs. what would have been a from-source `ffmpeg` build. General principle:
+check a port's declared features (`vcpkg.json`'s `"features"` block, or
+the "provides CMake targets" summary vcpkg prints after install) before
+accepting its defaults, especially for any dependency meant to stay
+narrowly-scoped -- a port's default feature set is a real, undocumented
+place for scope creep to sneak in silently.
+
+---
+
+## A process started from this Bash environment can report a different PID than Windows sees, and needs `/F` to stop from a redirected/backgrounded launch
+
+Two related gotchas hit together while iterating on a live test run
+(`aurora-app-windows.exe`, started via Bash's `&` with output redirected
+to a file). First: `taskkill //F //PID $(cat pidfile)` reported "process
+not found" even though the app was still visibly running -- Bash's `$!`
+is the MSYS/Git-Bash-level PID, not necessarily the real Windows PID
+`tasklist`/`netstat` report (confirmed: `$!` gave `1282`, the actual
+process was `27344`). Second: even with the right PID, a plain `taskkill`
+(no `/F`) on a process launched this way can fail with "can only be
+terminated forcefully" -- redirecting output at launch means no real
+console is attached, so there's no `CTRL_CLOSE_EVENT` channel for a
+graceful stop to use.
+
+**Fix:** find the real PID via `tasklist //FI "IMAGENAME eq <name>.exe"`
+(by image name, not by trusting Bash's own job-control PID) when in doubt,
+and default to `taskkill //F //IM <name>.exe` (by image name, forceful)
+for anything started via a backgrounded/redirected launch from this
+environment -- a graceful stop only reliably works for processes given a
+real interactive console.
+
+---
+
 ## `enable_testing()` must be called in the parent scope, before `add_subdirectory()`, not inside the test subdirectory itself
 
 CTest only wires a directory's `CTestTestfile.cmake` to descend into a
