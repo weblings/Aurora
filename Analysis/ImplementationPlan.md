@@ -640,22 +640,36 @@ lets tuning happen by ear without also building audio playback:
      push-driven callback model to the interface's pull-style read (the
      adaptation lives inside the plugin, not the interface — see
      `AudioAnalysis.md`'s push/pull note).
-4. **Orchestration — decided: a separate `AudioOrchestrator`,** no shared
-   base with `Orchestrator` (same reasoning `IAudioInput`/`IVideoInput`
-   already got no shared base — the two pipelines share almost no real
-   steps beyond "send `Frame` to each `IOutput`"). Validated against real
-   VJ software, not just Aurora's own precedent: TouchDesigner keeps audio
-   (CHOPs) and video (TOPs) as genuinely separate operator families that
-   can't even wire directly together, and Resolume treats audio purely as
-   a *modulator* of video parameters rather than a parallel output
-   producer — see `AudioAnalysis.md`'s orchestration section. `Orchestrator`
-   itself stays completely untouched, zero risk to its existing tests.
-   Also carries the tunable constants (cold-start pair, `smoothTime`,
-   dynamism floor, centroid `strength`) as an `AudioEffectSettings` struct
-   read from `Config` and passed into `updateDrift`/`updateBounce` as
-   parameters — not hardcoded — so a future settings UI needs zero changes
-   to `AudioProcessing` itself, only to read/write the same `Config`
-   fields, the same shape `activeMonitorName` already proved out.
+4. **Orchestration — done, Windows-verified.** `AudioOrchestrator` built as
+   a separate class, no shared base with `Orchestrator` (same reasoning
+   `IAudioInput`/`IVideoInput` already got no shared base — the two
+   pipelines share almost no real steps beyond "send `Frame` to each
+   `IOutput`"). `Orchestrator` itself is completely untouched. New
+   `composeAudioFrame` (Runtime) broadcasts one color to every active zone,
+   the audio sibling of `composeFrame`. Deliberately no `Smoother` pass —
+   `updateBounce`'s own damping already serves that role; stacking a
+   second, independently-tuned easing on top would fight it. Takes an
+   explicit `dt` (unlike `Orchestrator::update()`), since drift/bounce are
+   genuinely time-integrated. **Result: 42/42 core tests passing** (4 new
+   `AudioOrchestrator` tests + the pre-existing 38), `Aurora-App-Windows`
+   rebuilt clean too (4/4, no regressions).
+
+   Validated against real VJ software, not just Aurora's own precedent:
+   TouchDesigner keeps audio (CHOPs) and video (TOPs) as genuinely separate
+   operator families that can't even wire directly together, and Resolume
+   treats audio purely as a *modulator* of video parameters rather than a
+   parallel output producer — see `AudioAnalysis.md`'s orchestration
+   section.
+
+   Takes an `AudioEffectSettings` struct in its constructor (the tunable
+   constants — cold-start pair, `smoothTime`, dynamism floor, centroid
+   `strength` — as parameters, not hardcoded) so a future settings UI needs
+   zero changes to `AudioProcessing`/`AudioOrchestrator` themselves. **Not
+   yet done:** the actual `Config` fields to populate that struct from
+   don't exist yet — today's tests pass a default-constructed
+   `AudioEffectSettings{}` directly. Wiring real `Config` fields is part of
+   step 5's app-wiring work below, the same place `activeAudioInputName`
+   needs deciding.
 5. **App wiring.** Both App repos add a new `Registry` factory map for
    `IAudioInput` (mechanical — `Registry` already isn't polymorphic over
    one shared interface, see `AudioAnalysis.md`), gated by a new
