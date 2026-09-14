@@ -12,7 +12,7 @@ using namespace Aurora::Output;
 
 namespace
 {
-  class FakeInput : public IInput
+  class FakeInput : public IVideoInput
   {
   public:
     const std::string& name() const override

@@ -14,7 +14,7 @@ namespace Aurora::App
   }
 
 
-  std::unique_ptr<Input::IInput> Registry::createInput(const std::string& name) const
+  std::unique_ptr<Input::IVideoInput> Registry::createInput(const std::string& name) const
   {
     auto it = m_inputFactories.find(name);
     return it != m_inputFactories.end() ? it->second() : nullptr;
