@@ -48,6 +48,7 @@ namespace Aurora::Runtime
     float audioReferenceRms{0.2f};
     float audioBrightnessFloor{0.35f};
     float audioCentroidRangeHz{1500.f};
+    float audioBrightnessSmoothTime{0.5f};
   };
 
 
@@ -117,6 +118,9 @@ namespace Aurora::Runtime
 
     float audioCentroidRangeHz() const;
     void setAudioCentroidRangeHz(float hz);
+
+    float audioBrightnessSmoothTime() const;
+    void setAudioBrightnessSmoothTime(float seconds);
 
   private:
     ConfigData m_data;

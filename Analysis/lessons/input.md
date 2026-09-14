@@ -92,3 +92,35 @@ arises (e.g. detecting "playback just started" reliably), the known
 mitigation is rendering a silent stream on the same device to keep the
 engine active — not attempted here since nothing in this project's scope
 needs it yet.
+
+---
+
+## A mislabeled pixel format can be harmless upstream and become a live bug the moment downstream code starts trusting the label
+
+Comparing huenicorn vs. `Aurora-App-Linux` side by side on real content, blue
+scenes rendered green/pink and red scenes rendered blue — looked like a
+processing-side hue bug. It wasn't: `X11Grabber.cpp` tagged every 32bpp
+XShm frame `PixelFormat::RGBA`, but a standard X11 TrueColor visual on a
+little-endian host stores pixels red-mask-high, which lands in memory as
+B,G,R,X — really BGRA. This tag was **ported verbatim from huenicorn**,
+which has the identical mistagging — but it never mattered there, because
+huenicorn's `Algorithms::mean()` hardcodes `Color{mean[2],mean[1],mean[0]}`
+and never once reads the format tag. Aurora's own port made `mean()`/
+`rgbaToRgb()` correctly format-aware (a real, separate improvement) — which
+means it started trusting a label that was always wrong for X11, turning a
+long-dormant mislabeling into a live R/B channel swap. The same
+hardcoded-RGBA mistagging existed in `PipewireFrameBuffer.hpp`'s
+`toOwnedRgbaImage`, regardless of which of several negotiated Pipewire
+formats (including 3-byte RGB and YUV, which the fixed 4-byte-per-pixel
+decode path can't handle at all) was actually delivered.
+
+**Fix:** `X11Grabber` now tags `BGRA`/`BGR` to match the real memory layout;
+`toOwnedImage` (renamed) takes the actual negotiated format instead of
+assuming RGBA, and the Pipewire negotiation itself was narrowed to only the
+3 formats the fixed-4-byte decode path can actually handle correctly
+(RGBA/RGBx/BGRx — dropping RGB/YUY2/I420). **Unverified on real hardware**
+as of this fix — no Linux toolchain was available this session; needs a
+real X11 and Pipewire run to confirm. General principle: when a "port with
+a fix" changes code from ignoring a piece of metadata to trusting it, audit
+where that metadata was actually set, not just the consuming logic —
+upstream's own bugs can be invisible for as long as nothing reads them.

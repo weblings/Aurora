@@ -32,7 +32,8 @@ namespace Aurora::Runtime
         {"audioVibrancyValue", data.audioVibrancyValue},
         {"audioReferenceRms", data.audioReferenceRms},
         {"audioBrightnessFloor", data.audioBrightnessFloor},
-        {"audioCentroidRangeHz", data.audioCentroidRangeHz}
+        {"audioCentroidRangeHz", data.audioCentroidRangeHz},
+        {"audioBrightnessSmoothTime", data.audioBrightnessSmoothTime}
       };
     }
 
@@ -68,6 +69,7 @@ namespace Aurora::Runtime
       data.audioReferenceRms = json.value("audioReferenceRms", defaults.audioReferenceRms);
       data.audioBrightnessFloor = json.value("audioBrightnessFloor", defaults.audioBrightnessFloor);
       data.audioCentroidRangeHz = json.value("audioCentroidRangeHz", defaults.audioCentroidRangeHz);
+      data.audioBrightnessSmoothTime = json.value("audioBrightnessSmoothTime", defaults.audioBrightnessSmoothTime);
 
       return data;
     }

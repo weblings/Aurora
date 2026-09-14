@@ -123,9 +123,16 @@ namespace Aurora::Processing
     {
       const float bounceDirection = 1.0f; // opposite drift's -1
 
+      float brightnessFactor = std::clamp(
+        features.rms / std::max(settings.referenceRms, 1e-4f),
+        settings.brightnessFloor,
+        1.0f
+      );
+
       if(!state.initialized){
         state.currentHueDegrees = driftState.anchorHueDegrees;
         state.targetHueDegrees = driftState.anchorHueDegrees;
+        state.smoothedBrightnessFactor = brightnessFactor; // no fade-in from zero on the first tick
         state.initialized = true;
       }
 
@@ -145,12 +152,13 @@ namespace Aurora::Processing
         state.currentHueDegrees + delta * (1.0f - std::exp(-dt / smoothTime))
       );
 
-      float brightnessFactor = std::clamp(
-        features.rms / std::max(settings.referenceRms, 1e-4f),
-        settings.brightnessFloor,
-        1.0f
-      );
-      float effectiveValue = settings.vibrancyValue * brightnessFactor;
+      // Own damping constant, deliberately separate from bounceSmoothTime --
+      // raw RMS jitters faster than the beat itself.
+      float brightnessSmoothTime = std::max(settings.brightnessSmoothTime, 1e-4f);
+      state.smoothedBrightnessFactor += (brightnessFactor - state.smoothedBrightnessFactor)
+        * (1.0f - std::exp(-dt / brightnessSmoothTime));
+
+      float effectiveValue = settings.vibrancyValue * state.smoothedBrightnessFactor;
 
       return Contracts::Color::fromHSV(state.currentHueDegrees, settings.vibrancySaturation, effectiveValue);
     }

@@ -56,9 +56,12 @@ Aurora's own module boundaries instead of RockyRoad's.
   event-driven capture API (DXGI's `AcquireNextFrame`) starving on empty
   placeholder frames forever instead of ever returning real data, a
   monitor Windows still lists as attached (DWM even actively presenting to
-  it) being genuinely powered off with no API-level way to detect that, and
+  it) being genuinely powered off with no API-level way to detect that,
   shared-mode WASAPI loopback delivering zero callbacks (not silent ones)
-  when nothing is actively rendering.
+  when nothing is actively rendering, and a pixel-format tag ported
+  verbatim from huenicorn (X11 `RGBA`, really `BGRA`) staying harmless
+  there (nothing read it) until Aurora's own downstream code became
+  format-aware and started trusting it.
 - [`processing.md`](processing.md) — color/effect transform gotchas: a
   periodic test signal (a sine wave) regenerated fresh per call instead of
   continuing its phase injecting broadband noise at each call boundary,

@@ -165,4 +165,7 @@ namespace Aurora::Runtime
 
   float Config::audioCentroidRangeHz() const { return m_data.audioCentroidRangeHz; }
   void Config::setAudioCentroidRangeHz(float hz) { m_data.audioCentroidRangeHz = hz; }
+
+  float Config::audioBrightnessSmoothTime() const { return m_data.audioBrightnessSmoothTime; }
+  void Config::setAudioBrightnessSmoothTime(float seconds) { m_data.audioBrightnessSmoothTime = seconds; }
 }

@@ -31,7 +31,11 @@ namespace Aurora::Processing
 
       // bounceSmoothTime/brightnessFloor tuned against a real listening
       // test (speech, live Hue lights); the rest are still first guesses.
-      float bounceSmoothTime = 1.0f;      // seconds, exponential damping time constant
+      // bounceSmoothTime was pushed to 1.0 while brightness's own jitter was
+      // being (mis-)read as "flashing" -- now that brightness is damped
+      // separately (brightnessSmoothTime), this can sit tighter again so
+      // the swing still tracks individual beats instead of blurring them.
+      float bounceSmoothTime = 0.4f;      // seconds, exponential damping time constant
       float dynamismFloor = 0.22f;        // minimum swing fraction, even for the weakest onset
       float centroidStrength = 0.5f;      // how much spectral centroid can speed/slow drift; 0 = no effect
       float driftBaseRateDegPerSec = 6.0f;// base drift speed -- a full rotation every 60s by default
@@ -40,6 +44,11 @@ namespace Aurora::Processing
       float referenceRms = 0.2f;          // RMS level mapped to full brightness
       float brightnessFloor = 0.35f;      // never fully dark, even in quiet passages
       float centroidRangeHz = 1500.0f;    // spread normalizing centroid-vs-rolling-average delta to [-1,1]
+
+      // Brightness gets its own damping, separate from bounceSmoothTime --
+      // raw RMS jitters tick-to-tick, so smoothing it at the beat's own
+      // (tighter) time constant would either flash or blunt the beat.
+      float brightnessSmoothTime = 0.5f;
     };
 
     // Persistent state for palette drift, owned by whoever drives the tick
@@ -57,6 +66,7 @@ namespace Aurora::Processing
     {
       float currentHueDegrees = 0.0f; // the actually-displayed position
       float targetHueDegrees = 0.0f;  // where currentHueDegrees is damping toward
+      float smoothedBrightnessFactor = 0.0f; // damped separately from hue, see brightnessSmoothTime
       bool initialized = false;
     };
 

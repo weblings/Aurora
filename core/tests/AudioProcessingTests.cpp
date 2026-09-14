@@ -213,3 +213,30 @@ TEST_CASE("updateBounce's brightness floor keeps the color visible even in silen
 
   REQUIRE(result.brightness() > 0.0f); // floor prevents fully black, not a specific value
 }
+
+
+TEST_CASE("updateBounce damps brightness on its own time constant, not instantly to raw RMS", "[AudioProcessing]")
+{
+  AudioProcessing::DriftState driftState;
+  driftState.anchorHueDegrees = 0.0f;
+  driftState.initialized = true;
+
+  AudioProcessing::BounceState bounceState;
+  AudioProcessing::AudioEffectSettings settings;
+  settings.brightnessFloor = 0.0f;
+  settings.vibrancyValue = 1.0f;
+  settings.referenceRms = 1.0f;
+  settings.brightnessSmoothTime = 10.0f; // deliberately slow, isolates the damping from settling too fast
+
+  AudioFeatures silence;
+  silence.rms = 0.0f;
+  AudioProcessing::updateBounce(bounceState, driftState, silence, settings, 0.0f); // init tick, snaps to 0
+
+  AudioFeatures loud;
+  loud.rms = 1.0f; // would be full brightness if applied instantly
+  Color result = AudioProcessing::updateBounce(bounceState, driftState, loud, settings, 0.1f);
+
+  // A slow time constant over one small dt should land far short of full brightness.
+  REQUIRE(result.brightness() < 0.5f);
+  REQUIRE(result.brightness() > 0.0f);
+}
