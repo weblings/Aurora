@@ -24,10 +24,10 @@ TEST_CASE("matchesGamescopeNode requires both a Node interface and the exact nam
 }
 
 
-TEST_CASE("toOwnedRgbaImage tags dimensions and format correctly", "[PipewireGrabber][frame]")
+TEST_CASE("toOwnedImage tags dimensions and format correctly", "[PipewireGrabber][frame]")
 {
   std::vector<uint8_t> buffer(4 * 4 * 4, 0x7F);
-  ImageData image = toOwnedRgbaImage(buffer.data(), 4, 4, 0);
+  ImageData image = toOwnedImage(buffer.data(), 4, 4, 0);
 
   REQUIRE(image.hasData());
   CHECK(image.width() == 4);
@@ -36,12 +36,12 @@ TEST_CASE("toOwnedRgbaImage tags dimensions and format correctly", "[PipewireGra
 }
 
 
-TEST_CASE("toOwnedRgbaImage clones rather than aliasing the source buffer", "[PipewireGrabber][frame]")
+TEST_CASE("toOwnedImage clones rather than aliasing the source buffer", "[PipewireGrabber][frame]")
 {
   // Mirrors real usage: Pipewire's buffer becomes invalid right after this
   // call returns, so the result must own independent memory.
   std::vector<uint8_t> buffer(2 * 2 * 4, 0x11);
-  ImageData image = toOwnedRgbaImage(buffer.data(), 2, 2, 0);
+  ImageData image = toOwnedImage(buffer.data(), 2, 2, 0);
 
   std::memset(buffer.data(), 0xFF, buffer.size());
 
@@ -49,7 +49,7 @@ TEST_CASE("toOwnedRgbaImage clones rather than aliasing the source buffer", "[Pi
 }
 
 
-TEST_CASE("toOwnedRgbaImage honors a padded stride wider than the tightly-packed row", "[PipewireGrabber][frame]")
+TEST_CASE("toOwnedImage honors a padded stride wider than the tightly-packed row", "[PipewireGrabber][frame]")
 {
   const int width = 2, height = 2;
   const size_t paddedStride = static_cast<size_t>(width) * 4 + 16;
@@ -58,19 +58,28 @@ TEST_CASE("toOwnedRgbaImage honors a padded stride wider than the tightly-packed
   // Mark just the first pixel of row 1 so a wrong stride would read padding.
   buffer[paddedStride] = 0xAB;
 
-  ImageData image = toOwnedRgbaImage(buffer.data(), width, height, paddedStride);
+  ImageData image = toOwnedImage(buffer.data(), width, height, paddedStride);
 
   REQUIRE(image.hasData());
   CHECK(image.imageMatrix.at<cv::Vec4b>(1, 0)[0] == 0xAB);
 }
 
 
-TEST_CASE("toOwnedRgbaImage returns an empty ImageData for degenerate input", "[PipewireGrabber][frame]")
+TEST_CASE("toOwnedImage tags whatever format was actually negotiated, not always RGBA", "[PipewireGrabber][frame]")
 {
-  CHECK_FALSE(toOwnedRgbaImage(nullptr, 4, 4, 0).hasData());
+  std::vector<uint8_t> buffer(4 * 4 * 4, 0x7F);
+  ImageData image = toOwnedImage(buffer.data(), 4, 4, 0, PixelFormat::BGRA);
+
+  CHECK(image.format == PixelFormat::BGRA);
+}
+
+
+TEST_CASE("toOwnedImage returns an empty ImageData for degenerate input", "[PipewireGrabber][frame]")
+{
+  CHECK_FALSE(toOwnedImage(nullptr, 4, 4, 0).hasData());
   std::vector<uint8_t> buffer(16, 0);
-  CHECK_FALSE(toOwnedRgbaImage(buffer.data(), 0, 4, 0).hasData());
-  CHECK_FALSE(toOwnedRgbaImage(buffer.data(), 4, -1, 0).hasData());
+  CHECK_FALSE(toOwnedImage(buffer.data(), 0, 4, 0).hasData());
+  CHECK_FALSE(toOwnedImage(buffer.data(), 4, -1, 0).hasData());
 }
 
 

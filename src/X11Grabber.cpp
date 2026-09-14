@@ -141,14 +141,19 @@ namespace Aurora::Input::Linux
 
     XShmGetImage(m_display.get(), RootWindow(m_display.get(), m_screenId), ximage, selectedMonitor->xPos, selectedMonitor->yPos, AllPlanes);
 
+    // Standard X11 TrueColor visuals store pixels red-mask-high on a
+    // little-endian host, which lands in memory as B,G,R,X -- BGRA/BGR, not
+    // RGBA/RGB (ported from huenicorn's identical mistagging, which never
+    // surfaced there since its mean() ignored the tag and hardcoded
+    // BGR-order indices; see Analysis/lessons/input.md).
     int cvFormat;
     if(ximage->bits_per_pixel > 24){
       cvFormat = CV_8UC4;
-      m_lastFullScreenFrame.format = Contracts::PixelFormat::RGBA;
+      m_lastFullScreenFrame.format = Contracts::PixelFormat::BGRA;
     }
     else{
       cvFormat = CV_8UC3;
-      m_lastFullScreenFrame.format = Contracts::PixelFormat::RGB;
+      m_lastFullScreenFrame.format = Contracts::PixelFormat::BGR;
     }
 
     m_lastFullScreenFrame.imageMatrix = cv::Mat(height, width, cvFormat, ximage->data);

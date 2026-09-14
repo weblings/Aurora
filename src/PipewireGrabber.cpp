@@ -199,10 +199,17 @@ namespace Aurora::Input::Linux
       }
     }
 
+    // Tag from what was actually negotiated -- RGBx shares RGBA's byte
+    // layout (alpha unused), BGRx needs BGRA's channel order instead.
+    Contracts::PixelFormat pixelFormat = Contracts::PixelFormat::RGBA;
+    if(pw->format.info.raw.format == SPA_VIDEO_FORMAT_BGRx){
+      pixelFormat = Contracts::PixelFormat::BGRA;
+    }
+
     // See PipewireFrameBuffer.hpp -- clones the buffer, since Pipewire's
     // memory becomes invalid after queue_buffer() below.
-    Contracts::ImageData capturedFrame = toOwnedRgbaImage(
-      static_cast<uint8_t*>(readPtr) + chunk->offset, width, height, step
+    Contracts::ImageData capturedFrame = toOwnedImage(
+      static_cast<uint8_t*>(readPtr) + chunk->offset, width, height, step, pixelFormat
     );
 
     if(localMap != MAP_FAILED){
@@ -401,15 +408,14 @@ namespace Aurora::Input::Linux
           SPA_TYPE_OBJECT_Format, SPA_PARAM_EnumFormat,
           SPA_FORMAT_mediaType,       SPA_POD_Id(SPA_MEDIA_TYPE_video),
           SPA_FORMAT_mediaSubtype,    SPA_POD_Id(SPA_MEDIA_SUBTYPE_raw),
+          // Only 4-byte-per-pixel formats -- _onStreamProcess always builds a
+          // CV_8UC4 view, so 3-byte RGB or YUV here would misread the buffer.
           SPA_FORMAT_VIDEO_format,    SPA_POD_CHOICE_ENUM_Id(
-            7,
-            SPA_VIDEO_FORMAT_RGB,
-            SPA_VIDEO_FORMAT_RGB,
+            4,
+            SPA_VIDEO_FORMAT_RGBA,
             SPA_VIDEO_FORMAT_RGBA,
             SPA_VIDEO_FORMAT_RGBx,
-            SPA_VIDEO_FORMAT_BGRx,
-            SPA_VIDEO_FORMAT_YUY2,
-            SPA_VIDEO_FORMAT_I420
+            SPA_VIDEO_FORMAT_BGRx
           ),
           SPA_FORMAT_VIDEO_size,
           SPA_POD_CHOICE_RANGE_Rectangle(
