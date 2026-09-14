@@ -1,7 +1,7 @@
 # Aurora Input: Windows
 
 Windows screen-capture input plugin for [Aurora](../Aurora) — implements
-`Aurora::Input::IInput` for the Windows desktop.
+`Aurora::Input::IVideoInput` for the Windows desktop.
 
 Distilled from [huenicorn](https://gitlab.com/openjowelsofts/huenicorn)
 (GPL-3.0), so this repo carries the same license forward — see `LICENSE`.

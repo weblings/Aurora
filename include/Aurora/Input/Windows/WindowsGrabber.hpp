@@ -4,7 +4,7 @@
 #include <dxgi1_2.h>
 #include <wrl/client.h>
 
-#include <Aurora/Input/IInput.hpp>
+#include <Aurora/Input/IVideoInput.hpp>
 #include <Aurora/Input/MonitorData.hpp>
 
 // DXGI Desktop Duplication capture. No huenicorn precedent to port --
@@ -12,7 +12,7 @@
 // Analysis/WindowsInputAnalysis.md's API research directly instead.
 namespace Aurora::Input::Windows
 {
-  class WindowsGrabber : public IInput
+  class WindowsGrabber : public IVideoInput
   {
   public:
     struct WindowsMonitorData : public MonitorData

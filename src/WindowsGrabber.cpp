@@ -59,7 +59,7 @@ namespace Aurora::Input::Windows
   }
 
 
-  IInput::Resolution WindowsGrabber::displayResolution() const
+  IVideoInput::Resolution WindowsGrabber::displayResolution() const
   {
     if(auto* selectedMonitor = m_monitorSelectionData.selectedMonitor()){
       return {static_cast<int>(selectedMonitor->width), static_cast<int>(selectedMonitor->height)};
@@ -69,10 +69,10 @@ namespace Aurora::Input::Windows
   }
 
 
-  IInput::RefreshRate WindowsGrabber::displayRefreshRate() const
+  IVideoInput::RefreshRate WindowsGrabber::displayRefreshRate() const
   {
     if(auto* selectedMonitor = m_monitorSelectionData.selectedMonitor()){
-      return static_cast<IInput::RefreshRate>(selectedMonitor->refreshRate);
+      return static_cast<IVideoInput::RefreshRate>(selectedMonitor->refreshRate);
     }
 
     return 0;
