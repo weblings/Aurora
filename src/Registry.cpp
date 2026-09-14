@@ -8,6 +8,12 @@ namespace Aurora::App
   }
 
 
+  void Registry::registerAudioInput(const std::string& name, AudioInputFactory factory)
+  {
+    m_audioInputFactories[name] = std::move(factory);
+  }
+
+
   void Registry::registerOutput(const std::string& name, OutputFactory factory)
   {
     m_outputFactories[name] = std::move(factory);
@@ -18,6 +24,13 @@ namespace Aurora::App
   {
     auto it = m_inputFactories.find(name);
     return it != m_inputFactories.end() ? it->second() : nullptr;
+  }
+
+
+  std::unique_ptr<Input::IAudioInput> Registry::createAudioInput(const std::string& name) const
+  {
+    auto it = m_audioInputFactories.find(name);
+    return it != m_audioInputFactories.end() ? it->second() : nullptr;
   }
 
 
@@ -32,6 +45,16 @@ namespace Aurora::App
   {
     std::vector<std::string> names;
     for(const auto& [name, factory] : m_inputFactories){
+      names.push_back(name);
+    }
+    return names;
+  }
+
+
+  std::vector<std::string> Registry::audioInputNames() const
+  {
+    std::vector<std::string> names;
+    for(const auto& [name, factory] : m_audioInputFactories){
       names.push_back(name);
     }
     return names;
