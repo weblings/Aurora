@@ -93,7 +93,7 @@ namespace
   // Mirrors X11Grabber/WindowsGrabber's monitor-list shape without needing
   // a real display -- PipewireGrabber has no equivalent (Wayland's portal
   // picks the screen itself), so it never overrides these.
-  struct FakeMultiMonitorInput : public IInput
+  struct FakeMultiMonitorInput : public IVideoInput
   {
     const std::string& name() const override
     {

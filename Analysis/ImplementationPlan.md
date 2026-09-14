@@ -588,12 +588,19 @@ end-to-end verification.
 `AudioAnalysis.md`'s breakdown), because it's the only provenance that
 lets tuning happen by ear without also building audio playback:
 
-1. **Interface layer.** Rename `IInput`→`IVideoInput` (ripples through
-   `Aurora-Input-Windows`/`-Linux`, both App repos' `Registry`/`main.cpp`,
-   `MonitorSelector`/`Orchestrator`, `RuntimeTests.cpp` fixtures — see
-   `AudioAnalysis.md`'s naming section for the full list). Add `IAudioInput`
-   (Core, wholly independent interface, no shared base) and
-   `Contracts::AudioBuffer` (raw samples + sample rate + channel count).
+1. **Interface layer — rename done, verified where buildable.**
+   `IInput`→`IVideoInput` across Core, `Aurora-Input-Windows`/`-Linux`,
+   both App repos' `Registry`/`main.cpp`, `MonitorSelector`/`Orchestrator`,
+   and both `RuntimeTests.cpp`/`OrchestratorTests.cpp`/`RegistryTests.cpp`
+   fixtures — a whole-tree grep confirms zero remaining code references.
+   **Windows side rebuilt and retested clean:** Core 26/26, `Aurora-Input-Windows`
+   1/1, `Aurora-App-Windows` 4/4, all still passing after the rename. Linux
+   side (`Aurora-Input-Linux`, `Aurora-App-Linux`) mechanically renamed and
+   grep-clean, but not build-verified in this session — no Linux toolchain
+   here, same limitation as phase 1/2's Linux work; needs a real build on
+   the Ubuntu machine to confirm. Still to add: `IAudioInput` (Core, wholly
+   independent interface, no shared base) and `Contracts::AudioBuffer`
+   (raw samples + sample rate + channel count) — not started yet.
 2. **Core `AudioProcessing` module**, mirroring `ImageProcessing`'s
    shape:
    - Add aubio as a Core dependency, detection-only (no `libsndfile`/

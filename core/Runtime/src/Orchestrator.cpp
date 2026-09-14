@@ -11,7 +11,7 @@
 namespace Aurora::Runtime
 {
   Orchestrator::Orchestrator(
-    Input::IInput& input,
+    Input::IVideoInput& input,
     std::vector<Output::IOutput*> outputs,
     Config config,
     ZoneMapStore zoneMapStore

@@ -5,14 +5,14 @@
 #include <vector>
 
 #include <Aurora/Contracts/ImageData.hpp>
-#include <Aurora/Input/IInput.hpp>
+#include <Aurora/Input/IVideoInput.hpp>
 #include <Aurora/Output/IOutput.hpp>
 #include <Aurora/Runtime/Config.hpp>
 #include <Aurora/Runtime/Smoother.hpp>
 #include <Aurora/Runtime/ZoneMap.hpp>
 #include <Aurora/Runtime/ZoneMapStore.hpp>
 
-// Ties one IInput to any number of IOutputs per-tick -- the generalized
+// Ties one IVideoInput to any number of IOutputs per-tick -- the generalized
 // replacement for huenicorn's Runtime::_update(). Deliberately has no
 // threading/timing of its own (unlike huenicorn's Runtime): a real app
 // entry point drives update() at Config::refreshRate(), keeping this class
@@ -24,7 +24,7 @@ namespace Aurora::Runtime
   public:
     // input/outputs must already be init()'d; Orchestrator doesn't own them.
     Orchestrator(
-      Input::IInput& input,
+      Input::IVideoInput& input,
       std::vector<Output::IOutput*> outputs,
       Config config,
       ZoneMapStore zoneMapStore
@@ -46,7 +46,7 @@ namespace Aurora::Runtime
   private:
     void _prepareSource(Contracts::ImageData& source) const;
 
-    Input::IInput& m_input;
+    Input::IVideoInput& m_input;
     std::vector<Output::IOutput*> m_outputs;
     Config m_config;
     ZoneMapStore m_zoneMapStore;

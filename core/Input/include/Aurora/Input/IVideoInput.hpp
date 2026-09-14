@@ -12,9 +12,11 @@
 
 // Stable interface a plugin repo (e.g. Aurora-Input-Linux) implements.
 // Generalized from IGrabber -- see Analysis/LinuxCaptureAnalysis.md for the port notes.
+// Renamed from IInput (see Analysis/AudioAnalysis.md) once IAudioInput arrived --
+// this contract turned out to be entirely screen/resolution-shaped, not generic.
 namespace Aurora::Input
 {
-  class IInput
+  class IVideoInput
   {
   protected:
     struct MonitorSelectionData
@@ -38,7 +40,7 @@ namespace Aurora::Input
     using Resolutions = std::vector<Resolution>;
     using RefreshRate = unsigned;
 
-    virtual ~IInput() = default;
+    virtual ~IVideoInput() = default;
 
     void init()
     {

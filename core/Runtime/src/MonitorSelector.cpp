@@ -2,7 +2,7 @@
 
 namespace Aurora::Runtime
 {
-  void selectConfiguredMonitor(Input::IInput& input, const Config& config)
+  void selectConfiguredMonitor(Input::IVideoInput& input, const Config& config)
   {
     const auto& name = config.activeMonitorName();
     if(name.empty()){

@@ -31,7 +31,7 @@ namespace
 
   // 4x2 image, left half red / right half blue -- lets a zone map pick out
   // a known color per half. No display/OS dependency, unlike a real grabber.
-  class FakeInput : public IInput
+  class FakeInput : public IVideoInput
   {
   public:
     const std::string& name() const override

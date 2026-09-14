@@ -26,7 +26,7 @@ namespace Aurora::Runtime
     std::vector<std::string> activeOutputNames;
 
     // A name (Input::MonitorData::name), not an index -- stable across
-    // replug/reorder. Empty means auto (whatever IInput selects by
+    // replug/reorder. Empty means auto (whatever IVideoInput selects by
     // default, usually primary). See Runtime/MonitorSelector.hpp.
     std::string activeMonitorName;
   };

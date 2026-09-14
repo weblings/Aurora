@@ -12,7 +12,7 @@ namespace Aurora::Runtime
       return 0;
     }
 
-    // Candidates run largest-to-smallest width (see IInput::subsampleResolutionCandidates);
+    // Candidates run largest-to-smallest width (see IVideoInput::subsampleResolutionCandidates);
     // walk in reverse (smallest first) so the first hit is the cheapest one that qualifies.
     int best = subsampleCandidates.back().x;
 
