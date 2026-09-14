@@ -35,9 +35,14 @@ Aurora's own module boundaries instead of RockyRoad's.
   real-world outcome rather than re-reading the same artifact, and an
   installer's `--quiet`/`--passive` flag silently requiring the shell be
   pre-elevated rather than prompting for UAC itself (VS Installer exit 5007),
-  and that same workload finishing successfully without putting `cmake`/
+  that same workload finishing successfully without putting `cmake`/
   `cl.exe` on `PATH` (use the bundled CMake's full path; use CMake's Visual
-  Studio generator to avoid needing `vcvars64.bat` for the compiler at all).
+  Studio generator to avoid needing `vcvars64.bat` for the compiler at all),
+  a directory's ACLs outliving a machine-identity change and denying an
+  account that looks like the same one (compare SID prefixes, not names),
+  and a stray IDE-generated `vcpkg.json` silently switching CMake's vcpkg
+  toolchain into manifest mode and resolving an ABI-incompatible compiler
+  (`-DVCPKG_MANIFEST_MODE=OFF` forces classic mode back).
 - [`output.md`](output.md) — streaming/protocol gotchas: a bridge having more
   than one entertainment configuration over the same lights being normal,
   not an edge case (empty-ID auto-select isn't "the only one"), and

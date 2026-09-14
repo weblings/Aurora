@@ -279,3 +279,54 @@ skip `vcvars64.bat` entirely by configuring with CMake's Visual Studio
 generator (`-G "Visual Studio 17 2022" -A x64`) instead of Ninja/Makefiles —
 that generator locates MSVC through the Visual Studio installation itself,
 so the invoking shell never needs `cl.exe` on `PATH` at all.
+
+---
+
+## A directory's ACLs can outlive a machine identity change, denying an account that looks like the same one
+
+`Aurora/core/build/` (created earlier via a WSL2-mounted path) became
+completely undeletable — every file inside denied, surviving a full reboot
+(ruling out any process lock) and an IDE-extension uninstall. `Get-Acl`
+showed why: the file's owning-domain SID prefix differed from the current
+session's SID, despite both ending in the same relative ID (`-1001`, "first
+regular user account") and both superficially resolving to the same
+account name. Windows ACLs bind to the SID, not the display name — a
+machine-identity change (reset, reimage, rename) leaves old ACEs granting
+access to a SID nothing on the system maps to anymore, even though `whoami`
+still prints what looks like the same account.
+
+**Fix:** check for this specifically (`Get-Acl` on a denied file, compare
+the SID prefix, not just the account name) before assuming a stubborn
+"access denied" is a process lock — rebooting, closing apps, or uninstalling
+extensions won't touch it. If `BUILTIN\Administrators`/`SYSTEM` still have a
+valid grant (common, since those aren't tied to the per-install SID), an
+elevated delete goes through directly with no ownership-repair step needed.
+
+---
+
+## A stray `vcpkg.json` silently switches CMake's vcpkg toolchain into manifest mode, which can resolve a different, ABI-incompatible compiler
+
+Aurora core was set up for **classic** vcpkg mode (a shared, pre-installed
+package tree, chosen deliberately — see `WindowsInputAnalysis.md`). A
+`vcpkg.json` and `CMakePresets.json` appeared in `Aurora/core/` that no one
+on this side created — almost certainly VS Code's CMake Tools extension
+auto-configuring the folder using its own default preset. vcpkg's toolchain
+script auto-enables **manifest mode** whenever a `vcpkg.json` sits next to
+the CMake source root, silently overriding the classic-mode toolchain file
+passed on the command line — no error, no warning it happened. That
+manifest-mode install resolved a different, stale/incomplete Visual Studio
+installation (a cancelled "VS Build Tools 2026" instance) than the complete
+VS 2022 used for every other build, producing a Catch2 built against a
+newer/different MSVC STL than the project's own code compiled against —
+surfaced as `LNK2019: unresolved external symbol __std_find_last_not_ch_pos_1`
+and similar, which reads exactly like a real code/link bug, not an
+environment mismatch.
+
+**Fix:** `-DVCPKG_MANIFEST_MODE=OFF` on the CMake configure line forces
+classic mode regardless of a `vcpkg.json`'s presence. More generally: an
+IDE extension can auto-configure a project using its own opinionated
+defaults the moment it notices a `CMakeLists.txt`, independently of and
+silently conflicting with a build setup already chosen deliberately for
+that project — worth checking for stray generated config files (`vcpkg.json`,
+`CMakePresets.json`, a `build/` full of unfamiliar cache entries) before
+trusting a confusing link/build error is actually about the code.
