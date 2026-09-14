@@ -56,13 +56,17 @@ target_compile_features(AuroraOutputHue PUBLIC cxx_std_20)
 
 if(AURORA_OUTPUT_HUE_ENABLE_IO)
   find_package(CURL REQUIRED)
-  find_package(PkgConfig REQUIRED)
-  pkg_check_modules(MBEDTLS QUIET IMPORTED_TARGET mbedtls mbedx509 mbedcrypto)
+  # Not REQUIRED -- Windows has no pkg-config binary at all by default,
+  # a step further than Ubuntu's libmbedtls-dev merely lacking .pc files.
+  find_package(PkgConfig QUIET)
+  if(PkgConfig_FOUND)
+    pkg_check_modules(MBEDTLS QUIET IMPORTED_TARGET mbedtls mbedx509 mbedcrypto)
+  endif()
 
   if(NOT MBEDTLS_FOUND)
-    # Ubuntu's libmbedtls-dev (2.28.x) ships no .pc files at all -- fall
-    # back to a manual find of the same three libraries pkg-config would
-    # have located.
+    # Either no pkg-config binary (Windows/vcpkg), or Ubuntu's
+    # libmbedtls-dev (2.28.x) shipping no .pc files -- fall back to a
+    # manual find of the same three libraries pkg-config would have located.
     find_library(MBEDTLS_LIB mbedtls REQUIRED)
     find_library(MBEDX509_LIB mbedx509 REQUIRED)
     find_library(MBEDCRYPTO_LIB mbedcrypto REQUIRED)
@@ -80,6 +84,13 @@ if(AURORA_OUTPUT_HUE_ENABLE_IO)
   )
   target_compile_definitions(AuroraOutputHue PUBLIC AURORA_OUTPUT_HUE_IO_AVAILABLE=1)
   target_link_libraries(AuroraOutputHue PUBLIC CURL::libcurl PkgConfig::MBEDTLS)
+
+  if(WIN32)
+    # Mbed TLS's entropy source needs BCryptGenRandom (bcrypt.lib) on
+    # Windows; same class of gap as huenicorn's own WindowsAdapter linking
+    # ws2_32/mswsock/crypt32 for its networking/crypto needs.
+    target_link_libraries(AuroraOutputHue PUBLIC bcrypt ws2_32 crypt32)
+  endif()
 endif()
 
 if(AURORA_OUTPUT_HUE_BUILD_TESTS)
