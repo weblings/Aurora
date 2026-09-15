@@ -761,23 +761,74 @@ colors now match huenicorn. See `Analysis/lessons/input.md`.
   build, not values to treat as final before real playback exists to
   tune them against.
 
-## Phase 3 — Three.js browser output plugin
+## Phase 3 — Three.js browser demo, then the native WebUI milestone
 
-A new Output target: a browser page showing the live video preview and a 3D
-visualization of the effect/zone data reacting in real time — the "virtual
-lights around a screen" preview, and the base scene phase 4 goes immersive with.
+Split into two sequenced milestones after a long reasoning pass (see
+`Analysis/BrowserAnalysis.md` and `Analysis/DistributedArchitecturePlan.md`
+for the full findings this splits from) — a real change from this phase's
+original framing as one native `Output::ThreeJS` plugin.
 
-- **Not yet aligned on shape:** a video-file-upload idea (play a user's video
-  through `Processing`, drive an output from it) is under discussion for
-  this phase — see `Analysis/BrowserAnalysis.md` for the findings so far
-  (native-decode vs. browser-decode fork, whether it needs to reach real
-  bulbs). Recorded as context, not a scoped sub-task yet.
+**Milestone 1 (decided shape): a fully self-contained browser demo, no
+native backend at all.** The "zero-install, hooks first" front door for the
+whole project — nobody downloads a server to try a demo, but a good enough
+demo is what gets someone to download the real thing. Four pieces, all
+web-side, all new code (`web/`):
+
+- A file-input module — a bundled sample **video, WebM**, plus a user-upload
+  option. Documented as "this demo works with WebM" rather than engineered
+  for arbitrary-format robustness; if a browser can't decode what's
+  uploaded, that failure is the natural upsell moment toward the native app
+  (which decodes far more formats via OpenCV) rather than a robustness gap
+  to close in the demo itself. Video-only for v1 — audio deferred (see
+  below).
+- A web `Processing` module — hand-ported crop/average math (JS), per
+  `BrowserAnalysis.md`'s reuse-vs-reimplement finding for that specific
+  logic.
+- A Three.js virtual-light output module — 9-slice the video into a 3×3
+  grid, discard the center, map the 8 edge/corner slices to 8 `Three.js`
+  point lights positioned around the video plane with padding. Reuses the
+  native `ZoneMapStore` JSON shape for the slice definitions rather than
+  inventing a separate schema.
+- The Three.js scene itself the lights live in.
+
+Audio deferred from v1 deliberately: the video pipeline's implementation
+choices are all already settled (hand-port, no new build tooling); audio
+still needs either a real WASM build of `AudioFeatureExtractor` (aubio) or
+an explicit fallback to a lower-fidelity JS-only beat detector — a real,
+separately-scoped piece of work, not a video-pipeline-shaped gap.
+
+**Considered and cut: a rougher, real-bulb-driving output using Hue's CLIP
+v2 REST API directly from the browser**, bypassing the Entertainment
+API's UDP/DTLS stream. Cut because the premise doesn't survive contact
+with how browsers actually work, not for lack of interest: the whole
+appeal was reaching real bulbs *without* needing the native app running at
+all, but the Hue bridge doesn't grant CORS access to arbitrary public
+origins (confirmed, not assumed — see `BrowserAnalysis.md`), so a page
+hosted anywhere public (GitHub Pages included) can't reach a bridge
+directly regardless of Chrome's Local Network Access rollout. Some native
+process has to run locally either way to bridge that CORS gap — and once
+any native involvement is required at all, there's no reason to build a
+CLIP-only relay when the existing native app already does the real,
+better thing (DTLS streaming) unmodified. A hail-mary search for prior
+art turned up real projects (`jsHue`, `Kingfish`) claiming direct
+browser-to-bridge control, but each one sidesteps the wall by using the
+older, plain-HTTP Hue API v1 from a non-HTTPS context — not a solution to
+the case that actually matters (a public HTTPS-hosted page), just a
+different setup that avoids the same wall by not standing in it.
+
+**Milestone 2 (next, after milestone 1 ships): the native-facing WebUI.**
+This is this phase's *original* scope, now sequenced deliberately after
+the demo rather than built first — a real native setup/pairing/zone-mapping
+UI is the current weak link in the funnel (someone sold by the demo today
+lands on env-var Hue configuration, no GUI), and building the demo first
+validates the funnel's front door before investing in the back half.
 - **Analysis pass first:** `Analysis/HttpServerAnalysis.md` covering
   `Network::Http::Server` holistically (`HttpServer`/`HttpLibServerImpl` —
   how the existing setup-WebUI routes are wired, request/response lifecycle,
   what httplib actually supports for chunked responses) before adding anything
   to it — extending a shared server wrong risks the existing setup WebUI, not
-  just the new endpoints.
+  just the new endpoints. Not needed for milestone 1 at all (no native
+  backend in that shape) — this is purely a milestone-2 prerequisite.
 - **Native side:** extend the existing httplib-based server (already present for
   the setup WebUI) with two endpoints, no new dependency:
   - a chunked MJPEG endpoint serving the already-downsampled preview frames

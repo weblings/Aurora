@@ -1,0 +1,16 @@
+v0.0.3:
+- Added Audio Processing to Aurora
+- Updated Input-Linux and Input-Windows to capture and output audio to Processing
+- Updated App-Linux and App-Windows to support audio path
+
+v0.0.2:
+- Aurora-App-Windows: Verified module shape working. Only needed to add Aurora-Input-Windows
+
+v0.0.1:
+- Distillation of Huenicorn into three separate module shapes:
+  - Input plugin
+  - Processing
+  - Output plugin
+- Aurora-App-Linux: Confirms Huenicorn's functionality still works with this model.
+  (Contains Aurora-Input-Linux, Aurora, Aurora-Output-Hue) 
+
