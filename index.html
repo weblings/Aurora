@@ -7,12 +7,14 @@
   <style>
     html, body { margin: 0; height: 100%; overflow: hidden; background: #111318; }
     canvas { display: block; }
-    #toggle-grid {
-      position: fixed; top: 16px; left: 16px; z-index: 1;
+    #toggle-grid, #light-rig {
+      position: fixed; left: 16px; z-index: 1;
       font: 14px system-ui, sans-serif; padding: 8px 12px;
       background: rgba(20, 22, 28, 0.75); color: #e8eaf0;
       border: 1px solid #4a4f5c; border-radius: 6px; cursor: pointer;
     }
+    #toggle-grid { top: 16px; }
+    #light-rig { top: 56px; }
   </style>
   <script type="importmap">
     {
@@ -25,6 +27,11 @@
 </head>
 <body>
   <button id="toggle-grid" type="button">Show zone grid</button>
+  <select id="light-rig">
+    <option value="point" selected>Point lights (edges)</option>
+    <option value="spot">Spotlights (center)</option>
+    <option value="rectArea">Rect-area lights (edges)</option>
+  </select>
   <script type="module" src="main.js"></script>
 </body>
 </html>
