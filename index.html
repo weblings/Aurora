@@ -7,14 +7,15 @@
   <style>
     html, body { margin: 0; height: 100%; overflow: hidden; background: #111318; }
     canvas { display: block; }
-    #toggle-grid, #light-rig {
+    #toggle-grid, #toggle-backdrop-bounds, #light-rig {
       position: fixed; left: 16px; z-index: 1;
       font: 14px system-ui, sans-serif; padding: 8px 12px;
       background: rgba(20, 22, 28, 0.75); color: #e8eaf0;
       border: 1px solid #4a4f5c; border-radius: 6px; cursor: pointer;
     }
     #toggle-grid { top: 16px; }
-    #light-rig { top: 56px; }
+    #toggle-backdrop-bounds { top: 56px; }
+    #light-rig { top: 96px; }
   </style>
   <script type="importmap">
     {
@@ -27,6 +28,7 @@
 </head>
 <body>
   <button id="toggle-grid" type="button">Show zone grid</button>
+  <button id="toggle-backdrop-bounds" type="button">Hide backdrop bounds</button>
   <select id="light-rig">
     <option value="point" selected>Point lights (edges)</option>
     <option value="rectArea">Rect-area lights (edges)</option>
