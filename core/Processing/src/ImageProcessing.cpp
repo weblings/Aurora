@@ -2,6 +2,10 @@
 
 #include <opencv2/opencv.hpp>
 
+// getSubImage/getDominantColor/Algorithms::mean are hand-ported to JS in
+// ../../../web-processing/processing.js -- see ../../../CLAUDE.md before
+// changing the crop/mean math here, the JS mirror likely needs the same change.
+
 
 namespace Aurora::Processing
 {

@@ -75,6 +75,14 @@ Aurora/                  <- core repo
       include/Aurora/Processing/ImageProcessing.hpp
       src/ImageProcessing.cpp
       ISF/                 <- new (phase 5, native side is minimal — see below)
+  web-processing/         <- new (phase 3, not started): hand-ported JS mirror
+                             of Processing's crop/average math (rescale/
+                             getSubImage/Algorithms::mean), kept in this repo
+                             specifically so it sits next to the C++ it mirrors
+                             for drift-checking (see BrowserAnalysis.md's
+                             reuse-vs-reimplement finding). Aurora-Demo-Web
+                             copies this source directly — no npm package for
+                             now, see below.
     Input/                 <- DONE: IInput.hpp (refined with monitor selection +
                                divisor math, see LinuxCaptureAnalysis.md) + MonitorData.hpp.
       include/Aurora/Input/                          Concrete plugins live in their own repos now.
@@ -95,7 +103,6 @@ Aurora/                  <- core repo
       src/
     tests/                 <- DONE (Processing + Runtime coverage): Catch2, see
                                ProcessingAnalysis.md/RuntimeAnalysis.md's test plans
-  web/                    <- new: the browser client (phases 3-5)
   Analysis/               <- already exists
 Aurora-Input-Linux/       <- plugin repo, DONE for X11 + Pipewire (see
                              LinuxCaptureAnalysis.md): DummyGrabber,
@@ -138,6 +145,17 @@ Aurora-App-Linux/         <- new app repo, DONE (see DistributedArchitecturePlan
                              every native dependency (X11, Pipewire/glib,
                              libcurl, Mbed TLS). Real end-to-end run (real
                              display + real bridge) pending the Ubuntu device.
+Aurora-Demo-Web/         <- new repo (2026-09-14, not started, phase 3
+                             milestone 1): the Three.js browser demo. File
+                             input (bundled WebM sample + upload), the 9-slice
+                             Three.js virtual-light output, and the demo scene
+                             itself — all new code, no counterpart in `Aurora`.
+                             The one non-new piece (crop/average math) is
+                             copied from `Aurora/web-processing/` rather than
+                             owned here, see above. No CMake, no native
+                             backend — own toolchain (see ModuleSplitPlan.md's
+                             repo-split section for why this qualified for a
+                             separate repo more clearly than any plugin has).
 ```
 
 **Aurora core build-verified.** No toolchain existed on the Windows dev
@@ -771,25 +789,36 @@ original framing as one native `Output::ThreeJS` plugin.
 **Milestone 1 (decided shape): a fully self-contained browser demo, no
 native backend at all.** The "zero-install, hooks first" front door for the
 whole project — nobody downloads a server to try a demo, but a good enough
-demo is what gets someone to download the real thing. Four pieces, all
-web-side, all new code (`web/`):
+demo is what gets someone to download the real thing.
 
-- A file-input module — a bundled sample **video, WebM**, plus a user-upload
-  option. Documented as "this demo works with WebM" rather than engineered
-  for arbitrary-format robustness; if a browser can't decode what's
-  uploaded, that failure is the natural upsell moment toward the native app
-  (which decodes far more formats via OpenCV) rather than a robustness gap
-  to close in the demo itself. Video-only for v1 — audio deferred (see
-  below).
-- A web `Processing` module — hand-ported crop/average math (JS), per
+**Repo split (2026-09-14):** the demo itself lives in its own new repo,
+`Aurora-Demo-Web` — a sharper split than any existing plugin repo, since it
+shares no toolchain with core at all (no CMake, no C++, own deploy target).
+The one exception is the crop/average math, which is a direct JS mirror of
+`Processing`'s C++ logic and stays in `Aurora/web-processing/` specifically
+so it sits next to the code it mirrors for drift-checking; `Aurora-Demo-Web`
+consumes it by copying the source across for now, not an npm package — worth
+revisiting only if keeping the copy in sync becomes an actual pain point.
+
+Four pieces:
+
+- A file-input module (`Aurora-Demo-Web`) — a bundled sample **video, WebM**,
+  plus a user-upload option. Documented as "this demo works with WebM"
+  rather than engineered for arbitrary-format robustness; if a browser can't
+  decode what's uploaded, that failure is the natural upsell moment toward
+  the native app (which decodes far more formats via OpenCV) rather than a
+  robustness gap to close in the demo itself. Video-only for v1 — audio
+  deferred (see below).
+- A web `Processing` module (`Aurora/web-processing/`, copied into
+  `Aurora-Demo-Web`) — hand-ported crop/average math (JS), per
   `BrowserAnalysis.md`'s reuse-vs-reimplement finding for that specific
   logic.
-- A Three.js virtual-light output module — 9-slice the video into a 3×3
-  grid, discard the center, map the 8 edge/corner slices to 8 `Three.js`
-  point lights positioned around the video plane with padding. Reuses the
-  native `ZoneMapStore` JSON shape for the slice definitions rather than
-  inventing a separate schema.
-- The Three.js scene itself the lights live in.
+- A Three.js virtual-light output module (`Aurora-Demo-Web`) — 9-slice the
+  video into a 3×3 grid, discard the center, map the 8 edge/corner slices to
+  8 `Three.js` point lights positioned around the video plane with padding.
+  Reuses the native `ZoneMapStore` JSON shape for the slice definitions
+  rather than inventing a separate schema.
+- The Three.js scene itself the lights live in (`Aurora-Demo-Web`).
 
 Audio deferred from v1 deliberately: the video pipeline's implementation
 choices are all already settled (hand-port, no new build tooling); audio
@@ -843,9 +872,12 @@ validates the funnel's front door before investing in the back half.
   broadcast to all of them (phase 2.5's audio work exercised this directly),
   not huenicorn's single `m_streamer` — Hue and the browser preview running
   simultaneously needs no further `Runtime` change.
-- **Browser side** (new `web/`): a Three.js page rendering the MJPEG preview as
-  a plane/texture, subscribing to the SSE endpoint, and drawing each zone as a
-  colored 3D element positioned by its UV on the video plane.
+- **Browser side** (repo TBD — unlike milestone 1, this needs a live
+  connection to the native server, so `Aurora-Demo-Web`'s "zero native
+  backend" repo-split reasoning doesn't automatically transfer; revisit when
+  milestone 2 actually starts): a Three.js page rendering the MJPEG preview
+  as a plane/texture, subscribing to the SSE endpoint, and drawing each zone
+  as a colored 3D element positioned by its UV on the video plane.
 - **Demonstrable:** open a browser tab, see the captured screen playing back
   with virtual colored light indicators reacting live around it — driven by the
   exact same Processing ticks simultaneously driving real Hue bulbs.
@@ -863,7 +895,7 @@ already-solved groundwork instead of rediscovering it.
   and write `Analysis/RockyRoadXRAnalysis.md` covering RockyRoad's actual
   IWSDK/Scene3D/Camera3D scaffolding holistically (not just the lessons list —
   the working code itself: `v2/src/`'s engine layer) before bootstrapping
-  `web/` from it. The Windows/Vite/IWSDK setup gotchas and the local-Z
+  milestone 2's browser client from it (repo TBD, see above). The Windows/Vite/IWSDK setup gotchas and the local-Z
   camera-fixed-HMD rendering pattern are already documented in those lessons
   files; no need to rediscover them.
 - Bootstrap from RockyRoad's IWSDK setup
@@ -881,7 +913,7 @@ already-solved groundwork instead of rediscovering it.
   phase 4 actually reaches this point, rather than deciding it here.
 - **License note:** this reuses RockyRoad's engine scaffolding (GPLv3, itself
   carried from ChartPlayer) — already compatible with Aurora's own GPLv3
-  (carried from huenicorn), just worth stating explicitly in `web/`'s own
+  (carried from huenicorn), just worth stating explicitly in that repo's own
   license note once one exists, the same way RockyRoad's README credits
   ChartPlayer.
 - **Demonstrable:** put on a headset, see the same video-plane-plus-reactive-
@@ -902,7 +934,7 @@ than any lighting-specific format.
   actual API before designing around assumed prior knowledge — this library is
   small and less actively maintained than the spec itself, so this check
   matters more here than for a major dependency.
-- Use `interactive-shader-format-js` in `web/`'s Three.js scene, rather than
+- Use `interactive-shader-format-js` in milestone 2's Three.js scene, rather than
   writing an ISF/GLSL-JSON parser from scratch. Load a handful of existing open
   shaders from [isf.video](https://isf.video/)'s library as a starting effect
   set.

@@ -6,7 +6,10 @@ it plays, and drive an output from it. Captures what's actually true about
 the current codebase relevant to that idea. **Status: v1's shape is
 decided** — file input (bundled WebM sample + upload), hand-ported JS
 processing, a Three.js 9-slice virtual-light output, video-only, no native
-backend, no Hue-in-browser stretch goal (cut, see below). Still open:
+backend, no Hue-in-browser stretch goal (cut, see below). Repo split
+(2026-09-14): the demo lives in its own new repo, `Aurora-Demo-Web`; only the
+hand-ported processing math stays in `Aurora/web-processing/` — see
+`ImplementationPlan.md`'s Phase 3. Still open:
 implementation specifics (the exact 9-slice/zone-map wiring, the sample
 video's actual content) and anything audio-related, deferred past v1
 entirely.
@@ -14,7 +17,8 @@ entirely.
 ## Nothing for this exists yet, in either direction
 
 No video-file input exists — native or browser. Phase 3 itself hasn't
-started: no httplib extension, no Three.js scene, nothing in `web/`. This
+started: no httplib extension, no Three.js scene, nothing in `Aurora-Demo-Web`
+(not yet created) or `Aurora/web-processing/`. This
 doc is pure groundwork, not a retrofit.
 
 ## The fit is real: this is "just another `IVideoInput`," not a redesign
@@ -123,6 +127,13 @@ decode, which leans on native `<video>` support) is the direction taken.
   Either way, this doesn't touch the Hue question — a WASM module in a
   browser tab still can't open a DTLS/UDP socket, the same wall Option B
   always had.
+
+  **Repo placement (2026-09-14):** this hand-port lives in `Aurora/web-processing/`,
+  not the demo's own repo — it's the one piece of the demo that mirrors
+  existing C++ logic, so it stays next to `Processing`'s source for
+  drift-checking (see `ImplementationPlan.md`'s directory layout). The demo
+  repo (`Aurora-Demo-Web`) copies this source directly; not an npm package
+  for now.
 
 **Still not enough pieces to decide shape.** This sharpens which
 reimplementation path the existing decision framework favors and flags one
@@ -368,6 +379,9 @@ assuming, verified this session:
   this doc's Ogg/OpenCV caveat follows.
 - `ImplementationPlan.md` — phase 3, which this doc feeds into once a shape
   is chosen.
+- `ModuleSplitPlan.md` — the repo-split reasoning (originally written for
+  Input/Output plugins) that `Aurora-Demo-Web`'s split applies too, more
+  cleanly than any existing plugin repo.
 - `../../RockyRoadImport/SongConverter/docs/native-logic-reuse-decision.md`
   — the general WASM-reuse-vs-hand-port framework the follow-up above
   applies to `Processing`/`Smoother`.

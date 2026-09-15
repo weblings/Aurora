@@ -3,6 +3,9 @@
 
 #include <Aurora/Processing/ImageProcessing.hpp>
 
+// Some golden values here are duplicated in ../../web-processing/processing.test.mjs
+// -- see ../../CLAUDE.md before changing expected values in this file.
+
 using namespace Aurora::Contracts;
 using namespace Aurora::Processing;
 
