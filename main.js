@@ -55,6 +55,17 @@ const RECTAREA_EDGES = [
 const ROOM_LIGHT_INTENSITY_SCALE = 0.025; // multiplies every glTF-authored light's own intensity
 const ROOM_LIGHT_DISTANCE = 4; // meters; glTF export leaves this at 0 (unbounded/pure inverse-square)
 
+// The room's own 4 point lights each drive one video quadrant instead of the flat rigs' 8 zones --
+// see assignRoomZoneLights() for how a light is matched to a quadrant.
+const ROOM_ZONE_MAP = [
+  { zoneId: 'front-left', uvs: { min: [0, 0], max: [0.5, 0.5] }, active: true, gamma: 0 },
+  { zoneId: 'front-right', uvs: { min: [0.5, 0], max: [1, 0.5] }, active: true, gamma: 0 },
+  { zoneId: 'back-left', uvs: { min: [0, 0.5], max: [0.5, 1] }, active: true, gamma: 0 },
+  { zoneId: 'back-right', uvs: { min: [0.5, 0.5], max: [1, 1] }, active: true, gamma: 0 },
+];
+// Best guess, not verified visually -- flip if the room shows left/right swapped once rendered.
+const ROOM_LEFT_IS_POSITIVE_Z = true;
+
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x111318);
 
@@ -134,6 +145,7 @@ let rectDebugQuads = [];
 let currentRigType = 'rectArea'; // 'point' kept in code (buildPointLights below) but no longer offered in the dropdown
 let roomModel = null; // THREE.Group, loaded once via GLTFLoader and reused across mode switches
 let roomModelLoading = null;
+let roomZoneLights = []; // computed once on load by assignRoomZoneLights(), see buildLights()
 let currentHalfW = PLANE_WIDTH / 2;
 let currentHalfH = DEFAULT_PLANE_HEIGHT / 2;
 
@@ -220,7 +232,12 @@ function buildLights() {
   if (currentRigType === 'rectArea') zoneLights = buildRectAreaLights();
   // 'point' stays reachable in code (not the dropdown) for reference/comparison.
   else if (currentRigType === 'point') zoneLights = buildPointLights();
-  else zoneLights = []; // 'room': not wired up yet -- the model has no light data to hook up to (see plan step 3)
+  else {
+    // 'room': lights already live inside roomModel's own hierarchy (visibility follows the
+    // model, not scene.add() below) -- reparenting them here would break that.
+    zoneLights = roomZoneLights;
+    return;
+  }
 
   for (const { lights } of zoneLights) {
     for (const light of lights) {
@@ -243,14 +260,53 @@ function buildLights() {
   }
 }
 
-// TV_Room.glb's own 4 KHR_lights_punctual lights ride along on gltf.scene as real PointLights --
-// not driven by the output pipeline yet, see buildLights()'s 'room' branch.
+// TV_Room.glb's own 4 KHR_lights_punctual lights ride along on gltf.scene as real PointLights,
+// each assigned to a video quadrant by assignRoomZoneLights() below.
 const gltfLoader = new GLTFLoader();
 const roomStatus = document.getElementById('room-status');
 
 function setRoomStatus(text) {
   roomStatus.textContent = text;
   roomStatus.hidden = !text;
+}
+
+// Matches each of the room's 4 point lights to a video quadrant by real geometry: distance to
+// TV_Screen splits front (flanking it) from back (rear wall); within each pair, whichever axis
+// actually differs between the two splits left from right (sign per ROOM_LEFT_IS_POSITIVE_Z).
+function assignRoomZoneLights(gltfScene) {
+  const tvScreen = gltfScene.getObjectByName('TV_Screen');
+  const pointLights = [];
+  gltfScene.traverse((obj) => { if (obj.isPointLight) pointLights.push(obj); });
+
+  if (!tvScreen || pointLights.length !== 4) {
+    console.warn('Room zone-light mapping skipped -- expected TV_Screen + 4 point lights, found', !!tvScreen, pointLights.length);
+    return [];
+  }
+
+  const tvPos = tvScreen.getWorldPosition(new THREE.Vector3());
+  const withDistance = pointLights
+    .map((light) => {
+      const pos = light.getWorldPosition(new THREE.Vector3());
+      return { light, pos, distance: pos.distanceTo(tvPos) };
+    })
+    .sort((a, b) => a.distance - b.distance);
+  const front = withDistance.slice(0, 2);
+  const back = withDistance.slice(2, 4);
+
+  const axis = ['x', 'y', 'z'].reduce((best, a) =>
+    Math.abs(front[0].pos[a] - front[1].pos[a]) > Math.abs(front[0].pos[best] - front[1].pos[best]) ? a : best);
+  const isLeft = (entry) => (entry.pos[axis] > 0) === ROOM_LEFT_IS_POSITIVE_Z;
+  const pick = (pair, wantLeft) => {
+    const entry = pair.find((e) => isLeft(e) === wantLeft);
+    return entry ? [entry.light] : [];
+  };
+
+  return [
+    { zoneId: 'front-left', lights: pick(front, true) },
+    { zoneId: 'front-right', lights: pick(front, false) },
+    { zoneId: 'back-left', lights: pick(back, true) },
+    { zoneId: 'back-right', lights: pick(back, false) },
+  ];
 }
 
 // Loads the model once and reuses it across mode switches -- toggling the dropdown back and
@@ -267,6 +323,9 @@ function ensureRoomModelLoaded() {
         if (obj.distance === 0) obj.distance = ROOM_LIGHT_DISTANCE;
       });
       scene.add(roomModel);
+      roomModel.updateMatrixWorld(true); // world positions below need real, not stale/identity, transforms
+      roomZoneLights = assignRoomZoneLights(roomModel);
+      console.log('Room zone lights:', roomZoneLights.map((z) => ({ zoneId: z.zoneId, light: z.lights[0]?.name })));
       setRoomStatus('');
     }).catch((error) => {
       console.error('Failed to load TV_Room.glb', error);
@@ -448,7 +507,9 @@ function sampleVideoFrame() {
 function animate() {
   const imageData = sampleVideoFrame();
   if (imageData) {
-    const frame = smoother.smooth(composeFrame(imageData, zoneMap), SMOOTHING);
+    // Room mode drives 4 quadrant zones (ROOM_ZONE_MAP), not the flat rigs' 8-zone zonemap.js.
+    const activeZoneMap = currentRigType === 'room' ? ROOM_ZONE_MAP : zoneMap;
+    const frame = smoother.smooth(composeFrame(imageData, activeZoneMap), SMOOTHING);
     for (const zoneFrame of frame) {
       const target = zoneLights.find((z) => z.zoneId === zoneFrame.zoneId);
       if (!target) continue;
@@ -509,6 +570,7 @@ document.getElementById('light-rig').addEventListener('change', (event) => {
       if (currentRigType !== 'room' || !roomModel) return; // switched away (or load failed) while loading
       roomModel.visible = true;
       frameCameraToRoom();
+      buildLights(); // roomZoneLights is populated now; the earlier synchronous call ran before it was
     });
   } else if (roomModel) {
     roomModel.visible = false;
