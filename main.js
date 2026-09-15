@@ -146,6 +146,7 @@ let currentRigType = 'rectArea'; // 'point' kept in code (buildPointLights below
 let roomModel = null; // THREE.Group, loaded once via GLTFLoader and reused across mode switches
 let roomModelLoading = null;
 let roomZoneLights = []; // computed once on load by assignRoomZoneLights(), see buildLights()
+let tvScreenMesh = null; // the room model's own 'TV_Screen' node, found once on load
 let currentHalfW = PLANE_WIDTH / 2;
 let currentHalfH = DEFAULT_PLANE_HEIGHT / 2;
 
@@ -309,6 +310,26 @@ function assignRoomZoneLights(gltfScene) {
   ];
 }
 
+// The plane's own UV unwrap runs 90° off ours (floor showed on the left, not the bottom).
+// +Math.PI/2 rotated the wrong way on-screen (left->top); this is the confirmed opposite.
+const TV_SCREEN_ROTATION = -Math.PI / 2;
+
+// A separate clone per source, not the flat plane's own texture -- glTF UVs assume V=0 at the
+// top (flipY=false), while the flat plane's own PlaneGeometry assumes the opposite (flipY=true).
+const tvScreenTextures = {}; // mode -> cloned texture, cached so repeated mode switches don't re-clone
+function getTvScreenTexture(mode) {
+  if (!tvScreenTextures[mode]) {
+    const source = mode === 'video' ? videoTexture : testPatterns[mode].texture;
+    const clone = source.clone();
+    clone.flipY = false; // unverified -- flip back to true if the room shows the video upside down
+    clone.center.set(0.5, 0.5);
+    clone.rotation = TV_SCREEN_ROTATION;
+    clone.needsUpdate = true;
+    tvScreenTextures[mode] = clone;
+  }
+  return tvScreenTextures[mode];
+}
+
 // Loads the model once and reuses it across mode switches -- toggling the dropdown back and
 // forth shouldn't re-fetch/re-parse a multi-MB glb every time.
 function ensureRoomModelLoaded() {
@@ -326,6 +347,11 @@ function ensureRoomModelLoaded() {
       roomModel.updateMatrixWorld(true); // world positions below need real, not stale/identity, transforms
       roomZoneLights = assignRoomZoneLights(roomModel);
       console.log('Room zone lights:', roomZoneLights.map((z) => ({ zoneId: z.zoneId, light: z.lights[0]?.name })));
+
+      // Unlit (MeshBasicMaterial), like the flat plane -- this represents a self-lit screen,
+      // not a surface the room's own lights should shade.
+      tvScreenMesh = roomModel.getObjectByName('TV_Screen');
+      if (tvScreenMesh) tvScreenMesh.material = new THREE.MeshBasicMaterial({ map: getTvScreenTexture(sourceMode) });
       setRoomStatus('');
     }).catch((error) => {
       console.error('Failed to load TV_Room.glb', error);
@@ -583,4 +609,8 @@ document.getElementById('source-mode').addEventListener('change', (event) => {
   sourceMode = event.target.value;
   plane.material.map = sourceMode === 'video' ? videoTexture : testPatterns[sourceMode].texture;
   plane.material.needsUpdate = true;
+  if (tvScreenMesh) {
+    tvScreenMesh.material.map = getTvScreenTexture(sourceMode);
+    tvScreenMesh.material.needsUpdate = true;
+  }
 });
