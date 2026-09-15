@@ -16,6 +16,9 @@ const BACKDROP_Z = FRAME_Z - 1.5;
 // Additive, same units on all four sides -- a uniform-width ring around the video, at the
 // cost of the backdrop's own aspect ratio no longer matching the video's (same as a picture mat).
 const BACKDROP_MARGIN = 1.3 * (2 / 3); // lowered by a third
+// Fraction of the margin's own width used as the mask's blur radius -- higher = softer/more
+// gradual fade, lower = sharper edge. 1.0 would blur across the entire margin band.
+const MASK_FEATHER = 0.45;
 const SAMPLE_WIDTH = 160; // per-frame color-sampling resolution, not the video's playback resolution
 const SMOOTHING = 0.85; // native's own default is 0 (no smoothing); tuned here for a calmer demo visual
 
@@ -23,10 +26,10 @@ const SMOOTHING = 0.85; // native's own default is 0 (no smoothing); tuned here 
 // replacing the other -- useful for comparing approaches, not just picking one forever.
 const POINT_Z = FRAME_Z; // sits on the frame's own edge, one light per zone
 const POINT_INTENSITY = 25;
-// No cutoff (0 = unbounded) and gentle decay -- the edge mask on the backdrop now enforces
-// "stops before the edge", so the light itself is free to blend broadly into its neighbors.
-const POINT_DISTANCE = 0;
-const POINT_DECAY = 1;
+const POINT_DISTANCE = 0; // no cutoff -- the edge mask enforces "stops before the edge" instead
+// decay=1 let each light's influence reach across the *whole* backdrop, not just its close
+// neighbors -- washing every zone's color together instead of just blending adjacent ones.
+const POINT_DECAY = 2;
 
 const RECTAREA_Z = FRAME_Z; // sits on the frame's own edge, like the point rig
 const RECTAREA_INTENSITY = 5; // matches Three's own official RectAreaLight example's order of magnitude
@@ -66,6 +69,36 @@ document.body.appendChild(video);
 
 const videoTexture = new THREE.VideoTexture(video);
 videoTexture.colorSpace = THREE.SRGBColorSpace;
+
+// A deterministic 16:9 pattern (vertical R/G/B thirds) for verifying the per-zone data
+// pipeline itself, independent of real video content or how much the lights visually blend.
+let useTestPattern = false;
+let testPatternImageData, testPatternTexture;
+
+// Same 3x3 layout as zonemap.js -- each zone gets its own evenly-spaced rainbow hue (by
+// zoneId), so every one of the 8 lights is individually identifiable, not just by column.
+const ZONE_ID_BY_ROW_COL = { '0,0': 0, '0,1': 1, '0,2': 2, '1,0': 3, '1,2': 4, '2,0': 5, '2,1': 6, '2,2': 7 };
+
+function buildTestPattern() {
+  const height = Math.round(SAMPLE_WIDTH * 9 / 16);
+  const canvas = document.createElement('canvas');
+  canvas.width = SAMPLE_WIDTH;
+  canvas.height = height;
+  const ctx = canvas.getContext('2d');
+  const cellW = SAMPLE_WIDTH / 3;
+  const cellH = height / 3;
+  for (let row = 0; row < 3; row++) {
+    for (let col = 0; col < 3; col++) {
+      const zoneId = ZONE_ID_BY_ROW_COL[`${row},${col}`];
+      ctx.fillStyle = zoneId === undefined ? '#202020' : `hsl(${zoneId * 45}, 100%, 50%)`;
+      ctx.fillRect(col * cellW, row * cellH, cellW, cellH);
+    }
+  }
+  testPatternImageData = ctx.getImageData(0, 0, SAMPLE_WIDTH, height);
+  testPatternTexture = new THREE.CanvasTexture(canvas);
+  testPatternTexture.colorSpace = THREE.SRGBColorSpace;
+}
+buildTestPattern();
 
 // Rebuilt whenever the plane's real aspect ratio is known (see 'loadedmetadata' below),
 // since a bundled/uploaded video isn't guaranteed to be exactly 16:9.
@@ -152,7 +185,7 @@ function buildStaticScene(planeHeight) {
 
   plane = new THREE.Mesh(
     new THREE.PlaneGeometry(PLANE_WIDTH, planeHeight),
-    new THREE.MeshBasicMaterial({ map: videoTexture }),
+    new THREE.MeshBasicMaterial({ map: useTestPattern ? testPatternTexture : videoTexture }),
   );
   plane.position.z = FRAME_Z;
   scene.add(plane);
@@ -199,7 +232,7 @@ function buildEdgeMaskTexture(insetXFraction, insetYFraction) {
   ctx.fillRect(0, 0, size, size);
   const insetX = size * insetXFraction;
   const insetY = size * insetYFraction;
-  ctx.filter = `blur(${Math.round(Math.min(insetX, insetY) * 0.6)}px)`;
+  ctx.filter = `blur(${Math.round(Math.min(insetX, insetY) * MASK_FEATHER)}px)`;
   ctx.fillStyle = '#fff';
   ctx.fillRect(insetX, insetY, size - insetX * 2, size - insetY * 2);
   return new THREE.CanvasTexture(canvas);
@@ -267,6 +300,7 @@ const sampleCtx = sampleCanvas.getContext('2d', { willReadFrequently: true });
 const smoother = new Smoother();
 
 function sampleVideoFrame() {
+  if (useTestPattern) return testPatternImageData;
   if (video.readyState < video.HAVE_CURRENT_DATA || video.videoWidth === 0) return null;
 
   const sampleHeight = Math.round(SAMPLE_WIDTH * (video.videoHeight / video.videoWidth));
@@ -321,4 +355,12 @@ boundsToggleButton.addEventListener('click', () => {
 document.getElementById('light-rig').addEventListener('change', (event) => {
   currentRigType = event.target.value;
   buildLights();
+});
+
+const testPatternButton = document.getElementById('toggle-test-pattern');
+testPatternButton.addEventListener('click', () => {
+  useTestPattern = !useTestPattern;
+  plane.material.map = useTestPattern ? testPatternTexture : videoTexture;
+  plane.material.needsUpdate = true;
+  testPatternButton.textContent = useTestPattern ? 'Use real video' : 'Use rainbow test pattern';
 });
