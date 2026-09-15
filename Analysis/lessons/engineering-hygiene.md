@@ -398,3 +398,63 @@ silently conflicting with a build setup already chosen deliberately for
 that project — worth checking for stray generated config files (`vcpkg.json`,
 `CMakePresets.json`, a `build/` full of unfamiliar cache entries) before
 trusting a confusing link/build error is actually about the code.
+
+---
+
+## A light type's constructor parameters are the whole contract — don't assume it mirrors a sibling type's API shape
+
+Hit in `Aurora-Demo-Web` while building the Three.js browser demo's light
+rigs. `PointLight`/`SpotLight` expose `distance` (a hard cutoff) and `decay`
+(the falloff curve) as independent parameters. `RectAreaLight`'s constructor
+only takes `(color, intensity, width, height)` — no `distance`, no `decay`.
+Its brightness at any point is governed entirely by the panel's physical
+size and position via solid-angle math, so tuning size to change spread
+also changes brightness, and vice versa. Several rounds of intensity/depth
+tuning felt inconsistent until this was recognized as a structural property
+of the light type, not a wrong number — cost real time because the
+assumption (same knobs as `PointLight`, just a different shape) was never
+checked against the actual constructor signature or docs first.
+
+**Fix:** check what parameters a light/material/shader type actually
+exposes before assuming it mirrors a sibling type's API shape, same weight
+as checking a native library's header. If a hard spatial cutoff is required
+and the light type has no such knob, get it from somewhere else entirely
+(a mask on the receiving material, a custom shader) rather than continuing
+to fight the light's own parameters.
+
+---
+
+## Falloff shape and "stop at a fixed boundary" are two different jobs, and one mechanism usually can't do both
+
+Hit in the same `Aurora-Demo-Web` light-rig work. A light's `distance`/
+`decay` is a *radial* falloff from a point (or, for `RectAreaLight`, a
+panel) — it can't natively respect an arbitrary rectangular boundary like a
+backdrop's edge. Tuning one light's falloff to simultaneously (a) blend
+smoothly with its neighbors and (b) never visibly spill past a fixed edge
+was often mathematically impossible once neighbor spacing and edge distance
+were both fixed by the scene's geometry: tightening for (b) broke (a), and
+loosening for (a) broke (b).
+
+**Fix:** decouple the two. Let lights blend as broadly as looks good
+(large/no cutoff, gentle decay), and enforce the hard boundary separately —
+here, via an alpha mask on the receiving material (a canvas-drawn
+soft-edged rectangle as `alphaMap`, opaque over the content, transparent
+past its edge) — independent of any light's own physics.
+
+---
+
+## Matching apparent size across two camera depths needs the depth *ratio*, not a flat world-space offset
+
+Hit in the same `Aurora-Demo-Web` work, sizing a backdrop plane sitting
+behind a foreground video plane. A farther object needs to be **larger** in
+real world units just to *look* the same size as a nearer one — perspective
+apparent size is roughly `actualSize / distance`. Using the same flat
+world-space margin at both depths made the backdrop look *smaller* than
+intended, since its extra distance from the camera shrank its apparent size
+faster than the margin grew it.
+
+**Fix:** scale the farther object's real size by
+`distanceToFarObject / distanceToNearObject` before applying any margin, so
+the *apparent* padding comes out equal regardless of the actual depth gap.
+Recompute this on any camera-distance change (e.g. a resize that affects a
+fit-to-frame distance) — it's not a one-time constant.
