@@ -13,12 +13,9 @@
       background: rgba(20, 22, 28, 0.75); color: #e8eaf0;
       border: 1px solid #4a4f5c; border-radius: 6px; cursor: pointer;
     }
-    #toggle-grid { top: 16px; }
-    #toggle-backdrop-bounds { top: 56px; }
-    #toggle-rect-debug { top: 96px; }
-    #source-mode { top: 136px; }
-    #light-rig { top: 176px; }
-    #audio-color-model { top: 216px; }
+    /* toggle-grid/backdrop-bounds/rect-debug, light-rig, and audio-color-model are hidden for
+       now -- see each select's own comment in the body below for why. */
+    #source-mode { top: 16px; }
   </style>
   <script type="importmap">
     {
@@ -29,26 +26,29 @@
     }
   </script>
   <style>
-    #room-status { position: fixed; left: 16px; top: 256px; z-index: 1; font: 14px system-ui, sans-serif; color: #e8eaf0; }
+    #room-status { position: fixed; left: 16px; top: 56px; z-index: 1; font: 14px system-ui, sans-serif; color: #e8eaf0; }
   </style>
 </head>
 <body>
-  <button id="toggle-grid" type="button">Show zone grid</button>
-  <button id="toggle-backdrop-bounds" type="button">Hide backdrop bounds</button>
-  <button id="toggle-rect-debug" type="button">Hide rect-light quads</button>
+  <!-- Flat-scene-only debug controls -- hidden while the 3D room is the only light rig
+       (see #light-rig below); un-hide alongside re-adding rectArea for the XR pass. -->
+  <button id="toggle-grid" type="button" hidden>Show zone grid</button>
+  <button id="toggle-backdrop-bounds" type="button" hidden>Hide backdrop bounds</button>
+  <button id="toggle-rect-debug" type="button" hidden>Hide rect-light quads</button>
   <select id="source-mode">
     <option value="video" selected>Real video</option>
     <option value="rainbow">Rainbow test pattern</option>
-    <option value="white">White test pattern</option>
     <option value="audio">Audio (Electro Cabello)</option>
   </select>
-  <select id="light-rig">
-    <option value="rectArea" selected>Rect-area lights (edges)</option>
-    <option value="room">TV Room (3D model)</option>
+  <!-- rectArea temporarily removed (not deleted -- see main.js's buildRectAreaLights) until the
+       XR pass; only one option left, so the picker itself is hidden too. -->
+  <select id="light-rig" hidden>
+    <option value="room" selected>TV Room (3D model)</option>
   </select>
-  <select id="audio-color-model">
-    <option value="placeholder" selected>Audio color: placeholder (hue jump)</option>
-    <option value="ported">Audio color: ported (drift + bounce)</option>
+  <!-- placeholder/ported/attack A/B/D options removed (not deleted -- see main.js's
+       placeholderAudioColor/dampedAudioColor/attackAudioColor) -- settled on 'tuned' for now. -->
+  <select id="audio-color-model" hidden>
+    <option value="tuned" selected>Audio color: tuned (punchier brightness)</option>
   </select>
   <div id="room-status" hidden></div>
   <script type="module" src="main.js"></script>

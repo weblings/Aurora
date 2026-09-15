@@ -123,11 +123,23 @@ const freqDataLinear = new Float32Array(analyser.frequencyBinCount);
 const timeData = new Float32Array(analyser.fftSize);
 let audioHueDegrees = 0; // placeholder model's own state, see placeholderAudioColor() below
 
-// Real ported model's state (colorModel.js) -- an A/B against the placeholder, see
-// #audio-color-model's wiring below and Analysis/AudioAnalysis.md for the tuning knobs.
-const audioEffectSettings = defaultAudioEffectSettings();
-const driftState = createDriftState();
-const bounceState = createBounceState();
+// Real ported model (colorModel.js), two presets sharing the same functions/state shape --
+// 'ported' is native's own listening-tuned defaults (for real Hue bulbs); 'tuned' is a first
+// guess at a punchier demo-screen preset (see the A/B discussion this came out of), specifically
+// making brightness react much faster -- a viewer's eye reads brightness-lag-behind-the-beat as
+// "boring" more than hue lag, so that's the one knob turned hardest.
+const audioEffectSettingsByModel = {
+  ported: defaultAudioEffectSettings(),
+  tuned: {
+    ...defaultAudioEffectSettings(),
+    bounceSmoothTime: 0.12,
+    brightnessSmoothTime: 0.08,
+    dynamismFloor: 0.3,
+    driftBaseRateDegPerSec: 14,
+  },
+};
+const driftStateByModel = { ported: createDriftState(), tuned: createDriftState() };
+const bounceStateByModel = { ported: createBounceState(), tuned: createBounceState() };
 let lastAudioColorTime = null; // audioContext.currentTime as of the previous frame, for real dt
 
 function setAudioPlaying(playing) {
@@ -148,16 +160,46 @@ function placeholderAudioColor({ onsetDetected, onsetStrength, rms }) {
   return new THREE.Color().setHSL(audioHueDegrees / 360, 0.9, 0.5 * brightness);
 }
 
-// The real ported updateDrift/updateBounce -- needs a genuine elapsed-time dt (their damping is
-// exponential-in-time, unlike the placeholder's instant snap), tracked via AudioContext's clock.
-function portedAudioColor(features) {
+// The real ported updateDrift/updateBounce, either preset -- needs a genuine elapsed-time dt
+// (their damping is exponential-in-time, unlike the placeholder's instant snap), tracked via
+// AudioContext's clock. Shared timer is fine since only one model runs per frame.
+function dampedAudioColor(model, features) {
   const now = audioContext.currentTime;
   const dt = lastAudioColorTime === null ? 0 : now - lastAudioColorTime;
   lastAudioColorTime = now;
 
-  updateDrift(driftState, features, audioEffectSettings, dt);
-  const { r, g, b } = updateBounce(bounceState, driftState, features, audioEffectSettings, dt);
+  const settings = audioEffectSettingsByModel[model];
+  const driftState = driftStateByModel[model];
+  const bounceState = bounceStateByModel[model];
+  updateDrift(driftState, features, settings, dt);
+  const { r, g, b } = updateBounce(bounceState, driftState, features, settings, dt);
   return new THREE.Color(r / 255, g / 255, b / 255);
+}
+
+// Option D: an experimental attack/decay flash layered on the *ported* preset's own smooth base
+// (shares its state, so switching 'ported' <-> 'attack' isolates just this layer) -- demo-only
+// for now, deliberately not in colorModel.js since native's updateBounce has no such mechanism
+// yet. If this reads well, native already has everything needed to add a real one (a per-tick
+// dt, persistent state, a tunable settings struct) -- see AudioOrchestrator.cpp.
+const FLASH_DECAY_TIME = 0.12; // seconds; short so it reads as a hit, not a second bounce
+const FLASH_INTENSITY = 0.5; // how much the flash adds on top of the smoothed base brightness
+let flashLevel = 0;
+let lastFlashTime = null;
+
+function attackAudioColor(features) {
+  const baseColor = dampedAudioColor('ported', features);
+
+  const now = audioContext.currentTime;
+  const dt = lastFlashTime === null ? 0 : now - lastFlashTime;
+  lastFlashTime = now;
+
+  if (features.onsetDetected) flashLevel = Math.max(flashLevel, features.onsetStrength);
+  flashLevel *= Math.exp(-dt / FLASH_DECAY_TIME);
+
+  const hsl = {};
+  baseColor.getHSL(hsl);
+  hsl.l = Math.min(1, hsl.l + flashLevel * FLASH_INTENSITY);
+  return new THREE.Color().setHSL(hsl.h, hsl.s, hsl.l);
 }
 
 // Reads the real AnalyserNode data and broadcasts one shared color to every zone light, matching
@@ -173,7 +215,9 @@ function driveLightsFromAudio() {
   const { onsetDetected, onsetStrength } = onsetDetector.process(freqDataLinear, audioContext.currentTime);
   const features = { onsetDetected, onsetStrength, rms, spectralCentroid };
 
-  const audioColor = audioColorModel === 'ported' ? portedAudioColor(features) : placeholderAudioColor(features);
+  const audioColor = audioColorModel === 'placeholder' ? placeholderAudioColor(features)
+    : audioColorModel === 'attack' ? attackAudioColor(features)
+    : dampedAudioColor(audioColorModel, features);
 
   for (const { lights } of zoneLights) {
     for (const light of lights) light.color.copy(audioColor);
