@@ -14,22 +14,15 @@ const BACKDROP_MARGIN = 3.5; // extra room around the outermost lights so glow h
 const SAMPLE_WIDTH = 160; // per-frame color-sampling resolution, not the video's playback resolution
 const SMOOTHING = 0.85; // native's own default is 0 (no smoothing); tuned here for a calmer demo visual
 
-// Three light rigs, selectable live (see the dropdown wiring below) rather than each
-// replacing the last -- useful for comparing approaches, not just picking one forever.
+// Two light rigs, selectable live (see the dropdown wiring below) rather than one
+// replacing the other -- useful for comparing approaches, not just picking one forever.
 const POINT_Z = 0; // sits on the frame's own edge, one light per zone
 const POINT_INTENSITY = 2; // untested against a real render yet -- the first knob to retune by eye
 const POINT_DISTANCE = 8;
 const POINT_DECAY = 1; // lower than the physically-correct default (2) for a wider blend zone
 
-const SPOT_Z = 0; // all 8 cluster here, at the frame's center, aimed outward per zone
-const SPOT_INTENSITY = 30;
-const SPOT_DISTANCE = 14; // reaches past the farthest target (a corner) with room to taper softly
-const SPOT_ANGLE = THREE.MathUtils.degToRad(42);
-const SPOT_PENUMBRA = 0.9;
-const SPOT_DECAY = 1.25;
-
 const RECTAREA_Z = 0; // sits on the frame's own edge, like the point rig
-const RECTAREA_INTENSITY = 2; // untested -- RectAreaLight's units read very differently from point/spot
+const RECTAREA_INTENSITY = 2; // untested -- RectAreaLight's units read very differently from point
 const RECTAREA_DEPTH = 0.8; // the light panel's thickness in its short axis
 // Zones tiling the top/bottom thirds are wide+thin; the two side zones are tall+thin --
 // see buildLightForRig's use of this below.
@@ -86,12 +79,6 @@ function fitCameraToBackdrop() {
 // straight back at the same (x, y) on the backdrop -- only the light type/shape differs.
 function buildLightForRig(rig, zoneId, x, y) {
   switch (rig) {
-    case 'spot': {
-      const light = new THREE.SpotLight(0xffffff, SPOT_INTENSITY, SPOT_DISTANCE, SPOT_ANGLE, SPOT_PENUMBRA, SPOT_DECAY);
-      light.position.set(0, 0, SPOT_Z);
-      light.target.position.set(x, y, BACKDROP_Z);
-      return light;
-    }
     case 'rectArea': {
       const horizontal = HORIZONTAL_ZONE_IDS.has(zoneId);
       const width = horizontal ? (currentHalfW * 2) / 3 : RECTAREA_DEPTH;
@@ -125,7 +112,6 @@ function edgePositions() {
 function buildLights() {
   for (const { light } of zoneLights) {
     scene.remove(light);
-    if (light.target) scene.remove(light.target);
   }
   zoneLights = [];
 
@@ -134,7 +120,6 @@ function buildLights() {
     const [x, y] = positions[zone.zoneId];
     const light = buildLightForRig(currentRigType, zone.zoneId, x, y);
     scene.add(light);
-    if (light.target) scene.add(light.target);
     return { zoneId: zone.zoneId, light };
   });
 }
