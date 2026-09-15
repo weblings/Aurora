@@ -15,3 +15,11 @@ bug or improvement is found in this copy:
 See `../Aurora/CLAUDE.md` for the other side of this rule, and
 `../Aurora/Analysis/BrowserAnalysis.md`/`ImplementationPlan.md` (Phase 3) for
 why this is a copy instead of a shared package.
+
+## Check `../Aurora/Analysis/lessons/engineering-hygiene.md` before touching the Three.js light rigs
+
+All Aurora-family lessons-learned live in the core repo's `Analysis/lessons/`
+tree, not per-repo — this repo doesn't get its own `LESSONS.md`. Real,
+non-obvious `RectAreaLight`/falloff/perspective findings from building
+`main.js`'s point and rect-area rigs are filed there — check it before
+re-deriving light-tuning behavior that's already been worked out once.
