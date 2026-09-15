@@ -151,7 +151,7 @@ let roomModel = null; // THREE.Group, loaded once via GLTFLoader and reused acro
 let roomModelLoading = null;
 let roomZoneLights = []; // computed once on load by assignRoomZoneLights(), see buildLights()
 let tvScreenMesh = null; // the room model's own 'TV_Screen' node, found once on load
-let roomLampShades = []; // [{mesh, light}], each shade tinted from its own nearest light in animate()
+let roomLampShades = []; // [{mesh, light}], shades + bulbs, each tinted from its own nearest light
 let currentHalfW = PLANE_WIDTH / 2;
 let currentHalfH = DEFAULT_PLANE_HEIGHT / 2;
 
@@ -315,13 +315,13 @@ function assignRoomZoneLights(gltfScene) {
   ];
 }
 
-// The glTF's shared 'LampShade' material (one instance, 4 meshes) is semi-transparent gray --
-// clone it per-mesh so each shade can be independently tinted from its own nearest light.
-function setupLampShades(gltfScene, lights) {
-  const shadeMeshes = [];
-  gltfScene.traverse((obj) => { if (obj.isMesh && obj.material?.name === 'LampShade') shadeMeshes.push(obj); });
+// Each of these glTF materials is one shared instance across the room's 4 lamps (shade panel,
+// bulb) -- clone per-mesh so each instance can be independently tinted from its own nearest light.
+function setupEmissiveTintMeshes(gltfScene, lights, materialName) {
+  const meshes = [];
+  gltfScene.traverse((obj) => { if (obj.isMesh && obj.material?.name === materialName) meshes.push(obj); });
 
-  return shadeMeshes.map((mesh) => {
+  return meshes.map((mesh) => {
     mesh.material = mesh.material.clone();
     mesh.material.transparent = false;
     mesh.material.opacity = 1;
@@ -372,7 +372,11 @@ function ensureRoomModelLoaded() {
       roomModel.updateMatrixWorld(true); // world positions below need real, not stale/identity, transforms
       roomZoneLights = assignRoomZoneLights(roomModel);
       console.log('Room zone lights:', roomZoneLights.map((z) => ({ zoneId: z.zoneId, light: z.lights[0]?.name })));
-      roomLampShades = setupLampShades(roomModel, roomZoneLights.flatMap((z) => z.lights));
+      const roomLights = roomZoneLights.flatMap((z) => z.lights);
+      roomLampShades = [
+        ...setupEmissiveTintMeshes(roomModel, roomLights, 'LampShade'),
+        ...setupEmissiveTintMeshes(roomModel, roomLights, 'BlocksGem'), // the bulb geometry itself
+      ];
 
       // Unlit (MeshBasicMaterial), like the flat plane -- this represents a self-lit screen,
       // not a surface the room's own lights should shade.
