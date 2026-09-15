@@ -11,7 +11,9 @@ work and for the Input/Processing/Output split alike. Don't start a new
 
 Modeled on [RockyRoad's lessons structure](../../../RockyRoad/Analysis/lessons/README.md)
 (see `Analysis/lessons/README.md` there) — same filing/splitting rules, scoped to
-Aurora's own module boundaries instead of RockyRoad's.
+Aurora's own module boundaries instead of RockyRoad's. `rendering-apis.md` vs.
+`rendering-internals.md` specifically mirrors RockyRoad's own `engine/runtime-apis.md` vs.
+`engine/xr-3d-rendering.md` split (third-party API facts vs. this project's own design calls).
 
 ## Index
 
@@ -47,17 +49,25 @@ Aurora's own module boundaries instead of RockyRoad's.
   (aubio's default `tools` feature wanting ffmpeg; `[core]` avoids it), a
   process started from this Bash environment reporting a different PID
   than Windows sees, needing `/F`/image-name `taskkill` to stop reliably,
-  a C library's own example code taking the address of a compound
-  literal — a legal lvalue in C, an illegal prvalue in C++, two modes
+  and a C library's own example code taking the address of a compound
+  literal — a legal lvalue in C, an illegal prvalue in C++, and two modes
   producing the same surface symptom (colors clustered on a wheel) for
   completely different reasons — diffing the wrong mode's pipeline against
   a reference can look thorough and come back clean at every step without
-  ever being the actual explanation — and (from `Aurora-Demo-Web`'s Three.js
-  light rigs) `RectAreaLight` having no `distance`/`decay` at all — coupling
-  brightness to reach — falloff shape and a hard visual boundary being two
-  separate jobs (the latter needs a mask, not tighter falloff), and matching
-  apparent size across two camera depths needing the distance *ratio*, not a
-  flat world-space offset.
+  ever being the actual explanation.
+- [`rendering-apis.md`](rendering-apis.md) — third-party Three.js/GLTFLoader/Blender-export
+  facts: `RectAreaLight` having no `distance`/`decay` at all (coupling brightness to reach),
+  Blender's glTF export dropping light data unless "Punctual Lights" is checked (and never
+  exporting Area lights at all), a glTF material being shared by reference across every mesh
+  that uses it (clone before giving one instance independent state), and `alphaMode: BLEND`
+  setting `depthWrite = false` alongside `transparent = true` in GLTFLoader (undoing only the
+  visible property leaves a material opaque-colored but still see-through).
+- [`rendering-internals.md`](rendering-internals.md) — this project's own Three.js scene design,
+  demonstrated via `Aurora-Demo-Web`'s TV/room demo: falloff shape and a hard visual boundary
+  being two separate jobs (the latter needs a mask, not tighter falloff), matching apparent
+  size across two camera depths needing the distance *ratio* not a flat world-space offset,
+  and a texture's `rotation` sign not being safely derivable by hand — verify with one real
+  render instead.
 - [`output.md`](output.md) — streaming/protocol gotchas: a bridge having more
   than one entertainment configuration over the same lights being normal,
   not an edge case (empty-ID auto-select isn't "the only one"),
@@ -99,12 +109,15 @@ Aurora's own module boundaries instead of RockyRoad's.
 3. Capture/grabber/platform-adapter specific? → `input.md`.
 4. Color/effect transform or zone-mapping specific? → `processing.md`.
 5. Streaming/protocol/wire-format specific (Hue or any other target)? → `output.md`.
-6. Cross-cutting entry? File under whichever module *constrains the fix*, not
+6. A third-party rendering fact (Three.js/GLTFLoader/Blender-export behavior), not this
+   project's own design? → `rendering-apis.md`. This project's own 3D-scene design/technique,
+   demonstrated by a real bug? → `rendering-internals.md`.
+7. Cross-cutting entry? File under whichever module *constrains the fix*, not
    whichever exhibited the symptom — e.g. a `PixelFormat` tag being ignored crashing
    an Output-side assumption files under `processing.md` (that's where the tag is
    produced/consumed), not `output.md` (where the symptom showed up). Cross-list in
    the other file's entry if genuinely two-sided.
-7. Destination file too long to skim (rough proxy: 15+ entries)? Split along a finer
+8. Destination file too long to skim (rough proxy: 15+ entries)? Split along a finer
    cut of the same module (e.g. `input.md` → `input/capture-backends.md` +
    `input/pixel-formats.md`, each directory getting its own `INDEX.md`, same shape as
    RockyRoad's `ui-toolkit/`/`engine/`). Then update: that file's own index if it
