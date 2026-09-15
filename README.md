@@ -48,6 +48,15 @@ once its metadata loads, rather than assuming exactly 16:9.
 [Pixabay](https://pixabay.com/), used under the
 [Pixabay license](https://pixabay.com/service/license-summary/).
 
+`assets/TV_Room.glb`: composed from two [polygone.art](https://polygone.art/) models —
+[Living Room](https://polygone.art/#filter=tv&page=model&guid=cI9YQFHd5Ua) by Alex "SAFFY"
+Safayan, and [Standing Lamp](https://polygone.art/#filter=lamp&page=model&guid=aZyMp9TEk0I) by
+Danny Bittman.
+
+`assets/Electro Cabello.mp3` / `assets/ElectricCabello.jpg`: "Electro Cabello" by
+[Kevin MacLeod](https://incompetech.com/), licensed under
+[Creative Commons: By Attribution 4.0](http://creativecommons.org/licenses/by/4.0/).
+
 ## Running
 
 No build step — any static file server works:

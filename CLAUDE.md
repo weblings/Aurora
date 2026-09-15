@@ -1,9 +1,9 @@
 # Aurora-Demo-Web — agent rules
 
-## `processing.js`/`smoother.js`/`audioFeatures.js` are copies, not authored here
+## `processing.js`/`smoother.js`/`audioFeatures.js`/`colorModel.js` are copies, not authored here
 
 These files are copied verbatim from `../Aurora/web-processing/` (the
-hand-ported JS mirror of Aurora core's crop/mean/easing/audio-feature math) —
+hand-ported JS mirror of Aurora core's crop/mean/easing/audio-feature/color-model math) —
 not an npm package, by deliberate choice. **Don't edit them in place here.**
 If a bug or improvement is found in one of these copies:
 

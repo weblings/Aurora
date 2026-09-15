@@ -5,7 +5,10 @@ import { RectAreaLightUniformsLib } from 'three/addons/lights/RectAreaLightUnifo
 import { zoneMap } from './zonemap.js';
 import { composeFrame } from './processing.js';
 import { Smoother } from './smoother.js';
-import { dbToLinear, computeRms, OnsetDetector } from './audioFeatures.js';
+import { dbToLinear, computeRms, computeSpectralCentroid, OnsetDetector } from './audioFeatures.js';
+import {
+  defaultAudioEffectSettings, createDriftState, createBounceState, updateDrift, updateBounce,
+} from './colorModel.js';
 
 RectAreaLightUniformsLib.init(); // required once for RectAreaLight to shade correctly
 
@@ -118,7 +121,14 @@ const onsetDetector = new OnsetDetector();
 const freqDataDb = new Float32Array(analyser.frequencyBinCount);
 const freqDataLinear = new Float32Array(analyser.frequencyBinCount);
 const timeData = new Float32Array(analyser.fftSize);
-let audioHueDegrees = 0; // simple placeholder color response -- not yet the real ported updateDrift/updateBounce
+let audioHueDegrees = 0; // placeholder model's own state, see placeholderAudioColor() below
+
+// Real ported model's state (colorModel.js) -- an A/B against the placeholder, see
+// #audio-color-model's wiring below and Analysis/AudioAnalysis.md for the tuning knobs.
+const audioEffectSettings = defaultAudioEffectSettings();
+const driftState = createDriftState();
+const bounceState = createBounceState();
+let lastAudioColorTime = null; // audioContext.currentTime as of the previous frame, for real dt
 
 function setAudioPlaying(playing) {
   if (!playing) return audioTrack.pause();
@@ -130,6 +140,26 @@ function setAudioPlaying(playing) {
   });
 }
 
+// Simple hue-jump-on-onset response -- deliberately not the real color model, see
+// placeholderAudioColor() vs. the ported one for how they actually differ in feel.
+function placeholderAudioColor({ onsetDetected, onsetStrength, rms }) {
+  if (onsetDetected) audioHueDegrees = (audioHueDegrees + 30 + onsetStrength * 60) % 360;
+  const brightness = Math.min(1, 0.4 + rms * 1.5); // 0.4 floor so it's never fully dark
+  return new THREE.Color().setHSL(audioHueDegrees / 360, 0.9, 0.5 * brightness);
+}
+
+// The real ported updateDrift/updateBounce -- needs a genuine elapsed-time dt (their damping is
+// exponential-in-time, unlike the placeholder's instant snap), tracked via AudioContext's clock.
+function portedAudioColor(features) {
+  const now = audioContext.currentTime;
+  const dt = lastAudioColorTime === null ? 0 : now - lastAudioColorTime;
+  lastAudioColorTime = now;
+
+  updateDrift(driftState, features, audioEffectSettings, dt);
+  const { r, g, b } = updateBounce(bounceState, driftState, features, audioEffectSettings, dt);
+  return new THREE.Color(r / 255, g / 255, b / 255);
+}
+
 // Reads the real AnalyserNode data and broadcasts one shared color to every zone light, matching
 // native's AudioOrchestrator shape (no per-zone spatial concept) rather than the video path's
 // per-zone sampling. Called from animate() only while sourceMode === 'audio'.
@@ -139,15 +169,11 @@ function driveLightsFromAudio() {
   analyser.getFloatTimeDomainData(timeData);
 
   const rms = computeRms(timeData);
+  const spectralCentroid = computeSpectralCentroid(freqDataLinear, audioContext.sampleRate, analyser.fftSize);
   const { onsetDetected, onsetStrength } = onsetDetector.process(freqDataLinear, audioContext.currentTime);
-  // computeSpectralCentroid is ready (see audioFeatures.js) but not wired in yet -- the real
-  // updateDrift port is what would consume it, per AudioProcessing.hpp's centroidStrength knob.
+  const features = { onsetDetected, onsetStrength, rms, spectralCentroid };
 
-  // Placeholder color model, not the real ported updateDrift/updateBounce (six-anchor-pair
-  // palette, HSV shortest-arc damping) -- a separate follow-up port, deliberately simplified here.
-  if (onsetDetected) audioHueDegrees = (audioHueDegrees + 30 + onsetStrength * 60) % 360;
-  const brightness = Math.min(1, 0.4 + rms * 1.5); // 0.4 floor so it's never fully dark
-  const audioColor = new THREE.Color().setHSL(audioHueDegrees / 360, 0.9, 0.5 * brightness);
+  const audioColor = audioColorModel === 'ported' ? portedAudioColor(features) : placeholderAudioColor(features);
 
   for (const { lights } of zoneLights) {
     for (const light of lights) light.color.copy(audioColor);
@@ -159,6 +185,8 @@ function driveLightsFromAudio() {
 // with what's actually shown instead of needing a manual re-click to take effect.
 const lightRigSelect = document.getElementById('light-rig');
 const sourceModeSelect = document.getElementById('source-mode');
+const audioColorModelSelect = document.getElementById('audio-color-model');
+let audioColorModel = audioColorModelSelect.value; // 'placeholder' | 'ported', see driveLightsFromAudio()
 
 // Deterministic source modes for verifying the per-zone data pipeline and the light rig's
 // own behavior independent of real video content -- see the dropdown wiring below.
@@ -757,3 +785,5 @@ sourceModeSelect.addEventListener('change', (event) => {
   setAudioPlaying(sourceMode === 'audio');
 });
 setAudioPlaying(sourceMode === 'audio'); // in case the browser restored 'audio' on reload
+
+audioColorModelSelect.addEventListener('change', (event) => { audioColorModel = event.target.value; });
