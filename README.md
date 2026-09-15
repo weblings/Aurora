@@ -18,25 +18,35 @@ shape and its split from Aurora core.
 
 ## Status
 
-First scaffolding step only: the Three.js scene (16:9 video plane, 9-slice
-grid, 8 point lights positioned around the edges) driven by fake, cycling
-per-zone colors — no real video or processing yet, deliberately, to prove
-out the scene/light layout in isolation first.
+The bundled sample video now actually drives the scene: a real `<video>`
+element plays `assets/168273-838673780.webm` as the plane's texture, each
+frame is sampled to a small offscreen canvas, run through the real
+hand-ported `composeFrame`/`Smoother` pipeline, and used to color the 8
+lights/markers live. The plane rebuilds to the video's real aspect ratio
+once its metadata loads, rather than assuming exactly 16:9.
 
-- `index.html` / `main.js` — the scene itself.
+- `index.html` / `main.js` — the scene, video wiring, and per-frame sampling loop.
 - `zonemap.js` — the 9-slice zone definitions, shaped to match Aurora
   core's `ZoneMapStore` JSON exactly (`zoneId`/`uvs.min`/`uvs.max`/`active`/
   `gamma`) so a real exported profile could drop in with no reshaping.
-
 - `processing.js` / `smoother.js` — copied verbatim from
   [`Aurora/web-processing/`](../Aurora/web-processing) (not consumed as a
-  package, for now — see that repo's `CLAUDE.md` for the sync rule). Not yet
-  wired into the scene.
+  package, for now — see that repo's `CLAUDE.md` for the sync rule).
+- `assets/` — bundled sample media. See "Media credits" below.
 
 ## Not yet built
 
-- File input (bundled WebM sample + upload) driving real video into the scene.
-- Wiring `processing.js`/`smoother.js` in to replace `fakeZoneColor` in `main.js`.
+- A user-upload option for the video (currently only the bundled sample plays).
+- Real end-to-end visual confirmation in an actual browser (built and
+  smoke-tested via a local static server; the render itself hasn't been
+  eyeballed yet).
+
+## Media credits
+
+`assets/168273-838673780.webm`: video by
+[Rehan Ali](https://pixabay.com/users/rehanali4233481-13764965/) via
+[Pixabay](https://pixabay.com/), used under the
+[Pixabay license](https://pixabay.com/service/license-summary/).
 
 ## Running
 

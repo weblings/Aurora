@@ -7,6 +7,12 @@
   <style>
     html, body { margin: 0; height: 100%; overflow: hidden; background: #111318; }
     canvas { display: block; }
+    #toggle-grid {
+      position: fixed; top: 16px; left: 16px; z-index: 1;
+      font: 14px system-ui, sans-serif; padding: 8px 12px;
+      background: rgba(20, 22, 28, 0.75); color: #e8eaf0;
+      border: 1px solid #4a4f5c; border-radius: 6px; cursor: pointer;
+    }
   </style>
   <script type="importmap">
     {
@@ -18,6 +24,7 @@
   </script>
 </head>
 <body>
+  <button id="toggle-grid" type="button">Show zone grid</button>
   <script type="module" src="main.js"></script>
 </body>
 </html>
