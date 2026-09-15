@@ -49,6 +49,12 @@ const RECTAREA_EDGES = [
   { zoneIds: [2, 4, 7], horizontal: false, fixedSign: 1 }, // right
 ];
 
+// TV_Room.glb's lamps export at Blender's real Watt->candela conversion (~543 cd each),
+// physically-realistic but way past LinearToneMapping's clip point -- scaled down here instead
+// of re-exporting. Tune these directly while checking the room.
+const ROOM_LIGHT_INTENSITY_SCALE = 0.025; // multiplies every glTF-authored light's own intensity
+const ROOM_LIGHT_DISTANCE = 4; // meters; glTF export leaves this at 0 (unbounded/pure inverse-square)
+
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x111318);
 
@@ -255,6 +261,11 @@ function ensureRoomModelLoaded() {
     roomModelLoading = gltfLoader.loadAsync('assets/TV_Room.glb').then((gltf) => {
       roomModel = gltf.scene;
       roomModel.visible = false; // shown explicitly by the caller once ready
+      roomModel.traverse((obj) => {
+        if (!obj.isPointLight && !obj.isSpotLight) return;
+        obj.intensity *= ROOM_LIGHT_INTENSITY_SCALE;
+        if (obj.distance === 0) obj.distance = ROOM_LIGHT_DISTANCE;
+      });
       scene.add(roomModel);
       setRoomStatus('');
     }).catch((error) => {
