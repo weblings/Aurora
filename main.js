@@ -55,6 +55,10 @@ const RECTAREA_EDGES = [
 const ROOM_LIGHT_INTENSITY_SCALE = 0.025; // multiplies every glTF-authored light's own intensity
 const ROOM_LIGHT_DISTANCE = 4; // meters; glTF export leaves this at 0 (unbounded/pure inverse-square)
 
+// Diffuse alone left most of each shade black -- no material here has an emissive component, and
+// the room has no ambient light, so faces angled away from their own bulb get zero incident light.
+const LAMP_SHADE_EMISSIVE_INTENSITY = 3; // <1 so the directly-lit panel still shows real shading
+
 // The room's own 4 point lights each drive one video quadrant instead of the flat rigs' 8 zones --
 // see assignRoomZoneLights() for how a light is matched to a quadrant.
 const ROOM_ZONE_MAP = [
@@ -147,6 +151,7 @@ let roomModel = null; // THREE.Group, loaded once via GLTFLoader and reused acro
 let roomModelLoading = null;
 let roomZoneLights = []; // computed once on load by assignRoomZoneLights(), see buildLights()
 let tvScreenMesh = null; // the room model's own 'TV_Screen' node, found once on load
+let roomLampShades = []; // [{mesh, light}], each shade tinted from its own nearest light in animate()
 let currentHalfW = PLANE_WIDTH / 2;
 let currentHalfH = DEFAULT_PLANE_HEIGHT / 2;
 
@@ -310,6 +315,26 @@ function assignRoomZoneLights(gltfScene) {
   ];
 }
 
+// The glTF's shared 'LampShade' material (one instance, 4 meshes) is semi-transparent gray --
+// clone it per-mesh so each shade can be independently tinted from its own nearest light.
+function setupLampShades(gltfScene, lights) {
+  const shadeMeshes = [];
+  gltfScene.traverse((obj) => { if (obj.isMesh && obj.material?.name === 'LampShade') shadeMeshes.push(obj); });
+
+  return shadeMeshes.map((mesh) => {
+    mesh.material = mesh.material.clone();
+    mesh.material.transparent = false;
+    mesh.material.opacity = 1;
+    mesh.material.depthWrite = true; // GLTFLoader sets this false for alphaMode BLEND; undo it
+    mesh.material.color.set(0xffffff);
+    mesh.material.emissiveIntensity = LAMP_SHADE_EMISSIVE_INTENSITY; // animate() drives .emissive itself
+
+    const meshPos = mesh.getWorldPosition(new THREE.Vector3());
+    const byDistance = lights.map((l) => ({ l, d: l.getWorldPosition(new THREE.Vector3()).distanceTo(meshPos) }));
+    return { mesh, light: byDistance.sort((a, b) => a.d - b.d)[0].l };
+  });
+}
+
 // The plane's own UV unwrap runs 90° off ours (floor showed on the left, not the bottom).
 // +Math.PI/2 rotated the wrong way on-screen (left->top); this is the confirmed opposite.
 const TV_SCREEN_ROTATION = -Math.PI / 2;
@@ -347,6 +372,7 @@ function ensureRoomModelLoaded() {
       roomModel.updateMatrixWorld(true); // world positions below need real, not stale/identity, transforms
       roomZoneLights = assignRoomZoneLights(roomModel);
       console.log('Room zone lights:', roomZoneLights.map((z) => ({ zoneId: z.zoneId, light: z.lights[0]?.name })));
+      roomLampShades = setupLampShades(roomModel, roomZoneLights.flatMap((z) => z.lights));
 
       // Unlit (MeshBasicMaterial), like the flat plane -- this represents a self-lit screen,
       // not a surface the room's own lights should shade.
@@ -543,6 +569,10 @@ function animate() {
         light.color.setRGB(zoneFrame.color.r / 255, zoneFrame.color.g / 255, zoneFrame.color.b / 255);
       }
     }
+
+    // Emissive, not diffuse -- angle-independent, so every face glows regardless of whether
+    // this light's direction actually reaches it (see LAMP_SHADE_EMISSIVE_INTENSITY above).
+    for (const { mesh, light } of roomLampShades) mesh.material.emissive.setRGB(1, 1, 1).lerp(light.color, 0.95);
   }
 
   controls.update();
