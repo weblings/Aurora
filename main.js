@@ -6,12 +6,14 @@ import { Smoother } from './smoother.js';
 
 const PLANE_WIDTH = 16;
 const DEFAULT_PLANE_HEIGHT = 9; // used until the real video's aspect ratio is known
-const LIGHT_PADDING = 1.5;
-const LIGHT_Z = 2;
-const BACKDROP_Z = -1; // behind the video plane, so its glow only shows past the plane's edges
-const BACKDROP_MARGIN = 4; // extra room around the outermost lights so glow has space to spread
+const LIGHT_Z = 0; // exactly on the frame's plane, so the glow reads as emitting from its edge
+const BACKDROP_Z = -3; // same light-to-backdrop distance as before LIGHT_Z moved from 2 to 0
+const BACKDROP_MARGIN = 3.5; // extra room around the outermost lights so glow has space to spread
 const LIGHT_INTENSITY = 150; // untested against a real render yet -- the first knob to retune by eye
-const LIGHT_DISTANCE = 30;
+const LIGHT_DISTANCE = 8; // kept close to BACKDROP_MARGIN so the glow stays tight around the frame
+// Lower than the physically-correct default (2) -- trades a sharp hot center for a much
+// wider blend zone between neighbors. Drop to 0 for an even flatter, more washed-out spread.
+const LIGHT_DECAY = 1;
 const SAMPLE_WIDTH = 160; // per-frame color-sampling resolution, not the video's playback resolution
 const SMOOTHING = 0.85; // native's own default is 0 (no smoothing); tuned here for a calmer demo visual
 
@@ -49,7 +51,7 @@ let zoneLights = [];
 let showGrid = false; // off by default -- see the toggle button wiring below
 
 function disposeSceneObjects() {
-  for (const obj of [plane, gridLines, backdrop, ...zoneLights.flatMap((z) => [z.light, z.marker])]) {
+  for (const obj of [plane, gridLines, backdrop, ...zoneLights.map((z) => z.light)]) {
     if (!obj) continue;
     scene.remove(obj);
     obj.geometry?.dispose();
@@ -85,10 +87,10 @@ function buildScene(planeHeight) {
   gridLines.visible = showGrid;
   scene.add(gridLines);
 
-  // World position for each zone's light, derived from its row/col label rather than its
-  // UV rect -- a zone's UV crop and its light's 3D position are independently configurable.
-  const halfW = PLANE_WIDTH / 2 + LIGHT_PADDING;
-  const halfH = planeHeight / 2 + LIGHT_PADDING;
+  // World position for each zone's light, at the frame's own edge -- derived from its
+  // row/col label rather than its UV rect, which stays independently configurable.
+  const halfW = PLANE_WIDTH / 2;
+  const halfH = planeHeight / 2;
   const lightPositions = {
     0: [-halfW, halfH], 1: [0, halfH], 2: [halfW, halfH],
     3: [-halfW, 0], 4: [halfW, 0],
@@ -106,18 +108,11 @@ function buildScene(planeHeight) {
 
   zoneLights = zoneMap.map((zone) => {
     const [x, y] = lightPositions[zone.zoneId];
-    const light = new THREE.PointLight(0xffffff, LIGHT_INTENSITY, LIGHT_DISTANCE);
+    const light = new THREE.PointLight(0xffffff, LIGHT_INTENSITY, LIGHT_DISTANCE, LIGHT_DECAY);
     light.position.set(x, y, LIGHT_Z);
     scene.add(light);
 
-    const marker = new THREE.Mesh(
-      new THREE.SphereGeometry(0.35, 16, 16),
-      new THREE.MeshBasicMaterial({ color: 0xffffff }),
-    );
-    marker.position.copy(light.position);
-    scene.add(marker);
-
-    return { zoneId: zone.zoneId, light, marker };
+    return { zoneId: zone.zoneId, light };
   });
 }
 
@@ -159,7 +154,6 @@ function animate() {
       const target = zoneLights.find((z) => z.zoneId === zoneFrame.zoneId);
       if (!target) continue;
       target.light.color.setRGB(zoneFrame.color.r / 255, zoneFrame.color.g / 255, zoneFrame.color.b / 255);
-      target.marker.material.color.copy(target.light.color);
     }
   }
 
