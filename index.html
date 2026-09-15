@@ -7,7 +7,7 @@
   <style>
     html, body { margin: 0; height: 100%; overflow: hidden; background: #111318; }
     canvas { display: block; }
-    #toggle-grid, #toggle-backdrop-bounds, #toggle-test-pattern, #light-rig {
+    #toggle-grid, #toggle-backdrop-bounds, #toggle-rect-debug, #source-mode, #light-rig {
       position: fixed; left: 16px; z-index: 1;
       font: 14px system-ui, sans-serif; padding: 8px 12px;
       background: rgba(20, 22, 28, 0.75); color: #e8eaf0;
@@ -15,8 +15,9 @@
     }
     #toggle-grid { top: 16px; }
     #toggle-backdrop-bounds { top: 56px; }
-    #toggle-test-pattern { top: 96px; }
-    #light-rig { top: 136px; }
+    #toggle-rect-debug { top: 96px; }
+    #source-mode { top: 136px; }
+    #light-rig { top: 176px; }
   </style>
   <script type="importmap">
     {
@@ -30,7 +31,12 @@
 <body>
   <button id="toggle-grid" type="button">Show zone grid</button>
   <button id="toggle-backdrop-bounds" type="button">Hide backdrop bounds</button>
-  <button id="toggle-test-pattern" type="button">Use rainbow test pattern</button>
+  <button id="toggle-rect-debug" type="button">Hide rect-light quads</button>
+  <select id="source-mode">
+    <option value="video" selected>Real video</option>
+    <option value="rainbow">Rainbow test pattern</option>
+    <option value="white">White test pattern</option>
+  </select>
   <select id="light-rig">
     <option value="point" selected>Point lights (edges)</option>
     <option value="rectArea">Rect-area lights (edges)</option>

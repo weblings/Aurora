@@ -26,19 +26,27 @@ const SMOOTHING = 0.85; // native's own default is 0 (no smoothing); tuned here 
 // replacing the other -- useful for comparing approaches, not just picking one forever.
 const POINT_Z = FRAME_Z; // sits on the frame's own edge, one light per zone
 const POINT_INTENSITY = 25;
-const POINT_DISTANCE = 0; // no cutoff -- the edge mask enforces "stops before the edge" instead
-// decay=1 let each light's influence reach across the *whole* backdrop, not just its close
-// neighbors -- washing every zone's color together instead of just blending adjacent ones.
+// Sized against inter-light spacing (adjacent centroids are ~3-5.33 apart, opposite/diagonal
+// zones ~10+), not the backdrop edge (the mask owns that job) -- reaches immediate neighbors
+// for a real blend, but stops far/opposite zones from washing every hue together into gray.
+const POINT_DISTANCE = 6;
 const POINT_DECAY = 2;
 
 const RECTAREA_Z = FRAME_Z; // sits on the frame's own edge, like the point rig
 const RECTAREA_INTENSITY = 5; // matches Three's own official RectAreaLight example's order of magnitude
 const RECTAREA_DEPTH = 0.3; // the light panel's thickness in its short axis
-// >1 so neighboring panels' long axes overlap instead of leaving a gap between zones.
-const RECTAREA_LENGTH_OVERLAP = 1.75;
-// Zones tiling the top/bottom thirds are wide+thin; the two side zones are tall+thin --
-// see buildLightForRig's use of this below.
-const HORIZONTAL_ZONE_IDS = new Set([0, 1, 2, 5, 6, 7]);
+// >1 so neighboring panels along the same edge overlap instead of just touching.
+const RECTAREA_LENGTH_OVERLAP = 1;
+
+// Each physical edge is divided into 3 equal, snugly-adjacent segments along its own length --
+// not derived per-zone. Corner zones sit on two edges and get one light per edge (they
+// naturally overlap right at the corner, which is fine); edge-mid zones get just one.
+const RECTAREA_EDGES = [
+  { zoneIds: [0, 1, 2], horizontal: true, fixedSign: 1 }, // top
+  { zoneIds: [5, 6, 7], horizontal: true, fixedSign: -1 }, // bottom
+  { zoneIds: [0, 3, 5], horizontal: false, fixedSign: -1 }, // left
+  { zoneIds: [2, 4, 7], horizontal: false, fixedSign: 1 }, // right
+];
 
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x111318);
@@ -70,16 +78,17 @@ document.body.appendChild(video);
 const videoTexture = new THREE.VideoTexture(video);
 videoTexture.colorSpace = THREE.SRGBColorSpace;
 
-// A deterministic 16:9 pattern (vertical R/G/B thirds) for verifying the per-zone data
-// pipeline itself, independent of real video content or how much the lights visually blend.
-let useTestPattern = false;
-let testPatternImageData, testPatternTexture;
+// Deterministic source modes for verifying the per-zone data pipeline and the light rig's
+// own behavior independent of real video content -- see the dropdown wiring below.
+// 'rainbow' checks per-zone color identification; 'white' isolates the light rig's own
+// falloff/brightness symmetry, since every zone samples the exact same input color.
+let sourceMode = 'video';
+const testPatterns = {}; // mode -> { imageData, texture }, built once below
 
-// Same 3x3 layout as zonemap.js -- each zone gets its own evenly-spaced rainbow hue (by
-// zoneId), so every one of the 8 lights is individually identifiable, not just by column.
+// Same 3x3 layout as zonemap.js -- lets a pattern assign a value per grid cell directly.
 const ZONE_ID_BY_ROW_COL = { '0,0': 0, '0,1': 1, '0,2': 2, '1,0': 3, '1,2': 4, '2,0': 5, '2,1': 6, '2,2': 7 };
 
-function buildTestPattern() {
+function buildPatternCanvas(fillStyleForCell) {
   const height = Math.round(SAMPLE_WIDTH * 9 / 16);
   const canvas = document.createElement('canvas');
   canvas.width = SAMPLE_WIDTH;
@@ -89,16 +98,23 @@ function buildTestPattern() {
   const cellH = height / 3;
   for (let row = 0; row < 3; row++) {
     for (let col = 0; col < 3; col++) {
-      const zoneId = ZONE_ID_BY_ROW_COL[`${row},${col}`];
-      ctx.fillStyle = zoneId === undefined ? '#202020' : `hsl(${zoneId * 45}, 100%, 50%)`;
+      ctx.fillStyle = fillStyleForCell(row, col);
       ctx.fillRect(col * cellW, row * cellH, cellW, cellH);
     }
   }
-  testPatternImageData = ctx.getImageData(0, 0, SAMPLE_WIDTH, height);
-  testPatternTexture = new THREE.CanvasTexture(canvas);
-  testPatternTexture.colorSpace = THREE.SRGBColorSpace;
+  const imageData = ctx.getImageData(0, 0, SAMPLE_WIDTH, height);
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  return { imageData, texture };
 }
-buildTestPattern();
+
+// Each zone gets its own evenly-spaced rainbow hue (by zoneId) -- every one of the 8 lights
+// is individually identifiable, not just by column; the unused center cell reads as neutral.
+testPatterns.rainbow = buildPatternCanvas((row, col) => {
+  const zoneId = ZONE_ID_BY_ROW_COL[`${row},${col}`];
+  return zoneId === undefined ? '#202020' : `hsl(${zoneId * 45}, 100%, 50%)`;
+});
+testPatterns.white = buildPatternCanvas(() => '#ffffff');
 
 // Rebuilt whenever the plane's real aspect ratio is known (see 'loadedmetadata' below),
 // since a bundled/uploaded video isn't guaranteed to be exactly 16:9.
@@ -106,6 +122,8 @@ let plane, gridLines, backdrop, backdropOutline;
 let zoneLights = [];
 let showGrid = false; // off by default -- see the toggle button wiring below
 let showBackdropBounds = true; // on by default while the backdrop's actual size is being tuned
+let showRectDebugQuads = true; // RectAreaLight has no visible geometry of its own otherwise
+let rectDebugQuads = [];
 let currentRigType = 'point';
 let currentHalfW = PLANE_WIDTH / 2;
 let currentHalfH = DEFAULT_PLANE_HEIGHT / 2;
@@ -126,53 +144,91 @@ function fitCameraToFrame() {
   camera.position.set(0, 0, FRAME_Z + Math.max(distanceForHeight, distanceForWidth) * FIT_MARGIN);
 }
 
-// One light per zone, positioned at that zone's edge/corner on the frame. Each rig aims
-// straight back at the same (x, y) on the backdrop -- only the light type/shape differs.
-function buildLightForRig(rig, zoneId, x, y) {
-  switch (rig) {
-    case 'rectArea': {
-      const horizontal = HORIZONTAL_ZONE_IDS.has(zoneId);
-      const width = horizontal ? ((currentHalfW * 2) / 3) * RECTAREA_LENGTH_OVERLAP : RECTAREA_DEPTH;
-      const height = horizontal ? RECTAREA_DEPTH : ((currentHalfH * 2) / 3) * RECTAREA_LENGTH_OVERLAP;
+// The center of the zone's own UV rect, in world space -- now that the mask (not the light's
+// position) is what hugs the screen edge, the light can sit where it actually represents its
+// own zone instead of pinned to a corner/edge point covering a much larger area.
+function zoneCentroid(zone) {
+  const centroidU = (zone.uvs.min[0] + zone.uvs.max[0]) / 2;
+  const centroidV = (zone.uvs.min[1] + zone.uvs.max[1]) / 2;
+  return [(centroidU - 0.5) * currentHalfW * 2, (0.5 - centroidV) * currentHalfH * 2];
+}
+
+function buildPointLights() {
+  return zoneMap.map((zone) => {
+    const [x, y] = zoneCentroid(zone);
+    const light = new THREE.PointLight(0xffffff, POINT_INTENSITY, POINT_DISTANCE, POINT_DECAY);
+    light.position.set(x, y, POINT_Z);
+    return { zoneId: zone.zoneId, lights: [light] };
+  });
+}
+
+// One RectAreaLight per edge-segment (see RECTAREA_EDGES) rather than per zone -- a corner
+// zone accumulates a light from each edge it sits on.
+function buildRectAreaLights() {
+  const lightsByZoneId = new Map();
+
+  for (const edge of RECTAREA_EDGES) {
+    const edgeLength = edge.horizontal ? currentHalfW * 2 : currentHalfH * 2;
+    const segmentLength = (edgeLength / 3) * RECTAREA_LENGTH_OVERLAP;
+    const fixedCoord = edge.fixedSign * (edge.horizontal ? currentHalfH : currentHalfW);
+
+    edge.zoneIds.forEach((zoneId, i) => {
+      // zoneIds are listed low-x-to-high-x for horizontal edges, but top-to-bottom (i.e.
+      // high-y-to-low-y) for vertical ones -- the two axes run opposite directions in world space.
+      const thirdCenter = (i + 0.5) * (edgeLength / 3);
+      const along = edge.horizontal ? -edgeLength / 2 + thirdCenter : edgeLength / 2 - thirdCenter;
+      const x = edge.horizontal ? along : fixedCoord;
+      const y = edge.horizontal ? fixedCoord : along;
+      const width = edge.horizontal ? segmentLength : RECTAREA_DEPTH;
+      const height = edge.horizontal ? RECTAREA_DEPTH : segmentLength;
+
       const light = new THREE.RectAreaLight(0xffffff, RECTAREA_INTENSITY, width, height);
       light.position.set(x, y, RECTAREA_Z);
       light.lookAt(x, y, BACKDROP_Z);
-      return light;
-    }
-    case 'point':
-    default: {
-      const light = new THREE.PointLight(0xffffff, POINT_INTENSITY, POINT_DISTANCE, POINT_DECAY);
-      light.position.set(x, y, POINT_Z);
-      return light;
-    }
-  }
-}
 
-function edgePositions() {
-  const halfW = currentHalfW;
-  const halfH = currentHalfH;
-  return {
-    0: [-halfW, halfH], 1: [0, halfH], 2: [halfW, halfH],
-    3: [-halfW, 0], 4: [halfW, 0],
-    5: [-halfW, -halfH], 6: [0, -halfH], 7: [halfW, -halfH],
-  };
+      if (!lightsByZoneId.has(zoneId)) lightsByZoneId.set(zoneId, []);
+      lightsByZoneId.get(zoneId).push(light);
+    });
+  }
+
+  return zoneMap.map((zone) => ({ zoneId: zone.zoneId, lights: lightsByZoneId.get(zone.zoneId) || [] }));
 }
 
 // Rebuilds just the lights for the currently selected rig -- swapping rigs (see the
 // dropdown below) doesn't need to touch the plane/backdrop/gridlines at all.
 function buildLights() {
-  for (const { light } of zoneLights) {
-    scene.remove(light);
+  for (const { lights } of zoneLights) {
+    for (const light of lights) scene.remove(light);
   }
-  zoneLights = [];
 
-  const positions = edgePositions();
-  zoneLights = zoneMap.map((zone) => {
-    const [x, y] = positions[zone.zoneId];
-    const light = buildLightForRig(currentRigType, zone.zoneId, x, y);
-    scene.add(light);
-    return { zoneId: zone.zoneId, light };
-  });
+  for (const quad of rectDebugQuads) {
+    scene.remove(quad);
+    quad.geometry.dispose();
+    quad.material.dispose();
+  }
+  rectDebugQuads = [];
+
+  zoneLights = currentRigType === 'rectArea' ? buildRectAreaLights() : buildPointLights();
+
+  for (const { lights } of zoneLights) {
+    for (const light of lights) {
+      scene.add(light);
+
+      // RectAreaLight has no visible geometry of its own -- this wireframe traces its actual
+      // position/size/orientation exactly, so it's directly inspectable rather than inferred.
+      if (light.isRectAreaLight) {
+        const quad = new THREE.Mesh(
+          new THREE.PlaneGeometry(light.width, light.height),
+          new THREE.MeshBasicMaterial({ color: 0xffff00, wireframe: true, side: THREE.DoubleSide }),
+        );
+        quad.position.copy(light.position);
+        quad.quaternion.copy(light.quaternion);
+        quad.visible = showRectDebugQuads;
+        scene.add(quad);
+        rectDebugQuads.push(quad);
+      }
+    }
+  }
 }
 
 function buildStaticScene(planeHeight) {
@@ -185,7 +241,7 @@ function buildStaticScene(planeHeight) {
 
   plane = new THREE.Mesh(
     new THREE.PlaneGeometry(PLANE_WIDTH, planeHeight),
-    new THREE.MeshBasicMaterial({ map: useTestPattern ? testPatternTexture : videoTexture }),
+    new THREE.MeshBasicMaterial({ map: sourceMode === 'video' ? videoTexture : testPatterns[sourceMode].texture }),
   );
   plane.position.z = FRAME_Z;
   scene.add(plane);
@@ -300,7 +356,7 @@ const sampleCtx = sampleCanvas.getContext('2d', { willReadFrequently: true });
 const smoother = new Smoother();
 
 function sampleVideoFrame() {
-  if (useTestPattern) return testPatternImageData;
+  if (sourceMode !== 'video') return testPatterns[sourceMode].imageData;
   if (video.readyState < video.HAVE_CURRENT_DATA || video.videoWidth === 0) return null;
 
   const sampleHeight = Math.round(SAMPLE_WIDTH * (video.videoHeight / video.videoWidth));
@@ -320,7 +376,9 @@ function animate() {
     for (const zoneFrame of frame) {
       const target = zoneLights.find((z) => z.zoneId === zoneFrame.zoneId);
       if (!target) continue;
-      target.light.color.setRGB(zoneFrame.color.r / 255, zoneFrame.color.g / 255, zoneFrame.color.b / 255);
+      for (const light of target.lights) {
+        light.color.setRGB(zoneFrame.color.r / 255, zoneFrame.color.g / 255, zoneFrame.color.b / 255);
+      }
     }
   }
 
@@ -352,15 +410,20 @@ boundsToggleButton.addEventListener('click', () => {
   boundsToggleButton.textContent = showBackdropBounds ? 'Hide backdrop bounds' : 'Show backdrop bounds';
 });
 
+const rectDebugToggleButton = document.getElementById('toggle-rect-debug');
+rectDebugToggleButton.addEventListener('click', () => {
+  showRectDebugQuads = !showRectDebugQuads;
+  for (const quad of rectDebugQuads) quad.visible = showRectDebugQuads;
+  rectDebugToggleButton.textContent = showRectDebugQuads ? 'Hide rect-light quads' : 'Show rect-light quads';
+});
+
 document.getElementById('light-rig').addEventListener('change', (event) => {
   currentRigType = event.target.value;
   buildLights();
 });
 
-const testPatternButton = document.getElementById('toggle-test-pattern');
-testPatternButton.addEventListener('click', () => {
-  useTestPattern = !useTestPattern;
-  plane.material.map = useTestPattern ? testPatternTexture : videoTexture;
+document.getElementById('source-mode').addEventListener('change', (event) => {
+  sourceMode = event.target.value;
+  plane.material.map = sourceMode === 'video' ? videoTexture : testPatterns[sourceMode].texture;
   plane.material.needsUpdate = true;
-  testPatternButton.textContent = useTestPattern ? 'Use real video' : 'Use rainbow test pattern';
 });
