@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { RectAreaLightUniformsLib } from 'three/addons/lights/RectAreaLightUniformsLib.js';
 import { zoneMap } from './zonemap.js';
 import { composeFrame } from './processing.js';
@@ -124,7 +125,9 @@ let showGrid = false; // off by default -- see the toggle button wiring below
 let showBackdropBounds = true; // on by default while the backdrop's actual size is being tuned
 let showRectDebugQuads = true; // RectAreaLight has no visible geometry of its own otherwise
 let rectDebugQuads = [];
-let currentRigType = 'point';
+let currentRigType = 'rectArea'; // 'point' kept in code (buildPointLights below) but no longer offered in the dropdown
+let roomModel = null; // THREE.Group, loaded once via GLTFLoader and reused across mode switches
+let roomModelLoading = null;
 let currentHalfW = PLANE_WIDTH / 2;
 let currentHalfH = DEFAULT_PLANE_HEIGHT / 2;
 
@@ -208,7 +211,10 @@ function buildLights() {
   }
   rectDebugQuads = [];
 
-  zoneLights = currentRigType === 'rectArea' ? buildRectAreaLights() : buildPointLights();
+  if (currentRigType === 'rectArea') zoneLights = buildRectAreaLights();
+  // 'point' stays reachable in code (not the dropdown) for reference/comparison.
+  else if (currentRigType === 'point') zoneLights = buildPointLights();
+  else zoneLights = []; // 'room': not wired up yet -- the model has no light data to hook up to (see plan step 3)
 
   for (const { lights } of zoneLights) {
     for (const light of lights) {
@@ -229,6 +235,58 @@ function buildLights() {
       }
     }
   }
+}
+
+// TV_Room.glb's own 4 KHR_lights_punctual lights ride along on gltf.scene as real PointLights --
+// not driven by the output pipeline yet, see buildLights()'s 'room' branch.
+const gltfLoader = new GLTFLoader();
+const roomStatus = document.getElementById('room-status');
+
+function setRoomStatus(text) {
+  roomStatus.textContent = text;
+  roomStatus.hidden = !text;
+}
+
+// Loads the model once and reuses it across mode switches -- toggling the dropdown back and
+// forth shouldn't re-fetch/re-parse a multi-MB glb every time.
+function ensureRoomModelLoaded() {
+  if (!roomModelLoading) {
+    setRoomStatus('Loading TV_Room.glb...');
+    roomModelLoading = gltfLoader.loadAsync('assets/TV_Room.glb').then((gltf) => {
+      roomModel = gltf.scene;
+      roomModel.visible = false; // shown explicitly by the caller once ready
+      scene.add(roomModel);
+      setRoomStatus('');
+    }).catch((error) => {
+      console.error('Failed to load TV_Room.glb', error);
+      setRoomStatus('Failed to load TV_Room.glb -- see console');
+      roomModelLoading = null; // allow a retry on the next mode switch
+    });
+  }
+  return roomModelLoading;
+}
+
+// Fits the camera to the model's actual bounding box -- the flat demo's FRAME_Z/fitCameraToFrame
+// math assumes the arbitrary flat-scene scale, not the room's real (meter-scale) geometry.
+function frameCameraToRoom() {
+  if (!roomModel) return;
+  const box = new THREE.Box3().setFromObject(roomModel);
+  const center = box.getCenter(new THREE.Vector3());
+  const size = box.getSize(new THREE.Vector3());
+  const radius = Math.max(size.x, size.y, size.z) / 2;
+  const vFov = THREE.MathUtils.degToRad(camera.fov / 2);
+  const distance = (radius / Math.tan(vFov)) * FIT_MARGIN;
+  camera.position.set(center.x, center.y, center.z + distance);
+  controls.target.copy(center);
+}
+
+// Hides/shows the flat video+backdrop scene as a group, respecting the grid/bounds toggles'
+// own on/off state rather than forcing them on whenever the flat scene becomes visible again.
+function setFlatSceneVisible(visible) {
+  if (plane) plane.visible = visible;
+  if (gridLines) gridLines.visible = visible && showGrid;
+  if (backdrop) backdrop.visible = visible;
+  if (backdropOutline) backdropOutline.visible = visible && showBackdropBounds;
 }
 
 function buildStaticScene(planeHeight) {
@@ -274,6 +332,13 @@ function buildStaticScene(planeHeight) {
   rebuildBackdrop();
 
   buildLights();
+
+  // A late video-metadata rebuild can land after the user's already switched to room mode --
+  // undo the flat-camera move and re-hide the flat scene this function just did.
+  if (currentRigType === 'room') {
+    setFlatSceneVisible(false);
+    frameCameraToRoom();
+  }
 }
 
 // Opaque over the video's own footprint, feathering to transparent at the backdrop's true
@@ -390,8 +455,12 @@ animate();
 
 window.addEventListener('resize', () => {
   camera.aspect = window.innerWidth / window.innerHeight;
-  fitCameraToFrame(); // aspect changed, so the fit distance needs recomputing too
-  rebuildBackdrop(); // its perspective-corrected size depends on that same fit distance
+  if (currentRigType === 'room') {
+    frameCameraToRoom(); // no-op until the model's loaded; harmless
+  } else {
+    fitCameraToFrame(); // aspect changed, so the fit distance needs recomputing too
+    rebuildBackdrop(); // its perspective-corrected size depends on that same fit distance
+  }
   camera.updateProjectionMatrix();
   renderer.setSize(window.innerWidth, window.innerHeight);
 });
@@ -420,6 +489,21 @@ rectDebugToggleButton.addEventListener('click', () => {
 document.getElementById('light-rig').addEventListener('change', (event) => {
   currentRigType = event.target.value;
   buildLights();
+
+  const isRoom = currentRigType === 'room';
+  setFlatSceneVisible(!isRoom);
+
+  if (isRoom) {
+    ensureRoomModelLoaded()?.then(() => {
+      if (currentRigType !== 'room' || !roomModel) return; // switched away (or load failed) while loading
+      roomModel.visible = true;
+      frameCameraToRoom();
+    });
+  } else if (roomModel) {
+    roomModel.visible = false;
+    fitCameraToFrame();
+    controls.target.set(0, 0, FRAME_Z);
+  }
 });
 
 document.getElementById('source-mode').addEventListener('change', (event) => {

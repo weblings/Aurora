@@ -27,6 +27,9 @@
       }
     }
   </script>
+  <style>
+    #room-status { position: fixed; left: 16px; top: 216px; z-index: 1; font: 14px system-ui, sans-serif; color: #e8eaf0; }
+  </style>
 </head>
 <body>
   <button id="toggle-grid" type="button">Show zone grid</button>
@@ -38,9 +41,10 @@
     <option value="white">White test pattern</option>
   </select>
   <select id="light-rig">
-    <option value="point" selected>Point lights (edges)</option>
-    <option value="rectArea">Rect-area lights (edges)</option>
+    <option value="rectArea" selected>Rect-area lights (edges)</option>
+    <option value="room">TV Room (3D model)</option>
   </select>
+  <div id="room-status" hidden></div>
   <script type="module" src="main.js"></script>
 </body>
 </html>
