@@ -2,6 +2,9 @@
 
 #include <glm/common.hpp>
 
+// Hand-ported to JS in ../../../web-processing/smoother.js -- see
+// ../../../CLAUDE.md before changing the easing formula, the JS mirror likely needs it too.
+
 namespace Aurora::Runtime
 {
   namespace

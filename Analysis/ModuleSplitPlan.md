@@ -141,8 +141,10 @@ conflate these:**
 - Genuine license independence for one plugin from another requires them to
   run as **separate processes** communicating over an interface (sockets,
   HTTP), not just separate repos or separate `.so`/`.dll` files still loaded
-  into one running program. `web/`'s planned browser client already qualifies,
-  by accident of its architecture (phase 3) — `core`-linked plugins don't.
+  into one running program. `Aurora-Demo-Web` (2026-09-14, split into its own
+  repo — see `ImplementationPlan.md`'s Phase 3) already qualifies, by
+  accident of its architecture (a browser tab, not a linked binary) —
+  `core`-linked plugins don't.
 
 **Structure**: Aurora core exposes only `Contracts` + header-only
 `AuroraInputInterface`/`AuroraOutputInterface` targets. Each plugin repo

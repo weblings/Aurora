@@ -48,11 +48,16 @@ Aurora's own module boundaries instead of RockyRoad's.
   process started from this Bash environment reporting a different PID
   than Windows sees, needing `/F`/image-name `taskkill` to stop reliably,
   a C library's own example code taking the address of a compound
-  literal — a legal lvalue in C, an illegal prvalue in C++, and two modes
+  literal — a legal lvalue in C, an illegal prvalue in C++, two modes
   producing the same surface symptom (colors clustered on a wheel) for
   completely different reasons — diffing the wrong mode's pipeline against
   a reference can look thorough and come back clean at every step without
-  ever being the actual explanation.
+  ever being the actual explanation — and (from `Aurora-Demo-Web`'s Three.js
+  light rigs) `RectAreaLight` having no `distance`/`decay` at all — coupling
+  brightness to reach — falloff shape and a hard visual boundary being two
+  separate jobs (the latter needs a mask, not tighter falloff), and matching
+  apparent size across two camera depths needing the distance *ratio*, not a
+  flat world-space offset.
 - [`output.md`](output.md) — streaming/protocol gotchas: a bridge having more
   than one entertainment configuration over the same lights being normal,
   not an edge case (empty-ID auto-select isn't "the only one"),

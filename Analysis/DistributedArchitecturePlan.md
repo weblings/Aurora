@@ -87,7 +87,7 @@ turns out to matter in practice).
 Tracing these against `OpenFormatsResearch.md`'s findings clarifies the
 seam question rather than sitting outside it:
 
-- A VJ app's live output (NDI/Syphon/Spout) is just **another `IInput`** —
+- A VJ app's live output (NDI/Syphon/Spout) is just **another `IVideoInput`** —
   same shape as `X11Grabber`, feeding real content into Processing instead
   of a captured desktop.
 - Forwarding Aurora's `Frame` to Art-Net/sACN/OSC so a lighting console can
@@ -106,24 +106,103 @@ question: **`Output` doesn't care where a `Frame` came from** — live
 capture+crop, a VJ console, or a pre-authored cue file all look identical
 by the time they reach it. `Orchestrator` should eventually accept a
 `Frame` from more than one kind of upstream source (live-composited via
-`IInput`, or handed directly by an authored-track/VJ bridge), not assume
+`IVideoInput`, or handed directly by an authored-track/VJ bridge), not assume
 every `Frame` originates from a crop step. This is true regardless of
 which seam-count answer wins above.
 
 ## What this means for today's work
 
 `Aurora-App-Linux` now exists — a single local process, no network code
-yet. Nothing in `IInput`/`IOutput`/`Orchestrator`'s current
-shape commits to either seam count: they're already clean interfaces, not
-things wired together in a way that would need undoing. The registry/
-config-driven plugin-selection work (see the "app" repo discussion) is
-orthogonal to seam count too — it's about *which* plugins run, not how
-many network hops separate them.
+yet. Nothing in `IVideoInput`/`IAudioInput`/`IOutput`/`Orchestrator`'s
+current shape commits to either seam count: they're already clean
+interfaces, not things wired together in a way that would need undoing.
+The registry/config-driven plugin-selection work (see the "app" repo
+discussion) is orthogonal to seam count too — it's about *which* plugins
+run, not how many network hops separate them.
 
 The one concrete principle worth carrying forward while building: don't
 bake in an assumption that a `Frame` always comes from `composeFrame`.
 Keeping that entry point open is cheap now and expensive to retrofit later,
 regardless of how the seam-count question eventually resolves.
+
+## `Contracts` vs. the `IVideoInput`/`IAudioInput`/`IOutput` interfaces — two different layers, easy to conflate
+
+Reasoned through while considering web/mobile shapes, worth stating
+precisely since it looked contradictory before being separated out:
+
+- **`Contracts`** (`ImageData`, `AudioBuffer`, `Frame`, `Zone`, `Color`,
+  `AudioFeatures`) are plain data shapes. This is the thing that has to
+  stay consistent across *every* deployment shape below, always crossing
+  as data — a struct in memory, or its JSON-equivalent shape over a wire.
+- **`IVideoInput`/`IAudioInput`/`IOutput`** are C++ virtual interfaces — a
+  compiled-language mechanism for how `Registry` wires plugins together
+  *within one process*. They never cross a process or language boundary in
+  any of the shapes below, native-only or not — you can't invoke a C++
+  virtual method from another language or another machine any more than
+  you could from JS across a network.
+
+So a browser (or a future mobile client, or a remote capture device) never
+needs to "implement `IVideoInput`" — that was never the mechanism it would
+use. Its job is producing/consuming data shaped like `Contracts`' types,
+then serializing it. The interfaces are a within-process implementation
+detail; `Contracts` is the actual cross-boundary agreement, and it's the
+only thing every shape below has in common.
+
+## Probable shapes, given the platforms actually under consideration
+
+Not a decision — an inventory of what the existing Input/Processing/Output
+split plus `Contracts` already seems to accommodate, reasoned through
+directly against real platform constraints (web's permission/execution
+model, Hue's own API limits — see `BrowserAnalysis.md` for the Hue-specific
+findings) rather than staying abstract. None of these need a new
+architecture; each is a new *implementation* of the existing three roles,
+optionally split across a process/network boundary using `Contracts` as
+the wire format when they are split.
+
+1. **Native standalone** (built today, Windows/Linux) — capture+process+
+   output, one process, no network seam at all.
+2. **Native backend + remote web/mobile client** — an always-on native
+   process exposes a relay endpoint; a thin client (a browser tab, a phone
+   app) reaches it over the LAN for control/visualization/relay.
+   Credentials stay native-side. The concrete case: a GitHub Pages-hosted
+   page `fetch()`-ing an already-running native Aurora app (see
+   `BrowserAnalysis.md`).
+3. **Fully self-contained web/mobile demo** — its own Input (a file, not
+   live capture), own Processing (JS or WASM), own Output (Three.js/canvas)
+   — genuinely standalone, genuinely can't reach real bulbs, by design not
+   as a limitation to fix. The decided Phase 3 demo strategy — see
+   `BrowserAnalysis.md`.
+4. **Cast/mirror-fed native backend** — a phone casts (AirPlay/Chromecast/
+   Miracast, already-solved OS-native mechanisms) to a new native
+   `IVideoInput` that receives the stream, feeding the same always-on
+   pipeline as shape 1. Mobile never runs Aurora's own code in this shape,
+   and never fights OS background-execution limits, since it never needs
+   to run anything in the background at all.
+5. **Full native stack on-device (mobile)** — genuinely mirrors shape 1 on
+   a phone: capture (Android `MediaProjection`, iOS `ReplayKit`), process,
+   and output (real UDP/DTLS is possible here — a native mobile app isn't
+   sandboxed the way a browser tab is) all on-device. Not yet explored in
+   any depth; the known obstacles (a foreground service + persistent
+   notification on Android while capturing, a ~50MB memory ceiling for
+   iOS's broadcast extension) are established, solved patterns other
+   screen-recording apps already ship with, not open research questions —
+   meaningfully more promising than the browser case, which hits a hard
+   platform ceiling (no raw UDP API) that native mobile code doesn't have.
+6. **Remote low-power capture device** — the concrete case the "double
+   seam" argument above already named: Input runs on cheap/remote
+   hardware, ships `Contracts`-shaped data to wherever Processing/Output
+   actually live. The inverse seam placement from shape 2 (there, a thin
+   client relays *to* Processing/Output; here, Input is the remote thin
+   end).
+
+The throughline worth naming explicitly: as more platforms get considered,
+*more* of them land in the asymmetric client/relay bucket (shapes 2-4, 6),
+not fewer — shape 1's "one self-hosted native brain" looks less like the
+default case and more like a special case Windows/Linux happen to share.
+That's a real, structural reason the one-seam-vs-double-seam question below
+may not have one global answer at all — it may be a per-platform choice,
+which argues for continuing to defer a single definitive network-shape
+decision rather than generalizing from the two platforms built so far.
 
 ## Related docs
 
@@ -136,9 +215,10 @@ regardless of how the seam-count question eventually resolves.
   follow-up to it.
 - `ImplementationPlan.md` — the WebSockets stretch goal this question
   actually needs resolving before.
-- `BrowserAnalysis.md` — a phase 3 browser video-upload idea that lands a
-  concrete, non-hypothetical example on the seam question above (a browser
-  tab as a partial `IInput`/`Processing` source), rather than resolving it.
+- `BrowserAnalysis.md` — the decided Phase 3 demo strategy (shape 3 above),
+  the Hue-API-throughput findings behind why the Entertainment API can't
+  run in a browser, and the corrected GitHub Pages/Local Network Access
+  finding behind shape 2's concrete example.
 - `StackComparison.md` — the `ImageData` seam built so far, shown as real
   data flow across huenicorn and both current Aurora platforms rather than
   described in the abstract. Doesn't resolve the seam-count question above —
