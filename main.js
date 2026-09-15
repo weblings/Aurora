@@ -5,6 +5,7 @@ import { RectAreaLightUniformsLib } from 'three/addons/lights/RectAreaLightUnifo
 import { zoneMap } from './zonemap.js';
 import { composeFrame } from './processing.js';
 import { Smoother } from './smoother.js';
+import { dbToLinear, computeRms, OnsetDetector } from './audioFeatures.js';
 
 RectAreaLightUniformsLib.init(); // required once for RectAreaLight to shade correctly
 
@@ -100,11 +101,70 @@ document.body.appendChild(video);
 const videoTexture = new THREE.VideoTexture(video);
 videoTexture.colorSpace = THREE.SRGBColorSpace;
 
+// Hand-rolled against AnalyserNode rather than aubio-via-WASM or BeatDetector -- see
+// Analysis/AudioAnalysis.md; audioFeatures.js has the ported/tested pure math.
+const audioTrack = new Audio('assets/Electro Cabello.mp3');
+audioTrack.loop = true;
+
+const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+const analyser = audioContext.createAnalyser();
+analyser.fftSize = 1024; // matches AudioFeatureExtractor's default bufSize -- comparable bin resolution
+analyser.smoothingTimeConstant = 0; // OnsetDetector does its own rolling-average smoothing (see audioFeatures.js)
+// createMediaElementSource silently reroutes the element's own audio output through this graph --
+// connecting to destination is required for audioTrack to actually be audible at all.
+audioContext.createMediaElementSource(audioTrack).connect(analyser).connect(audioContext.destination);
+
+const onsetDetector = new OnsetDetector();
+const freqDataDb = new Float32Array(analyser.frequencyBinCount);
+const freqDataLinear = new Float32Array(analyser.frequencyBinCount);
+const timeData = new Float32Array(analyser.fftSize);
+let audioHueDegrees = 0; // simple placeholder color response -- not yet the real ported updateDrift/updateBounce
+
+function setAudioPlaying(playing) {
+  if (!playing) return audioTrack.pause();
+  // AudioContext needs the same user-gesture unlock video/audio elements do -- resume() is a
+  // no-op once already running, so calling it every time this fires is harmless.
+  audioContext.resume();
+  audioTrack.play().catch(() => {
+    document.body.addEventListener('click', () => { if (sourceMode === 'audio') audioTrack.play(); }, { once: true });
+  });
+}
+
+// Reads the real AnalyserNode data and broadcasts one shared color to every zone light, matching
+// native's AudioOrchestrator shape (no per-zone spatial concept) rather than the video path's
+// per-zone sampling. Called from animate() only while sourceMode === 'audio'.
+function driveLightsFromAudio() {
+  analyser.getFloatFrequencyData(freqDataDb);
+  for (let i = 0; i < freqDataDb.length; i++) freqDataLinear[i] = dbToLinear(freqDataDb[i]);
+  analyser.getFloatTimeDomainData(timeData);
+
+  const rms = computeRms(timeData);
+  const { onsetDetected, onsetStrength } = onsetDetector.process(freqDataLinear, audioContext.currentTime);
+  // computeSpectralCentroid is ready (see audioFeatures.js) but not wired in yet -- the real
+  // updateDrift port is what would consume it, per AudioProcessing.hpp's centroidStrength knob.
+
+  // Placeholder color model, not the real ported updateDrift/updateBounce (six-anchor-pair
+  // palette, HSV shortest-arc damping) -- a separate follow-up port, deliberately simplified here.
+  if (onsetDetected) audioHueDegrees = (audioHueDegrees + 30 + onsetStrength * 60) % 360;
+  const brightness = Math.min(1, 0.4 + rms * 1.5); // 0.4 floor so it's never fully dark
+  const audioColor = new THREE.Color().setHSL(audioHueDegrees / 360, 0.9, 0.5 * brightness);
+
+  for (const { lights } of zoneLights) {
+    for (const light of lights) light.color.copy(audioColor);
+  }
+}
+
+// Read from the DOM, not hardcoded -- browsers restore a <select>'s displayed value across a
+// reload on their own, independent of any JS/HTML default; reading it back keeps state in sync
+// with what's actually shown instead of needing a manual re-click to take effect.
+const lightRigSelect = document.getElementById('light-rig');
+const sourceModeSelect = document.getElementById('source-mode');
+
 // Deterministic source modes for verifying the per-zone data pipeline and the light rig's
 // own behavior independent of real video content -- see the dropdown wiring below.
 // 'rainbow' checks per-zone color identification; 'white' isolates the light rig's own
 // falloff/brightness symmetry, since every zone samples the exact same input color.
-let sourceMode = 'video';
+let sourceMode = sourceModeSelect.value;
 const testPatterns = {}; // mode -> { imageData, texture }, built once below
 
 // Same 3x3 layout as zonemap.js -- lets a pattern assign a value per grid cell directly.
@@ -138,6 +198,44 @@ testPatterns.rainbow = buildPatternCanvas((row, col) => {
 });
 testPatterns.white = buildPatternCanvas(() => '#ffffff');
 
+// The texture uses the image at its own full resolution (like videoTexture does) -- only the
+// zone-averaging imageData needs the small SAMPLE_WIDTH canvas real video also downscales to.
+function loadImagePattern(url) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => {
+      const sampleCanvas = document.createElement('canvas');
+      sampleCanvas.width = SAMPLE_WIDTH;
+      sampleCanvas.height = Math.round(SAMPLE_WIDTH * (img.height / img.width));
+      const sampleCtx = sampleCanvas.getContext('2d');
+      sampleCtx.drawImage(img, 0, 0, sampleCanvas.width, sampleCanvas.height);
+      const imageData = sampleCtx.getImageData(0, 0, sampleCanvas.width, sampleCanvas.height);
+
+      const texture = new THREE.Texture(img);
+      texture.colorSpace = THREE.SRGBColorSpace;
+      texture.needsUpdate = true; // THREE.Texture doesn't auto-upload on construction
+      resolve({ imageData, texture });
+    };
+    img.onerror = reject;
+    img.src = url;
+  });
+}
+
+// Placeholder until the real jpg loads (near-instant locally, but 'audio' could already be the
+// active mode at this point via the same browser dropdown-restoration this file works around).
+testPatterns.audio = buildPatternCanvas(() => '#000000');
+loadImagePattern('assets/ElectricCabello.jpg').then((pattern) => {
+  testPatterns.audio = pattern;
+  delete tvScreenTextures.audio; // the cached clone (if any) still points at the placeholder
+  if (sourceMode !== 'audio') return;
+  plane.material.map = pattern.texture;
+  plane.material.needsUpdate = true;
+  if (tvScreenMesh) {
+    tvScreenMesh.material.map = getTvScreenTexture('audio');
+    tvScreenMesh.material.needsUpdate = true;
+  }
+}).catch((error) => console.error('Failed to load ElectricCabello.jpg', error));
+
 // Rebuilt whenever the plane's real aspect ratio is known (see 'loadedmetadata' below),
 // since a bundled/uploaded video isn't guaranteed to be exactly 16:9.
 let plane, gridLines, backdrop, backdropOutline;
@@ -146,7 +244,7 @@ let showGrid = false; // off by default -- see the toggle button wiring below
 let showBackdropBounds = true; // on by default while the backdrop's actual size is being tuned
 let showRectDebugQuads = true; // RectAreaLight has no visible geometry of its own otherwise
 let rectDebugQuads = [];
-let currentRigType = 'rectArea'; // 'point' kept in code (buildPointLights below) but no longer offered in the dropdown
+let currentRigType = lightRigSelect.value; // 'point' kept in code (buildPointLights below) but no longer offered in the dropdown
 let roomModel = null; // THREE.Group, loaded once via GLTFLoader and reused across mode switches
 let roomModelLoading = null;
 let roomZoneLights = []; // computed once on load by assignRoomZoneLights(), see buildLights()
@@ -561,23 +659,28 @@ function sampleVideoFrame() {
 }
 
 function animate() {
-  const imageData = sampleVideoFrame();
-  if (imageData) {
-    // Room mode drives 4 quadrant zones (ROOM_ZONE_MAP), not the flat rigs' 8-zone zonemap.js.
-    const activeZoneMap = currentRigType === 'room' ? ROOM_ZONE_MAP : zoneMap;
-    const frame = smoother.smooth(composeFrame(imageData, activeZoneMap), SMOOTHING);
-    for (const zoneFrame of frame) {
-      const target = zoneLights.find((z) => z.zoneId === zoneFrame.zoneId);
-      if (!target) continue;
-      for (const light of target.lights) {
-        light.color.setRGB(zoneFrame.color.r / 255, zoneFrame.color.g / 255, zoneFrame.color.b / 255);
+  if (sourceMode === 'audio') {
+    driveLightsFromAudio();
+  } else {
+    const imageData = sampleVideoFrame();
+    if (imageData) {
+      // Room mode drives 4 quadrant zones (ROOM_ZONE_MAP), not the flat rigs' 8-zone zonemap.js.
+      const activeZoneMap = currentRigType === 'room' ? ROOM_ZONE_MAP : zoneMap;
+      const frame = smoother.smooth(composeFrame(imageData, activeZoneMap), SMOOTHING);
+      for (const zoneFrame of frame) {
+        const target = zoneLights.find((z) => z.zoneId === zoneFrame.zoneId);
+        if (!target) continue;
+        for (const light of target.lights) {
+          light.color.setRGB(zoneFrame.color.r / 255, zoneFrame.color.g / 255, zoneFrame.color.b / 255);
+        }
       }
     }
-
-    // Emissive, not diffuse -- angle-independent, so every face glows regardless of whether
-    // this light's direction actually reaches it (see LAMP_SHADE_EMISSIVE_INTENSITY above).
-    for (const { mesh, light } of roomLampShades) mesh.material.emissive.setRGB(1, 1, 1).lerp(light.color, 0.95);
   }
+
+  // Shared by both paths above -- each shade reads back its own already-updated light's color.
+  // Emissive, not diffuse -- angle-independent, so every face glows regardless of whether this
+  // light's direction actually reaches it (see LAMP_SHADE_EMISSIVE_INTENSITY above).
+  for (const { mesh, light } of roomLampShades) mesh.material.emissive.setRGB(1, 1, 1).lerp(light.color, 0.95);
 
   controls.update();
   renderer.render(scene, camera);
@@ -618,8 +721,10 @@ rectDebugToggleButton.addEventListener('click', () => {
   rectDebugToggleButton.textContent = showRectDebugQuads ? 'Hide rect-light quads' : 'Show rect-light quads';
 });
 
-document.getElementById('light-rig').addEventListener('change', (event) => {
-  currentRigType = event.target.value;
+// Shared by the change listener and the startup call below -- a page load that lands on
+// 'room' (browser-restored dropdown) needs the same load/show/camera work a real switch does.
+function activateLightRig(newType) {
+  currentRigType = newType;
   buildLights();
 
   const isRoom = currentRigType === 'room';
@@ -637,9 +742,11 @@ document.getElementById('light-rig').addEventListener('change', (event) => {
     fitCameraToFrame();
     controls.target.set(0, 0, FRAME_Z);
   }
-});
+}
+lightRigSelect.addEventListener('change', (event) => activateLightRig(event.target.value));
+activateLightRig(currentRigType); // in case the browser restored 'room' on reload, not just the label
 
-document.getElementById('source-mode').addEventListener('change', (event) => {
+sourceModeSelect.addEventListener('change', (event) => {
   sourceMode = event.target.value;
   plane.material.map = sourceMode === 'video' ? videoTexture : testPatterns[sourceMode].texture;
   plane.material.needsUpdate = true;
@@ -647,4 +754,6 @@ document.getElementById('source-mode').addEventListener('change', (event) => {
     tvScreenMesh.material.map = getTvScreenTexture(sourceMode);
     tvScreenMesh.material.needsUpdate = true;
   }
+  setAudioPlaying(sourceMode === 'audio');
 });
+setAudioPlaying(sourceMode === 'audio'); // in case the browser restored 'audio' on reload
