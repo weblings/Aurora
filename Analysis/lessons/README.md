@@ -50,11 +50,18 @@ Aurora's own module boundaries instead of RockyRoad's. `rendering-apis.md` vs.
   process started from this Bash environment reporting a different PID
   than Windows sees, needing `/F`/image-name `taskkill` to stop reliably,
   and a C library's own example code taking the address of a compound
-  literal — a legal lvalue in C, an illegal prvalue in C++, and two modes
+  literal — a legal lvalue in C, an illegal prvalue in C++, two modes
   producing the same surface symptom (colors clustered on a wheel) for
   completely different reasons — diffing the wrong mode's pipeline against
   a reference can look thorough and come back clean at every step without
-  ever being the actual explanation.
+  ever being the actual explanation, `AnalyserNode`'s frequency-domain
+  getters returning dB with internal smoothing baked in rather than linear
+  magnitude (checked the real spec, not assumed), and a synthetic DSP test
+  signal needing the same preprocessing (windowing) the real pipeline
+  applies, or a correct implementation can still fail its own test, and
+  brightness lag reading as "boring"/unreactive in a beat-driven light
+  response far more than hue lag does, when A/B-tuning smoothing time
+  constants.
 - [`rendering-apis.md`](rendering-apis.md) — third-party Three.js/GLTFLoader/Blender-export
   facts: `RectAreaLight` having no `distance`/`decay` at all (coupling brightness to reach),
   Blender's glTF export dropping light data unless "Punctual Lights" is checked (and never

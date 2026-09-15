@@ -366,6 +366,31 @@ assuming, verified this session:
   small, real, not yet implemented (no such server exists yet at all; this
   is Phase 3's own prerequisite, see `ImplementationPlan.md`).
 
+## Follow-up: backport the demo's audio color-model A/B tuning to Windows/Linux -- not started
+
+`Aurora-Demo-Web` ended up building a real hand-ported `updateDrift`/`updateBounce`
+(`web-processing/colorModel.js`, tested against all 12 of `AudioProcessingTests.cpp`'s
+cases) alongside native's own defaults, plus a "tuned" preset (faster `bounceSmoothTime`/
+`brightnessSmoothTime`, higher `dynamismFloor`/`driftBaseRateDegPerSec`) that reads
+noticeably better on a screen than native's own listening-tuned-for-real-bulbs defaults.
+Worth actually comparing the same tuning on real Hue bulbs, not just assuming a screen
+preference transfers.
+
+**Verified this needs zero code changes on either app** -- `Config`/`ConfigStore` already
+persist every `AudioEffectSettings` field as plain `config.json` keys (`audioBounceSmoothTime`,
+`audioBrightnessSmoothTime`, `audioDynamismFloor`, `audioDriftBaseRateDegPerSec`, ...), and
+both `Aurora-App-Windows` and `Aurora-App-Linux`'s `main.cpp` build `AudioEffectSettings`
+fresh from `Config` on every run (confirmed in both, not assumed). The comparison is:
+edit `config.json`'s audio keys to the tuned values, restart, watch the real bulbs, edit
+back to defaults, restart again. Sequential, not simultaneous -- `Config` is only loaded
+once at startup, no live-reload exists.
+
+**Two real preconditions to check before running it**, not yet verified: `useAudioMode`
+needs `activeInputName` empty and `activeAudioInputName` set (e.g. `"windows-audio"`) in
+`config.json`, and the app needs to have actually been built with its audio-grabber flag
+enabled (`AURORA_INPUT_WINDOWS_AUDIO_AVAILABLE` / the Linux equivalent) -- getting audio
+mode running at all is a separate first step from the tuning comparison itself.
+
 ## Related docs
 
 - `Analysis/AudioAnalysis.md` — the aubio verification pass and
