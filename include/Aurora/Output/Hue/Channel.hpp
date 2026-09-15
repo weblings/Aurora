@@ -16,7 +16,8 @@ namespace Aurora::Output::Hue
   using Channels = std::unordered_map<uint8_t, Channel>;
 
   // One channel's color entry for Streamer::streamChannels() -- r/g/b are
-  // XYB components (x, y, brightness) by the time they reach here, not RGB.
+  // gamma-corrected RGB, matching huenicorn's actual live wire format (see
+  // Analysis/lessons -- an earlier version sent XYB instead).
   struct ChannelStream
   {
     uint8_t id;

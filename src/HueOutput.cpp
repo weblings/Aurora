@@ -2,16 +2,17 @@
 
 #include <glm/exponential.hpp>
 
-#include <Aurora/Output/Hue/Colorimetry.hpp>
-
 namespace Aurora::Output::Hue
 {
+  // RGB mode, matching huenicorn's actual live behavior -- not the XYB
+  // conversion Colorimetry.cpp offers (huenicorn has that code too, but
+  // never calls it; see Analysis/lessons). Gamma applies to all three
+  // channels together, same as huenicorn's Channel::gammaExponent() use.
   ChannelStream toChannelStream(const Contracts::Zone& zone)
   {
-    glm::vec3 xyb = toXYB(zone.color);
-    xyb.z = glm::pow(xyb.z, gammaExponent(zone.gamma));
+    glm::vec3 corrected = glm::pow(zone.color.toNormalized(), glm::vec3(gammaExponent(zone.gamma)));
 
-    return ChannelStream{zone.id, xyb.x, xyb.y, xyb.z};
+    return ChannelStream{zone.id, corrected.r, corrected.g, corrected.b};
   }
 
 

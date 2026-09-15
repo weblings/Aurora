@@ -17,7 +17,9 @@ namespace Aurora::Output::Hue
     char version[2] = {0x02, 0x00};
     char sequenceId = 0;
     char reserved1[2] = {0, 0};
-    char colorSpace = static_cast<char>(ColorSpace::XYB);
+    // huenicorn's own live default (Streamer.hpp's HuestreamHeader) -- its
+    // colorSpace never actually changes from this at any call site.
+    char colorSpace = static_cast<char>(ColorSpace::RGB);
     char reserved2 = 0;
     char entertainmentConfigurationId[36];
 

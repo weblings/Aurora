@@ -7,20 +7,20 @@ using namespace Aurora::Contracts;
 using namespace Aurora::Output::Hue;
 
 
-TEST_CASE("toChannelStream converts RGB to XYB and gamma-corrects brightness", "[HueOutput]")
+TEST_CASE("toChannelStream converts RGB to normalized, gamma-corrected RGB", "[HueOutput]")
 {
   Zone zone{5, Color(255, 255, 255), 0.f};
   ChannelStream stream = toChannelStream(zone);
 
   CHECK(stream.id == 5);
-  // White, gamma 0 (no correction): matches toXYB's own white-point test.
-  CHECK(stream.r == Catch::Approx(0.3127f).margin(0.001f));
-  CHECK(stream.g == Catch::Approx(0.3290f).margin(0.001f));
+  // White, gamma 0 (exponent 2^0 == 1, a no-op): full-scale RGB straight through.
+  CHECK(stream.r == Catch::Approx(1.f));
+  CHECK(stream.g == Catch::Approx(1.f));
   CHECK(stream.b == Catch::Approx(1.f));
 }
 
 
-TEST_CASE("toChannelStream applies gamma only to the brightness component", "[HueOutput]")
+TEST_CASE("toChannelStream applies gamma to all three RGB channels equally", "[HueOutput]")
 {
   Zone flat{1, Color(128, 128, 128), 0.f};
   Zone gammaCorrected{1, Color(128, 128, 128), 1.f};
@@ -28,10 +28,13 @@ TEST_CASE("toChannelStream applies gamma only to the brightness component", "[Hu
   ChannelStream flatStream = toChannelStream(flat);
   ChannelStream correctedStream = toChannelStream(gammaCorrected);
 
-  // x/y (chromaticity) are unaffected by gamma -- only z (brightness) moves.
-  CHECK(flatStream.r == Catch::Approx(correctedStream.r));
-  CHECK(flatStream.g == Catch::Approx(correctedStream.g));
-  CHECK(flatStream.b != Catch::Approx(correctedStream.b));
+  // A gray input stays gray out -- gamma moves r/g/b together (huenicorn's
+  // RGB-mode behavior), not just one component (the old XYB-mode bug).
+  CHECK(flatStream.r == Catch::Approx(flatStream.g));
+  CHECK(flatStream.g == Catch::Approx(flatStream.b));
+  CHECK(correctedStream.r == Catch::Approx(correctedStream.g));
+  CHECK(correctedStream.g == Catch::Approx(correctedStream.b));
+  CHECK(flatStream.r != Catch::Approx(correctedStream.r));
 }
 
 
