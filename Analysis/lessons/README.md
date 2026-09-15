@@ -47,13 +47,20 @@ Aurora's own module boundaries instead of RockyRoad's.
   (aubio's default `tools` feature wanting ffmpeg; `[core]` avoids it), a
   process started from this Bash environment reporting a different PID
   than Windows sees, needing `/F`/image-name `taskkill` to stop reliably,
-  and a C library's own example code taking the address of a compound
-  literal — a legal lvalue in C, an illegal prvalue in C++.
+  a C library's own example code taking the address of a compound
+  literal — a legal lvalue in C, an illegal prvalue in C++, and two modes
+  producing the same surface symptom (colors clustered on a wheel) for
+  completely different reasons — diffing the wrong mode's pipeline against
+  a reference can look thorough and come back clean at every step without
+  ever being the actual explanation.
 - [`output.md`](output.md) — streaming/protocol gotchas: a bridge having more
   than one entertainment configuration over the same lights being normal,
-  not an edge case (empty-ID auto-select isn't "the only one"), and
+  not an edge case (empty-ID auto-select isn't "the only one"),
   `DtlsClient`'s handshake failure being swallowed by design so a clean
-  `HueOutput::init()` isn't proof a connection exists.
+  `HueOutput::init()` isn't proof a connection exists, and a reference
+  implementation's dead code (huenicorn's own unused `Color::toXY()`) being
+  mistaken for its live behavior during a port, sending real streaming
+  colors in the wrong wire colorspace (XYB instead of RGB) as a result.
 - [`input.md`](input.md) — capture/grabber gotchas: a non-blocking poll on an
   event-driven capture API (DXGI's `AcquireNextFrame`) starving on empty
   placeholder frames forever instead of ever returning real data, a

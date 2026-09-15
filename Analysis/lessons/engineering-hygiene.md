@@ -398,3 +398,35 @@ silently conflicting with a build setup already chosen deliberately for
 that project — worth checking for stray generated config files (`vcpkg.json`,
 `CMakePresets.json`, a `build/` full of unfamiliar cache entries) before
 trusting a confusing link/build error is actually about the code.
+
+---
+
+## Two symptoms that look identical (colors clustered together on a wheel) can have completely different causes if produced by different code paths
+
+A real-hardware vibrancy comparison against huenicorn led into an extended
+investigation of Aurora's *video* zone-mapping pipeline (crop UV
+coordinates, `getDominantColor`, subsample-then-crop ordering) diffed
+line-by-line against huenicorn's equivalent — all to explain why every
+light's dot landed clustered near the center of the Hue app's color wheel
+instead of spread out and saturated. All of it matched huenicorn
+byte-for-byte; none of it was the cause. The actual run being compared
+turned out to be in **audio-reactive mode**, not screen-capture mode —
+`AudioFrameCompositor::composeAudioFrame` intentionally broadcasts one
+shared color to every zone (`AudioOrchestrator` has "no per-zone spatial
+concept" by design, unlike video's `Orchestrator`), so lights clustering
+together on the wheel was expected behavior for that mode, not a
+zone-mapping bug at all — the video-pipeline diffing that produced it was a
+real, separate, and genuinely correct finding (see `output.md`'s RGB-vs-XYB
+entry), but it wasn't the explanation for *this* symptom.
+
+**Fix:** nothing code-side — the desaturation itself was real and got fixed
+(the RGB-vs-XYB colorspace bug, which affects both modes since they share
+`HueOutput::send()`), but the "why are all the dots clustered together"
+half of the observation needed no fix at all once which mode actually
+produced it was confirmed. General principle: before diagnosing why an
+observed symptom happened, confirm which code path actually produced the
+run being looked at — two modes (or backends, or configs) sharing a
+surface-level symptom don't necessarily share a mechanism, and diffing the
+wrong one's implementation against a reference can consume real effort
+without ever being wrong enough to notice, since every individual
+comparison along the way can still come back genuinely clean.
