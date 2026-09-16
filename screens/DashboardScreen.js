@@ -3,9 +3,12 @@
 // Analysis/WebUIAnalysis.md's build-order step 9. Built early and mostly
 // empty on purpose: gives every screen built after this a real place to be
 // linked into and reached, rather than only reachable via a dev shortcut
-// until the whole flow is done.
+// until the whole flow is done. Bridge now navigates to the real
+// OutputConnectScreen (step 10); Zones/Tuning still use PlaceholderScreen
+// until steps 12-15 build them.
 import { renderTopBar } from '../topBar.js';
 import { PlaceholderScreen } from './PlaceholderScreen.js';
+import { OutputConnectScreen } from './OutputConnectScreen.js';
 
 export class DashboardScreen {
   constructor(app) {
@@ -37,10 +40,11 @@ export class DashboardScreen {
       onSettings: () => this.app.openSettings(),
     });
 
-    container.querySelectorAll('.nav-row').forEach((row) => {
-      row.addEventListener('click', () => {
-        this.app.navigate(new PlaceholderScreen(this.app, row.dataset.nav));
-      });
+    container.querySelector('[data-nav="zones"]').addEventListener('click', () => {
+      this.app.navigate(new PlaceholderScreen(this.app, 'zones'));
+    });
+    container.querySelector('[data-nav="tuning"]').addEventListener('click', () => {
+      this.app.navigate(new PlaceholderScreen(this.app, 'tuning'));
     });
 
     await this._loadStatus(container);
@@ -49,26 +53,36 @@ export class DashboardScreen {
   unmount() {}
 
   // Capability-probe + persisted-state check -- this step's own "wired to
-  // the capability-probe/persisted-state routing logic," using the two real
-  // endpoints that already exist. Zones has no backing endpoint yet (ZoneMap
-  // REST is step 14), so it stays an honest placeholder, not fabricated data.
+  // the capability-probe/persisted-state routing logic," using the real
+  // endpoints that already exist. The Bridge row's click target itself
+  // depends on this check now too: it's disabled outright when this build
+  // has no Hue output at all, real (OutputConnectScreen) otherwise. Zones
+  // has no backing endpoint yet (ZoneMap REST is step 14), so it stays an
+  // honest placeholder, not fabricated data.
   async _loadStatus(container) {
-    const bridgeLabel = container.querySelector('[data-nav="bridge"] .nav-row-label');
+    const bridgeRow = container.querySelector('[data-nav="bridge"]');
+    const bridgeLabel = bridgeRow.querySelector('.nav-row-label');
 
     let capabilities;
     try {
       capabilities = await (await fetch('/api/capabilities')).json();
     } catch {
-      // A failed probe and "this build has no Hue output" are different
-      // facts -- don't conflate them into the same message.
       bridgeLabel.textContent = 'Bridge — Status unavailable';
+      bridgeRow.disabled = true;
       container.querySelector('[data-nav="zones"] .nav-row-label').textContent = 'Zones — Not available yet';
       return;
     }
 
     if (!capabilities.outputs?.includes('hue')) {
       bridgeLabel.textContent = 'Bridge — not available in this build';
+      bridgeRow.disabled = true;
     } else {
+      bridgeRow.addEventListener('click', () => {
+        this.app.navigate(new OutputConnectScreen(this.app, {
+          onComplete: () => this.app.navigate(new DashboardScreen(this.app)),
+        }));
+      });
+
       try {
         const connection = await (await fetch('/api/hue/connection')).json();
         bridgeLabel.textContent = connection.configured ? 'Bridge — Connected' : 'Bridge — Not connected';

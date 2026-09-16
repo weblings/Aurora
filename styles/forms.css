@@ -1,0 +1,107 @@
+/* Generic form primitives shared across screens: buttons, text inputs,
+   labeled fields, inline status text. Values carried over from RockyRoad's
+   real .tuner-btn / .tuner-btn-exit (verified against v2/desktop.html) and
+   RockyRoadImport/SongConverter's input[type=text] styling, mapped onto
+   Aurora's own tokens -- same padding-rounding policy already used in
+   dropdown.css (9px/12px real values rounded to the 8px/12px scale steps).
+   Primary CTA = the light-button treatment (.tuner-btn-exit's real precedent
+   for a screen's main forward action, e.g. "Done"); secondary/lower-emphasis
+   action = the dark-button treatment (.tuner-btn's precedent for "Restart").
+   Status text stays grayscale, not red/green -- the icon glyph (✓/⚠)
+   plus wording already carries the meaning, and introducing a semantic
+   accent color here would reopen the "grayscale-only" decision
+   (Analysis/WebUIAnalysis.md's build-order step 6) without checking back in. */
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--aurora-space-1);
+}
+
+.field-label {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--aurora-text-secondary);
+}
+
+.text-input {
+  padding: var(--aurora-space-3) var(--aurora-space-5);
+  background: var(--aurora-button-dark);
+  border: none;
+  border-radius: var(--aurora-radius-control);
+  color: var(--aurora-text-primary);
+  font-size: 13px;
+  font-family: inherit;
+  width: 100%;
+}
+
+.text-input:hover {
+  background: var(--aurora-button-dark-hover);
+}
+
+.text-input:focus {
+  outline: 2px solid var(--aurora-accent);
+  outline-offset: 1px;
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--aurora-space-3);
+  padding: var(--aurora-space-3) var(--aurora-space-5);
+  border: none;
+  border-radius: var(--aurora-radius-control);
+  font-size: 14px;
+  font-family: inherit;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.btn-primary {
+  background: var(--aurora-button-light);
+  color: var(--aurora-text-on-light);
+}
+.btn-primary:hover:not(:disabled) { background: var(--aurora-button-light-hover); }
+.btn-primary:active:not(:disabled) { background: var(--aurora-button-light-active); }
+
+.btn-secondary {
+  background: var(--aurora-button-dark);
+  color: var(--aurora-text-primary);
+}
+.btn-secondary:hover:not(:disabled) { background: var(--aurora-button-dark-hover); }
+.btn-secondary:active:not(:disabled) { background: var(--aurora-button-dark-active); }
+
+.btn-link {
+  background: none;
+  border: none;
+  padding: 0;
+  color: var(--aurora-text-secondary);
+  font-size: 13px;
+  font-family: inherit;
+  cursor: pointer;
+  text-decoration: underline;
+}
+.btn-link:hover {
+  color: var(--aurora-text-primary);
+}
+
+.status-text {
+  margin-top: var(--aurora-space-4);
+  font-size: 13px;
+  color: var(--aurora-text-secondary);
+}
+
+.status-text-error {
+  color: var(--aurora-text-primary);
+}
+
+.status-text-success {
+  color: var(--aurora-text-primary);
+  font-weight: 700;
+}

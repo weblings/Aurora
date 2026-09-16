@@ -29,6 +29,11 @@
   border-bottom: none;
 }
 
+.nav-row:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
 .nav-row-label {
   font-size: 14px;
   color: var(--aurora-text-secondary);
