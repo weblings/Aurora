@@ -1,7 +1,5 @@
 #include <Aurora/Output/Hue/HueOutput.hpp>
 
-#include <iostream>
-
 #include <glm/exponential.hpp>
 
 namespace Aurora::Output::Hue
@@ -58,32 +56,13 @@ namespace Aurora::Output::Hue
 
   void HueOutput::init()
   {
-    // TEMP DEBUG -- remove once the entertainment-config switch is confirmed
-    // live (see WebUIManualTweaks.md).
-    std::cout << "[hue-debug] init() requested entertainmentConfigurationId='"
-              << m_entertainmentConfigurationId << "'\n";
-
     m_selector = std::make_unique<EntertainmentConfigurationSelector>(m_credentials, m_bridgeAddress);
-    bool selected = m_selector->selectEntertainmentConfiguration(m_entertainmentConfigurationId);
-
-    std::cout << "[hue-debug] selectEntertainmentConfiguration returned " << std::boolalpha << selected
-              << ", validSelection=" << m_selector->validSelection() << "\n";
-    for(const auto& [id, config] : m_selector->entertainmentConfigurations()){
-      std::cout << "[hue-debug] available config id='" << id << "' name='" << config.name
-                << "' channelCount=" << config.channels.size() << "\n";
-    }
+    m_selector->selectEntertainmentConfiguration(m_entertainmentConfigurationId);
 
     m_streamer = std::make_unique<Streamer>(m_credentials, m_bridgeAddress);
 
     if(m_selector->validSelection()){
       m_streamer->setEntertainmentConfigurationId(*m_selector->currentEntertainmentConfigurationId());
-
-      std::cout << "[hue-debug] selected config id='" << *m_selector->currentEntertainmentConfigurationId()
-                << "', channel ids:";
-      for(uint8_t id : zoneIds()){
-        std::cout << " " << static_cast<int>(id);
-      }
-      std::cout << "\n";
     }
   }
 
@@ -94,9 +73,21 @@ namespace Aurora::Output::Hue
   }
 
 
-  void HueOutput::shutdown()
+  void HueOutput::shutdown(bool isReplacement)
   {
-    if(m_selector){
+    // A reload builds the replacement fully (including its own streaming
+    // start) before this ever runs -- disableStreaming() here would send an
+    // authoritative bridge-side stop for whatever entertainment config this
+    // instance used, even when a same-config replacement already started.
+    // The bridge accepts that stop with no error, silently killing the new
+    // stream while every local signal (isConnected(), frames still being
+    // computed) keeps looking healthy. Confirmed live, not theoretical --
+    // see WebUIManualTweaks.md's video<->audio live-switch bug. Only a real
+    // app exit (isReplacement == false) should actually tell the bridge to
+    // stop; a replaced-away session times out on its own once this
+    // instance's DTLS socket closes below, which is an acceptable cost for
+    // the (rare) case the replacement targets a different config entirely.
+    if(m_selector && !isReplacement){
       m_selector->disableStreaming();
     }
 

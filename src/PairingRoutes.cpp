@@ -1,6 +1,5 @@
 #include <Aurora/Output/Hue/PairingRoutes.hpp>
 
-#include <iostream>
 #include <optional>
 
 #include <nlohmann/json.hpp>
@@ -238,11 +237,6 @@ namespace Aurora::Output::Hue
       }
 
       CredentialsStore(configRoot).save(connection);
-
-      // TEMP DEBUG -- remove once the entertainment-config switch is
-      // confirmed live (see WebUIManualTweaks.md).
-      std::cout << "[hue-debug] POST /api/hue/connection saved entertainmentConfigurationId='"
-                << connection.entertainmentConfigurationId << "'\n";
 
       nlohmann::json responseJson = {{"succeeded", true}};
       if(onConnectionChanged){
