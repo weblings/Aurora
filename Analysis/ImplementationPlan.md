@@ -802,29 +802,48 @@ revisiting only if keeping the copy in sync becomes an actual pain point.
 
 Four pieces:
 
-- A file-input module (`Aurora-Demo-Web`) — a bundled sample **video, WebM**,
-  plus a user-upload option. Documented as "this demo works with WebM"
-  rather than engineered for arbitrary-format robustness; if a browser can't
-  decode what's uploaded, that failure is the natural upsell moment toward
-  the native app (which decodes far more formats via OpenCV) rather than a
-  robustness gap to close in the demo itself. Video-only for v1 — audio
-  deferred (see below).
+- A file-input module (`Aurora-Demo-Web`) — a bundled sample **video, WebM**.
+  Documented as "this demo works with WebM" rather than engineered for
+  arbitrary-format robustness; if a browser can't decode what's uploaded,
+  that failure is the natural upsell moment toward the native app (which
+  decodes far more formats via OpenCV) rather than a robustness gap to close
+  in the demo itself. **A user-upload option is still not built** (tracked
+  on the demo's own README "Not yet built" list, confirmed 2026-09-15) — the
+  bundled sample is the only video source today.
 - A web `Processing` module (`Aurora/web-processing/`, copied into
   `Aurora-Demo-Web`) — hand-ported crop/average math (JS), per
   `BrowserAnalysis.md`'s reuse-vs-reimplement finding for that specific
   logic.
-- A Three.js virtual-light output module (`Aurora-Demo-Web`) — 9-slice the
-  video into a 3×3 grid, discard the center, map the 8 edge/corner slices to
-  8 `Three.js` point lights positioned around the video plane with padding.
-  Reuses the native `ZoneMapStore` JSON shape for the slice definitions
-  rather than inventing a separate schema.
+- A Three.js virtual-light output module (`Aurora-Demo-Web`) — the original
+  9-slice-grid concept (8 `Three.js` point lights around the video plane,
+  center discarded) shipped first, then was superseded as the demo's default
+  scene by a full 3D room (`TV_Room.glb`, credited in the demo's README) with
+  its own zone map assigning lights to the model's fixtures. The original
+  flat/grid scene still exists in code (`buildStaticScene` in `main.js`) but
+  its UI picker is hidden pending the XR pass (2026-09-15) — see
+  `rendering-internals.md`/`rendering-apis.md` for the Three.js-specific
+  lessons from building it.
 - The Three.js scene itself the lights live in (`Aurora-Demo-Web`).
 
-Audio deferred from v1 deliberately: the video pipeline's implementation
-choices are all already settled (hand-port, no new build tooling); audio
-still needs either a real WASM build of `AudioFeatureExtractor` (aubio) or
-an explicit fallback to a lower-fidelity JS-only beat detector — a real,
-separately-scoped piece of work, not a video-pipeline-shaped gap.
+**Audio shipped (2026-09-15), superseding the "deferred" plan originally
+here.** Neither alternative this section used to name was actually used: a
+real WASM build of `AudioFeatureExtractor` was ruled out (Emscripten's own
+toolchain cost, not a capability gap), and the third-party `BeatDetector`
+library was evaluated against its real source and rejected (only a boolean
+on-beat signal, no `onsetStrength`/`rms`/`spectralCentroid`, deprecated APIs,
+unmaintained since 2015). What shipped instead is a hand-rolled JS port
+(`Aurora/web-processing/audioFeatures.js` + `colorModel.js`) of native's own
+`AudioFeatureExtractor`/`AudioProcessing` math, test-driven against native's
+own Catch2 suites ported line-for-line to `.test.mjs`. An A/B/C/D tuning pass
+against the ported native defaults settled on a "tuned" preset (faster
+brightness smoothing than native's own bulb-tuned defaults — see
+`engineering-hygiene.md`'s brightness-lag-reads-as-boring finding) as the
+shipped default; a demo-only attack/decay variant was built and deliberately
+kept out of the tested port. Full detail in `AudioAnalysis.md` and
+`BrowserAnalysis.md`, including a tracked-but-not-started follow-up to
+backport the same A/C tuning finding to native Windows/Linux (already
+possible with zero code changes, since `Config` already persists every
+relevant field).
 
 **Considered and cut: a rougher, real-bulb-driving output using Hue's CLIP
 v2 REST API directly from the browser**, bypassing the Entertainment
@@ -851,21 +870,89 @@ the demo rather than built first — a real native setup/pairing/zone-mapping
 UI is the current weak link in the funnel (someone sold by the demo today
 lands on env-var Hue configuration, no GUI), and building the demo first
 validates the funnel's front door before investing in the back half.
-- **Analysis pass first:** `Analysis/HttpServerAnalysis.md` covering
-  `Network::Http::Server` holistically (`HttpServer`/`HttpLibServerImpl` —
-  how the existing setup-WebUI routes are wired, request/response lifecycle,
-  what httplib actually supports for chunked responses) before adding anything
-  to it — extending a shared server wrong risks the existing setup WebUI, not
-  just the new endpoints. Not needed for milestone 1 at all (no native
-  backend in that shape) — this is purely a milestone-2 prerequisite.
-- **Native side:** extend the existing httplib-based server (already present for
-  the setup WebUI) with two endpoints, no new dependency:
-  - a chunked MJPEG endpoint serving the already-downsampled preview frames
+
+**Corrected premise (2026-09-15):** verified there is no existing HTTP server
+or setup WebUI anywhere in Aurora's core or app repos today — no
+`Network::Http::Server`/`HttpLibServerImpl`-shaped code exists, and
+`Analysis/HttpServerAnalysis.md` was never actually written. This section
+used to read as "extend the existing httplib-based server (already present
+for the setup WebUI)" — that described **huenicorn's** own server
+(`SetupBackend`/`WebUIBackend`, `webroot/`), which Aurora's module-split
+rewrite never carried forward. This milestone is new
+infrastructure, not an extension of anything Aurora already runs — huenicorn's
+implementation is still the right template to follow closely (same
+cpp-httplib version even, `v0.46.0`), just not something already wired into
+this codebase.
+
+- **Analysis pass first:** `Analysis/HttpServerAnalysis.md` (still not
+  written) covering the *new* server's shape before building it, informed by
+  huenicorn's own `SetupBackend.cpp`/`WebUIBackend.cpp` route design
+  (`/api/autodetectBridge`, `/api/registerNewUser`, `/api/setChannelUV/:id`,
+  etc. — plain JSON REST, no WebSocket, static files served from a
+  `webroot/`-equivalent) as the concrete reference rather than designing from
+  scratch. Not needed for milestone 1 at all (no native backend in that
+  shape) — this is purely a milestone-2 prerequisite.
+- **Screen list, jobs-to-be-done, and component research: see
+  `Analysis/WebUIAnalysis.md`.** Covers the full screen breakdown (Output
+  Connect, Mode+Device Select, Zone Mapping, Tuning/Settings, Dashboard), the
+  hub-and-spoke navigation model (RockyRoad's `App.ts`/`#screen-container`
+  shell pattern, not a forced linear wizard for returning users), and per-screen
+  component recommendations grounded in actually-read huenicorn/RockyRoad
+  source (huenicorn's `ScreenWidget.js` for zone mapping, RockyRoad's
+  `TunerScreen.ts`/`Dropdown.ts`/`RockyRoadImport/SongConverter` forms page for
+  device-select and settings), plus the design-token drift, keyboard/ARIA, and
+  mouse-touch-to-XR findings that came out of that research.
+- **Native side, three surfaces, not one:**
+  - *Preview streaming* (the original plan here, still valid): a chunked
+    MJPEG endpoint serving the already-downsampled preview frames
     (JPEG-encode the same small `ImageData` already computed for color
-    sampling via OpenCV's `imencode` — already a dependency, no new capture or
-    encode pipeline needed)
-  - a Server-Sent Events endpoint pushing each tick's `Processing::Frame` as
-    JSON
+    sampling via OpenCV's `imencode` — already a dependency) plus a
+    Server-Sent Events endpoint pushing each tick's `Processing::Frame` as
+    JSON.
+  - *Settings/mode*: REST endpoints over `Config`'s already-clean user-facing
+    fields (`activeInputName`/`activeAudioInputName`/`activeOutputNames`,
+    `refreshRate`/`subsampleWidth`/`interpolation`/`transitionSmoothing`,
+    `audioTargetSinkName`, and the full audio-effect-tuning block). The
+    audio/video mode toggle specifically needs **no CMake change** — it's
+    already just two `Config` string fields
+    (`Aurora-App-Windows/src/main.cpp:141-144`'s `useAudioMode` derivation);
+    CMake flags only gate whether a plugin is compiled in at all. What's
+    actually missing is a live-reload path: everything (`Config`, `ZoneMap`
+    via `reconcileZoneMap`, called only inside `Orchestrator::init()`) is
+    currently derived once at process start, with no `SIGHUP`/watch
+    mechanism anywhere. Build one generic reload entrypoint (tear down and
+    reconstruct Input/Output/Orchestrator from a freshly-loaded
+    `Config`+`ZoneMapStore`) that every settings PUT funnels into, rather
+    than special-casing the mode toggle alone — the same mechanism then
+    picks up any `Config` edit without a full process restart.
+  - *Hue pairing*: currently a real gap, not just missing UI — both app
+    repos' `registerOutputs()` require three env vars
+    (`AURORA_HUE_BRIDGE_ADDRESS`/`_USERNAME`/`_CLIENTKEY`) set at process
+    start, and the code's own comment says outright "no pairing flow exists
+    yet"; `hue` output is simply unavailable otherwise. None of
+    `HueOutput`'s real needs (`Credentials{username, clientkey}` +
+    `bridgeAddress` + optional `entertainmentConfigurationId`) are persisted
+    in `Config` today, by design. This milestone needs new persisted storage
+    for those fields plus a pairing wizard — huenicorn's own wizard
+    (autodetect/manual IP → physical push-link button → confirm) is a
+    directly reusable *flow* to follow given how closely the field shapes
+    already match, even though the implementation language differs.
+  - *Zone mapping*: Aurora's own `ZoneConfig` (`zoneId`, `uvs` min/max rect,
+    `active`, `gamma` — `core/Runtime/include/Aurora/Runtime/ZoneMap.hpp`) is
+    structurally identical to huenicorn's per-channel model, so huenicorn's
+    drag-resize SVG UV canvas (`ScreenWidget.js`) is a highly portable
+    interaction pattern for video-capture zone setup. It has no equivalent
+    for audio mode, since `AudioOrchestrator` broadcasts one color to every
+    zone with no spatial concept at all — that screen needs to stay
+    hidden/inactive whenever audio mode is selected, the same "hide from UI,
+    keep in code" pattern the browser demo already uses for options that
+    don't apply to the current mode.
+  - HTTPS is available cheaply if/when phase 4 needs it: cpp-httplib
+    `v0.46.0` (huenicorn's exact pinned version) already supports
+    `CPPHTTPLIB_MBEDTLS_SUPPORT`, and huenicorn already links
+    `mbedtls`/`mbedx509`/`mbedcrypto` for its DTLS bridge client — serving
+    real HTTPS costs a compile define and a cert, not a new dependency. See
+    phase 4 below for why it'd be needed at all.
 - New `Output::ThreeJS` module implements `IOutput`; `send()` forwards the
   `Frame` to connected SSE clients. **Already true, not still needed:**
   `Orchestrator`/`AudioOrchestrator` already take a `vector<IOutput*>` and
@@ -876,8 +963,11 @@ validates the funnel's front door before investing in the back half.
   connection to the native server, so `Aurora-Demo-Web`'s "zero native
   backend" repo-split reasoning doesn't automatically transfer; revisit when
   milestone 2 actually starts): a Three.js page rendering the MJPEG preview
-  as a plane/texture, subscribing to the SSE endpoint, and drawing each zone
-  as a colored 3D element positioned by its UV on the video plane.
+  as a plane/texture, subscribing to the SSE endpoint, drawing each zone as a
+  colored 3D element positioned by its UV on the video plane, plus the
+  settings/pairing/zone-mapping screens above (no framework/component-library
+  dependency needed for these — see phase 4's RockyRoad note below on what is
+  and isn't actually reusable there).
 - **Demonstrable:** open a browser tab, see the captured screen playing back
   with virtual colored light indicators reacting live around it — driven by the
   exact same Processing ticks simultaneously driving real Hue bulbs.
@@ -911,6 +1001,31 @@ already-solved groundwork instead of rediscovering it.
   one preemptively and don't go broad — capped to what's actually generic.
   **Pitch the specific candidates before doing any extraction work**, when
   phase 4 actually reaches this point, rather than deciding it here.
+- **UI-toolkit checked too, not just engine scaffolding (2026-09-15).**
+  RockyRoad has no importable component library — `v2/src/desktop/` and
+  `v2/ui/*.uikitml` are both app-internal (`"name": "Rocky Road"`,
+  `"private": true`, relative imports only), so no package/workspace/submodule
+  path makes sense here. What *is* reusable is the pattern: RockyRoad
+  hand-authors each widget twice, once as DOM/CSS
+  (`v2/src/desktop/Dropdown.ts`) and once as a `.uikitml` XR panel
+  (`v2/src/xr/OptionDropdown.ts`), sharing a documented token set (spacing
+  translated 1:1 between `src/xr/panel.css` and the desktop CSS, a 3-step
+  hover/active color-escalation convention per button variant, e.g.
+  `.primary-dark`'s `#333333` → `#515151` → `#7c7c7c`). Worth copying that
+  *authoring pattern* for Aurora's own WebUI widgets (author once as DOM,
+  once as uikitml, from one shared token set) rather than trying to import
+  RockyRoad code — there's nothing packaged to import.
+- **Secure-context prerequisite actually lands in milestone 2, not here
+  (2026-09-15).** WebXR requires a secure context (HTTPS); localhost is
+  exempt the same way other secure-context APIs are, so on-machine dev needs
+  nothing extra, but a real headset hitting the daemon over LAN by IP is not
+  localhost and needs a genuinely trusted cert. Milestone 2's server already
+  covers the capability side cheaply (cpp-httplib + huenicorn's existing
+  mbedtls link, see above); the remaining gap is cert-trust *distribution* to
+  a headset, which Vite's `vite-plugin-mkcert` automates in RockyRoad's own
+  dev setup and cpp-httplib has no built-in equivalent for. Worth a small
+  analysis pass of its own once milestone 2 actually reaches this point, not
+  solved here.
 - **License note:** this reuses RockyRoad's engine scaffolding (GPLv3, itself
   carried from ChartPlayer) — already compatible with Aurora's own GPLv3
   (carried from huenicorn), just worth stating explicitly in that repo's own

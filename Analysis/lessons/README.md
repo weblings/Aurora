@@ -106,6 +106,14 @@ Aurora's own module boundaries instead of RockyRoad's. `rendering-apis.md` vs.
   continuing its phase injecting broadband noise at each call boundary,
   skewing a spectral measurement in a way a relative-comparison test alone
   didn't catch.
+- [`web-ui.md`](web-ui.md) — WebUI design-process gotchas: a described
+  "existing component" being a claim to verify by reading the real source
+  rather than a fact to build on, a layout lesson learned in one constrained
+  context (a fixed, ray-pointer-driven XR panel) not transferring to another
+  (a phone-width web page) without checking the actual numbers, component-reuse
+  research answering "could we" rather than "does the job need this," and a
+  flagged UI gap already being covered by a normal-path action elsewhere in
+  the same flow.
 
 ## Where a new lesson goes
 
@@ -124,7 +132,9 @@ Aurora's own module boundaries instead of RockyRoad's. `rendering-apis.md` vs.
    an Output-side assumption files under `processing.md` (that's where the tag is
    produced/consumed), not `output.md` (where the symptom showed up). Cross-list in
    the other file's entry if genuinely two-sided.
-8. Destination file too long to skim (rough proxy: 15+ entries)? Split along a finer
+8. A WebUI screen/flow design or component-reuse-research finding (not a
+   rendering fact, not general build/tooling)? → `web-ui.md`.
+9. Destination file too long to skim (rough proxy: 15+ entries)? Split along a finer
    cut of the same module (e.g. `input.md` → `input/capture-backends.md` +
    `input/pixel-formats.md`, each directory getting its own `INDEX.md`, same shape as
    RockyRoad's `ui-toolkit/`/`engine/`). Then update: that file's own index if it
