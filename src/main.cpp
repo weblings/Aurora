@@ -115,11 +115,23 @@ namespace
     }
 
     if(connection.isConfigured()){
-      registry.registerOutput("hue", [connection]{
+      // Re-reads CredentialsStore fresh on every call (not the `connection`
+      // captured above) so a reload picks up a changed
+      // entertainmentConfigurationId -- e.g. Zone Mapping's picker -- without
+      // a process restart. `connection` is kept only as an env-var-fallback
+      // safety net for the (shouldn't-happen-once-configured) case the store
+      // comes back empty later. See PairingRoutes.hpp's onConnectionChanged.
+      registry.registerOutput("hue", [configRoot, connection]{
+        Aurora::Output::Hue::HueConnection live = Aurora::Output::Hue::CredentialsStore(configRoot).load();
+        if(!live.isConfigured()) live = connection;
+        // TEMP DEBUG -- remove once the entertainment-config switch is
+        // confirmed live (see WebUIManualTweaks.md).
+        std::cout << "[hue-debug] registerOutputs factory read entertainmentConfigurationId='"
+                  << live.entertainmentConfigurationId << "' from CredentialsStore\n";
         return std::make_unique<Aurora::Output::Hue::HueOutput>(
-          Aurora::Output::Hue::Credentials(connection.username, connection.clientkey),
-          connection.bridgeAddress,
-          connection.entertainmentConfigurationId
+          Aurora::Output::Hue::Credentials(live.username, live.clientkey),
+          live.bridgeAddress,
+          live.entertainmentConfigurationId
         );
       });
     }
@@ -634,7 +646,14 @@ try
   Aurora::Network::Http::Server::HttpServer httpServer;
   registerCapabilitiesRoute(httpServer, registry);
 #ifdef AURORA_OUTPUT_HUE_IO_AVAILABLE
-  Aurora::Output::Hue::registerPairingRoutes(httpServer, configRoot);
+  Aurora::Output::Hue::registerPairingRoutes(httpServer, configRoot,
+    [&pipelineHost, &registry, configRoot]() -> std::string {
+      Aurora::Runtime::Config freshConfig = Aurora::Runtime::ConfigStore(configRoot).load();
+      std::string error;
+      pipelineHost.reload(registry, freshConfig, configRoot, error);
+      return error;
+    }
+  );
 #endif
   // "Every settings PUT funnels into the reload entrypoint" -- re-loads
   // Config fresh (reflecting whatever the PUT that triggered this just
