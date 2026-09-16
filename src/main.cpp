@@ -18,6 +18,7 @@
 #include <thread>
 
 #include <windows.h>
+#include <shellapi.h>
 
 #include <nlohmann/json.hpp>
 
@@ -540,6 +541,36 @@ namespace
   }
 
 
+  // "0.0.0.0" is what a socket binds to, not something a browser can
+  // navigate to -- browsers vary in whether/how they alias it, so surface
+  // loopback instead. A real bound-to-a-LAN-IP config still prints as-is.
+  std::string browsableAddress(const std::string& boundBackendIP)
+  {
+    return boundBackendIP == "0.0.0.0" ? "127.0.0.1" : boundBackendIP;
+  }
+
+
+  // Best-effort -- a failure here shouldn't stop the app, the printed URL
+  // above is still there as a fallback.
+  void openWebBrowser(const std::string& url)
+  {
+    ShellExecuteA(nullptr, "open", url.c_str(), nullptr, nullptr, SW_SHOWNORMAL);
+  }
+
+
+  // OSC 8 terminal hyperlink -- needs ENABLE_VIRTUAL_TERMINAL_PROCESSING,
+  // which legacy conhost doesn't turn on by default.
+  void printClickableLink(const std::string& url)
+  {
+    HANDLE stdOut = GetStdHandle(STD_OUTPUT_HANDLE);
+    DWORD mode = 0;
+    if(stdOut != INVALID_HANDLE_VALUE && GetConsoleMode(stdOut, &mode)){
+      SetConsoleMode(stdOut, mode | ENABLE_VIRTUAL_TERMINAL_PROCESSING);
+    }
+    std::cout << "WebUI: \033]8;;" << url << "\033\\" << url << "\033]8;;\033\\\n";
+  }
+
+
   // RAII wrapper so the server is stopped and its thread joined on every
   // exit path (early "no outputs"/"unknown input" returns included) --
   // std::thread::~thread() calls std::terminate() if it's still joinable,
@@ -575,6 +606,14 @@ try
   // existed) -- registerOutputs needs it to look up any persisted Hue
   // connection.
   auto configRoot = resolveConfigRoot();
+  // TEMP DEBUG -- remove after live pairing repro (see WebUIManualTweaks.md)
+  std::cout << "[pairing-debug] configRoot=" << configRoot << "\n";
+
+  // Captured before ConfigStore/Pipeline ever touch this configRoot --
+  // Pipeline::build() unconditionally re-saves config.json on every launch
+  // (see its refreshRate/subsampleWidth persist), so this must be read
+  // before that or it would always see the file as already existing.
+  bool isFirstSetup = !std::filesystem::exists(configRoot / "config.json");
 
   Aurora::Runtime::ConfigStore configStore(configRoot);
   Aurora::Runtime::Config config = configStore.load();
@@ -636,7 +675,15 @@ try
   std::optional<HttpServerThread> httpServerThread;
   if(httpServer.bind(config.boundBackendIP(), config.restServerPort())){
     httpServerThread.emplace(httpServer, std::thread([&httpServer]{ httpServer.listen(); }));
-    std::cout << "WebUI listening on " << config.boundBackendIP() << ":" << config.restServerPort() << "\n";
+    std::string url = "http://" + browsableAddress(config.boundBackendIP())
+      + ":" + std::to_string(config.restServerPort()) + "/";
+    if(isFirstSetup){
+      std::cout << "WebUI: opening " << url << " in your browser\n";
+      openWebBrowser(url);
+    }
+    else{
+      printClickableLink(url);
+    }
   }
   else{
     std::cerr << "Could not bind WebUI to " << config.boundBackendIP() << ":" << config.restServerPort()
