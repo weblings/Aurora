@@ -467,7 +467,7 @@ more simply.
 | Zone pager (`◂ N of M ▸`) | 3 — **documented fallback only, not built for v1** | RockyRoad `.speed-group` compound stepper | Small, deferred until zone count justifies it |
 | Gamma slider | 3 | Native `<input type=range>` | None |
 | Empty-state text | 3 | huenicorn `ScreenWidget.js`: `Legends` strings | Small |
-| Slider + live readout, 2-col grid on desktop | 4 | RockyRoad tuner gain slider + `RockyRoadImport` range + Library's `auto-fill` grid | Small, plus one open decision: accent-color token conflict (`#2a6eff` vs `#8b8b8b`) needs settling before building |
+| Slider + live readout, 2-col grid on desktop | 4 | RockyRoad tuner gain slider + `RockyRoadImport` range + Library's `auto-fill` grid | Small — token conflict settled, see build-order step 6 |
 | Boolean checkbox | 4 | RockyRoad `.pre-toggle-switch` | None |
 | Segmented mode toggle + Stop + confirm overlay | 5 | huenicorn `WebUI.js`: `_askStopConfirmation()`/`_stop()`, near-verbatim | None |
 | Status badge | 5 only | RockyRoad Library `.lib-badge` | Small |
@@ -489,20 +489,25 @@ reuse of something that already exists in huenicorn, RockyRoad, or
 
 ## Cross-cutting findings
 
-**Design tokens: real drift exists, and the codebase has no structural
-protection against it.** Compared RockyRoad's actual current shell CSS
-(`v2/desktop.html`'s inline `<style>`, the real source) against
-`TunerScreen.ts`'s own rules directly. The settings overlay is in sync with
-the shared XR tokens (`#dadada`→`#bebebe`, `12px`/`6px` radii, matching
-`panel.css`'s `.button.primary-light`). `TunerScreen` uses a completely
-separate ad hoc system (translucent-white overlays, a `#2a6eff` blue accent
-absent from `panel.css` entirely). `RockyRoadImport/SongConverter`'s own CSS
-comment claims its range-slider accent "matches the Tuner's gain slider," but
-Tuner's slider actually uses the blue, not the gray this file uses — a second,
-independent piece of evidence that even RockyRoad's own authors' mental model
-of consistency has drifted from the actual CSS at least once. There's no
-shared token file anywhere connecting `desktop.html`'s inline styles to the
-`.css` files `src/xr/index.ts` imports. **For Aurora: define real CSS custom
+**Design tokens: real drift exists, but narrower than an earlier pass here
+claimed — corrected 2026-09-15 after actually reading `desktop.html` and
+`RockyRoadImport/SongConverter/index.html` directly instead of relying on a
+prior summary.** The grayscale system is genuinely consistent and reused
+throughout both repos: `#333333`/`#515151`/`#7c7c7c` (dark button + hover/
+active), `#dadada`/`#bebebe`/`#9c9c9c` (light button + hover/active), and
+`#8b8b8b` reused specifically as *the* interactive/active-state color —
+slider `accent-color` (`.tuner-gain-slider`, and `RockyRoadImport`'s own
+`input[type=range]`), a checked toggle-switch knob (`.pre-toggle-switch input:
+checked + .pre-toggle-knob`), and `panel.css`'s `.secondary-dark` button.
+`RockyRoadImport`'s comment claiming its range-slider accent "matches the
+Tuner's gain slider" is **correct**, not a second piece of drift evidence as
+an earlier pass here claimed — both really are `#8b8b8b`. The one genuine
+outlier is `.tuner-exit-btn`'s `#2a6eff`/`#1a5ee0` — a conditionally-rendered
+secondary "Done" button on the tuner-complete overlay, used nowhere else in
+either repo, not part of the system. There's no shared token file anywhere
+connecting `desktop.html`'s inline styles to the `.css` files `src/xr/
+index.ts` imports, so nothing structurally prevents a future one-off like
+`#2a6eff` from happening again. **For Aurora: define real CSS custom
 properties once (colors, radii, spacing scale) and have every screen reference
 the same variables**, rather than repeating this copy-by-convention approach.
 
@@ -551,6 +556,15 @@ alone.
   (video-mode-only, and not required for the Dashboard's core job). Native-side
   MJPEG/SSE endpoints from `ImplementationPlan.md` are unaffected — they're
   just not consumed by this Dashboard yet.
+- Aurora's design tokens are grayscale-only, no brand accent — `#8b8b8b`
+  already carries the interactive/active-state role in RockyRoad's proven
+  system, and a second, arbitrary UI color felt more likely to compete with
+  Aurora's actual RGB lighting output than to clarify anything.
+- The shared static frontend lives in its own new repo (`Aurora-WebUI`), not
+  inside `core` or duplicated per app — justified by toolchain hygiene (future
+  frontend build tooling shouldn't live in a CMake/vcpkg repo), not by the
+  technical-independence reasoning behind the Input/Output splits. Wired as a
+  required dependency in both apps, not an optional/gated one.
 
 ## Build order
 
@@ -664,10 +678,60 @@ end here, since nothing in v1 consumes it (see Decisions log above).
    Catch2/ABI issue entirely -- all 3 cases passed (12 assertions).
 
 **2. Frontend foundation (shell, no real screens yet)**
-6. Settle the accent-color token conflict (`#2a6eff` vs `#8b8b8b`) and define
-   real CSS custom properties (colors, radii, spacing) once — this blocks
-   every screen's styling, cheaper to settle before anything is built against
-   the wrong token.
+6. ~~Settle the accent-color token conflict and define real CSS custom
+   properties~~ — **done (2026-09-15)**. Re-reading `desktop.html`/
+   `RockyRoadImport` directly (not the earlier summary) first corrected the
+   finding itself — see the Cross-cutting findings entry above: `#8b8b8b` is
+   already the real, consistently-reused interactive/active-state color
+   (sliders, checked toggles, secondary buttons); `#2a6eff` is a genuine but
+   narrow one-off (one conditional button, one screen). Decision, discussed
+   with the user rather than assumed: Aurora's tokens go **grayscale-only**,
+   no brand accent — `#8b8b8b` already fills that role, and Aurora is a
+   lighting-control product where introducing a second, arbitrary UI color
+   alongside the actual RGB lighting output being controlled seemed more
+   likely to compete visually than clarify anything.
+   <br><br>
+   Also settled, since defining tokens meant deciding where they'd actually
+   live: **`Aurora-WebUI` is a new sibling repo**, not a directory inside
+   `core` or a per-app `webroot/`. Reasoning (discussed with the user): unlike
+   Input/Output's repo splits, which exist for a *technical* reason
+   (independently skippable dependencies, per-platform/vendor SDKs), the
+   WebUI is byte-identical for both apps and needs no C++ dependencies at
+   all — its own split is justified by toolchain hygiene instead (it will
+   eventually need real frontend tooling for phase 4's WebXR/uikit pass, per
+   `ImplementationPlan.md`, which has no business living inside a CMake/vcpkg
+   repo). Wired as a **required** dependency in both apps (unconditional
+   `FetchContent_Declare`/`MakeAvailable`, no `ENABLE_`-style toggle like
+   Hue's IO gate) — reflecting that this is the product's one control
+   surface, not a swappable plugin. Confirmed via CMake's own docs that
+   `FetchContent_MakeAvailable` on a source tree with no `CMakeLists.txt`
+   just populates it and skips `add_subdirectory()` without erroring — no
+   need for the deprecated standalone `FetchContent_Populate`. The fetched
+   `SOURCE_DIR` is baked into each app as a compile definition
+   (`AURORA_WEBUI_SOURCE_DIR`) and handed straight to `HttpServer::
+   serveStaticFiles()`; explicitly a dev-stage placeholder, same as
+   `HttpServer.hpp`'s own comment already flagged (a real install/embed story
+   like huenicorn's release-build webroot embedding is out of scope for now).
+   <br><br>
+   One real finding from wiring static files and API routes together for the
+   first time: read cpp-httplib's actual `Server::routing()` source rather
+   than assuming, since `serveStaticFiles()` and the pairing/capabilities
+   routes had never been exercised together before this step. Confirmed the
+   static mount point is checked *before* dispatching to a registered GET/
+   HEAD handler — safe only because Aurora-WebUI's own files never collide
+   with an `/api/...` path. Documented as a hard rule in `Aurora-WebUI`'s
+   README (never add a file under `api/` there) rather than leaving it as an
+   implicit assumption.
+   <br><br>
+   Verified for real on both platforms: created `Aurora-WebUI` (git-inited,
+   GPL-3.0 matching `Aurora-Output-Hue`'s own lineage reasoning, `styles/
+   tokens.css` with the settled values), wired the `FetchContent`+
+   `serveStaticFiles()` plumbing into both apps' `CMakeLists.txt`/`main.cpp`,
+   built via MSVC and WSL2/GCC, and curled both binaries — confirmed
+   `tokens.css` serves its real content, `/api/capabilities` and
+   `/api/hue/connection` still answer correctly alongside it, and a
+   nonexistent static path correctly 404s rather than falling through to a
+   route.
 7. App shell: the `#screen-container`-style mount point, the top bar formula
    (back/title/gear), the settings modal + scrim.
 8. Port `Dropdown.ts` and close its ARIA/keyboard punch list once, up front
