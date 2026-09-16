@@ -42,6 +42,28 @@ else()
   message(STATUS "nlohmann_json is installed")
 endif()
 
+# cpp-httplib -- same fetch-if-missing pattern as glm/nlohmann_json; also
+# huenicorn's own choice for the same job (see Analysis/HttpServerAnalysis.md).
+# No TLS feature enabled here -- plain HTTP only, for now (see that doc's
+# note on the vendored vcpkg port's httplib features not including mbedtls,
+# unlike the raw header itself; revisit when phase 4's HTTPS need is real).
+find_package(httplib QUIET)
+if(NOT httplib_FOUND)
+  message(STATUS "httplib is not installed. Now fetching online...")
+  FetchContent_Declare(
+    httplib
+    URL https://github.com/yhirose/cpp-httplib/archive/refs/tags/v0.46.0.tar.gz
+    DOWNLOAD_EXTRACT_TIMESTAMP TRUE
+  )
+  FetchContent_MakeAvailable(httplib)
+else()
+  message(STATUS "httplib is installed")
+endif()
+
+# Network has no internal-module dependency, so it can be added anywhere --
+# kept first since nothing else here depends on it either.
+add_subdirectory(Network)
+
 # Contracts first (no internal deps), then Processing (depends on Contracts).
 add_subdirectory(Contracts)
 add_subdirectory(Processing)

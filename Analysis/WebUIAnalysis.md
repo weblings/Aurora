@@ -568,9 +568,22 @@ end here, since nothing in v1 consumes it (see Decisions log above).
    pattern), and that Aurora's planned full-pipeline-reconstruction design
    (unlike huenicorn's in-place mutation) needs one consistent lock around a
    swappable pipeline unit, not huenicorn's narrower single-mutex approach.
-2. New HTTP server skeleton (cpp-httplib, static file serving, no real routes
-   yet) in a new shared `core/` module (not duplicated per app repo — see
-   `HttpServerAnalysis.md`'s module-boundary reasoning).
+2. ~~New HTTP server skeleton~~ — **written (2026-09-15)**: `core/Network`
+   (`Aurora::Network::Http::Server`), a near-verbatim port of huenicorn's
+   `HttpServer`/`Impl`/`HttpDataStructs` shape plus `serveStaticFiles()` atop
+   cpp-httplib's own mount-point support, in the new shared `core/` module
+   `HttpServerAnalysis.md` called for (not duplicated per app repo). Compiles
+   and links cleanly as a library (`AuroraNetwork.lib`, confirmed via a real
+   build). Its Catch2 tests (`core/tests/NetworkTests.cpp` — a route
+   round-trip, a path-param/body round-trip, and static-file serving, each
+   over a real bound socket) are written but **not yet executed**: linking
+   any test binary in this environment currently fails on a pre-existing,
+   environment-wide issue unrelated to this module (a stale vcpkg-cached
+   `Catch2d.lib` ABI-incompatible with this machine's Windows SDK/MSVC
+   toolset — confirmed by the same failure on an untouched pre-existing test
+   target; see `engineering-hygiene.md`'s new entry). Fixing that needs a real
+   from-source rebuild of the vcpkg manifest (binary-cache bypass), not
+   attempted here as out of scope for this step.
 3. A `/api/capabilities`-style endpoint reflecting the Registry (what
    Input/Output plugins are actually compiled in) — the frontend's
    capability-probe step needs this before anything else.

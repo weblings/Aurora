@@ -499,3 +499,31 @@ stay slow without costing the same feeling of responsiveness. Relevant if
 this tuning is ever backported to real bulbs (see `BrowserAnalysis.md`'s
 A/C follow-up) — worth confirming the same asymmetry holds physically, not
 just on a screen.
+
+## A prebuilt vcpkg binary can be ABI-incompatible with a very new Windows SDK/MSVC toolset, and binary caching survives a "fresh" reinstall
+
+Adding a new `core/Network` module and its Catch2 test (`AuroraNetworkTests`)
+surfaced a link failure -- `Catch2d.lib` unresolved externals
+(`__std_find_last_not_ch_pos_1`, `__std_search_1`,
+`__std_regex_transform_primary_char`, and others), all MSVC STL vectorized
+string-search helpers. Verified this wasn't caused by the new module by
+building an untouched, pre-existing test target (`AuroraRuntimeTests`) fresh
+in the same environment -- it failed identically. Root cause: this machine's
+Windows SDK/MSVC toolset (10.0.26100.0, targeting 10.0.26200) is new enough
+that vcpkg's cached community-built `Catch2d.lib` doesn't match the STL ABI
+it now compiles against. Deleting the project's local
+`build/vcpkg_installed` and reconfiguring didn't fix it -- vcpkg's binary
+cache (`%LOCALAPPDATA%/vcpkg/archives`) re-served the same prebuilt artifact
+in 44 seconds, nowhere near long enough for a genuine from-source rebuild of
+Catch2 (let alone the rest of the manifest).
+
+**Fix:** when a prebuilt vcpkg binary fails to link with `__std_*`-style
+unresolved externals, suspect a Windows SDK/MSVC-toolset-vs-cached-binary ABI
+mismatch before suspecting the new code that happened to trigger the first
+rebuild -- confirm by building an untouched pre-existing target in the same
+environment. Deleting a project's local `vcpkg_installed` does not force a
+real rebuild by itself; binary caching will re-serve the same artifact unless
+the cache itself is bypassed (`--binarysource=clear` or equivalent), and a
+genuine from-source rebuild of a large manifest (this one includes opencv4)
+is a real time cost, not a quick retry -- worth flagging to the user rather
+than silently spending that time.

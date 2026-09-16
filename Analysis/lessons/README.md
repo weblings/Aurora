@@ -61,7 +61,10 @@ Aurora's own module boundaries instead of RockyRoad's. `rendering-apis.md` vs.
   applies, or a correct implementation can still fail its own test, and
   brightness lag reading as "boring"/unreactive in a beat-driven light
   response far more than hue lag does, when A/B-tuning smoothing time
-  constants.
+  constants, and a prebuilt vcpkg binary (`Catch2d.lib`) being ABI-incompatible
+  with a very new Windows SDK/MSVC toolset, surfacing as `__std_*` unresolved
+  externals that survive deleting a project's local `vcpkg_installed` since
+  binary caching re-serves the same stale artifact.
 - [`rendering-apis.md`](rendering-apis.md) — third-party Three.js/GLTFLoader/Blender-export
   facts: `RectAreaLight` having no `distance`/`decay` at all (coupling brightness to reach),
   Blender's glTF export dropping light data unless "Punctual Lights" is checked (and never

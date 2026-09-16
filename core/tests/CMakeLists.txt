@@ -18,6 +18,18 @@ else()
   message(STATUS "Catch2 is installed")
 endif()
 
+add_executable(AuroraNetworkTests
+  NetworkTests.cpp
+)
+
+target_link_libraries(AuroraNetworkTests PRIVATE
+  AuroraNetwork
+  httplib::httplib
+  Catch2::Catch2WithMain
+)
+
+target_compile_features(AuroraNetworkTests PUBLIC cxx_std_20)
+
 add_executable(AuroraProcessingTests
   ProcessingTests.cpp
 )
@@ -91,6 +103,7 @@ endif()
 # enable_testing() lives in the parent CMakeLists.txt now, not here -- see
 # the comment there. Only need Catch2's own CTest-integration module here.
 include(Catch)
+catch_discover_tests(AuroraNetworkTests)
 catch_discover_tests(AuroraProcessingTests)
 catch_discover_tests(AuroraRuntimeTests)
 catch_discover_tests(AuroraOrchestratorTests)
