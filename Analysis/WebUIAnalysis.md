@@ -584,13 +584,46 @@ end here, since nothing in v1 consumes it (see Decisions log above).
    target; see `engineering-hygiene.md`'s new entry). Fixing that needs a real
    from-source rebuild of the vcpkg manifest (binary-cache bypass), not
    attempted here as out of scope for this step.
-3. A `/api/capabilities`-style endpoint reflecting the Registry (what
-   Input/Output plugins are actually compiled in) — the frontend's
-   capability-probe step needs this before anything else.
-4. Hue credential persistence (new `Config` fields or a sibling
-   `credentials.json`, mirroring huenicorn's own file split) + update
-   `registerOutputs()` to read from it first, env vars staying as a dev-only
-   fallback.
+3. ~~A `/api/capabilities`-style endpoint~~ — **done (2026-09-15)**: added to
+   both `Aurora-App-Windows` and `Aurora-App-Linux`'s `main.cpp` (route logic
+   duplicated per app, matching the existing `Registry`/`registerInputs`/
+   `registerOutputs` convention — `Registry` itself is a byte-identical
+   duplicated header across both app repos already, confirmed by `diff`, so
+   this isn't a new inconsistency). Also wired the server's actual lifecycle
+   in for the first time: bind on load, `listen()` on its own thread
+   (`HttpServerAnalysis.md`'s documented model), stopped after outputs shut
+   down. Building this surfaced a real bug before it shipped: the first pass
+   used a bare `std::thread`, stopped only at the tail of `main()` — the
+   pre-existing "no outputs available" early return skips that tail
+   entirely, and `std::thread::~thread()` calls `std::terminate()` on a
+   still-joinable thread, so that path would have aborted the whole process.
+   Fixed with a small RAII wrapper whose destructor stops and joins
+   unconditionally. Verified for real on both platforms: built via MSVC and
+   via WSL2/GCC, ran each binary, confirmed the endpoint's real JSON
+   response, and confirmed clean shutdown on both the early-return path
+   (Windows) and a real `SIGTERM` (Linux).
+4. ~~Hue credential persistence~~ — **done (2026-09-15)**, and the "new
+   `Config` fields or a sibling file" question this line left open resolved
+   itself once `Config.hpp`'s own header comment was actually read: "output-
+   specific state (bridge credentials, zone maps) lives in each plugin's own
+   scope, never here" — a deliberate, pre-existing architectural rule, not
+   an oversight to route around. That rules out new `Config` fields outright.
+   Built `Aurora::Output::Hue::CredentialsStore` in `Aurora-Output-Hue`
+   itself instead, mirroring `ZoneMapStore`'s own exact shape (a small
+   `explicit Store(configRoot)` class, `<configRoot>/hue-credentials.json`)
+   rather than a generic core-owned file, since credentials are exactly the
+   kind of "each plugin's own scope" state that comment describes. Persists
+   `bridgeAddress`/`username`/`clientkey`/`entertainmentConfigurationId` as
+   one JSON object; `HueConnection::isConfigured()` gates whether the `hue`
+   output gets registered at all, same as before. `registerOutputs()` in
+   both apps now checks the store first and only falls back to the env vars
+   when it's empty — a persisted connection always wins if both are set, so
+   env vars are a true dev-only fallback, not a second equally-valid source.
+   Verified with real unit tests (round-trip, missing-file default, corrupt-
+   file default, `isConfigured()`'s exact gating) run via WSL2, and with a
+   real precedence test on both platforms (a persisted file plus
+   deliberately-different env vars set simultaneously, confirming the output
+   still registers via the persisted path).
 5. Pairing endpoints (autodetect/validate/register/finish, entertainment-config
    list/select), modeled directly on huenicorn's `SetupBackend`.
 
