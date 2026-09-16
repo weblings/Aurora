@@ -7,6 +7,10 @@
    the real ratio would need extra plumbing this screen doesn't otherwise
    need. */
 
+.zm-entertainment-field {
+  margin-bottom: var(--aurora-space-4);
+}
+
 .zm-canvas-wrap {
   position: relative;
   width: 100%;

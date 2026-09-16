@@ -210,8 +210,25 @@ export class Dropdown {
     }
   }
 
+  // Updates this dropdown's own displayed label/aria-selected before
+  // calling the caller's onSelect -- a caller's onSelect only needs to
+  // stash the new value in its own state (both real call sites do exactly
+  // that), not also remember to refresh how this component looks. Missing
+  // this was the actual bug behind "clicking an option doesn't work": the
+  // committed value was always correct (confirmed via the real PUT/POST
+  // body sent), only the visible label never changed, indistinguishable
+  // from a broken click without checking the network request directly.
   _commit(index) {
     const opt = this._options[index];
+    if (opt) {
+      this._options.forEach((o) => { o.selected = o.value === opt.value; });
+      this.setTriggerLabel(opt.label);
+      this._optionButtons().forEach((btn, i) => {
+        const isSelected = this._options[i].value === opt.value;
+        btn.setAttribute('aria-selected', isSelected ? 'true' : 'false');
+        btn.classList.toggle('selected', isSelected);
+      });
+    }
     this.close();
     if (opt) this._onSelect(opt.value);
   }

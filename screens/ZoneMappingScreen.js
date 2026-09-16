@@ -26,7 +26,22 @@
 // staged/uncommitted concept at all). "Save" here just means "done editing,
 // back to Dashboard" -- resolves an ambiguity the original spec's header
 // line left open without saying so.
+//
+// Entertainment-config picker (above the canvas, matching huenicorn's own
+// real WebUI.js layout -- its equivalent dropdown lives on the same main
+// screen as its zone/channel mapping, not buried in setup). Added as a
+// WebUIManualTweaks.md follow-up: Output Connect's own pairing wizard had
+// no path back to this picker without redoing physical pairing, even with
+// valid credentials already saved. Reuses the already-persisted
+// bridgeAddress/username server-side (PUT /api/hue/entertainment-
+// configurations now falls back to CredentialsStore when the body omits
+// them) and writes back through POST /api/hue/connection, now PATCH-style
+// so a body with just entertainmentConfigurationId works without the
+// frontend ever needing username/clientkey (deliberately withheld by GET
+// /api/hue/connection). Hidden entirely at exactly one config, same rule
+// huenicorn's own dropdown and Output Connect's already use.
 import { renderTopBar } from '../topBar.js';
+import { Dropdown } from '../Dropdown.js';
 
 const MIN_RECT_SIZE = 0.02; // 2% of the frame, in normalized UV units
 const CORNERS = ['tl', 'tr', 'bl', 'br'];
@@ -41,6 +56,9 @@ export class ZoneMappingScreen {
     this.zones = null; // null = not loaded yet
     this.selectedZoneId = null;
     this.error = null;
+    this.entertainmentConfigs = null; // null = not loaded yet
+    this.selectedEntertainmentConfigId = '';
+    this.entertainmentDropdown = null;
     this._pendingPatches = new Map();
     this._inFlightZoneIds = new Set();
   }
@@ -61,7 +79,10 @@ export class ZoneMappingScreen {
     await this._load();
   }
 
-  unmount() {}
+  unmount() {
+    this.entertainmentDropdown?.destroy();
+    this.entertainmentDropdown = null;
+  }
 
   async _load() {
     const body = this.container.querySelector('.zm-body');
@@ -77,11 +98,33 @@ export class ZoneMappingScreen {
     }
 
     this.selectedZoneId = null;
+
+    if (this.outputName) {
+      await this._loadEntertainmentConfigs();
+    }
+
     this._render();
+  }
+
+  async _loadEntertainmentConfigs() {
+    try {
+      const connection = await (await fetch('/api/hue/connection')).json();
+      this.selectedEntertainmentConfigId = connection.entertainmentConfigurationId ?? '';
+
+      const result = await (await fetch('/api/hue/entertainment-configurations', {
+        method: 'PUT',
+        body: JSON.stringify({}),
+      })).json();
+      this.entertainmentConfigs = result.succeeded ? result.configurations : [];
+    } catch {
+      this.entertainmentConfigs = [];
+    }
   }
 
   _render() {
     const body = this.container.querySelector('.zm-body');
+    this.entertainmentDropdown?.destroy();
+    this.entertainmentDropdown = null;
 
     if (this.zones === null) {
       body.innerHTML = `<p class="status-text status-text-error">⚠ ${escapeHtml(this.error ?? 'Something went wrong.')}</p>`;
@@ -106,8 +149,15 @@ export class ZoneMappingScreen {
 
     const selected = this.zones.find((z) => z.zoneId === this.selectedZoneId) ?? null;
     const errorHtml = this.error ? `<p class="status-text status-text-error">⚠ ${escapeHtml(this.error)}</p>` : '';
+    const showEntertainmentPicker = (this.entertainmentConfigs?.length ?? 0) > 1;
 
     body.innerHTML = `
+      ${showEntertainmentPicker ? `
+        <div class="field zm-entertainment-field">
+          <label class="field-label" id="zm-entertainment-label">Entertainment configuration</label>
+          <div id="zm-entertainment-dropdown-slot"></div>
+        </div>
+      ` : ''}
       <div class="zm-canvas-wrap">
         <svg viewBox="0 0 100 100" preserveAspectRatio="none"></svg>
         <div class="zm-overlay"></div>
@@ -120,10 +170,44 @@ export class ZoneMappingScreen {
       </div>
     `;
 
+    if (showEntertainmentPicker) this._renderEntertainmentPicker(body.querySelector('#zm-entertainment-dropdown-slot'));
     this._renderCanvas(body.querySelector('.zm-canvas-wrap'));
     if (selected) this._renderSelectedRow(body.querySelector('#zm-selected-row'), selected);
 
     body.querySelector('#zm-save').addEventListener('click', () => this.onComplete());
+  }
+
+  _renderEntertainmentPicker(slot) {
+    const selected = this.entertainmentConfigs.find((c) => c.id === this.selectedEntertainmentConfigId) ?? this.entertainmentConfigs[0];
+    this.entertainmentDropdown = new Dropdown(
+      slot,
+      selected.name,
+      (value) => this._setEntertainmentConfig(value),
+      { labelId: 'zm-entertainment-label', fill: true },
+    );
+    this.entertainmentDropdown.setOptions(this.entertainmentConfigs.map((c) => ({
+      label: c.name,
+      value: c.id,
+      selected: c.id === selected.id,
+    })));
+  }
+
+  async _setEntertainmentConfig(entertainmentConfigurationId) {
+    this.selectedEntertainmentConfigId = entertainmentConfigurationId;
+    this.entertainmentConfigError = null;
+    try {
+      const result = await (await fetch('/api/hue/connection', {
+        method: 'POST',
+        body: JSON.stringify({ entertainmentConfigurationId }),
+      })).json();
+      if (!result.succeeded) {
+        this.error = "Couldn't switch entertainment configuration.";
+        this._render();
+      }
+    } catch {
+      this.error = "Couldn't reach the daemon.";
+      this._render();
+    }
   }
 
   _renderCanvas(wrap) {
