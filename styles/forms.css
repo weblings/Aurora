@@ -252,3 +252,56 @@
 .toggle-switch input:checked + .toggle-knob::after {
   transform: translateX(18px);
 }
+
+/* Generic modal overlay + scrim + panel -- same real values as index.html's
+   own #settings-overlay/#settings-scrim/#settings-panel (verified directly,
+   not re-guessed), generalized into classes so a second modal (the
+   Dashboard's Stop confirmation, step 17) doesn't need its own one-off
+   copy. The Settings modal itself is left on its existing ID selectors
+   unchanged -- already shipped and tested, and unifying it onto these
+   classes too is a pure refactor with no behavior change, not worth the
+   regression risk for this step's own actual job. First new consumer:
+   Dashboard's Stop confirm dialog. */
+.overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.overlay-scrim {
+  position: absolute;
+  inset: 0;
+  background: var(--aurora-scrim);
+  cursor: pointer;
+}
+
+.overlay-panel {
+  position: relative;
+  z-index: 1;
+  background: var(--aurora-surface);
+  border: 1px solid var(--aurora-border);
+  border-radius: var(--aurora-radius-panel);
+  padding: var(--aurora-space-7) var(--aurora-space-8);
+  min-width: 280px;
+  max-width: calc(100vw - var(--aurora-space-8));
+  color: var(--aurora-text-primary);
+}
+
+.overlay-panel h2 {
+  font-size: 18px;
+  font-weight: 700;
+  margin-bottom: var(--aurora-space-6);
+}
+
+.overlay-actions {
+  display: flex;
+  gap: var(--aurora-space-3);
+  margin-top: var(--aurora-space-6);
+}
+
+.overlay-actions .btn {
+  flex: 1;
+}

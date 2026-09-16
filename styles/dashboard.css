@@ -44,3 +44,33 @@
   font-size: 16px;
   color: var(--aurora-text-secondary);
 }
+
+/* Quick mode toggle + Stop, above the nav rows -- step 17. Wraps to a
+   stacked layout under 480px the same way ModeDeviceScreen's own toggle
+   row does, rather than shrinking the segmented control to fit one line. */
+.db-controls {
+  margin-bottom: var(--aurora-space-3);
+}
+
+.db-controls-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--aurora-space-4);
+  flex-wrap: wrap;
+}
+
+.db-controls-row .segmented {
+  flex: 1;
+}
+
+@media (max-width: 480px) {
+  .db-controls-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .db-controls-row .btn {
+    width: 100%;
+  }
+}
