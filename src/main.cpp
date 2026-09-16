@@ -124,10 +124,6 @@ namespace
       registry.registerOutput("hue", [configRoot, connection]{
         Aurora::Output::Hue::HueConnection live = Aurora::Output::Hue::CredentialsStore(configRoot).load();
         if(!live.isConfigured()) live = connection;
-        // TEMP DEBUG -- remove once the entertainment-config switch is
-        // confirmed live (see WebUIManualTweaks.md).
-        std::cout << "[hue-debug] registerOutputs factory read entertainmentConfigurationId='"
-                  << live.entertainmentConfigurationId << "' from CredentialsStore\n";
         return std::make_unique<Aurora::Output::Hue::HueOutput>(
           Aurora::Output::Hue::Credentials(live.username, live.clientkey),
           live.bridgeAddress,
@@ -300,10 +296,10 @@ namespace
       return m_orchestrator->updateZone(m_outputPtrs.front()->name(), zoneId, uvs, active, gamma);
     }
 
-    void shutdown()
+    void shutdown(bool isReplacement)
     {
       for(auto* output : m_outputPtrs){
-        output->shutdown();
+        output->shutdown(isReplacement);
       }
     }
 
@@ -410,14 +406,14 @@ namespace
         previous = std::move(m_pipeline);
         m_pipeline = std::move(next);
       }
-      previous->shutdown();
+      previous->shutdown(/*isReplacement*/ true);
       return true;
     }
 
     void shutdown()
     {
       std::lock_guard<std::mutex> lock(m_mutex);
-      m_pipeline->shutdown();
+      m_pipeline->shutdown(/*isReplacement*/ false);
     }
 
   private:
