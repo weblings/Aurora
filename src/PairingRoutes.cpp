@@ -1,5 +1,6 @@
 #include <Aurora/Output/Hue/PairingRoutes.hpp>
 
+#include <iostream>
 #include <optional>
 
 #include <nlohmann/json.hpp>
@@ -42,7 +43,11 @@ namespace Aurora::Output::Hue
   }
 
 
-  void registerPairingRoutes(HttpServer& server, const std::filesystem::path& configRoot)
+  void registerPairingRoutes(
+    HttpServer& server,
+    const std::filesystem::path& configRoot,
+    std::function<std::string()> onConnectionChanged
+  )
   {
     server.addRoute(HttpMethod::Get, "/api/hue/discover", [](const Request&, Response& res){
       _writeJson(res, ApiTools::autodetectedBridge());
@@ -58,6 +63,40 @@ namespace Aurora::Output::Hue
         {"bridgeAddress", connection.bridgeAddress},
         {"entertainmentConfigurationId", connection.entertainmentConfigurationId}
       });
+    });
+
+    // For Zone Mapping's zone-selector dropdown and active-zone list --
+    // real light names for the currently-selected entertainment config's
+    // channels, so those show "Zone 5 (Floor Lamp)" instead of a bare
+    // number. Empty entertainmentConfigurationId falls back to the
+    // bridge's first config, same convention
+    // EntertainmentConfigurationSelector::selectEntertainmentConfiguration
+    // uses.
+    server.addRoute(HttpMethod::Get, "/api/hue/channels", [configRoot](const Request&, Response& res){
+      HueConnection connection = CredentialsStore(configRoot).load();
+      if(!connection.isConfigured()){
+        _writeJson(res, {{"succeeded", false}, {"error", "not_configured"}}, 400);
+        return;
+      }
+
+      auto configs = ApiTools::loadEntertainmentConfigurations(connection.username, connection.bridgeAddress);
+      auto it = configs.find(connection.entertainmentConfigurationId);
+      if(it == configs.end()){
+        it = configs.begin();
+      }
+
+      nlohmann::json channels = nlohmann::json::array();
+      if(it != configs.end()){
+        for(const auto& [channelId, channel] : it->second.channels){
+          nlohmann::json lightNames = nlohmann::json::array();
+          for(const auto& device : channel.devices){
+            lightNames.push_back(device.name);
+          }
+          channels.push_back({{"channelId", channelId}, {"lightNames", lightNames}});
+        }
+      }
+
+      _writeJson(res, {{"succeeded", true}, {"channels", channels}});
     });
 
     server.addRoute(HttpMethod::Put, "/api/hue/validate", [](const Request& req, Response& res){
@@ -181,7 +220,7 @@ namespace Aurora::Output::Hue
     // that case at all before this. The original full-pairing call
     // (OutputConnectScreen's _finish()) still sends all four fields and
     // behaves identically either way.
-    server.addRoute(HttpMethod::Post, "/api/hue/connection", [configRoot](const Request& req, Response& res){
+    server.addRoute(HttpMethod::Post, "/api/hue/connection", [configRoot, onConnectionChanged](const Request& req, Response& res){
       auto body = _parseBody(req, res);
       if(!body){
         return;
@@ -199,7 +238,22 @@ namespace Aurora::Output::Hue
       }
 
       CredentialsStore(configRoot).save(connection);
-      _writeJson(res, {{"succeeded", true}});
+
+      // TEMP DEBUG -- remove once the entertainment-config switch is
+      // confirmed live (see WebUIManualTweaks.md).
+      std::cout << "[hue-debug] POST /api/hue/connection saved entertainmentConfigurationId='"
+                << connection.entertainmentConfigurationId << "'\n";
+
+      nlohmann::json responseJson = {{"succeeded", true}};
+      if(onConnectionChanged){
+        std::string reloadError = onConnectionChanged();
+        if(!reloadError.empty()){
+          // Same convention as SettingsRoutes' reloadError -- the save
+          // itself succeeded, the live pipeline just couldn't pick it up.
+          responseJson["reloadError"] = reloadError;
+        }
+      }
+      _writeJson(res, responseJson);
     });
   }
 }

@@ -114,7 +114,13 @@ namespace Aurora::Output::Hue
 
       auto jsonEntConfs = response->asJson();
 
+      // Per-config, per-channel member device ids -- parsed once up front
+      // from the same response already in hand, reusing the existing,
+      // already-unit-tested parser instead of re-fetching.
+      EntertainmentConfigurationsChannels channelsMembersIds = parseEntertainmentConfigurationsChannels(jsonEntConfs);
+
       for(const auto& jsonEntConf : jsonEntConfs.at("data")){
+        std::string configurationId = jsonEntConf.at("id").get<std::string>();
         EntertainmentConfiguration entConf = parseEntertainmentConfigurationShell(jsonEntConf);
 
         // Fixed in the port: the original called .value() on this request's
@@ -130,7 +136,21 @@ namespace Aurora::Output::Hue
           }
         }
 
-        entConfs.emplace(jsonEntConf.at("id").get<std::string>(), std::move(entConf));
+        // Now that entConf.devices carry real names, match each channel's
+        // own member ids against them -- lets the WebUI show "Zone 5:
+        // Floor Lamp" instead of a bare number. matchDevices() already
+        // existed, ported and unit-tested, just never called from here.
+        auto channelsIt = channelsMembersIds.find(configurationId);
+        if(channelsIt != channelsMembersIds.end()){
+          for(auto& [channelId, channel] : entConf.channels){
+            auto membersIt = channelsIt->second.find(channelId);
+            if(membersIt != channelsIt->second.end()){
+              channel.devices = matchDevices(membersIt->second, entConf.devices);
+            }
+          }
+        }
+
+        entConfs.emplace(configurationId, std::move(entConf));
       }
 
       return entConfs;

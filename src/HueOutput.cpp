@@ -1,5 +1,7 @@
 #include <Aurora/Output/Hue/HueOutput.hpp>
 
+#include <iostream>
+
 #include <glm/exponential.hpp>
 
 namespace Aurora::Output::Hue
@@ -56,13 +58,32 @@ namespace Aurora::Output::Hue
 
   void HueOutput::init()
   {
+    // TEMP DEBUG -- remove once the entertainment-config switch is confirmed
+    // live (see WebUIManualTweaks.md).
+    std::cout << "[hue-debug] init() requested entertainmentConfigurationId='"
+              << m_entertainmentConfigurationId << "'\n";
+
     m_selector = std::make_unique<EntertainmentConfigurationSelector>(m_credentials, m_bridgeAddress);
-    m_selector->selectEntertainmentConfiguration(m_entertainmentConfigurationId);
+    bool selected = m_selector->selectEntertainmentConfiguration(m_entertainmentConfigurationId);
+
+    std::cout << "[hue-debug] selectEntertainmentConfiguration returned " << std::boolalpha << selected
+              << ", validSelection=" << m_selector->validSelection() << "\n";
+    for(const auto& [id, config] : m_selector->entertainmentConfigurations()){
+      std::cout << "[hue-debug] available config id='" << id << "' name='" << config.name
+                << "' channelCount=" << config.channels.size() << "\n";
+    }
 
     m_streamer = std::make_unique<Streamer>(m_credentials, m_bridgeAddress);
 
     if(m_selector->validSelection()){
       m_streamer->setEntertainmentConfigurationId(*m_selector->currentEntertainmentConfigurationId());
+
+      std::cout << "[hue-debug] selected config id='" << *m_selector->currentEntertainmentConfigurationId()
+                << "', channel ids:";
+      for(uint8_t id : zoneIds()){
+        std::cout << " " << static_cast<int>(id);
+      }
+      std::cout << "\n";
     }
   }
 
