@@ -17,6 +17,7 @@ endif()
 
 add_executable(AuroraOutputHueTests
   HueOutputTests.cpp
+  CredentialsStoreTests.cpp
 )
 
 if(AURORA_OUTPUT_HUE_ENABLE_IO)
