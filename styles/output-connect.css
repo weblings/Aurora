@@ -26,8 +26,16 @@
     align-items: stretch;
   }
 
+  /* flex-direction: column, not just width:100% -- the entry phase's
+     .oc-actions only ever holds one button (that alone would look stacked),
+     but the pairing phase's holds two ("Change address" + "Continue"); a
+     row with two 100%-wide children just shrinks them both to fit instead
+     of stacking (confirmed via a real measurement in Chromium at 390px --
+     each button came out ~170px instead of the full width). */
   .oc-actions {
-    justify-content: stretch;
+    flex-direction: column;
+    align-items: stretch;
+    gap: var(--aurora-space-3);
   }
 
   .oc-actions .btn {
