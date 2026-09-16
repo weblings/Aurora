@@ -115,7 +115,12 @@ Aurora's own module boundaries instead of RockyRoad's. `rendering-apis.md` vs.
   instance's teardown undo the new one's already-established state when
   both target the same external resource -- fixed at the `IOutput`
   interface (`shutdown(isReplacement)`), not inside the one plugin that
-  happened to expose it.
+  happened to expose it; and confirming a crash is gone (fresh-install
+  `Pipeline::build()` no longer throwing before `httpServer.bind()`) being
+  reported as done before tracing whether the resulting state actually let
+  a new user reach Output Connect -- it didn't, since `/api/capabilities`'
+  `outputs` list conflated "compiled with Hue" and "already paired,"
+  caught only by the user asking what the intended new-user flow was.
 - [`rendering-apis.md`](rendering-apis.md) — third-party Three.js/GLTFLoader/Blender-export
   facts: `RectAreaLight` having no `distance`/`decay` at all (coupling brightness to reach),
   Blender's glTF export dropping light data unless "Punctual Lights" is checked (and never

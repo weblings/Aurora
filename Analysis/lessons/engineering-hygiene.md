@@ -939,3 +939,33 @@ manages -- an interface that can't express "you were replaced" invites
 exactly this kind of stale-teardown race, and it only bites resources with
 external, sticky state (a device session, a lock, a subscription), never
 ones that are purely local memory.
+
+---
+
+## Confirming a crash is gone is not the same as confirming the intended user flow now works
+
+Fresh-install repro: deleting `%APPDATA%\Aurora` and relaunching threw
+before `httpServer.bind()` ever ran. First fix (making that throw
+non-fatal, `PipelineHost` tolerating no `Pipeline`) was verified live --
+the WebUI bound, served `/api/capabilities`, no crash -- and reported as
+done. It wasn't: `/api/capabilities`'s `outputs` list came from
+`registry.outputNames()`, which `registerOutputs()` only populates with
+`"hue"` once credentials are *already* configured. `app.js`'s onboarding
+gate and `DashboardScreen`'s Bridge row both read that same list as "is
+Hue compiled into this build" -- so a real fresh install would see
+`hasHue: false`, skip Output Connect entirely, and dead-end on a Dashboard
+whose Bridge row was permanently disabled with no path to pairing at all.
+The crash fix was necessary but tested at the wrong altitude: "does the
+process survive" instead of "can a new user actually reach the thing they
+need." Caught only because the user asked "what's the intended flow for a
+new user then?" instead of accepting the crash fix as the whole answer.
+
+**Fix:** decoupled the two meanings that had been conflated in one field --
+`registerCapabilitiesRoute()` now reports `"hue"` whenever
+`AURORA_OUTPUT_HUE_IO_AVAILABLE` is compiled in, regardless of
+`registry.outputNames()`, matching that route's own documented contract
+("compiled with," not "already paired"). General principle: after fixing a
+crash, trace the *next* real user action through the code the same way a
+JTBD pass would (see `web-ui.md`'s zone-mapping entry) -- a fix that only
+stops the immediate error can still leave the surrounding flow a dead end,
+and "no exception thrown" and "user can do the thing" are different claims.

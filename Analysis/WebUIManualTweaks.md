@@ -13,16 +13,45 @@ entry on build-log doc density for why.
 
 ## Open tasks
 
-- [ ] **Fresh install: HTTP server never binds at all.** `Pipeline::build()`
-  throws when zero outputs are registered, and that happens *before*
-  `httpServer.bind()` — so Output Connect is unreachable on a real first
-  run (confirmed live: double-click with no prior config, nothing listens
-  on the port). Root cause is output-agnostic, not Hue-specific — keep the
-  fix that way (bind unconditionally; `Pipeline` absent until a reload
-  first succeeds), matching huenicorn's separate-setup-server pattern.
-  Also needed for pairing to ever be picked up without a restart:
-  `registerOutputs()`'s Hue factory captures credentials by value once at
-  boot, never re-read.
+- [x] **Fixed: fresh install — HTTP server never binds, and even once it did,
+  onboarding couldn't reach Output Connect.** Two stacked bugs, not one:
+  (1) `Pipeline::build()` threw when zero outputs were registered, before
+  `httpServer.bind()` ran, so nothing listened on the port at all (confirmed
+  live: deleting `%APPDATA%\Aurora` and relaunching printed a fatal error).
+  (2) Even after fixing that, `/api/capabilities`' `outputs` list came
+  straight from `registry.outputNames()`, and `registerOutputs()` only adds
+  `"hue"` to that registry once credentials are *already* configured —  a
+  chicken-and-egg gate. `app.js`'s `hasHue` and `DashboardScreen`'s Bridge
+  row both read that same list to mean "is Hue compiled into this build,"
+  so a genuinely fresh install would see `hasHue: false`, skip Output
+  Connect entirely, and land on a Dashboard with the Bridge row permanently
+  disabled ("not available in this build") — no path to pairing at all.
+  Root-caused by asking "what's the intended new-user flow?" instead of
+  accepting the crash fix alone as done.
+  **Fix (1):** output-agnostic, not Hue-specific — `main()`'s initial
+  `Pipeline::build()` call is now wrapped in try/catch (matching how
+  `PipelineHost::reload()` already treated a failed rebuild as recoverable),
+  and `PipelineHost` now tolerates holding no `Pipeline` at all
+  (`tick()`/`shutdown()` no-op, `listMonitors()`/`listZones()` return empty,
+  `updateZone()` returns false) until a reload — e.g. after pairing
+  completes — first succeeds. Matches huenicorn's separate-setup-server
+  pattern.
+  **Fix (2):** `registerCapabilitiesRoute()`'s `outputs` list now always
+  includes `"hue"` when `AURORA_OUTPUT_HUE_IO_AVAILABLE` is compiled in,
+  independent of `registry.outputNames()` — matching the route's own
+  documented contract ("compiled with," not "already paired").
+  `registerOutputs()`'s Pipeline-facing registration is untouched (still
+  conditional on configuration, so an unpaired boot doesn't try to init a
+  bogus Hue connection).
+  Confirmed live end-to-end with `%APPDATA%\Aurora` deleted:
+  `/api/capabilities` now reports `outputs: ["hue"]`, `/api/hue/connection`
+  reports `configured: false`, which is exactly what `app.js`'s
+  `probeState()` needs to route a fresh install to Output Connect first —
+  Output Connect → Mode+Device → Zone Mapping → Tuning → Dashboard, with
+  the existing `onConnectionChanged` reload callback building the first
+  real `Pipeline` once pairing completes. Applied identically to
+  `Aurora-App-Windows` and `Aurora-App-Linux` (both rebuilt clean, Linux
+  verified via WSL2).
 - [x] **Pairing persistence — resolved, not a real bug.** Live repro with
   temp `[pairing-debug]` logging confirmed the full flow (validate →
   register retry after button press → entertainment configs → save) works
