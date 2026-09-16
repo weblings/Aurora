@@ -11,6 +11,10 @@
   margin-bottom: var(--aurora-space-4);
 }
 
+.zm-active-field {
+  margin-top: var(--aurora-space-5);
+}
+
 .zm-canvas-wrap {
   position: relative;
   width: 100%;
@@ -95,27 +99,20 @@
   font-size: 12px;
   /* The badge sits centered on the zone -- exactly where a user's first
      click to select it naturally lands. none here (re-enabled only on the
-     digit/checkbox below) lets a click on the badge's own padding fall
-     through to the zone rect's own selection handler underneath instead of
-     silently hitting nothing (found via a real click in Chromium, not
-     jsdom -- see Analysis/lessons/web-ui.md). */
+     digit below) lets a click on the badge's own padding fall through to
+     the zone rect's own selection handler underneath instead of silently
+     hitting nothing (found via a real click in Chromium, not jsdom -- see
+     Analysis/lessons/web-ui.md). */
   pointer-events: none;
   cursor: pointer;
 }
 
-.zm-zone-tag span,
-.zm-zone-tag input[type="checkbox"] {
+.zm-zone-tag span {
   pointer-events: auto;
 }
 
-.zm-zone-tag input[type="checkbox"] {
-  cursor: pointer;
-}
-
-.zm-legend {
-  margin-top: var(--aurora-space-4);
-  font-size: 13px;
-  color: var(--aurora-text-secondary);
+.zm-active-toggle {
+  padding: var(--aurora-space-2) 0;
 }
 
 .zm-selected-row {

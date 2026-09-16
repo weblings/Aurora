@@ -1,6 +1,7 @@
-// Zone Mapping: one canvas showing every zone's UV rect, a per-zone active
-// checkbox always visible, and corner-drag + gamma editing for whichever
-// zone is currently selected. Ported from huenicorn's real `ScreenWidget.js`
+// Zone Mapping: one canvas showing every zone's UV rect (shape only), a
+// zone-picker dropdown + gamma slider for whichever zone is currently
+// selected, and a separate active/inactive toggle list below, decoupled
+// from shape editing entirely. Ported from huenicorn's real `ScreenWidget.js`
 // (`Handle`/`Rectangle` classes, read in full -- see
 // Analysis/WebUIAnalysis.md's Zone Mapping section and build-order step 15),
 // with its two identified real gaps closed: Pointer Events instead of
@@ -14,10 +15,10 @@
 // confirmed by reading it, not assumed). This port clamps every drag to a
 // minimum 2% rect size against the opposite corner instead.
 //
-// No active/inactive two-list panel (cut in the original plan): every
-// zone's checkbox is always visible and editable regardless of selection,
-// since Aurora's zone count is fixed by the capture scheme, not an
-// open-ended bridge-light membership problem.
+// Active/inactive is a flat toggle list, not huenicorn's two-column
+// drag-and-drop -- Aurora's zone count is fixed, not an open-ended
+// bridge-light membership problem. See WebUIManualTweaks.md's Zone Mapping
+// follow-up section for why this replaced the old on-canvas checkbox.
 //
 // The header's own "Save" button does not gate persistence -- every edit
 // here (drag, checkbox, gamma) already PUTs immediately, matching
@@ -59,6 +60,8 @@ export class ZoneMappingScreen {
     this.entertainmentConfigs = null; // null = not loaded yet
     this.selectedEntertainmentConfigId = '';
     this.entertainmentDropdown = null;
+    this.zoneDropdown = null;
+    this.channelLightNames = {}; // channelId -> light name array, from /api/hue/channels
     this._pendingPatches = new Map();
     this._inFlightZoneIds = new Set();
   }
@@ -82,6 +85,8 @@ export class ZoneMappingScreen {
   unmount() {
     this.entertainmentDropdown?.destroy();
     this.entertainmentDropdown = null;
+    this.zoneDropdown?.destroy();
+    this.zoneDropdown = null;
   }
 
   async _load() {
@@ -119,12 +124,31 @@ export class ZoneMappingScreen {
     } catch {
       this.entertainmentConfigs = [];
     }
+
+    // Best-effort: falls back to bare "Zone N" labels (via _zoneLabel) if
+    // this fails or the route isn't available for the active output.
+    try {
+      const channelsResult = await (await fetch('/api/hue/channels')).json();
+      this.channelLightNames = {};
+      if (channelsResult.succeeded) {
+        for (const c of channelsResult.channels) this.channelLightNames[c.channelId] = c.lightNames;
+      }
+    } catch {
+      this.channelLightNames = {};
+    }
+  }
+
+  _zoneLabel(zone) {
+    const names = this.channelLightNames?.[zone.zoneId];
+    return names?.length ? `Zone ${zone.zoneId} (${names.join(', ')})` : `Zone ${zone.zoneId}`;
   }
 
   _render() {
     const body = this.container.querySelector('.zm-body');
     this.entertainmentDropdown?.destroy();
     this.entertainmentDropdown = null;
+    this.zoneDropdown?.destroy();
+    this.zoneDropdown = null;
 
     if (this.zones === null) {
       body.innerHTML = `<p class="status-text status-text-error">⚠ ${escapeHtml(this.error ?? 'Something went wrong.')}</p>`;
@@ -147,7 +171,13 @@ export class ZoneMappingScreen {
       return;
     }
 
-    const selected = this.zones.find((z) => z.zoneId === this.selectedZoneId) ?? null;
+    // Always a real selection once any zone exists -- falls back to the
+    // first zone rather than leaving nothing selected (WebUIManualTweaks.md
+    // item 5), same "always shows a value" model the entertainment dropdown
+    // already uses.
+    const selected = this.zones.find((z) => z.zoneId === this.selectedZoneId) ?? this.zones[0];
+    this.selectedZoneId = selected.zoneId;
+
     const errorHtml = this.error ? `<p class="status-text status-text-error">⚠ ${escapeHtml(this.error)}</p>` : '';
     const showEntertainmentPicker = (this.entertainmentConfigs?.length ?? 0) > 1;
 
@@ -162,8 +192,11 @@ export class ZoneMappingScreen {
         <svg viewBox="0 0 100 100" preserveAspectRatio="none"></svg>
         <div class="zm-overlay"></div>
       </div>
-      ${selected ? '' : `<p class="zm-legend">Select a zone to edit its shape and gamma.</p>`}
       <div class="zm-selected-row" id="zm-selected-row"></div>
+      <div class="field zm-active-field">
+        <label class="field-label">Active zones</label>
+        <div id="zm-active-row"></div>
+      </div>
       ${errorHtml}
       <div class="zm-actions">
         <button type="button" class="btn btn-primary" id="zm-save">Save</button>
@@ -172,7 +205,8 @@ export class ZoneMappingScreen {
 
     if (showEntertainmentPicker) this._renderEntertainmentPicker(body.querySelector('#zm-entertainment-dropdown-slot'));
     this._renderCanvas(body.querySelector('.zm-canvas-wrap'));
-    if (selected) this._renderSelectedRow(body.querySelector('#zm-selected-row'), selected);
+    this._renderSelectedRow(body.querySelector('#zm-selected-row'), selected);
+    this._renderActiveRow(body.querySelector('#zm-active-row'));
 
     body.querySelector('#zm-save').addEventListener('click', () => this.onComplete());
   }
@@ -194,7 +228,7 @@ export class ZoneMappingScreen {
 
   async _setEntertainmentConfig(entertainmentConfigurationId) {
     this.selectedEntertainmentConfigId = entertainmentConfigurationId;
-    this.entertainmentConfigError = null;
+    this.error = null;
     try {
       const result = await (await fetch('/api/hue/connection', {
         method: 'POST',
@@ -203,7 +237,15 @@ export class ZoneMappingScreen {
       if (!result.succeeded) {
         this.error = "Couldn't switch entertainment configuration.";
         this._render();
+        return;
       }
+      if (result.reloadError) {
+        this.error = `Saved, but the running output couldn't reload: ${result.reloadError}`;
+      }
+      // The switch changes which channels/lights the output reports -- the
+      // zone list itself (not just the picker's own selection) needs a
+      // fresh fetch to reflect that, same reason _load() does it on mount.
+      await this._load();
     } catch {
       this.error = "Couldn't reach the daemon.";
       this._render();
@@ -216,7 +258,13 @@ export class ZoneMappingScreen {
     svg.innerHTML = '';
     overlay.innerHTML = '';
 
-    for (const zone of this.zones) {
+    // Selected zone paints last (on top, stable sort keeps the rest in
+    // order) so picking it from the dropdown always brings its shape and
+    // handles within reach, even when another zone's rect covers the same
+    // region -- see WebUIManualTweaks.md's Zone Mapping follow-up section.
+    const ordered = [...this.zones].sort((a, b) => (a.zoneId === this.selectedZoneId ? 1 : 0) - (b.zoneId === this.selectedZoneId ? 1 : 0));
+
+    for (const zone of ordered) {
       const isSelected = zone.zoneId === this.selectedZoneId;
       this._drawZoneRect(svg, overlay, zone, isSelected);
       this._drawZoneTag(overlay, zone);
@@ -277,30 +325,66 @@ export class ZoneMappingScreen {
     tag.className = 'zm-zone-tag';
     tag.style.left = `${(min[0] + max[0]) * 50}%`;
     tag.style.top = `${(min[1] + max[1]) * 50}%`;
-    tag.innerHTML = `
-      <span>${zone.zoneId}</span>
-      <input type="checkbox" id="zm-active-${zone.zoneId}" ${zone.active ? 'checked' : ''} aria-label="Zone ${zone.zoneId} active" />
-    `;
+    tag.innerHTML = `<span>${zone.zoneId}</span>`;
     tag.querySelector('span').addEventListener('click', () => this._selectZone(zone.zoneId));
-    tag.querySelector('input').addEventListener('click', (e) => e.stopPropagation());
-    tag.querySelector('input').addEventListener('change', (e) => {
-      zone.active = e.currentTarget.checked;
-      this._queueZonePatch(zone.zoneId, { active: zone.active });
-    });
     overlay.appendChild(tag);
   }
 
   _renderSelectedRow(container, zone) {
     container.innerHTML = `
-      <p class="status-text">Selected: Zone ${zone.zoneId}</p>
+      <div class="field zm-zone-field">
+        <label class="field-label" id="zm-zone-label">Zone</label>
+        <div id="zm-zone-dropdown-slot"></div>
+      </div>
       ${this._sliderFieldHtml(zone)}
     `;
+    this._renderZoneDropdown(container.querySelector('#zm-zone-dropdown-slot'), zone);
+
     const input = container.querySelector('#zm-gamma');
     const readout = container.querySelector('#zm-gamma-val');
     input.addEventListener('input', () => {
       zone.gamma = Number(input.value);
       readout.textContent = round1(zone.gamma).toFixed(1);
       this._queueZonePatch(zone.zoneId, { gamma: zone.gamma });
+    });
+  }
+
+  _renderZoneDropdown(slot, selectedZone) {
+    this.zoneDropdown = new Dropdown(
+      slot,
+      this._zoneLabel(selectedZone),
+      (value) => this._selectZone(value),
+      { labelId: 'zm-zone-label', fill: true },
+    );
+    this.zoneDropdown.setOptions(this.zones.map((z) => ({
+      label: this._zoneLabel(z),
+      value: z.zoneId,
+      selected: z.zoneId === selectedZone.zoneId,
+    })));
+  }
+
+  // Decoupled from shape editing entirely (WebUIManualTweaks.md's Zone
+  // Mapping follow-up): a flat toggle list, not tied to which zone the
+  // dropdown/canvas currently has selected, and not huenicorn's two-column
+  // drag-and-drop, which solves a different problem Aurora doesn't have.
+  _renderActiveRow(container) {
+    container.innerHTML = this.zones.map((zone) => `
+      <label class="toggle-row zm-active-toggle">
+        <span class="toggle-row-label">${escapeHtml(this._zoneLabel(zone))}</span>
+        <span class="toggle-switch">
+          <input type="checkbox" data-zone-id="${zone.zoneId}" ${zone.active ? 'checked' : ''} />
+          <span class="toggle-knob"></span>
+        </span>
+      </label>
+    `).join('');
+
+    container.querySelectorAll('input[type="checkbox"]').forEach((input) => {
+      input.addEventListener('change', (e) => {
+        const zoneId = Number(e.currentTarget.dataset.zoneId);
+        const zone = this.zones.find((z) => z.zoneId === zoneId);
+        zone.active = e.currentTarget.checked;
+        this._queueZonePatch(zoneId, { active: zone.active });
+      });
     });
   }
 

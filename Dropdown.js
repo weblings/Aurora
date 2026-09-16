@@ -86,7 +86,10 @@ export class Dropdown {
     this.menu.addEventListener('click', (e) => {
       const btn = e.target.closest('.dropdown-option');
       if (!btn) return;
-      const index = this._options.findIndex((o) => o.value === btn.dataset.value);
+      // dataset.value is always a string (DOM coercion) -- String() here so
+      // a non-string option value (e.g. a numeric zoneId) still matches
+      // instead of silently no-op'ing on click.
+      const index = this._options.findIndex((o) => String(o.value) === btn.dataset.value);
       if (index === -1) return;
       this._commit(index);
       this.trigger.focus();
