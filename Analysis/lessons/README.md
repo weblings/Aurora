@@ -95,7 +95,12 @@ Aurora's own module boundaries instead of RockyRoad's. `rendering-apis.md` vs.
   and `npm install <newpkg>` in a directory with no `package.json`
   silently deleting packages a previous ad hoc `npm install` put there
   (jsdom and Playwright evicting each other in the scratchpad until a real
-  minimal `package.json` was added to resolve both together).
+  minimal `package.json` was added to resolve both together), and a
+  build-log doc's own per-step entries each being individually accurate
+  and complete not guaranteeing the whole document stays readable --
+  `WebUIAnalysis.md`'s build order grew unskimmable once verification
+  detail was recorded in full every step, and outgrew being safely
+  restructured by the time that was attempted.
 - [`rendering-apis.md`](rendering-apis.md) — third-party Three.js/GLTFLoader/Blender-export
   facts: `RectAreaLight` having no `distance`/`decay` at all (coupling brightness to reach),
   Blender's glTF export dropping light data unless "Punctual Lights" is checked (and never

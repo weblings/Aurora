@@ -787,3 +787,34 @@ principle: `npm install` without a manifest isn't "add this on top of
 whatever's already here" the way it feels the first time -- it's "resolve
 a tree containing this," and an unmanaged `node_modules` has no record of
 what else was supposed to survive that resolution.
+
+---
+
+## A per-step build-log entry optimized for individual completeness can make the whole document unreadable, without any single edit being wrong
+
+Writing `WebUIAnalysis.md`'s 19-step build order, each step's writeup was
+judged against "is every claim in this entry accurate and well-supported"
+-- real bugs found, every jsdom/live verification performed, every
+doc-internal inconsistency resolved, all recorded in full. That's a
+reasonable bar per entry, and each one really did hold up under it. But
+starting around step 10, the doc's actual job had quietly shifted from
+*planning prose* (bounded -- there's only so much to decide) to *build log
+plus verification record* (unbounded -- no limit on how much verification
+or how many findings a step can generate), and the same "record it
+completely" instinct kept being applied to the new, much higher-volume
+kind of entry. The document stopped being skimmable for the person
+actually using it to track 19 steps of progress, and by the time a
+cleanup was attempted, the doc had grown past the point where restructuring
+it could be done safely and quickly in one pass -- it needed a slow,
+careful manual pass instead.
+
+**Fix:** a build-log-style doc needs a second, independent check beyond
+"is this entry accurate" -- "does the document as a whole still let its
+actual reader stay oriented." Keep each entry to what-was-built plus one
+line of real findings and one line of verification; push exhaustive
+verification detail (every test case, every resolved inconsistency,
+explained in full) to an append-only log or changelog separate from the
+doc someone is actually navigating by, not inline in the steering
+document. Re-derive this per document rather than assuming individual
+accuracy adds up to collective readability -- it doesn't, and the failure
+is invisible from inside any single edit.
