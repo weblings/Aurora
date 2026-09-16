@@ -10,9 +10,13 @@
 #include <cstdlib>
 #include <filesystem>
 #include <iostream>
+#include <optional>
 #include <thread>
 
+#include <nlohmann/json.hpp>
+
 #include <Aurora/App/Registry.hpp>
+#include <Aurora/Network/Http/Server/HttpServer.hpp>
 #include <Aurora/Runtime/ConfigStore.hpp>
 #include <Aurora/Runtime/Orchestrator.hpp>
 #include <Aurora/Runtime/ZoneMapStore.hpp>
@@ -159,6 +163,58 @@ namespace
 
     return std::filesystem::path(home) / ".config" / "aurora";
   }
+
+
+  // First WebUI route: lets a frontend probe which Input/Output plugins this
+  // particular binary was actually compiled with, before rendering anything
+  // that assumes one exists (Analysis/WebUIAnalysis.md's capability-probe
+  // step). No Config dependency, so this can be registered before Config
+  // loads -- addRoute() just captures it for bind() to hand to Impl later.
+  void registerCapabilitiesRoute(
+    Aurora::Network::Http::Server::HttpServer& httpServer,
+    const Aurora::App::Registry& registry
+  )
+  {
+    httpServer.addRoute(
+      Aurora::Network::Http::Server::HttpMethod::Get,
+      "/api/capabilities",
+      [&registry](const Aurora::Network::Http::Server::Request&, Aurora::Network::Http::Server::Response& res){
+        nlohmann::json json = {
+          {"inputs", registry.inputNames()},
+          {"audioInputs", registry.audioInputNames()},
+          {"outputs", registry.outputNames()}
+        };
+
+        res.contentType = "application/json";
+        res.body = json.dump();
+      }
+    );
+  }
+
+
+  // RAII wrapper so the server is stopped and its thread joined on every
+  // exit path (early "no outputs"/"unknown input" returns included) --
+  // std::thread::~thread() calls std::terminate() if it's still joinable,
+  // so this can't be left to a single manual stop()/join() at the tail end.
+  class HttpServerThread
+  {
+  public:
+    HttpServerThread(Aurora::Network::Http::Server::HttpServer& server, std::thread thread):
+    m_server(server),
+    m_thread(std::move(thread))
+    {
+    }
+
+    ~HttpServerThread()
+    {
+      m_server.stop();
+      m_thread.join();
+    }
+
+  private:
+    Aurora::Network::Http::Server::HttpServer& m_server;
+    std::thread m_thread;
+  };
 }
 
 
@@ -179,6 +235,25 @@ try
   registerInputs(registry);
   registerAudioInputs(registry, config);
   registerOutputs(registry);
+
+  Aurora::Network::Http::Server::HttpServer httpServer;
+  registerCapabilitiesRoute(httpServer, registry);
+
+  // Own thread, same as huenicorn's real Runtime::_initWebUI (see
+  // Analysis/HttpServerAnalysis.md) -- listen() blocks until stop() is
+  // called, so it can never share the tick-loop thread below. A bind
+  // failure (e.g. port already in use) logs and continues without the
+  // WebUI rather than aborting the whole app. HttpServerThread's destructor
+  // stops and joins on every exit path below, not just the happy one.
+  std::optional<HttpServerThread> httpServerThread;
+  if(httpServer.bind(config.boundBackendIP(), config.restServerPort())){
+    httpServerThread.emplace(httpServer, std::thread([&httpServer]{ httpServer.listen(); }));
+    std::cout << "WebUI listening on " << config.boundBackendIP() << ":" << config.restServerPort() << "\n";
+  }
+  else{
+    std::cerr << "Could not bind WebUI to " << config.boundBackendIP() << ":" << config.restServerPort()
+               << " -- continuing without it\n";
+  }
 
   // Video wins if both could apply -- explicit opt-in to audio requires
   // leaving activeInputName unset. Same precedence rule as Aurora-App-Windows.
@@ -288,6 +363,11 @@ try
     output->shutdown();
   }
 
+  // httpServerThread (declared above outputs) stops and joins the WebUI in
+  // its destructor as this scope unwinds -- after this point, same order
+  // huenicorn's own Runtime::_startStreamingLoop uses, and on every early
+  // return above too (std::thread::~thread() would std::terminate()
+  // otherwise if one of those had left it running unjoined).
   return 0;
 }
 // Plugin construction (e.g. "linux" input selection) can throw --

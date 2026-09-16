@@ -72,6 +72,7 @@ find_package(Threads REQUIRED)
 target_link_libraries(aurora-app-linux PRIVATE
   AuroraApp
   AuroraRuntime
+  AuroraNetwork
   Threads::Threads
 )
 
