@@ -459,7 +459,7 @@ more simply.
 | Text input + button row | 1 | `RockyRoadImport` input + `.btn-primary` | Small |
 | Indeterminate waiting message | 1 | huenicorn `_showLoading`, RockyRoad `#tuner-mic-wait` | None |
 | Inline success/error text | 1, 3 | RockyRoad `.tuner-check`, `RockyRoadImport` `#hand-disclaimer` | Small |
-| Dropdown | 1, 2 | RockyRoad `Dropdown.ts` (kept deliberately for WebXR/touch reasons over a native `<select>`, which remains strictly better on ordinary keyboard/ARIA grounds) | Small–Medium: missing `aria-haspopup`/`aria-expanded`, `role=listbox/option`, arrow-key nav, Escape-to-close, managed focus |
+| Dropdown | 1, 2 | RockyRoad `Dropdown.ts`, ported with its ARIA/keyboard gaps closed — see build-order step 8 | None |
 | Segmented 2-option toggle | 2, 5 | `RockyRoadImport` `.tab-btn`, generalized to 2 | Small |
 | Section heading + divider | 1, 4 | `RockyRoadImport` `<h2>` + `.tab-panel::before` | Small |
 | Draggable zone rect + corner handles | 3 | huenicorn `ScreenWidget.js`, read in full | Medium — proven logic, needs a Pointer Events rewrite for touch |
@@ -767,21 +767,141 @@ end here, since nothing in v1 consumes it (see Decisions log above).
    right content type (`text/html`, `text/javascript`, `text/css`) and `GET /`
    resolves to `index.html`. Genuine visual/interaction verification in an
    actual browser is still outstanding — flagged rather than skipped over.
-8. Port `Dropdown.ts` and close its ARIA/keyboard punch list once, up front
-   (`aria-haspopup`/`aria-expanded`, `role=listbox/option`, arrow-key nav,
-   Escape, focus management) — it's used on screens 1 and 2, fixing it once
-   here is cheaper than fixing it twice later.
-9. A bare Dashboard shell: nav rows only (Bridge/Zones/Tuning, no mode toggle
-   or Stop yet), wired to the capability-probe/persisted-state routing logic.
-   Built early and mostly empty on purpose — gives every screen after this a
-   real place to be linked into and manually reached as it's finished, rather
-   than only reachable via a dev shortcut until the whole flow is done.
+8. ~~Port `Dropdown.ts` and close its ARIA/keyboard punch list~~ —
+   **done (2026-09-15)**: `Dropdown.js`, `styles/dropdown.css`. Before
+   implementing, verified the exact required pattern rather than guess —
+   fetched the real WAI-ARIA APG "Collapsible Dropdown Listbox" example,
+   since the component inventory had already named the target shape
+   (`role=listbox/option`) but not its precise contract. Implements it with
+   one deliberate, documented divergence: the reference pattern commits a
+   value on every arrow-key press ("select follows focus"); here arrow keys
+   only move `aria-activedescendant` and a `.active` visual cursor, and only
+   Enter/Space/click/Tab-out actually calls `onSelect` — committing on every
+   keystroke was fine for the reference's plain value, but Aurora's
+   `onSelect` callbacks can trigger real side effects (switching a capture
+   device, a REST call), which shouldn't fire while a user is still browsing
+   options. Typeahead (jump to an option by typing its first letter) is the
+   other piece of the reference pattern left out — a deliberate cut, not an
+   oversight. Also closed one gap noticed while porting: RockyRoad's own
+   `.dropdown-fill` CSS modifier (trigger fills its container's width,
+   chevron pushed to the far edge) is needed for the full-width dropdowns
+   already drawn in this doc's own constrained-layout ASCII, so it's exposed
+   as a `fill` constructor option rather than left copied-but-unreachable.
+   Two token additions along the way: `--aurora-surface-hover`/
+   `--aurora-surface-selected` (RockyRoad's real `#2a2a2a`/`#242424` menu
+   states, matching no existing token).
+   <br><br>
+   Verified with the same real-DOM approach as step 7 (`jsdom`, scratchpad-
+   only): static ARIA wiring (`aria-haspopup`, `role=listbox/option`,
+   `aria-label` fallback and `aria-labelledby` wiring when an external label
+   is given), opening via click or ArrowDown moves DOM focus to the listbox
+   and seeds the active cursor on the current selection, arrow/Home/End
+   navigation moves `aria-activedescendant` *without* calling `onSelect` or
+   touching the underlying `aria-selected` state, ArrowDown clamps at the
+   last option rather than wrapping, Enter/click/Tab all commit and close
+   (Tab without forcing focus back, so the browser's own Tab continues
+   naturally), Escape closes without committing and returns focus to the
+   trigger, an outside click closes without committing, and opening one
+   dropdown closes any other already-open one. Confirmed served correctly
+   (`text/javascript`/`text/css`) via the real running Windows binary.
+   Genuine screen-reader/browser verification is still outstanding, same
+   caveat as step 7.
+9. ~~A bare Dashboard shell~~ — **done (2026-09-15)**:
+   `screens/DashboardScreen.js` (nav rows only — Bridge/Zones/Tuning, no mode
+   toggle or Stop yet, those need steps 11/16's backend endpoints first) and
+   `screens/PlaceholderScreen.js` (a shared "this screen isn't built yet"
+   stand-in with a working Back button, used by all three nav rows for now —
+   gives the shell real navigate()/back targets today instead of a silent
+   no-op or dev-only shortcut, deleted one usage at a time as each real
+   screen lands). Screens take `app` via their own constructor rather than
+   importing a shared singleton, matching RockyRoad's own `IScreen` shape —
+   avoids a circular import between `app.js` and every screen module.
+   <br><br>
+   "Wired to the capability-probe/persisted-state routing logic" turned out
+   to mean something narrower than full first-run-vs-returning-user routing
+   (that's step 18, once screens 1-4 exist to route to): the Bridge row's
+   status is real data from `/api/capabilities` + `/api/hue/connection`, the
+   only two persisted-state endpoints that exist yet. Distinguishes three
+   real cases with different messages, not one generic fallback: the Hue
+   output isn't compiled into this build at all, it's compiled in but not yet
+   paired, and the capabilities probe itself failed (e.g. server
+   unreachable) — the last two look similar to a user but come from different
+   layers, so conflating them into one message would have been a real (if
+   minor) drop in fidelity. The Zones row has no backing endpoint yet
+   (ZoneMap REST is step 14) and stays an honest placeholder rather than
+   fabricated data.
+   <br><br>
+   One correction made in passing: `shell.css`'s `.status-pill` (built in
+   step 7, before any screen used it) had guessed at a generic pill shape.
+   Now that the Dashboard actually needed it, re-checked the plan's own cited
+   precedent (RockyRoad's real `.lib-badge`) and found it didn't match at
+   all — corrected to the real values (`#8b8b8b` background, 10px/500-weight
+   text, 3px radius) rather than leaving the guess in place now that it had a
+   real consumer.
+   <br><br>
+   Verified with the same `jsdom` approach as steps 7-8, plus one step
+   further: a *live* end-to-end pass (no mocked `fetch`) against the actual
+   running `aurora-app-windows.exe`, confirming the real HTTP round trip and
+   real DOM update together, not just each half separately. Mocked-fetch
+   tests covered all three Bridge-status cases above, that clicking a nav row
+   navigates to the right placeholder with the right title, and that its
+   Back button returns to a freshly-rendered Dashboard. Confirmed all new
+   files serve with the correct content type via the real binary.
 
 **3. Screens, in dependency order**
-10. **Output Connect** — the first real screen, and the first full vertical
-    slice through the whole stack (server, credential persistence, pairing
-    endpoints, Dropdown, waiting/error states). Proves the plumbing before
-    investing in the rest.
+10. ~~**Output Connect**~~ — **done (2026-09-15)**: `screens/
+    OutputConnectScreen.js`, plus two new shared stylesheets other screens
+    will also draw on — `styles/forms.css` (buttons, text inputs, labeled
+    fields, inline status text — generalized from `.tuner-btn`/
+    `.tuner-btn-exit`'s real light/dark button roles) and `styles/
+    output-connect.css` (this screen's own address-row/actions layout).
+    Wired into `DashboardScreen`'s Bridge row in place of `PlaceholderScreen`
+    — disabled outright when this build has no Hue output, real screen
+    otherwise. A four-phase state machine (`entry` → `pairing` →
+    `configSelect` → `done`), each phase its own render function:
+    - `entry`: address field (pre-filled from any already-persisted
+      connection, for re-pairing) + Autodetect (`GET /api/hue/discover`) +
+      Continue (`PUT /api/hue/validate` first, a clear fast failure for a bad
+      address before ever showing "press the button").
+    - `pairing`: calls `PUT /api/hue/register`; `link_button_not_pressed`
+      re-shows the same wait text with no client-side poll loop, matching
+      huenicorn's own real click-to-retry UX (step 5's research) exactly —
+      the user physically presses the button, then clicks Continue again.
+      Includes a small "Change address" escape hatch back to `entry`, not in
+      the original ASCII sketch but a cheap, clearly-justified addition (a
+      typo'd address shouldn't require walking away and back).
+    - `configSelect`: `PUT /api/hue/entertainment-configurations`. Skips the
+      Dropdown entirely when exactly one configuration exists (nothing to
+      choose), but never auto-selects among more than one — `output.md`'s own
+      filed lesson that a bridge having several is normal, not an edge case.
+      Zero configurations shows a real message citing the actual constraint
+      (create one in the official Hue app first) plus a "Check again" retry.
+    - `done`: persists via `POST /api/hue/connection` (the one write in this
+      whole flow, matching step 5's stateless design), then a `Continue`
+      button calling `onComplete` — a caller-supplied callback rather than a
+      hardcoded destination, so a later first-run bootstrap can chain into
+      Mode+Device Select once it exists without this file changing.
+    <br><br>
+    One correction made in passing: `shell.css`'s `.status-pill` (step 7,
+    fixed for real in step 9) was fine, but this step's own new status-text
+    styling raised the "should errors/success be colored" question the
+    grayscale-only decision hadn't explicitly addressed — resolved by keeping
+    status text grayscale too, reasoning that the ✓/⚠ glyph plus explicit
+    wording already carries the meaning, and introducing red/green here would
+    reopen the accent-color decision without checking back in.
+    <br><br>
+    Verified with the same `jsdom` approach as steps 7-9 — the full happy
+    path (validate → link-button retry → register success → 2-option
+    Dropdown → finish → done → `onComplete`), the 1-config and 0-config
+    branches, an unreachable address stopping before any registration
+    attempt, "Change address" preserving the typed value, and pre-fill from
+    an existing connection — plus a *live*, unmocked pass against the real
+    running binary. That live pass incidentally confirmed the real
+    `internalipaddress` field name against the actual discovery API by
+    finding a real bridge on the network (discovery/validate only — no real
+    registration was attempted against real hardware, deliberately, since
+    that needs a physical button press and would create a real persisted
+    credential). Confirmed all new files serve with the correct content type.
 11. **Backend:** generic settings REST endpoints over `Config`'s user-facing
     fields, plus the one generic reload entrypoint (tear down and reconstruct
     Input/Output/Orchestrator from a freshly-loaded `Config`+`ZoneMapStore`)

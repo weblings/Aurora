@@ -87,3 +87,48 @@ made explicit yet, not because the coverage was actually missing.
 mode, check whether a normal-path action already elsewhere in the flow
 already exercises the same recovery path — pairing/setup/reset actions built
 for the common case often already cover the rare one for free.
+
+## A style built ahead of its first real consumer can drift from the very precedent it cites, and nothing catches that until something actually uses it
+
+`shell.css`'s `.status-pill` was written in the app-shell step, before any
+screen existed to use it, citing RockyRoad's real `.lib-badge` as its
+precedent — but the rule actually written was a generic pill shape (surface-
+colored background, 20px radius, 12px text) that doesn't match `.lib-badge`
+at all (accent-colored, 3px radius, 10px/500-weight text). Nothing caught the
+mismatch at the time because nothing was rendering it yet — CSS with no
+consumer doesn't fail to compile, it just silently sits there looking
+plausible. It surfaced two steps later, once the Dashboard actually needed
+the pill and its real appearance was checked against the cited source for
+the first time.
+
+**Fix:** treat a style/component written ahead of its first real use as
+provisional, not verified — when its first real consumer actually lands,
+re-check it against whatever precedent it originally cited before building
+on it further, the same way a claimed-but-unread "existing component" gets
+verified before reuse (see this file's own first entry). A rule with no
+renderer exercising it is unverified by construction, no matter how
+plausible it reads.
+
+## An ARIA pattern that commits a value on every interaction needs adapting when the commit callback has real side effects
+
+Porting `Dropdown.ts` to close its ARIA/keyboard gaps, the actual WAI-ARIA
+APG "Collapsible Dropdown Listbox" pattern was fetched and verified before
+implementing (not guessed) — its real, tested keyboard model is "select
+follows focus": every arrow-key press both moves the visual cursor and
+commits that option as the current value, live, the same way a native
+`<select>`'s open dropdown behaves. Implementing that literally would have
+called `onSelect` once per arrow-key press while a user is still browsing
+options. Fine for the reference pattern's own plain-value example; not fine
+for Aurora, where `onSelect` callbacks can trigger real side effects
+(switching a capture device, a REST call) that shouldn't fire repeatedly
+before the user has actually decided.
+
+**Fix:** verifying the real spec first didn't mean adopting it unmodified —
+it meant *knowing precisely* which piece to deliberately diverge from and
+why. Kept `aria-activedescendant` moving live on every arrow press (so a
+screen reader still correctly announces "now on option 3"), but decoupled it
+from `aria-selected`/`onSelect`, which only fire on an explicit commit
+(Enter/Space/click/Tab-out). Worth checking for on any future component
+wrapping a reference interaction pattern around a callback that isn't a pure,
+cheap value assignment — the pattern's own keyboard model may assume
+committing is free, and it usually isn't in this codebase.

@@ -70,9 +70,13 @@ Aurora's own module boundaries instead of RockyRoad's. `rendering-apis.md` vs.
   branch rather than by compiling, a static-file mount point silently
   shadowing a registered API route at the same path since cpp-httplib checks
   the mount first for GET/HEAD (confirmed by reading its real dispatch order,
-  not assumed), and this environment having no headless-browser tool — jsdom
+  not assumed), this environment having no headless-browser tool — jsdom
   against the real on-disk files, installed dev-only outside the repo, is the
-  substitute for exercising real DOM/JS behavior instead of code review alone.
+  substitute for exercising real DOM/JS behavior instead of code review alone
+  — and a live end-to-end test against a real endpoint needing a settle time
+  sized to the system under test's own configured timeouts (a 1s server-side
+  curl timeout to `discovery.meethue.com`), not to how fast a mocked-fetch
+  test resolves.
 - [`rendering-apis.md`](rendering-apis.md) — third-party Three.js/GLTFLoader/Blender-export
   facts: `RectAreaLight` having no `distance`/`decay` at all (coupling brightness to reach),
   Blender's glTF export dropping light data unless "Punctual Lights" is checked (and never
@@ -122,9 +126,13 @@ Aurora's own module boundaries instead of RockyRoad's. `rendering-apis.md` vs.
   rather than a fact to build on, a layout lesson learned in one constrained
   context (a fixed, ray-pointer-driven XR panel) not transferring to another
   (a phone-width web page) without checking the actual numbers, component-reuse
-  research answering "could we" rather than "does the job need this," and a
+  research answering "could we" rather than "does the job need this," a
   flagged UI gap already being covered by a normal-path action elsewhere in
-  the same flow.
+  the same flow, a style written ahead of its first real consumer (the
+  status-pill) silently drifting from the very precedent it cited since
+  nothing exercises unused CSS, and a reference ARIA interaction pattern
+  ("select follows focus") needing deliberate adaptation once its commit
+  callback has real side effects instead of being a free value assignment.
 
 ## Where a new lesson goes
 

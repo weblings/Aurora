@@ -602,3 +602,25 @@ rendered via `textContent` (escaped) rather than interpolated as markup.
 Genuine visual/layout verification in an actual browser is still a real gap
 this doesn't close -- worth remembering as still outstanding, not solved by
 the jsdom pass.
+
+---
+
+## A live end-to-end test against a real endpoint needs a settle time sized to the system under test's own timeouts, not to how fast a mocked test resolves
+
+A live (unmocked) test of `OutputConnectScreen`'s Autodetect button against
+the actual running server failed a "button re-enabled" assertion after a
+100ms wait -- the same wait that was plenty for every other jsdom test in
+this build, all of which used a mocked `fetch` resolving on the same tick.
+Root cause: `HttpClient.cpp`'s `sendHttpRequest` sets `CURLOPT_TIMEOUT` to a
+flat 1 second for every outbound call, including the server-side proxy to
+`discovery.meethue.com` -- a real internet round trip this specific request
+makes that no mocked test path ever exercises. 100ms was never going to be
+enough once a real 1-second-capped network call was actually in flight.
+
+**Fix:** raised the live test's settle time to 2.5s, comfortably past the
+known 1s server-side timeout. General principle: a live/E2E test's wait time
+should be derived from the real system's own configured timeouts (grep for
+them if unsure) plus margin, not copied from a mocked test's own near-instant
+settle time -- the two kinds of test have fundamentally different real
+latency floors, and a wait that's fine for one will flake or falsely fail on
+the other.
