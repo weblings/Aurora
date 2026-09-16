@@ -14,17 +14,22 @@ add_library(AuroraRuntime STATIC
   src/SubsampleDefaults.cpp
   src/MonitorSelector.cpp
   src/Orchestrator.cpp
+  src/SettingsRoutes.cpp
 )
 
 target_include_directories(AuroraRuntime PUBLIC
   ${CMAKE_CURRENT_SOURCE_DIR}/include
 )
 
+# AuroraNetwork comes from core/CMakeLists.txt's own add_subdirectory(Network),
+# already added before this directory -- SettingsRoutes.cpp is the first
+# thing in Runtime to register HTTP routes of its own.
 target_link_libraries(AuroraRuntime PUBLIC
   AuroraContracts
   AuroraProcessing
   AuroraInputInterface
   AuroraOutputInterface
+  AuroraNetwork
   nlohmann_json::nlohmann_json
 )
 

@@ -624,3 +624,30 @@ them if unsure) plus margin, not copied from a mocked test's own near-instant
 settle time -- the two kinds of test have fundamentally different real
 latency floors, and a wait that's fine for one will flake or falsely fail on
 the other.
+
+---
+
+## A library's own "register everything before X" contract can force a slow dependency's construction earlier than it used to happen, with a real latency cost only testing surfaces
+
+Adding `/api/monitors` and `/api/reload` required both routes to capture a
+`PipelineHost` by reference -- meaning the whole Input/Output/Orchestrator
+pipeline now has to be built *before* `httpServer.bind()`, since
+`HttpServer`'s own contract (documented in its header, from
+`HttpServerAnalysis.md`'s original design) requires every route registered
+before `bind()` is called; there's no add-a-route-after-bind path. Previously
+the server bound and started listening immediately after `Config` loaded,
+with pipeline construction (real DXGI monitor enumeration on Windows) coming
+*after*, in parallel with the server already being reachable. Reasoning about
+the code alone made this look like a harmless reordering. Polling
+`/api/capabilities` every 500ms after process launch measured the real cost:
+~1.5-2s before the WebUI became reachable at all, versus near-instant before.
+
+**Fix:** not solved here -- accepted as a documented tradeoff (a
+nullable-initial-pipeline design, with routes and the tick loop tolerating
+"not ready yet", would close the gap but adds real edge-case surface for a
+few seconds of startup latency on an already-slow-starting piece). General
+principle: when a new route needs a reference to something built later than
+routes used to need to exist, check whether the library's own "must register
+before X" contract now forces that something to be built earlier than
+before -- and measure the actual latency delta by testing (poll for
+readiness), don't just reason that a reordering is "probably fine."

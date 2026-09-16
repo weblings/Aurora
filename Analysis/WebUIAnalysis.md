@@ -902,10 +902,95 @@ end here, since nothing in v1 consumes it (see Decisions log above).
     registration was attempted against real hardware, deliberately, since
     that needs a physical button press and would create a real persisted
     credential). Confirmed all new files serve with the correct content type.
-11. **Backend:** generic settings REST endpoints over `Config`'s user-facing
-    fields, plus the one generic reload entrypoint (tear down and reconstruct
-    Input/Output/Orchestrator from a freshly-loaded `Config`+`ZoneMapStore`)
-    that every one of them funnels into, plus monitor/sink listing endpoints.
+11. ~~**Backend**~~ — **done (2026-09-15), except audio-sink listing (see
+    below).** Generic settings REST endpoints
+    over `Config`'s user-facing fields are ~~done~~ — `Aurora::Runtime::
+    registerSettingsRoutes` in `core/Runtime` (`SettingsRoutes.hpp`/`.cpp`),
+    the first thing in `Runtime` itself (not an app or a plugin) to register
+    HTTP routes, linking `AuroraNetwork` the same way `Aurora-Output-Hue` did
+    in step 5. `GET /api/config` returns all ~19 user-facing fields (not
+    `restServerPort`/`boundBackendIP`, read once before the server can even
+    answer a request); `PUT /api/config` is deliberately PATCH-style despite
+    the verb — merges only the fields present in the body, since asking a
+    caller to resend all 19 to change one slider would be painful. Each field
+    funnels through `Config`'s own setter, so existing clamping (e.g.
+    `transitionSmoothing` to `[0, 0.97]`) applies with zero duplicated
+    validation; an unrecognized `interpolation` string is silently ignored
+    rather than erroring, matching the rest of this field-by-field merge's
+    forgiving-per-field posture. Verified on both platforms: real GET/PUT
+    round trips confirming the partial merge leaves untouched fields alone,
+    real clamping, an invalid enum value being ignored rather than crashing,
+    a malformed body returning a clean 400, and the merged result actually
+    persisted to `config.json` on disk (read back to confirm).
+    <br><br>
+    **Reload entrypoint and monitor listing — done (2026-09-15).** Both apps
+    now have a `Pipeline`/`PipelineHost` pair (in each app's own `main.cpp`,
+    not core::Runtime — building one needs `Registry` and this app's own
+    input-name/ifdef dispatch, both app-layer concepts, same reasoning that
+    already keeps `registerInputs`/`registerOutputs` per-app). `Pipeline`
+    is the swappable unit huenicorn's own design fork calls for
+    (`HttpServerAnalysis.md`: reconstruction, not mutation) — it owns
+    input/outputs/orchestrator and is thrown away and rebuilt whole, never
+    mutated in place. `PipelineHost` wraps it in one mutex (the "one
+    consistent lock around a swappable pipeline unit" that doc recommended,
+    not huenicorn's narrower single-mutex approach): `tick()` (main thread)
+    and `reload()` (the HTTP thread) take the same lock, and `reload()`
+    builds the replacement *before* acquiring it, so a slow or failing build
+    never blocks a tick already in progress, and the old pipeline's
+    `shutdown()` runs only after the swap, once no `tick()` call can reach it
+    anymore.
+    <br><br>
+    `SettingsRoutes` gained an `onConfigChanged` callback (empty by default)
+    — "every settings PUT funnels into reload" turned out to mean threading
+    a callback through core::Runtime rather than reload logic living there
+    directly, since `Config`/`ConfigStore` are core concepts but `Registry`/
+    `Pipeline` aren't. Each app wires it to call `PipelineHost::reload()`
+    with a freshly-reloaded `Config` (not the request's own now-stale copy).
+    A failed reload is reported as a distinct `reloadError` field, not
+    `"succeeded": false` — the save itself still succeeded, only the live
+    pipeline couldn't pick it up, and conflating the two would hide that the
+    persisted value is actually correct. A standalone `POST /api/reload`
+    also exists for triggering one with no field actually changed (e.g.
+    "re-scan" after plugging in a monitor). `GET /api/monitors` reads
+    `Pipeline::listMonitors()` (empty array in audio mode, not an error).
+    <br><br>
+    **One real tradeoff surfaced by testing, not just reasoned about:**
+    moving pipeline construction before `httpServer.bind()` (required, since
+    the settings/monitors/reload routes all capture `pipelineHost` by
+    reference and `HttpServer` requires every route registered before
+    `bind()`) measurably delays when the WebUI becomes reachable at startup
+    — confirmed by polling `/api/capabilities` every 500ms, ~1.5–2s on this
+    machine with real DXGI monitor enumeration in the mix, versus
+    near-instant before this step (the server used to bind before the
+    pipeline was built at all). Accepted as a real, documented tradeoff
+    rather than solved with a nullable-initial-pipeline design (routes and
+    the tick loop tolerating "not ready yet") — that would have closed the
+    gap but added real edge-case surface for a few seconds of startup
+    latency on an already-slow-starting piece (real capture hardware
+    enumeration), not judged worth it here.
+    <br><br>
+    Verified on both platforms with the same real-server approach used
+    throughout this build order, this time specifically probing for the
+    core safety guarantee rather than just the happy path: a settings PUT
+    writing a deliberately-invalid `activeInputName` persists correctly
+    (confirmed in the response body), reports a distinct `reloadError`
+    ("Unknown input '...'"), and — checked directly, not assumed — the
+    process stays alive and still serving (`/api/capabilities` still
+    returns 200) with the *old* pipeline still running untouched. A
+    follow-up PUT fixing the value back to a real input then reloads
+    cleanly with no error. Also confirmed the manual `POST /api/reload`
+    path, and on Windows, `GET /api/monitors` returning this machine's real
+    connected displays (verified real data, not placeholder — two actual
+    monitors with their real resolutions/refresh rates/primary flag).
+    <br><br>
+    Audio-sink listing (the other half of "monitor/sink listing endpoints")
+    is a further, separate gap, not silently dropped: `Aurora-Input-Linux`
+    has no sink-enumeration capability at all today (checked directly, no
+    matches for any enumerate/list-sinks pattern), unlike video's
+    `IVideoInput::monitors()` which already existed and just needed a live
+    instance to call it on. Building it means new PipeWire registry-query
+    code in a different repo, not just wiring an existing capability through
+    HTTP — left for a dedicated pass, not attempted here.
 12. **Mode + Device Select** — needs step 11.
 13. **Tuning/Settings** — also only needs step 11, not zone data. Can be built
     in parallel with Zone Mapping below rather than strictly after it.

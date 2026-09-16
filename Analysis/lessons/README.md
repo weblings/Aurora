@@ -73,10 +73,13 @@ Aurora's own module boundaries instead of RockyRoad's. `rendering-apis.md` vs.
   not assumed), this environment having no headless-browser tool — jsdom
   against the real on-disk files, installed dev-only outside the repo, is the
   substitute for exercising real DOM/JS behavior instead of code review alone
-  — and a live end-to-end test against a real endpoint needing a settle time
+  — a live end-to-end test against a real endpoint needing a settle time
   sized to the system under test's own configured timeouts (a 1s server-side
   curl timeout to `discovery.meethue.com`), not to how fast a mocked-fetch
-  test resolves.
+  test resolves, and a library's own "register everything before X" contract
+  (`HttpServer`'s routes-before-`bind()` rule) forcing a slow dependency's
+  construction earlier than it used to happen, with a real ~1.5-2s startup-
+  latency cost only measured by polling, not visible from reading the diff.
 - [`rendering-apis.md`](rendering-apis.md) — third-party Three.js/GLTFLoader/Blender-export
   facts: `RectAreaLight` having no `distance`/`decay` at all (coupling brightness to reach),
   Blender's glTF export dropping light data unless "Punctual Lights" is checked (and never
@@ -115,7 +118,10 @@ Aurora's own module boundaries instead of RockyRoad's. `rendering-apis.md` vs.
   confirmed the package was present, and a second `pw_core_sync` added to
   fix a discovery race exposing a dormant dangling-listener segfault (a
   core-connection listener registered against a stack-local event struct,
-  never removed).
+  never removed), and WSL2 having no real X11/Wayland session, so
+  `aurora-app-linux`'s auto-selecting "linux" input throws there rather than
+  degrading gracefully -- pin `activeInputName` to `"dummy"` for any WSL2
+  runtime test that reaches input construction.
 - [`processing.md`](processing.md) — color/effect transform gotchas: a
   periodic test signal (a sine wave) regenerated fresh per call instead of
   continuing its phase injecting broadband noise at each call boundary,

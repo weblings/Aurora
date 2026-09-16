@@ -207,3 +207,23 @@ bug can go from unreachable to reliably reproducible the moment a second
 round-trip actually gets left in flight. Absence of a prior crash is not
 evidence the removal was correct, only that the dangling window was never
 filled.
+
+## WSL2 has no real X11/Wayland session, so `aurora-app-linux`'s auto-selecting "linux" input throws there, not just degrades
+
+Runtime-testing the new reload entrypoint in WSL2, `aurora-app-linux` failed
+outright at startup with `"No capture backend available for this session --
+falling back to 'dummy' input is an explicit choice, not automatic"` --
+`SessionDispatch::selectBackendFromEnvironment`'s real, intentional behavior
+(see `registerInputs`'s own explicit-choice comment) when neither a real X11
+display nor a real Wayland/Pipewire session is present, which is exactly
+WSL2's actual environment. Not a bug in the reload work being tested -- the
+"linux" auto-select input would have thrown identically before this session
+touched anything.
+
+**Fix:** pre-seed `config.json` with `{"activeInputName": "dummy"}` (or set
+it via a settings PUT before whatever's actually being tested) for any WSL2
+runtime test of `aurora-app-linux` that reaches input construction --
+`"dummy"` sidesteps `SessionDispatch` entirely rather than trying to make a
+real capture session exist in an environment that fundamentally has none.
+Worth doing by default for WSL2 runtime tests, not just after hitting this
+once.
