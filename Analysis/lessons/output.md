@@ -103,3 +103,32 @@ actually run in audio-reactive mode, not screen-capture mode (see
 identically either way, since both `Orchestrator` and `AudioOrchestrator`
 end up at the same `HueOutput::send()`. Retested in audio mode after the
 fix: confirmed vibrant.
+
+---
+
+## A local success signal doesn't prove a shared external resource is actually in the state you think it's in
+
+Distinct from this file's `isConnected()` entry above (that one's about a
+*failure* being swallowed at connect time) — this one's about every local
+signal reporting *success* while the bridge had already silently diverged.
+Live-switching Video→Audio, `isConnected()` read `true` and
+`AudioOrchestrator::update()` was computing genuinely different colors
+every tick after the switch — every in-process signal said the pipeline was
+healthy. The bulb had stopped responding anyway: `PipelineHost::reload()`
+builds the new pipeline (new output, new bridge stream already started)
+fully before tearing down the old one, and the old output's deferred
+`shutdown()` sent an authoritative "stop streaming" REST call for the same
+entertainment configuration, which the bridge accepted with no error.
+`isConnected()` only reflects the local DTLS socket; it has no way to know
+the bridge marked that configuration's session stopped moments later by a
+completely different, already-superseded object.
+
+**Fix:** confirmed by logging `setStreamingState()`'s actual HTTP response
+(previously discarded entirely — `void`, no return value checked) rather
+than trusting `isConnected()`, which let the exact stop call and its timing
+show up directly. General principle: when a report is "everything looks
+right on this side but the device doesn't respond," check whether some
+*other*, possibly already-superseded code path could have since reset the
+device's own state — a connected socket and correctly-computed data only
+prove your own process's view is self-consistent, not that the external
+system still agrees with it.

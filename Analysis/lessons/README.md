@@ -109,7 +109,13 @@ Aurora's own module boundaries instead of RockyRoad's. `rendering-apis.md` vs.
   a second caller only wanted to change one already-persisted field), and
   a fully ported, fully unit-tested function (`ApiTools::matchDevices` and
   friends) still being dead code because nothing in the production call
-  path actually called it, invisible to its own green test suite.
+  path actually called it, invisible to its own green test suite; and a
+  reload that deliberately keeps the old instance alive until the new one
+  is confirmed working (`PipelineHost::reload()`) letting the old
+  instance's teardown undo the new one's already-established state when
+  both target the same external resource -- fixed at the `IOutput`
+  interface (`shutdown(isReplacement)`), not inside the one plugin that
+  happened to expose it.
 - [`rendering-apis.md`](rendering-apis.md) — third-party Three.js/GLTFLoader/Blender-export
   facts: `RectAreaLight` having no `distance`/`decay` at all (coupling brightness to reach),
   Blender's glTF export dropping light data unless "Punctual Lights" is checked (and never
@@ -127,10 +133,14 @@ Aurora's own module boundaries instead of RockyRoad's. `rendering-apis.md` vs.
   than one entertainment configuration over the same lights being normal,
   not an edge case (empty-ID auto-select isn't "the only one"),
   `DtlsClient`'s handshake failure being swallowed by design so a clean
-  `HueOutput::init()` isn't proof a connection exists, and a reference
+  `HueOutput::init()` isn't proof a connection exists, a reference
   implementation's dead code (huenicorn's own unused `Color::toXY()`) being
   mistaken for its live behavior during a port, sending real streaming
-  colors in the wrong wire colorspace (XYB instead of RGB) as a result.
+  colors in the wrong wire colorspace (XYB instead of RGB) as a result, and
+  every local signal (`isConnected()`, freshly-computed colors) reporting
+  healthy while the bridge had already silently stopped rendering the
+  stream, because an already-superseded output's deferred shutdown sent an
+  authoritative "stop" for the same entertainment configuration.
 - [`input.md`](input.md) — capture/grabber gotchas: a non-blocking poll on an
   event-driven capture API (DXGI's `AcquireNextFrame`) starving on empty
   placeholder frames forever instead of ever returning real data, a

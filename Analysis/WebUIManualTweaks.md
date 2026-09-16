@@ -103,6 +103,27 @@ entry on build-log doc density for why.
   double-click-launched console closes instantly on exit, so even a
   correct error message is never seen — worth fixing together (log to a
   file, or keep the window open on error).
+- [x] **Fixed: live Video→Audio mode switch — light silently stopped
+  responding.** Root-caused via live `[audio-debug]`/`[hue-debug]` logging:
+  audio capture and processing were working correctly the whole time (real,
+  changing samples/colors every tick) — the bug was that
+  `PipelineHost::reload()` builds the new pipeline (including starting its
+  stream) fully before tearing down the old one, and `HueOutput::shutdown()`
+  unconditionally sent an authoritative "stop streaming" call for its
+  entertainment config. When old and new outputs share the same config (the
+  common case — same bridge, same "TV area"), that late stop silently killed
+  the brand-new stream at the bridge, while every local signal
+  (`isConnected()`, computed colors) kept reporting healthy. Not Hue-specific
+  in cause (any output plugin with external session state could hit the same
+  race) — fixed at the `IOutput` interface: `shutdown()` now takes
+  `isReplacement`, and only a real app exit (not a reload) tells Hue to
+  actually stop the bridge-side stream. `Aurora-Output-Hue`'s test suite (94
+  assertions) still passes after both the fix and the debug-logging cleanup.
+  Confirmed fixed live. Temp `[audio-debug]`/`[hue-debug]` logging stripped
+  from `AudioGrabber.cpp`, `AudioOrchestrator.cpp`, `HueOutput.cpp`,
+  `ApiTools.cpp`, and both apps' `main.cpp` (the `[pairing-debug]`
+  `configRoot` line in `main.cpp` stays until the double-click crash is
+  root-caused).
 
 ## Zone Mapping: channel selection & identification
 

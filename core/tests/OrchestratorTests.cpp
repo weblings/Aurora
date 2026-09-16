@@ -71,7 +71,7 @@ namespace
     const std::string& name() const override { return m_name; }
     void init() override { m_connected = true; }
     bool isConnected() const override { return m_connected; }
-    void shutdown() override { m_connected = false; }
+    void shutdown(bool) override { m_connected = false; }
     std::vector<uint8_t> zoneIds() const override { return m_liveZoneIds; }
 
     void send(const Frame& frame) override

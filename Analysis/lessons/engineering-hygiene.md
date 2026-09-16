@@ -906,3 +906,36 @@ given inputs, not that the function is reachable from anywhere real --
 when auditing whether a ported feature is actually complete, grep for the
 function's callers in production code, not just check that its own test
 file passes.
+
+---
+
+## A reload that keeps the old instance alive until the new one is confirmed working can let the old instance's teardown undo the new instance's already-established state
+
+`PipelineHost::reload()` builds an entirely new `Pipeline` -- including
+calling every new output's `init()`, which for Hue means starting a real
+bridge stream -- before ever tearing down the old one. That ordering is
+deliberate and correct: a reload that fails to build shouldn't take down an
+already-working pipeline. But nothing about it accounted for the old and
+new pipelines' outputs potentially targeting the *same* external resource.
+The old output's `shutdown()`, running only after the new one was already
+live, unconditionally sent an authoritative "stop" for whatever bridge
+entertainment configuration it used -- usually the exact same one the new
+output had just started streaming to. `IOutput::shutdown()` gave the
+outgoing instance no way to know a newer one had already superseded it for
+that same resource.
+
+**Fix:** extended `IOutput::shutdown()` to take an `isReplacement` flag --
+`true` when a reload is tearing this instance down because a newer one
+already exists, `false` on a real app exit -- so only the latter tells Hue
+to actually stop the bridge-side stream. Deliberately fixed at the
+interface, not inside Hue: the mechanism (two overlapping instance
+lifetimes racing on one external resource) isn't Hue-specific, any output
+plugin with its own session/connection concept could hit the identical
+shape of bug. General principle: when a lifecycle pattern deliberately
+overlaps two instances for safety (build-then-swap, not swap-then-build),
+any teardown method on the outgoing instance needs a way to know it might
+no longer be the authoritative owner of whatever external state it
+manages -- an interface that can't express "you were replaced" invites
+exactly this kind of stale-teardown race, and it only bites resources with
+external, sticky state (a device session, a lock, a subscription), never
+ones that are purely local memory.
