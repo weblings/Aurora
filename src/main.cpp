@@ -9,6 +9,7 @@
 // Analysis/DistributedArchitecturePlan.md for how this shape is expected to
 // evolve further.
 
+#include <algorithm>
 #include <chrono>
 #include <csignal>
 #include <cstdlib>
@@ -427,6 +428,10 @@ namespace
   class PipelineHost
   {
   public:
+    // initial may be nullptr -- a fresh install has no outputs configured
+    // yet, so there's nothing to build (see main()'s catch around the first
+    // Pipeline::build()). Every method below tolerates that empty state
+    // instead of requiring the WebUI to fail startup just to reach pairing.
     explicit PipelineHost(std::unique_ptr<Pipeline> initial):
     m_pipeline(std::move(initial))
     {
@@ -435,19 +440,19 @@ namespace
     void tick()
     {
       std::lock_guard<std::mutex> lock(m_mutex);
-      m_pipeline->tick();
+      if(m_pipeline){ m_pipeline->tick(); }
     }
 
     double tickIntervalSeconds()
     {
       std::lock_guard<std::mutex> lock(m_mutex);
-      return m_pipeline->tickIntervalSeconds();
+      return m_pipeline ? m_pipeline->tickIntervalSeconds() : (1.0 / 60.0);
     }
 
     Aurora::Input::Monitors listMonitors()
     {
       std::lock_guard<std::mutex> lock(m_mutex);
-      return m_pipeline->listMonitors();
+      return m_pipeline ? m_pipeline->listMonitors() : Aurora::Input::Monitors{};
     }
 
     // Same lock as tick() -- a zone edit and an in-progress tick must never
@@ -457,7 +462,7 @@ namespace
     Aurora::Runtime::ZoneListResult listZones()
     {
       std::lock_guard<std::mutex> lock(m_mutex);
-      return m_pipeline->listZones();
+      return m_pipeline ? m_pipeline->listZones() : Aurora::Runtime::ZoneListResult{};
     }
 
     bool updateZone(
@@ -468,7 +473,7 @@ namespace
     )
     {
       std::lock_guard<std::mutex> lock(m_mutex);
-      return m_pipeline->updateZone(zoneId, uvs, active, gamma);
+      return m_pipeline && m_pipeline->updateZone(zoneId, uvs, active, gamma);
     }
 
     // Returns true on success. On failure, errorOut is set and the previous
@@ -497,14 +502,16 @@ namespace
         previous = std::move(m_pipeline);
         m_pipeline = std::move(next);
       }
-      previous->shutdown(/*isReplacement*/ true);
+      // previous is null on the first successful reload after a fresh
+      // install started with no Pipeline at all.
+      if(previous){ previous->shutdown(/*isReplacement*/ true); }
       return true;
     }
 
     void shutdown()
     {
       std::lock_guard<std::mutex> lock(m_mutex);
-      m_pipeline->shutdown(/*isReplacement*/ false);
+      if(m_pipeline){ m_pipeline->shutdown(/*isReplacement*/ false); }
     }
 
   private:
@@ -610,10 +617,22 @@ namespace
       Aurora::Network::Http::Server::HttpMethod::Get,
       "/api/capabilities",
       [&registry](const Aurora::Network::Http::Server::Request&, Aurora::Network::Http::Server::Response& res){
+        std::vector<std::string> outputs = registry.outputNames();
+#ifdef AURORA_OUTPUT_HUE_IO_AVAILABLE
+        // registerOutputs() only adds "hue" to registry once credentials
+        // are already configured, so the frontend's onboarding gate
+        // (app.js's hasHue, DashboardScreen's Bridge row) would never see
+        // it on a fresh install otherwise -- this route's contract is
+        // "compiled with," not "already paired" (OutputConnectScreen
+        // handles pairing itself).
+        if(std::find(outputs.begin(), outputs.end(), "hue") == outputs.end()){
+          outputs.push_back("hue");
+        }
+#endif
         nlohmann::json json = {
           {"inputs", registry.inputNames()},
           {"audioInputs", registry.audioInputNames()},
-          {"outputs", registry.outputNames()}
+          {"outputs", outputs}
         };
 
         res.contentType = "application/json";
@@ -676,11 +695,18 @@ try
 
   // Built before any route is registered below -- the settings/reload routes
   // capture pipelineHost by reference, so it has to exist first. A failure
-  // here (unknown input/output name) is fatal at startup, same as main()
-  // always treated it -- caught by this function's own outer catch. A later
-  // failed *reload* (a bad value a settings PUT just wrote) is recoverable
-  // instead; see PipelineHost::reload.
-  PipelineHost pipelineHost(Pipeline::build(registry, config, configRoot));
+  // here (e.g. a fresh install with no output paired yet) is no longer
+  // fatal -- the WebUI still needs to bind so Output Connect is reachable;
+  // see WebUIManualTweaks.md's "HTTP server never binds" task. A later
+  // failed *reload* is handled the same way; see PipelineHost::reload.
+  std::unique_ptr<Pipeline> initialPipeline;
+  try{
+    initialPipeline = Pipeline::build(registry, config, configRoot);
+  }
+  catch(const std::exception& e){
+    std::cerr << "Pipeline not started (" << e.what() << ") -- WebUI still available for setup\n";
+  }
+  PipelineHost pipelineHost(std::move(initialPipeline));
 
   Aurora::Network::Http::Server::HttpServer httpServer;
   registerCapabilitiesRoute(httpServer, registry);
