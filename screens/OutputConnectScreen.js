@@ -3,12 +3,12 @@
 // endpoints, Dropdown, waiting/error states). See
 // Analysis/WebUIAnalysis.md's Output Connect section and build-order step 10.
 //
-// No back button during first-run -- deferred until step 18's full routing
-// exists to tell first-run apart from a hub-and-spoke return visit. Reached
-// only via Dashboard's Bridge row for now, so Back always targets Dashboard;
-// onComplete lets a future first-run bootstrap chain into Mode+Device
-// Select instead once that screen exists, without this file needing to know
-// about it.
+// showBack/onBack default to the hub-and-spoke shape (Back == onComplete ==
+// Dashboard), matching every Dashboard-driven call site unchanged. app.js's
+// first-run bootstrap (step 18) overrides both explicitly: showBack:false
+// when this is the first screen the boot chain shows (nothing to return to
+// yet), and a distinct onBack pointing at whatever step preceded this one
+// otherwise -- this file doesn't need to know which case it's in.
 //
 // Four phases, each its own render function: entry (address + Autodetect +
 // Continue) -> pairing (push-link wait, huenicorn's real click-to-retry
@@ -21,9 +21,11 @@ import { renderTopBar } from '../topBar.js';
 import { Dropdown } from '../Dropdown.js';
 
 export class OutputConnectScreen {
-  constructor(app, { onComplete }) {
+  constructor(app, { onComplete, onBack, showBack = true }) {
     this.app = app;
     this.onComplete = onComplete;
+    this.onBack = onBack ?? onComplete;
+    this.showBack = showBack;
     this.phase = 'entry';
     this.bridgeAddress = '';
     this.username = '';
@@ -42,8 +44,8 @@ export class OutputConnectScreen {
     `;
     renderTopBar(container.querySelector('.top-bar-slot'), {
       title: 'Connect to your Hue Bridge',
-      showBack: true,
-      onBack: () => this.onComplete(),
+      showBack: this.showBack,
+      onBack: () => this.onBack(),
       onSettings: () => this.app.openSettings(),
     });
 

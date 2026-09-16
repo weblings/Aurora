@@ -25,6 +25,11 @@
 // reason this screen batches edits behind an explicit Save instead of
 // applying every slider-drag tick live: a reload per drag frame would
 // rebuild the whole pipeline dozens of times a second.
+//
+// `showContinue` (step 18's first-run bootstrap only) adds a separate
+// Continue button next to Save, since this screen's own Save never
+// navigates away -- the boot chain needs an explicit forward action here
+// that Dashboard-driven hub visits don't.
 import { renderTopBar } from '../topBar.js';
 import { Dropdown } from '../Dropdown.js';
 
@@ -49,9 +54,12 @@ const SENSITIVITY_SLIDERS = [
 ];
 
 export class TuningScreen {
-  constructor(app, { onComplete }) {
+  constructor(app, { onComplete, onBack, showBack = true, showContinue = false }) {
     this.app = app;
     this.onComplete = onComplete;
+    this.onBack = onBack ?? onComplete;
+    this.showBack = showBack;
+    this.showContinue = showContinue;
     this.mode = 'video';
     this.values = {};
     this.fixedHueEnabled = false;
@@ -76,8 +84,8 @@ export class TuningScreen {
     } catch {
       renderTopBar(container.querySelector('.top-bar-slot'), {
         title: 'Settings',
-        showBack: true,
-        onBack: () => this.onComplete(),
+        showBack: this.showBack,
+        onBack: () => this.onBack(),
         onSettings: () => this.app.openSettings(),
       });
       body.innerHTML = `<p class="status-text status-text-error">⚠ Could not reach the daemon.</p>`;
@@ -90,8 +98,8 @@ export class TuningScreen {
 
     renderTopBar(container.querySelector('.top-bar-slot'), {
       title: `Settings — ${this.mode === 'audio' ? 'Audio' : 'Video'}`,
-      showBack: true,
-      onBack: () => this.onComplete(),
+      showBack: this.showBack,
+      onBack: () => this.onBack(),
       onSettings: () => this.app.openSettings(),
     });
 
@@ -117,6 +125,7 @@ export class TuningScreen {
       ${successHtml}
       <div class="tuning-actions">
         <button type="button" class="btn btn-primary" id="tn-save">Save</button>
+        ${this.showContinue ? '<button type="button" class="btn btn-secondary" id="tn-continue">Continue</button>' : ''}
       </div>
     `;
 
@@ -125,6 +134,9 @@ export class TuningScreen {
     else this._renderAudioFields(fields);
 
     body.querySelector('#tn-save').addEventListener('click', (e) => this._save(e.currentTarget));
+    if (this.showContinue) {
+      body.querySelector('#tn-continue').addEventListener('click', () => this.onComplete());
+    }
   }
 
   _renderVideoFields(container) {

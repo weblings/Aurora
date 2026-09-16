@@ -46,9 +46,11 @@ export function pickAudioInputName(audioInputs, current) {
 }
 
 export class ModeDeviceScreen {
-  constructor(app, { onComplete }) {
+  constructor(app, { onComplete, onBack, showBack = true }) {
     this.app = app;
     this.onComplete = onComplete;
+    this.onBack = onBack ?? onComplete;
+    this.showBack = showBack;
     this.mode = 'video';
     this.hasAudio = false;
     this.inputs = [];
@@ -72,8 +74,8 @@ export class ModeDeviceScreen {
     `;
     renderTopBar(container.querySelector('.top-bar-slot'), {
       title: 'Capture source',
-      showBack: true,
-      onBack: () => this.onComplete(),
+      showBack: this.showBack,
+      onBack: () => this.onBack(),
       onSettings: () => this.app.openSettings(),
     });
 

@@ -32,9 +32,11 @@ const MIN_RECT_SIZE = 0.02; // 2% of the frame, in normalized UV units
 const CORNERS = ['tl', 'tr', 'bl', 'br'];
 
 export class ZoneMappingScreen {
-  constructor(app, { onComplete }) {
+  constructor(app, { onComplete, onBack, showBack = true }) {
     this.app = app;
     this.onComplete = onComplete;
+    this.onBack = onBack ?? onComplete;
+    this.showBack = showBack;
     this.outputName = '';
     this.zones = null; // null = not loaded yet
     this.selectedZoneId = null;
@@ -51,8 +53,8 @@ export class ZoneMappingScreen {
     `;
     renderTopBar(container.querySelector('.top-bar-slot'), {
       title: 'Zone mapping',
-      showBack: true,
-      onBack: () => this.onComplete(),
+      showBack: this.showBack,
+      onBack: () => this.onBack(),
       onSettings: () => this.app.openSettings(),
     });
 
