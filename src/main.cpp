@@ -189,6 +189,32 @@ namespace
   }
 
 
+  // "0.0.0.0" is what a socket binds to, not something a browser can
+  // navigate to -- browsers vary in whether/how they alias it, so surface
+  // loopback instead. A real bound-to-a-LAN-IP config still prints as-is.
+  std::string browsableAddress(const std::string& boundBackendIP)
+  {
+    return boundBackendIP == "0.0.0.0" ? "127.0.0.1" : boundBackendIP;
+  }
+
+
+  // Best-effort -- a failure here shouldn't stop the app, the printed URL
+  // above is still there as a fallback. xdg-open is the desktop-agnostic
+  // standard huenicorn's own LinuxAdapter uses for the same purpose.
+  void openWebBrowser(const std::string& url)
+  {
+    std::system(("xdg-open '" + url + "' >/dev/null 2>&1 &").c_str());
+  }
+
+
+  // OSC 8 terminal hyperlink -- most Linux terminal emulators already
+  // support this with no extra setup, unlike Windows conhost.
+  void printClickableLink(const std::string& url)
+  {
+    std::cout << "WebUI: \033]8;;" << url << "\033\\" << url << "\033]8;;\033\\\n";
+  }
+
+
   // The swappable unit a live reload tears down and reconstructs -- the
   // "reconstruction, not mutation" design fork from huenicorn recommended in
   // Analysis/HttpServerAnalysis.md. Lives here (not core::Runtime) because
@@ -622,6 +648,13 @@ try
   std::signal(SIGTERM, handleStopSignal);
 
   auto configRoot = resolveConfigRoot();
+
+  // Captured before ConfigStore/Pipeline ever touch this configRoot --
+  // Pipeline::build() unconditionally re-saves config.json on every launch
+  // (see its refreshRate/subsampleWidth persist), so this must be read
+  // before that or it would always see the file as already existing.
+  bool isFirstSetup = !std::filesystem::exists(configRoot / "config.json");
+
   Aurora::Runtime::ConfigStore configStore(configRoot);
   Aurora::Runtime::Config config = configStore.load();
 
@@ -685,7 +718,15 @@ try
   std::optional<HttpServerThread> httpServerThread;
   if(httpServer.bind(config.boundBackendIP(), config.restServerPort())){
     httpServerThread.emplace(httpServer, std::thread([&httpServer]{ httpServer.listen(); }));
-    std::cout << "WebUI listening on " << config.boundBackendIP() << ":" << config.restServerPort() << "\n";
+    std::string url = "http://" + browsableAddress(config.boundBackendIP())
+      + ":" + std::to_string(config.restServerPort()) + "/";
+    if(isFirstSetup){
+      std::cout << "WebUI: opening " << url << " in your browser\n";
+      openWebBrowser(url);
+    }
+    else{
+      printClickableLink(url);
+    }
   }
   else{
     std::cerr << "Could not bind WebUI to " << config.boundBackendIP() << ":" << config.restServerPort()
