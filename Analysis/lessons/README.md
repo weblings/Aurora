@@ -79,7 +79,15 @@ Aurora's own module boundaries instead of RockyRoad's. `rendering-apis.md` vs.
   test resolves, and a library's own "register everything before X" contract
   (`HttpServer`'s routes-before-`bind()` rule) forcing a slow dependency's
   construction earlier than it used to happen, with a real ~1.5-2s startup-
-  latency cost only measured by polling, not visible from reading the diff.
+  latency cost only measured by polling, not visible from reading the diff,
+  a "reset to auto" sentinel (`subsampleWidth: 0`) getting silently
+  overwritten by the very reload its own save triggers before the next read
+  ever sees it, before copy-pasting a "had to duplicate this per app"
+  pattern onto a new route re-checking whether the constraint that forced it
+  (an app-layer-only type) actually applies this time, and before routing a
+  new mutation through the same reload machinery everything else uses,
+  checking whether the data is already live in memory outside that
+  machinery (`ZoneMap` bypassing `Config`+reload entirely for this reason).
 - [`rendering-apis.md`](rendering-apis.md) — third-party Three.js/GLTFLoader/Blender-export
   facts: `RectAreaLight` having no `distance`/`decay` at all (coupling brightness to reach),
   Blender's glTF export dropping light data unless "Punctual Lights" is checked (and never
@@ -136,9 +144,14 @@ Aurora's own module boundaries instead of RockyRoad's. `rendering-apis.md` vs.
   flagged UI gap already being covered by a normal-path action elsewhere in
   the same flow, a style written ahead of its first real consumer (the
   status-pill) silently drifting from the very precedent it cited since
-  nothing exercises unused CSS, and a reference ARIA interaction pattern
+  nothing exercises unused CSS, a reference ARIA interaction pattern
   ("select follows focus") needing deliberate adaptation once its commit
-  callback has real side effects instead of being a free value assignment.
+  callback has real side effects instead of being a free value assignment,
+  and this plan doc's own sections drifting out of sync with each other as
+  steps get built out of drafting order -- a flow diagram implying a nav
+  target its own Dashboard mockup never listed, and a component-inventory
+  row's screen attribution going stale unnoticed for several steps until
+  actually referenced.
 
 ## Where a new lesson goes
 

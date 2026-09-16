@@ -651,3 +651,91 @@ routes used to need to exist, check whether the library's own "must register
 before X" contract now forces that something to be built earlier than
 before -- and measure the actual latency delta by testing (poll for
 readiness), don't just reason that a reordering is "probably fine."
+
+---
+
+## Saving a "reset to auto" sentinel can get silently overwritten by the very reload that save triggers, before it's ever observed
+
+Building the Tuning screen's `subsampleWidth` field ("0 = auto"), a live
+`PUT /api/config` setting it to `0` returned `0` correctly in that same
+response -- but a `GET /api/config` moments later already showed a concrete
+number (`48`) again, not `0`. Root cause: every settings `PUT` funnels
+through `onConfigChanged` into `PipelineHost::reload()`, which calls
+`Pipeline::build()` fresh; while still in video mode, that rebuild's
+`Orchestrator::init()` sees `subsampleWidth() == 0` and re-derives it from
+the display immediately, then persists the derived value right back via its
+own explicit `ConfigStore::save()` call -- all before the *next* `GET` ever
+runs. The `PUT`'s own response wasn't wrong (it reflects state right after
+the patch, before that reload's side effect lands); reasoning from that
+response alone would have concluded "auto persists as `0`," which is false
+the moment reload finishes. This is also a different "0/empty means auto"
+contract than `Config::activeMonitorName`'s, which stays genuinely empty in
+persisted config forever unless explicitly set -- two auto conventions in
+the same app, resolving differently, easy to conflate.
+
+**Fix:** not a bug -- `0` legitimately means "please re-derive," and it
+does, correctly. Documented rather than papered over: a UI exposing a
+"reset to auto" value needs to say so honestly (no claim that reopening the
+screen will show `0` again) once the same request that saves it also
+triggers a reconstruction that can immediately resolve and re-persist it.
+General principle: when a value's own setter or the reload it triggers can
+rewrite that same value again before anyone reads it back, verify the
+*settled* state with a fresh read after the write's own side effects have
+had a chance to run -- a write's own response body only proves what was
+true at that instant, not what's true a moment later once its side effects
+finish.
+
+---
+
+## Before copy-pasting a "had to duplicate this per-app" pattern onto the next similar route, re-check whether the constraint that forced it still applies
+
+Step 11's `/api/monitors`/`/api/reload` routes had to live directly in each
+app's own `main.cpp`, duplicated near-verbatim, because they capture
+`PipelineHost`/`Registry` by reference -- both app-layer types core has no
+dependency on. Building `/api/zones` next, the default move would have been
+to duplicate its JSON-marshalling logic into both `main.cpp` files the same
+way, following the established precedent. Checking first instead of
+assuming: `ZoneMap`/`ZoneConfig`/`Contracts::UVs` are already core types
+with zero dependency on `Registry`/`Pipeline` -- the actual constraint that
+forced step 11's duplication (needing an app-layer type) simply doesn't
+apply here. The route's JSON logic could be written once in
+`core/Runtime/ZoneRoutes.cpp`, reached from either app through the same
+generic-callback bridging `SettingsRoutes`' `onConfigChanged` already
+established, with each app supplying only a couple of thin one-line
+lambdas.
+
+**Fix:** wrote it once in core instead of duplicating. General principle:
+an established "we had to duplicate X because of constraint Y" pattern is a
+fact about the *previous* case, not a rule to reapply automatically to the
+next similar-looking one -- re-derive whether constraint Y genuinely holds
+for the new code before reaching for the same workaround, since the
+constraint (not the pattern) is the actual thing worth checking for reuse.
+
+---
+
+## Before routing a new mutation through the same reload machinery everything else uses, check whether the data it touches is already live in memory outside that machinery
+
+Every settings write built in steps 11-13 (`Config`-backed) has to go
+through a full `PipelineHost::reload()` -- confirmed there's no
+settings-only update path, `Pipeline::build()` always runs fresh, tearing
+down and reconstructing capture/output. Building zone edits next, the
+default assumption would have been that this is simply how any live write
+works here. It isn't, for this specific data: `ZoneMap` was never part of
+`Config` -- `Orchestrator` already holds it as a live, mutable
+`std::unordered_map` that `update()` reads directly every tick, entirely
+outside the reload path. That made a direct in-place mutation (guarded by
+the same `PipelineHost` mutex `tick()` already takes, no rebuild at all) not
+just possible but clearly the right choice once checked: the Zone Mapping
+screen's whole job is dragging a rect live while watching real lights react,
+and a full pipeline rebuild per drag-frame (the only path a `Config` change
+has) would make that interaction unusable.
+
+**Fix:** gave zone edits their own direct-mutation path
+(`Orchestrator::updateZone`) instead of funneling them through `Config`+
+reload. General principle: "every other write here goes through reload" is
+a fact about `Config`-backed data specifically, not a property of the whole
+system -- before extending that path to a new kind of mutation, check
+whether the data being changed is actually reachable some other way
+already (already-live, already-mutable, already read directly by the code
+that needs the new value) before assuming the established heavyweight path
+is the only option.

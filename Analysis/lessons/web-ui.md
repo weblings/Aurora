@@ -132,3 +132,32 @@ from `aria-selected`/`onSelect`, which only fire on an explicit commit
 wrapping a reference interaction pattern around a callback that isn't a pure,
 cheap value assignment — the pattern's own keyboard model may assume
 committing is free, and it usually isn't in this codebase.
+
+## A living plan doc's own sections can drift out of sync with each other, not just with the external reality they describe
+
+Two separate instances this round, both in `WebUIAnalysis.md` itself rather
+than in a claim about huenicorn/RockyRoad. First: the navigation-model flow
+diagram had always said a returning user reaches "each of 1/2/3/4" from the
+Dashboard, but the Dashboard screen's own ASCII mockup and nav-row list had
+never actually been updated to include a row for screen 2 (Mode+Device
+Select) — the two sections had simply gone out of sync as steps got built
+in a different order than the doc was first drafted in, and nothing forced
+a re-check until step 12 actually needed to answer "how does someone reach
+this screen." Second: the final component inventory table had listed
+"Section heading + divider" as used by screens "1, 4" since an early
+planning pass, but Output Connect (screen 1, built in step 10) never
+actually used a heading anywhere — confirmed only by rereading its already-
+finished source when step 13 went looking for a precedent to reuse, several
+steps after the wrong attribution was written and never re-checked.
+
+**Fix:** in both cases, fixed the inconsistency and said so explicitly in
+the build-order writeup rather than quietly building around it. General
+principle: a plan doc built incrementally across many steps needs the same
+"is this claim still true" skepticism applied to its own earlier sections
+as to an external source — a flow diagram, a component table, and a screen
+mockup are all claims about each other that can silently drift apart as
+later steps edit only one of them, not a single source of truth that stays
+consistent by construction. When a step is about to rely on what an earlier
+section of this same doc says, spot-check it against whatever it's actually
+describing (another section, or the real built code) rather than trusting
+that "it's already in the plan" means it's still accurate.
