@@ -1,9 +1,13 @@
 // Test-script entry point wiring one Linux input to one or more outputs
-// through Orchestrator. Not yet a real product app -- no pairing flow or
-// zone-mapping UI exist (see Analysis/ImplementationPlan.md phase 3), so
-// bridge credentials and zone maps are stopgaps: env vars and hand-edited
-// profile JSON, respectively. See Analysis/DistributedArchitecturePlan.md
-// for how this shape is expected to evolve.
+// through Orchestrator. Not yet a real product app -- bridge credentials
+// still come from env vars, not a persisted pairing flow (see
+// Analysis/ImplementationPlan.md phase 3). Zone maps now have a real REST
+// surface (registerZoneRoutes, below, build-order step 14) even though the
+// WebUI's own Zone Mapping screen consuming it is still a later step (15) --
+// this comment used to claim no zone-mapping UI existed at any layer, which
+// is no longer accurate for the backend half. See
+// Analysis/DistributedArchitecturePlan.md for how this shape is expected to
+// evolve further.
 
 #include <chrono>
 #include <csignal>
@@ -22,6 +26,7 @@
 #include <Aurora/Runtime/Orchestrator.hpp>
 #include <Aurora/Runtime/SettingsRoutes.hpp>
 #include <Aurora/Runtime/ZoneMapStore.hpp>
+#include <Aurora/Runtime/ZoneRoutes.hpp>
 #ifdef AURORA_RUNTIME_AUDIO_AVAILABLE
 #include <Aurora/Runtime/AudioOrchestrator.hpp>
 #endif
@@ -317,6 +322,35 @@ namespace
       return m_videoInput ? m_videoInput->monitors() : Aurora::Input::Monitors{};
     }
 
+    // Empty in audio mode or with no outputs -- same "nothing to report,
+    // not an error" precedent as listMonitors(). Only the first output is
+    // considered: today's only real output is Hue, and the WebUI's own
+    // Zone Mapping screen is designed around one unified zone grid, not
+    // per-output tabs -- a documented v1 scope limit, not an oversight.
+    Aurora::Runtime::ZoneListResult listZones() const
+    {
+      if(m_isAudioMode || m_outputPtrs.empty()){
+        return {};
+      }
+
+      const std::string& name = m_outputPtrs.front()->name();
+      return {name, m_orchestrator->zoneMap(name)};
+    }
+
+    bool updateZone(
+      std::uint8_t zoneId,
+      const std::optional<Aurora::Contracts::UVs>& uvs,
+      const std::optional<bool>& active,
+      const std::optional<float>& gamma
+    )
+    {
+      if(m_isAudioMode || m_outputPtrs.empty()){
+        return false;
+      }
+
+      return m_orchestrator->updateZone(m_outputPtrs.front()->name(), zoneId, uvs, active, gamma);
+    }
+
     void shutdown()
     {
       for(auto* output : m_outputPtrs){
@@ -380,6 +414,27 @@ namespace
     {
       std::lock_guard<std::mutex> lock(m_mutex);
       return m_pipeline->listMonitors();
+    }
+
+    // Same lock as tick() -- a zone edit and an in-progress tick must never
+    // interleave, but unlike reload(), this never swaps or rebuilds the
+    // Pipeline at all, so it's cheap enough to call on every drag-frame a
+    // real Zone Mapping UI sends, not just on a final "Save".
+    Aurora::Runtime::ZoneListResult listZones()
+    {
+      std::lock_guard<std::mutex> lock(m_mutex);
+      return m_pipeline->listZones();
+    }
+
+    bool updateZone(
+      std::uint8_t zoneId,
+      const std::optional<Aurora::Contracts::UVs>& uvs,
+      const std::optional<bool>& active,
+      const std::optional<float>& gamma
+    )
+    {
+      std::lock_guard<std::mutex> lock(m_mutex);
+      return m_pipeline->updateZone(zoneId, uvs, active, gamma);
     }
 
     // Returns true on success. On failure, errorOut is set and the previous
@@ -484,6 +539,29 @@ namespace
   }
 
 
+  // Sets the same flag SIGINT/SIGTERM already sets (the signal handler,
+  // above) -- the daemon exits through its normal shutdown path (the tick
+  // loop below sees g_stopRequested, calls pipelineHost.shutdown(), then
+  // main() returns and httpServerThread's own destructor stops this same
+  // server), not a special-cased one. Same "stop the whole process, not
+  // pause" semantics as huenicorn's real Runtime::stop() (m_keepLooping =
+  // false, confirmed by reading it) -- no resume exists, matching this
+  // build order's own "Pause is cut for v1" decision (Orchestrator has no
+  // concept of holding without exiting its loop).
+  void registerStopRoute(Aurora::Network::Http::Server::HttpServer& httpServer)
+  {
+    httpServer.addRoute(
+      Aurora::Network::Http::Server::HttpMethod::Post,
+      "/api/stop",
+      [](const Aurora::Network::Http::Server::Request&, Aurora::Network::Http::Server::Response& res){
+        res.contentType = "application/json";
+        res.body = nlohmann::json{{"succeeded", true}}.dump();
+        g_stopRequested = 1;
+      }
+    );
+  }
+
+
   // First WebUI route: lets a frontend probe which Input/Output plugins this
   // particular binary was actually compiled with, before rendering anything
   // that assumes one exists (Analysis/WebUIAnalysis.md's capability-probe
@@ -581,6 +659,14 @@ try
   );
   registerMonitorsRoute(httpServer, pipelineHost);
   registerReloadRoute(httpServer, pipelineHost, registry, configRoot);
+  registerStopRoute(httpServer);
+  Aurora::Runtime::registerZoneRoutes(
+    httpServer,
+    [&pipelineHost]{ return pipelineHost.listZones(); },
+    [&pipelineHost](std::uint8_t zoneId, const auto& uvs, const auto& active, const auto& gamma){
+      return pipelineHost.updateZone(zoneId, uvs, active, gamma);
+    }
+  );
 
   // Aurora-WebUI's fetched sibling checkout -- must be called before bind()
   // per HttpServer's own contract. AURORA_WEBUI_SOURCE_DIR is baked in at
