@@ -552,3 +552,53 @@ reached needs to be re-checked against every early-return path already in that
 function, not just the one being actively edited -- and this class of bug
 usually doesn't show up by compiling, only by actually exercising the
 early-return branch at runtime.
+
+---
+
+## A static-file mount point can shadow a registered API route at the same path, and the library's own dispatch order decides who wins
+
+Wiring `HttpServer::serveStaticFiles()` (Aurora-WebUI's static frontend) and
+the pairing/capabilities API routes together for the first time, rather than
+assume cpp-httplib dispatches registered handlers first, its real
+`Server::routing()` source was read directly: for GET/HEAD requests,
+`handle_file_request()` (the static mount) runs *before* `dispatch_request()`
+against registered handlers, and wins outright if a matching file exists.
+Safe today only because Aurora-WebUI's own files never collide with an
+`/api/...` path -- nothing in the framework prevents a future static file
+from silently shadowing a route with the same path, and a shadowed route
+fails with no error, just a response that looks like a static file instead
+of running the handler at all.
+
+**Fix:** documented as a hard rule (never add a file under `api/` in
+Aurora-WebUI) rather than an implicit assumption, in the repo's own README
+where a future contributor adding WebUI files would actually see it. General
+principle: whenever a static-file mount and a registered-route system share
+one HTTP server, check the library's real dispatch order before assuming
+routes take priority -- a silent shadow is much harder to notice than an
+outright conflict error, since a request to a shadowed path still returns
+*something*, not a failure.
+
+---
+
+## No headless-browser tool exists in this environment, but jsdom against real files (installed dev-only, outside the repo) exercises real DOM/JS behavior instead of relying on code review
+
+Building Aurora-WebUI's app shell (`shell.js`'s `navigate()`/settings-modal
+logic, `topBar.js`'s rendering) needed real verification, but no browser-
+automation tool is available to this agent in this environment (no
+Playwright/Puppeteer-equivalent). Node itself also isn't on this machine's
+WSL2 `PATH` (only Windows' own install is), so the check runs from the
+Windows side.
+
+**Fix:** `npm install jsdom --no-save` in the session's scratchpad directory
+(never the repo -- it's a test-only dependency, same relationship Catch2 has
+to the C++ repos' shipped binaries) and load the real `index.html`/`.js`
+files from disk into it via `pathToFileURL()`, with `global.document`/
+`global.window` set from the `JSDOM` instance before importing any module
+that references bare `document`. This exercised real behavior no amount of
+reading the code would have proven on its own: settings-modal open/close via
+direct calls *and* real scrim/close-button click events, `navigate()`'s
+actual mount-then-unmount-previous ordering, and confirming a screen title is
+rendered via `textContent` (escaped) rather than interpolated as markup.
+Genuine visual/layout verification in an actual browser is still a real gap
+this doesn't close -- worth remembering as still outstanding, not solved by
+the jsdom pass.

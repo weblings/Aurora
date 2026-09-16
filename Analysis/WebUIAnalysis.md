@@ -732,8 +732,41 @@ end here, since nothing in v1 consumes it (see Decisions log above).
    `/api/hue/connection` still answer correctly alongside it, and a
    nonexistent static path correctly 404s rather than falling through to a
    route.
-7. App shell: the `#screen-container`-style mount point, the top bar formula
-   (back/title/gear), the settings modal + scrim.
+7. ~~App shell~~ — **done (2026-09-15)**, in the new `Aurora-WebUI` repo:
+   `index.html` (page skeleton: `#screen-container` mount point + the
+   settings overlay/scrim/panel markup), `shell.css` (page reset, the
+   scrollbar-gutter fix, centered max-width column, top bar, and the settings
+   modal — all referencing `tokens.css`'s variables, zero literal hex),
+   `shell.js` (an `App` class: `navigate()` unmounts the current screen then
+   mounts the next into `#screen-container`, `openSettings()`/
+   `closeSettings()` toggle the overlay — trimmed way down from RockyRoad's
+   own `App.ts`, which carries a renderer, song pause/resume, a countdown
+   overlay, and per-instrument settings sections that don't apply here), and
+   `topBar.js` (a `renderTopBar()` helper — the one reusable piece that
+   enforces "one top bar formula, everywhere" structurally instead of by
+   convention, the same problem `tokens.css` solves for colors). The title is
+   absolutely centered within the bar rather than flex-centered between the
+   side slots, since those slots are rarely equal width (no Back vs.
+   Back+gear vs. pill+gear) and flex centering would visibly drift the title
+   depending on which is present. Settings-modal *content* is deliberately
+   empty for now (`#settings-body`) — actions like "Re-pair bridge" land
+   there once the screen that needs them exists, matching the Dashboard's own
+   "bare shell, built early" precedent (step 9).
+   <br><br>
+   Verified two ways, since no browser-automation tool exists in this
+   environment: real DOM behavior was exercised with `jsdom` (installed only
+   in the session scratchpad, not this repo — a test-only dependency, same
+   relationship Catch2 has to the C++ repos' own shipped binaries) — settings
+   modal open/close via direct calls, scrim click, close-button click,
+   `navigate()`'s mount-then-unmount-previous ordering, the top bar's back
+   button present/absent, gear click firing `onSettings`, status pill
+   present/absent, and title text escaping (a screen title is rendered via
+   `textContent`, not interpolated as markup) all confirmed against a real
+   `Document`, not by reasoning about the code. Separately, confirmed via the
+   actual running `aurora-app-windows.exe` that every file serves with the
+   right content type (`text/html`, `text/javascript`, `text/css`) and `GET /`
+   resolves to `index.html`. Genuine visual/interaction verification in an
+   actual browser is still outstanding — flagged rather than skipped over.
 8. Port `Dropdown.ts` and close its ARIA/keyboard punch list once, up front
    (`aria-haspopup`/`aria-expanded`, `role=listbox/option`, arrow-key nav,
    Escape, focus management) — it's used on screens 1 and 2, fixing it once
