@@ -884,14 +884,18 @@ implementation is still the right template to follow closely (same
 cpp-httplib version even, `v0.46.0`), just not something already wired into
 this codebase.
 
-- **Analysis pass first:** `Analysis/HttpServerAnalysis.md` (still not
-  written) covering the *new* server's shape before building it, informed by
-  huenicorn's own `SetupBackend.cpp`/`WebUIBackend.cpp` route design
-  (`/api/autodetectBridge`, `/api/registerNewUser`, `/api/setChannelUV/:id`,
-  etc. — plain JSON REST, no WebSocket, static files served from a
-  `webroot/`-equivalent) as the concrete reference rather than designing from
-  scratch. Not needed for milestone 1 at all (no native backend in that
-  shape) — this is purely a milestone-2 prerequisite.
+- **Analysis pass done (2026-09-15): `Analysis/HttpServerAnalysis.md`.**
+  Covers huenicorn's real `Network::Http::Server` C++ implementation (read
+  directly — `HttpServer`/`Impl`/`SetupBackend.cpp`/`Runtime.cpp`, not just
+  the JS frontend), its threading model (a dedicated server thread separate
+  from the tick-loop thread, synchronized via a `promise`/`future` ready
+  signal), a real concurrency gap in huenicorn worth not copying (only its
+  DTLS streamer is mutex-guarded, per-channel settings state isn't), and the
+  one real design fork Aurora needs beyond huenicorn's in-place-mutation model
+  (full pipeline reconstruction on a settings change, needing one consistent
+  lock around a swappable "current pipeline" unit). Not needed for milestone 1
+  at all (no native backend in that shape) — this was purely a milestone-2
+  prerequisite.
 - **Screen list, jobs-to-be-done, and component research: see
   `Analysis/WebUIAnalysis.md`.** Covers the full screen breakdown (Output
   Connect, Mode+Device Select, Zone Mapping, Tuning/Settings, Dashboard), the
@@ -903,12 +907,15 @@ this codebase.
   device-select and settings), plus the design-token drift, keyboard/ARIA, and
   mouse-touch-to-XR findings that came out of that research.
 - **Native side, three surfaces, not one:**
-  - *Preview streaming* (the original plan here, still valid): a chunked
-    MJPEG endpoint serving the already-downsampled preview frames
-    (JPEG-encode the same small `ImageData` already computed for color
-    sampling via OpenCV's `imencode` — already a dependency) plus a
-    Server-Sent Events endpoint pushing each tick's `Processing::Frame` as
-    JSON.
+  - *Preview streaming* (the original plan here, still technically valid but
+    **deliberately last in build order, not first** — see
+    `Analysis/WebUIAnalysis.md`'s Build order section: the Dashboard's live
+    preview and per-zone swatch row were cut from v1 entirely, so nothing
+    consumes this endpoint yet): a chunked MJPEG endpoint serving the
+    already-downsampled preview frames (JPEG-encode the same small
+    `ImageData` already computed for color sampling via OpenCV's `imencode`
+    — already a dependency) plus a Server-Sent Events endpoint pushing each
+    tick's `Processing::Frame` as JSON.
   - *Settings/mode*: REST endpoints over `Config`'s already-clean user-facing
     fields (`activeInputName`/`activeAudioInputName`/`activeOutputNames`,
     `refreshRate`/`subsampleWidth`/`interpolation`/`transitionSmoothing`,

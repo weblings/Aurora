@@ -551,3 +551,84 @@ alone.
   (video-mode-only, and not required for the Dashboard's core job). Native-side
   MJPEG/SSE endpoints from `ImplementationPlan.md` are unaffected — they're
   just not consumed by this Dashboard yet.
+
+## Build order
+
+Sequenced by actual dependency, not by the screen numbering used above — a
+screen can't be usefully built before the backend surface and shell pieces it
+depends on exist. Preview streaming, which `ImplementationPlan.md` lists first
+among Milestone 2's "three native surfaces," is intentionally pushed to the
+end here, since nothing in v1 consumes it (see Decisions log above).
+
+**1. Backend foundation**
+1. ~~`Analysis/HttpServerAnalysis.md`~~ — **done (2026-09-15)**. Confirmed
+   huenicorn's server is a genuinely generic, transport-agnostic abstraction
+   worth adopting near-verbatim, that it needs its own dedicated thread
+   separate from the tick loop (huenicorn's own `Runtime::_initWebUI`
+   pattern), and that Aurora's planned full-pipeline-reconstruction design
+   (unlike huenicorn's in-place mutation) needs one consistent lock around a
+   swappable pipeline unit, not huenicorn's narrower single-mutex approach.
+2. New HTTP server skeleton (cpp-httplib, static file serving, no real routes
+   yet) in a new shared `core/` module (not duplicated per app repo — see
+   `HttpServerAnalysis.md`'s module-boundary reasoning).
+3. A `/api/capabilities`-style endpoint reflecting the Registry (what
+   Input/Output plugins are actually compiled in) — the frontend's
+   capability-probe step needs this before anything else.
+4. Hue credential persistence (new `Config` fields or a sibling
+   `credentials.json`, mirroring huenicorn's own file split) + update
+   `registerOutputs()` to read from it first, env vars staying as a dev-only
+   fallback.
+5. Pairing endpoints (autodetect/validate/register/finish, entertainment-config
+   list/select), modeled directly on huenicorn's `SetupBackend`.
+
+**2. Frontend foundation (shell, no real screens yet)**
+6. Settle the accent-color token conflict (`#2a6eff` vs `#8b8b8b`) and define
+   real CSS custom properties (colors, radii, spacing) once — this blocks
+   every screen's styling, cheaper to settle before anything is built against
+   the wrong token.
+7. App shell: the `#screen-container`-style mount point, the top bar formula
+   (back/title/gear), the settings modal + scrim.
+8. Port `Dropdown.ts` and close its ARIA/keyboard punch list once, up front
+   (`aria-haspopup`/`aria-expanded`, `role=listbox/option`, arrow-key nav,
+   Escape, focus management) — it's used on screens 1 and 2, fixing it once
+   here is cheaper than fixing it twice later.
+9. A bare Dashboard shell: nav rows only (Bridge/Zones/Tuning, no mode toggle
+   or Stop yet), wired to the capability-probe/persisted-state routing logic.
+   Built early and mostly empty on purpose — gives every screen after this a
+   real place to be linked into and manually reached as it's finished, rather
+   than only reachable via a dev shortcut until the whole flow is done.
+
+**3. Screens, in dependency order**
+10. **Output Connect** — the first real screen, and the first full vertical
+    slice through the whole stack (server, credential persistence, pairing
+    endpoints, Dropdown, waiting/error states). Proves the plumbing before
+    investing in the rest.
+11. **Backend:** generic settings REST endpoints over `Config`'s user-facing
+    fields, plus the one generic reload entrypoint (tear down and reconstruct
+    Input/Output/Orchestrator from a freshly-loaded `Config`+`ZoneMapStore`)
+    that every one of them funnels into, plus monitor/sink listing endpoints.
+12. **Mode + Device Select** — needs step 11.
+13. **Tuning/Settings** — also only needs step 11, not zone data. Can be built
+    in parallel with Zone Mapping below rather than strictly after it.
+14. **Backend:** `ZoneMap` REST endpoints (list with live-reconciled state,
+    set UV rect, set gamma, set active) atop the existing `reconcileZoneMap`.
+15. **Zone Mapping** — the heaviest remaining lift (the `ScreenWidget.js` port
+    plus its Pointer Events rewrite for touch). Build after Output Connect and
+    Mode+Device exist, since it needs a real paired output and video mode
+    selected to have anything real to test against.
+16. **Backend:** the Stop endpoint, close to a verbatim port of huenicorn's
+    `_askStopConfirmation()`/`_stop()`.
+17. **Dashboard, filled in:** add the mode toggle and Stop button to the shell
+    built in step 9, now that their endpoints exist. This is the natural last
+    piece, not because it's hard, but because everything it links to and
+    controls needs to already exist first.
+
+**4. Wiring and polish**
+18. Wire the full first-run-vs-returning-user routing end to end across all 5
+    screens (each screen up to now can be reached and tested individually via
+    the Dashboard shell from step 9).
+19. A real desktop-vs-constrained QA pass per screen.
+
+**Deliberately last, not first:** the MJPEG+SSE preview streaming endpoints.
+Worth building only if the live-preview cut gets revisited, not as a
+prerequisite for anything above.
