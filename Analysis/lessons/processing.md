@@ -62,3 +62,29 @@ structured data (a rect, a range, an index): "what does *my own* downstream
 code assume is always true about this value, and does the reference
 implementation actually guarantee that?" -- not just "does this look like
 what the reference does."
+
+---
+
+## Two UI elements reported as "one hiding the other" can share the exact same default coordinates rather than suffering a genuine z-order bug
+
+A live report that switching entertainment configurations left one zone
+("zone 5") visually and functionally hiding another ("zone 4") looked at
+first like a z-order or click-target bug in the Zone Mapping canvas. The
+actual cause was upstream and data-only: `ZoneReconciler::reconcileZoneMap`
+gives any zone with no saved mapping yet the same default `ZoneConfig`
+(`{0,0}`-`{1,1}`, the full canvas), so on a freshly-selected entertainment
+config with no prior manual dragging, every one of its zones' rects, tags,
+and click targets land on the exact same pixels. Only the topmost DOM
+element could ever receive a click -- the rest weren't occluded by a
+rendering bug, they were genuinely indistinguishable data rendered
+correctly.
+
+**Fix:** confirmed directly by reading the real live `hue.json` before
+touching any rendering code at all -- every zone at identical default
+coordinates, exactly as the theory predicted, no code change needed to
+confirm it. General principle: before treating "two elements are visually
+or functionally indistinguishable" as a z-order or event-handling bug,
+check whether the underlying data actually differs between them at all --
+a default/uninitialized-state collision produces the identical symptom to
+a genuine rendering bug, and is far cheaper to rule in or out by reading
+the persisted data directly than by debugging paint order or hit-testing.

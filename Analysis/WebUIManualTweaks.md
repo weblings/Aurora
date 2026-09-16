@@ -76,6 +76,21 @@ entry on build-log doc density for why.
   `CredentialsStore.cpp` now that the persistence question is resolved
   (the `configRoot` line in `main.cpp` stays until the double-click crash
   is root-caused).
+  **Update:** the "verified live" claim above only checked that the switch
+  persisted, not that it took visible effect — real gap found afterward:
+  `registerOutputs()`'s Hue factory closed over `HueConnection` by value at
+  registration time (main.cpp, both apps), so switching configs never
+  changed which channels the *running* output actually reported; the zone
+  canvas kept showing whichever config was loaded at boot (one zone
+  "TV"-shaped instead of the seven-light "TV area" set). Fixed: the factory
+  now re-reads `CredentialsStore` fresh on every call, and
+  `registerPairingRoutes` gained an `onConnectionChanged` reload callback
+  (same convention as `SettingsRoutes`' `onConfigChanged`), called after
+  `POST /api/hue/connection` saves. `ZoneMappingScreen._setEntertainmentConfig`
+  also now re-fetches `/api/zones` after a successful switch instead of only
+  updating the picker's own label. Re-verifying surfaced a further UI gap
+  (occluded/unselectable zones) — see "Zone Mapping: channel selection &
+  identification" below for the full follow-up plan, confirmed working live.
 - [ ] **No single-instance enforcement — a second launch can silently run
   headless.** `httpServer.bind()` failing (port in use) just logs to
   stderr and the process keeps running with no WebUI at all; nothing tells
@@ -88,3 +103,55 @@ entry on build-log doc density for why.
   double-click-launched console closes instantly on exit, so even a
   correct error message is never seen — worth fixing together (log to a
   file, or keep the window open on error).
+
+## Zone Mapping: channel selection & identification
+
+Follow-up to the entertainment-config task above. Root cause of "zone 5 hid
+zone 4": every zone with no saved mapping defaults to the exact same
+full-canvas UV rect (`ZoneReconciler`/`ZoneConfig`'s default), so their
+outlines, tags, and click targets all land on the same pixels — the topmost
+DOM element eats every click, the others become unreachable.
+
+Items 1-7 built and confirmed live. Some visual nits noted for follow-up,
+not yet itemized here.
+
+1. [x] Removed the on-canvas per-zone checkbox; kept the bare zoneId label
+   (already rendered for every zone, not just the selected one).
+2. [x] Added a zone-selector dropdown (same `Dropdown.js` component as the
+   entertainment picker) as the primary way to choose which zone is being
+   shape-edited/gamma-tuned, decoupled from clicking the canvas. Canvas
+   click still works too, as a shortcut.
+3. [x] Added a separate active/inactive toggle list below the canvas+gamma
+   block, one row per zone, reusing the existing `.toggle-row`/
+   `.toggle-switch` pattern (`forms.css`) — not huenicorn's two-column
+   drag-and-drop, which solves an open-ended bridge-light-membership
+   problem Aurora's fixed zone count doesn't have. Fully decoupled from
+   which zone the dropdown/canvas has selected.
+4. [x] Fixed `_renderCanvas`'s paint order: zones used to draw in array
+   order regardless of selection. Now the selected zone always paints
+   last (on top), so picking it from the dropdown reliably surfaces its
+   shape/handles even when another zone's rect covers the same region.
+5. [x] Zone Mapping now always has a real selection on load (defaults to
+   the first zone) instead of starting with none selected, matching the
+   entertainment dropdown's always-a-value behavior.
+6. [x] Wired `ApiTools::matchDevices`/`parseEntertainmentConfigurationsChannels`
+   (already ported and unit-tested, never called from the live path) into
+   `loadEntertainmentConfigurations()`, and added `GET /api/hue/channels`
+   so the dropdown and toggle list show real light names ("Zone 5 (Floor
+   Lamp)") instead of bare numbers where the bridge has them.
+   **Side effects found along the way:** `Dropdown.js` itself had a latent
+   bug — option matching compared `dataset.value` (always a string)
+   against the option's raw value, so a numeric value (zoneId) silently
+   failed to select on click; fixed with a `String()` coercion. Rewriting
+   the jsdom tests to cover the entertainment-config-switch flow with a
+   stateful mock (matching how the real persisted connection actually
+   behaves) also confirmed last session's "not yet re-verified live"
+   reload fix genuinely works end to end. Verified via jsdom
+   (`zone_mapping_test.mjs`) and the `Aurora-Output-Hue` unit suite (94
+   assertions), then confirmed live.
+7. [x] Verification pass: backed up the live (all-default, all-inactive)
+   `hue.json`, dropped in a real prior zone layout for the test, confirmed
+   the UI rendered it correctly. No migration path exists from huenicorn's
+   old config format (checked, none found) — a fresh Aurora config always
+   starts with every zone defaulted to the full-canvas rect, which is why
+   they all rendered identically before any manual dragging.

@@ -106,7 +106,10 @@ Aurora's own module boundaries instead of RockyRoad's. `rendering-apis.md` vs.
   and a write endpoint requiring a full object round-trip breaking the
   moment its paired read endpoint withholds part of that object from the
   client for security (`/api/hue/connection` needing PATCH semantics once
-  a second caller only wanted to change one already-persisted field).
+  a second caller only wanted to change one already-persisted field), and
+  a fully ported, fully unit-tested function (`ApiTools::matchDevices` and
+  friends) still being dead code because nothing in the production call
+  path actually called it, invisible to its own green test suite.
 - [`rendering-apis.md`](rendering-apis.md) — third-party Three.js/GLTFLoader/Blender-export
   facts: `RectAreaLight` having no `distance`/`decay` at all (coupling brightness to reach),
   Blender's glTF export dropping light data unless "Punctual Lights" is checked (and never
@@ -159,7 +162,11 @@ Aurora's own module boundaries instead of RockyRoad's. `rendering-apis.md` vs.
   data reached `ImageProcessing::getSubImage` — verifying a reference
   implementation does what it's described to do doesn't by itself prove
   its output is safe for a *different* downstream consumer's own
-  assumptions.
+  assumptions, and two UI elements reported as "one hiding the other"
+  turning out to share the exact same default coordinates rather than
+  suffering a genuine z-order bug (every zone with no saved mapping
+  defaults to the same full-canvas rect) -- confirmed cheaply by reading
+  the persisted data before touching any rendering code.
 - [`web-ui.md`](web-ui.md) — WebUI design-process gotchas: a described
   "existing component" being a claim to verify by reading the real source
   rather than a fact to build on, a layout lesson learned in one constrained
@@ -193,7 +200,19 @@ Aurora's own module boundaries instead of RockyRoad's. `rendering-apis.md` vs.
   existing assertion checked either the initial state or that browsing
   doesn't corrupt it, never "committing a genuinely different value
   updates the display," a transition category the suite structurally
-  never exercised despite being fully green.
+  never exercised despite being fully green; that same Dropdown's own
+  click handler separately assuming every caller's option value is a
+  string, since `dataset.value` always is, so a numeric value (a zoneId)
+  failed to select with no error at all; a static fetch mock that was
+  accurate when written becoming a false test failure once the code under
+  test grew a read-after-write dependency (re-fetching a connection after
+  POSTing to it) the mock was never updated to model; and a screen's JTBD
+  pass validating its own interaction model against assumed inputs, not
+  against what a different, independently-decided build step actually
+  supplies (canvas click-to-select assuming distinct zone positions,
+  `ZoneReconciler`'s default putting every unmapped zone at the same
+  coordinates) -- a real process gap, concretely askable on paper before
+  either piece was built, not an inherent hands-on-only limit.
 
 ## Where a new lesson goes
 

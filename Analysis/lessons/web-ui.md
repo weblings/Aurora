@@ -258,3 +258,90 @@ state" and "interacting without committing doesn't corrupt it," add an
 explicit third case -- "committing a different value than the initial one
 updates every derived display," since the first two categories can both
 be airtight while structurally never exercising that transition at all.
+
+---
+
+## A shared component's internal value-matching can silently assume every caller's option value is a string
+
+Reusing `Dropdown` for Zone Mapping's new zone-selector (`value: zone.zoneId`,
+a number) after the entertainment-config picker had only ever used it with
+string values (bridge UUIDs): clicking any option did nothing, no error, no
+console warning. Root cause: the menu's click handler matched
+`this._options.findIndex((o) => o.value === btn.dataset.value)`, and
+`dataset.value` is always a string by DOM contract regardless of what's
+assigned to it -- `btn.dataset.value = opt.value` coerces a number to its
+string form on write, but the original numeric `opt.value` stored on the
+option object itself stays a number. `5 === "5"` is `false`, so the option
+was never found, and `_commit()` was simply never called -- a silent no-op,
+not a thrown error, with zero surface area to be found until a caller
+finally supplied a non-string value.
+
+**Fix:** compare `String(o.value) === btn.dataset.value` instead of a raw
+`===`. General principle: a reusable component's internal comparisons
+against a DOM-derived value (a dataset entry, an input's own `.value`, an
+attribute) need to normalize types explicitly, since the DOM's own
+coercion (always-string) can silently diverge from whatever type a
+caller's own domain naturally uses (a numeric ID, a boolean) -- and because
+the mismatch fails silently rather than throwing, it can pass unnoticed
+through every existing test until a caller with a different value type
+actually exists to exercise it.
+
+---
+
+## A static fetch mock that was accurate can become a false failure once the code under test grows a read-after-write dependency it didn't have before
+
+`zone_mapping_test.mjs`'s mock for `GET /api/hue/connection` returned one
+fixed value regardless of any prior `POST` in the same test run -- correct
+when written, since `_setEntertainmentConfig` only updated local state on
+success and never re-fetched anything. A later fix in the same area (this
+session: `_setEntertainmentConfig` now calls `_load()` on success so the
+zone list reflects the newly-selected config) added exactly that
+read-after-write dependency, and the still-static mock started making the
+switch look like it reverted itself on every test run -- a failure that
+looked like a regression in the new reload code, when the reload code was
+actually correct and the mock had simply fallen out of sync with a new
+real behavior it was never updated to model.
+
+**Fix:** made the mock stateful -- a successful POST updates a local
+variable the subsequent GET handler reads back -- matching how
+`CredentialsStore` genuinely persists on the real backend. General
+principle: when a fix adds a "write, then read the same thing back" cycle
+to any request flow, audit whether existing mocks for the read side of
+that cycle are static -- a static mock is silently invalidated by that
+class of change, and the resulting test failure is easy to misdiagnose as
+a bug in the new code rather than what it actually is: a test double that
+no longer models the real endpoint's behavior.
+
+---
+
+## A screen's JTBD pass validates its own interaction model against assumed inputs, not against what a different build step actually decided to supply
+
+Re-examining Zone Mapping's selection model after a live bug report ("zone
+5 hides zone 4") traced back to a JTBD question the original pass never
+asked. The original pass (build-order step 15) correctly reasoned about
+the *shape* of the active/inactive job in isolation and cut huenicorn's
+two-list panel for a sound reason -- Aurora's zone count is fixed, not
+open-ended membership. But canvas-click-to-select, the interaction model
+chosen for the same screen, silently assumed every zone already occupies a
+distinct position on screen. That assumption is only true *after* a user
+has manually dragged each zone somewhere -- before that, `ZoneReconciler`
+(a different step, decided independently) defaults every unmapped zone to
+the identical full-canvas rect, so click-to-select is structurally unable
+to distinguish between them the moment more than one zone exists unedited.
+Neither step's own reasoning was wrong; nothing cross-checked the seam
+between them. Distinguishes this as a real process gap, not just an
+inherent hands-on-only limit like this file's jsdom-layout entries above:
+the question was concretely askable on paper, before any code was written,
+by reading `ZoneReconciler`'s default alongside Zone Mapping's selection
+design -- it just wasn't part of the JTBD checklist.
+
+**Fix:** treat "what does this screen's chosen interaction model assume
+about its own default/never-touched state, and which other already-decided
+step actually guarantees that" as its own explicit JTBD question, not just
+"does the job need this element" (this file's earlier entry on
+component-reuse research). Ask it specifically at any point a screen's
+interaction model depends on state (positions, membership, an ordering)
+that persists across sessions and is populated by a *different* part of
+the system -- the two decisions can each be locally correct and still
+combine into a bug that only a live pass surfaces, unless the seam between
+them is checked on paper first.

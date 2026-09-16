@@ -881,3 +881,28 @@ full round-trip of that same object -- if it does, no client can ever use
 that write endpoint for anything less than a full re-supply of the hidden
 fields, which is a design bug waiting for its first partial-update caller,
 not a hypothetical.
+
+---
+
+## A fully ported, fully unit-tested function can still be dead code if nothing in the production call path actually calls it
+
+`Aurora-Output-Hue`'s `ApiTools::matchDevices`, `parseEntertainmentConfigurationsChannels`,
+and `loadDevices` were faithfully ported from huenicorn and covered by real
+passing assertions in `ApiToolsTests.cpp` -- and never once called from
+`loadEntertainmentConfigurations()`, the one function that actually reaches
+the WebUI. `parseEntertainmentConfigurationShell` hardcoded every channel's
+`devices` to `{}` at construction, so the real per-channel light-membership
+data those three functions exist to compute was silently unreachable in the
+live app the whole time, despite a green test suite implying the feature
+existed and worked. Found only while investigating an unrelated request
+(surfacing real light names in a new zone picker), not by anything in the
+test suite itself -- nothing about a passing `ApiToolsTests.cpp` run could
+have revealed that its subject was never invoked outside its own tests.
+
+**Fix:** wired all three into `loadEntertainmentConfigurations()`, reusing
+them rather than writing new parsing code from scratch. General principle:
+a green test suite proves a function computes the right output for its own
+given inputs, not that the function is reachable from anywhere real --
+when auditing whether a ported feature is actually complete, grep for the
+function's callers in production code, not just check that its own test
+file passes.
