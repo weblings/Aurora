@@ -1,0 +1,106 @@
+/* Dropdown component styles -- see Dropdown.js. Values carried over from
+   RockyRoad's real .dropdown-trigger/.dropdown-menu/.dropdown-option CSS
+   (verified against v2/desktop.html), mapped onto Aurora's own tokens.
+   Padding is rounded to the nearest step on Aurora's spacing scale (8px/12px)
+   rather than RockyRoad's exact 9px/14px/8px -- same rounding policy already
+   used for the settings panel in shell.css, not a new one. */
+
+.dropdown {
+  position: relative;
+  display: inline-flex;
+}
+
+.dropdown-fill {
+  display: flex;
+}
+
+.dropdown-trigger {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--aurora-space-3);
+  width: 100%;
+  padding: var(--aurora-space-3) var(--aurora-space-5);
+  background: var(--aurora-button-dark);
+  border: none;
+  border-radius: var(--aurora-radius-control);
+  color: var(--aurora-text-primary);
+  font-size: 13px;
+  font-family: inherit;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.dropdown-trigger:hover {
+  background: var(--aurora-button-dark-hover);
+}
+
+.dropdown-trigger:active,
+.dropdown.open .dropdown-trigger {
+  background: var(--aurora-button-dark-hover);
+}
+
+.dropdown-chevron {
+  flex-shrink: 0;
+  font-size: 10px;
+  line-height: 1;
+}
+
+.dropdown-menu {
+  display: none;
+  flex-direction: column;
+  position: absolute;
+  top: calc(100% + var(--aurora-space-1));
+  left: 0;
+  right: 0;
+  background: var(--aurora-surface);
+  border: 1px solid var(--aurora-border);
+  border-radius: var(--aurora-radius-control);
+  overflow: hidden;
+  z-index: 10;
+  min-width: 100%;
+  /* Removes the browser's own default focus outline -- the active option's
+     own background (below) is the visible focus indicator instead, same as
+     RockyRoad's original (no visible :focus ring anywhere in that source). */
+  outline: none;
+}
+
+.dropdown.open .dropdown-menu {
+  display: flex;
+}
+
+.dropdown-option {
+  padding: var(--aurora-space-3) var(--aurora-space-5);
+  background: none;
+  border: none;
+  color: var(--aurora-text-secondary);
+  font-size: 13px;
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+/* .active = transient keyboard-navigation cursor (aria-activedescendant);
+   .selected = the actual current value (aria-selected). Deliberately two
+   separate states, not one -- see Dropdown.js's own comment for why arrow
+   keys move the cursor without committing a value on every keystroke. */
+.dropdown-option.active {
+  background: var(--aurora-surface-hover);
+  color: var(--aurora-text-primary);
+}
+
+.dropdown-option:hover {
+  background: var(--aurora-surface-hover);
+  color: var(--aurora-text-primary);
+}
+
+.dropdown-option:active {
+  background: var(--aurora-button-dark-hover);
+  color: var(--aurora-text-primary);
+}
+
+.dropdown-option.selected {
+  background: var(--aurora-surface-selected);
+  color: var(--aurora-text-primary);
+}

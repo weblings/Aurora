@@ -15,6 +15,12 @@
   --aurora-surface: #1a1a1a;
   --aurora-border: #333333;
   --aurora-divider: #1e1e1e;
+  /* Hover/selected states for a row/option sitting on --aurora-surface (a
+     dropdown menu today; any future list or menu item shares the same need).
+     New values, not reused from elsewhere -- RockyRoad's own dropdown-menu
+     hover/selected states (#2a2a2a/#242424) don't match any other token. */
+  --aurora-surface-hover: #2a2a2a;
+  --aurora-surface-selected: #242424;
 
   /* --- Button: primary-dark (default action) --- */
   --aurora-button-dark: #333333;
