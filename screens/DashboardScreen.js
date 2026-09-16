@@ -3,13 +3,14 @@
 // built on top of this shell. See Analysis/WebUIAnalysis.md's build-order
 // step 9. Built early and mostly empty on purpose: gives every screen built
 // after this a real place to be linked into and reached, rather than only
-// reachable via a dev shortcut until the whole flow is done. Bridge and
-// Capture source navigate to their real screens (steps 10, 12); Zones/Tuning
-// still use PlaceholderScreen until steps 13-15 build them.
+// reachable via a dev shortcut until the whole flow is done. Bridge, Capture
+// source, and Tuning navigate to their real screens (steps 10, 12, 13); Zones
+// still uses PlaceholderScreen until step 14/15 build it.
 import { renderTopBar } from '../topBar.js';
 import { PlaceholderScreen } from './PlaceholderScreen.js';
 import { OutputConnectScreen } from './OutputConnectScreen.js';
 import { ModeDeviceScreen } from './ModeDeviceScreen.js';
+import { TuningScreen } from './TuningScreen.js';
 
 export class DashboardScreen {
   constructor(app) {
@@ -54,7 +55,9 @@ export class DashboardScreen {
       this.app.navigate(new PlaceholderScreen(this.app, 'zones'));
     });
     container.querySelector('[data-nav="tuning"]').addEventListener('click', () => {
-      this.app.navigate(new PlaceholderScreen(this.app, 'tuning'));
+      this.app.navigate(new TuningScreen(this.app, {
+        onComplete: () => this.app.navigate(new DashboardScreen(this.app)),
+      }));
     });
 
     await this._loadStatus(container);

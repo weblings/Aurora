@@ -1,0 +1,37 @@
+/* Tuning / Settings screen -- 2-up per section on desktop, 1-up under
+   ~480px, via CSS grid auto-fit (same real technique as RockyRoad Library's
+   .lib-grid: repeat(auto-fit, minmax(N, 1fr))) rather than an explicit media
+   query breakpoint. minmax(220px, 1fr) forces exactly 2 columns at
+   #screen-container's 640px max width (608px of content) and collapses to 1
+   the moment two 220px+ columns no longer fit -- no separate constrained
+   layout to maintain. */
+
+.tuning-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: var(--aurora-space-3) var(--aurora-space-6);
+  align-items: start;
+}
+
+.tuning-checkbox-row {
+  display: flex;
+  align-items: center;
+  gap: var(--aurora-space-3);
+  grid-column: 1 / -1;
+}
+
+.tuning-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: var(--aurora-space-7);
+}
+
+@media (max-width: 480px) {
+  .tuning-actions {
+    justify-content: stretch;
+  }
+
+  .tuning-actions .btn {
+    width: 100%;
+  }
+}

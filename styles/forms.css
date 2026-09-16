@@ -131,3 +131,124 @@
 .segmented-btn.active { background: var(--aurora-button-light); color: var(--aurora-text-on-light); }
 .segmented-btn.active:hover { background: var(--aurora-button-light-hover); }
 .segmented-btn.active:active { background: var(--aurora-button-light-active); }
+
+/* Section heading + divider -- ported from RockyRoadImport/SongConverter's
+   real <h2> (20px/700 weight/16px margin-bottom) and .tab-panel::before (a
+   top border spanning past the container's own side padding, so it reads as
+   the page's true edge-to-edge divider rather than boxed to the narrower
+   content beneath it). The border itself uses Aurora's own 1px --aurora-divider
+   token rather than the source's literal 3px #1a1a1a -- that heavier weight
+   was for a tab strip's own divider role there, not a plain section break.
+   First real consumer: Tuning/Settings' three field groups (step 13). */
+.section-heading {
+  position: relative;
+  margin-top: var(--aurora-space-7);
+  padding-top: var(--aurora-space-7);
+  margin-bottom: var(--aurora-space-3);
+  font-size: 20px;
+  font-weight: 700;
+}
+.section-heading::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: calc(-1 * var(--aurora-space-6));
+  right: calc(-1 * var(--aurora-space-6));
+  height: 1px;
+  background: var(--aurora-divider);
+}
+.section-heading:first-child {
+  margin-top: 0;
+  padding-top: 0;
+}
+.section-heading:first-child::before {
+  content: none;
+}
+
+/* Slider + live readout -- same shape as RockyRoad's real .tuner-gain-slider/
+   #tuner-gain-val (verified against v2/desktop.html), adapted to Aurora's own
+   vertical .field convention (label+value stacked above a full-width slider)
+   rather than RockyRoad's fixed-narrow-width horizontal layout, which was
+   sized for its own compact sidebar, not a rule worth porting literally.
+   First real consumer: Tuning/Settings (step 13); screen 3's gamma slider
+   (step 15) reuses these same classes. */
+.slider-field-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: var(--aurora-space-3);
+}
+
+.slider-value {
+  font-size: 13px;
+  color: var(--aurora-text-secondary);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.slider-input {
+  width: 100%;
+  accent-color: var(--aurora-accent);
+  cursor: pointer;
+}
+
+/* Boolean toggle switch -- ported from RockyRoad's real .pre-toggle-switch/
+   .pre-toggle-knob (verified against v2/desktop.html): a hidden checkbox
+   driving a sibling knob via :checked, not a custom-drawn control. 12px knob
+   radius maps exactly onto --aurora-radius-panel; the checked-state color is
+   --aurora-accent (#8b8b8b), the same real value the source uses. First real
+   consumer: Tuning/Settings' "Use fixed hue" toggle (step 13). */
+.toggle-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--aurora-space-3);
+  cursor: pointer;
+}
+
+.toggle-row-label {
+  font-size: 14px;
+  color: var(--aurora-text-secondary);
+}
+
+.toggle-switch {
+  position: relative;
+  width: 42px;
+  height: 24px;
+  flex-shrink: 0;
+}
+
+.toggle-switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+  position: absolute;
+}
+
+.toggle-knob {
+  position: absolute;
+  inset: 0;
+  border-radius: var(--aurora-radius-panel);
+  background: var(--aurora-button-dark);
+  transition: background 0.2s;
+  cursor: pointer;
+}
+
+.toggle-knob::after {
+  content: '';
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--aurora-text-primary);
+  transition: transform 0.2s;
+}
+
+.toggle-switch input:checked + .toggle-knob {
+  background: var(--aurora-accent);
+}
+.toggle-switch input:checked + .toggle-knob::after {
+  transform: translateX(18px);
+}
