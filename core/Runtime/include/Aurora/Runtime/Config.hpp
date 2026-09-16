@@ -38,17 +38,22 @@ namespace Aurora::Runtime
     // field (flat here, not a nested struct, so Config stays free of any
     // Processing-module dependency). audioFixedAnchorHue < 0 means unset/
     // random, matching AudioEffectSettings::fixedAnchorHue's optional.
+    // audioBounceSmoothTime/audioBrightnessSmoothTime/audioDynamismFloor/
+    // audioDriftBaseRateDegPerSec: halfway between the original
+    // listening-tuned defaults (0.45/0.45/0.22/6) and Aurora-Demo-Web's
+    // 'tuned' preset (main.js, commit f63ecc9) -- that preset's own
+    // punchier brightness response, at half strength.
     float audioFixedAnchorHue{-1.f};
-    float audioBounceSmoothTime{0.45f};
-    float audioDynamismFloor{0.22f};
+    float audioBounceSmoothTime{0.285f};
+    float audioDynamismFloor{0.26f};
     float audioCentroidStrength{0.3f};
-    float audioDriftBaseRateDegPerSec{6.f};
+    float audioDriftBaseRateDegPerSec{10.f};
     float audioVibrancySaturation{0.95f};
     float audioVibrancyValue{0.95f};
     float audioReferenceRms{0.5f};
     float audioBrightnessFloor{0.4f};
     float audioCentroidRangeHz{2250.f};
-    float audioBrightnessSmoothTime{0.45f};
+    float audioBrightnessSmoothTime{0.265f};
 
     // Linux-only: the exact PipeWire node.name of the sink whose monitor
     // ports to capture (see `wpctl status` + `pw-cli info <id>`). Empty
