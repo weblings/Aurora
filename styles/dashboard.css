@@ -1,0 +1,47 @@
+/* Dashboard nav rows -- adapted from RockyRoad's real .pre-toggle-row shell
+   (verified against v2/desktop.html: label left, bottom border, :last-child
+   border removed) with a trailing chevron in place of the toggle switch.
+   A whole row is a real <button>, not a div+onclick -- native keyboard/click
+   support for free, no extra ARIA needed for "this is activatable". */
+
+.nav-rows {
+  display: flex;
+  flex-direction: column;
+}
+
+.nav-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--aurora-space-3);
+  width: 100%;
+  padding: var(--aurora-space-5) 0;
+  border: none;
+  border-bottom: 1px solid var(--aurora-divider);
+  background: none;
+  color: inherit;
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.nav-row:last-child {
+  border-bottom: none;
+}
+
+.nav-row-label {
+  font-size: 14px;
+  color: var(--aurora-text-secondary);
+}
+
+.nav-row-chevron {
+  flex-shrink: 0;
+  font-size: 16px;
+  color: var(--aurora-text-secondary);
+}
+
+.placeholder-body {
+  padding: var(--aurora-space-7) 0;
+  color: var(--aurora-text-secondary);
+  font-size: 14px;
+}

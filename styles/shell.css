@@ -90,15 +90,21 @@ body {
   padding: var(--aurora-space-2);
 }
 
+/* Matches RockyRoad's real .lib-badge (verified against v2/desktop.html)
+   exactly, not the pill shape this rule originally guessed at before any
+   screen actually used it -- radius 2px/6px padding kept literal rather
+   than rounded to the spacing scale, since rounding 2px to the nearest step
+   (4px) would visibly double this badge's compactness. */
 .status-pill {
   display: inline-flex;
   align-items: center;
   gap: var(--aurora-space-1);
-  padding: 2px var(--aurora-space-3);
-  border-radius: var(--aurora-radius-pill);
-  background: var(--aurora-surface);
-  color: var(--aurora-text-secondary);
-  font-size: 12px;
+  padding: 2px var(--aurora-space-2);
+  border-radius: var(--aurora-radius-badge);
+  background: var(--aurora-accent);
+  color: var(--aurora-text-on-light);
+  font-size: 10px;
+  font-weight: 500;
   white-space: nowrap;
 }
 

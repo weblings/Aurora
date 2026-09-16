@@ -52,6 +52,7 @@
   --aurora-scrim: rgba(0, 0, 0, 0.6);
 
   /* --- Radii --- */
+  --aurora-radius-badge: 3px;
   --aurora-radius-control: 6px;
   --aurora-radius-panel: 12px;
   --aurora-radius-pill: 20px;
