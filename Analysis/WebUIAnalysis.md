@@ -576,14 +576,18 @@ end here, since nothing in v1 consumes it (see Decisions log above).
    and links cleanly as a library (`AuroraNetwork.lib`, confirmed via a real
    build). Its Catch2 tests (`core/tests/NetworkTests.cpp` — a route
    round-trip, a path-param/body round-trip, and static-file serving, each
-   over a real bound socket) are written but **not yet executed**: linking
-   any test binary in this environment currently fails on a pre-existing,
-   environment-wide issue unrelated to this module (a stale vcpkg-cached
-   `Catch2d.lib` ABI-incompatible with this machine's Windows SDK/MSVC
-   toolset — confirmed by the same failure on an untouched pre-existing test
-   target; see `engineering-hygiene.md`'s new entry). Fixing that needs a real
-   from-source rebuild of the vcpkg manifest (binary-cache bypass), not
-   attempted here as out of scope for this step.
+   over a real bound socket) compiled cleanly but couldn't initially be *run*
+   natively on Windows: linking any test binary in this environment hits a
+   pre-existing, environment-wide issue unrelated to this module (a stale
+   vcpkg-cached `Catch2d.lib` ABI-incompatible with this machine's Windows
+   SDK/MSVC toolset — confirmed by the same failure on an untouched
+   pre-existing test target; see `engineering-hygiene.md`'s entry). Fixing
+   that natively needs a real from-source rebuild of the vcpkg manifest
+   (binary-cache bypass), still not attempted as out of scope. **Actually
+   executed for real during step 5** instead, via WSL2/GCC (no Catch2 ABI
+   issue there) once `AuroraNetwork` had a real second consumer
+   (`Aurora-Output-Hue`'s new `PairingRoutes.cpp`) to build against: all 3
+   cases passed, 12 assertions.
 3. ~~A `/api/capabilities`-style endpoint~~ — **done (2026-09-15)**: added to
    both `Aurora-App-Windows` and `Aurora-App-Linux`'s `main.cpp` (route logic
    duplicated per app, matching the existing `Registry`/`registerInputs`/
@@ -624,8 +628,40 @@ end here, since nothing in v1 consumes it (see Decisions log above).
    real precedence test on both platforms (a persisted file plus
    deliberately-different env vars set simultaneously, confirming the output
    still registers via the persisted path).
-5. Pairing endpoints (autodetect/validate/register/finish, entertainment-config
-   list/select), modeled directly on huenicorn's `SetupBackend`.
+5. ~~Pairing endpoints~~ — **done (2026-09-15)**: `Aurora::Output::Hue::
+   registerPairingRoutes` in `Aurora-Output-Hue` (`PairingRoutes.hpp`/`.cpp`),
+   called from both apps' `main.cpp` right next to `registerCapabilitiesRoute`,
+   guarded by the same `AURORA_OUTPUT_HUE_IO_AVAILABLE` macro as `HueOutput`
+   itself. Routes: `GET /api/hue/discover` (proxies meethue.com, same as
+   `ApiTools::autodetectedBridge()`), `GET /api/hue/connection` (persisted
+   status, credentials withheld), `PUT /api/hue/validate` (bridge reachability
+   via `/api/0/config`), `PUT /api/hue/register` (parses the bridge's
+   one-element array response into `succeeded`/`username`/`clientkey` or
+   `link_button_not_pressed`/`bridge_error`), `PUT
+   /api/hue/entertainment-configurations` (list), `POST /api/hue/connection`
+   (the one persisting call, via `CredentialsStore`). One real design fork
+   from huenicorn: **stateless**, not session-based — huenicorn's
+   `CoreService` holds pairing-in-progress state (bridge address, username,
+   clientkey) across separate WebUI calls; here each request carries
+   whatever it needs in its own body, so there's no in-memory "pairing
+   session" object to design, invalidate, or leak. Composed entirely from
+   existing `ApiTools`/`HttpClient`/`BridgeAddress`/`CredentialsStore` --
+   no new bridge-facing I/O was needed, only the route layer and JSON
+   marshalling. This is also the first thing in this plugin to depend on
+   `core`'s `AuroraNetwork` module (linked in the existing IO-gated CMake
+   block). Verified for real on both platforms: built via MSVC and WSL2/GCC,
+   ran each binary with dummy env-var credentials to reach the tick loop,
+   and curled every route -- confirmed `validate`/`register` degrade to
+   `{"succeeded":false,"error":"unreachable"}` against an unroutable address,
+   `entertainment-configurations` degrades to an empty list on the same,
+   `POST /api/hue/connection` rejects an incomplete body and persists a
+   complete one (confirmed by reading the resulting `hue-credentials.json`
+   back off disk and by `GET /api/hue/connection` reflecting it), and a
+   malformed JSON body returns a clean 400 rather than crashing the handler.
+   Building this also closed out step 2's one open item: with `AuroraNetwork`
+   now proven by a real consumer, `core/tests/NetworkTests.cpp` was finally
+   *run* (not just compiled) via WSL2/GCC, sidestepping the native-Windows
+   Catch2/ABI issue entirely -- all 3 cases passed (12 assertions).
 
 **2. Frontend foundation (shell, no real screens yet)**
 6. Settle the accent-color token conflict (`#2a6eff` vs `#8b8b8b`) and define

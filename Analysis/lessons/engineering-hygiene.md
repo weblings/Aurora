@@ -527,3 +527,28 @@ the cache itself is bypassed (`--binarysource=clear` or equivalent), and a
 genuine from-source rebuild of a large manifest (this one includes opencv4)
 is a real time cost, not a quick retry -- worth flagging to the user rather
 than silently spending that time.
+
+---
+
+## A bare `std::thread` manually joined only at the tail of `main()` aborts the process on any earlier `return`
+
+Wiring up the new `HttpServer`'s lifecycle in both app shells' `main()`
+initially stored the server thread as a plain `std::optional<std::thread>`,
+stopped and joined only in the last few lines of `main()`. That code never
+ran on the pre-existing "no outputs available -- nothing to drive" early-return
+path. `std::thread::~thread()` calls `std::terminate()` if the thread object
+is destroyed while still joinable, so that path would have aborted the whole
+process instead of exiting cleanly with status 1 -- invisible at compile time,
+and invisible on the happy path too, since only the no-outputs branch ever
+reached the unjoined destructor.
+
+**Fix:** wrapped the thread in a small RAII class (`HttpServerThread`) whose
+destructor unconditionally calls `stop()` then `join()`, so every exit path
+(early returns, an exception caught by `main()`'s own `catch`, normal
+completion) unwinds through it via ordinary C++ stack-unwinding rather than
+relying on one manually-placed cleanup call at the end. General principle: a
+resource whose safe teardown depends on a specific line of `main()` being
+reached needs to be re-checked against every early-return path already in that
+function, not just the one being actively edited -- and this class of bug
+usually doesn't show up by compiling, only by actually exercising the
+early-return branch at runtime.

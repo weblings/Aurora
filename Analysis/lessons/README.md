@@ -64,7 +64,10 @@ Aurora's own module boundaries instead of RockyRoad's. `rendering-apis.md` vs.
   constants, and a prebuilt vcpkg binary (`Catch2d.lib`) being ABI-incompatible
   with a very new Windows SDK/MSVC toolset, surfacing as `__std_*` unresolved
   externals that survive deleting a project's local `vcpkg_installed` since
-  binary caching re-serves the same stale artifact.
+  binary caching re-serves the same stale artifact, and a bare `std::thread`
+  manually joined only at the tail of `main()` calling `std::terminate()` on
+  any earlier `return` path, caught only by actually running the early-return
+  branch rather than by compiling.
 - [`rendering-apis.md`](rendering-apis.md) — third-party Three.js/GLTFLoader/Blender-export
   facts: `RectAreaLight` having no `distance`/`decay` at all (coupling brightness to reach),
   Blender's glTF export dropping light data unless "Punctual Lights" is checked (and never
