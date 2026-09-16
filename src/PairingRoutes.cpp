@@ -134,7 +134,13 @@ namespace Aurora::Output::Hue
       }
     });
 
-    server.addRoute(HttpMethod::Put, "/api/hue/entertainment-configurations", [](const Request& req, Response& res){
+    // bridgeAddress/username are optional in the body -- mid-pairing (no
+    // connection persisted yet), the caller supplies them directly since
+    // nothing is saved yet to fall back to. Once already configured (e.g.
+    // Zone Mapping's own entertainment-config picker, which never has
+    // username -- GET /api/hue/connection deliberately withholds it),
+    // omit them and this falls back to the persisted connection instead.
+    server.addRoute(HttpMethod::Put, "/api/hue/entertainment-configurations", [configRoot](const Request& req, Response& res){
       auto body = _parseBody(req, res);
       if(!body){
         return;
@@ -142,6 +148,11 @@ namespace Aurora::Output::Hue
 
       std::string bridgeAddress = sanitizeBridgeAddress(body->value("bridgeAddress", ""));
       std::string username = body->value("username", "");
+      if(bridgeAddress.empty() || username.empty()){
+        HueConnection persisted = CredentialsStore(configRoot).load();
+        if(bridgeAddress.empty()) bridgeAddress = persisted.bridgeAddress;
+        if(username.empty()) username = persisted.username;
+      }
       if(bridgeAddress.empty() || username.empty()){
         _writeJson(res, {{"succeeded", false}, {"error", "missing_bridge_address_or_username"}}, 400);
         return;
@@ -160,17 +171,27 @@ namespace Aurora::Output::Hue
       _writeJson(res, {{"succeeded", true}, {"configurations", list}});
     });
 
+    // PATCH-style, same convention SettingsRoutes' /api/config already
+    // uses -- merges onto whatever's already persisted rather than
+    // requiring the full connection every time. Needed so a caller that
+    // only wants to change entertainmentConfigurationId (Zone Mapping's
+    // own picker) can send just that field: the frontend never has
+    // username/clientkey to resend (GET /api/hue/connection withholds
+    // them deliberately), so a full-overwrite POST couldn't be used for
+    // that case at all before this. The original full-pairing call
+    // (OutputConnectScreen's _finish()) still sends all four fields and
+    // behaves identically either way.
     server.addRoute(HttpMethod::Post, "/api/hue/connection", [configRoot](const Request& req, Response& res){
       auto body = _parseBody(req, res);
       if(!body){
         return;
       }
 
-      HueConnection connection;
-      connection.bridgeAddress = sanitizeBridgeAddress(body->value("bridgeAddress", ""));
-      connection.username = body->value("username", "");
-      connection.clientkey = body->value("clientkey", "");
-      connection.entertainmentConfigurationId = body->value("entertainmentConfigurationId", "");
+      HueConnection connection = CredentialsStore(configRoot).load();
+      if(body->contains("bridgeAddress")) connection.bridgeAddress = sanitizeBridgeAddress(body->value("bridgeAddress", ""));
+      if(body->contains("username")) connection.username = body->value("username", "");
+      if(body->contains("clientkey")) connection.clientkey = body->value("clientkey", "");
+      if(body->contains("entertainmentConfigurationId")) connection.entertainmentConfigurationId = body->value("entertainmentConfigurationId", "");
 
       if(!connection.isConfigured()){
         _writeJson(res, {{"succeeded", false}, {"error", "incomplete_connection"}}, 400);
