@@ -460,15 +460,15 @@ more simply.
 | Indeterminate waiting message | 1 | huenicorn `_showLoading`, RockyRoad `#tuner-mic-wait` | None |
 | Inline success/error text | 1, 3 | RockyRoad `.tuner-check`, `RockyRoadImport` `#hand-disclaimer` | Small |
 | Dropdown | 1, 2 | RockyRoad `Dropdown.ts`, ported with its ARIA/keyboard gaps closed — see build-order step 8 | None |
-| Segmented 2-option toggle | 2, 5 | `RockyRoadImport` `.tab-btn`, generalized to 2 | Small |
-| Section heading + divider | 1, 4 | `RockyRoadImport` `<h2>` + `.tab-panel::before` | Small |
+| Segmented 2-option toggle | 2, 5 | `RockyRoadImport` `.tab-btn`, generalized to 2 -- built in `forms.css` for step 12, screen 5 reuses it unchanged in step 17 | None |
+| Section heading + divider | 4 | `RockyRoadImport` `<h2>` + `.tab-panel::before`, built in `forms.css` for step 13 | None — corrected from "1, 4": Output Connect (step 10) never actually used a heading, verified by reading its finished source before this row was next referenced |
 | Draggable zone rect + corner handles | 3 | huenicorn `ScreenWidget.js`, read in full | Medium — proven logic, needs a Pointer Events rewrite for touch |
 | Per-zone inline active toggle | 3 | Assembly of two proven pieces (checkbox + absolute position) | Small |
 | Zone pager (`◂ N of M ▸`) | 3 — **documented fallback only, not built for v1** | RockyRoad `.speed-group` compound stepper | Small, deferred until zone count justifies it |
 | Gamma slider | 3 | Native `<input type=range>` | None |
 | Empty-state text | 3 | huenicorn `ScreenWidget.js`: `Legends` strings | Small |
-| Slider + live readout, 2-col grid on desktop | 4 | RockyRoad tuner gain slider + `RockyRoadImport` range + Library's `auto-fill` grid | Small — token conflict settled, see build-order step 6 |
-| Boolean checkbox | 4 | RockyRoad `.pre-toggle-switch` | None |
+| Slider + live readout, 2-col grid on desktop | 4 | RockyRoad tuner gain slider (adapted to a full-width vertical layout, not the source's fixed-narrow horizontal one) + Library's `.lib-grid` `auto-fit` technique, built for step 13 | None |
+| Boolean checkbox | 4 | RockyRoad `.pre-toggle-switch`, built in `forms.css` for step 13 | None |
 | Segmented mode toggle + Stop + confirm overlay | 5 | huenicorn `WebUI.js`: `_askStopConfirmation()`/`_stop()`, near-verbatim | None |
 | Status badge | 5 only | RockyRoad Library `.lib-badge` | Small |
 | Nav row (label + status + chevron) | 5 | RockyRoad `.pre-toggle-row` shell + new chevron glyph | Small |
@@ -991,11 +991,263 @@ end here, since nothing in v1 consumes it (see Decisions log above).
     instance to call it on. Building it means new PipeWire registry-query
     code in a different repo, not just wiring an existing capability through
     HTTP — left for a dedicated pass, not attempted here.
-12. **Mode + Device Select** — needs step 11.
-13. **Tuning/Settings** — also only needs step 11, not zone data. Can be built
-    in parallel with Zone Mapping below rather than strictly after it.
-14. **Backend:** `ZoneMap` REST endpoints (list with live-reconciled state,
-    set UV rect, set gamma, set active) atop the existing `reconcileZoneMap`.
+12. ~~**Mode + Device Select**~~ — **done (2026-09-15)**: `screens/
+    ModeDeviceScreen.js` + `styles/mode-device.css`, plus a new shared
+    `.segmented`/`.segmented-btn` component in `forms.css` (ported from
+    `RockyRoadImport/SongConverter`'s real `.tabs`/`.tab-btn`, verified
+    directly — final component inventory's "Screens 2, 5" entry, reused
+    unchanged when step 17 builds the Dashboard's own mode toggle). Wired
+    into a new "Capture source" row on `DashboardScreen`, inserted between
+    Bridge and Zones — the build-order text for step 12 said only "needs
+    step 11," but the navigation-model flow diagram earlier in this doc
+    (returning users reach "each of 1/2/3/4" from the Dashboard) already
+    required Dashboard to link here; the current Dashboard mockup's own
+    nav-row list just hadn't been updated to show it. Resolved by adding the
+    row now rather than leaving screen 2 unreachable outside first-run until
+    step 17.
+    <br><br>
+    The audio/video toggle (`.segmented`) only renders when
+    `/api/capabilities`'s `audioInputs` is non-empty, matching the spec's
+    "only when both are compiled in." Below it, one of two device pickers:
+    - **Video:** a `Dropdown` of `GET /api/monitors` entries plus a synthetic
+      "Auto (primary)" option for an empty `activeMonitorName`. Real gap
+      found and handled, not assumed: `/api/monitors` reflects only whatever
+      the *live* pipeline actually constructed
+      (`PipelineHost::listMonitors()` returns an empty vector whenever
+      `m_videoInput` is null, i.e. whenever the daemon is currently running
+      in audio mode) — confirmed live on real hardware, not just read in
+      code (see verification below). Switching the tab to Video while the
+      daemon is currently live in audio mode therefore can't show real
+      monitor choices yet; rather than a fake list, the screen shows a
+      single "Auto (primary display)" notice and asks the user to Save then
+      reopen, and Done omits `activeMonitorName` from its PUT entirely in
+      that case (PATCH semantics leave the persisted value untouched, per
+      `SettingsRoutes`'s own design) instead of writing something fabricated.
+    - **Audio:** cut further than the original spec's own ASCII layout
+      implied. `Aurora-Input-Linux` has no sink-enumeration capability at
+      all (step 11's flagged gap) and Windows audio has no device concept
+      to enumerate in the first place, so no dropdown exists here at all.
+      Windows builds (audio input name `windows-audio`) get a plain
+      "Uses your system's default audio device" line; Linux builds (`
+      linux-audio`) get a free-text field for the already-fully-wired
+      `Config::audioTargetSinkName`, labeled "optional" and explained as a
+      manual-entry workaround for the missing listing endpoint — a real,
+      honest device override rather than a fake picker, using a field
+      `SettingsRoutes`/`Config` already round-trip completely. Which variant
+      to show is decided from `audioInputs.includes('linux-audio')` —
+      reusing the existing platform-specific registry naming convention
+      instead of adding a new `/api/capabilities` field just for this.
+    - `activeInputName`/`activeAudioInputName` (registry plugin names like
+      `windows`/`linux`/`x11`/`pipewire`/`windows-audio`) are never shown as
+      raw choices — `pickVideoInputName`/`pickAudioInputName` resolve them:
+      keep an existing valid non-`dummy` choice if there is one (so a manual
+      `x11`/`pipewire` override made outside the UI survives an unrelated
+      monitor change), otherwise prefer the platform's own `linux`/`windows`
+      auto-select meta-name, otherwise fall back to the first real
+      (non-`dummy`) registered name. `dummy` is filtered out everywhere —
+      never a value this screen writes.
+    <br><br>
+    Tested with jsdom against the real on-disk files (same substitute-for-a-
+    headless-browser method used throughout this build order): the two
+    name-picking heuristics as pure-function unit tests; the Dashboard's new
+    row rendering, its label reflecting live/audio state, its status-
+    unavailable fallback when either probe fails independently, and its
+    click wiring into this screen; this screen's own video-with-real-
+    monitors render, the Windows audio-mode render (no sink field), the
+    Linux audio-mode render (sink field pre-filled from persisted config),
+    the empty-monitors-degrades-to-Auto-only path, a `reloadError` response
+    surfacing inline without faking the success phase, and the toggle
+    itself being absent entirely when `audioInputs` is empty. Also verified
+    live against the real Windows binary on real hardware, not just jsdom:
+    the two new static files (`ModeDeviceScreen.js`, `mode-device.css`)
+    serve with real 200s; `GET /api/capabilities`/`api/config` match this
+    screen's assumed field names and shapes exactly; `GET /api/monitors`
+    returns this machine's three real displays; a `PUT /api/config` mode
+    switch to audio succeeds cleanly with the process staying alive; and —
+    the one behavior that mattered most to confirm for real rather than by
+    reading `PipelineHost::listMonitors()`'s source — `GET /api/monitors`
+    genuinely comes back `{"monitors":[]}` while live in audio mode, then
+    genuinely repopulates with the same three real displays after switching
+    back to video, exactly matching what the empty-list UI path assumes.
+13. ~~**Tuning/Settings**~~ — **done (2026-09-15)**: `screens/TuningScreen.js`
+    + `styles/tuning.css`, plus two new shared `forms.css` components used
+    for the first time here — `.section-heading` (ported from
+    `RockyRoadImport/SongConverter`'s real `<h2>` + `.tab-panel::before`, its
+    1px divider mapped onto Aurora's own `--aurora-divider` token rather
+    than the source's literal 3px, since that heavier weight was a tab
+    strip's own divider role there, not a plain section break) and
+    `.toggle-row`/`.toggle-switch`/`.toggle-knob` (ported from RockyRoad's
+    real `.pre-toggle-switch`/`.pre-toggle-knob`, verified against
+    `v2/desktop.html` — a hidden checkbox driving a sibling knob via
+    `:checked`, not a custom-drawn control; its checked-state color is
+    already `--aurora-accent`, the same `#8b8b8b` the source uses). Wired
+    into `DashboardScreen`'s Tuning row in place of `PlaceholderScreen`.
+    <br><br>
+    Per the spec's own "cut tabs, keep plain headings" decision, video mode
+    (4 fields, one implicit group) renders with no heading at all; audio
+    mode (11 fields) renders three: **Response speed** (bounce/brightness
+    smooth time, drift base rate), **Color character** (vibrancy
+    saturation/value, plus the fixed-hue toggle and its conditional 0–360°
+    slider), **Sensitivity** (dynamism floor, centroid strength, reference
+    RMS, brightness floor, centroid range) — this exact grouping was only
+    named in the spec's own "cut from the first pass" paragraph about tabs,
+    not laid out anywhere else, so it doubled as the section plan once tabs
+    were dropped in favor of headings. Slider ranges for the 10 float
+    fields with no server-side clamp (`Config::setAudioBounceSmoothTime`
+    etc. just assign, unlike `transitionSmoothing`'s real `[0, 0.97]` clamp)
+    came from `AudioEffectSettings`'s own field comments (`AudioProcessing.hpp`),
+    not guessed — e.g. `centroidStrength`'s "0 = no effect" implying a
+    bounded 0–1 multiplier, `driftBaseRateDegPerSec`'s "full rotation every
+    60s by default" implying a 0–60°/s ceiling (10x default speed).
+    <br><br>
+    **`audioTargetSinkName` is deliberately not surfaced here**, resolving a
+    real inconsistency in the original spec text: this section's own job
+    description listed it alongside the full `AudioEffectSettings` block,
+    but screen 2's job description had already assigned it to Mode+Device
+    Select ("a PipeWire sink for audio on Linux"), which built it in step
+    12. Keeping it there means one editable surface per field, not two
+    screens each holding a separately-stale copy of the same
+    `PUT /api/config` field.
+    <br><br>
+    **Save works differently here than every other screen's "done" phase,
+    deliberately.** `OutputConnectScreen`/`ModeDeviceScreen` gate a one-shot
+    decision and advance to a `done` phase requiring an explicit Continue
+    click. Tuning's own job is iterative adjustment (nudge a slider, listen,
+    nudge again), so that gate would fight the screen — Save here writes in
+    place, shows an inline ✓/⚠ status line, and stays on the edit screen.
+    This isn't just a style choice: `PipelineHost::reload()` (every app's
+    `main.cpp`) always calls `Pipeline::build()` fresh — there is no
+    settings-only update path, confirmed by reading it, not assumed — so
+    *every* Save here tears down and reconstructs the entire live pipeline,
+    video/audio input included, not just applies new numbers to an
+    already-running one. That real cost is also why sliders don't
+    live-apply per drag tick (a reload per animation frame would rebuild
+    the whole pipeline dozens of times a second); edits are batched behind
+    one explicit Save/PUT instead.
+    <br><br>
+    One real behavior confirmed live, not just from reading `Orchestrator::
+    init()`'s source, that shapes what "0 = auto" actually means for
+    `subsampleWidth`/`refreshRate` here: saving `subsampleWidth: 0` persists
+    correctly in that PUT's own response (confirmed), but the very reload
+    that same PUT triggers rebuilds the pipeline while still in video mode,
+    which re-derives `subsampleWidth` from the display immediately and
+    persists the concrete result right back — confirmed real on hardware
+    (`0` in the PUT response, `48` again moments later on the next `GET
+    /api/config`). This is correct, intended behavior, not a bug: "0 = auto"
+    means "please re-derive it," and it does, immediately — it just means
+    reopening this screen after saving `0` will never show `0` back, only
+    whatever got derived. Worth naming because it's a different "0/empty
+    means auto" contract than `activeMonitorName`'s (which stays genuinely
+    empty in persisted config forever unless explicitly set) — two auto
+    patterns in the same app, resolving differently, not one convention.
+    `refreshRate` has no such round-trip available at all: `Config::
+    setRefreshRate` clamps to `>= 1` unconditionally, so a settings PUT can
+    never actually request "auto" for it once a concrete value is set — the
+    screen's own refresh-rate field label makes no auto claim, unlike
+    subsample width's, for exactly this reason.
+    <br><br>
+    Tested with jsdom: video-mode field rendering and pre-fill from a real
+    config shape (no section heading, all 4 fields), a slider's live
+    readout updating without a full re-render (`input` event mutating only
+    the readout `<span>`+state, not calling `_render()`), a full Save round
+    trip asserting the exact PUT body sent; audio-mode's three headings and
+    field grouping, the fixed-hue toggle revealing/hiding its slider and
+    defaulting a newly-enabled hue to `0` rather than the still-unset `-1`,
+    unchecking it resetting to `-1` on the next save rather than leaving a
+    stale angle persisted, and confirming the audio PUT body is exactly the
+    11 `AudioEffectSettings` fields with `audioTargetSinkName` never present;
+    a `reloadError` surfacing inline with Save left retryable, not stuck
+    disabled. Also verified live against the real Windows binary on real
+    hardware: the two new static files serve with real 200s; a real video
+    tuning save (interpolation, transitionSmoothing, subsampleWidth) and a
+    real audio tuning save (bounce smooth time, a 120° fixed hue) both round
+    -trip through a live `GET /api/config` with the process staying alive
+    throughout; and the `subsampleWidth`-auto-rederivation behavior above,
+    which is exactly the kind of real-vs-assumed-behavior gap this build
+    order has repeatedly found only by testing against the actual daemon.
+14. ~~**Backend:** `ZoneMap` REST endpoints~~ — **done (2026-09-15)**: `GET`/
+    `PUT /api/zones`, one combined PATCH-style endpoint (`set UV rect, set
+    gamma, set active` from this step's own original phrasing turned out to
+    name three *jobs*, not three separate routes — one body covers all
+    three, same convention `SettingsRoutes` already established) rather than
+    three. `GET` returns `{"outputName", "zones": [...]}` from whatever's
+    currently live-reconciled (empty in audio mode or with no outputs, same
+    "nothing to report, isn't an error" precedent `/api/monitors` set in
+    step 11); `PUT` requires `zoneId` and applies only the `uvs`/`active`/
+    `gamma` fields actually present in the body, 404 on an unknown zoneId
+    rather than silently no-opping.
+    <br><br>
+    **Real capability added to core, not just a route wired to something
+    that already existed:** `Orchestrator` only had a const `zoneMap()`
+    getter before this step -- no way to edit a zone live. Added
+    `Orchestrator::updateZone(outputName, zoneId, uvs, active, gamma)`
+    (`std::optional` params, PATCH semantics at the C++ level too),
+    persisting immediately via the same `ZoneMapStore` `init()` already
+    uses.
+    <br><br>
+    **Deliberately does *not* go through a pipeline reload, unlike every
+    other write built in steps 11-13.** `ZoneMap` isn't part of `Config` --
+    it's a separate per-output profile `Orchestrator` already holds
+    in-memory and reads every tick. A zone edit mutates that same in-memory
+    map directly, under the same `PipelineHost` mutex `tick()` already
+    takes (so a tick and an edit can never interleave), then persists to
+    disk -- no `Pipeline::build()`, no capture/output teardown. This
+    matters for real: the Zone Mapping screen's own job (step 15) is
+    dragging a rect live while watching the actual lights react, and step
+    13 already established that every `Config`-backed reload rebuilds the
+    *entire* pipeline from scratch -- doing that on every drag-frame would
+    make a live drag interaction unusable. Because `ZoneMap` was already a
+    live in-memory structure `Orchestrator::update()` reads directly (not
+    routed through `Config`), giving it its own direct-mutation path
+    instead of funneling through the reload machinery was a real design
+    choice available here, not something the other screens could have used
+    too.
+    <br><br>
+    **Lives in core, not duplicated per app like `registerMonitorsRoute`/
+    `registerReloadRoute` had to be.** Step 11's monitors/reload routes
+    were forced into each app's own `main.cpp` because they need
+    `PipelineHost`/`Registry`, both app-layer types core doesn't know
+    about. `ZoneMap`/`ZoneConfig`/`Contracts::UVs` are already core types
+    with no such dependency, so `Aurora::Runtime::registerZoneRoutes` (new,
+    `core/Runtime/ZoneRoutes.hpp/.cpp`) could take the same generic-
+    callback bridging shape `SettingsRoutes`' `onConfigChanged` already
+    uses -- `std::function<ZoneListResult()>` +
+    `std::function<bool(zoneId, uvs, active, gamma)>` -- and be registered
+    once from core instead of its JSON-marshalling logic being copy-pasted
+    into both apps' `main.cpp` a second time. Each app's `main.cpp` only
+    adds a thin `Pipeline`/`PipelineHost::listZones()`/`updateZone()` pair
+    (mirroring `listMonitors()`'s own shape) and one registration call.
+    Worth naming as a real improvement over step 11's own precedent, not a
+    style preference -- the constraint that forced duplication there
+    (app-layer types) genuinely doesn't apply here.
+    <br><br>
+    **v1 scope limit, documented not silently assumed:** only the first
+    output's zone map is reachable (`m_outputPtrs.front()`) -- today's only
+    real output is Hue, and the WebUI's own Zone Mapping screen is designed
+    around one unified zone grid, not per-output tabs, so this matches the
+    UI's actual job rather than under-building it. A second real output
+    would need this revisited.
+    <br><br>
+    Tested with real Catch2 unit tests added to `OrchestratorTests.cpp`
+    (`updateZone` edits only the fields given and persists immediately;
+    returns `false` for an unknown output or zoneId) -- run for real in
+    WSL2 against `core`'s own build tree (28 assertions across 9 test
+    cases, all passing), not attempted on Windows: the prebuilt `Catch2d.lib`
+    ABI mismatch already on file in `engineering-hygiene.md` blocks linking
+    any Windows Debug test binary in this environment, confirmed again here
+    as the same pre-existing, unrelated issue (compilation of every new
+    file succeeded cleanly on both platforms; only the Windows test
+    *link* fails, against Catch2's own object files, not mine). Also
+    verified live against the real Windows binary: `GET /api/zones` in
+    video mode, a `PUT` with a real body, PATCH semantics (only `active`
+    sent, `uvs`/`gamma` left alone), an unknown-zoneId 404, and the
+    audio-mode empty-degrade -- all confirmed, except the *successful* edit
+    path, which needs at least one real live zone to target and this dev
+    environment's Hue output has none (no real bridge reachable, so
+    `zoneIds()` returns empty) -- the same real-hardware limitation
+    Output Connect's own testing already had in step 10. That path is
+    covered by the Catch2 tests and by jsdom mocks once step 15's screen
+    exists to exercise it end-to-end.
 15. **Zone Mapping** — the heaviest remaining lift (the `ScreenWidget.js` port
     plus its Pointer Events rewrite for touch). Build after Output Connect and
     Mode+Device exist, since it needs a real paired output and video mode

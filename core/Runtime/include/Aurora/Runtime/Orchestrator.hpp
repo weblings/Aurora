@@ -1,10 +1,13 @@
 #pragma once
 
+#include <cstdint>
+#include <optional>
 #include <string>
 #include <unordered_map>
 #include <vector>
 
 #include <Aurora/Contracts/ImageData.hpp>
+#include <Aurora/Contracts/UV.hpp>
 #include <Aurora/Input/IVideoInput.hpp>
 #include <Aurora/Output/IOutput.hpp>
 #include <Aurora/Runtime/Config.hpp>
@@ -40,6 +43,23 @@ namespace Aurora::Runtime
 
     // Throws std::out_of_range if outputName wasn't passed to the constructor.
     const ZoneMap& zoneMap(const std::string& outputName) const;
+
+    // Live in-place edit of one zone's fields for one output -- unlike a
+    // Config-driven settings change, this needs no pipeline reconstruction:
+    // it mutates the same in-memory map update() already reads every tick,
+    // under whatever external lock the caller already holds around update()
+    // (see PipelineHost in each app's main.cpp). Only the fields present
+    // (non-nullopt) are changed, matching SettingsRoutes' own PATCH
+    // semantics. Persists immediately via the same ZoneMapStore used at
+    // init(), matching huenicorn's save-on-every-setter feel. Returns false
+    // (no-op) if outputName isn't live or zoneId isn't in its zone map.
+    bool updateZone(
+      const std::string& outputName,
+      std::uint8_t zoneId,
+      const std::optional<Contracts::UVs>& uvs,
+      const std::optional<bool>& active,
+      const std::optional<float>& gamma
+    );
 
     const Config& config() const;
 
