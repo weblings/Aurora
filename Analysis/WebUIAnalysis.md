@@ -469,7 +469,7 @@ more simply.
 | Empty-state text | 3 | Adapted from huenicorn `ScreenWidget.js`'s `Legends` strings, built for step 15 | None |
 | Slider + live readout, 2-col grid on desktop | 4 | RockyRoad tuner gain slider (adapted to a full-width vertical layout, not the source's fixed-narrow horizontal one) + Library's `.lib-grid` `auto-fit` technique, built for step 13 | None |
 | Boolean checkbox | 4 | RockyRoad `.pre-toggle-switch`, built in `forms.css` for step 13 | None |
-| Segmented mode toggle + Stop + confirm overlay | 5 | huenicorn `WebUI.js`: `_askStopConfirmation()`/`_stop()`, near-verbatim | None |
+| Segmented mode toggle + Stop + confirm overlay | 5 | huenicorn `WebUI.js`: `_askStopConfirmation()`/`_stop()`, near-verbatim; toggle reuses step 12's `.segmented` + `ModeDeviceScreen`'s exported name-picking helpers; confirm overlay generalized into new `forms.css` `.overlay-*` classes, built for step 17 | None |
 | Status badge | 5 only | RockyRoad Library `.lib-badge` | Small |
 | Nav row (label + status + chevron) | 5 | RockyRoad `.pre-toggle-row` shell + new chevron glyph | Small |
 | ~~Live preview~~ | **cut from v1** | N/A | Deferred, not a gap |
@@ -1351,12 +1351,120 @@ end here, since nothing in v1 consumes it (see Decisions log above).
     same reason step 14's own PUT testing couldn't: no real Hue bridge is
     reachable in this dev environment, so there are zero real zones to drag
     -- covered instead by the jsdom drag/coalescing/clamp tests above.
-16. **Backend:** the Stop endpoint, close to a verbatim port of huenicorn's
-    `_askStopConfirmation()`/`_stop()`.
-17. **Dashboard, filled in:** add the mode toggle and Stop button to the shell
-    built in step 9, now that their endpoints exist. This is the natural last
-    piece, not because it's hard, but because everything it links to and
-    controls needs to already exist first.
+16. ~~**Backend:** the Stop endpoint~~ — **done (2026-09-15)**: `POST
+    /api/stop`, added to both apps' `main.cpp` (app-layer, like the step 11
+    monitors/reload routes — it needs `g_stopRequested`, a per-process
+    global, so there's no core-level generalization available the way
+    `ZoneRoutes` had). Confirmed by reading huenicorn's own real source
+    first, not assumed from the frontend spec alone: `WebUI.js`'s
+    `_stop()`/`_askStopConfirmation()` (the frontend half, already noted as
+    "directly portable, close to verbatim" in this doc's Dashboard section)
+    POSTs to a server route that calls `CoreService::stop()` →
+    `Runtime::stop()` → `m_keepLooping = false` — i.e. **Stop shuts down the
+    entire daemon process**, not a pause/resume toggle. Aurora already had
+    the exact equivalent flag: `g_stopRequested`, the same `volatile bool`
+    (Windows) / `volatile std::sig_atomic_t` (Linux) the existing Ctrl+C/
+    SIGINT handler already sets, checked by the same tick loop. The route
+    is a two-line body: write `{"succeeded": true}`, then set the flag —
+    the daemon exits through its *existing* normal shutdown sequence
+    (loop exits → `pipelineHost.shutdown()` → `main()` returns →
+    `httpServerThread`'s own destructor stops this same server), the same
+    path Ctrl+C already took, not a new one built for this endpoint. No
+    resume exists, matching this build order's own "Pause is cut for v1"
+    decision (`Orchestrator` has no concept of holding without exiting its
+    loop) — confirmed this maps onto a real upstream behavior (huenicorn
+    has no resume either) rather than being an Aurora-specific gap.
+    <br><br>
+    One real sequencing question worth confirming live rather than assuming
+    from reading the code: does the HTTP response actually reach the client
+    before the process that's about to exit tears down the very server
+    sending it? cpp-httplib finishes writing a handler's response on its
+    own listener thread independently of when the tick-loop thread (a
+    separate thread) next checks the flag and starts shutting down — but
+    only testing proves the ordering is actually safe in practice, not just
+    plausible from reading two independent threads' code side by side.
+    <br><br>
+    Verified live on both platforms: `POST /api/stop` returns a real
+    `{"succeeded":true}` with HTTP 200 delivered successfully every time,
+    and the process then exits on its own within ~1-2s with no forced kill
+    needed, logging "Stopping..." from the existing shutdown path — checked
+    by polling the real OS process list (`tasklist`/`kill -0`), not the
+    Bash-visible `$!` PID, per this doc's own already-filed lesson about
+    that PID mismatch on Windows. No Catch2 test added: there's no pure
+    logic here to unit-test in isolation (a two-line handler flipping an
+    existing global), and the live end-to-end check already covers the one
+    thing worth confirming for real -- that the response actually lands
+    before the server that sent it goes away.
+17. ~~**Dashboard, filled in**~~ — **done (2026-09-15)**: the quick segmented
+    mode toggle and a Stop button (with a real confirm overlay) now sit
+    above `DashboardScreen`'s nav rows. Reuses two things unchanged rather
+    than re-inventing them: `forms.css`'s `.segmented`/`.segmented-btn`
+    (step 12) for the toggle, and `ModeDeviceScreen`'s own exported
+    `pickVideoInputName`/`pickAudioInputName` for resolving which real
+    registry name the toggle actually writes — this quick toggle skips
+    that screen's own device-picking step entirely (no monitor/sink
+    choice), just flips mode using whatever device was already configured,
+    matching the mockup's own "fast one-tap switch" intent.
+    <br><br>
+    **Two real inconsistencies resolved against the original spec, not
+    silently built around:**
+    - The layout mockup still drew a "⏸ Pause" button next to the toggle
+      and Stop — left over from before this same doc's own Dashboard
+      section explicitly cut Pause for v1 ("`Orchestrator` has no concept
+      of holding without exiting its loop"). Another instance of this plan
+      doc's own sections drifting out of sync with each other (see
+      `Analysis/lessons/web-ui.md`'s already-filed entry on this) — not
+      built, per the cut that was already made elsewhere in the same doc.
+    - The mockup's status badge says "● Streaming," which would claim a
+      live DTLS-connection health signal Aurora doesn't have and can't
+      honestly show: `HueOutput::init()` succeeding is not proof a real
+      streaming connection exists (`DtlsClient`'s handshake failure is
+      swallowed by design, already filed in `Analysis/lessons/output.md`).
+      Shows "● Running" instead, once this screen's own capabilities probe
+      succeeds — an honest claim (this screen only renders because the
+      daemon answered a real request), not a fabricated one about a
+      connection state nothing in this build can actually verify.
+    <br><br>
+    **Confirm-overlay component generalized, not duplicated.** `index.html`
+    already had one modal (`#settings-overlay`/`#settings-scrim`/
+    `#settings-panel`, ID-based, singleton). Rather than copy those exact
+    rules under new IDs for a second modal, added a class-based
+    `.overlay`/`.overlay-scrim`/`.overlay-panel` trio to `forms.css` with
+    the same real values, and built the Stop confirmation on those classes.
+    The Settings modal itself was left exactly as it was — refactoring an
+    already-shipped, already-tested modal onto the new classes would be a
+    pure behavior-preserving change with no benefit to this step's actual
+    job, not worth the regression risk.
+    <br><br>
+    Stop itself is close to verbatim from huenicorn's own real `WebUI.js`
+    (confirmed again by reading it, not just recalling this doc's earlier
+    research note): confirm/cancel overlay → `POST /api/stop` → a static
+    "stopped" info panel on success, with no further navigation and no
+    actionable buttons — a deliberate dead end, since the daemon process
+    (including the very server that would answer any further request) is
+    already exiting by the time that response arrives.
+    <br><br>
+    Tested with jsdom: the status pill's text, the toggle appearing only
+    when `audioInputs` is non-empty (and Stop still present when it isn't),
+    a full mode-switch round trip asserting the exact PUT body and the
+    nav-row labels refreshing from the real endpoints afterward, a
+    mode-switch `reloadError` leaving the toggle showing the *old* mode
+    rather than a fake new one, the confirm overlay opening/closing on
+    Cancel with zero requests sent, a successful Stop reaching the
+    dead-end "stopped" panel, and a failed Stop staying on the confirm
+    phase with an inline error and a re-enabled button rather than getting
+    stuck disabled. Also verified live against the real Windows binary:
+    the updated `DashboardScreen.js` serves with a real 200, a real mode
+    switch via the exact PUT body the toggle sends succeeds with the
+    process staying alive, and `POST /api/stop` through this same build
+    once more confirms the full real shutdown sequence (a real 200
+    response, then the process exiting on its own within ~1-2s, `tasklist`-
+    confirmed).
+    <br><br>
+    This was the last of the individual build-order screens/backend pieces
+    — steps 18 (full first-run-vs-returning-user routing) and 19 (a
+    cross-width QA pass) remain, plus the deliberately-last MJPEG/SSE
+    preview streaming endpoints.
 
 **4. Wiring and polish**
 18. Wire the full first-run-vs-returning-user routing end to end across all 5

@@ -18,8 +18,12 @@ Aurora's own module boundaries instead of RockyRoad's. `rendering-apis.md` vs.
 ## Index
 
 - [`engineering-hygiene.md`](engineering-hygiene.md) — general design/build-tooling
-  principles: CTest's `enable_testing()` scoping, why not to build on a
-  Windows-mounted drive from WSL2 (and the git safe-directory corollary),
+  principles: CTest's `enable_testing()` scoping, an original "don't build on
+  a Windows-mounted drive from WSL2" finding later superseded by many
+  successful direct `/mnt/d` builds in this same project (plus the git
+  safe-directory corollary, still real) — with a narrower, still-live risk at
+  `FetchContent`'s own extract/rename step (a transient Permission Denied,
+  fixed by deleting the build dir and retrying after a short pause),
   `using namespace` not resolving a sibling namespace's own name (recurred
   once already — treat as a checklist item), relative-path casing across
   Windows/Linux, `FetchContent`-ed subproject CACHE variable collisions,
@@ -130,11 +134,17 @@ Aurora's own module boundaries instead of RockyRoad's. `rendering-apis.md` vs.
   `aurora-app-linux`'s auto-selecting "linux" input throws there rather than
   degrading gracefully -- pin `activeInputName` to `"dummy"` for any WSL2
   runtime test that reaches input construction.
-- [`processing.md`](processing.md) — color/effect transform gotchas: a
-  periodic test signal (a sine wave) regenerated fresh per call instead of
-  continuing its phase injecting broadband noise at each call boundary,
-  skewing a spectral measurement in a way a relative-comparison test alone
-  didn't catch.
+- [`processing.md`](processing.md) — color/effect transform and zone-mapping
+  gotchas: a periodic test signal (a sine wave) regenerated fresh per call
+  instead of continuing its phase injecting broadband noise at each call
+  boundary, skewing a spectral measurement in a way a relative-comparison
+  test alone didn't catch, and a reference implementation's own missing
+  corner-vs-opposite-corner clamp (huenicorn's real `ScreenWidget.js`)
+  being harmless there but a real `cv::Range` crash risk once the same
+  data reached `ImageProcessing::getSubImage` — verifying a reference
+  implementation does what it's described to do doesn't by itself prove
+  its output is safe for a *different* downstream consumer's own
+  assumptions.
 - [`web-ui.md`](web-ui.md) — WebUI design-process gotchas: a described
   "existing component" being a claim to verify by reading the real source
   rather than a fact to build on, a layout lesson learned in one constrained
@@ -148,10 +158,13 @@ Aurora's own module boundaries instead of RockyRoad's. `rendering-apis.md` vs.
   ("select follows focus") needing deliberate adaptation once its commit
   callback has real side effects instead of being a free value assignment,
   and this plan doc's own sections drifting out of sync with each other as
-  steps get built out of drafting order -- a flow diagram implying a nav
-  target its own Dashboard mockup never listed, and a component-inventory
-  row's screen attribution going stale unnoticed for several steps until
-  actually referenced.
+  steps get built out of drafting order (recurred four times now across
+  five build-order steps — treat as a checklist item) -- a flow diagram
+  implying a nav target its own Dashboard mockup never listed, a
+  component-inventory row's screen attribution going stale unnoticed for
+  several steps, and the Dashboard's own layout mockup keeping a "Pause"
+  button and a "Streaming" status claim after the doc's own later sections
+  had separately cut/invalidated each one.
 
 ## Where a new lesson goes
 

@@ -135,8 +135,20 @@ committing is free, and it usually isn't in this codebase.
 
 ## A living plan doc's own sections can drift out of sync with each other, not just with the external reality they describe
 
-Two separate instances this round, both in `WebUIAnalysis.md` itself rather
-than in a claim about huenicorn/RockyRoad. First: the navigation-model flow
+Recurred twice more since first filed (steps 13 and 17), all in
+`WebUIAnalysis.md` itself — the Dashboard section's own layout mockup still
+drawing a "⏸ Pause" button after the same section's own prose had already
+cut Pause for v1, and the same mockup's "● Streaming" status-badge wording
+outliving the point at which building it honestly turned out to be
+impossible (see `output.md`'s `DtlsClient` entry). Four confirmed instances
+now across five build-order steps — treat spot-checking a doc section
+against whatever else in the same doc it depends on as a checklist item
+before relying on it, the same way `using namespace` not resolving a
+sibling namespace's own name earned that treatment after its own second
+occurrence.
+
+Two separate instances first surfaced this round, both in `WebUIAnalysis.md`
+itself rather than in a claim about huenicorn/RockyRoad. First: the navigation-model flow
 diagram had always said a returning user reaches "each of 1/2/3/4" from the
 Dashboard, but the Dashboard screen's own ASCII mockup and nav-row list had
 never actually been updated to include a row for screen 2 (Mode+Device

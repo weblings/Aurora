@@ -104,6 +104,28 @@ git's "dubious ownership" safe-directory check on `/mnt/*` repos — a false
 positive, not a real multi-user trust issue; scope the exception to the exact
 path (`git config --global --add safe.directory <path>`), never a wildcard.
 
+**Update, later in the same project:** the original `configure_file` blocker
+above hasn't recurred across many later WSL2 builds run directly against
+this exact `/mnt/d` checkout (steps 11, 14, 15, 16 of `WebUIAnalysis.md` all
+configured and built successfully in place, no file transfer needed) —
+whatever combination of WSL2/DrvFs version this machine now runs no longer
+hits that specific compiler-detection failure, or it was narrower than
+first assumed. Building on `/mnt/d` directly is this project's normal,
+working WSL2 verification path now, not something to keep avoiding on the
+strength of the original finding above. A narrower, real, and still-live
+risk does exist at a different step, though: `FetchContent`'s own extract-
+and-rename sequence (`file(RENAME) ... because: Permission denied`, moving
+a freshly-extracted dependency like `cpp-httplib` into its final `_deps/
+*-src` path) failed three times in a row on one occasion, immediately after
+a fresh `rm -rf` of the build directory each time, then succeeded on a
+fourth attempt after a plain ~8s pause with no other change — consistent
+with something (most plausibly Windows Defender's real-time scan)
+transiently holding a lock on just-written files on the DrvFs mount, not a
+permanent misconfiguration. **Fix:** on this specific failure (not the
+general `configure_file` one above), delete the build directory and retry;
+if it fails again immediately, wait several seconds before retrying rather
+than concluding the environment is broken.
+
 ---
 
 ## `using namespace` doesn't make a sibling namespace's own name resolvable
