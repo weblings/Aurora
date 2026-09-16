@@ -1,0 +1,23 @@
+/* Mode + Device Select screen -- toggle sits above the device field, actions
+   right-aligned on desktop, full-width stacked under 480px (same breakpoint
+   and pattern as output-connect.css). */
+
+.md-body .segmented {
+  margin-bottom: var(--aurora-space-6);
+}
+
+.md-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: var(--aurora-space-6);
+}
+
+@media (max-width: 480px) {
+  .md-actions {
+    justify-content: stretch;
+  }
+
+  .md-actions .btn {
+    width: 100%;
+  }
+}

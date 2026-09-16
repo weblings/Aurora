@@ -105,3 +105,29 @@
   color: var(--aurora-text-primary);
   font-weight: 700;
 }
+
+/* Segmented 2-option toggle -- ported from RockyRoadImport/SongConverter's
+   real .tabs/.tab-btn (verified directly), shared by Mode+Device Select and
+   the Dashboard's own mode toggle (final component inventory: "Screens 2, 5").
+   Pill buttons in a row rather than tabs-with-a-panel-divider, since neither
+   consumer here has an actual tab panel underneath. */
+.segmented {
+  display: flex;
+  gap: var(--aurora-space-3);
+}
+
+.segmented-btn {
+  padding: var(--aurora-space-3) var(--aurora-space-6);
+  border: none;
+  border-radius: var(--aurora-radius-pill);
+  font-size: 14px;
+  font-family: inherit;
+  cursor: pointer;
+  background: var(--aurora-button-dark);
+  color: var(--aurora-text-primary);
+}
+.segmented-btn:hover { background: var(--aurora-button-dark-hover); }
+.segmented-btn:active { background: var(--aurora-button-dark-active); }
+.segmented-btn.active { background: var(--aurora-button-light); color: var(--aurora-text-on-light); }
+.segmented-btn.active:hover { background: var(--aurora-button-light-hover); }
+.segmented-btn.active:active { background: var(--aurora-button-light-active); }

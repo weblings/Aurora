@@ -1,14 +1,15 @@
-// Bare Dashboard shell: nav rows only (Bridge/Zones/Tuning) -- no mode toggle
-// or Stop yet, those need steps 11/16's backend endpoints first. See
-// Analysis/WebUIAnalysis.md's build-order step 9. Built early and mostly
-// empty on purpose: gives every screen built after this a real place to be
-// linked into and reached, rather than only reachable via a dev shortcut
-// until the whole flow is done. Bridge now navigates to the real
-// OutputConnectScreen (step 10); Zones/Tuning still use PlaceholderScreen
-// until steps 12-15 build them.
+// Bare Dashboard shell: nav rows only -- no quick mode toggle or Stop yet,
+// those need step 17 (the Dashboard's own segmented toggle + Stop button)
+// built on top of this shell. See Analysis/WebUIAnalysis.md's build-order
+// step 9. Built early and mostly empty on purpose: gives every screen built
+// after this a real place to be linked into and reached, rather than only
+// reachable via a dev shortcut until the whole flow is done. Bridge and
+// Capture source navigate to their real screens (steps 10, 12); Zones/Tuning
+// still use PlaceholderScreen until steps 13-15 build them.
 import { renderTopBar } from '../topBar.js';
 import { PlaceholderScreen } from './PlaceholderScreen.js';
 import { OutputConnectScreen } from './OutputConnectScreen.js';
+import { ModeDeviceScreen } from './ModeDeviceScreen.js';
 
 export class DashboardScreen {
   constructor(app) {
@@ -21,6 +22,10 @@ export class DashboardScreen {
       <div class="nav-rows">
         <button type="button" class="nav-row" data-nav="bridge">
           <span class="nav-row-label">Bridge — …</span>
+          <span class="nav-row-chevron" aria-hidden="true">&#8250;</span>
+        </button>
+        <button type="button" class="nav-row" data-nav="capture-source">
+          <span class="nav-row-label">Capture source — …</span>
           <span class="nav-row-chevron" aria-hidden="true">&#8250;</span>
         </button>
         <button type="button" class="nav-row" data-nav="zones">
@@ -40,6 +45,11 @@ export class DashboardScreen {
       onSettings: () => this.app.openSettings(),
     });
 
+    container.querySelector('[data-nav="capture-source"]').addEventListener('click', () => {
+      this.app.navigate(new ModeDeviceScreen(this.app, {
+        onComplete: () => this.app.navigate(new DashboardScreen(this.app)),
+      }));
+    });
     container.querySelector('[data-nav="zones"]').addEventListener('click', () => {
       this.app.navigate(new PlaceholderScreen(this.app, 'zones'));
     });
@@ -55,13 +65,16 @@ export class DashboardScreen {
   // Capability-probe + persisted-state check -- this step's own "wired to
   // the capability-probe/persisted-state routing logic," using the real
   // endpoints that already exist. The Bridge row's click target itself
-  // depends on this check now too: it's disabled outright when this build
-  // has no Hue output at all, real (OutputConnectScreen) otherwise. Zones
-  // has no backing endpoint yet (ZoneMap REST is step 14), so it stays an
-  // honest placeholder, not fabricated data.
+  // depends on this check too: it's disabled outright when this build has
+  // no Hue output at all, real (OutputConnectScreen) otherwise. Capture
+  // source has no compiled-in gate to check (a "dummy" video input always
+  // exists), only a status label to fill in from /api/config. Zones has no
+  // backing endpoint yet (ZoneMap REST is step 14), so it stays an honest
+  // placeholder, not fabricated data.
   async _loadStatus(container) {
     const bridgeRow = container.querySelector('[data-nav="bridge"]');
     const bridgeLabel = bridgeRow.querySelector('.nav-row-label');
+    const captureLabel = container.querySelector('[data-nav="capture-source"] .nav-row-label');
 
     let capabilities;
     try {
@@ -69,6 +82,7 @@ export class DashboardScreen {
     } catch {
       bridgeLabel.textContent = 'Bridge — Status unavailable';
       bridgeRow.disabled = true;
+      captureLabel.textContent = 'Capture source — Status unavailable';
       container.querySelector('[data-nav="zones"] .nav-row-label').textContent = 'Zones — Not available yet';
       return;
     }
@@ -89,6 +103,14 @@ export class DashboardScreen {
       } catch {
         bridgeLabel.textContent = 'Bridge — Status unavailable';
       }
+    }
+
+    try {
+      const config = await (await fetch('/api/config')).json();
+      const isAudio = !config.activeInputName && !!config.activeAudioInputName;
+      captureLabel.textContent = `Capture source — ${isAudio ? 'Audio' : 'Video'}`;
+    } catch {
+      captureLabel.textContent = 'Capture source — Status unavailable';
     }
 
     container.querySelector('[data-nav="zones"] .nav-row-label').textContent = 'Zones — Not available yet';
