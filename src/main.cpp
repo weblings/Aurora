@@ -38,6 +38,7 @@
 
 #ifdef AURORA_OUTPUT_HUE_IO_AVAILABLE
 #include <Aurora/Output/Hue/Credentials.hpp>
+#include <Aurora/Output/Hue/CredentialsStore.hpp>
 #include <Aurora/Output/Hue/HueOutput.hpp>
 #endif
 
@@ -118,34 +119,49 @@ namespace
   // Hue only gets registered if credentials are actually present -- no
   // pairing flow exists yet, so an unconfigured Hue output shouldn't be
   // selectable at all rather than failing confusingly at construction.
-  void registerOutputs(Aurora::App::Registry& registry)
+  // CredentialsStore (Analysis/WebUIAnalysis.md's build-order step 4) is
+  // checked first; env vars are a dev-only fallback for setups that
+  // haven't paired through it yet, not a second, equally-valid source --
+  // a persisted connection always wins over env vars when both are set.
+  void registerOutputs(Aurora::App::Registry& registry, const std::filesystem::path& configRoot)
   {
 #ifdef AURORA_OUTPUT_HUE_IO_AVAILABLE
-    const char* bridgeAddress = std::getenv("AURORA_HUE_BRIDGE_ADDRESS");
-    const char* username = std::getenv("AURORA_HUE_USERNAME");
-    const char* clientkey = std::getenv("AURORA_HUE_CLIENTKEY");
-    // Optional: disambiguates when the bridge has >1 entertainment config --
-    // HueOutput's empty-ID default (unordered_map::begin()) is arbitrary then.
-    const char* entertainmentConfigId = std::getenv("AURORA_HUE_ENTERTAINMENT_CONFIG_ID");
+    Aurora::Output::Hue::CredentialsStore credentialsStore(configRoot);
+    Aurora::Output::Hue::HueConnection connection = credentialsStore.load();
 
-    if(bridgeAddress && username && clientkey){
-      registry.registerOutput("hue", [
-        bridgeAddress = std::string(bridgeAddress),
-        username = std::string(username),
-        clientkey = std::string(clientkey),
-        entertainmentConfigId = std::string(entertainmentConfigId ? entertainmentConfigId : "")
-      ]{
+    if(!connection.isConfigured()){
+      const char* bridgeAddress = std::getenv("AURORA_HUE_BRIDGE_ADDRESS");
+      const char* username = std::getenv("AURORA_HUE_USERNAME");
+      const char* clientkey = std::getenv("AURORA_HUE_CLIENTKEY");
+      // Optional: disambiguates when the bridge has >1 entertainment config --
+      // HueOutput's empty-ID default (unordered_map::begin()) is arbitrary then.
+      const char* entertainmentConfigId = std::getenv("AURORA_HUE_ENTERTAINMENT_CONFIG_ID");
+
+      if(bridgeAddress && username && clientkey){
+        connection.bridgeAddress = bridgeAddress;
+        connection.username = username;
+        connection.clientkey = clientkey;
+        connection.entertainmentConfigurationId = entertainmentConfigId ? entertainmentConfigId : "";
+      }
+    }
+
+    if(connection.isConfigured()){
+      registry.registerOutput("hue", [connection]{
         return std::make_unique<Aurora::Output::Hue::HueOutput>(
-          Aurora::Output::Hue::Credentials(username, clientkey),
-          bridgeAddress,
-          entertainmentConfigId
+          Aurora::Output::Hue::Credentials(connection.username, connection.clientkey),
+          connection.bridgeAddress,
+          connection.entertainmentConfigurationId
         );
       });
     }
     else{
-      std::cerr << "AURORA_HUE_BRIDGE_ADDRESS/AURORA_HUE_USERNAME/AURORA_HUE_CLIENTKEY not all set "
+      std::cerr << "No Hue credentials persisted and "
+                   "AURORA_HUE_BRIDGE_ADDRESS/AURORA_HUE_USERNAME/AURORA_HUE_CLIENTKEY not all set "
                    "-- 'hue' output unavailable this run (no pairing flow exists yet)\n";
     }
+#else
+    (void)registry;
+    (void)configRoot;
 #endif
   }
 
@@ -234,7 +250,7 @@ try
   Aurora::App::Registry registry;
   registerInputs(registry);
   registerAudioInputs(registry, config);
-  registerOutputs(registry);
+  registerOutputs(registry, configRoot);
 
   Aurora::Network::Http::Server::HttpServer httpServer;
   registerCapabilitiesRoute(httpServer, registry);
