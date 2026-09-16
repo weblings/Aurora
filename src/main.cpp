@@ -35,6 +35,7 @@
 #include <Aurora/Output/Hue/Credentials.hpp>
 #include <Aurora/Output/Hue/CredentialsStore.hpp>
 #include <Aurora/Output/Hue/HueOutput.hpp>
+#include <Aurora/Output/Hue/PairingRoutes.hpp>
 #endif
 
 namespace
@@ -213,6 +214,9 @@ try
 
   Aurora::Network::Http::Server::HttpServer httpServer;
   registerCapabilitiesRoute(httpServer, registry);
+#ifdef AURORA_OUTPUT_HUE_IO_AVAILABLE
+  Aurora::Output::Hue::registerPairingRoutes(httpServer, configRoot);
+#endif
 
   Aurora::Runtime::ConfigStore configStore(configRoot);
   Aurora::Runtime::Config config = configStore.load();
