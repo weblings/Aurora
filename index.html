@@ -46,9 +46,13 @@
     <option value="room" selected>TV Room (3D model)</option>
   </select>
   <!-- placeholder/ported/attack A/B/D options removed (not deleted -- see main.js's
-       placeholderAudioColor/dampedAudioColor/attackAudioColor) -- settled on 'tuned' for now. -->
-  <select id="audio-color-model" hidden>
-    <option value="tuned" selected>Audio color: tuned (punchier brightness)</option>
+       placeholderAudioColor/dampedAudioColor/attackAudioColor). Disabled, not just hidden --
+       this dropdown isn't wired for real use right now. 'midpoint' is the 5th pass this would
+       have selected: halfway between 'ported' and 'tuned', now also native's own Config.hpp
+       default. -->
+  <select id="audio-color-model" hidden disabled>
+    <option value="tuned">Audio color: tuned (punchier brightness)</option>
+    <option value="midpoint" selected>Audio color: midpoint (halfway to tuned)</option>
   </select>
   <div id="room-status" hidden></div>
   <script type="module" src="main.js"></script>

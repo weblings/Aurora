@@ -123,11 +123,13 @@ const freqDataLinear = new Float32Array(analyser.frequencyBinCount);
 const timeData = new Float32Array(analyser.fftSize);
 let audioHueDegrees = 0; // placeholder model's own state, see placeholderAudioColor() below
 
-// Real ported model (colorModel.js), two presets sharing the same functions/state shape --
+// Real ported model (colorModel.js), three presets sharing the same functions/state shape --
 // 'ported' is native's own listening-tuned defaults (for real Hue bulbs); 'tuned' is a first
 // guess at a punchier demo-screen preset (see the A/B discussion this came out of), specifically
 // making brightness react much faster -- a viewer's eye reads brightness-lag-behind-the-beat as
-// "boring" more than hue lag, so that's the one knob turned hardest.
+// "boring" more than hue lag, so that's the one knob turned hardest. 'midpoint' is halfway
+// between 'ported' and 'tuned' on all four tuned fields -- the settled-on choice, now also
+// native's own new Config.hpp defaults (see Analysis/RuntimeAnalysis.md).
 const audioEffectSettingsByModel = {
   ported: defaultAudioEffectSettings(),
   tuned: {
@@ -137,9 +139,16 @@ const audioEffectSettingsByModel = {
     dynamismFloor: 0.3,
     driftBaseRateDegPerSec: 14,
   },
+  midpoint: {
+    ...defaultAudioEffectSettings(),
+    bounceSmoothTime: 0.285,
+    brightnessSmoothTime: 0.265,
+    dynamismFloor: 0.26,
+    driftBaseRateDegPerSec: 10,
+  },
 };
-const driftStateByModel = { ported: createDriftState(), tuned: createDriftState() };
-const bounceStateByModel = { ported: createBounceState(), tuned: createBounceState() };
+const driftStateByModel = { ported: createDriftState(), tuned: createDriftState(), midpoint: createDriftState() };
+const bounceStateByModel = { ported: createBounceState(), tuned: createBounceState(), midpoint: createBounceState() };
 let lastAudioColorTime = null; // audioContext.currentTime as of the previous frame, for real dt
 
 function setAudioPlaying(playing) {
@@ -230,7 +239,7 @@ function driveLightsFromAudio() {
 const lightRigSelect = document.getElementById('light-rig');
 const sourceModeSelect = document.getElementById('source-mode');
 const audioColorModelSelect = document.getElementById('audio-color-model');
-let audioColorModel = audioColorModelSelect.value; // 'placeholder' | 'ported', see driveLightsFromAudio()
+let audioColorModel = audioColorModelSelect.value; // 'placeholder' | 'ported' | 'tuned' | 'midpoint' | 'attack', see driveLightsFromAudio()
 
 // Deterministic source modes for verifying the per-zone data pipeline and the light rig's
 // own behavior independent of real video content -- see the dropdown wiring below.
