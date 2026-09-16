@@ -51,7 +51,7 @@ namespace
 
     void init() override {}
     bool isConnected() const override { return true; }
-    void shutdown() override {}
+    void shutdown(bool) override {}
     std::vector<uint8_t> zoneIds() const override { return {}; }
     void send(const Frame&) override {}
   };
