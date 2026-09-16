@@ -818,3 +818,66 @@ doc someone is actually navigating by, not inline in the steering
 document. Re-derive this per document rather than assuming individual
 accuracy adds up to collective readability -- it doesn't, and the failure
 is invisible from inside any single edit.
+
+---
+
+## Redirecting a live process's stdout to a file for later inspection can look identical to a crash, because console-attached and redirected stdout buffer differently
+
+Debugging why a real double-click launch might be failing, ran the same
+binary from this environment via `./aurora-app-windows.exe > log.txt 2>&1 &`
+to capture what it prints. The log file came back completely empty --
+looked exactly like the process had died before printing anything (the
+same symptom a real crash produces). It hadn't: `tasklist` showed it still
+running, and curling the port it should be serving got a real `200`. The
+C runtime buffers stdout differently depending on what it's attached to --
+line-buffered (flushes on every `\n`) when it's a real interactive
+console, full/block-buffered (flushes only when the buffer fills or the
+process exits) when redirected to a file or pipe. Every `std::cout` call
+in this codebase uses a bare `"\n"`, not `std::endl` (which would force a
+flush) -- correct and idiomatic for console output, but it means none of
+that output reaches a redirected file until either a few KB accumulate or
+the process actually exits.
+
+**Fix:** confirmed the process was alive via `tasklist`/a real request to
+its own port instead of trusting an empty redirected log file as proof of
+an early exit. General principle: when redirecting a live, long-running
+process's stdout to a file for this kind of live-testing (a pattern used
+throughout this project), an empty or lagging log file is not evidence the
+process crashed or hasn't reached that code yet -- verify liveness through
+an independent channel (the process list, a real request) before
+concluding from buffered output alone. `std::cerr` doesn't have this
+problem (unit-buffered by default, flushes every write) — a discrepancy
+between "cerr showed nothing" and "cout showed nothing" is itself a signal
+worth noticing, not just retrying the same redirect.
+
+---
+
+## A write endpoint that requires a full object round-trip breaks the moment its paired read endpoint withholds part of that object from the client for security
+
+`POST /api/hue/connection` originally required the entire `HueConnection`
+(`bridgeAddress`/`username`/`clientkey`/`entertainmentConfigurationId`)
+and overwrote unconditionally -- fine for the one call site that existed
+when it was built (`OutputConnectScreen`'s `_finish()`, which had just
+received all four from a fresh pairing). Adding a second, legitimate
+caller that only wants to change `entertainmentConfigurationId` (Zone
+Mapping's own picker) exposed a real structural problem: `GET
+/api/hue/connection` deliberately withholds `username`/`clientkey` from
+the frontend (a correct security choice, not an oversight -- the browser
+never needs them once paired), which means no frontend code can ever
+reconstruct a valid full body to resend. The full-overwrite write endpoint
+and the field-withholding read endpoint were each independently correct
+in isolation, but composed to make an entire legitimate class of caller
+(anything that only wants to change one already-persisted field)
+structurally impossible without either re-exposing the secret or
+re-running the whole pairing flow just to change one dropdown.
+
+**Fix:** made the POST merge-style (PATCH semantics: load the persisted
+object first, overwrite only fields present in the request body), the
+same convention `/api/config` and `/api/zones` already use elsewhere in
+this same codebase. General principle: whenever a read endpoint
+intentionally hides part of an object from the client (secrets, tokens,
+anything write-only), check whether the paired write endpoint requires a
+full round-trip of that same object -- if it does, no client can ever use
+that write endpoint for anything less than a full re-supply of the hidden
+fields, which is a design bug waiting for its first partial-update caller,
+not a hypothetical.

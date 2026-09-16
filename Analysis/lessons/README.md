@@ -95,12 +95,18 @@ Aurora's own module boundaries instead of RockyRoad's. `rendering-apis.md` vs.
   and `npm install <newpkg>` in a directory with no `package.json`
   silently deleting packages a previous ad hoc `npm install` put there
   (jsdom and Playwright evicting each other in the scratchpad until a real
-  minimal `package.json` was added to resolve both together), and a
+  minimal `package.json` was added to resolve both together), a
   build-log doc's own per-step entries each being individually accurate
   and complete not guaranteeing the whole document stays readable --
   `WebUIAnalysis.md`'s build order grew unskimmable once verification
   detail was recorded in full every step, and outgrew being safely
-  restructured by the time that was attempted.
+  restructured by the time that was attempted; a redirected process's
+  stdout buffering differently than console-attached stdout, making a
+  live, working process look identical to a crash in an empty log file;
+  and a write endpoint requiring a full object round-trip breaking the
+  moment its paired read endpoint withholds part of that object from the
+  client for security (`/api/hue/connection` needing PATCH semantics once
+  a second caller only wanted to change one already-persisted field).
 - [`rendering-apis.md`](rendering-apis.md) — third-party Three.js/GLTFLoader/Blender-export
   facts: `RectAreaLight` having no `distance`/`decay` at all (coupling brightness to reach),
   Blender's glTF export dropping light data unless "Punctual Lights" is checked (and never
@@ -173,7 +179,7 @@ Aurora's own module boundaries instead of RockyRoad's. `rendering-apis.md` vs.
   component-inventory row's screen attribution going stale unnoticed for
   several steps, and the Dashboard's own layout mockup keeping a "Pause"
   button and a "Streaming" status claim after the doc's own later sections
-  had separately cut/invalidated each one; and a fully-green jsdom suite
+  had separately cut/invalidated each one; a fully-green jsdom suite
   being proof a screen's logic works, not proof it renders or behaves
   correctly, since jsdom does no real CSS/SVG layout or hit-testing —
   a real-Chromium QA pass on already-jsdom-tested screens found an SVG
@@ -181,7 +187,13 @@ Aurora's own module boundaries instead of RockyRoad's. `rendering-apis.md` vs.
   into ellipses and squishing text, a centered interactive badge silently
   swallowing clicks meant for the element beneath it, and a responsive
   flex rule verified against only a one-button case silently breaking for
-  a two-button case of the same container.
+  a two-button case of the same container; and a distinct, non-jsdom-
+  capability coverage gap in that same Dropdown's own ARIA suite --
+  `_commit()` never updated its own label/`aria-selected`, and every
+  existing assertion checked either the initial state or that browsing
+  doesn't corrupt it, never "committing a genuinely different value
+  updates the display," a transition category the suite structurally
+  never exercised despite being fully green.
 
 ## Where a new lesson goes
 

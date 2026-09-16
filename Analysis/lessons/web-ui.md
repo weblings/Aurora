@@ -225,3 +225,36 @@ click zones, a responsive rule that silently breaks for a second consumer
 of the same class, a missing stylesheet `<link>`) can hide behind 100%
 passing tests indefinitely, surfacing only once something forces an actual
 render.
+
+---
+
+## A component's own test suite can pass fully while never actually testing "committing a different value changes what's displayed" -- a coverage gap, not a jsdom capability gap
+
+Distinct from this file's own entry above: this one isn't something jsdom
+is structurally unable to check (no layout or real hit-testing needed,
+just DOM attribute/text assertions) -- the test just never wrote it.
+`Dropdown._commit()` closed the menu and called the caller's `onSelect`
+but never updated its own trigger label or `aria-selected`, so a real
+click that correctly changed the underlying value left the dropdown
+looking like nothing happened. Step 8's own ARIA/keyboard suite was
+extensive and fully passing, but every one of its assertions fell into
+one of two buckets: checking the *initial* rendered state, or checking
+that *browsing* (arrow keys) deliberately does not change selection --
+never "commit a value different from the initial one, then check the
+label/aria-selected actually moved to it." A test suite built around
+"does browsing leave selection alone" can be complete on its own terms
+and still never exercise the one state transition (commit-a-new-value)
+that the component's entire purpose is to make useful. Found only via
+real user testing, not any layout/rendering concern -- confirmed the
+underlying value was always correct (the real PUT/POST body sent showed
+it) before finding the display never followed.
+
+**Fix:** fixed `_commit()` to update its own label and `aria-selected`
+before calling the caller's `onSelect`; added a regression assertion
+committing a genuinely different option than the initial selection and
+checking both the label and `aria-selected` moved. General principle:
+when a stateful component's test suite is organized around "initial
+state" and "interacting without committing doesn't corrupt it," add an
+explicit third case -- "committing a different value than the initial one
+updates every derived display," since the first two categories can both
+be airtight while structurally never exercising that transition at all.
