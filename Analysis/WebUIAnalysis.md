@@ -462,11 +462,11 @@ more simply.
 | Dropdown | 1, 2 | RockyRoad `Dropdown.ts`, ported with its ARIA/keyboard gaps closed — see build-order step 8 | None |
 | Segmented 2-option toggle | 2, 5 | `RockyRoadImport` `.tab-btn`, generalized to 2 -- built in `forms.css` for step 12, screen 5 reuses it unchanged in step 17 | None |
 | Section heading + divider | 4 | `RockyRoadImport` `<h2>` + `.tab-panel::before`, built in `forms.css` for step 13 | None — corrected from "1, 4": Output Connect (step 10) never actually used a heading, verified by reading its finished source before this row was next referenced |
-| Draggable zone rect + corner handles | 3 | huenicorn `ScreenWidget.js`, read in full | Medium — proven logic, needs a Pointer Events rewrite for touch |
-| Per-zone inline active toggle | 3 | Assembly of two proven pieces (checkbox + absolute position) | Small |
+| Draggable zone rect + corner handles | 3 | huenicorn `ScreenWidget.js`, read in full and ported for step 15 with Pointer Events + an opposite-corner min-size clamp (a real correctness gap the source itself didn't guard against) | None |
+| Per-zone inline active toggle | 3 | Plain HTML overlay (not SVG `foreignObject`) + absolute position, built for step 15 | None |
 | Zone pager (`◂ N of M ▸`) | 3 — **documented fallback only, not built for v1** | RockyRoad `.speed-group` compound stepper | Small, deferred until zone count justifies it |
-| Gamma slider | 3 | Native `<input type=range>` | None |
-| Empty-state text | 3 | huenicorn `ScreenWidget.js`: `Legends` strings | Small |
+| Gamma slider | 3 | Native `<input type=range>`, reusing step 13's `.slider-*` classes unchanged, range `[-1,1]` per `Aurora-Output-Hue`'s real `gammaExponent` convention | None |
+| Empty-state text | 3 | Adapted from huenicorn `ScreenWidget.js`'s `Legends` strings, built for step 15 | None |
 | Slider + live readout, 2-col grid on desktop | 4 | RockyRoad tuner gain slider (adapted to a full-width vertical layout, not the source's fixed-narrow horizontal one) + Library's `.lib-grid` `auto-fit` technique, built for step 13 | None |
 | Boolean checkbox | 4 | RockyRoad `.pre-toggle-switch`, built in `forms.css` for step 13 | None |
 | Segmented mode toggle + Stop + confirm overlay | 5 | huenicorn `WebUI.js`: `_askStopConfirmation()`/`_stop()`, near-verbatim | None |
@@ -1248,10 +1248,109 @@ end here, since nothing in v1 consumes it (see Decisions log above).
     Output Connect's own testing already had in step 10. That path is
     covered by the Catch2 tests and by jsdom mocks once step 15's screen
     exists to exercise it end-to-end.
-15. **Zone Mapping** — the heaviest remaining lift (the `ScreenWidget.js` port
-    plus its Pointer Events rewrite for touch). Build after Output Connect and
-    Mode+Device exist, since it needs a real paired output and video mode
-    selected to have anything real to test against.
+15. ~~**Zone Mapping**~~ — **done (2026-09-15)**: `screens/ZoneMappingScreen.js`
+    + `styles/zone-mapping.css`. One SVG canvas draws every zone's UV rect at
+    once (dimmed, `pointer-events:all` set explicitly since an SVG shape
+    with `fill:none` otherwise only hit-tests its stroke, not its body --
+    clicking a zone anywhere inside it would have silently missed
+    select-on-click without this); a plain HTML overlay (not SVG
+    `foreignObject`, simpler and gets real accessible/testable checkboxes
+    for free) draws each zone's number + always-visible active checkbox at
+    its rect's center, independent of selection. Selecting a zone (click its
+    number, or its dimmed rect body) swaps its dimmed rect for a bright one
+    plus 4 corner-drag handles and a gamma slider below the canvas — same
+    shape as huenicorn's own real `ScreenWidget.js`/`Handle`/`Rectangle`
+    classes (read in full before porting, not summarized), ported with its
+    plan doc's own two identified gaps closed and one more found while
+    reading the source closely:
+    - **Pointer Events, not mouse-only** (the planned gap): corner drag uses
+      `setPointerCapture` on the handle itself so `pointermove`/`pointerup`
+      keep delivering to it even once the pointer leaves it, needing no
+      document-level listener add/remove cycle at all — simpler than
+      huenicorn's own real approach (`document.addEventListener("mouseup",
+      ...)`, installed once, never removed), not just more input types.
+    - **A native `<input type="range">` gamma slider** (the planned gap),
+      reusing `forms.css`'s `.slider-field-header`/`.slider-value`/
+      `.slider-input` from step 13 unchanged, instead of huenicorn's second
+      hand-rolled SVG drag control (`GammaHandle`). Range is `[-1, 1]`, not
+      `[0, 1]` — confirmed against `Aurora-Output-Hue`'s real
+      `gammaExponent(gammaFactor) = 2^(-gammaFactor*2)`, the same convention
+      huenicorn's own `Channel::gammaExponent()` uses, not a Hue-specific
+      guess.
+    - **A real correctness gap, not in the original research:** huenicorn's
+      own `Handle.setPosition` clamps a dragged corner only to the screen's
+      own bounds, never against the *opposite* corner — dragging a corner
+      past its sibling produces an inverted UV rect (`min > max`).
+      `Processing::ImageProcessing::getSubImage` has no defense against
+      that at all (confirmed by reading it): `cv::Range(a, b)` with `a > b`
+      is an invalid OpenCV range, a real crash risk server-side the moment
+      a client sends one. This port clamps every drag to a 2% minimum rect
+      size measured from the opposite corner instead — a deliberate
+      improvement over the reference implementation's own real behavior,
+      not a blind port.
+    <br><br>
+    **No active/inactive two-list panel** (already cut in the original
+    plan): every zone's checkbox is always visible and togglable regardless
+    of which zone is selected, since Aurora's zone count is fixed by the
+    capture scheme rather than an open-ended bridge-light membership
+    problem huenicorn's own drag-and-drop list solves.
+    <br><br>
+    **Every edit PUTs immediately, coalesced per zone, not batched behind
+    the header's own "Save" button.** Matches huenicorn's real save-on-
+    every-setter feel and step 14's own backend design (`Orchestrator::
+    updateZone` persists unconditionally; there's no staged/uncommitted
+    concept to actually save). A drag can fire `pointermove` far faster
+    than one network round trip, so updates are coalesced per zoneId (at
+    most one PUT in flight per zone; a patch that arrives while one is
+    already in flight just replaces the pending one rather than queuing a
+    backlog of stale intermediate frames) — confirmed with a real test
+    firing three drag frames synchronously and checking fewer PUTs went out
+    than frames fired, with the last PUT reflecting the final position, not
+    an intermediate one. This resolves a real ambiguity the original spec's
+    own header line (`Save`) left unstated: "Save" here just means "done
+    editing, back to Dashboard," since there's nothing left uncommitted to
+    actually save by the time it's clicked.
+    <br><br>
+    **Deliberate scope cut, documented rather than assumed away:** the
+    canvas uses a fixed 16:9 box, not the real active monitor's aspect
+    ratio. UV correctness doesn't depend on it (rects are already 0-1
+    normalized regardless of the box's own proportions) and fetching the
+    real ratio would need extra plumbing (matching `activeMonitorName`
+    against a `/api/monitors` entry) this screen doesn't otherwise need.
+    Revisit if a very non-16:9 display ever makes the mismatch visually
+    confusing enough to matter.
+    <br><br>
+    Wired into `DashboardScreen`'s Zones row in place of `PlaceholderScreen`
+    — its label now reports a real state (`N active` / `None yet` / `Not
+    available in Audio mode` / `Status unavailable`) instead of the
+    hardcoded "Not available yet" placeholder text step 9 left there.
+    `PlaceholderScreen.js` itself is now deleted: every Dashboard row routes
+    to a real screen as of this step, so nothing calls it anymore.
+    <br><br>
+    Tested with jsdom, including a real jsdom-environment gap worth naming:
+    this version of jsdom implements the `PointerEvent` constructor but not
+    `Element.prototype.setPointerCapture`/`releasePointerCapture` at all
+    (confirmed directly, not assumed) -- real browsers always have both, so
+    the test file no-ops them on `Element.prototype` rather than adding
+    defensive optional-chaining to the real component for an API gap that's
+    test-environment-only. Covered: initial multi-zone render (rects, tags,
+    checkbox states, no handles until selected), selecting a zone (handles
+    + gamma slider + live size label appear), a checkbox toggle's immediate
+    PUT, a gamma-slider PUT with live readout, a corner drag's live geometry
+    update and PUT, the opposite-corner clamp actually preventing an
+    inverted rect under a real synthetic drag, the drag-coalescing behavior
+    under synchronous rapid-fire pointer events, Save navigating straight
+    back with nothing further to persist, the empty-zones/no-live-output/
+    load-failure states, and the full `DashboardScreen` round trip (real
+    zone count in the nav-row label, click-through, Back). Also verified
+    live against the real Windows binary: both new static files serve with
+    real 200s, and `GET /api/zones` against a fresh install returns the
+    real (Hue-with-no-reachable-bridge) empty-zones shape this screen's own
+    empty state renders correctly for. The *successful* live-drag path
+    against a real bridge's real zones couldn't be exercised live for the
+    same reason step 14's own PUT testing couldn't: no real Hue bridge is
+    reachable in this dev environment, so there are zero real zones to drag
+    -- covered instead by the jsdom drag/coalescing/clamp tests above.
 16. **Backend:** the Stop endpoint, close to a verbatim port of huenicorn's
     `_askStopConfirmation()`/`_stop()`.
 17. **Dashboard, filled in:** add the mode toggle and Stop button to the shell
