@@ -91,7 +91,11 @@ Aurora's own module boundaries instead of RockyRoad's. `rendering-apis.md` vs.
   (an app-layer-only type) actually applies this time, and before routing a
   new mutation through the same reload machinery everything else uses,
   checking whether the data is already live in memory outside that
-  machinery (`ZoneMap` bypassing `Config`+reload entirely for this reason).
+  machinery (`ZoneMap` bypassing `Config`+reload entirely for this reason),
+  and `npm install <newpkg>` in a directory with no `package.json`
+  silently deleting packages a previous ad hoc `npm install` put there
+  (jsdom and Playwright evicting each other in the scratchpad until a real
+  minimal `package.json` was added to resolve both together).
 - [`rendering-apis.md`](rendering-apis.md) — third-party Three.js/GLTFLoader/Blender-export
   facts: `RectAreaLight` having no `distance`/`decay` at all (coupling brightness to reach),
   Blender's glTF export dropping light data unless "Punctual Lights" is checked (and never
@@ -164,7 +168,15 @@ Aurora's own module boundaries instead of RockyRoad's. `rendering-apis.md` vs.
   component-inventory row's screen attribution going stale unnoticed for
   several steps, and the Dashboard's own layout mockup keeping a "Pause"
   button and a "Streaming" status claim after the doc's own later sections
-  had separately cut/invalidated each one.
+  had separately cut/invalidated each one; and a fully-green jsdom suite
+  being proof a screen's logic works, not proof it renders or behaves
+  correctly, since jsdom does no real CSS/SVG layout or hit-testing —
+  a real-Chromium QA pass on already-jsdom-tested screens found an SVG
+  viewBox's deliberate non-uniform stretch turning circular drag handles
+  into ellipses and squishing text, a centered interactive badge silently
+  swallowing clicks meant for the element beneath it, and a responsive
+  flex rule verified against only a one-button case silently breaking for
+  a two-button case of the same container.
 
 ## Where a new lesson goes
 

@@ -761,3 +761,29 @@ whether the data being changed is actually reachable some other way
 already (already-live, already-mutable, already read directly by the code
 that needs the new value) before assuming the established heavyweight path
 is the only option.
+
+---
+
+## `npm install <newpkg>` in a directory with no `package.json` can silently delete packages a previous ad hoc install put there
+
+The session scratchpad's `node_modules` had jsdom installed ad hoc (no
+`package.json`, just `npm install jsdom --no-save` run once, the pattern
+used throughout this whole project for test-only dependencies). Installing
+Playwright the same way (`npm install playwright --no-save`) reported
+"added 2 packages, and **removed 39 packages**" -- npm, with no manifest to
+treat as the source of truth, resolved the directory's dependency tree from
+scratch around the one new request and discarded everything jsdom needed
+that wasn't also a dependency of Playwright. Installing jsdom back the same
+way afterward silently evicted Playwright right back, for the identical
+reason -- confirmed by watching it happen a second time in the opposite
+direction before recognizing the pattern.
+
+**Fix:** the moment a scratchpad needs more than one ad hoc dev dependency
+at once, write a real (if minimal) `package.json` listing all of them
+before running any more bare `npm install <pkg>` commands, then `npm
+install` with no arguments to resolve the whole set together -- confirmed
+this stopped the eviction (both packages present after). General
+principle: `npm install` without a manifest isn't "add this on top of
+whatever's already here" the way it feels the first time -- it's "resolve
+a tree containing this," and an unmanaged `node_modules` has no record of
+what else was supposed to survive that resolution.

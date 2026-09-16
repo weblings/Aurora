@@ -574,16 +574,52 @@ depends on exist. Preview streaming, which `ImplementationPlan.md` lists first
 among Milestone 2's "three native surfaces," is intentionally pushed to the
 end here, since nothing in v1 consumes it (see Decisions log above).
 
-**1. Backend foundation**
-1. ~~`Analysis/HttpServerAnalysis.md`~~ — **done (2026-09-15)**. Confirmed
-   huenicorn's server is a genuinely generic, transport-agnostic abstraction
+### Table of Contents
+
+Backend Foundation
+
+1. Research pass
+2. HTTP server skeleton
+3. /api/capabilities endpoint
+4. Hue credential persistence
+5. Pairing endpoints
+
+Frontend Foundation
+
+6. Design tokens + repo split
+7. App shell
+8. Dropdown component
+9. Bare Dashboard shell
+
+Screens
+
+10. Output Connect (screen)
+11. Backend for screens 2-4
+12. Mode + Device Select (screen)
+13. Tuning/Settings (screen)
+14. Backend: ZoneMap endpoints
+15. Zone Mapping (screen)
+16. Backend: Stop endpoint
+17. Dashboard, filled in
+
+Wiring and Polish
+
+18. First-run vs. returning-user routing
+19. Cross-width QA pass
+
+### Backend Foundation
+1. Research pass — Studied huenicorn's real server/pairing code and confirmed its HTTP server design was worth reusing, but noted Aurora's full-pipeline-rebuild approach would need one consistent lock, not huenicorn's narrower one.
+
+   Confirmed huenicorn's server is a genuinely generic, transport-agnostic abstraction
    worth adopting near-verbatim, that it needs its own dedicated thread
    separate from the tick loop (huenicorn's own `Runtime::_initWebUI`
    pattern), and that Aurora's planned full-pipeline-reconstruction design
    (unlike huenicorn's in-place mutation) needs one consistent lock around a
    swappable pipeline unit, not huenicorn's narrower single-mutex approach.
-2. ~~New HTTP server skeleton~~ — **written (2026-09-15)**: `core/Network`
-   (`Aurora::Network::Http::Server`), a near-verbatim port of huenicorn's
+
+2. HTTP server skeleton — Ported huenicorn's server into a new shared core/Network module so both Windows and Linux apps share one implementation instead of duplicating it.
+
+   `core/Network` (`Aurora::Network::Http::Server`), a near-verbatim port of huenicorn's
    `HttpServer`/`Impl`/`HttpDataStructs` shape plus `serveStaticFiles()` atop
    cpp-httplib's own mount-point support, in the new shared `core/` module
    `HttpServerAnalysis.md` called for (not duplicated per app repo). Compiles
@@ -602,8 +638,9 @@ end here, since nothing in v1 consumes it (see Decisions log above).
    issue there) once `AuroraNetwork` had a real second consumer
    (`Aurora-Output-Hue`'s new `PairingRoutes.cpp`) to build against: all 3
    cases passed, 12 assertions.
-3. ~~A `/api/capabilities`-style endpoint~~ — **done (2026-09-15)**: added to
-   both `Aurora-App-Windows` and `Aurora-App-Linux`'s `main.cpp` (route logic
+3. /api/capabilities endpoint — Added the first real REST endpoint plus the server's actual start/stop lifecycle, catching a real bug in passing (an early-exit path would have crashed the process via an un-joined thread).
+  
+   Added to both `Aurora-App-Windows` and `Aurora-App-Linux`'s `main.cpp` (route logic
    duplicated per app, matching the existing `Registry`/`registerInputs`/
    `registerOutputs` convention — `Registry` itself is a byte-identical
    duplicated header across both app repos already, confirmed by `diff`, so
@@ -620,8 +657,10 @@ end here, since nothing in v1 consumes it (see Decisions log above).
    via WSL2/GCC, ran each binary, confirmed the endpoint's real JSON
    response, and confirmed clean shutdown on both the early-return path
    (Windows) and a real `SIGTERM` (Linux).
-4. ~~Hue credential persistence~~ — **done (2026-09-15)**, and the "new
-   `Config` fields or a sibling file" question this line left open resolved
+
+4. Hue credential persistence — Built a CredentialsStore so a paired bridge's address/username/key survive a restart, with the persisted value always beating the dev-only env-var fallback.
+
+   The "new `Config` fields or a sibling file" question this line left open resolved
    itself once `Config.hpp`'s own header comment was actually read: "output-
    specific state (bridge credentials, zone maps) lives in each plugin's own
    scope, never here" — a deliberate, pre-existing architectural rule, not
@@ -642,8 +681,10 @@ end here, since nothing in v1 consumes it (see Decisions log above).
    real precedence test on both platforms (a persisted file plus
    deliberately-different env vars set simultaneously, confirming the output
    still registers via the persisted path).
-5. ~~Pairing endpoints~~ — **done (2026-09-15)**: `Aurora::Output::Hue::
-   registerPairingRoutes` in `Aurora-Output-Hue` (`PairingRoutes.hpp`/`.cpp`),
+
+5. Pairing endpoints — Built the real discover/validate/register/pick-entertainment-config flow as stateless per-request routes, giving Output Connect an actual backend to talk to.
+
+   `Aurora::Output::Hue::registerPairingRoutes` in `Aurora-Output-Hue` (`PairingRoutes.hpp`/`.cpp`),
    called from both apps' `main.cpp` right next to `registerCapabilitiesRoute`,
    guarded by the same `AURORA_OUTPUT_HUE_IO_AVAILABLE` macro as `HueOutput`
    itself. Routes: `GET /api/hue/discover` (proxies meethue.com, same as
@@ -677,10 +718,11 @@ end here, since nothing in v1 consumes it (see Decisions log above).
    *run* (not just compiled) via WSL2/GCC, sidestepping the native-Windows
    Catch2/ABI issue entirely -- all 3 cases passed (12 assertions).
 
-**2. Frontend foundation (shell, no real screens yet)**
-6. ~~Settle the accent-color token conflict and define real CSS custom
-   properties~~ — **done (2026-09-15)**. Re-reading `desktop.html`/
-   `RockyRoadImport` directly (not the earlier summary) first corrected the
+### Frontend Foundation (shell, no real screens yet)
+
+6. Design tokens + repo split — Settled on a grayscale-only palette (no brand accent) and spun the WebUI into its own sibling repo since it needs different tooling than the C++ apps.
+
+   Re-reading `desktop.html`/`RockyRoadImport` directly (not the earlier summary) first corrected the
    finding itself — see the Cross-cutting findings entry above: `#8b8b8b` is
    already the real, consistently-reused interactive/active-state color
    (sliders, checked toggles, secondary buttons); `#2a6eff` is a genuine but
@@ -732,8 +774,10 @@ end here, since nothing in v1 consumes it (see Decisions log above).
    `/api/hue/connection` still answer correctly alongside it, and a
    nonexistent static path correctly 404s rather than falling through to a
    route.
-7. ~~App shell~~ — **done (2026-09-15)**, in the new `Aurora-WebUI` repo:
-   `index.html` (page skeleton: `#screen-container` mount point + the
+
+7. App shell — Built the shared page skeleton, top bar, and settings modal every screen plugs into, so no screen has to reinvent its own chrome.
+
+   in the new `Aurora-WebUI` repo: `index.html` (page skeleton: `#screen-container` mount point + the
    settings overlay/scrim/panel markup), `shell.css` (page reset, the
    scrollbar-gutter fix, centered max-width column, top bar, and the settings
    modal — all referencing `tokens.css`'s variables, zero literal hex),
@@ -767,9 +811,9 @@ end here, since nothing in v1 consumes it (see Decisions log above).
    right content type (`text/html`, `text/javascript`, `text/css`) and `GET /`
    resolves to `index.html`. Genuine visual/interaction verification in an
    actual browser is still outstanding — flagged rather than skipped over.
-8. ~~Port `Dropdown.ts` and close its ARIA/keyboard punch list~~ —
-   **done (2026-09-15)**: `Dropdown.js`, `styles/dropdown.css`. Before
-   implementing, verified the exact required pattern rather than guess —
+
+8. Dropdown component — Ported RockyRoad's dropdown with real ARIA/keyboard support, deliberately diverging from the reference spec so browsing with arrow keys doesn't fire side-effecting actions before the user commits.
+   `Dropdown.js`, `styles/dropdown.css`. Before implementing, verified the exact required pattern rather than guess —
    fetched the real WAI-ARIA APG "Collapsible Dropdown Listbox" example,
    since the component inventory had already named the target shape
    (`role=listbox/option`) but not its precise contract. Implements it with
@@ -806,7 +850,9 @@ end here, since nothing in v1 consumes it (see Decisions log above).
    (`text/javascript`/`text/css`) via the real running Windows binary.
    Genuine screen-reader/browser verification is still outstanding, same
    caveat as step 7.
-9. ~~A bare Dashboard shell~~ — **done (2026-09-15)**:
+
+9. Bare Dashboard shell — Built the hub screen with real status on each row but placeholder screens behind them, giving the app something real to navigate to before the actual screens existed.
+
    `screens/DashboardScreen.js` (nav rows only — Bridge/Zones/Tuning, no mode
    toggle or Stop yet, those need steps 11/16's backend endpoints first) and
    `screens/PlaceholderScreen.js` (a shared "this screen isn't built yet"
@@ -848,9 +894,11 @@ end here, since nothing in v1 consumes it (see Decisions log above).
    Back button returns to a freshly-rendered Dashboard. Confirmed all new
    files serve with the correct content type via the real binary.
 
-**3. Screens, in dependency order**
-10. ~~**Output Connect**~~ — **done (2026-09-15)**: `screens/
-    OutputConnectScreen.js`, plus two new shared stylesheets other screens
+### Screens, in dependency order
+
+10. Output Connect (screen) — Built the actual bridge-pairing UI (address entry, push-link wait, config picker) as the first full slice through the whole stack, backend to browser.
+
+    `screens/ OutputConnectScreen.js`, plus two new shared stylesheets other screens
     will also draw on — `styles/forms.css` (buttons, text inputs, labeled
     fields, inline status text — generalized from `.tuner-btn`/
     `.tuner-btn-exit`'s real light/dark button roles) and `styles/
@@ -902,8 +950,10 @@ end here, since nothing in v1 consumes it (see Decisions log above).
     registration was attempted against real hardware, deliberately, since
     that needs a physical button press and would create a real persisted
     credential). Confirmed all new files serve with the correct content type.
-11. ~~**Backend**~~ — **done (2026-09-15), except audio-sink listing (see
-    below).** Generic settings REST endpoints
+
+11. Backend for screens 2-4 — Added the remaining config/monitor endpoints that Mode+Device Select and Tuning would need to read and write real state.
+
+    except audio-sink listing (see below).** Generic settings REST endpoints
     over `Config`'s user-facing fields are ~~done~~ — `Aurora::Runtime::
     registerSettingsRoutes` in `core/Runtime` (`SettingsRoutes.hpp`/`.cpp`),
     the first thing in `Runtime` itself (not an app or a plugin) to register
@@ -923,7 +973,7 @@ end here, since nothing in v1 consumes it (see Decisions log above).
     a malformed body returning a clean 400, and the merged result actually
     persisted to `config.json` on disk (read back to confirm).
     <br><br>
-    **Reload entrypoint and monitor listing — done (2026-09-15).** Both apps
+    Reload entrypoint and monitor listing. Both apps
     now have a `Pipeline`/`PipelineHost` pair (in each app's own `main.cpp`,
     not core::Runtime — building one needs `Registry` and this app's own
     input-name/ifdef dispatch, both app-layer concepts, same reasoning that
@@ -991,8 +1041,10 @@ end here, since nothing in v1 consumes it (see Decisions log above).
     instance to call it on. Building it means new PipeWire registry-query
     code in a different repo, not just wiring an existing capability through
     HTTP — left for a dedicated pass, not attempted here.
-12. ~~**Mode + Device Select**~~ — **done (2026-09-15)**: `screens/
-    ModeDeviceScreen.js` + `styles/mode-device.css`, plus a new shared
+
+12. Mode + Device Select (screen) — Built the video/audio toggle and device picker, exporting small helpers the Dashboard's own quick-toggle would later reuse.
+
+    `screens/ModeDeviceScreen.js` + `styles/mode-device.css`, plus a new shared
     `.segmented`/`.segmented-btn` component in `forms.css` (ported from
     `RockyRoadImport/SongConverter`'s real `.tabs`/`.tab-btn`, verified
     directly — final component inventory's "Screens 2, 5" entry, reused
@@ -1069,8 +1121,10 @@ end here, since nothing in v1 consumes it (see Decisions log above).
     genuinely comes back `{"monitors":[]}` while live in audio mode, then
     genuinely repopulates with the same three real displays after switching
     back to video, exactly matching what the empty-list UI path assumes.
-13. ~~**Tuning/Settings**~~ — **done (2026-09-15)**: `screens/TuningScreen.js`
-    + `styles/tuning.css`, plus two new shared `forms.css` components used
+
+13. Tuning/Settings (screen) — Built the save-in-place knobs screen for both video and audio modes, sharing one slider/section design across both.
+
+    `screens/TuningScreen.js` + `styles/tuning.css`, plus two new shared `forms.css` components used
     for the first time here — `.section-heading` (ported from
     `RockyRoadImport/SongConverter`'s real `<h2>` + `.tab-panel::before`, its
     1px divider mapped onto Aurora's own `--aurora-divider` token rather
@@ -1165,8 +1219,10 @@ end here, since nothing in v1 consumes it (see Decisions log above).
     throughout; and the `subsampleWidth`-auto-rederivation behavior above,
     which is exactly the kind of real-vs-assumed-behavior gap this build
     order has repeatedly found only by testing against the actual daemon.
-14. ~~**Backend:** `ZoneMap` REST endpoints~~ — **done (2026-09-15)**: `GET`/
-    `PUT /api/zones`, one combined PATCH-style endpoint (`set UV rect, set
+
+14. Backend: ZoneMap endpoints — Added get/update routes for each zone's shape/active/gamma, plus a fast in-place update path so editing a zone doesn't force a full pipeline reload.
+
+    `GET`/ `PUT /api/zones`, one combined PATCH-style endpoint (`set UV rect, set
     gamma, set active` from this step's own original phrasing turned out to
     name three *jobs*, not three separate routes — one body covers all
     three, same convention `SettingsRoutes` already established) rather than
@@ -1248,8 +1304,10 @@ end here, since nothing in v1 consumes it (see Decisions log above).
     Output Connect's own testing already had in step 10. That path is
     covered by the Catch2 tests and by jsdom mocks once step 15's screen
     exists to exercise it end-to-end.
-15. ~~**Zone Mapping**~~ — **done (2026-09-15)**: `screens/ZoneMappingScreen.js`
-    + `styles/zone-mapping.css`. One SVG canvas draws every zone's UV rect at
+
+15. Zone Mapping (screen) — Built the drag-to-resize zone canvas, porting huenicorn's logic but fixing a real gap it never guarded against (a dragged-past-itself rect could crash the image-processing code).
+
+    `screens/ZoneMappingScreen.js` + `styles/zone-mapping.css`. One SVG canvas draws every zone's UV rect at
     once (dimmed, `pointer-events:all` set explicitly since an SVG shape
     with `fill:none` otherwise only hit-tests its stroke, not its body --
     clicking a zone anywhere inside it would have silently missed
@@ -1351,8 +1409,11 @@ end here, since nothing in v1 consumes it (see Decisions log above).
     same reason step 14's own PUT testing couldn't: no real Hue bridge is
     reachable in this dev environment, so there are zero real zones to drag
     -- covered instead by the jsdom drag/coalescing/clamp tests above.
-16. ~~**Backend:** the Stop endpoint~~ — **done (2026-09-15)**: `POST
-    /api/stop`, added to both apps' `main.cpp` (app-layer, like the step 11
+
+16. Backend: Stop endpoint — Added a real remote-shutdown route, matching huenicorn's own confirm-then-exit behavior.
+ `POST
+
+    `/api/stop`, added to both apps' `main.cpp` (app-layer, like the step 11
     monitors/reload routes — it needs `g_stopRequested`, a per-process
     global, so there's no core-level generalization available the way
     `ZoneRoutes` had). Confirmed by reading huenicorn's own real source
@@ -1395,8 +1456,10 @@ end here, since nothing in v1 consumes it (see Decisions log above).
     existing global), and the live end-to-end check already covers the one
     thing worth confirming for real -- that the response actually lands
     before the server that sent it goes away.
-17. ~~**Dashboard, filled in**~~ — **done (2026-09-15)**: the quick segmented
-    mode toggle and a Stop button (with a real confirm overlay) now sit
+
+17. Dashboard, filled in — Added the quick mode toggle and a confirm-then-Stop button to the Dashboard, finishing the last individual screen.
+
+    the quick segmented mode toggle and a Stop button (with a real confirm overlay) now sit
     above `DashboardScreen`'s nav rows. Reuses two things unchanged rather
     than re-inventing them: `forms.css`'s `.segmented`/`.segmented-btn`
     (step 12) for the toggle, and `ModeDeviceScreen`'s own exported
@@ -1466,11 +1529,175 @@ end here, since nothing in v1 consumes it (see Decisions log above).
     cross-width QA pass) remain, plus the deliberately-last MJPEG/SSE
     preview streaming endpoints.
 
-**4. Wiring and polish**
-18. Wire the full first-run-vs-returning-user routing end to end across all 5
-    screens (each screen up to now can be reached and tested individually via
-    the Dashboard shell from step 9).
-19. A real desktop-vs-constrained QA pass per screen.
+### Wiring and Polish
+
+18. First-run vs. returning-user routing — Replaced the "always open the Dashboard" placeholder with real logic that walks a new setup through only whichever steps are actually still missing, while a fully-configured install lands straight on the Dashboard.
+
+    `app.js` replaced its step-9 stand-in (always navigate straight to Dashboard) with a real `probeState()`/
+    `bootstrap()` pair implementing the Navigation model diagram.
+    <br><br>
+    **Not an all-or-nothing "first run" flag.** `probeState()` checks each of
+    the three gating conditions independently — `needsOutputConnect` (Hue
+    compiled in and `/api/hue/connection` not `configured`), `needsModeDevice`
+    (neither `activeInputName` nor `activeAudioInputName` matches a real
+    compiled-in name from `/api/capabilities`), `needsZoneMapping` (video mode,
+    real zones exist, and every one is still at `reconcileZoneMap`'s own
+    default — `active:false`, full-frame `uvs`, confirmed by reading
+    `core/Runtime/src/ZoneReconciler.cpp` and `ZoneMap.hpp`'s real defaults
+    rather than assuming what "unconfigured" looks like). A partially-set-up
+    daemon (bridge paired, capture mode never chosen) resumes at exactly the
+    step still missing, not from scratch — the diagram's own per-box
+    "SKIPPED if already valid" annotations, generalized to apply
+    independently to whichever box actually needs it, not just the one
+    (Output Connect) the diagram happened to draw the annotation on.
+    <br><br>
+    **Tuning has no "already done" signal, so it isn't gated at all** — once
+    *any* of the three conditions above is unmet, the chain always ends on
+    Tuning before Dashboard (matching the diagram's own lack of a "SKIPPED"
+    annotation on that box, unlike its neighbors). Since `TuningScreen`'s own
+    Save intentionally never navigates away (step 13's "save in place, keep
+    tweaking" design), it needed a new `showContinue` constructor option
+    (this step's only screen-behavior addition, not just wiring) adding a
+    second, separate Continue button for this one context — the hub-and-spoke
+    path (`showContinue` defaulting `false`) is completely unchanged.
+    <br><br>
+    **Back decoupled from "done," not just relabeled.** All four onboarding
+    screens previously hardcoded `onBack: () => this.onComplete()` — correct
+    for a hub-and-spoke visit (Back and Done both mean "return to Dashboard"),
+    wrong for a linear wizard step (Back needs to reach the *previous* step,
+    not silently re-trigger Save/Finish). Each of `OutputConnectScreen`/
+    `ModeDeviceScreen`/`ZoneMappingScreen`/`TuningScreen` now takes optional
+    `onBack`/`showBack` constructor fields, defaulting to `onBack ?? onComplete`
+    and `showBack = true` — every existing Dashboard-driven call site (which
+    only ever passes `{ onComplete }`) keeps its exact original behavior with
+    zero changes needed there. `app.js`'s chain passes a distinct `onBack`
+    (a zero-arg closure that just re-navigates to whichever step ran right
+    before this one) and `showBack: previousStep !== null`, so Back only
+    disappears on whichever step the chain actually starts on — extending the
+    doc's own "`← Back` absent on Output Connect during first-run" rule
+    (written when Output Connect was assumed to always be first) to "absent
+    on whichever screen the chain actually opens with," since a returning
+    user missing only their capture-mode config now correctly starts the
+    chain at Mode+Device instead, with no earlier step to point Back at.
+    Re-navigating to a previous step re-mounts it fresh rather than restoring
+    in-progress edits — acceptable since every one of these screens already
+    reloads its own state from the backend on `mount()` regardless.
+    <br><br>
+    **Real bug found and fixed in passing, unrelated to routing itself:**
+    `index.html` never linked `styles/zone-mapping.css` — built in step 15,
+    it had been rendering completely unstyled in every real browser since,
+    caught only now because this step made Zone Mapping newly reachable from
+    a cold boot rather than only via a manual Dashboard click. jsdom's own
+    tests never load stylesheets at all, so nothing in the existing suite
+    could have caught a missing `<link>` — this needed an eyes-on read of
+    `index.html` itself.
+    <br><br>
+    Tested with jsdom, driving `app.js`'s real bootstrap (not a mock of it)
+    against a mocked backend: all-valid state resolves straight to Dashboard
+    with no onboarding screen shown; bridge-unconfigured-only opens on Output
+    Connect with Back hidden; bridge-and-mode-both-unconfigured chains Output
+    Connect (real pairing flow, one entertainment config) into Mode+Device
+    with Back now visible and confirmed to return to a freshly re-mounted
+    Output Connect rather than Dashboard; zones-all-still-default-inactive
+    opens directly on Zone Mapping (no Back, since it's the first screen this
+    time) and Save chains into Tuning's new Continue button, which reaches
+    Dashboard; capabilities unreachable at boot renders a small dedicated
+    "Could not reach the daemon" / Retry state (an ad hoc `{mount,unmount}`
+    object passed straight to `app.navigate()`, not a new screen class for a
+    one-button dead-end). Also verified live against the real Windows binary
+    with a fresh `AURORA_CONFIG_DIR` and dummy Hue env vars (bridge genuinely
+    unconfigured, mode genuinely unset): confirmed `index.html`/`app.js`/
+    `styles/zone-mapping.css` all serve correctly from the live sibling
+    checkout with no rebuild needed (`AURORA_WEBUI_SOURCE_DIR` points at the
+    real checkout, not a copy), the real boot opens on Output Connect with no
+    Back, and submitting a real (nonexistent-on-this-network) bridge address
+    surfaces the screen's own real "Couldn't reach a bridge at that address"
+    error after a genuine network-timeout wait — the full real HTTP round
+    trip, not a mocked one.
+
+19. Cross-width QA pass — Rendered every screen in a real browser for the first time (not just jsdom) and found three real layout/interaction bugs — distorted SVG drag handles, a badge silently swallowing zone-select clicks, and a two-button row that didn't stack on phone width — all fixed on the spot.
+
+    a real Chromium (Playwright, installed into the session scratchpad — not
+    a repo dependency, this WebUI has no build step to add one to), not
+    jsdom, since jsdom never lays out CSS or SVG at all and every finding
+    below depends on real layout. Aurora-WebUI's own static files served
+    as-is by a throwaway local static server, with `page.route()`
+    intercepting every `/api/*` call — full control over each screen's data
+    (a realistic 8-zone grid, both capture modes, every Output Connect
+    phase) without needing a live daemon or a real Hue bridge. 32
+    screenshots across all 5 screens' real/edge states at two real widths
+    (1280px desktop, 390px constrained — an actual phone width, not a round
+    number), plus an automated `scrollWidth` check confirming none of them
+    overflow their viewport horizontally at either size.
+    <br><br>
+    **Three real bugs found by actually looking, not by re-deriving the
+    layout on paper — none of them catchable by the existing jsdom suite:**
+    <br><br>
+    1. **Zone Mapping's drag handles rendered as ellipses, not circles, and
+    the selected-zone size readout rendered as squished, overlapping text.**
+    Root cause: the canvas SVG's `viewBox="0 0 100 100"` with
+    `preserveAspectRatio="none"` deliberately stretches non-uniformly to
+    fill the 16:9 box — correct and necessary for the zone *rects*
+    themselves (UV space should map directly onto the box), but that same
+    stretch silently distorts any *fixed-size* shape or text drawn in the
+    same coordinate space. Measured directly in Chromium: a `.zm-handle`
+    meant to be a circle came out ~24×14px. Fixed by moving both the corner
+    handles and the size label out of SVG into the existing plain-HTML
+    `.zm-overlay` layer (the same approach the zone-ID/checkbox tag already
+    used, for the same reason) — handles positioned by percentage
+    left/top (undistorted for a fixed-px HTML element, unlike an SVG
+    shape), the size label positioned in real measured pixels
+    (`svg.getBoundingClientRect().height`) with a fallback that flips it
+    from "above the rect" to "just inside the rect's top edge" once the
+    rect is close enough to the canvas's own top edge that "above" would
+    clip under `overflow: hidden` — replicating what the original SVG
+    version's baseline-clamp was already trying to do, correctly this time.
+    <br><br>
+    2. **The centered zone-ID/active-checkbox badge silently ate clicks
+    meant to select the zone.** Found by literally trying to click a zone
+    in a real browser while writing this pass's own automation (Playwright
+    reported the click landing on the checkbox, not the rect). The badge
+    sits dead-center on the zone — exactly where clicking-to-select most
+    naturally lands — and `pointer-events: auto` on the whole badge
+    (needed so its own digit/checkbox are clickable) meant *any* click
+    anywhere in the badge's small bounding box, including its own padding,
+    was swallowed with no listener attached, never reaching the rect
+    underneath. Fixed by flipping the badge itself to `pointer-events:
+    none` and re-enabling it only on the digit span and the checkbox
+    specifically — a click on the badge's padding now falls through to the
+    rect's own selection handler, while the digit and checkbox keep their
+    own distinct jobs (select, toggle active) exactly as before.
+    <br><br>
+    3. **Output Connect's pairing-phase "Change address" + "Continue" pair
+    didn't actually stack at constrained width.** The existing `@media
+    (max-width: 480px)` rule set `.oc-actions .btn { width: 100% }` and
+    `justify-content: stretch`, written against the entry phase's
+    `.oc-actions` (which only ever holds one button, Continue — trivially
+    "full width" there). The pairing phase's own `.oc-actions` holds two
+    buttons in the same still-`flex-direction: row` container; two
+    100%-wide flex children in a row don't stack, they just both shrink to
+    fit. Measured directly (390px viewport): each button came out ~170px
+    instead of the intended full ~343px. Fixed by adding `flex-direction:
+    column` to the same media query, matching the treatment `.oc-address-row`
+    already got right — verified afterward at 343px/full-width, stacked.
+    <br><br>
+    One more real bug (`index.html` missing the `zone-mapping.css` link)
+    had already been found and fixed during step 18, for the same
+    underlying reason: nothing before these last two steps had ever
+    actually rendered these screens in a real browser.
+    <br><br>
+    Everything else checked out as designed, not just "not obviously
+    broken": the shell's own title-truncation-with-ellipsis rule (`←Back
+    Connect to your Hue B… ⚙`) degrades to legible, sensibly-cut text at
+    390px exactly as its documented tradeoff intends, not garbled; Tuning's
+    2-column desktop grid correctly collapses to one column at constrained
+    width with a full-width Save; the Dashboard's mode-toggle-+-Stop row
+    correctly stacks into two rows at constrained width rather than
+    cramming (confirming this doc's own layout lesson, see
+    `Analysis/lessons/web-ui.md`); and the real 8-zone grid (this doc's own
+    "~8 zones" assumption, not a token 2) renders with clearly separated
+    touch targets at 390px, confirming that lesson's own conclusion against
+    real rendered pixels rather than napkin math for the first time.
 
 **Deliberately last, not first:** the MJPEG+SSE preview streaming endpoints.
 Worth building only if the live-preview cut gets revisited, not as a

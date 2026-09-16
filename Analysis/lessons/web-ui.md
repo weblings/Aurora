@@ -173,3 +173,55 @@ consistent by construction. When a step is about to rely on what an earlier
 section of this same doc says, spot-check it against whatever it's actually
 describing (another section, or the real built code) rather than trusting
 that "it's already in the plan" means it's still accurate.
+
+---
+
+## A screen's jsdom test suite passing is proof its logic works, not proof it looks or behaves correctly in a real browser
+
+Five build-order steps' worth of jsdom tests (Zone Mapping and Output
+Connect especially) were all green going into step 19's dedicated
+cross-width QA pass — the first time any screen was actually rendered in a
+real Chromium (via Playwright) rather than jsdom, which does no real CSS
+layout, no SVG layout, and no real hit-testing at all. That pass found
+three concrete bugs jsdom structurally could not have caught, plus a fourth
+of the same root cause found the step before it:
+
+- Zone Mapping's canvas SVG uses `viewBox="0 0 100 100"` with
+  `preserveAspectRatio="none"`, deliberately stretching non-uniformly to
+  fill a 16:9 box — correct for the zone rects themselves (UV space should
+  map directly onto the box), but that same stretch silently distorts any
+  *fixed-size* shape or text drawn in the same coordinate space: a
+  `.zm-handle` meant to be a circle measured ~24×14px in a real render, and
+  the selected-zone size label rendered as squished, overlapping text.
+- The centered zone-ID/active-checkbox badge sits exactly where a user's
+  first click to select a zone naturally lands, and `pointer-events: auto`
+  on the whole badge (needed so its own digit/checkbox are clickable) meant
+  any click landing on the badge's own padding — not its digit, not its
+  checkbox — was swallowed with no listener attached, never reaching the
+  zone rect's own selection handler underneath. Found by literally trying
+  to click a zone while writing the QA pass's own Playwright automation.
+- A `@media (max-width: 480px)` rule on Output Connect's `.oc-actions`
+  (`width: 100%` + `justify-content: stretch`) was written and verified
+  against the entry phase, where that container only ever holds one button
+  — trivially "full width" there. The pairing phase's own `.oc-actions`
+  holds two buttons in the same still-`flex-direction: row` container; two
+  100%-wide flex children in a row don't stack, they just both shrink to
+  fit — measured directly at 390px, each button came out ~170px instead of
+  the intended ~343px.
+- A step earlier (18): `index.html` never linked `styles/zone-mapping.css`
+  at all, built back in step 15 — it had been rendering completely
+  unstyled in every real browser since, caught only once a routing change
+  made that screen reachable from a cold boot rather than only a manual
+  Dashboard click.
+
+**Fix:** budget a real-browser pass — even a lightweight one, static files
+served as-is with `/api/*` mocked via route interception, no live backend
+or real device needed — for any screen with real CSS layout, SVG, or
+interactive hit-testing, before considering it actually verified. Treat a
+fully-green jsdom suite as "the logic is correct," not "the screen is
+correct" — jsdom's inability to lay out CSS/SVG or hit-test real geometry
+means an entire class of real, user-visible bugs (distorted shapes, dead
+click zones, a responsive rule that silently breaks for a second consumer
+of the same class, a missing stylesheet `<link>`) can hide behind 100%
+passing tests indefinitely, surfacing only once something forces an actual
+render.
