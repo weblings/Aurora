@@ -44,9 +44,3 @@
   font-size: 16px;
   color: var(--aurora-text-secondary);
 }
-
-.placeholder-body {
-  padding: var(--aurora-space-7) 0;
-  color: var(--aurora-text-secondary);
-  font-size: 14px;
-}

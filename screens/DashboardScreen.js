@@ -3,14 +3,14 @@
 // built on top of this shell. See Analysis/WebUIAnalysis.md's build-order
 // step 9. Built early and mostly empty on purpose: gives every screen built
 // after this a real place to be linked into and reached, rather than only
-// reachable via a dev shortcut until the whole flow is done. Bridge, Capture
-// source, and Tuning navigate to their real screens (steps 10, 12, 13); Zones
-// still uses PlaceholderScreen until step 14/15 build it.
+// reachable via a dev shortcut until the whole flow is done. Every row now
+// navigates to its real screen (steps 10, 12, 13, 15); PlaceholderScreen has
+// no remaining callers.
 import { renderTopBar } from '../topBar.js';
-import { PlaceholderScreen } from './PlaceholderScreen.js';
 import { OutputConnectScreen } from './OutputConnectScreen.js';
 import { ModeDeviceScreen } from './ModeDeviceScreen.js';
 import { TuningScreen } from './TuningScreen.js';
+import { ZoneMappingScreen } from './ZoneMappingScreen.js';
 
 export class DashboardScreen {
   constructor(app) {
@@ -52,7 +52,9 @@ export class DashboardScreen {
       }));
     });
     container.querySelector('[data-nav="zones"]').addEventListener('click', () => {
-      this.app.navigate(new PlaceholderScreen(this.app, 'zones'));
+      this.app.navigate(new ZoneMappingScreen(this.app, {
+        onComplete: () => this.app.navigate(new DashboardScreen(this.app)),
+      }));
     });
     container.querySelector('[data-nav="tuning"]').addEventListener('click', () => {
       this.app.navigate(new TuningScreen(this.app, {
@@ -70,14 +72,15 @@ export class DashboardScreen {
   // endpoints that already exist. The Bridge row's click target itself
   // depends on this check too: it's disabled outright when this build has
   // no Hue output at all, real (OutputConnectScreen) otherwise. Capture
-  // source has no compiled-in gate to check (a "dummy" video input always
-  // exists), only a status label to fill in from /api/config. Zones has no
-  // backing endpoint yet (ZoneMap REST is step 14), so it stays an honest
-  // placeholder, not fabricated data.
+  // source and Zones have no compiled-in gate to check (a "dummy" video
+  // input always exists, and the Zones row is always reachable -- the
+  // screen itself shows an honest empty/unavailable state), only a status
+  // label to fill in from /api/config and /api/zones respectively.
   async _loadStatus(container) {
     const bridgeRow = container.querySelector('[data-nav="bridge"]');
     const bridgeLabel = bridgeRow.querySelector('.nav-row-label');
     const captureLabel = container.querySelector('[data-nav="capture-source"] .nav-row-label');
+    const zonesLabel = container.querySelector('[data-nav="zones"] .nav-row-label');
 
     let capabilities;
     try {
@@ -86,7 +89,7 @@ export class DashboardScreen {
       bridgeLabel.textContent = 'Bridge — Status unavailable';
       bridgeRow.disabled = true;
       captureLabel.textContent = 'Capture source — Status unavailable';
-      container.querySelector('[data-nav="zones"] .nav-row-label').textContent = 'Zones — Not available yet';
+      zonesLabel.textContent = 'Zones — Status unavailable';
       return;
     }
 
@@ -116,6 +119,18 @@ export class DashboardScreen {
       captureLabel.textContent = 'Capture source — Status unavailable';
     }
 
-    container.querySelector('[data-nav="zones"] .nav-row-label').textContent = 'Zones — Not available yet';
+    try {
+      const zonesResult = await (await fetch('/api/zones')).json();
+      if (!zonesResult.outputName) {
+        zonesLabel.textContent = 'Zones — Not available in Audio mode';
+      } else if (zonesResult.zones.length === 0) {
+        zonesLabel.textContent = 'Zones — None yet';
+      } else {
+        const activeCount = zonesResult.zones.filter((z) => z.active).length;
+        zonesLabel.textContent = `Zones — ${activeCount} active`;
+      }
+    } catch {
+      zonesLabel.textContent = 'Zones — Status unavailable';
+    }
   }
 }
