@@ -82,9 +82,12 @@ if(AURORA_OUTPUT_HUE_ENABLE_IO)
     src/DtlsClient.cpp
     src/Streamer.cpp
     src/HueOutput.cpp
+    src/PairingRoutes.cpp
   )
   target_compile_definitions(AuroraOutputHue PUBLIC AURORA_OUTPUT_HUE_IO_AVAILABLE=1)
-  target_link_libraries(AuroraOutputHue PUBLIC CURL::libcurl PkgConfig::MBEDTLS)
+  # AuroraNetwork comes from the AuroraCore FetchContent above -- PairingRoutes.cpp
+  # is the first thing in this plugin to register HTTP routes of its own.
+  target_link_libraries(AuroraOutputHue PUBLIC CURL::libcurl PkgConfig::MBEDTLS AuroraNetwork)
 
   if(WIN32)
     # Mbed TLS's entropy source needs BCryptGenRandom (bcrypt.lib) on
