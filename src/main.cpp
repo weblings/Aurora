@@ -10,6 +10,7 @@
 #include <cstdlib>
 #include <filesystem>
 #include <iostream>
+#include <mutex>
 #include <optional>
 #include <thread>
 
@@ -19,6 +20,7 @@
 #include <Aurora/Network/Http/Server/HttpServer.hpp>
 #include <Aurora/Runtime/ConfigStore.hpp>
 #include <Aurora/Runtime/Orchestrator.hpp>
+#include <Aurora/Runtime/SettingsRoutes.hpp>
 #include <Aurora/Runtime/ZoneMapStore.hpp>
 #ifdef AURORA_RUNTIME_AUDIO_AVAILABLE
 #include <Aurora/Runtime/AudioOrchestrator.hpp>
@@ -182,6 +184,306 @@ namespace
   }
 
 
+  // The swappable unit a live reload tears down and reconstructs -- the
+  // "reconstruction, not mutation" design fork from huenicorn recommended in
+  // Analysis/HttpServerAnalysis.md. Lives here (not core::Runtime) because
+  // building one needs Registry and this app's own input-name/ifdef
+  // dispatch, both app-layer concepts. See Analysis/WebUIAnalysis.md's
+  // build-order step 11.
+  class Pipeline
+  {
+  public:
+    // Throws on any unrecoverable failure (unknown input/output name, no
+    // outputs available) -- caller decides whether that's fatal (first
+    // startup) or recoverable (a later reload, old pipeline stays running).
+    static std::unique_ptr<Pipeline> build(
+      Aurora::App::Registry& registry,
+      const Aurora::Runtime::Config& config,
+      const std::filesystem::path& configRoot
+    )
+    {
+      auto pipeline = std::unique_ptr<Pipeline>(new Pipeline());
+
+      std::vector<std::string> outputNames = config.activeOutputNames();
+      if(outputNames.empty()){
+        outputNames = registry.outputNames(); // no explicit selection -- run everything available
+      }
+
+      for(const auto& name : outputNames){
+        auto output = registry.createOutput(name);
+        if(!output){
+          std::cerr << "Unknown output '" << name << "', skipping\n";
+          continue;
+        }
+        output->init();
+        pipeline->m_outputPtrs.push_back(output.get());
+        pipeline->m_outputs.push_back(std::move(output));
+      }
+
+      if(pipeline->m_outputPtrs.empty()){
+        throw std::runtime_error("No outputs available -- nothing to drive");
+      }
+
+      // Video wins if both could apply -- explicit opt-in to audio requires
+      // leaving activeInputName unset. Same rule main() always used.
+      bool useAudioMode = config.activeInputName().empty() && !config.activeAudioInputName().empty();
+
+      if(useAudioMode){
+#ifdef AURORA_RUNTIME_AUDIO_AVAILABLE
+        auto audioInput = registry.createAudioInput(config.activeAudioInputName());
+        if(!audioInput){
+          throw std::runtime_error("Unknown audio input '" + config.activeAudioInputName() + "'");
+        }
+
+        Aurora::Processing::AudioProcessing::AudioEffectSettings settings;
+        if(config.audioFixedAnchorHue() >= 0.f){
+          settings.fixedAnchorHue = config.audioFixedAnchorHue();
+        }
+        settings.bounceSmoothTime = config.audioBounceSmoothTime();
+        settings.dynamismFloor = config.audioDynamismFloor();
+        settings.centroidStrength = config.audioCentroidStrength();
+        settings.driftBaseRateDegPerSec = config.audioDriftBaseRateDegPerSec();
+        settings.vibrancySaturation = config.audioVibrancySaturation();
+        settings.vibrancyValue = config.audioVibrancyValue();
+        settings.referenceRms = config.audioReferenceRms();
+        settings.brightnessFloor = config.audioBrightnessFloor();
+        settings.centroidRangeHz = config.audioCentroidRangeHz();
+        settings.brightnessSmoothTime = config.audioBrightnessSmoothTime();
+
+        pipeline->m_audioOrchestrator.emplace(
+          *audioInput, pipeline->m_outputPtrs, Aurora::Runtime::ZoneMapStore(configRoot), settings
+        );
+        pipeline->m_audioOrchestrator->init();
+        pipeline->m_audioInput = std::move(audioInput);
+        pipeline->m_isAudioMode = true;
+        pipeline->m_tickIntervalSeconds = 1.0 / 60.0; // no display-derived rate for audio
+
+        std::cout << "Aurora running: audio input='" << config.activeAudioInputName()
+                   << "', " << pipeline->m_outputPtrs.size() << " output(s).\n";
+#else
+        throw std::runtime_error(
+          "activeAudioInputName is set, but this build has no audio support "
+          "(AURORA_CORE_ENABLE_AUDIO/AURORA_APP_ENABLE_LINUX_AUDIO_INPUT were off)"
+        );
+#endif
+      }
+      else{
+        std::string inputName = config.activeInputName().empty() ? "linux" : config.activeInputName();
+        auto input = registry.createInput(inputName);
+        if(!input){
+          throw std::runtime_error("Unknown input '" + inputName + "'");
+        }
+        input->init();
+
+        pipeline->m_orchestrator.emplace(
+          *input, pipeline->m_outputPtrs, config, Aurora::Runtime::ZoneMapStore(configRoot)
+        );
+        pipeline->m_orchestrator->init();
+        pipeline->m_videoInput = std::move(input);
+        pipeline->m_isAudioMode = false;
+        pipeline->m_tickIntervalSeconds = 1.0 / pipeline->m_orchestrator->config().refreshRate();
+
+        // Persists any refreshRate/subsampleWidth just derived from the
+        // display -- same as main() always did right after construction.
+        Aurora::Runtime::ConfigStore(configRoot).save(pipeline->m_orchestrator->config());
+
+        std::cout << "Aurora running: input='" << inputName
+                   << "', " << pipeline->m_outputPtrs.size() << " output(s).\n";
+      }
+
+      return pipeline;
+    }
+
+    void tick()
+    {
+      if(m_isAudioMode){
+#ifdef AURORA_RUNTIME_AUDIO_AVAILABLE
+        m_audioOrchestrator->update(static_cast<float>(m_tickIntervalSeconds));
+#endif
+      }
+      else{
+        m_orchestrator->update();
+      }
+    }
+
+    double tickIntervalSeconds() const
+    {
+      return m_tickIntervalSeconds;
+    }
+
+    // Empty in audio mode -- no monitor concept applies then, not an error.
+    Aurora::Input::Monitors listMonitors() const
+    {
+      return m_videoInput ? m_videoInput->monitors() : Aurora::Input::Monitors{};
+    }
+
+    void shutdown()
+    {
+      for(auto* output : m_outputPtrs){
+        output->shutdown();
+      }
+    }
+
+  private:
+    Pipeline() = default;
+
+    bool m_isAudioMode{false};
+    double m_tickIntervalSeconds{1.0 / 60.0};
+
+    // Declaration order matters: m_orchestrator/m_audioOrchestrator hold a
+    // reference into m_videoInput/m_audioInput, so those must be declared
+    // (and therefore destroyed after, since destruction runs in reverse
+    // declaration order) first -- same reasoning already applied to
+    // EntertainmentConfigurationSelector's own member order in
+    // Aurora-Output-Hue.
+    std::unique_ptr<Aurora::Input::IVideoInput> m_videoInput;
+    std::unique_ptr<Aurora::Input::IAudioInput> m_audioInput;
+    std::vector<std::unique_ptr<Aurora::Output::IOutput>> m_outputs;
+    std::vector<Aurora::Output::IOutput*> m_outputPtrs;
+    std::optional<Aurora::Runtime::Orchestrator> m_orchestrator;
+#ifdef AURORA_RUNTIME_AUDIO_AVAILABLE
+    std::optional<Aurora::Runtime::AudioOrchestrator> m_audioOrchestrator;
+#endif
+  };
+
+
+  // One consistent lock around the swappable Pipeline -- the design
+  // HttpServerAnalysis.md recommended over huenicorn's own narrower
+  // single-mutex approach, since Aurora reconstructs the whole pipeline
+  // rather than mutating pieces of a live one. tick() (main thread) and
+  // reload() (the HTTP server's thread, via a settings PUT or /api/reload)
+  // both take the same lock; reload() builds the replacement *before*
+  // acquiring it, so a slow or failing build never blocks a tick in
+  // progress, and the old pipeline's shutdown() runs only after the swap,
+  // once no tick() call can reach it anymore.
+  class PipelineHost
+  {
+  public:
+    explicit PipelineHost(std::unique_ptr<Pipeline> initial):
+    m_pipeline(std::move(initial))
+    {
+    }
+
+    void tick()
+    {
+      std::lock_guard<std::mutex> lock(m_mutex);
+      m_pipeline->tick();
+    }
+
+    double tickIntervalSeconds()
+    {
+      std::lock_guard<std::mutex> lock(m_mutex);
+      return m_pipeline->tickIntervalSeconds();
+    }
+
+    Aurora::Input::Monitors listMonitors()
+    {
+      std::lock_guard<std::mutex> lock(m_mutex);
+      return m_pipeline->listMonitors();
+    }
+
+    // Returns true on success. On failure, errorOut is set and the previous
+    // pipeline keeps running untouched -- a bad reload (e.g. an
+    // activeInputName a settings PUT just wrote that doesn't resolve to any
+    // registered input) must not take down an already-working pipeline.
+    bool reload(
+      Aurora::App::Registry& registry,
+      const Aurora::Runtime::Config& config,
+      const std::filesystem::path& configRoot,
+      std::string& errorOut
+    )
+    {
+      std::unique_ptr<Pipeline> next;
+      try{
+        next = Pipeline::build(registry, config, configRoot);
+      }
+      catch(const std::exception& e){
+        errorOut = e.what();
+        return false;
+      }
+
+      std::unique_ptr<Pipeline> previous;
+      {
+        std::lock_guard<std::mutex> lock(m_mutex);
+        previous = std::move(m_pipeline);
+        m_pipeline = std::move(next);
+      }
+      previous->shutdown();
+      return true;
+    }
+
+    void shutdown()
+    {
+      std::lock_guard<std::mutex> lock(m_mutex);
+      m_pipeline->shutdown();
+    }
+
+  private:
+    std::mutex m_mutex;
+    std::unique_ptr<Pipeline> m_pipeline;
+  };
+
+
+  void registerMonitorsRoute(
+    Aurora::Network::Http::Server::HttpServer& httpServer,
+    PipelineHost& pipelineHost
+  )
+  {
+    httpServer.addRoute(
+      Aurora::Network::Http::Server::HttpMethod::Get,
+      "/api/monitors",
+      [&pipelineHost](const Aurora::Network::Http::Server::Request&, Aurora::Network::Http::Server::Response& res){
+        auto monitors = pipelineHost.listMonitors();
+
+        nlohmann::json list = nlohmann::json::array();
+        for(size_t i = 0; i < monitors.size(); ++i){
+          const auto& monitor = monitors[i];
+          list.push_back({
+            {"id", i},
+            {"name", monitor->name},
+            {"width", monitor->width},
+            {"height", monitor->height},
+            {"refreshRate", monitor->refreshRate},
+            {"isPrimary", monitor->isPrimary}
+          });
+        }
+
+        res.contentType = "application/json";
+        res.body = nlohmann::json{{"monitors", list}}.dump();
+      }
+    );
+  }
+
+
+  // Manual escape hatch alongside PUT /api/config's automatic funnel-through
+  // (e.g. "re-scan" after plugging in a monitor, with no field actually
+  // changed).
+  void registerReloadRoute(
+    Aurora::Network::Http::Server::HttpServer& httpServer,
+    PipelineHost& pipelineHost,
+    Aurora::App::Registry& registry,
+    const std::filesystem::path& configRoot
+  )
+  {
+    httpServer.addRoute(
+      Aurora::Network::Http::Server::HttpMethod::Post,
+      "/api/reload",
+      [&pipelineHost, &registry, configRoot](const Aurora::Network::Http::Server::Request&, Aurora::Network::Http::Server::Response& res){
+        Aurora::Runtime::Config config = Aurora::Runtime::ConfigStore(configRoot).load();
+        std::string error;
+        res.contentType = "application/json";
+        if(pipelineHost.reload(registry, config, configRoot, error)){
+          res.body = nlohmann::json{{"succeeded", true}}.dump();
+        }
+        else{
+          res.status = 500;
+          res.body = nlohmann::json{{"succeeded", false}, {"error", error}}.dump();
+        }
+      }
+    );
+  }
+
+
   // First WebUI route: lets a frontend probe which Input/Output plugins this
   // particular binary was actually compiled with, before rendering anything
   // that assumes one exists (Analysis/WebUIAnalysis.md's capability-probe
@@ -253,11 +555,38 @@ try
   registerAudioInputs(registry, config);
   registerOutputs(registry, configRoot);
 
+  // Built before any route is registered below -- the settings/reload routes
+  // capture pipelineHost by reference, so it has to exist first. A failure
+  // here (unknown input/output name) is fatal at startup, same as main()
+  // always treated it -- caught by this function's own outer catch. A later
+  // failed *reload* (a bad value a settings PUT just wrote) is recoverable
+  // instead; see PipelineHost::reload.
+  PipelineHost pipelineHost(Pipeline::build(registry, config, configRoot));
+
   Aurora::Network::Http::Server::HttpServer httpServer;
   registerCapabilitiesRoute(httpServer, registry);
 #ifdef AURORA_OUTPUT_HUE_IO_AVAILABLE
   Aurora::Output::Hue::registerPairingRoutes(httpServer, configRoot);
 #endif
+  // "Every settings PUT funnels into the reload entrypoint" -- re-loads
+  // Config fresh (reflecting whatever the PUT that triggered this just
+  // saved) rather than closing over the request's own already-stale copy.
+  Aurora::Runtime::registerSettingsRoutes(httpServer, configRoot,
+    [&pipelineHost, &registry, configRoot]() -> std::string {
+      Aurora::Runtime::Config freshConfig = Aurora::Runtime::ConfigStore(configRoot).load();
+      std::string error;
+      pipelineHost.reload(registry, freshConfig, configRoot, error);
+      return error;
+    }
+  );
+  registerMonitorsRoute(httpServer, pipelineHost);
+  registerReloadRoute(httpServer, pipelineHost, registry, configRoot);
+
+  // Aurora-WebUI's fetched sibling checkout -- must be called before bind()
+  // per HttpServer's own contract. AURORA_WEBUI_SOURCE_DIR is baked in at
+  // configure time (see CMakeLists.txt); editing WebUI files during dev needs
+  // no rebuild since it points straight at the sibling checkout on disk.
+  httpServer.serveStaticFiles(AURORA_WEBUI_SOURCE_DIR);
 
   // Own thread, same as huenicorn's real Runtime::_initWebUI (see
   // Analysis/HttpServerAnalysis.md) -- listen() blocks until stop() is
@@ -265,6 +594,8 @@ try
   // failure (e.g. port already in use) logs and continues without the
   // WebUI rather than aborting the whole app. HttpServerThread's destructor
   // stops and joins on every exit path below, not just the happy one.
+  // Declared after pipelineHost so it's destroyed (and the server stopped)
+  // first on the way out -- same order as the explicit calls below.
   std::optional<HttpServerThread> httpServerThread;
   if(httpServer.bind(config.boundBackendIP(), config.restServerPort())){
     httpServerThread.emplace(httpServer, std::thread([&httpServer]{ httpServer.listen(); }));
@@ -275,119 +606,26 @@ try
                << " -- continuing without it\n";
   }
 
-  // Video wins if both could apply -- explicit opt-in to audio requires
-  // leaving activeInputName unset. Same precedence rule as Aurora-App-Windows.
-  bool useAudioMode = config.activeInputName().empty() && !config.activeAudioInputName().empty();
+  std::cout << "Aurora running. Ctrl+C to stop.\n";
 
-  std::vector<std::string> outputNames = config.activeOutputNames();
-  if(outputNames.empty()){
-    outputNames = registry.outputNames(); // no explicit selection -- run everything available
-  }
-
-  std::vector<std::unique_ptr<Aurora::Output::IOutput>> outputs;
-  std::vector<Aurora::Output::IOutput*> outputPtrs;
-  for(const auto& name : outputNames){
-    auto output = registry.createOutput(name);
-    if(!output){
-      std::cerr << "Unknown output '" << name << "', skipping\n";
-      continue;
-    }
-    output->init();
-    outputPtrs.push_back(output.get());
-    outputs.push_back(std::move(output));
-  }
-
-  if(outputPtrs.empty()){
-    std::cerr << "No outputs available -- nothing to drive. Available: ";
-    for(const auto& name : registry.outputNames()){ std::cerr << name << " "; }
-    std::cerr << "\n";
-    return 1;
-  }
-
-  if(useAudioMode){
-#ifdef AURORA_RUNTIME_AUDIO_AVAILABLE
-    auto audioInput = registry.createAudioInput(config.activeAudioInputName());
-    if(!audioInput){
-      std::cerr << "Unknown audio input '" << config.activeAudioInputName() << "'. Available: ";
-      for(const auto& name : registry.audioInputNames()){ std::cerr << name << " "; }
-      std::cerr << "\n";
-      return 1;
-    }
-
-    // Built from Config, not hardcoded -- editing config.json changes these
-    // without a rebuild. audioFixedAnchorHue < 0 means unset/random.
-    Aurora::Processing::AudioProcessing::AudioEffectSettings settings;
-    if(config.audioFixedAnchorHue() >= 0.f){
-      settings.fixedAnchorHue = config.audioFixedAnchorHue();
-    }
-    settings.bounceSmoothTime = config.audioBounceSmoothTime();
-    settings.dynamismFloor = config.audioDynamismFloor();
-    settings.centroidStrength = config.audioCentroidStrength();
-    settings.driftBaseRateDegPerSec = config.audioDriftBaseRateDegPerSec();
-    settings.vibrancySaturation = config.audioVibrancySaturation();
-    settings.vibrancyValue = config.audioVibrancyValue();
-    settings.referenceRms = config.audioReferenceRms();
-    settings.brightnessFloor = config.audioBrightnessFloor();
-    settings.centroidRangeHz = config.audioCentroidRangeHz();
-    settings.brightnessSmoothTime = config.audioBrightnessSmoothTime();
-
-    Aurora::Runtime::AudioOrchestrator orchestrator(
-      *audioInput, outputPtrs, Aurora::Runtime::ZoneMapStore(configRoot), settings
-    );
-    orchestrator.init();
-
-    std::cout << "Aurora running: audio input='" << config.activeAudioInputName()
-               << "', " << outputPtrs.size() << " output(s). Ctrl+C to stop.\n";
-
-    // No display-derived refreshRate for audio -- 60Hz is a reasonable
-    // starting tick rate, independent of aubio's own internal hop size.
-    auto tickInterval = std::chrono::duration<double>(1.0 / 60.0);
-    while(!g_stopRequested){
-      auto tickStart = std::chrono::steady_clock::now();
-      orchestrator.update(static_cast<float>(tickInterval.count()));
-      std::this_thread::sleep_until(tickStart + std::chrono::duration_cast<std::chrono::steady_clock::duration>(tickInterval));
-    }
-#else
-    std::cerr << "activeAudioInputName is set, but this build has no audio support "
-                 "(AURORA_CORE_ENABLE_AUDIO/AURORA_APP_ENABLE_LINUX_AUDIO_INPUT were off)\n";
-    return 1;
-#endif
-  }
-  else{
-    std::string inputName = config.activeInputName().empty() ? "linux" : config.activeInputName();
-    auto input = registry.createInput(inputName);
-    if(!input){
-      std::cerr << "Unknown input '" << inputName << "'. Available: ";
-      for(const auto& name : registry.inputNames()){ std::cerr << name << " "; }
-      std::cerr << "\n";
-      return 1;
-    }
-    input->init();
-
-    Aurora::Runtime::Orchestrator orchestrator(*input, outputPtrs, config, Aurora::Runtime::ZoneMapStore(configRoot));
-    orchestrator.init();
-    configStore.save(orchestrator.config()); // persist any refreshRate/subsampleWidth just derived
-
-    std::cout << "Aurora running: input='" << inputName << "', " << outputPtrs.size() << " output(s). Ctrl+C to stop.\n";
-
-    auto tickInterval = std::chrono::duration<double>(1.0 / orchestrator.config().refreshRate());
-    while(!g_stopRequested){
-      auto tickStart = std::chrono::steady_clock::now();
-      orchestrator.update();
-      std::this_thread::sleep_until(tickStart + std::chrono::duration_cast<std::chrono::steady_clock::duration>(tickInterval));
-    }
+  // Drives whichever Pipeline is current at the top of each iteration -- a
+  // reload swapping it mid-loop is exactly what PipelineHost's own lock is
+  // for; this loop never needs to know a swap happened.
+  while(!g_stopRequested){
+    auto tickStart = std::chrono::steady_clock::now();
+    pipelineHost.tick();
+    auto tickInterval = std::chrono::duration<double>(pipelineHost.tickIntervalSeconds());
+    std::this_thread::sleep_until(tickStart + std::chrono::duration_cast<std::chrono::steady_clock::duration>(tickInterval));
   }
 
   std::cout << "Stopping...\n";
-  for(auto* output : outputPtrs){
-    output->shutdown();
-  }
+  pipelineHost.shutdown();
 
-  // httpServerThread (declared above outputs) stops and joins the WebUI in
-  // its destructor as this scope unwinds -- after this point, same order
-  // huenicorn's own Runtime::_startStreamingLoop uses, and on every early
-  // return above too (std::thread::~thread() would std::terminate()
-  // otherwise if one of those had left it running unjoined).
+  // httpServerThread stops and joins the WebUI in its destructor as this
+  // scope unwinds -- after this point, same order huenicorn's own
+  // Runtime::_startStreamingLoop uses, and on every early return above too
+  // (std::thread::~thread() would std::terminate() otherwise if one of
+  // those had left it running unjoined).
   return 0;
 }
 // Plugin construction (e.g. "linux" input selection) can throw --

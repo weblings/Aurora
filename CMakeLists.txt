@@ -27,6 +27,18 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(AuroraCore)
 
+# Aurora-WebUI -- the one shared static frontend both apps serve identically
+# via HttpServer::serveStaticFiles(). Unconditional, unlike the plugin blocks
+# below -- this is the product's one control surface, not a swappable/optional
+# dependency. Has no CMakeLists.txt of its own (plain static files); confirmed
+# via CMake's own docs that MakeAvailable just populates it without erroring
+# or calling add_subdirectory() when none exists.
+FetchContent_Declare(
+  AuroraWebUI
+  SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../Aurora-WebUI
+)
+FetchContent_MakeAvailable(AuroraWebUI)
+
 if(AURORA_APP_ENABLE_LINUX_INPUT)
   set(AURORA_INPUT_LINUX_BUILD_TESTS FALSE CACHE BOOL "" FORCE)
   set(AURORA_INPUT_LINUX_ENABLE_AUDIO ${AURORA_APP_ENABLE_LINUX_AUDIO_INPUT} CACHE BOOL "" FORCE)
@@ -83,6 +95,14 @@ endif()
 if(AURORA_APP_ENABLE_HUE_OUTPUT)
   target_link_libraries(aurora-app-linux PRIVATE AuroraOutputHue)
 endif()
+
+# AURORA_WEBUI_SOURCE_DIR: the fetched sibling checkout's absolute path, baked
+# in at configure time -- a dev-stage placeholder (a real install/distribution
+# story, like huenicorn's own embedded-webroot release build, is explicitly
+# out of scope for now; see HttpServer.hpp's serveStaticFiles() comment).
+target_compile_definitions(aurora-app-linux PRIVATE
+  AURORA_WEBUI_SOURCE_DIR="${aurorawebui_SOURCE_DIR}"
+)
 
 target_compile_features(aurora-app-linux PRIVATE cxx_std_20)
 
