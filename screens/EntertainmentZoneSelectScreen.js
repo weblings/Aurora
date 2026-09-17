@@ -1,7 +1,6 @@
 // Entertainment zone select: the new Screen 2 of the onboarding sequence
 // (Analysis/WebUI/WebUI_Design_2ndPass.md) -- picks which entertainment
-// config to use and shows what's in it (ChannelList), with a Test Pulse to
-// visually confirm which physical bulbs are covered, before Mode+Device or
+// config to use and shows what's in it (ChannelList), before Mode+Device or
 // Zone Mapping ever run. Composes EntertainmentConfigSelect (owns the
 // dropdown + persists the pick via POST /api/hue/connection, hidden
 // entirely at exactly one config) and ChannelList (the plain, read-only
@@ -10,6 +9,12 @@
 // The "zero entertainment configurations" case migrated here from
 // OutputConnectScreen's old configSelect phase -- config selection is
 // entirely this screen's job now, so this is its rightful new home.
+//
+// Test Pulse omitted for now (WebUI_Fixes.md's Pass 2 section) -- a nice-
+// to-have visual confirmation step, not load-bearing for onboarding, and a
+// live pass found it unreliable even after fixing the entertainment-rid/
+// light-rid mismatch underneath it. The backend route (POST
+// /api/hue/test-pulse) is untouched; only this screen's own button is gone.
 import { renderTopBar } from '../topBar.js';
 import { renderNavFooter } from '../NavFooter.js';
 import { EntertainmentConfigSelect } from '../EntertainmentConfigSelect.js';
@@ -27,7 +32,6 @@ export class EntertainmentZoneSelectScreen {
     });
     this.channelList = new ChannelList();
     this.error = null;
-    this.pulsing = false;
   }
 
   async mount(container) {
@@ -84,43 +88,16 @@ export class EntertainmentZoneSelectScreen {
       ${usingLabelHtml}
       <div id="ezs-channel-list-slot"></div>
       ${errorHtml}
-      <button type="button" class="btn btn-secondary" id="ezs-test-pulse">${this.pulsing ? 'Test pulse…' : 'Test pulse'}</button>
     `;
 
     this.entertainmentConfigSelect.mount(body.querySelector('#ezs-config-slot'));
     this.channelList.mount(body.querySelector('#ezs-channel-list-slot'));
-
-    const pulseButton = body.querySelector('#ezs-test-pulse');
-    pulseButton.disabled = this.pulsing;
-    pulseButton.addEventListener('click', () => this._testPulse());
 
     renderNavFooter(footer, {
       showBack: this.showBack,
       onBack: () => this.onBack(),
       onContinue: () => this.onComplete(),
     });
-  }
-
-  async _testPulse() {
-    this.pulsing = true;
-    this.error = null;
-    this._render();
-
-    const selected = this.entertainmentConfigSelect.getSelected();
-    try {
-      const result = await (await fetch('/api/hue/test-pulse', {
-        method: 'POST',
-        body: JSON.stringify({ entertainmentConfigurationId: selected?.id ?? '' }),
-      })).json();
-      if (!result.succeeded) {
-        this.error = "Couldn't run the test pulse.";
-      }
-    } catch {
-      this.error = "Couldn't reach the daemon.";
-    }
-
-    this.pulsing = false;
-    this._render();
   }
 }
 
