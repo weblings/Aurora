@@ -171,4 +171,7 @@ namespace Aurora::Runtime
 
   const std::string& Config::audioTargetSinkName() const { return m_data.audioTargetSinkName; }
   void Config::setAudioTargetSinkName(std::string name) { m_data.audioTargetSinkName = std::move(name); }
+
+  bool Config::nuxCompleted() const { return m_data.nuxCompleted; }
+  void Config::setNuxCompleted(bool completed) { m_data.nuxCompleted = completed; }
 }

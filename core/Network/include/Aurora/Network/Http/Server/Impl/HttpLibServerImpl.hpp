@@ -64,6 +64,16 @@ namespace Aurora::Network::Http::Server
         m_service->set_mount_point("/", staticDir->string());
       }
 
+      // No caching, ever -- this is a local dev/single-user daemon serving
+      // files straight off disk; a stale browser-cached WebUI file silently
+      // outliving an edit costs far more than re-fetching a few small files
+      // every load. Applies to every response (static and API alike) via
+      // cpp-httplib's shared write_response_core path, confirmed by reading
+      // its real source, not assumed.
+      m_service->set_post_routing_handler([](const httplib::Request&, httplib::Response& res){
+        res.set_header("Cache-Control", "no-store");
+      });
+
       for(const auto& route : routes){
         auto wrapped = _wrapHandler(route.handler, route.method);
         switch(route.method)

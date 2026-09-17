@@ -62,6 +62,16 @@ namespace Aurora::Runtime
     // "no device name needed" experience as Windows' WASAPI loopback.
     // Set explicitly to override (e.g. a non-default sink).
     std::string audioTargetSinkName;
+
+    // Set once the WebUI's onboarding wizard has ever reached the
+    // Dashboard -- lets a later boot skip re-deriving "what's still
+    // missing" from several live signals (bridge pairing, entertainment
+    // config, mode/device, zone mapping) and go straight there. The
+    // Dashboard itself already has a real fix-it path for each of those
+    // (Bridge row's "Change bridge", live mode/device controls, zone
+    // toggles), so a later gap doesn't strand anyone -- see
+    // Analysis/WebUI/WebUI_Fixes.md's Pass 2 section.
+    bool nuxCompleted{false};
   };
 
 
@@ -137,6 +147,9 @@ namespace Aurora::Runtime
 
     const std::string& audioTargetSinkName() const;
     void setAudioTargetSinkName(std::string name);
+
+    bool nuxCompleted() const;
+    void setNuxCompleted(bool completed);
 
   private:
     ConfigData m_data;

@@ -139,13 +139,19 @@ Aurora's own module boundaries instead of RockyRoad's. `rendering-apis.md` vs.
   second, previously-dormant bug it had been silently absorbing (a
   premature "windows" video default), plus a live retest of an
   already-shipped fix (`HueOutput::shutdown(isReplacement)`) surfacing the
-  same symptom class from a second, untouched call site; and independently-
+  same symptom class from a second, untouched call site; independently-
   added diagnostic timers each measuring elapsed time from their own
   private starting point, so a direct comparison between two genuinely
   accurate durations (a request handler's total time vs. an object's own
   time-since-construction) produced a real but meaningless number -- fixed
   by switching every relative timer to one shared wall-clock `_dbgMs()`
-  helper so log lines land on the same timeline.
+  helper so log lines land on the same timeline; and a dev server setting
+  no `Cache-Control` header on any response, letting a browser keep
+  executing a stale WebUI `.js` file indefinitely after an edit (a native
+  app relaunch does nothing to a browser's own client-side cache) --
+  produced two false "the fix didn't work" retests, including one already
+  marked done in a doc before the second retest came back, before the
+  actual cause (not the code) was suspected.
 - [`rendering-apis.md`](rendering-apis.md) — third-party Three.js/GLTFLoader/Blender-export
   facts: `RectAreaLight` having no `distance`/`decay` at all (coupling brightness to reach),
   Blender's glTF export dropping light data unless "Punctual Lights" is checked (and never
@@ -322,7 +328,12 @@ Aurora's own module boundaries instead of RockyRoad's. `rendering-apis.md` vs.
   react" bug through several rounds of cross-repo timing/DTLS
   instrumentation, none of which could have found the real gap, since the
   screen was working exactly as built and simply didn't match what was
-  expected of it.
+  expected of it; and a UI showing a resolved default value as "selected"
+  looking identical to one that actually persisted it, recurring
+  independently in two components (`EntertainmentConfigSelect`'s
+  single-config display label, `ZoneMappingScreen`'s never-edited zone
+  defaults) before being fixed structurally (a single `nuxCompleted` flag)
+  instead of patched a third time wherever it next turned up.
 
 ## Where a new lesson goes
 

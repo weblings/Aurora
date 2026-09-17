@@ -774,3 +774,39 @@ produce the reaction -- a screen can be functioning exactly as designed and
 still not match what a report assumes it should do, and that specific kind
 of gap never shows up in a log, no matter how much of the pipeline it
 covers.
+
+---
+
+## A UI that displays a resolved default value looks identical to one that has actually persisted it, and that gap can recur in more than one place before it's worth fixing structurally
+
+Chasing "the NUX lands back on an earlier onboarding screen after
+completing it and relaunching," the same shape of bug turned up twice,
+independently, in different components. First:
+`EntertainmentConfigSelect.mount()` renders no dropdown at exactly one
+entertainment config, showing a static "Using: `<name>`" label instead
+(via `getSelected()`'s own fallback to `configs[0]`) -- but the *only*
+thing that ever persisted a selection was that dropdown's own `onChange`,
+so the label looked exactly like a real, saved choice while nothing had
+actually been written. Fixing that surfaced the same shape again, one
+level up: `ZoneMappingScreen`'s Save button doesn't require or record any
+edit, so every zone's `everConfigured` flag stayed `false` forever for a
+user who found the crop defaults acceptable and never touched anything --
+`probeState()`'s `needsZoneMapping` check (deliberately requiring a real
+edit, not just a visit, so it can't be fooled by an unconfigured zone that
+merely exists) had no way to tell "the user is fine with the defaults"
+from "the user never got here." Two different components, same underlying
+mistake: treating "the UI is currently showing X as selected" as
+equivalent to "X has been persisted," when the former can be true from a
+fallback/default alone.
+
+**Fix:** patched the first occurrence locally (`EntertainmentConfigSelect.load()`
+now silently persists an unset default the moment it resolves one), but
+didn't chase the second one the same way -- added a single `Config::nuxCompleted`
+flag instead (see `Analysis/WebUI/WebUI_Fixes.md`'s writeup) once the
+second occurrence confirmed this wasn't a one-off. General principle: the
+first instance of "displayed but not persisted" is a local bug fix; the
+second instance of the *same shape*, in an unrelated component, is a
+signal to stop patching occurrences and fix the class instead -- in this
+case, by no longer needing any individual "was this specific thing ever
+touched" signal to be right at all once the wizard has been through once,
+rather than trying to make every such signal in the app correct.

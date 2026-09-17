@@ -20,7 +20,7 @@ isn't the same as "actually usable."
 
 ### Open tasks
 
-- [ ] **Menu redesign.** Dashboard's four separate screens (Bridge/Capture
+- [x] **Menu redesign.** Dashboard's four separate screens (Bridge/Capture
   source/Zones/Tuning) collapse into an accordion under one persistent
   Dashboard, informed directly by huenicorn's own single-page priority
   ordering (canvas+gamma, then entertainment config, then channel list all
@@ -398,9 +398,9 @@ after its build order closed out.
   immediately and the lights reacted normally. `AudioOrchestrator::update()`'s
   early-return-on-empty-buffer behavior is correct as designed. Diagnostic
   logging left in place (cheap, and useful if this class of report recurs).
-- [ ] **Capture source (Mode+Device) screen — neither video nor audio
-  visibly activates until Zone Mapping loads.** Still open — an earlier
-  pass at this wrongly concluded it was fully explained by DTLS handshake
+- [x] **Fixed: Capture source (Mode+Device) screen — neither video nor
+  audio visibly activated until Zone Mapping loads.** An earlier pass at
+  this wrongly concluded it was fully explained by DTLS handshake
   latency alone; corrected after the user pointed out the report is a
   precise causal tie to Zone Mapping's own load, not vague background
   timing. Re-examined with real numbers instead of assuming: comparing the
@@ -434,9 +434,72 @@ after its build order closed out.
   `Orchestrator::update()` gained the exact same instrumentation
   `AudioOrchestrator::update()` already had (first `update()` call,
   throttled "no frame data yet," first real frame) so video's own
-  first-frame latency can finally be measured instead of assumed. Not
-  concluded yet -- needs one more live capture read straight off the new
-  timestamps.
+  first-frame latency can finally be measured instead of assumed.
+  **Actually root-caused, and it wasn't the timing chain above at all:**
+  `ModeDeviceScreen.js` used a deferred-apply model -- clicking Video/Audio
+  only updated local UI state, and nothing was sent to the backend until
+  Continue was clicked. Landing on the screen genuinely didn't connect
+  anything, and clicking Audio genuinely didn't start anything, by design,
+  not by any latency in the reload/DTLS/capture chain (all of which was
+  real, correct instrumentation work, just aimed at the wrong layer -- see
+  `Analysis/lessons/web-ui.md`'s new entry on this). **Fix:** rewrote
+  `ModeDeviceScreen.js` to apply mode/device changes live -- on landing (if
+  nothing valid is configured yet) and on every mode click, matching the
+  live-apply model `DashboardScreen`'s own device controls already used
+  elsewhere in this codebase. Continue is now pure navigation. All the
+  `[hue-mode-switch]` diagnostic logging above was reverted afterward
+  (throwaway instrumentation, not meant to ship) -- kept here only as the
+  record of what was tried and why it didn't find the real cause.
+- [x] **Fixed and confirmed live: after completing the NUX, closing and
+  relaunching the app landed back on an earlier onboarding screen instead
+  of the Dashboard.** Went through three layers before actually resolving,
+  in order:
+  1. **First real bug, in `EntertainmentConfigSelect`:** `probeState()`'s
+     `needsEntertainmentZoneSelect` is purely `hasHue && connectionConfigured
+     && !entertainmentConfigurationId`. `EntertainmentConfigSelect.mount()`
+     renders no dropdown at all when there's exactly one entertainment
+     configuration (the common case), and its dropdown's `onChange` was the
+     *only* thing that ever called `POST /api/hue/connection` to persist a
+     selection -- so the screen showed "Using: `<name>`" purely for display
+     (`getSelected()`'s own fallback to `configs[0]`) while never actually
+     persisting it. Worked fine in-session regardless (`HueOutput`'s own
+     empty-id fallback picks the only config -- see `output.md`), but
+     `entertainmentConfigurationId` stayed `""` forever, re-triggering this
+     exact screen on every relaunch. **Fix:** `EntertainmentConfigSelect.load()`
+     now silently persists `configs[0].id` right after fetching whenever
+     nothing was already selected. This was first marked fixed here
+     *before* live verification -- caught by the user, corrected, called
+     out as its own process mistake.
+  2. **Second real bug, confirmed after retesting:** even with (1) fixed,
+     a user with *multiple* entertainment configs who never opens the
+     dropdown hits the identical gap a different way --
+     `Dropdown._commit()` only fires on an actual click/Enter/Space/Tab
+     inside an opened menu, never just from a pre-highlighted default
+     sitting there unclicked (confirmed by reading `Dropdown.js` directly).
+     Not fixed as a separate patch -- subsumed by fix 3 below, since it
+     covers this class of gap generally instead of per-screen.
+  3. **Structural fix:** rather than keep patching individual "displayed
+     but not persisted" gaps as they're found (zone mapping's own
+     `everConfigured` has the exact same shape -- confirmed live, every
+     zone stayed `everConfigured: false` forever when defaults were never
+     touched, since Zone Mapping's Save button doesn't require or record
+     any edit), added a single persisted `Config::nuxCompleted` bool.
+     `bootstrap()` checks it first and skips `probeState()`'s whole
+     multi-signal derivation once true; `toDashboard()` sets it every time
+     it's reached (idempotent). Deliberately not a worry for staleness the
+     way a naive "done" flag usually is here, because the Dashboard already
+     has a real fix-it path for everything it could paper over (Bridge
+     row's "Change bridge", live mode/device controls, zone toggles).
+  4. **What actually caused two rounds of "the fix isn't working":**
+     `HttpServer` set no `Cache-Control` header at all on any response, so
+     a browser could keep executing stale WebUI JS indefinitely after an
+     edit, with nothing forcing a re-fetch -- confirmed exactly this
+     happened (a hard refresh mid-session visibly advanced past a screen
+     that a plain relaunch hadn't). **Fix:** `set_post_routing_handler`
+     now adds `Cache-Control: no-store` to every response, static and API
+     alike (verified against cpp-httplib's real source that this hook
+     covers both). Confirmed live: `nuxCompleted` persisted on the very
+     next test, and kept working once the cache was genuinely clear.
 - [ ] **Video capture path — colors intermittently wrong for a frame or
   two, no clear trigger.** Reported live; user confirmed this predates
   both the `WindowsGrabber` staging-texture fix above and, on further
@@ -446,3 +509,13 @@ after its build order closed out.
   temporary per-frame diagnostics to `WindowsGrabber::grabFrameSubsample`
   (e.g. logging when `AcquireNextFrame` returns anything other than a
   fresh real frame) once it's worth the time.
+
+### Polish 2.5 Pass
+- [ ] Video Mapping auto does screen division assignment. Button gets added to assign auto
+- [ ] Hue bridge IP address automatically gets found on page start (don't need to wait for user to hit button)
+- [ ] Maybe integrate hit bridge button to that screen if it works well enough
+- [ ] Add "drumroll please" above Video and Audio toggles while it's loading. Clean up copy
+- [ ] Accordian menus need visual distinction
+- [ ] Zone Mapping general polish
+- [ ] NUX back and forward logic
+- [ ] SVG and button polish

@@ -59,6 +59,7 @@ namespace Aurora::Runtime
         {"audioBrightnessFloor", config.audioBrightnessFloor()},
         {"audioCentroidRangeHz", config.audioCentroidRangeHz()},
         {"audioBrightnessSmoothTime", config.audioBrightnessSmoothTime()},
+        {"nuxCompleted", config.nuxCompleted()},
       };
     }
 
@@ -96,6 +97,7 @@ namespace Aurora::Runtime
       if(body.contains("audioBrightnessFloor")) config.setAudioBrightnessFloor(body.at("audioBrightnessFloor").get<float>());
       if(body.contains("audioCentroidRangeHz")) config.setAudioCentroidRangeHz(body.at("audioCentroidRangeHz").get<float>());
       if(body.contains("audioBrightnessSmoothTime")) config.setAudioBrightnessSmoothTime(body.at("audioBrightnessSmoothTime").get<float>());
+      if(body.contains("nuxCompleted")) config.setNuxCompleted(body.at("nuxCompleted").get<bool>());
     }
   }
 

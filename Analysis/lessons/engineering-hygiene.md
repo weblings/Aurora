@@ -1121,3 +1121,34 @@ them and switch to one shared clock (wall-clock timestamps on every line is
 the simplest form) -- the risk isn't that any one timer lies, it's that
 comparing two truthful timers with different starting points looks exactly
 like a valid comparison until it's manually unpicked.
+
+---
+
+## A dev server with no `Cache-Control` header on any response can make a genuinely correct fix look like it didn't work, indistinguishable from a real bug
+
+Fixing the "lands on an earlier onboarding screen after relaunch" report
+took three real, independently-necessary code fixes -- and along the way,
+two of the live retests that were supposed to confirm each fix instead
+"failed," including one already (wrongly) marked done in a doc before that
+retest came back. Both false failures had the same cause, only found once
+suspected directly: `HttpServer` (`HttpLibServerImpl.hpp`) set no
+`Cache-Control` header on any response at all. Aurora-WebUI's frontend is
+served straight from disk with no bundler, so every edit ought to be live
+on the next request -- but with no caching directive either way, a browser
+is free to keep serving an already-cached copy of a `.js` file from before
+the edit, and a relaunch of the *native app* does nothing to that cache,
+since it's entirely client-side and outlives the server process. A hard
+refresh mid-session visibly advanced past a screen a plain relaunch hadn't
+moments earlier -- the same code, the same backend, the only difference
+was which copy of the JS the browser happened to execute.
+
+**Fix:** `set_post_routing_handler` now adds `Cache-Control: no-store` to
+every response -- confirmed against cpp-httplib's real source
+(`write_response_core`) that this hook fires for static file responses and
+registered routes alike, not just one or the other. General principle: a
+local, single-user dev server serving files straight from disk should
+default to no caching at all, full stop -- the cost (re-fetching a handful
+of small files on every navigation) is negligible, and the alternative is
+a standing, silent source of "my fix isn't working" false alarms that look
+exactly like real bugs and can burn real debugging time before anyone
+thinks to suspect the browser's cache instead of the code.
