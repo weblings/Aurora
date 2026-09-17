@@ -273,7 +273,15 @@ Aurora's own module boundaries instead of RockyRoad's. `rendering-apis.md` vs.
   build-order plan's own testing defaulting to one verification phase at
   the end unless a predecessor's actually-successful per-step testing
   cadence (`WebUI_Design_1stPass.md`'s own real history, not just its
-  findings) is deliberately re-derived rather than assumed.
+  findings) is deliberately re-derived rather than assumed; a component
+  whose parent fully rebuilds its DOM on every render needing its fetch
+  and its draw split into two calls (`load()`/`mount()`), or it either
+  re-fetches needlessly on every unrelated re-render or goes stale
+  (`EntertainmentConfigSelect`'s extraction); and an `onChange`/`onSelect`
+  callback never firing during a component's own construction (an ordering
+  trap for any future caller that hasn't stored the instance yet) --
+  `ZoneCanvas`'s resolved initial selection is read from a property
+  instead.
 
 ## Where a new lesson goes
 

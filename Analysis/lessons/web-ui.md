@@ -538,3 +538,56 @@ already completed phase N, check phase N's own demonstrated testing cadence
 specifically, not just its findings/lessons -- a plan drafted fresh,
 however well-designed otherwise, defaults to batching verification at the
 end unless a predecessor's better practice is deliberately carried forward.
+
+---
+
+## A component whose parent fully rebuilds its DOM on every render needs its fetch and its draw split into two calls, or it either re-fetches needlessly or goes stale
+
+Extracting `EntertainmentConfigSelect` out of `ZoneMappingScreen.js`
+(pass 2's Phase B, step 7), the natural first design bundled "fetch the
+config list" and "render the dropdown" into one `mount(container)` call,
+matching how `Dropdown` itself works. That breaks the moment the *caller*
+is considered: `ZoneMappingScreen._render()` wipes and rebuilds
+`.zm-body`'s entire `innerHTML` on every render (already true before this
+extraction, for reasons unrelated to this component), so a persistent
+`EntertainmentConfigSelect` instance would need re-mounting into a fresh
+container node on every one of those renders -- and a bundled
+fetch+render would silently re-fetch the bridge's config list every single
+time, including re-renders triggered by something that has nothing to do
+with entertainment configs at all (a zone-selection change, a patch
+failure banner).
+
+**Fix:** split the component's API into `load()` (fetch only, resolves the
+data) and `mount(container)` (draw only, from whatever `load()` already
+fetched, safe to call repeatedly with a fresh container). The caller fetches
+once and mounts as many times as its own re-render cadence requires.
+General principle: before bundling "get the data" and "show the data" into
+one method on a new component, check how often the *parent's* own render
+cycle will need to redraw it -- a component that looks simpler with one
+combined call can hide an accidental repeated side effect the moment its
+consumer's redraw frequency is higher than its data's actual staleness
+requires.
+
+---
+
+## An `onChange`/`onSelect` callback should never fire during a component's own construction
+
+`ZoneCanvas`'s constructor resolves an initial selected zone (falling back
+to the first zone when none is given, same "always a real selection" rule
+`EntertainmentConfigSelect` already uses) and was nearly wired to call its
+own `onSelect` callback for that resolved value before returning, so a
+sibling component could learn the initial selection without the caller
+having to separately read a property. Rejected: a callback firing before
+the constructor returns fires before the caller has anywhere to have
+stored the new instance yet, an ordering trap that's invisible until some
+future caller's callback closure tries to reference `this.zoneCanvas` and
+gets `undefined`.
+
+**Fix:** `onSelect` only fires on a later, genuinely-a-change event (a tag
+click, a dropdown pick) -- the caller reads `.selectedZoneId` directly
+right after construction for the initial value instead. General principle
+for any new component with a change-notification callback: a callback is
+for telling a caller about something that happened *after* they already
+have a live reference, never for the resolved value construction itself
+produced -- that belongs in a return value or a readable property, not a
+callback.
