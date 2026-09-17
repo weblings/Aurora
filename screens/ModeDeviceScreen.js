@@ -27,6 +27,7 @@
 // when "linux-audio" is the registered audio input -- Windows audio always
 // uses the default device and has no such field at all.
 import { renderTopBar } from '../topBar.js';
+import { renderNavFooter } from '../NavFooter.js';
 import { DeviceField, AUTO_MONITOR_VALUE } from '../DeviceField.js';
 
 export function pickVideoInputName(inputs, current) {
@@ -59,7 +60,6 @@ export class ModeDeviceScreen {
     this.selectedMonitorName = AUTO_MONITOR_VALUE;
     this.sinkName = '';
     this.showSinkField = false;
-    this.phase = 'edit'; // 'edit' | 'done'
     this.error = null;
     this.deviceField = null;
   }
@@ -69,11 +69,11 @@ export class ModeDeviceScreen {
     container.innerHTML = `
       <div class="top-bar-slot"></div>
       <div class="md-body"></div>
+      <div class="nav-footer-slot"></div>
     `;
     renderTopBar(container.querySelector('.top-bar-slot'), {
       title: 'Capture source',
-      showBack: this.showBack,
-      onBack: () => this.onBack(),
+      showBack: false,
       onSettings: () => this.app.openSettings(),
     });
 
@@ -120,19 +120,9 @@ export class ModeDeviceScreen {
 
   _render() {
     const body = this.container.querySelector('.md-body');
+    const footer = this.container.querySelector('.nav-footer-slot');
     this.deviceField?.destroy();
     this.deviceField = null;
-
-    if (this.phase === 'done') {
-      body.innerHTML = `
-        <p class="status-text status-text-success">✓ Saved.</p>
-        <div class="md-actions">
-          <button type="button" class="btn btn-primary" id="md-continue">Continue</button>
-        </div>
-      `;
-      body.querySelector('#md-continue').addEventListener('click', () => this.onComplete());
-      return;
-    }
 
     const toggleHtml = this.hasAudio ? `
       <div class="segmented" role="group" aria-label="Capture mode">
@@ -147,9 +137,6 @@ export class ModeDeviceScreen {
       ${toggleHtml}
       <div class="md-device"></div>
       ${errorHtml}
-      <div class="md-actions">
-        <button type="button" class="btn btn-primary" id="md-done">Done</button>
-      </div>
     `;
 
     if (this.hasAudio) {
@@ -167,9 +154,17 @@ export class ModeDeviceScreen {
       onChange: (patch) => Object.assign(this, patch),
     });
 
-    body.querySelector('#md-done').addEventListener('click', (e) => this._save(e.currentTarget));
+    renderNavFooter(footer, {
+      showBack: this.showBack,
+      onBack: () => this.onBack(),
+      onContinue: (e) => this._save(e.currentTarget),
+    });
   }
 
+  // Saves and goes straight to whatever comes next (Zone Mapping during
+  // onboarding, the Dashboard's own re-render elsewhere) -- no separate
+  // "Saved" phase to click through, same simplification
+  // OutputConnectScreen's CONNECTED-state redesign already made.
   async _save(button) {
     button.disabled = true;
     this.error = null;
@@ -204,8 +199,7 @@ export class ModeDeviceScreen {
         return;
       }
 
-      this.phase = 'done';
-      this._render();
+      this.onComplete();
     } catch {
       this.error = "Couldn't reach the daemon.";
       button.disabled = false;
