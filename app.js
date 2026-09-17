@@ -34,7 +34,7 @@ function renderUnreachable() {
   });
 }
 
-// What the Navigation model (Analysis/WebUIAnalysis.md) calls "any
+// What the Navigation model (Analysis/WebUI/WebUI_Design_1stPass.md) calls "any
 // missing/invalid" vs. "all valid" -- evaluated fresh every time a stage
 // transition needs it, since an earlier onboarding step (e.g. Mode+Device)
 // can change what a later one (Zone Mapping) needs. Deliberately re-fetches

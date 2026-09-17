@@ -1,7 +1,7 @@
 // Dashboard, filled in: the quick mode toggle and Stop button now sit above
 // the nav rows the shell already had (step 9), now that /api/config's mode
 // switch (step 12) and /api/stop (step 16) both exist for real. See
-// Analysis/WebUIAnalysis.md's Dashboard section and build-order step 17 --
+// Analysis/WebUI/WebUI_Design_1stPass.md's Dashboard section and build-order step 17 --
 // the natural last piece, since everything it links to and controls needed
 // to already exist first.
 //

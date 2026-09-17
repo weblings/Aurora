@@ -1,6 +1,6 @@
 // Tuning / Settings: exposes whichever mode's numeric knobs are currently
 // active -- ~4 for video, ~11 for audio -- as a single scrollable column
-// with plain section headings, not tabs (see Analysis/WebUIAnalysis.md's
+// with plain section headings, not tabs (see Analysis/WebUI/WebUI_Design_1stPass.md's
 // Tuning section: at this field count, tabs solve a scrolling problem that
 // doesn't really exist, for a real interaction cost). Build-order step 13.
 //

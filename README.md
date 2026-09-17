@@ -6,7 +6,7 @@ Plain static HTML/CSS/JS, no build step -- same convention as
 [Aurora-Demo-Web](../Aurora-Demo-Web).
 
 Screen/flow design and component-reuse research live in
-[`Aurora/Analysis/WebUIAnalysis.md`](../Aurora/Analysis/WebUIAnalysis.md), not
+[`Aurora/Analysis/WebUI/WebUI_Design_1stPass.md`](../Aurora/Analysis/WebUI/WebUI_Design_1stPass.md), not
 here.
 
 Design informed by patterns in huenicorn's own `webroot/`
@@ -16,7 +16,7 @@ desktop token system, so this repo carries the same license forward -- see
 
 ## Status
 
-Design tokens only so far (`styles/tokens.css`) -- see `WebUIAnalysis.md`'s
+Design tokens only so far (`styles/tokens.css`) -- see `WebUI/WebUI_Design_1stPass.md`'s
 build-order step 6. No screens exist yet.
 
 ## Reserved path

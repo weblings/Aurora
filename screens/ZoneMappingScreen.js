@@ -3,7 +3,7 @@
 // selected, and a separate active/inactive toggle list below, decoupled
 // from shape editing entirely. Ported from huenicorn's real `ScreenWidget.js`
 // (`Handle`/`Rectangle` classes, read in full -- see
-// Analysis/WebUIAnalysis.md's Zone Mapping section and build-order step 15),
+// Analysis/WebUI/WebUI_Design_1stPass.md's Zone Mapping section and build-order step 15),
 // with its two identified real gaps closed: Pointer Events instead of
 // mouse-only events (touch support), and a native `<input type="range">`
 // gamma slider instead of a second hand-rolled SVG drag control. A third
@@ -17,7 +17,7 @@
 //
 // Active/inactive is a flat toggle list, not huenicorn's two-column
 // drag-and-drop -- Aurora's zone count is fixed, not an open-ended
-// bridge-light membership problem. See WebUIManualTweaks.md's Zone Mapping
+// bridge-light membership problem. See WebUI/WebUI_Fixes.md's Zone Mapping
 // follow-up section for why this replaced the old on-canvas checkbox.
 //
 // The header's own "Save" button does not gate persistence -- every edit
@@ -31,7 +31,7 @@
 // Entertainment-config picker (above the canvas, matching huenicorn's own
 // real WebUI.js layout -- its equivalent dropdown lives on the same main
 // screen as its zone/channel mapping, not buried in setup). Added as a
-// WebUIManualTweaks.md follow-up: Output Connect's own pairing wizard had
+// WebUI/WebUI_Fixes.md follow-up: Output Connect's own pairing wizard had
 // no path back to this picker without redoing physical pairing, even with
 // valid credentials already saved. Reuses the already-persisted
 // bridgeAddress/username server-side (PUT /api/hue/entertainment-
@@ -172,7 +172,7 @@ export class ZoneMappingScreen {
     }
 
     // Always a real selection once any zone exists -- falls back to the
-    // first zone rather than leaving nothing selected (WebUIManualTweaks.md
+    // first zone rather than leaving nothing selected (WebUI/WebUI_Fixes.md
     // item 5), same "always shows a value" model the entertainment dropdown
     // already uses.
     const selected = this.zones.find((z) => z.zoneId === this.selectedZoneId) ?? this.zones[0];
@@ -261,7 +261,7 @@ export class ZoneMappingScreen {
     // Selected zone paints last (on top, stable sort keeps the rest in
     // order) so picking it from the dropdown always brings its shape and
     // handles within reach, even when another zone's rect covers the same
-    // region -- see WebUIManualTweaks.md's Zone Mapping follow-up section.
+    // region -- see WebUI/WebUI_Fixes.md's Zone Mapping follow-up section.
     const ordered = [...this.zones].sort((a, b) => (a.zoneId === this.selectedZoneId ? 1 : 0) - (b.zoneId === this.selectedZoneId ? 1 : 0));
 
     for (const zone of ordered) {
@@ -363,7 +363,7 @@ export class ZoneMappingScreen {
     })));
   }
 
-  // Decoupled from shape editing entirely (WebUIManualTweaks.md's Zone
+  // Decoupled from shape editing entirely (WebUI/WebUI_Fixes.md's Zone
   // Mapping follow-up): a flat toggle list, not tied to which zone the
   // dropdown/canvas currently has selected, and not huenicorn's two-column
   // drag-and-drop, which solves a different problem Aurora doesn't have.

@@ -1,5 +1,5 @@
 // Shared top-bar renderer -- the one reusable piece enforcing "one top bar
-// formula, everywhere" structurally (see Analysis/WebUIAnalysis.md's Shell
+// formula, everywhere" structurally (see Analysis/WebUI/WebUI_Design_1stPass.md's Shell
 // conventions) instead of leaving every screen to copy the markup by hand.
 //
 // options:

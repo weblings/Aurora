@@ -1,6 +1,6 @@
 // Custom trigger+menu dropdown, ported from RockyRoad's own Dropdown.ts --
 // kept deliberately over a native <select> for the same WebXR/touch reasons
-// RockyRoad keeps it (see Analysis/WebUIAnalysis.md), which means inheriting
+// RockyRoad keeps it (see Analysis/WebUI/WebUI_Design_1stPass.md), which means inheriting
 // the ARIA/keyboard work a native <select> gets for free. Implements the
 // WAI-ARIA APG "Collapsible Dropdown Listbox" pattern (verified against
 // https://www.w3.org/WAI/ARIA/apg/patterns/listbox/examples/listbox-collapsible/,
@@ -30,7 +30,7 @@ export class Dropdown {
   // fill: the trigger fills its container's width with the chevron pushed to
   // the far edge, instead of hugging its own content -- needed for the
   // full-width dropdowns shown on constrained layouts throughout
-  // Analysis/WebUIAnalysis.md's screen designs.
+  // Analysis/WebUI/WebUI_Design_1stPass.md's screen designs.
   constructor(container, initialLabel, onSelect, { labelId = null, fill = false } = {}) {
     const id = `dropdown-${_nextId++}`;
     this._onSelect = onSelect;

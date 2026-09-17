@@ -1,6 +1,6 @@
 // Mode + Device Select: audio/video toggle (shown only when both are
 // compiled in), then the concrete device within that mode. See
-// Analysis/WebUIAnalysis.md's Mode+Device Select section and build-order
+// Analysis/WebUI/WebUI_Design_1stPass.md's Mode+Device Select section and build-order
 // step 12.
 //
 // Same onComplete-callback DI shape as OutputConnectScreen: the caller
@@ -22,7 +22,7 @@
 // that case and says so, rather than pretending it has a real list.
 //
 // Audio has no sink-listing endpoint yet (a documented backend gap, see
-// step 11's writeup in WebUIAnalysis.md). Rather than a fake dropdown, this
+// step 11's writeup in WebUI/WebUI_Design_1stPass.md). Rather than a fake dropdown, this
 // offers a plain optional text field for `audioTargetSinkName`, shown only
 // when "linux-audio" is the registered audio input -- Windows audio always
 // uses the default device and has no such field at all.
