@@ -1,5 +1,6 @@
 #include <Aurora/Input/Windows/WindowsGrabber.hpp>
 
+#include <iostream>
 #include <stdexcept>
 
 #include <windows.h>
@@ -257,6 +258,20 @@ namespace Aurora::Input::Windows
       throw std::runtime_error("WindowsGrabber: unexpected DXGI_FORMAT " + std::to_string(static_cast<int>(desc.Format)));
     }
 
+    if(m_stagingTexture){
+      // The live frame's own size/format can change after the staging
+      // texture was first created (display-mode change, DPI change, a
+      // monitor reporting a different mode) -- copying a differently-sized
+      // frame into a stale-sized staging texture is what the RowPitch guard
+      // below exists to catch, but recreating it here avoids hitting that
+      // path on every subsequent frame once it happens once.
+      D3D11_TEXTURE2D_DESC existingStagingDesc;
+      m_stagingTexture->GetDesc(&existingStagingDesc);
+      if(existingStagingDesc.Width != desc.Width || existingStagingDesc.Height != desc.Height || existingStagingDesc.Format != desc.Format){
+        m_stagingTexture.Reset();
+      }
+    }
+
     if(!m_stagingTexture){
       D3D11_TEXTURE2D_DESC stagingDesc = desc;
       stagingDesc.Usage = D3D11_USAGE_STAGING;
@@ -276,6 +291,29 @@ namespace Aurora::Input::Windows
     D3D11_MAPPED_SUBRESOURCE mapped;
     if(FAILED(m_context->Map(m_stagingTexture.Get(), 0, D3D11_MAP_READ, 0, &mapped))){
       m_duplication->ReleaseFrame();
+      imageData = m_lastFrame;
+      return;
+    }
+
+    // Belt-and-suspenders against the recreate-on-mismatch above: cv::Mat's
+    // row-step constructor asserts (crashing the whole process, not just
+    // this call) if RowPitch is ever smaller than this frame's own tightly
+    // packed row size. RowPitch legitimately *exceeding* that (GPU row-
+    // alignment padding) is expected and already handled by passing it as
+    // the explicit step -- only the smaller-than-expected direction is a
+    // real problem, and it should be structurally impossible after the
+    // check above, but a crash here takes the whole daemon down, so it's
+    // still worth failing soft instead of trusting that reasoning blindly.
+    size_t bytesPerPixel = isHdr ? 8 : 4; // CV_16FC4 / CV_8UC4
+    size_t minRowBytes = static_cast<size_t>(desc.Width) * bytesPerPixel;
+    if(mapped.RowPitch < minRowBytes){
+      std::cerr << "WindowsGrabber: staging texture RowPitch (" << mapped.RowPitch
+                << ") smaller than " << desc.Width << "x" << desc.Height
+                << (isHdr ? " HDR" : " SDR") << " frame's own row size (" << minRowBytes
+                << ") -- skipping this frame\n";
+      m_context->Unmap(m_stagingTexture.Get(), 0);
+      m_duplication->ReleaseFrame();
+      m_stagingTexture.Reset(); // force a fresh, correctly-sized one next tick
       imageData = m_lastFrame;
       return;
     }
