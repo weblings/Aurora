@@ -741,3 +741,36 @@ principle: when a step makes previously-unread endpoint fields load-bearing
 for a new derived flag, grep every existing test fixture/mock for that same
 endpoint -- not just the new scenario being added -- for defaults that were
 only ever "accurate by coincidence" because nothing consumed them yet.
+
+---
+
+## A screen's own interaction model (when a selection actually takes effect) is a design decision that needs stating, not something a debugging session can reverse-engineer from behavior alone
+
+Live-testing reports across several sessions ("clicking Video/Audio on the
+capture-select screen doesn't do anything," "lights don't react until Zone
+Mapping loads") drove an extended diagnostic chain: cross-file wall-clock
+logging added across three repos, a DTLS handshake's own duration isolated
+and measured, `Orchestrator`/`AudioOrchestrator`'s silent empty-buffer/
+no-frame-yet early-return investigated. All of it was real, correct, and
+useful -- and all of it was downstream of the actual disconnect.
+`ModeDeviceScreen.js` was built with a deferred-apply model (nothing sent to
+the backend until Continue is clicked, deliberately, per its own header
+comment citing an earlier build step's simplification); the person testing
+it expected a live-apply model (Video connects the moment the screen loads,
+clicking Audio switches immediately) -- the same model `DashboardScreen`'s
+own equivalent control already uses elsewhere in this exact codebase. Both
+models are reasonable, both already existed somewhere in this project, and
+nothing in the code was broken -- the screen was doing precisely what it had
+been built to do. No amount of timing or protocol investigation could ever
+have found this, because the mismatch wasn't in any mechanism the logging
+could observe.
+
+**Fix:** implemented the live-apply model to match the intent, once the
+intent was actually stated in plain language. General principle: when a
+live-test report describes something "not reacting," check what the
+screen's own interaction contract actually promises (deferred-save vs.
+live-apply, in this case) before instrumenting the mechanism that would
+produce the reaction -- a screen can be functioning exactly as designed and
+still not match what a report assumes it should do, and that specific kind
+of gap never shows up in a log, no matter how much of the pipeline it
+covers.

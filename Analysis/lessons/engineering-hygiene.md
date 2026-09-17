@@ -1092,3 +1092,32 @@ mistaken -- grep for every other call site capable of producing the same
 class of failure (the same disruptive action, the same silently-overloaded
 default, the same never-registered state) before concluding the first fix
 missed nothing.
+
+---
+
+## Diagnostic timers added independently across files each measure elapsed time from their own private starting point, and comparing them directly produces a real but meaningless number
+
+Chasing a live "capture screen doesn't activate" report, timing logs were
+added incrementally, one call site at a time, as each new suspect surfaced:
+a `PUT /api/config` handler's own `steady_clock` start/end pair, then
+separately a `Streamer`'s own `steady_clock` timestamp captured at its
+construction. Comparing "handler took 1088ms total" against "first
+`streamChannels()` call, 3191ms after `Streamer` construction" and
+concluding the whole gap sat inside the handshake was wrong -- not because
+either number was inaccurate, but because they're durations from two
+different, uncoordinated zero-points (request start vs. mid-request object
+construction), and nothing about reading them side by side reveals that.
+The arithmetic needed to relate them correctly is exactly the kind of thing
+easy to get wrong once several such private timers exist across different
+files, since each one looks individually well-formed.
+
+**Fix:** replaced every relative `steady_clock` timer with one shared
+`_dbgMs()` helper (wall-clock milliseconds-since-epoch, duplicated per file
+since these were throwaway diagnostics not worth a shared header) so every
+log line lands on the same timeline and can be diffed directly, no mental
+reconstruction required. General principle: the moment a second independent
+relative timer joins a diagnostic session, stop trusting arithmetic between
+them and switch to one shared clock (wall-clock timestamps on every line is
+the simplest form) -- the risk isn't that any one timer lies, it's that
+comparing two truthful timers with different starting points looks exactly
+like a valid comparison until it's manually unpicked.

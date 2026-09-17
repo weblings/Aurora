@@ -139,7 +139,13 @@ Aurora's own module boundaries instead of RockyRoad's. `rendering-apis.md` vs.
   second, previously-dormant bug it had been silently absorbing (a
   premature "windows" video default), plus a live retest of an
   already-shipped fix (`HueOutput::shutdown(isReplacement)`) surfacing the
-  same symptom class from a second, untouched call site.
+  same symptom class from a second, untouched call site; and independently-
+  added diagnostic timers each measuring elapsed time from their own
+  private starting point, so a direct comparison between two genuinely
+  accurate durations (a request handler's total time vs. an object's own
+  time-since-construction) produced a real but meaningless number -- fixed
+  by switching every relative timer to one shared wall-clock `_dbgMs()`
+  helper so log lines land on the same timeline.
 - [`rendering-apis.md`](rendering-apis.md) — third-party Three.js/GLTFLoader/Blender-export
   facts: `RectAreaLight` having no `distance`/`decay` at all (coupling brightness to reach),
   Blender's glTF export dropping light data unless "Punctual Lights" is checked (and never
@@ -308,7 +314,15 @@ Aurora's own module boundaries instead of RockyRoad's. `rendering-apis.md` vs.
   the original had, not just its happy path -- moving entertainment-config
   selection out of `OutputConnectScreen` nearly dropped its "zero
   configurations found" handling entirely, since the new screen's own
-  design mockups were drawn around the normal cases and never mentioned it.
+  design mockups were drawn around the normal cases and never mentioned it;
+  and a screen's own interaction model (deferred-save-on-Continue vs.
+  live-apply-on-select) being a design decision that needs stating, not
+  something a debugging session can reverse-engineer from behavior --
+  `ModeDeviceScreen.js`'s deferred-apply model read as a "lights don't
+  react" bug through several rounds of cross-repo timing/DTLS
+  instrumentation, none of which could have found the real gap, since the
+  screen was working exactly as built and simply didn't match what was
+  expected of it.
 
 ## Where a new lesson goes
 

@@ -371,3 +371,78 @@ after its build order closed out.
   changing anything — this is a guess from reading the code, not a
   confirmed root cause, and the reload-ordering tradeoff it would touch
   was itself a deliberate choice for other outputs' sake.
+  **In progress:** temporary `[hue-mode-switch]` stderr logging added
+  (`ApiTools::setStreamingState`/`streamingActive`, both
+  `EntertainmentConfigurationSelector::selectEntertainmentConfiguration()`
+  call sites, `HueOutput::init`/`shutdown`, and `Streamer`'s previously-
+  swallowed `DtlsClient::init()` exception) to distinguish this hypothesis
+  from an alternate one found while reading the code for this: the second
+  `disableStreaming()` firing during the *new* instance's own `init()`
+  could itself be racing the new `Streamer`'s DTLS handshake for the same
+  entertainment config, causing the handshake to silently fail (swallowed
+  per this repo's own documented convention) rather than the bridge-level
+  stop simply outliving the switch. Needs a live mode-switch with the
+  daemon's stderr captured to tell these apart. **Live result:** both
+  transitions in a video->audio->video test fired the selector's
+  `disableStreaming()` cleanly (no errors), and the audio->video leg (done
+  from the Dashboard) was reported stable -- weakens this hypothesis, no
+  live failure caught yet. Logging left in place for the next repro.
+- [x] **Not a bug: "Audio mode never visibly engages."** Root-caused live
+  via the `[hue-mode-switch]` logging in `AudioOrchestrator::update()` and
+  `AudioGrabber`: the loopback device started fine (`sampleRate=48000`)
+  both times, but `AudioOrchestrator` correctly logged `no audio samples
+  yet` because nothing was actually playing through the default output
+  device at the time -- WASAPI loopback captures silence/nothing when
+  there's no active render session, not a bug in this repo. Confirmed on
+  retest: with audio actually playing, `first non-empty buffer` logged
+  immediately and the lights reacted normally. `AudioOrchestrator::update()`'s
+  early-return-on-empty-buffer behavior is correct as designed. Diagnostic
+  logging left in place (cheap, and useful if this class of report recurs).
+- [ ] **Capture source (Mode+Device) screen — neither video nor audio
+  visibly activates until Zone Mapping loads.** Still open — an earlier
+  pass at this wrongly concluded it was fully explained by DTLS handshake
+  latency alone; corrected after the user pointed out the report is a
+  precise causal tie to Zone Mapping's own load, not vague background
+  timing. Re-examined with real numbers instead of assuming: comparing the
+  `PUT /api/config handler took Xms total` log against `Streamer: first
+  streamChannels() call, Yms after construction` across three live
+  reloads, Y consistently exceeded X by seconds (2103ms, 3468ms, 485ms) --
+  meaning a real, separate, variable-length gap exists **after** the HTTP
+  request (and therefore the frontend's `await fetch()` and screen
+  transition) had already completed, on top of whatever the handshake
+  itself cost. Confirmed via `ModeDeviceScreen.js`: its Save handler does
+  `await fetch('/api/config', ...)` and only navigates to Zone Mapping
+  once that resolves -- so the handshake portion genuinely does block the
+  screen transition, but doesn't account for the whole delay. Found a
+  second, likely bigger contributor while re-reading `Orchestrator::update()`:
+  its own doc comment already says "No-ops if the input hasn't produced a
+  frame yet" -- the exact same silent-early-return shape as
+  `AudioOrchestrator::update()`'s empty-buffer case that explained the
+  (separate, now-closed) audio-silence report. If `WindowsGrabber`'s first
+  real captured frame is itself delayed (DXGI duplication cold-start,
+  desktop-duplication only delivering a frame on screen change, etc.),
+  `Orchestrator::update()` would silently no-op the same way `AudioOrchestrator`
+  did -- and this would apply to **audio's own pipeline too**, once its own
+  first-frame latency is measured, since both call the same `HueOutput::send()`.
+  **Added:** all `[hue-mode-switch]` logs across every file now share one
+  wall-clock timestamp (`[t=Xms]`, `_dbgMs()`) instead of each having its
+  own private relative clock, so the next capture can be read directly
+  without reconstructing offsets by hand (a mistake made in this same
+  investigation). Also added: `Streamer` now logs immediately before/after
+  the handshake call itself (isolating handshake duration precisely,
+  separate from everything else `HueOutput::init()` does), and
+  `Orchestrator::update()` gained the exact same instrumentation
+  `AudioOrchestrator::update()` already had (first `update()` call,
+  throttled "no frame data yet," first real frame) so video's own
+  first-frame latency can finally be measured instead of assumed. Not
+  concluded yet -- needs one more live capture read straight off the new
+  timestamps.
+- [ ] **Video capture path — colors intermittently wrong for a frame or
+  two, no clear trigger.** Reported live; user confirmed this predates
+  both the `WindowsGrabber` staging-texture fix above and, on further
+  recollection, wasn't present before the 2nd-pass work started — so it's
+  not explained by anything fixed so far. Deprioritized at the user's
+  request; no logging or investigation done yet. Revisit by adding
+  temporary per-frame diagnostics to `WindowsGrabber::grabFrameSubsample`
+  (e.g. logging when `AcquireNextFrame` returns anything other than a
+  fresh real frame) once it's worth the time.
