@@ -162,6 +162,20 @@ namespace
       const std::filesystem::path& configRoot
     )
     {
+      // Neither field ever set -- Mode+Device Select hasn't saved anything
+      // yet (onboarding still in progress). Previously masked by "no
+      // outputs available" always failing this early anyway (pairing alone
+      // couldn't make a reload succeed); once that's fixed, a reload right
+      // after pairing (Entertainment zone select's own connection save)
+      // would otherwise silently fall through to the "windows" video
+      // default below and start actually driving lights before the user
+      // ever confirmed a capture source. Returning null here (not
+      // throwing) is what PipelineHost::reload() already treats as an
+      // idle, non-error state -- see its own constructor comment.
+      if(config.activeInputName().empty() && config.activeAudioInputName().empty()){
+        return nullptr;
+      }
+
       auto pipeline = std::unique_ptr<Pipeline>(new Pipeline());
 
       std::vector<std::string> outputNames = config.activeOutputNames();
