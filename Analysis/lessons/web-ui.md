@@ -226,6 +226,25 @@ of the same class, a missing stylesheet `<link>`) can hide behind 100%
 passing tests indefinitely, surfacing only once something forces an actual
 render.
 
+Recurred once more, pass 2's step 17: `.toggle-switch`'s explicit
+`width`/`height` only take visual effect because every existing consumer
+places it inside `.toggle-row`, a `display: flex` container that
+blockifies it per the flexbox spec — a bare `<label>` is `display: inline`
+by default, where `width`/`height` are simply ignored. `ZoneActiveToggle.js`
+already shipped a second variant, `ZoneActiveToggleSingle`, months before
+step 17 gave it a real consumer with no `.toggle-row` wrapper (Zone
+Mapping's onboarding single-zone toggle) — caught only by reading
+`forms.css` directly and reasoning about `<label>`'s default `display`,
+since jsdom's assertions on `.checked`/DOM structure had no way to notice
+a control that would render at zero visual size. Fixed by giving
+`.zat-single-toggle` its own explicit `display: inline-block`. Directly
+relevant to Phase D (step 20): the accordion Dashboard rebuild moves
+several of these same components (`ZoneCanvas`, `EntertainmentConfigSelect`,
+`ZoneActiveToggle*`) into new top-tier/collapsed-section layout homes they
+weren't originally styled for — check each one's CSS against its *new*
+parent's display mode, not just against the DOM structure a jsdom test can
+already confirm is unchanged.
+
 ---
 
 ## A component's own test suite can pass fully while never actually testing "committing a different value changes what's displayed" -- a coverage gap, not a jsdom capability gap
@@ -649,3 +668,30 @@ doesn't announce itself for re-inclusion just because responsibility moved
 elsewhere. Ported the same message/"Check again" affordance into
 `EntertainmentZoneSelectScreen`'s own zero-configs branch, with Continue
 disabled since there's nothing valid to advance with.
+
+---
+
+## A shared test fixture's placeholder value for an unused field becomes load-bearing the moment new code starts reading that field, silently invalidating every scenario built on it
+
+`bootstrap_test.mjs`'s `baseMocks()` had returned `entertainmentConfigurationId:
+''` from `/api/hue/connection` since the field was first threaded through the
+mock -- accurate-enough at the time, since nothing in `app.js`'s `probeState()`
+read it yet. Wiring the new Entertainment zone select stage into the boot
+chain (pass 2 step 18) made `probeState()` read exactly that field for a new
+`needsEntertainmentZoneSelect` flag, and every existing scenario built on
+`baseMocks()`'s default -- including "everything already valid, boot straight
+to Dashboard" -- would have silently started showing the new onboarding
+screen, not because those scenarios' own intent changed, but because a value
+they never cared about had quietly become load-bearing underneath them. Same
+root shape as this file's `active`→presence-signal entry above (a design pass
+changing what an existing field means breaks a check nobody wrote down as
+depending on it), specialized to test fixtures: the dependency was on a
+mock's placeholder default, not on production code.
+
+**Fix:** updated `baseMocks()`'s default to a real config id (`'cfg1'`) so
+already-onboarded scenarios stay already-onboarded, and added dedicated
+scenarios that explicitly vary the field to exercise the new flag. General
+principle: when a step makes previously-unread endpoint fields load-bearing
+for a new derived flag, grep every existing test fixture/mock for that same
+endpoint -- not just the new scenario being added -- for defaults that were
+only ever "accurate by coincidence" because nothing consumed them yet.
