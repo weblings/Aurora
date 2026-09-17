@@ -23,7 +23,7 @@ export class DeviceField {
   _renderVideo(monitors, selectedMonitorName) {
     if (monitors.length === 0) {
       this.container.innerHTML = `
-        <p class="status-text">Auto (primary display) — a specific monitor can be chosen here once Video mode is running. Save, then reopen this screen to pick one.</p>
+        <p class="status-text">Auto (primary display) — a specific monitor can be chosen here once Video mode finishes connecting.</p>
       `;
       return;
     }

@@ -16,10 +16,10 @@
 // GET /api/monitors reflects only whatever the *live* pipeline actually
 // constructed (PipelineHost::listMonitors in each app's main.cpp) -- it
 // comes back empty whenever the daemon is currently running in audio mode,
-// since no video input exists yet to enumerate. Switching to Video here
-// can't show real monitor choices until after Done reloads the daemon into
-// video mode once; this screen offers a single "Auto (primary)" choice in
-// that case and says so, rather than pretending it has a real list.
+// since no video input exists yet to enumerate. Mode/device changes apply
+// live as soon as they're made (see _applyMode()), so switching to Video
+// here refetches monitors right after -- this screen offers a single
+// "Auto (primary)" choice only for the brief window before that resolves.
 //
 // Audio has no sink-listing endpoint yet (a documented backend gap, see
 // step 11's writeup in WebUI/WebUI_Design_1stPass.md). Rather than a fake dropdown, this
@@ -110,6 +110,18 @@ export class ModeDeviceScreen {
     }
 
     this._render();
+
+    // Connects the default/current mode immediately on landing, rather than
+    // waiting for Continue -- this screen used to defer everything to that
+    // click, so nothing ever actually reacted until the *next* screen loaded
+    // (see WebUI_Fixes.md Pass 2). Skipped if a valid mode is already
+    // applied (e.g. navigating back here) to avoid an unnecessary reconnect.
+    const modeAlreadyValid = this.mode === 'video'
+      ? this.inputs.includes(this.currentActiveInputName)
+      : this.audioInputs.includes(this.currentActiveAudioInputName);
+    if (!modeAlreadyValid) {
+      await this._applyMode();
+    }
   }
 
   unmount() {
@@ -130,17 +142,25 @@ export class ModeDeviceScreen {
       </div>
     ` : '';
 
+    // Zone Mapping is skipped entirely for Audio mode (probeState() in
+    // app.js only requires it for 'video') -- this just explains why, since
+    // otherwise a NUX user would wonder why they never see that step.
+    const audioNoteHtml = this.mode === 'audio'
+      ? `<p class="status-text">Zones react together in Audio mode — there's no per-zone mapping step.</p>`
+      : '';
+
     const errorHtml = this.error ? `<p class="status-text status-text-error">⚠ ${escapeHtml(this.error)}</p>` : '';
 
     body.innerHTML = `
       ${toggleHtml}
+      ${audioNoteHtml}
       <div class="md-device"></div>
       ${errorHtml}
     `;
 
     if (this.hasAudio) {
-      body.querySelector('#md-mode-video').addEventListener('click', () => { this.mode = 'video'; this._render(); });
-      body.querySelector('#md-mode-audio').addEventListener('click', () => { this.mode = 'audio'; this._render(); });
+      body.querySelector('#md-mode-video').addEventListener('click', () => this._switchMode('video'));
+      body.querySelector('#md-mode-audio').addEventListener('click', () => this._switchMode('audio'));
     }
 
     const deviceSlot = body.querySelector('.md-device');
@@ -150,22 +170,36 @@ export class ModeDeviceScreen {
       selectedMonitorName: this.selectedMonitorName,
       showSinkField: this.showSinkField,
       sinkName: this.sinkName,
-      onChange: (patch) => Object.assign(this, patch),
+      onChange: (patch) => this._onDeviceFieldChange(patch),
     });
 
     renderNavFooter(footer, {
       showBack: this.showBack,
       onBack: () => this.onBack(),
-      onContinue: (e) => this._save(e.currentTarget),
+      onContinue: () => this.onComplete(),
     });
   }
 
-  // Saves and goes straight to whatever comes next (Zone Mapping during
-  // onboarding, the Dashboard's own re-render elsewhere) -- no separate
-  // "Saved" phase to click through, same simplification
-  // OutputConnectScreen's CONNECTED-state redesign already made.
-  async _save(button) {
-    button.disabled = true;
+  async _switchMode(mode) {
+    if (mode === this.mode) return;
+    this.mode = mode;
+    this._render();
+    await this._applyMode();
+  }
+
+  // Device field edits (monitor pick, sink name) apply live immediately,
+  // same convention DashboardScreen's own copy of this component uses.
+  async _onDeviceFieldChange(patch) {
+    Object.assign(this, patch);
+    await this._applyMode();
+  }
+
+  // Applies the currently selected mode/device live -- called on landing
+  // (if nothing valid is configured yet), on every mode click, and on every
+  // device field edit. Continue is now pure navigation, not a save action;
+  // WebUI_Fixes.md Pass 2 has the "nothing reacted until the next screen"
+  // report this replaces.
+  async _applyMode() {
     this.error = null;
 
     const patch = this.mode === 'video'
@@ -187,23 +221,27 @@ export class ModeDeviceScreen {
 
       if (!result.succeeded) {
         this.error = "Couldn't save capture settings.";
-        button.disabled = false;
-        this._render();
-        return;
-      }
-      if (result.reloadError) {
+      } else if (result.reloadError) {
         this.error = `Saved, but couldn't apply it live: ${result.reloadError}`;
-        button.disabled = false;
-        this._render();
-        return;
+      } else if (this.mode === 'video') {
+        this.currentActiveInputName = patch.activeInputName;
+        // Now resolvable within this same screen visit, since the mode just
+        // applied live instead of waiting for Continue -- refetch so a real
+        // monitor list can replace the "Auto (primary)" placeholder.
+        try {
+          const monitorsResult = await (await fetch('/api/monitors')).json();
+          this.monitors = monitorsResult.monitors ?? [];
+        } catch {
+          this.monitors = [];
+        }
+      } else {
+        this.currentActiveAudioInputName = patch.activeAudioInputName;
       }
-
-      this.onComplete();
     } catch {
       this.error = "Couldn't reach the daemon.";
-      button.disabled = false;
-      this._render();
     }
+
+    this._render();
   }
 }
 
