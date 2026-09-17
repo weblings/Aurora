@@ -131,6 +131,7 @@
 .zm-actions {
   display: flex;
   justify-content: flex-end;
+  gap: var(--aurora-space-3);
   margin-top: var(--aurora-space-6);
 }
 

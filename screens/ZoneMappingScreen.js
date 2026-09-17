@@ -45,6 +45,7 @@ import { renderTopBar } from '../topBar.js';
 import { EntertainmentConfigSelect } from '../EntertainmentConfigSelect.js';
 import { ZoneCanvas } from '../ZoneCanvas.js';
 import { ZoneActiveToggleList, ZoneActiveToggleSingle } from '../ZoneActiveToggle.js';
+import { screenDivisionRects } from '../ScreenDivision.js';
 
 export class ZoneMappingScreen {
   // onboarding: the wizard variant (Analysis/WebUI/WebUI_Design_2ndPass.md
@@ -124,6 +125,61 @@ export class ZoneMappingScreen {
       }
     }
 
+    // Auto-arrange the first time this screen is ever reached with no zone
+    // edit on record at all -- onboarding only, so a returning user's own
+    // deliberate arrangement (even one that happens to leave a zone at the
+    // full-screen default) is never silently overwritten on a later visit.
+    // Runs before the render below rather than after, so there's no visible
+    // flash of the raw all-overlapping defaults first.
+    if (this.onboarding && this.zones?.length > 0 && this.zones.every((z) => !z.everConfigured)) {
+      await this._autoDivide();
+    }
+
+    this._render();
+  }
+
+  // Assigns each active zone a non-overlapping screen region from
+  // ScreenDivision.js instead of leaving it at whatever it was -- used both
+  // for the onboarding auto-run above and the manual re-run button in
+  // _render(). Refetches the zone list afterward rather than trusting any
+  // individual PUT response's own list, since each one only reflects state
+  // as of its own request, not necessarily after every other concurrent PUT
+  // here has also landed.
+  async _autoDivide() {
+    const activeZones = this.zones.filter((z) => z.active).sort((a, b) => a.zoneId - b.zoneId);
+    if (activeZones.length === 0) {
+      this.error = 'No active zones to arrange.';
+      return;
+    }
+
+    this.error = null;
+    const rects = screenDivisionRects(activeZones.length);
+
+    try {
+      const results = await Promise.all(activeZones.map((zone, i) => (
+        fetch('/api/zones', {
+          method: 'PUT',
+          body: JSON.stringify({ zoneId: zone.zoneId, uvs: rects[i] }),
+        }).then((r) => r.json())
+      )));
+      if (results.some((r) => !r.succeeded)) {
+        this.error = "Couldn't save the auto-arranged zones.";
+      }
+    } catch {
+      this.error = "Couldn't reach the daemon.";
+    }
+
+    try {
+      const result = await (await fetch('/api/zones')).json();
+      this.zones = result.zones ?? this.zones;
+    } catch {
+      // Keep whatever this.zones already was -- the next load/render retries.
+    }
+  }
+
+  async _onAutoDivideClick(button) {
+    button.disabled = true;
+    await this._autoDivide();
     this._render();
   }
 
@@ -169,6 +225,7 @@ export class ZoneMappingScreen {
       </div>
       ${errorHtml}
       <div class="zm-actions">
+        <button type="button" class="btn btn-secondary" id="zm-auto-divide">Auto-arrange zones</button>
         <button type="button" class="btn btn-primary" id="zm-save">Save</button>
       </div>
     `;
@@ -194,6 +251,7 @@ export class ZoneMappingScreen {
     this.selectedZoneId = this.zoneCanvas.selectedZoneId;
     this._renderActiveSection();
 
+    body.querySelector('#zm-auto-divide').addEventListener('click', (e) => this._onAutoDivideClick(e.currentTarget));
     body.querySelector('#zm-save').addEventListener('click', () => this.onComplete());
   }
 
