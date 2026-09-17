@@ -13,6 +13,23 @@ entry on build-log doc density for why.
 
 ## Open tasks
 
+- [ ] **Menu redesign.** Dashboard's four separate screens (Bridge/Capture
+  source/Zones/Tuning) collapse into an accordion under one persistent
+  Dashboard, informed directly by huenicorn's own single-page priority
+  ordering (canvas+gamma, then entertainment config, then channel list all
+  always visible; only "Advanced settings" collapsed). Cuts the dead
+  Settings button/modal entirely — no real content ever lived there, and
+  huenicorn has no gear icon either. Folds Capture Source away completely
+  (its only real content, one device field, moves to a shared top-tier slot
+  that swaps between a monitor dropdown and a sink field depending on
+  mode). Also closes out the Back-button task above as part of the same
+  pass (`OutputConnectScreen`'s "already connected" state). See "Menu
+  redesign: accordion Dashboard" at the bottom of this doc for the full
+  design discussion, the tabs-vs-accordion comparison against
+  `RockyRoadImport`, and the final ASCII layouts (collapsed/expanded ×
+  video/audio). The onboarding sequence that leads into this menu is
+  worked out separately in "New user setup flow (NUX) redesign," further
+  down the same doc.
 - [x] **Fixed: fresh install — HTTP server never binds, and even once it did,
   onboarding couldn't reach Output Connect.** Two stacked bugs, not one:
   (1) `Pipeline::build()` threw when zero outputs were registered, before
@@ -68,14 +85,26 @@ entry on build-log doc density for why.
   `127.0.0.1` for that case; auto-launch the browser on first setup only,
   print a clickable link (not auto-launch) otherwise. Same bug existed
   identically in both `Aurora-App-Windows` and `Aurora-App-Linux`.
-- [ ] **Back navigates to the previous onboarding *step*, not "undo this
-  screen's own choice" — surprising, not necessarily wrong.** Hit while on
-  Tuning (audio mode, mistaken for the Dashboard) wanting to switch back to
-  video; Back instead returned to Output Connect (the actual previous
-  chain step), several steps earlier than expected. The toggle to actually
-  do what was wanted (Mode+Device Select's or the Dashboard's own
-  Video/Audio segment) was reachable without Back at all. Worth deciding
-  whether Back's semantics need to change or this is just discoverability.
+- [ ] **Back navigates to the previous onboarding *step*, which is correct,
+  but the step it lands on doesn't show what you already did there.**
+  Original report: Back from Tuning (audio mode, mistaken for the
+  Dashboard) returned to Output Connect, several steps earlier than
+  expected. Root cause found in a later pass: chain-level Back is already
+  correct as "literal previous screen in sequence" — the actual bug is that
+  `OutputConnectScreen` always mounts into its blank entry form regardless
+  of whether a connection is already saved, so going back after already
+  pairing looks and behaves like starting over (worse: continuing from
+  there re-runs `_register()` for real, silently demanding the physical
+  link button be pressed again). Fix: `OutputConnectScreen.mount()` checks
+  for an already-configured connection first and renders a "Connected to
+  `<address>` — Change bridge" status phase instead of jumping straight
+  into pairing; Back itself needs no change. Applies identically whether
+  reached via chain Back or via Dashboard's own Bridge row.
+  **Note:** this will likely get fixed as a byproduct of the NUX redo
+  rather than as its own standalone change — see "New user setup flow (NUX)
+  redesign" at the bottom of this doc, which redraws every onboarding
+  screen with a consistent Back/Continue footer and works through this
+  exact Connected-state question directly.
 - [x] **Fixed: clicking a Dropdown entry looked broken but wasn't.**
   `Dropdown._commit()` closed the menu and called the caller's `onSelect`,
   but never updated its own trigger label or `aria-selected` — the
@@ -153,6 +182,18 @@ entry on build-log doc density for why.
   `ApiTools.cpp`, and both apps' `main.cpp` (the `[pairing-debug]`
   `configRoot` line in `main.cpp` stays until the double-click crash is
   root-caused).
+- [ ] **Autodetect needs two clicks to work.** Root cause found, not yet
+  fixed: `HttpClient.cpp`'s `sendHttpRequest` hardcodes `CURLOPT_TIMEOUT` to
+  1 second for every outbound call this module makes, including
+  `ApiTools::autodetectedBridge()`'s call to `https://discovery.meethue.com/`
+  — a real internet round trip (DNS + TLS + response), unlike every other
+  caller of this function, which talks to a bridge on the local LAN. 1s is
+  short enough to plausibly miss on a cold connection and succeed on retry,
+  which is exactly the reported symptom. Already flagged once before in
+  `Analysis/lessons/engineering-hygiene.md`'s live-E2E-test entry, but only
+  worked around there in a *test's* wait time — never fixed at the source.
+  Fix: give this one call (only this one — local bridge calls should keep
+  failing fast) a longer timeout, e.g. 5s.
 
 ## Zone Mapping: channel selection & identification
 
@@ -205,3 +246,435 @@ not yet itemized here.
    old config format (checked, none found) — a fresh Aurora config always
    starts with every zone defaulted to the full-canvas rect, which is why
    they all rendered identically before any manual dragging.
+
+## Menu redesign: accordion Dashboard
+
+Follow-up to the "Menu redesign" task above. Prompted by hands-on nits after
+the Zone Mapping work above shipped: the Settings button does nothing on any
+page, Back/Forward availability is inconsistent screen to screen, and the
+Dashboard duplicates its own Video/Audio toggle inside Capture Source. Worked
+through as a design discussion (not yet implemented) — captured here in full
+since it changes what several existing screens are for, not just one bug.
+
+**Settings button/modal: cut entirely.** `app.openSettings()` just un-hides
+`#settings-overlay`, and `#settings-body` has always been empty
+(`<!-- Empty for now -->` in `index.html`). huenicorn has no gear icon or
+settings modal at all — its one "rare/global" affordance (Shut down) sits as
+a plain visible button, and version info is a plain footer, not behind
+anything. Matches the decision below to keep Stop visible rather than
+tucking it away.
+
+**Back-button confusion: not a sequencing bug.** Original nit: Back from
+Capture Source during onboarding dropped back to Output Connect's blank
+entry form, several steps earlier than expected, and continuing from there
+silently re-ran real bridge pairing (demanding the physical link button
+again). The chain's own Back semantics are already correct — literal
+"previous screen in sequence," no skip-logic needed. The actual bug is that
+`OutputConnectScreen.mount()` always renders its blank entry form regardless
+of whether a connection is already saved. Fix (tracked in the open task
+above): mount() checks saved state first and shows a "Connected to
+`<address>` — Change bridge" status view instead. Once that's true, Back
+naturally shows "what you already did there," matching the reference
+`WebUIManualTweaks.md` back-navigation task's own resolution.
+
+**Tabs vs. accordion — checked against `RockyRoadImport`, accordion wins.**
+`RockyRoadImport/SongConverter`'s tab bar switches between three genuinely
+independent, mutually-exclusive converters (Piano MIDI / Rocksmith 2014 /
+Guitar Pro) — pick exactly one, the others' state doesn't matter meanwhile.
+Aurora's Bridge/Capture/Zone/Tuning aren't alternatives, they're
+simultaneously-true facets of one running pipeline, and the valuable
+property worth keeping is glancing at all of their statuses at once
+("Bridge — Connected", "Zones — 4 active") — a tab bar would throw that
+away by only showing the selected tab's content. Also a real visual-overlap
+risk if a tab bar were ever added: `forms.css` already ports its
+section-divider styling from `RockyRoadImport`'s own `.tab-panel::before`,
+and `.segmented-btn` (Aurora's real Video/Audio toggle) already uses the
+same pill radius token `RockyRoadImport`'s `.tab-btn` uses — a real tab bar
+styled the same way would sit uncomfortably close to a control that (unlike
+a display-only tab) has real side effects (a live pipeline reload). Tabs
+would fit a genuinely mutually-exclusive future choice (e.g. picking between
+two different output brands, if a second one ever existed) — not this.
+
+**huenicorn's own single page gives a real, evidenced priority ladder** —
+checked directly against `huenicorn/webroot/index.html`, top to bottom:
+
+```
+1. Screen-partitioning canvas + gamma (biggest, first, no collapse)
+2. Entertainment configuration <select>                (always visible)
+3. Active / Inactive channel lists                       (always visible)
+4. ▸ Advanced settings (subsample, interpolation,        (COLLAPSED —
+     refresh rate, transition smoothing)                  the only one)
+5. Save profile / Shut down                              (always visible)
+6. Version info                                          (plain footer, no button)
+
+Bridge pairing: not on this page at all -- a fully separate setup.html,
+visited once, never linked back to afterward.
+```
+
+"Advanced settings" is, field for field, Aurora's own video-mode Tuning
+screen (subsample width, interpolation, refresh rate, transition smoothing)
+— independent validation that those four are the right ones to collapse.
+No gear icon anywhere on huenicorn's page either.
+
+**Capture Source folds away entirely.** Checked `ModeDeviceScreen.js`
+directly: beyond its own (redundant, already-cut) Video/Audio toggle, it
+has exactly one field — a monitor dropdown in video mode, a sink-name text
+input in audio mode (Linux only; Windows shows no field at all, just static
+text). That one field becomes a single top-tier slot that swaps in place
+depending on mode, matching the screen's own existing
+`_renderVideoDevice`/`_renderAudioDevice` dispatch — no new logic, just
+relocated. Once that's done, "Capture Source" has no unique content left to
+justify its own accordion section.
+
+**Zone active/inactive: compact control up top, full list demoted to
+Bridge.** The 7-item Zone Mapping plan above added an always-visible toggle
+row per zone below the canvas — revisited here because in an accordion
+layout, a list that grows with zone count sitting directly above a stack of
+one-line collapsed headers reads as lopsided (tall on top, thin below).
+Resolved as two controls, not one: a single active-bool tied to whichever
+zone the dropdown/canvas currently has selected (fixed height, right where
+you're already looking while shape-editing — this was the original
+pre-redesign idea, before the decoupled list was built), plus the full
+per-zone list relocated into the Bridge section for the rare "what's even in
+the mix" glance, reachable via a "See all zones →" link that expands the
+Bridge accordion and scrolls it into view
+(`element.scrollIntoView({behavior:'smooth', block:'start'})` — universally
+supported, degrades to an instant jump on the rare browser without smooth
+scroll, a non-issue for a LAN app opened in a current browser). Zone
+mapping/gamma editing for Audio mode is explicitly out of scope for this
+phase (a deliberate design decision, not a gap to track) even though
+`AudioFrameCompositor::composeAudioFrame` does honor both `zone.active` and
+`zone.gamma` today — `PipelineHost::listZones()`/`updateZone()` block reads
+and writes outright whenever `m_isAudioMode` is true, so neither is
+reachable from Audio mode regardless; not being pursued this round.
+
+**Final structure: three named areas instead of four** — Zone Mapping
+(video's top tier), Tuning (audio's top tier, its two most-nudged sliders
+promoted, the rest collapsed), Bridge (collapsed either way: connection
+status, re-pair action, and the full zone list). Entertainment config
+selection is mode-agnostic and stays visible in both, matching huenicorn's
+own unconditional placement.
+
+### Video mode — accordions collapsed
+
+```
+┌──────────────────────────────────────┐
+│ [Video]  [Audio]              [Stop] │
+├──────────────────────────────────────┤
+│ Monitor: [Auto (primary) ▾]          │  ← swapped-in device field
+│                                       │
+│  ┌─────────────────────────────────┐ │
+│  │       Zone Mapping canvas        │ │
+│  │   (drag rects + gamma slider)    │ │
+│  └─────────────────────────────────┘ │
+│  Entertainment config: [TV area ▾]   │
+│  Zone: [Zone 3 (Floor Lamp) ▾]  ●    │  ← single active bool, current zone
+│  See all zones →                     │  ← expands + scrolls to Bridge
+├──────────────────────────────────────┤
+│ ▸ Tuning                             │
+│ ▸ Bridge — Connected                 │
+└──────────────────────────────────────┘
+```
+
+### Video mode — accordions open
+
+```
+┌──────────────────────────────────────┐
+│ [Video]  [Audio]              [Stop] │
+├──────────────────────────────────────┤
+│ Monitor: [Auto (primary) ▾]          │
+│                                       │
+│  ┌─────────────────────────────────┐ │
+│  │       Zone Mapping canvas        │ │
+│  │   (drag rects + gamma slider)    │ │
+│  └─────────────────────────────────┘ │
+│  Entertainment config: [TV area ▾]   │
+│  Zone: [Zone 3 (Floor Lamp) ▾]  ●    │
+│  See all zones →                     │
+├──────────────────────────────────────┤
+│ ▾ Tuning                             │
+│    Refresh rate       [60      ]     │
+│    Subsample width    [0 (auto)]     │
+│    Interpolation      [Area ▾]       │
+│    Transition smoothing  ──●──       │
+├──────────────────────────────────────┤
+│ ▾ Bridge — Connected                 │
+│    Connected to 10.0.0.5             │
+│    [Change bridge]                   │
+│                                       │
+│    Zone 1 (Ceiling)     ●            │
+│    Zone 2 (Floor Lamp)  ○            │
+│    Zone 3 (Floor Lamp)  ●            │
+│    Zone 4 (Desk)        ●            │
+│    Zone 5 (TV back)     ○            │
+│    Zone 6 (Shelf)       ●            │
+└──────────────────────────────────────┘
+```
+
+### Audio mode — accordions collapsed
+
+```
+┌──────────────────────────────────────┐
+│ [Video]  [Audio]              [Stop] │
+├──────────────────────────────────────┤
+│ Audio device: [System default    ]   │  ← swapped-in device field
+│                                       │
+│  Entertainment config: [TV area ▾]   │
+│  Response speed      ──●──           │
+│  Brightness smooth   ──●──           │
+├──────────────────────────────────────┤
+│ ▸ Tuning                             │
+│ ▸ Bridge — Connected                 │
+└──────────────────────────────────────┘
+```
+
+### Audio mode — accordions open
+
+```
+┌──────────────────────────────────────┐
+│ [Video]  [Audio]              [Stop] │
+├──────────────────────────────────────┤
+│ Audio device: [System default    ]   │
+│                                       │
+│  Entertainment config: [TV area ▾]   │
+│  Response speed      ──●──           │
+│  Brightness smooth   ──●──           │
+├──────────────────────────────────────┤
+│ ▾ Tuning                             │
+│    Bounce smooth time    ──●──       │
+│    Drift base rate       ──●──       │
+│    Vibrancy saturation   ──●──       │
+│    Vibrancy value        ──●──       │
+│    Use fixed hue         [ ]         │
+│    Dynamism floor        ──●──       │
+│    Centroid strength     ──●──       │
+│    Reference RMS         ──●──       │
+│    Brightness floor      ──●──       │
+│    Centroid range        ──●──       │
+├──────────────────────────────────────┤
+│ ▾ Bridge — Connected                 │
+│    Connected to 10.0.0.5             │
+│    [Change bridge]                   │
+└──────────────────────────────────────┘
+```
+
+Note the asymmetry in the last diagram: Bridge's expanded content itself
+doesn't change per mode, but nothing in Audio mode's top tier links to it,
+since there's no per-zone control up there to link from (zone mapping is
+video-only, by the design decision above).
+
+## New user setup flow (NUX) redesign
+
+Follow-up to "Menu redesign" above. Once the steady-state menu becomes an
+accordion, the onboarding wizard that leads into it needed its own pass —
+worked through as a design discussion, not yet implemented.
+
+### Architecture: separate wizard screens (not a shared shell), built on shared components
+
+A tempting first idea was making the wizard *be* the accordion Dashboard
+itself, with sections unlocking in place as each prerequisite is met, so a
+new user learns the one real page instead of a throwaway sequence that
+hands off to a different-looking one at the end. That idea broke on a
+concrete example: the new "entertainment zone select" step (below) wants to
+show a plain, read-only list of every channel in the chosen config — but in
+the final accordion, that same information (as an editable list) lives
+inside the *collapsed* Bridge section, while the entertainment-config
+picker itself lives in Zone Mapping's *top tier*. The two pieces this one
+wizard step needs don't correspond to one contiguous region of the final
+page, so "reveal the final layout progressively" doesn't hold once this
+step exists.
+
+Resolution: keep the wizard as distinct full-page screens (as today, each
+with its own `showBack`/`onBack`/`onComplete` plumbing), but build the
+underlying pieces as small, independently-fetching, independently-mountable
+components rather than one monolithic render function per screen:
+
+- `EntertainmentConfigSelect` — the dropdown, fetch + render
+- `ChannelList` — new; a plain, non-interactive list of channel/light names
+  (no dropdown, no toggles) for the "here's what's in this config" moment
+- `ZoneCanvas` — drag rects + gamma slider
+- `ZoneActiveToggle` — single-bool variant (Zone Mapping's top tier) and
+  list variant (Bridge's collapsed "See all zones" content) over the same
+  underlying zone data
+- `DeviceField` — monitor dropdown / sink field, swapped by mode
+- `TuningSliderGroup` — a labeled group of sliders, reusable per section
+
+Each wizard screen and each accordion section composes whichever of these
+it needs, in whatever arrangement serves its own job — reuse happens at the
+component level, not by forcing one page/DOM to serve two very different
+purposes (a linear one-topic-at-a-time introduction vs. a dense
+always-visible hub).
+
+### Updated sequence
+
+```
+Bridge ──► Entertainment zone select ──► Mode + Device ──► Zone Mapping ──► Dashboard
+(pair)      (pick config, see channels,    (video/audio +     (customize        (already
+             Test Pulse to confirm)         device, reload    shape/gamma/      diagrammed
+                                             → lights react)   active)          above)
+```
+
+Splitting "which lights" (a simple, low-effort choice) from "how they're
+mapped" (the more involved dragging work) lets a new user see *something*
+working before being asked to do the fiddlier part — closer to "introduce
+one concept at a time" than the original chain, where nothing visibly
+reacted until after both Mode+Device *and* a full Zone Mapping pass.
+
+Every screen below uses one consistent nav footer — **Back, bottom-left;
+Continue, bottom-right** — on every screen, replacing reliance on the top
+bar's own back arrow, which was never consistently positioned or present
+screen to screen (the root complaint that started this whole redesign).
+
+### Screen 1 — Bridge
+
+```
+State: ENTRY (first run always starts here)      State: PAIRING
+┌──────────────────────────────────┐             ┌──────────────────────────────────┐
+│ Connect to your Hue Bridge       │             │ Connect to your Hue Bridge       │
+├──────────────────────────────────┤             ├──────────────────────────────────┤
+│ Bridge address                   │             │ Press the button on your bridge, │
+│ [192.168.1.42        ] [Autodetect]│             │ then continue.                    │
+│                                   │             │                                    │
+│                                   │             │ [Change address]                  │
+│                        [Continue]│(no Back --   │                        [Continue]│
+└──────────────────────────────────┘ first step)  └──────────────────────────────────┘
+```
+
+State: CONNECTED (never seen during a first run — reached via Back from
+Screen 2, or later via Dashboard's own Bridge row):
+
+```
+┌──────────────────────────────────┐
+│ Connect to your Hue Bridge       │
+├──────────────────────────────────┤
+│ Connected to 192.168.1.42        │
+│        [ Change bridge ]         │  ← the one real action here, kept
+│                                   │    visually separate from nav below
+│                                   │
+│[Back]                  [Continue]│
+└──────────────────────────────────┘
+```
+Back and Continue both just leave without changing anything (Back to
+whatever came before this screen was opened, Continue to whatever comes
+after — the next onboarding step, or straight back to Dashboard if opened
+from there). "Change bridge" is the only action that mutates state, dropping
+into the ENTRY form above.
+
+### Screen 2 — Entertainment zone select (new)
+
+```
+State: MULTIPLE CONFIGS                          State: SINGLE CONFIG
+┌──────────────────────────────────┐             ┌──────────────────────────────────┐
+│ Choose your lights               │             │ Choose your lights               │
+├──────────────────────────────────┤             ├──────────────────────────────────┤
+│ Entertainment configuration      │             │ Using: TV area                   │
+│ [TV area ▾]                      │             │                                    │
+│ Zone 1 (Ceiling)                 │             │ Zone 1 (Ceiling)                 │
+│ Zone 2 (Floor Lamp)              │             │ Zone 2 (Floor Lamp)              │
+│ Zone 3 (Floor Lamp)              │             │ Zone 3 (Floor Lamp)              │
+│ Zone 4 (Desk)                    │             │ Zone 4 (Desk)                    │
+│                                   │             │                                    │
+│ [ Test pulse ]                   │             │ [ Test pulse ]                   │
+│                                   │             │                                    │
+│[Back]                  [Continue]│             │[Back]                  [Continue]│
+└──────────────────────────────────┘             └──────────────────────────────────┘
+```
+`ChannelList` (new component) renders the names, plain and non-interactive;
+re-selecting the config swaps which names are listed. Dropdown never shows
+when there's only one config, matching Output Connect's existing
+single-config rule.
+
+**Test Pulse**, mid-run:
+```
+│ [ Test pulse... ]  (disabled while the GET/PUT/wait/PUT sequence runs) │
+```
+
+### Screen 3 — Mode + Device
+
+```
+┌──────────────────────────┐     ┌──────────────────────────┐
+│ Capture source            │     │ Capture source            │
+├──────────────────────────┤     ├──────────────────────────┤
+│ [Video]  [Audio]         │     │ [Video]  [Audio]         │
+│                            │     │                            │
+│ Monitor: [Auto (primary)▾]│     │ Audio device:              │
+│                            │     │ [System default        ]  │
+│[Back]          [Continue]│     │[Back]          [Continue]│
+└──────────────────────────┘     └──────────────────────────┘
+```
+`DeviceField` is one component, swapped by `this.mode` — matches
+`ModeDeviceScreen`'s existing `_renderVideoDevice`/`_renderAudioDevice`
+dispatch, no new logic. Saving triggers a reload and goes straight to Zone
+Mapping (no separate "Saved" screen); a `reloadError` shows inline above the
+footer, same pattern every other screen already uses.
+
+### Screen 4 — Zone Mapping (customize)
+
+```
+┌────────────────────────────────────┐
+│ Zone Mapping                       │
+├────────────────────────────────────┤
+│ Using: TV area                     │  ← static label, not a dropdown --
+│                                     │    already chosen in Screen 2
+│  ┌───────────────────────────────┐ │
+│  │       Zone Mapping canvas      │ │
+│  │   (drag rects + gamma slider)  │ │
+│  └───────────────────────────────┘ │
+│  Zone: [Zone 3 (Floor Lamp) ▾]  ●  │  ← single active bool, current zone
+│                                     │
+│[Back]                    [Continue]│
+└────────────────────────────────────┘
+```
+`EntertainmentConfigSelect` isn't composed into this screen during
+onboarding at all — the value's already fixed from Screen 2, so it renders
+as a plain label instead of re-prompting an already-made choice. The
+interactive dropdown version only appears later, on the Dashboard, where
+switching configs is a real, live action.
+
+### Tech changes needed to support this
+
+- **Zone-active default breaks the "instant reaction" goal — needs an
+  onboarding-only fix, not a global one.** `ZoneMap.hpp:17` defaults a new
+  zone to `active{false}`; `AudioFrameCompositor`/video frame composition
+  both skip inactive zones outright, so Screen 3's reload would produce
+  *zero* reacting lights as currently written. The `false` default exists
+  for a real reason (it's what stops a zone added later to an
+  already-configured setup from silently sharing the same unmapped
+  full-canvas rect as every other zone — the original "zone 5 hides zone 4"
+  bug this doc started with) and shouldn't change globally. Proposed fix:
+  the onboarding flow itself explicitly activates every zone once, right
+  when they're first discovered (Screen 2 or right after Screen 3's first
+  successful reload) — a first-run-only action, not a change to
+  `ZoneReconciler`'s general default. **Still an open decision, not yet
+  agreed** — needs confirmation before implementation.
+- **New `ChannelList` component** — plain, non-interactive rendering of
+  channel/light names. Doesn't exist today (`Dropdown.js` implies
+  selection, `.toggle-row` implies editability; this needs neither).
+- **New backend route for Test Pulse** (e.g. `POST /api/hue/test-pulse`,
+  taking an entertainment config ID) — REST-only against each member
+  light's own resource, *not* the entertainment/DTLS streaming path
+  `HueOutput`/`Streamer` use, since this is a one-shot check, not
+  continuous frame-rate control, and needs to work before any Pipeline
+  exists:
+  1. `GET /clip/v2/resource/light/<id>` per light in the config's channels
+     (membership data already available via the already-ported
+     `parseEntertainmentConfigurationsChannels`) — capture current
+     color/brightness.
+  2. `PUT` each light to magenta with a short transition.
+  3. Wait for the transition to finish.
+  4. `PUT` each light back to its captured original state, same transition
+     on the way back.
+  New helper in `ApiTools.cpp`, reusing the existing `sendHttpRequest`.
+  **Open verification item:** the smooth transition depends on Hue's Light
+  PUT supporting a duration field (recalled as `dynamics.duration`,
+  milliseconds) — not verified against an authoritative source. Hue's own
+  dev docs are login-gated (a live `WebFetch` attempt hit the login page,
+  not the API reference), and huenicorn never uses the regular Light API
+  itself (only the entertainment/DTLS path), so there's no in-repo
+  precedent to confirm the exact field name against either. Needs checking
+  against a real bridge (or the actual docs once logged in) before this
+  gets built — flagged here rather than assumed.
+- **`OutputConnectScreen`'s CONNECTED state** needs the same `showBack`/
+  `onBack`/`onComplete` footer every other screen already takes, plus
+  "Change bridge" as a visually distinct third action — not built yet (see
+  the Back-button task above, which this section resolves).
