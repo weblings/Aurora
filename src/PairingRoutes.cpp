@@ -246,13 +246,36 @@ namespace Aurora::Output::Hue
         return;
       }
 
-      MembersIds lightIds;
+      // Channel members are entertainment-rids (channels[].members[].service),
+      // not the light-rids /clip/v2/resource/light/{id} actually needs --
+      // matchDevices()'s Devices already carry both (see Device.hpp),
+      // resolved via one bulk /clip/v2/resource fetch. Confirmed against a
+      // real bridge (WebUI_Fixes.md's Pass 2 section) -- passing the
+      // entertainment-rid straight through 404s against the light endpoint.
+      MembersIds entertainmentIds;
       for(const auto& channelEntry : it->second){
-        lightIds.insert(channelEntry.second.begin(), channelEntry.second.end());
+        entertainmentIds.insert(channelEntry.second.begin(), channelEntry.second.end());
+      }
+      Devices matchedDevices = ApiTools::matchDevices(entertainmentIds, ApiTools::loadDevices(username, bridgeAddress));
+
+      MembersIds lightIds;
+      for(const auto& device : matchedDevices){
+        if(!device.lightId.empty()) lightIds.insert(device.lightId);
       }
 
-      ApiTools::testPulse(lightIds, username, bridgeAddress);
-      _writeJson(res, {{"succeeded", true}});
+      // A bridge-shape surprise (an unexpected/missing field on one light's
+      // response) should degrade to a clean error, not an uncaught
+      // exception -- cpp-httplib's own default 500 body isn't valid JSON,
+      // which the WebUI's fetch().json() then reports as "Couldn't reach
+      // the daemon," masking a request the daemon actually handled (found
+      // during a live pass, WebUI_Fixes.md's Pass 2 section).
+      try{
+        ApiTools::testPulse(lightIds, username, bridgeAddress);
+        _writeJson(res, {{"succeeded", true}});
+      }
+      catch(const std::exception& e){
+        _writeJson(res, {{"succeeded", false}, {"error", e.what()}}, 502);
+      }
     });
 
     // PATCH-style, same convention SettingsRoutes' /api/config already

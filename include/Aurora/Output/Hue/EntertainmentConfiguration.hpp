@@ -12,7 +12,6 @@ namespace Aurora::Output::Hue
   struct EntertainmentConfiguration
   {
     std::string name;
-    Devices devices;
     Channels channels;
   };
 

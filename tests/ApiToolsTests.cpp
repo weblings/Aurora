@@ -8,8 +8,13 @@ using namespace Aurora::Output::Hue;
 using Json = nlohmann::json;
 
 
-TEST_CASE("parseEntertainmentConfigurationShell extracts name, placeholder devices, and empty channels", "[ApiTools]")
+TEST_CASE("parseEntertainmentConfigurationShell extracts name and empty channels", "[ApiTools]")
 {
+  // No longer reads light_services -- see this file's own header comment in
+  // ApiTools.cpp: it's a flat, whole-config light-id list with no per-
+  // channel breakdown, in a different id space than channels[].members[]
+  // actually uses. Per-channel devices come from loadEntertainmentConfigurations
+  // (loadDevices + matchDevices) instead, tested separately below.
   Json json = Json::parse(R"({
     "metadata": {"name": "Living Room"},
     "light_services": [{"rid": "light-1"}, {"rid": "light-2"}],
@@ -19,9 +24,6 @@ TEST_CASE("parseEntertainmentConfigurationShell extracts name, placeholder devic
   EntertainmentConfiguration entConf = ApiTools::parseEntertainmentConfigurationShell(json);
 
   CHECK(entConf.name == "Living Room");
-  REQUIRE(entConf.devices.size() == 2);
-  CHECK(entConf.devices[0].id == "light-1");
-  CHECK(entConf.devices[0].name.empty()); // filled in by a later per-device fetch
 
   REQUIRE(entConf.channels.size() == 2);
   CHECK(entConf.channels.at(0).state == Channel::State::Inactive);
@@ -36,8 +38,13 @@ TEST_CASE("parseLightName extracts the light's display name", "[ApiTools]")
 }
 
 
-TEST_CASE("parseDevicesFromResource keeps only entertainment-capable devices", "[ApiTools]")
+TEST_CASE("parseDevicesFromResource keeps only entertainment-capable devices, and captures each one's lightId", "[ApiTools]")
 {
+  // "ent-1"/"light-1" deliberately distinct -- a real bridge's entertainment
+  // and light services on the same device are different rids (confirmed
+  // live, see ApiTools.cpp's own header comment on this). A fixture reusing
+  // one string for both would hide exactly the id-space mixup this test
+  // exists to catch.
   Json json = Json::parse(R"({
     "data": [
       {"type": "device", "metadata": {"name": "Lamp A"}, "services": [
@@ -55,17 +62,42 @@ TEST_CASE("parseDevicesFromResource keeps only entertainment-capable devices", "
 
   REQUIRE(devices.size() == 1);
   CHECK(devices[0].id == "ent-1");
+  CHECK(devices[0].lightId == "light-1");
   CHECK(devices[0].name == "Lamp A");
 }
 
 
-TEST_CASE("parseEntertainmentConfigurationsChannels maps each channel to its member device IDs", "[ApiTools]")
+TEST_CASE("parseDevicesFromResource leaves lightId empty when a device has no light service", "[ApiTools]")
 {
   Json json = Json::parse(R"({
     "data": [
+      {"type": "device", "metadata": {"name": "Entertainment-only"}, "services": [
+        {"rtype": "entertainment", "rid": "ent-1"}
+      ]}
+    ]
+  })");
+
+  Devices devices = ApiTools::parseDevicesFromResource(json);
+
+  REQUIRE(devices.size() == 1);
+  CHECK(devices[0].id == "ent-1");
+  CHECK(devices[0].lightId.empty());
+}
+
+
+TEST_CASE("parseEntertainmentConfigurationsChannels maps each channel to its member entertainment-service IDs", "[ApiTools]")
+{
+  // "ent-N" naming, not "light-N" -- on a real bridge channels[].members[].
+  // service is always rtype "entertainment" (confirmed live), a different
+  // id space than /clip/v2/resource/light/{id} needs. The parser itself
+  // doesn't care about rtype, but a misleading fixture here previously
+  // hid that this id space needs resolving before it's usable for light
+  // control (see ApiTools.cpp's testPulse/loadEntertainmentConfigurations).
+  Json json = Json::parse(R"({
+    "data": [
       {"id": "conf-1", "channels": [
-        {"channel_id": 0, "members": [{"service": {"rid": "light-1"}}, {"service": {"rid": "light-2"}}]},
-        {"channel_id": 1, "members": [{"service": {"rid": "light-3"}}]}
+        {"channel_id": 0, "members": [{"service": {"rid": "ent-1"}}, {"service": {"rid": "ent-2"}}]},
+        {"channel_id": 1, "members": [{"service": {"rid": "ent-3"}}]}
       ]}
     ]
   })");
@@ -73,9 +105,9 @@ TEST_CASE("parseEntertainmentConfigurationsChannels maps each channel to its mem
   EntertainmentConfigurationsChannels channels = ApiTools::parseEntertainmentConfigurationsChannels(json);
 
   REQUIRE(channels.count("conf-1") == 1);
-  CHECK(channels.at("conf-1").at(0).count("light-1") == 1);
-  CHECK(channels.at("conf-1").at(0).count("light-2") == 1);
-  CHECK(channels.at("conf-1").at(1).count("light-3") == 1);
+  CHECK(channels.at("conf-1").at(0).count("ent-1") == 1);
+  CHECK(channels.at("conf-1").at(0).count("ent-2") == 1);
+  CHECK(channels.at("conf-1").at(1).count("ent-3") == 1);
 }
 
 

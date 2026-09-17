@@ -30,16 +30,20 @@ namespace Aurora::Output::Hue
 
   namespace ApiTools
   {
+    // No longer reads jsonEntConf's own "light_services" -- confirmed against
+    // a real bridge (WebUI_Fixes.md's Pass 2 section) that it's a flat,
+    // whole-config light list with no per-channel breakdown, and its rids
+    // live in the *light* id space, not the entertainment id space
+    // channels[].members[].service.rid actually uses -- matchDevices() below
+    // needs loadDevices()'s own entertainment-rid Devices for real matches,
+    // not this. See loadEntertainmentConfigurations for the corrected wiring
+    // (mirrors huenicorn's real Runtime.cpp: loadDevices +
+    // loadEntertainmentConfigurationsChannels + matchDevices, not a
+    // light_services-derived list).
     EntertainmentConfiguration parseEntertainmentConfigurationShell(const nlohmann::json& jsonEntConf)
     {
       EntertainmentConfiguration entConf;
       entConf.name = jsonEntConf.at("metadata").at("name").get<std::string>();
-
-      for(const auto& lightService : jsonEntConf.at("light_services")){
-        Device device;
-        device.id = lightService.at("rid").get<std::string>();
-        entConf.devices.push_back(std::move(device));
-      }
 
       for(const auto& jsonChannel : jsonEntConf.at("channels")){
         uint8_t channelId = jsonChannel.at("channel_id").get<uint8_t>();
@@ -65,14 +69,26 @@ namespace Aurora::Output::Hue
           continue;
         }
 
+        std::string entertainmentId;
+        std::string lightId;
         for(const auto& service : jsonData.at("services")){
-          if(service.at("rtype") == "entertainment"){
-            Device device;
-            device.name = jsonData.at("metadata").at("name").get<std::string>();
-            device.id = service.at("rid").get<std::string>();
-            devices.push_back(std::move(device));
-          }
+          std::string rtype = service.at("rtype").get<std::string>();
+          if(rtype == "entertainment") entertainmentId = service.at("rid").get<std::string>();
+          else if(rtype == "light") lightId = service.at("rid").get<std::string>();
         }
+
+        // Not entertainment-capable -- excluded here just like before this
+        // lightId addition (a plain light/sensor/etc with no entertainment
+        // service can't be a channel member at all).
+        if(entertainmentId.empty()){
+          continue;
+        }
+
+        Device device;
+        device.name = jsonData.at("metadata").at("name").get<std::string>();
+        device.id = entertainmentId;
+        device.lightId = lightId;
+        devices.push_back(std::move(device));
       }
 
       return devices;
@@ -162,38 +178,34 @@ namespace Aurora::Output::Hue
 
       auto jsonEntConfs = response->asJson();
 
-      // Per-config, per-channel member device ids -- parsed once up front
-      // from the same response already in hand, reusing the existing,
-      // already-unit-tested parser instead of re-fetching.
+      // Per-config, per-channel member ids -- entertainment id space
+      // (channels[].members[].service.rid), parsed once up front from the
+      // same response already in hand.
       EntertainmentConfigurationsChannels channelsMembersIds = parseEntertainmentConfigurationsChannels(jsonEntConfs);
+
+      // One bulk /clip/v2/resource fetch resolves every entertainment-rid to
+      // its real device name (and light-rid) in a single request -- mirrors
+      // huenicorn's own real Runtime.cpp wiring (loadDevices +
+      // loadEntertainmentConfigurationsChannels + matchDevices). The
+      // previous approach here matched channel members (entertainment id
+      // space) against light_services-derived placeholders (light id
+      // space) -- two different id spaces that don't actually overlap on a
+      // real bridge, so channel.devices silently came back empty every
+      // time; only caught via a live pass, not by this file's own unit
+      // tests, whose fixtures happened to reuse the same strings for both
+      // spaces. See WebUI_Fixes.md's Pass 2 section.
+      Devices devices = loadDevices(username, bridgeAddress);
 
       for(const auto& jsonEntConf : jsonEntConfs.at("data")){
         std::string configurationId = jsonEntConf.at("id").get<std::string>();
         EntertainmentConfiguration entConf = parseEntertainmentConfigurationShell(jsonEntConf);
 
-        // Fixed in the port: the original called .value() on this request's
-        // result unconditionally -- a single transient failure fetching one
-        // device's name would throw and abort the whole load. Degrade
-        // gracefully instead: that device just keeps an empty name.
-        for(auto& device : entConf.devices){
-          std::string lightUrl = HttpProtocol + bridgeAddress + "/clip/v2/resource/light/" + device.id;
-          auto lightResponse = sendHttpRequest(lightUrl, "GET", "", headers);
-
-          if(lightResponse.has_value()){
-            device.name = parseLightName(lightResponse->asJson());
-          }
-        }
-
-        // Now that entConf.devices carry real names, match each channel's
-        // own member ids against them -- lets the WebUI show "Zone 5:
-        // Floor Lamp" instead of a bare number. matchDevices() already
-        // existed, ported and unit-tested, just never called from here.
         auto channelsIt = channelsMembersIds.find(configurationId);
         if(channelsIt != channelsMembersIds.end()){
           for(auto& [channelId, channel] : entConf.channels){
             auto membersIt = channelsIt->second.find(channelId);
             if(membersIt != channelsIt->second.end()){
-              channel.devices = matchDevices(membersIt->second, entConf.devices);
+              channel.devices = matchDevices(membersIt->second, devices);
             }
           }
         }
@@ -290,10 +302,15 @@ namespace Aurora::Output::Hue
         std::string url = HttpProtocol + bridgeAddress + "/clip/v2/resource/light/" + lightId;
         auto response = sendHttpRequest(url, "GET", "", headers);
 
-        // Unreachable light -- skip pulsing it rather than aborting the
-        // rest of the config's members.
+        // Unreachable light, or a response shape parseLightSnapshot doesn't
+        // recognize (e.g. an empty "data" array) -- skip pulsing it rather
+        // than letting one bad light abort the whole request (and, before
+        // this try/catch existed, crash the route handler entirely).
         if(response.has_value()){
-          snapshots.emplace(lightId, parseLightSnapshot(response->asJson()));
+          try{
+            snapshots.emplace(lightId, parseLightSnapshot(response->asJson()));
+          }
+          catch(const nlohmann::json::exception&){}
         }
       }
 
