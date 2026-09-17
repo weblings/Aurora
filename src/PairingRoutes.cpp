@@ -146,7 +146,7 @@ namespace Aurora::Output::Hue
 
       try{
         // The bridge always answers with a one-element array -- verified
-        // against the real API, see Analysis/WebUIAnalysis.md step 5.
+        // against the real API, see Analysis/WebUI/WebUI_Design_1stPass.md step 5.
         auto entry = response->asJson().at(0);
 
         if(entry.contains("success")){

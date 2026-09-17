@@ -82,7 +82,7 @@ namespace Aurora::Output::Hue
     // The bridge accepts that stop with no error, silently killing the new
     // stream while every local signal (isConnected(), frames still being
     // computed) keeps looking healthy. Confirmed live, not theoretical --
-    // see WebUIManualTweaks.md's video<->audio live-switch bug. Only a real
+    // see WebUI/WebUI_Fixes.md's video<->audio live-switch bug. Only a real
     // app exit (isReplacement == false) should actually tell the bridge to
     // stop; a replaced-away session times out on its own once this
     // instance's DTLS socket closes below, which is an acceptable cost for

@@ -7,7 +7,7 @@
 namespace Aurora::Network::Http::Server { class HttpServer; }
 
 // Bridge-pairing HTTP routes (discover/validate/register/list configs/save),
-// modeled on huenicorn's SetupBackend -- see Analysis/WebUIAnalysis.md's
+// modeled on huenicorn's SetupBackend -- see Analysis/WebUI/WebUI_Design_1stPass.md's
 // build-order step 5. Deliberately stateless, unlike huenicorn's CoreService:
 // each call carries the bridge/credentials it needs in its own request body
 // rather than the server holding pairing-in-progress state between calls.
