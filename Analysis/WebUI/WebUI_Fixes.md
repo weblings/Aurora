@@ -262,4 +262,51 @@ after its build order closed out.
 
 ### Open tasks
 
-(none yet)
+- [x] **Fixed: fresh onboarding — Mode+Device Save reloadError'd "No outputs
+  available -- nothing to drive."** (This was true in Pass1 as well) `registerOutputs()` only ever registers
+  `"hue"` into `Registry` once, at daemon startup, gated on whatever
+  `CredentialsStore` held *then*. Pairing through Output Connect/
+  Entertainment zone select in that same running session persists real
+  credentials, but never touched `Registry` — so `Pipeline::build()`'s next
+  reload (Mode+Device Select's own save) still found zero registered
+  outputs and threw, even though pairing had just succeeded seconds
+  earlier. `/api/capabilities`'s own `outputs` list already had a patch for
+  a related but distinct symptom (Pass 1, above) — that only fixed what the
+  frontend's onboarding *gate* sees, not what `Pipeline::build()` can
+  actually construct. **Fix:** `onConnectionChanged`'s callback (both apps'
+  `main.cpp`) now calls `registerOutputs(registry, configRoot)` again,
+  right before reloading — `Registry::registerOutput()` is a plain map
+  assignment, safe to repeat, and this is the one thing that was actually
+  missing.
+- [x] **Fixed: Entertainment zone select — Test Pulse always failed with
+  "Couldn't reach the daemon."** The daemon wasn't actually unreachable —
+  `ApiTools::testPulse` was passing entertainment-service rids
+  (`channels[].members[].service.rid`) straight to
+  `/clip/v2/resource/light/{id}`, which only recognizes *light*-service
+  rids — a different id space on a real bridge (confirmed against
+  huenicorn's own real `Runtime.cpp`, which resolves this via
+  `loadDevices()` + `matchDevices()` rather than ever mixing the two
+  spaces). The mismatched id 404'd with an empty `data` array,
+  `parseLightSnapshot`'s `.at("data").at(0)` threw uncaught, and
+  cpp-httplib's default exception handling returned a non-JSON 500 body —
+  which the WebUI's own `fetch().json()` then reported as "couldn't reach
+  the daemon," masking a request the daemon had actually handled. The same
+  id-space bug also meant `loadEntertainmentConfigurations`'s per-channel
+  `matchDevices()` call (matching channel members against
+  `light_services`-derived placeholders) could never produce a real match
+  on an actual bridge — `/api/hue/channels`'s "Zone N (light name)" labels
+  were silently always falling back to bare "Zone N" too, not just Test
+  Pulse. Every existing unit test for this passed regardless, because their
+  fixtures happened to reuse the same id strings across both spaces by
+  convenience, not by checking the real API. **Fix:** `Device` gained a
+  `lightId` field (the sibling `light`-rtype service on the same device,
+  captured in the same `/clip/v2/resource` pass `parseDevicesFromResource`
+  already made); `loadEntertainmentConfigurations` and the test-pulse route
+  both resolve entertainment-rid → `Device.lightId` via `loadDevices()` +
+  `matchDevices()` before touching `/clip/v2/resource/light/{id}`, matching
+  huenicorn's real wiring; the now-provably-wrong `light_services`-based
+  placeholder path was removed rather than patched around. Also wrapped the
+  test-pulse route's bridge calls in a try/catch returning a clean JSON
+  error, and made a single bad light's snapshot-parse failure skip that
+  light instead of aborting the whole pulse — both were already the stated
+  intent of an existing comment, just not actually implemented.
