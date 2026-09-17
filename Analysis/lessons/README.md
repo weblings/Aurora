@@ -281,7 +281,12 @@ Aurora's own module boundaries instead of RockyRoad's. `rendering-apis.md` vs.
   callback never firing during a component's own construction (an ordering
   trap for any future caller that hasn't stored the instance yet) --
   `ZoneCanvas`'s resolved initial selection is read from a property
-  instead.
+  instead; and not every reusable UI piece fitting the "class that owns
+  and replaces its container's innerHTML" shape every other component
+  here uses -- `TuningSliderGroup` shipped as two plain functions instead,
+  since one existing section shares a single CSS grid between its sliders
+  and other, non-slider content a container-owning component couldn't
+  accommodate without a real layout change.
 
 ## Where a new lesson goes
 

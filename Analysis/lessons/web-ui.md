@@ -591,3 +591,35 @@ for telling a caller about something that happened *after* they already
 have a live reference, never for the resolved value construction itself
 produced -- that belongs in a return value or a readable property, not a
 callback.
+
+---
+
+## Not every reusable UI piece fits the "class that owns and replaces its container's innerHTML" shape every other component here uses
+
+Extracting `TuningSliderGroup` (pass 2's Phase B, step 10), the default
+move -- matching `DeviceField`/`EntertainmentConfigSelect`/`ZoneCanvas`/
+`ZoneActiveToggle*`, all classes that fully own a container and replace its
+`innerHTML` -- ran into a real layout constraint none of those had:
+`TuningScreen`'s "Color character" section interleaves two sliders, a
+checkbox row, and a conditional third slider *inside one shared CSS grid*
+(`.tuning-grid`'s `auto-fit` column flow), not as separate stacked blocks.
+A component that owns its whole container and draws its own internal grid
+wrapper would force that checkbox row either outside the grid (a real
+layout change, not the "no behavior change" this phase promised) or
+inside a second, separate grid it doesn't share with the sliders above it.
+
+**Fix:** `TuningSliderGroup` shipped as two plain functions
+(`sliderGroupHtml`/`wireSliderGroup`) instead of a class -- the caller
+still owns the grid container and can freely interleave other markup
+into it, exactly as `TuningScreen` already did before extraction. General
+principle: before defaulting a new reusable piece to the same
+stateful-class-with-owned-container shape every previous extraction used,
+check whether an existing consumer's layout requires *sharing* a container
+with sibling content the new piece doesn't own -- when it does, a
+component that insists on exclusive ownership is solving a problem the
+call site doesn't have, at the cost of a real layout change to make room
+for it. (Separately, the `ZonePatchQueue` extraction deferred in step 8
+until step 9's second real usage existed paid off cleanly here too --
+`TuningSliderGroup` had no analogous shared-state need and stayed
+stateless, confirming the "wait for a second real usage" call from step 8
+wasn't just deferring inevitable work.)
