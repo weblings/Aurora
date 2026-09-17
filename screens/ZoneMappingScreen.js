@@ -44,6 +44,7 @@
 import { renderTopBar } from '../topBar.js';
 import { EntertainmentConfigSelect } from '../EntertainmentConfigSelect.js';
 import { ZoneCanvas } from '../ZoneCanvas.js';
+import { ZoneActiveToggleList } from '../ZoneActiveToggle.js';
 
 export class ZoneMappingScreen {
   constructor(app, { onComplete, onBack, showBack = true }) {
@@ -61,8 +62,6 @@ export class ZoneMappingScreen {
     });
     this.zoneCanvas = null;
     this.channelLightNames = {}; // channelId -> light name array, from /api/hue/channels
-    this._pendingPatches = new Map();
-    this._inFlightZoneIds = new Set();
   }
 
   async mount(container) {
@@ -176,70 +175,13 @@ export class ZoneMappingScreen {
       onError: (message) => { this.error = message; this._render(); },
     });
     this.selectedZoneId = this.zoneCanvas.selectedZoneId;
-    this._renderActiveRow(body.querySelector('#zm-active-row'));
+    new ZoneActiveToggleList(body.querySelector('#zm-active-row'), {
+      zones: this.zones,
+      zoneLabel: (zone) => this._zoneLabel(zone),
+      onError: (message) => { this.error = message; this._render(); },
+    });
 
     body.querySelector('#zm-save').addEventListener('click', () => this.onComplete());
-  }
-
-  // Decoupled from shape editing entirely (WebUI/WebUI_Fixes.md's Zone
-  // Mapping follow-up): a flat toggle list, not tied to which zone the
-  // dropdown/canvas currently has selected, and not huenicorn's two-column
-  // drag-and-drop, which solves a different problem Aurora doesn't have.
-  _renderActiveRow(container) {
-    container.innerHTML = this.zones.map((zone) => `
-      <label class="toggle-row zm-active-toggle">
-        <span class="toggle-row-label">${escapeHtml(this._zoneLabel(zone))}</span>
-        <span class="toggle-switch">
-          <input type="checkbox" data-zone-id="${zone.zoneId}" ${zone.active ? 'checked' : ''} />
-          <span class="toggle-knob"></span>
-        </span>
-      </label>
-    `).join('');
-
-    container.querySelectorAll('input[type="checkbox"]').forEach((input) => {
-      input.addEventListener('change', (e) => {
-        const zoneId = Number(e.currentTarget.dataset.zoneId);
-        const zone = this.zones.find((z) => z.zoneId === zoneId);
-        zone.active = e.currentTarget.checked;
-        this._queueZonePatch(zoneId, { active: zone.active });
-      });
-    });
-  }
-
-  // Coalesces rapid updates (a drag can fire pointermove far faster than
-  // once per network round trip) per zoneId: at most one PUT in flight per
-  // zone, always eventually sending whatever's most recent rather than
-  // queuing a backlog of stale intermediate frames.
-  _queueZonePatch(zoneId, patch) {
-    const existing = this._pendingPatches.get(zoneId) ?? {};
-    this._pendingPatches.set(zoneId, { ...existing, ...patch });
-    this._flushZonePatch(zoneId);
-  }
-
-  async _flushZonePatch(zoneId) {
-    if (this._inFlightZoneIds.has(zoneId)) return;
-
-    const patch = this._pendingPatches.get(zoneId);
-    if (!patch) return;
-    this._pendingPatches.delete(zoneId);
-    this._inFlightZoneIds.add(zoneId);
-
-    try {
-      const result = await (await fetch('/api/zones', {
-        method: 'PUT',
-        body: JSON.stringify({ zoneId, ...patch }),
-      })).json();
-      if (!result.succeeded) {
-        this.error = "Couldn't save a zone edit.";
-        this._render();
-      }
-    } catch {
-      this.error = "Couldn't reach the daemon.";
-      this._render();
-    }
-
-    this._inFlightZoneIds.delete(zoneId);
-    if (this._pendingPatches.has(zoneId)) this._flushZonePatch(zoneId);
   }
 }
 

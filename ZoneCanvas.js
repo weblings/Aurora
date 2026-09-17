@@ -12,6 +12,7 @@
 // Pointer Events, native range slider, opposite-corner clamping -- see
 // Analysis/WebUI/WebUI_Design_1stPass.md's Zone Mapping section).
 import { Dropdown } from './Dropdown.js';
+import { ZonePatchQueue } from './ZonePatchQueue.js';
 
 const MIN_RECT_SIZE = 0.02; // 2% of the frame, in normalized UV units
 const CORNERS = ['tl', 'tr', 'bl', 'br'];
@@ -28,10 +29,8 @@ export class ZoneCanvas {
     this.zones = zones;
     this.zoneLabel = zoneLabel;
     this.onSelect = onSelect;
-    this.onError = onError;
     this.zoneDropdown = null;
-    this._pendingPatches = new Map();
-    this._inFlightZoneIds = new Set();
+    this._queue = new ZonePatchQueue({ onError });
 
     const initial = zones.find((z) => z.zoneId === selectedZoneId) ?? zones[0];
     this._selectedZoneId = initial.zoneId;
@@ -155,7 +154,7 @@ export class ZoneCanvas {
     input.addEventListener('input', () => {
       zone.gamma = Number(input.value);
       readout.textContent = round1(zone.gamma).toFixed(1);
-      this._queuePatch(zone.zoneId, { gamma: zone.gamma });
+      this._queue.queue(zone.zoneId, { gamma: zone.gamma });
     });
   }
 
@@ -248,39 +247,7 @@ export class ZoneCanvas {
       handles[c].style.top = `${cy * 100}%`;
     }
 
-    this._queuePatch(zone.zoneId, { uvs: { min: [...min], max: [...max] } });
-  }
-
-  // Coalesces rapid updates (a drag can fire pointermove far faster than
-  // once per network round trip) per zoneId: at most one PUT in flight per
-  // zone, always eventually sending whatever's most recent rather than
-  // queuing a backlog of stale intermediate frames.
-  _queuePatch(zoneId, patch) {
-    const existing = this._pendingPatches.get(zoneId) ?? {};
-    this._pendingPatches.set(zoneId, { ...existing, ...patch });
-    this._flushPatch(zoneId);
-  }
-
-  async _flushPatch(zoneId) {
-    if (this._inFlightZoneIds.has(zoneId)) return;
-
-    const patch = this._pendingPatches.get(zoneId);
-    if (!patch) return;
-    this._pendingPatches.delete(zoneId);
-    this._inFlightZoneIds.add(zoneId);
-
-    try {
-      const result = await (await fetch('/api/zones', {
-        method: 'PUT',
-        body: JSON.stringify({ zoneId, ...patch }),
-      })).json();
-      if (!result.succeeded) this.onError?.("Couldn't save a zone edit.");
-    } catch {
-      this.onError?.("Couldn't reach the daemon.");
-    }
-
-    this._inFlightZoneIds.delete(zoneId);
-    if (this._pendingPatches.has(zoneId)) this._flushPatch(zoneId);
+    this._queue.queue(zone.zoneId, { uvs: { min: [...min], max: [...max] } });
   }
 
   // Call before discarding an instance (e.g. before a full-container
