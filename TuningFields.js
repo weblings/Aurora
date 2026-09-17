@@ -1,38 +1,18 @@
-// Tuning / Settings: exposes whichever mode's numeric knobs are currently
-// active -- ~4 for video, ~11 for audio -- as a single scrollable column
-// with plain section headings, not tabs (see Analysis/WebUI/WebUI_Design_1stPass.md's
-// Tuning section: at this field count, tabs solve a scrolling problem that
-// doesn't really exist, for a real interaction cost). Build-order step 13.
+// Tuning's full field set (~4 video / ~11 audio), extracted from the now-
+// deleted TuningScreen.js so the accordion Dashboard's collapsed Tuning
+// section (Analysis/WebUI/WebUI_Design_2ndPass.md, step 20) can own it
+// directly -- TuningScreen had no other consumer left once step 18 dropped
+// it from onboarding and step 20 folds it into the Dashboard, so this is a
+// straight migration of its field/save logic, not a reuse-driven split.
 //
-// `audioTargetSinkName` is deliberately NOT surfaced here even though the
-// original spec text listed it alongside AudioEffectSettings -- it's a
-// device identifier, not a tuning knob, and step 12 already gave it a real
-// home (Mode+Device Select's own audio device field), through the same
-// PUT /api/config endpoint. One editable surface per field, not two
-// screens each holding a separately-stale copy.
-//
-// Save does not advance to a "done" phase the way OutputConnectScreen/
-// ModeDeviceScreen do -- it saves in place and stays on this screen. Those
-// two screens gate a one-shot decision (pair a bridge, pick a device); this
-// one is meant for iterative adjustment (nudge a slider, listen, nudge
-// again), so forcing a "Continue" click after every tweak would fight the
-// screen's own job. Worth knowing this is genuinely different from every
-// other real reload here, not free: `PipelineHost::reload()` (see each
-// app's main.cpp) always calls `Pipeline::build()` fresh -- there is no
-// settings-only update path -- so every Save here tears down and
-// reconstructs the *entire* live pipeline (video/audio input included),
-// not just applies new numbers to an already-running one. That's the real
-// reason this screen batches edits behind an explicit Save instead of
-// applying every slider-drag tick live: a reload per drag frame would
-// rebuild the whole pipeline dozens of times a second.
-//
-// `showContinue` (step 18's first-run bootstrap only) adds a separate
-// Continue button next to Save, since this screen's own Save never
-// navigates away -- the boot chain needs an explicit forward action here
-// that Dashboard-driven hub visits don't.
-import { renderTopBar } from '../topBar.js';
-import { Dropdown } from '../Dropdown.js';
-import { sliderGroupHtml, wireSliderGroup } from '../TuningSliderGroup.js';
+// Keeps its own explicit Save button rather than PUTting on every edit the
+// way Zone Mapping's canvas/toggles do: PipelineHost::reload() (each app's
+// main.cpp) has no settings-only update path, so every save here tears down
+// and reconstructs the *entire* live pipeline -- a per-drag-tick PUT would
+// rebuild it dozens of times a second. See the original TuningScreen.js
+// history for the full reasoning; unchanged here.
+import { Dropdown } from './Dropdown.js';
+import { sliderGroupHtml, wireSliderGroup } from './TuningSliderGroup.js';
 
 const INTERPOLATIONS = ['Nearest', 'Cubic', 'Area'];
 
@@ -60,88 +40,49 @@ const SENSITIVITY_SLIDERS = [
   ['audioCentroidRangeHz', 'Centroid range', 100, 8000, 10, 'Hz'],
 ];
 
-export class TuningScreen {
-  constructor(app, { onComplete, onBack, showBack = true, showContinue = false }) {
-    this.app = app;
-    this.onComplete = onComplete;
-    this.onBack = onBack ?? onComplete;
-    this.showBack = showBack;
-    this.showContinue = showContinue;
-    this.mode = 'video';
-    this.values = {};
-    this.fixedHueEnabled = false;
+export class TuningFields {
+  // values: the full /api/config response -- the caller (DashboardScreen)
+  // already fetches this for its own mode toggle, so this never fetches on
+  // its own (unlike every fetch+render component elsewhere in this app --
+  // there's simply nothing left for it to fetch that the caller doesn't
+  // already have).
+  constructor(container, { mode, values }) {
+    this.container = container;
+    this.mode = mode;
+    this.values = { ...values };
+    this.fixedHueEnabled = (values.audioFixedAnchorHue ?? -1) >= 0;
     this.error = null;
     this.success = false;
     this.dropdown = null;
-  }
-
-  async mount(container) {
-    this.container = container;
-    container.innerHTML = `
-      <div class="top-bar-slot"></div>
-      <div class="tn-body"></div>
-    `;
-
-    const body = container.querySelector('.tn-body');
-    body.innerHTML = `<p class="status-text">Loading…</p>`;
-
-    let config;
-    try {
-      config = await (await fetch('/api/config')).json();
-    } catch {
-      renderTopBar(container.querySelector('.top-bar-slot'), {
-        title: 'Settings',
-        showBack: this.showBack,
-        onBack: () => this.onBack(),
-      });
-      body.innerHTML = `<p class="status-text status-text-error">⚠ Could not reach the daemon.</p>`;
-      return;
-    }
-
-    this.mode = (!config.activeInputName && config.activeAudioInputName) ? 'audio' : 'video';
-    this.values = { ...config };
-    this.fixedHueEnabled = (config.audioFixedAnchorHue ?? -1) >= 0;
-
-    renderTopBar(container.querySelector('.top-bar-slot'), {
-      title: `Settings — ${this.mode === 'audio' ? 'Audio' : 'Video'}`,
-      showBack: this.showBack,
-      onBack: () => this.onBack(),
-    });
-
     this._render();
   }
 
-  unmount() {
+  destroy() {
     this.dropdown?.destroy();
     this.dropdown = null;
   }
 
   _render() {
-    const body = this.container.querySelector('.tn-body');
     this.dropdown?.destroy();
     this.dropdown = null;
 
     const errorHtml = this.error ? `<p class="status-text status-text-error">⚠ ${escapeHtml(this.error)}</p>` : '';
     const successHtml = this.success ? `<p class="status-text status-text-success">✓ Saved.</p>` : '';
 
-    body.innerHTML = `
+    this.container.innerHTML = `
       <div class="tn-fields"></div>
       ${errorHtml}
       ${successHtml}
       <div class="tuning-actions">
         <button type="button" class="btn btn-primary" id="tn-save">Save</button>
-        ${this.showContinue ? '<button type="button" class="btn btn-secondary" id="tn-continue">Continue</button>' : ''}
       </div>
     `;
 
-    const fields = body.querySelector('.tn-fields');
+    const fields = this.container.querySelector('.tn-fields');
     if (this.mode === 'video') this._renderVideoFields(fields);
     else this._renderAudioFields(fields);
 
-    body.querySelector('#tn-save').addEventListener('click', (e) => this._save(e.currentTarget));
-    if (this.showContinue) {
-      body.querySelector('#tn-continue').addEventListener('click', () => this.onComplete());
-    }
+    this.container.querySelector('#tn-save').addEventListener('click', (e) => this._save(e.currentTarget));
   }
 
   _renderVideoFields(container) {

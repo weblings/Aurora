@@ -1,55 +1,8 @@
-/* Dashboard nav rows -- adapted from RockyRoad's real .pre-toggle-row shell
-   (verified against v2/desktop.html: label left, bottom border, :last-child
-   border removed) with a trailing chevron in place of the toggle switch.
-   A whole row is a real <button>, not a div+onclick -- native keyboard/click
-   support for free, no extra ARIA needed for "this is activatable". */
-
-.nav-rows {
-  display: flex;
-  flex-direction: column;
-}
-
-.nav-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--aurora-space-3);
-  width: 100%;
-  padding: var(--aurora-space-5) 0;
-  border: none;
-  border-bottom: 1px solid var(--aurora-divider);
-  background: none;
-  color: inherit;
-  font-family: inherit;
-  text-align: left;
-  cursor: pointer;
-}
-
-.nav-row:last-child {
-  border-bottom: none;
-}
-
-.nav-row:disabled {
-  cursor: not-allowed;
-  opacity: 0.5;
-}
-
-.nav-row-label {
-  font-size: 14px;
-  color: var(--aurora-text-secondary);
-}
-
-.nav-row-chevron {
-  flex-shrink: 0;
-  font-size: 16px;
-  color: var(--aurora-text-secondary);
-}
-
-/* Quick mode toggle + Stop, above the nav rows -- step 17. Wraps to a
+/* Quick mode toggle + Stop, above the top tier -- step 17. Wraps to a
    stacked layout under 480px the same way ModeDeviceScreen's own toggle
    row does, rather than shrinking the segmented control to fit one line. */
 .db-controls {
-  margin-bottom: var(--aurora-space-3);
+  margin-bottom: var(--aurora-space-5);
 }
 
 .db-controls-row {
@@ -73,4 +26,82 @@
   .db-controls-row .btn {
     width: 100%;
   }
+}
+
+/* Top tier -- step 20: device field, video's canvas + entertainment config
+   + single zone toggle, or audio's entertainment config alone. Reuses
+   ZoneCanvas's/EntertainmentConfigSelect's own classes (zone-mapping.css)
+   for the pieces borrowed from Zone Mapping -- only the pieces unique to
+   this screen's own layout (the device field slot, the zone-toggle row,
+   the "See all zones" link) get new rules here. */
+.db-top-tier {
+  margin-bottom: var(--aurora-space-6);
+}
+
+.db-device-slot {
+  margin-bottom: var(--aurora-space-5);
+}
+
+.db-zone-field {
+  margin-top: var(--aurora-space-5);
+}
+
+#db-see-all-zones {
+  display: block;
+  margin-top: var(--aurora-space-4);
+}
+
+/* Accordion sections -- Tuning/Bridge, both always collapsed by default
+   (AccordionSection.js's own doc comment). First real consumer of this
+   component (built ahead of time in Phase B); values are new, not ported
+   from an existing reference. */
+.db-accordions {
+  display: flex;
+  flex-direction: column;
+}
+
+.accordion-section {
+  border-bottom: 1px solid var(--aurora-divider);
+}
+
+.accordion-section:last-child {
+  border-bottom: none;
+}
+
+.accordion-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--aurora-space-3);
+  width: 100%;
+  padding: var(--aurora-space-5) 0;
+  border: none;
+  background: none;
+  color: inherit;
+  font-family: inherit;
+  font-size: 14px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.accordion-chevron {
+  flex-shrink: 0;
+  color: var(--aurora-text-secondary);
+  transition: transform 0.15s;
+}
+
+.accordion-section.expanded .accordion-chevron {
+  transform: rotate(180deg);
+}
+
+.accordion-content {
+  padding-bottom: var(--aurora-space-5);
+}
+
+.db-bridge-zones-slot {
+  margin-top: var(--aurora-space-4);
+}
+
+.db-bridge-zones-slot:empty {
+  margin-top: 0;
 }

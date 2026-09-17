@@ -1,37 +1,28 @@
-// Dashboard, filled in: the quick mode toggle and Stop button now sit above
-// the nav rows the shell already had (step 9), now that /api/config's mode
-// switch (step 12) and /api/stop (step 16) both exist for real. See
-// Analysis/WebUI/WebUI_Design_1stPass.md's Dashboard section and build-order step 17 --
-// the natural last piece, since everything it links to and controls needed
-// to already exist first.
+// Dashboard, rebuilt as the accordion hub (Analysis/WebUI/
+// WebUI_Design_2ndPass.md, step 20): three named areas instead of four
+// separate nav rows -- Zone Mapping folded into video's own top tier,
+// Tuning and Bridge always collapsed either mode. Capture Source's old nav
+// row is gone entirely -- its one real field (DeviceField) now lives
+// directly in the top tier, swapped by mode the same way ModeDeviceScreen's
+// own _renderVideoDevice/_renderAudioDevice always did.
 //
-// The original layout mockup still drew a "⏸ Pause" button next to the
-// toggle and Stop, left over from before this doc's own Dashboard section
-// explicitly cut Pause for v1 ("Orchestrator has no concept of holding
-// without exiting its loop") -- another instance of this plan doc's own
-// sections drifting out of sync with each other (see
-// Analysis/lessons/web-ui.md). Not built here, per that already-made cut.
-//
-// Status pill: the mockup's own "● Streaming" wording claims a live
-// DTLS-connection health signal Aurora doesn't have and can't honestly show
-// -- `HueOutput::init()` succeeding is not proof a real streaming
-// connection exists (DtlsClient's handshake failure is swallowed by
-// design, see Analysis/lessons/output.md). Shows "● Running" instead once
-// this screen's own capabilities probe succeeds -- an honest claim (this
-// screen only renders because the daemon answered), not a fabricated one
-// about a connection state nothing here can actually verify.
-//
-// Mode toggle reuses ModeDeviceScreen's own pickVideoInputName/
-// pickAudioInputName -- the same "resolve the real registry name behind
-// Video/Audio" logic, not a second copy of it. Unlike that screen's own
-// Done button, this quick toggle has no device-picking step: it's the fast
-// one-tap switch the mockup calls for, using whatever device was already
-// configured.
+// Mode switch (_switchMode) reuses the same full _loadAll()->_render() path
+// as the initial mount -- since _render() always builds fresh
+// AccordionSection instances (collapsed by default), resetting both
+// sections on a mode change falls out for free rather than needing its own
+// explicit reset call. Everything else (an entertainment-config switch, a
+// zone-canvas selection change, a device-field edit) uses a narrower
+// refresh instead, so expanding Tuning/Bridge to check something doesn't
+// get silently collapsed again by an unrelated edit.
 import { renderTopBar } from '../topBar.js';
 import { OutputConnectScreen } from './OutputConnectScreen.js';
 import { ModeDeviceScreen, pickVideoInputName, pickAudioInputName } from './ModeDeviceScreen.js';
-import { TuningScreen } from './TuningScreen.js';
-import { ZoneMappingScreen } from './ZoneMappingScreen.js';
+import { DeviceField, AUTO_MONITOR_VALUE } from '../DeviceField.js';
+import { EntertainmentConfigSelect } from '../EntertainmentConfigSelect.js';
+import { ZoneCanvas } from '../ZoneCanvas.js';
+import { ZoneActiveToggleList, ZoneActiveToggleSingle } from '../ZoneActiveToggle.js';
+import { AccordionSection } from '../AccordionSection.js';
+import { TuningFields } from '../TuningFields.js';
 
 export class DashboardScreen {
   constructor(app) {
@@ -42,9 +33,37 @@ export class DashboardScreen {
     this.audioInputs = [];
     this.currentActiveInputName = '';
     this.currentActiveAudioInputName = '';
+    this.monitors = [];
+    this.selectedMonitorName = AUTO_MONITOR_VALUE;
+    this.showSinkField = false;
+    this.sinkName = '';
+    this.hasHue = false;
+    this.bridgeConfigured = false;
+    this.bridgeAddress = '';
+    this.outputName = '';
+    this.zones = [];
+    this.selectedZoneId = null;
+    this.channelLightNames = {};
+    this.tuningValues = {};
     this.toggleError = null;
+    this.topTierError = null;
     this.stopPhase = null; // null | 'confirm' | 'stopped' | 'error'
     this.stopError = null;
+
+    // A single persistent instance, never recreated on re-render -- its own
+    // onChange fires mid-callback, and recreating the instance whose own
+    // callback is still on the stack would tear down the very component
+    // running it (same hazard ZoneCanvas's onSelect has to avoid).
+    this.entertainmentConfigSelect = new EntertainmentConfigSelect({
+      onChange: () => this._onEntertainmentConfigChange(),
+      onError: (message) => { this.topTierError = message; this._renderTopTier(); },
+    });
+
+    this.deviceField = null;
+    this.zoneCanvas = null;
+    this.tuningFields = null;
+    this.tuningSection = null;
+    this.bridgeSection = null;
   }
 
   async mount(container) {
@@ -52,132 +71,126 @@ export class DashboardScreen {
     container.innerHTML = `
       <div class="top-bar-slot"></div>
       <div class="db-controls"></div>
-      <div class="nav-rows">
-        <button type="button" class="nav-row" data-nav="bridge">
-          <span class="nav-row-label">Bridge — …</span>
-          <span class="nav-row-chevron" aria-hidden="true">&#8250;</span>
-        </button>
-        <button type="button" class="nav-row" data-nav="capture-source">
-          <span class="nav-row-label">Capture source — …</span>
-          <span class="nav-row-chevron" aria-hidden="true">&#8250;</span>
-        </button>
-        <button type="button" class="nav-row" data-nav="zones">
-          <span class="nav-row-label">Zones — …</span>
-          <span class="nav-row-chevron" aria-hidden="true">&#8250;</span>
-        </button>
-        <button type="button" class="nav-row" data-nav="tuning">
-          <span class="nav-row-label">Tuning — Adjust</span>
-          <span class="nav-row-chevron" aria-hidden="true">&#8250;</span>
-        </button>
-      </div>
+      <div class="db-top-tier"></div>
+      <div class="db-accordions"></div>
       <div id="db-overlay-slot"></div>
     `;
+    renderTopBar(container.querySelector('.top-bar-slot'), { title: 'Aurora', showBack: false });
 
-    renderTopBar(container.querySelector('.top-bar-slot'), {
-      title: 'Aurora',
-      showBack: false,
-    });
-
-    container.querySelector('[data-nav="capture-source"]').addEventListener('click', () => {
-      this.app.navigate(new ModeDeviceScreen(this.app, {
-        onComplete: () => this.app.navigate(new DashboardScreen(this.app)),
-      }));
-    });
-    container.querySelector('[data-nav="zones"]').addEventListener('click', () => {
-      this.app.navigate(new ZoneMappingScreen(this.app, {
-        onComplete: () => this.app.navigate(new DashboardScreen(this.app)),
-      }));
-    });
-    container.querySelector('[data-nav="tuning"]').addEventListener('click', () => {
-      this.app.navigate(new TuningScreen(this.app, {
-        onComplete: () => this.app.navigate(new DashboardScreen(this.app)),
-      }));
-    });
-
-    await this._loadStatus(container);
+    await this._loadAll();
   }
 
-  unmount() {}
+  unmount() {
+    this.entertainmentConfigSelect.destroy();
+    this.deviceField?.destroy();
+    this.deviceField = null;
+    this.zoneCanvas?.destroy();
+    this.zoneCanvas = null;
+    this.tuningFields?.destroy();
+    this.tuningFields = null;
+  }
 
-  // Capability-probe + persisted-state check -- this step's own "wired to
-  // the capability-probe/persisted-state routing logic," using the real
-  // endpoints that already exist. The Bridge row's click target itself
-  // depends on this check too: it's disabled outright when this build has
-  // no Hue output at all, real (OutputConnectScreen) otherwise. Capture
-  // source and Zones have no compiled-in gate to check (a "dummy" video
-  // input always exists, and the Zones row is always reachable -- the
-  // screen itself shows an honest empty/unavailable state), only a status
-  // label to fill in from /api/config and /api/zones respectively.
-  async _loadStatus(container) {
-    const bridgeRow = container.querySelector('[data-nav="bridge"]');
-    const bridgeLabel = bridgeRow.querySelector('.nav-row-label');
-    const captureLabel = container.querySelector('[data-nav="capture-source"] .nav-row-label');
-    const zonesLabel = container.querySelector('[data-nav="zones"] .nav-row-label');
+  // Full fetch + full rebuild -- initial mount and mode switch both need
+  // every field re-derived (capabilities rarely change, but mode, monitors,
+  // zones and tuning values all do). Everything else that changes only one
+  // piece of state calls a narrower _render* method instead.
+  async _loadAll() {
+    const topTier = this.container.querySelector('.db-top-tier');
 
     let capabilities;
     try {
       capabilities = await (await fetch('/api/capabilities')).json();
     } catch {
-      bridgeLabel.textContent = 'Bridge — Status unavailable';
-      bridgeRow.disabled = true;
-      captureLabel.textContent = 'Capture source — Status unavailable';
-      zonesLabel.textContent = 'Zones — Status unavailable';
+      topTier.innerHTML = `<p class="status-text status-text-error">⚠ Could not reach the daemon.</p>`;
       return;
     }
 
-    renderTopBar(container.querySelector('.top-bar-slot'), {
-      title: 'Aurora',
-      showBack: false,
-      statusPill: 'Running',
-    });
-
-    if (!capabilities.outputs?.includes('hue')) {
-      bridgeLabel.textContent = 'Bridge — not available in this build';
-      bridgeRow.disabled = true;
-    } else {
-      bridgeRow.addEventListener('click', () => {
-        this.app.navigate(new OutputConnectScreen(this.app, {
-          onComplete: () => this.app.navigate(new DashboardScreen(this.app)),
-        }));
-      });
-
-      try {
-        const connection = await (await fetch('/api/hue/connection')).json();
-        bridgeLabel.textContent = connection.configured ? 'Bridge — Connected' : 'Bridge — Not connected';
-      } catch {
-        bridgeLabel.textContent = 'Bridge — Status unavailable';
-      }
-    }
-
+    this.hasHue = capabilities.outputs?.includes('hue') ?? false;
     this.inputs = capabilities.inputs ?? [];
     this.audioInputs = capabilities.audioInputs ?? [];
     this.hasAudio = this.audioInputs.length > 0;
+    this.showSinkField = this.audioInputs.includes('linux-audio');
+
+    renderTopBar(this.container.querySelector('.top-bar-slot'), { title: 'Aurora', showBack: false, statusPill: 'Running' });
+
+    if (this.hasHue) {
+      try {
+        const connection = await (await fetch('/api/hue/connection')).json();
+        this.bridgeConfigured = connection.configured === true;
+        this.bridgeAddress = connection.bridgeAddress ?? '';
+      } catch {
+        this.bridgeConfigured = false;
+        this.bridgeAddress = '';
+      }
+    }
 
     try {
       const config = await (await fetch('/api/config')).json();
       this.currentActiveInputName = config.activeInputName ?? '';
       this.currentActiveAudioInputName = config.activeAudioInputName ?? '';
       this.mode = (!this.currentActiveInputName && this.currentActiveAudioInputName) ? 'audio' : 'video';
-      captureLabel.textContent = `Capture source — ${this.mode === 'audio' ? 'Audio' : 'Video'}`;
+      this.selectedMonitorName = config.activeMonitorName || AUTO_MONITOR_VALUE;
+      this.sinkName = config.audioTargetSinkName || '';
+      this.tuningValues = config;
     } catch {
-      captureLabel.textContent = 'Capture source — Status unavailable';
+      this.tuningValues = {};
     }
 
+    if (this.mode === 'video') {
+      try {
+        this.monitors = (await (await fetch('/api/monitors')).json()).monitors ?? [];
+      } catch {
+        this.monitors = [];
+      }
+    } else {
+      this.monitors = [];
+    }
+
+    await this._loadZoneData();
+    this._render();
+  }
+
+  // Zones + the entertainment-config picker's own data + channel light
+  // names -- split out since an entertainment-config switch needs to
+  // refresh exactly this, not a full _loadAll() (capabilities/monitors
+  // haven't changed).
+  async _loadZoneData() {
     try {
       const zonesResult = await (await fetch('/api/zones')).json();
-      if (!zonesResult.outputName) {
-        zonesLabel.textContent = 'Zones — Not available in Audio mode';
-      } else if (zonesResult.zones.length === 0) {
-        zonesLabel.textContent = 'Zones — None yet';
-      } else {
-        const activeCount = zonesResult.zones.filter((z) => z.active).length;
-        zonesLabel.textContent = `Zones — ${activeCount} active`;
-      }
+      this.outputName = zonesResult.outputName ?? '';
+      this.zones = zonesResult.zones ?? [];
     } catch {
-      zonesLabel.textContent = 'Zones — Status unavailable';
+      this.outputName = '';
+      this.zones = [];
+    }
+    this.selectedZoneId = null;
+    this.channelLightNames = {};
+
+    if (this.hasHue) {
+      await this.entertainmentConfigSelect.load();
     }
 
+    if (this.outputName) {
+      try {
+        const channelsResult = await (await fetch('/api/hue/channels')).json();
+        if (channelsResult.succeeded) {
+          for (const c of channelsResult.channels) this.channelLightNames[c.channelId] = c.lightNames;
+        }
+      } catch {
+        this.channelLightNames = {};
+      }
+    }
+  }
+
+  _zoneLabel(zone) {
+    const names = this.channelLightNames?.[zone.zoneId];
+    return names?.length ? `Zone ${zone.zoneId} (${names.join(', ')})` : `Zone ${zone.zoneId}`;
+  }
+
+  _render() {
     this._renderControls();
+    this._renderTopTier();
+    this._renderAccordions();
   }
 
   _renderControls() {
@@ -205,6 +218,180 @@ export class DashboardScreen {
     controls.querySelector('#db-stop').addEventListener('click', () => this._openStopConfirm());
   }
 
+  // Top tier: DeviceField (always) + EntertainmentConfigSelect (mode-
+  // agnostic, hidden by its own rule at <=1 config) + video's own
+  // ZoneCanvas/active-toggle/"See all zones" link, matching this doc's own
+  // mockup order (device field, then canvas, then entertainment config,
+  // then the zone row) -- deliberately not the same order ZoneMappingScreen
+  // itself uses, per this screen's own drawn spec.
+  _renderTopTier() {
+    const topTier = this.container.querySelector('.db-top-tier');
+    this.deviceField?.destroy();
+    this.deviceField = null;
+    this.zoneCanvas?.destroy();
+    this.zoneCanvas = null;
+
+    const errorHtml = this.topTierError ? `<p class="status-text status-text-error">⚠ ${escapeHtml(this.topTierError)}</p>` : '';
+    const showZoneRow = this.mode === 'video' && this.outputName && this.zones.length > 0;
+
+    topTier.innerHTML = `
+      <div class="db-device-slot"></div>
+      ${errorHtml}
+      ${showZoneRow ? '<div class="db-canvas-slot"></div>' : ''}
+      <div class="db-entertainment-slot"></div>
+      ${this.mode === 'video' && !showZoneRow ? '<p class="status-text">Zone mapping isn\'t available right now -- it needs an active output and Video mode.</p>' : ''}
+      ${showZoneRow ? `
+        <div class="field db-zone-field">
+          <label class="field-label">Active</label>
+          <div class="db-zone-toggle-slot"></div>
+        </div>
+        <button type="button" class="btn btn-link" id="db-see-all-zones">See all zones &rarr;</button>
+      ` : ''}
+    `;
+
+    this.deviceField = new DeviceField(topTier.querySelector('.db-device-slot'), {
+      mode: this.mode,
+      monitors: this.monitors,
+      selectedMonitorName: this.selectedMonitorName,
+      showSinkField: this.showSinkField,
+      sinkName: this.sinkName,
+      onChange: (patch) => this._onDeviceFieldChange(patch),
+    });
+
+    this.entertainmentConfigSelect.mount(topTier.querySelector('.db-entertainment-slot'));
+
+    if (showZoneRow) {
+      this.zoneCanvas = new ZoneCanvas(topTier.querySelector('.db-canvas-slot'), {
+        zones: this.zones,
+        selectedZoneId: this.selectedZoneId,
+        zoneLabel: (zone) => this._zoneLabel(zone),
+        onSelect: (zoneId) => { this.selectedZoneId = zoneId; this._renderZoneActiveToggle(); },
+        onError: (message) => { this.topTierError = message; this._renderTopTier(); },
+      });
+      this.selectedZoneId = this.zoneCanvas.selectedZoneId;
+      this._renderZoneActiveToggle();
+
+      topTier.querySelector('#db-see-all-zones').addEventListener('click', () => {
+        this.bridgeSection.expand();
+        this.bridgeSection.content.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      });
+    }
+  }
+
+  // Just the single active-bool tied to the canvas's current selection --
+  // destroyed and recreated on every selection change without touching the
+  // canvas itself (ZoneCanvas already redraws its own selection state
+  // internally), same split ZoneMappingScreen's own onboarding variant uses.
+  _renderZoneActiveToggle() {
+    const slot = this.container.querySelector('.db-zone-toggle-slot');
+    if (!slot) return;
+    const zone = this.zones.find((z) => z.zoneId === this.selectedZoneId) ?? this.zones[0];
+    new ZoneActiveToggleSingle(slot, {
+      zone,
+      onError: (message) => { this.topTierError = message; this._renderTopTier(); },
+    });
+  }
+
+  // Fresh AccordionSection instances every call -- always collapsed, which
+  // is exactly what a mode switch's own full _render() needs (see this
+  // file's header comment). Only _render() (mount/mode-switch) calls this;
+  // narrower refreshes (entertainment-config change) update content inside
+  // the already-existing sections instead, preserving whatever the user had
+  // expanded.
+  _renderAccordions() {
+    const wrap = this.container.querySelector('.db-accordions');
+    wrap.innerHTML = `
+      <div class="db-accordion-tuning"></div>
+      <div class="db-accordion-bridge"></div>
+    `;
+
+    this.tuningFields?.destroy();
+    this.tuningSection = new AccordionSection(wrap.querySelector('.db-accordion-tuning'), { title: 'Tuning', expanded: false });
+    this.tuningFields = new TuningFields(this.tuningSection.content, { mode: this.mode, values: this.tuningValues });
+
+    const bridgeTitle = !this.hasHue
+      ? 'Bridge — not available in this build'
+      : `Bridge — ${this.bridgeConfigured ? 'Connected' : 'Not connected'}`;
+    this.bridgeSection = new AccordionSection(wrap.querySelector('.db-accordion-bridge'), { title: bridgeTitle, expanded: false });
+    this._renderBridgeContent();
+  }
+
+  _renderBridgeContent() {
+    const content = this.bridgeSection.content;
+    if (!this.hasHue) {
+      content.innerHTML = `<p class="status-text">Not available in this build.</p>`;
+      return;
+    }
+
+    content.innerHTML = `
+      <p class="status-text">${this.bridgeConfigured ? `Connected to ${escapeHtml(this.bridgeAddress)}` : 'Not connected'}</p>
+      <button type="button" class="btn btn-secondary" id="db-change-bridge">Change bridge</button>
+      <div class="db-bridge-zones-slot"></div>
+    `;
+    content.querySelector('#db-change-bridge').addEventListener('click', () => {
+      this.app.navigate(new OutputConnectScreen(this.app, {
+        onComplete: () => this.app.navigate(new DashboardScreen(this.app)),
+      }));
+    });
+    this._renderBridgeZoneList();
+  }
+
+  // The full per-zone list, relocated here from Zone Mapping's own
+  // always-visible list (see ZoneActiveToggle.js's header comment) --
+  // refreshed whenever zone data changes (initial load, an
+  // entertainment-config switch) without recreating bridgeSection itself,
+  // so an already-expanded Bridge section doesn't collapse just because the
+  // list underneath it changed.
+  _renderBridgeZoneList() {
+    const slot = this.bridgeSection?.content.querySelector('.db-bridge-zones-slot');
+    if (!slot) return;
+    slot.innerHTML = '';
+    if (this.zones.length === 0) return;
+    new ZoneActiveToggleList(slot, {
+      zones: this.zones,
+      zoneLabel: (zone) => this._zoneLabel(zone),
+      onError: (message) => { this.topTierError = message; this._renderTopTier(); },
+    });
+  }
+
+  async _onEntertainmentConfigChange() {
+    this.topTierError = null;
+    await this._loadZoneData();
+    this._renderTopTier();
+    this._renderBridgeZoneList();
+  }
+
+  // Device field edits PUT immediately, same "every edit already saves"
+  // convention Zone Mapping's canvas/toggles use -- this screen draws no
+  // Save button for it at all, unlike ModeDeviceScreen's own onboarding use
+  // of the same component.
+  async _onDeviceFieldChange(patch) {
+    Object.assign(this, patch);
+    this.topTierError = null;
+
+    const apiPatch = this.mode === 'video'
+      ? { activeMonitorName: this.selectedMonitorName }
+      : { audioTargetSinkName: this.sinkName.trim() };
+
+    try {
+      const result = await (await fetch('/api/config', {
+        method: 'PUT',
+        body: JSON.stringify(apiPatch),
+      })).json();
+
+      if (!result.succeeded) {
+        this.topTierError = "Couldn't save capture settings.";
+        this._renderTopTier();
+      } else if (result.reloadError) {
+        this.topTierError = `Saved, but couldn't apply it live: ${result.reloadError}`;
+        this._renderTopTier();
+      }
+    } catch {
+      this.topTierError = "Couldn't reach the daemon.";
+      this._renderTopTier();
+    }
+  }
+
   async _switchMode(mode) {
     if (mode === this.mode) return;
 
@@ -230,11 +417,11 @@ export class DashboardScreen {
       this.toggleError = "Couldn't reach the daemon.";
     }
 
-    // Refreshes everything (including the nav-row labels for Capture
-    // source/Zones) from the real endpoints rather than guessing the new
-    // text locally -- its own trailing _renderControls() picks up
-    // this.toggleError too, whether the switch succeeded or not.
-    await this._loadStatus(this.container);
+    // Refreshes everything from the real endpoints rather than guessing the
+    // new state locally -- also what resets both AccordionSections to
+    // collapsed (see this file's header comment), and its own trailing
+    // _renderControls() picks up this.toggleError too either way.
+    await this._loadAll();
   }
 
   // Ported close to verbatim from huenicorn's own real WebUI.js:
