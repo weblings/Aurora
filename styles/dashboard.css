@@ -42,6 +42,10 @@
   margin-bottom: var(--aurora-space-5);
 }
 
+.db-zone-actions {
+  margin-top: var(--aurora-space-4);
+}
+
 .db-zone-field {
   margin-top: var(--aurora-space-5);
 }

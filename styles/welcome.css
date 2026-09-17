@@ -1,0 +1,7 @@
+/* Welcome screen -- just enough spacing to not butt the message up against
+   the top bar and footer; there's no interactive content here to lay out. */
+
+.welcome-body {
+  margin-top: var(--aurora-space-6);
+  margin-bottom: var(--aurora-space-6);
+}

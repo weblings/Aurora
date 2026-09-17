@@ -11,13 +11,21 @@
 // a distinct onBack pointing at whatever step preceded this one otherwise
 // -- this file doesn't need to know which case it's in.
 //
-// Three phases: entry (address + Autodetect) -> pairing (push-link wait,
-// huenicorn's real click-to-retry model, not a client-side poll loop --
-// see ApiTools/PairingRoutes' register endpoint) -> connected (already
-// paired, reached via mount()'s own saved-state check, not just a
-// same-session "done" -- fixes the original bug where mount() always
-// rendered the blank entry form regardless of already-saved state,
-// dropping Back into a re-pairing flow it never asked for). Entertainment
+// Four phases: checking (silent, no UI to speak of -- resolving discovery
+// before deciding whether entry is even needed) -> entry (address +
+// Autodetect, shown only when checking couldn't resolve to one unambiguous,
+// validated bridge) -> pairing (push-link wait, huenicorn's real
+// click-to-retry model, not a client-side poll loop -- see
+// ApiTools/PairingRoutes' register endpoint) -> connected (already paired,
+// reached via mount()'s own saved-state check, not just a same-session
+// "done" -- fixes the original bug where mount() always rendered the blank
+// entry form regardless of already-saved state, dropping Back into a
+// re-pairing flow it never asked for). "checking" auto-advances straight to
+// pairing when discovery finds exactly one bridge and it validates -- the
+// entry form only exists as a fallback for 0 or 2+ bridges found, discovery
+// itself failing, or that bridge failing validation; "Change address" on the
+// pairing screen is the same fallback's escape hatch for a case "checking"
+// got unambiguously (and wrongly) confident about. Entertainment
 // configuration selection is no longer this screen's job at all -- the new
 // "Entertainment zone select" screen owns it, PATCHing
 // entertainmentConfigurationId onto the connection this screen already
@@ -29,12 +37,30 @@ import { renderTopBar } from '../topBar.js';
 import { renderNavFooter } from '../NavFooter.js';
 
 export class OutputConnectScreen {
-  constructor(app, { onComplete, onBack, showBack = true }) {
+  // discoveryPromise: an already-in-flight /api/hue/discover result, handed
+  // in by whichever screen preceded this one (e.g. Welcome, which starts
+  // discovery while the user is still reading its own copy) so mount()
+  // doesn't have to wait out a fresh round-trip. Optional -- every other
+  // call site (Dashboard's "Change bridge", etc.) omits it and this screen
+  // just runs its own discovery exactly as before.
+  //
+  // startAtEntry: skips the "connected" phase's own confirmation screen
+  // (Connected to X / [Change bridge]) even when a connection is already
+  // configured -- for callers whose own button already means "change the
+  // bridge" (Dashboard's), where that confirmation is just a second
+  // "Change bridge" click standing between the button and the address form
+  // it should have opened directly. The "connected" phase itself still
+  // exists for a real use case (e.g. Back from a later onboarding step,
+  // which hasn't already declared this intent) -- this flag doesn't remove
+  // it, just opts a specific caller out of it.
+  constructor(app, { onComplete, onBack, showBack = true, discoveryPromise = null, startAtEntry = false }) {
     this.app = app;
     this.onComplete = onComplete;
     this.onBack = onBack ?? onComplete;
     this.showBack = showBack;
-    this.phase = 'entry'; // 'entry' | 'pairing' | 'connected'
+    this.discoveryPromise = discoveryPromise;
+    this.startAtEntry = startAtEntry;
+    this.phase = 'entry'; // 'checking' | 'entry' | 'pairing' | 'connected'
     this.bridgeAddress = '';
     this.username = '';
     this.clientkey = '';
@@ -59,21 +85,23 @@ export class OutputConnectScreen {
     try {
       const connection = await (await fetch('/api/hue/connection')).json();
       if (connection.bridgeAddress) this.bridgeAddress = connection.bridgeAddress;
-      if (connection.configured) this.phase = 'connected';
+      if (connection.configured && !this.startAtEntry) this.phase = 'connected';
     } catch {
       // No persisted connection yet, or the probe failed -- entry starts blank either way.
     }
 
-    this._render();
-
-    // Runs discovery on page load instead of waiting for a manual
-    // Autodetect click -- only for a genuinely fresh entry (no already-
-    // known/persisted address), and only here in mount(), not on every
-    // return to the entry phase (Change address/Change bridge already have
-    // their own explicit re-detect via the button).
+    // Only for a genuinely fresh entry (no already-known/persisted address),
+    // and only here in mount(), not on every return to the entry phase
+    // (Change address/Change bridge already have their own explicit
+    // re-detect via the button).
     if (this.phase === 'entry' && !this.bridgeAddress) {
-      await this._autodetect(null, { silent: true });
+      this.phase = 'checking';
+      this._render();
+      await this._autoAdvance();
+      return;
     }
+
+    this._render();
   }
 
   unmount() {}
@@ -82,9 +110,16 @@ export class OutputConnectScreen {
     const body = this.container.querySelector('.oc-body');
     const footer = this.container.querySelector('.nav-footer-slot');
 
-    if (this.phase === 'entry') this._renderEntry(body, footer);
+    if (this.phase === 'checking') this._renderChecking(body);
+    else if (this.phase === 'entry') this._renderEntry(body, footer);
     else if (this.phase === 'pairing') this._renderPairing(body, footer);
     else this._renderConnected(body, footer);
+  }
+
+  // No footer -- matches ZoneMappingScreen._load()'s bare "Loading…" convention
+  // for a state with nothing yet to act on.
+  _renderChecking(body) {
+    body.innerHTML = `<p class="status-text">Looking for your bridge…</p>`;
   }
 
   _renderEntry(body, footer) {
@@ -158,13 +193,41 @@ export class OutputConnectScreen {
     });
   }
 
-  // silent: the page-load auto-trigger, as opposed to a manual button click.
-  // Backs off entirely (no field overwrite, no error shown) if the user has
-  // already typed an address while this was in flight -- their own input
-  // always wins over a stale background result.
-  async _autodetect(button, { silent = false } = {}) {
-    if (button) button.disabled = true;
-    if (!silent) this.error = null;
+  // The "checking" phase's own logic, run once from mount() -- resolves
+  // discovery (using discoveryPromise if Welcome already started one,
+  // otherwise fetching fresh) and only auto-advances straight to pairing
+  // when it found exactly one bridge *and* that bridge validates. Anything
+  // less certain (0 or 2+ bridges, discovery failing outright, or a failed
+  // validation) falls back to the entry form instead of a dead end -- so a
+  // wrong guess on an ambiguous multi-bridge LAN never happens, only a
+  // skipped form on the unambiguous single-bridge case most users are in.
+  async _autoAdvance() {
+    let bridges = [];
+    try {
+      const result = await (this.discoveryPromise ?? fetch('/api/hue/discover').then((r) => r.json()));
+      if (result.succeeded && Array.isArray(result.bridges)) bridges = result.bridges;
+    } catch {
+      // Falls through to the entry form below.
+    }
+
+    if (bridges.length === 1 && bridges[0].internalipaddress) {
+      const address = bridges[0].internalipaddress;
+      if (await this._validate(address)) {
+        this.bridgeAddress = address;
+        this.phase = 'pairing';
+        this._render();
+        await this._register();
+        return;
+      }
+    }
+
+    this.phase = 'entry';
+    this._render();
+  }
+
+  async _autodetect(button) {
+    button.disabled = true;
+    this.error = null;
 
     let address = null;
     let failureMessage = null;
@@ -180,16 +243,27 @@ export class OutputConnectScreen {
       failureMessage = 'Could not reach the discovery service.';
     }
 
-    if (silent && this.bridgeAddress) {
-      if (button) button.disabled = false;
-      return;
-    }
-
     if (address) this.bridgeAddress = address;
     else this.error = failureMessage;
 
-    if (button) button.disabled = false;
+    button.disabled = false;
     this._render();
+  }
+
+  // Shared by _autoAdvance and _validateAndPair -- just the raw yes/no of
+  // whether /api/hue/validate confirmed a real bridge there. Each caller
+  // decides how to surface a failure for its own context (silent fallback
+  // to the entry form vs. an error message on it).
+  async _validate(address) {
+    try {
+      const result = await (await fetch('/api/hue/validate', {
+        method: 'PUT',
+        body: JSON.stringify({ bridgeAddress: address }),
+      })).json();
+      return result.succeeded === true;
+    } catch {
+      return false;
+    }
   }
 
   async _validateAndPair(button) {
@@ -202,18 +276,7 @@ export class OutputConnectScreen {
 
     button.disabled = true;
     this.error = null;
-    try {
-      const result = await (await fetch('/api/hue/validate', {
-        method: 'PUT',
-        body: JSON.stringify({ bridgeAddress: address }),
-      })).json();
-      if (!result.succeeded) {
-        this.error = "Couldn't reach a bridge at that address.";
-        button.disabled = false;
-        this._render();
-        return;
-      }
-    } catch {
+    if (!(await this._validate(address))) {
       this.error = "Couldn't reach a bridge at that address.";
       button.disabled = false;
       this._render();

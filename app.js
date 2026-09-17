@@ -5,6 +5,7 @@
 // avoids a circular import between this file and every screen module.
 import { App } from './shell.js';
 import { DashboardScreen } from './screens/DashboardScreen.js';
+import { WelcomeScreen } from './screens/WelcomeScreen.js';
 import { OutputConnectScreen } from './screens/OutputConnectScreen.js';
 import { EntertainmentZoneSelectScreen } from './screens/EntertainmentZoneSelectScreen.js';
 import { ModeDeviceScreen } from './screens/ModeDeviceScreen.js';
@@ -214,11 +215,20 @@ async function bootstrap() {
   }
 
   if (state.needsOutputConnect) {
-    const thisStep = () => app.navigate(new OutputConnectScreen(app, {
-      showBack: false,
-      onComplete: () => goToEntertainmentZoneSelectStage(thisStep),
+    // Welcome only ever appears here -- the one branch where nothing is
+    // configured yet -- never from Dashboard's "Change bridge" or any other
+    // OutputConnectScreen re-entry, which construct it directly with no
+    // discoveryPromise and keep behaving exactly as before.
+    const showWelcome = () => app.navigate(new WelcomeScreen(app, {
+      onComplete: (discoveryPromise) => showOutputConnect(discoveryPromise),
     }));
-    thisStep();
+    const showOutputConnect = (discoveryPromise) => app.navigate(new OutputConnectScreen(app, {
+      showBack: true,
+      onBack: showWelcome,
+      discoveryPromise,
+      onComplete: () => goToEntertainmentZoneSelectStage(showOutputConnect),
+    }));
+    showWelcome();
     return;
   }
 

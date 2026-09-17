@@ -21,6 +21,7 @@ import { DeviceField, AUTO_MONITOR_VALUE } from '../DeviceField.js';
 import { EntertainmentConfigSelect } from '../EntertainmentConfigSelect.js';
 import { ZoneCanvas } from '../ZoneCanvas.js';
 import { ZoneActiveToggleList, ZoneActiveToggleSingle } from '../ZoneActiveToggle.js';
+import { screenDivisionRects } from '../ScreenDivision.js';
 import { AccordionSection } from '../AccordionSection.js';
 import { TuningFields } from '../TuningFields.js';
 
@@ -241,6 +242,9 @@ export class DashboardScreen {
       <div class="db-entertainment-slot"></div>
       ${this.mode === 'video' && !showZoneRow ? '<p class="status-text">Zone mapping isn\'t available right now -- it needs an active output and Video mode.</p>' : ''}
       ${showZoneRow ? `
+        <div class="db-zone-actions">
+          <button type="button" class="btn btn-secondary" id="db-auto-divide">Auto-arrange zones</button>
+        </div>
         <div class="field db-zone-field">
           <label class="field-label">Active</label>
           <div class="db-zone-toggle-slot"></div>
@@ -275,7 +279,43 @@ export class DashboardScreen {
         this.bridgeSection.expand();
         this.bridgeSection.content.scrollIntoView({ behavior: 'smooth', block: 'start' });
       });
+      topTier.querySelector('#db-auto-divide').addEventListener('click', (e) => this._onAutoDivideClick(e.currentTarget));
     }
+  }
+
+  // Same non-overlapping-region assignment as ZoneMappingScreen's own
+  // "Auto-arrange zones" button (ScreenDivision.js) -- duplicated rather than
+  // shared since the two screens refresh completely different state
+  // afterward (this one re-renders the top tier + bridge zone list, not a
+  // single zm-body). Refetches zones afterward rather than trusting any
+  // individual PUT response, same reasoning as ZoneMappingScreen's version.
+  async _onAutoDivideClick(button) {
+    button.disabled = true;
+    const activeZones = this.zones.filter((z) => z.active).sort((a, b) => a.zoneId - b.zoneId);
+
+    if (activeZones.length === 0) {
+      this.topTierError = 'No active zones to arrange.';
+    } else {
+      this.topTierError = null;
+      const rects = screenDivisionRects(activeZones.length);
+      try {
+        const results = await Promise.all(activeZones.map((zone, i) => (
+          fetch('/api/zones', {
+            method: 'PUT',
+            body: JSON.stringify({ zoneId: zone.zoneId, uvs: rects[i] }),
+          }).then((r) => r.json())
+        )));
+        if (results.some((r) => !r.succeeded)) {
+          this.topTierError = "Couldn't save the auto-arranged zones.";
+        }
+      } catch {
+        this.topTierError = "Couldn't reach the daemon.";
+      }
+      await this._loadZoneData();
+    }
+
+    this._renderTopTier();
+    this._renderBridgeZoneList();
   }
 
   // Just the single active-bool tied to the canvas's current selection --
@@ -330,6 +370,7 @@ export class DashboardScreen {
     `;
     content.querySelector('#db-change-bridge').addEventListener('click', () => {
       this.app.navigate(new OutputConnectScreen(this.app, {
+        startAtEntry: true,
         onComplete: () => this.app.navigate(new DashboardScreen(this.app)),
       }));
     });
