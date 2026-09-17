@@ -670,6 +670,18 @@ try
 #ifdef AURORA_OUTPUT_HUE_IO_AVAILABLE
   Aurora::Output::Hue::registerPairingRoutes(httpServer, configRoot,
     [&pipelineHost, &registry, configRoot]() -> std::string {
+      // registerOutputs() only ever registered "hue" once, at startup,
+      // gated on whatever CredentialsStore held then -- a fresh pairing
+      // this same session (Output Connect, Entertainment zone select) can
+      // be the very first time real credentials exist, and without this,
+      // "hue" stays permanently absent from registry for the rest of the
+      // process even though it's now genuinely configured (Registry's own
+      // registerOutput() is a plain map assignment, safe to repeat).
+      // Otherwise the next reload -- typically Mode+Device Select's own
+      // save, right after onboarding -- throws "No outputs available"
+      // even though pairing just succeeded. Found live, see
+      // WebUI_Fixes.md's Pass 2 section.
+      registerOutputs(registry, configRoot);
       Aurora::Runtime::Config freshConfig = Aurora::Runtime::ConfigStore(configRoot).load();
       std::string error;
       pipelineHost.reload(registry, freshConfig, configRoot, error);
