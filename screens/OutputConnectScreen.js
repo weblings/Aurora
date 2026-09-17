@@ -1,24 +1,32 @@
 // Output Connect: the first real screen, and the first full vertical slice
 // through the whole stack (server, credential persistence, pairing
-// endpoints, Dropdown, waiting/error states). See
-// Analysis/WebUI/WebUI_Design_1stPass.md's Output Connect section and build-order step 10.
+// endpoints, waiting/error states). See Analysis/WebUI/WebUI_Design_1stPass.md's
+// Output Connect section and build-order step 10; redesigned in
+// Analysis/WebUI/WebUI_Design_2ndPass.md's Screen 1.
 //
 // showBack/onBack default to the hub-and-spoke shape (Back == onComplete ==
 // Dashboard), matching every Dashboard-driven call site unchanged. app.js's
-// first-run bootstrap (step 18) overrides both explicitly: showBack:false
-// when this is the first screen the boot chain shows (nothing to return to
-// yet), and a distinct onBack pointing at whatever step preceded this one
-// otherwise -- this file doesn't need to know which case it's in.
+// first-run bootstrap overrides both explicitly: showBack:false when this
+// is the first screen the boot chain shows (nothing to return to yet), and
+// a distinct onBack pointing at whatever step preceded this one otherwise
+// -- this file doesn't need to know which case it's in.
 //
-// Four phases, each its own render function: entry (address + Autodetect +
-// Continue) -> pairing (push-link wait, huenicorn's real click-to-retry
-// model, not a client-side poll loop -- see ApiTools/PairingRoutes'
-// register endpoint) -> configSelect (skips the Dropdown entirely when only
-// one entertainment configuration exists, since there's nothing to actually
-// choose -- but never auto-selects among more than one, see output.md's
-// "more than one entertainment configuration is normal" lesson) -> done.
+// Three phases: entry (address + Autodetect) -> pairing (push-link wait,
+// huenicorn's real click-to-retry model, not a client-side poll loop --
+// see ApiTools/PairingRoutes' register endpoint) -> connected (already
+// paired, reached via mount()'s own saved-state check, not just a
+// same-session "done" -- fixes the original bug where mount() always
+// rendered the blank entry form regardless of already-saved state,
+// dropping Back into a re-pairing flow it never asked for). Entertainment
+// configuration selection is no longer this screen's job at all -- the new
+// "Entertainment zone select" screen owns it, PATCHing
+// entertainmentConfigurationId onto the connection this screen already
+// saved (isConfigured() doesn't require it -- confirmed in
+// CredentialsStoreTests.cpp). A successful pairing here already persists
+// bridgeAddress/username/clientkey and calls onComplete() directly; no
+// local config-select/done phase to skip past.
 import { renderTopBar } from '../topBar.js';
-import { Dropdown } from '../Dropdown.js';
+import { renderNavFooter } from '../NavFooter.js';
 
 export class OutputConnectScreen {
   constructor(app, { onComplete, onBack, showBack = true }) {
@@ -26,14 +34,11 @@ export class OutputConnectScreen {
     this.onComplete = onComplete;
     this.onBack = onBack ?? onComplete;
     this.showBack = showBack;
-    this.phase = 'entry';
+    this.phase = 'entry'; // 'entry' | 'pairing' | 'connected'
     this.bridgeAddress = '';
     this.username = '';
     this.clientkey = '';
-    this.configs = null; // null = not loaded yet, distinct from "loaded, zero results"
-    this.selectedConfigId = '';
     this.error = null;
-    this.dropdown = null;
   }
 
   async mount(container) {
@@ -41,19 +46,21 @@ export class OutputConnectScreen {
     container.innerHTML = `
       <div class="top-bar-slot"></div>
       <div class="oc-body"></div>
+      <div class="nav-footer-slot"></div>
     `;
     renderTopBar(container.querySelector('.top-bar-slot'), {
       title: 'Connect to your Hue Bridge',
-      showBack: this.showBack,
-      onBack: () => this.onBack(),
+      showBack: false,
       onSettings: () => this.app.openSettings(),
     });
 
-    // Pre-fill from any already-persisted connection -- lets re-pairing an
-    // existing bridge start from its current address instead of blank.
+    // Checks saved state before rendering anything -- the actual fix for
+    // Back dropping into a blank re-pairing form regardless of an already-
+    // saved connection (WebUI_Fixes.md's Back-button task).
     try {
       const connection = await (await fetch('/api/hue/connection')).json();
       if (connection.bridgeAddress) this.bridgeAddress = connection.bridgeAddress;
+      if (connection.configured) this.phase = 'connected';
     } catch {
       // No persisted connection yet, or the probe failed -- entry starts blank either way.
     }
@@ -61,23 +68,18 @@ export class OutputConnectScreen {
     this._render();
   }
 
-  unmount() {
-    this.dropdown?.destroy();
-    this.dropdown = null;
-  }
+  unmount() {}
 
   _render() {
     const body = this.container.querySelector('.oc-body');
-    this.dropdown?.destroy();
-    this.dropdown = null;
+    const footer = this.container.querySelector('.nav-footer-slot');
 
-    if (this.phase === 'entry') this._renderEntry(body);
-    else if (this.phase === 'pairing') this._renderPairing(body);
-    else if (this.phase === 'configSelect') this._renderConfigSelect(body);
-    else if (this.phase === 'done') this._renderDone(body);
+    if (this.phase === 'entry') this._renderEntry(body, footer);
+    else if (this.phase === 'pairing') this._renderPairing(body, footer);
+    else this._renderConnected(body, footer);
   }
 
-  _renderEntry(body) {
+  _renderEntry(body, footer) {
     body.innerHTML = `
       <div class="field">
         <label class="field-label" for="oc-address-input">Bridge address</label>
@@ -89,9 +91,6 @@ export class OutputConnectScreen {
         <button type="button" class="btn btn-secondary" id="oc-autodetect">Autodetect</button>
       </div>
       ${this.error ? `<p class="status-text status-text-error">⚠ ${escapeHtml(this.error)}</p>` : ''}
-      <div class="oc-actions">
-        <button type="button" class="btn btn-primary" id="oc-continue">Continue</button>
-      </div>
     `;
 
     const input = body.querySelector('#oc-address-input');
@@ -101,94 +100,54 @@ export class OutputConnectScreen {
     });
 
     body.querySelector('#oc-autodetect').addEventListener('click', (e) => this._autodetect(e.currentTarget));
-    body.querySelector('#oc-continue').addEventListener('click', (e) => this._validateAndPair(e.currentTarget));
+
+    renderNavFooter(footer, {
+      showBack: this.showBack,
+      onBack: () => this.onBack(),
+      onContinue: (e) => this._validateAndPair(e.currentTarget),
+    });
   }
 
-  _renderPairing(body) {
+  _renderPairing(body, footer) {
     body.innerHTML = `
       <p class="status-text">Press the button on your bridge, then continue.</p>
       ${this.error ? `<p class="status-text status-text-error">⚠ ${escapeHtml(this.error)}</p>` : ''}
-      <div class="oc-actions">
-        <button type="button" class="btn btn-link" id="oc-change-address">Change address</button>
-        <button type="button" class="btn btn-primary" id="oc-retry-register">Continue</button>
-      </div>
+      <button type="button" class="btn btn-link" id="oc-change-address">Change address</button>
     `;
-    body.querySelector('#oc-retry-register').addEventListener('click', (e) => this._register(e.currentTarget));
     body.querySelector('#oc-change-address').addEventListener('click', () => {
       this.phase = 'entry';
       this.error = null;
       this._render();
     });
+
+    // No Back during an in-flight pairing attempt -- "Change address"
+    // already covers "abandon this and go back," and a bare Back here
+    // would suggest leaving mid-exchange is equally safe, which it isn't
+    // (see Screen 1's CONNECTED-state design in WebUI_Design_2ndPass.md).
+    renderNavFooter(footer, {
+      showBack: false,
+      onContinue: (e) => this._register(e.currentTarget),
+    });
   }
 
-  _renderConfigSelect(body) {
-    if (this.configs === null) {
-      body.innerHTML = `<p class="status-text">Loading entertainment configurations…</p>`;
-      return;
-    }
-
-    const errorHtml = this.error ? `<p class="status-text status-text-error">⚠ ${escapeHtml(this.error)}</p>` : '';
-
-    if (this.configs.length === 0) {
-      body.innerHTML = `
-        <p class="status-text status-text-error">No entertainment configurations found. Create one in the official Hue app first, then check again.</p>
-        <div class="oc-actions">
-          <button type="button" class="btn btn-secondary" id="oc-refresh-configs">Check again</button>
-        </div>
-      `;
-      body.querySelector('#oc-refresh-configs').addEventListener('click', () => this._loadConfigs());
-      return;
-    }
-
-    if (this.configs.length === 1) {
-      this.selectedConfigId = this.configs[0].id;
-      body.innerHTML = `
-        <p class="status-text">Entertainment configuration: <strong>${escapeHtml(this.configs[0].name)}</strong></p>
-        ${errorHtml}
-        <div class="oc-actions">
-          <button type="button" class="btn btn-primary" id="oc-finish">Finish</button>
-        </div>
-      `;
-      body.querySelector('#oc-finish').addEventListener('click', (e) => this._finish(e.currentTarget));
-      return;
-    }
-
+  _renderConnected(body, footer) {
     body.innerHTML = `
-      <div class="field">
-        <label class="field-label" id="oc-config-label">Entertainment configuration</label>
-        <div id="oc-config-dropdown-slot"></div>
-      </div>
-      ${errorHtml}
-      <div class="oc-actions">
-        <button type="button" class="btn btn-primary" id="oc-finish">Finish</button>
-      </div>
+      <p class="status-text">Connected to ${escapeHtml(this.bridgeAddress)}</p>
+      <button type="button" class="btn btn-secondary" id="oc-change-bridge">Change bridge</button>
     `;
+    body.querySelector('#oc-change-bridge').addEventListener('click', () => {
+      this.phase = 'entry';
+      this.error = null;
+      this._render();
+    });
 
-    if (!this.selectedConfigId) this.selectedConfigId = this.configs[0].id;
-    const slot = body.querySelector('#oc-config-dropdown-slot');
-    this.dropdown = new Dropdown(
-      slot,
-      this.configs.find((c) => c.id === this.selectedConfigId)?.name ?? this.configs[0].name,
-      (value) => { this.selectedConfigId = value; },
-      { labelId: 'oc-config-label', fill: true },
-    );
-    this.dropdown.setOptions(this.configs.map((c) => ({
-      label: c.name,
-      value: c.id,
-      selected: c.id === this.selectedConfigId,
-    })));
-
-    body.querySelector('#oc-finish').addEventListener('click', (e) => this._finish(e.currentTarget));
-  }
-
-  _renderDone(body) {
-    body.innerHTML = `
-      <p class="status-text status-text-success">✓ Paired to your bridge.</p>
-      <div class="oc-actions">
-        <button type="button" class="btn btn-primary" id="oc-done-continue">Continue</button>
-      </div>
-    `;
-    body.querySelector('#oc-done-continue').addEventListener('click', () => this.onComplete());
+    // Back and Continue both just leave without changing anything --
+    // "Change bridge" is the only action here that mutates state.
+    renderNavFooter(footer, {
+      showBack: this.showBack,
+      onBack: () => this.onBack(),
+      onContinue: () => this.onComplete(),
+    });
   }
 
   async _autodetect(button) {
@@ -255,8 +214,7 @@ export class OutputConnectScreen {
       if (result.succeeded) {
         this.username = result.username;
         this.clientkey = result.clientkey;
-        this.phase = 'configSelect';
-        await this._loadConfigs();
+        await this._save();
         return;
       }
       // link_button_not_pressed is the expected, non-error waiting state --
@@ -272,24 +230,11 @@ export class OutputConnectScreen {
     this._render();
   }
 
-  async _loadConfigs() {
-    this.configs = null;
-    this._render();
-    try {
-      const result = await (await fetch('/api/hue/entertainment-configurations', {
-        method: 'PUT',
-        body: JSON.stringify({ bridgeAddress: this.bridgeAddress, username: this.username }),
-      })).json();
-      this.configs = result.succeeded ? result.configurations : [];
-    } catch {
-      this.configs = [];
-    }
-    this._render();
-  }
-
-  async _finish(button) {
-    button.disabled = true;
-    this.error = null;
+  // Persists bridgeAddress/username/clientkey without an
+  // entertainmentConfigurationId -- isConfigured() doesn't require one, and
+  // the new Entertainment zone select screen PATCHes it on separately once
+  // it knows which config the user picked.
+  async _save() {
     try {
       const result = await (await fetch('/api/hue/connection', {
         method: 'POST',
@@ -297,19 +242,16 @@ export class OutputConnectScreen {
           bridgeAddress: this.bridgeAddress,
           username: this.username,
           clientkey: this.clientkey,
-          entertainmentConfigurationId: this.selectedConfigId,
         }),
       })).json();
       if (result.succeeded) {
-        this.phase = 'done';
-        this._render();
+        this.onComplete();
         return;
       }
       this.error = "Couldn't save the connection.";
     } catch {
       this.error = "Couldn't save the connection.";
     }
-    button.disabled = false;
     this._render();
   }
 }
