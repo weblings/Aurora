@@ -333,7 +333,12 @@ Aurora's own module boundaries instead of RockyRoad's. `rendering-apis.md` vs.
   independently in two components (`EntertainmentConfigSelect`'s
   single-config display label, `ZoneMappingScreen`'s never-edited zone
   defaults) before being fixed structurally (a single `nuxCompleted` flag)
-  instead of patched a third time wherever it next turned up.
+  instead of patched a third time wherever it next turned up; and a feature
+  named for two screens ("the NUX and Dashboard zone mapping UI") only
+  being added to one of them, since `DashboardScreen.js` builds its own
+  separate zone UI directly rather than mounting `ZoneMappingScreen` at
+  all -- caught only by the user noticing the button missing, when a grep
+  for the shared screen's own class name would have found the gap first.
 
 ## Where a new lesson goes
 

@@ -512,8 +512,8 @@ after its build order closed out.
 
 ### Polish 2.5 Pass
 - [x] Video Mapping auto does screen division assignment. Button gets added to assign auto
-- [ ] Hue bridge IP address automatically gets found on page start (don't need to wait for user to hit button)
-- [ ] Maybe integrate hit bridge button to that screen if it works well enough
+- [x] Hue bridge IP address automatically gets found on page start (don't need to wait for user to hit button)
+- [x] Maybe integrate hit bridge button to that screen if it works well enough
 - [ ] Add "drumroll please" above Video and Audio toggles while it's loading. Clean up copy
 - [ ] Accordian menus need visual distinction
 - [ ] Zone Mapping general polish

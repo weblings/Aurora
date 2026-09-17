@@ -810,3 +810,33 @@ signal to stop patching occurrences and fix the class instead -- in this
 case, by no longer needing any individual "was this specific thing ever
 touched" signal to be right at all once the wizard has been through once,
 rather than trying to make every such signal in the app correct.
+
+---
+
+## A feature named for two screens needs confirming both screens actually route through the code being edited, not just that a component with the right job exists
+
+Asked to add an "Auto-arrange zones" button to "the NUX and Dashboard zone
+mapping UI," the button was added to `ZoneMappingScreen.js` and reported
+done. `ZoneMappingScreen` is only ever constructed from the onboarding
+boot chain (`app.js`) -- `DashboardScreen.js` builds its own separate
+top-tier zone UI directly from `ZoneCanvas`/`ZoneActiveToggle*`, and never
+mounts `ZoneMappingScreen` at all. The two screens look like "the same
+zone mapping feature" to a user and share several of the same extracted
+sub-components (this file's own shared-component-vs-shared-position entry,
+above, is exactly why that extraction happened), which made it easy to
+assume editing one had covered both. The gap wasn't caught until the user
+reported the button missing from the Dashboard; grepping for
+`ZoneMappingScreen` afterward found zero references anywhere in
+`DashboardScreen.js`, a one-command check that would have caught it before
+reporting the task done.
+
+**Fix:** added the same auto-arrange logic separately to `DashboardScreen.js`'s
+own `_renderTopTier()`, duplicating the PUT/refetch calls rather than
+sharing them, since the two screens refresh completely different state
+afterward (one screen's own body vs. the Dashboard's top tier + Bridge
+section list). General principle: when a task names two or more screens a
+feature should reach, grep for the actual class each named screen
+constructs before declaring the work done after editing just one file --
+"these render the same feature" is not evidence they're the same
+component, especially in a codebase that deliberately extracted shared
+pieces so different screens *could* compose them differently.
