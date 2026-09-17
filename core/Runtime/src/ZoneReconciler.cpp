@@ -17,8 +17,9 @@ namespace Aurora::Runtime
         return zone.zoneId == zoneId;
       });
 
-      // No saved mapping yet for this zone -- default inactive rather than
-      // guessing a screen region for it.
+      // No saved mapping yet for this zone -- default active with full-frame
+      // uvs (a generic whole-screen average) rather than guessing a region;
+      // everConfigured stays false until it's actually written once.
       reconciled.push_back(it != savedZoneMap.end() ? *it : ZoneConfig{zoneId});
     }
 

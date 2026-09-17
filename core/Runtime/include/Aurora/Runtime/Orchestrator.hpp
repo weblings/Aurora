@@ -50,7 +50,9 @@ namespace Aurora::Runtime
     // under whatever external lock the caller already holds around update()
     // (see PipelineHost in each app's main.cpp). Only the fields present
     // (non-nullopt) are changed, matching SettingsRoutes' own PATCH
-    // semantics. Persists immediately via the same ZoneMapStore used at
+    // semantics; everConfigured is the one exception, set true on every call
+    // regardless of which fields were passed, since a call happening at all
+    // is what it records. Persists immediately via the same ZoneMapStore used at
     // init(), matching huenicorn's save-on-every-setter feel. Returns false
     // (no-op) if outputName isn't live or zoneId isn't in its zone map.
     bool updateZone(

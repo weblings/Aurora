@@ -39,7 +39,8 @@ namespace Aurora::Runtime
         {"zoneId", zone.zoneId},
         {"uvs", toJson(zone.uvs)},
         {"active", zone.active},
-        {"gamma", zone.gamma}
+        {"gamma", zone.gamma},
+        {"everConfigured", zone.everConfigured}
       };
     }
 
@@ -49,6 +50,7 @@ namespace Aurora::Runtime
       zone.zoneId = static_cast<uint8_t>(json.value("zoneId", 0));
       zone.active = json.value("active", false);
       zone.gamma = json.value("gamma", 0.f);
+      zone.everConfigured = json.value("everConfigured", false);
 
       if(json.contains("uvs")){
         zone.uvs = uvsFromJson(json.at("uvs"));

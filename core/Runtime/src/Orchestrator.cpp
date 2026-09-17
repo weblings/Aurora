@@ -124,6 +124,7 @@ namespace Aurora::Runtime
       if(uvs) zone.uvs = *uvs;
       if(active) zone.active = *active;
       if(gamma) zone.gamma = *gamma;
+      zone.everConfigured = true;
 
       m_zoneMapStore.save(outputName, it->second);
       return true;

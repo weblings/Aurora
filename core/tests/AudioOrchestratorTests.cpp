@@ -95,7 +95,8 @@ TEST_CASE("AudioOrchestrator::init reconciles and persists each output's zone ma
 
   const ZoneMap& zoneMap = orchestrator.zoneMap("fake");
   REQUIRE(zoneMap.size() == 2);
-  CHECK_FALSE(zoneMap[0].active); // no saved profile yet -- defaults inactive
+  CHECK(zoneMap[0].active); // no saved profile yet -- defaults active
+  CHECK_FALSE(zoneMap[0].everConfigured); // but never actually written
 
   ZoneMapStore reread(dir.path);
   CHECK(reread.load("fake").size() == 2);

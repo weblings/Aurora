@@ -59,7 +59,8 @@ namespace Aurora::Runtime
         {"zoneId", zone.zoneId},
         {"uvs", _toJson(zone.uvs)},
         {"active", zone.active},
-        {"gamma", zone.gamma}
+        {"gamma", zone.gamma},
+        {"everConfigured", zone.everConfigured}
       };
     }
 

@@ -164,7 +164,7 @@ TEST_CASE("ZoneMapStore keeps each plugin's profile in its own file", "[ZoneMapS
   CHECK(store.load("hue").empty()); // no profile saved yet
 
   ZoneMap hueZones{
-    {1, {{0.f, 0.f}, {0.5f, 1.f}}, true, 0.5f},
+    {1, {{0.f, 0.f}, {0.5f, 1.f}}, true, 0.5f, true},
     {2, {{0.5f, 0.f}, {1.f, 1.f}}, false}
   };
   store.save("hue", hueZones);
@@ -175,18 +175,20 @@ TEST_CASE("ZoneMapStore keeps each plugin's profile in its own file", "[ZoneMapS
   CHECK(loaded[0].active);
   CHECK(loaded[0].uvs.max.x == Catch::Approx(0.5f));
   CHECK(loaded[0].gamma == Catch::Approx(0.5f));
+  CHECK(loaded[0].everConfigured);
   CHECK_FALSE(loaded[1].active);
   CHECK(loaded[1].gamma == Catch::Approx(0.f)); // default when not set
+  CHECK_FALSE(loaded[1].everConfigured); // default when not set
 
   // A different plugin's profile is untouched by hue's save.
   CHECK(store.load("dmx").empty());
 }
 
 
-TEST_CASE("reconcileZoneMap keeps saved mappings, defaults new zones inactive, drops stale ones", "[ZoneReconciler]")
+TEST_CASE("reconcileZoneMap keeps saved mappings, defaults new zones active-but-unconfigured, drops stale ones", "[ZoneReconciler]")
 {
   ZoneMap saved{
-    {1, {{0.1f, 0.1f}, {0.4f, 0.4f}}, true},
+    {1, {{0.1f, 0.1f}, {0.4f, 0.4f}}, true, 0.f, true},
     {9, {{0.f, 0.f}, {1.f, 1.f}}, true} // no longer reported live below
   };
 
@@ -196,10 +198,12 @@ TEST_CASE("reconcileZoneMap keeps saved mappings, defaults new zones inactive, d
 
   CHECK(reconciled[0].zoneId == 1);
   CHECK(reconciled[0].active);
+  CHECK(reconciled[0].everConfigured);
   CHECK(reconciled[0].uvs.max.x == Catch::Approx(0.4f));
 
   CHECK(reconciled[1].zoneId == 2);
-  CHECK_FALSE(reconciled[1].active); // new zone, no saved mapping
+  CHECK(reconciled[1].active); // new zone, no saved mapping -- active is the default
+  CHECK_FALSE(reconciled[1].everConfigured); // but never actually written
 }
 
 

@@ -138,7 +138,8 @@ TEST_CASE("Orchestrator::init reconciles and persists each output's zone map", "
 
   const ZoneMap& zoneMap = orchestrator.zoneMap("fake");
   REQUIRE(zoneMap.size() == 2);
-  CHECK_FALSE(zoneMap[0].active); // no saved profile yet -- defaults inactive
+  CHECK(zoneMap[0].active); // no saved profile yet -- defaults active
+  CHECK_FALSE(zoneMap[0].everConfigured); // but never actually written
 
   // Persisted immediately, not just held in memory.
   ZoneMapStore reread(dir.path);
@@ -204,13 +205,16 @@ TEST_CASE("Orchestrator::updateZone edits only the fields given, live and persis
   CHECK(zoneMap[0].uvs.max == glm::vec2(0.3f, 0.4f));
   CHECK(zoneMap[0].active);
   CHECK(zoneMap[0].gamma == 0.5f);
-  CHECK_FALSE(zoneMap[1].active); // untouched
+  CHECK(zoneMap[0].everConfigured); // written once
+  CHECK(zoneMap[1].active); // untouched -- still its own default
+  CHECK_FALSE(zoneMap[1].everConfigured); // untouched -- never written
 
   // Omitted fields (nullopt) leave the existing value alone.
   CHECK(orchestrator.updateZone("fake", 1, std::nullopt, false, std::nullopt));
   CHECK(orchestrator.zoneMap("fake")[0].uvs.min == glm::vec2(0.1f, 0.2f)); // still the earlier edit
   CHECK_FALSE(orchestrator.zoneMap("fake")[0].active);
   CHECK(orchestrator.zoneMap("fake")[0].gamma == 0.5f);
+  CHECK(orchestrator.zoneMap("fake")[0].everConfigured); // stays true once set
 
   // Persisted immediately, not just held in memory.
   ZoneMapStore reread(dir.path);
