@@ -25,7 +25,7 @@ namespace Aurora::Output
     // for the same physical target) before tearing this one down; false on
     // a real app exit. A plugin with external session state (e.g. Hue's
     // bridge-side streaming) needs this to avoid undoing a same-target
-    // replacement that already started -- see WebUIManualTweaks.md's
+    // replacement that already started -- see WebUI/WebUI_Fixes.md's
     // video<->audio live-switch bug. Plugins with no such state can ignore it.
     virtual void shutdown(bool isReplacement) = 0;
 

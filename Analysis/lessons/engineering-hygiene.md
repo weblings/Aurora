@@ -106,7 +106,7 @@ path (`git config --global --add safe.directory <path>`), never a wildcard.
 
 **Update, later in the same project:** the original `configure_file` blocker
 above hasn't recurred across many later WSL2 builds run directly against
-this exact `/mnt/d` checkout (steps 11, 14, 15, 16 of `WebUIAnalysis.md` all
+this exact `/mnt/d` checkout (steps 11, 14, 15, 16 of `WebUI/WebUI_Design_1stPass.md` all
 configured and built successfully in place, no file transfer needed) —
 whatever combination of WSL2/DrvFs version this machine now runs no longer
 hits that specific compiler-detection failure, or it was narrower than
@@ -792,7 +792,7 @@ what else was supposed to survive that resolution.
 
 ## A per-step build-log entry optimized for individual completeness can make the whole document unreadable, without any single edit being wrong
 
-Writing `WebUIAnalysis.md`'s 19-step build order, each step's writeup was
+Writing `WebUI/WebUI_Design_1stPass.md`'s 19-step build order, each step's writeup was
 judged against "is every claim in this entry accurate and well-supported"
 -- real bugs found, every jsdom/live verification performed, every
 doc-internal inconsistency resolved, all recorded in full. That's a

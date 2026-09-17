@@ -98,7 +98,7 @@ Aurora's own module boundaries instead of RockyRoad's. `rendering-apis.md` vs.
   minimal `package.json` was added to resolve both together), a
   build-log doc's own per-step entries each being individually accurate
   and complete not guaranteeing the whole document stays readable --
-  `WebUIAnalysis.md`'s build order grew unskimmable once verification
+  `WebUI/WebUI_Design_1stPass.md`'s build order grew unskimmable once verification
   detail was recorded in full every step, and outgrew being safely
   restructured by the time that was attempted; a redirected process's
   stdout buffering differently than console-attached stdout, making a

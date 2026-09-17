@@ -1,7 +1,7 @@
 # WebUI design-process lessons
 
 Gotchas and hard-won calls from planning Aurora's native WebUI
-(`Analysis/WebUIAnalysis.md`) — screen/flow design and component-reuse
+(`Analysis/WebUI/WebUI_Design_1stPass.md`) — screen/flow design and component-reuse
 research specifically, not rendering (`rendering-apis.md`/
 `rendering-internals.md`) or general build/tooling
 (`engineering-hygiene.md`).
@@ -136,7 +136,7 @@ committing is free, and it usually isn't in this codebase.
 ## A living plan doc's own sections can drift out of sync with each other, not just with the external reality they describe
 
 Recurred twice more since first filed (steps 13 and 17), all in
-`WebUIAnalysis.md` itself — the Dashboard section's own layout mockup still
+`WebUI/WebUI_Design_1stPass.md` itself — the Dashboard section's own layout mockup still
 drawing a "⏸ Pause" button after the same section's own prose had already
 cut Pause for v1, and the same mockup's "● Streaming" status-badge wording
 outliving the point at which building it honestly turned out to be
@@ -147,7 +147,7 @@ before relying on it, the same way `using namespace` not resolving a
 sibling namespace's own name earned that treatment after its own second
 occurrence.
 
-Two separate instances first surfaced this round, both in `WebUIAnalysis.md`
+Two separate instances first surfaced this round, both in `WebUI/WebUI_Design_1stPass.md`
 itself rather than in a claim about huenicorn/RockyRoad. First: the navigation-model flow
 diagram had always said a returning user reaches "each of 1/2/3/4" from the
 Dashboard, but the Dashboard screen's own ASCII mockup and nav-row list had
@@ -436,18 +436,24 @@ the actual cause (a boolean default set for an unrelated screen, in an
 unrelated part of the codebase, for a good reason) far from obvious from
 the symptom alone.
 
-**Fix:** not yet decided (tracked as an open item in
-`WebUIManualTweaks.md`'s NUX section) -- leaning toward an onboarding-only
-explicit activation step rather than changing the shared default, so the
-original bug this default prevents doesn't reappear for a zone added later
-to an already-configured setup. General principle: when a new feature's
-design implicitly depends on a piece of existing state being in some
-assumed condition ("this will just be on," "this list will be empty"),
-trace that assumption against the actual code that sets it, especially
-when the state in question was defaulted somewhere else, for some other
-screen's reason entirely -- a default's own justification staying valid
-doesn't mean every future consumer of that state can safely assume the
-same thing it was tuned for.
+**Fix, once actually settled:** simpler than the first instinct (an
+onboarding-only force-activate step) -- just flip the shared default itself,
+`active{false}` to `active{true}` in `ZoneMap.hpp`. Re-examining *why* the
+`false` default existed turned up that its real justification (protecting
+against "zone 5 hides zone 4") was about the *editor's* click-target/z-order
+handling, which by this point already had its own independent, permanent
+fix (dropdown-based selection decoupled from the canvas, always-paint-
+selected-last) -- the active-default was never actually the thing doing
+that protection by the time this question came up, it just hadn't been
+re-checked. General principle, now two-layered: when a new feature's design
+implicitly depends on existing state being in some assumed condition, trace
+that assumption against the actual code that sets it (this file's own point
+above) -- and once a constraining default is found, check whether the
+concern it was originally protecting against still needs *that* default at
+all, or has since been independently handled by a different fix. The
+workaround that first comes to mind (route around the old default) is worth
+comparing against just re-deriving whether the old default is still load-
+bearing before building it.
 
 ---
 
