@@ -623,3 +623,29 @@ until step 9's second real usage existed paid off cleanly here too --
 `TuningSliderGroup` had no analogous shared-state need and stayed
 stateless, confirming the "wait for a second real usage" call from step 8
 wasn't just deferring inevitable work.)
+
+---
+
+## Splitting one screen's responsibility across two needs an audit of *every* edge-case branch the original had, not just its main happy path
+
+Moving entertainment-config selection out of `OutputConnectScreen` into the
+new `EntertainmentZoneSelectScreen` (pass 2 steps 14-15), the natural
+approach was porting the happy path (pick a config, save it) and treating
+everything else as already covered elsewhere. That would have silently
+dropped a real, already-shipped case: `OutputConnectScreen`'s original
+`configSelect` phase had its own "zero entertainment configurations found"
+branch (an error message plus a "Check again" button, for a bridge with no
+entertainment areas set up in the official Hue app yet) -- nothing about
+the new screen's own design mockup mentioned it, because the mockup was
+drawn around the *normal* multiple/single-config cases, the same ones
+every other design discussion this pass focused on.
+
+**Fix:** before deleting a phase/branch from the screen that's losing a
+responsibility, grep that screen's *own prior code* for every phase it
+had, not just the ones the new design's mockups happened to draw -- a
+redesign's mockups are drawn around the interesting/common cases by
+nature, and a real edge case an earlier pass already had to solve for
+doesn't announce itself for re-inclusion just because responsibility moved
+elsewhere. Ported the same message/"Check again" affordance into
+`EntertainmentZoneSelectScreen`'s own zero-configs branch, with Continue
+disabled since there's nothing valid to advance with.

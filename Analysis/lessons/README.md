@@ -286,7 +286,12 @@ Aurora's own module boundaries instead of RockyRoad's. `rendering-apis.md` vs.
   here uses -- `TuningSliderGroup` shipped as two plain functions instead,
   since one existing section shares a single CSS grid between its sliders
   and other, non-slider content a container-owning component couldn't
-  accommodate without a real layout change.
+  accommodate without a real layout change; and splitting one screen's
+  responsibility across two needing an audit of *every* edge-case branch
+  the original had, not just its happy path -- moving entertainment-config
+  selection out of `OutputConnectScreen` nearly dropped its "zero
+  configurations found" handling entirely, since the new screen's own
+  design mockups were drawn around the normal cases and never mentioned it.
 
 ## Where a new lesson goes
 
