@@ -209,6 +209,52 @@ namespace Aurora::Output::Hue
       _writeJson(res, {{"succeeded", true}, {"configurations", list}});
     });
 
+    // Onboarding's "Choose your lights" screen (Analysis/WebUI/
+    // WebUI_Design_2ndPass.md) -- briefly flashes every light in the given
+    // entertainment config so a new user can see which physical bulbs it
+    // covers, before any Pipeline/streaming session exists. Same
+    // bridgeAddress/username fallback convention as
+    // /api/hue/entertainment-configurations above.
+    server.addRoute(HttpMethod::Post, "/api/hue/test-pulse", [configRoot](const Request& req, Response& res){
+      auto body = _parseBody(req, res);
+      if(!body){
+        return;
+      }
+
+      std::string entertainmentConfigurationId = body->value("entertainmentConfigurationId", "");
+      if(entertainmentConfigurationId.empty()){
+        _writeJson(res, {{"succeeded", false}, {"error", "missing_entertainment_configuration_id"}}, 400);
+        return;
+      }
+
+      std::string bridgeAddress = sanitizeBridgeAddress(body->value("bridgeAddress", ""));
+      std::string username = body->value("username", "");
+      if(bridgeAddress.empty() || username.empty()){
+        HueConnection persisted = CredentialsStore(configRoot).load();
+        if(bridgeAddress.empty()) bridgeAddress = persisted.bridgeAddress;
+        if(username.empty()) username = persisted.username;
+      }
+      if(bridgeAddress.empty() || username.empty()){
+        _writeJson(res, {{"succeeded", false}, {"error", "missing_bridge_address_or_username"}}, 400);
+        return;
+      }
+
+      auto channelsByConfig = ApiTools::loadEntertainmentConfigurationsChannels(username, bridgeAddress);
+      auto it = channelsByConfig.find(entertainmentConfigurationId);
+      if(it == channelsByConfig.end()){
+        _writeJson(res, {{"succeeded", false}, {"error", "unknown_entertainment_configuration"}}, 404);
+        return;
+      }
+
+      MembersIds lightIds;
+      for(const auto& channelEntry : it->second){
+        lightIds.insert(channelEntry.second.begin(), channelEntry.second.end());
+      }
+
+      ApiTools::testPulse(lightIds, username, bridgeAddress);
+      _writeJson(res, {{"succeeded", true}});
+    });
+
     // PATCH-style, same convention SettingsRoutes' /api/config already
     // uses -- merges onto whatever's already persisted rather than
     // requiring the full connection every time. Needed so a caller that
