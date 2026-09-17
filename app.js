@@ -6,9 +6,9 @@
 import { App } from './shell.js';
 import { DashboardScreen } from './screens/DashboardScreen.js';
 import { OutputConnectScreen } from './screens/OutputConnectScreen.js';
+import { EntertainmentZoneSelectScreen } from './screens/EntertainmentZoneSelectScreen.js';
 import { ModeDeviceScreen } from './screens/ModeDeviceScreen.js';
 import { ZoneMappingScreen } from './screens/ZoneMappingScreen.js';
-import { TuningScreen } from './screens/TuningScreen.js';
 
 const app = new App();
 
@@ -50,9 +50,12 @@ async function probeState() {
   const audioInputs = capabilities.audioInputs ?? [];
 
   let connectionConfigured = true;
+  let entertainmentConfigurationId = '';
   if (hasHue) {
     try {
-      connectionConfigured = (await fetchJson('/api/hue/connection')).configured === true;
+      const connection = await fetchJson('/api/hue/connection');
+      connectionConfigured = connection.configured === true;
+      entertainmentConfigurationId = connection.entertainmentConfigurationId ?? '';
     } catch {
       connectionConfigured = false;
     }
@@ -69,18 +72,19 @@ async function probeState() {
     ? inputs.includes(config.activeInputName)
     : audioInputs.includes(config.activeAudioInputName);
 
-  // Zones only need onboarding when every live zone is still at its
-  // reconcileZoneMap default (inactive, full-frame) -- the one real signal
-  // that nobody has ever visited this screen for this output, since
-  // Orchestrator::init() reconciles a sane ZoneMap automatically on every
-  // boot regardless (see core/Runtime/src/ZoneReconciler.cpp).
+  // Zones only need onboarding when no live zone has ever actually been
+  // written (everConfigured) -- unlike the old `active` check, this stays a
+  // true "never touched" signal now that active's own default is true (see
+  // decision 1, core/Runtime/include/Aurora/Runtime/ZoneMap.hpp). Orchestrator::init()
+  // reconciles a sane ZoneMap automatically on every boot regardless (see
+  // core/Runtime/src/ZoneReconciler.cpp), so this can't rely on shape/count.
   let needsZoneMapping = false;
   if (modeConfigValid && mode === 'video') {
     try {
       const zonesResult = await fetchJson('/api/zones');
       needsZoneMapping = Boolean(zonesResult.outputName)
         && zonesResult.zones.length > 0
-        && !zonesResult.zones.some((z) => z.active);
+        && !zonesResult.zones.some((z) => z.everConfigured);
     } catch {
       // Couldn't reach zones -- leave needsZoneMapping false rather than force a screen likely to fail the same way.
     }
@@ -88,19 +92,43 @@ async function probeState() {
 
   return {
     needsOutputConnect: hasHue && !connectionConfigured,
+    needsEntertainmentZoneSelect: hasHue && connectionConfigured && !entertainmentConfigurationId,
     needsModeDevice: !modeConfigValid,
     needsZoneMapping,
   };
 }
 
 // Walks whichever onboarding steps are actually still needed, in the doc's
-// fixed order (Output Connect -> Mode+Device -> Zone Mapping -> Tuning),
-// always ending on Tuning once any earlier step ran -- unlike the other
-// three, there's no "already tuned" signal to skip it on (see
-// TuningScreen.js's own showContinue comment). `previousStep`, when set, is
-// a zero-arg function that re-navigates to the step shown right before this
-// one -- Back re-mounts it fresh rather than replaying "done," which is
-// safe here since every screen already reloads its own state on mount().
+// fixed order (Output Connect -> Entertainment zone select -> Mode+Device ->
+// Zone Mapping -> Dashboard) -- no forced Tuning step at the end anymore,
+// unlike Pass 1 (there's no "already tuned" signal to skip it on, so
+// forcing it every time it was reachable was the actual bug).
+// `previousStep`, when set, is a zero-arg function that re-navigates to the
+// step shown right before this one -- Back re-mounts it fresh rather than
+// replaying "done," which is safe here since every screen already reloads
+// its own state on mount().
+async function goToEntertainmentZoneSelectStage(previousStep) {
+  let state;
+  try {
+    state = await probeState();
+  } catch {
+    renderUnreachable();
+    return;
+  }
+
+  if (!state.needsEntertainmentZoneSelect) {
+    await goToModeDeviceStage(previousStep);
+    return;
+  }
+
+  const thisStep = () => app.navigate(new EntertainmentZoneSelectScreen(app, {
+    showBack: previousStep !== null,
+    onBack: previousStep ?? undefined,
+    onComplete: () => goToModeDeviceStage(thisStep),
+  }));
+  thisStep();
+}
+
 async function goToModeDeviceStage(previousStep) {
   let state;
   try {
@@ -133,25 +161,15 @@ async function goToZoneMappingStage(previousStep) {
   }
 
   if (!state.needsZoneMapping) {
-    goToTuningStage(previousStep);
+    toDashboard();
     return;
   }
 
-  const thisStep = () => app.navigate(new ZoneMappingScreen(app, {
+  app.navigate(new ZoneMappingScreen(app, {
     showBack: previousStep !== null,
     onBack: previousStep ?? undefined,
-    onComplete: () => goToTuningStage(thisStep),
-    onboarding: true,
-  }));
-  thisStep();
-}
-
-function goToTuningStage(previousStep) {
-  app.navigate(new TuningScreen(app, {
-    showBack: previousStep !== null,
-    onBack: previousStep ?? undefined,
-    showContinue: true,
     onComplete: toDashboard,
+    onboarding: true,
   }));
 }
 
@@ -164,7 +182,7 @@ async function bootstrap() {
     return;
   }
 
-  if (!state.needsOutputConnect && !state.needsModeDevice && !state.needsZoneMapping) {
+  if (!state.needsOutputConnect && !state.needsEntertainmentZoneSelect && !state.needsModeDevice && !state.needsZoneMapping) {
     toDashboard();
     return;
   }
@@ -172,13 +190,13 @@ async function bootstrap() {
   if (state.needsOutputConnect) {
     const thisStep = () => app.navigate(new OutputConnectScreen(app, {
       showBack: false,
-      onComplete: () => goToModeDeviceStage(thisStep),
+      onComplete: () => goToEntertainmentZoneSelectStage(thisStep),
     }));
     thisStep();
     return;
   }
 
-  await goToModeDeviceStage(null);
+  await goToEntertainmentZoneSelectStage(null);
 }
 
 bootstrap();
