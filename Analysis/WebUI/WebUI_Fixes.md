@@ -315,3 +315,59 @@ after its build order closed out.
   for onboarding, `EntertainmentZoneSelectScreen`'s own Test Pulse button
   is omitted for now rather than blocking on it — backend route/ApiTools
   fix above stays in place, easy to re-add the button once revisited.
+- [x] **Fixed: live crash — `WindowsGrabber` asserted
+  `cv::Mat::Mat`'s `_step >= minstep` and took down the whole daemon.**
+  `grabFrameSubsample()` cached its D3D11 staging texture forever after
+  first creation and never re-checked it against the live frame's own
+  size/format on later ticks — if a later `AcquireNextFrame` ever returned
+  a differently-sized/formatted texture, copying it into the stale-sized
+  staging texture and reading its `RowPitch` back could produce a step
+  smaller than the new frame's own row size, which `cv::Mat`'s row-step
+  constructor asserts on. **Fix:** the staging texture is now recreated
+  whenever its own dims/format drift from the current frame, and
+  `RowPitch` is independently re-verified against the actual frame size
+  right before either `cv::Mat` construction — logging and skipping just
+  that one frame (matching every other transient-failure branch already in
+  this function) if it's ever still off, instead of crashing.
+- [x] **Fixed: fresh onboarding — lights started reacting to Video during
+  Entertainment zone select, a full screen before Mode+Device Select ever
+  ran.** `Pipeline::build()` has always defaulted to `"windows"` video
+  input whenever `activeInputName` was empty (a leftover from this file's
+  pre-onboarding, test-script-only origin) — harmless before today only
+  because a fresh install had no registered outputs yet, so every early
+  reload already failed with "no outputs available" regardless of what the
+  input would have defaulted to. The `registerOutputs()` re-registration
+  fix above made that early reload start *succeeding*, which is what
+  actually surfaced this: a reload right after pairing now built a real
+  video pipeline nobody had asked for yet. **Fix:** `build()` returns
+  `null` (an already-tolerated idle state, not an error — see
+  `PipelineHost`'s own constructor comment) when neither `activeInputName`
+  nor `activeAudioInputName` has ever been set, instead of defaulting.
+- [ ] **Capture source (Mode+Device Select) — lights don't visibly react
+  immediately after Save, but do by the time Zone Mapping is reached.**
+  Not yet root-caused. Candidate explanation, not confirmed: Mode+Device's
+  save does trigger a real reload with a real input this time (unlike the
+  entertainment-zone-select case above), so this may just be DTLS
+  handshake/entertainment-stream-activation latency on the bridge side
+  that resolves itself within the few seconds it takes to navigate to the
+  next screen, not a real gap in the reload path. Needs a live pass timing
+  how long after Save the bridge actually starts rendering, not more code
+  reading.
+- [ ] **Dashboard — switching Video/Audio with the mode toggle doesn't
+  actually change what the lights are doing.** Not yet root-caused, but
+  likely related to the *same* class of bug `HueOutput::shutdown()`'s own
+  comment already documents fixing (a reload's old instance sending an
+  authoritative bridge-side stop that kills the new instance's
+  already-established stream, since `PipelineHost::reload()` deliberately
+  builds the replacement before tearing down the old one) — `shutdown()`
+  itself only sends that stop on a real app exit now, but
+  `EntertainmentConfigurationSelector::selectEntertainmentConfiguration()`
+  has its *own*, separate `disableStreaming()` call when the bridge
+  reports the target config already streaming (`EntertainmentConfigurationSelector.cpp:76-78`)
+  — exactly the situation a mode-switch reload creates, since the new
+  instance's `init()` runs while the old one is still actively streaming
+  that same config. Worth checking live (temporary logging around both
+  `Streamer`'s connection lifecycle and this stop/start pair) before
+  changing anything — this is a guess from reading the code, not a
+  confirmed root cause, and the reload-ordering tradeoff it would touch
+  was itself a deliberate choice for other outputs' sake.
