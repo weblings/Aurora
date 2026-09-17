@@ -17,6 +17,15 @@ async function fetchJson(url) {
 }
 
 function toDashboard() {
+  // Idempotent -- fired from both "onboarding just finished" and "already
+  // done, fast-pathed straight here" call sites, so it's fine if this is
+  // already true. Fire-and-forget: nothing here needs to block navigation,
+  // but a failure is logged rather than silently swallowed -- this exact
+  // silent-failure shape already cost one debugging cycle.
+  fetch('/api/config', { method: 'PUT', body: JSON.stringify({ nuxCompleted: true }) })
+    .then((r) => r.json())
+    .then((result) => { if (!result.succeeded) console.error('Failed to persist nuxCompleted:', result); })
+    .catch((e) => console.error('Failed to persist nuxCompleted:', e));
   app.navigate(new DashboardScreen(app));
 }
 
@@ -174,6 +183,23 @@ async function goToZoneMappingStage(previousStep) {
 }
 
 async function bootstrap() {
+  // Once onboarding has ever reached the Dashboard, skip re-deriving
+  // "what's still missing" from several live signals (bridge pairing,
+  // entertainment config, mode/device, zone mapping) on every single boot --
+  // the Dashboard itself already has a real fix-it path for each of those
+  // (Bridge row's "Change bridge", live mode/device controls, zone
+  // toggles), so a later gap in any one of them doesn't strand anyone.
+  // See Analysis/WebUI/WebUI_Fixes.md's Pass 2 section.
+  try {
+    const config = await fetchJson('/api/config');
+    if (config.nuxCompleted) {
+      toDashboard();
+      return;
+    }
+  } catch {
+    // No config yet (fresh install) -- falls through to the normal probe below.
+  }
+
   let state;
   try {
     state = await probeState();

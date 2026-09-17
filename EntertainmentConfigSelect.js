@@ -44,6 +44,21 @@ export class EntertainmentConfigSelect {
         body: JSON.stringify({}),
       })).json();
       this.configs = result.succeeded ? result.configurations : [];
+
+      // Nothing persisted yet, but getSelected()'s own fallback already
+      // shows configs[0] as "selected" -- as a static label at exactly one
+      // config (mount() renders no dropdown then, so onChange/_select()
+      // below never fires), or as a dropdown's pre-highlighted first option
+      // a user can proceed past without ever touching. Persist that same
+      // resolved default now, silently (no onChange -- this is still the
+      // initial load, not a user-driven switch), so completing onboarding
+      // with a single entertainment config doesn't leave
+      // entertainmentConfigurationId empty forever.
+      if (!this.selectedId && this.configs.length > 0) {
+        this.selectedId = this.configs[0].id;
+        const persisted = await this._persist(this.selectedId);
+        if (!persisted.succeeded) this.onError?.(persisted.error);
+      }
     } catch {
       this.configs = [];
     }
@@ -94,22 +109,30 @@ export class EntertainmentConfigSelect {
 
   async _select(entertainmentConfigurationId) {
     this.selectedId = entertainmentConfigurationId;
+    const persisted = await this._persist(entertainmentConfigurationId);
+    if (!persisted.succeeded) {
+      this.onError?.(persisted.error);
+      return;
+    }
+    if (persisted.reloadError) {
+      this.onError?.(`Saved, but the running output couldn't reload: ${persisted.reloadError}`);
+    }
+    this.onChange?.(entertainmentConfigurationId);
+  }
+
+  // Raw POST, shared by _select() (a user-driven switch, which also fires
+  // onChange) and load()'s own silent auto-persist of an unset default.
+  async _persist(entertainmentConfigurationId) {
     try {
       const result = await (await fetch('/api/hue/connection', {
         method: 'POST',
         body: JSON.stringify({ entertainmentConfigurationId }),
       })).json();
 
-      if (!result.succeeded) {
-        this.onError?.("Couldn't switch entertainment configuration.");
-        return;
-      }
-      if (result.reloadError) {
-        this.onError?.(`Saved, but the running output couldn't reload: ${result.reloadError}`);
-      }
-      this.onChange?.(entertainmentConfigurationId);
+      if (!result.succeeded) return { succeeded: false, error: "Couldn't switch entertainment configuration." };
+      return { succeeded: true, reloadError: result.reloadError };
     } catch {
-      this.onError?.("Couldn't reach the daemon.");
+      return { succeeded: false, error: "Couldn't reach the daemon." };
     }
   }
 
