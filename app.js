@@ -141,6 +141,7 @@ async function goToZoneMappingStage(previousStep) {
     showBack: previousStep !== null,
     onBack: previousStep ?? undefined,
     onComplete: () => goToTuningStage(thisStep),
+    onboarding: true,
   }));
   thisStep();
 }

@@ -44,14 +44,22 @@
 import { renderTopBar } from '../topBar.js';
 import { EntertainmentConfigSelect } from '../EntertainmentConfigSelect.js';
 import { ZoneCanvas } from '../ZoneCanvas.js';
-import { ZoneActiveToggleList } from '../ZoneActiveToggle.js';
+import { ZoneActiveToggleList, ZoneActiveToggleSingle } from '../ZoneActiveToggle.js';
 
 export class ZoneMappingScreen {
-  constructor(app, { onComplete, onBack, showBack = true }) {
+  // onboarding: the wizard variant (Analysis/WebUI/WebUI_Design_2ndPass.md
+  // step 17) -- a static "Using: <config>" label instead of the switchable
+  // EntertainmentConfigSelect dropdown (already fixed by the prior
+  // Entertainment zone select step), and a single ZoneActiveToggle tied to
+  // whichever zone the canvas has selected instead of the full flat list
+  // (still used as-is by the Dashboard's own "Zones" nav row until step 20
+  // replaces that row entirely).
+  constructor(app, { onComplete, onBack, showBack = true, onboarding = false }) {
     this.app = app;
     this.onComplete = onComplete;
     this.onBack = onBack ?? onComplete;
     this.showBack = showBack;
+    this.onboarding = onboarding;
     this.outputName = '';
     this.zones = null; // null = not loaded yet
     this.selectedZoneId = null;
@@ -157,7 +165,7 @@ export class ZoneMappingScreen {
       <div id="zm-entertainment-slot"></div>
       <div id="zm-canvas-slot"></div>
       <div class="field zm-active-field">
-        <label class="field-label">Active zones</label>
+        <label class="field-label">${this.onboarding ? 'Active' : 'Active zones'}</label>
         <div id="zm-active-row"></div>
       </div>
       ${errorHtml}
@@ -166,22 +174,40 @@ export class ZoneMappingScreen {
       </div>
     `;
 
-    this.entertainmentConfigSelect.mount(body.querySelector('#zm-entertainment-slot'));
+    const entertainmentSlot = body.querySelector('#zm-entertainment-slot');
+    if (this.onboarding) {
+      const selected = this.entertainmentConfigSelect.getSelected();
+      entertainmentSlot.innerHTML = selected ? `<p class="status-text">Using: ${escapeHtml(selected.name)}</p>` : '';
+    } else {
+      this.entertainmentConfigSelect.mount(entertainmentSlot);
+    }
+
     this.zoneCanvas = new ZoneCanvas(body.querySelector('#zm-canvas-slot'), {
       zones: this.zones,
       selectedZoneId: this.selectedZoneId,
       zoneLabel: (zone) => this._zoneLabel(zone),
-      onSelect: (zoneId) => { this.selectedZoneId = zoneId; },
+      onSelect: (zoneId) => {
+        this.selectedZoneId = zoneId;
+        if (this.onboarding) this._renderActiveSection();
+      },
       onError: (message) => { this.error = message; this._render(); },
     });
     this.selectedZoneId = this.zoneCanvas.selectedZoneId;
-    new ZoneActiveToggleList(body.querySelector('#zm-active-row'), {
-      zones: this.zones,
-      zoneLabel: (zone) => this._zoneLabel(zone),
-      onError: (message) => { this.error = message; this._render(); },
-    });
+    this._renderActiveSection();
 
     body.querySelector('#zm-save').addEventListener('click', () => this.onComplete());
+  }
+
+  _renderActiveSection() {
+    const slot = this.container.querySelector('#zm-active-row');
+    const onError = (message) => { this.error = message; this._render(); };
+
+    if (this.onboarding) {
+      const zone = this.zones.find((z) => z.zoneId === this.selectedZoneId) ?? this.zones[0];
+      new ZoneActiveToggleSingle(slot, { zone, onError });
+    } else {
+      new ZoneActiveToggleList(slot, { zones: this.zones, zoneLabel: (zone) => this._zoneLabel(zone), onError });
+    }
   }
 }
 

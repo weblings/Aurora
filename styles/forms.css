@@ -253,6 +253,13 @@
   transform: translateX(18px);
 }
 
+/* .toggle-switch's own width/height only take effect as a flex item
+   (blockified by .toggle-row's flex context) -- this standalone variant
+   (Zone Mapping's onboarding single toggle, step 17) has no such parent. */
+.zat-single-toggle {
+  display: inline-block;
+}
+
 /* Generic modal overlay + scrim + panel -- same real values as index.html's
    own #settings-overlay/#settings-scrim/#settings-panel (verified directly,
    not re-guessed), generalized into classes so a second modal (the
