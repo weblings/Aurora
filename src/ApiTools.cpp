@@ -1,11 +1,33 @@
 #include <Aurora/Output/Hue/ApiTools.hpp>
 
 #include <algorithm>
+#include <chrono>
+#include <thread>
+#include <unordered_map>
 
+#include <Aurora/Contracts/Color.hpp>
 #include <Aurora/Output/Hue/BridgeAddress.hpp>
+#include <Aurora/Output/Hue/Colorimetry.hpp>
 
 namespace Aurora::Output::Hue
 {
+  namespace
+  {
+    constexpr int TestPulseDurationMs = 400;
+
+    void putLight(
+      const std::string& lightId,
+      const nlohmann::json& body,
+      const std::string& username,
+      const std::string& bridgeAddress
+    )
+    {
+      HttpHeaders headers = {{"hue-application-key", username}};
+      std::string url = HttpProtocol + bridgeAddress + "/clip/v2/resource/light/" + lightId;
+      sendHttpRequest(url, "PUT", body.dump(), headers);
+    }
+  }
+
   namespace ApiTools
   {
     EntertainmentConfiguration parseEntertainmentConfigurationShell(const nlohmann::json& jsonEntConf)
@@ -94,6 +116,32 @@ namespace Aurora::Output::Hue
       );
 
       return matchedDevices;
+    }
+
+
+    LightSnapshot parseLightSnapshot(const nlohmann::json& jsonLightResponse)
+    {
+      const auto& data = jsonLightResponse.at("data").at(0);
+
+      LightSnapshot snapshot;
+      snapshot.on = data.value("on", nlohmann::json::object()).value("on", true);
+      snapshot.brightness = data.value("dimming", nlohmann::json::object()).value("brightness", 100.f);
+
+      auto xy = data.value("color", nlohmann::json::object()).value("xy", nlohmann::json::object());
+      snapshot.xy = {xy.value("x", 0.f), xy.value("y", 0.f)};
+
+      return snapshot;
+    }
+
+
+    nlohmann::json lightPutBody(bool on, float brightness, const glm::vec2& xy, int durationMs)
+    {
+      return {
+        {"on", {{"on", on}}},
+        {"dimming", {{"brightness", brightness}}},
+        {"color", {{"xy", {{"x", xy.x}, {"y", xy.y}}}}},
+        {"dynamics", {{"duration", durationMs}}}
+      };
     }
 
 
@@ -226,6 +274,40 @@ namespace Aurora::Output::Hue
 
       std::string status = response->asJson().at("data").front().at("status").get<std::string>();
       return status == "active";
+    }
+
+
+    void testPulse(
+      const MembersIds& lightIds,
+      const std::string& username,
+      const std::string& bridgeAddress
+    )
+    {
+      HttpHeaders headers = {{"hue-application-key", username}};
+
+      std::unordered_map<std::string, LightSnapshot> snapshots;
+      for(const auto& lightId : lightIds){
+        std::string url = HttpProtocol + bridgeAddress + "/clip/v2/resource/light/" + lightId;
+        auto response = sendHttpRequest(url, "GET", "", headers);
+
+        // Unreachable light -- skip pulsing it rather than aborting the
+        // rest of the config's members.
+        if(response.has_value()){
+          snapshots.emplace(lightId, parseLightSnapshot(response->asJson()));
+        }
+      }
+
+      glm::vec3 magentaXyb = toXYB(Contracts::Color{255, 0, 255});
+      nlohmann::json pulseBody = lightPutBody(true, 100.f, {magentaXyb.x, magentaXyb.y}, TestPulseDurationMs);
+      for(const auto& [lightId, snapshot] : snapshots){
+        putLight(lightId, pulseBody, username, bridgeAddress);
+      }
+
+      std::this_thread::sleep_for(std::chrono::milliseconds(TestPulseDurationMs));
+
+      for(const auto& [lightId, snapshot] : snapshots){
+        putLight(lightId, lightPutBody(snapshot.on, snapshot.brightness, snapshot.xy, TestPulseDurationMs), username, bridgeAddress);
+      }
     }
 
 

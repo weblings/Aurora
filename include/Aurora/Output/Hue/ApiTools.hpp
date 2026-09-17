@@ -5,6 +5,7 @@
 #include <unordered_map>
 #include <unordered_set>
 
+#include <glm/vec2.hpp>
 #include <nlohmann/json.hpp>
 
 #include <Aurora/Output/Hue/Device.hpp>
@@ -41,6 +42,23 @@ namespace Aurora::Output::Hue
     // Devices whose id is present in membersIds.
     Devices matchDevices(const MembersIds& membersIds, const Devices& devices);
 
+    // Test Pulse: just enough of a light's current state to restore it
+    // after a brief magenta flash. Entertainment-config membership
+    // requires a full-color light, so on/dimming/color are always
+    // expected to be present.
+    struct LightSnapshot
+    {
+      bool on{true};
+      float brightness{100.f};
+      glm::vec2 xy{0.f, 0.f};
+    };
+
+    // A /clip/v2/resource/light/{id} response's on/brightness/xy state.
+    LightSnapshot parseLightSnapshot(const nlohmann::json& jsonLightResponse);
+
+    // The PUT body to set a light's on/brightness/color/transition-time.
+    nlohmann::json lightPutBody(bool on, float brightness, const glm::vec2& xy, int durationMs);
+
     // --- I/O: calls the bridge, needs a live connection to verify end-to-end ---
 
     EntertainmentConfigurations loadEntertainmentConfigurations(
@@ -67,6 +85,17 @@ namespace Aurora::Output::Hue
 
     bool streamingActive(
       const EntertainmentConfigurationEntry& entertainmentConfigurationEntry,
+      const std::string& username,
+      const std::string& bridgeAddress
+    );
+
+    // One-shot REST visual check, not the entertainment/DTLS streaming path
+    // HueOutput/Streamer use: GETs each light's current state, PUTs it to
+    // magenta briefly, then PUTs it back -- lets a user see which physical
+    // bulbs are in an entertainment config's channels before any Pipeline
+    // exists to stream through.
+    void testPulse(
+      const MembersIds& lightIds,
       const std::string& username,
       const std::string& bridgeAddress
     );

@@ -90,3 +90,47 @@ TEST_CASE("matchDevices keeps only devices present in membersIds", "[ApiTools]")
   CHECK(matched[0].id == "a");
   CHECK(matched[1].id == "c");
 }
+
+
+TEST_CASE("parseLightSnapshot extracts on/brightness/xy from a light response", "[ApiTools]")
+{
+  Json json = Json::parse(R"({
+    "data": [{
+      "on": {"on": false},
+      "dimming": {"brightness": 42.5},
+      "color": {"xy": {"x": 0.31, "y": 0.32}}
+    }]
+  })");
+
+  ApiTools::LightSnapshot snapshot = ApiTools::parseLightSnapshot(json);
+
+  CHECK_FALSE(snapshot.on);
+  CHECK(snapshot.brightness == 42.5f);
+  CHECK(snapshot.xy.x == 0.31f);
+  CHECK(snapshot.xy.y == 0.32f);
+}
+
+
+TEST_CASE("parseLightSnapshot defaults to on/full-brightness/origin when fields are missing", "[ApiTools]")
+{
+  Json json = Json::parse(R"({"data": [{}]})");
+
+  ApiTools::LightSnapshot snapshot = ApiTools::parseLightSnapshot(json);
+
+  CHECK(snapshot.on);
+  CHECK(snapshot.brightness == 100.f);
+  CHECK(snapshot.xy.x == 0.f);
+  CHECK(snapshot.xy.y == 0.f);
+}
+
+
+TEST_CASE("lightPutBody shapes on/dimming/color/dynamics as sibling fields", "[ApiTools]")
+{
+  Json body = ApiTools::lightPutBody(true, 75.f, {0.4f, 0.5f}, 400);
+
+  CHECK(body.at("on").at("on") == true);
+  CHECK(body.at("dimming").at("brightness") == 75.f);
+  CHECK(body.at("color").at("xy").at("x") == 0.4f);
+  CHECK(body.at("color").at("xy").at("y") == 0.5f);
+  CHECK(body.at("dynamics").at("duration") == 400);
+}
