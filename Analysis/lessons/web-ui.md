@@ -345,3 +345,142 @@ that persists across sessions and is populated by a *different* part of
 the system -- the two decisions can each be locally correct and still
 combine into a bug that only a live pass surfaces, unless the seam between
 them is checked on paper first.
+
+---
+
+## Reuse by shared final-layout position and reuse by shared component are different kinds of reuse, and conflating them can make an elegant architecture collapse on the first concrete counter-example
+
+Designing the onboarding wizard for the new accordion Dashboard, "the
+wizard *is* the Dashboard, with sections unlocking in place as each
+prerequisite is met" looked like the better architecture for a while --
+one shell, a new user learns the actual page instead of a throwaway
+sequence, zero page-transition cost, and it avoided the (correctly
+identified) risk of duplicating fetch/render logic between wizard screens
+and Dashboard sections. It broke the moment a new onboarding step
+(read-only entertainment-config + channel-name preview, introduced before
+device selection) was actually slotted into the plan: that step's content
+straddles two *non-adjacent* regions of the final page -- the config
+picker lives in Zone Mapping's top tier, the full channel list lives
+inside the collapsed Bridge section -- so "reveal the final layout
+progressively, top to bottom" has no coherent order to reveal them in.
+The idea wasn't wrong because unifying two contexts into one shell is
+inherently bad; it was wrong because it assumed reuse had to mean literal
+shared DOM/position, when what actually mattered (and what the wizard and
+the Dashboard genuinely could share) was the underlying fetch+render
+components themselves.
+
+**Fix:** re-scoped to separate screens per context (wizard steps stay
+distinct pages, matching today's `showBack`/`onBack`/`onComplete`
+convention) built on small, independently-mountable components
+(`EntertainmentConfigSelect`, a new read-only `ChannelList`, `ZoneCanvas`,
+`ZoneActiveToggle`, `DeviceField`, `TuningSliderGroup`) that each screen
+composes in whatever arrangement serves its own job. General principle:
+when two UI contexts need "the same thing" but one is a linear
+one-topic-at-a-time introduction and the other is a dense always-visible
+hub, look for reuse at the component/data level before reaching for one
+shared page instance -- a shared shell only works cleanly when every
+consumer's own content decomposes into the *same regions in the same
+order*, and that's a real constraint worth testing against a concrete
+example (not just the cases already in mind) before committing to it.
+
+---
+
+## Checking a UI pattern against a live reference implementation's actual source can surface both a domain mismatch and an unrelated visual-collision risk that a pros/cons comparison alone would miss
+
+Asked whether `RockyRoadImport`'s tab-bar pattern would suit Aurora's
+Dashboard better than an accordion, rather than reasoning from general tab-
+vs-accordion UX tradeoffs, its actual source was read
+(`SongConverter/index.html`/`main.ts`). That surfaced two independent, only
+code-visible facts: its three tabs are genuinely mutually-exclusive,
+non-overlapping tools (pick one converter, the others' state doesn't
+matter meanwhile) -- the opposite domain shape from Aurora's
+Bridge/Capture/Zone/Tuning, which are simultaneously-true facets of one
+running pipeline, not alternatives. And separately, `forms.css` already
+explicitly ports its own section-divider styling *from* that same
+`RockyRoadImport` tab strip, and Aurora's real Video/Audio segmented
+control already shares its pill-radius token with that tab bar's own
+buttons -- meaning a real tab component, if ever added, would risk visually
+reading as a second version of a control that (unlike a tab) has genuine
+side effects (a live pipeline reload). Neither fact was visible from
+comparing tabs and accordions as abstract patterns; both came from reading
+one specific reference's real markup and this project's own CSS history.
+
+**Fix:** recommended accordion over tabs for the Dashboard on the domain-
+shape mismatch, and flagged the shared-styling risk as a reason any future
+tab component would need deliberately distinct visual treatment. General
+principle: when deciding whether to borrow a UI *pattern* (not just a
+function) from a reference implementation, read that reference's actual
+usage before comparing it in the abstract -- the same "verify the real call
+path, don't trust a plausible-looking match" discipline this file and
+`engineering-hygiene.md` already apply to code applies just as much to
+borrowing an interaction pattern, and it can surface risks (a styling
+collision with an unrelated existing control) that no side-by-side feature
+comparison would think to check for.
+
+---
+
+## A default chosen to fix one screen's bug can silently block a feature designed in a completely separate, much later pass
+
+`ZoneReconciler`'s `active{false}` default for a never-mapped zone exists
+for a good, already-documented reason (this file's own JTBD entry above --
+it stops a newly-added zone's default full-canvas rect from visually
+conflicting with every other zone). Designing the NUX redesign's "Mode +
+Device save should make the lights instantly react" step much later,
+nothing about that design's own reasoning touched zones at all -- it was
+only caught by explicitly reading `ZoneMap.hpp` and `AudioFrameCompositor`
+to check the assumption "channels are on by default for a new user," which
+turned out to be false. Had that check not happened, the first live test
+of the finished onboarding flow would have shown zero reacting lights at
+exactly the moment the whole redesign was built to make impressive, with
+the actual cause (a boolean default set for an unrelated screen, in an
+unrelated part of the codebase, for a good reason) far from obvious from
+the symptom alone.
+
+**Fix:** not yet decided (tracked as an open item in
+`WebUIManualTweaks.md`'s NUX section) -- leaning toward an onboarding-only
+explicit activation step rather than changing the shared default, so the
+original bug this default prevents doesn't reappear for a zone added later
+to an already-configured setup. General principle: when a new feature's
+design implicitly depends on a piece of existing state being in some
+assumed condition ("this will just be on," "this list will be empty"),
+trace that assumption against the actual code that sets it, especially
+when the state in question was defaulted somewhere else, for some other
+screen's reason entirely -- a default's own justification staying valid
+doesn't mean every future consumer of that state can safely assume the
+same thing it was tuned for.
+
+---
+
+## Cheap, disposable ASCII diagrams surface layout/state gaps before any code exists, cheaper than jsdom or a real build -- but they can't validate real visual proportions either
+
+Iterating the accordion Dashboard and NUX redesign entirely in ASCII boxes
+(no code written) caught several real gaps that stayed invisible in prose
+description alone, each concretely because there was a literal artifact to
+point at: `OutputConnectScreen`'s Connected state, drawn with only a
+"Change bridge" button and no Back/Continue, immediately read as a dead
+end once boxed -- the same fact described in a sentence ("shows the
+connection status") hadn't raised the question. A drawn active/inactive
+toggle list stacked above a column of one-line collapsed headers made a
+vertical-space imbalance obvious at a glance that "added a toggle row per
+zone below the canvas" in prose never surfaced. Drafting the entertainment-
+zone-select step's diagram forced deciding exactly which fields it needed,
+which is what exposed that those fields straddle two non-adjacent regions
+of the final accordion layout (this file's shared-position-vs-shared-
+component entry, above) -- a mismatch no amount of describing the wizard
+order in words had surfaced across several prior rounds of the same
+discussion. Even shorthand notation inside a diagram needed correcting
+once drawn ("Zone 1 ● Zone 2 ○" read as ambiguous between a boolean toggle
+and a color swatch until asked directly) -- a diagram makes an
+underspecified detail visible in a way prose glosses over.
+
+**Fix:** kept using disposable ASCII mockups as the default iteration
+medium for screen/flow design discussions in this project, revising them
+freely across many rounds before any component gets built -- the cost of
+redrawing a box is close to zero compared to building, testing, and
+reworking a real screen. Real limit, worth remembering alongside this:
+an ASCII diagram is even more abstracted than jsdom (this file's own
+no-headless-browser entry) -- box-drawing characters can't represent true
+pixel proportions, real CSS layout behavior, or how something actually
+feels to scroll past, so agreement on an ASCII mockup is agreement on
+*content and state coverage*, not a substitute for a live look at the
+real, built layout once it exists.

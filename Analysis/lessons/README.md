@@ -227,7 +227,32 @@ Aurora's own module boundaries instead of RockyRoad's. `rendering-apis.md` vs.
   supplies (canvas click-to-select assuming distinct zone positions,
   `ZoneReconciler`'s default putting every unmapped zone at the same
   coordinates) -- a real process gap, concretely askable on paper before
-  either piece was built, not an inherent hands-on-only limit.
+  either piece was built, not an inherent hands-on-only limit; reuse by
+  shared final-layout position and reuse by shared component being
+  different things, discovered when "the onboarding wizard IS the
+  accordion Dashboard, progressively unveiled" broke on one new step whose
+  content straddled two non-adjacent regions of the final page, resolved
+  by reusing small independently-mountable components across separate
+  wizard/Dashboard screens instead of one shared shell; checking a UI
+  pattern (`RockyRoadImport`'s tab bar) against its actual source
+  surfacing both a domain-shape mismatch (mutually-exclusive tools vs.
+  Aurora's simultaneously-true facets) and an unrelated shared-styling
+  collision risk with an existing control that has real side effects,
+  neither visible from comparing tabs vs. accordions in the abstract; and
+  a `ZoneReconciler` default set to fix one screen's bug (new zones
+  default inactive, avoiding a full-canvas visual conflict) almost
+  silently breaking a completely different feature designed much later
+  (an onboarding step whose entire point was lights reacting immediately)
+  -- caught only by tracing the new feature's own assumption against the
+  actual default, not from either design's own reasoning in isolation; and
+  disposable ASCII mockups (no code written) repeatedly surfacing real
+  gaps a prose description of the same idea hadn't -- a dead-end Connected
+  state, a toggle list's vertical-space imbalance against collapsed
+  headers, a layout-mismatch that overturned a whole architecture choice,
+  an ambiguous shorthand notation -- cheaper than jsdom or a real build for
+  this class of problem, though (like jsdom) still no substitute for a
+  live look at real pixel proportions and CSS behavior once something is
+  actually built.
 
 ## Where a new lesson goes
 
