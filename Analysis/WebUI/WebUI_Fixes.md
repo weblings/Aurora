@@ -511,7 +511,7 @@ after its build order closed out.
   fresh real frame) once it's worth the time.
 
 ### Polish 2.5 Pass
-- [ ] Video Mapping auto does screen division assignment. Button gets added to assign auto
+- [x] Video Mapping auto does screen division assignment. Button gets added to assign auto
 - [ ] Hue bridge IP address automatically gets found on page start (don't need to wait for user to hit button)
 - [ ] Maybe integrate hit bridge button to that screen if it works well enough
 - [ ] Add "drumroll please" above Video and Audio toggles while it's loading. Clean up copy
@@ -519,3 +519,5 @@ after its build order closed out.
 - [ ] Zone Mapping general polish
 - [ ] NUX back and forward logic
 - [ ] SVG and button polish
+- [ ] Revisit test pulse button
+- [ ] Revisit double click possiblities
