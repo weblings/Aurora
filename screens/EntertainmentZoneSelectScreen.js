@@ -40,7 +40,6 @@ export class EntertainmentZoneSelectScreen {
     renderTopBar(container.querySelector('.top-bar-slot'), {
       title: 'Choose your lights',
       showBack: false,
-      onSettings: () => this.app.openSettings(),
     });
 
     await this._reload();

@@ -76,7 +76,6 @@ export class DashboardScreen {
     renderTopBar(container.querySelector('.top-bar-slot'), {
       title: 'Aurora',
       showBack: false,
-      onSettings: () => this.app.openSettings(),
     });
 
     container.querySelector('[data-nav="capture-source"]').addEventListener('click', () => {
@@ -130,7 +129,6 @@ export class DashboardScreen {
       title: 'Aurora',
       showBack: false,
       statusPill: 'Running',
-      onSettings: () => this.app.openSettings(),
     });
 
     if (!capabilities.outputs?.includes('hue')) {

@@ -260,15 +260,11 @@
   display: inline-block;
 }
 
-/* Generic modal overlay + scrim + panel -- same real values as index.html's
-   own #settings-overlay/#settings-scrim/#settings-panel (verified directly,
-   not re-guessed), generalized into classes so a second modal (the
-   Dashboard's Stop confirmation, step 17) doesn't need its own one-off
-   copy. The Settings modal itself is left on its existing ID selectors
-   unchanged -- already shipped and tested, and unifying it onto these
-   classes too is a pure refactor with no behavior change, not worth the
-   regression risk for this step's own actual job. First new consumer:
-   Dashboard's Stop confirm dialog. */
+/* Generic modal overlay + scrim + panel -- same real values as the old
+   Settings modal's own #settings-overlay/#settings-scrim/#settings-panel
+   (verified directly, not re-guessed) had before that modal was removed
+   entirely in pass 2's step 19, generalized into classes so a second modal
+   (Dashboard's Stop confirm, step 17) didn't need its own one-off copy. */
 .overlay {
   position: fixed;
   inset: 0;

@@ -93,7 +93,6 @@ export class TuningScreen {
         title: 'Settings',
         showBack: this.showBack,
         onBack: () => this.onBack(),
-        onSettings: () => this.app.openSettings(),
       });
       body.innerHTML = `<p class="status-text status-text-error">⚠ Could not reach the daemon.</p>`;
       return;
@@ -107,7 +106,6 @@ export class TuningScreen {
       title: `Settings — ${this.mode === 'audio' ? 'Audio' : 'Video'}`,
       showBack: this.showBack,
       onBack: () => this.onBack(),
-      onSettings: () => this.app.openSettings(),
     });
 
     this._render();

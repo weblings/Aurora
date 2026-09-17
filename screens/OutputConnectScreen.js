@@ -51,7 +51,6 @@ export class OutputConnectScreen {
     renderTopBar(container.querySelector('.top-bar-slot'), {
       title: 'Connect to your Hue Bridge',
       showBack: false,
-      onSettings: () => this.app.openSettings(),
     });
 
     // Checks saved state before rendering anything -- the actual fix for

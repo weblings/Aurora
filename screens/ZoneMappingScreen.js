@@ -82,7 +82,6 @@ export class ZoneMappingScreen {
       title: 'Zone mapping',
       showBack: this.showBack,
       onBack: () => this.onBack(),
-      onSettings: () => this.app.openSettings(),
     });
 
     await this._load();

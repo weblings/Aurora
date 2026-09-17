@@ -74,7 +74,6 @@ export class ModeDeviceScreen {
     renderTopBar(container.querySelector('.top-bar-slot'), {
       title: 'Capture source',
       showBack: false,
-      onSettings: () => this.app.openSettings(),
     });
 
     const body = container.querySelector('.md-body');

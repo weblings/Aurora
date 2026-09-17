@@ -80,16 +80,6 @@ body {
   margin-left: auto;
 }
 
-.top-bar-gear {
-  background: none;
-  border: none;
-  color: var(--aurora-text-primary);
-  font-size: 18px;
-  line-height: 1;
-  cursor: pointer;
-  padding: var(--aurora-space-2);
-}
-
 /* Matches RockyRoad's real .lib-badge (verified against v2/desktop.html)
    exactly, not the pill shape this rule originally guessed at before any
    screen actually used it -- radius 2px/6px padding kept literal rather
@@ -108,70 +98,3 @@ body {
   white-space: nowrap;
 }
 
-/* --- Settings modal + scrim -- reused unchanged from RockyRoad's real
-   #settings-overlay/#settings-scrim/#settings-panel (verified against
-   v2/desktop.html), content deliberately empty here: this step builds the
-   shell only, actions like "Re-pair bridge" land in #settings-body once the
-   screen that needs them exists. --- */
-
-#settings-overlay {
-  position: fixed;
-  inset: 0;
-  z-index: 200;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-#settings-overlay.hidden {
-  display: none;
-}
-
-#settings-scrim {
-  position: absolute;
-  inset: 0;
-  background: var(--aurora-scrim);
-  cursor: pointer;
-}
-
-#settings-panel {
-  position: relative;
-  z-index: 1;
-  background: var(--aurora-surface);
-  border: 1px solid var(--aurora-border);
-  border-radius: var(--aurora-radius-panel);
-  /* RockyRoad's real value is 28px 32px -- rounded to the nearest steps on
-     Aurora's own spacing scale rather than adding a one-off token for 28px. */
-  padding: var(--aurora-space-7) var(--aurora-space-8);
-  min-width: 340px;
-  max-width: calc(100vw - var(--aurora-space-8));
-  color: var(--aurora-text-primary);
-}
-
-#settings-panel h2 {
-  font-size: 18px;
-  font-weight: 700;
-  margin-bottom: var(--aurora-space-6);
-}
-
-#settings-body:empty {
-  display: none;
-}
-
-#settings-close {
-  display: block;
-  width: 100%;
-  margin-top: var(--aurora-space-6);
-  padding: var(--aurora-space-4);
-  background: var(--aurora-button-light);
-  border: none;
-  border-radius: var(--aurora-radius-control);
-  color: var(--aurora-text-on-light);
-  font-size: 15px;
-  font-family: inherit;
-  cursor: pointer;
-}
-
-#settings-close:hover {
-  background: var(--aurora-button-light-hover);
-}
