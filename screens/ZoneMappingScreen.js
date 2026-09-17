@@ -43,6 +43,7 @@
 // huenicorn's own dropdown and Output Connect's already use.
 import { renderTopBar } from '../topBar.js';
 import { Dropdown } from '../Dropdown.js';
+import { EntertainmentConfigSelect } from '../EntertainmentConfigSelect.js';
 
 const MIN_RECT_SIZE = 0.02; // 2% of the frame, in normalized UV units
 const CORNERS = ['tl', 'tr', 'bl', 'br'];
@@ -57,9 +58,10 @@ export class ZoneMappingScreen {
     this.zones = null; // null = not loaded yet
     this.selectedZoneId = null;
     this.error = null;
-    this.entertainmentConfigs = null; // null = not loaded yet
-    this.selectedEntertainmentConfigId = '';
-    this.entertainmentDropdown = null;
+    this.entertainmentConfigSelect = new EntertainmentConfigSelect({
+      onChange: () => { this.error = null; this._load(); },
+      onError: (message) => { this.error = message; this._render(); },
+    });
     this.zoneDropdown = null;
     this.channelLightNames = {}; // channelId -> light name array, from /api/hue/channels
     this._pendingPatches = new Map();
@@ -83,8 +85,7 @@ export class ZoneMappingScreen {
   }
 
   unmount() {
-    this.entertainmentDropdown?.destroy();
-    this.entertainmentDropdown = null;
+    this.entertainmentConfigSelect.destroy();
     this.zoneDropdown?.destroy();
     this.zoneDropdown = null;
   }
@@ -105,37 +106,22 @@ export class ZoneMappingScreen {
     this.selectedZoneId = null;
 
     if (this.outputName) {
-      await this._loadEntertainmentConfigs();
+      await this.entertainmentConfigSelect.load();
+
+      // Best-effort: falls back to bare "Zone N" labels (via _zoneLabel) if
+      // this fails or the route isn't available for the active output.
+      try {
+        const channelsResult = await (await fetch('/api/hue/channels')).json();
+        this.channelLightNames = {};
+        if (channelsResult.succeeded) {
+          for (const c of channelsResult.channels) this.channelLightNames[c.channelId] = c.lightNames;
+        }
+      } catch {
+        this.channelLightNames = {};
+      }
     }
 
     this._render();
-  }
-
-  async _loadEntertainmentConfigs() {
-    try {
-      const connection = await (await fetch('/api/hue/connection')).json();
-      this.selectedEntertainmentConfigId = connection.entertainmentConfigurationId ?? '';
-
-      const result = await (await fetch('/api/hue/entertainment-configurations', {
-        method: 'PUT',
-        body: JSON.stringify({}),
-      })).json();
-      this.entertainmentConfigs = result.succeeded ? result.configurations : [];
-    } catch {
-      this.entertainmentConfigs = [];
-    }
-
-    // Best-effort: falls back to bare "Zone N" labels (via _zoneLabel) if
-    // this fails or the route isn't available for the active output.
-    try {
-      const channelsResult = await (await fetch('/api/hue/channels')).json();
-      this.channelLightNames = {};
-      if (channelsResult.succeeded) {
-        for (const c of channelsResult.channels) this.channelLightNames[c.channelId] = c.lightNames;
-      }
-    } catch {
-      this.channelLightNames = {};
-    }
   }
 
   _zoneLabel(zone) {
@@ -145,8 +131,6 @@ export class ZoneMappingScreen {
 
   _render() {
     const body = this.container.querySelector('.zm-body');
-    this.entertainmentDropdown?.destroy();
-    this.entertainmentDropdown = null;
     this.zoneDropdown?.destroy();
     this.zoneDropdown = null;
 
@@ -179,15 +163,9 @@ export class ZoneMappingScreen {
     this.selectedZoneId = selected.zoneId;
 
     const errorHtml = this.error ? `<p class="status-text status-text-error">⚠ ${escapeHtml(this.error)}</p>` : '';
-    const showEntertainmentPicker = (this.entertainmentConfigs?.length ?? 0) > 1;
 
     body.innerHTML = `
-      ${showEntertainmentPicker ? `
-        <div class="field zm-entertainment-field">
-          <label class="field-label" id="zm-entertainment-label">Entertainment configuration</label>
-          <div id="zm-entertainment-dropdown-slot"></div>
-        </div>
-      ` : ''}
+      <div id="zm-entertainment-slot"></div>
       <div class="zm-canvas-wrap">
         <svg viewBox="0 0 100 100" preserveAspectRatio="none"></svg>
         <div class="zm-overlay"></div>
@@ -203,53 +181,12 @@ export class ZoneMappingScreen {
       </div>
     `;
 
-    if (showEntertainmentPicker) this._renderEntertainmentPicker(body.querySelector('#zm-entertainment-dropdown-slot'));
+    this.entertainmentConfigSelect.mount(body.querySelector('#zm-entertainment-slot'));
     this._renderCanvas(body.querySelector('.zm-canvas-wrap'));
     this._renderSelectedRow(body.querySelector('#zm-selected-row'), selected);
     this._renderActiveRow(body.querySelector('#zm-active-row'));
 
     body.querySelector('#zm-save').addEventListener('click', () => this.onComplete());
-  }
-
-  _renderEntertainmentPicker(slot) {
-    const selected = this.entertainmentConfigs.find((c) => c.id === this.selectedEntertainmentConfigId) ?? this.entertainmentConfigs[0];
-    this.entertainmentDropdown = new Dropdown(
-      slot,
-      selected.name,
-      (value) => this._setEntertainmentConfig(value),
-      { labelId: 'zm-entertainment-label', fill: true },
-    );
-    this.entertainmentDropdown.setOptions(this.entertainmentConfigs.map((c) => ({
-      label: c.name,
-      value: c.id,
-      selected: c.id === selected.id,
-    })));
-  }
-
-  async _setEntertainmentConfig(entertainmentConfigurationId) {
-    this.selectedEntertainmentConfigId = entertainmentConfigurationId;
-    this.error = null;
-    try {
-      const result = await (await fetch('/api/hue/connection', {
-        method: 'POST',
-        body: JSON.stringify({ entertainmentConfigurationId }),
-      })).json();
-      if (!result.succeeded) {
-        this.error = "Couldn't switch entertainment configuration.";
-        this._render();
-        return;
-      }
-      if (result.reloadError) {
-        this.error = `Saved, but the running output couldn't reload: ${result.reloadError}`;
-      }
-      // The switch changes which channels/lights the output reports -- the
-      // zone list itself (not just the picker's own selection) needs a
-      // fresh fetch to reflect that, same reason _load() does it on mount.
-      await this._load();
-    } catch {
-      this.error = "Couldn't reach the daemon.";
-      this._render();
-    }
   }
 
   _renderCanvas(wrap) {
