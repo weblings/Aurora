@@ -128,7 +128,7 @@ namespace
   // Hue only gets registered if credentials are actually present -- no
   // pairing flow exists yet, so an unconfigured Hue output shouldn't be
   // selectable at all rather than failing confusingly at construction.
-  // CredentialsStore (Analysis/WebUIAnalysis.md's build-order step 4) is
+  // CredentialsStore (Analysis/WebUI/WebUI_Design_1stPass.md's build-order step 4) is
   // checked first; env vars are a dev-only fallback for setups that
   // haven't paired through it yet, not a second, equally-valid source --
   // a persisted connection always wins over env vars when both are set.
@@ -228,7 +228,7 @@ namespace
   // "reconstruction, not mutation" design fork from huenicorn recommended in
   // Analysis/HttpServerAnalysis.md. Lives here (not core::Runtime) because
   // building one needs Registry and this app's own input-name/ifdef
-  // dispatch, both app-layer concepts. See Analysis/WebUIAnalysis.md's
+  // dispatch, both app-layer concepts. See Analysis/WebUI/WebUI_Design_1stPass.md's
   // build-order step 11.
   class Pipeline
   {
@@ -605,7 +605,7 @@ namespace
 
   // First WebUI route: lets a frontend probe which Input/Output plugins this
   // particular binary was actually compiled with, before rendering anything
-  // that assumes one exists (Analysis/WebUIAnalysis.md's capability-probe
+  // that assumes one exists (Analysis/WebUI/WebUI_Design_1stPass.md's capability-probe
   // step). No Config dependency, so this can be registered before Config
   // loads -- addRoute() just captures it for bind() to hand to Impl later.
   void registerCapabilitiesRoute(
@@ -697,7 +697,7 @@ try
   // capture pipelineHost by reference, so it has to exist first. A failure
   // here (e.g. a fresh install with no output paired yet) is no longer
   // fatal -- the WebUI still needs to bind so Output Connect is reachable;
-  // see WebUIManualTweaks.md's "HTTP server never binds" task. A later
+  // see WebUI/WebUI_Fixes.md's "HTTP server never binds" task. A later
   // failed *reload* is handled the same way; see PipelineHost::reload.
   std::unique_ptr<Pipeline> initialPipeline;
   try{
