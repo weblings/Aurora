@@ -32,10 +32,14 @@
 // that Dashboard-driven hub visits don't.
 import { renderTopBar } from '../topBar.js';
 import { Dropdown } from '../Dropdown.js';
+import { sliderGroupHtml, wireSliderGroup } from '../TuningSliderGroup.js';
 
 const INTERPOLATIONS = ['Nearest', 'Cubic', 'Area'];
 
 // [key, label, min, max, step, unit]
+const TRANSITION_SMOOTHING_SLIDER = [
+  ['transitionSmoothing', 'Transition smoothing', 0, 0.97, 0.01, ''],
+];
 const RESPONSE_SPEED_SLIDERS = [
   ['audioBounceSmoothTime', 'Bounce smooth time', 0.05, 2, 0.01, 's'],
   ['audioBrightnessSmoothTime', 'Brightness smooth time', 0.05, 2, 0.01, 's'],
@@ -44,6 +48,9 @@ const RESPONSE_SPEED_SLIDERS = [
 const COLOR_CHARACTER_SLIDERS = [
   ['audioVibrancySaturation', 'Vibrancy saturation', 0, 1, 0.01, ''],
   ['audioVibrancyValue', 'Vibrancy value', 0, 1, 0.01, ''],
+];
+const FIXED_HUE_SLIDER = [
+  ['audioFixedAnchorHue', 'Fixed hue', 0, 360, 1, '°'],
 ];
 const SENSITIVITY_SLIDERS = [
   ['audioDynamismFloor', 'Dynamism floor', 0, 1, 0.01, ''],
@@ -154,7 +161,7 @@ export class TuningScreen {
           <label class="field-label" id="tn-interp-label">Interpolation</label>
           <div id="tn-interp-dropdown-slot"></div>
         </div>
-        ${this._sliderFieldHtml('transitionSmoothing', 'Transition smoothing', 0, 0.97, 0.01, '')}
+        ${sliderGroupHtml(TRANSITION_SMOOTHING_SLIDER, this.values)}
       </div>
     `;
 
@@ -176,19 +183,19 @@ export class TuningScreen {
     );
     this.dropdown.setOptions(INTERPOLATIONS.map((name) => ({ label: name, value: name, selected: name === current })));
 
-    this._wireSlider(container, 'transitionSmoothing', '');
+    wireSliderGroup(container, TRANSITION_SMOOTHING_SLIDER, this.values);
   }
 
   _renderAudioFields(container) {
     container.innerHTML = `
       <h2 class="section-heading">Response speed</h2>
       <div class="tuning-grid">
-        ${RESPONSE_SPEED_SLIDERS.map(([key, label, min, max, step, unit]) => this._sliderFieldHtml(key, label, min, max, step, unit)).join('')}
+        ${sliderGroupHtml(RESPONSE_SPEED_SLIDERS, this.values)}
       </div>
 
       <h2 class="section-heading">Color character</h2>
       <div class="tuning-grid">
-        ${COLOR_CHARACTER_SLIDERS.map(([key, label, min, max, step, unit]) => this._sliderFieldHtml(key, label, min, max, step, unit)).join('')}
+        ${sliderGroupHtml(COLOR_CHARACTER_SLIDERS, this.values)}
         <div class="tuning-checkbox-row">
           <label class="toggle-row">
             <span class="toggle-row-label">Use fixed hue</span>
@@ -198,47 +205,24 @@ export class TuningScreen {
             </span>
           </label>
         </div>
-        ${this.fixedHueEnabled ? this._sliderFieldHtml('audioFixedAnchorHue', 'Fixed hue', 0, 360, 1, '°') : ''}
+        ${this.fixedHueEnabled ? sliderGroupHtml(FIXED_HUE_SLIDER, this.values) : ''}
       </div>
 
       <h2 class="section-heading">Sensitivity</h2>
       <div class="tuning-grid">
-        ${SENSITIVITY_SLIDERS.map(([key, label, min, max, step, unit]) => this._sliderFieldHtml(key, label, min, max, step, unit)).join('')}
+        ${sliderGroupHtml(SENSITIVITY_SLIDERS, this.values)}
       </div>
     `;
 
-    for (const [key, , , , , unit] of RESPONSE_SPEED_SLIDERS) this._wireSlider(container, key, unit);
-    for (const [key, , , , , unit] of COLOR_CHARACTER_SLIDERS) this._wireSlider(container, key, unit);
-    for (const [key, , , , , unit] of SENSITIVITY_SLIDERS) this._wireSlider(container, key, unit);
-    if (this.fixedHueEnabled) this._wireSlider(container, 'audioFixedAnchorHue', '°');
+    wireSliderGroup(container, RESPONSE_SPEED_SLIDERS, this.values);
+    wireSliderGroup(container, COLOR_CHARACTER_SLIDERS, this.values);
+    wireSliderGroup(container, SENSITIVITY_SLIDERS, this.values);
+    if (this.fixedHueEnabled) wireSliderGroup(container, FIXED_HUE_SLIDER, this.values);
 
     container.querySelector('#tn-fixed-hue-toggle').addEventListener('change', (e) => {
       this.fixedHueEnabled = e.currentTarget.checked;
       this.values.audioFixedAnchorHue = this.fixedHueEnabled ? (this.values.audioFixedAnchorHue >= 0 ? this.values.audioFixedAnchorHue : 0) : -1;
       this._render();
-    });
-  }
-
-  _sliderFieldHtml(key, label, min, max, step, unit) {
-    const value = this.values[key] ?? min;
-    return `
-      <div class="field">
-        <div class="slider-field-header">
-          <label class="field-label" for="tn-${key}">${escapeHtml(label)}</label>
-          <span class="slider-value" id="tn-${key}-val">${formatSliderValue(value, step)}${unit}</span>
-        </div>
-        <input type="range" class="slider-input" id="tn-${key}" min="${min}" max="${max}" step="${step}" value="${value}" />
-      </div>
-    `;
-  }
-
-  _wireSlider(container, key, unit) {
-    const input = container.querySelector(`#tn-${key}`);
-    const readout = container.querySelector(`#tn-${key}-val`);
-    const step = input.step;
-    input.addEventListener('input', () => {
-      this.values[key] = input.value;
-      readout.textContent = `${formatSliderValue(input.value, step)}${unit}`;
     });
   }
 
@@ -288,11 +272,6 @@ export class TuningScreen {
     button.disabled = false;
     this._render();
   }
-}
-
-function formatSliderValue(value, step) {
-  const decimals = step && String(step).includes('.') ? String(step).split('.')[1].length : 0;
-  return Number(value).toFixed(decimals);
 }
 
 function escapeHtml(s) {
