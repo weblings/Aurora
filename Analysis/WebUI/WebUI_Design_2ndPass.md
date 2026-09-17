@@ -533,6 +533,11 @@ below — this pass is almost entirely `Aurora-WebUI` frontend work.
 5. New route: `POST /api/hue/test-pulse` (entertainment config ID → pulse
    every member light), wired in both apps' `main.cpp`.
 
+*Testing:* unit tests for the default/`everConfigured` change and the Test
+Pulse helper (`core/Runtime`'s and `Aurora-Output-Hue`'s existing suites);
+the live-bridge smoke test for `dynamics.duration` from decision 2 actually
+run here, not left as a mention.
+
 ### Phase B — extract reusable components (refactor only, no behavior change)
 
 No accordion/collapsible-section primitive exists in `Aurora-WebUI` today
@@ -563,6 +568,13 @@ inline inside the screens that happen to need them today.
     work unchanged against their extracted components (jsdom) before
     moving on — this phase should be invisible from the outside.
 
+*Testing:* direct jsdom coverage for each extracted/new component itself,
+not just "does the old screen still work" — a bug caught at the component
+level is caught once, not once per future consumer. `AccordionSection`
+especially needs its `.expand()`/`.collapse()` API tested as called from
+*outside* the component, since that external control is the entire point
+of building it that way.
+
 ### Phase C — onboarding screens
 
 14. `OutputConnectScreen`: add the CONNECTED state, the consistent
@@ -580,6 +592,13 @@ inline inside the screens that happen to need them today.
     `everConfigured` (decision 1 — this is the step that actually needs the
     new field, not a separate action to call).
 
+*Testing:* jsdom coverage per screen as it's built here, matching how Pass 1
+actually verified each step rather than batching it all to the end — CONNECTED
+state's Back/Continue/Change-bridge transitions, the single-config auto-skip
+on Entertainment zone select, and most importantly a direct regression test
+that onboarding shows Zone Mapping when `everConfigured:false` and skips it
+when `true`, since that's the exact signal this whole phase just fixed.
+
 ### Phase D — accordion Dashboard
 
 19. Remove the Settings gear/modal entirely: `index.html`, `shell.js`,
@@ -595,15 +614,30 @@ inline inside the screens that happen to need them today.
 21. Wire "See all zones →" (expand Bridge's `AccordionSection` +
     `scrollIntoView`).
 
+*Testing:* jsdom for the Settings removal (grep-style check — no lingering
+`onSettings`/`openSettings` references anywhere), "See all zones" actually
+calling `.expand()` on the right section, and the mode-switch collapse
+actually resetting an open accordion rather than leaving stale content
+visible — this last one is a brand-new, not-yet-proven behavior, worth
+catching here rather than first discovering it live.
+
 ### Phase E — verification
 
 22. jsdom coverage for the new screen, the CONNECTED state, accordion
-    expand/collapse (including the mode-switch reset), Test Pulse's states.
+    expand/collapse (including the mode-switch reset), Test Pulse's states —
+    a final consolidated pass, not the first time any of this is tested.
 23. Live pass: fresh install through the full new chain against a real
-    bridge, both modes. Explicitly check `index.html`'s `<link>` tags cover
-    any new stylesheet the Entertainment zone select screen needs — Pass 1
-    shipped Zone Mapping with a missing stylesheet link for several steps,
-    invisible to jsdom (which never loads stylesheets), only caught once a
-    live cold-boot path made that screen reachable.
+    bridge, both modes, *and*: Back at every step (not just forward), a live
+    mode switch on the finished Dashboard, "Change bridge" from an
+    already-fully-configured Dashboard, and Test Pulse against a real
+    multi-config bridge if available — not just one straight-through walk.
+    Explicitly check `index.html`'s `<link>` tags cover any new stylesheet
+    the Entertainment zone select screen needs — Pass 1 shipped Zone Mapping
+    with a missing stylesheet link for several steps, invisible to jsdom
+    (which never loads stylesheets), only caught once a live cold-boot path
+    made that screen reachable. Also re-run the existing Pass 1 jsdom suites
+    (`dropdown_test.mjs`, `zone_mapping_test.mjs`, etc.) once more here —
+    Phase B verified them right after extraction, but Phase C/D touch the
+    same files again afterward.
 24. Real findings from step 23 go to `WebUI_Fixes.md`'s Pass 2 section —
     not back into this doc.

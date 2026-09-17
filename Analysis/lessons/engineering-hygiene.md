@@ -969,3 +969,34 @@ crash, trace the *next* real user action through the code the same way a
 JTBD pass would (see `web-ui.md`'s zone-mapping entry) -- a fix that only
 stops the immediate error can still leave the surrounding flow a dead end,
 and "no exception thrown" and "user can do the thing" are different claims.
+
+---
+
+## A domain field's default doubling as an implicit "never configured" signal is fragile, and a same-shape replacement can carry the identical flaw
+
+`ZoneReconciler`'s `active{false}` default was quietly relied on elsewhere
+(`app.js`'s `needsZoneMapping` check, see `web-ui.md`'s matching entry) as a
+"this zone has never been touched" signal -- fragile the moment `active`'s
+own default needed to change for an unrelated UX reason, which it did.
+Fixing that, the first fix proposed here wasn't a structural correction --
+it was swapping the same reliance from `active` onto `uvs` (checking
+whether a zone's rect still equals its full-canvas default instead), a
+same-shape replacement, not a fix: it breaks identically the moment `uvs`'s
+own default ever needs to change for an unrelated reason, or the moment a
+real, deliberate configuration legitimately matches that default (a
+genuinely intended whole-screen zone, for instance). Caught only because
+the user asked directly whether the same situation could recur.
+
+**Fix:** added a dedicated presence field (`everConfigured`), decoupled
+from any domain field's own value, matching the fix protobuf3 needed for
+the identical problem with scalar fields -- a zero-value default can never
+be distinguished from "never set" without a separate marker (which is why
+wrapper types / explicit `optional` exist there). General principle: when a
+bug is caused by overloading a meaningful field's default as a
+presence/emptiness signal, don't just move that same overloading onto a
+different field -- add a field whose only job is answering that question,
+so no future change to any domain field's own default can ever break
+presence detection again. When proposing a fix for this class of bug,
+explicitly check whether the fix itself still overloads *some* field's
+default as the signal, rather than assuming a different field is
+automatically safer just for being different.

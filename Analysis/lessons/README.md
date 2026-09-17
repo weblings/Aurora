@@ -120,7 +120,13 @@ Aurora's own module boundaries instead of RockyRoad's. `rendering-apis.md` vs.
   reported as done before tracing whether the resulting state actually let
   a new user reach Output Connect -- it didn't, since `/api/capabilities`'
   `outputs` list conflated "compiled with Hue" and "already paired,"
-  caught only by the user asking what the intended new-user flow was.
+  caught only by the user asking what the intended new-user flow was; and a
+  domain field's default doubling as an implicit "never configured" signal
+  being fragile by nature (`active{false}` quietly relied on elsewhere as
+  "untouched"), with the first fix attempt (swap the reliance onto `uvs`
+  instead) carrying the identical flaw rather than actually fixing it --
+  the real fix needed a dedicated presence field decoupled from any domain
+  value, the same shape protobuf3 needed for scalar-field presence.
 - [`rendering-apis.md`](rendering-apis.md) — third-party Three.js/GLTFLoader/Blender-export
   facts: `RectAreaLight` having no `distance`/`decay` at all (coupling brightness to reach),
   Blender's glTF export dropping light data unless "Punctual Lights" is checked (and never
@@ -252,7 +258,15 @@ Aurora's own module boundaries instead of RockyRoad's. `rendering-apis.md` vs.
   an ambiguous shorthand notation -- cheaper than jsdom or a real build for
   this class of problem, though (like jsdom) still no substitute for a
   live look at real pixel proportions and CSS behavior once something is
-  actually built.
+  actually built; checking a new pass's decision against the *previous*
+  pass's actual code, not just its design doc, surfacing a real breakage
+  (a zone-active default flip silently invalidating `app.js`'s own
+  "has this ever been touched" check) that neither document's own text
+  recorded, since it was never a documented decision to begin with; and a
+  build-order plan's own testing defaulting to one verification phase at
+  the end unless a predecessor's actually-successful per-step testing
+  cadence (`WebUI_Design_1stPass.md`'s own real history, not just its
+  findings) is deliberately re-derived rather than assumed.
 
 ## Where a new lesson goes
 

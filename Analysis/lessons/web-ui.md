@@ -490,3 +490,51 @@ pixel proportions, real CSS layout behavior, or how something actually
 feels to scroll past, so agreement on an ASCII mockup is agreement on
 *content and state coverage*, not a substitute for a live look at the
 real, built layout once it exists.
+
+---
+
+## Checking a new pass's decision against the previous pass's actual code, not just its design doc, surfaces breakage neither document's own text records
+
+Deciding to flip `ZoneReconciler`'s `active` default for the pass-2 NUX
+redesign, `WebUI_Design_1stPass.md`'s own prose gave no reason to expect
+trouble -- it never states anywhere that `active` defaulting to `false` is
+being relied on as a presence signal. The actual breakage only showed up by
+reading `app.js`'s real, current `probeState()` line by line:
+`!zonesResult.zones.some((z) => z.active)` is exactly the kind of implicit
+dependency a design document doesn't record, because it was never a
+deliberate, documented decision -- just how the check happened to get
+written at the time, incidentally leaning on a fact that was true then.
+
+**Fix:** when a later pass changes a shared field's default or behavior,
+grep the actual codebase -- not just the sibling design doc -- for every
+place that field is read, especially checks phrased as "is everything still
+at its default" or "has this ever been touched." Those are exactly the
+spots most likely to be silently relying on a specific default value as an
+implicit signal, and they're invisible from a design document's own prose
+since the original author likely never thought of it as a decision worth
+writing down either.
+
+---
+
+## A build-order plan's own testing shape defaults to "one verification phase at the end" unless a predecessor's actually-successful practice is deliberately re-derived
+
+Scoping the pass-2 build order, testing landed entirely in its final phase
+by default -- not a deliberate choice to defer it, just the natural shape a
+numbered "build these things in order" list falls into when nobody
+explicitly asks how testing should be distributed across it.
+`WebUI_Design_1stPass.md`'s own actual history already demonstrated the
+better shape: nearly every one of its 19 steps ends with its own "Tested
+with jsdom: ..." paragraph, verified as it was built, and its own late
+cross-width QA pass caught only three bugs specifically because everything
+else had already been individually verified by that point. None of that
+shows up by outlining a fresh build order from scratch; it only surfaces by
+re-reading the predecessor's actual step-by-step history for *how* it
+distributed verification, not just what it decided or found.
+
+**Fix:** added a short testing note to the end of every phase, matching
+Pass 1's own demonstrated cadence rather than one verification phase at the
+very end. General principle: when planning phase N+1 of a project that
+already completed phase N, check phase N's own demonstrated testing cadence
+specifically, not just its findings/lessons -- a plan drafted fresh,
+however well-designed otherwise, defaults to batching verification at the
+end unless a predecessor's better practice is deliberately carried forward.
