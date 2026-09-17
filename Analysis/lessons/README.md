@@ -133,7 +133,13 @@ Aurora's own module boundaries instead of RockyRoad's. `rendering-apis.md` vs.
   never actually removed; and an env-var override (`VCPKG_VISUAL_STUDIO_PATH`)
   "succeeding" per the tool's own log message while not actually changing
   which compiler built the artifact, caught only by `dumpbin`-inspecting
-  the produced `.lib` directly rather than trusting the log.
+  the produced `.lib` directly rather than trusting the log; and a short
+  live-testing chain where fixing one always-failing path to finally
+  succeed (`registerOutputs()` re-registration) immediately unmasked a
+  second, previously-dormant bug it had been silently absorbing (a
+  premature "windows" video default), plus a live retest of an
+  already-shipped fix (`HueOutput::shutdown(isReplacement)`) surfacing the
+  same symptom class from a second, untouched call site.
 - [`rendering-apis.md`](rendering-apis.md) — third-party Three.js/GLTFLoader/Blender-export
   facts: `RectAreaLight` having no `distance`/`decay` at all (coupling brightness to reach),
   Blender's glTF export dropping light data unless "Punctual Lights" is checked (and never
@@ -158,7 +164,13 @@ Aurora's own module boundaries instead of RockyRoad's. `rendering-apis.md` vs.
   every local signal (`isConnected()`, freshly-computed colors) reporting
   healthy while the bridge had already silently stopped rendering the
   stream, because an already-superseded output's deferred shutdown sent an
-  authoritative "stop" for the same entertainment configuration.
+  authoritative "stop" for the same entertainment configuration (with a
+  still-open follow-up: a second, separate call site capable of sending
+  that same stop, not covered by the shipped fix); and a Hue device
+  exposing several different, non-interchangeable resource ids for the
+  same physical light (entertainment-service vs. light-service vs.
+  device id), passing the wrong one to a REST endpoint 404ing in a way
+  that crashed a route handler and read as "daemon unreachable."
 - [`input.md`](input.md) — capture/grabber gotchas: a non-blocking poll on an
   event-driven capture API (DXGI's `AcquireNextFrame`) starving on empty
   placeholder frames forever instead of ever returning real data, a
@@ -179,7 +191,12 @@ Aurora's own module boundaries instead of RockyRoad's. `rendering-apis.md` vs.
   never removed), and WSL2 having no real X11/Wayland session, so
   `aurora-app-linux`'s auto-selecting "linux" input throws there rather than
   degrading gracefully -- pin `activeInputName` to `"dummy"` for any WSL2
-  runtime test that reaches input construction.
+  runtime test that reaches input construction; and a cached D3D11 staging
+  texture never re-validated against the *current* frame's own
+  size/format, so a later frame's `RowPitch` could read smaller than its
+  own tightly-packed row size and crash `cv::Mat`'s row-step constructor --
+  re-check a cached GPU/shared-memory buffer's validity every call, not
+  just at creation time.
 - [`processing.md`](processing.md) — color/effect transform and zone-mapping
   gotchas: a periodic test signal (a sine wave) regenerated fresh per call
   instead of continuing its phase injecting broadband noise at each call

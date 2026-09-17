@@ -227,3 +227,38 @@ runtime test of `aurora-app-linux` that reaches input construction --
 real capture session exist in an environment that fundamentally has none.
 Worth doing by default for WSL2 runtime tests, not just after hitting this
 once.
+
+---
+
+## A cached GPU staging buffer needs re-validating against the *current* frame, not just created once and trusted forever
+
+`WindowsGrabber::grabFrameSubsample()` creates its D3D11 staging texture
+once, on first use, sized to that first frame's own
+`D3D11_TEXTURE2D_DESC`, then reuses the same texture on every later tick
+(`if(!m_stagingTexture){ ... }`) without ever re-checking it against the
+*current* frame's own desc. `AcquireNextFrame`'s returned texture can in
+principle change size/format between ticks (display-mode change, DPI
+change, a monitor swap) -- copying such a frame into the stale-sized
+staging texture and reading its `RowPitch` back can produce a step smaller
+than the new frame's own tightly-packed row size, and `cv::Mat`'s row-step
+constructor `CHECK`-asserts on that, crashing the whole daemon process, not
+just this one grab call. `WindowsInputAnalysis.md` had already flagged
+"RowPitch can exceed the tightly-packed row size" as a known, handled
+direction (GPU alignment padding, harmless) -- the *smaller*-than-expected
+direction was never considered, since the design research never asked "and
+what if the cached buffer itself is now stale."
+
+**Fix:** re-check the staging texture's own dims/format against the
+current frame's `desc` on every call, recreating it on any mismatch, plus
+an independent `RowPitch >= expected minimum` guard immediately before
+either `cv::Mat` construction that logs and skips just that one frame
+(matching every other transient-failure branch already in this function)
+rather than trusting the recreate-on-mismatch logic alone to make the crash
+structurally impossible. General principle: a resource cached across calls
+specifically to avoid recreating it every time (a staging texture, a
+buffer sized off an initial handshake) needs its *own* per-call validity
+check against whatever it was cached to match — "created once, correct at
+creation time" quietly becomes "assumed correct forever" the moment the
+guard against staleness is left out, and the failure mode (a hard native
+assert) doesn't give a debugger-free live session any warning before it
+takes the whole process down.

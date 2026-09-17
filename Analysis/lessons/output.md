@@ -132,3 +132,61 @@ right on this side but the device doesn't respond," check whether some
 device's own state — a connected socket and correctly-computed data only
 prove your own process's view is self-consistent, not that the external
 system still agrees with it.
+
+**Still open, pass 2:** the Dashboard's own live Video↔Audio mode toggle
+was reported still not actually switching what the lights do, after the
+fix above (`HueOutput::shutdown(isReplacement)` skipping the authoritative
+stop on a replacement) had already shipped. Reading the code turned up a
+second, independent place the same class of stop can originate:
+`EntertainmentConfigurationSelector::selectEntertainmentConfiguration()`
+sends its own `disableStreaming()` whenever the bridge reports the target
+config already streaming — which it will, every time, on a mode-switch
+reload, since the new instance's own `init()` runs before
+`PipelineHost::reload()` tears down the old one. Not yet confirmed live
+(no logging added yet, no bridge test run) — flagged here rather than
+assumed, since "the fix already shipped" was exactly the trap the first
+time. If this turns out to be the actual cause, it means fixing
+`shutdown()` alone treated the symptom's most visible call site, not the
+underlying rule ("never tell the bridge to stop a config another live
+instance might still be depending on") everywhere that rule actually needs
+enforcing.
+
+---
+
+## A Hue device exposes several different resource ids for the same physical light, and they are not interchangeable
+
+An entertainment configuration's `channels[].members[].service.rid` is an
+*entertainment*-service id; `/clip/v2/resource/light/{id}` (the REST
+control endpoint Test Pulse and `parseLightSnapshot` use) only recognizes
+*light*-service ids — a different id on the same physical device, sourced
+from a different sibling entry in that device's own `services[]` array.
+Passing the entertainment-rid straight to the light endpoint 404s with an
+empty `data` array; the actual failure this produced was a `.at("data")
+.at(0)` throwing uncaught out of an HTTP route handler, which cpp-httplib
+turned into a non-JSON 500 the WebUI's own `fetch().json()` then reported
+as "couldn't reach the daemon" — masking a request the daemon had actually
+handled correctly (rejected it, just not in a way anything downstream
+expected). The same mismatch independently broke
+`loadEntertainmentConfigurations`'s own per-channel device matching
+(comparing entertainment-rids against `light_services`-derived
+placeholders, a *third*, unrelated id space for the same devices) — real
+channel/light names silently never resolved on an actual bridge. Every
+relevant unit test passed throughout, because their fixtures reused one
+string for whichever ids a given test happened to need, never modeling
+that a real device carries multiple, genuinely different ids at once.
+Confirmed correct by reading huenicorn's own real `Runtime.cpp`, which
+already resolves entertainment-rid → device via a bulk `loadDevices()` +
+`matchDevices()` pass rather than ever comparing across these spaces
+directly.
+
+**Fix:** `Device` now carries both `id` (entertainment-rid, for channel-
+membership matching) and `lightId` (light-rid, for REST control),
+populated in one pass over `/clip/v2/resource`'s own `services[]` array;
+every consumer resolves through `loadDevices()`/`matchDevices()` before
+touching a resource-type-specific endpoint, never assuming one id works
+for another resource type. General principle: when a real-world API models
+one logical entity with several distinct resource ids for different
+purposes, a test fixture that reuses the same string across all of them
+to save typing can hide an id-space mixup indefinitely — write fixtures
+with deliberately distinct ids per space the first time, even when nothing
+about the parser under test appears to care which string it sees.

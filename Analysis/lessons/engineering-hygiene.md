@@ -1054,3 +1054,41 @@ presence detection again. When proposing a fix for this class of bug,
 explicitly check whether the fix itself still overloads *some* field's
 default as the signal, rather than assuming a different field is
 automatically safer just for being different.
+
+---
+
+## Fixing the bug a symptom made visible can unmask a second, previously-dormant bug the first one had been silently absorbing
+
+A short live-testing chain, each fix genuinely correct and independently
+verified, still surfaced this pattern three times in a row.
+`registerOutputs()` only ever registered `"hue"` once, at daemon startup;
+fixing it to re-run after a live pairing made `Pipeline::build()`'s next
+reload *succeed* for the first time during onboarding -- which is exactly
+what let its own separate, pre-existing "default to `\"windows\"` video
+input when nothing is configured yet" behavior actually run and start
+driving real lights a full screen before the user had ever confirmed a
+capture source. That default had been there all along; it was harmless
+only because the earlier "no outputs available" bug had always thrown
+first, so nothing downstream of it was ever reachable during onboarding.
+Separately, `HueOutput::shutdown(isReplacement)` fixed a reload's old
+instance from sending an authoritative bridge-side stop that killed the
+new instance's already-started stream -- but a live retest after that
+shipped still showed the same class of symptom (mode-switching not
+actually reaching the bulb), and reading the code turned up a *second*,
+independent call site (`EntertainmentConfigurationSelector`'s own
+`disableStreaming()` on an already-active target) capable of sending the
+exact same disruptive stop, never touched by the first fix because the
+bug report that prompted it only pointed at the symptom's most visible
+occurrence.
+
+**Fix:** none of these needed reverting -- each fix was correct for the
+bug it targeted. The general principle is procedural: after a fix makes a
+previously-always-failing path start succeeding for the first time, treat
+everything newly reachable through that path as unverified, not as "already
+covered by existing tests/review," since nothing could have exercised it
+before. And when a bug report describes a symptom a previous, already-
+shipped fix was *supposed* to prevent, don't assume the report is stale or
+mistaken -- grep for every other call site capable of producing the same
+class of failure (the same disruptive action, the same silently-overloaded
+default, the same never-registered state) before concluding the first fix
+missed nothing.
