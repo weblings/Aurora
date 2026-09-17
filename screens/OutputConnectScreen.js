@@ -65,6 +65,15 @@ export class OutputConnectScreen {
     }
 
     this._render();
+
+    // Runs discovery on page load instead of waiting for a manual
+    // Autodetect click -- only for a genuinely fresh entry (no already-
+    // known/persisted address), and only here in mount(), not on every
+    // return to the entry phase (Change address/Change bridge already have
+    // their own explicit re-detect via the button).
+    if (this.phase === 'entry' && !this.bridgeAddress) {
+      await this._autodetect(null, { silent: true });
+    }
   }
 
   unmount() {}
@@ -149,22 +158,37 @@ export class OutputConnectScreen {
     });
   }
 
-  async _autodetect(button) {
-    button.disabled = true;
-    this.error = null;
+  // silent: the page-load auto-trigger, as opposed to a manual button click.
+  // Backs off entirely (no field overwrite, no error shown) if the user has
+  // already typed an address while this was in flight -- their own input
+  // always wins over a stale background result.
+  async _autodetect(button, { silent = false } = {}) {
+    if (button) button.disabled = true;
+    if (!silent) this.error = null;
+
+    let address = null;
+    let failureMessage = null;
     try {
       const result = await (await fetch('/api/hue/discover')).json();
       if (result.succeeded && Array.isArray(result.bridges) && result.bridges.length > 0) {
-        const address = result.bridges[0].internalipaddress;
-        if (address) this.bridgeAddress = address;
-        else this.error = 'Autodetect found a bridge but no usable address.';
+        address = result.bridges[0].internalipaddress;
+        if (!address) failureMessage = 'Autodetect found a bridge but no usable address.';
       } else {
-        this.error = result.error || 'No bridges found on this network.';
+        failureMessage = result.error || 'No bridges found on this network.';
       }
     } catch {
-      this.error = 'Could not reach the discovery service.';
+      failureMessage = 'Could not reach the discovery service.';
     }
-    button.disabled = false;
+
+    if (silent && this.bridgeAddress) {
+      if (button) button.disabled = false;
+      return;
+    }
+
+    if (address) this.bridgeAddress = address;
+    else this.error = failureMessage;
+
+    if (button) button.disabled = false;
     this._render();
   }
 
