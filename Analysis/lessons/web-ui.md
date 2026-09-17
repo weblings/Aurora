@@ -214,6 +214,19 @@ of the same root cause found the step before it:
   made that screen reachable from a cold boot rather than only a manual
   Dashboard click.
 
+Recurred a third time, pass 2's step 22: `ChannelList.js` (built step 15,
+the new Entertainment zone select screen) rendered a plain `<ul>`/`<li>`
+with a `.channel-list`/`.channel-list-item` class pair that had *never had
+any CSS written for it at all* — no missing `<link>` this time, the
+stylesheet itself never existed, in any file, for the entire time this
+component had a real screen using it. Three independent occurrences of
+"a screen/component renders correctly-structured but unstyled or
+unlinked-CSS markup, invisible to every jsdom assertion" is enough to
+suggest a systematic gap, not three unrelated slips: nothing in this
+project's own build-order step currently asks "does this new component's
+markup have a stylesheet, and is it linked" as an explicit checklist item
+the way a fetch/render/test triad already is for every new component.
+
 **Fix:** budget a real-browser pass — even a lightweight one, static files
 served as-is with `/api/*` mocked via route interception, no live backend
 or real device needed — for any screen with real CSS layout, SVG, or
@@ -668,6 +681,39 @@ doesn't announce itself for re-inclusion just because responsibility moved
 elsewhere. Ported the same message/"Check again" affordance into
 `EntertainmentZoneSelectScreen`'s own zero-configs branch, with Continue
 disabled since there's nothing valid to advance with.
+
+---
+
+## Two independently-correct component decisions can combine so that the *first* real usage of one silently exercises a global side effect of the other
+
+`AccordionSection`'s "collapsed content stays mounted, not torn down" (built
+Phase B, no real consumer yet) and `Dropdown`'s "install one lazy, never-
+removed `document.addEventListener('click', ...)` on the very first
+`Dropdown` construction anywhere in the page" (built long before
+`AccordionSection` existed) were each individually reasonable when written.
+Pass 2's step 20 put a real `Dropdown`-constructing component
+(`TuningFields`'s Interpolation dropdown) inside an `AccordionSection` for
+the first time -- and because collapsed content still fully renders,
+`DashboardScreen` now installs that global click listener on its very
+first mount, regardless of whether Tuning is ever expanded. Two jsdom test
+files (`dashboard_test.mjs`, `dashboard_controls_test.mjs`) had never
+needed `global.Node = dom.window.Node` before, since nothing they exercised
+had ever constructed a `Dropdown` -- both started throwing
+`ReferenceError: Node is not defined` from deep inside jsdom's own event
+dispatch on every subsequent click, silently swallowed by jsdom's virtual
+console rather than failing the test run (`exit 0`, "All ... tests passed"
+still printed), so this was noise easy to miss rather than a hard failure.
+
+**Fix:** added the missing `global.Node` to both files, matching every
+other test file that already constructs a `Dropdown`. General principle:
+when composing an existing component into a container it was never
+previously placed inside (not just a new *layout* context -- see this
+file's `.zat-single-toggle` entry above -- but a new *lifecycle* context,
+like "mounted but hidden"), check whether that component has any one-time/
+global side effect on construction, since a container that keeps content
+alive-but-hidden will trigger that side effect on every mount regardless of
+visibility, possibly for the first time anywhere the two components are
+combined.
 
 ---
 
