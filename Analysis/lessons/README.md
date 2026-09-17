@@ -126,7 +126,14 @@ Aurora's own module boundaries instead of RockyRoad's. `rendering-apis.md` vs.
   "untouched"), with the first fix attempt (swap the reliance onto `uvs`
   instead) carrying the identical flaw rather than actually fixing it --
   the real fix needed a dedicated presence field decoupled from any domain
-  value, the same shape protobuf3 needed for scalar-field presence.
+  value, the same shape protobuf3 needed for scalar-field presence; a
+  lesson entry naming a root cause (a stray "VS Build Tools 2026" install)
+  being a diagnosis, not a fix -- it resurfaced with a new, differently-
+  shaped symptom in a later session since the stray install itself was
+  never actually removed; and an env-var override (`VCPKG_VISUAL_STUDIO_PATH`)
+  "succeeding" per the tool's own log message while not actually changing
+  which compiler built the artifact, caught only by `dumpbin`-inspecting
+  the produced `.lib` directly rather than trusting the log.
 - [`rendering-apis.md`](rendering-apis.md) — third-party Three.js/GLTFLoader/Blender-export
   facts: `RectAreaLight` having no `distance`/`decay` at all (coupling brightness to reach),
   Blender's glTF export dropping light data unless "Punctual Lights" is checked (and never

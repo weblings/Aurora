@@ -552,6 +552,60 @@ than silently spending that time.
 
 ---
 
+## A lesson entry naming a root cause is a diagnosis, not a fix -- the landmine stays live until something actually acts on it
+
+Implementing `WebUI_Design_2ndPass.md` step 3 hit the exact same
+`Catch2d.lib`/`__std_search_1`-style link failure the two entries above
+already describe. Investigating from scratch (per this session's own
+`prefer-code-confirmed-hypotheses-over-library-internals` habit) surfaced
+a *third*, more specific root cause neither entry's fix actually resolved:
+a stray "Visual Studio Build Tools 2026" instance, registered as a real
+Windows product (`Program Files (x86)\...\Visual Studio\18\BuildTools`),
+that vcpkg's own compiler auto-detection always preferred over the real
+VS 2022 install -- confirmed by `dumpbin`-scanning VS 2022's own toolset
+libs (the missing symbols exist nowhere in them) and its own headers
+(nothing references `__std_search_1` either), then confirming the stray
+instance's headers do declare it. The entry just above already names this
+exact instance ("a cancelled 'VS Build Tools 2026' instance") as the
+*other* bug's root cause -- it had been correctly diagnosed once already,
+written down, and then never actually uninstalled, so it kept causing new,
+differently-shaped symptoms in later sessions.
+
+**Fix:** when a lesson entry names a specific root cause (a stray install,
+a leftover file, a bad config value), treat "diagnosed" and "fixed" as two
+different states and check which one actually happened -- a past entry
+describing a workaround around a root cause (not the removal of it) means
+the landmine is still live and will resurface differently later. If the
+root cause is a piece of state on disk (like this stray VS instance), the
+actual fix is removing that state, not re-deriving a workaround each time
+it bites.
+
+---
+
+## An env-var override "succeeding" (per a tool's own log message) doesn't prove it changed which binary actually got produced
+
+Chasing the link failure above, `VCPKG_VISUAL_STUDIO_PATH` was set to
+force vcpkg to use VS 2022's toolset instead of the stray VS 18 instance.
+vcpkg's own output confirmed this -- `Compiler found: .../2022/Community/
+.../14.37.32822/cl.exe` -- and the resulting `catch2` package installed
+without error. The link still failed identically. The override changed
+what vcpkg *printed* and used for its ABI-hash bookkeeping, but not which
+compiler its internal port-build script actually invoked for the real
+compile step (still the stray VS 18 instance, confirmed after the fact by
+`dumpbin`-checking the produced `.lib` for the disputed symbols). A
+tool's own "here's what I'm doing" log line is not independent
+confirmation that an override took effect end-to-end -- it can be
+correct about one internal step (hash computation) and silently wrong
+about another (the actual build invocation) in the same run.
+
+**Fix:** when an override appears to work per a tool's log output but the
+downstream symptom is unchanged, verify the *artifact*, not the log --
+inspect the actually-produced binary (`dumpbin`, `nm`, checking a
+timestamp or embedded compiler version) rather than trusting a
+success-shaped message from the step in between.
+
+---
+
 ## A bare `std::thread` manually joined only at the tail of `main()` aborts the process on any earlier `return`
 
 Wiring up the new `HttpServer`'s lifecycle in both app shells' `main()`
