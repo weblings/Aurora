@@ -310,3 +310,8 @@ after its build order closed out.
   error, and made a single bad light's snapshot-parse failure skip that
   light instead of aborting the whole pulse — both were already the stated
   intent of an existing comment, just not actually implemented.
+  **Follow-up:** still unreliable in a live retest after this fix, cause
+  not yet root-caused further. Since it's a nice-to-have, not load-bearing
+  for onboarding, `EntertainmentZoneSelectScreen`'s own Test Pulse button
+  is omitted for now rather than blocking on it — backend route/ApiTools
+  fix above stays in place, easy to re-add the button once revisited.
