@@ -1,0 +1,19 @@
+/* Entertainment zone select (Analysis/WebUI/WebUI_Design_2ndPass.md, Screen
+   2): ChannelList's plain, read-only preview of a config's channel names.
+   No dedicated stylesheet existed for this screen at all until step 22's
+   verification pass caught it -- exactly the missing-stylesheet-link class
+   of bug the design doc's own step 23 flagged from Pass 1's history, this
+   time caught before a live pass rather than after. */
+.channel-list {
+  list-style: none;
+  margin: var(--aurora-space-4) 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--aurora-space-2);
+}
+
+.channel-list-item {
+  font-size: 14px;
+  color: var(--aurora-text-secondary);
+}
