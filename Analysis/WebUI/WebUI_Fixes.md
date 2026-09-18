@@ -514,10 +514,29 @@ after its build order closed out.
 - [x] Video Mapping auto does screen division assignment. Button gets added to assign auto
 - [x] Hue bridge IP address automatically gets found on page start (don't need to wait for user to hit button)
 - [x] Maybe integrate hit bridge button to that screen if it works well enough
-- [ ] Add "drumroll please" above Video and Audio toggles while it's loading. Clean up copy
 - [x] Accordian menus need visual distinction
 - [x] Zone Mapping general polish
-- [ ] NUX back and forward logic
-- [ ] SVG and button polish
-- [ ] Revisit test pulse button
+- [x] NUX back and forward logic
+- [x] SVG and button polish
 - [ ] Revisit double click possiblities
+- [ ] Audio channel bools. Research:
+      Here's the finding on item 2: this isn't a WebUI bug at all. ZoneActiveToggleList in the Bridge section has no mode gate of its own — it renders whatever /api/zones returns, unconditionally. The empty list in audio mode traces back to the daemon:
+
+      Pipeline::listZones()/updateZone() in both Aurora-App-Windows/src/main.cpp:290-312 and Aurora-App-Linux/src/main.cpp:379-400** explicitly return nothing / no-op whenever m_isAudioMode` is true:
+
+
+      Aurora::Runtime::ZoneListResult listZones() const
+      {
+        if(m_isAudioMode || m_outputPtrs.empty()){
+          return {};
+        }
+        const std::string& name = m_outputPtrs.front()->name();
+        return {name, m_orchestrator->zoneMap(name)};   // m_orchestrator is empty in audio mode
+      }
+      That guard exists because in audio mode m_orchestrator (video) is unset — only m_audioOrchestrator is built — so calling m_orchestrator->zoneMap(...) unconditionally would dereference an empty std::optional. It's a real safety guard, not an arbitrary restriction.
+
+      The good news: AudioOrchestrator (AudioOrchestrator.hpp:54) already maintains its own per-output ZoneMap and exposes a read-only zoneMap(outputName) getter — reconciled/persisted against the same ZoneMapStore the video path uses. So the "active"/"gamma" data genuinely exists and is meaningful in audio mode already; it's just not wired up. What's missing:
+
+      AudioOrchestrator needs a mutator — it currently has no updateZone() at all (only Orchestrator does), so it can't persist a toggle flip yet.
+      Pipeline::listZones()/updateZone() in both apps' main.cpp need an audio-mode branch that reads/writes through m_audioOrchestrator instead of bailing to {}/false.
+      Once that's done on the backend, no Aurora-WebUI changes are needed — the existing Bridge zone list will just start showing data in audio mode automatically, same as the frontend investigation for item 2 originally assumed.
