@@ -63,6 +63,13 @@
   opacity: 0.5;
 }
 
+/* Icon-only buttons (e.g. Dashboard's Stop) -- .btn's own padding is
+   asymmetric (8px/12px) for text labels, which reads fine there but leaves
+   a 16px icon inside a 40x32px box instead of a square 32x32px one. */
+.btn-icon {
+  padding: var(--aurora-space-3);
+}
+
 .btn-primary {
   background: var(--aurora-button-light);
   color: var(--aurora-text-on-light);

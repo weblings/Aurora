@@ -19,6 +19,7 @@ export function renderTopBar(container, { title, showBack = false, onBack, statu
     ? `<img src="${escapeHtml(trailingButton.icon)}" alt="" class="top-bar-trailing-icon" />`
     : escapeHtml(trailingButton?.label ?? '');
   const trailingBtnLabelAttr = trailingButton?.icon ? ` aria-label="${escapeHtml(trailingButton.label)}"` : '';
+  const trailingBtnClass = trailingButton?.icon ? 'btn btn-secondary btn-icon' : 'btn btn-secondary';
 
   container.innerHTML = `
     <div class="top-bar">
@@ -26,7 +27,7 @@ export function renderTopBar(container, { title, showBack = false, onBack, statu
       <h1 class="top-bar-title">${escapeHtml(title)}</h1>
       <div class="top-bar-trailing">
         ${statusPill ? `<span class="status-pill">${escapeHtml(statusPill)}</span>` : ''}
-        ${trailingButton ? `<button type="button" class="btn btn-secondary" id="top-bar-trailing-btn"${trailingBtnLabelAttr}>${trailingBtnContent}</button>` : ''}
+        ${trailingButton ? `<button type="button" class="${trailingBtnClass}" id="top-bar-trailing-btn"${trailingBtnLabelAttr}>${trailingBtnContent}</button>` : ''}
       </div>
     </div>
   `;
