@@ -262,3 +262,33 @@ creation time" quietly becomes "assumed correct forever" the moment the
 guard against staleness is left out, and the failure mode (a hard native
 assert) doesn't give a debugger-free live session any warning before it
 takes the whole process down.
+
+---
+
+## A process-global library init/deinit pair must not live in a per-instance constructor/destructor when the app deliberately overlaps old and new instances
+
+Live Video↔Audio switching on Linux segfaulted after a few successful swaps
+(`Aurora running: input='linux'` / `audio input='linux-audio'` alternating,
+then `Segmentation fault`). Both `AudioGrabber` and `PipewireGrabber` called
+`pw_init()` per instance (constructor/worker thread) and `pw_deinit()` per
+instance (teardown) — but `pw_init()`/`pw_deinit()` are process-global, not
+per-connection, and `PipelineHost::reload()` fully builds the replacement
+pipeline before tearing down the old one, so consecutive same-mode reloads
+briefly hold two live grabbers at once. The old instance's `pw_deinit()`
+pulled the globals out from under the new one (and a second teardown
+double-freed), which survived a swap or two before crashing — the same
+"teardown racing a replacement that already started" shape as `output.md`'s
+`shutdown(isReplacement)` bug, one layer down. The tell was consecutive
+same-mode rebuilds in the log: any per-instance global teardown is
+use-after-free the moment two same-kind instances overlap.
+
+**Fix:** `PipewireRuntime::ensurePipewireInitialized()` (`Aurora-Input-Linux`,
+`std::call_once`, shared by both grabbers), with intentionally no matching
+`pw_deinit()` anywhere — a bounded one-time leak at process exit beats a
+use-after-free on every live reload. Same precedent `X11Grabber` already set
+in this repo (`XInitThreads()` once, never un-done). General principle: when
+an app's reload design overlaps the old and new instances by construction,
+audit every per-instance constructor/destructor pair for process-global
+calls hiding inside it — init/deinit, `XInitThreads`-style one-time setup,
+global refcounts — and hoist those to init-once; "balanced within one
+lifetime" is only balanced if no second lifetime can ever overlap it.

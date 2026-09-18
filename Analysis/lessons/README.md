@@ -208,7 +208,11 @@ Aurora's own module boundaries instead of RockyRoad's. `rendering-apis.md` vs.
   size/format, so a later frame's `RowPitch` could read smaller than its
   own tightly-packed row size and crash `cv::Mat`'s row-step constructor --
   re-check a cached GPU/shared-memory buffer's validity every call, not
-  just at creation time.
+  just at creation time; and a process-global library init/deinit pair
+  (`pw_init()`/`pw_deinit()`) living in a per-instance
+  constructor/destructor segfaulting once a build-before-destroy reload
+  overlaps two live grabbers -- hoist process-global setup to init-once
+  (`PipewireRuntime::ensurePipewireInitialized()`), never un-done.
 - [`processing.md`](processing.md) — color/effect transform and zone-mapping
   gotchas: a periodic test signal (a sine wave) regenerated fresh per call
   instead of continuing its phase injecting broadband noise at each call
