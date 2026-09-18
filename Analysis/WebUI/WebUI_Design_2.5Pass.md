@@ -1,0 +1,300 @@
+# WebUI design, pass 2.5: visual polish diffs
+
+Bounded doc: captures the layout/styling diffs found so far comparing the
+real, currently-shipped Dashboard against `Aurora-WebUI/Static_2.5_VisualPass`'s
+new visual pass, worked out before any of it is built. Not a rebuild of
+Pass 2's own rationale (`WebUI_Design_2ndPass.md`) — this is strictly "what
+changed visually," confirmed against the actual Figma-derived source one
+item at a time with the user, not guessed from the flattened export alone.
+
+## Source material and its own limits
+
+`Static_2.5_VisualPass/2_Pass/*.html` is this repo's own debug-export dump
+(`app.js`'s `H`-key hotkey) — real class names, real live-rendered markup,
+ground truth for "what's shipped today." `Static_2.5_VisualPass/2.5_Pass/*`
+is a Figma-plugin export of the new visual pass, and it has real corruption
+worth knowing about before trusting its raw HTML/CSS directly:
+
+- Text content got used to derive HTML tag names in a few places: "Video"/
+  "Audio" (the mode-toggle button labels) became literal `<video>`/`<audio>`
+  media elements, and "Area" (the Interpolation dropdown's selected value)
+  became an empty `<area>` void tag — all three lose their real text content
+  in an actual browser render (`<audio>` with no `controls` renders at zero
+  size; `<area>` structurally can't hold text at all).
+- Every `background+border` class name is unescaped in the CSS, so
+  `.background+border` parses as the sibling combinator (`+`) rather than a
+  class selector — 11 rules covering the whole Zone Mapping canvas
+  background/border, zone size-label positions, and the SVG/vector styling
+  underneath it match nothing at all.
+- A handful of multi-part text labels (e.g. "Zone 0 (Entranceway)") got
+  split into a class plus a bogus bareword HTML attribute (`<p class="zone"
+  Entranceway>`) -- harmless to a browser, but noise when reading the file.
+
+None of this blocks reading the file for layout/spacing *intent* -- the
+diffs below were confirmed against the actual numbers in
+`2.5_Pass/Dashboard_Expanded.css` and cross-checked with the user against
+the real Figma source, not inferred from guesswork.
+
+## Confirmed diffs
+
+**Top bar: "Running" badge removed, Stop moves into its corner, "Aurora"
+grows.** Today the top bar has three slots -- empty left, "Aurora" centered
+(`.top-bar-title`, `font-size: 16px`), and `.status-pill` "Running" in the
+right-side trailing slot -- with Stop living entirely separately, below the
+top bar in `.db-controls-row`. The new pass removes the "Running" pill
+outright and moves Stop up into the top bar itself, taking the same
+right-side corner the pill vacated (confirmed -- not assumed from the
+export's own unreliable DOM order). "Aurora" itself grows from 16px to
+20px (`2.5_Pass/Dashboard_Expanded.css`'s `.aurora`, `font-size: 20.00px`)
+and stays centered -- Stop moving into the same row doesn't shift it,
+confirmed.
+
+**Accordion headers become a floating pill, wider than the content column,
+sitting above it -- not a panel that extends down to cover the expanded
+content.** Today, `.accordion-header` has no background at all -- a flat
+row, with only `border-bottom: 1px solid var(--aurora-divider)` on the
+section itself. The new pass gives every accordion header (Bridge, Tuning,
+Zone Mapping) `background: #1a1a1a` (matches `--aurora-surface`) and full
+padding on all four sides instead of just top/bottom, as a separate pill
+that overhangs the normal content edge by 21px on each side (42px wider
+overall than the canvas/buttons/etc. beneath it) -- the content itself
+stays plain, unpanelled. Radius gets its own new dedicated token
+(confirmed `8px`, not snapped to either existing `--aurora-radius-control`
+6px or `--aurora-radius-panel` 12px) specifically so it can be tweaked
+independently later without affecting either of those two.
+
+**Entertainment configuration moves out of Zone Mapping, into Bridge.**
+Today it sits in the top tier, between the zone canvas/selected-row and the
+Auto-arrange zones button. In the new pass it's gone from Zone Mapping
+entirely and reappears inside the Bridge accordion, directly under "Change
+bridge" and above the per-zone active-toggle list.
+
+**Auto-arrange zones moves to the top of Zone Mapping, and becomes a
+centered, content-hugging button** -- not a full-width bar. Today it sits
+near the bottom of the section (grouped with the Active toggle). In the new
+pass it's the first thing in the accordion's content, above the canvas,
+centered in the row rather than stretched edge to edge.
+
+**"See all zones →" moves from a standalone line at the bottom of the
+section up to sit directly above the Zone dropdown**, grouped with the
+"Zone" label on the same line -- not a separate column, one combined label
+row sitting above one dropdown that still spans the full column width.
+
+**Zone / Active / Gamma become one three-column row instead of two rows.**
+Today: Zone dropdown + Gamma slider share one flex row (`.zm-selected-row`),
+and Active sits separately below in its own field, after Auto-arrange.
+In the new pass all three are columns in a single row, with:
+- all three labels ("Zone" + "See all →", "Active", "Gamma" + its "0.0"
+  value) sharing one horizontal baseline, and
+- a shared 35px-tall control band beneath the labels, inside which every
+  control is vertically centered rather than sitting at its own natural
+  height.
+
+Below 480px, the three columns just stack (confirmed) -- same fallback
+convention every other multi-item row in this app already uses
+(`.zm-selected-row`, `.oc-actions`, `.md-actions`), no special-casing needed
+for this one.
+
+**The dropdown sets the band height (35px); every toggle switch app-wide
+shrinks to match the slider, not just this one.** The Zone dropdown is
+35px tall and is the tallest element in the row, which is what defines the
+band. `.toggle-switch` shrinks from today's real 42x24px down to 35x20px
+(`2.5_Pass/Dashboard_Expanded.css`'s `.frame .background`) -- the height
+specifically to match a slider's own ~20px visual height (thumb included,
+not just the 6px track), with the width shrinking proportionally as part
+of that same resize, not a separately-decided change. This isn't scoped to
+just the Zone-Mapping row's Active toggle -- it applies to every
+`.toggle-switch` in the app: Bridge's per-zone toggle list and Tuning's
+"Use fixed hue" checkbox both reuse the same class today and shrink along
+with it.
+
+### Zone Mapping layout, before/after
+
+```
+BEFORE -- shipped today                        AFTER -- 2.5 pass
+================================                ================================
+┌─ ZONE MAPPING (accordion) ─────┐             ┌─ ZONE MAPPING (accordion) ──────────┐
+│                                 │             │            ┌─────────────────┐      │
+│ ┌─ Canvas (SVG + zone tags) ──┐ │             │            │ Auto-arrange    │      │
+│ │                             │ │             │            │ zones           │      │
+│ └─────────────────────────────┘ │             │            └─────────────────┘      │
+│                                 │             │                                     │
+│ ┌─Zone ▾──────┐ ┌─Gamma slider┐│             │ ┌─ Canvas (SVG + zone tags) ────────┐ │
+│ │(side by side)│ │             ││             │ │                                   │ │
+│ └──────────────┘ └─────────────┘│             │ └───────────────────────────────────┘ │
+│                                 │             │                                     │
+│ ┌─ Entertainment config ▾ ────┐ │  (moves to  │  Zone   "See all →"  Active  Gamma "0.0"│
+│ └─────────────────────────────┘ │   Bridge)   │ ┌────────────────┐ ┌──────┐ ┌───────┐  │
+│ ┌─ Auto-arrange zones ────────┐ │             │ │  Zone 0  ▾     │ │ toggle│ │ slider│  │
+│ └─────────────────────────────┘ │             │ │  (35px, sets   │ │ (20px)│ │(~20px)│  │
+│ ┌─ Active toggle ─────────────┐ │             │ │  the band ht.) │ └──────┘ └───────┘  │
+│ └─────────────────────────────┘ │             │ └────────────────┘  all centered in    │
+│                                 │             │                     the 35px band       │
+│ "See all zones →" (own line) ──┼─┘             └─────────────────────────────────────┘
+└─────────────────────────────────┘
+```
+
+### Zone Mapping canvas styling
+
+Confirmed by comparing two real screenshots of the canvas (not the corrupted
+`2.5_Pass` export), one of the shipped app and one of the new pass:
+
+**Zone-number badges are gone entirely.** Today, every zone's number sits
+inside a small dark pill (`.zm-zone-tag`'s real `background:
+var(--aurora-scrim)`, `border-radius: var(--aurora-radius-badge)`) --
+selected or not. The new pass drops the badge for every zone; the number is
+just plain text on the canvas background.
+
+**The selected zone's own number goes bold.** No badge either way now, but
+the selected zone's digit renders bold where every other zone's stays
+regular weight -- the one remaining visual distinction for "this is the
+selected zone" on the number itself.
+
+**The size label is removed.** Today, `.zm-size-label` shows the selected
+zone's dimensions as text (e.g. "33.3% x 50%") floating above it. The new
+pass drops this entirely -- the selected zone's white outline/handles are
+the only feedback on its size and position now.
+
+**Selected zone's outline and handles go from grey to white.** Today,
+`.zm-zone-rect.selected`'s `stroke` and `.zm-handle`'s `background` both use
+`var(--aurora-accent)` (`#8b8b8b`) -- just a thicker version of the same
+grey the unselected zones' dividers use. The new pass makes both pure white
+(`var(--aurora-text-primary)`) instead, so the selected zone's outline reads
+as a distinct color, not just a thicker one.
+
+**Drag handles and slider thumbs become solid circles, matching
+RockyRoad's real Play-scene scrub bar thumb exactly** (`RockyRoad/v2/
+desktop.html:518-523`, `.seek-thumb`):
+
+```css
+.seek-thumb {
+  width: 20px; height: 20px;
+  background: #dadada; border-radius: 50%;
+}
+```
+
+One flat fill, no border ring. Aurora's current `.zm-handle` is two-tone at
+14px (`background: var(--aurora-accent)` + `border: 1px solid
+var(--aurora-text-primary)`) -- the new pass drops the ring entirely and
+grows it to 20px, the same target size already established for the
+Active-toggle/slider-height consistency work above -- a third recurrence of
+the same 20px control size, not a new number. `#dadada` isn't a new color
+either: it's Aurora's existing `--aurora-button-light` token, already used
+for `.btn-primary`/`.segmented-btn.active`.
+
+This applies to two different kinds of control, with different real
+implementation cost:
+- **Zone canvas handles** (`.zm-handle`) are plain custom `<div>`s -- a
+  direct CSS value swap.
+- **Slider thumbs** (Gamma, every Tuning slider) are native
+  `<input type="range">` elements, currently styled only via `accent-color:
+  var(--aurora-accent)`. `accent-color` can tint the browser's native thumb
+  but can't force an exact flat-circle-no-ring shape consistently across
+  browsers -- matching `.seek-thumb` exactly needs
+  `::-webkit-slider-thumb`/`::-moz-range-thumb` overrides instead.
+
+## Not yet reviewed
+
+Only `Dashboard_Expanded` has been compared screen a-vs-b so far. The other
+`2.5_Pass`/`2_Pass` screen pairs (NUX Welcome, Hue Bridge, Entertainment,
+Capture Source, Zone Mapping's own onboarding screen, Dashboard_Collapsed)
+haven't been diffed yet.
+
+The "Zone Mapping canvas styling" diffs above are confirmed as general
+intent, not Dashboard-specific -- they apply to `ZoneCanvas`/`.zm-*`, which
+Zone Mapping's own onboarding screen also uses. That screen's *layout*
+(not just canvas styling) still hasn't been compared and remains part of
+the unreviewed set above.
+
+## Scoping + sequencing
+
+One line per step, on purpose -- verification/findings once building starts
+go to `WebUI_Fixes.md`'s Pass 2 section (or a new Pass 2.5 section there),
+not inline here. Each phase should leave the app in a working state before
+the next one starts.
+
+### In scope
+
+Every confirmed diff above, scoped to `Dashboard_Expanded` only: the top
+bar (Running removed, Stop relocated, Aurora resized), the accordion
+header pill (new radius token, overhang), Entertainment config's move into
+Bridge, Auto-arrange's move to the top of Zone Mapping, "See all zones →"
+regrouping with the Zone label, the Zone/Active/Gamma three-column row
+(plus its <480px stacked fallback), the app-wide toggle-switch resize, and
+the Zone Mapping canvas's visual refresh (no badges, bold selected number,
+no size label, white selected outline, solid 20px handles/slider thumbs).
+
+### Out of scope
+
+The other five `2.5_Pass` screens not yet diffed against their `2_Pass`
+counterparts (NUX Welcome, Hue Bridge, Entertainment, Capture Source, Zone
+Mapping's own onboarding *layout*, Dashboard_Collapsed) -- separate
+follow-up passes once each is actually compared, not assumed from this
+one. The Video/Audio mode-toggle button styling and the zone-rect stroke
+*width* (7px vs. today's 1px) -- both still unconfirmed/likely export
+artifacts, not touched this pass. Any backend/C++ change -- this pass is
+entirely `Aurora-WebUI` frontend (CSS + a small amount of JS), no new API
+surface needed anywhere in it.
+
+### Phase A -- shared primitives (tokens + classes several later phases depend on)
+
+1. New `--aurora-radius-accordion: 8px` token in `tokens.css`, kept separate
+   from `--aurora-radius-control`/`--aurora-radius-panel` on purpose.
+2. `.toggle-switch`/`.toggle-knob` resize 42x24 -> 35x20 -- one shared class,
+   so Bridge's per-zone list, Tuning's fixed-hue checkbox, and Zone
+   Mapping's Active toggle all pick it up with no per-consumer changes.
+3. `.zm-handle` restyle: drop the `border` ring, flat `#dadada` fill,
+   14px -> 20px.
+4. `.slider-input` thumb restyle to match (`::-webkit-slider-thumb`/
+   `::-moz-range-thumb`, `#dadada`, 20px, no ring) -- one shared class
+   already covers Gamma and every Tuning slider.
+5. `.zm-zone-rect.selected`'s `stroke`: `var(--aurora-accent)` ->
+   `var(--aurora-text-primary)`.
+
+*Testing:* visual check only -- pure style/size changes, no rendering-logic
+touched yet.
+
+### Phase B -- Zone Mapping canvas drawing logic (`ZoneCanvas.js`)
+
+6. Stop rendering `.zm-zone-tag` badges entirely; the zone number becomes
+   plain text on the canvas.
+7. Add a bold-weight class to the selected zone's number specifically.
+8. Stop rendering `.zm-size-label` (no more "33.3% x 50%" text).
+
+*Testing:* live check in a real browser -- this changes `ZoneCanvas.js`'s
+actual DOM-generation logic, not just CSS.
+
+### Phase C -- Zone Mapping / Bridge structural reordering (moving existing pieces, no new layout yet)
+
+9. Move "Auto-arrange zones" to the top of Zone Mapping's accordion content,
+   above the canvas; restyle from full-width to centered/content-hugging.
+10. Move `EntertainmentConfigSelect`'s mount point out of Zone Mapping's top
+    tier into the Bridge accordion's content, under "Change bridge."
+11. Move "See all zones →" to sit grouped with the "Zone" label, above the
+    Zone dropdown, instead of standing alone at the bottom.
+
+*Testing:* live check that Entertainment config still switches
+configs/reloads zones correctly from its new mount point -- its own
+`onChange`/`load()` contract doesn't change, only where it's mounted.
+
+### Phase D -- Zone/Active/Gamma row rebuild
+
+12. Replace `.zm-selected-row`'s two-item flex row plus the separate Active
+    field with one three-column row (Zone / Active / Gamma), shared label
+    baseline, 35px control band.
+13. Confirm the Zone dropdown actually lands at 35px tall once Phase A's
+    sizing changes are in, adjusting its own padding if it doesn't.
+14. Add the <480px stacked fallback.
+
+*Testing:* live check at both desktop and <480px widths -- the biggest
+structural layout change in this pass.
+
+### Phase E -- Top bar
+
+15. Remove `.status-pill` "Running" from the top bar.
+16. Move the Stop button from `.db-controls-row` into the top bar's
+    trailing slot.
+17. `.top-bar-title` font-size 16px -> 20px.
+
+*Testing:* live check that Stop's click behavior is unchanged from its new
+location.
