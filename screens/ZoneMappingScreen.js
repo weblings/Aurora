@@ -74,6 +74,7 @@ export class ZoneMappingScreen {
     });
     this.zoneCanvas = null;
     this.channelLightNames = {}; // channelId -> light name array, from /api/hue/channels
+    this._loadId = 0; // guards background decoration against a newer _load() (see _load)
   }
 
   async mount(container) {
@@ -104,6 +105,7 @@ export class ZoneMappingScreen {
   }
 
   async _load() {
+    const loadId = ++this._loadId;
     const body = this.container.querySelector('.zm-body');
     body.innerHTML = `<p class="status-text">Loading…</p>`;
 
@@ -118,22 +120,6 @@ export class ZoneMappingScreen {
 
     this.selectedZoneId = null;
 
-    if (this.outputName) {
-      await this.entertainmentConfigSelect.load();
-
-      // Best-effort: falls back to bare "Zone N" labels (via _zoneLabel) if
-      // this fails or the route isn't available for the active output.
-      try {
-        const channelsResult = await (await fetch('/api/hue/channels')).json();
-        this.channelLightNames = {};
-        if (channelsResult.succeeded) {
-          for (const c of channelsResult.channels) this.channelLightNames[c.channelId] = c.lightNames;
-        }
-      } catch {
-        this.channelLightNames = {};
-      }
-    }
-
     // Auto-arrange the first time this screen is ever reached with no zone
     // edit on record at all -- onboarding only, so a returning user's own
     // deliberate arrangement (even one that happens to leave a zone at the
@@ -143,8 +129,40 @@ export class ZoneMappingScreen {
     if (this.onboarding && this.zones?.length > 0 && this.zones.every((z) => !z.everConfigured)) {
       await this._autoDivide();
     }
+    if (loadId !== this._loadId) return;
 
     this._render();
+
+    // Everything below is bridge-REST decoration -- the entertainment-config
+    // state (including its silent default-persist, which onboarding relies
+    // on even though it never displays the picker) and the channel light
+    // names behind "Zone N (Floor Lamp)" labels -- that must not hold first
+    // render hostage on a slow bridge. Labels already fall back to bare
+    // "Zone N" until names arrive (see _zoneLabel). Re-renders only if no
+    // newer _load() has since taken over (which renders for itself).
+    if (this.outputName) {
+      this._loadDecoration(loadId);
+    }
+  }
+
+  async _loadDecoration(loadId) {
+    await this.entertainmentConfigSelect.load();
+
+    // Best-effort: falls back to bare "Zone N" labels (via _zoneLabel) if
+    // this fails or the route isn't available for the active output.
+    try {
+      const channelsResult = await (await fetch('/api/hue/channels')).json();
+      this.channelLightNames = {};
+      if (channelsResult.succeeded) {
+        for (const c of channelsResult.channels) this.channelLightNames[c.channelId] = c.lightNames;
+      }
+    } catch {
+      this.channelLightNames = {};
+    }
+
+    if (loadId === this._loadId) {
+      this._render();
+    }
   }
 
   // Assigns each active zone a non-overlapping screen region from
