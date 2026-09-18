@@ -658,8 +658,11 @@ try
   // existed) -- registerOutputs needs it to look up any persisted Hue
   // connection.
   auto configRoot = resolveConfigRoot();
-  // TEMP DEBUG -- remove after live pairing repro (see WebUI/WebUI_Fixes.md)
+  // TEMP DEBUG -- remove after live pairing repro (see WebUI/WebUI_Fixes.md).
+  // Debug-only: Release builds must not print it.
+#ifndef NDEBUG
   std::cout << "[pairing-debug] configRoot=" << configRoot << "\n";
+#endif
 
   // Captured before ConfigStore/Pipeline ever touch this configRoot --
   // Pipeline::build() unconditionally re-saves config.json on every launch
