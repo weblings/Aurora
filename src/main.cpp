@@ -27,12 +27,15 @@
 #include <Aurora/Network/Http/Server/HttpServer.hpp>
 #include <Aurora/Runtime/AudioOrchestrator.hpp>
 #include <Aurora/Runtime/ConfigStore.hpp>
+#include <Aurora/Runtime/ControlDescriptorTables.hpp>
+#include <Aurora/Runtime/ControlDescriptors.hpp>
 #include <Aurora/Runtime/Orchestrator.hpp>
 #include <Aurora/Runtime/SettingsRoutes.hpp>
 #include <Aurora/Runtime/ZoneMapStore.hpp>
 #include <Aurora/Runtime/ZoneRoutes.hpp>
 
 #include <Aurora/Input/Windows/DummyGrabber.hpp>
+#include <Aurora/Input/Windows/InputControlDescriptors.hpp>
 #ifdef AURORA_INPUT_WINDOWS_DXGI_AVAILABLE
 #include <Aurora/Input/Windows/WindowsGrabber.hpp>
 #endif
@@ -45,6 +48,7 @@
 #include <Aurora/Output/Hue/CredentialsStore.hpp>
 #include <Aurora/Output/Hue/HueOutput.hpp>
 #include <Aurora/Output/Hue/PairingRoutes.hpp>
+#include <Aurora/Output/Hue/HueControlDescriptors.hpp>
 #endif
 
 namespace
@@ -688,6 +692,27 @@ try
 
   Aurora::Network::Http::Server::HttpServer httpServer;
   registerCapabilitiesRoute(httpServer, registry);
+
+  // Tooltip descriptors (Analysis/TooltipsAnalysis.md): every layer
+  // contributes its own control descriptions; the frontend looks them
+  // up purely by key.
+  Aurora::Runtime::DescriptorRegistry descriptorRegistry;
+  descriptorRegistry.add("video", Aurora::Runtime::videoControlDescriptors());
+  descriptorRegistry.add("input", Aurora::Input::Windows::windowsInputControlDescriptors());
+#ifdef AURORA_RUNTIME_AUDIO_AVAILABLE
+  descriptorRegistry.add("audio", Aurora::Runtime::audioControlDescriptors());
+#endif
+  descriptorRegistry.add("zones", Aurora::Runtime::zoneControlDescriptors());
+  descriptorRegistry.add("app", Aurora::Runtime::appControlDescriptors());
+#ifdef AURORA_OUTPUT_HUE_IO_AVAILABLE
+  descriptorRegistry.add("hue", Aurora::Output::Hue::hueControlDescriptors());
+#endif
+  for(const auto& collision : descriptorRegistry.collisions()){
+    std::cerr << "[descriptors] collision on '" << collision.key
+              << "': kept '" << collision.keptOwner
+              << "', dropped '" << collision.droppedOwner << "'\n";
+  }
+  Aurora::Runtime::registerDescriptorRoutes(httpServer, descriptorRegistry);
 #ifdef AURORA_OUTPUT_HUE_IO_AVAILABLE
   Aurora::Output::Hue::registerPairingRoutes(httpServer, configRoot,
     [&pipelineHost, &registry, configRoot]() -> std::string {
