@@ -961,13 +961,27 @@ accent-color thumb is *already* a flat, ring-free gray circle, coincidentally
 close enough to the intended look that a glance didn't catch the color
 (`#8b8b8b` native vs. the intended `#dadada`) was wrong the whole time.
 
-**Fix:** reverted to plain `accent-color` (already sufficient for "solid,"
-no override needed at all here). General principle: a `::-pseudo-element`
-override is not guaranteed to apply just because the selector is valid --
-for any native form control with its own "appearance" rendering mode
-(range/checkbox/radio thumbs, `<select>` internals), check whether the
-*host* element's own appearance needs resetting too, not just the part
-being restyled. And when a screenshot check "confirms" a color change,
-compare the actual rendered value against the specific token intended, not
-just the general shape -- two different grays can look interchangeable at
-a glance.
+**Fix (first pass):** reverted to plain `accent-color` -- it already rendered
+a solid, ring-free thumb, so no override was needed for *that* ask. General
+principle: a `::-pseudo-element` override is not guaranteed to apply just
+because the selector is valid -- for any native form control with its own
+"appearance" rendering mode (range/checkbox/radio thumbs, `<select>`
+internals), check whether the *host* element's own appearance needs
+resetting too, not just the part being restyled. And when a screenshot check
+"confirms" a color change, compare the actual rendered value against the
+specific token intended, not just the general shape -- two different grays
+can look interchangeable at a glance.
+
+**Later revisited:** a real ask arrived for a thumb color genuinely
+different from the track's own accent-color fill (matching Zone Mapping's
+white handles) -- and `accent-color` can't do that; it's one color for both
+thumb and fill, no independent override. The fix that time was the full
+reset this entry warns about, done deliberately: `-webkit-appearance: none`
+on the host *and* the thumb, plus a hand-built fill (Chromium has no native
+"already filled" track pseudo-element, so a `--slider-percent` custom
+property set on `input` events paints a hard-color-stop gradient on
+`::-webkit-slider-runnable-track`; Firefox's own `::-moz-range-progress`
+needs no such workaround). Verified against the pre-change native rendering
+pixel-by-pixel (track height/radius/fill color measured and carried over
+exactly) rather than by eye, precisely because of this entry's own "a
+screenshot glance isn't verification" lesson.

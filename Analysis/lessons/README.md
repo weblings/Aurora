@@ -360,7 +360,11 @@ Aurora's own module boundaries instead of RockyRoad's. `rendering-apis.md` vs.
   `<input>`'s own native appearance (needed for `accent-color`) was never
   reset, with a zoomed screenshot "confirming" the override worked only
   because the native thumb it was actually still showing happened to look
-  close enough at a glance.
+  close enough at a glance -- later revisited for a real need (a thumb color
+  genuinely independent of the track's own accent-color fill), solved with
+  the full reset done deliberately plus a hand-built fill for Chromium's
+  missing "already filled" track pseudo-element, verified pixel-by-pixel
+  against the prior rendering rather than by eye.
 
 ## Where a new lesson goes
 
