@@ -70,44 +70,25 @@
   cursor: grabbing;
 }
 
-.zm-size-label {
-  position: absolute;
-  transform: translate(-50%, -100%);
-  color: var(--aurora-text-secondary);
-  font-size: 11px;
-  white-space: nowrap;
-  pointer-events: none;
-}
-
 .zm-overlay {
   position: absolute;
   inset: 0;
   pointer-events: none;
 }
 
-.zm-zone-tag {
+/* Plain text, no badge/background (2.5 pass) -- pointer-events: none so a
+   click here always falls through to the zone rect's own selection handler
+   underneath, the same way any other point in the rect already does. */
+.zm-zone-number {
   position: absolute;
   transform: translate(-50%, -50%);
-  display: flex;
-  align-items: center;
-  gap: var(--aurora-space-1);
-  padding: 2px var(--aurora-space-2);
-  background: var(--aurora-scrim);
-  border-radius: var(--aurora-radius-badge);
   color: var(--aurora-text-primary);
   font-size: 12px;
-  /* The badge sits centered on the zone -- exactly where a user's first
-     click to select it naturally lands. none here (re-enabled only on the
-     digit below) lets a click on the badge's own padding fall through to
-     the zone rect's own selection handler underneath instead of silently
-     hitting nothing (found via a real click in Chromium, not jsdom -- see
-     Analysis/lessons/web-ui.md). */
   pointer-events: none;
-  cursor: pointer;
 }
 
-.zm-zone-tag span {
-  pointer-events: auto;
+.zm-zone-number.selected {
+  font-weight: 700;
 }
 
 .zm-active-toggle {

@@ -76,7 +76,7 @@ export class ZoneCanvas {
     for (const zone of ordered) {
       const isSelected = zone.zoneId === this._selectedZoneId;
       this._drawZoneRect(svg, overlay, zone, isSelected);
-      this._drawZoneTag(overlay, zone);
+      this._drawZoneNumber(overlay, zone, isSelected);
     }
   }
 
@@ -95,24 +95,14 @@ export class ZoneCanvas {
       return;
     }
 
-    // Handles and the size readout render as plain HTML in the overlay, not
-    // SVG shapes, and the label's vertical position is computed in real
-    // pixels rather than viewBox units -- the SVG's own viewBox stretches
-    // non-uniformly to fill a 16:9 box (correct for the zone rect itself,
-    // which should always fill the box edge-to-edge), but that same stretch
-    // silently distorts any *fixed-size* shape or text drawn in its
-    // coordinate space: a circle comes out an ellipse, text comes out
-    // squished. Confirmed via a real Chromium render for step 19's QA pass
-    // (jsdom never lays out SVG at all, so nothing here could have caught
-    // it) -- a `.zm-handle` measured ~24x14px instead of a circle.
-    const bounds = svg.getBoundingClientRect();
-    const sizeLabel = document.createElement('div');
-    sizeLabel.className = 'zm-size-label';
-    sizeLabel.style.left = `${(min[0] + max[0]) * 50}%`;
-    _positionSizeLabel(sizeLabel, min[1], bounds.height);
-    sizeLabel.textContent = `${round1((max[0] - min[0]) * 100)}% x ${round1((max[1] - min[1]) * 100)}%`;
-    overlay.appendChild(sizeLabel);
-
+    // Handles render as plain HTML in the overlay, not SVG shapes -- the
+    // SVG's own viewBox stretches non-uniformly to fill a 16:9 box (correct
+    // for the zone rect itself, which should always fill the box edge-to-
+    // edge), but that same stretch silently distorts any *fixed-size* shape
+    // drawn in its coordinate space into an ellipse. Confirmed via a real
+    // Chromium render for step 19's QA pass (jsdom never lays out SVG at
+    // all, so nothing here could have caught it) -- a `.zm-handle` measured
+    // ~24x14px instead of a circle.
     const handles = {};
     for (const corner of CORNERS) {
       const [cx, cy] = _cornerPoint(corner, min, max);
@@ -124,19 +114,22 @@ export class ZoneCanvas {
       handles[corner] = handle;
     }
     for (const corner of CORNERS) {
-      handles[corner].addEventListener('pointerdown', (e) => this._startDrag(e, svg, zone, corner, rect, sizeLabel, handles));
+      handles[corner].addEventListener('pointerdown', (e) => this._startDrag(e, svg, zone, corner, rect, handles));
     }
   }
 
-  _drawZoneTag(overlay, zone) {
+  // Plain text, no badge/background (2.5 pass) -- pointer-events: none (see
+  // zone-mapping.css) so a click here always falls through to the zone
+  // rect underneath instead of needing its own separate select handler,
+  // same click target every other point in the rect already uses.
+  _drawZoneNumber(overlay, zone, isSelected) {
     const { min, max } = zone.uvs;
-    const tag = document.createElement('div');
-    tag.className = 'zm-zone-tag';
-    tag.style.left = `${(min[0] + max[0]) * 50}%`;
-    tag.style.top = `${(min[1] + max[1]) * 50}%`;
-    tag.innerHTML = `<span>${zone.zoneId}</span>`;
-    tag.querySelector('span').addEventListener('click', () => this._selectZone(zone.zoneId));
-    overlay.appendChild(tag);
+    const number = document.createElement('div');
+    number.className = `zm-zone-number${isSelected ? ' selected' : ''}`;
+    number.style.left = `${(min[0] + max[0]) * 50}%`;
+    number.style.top = `${(min[1] + max[1]) * 50}%`;
+    number.textContent = zone.zoneId;
+    overlay.appendChild(number);
   }
 
   _renderSelectedRow(container, zone) {
@@ -195,12 +188,12 @@ export class ZoneCanvas {
   // listener needs adding/removing across renders (unlike huenicorn's own
   // mouse-event version, which attaches a document "mouseup" once and
   // never removes it).
-  _startDrag(event, svg, zone, corner, rect, sizeLabel, handles) {
+  _startDrag(event, svg, zone, corner, rect, handles) {
     event.preventDefault();
     const handle = handles[corner];
     handle.setPointerCapture(event.pointerId);
 
-    const onMove = (e) => this._dragTo(svg, zone, corner, rect, sizeLabel, handles, e.clientX, e.clientY);
+    const onMove = (e) => this._dragTo(svg, zone, corner, rect, handles, e.clientX, e.clientY);
     const onUp = () => {
       handle.removeEventListener('pointermove', onMove);
       handle.removeEventListener('pointerup', onUp);
@@ -211,10 +204,10 @@ export class ZoneCanvas {
     handle.addEventListener('pointerup', onUp);
     handle.addEventListener('pointercancel', onUp);
 
-    this._dragTo(svg, zone, corner, rect, sizeLabel, handles, event.clientX, event.clientY);
+    this._dragTo(svg, zone, corner, rect, handles, event.clientX, event.clientY);
   }
 
-  _dragTo(svg, zone, corner, rect, sizeLabel, handles, clientX, clientY) {
+  _dragTo(svg, zone, corner, rect, handles, clientX, clientY) {
     const bounds = svg.getBoundingClientRect();
     if (bounds.width === 0 || bounds.height === 0) return;
 
@@ -237,9 +230,6 @@ export class ZoneCanvas {
     rect.setAttribute('y', min[1] * 100);
     rect.setAttribute('width', (max[0] - min[0]) * 100);
     rect.setAttribute('height', (max[1] - min[1]) * 100);
-    sizeLabel.style.left = `${(min[0] + max[0]) * 50}%`;
-    _positionSizeLabel(sizeLabel, min[1], bounds.height);
-    sizeLabel.textContent = `${round1((max[0] - min[0]) * 100)}% x ${round1((max[1] - min[1]) * 100)}%`;
 
     for (const c of CORNERS) {
       const [cx, cy] = _cornerPoint(c, min, max);
@@ -262,23 +252,6 @@ function _svg(tag, attrs) {
   const el = document.createElementNS('http://www.w3.org/2000/svg', tag);
   for (const [key, value] of Object.entries(attrs)) el.setAttribute(key, value);
   return el;
-}
-
-// Prefers sitting just above the rect's own top edge (matching the label's
-// job: a caption for the shape below it), but flips to just inside the top
-// edge instead once the rect is close enough to the canvas's own top that
-// "above" would push the label past overflow:hidden and clip it entirely --
-// the label has no natural height to measure before it's painted, so this
-// uses a fixed px threshold generous enough for its own ~11px text.
-function _positionSizeLabel(sizeLabel, minV, boundsHeight) {
-  const topPx = minV * boundsHeight;
-  if (topPx > 16) {
-    sizeLabel.style.top = `${topPx - 4}px`;
-    sizeLabel.style.transform = 'translate(-50%, -100%)';
-  } else {
-    sizeLabel.style.top = `${topPx + 4}px`;
-    sizeLabel.style.transform = 'translate(-50%, 0)';
-  }
 }
 
 function _cornerPoint(corner, min, max) {
