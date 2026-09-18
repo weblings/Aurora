@@ -20,7 +20,10 @@
   justify-content: space-between;
   gap: var(--aurora-space-3);
   width: 100%;
-  padding: var(--aurora-space-3) var(--aurora-space-5);
+  /* 9px block padding, not the space-3 (8px) token -- lands the rendered
+     height at exactly 35px (measured live), the control-band height the
+     2.5 pass's Zone/Active/Gamma row is built around (zone-mapping.css). */
+  padding: 9px var(--aurora-space-5);
   background: var(--aurora-button-dark);
   border: none;
   border-radius: var(--aurora-radius-control);

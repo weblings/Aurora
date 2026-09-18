@@ -28,12 +28,20 @@ export class ZoneCanvas {
   // label (2.5 pass) -- optional and re-wired on every render (this row is
   // torn down and rebuilt on every zone selection) so the onboarding Zone
   // Mapping screen, which has no such link, can omit it entirely.
-  constructor(container, { zones, selectedZoneId, zoneLabel, onSelect, onError, onSeeAllZones }) {
+  // renderActive, when true, adds Active as a third column in the same row
+  // (2.5 pass) instead of leaving it to the caller -- also opt-in and
+  // default false, so the onboarding screen (out of scope this pass) keeps
+  // its own separate always-visible Active section unchanged. Persists
+  // through the same _queue as gamma/uvs, not a separate callback -- an
+  // Active flip has no side effect any caller needs to react to beyond
+  // persistence, same as gamma.
+  constructor(container, { zones, selectedZoneId, zoneLabel, onSelect, onError, onSeeAllZones, renderActive = false }) {
     this.container = container;
     this.zones = zones;
     this.zoneLabel = zoneLabel;
     this.onSelect = onSelect;
     this.onSeeAllZones = onSeeAllZones;
+    this.renderActive = renderActive;
     this.zoneDropdown = null;
     this._queue = new ZonePatchQueue({ onError });
 
@@ -149,11 +157,19 @@ export class ZoneCanvas {
         </div>
         <div id="zc-zone-dropdown-slot"></div>
       </div>
+      ${this.renderActive ? this._activeFieldHtml(zone) : ''}
       ${this._sliderFieldHtml(zone)}
     `;
     this._renderZoneDropdown(container.querySelector('#zc-zone-dropdown-slot'), zone);
     if (this.onSeeAllZones) {
       container.querySelector('#zc-see-all-zones').addEventListener('click', () => this.onSeeAllZones());
+    }
+
+    if (this.renderActive) {
+      container.querySelector('#zc-active-toggle').addEventListener('change', (e) => {
+        zone.active = e.currentTarget.checked;
+        this._queue.queue(zone.zoneId, { active: zone.active });
+      });
     }
 
     const input = container.querySelector('#zm-gamma');
@@ -163,6 +179,20 @@ export class ZoneCanvas {
       readout.textContent = round1(zone.gamma).toFixed(1);
       this._queue.queue(zone.zoneId, { gamma: zone.gamma });
     });
+  }
+
+  _activeFieldHtml(zone) {
+    return `
+      <div class="field zm-active-field-col">
+        <label class="field-label">Active</label>
+        <div class="zm-control-band">
+          <label class="toggle-switch">
+            <input type="checkbox" id="zc-active-toggle" ${zone.active ? 'checked' : ''} />
+            <span class="toggle-knob"></span>
+          </label>
+        </div>
+      </div>
+    `;
   }
 
   _renderZoneDropdown(slot, selectedZone) {
@@ -186,7 +216,9 @@ export class ZoneCanvas {
           <label class="field-label" for="zm-gamma">Gamma</label>
           <span class="slider-value" id="zm-gamma-val">${round1(zone.gamma).toFixed(1)}</span>
         </div>
-        <input type="range" class="slider-input" id="zm-gamma" min="-1" max="1" step="0.1" value="${zone.gamma}" />
+        <div class="zm-control-band">
+          <input type="range" class="slider-input" id="zm-gamma" min="-1" max="1" step="0.1" value="${zone.gamma}" />
+        </div>
       </div>
     `;
   }

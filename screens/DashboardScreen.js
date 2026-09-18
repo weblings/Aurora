@@ -20,7 +20,7 @@ import { ModeDeviceScreen, pickVideoInputName, pickAudioInputName } from './Mode
 import { DeviceField, AUTO_MONITOR_VALUE } from '../DeviceField.js';
 import { EntertainmentConfigSelect } from '../EntertainmentConfigSelect.js';
 import { ZoneCanvas } from '../ZoneCanvas.js';
-import { ZoneActiveToggleList, ZoneActiveToggleSingle } from '../ZoneActiveToggle.js';
+import { ZoneActiveToggleList } from '../ZoneActiveToggle.js';
 import { screenDivisionRects } from '../ScreenDivision.js';
 import { AccordionSection } from '../AccordionSection.js';
 import { TuningFields } from '../TuningFields.js';
@@ -219,11 +219,12 @@ export class DashboardScreen {
     controls.querySelector('#db-stop').addEventListener('click', () => this._openStopConfirm());
   }
 
-  // Top tier: DeviceField (always) + video's own Auto-arrange/canvas/active-
-  // toggle (2.5 pass order: Auto-arrange sits above the canvas now, centered/
-  // content-hugging; "See all zones" moved into ZoneCanvas's own row via
-  // onSeeAllZones; EntertainmentConfigSelect moved out entirely, into the
-  // Bridge accordion -- see _renderBridgeContent()).
+  // Top tier: DeviceField (always) + video's own Auto-arrange/canvas
+  // (2.5 pass order: Auto-arrange sits above the canvas now, centered/
+  // content-hugging; Zone/Active/Gamma render as one row inside ZoneCanvas
+  // itself via renderActive, "See all zones" via onSeeAllZones;
+  // EntertainmentConfigSelect moved out entirely, into the Bridge accordion
+  // -- see _renderBridgeContent()).
   _renderTopTier() {
     const topTier = this.container.querySelector('.db-top-tier');
     this.deviceField?.destroy();
@@ -244,12 +245,6 @@ export class DashboardScreen {
       ` : ''}
       ${showZoneRow ? '<div class="db-canvas-slot"></div>' : ''}
       ${this.mode === 'video' && !showZoneRow ? '<p class="status-text">Zone mapping isn\'t available right now -- it needs an active output and Video mode.</p>' : ''}
-      ${showZoneRow ? `
-        <div class="field db-zone-field">
-          <label class="field-label">Active</label>
-          <div class="db-zone-toggle-slot"></div>
-        </div>
-      ` : ''}
     `;
 
     this.deviceField = new DeviceField(topTier.querySelector('.db-device-slot'), {
@@ -266,15 +261,15 @@ export class DashboardScreen {
         zones: this.zones,
         selectedZoneId: this.selectedZoneId,
         zoneLabel: (zone) => this._zoneLabel(zone),
-        onSelect: (zoneId) => { this.selectedZoneId = zoneId; this._renderZoneActiveToggle(); },
+        onSelect: (zoneId) => { this.selectedZoneId = zoneId; },
         onError: (message) => { this.topTierError = message; this._renderTopTier(); },
         onSeeAllZones: () => {
           this.bridgeSection.expand();
           this.bridgeSection.content.scrollIntoView({ behavior: 'smooth', block: 'start' });
         },
+        renderActive: true,
       });
       this.selectedZoneId = this.zoneCanvas.selectedZoneId;
-      this._renderZoneActiveToggle();
 
       topTier.querySelector('#db-auto-divide').addEventListener('click', (e) => this._onAutoDivideClick(e.currentTarget));
     }
@@ -313,20 +308,6 @@ export class DashboardScreen {
 
     this._renderTopTier();
     this._renderBridgeZoneList();
-  }
-
-  // Just the single active-bool tied to the canvas's current selection --
-  // destroyed and recreated on every selection change without touching the
-  // canvas itself (ZoneCanvas already redraws its own selection state
-  // internally), same split ZoneMappingScreen's own onboarding variant uses.
-  _renderZoneActiveToggle() {
-    const slot = this.container.querySelector('.db-zone-toggle-slot');
-    if (!slot) return;
-    const zone = this.zones.find((z) => z.zoneId === this.selectedZoneId) ?? this.zones[0];
-    new ZoneActiveToggleSingle(slot, {
-      zone,
-      onError: (message) => { this.topTierError = message; this._renderTopTier(); },
-    });
   }
 
   // Fresh AccordionSection instances every call -- always collapsed, which

@@ -51,10 +51,6 @@
   margin-bottom: var(--aurora-space-5);
 }
 
-.db-zone-field {
-  margin-top: var(--aurora-space-5);
-}
-
 /* Accordion sections -- Tuning/Bridge, both always collapsed by default
    (AccordionSection.js's own doc comment). First real consumer of this
    component (built ahead of time in Phase B); values are new, not ported

@@ -105,9 +105,14 @@
   padding: var(--aurora-space-2) 0;
 }
 
+/* Zone/Active/Gamma share one row (2.5 pass): a fixed-height band beneath
+   each column's label, everything vertically centered inside it. The Zone
+   dropdown is the tallest control (35px, dropdown.css) and sets the band
+   height directly; Active's toggle and Gamma's slider are each wrapped in
+   .zm-control-band to match without needing their own explicit height. */
 .zm-selected-row {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: var(--aurora-space-5);
   margin-top: var(--aurora-space-5);
   flex-wrap: wrap;
@@ -115,7 +120,32 @@
 
 .zm-selected-row .field {
   flex: 1;
-  min-width: 180px;
+  min-width: 140px;
+}
+
+.zm-selected-row .zm-active-field-col {
+  flex: 0 0 auto;
+  min-width: 0;
+}
+
+.zm-control-band {
+  height: 35px;
+  display: flex;
+  align-items: center;
+}
+
+@media (max-width: 480px) {
+  .zm-selected-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .zm-selected-row .field,
+  .zm-selected-row .zm-active-field-col {
+    flex: 1 1 auto;
+    min-width: 0;
+    width: 100%;
+  }
 }
 
 .zm-actions {
