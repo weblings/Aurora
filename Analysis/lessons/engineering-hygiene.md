@@ -1186,3 +1186,36 @@ content diff shows only the intended lines. Where an editor can't match a
 CRLF block (e.g. two textually-identical guards), use a byte-exact scripted
 replacement with single-occurrence assertions, kept reviewable outside the
 repo, and re-check the diff afterward.
+
+---
+
+## Live-probing the daemon from this sandbox takes three workarounds, and the probe daemon must die afterward
+
+Freshly built binaries on the DrvFs mount refuse direct exec (`Operation
+not permitted`) -- run via `/lib64/ld-linux-x86-64.so.2 <binary>`
+instead. Localhost `curl` goes through the sandbox proxy env (empty
+`no_proxy`) -- pass `--noproxy '*'`. And never probe against the real
+config: set `AURORA_CONFIG_DIR` to a temp dir so the probe can't touch
+pairing/zone state.
+
+**Fix:** the verified recipe is loader-exec + `setsid -f` detached start
++ `curl --noproxy '*'`, all against a temp config dir -- then confirm the
+port is closed afterward -- a failing `curl` is the confirmation, since
+both `pkill -f` and a /proc PID scan match your own command text (and PID
+1's sandbox cmdline, which embeds it) and can kill your own shell. A leftover probe
+daemon holds the REST port and looks exactly like the real app misbehaving.
+
+---
+
+## A check that shares its subject's bug proves nothing -- verify the verifier against an independent count
+
+A key-coverage script reported frontend and backend tooltip keys matching
+22-to-22, clean both directions -- because both sides used the same key
+regex, which silently excluded two-dot `output.hue.*` keys. Green on both
+sides, wrong on both sides; caught only by comparing the total against the
+live endpoint's 26.
+
+**Fix:** every check needs an oracle independent of the artifact under
+test -- a live count, a second method, a golden value. When a comparison
+passes suspiciously neatly, ask what shared assumption could make both
+sides agree, and go count something real.

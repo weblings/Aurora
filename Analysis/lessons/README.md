@@ -236,7 +236,10 @@ Aurora's own module boundaries instead of RockyRoad's. `rendering-apis.md` vs.
   not being a tested fix until the rebuilt binary actually runs (binary
   timestamps, no lingering old daemon, direct API probe), and sibling repos
   mixing CRLF and LF (check `file` before editing, `git diff --ignore-cr-at-eol`
-  to verify content-only changes).
+  to verify content-only changes), live-probing recipe caveats (loader-exec,
+  `--noproxy '*'`, temp config dir, curl-failing as the daemon-dead proof),
+  and a check sharing its subject's bug proving nothing (verify the verifier
+  against an independent count).
 - [`web-ui.md`](web-ui.md) — WebUI design-process gotchas: a described
   "existing component" being a claim to verify by reading the real source
   rather than a fact to build on, a layout lesson learned in one constrained

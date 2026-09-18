@@ -41,6 +41,17 @@ target_link_libraries(AuroraProcessingTests PRIVATE
 
 target_compile_features(AuroraProcessingTests PUBLIC cxx_std_20)
 
+add_executable(AuroraControlDescriptorTests
+  ControlDescriptorTests.cpp
+)
+
+target_link_libraries(AuroraControlDescriptorTests PRIVATE
+  AuroraRuntime
+  Catch2::Catch2WithMain
+)
+
+target_compile_features(AuroraControlDescriptorTests PUBLIC cxx_std_20)
+
 add_executable(AuroraRuntimeTests
   RuntimeTests.cpp
 )
@@ -105,6 +116,7 @@ endif()
 include(Catch)
 catch_discover_tests(AuroraNetworkTests)
 catch_discover_tests(AuroraProcessingTests)
+catch_discover_tests(AuroraControlDescriptorTests)
 catch_discover_tests(AuroraRuntimeTests)
 catch_discover_tests(AuroraOrchestratorTests)
 if(TARGET AuroraAudioProcessing)

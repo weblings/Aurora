@@ -7,6 +7,8 @@
 add_library(AuroraRuntime STATIC
   src/Config.cpp
   src/ConfigStore.cpp
+  src/ControlDescriptors.cpp
+  src/ControlDescriptorTables.cpp
   src/ZoneMapStore.cpp
   src/ZoneReconciler.cpp
   src/FrameCompositor.cpp
