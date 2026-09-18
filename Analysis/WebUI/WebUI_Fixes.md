@@ -515,8 +515,8 @@ after its build order closed out.
 - [x] Hue bridge IP address automatically gets found on page start (don't need to wait for user to hit button)
 - [x] Maybe integrate hit bridge button to that screen if it works well enough
 - [ ] Add "drumroll please" above Video and Audio toggles while it's loading. Clean up copy
-- [ ] Accordian menus need visual distinction
-- [ ] Zone Mapping general polish
+- [x] Accordian menus need visual distinction
+- [x] Zone Mapping general polish
 - [ ] NUX back and forward logic
 - [ ] SVG and button polish
 - [ ] Revisit test pulse button
