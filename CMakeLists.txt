@@ -41,6 +41,7 @@ add_library(AuroraOutputHue STATIC
   src/BridgeAddress.cpp
   src/Credentials.cpp
   src/CredentialsStore.cpp
+  src/HueControlDescriptors.cpp
 )
 
 target_include_directories(AuroraOutputHue PUBLIC
