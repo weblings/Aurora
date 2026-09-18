@@ -345,7 +345,7 @@ export class DashboardScreen {
       <div class="db-accordion-bridge"></div>
     `;
 
-    this.zoneMappingSection = new AccordionSection(wrap.querySelector('.db-accordion-zone-mapping'), { title: 'Zone Mapping', expanded: false });
+    this.zoneMappingSection = new AccordionSection(wrap.querySelector('.db-accordion-zone-mapping'), { title: 'Zone Mapping', expanded: true });
     this._renderZoneMappingContent();
 
     this.tuningFields?.destroy();
@@ -372,7 +372,7 @@ export class DashboardScreen {
     }
 
     content.innerHTML = `
-      <p class="status-text">${this.bridgeConfigured ? `Connected to ${escapeHtml(this.bridgeAddress)}` : 'Not connected'}</p>
+      <p class="status-text db-bridge-connected">${this.bridgeConfigured ? `Connected to ${escapeHtml(this.bridgeAddress)}` : 'Not connected'}</p>
       <button type="button" class="btn btn-secondary" id="db-change-bridge">Change bridge</button>
       <div class="db-entertainment-slot"></div>
       <div class="db-bridge-zones-slot"></div>

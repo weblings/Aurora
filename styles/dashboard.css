@@ -101,8 +101,26 @@
   transform: rotate(180deg);
 }
 
+/* Bridge's own first line (a .status-text, which already carries a
+   margin-top for its other uses elsewhere) happened to be the only
+   accordion whose content started with any gap below the header pill --
+   this padding-top makes that gap universal, and the :first-child rule
+   stops Bridge from getting it twice over. */
 .accordion-content {
+  padding-top: var(--aurora-space-4);
   padding-bottom: var(--aurora-space-5);
+}
+
+.accordion-content > :first-child {
+  margin-top: 0;
+}
+
+/* Matches the .field label-to-control gap convention (var(--aurora-
+   space-1)) elsewhere, e.g. Entertainment configuration's own label ->
+   dropdown -- scoped here rather than added to .status-text itself, which
+   is shared by every status/error line in the app. */
+.db-bridge-connected {
+  margin-bottom: var(--aurora-space-1);
 }
 
 .db-bridge-zones-slot {
