@@ -377,3 +377,51 @@
 .overlay-actions .btn {
   flex: 1;
 }
+
+/* NavFooter.js's Back/Continue -- real values from RockyRoad's own shared
+   `.frame .actions` bar (v2/ui/v0.2.2/panel.css), the reusable component
+   behind its Play/Song XR-panel exports, not a guess: centered pair, fixed
+   10px gap, not edge-to-edge (see Analysis/WebUI/WebUI_Design_2.5Pass.md's
+   NUX Polish Pass). Colors need no new rule -- .btn-primary/.btn-secondary
+   already match RockyRoad's primary-light/primary-dark exactly. */
+.nav-footer {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 10px;
+}
+
+.nav-footer-back,
+.nav-footer-continue {
+  width: 150px;
+  height: 36px;
+  padding: 8px;
+}
+
+.nav-footer-back-icon {
+  width: 14px;
+  height: 14px;
+  display: block;
+}
+
+/* Primary/secondary paired text lines, 2px gap -- RockyRoad's own
+   .text-primary/.text-secondary (panel.css) map directly onto Aurora's
+   existing --aurora-text-primary/--aurora-text-secondary tokens, so this
+   is a new shared wrapper + weight rule, not new colors. First real
+   consumers: Welcome and Output Connect's pairing-phase copy. */
+.text-pair {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.text-pair .text-primary {
+  color: var(--aurora-text-primary);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.text-pair .text-secondary {
+  color: var(--aurora-text-secondary);
+  font-size: 13px;
+}
