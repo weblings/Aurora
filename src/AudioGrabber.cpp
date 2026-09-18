@@ -1,4 +1,5 @@
 #include <Aurora/Input/Linux/AudioGrabber.hpp>
+#include <Aurora/Input/Linux/PipewireRuntime.hpp>
 
 #include <chrono>
 #include <cstring>
@@ -260,7 +261,11 @@ namespace Aurora::Input::Linux
     PipewireAudioData* pw
   )
   {
-    pw_init(nullptr, nullptr);
+    // Process-wide, init-once: reloads overlap two live grabbers (the
+    // replacement builds before the old one tears down), so per-instance
+    // pw_init()/pw_deinit() would deinit under the new instance. See
+    // PipewireRuntime.hpp.
+    ensurePipewireInitialized();
 
     pw_stream_events streamEvents{};
     streamEvents.version = PW_VERSION_STREAM_EVENTS;
@@ -366,6 +371,8 @@ namespace Aurora::Input::Linux
       m_pipewireThread.reset();
     }
 
-    pw_deinit();
+    // No pw_deinit(): PipeWire setup is process-wide and shared (see
+    // ensurePipewireInitialized() above) -- tearing it down here would race
+    // a replacement grabber built before this one was destroyed.
   }
 }

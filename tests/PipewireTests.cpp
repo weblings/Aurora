@@ -1,11 +1,13 @@
 #include <catch2/catch_test_macros.hpp>
 
 #include <cstring>
+#include <thread>
 #include <vector>
 
 #include <Aurora/Input/Linux/GamescopeNodeMatch.hpp>
 #include <Aurora/Input/Linux/IRestoreTokenStore.hpp>
 #include <Aurora/Input/Linux/PipewireFrameBuffer.hpp>
+#include <Aurora/Input/Linux/PipewireRuntime.hpp>
 
 using namespace Aurora::Input::Linux;
 using namespace Aurora::Contracts;
@@ -91,3 +93,27 @@ TEST_CASE("NullRestoreTokenStore never persists", "[XdgDesktopPortal][restore-to
   store.setRestoreToken("some-token");
   CHECK_FALSE(store.restoreToken().has_value());
 }
+
+
+// PipewireRuntime.cpp only compiles when PipeWire screen capture and/or
+// audio capture is enabled -- without either, there is nothing to link
+// against, so this case is compiled out too.
+#if defined(AURORA_INPUT_LINUX_PIPEWIRE_AVAILABLE) || defined(AURORA_INPUT_LINUX_AUDIO_AVAILABLE)
+TEST_CASE("ensurePipewireInitialized is safe to call repeatedly and concurrently", "[PipewireRuntime]")
+{
+  // Models a Video<->Audio live-switch storm: every reload builds a new
+  // grabber (each calling this) before destroying the old one, sometimes
+  // from two threads at once (HTTP reload thread vs. tick thread). Must
+  // never throw or crash; needs no daemon/bridge, just the library init.
+  ensurePipewireInitialized();
+  ensurePipewireInitialized();
+
+  std::thread other([]{
+    ensurePipewireInitialized();
+  });
+  ensurePipewireInitialized();
+  other.join();
+
+  SUCCEED();
+}
+#endif

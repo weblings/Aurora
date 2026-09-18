@@ -8,6 +8,7 @@
 
 #include <Aurora/Input/Linux/GamescopeNodeMatch.hpp>
 #include <Aurora/Input/Linux/PipewireFrameBuffer.hpp>
+#include <Aurora/Input/Linux/PipewireRuntime.hpp>
 #include <Aurora/Input/Linux/XdgDesktopPortal.hpp>
 
 #if defined(__clang__)
@@ -302,7 +303,10 @@ namespace Aurora::Input::Linux
     PipewireData* pw
   )
   {
-    pw_init(NULL, NULL);
+    // Process-wide, init-once -- see AudioGrabber.cpp / PipewireRuntime.hpp.
+    // A mode-switch reload builds the replacement grabber before destroying
+    // this one, so per-instance pw_init()/pw_deinit() would deinit under it.
+    ensurePipewireInitialized();
     pw_core_events coreEvents = {};
     coreEvents.version = PW_VERSION_CORE_EVENTS;
     coreEvents.info = _onCoreInfoCallback;
@@ -463,7 +467,9 @@ namespace Aurora::Input::Linux
       m_capture.pwFd = 0;
     }
 
-    pw_deinit();
+    // No pw_deinit(): PipeWire setup is process-wide and shared (see
+    // ensurePipewireInitialized() above) -- tearing it down here would race
+    // a replacement grabber built before this one was destroyed.
   }
 
 

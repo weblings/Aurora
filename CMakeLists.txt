@@ -64,6 +64,13 @@ if(AURORA_INPUT_LINUX_ENABLE_PIPEWIRE)
   target_link_libraries(AuroraInputLinux PUBLIC PkgConfig::PIPEWIRE PkgConfig::GLIB)
 endif()
 
+# Shared process-wide pw_init() -- needed by PipewireGrabber and/or
+# AudioGrabber; compiled when either is enabled since both overlap live
+# instances during app reloads (see PipewireRuntime.hpp).
+if(AURORA_INPUT_LINUX_ENABLE_PIPEWIRE OR AURORA_INPUT_LINUX_ENABLE_AUDIO)
+  target_sources(AuroraInputLinux PRIVATE src/PipewireRuntime.cpp)
+endif()
+
 if(AURORA_INPUT_LINUX_ENABLE_AUDIO)
   # Independent of AURORA_INPUT_LINUX_ENABLE_PIPEWIRE -- audio capture needs
   # libpipewire but not glib/XdgDesktopPortal (no permission portal involved).
