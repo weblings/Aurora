@@ -42,6 +42,9 @@
     "icons/chevron-up.svg",
     "icons/power-svgrepo-com.svg"
   ],
+  "generated": [
+    "descriptors.json (via gen-descriptors.py from core + Hue + Input descriptor tables)"
+  ],
   "seams": [
     {
       "id": "no-output-connect",

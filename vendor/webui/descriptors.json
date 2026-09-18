@@ -1,0 +1,112 @@
+{
+  "descriptors": [
+    {
+      "key": "app.mode",
+      "description": "Video or audio reactive mode"
+    },
+    {
+      "key": "audio.bounceSmoothTime",
+      "description": "Bounce reaction speed"
+    },
+    {
+      "key": "audio.brightnessFloor",
+      "description": "Darkest output when quiet"
+    },
+    {
+      "key": "audio.brightnessSmoothTime",
+      "description": "Brightness reaction speed"
+    },
+    {
+      "key": "audio.centroidRangeHz",
+      "description": "Pitch span affecting drift"
+    },
+    {
+      "key": "audio.centroidStrength",
+      "description": "Pitch influence on drift"
+    },
+    {
+      "key": "audio.driftBaseRateDegPerSec",
+      "description": "Idle color drift speed"
+    },
+    {
+      "key": "audio.dynamismFloor",
+      "description": "Bounce on quiet sounds"
+    },
+    {
+      "key": "audio.fixedAnchorHue",
+      "description": "Drift's starting hue"
+    },
+    {
+      "key": "audio.fixedHueEnabled",
+      "description": "Drift starts at chosen hue"
+    },
+    {
+      "key": "audio.referenceRms",
+      "description": "Loudness for full brightness"
+    },
+    {
+      "key": "audio.vibrancySaturation",
+      "description": "Color saturation level"
+    },
+    {
+      "key": "audio.vibrancyValue",
+      "description": "Maximum color brightness"
+    },
+    {
+      "key": "input.monitor",
+      "description": "Which display to capture"
+    },
+    {
+      "key": "input.sink",
+      "description": "Audio source to react to"
+    },
+    {
+      "key": "output.hue.autodetect",
+      "description": "Find bridge automatically"
+    },
+    {
+      "key": "output.hue.bridgeAddress",
+      "description": "Bridge network address"
+    },
+    {
+      "key": "output.hue.changeBridge",
+      "description": "Switch to another bridge"
+    },
+    {
+      "key": "output.hue.entertainmentConfig",
+      "description": "Entertainment area to use"
+    },
+    {
+      "key": "video.interpolation",
+      "description": "How sampled colors blend"
+    },
+    {
+      "key": "video.refreshRate",
+      "description": "Color updates per second"
+    },
+    {
+      "key": "video.subsampleWidth",
+      "description": "Captured image detail level"
+    },
+    {
+      "key": "video.transitionSmoothing",
+      "description": "Easing between color changes"
+    },
+    {
+      "key": "zones.active",
+      "description": "Include zone in output"
+    },
+    {
+      "key": "zones.autoArrange",
+      "description": "Automatically arrange zone layout"
+    },
+    {
+      "key": "zones.gamma",
+      "description": "Zone brightness curve"
+    },
+    {
+      "key": "zones.select",
+      "description": "Zone to edit"
+    }
+  ]
+}

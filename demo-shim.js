@@ -90,6 +90,7 @@ export function createShimStore(storage = createMemoryStorage(), seed = {}) {
   const state = {
     config: { ...DEMO_DEFAULT_CONFIG, ...loadPersistedConfig(storage), ...(seed.config ?? {}) },
     zones: (seed.zones ?? []).map((z) => ({ ...z })),
+    descriptors: (seed.descriptors ?? []).map((d) => ({ ...d })),
     connection: {
       configured: true,
       bridgeAddress: 'demo-bridge',
@@ -146,6 +147,7 @@ export function createShimStore(storage = createMemoryStorage(), seed = {}) {
       if (body.gamma !== undefined) zone.gamma = body.gamma;
       return { ok: true };
     },
+    getDescriptors: () => ({ descriptors: state.descriptors.map((d) => ({ ...d })) }),
     getConnection: () => ({ ...state.connection }),
     putConnection: (body) => {
       if (body?.bridgeAddress !== undefined) state.connection.bridgeAddress = body.bridgeAddress;
@@ -235,6 +237,9 @@ export function createRouter(store, hooks = {}) {
         succeeded: true,
         channels: zones.map((z) => ({ channelId: z.zoneId, lightNames: [`Demo Light ${z.zoneId}`] })),
       });
+    }
+    if (method === 'GET' && path === '/api/descriptors') {
+      return ok(store.getDescriptors());
     }
     // PUT-for-read with {} body (PairingRoutes convention -- do NOT "fix" to
     // GET; the Dashboard sends PUT and parity means matching it).

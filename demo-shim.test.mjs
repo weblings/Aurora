@@ -145,4 +145,51 @@ function testRouter(seed) {
   assert.equal(live[0].gamma, 0, 'getZones copies isolate HTTP readers');
 }
 
+// Descriptors serve the seeded copy table; empty seed degrades to [].
+{
+  const seeded = testRouter({ descriptors: [{ key: 'app.mode', description: 'x' }] })('GET', '/api/descriptors');
+  assert.deepEqual(seeded.json, { descriptors: [{ key: 'app.mode', description: 'x' }] });
+  assert.deepEqual(testRouter({})('GET', '/api/descriptors').json, { descriptors: [] });
+}
+
+// Every tooltip key the ported Dashboard can request exists in the generated
+// fixture -- the conformance tripwire against copy drift. Slider keys derive
+// by TuningSliderGroup's own rule (audio* camelCase -> audio.lowerFirst,
+// else video.*); explicit keys are read as literals.
+{
+  const { readFileSync, readdirSync } = await import('node:fs');
+  const { join, dirname } = await import('node:path');
+  const { fileURLToPath } = await import('node:url');
+  const vendor = join(dirname(fileURLToPath(import.meta.url)), 'vendor', 'webui');
+  const sources = [];
+  const walk = (dir) => {
+    for (const entry of readdirSync(dir, { withFileTypes: true })) {
+      const full = join(dir, entry.name);
+      if (entry.isDirectory()) walk(full);
+      else if (entry.name.endsWith('.js')) sources.push(readFileSync(full, 'utf8'));
+    }
+  };
+  walk(vendor);
+  const text = sources.join('\n');
+  const requested = new Set();
+  // Dotted tooltip keys only: bare words ('video', configKey camelCase) are
+  // mode names and struct fields, not descriptor lookups.
+  for (const [, key] of text.matchAll(/['"]((?:audio|video|zones|input|output|app)\.[A-Za-z.]+)['"]/g)) {
+    requested.add(key);
+  }
+  // Slider configKeys (first element of each def array) map by the group rule.
+  for (const [, configKey] of text.matchAll(/\['(audio[A-Za-z]+|transitionSmoothing|refreshRate|subsampleWidth)'/g)) {
+    requested.add(configKey.startsWith('audio')
+      ? `audio.${configKey.charAt(5).toLowerCase()}${configKey.slice(6)}`
+      : `video.${configKey}`);
+  }
+  const fixture = JSON.parse(readFileSync(join(vendor, 'descriptors.json'), 'utf8'));
+  const have = new Set(fixture.descriptors.map((d) => d.key));
+  const missing = [...requested].filter((k) => !have.has(k));
+  assert.deepEqual(missing, [], `fixture lacks requested keys: ${missing.join(', ')}`);
+  for (const d of fixture.descriptors) {
+    assert.ok(d.key && d.description, `malformed entry: ${JSON.stringify(d)}`);
+  }
+}
+
 console.log('demo-shim contract tests passed.');

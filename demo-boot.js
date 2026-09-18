@@ -16,9 +16,22 @@ import { rebuildZoneLights, applyLiveTuning } from './main.js';
 import { DashboardScreen } from './vendor/webui/screens/DashboardScreen.js';
 import { ensureTooltips } from './vendor/webui/Tooltips.js';
 
+// Phase 5: tooltip copy ships as a generated static fixture (see
+// vendor/webui/gen-descriptors.py), loaded before mount so ensureTooltips
+// below resolves real text. Failure falls back to [] -- Tooltips degrades
+// silently, exactly as against an old binary without the endpoint.
+let descriptorEntries = [];
+try {
+  const loaded = await (await fetch('./vendor/webui/descriptors.json')).json();
+  if (Array.isArray(loaded?.descriptors)) descriptorEntries = loaded.descriptors;
+} catch {
+  descriptorEntries = [];
+}
+
 const { store } = installDemoShim({
   seed: {
     zones: zoneMap.map((z) => ({ everConfigured: true, ...z })),
+    descriptors: descriptorEntries,
   },
   hooks: {
     onZonesChanged: () => rebuildZoneLights(),
