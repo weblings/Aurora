@@ -1,0 +1,1007 @@
+<!DOCTYPE html><html><head><meta charset="utf-8"><style>/* Aurora WebUI design tokens.
+   Values carried over from RockyRoad's real, proven grayscale system --
+   verified directly against v2/src/xr/panel.css, v2/desktop.html, and
+   RockyRoadImport/SongConverter/index.html, not from a secondhand summary.
+   Deliberately grayscale-only, no brand accent -- see Analysis/WebUIAnalysis.md's
+   build-order step 6 for why (#8b8b8b already carries the "active/interactive"
+   role across sliders, checked toggles, and secondary buttons in the source
+   system; #2a6eff was a narrow one-off there, not part of it, and isn't carried
+   forward). Every screen should reference these variables, never a literal hex.
+*/
+
+:root {
+  /* --- Surface --- */
+  --aurora-bg: #0a0a0a;
+  --aurora-surface: #1a1a1a;
+  --aurora-border: #333333;
+  --aurora-divider: #1e1e1e;
+  /* Hover/selected states for a row/option sitting on --aurora-surface (a
+     dropdown menu today; any future list or menu item shares the same need).
+     New values, not reused from elsewhere -- RockyRoad's own dropdown-menu
+     hover/selected states (#2a2a2a/#242424) don't match any other token. */
+  --aurora-surface-hover: #2a2a2a;
+  --aurora-surface-selected: #242424;
+
+  /* --- Button: primary-dark (default action) --- */
+  --aurora-button-dark: #333333;
+  --aurora-button-dark-hover: #515151;
+  --aurora-button-dark-active: #7c7c7c;
+
+  /* --- Button: primary-light (emphasized/selected) --- */
+  --aurora-button-light: #dadada;
+  --aurora-button-light-hover: #bebebe;
+  --aurora-button-light-active: #9c9c9c;
+
+  /* --- Button: secondary-dark (also the interactive/active-state accent --
+     slider thumbs, checked toggle knobs) --- */
+  --aurora-accent: #8b8b8b;
+  --aurora-accent-hover: #7c7c7c;
+  --aurora-accent-active: #6c6c6c;
+
+  /* --- Button: secondary-light --- */
+  --aurora-button-secondary-light: #c0c0c0;
+  --aurora-button-secondary-light-hover: #ababab;
+  --aurora-button-secondary-light-active: #969696;
+
+  /* --- Text --- */
+  --aurora-text-primary: #ffffff;
+  --aurora-text-secondary: #c8c8c8;
+  --aurora-text-on-light: #111111;
+
+  /* --- Overlay/scrim --- */
+  --aurora-scrim: rgba(0, 0, 0, 0.6);
+
+  /* --- Radii --- */
+  --aurora-radius-badge: 3px;
+  --aurora-radius-control: 6px;
+  --aurora-radius-panel: 12px;
+  --aurora-radius-pill: 20px;
+
+  /* --- Spacing scale --- */
+  --aurora-space-1: 4px;
+  --aurora-space-2: 6px;
+  --aurora-space-3: 8px;
+  --aurora-space-4: 10px;
+  --aurora-space-5: 12px;
+  --aurora-space-6: 16px;
+  --aurora-space-7: 24px;
+  --aurora-space-8: 32px;
+
+  /* --- Type --- */
+  --aurora-font: 'Inter', system-ui, sans-serif;
+}
+</style>
+<style>/* Aurora WebUI app shell: page reset, centered content column, top bar
+   formula, and the settings modal + scrim. Applies to every screen; a
+   screen's own CSS should only ever add to this, never redefine it.
+   See Analysis/WebUIAnalysis.md's "Shell conventions" section for the design
+   rationale -- values here are Aurora's tokens (styles/tokens.css), not
+   copied literals. */
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+/* Reserve the scrollbar's width always, whether or not a given screen's
+   content actually overflows -- otherwise #screen-container's margin:auto
+   centering shifts sideways whenever a scrollbar appears (verified real
+   fix, RockyRoadImport/SongConverter/index.html). */
+html {
+  scrollbar-gutter: stable;
+  overflow-y: scroll;
+}
+
+body {
+  background: var(--aurora-bg);
+  color: var(--aurora-text-primary);
+  font-family: var(--aurora-font);
+}
+
+#screen-container {
+  max-width: 640px;
+  margin: 0 auto;
+  padding: 0 var(--aurora-space-6) var(--aurora-space-8);
+}
+
+/* --- Top bar: [Back or blank] [title, centered] [status pill -- Dashboard
+   only] [gear]. The title is absolutely centered in the bar itself, not
+   flex-centered between the side slots -- those two slots are rarely equal
+   width (no Back button vs. Back+gear vs. pill+gear), and flex centering
+   would visibly drift the title off-center depending on which slot is
+   present. --- */
+
+.top-bar {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 44px;
+  padding: var(--aurora-space-4) 0;
+}
+
+.top-bar-title {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  margin: 0;
+  max-width: 55%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 16px;
+  font-weight: 700;
+  pointer-events: none;
+}
+
+.top-bar-back {
+  background: none;
+  border: none;
+  color: var(--aurora-text-primary);
+  font-family: inherit;
+  font-size: 14px;
+  cursor: pointer;
+  padding: var(--aurora-space-2) 0;
+}
+
+.top-bar-trailing {
+  display: flex;
+  align-items: center;
+  gap: var(--aurora-space-3);
+  margin-left: auto;
+}
+
+/* Matches RockyRoad's real .lib-badge (verified against v2/desktop.html)
+   exactly, not the pill shape this rule originally guessed at before any
+   screen actually used it -- radius 2px/6px padding kept literal rather
+   than rounded to the spacing scale, since rounding 2px to the nearest step
+   (4px) would visibly double this badge's compactness. */
+.status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--aurora-space-1);
+  padding: 2px var(--aurora-space-2);
+  border-radius: var(--aurora-radius-badge);
+  background: var(--aurora-accent);
+  color: var(--aurora-text-on-light);
+  font-size: 10px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+</style>
+<style>/* Generic form primitives shared across screens: buttons, text inputs,
+   labeled fields, inline status text. Values carried over from RockyRoad's
+   real .tuner-btn / .tuner-btn-exit (verified against v2/desktop.html) and
+   RockyRoadImport/SongConverter's input[type=text] styling, mapped onto
+   Aurora's own tokens -- same padding-rounding policy already used in
+   dropdown.css (9px/12px real values rounded to the 8px/12px scale steps).
+   Primary CTA = the light-button treatment (.tuner-btn-exit's real precedent
+   for a screen's main forward action, e.g. "Done"); secondary/lower-emphasis
+   action = the dark-button treatment (.tuner-btn's precedent for "Restart").
+   Status text stays grayscale, not red/green -- the icon glyph (✓/⚠)
+   plus wording already carries the meaning, and introducing a semantic
+   accent color here would reopen the "grayscale-only" decision
+   (Analysis/WebUIAnalysis.md's build-order step 6) without checking back in. */
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--aurora-space-1);
+}
+
+.field-label {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--aurora-text-secondary);
+}
+
+.text-input {
+  padding: var(--aurora-space-3) var(--aurora-space-5);
+  background: var(--aurora-button-dark);
+  border: none;
+  border-radius: var(--aurora-radius-control);
+  color: var(--aurora-text-primary);
+  font-size: 13px;
+  font-family: inherit;
+  width: 100%;
+}
+
+.text-input:hover {
+  background: var(--aurora-button-dark-hover);
+}
+
+.text-input:focus {
+  outline: 2px solid var(--aurora-accent);
+  outline-offset: 1px;
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--aurora-space-3);
+  padding: var(--aurora-space-3) var(--aurora-space-5);
+  border: none;
+  border-radius: var(--aurora-radius-control);
+  font-size: 14px;
+  font-family: inherit;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.btn-primary {
+  background: var(--aurora-button-light);
+  color: var(--aurora-text-on-light);
+}
+.btn-primary:hover:not(:disabled) { background: var(--aurora-button-light-hover); }
+.btn-primary:active:not(:disabled) { background: var(--aurora-button-light-active); }
+
+.btn-secondary {
+  background: var(--aurora-button-dark);
+  color: var(--aurora-text-primary);
+}
+.btn-secondary:hover:not(:disabled) { background: var(--aurora-button-dark-hover); }
+.btn-secondary:active:not(:disabled) { background: var(--aurora-button-dark-active); }
+
+.btn-link {
+  background: none;
+  border: none;
+  padding: 0;
+  color: var(--aurora-text-secondary);
+  font-size: 13px;
+  font-family: inherit;
+  cursor: pointer;
+  text-decoration: underline;
+}
+.btn-link:hover {
+  color: var(--aurora-text-primary);
+}
+
+.status-text {
+  margin-top: var(--aurora-space-4);
+  font-size: 13px;
+  color: var(--aurora-text-secondary);
+}
+
+.status-text-error {
+  color: var(--aurora-text-primary);
+}
+
+.status-text-success {
+  color: var(--aurora-text-primary);
+  font-weight: 700;
+}
+
+/* Segmented 2-option toggle -- ported from RockyRoadImport/SongConverter's
+   real .tabs/.tab-btn (verified directly), shared by Mode+Device Select and
+   the Dashboard's own mode toggle (final component inventory: "Screens 2, 5").
+   Pill buttons in a row rather than tabs-with-a-panel-divider, since neither
+   consumer here has an actual tab panel underneath. */
+.segmented {
+  display: flex;
+  gap: var(--aurora-space-3);
+}
+
+.segmented-btn {
+  padding: var(--aurora-space-3) var(--aurora-space-6);
+  border: none;
+  border-radius: var(--aurora-radius-pill);
+  font-size: 14px;
+  font-family: inherit;
+  cursor: pointer;
+  background: var(--aurora-button-dark);
+  color: var(--aurora-text-primary);
+}
+.segmented-btn:hover { background: var(--aurora-button-dark-hover); }
+.segmented-btn:active { background: var(--aurora-button-dark-active); }
+.segmented-btn.active { background: var(--aurora-button-light); color: var(--aurora-text-on-light); }
+.segmented-btn.active:hover { background: var(--aurora-button-light-hover); }
+.segmented-btn.active:active { background: var(--aurora-button-light-active); }
+
+/* Section heading + divider -- ported from RockyRoadImport/SongConverter's
+   real <h2> (20px/700 weight/16px margin-bottom) and .tab-panel::before (a
+   top border spanning past the container's own side padding, so it reads as
+   the page's true edge-to-edge divider rather than boxed to the narrower
+   content beneath it). The border itself uses Aurora's own 1px --aurora-divider
+   token rather than the source's literal 3px #1a1a1a -- that heavier weight
+   was for a tab strip's own divider role there, not a plain section break.
+   First real consumer: Tuning/Settings' three field groups (step 13). */
+.section-heading {
+  position: relative;
+  margin-top: var(--aurora-space-7);
+  padding-top: var(--aurora-space-7);
+  margin-bottom: var(--aurora-space-3);
+  font-size: 20px;
+  font-weight: 700;
+}
+.section-heading::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: calc(-1 * var(--aurora-space-6));
+  right: calc(-1 * var(--aurora-space-6));
+  height: 1px;
+  background: var(--aurora-divider);
+}
+.section-heading:first-child {
+  margin-top: 0;
+  padding-top: 0;
+}
+.section-heading:first-child::before {
+  content: none;
+}
+
+/* Slider + live readout -- same shape as RockyRoad's real .tuner-gain-slider/
+   #tuner-gain-val (verified against v2/desktop.html), adapted to Aurora's own
+   vertical .field convention (label+value stacked above a full-width slider)
+   rather than RockyRoad's fixed-narrow-width horizontal layout, which was
+   sized for its own compact sidebar, not a rule worth porting literally.
+   First real consumer: Tuning/Settings (step 13); screen 3's gamma slider
+   (step 15) reuses these same classes. */
+.slider-field-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: var(--aurora-space-3);
+}
+
+.slider-value {
+  font-size: 13px;
+  color: var(--aurora-text-secondary);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.slider-input {
+  width: 100%;
+  accent-color: var(--aurora-accent);
+  cursor: pointer;
+}
+
+/* Boolean toggle switch -- ported from RockyRoad's real .pre-toggle-switch/
+   .pre-toggle-knob (verified against v2/desktop.html): a hidden checkbox
+   driving a sibling knob via :checked, not a custom-drawn control. 12px knob
+   radius maps exactly onto --aurora-radius-panel; the checked-state color is
+   --aurora-accent (#8b8b8b), the same real value the source uses. First real
+   consumer: Tuning/Settings' "Use fixed hue" toggle (step 13). */
+.toggle-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--aurora-space-3);
+  cursor: pointer;
+}
+
+.toggle-row-label {
+  font-size: 14px;
+  color: var(--aurora-text-secondary);
+}
+
+.toggle-switch {
+  position: relative;
+  width: 42px;
+  height: 24px;
+  flex-shrink: 0;
+}
+
+.toggle-switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+  position: absolute;
+}
+
+.toggle-knob {
+  position: absolute;
+  inset: 0;
+  border-radius: var(--aurora-radius-panel);
+  background: var(--aurora-button-dark);
+  transition: background 0.2s;
+  cursor: pointer;
+}
+
+.toggle-knob::after {
+  content: '';
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--aurora-text-primary);
+  transition: transform 0.2s;
+}
+
+.toggle-switch input:checked + .toggle-knob {
+  background: var(--aurora-accent);
+}
+.toggle-switch input:checked + .toggle-knob::after {
+  transform: translateX(18px);
+}
+
+/* .toggle-switch's own width/height only take effect as a flex item
+   (blockified by .toggle-row's flex context) -- this standalone variant
+   (Zone Mapping's onboarding single toggle, step 17) has no such parent. */
+.zat-single-toggle {
+  display: inline-block;
+}
+
+/* Generic modal overlay + scrim + panel -- same real values as the old
+   Settings modal's own #settings-overlay/#settings-scrim/#settings-panel
+   (verified directly, not re-guessed) had before that modal was removed
+   entirely in pass 2's step 19, generalized into classes so a second modal
+   (Dashboard's Stop confirm, step 17) didn't need its own one-off copy. */
+.overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.overlay-scrim {
+  position: absolute;
+  inset: 0;
+  background: var(--aurora-scrim);
+  cursor: pointer;
+}
+
+.overlay-panel {
+  position: relative;
+  z-index: 1;
+  background: var(--aurora-surface);
+  border: 1px solid var(--aurora-border);
+  border-radius: var(--aurora-radius-panel);
+  padding: var(--aurora-space-7) var(--aurora-space-8);
+  min-width: 280px;
+  max-width: calc(100vw - var(--aurora-space-8));
+  color: var(--aurora-text-primary);
+}
+
+.overlay-panel h2 {
+  font-size: 18px;
+  font-weight: 700;
+  margin-bottom: var(--aurora-space-6);
+}
+
+.overlay-actions {
+  display: flex;
+  gap: var(--aurora-space-3);
+  margin-top: var(--aurora-space-6);
+}
+
+.overlay-actions .btn {
+  flex: 1;
+}
+</style>
+<style>/* Dropdown component styles -- see Dropdown.js. Values carried over from
+   RockyRoad's real .dropdown-trigger/.dropdown-menu/.dropdown-option CSS
+   (verified against v2/desktop.html), mapped onto Aurora's own tokens.
+   Padding is rounded to the nearest step on Aurora's spacing scale (8px/12px)
+   rather than RockyRoad's exact 9px/14px/8px -- same rounding policy already
+   used for the settings panel in shell.css, not a new one. */
+
+.dropdown {
+  position: relative;
+  display: inline-flex;
+}
+
+.dropdown-fill {
+  display: flex;
+}
+
+.dropdown-trigger {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--aurora-space-3);
+  width: 100%;
+  padding: var(--aurora-space-3) var(--aurora-space-5);
+  background: var(--aurora-button-dark);
+  border: none;
+  border-radius: var(--aurora-radius-control);
+  color: var(--aurora-text-primary);
+  font-size: 13px;
+  font-family: inherit;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.dropdown-trigger:hover {
+  background: var(--aurora-button-dark-hover);
+}
+
+.dropdown-trigger:active,
+.dropdown.open .dropdown-trigger {
+  background: var(--aurora-button-dark-hover);
+}
+
+.dropdown-chevron {
+  flex-shrink: 0;
+  font-size: 10px;
+  line-height: 1;
+}
+
+.dropdown-menu {
+  display: none;
+  flex-direction: column;
+  position: absolute;
+  top: calc(100% + var(--aurora-space-1));
+  left: 0;
+  right: 0;
+  background: var(--aurora-surface);
+  border: 1px solid var(--aurora-border);
+  border-radius: var(--aurora-radius-control);
+  overflow: hidden;
+  z-index: 10;
+  min-width: 100%;
+  /* Removes the browser's own default focus outline -- the active option's
+     own background (below) is the visible focus indicator instead, same as
+     RockyRoad's original (no visible :focus ring anywhere in that source). */
+  outline: none;
+}
+
+.dropdown.open .dropdown-menu {
+  display: flex;
+}
+
+.dropdown-option {
+  padding: var(--aurora-space-3) var(--aurora-space-5);
+  background: none;
+  border: none;
+  color: var(--aurora-text-secondary);
+  font-size: 13px;
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+/* .active = transient keyboard-navigation cursor (aria-activedescendant);
+   .selected = the actual current value (aria-selected). Deliberately two
+   separate states, not one -- see Dropdown.js's own comment for why arrow
+   keys move the cursor without committing a value on every keystroke. */
+.dropdown-option.active {
+  background: var(--aurora-surface-hover);
+  color: var(--aurora-text-primary);
+}
+
+.dropdown-option:hover {
+  background: var(--aurora-surface-hover);
+  color: var(--aurora-text-primary);
+}
+
+.dropdown-option:active {
+  background: var(--aurora-button-dark-hover);
+  color: var(--aurora-text-primary);
+}
+
+.dropdown-option.selected {
+  background: var(--aurora-surface-selected);
+  color: var(--aurora-text-primary);
+}
+</style>
+<style>/* Quick mode toggle + Stop, above the top tier -- step 17. Wraps to a
+   stacked layout under 480px the same way ModeDeviceScreen's own toggle
+   row does, rather than shrinking the segmented control to fit one line. */
+.db-controls {
+  margin-bottom: var(--aurora-space-5);
+}
+
+.db-controls-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--aurora-space-4);
+  flex-wrap: wrap;
+}
+
+.db-controls-row .segmented {
+  flex: 1;
+}
+
+@media (max-width: 480px) {
+  .db-controls-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .db-controls-row .btn {
+    width: 100%;
+  }
+}
+
+/* Top tier -- step 20: device field, video's canvas + entertainment config
+   + single zone toggle, or audio's entertainment config alone. Reuses
+   ZoneCanvas's/EntertainmentConfigSelect's own classes (zone-mapping.css)
+   for the pieces borrowed from Zone Mapping -- only the pieces unique to
+   this screen's own layout (the device field slot, the zone-toggle row,
+   the "See all zones" link) get new rules here. */
+.db-top-tier {
+  margin-bottom: var(--aurora-space-6);
+}
+
+.db-device-slot {
+  margin-bottom: var(--aurora-space-5);
+}
+
+.db-zone-actions {
+  margin-top: var(--aurora-space-4);
+}
+
+.db-zone-field {
+  margin-top: var(--aurora-space-5);
+}
+
+#db-see-all-zones {
+  display: block;
+  margin-top: var(--aurora-space-4);
+}
+
+/* Accordion sections -- Tuning/Bridge, both always collapsed by default
+   (AccordionSection.js's own doc comment). First real consumer of this
+   component (built ahead of time in Phase B); values are new, not ported
+   from an existing reference. */
+.db-accordions {
+  display: flex;
+  flex-direction: column;
+}
+
+.accordion-section {
+  border-bottom: 1px solid var(--aurora-divider);
+}
+
+.accordion-section:last-child {
+  border-bottom: none;
+}
+
+.accordion-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--aurora-space-3);
+  width: 100%;
+  padding: var(--aurora-space-5) 0;
+  border: none;
+  background: none;
+  color: inherit;
+  font-family: inherit;
+  font-size: 14px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.accordion-chevron {
+  flex-shrink: 0;
+  color: var(--aurora-text-secondary);
+  transition: transform 0.15s;
+}
+
+.accordion-section.expanded .accordion-chevron {
+  transform: rotate(180deg);
+}
+
+.accordion-content {
+  padding-bottom: var(--aurora-space-5);
+}
+
+.db-bridge-zones-slot {
+  margin-top: var(--aurora-space-4);
+}
+
+.db-bridge-zones-slot:empty {
+  margin-top: 0;
+}
+</style>
+<style>/* Welcome screen -- just enough spacing to not butt the message up against
+   the top bar and footer; there's no interactive content here to lay out. */
+
+.welcome-body {
+  margin-top: var(--aurora-space-6);
+  margin-bottom: var(--aurora-space-6);
+}
+</style>
+<style>/* Output Connect screen -- address field + Autodetect sit side by side on
+   desktop, stack full-width under 480px (verified against the ASCII layouts
+   in Analysis/WebUIAnalysis.md's Output Connect section). Continue is
+   right-aligned on desktop, full-width on constrained. */
+
+.oc-address-row {
+  display: flex;
+  gap: var(--aurora-space-3);
+  align-items: flex-end;
+  margin-top: var(--aurora-space-4);
+}
+
+.oc-address-row .field {
+  flex: 1;
+}
+
+.oc-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: var(--aurora-space-6);
+}
+
+@media (max-width: 480px) {
+  .oc-address-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  /* flex-direction: column, not just width:100% -- the entry phase's
+     .oc-actions only ever holds one button (that alone would look stacked),
+     but the pairing phase's holds two ("Change address" + "Continue"); a
+     row with two 100%-wide children just shrinks them both to fit instead
+     of stacking (confirmed via a real measurement in Chromium at 390px --
+     each button came out ~170px instead of the full width). */
+  .oc-actions {
+    flex-direction: column;
+    align-items: stretch;
+    gap: var(--aurora-space-3);
+  }
+
+  .oc-actions .btn {
+    width: 100%;
+  }
+}
+</style>
+<style>/* Entertainment zone select (Analysis/WebUI/WebUI_Design_2ndPass.md, Screen
+   2): ChannelList's plain, read-only preview of a config's channel names.
+   No dedicated stylesheet existed for this screen at all until step 22's
+   verification pass caught it -- exactly the missing-stylesheet-link class
+   of bug the design doc's own step 23 flagged from Pass 1's history, this
+   time caught before a live pass rather than after. */
+.channel-list {
+  list-style: none;
+  margin: var(--aurora-space-4) 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--aurora-space-2);
+}
+
+.channel-list-item {
+  font-size: 14px;
+  color: var(--aurora-text-secondary);
+}
+</style>
+<style>/* Mode + Device Select screen -- toggle sits above the device field, actions
+   right-aligned on desktop, full-width stacked under 480px (same breakpoint
+   and pattern as output-connect.css). */
+
+.md-body .segmented {
+  margin-bottom: var(--aurora-space-6);
+}
+
+.md-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: var(--aurora-space-6);
+}
+
+@media (max-width: 480px) {
+  .md-actions {
+    justify-content: stretch;
+  }
+
+  .md-actions .btn {
+    width: 100%;
+  }
+}
+</style>
+<style>/* Tuning / Settings screen -- 2-up per section on desktop, 1-up under
+   ~480px, via CSS grid auto-fit (same real technique as RockyRoad Library's
+   .lib-grid: repeat(auto-fit, minmax(N, 1fr))) rather than an explicit media
+   query breakpoint. minmax(220px, 1fr) forces exactly 2 columns at
+   #screen-container's 640px max width (608px of content) and collapses to 1
+   the moment two 220px+ columns no longer fit -- no separate constrained
+   layout to maintain. */
+
+.tuning-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: var(--aurora-space-3) var(--aurora-space-6);
+  align-items: start;
+}
+
+.tuning-checkbox-row {
+  display: flex;
+  align-items: center;
+  gap: var(--aurora-space-3);
+  grid-column: 1 / -1;
+}
+
+.tuning-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: var(--aurora-space-7);
+}
+
+@media (max-width: 480px) {
+  .tuning-actions {
+    justify-content: stretch;
+  }
+
+  .tuning-actions .btn {
+    width: 100%;
+  }
+}
+</style>
+<style>/* Zone Mapping screen -- one design at all widths (see
+   Analysis/WebUIAnalysis.md's Zone Mapping section: the real zone count is
+   small enough that a phone-width grid still clears a comfortable touch
+   target, so there's no separate constrained layout to maintain). A fixed
+   16:9 box, not the real active monitor's aspect ratio -- UV correctness
+   doesn't depend on it (zone rects are already 0-1 normalized) and fetching
+   the real ratio would need extra plumbing this screen doesn't otherwise
+   need. */
+
+.zm-entertainment-field {
+  margin-bottom: var(--aurora-space-4);
+}
+
+.zm-active-field {
+  margin-top: var(--aurora-space-5);
+}
+
+.zm-canvas-wrap {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  background: var(--aurora-surface);
+  border: 1px solid var(--aurora-border);
+  border-radius: var(--aurora-radius-control);
+  overflow: hidden;
+  touch-action: none;
+}
+
+.zm-canvas-wrap svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.zm-zone-rect {
+  fill: none;
+  /* SVG hit-testing only counts an element's stroke when fill is "none" --
+     without this, clicking inside a zone's body (not its 1px outline
+     exactly) would silently miss the click-to-select handler entirely. */
+  pointer-events: all;
+  stroke: var(--aurora-text-secondary);
+  stroke-opacity: 0.35;
+  stroke-width: 1;
+}
+
+.zm-zone-rect.selected {
+  stroke: var(--aurora-accent);
+  stroke-opacity: 1;
+  stroke-width: 2;
+}
+
+/* Plain HTML, not SVG shapes -- the SVG's own viewBox stretches
+   non-uniformly to fill the 16:9 box (correct for the zone rect itself),
+   which silently turns a same-coordinate-space circle into an ellipse and
+   warps text (see ZoneMappingScreen.js's own _drawZoneRect comment). */
+.zm-handle {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--aurora-accent);
+  border: 1px solid var(--aurora-text-primary);
+  pointer-events: auto;
+  cursor: grab;
+  touch-action: none;
+}
+
+.zm-handle:active {
+  cursor: grabbing;
+}
+
+.zm-size-label {
+  position: absolute;
+  transform: translate(-50%, -100%);
+  color: var(--aurora-text-secondary);
+  font-size: 11px;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+.zm-overlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.zm-zone-tag {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  display: flex;
+  align-items: center;
+  gap: var(--aurora-space-1);
+  padding: 2px var(--aurora-space-2);
+  background: var(--aurora-scrim);
+  border-radius: var(--aurora-radius-badge);
+  color: var(--aurora-text-primary);
+  font-size: 12px;
+  /* The badge sits centered on the zone -- exactly where a user's first
+     click to select it naturally lands. none here (re-enabled only on the
+     digit below) lets a click on the badge's own padding fall through to
+     the zone rect's own selection handler underneath instead of silently
+     hitting nothing (found via a real click in Chromium, not jsdom -- see
+     Analysis/lessons/web-ui.md). */
+  pointer-events: none;
+  cursor: pointer;
+}
+
+.zm-zone-tag span {
+  pointer-events: auto;
+}
+
+.zm-active-toggle {
+  padding: var(--aurora-space-2) 0;
+}
+
+.zm-selected-row {
+  display: flex;
+  align-items: center;
+  gap: var(--aurora-space-5);
+  margin-top: var(--aurora-space-5);
+  flex-wrap: wrap;
+}
+
+.zm-selected-row .field {
+  flex: 1;
+  min-width: 180px;
+}
+
+.zm-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--aurora-space-3);
+  margin-top: var(--aurora-space-6);
+}
+
+@media (max-width: 480px) {
+  .zm-actions {
+    justify-content: stretch;
+  }
+
+  .zm-actions .btn {
+    width: 100%;
+  }
+}
+</style></head><body><!-- DEBUG EXPORT: screen-container innerHTML -->
+      <div class="top-bar-slot">
+    <div class="top-bar">
+      <span></span>
+      <h1 class="top-bar-title">Connect to your Hue Bridge</h1>
+      <div class="top-bar-trailing">
+        
+      </div>
+    </div>
+  </div>
+      <div class="oc-body">
+      <p class="status-text">Press the button on your bridge, then continue.</p>
+      
+      <button type="button" class="btn btn-link" id="oc-change-address">Change address</button>
+    </div>
+      <div class="nav-footer-slot">
+    <div class="nav-footer">
+      <span></span>
+      <button type="button" class="btn btn-primary nav-footer-continue">Continue</button>
+    </div>
+  </div>
+    </body></html>

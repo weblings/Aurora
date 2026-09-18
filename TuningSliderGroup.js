@@ -15,9 +15,10 @@ export function sliderGroupHtml(sliders, values) {
 
 // Wires every slider in the group, found by id within container -- safe to
 // call after inserting sliderGroupHtml()'s output anywhere in the DOM,
-// including mixed in with other content in the same container.
-export function wireSliderGroup(container, sliders, values) {
-  for (const [key, , , , , unit] of sliders) wireSlider(container, key, unit, values);
+// including mixed in with other content in the same container. onCommit
+// (optional) fires once per completed interaction -- see wireSlider.
+export function wireSliderGroup(container, sliders, values, onCommit) {
+  for (const [key, , , , , unit] of sliders) wireSlider(container, key, unit, values, onCommit);
 }
 
 function sliderFieldHtml(key, label, min, max, step, unit, values) {
@@ -33,14 +34,37 @@ function sliderFieldHtml(key, label, min, max, step, unit, values) {
   `;
 }
 
-function wireSlider(container, key, unit, values) {
+// onCommit fires once per completed interaction, not per tick -- a mouse/
+// touch drag's own native `change` (fires once, on release) for pointer
+// input. Keyboard input needs its own tracking rather than reusing `change`
+// the same way: arrow-key input fires `change` on every discrete step,
+// including every OS key-repeat while a key is held, so gating on `change`
+// alone would still fire once per repeat during a hold. isKeyHeld suppresses
+// those in-hold `change` events and commits only once, on the keyup that
+// actually ends the hold -- keydown/keyup give an exact "is this key
+// currently down" signal, the same kind of start/end-of-gesture signal
+// pointerdown/pointerup already give a mouse drag, so no arbitrary delay is
+// needed for either input method.
+function wireSlider(container, key, unit, values, onCommit) {
   const input = container.querySelector(`#tn-${key}`);
   const readout = container.querySelector(`#tn-${key}-val`);
   const step = input.step;
+  let isKeyHeld = false;
+
   input.addEventListener('input', () => {
     values[key] = input.value;
     readout.textContent = `${formatSliderValue(input.value, step)}${unit}`;
   });
+
+  if (!onCommit) return;
+
+  input.addEventListener('keydown', () => { isKeyHeld = true; });
+  input.addEventListener('keyup', () => { isKeyHeld = false; onCommit(); });
+  // Safety net, not the expected path -- if focus leaves mid-hold some other
+  // way (e.g. a browser shortcut swallows the keyup), don't leave isKeyHeld
+  // stuck true forever suppressing every future `change` on this slider.
+  input.addEventListener('blur', () => { isKeyHeld = false; });
+  input.addEventListener('change', () => { if (!isKeyHeld) onCommit(); });
 }
 
 function formatSliderValue(value, step) {

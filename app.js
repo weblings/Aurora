@@ -13,6 +13,26 @@ import { ZoneMappingScreen } from './screens/ZoneMappingScreen.js';
 
 const app = new App();
 
+// DEBUG -- press H to download the current screen's rendered HTML+CSS as one
+// standalone file, for Figma reference (same idea as RockyRoad's own
+// App.ts debug dump). Adapted, not copied verbatim: RockyRoad's CSS is one
+// inline <style> block already in the DOM, so a synchronous
+// querySelectorAll('style') was enough; index.html links seven separate
+// stylesheets instead, so those need fetching (same-origin, no CORS issue)
+// and inlining before the file is self-contained. Remove before shipping.
+document.addEventListener('keydown', async (e) => {
+  if (e.code !== 'KeyH' || e.repeat) return;
+  const hrefs = Array.from(document.querySelectorAll('link[rel="stylesheet"]')).map((l) => l.href);
+  const cssTexts = await Promise.all(hrefs.map((href) => fetch(href).then((r) => r.text())));
+  const styles = cssTexts.map((css) => `<style>${css}</style>`).join('\n');
+  const html = `<!DOCTYPE html><html><head><meta charset="utf-8">${styles}</head>` +
+    `<body><!-- DEBUG EXPORT: screen-container innerHTML -->${app.screenContainer.innerHTML}</body></html>`;
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([html], { type: 'text/html' }));
+  a.download = 'screen-debug.html';
+  a.click();
+});
+
 async function fetchJson(url) {
   return (await fetch(url)).json();
 }

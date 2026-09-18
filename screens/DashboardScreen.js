@@ -347,7 +347,12 @@ export class DashboardScreen {
 
     this.tuningFields?.destroy();
     this.tuningSection = new AccordionSection(wrap.querySelector('.db-accordion-tuning'), { title: 'Tuning', expanded: false });
-    this.tuningFields = new TuningFields(this.tuningSection.content, { mode: this.mode, values: this.tuningValues });
+    this.tuningFields = new TuningFields(this.tuningSection.content, {
+      mode: this.mode,
+      values: this.tuningValues,
+      monitors: this.monitors,
+      selectedMonitorName: this.selectedMonitorName,
+    });
 
     const bridgeTitle = !this.hasHue
       ? 'Bridge — not available in this build'

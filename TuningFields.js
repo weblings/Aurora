@@ -13,8 +13,31 @@
 // history for the full reasoning; unchanged here.
 import { Dropdown } from './Dropdown.js';
 import { sliderGroupHtml, wireSliderGroup } from './TuningSliderGroup.js';
+import { AUTO_MONITOR_VALUE } from './DeviceField.js';
+import { subsampleCandidates } from './SubsampleCandidates.js';
 
 const INTERPOLATIONS = ['Nearest', 'Cubic', 'Area'];
+
+// A curated preset list, not every integer -- refresh rate is a genuine
+// performance/tuning knob (unlike subsample width, whose "clean" divisor-
+// based candidates are objectively the better choices), so this is a
+// convenience list of common real display rates, not an exhaustive one.
+// Falls back to whichever preset is numerically closest for a value that
+// doesn't exactly match one (e.g. a detected 59Hz), rather than a fixed
+// default -- see _closestRefreshRate.
+const REFRESH_RATE_PRESETS = [30, 60, 75, 90, 120, 144, 165, 240];
+
+function _closestRefreshRate(value) {
+  return REFRESH_RATE_PRESETS.reduce((best, candidate) => (
+    Math.abs(candidate - value) < Math.abs(best - value) ? candidate : best
+  ));
+}
+
+function _resolveMonitor(monitors, selectedMonitorName) {
+  if (!monitors.length) return null;
+  if (selectedMonitorName === AUTO_MONITOR_VALUE) return monitors.find((m) => m.isPrimary) ?? monitors[0];
+  return monitors.find((m) => m.name === selectedMonitorName) ?? monitors[0];
+}
 
 // [key, label, min, max, step, unit]
 const TRANSITION_SMOOTHING_SLIDER = [
@@ -46,25 +69,27 @@ export class TuningFields {
   // its own (unlike every fetch+render component elsewhere in this app --
   // there's simply nothing left for it to fetch that the caller doesn't
   // already have).
-  constructor(container, { mode, values }) {
+  constructor(container, { mode, values, monitors = [], selectedMonitorName = AUTO_MONITOR_VALUE }) {
     this.container = container;
     this.mode = mode;
     this.values = { ...values };
+    this.monitors = monitors;
+    this.selectedMonitorName = selectedMonitorName;
     this.fixedHueEnabled = (values.audioFixedAnchorHue ?? -1) >= 0;
     this.error = null;
     this.success = false;
-    this.dropdown = null;
+    this.dropdowns = [];
     this._render();
   }
 
   destroy() {
-    this.dropdown?.destroy();
-    this.dropdown = null;
+    for (const dropdown of this.dropdowns) dropdown.destroy();
+    this.dropdowns = [];
   }
 
   _render() {
-    this.dropdown?.destroy();
-    this.dropdown = null;
+    for (const dropdown of this.dropdowns) dropdown.destroy();
+    this.dropdowns = [];
 
     const errorHtml = this.error ? `<p class="status-text status-text-error">⚠ ${escapeHtml(this.error)}</p>` : '';
     const successHtml = this.success ? `<p class="status-text status-text-success">✓ Saved.</p>` : '';
@@ -89,12 +114,12 @@ export class TuningFields {
     container.innerHTML = `
       <div class="tuning-grid">
         <div class="field">
-          <label class="field-label" for="tn-refresh-rate">Refresh rate (Hz)</label>
-          <input id="tn-refresh-rate" class="text-input" type="number" min="1" step="1" />
+          <label class="field-label" id="tn-refresh-label">Refresh rate</label>
+          <div id="tn-refresh-dropdown-slot"></div>
         </div>
         <div class="field">
-          <label class="field-label" for="tn-subsample-width">Subsample width (px) — 0 = auto</label>
-          <input id="tn-subsample-width" class="text-input" type="number" min="0" step="1" />
+          <label class="field-label" id="tn-subsample-label">Subsample width</label>
+          <div id="tn-subsample-dropdown-slot"></div>
         </div>
         <div class="field">
           <label class="field-label" id="tn-interp-label">Interpolation</label>
@@ -104,25 +129,58 @@ export class TuningFields {
       </div>
     `;
 
-    const refreshInput = container.querySelector('#tn-refresh-rate');
-    refreshInput.value = this.values.refreshRate ?? 0;
-    refreshInput.addEventListener('input', () => { this.values.refreshRate = refreshInput.value; });
+    // Presets, not free entry -- see REFRESH_RATE_PRESETS/_closestRefreshRate
+    // above for why an unmatched detected value snaps to the nearest preset
+    // for *display* only; nothing is persisted until the dropdown is
+    // actually committed.
+    const refreshSlot = container.querySelector('#tn-refresh-dropdown-slot');
+    const currentRefresh = Number(this.values.refreshRate) || REFRESH_RATE_PRESETS[0];
+    const refreshValue = REFRESH_RATE_PRESETS.includes(currentRefresh) ? currentRefresh : _closestRefreshRate(currentRefresh);
+    const refreshDropdown = new Dropdown(
+      refreshSlot,
+      String(refreshValue),
+      (value) => { this.values.refreshRate = Number(value); this._autoSave(); },
+      { labelId: 'tn-refresh-label', fill: true },
+    );
+    refreshDropdown.setOptions(REFRESH_RATE_PRESETS.map((hz) => (
+      { label: `${hz} Hz`, value: String(hz), selected: hz === refreshValue }
+    )));
+    this.dropdowns.push(refreshDropdown);
 
-    const subsampleInput = container.querySelector('#tn-subsample-width');
-    subsampleInput.value = this.values.subsampleWidth ?? 0;
-    subsampleInput.addEventListener('input', () => { this.values.subsampleWidth = subsampleInput.value; });
+    // Candidates depend on the currently selected monitor's real resolution
+    // (subsampleCandidates is a pure function of width/height -- see
+    // SubsampleCandidates.js) -- "Auto" (0) always leads the list, matching
+    // the backend's own sentinel for "let Orchestrator::init() pick one."
+    const subsampleSlot = container.querySelector('#tn-subsample-dropdown-slot');
+    const monitor = _resolveMonitor(this.monitors, this.selectedMonitorName);
+    const candidates = monitor ? subsampleCandidates(monitor.width, monitor.height) : [];
+    const currentSubsample = Number(this.values.subsampleWidth) || 0;
+    const subsampleOptions = [
+      { label: 'Auto', value: '0' },
+      ...candidates.map((c) => ({ label: `${c.width}px`, value: String(c.width) })),
+    ];
+    const subsampleValue = subsampleOptions.some((o) => Number(o.value) === currentSubsample) ? currentSubsample : 0;
+    const subsampleDropdown = new Dropdown(
+      subsampleSlot,
+      String(subsampleValue),
+      (value) => { this.values.subsampleWidth = Number(value); this._autoSave(); },
+      { labelId: 'tn-subsample-label', fill: true },
+    );
+    subsampleDropdown.setOptions(subsampleOptions.map((o) => ({ ...o, selected: Number(o.value) === subsampleValue })));
+    this.dropdowns.push(subsampleDropdown);
 
-    const slot = container.querySelector('#tn-interp-dropdown-slot');
-    const current = INTERPOLATIONS.includes(this.values.interpolation) ? this.values.interpolation : 'Area';
-    this.dropdown = new Dropdown(
-      slot,
-      current,
-      (value) => { this.values.interpolation = value; },
+    const interpSlot = container.querySelector('#tn-interp-dropdown-slot');
+    const currentInterp = INTERPOLATIONS.includes(this.values.interpolation) ? this.values.interpolation : 'Area';
+    const interpDropdown = new Dropdown(
+      interpSlot,
+      currentInterp,
+      (value) => { this.values.interpolation = value; this._autoSave(); },
       { labelId: 'tn-interp-label', fill: true },
     );
-    this.dropdown.setOptions(INTERPOLATIONS.map((name) => ({ label: name, value: name, selected: name === current })));
+    interpDropdown.setOptions(INTERPOLATIONS.map((name) => ({ label: name, value: name, selected: name === currentInterp })));
+    this.dropdowns.push(interpDropdown);
 
-    wireSliderGroup(container, TRANSITION_SMOOTHING_SLIDER, this.values);
+    wireSliderGroup(container, TRANSITION_SMOOTHING_SLIDER, this.values, () => this._autoSave());
   }
 
   _renderAudioFields(container) {
@@ -153,20 +211,48 @@ export class TuningFields {
       </div>
     `;
 
-    wireSliderGroup(container, RESPONSE_SPEED_SLIDERS, this.values);
-    wireSliderGroup(container, COLOR_CHARACTER_SLIDERS, this.values);
-    wireSliderGroup(container, SENSITIVITY_SLIDERS, this.values);
-    if (this.fixedHueEnabled) wireSliderGroup(container, FIXED_HUE_SLIDER, this.values);
+    wireSliderGroup(container, RESPONSE_SPEED_SLIDERS, this.values, () => this._autoSave());
+    wireSliderGroup(container, COLOR_CHARACTER_SLIDERS, this.values, () => this._autoSave());
+    wireSliderGroup(container, SENSITIVITY_SLIDERS, this.values, () => this._autoSave());
+    if (this.fixedHueEnabled) wireSliderGroup(container, FIXED_HUE_SLIDER, this.values, () => this._autoSave());
 
     container.querySelector('#tn-fixed-hue-toggle').addEventListener('change', (e) => {
       this.fixedHueEnabled = e.currentTarget.checked;
       this.values.audioFixedAnchorHue = this.fixedHueEnabled ? (this.values.audioFixedAnchorHue >= 0 ? this.values.audioFixedAnchorHue : 0) : -1;
       this._render();
+      this._autoSave();
     });
   }
 
+  // _commit()'s own _render() at the end replaces the button with a fresh,
+  // already-enabled one regardless -- disabling this exact node is only to
+  // prevent a second click while the request already in flight.
   async _save(button) {
     button.disabled = true;
+    await this._commit();
+  }
+
+  // Sliders call this directly on commit (drag release, or the keyup ending
+  // a keyboard hold -- see TuningSliderGroup.js) instead of waiting for the
+  // Save button; text/dropdown/checkbox fields still go through _save()
+  // above, since a slider's own commit already PUTs the *whole* current
+  // patch (there's no partial-field update route), including whatever's
+  // currently sitting in those other fields. Coalesces overlapping calls the
+  // same way ZonePatchQueue does for zone edits: at most one save in flight,
+  // always eventually sending whatever the values were at the *last* commit,
+  // never a queued backlog of intermediate ones.
+  async _autoSave() {
+    if (this._saving) { this._resaveQueued = true; return; }
+    this._saving = true;
+    await this._commit();
+    this._saving = false;
+    if (this._resaveQueued) {
+      this._resaveQueued = false;
+      this._autoSave();
+    }
+  }
+
+  async _commit() {
     this.error = null;
     this.success = false;
 
@@ -208,7 +294,6 @@ export class TuningFields {
       this.error = "Couldn't reach the daemon.";
     }
 
-    button.disabled = false;
     this._render();
   }
 }
