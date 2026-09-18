@@ -172,6 +172,7 @@ export class OutputConnectScreen {
     renderNavFooter(footer, {
       showBack: true,
       backLabel: 'Wrong Bridge?',
+      backIcon: false, // not a real Back -- no arrow, same reason as above
       onBack: () => {
         this.phase = 'entry';
         this.error = null;

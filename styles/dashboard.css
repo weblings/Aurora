@@ -96,6 +96,15 @@
    flips direction via the rotate(180deg) below, and masking lets it keep
    following --aurora-text-secondary the way the old ▾ glyph's own `color`
    did, instead of baking one fixed fill into the asset like Dropdown's. */
+/* The top bar spans the same overhang as the accordion header pills below
+   it, so the trailing Stop button sits flush with the pills' right edge
+   instead of stopping 21px short at the content column. Same literal
+   21px/42px design values as .accordion-header above -- keep in sync. */
+.db-top-bar-slot .top-bar {
+  width: calc(100% + 42px);
+  margin-inline: -21px;
+}
+
 .accordion-chevron {
   flex-shrink: 0;
   width: 10px;

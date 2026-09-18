@@ -73,7 +73,7 @@ export class DashboardScreen {
   async mount(container) {
     this.container = container;
     container.innerHTML = `
-      <div class="top-bar-slot"></div>
+      <div class="top-bar-slot db-top-bar-slot"></div>
       <div class="db-controls"></div>
       <div class="db-top-tier"></div>
       <div class="db-accordions"></div>

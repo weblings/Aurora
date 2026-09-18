@@ -5,12 +5,12 @@
 // bar's own back arrow, which was never consistently positioned or
 // present screen to screen -- the root complaint that started this
 // redesign. Same one-call render+wire shape as topBar.js's renderTopBar.
-export function renderNavFooter(container, { showBack = true, onBack, backLabel = 'Back', continueLabel = 'Continue', onContinue }) {
+export function renderNavFooter(container, { showBack = true, onBack, backLabel = 'Back', backIcon = true, continueLabel = 'Continue', onContinue }) {
   container.innerHTML = `
     <div class="nav-footer">
       ${showBack ? `
         <button type="button" class="btn btn-secondary nav-footer-back">
-          <img src="icons/back-arrow.svg" alt="" class="nav-footer-back-icon" />
+          ${backIcon ? '<img src="icons/back-arrow.svg" alt="" class="nav-footer-back-icon" />' : ''}
           <span>${escapeHtml(backLabel)}</span>
         </button>
       ` : ''}
