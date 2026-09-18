@@ -85,6 +85,14 @@ body {
   margin-left: auto;
 }
 
+/* Icon-only trailing button (Dashboard's Stop) -- 16px so the button's own
+   padding keeps it close to the same footprint the "Stop" text label had. */
+.top-bar-trailing-icon {
+  width: 16px;
+  height: 16px;
+  display: block;
+}
+
 /* Matches RockyRoad's real .lib-badge (verified against v2/desktop.html)
    exactly, not the pill shape this rule originally guessed at before any
    screen actually used it -- radius 2px/6px padding kept literal rather

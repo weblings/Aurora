@@ -117,7 +117,7 @@ export class DashboardScreen {
     renderTopBar(this.container.querySelector('.top-bar-slot'), {
       title: 'Aurora',
       showBack: false,
-      trailingButton: { label: 'Stop', onClick: () => this._openStopConfirm() },
+      trailingButton: { label: 'Stop', icon: 'icons/power-svgrepo-com.svg', onClick: () => this._openStopConfirm() },
     });
 
     if (this.hasHue) {
@@ -503,7 +503,6 @@ export class DashboardScreen {
           <div class="overlay-scrim" id="db-stop-scrim"></div>
           <div class="overlay-panel">
             <h2>Stop Aurora?</h2>
-            <p class="status-text">This shuts down the daemon. You'll need to start it again manually.</p>
             ${errorHtml}
             <div class="overlay-actions">
               <button type="button" class="btn btn-secondary" id="db-stop-cancel">Cancel</button>
@@ -525,7 +524,6 @@ export class DashboardScreen {
       <div class="overlay">
         <div class="overlay-panel">
           <h2>Aurora has stopped</h2>
-          <p class="status-text">Close this page. Start the daemon again to reconnect.</p>
         </div>
       </div>
     `;

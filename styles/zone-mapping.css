@@ -32,7 +32,6 @@
   background: var(--aurora-surface);
   border: 1px solid var(--aurora-border);
   border-radius: var(--aurora-radius-control);
-  overflow: hidden;
   touch-action: none;
 }
 
