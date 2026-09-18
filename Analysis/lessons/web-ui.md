@@ -985,3 +985,30 @@ needs no such workaround). Verified against the pre-change native rendering
 pixel-by-pixel (track height/radius/fill color measured and carried over
 exactly) rather than by eye, precisely because of this entry's own "a
 screenshot glance isn't verification" lesson.
+
+---
+
+## Moving a navigation affordance from "always rendered" to "rendered in the main content branch" silently drops it from every early-return branch
+
+The NUX Polish Pass moved Zone Mapping onboarding's Back button from the
+top bar (rendered unconditionally in `mount()`, present regardless of what
+`_render()` later does) to `NavFooter` (rendered inside `_render()`
+itself). A first-draft implementation would have put that `renderNavFooter`
+call where the old `Save` button lived -- at the bottom of `_render()`,
+after the three early-return branches for `zones === null`, `!outputName`,
+and `zones.length === 0`. Each of those branches returns before reaching
+that call, so a daemon-unreachable error (or any of the other two) would
+have rendered with *no way out at all* -- worse than before, since the top
+bar's Back at least still worked in every one of those states.
+
+**Fix:** moved the `renderNavFooter` call to the very top of `_render()`,
+before any early return, so Back (and Finish, as a skip-out) are present
+in every branch, not just the one with real content. General principle:
+when a navigation affordance moves from a place that renders unconditionally
+(a `mount()`-time call, a shared shell) to a place that renders conditionally
+(inside a screen's own `_render()`, alongside its content), audit every
+early-return branch of that render method explicitly -- an affordance added
+only in the "happy path" silently vanishes from every error/empty/loading
+state that returns before reaching it, and this class of gap doesn't show
+up in a normal-case visual check, only in one that deliberately exercises
+each early-return branch.

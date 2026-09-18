@@ -364,7 +364,13 @@ Aurora's own module boundaries instead of RockyRoad's. `rendering-apis.md` vs.
   genuinely independent of the track's own accent-color fill), solved with
   the full reset done deliberately plus a hand-built fill for Chromium's
   missing "already filled" track pseudo-element, verified pixel-by-pixel
-  against the prior rendering rather than by eye.
+  against the prior rendering rather than by eye; and moving a navigation
+  affordance (Zone Mapping onboarding's Back) from somewhere that renders
+  unconditionally (`mount()`, the top bar) to somewhere that renders inside
+  a screen's own conditional `_render()` (`NavFooter`) silently dropping it
+  from every early-return branch (error/empty/loading states) that returns
+  before reaching the call, unless it's deliberately placed before those
+  returns instead of where the thing it replaced visually lived.
 
 ## Where a new lesson goes
 
