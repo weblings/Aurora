@@ -55,9 +55,9 @@
 }
 
 .zm-zone-rect.selected {
-  stroke: var(--aurora-text-primary);
+  stroke: var(--aurora-button-light);
   stroke-opacity: 1;
-  stroke-width: 2;
+  stroke-width: 1;
 }
 
 /* Plain HTML, not SVG shapes -- the SVG's own viewBox stretches
@@ -70,7 +70,7 @@
   width: 14px;
   height: 14px;
   border-radius: 50%;
-  background: var(--aurora-button-light);
+  background: var(--aurora-text-primary);
   pointer-events: auto;
   cursor: grab;
   touch-action: none;
