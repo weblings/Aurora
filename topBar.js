@@ -3,23 +3,31 @@
 // conventions) instead of leaving every screen to copy the markup by hand.
 //
 // options:
-//   title       (string, required)
-//   showBack    (bool, default false)
-//   onBack      (() => void, required if showBack)
-//   statusPill  (string, optional -- Dashboard only per the spec)
-export function renderTopBar(container, { title, showBack = false, onBack, statusPill = null }) {
+//   title          (string, required)
+//   showBack       (bool, default false)
+//   onBack         (() => void, required if showBack)
+//   statusPill     (string, optional -- Dashboard only per the spec)
+//   trailingButton ({ label, onClick }, optional -- Dashboard's own Stop
+//                   button, 2.5 pass. Re-wired on every call, same as
+//                   onBack, since this function always rebuilds the bar's
+//                   whole innerHTML.)
+export function renderTopBar(container, { title, showBack = false, onBack, statusPill = null, trailingButton = null }) {
   container.innerHTML = `
     <div class="top-bar">
       ${showBack ? '<button type="button" class="top-bar-back">&larr; Back</button>' : '<span></span>'}
       <h1 class="top-bar-title">${escapeHtml(title)}</h1>
       <div class="top-bar-trailing">
         ${statusPill ? `<span class="status-pill">${escapeHtml(statusPill)}</span>` : ''}
+        ${trailingButton ? `<button type="button" class="btn btn-secondary" id="top-bar-trailing-btn">${escapeHtml(trailingButton.label)}</button>` : ''}
       </div>
     </div>
   `;
 
   if (showBack) {
     container.querySelector('.top-bar-back').addEventListener('click', onBack);
+  }
+  if (trailingButton) {
+    container.querySelector('#top-bar-trailing-btn').addEventListener('click', trailingButton.onClick);
   }
 }
 

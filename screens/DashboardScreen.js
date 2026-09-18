@@ -112,7 +112,11 @@ export class DashboardScreen {
     this.hasAudio = this.audioInputs.length > 0;
     this.showSinkField = this.audioInputs.includes('linux-audio');
 
-    renderTopBar(this.container.querySelector('.top-bar-slot'), { title: 'Aurora', showBack: false, statusPill: 'Running' });
+    renderTopBar(this.container.querySelector('.top-bar-slot'), {
+      title: 'Aurora',
+      showBack: false,
+      trailingButton: { label: 'Stop', onClick: () => this._openStopConfirm() },
+    });
 
     if (this.hasHue) {
       try {
@@ -194,29 +198,31 @@ export class DashboardScreen {
     this._renderAccordions();
   }
 
+  // Stop moved into the top bar itself (2.5 pass, see _loadAll()'s
+  // renderTopBar call) -- this row is now just the mode toggle, so it
+  // renders nothing at all for a single-input build with no toggle to show,
+  // rather than leaving an empty placeholder row in the DOM.
   _renderControls() {
     const controls = this.container.querySelector('.db-controls');
-    const toggleHtml = this.hasAudio ? `
-      <div class="segmented" role="group" aria-label="Capture mode">
-        <button type="button" class="segmented-btn${this.mode === 'video' ? ' active' : ''}" id="db-mode-video">Video</button>
-        <button type="button" class="segmented-btn${this.mode === 'audio' ? ' active' : ''}" id="db-mode-audio">Audio</button>
-      </div>
-    ` : '<span></span>';
+    if (!this.hasAudio) {
+      controls.innerHTML = '';
+      return;
+    }
+
     const errorHtml = this.toggleError ? `<p class="status-text status-text-error">⚠ ${escapeHtml(this.toggleError)}</p>` : '';
 
     controls.innerHTML = `
       <div class="db-controls-row">
-        ${toggleHtml}
-        <button type="button" class="btn btn-secondary" id="db-stop">Stop</button>
+        <div class="segmented" role="group" aria-label="Capture mode">
+          <button type="button" class="segmented-btn${this.mode === 'video' ? ' active' : ''}" id="db-mode-video">Video</button>
+          <button type="button" class="segmented-btn${this.mode === 'audio' ? ' active' : ''}" id="db-mode-audio">Audio</button>
+        </div>
       </div>
       ${errorHtml}
     `;
 
-    if (this.hasAudio) {
-      controls.querySelector('#db-mode-video').addEventListener('click', () => this._switchMode('video'));
-      controls.querySelector('#db-mode-audio').addEventListener('click', () => this._switchMode('audio'));
-    }
-    controls.querySelector('#db-stop').addEventListener('click', () => this._openStopConfirm());
+    controls.querySelector('#db-mode-video').addEventListener('click', () => this._switchMode('video'));
+    controls.querySelector('#db-mode-audio').addEventListener('click', () => this._switchMode('audio'));
   }
 
   // Top tier: DeviceField (always) + video's own Auto-arrange/canvas

@@ -63,7 +63,7 @@ body {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-size: 16px;
+  font-size: 20px;
   font-weight: 700;
   pointer-events: none;
 }
