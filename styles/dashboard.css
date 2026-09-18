@@ -72,15 +72,21 @@
   border-bottom: none;
 }
 
+/* A floating pill wider than the content column, sitting above it -- not a
+   panel that extends down to cover the expanded content (2.5 pass). 21px
+   horizontal overhang is a literal design value, not rounded to the spacing
+   scale; margin-inline/width offset it back to the header's own row. */
 .accordion-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: var(--aurora-space-3);
-  width: 100%;
-  padding: var(--aurora-space-5) 0;
+  width: calc(100% + 42px);
+  margin-inline: -21px;
+  padding: var(--aurora-space-5) 21px;
   border: none;
-  background: none;
+  border-radius: var(--aurora-radius-accordion);
+  background: var(--aurora-surface);
   color: inherit;
   font-family: inherit;
   font-size: 14px;

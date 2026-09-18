@@ -56,6 +56,10 @@
   --aurora-radius-control: 6px;
   --aurora-radius-panel: 12px;
   --aurora-radius-pill: 20px;
+  /* Kept separate from -control/-panel on purpose (2.5 pass) -- the
+     accordion header pill's own radius, so it can be tweaked without
+     affecting either of those. */
+  --aurora-radius-accordion: 8px;
 
   /* --- Spacing scale --- */
   --aurora-space-1: 4px;

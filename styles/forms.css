@@ -192,6 +192,30 @@
   cursor: pointer;
 }
 
+/* accent-color can tint the native thumb but can't force an exact flat
+   circle with no ring across browsers -- matches RockyRoad's real
+   .seek-thumb (v2/desktop.html) via explicit pseudo-element overrides
+   instead (2.5 pass). -webkit-appearance: none on the thumb itself is
+   required or some Chromium versions ignore the custom styling. */
+.slider-input::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--aurora-button-light);
+  cursor: pointer;
+}
+
+.slider-input::-moz-range-thumb {
+  width: 20px;
+  height: 20px;
+  border: none;
+  border-radius: 50%;
+  background: var(--aurora-button-light);
+  cursor: pointer;
+}
+
 /* Boolean toggle switch -- ported from RockyRoad's real .pre-toggle-switch/
    .pre-toggle-knob (verified against v2/desktop.html): a hidden checkbox
    driving a sibling knob via :checked, not a custom-drawn control. 12px knob
@@ -213,8 +237,8 @@
 
 .toggle-switch {
   position: relative;
-  width: 42px;
-  height: 24px;
+  width: 35px;
+  height: 20px;
   flex-shrink: 0;
 }
 
@@ -234,13 +258,15 @@
   cursor: pointer;
 }
 
+/* Padding/circle/travel move together with .toggle-switch's own box --
+   2px padding, 20 - 2x2 = 16px circle, 35 - 16 - 2x2 = 15px travel (2.5 pass). */
 .toggle-knob::after {
   content: '';
   position: absolute;
-  top: 3px;
-  left: 3px;
-  width: 18px;
-  height: 18px;
+  top: 2px;
+  left: 2px;
+  width: 16px;
+  height: 16px;
   border-radius: 50%;
   background: var(--aurora-text-primary);
   transition: transform 0.2s;
@@ -250,7 +276,7 @@
   background: var(--aurora-accent);
 }
 .toggle-switch input:checked + .toggle-knob::after {
-  transform: translateX(18px);
+  transform: translateX(15px);
 }
 
 /* .toggle-switch's own width/height only take effect as a flex item

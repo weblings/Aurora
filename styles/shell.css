@@ -24,6 +24,11 @@ body {
   background: var(--aurora-bg);
   color: var(--aurora-text-primary);
   font-family: var(--aurora-font);
+  /* The accordion header pill (dashboard.css) overhangs #screen-container's
+     own 16px gutter by 21px a side -- wider than the gutter on narrow
+     viewports. Clipped at the real viewport edge, not at #screen-container
+     itself, so the intended overhang still renders in full everywhere it fits. */
+  overflow-x: hidden;
 }
 
 #screen-container {
