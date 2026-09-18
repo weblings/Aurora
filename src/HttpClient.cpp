@@ -26,6 +26,31 @@ namespace Aurora::Output::Hue
       data->append(ptr, size * nmemb);
       return size * nmemb;
     }
+
+    // One handle per calling thread, reused across requests so the bridge
+    // calls a reload makes back-to-back (~5 per HueOutput::init, 2 more per
+    // channels fetch) share a keep-alive connection instead of paying a
+    // fresh TCP+TLS setup every time. thread_local because a handle must
+    // never cross threads (route handlers run on the HTTP server's pool);
+    // cleaned up at thread exit. curl_easy_reset() on every borrow clears
+    // all state, so each request still sets its full option set explicitly
+    // below -- nothing leaks from one call into the next.
+    thread_local std::unique_ptr<CURL, CurlDeleter> t_reusedHandle;
+
+    CURL* _borrowHandle()
+    {
+      if(!t_reusedHandle){
+        t_reusedHandle.reset(curl_easy_init());
+        if(!t_reusedHandle){
+          throw std::runtime_error("CURL initialization failed");
+        }
+      }
+      else{
+        curl_easy_reset(t_reusedHandle.get());
+      }
+
+      return t_reusedHandle.get();
+    }
   }
 
 
@@ -36,22 +61,22 @@ namespace Aurora::Output::Hue
     const HttpHeaders& headers
   )
   {
-    auto handle = std::unique_ptr<CURL, CurlDeleter>(curl_easy_init());
-    if(!handle){
-      throw std::runtime_error("CURL initialization failed");
-    }
+    // Borrowed, not owned: the thread-local handle outlives this call, so
+    // the header detach below (before concatenatedHeaders dies) is a
+    // correctness requirement now, not just tidiness.
+    CURL* handle = _borrowHandle();
 
-    curl_easy_setopt(handle.get(), CURLOPT_URL, url.c_str());
-    curl_easy_setopt(handle.get(), CURLOPT_CUSTOMREQUEST, method.c_str());
-    curl_easy_setopt(handle.get(), CURLOPT_TIMEOUT, 1);
+    curl_easy_setopt(handle, CURLOPT_URL, url.c_str());
+    curl_easy_setopt(handle, CURLOPT_CUSTOMREQUEST, method.c_str());
+    curl_easy_setopt(handle, CURLOPT_TIMEOUT, 1);
 
     // Requirement for self-signed Hue bridge certs.
-    curl_easy_setopt(handle.get(), CURLOPT_SSL_VERIFYPEER, false);
-    curl_easy_setopt(handle.get(), CURLOPT_SSL_VERIFYHOST, false);
+    curl_easy_setopt(handle, CURLOPT_SSL_VERIFYPEER, false);
+    curl_easy_setopt(handle, CURLOPT_SSL_VERIFYHOST, false);
 
     if(!body.empty()){
-      curl_easy_setopt(handle.get(), CURLOPT_POSTFIELDS, body.c_str());
-      curl_easy_setopt(handle.get(), CURLOPT_POSTFIELDSIZE, body.length());
+      curl_easy_setopt(handle, CURLOPT_POSTFIELDS, body.c_str());
+      curl_easy_setopt(handle, CURLOPT_POSTFIELDSIZE, body.length());
     }
 
     UniqueCurlSlist concatenatedHeaders{nullptr};
@@ -61,15 +86,15 @@ namespace Aurora::Output::Hue
         concatenatedHeaders.reset(curl_slist_append(concatenatedHeaders.release(), concat.c_str()));
       }
 
-      curl_easy_setopt(handle.get(), CURLOPT_HTTPHEADER, concatenatedHeaders.get());
+      curl_easy_setopt(handle, CURLOPT_HTTPHEADER, concatenatedHeaders.get());
     }
 
     std::string responseBody;
-    curl_easy_setopt(handle.get(), CURLOPT_WRITEFUNCTION, writeCallback);
-    curl_easy_setopt(handle.get(), CURLOPT_WRITEDATA, &responseBody);
+    curl_easy_setopt(handle, CURLOPT_WRITEFUNCTION, writeCallback);
+    curl_easy_setopt(handle, CURLOPT_WRITEDATA, &responseBody);
 
-    CURLcode code = curl_easy_perform(handle.get());
-    curl_easy_setopt(handle.get(), CURLOPT_HTTPHEADER, nullptr);
+    CURLcode code = curl_easy_perform(handle);
+    curl_easy_setopt(handle, CURLOPT_HTTPHEADER, nullptr);
 
     if(code != CURLE_OK){
       return std::nullopt;
