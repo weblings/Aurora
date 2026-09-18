@@ -4,12 +4,11 @@
 
 #include <Aurora/Runtime/ControlDescriptors.hpp>
 
-// Placeholder descriptor *content* for the layers owned inside core
+// Descriptor *content* for the layers owned inside core
 // (video/audio processing, zone runtime, app shell); input/output
-// plugin content lives in those repos (see TooltipsAnalysis.md). Every
-// description is the literal "Test" until copy is authored -- these
-// tables prove the contribution/aggregation plumbing, not the wording.
-// When real copy is written, each function should move next to the
+// plugin content lives in those repos (see TooltipsAnalysis.md).
+// Descriptions carry the approved Analysis/TooltipContent.md copy. If
+// these tables grow further, each function should move next to the
 // module owning those settings rather than growing here.
 namespace Aurora::Runtime
 {
