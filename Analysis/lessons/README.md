@@ -338,7 +338,17 @@ Aurora's own module boundaries instead of RockyRoad's. `rendering-apis.md` vs.
   being added to one of them, since `DashboardScreen.js` builds its own
   separate zone UI directly rather than mounting `ZoneMappingScreen` at
   all -- caught only by the user noticing the button missing, when a grep
-  for the shared screen's own class name would have found the gap first.
+  for the shared screen's own class name would have found the gap first;
+  an expensive backend operation (a full pipeline reload/reconnect) needing
+  a gesture-end commit signal rather than a cheaper implementation or a
+  debounce timer, since native form controls (pointer `change`, keyboard
+  `keydown`/`keyup`) already expose the same "user is done" signal a timer
+  can only approximate; and a config field's real domain (subsampleWidth's
+  small, monitor-resolution-dependent divisor set) only surfacing once its
+  actual backend consumer was read, not from its wire type or its existing
+  UI widget, plus a first cost estimate for exposing that data assuming a
+  new backend route was needed before checking `/api/monitors` already
+  returned everything the computation required.
 
 ## Where a new lesson goes
 

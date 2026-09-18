@@ -840,3 +840,69 @@ constructs before declaring the work done after editing just one file --
 "these render the same feature" is not evidence they're the same
 component, especially in a codebase that deliberately extracted shared
 pieces so different screens *could* compose them differently.
+
+---
+
+## An expensive operation doesn't need a cheaper implementation to go live -- it needs a gesture-end commit signal, not a more frequent or debounced one
+
+The actual design decision behind this one: the accordion Dashboard had two
+sections with opposite interaction models for no reason a user could see --
+Zone Mapping applied every edit live, Tuning required an explicit Save. The
+goal was making every option on the Dashboard behave the same way, not a
+technical curiosity about commit signals for their own sake; the commit-
+signal work below is what made that consistency goal actually achievable
+without also making the expensive case (Tuning) unaffordable. Chasing
+whether Tuning's sliders could match Zone Mapping's live-PUT-per-edit model,
+the real blocker wasn't operation cost in the abstract --
+`PipelineHost::reload()` (`Aurora-App-Windows`/`Aurora-App-Linux`'s
+`main.cpp`) genuinely tears down and reconstructs the whole pipeline,
+including a Hue DTLS handshake measured elsewhere this session at 1-3+
+seconds. The instinct that followed -- debounce the spam with a timer --
+still treated this as a *frequency* problem. The actual fix was recognizing
+that native form controls already expose the same "gesture started/ended"
+signal Zone Mapping's own drag-release already relies on: a mouse/touch
+drag's `change` fires once, on release. Keyboard needed its own
+`keydown`/`keyup` tracking specifically because `change` *also* fires per
+discrete keyboard step, including every OS key-repeat while a key is held
+-- a naive `change`-only listener would still have spammed reload() during
+a held arrow key. Once commit was tied to the actual end of a real user
+gesture instead of either "every tick" or an arbitrary delay, the expensive
+operation's cost stopped mattering: it now fires once per completed
+interaction, the same rate a manual Save button always fired at.
+
+**Fix:** `TuningSliderGroup.js`'s `wireSlider` commits via `change`
+(pointer) and paired `keydown`/`keyup` tracking (keyboard), no timer at
+all. General principle: before reaching for a debounce to tame a "fires too
+often" concern, check whether the interaction already has a real,
+event-driven start/end signal (pointerdown/up, keydown/up, drag/drop) that
+represents "the user is done" more precisely than any fixed delay could --
+a timer is the right tool only once no such signal exists.
+
+---
+
+## A config field's real domain is defined by its actual backend consumer, not its wire type or its current UI widget -- and checking already-exposed data beats assuming new backend surface is needed
+
+Replacing Tuning's raw `subsampleWidth` number input started as a UI-taste
+question (slider vs. stepper vs. dropdown) until
+`IVideoInput::subsampleResolutionCandidates()`
+(`Aurora/core/Input/include/Aurora/Input/IVideoInput.hpp`) was actually
+read: the field isn't a continuous pixel count at all, it's meant to be one
+of a small, monitor-resolution-dependent set of common divisors (16
+candidates for a typical 1920x1080 display) the backend already computes to
+pick a clean "auto" default -- information the existing raw number input
+never reflected, silently allowing (harmlessly, but not ideally) any
+arbitrary width the backend never intended as a real choice. Separately,
+the first cost estimate for surfacing that candidate list assumed a new
+backend route was needed, before checking that `/api/monitors` already
+returns each monitor's `width`/`height` -- exactly the two inputs the
+divisor math needs, making the whole thing a small pure JS function with no
+backend change at all.
+
+**Fix:** ported the computation to `SubsampleCandidates.js`, verified by
+real execution against several resolutions before wiring it in, and reused
+`/api/monitors`'s already-fetched data instead of adding an endpoint.
+General principle: before picking a UI control for a config field, trace
+what its actual backend consumer treats as valid, not just its persisted
+type -- and before estimating the cost of exposing backend data to a UI,
+check what an existing route already returns rather than assuming new
+surface is required.
