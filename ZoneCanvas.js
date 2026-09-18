@@ -13,6 +13,7 @@
 // Analysis/WebUI/WebUI_Design_1stPass.md's Zone Mapping section).
 import { Dropdown } from './Dropdown.js';
 import { ZonePatchQueue } from './ZonePatchQueue.js';
+import { bindSliderFill } from './SliderFill.js';
 
 const MIN_RECT_SIZE = 0.02; // 2% of the frame, in normalized UV units
 const CORNERS = ['tl', 'tr', 'bl', 'br'];
@@ -174,6 +175,7 @@ export class ZoneCanvas {
 
     const input = container.querySelector('#zm-gamma');
     const readout = container.querySelector('#zm-gamma-val');
+    bindSliderFill(input);
     input.addEventListener('input', () => {
       zone.gamma = Number(input.value);
       readout.textContent = round1(zone.gamma).toFixed(1);

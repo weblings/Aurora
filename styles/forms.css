@@ -186,11 +186,61 @@
   white-space: nowrap;
 }
 
-/* accent-color alone already renders a flat, solid thumb, no ring --
-   a pseudo-element override here was reverted, see Analysis/lessons/web-ui.md. */
+/* Full custom rebuild, not accent-color -- Chrome only honors a
+   ::-webkit-slider-thumb override once the host's own -webkit-appearance is
+   reset away from native, but that also turns off accent-color's own fill
+   rendering, so a solid-white thumb and an accent-color track can't coexist
+   (see Analysis/lessons/web-ui.md). SliderFill.js's bindSliderFill() sets
+   --slider-percent on each input; measurements against the old accent-color
+   rendering (8px track, 4px radius, exact --aurora-accent fill) are carried
+   over here so this looks the same except for the thumb's color. The
+   "unfilled" segment was an auto-derived #3b3b3b under accent-color, not an
+   Aurora token -- --aurora-border (#333333) is close enough (8/255 per
+   channel) to reuse rather than invent a new hex. */
 .slider-input {
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
   width: 100%;
-  accent-color: var(--aurora-accent);
+  height: 8px;
+  border-radius: 4px;
+  background: var(--aurora-border);
+  cursor: pointer;
+}
+
+.slider-input::-webkit-slider-runnable-track {
+  height: 8px;
+  border-radius: 4px;
+  background: linear-gradient(to right, var(--aurora-accent) var(--slider-percent, 0%), var(--aurora-border) var(--slider-percent, 0%));
+}
+
+.slider-input::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--aurora-text-primary);
+  cursor: pointer;
+}
+
+.slider-input::-moz-range-track {
+  height: 8px;
+  border-radius: 4px;
+  background: var(--aurora-border);
+}
+
+.slider-input::-moz-range-progress {
+  height: 8px;
+  border-radius: 4px;
+  background: var(--aurora-accent);
+}
+
+.slider-input::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--aurora-text-primary);
+  border: none;
   cursor: pointer;
 }
 

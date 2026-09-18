@@ -9,6 +9,8 @@
 // content inside the same CSS grid, which a component that unconditionally
 // owns its whole container couldn't accommodate without changing that
 // section's layout.
+import { bindSliderFill } from './SliderFill.js';
+
 export function sliderGroupHtml(sliders, values) {
   return sliders.map(([key, label, min, max, step, unit]) => sliderFieldHtml(key, label, min, max, step, unit, values)).join('');
 }
@@ -50,6 +52,8 @@ function wireSlider(container, key, unit, values, onCommit) {
   const readout = container.querySelector(`#tn-${key}-val`);
   const step = input.step;
   let isKeyHeld = false;
+
+  bindSliderFill(input);
 
   input.addEventListener('input', () => {
     values[key] = input.value;
