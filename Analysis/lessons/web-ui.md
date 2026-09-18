@@ -1076,3 +1076,18 @@ no key at all).
 -- which element carries the attribute relative to where the pointer actually
 lands -- needs its own check (devtools title-attribute inspection or a hover
 pass), or a green keycheck will certify an invisible tooltip.
+
+---
+
+## Mirror the wire format, not the storage struct
+
+Seeding the demo shim from Config.hpp field values nearly shipped
+interpolation: 2 (the storage int for Area) -- but SettingsRoutes
+serializes names ('Area') and the TuningFields dropdown matches names.
+An int seed would have silently displayed the fallback while disagreeing
+with the real value on any non-default setting. The HTTP layer is its own
+representation with its own defaults and fallbacks; the struct is not it.
+
+**Fix:** derive every shim seed and shape assertion from the route's own
+_toJson/parse code, and keep one contract test per route so a serializer
+change fails loudly. Never seed from the struct definition.
