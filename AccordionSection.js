@@ -21,7 +21,7 @@ export class AccordionSection {
       <div class="accordion-section${expanded ? ' expanded' : ''}">
         <button type="button" class="accordion-header" aria-expanded="${expanded ? 'true' : 'false'}">
           <span class="accordion-title"></span>
-          <span class="accordion-chevron" aria-hidden="true">▾</span>
+          <span class="accordion-chevron" aria-hidden="true"></span>
         </button>
         <div class="accordion-content"></div>
       </div>

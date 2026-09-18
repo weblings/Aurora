@@ -91,9 +91,22 @@
   cursor: pointer;
 }
 
+/* RockyRoad's own chevron-down.svg (icons/), masked rather than swapped
+   with a chevron-up.svg pair like Dropdown.js's -- this element already
+   flips direction via the rotate(180deg) below, and masking lets it keep
+   following --aurora-text-secondary the way the old ▾ glyph's own `color`
+   did, instead of baking one fixed fill into the asset like Dropdown's. */
 .accordion-chevron {
   flex-shrink: 0;
-  color: var(--aurora-text-secondary);
+  width: 10px;
+  height: 10px;
+  background-color: var(--aurora-text-secondary);
+  -webkit-mask-image: url('../icons/chevron-down.svg');
+  mask-image: url('../icons/chevron-down.svg');
+  -webkit-mask-size: contain;
+  mask-size: contain;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
   transition: transform 0.15s;
 }
 
