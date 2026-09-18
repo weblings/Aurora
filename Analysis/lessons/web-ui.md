@@ -1012,3 +1012,31 @@ only in the "happy path" silently vanishes from every error/empty/loading
 state that returns before reaching it, and this class of gap doesn't show
 up in a normal-case visual check, only in one that deliberately exercises
 each early-return branch.
+
+---
+
+## A Continue button that only navigates must still wait for the screen's own in-flight save, when the next step is decided by re-reading that save
+
+NUX's Capture screen (`ModeDeviceScreen.js`) live-applies every toggle via
+an async `PUT /api/config` that triggers a multi-second backend pipeline
+rebuild — and Continue was pure navigation into `goToZoneMappingStage()`,
+which re-probes (`probeState()` in `app.js`) to decide Zone Mapping vs.
+Dashboard. Hitting Continue while the last toggle's save was still landing
+let the probe read the *pre-switch* pipeline (e.g. the old audio pipeline's
+empty zones) and wrongly skip Zone Mapping straight to the Dashboard on a
+fresh NUX — even though every toggle had visibly "worked" on the screen
+itself. Slow to catch because it needs a fast click after a slow save, and
+the resulting skip looks identical to the legitimate already-configured
+skip (zones with `everConfigured: true`), which was the first — wrong —
+suspect.
+
+**Fix:** `_applyMode()` tracks its run on `this.applyPromise`; Continue goes
+through `_onContinue()`, which awaits it before navigating (a rejected apply
+still navigates — its error already shows inline). Verified with a jsdom
+harness driving the real screen module against a slow stub backend: pre-fix
+navigates on the stale config, post-fix waits for the fresh one. General
+principle: whenever navigation's target is derived from re-reading state the
+current screen itself just wrote, the navigate handler must join the
+screen's pending write first — "save on change, navigate on click" is only
+safe if the click can never overtake the save, and a slow backend makes
+"overtake" the normal case, not an edge case.

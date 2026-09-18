@@ -374,7 +374,13 @@ Aurora's own module boundaries instead of RockyRoad's. `rendering-apis.md` vs.
   a screen's own conditional `_render()` (`NavFooter`) silently dropping it
   from every early-return branch (error/empty/loading states) that returns
   before reaching the call, unless it's deliberately placed before those
-  returns instead of where the thing it replaced visually lived.
+  returns instead of where the thing it replaced visually lived; and a
+  navigation-only Continue button needing to await the screen's own
+  in-flight save whenever the next step is decided by re-reading that save
+  (NUX Capture's fast Continue over-taking its slow mode PUT, probing the
+  pre-switch pipeline and wrongly skipping Zone Mapping) -- join the
+  pending write before navigating, since a slow backend makes "overtake"
+  the normal case.
 
 ## Where a new lesson goes
 
