@@ -123,6 +123,10 @@
   margin-bottom: var(--aurora-space-1);
 }
 
+.db-entertainment-slot {
+  margin-top: var(--aurora-space-3);
+}
+
 .db-bridge-zones-slot {
   margin-top: var(--aurora-space-4);
 }

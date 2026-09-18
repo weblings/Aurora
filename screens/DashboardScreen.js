@@ -357,10 +357,7 @@ export class DashboardScreen {
       selectedMonitorName: this.selectedMonitorName,
     });
 
-    const bridgeTitle = !this.hasHue
-      ? 'Bridge — not available in this build'
-      : `Bridge — ${this.bridgeConfigured ? 'Connected' : 'Not connected'}`;
-    this.bridgeSection = new AccordionSection(wrap.querySelector('.db-accordion-bridge'), { title: bridgeTitle, expanded: false });
+    this.bridgeSection = new AccordionSection(wrap.querySelector('.db-accordion-bridge'), { title: 'Bridge', expanded: false });
     this._renderBridgeContent();
   }
 

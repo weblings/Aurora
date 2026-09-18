@@ -43,10 +43,14 @@
   background: var(--aurora-button-dark-hover);
 }
 
+/* Fill is baked into the SVG itself (icons/chevron-*.svg), not currentColor
+   -- an <img>-loaded external SVG renders in its own isolated context and
+   can't inherit the host page's color, unlike an inlined <svg>. */
 .dropdown-chevron {
   flex-shrink: 0;
-  font-size: 10px;
-  line-height: 1;
+  width: 10px;
+  height: 10px;
+  display: block;
 }
 
 .dropdown-menu {

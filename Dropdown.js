@@ -53,12 +53,13 @@ export class Dropdown {
     this.labelEl.className = 'dropdown-label';
     this.labelEl.textContent = initialLabel;
 
-    this.chevron = document.createElement('span');
+    this.chevron = document.createElement('img');
     this.chevron.className = 'dropdown-chevron';
-    this.chevron.setAttribute('aria-hidden', 'true');
-    this.chevron.textContent = '▾'; // same glyph either way -- CSS has
-    // no swapped-open state (unlike RockyRoad's swapped up/down SVGs); the
-    // open menu itself is feedback enough for a small chevron like this.
+    this.chevron.alt = '';
+    // Single <img> with its src swapped on open/close, RockyRoad's own
+    // up/down SVGs (Dropdown.ts) recolored to currentColor -- one element
+    // instead of its two-image show/hide, same visual result.
+    this.chevron.src = 'icons/chevron-down.svg';
 
     this.trigger.append(this.labelEl, this.chevron);
 
@@ -132,6 +133,7 @@ export class Dropdown {
     this._open = true;
     this.root.classList.add('open');
     this.trigger.setAttribute('aria-expanded', 'true');
+    this.chevron.src = 'icons/chevron-up.svg';
     const selectedIndex = this._options.findIndex((o) => o.selected);
     this._setActiveIndex(selectedIndex !== -1 ? selectedIndex : 0);
     this.menu.focus();
@@ -142,6 +144,7 @@ export class Dropdown {
     this._open = false;
     this.root.classList.remove('open');
     this.trigger.setAttribute('aria-expanded', 'false');
+    this.chevron.src = 'icons/chevron-down.svg';
   }
 
   setTriggerLabel(text) {
