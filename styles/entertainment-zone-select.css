@@ -16,4 +16,5 @@
 .channel-list-item {
   font-size: 14px;
   color: var(--aurora-text-secondary);
+  text-align: center;
 }
