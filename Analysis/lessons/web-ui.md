@@ -1040,3 +1040,22 @@ current screen itself just wrote, the navigate handler must join the
 screen's pending write first — "save on change, navigate on click" is only
 safe if the click can never overtake the save, and a slow backend makes
 "overtake" the normal case, not an edge case.
+
+---
+
+## Trace what the navigation target actually reads before gating navigation on a write
+
+Proposed awaiting ZoneMapping's background decoration in onboarding Finish
+to protect its silent entertainment-config persist -- then traced the real
+path and retracted it: Finish's target (`toDashboard` in `app.js`) reads
+nothing (no `probeState()`, fire-and-forget `nuxCompleted`), zone edits
+already PUT immediately per edit with no staged concept, and the persist
+being "protected" had already landed a full stage earlier
+(`EntertainmentZoneSelectScreen` awaits `load()` before rendering
+Continue). The gate would have added bridge latency to an instant-exit
+button for zero data benefit.
+
+**Fix:** a wait before navigation is only justified when the target
+derives state from the awaited write -- verify by reading the target
+handler, not the source screen. General principle: "don't navigate until X
+lands" needs a named reader of X on the other side, or it is pure cost.

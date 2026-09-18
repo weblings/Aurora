@@ -160,3 +160,60 @@ TEST_CASE("AudioOrchestrator::update is a no-op when the input has no buffer yet
 
   CHECK(output.sendCount == 0);
 }
+
+
+TEST_CASE("AudioOrchestrator::updateZone edits only the fields given, live and persisted", "[AudioOrchestrator]")
+{
+  ScopedTempDir dir("update-zone");
+  FakeAudioInput input;
+  FakeOutput output("fake", {1, 2});
+
+  AudioOrchestrator orchestrator(input, {&output}, ZoneMapStore(dir.path), {});
+  orchestrator.init();
+
+  UVs newUvs{{0.1f, 0.2f}, {0.3f, 0.4f}};
+  CHECK(orchestrator.updateZone("fake", 1, newUvs, true, 0.5f));
+
+  const ZoneMap& zoneMap = orchestrator.zoneMap("fake");
+  REQUIRE(zoneMap.size() == 2);
+  CHECK(zoneMap[0].uvs.min == glm::vec2(0.1f, 0.2f));
+  CHECK(zoneMap[0].uvs.max == glm::vec2(0.3f, 0.4f));
+  CHECK(zoneMap[0].active);
+  CHECK(zoneMap[0].gamma == 0.5f);
+  CHECK(zoneMap[0].everConfigured); // written once
+  CHECK(zoneMap[1].active); // untouched -- still its own default
+  CHECK_FALSE(zoneMap[1].everConfigured); // untouched -- never written
+
+  // Omitted fields (nullopt) leave the existing value alone.
+  CHECK(orchestrator.updateZone("fake", 1, std::nullopt, false, std::nullopt));
+  CHECK(orchestrator.zoneMap("fake")[0].uvs.min == glm::vec2(0.1f, 0.2f)); // still the earlier edit
+  CHECK_FALSE(orchestrator.zoneMap("fake")[0].active);
+  CHECK(orchestrator.zoneMap("fake")[0].gamma == 0.5f);
+  CHECK(orchestrator.zoneMap("fake")[0].everConfigured); // stays true once set
+
+  // A flip to inactive takes effect on the next composed frame.
+  orchestrator.update(1.0f);
+  REQUIRE(output.lastFrame.size() == 1);
+  CHECK(output.lastFrame[0].id == 2);
+
+  // Persisted immediately, not just held in memory.
+  ZoneMapStore reread(dir.path);
+  ZoneMap persisted = reread.load("fake");
+  REQUIRE(persisted.size() == 2);
+  CHECK(persisted[0].uvs.min == glm::vec2(0.1f, 0.2f));
+  CHECK_FALSE(persisted[0].active);
+}
+
+
+TEST_CASE("AudioOrchestrator::updateZone returns false for an unknown output or zoneId", "[AudioOrchestrator]")
+{
+  ScopedTempDir dir("update-zone-unknown");
+  FakeAudioInput input;
+  FakeOutput output("fake", {1});
+
+  AudioOrchestrator orchestrator(input, {&output}, ZoneMapStore(dir.path), {});
+  orchestrator.init();
+
+  CHECK_FALSE(orchestrator.updateZone("not-a-real-output", 1, std::nullopt, true, std::nullopt));
+  CHECK_FALSE(orchestrator.updateZone("fake", 99, std::nullopt, true, std::nullopt));
+}

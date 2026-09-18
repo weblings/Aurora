@@ -61,6 +61,37 @@ namespace Aurora::Runtime
   }
 
 
+  bool AudioOrchestrator::updateZone(
+    const std::string& outputName,
+    std::uint8_t zoneId,
+    const std::optional<Contracts::UVs>& uvs,
+    const std::optional<bool>& active,
+    const std::optional<float>& gamma
+  )
+  {
+    auto it = m_zoneMapsByOutput.find(outputName);
+    if(it == m_zoneMapsByOutput.end()){
+      return false;
+    }
+
+    for(auto& zone : it->second){
+      if(zone.zoneId != zoneId){
+        continue;
+      }
+
+      if(uvs) zone.uvs = *uvs;
+      if(active) zone.active = *active;
+      if(gamma) zone.gamma = *gamma;
+      zone.everConfigured = true;
+
+      m_zoneMapStore.save(outputName, it->second);
+      return true;
+    }
+
+    return false;
+  }
+
+
   const ZoneMap& AudioOrchestrator::zoneMap(const std::string& outputName) const
   {
     return m_zoneMapsByOutput.at(outputName);

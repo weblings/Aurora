@@ -1,6 +1,8 @@
 #pragma once
 
+#include <cstdint>
 #include <memory>
+#include <optional>
 #include <string>
 #include <unordered_map>
 #include <vector>
@@ -52,6 +54,19 @@ namespace Aurora::Runtime
 
     // Throws std::out_of_range if outputName wasn't passed to the constructor.
     const ZoneMap& zoneMap(const std::string& outputName) const;
+    // Same patch-style contract as Orchestrator::updateZone: only the fields
+    // passed are edited, everConfigured is set by the call happening at all,
+    // and the result persists immediately via the same ZoneMapStore used at
+    // init(). uvs is spatially meaningless for audio but accepted (and
+    // persisted) so the shared zone routes stay route-compatible. Returns
+    // false (no-op) if outputName isn't live or zoneId isn't in its zone map.
+    bool updateZone(
+      const std::string& outputName,
+      std::uint8_t zoneId,
+      const std::optional<Contracts::UVs>& uvs,
+      const std::optional<bool>& active,
+      const std::optional<float>& gamma
+    );
 
   private:
     Input::IAudioInput& m_input;

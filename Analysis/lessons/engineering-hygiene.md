@@ -1152,3 +1152,37 @@ of small files on every navigation) is negligible, and the alternative is
 a standing, silent source of "my fix isn't working" false alarms that look
 exactly like real bugs and can burn real debugging time before anyone
 thinks to suspect the browser's cache instead of the code.
+
+---
+
+## A source diff isn't a tested fix until the running binary contains it
+
+After wiring the audio-mode zone branches into `Aurora-App-Windows`
+(`Pipeline::listZones()`/`updateZone()` delegating to `m_audioOrchestrator`),
+a Debug run showed no channel toggles in the Dashboard Bridge list -- the
+binary simply predated the edit; no rebuild had happened in between, and the
+old daemon was still the running process. Indistinguishable from a failed
+fix until the timestamps were compared.
+
+**Fix:** process, not code -- before re-diagnosing a "fix didn't work,"
+check the binary's build timestamp against the edit, make sure the old
+daemon process is actually dead, and probe the API directly (`GET
+/api/zones` in the failing mode) to separate backend staleness from UI
+staleness. General principle: the edit → build → relaunch chain has three
+links, and a break in the second two looks exactly like a bug in the first.
+
+---
+
+## Sibling repos mix CRLF and LF -- check before editing, verify content-only after
+
+`Aurora/core` and `Aurora-App-Linux` sources are CRLF while
+`Aurora-App-Windows/src/main.cpp` is LF, and every repo's `LICENSE` shows
+as modified from CR-only churn. Exact-match editing fails on multi-line CRLF blocks (no match found), and a whole-file rewrite flips
+every line's ending, burying the real change.
+
+**Fix:** run `file` on a target before editing and keep added lines in the
+file's own convention; verify with `git diff --ignore-cr-at-eol` so the
+content diff shows only the intended lines. Where an editor can't match a
+CRLF block (e.g. two textually-identical guards), use a byte-exact scripted
+replacement with single-occurrence assertions, kept reviewable outside the
+repo, and re-check the diff afterward.

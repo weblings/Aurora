@@ -232,7 +232,11 @@ Aurora's own module boundaries instead of RockyRoad's. `rendering-apis.md` vs.
   turning out to share the exact same default coordinates rather than
   suffering a genuine z-order bug (every zone with no saved mapping
   defaults to the same full-canvas rect) -- confirmed cheaply by reading
-  the persisted data before touching any rendering code.
+  the persisted data before touching any rendering code, and a source diff
+  not being a tested fix until the rebuilt binary actually runs (binary
+  timestamps, no lingering old daemon, direct API probe), and sibling repos
+  mixing CRLF and LF (check `file` before editing, `git diff --ignore-cr-at-eol`
+  to verify content-only changes).
 - [`web-ui.md`](web-ui.md) — WebUI design-process gotchas: a described
   "existing component" being a claim to verify by reading the real source
   rather than a fact to build on, a layout lesson learned in one constrained
@@ -385,7 +389,10 @@ Aurora's own module boundaries instead of RockyRoad's. `rendering-apis.md` vs.
   (NUX Capture's fast Continue over-taking its slow mode PUT, probing the
   pre-switch pipeline and wrongly skipping Zone Mapping) -- join the
   pending write before navigating, since a slow backend makes "overtake"
-  the normal case.
+  the normal case, not an edge case; and tracing what a navigation target
+  actually reads before gating navigation on a write (a proposed
+  Finish-awaits-decoration gate retracted once `toDashboard` proved to
+  read nothing).
 
 ## Where a new lesson goes
 
