@@ -20,6 +20,7 @@ FetchContent_MakeAvailable(AuroraCore)
 
 add_library(AuroraInputWindows STATIC
   src/DummyGrabber.cpp
+  src/InputControlDescriptors.cpp
 )
 
 target_include_directories(AuroraInputWindows PUBLIC

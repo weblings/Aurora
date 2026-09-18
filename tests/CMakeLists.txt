@@ -17,6 +17,7 @@ endif()
 
 add_executable(AuroraInputWindowsTests
   WindowsInputTests.cpp
+  InputControlDescriptorTests.cpp
 )
 
 target_link_libraries(AuroraInputWindowsTests PRIVATE
