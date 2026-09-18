@@ -3,6 +3,14 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { RectAreaLightUniformsLib } from 'three/addons/lights/RectAreaLightUniformsLib.js';
 import { zoneMap } from './zonemap.js';
+import { getDemoStore } from './demo-state.js';
+
+// Live zone view (Phase 3): the shim owns zone state once demo-boot runs;
+// per-frame and rebuild reads go through it so PUTs apply live. Falls back
+// to the static zonemap (the shim's own seed) when the boot module is absent.
+function demoZones() {
+  return getDemoStore()?.liveZones() ?? zoneMap;
+}
 import { composeFrame } from './processing.js';
 import { Smoother } from './smoother.js';
 import { dbToLinear, computeRms, computeSpectralCentroid, OnsetDetector } from './audioFeatures.js';
@@ -370,7 +378,7 @@ function zoneCentroid(zone) {
 }
 
 function buildPointLights() {
-  return zoneMap.map((zone) => {
+  return demoZones().map((zone) => {
     const [x, y] = zoneCentroid(zone);
     const light = new THREE.PointLight(0xffffff, POINT_INTENSITY, POINT_DISTANCE, POINT_DECAY);
     light.position.set(x, y, POINT_Z);
@@ -407,7 +415,7 @@ function buildRectAreaLights() {
     });
   }
 
-  return zoneMap.map((zone) => ({ zoneId: zone.zoneId, lights: lightsByZoneId.get(zone.zoneId) || [] }));
+  return demoZones().map((zone) => ({ zoneId: zone.zoneId, lights: lightsByZoneId.get(zone.zoneId) || [] }));
 }
 
 // Rebuilds just the lights for the currently selected rig -- swapping rigs (see the
@@ -453,6 +461,12 @@ function buildLights() {
       }
     }
   }
+}
+
+// Demo port entry (Phase 3): re-invoke the existing rebuild path after a
+// zone PUT lands in the shim (wired via onZonesChanged in demo-boot.js).
+export function rebuildZoneLights() {
+  buildLights();
 }
 
 // TV_Room.glb's own 4 KHR_lights_punctual lights ride along on gltf.scene as real PointLights,
@@ -756,7 +770,7 @@ function animate() {
     const imageData = sampleVideoFrame();
     if (imageData) {
       // Room mode drives 4 quadrant zones (ROOM_ZONE_MAP), not the flat rigs' 8-zone zonemap.js.
-      const activeZoneMap = currentRigType === 'room' ? ROOM_ZONE_MAP : zoneMap;
+      const activeZoneMap = currentRigType === 'room' ? ROOM_ZONE_MAP : demoZones();
       const frame = smoother.smooth(composeFrame(imageData, activeZoneMap), SMOOTHING);
       for (const zoneFrame of frame) {
         const target = zoneLights.find((z) => z.zoneId === zoneFrame.zoneId);

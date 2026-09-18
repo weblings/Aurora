@@ -123,7 +123,18 @@ export function createShimStore(storage = createMemoryStorage(), seed = {}) {
       return applied;
     },
     getZones: () => ({ outputName: 'hue', zones: state.zones.map((z) => ({ ...z })) }),
-    setZones: (zones) => { state.zones = zones.map((z) => ({ ...z })); },
+    // Identity-preserving reseed: the scene holds liveZones() across calls,
+    // so the array object must survive reseeds (entries are still copied).
+    setZones: (zones) => {
+      const fresh = zones.map((z) => ({ ...z }));
+      state.zones.length = 0;
+      state.zones.push(...fresh);
+    },
+    // Trusted in-page backdoor for the scene renderer: the live array itself,
+    // mutated in place by putZone/setZones, so per-frame reads stay fresh
+    // with no copying. HTTP consumers get copies via getZones; main.js must
+    // treat this as read-only. Demo-only -- never exposed over the router.
+    liveZones: () => state.zones,
     // ZoneRoutes PATCH convention: only zoneId is required; uvs/active/gamma
     // apply when present. Unknown zoneId is a shim-side 404 -- the backend
     // rejects it too, and the Dashboard only ever sends loaded zoneIds.

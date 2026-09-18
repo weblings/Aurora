@@ -129,4 +129,20 @@ function testRouter(seed) {
   assert.equal(r.json.succeeded, false);
 }
 
+// liveZones exposes the owned array for the scene's per-frame reads;
+// setZones preserves its identity so holders never go stale.
+{
+  const store = createShimStore(createMemoryStorage(), { zones: ZONES_FIXTURE });
+  const live = store.liveZones();
+  assert.equal(live.length, 2);
+  store.putZone({ zoneId: 0, gamma: 0.5 });
+  assert.equal(live[0].gamma, 0.5, 'PUT visible through live ref');
+  store.setZones([{ zoneId: 5, uvs: { min: [0, 0], max: [1, 1] }, active: true, gamma: 0, everConfigured: true }]);
+  assert.ok(store.liveZones() === live, 'reseed preserves array identity');
+  assert.equal(live.length, 1);
+  const snap = store.getZones().zones;
+  snap[0].gamma = 9;
+  assert.equal(live[0].gamma, 0, 'getZones copies isolate HTTP readers');
+}
+
 console.log('demo-shim contract tests passed.');
