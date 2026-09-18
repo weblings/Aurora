@@ -62,6 +62,7 @@ export class ModeDeviceScreen {
     this.showSinkField = false;
     this.error = null;
     this.deviceField = null;
+    this.applyPromise = null; // latest _applyMode run, if any -- Continue awaits it (see _onContinue)
   }
 
   async mount(container) {
@@ -176,8 +177,24 @@ export class ModeDeviceScreen {
     renderNavFooter(footer, {
       showBack: this.showBack,
       onBack: () => this.onBack(),
-      onContinue: () => this.onComplete(),
+      onContinue: () => this._onContinue(),
     });
+  }
+
+  // Continue's target is decided by a fresh probeState() read, which must
+  // observe this screen's own last save -- navigating while our PUT/reload
+  // is still in flight lets the probe read the pre-switch pipeline (e.g.
+  // the old audio pipeline's empty zones) and wrongly skip Zone Mapping
+  // straight to the Dashboard on a fresh NUX. A rejected apply must not
+  // trap the user here: _applyMode already surfaces failures inline via
+  // this.error, so navigate regardless and let the probe decide.
+  async _onContinue() {
+    try {
+      await this.applyPromise;
+    } catch {
+      // See above -- fall through to navigation.
+    }
+    this.onComplete();
   }
 
   async _switchMode(mode) {
@@ -198,8 +215,13 @@ export class ModeDeviceScreen {
   // (if nothing valid is configured yet), on every mode click, and on every
   // device field edit. Continue is now pure navigation, not a save action;
   // WebUI_Fixes.md Pass 2 has the "nothing reacted until the next screen"
-  // report this replaces.
+  // report this replaces. Tracked so _onContinue can wait for it.
   async _applyMode() {
+    this.applyPromise = this._doApplyMode();
+    await this.applyPromise;
+  }
+
+  async _doApplyMode() {
     this.error = null;
 
     const patch = this.mode === 'video'
