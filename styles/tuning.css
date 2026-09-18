@@ -20,18 +20,3 @@
   grid-column: 1 / -1;
 }
 
-.tuning-actions {
-  display: flex;
-  justify-content: flex-end;
-  margin-top: var(--aurora-space-7);
-}
-
-@media (max-width: 480px) {
-  .tuning-actions {
-    justify-content: stretch;
-  }
-
-  .tuning-actions .btn {
-    width: 100%;
-  }
-}

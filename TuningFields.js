@@ -5,12 +5,19 @@
 // it from onboarding and step 20 folds it into the Dashboard, so this is a
 // straight migration of its field/save logic, not a reuse-driven split.
 //
-// Keeps its own explicit Save button rather than PUTting on every edit the
-// way Zone Mapping's canvas/toggles do: PipelineHost::reload() (each app's
-// main.cpp) has no settings-only update path, so every save here tears down
-// and reconstructs the *entire* live pipeline -- a per-drag-tick PUT would
-// rebuild it dozens of times a second. See the original TuningScreen.js
-// history for the full reasoning; unchanged here.
+// Used to keep its own explicit Save button instead of PUTting on every
+// edit the way Zone Mapping's canvas/toggles do -- the Dashboard ended up
+// with two sections behaving oppositely (Zone Mapping live, Tuning
+// Save-gated) for a real reason (PipelineHost::reload(), each app's
+// main.cpp, has no settings-only update path -- every save here tears down
+// and reconstructs the *entire* live pipeline, including a real Hue DTLS
+// handshake measured elsewhere at 1-3+ seconds), not an oversight. Fixed by
+// making every field commit on its own natural gesture-end signal instead
+// (a slider's drag-release/keyup, a dropdown/checkbox's own change) rather
+// than trying to make reload() itself cheaper -- see Analysis/lessons/
+// web-ui.md's "gesture-end commit signal" entry. No more Save button or
+// manual gate anywhere on this screen; every option behaves the same way
+// now, matching Zone Mapping's own model.
 import { Dropdown } from './Dropdown.js';
 import { sliderGroupHtml, wireSliderGroup } from './TuningSliderGroup.js';
 import { AUTO_MONITOR_VALUE } from './DeviceField.js';
@@ -77,7 +84,6 @@ export class TuningFields {
     this.selectedMonitorName = selectedMonitorName;
     this.fixedHueEnabled = (values.audioFixedAnchorHue ?? -1) >= 0;
     this.error = null;
-    this.success = false;
     this.dropdowns = [];
     this._render();
   }
@@ -92,22 +98,15 @@ export class TuningFields {
     this.dropdowns = [];
 
     const errorHtml = this.error ? `<p class="status-text status-text-error">⚠ ${escapeHtml(this.error)}</p>` : '';
-    const successHtml = this.success ? `<p class="status-text status-text-success">✓ Saved.</p>` : '';
 
     this.container.innerHTML = `
       <div class="tn-fields"></div>
       ${errorHtml}
-      ${successHtml}
-      <div class="tuning-actions">
-        <button type="button" class="btn btn-primary" id="tn-save">Save</button>
-      </div>
     `;
 
     const fields = this.container.querySelector('.tn-fields');
     if (this.mode === 'video') this._renderVideoFields(fields);
     else this._renderAudioFields(fields);
-
-    this.container.querySelector('#tn-save').addEventListener('click', (e) => this._save(e.currentTarget));
   }
 
   _renderVideoFields(container) {
@@ -224,20 +223,9 @@ export class TuningFields {
     });
   }
 
-  // _commit()'s own _render() at the end replaces the button with a fresh,
-  // already-enabled one regardless -- disabling this exact node is only to
-  // prevent a second click while the request already in flight.
-  async _save(button) {
-    button.disabled = true;
-    await this._commit();
-  }
-
-  // Sliders call this directly on commit (drag release, or the keyup ending
-  // a keyboard hold -- see TuningSliderGroup.js) instead of waiting for the
-  // Save button; text/dropdown/checkbox fields still go through _save()
-  // above, since a slider's own commit already PUTs the *whole* current
-  // patch (there's no partial-field update route), including whatever's
-  // currently sitting in those other fields. Coalesces overlapping calls the
+  // Every field auto-saves on its own commit now (sliders on drag-release/
+  // keyup, dropdowns and the checkbox on change) -- there's no longer a
+  // manual Save button gating any of them. Coalesces overlapping calls the
   // same way ZonePatchQueue does for zone edits: at most one save in flight,
   // always eventually sending whatever the values were at the *last* commit,
   // never a queued backlog of intermediate ones.
@@ -254,7 +242,6 @@ export class TuningFields {
 
   async _commit() {
     this.error = null;
-    this.success = false;
 
     const patch = this.mode === 'video'
       ? {
@@ -287,8 +274,6 @@ export class TuningFields {
         this.error = "Couldn't save settings.";
       } else if (result.reloadError) {
         this.error = `Saved, but couldn't apply it live: ${result.reloadError}`;
-      } else {
-        this.success = true;
       }
     } catch {
       this.error = "Couldn't reach the daemon.";
