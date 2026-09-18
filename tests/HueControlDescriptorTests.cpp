@@ -30,9 +30,11 @@ TEST_CASE("hueControlDescriptors covers the pairing UI with unique keys", "[Desc
   CHECK(has("output.hue.changeBridge", "button"));
   CHECK(has("output.hue.entertainmentConfig", "dropdown"));
 
-  // Unique keys, all under this plugin's namespace.
+  // Unique keys, all under this plugin's namespace, with authored copy.
   for(std::size_t i = 0; i < descriptors.size(); i++){
     CHECK(descriptors[i].key.rfind("output.hue.", 0) == 0);
+    CHECK_FALSE(descriptors[i].description.empty());
+    CHECK(descriptors[i].description != "Test"); // placeholder must not ship
     for(std::size_t j = i + 1; j < descriptors.size(); j++){
       CHECK(descriptors[i].key != descriptors[j].key);
     }
