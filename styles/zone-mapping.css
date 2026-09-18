@@ -15,6 +15,15 @@
   margin-top: var(--aurora-space-5);
 }
 
+/* Onboarding's own Auto-arrange, centered above the canvas -- matches
+   Dashboard's .db-zone-actions (dashboard.css), duplicated here rather than
+   shared across screens/stylesheets. */
+.zm-canvas-actions {
+  display: flex;
+  justify-content: center;
+  margin-bottom: var(--aurora-space-5);
+}
+
 /* "See all zones" grouped with the "Zone" label on one line (2.5 pass),
    only rendered when ZoneCanvas is given onSeeAllZones -- Dashboard's own
    use, not the onboarding Zone Mapping screen's. */

@@ -44,17 +44,18 @@
 import { renderTopBar } from '../topBar.js';
 import { EntertainmentConfigSelect } from '../EntertainmentConfigSelect.js';
 import { ZoneCanvas } from '../ZoneCanvas.js';
-import { ZoneActiveToggleList, ZoneActiveToggleSingle } from '../ZoneActiveToggle.js';
+import { ZoneActiveToggleList } from '../ZoneActiveToggle.js';
 import { screenDivisionRects } from '../ScreenDivision.js';
 
 export class ZoneMappingScreen {
   // onboarding: the wizard variant (Analysis/WebUI/WebUI_Design_2ndPass.md
-  // step 17) -- a static "Using: <config>" label instead of the switchable
-  // EntertainmentConfigSelect dropdown (already fixed by the prior
-  // Entertainment zone select step), and a single ZoneActiveToggle tied to
-  // whichever zone the canvas has selected instead of the full flat list
-  // (still used as-is by the Dashboard's own "Zones" nav row until step 20
-  // replaces that row entirely).
+  // step 17) -- no entertainment-config picker UI at all (silently uses
+  // whatever load() already resolved a default for) instead of the
+  // switchable EntertainmentConfigSelect dropdown, and Auto-arrange/Zone/
+  // Active/Gamma arranged the same way as Dashboard's own Zone Mapping
+  // (ZoneCanvas's renderActive: true bundles Active in, rather than this
+  // screen's own separate always-visible list, still used as-is by the
+  // non-onboarding path).
   constructor(app, { onComplete, onBack, showBack = true, onboarding = false }) {
     this.app = app;
     this.onComplete = onComplete;
@@ -216,11 +217,25 @@ export class ZoneMappingScreen {
 
     const errorHtml = this.error ? `<p class="status-text status-text-error">⚠ ${escapeHtml(this.error)}</p>` : '';
 
-    body.innerHTML = `
+    // onboarding matches Dashboard's own Zone Mapping arrangement -- Auto-
+    // arrange centered above the canvas, Zone/Active/Gamma bundled into the
+    // canvas's own row (renderActive below) -- rather than this screen's
+    // non-onboarding layout (entertainment picker, canvas, then a separate
+    // always-visible full zone list, Auto-arrange+Save together at bottom).
+    body.innerHTML = this.onboarding ? `
+      <div class="zm-canvas-actions">
+        <button type="button" class="btn btn-secondary" id="zm-auto-divide">Auto-arrange zones</button>
+      </div>
+      <div id="zm-canvas-slot"></div>
+      ${errorHtml}
+      <div class="zm-actions">
+        <button type="button" class="btn btn-primary" id="zm-save">Save</button>
+      </div>
+    ` : `
       <div id="zm-entertainment-slot"></div>
       <div id="zm-canvas-slot"></div>
       <div class="field zm-active-field">
-        <label class="field-label">${this.onboarding ? 'Active' : 'Active zones'}</label>
+        <label class="field-label">Active zones</label>
         <div id="zm-active-row"></div>
       </div>
       ${errorHtml}
@@ -230,41 +245,33 @@ export class ZoneMappingScreen {
       </div>
     `;
 
-    const entertainmentSlot = body.querySelector('#zm-entertainment-slot');
-    if (this.onboarding) {
-      const selected = this.entertainmentConfigSelect.getSelected();
-      entertainmentSlot.innerHTML = selected ? `<p class="status-text">Using: ${escapeHtml(selected.name)}</p>` : '';
-    } else {
-      this.entertainmentConfigSelect.mount(entertainmentSlot);
+    // load() already resolved/persisted a default selection silently for
+    // onboarding -- no picker UI here means nothing needs to display it.
+    if (!this.onboarding) {
+      this.entertainmentConfigSelect.mount(body.querySelector('#zm-entertainment-slot'));
     }
 
     this.zoneCanvas = new ZoneCanvas(body.querySelector('#zm-canvas-slot'), {
       zones: this.zones,
       selectedZoneId: this.selectedZoneId,
       zoneLabel: (zone) => this._zoneLabel(zone),
-      onSelect: (zoneId) => {
-        this.selectedZoneId = zoneId;
-        if (this.onboarding) this._renderActiveSection();
-      },
+      onSelect: (zoneId) => { this.selectedZoneId = zoneId; },
       onError: (message) => { this.error = message; this._render(); },
+      renderActive: this.onboarding,
     });
     this.selectedZoneId = this.zoneCanvas.selectedZoneId;
-    this._renderActiveSection();
+    if (!this.onboarding) this._renderActiveSection();
 
     body.querySelector('#zm-auto-divide').addEventListener('click', (e) => this._onAutoDivideClick(e.currentTarget));
     body.querySelector('#zm-save').addEventListener('click', () => this.onComplete());
   }
 
+  // Non-onboarding only -- onboarding's Active toggle is bundled into
+  // ZoneCanvas's own row (renderActive: true above).
   _renderActiveSection() {
     const slot = this.container.querySelector('#zm-active-row');
     const onError = (message) => { this.error = message; this._render(); };
-
-    if (this.onboarding) {
-      const zone = this.zones.find((z) => z.zoneId === this.selectedZoneId) ?? this.zones[0];
-      new ZoneActiveToggleSingle(slot, { zone, onError });
-    } else {
-      new ZoneActiveToggleList(slot, { zones: this.zones, zoneLabel: (zone) => this._zoneLabel(zone), onError });
-    }
+    new ZoneActiveToggleList(slot, { zones: this.zones, zoneLabel: (zone) => this._zoneLabel(zone), onError });
   }
 }
 
