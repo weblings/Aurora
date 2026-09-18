@@ -28,6 +28,12 @@ TEST_CASE("linuxInputControlDescriptors covers the device UI with unique keys", 
   CHECK(has("input.monitor", "dropdown"));
   CHECK(has("input.sink", "text"));
 
+  // Authored copy everywhere -- placeholders must not ship.
+  for(const auto& descriptor : descriptors){
+    CHECK_FALSE(descriptor.description.empty());
+    CHECK(descriptor.description != "Test");
+  }
+
   for(std::size_t i = 0; i < descriptors.size(); i++){
     CHECK(descriptors[i].key.rfind("input.", 0) == 0);
     for(std::size_t j = i + 1; j < descriptors.size(); j++){
