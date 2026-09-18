@@ -20,13 +20,14 @@
 // bridge-light membership problem. See WebUI/WebUI_Fixes.md's Zone Mapping
 // follow-up section for why this replaced the old on-canvas checkbox.
 //
-// The header's own "Save" button does not gate persistence -- every edit
-// here (drag, checkbox, gamma) already PUTs immediately, matching
+// Non-onboarding's own "Save" button (onboarding's is NavFooter's
+// "Finish" instead, NUX Polish Pass) does not gate persistence -- every
+// edit here (drag, checkbox, gamma) already PUTs immediately, matching
 // huenicorn's own real save-on-every-setter feel and step 14's backend
 // design (`Orchestrator::updateZone` persists unconditionally, with no
-// staged/uncommitted concept at all). "Save" here just means "done editing,
-// back to Dashboard" -- resolves an ambiguity the original spec's header
-// line left open without saying so.
+// staged/uncommitted concept at all). Both just mean "done editing, back
+// to Dashboard" -- resolves an ambiguity the original spec's header line
+// left open without saying so.
 //
 // Entertainment-config picker (above the canvas, matching huenicorn's own
 // real WebUI.js layout -- its equivalent dropdown lives on the same main
@@ -42,6 +43,7 @@
 // /api/hue/connection). Hidden entirely at exactly one config, same rule
 // huenicorn's own dropdown and Output Connect's already use.
 import { renderTopBar } from '../topBar.js';
+import { renderNavFooter } from '../NavFooter.js';
 import { EntertainmentConfigSelect } from '../EntertainmentConfigSelect.js';
 import { ZoneCanvas } from '../ZoneCanvas.js';
 import { ZoneActiveToggleList } from '../ZoneActiveToggle.js';
@@ -79,11 +81,17 @@ export class ZoneMappingScreen {
     container.innerHTML = `
       <div class="top-bar-slot"></div>
       <div class="zm-body"></div>
+      <div class="nav-footer-slot"></div>
     `;
+    // Onboarding's Back/Continue move to NavFooter (below, in _render() --
+    // rendered on every branch there, not just the main content one, so an
+    // error/empty state still leaves a way out) -- non-onboarding keeps the
+    // top bar's own Back exactly as before, matching every other screen
+    // that isn't part of this pass.
     renderTopBar(container.querySelector('.top-bar-slot'), {
       title: 'Zone mapping',
-      showBack: this.showBack,
-      onBack: () => this.onBack(),
+      showBack: this.onboarding ? false : this.showBack,
+      onBack: this.onboarding ? undefined : () => this.onBack(),
     });
 
     await this._load();
@@ -194,6 +202,19 @@ export class ZoneMappingScreen {
     this.zoneCanvas?.destroy();
     this.zoneCanvas = null;
 
+    // Rendered before any of the early returns below -- an error/empty
+    // state still leaves onboarding with a real way out (Back, or Finish
+    // to skip out of zone mapping entirely), not stuck with nothing once
+    // the top bar's own Back is gone (mount() above).
+    if (this.onboarding) {
+      renderNavFooter(this.container.querySelector('.nav-footer-slot'), {
+        showBack: this.showBack,
+        onBack: () => this.onBack(),
+        continueLabel: 'Finish',
+        onContinue: () => this.onComplete(),
+      });
+    }
+
     if (this.zones === null) {
       body.innerHTML = `<p class="status-text status-text-error">⚠ ${escapeHtml(this.error ?? 'Something went wrong.')}</p>`;
       return;
@@ -219,18 +240,17 @@ export class ZoneMappingScreen {
 
     // onboarding matches Dashboard's own Zone Mapping arrangement -- Auto-
     // arrange centered above the canvas, Zone/Active/Gamma bundled into the
-    // canvas's own row (renderActive below) -- rather than this screen's
-    // non-onboarding layout (entertainment picker, canvas, then a separate
-    // always-visible full zone list, Auto-arrange+Save together at bottom).
+    // canvas's own row (renderActive below), Back/Finish in NavFooter
+    // (rendered above, before the early returns) -- rather than this
+    // screen's non-onboarding layout (entertainment picker, canvas, then a
+    // separate always-visible full zone list, Auto-arrange+Save together
+    // at bottom, Back in the top bar).
     body.innerHTML = this.onboarding ? `
       <div class="zm-canvas-actions">
         <button type="button" class="btn btn-secondary" id="zm-auto-divide">Auto-arrange zones</button>
       </div>
       <div id="zm-canvas-slot"></div>
       ${errorHtml}
-      <div class="zm-actions">
-        <button type="button" class="btn btn-primary" id="zm-save">Save</button>
-      </div>
     ` : `
       <div id="zm-entertainment-slot"></div>
       <div id="zm-canvas-slot"></div>
@@ -263,7 +283,9 @@ export class ZoneMappingScreen {
     if (!this.onboarding) this._renderActiveSection();
 
     body.querySelector('#zm-auto-divide').addEventListener('click', (e) => this._onAutoDivideClick(e.currentTarget));
-    body.querySelector('#zm-save').addEventListener('click', () => this.onComplete());
+    // Non-onboarding only -- onboarding's own "done" action is NavFooter's
+    // Finish (wired above, before the early returns), not this button.
+    body.querySelector('#zm-save')?.addEventListener('click', () => this.onComplete());
   }
 
   // Non-onboarding only -- onboarding's Active toggle is bundled into
