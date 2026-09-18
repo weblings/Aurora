@@ -20,8 +20,9 @@ export class WelcomeScreen {
     this.container = container;
     container.innerHTML = `
       <div class="top-bar-slot"></div>
-      <div class="welcome-body">
-        <p class="status-text">Welcome to Aurora -- let's get you set up.</p>
+      <div class="welcome-body text-pair">
+        <p class="text-primary">Welcome to Aurora</p>
+        <p class="text-secondary">Let's get you setup</p>
       </div>
       <div class="nav-footer-slot"></div>
     `;

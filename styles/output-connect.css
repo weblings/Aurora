@@ -1,44 +1,23 @@
-/* Output Connect screen -- address field + Autodetect sit side by side on
+/* Output Connect screen -- address field (label+input, one .field, the
+   standard 4px label-to-control gap) + Autodetect sit side by side on
    desktop, stack full-width under 480px (verified against the ASCII layouts
-   in Analysis/WebUIAnalysis.md's Output Connect section). Continue is
-   right-aligned on desktop, full-width on constrained. */
+   in Analysis/WebUIAnalysis.md's Output Connect section). Back/Continue are
+   NavFooter's own now (forms.css) -- this file only owns what's unique to
+   this screen's own body content. */
 
 .oc-address-row {
   display: flex;
   gap: var(--aurora-space-3);
   align-items: flex-end;
-  margin-top: var(--aurora-space-4);
 }
 
 .oc-address-row .field {
   flex: 1;
 }
 
-.oc-actions {
-  display: flex;
-  justify-content: flex-end;
-  margin-top: var(--aurora-space-6);
-}
-
 @media (max-width: 480px) {
   .oc-address-row {
     flex-direction: column;
     align-items: stretch;
-  }
-
-  /* flex-direction: column, not just width:100% -- the entry phase's
-     .oc-actions only ever holds one button (that alone would look stacked),
-     but the pairing phase's holds two ("Change address" + "Continue"); a
-     row with two 100%-wide children just shrinks them both to fit instead
-     of stacking (confirmed via a real measurement in Chromium at 390px --
-     each button came out ~170px instead of the full width). */
-  .oc-actions {
-    flex-direction: column;
-    align-items: stretch;
-    gap: var(--aurora-space-3);
-  }
-
-  .oc-actions .btn {
-    width: 100%;
   }
 }

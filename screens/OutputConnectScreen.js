@@ -124,11 +124,9 @@ export class OutputConnectScreen {
 
   _renderEntry(body, footer) {
     body.innerHTML = `
-      <div class="field">
-        <label class="field-label" for="oc-address-input">Bridge address</label>
-      </div>
       <div class="oc-address-row">
         <div class="field">
+          <label class="field-label" for="oc-address-input">Bridge address</label>
           <input id="oc-address-input" class="text-input" type="text" placeholder="192.168.1.42" />
         </div>
         <button type="button" class="btn btn-secondary" id="oc-autodetect">Autodetect</button>
@@ -153,22 +151,29 @@ export class OutputConnectScreen {
 
   _renderPairing(body, footer) {
     body.innerHTML = `
-      <p class="status-text">Press the button on your bridge, then continue.</p>
+      <div class="text-pair">
+        <p class="text-primary">Press the button on your bridge</p>
+        <p class="text-secondary">then Continue</p>
+      </div>
       ${this.error ? `<p class="status-text status-text-error">⚠ ${escapeHtml(this.error)}</p>` : ''}
-      <button type="button" class="btn btn-link" id="oc-change-address">Change address</button>
     `;
-    body.querySelector('#oc-change-address').addEventListener('click', () => {
-      this.phase = 'entry';
-      this.error = null;
-      this._render();
-    });
 
-    // No Back during an in-flight pairing attempt -- "Change address"
-    // already covers "abandon this and go back," and a bare Back here
-    // would suggest leaving mid-exchange is equally safe, which it isn't
-    // (see Screen 1's CONNECTED-state design in WebUI_Design_2ndPass.md).
+    // "Wrong Bridge?" (still this.phase = 'entry' underneath, same as
+    // before) lives in NavFooter's own Back slot now, not a standalone
+    // link -- matches the mockup's matched-weight button pair. Not a real
+    // "leave this screen" Back (that still doesn't exist during an
+    // in-flight pairing attempt -- a bare Back here would suggest leaving
+    // mid-exchange is equally safe, which it isn't, see Screen 1's
+    // CONNECTED-state design in WebUI_Design_2ndPass.md) -- it just resets
+    // this same screen back to the entry phase.
     renderNavFooter(footer, {
-      showBack: false,
+      showBack: true,
+      backLabel: 'Wrong Bridge?',
+      onBack: () => {
+        this.phase = 'entry';
+        this.error = null;
+        this._render();
+      },
       onContinue: (e) => this._register(e.currentTarget),
     });
   }
