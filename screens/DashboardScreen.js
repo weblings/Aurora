@@ -1,19 +1,20 @@
 // Dashboard, rebuilt as the accordion hub (Analysis/WebUI/
-// WebUI_Design_2ndPass.md, step 20): three named areas instead of four
-// separate nav rows -- Zone Mapping folded into video's own top tier,
-// Tuning and Bridge always collapsed either mode. Capture Source's old nav
-// row is gone entirely -- its one real field (DeviceField) now lives
-// directly in the top tier, swapped by mode the same way ModeDeviceScreen's
-// own _renderVideoDevice/_renderAudioDevice always did.
+// WebUI_Design_2ndPass.md, step 20): three collapsible sections (Zone
+// Mapping, Tuning, Bridge -- the first added in a 2.5-pass correction,
+// pulled out of what used to be video's own always-visible top tier) plus
+// DeviceField, always collapsed either mode. Capture Source's old nav row
+// is gone entirely -- its one real field (DeviceField) now lives directly
+// in the top tier, swapped by mode the same way ModeDeviceScreen's own
+// _renderVideoDevice/_renderAudioDevice always did.
 //
 // Mode switch (_switchMode) reuses the same full _loadAll()->_render() path
 // as the initial mount -- since _render() always builds fresh
-// AccordionSection instances (collapsed by default), resetting both
+// AccordionSection instances (collapsed by default), resetting all three
 // sections on a mode change falls out for free rather than needing its own
 // explicit reset call. Everything else (an entertainment-config switch, a
 // zone-canvas selection change, a device-field edit) uses a narrower
-// refresh instead, so expanding Tuning/Bridge to check something doesn't
-// get silently collapsed again by an unrelated edit.
+// refresh instead, so expanding any section to check something doesn't get
+// silently collapsed again by an unrelated edit.
 import { renderTopBar } from '../topBar.js';
 import { OutputConnectScreen } from './OutputConnectScreen.js';
 import { ModeDeviceScreen, pickVideoInputName, pickAudioInputName } from './ModeDeviceScreen.js';
@@ -62,6 +63,7 @@ export class DashboardScreen {
 
     this.deviceField = null;
     this.zoneCanvas = null;
+    this.zoneMappingSection = null;
     this.tuningFields = null;
     this.tuningSection = null;
     this.bridgeSection = null;
@@ -225,32 +227,21 @@ export class DashboardScreen {
     controls.querySelector('#db-mode-audio').addEventListener('click', () => this._switchMode('audio'));
   }
 
-  // Top tier: DeviceField (always) + video's own Auto-arrange/canvas
-  // (2.5 pass order: Auto-arrange sits above the canvas now, centered/
-  // content-hugging; Zone/Active/Gamma render as one row inside ZoneCanvas
-  // itself via renderActive, "See all zones" via onSeeAllZones;
-  // EntertainmentConfigSelect moved out entirely, into the Bridge accordion
-  // -- see _renderBridgeContent()).
+  // Top tier: just DeviceField (Monitor/device picker) + its own error now --
+  // Auto-arrange/canvas/zone-row moved into their own "Zone Mapping"
+  // accordion (2.5 pass correction: a user request, not part of the
+  // original 2.5-pass plan) between this and Tuning/Bridge -- see
+  // _renderAccordions()/_renderZoneMappingContent().
   _renderTopTier() {
     const topTier = this.container.querySelector('.db-top-tier');
     this.deviceField?.destroy();
     this.deviceField = null;
-    this.zoneCanvas?.destroy();
-    this.zoneCanvas = null;
 
     const errorHtml = this.topTierError ? `<p class="status-text status-text-error">⚠ ${escapeHtml(this.topTierError)}</p>` : '';
-    const showZoneRow = this.mode === 'video' && this.outputName && this.zones.length > 0;
 
     topTier.innerHTML = `
       <div class="db-device-slot"></div>
       ${errorHtml}
-      ${showZoneRow ? `
-        <div class="db-zone-actions">
-          <button type="button" class="btn btn-secondary" id="db-auto-divide">Auto-arrange zones</button>
-        </div>
-      ` : ''}
-      ${showZoneRow ? '<div class="db-canvas-slot"></div>' : ''}
-      ${this.mode === 'video' && !showZoneRow ? '<p class="status-text">Zone mapping isn\'t available right now -- it needs an active output and Video mode.</p>' : ''}
     `;
 
     this.deviceField = new DeviceField(topTier.querySelector('.db-device-slot'), {
@@ -261,24 +252,46 @@ export class DashboardScreen {
       sinkName: this.sinkName,
       onChange: (patch) => this._onDeviceFieldChange(patch),
     });
+  }
 
-    if (showZoneRow) {
-      this.zoneCanvas = new ZoneCanvas(topTier.querySelector('.db-canvas-slot'), {
-        zones: this.zones,
-        selectedZoneId: this.selectedZoneId,
-        zoneLabel: (zone) => this._zoneLabel(zone),
-        onSelect: (zoneId) => { this.selectedZoneId = zoneId; },
-        onError: (message) => { this.topTierError = message; this._renderTopTier(); },
-        onSeeAllZones: () => {
-          this.bridgeSection.expand();
-          this.bridgeSection.content.scrollIntoView({ behavior: 'smooth', block: 'start' });
-        },
-        renderActive: true,
-      });
-      this.selectedZoneId = this.zoneCanvas.selectedZoneId;
+  // Auto-arrange + canvas + Zone/Active/Gamma row, inside the Zone Mapping
+  // accordion's own content -- split from _renderAccordions() (which only
+  // creates the section shell on a full render) so a narrower refresh
+  // (auto-divide, an entertainment-config switch, a canvas PUT error) can
+  // update this without collapsing an already-expanded section, same split
+  // Bridge's own content uses.
+  _renderZoneMappingContent() {
+    const content = this.zoneMappingSection?.content;
+    if (!content) return;
+    this.zoneCanvas?.destroy();
+    this.zoneCanvas = null;
 
-      topTier.querySelector('#db-auto-divide').addEventListener('click', (e) => this._onAutoDivideClick(e.currentTarget));
-    }
+    const showZoneRow = this.mode === 'video' && this.outputName && this.zones.length > 0;
+
+    content.innerHTML = showZoneRow ? `
+      <div class="db-zone-actions">
+        <button type="button" class="btn btn-secondary" id="db-auto-divide">Auto-arrange zones</button>
+      </div>
+      <div class="db-canvas-slot"></div>
+    ` : '<p class="status-text">Zone mapping isn\'t available right now -- it needs an active output and Video mode.</p>';
+
+    if (!showZoneRow) return;
+
+    this.zoneCanvas = new ZoneCanvas(content.querySelector('.db-canvas-slot'), {
+      zones: this.zones,
+      selectedZoneId: this.selectedZoneId,
+      zoneLabel: (zone) => this._zoneLabel(zone),
+      onSelect: (zoneId) => { this.selectedZoneId = zoneId; },
+      onError: (message) => { this.topTierError = message; this._renderTopTier(); },
+      onSeeAllZones: () => {
+        this.bridgeSection.expand();
+        this.bridgeSection.content.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      },
+      renderActive: true,
+    });
+    this.selectedZoneId = this.zoneCanvas.selectedZoneId;
+
+    content.querySelector('#db-auto-divide').addEventListener('click', (e) => this._onAutoDivideClick(e.currentTarget));
   }
 
   // Same non-overlapping-region assignment as ZoneMappingScreen's own
@@ -312,7 +325,7 @@ export class DashboardScreen {
       await this._loadZoneData();
     }
 
-    this._renderTopTier();
+    this._renderZoneMappingContent();
     this._renderBridgeZoneList();
   }
 
@@ -324,10 +337,16 @@ export class DashboardScreen {
   // expanded.
   _renderAccordions() {
     const wrap = this.container.querySelector('.db-accordions');
+    this.zoneCanvas?.destroy();
+    this.zoneCanvas = null;
     wrap.innerHTML = `
+      <div class="db-accordion-zone-mapping"></div>
       <div class="db-accordion-tuning"></div>
       <div class="db-accordion-bridge"></div>
     `;
+
+    this.zoneMappingSection = new AccordionSection(wrap.querySelector('.db-accordion-zone-mapping'), { title: 'Zone Mapping', expanded: false });
+    this._renderZoneMappingContent();
 
     this.tuningFields?.destroy();
     this.tuningSection = new AccordionSection(wrap.querySelector('.db-accordion-tuning'), { title: 'Tuning', expanded: false });
@@ -389,7 +408,7 @@ export class DashboardScreen {
   async _onEntertainmentConfigChange() {
     this.topTierError = null;
     await this._loadZoneData();
-    this._renderTopTier();
+    this._renderZoneMappingContent();
     this._renderBridgeZoneList();
   }
 
