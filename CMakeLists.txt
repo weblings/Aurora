@@ -30,6 +30,7 @@ FetchContent_MakeAvailable(AuroraCore)
 add_library(AuroraInputLinux STATIC
   src/DummyGrabber.cpp
   src/SessionDispatch.cpp
+  src/InputControlDescriptors.cpp
 )
 
 target_include_directories(AuroraInputLinux PUBLIC

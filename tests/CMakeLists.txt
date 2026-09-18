@@ -18,6 +18,7 @@ endif()
 add_executable(AuroraInputLinuxTests
   LinuxInputTests.cpp
   PipewireTests.cpp
+  InputControlDescriptorTests.cpp
 )
 
 target_link_libraries(AuroraInputLinuxTests PRIVATE
