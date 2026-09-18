@@ -355,7 +355,12 @@ Aurora's own module boundaries instead of RockyRoad's. `rendering-apis.md` vs.
   synthetic `PointerEvent`s were dispatched directly, and
   `getComputedStyle(el, '::-webkit-slider-thumb')` returning plausible-looking
   but wrong values instead of the host input's real thumb style, confirmed
-  only via a cropped screenshot.
+  only via a cropped screenshot; and, relatedly, a `::-webkit-slider-thumb`
+  override being silently ignored by Chrome entirely because the host
+  `<input>`'s own native appearance (needed for `accent-color`) was never
+  reset, with a zoomed screenshot "confirming" the override worked only
+  because the native thumb it was actually still showing happened to look
+  close enough at a glance.
 
 ## Where a new lesson goes
 

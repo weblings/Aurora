@@ -940,3 +940,34 @@ what its actual backend consumer treats as valid, not just its persisted
 type -- and before estimating the cost of exposing backend data to a UI,
 check what an existing route already returns rather than assuming new
 surface is required.
+
+---
+
+## Overriding just a pseudo-element's own style, without resetting its host's native rendering mode, can be silently ignored entirely
+
+The 2.5 pass's slider-thumb restyle added `.slider-input::-webkit-slider-
+thumb { -webkit-appearance: none; width: 20px; ...; background: #dadada; }`
+alongside the existing `.slider-input { accent-color: ...; }` -- and a
+zoomed screenshot during that phase's own verification showed a plausible
+flat gray circle, read as confirmation the override worked. It never did:
+Chrome only honors a `::-webkit-slider-thumb` override once the *input's
+own* `-webkit-appearance` is also reset away from `slider-horizontal`
+(accent-color needs that native mode to stay on), so overriding just the
+thumb pseudo-element while the host keeps its native appearance leaves
+Chrome silently rendering its own native thumb, ignoring the override
+completely -- confirmed by isolating the exact rule in a minimal side-by-
+side test page. The screenshot "worked" only because the native
+accent-color thumb is *already* a flat, ring-free gray circle, coincidentally
+close enough to the intended look that a glance didn't catch the color
+(`#8b8b8b` native vs. the intended `#dadada`) was wrong the whole time.
+
+**Fix:** reverted to plain `accent-color` (already sufficient for "solid,"
+no override needed at all here). General principle: a `::-pseudo-element`
+override is not guaranteed to apply just because the selector is valid --
+for any native form control with its own "appearance" rendering mode
+(range/checkbox/radio thumbs, `<select>` internals), check whether the
+*host* element's own appearance needs resetting too, not just the part
+being restyled. And when a screenshot check "confirms" a color change,
+compare the actual rendered value against the specific token intended, not
+just the general shape -- two different grays can look interchangeable at
+a glance.
