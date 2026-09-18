@@ -125,9 +125,11 @@ namespace
   }
 
 
-  // Hue only gets registered if credentials are actually present -- no
-  // pairing flow exists yet, so an unconfigured Hue output shouldn't be
-  // selectable at all rather than failing confusingly at construction.
+  // Hue only gets registered if credentials are actually present -- an
+  // unconfigured Hue output shouldn't be selectable at all rather than
+  // failing confusingly at construction. Pairing happens through the
+  // WebUI's Output Connect step, which re-registers "hue" live once real
+  // credentials exist (see the onConnectionChanged callback in main()).
   // CredentialsStore (Analysis/WebUI/WebUI_Design_1stPass.md's build-order step 4) is
   // checked first; env vars are a dev-only fallback for setups that
   // haven't paired through it yet, not a second, equally-valid source --
@@ -171,11 +173,10 @@ namespace
         );
       });
     }
-    else{
-      std::cerr << "No Hue credentials persisted and "
-                   "AURORA_HUE_BRIDGE_ADDRESS/AURORA_HUE_USERNAME/AURORA_HUE_CLIENTKEY not all set "
-                   "-- 'hue' output unavailable this run (no pairing flow exists yet)\n";
-    }
+    // Unconfigured: "hue" simply stays unregistered (and out of the
+    // registry) this run, with no startup printout -- a fresh install
+    // without credentials is the normal pre-pairing state, and the WebUI's
+    // Output Connect step pairs live from here.
 #else
     (void)registry;
     (void)configRoot;
