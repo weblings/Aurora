@@ -219,12 +219,11 @@ export class DashboardScreen {
     controls.querySelector('#db-stop').addEventListener('click', () => this._openStopConfirm());
   }
 
-  // Top tier: DeviceField (always) + EntertainmentConfigSelect (mode-
-  // agnostic, hidden by its own rule at <=1 config) + video's own
-  // ZoneCanvas/active-toggle/"See all zones" link, matching this doc's own
-  // mockup order (device field, then canvas, then entertainment config,
-  // then the zone row) -- deliberately not the same order ZoneMappingScreen
-  // itself uses, per this screen's own drawn spec.
+  // Top tier: DeviceField (always) + video's own Auto-arrange/canvas/active-
+  // toggle (2.5 pass order: Auto-arrange sits above the canvas now, centered/
+  // content-hugging; "See all zones" moved into ZoneCanvas's own row via
+  // onSeeAllZones; EntertainmentConfigSelect moved out entirely, into the
+  // Bridge accordion -- see _renderBridgeContent()).
   _renderTopTier() {
     const topTier = this.container.querySelector('.db-top-tier');
     this.deviceField?.destroy();
@@ -238,18 +237,18 @@ export class DashboardScreen {
     topTier.innerHTML = `
       <div class="db-device-slot"></div>
       ${errorHtml}
-      ${showZoneRow ? '<div class="db-canvas-slot"></div>' : ''}
-      <div class="db-entertainment-slot"></div>
-      ${this.mode === 'video' && !showZoneRow ? '<p class="status-text">Zone mapping isn\'t available right now -- it needs an active output and Video mode.</p>' : ''}
       ${showZoneRow ? `
         <div class="db-zone-actions">
           <button type="button" class="btn btn-secondary" id="db-auto-divide">Auto-arrange zones</button>
         </div>
+      ` : ''}
+      ${showZoneRow ? '<div class="db-canvas-slot"></div>' : ''}
+      ${this.mode === 'video' && !showZoneRow ? '<p class="status-text">Zone mapping isn\'t available right now -- it needs an active output and Video mode.</p>' : ''}
+      ${showZoneRow ? `
         <div class="field db-zone-field">
           <label class="field-label">Active</label>
           <div class="db-zone-toggle-slot"></div>
         </div>
-        <button type="button" class="btn btn-link" id="db-see-all-zones">See all zones &rarr;</button>
       ` : ''}
     `;
 
@@ -262,8 +261,6 @@ export class DashboardScreen {
       onChange: (patch) => this._onDeviceFieldChange(patch),
     });
 
-    this.entertainmentConfigSelect.mount(topTier.querySelector('.db-entertainment-slot'));
-
     if (showZoneRow) {
       this.zoneCanvas = new ZoneCanvas(topTier.querySelector('.db-canvas-slot'), {
         zones: this.zones,
@@ -271,14 +268,14 @@ export class DashboardScreen {
         zoneLabel: (zone) => this._zoneLabel(zone),
         onSelect: (zoneId) => { this.selectedZoneId = zoneId; this._renderZoneActiveToggle(); },
         onError: (message) => { this.topTierError = message; this._renderTopTier(); },
+        onSeeAllZones: () => {
+          this.bridgeSection.expand();
+          this.bridgeSection.content.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        },
       });
       this.selectedZoneId = this.zoneCanvas.selectedZoneId;
       this._renderZoneActiveToggle();
 
-      topTier.querySelector('#db-see-all-zones').addEventListener('click', () => {
-        this.bridgeSection.expand();
-        this.bridgeSection.content.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      });
       topTier.querySelector('#db-auto-divide').addEventListener('click', (e) => this._onAutoDivideClick(e.currentTarget));
     }
   }
@@ -371,6 +368,7 @@ export class DashboardScreen {
     content.innerHTML = `
       <p class="status-text">${this.bridgeConfigured ? `Connected to ${escapeHtml(this.bridgeAddress)}` : 'Not connected'}</p>
       <button type="button" class="btn btn-secondary" id="db-change-bridge">Change bridge</button>
+      <div class="db-entertainment-slot"></div>
       <div class="db-bridge-zones-slot"></div>
     `;
     content.querySelector('#db-change-bridge').addEventListener('click', () => {
@@ -379,6 +377,7 @@ export class DashboardScreen {
         onComplete: () => this.app.navigate(new DashboardScreen(this.app)),
       }));
     });
+    this.entertainmentConfigSelect.mount(content.querySelector('.db-entertainment-slot'));
     this._renderBridgeZoneList();
   }
 

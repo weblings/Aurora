@@ -23,12 +23,17 @@ export class ZoneCanvas {
   // truth, same as before extraction). onSelect(zoneId) fires whenever the
   // selected zone changes via a tag click or the dropdown (not during
   // construction -- read .selectedZoneId right after constructing for the
-  // initial value). onError(message) fires on a failed PUT.
-  constructor(container, { zones, selectedZoneId, zoneLabel, onSelect, onError }) {
+  // initial value). onError(message) fires on a failed PUT. onSeeAllZones,
+  // when given, renders a "See all zones" link grouped with the "Zone"
+  // label (2.5 pass) -- optional and re-wired on every render (this row is
+  // torn down and rebuilt on every zone selection) so the onboarding Zone
+  // Mapping screen, which has no such link, can omit it entirely.
+  constructor(container, { zones, selectedZoneId, zoneLabel, onSelect, onError, onSeeAllZones }) {
     this.container = container;
     this.zones = zones;
     this.zoneLabel = zoneLabel;
     this.onSelect = onSelect;
+    this.onSeeAllZones = onSeeAllZones;
     this.zoneDropdown = null;
     this._queue = new ZonePatchQueue({ onError });
 
@@ -133,14 +138,23 @@ export class ZoneCanvas {
   }
 
   _renderSelectedRow(container, zone) {
+    const seeAllHtml = this.onSeeAllZones
+      ? `<button type="button" class="btn btn-link" id="zc-see-all-zones">See all zones &rarr;</button>`
+      : '';
     container.innerHTML = `
       <div class="field zm-zone-field">
-        <label class="field-label" id="zc-zone-label">Zone</label>
+        <div class="zm-zone-label-row">
+          <label class="field-label" id="zc-zone-label">Zone</label>
+          ${seeAllHtml}
+        </div>
         <div id="zc-zone-dropdown-slot"></div>
       </div>
       ${this._sliderFieldHtml(zone)}
     `;
     this._renderZoneDropdown(container.querySelector('#zc-zone-dropdown-slot'), zone);
+    if (this.onSeeAllZones) {
+      container.querySelector('#zc-see-all-zones').addEventListener('click', () => this.onSeeAllZones());
+    }
 
     const input = container.querySelector('#zm-gamma');
     const readout = container.querySelector('#zm-gamma-val');

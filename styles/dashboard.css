@@ -42,17 +42,17 @@
   margin-bottom: var(--aurora-space-5);
 }
 
+/* Above the canvas now, centered/content-hugging rather than a full-width
+   bar (2.5 pass) -- flex+justify-content:center rather than text-align, so
+   .btn's own inline-flex layout (icon + label) isn't disturbed. */
 .db-zone-actions {
-  margin-top: var(--aurora-space-4);
+  display: flex;
+  justify-content: center;
+  margin-bottom: var(--aurora-space-5);
 }
 
 .db-zone-field {
   margin-top: var(--aurora-space-5);
-}
-
-#db-see-all-zones {
-  display: block;
-  margin-top: var(--aurora-space-4);
 }
 
 /* Accordion sections -- Tuning/Bridge, both always collapsed by default

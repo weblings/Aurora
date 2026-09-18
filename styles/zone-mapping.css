@@ -15,6 +15,16 @@
   margin-top: var(--aurora-space-5);
 }
 
+/* "See all zones" grouped with the "Zone" label on one line (2.5 pass),
+   only rendered when ZoneCanvas is given onSeeAllZones -- Dashboard's own
+   use, not the onboarding Zone Mapping screen's. */
+.zm-zone-label-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: var(--aurora-space-3);
+}
+
 .zm-canvas-wrap {
   position: relative;
   width: 100%;
