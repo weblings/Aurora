@@ -715,6 +715,40 @@ alive-but-hidden will trigger that side effect on every mount regardless of
 visibility, possibly for the first time anywhere the two components are
 combined.
 
+Recurred again, this session's 2.5 visual pass, in a new form: even a
+genuinely real browser doesn't guarantee a synthetic-input testing method
+is "real enough." Playwright's own `page.mouse.down()`/`.move()`/`.up()` --
+CDP-dispatched mouse actions, the obvious way to script a drag -- fired
+real `mousedown` events in this headless Chromium but never fired
+`pointerdown` at all, confirmed by a direct comparison: a manually
+`dispatchEvent`-ed `PointerEvent` fired a listener instantly, while the
+identical drag driven through `page.mouse` produced zero pointer events on
+the same element. `ZoneCanvas.js`'s drag handles listen for `pointerdown`/
+`pointermove`/`pointerup` exclusively (support for touch, not just a
+mouse -- this file's own header comment), so a mouse-only simulation
+silently drags nothing and looks like a no-op, not an error -- the
+handle's own `style.left` and the expected `PUT /api/zones` body simply
+never appeared. A related, narrower gap found in the same pass:
+`getComputedStyle(el, '::-webkit-slider-thumb')` doesn't reliably resolve
+a vendor-prefixed pseudo-element's real computed style in Chromium at all
+(it isn't a CSSOM-recognized generated-content pseudo-element) -- it
+returned the host `<input>`'s own unrelated values, plausible-looking
+rather than an outright error, and only a cropped real screenshot could
+confirm the actual thumb styling.
+
+**Fix:** for any interaction that specifically depends on Pointer Events
+(not just any-input hit-testing), dispatch synthetic `PointerEvent`s
+directly (`element.dispatchEvent(new PointerEvent(...))`) instead of
+trusting a mouse-simulation API to produce them; for a vendor pseudo-
+element's visual styling, verify with an actual (even cropped) screenshot,
+never a computed-style probe. General principle: a real browser closes
+jsdom's layout/hit-testing gap, but its own *scripting* surface (mouse
+simulation, computed-style introspection) has narrower gaps of its own
+that don't announce themselves as failures -- they look like the
+interaction simply had no effect, or like a plausible-but-wrong style
+value. Treat "runs in real Chromium" as necessary, not sufficient, for
+verifying event-model-specific or pseudo-element-specific behavior.
+
 ---
 
 ## A shared test fixture's placeholder value for an unused field becomes load-bearing the moment new code starts reading that field, silently invalidating every scenario built on it

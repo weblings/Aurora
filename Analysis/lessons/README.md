@@ -348,7 +348,14 @@ Aurora's own module boundaries instead of RockyRoad's. `rendering-apis.md` vs.
   actual backend consumer was read, not from its wire type or its existing
   UI widget, plus a first cost estimate for exposing that data assuming a
   new backend route was needed before checking `/api/monitors` already
-  returned everything the computation required.
+  returned everything the computation required; and a real browser still
+  not being automatically "real enough" for every kind of check -- Playwright's
+  own mouse-simulation API fired `mousedown` but never `pointerdown` in this
+  headless Chromium, silently no-opping a `ZoneCanvas.js` drag test until
+  synthetic `PointerEvent`s were dispatched directly, and
+  `getComputedStyle(el, '::-webkit-slider-thumb')` returning plausible-looking
+  but wrong values instead of the host input's real thumb style, confirmed
+  only via a cropped screenshot.
 
 ## Where a new lesson goes
 
