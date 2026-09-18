@@ -1,0 +1,61 @@
+/* Demo split-view shell: 50:50 scene + Dashboard port.
+ *
+ * Landscape (aspect >= 1:1, the 16:9 case): side-by-side halves, scene left,
+ * Dashboard right. Portrait: 50:50 stack, scene on top, Dashboard below.
+ * The panes are independent: the scene pane owns the WebGL canvas (+ orbit
+ * gestures, confined to the canvas by OrbitControls' own touch-action), the
+ * Dashboard pane is a separate scroll container hosting #screen-container.
+ * min-width/min-height 0 lets both panes actually shrink to their half. */
+
+html, body {
+  margin: 0;
+  height: 100%;
+  overflow: hidden;
+  background: #111318;
+}
+
+#demo-split {
+  display: flex;
+  width: 100%;
+  height: 100%;
+}
+
+@media (min-aspect-ratio: 1/1) {
+  #demo-split {
+    flex-direction: row;
+  }
+  #scene-pane,
+  #dashboard-pane {
+    width: 50%;
+    height: 100%;
+  }
+}
+
+@media (max-aspect-ratio: 1/1) {
+  #demo-split {
+    flex-direction: column;
+  }
+  #scene-pane,
+  #dashboard-pane {
+    width: 100%;
+    height: 50%;
+  }
+}
+
+#scene-pane {
+  position: relative;
+  overflow: hidden;
+  min-width: 0;
+  min-height: 0;
+}
+
+#scene-pane canvas {
+  display: block;
+}
+
+#dashboard-pane {
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  min-width: 0;
+  min-height: 0;
+}

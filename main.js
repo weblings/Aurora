@@ -77,16 +77,26 @@ const ROOM_LEFT_IS_POSITIVE_Z = true;
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x111318);
 
-const camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 200);
+const scenePane = document.getElementById('scene-pane');
+
+// Split-view shell owns the canvas geometry now, not the window: camera
+// aspect + renderer size follow the scene pane (Phase 1c). The observer
+// below fires on observe too, so the fit is pane-correct from the start.
+function scenePaneSize() {
+  const rect = scenePane.getBoundingClientRect();
+  return { width: Math.max(1, Math.round(rect.width)), height: Math.max(1, Math.round(rect.height)) };
+}
+const _initialPane = scenePaneSize();
+const camera = new THREE.PerspectiveCamera(50, _initialPane.width / _initialPane.height, 0.1, 200);
 
 const renderer = new THREE.WebGLRenderer({ antialias: true });
-renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.setSize(_initialPane.width, _initialPane.height);
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 // LinearToneMapping instead of NoToneMapping -- NoToneMapping ignores toneMappingExposure
 // entirely, which would silently break the exposure dial just added above.
 renderer.toneMapping = THREE.LinearToneMapping;
 renderer.toneMappingExposure = 1;
-document.body.appendChild(renderer.domElement);
+scenePane.appendChild(renderer.domElement);
 
 const controls = new OrbitControls(camera, renderer.domElement);
 controls.enableDamping = true;
@@ -769,8 +779,9 @@ function animate() {
 }
 animate();
 
-window.addEventListener('resize', () => {
-  camera.aspect = window.innerWidth / window.innerHeight;
+new ResizeObserver(() => {
+  const { width, height } = scenePaneSize();
+  camera.aspect = width / height;
   if (currentRigType === 'room') {
     frameCameraToRoom(); // no-op until the model's loaded; harmless
   } else {
@@ -778,8 +789,8 @@ window.addEventListener('resize', () => {
     rebuildBackdrop(); // its perspective-corrected size depends on that same fit distance
   }
   camera.updateProjectionMatrix();
-  renderer.setSize(window.innerWidth, window.innerHeight);
-});
+  renderer.setSize(width, height);
+}).observe(scenePane);
 
 const gridToggleButton = document.getElementById('toggle-grid');
 gridToggleButton.addEventListener('click', () => {

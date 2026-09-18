@@ -4,11 +4,20 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Aurora Demo</title>
+  <link rel="stylesheet" href="vendor/webui/styles/tokens.css" />
+  <link rel="stylesheet" href="vendor/webui/styles/shell.css" />
+  <link rel="stylesheet" href="vendor/webui/styles/dashboard.css" />
+  <link rel="stylesheet" href="vendor/webui/styles/tuning.css" />
+  <link rel="stylesheet" href="vendor/webui/styles/dropdown.css" />
+  <link rel="stylesheet" href="vendor/webui/styles/forms.css" />
+  <link rel="stylesheet" href="vendor/webui/styles/zone-mapping.css" />
+  <link rel="stylesheet" href="demo-layout.css" />
   <style>
-    html, body { margin: 0; height: 100%; overflow: hidden; background: #111318; }
-    canvas { display: block; }
+    /* Scene-pane overlay controls: absolute within #scene-pane (was fixed
+       when the scene was fullscreen). Untouched until the Phase 4 source
+       handover removes #source-mode in favor of the Dashboard toggle. */
     #toggle-grid, #toggle-backdrop-bounds, #toggle-rect-debug, #source-mode, #light-rig, #audio-color-model {
-      position: fixed; left: 16px; z-index: 1;
+      position: absolute; left: 16px; z-index: 1;
       font: 14px system-ui, sans-serif; padding: 8px 12px;
       background: rgba(20, 22, 28, 0.75); color: #e8eaf0;
       border: 1px solid #4a4f5c; border-radius: 6px; cursor: pointer;
@@ -20,41 +29,48 @@
   <script type="importmap">
     {
       "imports": {
-        "three": "https://unpkg.com/three@0.169.0/build/three.module.js",
-        "three/addons/": "https://unpkg.com/three@0.169.0/examples/jsm/"
+        "three": "./vendor/three/build/three.module.js",
+        "three/addons/": "./vendor/three/examples/jsm/"
       }
     }
   </script>
   <style>
-    #room-status { position: fixed; left: 16px; top: 56px; z-index: 1; font: 14px system-ui, sans-serif; color: #e8eaf0; }
+    #room-status { position: absolute; left: 16px; top: 56px; z-index: 1; font: 14px system-ui, sans-serif; color: #e8eaf0; }
   </style>
 </head>
 <body>
-  <!-- Flat-scene-only debug controls -- hidden while the 3D room is the only light rig
-       (see #light-rig below); un-hide alongside re-adding rectArea for the XR pass. -->
-  <button id="toggle-grid" type="button" hidden>Show zone grid</button>
-  <button id="toggle-backdrop-bounds" type="button" hidden>Hide backdrop bounds</button>
-  <button id="toggle-rect-debug" type="button" hidden>Hide rect-light quads</button>
-  <select id="source-mode">
-    <option value="video" selected>Real video</option>
-    <option value="rainbow">Rainbow test pattern</option>
-    <option value="audio">Audio (Electro Cabello)</option>
-  </select>
-  <!-- rectArea temporarily removed (not deleted -- see main.js's buildRectAreaLights) until the
-       XR pass; only one option left, so the picker itself is hidden too. -->
-  <select id="light-rig" hidden>
-    <option value="room" selected>TV Room (3D model)</option>
-  </select>
-  <!-- placeholder/ported/attack A/B/D options removed (not deleted -- see main.js's
-       placeholderAudioColor/dampedAudioColor/attackAudioColor). Disabled, not just hidden --
-       this dropdown isn't wired for real use right now. 'midpoint' is the 5th pass this would
-       have selected: halfway between 'ported' and 'tuned', now also native's own Config.hpp
-       default. -->
-  <select id="audio-color-model" hidden disabled>
-    <option value="tuned">Audio color: tuned (punchier brightness)</option>
-    <option value="midpoint" selected>Audio color: midpoint (halfway to tuned)</option>
-  </select>
-  <div id="room-status" hidden></div>
+  <div id="demo-split">
+    <div id="scene-pane">
+      <!-- Flat-scene-only debug controls -- hidden while the 3D room is the only light rig
+           (see #light-rig below); un-hide alongside re-adding rectArea for the XR pass. -->
+      <button id="toggle-grid" type="button" hidden>Show zone grid</button>
+      <button id="toggle-backdrop-bounds" type="button" hidden>Hide backdrop bounds</button>
+      <button id="toggle-rect-debug" type="button" hidden>Hide rect-light quads</button>
+      <select id="source-mode">
+        <option value="video" selected>Real video</option>
+        <option value="rainbow">Rainbow test pattern</option>
+        <option value="audio">Audio (Electro Cabello)</option>
+      </select>
+      <!-- rectArea temporarily removed (not deleted -- see main.js's buildRectAreaLights) until the
+           XR pass; only one option left, so the picker itself is hidden too. -->
+      <select id="light-rig" hidden>
+        <option value="room" selected>TV Room (3D model)</option>
+      </select>
+      <!-- placeholder/ported/attack A/B/D options removed (not deleted -- see main.js's
+           placeholderAudioColor/dampedAudioColor/attackAudioColor). Disabled, not just hidden --
+           this dropdown isn't wired for real use right now. 'midpoint' is the 5th pass this would
+           have selected: halfway between 'ported' and 'tuned', now also native's own Config.hpp
+           default. -->
+      <select id="audio-color-model" hidden disabled>
+        <option value="tuned">Audio color: tuned (punchier brightness)</option>
+        <option value="midpoint" selected>Audio color: midpoint (halfway to tuned)</option>
+      </select>
+      <div id="room-status" hidden></div>
+    </div>
+    <div id="dashboard-pane">
+      <div id="screen-container" class="db-port"></div>
+    </div>
+  </div>
   <script type="module" src="main.js"></script>
 </body>
 </html>
