@@ -5,7 +5,7 @@ namespace Aurora::Input::Windows
   std::vector<Aurora::Contracts::ControlDescriptor> windowsInputControlDescriptors()
   {
     return {
-      {"input.monitor", "dropdown", "Test"},
+      {"input.monitor", "dropdown", "Which display to capture"},
     };
   }
 }

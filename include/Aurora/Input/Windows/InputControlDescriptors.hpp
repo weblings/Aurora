@@ -9,7 +9,7 @@
 // entry -- Windows audio uses the system default device with no text
 // field (DeviceField renders static text), so there is no control to
 // describe; add `input.sink` here if a sink picker ever appears.
-// Descriptions are the literal "Test" until copy is authored. Pure
+// Descriptions carry the approved Analysis/TooltipContent.md copy. Pure
 // data -- no capture dependency, so this compiles into the base library
 // unconditionally.
 namespace Aurora::Input::Windows

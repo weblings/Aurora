@@ -16,4 +16,6 @@ TEST_CASE("windowsInputControlDescriptors covers the device UI with unique keys"
   REQUIRE(descriptors.size() == 1);
   CHECK(descriptors[0].key == "input.monitor");
   CHECK(descriptors[0].kind == "dropdown");
+  CHECK_FALSE(descriptors[0].description.empty());
+  CHECK(descriptors[0].description != "Test"); // placeholder must not ship
 }
