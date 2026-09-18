@@ -1059,3 +1059,20 @@ button for zero data benefit.
 derives state from the awaited write -- verify by reading the target
 handler, not the source screen. General principle: "don't navigate until X
 lands" needs a named reader of X on the other side, or it is pure cost.
+
+---
+
+## A tooltip-key oracle proves presence, not placement -- put the title where the hover lands
+
+Dashboard Zone picker/gamma/active titles were all present in the descriptor
+contract and the keycheck test passed (27 keys, zero Test leftovers), yet only
+the Arrange button showed a tooltip in the browser: the Zone titles had been
+applied to the `<label>` elements, and hovering the actual controls never
+entered the label's hover box. Fixed by moving title application to the
+row/container level (plus a zones.select descriptor for the picker, which had
+no key at all).
+
+**Fix:** a contract test that counts keys verifies the backend half; placement
+-- which element carries the attribute relative to where the pointer actually
+lands -- needs its own check (devtools title-attribute inspection or a hover
+pass), or a green keycheck will certify an invisible tooltip.
