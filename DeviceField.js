@@ -5,6 +5,7 @@
 // recreate on every re-render" convention as Dropdown itself -- no update()
 // method; callers rebuild a new instance when mode/props change.
 import { Dropdown } from './Dropdown.js';
+import { applyTooltip } from './Tooltips.js';
 
 export const AUTO_MONITOR_VALUE = '';
 
@@ -50,7 +51,7 @@ export class DeviceField {
       slot,
       selected.label,
       (value) => this.onChange?.({ selectedMonitorName: value }),
-      { labelId: 'device-field-monitor-label', fill: true },
+      { labelId: 'device-field-monitor-label', fill: true, tooltipKey: 'input.monitor' },
     );
     this.dropdown.setOptions(options);
   }
@@ -70,6 +71,7 @@ export class DeviceField {
     `;
     const input = this.container.querySelector('#device-field-sink-input');
     input.value = sinkName;
+    applyTooltip(input, 'input.sink');
     input.addEventListener('input', () => this.onChange?.({ sinkName: input.value }));
   }
 

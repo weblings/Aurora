@@ -48,6 +48,7 @@ import { EntertainmentConfigSelect } from '../EntertainmentConfigSelect.js';
 import { ZoneCanvas } from '../ZoneCanvas.js';
 import { ZoneActiveToggleList } from '../ZoneActiveToggle.js';
 import { screenDivisionRects } from '../ScreenDivision.js';
+import { applyTooltip } from '../Tooltips.js';
 
 export class ZoneMappingScreen {
   // onboarding: the wizard variant (Analysis/WebUI/WebUI_Design_2ndPass.md
@@ -301,6 +302,7 @@ export class ZoneMappingScreen {
     if (!this.onboarding) this._renderActiveSection();
 
     body.querySelector('#zm-auto-divide').addEventListener('click', (e) => this._onAutoDivideClick(e.currentTarget));
+    applyTooltip(body.querySelector('#zm-auto-divide'), 'zones.autoArrange');
     // Non-onboarding only -- onboarding's own "done" action is NavFooter's
     // Finish (wired above, before the early returns), not this button.
     body.querySelector('#zm-save')?.addEventListener('click', () => this.onComplete());
@@ -311,7 +313,7 @@ export class ZoneMappingScreen {
   _renderActiveSection() {
     const slot = this.container.querySelector('#zm-active-row');
     const onError = (message) => { this.error = message; this._render(); };
-    new ZoneActiveToggleList(slot, { zones: this.zones, zoneLabel: (zone) => this._zoneLabel(zone), onError });
+    new ZoneActiveToggleList(slot, { zones: this.zones, zoneLabel: (zone) => this._zoneLabel(zone), onError, tooltipKey: 'zones.active' });
   }
 }
 

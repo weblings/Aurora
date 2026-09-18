@@ -19,6 +19,7 @@
 // manual gate anywhere on this screen; every option behaves the same way
 // now, matching Zone Mapping's own model.
 import { Dropdown } from './Dropdown.js';
+import { applyTooltip } from './Tooltips.js';
 import { sliderGroupHtml, wireSliderGroup } from './TuningSliderGroup.js';
 import { AUTO_MONITOR_VALUE } from './DeviceField.js';
 import { subsampleCandidates } from './SubsampleCandidates.js';
@@ -139,7 +140,7 @@ export class TuningFields {
       refreshSlot,
       String(refreshValue),
       (value) => { this.values.refreshRate = Number(value); this._autoSave(); },
-      { labelId: 'tn-refresh-label', fill: true },
+      { labelId: 'tn-refresh-label', fill: true, tooltipKey: 'video.refreshRate' },
     );
     refreshDropdown.setOptions(REFRESH_RATE_PRESETS.map((hz) => (
       { label: `${hz} Hz`, value: String(hz), selected: hz === refreshValue }
@@ -163,7 +164,7 @@ export class TuningFields {
       subsampleSlot,
       String(subsampleValue),
       (value) => { this.values.subsampleWidth = Number(value); this._autoSave(); },
-      { labelId: 'tn-subsample-label', fill: true },
+      { labelId: 'tn-subsample-label', fill: true, tooltipKey: 'video.subsampleWidth' },
     );
     subsampleDropdown.setOptions(subsampleOptions.map((o) => ({ ...o, selected: Number(o.value) === subsampleValue })));
     this.dropdowns.push(subsampleDropdown);
@@ -174,7 +175,7 @@ export class TuningFields {
       interpSlot,
       currentInterp,
       (value) => { this.values.interpolation = value; this._autoSave(); },
-      { labelId: 'tn-interp-label', fill: true },
+      { labelId: 'tn-interp-label', fill: true, tooltipKey: 'video.interpolation' },
     );
     interpDropdown.setOptions(INTERPOLATIONS.map((name) => ({ label: name, value: name, selected: name === currentInterp })));
     this.dropdowns.push(interpDropdown);
@@ -214,6 +215,7 @@ export class TuningFields {
     wireSliderGroup(container, COLOR_CHARACTER_SLIDERS, this.values, () => this._autoSave());
     wireSliderGroup(container, SENSITIVITY_SLIDERS, this.values, () => this._autoSave());
     if (this.fixedHueEnabled) wireSliderGroup(container, FIXED_HUE_SLIDER, this.values, () => this._autoSave());
+    applyTooltip(container.querySelector('.tuning-checkbox-row .toggle-row-label'), 'audio.fixedHueEnabled');
 
     container.querySelector('#tn-fixed-hue-toggle').addEventListener('change', (e) => {
       this.fixedHueEnabled = e.currentTarget.checked;

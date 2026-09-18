@@ -98,7 +98,7 @@ export class EntertainmentConfigSelect {
       slot,
       selected.name,
       (value) => this._select(value),
-      { labelId: 'ecs-entertainment-label', fill: true },
+      { labelId: 'ecs-entertainment-label', fill: true, tooltipKey: 'output.hue.entertainmentConfig' },
     );
     this.dropdown.setOptions(this.configs.map((c) => ({
       label: c.name,

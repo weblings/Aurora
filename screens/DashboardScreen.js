@@ -25,6 +25,7 @@ import { ZoneActiveToggleList } from '../ZoneActiveToggle.js';
 import { screenDivisionRects } from '../ScreenDivision.js';
 import { AccordionSection } from '../AccordionSection.js';
 import { TuningFields } from '../TuningFields.js';
+import { applyTooltip } from '../Tooltips.js';
 
 export class DashboardScreen {
   constructor(app) {
@@ -223,6 +224,8 @@ export class DashboardScreen {
       ${errorHtml}
     `;
 
+    applyTooltip(controls.querySelector('#db-mode-video'), 'app.mode');
+    applyTooltip(controls.querySelector('#db-mode-audio'), 'app.mode');
     controls.querySelector('#db-mode-video').addEventListener('click', () => this._switchMode('video'));
     controls.querySelector('#db-mode-audio').addEventListener('click', () => this._switchMode('audio'));
   }
@@ -291,6 +294,7 @@ export class DashboardScreen {
     });
     this.selectedZoneId = this.zoneCanvas.selectedZoneId;
 
+    applyTooltip(content.querySelector('#db-auto-divide'), 'zones.autoArrange');
     content.querySelector('#db-auto-divide').addEventListener('click', (e) => this._onAutoDivideClick(e.currentTarget));
   }
 
@@ -374,6 +378,7 @@ export class DashboardScreen {
       <div class="db-entertainment-slot"></div>
       <div class="db-bridge-zones-slot"></div>
     `;
+    applyTooltip(content.querySelector('#db-change-bridge'), 'output.hue.changeBridge');
     content.querySelector('#db-change-bridge').addEventListener('click', () => {
       this.app.navigate(new OutputConnectScreen(this.app, {
         startAtEntry: true,
@@ -399,6 +404,7 @@ export class DashboardScreen {
       zones: this.zones,
       zoneLabel: (zone) => this._zoneLabel(zone),
       onError: (message) => { this.topTierError = message; this._renderTopTier(); },
+      tooltipKey: 'zones.active',
     });
   }
 

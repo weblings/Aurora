@@ -10,6 +10,7 @@ import { OutputConnectScreen } from './screens/OutputConnectScreen.js';
 import { EntertainmentZoneSelectScreen } from './screens/EntertainmentZoneSelectScreen.js';
 import { ModeDeviceScreen } from './screens/ModeDeviceScreen.js';
 import { ZoneMappingScreen } from './screens/ZoneMappingScreen.js';
+import { ensureTooltips } from './Tooltips.js';
 
 const app = new App();
 
@@ -204,6 +205,10 @@ async function goToZoneMappingStage(previousStep) {
 }
 
 async function bootstrap() {
+  // Tooltip descriptors load in parallel with everything below -- never
+  // awaited, never gating any screen; controls apply whatever has arrived
+  // at render time and pick up the rest on the next render.
+  ensureTooltips();
   // Once onboarding has ever reached the Dashboard, skip re-deriving
   // "what's still missing" from several live signals (bridge pairing,
   // entertainment config, mode/device, zone mapping) on every single boot --

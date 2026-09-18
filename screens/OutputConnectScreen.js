@@ -35,6 +35,7 @@
 // local config-select/done phase to skip past.
 import { renderTopBar } from '../topBar.js';
 import { renderNavFooter } from '../NavFooter.js';
+import { applyTooltip } from '../Tooltips.js';
 
 export class OutputConnectScreen {
   // discoveryPromise: an already-in-flight /api/hue/discover result, handed
@@ -136,10 +137,12 @@ export class OutputConnectScreen {
 
     const input = body.querySelector('#oc-address-input');
     input.value = this.bridgeAddress;
+    applyTooltip(input, 'output.hue.bridgeAddress');
     input.addEventListener('input', () => {
       this.bridgeAddress = input.value;
     });
 
+    applyTooltip(body.querySelector('#oc-autodetect'), 'output.hue.autodetect');
     body.querySelector('#oc-autodetect').addEventListener('click', (e) => this._autodetect(e.currentTarget));
 
     renderNavFooter(footer, {
@@ -183,6 +186,7 @@ export class OutputConnectScreen {
       <p class="status-text">Connected to ${escapeHtml(this.bridgeAddress)}</p>
       <button type="button" class="btn btn-secondary" id="oc-change-bridge">Change bridge</button>
     `;
+    applyTooltip(body.querySelector('#oc-change-bridge'), 'output.hue.changeBridge');
     body.querySelector('#oc-change-bridge').addEventListener('click', () => {
       this.phase = 'entry';
       this.error = null;

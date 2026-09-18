@@ -8,6 +8,7 @@
 // ZonePatchQueue ZoneCanvas already uses, since active flips can outrace a
 // network round trip the same way a drag's pointermove stream can.
 import { ZonePatchQueue } from './ZonePatchQueue.js';
+import { applyTooltip } from './Tooltips.js';
 
 // Decoupled from shape editing entirely (WebUI/WebUI_Fixes.md's Zone
 // Mapping follow-up): a flat toggle list, not tied to which zone is
@@ -18,10 +19,11 @@ export class ZoneActiveToggleList {
   // zones: live zone array (mutated in place, same convention as
   // ZoneCanvas). zoneLabel(zone) is injected -- this component knows
   // nothing about Hue channel/light names.
-  constructor(container, { zones, zoneLabel, onError }) {
+  constructor(container, { zones, zoneLabel, onError, tooltipKey = null }) {
     this.container = container;
     this.zones = zones;
     this.zoneLabel = zoneLabel;
+    this.tooltipKey = tooltipKey;
     this._queue = new ZonePatchQueue({ onError });
     this._render();
   }
@@ -36,6 +38,10 @@ export class ZoneActiveToggleList {
         </span>
       </label>
     `).join('');
+
+    this.container.querySelectorAll('.toggle-row-label').forEach((label) => {
+      applyTooltip(label, this.tooltipKey);
+    });
 
     this.container.querySelectorAll('input[type="checkbox"]').forEach((input) => {
       input.addEventListener('change', (e) => {

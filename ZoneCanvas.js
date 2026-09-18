@@ -14,6 +14,7 @@
 import { Dropdown } from './Dropdown.js';
 import { ZonePatchQueue } from './ZonePatchQueue.js';
 import { bindSliderFill } from './SliderFill.js';
+import { applyTooltip } from './Tooltips.js';
 
 const MIN_RECT_SIZE = 0.02; // 2% of the frame, in normalized UV units
 const CORNERS = ['tl', 'tr', 'bl', 'br'];
@@ -162,6 +163,8 @@ export class ZoneCanvas {
       ${this._sliderFieldHtml(zone)}
     `;
     this._renderZoneDropdown(container.querySelector('#zc-zone-dropdown-slot'), zone);
+    applyTooltip(container.querySelector('label[for="zm-gamma"]'), 'zones.gamma');
+    applyTooltip(container.querySelector('.zm-active-field-col .field-label'), 'zones.active');
     if (this.onSeeAllZones) {
       container.querySelector('#zc-see-all-zones').addEventListener('click', () => this.onSeeAllZones());
     }

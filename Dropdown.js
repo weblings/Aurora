@@ -17,6 +17,7 @@
 //
 // One instance per dropdown; caller supplies the option list and trigger
 // label, this owns open/closed state and the menu's DOM.
+import { applyTooltip } from './Tooltips.js';
 
 let _nextId = 0;
 
@@ -31,10 +32,11 @@ export class Dropdown {
   // the far edge, instead of hugging its own content -- needed for the
   // full-width dropdowns shown on constrained layouts throughout
   // Analysis/WebUI/WebUI_Design_1stPass.md's screen designs.
-  constructor(container, initialLabel, onSelect, { labelId = null, fill = false } = {}) {
+  constructor(container, initialLabel, onSelect, { labelId = null, fill = false, tooltipKey = null } = {}) {
     const id = `dropdown-${_nextId++}`;
     this._onSelect = onSelect;
     this._labelId = labelId;
+    this._tooltipKey = tooltipKey;
     this._options = [];
     this._activeIndex = -1;
     this._open = false;
@@ -70,6 +72,7 @@ export class Dropdown {
     this.menu.tabIndex = -1;
 
     this._applyLabelling(initialLabel);
+    applyTooltip(this.trigger, this._tooltipKey);
 
     this.root.append(this.trigger, this.menu);
     container.appendChild(this.root);

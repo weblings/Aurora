@@ -10,6 +10,7 @@
 // owns its whole container couldn't accommodate without changing that
 // section's layout.
 import { bindSliderFill } from './SliderFill.js';
+import { tooltipFor } from './Tooltips.js';
 
 // controlBand: wraps the slider input in a fixed-height, vertically-centered
 // band matching a taller neighbor in the same grid row (e.g. a dropdown) --
@@ -31,13 +32,25 @@ export function wireSliderGroup(container, sliders, values, onCommit) {
   for (const [key, , , , , unit] of sliders) wireSlider(container, key, unit, values, onCommit);
 }
 
+// Descriptor key from the slider's config key: `audio*` settings live
+// under `audio.*`, everything else in Tuning is video-pipeline owned
+// (`video.*`) -- mirrors ControlDescriptorTables' layer split without a
+// parallel table to keep in sync.
+function sliderTooltipKey(configKey) {
+  if (configKey.startsWith('audio')) {
+    return `audio.${configKey.charAt(5).toLowerCase()}${configKey.slice(6)}`;
+  }
+  return `video.${configKey}`;
+}
+
 function sliderFieldHtml(key, label, min, max, step, unit, values, controlBand) {
   const value = values[key] ?? min;
+  const tip = tooltipFor(sliderTooltipKey(key));
   const inputHtml = `<input type="range" class="slider-input" id="tn-${key}" min="${min}" max="${max}" step="${step}" value="${value}" />`;
   return `
     <div class="field">
       <div class="slider-field-header">
-        <label class="field-label" for="tn-${key}">${escapeHtml(label)}</label>
+        <label class="field-label" for="tn-${key}"${tip ? ` title="${escapeHtml(tip)}"` : ''}>${escapeHtml(label)}</label>
         <span class="slider-value" id="tn-${key}-val">${formatSliderValue(value, step)}${unit}</span>
       </div>
       ${controlBand ? `<div class="slider-control-band">${inputHtml}</div>` : inputHtml}

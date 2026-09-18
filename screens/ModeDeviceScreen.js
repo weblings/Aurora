@@ -29,6 +29,7 @@
 import { renderTopBar } from '../topBar.js';
 import { renderNavFooter } from '../NavFooter.js';
 import { DeviceField, AUTO_MONITOR_VALUE } from '../DeviceField.js';
+import { applyTooltip } from '../Tooltips.js';
 
 export function pickVideoInputName(inputs, current) {
   if (current && current !== 'dummy' && inputs.includes(current)) return current;
@@ -160,6 +161,8 @@ export class ModeDeviceScreen {
     `;
 
     if (this.hasAudio) {
+      applyTooltip(body.querySelector('#md-mode-video'), 'app.mode');
+      applyTooltip(body.querySelector('#md-mode-audio'), 'app.mode');
       body.querySelector('#md-mode-video').addEventListener('click', () => this._switchMode('video'));
       body.querySelector('#md-mode-audio').addEventListener('click', () => this._switchMode('audio'));
     }
