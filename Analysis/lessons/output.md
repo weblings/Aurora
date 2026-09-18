@@ -190,3 +190,28 @@ purposes, a test fixture that reuses the same string across all of them
 to save typing can hide an id-space mixup indefinitely — write fixtures
 with deliberately distinct ids per space the first time, even when nothing
 about the parser under test appears to care which string it sees.
+
+---
+
+## A per-request HTTP handle turns every call in a reload burst into a full TLS setup — count the calls, then share the connection
+
+NUX's lingering Continue→Zone Mapping delay survived two earlier timing
+investigations (both compared one PUT's duration against first-frame and
+stopped there) because nobody counted what a reload actually sends:
+`HueOutput::init` alone makes ~5 sequential bridge HTTPS calls
+(entertainment-configs, resource, streamingActive, disable, start), and
+Zone Mapping's channels fetch adds 2 more — and `sendHttpRequest()` built
+a fresh `curl_easy_init` handle per call with no connection reuse, so all
+~7 paid a full TCP+TLS setup each. Verified against a local counting HTTPS
+server: 24 sequential requests opened 24 TCP connections before the fix, 1
+after, with functional equivalence (method/body/header fidelity, no
+cross-call leakage, same nullopt-on-failure contract) confirmed on both
+binaries.
+
+**Fix:** one CURL handle per calling thread (`thread_local`, safe for the
+HTTP server's pool), `curl_easy_reset()` on every borrow with the full
+option set re-applied per call. General principle: when a user-facing delay
+is a burst of API calls, count the calls *and* price each one's transport
+setup, not just its payload — a "fast" endpoint hit N times with N fresh
+TLS handshakes is a slow operation wearing a fast one's name, and no
+single-request timing comparison will ever surface it.

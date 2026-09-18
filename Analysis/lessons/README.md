@@ -182,7 +182,12 @@ Aurora's own module boundaries instead of RockyRoad's. `rendering-apis.md` vs.
   exposing several different, non-interchangeable resource ids for the
   same physical light (entertainment-service vs. light-service vs.
   device id), passing the wrong one to a REST endpoint 404ing in a way
-  that crashed a route handler and read as "daemon unreachable."
+  that crashed a route handler and read as "daemon unreachable"; and a
+  per-request HTTP handle turning every call in a reload burst into its
+  own full TLS setup (~5 bridge calls per `HueOutput::init` plus 2 per
+  channels fetch) -- a delay no single-request timing comparison surfaces,
+  fixed with one CURL handle per calling thread plus `curl_easy_reset()`
+  per borrow.
 - [`input.md`](input.md) — capture/grabber gotchas: a non-blocking poll on an
   event-driven capture API (DXGI's `AcquireNextFrame`) starving on empty
   placeholder frames forever instead of ever returning real data, a
