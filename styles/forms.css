@@ -365,6 +365,7 @@
    space, pushing the text above the panel's true vertical center. */
 .overlay-panel h2:last-child {
   margin-bottom: 0;
+  text-align: center;
 }
 
 .overlay-actions {
