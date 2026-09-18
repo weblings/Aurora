@@ -4,6 +4,7 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { RectAreaLightUniformsLib } from 'three/addons/lights/RectAreaLightUniformsLib.js';
 import { zoneMap } from './zonemap.js';
 import { getDemoStore } from './demo-state.js';
+import { configToPipeline } from './demo-tuning.js';
 
 // Live zone view (Phase 3): the shim owns zone state once demo-boot runs;
 // per-frame and rebuild reads go through it so PUTs apply live. Falls back
@@ -32,8 +33,9 @@ const BACKDROP_MARGIN = 1.3 * (2 / 3); // lowered by a third
 // Fraction of the margin's own width used as the mask's blur radius -- higher = softer/more
 // gradual fade, lower = sharper edge. 1.0 would blur across the entire margin band.
 const MASK_FEATHER = 0.45;
-const SAMPLE_WIDTH = 160; // per-frame color-sampling resolution, not the video's playback resolution
-const SMOOTHING = 0.85; // native's own default is 0 (no smoothing); tuned here for a calmer demo visual
+let sampleWidthPx = 160; // per-frame color-sampling resolution, not the video's playback resolution
+let smoothingFactor = 0.85; // live-applied from transitionSmoothing via applyLiveTuning below;
+// native default is 0, so a default config un-smooths this (parity, not regression -- see tuning-ledger.md)
 
 // Two light rigs, selectable live (see the dropdown wiring below) rather than one
 // replacing the other -- useful for comparing approaches, not just picking one forever.
@@ -263,19 +265,19 @@ let audioColorModel = audioColorModelSelect.value; // 'placeholder' | 'ported' |
 // own behavior independent of real video content -- see the dropdown wiring below.
 // 'rainbow' checks per-zone color identification; 'white' isolates the light rig's own
 // falloff/brightness symmetry, since every zone samples the exact same input color.
-let sourceMode = sourceModeSelect.value;
+let sourceMode = sourceModeSelect ? sourceModeSelect.value : 'video';
 const testPatterns = {}; // mode -> { imageData, texture }, built once below
 
 // Same 3x3 layout as zonemap.js -- lets a pattern assign a value per grid cell directly.
 const ZONE_ID_BY_ROW_COL = { '0,0': 0, '0,1': 1, '0,2': 2, '1,0': 3, '1,2': 4, '2,0': 5, '2,1': 6, '2,2': 7 };
 
 function buildPatternCanvas(fillStyleForCell) {
-  const height = Math.round(SAMPLE_WIDTH * 9 / 16);
+  const height = Math.round(sampleWidthPx * 9 / 16);
   const canvas = document.createElement('canvas');
-  canvas.width = SAMPLE_WIDTH;
+  canvas.width = sampleWidthPx;
   canvas.height = height;
   const ctx = canvas.getContext('2d');
-  const cellW = SAMPLE_WIDTH / 3;
+  const cellW = sampleWidthPx / 3;
   const cellH = height / 3;
   for (let row = 0; row < 3; row++) {
     for (let col = 0; col < 3; col++) {
@@ -283,7 +285,7 @@ function buildPatternCanvas(fillStyleForCell) {
       ctx.fillRect(col * cellW, row * cellH, cellW, cellH);
     }
   }
-  const imageData = ctx.getImageData(0, 0, SAMPLE_WIDTH, height);
+  const imageData = ctx.getImageData(0, 0, sampleWidthPx, height);
   const texture = new THREE.CanvasTexture(canvas);
   texture.colorSpace = THREE.SRGBColorSpace;
   return { imageData, texture };
@@ -298,14 +300,14 @@ testPatterns.rainbow = buildPatternCanvas((row, col) => {
 testPatterns.white = buildPatternCanvas(() => '#ffffff');
 
 // The texture uses the image at its own full resolution (like videoTexture does) -- only the
-// zone-averaging imageData needs the small SAMPLE_WIDTH canvas real video also downscales to.
+// zone-averaging imageData needs the small sampleWidthPx canvas real video also downscales to.
 function loadImagePattern(url) {
   return new Promise((resolve, reject) => {
     const img = new Image();
     img.onload = () => {
       const sampleCanvas = document.createElement('canvas');
-      sampleCanvas.width = SAMPLE_WIDTH;
-      sampleCanvas.height = Math.round(SAMPLE_WIDTH * (img.height / img.width));
+      sampleCanvas.width = sampleWidthPx;
+      sampleCanvas.height = Math.round(sampleWidthPx * (img.height / img.width));
       const sampleCtx = sampleCanvas.getContext('2d');
       sampleCtx.drawImage(img, 0, 0, sampleCanvas.width, sampleCanvas.height);
       const imageData = sampleCtx.getImageData(0, 0, sampleCanvas.width, sampleCanvas.height);
@@ -753,14 +755,14 @@ function sampleVideoFrame() {
   if (sourceMode !== 'video') return testPatterns[sourceMode].imageData;
   if (video.readyState < video.HAVE_CURRENT_DATA || video.videoWidth === 0) return null;
 
-  const sampleHeight = Math.round(SAMPLE_WIDTH * (video.videoHeight / video.videoWidth));
-  if (sampleCanvas.width !== SAMPLE_WIDTH || sampleCanvas.height !== sampleHeight) {
-    sampleCanvas.width = SAMPLE_WIDTH;
+  const sampleHeight = Math.round(sampleWidthPx * (video.videoHeight / video.videoWidth));
+  if (sampleCanvas.width !== sampleWidthPx || sampleCanvas.height !== sampleHeight) {
+    sampleCanvas.width = sampleWidthPx;
     sampleCanvas.height = sampleHeight;
   }
   // drawImage's own scaling stands in for the native pipeline's separate rescale() step.
-  sampleCtx.drawImage(video, 0, 0, SAMPLE_WIDTH, sampleHeight);
-  return sampleCtx.getImageData(0, 0, SAMPLE_WIDTH, sampleHeight);
+  sampleCtx.drawImage(video, 0, 0, sampleWidthPx, sampleHeight);
+  return sampleCtx.getImageData(0, 0, sampleWidthPx, sampleHeight);
 }
 
 function animate() {
@@ -771,7 +773,7 @@ function animate() {
     if (imageData) {
       // Room mode drives 4 quadrant zones (ROOM_ZONE_MAP), not the flat rigs' 8-zone zonemap.js.
       const activeZoneMap = currentRigType === 'room' ? ROOM_ZONE_MAP : demoZones();
-      const frame = smoother.smooth(composeFrame(imageData, activeZoneMap), SMOOTHING);
+      const frame = smoother.smooth(composeFrame(imageData, activeZoneMap), smoothingFactor);
       for (const zoneFrame of frame) {
         const target = zoneLights.find((z) => z.zoneId === zoneFrame.zoneId);
         if (!target) continue;
@@ -852,8 +854,11 @@ function activateLightRig(newType) {
 lightRigSelect.addEventListener('change', (event) => activateLightRig(event.target.value));
 activateLightRig(currentRigType); // in case the browser restored 'room' on reload, not just the label
 
-sourceModeSelect.addEventListener('change', (event) => {
-  sourceMode = event.target.value;
+// Phase 4: extracted from the source-mode dropdown listener so the Dashboard
+// Audio/Video toggle drives the same path. Null-safe for after the dropdown's
+// own removal (Phase 4) -- the toggle is the only selector then.
+function setSourceMode(mode) {
+  sourceMode = mode;
   plane.material.map = sourceMode === 'video' ? videoTexture : testPatterns[sourceMode].texture;
   plane.material.needsUpdate = true;
   if (tvScreenMesh) {
@@ -861,7 +866,23 @@ sourceModeSelect.addEventListener('change', (event) => {
     tvScreenMesh.material.needsUpdate = true;
   }
   setAudioPlaying(sourceMode === 'audio');
-});
+  if (sourceModeSelect) sourceModeSelect.value = mode;
+}
+if (sourceModeSelect) {
+  sourceModeSelect.addEventListener('change', (event) => setSourceMode(event.target.value));
+}
+
+// Phase 4 live-apply entry, wired to the shim's onConfigPatch hook in
+// demo-boot.js (+ one initial call there). Audio lands in place on the live
+// midpoint object (state persists across edits, as natively); smoothing,
+// sample width and mode land on the running scene.
+export function applyLiveTuning(config) {
+  const mapped = configToPipeline(config);
+  Object.assign(audioEffectSettingsByModel.midpoint, mapped.audio);
+  smoothingFactor = mapped.transitionSmoothing;
+  if (mapped.sampleWidth !== null) sampleWidthPx = mapped.sampleWidth;
+  setSourceMode(mapped.mode);
+}
 setAudioPlaying(sourceMode === 'audio'); // in case the browser restored 'audio' on reload
 
 audioColorModelSelect.addEventListener('change', (event) => { audioColorModel = event.target.value; });

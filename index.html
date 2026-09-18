@@ -16,7 +16,7 @@
     /* Scene-pane overlay controls: absolute within #scene-pane (was fixed
        when the scene was fullscreen). Untouched until the Phase 4 source
        handover removes #source-mode in favor of the Dashboard toggle. */
-    #toggle-grid, #toggle-backdrop-bounds, #toggle-rect-debug, #source-mode, #light-rig, #audio-color-model {
+    #toggle-grid, #toggle-backdrop-bounds, #toggle-rect-debug, #light-rig, #audio-color-model {
       position: absolute; left: 16px; z-index: 1;
       font: 14px system-ui, sans-serif; padding: 8px 12px;
       background: rgba(20, 22, 28, 0.75); color: #e8eaf0;
@@ -24,7 +24,6 @@
     }
     /* toggle-grid/backdrop-bounds/rect-debug, light-rig, and audio-color-model are hidden for
        now -- see each select's own comment in the body below for why. */
-    #source-mode { top: 16px; }
   </style>
   <script type="importmap">
     {
@@ -46,11 +45,10 @@
       <button id="toggle-grid" type="button" hidden>Show zone grid</button>
       <button id="toggle-backdrop-bounds" type="button" hidden>Hide backdrop bounds</button>
       <button id="toggle-rect-debug" type="button" hidden>Hide rect-light quads</button>
-      <select id="source-mode">
-        <option value="video" selected>Real video</option>
-        <option value="rainbow">Rainbow test pattern</option>
-        <option value="audio">Audio (Electro Cabello)</option>
-      </select>
+      <!-- Phase 4 source handover: the Dashboard Audio/Video toggle is the
+           only source selector now (wired via applyLiveTuning). The old
+           dropdown is removed; 'rainbow' is disabled but its code path stays
+           for later. -->
       <!-- rectArea temporarily removed (not deleted -- see main.js's buildRectAreaLights) until the
            XR pass; only one option left, so the picker itself is hidden too. -->
       <select id="light-rig" hidden>

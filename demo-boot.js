@@ -12,7 +12,7 @@
 import { installDemoShim } from './demo-shim.js';
 import { setDemoStore } from './demo-state.js';
 import { zoneMap } from './zonemap.js';
-import { rebuildZoneLights } from './main.js';
+import { rebuildZoneLights, applyLiveTuning } from './main.js';
 import { DashboardScreen } from './vendor/webui/screens/DashboardScreen.js';
 import { ensureTooltips } from './vendor/webui/Tooltips.js';
 
@@ -22,9 +22,15 @@ const { store } = installDemoShim({
   },
   hooks: {
     onZonesChanged: () => rebuildZoneLights(),
+    // Phase 4: every Dashboard tuning/mode PUT lands on the running scene.
+    onConfigPatch: (applied, config) => applyLiveTuning(config),
   },
 });
 setDemoStore(store);
+// Seed parity: the scene's static initializers match these defaults, but the
+// single source of truth is the shim -- apply once so later PUTs only ever
+// move values forward from here.
+applyLiveTuning(store.getConfig());
 
 // Fire-and-forget, app.js parity: /api/descriptors 404s until the Phase 5
 // static tables land, and Tooltips degrades to {} on failure.
