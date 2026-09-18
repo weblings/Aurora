@@ -519,9 +519,11 @@ export class DashboardScreen {
 
     // 'stopped': a dead end by design, matching huenicorn's own real
     // behavior -- the server that would answer any further request is
-    // already on its way out.
+    // already on its way out. Scrim is purely visual here (no click
+    // listener, unlike confirm's) -- there's nothing to cancel back to.
     slot.innerHTML = `
       <div class="overlay">
+        <div class="overlay-scrim"></div>
         <div class="overlay-panel">
           <h2>Aurora has stopped</h2>
         </div>
