@@ -290,11 +290,14 @@ namespace
     // per-output tabs -- a documented v1 scope limit, not an oversight.
     Aurora::Runtime::ZoneListResult listZones() const
     {
-      if(m_isAudioMode || m_outputPtrs.empty()){
+      if(m_outputPtrs.empty()){
         return {};
       }
 
       const std::string& name = m_outputPtrs.front()->name();
+      if(m_isAudioMode){
+        return {name, m_audioOrchestrator->zoneMap(name)};
+      }
       return {name, m_orchestrator->zoneMap(name)};
     }
 
@@ -305,10 +308,13 @@ namespace
       const std::optional<float>& gamma
     )
     {
-      if(m_isAudioMode || m_outputPtrs.empty()){
+      if(m_outputPtrs.empty()){
         return false;
       }
 
+      if(m_isAudioMode){
+        return m_audioOrchestrator->updateZone(m_outputPtrs.front()->name(), zoneId, uvs, active, gamma);
+      }
       return m_orchestrator->updateZone(m_outputPtrs.front()->name(), zoneId, uvs, active, gamma);
     }
 
