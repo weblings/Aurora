@@ -48,9 +48,9 @@ function sliderFieldHtml(key, label, min, max, step, unit, values, controlBand) 
   const tip = tooltipFor(sliderTooltipKey(key));
   const inputHtml = `<input type="range" class="slider-input" id="tn-${key}" min="${min}" max="${max}" step="${step}" value="${value}" />`;
   return `
-    <div class="field">
+    <div class="field"${tip ? ` title="${escapeHtml(tip)}"` : ''}>
       <div class="slider-field-header">
-        <label class="field-label" for="tn-${key}"${tip ? ` title="${escapeHtml(tip)}"` : ''}>${escapeHtml(label)}</label>
+        <label class="field-label" for="tn-${key}">${escapeHtml(label)}</label>
         <span class="slider-value" id="tn-${key}-val">${formatSliderValue(value, step)}${unit}</span>
       </div>
       ${controlBand ? `<div class="slider-control-band">${inputHtml}</div>` : inputHtml}

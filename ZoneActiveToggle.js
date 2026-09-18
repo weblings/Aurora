@@ -39,8 +39,10 @@ export class ZoneActiveToggleList {
       </label>
     `).join('');
 
-    this.container.querySelectorAll('.toggle-row-label').forEach((label) => {
-      applyTooltip(label, this.tooltipKey);
+    // Title on the row itself (not the text span) so hovering the label,
+    // the checkbox, or the space between shows the tooltip.
+    this.container.querySelectorAll('label.toggle-row').forEach((row) => {
+      applyTooltip(row, this.tooltipKey);
     });
 
     this.container.querySelectorAll('input[type="checkbox"]').forEach((input) => {

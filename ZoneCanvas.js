@@ -14,7 +14,7 @@
 import { Dropdown } from './Dropdown.js';
 import { ZonePatchQueue } from './ZonePatchQueue.js';
 import { bindSliderFill } from './SliderFill.js';
-import { applyTooltip } from './Tooltips.js';
+import { tooltipFor } from './Tooltips.js';
 
 const MIN_RECT_SIZE = 0.02; // 2% of the frame, in normalized UV units
 const CORNERS = ['tl', 'tr', 'bl', 'br'];
@@ -163,8 +163,6 @@ export class ZoneCanvas {
       ${this._sliderFieldHtml(zone)}
     `;
     this._renderZoneDropdown(container.querySelector('#zc-zone-dropdown-slot'), zone);
-    applyTooltip(container.querySelector('label[for="zm-gamma"]'), 'zones.gamma');
-    applyTooltip(container.querySelector('.zm-active-field-col .field-label'), 'zones.active');
     if (this.onSeeAllZones) {
       container.querySelector('#zc-see-all-zones').addEventListener('click', () => this.onSeeAllZones());
     }
@@ -187,8 +185,9 @@ export class ZoneCanvas {
   }
 
   _activeFieldHtml(zone) {
+    const tip = tooltipFor('zones.active');
     return `
-      <div class="field zm-active-field-col">
+      <div class="field zm-active-field-col"${tip ? ` title="${escapeHtml(tip)}"` : ''}>
         <label class="field-label">Active</label>
         <div class="zm-control-band">
           <label class="toggle-switch">
@@ -205,7 +204,7 @@ export class ZoneCanvas {
       slot,
       this.zoneLabel(selectedZone),
       (value) => this._selectZone(value),
-      { labelId: 'zc-zone-label', fill: true },
+      { labelId: 'zc-zone-label', fill: true, tooltipKey: 'zones.select' },
     );
     this.zoneDropdown.setOptions(this.zones.map((z) => ({
       label: this.zoneLabel(z),
@@ -215,8 +214,9 @@ export class ZoneCanvas {
   }
 
   _sliderFieldHtml(zone) {
+    const tip = tooltipFor('zones.gamma');
     return `
-      <div class="field">
+      <div class="field"${tip ? ` title="${escapeHtml(tip)}"` : ''}>
         <div class="slider-field-header">
           <label class="field-label" for="zm-gamma">Gamma</label>
           <span class="slider-value" id="zm-gamma-val">${round1(zone.gamma).toFixed(1)}</span>
@@ -321,4 +321,8 @@ function clamp01(v) {
 
 function round1(v) {
   return Math.round(v * 10) / 10;
+}
+
+function escapeHtml(s) {
+  return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }

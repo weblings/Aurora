@@ -215,7 +215,7 @@ export class TuningFields {
     wireSliderGroup(container, COLOR_CHARACTER_SLIDERS, this.values, () => this._autoSave());
     wireSliderGroup(container, SENSITIVITY_SLIDERS, this.values, () => this._autoSave());
     if (this.fixedHueEnabled) wireSliderGroup(container, FIXED_HUE_SLIDER, this.values, () => this._autoSave());
-    applyTooltip(container.querySelector('.tuning-checkbox-row .toggle-row-label'), 'audio.fixedHueEnabled');
+    applyTooltip(container.querySelector('label.tuning-checkbox-row'), 'audio.fixedHueEnabled');
 
     container.querySelector('#tn-fixed-hue-toggle').addEventListener('change', (e) => {
       this.fixedHueEnabled = e.currentTarget.checked;
