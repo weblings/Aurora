@@ -3,6 +3,8 @@
 #include <Aurora/Runtime/ControlDescriptors.hpp>
 #include <Aurora/Runtime/ControlDescriptorTables.hpp>
 
+#include <vector>
+
 using namespace Aurora::Runtime;
 
 
@@ -86,8 +88,8 @@ TEST_CASE("Layer descriptor tables cover the inventoried controls with unique ke
   registry.add("zones", zoneControlDescriptors());
   registry.add("app", appControlDescriptors());
 
-  // 4 video + 12 audio + 3 zones + 1 app -- bump alongside the tables.
-  REQUIRE(registry.descriptors().size() == 20);
+  // 4 video + 12 audio + 4 zones + 1 app -- bump alongside the tables.
+  REQUIRE(registry.descriptors().size() == 21);
   CHECK(registry.collisions().empty()); // no two layers claim one key
 
   // Spot-check every control family from TooltipsAnalysis.md's inventory.
@@ -97,7 +99,25 @@ TEST_CASE("Layer descriptor tables cover the inventoried controls with unique ke
   CHECK(registry.find("audio.fixedHueEnabled") != nullptr);
   CHECK(registry.find("audio.centroidRangeHz") != nullptr);
   CHECK(registry.find("zones.gamma") != nullptr);
+  CHECK(registry.find("zones.select") != nullptr);
   CHECK(registry.find("zones.active") != nullptr);
   CHECK(registry.find("zones.autoArrange") != nullptr);
   CHECK(registry.find("app.mode") != nullptr);
+}
+
+
+TEST_CASE("Layer descriptor tables carry authored copy, never placeholders", "[Descriptors]")
+{
+  const std::vector<std::vector<ControlDescriptor>> tables = {
+    videoControlDescriptors(),
+    audioControlDescriptors(),
+    zoneControlDescriptors(),
+    appControlDescriptors(),
+  };
+  for(const auto& table : tables){
+    for(const auto& descriptor : table){
+      CHECK_FALSE(descriptor.description.empty());
+      CHECK(descriptor.description != "Test"); // placeholder must not ship
+    }
+  }
 }

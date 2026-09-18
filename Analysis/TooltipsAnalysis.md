@@ -96,8 +96,8 @@ Tuning accordion (Dashboard only): `video.refreshRate`,
 `audio.brightnessFloor`, `audio.centroidRangeHz`.
 
 Shared Dashboard + NUX: `input.monitor` / `input.sink` (top tier +
-Mode+Device), `zones.gamma` + `zones.active` (zone accordion + Zone
-Mapping onboarding), `zones.autoArrange` (both),
+Mode+Device), `zones.gamma` + `zones.active` + `zones.select` picker
+(zone accordion + Zone Mapping onboarding), `zones.autoArrange` (both),
 `output.hue.entertainmentConfig` (Bridge + EZ-Select),
 `zones.active` list (Bridge, now also audio mode).
 
