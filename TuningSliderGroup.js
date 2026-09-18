@@ -11,8 +11,16 @@
 // section's layout.
 import { bindSliderFill } from './SliderFill.js';
 
-export function sliderGroupHtml(sliders, values) {
-  return sliders.map(([key, label, min, max, step, unit]) => sliderFieldHtml(key, label, min, max, step, unit, values)).join('');
+// controlBand: wraps the slider input in a fixed-height, vertically-centered
+// band matching a taller neighbor in the same grid row (e.g. a dropdown) --
+// same technique as ZoneCanvas.js's own .zm-control-band. Opt-in and off by
+// default: it's only needed where a slider actually shares a row with
+// something taller (video Tuning's Transition smoothing, next to the
+// Interpolation dropdown); wrapping every slider this way would roughly
+// double the field height of every slider-only row (Audio's) for no
+// visual benefit.
+export function sliderGroupHtml(sliders, values, { controlBand = false } = {}) {
+  return sliders.map(([key, label, min, max, step, unit]) => sliderFieldHtml(key, label, min, max, step, unit, values, controlBand)).join('');
 }
 
 // Wires every slider in the group, found by id within container -- safe to
@@ -23,15 +31,16 @@ export function wireSliderGroup(container, sliders, values, onCommit) {
   for (const [key, , , , , unit] of sliders) wireSlider(container, key, unit, values, onCommit);
 }
 
-function sliderFieldHtml(key, label, min, max, step, unit, values) {
+function sliderFieldHtml(key, label, min, max, step, unit, values, controlBand) {
   const value = values[key] ?? min;
+  const inputHtml = `<input type="range" class="slider-input" id="tn-${key}" min="${min}" max="${max}" step="${step}" value="${value}" />`;
   return `
     <div class="field">
       <div class="slider-field-header">
         <label class="field-label" for="tn-${key}">${escapeHtml(label)}</label>
         <span class="slider-value" id="tn-${key}-val">${formatSliderValue(value, step)}${unit}</span>
       </div>
-      <input type="range" class="slider-input" id="tn-${key}" min="${min}" max="${max}" step="${step}" value="${value}" />
+      ${controlBand ? `<div class="slider-control-band">${inputHtml}</div>` : inputHtml}
     </div>
   `;
 }

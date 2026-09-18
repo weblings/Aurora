@@ -193,6 +193,29 @@
   white-space: nowrap;
 }
 
+/* +2px on top of .field's own 4px gap (--aurora-space-1), landing on
+   --aurora-space-2 (6px) -- scoped to a slider-input directly following
+   its own header, not .field's shared gap (used by every label+control
+   pairing in the app). Stops matching once a slider is wrapped in
+   .slider-control-band (below) or .zm-control-band (zone-mapping.css),
+   e.g. Tuning's own Transition smoothing slider once banded, or Zone
+   Mapping's gamma slider today -- neither was part of this ask. */
+.slider-field-header + .slider-input {
+  margin-top: 2px;
+}
+
+/* Vertically centers a slider within a fixed band matching a taller
+   neighbor in the same grid row -- same technique as ZoneCanvas.js's own
+   .zm-control-band (duplicated, not shared, matching this codebase's own
+   convention for small screen/consumer-scoped rules). Opt-in via
+   TuningSliderGroup.js's controlBand param -- see its own comment for why
+   this isn't applied to every slider. */
+.slider-control-band {
+  height: 35px;
+  display: flex;
+  align-items: center;
+}
+
 /* Full custom rebuild, not accent-color -- Chrome only honors a
    ::-webkit-slider-thumb override once the host's own -webkit-appearance is
    reset away from native, but that also turns off accent-color's own fill

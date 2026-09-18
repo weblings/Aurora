@@ -124,7 +124,7 @@ export class TuningFields {
           <label class="field-label" id="tn-interp-label">Interpolation</label>
           <div id="tn-interp-dropdown-slot"></div>
         </div>
-        ${sliderGroupHtml(TRANSITION_SMOOTHING_SLIDER, this.values)}
+        ${sliderGroupHtml(TRANSITION_SMOOTHING_SLIDER, this.values, { controlBand: true })}
       </div>
     `;
 

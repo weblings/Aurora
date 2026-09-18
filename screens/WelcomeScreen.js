@@ -27,7 +27,7 @@ export class WelcomeScreen {
       <div class="nav-footer-slot"></div>
     `;
     renderTopBar(container.querySelector('.top-bar-slot'), {
-      title: 'Welcome',
+      title: 'Setup',
       showBack: false,
     });
     renderNavFooter(container.querySelector('.nav-footer-slot'), {
