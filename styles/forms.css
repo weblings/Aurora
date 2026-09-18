@@ -201,7 +201,7 @@
    e.g. Tuning's own Transition smoothing slider once banded, or Zone
    Mapping's gamma slider today -- neither was part of this ask. */
 .slider-field-header + .slider-input {
-  margin-top: 2px;
+  margin-top: 6px;
 }
 
 /* Vertically centers a slider within a fixed band matching a taller
