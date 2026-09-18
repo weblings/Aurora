@@ -186,33 +186,11 @@
   white-space: nowrap;
 }
 
+/* accent-color alone already renders a flat, solid thumb, no ring --
+   a pseudo-element override here was reverted, see Analysis/lessons/web-ui.md. */
 .slider-input {
   width: 100%;
   accent-color: var(--aurora-accent);
-  cursor: pointer;
-}
-
-/* accent-color can tint the native thumb but can't force an exact flat
-   circle with no ring across browsers -- matches RockyRoad's real
-   .seek-thumb (v2/desktop.html) via explicit pseudo-element overrides
-   instead (2.5 pass). -webkit-appearance: none on the thumb itself is
-   required or some Chromium versions ignore the custom styling. */
-.slider-input::-webkit-slider-thumb {
-  -webkit-appearance: none;
-  appearance: none;
-  width: 20px;
-  height: 20px;
-  border-radius: 50%;
-  background: var(--aurora-button-light);
-  cursor: pointer;
-}
-
-.slider-input::-moz-range-thumb {
-  width: 20px;
-  height: 20px;
-  border: none;
-  border-radius: 50%;
-  background: var(--aurora-button-light);
   cursor: pointer;
 }
 
