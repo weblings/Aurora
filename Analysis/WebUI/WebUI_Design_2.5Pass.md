@@ -175,12 +175,14 @@ desktop.html:518-523`, `.seek-thumb`):
 
 One flat fill, no border ring. Aurora's current `.zm-handle` is two-tone at
 14px (`background: var(--aurora-accent)` + `border: 1px solid
-var(--aurora-text-primary)`) -- the new pass drops the ring entirely and
-grows it to 20px, the same target size already established for the
-Active-toggle/slider-height consistency work above -- a third recurrence of
-the same 20px control size, not a new number. `#dadada` isn't a new color
-either: it's Aurora's existing `--aurora-button-light` token, already used
-for `.btn-primary`/`.segmented-btn.active`.
+var(--aurora-text-primary)`) -- the new pass drops the ring entirely in
+favor of the flat fill, staying 14px (confirmed -- a size bump to 20px
+would make handles overlap each other and clip against
+`.zm-canvas-wrap`'s `overflow: hidden` edge for zones near
+`MIN_RECT_SIZE`, so only the color/ring change carries over here, not the
+slider-thumb resize below). `#dadada` isn't a new color either: it's
+Aurora's existing `--aurora-button-light` token, already used for
+`.btn-primary`/`.segmented-btn.active`.
 
 This applies to two different kinds of control, with different real
 implementation cost:
@@ -240,15 +242,30 @@ surface needed anywhere in it.
 
 1. New `--aurora-radius-accordion: 8px` token in `tokens.css`, kept separate
    from `--aurora-radius-control`/`--aurora-radius-panel` on purpose.
-2. `.toggle-switch`/`.toggle-knob` resize 42x24 -> 35x20 -- one shared class,
+2. `.accordion-header` restyle: `background: var(--aurora-surface)`,
+   `border-radius: var(--aurora-radius-accordion)`, and horizontal padding +
+   a matching negative `margin-inline` so it overhangs the content column by
+   21px each side (`.accordion-header` has zero horizontal padding today --
+   the token alone doesn't get applied anywhere without this). Also needs an
+   `overflow-x: hidden` guard added somewhere sane (`body` or
+   `#screen-container`) -- the content column's own side gutter
+   (`--aurora-space-6`, 16px) is narrower than the 21px overhang, so the pill
+   would otherwise push past the real viewport edge on narrow widths.
+3. `.toggle-switch`/`.toggle-knob` resize 42x24 -> 35x20 -- one shared class,
    so Bridge's per-zone list, Tuning's fixed-hue checkbox, and Zone
    Mapping's Active toggle all pick it up with no per-consumer changes.
-3. `.zm-handle` restyle: drop the `border` ring, flat `#dadada` fill,
-   14px -> 20px.
-4. `.slider-input` thumb restyle to match (`::-webkit-slider-thumb`/
+   `.toggle-knob::after`'s three hardcoded values (`top`/`left: 3px`, `18px`
+   circle, `translateX(18px)`) are sized for the old box and have to move
+   together: padding ~2px, circle 20 - 2x2 = 16px, travel 35 - 16 - 2x2 =
+   15px.
+4. `.zm-handle` restyle: drop the `border` ring, flat `#dadada` fill,
+   size unchanged at 14px.
+5. `.slider-input` thumb restyle to match (`::-webkit-slider-thumb`/
    `::-moz-range-thumb`, `#dadada`, 20px, no ring) -- one shared class
-   already covers Gamma and every Tuning slider.
-5. `.zm-zone-rect.selected`'s `stroke`: `var(--aurora-accent)` ->
+   already covers Gamma and every Tuning slider. Needs `-webkit-appearance:
+   none` set on the `::-webkit-slider-thumb` pseudo-element itself, or some
+   Chromium versions silently ignore the custom thumb styling.
+6. `.zm-zone-rect.selected`'s `stroke`: `var(--aurora-accent)` ->
    `var(--aurora-text-primary)`.
 
 *Testing:* visual check only -- pure style/size changes, no rendering-logic
@@ -256,45 +273,76 @@ touched yet.
 
 ### Phase B -- Zone Mapping canvas drawing logic (`ZoneCanvas.js`)
 
-6. Stop rendering `.zm-zone-tag` badges entirely; the zone number becomes
+7. Stop rendering `.zm-zone-tag` badges entirely; the zone number becomes
    plain text on the canvas.
-7. Add a bold-weight class to the selected zone's number specifically.
-8. Stop rendering `.zm-size-label` (no more "33.3% x 50%" text).
+8. Add a bold-weight class to the selected zone's number specifically.
+9. Stop rendering `.zm-size-label` (no more "33.3% x 50%" text).
 
 *Testing:* live check in a real browser -- this changes `ZoneCanvas.js`'s
 actual DOM-generation logic, not just CSS.
 
 ### Phase C -- Zone Mapping / Bridge structural reordering (moving existing pieces, no new layout yet)
 
-9. Move "Auto-arrange zones" to the top of Zone Mapping's accordion content,
-   above the canvas; restyle from full-width to centered/content-hugging.
-10. Move `EntertainmentConfigSelect`'s mount point out of Zone Mapping's top
+10. Move "Auto-arrange zones" to the top of Zone Mapping's accordion content,
+    above the canvas; restyle from full-width to centered/content-hugging.
+11. Move `EntertainmentConfigSelect`'s mount point out of Zone Mapping's top
     tier into the Bridge accordion's content, under "Change bridge."
-11. Move "See all zones →" to sit grouped with the "Zone" label, above the
-    Zone dropdown, instead of standing alone at the bottom.
+12. Move "See all zones →" to sit grouped with the "Zone" label, above the
+    Zone dropdown, instead of standing alone at the bottom. Needs a new
+    optional `onSeeAllZones` callback on `ZoneCanvas`'s constructor
+    (rendered next to its own "Zone" label, only when passed), not a plain
+    markup move -- today's `#db-see-all-zones` is wired once by Dashboard
+    because it lives outside `ZoneCanvas`'s own DOM, but
+    `_renderSelectedRow()` tears down and rebuilds that row on every zone
+    selection, so a moved-but-not-rewired button would go dead after the
+    first zone switch.
 
 *Testing:* live check that Entertainment config still switches
 configs/reloads zones correctly from its new mount point -- its own
-`onChange`/`load()` contract doesn't change, only where it's mounted.
+`onChange`/`load()` contract doesn't change, only where it's mounted. Also
+check "See all zones" still works after selecting a different zone, not
+just on first render.
 
 ### Phase D -- Zone/Active/Gamma row rebuild
 
-12. Replace `.zm-selected-row`'s two-item flex row plus the separate Active
+13. Replace `.zm-selected-row`'s two-item flex row plus the separate Active
     field with one three-column row (Zone / Active / Gamma), shared label
-    baseline, 35px control band.
-13. Confirm the Zone dropdown actually lands at 35px tall once Phase A's
+    baseline, 35px control band. Zone + Gamma already render inside
+    `ZoneCanvas._renderSelectedRow()`; Active is currently a separate
+    sibling Dashboard renders itself. Give `ZoneCanvas` a new opt-in
+    constructor flag (default off) to render Active as its own middle
+    column, reusing its existing `_queue` for the PUT -- opt-in specifically
+    so the onboarding Zone Mapping screen (out of scope this pass, shares
+    the same component) doesn't pick up the change too. Reordering
+    `_selectZone()`'s `onSelect()`/`_render()` call isn't enough on its own:
+    it fixes today's callback-ordering race but doesn't get three real flex
+    children into one row unless Active's markup actually lives inside
+    `ZoneCanvas`'s own re-rendered subtree.
+14. Confirm the Zone dropdown actually lands at 35px tall once Phase A's
     sizing changes are in, adjusting its own padding if it doesn't.
-14. Add the <480px stacked fallback.
+15. Add the <480px stacked fallback.
 
 *Testing:* live check at both desktop and <480px widths -- the biggest
-structural layout change in this pass.
+structural layout change in this pass. Also re-check that changing the
+selected zone (canvas click, tag click, dropdown) still updates Active
+correctly now that it renders inside ZoneCanvas.
 
 ### Phase E -- Top bar
 
-15. Remove `.status-pill` "Running" from the top bar.
-16. Move the Stop button from `.db-controls-row` into the top bar's
-    trailing slot.
-17. `.top-bar-title` font-size 16px -> 20px.
+16. Remove `.status-pill` "Running" from the top bar.
+17. Move the Stop button from `.db-controls-row` into the top bar's
+    trailing slot. `renderTopBar` (`topBar.js`) needs a new optional param
+    (e.g. `trailingButton: { label, onClick }`), wired the same way
+    `onBack` already is -- it's shared by every screen, so this is a small
+    shared-component change, not just a markup move. Dashboard's own call
+    moves from `_renderControls()` to `_loadAll()`, passing
+    `_openStopConfirm` as the callback.
+18. Once Stop is gone from `.db-controls-row`, skip rendering `.db-controls`
+    entirely when `!this.hasAudio` -- otherwise audio-disabled builds are
+    left with an empty placeholder `<span>` and its own margin, with
+    nothing in the row.
+19. `.top-bar-title` font-size 16px -> 20px.
 
 *Testing:* live check that Stop's click behavior is unchanged from its new
-location.
+location, and that a mode switch (which re-renders the top bar via
+`_loadAll()`) doesn't lose the Stop button.
