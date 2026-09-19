@@ -61,6 +61,13 @@ html, body {
   overscroll-behavior: contain;
   min-width: 0;
   min-height: 0;
+  /* border-box is NOT inherited from .db-port's scoped reset (the pane is
+     its parent, outside the scope): without it the 16px side padding adds
+     OUTSIDE width:100% in portrait, pushing the pane 32px past the viewport
+     while body overflow hides it -- the "missing right padding". Landscape
+     survives only because row-axis flex-shrink absorbs the extra width;
+     column layout has no cross-axis shrink. */
+  box-sizing: border-box;
   /* The Dashboard section renders the aurora background full-bleed, with
      breathing room between the page/pane edges and the UI column. The
      accordion pills' 21px overhang still clips at the pane edge via
