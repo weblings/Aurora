@@ -1091,3 +1091,41 @@ representation with its own defaults and fallbacks; the struct is not it.
 **Fix:** derive every shim seed and shape assertion from the route's own
 _toJson/parse code, and keep one contract test per route so a serializer
 change fails loudly. Never seed from the struct definition.
+
+---
+
+## Scoped resets don't cover the scope's own container
+
+The demo's `.db-port * { box-sizing: border-box }` reset never reaches
+`#dashboard-pane` -- the scope root's parent -- so the pane stayed
+content-box and its 16px side padding added outside `width: 100%` in
+portrait. The pane ran 32px past the viewport while `body { overflow:
+hidden }` clipped it, which read as "right padding missing, left fine"
+with no overflowing descendant and no scrollbar to blame.
+
+**Fix:** declare `box-sizing` on the pane itself (demo-layout.css), and
+when one-sided padding loss has no spiller, compare pane width against
+the viewport (`paneW > vw`) before hunting descendants.
+
+---
+
+## Flex-shrink only saves the main axis
+
+The same 32px overflow was invisible in landscape -- row-axis flex-shrink
+absorbed it -- and fatal in portrait, where cross sizes don't shrink.
+"Works in landscape, broken in portrait" against symmetric CSS points at
+the cross-axis box model, not at content or media queries.
+
+**Fix:** treat landscape/portrait-only layout bugs as box-model suspects
+first; content spillers would show in both orientations.
+
+---
+
+## First-match regexes lie on repeated selectors
+
+A layout test matching `#dashboard-pane {` passed against the
+aspect-ratio media-query block instead of the top-level rule carrying the
+padding -- asserting the wrong block entirely.
+
+**Fix:** match all blocks for a repeated selector and select by
+distinguishing declaration (here: the block containing `padding`).
