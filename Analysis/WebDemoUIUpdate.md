@@ -7,9 +7,9 @@ hooks up and behaves as on the real app, while the Demo stays a static page
 on GitHub Pages with no backend. The port reads and writes through an
 in-page shim that implements the Dashboard's exact `/api/*` contract; the
 Demo's ported DSP math is already current and needs no changes. The page is
-a 50:50 split view: on 16:9 landscape the three.js scene takes half the
-screen and the Dashboard the other half; on 9:16 portrait the scene takes the
-top half with the Dashboard in the bottom half. OrbitControls stay live on the scene while the
+a split view: on 16:9 landscape the three.js scene takes two thirds with
+the Dashboard in the right third; on 9:16 portrait it is 50:50, the scene on
+top with the Dashboard in the bottom half. OrbitControls stay live on the scene while the
 Dashboard pane scrolls and operates independently, and the Demo's own
 source-mode dropdown goes away once the Dashboard's Audio/Video toggle
 drives the source.
@@ -25,7 +25,7 @@ drives the source.
   check, Section: Validation Plan).
 - `processing.js` / `smoother.js` / `audioFeatures.js` / `colorModel.js`
   remain byte-identical to `Aurora/web-processing/` (copy-rule preserved).
-- 16:9 shows scene + Dashboard side by side at half width each; 9:16 is a
+- 16:9 shows scene + Dashboard side by side at 2/3 + 1/3 widths; 9:16 is a
   50:50 split with the scene on top and the Dashboard below. Orbit works on
   the scene without hijacking Dashboard scroll and vice versa.
 - The Demo's source-mode dropdown is gone; the Dashboard Audio/Video toggle
@@ -157,7 +157,7 @@ silently.
   (`/api/*` only); in-memory store seeded from live `Config.hpp` values;
   canned capabilities, connection (`configured: true`), single monitor,
   single entertainment config, canned channels; local three.js + glb; the
-  split-view shell itself (16:9 side-by-side halves via aspect-ratio media
+  split-view shell itself (16:9 2/3 + 1/3 split via aspect-ratio media
   query, 9:16 50:50 scene-over-dashboard split; scene pane with ResizeObserver
   driving camera/renderer per Key Decisions §10; Dashboard pane as its own
   scroll container hosting `#screen-container`). The old source dropdown
@@ -215,10 +215,12 @@ silently.
    no-DSP-commits, not a fresh JS↔C++ audit. If matched-setting output looks
    off, suspect the mirror before the shim.
 6. **Untestable error branches** — accepted (see Validation Plan).
-7. **Half-pane squeeze.** The Dashboard was designed full-page at 640px max
-   width; in a 16:9 half-pane (often ~800–960px CSS wide) it fits as-is, and
-   portrait phones get the full width — but mid-size landscape windows could
-   squeeze the pane below comfortable width. The accordion overhang (21px
+7. **Third-pane squeeze.** The Dashboard was designed full-page at 640px max
+   width; the 16:9 third-pane is ~640px at 1920 wide (exact fit) but ~455px
+   at 1366 — below the design width, so mid-size landscape windows squeeze
+   the dashboard while portrait phones get the full width. The content
+   column compresses (max-width only caps upward); if it bites, the pane gets
+   its own min-width + horizontal scroll rather than redesigning the Dashboard. The accordion overhang (21px
    each side) assumes viewport-edge clipping (`shell.css:27-29`); inside a
    pane it needs pane-edge clipping instead. Phase 1 validates at 1920×1080,
    1366×768, and 390×844; if the squeeze bites, the pane gets its own
