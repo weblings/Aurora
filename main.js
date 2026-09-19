@@ -118,17 +118,23 @@ const controls = new OrbitControls(camera, renderer.domElement);
 controls.enableDamping = true;
 controls.target.set(0, 0, FRAME_Z); // orbit pivots on the frame itself, not the world origin
 
-// Rotation readout for tuning the default spawn pose: orbit the scene, read
-// the console, hand the numbers back. Fires at every orbit release; the
-// 'spawn' call below runs after the room model reframes the camera, so it
-// reports the true default pose.
-function logOrbitState(tag) {
-  const az = THREE.MathUtils.radToDeg(controls.getAzimuthalAngle());
-  const pol = THREE.MathUtils.radToDeg(controls.getPolarAngle());
-  const p = camera.position, t = controls.target;
-  console.log(`[orbit:${tag}] az=${az.toFixed(1)}deg pol=${pol.toFixed(1)}deg cam=(${p.x.toFixed(2)}, ${p.y.toFixed(2)}, ${p.z.toFixed(2)}) target=(${t.x.toFixed(2)}, ${t.y.toFixed(2)}, ${t.z.toFixed(2)})`);
+// Default spawn pose, tuned from a live orbit readout (az=35.8deg,
+// pol=87.7deg): imposed after every camera fit, so resizes keep the angles
+// while the fit distance stays aspect-correct. Convention verified against
+// the readout (offset = dist * (sin pol * sin az, cos pol, sin pol * cos az)).
+const SPAWN_AZ_DEG = 35.8;
+const SPAWN_POL_DEG = 87.7;
+function applySpawnPose() {
+  const target = controls.target;
+  const dist = camera.position.distanceTo(target);
+  const az = THREE.MathUtils.degToRad(SPAWN_AZ_DEG);
+  const pol = THREE.MathUtils.degToRad(SPAWN_POL_DEG);
+  camera.position.set(
+    target.x + dist * Math.sin(pol) * Math.sin(az),
+    target.y + dist * Math.cos(pol),
+    target.z + dist * Math.sin(pol) * Math.cos(az)
+  );
 }
-controls.addEventListener('end', () => logOrbitState('user'));
 
 const video = document.createElement('video');
 video.src = 'assets/168273-838673780.webm';
@@ -823,6 +829,7 @@ new ResizeObserver(() => {
   camera.aspect = width / height;
   if (currentRigType === 'room') {
     frameCameraToRoom(); // no-op until the model's loaded; harmless
+    if (roomModel) applySpawnPose();
   } else {
     fitCameraToFrame(); // aspect changed, so the fit distance needs recomputing too
     rebuildBackdrop(); // its perspective-corrected size depends on that same fit distance
@@ -867,7 +874,7 @@ function activateLightRig(newType) {
       roomModel.visible = true;
       frameCameraToRoom();
       buildLights(); // roomZoneLights is populated now; the earlier synchronous call ran before it was
-      logOrbitState('spawn');
+      applySpawnPose();
     });
   } else if (roomModel) {
     roomModel.visible = false;

@@ -47,10 +47,16 @@ export class ZoneActiveToggleList {
 
     this.container.querySelectorAll('input[type="checkbox"]').forEach((input) => {
       input.addEventListener('change', (e) => {
-        const zoneId = Number(e.currentTarget.dataset.zoneId);
-        const zone = this.zones.find((z) => z.zoneId === zoneId);
+        // DEMO SEAM string-zone-ids (see MANIFEST.json): native zoneIds are
+        // uint8 so upstream coerces with Number() here, but the demo's room
+        // rig uses string ids ('front-left') -- Number() yields NaN, find()
+        // misses, and the next line throws. Match either form by strict
+        // equality and never crash on an unknown id.
+        const rawId = e.currentTarget.dataset.zoneId;
+        const zone = this.zones.find((z) => z.zoneId === rawId || z.zoneId === Number(rawId));
+        if (!zone) return;
         zone.active = e.currentTarget.checked;
-        this._queue.queue(zoneId, { active: zone.active });
+        this._queue.queue(zone.zoneId, { active: zone.active });
       });
     });
   }

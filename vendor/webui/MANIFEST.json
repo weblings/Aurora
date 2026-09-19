@@ -46,7 +46,8 @@
     "descriptors.json (via gen-descriptors.py from core + Hue + Input descriptor tables)"
   ],
   "notes": [
-    "icon-paths: NavFooter.js + Dropdown.js page-relative icons/*.svg rewritten to vendor/webui/icons/* (CSS mask urls resolve relatively and needed no change)"
+    "icon-paths: NavFooter.js + Dropdown.js page-relative icons/*.svg rewritten to vendor/webui/icons/* (CSS mask urls resolve relatively and needed no change)",
+    "string-zone-ids: ZoneActiveToggle.js Number(dataset.zoneId) replaced with type-tolerant lookup + unknown-id guard (native ids are uint8; demo room ids are strings)"
   ],
   "seams": [
     {
