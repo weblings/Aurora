@@ -56,4 +56,9 @@ const appFacade = {
 };
 
 const screen = new DashboardScreen(appFacade);
-screen.mount(document.getElementById('screen-container'));
+await screen.mount(document.getElementById('screen-container'));
+// Demo scope: no capture devices exist on a static page (the monitor and
+// sink keys are ledgered no-ops), so the device field is inert + dimmed
+// instead of interactive. `inert` blocks mouse, touch, keyboard, and
+// assistive-tech interaction alike -- no per-control work needed.
+document.querySelector('#dashboard-pane .db-device-slot')?.setAttribute('inert', '');

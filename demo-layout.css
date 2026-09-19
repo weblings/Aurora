@@ -89,3 +89,9 @@ html, body {
   text-overflow: ellipsis;
   min-width: 0;
 }
+
+/* Demo scope: the Monitor/Audio device field is inert (see demo-boot.js) --
+   dim it so it reads as disabled rather than broken. */
+.db-port .db-device-slot[inert] {
+  opacity: 0.45;
+}
