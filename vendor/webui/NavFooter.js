@@ -10,7 +10,7 @@ export function renderNavFooter(container, { showBack = true, onBack, backLabel 
     <div class="nav-footer">
       ${showBack ? `
         <button type="button" class="btn btn-secondary nav-footer-back">
-          ${backIcon ? '<img src="icons/back-arrow.svg" alt="" class="nav-footer-back-icon" />' : ''}
+          ${backIcon ? '<img src="vendor/webui/icons/back-arrow.svg" alt="" class="nav-footer-back-icon" />' : ''}
           <span>${escapeHtml(backLabel)}</span>
         </button>
       ` : ''}

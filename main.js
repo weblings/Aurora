@@ -8,9 +8,15 @@ import { configToPipeline } from './demo-tuning.js';
 
 // Live zone view (Phase 3): the shim owns zone state once demo-boot runs;
 // per-frame and rebuild reads go through it so PUTs apply live. Falls back
-// to the static zonemap (the shim's own seed) when the boot module is absent.
+// to the static zonemap (flat-rig data) when the boot module is absent.
 function demoZones() {
   return getDemoStore()?.liveZones() ?? zoneMap;
+}
+
+// Room-path equivalent: the rig's 4 quadrant zones, live from the shim once
+// booted (seeded from ROOM_ZONE_MAP), static fallback for bare-scene use.
+function roomZones() {
+  return getDemoStore()?.liveZones() ?? ROOM_ZONE_MAP;
 }
 import { composeFrame } from './processing.js';
 import { Smoother } from './smoother.js';
@@ -75,7 +81,7 @@ const LAMP_SHADE_EMISSIVE_INTENSITY = 3; // <1 so the directly-lit panel still s
 
 // The room's own 4 point lights each drive one video quadrant instead of the flat rigs' 8 zones --
 // see assignRoomZoneLights() for how a light is matched to a quadrant.
-const ROOM_ZONE_MAP = [
+export const ROOM_ZONE_MAP = [
   { zoneId: 'front-left', uvs: { min: [0, 0], max: [0.5, 0.5] }, active: true, gamma: 0 },
   { zoneId: 'front-right', uvs: { min: [0.5, 0], max: [1, 0.5] }, active: true, gamma: 0 },
   { zoneId: 'back-left', uvs: { min: [0, 0.5], max: [0.5, 1] }, active: true, gamma: 0 },
@@ -111,6 +117,18 @@ scenePane.appendChild(renderer.domElement);
 const controls = new OrbitControls(camera, renderer.domElement);
 controls.enableDamping = true;
 controls.target.set(0, 0, FRAME_Z); // orbit pivots on the frame itself, not the world origin
+
+// Rotation readout for tuning the default spawn pose: orbit the scene, read
+// the console, hand the numbers back. Fires at every orbit release; the
+// 'spawn' call below runs after the room model reframes the camera, so it
+// reports the true default pose.
+function logOrbitState(tag) {
+  const az = THREE.MathUtils.radToDeg(controls.getAzimuthalAngle());
+  const pol = THREE.MathUtils.radToDeg(controls.getPolarAngle());
+  const p = camera.position, t = controls.target;
+  console.log(`[orbit:${tag}] az=${az.toFixed(1)}deg pol=${pol.toFixed(1)}deg cam=(${p.x.toFixed(2)}, ${p.y.toFixed(2)}, ${p.z.toFixed(2)}) target=(${t.x.toFixed(2)}, ${t.y.toFixed(2)}, ${t.z.toFixed(2)})`);
+}
+controls.addEventListener('end', () => logOrbitState('user'));
 
 const video = document.createElement('video');
 video.src = 'assets/168273-838673780.webm';
@@ -248,7 +266,11 @@ function driveLightsFromAudio() {
     : audioColorModel === 'attack' ? attackAudioColor(features)
     : dampedAudioColor(audioColorModel, features);
 
-  for (const { lights } of zoneLights) {
+  // Inactive zones hold last color (native parity: the stream carries active
+  // zones only) -- looked up live so Dashboard Active toggles land here too.
+  const liveById = new Map(roomZones().map((z) => [z.zoneId, z]));
+  for (const { zoneId, lights } of zoneLights) {
+    if (liveById.get(zoneId)?.active === false) continue;
     for (const light of lights) light.color.copy(audioColor);
   }
 }
@@ -771,8 +793,9 @@ function animate() {
   } else {
     const imageData = sampleVideoFrame();
     if (imageData) {
-      // Room mode drives 4 quadrant zones (ROOM_ZONE_MAP), not the flat rigs' 8-zone zonemap.js.
-      const activeZoneMap = currentRigType === 'room' ? ROOM_ZONE_MAP : demoZones();
+      // Room mode drives its 4 quadrant zones live from the shim (same array
+      // the Dashboard edits), not the flat rigs' 8-zone zonemap.js.
+      const activeZoneMap = currentRigType === 'room' ? roomZones() : demoZones();
       const frame = smoother.smooth(composeFrame(imageData, activeZoneMap), smoothingFactor);
       for (const zoneFrame of frame) {
         const target = zoneLights.find((z) => z.zoneId === zoneFrame.zoneId);
@@ -844,6 +867,7 @@ function activateLightRig(newType) {
       roomModel.visible = true;
       frameCameraToRoom();
       buildLights(); // roomZoneLights is populated now; the earlier synchronous call ran before it was
+      logOrbitState('spawn');
     });
   } else if (roomModel) {
     roomModel.visible = false;

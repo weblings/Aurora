@@ -22,3 +22,4 @@ are no other outcomes — anything unlisted here is a bug.
 | `activeMonitorName` | No capture device in the demo. |
 | `audioTargetSinkName` | No capture device in the demo. |
 | `interpolation` | Native applies it in capture rescale; the demo downscales via `drawImage`. |
+| per-zone `gamma` | Stored on zones and round-trips (PUT applies, GET returns); the demo scene doesn't implement output gamma — native applies it in the output stage — so the slider has no visible scene effect. |

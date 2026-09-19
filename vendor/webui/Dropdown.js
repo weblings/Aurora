@@ -61,7 +61,9 @@ export class Dropdown {
     // Single <img> with its src swapped on open/close, RockyRoad's own
     // up/down SVGs (Dropdown.ts) recolored to currentColor -- one element
     // instead of its two-image show/hide, same visual result.
-    this.chevron.src = 'icons/chevron-down.svg';
+    // DEMO SEAM icon-paths (see MANIFEST.json): page-relative icons/ does not
+    // exist in the demo; vendored assets live under vendor/webui/icons/.
+    this.chevron.src = 'vendor/webui/icons/chevron-down.svg';
 
     this.trigger.append(this.labelEl, this.chevron);
 
@@ -136,7 +138,7 @@ export class Dropdown {
     this._open = true;
     this.root.classList.add('open');
     this.trigger.setAttribute('aria-expanded', 'true');
-    this.chevron.src = 'icons/chevron-up.svg';
+    this.chevron.src = 'vendor/webui/icons/chevron-up.svg';
     const selectedIndex = this._options.findIndex((o) => o.selected);
     this._setActiveIndex(selectedIndex !== -1 ? selectedIndex : 0);
     this.menu.focus();
@@ -147,7 +149,7 @@ export class Dropdown {
     this._open = false;
     this.root.classList.remove('open');
     this.trigger.setAttribute('aria-expanded', 'false');
-    this.chevron.src = 'icons/chevron-down.svg';
+    this.chevron.src = 'vendor/webui/icons/chevron-down.svg';
   }
 
   setTriggerLabel(text) {

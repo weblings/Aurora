@@ -119,7 +119,14 @@ function testRouter(seed) {
   const r = testRouter({ zones: ZONES_FIXTURE })('GET', '/api/hue/channels');
   assert.equal(r.json.succeeded, true);
   assert.deepEqual(r.json.channels.map((c) => c.channelId), [0, 1]);
-  assert.ok(r.json.channels[0].lightNames.length > 0);
+  assert.deepEqual(r.json.channels[0].lightNames, ['Demo Light 0']);
+}
+
+// String zone ids (the room rig's quadrant names) prettify for labels.
+{
+  const zones = [{ zoneId: 'front-left', uvs: { min: [0, 0], max: [0.5, 0.5] }, active: true, gamma: 0, everConfigured: true }];
+  const r = testRouter({ zones })('GET', '/api/hue/channels');
+  assert.deepEqual(r.json.channels, [{ channelId: 'front-left', lightNames: ['Front Left'] }]);
 }
 
 // Unknown routes 404 instead of falling through to native fetch shapes.

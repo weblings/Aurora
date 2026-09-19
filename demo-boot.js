@@ -4,15 +4,15 @@
 // bridge-setup navigation unreachable, so the app facade's navigate() only
 // needs to exist, never to work.
 //
-// Phase 3: the shim owns zone state, seeded from zonemap.js (which stays the
-// seed data + ZoneMapStore shape mirror, not the live copy). Zone PUTs land
+// Phase 3: the shim owns zone state, seeded from ROOM_ZONE_MAP (the room
+// rig's 4 quadrant zones; zonemap.js stays as the dormant flat rigs' data).
+// Zone PUTs land
 // in the shim and come back through onZonesChanged, which re-invokes the
 // scene's existing buildLights() rebuild path -- light positions follow zone
 // edits with no new scene code.
 import { installDemoShim } from './demo-shim.js';
 import { setDemoStore } from './demo-state.js';
-import { zoneMap } from './zonemap.js';
-import { rebuildZoneLights, applyLiveTuning } from './main.js';
+import { ROOM_ZONE_MAP, rebuildZoneLights, applyLiveTuning } from './main.js';
 import { DashboardScreen } from './vendor/webui/screens/DashboardScreen.js';
 import { ensureTooltips } from './vendor/webui/Tooltips.js';
 
@@ -30,7 +30,9 @@ try {
 
 const { store } = installDemoShim({
   seed: {
-    zones: zoneMap.map((z) => ({ everConfigured: true, ...z })),
+    // Room rig truth: 4 quadrant zones (not the flat rigs' 8-zone zonemap),
+    // so the Dashboard lists exactly the lights the scene drives.
+    zones: ROOM_ZONE_MAP.map((z) => ({ everConfigured: true, ...z })),
     descriptors: descriptorEntries,
   },
   hooks: {

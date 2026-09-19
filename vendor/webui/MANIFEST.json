@@ -45,6 +45,9 @@
   "generated": [
     "descriptors.json (via gen-descriptors.py from core + Hue + Input descriptor tables)"
   ],
+  "notes": [
+    "icon-paths: NavFooter.js + Dropdown.js page-relative icons/*.svg rewritten to vendor/webui/icons/* (CSS mask urls resolve relatively and needed no change)"
+  ],
   "seams": [
     {
       "id": "no-output-connect",

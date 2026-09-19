@@ -162,6 +162,11 @@ export function createShimStore(storage = createMemoryStorage(), seed = {}) {
   };
 }
 
+function prettyZoneName(zoneId) {
+  if (typeof zoneId !== 'string') return `Demo Light ${zoneId}`;
+  return zoneId.split('-').map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+}
+
 const DEMO_MONITORS = [
   { id: 0, name: 'Demo Display', width: 1920, height: 1080, refreshRate: 60, isPrimary: true },
 ];
@@ -232,10 +237,12 @@ export function createRouter(store, hooks = {}) {
     if (method === 'GET' && path === '/api/hue/channels') {
       // One channel per zone, channelId == zoneId -- the mapping
       // DashboardScreen._zoneLabel assumes for "Zone N (names)" labels.
+      // String ids prettify ('front-left' -> 'Front Left'); numeric ids keep
+      // the Demo Light N form.
       const { zones } = store.getZones();
       return ok({
         succeeded: true,
-        channels: zones.map((z) => ({ channelId: z.zoneId, lightNames: [`Demo Light ${z.zoneId}`] })),
+        channels: zones.map((z) => ({ channelId: z.zoneId, lightNames: [prettyZoneName(z.zoneId)] })),
       });
     }
     if (method === 'GET' && path === '/api/descriptors') {
