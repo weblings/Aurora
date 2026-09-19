@@ -272,12 +272,17 @@ function driveLightsFromAudio() {
     : audioColorModel === 'attack' ? attackAudioColor(features)
     : dampedAudioColor(audioColorModel, features);
 
-  // Inactive zones hold last color (native parity: the stream carries active
-  // zones only) -- looked up live so Dashboard Active toggles land here too.
+  // Demo legibility deviation (see tuning-ledger.md): inactive zones go
+  // dark here. Native holds last color (the stream carries active zones
+  // only), but a frozen quadrant reads as a broken toggle on a demo page --
+  // off means visibly off. Looked up live so Dashboard Active toggles land.
   const liveById = new Map(roomZones().map((z) => [z.zoneId, z]));
   for (const { zoneId, lights } of zoneLights) {
-    if (liveById.get(zoneId)?.active === false) continue;
-    for (const light of lights) light.color.copy(audioColor);
+    const off = liveById.get(zoneId)?.active === false;
+    for (const light of lights) {
+      if (off) light.color.setRGB(0, 0, 0);
+      else light.color.copy(audioColor);
+    }
   }
 }
 
@@ -803,11 +808,22 @@ function animate() {
       // the Dashboard edits), not the flat rigs' 8-zone zonemap.js.
       const activeZoneMap = currentRigType === 'room' ? roomZones() : demoZones();
       const frame = smoother.smooth(composeFrame(imageData, activeZoneMap), smoothingFactor);
+      const frameById = new Map(activeZoneMap.map((z) => [z.zoneId, z]));
+      const updated = new Set();
       for (const zoneFrame of frame) {
         const target = zoneLights.find((z) => z.zoneId === zoneFrame.zoneId);
         if (!target) continue;
+        updated.add(zoneFrame.zoneId);
         for (const light of target.lights) {
           light.color.setRGB(zoneFrame.color.r / 255, zoneFrame.color.g / 255, zoneFrame.color.b / 255);
+        }
+      }
+      // Same demo deviation as the audio path above: inactive zones go dark
+      // instead of holding, so the toggle reads as on/off in the scene.
+      for (const { zoneId, lights } of zoneLights) {
+        if (updated.has(zoneId)) continue;
+        if (frameById.get(zoneId)?.active === false) {
+          for (const light of lights) light.color.setRGB(0, 0, 0);
         }
       }
     }

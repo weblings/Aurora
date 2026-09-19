@@ -23,3 +23,13 @@ are no other outcomes — anything unlisted here is a bug.
 | `audioTargetSinkName` | No capture device in the demo. |
 | `interpolation` | Native applies it in capture rescale; the demo downscales via `drawImage`. |
 | per-zone `gamma` | Stored on zones and round-trips (PUT applies, GET returns); the demo scene doesn't implement output gamma — native applies it in the output stage — so the slider has no visible scene effect. |
+
+## Deliberate scene deviations (not tuning keys)
+
+- **Inactive zones go dark.** Natively the stream carries active zones only
+  and unstreamed lights hold their last color — but on a demo page a frozen
+  quadrant reads as a broken toggle, so in both the video and audio paths a
+  zone with `active: false` has its lights set to black every frame while
+  the Dashboard bool stays the single source of truth. If bridge parity ever
+  needs demonstrating instead, delete the two darkening passes in `animate()`
+  and the hold behavior falls out of the existing skip logic.
