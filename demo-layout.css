@@ -74,3 +74,18 @@ html, body {
 .db-port #db-change-bridge {
   display: none;
 }
+
+/* Dropdown triggers inherit white-space:nowrap with no shrink constraint,
+   so long labels ("Zone front-left (Front Left)") spill past the field at
+   narrow pane widths and swallow the pane's right padding. Ellipsize the
+   label instead (chevron keeps its footprint); open menus keep full text,
+   clipped by their own overflow rule. Demo-owned override, not a vendored
+   edit -- upstream has the same latent issue on narrow viewports. */
+.db-port .dropdown-trigger {
+  overflow: hidden;
+}
+.db-port .dropdown-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}

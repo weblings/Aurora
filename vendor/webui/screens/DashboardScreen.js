@@ -293,6 +293,10 @@ export class DashboardScreen {
         this.bridgeSection.content.scrollIntoView({ behavior: 'smooth', block: 'start' });
       },
       renderActive: true,
+      // DEMO SEAM toggle-sync (see MANIFEST.json): a Zone Mapping flip
+      // re-renders the Bridge list showing the same shared objects (section
+      // stays expanded by design of _renderBridgeZoneList).
+      onActiveChange: () => this._renderBridgeZoneList(),
     });
     this.selectedZoneId = this.zoneCanvas.selectedZoneId;
 
@@ -407,6 +411,9 @@ export class DashboardScreen {
       zoneLabel: (zone) => this._zoneLabel(zone),
       onError: (message) => { this.topTierError = message; this._renderTopTier(); },
       tooltipKey: 'zones.active',
+      // DEMO SEAM toggle-sync (see MANIFEST.json): a Bridge flip re-syncs
+      // the Zone Mapping bool showing the same shared objects.
+      onChange: () => this.zoneCanvas?.refreshActive(),
     });
   }
 

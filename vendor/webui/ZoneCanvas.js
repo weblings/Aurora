@@ -37,13 +37,19 @@ export class ZoneCanvas {
   // through the same _queue as gamma/uvs, not a separate callback -- an
   // Active flip has no side effect any caller needs to react to beyond
   // persistence, same as gamma.
-  constructor(container, { zones, selectedZoneId, zoneLabel, onSelect, onError, onSeeAllZones, renderActive = false }) {
+  // DEMO SEAM toggle-sync (see MANIFEST.json): onActiveChange fires after
+  // the embedded bool flips so the owner (Dashboard) can refresh the Bridge
+  // list showing the same shared objects; refreshActive() re-syncs the bool
+  // from the selected zone without a full re-render (which would kill an
+  // open zone dropdown mid-interaction).
+  constructor(container, { zones, selectedZoneId, zoneLabel, onSelect, onError, onSeeAllZones, renderActive = false, onActiveChange }) {
     this.container = container;
     this.zones = zones;
     this.zoneLabel = zoneLabel;
     this.onSelect = onSelect;
     this.onSeeAllZones = onSeeAllZones;
     this.renderActive = renderActive;
+    this.onActiveChange = onActiveChange;
     this.zoneDropdown = null;
     this._queue = new ZonePatchQueue({ onError });
 
@@ -55,6 +61,16 @@ export class ZoneCanvas {
 
   get selectedZoneId() {
     return this._selectedZoneId;
+  }
+
+  // DEMO SEAM toggle-sync: re-sync the embedded Active bool from the live
+  // zone objects after a sibling view (Bridge list) flips one. Cheaper than
+  // _render() and safe mid-interaction.
+  refreshActive() {
+    const box = this.container.querySelector('#zc-active-toggle');
+    if (!box) return;
+    const selected = this.zones.find((z) => z.zoneId === this._selectedZoneId) ?? this.zones[0];
+    box.checked = selected.active;
   }
 
   _render() {
@@ -171,6 +187,7 @@ export class ZoneCanvas {
       container.querySelector('#zc-active-toggle').addEventListener('change', (e) => {
         zone.active = e.currentTarget.checked;
         this._queue.queue(zone.zoneId, { active: zone.active });
+        this.onActiveChange?.(zone);
       });
     }
 

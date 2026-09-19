@@ -47,7 +47,8 @@
   ],
   "notes": [
     "icon-paths: NavFooter.js + Dropdown.js page-relative icons/*.svg rewritten to vendor/webui/icons/* (CSS mask urls resolve relatively and needed no change)",
-    "string-zone-ids: ZoneActiveToggle.js Number(dataset.zoneId) replaced with type-tolerant lookup + unknown-id guard (native ids are uint8; demo room ids are strings)"
+    "string-zone-ids: ZoneActiveToggle.js Number(dataset.zoneId) replaced with type-tolerant lookup + unknown-id guard (native ids are uint8; demo room ids are strings)",
+    "toggle-sync: ZoneActiveToggleList.onChange + ZoneCanvas.onActiveChange/refreshActive keep Bridge and Zone Mapping bools on the same shared objects in sync; DashboardScreen wires both directions (upstream has no sibling consumer, so no callbacks exist there)"
   ],
   "seams": [
     {

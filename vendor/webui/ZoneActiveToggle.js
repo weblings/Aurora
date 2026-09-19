@@ -19,11 +19,16 @@ export class ZoneActiveToggleList {
   // zones: live zone array (mutated in place, same convention as
   // ZoneCanvas). zoneLabel(zone) is injected -- this component knows
   // nothing about Hue channel/light names.
-  constructor(container, { zones, zoneLabel, onError, tooltipKey = null }) {
+  // DEMO SEAM toggle-sync (see MANIFEST.json): onChange fires after an
+  // Active flip so the owner can refresh sibling views of the same shared
+  // zone objects (the Zone Mapping bool). Upstream omits it -- on the real
+  // app no sibling visibly consumes the flip beyond persistence.
+  constructor(container, { zones, zoneLabel, onError, tooltipKey = null, onChange }) {
     this.container = container;
     this.zones = zones;
     this.zoneLabel = zoneLabel;
     this.tooltipKey = tooltipKey;
+    this.onChange = onChange;
     this._queue = new ZonePatchQueue({ onError });
     this._render();
   }
@@ -57,6 +62,7 @@ export class ZoneActiveToggleList {
         if (!zone) return;
         zone.active = e.currentTarget.checked;
         this._queue.queue(zone.zoneId, { active: zone.active });
+        this.onChange?.(zone);
       });
     });
   }

@@ -37,5 +37,16 @@ assert.ok(toggles.includes('DEMO SEAM string-zone-ids'), 'string-id seam marker 
 assert.ok(!toggles.includes('Number(e.currentTarget.dataset.zoneId)'),
   'numeric coercion stays out -- it NaNs string ids and crashes the handler');
 assert.ok(toggles.includes('if (!zone) return'), 'unknown-id guard stays');
+assert.ok(toggles.includes('this.onChange?.(zone)'), 'List notifies owner on flip');
+
+const canvas = read('ZoneCanvas.js');
+assert.ok(canvas.includes('refreshActive()'), 'Canvas exposes bool re-sync');
+assert.ok(canvas.includes('this.onActiveChange?.(zone)'), 'Canvas notifies owner on flip');
+
+const dashScreen = read('screens/DashboardScreen.js');
+assert.ok(dashScreen.includes('onChange: () => this.zoneCanvas?.refreshActive()'),
+  'Bridge flips re-sync the Zone Mapping bool');
+assert.ok(dashScreen.includes('onActiveChange: () => this._renderBridgeZoneList()'),
+  'Zone Mapping flips re-render the Bridge list');
 
 console.log('vendor seam checks passed.');
