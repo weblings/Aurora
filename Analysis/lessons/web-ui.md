@@ -7,6 +7,8 @@ research specifically, not rendering (`rendering-apis.md`/
 (`engineering-hygiene.md`).
 
 ## A described "existing component" is a claim to verify, not a fact to build on
+Tags: webui, reuse, verification
+Applies-when: building on a claimed existing component
 
 Building the WebUI plan by surveying huenicorn's and RockyRoad's existing
 screens, several recommendations initially rested on secondhand descriptions
@@ -27,6 +29,8 @@ recommendation or reuse estimate on it, the same rigor already applied to
 third-party library APIs.
 
 ## A layout lesson learned in one constrained context doesn't transfer to another without checking the actual numbers
+Tags: webui, layout, responsive
+Applies-when: applying a layout lesson to a different constrained context
 
 Comparing RockyRoad's desktop and XR versions of its Play screen surfaced a
 real principle: a fixed, small, ray-pointer-driven surface (an XR panel)
@@ -49,6 +53,8 @@ pixel width, real target size) for the new context before restructuring —
 "both are constrained" isn't itself evidence the same fix applies.
 
 ## Component-reuse research answers "could we use this," not "does this screen need it at all"
+Tags: webui, reuse, scope
+Applies-when: auditing whether a screen needs an element at all
 
 Iterating on the WebUI screens, an initial component-by-component audit (does
 a reusable pattern already exist for each drawn element) was run before a
@@ -71,6 +77,8 @@ component availability makes reuse cheap, which is exactly what makes it easy
 to mistake "we could build this" for "this screen needs this."
 
 ## A flagged UI gap can already be covered by a normal-path action elsewhere in the same flow
+Tags: webui, scope, navigation
+Applies-when: adding UI for a gap possibly covered by an existing action
 
 Cutting the WebUI's manual-credentials fallback screen (see above) raised a
 real-sounding concern: with no way to type in credentials directly, there'd
@@ -89,6 +97,8 @@ already exercises the same recovery path — pairing/setup/reset actions built
 for the common case often already cover the rare one for free.
 
 ## A style built ahead of its first real consumer can drift from the very precedent it cites, and nothing catches that until something actually uses it
+Tags: webui, css, drift
+Applies-when: writing shared styles before their first use
 
 `shell.css`'s `.status-pill` was written in the app-shell step, before any
 screen existed to use it, citing RockyRoad's real `.lib-badge` as its
@@ -110,6 +120,8 @@ renderer exercising it is unverified by construction, no matter how
 plausible it reads.
 
 ## An ARIA pattern that commits a value on every interaction needs adapting when the commit callback has real side effects
+Tags: webui, aria, dropdown
+Applies-when: reusing an ARIA pattern with side-effecting commit callbacks
 
 Porting `Dropdown.ts` to close its ARIA/keyboard gaps, the actual WAI-ARIA
 APG "Collapsible Dropdown Listbox" pattern was fetched and verified before
@@ -134,6 +146,8 @@ cheap value assignment — the pattern's own keyboard model may assume
 committing is free, and it usually isn't in this codebase.
 
 ## A living plan doc's own sections can drift out of sync with each other, not just with the external reality they describe
+Tags: docs, planning, webui
+Applies-when: editing a living plan doc out of build order
 
 Recurred twice more since first filed (steps 13 and 17), all in
 `WebUI/WebUI_Design_1stPass.md` itself — the Dashboard section's own layout mockup still
@@ -177,6 +191,8 @@ that "it's already in the plan" means it's still accurate.
 ---
 
 ## A screen's jsdom test suite passing is proof its logic works, not proof it looks or behaves correctly in a real browser
+Tags: webui, jsdom, testing
+Applies-when: verifying screens with jsdom without a real browser pass
 
 Five build-order steps' worth of jsdom tests (Zone Mapping and Output
 Connect especially) were all green going into step 19's dedicated
@@ -261,6 +277,8 @@ already confirm is unchanged.
 ---
 
 ## A component's own test suite can pass fully while never actually testing "committing a different value changes what's displayed" -- a coverage gap, not a jsdom capability gap
+Tags: webui, testing, coverage, dropdown
+Applies-when: reviewing a component's test coverage for commit paths
 
 Distinct from this file's own entry above: this one isn't something jsdom
 is structurally unable to check (no layout or real hit-testing needed,
@@ -294,6 +312,8 @@ be airtight while structurally never exercising that transition at all.
 ---
 
 ## A shared component's internal value-matching can silently assume every caller's option value is a string
+Tags: webui, dropdown, types
+Applies-when: passing non-string option values through dataset
 
 Reusing `Dropdown` for Zone Mapping's new zone-selector (`value: zone.zoneId`,
 a number) after the entertainment-config picker had only ever used it with
@@ -321,6 +341,8 @@ actually exists to exercise it.
 ---
 
 ## A static fetch mock that was accurate can become a false failure once the code under test grows a read-after-write dependency it didn't have before
+Tags: webui, testing, mocks
+Applies-when: code under test grows a read-after-write the mock lacks
 
 `zone_mapping_test.mjs`'s mock for `GET /api/hue/connection` returned one
 fixed value regardless of any prior `POST` in the same test run -- correct
@@ -347,6 +369,8 @@ no longer models the real endpoint's behavior.
 ---
 
 ## A screen's JTBD pass validates its own interaction model against assumed inputs, not against what a different build step actually decided to supply
+Tags: webui, jtbd, zone-mapping
+Applies-when: validating interaction models against assumed inputs
 
 Re-examining Zone Mapping's selection model after a live bug report ("zone
 5 hides zone 4") traced back to a JTBD question the original pass never
@@ -381,6 +405,8 @@ them is checked on paper first.
 ---
 
 ## Reuse by shared final-layout position and reuse by shared component are different kinds of reuse, and conflating them can make an elegant architecture collapse on the first concrete counter-example
+Tags: webui, architecture, reuse
+Applies-when: sharing layout or components across wizard and Dashboard
 
 Designing the onboarding wizard for the new accordion Dashboard, "the
 wizard *is* the Dashboard, with sections unlocking in place as each
@@ -418,6 +444,8 @@ example (not just the cases already in mind) before committing to it.
 ---
 
 ## Checking a UI pattern against a live reference implementation's actual source can surface both a domain mismatch and an unrelated visual-collision risk that a pros/cons comparison alone would miss
+Tags: webui, reuse, verification
+Applies-when: comparing UI patterns without reading the reference source
 
 Asked whether `RockyRoadImport`'s tab-bar pattern would suit Aurora's
 Dashboard better than an accordion, rather than reasoning from general tab-
@@ -452,6 +480,8 @@ comparison would think to check for.
 ---
 
 ## A default chosen to fix one screen's bug can silently block a feature designed in a completely separate, much later pass
+Tags: zonemap, defaults, webui, onboarding
+Applies-when: choosing defaults consumed by other screens
 
 `ZoneReconciler`'s `active{false}` default for a never-mapped zone exists
 for a good, already-documented reason (this file's own JTBD entry above --
@@ -490,6 +520,8 @@ bearing before building it.
 ---
 
 ## Cheap, disposable ASCII diagrams surface layout/state gaps before any code exists, cheaper than jsdom or a real build -- but they can't validate real visual proportions either
+Tags: webui, design, ascii, prototyping
+Applies-when: exploring layout or state before writing code
 
 Iterating the accordion Dashboard and NUX redesign entirely in ASCII boxes
 (no code written) caught several real gaps that stayed invisible in prose
@@ -526,6 +558,8 @@ real, built layout once it exists.
 ---
 
 ## Checking a new pass's decision against the previous pass's actual code, not just its design doc, surfaces breakage neither document's own text records
+Tags: webui, verification, planning
+Applies-when: building a design pass over a previous pass
 
 Deciding to flip `ZoneReconciler`'s `active` default for the pass-2 NUX
 redesign, `WebUI_Design_1stPass.md`'s own prose gave no reason to expect
@@ -549,6 +583,8 @@ writing down either.
 ---
 
 ## A build-order plan's own testing shape defaults to "one verification phase at the end" unless a predecessor's actually-successful practice is deliberately re-derived
+Tags: webui, testing, planning
+Applies-when: writing a build-order plan with verification phases
 
 Scoping the pass-2 build order, testing landed entirely in its final phase
 by default -- not a deliberate choice to defer it, just the natural shape a
@@ -574,6 +610,8 @@ end unless a predecessor's better practice is deliberately carried forward.
 ---
 
 ## A component whose parent fully rebuilds its DOM on every render needs its fetch and its draw split into two calls, or it either re-fetches needlessly or goes stale
+Tags: webui, components, data-fetching
+Applies-when: building components under re-rendering parents
 
 Extracting `EntertainmentConfigSelect` out of `ZoneMappingScreen.js`
 (pass 2's Phase B, step 7), the natural first design bundled "fetch the
@@ -603,6 +641,8 @@ requires.
 ---
 
 ## An `onChange`/`onSelect` callback should never fire during a component's own construction
+Tags: webui, components, callbacks
+Applies-when: writing component constructors with callbacks
 
 `ZoneCanvas`'s constructor resolves an initial selected zone (falling back
 to the first zone when none is given, same "always a real selection" rule
@@ -627,6 +667,8 @@ callback.
 ---
 
 ## Not every reusable UI piece fits the "class that owns and replaces its container's innerHTML" shape every other component here uses
+Tags: webui, components, architecture
+Applies-when: forcing a UI piece into the shared component shape
 
 Extracting `TuningSliderGroup` (pass 2's Phase B, step 10), the default
 move -- matching `DeviceField`/`EntertainmentConfigSelect`/`ZoneCanvas`/
@@ -659,6 +701,8 @@ wasn't just deferring inevitable work.)
 ---
 
 ## Splitting one screen's responsibility across two needs an audit of *every* edge-case branch the original had, not just its main happy path
+Tags: webui, refactor, edge-cases
+Applies-when: splitting a screen's responsibility across two screens
 
 Moving entertainment-config selection out of `OutputConnectScreen` into the
 new `EntertainmentZoneSelectScreen` (pass 2 steps 14-15), the natural
@@ -685,6 +729,8 @@ disabled since there's nothing valid to advance with.
 ---
 
 ## Two independently-correct component decisions can combine so that the *first* real usage of one silently exercises a global side effect of the other
+Tags: webui, components, side-effects
+Applies-when: combining independently-correct component decisions
 
 `AccordionSection`'s "collapsed content stays mounted, not torn down" (built
 Phase B, no real consumer yet) and `Dropdown`'s "install one lazy, never-
@@ -752,6 +798,8 @@ verifying event-model-specific or pseudo-element-specific behavior.
 ---
 
 ## A shared test fixture's placeholder value for an unused field becomes load-bearing the moment new code starts reading that field, silently invalidating every scenario built on it
+Tags: webui, testing, fixtures
+Applies-when: adding reads of previously-unused fixture fields
 
 `bootstrap_test.mjs`'s `baseMocks()` had returned `entertainmentConfigurationId:
 ''` from `/api/hue/connection` since the field was first threaded through the
@@ -779,6 +827,8 @@ only ever "accurate by coincidence" because nothing consumed them yet.
 ---
 
 ## A screen's own interaction model (when a selection actually takes effect) is a design decision that needs stating, not something a debugging session can reverse-engineer from behavior alone
+Tags: webui, design, interaction-model
+Applies-when: choosing when a selection takes effect
 
 Live-testing reports across several sessions ("clicking Video/Audio on the
 capture-select screen doesn't do anything," "lights don't react until Zone
@@ -812,6 +862,8 @@ covers.
 ---
 
 ## A UI that displays a resolved default value looks identical to one that has actually persisted it, and that gap can recur in more than one place before it's worth fixing structurally
+Tags: webui, config, presence, nux
+Applies-when: displaying resolved defaults as selected
 
 Chasing "the NUX lands back on an earlier onboarding screen after
 completing it and relaunching," the same shape of bug turned up twice,
@@ -848,6 +900,8 @@ rather than trying to make every such signal in the app correct.
 ---
 
 ## A feature named for two screens needs confirming both screens actually route through the code being edited, not just that a component with the right job exists
+Tags: webui, navigation, grep
+Applies-when: adding a feature spanning multiple screens
 
 Asked to add an "Auto-arrange zones" button to "the NUX and Dashboard zone
 mapping UI," the button was added to `ZoneMappingScreen.js` and reported
@@ -878,6 +932,8 @@ pieces so different screens *could* compose them differently.
 ---
 
 ## An expensive operation doesn't need a cheaper implementation to go live -- it needs a gesture-end commit signal, not a more frequent or debounced one
+Tags: webui, reload, performance, gestures
+Applies-when: wiring expensive backend ops to UI gestures
 
 The actual design decision behind this one: the accordion Dashboard had two
 sections with opposite interaction models for no reason a user could see --
@@ -915,6 +971,8 @@ a timer is the right tool only once no such signal exists.
 ---
 
 ## A config field's real domain is defined by its actual backend consumer, not its wire type or its current UI widget -- and checking already-exposed data beats assuming new backend surface is needed
+Tags: webui, config, backend
+Applies-when: exposing a config field in the UI
 
 Replacing Tuning's raw `subsampleWidth` number input started as a UI-taste
 question (slider vs. stepper vs. dropdown) until
@@ -944,6 +1002,8 @@ surface is required.
 ---
 
 ## Overriding just a pseudo-element's own style, without resetting its host's native rendering mode, can be silently ignored entirely
+Tags: webui, css, slider
+Applies-when: styling pseudo-elements like the slider thumb
 
 The 2.5 pass's slider-thumb restyle added `.slider-input::-webkit-slider-
 thumb { -webkit-appearance: none; width: 20px; ...; background: #dadada; }`
@@ -989,6 +1049,8 @@ screenshot glance isn't verification" lesson.
 ---
 
 ## Moving a navigation affordance from "always rendered" to "rendered in the main content branch" silently drops it from every early-return branch
+Tags: webui, navigation, rendering
+Applies-when: moving navigation into conditional renders
 
 The NUX Polish Pass moved Zone Mapping onboarding's Back button from the
 top bar (rendered unconditionally in `mount()`, present regardless of what
@@ -1016,6 +1078,8 @@ each early-return branch.
 ---
 
 ## A Continue button that only navigates must still wait for the screen's own in-flight save, when the next step is decided by re-reading that save
+Tags: webui, navigation, race, nux
+Applies-when: navigating after a save the next step re-reads
 
 NUX's Capture screen (`ModeDeviceScreen.js`) live-applies every toggle via
 an async `PUT /api/config` that triggers a multi-second backend pipeline
@@ -1044,6 +1108,8 @@ safe if the click can never overtake the save, and a slow backend makes
 ---
 
 ## Trace what the navigation target actually reads before gating navigation on a write
+Tags: webui, navigation
+Applies-when: gating navigation on a write
 
 Proposed awaiting ZoneMapping's background decoration in onboarding Finish
 to protect its silent entertainment-config persist -- then traced the real
@@ -1063,6 +1129,8 @@ lands" needs a named reader of X on the other side, or it is pure cost.
 ---
 
 ## A tooltip-key oracle proves presence, not placement -- put the title where the hover lands
+Tags: webui, tooltips, i18n
+Applies-when: verifying tooltip keys and placement
 
 Dashboard Zone picker/gamma/active titles were all present in the descriptor
 contract and the keycheck test passed (27 keys, zero Test leftovers), yet only
@@ -1080,6 +1148,8 @@ pass), or a green keycheck will certify an invisible tooltip.
 ---
 
 ## Mirror the wire format, not the storage struct
+Tags: webui, api, wire-format
+Applies-when: shaping frontend payloads against backend models
 
 Seeding the demo shim from Config.hpp field values nearly shipped
 interpolation: 2 (the storage int for Area) -- but SettingsRoutes
@@ -1095,6 +1165,8 @@ change fails loudly. Never seed from the struct definition.
 ---
 
 ## Scoped resets don't cover the scope's own container
+Tags: webui, css
+Applies-when: writing scoped CSS resets
 
 The demo's `.db-port * { box-sizing: border-box }` reset never reaches
 `#dashboard-pane` -- the scope root's parent -- so the pane stayed
@@ -1110,6 +1182,8 @@ the viewport (`paneW > vw`) before hunting descendants.
 ---
 
 ## Flex-shrink only saves the main axis
+Tags: webui, css, flex
+Applies-when: debugging flex overflow on the cross axis
 
 The same 32px overflow was invisible in landscape -- row-axis flex-shrink
 absorbed it -- and fatal in portrait, where cross sizes don't shrink.
@@ -1122,6 +1196,8 @@ first; content spillers would show in both orientations.
 ---
 
 ## First-match regexes lie on repeated selectors
+Tags: webui, regex, css
+Applies-when: matching repeated selectors with regex
 
 A layout test matching `#dashboard-pane {` passed against the
 aspect-ratio media-query block instead of the top-level rule carrying the

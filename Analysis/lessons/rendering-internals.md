@@ -9,6 +9,8 @@ Split out of `engineering-hygiene.md` alongside `rendering-apis.md`, mirroring R
 ---
 
 ## Falloff shape and "stop at a fixed boundary" are two different jobs, and one mechanism usually can't do both
+Tags: rendering, demo-web, falloff, lights
+Applies-when: shaping light falloff with a hard boundary
 
 Hit building `Aurora-Demo-Web`'s light rigs. A light's `distance`/
 `decay` is a *radial* falloff from a point (or, for `RectAreaLight`, a
@@ -28,6 +30,8 @@ past its edge) — independent of any light's own physics.
 ---
 
 ## Matching apparent size across two camera depths needs the depth *ratio*, not a flat world-space offset
+Tags: rendering, demo-web, camera, scale
+Applies-when: matching apparent size across camera depths
 
 Hit in the same `Aurora-Demo-Web` work, sizing a backdrop plane sitting
 behind a foreground video plane. A farther object needs to be **larger** in
@@ -46,6 +50,8 @@ fit-to-frame distance) — it's not a one-time constant.
 ---
 
 ## A texture's on-screen rotation direction from `texture.rotation` isn't safely derivable by reasoning through UV-space math — verify with one real render
+Tags: rendering, demo-web, textures, verification
+Applies-when: reasoning about texture rotation direction by hand
 
 Mapping a video texture onto `TV_Room.glb`'s `TV_Screen` mesh needed a 90°
 correction for the mesh's own UV unwrap. Reasoning through the sign by hand

@@ -6,6 +6,8 @@ Color/effect transform and zone-mapping specific gotchas. See
 ---
 
 ## Generating a periodic test signal fresh per call, instead of continuing its phase, injects broadband noise a relative-comparison test can miss
+Tags: processing, dsp, testing, test-signals
+Applies-when: generating periodic test signals per call
 
 Testing `AudioFeatureExtractor`'s spectral centroid against a pure 1000Hz
 tone, the first version of `sineWave()` generated a fresh buffer per call
@@ -30,6 +32,8 @@ looser comparison is what the feature ultimately cares about.
 ---
 
 ## A reference implementation's own missing validation can be harmless there and a real crash risk once the same data reaches different downstream code
+Tags: processing, porting, validation, getsubimage
+Applies-when: reusing reference data with a different downstream consumer
 
 Porting huenicorn's real `ScreenWidget.js` (`Handle.setPosition`) for the
 WebUI's Zone Mapping screen, read in full before porting rather than
@@ -66,6 +70,8 @@ what the reference does."
 ---
 
 ## Two UI elements reported as "one hiding the other" can share the exact same default coordinates rather than suffering a genuine z-order bug
+Tags: processing, zonemap, defaults, debugging
+Applies-when: diagnosing overlapping zones or elements
 
 A live report that switching entertainment configurations left one zone
 ("zone 5") visually and functionally hiding another ("zone 4") looked at

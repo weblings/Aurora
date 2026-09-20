@@ -10,6 +10,8 @@ entries, following the same own-internals/third-party-facts split as RockyRoad's
 ---
 
 ## A light type's constructor parameters are the whole contract — don't assume it mirrors a sibling type's API shape
+Tags: rendering, threejs, lights, api
+Applies-when: constructing Three.js light types by analogy
 
 Hit in `Aurora-Demo-Web` while building the Three.js browser demo's light
 rigs. `PointLight`/`SpotLight` expose `distance` (a hard cutoff) and `decay`
@@ -33,6 +35,8 @@ to fight the light's own parameters.
 ---
 
 ## Blender's glTF exporter drops light data by default, and Area lights never export at all
+Tags: rendering, blender, gltf, lights
+Applies-when: exporting lights from Blender to glTF
 
 Hit importing `TV_Room.glb` into `Aurora-Demo-Web`'s Three.js scene. The
 first export had zero `KHR_lights_punctual` data despite the Blender scene
@@ -50,6 +54,8 @@ present, 4 real `type: "point"` entries), not assumed from docs alone.
 ---
 
 ## A glTF material is shared by reference across every mesh that uses it — clone before giving one instance independent state
+Tags: rendering, gltf, materials, threejs
+Applies-when: giving one glTF mesh independent material state
 
 `TV_Room.glb`'s `LampShade` and `BlocksGem` materials are each a single
 glTF material entry referenced by all 4 lamp meshes (confirmed in the raw
@@ -69,6 +75,8 @@ asset, not just lights.
 ---
 
 ## glTF's `alphaMode: BLEND` sets more than `transparent` — undoing only the visible property leaves a material opaque-colored but still see-through
+Tags: rendering, gltf, materials, transparency
+Applies-when: reverting BLEND transparency on a glTF material
 
 Cloning `TV_Room.glb`'s `LampShade` material (glTF `alphaMode: BLEND`) and
 setting `transparent = false; opacity = 1;` to make it opaque still

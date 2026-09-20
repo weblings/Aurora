@@ -6,6 +6,8 @@ Capture/grabber/platform-adapter specific gotchas. See
 ---
 
 ## A non-blocking poll on an event-driven capture API can starve indefinitely instead of ever returning real data
+Tags: input, dxgi, capture, polling
+Applies-when: polling an event-driven capture API with a zero timeout
 
 `WindowsGrabber`'s DXGI Desktop Duplication port used
 `AcquireNextFrame(0, ...)` — a non-blocking poll, planned in
@@ -34,6 +36,8 @@ actually run under, not just that it compiles and returns success once.
 ---
 
 ## A monitor Windows still lists as attached can be powered off, and the OS won't say so
+Tags: input, windows, monitor, dxgi
+Applies-when: debugging black capture on multi-monitor Windows
 
 Real hardware, two monitors: `\\.\DISPLAY2` (primary, 3840x2160) and
 `\\.\DISPLAY1` (1920x1200), only the latter physically on. Both passed
@@ -65,6 +69,8 @@ pipeline working correctly.
 ---
 
 ## Shared-mode WASAPI loopback delivers zero callbacks, not silent ones, when nothing is actively rendering
+Tags: input, audio, wasapi, windows
+Applies-when: testing loopback audio capture with nothing playing
 
 `AudioGrabber` (miniaudio-backed WASAPI loopback, `Aurora-Input-Windows`)
 built and initialized cleanly, but its first real-hardware run produced
@@ -96,6 +102,8 @@ needs it yet.
 ---
 
 ## A mislabeled pixel format can be harmless upstream and become a live bug the moment downstream code starts trusting the label
+Tags: input, pixel-format, x11, pipewire
+Applies-when: changing code from ignoring to trusting a format tag
 
 Comparing huenicorn vs. `Aurora-App-Linux` side by side on real content, blue
 scenes rendered green/pink and red scenes rendered blue — looked like a
@@ -128,6 +136,8 @@ upstream's own bugs can be invisible for as long as nothing reads them.
 ---
 
 ## PipeWire's daemon running and connectable doesn't mean any real audio device nodes exist
+Tags: input, audio, pipewire, wireplumber, linux
+Applies-when: PipeWire answers but lists no real devices
 
 Preparing to test the new `AudioGrabber`, `pw-cli ls Node` on the real
 target machine listed exactly two nodes: `Dummy-Driver` and
@@ -152,6 +162,8 @@ answers.
 ---
 
 ## The installed SPA/PipeWire dev headers can lack API the code was written against, and it's a compile error, not a version-check failure
+Tags: input, pipewire, spa, headers, linux
+Applies-when: building against distro PipeWire dev headers
 
 `Aurora-Input-Linux`'s `AudioGrabber.cpp` failed to build twice on the real
 target machine (Ubuntu 22.04, `libspa-0.2-dev`/`libpipewire-0.3-dev`
@@ -175,6 +187,8 @@ function name a newer environment (or an LLM's training data) suggested.
 ---
 
 ## Adding a second `pw_core_sync` round-trip can turn a dormant dangling-listener bug into a live, hard-to-place segfault
+Tags: input, pipewire, async, listeners
+Applies-when: adding async requests inside PipeWire callbacks
 
 Fixing the discovery race above (`_onRegistryGlobal` re-issuing
 `pw_core_sync` after binding the "default" metadata object, so loop-exit
@@ -209,6 +223,8 @@ evidence the removal was correct, only that the dangling window was never
 filled.
 
 ## WSL2 has no real X11/Wayland session, so `aurora-app-linux`'s auto-selecting "linux" input throws there, not just degrades
+Tags: input, wsl2, sessiondispatch, testing
+Applies-when: runtime-testing the Linux app under WSL2
 
 Runtime-testing the new reload entrypoint in WSL2, `aurora-app-linux` failed
 outright at startup with `"No capture backend available for this session --
@@ -231,6 +247,8 @@ once.
 ---
 
 ## A cached GPU staging buffer needs re-validating against the *current* frame, not just created once and trusted forever
+Tags: input, d3d11, staging-buffer, windows
+Applies-when: caching GPU or shared-memory buffers across frames
 
 `WindowsGrabber::grabFrameSubsample()` creates its D3D11 staging texture
 once, on first use, sized to that first frame's own
@@ -266,6 +284,8 @@ takes the whole process down.
 ---
 
 ## A process-global library init/deinit pair must not live in a per-instance constructor/destructor when the app deliberately overlaps old and new instances
+Tags: input, pipewire, lifecycle, reload, globals
+Applies-when: putting process-global init/deinit in a reloadable instance
 
 Live Video↔Audio switching on Linux segfaulted after a few successful swaps
 (`Aurora running: input='linux'` / `audio input='linux-audio'` alternating,

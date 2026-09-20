@@ -6,6 +6,8 @@ entries get routed here vs. elsewhere.
 ---
 
 ## A bridge having more than one entertainment configuration over the same lights is normal, not an edge case — "empty ID selects the only one" doesn't hold
+Tags: output, hue, entertainment-config
+Applies-when: selecting an entertainment configuration by default
 
 `HueOutput`'s empty-`entertainmentConfigurationId` default picks
 `m_entertainmentConfigurations.begin()` on an `unordered_map` — fine if a
@@ -29,6 +31,8 @@ bridge has exactly one.
 ---
 
 ## `DtlsClient`'s handshake failure is swallowed by design — a clean `HueOutput::init()` is not proof a connection exists
+Tags: output, hue, dtls, connection
+Applies-when: treating a clean init as proof of connection
 
 `Streamer`'s constructor calls `m_dtlsClient->init()` inside a `try/catch`
 that deliberately swallows any exception (matching huenicorn: "connection
@@ -51,6 +55,8 @@ needing an external probe.
 ---
 
 ## A reference implementation's dead code can look exactly as legitimate as its live code during a port, unless every call site is actually traced
+Tags: output, porting, dead-code, hue
+Applies-when: porting reference code without tracing call sites
 
 Real hardware comparison (photos of the Hue app's color wheel after a brief
 run of each): huenicorn's lights landed vivid and saturated, Aurora's landed
@@ -107,6 +113,8 @@ fix: confirmed vibrant.
 ---
 
 ## A local success signal doesn't prove a shared external resource is actually in the state you think it's in
+Tags: output, hue, verification, streaming
+Applies-when: trusting local signals for bridge-side stream state
 
 Distinct from this file's `isConnected()` entry above (that one's about a
 *failure* being swallowed at connect time) — this one's about every local
@@ -154,6 +162,8 @@ enforcing.
 ---
 
 ## A Hue device exposes several different resource ids for the same physical light, and they are not interchangeable
+Tags: output, hue, api, resource-ids
+Applies-when: passing Hue resource ids to REST endpoints
 
 An entertainment configuration's `channels[].members[].service.rid` is an
 *entertainment*-service id; `/clip/v2/resource/light/{id}` (the REST
@@ -194,6 +204,8 @@ about the parser under test appears to care which string it sees.
 ---
 
 ## A per-request HTTP handle turns every call in a reload burst into a full TLS setup — count the calls, then share the connection
+Tags: output, hue, http, tls, performance
+Applies-when: making burst REST calls with per-request handles
 
 NUX's lingering Continue→Zone Mapping delay survived two earlier timing
 investigations (both compared one PUT's duration against first-frame and

@@ -7,6 +7,8 @@ here vs. elsewhere.
 ---
 
 ## Check a vcpkg port's default features before installing -- they can pull in a much heavier dependency tree than expected
+Tags: vcpkg, dependencies, windows
+Applies-when: installing a vcpkg port without checking its default features
 
 Installing `aubio:x64-windows` with its default features (`vcpkg install
 aubio:x64-windows`) would have built the port's `tools` feature, which
@@ -29,6 +31,8 @@ place for scope creep to sneak in silently.
 ---
 
 ## A process started from this Bash environment can report a different PID than Windows sees, and needs `/F` to stop from a redirected/backgrounded launch
+Tags: windows, processes, taskkill, bash
+Applies-when: stopping a backgrounded/redirected process launched from Git Bash
 
 Two related gotchas hit together while iterating on a live test run
 (`aurora-app-windows.exe`, started via Bash's `&` with output redirected
@@ -52,6 +56,8 @@ real interactive console.
 ---
 
 ## A C library's own example code can use patterns that don't compile in C++, even when the header is C++-safe
+Tags: c-port, cpp, macros, pipewire
+Applies-when: porting C example code with macro-expanded initializers into C++
 
 Porting PipeWire's real `audio-capture.c`/`audio-src.c` example pattern
 (verified against the actual source, not assumed) into `AudioGrabber.cpp`,
@@ -75,6 +81,8 @@ that takes the address of a macro-expanded initializer.
 ---
 
 ## `enable_testing()` must be called in the parent scope, before `add_subdirectory()`, not inside the test subdirectory itself
+Tags: cmake, ctest
+Applies-when: wiring CTest discovery into a new CMake project
 
 CTest only wires a directory's `CTestTestfile.cmake` to descend into a
 subdirectory's tests if testing was already enabled *before* that subdirectory
@@ -89,6 +97,8 @@ before `add_subdirectory(tests)`, not inside the tests directory's own file.
 ---
 
 ## Don't build C++ on a Windows-mounted drive from inside WSL2
+Tags: wsl2, drvfs, cmake, build-env
+Applies-when: setting up a WSL2 build checkout or hitting transient FetchContent failures on a DrvFs mount
 
 Configuring CMake against a repo living on `/mnt/c` or `/mnt/d` (DrvFs) hit
 real `configure_file: Operation not permitted` errors during compiler
@@ -129,6 +139,8 @@ than concluding the environment is broken.
 ---
 
 ## `using namespace` doesn't make a sibling namespace's own name resolvable
+Tags: cpp, namespaces, tests
+Applies-when: writing a new plugin test file referencing Contracts:: types
 
 Wrote `using namespace Aurora::Output::Hue;` in a test file, then referenced
 `Contracts::UVCorner::TopLeft` expecting it to resolve — it didn't, compile
@@ -149,6 +161,8 @@ attempt, not discovered by it.
 ---
 
 ## A relative path baked into a build file assumes consistent directory casing across platforms
+Tags: cmake, paths, windows-linux, siblings
+Applies-when: adding a relative sibling-repo path to a CMakeLists file
 
 `Aurora-Output-Hue`'s `CMakeLists.txt` resolves Aurora core via
 `../Aurora/core` (relative `FetchContent` `SOURCE_DIR`). Windows is
@@ -164,6 +178,8 @@ rather than assuming a repo layout that "just works" on Windows carries over.
 ---
 
 ## Nested `FetchContent`-ed CMake subprojects can collide on shared CACHE variable names
+Tags: cmake, fetchcontent, cache-variables
+Applies-when: adding a CMake option to a plugin repo that FetchContents core
 
 Aurora core's own `CMakeLists.txt` uses a `BUILD_TESTS` cache variable to gate
 its test suite. A plugin repo (`Aurora-Output-Hue`) pulling Aurora core in via
@@ -181,6 +197,8 @@ a new plugin repo's `CMakeLists.txt` is being written against this pattern.
 ---
 
 ## A distro dev package can lack the `.pc` file its own `find_package`/`pkg_check_modules` call assumes
+Tags: cmake, pkg-config, linux, dependencies
+Applies-when: adding a pkg_check_modules lookup for a distro dev package
 
 `Aurora-Output-Hue`'s `CMakeLists.txt` used `pkg_check_modules(MBEDTLS
 REQUIRED ...)` for Mbed TLS, verified against Ubuntu's `libmbedtls-dev`
@@ -200,6 +218,8 @@ and worth correcting once actually tested against 2.x.
 ---
 
 ## An interface method's return value silently reused to build a persisted file path is part of that method's contract, case included
+Tags: ioutput, zonemap, naming, contracts
+Applies-when: adding or renaming an interface value used to build file paths or keys
 
 `IOutput::name()` reads like a display/logging string. `Runtime::Orchestrator`
 actually uses it as data: `ZoneMapStore::load(output->name())` builds
@@ -223,6 +243,8 @@ display-string reading of the method would miss entirely.
 ---
 
 ## When a run's own evidence contradicts the real-world outcome, distrust the evidence and re-derive it with narrow, independent probes
+Tags: debugging, live-testing, hue
+Applies-when: a clean run contradicts real-world behavior (lights, capture)
 
 A full `aurora-app-linux` run printed clean output and reconciled its saved
 zone map with no changes — read at the time as confirmation the Hue
@@ -244,6 +266,8 @@ one layer independently of the others' claims about themselves.
 ---
 
 ## Same capability with environment-selected variants is one plugin with backends, not several plugins
+Tags: architecture, plugins, input
+Applies-when: splitting a capability with auto-selected variants into repos
 
 Nearly modeled X11 and Wayland/Pipewire capture as two separate plugin repos,
 following the same reasoning that justified splitting Input from Output
@@ -265,6 +289,8 @@ independently skippable without fragmenting the capability itself.
 ---
 
 ## Not porting `Core::Logger` early is now costing real diagnostics, twice
+Tags: logging, planning, tech-debt
+Applies-when: deferring cross-cutting infrastructure past I/O-heavy ports
 
 Every ported I/O-heavy module so far (`X11Grabber`, now
 `PipewireGrabber`/`XdgDesktopPortal`) has hit the same call: drop the
@@ -285,6 +311,8 @@ layer) rather than after.
 ---
 
 ## A `FetchContent_Declare(... URL ...)` needs `DOWNLOAD_EXTRACT_TIMESTAMP` explicitly, and an existing block having it wrong stays invisible until its fetch path actually runs
+Tags: cmake, fetchcontent
+Applies-when: adding a URL-based FetchContent_Declare (and auditing siblings)
 
 Adding `nlohmann_json` via `FetchContent_Declare(... URL ...)` immediately
 hit CMake's `CMP0135` dev warning (extracted-file timestamps default to the
@@ -304,6 +332,8 @@ unexercised (and unverified) on any given machine indefinitely.
 ---
 
 ## When splitting legacy state into "generic" vs. "plugin-specific," classify each field by where it's authored, not where its formula is applied
+Tags: architecture, zonemap, gamma, contracts
+Applies-when: splitting state between Runtime and an output plugin
 
 `Hue::Api::Channel` was correctly split into generic (`Runtime::ZoneMap`:
 `uvs`/`active`) and Hue-specific (`Channel`: `gammaFactor`, `devices`)
@@ -331,6 +361,8 @@ would have been circular and simply wouldn't build.
 ---
 
 ## An installer's `--quiet`/`--passive` flag can mean "don't prompt," including the elevation prompt
+Tags: windows, installer, visual-studio, uac
+Applies-when: running an unattended Windows installer from a non-elevated shell
 
 Ran the Visual Studio installer's `modify` command from a normal (non-admin)
 PowerShell window with `--passive` to add the C++ workload for the Windows
@@ -352,6 +384,8 @@ such command, rather than assuming a clean, fast exit means success.
 ---
 
 ## Installing Visual Studio's C++ workload doesn't put its own tools on PATH
+Tags: windows, visual-studio, cmake, path
+Applies-when: setting up MSVC/CMake on a Windows machine (cmake not found after install)
 
 Once the "Desktop development with C++" workload actually finished
 installing (see the entry above), a plain `cmake --version` in a normal
@@ -373,6 +407,8 @@ so the invoking shell never needs `cl.exe` on `PATH` at all.
 ---
 
 ## A directory's ACLs can outlive a machine identity change, denying an account that looks like the same one
+Tags: windows, acl, filesystem
+Applies-when: undeletable files survive reboot (not a process lock)
 
 `Aurora/core/build/` (created earlier via a WSL2-mounted path) became
 completely undeletable — every file inside denied, surviving a full reboot
@@ -395,6 +431,8 @@ elevated delete goes through directly with no ownership-repair step needed.
 ---
 
 ## A stray `vcpkg.json` silently switches CMake's vcpkg toolchain into manifest mode, which can resolve a different, ABI-incompatible compiler
+Tags: vcpkg, cmake, manifest-mode, ide
+Applies-when: confusing link/build errors after an IDE touched the project
 
 Aurora core was set up for **classic** vcpkg mode (a shared, pre-installed
 package tree, chosen deliberately — see `WindowsInputAnalysis.md`). A
@@ -424,6 +462,8 @@ trusting a confusing link/build error is actually about the code.
 ---
 
 ## Two symptoms that look identical (colors clustered together on a wheel) can have completely different causes if produced by different code paths
+Tags: debugging, audio-vs-video, hue
+Applies-when: diagnosing a symptom shared by two modes or pipelines
 
 A real-hardware vibrancy comparison against huenicorn led into an extended
 investigation of Aurora's *video* zone-mapping pipeline (crop UV
@@ -456,6 +496,8 @@ comparison along the way can still come back genuinely clean.
 ---
 
 ## `AnalyserNode`'s frequency-domain getters return dB with internal smoothing baked in, not linear magnitude
+Tags: web-audio, dsp, demo-web
+Applies-when: feeding AnalyserNode frequency data into DSP math
 
 Hit in `Aurora-Demo-Web` hand-rolling onset/RMS/spectral-centroid extraction
 against the Web Audio API instead of aubio-via-WASM (see `AudioAnalysis.md`).
@@ -479,6 +521,8 @@ just that it returns something shaped right.
 ---
 
 ## A synthetic test signal needs the same preprocessing the real pipeline applies, or a correct implementation can still fail its own test
+Tags: dsp, testing, windowing
+Applies-when: writing synthetic-signal tests for DSP code
 
 Testing a hand-ported spectral-centroid function against a synthetic 1000Hz
 sine wave (via a small hand-written DFT) initially failed by 3x — not a bug
@@ -500,6 +544,8 @@ test's own fidelity gap rather than the code actually being tested.
 ---
 
 ## Brightness lag reads as "boring"/unreactive far more than hue lag, when tuning a beat-reactive light response
+Tags: demo-web, audio-effects, tuning
+Applies-when: tuning beat-reactive smoothing time constants
 
 Building `Aurora-Demo-Web`'s audio-reactive color model, A/B/C testing a
 ported `updateDrift`/`updateBounce` against native's own listening-tuned
@@ -523,6 +569,8 @@ A/C follow-up) — worth confirming the same asymmetry holds physically, not
 just on a screen.
 
 ## A prebuilt vcpkg binary can be ABI-incompatible with a very new Windows SDK/MSVC toolset, and binary caching survives a "fresh" reinstall
+Tags: vcpkg, windows, abi, msvc
+Applies-when: __std_* link errors after a toolchain or SDK change
 
 Adding a new `core/Network` module and its Catch2 test (`AuroraNetworkTests`)
 surfaced a link failure -- `Catch2d.lib` unresolved externals
@@ -553,6 +601,8 @@ than silently spending that time.
 ---
 
 ## A lesson entry naming a root cause is a diagnosis, not a fix -- the landmine stays live until something actually acts on it
+Tags: process, tech-debt, lessons
+Applies-when: recording a root cause without removing it
 
 Implementing `WebUI_Design_2ndPass.md` step 3 hit the exact same
 `Catch2d.lib`/`__std_search_1`-style link failure the two entries above
@@ -583,6 +633,8 @@ it bites.
 ---
 
 ## An env-var override "succeeding" (per a tool's own log message) doesn't prove it changed which binary actually got produced
+Tags: vcpkg, debugging, verify-artifact
+Applies-when: an override claims success but symptoms persist unchanged
 
 Chasing the link failure above, `VCPKG_VISUAL_STUDIO_PATH` was set to
 force vcpkg to use VS 2022's toolset instead of the stray VS 18 instance.
@@ -607,6 +659,8 @@ success-shaped message from the step in between.
 ---
 
 ## A bare `std::thread` manually joined only at the tail of `main()` aborts the process on any earlier `return`
+Tags: cpp, threading, main, app-shell
+Applies-when: managing thread lifetime in main() with early returns
 
 Wiring up the new `HttpServer`'s lifecycle in both app shells' `main()`
 initially stored the server thread as a plain `std::optional<std::thread>`,
@@ -632,6 +686,8 @@ early-return branch at runtime.
 ---
 
 ## A static-file mount point can shadow a registered API route at the same path, and the library's own dispatch order decides who wins
+Tags: httpserver, webui, cpp-httplib, routing
+Applies-when: adding WebUI static files or API routes on one server
 
 Wiring `HttpServer::serveStaticFiles()` (Aurora-WebUI's static frontend) and
 the pairing/capabilities API routes together for the first time, rather than
@@ -657,6 +713,8 @@ outright conflict error, since a request to a shadowed path still returns
 ---
 
 ## No headless-browser tool exists in this environment, but jsdom against real files (installed dev-only, outside the repo) exercises real DOM/JS behavior instead of relying on code review
+Tags: webui, testing, jsdom
+Applies-when: verifying WebUI JS with no browser available
 
 Building Aurora-WebUI's app shell (`shell.js`'s `navigate()`/settings-modal
 logic, `topBar.js`'s rendering) needed real verification, but no browser-
@@ -682,6 +740,8 @@ the jsdom pass.
 ---
 
 ## A live end-to-end test against a real endpoint needs a settle time sized to the system under test's own timeouts, not to how fast a mocked test resolves
+Tags: testing, webui, e2e, timeouts
+Applies-when: writing live or unmocked WebUI tests with waits
 
 A live (unmocked) test of `OutputConnectScreen`'s Autodetect button against
 the actual running server failed a "button re-enabled" assertion after a
@@ -704,6 +764,8 @@ the other.
 ---
 
 ## A library's own "register everything before X" contract can force a slow dependency's construction earlier than it used to happen, with a real latency cost only testing surfaces
+Tags: httpserver, startup, latency
+Applies-when: adding routes that need later-built objects
 
 Adding `/api/monitors` and `/api/reload` required both routes to capture a
 `PipelineHost` by reference -- meaning the whole Input/Output/Orchestrator
@@ -731,6 +793,8 @@ readiness), don't just reason that a reordering is "probably fine."
 ---
 
 ## Saving a "reset to auto" sentinel can get silently overwritten by the very reload that save triggers, before it's ever observed
+Tags: config, reload, webui, settings
+Applies-when: exposing reset-to-auto semantics in a settings UI
 
 Building the Tuning screen's `subsampleWidth` field ("0 = auto"), a live
 `PUT /api/config` setting it to `0` returned `0` correctly in that same
@@ -764,6 +828,8 @@ finish.
 ---
 
 ## Before copy-pasting a "had to duplicate this per-app" pattern onto the next similar route, re-check whether the constraint that forced it still applies
+Tags: architecture, code-reuse, app-shell
+Applies-when: duplicating per-app route logic by precedent
 
 Step 11's `/api/monitors`/`/api/reload` routes had to live directly in each
 app's own `main.cpp`, duplicated near-verbatim, because they capture
@@ -790,6 +856,8 @@ constraint (not the pattern) is the actual thing worth checking for reuse.
 ---
 
 ## Before routing a new mutation through the same reload machinery everything else uses, check whether the data it touches is already live in memory outside that machinery
+Tags: architecture, reload, zonemap
+Applies-when: adding a live-write mutation to the pipeline
 
 Every settings write built in steps 11-13 (`Config`-backed) has to go
 through a full `PipelineHost::reload()` -- confirmed there's no
@@ -819,6 +887,8 @@ is the only option.
 ---
 
 ## `npm install <newpkg>` in a directory with no `package.json` can silently delete packages a previous ad hoc install put there
+Tags: npm, scratchpad, jsdom
+Applies-when: installing scratchpad dev dependencies ad hoc
 
 The session scratchpad's `node_modules` had jsdom installed ad hoc (no
 `package.json`, just `npm install jsdom --no-save` run once, the pattern
@@ -845,6 +915,8 @@ what else was supposed to survive that resolution.
 ---
 
 ## A per-step build-log entry optimized for individual completeness can make the whole document unreadable, without any single edit being wrong
+Tags: docs, planning, readability
+Applies-when: writing build-order or plan docs with verification detail
 
 Writing `WebUI/WebUI_Design_1stPass.md`'s 19-step build order, each step's writeup was
 judged against "is every claim in this entry accurate and well-supported"
@@ -876,6 +948,8 @@ is invisible from inside any single edit.
 ---
 
 ## Redirecting a live process's stdout to a file for later inspection can look identical to a crash, because console-attached and redirected stdout buffer differently
+Tags: live-testing, stdout-buffering, windows
+Applies-when: capturing a long-running daemon's redirected output
 
 Debugging why a real double-click launch might be failing, ran the same
 binary from this environment via `./aurora-app-windows.exe > log.txt 2>&1 &`
@@ -907,6 +981,8 @@ worth noticing, not just retrying the same redirect.
 ---
 
 ## A write endpoint that requires a full object round-trip breaks the moment its paired read endpoint withholds part of that object from the client for security
+Tags: api, security, hue-connection
+Applies-when: adding a write endpoint paired with a field-withholding read
 
 `POST /api/hue/connection` originally required the entire `HueConnection`
 (`bridgeAddress`/`username`/`clientkey`/`entertainmentConfigurationId`)
@@ -939,6 +1015,8 @@ not a hypothetical.
 ---
 
 ## A fully ported, fully unit-tested function can still be dead code if nothing in the production call path actually calls it
+Tags: testing, dead-code, porting
+Applies-when: auditing whether a ported feature is actually reachable
 
 `Aurora-Output-Hue`'s `ApiTools::matchDevices`, `parseEntertainmentConfigurationsChannels`,
 and `loadDevices` were faithfully ported from huenicorn and covered by real
@@ -964,6 +1042,8 @@ file passes.
 ---
 
 ## A reload that keeps the old instance alive until the new one is confirmed working can let the old instance's teardown undo the new instance's already-established state
+Tags: reload, ioutput, lifecycle, hue
+Applies-when: changing reload or teardown ordering around shared state
 
 `PipelineHost::reload()` builds an entirely new `Pipeline` -- including
 calling every new output's `init()`, which for Hue means starting a real
@@ -997,6 +1077,8 @@ ones that are purely local memory.
 ---
 
 ## Confirming a crash is gone is not the same as confirming the intended user flow now works
+Tags: verification, onboarding, webui
+Applies-when: verifying a crash fix beyond the crash itself
 
 Fresh-install repro: deleting `%APPDATA%\Aurora` and relaunching threw
 before `httpServer.bind()` ever ran. First fix (making that throw
@@ -1027,6 +1109,8 @@ and "no exception thrown" and "user can do the thing" are different claims.
 ---
 
 ## A domain field's default doubling as an implicit "never configured" signal is fragile, and a same-shape replacement can carry the identical flaw
+Tags: config, presence, zonereconciler
+Applies-when: using a domain default as a never-configured signal
 
 `ZoneReconciler`'s `active{false}` default was quietly relied on elsewhere
 (`app.js`'s `needsZoneMapping` check, see `web-ui.md`'s matching entry) as a
@@ -1058,6 +1142,8 @@ automatically safer just for being different.
 ---
 
 ## Fixing the bug a symptom made visible can unmask a second, previously-dormant bug the first one had been silently absorbing
+Tags: debugging, live-testing
+Applies-when: a fix opens a previously always-failing path
 
 A short live-testing chain, each fix genuinely correct and independently
 verified, still surfaced this pattern three times in a row.
@@ -1096,6 +1182,8 @@ missed nothing.
 ---
 
 ## Diagnostic timers added independently across files each measure elapsed time from their own private starting point, and comparing them directly produces a real but meaningless number
+Tags: debugging, logging, timing
+Applies-when: adding timing logs across call sites
 
 Chasing a live "capture screen doesn't activate" report, timing logs were
 added incrementally, one call site at a time, as each new suspect surfaced:
@@ -1125,6 +1213,8 @@ like a valid comparison until it's manually unpicked.
 ---
 
 ## A dev server with no `Cache-Control` header on any response can make a genuinely correct fix look like it didn't work, indistinguishable from a real bug
+Tags: webui, browser-cache, debugging
+Applies-when: a WebUI fix retests as not working
 
 Fixing the "lands on an earlier onboarding screen after relaunch" report
 took three real, independently-necessary code fixes -- and along the way,
@@ -1156,6 +1246,8 @@ thinks to suspect the browser's cache instead of the code.
 ---
 
 ## A source diff isn't a tested fix until the running binary contains it
+Tags: verification, build, live-testing
+Applies-when: retesting after an edit against a running daemon
 
 After wiring the audio-mode zone branches into `Aurora-App-Windows`
 (`Pipeline::listZones()`/`updateZone()` delegating to `m_audioOrchestrator`),
@@ -1174,6 +1266,8 @@ links, and a break in the second two looks exactly like a bug in the first.
 ---
 
 ## Sibling repos mix CRLF and LF -- check before editing, verify content-only after
+Tags: line-endings, editing, git
+Applies-when: editing files across sibling repos
 
 `Aurora/core` and `Aurora-App-Linux` sources are CRLF while
 `Aurora-App-Windows/src/main.cpp` is LF, and every repo's `LICENSE` shows
@@ -1190,6 +1284,8 @@ repo, and re-check the diff afterward.
 ---
 
 ## Live-probing the daemon from this sandbox takes three workarounds, and the probe daemon must die afterward
+Tags: sandbox, live-testing, wsl2, curl
+Applies-when: probing a freshly built daemon from this environment
 
 Freshly built binaries on the DrvFs mount refuse direct exec (`Operation
 not permitted`) -- run via `/lib64/ld-linux-x86-64.so.2 <binary>`
@@ -1208,6 +1304,8 @@ daemon holds the REST port and looks exactly like the real app misbehaving.
 ---
 
 ## A check that shares its subject's bug proves nothing -- verify the verifier against an independent count
+Tags: testing, verification, oracle
+Applies-when: writing a check or comparison script
 
 A key-coverage script reported frontend and backend tooltip keys matching
 22-to-22, clean both directions -- because both sides used the same key
