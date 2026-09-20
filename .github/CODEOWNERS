@@ -1,0 +1,9 @@
+# Single owner today (@weblings); per-directory lines are ready for
+# collaborators to claim slices without restructuring.
+*                   @weblings
+/core/              @weblings
+/input/             @weblings
+/output/            @weblings
+/app/               @weblings
+/web/               @weblings
+/Analysis/          @weblings

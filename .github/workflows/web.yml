@@ -1,0 +1,28 @@
+# Web slices (zero-install demo + static WebUI). No build step: runs the
+# node unit tests directly. Runs only when web-facing paths change.
+name: web
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - web/**
+      - web-processing/**
+      - .github/workflows/web.yml
+  pull_request:
+    paths:
+      - web/**
+      - web-processing/**
+      - .github/workflows/web.yml
+
+jobs:
+  unit-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Web unit tests
+        run: |
+          for t in web-processing/*.test.mjs web/demo/*.test.mjs; do node "$t"; done

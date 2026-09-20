@@ -1,12 +1,12 @@
 # Aurora WebUI
 
-The setup/control web interface served by [Aurora](../Aurora)'s app shells
-(`Aurora-App-Windows`, `Aurora-App-Linux`) via `HttpServer::serveStaticFiles()`.
+The setup/control web interface served by [Aurora core](../../)'s app shells
+(`app/windows`, `app/linux`) via `HttpServer::serveStaticFiles()`.
 Plain static HTML/CSS/JS, no build step -- same convention as
-[Aurora-Demo-Web](../Aurora-Demo-Web).
+[web/demo](../../web/demo).
 
 Screen/flow design and component-reuse research live in
-[`Aurora/Analysis/WebUI/WebUI_Design_1stPass.md`](../Aurora/Analysis/WebUI/WebUI_Design_1stPass.md), not
+[`Analysis/WebUI/WebUI_Design_1stPass.md`](../../Analysis/WebUI/WebUI_Design_1stPass.md), not
 here.
 
 Design informed by patterns in huenicorn's own `webroot/`

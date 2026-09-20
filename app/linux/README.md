@@ -1,16 +1,16 @@
 # Aurora App: Linux
 
-The Linux test app tying [Aurora](../Aurora) core, [Aurora-Input-Linux](../Aurora-Input-Linux),
-and [Aurora-Output-Hue](../Aurora-Output-Hue) together into one running
+The Linux test app tying [Aurora core](../../), [input/linux](../../input/linux),
+and [output/hue](../../output/hue) together into one running
 process: capture the screen, crop/color per zone, stream to Hue lights.
 
 Distilled from [huenicorn](https://gitlab.com/openjowelsofts/huenicorn)
-(GPL-3.0), so this repo carries the same license forward — see `LICENSE`.
+(GPL-3.0), so this repo carries the same license forward — see `../../LICENSE`.
 
 ## Status
 
 A test script, not yet a real product app — see
-[`Aurora/Analysis/ImplementationPlan.md`](../Aurora/Analysis/ImplementationPlan.md)
+[`Analysis/ImplementationPlan.md`](../../Analysis/ImplementationPlan.md)
 phase 3 for what's still missing (a pairing flow, a zone-mapping UI).
 
 - **`Registry`** — name → factory lookup for this binary's compiled-in
@@ -39,8 +39,8 @@ phase 3 for what's still missing (a pairing flow, a zone-mapping UI).
 
 ## Building
 
-Expects this repo to sit next to `Aurora/`, `Aurora-Input-Linux/`, and
-`Aurora-Output-Hue/` on disk (or toggle `AURORA_APP_ENABLE_LINUX_INPUT`/
+Expects `core/`, `input/linux/`, and
+`output/hue/` alongside it in this repo (or toggle `AURORA_APP_ENABLE_LINUX_INPUT`/
 `_HUE_OUTPUT` off to skip the ones you don't have). See those repos' own
 READMEs for their native dependencies (X11/Pipewire/libcurl/Mbed TLS).
 

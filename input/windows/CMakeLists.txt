@@ -8,13 +8,12 @@ option(AURORA_INPUT_WINDOWS_ENABLE_AUDIO "Build miniaudio-backed WASAPI loopback
 
 include(FetchContent)
 
-# Aurora core -- SOURCE_DIR points at the local sibling checkout for now;
-# swap for GIT_REPOSITORY + GIT_TAG once Aurora core has a real remote.
+# Aurora core -- SOURCE_DIR points into the monorepo tree.
 # Suppress its own test suite -- we only want its libraries here.
 set(BUILD_TESTS FALSE CACHE BOOL "" FORCE)
 FetchContent_Declare(
   AuroraCore
-  SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../Aurora/core
+  SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../../core
 )
 FetchContent_MakeAvailable(AuroraCore)
 

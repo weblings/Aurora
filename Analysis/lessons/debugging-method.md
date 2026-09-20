@@ -284,3 +284,16 @@ Applies-when: bd bootstrap or bd init dies with a Go panic instead of an error
 bd bootstrap fell back to the JSONL import path and then segfaulted inside dolt config creation (DoltCliConfig.createLocalConfigAt nil dereference). The cause was one line above the panic: mkdir /home/mewuz/.dolt: read-only file system -- dolt needs a writable home for its config, and the nil config crashed the caller instead of returning the error.
 
 **Fix:** run with HOME pointed at a writable dir (HOME=/tmp/bdhome bd bootstrap); dolt creates its config there and the import proceeds. General rule: a Go panic in a CLI tool usually means an unchecked error return -- scroll above the stack trace for the last plain-language warning, that is the diagnosis.
+
+
+---
+
+---
+
+## A checker that passes vacuously is worse than no checker -- verify it can fail
+Tags: debugging, verification, guards, ci
+Applies-when: running a repo checker through a pipe, wrapper, or from the wrong directory
+
+check-lessons.sh cds to its own dirname ($0-relative), so piping it via stdin (tr ... | bash) silently ran it in the wrong directory: the file globs matched nothing, fail stayed 0, and it printed a green OK over zero evidence. The same trap applies to any guard whose pass condition is the absence of failures rather than the presence of checks.
+
+**Fix:** run guards from their own directory (or via a temp copy placed beside them), and distrust the first green run after any invocation change -- confirm it actually inspected files (entry counts, file lists) before believing it.

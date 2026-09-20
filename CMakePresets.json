@@ -1,0 +1,36 @@
+{
+  "version": 3,
+  "cmakeMinimumRequired": {
+    "major": 3,
+    "minor": 19,
+    "patch": 0
+  },
+  "configurePresets": [
+    {
+      "name": "linux-app",
+      "displayName": "Linux app (input + Hue + WebUI)",
+      "description": "Full native stack on Linux. Needs X11/PipeWire dev packages, aubio, OpenCV, libcurl, Mbed TLS.",
+      "binaryDir": "${sourceDir}/build/linux-app",
+      "cacheVariables": {
+        "AURORA_ENABLE_APP_LINUX": "ON",
+        "AURORA_ENABLE_INPUT_LINUX": "ON",
+        "AURORA_ENABLE_OUTPUT_HUE": "ON",
+        "AURORA_ENABLE_APP_WINDOWS": "OFF",
+        "AURORA_ENABLE_INPUT_WINDOWS": "OFF"
+      }
+    },
+    {
+      "name": "windows-app",
+      "displayName": "Windows app (input + Hue + WebUI)",
+      "description": "Full native stack on Windows (MSVC, Windows SDK for DXGI; OpenCV for core).",
+      "binaryDir": "${sourceDir}/build/windows-app",
+      "cacheVariables": {
+        "AURORA_ENABLE_APP_WINDOWS": "ON",
+        "AURORA_ENABLE_INPUT_WINDOWS": "ON",
+        "AURORA_ENABLE_OUTPUT_HUE": "ON",
+        "AURORA_ENABLE_APP_LINUX": "OFF",
+        "AURORA_ENABLE_INPUT_LINUX": "OFF"
+      }
+    }
+  ]
+}

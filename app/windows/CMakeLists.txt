@@ -7,8 +7,8 @@ option(AURORA_APP_BUILD_TESTS "Build this app's own tests" TRUE)
 # compile-time half of the two-level plugin-selection design (see
 # Analysis/DistributedArchitecturePlan.md); the run-time half is Config's
 # activeInputName/activeOutputNames, looked up in the Registry these build.
-option(AURORA_APP_ENABLE_WINDOWS_INPUT "Link in Aurora-Input-Windows" TRUE)
-option(AURORA_APP_ENABLE_HUE_OUTPUT "Link in Aurora-Output-Hue" TRUE)
+option(AURORA_APP_ENABLE_WINDOWS_INPUT "Link in input/windows" TRUE)
+option(AURORA_APP_ENABLE_HUE_OUTPUT "Link in output/hue" TRUE)
 
 include(FetchContent)
 
@@ -17,11 +17,11 @@ include(FetchContent)
 set(BUILD_TESTS FALSE CACHE BOOL "" FORCE)
 FetchContent_Declare(
   AuroraCore
-  SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../Aurora/core
+  SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../../core
 )
 FetchContent_MakeAvailable(AuroraCore)
 
-# Aurora-WebUI -- the one shared static frontend both apps serve identically
+# web/ui -- the one shared static frontend both apps serve identically
 # via HttpServer::serveStaticFiles(). Unconditional, unlike the plugin blocks
 # below -- this is the product's one control surface, not a swappable/optional
 # dependency. Has no CMakeLists.txt of its own (plain static files); confirmed
@@ -29,24 +29,28 @@ FetchContent_MakeAvailable(AuroraCore)
 # or calling add_subdirectory() when none exists.
 FetchContent_Declare(
   AuroraWebUI
-  SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../Aurora-WebUI
+  SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../../web/ui
 )
 FetchContent_MakeAvailable(AuroraWebUI)
 
-if(AURORA_APP_ENABLE_WINDOWS_INPUT)
+# NOT TARGET guard: the root superbuild may have added this dir already;
+# FetchContent dedups by name but NOT against a manual add_subdirectory.
+if(AURORA_APP_ENABLE_WINDOWS_INPUT AND NOT TARGET AuroraInputWindows)
   set(AURORA_INPUT_WINDOWS_BUILD_TESTS FALSE CACHE BOOL "" FORCE)
   FetchContent_Declare(
     AuroraInputWindows
-    SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../Aurora-Input-Windows
+    SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../../input/windows
   )
   FetchContent_MakeAvailable(AuroraInputWindows)
 endif()
 
-if(AURORA_APP_ENABLE_HUE_OUTPUT)
+# NOT TARGET guard: the root superbuild may have added this dir already;
+# FetchContent dedups by name but NOT against a manual add_subdirectory.
+if(AURORA_APP_ENABLE_HUE_OUTPUT AND NOT TARGET AuroraOutputHue)
   set(AURORA_OUTPUT_HUE_BUILD_TESTS FALSE CACHE BOOL "" FORCE)
   FetchContent_Declare(
     AuroraOutputHue
-    SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../Aurora-Output-Hue
+    SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../../output/hue
   )
   FetchContent_MakeAvailable(AuroraOutputHue)
 endif()

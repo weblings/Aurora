@@ -1,0 +1,45 @@
+# Linux native stack. Runs only when its slice (or core/) changes.
+# NOTE: written blind from a sandbox without compilers or runners --
+# expect the first live run to need package tweaks; fix forward here.
+name: linux
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - core/**
+      - input/linux/**
+      - output/hue/**
+      - app/linux/**
+      - CMakeLists.txt
+      - CMakePresets.json
+      - .github/workflows/linux.yml
+  pull_request:
+    paths:
+      - core/**
+      - input/linux/**
+      - output/hue/**
+      - app/linux/**
+      - CMakeLists.txt
+      - CMakePresets.json
+      - .github/workflows/linux.yml
+
+jobs:
+  build-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install deps
+        run: >
+          sudo apt-get update &&
+          sudo apt-get install -y cmake ninja-build
+          libx11-dev libxext-dev libxrandr-dev
+          libpipewire-0.3-dev libglib2.0-dev
+          libaubio-dev libopencv-dev
+          libcurl4-openssl-dev libmbedtls-dev
+      - name: Configure
+        run: cmake --preset linux-app
+      - name: Build
+        run: cmake --build build/linux-app
+      - name: Test
+        run: ctest --test-dir build/linux-app --output-on-failure

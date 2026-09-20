@@ -1,11 +1,11 @@
 # Aurora Input: Linux
 
-Linux screen-capture input plugin for [Aurora](../Aurora) — implements
+Linux screen-capture input plugin for [Aurora core](../../) — implements
 `Aurora::Input::IVideoInput` for both X11 and Wayland (via Pipewire/
 `xdg-desktop-portal`), auto-selected at runtime by `SessionDispatch`.
 
 Distilled from [huenicorn](https://gitlab.com/openjowelsofts/huenicorn)
-(GPL-3.0), so this repo carries the same license forward — see `LICENSE`.
+(GPL-3.0), so this repo carries the same license forward — see `../../LICENSE`.
 
 ## Status
 
@@ -14,13 +14,13 @@ Distilled from [huenicorn](https://gitlab.com/openjowelsofts/huenicorn)
   `GnuLinuxAdapter`, split out and tested as pure logic.
 - `X11Grabber` — mechanically ported, builds against `libX11`/`libXext`/`libXrandr`.
   Not unit-testable (needs a real X11 display) — manual verification pending,
-  same category as `Aurora-Output-Hue`'s DTLS streaming.
+  same category as `output/hue`'s DTLS streaming.
 - `PipewireGrabber`/`XdgDesktopPortal` — mechanically ported (Wayland capture
   via `xdg-desktop-portal`'s ScreenCast interface, plus Gamescope's direct
   Pipewire node). Gamescope-node matching and raw-buffer-to-`ImageData`
   conversion extracted as pure, tested helpers. Not unit-testable as a whole
   (needs a real Wayland session + portal backend) — see
-  [`Aurora/Analysis/LinuxCaptureAnalysis.md`](../Aurora/Analysis/LinuxCaptureAnalysis.md).
+  [`Analysis/LinuxCaptureAnalysis.md`](../../Analysis/LinuxCaptureAnalysis.md).
 
 ## Building
 

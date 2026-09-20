@@ -1,19 +1,19 @@
 # Aurora Input: Windows
 
-Windows screen-capture input plugin for [Aurora](../Aurora) — implements
+Windows screen-capture input plugin for [Aurora core](../../) — implements
 `Aurora::Input::IVideoInput` for the Windows desktop.
 
 Distilled from [huenicorn](https://gitlab.com/openjowelsofts/huenicorn)
-(GPL-3.0), so this repo carries the same license forward — see `LICENSE`.
+(GPL-3.0), so this repo carries the same license forward — see `../../LICENSE`.
 huenicorn's own Windows adapter never implemented capture at all
 (`WindowsAdapter::_createGrabber` returns `nullptr`), so there's no upstream
 capture code to port here — see
-[`Aurora/Analysis/WindowsInputAnalysis.md`](../Aurora/Analysis/WindowsInputAnalysis.md)
+[`Analysis/WindowsInputAnalysis.md`](../../Analysis/WindowsInputAnalysis.md)
 for the DXGI Desktop Duplication research this plugin is built against instead.
 
 ## Status
 
-- `DummyGrabber` — ported from `Aurora-Input-Linux`'s copy, tested. No OS
+- `DummyGrabber` — ported from `input/linux`'s copy, tested. No OS
   dependency, useful as a fallback/dev target.
 - `WindowsGrabber` (DXGI Desktop Duplication) — not started. See
   `WindowsInputAnalysis.md` for the verified API shape, failure modes, and

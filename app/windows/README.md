@@ -1,19 +1,19 @@
 # Aurora App: Windows
 
-The Windows test app tying [Aurora](../Aurora) core, [Aurora-Input-Windows](../Aurora-Input-Windows),
-and [Aurora-Output-Hue](../Aurora-Output-Hue) together into one running
+The Windows test app tying [Aurora core](../../), [input/windows](../../input/windows),
+and [output/hue](../../output/hue) together into one running
 process: capture the screen, crop/color per zone, stream to Hue lights.
 
 Distilled from [huenicorn](https://gitlab.com/openjowelsofts/huenicorn)
-(GPL-3.0), so this repo carries the same license forward — see `LICENSE`.
+(GPL-3.0), so this repo carries the same license forward — see `../../LICENSE`.
 
 ## Status
 
 A test script, not yet a real product app — see
-[`Aurora/Analysis/ImplementationPlan.md`](../Aurora/Analysis/ImplementationPlan.md)
+[`Analysis/ImplementationPlan.md`](../../Analysis/ImplementationPlan.md)
 phase 3 for what's still missing (a pairing flow, a zone-mapping UI).
 
-- **`Registry`** — identical to `Aurora-App-Linux`'s copy (platform-neutral,
+- **`Registry`** — identical to `app/linux`'s copy (platform-neutral,
   no OS dependency) — name → factory lookup for this binary's compiled-in
   plugins. Tested (`tests/RegistryTests.cpp`) against fake input/output
   fixtures.
@@ -23,7 +23,7 @@ phase 3 for what's still missing (a pairing flow, a zone-mapping UI).
   sensible defaults if unconfigured), and drives `Orchestrator::update()`
   in a real timed loop until `Ctrl+C`/console close. Not unit-tested — real
   display, real bridge, real threading, same category as `WindowsGrabber`/
-  `Streamer`. Two platform differences from `Aurora-App-Linux`'s copy, not
+  `Streamer`. Two platform differences from `app/linux`'s copy, not
   reusable as-is: `SetConsoleCtrlHandler` instead of `std::signal` (Windows
   has no `SIGINT`/`SIGTERM`), and `%APPDATA%\Aurora` instead of
   `$HOME/.config/aurora` for the config root (matching huenicorn's own
@@ -49,7 +49,7 @@ phase 3 for what's still missing (a pairing flow, a zone-mapping UI).
   monitor by default; a monitor Windows still lists as attached can be
   genuinely powered off and reads back as valid all-black data with no way
   to detect that via the API — see
-  [`Aurora/Analysis/lessons/input.md`](../Aurora/Analysis/lessons/input.md).
+  [`Analysis/lessons/input.md`](../../Analysis/lessons/input.md).
   If the app is streaming solid black, hand-edit `<configRoot>/config.json`'s
   `activeMonitorName` to the right monitor's name (e.g. `"\\\\.\\DISPLAY1"`
   — as shown by `WindowsGrabber::monitors()`, empty means auto/primary).
@@ -59,8 +59,8 @@ phase 3 for what's still missing (a pairing flow, a zone-mapping UI).
 
 ## Building
 
-Expects this repo to sit next to `Aurora/`, `Aurora-Input-Windows/`, and
-`Aurora-Output-Hue/` on disk (or toggle `AURORA_APP_ENABLE_WINDOWS_INPUT`/
+Expects `core/`, `input/windows/`, and
+`output/hue/` alongside it in this repo (or toggle `AURORA_APP_ENABLE_WINDOWS_INPUT`/
 `_HUE_OUTPUT` off to skip the ones you don't have). Needs a native Windows
 C++ toolchain (Visual Studio's "Desktop development with C++" workload) plus
 [vcpkg](https://github.com/microsoft/vcpkg) for Aurora core's OpenCV

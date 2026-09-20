@@ -1,0 +1,41 @@
+# Windows native stack. Runs only when its slice (or core/) changes.
+# NOTE: written blind from a sandbox without MSVC or runners --
+# the OpenCV_DIR below is the first thing to suspect on a red run.
+name: windows
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - core/**
+      - input/windows/**
+      - output/hue/**
+      - app/windows/**
+      - CMakeLists.txt
+      - CMakePresets.json
+      - .github/workflows/windows.yml
+  pull_request:
+    paths:
+      - core/**
+      - input/windows/**
+      - output/hue/**
+      - app/windows/**
+      - CMakeLists.txt
+      - CMakePresets.json
+      - .github/workflows/windows.yml
+
+jobs:
+  build-test:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install OpenCV
+        run: choco install opencv -y
+      - name: Configure
+        run: >
+          cmake --preset windows-app
+          -DOpenCV_DIR="C:/tools/opencv/build"
+      - name: Build
+        run: cmake --build build/windows-app --config Release
+      - name: Test
+        run: ctest --test-dir build/windows-app -C Release --output-on-failure

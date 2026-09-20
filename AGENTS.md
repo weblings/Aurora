@@ -2,11 +2,12 @@
 
 Core repo: shared `Contracts`, `Processing`, `Input`/`Output` interfaces,
 `Runtime`, and `web-processing/` JS mirrors. Concrete plugins live in
-sibling repos (`Aurora-Input-Linux`, `Aurora-Output-Hue`, ...), resolved
-as sibling directories on disk — keep that layout.
+`input/`, `output/`, `app/`, `web/` directories in this repo — keep that layout.
 
 - Build/test: `cmake -S . -B build`, `cmake --build build`,
   `ctest --test-dir build --output-on-failure` (`BUILD_TESTS` defaults ON).
+  Full-app builds: `cmake --preset <linux-app|windows-app>` (per-slice
+  presets in `CMakePresets.json`); core tests alone via `cmake -S core`.
 - `web-processing/`: `node web-processing/<name>.test.mjs`, no build step.
   See `CLAUDE.md` — it is the sync rule between the JS mirrors and the C++.
 ## Where things go
@@ -22,12 +23,14 @@ as sibling directories on disk — keep that layout.
   state + resume pointer. Findings over narration.
 - Planning docs: decisions, status, pointers only. No task lists, no build play-by-play.
 - References: cite lessons by headline/topic, files by markdown link, external
-  lessons by topic + repo (URLs live under Related repos).
+  lessons by topic + directory (URLs live under Related directories).
 
-## Related repos to be aware of
+## Related directories to be aware of
 
-- This family: `Aurora-Input-Linux`, `Aurora-Output-Hue`, `Aurora-App-Linux`,
-  `Aurora-WebUI` — checked out alongside this repo, resolved by relative path.
+- This family, all in this repo: `input/linux`, `input/windows`,
+  `output/hue`, `app/linux`, `app/windows`, `web/demo`, `web/ui` --
+  core interfaces in `core/`, resolved by relative path. Per-slice notes in
+  each directory's own `AGENTS.md`; tasks and lessons live here at the root.
 - [RockyRoad](https://github.com/weblings/RockyRoad) — reference for Three.js/WebXR
   scenes, design tokens, and UI components (checked directly during WebUI design).
 - [RockyRoadImport](https://github.com/weblings/RockyRoadImport) — import-pipeline

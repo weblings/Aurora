@@ -5,18 +5,17 @@ project(AuroraOutputHue)
 option(AURORA_OUTPUT_HUE_BUILD_TESTS "Build this plugin's own tests" TRUE)
 # The I/O layer (REST discovery + DTLS streaming) is one interdependent unit
 # -- a Hue plugin isn't useful with only one half -- so it's one toggle, not
-# per-dependency like Aurora-Input-Linux's X11/Pipewire backends.
+# per-dependency like input/linux X11/Pipewire backends.
 option(AURORA_OUTPUT_HUE_ENABLE_IO "Build the REST/DTLS I/O layer (needs libcurl, Mbed TLS)" TRUE)
 
 include(FetchContent)
 
-# Aurora core -- SOURCE_DIR points at the local sibling checkout for now;
-# swap for GIT_REPOSITORY + GIT_TAG once Aurora core has a real remote.
+# Aurora core -- SOURCE_DIR points into the monorepo tree.
 # Suppress its own test suite -- we only want its libraries here.
 set(BUILD_TESTS FALSE CACHE BOOL "" FORCE)
 FetchContent_Declare(
   AuroraCore
-  SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../Aurora/core
+  SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../../core
 )
 FetchContent_MakeAvailable(AuroraCore)
 

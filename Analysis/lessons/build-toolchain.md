@@ -317,3 +317,13 @@ replacement with single-occurrence assertions, kept reviewable outside the
 repo, and re-check the diff afterward.
 
 ---
+
+---
+
+## FetchContent dedups by dependency name, not against a manual add_subdirectory -- guard app-level fetches with NOT TARGET
+Tags: cmake, fetchcontent, superbuild, monorepo
+Applies-when: adding a root superbuild over FetchContent-based slice builds
+
+Each slice pulls core/ via FetchContent_Declare(AuroraCore SOURCE_DIR ...), which dedups safely across slices by name. But the moment the root superbuild adds a plugin dir with add_subdirectory AND an app also fetches it by name, the same directory gets added twice and configure dies on duplicate targets -- FetchContent cannot see the manual add. The reverse order breaks identically.
+
+**Fix:** in every consumer FetchContent block, fetch only under if(OPTION AND NOT TARGET <MainTarget>) and keep the target_link_libraries block on the option alone (the target exists down both paths). Verified live: root configure with app+plugin+core together, full build, 19/19 tests.
