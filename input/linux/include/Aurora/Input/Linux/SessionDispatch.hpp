@@ -5,7 +5,7 @@
 
 // The decision logic from huenicorn's GnuLinuxAdapter::_createGrabber(),
 // split from actually constructing a grabber so it's unit-testable (see
-// Analysis/LinuxCaptureAnalysis.md). Only X11 is wired to a real
+// docs/LinuxCaptureAnalysis.md). Only X11 is wired to a real
 // implementation this pass -- the Pipewire outcomes are real decisions
 // today, with the grabber to construct for them still pending.
 namespace Aurora::Input::Linux

@@ -16,7 +16,7 @@
 // the gamut check was dead code in the original (written, never called).
 // toXYB() becomes a free function in Output/Hue/ instead, taking a
 // Contracts::Color -- Color itself no longer needs to know Hue exists at
-// all. See Analysis/ProcessingAnalysis.md.
+// all. See docs/ProcessingAnalysis.md.
 namespace Aurora::Contracts
 {
   /**
@@ -93,7 +93,7 @@ namespace Aurora::Contracts
 
     /**
      * @brief Constructs a Color from HSV -- added for the audio-reactive
-     * color model (Analysis/AudioAnalysis.md), which reasons in hue-arc
+     * color model (docs/AudioAnalysis.md), which reasons in hue-arc
      * terms, not RGB. No HSV representation existed anywhere before this.
      *
      * @param hueDegrees Hue in degrees, wrapped to [0, 360)

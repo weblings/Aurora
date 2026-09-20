@@ -10,7 +10,7 @@
 namespace Aurora::Network::Http::Server { class HttpServer; }
 
 // Tooltip descriptor plumbing for Aurora-WebUI (see
-// Analysis/TooltipsAnalysis.md). One schema, defined once in core;
+// docs/TooltipsAnalysis.md). One schema, defined once in core;
 // every module kind (input/output plugins, video+audio processing,
 // zone runtime, app shell) authors its own descriptor *content*
 // through it. The frontend looks tooltips up purely by key and never

@@ -146,7 +146,7 @@ namespace Aurora::Output::Hue
 
       try{
         // The bridge always answers with a one-element array -- verified
-        // against the real API, see Analysis/WebUI/WebUI_Design_1stPass.md step 5.
+        // against the real API, see docs/WebUI/WebUI_Design_1stPass.md step 5.
         auto entry = response->asJson().at(0);
 
         if(entry.contains("success")){
@@ -209,7 +209,7 @@ namespace Aurora::Output::Hue
       _writeJson(res, {{"succeeded", true}, {"configurations", list}});
     });
 
-    // Onboarding's "Choose your lights" screen (Analysis/WebUI/
+    // Onboarding's "Choose your lights" screen (docs/WebUI/
     // WebUI_Design_2ndPass.md) -- briefly flashes every light in the given
     // entertainment config so a new user can see which physical bulbs it
     // covers, before any Pipeline/streaming session exists. Same

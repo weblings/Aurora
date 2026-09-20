@@ -65,7 +65,7 @@ function renderUnreachable() {
   });
 }
 
-// What the Navigation model (Analysis/WebUI/WebUI_Design_1stPass.md) calls "any
+// What the Navigation model (docs/WebUI/WebUI_Design_1stPass.md) calls "any
 // missing/invalid" vs. "all valid" -- evaluated fresh every time a stage
 // transition needs it, since an earlier onboarding step (e.g. Mode+Device)
 // can change what a later one (Zone Mapping) needs. Deliberately re-fetches
@@ -215,7 +215,7 @@ async function bootstrap() {
   // the Dashboard itself already has a real fix-it path for each of those
   // (Bridge row's "Change bridge", live mode/device controls, zone
   // toggles), so a later gap in any one of them doesn't strand anyone.
-  // See Analysis/WebUI/WebUI_Fixes.md's Pass 2 section.
+  // See docs/WebUI/WebUI_Fixes.md's Pass 2 section.
   try {
     const config = await fetchJson('/api/config');
     if (config.nuxCompleted) {

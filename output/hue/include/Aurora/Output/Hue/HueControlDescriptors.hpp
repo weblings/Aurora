@@ -5,9 +5,9 @@
 #include <Aurora/Contracts/ControlDescriptor.hpp>
 
 // This plugin's tooltip descriptor content (see
-// Analysis/TooltipsAnalysis.md): bridge pairing fields plus the
+// docs/TooltipsAnalysis.md): bridge pairing fields plus the
 // entertainment-configuration picker. Descriptions carry the approved
-// Analysis/TooltipContent.md copy. No I/O dependency, so this compiles
+// docs/TooltipContent.md copy. No I/O dependency, so this compiles
 // into the base library, not the IO-gated sources.
 namespace Aurora::Output::Hue
 {

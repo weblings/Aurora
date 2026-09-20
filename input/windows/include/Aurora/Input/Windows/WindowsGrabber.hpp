@@ -9,7 +9,7 @@
 
 // DXGI Desktop Duplication capture. No huenicorn precedent to port --
 // WindowsAdapter::_createGrabber was a bare stub -- so this follows
-// Analysis/WindowsInputAnalysis.md's API research directly instead.
+// docs/WindowsInputAnalysis.md's API research directly instead.
 namespace Aurora::Input::Windows
 {
   class WindowsGrabber : public IVideoInput
@@ -64,7 +64,7 @@ namespace Aurora::Input::Windows
     Microsoft::WRL::ComPtr<ID3D11Texture2D> m_stagingTexture;
 
     // Returned on WAIT_TIMEOUT/ACCESS_LOST/transient failures -- see
-    // Analysis/WindowsInputAnalysis.md's failure-mode table.
+    // docs/WindowsInputAnalysis.md's failure-mode table.
     Contracts::ImageData m_lastFrame;
   };
 }

@@ -8,7 +8,7 @@
 
 // Wraps aubio's onset/phase-vocoder/spectral-descriptor objects. Unlike the
 // rest of AudioProcessing, this is deliberately NOT a pure function --
-// verified against aubio's real C API first (see Analysis/AudioAnalysis.md):
+// verified against aubio's real C API first (see docs/AudioAnalysis.md):
 // onset detection inherently needs history across calls (aubio_onset_t is
 // constructed once, fed repeatedly), so there's nowhere to keep that state
 // in a stateless design. Two separate aubio pipelines run per hop (onset

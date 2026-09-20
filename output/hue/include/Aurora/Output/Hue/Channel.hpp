@@ -17,7 +17,7 @@ namespace Aurora::Output::Hue
 
   // One channel's color entry for Streamer::streamChannels() -- r/g/b are
   // gamma-corrected RGB, matching huenicorn's actual live wire format (see
-  // Analysis/lessons -- an earlier version sent XYB instead).
+  // docs/lessons -- an earlier version sent XYB instead).
   struct ChannelStream
   {
     uint8_t id;

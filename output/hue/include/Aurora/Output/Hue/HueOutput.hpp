@@ -14,7 +14,7 @@
 
 // Concrete IOutput for a Philips Hue bridge -- ties EntertainmentConfigurationSelector
 // (REST discovery/selection) and Streamer (DTLS delivery) to Aurora's generic
-// Output interface. See Analysis/HueOutputAnalysis.md.
+// Output interface. See docs/HueOutputAnalysis.md.
 namespace Aurora::Output::Hue
 {
   // Pure: converts one zone's RGB color + gamma to a HueStream ChannelStream

@@ -1,4 +1,4 @@
-# Transport-agnostic HTTP server skeleton (see Analysis/HttpServerAnalysis.md).
+# Transport-agnostic HTTP server skeleton (see docs/HttpServerAnalysis.md).
 # No dependency on Contracts/Processing/Input/Output/Runtime -- route
 # definitions that touch Aurora's own domain types live elsewhere and link
 # against this, not the other way round.

@@ -44,7 +44,7 @@ endif()
 if(AURORA_INPUT_WINDOWS_ENABLE_AUDIO)
   # A separate target from AuroraInputWindows deliberately -- IAudioInput
   # is a structurally unrelated interface from IVideoInput, not a variant
-  # of it (see Analysis/AudioAnalysis.md's repo/target-structure section).
+  # of it (see docs/AudioAnalysis.md's repo/target-structure section).
   # miniaudio is header-only with no CMake config -- vcpkg's own
   # instructions are exactly this find_path pattern, not find_package.
   find_path(MINIAUDIO_INCLUDE_DIRS "miniaudio.h" REQUIRED)

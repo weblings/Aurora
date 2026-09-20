@@ -11,7 +11,7 @@
 // future SetupBackend/SettingsBackend) never include <httplib.h> or see its
 // types, only HttpDataStructs.hpp's plain Request/Response/Handler. Register
 // every route and call serveStaticFiles() before bind(); both are captured
-// and handed to Impl's constructor there. See Analysis/HttpServerAnalysis.md
+// and handed to Impl's constructor there. See docs/HttpServerAnalysis.md
 // for why this shape (and the dedicated-thread + static-mount-point choices
 // below) was carried over from huenicorn's own real implementation.
 namespace Aurora::Network::Http::Server

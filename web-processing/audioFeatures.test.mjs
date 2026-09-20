@@ -2,7 +2,7 @@
 // and AudioProcessingTests.cpp -- see ../CLAUDE.md. No test framework dependency (matches this
 // directory's no-build-step, no-npm approach) -- run with `node audioFeatures.test.mjs`.
 //
-// Genre/real-music robustness testing was explicitly deferred (see Analysis/AudioAnalysis.md) --
+// Genre/real-music robustness testing was explicitly deferred (see docs/AudioAnalysis.md) --
 // these check the math against known-answer synthetic signals, not detection quality on real songs.
 import assert from 'node:assert/strict';
 import { dbToLinear, computeRms, computeSpectralCentroid, OnsetDetector } from './audioFeatures.js';

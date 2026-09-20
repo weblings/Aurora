@@ -2,7 +2,7 @@
    Values carried over from RockyRoad's real, proven grayscale system --
    verified directly against v2/src/xr/panel.css, v2/desktop.html, and
    RockyRoadImport/SongConverter/index.html, not from a secondhand summary.
-   Deliberately grayscale-only, no brand accent -- see Analysis/WebUIAnalysis.md's
+   Deliberately grayscale-only, no brand accent -- see docs/WebUIAnalysis.md's
    build-order step 6 for why (#8b8b8b already carries the "active/interactive"
    role across sliders, checked toggles, and secondary buttons in the source
    system; #2a6eff was a narrow one-off there, not part of it, and isn't carried
@@ -74,7 +74,7 @@
 <style>/* Aurora WebUI app shell: page reset, centered content column, top bar
    formula, and the settings modal + scrim. Applies to every screen; a
    screen's own CSS should only ever add to this, never redefine it.
-   See Analysis/WebUIAnalysis.md's "Shell conventions" section for the design
+   See docs/WebUIAnalysis.md's "Shell conventions" section for the design
    rationale -- values here are Aurora's tokens (styles/tokens.css), not
    copied literals. */
 
@@ -184,7 +184,7 @@ body {
    Status text stays grayscale, not red/green -- the icon glyph (✓/⚠)
    plus wording already carries the meaning, and introducing a semantic
    accent color here would reopen the "grayscale-only" decision
-   (Analysis/WebUIAnalysis.md's build-order step 6) without checking back in. */
+   (docs/WebUIAnalysis.md's build-order step 6) without checking back in. */
 
 .field {
   display: flex;
@@ -712,7 +712,7 @@ body {
 </style>
 <style>/* Output Connect screen -- address field + Autodetect sit side by side on
    desktop, stack full-width under 480px (verified against the ASCII layouts
-   in Analysis/WebUIAnalysis.md's Output Connect section). Continue is
+   in docs/WebUIAnalysis.md's Output Connect section). Continue is
    right-aligned on desktop, full-width on constrained. */
 
 .oc-address-row {
@@ -755,7 +755,7 @@ body {
   }
 }
 </style>
-<style>/* Entertainment zone select (Analysis/WebUI/WebUI_Design_2ndPass.md, Screen
+<style>/* Entertainment zone select (docs/WebUI/WebUI_Design_2ndPass.md, Screen
    2): ChannelList's plain, read-only preview of a config's channel names.
    No dedicated stylesheet existed for this screen at all until step 22's
    verification pass caught it -- exactly the missing-stylesheet-link class
@@ -838,7 +838,7 @@ body {
 }
 </style>
 <style>/* Zone Mapping screen -- one design at all widths (see
-   Analysis/WebUIAnalysis.md's Zone Mapping section: the real zone count is
+   docs/WebUIAnalysis.md's Zone Mapping section: the real zone count is
    small enough that a phone-width grid still clears a comfortable touch
    target, so there's no separate constrained layout to maintain). A fixed
    16:9 box, not the real active monitor's aspect ratio -- UV correctness
@@ -941,7 +941,7 @@ body {
      digit below) lets a click on the badge's own padding fall through to
      the zone rect's own selection handler underneath instead of silently
      hitting nothing (found via a real click in Chromium, not jsdom -- see
-     Analysis/lessons/web-ui.md). */
+     docs/lessons/web-ui.md). */
   pointer-events: none;
   cursor: pointer;
 }

@@ -41,7 +41,7 @@ recommendations, not just wording:
    v1 entirely).
 
 Generalizable lessons from this process are filed in
-[`Analysis/lessons/web-ui.md`](lessons/web-ui.md), not repeated here.
+[`docs/lessons/web-ui.md`](lessons/web-ui.md), not repeated here.
 
 ## Shell conventions (apply to every screen, every width)
 

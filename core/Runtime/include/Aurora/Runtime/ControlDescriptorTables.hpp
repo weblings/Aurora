@@ -7,7 +7,7 @@
 // Descriptor *content* for the layers owned inside core
 // (video/audio processing, zone runtime, app shell); input/output
 // plugin content lives in those repos (see TooltipsAnalysis.md).
-// Descriptions carry the approved Analysis/TooltipContent.md copy. If
+// Descriptions carry the approved docs/TooltipContent.md copy. If
 // these tables grow further, each function should move next to the
 // module owning those settings rather than growing here.
 namespace Aurora::Runtime

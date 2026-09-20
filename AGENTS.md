@@ -15,10 +15,10 @@ Core repo: shared `Contracts`, `Processing`, `Input`/`Output` interfaces,
 - Tasks (open, blocked, deferred): `bd` (`bd ready`, `bd list`), not markdown
   TODOs or checkboxes. Auto-export is debounced — run
   `bd export -o .beads/issues.jsonl` immediately before `git add`ing task state.
-- Gotchas worth 30+ minutes: `Analysis/lessons/`, with `Tags:`/`Applies-when:`,
+- Gotchas worth 30+ minutes: `docs/lessons/`, with `Tags:`/`Applies-when:`,
   routed by the matching `.claude/skills/` skill — check it before changing
-  that area, file per `Analysis/lessons/README.md`.
-- Milestone detail (closed or paused): dated file in `Analysis/log/` + `INDEX.md`
+  that area, file per `docs/lessons/README.md`.
+- Milestone detail (closed or paused): dated file in `docs/log/` + `INDEX.md`
   row on close — every material fact, stated once and tightly; paused work logs
   state + resume pointer. Findings over narration.
 - Planning docs: decisions, status, pointers only. No task lists, no build play-by-play.

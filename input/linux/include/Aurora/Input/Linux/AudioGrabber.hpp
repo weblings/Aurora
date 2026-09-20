@@ -1,7 +1,7 @@
 #pragma once
 // PipeWire-based system-audio capture: taps a sink's monitor ports (what's
-// playing), not a microphone. See Analysis/AudioAnalysis.md and
-// Analysis/lessons/input.md for how this was verified against real
+// playing), not a microphone. See docs/AudioAnalysis.md and
+// docs/lessons/input.md for how this was verified against real
 // PipeWire docs/examples and real hardware (no portal needed here, unlike
 // PipewireGrabber's screen capture -- monitor capture needs no permission
 // prompt).

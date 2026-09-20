@@ -1,6 +1,6 @@
 // Plain, non-interactive list of a config's channel/light names -- the
 // "here's what's in this config" moment on the new onboarding
-// "Entertainment zone select" screen (Analysis/WebUI/
+// "Entertainment zone select" screen (docs/WebUI/
 // WebUI_Design_2ndPass.md). No dropdown, no toggles -- unlike
 // ZoneMappingScreen's own zone dropdown/active list, nothing here is
 // editable, so it needs neither `Dropdown.js` (implies selection) nor

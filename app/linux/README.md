@@ -10,7 +10,7 @@ Distilled from [huenicorn](https://gitlab.com/openjowelsofts/huenicorn)
 ## Status
 
 A test script, not yet a real product app — see
-[`Analysis/ImplementationPlan.md`](../../Analysis/ImplementationPlan.md)
+[`docs/ImplementationPlan.md`](../../docs/ImplementationPlan.md)
 phase 3 for what's still missing (a pairing flow, a zone-mapping UI).
 
 - **`Registry`** — name → factory lookup for this binary's compiled-in

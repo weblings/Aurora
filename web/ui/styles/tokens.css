@@ -2,7 +2,7 @@
    Values carried over from RockyRoad's real, proven grayscale system --
    verified directly against v2/src/xr/panel.css, v2/desktop.html, and
    RockyRoadImport/SongConverter/index.html, not from a secondhand summary.
-   Deliberately grayscale-only, no brand accent -- see Analysis/WebUIAnalysis.md's
+   Deliberately grayscale-only, no brand accent -- see docs/WebUIAnalysis.md's
    build-order step 6 for why (#8b8b8b already carries the "active/interactive"
    role across sliders, checked toggles, and secondary buttons in the source
    system; #2a6eff was a narrow one-off there, not part of it, and isn't carried

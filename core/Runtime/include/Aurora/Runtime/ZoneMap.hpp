@@ -24,7 +24,7 @@ namespace Aurora::Runtime
     // active's default can't double as a "never configured" signal (a
     // zero-value default is indistinguishable from a real value that happens
     // to match it -- protobuf3's scalar-presence problem). See
-    // Analysis/WebUI/WebUI_Design_2ndPass.md's "Decisions/spikes" section.
+    // docs/WebUI/WebUI_Design_2ndPass.md's "Decisions/spikes" section.
     bool everConfigured{false};
   };
 

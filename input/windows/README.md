@@ -8,7 +8,7 @@ Distilled from [huenicorn](https://gitlab.com/openjowelsofts/huenicorn)
 huenicorn's own Windows adapter never implemented capture at all
 (`WindowsAdapter::_createGrabber` returns `nullptr`), so there's no upstream
 capture code to port here — see
-[`Analysis/WindowsInputAnalysis.md`](../../Analysis/WindowsInputAnalysis.md)
+[`docs/WindowsInputAnalysis.md`](../../docs/WindowsInputAnalysis.md)
 for the DXGI Desktop Duplication research this plugin is built against instead.
 
 ## Status

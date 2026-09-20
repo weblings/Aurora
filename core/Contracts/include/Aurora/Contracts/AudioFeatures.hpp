@@ -4,7 +4,7 @@
 // the color model (updateDrift/updateBounce) actually consumes. Two
 // different kinds of signal, not one blended value: onset* is discrete
 // (only meaningful the tick a beat fires), rms/spectralCentroid are
-// continuous. See Analysis/AudioAnalysis.md's vocabulary section.
+// continuous. See docs/AudioAnalysis.md's vocabulary section.
 namespace Aurora::Contracts
 {
   struct AudioFeatures

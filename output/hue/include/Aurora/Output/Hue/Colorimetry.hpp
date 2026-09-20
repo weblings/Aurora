@@ -6,7 +6,7 @@
 
 // Hue's CIE xyY conversion. NOT on HueOutput::send()'s live path (that
 // streams RGB mode, matching huenicorn's actual wire behavior -- see
-// Analysis/lessons/output.md) -- huenicorn has this same conversion too and
+// docs/lessons/output.md) -- huenicorn has this same conversion too and
 // never calls it either. Kept for tested, correct math a future XY-mode
 // option could use; don't wire it back into toChannelStream() without
 // re-checking that lesson entry first.

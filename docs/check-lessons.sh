@@ -1,5 +1,5 @@
 #!/bin/bash
-# Guard for Analysis/lessons filing rules (see lessons/README.md).
+# Guard for docs/lessons filing rules (see lessons/README.md).
 # Enforces the retrieval contract: every entry carries Tags: and
 # Applies-when: lines, and the README index counts match reality.
 # Exit 1 on any failure, so it works as a pre-commit hook or CI step.

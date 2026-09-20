@@ -5,7 +5,7 @@ project(AuroraAppWindows)
 option(AURORA_APP_BUILD_TESTS "Build this app's own tests" TRUE)
 # Which plugin repos this particular app binary is compiled with -- the
 # compile-time half of the two-level plugin-selection design (see
-# Analysis/DistributedArchitecturePlan.md); the run-time half is Config's
+# docs/DistributedArchitecturePlan.md); the run-time half is Config's
 # activeInputName/activeOutputNames, looked up in the Registry these build.
 option(AURORA_APP_ENABLE_WINDOWS_INPUT "Link in input/windows" TRUE)
 option(AURORA_APP_ENABLE_HUE_OUTPUT "Link in output/hue" TRUE)

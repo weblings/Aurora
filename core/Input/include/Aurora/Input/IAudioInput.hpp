@@ -8,7 +8,7 @@
 // Aurora-Input-Windows/-Linux). Deliberately no shared base with
 // IVideoInput -- checked directly, IVideoInput's real contract is almost
 // entirely screen/resolution-shaped, a generic parent would hold next to
-// nothing. See Analysis/AudioAnalysis.md's naming section.
+// nothing. See docs/AudioAnalysis.md's naming section.
 namespace Aurora::Input
 {
   class IAudioInput

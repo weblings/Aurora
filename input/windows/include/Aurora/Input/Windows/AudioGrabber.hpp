@@ -7,7 +7,7 @@
 
 // WASAPI loopback capture via miniaudio -- captures whatever the whole
 // system is currently outputting (any app), not one specific process. See
-// Analysis/AudioAnalysis.md for why miniaudio over hand-rolling WASAPI
+// docs/AudioAnalysis.md for why miniaudio over hand-rolling WASAPI
 // (its own internal resampler/format-conversion) and over Microsoft's own
 // per-process sample (that one solves a narrower, different problem --
 // isolating one app's audio, not "whatever's playing").

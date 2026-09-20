@@ -104,7 +104,7 @@ than deriving timing from `Config::refreshRate()`. Hardware-verified: real
 capture from a real sink got exercised on the actual target machine, which
 surfaced and fixed three real Pipewire/SPA bugs along the way (a header/API
 mismatch versus the installed SPA version, a JSON-parsing API mismatch, and
-a dangling-listener segfault) — see `Analysis/lessons/input.md`.
+a dangling-listener segfault) — see `docs/lessons/input.md`.
 
 **Libraries doing the interpreting — same set as huenicorn, moved to
 explicit boundaries:**
@@ -176,7 +176,7 @@ graph LR
 Hardware-verified first (before Linux's own audio work started): shared-mode
 WASAPI loopback delivers zero callbacks, not silent ones, when nothing is
 actively rendering — a real, confirmed behavior, not a bug (see
-`Analysis/lessons/input.md`). No device name/target is needed at all here,
+`docs/lessons/input.md`). No device name/target is needed at all here,
 unlike Pipewire's monitor-capture path above — WASAPI loopback is inherently
 "whatever this device is currently outputting," with no per-sink targeting
 concept to resolve.

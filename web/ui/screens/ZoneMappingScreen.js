@@ -3,7 +3,7 @@
 // selected, and a separate active/inactive toggle list below, decoupled
 // from shape editing entirely. Ported from huenicorn's real `ScreenWidget.js`
 // (`Handle`/`Rectangle` classes, read in full -- see
-// Analysis/WebUI/WebUI_Design_1stPass.md's Zone Mapping section and build-order step 15),
+// docs/WebUI/WebUI_Design_1stPass.md's Zone Mapping section and build-order step 15),
 // with its two identified real gaps closed: Pointer Events instead of
 // mouse-only events (touch support), and a native `<input type="range">`
 // gamma slider instead of a second hand-rolled SVG drag control. A third
@@ -51,7 +51,7 @@ import { screenDivisionRects } from '../ScreenDivision.js';
 import { applyTooltip } from '../Tooltips.js';
 
 export class ZoneMappingScreen {
-  // onboarding: the wizard variant (Analysis/WebUI/WebUI_Design_2ndPass.md
+  // onboarding: the wizard variant (docs/WebUI/WebUI_Design_2ndPass.md
   // step 17) -- no entertainment-config picker UI at all (silently uses
   // whatever load() already resolved a default for) instead of the
   // switchable EntertainmentConfigSelect dropdown, and Auto-arrange/Zone/

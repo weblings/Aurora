@@ -9,7 +9,7 @@
 // The audio-reactive default effect's actual logic -- mirrors
 // Aurora::Processing::ImageProcessing's shape (small, pure, independently
 // testable functions) but for audio instead of pixels. See
-// Analysis/AudioAnalysis.md for the reasoning and formulas behind every
+// docs/AudioAnalysis.md for the reasoning and formulas behind every
 // piece here. A separate Core target from ImageProcessing/Processing
 // deliberately -- only audio-enabled consumers need this linked.
 namespace Aurora::Processing
@@ -21,7 +21,7 @@ namespace Aurora::Processing
     // zero changes to this module -- see AudioAnalysis.md's
     // "making the tunable constants genuinely UI-editable" section. Every
     // default below was tuned against a real listening test (speech and
-    // music, live Hue lights) -- see Analysis/lessons for the tuning notes.
+    // music, live Hue lights) -- see docs/lessons for the tuning notes.
     struct AudioEffectSettings
     {
       // Unset = random pick among the six named pairs at cold start,

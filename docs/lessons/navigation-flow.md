@@ -68,7 +68,7 @@ fallback/default alone.
 **Fix:** patched the first occurrence locally (`EntertainmentConfigSelect.load()`
 now silently persists an unset default the moment it resolves one), but
 didn't chase the second one the same way -- added a single `Config::nuxCompleted`
-flag instead (see `Analysis/WebUI/WebUI_Fixes.md`'s writeup) once the
+flag instead (see `docs/WebUI/WebUI_Fixes.md`'s writeup) once the
 second occurrence confirmed this wasn't a one-off. General principle: the
 first instance of "displayed but not persisted" is a local bug fix; the
 second instance of the *same shape*, in an unrelated component, is a

@@ -2,7 +2,7 @@
 // TuningScreen.js's three near-identical slider-rendering loops (video's
 // lone transitionSmoothing slider, and audio's Response speed/Color
 // character/Sensitivity sections) so the Dashboard's own collapsed Tuning
-// accordion section (Analysis/WebUI/WebUI_Design_2ndPass.md) can reuse the
+// accordion section (docs/WebUI/WebUI_Design_2ndPass.md) can reuse the
 // same slider markup + wiring. Pure functions, not a mounted component --
 // callers own their own heading/wrapping-grid markup, since one section
 // (Color character) interleaves a slider group with other, non-slider

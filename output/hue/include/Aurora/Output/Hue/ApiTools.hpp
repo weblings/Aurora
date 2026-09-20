@@ -13,7 +13,7 @@
 #include <Aurora/Output/Hue/HttpClient.hpp>
 
 // Wrappers around the Hue bridge's CLIP v2 REST API. Ported from
-// huenicorn's Hue::Api::ApiTools -- see Analysis/HueOutputAnalysis.md.
+// huenicorn's Hue::Api::ApiTools -- see docs/HueOutputAnalysis.md.
 namespace Aurora::Output::Hue
 {
   using MembersIds = std::unordered_set<std::string>;

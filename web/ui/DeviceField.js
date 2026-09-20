@@ -1,6 +1,6 @@
 // Monitor dropdown (video) / optional sink text field (audio), swapped by
 // mode -- pulled out of ModeDeviceScreen.js so DashboardScreen's top tier
-// (Analysis/WebUI/WebUI_Design_2ndPass.md) can compose the same field without
+// (docs/WebUI/WebUI_Design_2ndPass.md) can compose the same field without
 // duplicating _renderVideoDevice/_renderAudioDevice. Same "destroy and
 // recreate on every re-render" convention as Dropdown itself -- no update()
 // method; callers rebuild a new instance when mode/props change.

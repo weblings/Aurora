@@ -9,7 +9,7 @@ namespace Aurora::Network::Http::Server { class HttpServer; }
 // Generic settings REST endpoints over Config's user-facing fields -- not
 // restServerPort/boundBackendIP, which are read once before the server binds
 // and couldn't take effect from a request reaching this route anyway. See
-// Analysis/WebUI/WebUI_Design_1stPass.md's build-order step 11.
+// docs/WebUI/WebUI_Design_1stPass.md's build-order step 11.
 //
 // GET /api/config returns the full current persisted config as JSON.
 // PUT /api/config merges only the fields present in the request body --

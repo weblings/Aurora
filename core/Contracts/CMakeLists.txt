@@ -1,6 +1,6 @@
 # Aurora::Contracts -- the neutral types crossing Input/Processing/Output
 # boundaries (ImageData, PixelFormat, UV/UVs, Color, Interpolation::Type).
-# No transform logic here -- see Analysis/ProcessingAnalysis.md for why this
+# No transform logic here -- see docs/ProcessingAnalysis.md for why this
 # is a separate library from Processing (Input must depend on this without
 # pulling in Processing's logic).
 

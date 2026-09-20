@@ -43,7 +43,7 @@ else()
 endif()
 
 # cpp-httplib -- same fetch-if-missing pattern as glm/nlohmann_json; also
-# huenicorn's own choice for the same job (see Analysis/HttpServerAnalysis.md).
+# huenicorn's own choice for the same job (see docs/HttpServerAnalysis.md).
 # No TLS feature enabled here -- plain HTTP only, for now (see that doc's
 # note on the vendored vcpkg port's httplib features not including mbedtls,
 # unlike the raw header itself; revisit when phase 4's HTTPS need is real).
@@ -73,7 +73,7 @@ endif()
 
 # Interface-only -- concrete plugins (Aurora-Input-Linux, Aurora-Output-Hue,
 # ...) live in their own repos and depend on these, not the other way round.
-# See Analysis/ModuleSplitPlan.md's repo-split section.
+# See docs/ModuleSplitPlan.md's repo-split section.
 add_subdirectory(Input)
 add_subdirectory(Output)
 

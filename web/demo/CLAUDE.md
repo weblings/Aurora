@@ -13,12 +13,12 @@ If a bug or improvement is found in one of these copies:
 3. Recopy the fixed file(s) here.
 
 See `../../CLAUDE.md` for the other side of this rule, and
-`../../Analysis/BrowserAnalysis.md`/`ImplementationPlan.md` (Phase 3) for
+`../../docs/BrowserAnalysis.md`/`ImplementationPlan.md` (Phase 3) for
 why this is a copy instead of a shared package.
 
-## Check `../../Analysis/lessons/rendering-apis.md`/`rendering-internals.md` before touching the Three.js scene
+## Check `../../docs/lessons/rendering-apis.md`/`rendering-internals.md` before touching the Three.js scene
 
-All Aurora-family lessons-learned live in the core repo's `Analysis/lessons/`
+All Aurora-family lessons-learned live in the core repo's `docs/lessons/`
 tree, not per-repo — this repo doesn't get its own `LESSONS.md`. Real,
 non-obvious findings from building `main.js`'s light rigs and the glTF room
 scene are filed there (`rendering-apis.md`: Three.js/GLTFLoader/Blender

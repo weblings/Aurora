@@ -193,7 +193,7 @@ framework should do once there's more than one case to apply it to:
 - **`AudioFeatureExtractor`** (onset detection + spectral centroid, wrapping
   aubio's stateful `pvoc`/`specdesc`/onset objects) — a genuinely different
   category. This is real DSP that took real effort to get right even with a
-  mature library doing the hard part (see `Analysis/AudioAnalysis.md`'s aubio
+  mature library doing the hard part (see `docs/AudioAnalysis.md`'s aubio
   verification pass) — re-deriving onset detection and spectral analysis from
   scratch in JS is exactly the "substantial, risky to re-derive" case the
   reuse framework argues *for* WASM on, not against.
@@ -393,7 +393,7 @@ mode running at all is a separate first step from the tuning comparison itself.
 
 ## Related docs
 
-- `Analysis/AudioAnalysis.md` — the aubio verification pass and
+- `docs/AudioAnalysis.md` — the aubio verification pass and
   `AudioFeatureExtractor`'s design, which the audio-reassessment section
   above argues makes it a WASM-reuse candidate.
 - `DistributedArchitecturePlan.md` — the one-seam/double-seam question this

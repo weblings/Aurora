@@ -2,7 +2,7 @@
 /*
   This code is an adapation from https://codeberg.org/metamuffin/xdg-dp-start/src/branch/master/xdg-dp-start.c
   It consists on an extraction from OBS Source code achieving the call and management of a xdg-portal capture query.
-  Ported from huenicorn's Huenicorn::Grabber::XdgDesktopPortal (GPL-3.0) -- see Analysis/LinuxCaptureAnalysis.md.
+  Ported from huenicorn's Huenicorn::Grabber::XdgDesktopPortal (GPL-3.0) -- see docs/LinuxCaptureAnalysis.md.
 */
 
 #include <future>

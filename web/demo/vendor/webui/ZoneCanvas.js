@@ -2,7 +2,7 @@
 // a gamma slider for whichever zone is currently selected (tag click or
 // the zone dropdown), pulled out of ZoneMappingScreen.js so both the
 // Dashboard's video top tier and the onboarding "Zone Mapping (customize)"
-// screen (Analysis/WebUI/WebUI_Design_2ndPass.md) can compose the same
+// screen (docs/WebUI/WebUI_Design_2ndPass.md) can compose the same
 // canvas without duplicating the drag math. zoneLabel(zone) is injected
 // rather than computed here -- this component knows nothing about Hue
 // channel/light names.
@@ -10,7 +10,7 @@
 // Ported drag behavior/comments preserved from the original
 // ZoneMappingScreen.js (huenicorn's real ScreenWidget.js gaps closed:
 // Pointer Events, native range slider, opposite-corner clamping -- see
-// Analysis/WebUI/WebUI_Design_1stPass.md's Zone Mapping section).
+// docs/WebUI/WebUI_Design_1stPass.md's Zone Mapping section).
 import { Dropdown } from './Dropdown.js';
 import { ZonePatchQueue } from './ZonePatchQueue.js';
 import { bindSliderFill } from './SliderFill.js';

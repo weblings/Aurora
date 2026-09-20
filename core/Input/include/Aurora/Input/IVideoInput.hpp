@@ -11,8 +11,8 @@
 #include <Aurora/Input/MonitorData.hpp>
 
 // Stable interface a plugin repo (e.g. Aurora-Input-Linux) implements.
-// Generalized from IGrabber -- see Analysis/LinuxCaptureAnalysis.md for the port notes.
-// Renamed from IInput (see Analysis/AudioAnalysis.md) once IAudioInput arrived --
+// Generalized from IGrabber -- see docs/LinuxCaptureAnalysis.md for the port notes.
+// Renamed from IInput (see docs/AudioAnalysis.md) once IAudioInput arrived --
 // this contract turned out to be entirely screen/resolution-shaped, not generic.
 namespace Aurora::Input
 {

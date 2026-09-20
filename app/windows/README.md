@@ -10,7 +10,7 @@ Distilled from [huenicorn](https://gitlab.com/openjowelsofts/huenicorn)
 ## Status
 
 A test script, not yet a real product app — see
-[`Analysis/ImplementationPlan.md`](../../Analysis/ImplementationPlan.md)
+[`docs/ImplementationPlan.md`](../../docs/ImplementationPlan.md)
 phase 3 for what's still missing (a pairing flow, a zone-mapping UI).
 
 - **`Registry`** — identical to `app/linux`'s copy (platform-neutral,
@@ -49,7 +49,7 @@ phase 3 for what's still missing (a pairing flow, a zone-mapping UI).
   monitor by default; a monitor Windows still lists as attached can be
   genuinely powered off and reads back as valid all-black data with no way
   to detect that via the API — see
-  [`Analysis/lessons/input.md`](../../Analysis/lessons/input.md).
+  [`docs/lessons/input.md`](../../docs/lessons/input.md).
   If the app is streaming solid black, hand-edit `<configRoot>/config.json`'s
   `activeMonitorName` to the right monitor's name (e.g. `"\\\\.\\DISPLAY1"`
   — as shown by `WindowsGrabber::monitors()`, empty means auto/primary).

@@ -7,4 +7,4 @@ Builds against `core/`, `input/linux/`, `output/hue/` in this repo
 - Build/test: `cmake -S . -B build`, `cmake --build build`,
   `ctest --test-dir build --output-on-failure`. Run needs
   `AURORA_HUE_BRIDGE_ADDRESS` / `_USERNAME` / `_CLIENTKEY` in env.
-- Tasks (`bd`) and lessons (`Analysis/lessons/`) live at the repo root.
+- Tasks (`bd`) and lessons (`docs/lessons/`) live at the repo root.

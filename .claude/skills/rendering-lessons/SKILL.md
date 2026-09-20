@@ -7,8 +7,8 @@ allowed-tools: Read
 # Rendering lessons
 
 Before touching `Aurora-Demo-Web` scenes or `web-processing/` mirrors,
-read `Analysis/lessons/rendering-apis.md` (third-party API facts) and
-`Analysis/lessons/rendering-internals.md` (this project's scene design).
+read `docs/lessons/rendering-apis.md` (third-party API facts) and
+`docs/lessons/rendering-internals.md` (this project's scene design).
 
 ## How to use this skill
 
@@ -16,5 +16,5 @@ read `Analysis/lessons/rendering-apis.md` (third-party API facts) and
    read only matching entries in full. Third-party behavior goes in
    `-apis`, project design calls in `-internals`.
 2. Verify visual assumptions with one real render, not UV-space math.
-3. File new findings in the matching file per `Analysis/lessons/README.md`
+3. File new findings in the matching file per `docs/lessons/README.md`
    — new entries require `Tags:` and `Applies-when:` lines.

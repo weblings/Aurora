@@ -40,7 +40,7 @@ renumber anything since it isn't sequentially gated by the browser work.
   API (`interactive-shader-format-js`, phase 5) — write a holistic per-section
   analysis doc first, same shape as RockyRoad's own component docs
   (`SongPlayer.md`, `Camera3D.md`: what it does, what the new module actually
-  needs from it, what maps directly vs. what needs rework). Goes in `Analysis/`
+  needs from it, what maps directly vs. what needs rework). Goes in `docs/`
   alongside `FirstScan.md`. This is what "holistic view before starting" means
   in each phase below — not a one-time exercise, a per-section step every
   phase repeats.
@@ -103,7 +103,7 @@ Aurora/                  <- core repo
       src/
     tests/                 <- DONE (Processing + Runtime coverage): Catch2, see
                                ProcessingAnalysis.md/RuntimeAnalysis.md's test plans
-  Analysis/               <- already exists
+  docs/               <- already exists
 input/linux/       <- plugin repo, DONE for X11 + Pipewire (see
                              LinuxCaptureAnalysis.md): DummyGrabber,
                              SessionDispatch (tested pure logic), X11Grabber
@@ -167,12 +167,12 @@ captures the Linux screen and drives real Hue lights exactly like huenicorn does
 today — this is the regression check everything else builds on.
 
 1. **Analysis pass first.** Three docs, each covering its section holistically
-   before any code moves. **All three done:** `Analysis/ProcessingAnalysis.md`
+   before any code moves. **All three done:** `docs/ProcessingAnalysis.md`
    (the `Contracts` vs `Processing` split, three real bugs found during the
-   read/port), `Analysis/HueOutputAnalysis.md` (the pure-vs-I/O split that
+   read/port), `docs/HueOutputAnalysis.md` (the pure-vs-I/O split that
    scoped that pass, the `Contracts::Frame` naming correction, the
    SSL-verification-disabled constraint worth carrying forward carefully), and
-   `Analysis/LinuxCaptureAnalysis.md` (why X11 ports now but Pipewire doesn't,
+   `docs/LinuxCaptureAnalysis.md` (why X11 ports now but Pipewire doesn't,
    a fourth bug found — `_divisors()`'s off-by-one — and the `IInput`
    refinement it drove). `FirstScan.md` already covers the interfaces at a
    high level; these go one level deeper, per section, right before that
@@ -267,7 +267,7 @@ Fills in `WindowsAdapter`'s `_createGrabber` stub (currently returns `nullptr`).
 
 - **Lighter analysis pass than phase 1** — there's no existing script to port
   here (the stub just returns `nullptr`), so this is a short note
-  (`Analysis/WindowsInputAnalysis.md`) on what `IInput` actually requires of an
+  (`docs/WindowsInputAnalysis.md`) on what `IInput` actually requires of an
   implementer plus DXGI Desktop Duplication's real API shape (frame
   acquisition, format, the resize/re-acquire lifecycle) verified against
   Microsoft's docs before coding against assumed behavior — not a full
@@ -284,7 +284,7 @@ Fills in `WindowsAdapter`'s `_createGrabber` stub (currently returns `nullptr`).
   `Output::Hue` plugin — confirmed live against the real bridge. See the
   narrative paragraph above.
 - Confirmed real, not just a planning-stage concern (see
-  `Analysis/lessons/input.md`): a non-blocking `AcquireNextFrame` poll can
+  `docs/lessons/input.md`): a non-blocking `AcquireNextFrame` poll can
   starve on placeholder frames forever, and a monitor Windows still lists as
   attached can be genuinely powered off with no API-level way to detect it.
 
@@ -294,7 +294,7 @@ Inserted between phases 2 and 3, not phase 6, because it's independent of
 phases 3–5 (browser/WebXR/ISF) — it's a new `Input`+`Processing` track,
 the same kind of foundational native work as phase 2, not something
 gated on or by the browser output work. **Analysis pass already done,
-extensively:** `Analysis/AudioAnalysis.md` — every decision below is
+extensively:** `docs/AudioAnalysis.md` — every decision below is
 sourced from it rather than re-derived here.
 
 **Demonstrable:** play music through whatever the user normally uses
@@ -316,7 +316,7 @@ memory layout is `BGRA` (ported verbatim from huenicorn, harmless there
 since its `mean()` ignored the tag entirely; became live once Aurora's own
 port made that code format-aware). Same class of bug existed in
 `PipewireFrameBuffer.hpp`. Fixed and **confirmed on real hardware** --
-colors now match huenicorn. See `Analysis/lessons/input.md`.
+colors now match huenicorn. See `docs/lessons/input.md`.
 
 1. **Interface layer — rename done, verified where buildable.**
    `IInput`→`IVideoInput` across Core, `Aurora-Input-Windows`/`-Linux`,
@@ -390,7 +390,7 @@ colors now match huenicorn. See `Analysis/lessons/input.md`.
      nothing playing; re-ran while actually triggering real playback
      (Windows Speech Synthesis) and got real data within ~1s — 48000Hz
      stereo, correctly read back from the negotiated device config, not
-     assumed. Confirmed real finding, filed in `Analysis/lessons/input.md`:
+     assumed. Confirmed real finding, filed in `docs/lessons/input.md`:
      shared-mode WASAPI loopback delivers **zero callbacks, not silent
      ones**, when nothing is actively rendering — informative for future
      diagnostics, not a bug, and not a blocker for the actual use case
@@ -406,7 +406,7 @@ colors now match huenicorn. See `Analysis/lessons/input.md`.
      mic). Built and tested via WSL2 Ubuntu against the real target machine's
      checkout (no toolchain limitation this time) — caught and fixed one real
      bug this way (a C-vs-C++ compound-literal address-of error, see
-     `Analysis/lessons/engineering-hygiene.md`). **Still open:** actual
+     `docs/lessons/engineering-hygiene.md`). **Still open:** actual
      capture against real hardware (a real sink, `alsa_output.usb-TaiYiLian_
      B03__...-02.analog-stereo` on the test machine) hasn't been run yet, and
      neither has App-Linux's own `Registry`/`main.cpp` wiring (see step 5).
@@ -484,7 +484,7 @@ colors now match huenicorn. See `Analysis/lessons/input.md`.
 ## Phase 3 — Three.js browser demo, then the native WebUI milestone
 
 Split into two sequenced milestones after a long reasoning pass (see
-`Analysis/BrowserAnalysis.md` and `Analysis/DistributedArchitecturePlan.md`
+`docs/BrowserAnalysis.md` and `docs/DistributedArchitecturePlan.md`
 for the full findings this splits from) — a real change from this phase's
 original framing as one native `Output::ThreeJS` plugin.
 
@@ -576,7 +576,7 @@ validates the funnel's front door before investing in the back half.
 **Corrected premise (2026-09-15):** verified there is no existing HTTP server
 or setup WebUI anywhere in Aurora's core or app repos today — no
 `Network::Http::Server`/`HttpLibServerImpl`-shaped code exists, and
-`Analysis/HttpServerAnalysis.md` was never actually written. This section
+`docs/HttpServerAnalysis.md` was never actually written. This section
 used to read as "extend the existing httplib-based server (already present
 for the setup WebUI)" — that described **huenicorn's** own server
 (`SetupBackend`/`WebUIBackend`, `webroot/`), which Aurora's module-split
@@ -586,7 +586,7 @@ implementation is still the right template to follow closely (same
 cpp-httplib version even, `v0.46.0`), just not something already wired into
 this codebase.
 
-- **Analysis pass done (2026-09-15): `Analysis/HttpServerAnalysis.md`.**
+- **Analysis pass done (2026-09-15): `docs/HttpServerAnalysis.md`.**
   Covers huenicorn's real `Network::Http::Server` C++ implementation (read
   directly — `HttpServer`/`Impl`/`SetupBackend.cpp`/`Runtime.cpp`, not just
   the JS frontend), its threading model (a dedicated server thread separate
@@ -599,7 +599,7 @@ this codebase.
   at all (no native backend in that shape) — this was purely a milestone-2
   prerequisite.
 - **Screen list, jobs-to-be-done, and component research: see
-  `Analysis/WebUI/WebUI_Design_1stPass.md`.** Covers the full screen breakdown (Output
+  `docs/WebUI/WebUI_Design_1stPass.md`.** Covers the full screen breakdown (Output
   Connect, Mode+Device Select, Zone Mapping, Tuning/Settings, Dashboard), the
   hub-and-spoke navigation model (RockyRoad's `App.ts`/`#screen-container`
   shell pattern, not a forced linear wizard for returning users), and per-screen
@@ -611,7 +611,7 @@ this codebase.
 - **Native side, three surfaces, not one:**
   - *Preview streaming* (the original plan here, still technically valid but
     **deliberately last in build order, not first** — see
-    `Analysis/WebUI/WebUI_Design_1stPass.md`'s Build order section: the Dashboard's live
+    `docs/WebUI/WebUI_Design_1stPass.md`'s Build order section: the Dashboard's live
     preview and per-zone swatch row were cut from v1 entirely, so nothing
     consumes this endpoint yet): a chunked MJPEG endpoint serving the
     already-downsampled preview frames (JPEG-encode the same small
@@ -689,7 +689,7 @@ already-solved groundwork instead of rediscovering it.
 - **Analysis pass first**, and this one doubles as the source for the next
   bullet: read
   RockyRoad's `dev-environment` and `xr-3d-rendering` engine lessons,
-  and write `Analysis/RockyRoadXRAnalysis.md` covering RockyRoad's actual
+  and write `docs/RockyRoadXRAnalysis.md` covering RockyRoad's actual
   IWSDK/Scene3D/Camera3D scaffolding holistically (not just the lessons list —
   the working code itself: `v2/src/`'s engine layer) before bootstrapping
   milestone 2's browser client from it (repo TBD, see above). The Windows/Vite/IWSDK setup gotchas and the local-Z
@@ -703,7 +703,7 @@ already-solved groundwork instead of rediscovering it.
 - **Shared-util-library candidates — flag, don't build.** If the analysis pass
   above turns up pieces of RockyRoad's custom XR logic (`Camera3D`, the
   local-Z helpers, IWSDK bootstrap glue) that are genuinely generic rather than
-  note-highway-specific, note them in `Analysis/RockyRoadXRAnalysis.md` as
+  note-highway-specific, note them in `docs/RockyRoadXRAnalysis.md` as
   candidates for a shared package between RockyRoad and Aurora. Don't extract
   one preemptively and don't go broad — capped to what's actually generic.
   **Pitch the specific candidates before doing any extraction work**, when
@@ -747,7 +747,7 @@ Wires ISF shaders in as the actual visual-effect layer for the browser/WebXR
 output, per `OpenFormatsResearch.md`'s finding that ISF fits this target better
 than any lighting-specific format.
 
-- **Analysis pass first:** `Analysis/ISFRendererAnalysis.md` — read
+- **Analysis pass first:** `docs/ISFRendererAnalysis.md` — read
   [`interactive-shader-format-js`](https://github.com/msfeldstein/interactive-shader-format-js)'s
   actual source/README (its real constructor/input-setting/draw API, which
   input types it actually supports vs. the full ISF spec) before designing the

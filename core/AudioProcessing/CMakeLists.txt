@@ -1,5 +1,5 @@
 # Aurora::AudioProcessing -- the audio-reactive default effect's logic
-# (Analysis/AudioAnalysis.md). A separate target from AuroraProcessing
+# (docs/AudioAnalysis.md). A separate target from AuroraProcessing
 # deliberately: only audio-enabled consumers need this linked, matching the
 # dependency-isolation reasoning behind the Input/Output plugin repo split.
 #

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Verify every .md reference under Analysis/ and .claude/skills/ resolves:
+"""Verify every .md reference under docs/ and .claude/skills/ resolves:
 markdown links [text](target) and bare `path.md` mentions alike.
 Exit 1 on any dead reference (pre-commit / CI use)."""
 import os
@@ -19,16 +19,16 @@ GRANDFATHERED = {
     '../../RockyRoadImport/SongConverter/docs/native-logic-reuse-decision.md',
     'INDEX.md', 'WebUIAnalysis.md', 'WebUIManualTweaks.md',
     'LessonsLearned.md',
-    'Analysis/ISFRendererAnalysis.md', 'Analysis/RockyRoadXRAnalysis.md',
+    'docs/ISFRendererAnalysis.md', 'docs/RockyRoadXRAnalysis.md',
     'Camera3D.md', 'SongPlayer.md', 'web-audio-worklets.md',
     'xr-3d-rendering.md', 'v2/ARCHITECTURE.md',
     'engine/runtime-apis.md', 'engine/xr-3d-rendering.md',
-    'RockyRoad/Analysis/lessons/engine/dev-environment.md',
-    'RockyRoad/Analysis/lessons/engine/xr-3d-rendering.md',
-    '../../RockyRoad/Analysis/lessons/engine/dev-environment.md',
-    '../../RockyRoad/Analysis/lessons/engine/xr-3d-rendering.md',
+    'RockyRoad/docs/lessons/engine/dev-environment.md',
+    'RockyRoad/docs/lessons/engine/xr-3d-rendering.md',
+    '../../RockyRoad/docs/lessons/engine/dev-environment.md',
+    '../../RockyRoad/docs/lessons/engine/xr-3d-rendering.md',
     '../../RockyRoad/v2/ARCHITECTURE.md',
-    '../../../RockyRoad/Analysis/lessons/README.md',
+    '../../../RockyRoad/docs/lessons/README.md',
 }
 
 

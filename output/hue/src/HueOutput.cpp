@@ -6,7 +6,7 @@ namespace Aurora::Output::Hue
 {
   // RGB mode, matching huenicorn's actual live behavior -- not the XYB
   // conversion Colorimetry.cpp offers (huenicorn has that code too, but
-  // never calls it; see Analysis/lessons). Gamma applies to all three
+  // never calls it; see docs/lessons). Gamma applies to all three
   // channels together, same as huenicorn's Channel::gammaExponent() use.
   ChannelStream toChannelStream(const Contracts::Zone& zone)
   {

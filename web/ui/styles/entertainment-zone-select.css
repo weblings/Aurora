@@ -1,4 +1,4 @@
-/* Entertainment zone select (Analysis/WebUI/WebUI_Design_2ndPass.md, Screen
+/* Entertainment zone select (docs/WebUI/WebUI_Design_2ndPass.md, Screen
    2): ChannelList's plain, read-only preview of a config's channel names.
    No dedicated stylesheet existed for this screen at all until step 22's
    verification pass caught it -- exactly the missing-stylesheet-link class

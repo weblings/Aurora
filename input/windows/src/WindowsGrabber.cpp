@@ -164,7 +164,7 @@ namespace Aurora::Input::Windows
     }
 
     // Must be created on the same adapter the target output belongs to --
-    // see Analysis/WindowsInputAnalysis.md's hybrid-graphics-laptop note.
+    // see docs/WindowsInputAnalysis.md's hybrid-graphics-laptop note.
     D3D_FEATURE_LEVEL featureLevel;
     HRESULT hr = D3D11CreateDevice(
       selectedMonitor->adapter.Get(),

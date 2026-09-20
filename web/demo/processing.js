@@ -1,7 +1,7 @@
 // Hand-ported from Aurora/core/Processing/src/ImageProcessing.cpp
 // (getSubImage/getDominantColor/Algorithms::mean) and
 // Aurora/core/Runtime/src/FrameCompositor.cpp (composeFrame). See
-// ../Analysis/BrowserAnalysis.md's reuse-vs-reimplement finding for why this
+// ../docs/BrowserAnalysis.md's reuse-vs-reimplement finding for why this
 // is hand-ported rather than compiled to WASM. Cross-reference: any change to
 // either C++ file should be checked against this file too -- see ../CLAUDE.md.
 //

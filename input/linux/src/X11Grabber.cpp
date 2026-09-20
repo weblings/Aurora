@@ -145,7 +145,7 @@ namespace Aurora::Input::Linux
     // little-endian host, which lands in memory as B,G,R,X -- BGRA/BGR, not
     // RGBA/RGB (ported from huenicorn's identical mistagging, which never
     // surfaced there since its mean() ignored the tag and hardcoded
-    // BGR-order indices; see Analysis/lessons/input.md).
+    // BGR-order indices; see docs/lessons/input.md).
     int cvFormat;
     if(ximage->bits_per_pixel > 24){
       cvFormat = CV_8UC4;

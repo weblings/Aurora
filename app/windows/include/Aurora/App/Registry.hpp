@@ -16,7 +16,7 @@
 // -- whatever a plugin needs to construct (credentials, addresses) is
 // captured when main() registers it, not passed through this type, since
 // each plugin's construction parameters differ and there's no shared
-// config schema for them yet. See Analysis/DistributedArchitecturePlan.md.
+// config schema for them yet. See docs/DistributedArchitecturePlan.md.
 namespace Aurora::App
 {
   using InputFactory = std::function<std::unique_ptr<Input::IVideoInput>()>;

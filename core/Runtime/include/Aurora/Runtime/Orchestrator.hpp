@@ -19,7 +19,7 @@
 // replacement for huenicorn's Runtime::_update(). Deliberately has no
 // threading/timing of its own (unlike huenicorn's Runtime): a real app
 // entry point drives update() at Config::refreshRate(), keeping this class
-// synchronous and testable against fakes. See Analysis/RuntimeAnalysis.md.
+// synchronous and testable against fakes. See docs/RuntimeAnalysis.md.
 namespace Aurora::Runtime
 {
   class Orchestrator

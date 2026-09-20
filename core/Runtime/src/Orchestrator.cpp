@@ -69,7 +69,7 @@ namespace Aurora::Runtime
     }
 
     // dropAlpha() is a safe no-op pass-through for already-opaque formats --
-    // see Analysis/ProcessingAnalysis.md -- so it's fine to call unconditionally.
+    // see docs/ProcessingAnalysis.md -- so it's fine to call unconditionally.
     Contracts::ImageData opaque;
     Processing::ImageProcessing::dropAlpha(source, opaque);
     source = std::move(opaque);

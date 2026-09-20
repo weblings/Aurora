@@ -1,7 +1,7 @@
 /* Aurora WebUI app shell: page reset, centered content column, top bar
    formula, and the settings modal + scrim. Applies to every screen; a
    screen's own CSS should only ever add to this, never redefine it.
-   See Analysis/WebUIAnalysis.md's "Shell conventions" section for the design
+   See docs/WebUIAnalysis.md's "Shell conventions" section for the design
    rationale -- values here are Aurora's tokens (styles/tokens.css), not
    copied literals. */
 

@@ -6,7 +6,7 @@ against huenicorn commit `ede353ac329ba1922d354aae89adf5fe6ddb03f5`
 (2026-08-23). Kept here in PR/issue-ready form in case it's worth sending
 upstream later — citations are against huenicorn's own paths, not Aurora's.
 Grouped by the module each was found while porting; see that module's own
-`Analysis/*.md` for the full porting context each was found alongside.
+`docs/*.md` for the full porting context each was found alongside.
 
 ## Processing (`ImageProcessing`)
 

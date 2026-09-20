@@ -6,7 +6,7 @@ Plain static HTML/CSS/JS, no build step -- same convention as
 [web/demo](../../web/demo).
 
 Screen/flow design and component-reuse research live in
-[`Analysis/WebUI/WebUI_Design_1stPass.md`](../../Analysis/WebUI/WebUI_Design_1stPass.md), not
+[`docs/WebUI/WebUI_Design_1stPass.md`](../../docs/WebUI/WebUI_Design_1stPass.md), not
 here.
 
 Design informed by patterns in huenicorn's own `webroot/`

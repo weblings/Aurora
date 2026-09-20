@@ -5,7 +5,7 @@
 #include <unordered_map>
 
 // Transport-agnostic request/response shape -- mirrors huenicorn's own
-// Network::Http::Server::HttpDataStructs.hpp (see Analysis/HttpServerAnalysis.md).
+// Network::Http::Server::HttpDataStructs.hpp (see docs/HttpServerAnalysis.md).
 // A route handler only ever sees these types, never cpp-httplib's own, so the
 // underlying HTTP library stays swappable behind Impl alone.
 namespace Aurora::Network::Http::Server

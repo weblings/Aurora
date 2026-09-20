@@ -5,7 +5,7 @@
 // Ported from huenicorn's Huenicorn::Imaging::ImageData/PixelFormat
 // (include/Huenicorn/Imaging/ImageData.hpp) verbatim -- this is a Contract
 // type: the frame shape Input produces and Processing consumes, with no
-// transform logic of its own. See Analysis/ProcessingAnalysis.md.
+// transform logic of its own. See docs/ProcessingAnalysis.md.
 namespace Aurora::Contracts
 {
   enum class PixelFormat {

@@ -11,7 +11,7 @@
 #include <Aurora/Output/Hue/HuestreamHeader.hpp>
 
 // Wraps DTLS delivery of the HueStream v2 binary protocol. Ported from
-// huenicorn's Stream::Streamer -- see Analysis/HueOutputAnalysis.md.
+// huenicorn's Stream::Streamer -- see docs/HueOutputAnalysis.md.
 namespace Aurora::Output::Hue
 {
   // Pure: header bytes followed by one HuestreamPayload per channel --

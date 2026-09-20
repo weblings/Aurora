@@ -5,7 +5,7 @@ task. Bounded design doc: the full rationale for collapsing the Dashboard
 into an accordion and redesigning the onboarding flow that leads into it,
 worked out before any of it is built. Scoping + sequencing (the actual
 build order) is a separate section below, kept short on purpose — see
-`Analysis/lessons/engineering-hygiene.md`'s entry on build-log doc density
+`docs/lessons/engineering-hygiene.md`'s entry on build-log doc density
 for why design rationale and an unbounded build log don't share one file
 well. Once pass 2 actually ships, hands-on nits go to `WebUI_Fixes.md`'s
 Pass 2 section, not back into this doc.

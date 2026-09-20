@@ -14,7 +14,7 @@ using namespace std::chrono_literals;
 namespace
 {
   // bind() only binds the socket -- listen() (started on its own thread
-  // below, matching the real threading model in Analysis/HttpServerAnalysis.md)
+  // below, matching the real threading model in docs/HttpServerAnalysis.md)
   // is what starts accept()-ing. A client request issued the instant the
   // thread starts can still race that, so retry briefly instead of sleeping
   // a fixed guess.

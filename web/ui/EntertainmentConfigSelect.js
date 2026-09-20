@@ -3,7 +3,7 @@
 // zero/one config, same rule Output Connect's own picker already uses),
 // and PATCHes the new selection back via POST /api/hue/connection --
 // pulled out of ZoneMappingScreen.js so the new onboarding "Entertainment
-// zone select" screen (Analysis/WebUI/WebUI_Design_2ndPass.md) can reuse the
+// zone select" screen (docs/WebUI/WebUI_Design_2ndPass.md) can reuse the
 // same fetch+render+switch logic instead of duplicating it.
 //
 // load() (fetch) and mount() (draw into a container) are deliberately

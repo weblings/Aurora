@@ -12,7 +12,7 @@ This pass ports and tests the pure logic only: HueStream wire-format
 byte-packing, CIE xyY colorimetry, channel gamma/UV math, bridge-address
 sanitizing, and credential byte-conversion. The I/O layer (bridge REST API,
 entertainment-config pairing, the actual DTLS stream) is analyzed but not yet
-ported — see [`Analysis/HueOutputAnalysis.md`](../../Analysis/HueOutputAnalysis.md).
+ported — see [`docs/HueOutputAnalysis.md`](../../docs/HueOutputAnalysis.md).
 
 ## Building
 

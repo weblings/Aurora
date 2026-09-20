@@ -21,7 +21,7 @@
 // video-shaped, audio has no per-zone spatial concept at all. Validated
 // against real VJ software (TouchDesigner's CHOP/TOP split, Resolume's
 // audio-as-modulator model), not just this project's own precedent -- see
-// Analysis/AudioAnalysis.md's orchestration section.
+// docs/AudioAnalysis.md's orchestration section.
 //
 // Unlike Orchestrator::update(), this takes an explicit dt: drift/bounce
 // are time-integrated (continuous exponential damping, a rotation rate in

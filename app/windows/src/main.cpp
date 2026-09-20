@@ -1,12 +1,12 @@
 // Test-script entry point wiring one Windows input to one or more outputs
 // through Orchestrator. Not yet a real product app -- bridge credentials
 // still come from env vars, not a persisted pairing flow (see
-// Analysis/ImplementationPlan.md phase 3). Zone maps now have a real REST
+// docs/ImplementationPlan.md phase 3). Zone maps now have a real REST
 // surface (registerZoneRoutes, below, build-order step 14) even though the
 // WebUI's own Zone Mapping screen consuming it is still a later step (15) --
 // this comment used to claim no zone-mapping UI existed at any layer, which
 // is no longer accurate for the backend half. See
-// Analysis/DistributedArchitecturePlan.md for how this shape is expected to
+// docs/DistributedArchitecturePlan.md for how this shape is expected to
 // evolve further.
 
 #include <algorithm>
@@ -95,7 +95,7 @@ namespace
   // failing confusingly at construction. Pairing happens through the
   // WebUI's Output Connect step, which re-registers "hue" live once real
   // credentials exist (see the onConnectionChanged callback in main()).
-  // CredentialsStore (Analysis/WebUI/WebUI_Design_1stPass.md's build-order step 4) is
+  // CredentialsStore (docs/WebUI/WebUI_Design_1stPass.md's build-order step 4) is
   // checked first; env vars are a dev-only fallback for setups that
   // haven't paired through it yet, not a second, equally-valid source --
   // a persisted connection always wins over env vars when both are set.
@@ -151,9 +151,9 @@ namespace
 
   // The swappable unit a live reload tears down and reconstructs -- the
   // "reconstruction, not mutation" design fork from huenicorn recommended in
-  // Analysis/HttpServerAnalysis.md. Lives here (not core::Runtime) because
+  // docs/HttpServerAnalysis.md. Lives here (not core::Runtime) because
   // building one needs Registry and this app's own input-name/ifdef
-  // dispatch, both app-layer concepts. See Analysis/WebUI/WebUI_Design_1stPass.md's
+  // dispatch, both app-layer concepts. See docs/WebUI/WebUI_Design_1stPass.md's
   // build-order step 11.
   class Pipeline
   {
@@ -539,7 +539,7 @@ namespace
 
   // First WebUI route: lets a frontend probe which Input/Output plugins this
   // particular binary was actually compiled with, before rendering anything
-  // that assumes one exists (Analysis/WebUI/WebUI_Design_1stPass.md's capability-probe
+  // that assumes one exists (docs/WebUI/WebUI_Design_1stPass.md's capability-probe
   // step). No Config dependency, so this can be registered before Config
   // loads -- addRoute() just captures it for bind() to hand to Impl later.
   void registerCapabilitiesRoute(
@@ -696,7 +696,7 @@ try
   Aurora::Network::Http::Server::HttpServer httpServer;
   registerCapabilitiesRoute(httpServer, registry);
 
-  // Tooltip descriptors (Analysis/TooltipsAnalysis.md): every layer
+  // Tooltip descriptors (docs/TooltipsAnalysis.md): every layer
   // contributes its own control descriptions; the frontend looks them
   // up purely by key.
   Aurora::Runtime::DescriptorRegistry descriptorRegistry;
@@ -767,7 +767,7 @@ try
   httpServer.serveStaticFiles(AURORA_WEBUI_SOURCE_DIR);
 
   // Own thread, same as huenicorn's real Runtime::_initWebUI (see
-  // Analysis/HttpServerAnalysis.md) -- listen() blocks until stop() is
+  // docs/HttpServerAnalysis.md) -- listen() blocks until stop() is
   // called, so it can never share the tick-loop thread below. A bind
   // failure (e.g. port already in use) logs and continues without the
   // WebUI rather than aborting the whole app. HttpServerThread's destructor

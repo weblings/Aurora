@@ -9,7 +9,7 @@
 
 // Ported from huenicorn's Huenicorn::Imaging::ImageProcessing
 // (include/Huenicorn/Imaging/ImageProcessing.hpp / src/Imaging/ImageProcessing.cpp)
-// with two fixes made during the port -- see Analysis/ProcessingAnalysis.md
+// with two fixes made during the port -- see docs/ProcessingAnalysis.md
 // findings 1 and 2:
 //   1. getDominantColor()/Algorithms::mean() now honors PixelFormat instead
 //      of hardcoding BGR-order channel indices.

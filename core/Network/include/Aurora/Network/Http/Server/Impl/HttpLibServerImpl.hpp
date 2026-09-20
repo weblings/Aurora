@@ -9,7 +9,7 @@
 // The only file in this module that includes <httplib.h> -- keeps
 // cpp-httplib swappable behind HttpServer without touching any route
 // definition. Mirrors huenicorn's own Impl/HttpLibServerImpl.hpp (verified
-// directly, see Analysis/HttpServerAnalysis.md) plus one addition: an
+// directly, see docs/HttpServerAnalysis.md) plus one addition: an
 // optional static-file mount point, via cpp-httplib's own set_mount_point.
 namespace Aurora::Network::Http::Server
 {

@@ -43,7 +43,7 @@ namespace
 
 TEST_CASE("getDominantColor recovers (r, g, b) regardless of PixelFormat", "[Processing][regression]")
 {
-  // Finding 1 (Analysis/ProcessingAnalysis.md): the original always assumed
+  // Finding 1 (docs/ProcessingAnalysis.md): the original always assumed
   // BGR storage order. This asserts all four tags round-trip correctly, not
   // just the BGR case that happened to always be exercised before.
   const uint8_t r = 200, g = 100, b = 50;

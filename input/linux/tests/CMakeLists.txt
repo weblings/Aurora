@@ -1,5 +1,5 @@
 # Same Catch2 fetch pattern as Aurora core / Aurora-Output-Hue -- see
-# Analysis/lessons/engineering-hygiene.md for why enable_testing() belongs
+# docs/lessons/engineering-hygiene.md for why enable_testing() belongs
 # in the parent CMakeLists.txt, not here.
 find_package(Catch2 3 QUIET)
 if(NOT Catch2_FOUND)

@@ -5,9 +5,9 @@
 #include <Aurora/Contracts/ControlDescriptor.hpp>
 
 // This plugin's tooltip descriptor content (see
-// Analysis/TooltipsAnalysis.md): the monitor picker (video) and the
+// docs/TooltipsAnalysis.md): the monitor picker (video) and the
 // PipeWire sink field (audio). Descriptions carry the approved
-// Analysis/TooltipContent.md copy. Pure data -- no capture dependency,
+// docs/TooltipContent.md copy. Pure data -- no capture dependency,
 // so this compiles into the base library unconditionally.
 namespace Aurora::Input::Linux
 {

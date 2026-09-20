@@ -55,7 +55,7 @@ namespace Aurora::Processing
       Contracts::ImageData& outputImageData
     )
     {
-      // Fix (see Analysis/ProcessingAnalysis.md finding 2): the original
+      // Fix (see docs/ProcessingAnalysis.md finding 2): the original
       // rgbaToRgb() only ever converted RGBA, unconditionally via
       // cv::COLOR_RGBA2RGB. A BGRA source (DXGI Desktop Duplication, many
       // Linux compositors) needs cv::COLOR_BGRA2BGR instead, or this
@@ -120,7 +120,7 @@ namespace Aurora::Processing
       {
         auto meanScalar = cv::mean(imageData.imageMatrix);
 
-        // Fix (see Analysis/ProcessingAnalysis.md finding 1): cv::mean()
+        // Fix (see docs/ProcessingAnalysis.md finding 1): cv::mean()
         // returns channel averages in the cv::Mat's storage order, which
         // says nothing about whether that order is RGB or BGR. The
         // original code always assumed BGR (channel 0 = B, channel 2 = R).

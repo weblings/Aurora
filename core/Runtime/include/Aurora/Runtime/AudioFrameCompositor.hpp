@@ -6,7 +6,7 @@
 
 // The audio sibling of FrameCompositor's composeFrame() -- broadcasts one
 // color to every active zone instead of cropping a per-zone region, since
-// audio has no per-zone spatial concept at all (see Analysis/AudioAnalysis.md:
+// audio has no per-zone spatial concept at all (see docs/AudioAnalysis.md:
 // "one global Frame computed from AudioFeatures, applied to every zone").
 namespace Aurora::Runtime
 {

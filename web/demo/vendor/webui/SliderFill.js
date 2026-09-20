@@ -4,7 +4,7 @@
 // native rendering mode is what made a solid-white thumb impossible (Chrome
 // only honors a ::-webkit-slider-thumb override once the host's own
 // -webkit-appearance is reset away from native, which also turns off
-// accent-color's fill; see Analysis/lessons/web-ui.md). This sets a CSS
+// accent-color's fill; see docs/lessons/web-ui.md). This sets a CSS
 // variable read by .slider-input::-webkit-slider-runnable-track's gradient
 // instead, so a hard-color-stop background approximates the same fill.
 function updateSliderFill(input) {

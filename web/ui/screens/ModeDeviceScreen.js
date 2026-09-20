@@ -1,6 +1,6 @@
 // Mode + Device Select: audio/video toggle (shown only when both are
 // compiled in), then the concrete device within that mode. See
-// Analysis/WebUI/WebUI_Design_1stPass.md's Mode+Device Select section and build-order
+// docs/WebUI/WebUI_Design_1stPass.md's Mode+Device Select section and build-order
 // step 12.
 //
 // Same onComplete-callback DI shape as OutputConnectScreen: the caller

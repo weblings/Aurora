@@ -9,7 +9,7 @@ allowed-tools: Read
 Before touching `CMakeLists.txt`, vcpkg ports, `FetchContent` blocks, compiler
 toolchains, debugging strategy, or porting C example code into C++, grep the
 query-coherent files (`build-toolchain`, `windows-env`, `debugging-method`,
-`architecture-process`, `web-testing`, `language-cpp` in `Analysis/lessons/`).
+`architecture-process`, `web-testing`, `language-cpp` in `docs/lessons/`).
 
 ## How to use this skill
 
@@ -18,5 +18,5 @@ query-coherent files (`build-toolchain`, `windows-env`, `debugging-method`,
 2. Match the planned change against them — many fail silently
    (wrong compiler, shadowed route, stale fetch branch) with no error.
 3. File anything here that costs 30+ minutes and is a general principle,
-   per `Analysis/lessons/README.md` — new entries require `Tags:` and
-   `Applies-when:` lines (enforced by `Analysis/check-lessons.sh`).
+   per `docs/lessons/README.md` — new entries require `Tags:` and
+   `Applies-when:` lines (enforced by `docs/check-lessons.sh`).

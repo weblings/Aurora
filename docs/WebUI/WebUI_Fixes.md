@@ -9,7 +9,7 @@ Dashboard + NUX redesign this doc's own Pass 1 findings led into.
 
 Keep entries short: what's wrong, why it matters, a proposed fix if one's
 obvious. Full investigation/fix details belong in the commit or PR that
-closes the task, not here — see `Analysis/lessons/engineering-hygiene.md`'s
+closes the task, not here — see `docs/lessons/engineering-hygiene.md`'s
 entry on build-log doc density for why.
 
 ## Pass 1
@@ -196,7 +196,7 @@ isn't the same as "actually usable."
   caller of this function, which talks to a bridge on the local LAN. 1s is
   short enough to plausibly miss on a cold connection and succeed on retry,
   which is exactly the reported symptom. Already flagged once before in
-  `Analysis/lessons/engineering-hygiene.md`'s live-E2E-test entry, but only
+  `docs/lessons/engineering-hygiene.md`'s live-E2E-test entry, but only
   worked around there in a *test's* wait time — never fixed at the source.
   Fix: give this one call (only this one — local bridge calls should keep
   failing fast) a longer timeout, e.g. 5s.
@@ -442,7 +442,7 @@ after its build order closed out.
   anything, and clicking Audio genuinely didn't start anything, by design,
   not by any latency in the reload/DTLS/capture chain (all of which was
   real, correct instrumentation work, just aimed at the wrong layer -- see
-  `Analysis/lessons/web-ui.md`'s new entry on this). **Fix:** rewrote
+  `docs/lessons/web-ui.md`'s new entry on this). **Fix:** rewrote
   `ModeDeviceScreen.js` to apply mode/device changes live -- on landing (if
   nothing valid is configured yet) and on every mode click, matching the
   live-apply model `DashboardScreen`'s own device controls already used

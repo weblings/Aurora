@@ -1,5 +1,5 @@
 // Shared onboarding wizard footer -- Back (omitted on a screen's first
-// step) / Continue, centered as a pair (Analysis/WebUI/
+// step) / Continue, centered as a pair (docs/WebUI/
 // WebUI_Design_2.5Pass.md's NUX Polish Pass -- RockyRoad's own real
 // shared `.frame .actions` bar, not a guess). Replaces reliance on the top
 // bar's own back arrow, which was never consistently positioned or

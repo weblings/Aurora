@@ -71,7 +71,7 @@ No new platform; each item makes an existing rule active.
   (`grep -c '^## '` + `wc -l`) as a pre-commit or CI warning,
   so exceeding the split threshold surfaces at append time.
 - Separate append-only log from plan: move build-verified history out
-  of `ImplementationPlan.md` into dated `Analysis/log/*.md` entries,
+  of `ImplementationPlan.md` into dated `docs/log/*.md` entries,
   leaving the plan with `- [ ]` task checkboxes.
 - Link hygiene: use markdown-link-only references plus a link checker
   instead of plain-text filenames needing manual cross-repo grep
@@ -96,12 +96,12 @@ stretch goal (needs a docs-build root first).
    from plan docs and gives agents `--json` + ready-work queries.
 6. Split `lessons/engineering-hygiene.md` once along topic cuts — medium-large
    one-time edit; do after 1–4 so the new shape holds.
-7. Separate append-only log (`Analysis/log/*.md`) from the plan —
+7. Separate append-only log (`docs/log/*.md`) from the plan —
    medium; pair with 5, since Beads absorbs most of what the log held.
 8. Markdown-link-only references + link checker — small-medium,
    pays off on the next rename, not today.
 9. Pagefind docs site — stretch. Largest effort (needs a build root
-   pulling in sibling `Analysis/` dirs); human search win only.
+   pulling in sibling `docs/` dirs); human search win only.
 
 ## Adopted design (2026-09-20, supersedes details above where they differ)
 
@@ -117,7 +117,7 @@ stretch goal (needs a docs-build root first).
   repo. URLs single-sourced in `AGENTS.md`; per-lesson IDs judged overkill
   at this scale (tags already serve as lightweight IDs).
 - Beads is the queue (open/blocked/deferred/closed with true historical dates
-  via JSONL import); `Analysis/log/` is the record (every material fact, stated
+  via JSONL import); `docs/log/` is the record (every material fact, stated
   once and tightly — findings over narration); planning docs keep decisions,
   status, pointers only. Paused work logs state + resume pointer.
 - The what-goes-where breakdown lives in `AGENTS.md` ("Where things go") —

@@ -1,7 +1,7 @@
 /* Output Connect screen -- address field (label+input, one .field, the
    standard 4px label-to-control gap) + Autodetect sit side by side on
    desktop, stack full-width under 480px (verified against the ASCII layouts
-   in Analysis/WebUIAnalysis.md's Output Connect section). Back/Continue are
+   in docs/WebUIAnalysis.md's Output Connect section). Back/Continue are
    NavFooter's own now (forms.css) -- this file only owns what's unique to
    this screen's own body content. */
 

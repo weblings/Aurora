@@ -11,8 +11,8 @@ Distilled from [huenicorn](https://gitlab.com/openjowelsofts/huenicorn)
 (GPL-3.0) by way of [Aurora core](../../), so this repo carries the same
 license forward — see `../../LICENSE`.
 
-See [`Analysis/BrowserAnalysis.md`](../../Analysis/BrowserAnalysis.md)
-and [`Analysis/ImplementationPlan.md`](../../Analysis/ImplementationPlan.md)'s
+See [`docs/BrowserAnalysis.md`](../../docs/BrowserAnalysis.md)
+and [`docs/ImplementationPlan.md`](../../docs/ImplementationPlan.md)'s
 Phase 3 (Milestone 1) for the full scoping and reasoning behind this repo's
 shape and its split from Aurora core.
 

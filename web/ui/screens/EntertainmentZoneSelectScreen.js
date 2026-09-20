@@ -1,5 +1,5 @@
 // Entertainment zone select: the new Screen 2 of the onboarding sequence
-// (Analysis/WebUI/WebUI_Design_2ndPass.md) -- picks which entertainment
+// (docs/WebUI/WebUI_Design_2ndPass.md) -- picks which entertainment
 // config to use and shows what's in it (ChannelList), before Mode+Device or
 // Zone Mapping ever run. Composes EntertainmentConfigSelect (owns the
 // dropdown + persists the pick via POST /api/hue/connection, hidden

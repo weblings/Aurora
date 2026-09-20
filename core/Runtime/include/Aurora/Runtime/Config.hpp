@@ -7,7 +7,7 @@
 
 // Generic app-level settings only -- output-specific state (bridge
 // credentials, zone maps) lives in each plugin's own scope, never here.
-// See Analysis/RuntimeAnalysis.md.
+// See docs/RuntimeAnalysis.md.
 namespace Aurora::Runtime
 {
   struct ConfigData
@@ -21,7 +21,7 @@ namespace Aurora::Runtime
 
     // Which of an app's compiled-in plugins are active, by name -- looked
     // up in that app's own registry, not known to Aurora core at all.
-    // Empty means unconfigured. See Analysis/DistributedArchitecturePlan.md.
+    // Empty means unconfigured. See docs/DistributedArchitecturePlan.md.
     std::string activeInputName;
     std::vector<std::string> activeOutputNames;
 
@@ -70,7 +70,7 @@ namespace Aurora::Runtime
     // Dashboard itself already has a real fix-it path for each of those
     // (Bridge row's "Change bridge", live mode/device controls, zone
     // toggles), so a later gap doesn't strand anyone -- see
-    // Analysis/WebUI/WebUI_Fixes.md's Pass 2 section.
+    // docs/WebUI/WebUI_Fixes.md's Pass 2 section.
     bool nuxCompleted{false};
   };
 

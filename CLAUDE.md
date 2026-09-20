@@ -5,7 +5,7 @@
 `web-processing/processing.js` and `web-processing/smoother.js` are hand-ported
 JS mirrors of `core/Processing/src/ImageProcessing.cpp`'s crop/mean logic and
 `core/Runtime/src/Smoother.cpp`'s easing formula, for the `Aurora-Demo-Web`
-browser demo (see `Analysis/BrowserAnalysis.md`'s reuse-vs-reimplement finding
+browser demo (see `docs/BrowserAnalysis.md`'s reuse-vs-reimplement finding
 for why this is hand-ported rather than compiled to WASM). There is no
 compiler or shared test runner enforcing the two stay identical — this file is
 the enforcement mechanism.
@@ -20,6 +20,6 @@ the enforcement mechanism.
   behavior of the C++ files named in its own header comments before assuming
   a fix belongs only on the JS side.
 - **`Aurora-Demo-Web` copies these two files verbatim** (not an npm package,
-  by deliberate choice — see `Analysis/ImplementationPlan.md`'s Phase 3).
+  by deliberate choice — see `docs/ImplementationPlan.md`'s Phase 3).
   After changing either file here, recopy it into `Aurora-Demo-Web` too, or
   the demo silently drifts from what this repo actually does.

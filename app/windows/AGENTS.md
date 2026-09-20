@@ -8,4 +8,4 @@ Builds against `core/`, `input/windows/`, `output/hue/` in this repo
   `ctest --test-dir build --output-on-failure`. Run needs
   `AURORA_HUE_BRIDGE_ADDRESS` / `AURORA_HUE_USERNAME` / `AURORA_HUE_CLIENTKEY`
   in env.
-- Tasks (`bd`) and lessons (`Analysis/lessons/`) live at the repo root.
+- Tasks (`bd`) and lessons (`docs/lessons/`) live at the repo root.
