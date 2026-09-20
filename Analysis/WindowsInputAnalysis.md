@@ -73,7 +73,7 @@ research above, found only by actually running it:
   expected and harmless for a continuously-ticking loop, not worth
   special-casing. **Fixed:** use a real short timeout (`16`ms, one 60Hz
   interval) instead of `0` — verified reliable across repeated runs. Filed
-  as an `input.md` lesson.
+  as an `lessons/input.md` lesson.
 - **The "HDR desktops return `R16G16B16A16_FLOAT`" finding above turned out
   to be a false positive**, not a confirmed hardware result: the *first*
   (placeholder) frame's format metadata read as `R16G16B16A16_FLOAT` on this

@@ -9,11 +9,11 @@ work and for the Input/Processing/Output split alike. Don't start a new
 `LessonsLearned.md` elsewhere; if unsure whether one already exists, `find . -iname
 "*lesson*"` first.
 
-Modeled on [RockyRoad's lessons structure](../../../RockyRoad/Analysis/lessons/README.md)
-(see `Analysis/lessons/README.md` there) — same filing/splitting rules, scoped to
+Modeled on [RockyRoad's lessons structure](https://github.com/weblings/RockyRoad)
+— same filing/splitting rules, scoped to
 Aurora's own module boundaries instead of RockyRoad's. `rendering-apis.md` vs.
-`rendering-internals.md` specifically mirrors RockyRoad's own `engine/runtime-apis.md` vs.
-`engine/xr-3d-rendering.md` split (third-party API facts vs. this project's own design calls).
+`rendering-internals.md` specifically mirrors RockyRoad's own `runtime-apis` vs.
+`xr-3d-rendering` lesson split (third-party API facts vs. this project's own design calls).
 
 ## Index
 

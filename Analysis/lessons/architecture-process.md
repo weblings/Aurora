@@ -280,7 +280,7 @@ Tags: config, presence, zonereconciler
 Applies-when: using a domain default as a never-configured signal
 
 `ZoneReconciler`'s `active{false}` default was quietly relied on elsewhere
-(`app.js`'s `needsZoneMapping` check, see `web-ui.md`'s matching entry) as a
+(`app.js`'s `needsZoneMapping` check, see `navigation-flow.md`'s matching entry) as a
 "this zone has never been touched" signal -- fragile the moment `active`'s
 own default needed to change for an unrelated UX reason, which it did.
 Fixing that, the first fix proposed here wasn't a structural correction --

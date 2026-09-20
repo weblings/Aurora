@@ -4,7 +4,7 @@ This project's own 3D-scene design decisions and techniques (not a third-party l
 API/behavior — see `rendering-apis.md` for those), each demonstrated via a real issue while
 building `Aurora-Demo-Web`'s Three.js scenes. See [`README.md`](README.md) for routing rules.
 Split out of `engineering-hygiene.md` alongside `rendering-apis.md`, mirroring RockyRoad's
-`engine/xr-3d-rendering.md` vs. `engine/runtime-apis.md` split.
+`xr-3d-rendering` vs. `runtime-apis` lesson split.
 
 ---
 

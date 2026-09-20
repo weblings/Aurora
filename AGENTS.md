@@ -16,3 +16,16 @@ as sibling directories on disk — keep that layout.
 - Gotchas live in `Analysis/lessons/` — check the matching
   `.claude/skills/` skill before changing that area, and file anything
   costing 30+ minutes per `Analysis/lessons/README.md`.
+## Related repos to be aware of
+
+- This family: `Aurora-Input-Linux`, `Aurora-Output-Hue`, `Aurora-App-Linux`,
+  `Aurora-WebUI` — checked out alongside this repo, resolved by relative path.
+- [RockyRoad](https://github.com/weblings/RockyRoad) — reference for Three.js/WebXR
+  scenes, design tokens, and UI components (checked directly during WebUI design).
+- [RockyRoadImport](https://github.com/weblings/RockyRoadImport) — import-pipeline
+  reference (tab bar, forms page, layout tokens reused in WebUI).
+- [huenicorn](https://gitlab.com/openjowelsofts/huenicorn) — the original
+  Hue-entertainment reference (`Runtime::_update`, `ScreenWidget.js`); ported
+  from, not depended on.
+
+Cite reference lessons by topic name, never by path — layouts differ per machine.

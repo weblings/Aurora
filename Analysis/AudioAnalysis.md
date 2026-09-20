@@ -87,7 +87,7 @@ directions makes that emergent behavior deliberate rather than accidental.
 A beat-driven target is a continuously-shifting one (each beat re-targets
 the opposite complement), the same shape of problem RockyRoad's XR yaw
 tracking already solved
-(`RockyRoad/Analysis/lessons/engine/xr-3d-rendering.md`: *"A
+(RockyRoad's `xr-3d-rendering` lesson: *"A
 continuously-moving target needs continuous damping, not a discrete
 from/to/duration tween"*). The actual code, not just the lesson
 (`RockyRoad/v2/src/xr/index.ts:287-291`), handles the circular-wraparound
@@ -736,7 +736,7 @@ arrives, the same shape `activeMonitorName` already proved out.
   boundary question above bears directly on.
 - `BrowserAnalysis.md` — the Option B (browser-native, no backend) pattern
   the `BeatDetector` candidate fits into.
-- `../../RockyRoadImport/SongConverter/docs/native-logic-reuse-decision.md`
+- RockyRoadImport's `native-logic-reuse-decision` doc
   — the same reuse-vs-hand-port framework already applied to
   `Processing`/`Smoother` could apply again to aubio vs. a hand-rolled
   onset detector.

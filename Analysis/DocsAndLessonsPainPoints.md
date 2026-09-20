@@ -1,7 +1,7 @@
 # Docs & lessons: scaling pain points
 
-Prompted by the `WebUI/` doc reorg (`WebUI_Design_1stPass.md`/`WebUI_Fixes.md`/
-`WebUI_Design_2ndPass.md`) — capturing *why* that reorg was needed, and being
+Prompted by the `WebUI/` doc reorg (`WebUI/WebUI_Design_1stPass.md`/`WebUI/WebUI_Fixes.md`/
+`WebUI/WebUI_Design_2ndPass.md`) — capturing *why* that reorg was needed, and being
 honest that the lessons system meant to prevent this has the same disease.
 Out of scope for now: whether a different tool/structure should replace the
 markdown-file approach (see bottom).
@@ -22,14 +22,14 @@ lesson entry itself already says happens.
 
 ## The lessons system has the same disease it documents
 
-- `engineering-hygiene.md`: 39 entries, 971 lines. `web-ui.md`: 16 entries,
+- `lessons/engineering-hygiene.md`: 39 entries, 971 lines. `lessons/web-ui.md`: 16 entries,
   486 lines. `lessons/README.md`'s own routing rule says a file should split
   once it's "too long to skim (rough proxy: 15+ entries)" — both have been
   over that line for a while, un-split, because nothing prompts checking the
   threshold at the moment a new entry gets added. Same failure shape as the
   docs this system exists to keep from ballooning.
-- `README.md`'s own index is one long hand-maintained prose paragraph per
-  file — already borderline unreadable for `engineering-hygiene.md`'s entry
+- `lessons/README.md`'s own index is one long hand-maintained prose paragraph per
+  file — already borderline unreadable for `lessons/engineering-hygiene.md`'s entry
   (~90 lines of run-on clauses). The index meant to make lessons *findable*
   is itself becoming the kind of doc the splitting rule exists to catch.
 - Retrieval depends entirely on an agent choosing to grep/read the right
@@ -55,7 +55,7 @@ flagged here so it doesn't get lost.
 
 No new platform; each item makes an existing rule active.
 
-- Execute the existing split rule once: split `engineering-hygiene.md`
+- Execute the existing split rule once: split `lessons/engineering-hygiene.md`
   (39 entries) along topic cuts into a subdirectory with its own
   `INDEX.md`, same shape as RockyRoad's `ui-toolkit/`/`engine/`.
   Replace the prose paragraph-per-file index in `lessons/README.md`
@@ -94,7 +94,7 @@ stretch goal (needs a docs-build root first).
 5. Beads for tasks/history — medium effort (install `bd`, migrate
    `ImplementationPlan.md` phases), removes the largest bloat source
    from plan docs and gives agents `--json` + ready-work queries.
-6. Split `engineering-hygiene.md` once along topic cuts — medium-large
+6. Split `lessons/engineering-hygiene.md` once along topic cuts — medium-large
    one-time edit; do after 1–4 so the new shape holds.
 7. Separate append-only log (`Analysis/log/*.md`) from the plan —
    medium; pair with 5, since Beads absorbs most of what the log held.

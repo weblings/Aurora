@@ -231,7 +231,7 @@ principle: when deciding whether to borrow a UI *pattern* (not just a
 function) from a reference implementation, read that reference's actual
 usage before comparing it in the abstract -- the same "verify the real call
 path, don't trust a plausible-looking match" discipline this file and
-`engineering-hygiene.md` already apply to code applies just as much to
+`debugging-method.md` already apply to code applies just as much to
 borrowing an interaction pattern, and it can surface risks (a styling
 collision with an unrelated existing control) that no side-by-side feature
 comparison would think to check for.
@@ -327,7 +327,7 @@ Tags: webui, verification, planning
 Applies-when: building a design pass over a previous pass
 
 Deciding to flip `ZoneReconciler`'s `active` default for the pass-2 NUX
-redesign, `WebUI_Design_1stPass.md`'s own prose gave no reason to expect
+redesign, `../WebUI/WebUI_Design_1stPass.md`'s own prose gave no reason to expect
 trouble -- it never states anywhere that `active` defaulting to `false` is
 being relied on as a presence signal. The actual breakage only showed up by
 reading `app.js`'s real, current `probeState()` line by line:
@@ -357,7 +357,7 @@ Scoping the pass-2 build order, testing landed entirely in its final phase
 by default -- not a deliberate choice to defer it, just the natural shape a
 numbered "build these things in order" list falls into when nobody
 explicitly asks how testing should be distributed across it.
-`WebUI_Design_1stPass.md`'s own actual history already demonstrated the
+`../WebUI/WebUI_Design_1stPass.md`'s own actual history already demonstrated the
 better shape: nearly every one of its 19 steps ends with its own "Tested
 with jsdom: ..." paragraph, verified as it was built, and its own late
 cross-width QA pass caught only three bugs specifically because everything

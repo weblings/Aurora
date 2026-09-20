@@ -69,7 +69,7 @@ comparison along the way can still come back genuinely clean.
 Tags: process, tech-debt, lessons
 Applies-when: recording a root cause without removing it
 
-Implementing `WebUI_Design_2ndPass.md` step 3 hit the exact same
+Implementing `../WebUI/WebUI_Design_2ndPass.md` step 3 hit the exact same
 `Catch2d.lib`/`__std_search_1`-style link failure the two entries above
 already describe. Investigating from scratch (per this session's own
 `prefer-code-confirmed-hypotheses-over-library-internals` habit) surfaced
@@ -153,7 +153,7 @@ new user then?" instead of accepting the crash fix as the whole answer.
 `registry.outputNames()`, matching that route's own documented contract
 ("compiled with," not "already paired"). General principle: after fixing a
 crash, trace the *next* real user action through the code the same way a
-JTBD pass would (see `web-ui.md`'s zone-mapping entry) -- a fix that only
+JTBD pass would (see `planning.md`'s zone-mapping entry) -- a fix that only
 stops the immediate error can still leave the surrounding flow a dead end,
 and "no exception thrown" and "user can do the thing" are different claims.
 

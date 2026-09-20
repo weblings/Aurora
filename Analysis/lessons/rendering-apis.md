@@ -5,7 +5,7 @@ design choices, but real API/tool behavior that constrains how code against them
 written. See [`README.md`](README.md) for how entries get routed here vs. `rendering-internals.md`.
 Split out of `engineering-hygiene.md` once this project's own Three.js/glTF cluster reached 7
 entries, following the same own-internals/third-party-facts split as RockyRoad's
-`engine/runtime-apis.md`.
+`runtime-apis` lesson.
 
 ---
 

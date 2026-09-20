@@ -69,7 +69,7 @@ Wiring and Polish
    pre-existing, environment-wide issue unrelated to this module (a stale
    vcpkg-cached `Catch2d.lib` ABI-incompatible with this machine's Windows
    SDK/MSVC toolset — confirmed by the same failure on an untouched
-   pre-existing test target; see `engineering-hygiene.md`'s entry). Fixing
+   pre-existing test target; see `../lessons/engineering-hygiene.md`'s entry). Fixing
    that natively needs a real from-source rebuild of the vcpkg manifest
    (binary-cache bypass), still not attempted as out of scope. **Actually
    executed for real during step 5** instead, via WSL2/GCC (no Catch2 ABI
@@ -358,7 +358,7 @@ Wiring and Polish
       typo'd address shouldn't require walking away and back).
     - `configSelect`: `PUT /api/hue/entertainment-configurations`. Skips the
       Dropdown entirely when exactly one configuration exists (nothing to
-      choose), but never auto-selects among more than one — `output.md`'s own
+      choose), but never auto-selects among more than one — `../lessons/output.md`'s own
       filed lesson that a bridge having several is normal, not an edge case.
       Zero configurations shows a real message citing the actual constraint
       (create one in the official Hue app first) plus a "Check again" retry.
@@ -727,7 +727,7 @@ Wiring and Polish
     returns `false` for an unknown output or zoneId) -- run for real in
     WSL2 against `core`'s own build tree (28 assertions across 9 test
     cases, all passing), not attempted on Windows: the prebuilt `Catch2d.lib`
-    ABI mismatch already on file in `engineering-hygiene.md` blocks linking
+    ABI mismatch already on file in `../lessons/engineering-hygiene.md` blocks linking
     any Windows Debug test binary in this environment, confirmed again here
     as the same pre-existing, unrelated issue (compilation of every new
     file succeeded cleanly on both platforms; only the Windows test

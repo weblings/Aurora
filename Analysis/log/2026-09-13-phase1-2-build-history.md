@@ -39,7 +39,7 @@ off-by-one bug limited it to). Hit the identical `using namespace
 Aurora::Output::Hue;`-shaped mistake again — added `using namespace
 Aurora::Contracts;` to the test file but forgot to strip the still-present
 `Contracts::` prefixes at each call site, so it didn't actually fix anything
-the first time. Recorded as a recurrence in `engineering-hygiene.md`, not
+the first time. Recorded as a recurrence in `../lessons/engineering-hygiene.md`, not
 just a repeat fix. `X11Grabber.cpp` itself compiled cleanly against real
 X11/Xext/Xrandr; actually verifying capture still needs a real X11 session,
 which neither this Windows machine nor WSL2 (WSLg is a virtualized Wayland
@@ -246,7 +246,7 @@ machine (VS 2022 Community was installed but missing the C++ workload);
 installed it plus vcpkg (for OpenCV — glm/nlohmann_json/Catch2 already had a
 `FetchContent` fallback, so they just needed a working compiler, not vcpkg).
 Two Windows-toolchain-specific gotchas hit and filed in
-`engineering-hygiene.md`: the VS Installer's `--passive` flag needs the
+`../lessons/engineering-hygiene.md`: the VS Installer's `--passive` flag needs the
 shell pre-elevated (fails silently, exit 5007, rather than prompting UAC),
 and the workload finishing successfully doesn't put `cmake`/`cl.exe` on
 `PATH` at all. New `Aurora-Input-Windows` repo (mirrors `Aurora-Input-Linux`'s

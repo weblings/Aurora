@@ -99,7 +99,7 @@ decode, which leans on native `<video>` support) is the direction taken.
 
 - **A reuse-vs-reimplement framework already exists in a sibling project —
   worth applying here rather than re-deriving.**
-  [`RockyRoadImport/SongConverter/docs/native-logic-reuse-decision.md`](../../RockyRoadImport/SongConverter/docs/native-logic-reuse-decision.md)
+  RockyRoadImport's `native-logic-reuse-decision` doc
   lays out compile-and-reuse-via-WASM vs. hand-port in general terms, from
   that project's own `.psarc`-import case (~2000 lines of binary-format/
   crypto logic, no JS equivalent, reused via .NET's WASM tooling). Its
@@ -407,6 +407,6 @@ mode running at all is a separate first step from the tuning comparison itself.
 - `ModuleSplitPlan.md` — the repo-split reasoning (originally written for
   Input/Output plugins) that `Aurora-Demo-Web`'s split applies too, more
   cleanly than any existing plugin repo.
-- `../../RockyRoadImport/SongConverter/docs/native-logic-reuse-decision.md`
+- RockyRoadImport's `native-logic-reuse-decision` doc
   — the general WASM-reuse-vs-hand-port framework the follow-up above
   applies to `Processing`/`Smoother`.

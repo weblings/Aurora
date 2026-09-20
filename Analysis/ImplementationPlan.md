@@ -523,7 +523,7 @@ Four pieces:
   its own zone map assigning lights to the model's fixtures. The original
   flat/grid scene still exists in code (`buildStaticScene` in `main.js`) but
   its UI picker is hidden pending the XR pass (2026-09-15) — see
-  `rendering-internals.md`/`rendering-apis.md` for the Three.js-specific
+  `lessons/rendering-internals.md`/`lessons/rendering-apis.md` for the Three.js-specific
   lessons from building it.
 - The Three.js scene itself the lights live in (`Aurora-Demo-Web`).
 
@@ -539,7 +539,7 @@ unmaintained since 2015). What shipped instead is a hand-rolled JS port
 own Catch2 suites ported line-for-line to `.test.mjs`. An A/B/C/D tuning pass
 against the ported native defaults settled on a "tuned" preset (faster
 brightness smoothing than native's own bulb-tuned defaults — see
-`engineering-hygiene.md`'s brightness-lag-reads-as-boring finding) as the
+`lessons/engineering-hygiene.md`'s brightness-lag-reads-as-boring finding) as the
 shipped default; a demo-only attack/decay variant was built and deliberately
 kept out of the tested port. Full detail in `AudioAnalysis.md` and
 `BrowserAnalysis.md`, including a tracked-but-not-started follow-up to
@@ -688,9 +688,7 @@ already-solved groundwork instead of rediscovering it.
 
 - **Analysis pass first**, and this one doubles as the source for the next
   bullet: read
-  [`RockyRoad/Analysis/lessons/engine/dev-environment.md`](../../RockyRoad/Analysis/lessons/engine/dev-environment.md)
-  and
-  [`xr-3d-rendering.md`](../../RockyRoad/Analysis/lessons/engine/xr-3d-rendering.md),
+  RockyRoad's `dev-environment` and `xr-3d-rendering` engine lessons,
   and write `Analysis/RockyRoadXRAnalysis.md` covering RockyRoad's actual
   IWSDK/Scene3D/Camera3D scaffolding holistically (not just the lessons list —
   the working code itself: `v2/src/`'s engine layer) before bootstrapping
@@ -698,7 +696,7 @@ already-solved groundwork instead of rediscovering it.
   camera-fixed-HMD rendering pattern are already documented in those lessons
   files; no need to rediscover them.
 - Bootstrap from RockyRoad's IWSDK setup
-  ([`v2/ARCHITECTURE.md`](../../RockyRoad/v2/ARCHITECTURE.md)) rather than from
+  (its `v2/ARCHITECTURE` doc) rather than from
   scratch — "put 3D content in a WebXR headset via Vite + IWSDK" is generic
   scaffolding, not note-highway-specific, so it's a legitimate distillation
   target the same way ChartPlayer's engine layer was distilled into RockyRoad.

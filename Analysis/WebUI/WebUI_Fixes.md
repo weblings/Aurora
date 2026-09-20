@@ -463,7 +463,7 @@ after its build order closed out.
      selection -- so the screen showed "Using: `<name>`" purely for display
      (`getSelected()`'s own fallback to `configs[0]`) while never actually
      persisting it. Worked fine in-session regardless (`HueOutput`'s own
-     empty-id fallback picks the only config -- see `output.md`), but
+     empty-id fallback picks the only config -- see `../lessons/output.md`), but
      `entertainmentConfigurationId` stayed `""` forever, re-triggering this
      exact screen on every relaunch. **Fix:** `EntertainmentConfigSelect.load()`
      now silently persists `configs[0].id` right after fetching whenever

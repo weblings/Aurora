@@ -170,7 +170,7 @@ huenicorn's or Aurora's. In the official Hue app, a user groups a subset of
 lights and gives each a 3D position specifically for the low-latency
 Entertainment API (the DTLS streaming path both huenicorn and Aurora use) —
 distinct from a normal on/off/brightness "room." A bridge can have more than
-one: `output.md` already has this as a filed lesson, an empty-ID auto-select
+one: `../lessons/output.md` already has this as a filed lesson, an empty-ID auto-select
 picking "the first one" isn't safe to treat as the only one. Neither huenicorn
 nor Aurora creates or edits these, only the official Hue app does; this screen
 only picks among what already exists.
