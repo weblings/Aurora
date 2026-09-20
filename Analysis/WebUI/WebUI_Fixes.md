@@ -83,7 +83,7 @@ isn't the same as "actually usable."
   Debug logging since stripped from `CredentialsStore.cpp`/
   `PairingRoutes.cpp` (the `configRoot` line in `main.cpp` stays until the
   double-click crash below is root-caused).
-- [ ] **No way to discover the WebUI's URL.** Root cause found: the printed
+- [ ] **No way to discover the WebUI's URL.** (→ bd Aurora-2qj) Root cause found: the printed
   line was `config.boundBackendIP()` verbatim, which defaults to `"0.0.0.0"`
   — a bind-all address, not something a browser can reliably navigate to
   (behavior varies by browser/OS, matching the flaky "0.0.0.0 worked/didn't
@@ -92,7 +92,7 @@ isn't the same as "actually usable."
   print a clickable link (not auto-launch) otherwise. Same bug existed
   identically in both `Aurora-App-Windows` and `Aurora-App-Linux`.
 - [ ] **Back navigates to the previous onboarding *step*, which is correct,
-  but the step it lands on doesn't show what you already did there.**
+  but the step it lands on doesn't show what you already did there.** (→ bd Aurora-mqi)
   Original report: Back from Tuning (audio mode, mistaken for the
   Dashboard) returned to Output Connect, several steps earlier than
   expected. Root cause found in a later pass: chain-level Back is already
@@ -156,7 +156,7 @@ isn't the same as "actually usable."
   (occluded/unselectable zones) — see "Zone Mapping: channel selection &
   identification" below for the full follow-up plan, confirmed working live.
 - [ ] **No single-instance enforcement — a second launch can silently run
-  headless.** `httpServer.bind()` failing (port in use) just logs to
+  headless.** (→ bd Aurora-52o) `httpServer.bind()` failing (port in use) just logs to
   stderr and the process keeps running with no WebUI at all; nothing tells
   the user which of possibly several running copies is the real one. Real
   design constraint: must scope the lock to the resolved config root, not
@@ -188,7 +188,7 @@ isn't the same as "actually usable."
   `ApiTools.cpp`, and both apps' `main.cpp` (the `[pairing-debug]`
   `configRoot` line in `main.cpp` stays until the double-click crash is
   root-caused).
-- [ ] **Autodetect needs two clicks to work.** Root cause found, not yet
+- [ ] **Autodetect needs two clicks to work.** (→ bd Aurora-07i) Root cause found, not yet
   fixed: `HttpClient.cpp`'s `sendHttpRequest` hardcodes `CURLOPT_TIMEOUT` to
   1 second for every outbound call this module makes, including
   `ApiTools::autodetectedBridge()`'s call to `https://discovery.meethue.com/`
@@ -344,7 +344,7 @@ after its build order closed out.
   `PipelineHost`'s own constructor comment) when neither `activeInputName`
   nor `activeAudioInputName` has ever been set, instead of defaulting.
 - [ ] **Capture source (Mode+Device Select) — lights don't visibly react
-  immediately after Save, but do by the time Zone Mapping is reached.**
+  immediately after Save, but do by the time Zone Mapping is reached.** (→ bd Aurora-vf1)
   Not yet root-caused. Candidate explanation, not confirmed: Mode+Device's
   save does trigger a real reload with a real input this time (unlike the
   entertainment-zone-select case above), so this may just be DTLS
@@ -354,7 +354,7 @@ after its build order closed out.
   how long after Save the bridge actually starts rendering, not more code
   reading.
 - [ ] **Dashboard — switching Video/Audio with the mode toggle doesn't
-  actually change what the lights are doing.** Not yet root-caused, but
+  actually change what the lights are doing.** (→ bd Aurora-m2c) Not yet root-caused, but
   likely related to the *same* class of bug `HueOutput::shutdown()`'s own
   comment already documents fixing (a reload's old instance sending an
   authoritative bridge-side stop that kills the new instance's
@@ -501,7 +501,7 @@ after its build order closed out.
      covers both). Confirmed live: `nuxCompleted` persisted on the very
      next test, and kept working once the cache was genuinely clear.
 - [ ] **Video capture path — colors intermittently wrong for a frame or
-  two, no clear trigger.** Reported live; user confirmed this predates
+  two, no clear trigger.** (→ bd Aurora-vzz) Reported live; user confirmed this predates
   both the `WindowsGrabber` staging-texture fix above and, on further
   recollection, wasn't present before the 2nd-pass work started — so it's
   not explained by anything fixed so far. Deprioritized at the user's
@@ -518,7 +518,7 @@ after its build order closed out.
 - [x] Zone Mapping general polish
 - [x] NUX back and forward logic
 - [x] SVG and button polish
-- [ ] Revisit double click possiblities
+- [ ] Revisit double click possiblities (→ bd Aurora-3gy)
 - [x] Audio channel bools. Research:
       Here's the finding on item 2: this isn't a WebUI bug at all. ZoneActiveToggleList in the Bridge section has no mode gate of its own — it renders whatever /api/zones returns, unconditionally. The empty list in audio mode traces back to the daemon:
 
