@@ -1,0 +1,4 @@
+# Normalize line endings on commit; check out natively per OS.
+* text=auto
+# Shell scripts must stay LF: bash chokes on CRLF (seen on a Windows checkout).
+*.sh text eol=lf

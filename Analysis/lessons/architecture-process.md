@@ -344,3 +344,16 @@ no meaning lost.
 
 **Fix:** each procedure stated once, in exactly one place; cross-reference,
 never restate. When a second mention creeps in, merge — don't clarify.
+
+
+---
+
+---
+
+## A fresh machine adopts beads history with bd bootstrap, not bd init
+Tags: beads, onboarding, dolt, sync
+Applies-when: making the bd CLI work on a machine that only has the git checkout
+
+bd init (even --from-jsonl) refuses when the configured sync.remote holds Dolt history -- exit 10, adopt the remote -- because init mints identity and an import would silently fork history. bd bootstrap is the command that adopts the remote history, and when the remote is unreachable it falls back to importing the git-tracked issues.jsonl (which export.auto keeps fresh). The live DB (embeddeddolt/) is git-ignored by design, so this step is required on every new machine; no task state carries over without it.
+
+**Fix:** new-machine order is bd bootstrap, then bd import to upsert any JSONL-only lines written while the DB was down, then bd export to re-sync the carrier file. Do not reach for --discard-remote unless replacing the remote history is the intent.

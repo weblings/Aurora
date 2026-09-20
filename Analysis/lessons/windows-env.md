@@ -136,3 +136,13 @@ both `pkill -f` and a /proc PID scan match your own command text (and PID
 daemon holds the REST port and looks exactly like the real app misbehaving.
 
 ---
+
+---
+
+## A fresh checkout on this machine shows whole-file M flags with zero content changes -- verify normalized before touching anything
+Tags: windows, git, line-endings, checkout
+Applies-when: git status shows every file modified on a fresh machine that changed nothing
+
+git status showed dozens of modified files (.beads/, AGENTS.md, Analysis/, skills) on a machine that had changed nothing. git diff --stat --ignore-all-space was empty, and the worktree md5 matched the blob after stripping \r -- the entire diff was LF blobs checked out as CRLF (49 extra bytes on a 49-line file, one \r per line).
+
+**Fix:** before staging anything here, run git diff --ignore-cr-at-eol -- <file> and confirm the only ^[+-] lines are real; never git add -A a wall of M flags on this machine without that check. New files authored here land as LF (repo-blob convention); git normalizes on commit.
