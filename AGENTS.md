@@ -29,3 +29,8 @@ as sibling directories on disk — keep that layout.
   from, not depended on.
 
 Cite reference lessons by topic name, never by path — layouts differ per machine.
+- When closing a milestone bead, move implementation detail to `Analysis/log/`
+  (dated file, update `INDEX.md`): every material fact, stated once and tightly.
+  Findings over narration. Paused (not closed) work gets the same treatment —
+  log where it stands and what resumes it, so restarting never re-derives state.
+  Planning docs keep decisions, status, pointers only.
