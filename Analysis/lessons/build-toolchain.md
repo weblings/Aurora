@@ -305,7 +305,7 @@ Tags: line-endings, editing, git
 Applies-when: editing files across sibling repos
 
 `Aurora/core` and `Aurora-App-Linux` sources are CRLF while
-`Aurora-App-Windows/src/main.cpp` is LF, and every repo's `LICENSE` shows
+`app/windows/src/main.cpp` is LF, and every repo's `LICENSE` shows
 as modified from CR-only churn. Exact-match editing fails on multi-line CRLF blocks (no match found), and a whole-file rewrite flips
 every line's ending, burying the real change.
 

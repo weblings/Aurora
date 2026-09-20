@@ -261,7 +261,7 @@ Dashboard's own status becomes the actual first real confirmation instead.
 **Research:**
 - The audio/video toggle needs **no CMake change** to exist as a UI control —
   it's already just two `Config` string fields
-  (`Aurora-App-Windows/src/main.cpp:141-144`'s `useAudioMode` derivation,
+  (`app/windows/src/main.cpp:141-144`'s `useAudioMode` derivation,
   confirmed identical in the Linux app). CMake flags only gate whether a
   plugin is compiled into the binary at all, not an either/or design split.
 - `RockyRoad`'s `TunerScreen.ts` (read in full) is a strong template for the

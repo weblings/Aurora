@@ -71,7 +71,7 @@ graph LR
   I --> J["UDP :2100 → Hue bridge"]
 ```
 
-Driven by `Aurora-App-Linux/main.cpp`'s tick loop calling
+Driven by `app/linux/main.cpp`'s tick loop calling
 `Orchestrator::update()` at `Config::refreshRate()`, on one thread — the
 threading model didn't get more complex, just moved out of `Runtime` and
 into the app layer, since `Orchestrator` deliberately owns no timing itself.

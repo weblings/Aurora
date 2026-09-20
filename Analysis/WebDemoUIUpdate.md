@@ -56,7 +56,7 @@ drives the source.
   (`Tooltips.js`, `topBar.js` native-title design). Dashboard line 383 can
   navigate to OutputConnectScreen (bridge setup) — must never trigger.
 - Daemon serves one static dir (`serveStaticFiles(AURORA_WEBUI_SOURCE_DIR)`,
-  sibling-fetch pattern in `Aurora-App-Linux/CMakeLists.txt:36-40`);
+  sibling-fetch pattern in `app/linux/CMakeLists.txt:36-40`);
   `HttpServer` shows a single `m_staticDir`. No live per-zone color/audio
   endpoint exists anywhere in the route inventory.
 

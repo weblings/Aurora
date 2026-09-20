@@ -104,7 +104,7 @@ Aurora/                  <- core repo
     tests/                 <- DONE (Processing + Runtime coverage): Catch2, see
                                ProcessingAnalysis.md/RuntimeAnalysis.md's test plans
   Analysis/               <- already exists
-Aurora-Input-Linux/       <- plugin repo, DONE for X11 + Pipewire (see
+input/linux/       <- plugin repo, DONE for X11 + Pipewire (see
                              LinuxCaptureAnalysis.md): DummyGrabber,
                              SessionDispatch (tested pure logic), X11Grabber
                              (mechanically ported, builds against real
@@ -124,7 +124,7 @@ Aurora-Input-Linux/       <- plugin repo, DONE for X11 + Pipewire (see
                              deps aren't forced — X11 and Wayland are one plugin's
                              two auto-selected backends, not two separate plugins
                              (see ModuleSplitPlan.md's repo-split section).
-Aurora-Output-Hue/        <- plugin repo, DONE (see HueOutputAnalysis.md): pure
+output/hue/        <- plugin repo, DONE (see HueOutputAnalysis.md): pure
                              logic (Colorimetry, Channel, HuestreamHeader/Payload,
                              BridgeAddress, Credentials byte-conversion) plus the
                              full I/O layer -- HttpClient (libcurl), ApiTools
@@ -134,7 +134,7 @@ Aurora-Output-Hue/        <- plugin repo, DONE (see HueOutputAnalysis.md): pure
                              IOutput tying it all together. Builds against real
                              libcurl/Mbed TLS; needs a real bridge to manually
                              verify capture actually reaches real lights.
-Aurora-App-Linux/         <- new app repo, DONE (see DistributedArchitecturePlan.md
+app/linux/         <- new app repo, DONE (see DistributedArchitecturePlan.md
                              for why this got its own repo): Registry (name ->
                              factory for compiled-in plugins, tested) + main.cpp
                              (registers plugins per AURORA_APP_ENABLE_*, picks
@@ -145,7 +145,7 @@ Aurora-App-Linux/         <- new app repo, DONE (see DistributedArchitecturePlan
                              every native dependency (X11, Pipewire/glib,
                              libcurl, Mbed TLS). Real end-to-end run (real
                              display + real bridge) pending the Ubuntu device.
-Aurora-Demo-Web/         <- new repo (2026-09-14, not started, phase 3
+web/demo/         <- new repo (2026-09-14, not started, phase 3
                              milestone 1): the Three.js browser demo. File
                              input (bundled WebM sample + upload), the 9-slice
                              Three.js virtual-light output, and the demo scene
@@ -624,7 +624,7 @@ this codebase.
     `audioTargetSinkName`, and the full audio-effect-tuning block). The
     audio/video mode toggle specifically needs **no CMake change** — it's
     already just two `Config` string fields
-    (`Aurora-App-Windows/src/main.cpp:141-144`'s `useAudioMode` derivation);
+    (`app/windows/src/main.cpp:141-144`'s `useAudioMode` derivation);
     CMake flags only gate whether a plugin is compiled in at all. What's
     actually missing is a live-reload path: everything (`Config`, `ZoneMap`
     via `reconcileZoneMap`, called only inside `Orchestrator::init()`) is

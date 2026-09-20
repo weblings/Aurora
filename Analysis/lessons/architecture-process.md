@@ -357,3 +357,16 @@ Applies-when: making the bd CLI work on a machine that only has the git checkout
 bd init (even --from-jsonl) refuses when the configured sync.remote holds Dolt history -- exit 10, adopt the remote -- because init mints identity and an import would silently fork history. bd bootstrap is the command that adopts the remote history, and when the remote is unreachable it falls back to importing the git-tracked issues.jsonl (which export.auto keeps fresh). The live DB (embeddeddolt/) is git-ignored by design, so this step is required on every new machine; no task state carries over without it.
 
 **Fix:** new-machine order is bd bootstrap, then bd import to upsert any JSONL-only lines written while the DB was down, then bd export to re-sync the carrier file. Do not reach for --discard-remote unless replacing the remote history is the intent.
+
+
+---
+
+---
+
+## When a merge brings two similar trees together, diff before deciding copy-vs-fork
+Tags: monorepo, duplication, vendor, verification
+Applies-when: finding a lookalike directory (vendor snapshot, mirror, fork) inside merged content
+
+The merge surfaced web/demo/vendor/webui sitting next to web/ui. Assumption said stale copy; diff -rq said diverged subset with vendor-only tooling (MANIFEST.json, generator) and ui-only app shell -- a deliberate GitHub-Pages-targeted fork, confirmed by the owner. A sync would have destroyed it.
+
+**Fix:** never classify duplication by directory name or memory; run the diff first, read the file lists on both sides, and only then choose mirror-rule, migration, or intentional-divergence (recorded where agents will trip over it: AGENTS.md plus the closed task).

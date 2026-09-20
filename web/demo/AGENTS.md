@@ -7,5 +7,7 @@ not here.
 
 - `processing.js`/`smoother.js`/`audioFeatures.js`/`colorModel.js` are copies
   of `web-processing/` at the repo root — fix upstream and recopy, see `CLAUDE.md`.
+- `vendor/webui/` is an intentional GitHub-Pages-targeted fork of `web/ui`,
+  not a mirror — do not "sync" it (decision recorded in `Aurora-4jl`).
 - Tests: `node <name>.test.mjs`, no build step.
 - Tasks (`bd`) and lessons (`Analysis/lessons/`) live at the repo root.

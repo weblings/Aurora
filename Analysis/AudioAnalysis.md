@@ -333,7 +333,7 @@ explicitly, not an open design question.
 
 **Linux: native pipewire, not a third-party cross-platform library —
 because it's already a dependency, not a new one.**
-`Aurora-Input-Linux/CMakeLists.txt:50-61` already links `libpipewire-0.3`
+`input/linux/CMakeLists.txt:50-61` already links `libpipewire-0.3`
 + `glib` for the existing `PipewireGrabber` (video capture via XDG desktop
 portal). Audio loopback capture reusing that exact dependency is the same
 "OpenCV already a Core dependency" story that kept `VideoFileGrabber`
@@ -475,7 +475,7 @@ than reasoning abstractly:
   with its own contract (raw PCM + sample rate + channel count), not a
   subclass of anything `IVideoInput` also derives from.
 - **Nothing structural forces a shared base either.** Checked
-  `Aurora-App-Linux/include/Aurora/App/Registry.hpp`: it isn't polymorphic
+  `app/linux/include/Aurora/App/Registry.hpp`: it isn't polymorphic
   over one common interface today — it's two independently-typed factory
   maps (`InputFactory`→`IInput`, `OutputFactory`→`IOutput`), each with
   their own `register*`/`create*`/`*Names()` trio. Adding `IAudioInput` is

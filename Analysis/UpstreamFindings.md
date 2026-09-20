@@ -159,7 +159,7 @@ sorted input) — `number` is always ≥ every other divisor, so appending it
 last keeps the vector sorted either way.
 
 **Status:** Fixed and covered by a regression test in Aurora's port
-(`Aurora-Input-Linux/tests/LinuxInputTests.cpp`) — see `LinuxCaptureAnalysis.md`.
+(`input/linux/tests/LinuxInputTests.cpp`) — see `LinuxCaptureAnalysis.md`.
 
 ## Pipewire (`XdgDesktopPortal`)
 

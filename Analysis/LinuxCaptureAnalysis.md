@@ -105,11 +105,11 @@ no behavior change, since nothing consumed those values either way.
 ```
 Aurora/core/Input/include/Aurora/Input/IInput.hpp     (refined: monitor selection added)
 Aurora/core/Input/include/Aurora/Input/MonitorData.hpp
-Aurora-Input-Linux/include/Aurora/Input/Linux/DummyGrabber.hpp
-Aurora-Input-Linux/include/Aurora/Input/Linux/X11Grabber.hpp
-Aurora-Input-Linux/include/Aurora/Input/Linux/SessionDispatch.hpp  (the testable pure logic)
-Aurora-Input-Linux/src/*.cpp
-Aurora-Input-Linux/tests/LinuxInputTests.cpp
+input/linux/include/Aurora/Input/Linux/DummyGrabber.hpp
+input/linux/include/Aurora/Input/Linux/X11Grabber.hpp
+input/linux/include/Aurora/Input/Linux/SessionDispatch.hpp  (the testable pure logic)
+input/linux/src/*.cpp
+input/linux/tests/LinuxInputTests.cpp
 ```
 
 `PipewireGrabber`/`XdgDesktopPortal` intentionally not listed at the time —
@@ -187,14 +187,14 @@ Input/Output module boundary itself.
 ## Output files
 
 ```
-Aurora-Input-Linux/include/Aurora/Input/Linux/IRestoreTokenStore.hpp
-Aurora-Input-Linux/include/Aurora/Input/Linux/GamescopeNodeMatch.hpp   (pure, tested)
-Aurora-Input-Linux/include/Aurora/Input/Linux/PipewireFrameBuffer.hpp  (pure, tested)
-Aurora-Input-Linux/include/Aurora/Input/Linux/XdgDesktopPortal.hpp
-Aurora-Input-Linux/include/Aurora/Input/Linux/PipewireGrabber.hpp
-Aurora-Input-Linux/src/XdgDesktopPortal.cpp
-Aurora-Input-Linux/src/PipewireGrabber.cpp
-Aurora-Input-Linux/tests/PipewireTests.cpp
+input/linux/include/Aurora/Input/Linux/IRestoreTokenStore.hpp
+input/linux/include/Aurora/Input/Linux/GamescopeNodeMatch.hpp   (pure, tested)
+input/linux/include/Aurora/Input/Linux/PipewireFrameBuffer.hpp  (pure, tested)
+input/linux/include/Aurora/Input/Linux/XdgDesktopPortal.hpp
+input/linux/include/Aurora/Input/Linux/PipewireGrabber.hpp
+input/linux/src/XdgDesktopPortal.cpp
+input/linux/src/PipewireGrabber.cpp
+input/linux/tests/PipewireTests.cpp
 ```
 
 Needs a real Wayland session + portal backend to manually verify capture

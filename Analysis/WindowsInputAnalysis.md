@@ -205,7 +205,7 @@ Two more, not from the Linux ports but from the API docs read for this pass:
 Windows — untested territory (only ever built on Linux/WSL2 so far).
 huenicorn's own `WindowsAdapter` links `ws2_32`/`mswsock`/`crypt32` for
 exactly this reason (WinSock init, Windows crypto) — a concrete hint that
-`Aurora-Output-Hue/CMakeLists.txt` will need an equivalent Windows-only
+`output/hue/CMakeLists.txt` will need an equivalent Windows-only
 `target_link_libraries` branch, same shape as the pkg-config-vs-`find_library`
 fallback already added for the Ubuntu device's older Mbed TLS.
 

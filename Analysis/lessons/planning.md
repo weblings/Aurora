@@ -415,3 +415,16 @@ Applies-when: sequencing a directory rename against a repo consolidation
 First instinct on Analysis-to-docs was rename-first (small, reviewable, independently justified). Reversed it on finding outward ../Aurora/Analysis references in seven sibling repos: renaming core first fixes core links but silently breaks all siblings until the merge, with no checker covering them -- invisible rot, worse than visible breakage. Merge first, rename inside the fix-up pass instead: one atomic sed plus check-links green over the whole tree.
 
 **Fix:** the rename goes with whichever change lets every reference -- inward and outward -- move in a single verifiable pass. Count references by owner before ordering; the repo with no checker is the one that decides.
+
+
+---
+
+---
+
+## Rewrite file-path pointers in a rename, leave narrative names alone
+Tags: planning, refactoring, doc-hygiene, history
+Applies-when: updating docs after a directory rename or repo merge
+
+145 old-repo mentions across 24 docs split into two kinds: 30 trailing-slash path pointers (Aurora-Input-Linux/include/...) that misdirect the reader, and ~115 bare narrative names (split into its own repo Aurora-Demo-Web) that read fine as history. Blanket sed would have falsified the record; no rewrite would leave 404s in the reader head.
+
+**Fix:** the trailing slash is the classifier -- rewrite Name/ paths, leave bare names. Exclude dated logs and closed task text unconditionally (history). Verify with the link checker, which only sees the pointer class anyway.

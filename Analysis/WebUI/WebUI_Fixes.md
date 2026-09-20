@@ -522,7 +522,7 @@ after its build order closed out.
 - [x] Audio channel bools. Research:
       Here's the finding on item 2: this isn't a WebUI bug at all. ZoneActiveToggleList in the Bridge section has no mode gate of its own — it renders whatever /api/zones returns, unconditionally. The empty list in audio mode traces back to the daemon:
 
-      Pipeline::listZones()/updateZone() in both Aurora-App-Windows/src/main.cpp:290-312 and Aurora-App-Linux/src/main.cpp:379-400** explicitly return nothing / no-op whenever m_isAudioMode` is true:
+      Pipeline::listZones()/updateZone() in both app/windows/src/main.cpp:290-312 and app/linux/src/main.cpp:379-400** explicitly return nothing / no-op whenever m_isAudioMode` is true:
 
 
       Aurora::Runtime::ZoneListResult listZones() const
@@ -542,7 +542,7 @@ after its build order closed out.
       Once that's done on the backend, no Aurora-WebUI changes are needed — the existing Bridge zone list will just start showing data in audio mode automatically, same as the frontend investigation for item 2 originally assumed.
 
       Context (2026-09-18 investigation, verified in current code) for whoever implements this:
-      - Current guard locations: `Pipeline::listZones()`/`updateZone()` audio bail-outs are at Aurora-App-Linux/src/main.cpp:380-402 and Aurora-App-Windows/src/main.cpp:291-313 (the 290-312/379-400 refs above are stale by a few lines).
+      - Current guard locations: `Pipeline::listZones()`/`updateZone()` audio bail-outs are at app/linux/src/main.cpp:380-402 and app/windows/src/main.cpp:291-313 (the 290-312/379-400 refs above are stale by a few lines).
       - `AudioOrchestrator` (`Aurora/core/Runtime/...`) holds per-output `ZoneMap`s in `m_zoneMapsByOutput`, reconciled+persisted at `init()` via the shared `ZoneMapStore`, built from the same `m_outputPtrs` the video path uses — so the front output is always present. But `zoneMap()` uses `.at()` (throws `out_of_range` on unknown output) and no mutator exists yet.
       - Toggles take effect live with no extra plumbing: `composeAudioFrame()` already skips `!zone.active` channels and applies per-zone `gamma` (AudioFrameCompositor.cpp). `uvs` is spatially meaningless in audio but persists harmlessly — mirror the full `(uvs, active, gamma)` signature for route compatibility.
       - Frontend/route need no changes: `ZoneActiveToggleList` renders whatever `/api/zones` returns and PUTs `{active}` through `ZonePatchQueue`; `registerZoneRoutes` already threads `active`/`gamma` through. Audio NUX skips Zone Mapping (`probeState` is video-only), so this surfaces on the Dashboard Bridge list only.
