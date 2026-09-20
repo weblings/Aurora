@@ -19,7 +19,7 @@ Aurora's own module boundaries instead of RockyRoad's. `rendering-apis.md` vs.
 
 | File | Scope | Entries | File here when |
 |---|---|---|---|
-| [engineering-hygiene.md](engineering-hygiene.md) | general design/build-tooling principles | 49 | general principle demonstrated by a real bug here |
+| [engineering-hygiene.md](engineering-hygiene.md) | general design/build-tooling principles | 50 | general principle demonstrated by a real bug here |
 | [input.md](input.md) | capture/grabber/platform-adapter | 10 | capture/grabber specific |
 | [processing.md](processing.md) | color/effect transform, zone-mapping | 3 | color/effect/zone-mapping specific |
 | [output.md](output.md) | streaming/protocol, any target | 6 | streaming/protocol/wire-format specific |
