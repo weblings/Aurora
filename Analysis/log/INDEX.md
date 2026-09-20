@@ -12,3 +12,4 @@ Planning docs stay clean: decisions, status, and pointers here only.
 | 2026-09-13 | Runtime follow-up: Orchestrator | `bd list -l phase-1` |
 | 2026-09-13 | Hue follow-up: I/O layer | `bd list -l phase-1` |
 | 2026-09-15 | WebUI 1stPass build order | `bd list -l phase-3` |
+| 2026-09-20 | Docs-system overhaul (tags, skills, guards, split, beads, logs) | `bd list -l docs` |

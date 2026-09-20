@@ -102,3 +102,23 @@ stretch goal (needs a docs-build root first).
    pays off on the next rename, not today.
 9. Pagefind docs site — stretch. Largest effort (needs a build root
    pulling in sibling `Analysis/` dirs); human search win only.
+
+## Adopted design (2026-09-20, supersedes details above where they differ)
+
+- Query-coherent splits, not count-based: the 15-entry rule was an ungrounded
+  human-skim heuristic (measured: tag grep is 0.00s at 114 entries / 3422
+  lines). Files subdivide when their query vocabulary gets muddy.
+- Skills read tag-first: grep `Tags:`/`Applies-when:`, read matches — never
+  whole files. This, not splitting, is what makes size cheap for agents.
+- `check-lessons.sh` enforces the retrieval contract (tag placement, index
+  counts), not the count rule. `check-links.sh` verifies links + bare refs
+  with an explicit grandfather list — anything new and unresolvable fails.
+- Cite by headline/topic, files by markdown link, external lessons by topic +
+  repo. URLs single-sourced in `AGENTS.md`; per-lesson IDs judged overkill
+  at this scale (tags already serve as lightweight IDs).
+- Beads is the queue (open/blocked/deferred/closed with true historical dates
+  via JSONL import); `Analysis/log/` is the record (every material fact, stated
+  once and tightly — findings over narration); planning docs keep decisions,
+  status, pointers only. Paused work logs state + resume pointer.
+- The what-goes-where breakdown lives in `AGENTS.md` ("Where things go") —
+  that section, not this doc, is the contract new work follows.

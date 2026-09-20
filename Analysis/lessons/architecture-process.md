@@ -329,3 +329,18 @@ diff actually contains the beads just created or closed. General
 principle: an auto-sync with a debounce is eventually consistent, not
 immediately consistent -- any commit cut in the gap between a write and
 its sync bakes the lag into history.
+
+---
+
+## One rule stated twice is zero rules — give each procedure exactly one wording
+Tags: docs, process, procedures
+Applies-when: writing or editing agent-facing procedure docs
+
+AGENTS.md carried its task/lesson/close-out rules twice — intro bullets plus
+a "Where things go" section saying the same things differently. Two wordings
+of one rule invite following the looser one, which for honor-system docs is
+the failure mode, not clutter. Merged to single-source (47 to 36 lines) with
+no meaning lost.
+
+**Fix:** each procedure stated once, in exactly one place; cross-reference,
+never restate. When a second mention creeps in, merge — don't clarify.

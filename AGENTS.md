@@ -9,13 +9,21 @@ as sibling directories on disk — keep that layout.
   `ctest --test-dir build --output-on-failure` (`BUILD_TESTS` defaults ON).
 - `web-processing/`: `node web-processing/<name>.test.mjs`, no build step.
   See `CLAUDE.md` — it is the sync rule between the JS mirrors and the C++.
-- Tasks live in `bd` here (`bd ready`, `bd list`), not markdown TODOs.
-  Auto-export is debounced — run `bd export -o .beads/issues.jsonl`
-  immediately before `git add`ing task state, never after batched writes
-  without it.
-- Gotchas live in `Analysis/lessons/` — check the matching
-  `.claude/skills/` skill before changing that area, and file anything
-  costing 30+ minutes per `Analysis/lessons/README.md`.
+## Where things go
+
+- Tasks (open, blocked, deferred): `bd` (`bd ready`, `bd list`), not markdown
+  TODOs or checkboxes. Auto-export is debounced — run
+  `bd export -o .beads/issues.jsonl` immediately before `git add`ing task state.
+- Gotchas worth 30+ minutes: `Analysis/lessons/`, with `Tags:`/`Applies-when:`,
+  routed by the matching `.claude/skills/` skill — check it before changing
+  that area, file per `Analysis/lessons/README.md`.
+- Milestone detail (closed or paused): dated file in `Analysis/log/` + `INDEX.md`
+  row on close — every material fact, stated once and tightly; paused work logs
+  state + resume pointer. Findings over narration.
+- Planning docs: decisions, status, pointers only. No task lists, no build play-by-play.
+- References: cite lessons by headline/topic, files by markdown link, external
+  lessons by topic + repo (URLs live under Related repos).
+
 ## Related repos to be aware of
 
 - This family: `Aurora-Input-Linux`, `Aurora-Output-Hue`, `Aurora-App-Linux`,
@@ -29,8 +37,3 @@ as sibling directories on disk — keep that layout.
   from, not depended on.
 
 Cite reference lessons by topic name, never by path — layouts differ per machine.
-- When closing a milestone bead, move implementation detail to `Analysis/log/`
-  (dated file, update `INDEX.md`): every material fact, stated once and tightly.
-  Findings over narration. Paused (not closed) work gets the same treatment —
-  log where it stands and what resumes it, so restarting never re-derives state.
-  Planning docs keep decisions, status, pointers only.
