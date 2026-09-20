@@ -23,4 +23,6 @@ tree, not per-repo — this repo doesn't get its own `LESSONS.md`. Real,
 non-obvious findings from building `main.js`'s light rigs and the glTF room
 scene are filed there (`rendering-apis.md`: Three.js/GLTFLoader/Blender
 facts; `rendering-internals.md`: this project's own scene-design calls) —
-check before re-deriving something already worked out once.
+check before re-deriving something already worked out once. Cite lessons by
+headline/topic — every entry carries `Tags:`/`Applies-when:`, routed by the
+matching `.claude/skills/` skill in core.
