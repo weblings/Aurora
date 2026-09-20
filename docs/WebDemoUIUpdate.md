@@ -1,6 +1,7 @@
 # Web Demo Dashboard Port — Plan (WebDemoUIUpdate.md)
 
 ## Goal
+Status: shipped — port live in web/demo (shim + conformance tests).
 
 Port the Dashboard (not NUX) from Aurora-WebUI into Aurora-Demo-Web so it
 hooks up and behaves as on the real app, while the Demo stays a static page
@@ -15,6 +16,7 @@ source-mode dropdown goes away once the Dashboard's Audio/Video toggle
 drives the source.
 
 ## Success Criteria
+Status: shipped — port live in web/demo (shim + conformance tests).
 
 - The ported Dashboard boots on the static page with zero NUX screens and no
   "couldn't reach the daemon" states.
@@ -32,6 +34,7 @@ drives the source.
   is the only source selector and the scene follows it.
 
 ## Context And Current Facts
+Status: standing — dated snapshot 2026-09-18, not a milestone.
 
 - Demo snapshot 2026-09-16; today 2026-09-18. The four ported math files are
   byte-identical to `Aurora/web-processing/`, which is untouched since Sept
@@ -61,6 +64,7 @@ drives the source.
   endpoint exists anywhere in the route inventory.
 
 ## Constraints And Non-goals
+Status: standing — still in force (static demo, no backend).
 
 - GitHub Pages: static only, no backend, no build step assumed. (User
   constraint; past agents established it.)
@@ -76,6 +80,7 @@ drives the source.
   one appearing.
 
 ## Key Decisions
+Status: standing — decisions taken, not a milestone.
 
 1. **In-page `fetch` router over Service Worker.** Intercepts only `/api/*`,
    delegates the rest (including `app.js`'s stylesheet-export fetches) to
@@ -133,6 +138,7 @@ drives the source.
     option hidden, code path retained for later (decided).
 
 ## Recommended Approach
+Status: shipped — executed as planned.
 
 Phase the work so each phase ends with a verifiable static page: router +
 store first (boots interactive), then boot, then zone writes, then tuning
@@ -141,6 +147,7 @@ shape drift (the `everConfigured` precedent) trips a test instead of rotting
 silently.
 
 ## Work Plan
+Status: shipped — executed as planned.
 
 - **Phase 0 — Port boundary.** Enumerate DashboardScreen's import closure
   (TuningFields, EntertainmentConfigSelect, ZoneCanvas, DeviceField,
@@ -184,6 +191,7 @@ silently.
   (Risks §9).
 
 ## Validation Plan
+Status: shipped — conformance tests exist (web/demo/*.test.mjs).
 
 - **Shape conformance (from Phase 1):** shim responses validated against the
   backend's Catch2 fixtures or a checked-in JSON snapshot per route; re-run
@@ -202,6 +210,7 @@ silently.
   never rejects) — accepted, not chased.
 
 ## Risks / Rollback
+Status: standing — residual watch-items on a live page.
 
 1. **Closure sprawl** — half of WebUI comes along unless the Phase 0
    boundary is deliberate (mitigated by Phase 0 audit, ZoneCanvas first).
@@ -238,6 +247,7 @@ silently.
   page. No backend, migration, or data-safety dimension.
 
 ## Open Questions
+Status: open — re-vendor ownership undecided.
 
 - Who re-vendors on WebUI change (which side owns running the manifest +
   conformance check)? Whole-file copying is decided; only the ownership

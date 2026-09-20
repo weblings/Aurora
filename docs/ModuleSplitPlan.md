@@ -27,6 +27,7 @@ be represented as a recorded/edited stream of the same per-tick events, without 
 redesign. Authoring tooling itself is out of scope for now.
 
 ## Mapping huenicorn's current code to the new modules
+Status: shipped — modules exist as built.
 
 | New module | Current huenicorn pieces | Notes |
 |---|---|---|
@@ -35,6 +36,7 @@ redesign. Authoring tooling itself is out of scope for now.
 | Output | `Hue::Api::Channel`/`ChannelStream`/`Devices`/`EntertainmentConfiguration*`, `Stream::Streamer`/`HuestreamHeader`/`HuestreamPayload`/`DtlsClient`, `Hue::Api::ApiTools`/`BridgeAddress`/`Credentials` | All Hue-Bridge-shaped today (see `FirstScan.md` Q2). Unlike Input, there is **no output-side interface** yet (`Runtime` holds a concrete `Stream::Streamer`) — an `IOutput`/`ISink` abstraction analogous to `IGrabber` needs to be introduced before a second target (another bulb brand, DMX/Art-Net/sACN, ISF-driven XR effects, an XR-scene effect channel) can coexist with Hue. See `OpenFormatsResearch.md` — ISF fits the XR-effects target better than any lighting-specific format. |
 
 ## The middle contract (Input → Processing → Output)
+Status: shipped — Contracts and interfaces exist as built.
 
 **Update from actually porting Processing** (see `ProcessingAnalysis.md`): the
 three-module picture above didn't say where the shared types crossing these
@@ -65,6 +67,7 @@ Today's per-tick data that crosses module boundaries, generalized:
   is generic and worth keeping in Processing rather than Output.
 
 ## Decisions (2026-09-12)
+Status: standing — decisions taken, not a milestone.
 
 - **Gamma lives in Output, not Processing.** Each target gamma-corrects its own way
   (huenicorn's current `Channel::gammaExponent()` + `glm::pow` on the xyY brightness
@@ -76,6 +79,7 @@ Today's per-tick data that crosses module boundaries, generalized:
   needed — no target-agnostic gamma exists yet to design around.
 
 ## `IOutput` and `Contracts::Frame` — built
+Status: shipped.
 
 The payload question is resolved for v1: `Contracts::Frame` is `std::vector<Zone>`,
 `Zone` is `{ uint8_t id; Contracts::Color color; }` — generic linear color, no
@@ -119,6 +123,7 @@ Still true, from how `Streamer` behaves, and still not yet acted on:
   output with no bridge/fixture reachable).
 
 ## Repo split (2026-09-13)
+Status: superseded 2026-09-20 by the monorepo (isolation now per-directory options); license analysis above still applies.
 
 Plugins (Input and Output implementations) live in their **own repos**, not
 inside Aurora core, decided once a real dependency-bloat concern came up: a
@@ -168,6 +173,7 @@ would fix this properly; not done this pass, recorded here so it doesn't get
 forgotten now that a real plugin has actually hit it.
 
 ## Other open questions / follow-ups
+Status: mostly historical — audio greenfield item shipped 2026-09-15 (Aurora-ljj); remainder as recorded.
 
 - Audio input/processing is an explicit stretch goal — confirmed huenicorn has
   **no existing audio code at all** (no directory, no library, nothing under

@@ -8,6 +8,7 @@ changed visually," confirmed against the actual Figma-derived source one
 item at a time with the user, not guessed from the flattened export alone.
 
 ## Source material and its own limits
+Status: standing — reference notes, not a milestone.
 
 `Static_2.5_VisualPass/2_Pass/*.html` is this repo's own debug-export dump
 (`app.js`'s `H`-key hotkey) — real class names, real live-rendered markup,
@@ -36,6 +37,7 @@ diffs below were confirmed against the actual numbers in
 the real Figma source, not inferred from guesswork.
 
 ## Confirmed diffs
+Status: reviewed — per-screen diffs tracked in beads (Aurora-1dl, Aurora-2yf, Aurora-typ, Aurora-wey, Aurora-56v, Aurora-73v).
 
 **Top bar: "Running" badge removed, Stop moves into its corner, "Aurora"
 grows.** Today the top bar has three slots -- empty left, "Aurora" centered
@@ -196,6 +198,7 @@ implementation cost:
   `::-webkit-slider-thumb`/`::-moz-range-thumb` overrides instead.
 
 ## Not yet reviewed
+Status: unbuilt — awaiting diff review before building.
 
 Only `Dashboard_Expanded` has been compared screen a-vs-b so far. The other
 `2.5_Pass`/`2_Pass` screen pairs (NUX Welcome, Hue Bridge, Entertainment,
@@ -209,6 +212,7 @@ Zone Mapping's own onboarding screen also uses. That screen's *layout*
 the unreviewed set above.
 
 ## Scoping + sequencing
+Status: planning — sequencing for the above.
 
 One line per step, on purpose -- verification/findings once building starts
 go to `WebUI_Fixes.md`'s Pass 2 section (or a new Pass 2.5 section there),
@@ -348,6 +352,7 @@ location, and that a mode switch (which re-renders the top bar via
 `_loadAll()`) doesn't lose the Stop button.
 
 ## NUX Polish Pass
+Status: unbuilt.
 
 Confirmed against a screenshot of the user's touched-up Figma frames --
 the export pipeline produced unusable HTML again (generic `frame`/`debug`/

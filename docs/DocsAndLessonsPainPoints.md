@@ -102,6 +102,19 @@ stretch goal (needs a docs-build root first).
    pays off on the next rename, not today.
 9. Pagefind docs site — stretch. Largest effort (needs a build root
    pulling in sibling `docs/` dirs); human search win only.
+10. Archive process for plans of built features — option (a) done 2026-09-20 (Aurora-jkl); (b)/(c) still open.
+   decided. Planning docs (ImplementationPlan phases 1-2.5, WebUI 1stPass
+   sections) now read as plans for done work: the same accretion disease
+   as the WebUI ballooning, one lifecycle stage later. Milestones already
+   have a home (closed beads + dated logs); the gap is the plan side.
+   Candidate shape, cheapest first: (a) one `Status:` header line per
+   planning section (unbuilt / in-progress with beads link / shipped date
+   with log link), maintained incrementally, no moves; (b) whole-file
+   archival to `docs/archive/` with a pointer stub left behind once a
+   planning doc is fully realized; (c) a `check-plan.sh` enforcing (a),
+   if (a) rots like the 15-entry rule did. Small-medium effort; keeps
+   plans plannish. Pairs with the monorepo: slices share the one docs
+   tree, so the convention, once set, covers all future platforms.
 
 ## Adopted design (2026-09-20, supersedes details above where they differ)
 

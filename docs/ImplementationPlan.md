@@ -7,6 +7,7 @@ plus one deferred stretch. Order matches how the phases were scoped. Phase
 renumber anything since it isn't sequentially gated by the browser work.
 
 ## Guiding principles
+Status: standing — principles, not a milestone.
 
 - Each phase ends in something demonstrable/runnable, not just code moved around.
 - **Refactor first, prove no regression** before adding anything new — phase 1's
@@ -46,6 +47,7 @@ renumber anything since it isn't sequentially gated by the browser work.
   phase repeats.
 
 ## Proposed directory layout
+Status: superseded 2026-09-20 by the monorepo (slices now under input/, output/, app/, web/); retained as history.
 
 `Aurora/` below is this git repo's own root (it has its own `.git`, separate
 from huenicorn's). `huenicorn/` is **not** inside it — it's a plain sibling
@@ -161,6 +163,7 @@ web/demo/         <- new repo (2026-09-14, not started, phase 3
 *Build history lives in [log/2026-09-13-phase1-2-build-history.md](log/2026-09-13-phase1-2-build-history.md) — per-repo verification narratives (test counts, env setup, bugs found per pass), not repeated here.*
 
 ## Phase 1 — Refactor into three modules; Linux input + Hue output plugins
+Status: shipped 2026-09-13 (Aurora-4li) — see [log/2026-09-13-phase1-2-build-history.md](log/2026-09-13-phase1-2-build-history.md).
 
 Pure restructuring, zero new features. **Demonstrable:** the restructured app
 captures the Linux screen and drives real Hue lights exactly like huenicorn does
@@ -262,6 +265,7 @@ today — this is the regression check everything else builds on.
    here.
 
 ## Phase 2 — Windows input plugin
+Status: shipped 2026-09-14 (Aurora-m4f) — see [log/2026-09-13-phase1-2-build-history.md](log/2026-09-13-phase1-2-build-history.md).
 
 Fills in `WindowsAdapter`'s `_createGrabber` stub (currently returns `nullptr`).
 
@@ -289,6 +293,7 @@ Fills in `WindowsAdapter`'s `_createGrabber` stub (currently returns `nullptr`).
   attached can be genuinely powered off with no API-level way to detect it.
 
 ## Phase 2.5 — Audio input & processing
+Status: shipped 2026-09-15 (Aurora-ljj).
 
 Inserted between phases 2 and 3, not phase 6, because it's independent of
 phases 3–5 (browser/WebXR/ISF) — it's a new `Input`+`Processing` track,
@@ -482,6 +487,7 @@ colors now match huenicorn. See `docs/lessons/input.md`.
   tune them against.
 
 ## Phase 3 — Three.js browser demo, then the native WebUI milestone
+Status: partial — milestone 1 shipped (Aurora-xcb); milestone 2 in progress (Aurora-x7o).
 
 Split into two sequenced milestones after a long reasoning pass (see
 `docs/BrowserAnalysis.md` and `docs/DistributedArchitecturePlan.md`
@@ -682,6 +688,7 @@ this codebase.
   exact same Processing ticks simultaneously driving real Hue bulbs.
 
 ## Phase 4 — Extend to WebXR (reference RockyRoad)
+Status: unbuilt.
 
 Same phase-3 scene, made viewable in a headset — reusing RockyRoad's
 already-solved groundwork instead of rediscovering it.
@@ -742,6 +749,7 @@ already-solved groundwork instead of rediscovering it.
   lights scene from phase 3, now immersive/stereo.
 
 ## Phase 5 — ISF processing connection
+Status: unbuilt.
 
 Wires ISF shaders in as the actual visual-effect layer for the browser/WebXR
 output, per `OpenFormatsResearch.md`'s finding that ISF fits this target better
@@ -769,6 +777,7 @@ than any lighting-specific format.
   native pipeline untouched.
 
 ## Stretch / explicitly deferred
+Status: deferred.
 
 - **Networking fork: WebSockets.** Once bandwidth or bidirectional control
   (WebXR pose back to the native core, browser-side effect selection persisted

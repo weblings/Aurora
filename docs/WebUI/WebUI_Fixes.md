@@ -13,6 +13,7 @@ closes the task, not here — see `docs/lessons/engineering-hygiene.md`'s
 entry on build-log doc density for why.
 
 ## Pass 1
+Status: active — open items tracked in beads (bd list -l webui).
 
 Follow-up to `WebUI_Design_1stPass.md`. That doc's 19-step build order is
 done and each screen passed its own jsdom/live verification, but "verified"
@@ -254,6 +255,7 @@ not yet itemized here.
    they all rendered identically before any manual dragging.
 
 ## Pass 2
+Status: active — open items tracked in beads (bd list -l webui).
 
 Empty until `WebUI_Design_2ndPass.md`'s accordion Dashboard + NUX redesign
 actually ships and hands-on nits start coming in from using it — not

@@ -11,6 +11,7 @@ well. Once pass 2 actually ships, hands-on nits go to `WebUI_Fixes.md`'s
 Pass 2 section, not back into this doc.
 
 ## Menu redesign: accordion Dashboard
+Status: in progress (Aurora-x7o).
 
 Follow-up to the "Menu redesign" task in `WebUI_Fixes.md`'s Pass 1 Open
 tasks. Prompted by hands-on nits after the Zone Mapping work there shipped:
@@ -243,6 +244,7 @@ since there's no per-zone control up there to link from (zone mapping is
 video-only, by the design decision above).
 
 ## New user setup flow (NUX) redesign
+Status: in progress (Aurora-x7o).
 
 Follow-up to "Menu redesign" above. Once the steady-state menu becomes an
 accordion, the onboarding wizard that leads into it needed its own pass —
@@ -450,6 +452,7 @@ switching configs is a real, live action.
   `WebUI_Fixes.md`'s Back-button task, which this section resolves).
 
 ## Scoping + sequencing
+Status: planning — sequencing for the above.
 
 One line per step, on purpose — verification/findings once building starts
 go to `WebUI_Fixes.md`'s Pass 2 section, not inline here. Each phase should

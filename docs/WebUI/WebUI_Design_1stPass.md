@@ -7,6 +7,7 @@ assumed) as reusable for building it. Written 2026-09-15, before any of this is
 built — a planning doc, not a record of what exists yet.
 
 ## How this plan was built (iteration log)
+Status: standing — process record, not a milestone.
 
 This plan wasn't drafted once. It went through several real rounds of
 proposal → challenge → verification, each round changing the actual
@@ -44,6 +45,7 @@ Generalizable lessons from this process are filed in
 [`docs/lessons/web-ui.md`](lessons/web-ui.md), not repeated here.
 
 ## Shell conventions (apply to every screen, every width)
+Status: shipped 2026-09-15 — in effect, see [log/2026-09-15-webui-1stpass-build.md](../log/2026-09-15-webui-1stpass-build.md).
 
 - A centered max-width content column (`RockyRoadImport/SongConverter`'s real
   `#app{max-width:640px;margin:0 auto}`, verified).
@@ -67,6 +69,7 @@ Generalizable lessons from this process are filed in
   pass.
 
 ## Navigation model
+Status: shipped 2026-09-15 — in effect, see [log/2026-09-15-webui-1stpass-build.md](../log/2026-09-15-webui-1stpass-build.md).
 
 Two distinct flows, not one linear wizard:
 
@@ -157,6 +160,7 @@ settings modal returns to whatever screen was open, never a forward navigation.
 ```
 
 ## Screen-by-screen: jobs, layout at two widths, and research
+Status: shipped 2026-09-15 — see [log/2026-09-15-webui-1stpass-build.md](../log/2026-09-15-webui-1stpass-build.md).
 
 ### 1. Output Connect
 
@@ -451,6 +455,7 @@ more simply.
   genuinely new piece.
 
 ## Final component inventory
+Status: shipped 2026-09-15 — see [log/2026-09-15-webui-1stpass-build.md](../log/2026-09-15-webui-1stpass-build.md).
 
 | Component | Screens | Source / status | Gap |
 |---|---|---|---|
@@ -488,6 +493,7 @@ reuse of something that already exists in huenicorn, RockyRoad, or
 `RockyRoadImport`.
 
 ## Cross-cutting findings
+Status: shipped 2026-09-15 — findings adopted, see [log/2026-09-15-webui-1stpass-build.md](../log/2026-09-15-webui-1stpass-build.md).
 
 **Design tokens: real drift exists, but narrower than an earlier pass here
 claimed — corrected 2026-09-15 after actually reading `desktop.html` and
@@ -545,6 +551,7 @@ every settings PUT funnels into, rather than special-casing the mode toggle
 alone.
 
 ## Decisions log (this round)
+Status: standing — decisions taken, not a milestone.
 
 - Zone Mapping ships as one design at all widths; the one-zone-at-a-time pager
   is documented as a fallback, not built, until a real zone count actually

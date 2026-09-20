@@ -1,5 +1,7 @@
 # Distributed architecture — how far to decompose Input/Processing/Output over a network
 
+Status: exploratory — future network-transport options, none scheduled; WebSocket question deferred.
+
 Prompted by comparing Aurora's shape against RockyRoad's self-hosted
 song-server pivot (one server, browser-only clients moving heavy
 per-device work client-side) and Jellyfin (self-hosted, still ships a
