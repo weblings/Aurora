@@ -1,0 +1,76 @@
+/* Aurora WebUI design tokens.
+   Values carried over from RockyRoad's real, proven grayscale system --
+   verified directly against v2/src/xr/panel.css, v2/desktop.html, and
+   RockyRoadImport/SongConverter/index.html, not from a secondhand summary.
+   Deliberately grayscale-only, no brand accent -- see Analysis/WebUIAnalysis.md's
+   build-order step 6 for why (#8b8b8b already carries the "active/interactive"
+   role across sliders, checked toggles, and secondary buttons in the source
+   system; #2a6eff was a narrow one-off there, not part of it, and isn't carried
+   forward). Every screen should reference these variables, never a literal hex.
+*/
+
+:root {
+  /* --- Surface --- */
+  --aurora-bg: #0a0a0a;
+  --aurora-surface: #1a1a1a;
+  --aurora-border: #333333;
+  --aurora-divider: #1e1e1e;
+  /* Hover/selected states for a row/option sitting on --aurora-surface (a
+     dropdown menu today; any future list or menu item shares the same need).
+     New values, not reused from elsewhere -- RockyRoad's own dropdown-menu
+     hover/selected states (#2a2a2a/#242424) don't match any other token. */
+  --aurora-surface-hover: #2a2a2a;
+  --aurora-surface-selected: #242424;
+
+  /* --- Button: primary-dark (default action) --- */
+  --aurora-button-dark: #333333;
+  --aurora-button-dark-hover: #515151;
+  --aurora-button-dark-active: #7c7c7c;
+
+  /* --- Button: primary-light (emphasized/selected) --- */
+  --aurora-button-light: #dadada;
+  --aurora-button-light-hover: #bebebe;
+  --aurora-button-light-active: #9c9c9c;
+
+  /* --- Button: secondary-dark (also the interactive/active-state accent --
+     slider thumbs, checked toggle knobs) --- */
+  --aurora-accent: #8b8b8b;
+  --aurora-accent-hover: #7c7c7c;
+  --aurora-accent-active: #6c6c6c;
+
+  /* --- Button: secondary-light --- */
+  --aurora-button-secondary-light: #c0c0c0;
+  --aurora-button-secondary-light-hover: #ababab;
+  --aurora-button-secondary-light-active: #969696;
+
+  /* --- Text --- */
+  --aurora-text-primary: #ffffff;
+  --aurora-text-secondary: #c8c8c8;
+  --aurora-text-on-light: #111111;
+
+  /* --- Overlay/scrim --- */
+  --aurora-scrim: rgba(0, 0, 0, 0.6);
+
+  /* --- Radii --- */
+  --aurora-radius-badge: 3px;
+  --aurora-radius-control: 6px;
+  --aurora-radius-panel: 12px;
+  --aurora-radius-pill: 20px;
+  /* Kept separate from -control/-panel on purpose (2.5 pass) -- the
+     accordion header pill's own radius, so it can be tweaked without
+     affecting either of those. */
+  --aurora-radius-accordion: 8px;
+
+  /* --- Spacing scale --- */
+  --aurora-space-1: 4px;
+  --aurora-space-2: 6px;
+  --aurora-space-3: 8px;
+  --aurora-space-4: 10px;
+  --aurora-space-5: 12px;
+  --aurora-space-6: 16px;
+  --aurora-space-7: 24px;
+  --aurora-space-8: 32px;
+
+  /* --- Type --- */
+  --aurora-font: 'Inter', system-ui, sans-serif;
+}

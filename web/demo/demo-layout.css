@@ -1,0 +1,104 @@
+/* Demo split-view shell: 50:50 scene + Dashboard port.
+ *
+ * Landscape (aspect >= 1:1, the 16:9 case): side-by-side halves, scene left,
+ * Dashboard right. Portrait: 50:50 stack, scene on top, Dashboard below.
+ * The panes are independent: the scene pane owns the WebGL canvas (+ orbit
+ * gestures, confined to the canvas by OrbitControls' own touch-action), the
+ * Dashboard pane is a separate scroll container hosting #screen-container.
+ * min-width/min-height 0 lets both panes actually shrink to their half. */
+
+html, body {
+  margin: 0;
+  height: 100%;
+  overflow: hidden;
+  background: #111318;
+}
+
+#demo-split {
+  display: flex;
+  width: 100%;
+  height: 100%;
+}
+
+@media (min-aspect-ratio: 1/1) {
+  #demo-split {
+    flex-direction: row;
+  }
+  #scene-pane {
+    width: 66.666%;
+    height: 100%;
+  }
+  #dashboard-pane {
+    width: 33.333%;
+    height: 100%;
+  }
+}
+
+@media (max-aspect-ratio: 1/1) {
+  #demo-split {
+    flex-direction: column;
+  }
+  #scene-pane,
+  #dashboard-pane {
+    width: 100%;
+    height: 50%;
+  }
+}
+
+#scene-pane {
+  position: relative;
+  overflow: hidden;
+  min-width: 0;
+  min-height: 0;
+}
+
+#scene-pane canvas {
+  display: block;
+}
+
+#dashboard-pane {
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  min-width: 0;
+  min-height: 0;
+  /* border-box is NOT inherited from .db-port's scoped reset (the pane is
+     its parent, outside the scope): without it the 16px side padding adds
+     OUTSIDE width:100% in portrait, pushing the pane 32px past the viewport
+     while body overflow hides it -- the "missing right padding". Landscape
+     survives only because row-axis flex-shrink absorbs the extra width;
+     column layout has no cross-axis shrink. */
+  box-sizing: border-box;
+  /* The Dashboard section renders the aurora background full-bleed, with
+     breathing room between the page/pane edges and the UI column. The
+     accordion pills' 21px overhang still clips at the pane edge via
+     .db-port's own overflow-x rule. */
+  background: var(--aurora-bg, #0a0a0a);
+  padding: 12px 16px 24px;
+}
+
+/* Demo scope reductions: no bridge-setup flow exists on a static page, so
+   the Bridge accordion's Change Bridge button is hidden, not stubbed. */
+.db-port #db-change-bridge {
+  display: none;
+}
+
+/* Dropdown triggers inherit white-space:nowrap with no shrink constraint,
+   so long labels ("Zone front-left (Front Left)") spill past the field at
+   narrow pane widths and swallow the pane's right padding. Ellipsize the
+   label instead (chevron keeps its footprint); open menus keep full text,
+   clipped by their own overflow rule. Demo-owned override, not a vendored
+   edit -- upstream has the same latent issue on narrow viewports. */
+.db-port .dropdown-trigger {
+  overflow: hidden;
+}
+.db-port .dropdown-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+
+/* Demo scope: the Monitor/Audio device field is inert (see demo-boot.js) --
+   dim it so it reads as disabled rather than broken. */
+.db-port .db-device-slot[inert] {
+  opacity: 0.45;
+}

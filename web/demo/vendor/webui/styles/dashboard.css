@@ -1,0 +1,158 @@
+/* Quick mode toggle + Stop, above the top tier -- step 17. Wraps to a
+   stacked layout under 480px the same way ModeDeviceScreen's own toggle
+   row does, rather than shrinking the segmented control to fit one line. */
+.db-controls {
+  margin-bottom: var(--aurora-space-5);
+}
+
+.db-controls-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--aurora-space-4);
+  flex-wrap: wrap;
+}
+
+.db-controls-row .segmented {
+  flex: 1;
+}
+
+@media (max-width: 480px) {
+  .db-controls-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .db-controls-row .btn {
+    width: 100%;
+  }
+}
+
+/* Top tier -- step 20: device field, video's canvas + entertainment config
+   + single zone toggle, or audio's entertainment config alone. Reuses
+   ZoneCanvas's/EntertainmentConfigSelect's own classes (zone-mapping.css)
+   for the pieces borrowed from Zone Mapping -- only the pieces unique to
+   this screen's own layout (the device field slot, the zone-toggle row,
+   the "See all zones" link) get new rules here. */
+.db-top-tier {
+  margin-bottom: var(--aurora-space-6);
+}
+
+.db-device-slot {
+  margin-bottom: var(--aurora-space-5);
+}
+
+/* Above the canvas now, centered/content-hugging rather than a full-width
+   bar (2.5 pass) -- flex+justify-content:center rather than text-align, so
+   .btn's own inline-flex layout (icon + label) isn't disturbed. */
+.db-zone-actions {
+  display: flex;
+  justify-content: center;
+  margin-bottom: var(--aurora-space-5);
+}
+
+/* Accordion sections -- Tuning/Bridge, both always collapsed by default
+   (AccordionSection.js's own doc comment). First real consumer of this
+   component (built ahead of time in Phase B); values are new, not ported
+   from an existing reference. */
+.db-accordions {
+  display: flex;
+  flex-direction: column;
+  gap: var(--aurora-space-3);
+}
+
+.accordion-section {
+  border-bottom: 1px solid var(--aurora-divider);
+}
+
+.accordion-section:last-child {
+  border-bottom: none;
+}
+
+/* A floating pill wider than the content column, sitting above it -- not a
+   panel that extends down to cover the expanded content (2.5 pass). 21px
+   horizontal overhang is a literal design value, not rounded to the spacing
+   scale; margin-inline/width offset it back to the header's own row. */
+.accordion-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--aurora-space-3);
+  width: calc(100% + 42px);
+  margin-inline: -21px;
+  padding: var(--aurora-space-5) 21px;
+  border: none;
+  border-radius: var(--aurora-radius-accordion);
+  background: var(--aurora-surface);
+  color: inherit;
+  font-family: inherit;
+  font-size: 14px;
+  text-align: left;
+  cursor: pointer;
+}
+
+/* RockyRoad's own chevron-down.svg (icons/), masked rather than swapped
+   with a chevron-up.svg pair like Dropdown.js's -- this element already
+   flips direction via the rotate(180deg) below, and masking lets it keep
+   following --aurora-text-secondary the way the old ▾ glyph's own `color`
+   did, instead of baking one fixed fill into the asset like Dropdown's. */
+/* The top bar spans the same overhang as the accordion header pills below
+   it, so the trailing Stop button sits flush with the pills' right edge
+   instead of stopping 21px short at the content column. Same literal
+   21px/42px design values as .accordion-header above -- keep in sync. */
+.db-top-bar-slot .top-bar {
+  width: calc(100% + 42px);
+  margin-inline: -21px;
+}
+
+.accordion-chevron {
+  flex-shrink: 0;
+  width: 10px;
+  height: 10px;
+  background-color: var(--aurora-text-secondary);
+  -webkit-mask-image: url('../icons/chevron-down.svg');
+  mask-image: url('../icons/chevron-down.svg');
+  -webkit-mask-size: contain;
+  mask-size: contain;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  transition: transform 0.15s;
+}
+
+.accordion-section.expanded .accordion-chevron {
+  transform: rotate(180deg);
+}
+
+/* Bridge's own first line (a .status-text, which already carries a
+   margin-top for its other uses elsewhere) happened to be the only
+   accordion whose content started with any gap below the header pill --
+   this padding-top makes that gap universal, and the :first-child rule
+   stops Bridge from getting it twice over. */
+.accordion-content {
+  padding-top: var(--aurora-space-4);
+  padding-bottom: var(--aurora-space-5);
+}
+
+.accordion-content > :first-child {
+  margin-top: 0;
+}
+
+/* Matches the .field label-to-control gap convention (var(--aurora-
+   space-1)) elsewhere, e.g. Entertainment configuration's own label ->
+   dropdown -- scoped here rather than added to .status-text itself, which
+   is shared by every status/error line in the app. */
+.db-bridge-connected {
+  margin-bottom: var(--aurora-space-1);
+}
+
+.db-entertainment-slot {
+  margin-top: var(--aurora-space-3);
+}
+
+.db-bridge-zones-slot {
+  margin-top: var(--aurora-space-4);
+}
+
+.db-bridge-zones-slot:empty {
+  margin-top: 0;
+}

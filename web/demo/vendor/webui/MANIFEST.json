@@ -1,0 +1,80 @@
+{
+  "sourceRepo": "Aurora-WebUI",
+  "sourceCommit": "0e97bf6",
+  "layout": "Mirror of Aurora-WebUI relative paths: vendor/webui/<path> is a verbatim copy of Aurora-WebUI/<path> except for the seams below. Relative imports resolve unchanged.",
+  "entry": "screens/DashboardScreen.js",
+  "modules": [
+    "screens/DashboardScreen.js",
+    "screens/ModeDeviceScreen.js",
+    "screens/OutputConnectScreen.js",
+    "AccordionSection.js",
+    "DeviceField.js",
+    "Dropdown.js",
+    "EntertainmentConfigSelect.js",
+    "NavFooter.js",
+    "ScreenDivision.js",
+    "SliderFill.js",
+    "SubsampleCandidates.js",
+    "Tooltips.js",
+    "TuningFields.js",
+    "TuningSliderGroup.js",
+    "ZoneActiveToggle.js",
+    "ZoneCanvas.js",
+    "ZonePatchQueue.js",
+    "topBar.js"
+  ],
+  "deadModules": [
+    "screens/ModeDeviceScreen.js",
+    "screens/OutputConnectScreen.js"
+  ],
+  "styles": [
+    "styles/tokens.css",
+    "styles/shell.css",
+    "styles/dashboard.css",
+    "styles/tuning.css",
+    "styles/dropdown.css",
+    "styles/forms.css",
+    "styles/zone-mapping.css"
+  ],
+  "icons": [
+    "icons/back-arrow.svg",
+    "icons/chevron-down.svg",
+    "icons/chevron-up.svg",
+    "icons/power-svgrepo-com.svg"
+  ],
+  "generated": [
+    "descriptors.json (via gen-descriptors.py from core + Hue + Input descriptor tables)"
+  ],
+  "notes": [
+    "icon-paths: NavFooter.js + Dropdown.js page-relative icons/*.svg rewritten to vendor/webui/icons/* (CSS mask urls resolve relatively and needed no change)",
+    "string-zone-ids: ZoneActiveToggle.js Number(dataset.zoneId) replaced with type-tolerant lookup + unknown-id guard (native ids are uint8; demo room ids are strings)",
+    "toggle-sync: ZoneActiveToggleList.onChange + ZoneCanvas.onActiveChange/refreshActive keep Bridge and Zone Mapping bools on the same shared objects in sync; DashboardScreen wires both directions (upstream has no sibling consumer, so no callbacks exist there)"
+  ],
+  "seams": [
+    {
+      "id": "no-output-connect",
+      "file": "screens/DashboardScreen.js",
+      "note": "Line 383 navigates to OutputConnectScreen (NUX bridge setup). Never reachable in the demo: the shim answers /api/hue/connection as configured:true. OutputConnectScreen.js is vendored dead so the import resolves; it is never mounted."
+    },
+    {
+      "id": "mode-device-helpers",
+      "file": "screens/DashboardScreen.js",
+      "note": "Uses only pickVideoInputName/pickAudioInputName from ModeDeviceScreen.js (DashboardScreen.js:453-454); the ModeDeviceScreen class itself is unused here. ModeDeviceScreen.js is vendored dead so the import resolves; it is never mounted."
+    },
+    {
+      "id": "shell-css-scope",
+      "file": "styles/shell.css",
+      "note": "Bare html/body rules (shell.css:18,23) and the * reset would leak onto the demo scene page. On vendoring, wrap them in the dashboard-pane scope class; re-apply on every re-vendor. Tokens (--aurora-*) and prefixed classes need no change."
+    },
+    {
+      "id": "no-stop-button",
+      "file": "screens/DashboardScreen.js",
+      "note": "Decided: no Stop button in the port. The vendored copy drops the trailingButton wiring (DashboardScreen.js:118-122). POST /api/stop needs no shim route."
+    },
+    {
+      "id": "app-facade",
+      "file": "(demo boot, not vendored)",
+      "note": "DashboardScreen takes an app object (this.app.navigate). app.js/shell.js are NOT vendored; the demo boot provides a minimal facade. Only navigate() needs to exist, and no reachable path calls it (seam no-output-connect)."
+    }
+  ]
+}
