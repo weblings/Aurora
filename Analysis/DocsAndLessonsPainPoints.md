@@ -122,3 +122,6 @@ stretch goal (needs a docs-build root first).
   status, pointers only. Paused work logs state + resume pointer.
 - The what-goes-where breakdown lives in `AGENTS.md` ("Where things go") —
   that section, not this doc, is the contract new work follows.
+- Workstream record: [log/2026-09-20-docs-system-overhaul.md](log/2026-09-20-docs-system-overhaul.md) —
+  what shipped, decisions, and open remainder. Task history in closed beads
+  (`bd list --status all`, labels `docs`/`migrated`/`phase-*`).

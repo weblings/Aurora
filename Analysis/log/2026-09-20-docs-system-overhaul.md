@@ -24,5 +24,8 @@ Shipped:
 Decisions: honor over hooks; no Pagefind yet (stretch); tasks-only imports,
 planning left in docs; external refs by topic, never path.
 
-Open:Pagefind docs site; hardware-gated product items (Ubuntu e2e, live timing,
+Task history: closed beads, labels `docs`/`migrated`/`phase-*` — see
+`bd list --status all`.
+
+Open: Pagefind docs site; hardware-gated product items (Ubuntu e2e, live timing,
 backport verify); WebUI bug cluster is the active product front.
