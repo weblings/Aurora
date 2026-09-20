@@ -94,3 +94,82 @@ check whether the underlying data actually differs between them at all --
 a default/uninitialized-state collision produces the identical symptom to
 a genuine rendering bug, and is far cheaper to rule in or out by reading
 the persisted data directly than by debugging paint order or hit-testing.
+
+---
+
+## `AnalyserNode`'s frequency-domain getters return dB with internal smoothing baked in, not linear magnitude
+Tags: web-audio, dsp, demo-web
+Applies-when: feeding AnalyserNode frequency data into DSP math
+
+Hit in `Aurora-Demo-Web` hand-rolling onset/RMS/spectral-centroid extraction
+against the Web Audio API instead of aubio-via-WASM (see `AudioAnalysis.md`).
+The ported math assumes linear magnitude, same as aubio's own spectrum data —
+but `AnalyserNode.getFloatFrequencyData()`/`getByteFrequencyData()` don't
+return that. Checked the real spec's own algorithm order, not assumed:
+Blackman window → FFT → **smoothing over time** (`smoothingTimeConstant`,
+default 0.8) → **convert to dB**. Feeding dB straight into linear-magnitude
+math would have produced a nonsensical centroid, and the default smoothing
+would have stacked with a hand-rolled onset detector's own rolling-average
+history, blunting real transients below its detection threshold.
+
+**Fix:** convert every bin back to linear via `10**(dB/20)` before use, and
+explicitly set `smoothingTimeConstant = 0` on the `AnalyserNode` feeding any
+hand-rolled temporal smoothing rather than trusting its default. General
+principle: a convenience API can bake in several non-obvious processing
+steps (windowing, temporal smoothing, unit conversion) before ever handing
+back data — check what a "get me the data" method actually returns, not
+just that it returns something shaped right.
+
+---
+
+---
+
+## A synthetic test signal needs the same preprocessing the real pipeline applies, or a correct implementation can still fail its own test
+Tags: dsp, testing, windowing
+Applies-when: writing synthetic-signal tests for DSP code
+
+Testing a hand-ported spectral-centroid function against a synthetic 1000Hz
+sine wave (via a small hand-written DFT) initially failed by 3x — not a bug
+in the centroid formula, but in the test's own DFT helper: a raw, unwindowed
+sine wave over a fixed-length buffer has real spectral leakage whenever the
+frequency isn't an exact integer number of cycles within that window,
+smearing energy into high bins a magnitude-weighted centroid is highly
+sensitive to. The real pipeline (`AnalyserNode`, and aubio's own phase
+vocoder) never actually produces unwindowed spectra — both window before FFT.
+
+**Fix:** applied the real Blackman-window coefficients (verified against the
+spec, not guessed) to the test's synthetic signal before computing its DFT,
+matching what the real pipeline actually hands the function under test.
+General principle: a synthetic-signal test for DSP code needs to reproduce
+the real pipeline's own preprocessing, not just the mathematically "pure"
+input — otherwise a test failure (or worse, a false pass) can reflect the
+test's own fidelity gap rather than the code actually being tested.
+
+---
+
+---
+
+## Brightness lag reads as "boring"/unreactive far more than hue lag, when tuning a beat-reactive light response
+Tags: demo-web, audio-effects, tuning
+Applies-when: tuning beat-reactive smoothing time constants
+
+Building `Aurora-Demo-Web`'s audio-reactive color model, A/B/C testing a
+ported `updateDrift`/`updateBounce` against native's own listening-tuned
+defaults (`bounceSmoothTime`/`brightnessSmoothTime` both 0.45s, tuned for
+real Hue bulbs) showed the ported version reading as noticeably "boring"
+on a screen. Uniformly speeding up every time constant wasn't the right
+framing — the fix that actually mattered was specifically speeding up
+`brightnessSmoothTime` (0.45s → 0.08s) while leaving hue's own smoothing
+comparatively slow. A viewer's eye reads a delay between an audible hit
+and a visual brightness punch far more readily than it reads a
+slightly-lagging color/hue shift, which just naturally reads as smooth
+ambient motion instead.
+
+**Fix:** when a beat-reactive visual feels sluggish, check which signal's
+damping is actually driving that impression before uniformly speeding up
+every time constant — brightness/intensity is usually the more
+perceptually load-bearing one for "does this look reactive," while hue can
+stay slow without costing the same feeling of responsiveness. Relevant if
+this tuning is ever backported to real bulbs (see `BrowserAnalysis.md`'s
+A/C follow-up) — worth confirming the same asymmetry holds physically, not
+just on a screen.

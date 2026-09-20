@@ -19,13 +19,22 @@ Aurora's own module boundaries instead of RockyRoad's. `rendering-apis.md` vs.
 
 | File | Scope | Entries | File here when |
 |---|---|---|---|
-| [engineering-hygiene.md](engineering-hygiene.md) | general design/build-tooling principles | 50 | general principle demonstrated by a real bug here |
+| [build-toolchain.md](build-toolchain.md) | CMake, vcpkg, compilers, WSL2, dev deps | 12 | build/tooling specific |
+| [windows-env.md](windows-env.md) | processes, installers, ACLs, probing | 5 | Windows-environment specific |
+| [debugging-method.md](debugging-method.md) | evidence, verification, oracles, timing | 9 | debugging/verification method |
+| [architecture-process.md](architecture-process.md) | splits, duplication, reload, presence | 11 | architecture or process decision |
+| [web-testing.md](web-testing.md) | jsdom, live tests, routes, settings | 7 | web testing specific |
+| [language-cpp.md](language-cpp.md) | namespace, threads, C-portability | 3 | C++ language gotcha |
 | [input.md](input.md) | capture/grabber/platform-adapter | 10 | capture/grabber specific |
-| [processing.md](processing.md) | color/effect transform, zone-mapping | 3 | color/effect/zone-mapping specific |
+| [processing.md](processing.md) | color/effect transform, zone-mapping | 6 | color/effect/zone-mapping specific |
 | [output.md](output.md) | streaming/protocol, any target | 6 | streaming/protocol/wire-format specific |
 | [rendering-apis.md](rendering-apis.md) | third-party rendering facts | 4 | Three.js/GLTFLoader/Blender behavior, not our design |
 | [rendering-internals.md](rendering-internals.md) | own 3D-scene design | 3 | our scene technique, demonstrated by a real bug |
-| [web-ui.md](web-ui.md) | WebUI screen/flow/component research | 38 | WebUI design or reuse finding |
+| [planning.md](planning.md) | reuse research, JTBD, doc hygiene | 12 | WebUI planning/design-process finding |
+| [components.md](components.md) | behavior, callbacks, data shapes | 8 | WebUI component finding |
+| [webui-testing.md](webui-testing.md) | jsdom limits, mocks, fixtures | 5 | WebUI testing finding |
+| [navigation-flow.md](navigation-flow.md) | Back/Continue, gating, NUX | 7 | WebUI flow finding |
+| [layout-css.md](layout-css.md) | responsive, pseudo-elements, flex | 6 | WebUI layout/CSS finding |
 
 Counts as of 2026-09-20 — bump the count when adding entries
 (`grep -c '^## '` per file).
@@ -34,8 +43,10 @@ Counts as of 2026-09-20 — bump the count when adding entries
 
 1. About *my own* verification/reliability habits, not code/design? → persistent
    memory (`feedback_*`), not the repo.
-2. General software-design principle, demonstrated by a real bug here? →
-   `engineering-hygiene.md`.
+2. Build/tooling, Windows env, debugging method, architecture/process,
+   web testing, or C++ language? → the matching query-coherent file
+   (`build-toolchain`, `windows-env`, `debugging-method`,
+   `architecture-process`, `web-testing`, `language-cpp` — see index).
 3. Capture/grabber/platform-adapter specific? → `input.md`.
 4. Color/effect transform or zone-mapping specific? → `processing.md`.
 5. Streaming/protocol/wire-format specific (Hue or any other target)? → `output.md`.
@@ -47,14 +58,11 @@ Counts as of 2026-09-20 — bump the count when adding entries
    an Output-side assumption files under `processing.md` (that's where the tag is
    produced/consumed), not `output.md` (where the symptom showed up). Cross-list in
    the other file's entry if genuinely two-sided.
-8. A WebUI screen/flow design or component-reuse-research finding (not a
-   rendering fact, not general build/tooling)? → `web-ui.md`.
-9. Destination file too long to skim (rough proxy: 15+ entries)? Split along a finer
-   cut of the same module (e.g. `input.md` → `input/capture-backends.md` +
-   `input/pixel-formats.md`, each directory getting its own `INDEX.md`, same shape as
-   RockyRoad's `ui-toolkit/`/`engine/`). Then update: that file's own index if it
-   becomes a directory, any other lesson entry or code comment pointing at the old
-   filename, and this list.
+8. A WebUI finding? → the matching query-coherent file (`planning`,
+   `components`, `webui-testing`, `navigation-flow`, `layout-css`).
+9. A file's query vocabulary getting muddy (entries answering different
+   questions)? Subdivide along the queries, not a count. Then update this
+   index; file-level pointers live only here and in `.claude/skills/`.
 
 Tied to now-removed code? Keep the principle if it still applies, drop the dead
 specifics, and say the origin is historical.
@@ -66,6 +74,9 @@ followed by `Tags:` and `Applies-when:` lines (the retrieval contract —
 `check-lessons.sh` enforces placement), then a short paragraph of what
 actually happened (root cause), then a bolded **Fix:** line. See RockyRoad's
 `engineering-hygiene.md` for worked examples of this shape.
+
+Cite entries by headline, never by filename — headlines survive splits,
+filenames don't.
 
 ## Skills
 

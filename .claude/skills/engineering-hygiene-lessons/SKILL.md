@@ -1,19 +1,20 @@
 ---
 name: engineering-hygiene-lessons
-description: Build/tooling and general design gotchas — check before CMake/vcpkg/FetchContent changes, environment setup, or porting C patterns into C++.
+description: Build/tooling and general design gotchas — check before CMake/vcpkg/FetchContent changes, environment setup, debugging, or porting C patterns into C++.
 allowed-tools: Read
 ---
 
 # Engineering hygiene lessons
 
 Before touching `CMakeLists.txt`, vcpkg ports, `FetchContent` blocks, compiler
-toolchains, or porting C example code into C++, read
-`Analysis/lessons/engineering-hygiene.md`.
+toolchains, debugging strategy, or porting C example code into C++, grep the
+query-coherent files (`build-toolchain`, `windows-env`, `debugging-method`,
+`architecture-process`, `web-testing`, `language-cpp` in `Analysis/lessons/`).
 
 ## How to use this skill
 
-1. Grep `Tags:`/`Applies-when:` in `Analysis/lessons/engineering-hygiene.md`
-   for the task at hand — read only matching entries in full, not the file.
+1. Grep `Tags:`/`Applies-when:` across those files for the task at hand —
+   read only matching entries in full, never whole files.
 2. Match the planned change against them — many fail silently
    (wrong compiler, shadowed route, stale fetch branch) with no error.
 3. File anything here that costs 30+ minutes and is a general principle,
