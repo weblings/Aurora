@@ -1,0 +1,7 @@
+/* Mode + Device Select screen -- toggle sits above the device field.
+   Back/Continue are NavFooter's own now (forms.css); this file only owns
+   what's unique to this screen's own body content. */
+
+.md-body .segmented {
+  margin-bottom: var(--aurora-space-6);
+}

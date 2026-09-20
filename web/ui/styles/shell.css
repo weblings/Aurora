@@ -1,0 +1,113 @@
+/* Aurora WebUI app shell: page reset, centered content column, top bar
+   formula, and the settings modal + scrim. Applies to every screen; a
+   screen's own CSS should only ever add to this, never redefine it.
+   See Analysis/WebUIAnalysis.md's "Shell conventions" section for the design
+   rationale -- values here are Aurora's tokens (styles/tokens.css), not
+   copied literals. */
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+/* Reserve the scrollbar's width always, whether or not a given screen's
+   content actually overflows -- otherwise #screen-container's margin:auto
+   centering shifts sideways whenever a scrollbar appears (verified real
+   fix, RockyRoadImport/SongConverter/index.html). */
+html {
+  scrollbar-gutter: stable;
+  overflow-y: scroll;
+}
+
+body {
+  background: var(--aurora-bg);
+  color: var(--aurora-text-primary);
+  font-family: var(--aurora-font);
+  /* The accordion header pill (dashboard.css) overhangs #screen-container's
+     own 16px gutter by 21px a side -- wider than the gutter on narrow
+     viewports. Clipped at the real viewport edge, not at #screen-container
+     itself, so the intended overhang still renders in full everywhere it fits. */
+  overflow-x: hidden;
+}
+
+#screen-container {
+  max-width: 640px;
+  margin: 0 auto;
+  padding: 0 var(--aurora-space-6) var(--aurora-space-8);
+}
+
+/* --- Top bar: [Back or blank] [title, centered] [status pill -- Dashboard
+   only] [gear]. The title is absolutely centered in the bar itself, not
+   flex-centered between the side slots -- those two slots are rarely equal
+   width (no Back button vs. Back+gear vs. pill+gear), and flex centering
+   would visibly drift the title off-center depending on which slot is
+   present. --- */
+
+.top-bar {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 44px;
+  padding: var(--aurora-space-4) 0;
+}
+
+.top-bar-title {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  margin: 0;
+  max-width: 55%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 20px;
+  font-weight: 700;
+  pointer-events: none;
+}
+
+.top-bar-back {
+  background: none;
+  border: none;
+  color: var(--aurora-text-primary);
+  font-family: inherit;
+  font-size: 14px;
+  cursor: pointer;
+  padding: var(--aurora-space-2) 0;
+}
+
+.top-bar-trailing {
+  display: flex;
+  align-items: center;
+  gap: var(--aurora-space-3);
+  margin-left: auto;
+}
+
+/* Icon-only trailing button (Dashboard's Stop) -- 16px so the button's own
+   padding keeps it close to the same footprint the "Stop" text label had. */
+.top-bar-trailing-icon {
+  width: 16px;
+  height: 16px;
+  display: block;
+}
+
+/* Matches RockyRoad's real .lib-badge (verified against v2/desktop.html)
+   exactly, not the pill shape this rule originally guessed at before any
+   screen actually used it -- radius 2px/6px padding kept literal rather
+   than rounded to the spacing scale, since rounding 2px to the nearest step
+   (4px) would visibly double this badge's compactness. */
+.status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--aurora-space-1);
+  padding: 2px var(--aurora-space-2);
+  border-radius: var(--aurora-radius-badge);
+  background: var(--aurora-accent);
+  color: var(--aurora-text-on-light);
+  font-size: 10px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+

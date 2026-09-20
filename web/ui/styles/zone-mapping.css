@@ -1,0 +1,174 @@
+/* Zone Mapping screen -- one design at all widths (see
+   Analysis/WebUIAnalysis.md's Zone Mapping section: the real zone count is
+   small enough that a phone-width grid still clears a comfortable touch
+   target, so there's no separate constrained layout to maintain). A fixed
+   16:9 box, not the real active monitor's aspect ratio -- UV correctness
+   doesn't depend on it (zone rects are already 0-1 normalized) and fetching
+   the real ratio would need extra plumbing this screen doesn't otherwise
+   need. */
+
+.zm-entertainment-field {
+  margin-bottom: var(--aurora-space-4);
+}
+
+.zm-active-field {
+  margin-top: var(--aurora-space-5);
+}
+
+/* Onboarding's own Auto-arrange, centered above the canvas -- matches
+   Dashboard's .db-zone-actions (dashboard.css), duplicated here rather than
+   shared across screens/stylesheets. */
+.zm-canvas-actions {
+  display: flex;
+  justify-content: center;
+  margin-bottom: var(--aurora-space-5);
+}
+
+/* "See all zones" grouped with the "Zone" label on one line (2.5 pass),
+   only rendered when ZoneCanvas is given onSeeAllZones -- Dashboard's own
+   use, not the onboarding Zone Mapping screen's. */
+.zm-zone-label-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: var(--aurora-space-3);
+}
+
+.zm-canvas-wrap {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  background: var(--aurora-surface);
+  border: 1px solid var(--aurora-border);
+  border-radius: var(--aurora-radius-control);
+  touch-action: none;
+}
+
+.zm-canvas-wrap svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.zm-zone-rect {
+  fill: none;
+  /* SVG hit-testing only counts an element's stroke when fill is "none" --
+     without this, clicking inside a zone's body (not its 1px outline
+     exactly) would silently miss the click-to-select handler entirely. */
+  pointer-events: all;
+  stroke: var(--aurora-text-secondary);
+  stroke-opacity: 0.35;
+  stroke-width: 1;
+}
+
+.zm-zone-rect.selected {
+  stroke: var(--aurora-button-light);
+  stroke-opacity: 1;
+  stroke-width: 1;
+}
+
+/* Plain HTML, not SVG shapes -- the SVG's own viewBox stretches
+   non-uniformly to fill the 16:9 box (correct for the zone rect itself),
+   which silently turns a same-coordinate-space circle into an ellipse and
+   warps text (see ZoneMappingScreen.js's own _drawZoneRect comment). */
+.zm-handle {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--aurora-text-primary);
+  pointer-events: auto;
+  cursor: grab;
+  touch-action: none;
+}
+
+.zm-handle:active {
+  cursor: grabbing;
+}
+
+.zm-overlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+/* Plain text, no badge/background (2.5 pass) -- pointer-events: none so a
+   click here always falls through to the zone rect's own selection handler
+   underneath, the same way any other point in the rect already does. */
+.zm-zone-number {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  color: var(--aurora-text-primary);
+  font-size: 12px;
+  pointer-events: none;
+}
+
+.zm-zone-number.selected {
+  font-weight: 700;
+}
+
+.zm-active-toggle {
+  padding: var(--aurora-space-2) 0;
+}
+
+/* Zone/Active/Gamma share one row (2.5 pass): a fixed-height band beneath
+   each column's label, everything vertically centered inside it. The Zone
+   dropdown is the tallest control (35px, dropdown.css) and sets the band
+   height directly; Active's toggle and Gamma's slider are each wrapped in
+   .zm-control-band to match without needing their own explicit height. */
+.zm-selected-row {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--aurora-space-5);
+  margin-top: var(--aurora-space-5);
+  flex-wrap: wrap;
+}
+
+.zm-selected-row .field {
+  flex: 1;
+  min-width: 140px;
+}
+
+.zm-selected-row .zm-active-field-col {
+  flex: 0 0 auto;
+  min-width: 0;
+}
+
+.zm-control-band {
+  height: 35px;
+  display: flex;
+  align-items: center;
+}
+
+@media (max-width: 480px) {
+  .zm-selected-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .zm-selected-row .field,
+  .zm-selected-row .zm-active-field-col {
+    flex: 1 1 auto;
+    min-width: 0;
+    width: 100%;
+  }
+}
+
+.zm-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--aurora-space-3);
+  margin-top: var(--aurora-space-6);
+}
+
+@media (max-width: 480px) {
+  .zm-actions {
+    justify-content: stretch;
+  }
+
+  .zm-actions .btn {
+    width: 100%;
+  }
+}
