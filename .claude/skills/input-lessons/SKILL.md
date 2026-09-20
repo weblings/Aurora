@@ -12,8 +12,10 @@ or device discovery, read `Analysis/lessons/input.md`.
 
 ## How to use this skill
 
-1. Read `Analysis/lessons/input.md`.
+1. Grep `Tags:`/`Applies-when:` in `Analysis/lessons/input.md` for the
+   task at hand — read only matching entries in full, not the file.
 2. Capture APIs fail in non-obvious ways (placeholder frames, zero
    callbacks, mislabeled formats) — check the planned change rhymes
    with none of them before assuming a bug is downstream.
-3. File new capture-specific gotchas here per `Analysis/lessons/README.md`.
+3. File new capture-specific gotchas here per `Analysis/lessons/README.md`
+   — new entries require `Tags:` and `Applies-when:` lines.

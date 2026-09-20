@@ -61,7 +61,9 @@ specifics, and say the origin is historical.
 
 ## Entry format
 
-A `##` headline stating the general, reusable principle, a short paragraph of what
+A `##` headline stating the general, reusable principle, immediately
+followed by `Tags:` and `Applies-when:` lines (the retrieval contract —
+`check-lessons.sh` enforces placement), then a short paragraph of what
 actually happened (root cause), then a bolded **Fix:** line. See RockyRoad's
 `engineering-hygiene.md` for worked examples of this shape.
 

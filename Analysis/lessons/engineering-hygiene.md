@@ -1321,6 +1321,8 @@ sides agree, and go count something real.
 ---
 
 ## Beads' auto-export is debounced, so the committed JSONL can lag the live DB -- force an export before committing task state
+Tags: beads, git, tasks, export
+Applies-when: committing .beads/issues.jsonl after batched bd writes
 
 Migrating a doc's milestones into beads, several `bd create`/`bd close`
 calls ran back to back followed immediately by `git add .beads/issues.jsonl`
@@ -1330,8 +1332,6 @@ debounce (tens of seconds), not synchronously after each write, so a fast
 create-then-commit sequence snapshots a stale file. Caught only by
 comparing the DB count (`bd list --status all`) against the committed
 file and forcing `bd export -o .beads/issues.jsonl` before recommitting.
-Tags: beads, git, tasks, export
-Applies-when: committing .beads/issues.jsonl after batched bd writes
 
 **Fix:** treat `bd export -o .beads/issues.jsonl` as part of the commit
 sequence itself -- run it immediately before `git add`, then confirm the

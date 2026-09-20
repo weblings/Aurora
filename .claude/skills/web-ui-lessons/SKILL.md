@@ -11,9 +11,10 @@ Before building WebUI screens or components, or editing
 
 ## How to use this skill
 
-1. Read `Analysis/lessons/web-ui.md` (largest file in the tree — skim
-   headings, read matching entries in full).
+1. Grep `Tags:`/`Applies-when:` in `Analysis/lessons/web-ui.md` for the
+   task at hand — read only matching entries in full, never the whole file.
 2. Verify "existing component" claims against real source, validate
    interaction models against what other build steps actually supply,
    and keep plan-doc sections in sync when building out of order.
-3. File new WebUI findings here per `Analysis/lessons/README.md`.
+3. File new WebUI findings here per `Analysis/lessons/README.md` —
+   new entries require `Tags:` and `Applies-when:` lines.

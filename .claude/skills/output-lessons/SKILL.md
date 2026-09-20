@@ -12,8 +12,10 @@ entertainment-configuration handling, or wire colorspaces, read
 
 ## How to use this skill
 
-1. Read `Analysis/lessons/output.md`.
+1. Grep `Tags:`/`Applies-when:` in `Analysis/lessons/output.md` for the
+   task at hand — read only matching entries in full, not the file.
 2. Local success signals (`init()` clean, fresh colors computed) don't
    prove the bridge is rendering — verify end to end, and trace dead
    reference code before porting it as live behavior.
-3. File new streaming/protocol gotchas here per `Analysis/lessons/README.md`.
+3. File new streaming/protocol gotchas here per `Analysis/lessons/README.md`
+   — new entries require `Tags:` and `Applies-when:` lines.
