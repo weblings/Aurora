@@ -50,3 +50,55 @@ place instead of hand-maintained markdown files plus a hand-maintained
 prose index — while still rendering out to something a human can read
 directly, not just a UI/API only an agent can use. Not researched yet;
 flagged here so it doesn't get lost.
+
+## Lightweight fixes (appended 2026-09-20)
+
+No new platform; each item makes an existing rule active.
+
+- Execute the existing split rule once: split `engineering-hygiene.md`
+  (39 entries) along topic cuts into a subdirectory with its own
+  `INDEX.md`, same shape as RockyRoad's `ui-toolkit/`/`engine/`.
+  Replace the prose paragraph-per-file index in `lessons/README.md`
+  with a table (`file | scope | entries | file-here-when`).
+- Add one grep-able `Tags:` / `Applies-when:` line per lesson entry
+  (e.g. `Applies-when: adding FetchContent URL`), so agents can
+  find lessons with `rg` instead of knowing which file to read.
+- Add the missing check: minimal per-bucket skills (or an `AGENTS.md`
+  pointer) listing which lesson file to consult before which change,
+  mirroring the RockyRoad per-bucket lesson skills already named
+  in `lessons/README.md` as the intended fix.
+- Make the 15-entry rule active with a tiny `check-lessons.sh`
+  (`grep -c '^## '` + `wc -l`) as a pre-commit or CI warning,
+  so exceeding the split threshold surfaces at append time.
+- Separate append-only log from plan: move build-verified history out
+  of `ImplementationPlan.md` into dated `Analysis/log/*.md` entries,
+  leaving the plan with `- [ ]` task checkboxes.
+- Link hygiene: use markdown-link-only references plus a link checker
+  instead of plain-text filenames needing manual cross-repo grep
+  on every rename/move.
+
+## Ranked backlog, lowest effort / most impact first (2026-09-20)
+
+Decisions: Beads (`bd`) is the task/history option; Pagefind is a
+stretch goal (needs a docs-build root first).
+
+1. `AGENTS.md` pointer + minimal per-bucket skills — minutes to write,
+   fires at the exact moment new content is added. Biggest leverage.
+2. `Tags:` / `Applies-when:` line per lesson entry — incremental,
+   makes `rg` retrieval work immediately without moving any file.
+3. Replace `lessons/README.md` prose index with a table
+   (`file | scope | entries | file-here-when`) — one small edit,
+   fixes findability of the whole tree.
+4. `check-lessons.sh` (entry/line counts) as pre-commit or CI warn —
+   tiny script, makes the 15-entry split rule actually fire.
+5. Beads for tasks/history — medium effort (install `bd`, migrate
+   `ImplementationPlan.md` phases), removes the largest bloat source
+   from plan docs and gives agents `--json` + ready-work queries.
+6. Split `engineering-hygiene.md` once along topic cuts — medium-large
+   one-time edit; do after 1–4 so the new shape holds.
+7. Separate append-only log (`Analysis/log/*.md`) from the plan —
+   medium; pair with 5, since Beads absorbs most of what the log held.
+8. Markdown-link-only references + link checker — small-medium,
+   pays off on the next rename, not today.
+9. Pagefind docs site — stretch. Largest effort (needs a build root
+   pulling in sibling `Analysis/` dirs); human search win only.
