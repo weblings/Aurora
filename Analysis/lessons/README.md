@@ -434,6 +434,6 @@ actually happened (root cause), then a bolded **Fix:** line. See RockyRoad's
 
 ## Skills
 
-No skills route to this tree yet (Aurora has no `.claude/skills/` yet). Once real
-work starts, add skills mirroring RockyRoad's per-bucket lesson skills so this
-actually gets checked during work, not just archived after the fact.
+Per-bucket skills in `.claude/skills/` (mirroring RockyRoad's) route to
+this tree — check the matching skill during work, not just archive after
+the fact.
