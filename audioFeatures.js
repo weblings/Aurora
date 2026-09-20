@@ -1,7 +1,7 @@
 // Hand-ported from Aurora/core/AudioProcessing/src/AudioFeatureExtractor.cpp and
 // AudioProcessing.cpp, adapted for the browser's AnalyserNode instead of aubio -- see
 // ../Analysis/AudioAnalysis.md for why aubio itself isn't used here (no WASM build exists yet)
-// and ../../Aurora-Demo-Web/main.js for the AudioContext/AnalyserNode wiring that feeds this.
+// and web/demo/main.js for the AudioContext/AnalyserNode wiring that feeds this.
 //
 // Real, deliberate difference from native: onset *detection* is a much simpler energy-ratio
 // heuristic here, not aubio's actual algorithm -- that part was explicitly flagged as the
