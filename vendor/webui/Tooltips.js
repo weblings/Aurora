@@ -1,4 +1,4 @@
-// Central tooltip lookup (see Analysis/TooltipsAnalysis.md). The backend
+// Central tooltip lookup (see docs/TooltipsAnalysis.md). The backend
 // merges every module's descriptors into GET /api/descriptors; screens
 // and components look up purely by key and never know which layer
 // answered. Rendering uses the native `title` attribute for now (zero

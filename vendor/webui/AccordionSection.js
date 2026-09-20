@@ -1,5 +1,5 @@
 // Collapsible section -- Dashboard's Tuning/Bridge accordion areas
-// (Analysis/WebUI/WebUI_Design_2ndPass.md). Needs a real external API from
+// (docs/WebUI/WebUI_Design_2ndPass.md). Needs a real external API from
 // the start (.expand()/.collapse(), not just internal click-to-toggle
 // state): the Dashboard's "See all zones" link needs to command Bridge's
 // section open from *outside* it -- Zone Mapping's top tier has no other

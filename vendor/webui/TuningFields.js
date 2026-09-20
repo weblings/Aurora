@@ -1,6 +1,6 @@
 // Tuning's full field set (~4 video / ~11 audio), extracted from the now-
 // deleted TuningScreen.js so the accordion Dashboard's collapsed Tuning
-// section (Analysis/WebUI/WebUI_Design_2ndPass.md, step 20) can own it
+// section (docs/WebUI/WebUI_Design_2ndPass.md, step 20) can own it
 // directly -- TuningScreen had no other consumer left once step 18 dropped
 // it from onboarding and step 20 folds it into the Dashboard, so this is a
 // straight migration of its field/save logic, not a reuse-driven split.
@@ -14,7 +14,7 @@
 // handshake measured elsewhere at 1-3+ seconds), not an oversight. Fixed by
 // making every field commit on its own natural gesture-end signal instead
 // (a slider's drag-release/keyup, a dropdown/checkbox's own change) rather
-// than trying to make reload() itself cheaper -- see Analysis/lessons/
+// than trying to make reload() itself cheaper -- see docs/lessons/
 // web-ui.md's "gesture-end commit signal" entry. No more Save button or
 // manual gate anywhere on this screen; every option behaves the same way
 // now, matching Zone Mapping's own model.

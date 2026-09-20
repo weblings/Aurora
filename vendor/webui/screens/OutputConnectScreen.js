@@ -1,8 +1,8 @@
 // Output Connect: the first real screen, and the first full vertical slice
 // through the whole stack (server, credential persistence, pairing
-// endpoints, waiting/error states). See Analysis/WebUI/WebUI_Design_1stPass.md's
+// endpoints, waiting/error states). See docs/WebUI/WebUI_Design_1stPass.md's
 // Output Connect section and build-order step 10; redesigned in
-// Analysis/WebUI/WebUI_Design_2ndPass.md's Screen 1.
+// docs/WebUI/WebUI_Design_2ndPass.md's Screen 1.
 //
 // showBack/onBack default to the hub-and-spoke shape (Back == onComplete ==
 // Dashboard), matching every Dashboard-driven call site unchanged. app.js's
@@ -314,7 +314,7 @@ export class OutputConnectScreen {
         return;
       }
       // link_button_not_pressed is the expected, non-error waiting state --
-      // huenicorn's own real UX (verified in Analysis/WebUI/WebUI_Design_1stPass.md's
+      // huenicorn's own real UX (verified in docs/WebUI/WebUI_Design_1stPass.md's
       // step 5 research) just re-shows the same wait message, no auto-retry.
       if (result.error !== 'link_button_not_pressed') {
         this.error = "Couldn't pair with the bridge. Check the address and try again.";

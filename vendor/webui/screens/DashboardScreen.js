@@ -1,4 +1,4 @@
-// Dashboard, rebuilt as the accordion hub (Analysis/WebUI/
+// Dashboard, rebuilt as the accordion hub (docs/WebUI/
 // WebUI_Design_2ndPass.md, step 20): three collapsible sections (Zone
 // Mapping, Tuning, Bridge -- the first added in a 2.5-pass correction,
 // pulled out of what used to be video's own always-visible top tier) plus

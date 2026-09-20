@@ -10,7 +10,7 @@
    Status text stays grayscale, not red/green -- the icon glyph (✓/⚠)
    plus wording already carries the meaning, and introducing a semantic
    accent color here would reopen the "grayscale-only" decision
-   (Analysis/WebUIAnalysis.md's build-order step 6) without checking back in. */
+   (docs/WebUIAnalysis.md's build-order step 6) without checking back in. */
 
 .field {
   display: flex;
@@ -220,7 +220,7 @@
    ::-webkit-slider-thumb override once the host's own -webkit-appearance is
    reset away from native, but that also turns off accent-color's own fill
    rendering, so a solid-white thumb and an accent-color track can't coexist
-   (see Analysis/lessons/web-ui.md). SliderFill.js's bindSliderFill() sets
+   (see docs/lessons/web-ui.md). SliderFill.js's bindSliderFill() sets
    --slider-percent on each input; measurements against the old accent-color
    rendering (8px track, 4px radius, exact --aurora-accent fill) are carried
    over here so this looks the same except for the thumb's color. The
@@ -404,7 +404,7 @@
 /* NavFooter.js's Back/Continue -- real values from RockyRoad's own shared
    `.frame .actions` bar (v2/ui/v0.2.2/panel.css), the reusable component
    behind its Play/Song XR-panel exports, not a guess: centered pair, fixed
-   10px gap, not edge-to-edge (see Analysis/WebUI/WebUI_Design_2.5Pass.md's
+   10px gap, not edge-to-edge (see docs/WebUI/WebUI_Design_2.5Pass.md's
    NUX Polish Pass). Colors need no new rule -- .btn-primary/.btn-secondary
    already match RockyRoad's primary-light/primary-dark exactly. */
 /* margin-top restores spacing two screens' own dead .oc-actions/.md-actions

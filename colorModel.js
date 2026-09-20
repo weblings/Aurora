@@ -1,6 +1,6 @@
 // Hand-ported from Aurora/core/AudioProcessing/src/AudioProcessing.cpp's updateDrift/
 // updateBounce/randomAnchorHue and Aurora/core/Contracts/include/Aurora/Contracts/Color.hpp's
-// fromHSV/toHSV -- see ../Analysis/AudioAnalysis.md for the design reasoning and formulas this
+// fromHSV/toHSV -- see ../docs/AudioAnalysis.md for the design reasoning and formulas this
 // mirrors exactly. Pure, stable math (unlike AudioFeatureExtractor's onset detection), so this
 // is a straight port, not a redesign -- see ../CLAUDE.md: keep in sync with the C++ source.
 

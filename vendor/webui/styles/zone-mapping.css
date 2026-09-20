@@ -1,5 +1,5 @@
 /* Zone Mapping screen -- one design at all widths (see
-   Analysis/WebUIAnalysis.md's Zone Mapping section: the real zone count is
+   docs/WebUIAnalysis.md's Zone Mapping section: the real zone count is
    small enough that a phone-width grid still clears a comfortable touch
    target, so there's no separate constrained layout to maintain). A fixed
    16:9 box, not the real active monitor's aspect ratio -- UV correctness

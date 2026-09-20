@@ -1,4 +1,4 @@
-// Two views over the same "which zones are active" data (Analysis/WebUI/
+// Two views over the same "which zones are active" data (docs/WebUI/
 // WebUI_Design_2ndPass.md): a flat list of every zone (Bridge's collapsed
 // "See all zones" content, extracted from ZoneMappingScreen.js's original
 // always-visible active list) and a single zone's bool (Zone Mapping's/

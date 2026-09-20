@@ -149,7 +149,7 @@ const videoTexture = new THREE.VideoTexture(video);
 videoTexture.colorSpace = THREE.SRGBColorSpace;
 
 // Hand-rolled against AnalyserNode rather than aubio-via-WASM or BeatDetector -- see
-// Analysis/AudioAnalysis.md; audioFeatures.js has the ported/tested pure math.
+// docs/AudioAnalysis.md; audioFeatures.js has the ported/tested pure math.
 const audioTrack = new Audio('assets/Electro Cabello.mp3');
 audioTrack.loop = true;
 
@@ -173,7 +173,7 @@ let audioHueDegrees = 0; // placeholder model's own state, see placeholderAudioC
 // making brightness react much faster -- a viewer's eye reads brightness-lag-behind-the-beat as
 // "boring" more than hue lag, so that's the one knob turned hardest. 'midpoint' is halfway
 // between 'ported' and 'tuned' on all four tuned fields -- the settled-on choice, now also
-// native's own new Config.hpp defaults (see Analysis/RuntimeAnalysis.md).
+// native's own new Config.hpp defaults (see docs/RuntimeAnalysis.md).
 const audioEffectSettingsByModel = {
   ported: defaultAudioEffectSettings(),
   tuned: {
