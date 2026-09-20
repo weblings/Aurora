@@ -405,3 +405,13 @@ elsewhere. Ported the same message/"Check again" affordance into
 disabled since there's nothing valid to advance with.
 
 ---
+
+---
+
+## Order a rename against a merge by counting outward references from other repos, not just internal links
+Tags: planning, refactoring, monorepo, sequencing
+Applies-when: sequencing a directory rename against a repo consolidation
+
+First instinct on Analysis-to-docs was rename-first (small, reviewable, independently justified). Reversed it on finding outward ../Aurora/Analysis references in seven sibling repos: renaming core first fixes core links but silently breaks all siblings until the merge, with no checker covering them -- invisible rot, worse than visible breakage. Merge first, rename inside the fix-up pass instead: one atomic sed plus check-links green over the whole tree.
+
+**Fix:** the rename goes with whichever change lets every reference -- inward and outward -- move in a single verifiable pass. Count references by owner before ordering; the repo with no checker is the one that decides.
