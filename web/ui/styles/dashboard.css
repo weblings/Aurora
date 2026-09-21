@@ -114,21 +114,22 @@
    Stop button end up flush with both screen edges (seen at 292px). The demo
    never shows this because its pane padding nests outside the ported
    container's own gutter; here there is only the one gutter, so scale the
-   overhang back inside it instead: 12px a side keeps the floating-pill look
-   and leaves >= 4px breathing room at any width. 12px is --aurora-space-5,
-   back on the spacing scale; the pill's inner horizontal padding drops to
-   match so label text stays aligned with the content column. Applies to the
-   top bar too -- the Stop button borrows these width rules, so fixing only
-   the pills would leave the button on the edges. */
+   overhang back inside it instead: 6px a side leaves 10px breathing room,
+   matching the top bar's own 10px (--aurora-space-4) top padding, so the
+   pills sit in an even frame at any width. 6px is --aurora-space-2; the
+   pill's inner horizontal padding drops to match so label text stays
+   aligned with the content column. Applies to the top bar too -- the Stop
+   button borrows these width rules, so fixing only the pills would leave
+   the button on the edges. */
 @media (max-width: 649px) {
   .accordion-header {
-    width: calc(100% + 24px);
-    margin-inline: -12px;
-    padding: var(--aurora-space-5) 12px;
+    width: calc(100% + 12px);
+    margin-inline: -6px;
+    padding: var(--aurora-space-5) var(--aurora-space-2);
   }
   .db-top-bar-slot .top-bar {
-    width: calc(100% + 24px);
-    margin-inline: -12px;
+    width: calc(100% + 12px);
+    margin-inline: -6px;
   }
 }
 

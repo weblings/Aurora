@@ -9,7 +9,13 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
-const css = readFileSync(new URL('./dashboard.css', import.meta.url), 'utf8');
+// Comments carry "@media" and selector-like prose ("keep all three in
+// sync"), so strip them before parsing -- otherwise the splitter below
+// mistakes comment text for a rule block.
+const css = readFileSync(new URL('./dashboard.css', import.meta.url), 'utf8').replace(
+  /\/\*[\s\S]*?\*\//g,
+  '',
+);
 
 // Split top-level CSS from @media bodies (brace-counted, not regex).
 function splitMedia(src) {
@@ -66,8 +72,8 @@ const { top, media } = splitMedia(css);
 }
 
 // Narrow viewports: one media query at the 650px threshold scales BOTH
-// overhangs back inside the 16px gutter (12px = --aurora-space-5, back on
-// the spacing scale), leaving >= 4px breathing room at any width. Both
+// overhangs back inside the gutter so the leftover side breathing room
+// matches the top bar's own top padding (even frame at any width). Both
 // selectors must be present -- the Stop button borrows the top-bar width
 // rules, so fixing only the pills leaves the button on the edges.
 {
@@ -76,11 +82,36 @@ const { top, media } = splitMedia(css);
   const body = narrow.map((m) => m.body).join('\n');
   for (const selector of ['\\.accordion-header', '\\.db-top-bar-slot\\s+\\.top-bar']) {
     const block = ruleBlock(body, selector);
-    assert.ok(/width\s*:\s*calc\(100%\s*\+\s*24px\)/.test(block), `${selector} narrows to 24px width offset`);
-    assert.ok(/margin-inline\s*:\s*-12px/.test(block), `${selector} narrows to -12px overhang`);
+    assert.ok(/width\s*:\s*calc\(100%\s*\+\s*12px\)/.test(block), `${selector} narrows to 12px width offset`);
+    assert.ok(/margin-inline\s*:\s*-6px/.test(block), `${selector} narrows to -6px overhang`);
   }
   const pill = ruleBlock(body, '\\.accordion-header');
-  assert.ok(/padding\s*:[^;]*12px/.test(pill), 'narrow pill inner padding tracks the 12px overhang');
+  assert.ok(
+    /padding\s*:[^;]*var\(--aurora-space-2\)/.test(pill),
+    'narrow pill inner padding tracks the 6px overhang',
+  );
+
+  // Side breathing (gutter minus overhang) equals the top breathing: the
+  // page gutter is --aurora-space-6 on #screen-container (shell.css) and
+  // the top inset is the top bar's padding-top (shell.css) -- currently
+  // --aurora-space-4, resolved through tokens.css.
+  const tokens = readFileSync(new URL('./tokens.css', import.meta.url), 'utf8');
+  const strip = (s) => s.replace(/\/\*[\s\S]*?\*\//g, '');
+  const shell = strip(readFileSync(new URL('./shell.css', import.meta.url), 'utf8'));
+  const tokenValue = (name) => {
+    const m = tokens.match(new RegExp(`${name}\\s*:\\s*(\\d+)px`));
+    assert.ok(m, `${name} resolves from tokens.css`);
+    return Number(m[1]);
+  };
+  const gutter = tokenValue('--aurora-space-6');
+  const topBar = ruleBlock(splitMedia(shell).top, '\\.top-bar');
+  const topPadVar = topBar.match(/padding\s*:\s*var\((--aurora-space-\d+)\)/);
+  assert.ok(topPadVar, '.top-bar padding-top references a spacing token');
+  assert.equal(
+    gutter - 6,
+    tokenValue(topPadVar[1]),
+    'narrow side breathing matches the top bar top padding',
+  );
 }
 
 console.log('dashboard.test.mjs: ok');
