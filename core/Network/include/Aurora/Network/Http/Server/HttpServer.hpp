@@ -3,6 +3,8 @@
 #include <filesystem>
 #include <memory>
 #include <optional>
+#include <string>
+#include <unordered_map>
 #include <vector>
 
 #include <Aurora/Network/Http/Server/HttpDataStructs.hpp>
@@ -50,9 +52,20 @@ namespace Aurora::Network::Http::Server
     // carried over here, out of scope for this skeleton.
     void serveStaticFiles(const std::filesystem::path& directory);
 
+    // Build-time embedded webroot (StandaloneApps P1): keys are webroot-
+    // relative paths with forward slashes (e.g. "index.html",
+    // "styles/shell.css"), values are raw file bytes. Served as a fallback
+    // GET route registered after every API route, so API routes always win
+    // ties. Set either this or serveStaticFiles(), not both -- main.cpp
+    // picks exactly one via the env-override > source-dir > embedded probe
+    // order, keeping the dev hot-edit loop on the source dir.
+    using EmbeddedFiles = std::unordered_map<std::string, std::string>;
+    void serveEmbeddedFiles(EmbeddedFiles files);
+
   private:
     std::unique_ptr<Impl> m_httpServerImpl;
     std::vector<Route> m_routes;
     std::optional<std::filesystem::path> m_staticDir;
+    std::optional<EmbeddedFiles> m_embeddedFiles;
   };
 }

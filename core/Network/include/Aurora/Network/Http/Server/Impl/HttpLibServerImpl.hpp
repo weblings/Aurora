@@ -1,6 +1,8 @@
 #pragma once
 
 #include <optional>
+#include <string>
+#include <unordered_map>
 
 #include <httplib.h>
 
@@ -19,6 +21,29 @@ namespace Aurora::Network::Http::Server
   class Impl
   {
     friend HttpServer;
+
+    static std::string contentTypeFor(const std::string& key)
+    {
+      static const std::unordered_map<std::string, std::string> table = {
+        {".js", "text/javascript"},
+        {".html", "text/html"},
+        {".css", "text/css"},
+        {".svg", "image/svg+xml"},
+        {".json", "application/json"},
+        {".png", "image/png"},
+        {".ico", "image/x-icon"},
+        {".txt", "text/plain"},
+      };
+      auto dot = key.rfind('.');
+      if(dot != std::string::npos){
+        auto it = table.find(key.substr(dot));
+        if(it != table.end()){
+          return it->second;
+        }
+      }
+      return "application/octet-stream";
+    }
+
 
     static httplib::Server::Handler _wrapHandler(Handler handler, HttpMethod method)
     {
@@ -52,7 +77,7 @@ namespace Aurora::Network::Http::Server
     }
 
 
-    Impl(const std::vector<Route>& routes, const std::optional<std::filesystem::path>& staticDir)
+    Impl(const std::vector<Route>& routes, const std::optional<std::filesystem::path>& staticDir, const std::optional<std::unordered_map<std::string, std::string>>& embeddedFiles)
     {
       m_service.emplace();
 
@@ -98,6 +123,30 @@ namespace Aurora::Network::Http::Server
             m_service->Patch(route.path, wrapped);
             break;
         }
+      }
+
+      if(embeddedFiles.has_value()){
+        // Fallback registered after every API route above, so explicit
+        // routes win ties -- cpp-httplib matches handlers in registration
+        // order. Main.cpp sets either this or the mount point, not both.
+        m_service->Get("/(.*)", [files = *embeddedFiles](const httplib::Request& req, httplib::Response& res){
+          std::string key = req.matches.size() > 1 ? req.matches[1].str() : "";
+          if(key.empty()){
+            key = "index.html";
+          }
+
+          auto it = files.find(key);
+          if(it == files.end()){
+            res.status = 404;
+            auto notFound = files.find("404.html");
+            if(notFound != files.end()){
+              res.set_content(notFound->second, "text/html");
+            }
+            return;
+          }
+
+          res.set_content(it->second, contentTypeFor(key));
+        });
       }
     }
 

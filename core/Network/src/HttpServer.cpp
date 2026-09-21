@@ -20,7 +20,7 @@ namespace Aurora::Network::Http::Server
     unsigned port
   )
   {
-    m_httpServerImpl = std::make_unique<Impl>(m_routes, m_staticDir);
+    m_httpServerImpl = std::make_unique<Impl>(m_routes, m_staticDir, m_embeddedFiles);
 
     return m_httpServerImpl->bind(boundAddress, port);
   }
@@ -44,6 +44,12 @@ namespace Aurora::Network::Http::Server
   )
   {
     m_routes.push_back({method, path, handler});
+  }
+
+
+  void HttpServer::serveEmbeddedFiles(EmbeddedFiles files)
+  {
+    m_embeddedFiles = std::move(files);
   }
 
 

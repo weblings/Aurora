@@ -128,3 +128,94 @@ TEST_CASE("HttpServer's serveStaticFiles answers a request path with the matchin
   server.stop();
   serverThread.join();
 }
+TEST_CASE("HttpServer's serveEmbeddedFiles answers paths with matching entries and content types", "[HttpServer]")
+{
+  HttpServer::EmbeddedFiles files = {
+    {"app.js", "console.log(1);"},
+    {"styles/shell.css", "x{}"},
+  };
+
+  HttpServer server;
+  server.serveEmbeddedFiles(files);
+
+  REQUIRE(server.bind("127.0.0.1", 18218));
+
+  std::thread serverThread([&](){ server.listen(); });
+
+  httplib::Client client("127.0.0.1", 18218);
+
+  auto js = getWithRetry(client, "/app.js");
+  REQUIRE(js);
+  CHECK(js->status == 200);
+  CHECK(js->body == "console.log(1);");
+  CHECK(js->get_header_value("Content-Type") == "text/javascript");
+
+  auto css = getWithRetry(client, "/styles/shell.css");
+  REQUIRE(css);
+  CHECK(css->status == 200);
+  CHECK(css->body == "x{}");
+  CHECK(css->get_header_value("Content-Type") == "text/css");
+
+  server.stop();
+  serverThread.join();
+}
+
+
+TEST_CASE("HttpServer's serveEmbeddedFiles answers / with index.html and 404s unknown paths", "[HttpServer]")
+{
+  HttpServer::EmbeddedFiles files = {
+    {"index.html", "<html></html>"},
+    {"404.html", "missing"},
+  };
+
+  HttpServer server;
+  server.serveEmbeddedFiles(files);
+
+  REQUIRE(server.bind("127.0.0.1", 18219));
+
+  std::thread serverThread([&](){ server.listen(); });
+
+  httplib::Client client("127.0.0.1", 18219);
+
+  auto root = getWithRetry(client, "/");
+  REQUIRE(root);
+  CHECK(root->status == 200);
+  CHECK(root->body == "<html></html>");
+
+  auto missing = getWithRetry(client, "/nope.js");
+  REQUIRE(missing);
+  CHECK(missing->status == 404);
+  CHECK(missing->body == "missing");
+
+  server.stop();
+  serverThread.join();
+}
+
+
+TEST_CASE("HttpServer's API routes win ties over serveEmbeddedFiles entries", "[HttpServer]")
+{
+  HttpServer::EmbeddedFiles files = {
+    {"app.js", "embedded"},
+  };
+
+  HttpServer server;
+  server.addRoute(HttpMethod::Get, "/app.js", [](const Request&, Response& res){
+    res.contentType = "text/plain";
+    res.body = "route";
+  });
+  server.serveEmbeddedFiles(files);
+
+  REQUIRE(server.bind("127.0.0.1", 18220));
+
+  std::thread serverThread([&](){ server.listen(); });
+
+  httplib::Client client("127.0.0.1", 18220);
+  auto result = getWithRetry(client, "/app.js");
+
+  REQUIRE(result);
+  CHECK(result->status == 200);
+  CHECK(result->body == "route");
+
+  server.stop();
+  serverThread.join();
+}
