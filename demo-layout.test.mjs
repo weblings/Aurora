@@ -29,4 +29,16 @@ function ruleBlocks(selector) {
   assert.ok(/padding\s*:\s*12px\s+16px\s+24px/.test(pane), 'pane keeps its 12/16/24 breathing room');
 }
 
+// Demo scope (Aurora-egp): no capture devices exist on a static page, so the
+// whole Dashboard top tier (Monitor picker / sink field) is hidden outright.
+// Logo + Stop live in the top-bar slot and are unaffected.
+{
+  const tier = ruleBlocks('\\.db-port\\s+\\.db-top-tier');
+  assert.ok(tier.some((b) => /display\s*:\s*none/.test(b)), '.db-top-tier is hidden in demo');
+  assert.ok(
+    !/\.db-device-slot\[inert\]/.test(css),
+    'inert+dim device-slot rule is gone (superseded by the tier hide)',
+  );
+}
+
 console.log('demo-layout.test.mjs: ok');
