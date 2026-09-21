@@ -113,6 +113,21 @@ target_include_directories(aurora-app-windows PRIVATE
   ${CMAKE_CURRENT_BINARY_DIR}
 )
 
+# StandaloneApps P2: copy runtime DLLs (OpenCV, ...) next to the exe at
+# build time. Resolved from imported targets, so choco and vcpkg OpenCV
+# layouts both work with no hardcoded paths. Needs CMake 3.21+; older
+# CMake configures fine and just skips the copy (root minimum is 3.14).
+# The MSVC redist itself is NOT vendored -- it is a documented
+# prerequisite (central deployment), see README.md.
+if(CMAKE_VERSION VERSION_GREATER_EQUAL "3.21")
+  add_custom_command(TARGET aurora-app-windows POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+      $<TARGET_RUNTIME_DLLS:aurora-app-windows>
+      $<TARGET_FILE_DIR:aurora-app-windows>
+    COMMAND_EXPAND_LISTS
+  )
+endif()
+
 target_compile_features(aurora-app-windows PRIVATE cxx_std_20)
 
 # MSVC flags std::getenv as deprecated in favor of _dupenv_s -- keeping the
