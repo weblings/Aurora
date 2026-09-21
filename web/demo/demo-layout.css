@@ -105,10 +105,12 @@ html, body {
   min-width: 0;
 }
 
-/* Demo scope: the Monitor/Audio device field is inert (see demo-boot.js) --
-   dim it so it reads as disabled rather than broken. */
-.db-port .db-device-slot[inert] {
-  opacity: 0.45;
+/* Demo scope: no capture devices exist on a static page, so the whole top
+   tier (Monitor picker / sink field) is hidden, not dimmed -- same
+   demo-owned override pattern as #db-change-bridge above. Logo + Stop live
+   in the top-bar slot and are unaffected. */
+.db-port .db-top-tier {
+  display: none;
 }
 
 /* Repo badge (Aurora-9mq): RockyRoad's badge-to-repo pattern -- a rounded
