@@ -5,6 +5,10 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Aurora Demo</title>
   <link rel="icon" type="image/svg+xml" href="favicon.svg" />
+  <!-- PNG fallbacks for tab chrome that can't do SVG favicons (notably
+     Safari): one per color scheme, matched declaratively. -->
+  <link rel="icon" type="image/png" media="(prefers-color-scheme: light)" href="favicon-light.png" />
+  <link rel="icon" type="image/png" media="(prefers-color-scheme: dark)" href="favicon-dark.png" />
   <link rel="stylesheet" href="vendor/webui/styles/tokens.css" />
   <link rel="stylesheet" href="vendor/webui/styles/shell.css" />
   <link rel="stylesheet" href="vendor/webui/styles/dashboard.css" />
