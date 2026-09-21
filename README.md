@@ -40,6 +40,9 @@ Philips' official app.
      ([vcpkg](https://github.com/microsoft/vcpkg) `install opencv`) works too —
      pass its toolchain file instead (see step 3).
    - **Linux (Debian/Ubuntu):** `sudo apt install build-essential cmake libopencv-dev libcurl4-openssl-dev libmbedtls-dev libx11-dev libxext-dev libxrandr-dev libglib2.0-dev libpipewire-0.3-dev libaubio-dev`
+     — then check `cmake --version`: the presets need CMake 3.19+. If your apt copy is older
+     (seen on Ubuntu 24.04), `pip install cmake` gets a current one instead — make sure
+     `~/.local/bin` is on your `PATH` so it shadows `/usr/bin/cmake`.
 2. **Get the code.** Clone this repo (or download it as a ZIP from its repo page):
    `git clone https://github.com/weblings/Aurora.git`
 3. **Build the app.**
