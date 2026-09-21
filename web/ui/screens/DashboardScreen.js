@@ -79,7 +79,7 @@ export class DashboardScreen {
       <div class="db-accordions"></div>
       <div id="db-overlay-slot"></div>
     `;
-    renderTopBar(container.querySelector('.top-bar-slot'), { title: 'Aurora', showBack: false });
+    renderTopBar(container.querySelector('.top-bar-slot'), { title: 'Aurora', logo: { src: 'icons/aurora-logo.png', alt: 'Aurora' }, showBack: false });
 
     await this._loadAll();
   }
@@ -117,6 +117,7 @@ export class DashboardScreen {
 
     renderTopBar(this.container.querySelector('.top-bar-slot'), {
       title: 'Aurora',
+      logo: { src: 'icons/aurora-logo.png', alt: 'Aurora' },
       showBack: false,
       trailingButton: { label: 'Stop', icon: 'icons/power-svgrepo-com.svg', onClick: () => this._openStopConfirm() },
     });

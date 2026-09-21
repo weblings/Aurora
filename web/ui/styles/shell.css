@@ -53,6 +53,18 @@ body {
   padding: var(--aurora-space-4) 0;
 }
 
+/* Tall variant, used only when the title slot carries the brand mark
+   (Dashboard). Fits the 84px artwork; every other screen keeps the 44px bar.
+   The trailing slot pins to the top so the Stop button sits top-right
+   instead of floating at the middle of the taller bar. */
+.top-bar-with-logo {
+  min-height: 84px;
+}
+
+.top-bar-with-logo .top-bar-trailing {
+  align-self: flex-start;
+}
+
 .top-bar-title {
   position: absolute;
   left: 50%;
@@ -66,6 +78,19 @@ body {
   font-size: 20px;
   font-weight: 700;
   pointer-events: none;
+}
+
+/* Brand mark replacing the title text (Dashboard). The title slot is
+   absolutely positioned (out of flow); the row's min-height below is what
+   fits the 84px artwork. Both logo and Stop button stay vertically
+   centered -- their tops differ (84px vs ~25px heights), which no symmetric
+   row can reconcile; literal top-alignment would need a ~143px bar. */
+.top-bar-logo {
+  display: block;
+  height: 84px;
+  width: auto;
+  max-width: 100%;
+  object-fit: contain;
 }
 
 .top-bar-back {
