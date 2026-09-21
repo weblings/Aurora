@@ -32,6 +32,16 @@ for (const [name, text] of [['Dropdown.js', dropdown], ['NavFooter.js', navFoote
 assert.ok(dropdown.includes('vendor/webui/icons/chevron-down.svg'), 'dropdown chevron retargeted');
 assert.ok(navFooter.includes('vendor/webui/icons/back-arrow.svg'), 'back arrow retargeted');
 
+// Logo port (Aurora-tnk): the vendored top bar supports the brand mark and
+// the Dashboard passes it with a fork-local path -- never page-relative.
+const topBar = read('topBar.js');
+assert.ok(topBar.includes('logo = null'), 'vendored top bar takes the logo option');
+assert.ok(topBar.includes('top-bar-logo'), 'vendored top bar renders the brand mark');
+const dashTopBar = (dashboard.match(/renderTopBar\([^;]*\);/g) || []).join('\n');
+assert.ok(dashTopBar.includes("logo: { src: 'vendor/webui/icons/aurora-logo.png'"), 'dashboard brand mark uses the fork-local artwork');
+assert.ok(!/['"]icons\/aurora-logo\.png/.test(dashTopBar), 'brand mark stays off the page-relative icons/ path');
+assert.ok(read('styles/shell.css').includes('.top-bar-logo'), 'brand-mark CSS vendored');
+
 const toggles = read('ZoneActiveToggle.js');
 assert.ok(toggles.includes('DEMO SEAM string-zone-ids'), 'string-id seam marker present');
 assert.ok(!toggles.includes('Number(e.currentTarget.dataset.zoneId)'),
