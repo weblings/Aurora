@@ -225,3 +225,12 @@ mirror the test's exact pipeline (not a cleaned-up variant) when node is
 unavailable. Cross-file assertions are worth it: the same test resolves
 tokens.css values to prove side breathing equals top padding, so a future
 token change fails loudly instead of silently unmatching the frame.
+---
+
+## Assert the relationship, not the number
+Tags: webui, testing, css
+Applies-when: pinning a size or offset that derives from another value
+
+The scene pill's bottom offset equals the top bar's top padding token, and the Welcome logo is 8x the title type -- so the tests assert token equality and the 8x multiple, never 10px or 160px. A token retune or type change then fails loudly at the contract instead of silently unmatching the frame.
+
+**Fix:** when a value is defined as "same as X" or "Nx", write the test as the equation (resolve both sides from source); literals in tests are only for true design constants.

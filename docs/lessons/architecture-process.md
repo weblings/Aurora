@@ -370,3 +370,12 @@ Applies-when: finding a lookalike directory (vendor snapshot, mirror, fork) insi
 The merge surfaced web/demo/vendor/webui sitting next to web/ui. Assumption said stale copy; diff -rq said diverged subset with vendor-only tooling (MANIFEST.json, generator) and ui-only app shell -- a deliberate GitHub-Pages-targeted fork, confirmed by the owner. A sync would have destroyed it.
 
 **Fix:** never classify duplication by directory name or memory; run the diff first, read the file lists on both sides, and only then choose mirror-rule, migration, or intentional-divergence (recorded where agents will trip over it: AGENTS.md plus the closed task).
+---
+
+## Vendored files take fork-local asset paths -- the src lives with the caller
+Tags: vendor, duplication, assets
+Applies-when: porting an asset-referencing feature into the demo fork
+
+The brand-mark port copied topBar.js verbatim, but the logo src comes from the DashboardScreen call site, not topBar -- so the fork-local path (vendor/webui/icons/aurora-logo.png) had to be wired at both call sites, and seams.test.mjs now forbids page-relative icons/ there the way it already did for Dropdown/NavFooter. A verbatim file copy alone would have shipped a broken image under Pages.
+
+**Fix:** when porting into the fork, grep the ported code for path-like inputs (src, href, icon) and re-anchor each at the call site; extend the seam tripwire to cover the new path the same turn.

@@ -428,3 +428,12 @@ Applies-when: updating docs after a directory rename or repo merge
 145 old-repo mentions across 24 docs split into two kinds: 30 trailing-slash path pointers (Aurora-Input-Linux/include/...) that misdirect the reader, and ~115 bare narrative names (split into its own repo Aurora-Demo-Web) that read fine as history. Blanket sed would have falsified the record; no rewrite would leave 404s in the reader head.
 
 **Fix:** the trailing slash is the classifier -- rewrite Name/ paths, leave bare names. Exclude dated logs and closed task text unconditionally (history). Verify with the link checker, which only sees the pointer class anyway.
+---
+
+## Mine the sibling repo before designing the upsell
+Tags: planning, reuse-research
+Applies-when: adding a repo badge, upsell, or any pattern RockyRoad already shipped
+
+The Aurora scene pill started as a fresh design (text-only, own wording) until the owner pointed at RockyRoad v2's lib-source-ribbon: exact GitHub-mark SVG, "View Source Code" wording, noopener noreferrer, currentColor mark, brighten-plus-underline hover. Adopted all of it; only placement differed (overlay pill vs in-flow row, per the scene's own spec).
+
+**Fix:** before building any shared-pattern UI (badges, empty states, error copy), grep the sibling checkout first -- the adapted half is usually smaller than the invented whole.
