@@ -71,7 +71,7 @@
 # - linear.api_key  → use LINEAR_API_KEY env var instead
 # - github.token    → use GITHUB_TOKEN env var instead
 
-sync.remote: "git+ssh://git@github.com/weblings/Aurora.git"
+sync.remote: "https://github.com/weblings/Aurora.git"
 export:
     auto: true
     git-add: false
