@@ -129,6 +129,16 @@ target_include_directories(aurora-app-linux PRIVATE
   ${CMAKE_CURRENT_BINARY_DIR}
 )
 
+# StandaloneApps P2: the install tree ships app-level shared libs next to
+# the binary (lib/); $ORIGIN-relative RPATH finds them with no
+# LD_LIBRARY_PATH. BUILD_WITH_INSTALL_RPATH keeps the build tree behaving
+# like the install tree. System integration libs (X11/PipeWire/glib) and,
+# per the Aurora-b9q decision, system OpenCV stay system dependencies.
+set_target_properties(aurora-app-linux PROPERTIES
+  INSTALL_RPATH "$ORIGIN/../lib:$ORIGIN"
+  BUILD_WITH_INSTALL_RPATH TRUE
+)
+
 target_compile_features(aurora-app-linux PRIVATE cxx_std_20)
 
 if(AURORA_APP_BUILD_TESTS)
