@@ -6,11 +6,9 @@
 
 - A modular, multiplatform processor of inputs to generate outputs. Today that's video / audio to Hue light colors.
 - Runs entirely on your machine — your screen, audio, and settings never leave your computer or local network
-- Aurora's capture math are Hue streaming wire format are distilled from [Huenicorn](https://gitlab.com/openjowelsofts/huenicorn) into discrete modules
+- Aurora's capture math, Hue streaming wire format, and many UI elements were distilled from [Huenicorn](https://gitlab.com/openjowelsofts/huenicorn) into discrete modules
 
-**Browser demo (no install):** a zero-install taste of the effect with virtual lights, live at
-[weblings.github.io/Aurora/web/demo/index.html](https://weblings.github.io/Aurora/index.html) —
-or run it locally per [Try it without bulbs](#try-it-without-bulbs) below.
+**[Try the GitHub pages demo](https://weblings.github.io/Aurora/index.html)** - No real Hue lights needed, uses an example 3D room
 
 ## Layout
 
@@ -68,14 +66,6 @@ Philips' official app.
   sorts after `/usr/bin/cmake` on some setups (and subshells may not inherit your `PATH` tweaks),
   so the old one can still win.
 
-## FAQ
-
-**What's Huenicorn?**
-
-[Huenicorn](https://gitlab.com/openjowelsofts/huenicorn) by OpenJowel is a free Philips Hue screen
-synchronizer for GNU/Linux. Aurora's capture math, Hue streaming wire format, and setup-flow patterns are distilled from it into modular C++ — without that amazing tech
-foundation, this project would not have been attempted.
-
 ## For developers
 
 ```
@@ -86,10 +76,8 @@ content --> Input --> Processing --> Output --> bulbs
              PipeWire    pipeline
 ```
 
-The middle three are swappable plugin stages: write your own Input (capture source),
-Processing (color/effect pipeline), or Output (light target) module and drop it into
-the setup in place of the built-in one — today that's DXGI/X11/PipeWire capture, one
-core pipeline, and Hue output.
+Input, Processing, and Output are built to be swappable modules: write your own Input (capture source),
+Processing (source to effects handling), or Output (color / effects) module
 
 - Each slice's README covers its own status, build flags, and tests;
   `ctest --test-dir build/linux-app` (or `build/windows-app`) runs the full native suite.
@@ -97,5 +85,16 @@ core pipeline, and Hue output.
 
 ## License
 
-Aurora is licensed under the [GNU General Public License v3.0 or later](LICENSE) — same as
-[Huenicorn](https://gitlab.com/openjowelsofts/huenicorn), which its logic is distilled from.
+Aurora is licensed under the [GNU General Public License v3.0 or later](LICENSE) — same as Huenicorn, which its logic is distilled from.
+
+[Huenicorn](https://gitlab.com/openjowelsofts/huenicorn) by OpenJowel is a free Philips Hue screen
+synchronizer for GNU/Linux. Huenicorn was the reason I started exploring Linux again years ago, thank you OpenJowel!
+
+[RockyRoad](https://github.com/weblings/RockyRoad) by me is a web browser note-highway music app for guitar and piano with full support for WebXR-capable headsets. I repurposed a lot of the design tokens and components I built out there for this project.
+
+## Intent and AI Disclaimer
+
+- This repo is vibecoded. One project goal was to experiment with using AI to translate my past decade of Unity and XR coding knowledge to native Windows and Linux apps in C++.
+- I've found the 1P Hue apps on various platforms unreliable over the years. Huenicorn has been a breath of fresh air! 
+- Long-term I'd like to extend this framework to handle inputs beyond media and drive outpts beyond colors. We'll see 
+
