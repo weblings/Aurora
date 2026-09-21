@@ -81,3 +81,13 @@ usually doesn't show up by compiling, only by actually exercising the
 early-return branch at runtime.
 
 ---
+
+---
+
+## Generated C++ string literals silently corrupt binary assets two ways
+Tags: cpp, codegen, string-literals, binary-assets
+Applies-when: emitting file bytes as C++ string literals from a codegen script
+
+Embedding web/ui (StandaloneApps P1) hid two corruptions that text-only testing never shows. First, a `\xNN` escape greedily consumes following hex digits, so a byte like `0x0a` followed by source text starting with `f` compiles as one out-of-range escape -- gcc warns ("hex escape sequence out of range") but still emits truncated bytes. Second, PNG byte 9 is NUL, and map entries built as `{"key", "..."}` construct `std::string` from `const char*`, silently truncating at the first NUL -- the SVG/favicon round-trips passed while the 24K logo came back 8 bytes long.
+
+**Fix:** emit every `\xNN` as its own adjacent literal (`"abc" "\x0a" "def"` -- only `\x` is greedy; `\n`, `\\`, `\"` are safe inline) and construct values with an explicit length (`std::string("...", N)` with N from codegen). Verify with a compiled round-trip over ALL inputs (`cmp` each file, including at least one real binary), not just text samples -- a text-only spot check passes while binaries corrupt.
