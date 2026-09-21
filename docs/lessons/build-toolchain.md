@@ -336,3 +336,31 @@ Applies-when: baking a project version into binaries built two ways
 The app version lives once, on the superbuild project() -- but slices also configure standalone, where that variable doesn't exist. An unconditional define would bake empty (or collide with a second default define), so each app resolves _AURORA_VERSION behind if(DEFINED): superbuild truth when present, "dev" otherwise.
 
 **Fix:** single set() in the superbuild project, single if/else at each consumer; never duplicate the literal, and never emit two defines for one macro.
+
+---
+
+---
+
+## Derive minimum specs empirically — declared minimums lie by omission
+Tags: cmake, linux, dependencies, versioning
+Applies-when: stating a minimum toolchain version in a preset, README, or CMakeLists
+
+The stated CMake floor for the Linux build was wrong three times running:
+`3.19` (copied from the presets-file docs), then `3.21` (the actual floor
+of presets format version 3), then `3.24` — the real one, found only by
+configuring with the system CMake 3.22 and watching it die. Each earlier
+number was a plausible-sounding declared minimum; none survived contact
+with the oldest toolchain. Two separate gates hid behind the single number:
+CMake 4 refuses distro `glm` configs declaring `cmake_minimum_required <
+3.5` (fixed by pinning `CMAKE_POLICY_VERSION_MINIMUM: 3.5` in the preset's
+`cacheVariables`), and `DOWNLOAD_EXTRACT_TIMESTAMP` in every
+`FetchContent_Declare` only exists since 3.24 (policy CMP0135) — on 3.22 the
+fetch step fails with a misleading "URL is a path" error that reads like a
+broken dependency rather than a too-old CMake.
+
+**Fix:** the floor (3.24) now lives once in the preset's
+`cmakeMinimumRequired`, mirrored in the README, and was verified both ways:
+3.22 fails, 4.4.3 configures clean. General principle: a minimum spec is a
+claim about the oldest thing that works — prove it by running that oldest
+thing, since each layer (file format, commands, options, policies) can
+carry its own higher floor that no declared minimum mentions.

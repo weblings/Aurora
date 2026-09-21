@@ -27,7 +27,7 @@ One repo, with a directory per slice. You only build the ones for your platform:
 You need a Philips Hue bridge with registered lamps, and an entertainment area defined through
 Philips' official app.
 
-1. **Install build tools.** All platforms need CMake 3.19+ (the presets won't parse below it —
+1. **Install build tools.** All platforms need CMake 3.24+ (the FetchContent download options won't work below it —
    check with `cmake --version`). If yours is older, see Troubleshooting.
    - **Windows:** Visual Studio's "Desktop development with C++" workload (MSVC compiler + Windows SDK for screen capture)
    - [CMake](https://cmake.org/download/), (`winget install Kitware.CMake` if VS didn't supply one)
@@ -60,7 +60,7 @@ Philips' official app.
 - Currently you have to launch the app from a terminal window so its process can persist. That also tells you what link to open your browser to for the UI.
 
 **CMake too old, or the old one keeps getting picked up (Linux)**
-- The presets need CMake 3.19+. If apt's copy is older (seen on Ubuntu 24.04), safest is a venv:
+- The presets need CMake 3.24+. If apt's copy is older (seen on Ubuntu 24.04), safest is a venv:
   `python3 -m venv ~/.venvs/build`, activate it, `pip install cmake`, and run configure from
   inside it — the venv's `bin` leads `PATH`, so its cmake is the one everything finds and the apt
   copy can never shadow it. A bare `pip install cmake` outside a venv works too, but `~/.local/bin`

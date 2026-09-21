@@ -1,8 +1,8 @@
 # Lessons learned — index and filing rules
 
 Gotchas, non-obvious findings, and hard-won decisions that aren't obvious from reading
-the code or planning docs. Add here whenever something costs more than 30 minutes to
-diagnose.
+the code or planning docs. File any non-obvious troubleshooting that can save time
+in the future — if it wasn't obvious from the code, it's worth keeping here.
 
 **This directory is the only lessons-learned location in the repo** — for huenicorn
 work and for the Input/Processing/Output split alike. Don't start a new
@@ -19,7 +19,7 @@ Aurora's own module boundaries instead of RockyRoad's. `rendering-apis.md` vs.
 
 | File | Scope | Entries | File here when |
 |---|---|---|---|
-| [build-toolchain.md](build-toolchain.md) | CMake, vcpkg, compilers, WSL2, dev deps | 14 | build/tooling specific |
+| [build-toolchain.md](build-toolchain.md) | CMake, vcpkg, compilers, WSL2, dev deps | 15 | build/tooling specific |
 | [windows-env.md](windows-env.md) | processes, installers, ACLs, probing | 6 | Windows-environment specific |
 | [debugging-method.md](debugging-method.md) | evidence, verification, oracles, timing | 14 | debugging/verification method |
 | [architecture-process.md](architecture-process.md) | splits, duplication, reload, presence | 16 | architecture or process decision |
@@ -36,7 +36,7 @@ Aurora's own module boundaries instead of RockyRoad's. `rendering-apis.md` vs.
 | [navigation-flow.md](navigation-flow.md) | Back/Continue, gating, NUX | 7 | WebUI flow finding |
 | [layout-css.md](layout-css.md) | responsive, pseudo-elements, flex | 6 | WebUI layout/CSS finding |
 
-Counts as of 2026-09-20 — bump the count when adding entries
+Counts as of 2026-09-21 — bump the count when adding entries
 (`grep -c '^## '` per file).
 
 ## Where a new lesson goes

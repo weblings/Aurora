@@ -2,7 +2,7 @@
   "version": 3,
   "cmakeMinimumRequired": {
     "major": 3,
-    "minor": 19,
+    "minor": 24,
     "patch": 0
   },
   "configurePresets": [
@@ -16,7 +16,8 @@
         "AURORA_ENABLE_INPUT_LINUX": "ON",
         "AURORA_ENABLE_OUTPUT_HUE": "ON",
         "AURORA_ENABLE_APP_WINDOWS": "OFF",
-        "AURORA_ENABLE_INPUT_WINDOWS": "OFF"
+        "AURORA_ENABLE_INPUT_WINDOWS": "OFF",
+        "CMAKE_POLICY_VERSION_MINIMUM": "3.5"
       }
     },
     {
