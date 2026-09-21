@@ -306,3 +306,12 @@ Applies-when: committing in a tree the owner is actively rewriting
 Two README commits silently swept the owner's concurrent edits (a tagline rewrite, a trimmed sentence) inside agent-authored changes -- caught only on the stat, twice. The check-then-commit rule fixed it, but only after history already mixed authorship.
 
 **Fix:** never stage-then-inspect in one motion on shared files; run the diff first as its own step (separate from the commit command, where tool warnings can bury it) and flag every hunk you didn't write before anything is staged.
+---
+
+## The committed beads export rebuilds the live database
+Tags: process, recovery, beads
+Applies-when: bd reports no database after branch surgery or cleanup
+
+The live embeddeddolt directory is disposable gitignored state; issues.jsonl is the durable record. `bd init` plus `bd import` rehydrates all issues (66/66 here) from the export with upsert semantics -- but only up to the last `bd export`, so export-before-risky-git-ops is the habit that makes this true.
+
+**Fix:** never debug the missing live DB; re-init, re-import from the committed export, verify the count, continue. And keep the export fresh: it is the backup.

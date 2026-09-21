@@ -14,3 +14,4 @@ Planning docs stay clean: decisions, status, and pointers here only.
 | 2026-09-15 | WebUI 1stPass build order | `bd list -l phase-3` |
 | 2026-09-20 | Docs-system overhaul (tags, skills, guards, split, beads, logs) | `bd list -l docs` |
 | 2026-09-21 | Monorepo reorg (subtree merge, docs rename, status headers) | Aurora-2ay, Aurora-kwp, Aurora-jow, Aurora-jkl |
+| 2026-09-21 | Public launch (audit, Pages deploy, branch incident) | Aurora-h7p, Aurora-fgw |

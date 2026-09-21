@@ -379,3 +379,12 @@ Applies-when: porting an asset-referencing feature into the demo fork
 The brand-mark port copied topBar.js verbatim, but the logo src comes from the DashboardScreen call site, not topBar -- so the fork-local path (vendor/webui/icons/aurora-logo.png) had to be wired at both call sites, and seams.test.mjs now forbids page-relative icons/ there the way it already did for Dropdown/NavFooter. A verbatim file copy alone would have shipped a broken image under Pages.
 
 **Fix:** when porting into the fork, grep the ported code for path-like inputs (src, href, icon) and re-anchor each at the call site; extend the seam tripwire to cover the new path the same turn.
+---
+
+## Publishing a subdir means curating it, not splitting it
+Tags: vendor, deployment, duplication
+Applies-when: serving a repo subdirectory as its own site
+
+A raw `git subtree push --prefix web/demo` publishes dev files (tests, agent notes, .gitignore gaps that unhide build output) alongside the site. The split is byte-faithful; curation is a separate step.
+
+**Fix:** sync with excludes (or a publish script that prunes test/agent/build files) rather than a naked subtree push; verify the branch root listing before pointing Pages at it.
