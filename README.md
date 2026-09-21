@@ -20,8 +20,7 @@ One repo, with a directory per slice. You only build the ones for your platform:
 - [`output/hue`](output/hue) — Philips Hue entertainment-streaming output plugin
 - [`web/ui`](web/ui) — the setup/control interface the apps serve in your browser
 
-**Prebuilt binaries:** coming soon — releases with ready-to-run apps will appear on the App repos'
-GitHub Releases pages. Until then, compile it yourself below (copy-paste, ~10 minutes).
+**Prebuilt binaries:** coming in 1.0.1. For now, follow Quick Start instructions to compile yourself.
 
 ## Quick Start
 
@@ -57,6 +56,9 @@ Philips' official app.
 **I'm not seeing audio reacting**
 - If no audio was actively playing before you toggled to audio the grabber might have trouble finding it. Switch back to video, play some audio, then try switching to audio.
 
+**I double-clicked on the built app but not seeing anything**
+- Currently you have to launch the app from a terminal window so its process can persist. That also tells you what link to open your browser to for the UI.
+
 **CMake too old, or the old one keeps getting picked up (Linux)**
 - The presets need CMake 3.19+. If apt's copy is older (seen on Ubuntu 24.04), safest is a venv:
   `python3 -m venv ~/.venvs/build`, activate it, `pip install cmake`, and run configure from
@@ -89,10 +91,15 @@ Processing (source to effects handling), or Output (color / effects) module
 
 Aurora is licensed under the [GNU General Public License v3.0 or later](LICENSE) — same as Huenicorn, which its logic is distilled from.
 
-[Huenicorn](https://gitlab.com/openjowelsofts/huenicorn) by OpenJowel is a free Philips Hue screen
+- [Huenicorn](https://gitlab.com/openjowelsofts/huenicorn) by OpenJowel is a free Philips Hue screen
 synchronizer for GNU/Linux. Huenicorn was the reason I started exploring Linux again years ago, thank you OpenJowel!
+- [RockyRoad](https://github.com/weblings/RockyRoad) by me is a web browser note-highway music app for guitar and piano with full support for WebXR-capable headsets. I repurposed a lot of the design tokens and components I built out there for this project.
 
-[RockyRoad](https://github.com/weblings/RockyRoad) by me is a web browser note-highway music app for guitar and piano with full support for WebXR-capable headsets. I repurposed a lot of the design tokens and components I built out there for this project.
+## Art
+- The aurora SVG in the logo is modified from <a href="https://www.vecteezy.com/vector-art/88906-free-northern-lights-vector-series"> Kaitlyn Parker's Northern Lights Series</a> on <a href="https://www.vecteezy.com/free-vector/nature">Nature Vectors by Vecteezy</a>
+- Power icon from <a href="https://github.com/32pixelsCo/zest-icons/blob/master/packages/zest-free/LICENSE.md?ref=svgrepo.com" target="_blank">Zest</a> in MIT License via <a href="https://www.svgrepo.com/" target="_blank">SVG Repo</a>
+- Other icon svgs are from <a href="https://vidstack.io/icons/?lib=react">Vidstack</a>
+- For demo assets see: <a href="./web/demo/README.md">its README</a>
 
 ## Intent and AI Disclaimer
 

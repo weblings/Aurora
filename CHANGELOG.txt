@@ -1,3 +1,10 @@
+v1.0.0:
+- First public version of Aurora!
+- Created setup user flow, dashboard UI, and Logo
+- Three.js demo live on GitHub Pages
+- Dev - Integrated sub repos into a monorepo
+- Dev - Setup beads for tasks and better formalized docs structure
+
 v0.0.3:
 - Added Audio Processing to Aurora
 - Updated Input-Linux and Input-Windows to capture and output audio to Processing
