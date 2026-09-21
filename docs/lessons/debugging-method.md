@@ -315,3 +315,12 @@ Applies-when: bd reports no database after branch surgery or cleanup
 The live embeddeddolt directory is disposable gitignored state; issues.jsonl is the durable record. `bd init` plus `bd import` rehydrates all issues (66/66 here) from the export with upsert semantics -- but only up to the last `bd export`, so export-before-risky-git-ops is the habit that makes this true.
 
 **Fix:** never debug the missing live DB; re-init, re-import from the committed export, verify the count, continue. And keep the export fresh: it is the backup.
+---
+
+## Restore first on obvious safe states, report in the same breath
+Tags: process, verification, git
+Applies-when: the tree sits on the wrong branch (or similar) with no unique work at risk
+
+A checkout found on a generated mirror branch (no diverging commits, `git diff -w` empty) was left for the owner to clean up while the agent kept investigating around it. The read-only checks proving safety took a minute; the dithering cost the owner a cleanup.
+
+**Fix:** verify safety with read-only evidence, perform the obvious restore, and report both together. Applies to any agent or human driving: the evidence bar is the same regardless of platform.
