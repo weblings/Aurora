@@ -1,3 +1,7 @@
+v1.0.1:
+- Standalone app builds: embedded WebUI fallback, portable install layout, Linux RPATH, Windows runtime DLL shipping
+- Build lessons for generated-code string pitfalls and superbuild option ordering
+
 v1.0.0:
 - First public version of Aurora!
 - Created setup user flow, dashboard UI, and Logo

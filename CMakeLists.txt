@@ -3,7 +3,7 @@ cmake_minimum_required(VERSION 3.14)
 # Single truth for the app version (Aurora-qdk): mirrors CHANGELOG.txt's top
 # entry; the apps compile it into their /api/version route, and a contract
 # test fails when the two disagree. Bump together.
-project(AuroraMonorepo VERSION 1.0.0)
+project(AuroraMonorepo VERSION 1.0.1)
 
 # Thin superbuild: selects slices, forwards nothing. Each slice pulls core/
 # itself via FetchContent (SOURCE_DIR into this tree), so this file never
