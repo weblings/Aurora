@@ -86,10 +86,10 @@ content --> Input --> Processing --> Output --> bulbs
              PipeWire    pipeline
 ```
 
-The middle three are interchangeable plugin stages, not fixed implementations:
-capture sources (Input), color/effect pipelines (Processing), and light targets
-(Output) mix and match — today that's DXGI/X11/PipeWire capture, one core pipeline,
-and Hue output.
+The middle three are swappable plugin stages: write your own Input (capture source),
+Processing (color/effect pipeline), or Output (light target) module and drop it into
+the setup in place of the built-in one — today that's DXGI/X11/PipeWire capture, one
+core pipeline, and Hue output.
 
 - Each slice's README covers its own status, build flags, and tests;
   `ctest --test-dir build/linux-app` (or `build/windows-app`) runs the full native suite.
