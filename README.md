@@ -30,9 +30,7 @@ You need a Philips Hue bridge with registered lamps, and an entertainment area d
 Philips' official app.
 
 1. **Install build tools.** All platforms need CMake 3.19+ (the presets won't parse below it —
-   check with `cmake --version`). If your package manager's copy is older (seen with apt on
-   Ubuntu 24.04), `pip install cmake` gets a current one instead — see Troubleshooting if
-   the old one keeps getting picked up.
+   check with `cmake --version`). If yours is older, see Troubleshooting.
    - **Windows:** Visual Studio's "Desktop development with C++" workload (MSVC compiler
      + Windows SDK for screen capture), [CMake](https://cmake.org/download/) itself
      (`winget install Kitware.CMake` if VS didn't supply one), and OpenCV for Aurora core
@@ -61,11 +59,12 @@ Philips' official app.
 **I'm not seeing audio reacting**
 - If no audio was actively playing before you toggled to audio the grabber might have trouble finding it. Switch back to video, play some audio, then try switching to audio.
 
-**Configure fails on CMake version even after `pip install cmake` (Linux)**
-- The apt copy at `/usr/bin/cmake` can still win in some cases (`~/.local/bin` sorts after it
-  on some setups, and subshells may not inherit your `PATH` tweaks). Install into a venv instead
-  (`python3 -m venv ~/.venvs/build`, activate it, `pip install cmake`) and run configure from
-  inside it — the venv's `bin` leads `PATH`, so its cmake is the one everything finds.
+**CMake too old, or the old one keeps getting picked up (Linux)**
+- The presets need CMake 3.19+. If apt's copy is older (seen on Ubuntu 24.04), `pip install cmake`
+  gets a current one instead. If the old one still wins afterwards (`~/.local/bin` sorts after
+  `/usr/bin/cmake` on some setups, and subshells may not inherit your `PATH` tweaks), install
+  into a venv instead (`python3 -m venv ~/.venvs/build`, activate it, `pip install cmake`) and
+  run configure from inside it — the venv's `bin` leads `PATH`, so its cmake is the one everything finds.
 
 ## FAQ
 
