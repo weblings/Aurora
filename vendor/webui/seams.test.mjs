@@ -42,6 +42,12 @@ assert.ok(dashTopBar.includes("logo: { src: 'vendor/webui/icons/aurora-logo.png'
 assert.ok(!/['"]icons\/aurora-logo\.png/.test(dashTopBar), 'brand mark stays off the page-relative icons/ path');
 assert.ok(read('styles/shell.css').includes('.top-bar-logo'), 'brand-mark CSS vendored');
 
+// Version footer (Aurora-qdk, mirrors web/ui): the shim answers
+// /api/version, so the Pages footer shows the release text.
+assert.ok(dashboard.includes('db-version'), 'footer slot mounted');
+assert.ok(dashboard.includes("fetch('/api/version')"), 'footer probes /api/version');
+assert.ok(read('styles/dashboard.css').includes('.db-version'), 'footer CSS vendored');
+
 const toggles = read('ZoneActiveToggle.js');
 assert.ok(toggles.includes('DEMO SEAM string-zone-ids'), 'string-id seam marker present');
 assert.ok(!toggles.includes('Number(e.currentTarget.dataset.zoneId)'),
