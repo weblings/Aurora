@@ -19,7 +19,7 @@ export class WelcomeScreen {
   async mount(container) {
     this.container = container;
     container.innerHTML = `
-      <div class="top-bar-slot"></div>
+      <div class="top-bar-slot welcome-top"></div>
       <div class="welcome-body text-pair">
         <p class="text-primary">Welcome to Aurora</p>
         <p class="text-secondary">Let's get you setup</p>
@@ -28,6 +28,7 @@ export class WelcomeScreen {
     `;
     renderTopBar(container.querySelector('.top-bar-slot'), {
       title: 'Setup',
+      logo: { src: 'icons/aurora-logo.png', alt: 'Aurora' },
       showBack: false,
     });
     renderNavFooter(container.querySelector('.nav-footer-slot'), {

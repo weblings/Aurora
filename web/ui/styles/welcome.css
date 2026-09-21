@@ -5,3 +5,15 @@
   margin-top: var(--aurora-space-6);
   margin-bottom: var(--aurora-space-6);
 }
+
+/* Brand mark in place of the 'Setup' title text (Aurora-gv0): trial size
+   4x the 20px title type = 80px. Scoped to this screen's top-bar slot so
+   the Dashboard's 84px artwork is untouched; both selectors outrank the
+   shared .top-bar-with-logo/.top-bar-logo rules. Missing artwork falls
+   back to the title text via topBar.js's own error handler. */
+.welcome-top .top-bar {
+  min-height: 80px;
+}
+.welcome-top .top-bar-logo {
+  height: 80px;
+}
