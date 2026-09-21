@@ -4,9 +4,7 @@
 
 # Aurora
 
-- A free Philips Hue ambilight driver for Windows and Linux — your screen and your audio drive your Hue lights in real time
-- Two reactive modes: **video** (screen regions sampled per light zone) and **audio** (system sound rendered as drifting, bouncing color)
-- Set up and tune it all from a built-in browser UI: bridge pairing, entertainment-area pick, zone mapping, pipeline tuning
+- A modular, multiplatform processor of inputs to generate outputs. Today that's video / audio to Hue light colors.
 - Runs entirely on your machine — your screen, audio, and settings never leave your computer or local network
 
 **Browser demo (no install):** a zero-install taste of the effect with virtual lights, live at
@@ -22,26 +20,11 @@ One repo, with a directory per slice. You only build the ones for your platform:
 - [`input/windows`](input/windows) / [`input/linux`](input/linux) — screen + audio capture plugins (DXGI on Windows; X11 / Wayland-Pipewire on Linux)
 - [`output/hue`](output/hue) — Philips Hue entertainment-streaming output plugin
 - [`web/ui`](web/ui) — the setup/control interface the apps serve in your browser
-- [`web/demo`](web/demo) — the zero-install browser demo (Three.js scene, bundled sample media)
 
 **Prebuilt binaries:** coming soon — releases with ready-to-run apps will appear on the App repos'
 GitHub Releases pages. Until then, compile it yourself below (copy-paste, ~10 minutes).
 
-## Try it without bulbs
-
-No Hue bridge yet? The browser demo shows the effect with virtual lights:
-
-1. **Install [Node.js](https://nodejs.org/)** (version 20 or newer).
-   - **Windows:** `winget install OpenJS.NodeJS.LTS` (winget ships with Windows 10/11 already)
-   - **macOS:** `brew install node` (needs [Homebrew](https://brew.sh))
-   - **Linux (Debian/Ubuntu):** `sudo apt install nodejs npm`
-2. **Get the code.** Either `git clone https://github.com/weblings/Aurora.git`, or on the
-   [GitHub repo page](https://github.com/weblings/Aurora), click the green **Code**
-   button → **Download ZIP**, then unzip it — no git required.
-3. **Open a terminal in the `web/demo` folder** and run `npx serve .` (any static file server works).
-4. **Open the URL it prints** in your browser.
-
-## Quick Start (real lights)
+## Quick Start
 
 You need a Philips Hue bridge with registered lamps, and an entertainment area defined through
 Philips' official app.
@@ -57,8 +40,10 @@ Philips' official app.
    - **Windows** (in a Visual Studio developer prompt):
      `cmake --preset windows-app -DCMAKE_TOOLCHAIN_FILE=<path-to-vcpkg>/scripts/buildsystems/vcpkg.cmake`
      then `cmake --build build/windows-app --config Release`
-4. **Run it** (`build/linux-app/aurora-app-linux`, or
-   `build/windows-app/Release/aurora-app-windows.exe` on Windows), then **open the printed URL** in your browser. The setup UI walks you through
+4. **Run it.** In a terminal, run `./build/linux-app/aurora-app-linux`
+   (`.\build\windows-app\Release\aurora-app-windows.exe` on Windows).
+   The app prints its URL in the terminal — **Ctrl+click the link** to open it.
+   The setup UI walks you through
    bridge pairing (press your bridge's button when asked), picking an entertainment area,
    and mapping lights to screen regions. Your lights should follow your screen within seconds.
 
