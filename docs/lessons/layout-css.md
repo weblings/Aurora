@@ -149,3 +149,35 @@ padding -- asserting the wrong block entirely.
 
 **Fix:** match all blocks for a repeated selector and select by
 distinguishing declaration (here: the block containing `padding`).
+
+---
+
+## A wider-than-column design needs nested gutters -- one gutter always clips
+Tags: webui, css, responsive
+Applies-when: full-bleed pills/rows touch screen edges on narrow viewports
+
+Accordion pills and the dashboard top bar overhang the content column 21px
+a side against a 16px page gutter. It fits only while the centering margin
+covers the 5px excess: (vw-640)/2 >= 5, i.e. vw >= 650 -- below that the
+design clips at every width, just most visibly at 292px. The demo never
+showed it because its pane padding nests outside the ported container's own
+gutter; the app has only the one gutter.
+
+**Fix:** derive the breakpoint from the box model (640 + 2x16 + 2x5 = 650)
+and scale the overhang back inside the single gutter below it (6px/side
+leaves 10px breathing, matching the top bar's own top padding) instead of
+copying the demo's nesting, which has no counterpart in the app.
+
+---
+
+## A symptom naming one element can have two owners -- grep the design value
+Tags: webui, css, debugging
+Applies-when: fixing an overhang/bleed reported on one element
+
+"Accordions touch the edges" was also the Stop button: the top bar spans
+the same 21px/42px overhang so the button sits flush with the pills' edge,
+borrowing the accordion width rules. Fixing only `.accordion-header` would
+have left the button on the edges.
+
+**Fix:** when a literal design value causes the bug, grep the value, not
+the selector -- every rule sharing the value shares the bug and the fix.

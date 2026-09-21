@@ -208,3 +208,20 @@ lands -- needs its own check (devtools title-attribute inspection or a hover
 pass), or a green keycheck will certify an invisible tooltip.
 
 ---
+
+## Strip CSS comments before parsing it -- prose poisons block splitters
+Tags: webui, testing, css
+Applies-when: writing regex/brace-count contract tests over stylesheets
+
+A dashboard contract test split `@media` blocks by brace-counting the raw
+stylesheet, but the comments themselves contained "@media" ("the
+narrow-viewport @media below..."), so the splitter ate the top-level rule
+as a phantom block and the test failed against correct CSS. An earlier
+mirror script passed only because it stripped comments first -- the
+implementation didn't.
+
+**Fix:** strip `/* */` before any structural CSS parsing in tests, and
+mirror the test's exact pipeline (not a cleaned-up variant) when node is
+unavailable. Cross-file assertions are worth it: the same test resolves
+tokens.css values to prove side breathing equals top padding, so a future
+token change fails loudly instead of silently unmatching the frame.
