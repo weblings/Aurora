@@ -224,3 +224,10 @@ exactly like real bugs and can burn real debugging time before anyone
 thinks to suspect the browser's cache instead of the code.
 
 ---
+## The shim must answer every route the ported UI probes
+Tags: demo, shim, routes
+Applies-when: adding a backend route consumed by vendored dashboard code
+
+A new /api/version route with no shim answer would have rendered an empty footer on Pages with zero test failures -- the demo suite only covers stubbed routes. The stub, its CHANGELOG-pinned value test, and the seam tripwire all landed in the same commit as the probe.
+
+**Fix:** new backend route consumed by the fork means three edits minimum: shim stub, shim value test, seam marker; grep the fork for fetch('...') against the shim's route list to prove nothing reachable goes unanswered.

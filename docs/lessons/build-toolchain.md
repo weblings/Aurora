@@ -327,3 +327,12 @@ Applies-when: adding a root superbuild over FetchContent-based slice builds
 Each slice pulls core/ via FetchContent_Declare(AuroraCore SOURCE_DIR ...), which dedups safely across slices by name. But the moment the root superbuild adds a plugin dir with add_subdirectory AND an app also fetches it by name, the same directory gets added twice and configure dies on duplicate targets -- FetchContent cannot see the manual add. The reverse order breaks identically.
 
 **Fix:** in every consumer FetchContent block, fetch only under if(OPTION AND NOT TARGET <MainTarget>) and keep the target_link_libraries block on the option alone (the target exists down both paths). Verified live: root configure with app+plugin+core together, full build, 19/19 tests.
+---
+
+## One VERSION truth with a dev fallback for standalone configures
+Tags: cmake, versioning
+Applies-when: baking a project version into binaries built two ways
+
+The app version lives once, on the superbuild project() -- but slices also configure standalone, where that variable doesn't exist. An unconditional define would bake empty (or collide with a second default define), so each app resolves _AURORA_VERSION behind if(DEFINED): superbuild truth when present, "dev" otherwise.
+
+**Fix:** single set() in the superbuild project, single if/else at each consumer; never duplicate the literal, and never emit two defines for one macro.

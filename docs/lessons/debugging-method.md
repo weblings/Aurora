@@ -297,3 +297,12 @@ Applies-when: running a repo checker through a pipe, wrapper, or from the wrong 
 check-lessons.sh cds to its own dirname ($0-relative), so piping it via stdin (tr ... | bash) silently ran it in the wrong directory: the file globs matched nothing, fail stayed 0, and it printed a green OK over zero evidence. The same trap applies to any guard whose pass condition is the absence of failures rather than the presence of checks.
 
 **Fix:** run guards from their own directory (or via a temp copy placed beside them), and distrust the first green run after any invocation change -- confirm it actually inspected files (entry counts, file lists) before believing it.
+---
+
+## Diff before staging when the owner co-edits the same file
+Tags: process, git, verification
+Applies-when: committing in a tree the owner is actively rewriting
+
+Two README commits silently swept the owner's concurrent edits (a tagline rewrite, a trimmed sentence) inside agent-authored changes -- caught only on the stat, twice. The check-then-commit rule fixed it, but only after history already mixed authorship.
+
+**Fix:** never stage-then-inspect in one motion on shared files; run the diff first as its own step (separate from the commit command, where tool warnings can bury it) and flag every hunk you didn't write before anything is staged.
