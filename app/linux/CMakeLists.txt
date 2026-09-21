@@ -139,6 +139,20 @@ set_target_properties(aurora-app-linux PROPERTIES
   BUILD_WITH_INSTALL_RPATH TRUE
 )
 
+include(GNUInstallDirs)
+
+# StandaloneApps P3: portable install tree (bin/ + doc/, CPack
+# deliberately deferred). Under the Aurora-b9q decision every native dep
+# stays a system package for 1.0.1, so no bundled .so set ships yet --
+# the $ORIGIN RPATH above is ready when one does.
+install(TARGETS aurora-app-linux RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
+if(EXISTS "${CMAKE_SOURCE_DIR}/LICENSE")
+  install(FILES "${CMAKE_SOURCE_DIR}/LICENSE"
+    DESTINATION ${CMAKE_INSTALL_DOCDIR}/aurora-app-linux
+    RENAME copyright
+  )
+endif()
+
 target_compile_features(aurora-app-linux PRIVATE cxx_std_20)
 
 if(AURORA_APP_BUILD_TESTS)

@@ -42,6 +42,14 @@ else()
   message(STATUS "nlohmann_json is installed")
 endif()
 
+# Fetched deps must not pollute consumers' install trees with their own
+# install rules (headers, cmake configs, licenses). The apps' portable
+# install tree (StandaloneApps P3) would otherwise ship httplib's files
+# alongside the binary -- observed live via cmake --install. Off here, at
+# the single point that owns the fetch, so slice, superbuild, and plugin
+# configures are all covered regardless of add_subdirectory order.
+set(HTTPLIB_INSTALL OFF CACHE BOOL "" FORCE)
+
 # cpp-httplib -- same fetch-if-missing pattern as glm/nlohmann_json; also
 # huenicorn's own choice for the same job (see docs/HttpServerAnalysis.md).
 # No TLS feature enabled here -- plain HTTP only, for now (see that doc's
