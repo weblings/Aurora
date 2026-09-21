@@ -188,8 +188,10 @@
 /* Version footer (Aurora-qdk): secondary-color text centered at the page
    bottom, as far up from the viewport bottom as the logo sits down from
    its top. #screen-container's own space-8 bottom padding runs deeper than
-   that, so pull back up by the difference. */
+   that, so pull back up by the difference. Leads with the same space-3 gap
+   the accordions keep between each other, so it reads as the list's end. */
 .db-version {
+  margin-top: var(--aurora-space-3);
   margin-bottom: calc(var(--aurora-space-4) - var(--aurora-space-8));
   text-align: center;
   color: var(--aurora-text-secondary);

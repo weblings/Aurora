@@ -159,8 +159,10 @@
 
 /* Version footer (Aurora-qdk, mirrors web/ui): secondary-color text
    centered at the pane bottom; the pane's own padding runs deeper, so pull
-   back up by the difference to land on the shared space-4 inset. */
+   back up by the difference to land on the shared space-4 inset. Leads
+   with the same space-3 gap the accordions keep between each other. */
 .db-version {
+  margin-top: var(--aurora-space-3);
   margin-bottom: calc(var(--aurora-space-4) - var(--aurora-space-8));
   text-align: center;
   color: var(--aurora-text-secondary);

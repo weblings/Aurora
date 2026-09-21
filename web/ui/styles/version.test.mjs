@@ -49,6 +49,10 @@ for (const cssPath of ['web/ui/styles/dashboard.css', 'web/demo/vendor/webui/sty
   assert.ok(/color\s*:\s*var\(--aurora-text-secondary\)/.test(m[1]), 'footer uses secondary text');
   assert.ok(/font-size\s*:\s*13px/.test(m[1]), 'footer uses the house small size');
   assert.ok(
+    /margin-top\s*:\s*var\(--aurora-space-3\)/.test(m[1]),
+    'footer leads with the inter-accordion gap',
+  );
+  assert.ok(
     /margin-bottom\s*:\s*calc\(var\(--aurora-space-4\)\s*-\s*var\(--aurora-space-8\)\)/.test(m[1]),
     'footer pulls up to the shared top-padding inset',
   );
