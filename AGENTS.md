@@ -15,6 +15,8 @@ Core repo: shared `Contracts`, `Processing`, `Input`/`Output` interfaces,
 - Tasks (open, blocked, deferred): `bd` (`bd ready`, `bd list`), not markdown
   TODOs or checkboxes. Auto-export is debounced — run
   `bd export -o .beads/issues.jsonl` immediately before `git add`ing task state.
+  Sync rides git, not the Dolt remote (unused here): after `git pull`, run
+  `bd import` to upsert the tracked export into your live DB — never `--reinit-local`.
 - Non-obvious gotchas worth saving future time: `docs/lessons/`, with `Tags:`/`Applies-when:`,
   routed by the matching `.claude/skills/` skill — check it before changing
   that area, file per `docs/lessons/README.md`.
