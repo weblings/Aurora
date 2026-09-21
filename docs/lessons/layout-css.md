@@ -181,3 +181,12 @@ have left the button on the edges.
 
 **Fix:** when a literal design value causes the bug, grep the value, not
 the selector -- every rule sharing the value shares the bug and the fix.
+---
+
+## On iOS every browser is WebKit -- a "works in Firefox" report is engine-ambiguous until the platform is known
+Tags: webui, css, webkit, ios
+Applies-when: verifying a WebKit- or Gecko-specific rendering fix, or triaging a mobile browser bug report
+
+The 5jj slider misalignment reproduced in Firefox on iOS but desktop Firefox never showed it: iOS forces every browser through WKWebView, so iOS Firefox reads ::-webkit-slider-thumb and ignores ::-moz-range-thumb entirely, while desktop Firefox (Gecko) centers range thumbs natively. "Works on desktop" had verified the wrong engine.
+
+**Fix:** triage and verify by rendering engine on the reporting platform, not by brand -- desktop Safari or Playwright-WebKit proxies iOS WebKit; desktop Firefox proves nothing about it. Name the engine in the task, not just the browser.

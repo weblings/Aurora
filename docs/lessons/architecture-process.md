@@ -388,3 +388,21 @@ Applies-when: serving a repo subdirectory as its own site
 A raw `git subtree push --prefix web/demo` publishes dev files (tests, agent notes, .gitignore gaps that unhide build output) alongside the site. The split is byte-faithful; curation is a separate step.
 
 **Fix:** sync with excludes (or a publish script that prunes test/agent/build files) rather than a naked subtree push; verify the branch root listing before pointing Pages at it.
+---
+
+## A pulled export doesn't pull the database -- after git pull, bd import is the catch-up when the Dolt remote is unused
+Tags: beads, sync, git
+Applies-when: issue IDs from the committed export are missing in the live DB after a pull
+
+git pull refreshed .beads/issues.jsonl (71 issues incl. 1.0.1) while the gitignored embedded Dolt DB sat a day behind, and bd dolt pull found no remote branches -- nothing had ever been pushed. bd show insisted the issues never existed.
+
+**Fix:** treat the tracked export as the sync channel: bd import (upsert, history-preserving) after git pull; never --reinit-local as sync (it wipes local state). Recorded in AGENTS.md next to the export-before-add rule.
+---
+
+## Two deploy paths means checking which one is live before touching either
+Tags: deployment, pages, verification
+Applies-when: adding, removing, or debugging a GitHub Pages deploy alongside an existing one
+
+The repo had both a gh-pages branch (subtree-pushed web/demo at its root, freshly maintained) and a demo-pages Actions workflow. The workflow was assumed live and nearly became the fix vehicle; the branch was actually serving. Removing the wrong one would have broken deploys.
+
+**Fix:** before changing deploy machinery, list branches and read the workflow triggers, then confirm the Pages source; delete the dead path the same turn so the next agent can't re-adopt it.
