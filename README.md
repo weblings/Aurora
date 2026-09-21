@@ -30,8 +30,15 @@ You need a Philips Hue bridge with registered lamps, and an entertainment area d
 Philips' official app.
 
 1. **Install build tools.**
-   - **Windows:** Visual Studio's "Desktop development with C++" workload, plus
-     [vcpkg](https://github.com/microsoft/vcpkg) for Aurora core's OpenCV dependency.
+   - **Windows:** Visual Studio's "Desktop development with C++" workload (MSVC compiler
+     + Windows SDK for screen capture), [CMake](https://cmake.org/download/) itself
+     (`winget install Kitware.CMake` if VS didn't supply one), and OpenCV for Aurora core
+     (`find_package(OpenCV REQUIRED COMPONENTS imgproc)`). Easiest is Chocolatey:
+     `choco install opencv -y`, then point CMake at it with
+     `-DOpenCV_DIR="C:/tools/opencv/build"` (or set that path as the `OpenCV_DIR`
+     environment variable). A vcpkg-built OpenCV
+     ([vcpkg](https://github.com/microsoft/vcpkg) `install opencv`) works too —
+     pass its toolchain file instead (see step 3).
    - **Linux (Debian/Ubuntu):** `sudo apt install build-essential cmake libopencv-dev libcurl4-openssl-dev libmbedtls-dev libx11-dev libxext-dev libxrandr-dev libglib2.0-dev libpipewire-0.3-dev libaubio-dev`
 2. **Get the code.** Clone this repo (or download it as a ZIP from its repo page):
    `git clone https://github.com/weblings/Aurora.git`
@@ -43,36 +50,21 @@ Philips' official app.
 4. **Run it.** In a terminal, run `./build/linux-app/aurora-app-linux`
    (`.\build\windows-app\Release\aurora-app-windows.exe` on Windows).
    The app prints its URL in the terminal — **Ctrl+click the link** to open it.
-   The setup UI walks you through
-   bridge pairing (press your bridge's button when asked), picking an entertainment area,
-   and mapping lights to screen regions. Your lights should follow your screen within seconds.
+5. Follow setup flow for bridge pairing (press your bridge's button when asked), picking an entertainment area,
+   and mapping lights to screen regions. Enjoy!
 
 ## Troubleshooting
 
-**My lights stream solid black (Windows)**
-- A monitor Windows still lists as attached can be genuinely powered off and reads back as valid
-  all-black data. In the setup UI's device/monitor setting, pick the right monitor explicitly
-  (e.g. `\\.\DISPLAY1`) instead of auto/primary.
-
-**Screen picker never appears (Linux Wayland)**
-- The capture portal asks you to pick a screen share source on first run. If it stopped appearing,
-  delete the `restoreToken` line in `~/.config/aurora/config.json` and restart the app.
-
-**No zones light up on first run**
-- Every zone starts inactive by default. Open zone mapping in the setup UI, assign screen regions
-  to your lights, and save the profile — it reloads automatically next launch.
+**I'm not seeing audio reacting**
+- If no audio was actively playing before you toggled to audio the grabber might have trouble finding it. Switch back to video, play some audio, then try switching to audio.
 
 ## FAQ
-
-**Do I need to know C++ or web development to use this?**
-No — Quick Start above is copy-paste, with each step explained.
 
 **What's Huenicorn?**
 
 [Huenicorn](https://gitlab.com/openjowelsofts/huenicorn) by OpenJowel is a free Philips Hue screen
 synchronizer for GNU/Linux. Aurora's capture math, Hue streaming wire format, and setup-flow patterns are distilled from it into modular C++ — without that amazing tech
-foundation, this project would not have been attempted. If you're on Linux and want the original
-single-binary experience, use Huenicorn directly.
+foundation, this project would not have been attempted.
 
 ## For developers
 
