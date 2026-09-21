@@ -6,6 +6,7 @@
 
 - A modular, multiplatform processor of inputs to generate outputs. Today that's video / audio to Hue light colors.
 - Runs entirely on your machine — your screen, audio, and settings never leave your computer or local network
+- Aurora's capture math are Hue streaming wire format are distilled from [Huenicorn](https://gitlab.com/openjowelsofts/huenicorn) into discrete modules
 
 **Browser demo (no install):** a zero-install taste of the effect with virtual lights, live at
 [weblings.github.io/Aurora/web/demo/index.html](https://weblings.github.io/Aurora/index.html) —
@@ -65,7 +66,7 @@ Philips' official app.
   inside it — the venv's `bin` leads `PATH`, so its cmake is the one everything finds and the apt
   copy can never shadow it. A bare `pip install cmake` outside a venv works too, but `~/.local/bin`
   sorts after `/usr/bin/cmake` on some setups (and subshells may not inherit your `PATH` tweaks),
-  so the old one can still win there.
+  so the old one can still win.
 
 ## FAQ
 
@@ -76,6 +77,19 @@ synchronizer for GNU/Linux. Aurora's capture math, Hue streaming wire format, an
 foundation, this project would not have been attempted.
 
 ## For developers
+
+```
+content --> Input --> Processing --> Output --> bulbs
+(screen,      |           |             |
+ audio,      DXGI /      color +       Hue
+ video)      X11 /       effect
+             PipeWire    pipeline
+```
+
+The middle three are interchangeable plugin stages, not fixed implementations:
+capture sources (Input), color/effect pipelines (Processing), and light targets
+(Output) mix and match — today that's DXGI/X11/PipeWire capture, one core pipeline,
+and Hue output.
 
 - Each slice's README covers its own status, build flags, and tests;
   `ctest --test-dir build/linux-app` (or `build/windows-app`) runs the full native suite.
