@@ -364,3 +364,15 @@ broken dependency rather than a too-old CMake.
 claim about the oldest thing that works — prove it by running that oldest
 thing, since each layer (file format, commands, options, policies) can
 carry its own higher floor that no declared minimum mentions.
+
+---
+
+---
+
+## A root superbuild configures slices in add_subdirectory order, so an app-level CACHE FORCE set can lose to an earlier slice
+Tags: cmake, superbuild, cache-variables, fetchcontent
+Applies-when: setting a fetched dependency's option from an app slice in a superbuild
+
+Suppressing httplib's own install rules (`HTTPLIB_INSTALL OFF ... FORCE`) from `app/linux/CMakeLists.txt` changed nothing: the root superbuild adds `input/linux` before `app/linux`, and the earlier slice's `FetchContent_MakeAvailable(AuroraCore)` already populated httplib with the default ON -- the app-level set ran after the fetch it meant to configure, on every reconfigure, so order -- not caching -- defeated it. The top-level cache even showed OFF while the generated install scripts still shipped httplib's files.
+
+**Fix:** put dependency toggles at the single point that owns the fetch (`core/CMakeLists.txt`, just above its own httplib block), never in a downstream consumer -- that covers slice, superbuild, and plugin configures regardless of `add_subdirectory` order. When an install tree contains files no `install()` call explains, suspect a fetched dep's own rules firing before your toggle ran, and check generation order, not just final cache values.
