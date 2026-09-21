@@ -18,7 +18,11 @@ const shell = readFileSync(new URL('./vendor/webui/styles/shell.css', import.met
   assert.ok(anchor, '#repo-pill anchor exists in the scene pane');
   assert.ok(anchor[0].includes('href="https://github.com/weblings/Aurora"'), 'pill points at the repo');
   assert.ok(anchor[0].includes('target="_blank"'), 'pill opens a new tab');
-  assert.ok(anchor[0].includes('rel="noopener"'), 'pill carries noopener');
+  assert.ok(anchor[0].includes('rel="noopener noreferrer"'), 'pill carries noopener noreferrer');
+  const element = html.slice(html.indexOf('<a id="repo-pill"'), html.indexOf('</a>', html.indexOf('<a id="repo-pill"')));
+  assert.ok(element.includes('<svg') && element.includes('viewBox="0 0 16 16"'), 'pill carries the GitHub mark');
+  assert.ok(element.includes('aria-hidden="true"'), 'mark is hidden from assistive tech');
+  assert.ok(element.includes('View Source Code'), 'pill uses the RockyRoad upsell wording');
   const pane = html.slice(html.indexOf('<div id="scene-pane">'), html.indexOf('<div id="dashboard-pane">'));
   assert.ok(pane.includes('id="repo-pill"'), 'pill lives inside #scene-pane');
 }
@@ -30,6 +34,9 @@ const shell = readFileSync(new URL('./vendor/webui/styles/shell.css', import.met
   assert.ok(/position\s*:\s*absolute/.test(block), 'pill overlays the scene');
   assert.ok(/left\s*:\s*50%/.test(block) && /translateX\(-50%\)/.test(block), 'pill is horizontally centered');
   assert.ok(/border-radius\s*:\s*999px/.test(block), 'pill is fully rounded');
+  assert.ok(/display\s*:\s*inline-flex/.test(block) && /gap\s*:\s*6px/.test(block), 'mark and label sit inline with a gap');
+  const svgRule = css.match(/#repo-pill\s+svg\s*\{([^}]*)\}/);
+  assert.ok(svgRule && /fill\s*:\s*currentColor/.test(svgRule[1]), 'mark inherits the pill text color');
   const bottom = block.match(/bottom\s*:\s*var\((--aurora-space-\d+)\)/);
   assert.ok(bottom, 'pill bottom offset references a spacing token');
 
