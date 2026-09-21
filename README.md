@@ -60,11 +60,12 @@ Philips' official app.
 - If no audio was actively playing before you toggled to audio the grabber might have trouble finding it. Switch back to video, play some audio, then try switching to audio.
 
 **CMake too old, or the old one keeps getting picked up (Linux)**
-- The presets need CMake 3.19+. If apt's copy is older (seen on Ubuntu 24.04), `pip install cmake`
-  gets a current one instead. If the old one still wins afterwards (`~/.local/bin` sorts after
-  `/usr/bin/cmake` on some setups, and subshells may not inherit your `PATH` tweaks), install
-  into a venv instead (`python3 -m venv ~/.venvs/build`, activate it, `pip install cmake`) and
-  run configure from inside it — the venv's `bin` leads `PATH`, so its cmake is the one everything finds.
+- The presets need CMake 3.19+. If apt's copy is older (seen on Ubuntu 24.04), safest is a venv:
+  `python3 -m venv ~/.venvs/build`, activate it, `pip install cmake`, and run configure from
+  inside it — the venv's `bin` leads `PATH`, so its cmake is the one everything finds and the apt
+  copy can never shadow it. A bare `pip install cmake` outside a venv works too, but `~/.local/bin`
+  sorts after `/usr/bin/cmake` on some setups (and subshells may not inherit your `PATH` tweaks),
+  so the old one can still win there.
 
 ## FAQ
 
