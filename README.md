@@ -29,7 +29,10 @@ GitHub Releases pages. Until then, compile it yourself below (copy-paste, ~10 mi
 You need a Philips Hue bridge with registered lamps, and an entertainment area defined through
 Philips' official app.
 
-1. **Install build tools.**
+1. **Install build tools.** All platforms need CMake 3.19+ (the presets won't parse below it —
+   check with `cmake --version`). If your package manager's copy is older (seen with apt on
+   Ubuntu 24.04), `pip install cmake` gets a current one instead — make sure its location
+   comes first on your `PATH`, ahead of the system cmake.
    - **Windows:** Visual Studio's "Desktop development with C++" workload (MSVC compiler
      + Windows SDK for screen capture), [CMake](https://cmake.org/download/) itself
      (`winget install Kitware.CMake` if VS didn't supply one), and OpenCV for Aurora core
@@ -40,9 +43,6 @@ Philips' official app.
      ([vcpkg](https://github.com/microsoft/vcpkg) `install opencv`) works too —
      pass its toolchain file instead (see step 3).
    - **Linux (Debian/Ubuntu):** `sudo apt install build-essential cmake libopencv-dev libcurl4-openssl-dev libmbedtls-dev libx11-dev libxext-dev libxrandr-dev libglib2.0-dev libpipewire-0.3-dev libaubio-dev`
-     — then check `cmake --version`: the presets need CMake 3.19+. If your apt copy is older
-     (seen on Ubuntu 24.04), `pip install cmake` gets a current one instead — make sure
-     `~/.local/bin` is on your `PATH` so it shadows `/usr/bin/cmake`.
 2. **Get the code.** Clone this repo (or download it as a ZIP from its repo page):
    `git clone https://github.com/weblings/Aurora.git`
 3. **Build the app.**
