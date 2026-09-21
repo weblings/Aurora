@@ -19,26 +19,36 @@ def c_chunks(data: bytes) -> list:
     # A \xNN escape greedily consumes following hex digits ("hex escape
     # sequence out of range"), so every \xNN gets its own adjacent string
     # literal: "abc" "\x0a" "def". Fixed escapes (\n, \\, \") are safe inline.
-    chunks, run = [], []
+    # MSVC rejects any single literal over 16380 chars (C2026 -- GCC/Clang
+    # accept longer), so printable runs are also cut at 16000 source chars.
+    # Adjacent small literals concatenate without a total limit.
+    chunks, run, run_len = [], [], [0]
 
     def flush() -> None:
         if run:
             chunks.append("".join(run))
             run.clear()
+            run_len[0] = 0
+
+    def emit(piece: str) -> None:
+        if run_len[0] + len(piece) > 16000:
+            flush()
+        run.append(piece)
+        run_len[0] += len(piece)
 
     for byte in data:
         if byte == 0x5C:  # backslash
-            run.append("\\\\")
+            emit("\\\\")
         elif byte == 0x22:  # double quote
-            run.append('\\"')
+            emit('\\"')
         elif byte == 0x0A:
-            run.append("\\n")
+            emit("\\n")
         elif byte == 0x0D:
-            run.append("\\r")
+            emit("\\r")
         elif byte == 0x09:
-            run.append("\\t")
+            emit("\\t")
         elif 0x20 <= byte <= 0x7E:
-            run.append(chr(byte))
+            emit(chr(byte))
         else:
             flush()
             chunks.append("\\x%02x" % byte)
