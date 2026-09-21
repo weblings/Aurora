@@ -30,10 +30,9 @@ Philips' official app.
 
 1. **Install build tools.** All platforms need CMake 3.19+ (the presets won't parse below it —
    check with `cmake --version`). If yours is older, see Troubleshooting.
-   - **Windows:** Visual Studio's "Desktop development with C++" workload (MSVC compiler
-     + Windows SDK for screen capture), [CMake](https://cmake.org/download/) itself
-     (`winget install Kitware.CMake` if VS didn't supply one), and OpenCV for Aurora core
-     (`find_package(OpenCV REQUIRED COMPONENTS imgproc)`). Easiest is Chocolatey:
+   - **Windows:** Visual Studio's "Desktop development with C++" workload (MSVC compiler + Windows SDK for screen capture)
+   - [CMake](https://cmake.org/download/), (`winget install Kitware.CMake` if VS didn't supply one)
+   - OpenCV (`find_package(OpenCV REQUIRED COMPONENTS imgproc)`). Easiest is Chocolatey:
      `choco install opencv -y`, then point CMake at it with
      `-DOpenCV_DIR="C:/tools/opencv/build"` (or set that path as the `OpenCV_DIR`
      environment variable). A vcpkg-built OpenCV
@@ -79,6 +78,9 @@ content --> Input --> Processing --> Output --> bulbs
 Input, Processing, and Output are built to be swappable modules: write your own Input (capture source),
 Processing (source to effects handling), or Output (color / effects) module
 
+- Full task history lives in beads (`.beads/` is committed, so it ships with the clone):
+  install the [`bd` CLI](https://github.com/steveyegge/beads), then `bd list` / `bd show <id>`
+  from the repo root — closed tasks carry the context behind these docs.
 - Each slice's README covers its own status, build flags, and tests;
   `ctest --test-dir build/linux-app` (or `build/windows-app`) runs the full native suite.
 - `docs/` holds the distillation notes (capture, Hue output, browser strategy), lessons, and build history.
