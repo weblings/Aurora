@@ -110,3 +110,32 @@ html, body {
 .db-port .db-device-slot[inert] {
   opacity: 0.45;
 }
+
+/* Repo badge (Aurora-9mq): RockyRoad's badge-to-repo pattern -- a rounded
+   pill overlaid at the bottom of the scene pane, horizontally centered the
+   way the dashboard brand mark is. bottom uses the top bar's own top
+   padding token (vendor shell.css), so the pill sits as far up from the
+   scene bottom as the logo sits down from its page top. Own dark chrome so
+   OS light/dark never touches it. */
+#repo-pill {
+  position: absolute;
+  left: 50%;
+  bottom: var(--aurora-space-4);
+  transform: translateX(-50%);
+  z-index: 1;
+  white-space: nowrap;
+  font: 14px system-ui, sans-serif;
+  padding: 8px 16px;
+  color: #e8eaf0;
+  background: rgba(20, 22, 28, 0.75);
+  border: 1px solid #4a4f5c;
+  border-radius: 999px;
+  text-decoration: none;
+}
+#repo-pill:hover {
+  background: rgba(32, 35, 44, 0.9);
+}
+#repo-pill:focus-visible {
+  outline: 2px solid #e8eaf0;
+  outline-offset: 2px;
+}
