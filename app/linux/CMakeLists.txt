@@ -104,8 +104,16 @@ endif()
 # in at configure time -- a dev-stage placeholder (a real install/distribution
 # story, like huenicorn's own embedded-webroot release build, is explicitly
 # out of scope for now; see HttpServer.hpp's serveStaticFiles() comment).
+# Version single truth is the superbuild project() above; a standalone
+# slice configure is dev-only and reports "dev".
+if(DEFINED AuroraMonorepo_VERSION)
+  set(_AURORA_VERSION "${AuroraMonorepo_VERSION}")
+else()
+  set(_AURORA_VERSION "dev")
+endif()
 target_compile_definitions(aurora-app-linux PRIVATE
   AURORA_WEBUI_SOURCE_DIR="${aurorawebui_SOURCE_DIR}"
+  AURORA_VERSION="${_AURORA_VERSION}"
 )
 
 target_compile_features(aurora-app-linux PRIVATE cxx_std_20)

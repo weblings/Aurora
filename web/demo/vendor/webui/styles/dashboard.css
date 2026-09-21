@@ -156,3 +156,13 @@
 .db-bridge-zones-slot:empty {
   margin-top: 0;
 }
+
+/* Version footer (Aurora-qdk, mirrors web/ui): secondary-color text
+   centered at the pane bottom; the pane's own padding runs deeper, so pull
+   back up by the difference to land on the shared space-4 inset. */
+.db-version {
+  margin-bottom: calc(var(--aurora-space-4) - var(--aurora-space-8));
+  text-align: center;
+  color: var(--aurora-text-secondary);
+  font-size: 13px;
+}

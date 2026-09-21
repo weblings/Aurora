@@ -78,6 +78,7 @@ export class DashboardScreen {
       <div class="db-top-tier"></div>
       <div class="db-accordions"></div>
       <div id="db-overlay-slot"></div>
+      <div class="db-version"></div>
     `;
     renderTopBar(container.querySelector('.top-bar-slot'), { title: 'Aurora', logo: { src: 'vendor/webui/icons/aurora-logo.png', alt: 'Aurora' }, showBack: false });
 
@@ -123,6 +124,18 @@ export class DashboardScreen {
       logo: { src: 'vendor/webui/icons/aurora-logo.png', alt: 'Aurora' },
       showBack: false,
     });
+
+    // Version footer (Aurora-qdk, mirrors web/ui): the demo shim answers
+    // /api/version, so the Pages footer shows the same text. Failed probe
+    // leaves the slot empty rather than a broken label.
+    try {
+      const { version } = await (await fetch('/api/version')).json();
+      if (version) {
+        this.container.querySelector('.db-version').innerHTML = `<p>v${escapeHtml(version)}</p>`;
+      }
+    } catch {
+      // No shim route, no version -- the slot stays empty.
+    }
 
     if (this.hasHue) {
       try {

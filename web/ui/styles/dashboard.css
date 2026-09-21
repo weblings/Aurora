@@ -184,3 +184,14 @@
 .db-bridge-zones-slot:empty {
   margin-top: 0;
 }
+
+/* Version footer (Aurora-qdk): secondary-color text centered at the page
+   bottom, as far up from the viewport bottom as the logo sits down from
+   its top. #screen-container's own space-8 bottom padding runs deeper than
+   that, so pull back up by the difference. */
+.db-version {
+  margin-bottom: calc(var(--aurora-space-4) - var(--aurora-space-8));
+  text-align: center;
+  color: var(--aurora-text-secondary);
+  font-size: 13px;
+}

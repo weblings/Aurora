@@ -108,9 +108,17 @@ target_compile_features(aurora-app-windows PRIVATE cxx_std_20)
 # in at configure time -- a dev-stage placeholder (a real install/distribution
 # story, like huenicorn's own embedded-webroot release build, is explicitly
 # out of scope for now; see HttpServer.hpp's serveStaticFiles() comment).
+# Version single truth is the superbuild project() above; a standalone
+# slice configure is dev-only and reports "dev".
+if(DEFINED AuroraMonorepo_VERSION)
+  set(_AURORA_VERSION "${AuroraMonorepo_VERSION}")
+else()
+  set(_AURORA_VERSION "dev")
+endif()
 target_compile_definitions(aurora-app-windows PRIVATE
   _CRT_SECURE_NO_WARNINGS
   AURORA_WEBUI_SOURCE_DIR="${aurorawebui_SOURCE_DIR}"
+  AURORA_VERSION="${_AURORA_VERSION}"
 )
 
 if(AURORA_APP_BUILD_TESTS)

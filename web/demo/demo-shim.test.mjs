@@ -4,6 +4,7 @@
 // framework dependency (matches web-processing/*.test.mjs convention) --
 // run with `node demo-shim.test.mjs`.
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import {
   DEMO_DEFAULT_CONFIG,
   createMemoryStorage,
@@ -27,6 +28,16 @@ function testRouter(seed) {
   assert.equal(r.status, 200);
   assert.ok(r.json.outputs.includes('hue'), 'hue output advertised');
   assert.ok(r.json.inputs.length > 0 && r.json.audioInputs.length > 0);
+}
+
+// Version answers the footer probe with the CHANGELOG release.
+{
+  const r = testRouter({})('GET', '/api/version');
+  assert.equal(r.status, 200);
+  const changelog = readFileSync(new URL('../../CHANGELOG.txt', import.meta.url), 'utf8');
+  const top = changelog.match(/^v(\d+\.\d+\.\d+)/m);
+  assert.ok(top, 'CHANGELOG top entry is versioned');
+  assert.equal(r.json.version, top[1], 'shim version matches CHANGELOG');
 }
 
 // Config GET returns the full live-defaulted set incl. interpolation NAME.

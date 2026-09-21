@@ -78,6 +78,7 @@ export class DashboardScreen {
       <div class="db-top-tier"></div>
       <div class="db-accordions"></div>
       <div id="db-overlay-slot"></div>
+      <div class="db-version"></div>
     `;
     renderTopBar(container.querySelector('.top-bar-slot'), { title: 'Aurora', logo: { src: 'icons/aurora-logo.png', alt: 'Aurora' }, showBack: false });
 
@@ -121,6 +122,18 @@ export class DashboardScreen {
       showBack: false,
       trailingButton: { label: 'Stop', icon: 'icons/power-svgrepo-com.svg', onClick: () => this._openStopConfirm() },
     });
+
+    // Version footer (Aurora-qdk): secondary-color text at the page bottom
+    // (see .db-version in dashboard.css). A failed probe leaves the slot
+    // empty rather than a broken label.
+    try {
+      const { version } = await (await fetch('/api/version')).json();
+      if (version) {
+        this.container.querySelector('.db-version').innerHTML = `<p>v${escapeHtml(version)}</p>`;
+      }
+    } catch {
+      // No daemon, no version -- the slot stays empty.
+    }
 
     if (this.hasHue) {
       try {

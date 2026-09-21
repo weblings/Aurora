@@ -576,6 +576,29 @@ namespace
   }
 
 
+  // Version probe for the dashboard footer (Aurora-qdk): the single truth
+  // is the superbuild project() VERSION, baked in as AURORA_VERSION at
+  // compile time (or "dev" for standalone slice configures). No Config
+  // dependency, registered alongside the capabilities route.
+  void registerVersionRoute(
+    Aurora::Network::Http::Server::HttpServer& httpServer
+  )
+  {
+    httpServer.addRoute(
+      Aurora::Network::Http::Server::HttpMethod::Get,
+      "/api/version",
+      [](const Aurora::Network::Http::Server::Request&, Aurora::Network::Http::Server::Response& res){
+        nlohmann::json json = {
+          {"version", AURORA_VERSION}
+        };
+
+        res.contentType = "application/json";
+        res.body = json.dump();
+      }
+    );
+  }
+
+
   std::filesystem::path resolveConfigRoot()
   {
     if(const char* override = std::getenv("AURORA_CONFIG_DIR")){
@@ -695,6 +718,7 @@ try
 
   Aurora::Network::Http::Server::HttpServer httpServer;
   registerCapabilitiesRoute(httpServer, registry);
+  registerVersionRoute(httpServer);
 
   // Tooltip descriptors (docs/TooltipsAnalysis.md): every layer
   // contributes its own control descriptions; the frontend looks them
