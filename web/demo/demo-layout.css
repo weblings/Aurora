@@ -91,6 +91,14 @@ html, body {
 .db-port .dropdown-trigger {
   overflow: hidden;
 }
+
+/* Same flex-item floor as web/ui's .dropdown root: without min-width: 0 the
+   root keeps its content width inside flex field wrappers and the label
+   ellipsis below never engages. */
+.db-port .dropdown {
+  min-width: 0;
+  max-width: 100%;
+}
 .db-port .dropdown-label {
   overflow: hidden;
   text-overflow: ellipsis;

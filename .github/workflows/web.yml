@@ -25,4 +25,4 @@ jobs:
           node-version: 22
       - name: Web unit tests
         run: |
-          for t in web-processing/*.test.mjs web/demo/*.test.mjs; do node "$t"; done
+          for t in web-processing/*.test.mjs web/demo/*.test.mjs web/ui/styles/*.test.mjs; do node "$t"; done
