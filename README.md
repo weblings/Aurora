@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="docs/README/Logo_Full_Dark.png" alt="Aurora" />
+</p>
+
 # Aurora
 
 - A free Philips Hue ambilight driver for Windows and Linux — your screen and your audio drive your Hue lights in real time
