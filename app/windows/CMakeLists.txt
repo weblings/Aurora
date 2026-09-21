@@ -72,8 +72,17 @@ target_link_libraries(AuroraApp PUBLIC
 
 target_compile_features(AuroraApp PUBLIC cxx_std_20)
 
+# Embedded webroot (StandaloneApps P1): generated from the fetched web/ui
+# checkout above. The binary serves it only as the last probe-order
+# fallback (env override > baked source dir > embedded), so dev hot-edit
+# keeps working; a moved tree without the checkout still serves full UI.
+include("${auroracore_SOURCE_DIR}/Network/cmake/EmbedWebroot.cmake")
+set(_AURORA_EMBEDDED_WEBROOT_HEADER "${CMAKE_CURRENT_BINARY_DIR}/EmbeddedWebRoot.hpp")
+aurora_embed_webroot("${_AURORA_EMBEDDED_WEBROOT_HEADER}" "${aurorawebui_SOURCE_DIR}")
+
 add_executable(aurora-app-windows
   src/main.cpp
+  "${_AURORA_EMBEDDED_WEBROOT_HEADER}"
 )
 
 find_package(Threads REQUIRED)
@@ -99,6 +108,10 @@ endif()
 if(AURORA_APP_ENABLE_HUE_OUTPUT)
   target_link_libraries(aurora-app-windows PRIVATE AuroraOutputHue)
 endif()
+
+target_include_directories(aurora-app-windows PRIVATE
+  ${CMAKE_CURRENT_BINARY_DIR}
+)
 
 target_compile_features(aurora-app-windows PRIVATE cxx_std_20)
 

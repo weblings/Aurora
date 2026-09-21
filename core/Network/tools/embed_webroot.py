@@ -15,24 +15,37 @@ import os
 import sys
 
 
-def c_escape(data: bytes) -> str:
-    parts = []
+def c_chunks(data: bytes) -> list:
+    # A \xNN escape greedily consumes following hex digits ("hex escape
+    # sequence out of range"), so every \xNN gets its own adjacent string
+    # literal: "abc" "\x0a" "def". Fixed escapes (\n, \\, \") are safe inline.
+    chunks, run = [], []
+
+    def flush() -> None:
+        if run:
+            chunks.append("".join(run))
+            run.clear()
+
     for byte in data:
         if byte == 0x5C:  # backslash
-            parts.append("\\\\")
+            run.append("\\\\")
         elif byte == 0x22:  # double quote
-            parts.append('\\"')
+            run.append('\\"')
         elif byte == 0x0A:
-            parts.append("\\n")
+            run.append("\\n")
         elif byte == 0x0D:
-            parts.append("\\r")
+            run.append("\\r")
         elif byte == 0x09:
-            parts.append("\\t")
+            run.append("\\t")
         elif 0x20 <= byte <= 0x7E:
-            parts.append(chr(byte))
+            run.append(chr(byte))
         else:
-            parts.append("\\x%02x" % byte)
-    return "".join(parts)
+            flush()
+            chunks.append("\\x%02x" % byte)
+    flush()
+    if not chunks:
+        chunks.append("")
+    return chunks
 
 
 def main() -> int:
@@ -47,7 +60,10 @@ def main() -> int:
             full = os.path.join(root, name)
             key = os.path.relpath(full, input_dir).replace(os.sep, "/")
             with open(full, "rb") as handle:
-                entries.append((key, c_escape(handle.read())))
+                raw = handle.read()
+                # Explicit length: values may contain NUL bytes (e.g. PNG),
+                # which would truncate a const char* conversion.
+                entries.append((key, c_chunks(raw), len(raw)))
     entries.sort()
 
     with open(output_header, "w", encoding="utf-8", newline="") as out:
@@ -62,8 +78,8 @@ def main() -> int:
         out.write("  namespace EmbeddedWebRoot\n")
         out.write("  {\n")
         out.write("    inline const std::unordered_map<std::string, std::string> files = {\n")
-        for key, escaped in entries:
-            out.write('      {"%s", "%s"},\n' % (key, escaped))
+        for key, chunks, length in entries:
+            out.write('      {"%s", std::string("%s", %d)},\n' % (key, '" "'.join(chunks), length))
         out.write("    };\n")
         out.write("  }\n")
         out.write("}\n")

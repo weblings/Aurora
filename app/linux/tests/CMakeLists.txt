@@ -17,6 +17,7 @@ endif()
 
 add_executable(AuroraAppLinuxTests
   RegistryTests.cpp
+  WebRootTests.cpp
 )
 
 target_link_libraries(AuroraAppLinuxTests PRIVATE

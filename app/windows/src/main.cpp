@@ -24,6 +24,8 @@
 #include <nlohmann/json.hpp>
 
 #include <Aurora/App/Registry.hpp>
+#include <Aurora/App/WebRoot.hpp>
+#include <EmbeddedWebRoot.hpp>
 #include <Aurora/Network/Http/Server/HttpServer.hpp>
 #include <Aurora/Runtime/AudioOrchestrator.hpp>
 #include <Aurora/Runtime/ConfigStore.hpp>
@@ -784,11 +786,19 @@ try
     }
   );
 
-  // Aurora-WebUI's fetched sibling checkout -- must be called before bind()
+  // WebUI static files -- must be set before bind() per HttpServer's own contract.
   // per HttpServer's own contract. AURORA_WEBUI_SOURCE_DIR is baked in at
   // configure time (see CMakeLists.txt); editing WebUI files during dev needs
-  // no rebuild since it points straight at the sibling checkout on disk.
-  httpServer.serveStaticFiles(AURORA_WEBUI_SOURCE_DIR);
+  // no rebuild; a moved tree without the checkout falls back to the embedded webroot.
+  // Probe order: AURORA_WEBUI_DIR override > baked source dir (dev) >
+  // embedded webroot (standalone builds) -- see Aurora::App::resolveWebRoot.
+  auto webDir = Aurora::App::resolveWebRoot(std::getenv("AURORA_WEBUI_DIR"), AURORA_WEBUI_SOURCE_DIR);
+  if(webDir.has_value()){
+    httpServer.serveStaticFiles(*webDir);
+  }
+  else{
+    httpServer.serveEmbeddedFiles(Aurora::EmbeddedWebRoot::files);
+  }
 
   // Own thread, same as huenicorn's real Runtime::_initWebUI (see
   // docs/HttpServerAnalysis.md) -- listen() blocks until stop() is
