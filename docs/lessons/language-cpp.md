@@ -91,3 +91,15 @@ Applies-when: emitting file bytes as C++ string literals from a codegen script
 Embedding web/ui (StandaloneApps P1) hid two corruptions that text-only testing never shows. First, a `\xNN` escape greedily consumes following hex digits, so a byte like `0x0a` followed by source text starting with `f` compiles as one out-of-range escape -- gcc warns ("hex escape sequence out of range") but still emits truncated bytes. Second, PNG byte 9 is NUL, and map entries built as `{"key", "..."}` construct `std::string` from `const char*`, silently truncating at the first NUL -- the SVG/favicon round-trips passed while the 24K logo came back 8 bytes long.
 
 **Fix:** emit every `\xNN` as its own adjacent literal (`"abc" "\x0a" "def"` -- only `\x` is greedy; `\n`, `\\`, `\"` are safe inline) and construct values with an explicit length (`std::string("...", N)` with N from codegen). Verify with a compiled round-trip over ALL inputs (`cmp` each file, including at least one real binary), not just text samples -- a text-only spot check passes while binaries corrupt.
+
+---
+
+---
+
+## MSVC caps single string literals at 16380 chars (C2026) while GCC and Clang accept longer
+Tags: cpp, codegen, string-literals, msvc, windows
+Applies-when: emitting large text as C++ string literals in a cross-platform build
+
+The webroot embed encoder (StandaloneApps P1) passed GCC with literals up to 33K chars (large HTML mockups, favicon.svg) and failed MSVC with C2026 on the first Windows build. Per Microsoft's own C2026 doc the limit applies per literal *before* adjacent literals concatenate -- confirmed live: a 120KB line of tiny `\xNN` literals compiled clean while single 24K literals errored. Cross-platform codegen must satisfy the strictest compiler, not the one on the author's machine.
+
+**Fix:** cut printable runs at 16000 source chars (380 under the cap) into adjacent literals; keep one-binary-byte encodings (`\xNN`) isolated as before. Verify by asserting max literal length over the generated output plus the byte-identical round-trip, and treat the first build on each compiler as the real test -- a Linux-green embed proves nothing about MSVC.
