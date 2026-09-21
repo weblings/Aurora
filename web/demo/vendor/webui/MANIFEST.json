@@ -37,6 +37,7 @@
     "styles/zone-mapping.css"
   ],
   "icons": [
+    "icons/aurora-logo.png",
     "icons/back-arrow.svg",
     "icons/chevron-down.svg",
     "icons/chevron-up.svg",

@@ -79,7 +79,7 @@ export class DashboardScreen {
       <div class="db-accordions"></div>
       <div id="db-overlay-slot"></div>
     `;
-    renderTopBar(container.querySelector('.top-bar-slot'), { title: 'Aurora', showBack: false });
+    renderTopBar(container.querySelector('.top-bar-slot'), { title: 'Aurora', logo: { src: 'vendor/webui/icons/aurora-logo.png', alt: 'Aurora' }, showBack: false });
 
     await this._loadAll();
   }
@@ -120,6 +120,7 @@ export class DashboardScreen {
     // its POST /api/stop stay as unreachable dead code, no shim route needed.
     renderTopBar(this.container.querySelector('.top-bar-slot'), {
       title: 'Aurora',
+      logo: { src: 'vendor/webui/icons/aurora-logo.png', alt: 'Aurora' },
       showBack: false,
     });
 
