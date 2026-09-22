@@ -127,6 +127,8 @@ endif()
 
 target_include_directories(aurora-app-windows PRIVATE
   ${CMAKE_CURRENT_BINARY_DIR}
+  # Aurora-x2o.1: resource.h lives next to this file, not in include/.
+  ${CMAKE_CURRENT_SOURCE_DIR}
 )
 
 # StandaloneApps P2: copy runtime DLLs (OpenCV, ...) next to the exe at

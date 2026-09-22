@@ -20,6 +20,8 @@
 
 #include <windows.h>
 #include <shellapi.h>
+#include <cstdio>
+#include "resource.h"
 
 #include <nlohmann/json.hpp>
 
@@ -672,6 +674,71 @@ namespace
     Aurora::Network::Http::Server::HttpServer& m_server;
     std::thread m_thread;
   };
+
+// Aurora-x2o.1: notification-area presence. Message-only window
+// (no visible UI) receives the tray callback; the icon is the
+// IDI_ICON1 resource embedded via app.rc, so no .ico path lookup.
+// Best-effort by design: without Explorer there is simply no icon,
+// and the app still serves the WebUI with the terminal print as
+// fallback. Menu handling lands in x2o.2.
+LRESULT CALLBACK trayWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
+{
+  (void)hwnd; (void)wParam; (void)lParam;
+  if(msg == WM_TRAYICON){
+    return 0;
+  }
+  return DefWindowProcA(hwnd, msg, wParam, lParam);
+}
+
+
+class TrayIcon
+{
+public:
+  explicit TrayIcon(const std::string& tip)
+  {
+    HINSTANCE instance = GetModuleHandleA(nullptr);
+    WNDCLASSEXA cls{};
+    cls.cbSize = sizeof(cls);
+    cls.lpfnWndProc = trayWndProc;
+    cls.hInstance = instance;
+    cls.lpszClassName = "AuroraTrayWindow";
+    RegisterClassExA(&cls);
+    m_window = CreateWindowExA(0, "AuroraTrayWindow", "Aurora", 0,
+      0, 0, 0, 0, HWND_MESSAGE, nullptr, instance, nullptr);
+    if(!m_window){
+      throw std::runtime_error("Cannot create tray message window");
+    }
+    m_icon.cbSize = sizeof(m_icon);
+    m_icon.hWnd = m_window;
+    m_icon.uID = 1;
+    m_icon.uFlags = NIF_ICON | NIF_TIP | NIF_MESSAGE;
+    m_icon.uCallbackMessage = WM_TRAYICON;
+    m_icon.hIcon = LoadIconA(instance, MAKEINTRESOURCEA(IDI_ICON1));
+    std::snprintf(m_icon.szTip, sizeof(m_icon.szTip), "%s", tip.c_str());
+    m_added = Shell_NotifyIconA(NIM_ADD, &m_icon) != FALSE;
+    if(!m_added){
+      std::cerr << "No notification area -- running without tray icon\n";
+    }
+  }
+
+  ~TrayIcon()
+  {
+    if(m_added){
+      Shell_NotifyIconA(NIM_DELETE, &m_icon);
+    }
+    if(m_window){
+      DestroyWindow(m_window);
+    }
+  }
+
+  TrayIcon(const TrayIcon&) = delete;
+  TrayIcon& operator=(const TrayIcon&) = delete;
+
+private:
+  HWND m_window{nullptr};
+  NOTIFYICONDATAA m_icon{};
+  bool m_added{false};
+};
 }
 
 
@@ -823,9 +890,11 @@ if(!instanceLock.held()){
   // Declared after pipelineHost so it's destroyed (and the server stopped)
   // first on the way out -- same order as the explicit calls below.
   std::optional<HttpServerThread> httpServerThread;
-  if(httpServer.bind(config.boundBackendIP(), config.restServerPort())){
+  const bool webUiBound = httpServer.bind(config.boundBackendIP(), config.restServerPort());
+  std::string url;
+  if(webUiBound){
     httpServerThread.emplace(httpServer, std::thread([&httpServer]{ httpServer.listen(); }));
-    std::string url = "http://" + browsableAddress(config.boundBackendIP())
+    url = "http://" + browsableAddress(config.boundBackendIP())
       + ":" + std::to_string(config.restServerPort()) + "/";
     if(isFirstSetup){
       std::cout << "WebUI: opening " << url << " in your browser\n";
@@ -842,6 +911,11 @@ if(!instanceLock.held()){
 
   std::cout << "Aurora running. Ctrl+C to stop.\n";
 
+  // Aurora-x2o.1: tray presence from here until scope exit (NIM_DELETE
+  // in the destructor, including unwinding on exceptions below).
+  TrayIcon trayIcon(std::string("Aurora - ")
+    + (webUiBound ? url : std::string("WebUI unavailable")));
+
   // Drives whichever Pipeline is current at the top of each iteration -- a
   // reload swapping it mid-loop is exactly what PipelineHost's own lock is
   // for; this loop never needs to know a swap happened.
@@ -850,6 +924,13 @@ if(!instanceLock.held()){
     pipelineHost.tick();
     auto tickInterval = std::chrono::duration<double>(pipelineHost.tickIntervalSeconds());
     std::this_thread::sleep_until(tickStart + std::chrono::duration_cast<std::chrono::steady_clock::duration>(tickInterval));
+    // Pump the tray message-only window (x2o.2 needs it);
+    // no-op when the queue is empty.
+    MSG msg;
+    while(PeekMessageA(&msg, nullptr, 0, 0, PM_REMOVE)){
+      TranslateMessage(&msg);
+      DispatchMessageA(&msg);
+    }
   }
 
   std::cout << "Stopping...\n";
