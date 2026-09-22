@@ -680,22 +680,19 @@ namespace
 // IDI_ICON1 resource embedded via app.rc, so no .ico path lookup.
 // Best-effort by design: without Explorer there is simply no icon,
 // and the app still serves the WebUI with the terminal print as
-// fallback. Menu handling lands in x2o.2.
-LRESULT CALLBACK trayWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
-{
-  (void)hwnd; (void)wParam; (void)lParam;
-  if(msg == WM_TRAYICON){
-    return 0;
-  }
-  return DefWindowProcA(hwnd, msg, wParam, lParam);
-}
+// fallback. Right-click menu added in x2o.2.
+LRESULT CALLBACK trayWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam);
 
 
 class TrayIcon
 {
 public:
-  explicit TrayIcon(const std::string& tip)
+  explicit TrayIcon(const std::string& url, bool webUiBound)
+    : m_url(url),
+      m_webUiBound(webUiBound)
   {
+    const std::string tip = std::string("Aurora - ")
+      + (m_webUiBound ? m_url : std::string("WebUI unavailable"));
     HINSTANCE instance = GetModuleHandleA(nullptr);
     WNDCLASSEXA cls{};
     cls.cbSize = sizeof(cls);
@@ -708,6 +705,7 @@ public:
     if(!m_window){
       throw std::runtime_error("Cannot create tray message window");
     }
+    SetWindowLongPtrA(m_window, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(this));
     m_icon.cbSize = sizeof(m_icon);
     m_icon.hWnd = m_window;
     m_icon.uID = 1;
@@ -731,6 +729,36 @@ public:
     }
   }
 
+  // Right-click menu (x2o.2): Launch UI opens the bound URL, Stop sets
+  // the same g_stopRequested flag Ctrl+C sets, so shutdown unwinding
+  // (NIM_DELETE above, pipeline shutdown, server stop) is identical.
+  void showMenu()
+  {
+    HMENU menu = CreatePopupMenu();
+    if(!menu){
+      return;
+    }
+    AppendMenuA(menu, MF_STRING | (m_webUiBound ? MF_ENABLED : MF_GRAYED),
+      IDM_LAUNCH_UI, "Launch UI");
+    AppendMenuA(menu, MF_STRING, IDM_STOP, "Stop");
+    POINT cursor{};
+    GetCursorPos(&cursor);
+    // Required so the menu dismisses correctly and the next
+    // right-click re-opens it.
+    SetForegroundWindow(m_window);
+    const UINT picked = TrackPopupMenuEx(menu,
+      TPM_RETURNCMD | TPM_RIGHTBUTTON, cursor.x, cursor.y, m_window, nullptr);
+    DestroyMenu(menu);
+    // KB135788: lets the next right-click re-open the menu.
+    PostMessageA(m_window, WM_NULL, 0, 0);
+    if(picked == IDM_LAUNCH_UI){
+      openWebBrowser(m_url);
+    }
+    else if(picked == IDM_STOP){
+      g_stopRequested = true;
+    }
+  }
+
   TrayIcon(const TrayIcon&) = delete;
   TrayIcon& operator=(const TrayIcon&) = delete;
 
@@ -738,7 +766,22 @@ private:
   HWND m_window{nullptr};
   NOTIFYICONDATAA m_icon{};
   bool m_added{false};
+  std::string m_url;
+  bool m_webUiBound{false};
 };
+
+LRESULT CALLBACK trayWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
+{
+  (void)wParam;
+  if(msg == WM_TRAYICON){
+    auto* self = reinterpret_cast<TrayIcon*>(GetWindowLongPtrA(hwnd, GWLP_USERDATA));
+    if(self && lParam == WM_RBUTTONUP){
+      self->showMenu();
+    }
+    return 0;
+  }
+  return DefWindowProcA(hwnd, msg, wParam, lParam);
+}
 }
 
 
@@ -913,8 +956,7 @@ if(!instanceLock.held()){
 
   // Aurora-x2o.1: tray presence from here until scope exit (NIM_DELETE
   // in the destructor, including unwinding on exceptions below).
-  TrayIcon trayIcon(std::string("Aurora - ")
-    + (webUiBound ? url : std::string("WebUI unavailable")));
+  TrayIcon trayIcon(url, webUiBound);
 
   // Drives whichever Pipeline is current at the top of each iteration -- a
   // reload swapping it mid-loop is exactly what PipelineHost's own lock is
