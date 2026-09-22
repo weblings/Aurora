@@ -16,16 +16,11 @@ bd close <id> --reason="..."  # only when the work is actually complete
 bd export -o .beads/issues.jsonl   # immediately before git add-ing task state
 ```
 
-Never use `bd edit` (opens an interactive editor) — use `bd update` flags.
-Default git policy is conservative: do not commit, push, or remote-sync
-without an explicit ask; at handoff report changed files, validation, and
-suggested next commands.
-
 ## Version + changelog
 
 The app version's single truth is `project(AuroraMonorepo VERSION x.y.z)`
 in the root `CMakeLists.txt`, mirrored by the top entry of `CHANGELOG.txt`
-(the apps compile it into their `/api/version` route). Bump the two
+(the apps compile it into their `/api/version` route). The maintainer will bump the two
 together.
 
 ## Quality gates

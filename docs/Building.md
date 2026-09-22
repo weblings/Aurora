@@ -47,28 +47,28 @@ Native dependencies stay system packages (no vendored `.so` set); see the
 Each app also configures on its own (`cmake -S app/linux -B build`);
 standalone configures are dev-only and report version "dev".
 
-Linux (`app/linux`, needs `core/`, `input/linux`, `output/hue` alongside, or
-toggle `AURORA_APP_ENABLE_LINUX_INPUT` / `_HUE_OUTPUT` off):
+- Linux (`app/linux`, needs `core/`, `input/linux`, `output/hue` alongside, or
+  toggle `AURORA_APP_ENABLE_LINUX_INPUT` / `_HUE_OUTPUT` off):
 
-```sh
-cmake -S . -B build
-cmake --build build
-ctest --test-dir build --output-on-failure
+  ```sh
+  cmake -S . -B build
+  cmake --build build
+  ctest --test-dir build --output-on-failure
 
-AURORA_HUE_BRIDGE_ADDRESS=... AURORA_HUE_USERNAME=... AURORA_HUE_CLIENTKEY=... ./build/bin/Aurora
-```
+  AURORA_HUE_BRIDGE_ADDRESS=... AURORA_HUE_USERNAME=... AURORA_HUE_CLIENTKEY=... ./build/bin/Aurora
+  ```
 
-Windows (`app/windows`, needs `core/`, `input/windows`, `output/hue`;
-Visual Studio + vcpkg for core's OpenCV dependency):
+- Windows (`app/windows`, needs `core/`, `input/windows`, `output/hue`;
+  Visual Studio + vcpkg for core's OpenCV dependency):
 
-```powershell
-cmake -S . -B build -G "Visual Studio 17 2022" -A x64 -DCMAKE_TOOLCHAIN_FILE=<path-to-vcpkg>/scripts/buildsystems/vcpkg.cmake
-cmake --build build --config Release
-ctest --test-dir build -C Release --output-on-failure
+  ```powershell
+  cmake -S . -B build -G "Visual Studio 17 2022" -A x64 -DCMAKE_TOOLCHAIN_FILE=<path-to-vcpkg>/scripts/buildsystems/vcpkg.cmake
+  cmake --build build --config Release
+  ctest --test-dir build -C Release --output-on-failure
 
-$env:AURORA_HUE_BRIDGE_ADDRESS = "..."; $env:AURORA_HUE_USERNAME = "..."; $env:AURORA_HUE_CLIENTKEY = "..."
-./build/bin/Release/Aurora.exe
-```
+  $env:AURORA_HUE_BRIDGE_ADDRESS = "..."; $env:AURORA_HUE_USERNAME = "..."; $env:AURORA_HUE_CLIENTKEY = "..."
+  ./build/bin/Release/Aurora.exe
+  ```
 
 Running needs a Hue bridge with registered lamps and an entertainment area
 defined through Philips' official app; without credentials in env, `hue`
