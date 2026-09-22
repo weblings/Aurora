@@ -234,6 +234,36 @@ namespace
   }
 
 
+  // Aurora-vf1.1: reload phase timing. Scoped span printer -- additive
+  // logging only, no behavior change. Read the [timing] lines after a
+  // Save to see which rebuild slice dominates before tuning anything.
+  // (DTLS/streamer time hides inside 'outputs init' -- drill there iff
+  // outputs dominate.)
+  class ScopedPhaseTimer
+  {
+  public:
+    explicit ScopedPhaseTimer(const char* phase):
+    m_phase(phase),
+    m_start(std::chrono::steady_clock::now())
+    {
+    }
+
+    ~ScopedPhaseTimer()
+    {
+      const auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(
+        std::chrono::steady_clock::now() - m_start).count();
+      std::cout << "[timing] " << m_phase << ": " << ms << " ms\n";
+    }
+
+    ScopedPhaseTimer(const ScopedPhaseTimer&) = delete;
+    ScopedPhaseTimer& operator=(const ScopedPhaseTimer&) = delete;
+
+  private:
+    const char* m_phase;
+    std::chrono::steady_clock::time_point m_start;
+  };
+
+
   // The swappable unit a live reload tears down and reconstructs -- the
   // "reconstruction, not mutation" design fork from huenicorn recommended in
   // docs/HttpServerAnalysis.md. Lives here (not core::Runtime) because
@@ -273,6 +303,7 @@ namespace
         outputNames = registry.outputNames(); // no explicit selection -- run everything available
       }
 
+      ScopedPhaseTimer outputsTimer("outputs init");
       for(const auto& name : outputNames){
         auto output = registry.createOutput(name);
         if(!output){
@@ -292,6 +323,7 @@ namespace
       // leaving activeInputName unset. Same rule main() always used.
       bool useAudioMode = config.activeInputName().empty() && !config.activeAudioInputName().empty();
 
+      ScopedPhaseTimer captureTimer("capture+orchestrator init");
       if(useAudioMode){
 #ifdef AURORA_RUNTIME_AUDIO_AVAILABLE
         auto audioInput = registry.createAudioInput(config.activeAudioInputName());
@@ -517,6 +549,7 @@ namespace
       std::string& errorOut
     )
     {
+      ScopedPhaseTimer reloadTimer("reload total");
       std::unique_ptr<Pipeline> next;
       try{
         next = Pipeline::build(registry, config, configRoot);
