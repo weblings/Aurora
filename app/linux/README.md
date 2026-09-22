@@ -39,15 +39,10 @@ phase 3 for what's still missing (a pairing flow, a zone-mapping UI).
 
 ## Building
 
-Expects `core/`, `input/linux/`, and
-`output/hue/` alongside it in this repo (or toggle `AURORA_APP_ENABLE_LINUX_INPUT`/
-`_HUE_OUTPUT` off to skip the ones you don't have). See those repos' own
-READMEs for their native dependencies (X11/Pipewire/libcurl/Mbed TLS).
+Full from-source reference (prerequisites, presets, install tree):
+[docs/Building.md](../../docs/Building.md).
 
+Run:
 ```
-cmake -S . -B build
-cmake --build build
-ctest --test-dir build --output-on-failure
-
 AURORA_HUE_BRIDGE_ADDRESS=... AURORA_HUE_USERNAME=... AURORA_HUE_CLIENTKEY=... ./build/bin/Aurora
 ```

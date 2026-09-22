@@ -45,11 +45,14 @@ Philips' official app.
    - **Windows** (in a Visual Studio developer prompt):
      `cmake --preset windows-app -DCMAKE_TOOLCHAIN_FILE=<path-to-vcpkg>/scripts/buildsystems/vcpkg.cmake`
      then `cmake --build build/windows-app --config Release`
-4. **Run it.** In a terminal, run `./build/linux-app/aurora-app-linux`
-   (`.\build\windows-app\Release\aurora-app-windows.exe` on Windows).
+4. **Run it.** In a terminal, run `./build/linux-app/bin/Aurora`
+   (`.\build\windows-app\bin\Release\Aurora.exe` on Windows).
    The app prints its URL in the terminal — **Ctrl+click the link** to open it.
 5. Follow setup flow for bridge pairing (press your bridge's button when asked), picking an entertainment area,
    and mapping lights to screen regions. Enjoy!
+
+Full from-source reference (all platforms, presets, install trees):
+[docs/Building.md](docs/Building.md).
 
 ## Troubleshooting
 
@@ -58,14 +61,6 @@ Philips' official app.
 
 **I double-clicked on the built app but not seeing anything**
 - Currently you have to launch the app from a terminal window so its process can persist. That also tells you what link to open your browser to for the UI.
-
-**CMake too old, or the old one keeps getting picked up (Linux)**
-- The presets need CMake 3.24+. If apt's copy is older (seen on Ubuntu 24.04), safest is a venv:
-  `python3 -m venv ~/.venvs/build`, activate it, `pip install cmake`, and run configure from
-  inside it — the venv's `bin` leads `PATH`, so its cmake is the one everything finds and the apt
-  copy can never shadow it. A bare `pip install cmake` outside a venv works too, but `~/.local/bin`
-  sorts after `/usr/bin/cmake` on some setups (and subshells may not inherit your `PATH` tweaks),
-  so the old one can still win.
 
 ## For developers
 

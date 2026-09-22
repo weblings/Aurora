@@ -59,29 +59,11 @@ phase 3 for what's still missing (a pairing flow, a zone-mapping UI).
 
 ## Building
 
-Expects `core/`, `input/windows/`, and
-`output/hue/` alongside it in this repo (or toggle `AURORA_APP_ENABLE_WINDOWS_INPUT`/
-`_HUE_OUTPUT` off to skip the ones you don't have). Needs a native Windows
-C++ toolchain (Visual Studio's "Desktop development with C++" workload) plus
-[vcpkg](https://github.com/microsoft/vcpkg) for Aurora core's OpenCV
-dependency — see those repos' own READMEs for details. (CI instead uses
-`choco install opencv`; either layout works — runtime DLLs are resolved
-from CMake imported targets, never hardcoded paths.)
+Full from-source reference (prerequisites, presets, portable trees):
+[docs/Building.md](../../docs/Building.md).
 
-## Running outside the checkout (StandaloneApps)
-
-The build copies OpenCV's runtime DLLs next to the exe automatically, and
-the WebUI is embedded in the binary as a fallback — a moved tree without
-the checkout still serves full UI. One prerequisite stays on you: the
-[Visual C++ Redistributable](https://learn.microsoft.com/en-us/cpp/windows/latest-supported-vc-redist)
-(central deployment, serviced by Windows Update). It is deliberately not
-vendored — re-shipping the CRT means re-shipping every security update.
-
+Run:
 ```
-cmake -S . -B build -G "Visual Studio 17 2022" -A x64 -DCMAKE_TOOLCHAIN_FILE=<path-to-vcpkg>/scripts/buildsystems/vcpkg.cmake
-cmake --build build --config Release
-ctest --test-dir build -C Release --output-on-failure
-
 $env:AURORA_HUE_BRIDGE_ADDRESS = "..."; $env:AURORA_HUE_USERNAME = "..."; $env:AURORA_HUE_CLIENTKEY = "..."
 ./build/bin/Release/Aurora.exe
 ```

@@ -1,6 +1,6 @@
 v1.0.1:
-- Standalone app builds: embedded WebUI fallback, portable install layout, Linux RPATH, Windows runtime DLL shipping
-- Build lessons for generated-code string pitfalls and superbuild option ordering
+- Build release folders are now standalone! You can put the folder anywhere and it will behave the same as in v1.0.0 when it needed to be within the project dir
+- Demo UI fixes
 
 v1.0.0:
 - First public version of Aurora!
