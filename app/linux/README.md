@@ -49,5 +49,5 @@ cmake -S . -B build
 cmake --build build
 ctest --test-dir build --output-on-failure
 
-AURORA_HUE_BRIDGE_ADDRESS=... AURORA_HUE_USERNAME=... AURORA_HUE_CLIENTKEY=... ./build/aurora-app-linux
+AURORA_HUE_BRIDGE_ADDRESS=... AURORA_HUE_USERNAME=... AURORA_HUE_CLIENTKEY=... ./build/bin/Aurora
 ```

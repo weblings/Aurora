@@ -90,6 +90,16 @@ add_executable(aurora-app-windows
   "${_AURORA_EMBEDDED_WEBROOT_HEADER}"
 )
 
+# Aurora-e3d: product binary is Aurora; build-tree output goes to
+# bin/ directly under the build root instead of app/<slice>/[...].
+# (Multi-config generators still append <Config> under bin/.) The
+# CMake target name is unchanged, so link deps, the DLL copy, and
+# install(TARGETS) rules are unaffected.
+set_target_properties(aurora-app-windows PROPERTIES
+  OUTPUT_NAME "Aurora"
+  RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin"
+)
+
 find_package(Threads REQUIRED)
 
 target_link_libraries(aurora-app-windows PRIVATE

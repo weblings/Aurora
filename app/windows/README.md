@@ -83,5 +83,5 @@ cmake --build build --config Release
 ctest --test-dir build -C Release --output-on-failure
 
 $env:AURORA_HUE_BRIDGE_ADDRESS = "..."; $env:AURORA_HUE_USERNAME = "..."; $env:AURORA_HUE_CLIENTKEY = "..."
-./build/Release/aurora-app-windows.exe
+./build/bin/Release/Aurora.exe
 ```
