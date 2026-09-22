@@ -1,0 +1,7 @@
+// Aurora application icon (Aurora-05r). app.ico is generated from
+// docs/README/Logo_Square_Light.png, NOT hand-drawn: to refresh it, re-run
+// the generator noted in /tmp/gen_icons.py's docstring and replace app.ico;
+// this file stays unchanged. Compiled by MSVC rc.exe (and windres) once
+// app.rc is listed in the aurora-app-windows sources.
+#include <windows.h>
+IDI_ICON1 ICON "app.ico"

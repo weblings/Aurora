@@ -146,6 +146,20 @@ include(GNUInstallDirs)
 # stays a system package for 1.0.1, so no bundled .so set ships yet --
 # the $ORIGIN RPATH above is ready when one does.
 install(TARGETS aurora-app-linux RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
+
+# Aurora-05r: launcher integration. aurora.desktop + hicolor icons are
+# checked-in assets generated from docs/README/Logo_Square_Light.png (see
+# Aurora-05r bead comment). Anchored at CMAKE_CURRENT_SOURCE_DIR so both the
+# standalone-slice and superbuild configures resolve them.
+install(FILES "${CMAKE_CURRENT_SOURCE_DIR}/aurora.desktop"
+  DESTINATION ${CMAKE_INSTALL_DATADIR}/applications
+)
+foreach(_AURORA_ICON_SIZE 16 22 24 32 48 64 128 256)
+  install(FILES
+    "${CMAKE_CURRENT_SOURCE_DIR}/icons/hicolor/${_AURORA_ICON_SIZE}x${_AURORA_ICON_SIZE}/apps/aurora.png"
+    DESTINATION ${CMAKE_INSTALL_DATADIR}/icons/hicolor/${_AURORA_ICON_SIZE}x${_AURORA_ICON_SIZE}/apps
+  )
+endforeach()
 if(EXISTS "${CMAKE_SOURCE_DIR}/LICENSE")
   install(FILES "${CMAKE_SOURCE_DIR}/LICENSE"
     DESTINATION ${CMAKE_INSTALL_DOCDIR}/aurora-app-linux

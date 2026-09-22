@@ -80,8 +80,13 @@ include("${auroracore_SOURCE_DIR}/Network/cmake/EmbedWebroot.cmake")
 set(_AURORA_EMBEDDED_WEBROOT_HEADER "${CMAKE_CURRENT_BINARY_DIR}/EmbeddedWebRoot.hpp")
 aurora_embed_webroot("${_AURORA_EMBEDDED_WEBROOT_HEADER}" "${aurorawebui_SOURCE_DIR}")
 
+# Aurora-05r: app.rc embeds app.ico (generated from
+# docs/README/Logo_Square_Light.png) as the exe icon. Side-by-side in
+# this dir, so rc.exe/windres resolve ICON "app.ico" with no extra
+# include path.
 add_executable(aurora-app-windows
   src/main.cpp
+  app.rc
   "${_AURORA_EMBEDDED_WEBROOT_HEADER}"
 )
 

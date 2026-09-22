@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=Aurora
+Comment=Hue ambient lighting from screen and audio capture
+Exec=aurora-app-linux
+Icon=aurora
+Categories=Utility;
+StartupWMClass=aurora-app-linux
