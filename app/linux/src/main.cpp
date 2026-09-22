@@ -21,6 +21,7 @@
 
 #include <nlohmann/json.hpp>
 
+#include <Aurora/App/InstanceLock.hpp>
 #include <Aurora/App/Registry.hpp>
 #include <Aurora/App/WebRoot.hpp>
 #include <EmbeddedWebRoot.hpp>
@@ -725,6 +726,19 @@ try
   std::signal(SIGTERM, handleStopSignal);
 
   auto configRoot = resolveConfigRoot();
+
+// Aurora-52o: one running instance per config root. A second launch
+// hands the UI to the running instance (same configured URL it holds)
+// instead of starting headless.
+Aurora::App::InstanceLock instanceLock(configRoot);
+if(!instanceLock.held()){
+  Aurora::Runtime::Config liveConfig = Aurora::Runtime::ConfigStore(configRoot).load();
+  std::string url = "http://" + browsableAddress(liveConfig.boundBackendIP())
+    + ":" + std::to_string(liveConfig.restServerPort()) + "/";
+  std::cout << "Aurora is already running -- opening " << url << " instead\n";
+  openWebBrowser(url);
+  return 0;
+}
 
   // Captured before ConfigStore/Pipeline ever touch this configRoot --
   // Pipeline::build() unconditionally re-saves config.json on every launch

@@ -66,6 +66,7 @@ endif()
 # link it without pulling in main()'s own main() symbol.
 add_library(AuroraApp STATIC
   src/Registry.cpp
+  src/InstanceLock.cpp
 )
 
 target_include_directories(AuroraApp PUBLIC

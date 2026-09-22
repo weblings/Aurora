@@ -17,6 +17,7 @@ endif()
 
 add_executable(AuroraAppLinuxTests
   RegistryTests.cpp
+  InstanceLockTests.cpp
   WebRootTests.cpp
 )
 

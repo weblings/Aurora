@@ -23,6 +23,7 @@
 
 #include <nlohmann/json.hpp>
 
+#include <Aurora/App/InstanceLock.hpp>
 #include <Aurora/App/Registry.hpp>
 #include <Aurora/App/WebRoot.hpp>
 #include <EmbeddedWebRoot.hpp>
@@ -683,6 +684,19 @@ try
   // existed) -- registerOutputs needs it to look up any persisted Hue
   // connection.
   auto configRoot = resolveConfigRoot();
+
+// Aurora-52o: one running instance per config root. A second launch
+// hands the UI to the running instance (same configured URL it holds)
+// instead of starting headless.
+Aurora::App::InstanceLock instanceLock(configRoot);
+if(!instanceLock.held()){
+  Aurora::Runtime::Config liveConfig = Aurora::Runtime::ConfigStore(configRoot).load();
+  std::string url = "http://" + browsableAddress(liveConfig.boundBackendIP())
+    + ":" + std::to_string(liveConfig.restServerPort()) + "/";
+  std::cout << "Aurora is already running -- opening " << url << " instead\n";
+  openWebBrowser(url);
+  return 0;
+}
   // TEMP DEBUG -- remove after live pairing repro (see WebUI/WebUI_Fixes.md).
   // Debug-only: Release builds must not print it.
 #ifndef NDEBUG
