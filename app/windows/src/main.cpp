@@ -21,6 +21,7 @@
 #include <windows.h>
 #include <shellapi.h>
 #include <cstdio>
+#include <fstream>
 #include "resource.h"
 
 #include <nlohmann/json.hpp>
@@ -759,6 +760,31 @@ public:
     }
   }
 
+  // First-run balloon (x2o.3): one-shot orientation hint, gated by a
+  // sentinel file in the config root (no config-schema change).
+  // Best-effort: without Explorer, or if the sentinel cannot be
+  // written, it simply retries next launch.
+  void showFirstRunBalloon(const std::filesystem::path& configRoot)
+  {
+    if(!m_added){
+      return;
+    }
+    std::error_code ec;
+    const auto sentinel = configRoot / "tray-balloon.seen";
+    if(std::filesystem::exists(sentinel, ec)){
+      return;
+    }
+    m_icon.uFlags |= NIF_INFO;
+    std::snprintf(m_icon.szInfo, sizeof(m_icon.szInfo), "%s",
+      "Running in the background - right-click tray icon for Launch UI or Stop");
+    std::snprintf(m_icon.szInfoTitle, sizeof(m_icon.szInfoTitle), "%s", "Aurora");
+    m_icon.dwInfoFlags = NIIF_INFO;
+    if(Shell_NotifyIconA(NIM_MODIFY, &m_icon)){
+      std::ofstream(sentinel).close();
+    }
+    m_icon.uFlags &= static_cast<decltype(m_icon.uFlags)>(~NIF_INFO);
+  }
+
   TrayIcon(const TrayIcon&) = delete;
   TrayIcon& operator=(const TrayIcon&) = delete;
 
@@ -957,6 +983,7 @@ if(!instanceLock.held()){
   // Aurora-x2o.1: tray presence from here until scope exit (NIM_DELETE
   // in the destructor, including unwinding on exceptions below).
   TrayIcon trayIcon(url, webUiBound);
+  trayIcon.showFirstRunBalloon(configRoot);
 
   // Drives whichever Pipeline is current at the top of each iteration -- a
   // reload swapping it mid-loop is exactly what PipelineHost's own lock is

@@ -36,7 +36,7 @@ macOS shapes researched, opens listed at the bottom. See also
   (`setRestServerPort` has no UI callers).
 - **Edges recorded:** `x2o → 52o`, `lx4 → 52o`. `Aurora-lx4` (P3, open) is
   the Linux SNI follow-up, agent-first, explicitly post-1.0.2.
-- **First-run hint:** one-shot `NIF_INFO` balloon gated by a persisted flag
+- **First-run hint:** one-shot toast via `NIF_INFO` (renders as a modern toast on Win10+, no installer/AUMID needed) gated by a persisted flag
   (`isFirstSetup` precedent); tooltip carries long-term discoverability.
 
 ## Platform shapes
