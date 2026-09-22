@@ -166,3 +166,13 @@ Applies-when: showing a notification-icon context menu from a message-only windo
 Without SetForegroundWindow the popup mis-dismisses; without posting WM_NULL after TPM_RETURNCMD the next right-click can fail to reopen it (KB135788).
 
 **Fix:** the foreground + TPM_RETURNCMD + WM_NULL pattern in TrayIcon::showMenu.
+
+---
+
+## NIF_INFO renders as a modern toast on Win10+; WinRT toasts need an installer
+Tags: windows, tray, toast, notifications, packaging
+Applies-when: choosing a notification API for a portable (uninstalled) Windows app
+
+Classic balloon tips are legacy: since Win10, Shell_NotifyIcon NIF_INFO surfaces as an Action Center toast. Full WinRT toasts demand a Start Menu shortcut with AppUserModelID (+ installer, + COM activator for actions) -- disproportionate for a one-shot hint in a portable zip, and tray-originated NIF_INFO toasts are attributed to the icon with zero install footprint.
+
+**Fix:** keep NIF_INFO; write copy for a detached notification (name the destination, never 'here').
