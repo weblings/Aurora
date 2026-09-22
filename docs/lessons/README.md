@@ -19,10 +19,10 @@ Aurora's own module boundaries instead of RockyRoad's. `rendering-apis.md` vs.
 
 | File | Scope | Entries | File here when |
 |---|---|---|---|
-| [build-toolchain.md](build-toolchain.md) | CMake, vcpkg, compilers, WSL2, dev deps | 16 | build/tooling specific |
-| [windows-env.md](windows-env.md) | processes, installers, ACLs, probing | 6 | Windows-environment specific |
-| [debugging-method.md](debugging-method.md) | evidence, verification, oracles, timing | 14 | debugging/verification method |
-| [architecture-process.md](architecture-process.md) | splits, duplication, reload, presence | 18 | architecture or process decision |
+| [build-toolchain.md](build-toolchain.md) | CMake, vcpkg, compilers, WSL2, dev deps | 17 | build/tooling specific |
+| [windows-env.md](windows-env.md) | processes, installers, ACLs, probing | 8 | Windows-environment specific |
+| [debugging-method.md](debugging-method.md) | evidence, verification, oracles, timing | 15 | debugging/verification method |
+| [architecture-process.md](architecture-process.md) | splits, duplication, reload, presence | 19 | architecture or process decision |
 | [web-testing.md](web-testing.md) | jsdom, live tests, routes, settings | 8 | web testing specific |
 | [language-cpp.md](language-cpp.md) | namespace, threads, C-portability | 5 | C++ language gotcha |
 | [input.md](input.md) | capture/grabber/platform-adapter | 10 | capture/grabber specific |
