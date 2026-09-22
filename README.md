@@ -14,9 +14,8 @@
 
 - You need a Philips Hue bridge with registered lamps, and an entertainment area defined through
 Philips' official app.
-- Locate the latest GitHub Release and download the zip for your platform. Keep the contents of the folder together so the app can work correctly.
-- Launch the app, open the printed URL, and follow the setup flow for bridge pairing (press your bridge button when asked),
-picking an entertainment area and mapping lights to screen regions. Enjoy!
+- Locate the latest [GitHub Release](https://github.com/weblings/Aurora/releases) and download the zip for your platform. Keep the contents of the folder together so the app can work correctly.
+- (Read dependencies before this step) In a terminal window in the unzipped folder, launch the app. Ctrl + click on the link to open the UI and get setup. Enjoy!
 - Dependencies:
   - **Windows:** Try launching Aurora. If you get an error saying "The code execution cannot proceed because VCRUNTIME140.dll was not found", then you need: [Visual C++ Redistributable](https://learn.microsoft.com/en-us/cpp/windows/latest-supported-vc-redist). If not, it's already installed and you're good to go.
   - **Linux (Debian/Ubuntu):** `sudo apt install libx11-6 libxext6 libxrandr2 pipewire libaubio5 libcurl4t64 libopencv-core410 libmbedtls21` (ffmpeg and GL pieces arrive automatically as dependencies of those; on older releases the curl/opencv/mbedtls package names differ slightly, and a missing-`.so` error on launch names its package).
