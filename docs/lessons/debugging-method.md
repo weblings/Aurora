@@ -334,3 +334,33 @@ Applies-when: unit-testing an flock-based exclusion lock without spawning proces
 Unlike fcntl POSIX locks (per-process, merge), flock binds to the open file description -- a second LOCK_EX|LOCK_NB on another fd fails with EWOULDBLOCK even in-process. InstanceLockTests' same-root-exclusion case therefore exercises the real cross-process mechanism, not a tautology.
 
 **Fix:** keep the three Catch2 cases (same-root exclusion, independent roots, reacquire) as maintained coverage; live double-launch stays manual/CI-smoke.
+
+---
+
+## A bound picked by reasoning is a hypothesis -- time the real system at each candidate value
+Tags: debugging, verification, oracle, guards
+Applies-when: choosing a clamp/maximum for a rate, timeout, or resource bound
+
+`Config::kMaxRefreshRate` was first set to 1000 by argument (an order of magnitude above any display, so "necessarily garbage"). On real hardware 1000Hz still wedged the daemon -- the 1ms tick never yields its mutex -- while 240Hz (the UI presets' top) answered in milliseconds. Endpoint timings at 1000/240/60 decided the constant, not the argument; the 1000 shipped and had to be revised in a follow-up commit.
+
+**Fix:** the committed max is 240 with the measurement in the commit message. General principle: a clamp is a claim about the world below the bound *and* the bound itself being safe -- the second half needs a live oracle (endpoint timings, tick cost), never just a bigger number.
+
+---
+
+## Refresh-across-restart is a diagnostic: it separates persisted-state bugs from in-flight ones
+Tags: debugging, live-testing, onboarding
+Applies-when: triaging a stuck onboarding flow you cannot instrument
+
+A black screen on every launch became "lands on Zone Mapping and proceeds" after a refresh-with-healthy-backend. That single contrast proved the persisted config was healing correctly and isolated each remainder to in-flight behavior (hung endpoint awaits, then a silent 4.5s apply-await) without any instrumentation. Each recovery step was verified the same way: curl the probe endpoints the UI awaits and compare against what the screen shows.
+
+**Fix (method):** when the UI hangs, curl the exact endpoints its current screen awaits (`/api/monitors`, `/api/zones` here) with timings before touching code. General principle: the UI's await set is the primitive oracle -- a hanging endpoint is the bug until proven otherwise.
+
+---
+
+## Crash-on-exit hides behind GUI launches -- test shutdown by destroying the object
+Tags: debugging, verification, guards
+Applies-when: owning a component with a worker thread joined in its destructor
+
+`~TrayIcon` called `get_future()` on an already-moved promise, throwing `future_error` out of the `noexcept` destructor -- terminating the process on *every* shutdown. Invisible for the same reason GUI launches hide all stderr: exits already "look" abrupt, so nobody noticed the daemon never exited cleanly. Found in a log tail, not via any test.
+
+**Fix:** retrieve the future before moving the promise; regression test constructs and destroys a `TrayIcon` (pre-fix it aborts the runner, which is the honest signal). General principle: every RAII type with a joining destructor gets a construct-and-destroy case -- shutdown is behavior, and untested shutdown rots into terminate.

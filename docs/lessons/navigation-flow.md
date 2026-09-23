@@ -239,3 +239,21 @@ handler, not the source screen. General principle: "don't navigate until X
 lands" needs a named reader of X on the other side, or it is pure cost.
 
 ---
+
+## A capture screen showing a default looks like displayed-vs-persisted until the backend's own convention says otherwise
+Tags: webui, config, presence, nux
+Applies-when: gating onboarding on a capture selection the user never made
+
+`ModeDeviceScreen` renders "Auto (primary display)" whenever `/api/monitors` is empty -- with no selection ever persisted -- while `probeState()`'s `needsModeDevice` checks only `inputs.includes(activeInputName)`. The first instinct (demand a persisted monitor too) is wrong here: empty `activeMonitorName` legitimately means auto/primary (`MonitorSelector` no-ops on it, `RuntimeTests` pins the convention). A real `config.json` with input-but-no-monitor was a red herring, not the breakage.
+
+**Fix direction:** since emptiness is meaningful, the screen must record an explicit user confirmation rather than the probe demanding non-emptiness. General principle: verify a "missing value" theory against the backend's own empty-means-X conventions before writing the guard -- the displayed-vs-persisted entries above all had genuinely meaningless defaults.
+
+---
+
+## An awaited save with no busy feedback reads as a dead button
+Tags: webui, navigation, feedback, nux
+Applies-when: awaiting an in-flight save across a user gesture
+
+`_onContinue()` correctly awaits the live-apply promise before navigating (the race entry above), but a mode switch rebuilds the pipeline server-side -- measured at 4.5s -- with zero UI feedback. After rapid video->audio->video toggles the user clicked Continue, nothing visibly happened for seconds, and reported it broken; the daemon was healthy throughout and refresh recovered fine. The earlier race fix made the wait correct and left it invisible.
+
+**Fix:** disable Continue with an "Applying..." label while the apply is in flight (restore on settle). General principle: any await crossing a user gesture needs visible busy state, or slowness is indistinguishable from broken.

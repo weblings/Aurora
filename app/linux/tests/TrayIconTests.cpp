@@ -89,6 +89,18 @@ TEST_CASE("menu layout has Launch UI and Stop", "[traymenu]")
   g_variant_unref(layout);
 }
 
+TEST_CASE("TrayIcon constructs and destroys without terminating", "[tray]")
+{
+  // Regression: ~TrayIcon called get_future() on the already-moved
+  // promise, throwing future_error (no associated state) out of the
+  // noexcept destructor -- terminating the process on every shutdown.
+  // There is nothing to CHECK: pre-fix, this case aborts the runner.
+  {
+    TrayIcon icon("http://127.0.0.1:9/", true, [](){}, [](){});
+  }
+  SUCCEED();
+}
+
 TEST_CASE("Launch UI enabled tracks WebUI bound state", "[traymenu]")
 {
   GVariant* bound = TrayIcon::menuLayoutForTest(true);

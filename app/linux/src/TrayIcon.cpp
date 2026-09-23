@@ -313,6 +313,10 @@ struct TrayIcon::Worker
   BusState state;
   std::thread thread;
   std::promise<GMainLoop*> ready;
+  // Retrieved BEFORE ready is moved into the worker thread -- the
+  // destructor must never touch the moved-from promise (get_future()
+  // on it throws future_error, terminating the process on shutdown).
+  std::future<GMainLoop*> readyFuture;
 };
 
 void runTrayWorker(BusState* state, std::promise<GMainLoop*> done)
@@ -387,6 +391,7 @@ TrayIcon::TrayIcon(std::string url, bool webUiBound,
   m_worker->state.webUiBound = m_webUiBound;
   m_worker->state.onLaunch = m_onLaunch;
   m_worker->state.onStop = m_onStop;
+  m_worker->readyFuture = m_worker->ready.get_future();
   m_worker->thread = std::thread(runTrayWorker, &m_worker->state,
                                  std::move(m_worker->ready));
 }
@@ -396,7 +401,7 @@ TrayIcon::~TrayIcon()
   if(!m_worker){
     return;
   }
-  GMainLoop* loop = m_worker->ready.get_future().get();
+  GMainLoop* loop = m_worker->readyFuture.get();
   if(loop){
     g_main_loop_quit(loop);
   }
