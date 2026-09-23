@@ -97,9 +97,15 @@ add_executable(aurora-app-windows
 # (Multi-config generators still append <Config> under bin/.) The
 # CMake target name is unchanged, so link deps, the DLL copy, and
 # install(TARGETS) rules are unaffected.
+# 7l1.6: dual-mode launch. WIN32_EXECUTABLE links /SUBSYSTEM:WINDOWS so an
+# Explorer double-click shows no console; main() re-acquires the parent
+# console (AttachConsole/CONOUT$, --console) when there is one. Deliberately
+# keeps plain int main() instead of WinMain -- argv parsing is unchanged and
+# no CommandLineToArgvW shim is needed.
 set_target_properties(aurora-app-windows PROPERTIES
   OUTPUT_NAME "Aurora"
   RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin"
+  WIN32_EXECUTABLE TRUE
 )
 
 find_package(Threads REQUIRED)
