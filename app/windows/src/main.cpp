@@ -952,7 +952,9 @@ if(!instanceLock.held()){
   Aurora::Runtime::Config liveConfig = Aurora::Runtime::ConfigStore(configRoot).load();
   std::string url = "http://" + browsableAddress(liveConfig.boundBackendIP())
     + ":" + std::to_string(liveConfig.restServerPort()) + "/";
-  std::cout << "Aurora is already running -- opening " << url << " instead\n";
+  if(consoleAttached){
+    logLine("Aurora is already running -- opening " + url + " instead");
+  }
   openWebBrowser(url);
   return 0;
 }
