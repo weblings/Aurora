@@ -278,6 +278,26 @@ gboolean menuSetProperty(GDBusConnection*, const gchar*, const gchar*,
   return false;
 }
 
+// g_bus_own_name completes asynchronously: polling until the bus shows
+// us as owner (bounded -- a missing bus must not hang startup).
+bool nameIsOwned(GDBusConnection* connection, const std::string& busName)
+{
+  GError* error = nullptr;
+  GVariant* reply = g_dbus_connection_call_sync(
+      connection, "org.freedesktop.DBus", "/org/freedesktop/DBus",
+      "org.freedesktop.DBus", "GetNameOwner",
+      g_variant_new("(s)", busName.c_str()), G_VARIANT_TYPE("(s)"),
+      G_DBUS_CALL_FLAGS_NONE, 500, nullptr, &error);
+  if(error){
+    g_error_free(error);
+  }
+  if(!reply){
+    return false;
+  }
+  g_variant_unref(reply);
+  return true;
+}
+
 void registerWithWatcher(GDBusConnection* connection, const std::string& busName)
 {
   // kde name is the standard; some hosts answer the freedesktop alias.
@@ -361,7 +381,25 @@ void runTrayWorker(BusState* state, std::promise<GMainLoop*> done)
         std::string(kBusNamePrefix) + std::to_string(getpid()) + "-1";
     owner = g_bus_own_name(G_BUS_TYPE_SESSION, busName.c_str(),
         G_BUS_NAME_OWNER_FLAGS_NONE, nullptr, nullptr, nullptr, nullptr, nullptr);
-    registerWithWatcher(connection, busName);
+    // Registering before acquisition completes is a race the icon
+    // sometimes loses with no retry -- wait (bounded) until owned.
+    // g_bus_own_name completes asynchronously on this thread's context,
+    // which isn't running yet: pump it each pass or the reply can never
+    // arrive while we poll (poll+sleep alone always times out).
+    bool owned = false;
+    for(int i = 0; i < 40 && !owned; ++i){
+      g_main_context_iteration(context, FALSE);
+      owned = nameIsOwned(connection, busName);
+      if(!owned){
+        g_usleep(50 * 1000);
+      }
+    }
+    if(owned){
+      registerWithWatcher(connection, busName);
+    }
+    else{
+      std::cerr << "Tray: bus name never acquired -- running without icon\n";
+    }
     loop = g_main_loop_new(context, FALSE);
   } while(false);
   done.set_value(loop);

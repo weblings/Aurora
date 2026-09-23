@@ -113,3 +113,15 @@ Applies-when: constructing GVariant trees or asserting on them in tests
 Three rules, each learned by crash: (1) every g_variant_new_* container call sinks the floating references it is given -- including '@'-embedded values -- so hand unref of anything fed to a builder is a double-free. Only values handed *out* (get_child_value, lookup, get_variant) need unref. (2) A prebuilt GVariant embeds into a format string only with '@' ('@a{sv}'); bare container types expect varargs elements and abort otherwise. dbusmenu children are boxed variants ('av'), not nested structs -- the spec type says so. (3) g_variant_lookup_value matches the *inner* type and returns it unboxed: on an a{sv} dict, look up 's'/'b', not 'v' (which returns NULL).
 
 **Fix:** TrayIcon.cpp documents the ownership contract at the builders; TrayIconTests navigates via unbox + inner-type lookup. Companion trap in the same file: a hand forward-declared `Aurora::App::GVariant` typedef shadows glib's global once gio.h is included -- include the header and use the real type instead.
+
+---
+
+---
+
+## `g_bus_own_name` never completes on a thread whose GMainContext isn't running -- polling GetNameOwner without pumping always times out
+Tags: cpp, glib, dbus, threading, tray
+Applies-when: acquiring a session-bus name on a worker thread before its GMainLoop starts
+
+The tray worker called `g_bus_own_name` (async, no callbacks) then ran a bounded wait polling `GetNameOwner` with `g_usleep` between passes. The wait always timed out ("bus name never acquired -- running without icon") and registration was skipped -- yet `busctl` showed the name owned afterwards. Acquisition completes by dispatching on the calling thread's thread-default context, which nobody iterates until `g_main_loop_run` starts *after* the wait: the poll can never observe ownership because the reply it waits for needs the very loop that is blocked. Live state matched exactly (name owned, watcher list missing Aurora).
+
+**Fix:** pump the context each pass (`g_main_context_iteration(context, FALSE)` before the poll) in `app/linux/src/TrayIcon.cpp`. General principle: a synchronous poll from the same thread never substitutes for dispatching an async GLib/GIO call -- either pump the thread-default context while waiting or use the blocking `_sync` variant; `g_usleep` between polls only stretches a wait that cannot succeed.
