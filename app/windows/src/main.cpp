@@ -15,6 +15,7 @@
 #include <filesystem>
 #include <iostream>
 #include <mutex>
+#include <sstream>
 #include <optional>
 #include <thread>
 
@@ -27,6 +28,7 @@
 #include <nlohmann/json.hpp>
 
 #include <Aurora/App/InstanceLock.hpp>
+#include <Aurora/App/LogSink.hpp>
 #include <Aurora/App/Registry.hpp>
 #include <Aurora/App/WebRoot.hpp>
 #include <EmbeddedWebRoot.hpp>
@@ -67,6 +69,42 @@ namespace
   {
     g_stopRequested = true;
     return TRUE;
+  }
+
+  // 7l1.1/7l1.2: process-wide log sink. Set by main() right after startup;
+  // logLine() falls back to plain cout only before that (never in practice).
+  Aurora::App::LogSink* g_logSink = nullptr;
+
+  void logLine(const std::string& line)
+  {
+    if(g_logSink){
+      g_logSink->write(line);
+    }
+    else{
+      std::cout << line << '\n';
+    }
+  }
+
+  // 7l1.2: dual-mode console. A WINDOWS-subsystem launch starts with no
+  // console; rejoin the parent's when there is one (or --console /
+  // AURORA_CONSOLE forces one via AllocConsole) so CLI use keeps working.
+  // The CRT handles must be reopened onto CONOUT$ either way -- attaching
+  // alone leaves stdout/stderr dangling.
+  bool attachParentConsole(int argc, char** argv)
+  {
+    const bool force = Aurora::App::LogSink::wantsConsole(argc, argv);
+    bool haveConsole = AttachConsole(ATTACH_PARENT_PROCESS) != FALSE;
+    if(!haveConsole && force){
+      haveConsole = AllocConsole() != FALSE;
+    }
+    if(!haveConsole){
+      return false;
+    }
+    std::FILE* out = nullptr;
+    std::FILE* err = nullptr;
+    freopen_s(&out, "CONOUT$", "w", stdout);
+    freopen_s(&err, "CONOUT$", "w", stderr);
+    return out != nullptr && err != nullptr;
   }
 
 
@@ -173,7 +211,9 @@ namespace
     {
       const auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(
         std::chrono::steady_clock::now() - m_start).count();
-      std::cout << "[timing] " << m_phase << ": " << ms << " ms\n";
+      std::ostringstream timingMsg;
+      timingMsg << "[timing] " << m_phase << ": " << ms << " ms";
+      logLine(timingMsg.str());
     }
 
     ScopedPhaseTimer(const ScopedPhaseTimer&) = delete;
@@ -228,7 +268,7 @@ namespace
       for(const auto& name : outputNames){
         auto output = registry.createOutput(name);
         if(!output){
-          std::cerr << "Unknown output '" << name << "', skipping\n";
+          logLine(std::string("Unknown output '") + name + "', skipping");
           continue;
         }
         output->init();
@@ -274,8 +314,10 @@ namespace
         pipeline->m_isAudioMode = true;
         pipeline->m_tickIntervalSeconds = 1.0 / 60.0; // no display-derived rate for audio
 
-        std::cout << "Aurora running: audio input='" << config.activeAudioInputName()
-                   << "', " << pipeline->m_outputPtrs.size() << " output(s).\n";
+        std::ostringstream audioRunning;
+        audioRunning << "Aurora running: audio input='" << config.activeAudioInputName()
+                     << "', " << pipeline->m_outputPtrs.size() << " output(s).";
+        logLine(audioRunning.str());
       }
       else{
         std::string inputName = config.activeInputName().empty() ? "windows" : config.activeInputName();
@@ -297,8 +339,10 @@ namespace
         // display -- same as main() always did right after construction.
         Aurora::Runtime::ConfigStore(configRoot).save(pipeline->m_orchestrator->config());
 
-        std::cout << "Aurora running: input='" << inputName
-                   << "', " << pipeline->m_outputPtrs.size() << " output(s).\n";
+        std::ostringstream videoRunning;
+        videoRunning << "Aurora running: input='" << inputName
+                     << "', " << pipeline->m_outputPtrs.size() << " output(s).";
+        logLine(videoRunning.str());
       }
 
       return pipeline;
@@ -705,7 +749,7 @@ namespace
     if(stdOut != INVALID_HANDLE_VALUE && GetConsoleMode(stdOut, &mode)){
       SetConsoleMode(stdOut, mode | ENABLE_VIRTUAL_TERMINAL_PROCESSING);
     }
-    std::cout << "WebUI: \033]8;;" << url << "\033\\" << url << "\033]8;;\033\\\n";
+    logLine(std::string("WebUI: \033]8;;") + url + "\033\\" + url + "\033]8;;\033\\");
   }
 
 
@@ -773,7 +817,7 @@ public:
     std::snprintf(m_icon.szTip, sizeof(m_icon.szTip), "%s", tip.c_str());
     m_added = Shell_NotifyIconA(NIM_ADD, &m_icon) != FALSE;
     if(!m_added){
-      std::cerr << "No notification area -- running without tray icon\n";
+      logLine("No notification area -- running without tray icon");
     }
   }
 
@@ -872,6 +916,10 @@ int main(int argc, char** argv)
 try
 {
   SetConsoleCtrlHandler(handleConsoleEvent, TRUE);
+  Aurora::App::LogSink sink;
+  g_logSink = &sink;
+  const bool consoleAttached = attachParentConsole(argc, argv);
+  sink.setConsole(consoleAttached ? &std::cout : nullptr);
 
   // Resolved before registry setup now (unlike before CredentialsStore
   // existed) -- registerOutputs needs it to look up any persisted Hue
@@ -879,10 +927,21 @@ try
   std::filesystem::path configRoot;
   if(isFreshRun(argc, argv)){
     configRoot = freshConfigRoot();
-    std::cout << "Config root: " << configRoot.string() << " (--fresh: guaranteed empty)\n";
+    std::ostringstream configRootMsg;
+    configRootMsg << "Config root: " << configRoot.string() << " (--fresh: guaranteed empty)";
+    logLine(configRootMsg.str());
   }
   else{
     configRoot = resolveConfigRoot();
+  }
+  if(!sink.setFile(configRoot / "aurora.log")){
+    // Decided fallback (7l1 notes): %TEMP% when the config root is unusable.
+    std::error_code ec;
+    const auto fallback = std::filesystem::temp_directory_path(ec) / "Aurora" / "aurora.log";
+    if(!ec){
+      std::filesystem::create_directories(fallback.parent_path(), ec);
+      sink.setFile(fallback);
+    }
   }
 
 // Aurora-52o: one running instance per config root. A second launch
@@ -900,7 +959,9 @@ if(!instanceLock.held()){
   // TEMP DEBUG -- remove after live pairing repro (see WebUI/WebUI_Fixes.md).
   // Debug-only: Release builds must not print it.
 #ifndef NDEBUG
-  std::cout << "[pairing-debug] configRoot=" << configRoot << "\n";
+  std::ostringstream pairingMsg;
+  pairingMsg << "[pairing-debug] configRoot=" << configRoot;
+  logLine(pairingMsg.str());
 #endif
 
   // Captured before ConfigStore/Pipeline ever touch this configRoot --
@@ -928,7 +989,7 @@ if(!instanceLock.held()){
     initialPipeline = Pipeline::build(registry, config, configRoot);
   }
   catch(const std::exception& e){
-    std::cerr << "Pipeline not started (" << e.what() << ") -- WebUI still available for setup\n";
+    logLine(std::string("Pipeline not started (") + e.what() + ") -- WebUI still available for setup");
   }
   PipelineHost pipelineHost(std::move(initialPipeline));
 
@@ -951,9 +1012,11 @@ if(!instanceLock.held()){
   descriptorRegistry.add("hue", Aurora::Output::Hue::hueControlDescriptors());
 #endif
   for(const auto& collision : descriptorRegistry.collisions()){
-    std::cerr << "[descriptors] collision on '" << collision.key
-              << "': kept '" << collision.keptOwner
-              << "', dropped '" << collision.droppedOwner << "'\n";
+    std::ostringstream descriptorsMsg;
+    descriptorsMsg << "[descriptors] collision on '" << collision.key
+                   << "': kept '" << collision.keptOwner
+                   << "', dropped '" << collision.droppedOwner << "'";
+    logLine(descriptorsMsg.str());
   }
   Aurora::Runtime::registerDescriptorRoutes(httpServer, descriptorRegistry);
 #ifdef AURORA_OUTPUT_HUE_IO_AVAILABLE
@@ -1030,7 +1093,7 @@ if(!instanceLock.held()){
     url = "http://" + browsableAddress(config.boundBackendIP())
       + ":" + std::to_string(config.restServerPort()) + "/";
     if(isFirstSetup){
-      std::cout << "WebUI: opening " << url << " in your browser\n";
+      logLine("WebUI: opening " + url + " in your browser");
       openWebBrowser(url);
     }
     else{
@@ -1038,11 +1101,13 @@ if(!instanceLock.held()){
     }
   }
   else{
-    std::cerr << "Could not bind WebUI to " << config.boundBackendIP() << ":" << config.restServerPort()
-               << " -- continuing without it\n";
+    std::ostringstream bindMsg;
+    bindMsg << "Could not bind WebUI to " << config.boundBackendIP() << ":" << config.restServerPort()
+            << " -- continuing without it";
+    logLine(bindMsg.str());
   }
 
-  std::cout << "Aurora running. Ctrl+C to stop.\n";
+  logLine(Aurora::App::LogSink::runningLine(consoleAttached));
 
   // Aurora-x2o.1: tray presence from here until scope exit (NIM_DELETE
   // in the destructor, including unwinding on exceptions below).
@@ -1066,7 +1131,7 @@ if(!instanceLock.held()){
     }
   }
 
-  std::cout << "Stopping...\n";
+  logLine("Stopping...");
   pipelineHost.shutdown();
 
   // httpServerThread stops and joins the WebUI in its destructor as this
@@ -1080,6 +1145,6 @@ if(!instanceLock.held()){
 // catch here so that's a clean error message, not std::terminate.
 catch(const std::exception& e)
 {
-  std::cerr << "Fatal: " << e.what() << "\n";
+  logLine(std::string("Fatal: ") + e.what());
   return 1;
 }

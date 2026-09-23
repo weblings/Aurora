@@ -1,4 +1,6 @@
 #include <Aurora/App/LogSink.hpp>
+#include <cctype>
+#include <cstdlib>
 
 namespace Aurora::App
 {
@@ -123,6 +125,25 @@ std::string LogSink::stripOsc8(std::string_view line)
     }
     rest.remove_prefix(terminatorLength(rest));
   }
+}
+
+bool LogSink::wantsConsole(int argc, char** argv)
+{
+  for(int i = 1; i < argc; ++i){
+    const std::string_view arg = argv[i] != nullptr ? argv[i] : "";
+    if(arg == "--console"){
+      return true;
+    }
+  }
+  const char* env = std::getenv("AURORA_CONSOLE");
+  if(env == nullptr || env[0] == '\0'){
+    return false;
+  }
+  std::string value = env;
+  for(char& c : value){
+    c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+  }
+  return value == "1" || value == "true" || value == "yes" || value == "on";
 }
 
 std::string LogSink::runningLine(bool consoleAttached)

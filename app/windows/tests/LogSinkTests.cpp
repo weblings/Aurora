@@ -5,6 +5,8 @@
 #include <sstream>
 #include <string>
 
+#include <cstdlib>
+
 #include <Aurora/App/LogSink.hpp>
 
 using namespace Aurora::App;
@@ -94,4 +96,57 @@ TEST_CASE("runningLine follows the attach mode", "[logsink]")
 {
   CHECK(LogSink::runningLine(true) == "Aurora running. Ctrl+C to stop.");
   CHECK(LogSink::runningLine(false) == "Aurora running. Tray Stop or /api/stop to stop.");
+}
+
+namespace
+{
+void setAttachEnv(const char* value)
+{
+#ifdef _WIN32
+  _putenv_s("AURORA_CONSOLE", value);
+#else
+  setenv("AURORA_CONSOLE", value, 1);
+#endif
+}
+
+void clearAttachEnv()
+{
+#ifdef _WIN32
+  _putenv_s("AURORA_CONSOLE", "");
+#else
+  unsetenv("AURORA_CONSOLE");
+#endif
+}
+
+bool checkArgv(std::initializer_list<const char*> args)
+{
+  std::vector<char*> argv;
+  for(const char* a : args){
+    argv.push_back(const_cast<char*>(a));
+  }
+  return LogSink::wantsConsole(static_cast<int>(argv.size()), argv.data());
+}
+}
+
+TEST_CASE("wantsConsole follows --console and AURORA_CONSOLE", "[logsink]")
+{
+  clearAttachEnv();
+  CHECK(!checkArgv({"prog"}));
+  CHECK(checkArgv({"prog", "--console"}));
+  CHECK(checkArgv({"prog", "--fresh", "--console"}));
+  CHECK(!checkArgv({"prog", "--console=x"}));
+  CHECK(!checkArgv({"prog", "--CONSOLE"}));
+
+  setAttachEnv("1");
+  CHECK(checkArgv({"prog"}));
+  setAttachEnv("YES");
+  CHECK(checkArgv({"prog"}));
+  setAttachEnv("0");
+  CHECK(!checkArgv({"prog"}));
+  setAttachEnv("false");
+  CHECK(!checkArgv({"prog"}));
+  setAttachEnv("0");
+  CHECK(checkArgv({"prog", "--console"}));
+  clearAttachEnv();
+  CHECK(!checkArgv({"prog"}));
 }

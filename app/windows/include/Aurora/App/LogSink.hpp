@@ -30,6 +30,11 @@ public:
 
   static std::string stripOsc8(std::string_view line);
   static std::string runningLine(bool consoleAttached);
+  // Attach policy for 7l1.2: true only with --console on the command line
+  // or a truthy AURORA_CONSOLE (1/true/yes/on). Anything else means
+  // "attach iff a parent console exists, else headless" -- decided by
+  // trying AttachConsole, not by this function.
+  static bool wantsConsole(int argc, char** argv);
 
 private:
   std::ostream* m_console = nullptr;
