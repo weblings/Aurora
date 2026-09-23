@@ -112,6 +112,21 @@ namespace
   };
 
 
+  // "Dev flag set but carrying no address", spelled per platform. POSIX
+  // setenv() keeps "" observable (getenv() returns non-null ""), but
+  // MSVC's _putenv_s(name, "") *removes* the variable -- the same
+  // convention app/windows/tests/LogSinkTests.cpp already relies on
+  // (_putenv_s(name,"") spells clear, like unsetenv) -- so getenv()
+  // reads NULL and the discover route would take the production path
+  // instead of the dev arm. "1" is the documented bare-presence idiom
+  // (tools/fake-hue-bridge/README.md) the route treats exactly like "".
+#ifdef _WIN32
+  constexpr const char* kDevFlagNoAddress = "1";
+#else
+  constexpr const char* kDevFlagNoAddress = "";
+#endif
+
+
   struct TestServer
   {
     HttpServer server;
@@ -165,7 +180,7 @@ TEST_CASE("discover prefers the explicit fake address over AURORA_HUE_BRIDGE_ADD
 
 TEST_CASE("discover reuses AURORA_HUE_BRIDGE_ADDRESS when the dev flag carries no address", "[PairingRoutes]")
 {
-  ScopedEnv dev("AURORA_DEV_FAKE_HUE", "");
+  ScopedEnv dev("AURORA_DEV_FAKE_HUE", kDevFlagNoAddress);
   ScopedEnv hue("AURORA_HUE_BRIDGE_ADDRESS", "10.1.2.3:18443");
   ScopedTempDir configRoot("discover-reuse");
   TestServer test(configRoot.path, 18232);
@@ -176,7 +191,7 @@ TEST_CASE("discover reuses AURORA_HUE_BRIDGE_ADDRESS when the dev flag carries n
 
 TEST_CASE("discover defaults to localhost when no address is configured anywhere", "[PairingRoutes]")
 {
-  ScopedEnv dev("AURORA_DEV_FAKE_HUE", "");
+  ScopedEnv dev("AURORA_DEV_FAKE_HUE", kDevFlagNoAddress);
   ScopedEnv hue("AURORA_HUE_BRIDGE_ADDRESS", "");
   ScopedTempDir configRoot("discover-default");
   TestServer test(configRoot.path, 18233);

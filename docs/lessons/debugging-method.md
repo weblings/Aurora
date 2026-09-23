@@ -364,3 +364,13 @@ Applies-when: owning a component with a worker thread joined in its destructor
 `~TrayIcon` called `get_future()` on an already-moved promise, throwing `future_error` out of the `noexcept` destructor -- terminating the process on *every* shutdown. Invisible for the same reason GUI launches hide all stderr: exits already "look" abrupt, so nobody noticed the daemon never exited cleanly. Found in a log tail, not via any test.
 
 **Fix:** retrieve the future before moving the promise; regression test constructs and destroys a `TrayIcon` (pre-fix it aborts the runner, which is the honest signal). General principle: every RAII type with a joining destructor gets a construct-and-destroy case -- shutdown is behavior, and untested shutdown rots into terminate.
+
+---
+
+## When the maintained harness cannot run here, mirror it with a disposable driver
+Tags: debugging, verification, sandbox, offline
+Applies-when: landing a fetched-harness test (Catch2 or similar) from an offline sandbox
+
+Catch2/nlohmann/httplib were unfetchable with no network, so the committed suite could not execute locally. Mirrored its cases in a /tmp assert-driver, ran it green, and left the Catch2 suite for windows.yml CI. The mirror earned its keep immediately: it failed on a genuine artifact (reused temp dir plus append-mode log replay), fixed by isolating temp state per run -- which also proved the driver itself can fail.
+
+**Fix:** never claim green on an unrunnable harness suite alone: executable mirror in /tmp (kept out of the repo), same cases, temp state isolated per run; the committed suite stays canonical and CI-gated.
