@@ -334,3 +334,13 @@ Applies-when: unit-testing an flock-based exclusion lock without spawning proces
 Unlike fcntl POSIX locks (per-process, merge), flock binds to the open file description -- a second LOCK_EX|LOCK_NB on another fd fails with EWOULDBLOCK even in-process. InstanceLockTests' same-root-exclusion case therefore exercises the real cross-process mechanism, not a tautology.
 
 **Fix:** keep the three Catch2 cases (same-root exclusion, independent roots, reacquire) as maintained coverage; live double-launch stays manual/CI-smoke.
+
+---
+
+## When the maintained harness cannot run here, mirror it with a disposable driver
+Tags: debugging, verification, sandbox, offline
+Applies-when: landing a fetched-harness test (Catch2 or similar) from an offline sandbox
+
+Catch2/nlohmann/httplib were unfetchable with no network, so the committed suite could not execute locally. Mirrored its cases in a /tmp assert-driver, ran it green, and left the Catch2 suite for windows.yml CI. The mirror earned its keep immediately: it failed on a genuine artifact (reused temp dir plus append-mode log replay), fixed by isolating temp state per run -- which also proved the driver itself can fail.
+
+**Fix:** never claim green on an unrunnable harness suite alone: executable mirror in /tmp (kept out of the repo), same cases, temp state isolated per run; the committed suite stays canonical and CI-gated.

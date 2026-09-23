@@ -176,3 +176,13 @@ Applies-when: choosing a notification API for a portable (uninstalled) Windows a
 Classic balloon tips are legacy: since Win10, Shell_NotifyIcon NIF_INFO surfaces as an Action Center toast. Full WinRT toasts demand a Start Menu shortcut with AppUserModelID (+ installer, + COM activator for actions) -- disproportionate for a one-shot hint in a portable zip, and tray-originated NIF_INFO toasts are attributed to the icon with zero install footprint.
 
 **Fix:** keep NIF_INFO; write copy for a detached notification (name the destination, never 'here').
+
+---
+
+## Session-ending broadcasts never reach a message-only window
+Tags: windows, shutdown, win32, tray
+Applies-when: handling logoff/shutdown in an app whose only window is HWND_MESSAGE
+
+WM_QUERYENDSESSION/WM_ENDSESSION go to top-level windows only; a message-only window never receives them, so a tray app with no other window cannot use its message-only window as the shutdown listener.
+
+**Fix:** promote to a hidden top-level window (or equivalent) that sets the same stop flag the tray Stop path sets; still live-test logoff/shutdown afterward, since delivery is only half the contract.
