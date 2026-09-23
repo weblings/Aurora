@@ -6,4 +6,12 @@ Verification: core 65/65 (new garbage-load + clamp cases), input/linux 14/14, ap
 
 Surprises/corrections: empty `activeMonitorName` is legitimate auto (red herring, lesson filed); the reasoned 1000 cap still wedged and was revised to measured 240 in a follow-up commit; rapid video->audio->video toggles only *looked* dead (silent 4.5s apply-await -- busy-state fix committed here for `Aurora-23a`); overlapping reloads survived fine.
 
-Follow-ups: `Aurora-cgr` (tick debt-bounding -- any overrunning tick can still starve the mutex; 240 reload hung once here) and `Aurora-nzd` (tray fix committed earlier this stream) stay open; `Aurora-23a` keeps the busy-state verification note. User box left with daemon running at 60Hz, NUX at Zone Mapping. `bd` export still refused (46 JSONL-only records vs live DB -- needs owner call). `CHANGELOG.txt` tray note is the user's own edit, never touched.
+Follow-ups: `Aurora-cgr` (tick debt-bounding -- any overrunning tick can still starve the mutex; 240 reload hung once here) and `Aurora-nzd` (tray fix committed earlier this stream) stay open; `Aurora-23a` keeps the busy-state verification note.
+
+---
+
+## Addendum: phantom "already running" (`Aurora-kwn`, open) + tray race (`Aurora-4wi`, closed 2026-09-23)
+
+Double-click printed "already running" with nothing on :8215. Not a stale lock: pid 28957 (GUI-launched) held `aurora.lock` for 22min, never bound HTTP, slept on futex, ignored SIGTERM (needed SIGKILL) -- wedged pre-bind, most likely in the unbounded portal ScreenCast wait inside `Pipeline::build` (possibly an unanswered share dialog; `AudioGrabber` has a 5s bound, the video path has none). A replacement launch wedged pre-bind the same way with the bridge verified healthy/idle (streams inactive). Un-wedged via SIGKILL; daemon state at handoff: fresh relaunch, bind unconfirmed.
+
+Separately: tray icon "seen once" fits a real race -- `g_bus_own_name` is fire-and-forget and `RegisterStatusNotifierItem` runs immediately after with no retry. Fix implemented (bounded `GetNameOwner` wait before registering): builds clean, app tests 14/14 green, uncommitted. Update 2026-09-23: the bounded wait alone always timed out -- `own_name` completes on the worker's not-yet-running context, so the wait now pumps it (`g_main_context_iteration`); committed as `1707889`, owner verified the icon renders, bead closed (see `2026-09-23-tray-bus-name-race.md`). Display side also off: `ubuntu-appindicators@ubuntu.com` installed but not enabled. User box left with daemon running at 60Hz, NUX at Zone Mapping. `bd` export still refused (46 JSONL-only records vs live DB -- needs owner call). `CHANGELOG.txt` tray note is the user's own edit, never touched.
