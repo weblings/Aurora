@@ -1,3 +1,6 @@
+v1.0.2:
+- Dev bump (unreleased; GUI launch UX work in progress)
+
 v1.0.1:
 - Build release folders are now standalone! You can put the folder anywhere and it will behave the same as in v1.0.0 when it needed to be within the project dir
 - Demo UI fixes
