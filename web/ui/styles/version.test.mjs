@@ -1,7 +1,8 @@
-// Version-footer contract (Aurora-qdk): one truth, three consumers. The
-// superbuild project() VERSION mirrors the CHANGELOG top entry; both app
-// shells compile it into a /api/version route; both dashboards fetch and
-// render it into a secondary-color footer. No test framework dependency
+// Version-footer contract (Aurora-qdk): one truth, two bakes. The
+// superbuild project() VERSION is what both app shells compile into a
+// /api/version route; both dashboards fetch and render it into a
+// secondary-color footer. CHANGELOG.txt is hand-written release notes, not
+// a mirrored source -- nothing here reads it. No test framework dependency
 // (matches dashboard.test.mjs convention) -- run with `node version.test.mjs`.
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
@@ -9,15 +10,14 @@ import { readFileSync } from 'node:fs';
 const root = new URL('../../', import.meta.url);
 const read = (p) => readFileSync(new URL(p, root), 'utf8');
 
-// Single truth: CMake project VERSION agrees with the CHANGELOG release.
+// Single truth: the superbuild project() VERSION parses -- it is the
+// release version the app shells bake below. Deliberately no CHANGELOG
+// mirror: the changelog is hand-written, and a version bump must never go
+// red waiting on notes.
 {
   const cmake = read('CMakeLists.txt');
   const declared = cmake.match(/^project\(\S+\s+VERSION\s+(\d+\.\d+\.\d+)/m);
   assert.ok(declared, 'superbuild project() carries a VERSION');
-  const changelog = read('CHANGELOG.txt');
-  const top = changelog.match(/^v(\d+\.\d+\.\d+)/m);
-  assert.ok(top, 'CHANGELOG top entry is versioned');
-  assert.equal(declared[1], top[1], 'CMake VERSION mirrors the CHANGELOG release');
 }
 
 // Both app shells bake the truth into a /api/version route.

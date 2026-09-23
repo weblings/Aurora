@@ -19,9 +19,11 @@ bd export -o .beads/issues.jsonl   # immediately before git add-ing task state
 ## Version + changelog
 
 The app version's single truth is `project(AuroraMonorepo VERSION x.y.z)`
-in the root `CMakeLists.txt`, mirrored by the top entry of `CHANGELOG.txt`
-(the apps compile it into their `/api/version` route). The maintainer will bump the two
-together.
+in the root `CMakeLists.txt`, matching the hand-written top entry of
+`CHANGELOG.txt` by convention (the apps compile it into their
+`/api/version` route). `CHANGELOG.txt` is the maintainer's own notes --
+agents and contributors bump the version only when asked and never touch
+the changelog; nothing enforces the mirror.
 
 ## Quality gates
 
