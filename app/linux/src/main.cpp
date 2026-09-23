@@ -801,7 +801,18 @@ if(!instanceLock.held()){
   Aurora::Runtime::Config liveConfig = Aurora::Runtime::ConfigStore(configRoot).load();
   std::string url = "http://" + browsableAddress(liveConfig.boundBackendIP())
     + ":" + std::to_string(liveConfig.restServerPort()) + "/";
-  std::cout << "Aurora is already running -- opening " << url << " instead\n";
+  // Name the holder and probe its port: a lock held by a process wedged
+  // before its HTTP bind (Aurora-kwn) otherwise reads exactly like a
+  // healthy handoff. The browser still opens either way -- with the UI's
+  // unreachable+Retry state, that surfaces the wedge instead of hiding it.
+  const std::uint64_t holder = instanceLock.holderPid();
+  if(holder != 0 && !Aurora::App::isLoopbackPortResponsive(liveConfig.restServerPort())){
+    std::cout << "Aurora is already running (pid " << holder << ") but is not responding at "
+      << url << " -- it may be wedged before its HTTP bind; stop that process and relaunch if this persists\n";
+  }
+  else{
+    std::cout << "Aurora is already running -- opening " << url << " instead\n";
+  }
   openWebBrowser(url);
   return 0;
 }

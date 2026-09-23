@@ -374,3 +374,13 @@ Applies-when: landing a fetched-harness test (Catch2 or similar) from an offline
 Catch2/nlohmann/httplib were unfetchable with no network, so the committed suite could not execute locally. Mirrored its cases in a /tmp assert-driver, ran it green, and left the Catch2 suite for windows.yml CI. The mirror earned its keep immediately: it failed on a genuine artifact (reused temp dir plus append-mode log replay), fixed by isolating temp state per run -- which also proved the driver itself can fail.
 
 **Fix:** never claim green on an unrunnable harness suite alone: executable mirror in /tmp (kept out of the repo), same cases, temp state isolated per run; the committed suite stays canonical and CI-gated.
+
+---
+
+## A successful TCP connect proves bind, not responsiveness -- scope probe claims to never-bound
+Tags: debugging, verification, oracle, networking
+Applies-when: probing whether another process is alive via its port
+
+A connect to a listening socket completes in the kernel even if the process behind it is wedged (backlog accept), so a port probe distinguishes "never bound" (refused -- the Aurora-kwn wedge shape) from "bound", never "healthy" from "hung". The handoff message therefore claims "not responding at <url>", never "dead process".
+
+**Fix:** isLoopbackPortResponsive() with a short bound, tested both directions (closed-port false and bound-port true -- a negative-only probe test cannot catch an always-false probe).

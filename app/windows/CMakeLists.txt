@@ -72,6 +72,12 @@ target_link_libraries(AuroraApp PUBLIC
   AuroraOutputInterface
 )
 
+# InstanceLock's loopback probe speaks Winsock directly; PUBLIC so both
+# the app and its tests inherit it.
+if(WIN32)
+  target_link_libraries(AuroraApp PUBLIC ws2_32)
+endif()
+
 target_compile_features(AuroraApp PUBLIC cxx_std_20)
 
 # Embedded webroot (StandaloneApps P1): generated from the fetched web/ui

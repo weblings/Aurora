@@ -1,5 +1,10 @@
 #include <catch2/catch_test_macros.hpp>
 
+#include <arpa/inet.h>
+#include <netinet/in.h>
+#include <sys/socket.h>
+#include <unistd.h>
+
 #include <filesystem>
 
 #include <Aurora/App/InstanceLock.hpp>
@@ -47,4 +52,67 @@ TEST_CASE("a released lock can be reacquired", "[instancelock]")
   }
   InstanceLock second(dir);
   REQUIRE(second.held());
+}
+
+TEST_CASE("the holder advertises its pid for a second instance to read", "[instancelock]")
+{
+  auto dir = freshDir("holderpid");
+  InstanceLock first(dir);
+  REQUIRE(first.held());
+  const auto ownPid = static_cast<std::uint64_t>(::getpid());
+  CHECK(first.holderPid() == ownPid);
+  InstanceLock second(dir);
+  REQUIRE(!second.held());
+  CHECK(second.holderPid() == ownPid);
+}
+
+
+TEST_CASE("a losing instance never overwrites the holder pid", "[instancelock]")
+{
+  auto dir = freshDir("nooverwrite");
+  InstanceLock first(dir);
+  REQUIRE(first.held());
+  const auto holder = first.holderPid();
+  REQUIRE(holder != 0);
+  InstanceLock second(dir);
+  REQUIRE(!second.held());
+  CHECK(second.holderPid() == holder);
+}
+
+
+TEST_CASE("a closed loopback port reads as unresponsive", "[instancelock]")
+{
+  // Bind-then-close: the kernel reclaims the port, so the probe must see
+  // a refused connect -- the Aurora-kwn shape (lock held, never bound).
+  int listener = ::socket(AF_INET, SOCK_STREAM, 0);
+  REQUIRE(listener >= 0);
+  sockaddr_in address{};
+  address.sin_family = AF_INET;
+  address.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
+  address.sin_port = 0;
+  REQUIRE(::bind(listener, reinterpret_cast<sockaddr*>(&address), sizeof(address)) == 0);
+  socklen_t len = sizeof(address);
+  REQUIRE(::getsockname(listener, reinterpret_cast<sockaddr*>(&address), &len) == 0);
+  const unsigned port = ntohs(address.sin_port);
+  ::close(listener);
+  CHECK_FALSE(isLoopbackPortResponsive(port));
+}
+
+
+TEST_CASE("a bound loopback port reads as responsive", "[instancelock]")
+{
+  // Per the verifier lesson: a probe test that only checks the negative
+  // cannot catch a probe stuck always-false, so pin the positive too.
+  int listener = ::socket(AF_INET, SOCK_STREAM, 0);
+  REQUIRE(listener >= 0);
+  sockaddr_in address{};
+  address.sin_family = AF_INET;
+  address.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
+  address.sin_port = 0;
+  REQUIRE(::bind(listener, reinterpret_cast<sockaddr*>(&address), sizeof(address)) == 0);
+  REQUIRE(::listen(listener, 1) == 0);
+  socklen_t len = sizeof(address);
+  REQUIRE(::getsockname(listener, reinterpret_cast<sockaddr*>(&address), &len) == 0);
+  CHECK(isLoopbackPortResponsive(ntohs(address.sin_port)));
+  ::close(listener);
 }

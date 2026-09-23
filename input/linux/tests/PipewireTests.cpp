@@ -7,6 +7,7 @@
 #include <Aurora/Input/Linux/GamescopeNodeMatch.hpp>
 #include <Aurora/Input/Linux/IRestoreTokenStore.hpp>
 #include <Aurora/Input/Linux/PipewireFrameBuffer.hpp>
+#include <Aurora/Input/Linux/PipewireFramerate.hpp>
 #include <Aurora/Input/Linux/PipewireRuntime.hpp>
 
 using namespace Aurora::Input::Linux;
@@ -92,6 +93,25 @@ TEST_CASE("NullRestoreTokenStore never persists", "[XdgDesktopPortal][restore-to
 
   store.setRestoreToken("some-token");
   CHECK_FALSE(store.restoreToken().has_value());
+}
+
+
+TEST_CASE("reduceFramerate reduces the fraction instead of trusting the numerator", "[PipewireGrabber][framerate]")
+{
+  // The live failure: an unreduced max_framerate numerator (15729223 Hz)
+  // was once persisted as the refresh rate and wedged the runtime loop.
+  // Representative unreduced shapes (the exact live denominator is
+  // unknown; the numerator alone is the documented fact).
+  CHECK(reduceFramerate(60000, 1001) == 59);
+  CHECK(reduceFramerate(60, 1) == 60);
+  CHECK(reduceFramerate(15729223, 1000) == 15729);
+}
+
+
+TEST_CASE("reduceFramerate treats a zero denominator as unset", "[PipewireGrabber][framerate]")
+{
+  CHECK(reduceFramerate(60, 0) == 0);
+  CHECK(reduceFramerate(0, 0) == 0);
 }
 
 

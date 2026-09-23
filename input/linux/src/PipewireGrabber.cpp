@@ -1,4 +1,5 @@
 #include <Aurora/Input/Linux/PipewireGrabber.hpp>
+#include <Aurora/Input/Linux/PipewireFramerate.hpp>
 
 #include <sstream>
 #include <future>
@@ -96,12 +97,10 @@ namespace Aurora::Input::Linux
   IVideoInput::RefreshRate PipewireGrabber::displayRefreshRate() const
   {
     // max_framerate is an unreduced fraction -- .num alone once persisted
-    // as a 15M "Hz" refreshRate and wedged the runtime loop. Reduce it.
+    // as a 15M "Hz" refreshRate and wedged the runtime loop. Reduce it
+    // (pure helper, covered in PipewireTests.cpp).
     const auto& framerate = m_pwData.format.info.raw.max_framerate;
-    if(framerate.denom == 0){
-      return 0;
-    }
-    return framerate.num / framerate.denom;
+    return reduceFramerate(framerate.num, framerate.denom);
   }
 
 
