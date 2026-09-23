@@ -8,11 +8,17 @@ Distilled from [huenicorn](https://gitlab.com/openjowelsofts/huenicorn)
 
 ## Status
 
-This pass ports and tests the pure logic only: HueStream wire-format
-byte-packing, CIE xyY colorimetry, channel gamma/UV math, bridge-address
-sanitizing, and credential byte-conversion. The I/O layer (bridge REST API,
-entertainment-config pairing, the actual DTLS stream) is analyzed but not yet
-ported — see [`docs/HueOutputAnalysis.md`](../../docs/HueOutputAnalysis.md).
+Full plugin: the pure logic (Huestream wire-format byte-packing, CIE xyY
+colorimetry, channel gamma/UV math, bridge-address sanitizing, credential
+byte-conversion and file persistence) plus the I/O layer -- bridge REST
+over HTTPS (`HttpClient`, `ApiTools`: discovery, pairing, entertainment
+configurations, devices, lights), entertainment-config selection, the
+PSK-DTLS entertainment stream (`Streamer`, UDP 2100), the `HueOutput`
+itself, and the daemon pairing routes (`PairingRoutes`, `/api/hue/*`).
+The I/O half is one toggle (`AURORA_OUTPUT_HUE_ENABLE_IO`, default ON;
+needs libcurl + Mbed TLS) -- a Hue plugin isn't useful with only one half
+of it. Background analysis lives in
+[`docs/HueOutputAnalysis.md`](../../docs/HueOutputAnalysis.md).
 
 ## Developing without a bridge
 
@@ -26,12 +32,17 @@ env var unset is unchanged.
 
 ## Building
 
-Depends on Aurora core (`Contracts`, the `Output` interface), currently
-resolved via a local sibling-directory path in `CMakeLists.txt` — expects
-this repo to sit next to `Aurora/` on disk, same as it does in this checkout.
+Depends on Aurora core (`Contracts`, the `Output` interface), pulled in
+via FetchContent pointed at this monorepo's own `core/` tree, and on
+nlohmann_json (system copy or fetched automatically). The I/O sources
+additionally need libcurl and Mbed TLS (2.28.x or 3.x).
 
 ```
 cmake -S . -B build
 cmake --build build
 ctest --test-dir build --output-on-failure
 ```
+
+Full-app builds use the presets at the repo root (`linux-app`,
+`windows-app` -- see [`docs/Building.md`](../../docs/Building.md)); the root
+superbuild toggles this slice with `AURORA_ENABLE_OUTPUT_HUE`.
