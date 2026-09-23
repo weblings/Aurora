@@ -312,3 +312,13 @@ audit every per-instance constructor/destructor pair for process-global
 calls hiding inside it — init/deinit, `XInitThreads`-style one-time setup,
 global refcounts — and hoist those to init-once; "balanced within one
 lifetime" is only balanced if no second lifetime can ever overlap it.
+
+---
+
+## A PipeWire format fraction is not a value -- reduce num/denom before trusting either half
+Tags: input, pipewire, spa, framerate
+Applies-when: reading a negotiated PipeWire fraction as a plain number
+
+`PipewireGrabber::displayRefreshRate()` returned `max_framerate.num` raw as Hz. PipeWire fractions are frequently unreduced, so one backend negotiated a numerator of 15729223 -- persisted via Orchestrator's derive-from-display into config.json, the runtime loop then ran at 15.7M "updates per second" and wedged the daemon; the UI's untimed fetches hung in bootstrap, so every launch showed a blank page with the bad value surviving restarts because it was persisted. Same family as the narrowed-format fix that stopped trusting PipeWire's format tag.
+
+**Fix:** reduce the fraction (`num / denom`, `denom == 0` means unset) at the grabber boundary, clamp `Config::setRefreshRate` to a sane max so no future garbage source can persist, sanitize on `ConfigStore` load, and time out the UI's localhost probes so a hung daemon shows "unreachable" instead of blank. General principle: negotiated PipeWire fields are wire representations, not values.

@@ -34,8 +34,17 @@ document.addEventListener('keydown', async (e) => {
   a.click();
 });
 
-async function fetchJson(url) {
-  return (await fetch(url)).json();
+// Localhost probes should answer in ms -- a hung daemon (e.g. a runaway
+// runtime loop) must surface as "Could not reach the daemon" with Retry,
+// never a blank page awaiting a response that never comes.
+async function fetchJson(url, { timeoutMs = 10000 } = {}) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await (await fetch(url, { signal: controller.signal })).json();
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
 function toDashboard() {

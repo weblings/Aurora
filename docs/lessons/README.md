@@ -25,7 +25,7 @@ Aurora's own module boundaries instead of RockyRoad's. `rendering-apis.md` vs.
 | [architecture-process.md](architecture-process.md) | splits, duplication, reload, presence | 20 | architecture or process decision |
 | [web-testing.md](web-testing.md) | jsdom, live tests, routes, settings | 8 | web testing specific |
 | [language-cpp.md](language-cpp.md) | namespace, threads, C-portability | 6 | C++ language gotcha |
-| [input.md](input.md) | capture/grabber/platform-adapter | 10 | capture/grabber specific |
+| [input.md](input.md) | capture/grabber/platform-adapter | 11 | capture/grabber specific |
 | [processing.md](processing.md) | color/effect transform, zone-mapping | 6 | color/effect/zone-mapping specific |
 | [output.md](output.md) | streaming/protocol, any target | 7 | streaming/protocol/wire-format specific |
 | [rendering-apis.md](rendering-apis.md) | third-party rendering facts | 4 | Three.js/GLTFLoader/Blender behavior, not our design |

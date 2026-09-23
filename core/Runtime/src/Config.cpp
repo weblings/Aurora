@@ -48,7 +48,7 @@ namespace Aurora::Runtime
 
   void Config::setRefreshRate(unsigned refreshRate)
   {
-    m_data.refreshRate = std::max(refreshRate, 1u);
+    m_data.refreshRate = std::clamp(refreshRate, 1u, kMaxRefreshRate);
   }
 
 

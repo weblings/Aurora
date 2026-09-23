@@ -95,7 +95,13 @@ namespace Aurora::Input::Linux
 
   IVideoInput::RefreshRate PipewireGrabber::displayRefreshRate() const
   {
-    return m_pwData.format.info.raw.max_framerate.num;
+    // max_framerate is an unreduced fraction -- .num alone once persisted
+    // as a 15M "Hz" refreshRate and wedged the runtime loop. Reduce it.
+    const auto& framerate = m_pwData.format.info.raw.max_framerate;
+    if(framerate.denom == 0){
+      return 0;
+    }
+    return framerate.num / framerate.denom;
   }
 
 

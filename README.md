@@ -18,7 +18,8 @@ Philips' official app.
 - (Read dependencies before this step) In a terminal window in the unzipped folder, launch the app. Ctrl + click on the link to open the UI and get setup. Enjoy!
 - Dependencies:
   - **Windows:** Try launching Aurora. If you get an error saying "The code execution cannot proceed because VCRUNTIME140.dll was not found", then you need: [Visual C++ Redistributable](https://learn.microsoft.com/en-us/cpp/windows/latest-supported-vc-redist). If not, it's already installed and you're good to go.
-  - **Linux (Debian/Ubuntu):** `sudo apt install libx11-6 libxext6 libxrandr2 pipewire libaubio5 libcurl4t64 libopencv-core410 libmbedtls21` (ffmpeg and GL pieces arrive automatically as dependencies of those; on older releases the curl/opencv/mbedtls package names differ slightly, and a missing-`.so` error on launch names its package).
+  - **Linux (Debian/Ubuntu):** `sudo apt install libx11-6 libxext6 libxrandr2 pipewire libaubio5 libcurl4t64 libopencv-core406t64 libmbedtls14t64` (ffmpeg and GL pieces arrive automatically as dependencies of those; on other releases the curl/opencv/mbedtls package names differ slightly — e.g. `libopencv-core410` / `libmbedtls21` — and a missing-`.so` error on launch names its package).
+  - **Compiling from source?** You need the `-dev` variants instead — see [docs/Building.md](docs/Building.md#prerequisites).
 
 ## Layout
 

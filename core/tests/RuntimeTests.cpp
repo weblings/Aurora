@@ -1,6 +1,8 @@
 #include <catch2/catch_test_macros.hpp>
 #include <catch2/catch_approx.hpp>
 
+#include <fstream>
+
 #include <Aurora/Runtime/Config.hpp>
 #include <Aurora/Runtime/ConfigStore.hpp>
 #include <Aurora/Runtime/FrameCompositor.hpp>
@@ -51,6 +53,9 @@ TEST_CASE("Config setters clamp the same way huenicorn's did", "[Config]")
   config.setRefreshRate(0);
   CHECK(config.refreshRate() == 1);
 
+  config.setRefreshRate(15729223); // persisted PipeWire-numerator garbage, pre-fix
+  CHECK(config.refreshRate() == Config::kMaxRefreshRate);
+
   config.setTransitionSmoothing(5.f);
   CHECK(config.transitionSmoothing() == Catch::Approx(0.97f));
 
@@ -85,6 +90,20 @@ TEST_CASE("ConfigStore round-trips through a real file and defaults on missing f
   CHECK(reloaded.activeInputName() == "x11");
   CHECK(reloaded.activeOutputNames() == std::vector<std::string>{"hue", "dmx"});
   CHECK(reloaded.activeMonitorName() == "\\\\.\\DISPLAY1");
+}
+
+
+TEST_CASE("ConfigStore clamps a persisted garbage refreshRate on load", "[ConfigStore]")
+{
+  ScopedTempDir dir("garbage-refresh");
+  std::filesystem::create_directories(dir.path); // save() does this for free; raw write does not
+  {
+    std::ofstream file(dir.path / "config.json");
+    file << "{\"refreshRate\": 15729223}";
+  }
+
+  ConfigStore store(dir.path);
+  CHECK(store.load().refreshRate() == Config::kMaxRefreshRate);
 }
 
 

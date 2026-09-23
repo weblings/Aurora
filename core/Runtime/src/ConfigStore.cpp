@@ -1,5 +1,6 @@
 #include <Aurora/Runtime/ConfigStore.hpp>
 
+#include <algorithm>
 #include <fstream>
 
 #include <nlohmann/json.hpp>
@@ -48,7 +49,12 @@ namespace Aurora::Runtime
 
       data.restServerPort = json.value("restServerPort", defaults.restServerPort);
       data.boundBackendIP = json.value("boundBackendIP", defaults.boundBackendIP);
-      data.refreshRate = json.value("refreshRate", defaults.refreshRate);
+      // 0 == unset (derived from the display at boot); anything above the
+      // max is persisted garbage -- clamp it the way new writes are clamped.
+      const unsigned storedRefreshRate = json.value("refreshRate", defaults.refreshRate);
+      data.refreshRate = (storedRefreshRate == 0)
+        ? 0
+        : std::clamp(storedRefreshRate, 1u, Config::kMaxRefreshRate);
       data.subsampleWidth = json.value("subsampleWidth", defaults.subsampleWidth);
       data.transitionSmoothing = json.value("transitionSmoothing", defaults.transitionSmoothing);
 
