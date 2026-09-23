@@ -66,15 +66,21 @@ endif()
 # link it without pulling in main()'s own main() symbol.
 add_library(AuroraApp STATIC
   src/Registry.cpp
+  src/InstanceLock.cpp
+  src/TrayIcon.cpp
 )
 
 target_include_directories(AuroraApp PUBLIC
   ${CMAKE_CURRENT_SOURCE_DIR}/include
 )
 
+# gio-2.0 (GDBus tray icon) is already a required system package
+# (README apt line, CI); linking it here keeps the tray code in
+# the testable AuroraApp lib with no new dependency.
 target_link_libraries(AuroraApp PUBLIC
   AuroraInputInterface
   AuroraOutputInterface
+  PkgConfig::GIO
 )
 
 target_compile_features(AuroraApp PUBLIC cxx_std_20)
@@ -103,6 +109,8 @@ set_target_properties(aurora-app-linux PROPERTIES
 )
 
 find_package(Threads REQUIRED)
+find_package(PkgConfig REQUIRED)
+pkg_check_modules(GIO REQUIRED IMPORTED_TARGET gio-2.0)
 
 target_link_libraries(aurora-app-linux PRIVATE
   AuroraApp

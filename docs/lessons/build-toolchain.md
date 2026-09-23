@@ -376,3 +376,13 @@ Applies-when: setting a fetched dependency's option from an app slice in a super
 Suppressing httplib's own install rules (`HTTPLIB_INSTALL OFF ... FORCE`) from `app/linux/CMakeLists.txt` changed nothing: the root superbuild adds `input/linux` before `app/linux`, and the earlier slice's `FetchContent_MakeAvailable(AuroraCore)` already populated httplib with the default ON -- the app-level set ran after the fetch it meant to configure, on every reconfigure, so order -- not caching -- defeated it. The top-level cache even showed OFF while the generated install scripts still shipped httplib's files.
 
 **Fix:** put dependency toggles at the single point that owns the fetch (`core/CMakeLists.txt`, just above its own httplib block), never in a downstream consumer -- that covers slice, superbuild, and plugin configures regardless of `add_subdirectory` order. When an install tree contains files no `install()` call explains, suspect a fetched dep's own rules firing before your toggle ran, and check generation order, not just final cache values.
+
+---
+
+## A header beside CMakeLists.txt is invisible to quoted #include without an explicit include dir
+Tags: cmake, include-path, windows, build-break
+Applies-when: adding a new header next to a slice CMakeLists.txt that sources include
+
+main.cpp's `#include "resource.h"` failed (MSVC C1083) though resource.h sat next to the slice CMakeLists -- quoted includes search only the includer's own dir plus target include dirs, and the exe target searched just the binary dir. Cost a full Windows build round-trip to learn.
+
+**Fix:** add `${CMAKE_CURRENT_SOURCE_DIR}` to that target's include dirs with a comment (done for aurora-app-windows); anchor asset paths the same way so standalone-slice and superbuild configures agree.

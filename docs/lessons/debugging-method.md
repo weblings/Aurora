@@ -324,3 +324,13 @@ Applies-when: the tree sits on the wrong branch (or similar) with no unique work
 A checkout found on a generated mirror branch (no diverging commits, `git diff -w` empty) was left for the owner to clean up while the agent kept investigating around it. The read-only checks proving safety took a minute; the dithering cost the owner a cleanup.
 
 **Fix:** verify safety with read-only evidence, perform the obvious restore, and report both together. Applies to any agent or human driving: the evidence bar is the same regardless of platform.
+
+---
+
+## flock() treats separate opens independently, so a same-process double-lock test is a valid proxy
+Tags: testing, posix, lock, verification
+Applies-when: unit-testing an flock-based exclusion lock without spawning processes
+
+Unlike fcntl POSIX locks (per-process, merge), flock binds to the open file description -- a second LOCK_EX|LOCK_NB on another fd fails with EWOULDBLOCK even in-process. InstanceLockTests' same-root-exclusion case therefore exercises the real cross-process mechanism, not a tautology.
+
+**Fix:** keep the three Catch2 cases (same-root exclusion, independent roots, reacquire) as maintained coverage; live double-launch stays manual/CI-smoke.

@@ -59,6 +59,7 @@ endif()
 # link it without pulling in main()'s own main() symbol.
 add_library(AuroraApp STATIC
   src/Registry.cpp
+  src/InstanceLock.cpp
 )
 
 target_include_directories(AuroraApp PUBLIC
@@ -126,6 +127,8 @@ endif()
 
 target_include_directories(aurora-app-windows PRIVATE
   ${CMAKE_CURRENT_BINARY_DIR}
+  # Aurora-x2o.1: resource.h lives next to this file, not in include/.
+  ${CMAKE_CURRENT_SOURCE_DIR}
 )
 
 # StandaloneApps P2: copy runtime DLLs (OpenCV, ...) next to the exe at

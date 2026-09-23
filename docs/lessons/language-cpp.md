@@ -103,3 +103,13 @@ Applies-when: emitting large text as C++ string literals in a cross-platform bui
 The webroot embed encoder (StandaloneApps P1) passed GCC with literals up to 33K chars (large HTML mockups, favicon.svg) and failed MSVC with C2026 on the first Windows build. Per Microsoft's own C2026 doc the limit applies per literal *before* adjacent literals concatenate -- confirmed live: a 120KB line of tiny `\xNN` literals compiled clean while single 24K literals errored. Cross-platform codegen must satisfy the strictest compiler, not the one on the author's machine.
 
 **Fix:** cut printable runs at 16000 source chars (380 under the cap) into adjacent literals; keep one-binary-byte encodings (`\xNN`) isolated as before. Verify by asserting max literal length over the generated output plus the byte-identical round-trip, and treat the first build on each compiler as the real test -- a Linux-green embed proves nothing about MSVC.
+
+---
+
+## GVariant builders sink, @ embeds, lookup matches inner types
+Tags: cpp, glib, dbus, ownership, testing
+Applies-when: constructing GVariant trees or asserting on them in tests
+
+Three rules, each learned by crash: (1) every g_variant_new_* container call sinks the floating references it is given -- including '@'-embedded values -- so hand unref of anything fed to a builder is a double-free. Only values handed *out* (get_child_value, lookup, get_variant) need unref. (2) A prebuilt GVariant embeds into a format string only with '@' ('@a{sv}'); bare container types expect varargs elements and abort otherwise. dbusmenu children are boxed variants ('av'), not nested structs -- the spec type says so. (3) g_variant_lookup_value matches the *inner* type and returns it unboxed: on an a{sv} dict, look up 's'/'b', not 'v' (which returns NULL).
+
+**Fix:** TrayIcon.cpp documents the ownership contract at the builders; TrayIconTests navigates via unbox + inner-type lookup. Companion trap in the same file: a hand forward-declared `Aurora::App::GVariant` typedef shadows glib's global once gio.h is included -- include the header and use the real type instead.

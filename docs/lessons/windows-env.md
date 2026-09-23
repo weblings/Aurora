@@ -146,3 +146,33 @@ Applies-when: git status shows every file modified on a fresh machine that chang
 git status showed dozens of modified files (.beads/, AGENTS.md, docs/, skills) on a machine that had changed nothing. git diff --stat --ignore-all-space was empty, and the worktree md5 matched the blob after stripping \r -- the entire diff was LF blobs checked out as CRLF (49 extra bytes on a 49-line file, one \r per line).
 
 **Fix:** before staging anything here, run git diff --ignore-cr-at-eol -- <file> and confirm the only ^[+-] lines are real; never git add -A a wall of M flags on this machine without that check. New files authored here land as LF (repo-blob convention). Correction 2026-09-20: git only normalizes on commit with text conversion configured -- this machine had no core.autocrlf and no .gitattributes, so a commit baked CRLF into 4 lesson blobs (fixed by amend plus .gitattributes * text=auto). Check git config core.autocrlf and ls .gitattributes before assuming; git cat-file -p HEAD:<file> never converts and is the arbiter of what is stored, not the worktree.
+
+---
+
+## Resource IDs must be defined in a shared resource.h, not assumed from windows.h
+Tags: windows, resources, rc, tray
+Applies-when: adding an .rc icon/menu ID that C++ also references (LoadIcon, TrackPopupMenu)
+
+app.rc used a bare IDI_ICON1 with no definition anywhere and the MSVC build tolerated it -- origin unclear, never rely on it.
+
+**Fix:** resource.h with numeric IDs, included by both app.rc and code; comment that the values are ABI with the compiled .res and must never be renumbered.
+
+---
+
+## TrackPopupMenu needs SetForegroundWindow plus a WM_NULL re-arm
+Tags: windows, tray, win32, menu
+Applies-when: showing a notification-icon context menu from a message-only window
+
+Without SetForegroundWindow the popup mis-dismisses; without posting WM_NULL after TPM_RETURNCMD the next right-click can fail to reopen it (KB135788).
+
+**Fix:** the foreground + TPM_RETURNCMD + WM_NULL pattern in TrayIcon::showMenu.
+
+---
+
+## NIF_INFO renders as a modern toast on Win10+; WinRT toasts need an installer
+Tags: windows, tray, toast, notifications, packaging
+Applies-when: choosing a notification API for a portable (uninstalled) Windows app
+
+Classic balloon tips are legacy: since Win10, Shell_NotifyIcon NIF_INFO surfaces as an Action Center toast. Full WinRT toasts demand a Start Menu shortcut with AppUserModelID (+ installer, + COM activator for actions) -- disproportionate for a one-shot hint in a portable zip, and tray-originated NIF_INFO toasts are attributed to the icon with zero install footprint.
+
+**Fix:** keep NIF_INFO; write copy for a detached notification (name the destination, never 'here').

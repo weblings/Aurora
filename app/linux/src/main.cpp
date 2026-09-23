@@ -21,7 +21,10 @@
 
 #include <nlohmann/json.hpp>
 
+#include <Aurora/App/InstanceLock.hpp>
+#include <Aurora/App/InstanceLock.hpp>
 #include <Aurora/App/Registry.hpp>
+#include <Aurora/App/TrayIcon.hpp>
 #include <Aurora/App/WebRoot.hpp>
 #include <EmbeddedWebRoot.hpp>
 #include <Aurora/Network/Http/Server/HttpServer.hpp>
@@ -726,6 +729,19 @@ try
 
   auto configRoot = resolveConfigRoot();
 
+// Aurora-52o: one running instance per config root. A second launch
+// hands the UI to the running instance (same configured URL it holds)
+// instead of starting headless.
+Aurora::App::InstanceLock instanceLock(configRoot);
+if(!instanceLock.held()){
+  Aurora::Runtime::Config liveConfig = Aurora::Runtime::ConfigStore(configRoot).load();
+  std::string url = "http://" + browsableAddress(liveConfig.boundBackendIP())
+    + ":" + std::to_string(liveConfig.restServerPort()) + "/";
+  std::cout << "Aurora is already running -- opening " << url << " instead\n";
+  openWebBrowser(url);
+  return 0;
+}
+
   // Captured before ConfigStore/Pipeline ever touch this configRoot --
   // Pipeline::build() unconditionally re-saves config.json on every launch
   // (see its refreshRate/subsampleWidth persist), so this must be read
@@ -849,9 +865,11 @@ try
   // Declared after pipelineHost so it's destroyed (and the server stopped)
   // first on the way out -- same order as the explicit calls below.
   std::optional<HttpServerThread> httpServerThread;
-  if(httpServer.bind(config.boundBackendIP(), config.restServerPort())){
+  const bool webUiBound = httpServer.bind(config.boundBackendIP(), config.restServerPort());
+  std::string url;
+  if(webUiBound){
     httpServerThread.emplace(httpServer, std::thread([&httpServer]{ httpServer.listen(); }));
-    std::string url = "http://" + browsableAddress(config.boundBackendIP())
+    url = "http://" + browsableAddress(config.boundBackendIP())
       + ":" + std::to_string(config.restServerPort()) + "/";
     if(isFirstSetup){
       std::cout << "WebUI: opening " << url << " in your browser\n";
@@ -867,6 +885,13 @@ try
   }
 
   std::cout << "Aurora running. Ctrl+C to stop.\n";
+
+  // Aurora-lx4.2: tray presence (SNI) from here until scope exit.
+  // Best-effort: with no session bus or watcher there is simply no
+  // icon, and the WebUI print above remains the fallback.
+  Aurora::App::TrayIcon trayIcon(url, webUiBound,
+    [&]{ openWebBrowser(url); },
+    []{ g_stopRequested = 1; });
 
   // Drives whichever Pipeline is current at the top of each iteration -- a
   // reload swapping it mid-loop is exactly what PipelineHost's own lock is

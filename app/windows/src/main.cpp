@@ -20,9 +20,13 @@
 
 #include <windows.h>
 #include <shellapi.h>
+#include <cstdio>
+#include <fstream>
+#include "resource.h"
 
 #include <nlohmann/json.hpp>
 
+#include <Aurora/App/InstanceLock.hpp>
 #include <Aurora/App/Registry.hpp>
 #include <Aurora/App/WebRoot.hpp>
 #include <EmbeddedWebRoot.hpp>
@@ -671,6 +675,139 @@ namespace
     Aurora::Network::Http::Server::HttpServer& m_server;
     std::thread m_thread;
   };
+
+// Aurora-x2o.1: notification-area presence. Message-only window
+// (no visible UI) receives the tray callback; the icon is the
+// IDI_ICON1 resource embedded via app.rc, so no .ico path lookup.
+// Best-effort by design: without Explorer there is simply no icon,
+// and the app still serves the WebUI with the terminal print as
+// fallback. Right-click menu added in x2o.2.
+LRESULT CALLBACK trayWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam);
+
+
+class TrayIcon
+{
+public:
+  explicit TrayIcon(const std::string& url, bool webUiBound)
+    : m_url(url),
+      m_webUiBound(webUiBound)
+  {
+    const std::string tip = std::string("Aurora - ")
+      + (m_webUiBound ? m_url : std::string("WebUI unavailable"));
+    HINSTANCE instance = GetModuleHandleA(nullptr);
+    WNDCLASSEXA cls{};
+    cls.cbSize = sizeof(cls);
+    cls.lpfnWndProc = trayWndProc;
+    cls.hInstance = instance;
+    cls.lpszClassName = "AuroraTrayWindow";
+    RegisterClassExA(&cls);
+    m_window = CreateWindowExA(0, "AuroraTrayWindow", "Aurora", 0,
+      0, 0, 0, 0, HWND_MESSAGE, nullptr, instance, nullptr);
+    if(!m_window){
+      throw std::runtime_error("Cannot create tray message window");
+    }
+    SetWindowLongPtrA(m_window, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(this));
+    m_icon.cbSize = sizeof(m_icon);
+    m_icon.hWnd = m_window;
+    m_icon.uID = 1;
+    m_icon.uFlags = NIF_ICON | NIF_TIP | NIF_MESSAGE;
+    m_icon.uCallbackMessage = WM_TRAYICON;
+    m_icon.hIcon = LoadIconA(instance, MAKEINTRESOURCEA(IDI_ICON1));
+    std::snprintf(m_icon.szTip, sizeof(m_icon.szTip), "%s", tip.c_str());
+    m_added = Shell_NotifyIconA(NIM_ADD, &m_icon) != FALSE;
+    if(!m_added){
+      std::cerr << "No notification area -- running without tray icon\n";
+    }
+  }
+
+  ~TrayIcon()
+  {
+    if(m_added){
+      Shell_NotifyIconA(NIM_DELETE, &m_icon);
+    }
+    if(m_window){
+      DestroyWindow(m_window);
+    }
+  }
+
+  // Right-click menu (x2o.2): Launch UI opens the bound URL, Stop sets
+  // the same g_stopRequested flag Ctrl+C sets, so shutdown unwinding
+  // (NIM_DELETE above, pipeline shutdown, server stop) is identical.
+  void showMenu()
+  {
+    HMENU menu = CreatePopupMenu();
+    if(!menu){
+      return;
+    }
+    AppendMenuA(menu, MF_STRING | (m_webUiBound ? MF_ENABLED : MF_GRAYED),
+      IDM_LAUNCH_UI, "Launch UI");
+    AppendMenuA(menu, MF_STRING, IDM_STOP, "Stop");
+    POINT cursor{};
+    GetCursorPos(&cursor);
+    // Required so the menu dismisses correctly and the next
+    // right-click re-opens it.
+    SetForegroundWindow(m_window);
+    const UINT picked = TrackPopupMenuEx(menu,
+      TPM_RETURNCMD | TPM_RIGHTBUTTON, cursor.x, cursor.y, m_window, nullptr);
+    DestroyMenu(menu);
+    // KB135788: lets the next right-click re-open the menu.
+    PostMessageA(m_window, WM_NULL, 0, 0);
+    if(picked == IDM_LAUNCH_UI){
+      openWebBrowser(m_url);
+    }
+    else if(picked == IDM_STOP){
+      g_stopRequested = true;
+    }
+  }
+
+  // First-run balloon (x2o.3): one-shot orientation hint, gated by a
+  // sentinel file in the config root (no config-schema change).
+  // Best-effort: without Explorer, or if the sentinel cannot be
+  // written, it simply retries next launch.
+  void showFirstRunBalloon(const std::filesystem::path& configRoot)
+  {
+    if(!m_added){
+      return;
+    }
+    std::error_code ec;
+    const auto sentinel = configRoot / "tray-balloon.seen";
+    if(std::filesystem::exists(sentinel, ec)){
+      return;
+    }
+    m_icon.uFlags |= NIF_INFO;
+    std::snprintf(m_icon.szInfo, sizeof(m_icon.szInfo), "%s",
+      "Running in the background - right-click tray icon for Launch UI or Stop");
+    std::snprintf(m_icon.szInfoTitle, sizeof(m_icon.szInfoTitle), "%s", "Aurora");
+    m_icon.dwInfoFlags = NIIF_INFO;
+    if(Shell_NotifyIconA(NIM_MODIFY, &m_icon)){
+      std::ofstream(sentinel).close();
+    }
+    m_icon.uFlags &= static_cast<decltype(m_icon.uFlags)>(~NIF_INFO);
+  }
+
+  TrayIcon(const TrayIcon&) = delete;
+  TrayIcon& operator=(const TrayIcon&) = delete;
+
+private:
+  HWND m_window{nullptr};
+  NOTIFYICONDATAA m_icon{};
+  bool m_added{false};
+  std::string m_url;
+  bool m_webUiBound{false};
+};
+
+LRESULT CALLBACK trayWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
+{
+  (void)wParam;
+  if(msg == WM_TRAYICON){
+    auto* self = reinterpret_cast<TrayIcon*>(GetWindowLongPtrA(hwnd, GWLP_USERDATA));
+    if(self && lParam == WM_RBUTTONUP){
+      self->showMenu();
+    }
+    return 0;
+  }
+  return DefWindowProcA(hwnd, msg, wParam, lParam);
+}
 }
 
 
@@ -683,6 +820,19 @@ try
   // existed) -- registerOutputs needs it to look up any persisted Hue
   // connection.
   auto configRoot = resolveConfigRoot();
+
+// Aurora-52o: one running instance per config root. A second launch
+// hands the UI to the running instance (same configured URL it holds)
+// instead of starting headless.
+Aurora::App::InstanceLock instanceLock(configRoot);
+if(!instanceLock.held()){
+  Aurora::Runtime::Config liveConfig = Aurora::Runtime::ConfigStore(configRoot).load();
+  std::string url = "http://" + browsableAddress(liveConfig.boundBackendIP())
+    + ":" + std::to_string(liveConfig.restServerPort()) + "/";
+  std::cout << "Aurora is already running -- opening " << url << " instead\n";
+  openWebBrowser(url);
+  return 0;
+}
   // TEMP DEBUG -- remove after live pairing repro (see WebUI/WebUI_Fixes.md).
   // Debug-only: Release builds must not print it.
 #ifndef NDEBUG
@@ -809,9 +959,11 @@ try
   // Declared after pipelineHost so it's destroyed (and the server stopped)
   // first on the way out -- same order as the explicit calls below.
   std::optional<HttpServerThread> httpServerThread;
-  if(httpServer.bind(config.boundBackendIP(), config.restServerPort())){
+  const bool webUiBound = httpServer.bind(config.boundBackendIP(), config.restServerPort());
+  std::string url;
+  if(webUiBound){
     httpServerThread.emplace(httpServer, std::thread([&httpServer]{ httpServer.listen(); }));
-    std::string url = "http://" + browsableAddress(config.boundBackendIP())
+    url = "http://" + browsableAddress(config.boundBackendIP())
       + ":" + std::to_string(config.restServerPort()) + "/";
     if(isFirstSetup){
       std::cout << "WebUI: opening " << url << " in your browser\n";
@@ -828,6 +980,11 @@ try
 
   std::cout << "Aurora running. Ctrl+C to stop.\n";
 
+  // Aurora-x2o.1: tray presence from here until scope exit (NIM_DELETE
+  // in the destructor, including unwinding on exceptions below).
+  TrayIcon trayIcon(url, webUiBound);
+  trayIcon.showFirstRunBalloon(configRoot);
+
   // Drives whichever Pipeline is current at the top of each iteration -- a
   // reload swapping it mid-loop is exactly what PipelineHost's own lock is
   // for; this loop never needs to know a swap happened.
@@ -836,6 +993,13 @@ try
     pipelineHost.tick();
     auto tickInterval = std::chrono::duration<double>(pipelineHost.tickIntervalSeconds());
     std::this_thread::sleep_until(tickStart + std::chrono::duration_cast<std::chrono::steady_clock::duration>(tickInterval));
+    // Pump the tray message-only window (x2o.2 needs it);
+    // no-op when the queue is empty.
+    MSG msg;
+    while(PeekMessageA(&msg, nullptr, 0, 0, PM_REMOVE)){
+      TranslateMessage(&msg);
+      DispatchMessageA(&msg);
+    }
   }
 
   std::cout << "Stopping...\n";

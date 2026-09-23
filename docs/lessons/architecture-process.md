@@ -406,3 +406,23 @@ Applies-when: adding, removing, or debugging a GitHub Pages deploy alongside an 
 The repo had both a gh-pages branch (subtree-pushed web/demo at its root, freshly maintained) and a demo-pages Actions workflow. The workflow was assumed live and nearly became the fix vehicle; the branch was actually serving. Removing the wrong one would have broken deploys.
 
 **Fix:** before changing deploy machinery, list branches and read the workflow triggers, then confirm the Pages source; delete the dead path the same turn so the next agent can't re-adopt it.
+
+---
+
+## Second launch hands off by opening the URL, not by IPC or kill-by-port
+Tags: architecture, single-instance, lifecycle, presence
+Applies-when: scoping single-instance behavior for a locally-served app
+
+The 52o lock is per config root, and the holder necessarily serves the configured port -- so the second instance just opens browsableAddress()+port and exits 0. Stop signals only our own process; nothing kills by port, so a foreign squatter is never touched.
+
+**Fix:** implemented in both app mains with InstanceLock; edges x2o/lx4 -> 52o record the ordering.
+
+---
+
+## The Background portal is the sandboxed-app path; native tarballs use plain XDG autostart
+Tags: architecture, linux, autostart, portal, packaging
+Applies-when: deciding start-at-login for a non-Flatpak Linux app
+
+`org.freedesktop.portal.Background` RequestBackground is the sanctioned autostart route for sandboxed apps and unreliable outside a sandbox. A native tarball/zip gains nothing from it.
+
+**Fix:** ship the one aurora.desktop, document copying it to ~/.config/autostart (absolute Exec when off-PATH), install nothing system-wide; see docs/Building.md 'Start at login'.

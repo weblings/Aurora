@@ -84,6 +84,16 @@ WebUI. (You must launch from a terminal so the process persists.)
   hicolor icons). `$ORIGIN`-relative RPATH keeps `bin/` + `lib/`
   relocatable; system integration libs (X11/PipeWire/glib, system OpenCV)
   stay host prerequisites.
+
+### Start at login (Linux)
+
+Copy the installed `aurora.desktop` into `~/.config/autostart/` (create the
+dir if needed) -- that file *is* the autostart entry, no separate one ships,
+and nothing is ever installed system-wide into `/etc/xdg/autostart`. If
+`Aurora` is not on `PATH` (running from an extracted tarball), edit the copy's Exec= line to the absolute binary path first. This is intentionally
+plain XDG autostart, not the `org.freedesktop.portal.Background` portal:
+the portal is the sanctioned path for *sandboxed* (Flatpak) apps and is
+unreliable outside a sandbox -- our native tarball gets nothing from it.
 - **Windows:** the build copies OpenCV's runtime DLLs next to the exe
   automatically, and the WebUI is embedded as a fallback — the `bin/Release`
   folder is portable as-is. One prerequisite stays on you: the
