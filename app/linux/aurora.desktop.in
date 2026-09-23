@@ -2,7 +2,7 @@
 Type=Application
 Name=Aurora
 Comment=Hue ambient lighting from screen and audio capture
-Exec=Aurora
+Exec=@AURORA_DESKTOP_EXEC@
 Icon=aurora
 Categories=Utility;
 StartupWMClass=Aurora

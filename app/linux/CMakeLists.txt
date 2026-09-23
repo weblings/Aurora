@@ -165,11 +165,22 @@ include(GNUInstallDirs)
 # the $ORIGIN RPATH above is ready when one does.
 install(TARGETS aurora-app-linux RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
 
-# Aurora-05r: launcher integration. aurora.desktop + hicolor icons are
+# Aurora-05r: launcher integration. aurora.desktop.in + hicolor icons are
 # checked-in assets generated from docs/README/Logo_Square_Light.png (see
 # Aurora-05r bead comment). Anchored at CMAKE_CURRENT_SOURCE_DIR so both the
 # standalone-slice and superbuild configures resolve them.
-install(FILES "${CMAKE_CURRENT_SOURCE_DIR}/aurora.desktop"
+#
+# Exec= is baked absolute (configure-time prefix) so the launcher and
+# autostart entries work whether or not Aurora is on PATH. Choose the prefix
+# at configure time (-DCMAKE_INSTALL_PREFIX=...); an install-time --prefix
+# override will not rewrite Exec=.
+set(AURORA_DESKTOP_EXEC "${CMAKE_INSTALL_FULL_BINDIR}/Aurora")
+configure_file(
+  "${CMAKE_CURRENT_SOURCE_DIR}/aurora.desktop.in"
+  "${CMAKE_CURRENT_BINARY_DIR}/aurora.desktop"
+  @ONLY
+)
+install(FILES "${CMAKE_CURRENT_BINARY_DIR}/aurora.desktop"
   DESTINATION ${CMAKE_INSTALL_DATADIR}/applications
 )
 foreach(_AURORA_ICON_SIZE 16 22 24 32 48 64 128 256)
@@ -178,6 +189,33 @@ foreach(_AURORA_ICON_SIZE 16 22 24 32 48 64 128 256)
     DESTINATION ${CMAKE_INSTALL_DATADIR}/icons/hicolor/${_AURORA_ICON_SIZE}x${_AURORA_ICON_SIZE}/apps
   )
 endforeach()
+
+# Tray/launcher icon resolution without manual cache commands: refresh the
+# icon cache and desktop database as part of `cmake --install`. The quoted
+# form below expands ${CMAKE_INSTALL_DATADIR} now (a configure-time
+# GNUInstallDirs variable, unavailable to the install script) while the
+# escaped \${CMAKE_INSTALL_PREFIX} survives to install time, so install-time
+# --prefix overrides still refresh the right dirs. Best-effort -- missing
+# tools warn, never fail -- and skipped under DESTDIR, where the packager's
+# postinst owns these steps.
+install(CODE "
+  if(\"\$ENV{DESTDIR}\" STREQUAL \"\")
+    find_program(_AURORA_ICON_CACHE gtk-update-icon-cache)
+    if(_AURORA_ICON_CACHE)
+      message(STATUS \"Aurora: updating icon cache\")
+      execute_process(COMMAND \"\${_AURORA_ICON_CACHE}\" -f -t \"\${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_DATADIR}/icons/hicolor\")
+    else()
+      message(WARNING \"Aurora: gtk-update-icon-cache not found -- tray/launcher icon may need a manual refresh\")
+    endif()
+    find_program(_AURORA_DESKTOP_DB update-desktop-database)
+    if(_AURORA_DESKTOP_DB)
+      message(STATUS \"Aurora: updating desktop database\")
+      execute_process(COMMAND \"\${_AURORA_DESKTOP_DB}\" \"\${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_DATADIR}/applications\")
+    else()
+      message(WARNING \"Aurora: update-desktop-database not found -- launcher entry may need a manual refresh\")
+    endif()
+  endif()
+")
 if(EXISTS "${CMAKE_SOURCE_DIR}/LICENSE")
   install(FILES "${CMAKE_SOURCE_DIR}/LICENSE"
     DESTINATION ${CMAKE_INSTALL_DOCDIR}/aurora-app-linux

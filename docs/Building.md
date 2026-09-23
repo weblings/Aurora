@@ -12,9 +12,10 @@ contributors, packagers, and unsupported platforms.
 | `windows-app` | `build/windows-app/bin/Release/Aurora.exe` | multi-config (`bin/<Config>`) |
 
 ```sh
-cmake --preset linux-app        # or windows-app
+cmake --preset linux-app -DCMAKE_INSTALL_PREFIX=~/.local  # or windows-app
 cmake --build build/linux-app   # --config Release on Windows
 ctest --test-dir build/linux-app --output-on-failure
+cmake --install build/linux-app # registers launcher + tray icon (Linux)
 ```
 
 Per-slice presets live in `CMakePresets.json`; the root `CMakeLists.txt` is a
@@ -79,18 +80,28 @@ WebUI. (You must launch from a terminal so the process persists.)
 
 ## Install / portable trees
 
-- **Linux:** `cmake --install build/linux-app --prefix <dir>` produces
+- **Linux:** `cmake --install build/linux-app` produces
   `bin/Aurora` (+ `lib/`, `doc/`, `share/applications/aurora.desktop`,
   hicolor icons). `$ORIGIN`-relative RPATH keeps `bin/` + `lib/`
   relocatable; system integration libs (X11/PipeWire/glib, system OpenCV)
-  stay host prerequisites.
+  stay host prerequisites. Choose the prefix at configure time
+  (`cmake --preset linux-app -DCMAKE_INSTALL_PREFIX=~/.local`): the
+  installed `aurora.desktop` bakes that bindir into its absolute `Exec=`
+  line, so the launcher entry works whether or not Aurora is on `PATH`.
+  The install also refreshes the icon cache and desktop database itself
+  (best-effort; skipped under `DESTDIR`, where the packager's postinst
+  owns those steps) -- no manual `gtk-update-icon-cache` or
+  `update-desktop-database` needed. The tray icon then resolves on any
+  desktop with a tray host (KDE, Ubuntu-GNOME with extension); stock
+  GNOME has none by design.
 
 ### Start at login (Linux)
 
 Copy the installed `aurora.desktop` into `~/.config/autostart/` (create the
 dir if needed) -- that file *is* the autostart entry, no separate one ships,
-and nothing is ever installed system-wide into `/etc/xdg/autostart`. If
-`Aurora` is not on `PATH` (running from an extracted tarball), edit the copy's Exec= line to the absolute binary path first. This is intentionally
+and nothing is ever installed system-wide into `/etc/xdg/autostart`. Its
+`Exec=` is already absolute, so no editing is needed even when Aurora is
+not on `PATH`. This is intentionally
 plain XDG autostart, not the `org.freedesktop.portal.Background` portal:
 the portal is the sanctioned path for *sandboxed* (Flatpak) apps and is
 unreliable outside a sandbox -- our native tarball gets nothing from it.

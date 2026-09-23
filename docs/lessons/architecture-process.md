@@ -425,4 +425,4 @@ Applies-when: deciding start-at-login for a non-Flatpak Linux app
 
 `org.freedesktop.portal.Background` RequestBackground is the sanctioned autostart route for sandboxed apps and unreliable outside a sandbox. A native tarball/zip gains nothing from it.
 
-**Fix:** ship the one aurora.desktop, document copying it to ~/.config/autostart (absolute Exec when off-PATH), install nothing system-wide; see docs/Building.md 'Start at login'.
+**Fix:** ship the one aurora.desktop (generated from aurora.desktop.in with Exec baked absolute at configure time), document copying it to ~/.config/autostart, install nothing system-wide; see docs/Building.md 'Start at login'.
