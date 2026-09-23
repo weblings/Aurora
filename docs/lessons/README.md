@@ -27,7 +27,7 @@ Aurora's own module boundaries instead of RockyRoad's. `rendering-apis.md` vs.
 | [language-cpp.md](language-cpp.md) | namespace, threads, C-portability | 6 | C++ language gotcha |
 | [input.md](input.md) | capture/grabber/platform-adapter | 10 | capture/grabber specific |
 | [processing.md](processing.md) | color/effect transform, zone-mapping | 6 | color/effect/zone-mapping specific |
-| [output.md](output.md) | streaming/protocol, any target | 6 | streaming/protocol/wire-format specific |
+| [output.md](output.md) | streaming/protocol, any target | 7 | streaming/protocol/wire-format specific |
 | [rendering-apis.md](rendering-apis.md) | third-party rendering facts | 4 | Three.js/GLTFLoader/Blender behavior, not our design |
 | [rendering-internals.md](rendering-internals.md) | own 3D-scene design | 3 | our scene technique, demonstrated by a real bug |
 | [planning.md](planning.md) | reuse research, JTBD, doc hygiene | 15 | WebUI planning/design-process finding |

@@ -193,6 +193,30 @@ namespace
   }
 
 
+  // --fresh: rehearse first-run flows (NUX, pairing) against a
+  // guaranteed-empty config root. A fixed temp dir, cleared at startup, so
+  // repeated runs can never re-soil each other and real config dirs are
+  // never read or written. Wins over AURORA_CONFIG_DIR and the default.
+  bool isFreshRun(int argc, char** argv)
+  {
+    for(int i = 1; i < argc; ++i){
+      if(std::string(argv[i]) == "--fresh"){
+        return true;
+      }
+    }
+    return false;
+  }
+
+
+  std::filesystem::path freshConfigRoot()
+  {
+    auto fresh = std::filesystem::temp_directory_path() / "aurora-fresh";
+    std::filesystem::remove_all(fresh);
+    std::filesystem::create_directories(fresh);
+    return fresh;
+  }
+
+
   std::filesystem::path resolveConfigRoot()
   {
     if(const char* override = std::getenv("AURORA_CONFIG_DIR")){
@@ -754,13 +778,20 @@ namespace
 }
 
 
-int main()
+int main(int argc, char** argv)
 try
 {
   std::signal(SIGINT, handleStopSignal);
   std::signal(SIGTERM, handleStopSignal);
 
-  auto configRoot = resolveConfigRoot();
+  std::filesystem::path configRoot;
+  if(isFreshRun(argc, argv)){
+    configRoot = freshConfigRoot();
+    std::cout << "Config root: " << configRoot.string() << " (--fresh: guaranteed empty)\n";
+  }
+  else{
+    configRoot = resolveConfigRoot();
+  }
 
 // Aurora-52o: one running instance per config root. A second launch
 // hands the UI to the running instance (same configured URL it holds)

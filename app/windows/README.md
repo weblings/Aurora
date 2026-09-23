@@ -67,3 +67,6 @@ Run:
 $env:AURORA_HUE_BRIDGE_ADDRESS = "..."; $env:AURORA_HUE_USERNAME = "..."; $env:AURORA_HUE_CLIENTKEY = "..."
 ./build/bin/Release/Aurora.exe
 ```
+
+Append `--fresh` to rehearse first-run flows (NUX, pairing) against a
+guaranteed-empty temp config root instead of your real one.

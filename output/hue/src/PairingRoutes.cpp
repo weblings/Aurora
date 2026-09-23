@@ -1,5 +1,6 @@
 #include <Aurora/Output/Hue/PairingRoutes.hpp>
 
+#include <cstdlib>
 #include <optional>
 
 #include <nlohmann/json.hpp>
@@ -48,7 +49,43 @@ namespace Aurora::Output::Hue
     std::function<std::string()> onConnectionChanged
   )
   {
+    // Dev-mode divergence for the tier-1 fake bridge
+    // (tools/fake-hue-bridge): when AURORA_DEV_FAKE_HUE is set, discovery
+    // returns only the fake instead of asking discovery.meethue.com -- the
+    // cloud service knows nothing about a localhost stub and would hand the
+    // NUX a real LAN bridge (or nothing), never the fake.
+    // Address precedence: the flag's own value (host:port, scheme optional) >
+    // AURORA_HUE_BRIDGE_ADDRESS (already passed for the run itself, so dev
+    // mode needs no second copy of the same address) > the fake's default
+    // port on localhost. A bare "1"/"true" is the old presence-flag idiom,
+    // not an address, and falls through the same way.
+    // One bridge back means the NUX
+    // "checking" phase auto-advances straight to pairing against the fake.
     server.addRoute(HttpMethod::Get, "/api/hue/discover", [](const Request&, Response& res){
+      if(const char* fakeEnv = std::getenv("AURORA_DEV_FAKE_HUE")){
+        std::string explicitAddress = fakeEnv;
+        if(explicitAddress == "1" || explicitAddress == "true" || explicitAddress == "TRUE"){
+          explicitAddress.clear();
+        }
+
+        std::string fakeAddress = sanitizeBridgeAddress(explicitAddress);
+        if(fakeAddress.empty()){
+          if(const char* bridgeEnv = std::getenv("AURORA_HUE_BRIDGE_ADDRESS")){
+            fakeAddress = sanitizeBridgeAddress(bridgeEnv);
+          }
+        }
+        if(fakeAddress.empty()){
+          fakeAddress = "127.0.0.1:18443";
+        }
+
+        nlohmann::json bridges = nlohmann::json::array();
+        bridges.push_back({{"id", "fake-hue-bridge"},
+                           {"name", "Fake Hue Bridge"},
+                           {"internalipaddress", fakeAddress}});
+        _writeJson(res, {{"succeeded", true}, {"bridges", bridges}});
+        return;
+      }
+
       _writeJson(res, ApiTools::autodetectedBridge());
     });
 
@@ -171,6 +208,48 @@ namespace Aurora::Output::Hue
         _writeJson(res, {{"succeeded", false}, {"error", "unexpected_response"}});
       }
     });
+
+    // Dev-only "press the link button" for the tier-1 fake bridge
+    // (tools/fake-hue-bridge): from the browser console,
+    //   fetch('/api/hue/link-button', {method:'PUT', body:'{"pressed":true}'})
+    // flips the fake's link-button state without leaving the NUX pairing
+    // screen. Gated on AURORA_DEV_FAKE_HUE so production builds never
+    // expose it; a real bridge has no /dev/link-button and answers 404
+    // (not valid JSON), reported here as fake_absent rather than success.
+    if(std::getenv("AURORA_DEV_FAKE_HUE")){
+      server.addRoute(HttpMethod::Put, "/api/hue/link-button", [configRoot](const Request& req, Response& res){
+        auto body = _parseBody(req, res);
+        if(!body){
+          return;
+        }
+
+        std::string bridgeAddress = sanitizeBridgeAddress(body->value("bridgeAddress", ""));
+        if(bridgeAddress.empty()){
+          bridgeAddress = CredentialsStore(configRoot).load().bridgeAddress;
+        }
+        if(bridgeAddress.empty()){
+          _writeJson(res, {{"succeeded", false}, {"error", "missing_bridge_address"}}, 400);
+          return;
+        }
+
+        bool pressed = body->value("pressed", true);
+        auto response = sendHttpRequest(
+          HttpProtocol + bridgeAddress + "/dev/link-button", "PUT",
+          nlohmann::json({{"pressed", pressed}}).dump());
+        if(!response.has_value()){
+          _writeJson(res, {{"succeeded", false}, {"error", "unreachable"}});
+          return;
+        }
+
+        try{
+          _writeJson(res, {{"succeeded", true},
+                           {"pressed", response->asJson().value("pressed", pressed)}});
+        }
+        catch(const nlohmann::json::exception&){
+          _writeJson(res, {{"succeeded", false}, {"error", "fake_absent"}});
+        }
+      });
+    }
 
     // bridgeAddress/username are optional in the body -- mid-pairing (no
     // connection persisted yet), the caller supplies them directly since

@@ -1,0 +1,3 @@
+# Runtime-generated dev TLS material -- never commit keys.
+.certs/
+__pycache__/

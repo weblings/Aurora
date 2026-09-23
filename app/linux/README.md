@@ -46,3 +46,6 @@ Run:
 ```
 AURORA_HUE_BRIDGE_ADDRESS=... AURORA_HUE_USERNAME=... AURORA_HUE_CLIENTKEY=... ./build/bin/Aurora
 ```
+
+Append `--fresh` to rehearse first-run flows (NUX, pairing) against a
+guaranteed-empty temp config root instead of your real one.

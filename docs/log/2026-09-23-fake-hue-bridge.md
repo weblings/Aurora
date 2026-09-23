@@ -1,0 +1,9 @@
+# Fake Hue bridge for bridgeless dev (tier 1 + NUX rehearsal)
+
+Closed `Aurora-rmq`. `tools/fake-hue-bridge/` (stdlib-only Python HTTPS stub, no CMake wiring): every REST endpoint `output/hue` calls, two entertainment configs over two lamps with distinct ent-/light-rid spaces, runtime link-button toggle, `check.py` self-check 16/16. Daemon divergences in `output/hue/src/PairingRoutes.cpp`, both gated on `AURORA_DEV_FAKE_HUE` (production path untouched): `PUT /api/hue/link-button` passthrough (console "button press" from the NUX wait screen) and discover override returning only the fake (address precedence: flag value > `AURORA_HUE_BRIDGE_ADDRESS` > default). `--fresh` flag on both apps: fixed temp config root cleared at startup, wins over everything. New `PairingRoutesTests.cpp` (6 offline cases) in the IO-guarded suite.
+
+Verification: fake checks green locally; route tests authored here but compiled and run on the Windows build (this sandbox lacks curl headers for the slice). Live rehearsal on Windows: fresh NUX auto-advances to pairing, console press pairs, relaunch lands on dashboard proving persistence.
+
+Surprises: cloud discovery returned the real LAN bridge (.154) while the press went to localhost — replace-not-merge lesson filed in `docs/lessons/output.md`; mid-pairing `link-button` callers must pass `bridgeAddress` (nothing persisted yet — the 400); the pairing screen re-shows the wait text on 101 with no error, so "Continue does nothing" is the expected not-pressed symptom.
+
+Follow-ups: tier-2 DTLS/2100 streaming stub; `output/hue/README.md` Status still claims the I/O layer is "analyzed but not yet ported" (predates ApiTools/Streamer/DtlsClient) and cites the old sibling-path core resolution — needs a rewrite pass. Also committed here: `docs/FutureSteamOSSupport.md` (exploratory SteamOS/Deck analysis: Flatpak vs Distrobox vs Decky, no code changes).

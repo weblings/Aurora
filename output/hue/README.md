@@ -14,6 +14,16 @@ sanitizing, and credential byte-conversion. The I/O layer (bridge REST API,
 entertainment-config pairing, the actual DTLS stream) is analyzed but not yet
 ported — see [`docs/HueOutputAnalysis.md`](../../docs/HueOutputAnalysis.md).
 
+## Developing without a bridge
+
+Pairing and NUX flows can be rehearsed with no physical lights via the
+dev-only stub in `../../tools/fake-hue-bridge/` (see its README for the
+copy-paste loop) plus the `AURORA_DEV_FAKE_HUE`-gated dev routes in
+`src/PairingRoutes.cpp` (link-button passthrough, discover override),
+covered by `tests/PairingRoutesTests.cpp`. Append `--fresh` to the app
+binary for a guaranteed-empty config root. Production behavior with the
+env var unset is unchanged.
+
 ## Building
 
 Depends on Aurora core (`Contracts`, the `Output` interface), currently

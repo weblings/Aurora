@@ -227,3 +227,13 @@ is a burst of API calls, count the calls *and* price each one's transport
 setup, not just its payload — a "fast" endpoint hit N times with N fresh
 TLS handshakes is a slow operation wearing a fast one's name, and no
 single-request timing comparison will ever surface it.
+
+---
+
+## A cloud discovery service resolves the real world, never a localhost stub -- a dev-mode fake must replace discovery results, not merge into them
+Tags: output, hue, discovery, dev-fake
+Applies-when: faking bridge discovery for bridgeless development
+
+With the tier-1 fake running on localhost, NUX "checking" asked discovery.meethue.com, which returned the real LAN bridge (.154) -- pairing then registered against it while the console "button press" went to the fake, and Continue silently never advanced (the 101 wait-state re-render, by design). Merging the fake into cloud results would still be wrong: two bridges drops the NUX to the entry form instead of auto-advancing to pairing.
+
+**Fix:** when `AURORA_DEV_FAKE_HUE` is set, `/api/hue/discover` returns only the fake (address precedence: flag value > `AURORA_HUE_BRIDGE_ADDRESS` > default `127.0.0.1:18443`); unset is the production path byte-for-byte. General principle: substitute the discovery source in dev mode rather than unioning it -- a union preserves the real world's ambiguity while adding a fake entry nobody asked to choose between.

@@ -22,7 +22,7 @@ add_executable(AuroraOutputHueTests
 )
 
 if(AURORA_OUTPUT_HUE_ENABLE_IO)
-  target_sources(AuroraOutputHueTests PRIVATE ApiToolsTests.cpp StreamerTests.cpp HueOutputPluginTests.cpp)
+  target_sources(AuroraOutputHueTests PRIVATE ApiToolsTests.cpp StreamerTests.cpp HueOutputPluginTests.cpp PairingRoutesTests.cpp)
 endif()
 
 target_link_libraries(AuroraOutputHueTests PRIVATE
