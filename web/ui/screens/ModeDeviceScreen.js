@@ -192,6 +192,15 @@ export class ModeDeviceScreen {
   // trap the user here: _applyMode already surfaces failures inline via
   // this.error, so navigate regardless and let the probe decide.
   async _onContinue() {
+    // The apply can take seconds (a mode switch rebuilds the pipeline
+    // server-side) -- show busy state while awaiting it, or the button
+    // reads as dead. No restore needed: the apply's own trailing _render
+    // rebuilds this footer fresh before navigation runs.
+    const button = this.container.querySelector('.nav-footer-continue');
+    if(button){
+      button.disabled = true;
+      button.textContent = 'Applying…';
+    }
     try {
       await this.applyPromise;
     } catch {
