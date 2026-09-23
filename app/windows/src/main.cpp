@@ -805,6 +805,11 @@ public:
     RegisterClassExA(&cls);
     m_window = CreateWindowExA(0, "AuroraTrayWindow", "Aurora", 0,
       0, 0, 0, 0, HWND_MESSAGE, nullptr, instance, nullptr);
+    // 7l1.5: shutdown delivery. Session-ending broadcasts go to top-level
+    // windows only -- the HWND_MESSAGE tray window above never receives them
+    // (docs/lessons/windows-env.md). Never shown; destroyed with the tray.
+    m_sessionWindow = CreateWindowExA(0, "AuroraTrayWindow", "AuroraShutdown", 0,
+      0, 0, 0, 0, nullptr, nullptr, instance, nullptr);
     if(!m_window){
       throw std::runtime_error("Cannot create tray message window");
     }
@@ -826,6 +831,9 @@ public:
   {
     if(m_added){
       Shell_NotifyIconA(NIM_DELETE, &m_icon);
+    }
+    if(m_sessionWindow){
+      DestroyWindow(m_sessionWindow);
     }
     if(m_window){
       DestroyWindow(m_window);
@@ -892,6 +900,7 @@ public:
 
 private:
   HWND m_window{nullptr};
+  HWND m_sessionWindow{nullptr};
   NOTIFYICONDATAA m_icon{};
   bool m_added{false};
   std::string m_url;
@@ -900,6 +909,17 @@ private:
 
 LRESULT CALLBACK trayWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 {
+  // 7l1.5: session-end listener. Handled before anything window-specific so
+  // the hidden top-level window (which shares this proc) is covered too.
+  if(msg == WM_QUERYENDSESSION){
+    return TRUE;
+  }
+  if(msg == WM_ENDSESSION){
+    if(wParam){
+      g_stopRequested = true;
+    }
+    return 0;
+  }
   (void)wParam;
   if(msg == WM_TRAYICON){
     auto* self = reinterpret_cast<TrayIcon*>(GetWindowLongPtrA(hwnd, GWLP_USERDATA));
