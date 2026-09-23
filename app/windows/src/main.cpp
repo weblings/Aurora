@@ -74,6 +74,7 @@ namespace
   // 7l1.1/7l1.2: process-wide log sink. Set by main() right after startup;
   // logLine() falls back to plain cout only before that (never in practice).
   Aurora::App::LogSink* g_logSink = nullptr;
+  bool g_consoleAttached = false;
 
   void logLine(const std::string& line)
   {
@@ -919,6 +920,7 @@ try
   Aurora::App::LogSink sink;
   g_logSink = &sink;
   const bool consoleAttached = attachParentConsole(argc, argv);
+  g_consoleAttached = consoleAttached;
   sink.setConsole(consoleAttached ? &std::cout : nullptr);
 
   // Resolved before registry setup now (unlike before CredentialsStore
@@ -1147,6 +1149,19 @@ if(!instanceLock.held()){
 // catch here so that's a clean error message, not std::terminate.
 catch(const std::exception& e)
 {
-  logLine(std::string("Fatal: ") + e.what());
+  // 7l1.4: the ONLY site that boxes. Headless early-fatals would otherwise
+  // look like "double-click does nothing".
+  const std::string fatal = std::string("Fatal: ") + e.what();
+  if(g_logSink){
+    g_logSink->write(fatal);
+  }
+  else{
+    std::cerr << fatal << '\n';
+  }
+  std::string text = std::string("Aurora failed to start:\n") + e.what();
+  if(g_logSink && g_logSink->hasFile()){
+    text += "\n\nDetails in " + g_logSink->filePath().string();
+  }
+  MessageBoxA(nullptr, text.c_str(), "Aurora", MB_OK | MB_ICONERROR);
   return 1;
 }

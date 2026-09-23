@@ -150,3 +150,14 @@ TEST_CASE("wantsConsole follows --console and AURORA_CONSOLE", "[logsink]")
   clearAttachEnv();
   CHECK(!checkArgv({"prog"}));
 }
+
+TEST_CASE("filePath tracks the active log file", "[logsink]")
+{
+  LogSink sink;
+  CHECK(sink.filePath().empty());
+  const auto file = freshTempFile("path.log");
+  REQUIRE(sink.setFile(file));
+  CHECK(sink.filePath() == file);
+  CHECK(!sink.setFile(std::filesystem::temp_directory_path() / "aurora-no-such-dir" / "y.log"));
+  CHECK(sink.filePath() == file);
+}

@@ -27,6 +27,7 @@ public:
 
   [[nodiscard]] std::size_t buffered() const;
   [[nodiscard]] bool hasFile() const;
+  [[nodiscard]] std::filesystem::path filePath() const;
 
   static std::string stripOsc8(std::string_view line);
   static std::string runningLine(bool consoleAttached);
@@ -39,6 +40,7 @@ public:
 private:
   std::ostream* m_console = nullptr;
   std::ofstream m_file;
+  std::filesystem::path m_path;
   std::vector<std::string> m_buffer;
 };
 }

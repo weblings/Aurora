@@ -28,14 +28,19 @@ void LogSink::setConsole(std::ostream* console)
 
 bool LogSink::setFile(const std::filesystem::path& path)
 {
-  m_file.open(path, std::ios::app);
-  if(!m_file.is_open()){
+  // Open-then-move: probing a bad path must not disturb the active file.
+  // (ofstream::open on an already-open stream leaves the old file in place,
+  // so is_open() alone cannot report the new path's outcome.)
+  std::ofstream file(path, std::ios::app);
+  if(!file.is_open()){
     return false;
   }
+  m_file = std::move(file);
   for(const auto& line : m_buffer){
     m_file << stripOsc8(line) << '\n';
   }
   m_buffer.clear();
+  m_path = path;
   flush();
   return true;
 }
@@ -70,6 +75,11 @@ std::size_t LogSink::buffered() const
 bool LogSink::hasFile() const
 {
   return m_file.is_open();
+}
+
+std::filesystem::path LogSink::filePath() const
+{
+  return m_path;
 }
 
 std::string LogSink::stripOsc8(std::string_view line)
