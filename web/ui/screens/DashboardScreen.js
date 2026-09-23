@@ -52,6 +52,7 @@ export class DashboardScreen {
     this.topTierError = null;
     this.stopPhase = null; // null | 'confirm' | 'stopped' | 'error'
     this.stopError = null;
+    this.heartbeatTimer = null;
 
     // A single persistent instance, never recreated on re-render -- its own
     // onChange fires mid-callback, and recreating the instance whose own
@@ -83,9 +84,11 @@ export class DashboardScreen {
     renderTopBar(container.querySelector('.top-bar-slot'), { title: 'Aurora', logo: { src: 'icons/aurora-logo.png', alt: 'Aurora' }, showBack: false });
 
     await this._loadAll();
+    this._startHeartbeat();
   }
 
   unmount() {
+    this._stopHeartbeat();
     this.entertainmentConfigSelect.destroy();
     this.deviceField?.destroy();
     this.deviceField = null;
@@ -550,6 +553,52 @@ export class DashboardScreen {
       </div>
     `;
   }
+
+  // A tray/quit-initiated shutdown kills the server out from under an
+  // already-open tab -- without this, the Dashboard would sit on a
+  // live-looking UI until the next click fails. /api/capabilities is
+  // static (no pipeline locks), so a failed poll means the daemon is
+  // gone, not slow. Recursive setTimeout (never setInterval) so a hung
+  // server cannot stack overlapping polls; the 2.5s abort sits inside
+  // the 3s cadence for the same reason.
+  _startHeartbeat() {
+    this._stopHeartbeat();
+    const beat = async () => {
+      if(this.heartbeatTimer === null){
+        return;
+      }
+      try {
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 2500);
+        try {
+          await (await fetch('/api/capabilities', { signal: controller.signal })).json();
+        } finally {
+          clearTimeout(timeout);
+        }
+      } catch {
+        this._stopHeartbeat();
+        if(this.stopPhase !== 'stopped'){
+          this.stopPhase = 'stopped';
+          this._renderStopOverlay();
+        }
+        return;
+      }
+      if(this.heartbeatTimer === null){
+        return;
+      }
+      this.heartbeatTimer = setTimeout(beat, 3000);
+    };
+    this.heartbeatTimer = setTimeout(beat, 3000);
+  }
+
+
+  _stopHeartbeat() {
+    if(this.heartbeatTimer !== null){
+      clearTimeout(this.heartbeatTimer);
+      this.heartbeatTimer = null;
+    }
+  }
+
 
   async _confirmStop(button) {
     button.disabled = true;

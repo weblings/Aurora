@@ -384,3 +384,13 @@ Applies-when: probing whether another process is alive via its port
 A connect to a listening socket completes in the kernel even if the process behind it is wedged (backlog accept), so a port probe distinguishes "never bound" (refused -- the Aurora-kwn wedge shape) from "bound", never "healthy" from "hung". The handoff message therefore claims "not responding at <url>", never "dead process".
 
 **Fix:** isLoopbackPortResponsive() with a short bound, tested both directions (closed-port false and bound-port true -- a negative-only probe test cannot catch an always-false probe).
+
+---
+
+## A liveness probe must not take the locks whose starvation it should survive
+Tags: debugging, verification, oracle, networking
+Applies-when: adding a heartbeat/poll that declares the backend dead
+
+The Dashboard heartbeat polls /api/capabilities precisely because that handler only reads the registry -- /api/monitors and /api/zones take the pipeline mutex, which tick starvation can hold for 8s+ (seen live in the NUX triage). A probe on a locking endpoint cannot distinguish "daemon dead" from "daemon wedged", which is the distinction it exists to draw.
+
+**Fix:** probe the most static endpoint available (capabilities/config over monitors/zones/status), with the abort inside the cadence and a recursive setTimeout so a hung server cannot stack polls.
