@@ -1,9 +1,8 @@
 v1.0.2:
 - Executables can now be double-clicked to start Aurora. A second double-click launches its UI.
-- Windows - When Aurora is active, a tray icon for it appears in the taskbar. You can right click it to 'Stop' or 'Open UI'.
-- Windows - When launching via double-click a terminal window still opens that must be left open while Aurora is active. Future versions will look into addressing that
-- Linux - Theoretically similar tray logic works but untested on a valid setup
+- When Aurora is active, a tray icon for it appears in the taskbar. You can right click it to 'Stop' or 'Open UI'. This works on Windows and confirmed for Ubuntu 2022.4+
 - Linux - Confirmed on Ubuntu: cmake --install command can add Aurora to your list of Applications like any other app. Clicking behavior of one selection to start Aurora, and a second selection launching UI confirmed to be the same
+- Fix - Refreshing during NUX should no longer enter a bad state
 - Dev - Added a Hue Bridge simulator python server
 
 v1.0.1:
