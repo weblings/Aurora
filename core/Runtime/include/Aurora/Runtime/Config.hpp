@@ -88,9 +88,10 @@ namespace Aurora::Runtime
     const std::string& boundBackendIP() const;
     void setBoundBackendIP(std::string ip);
 
-    // Upper clamp: an order of magnitude above any real display, so
-    // anything higher is necessarily garbage, never a user choice.
-    static constexpr unsigned kMaxRefreshRate = 1000;
+    // Upper clamp: the top of the UI's own refresh presets. Anything
+    // higher is necessarily garbage, never a user choice -- and the tick
+    // loop cannot honor sub-4ms intervals with network streaming anyway.
+    static constexpr unsigned kMaxRefreshRate = 240;
 
     unsigned refreshRate() const;
     void setRefreshRate(unsigned refreshRate); // clamped to [1, kMaxRefreshRate]
