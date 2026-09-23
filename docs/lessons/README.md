@@ -20,7 +20,7 @@ Aurora's own module boundaries instead of RockyRoad's. `rendering-apis.md` vs.
 | File | Scope | Entries | File here when |
 |---|---|---|---|
 | [build-toolchain.md](build-toolchain.md) | CMake, vcpkg, compilers, WSL2, dev deps | 17 | build/tooling specific |
-| [windows-env.md](windows-env.md) | processes, installers, ACLs, probing | 10 | Windows-environment specific |
+| [windows-env.md](windows-env.md) | processes, installers, ACLs, probing | 11 | Windows-environment specific |
 | [debugging-method.md](debugging-method.md) | evidence, verification, oracles, timing | 16 | debugging/verification method |
 | [architecture-process.md](architecture-process.md) | splits, duplication, reload, presence | 20 | architecture or process decision |
 | [web-testing.md](web-testing.md) | jsdom, live tests, routes, settings | 8 | web testing specific |

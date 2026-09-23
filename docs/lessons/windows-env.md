@@ -186,3 +186,13 @@ Applies-when: handling logoff/shutdown in an app whose only window is HWND_MESSA
 WM_QUERYENDSESSION/WM_ENDSESSION go to top-level windows only; a message-only window never receives them, so a tray app with no other window cannot use its message-only window as the shutdown listener.
 
 **Fix:** promote to a hidden top-level window (or equivalent) that sets the same stop flag the tray Stop path sets; still live-test logoff/shutdown afterward, since delivery is only half the contract.
+
+---
+
+## _putenv_s with "" removes the variable -- an "empty but set" env flag is unobservable to getenv() on Windows
+Tags: windows, env, msvc, testing
+Applies-when: setting a presence-style env flag to "" in a test or shell and reading it back with getenv() on Windows
+
+POSIX setenv(name, "", 1) keeps the variable defined (getenv() returns non-null ""), but MSVC documents _putenv_s(name, "") as removal -- getenv() then returns NULL, indistinguishable from unset. output/hue's discover dev arm gates on getenv()-nullness, so the two PairingRoutesTests cases that set AURORA_DEV_FAKE_HUE="" to mean "flag carries no address" fell through to the production discovery path on Windows only, while the explicit-address and bare-"1" cases passed. app/windows/tests/LogSinkTests.cpp already encodes the same convention (_putenv_s(name,"") spells clear, like unsetenv).
+
+**Fix:** never use "" to mean "set but empty" in cross-platform code -- spell address-less presence with the flag's own bare idiom ("1"/"true", which the route treats exactly like ""), keeping "" only where readers treat missing and empty identically (both are absent there). PairingRoutesTests.cpp now does this via a kDevFlagNoAddress constant ("1" on _WIN32, "" elsewhere).
