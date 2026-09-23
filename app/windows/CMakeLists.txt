@@ -60,6 +60,7 @@ endif()
 add_library(AuroraApp STATIC
   src/Registry.cpp
   src/InstanceLock.cpp
+  src/LogSink.cpp
 )
 
 target_include_directories(AuroraApp PUBLIC
