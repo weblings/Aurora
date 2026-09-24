@@ -1,0 +1,6 @@
+[
+  {"zoneId": 0, "uvs": {"min": [0, 0], "max": [0.5, 0.5]}, "active": true, "gamma": 0.0, "everConfigured": true},
+  {"zoneId": 1, "uvs": {"min": [0.5, 0], "max": [1, 0.5]}, "active": true, "gamma": 0.0, "everConfigured": true},
+  {"zoneId": 2, "uvs": {"min": [0, 0.5], "max": [0.5, 1]}, "active": true, "gamma": 0.0, "everConfigured": true},
+  {"zoneId": 3, "uvs": {"min": [0.5, 0.5], "max": [1, 1]}, "active": true, "gamma": 0.0, "everConfigured": true}
+]

@@ -30,15 +30,56 @@ DEVICES = [
         "brightness": 80.0,
         "xy": {"x": 0.3127, "y": 0.3290},
     },
+    # Dedicated to conf-room-4zone below -- kept separate from Lamp A/Floor
+    # Lamp above so existing living-room/office tests stay untouched.
+    {
+        "entertainment_id": "ent-3",
+        "light_id": "light-3",
+        "name": "Front Left Lamp",
+        "on": True,
+        "brightness": 100.0,
+        "xy": {"x": 0.4, "y": 0.4},
+    },
+    {
+        "entertainment_id": "ent-4",
+        "light_id": "light-4",
+        "name": "Front Right Lamp",
+        "on": True,
+        "brightness": 100.0,
+        "xy": {"x": 0.4, "y": 0.4},
+    },
+    {
+        "entertainment_id": "ent-5",
+        "light_id": "light-5",
+        "name": "Back Left Lamp",
+        "on": True,
+        "brightness": 100.0,
+        "xy": {"x": 0.4, "y": 0.4},
+    },
+    {
+        "entertainment_id": "ent-6",
+        "light_id": "light-6",
+        "name": "Back Right Lamp",
+        "on": True,
+        "brightness": 100.0,
+        "xy": {"x": 0.4, "y": 0.4},
+    },
 ]
 
-# Two configs on purpose: a bridge holding more than one entertainment
+# Three configs on purpose: a bridge holding more than one entertainment
 # configuration over the same lights is normal, not an edge case.
 CONFIGS = [
     {"id": "conf-living-room", "name": "Living Room",
      "channels": {0: ["ent-1"], 1: ["ent-2"]}},
     {"id": "conf-office", "name": "Office",
      "channels": {0: ["ent-2"]}},
+    # For Aurora-gj0 (light-viz tool): 4 channels, one per web/demo/main.js's
+    # ROOM_ZONE_MAP quadrant. Channel id -> quadrant is a fixed decision
+    # (matches ROOM_ZONE_MAP's own declaration order), not derived from
+    # anything -- 0=front-left, 1=front-right, 2=back-left, 3=back-right.
+    # See room-4zone-zonemap.json for the matching Zone Mapping UVs.
+    {"id": "conf-room-4zone", "name": "Room (4-zone)",
+     "channels": {0: ["ent-3"], 1: ["ent-4"], 2: ["ent-5"], 3: ["ent-6"]}},
 ]
 
 

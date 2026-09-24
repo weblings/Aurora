@@ -113,12 +113,43 @@ One bridge back means the NUX "checking" phase auto-advances straight to
 pairing against the fake -- no address typing at all. Unset the variable
 for production behavior.
 
+## `conf-room-4zone`: a ready-made 4-zone config for the light-viz tool
+
+For `Aurora-gj0` (the standalone three.js viz tool, `tools/light-viz-relay/`):
+a third entertainment configuration, `conf-room-4zone`, with exactly 4
+channels over 4 dedicated lamps (Front/Back Left/Right), matching
+`web/demo/main.js`'s `ROOM_ZONE_MAP` quadrants one to one. Channel id ->
+quadrant is a fixed decision, not derived from anything:
+`0=front-left, 1=front-right, 2=back-left, 3=back-right`.
+
+Point `AURORA_HUE_ENTERTAINMENT_CONFIG_ID=conf-room-4zone` at a `--fresh`
+run to select it. Aurora gives newly-discovered zones full-frame UVs by
+default (`core/Runtime/src/ZoneReconciler.cpp`), so channel count alone
+isn't enough to get real quadrant colors out of the tap -- either set each
+zone's UVs via the WebUI's Zone Mapping screen to match `ROOM_ZONE_MAP`, or
+skip that UI pass entirely by dropping `room-4zone-zonemap.json` in as the
+saved zone map before first run:
+
+```sh
+mkdir -p "$AURORA_CONFIG_DIR/profiles"
+cp room-4zone-zonemap.json "$AURORA_CONFIG_DIR/profiles/hue.json"
+```
+
+(`hue.json` because `ZoneMapStore` names the file after `HueOutput::name()`.)
+That file's shape is `Aurora::Runtime::ZoneMapStore`'s exact JSON schema
+(`core/Runtime/src/ZoneMapStore.cpp`) -- `check.py` validates it against
+that schema (required keys, well-formed UVs, exact quadrant tiling) since
+this tool has no C++ build to round-trip it through directly.
+
 ## Contents
 
-- `fixtures.py` -- static payloads. Two entertainment configs over the
-  same two lamps (Lamp A, Floor Lamp); channel members use `ent-N`
-  entertainment rids while light control uses `light-N` light rids,
-  matching a real bridge.
+- `fixtures.py` -- static payloads. Three entertainment configs: two
+  original ones over Lamp A / Floor Lamp (`ent-1`/`ent-2`), plus
+  `conf-room-4zone` over 4 dedicated quadrant lamps (`ent-3`..`ent-6`,
+  see above); channel members use `ent-N` entertainment rids while light
+  control uses `light-N` light rids, matching a real bridge.
+- `room-4zone-zonemap.json` -- matching `ZoneMapStore`-shaped zone map for
+  `conf-room-4zone`, ready to drop in as `profiles/hue.json` (see above).
 - `fake_bridge.py` -- the server. Start/stop PUTs flip in-memory stream
   status per config and are logged, as are light PUTs.
 - `check.py` -- stdlib-only self-check (`python3 check.py`).
