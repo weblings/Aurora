@@ -414,3 +414,13 @@ Applies-when: judging captured zone colors against an on-screen stimulus that do
 A zone's color is a plain mean over its uvs, so a maximized page plus top bar/toolbar/dock read red as 0.945/0.106/0.106 and failed a strict ±0.08 check. Across red, green, blue and `#808080` every reading fit a single model -- ~16% of the frame averaging ~0.66, the rest the page -- which proves channel order and gamma correct more strongly than any single tolerance pass would.
 
 **Fix:** either shrink the zone to a region the stimulus fully covers, or solve for the contamination fraction from one color and check the others against it. General principle: when a fixed, unknown offset contaminates every reading, test consistency across stimuli, not closeness per stimulus.
+
+---
+
+## A protocol's theoretical maximum isn't the OS's actual limit -- verify the real one live, especially when the failure path is discarded by design
+Tags: debugging, verification, networking, silent-failure
+Applies-when: sizing a payload/buffer against a protocol spec rather than the runtime environment
+
+`DevFrameDump`'s size cap was set to 44000 bytes, reasoned from IPv4's theoretical 65507-byte UDP max with headroom for base64/JSON overhead. A 100x100 frame (40051-byte encoded payload, under that cap) silently never arrived. `send()`'s return value was discarded outright ("best-effort, never blocks, never throws"), so the failure produced no error anywhere -- not a crash, not a log line, just an absent datagram, indistinguishable from "nothing was published yet." `sysctl net.inet.udp.maxdgram` read 9216 on this machine: macOS's actual limit, unrelated to IPv4's spec ceiling and roughly 7x smaller than the value reasoned from it.
+
+**Fix:** cap checked against the real encoded payload size (`payload.size()`), not an estimated raw-byte proxy, and lowered to 9000 -- confirmed by sending progressively larger frames against a real listener until the exact threshold behavior was observed, not by rereading the RFC. General principle: a bound reasoned from a protocol's own spec is a hypothesis about the spec, not about the OS enforcing it -- and a best-effort/discarded-return-value design (chosen so a slow dev tool can never block the code path it observes) means a wrong bound produces silence, not a stack trace, so it won't surface on its own. Send a real datagram at the real size and confirm a real listener sees it.

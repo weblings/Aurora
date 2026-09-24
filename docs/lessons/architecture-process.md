@@ -426,3 +426,13 @@ Applies-when: deciding start-at-login for a non-Flatpak Linux app
 `org.freedesktop.portal.Background` RequestBackground is the sanctioned autostart route for sandboxed apps and unreliable outside a sandbox. A native tarball/zip gains nothing from it.
 
 **Fix:** ship the one aurora.desktop (generated from aurora.desktop.in with Exec baked absolute at configure time), document copying it to ~/.config/autostart, install nothing system-wide; see docs/Building.md 'Start at login'.
+
+---
+
+## A presence-only flag's own value silently doubling as its companion setting's override breaks the moment someone sets it the natural way
+Tags: architecture, env-var, presence, dev-tooling
+Applies-when: adding a second env-gated dev flag matching an existing enable/override pair convention
+
+`DevLightTap`'s constructor read `AURORA_DEV_LIGHT_TAP`'s value and passed it straight to `parseDevLightTapAddress`, intending "unset = disabled, set = enabled, optionally carrying a host:port override" in one variable -- matching how `AURORA_DEV_FAKE_HUE`'s value can carry an address. But `AURORA_DEV_FAKE_HUE` and its address override are two separate variables (`AURORA_HUE_BRIDGE_ADDRESS`); nothing in the existing convention actually overloads one var's value this way. Setting `AURORA_DEV_LIGHT_TAP=1` -- the ordinary way anyone flips a boolean-shaped flag -- got read as hostname `"1"`, which `inet_pton` rejects, so the tap silently stayed disabled. A live socket smoke test caught it; the pure-function unit tests for the address parser did not, since they never exercised the constructor's actual env-var wiring.
+
+**Fix:** split into `AURORA_DEV_LIGHT_TAP` (presence-only, never parsed) and a separate `AURORA_DEV_LIGHT_TAP_ADDRESS` override, matching the real established convention exactly. `DevFrameDump` was built after this fix and used the two-variable shape from the start. General principle: before overloading one env var's value as both a boolean gate and a configuration payload, check whether the "matching" precedent actually does that or just looks like it would -- and test the constructor's env-var reads live, not just the pure parsing function they call.
