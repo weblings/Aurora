@@ -18,6 +18,7 @@ add_library(AuroraRuntime STATIC
   src/Orchestrator.cpp
   src/SettingsRoutes.cpp
   src/ZoneRoutes.cpp
+  src/DevFrameDump.cpp
 )
 
 target_include_directories(AuroraRuntime PUBLIC

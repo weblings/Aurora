@@ -74,6 +74,17 @@ target_link_libraries(AuroraOrchestratorTests PRIVATE
 
 target_compile_features(AuroraOrchestratorTests PUBLIC cxx_std_20)
 
+add_executable(AuroraDevFrameDumpTests
+  DevFrameDumpTests.cpp
+)
+
+target_link_libraries(AuroraDevFrameDumpTests PRIVATE
+  AuroraRuntime
+  Catch2::Catch2WithMain
+)
+
+target_compile_features(AuroraDevFrameDumpTests PUBLIC cxx_std_20)
+
 # All three gated on AURORA_CORE_ENABLE_AUDIO -- AuroraAudioProcessing
 # (and the aubio it requires) may not exist in a video-only build.
 if(TARGET AuroraAudioProcessing)
@@ -119,6 +130,7 @@ catch_discover_tests(AuroraProcessingTests)
 catch_discover_tests(AuroraControlDescriptorTests)
 catch_discover_tests(AuroraRuntimeTests)
 catch_discover_tests(AuroraOrchestratorTests)
+catch_discover_tests(AuroraDevFrameDumpTests)
 if(TARGET AuroraAudioProcessing)
   catch_discover_tests(AuroraAudioProcessingTests)
   catch_discover_tests(AuroraAudioOrchestratorTests)

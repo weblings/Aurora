@@ -86,6 +86,11 @@ namespace Aurora::Runtime
     Contracts::ImageData source = m_frameData;
     _prepareSource(source);
 
+    // Unconditional, same reasoning as DevLightTap in HueOutput::send() --
+    // this observes exactly the frame composeFrame() below is about to
+    // read from, regardless of anything else.
+    m_devFrameDump.publish(source);
+
     for(auto* output : m_outputs){
       const auto& zoneMap = m_zoneMapsByOutput.at(output->name());
 

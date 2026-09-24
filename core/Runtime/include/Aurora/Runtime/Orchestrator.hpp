@@ -11,6 +11,7 @@
 #include <Aurora/Input/IVideoInput.hpp>
 #include <Aurora/Output/IOutput.hpp>
 #include <Aurora/Runtime/Config.hpp>
+#include <Aurora/Runtime/DevFrameDump.hpp>
 #include <Aurora/Runtime/Smoother.hpp>
 #include <Aurora/Runtime/ZoneMap.hpp>
 #include <Aurora/Runtime/ZoneMapStore.hpp>
@@ -75,5 +76,8 @@ namespace Aurora::Runtime
     std::unordered_map<std::string, ZoneMap> m_zoneMapsByOutput;
     Smoother m_smoother;
     Contracts::ImageData m_frameData;
+
+    // Dev-only visualization tap -- no-op unless AURORA_DEV_FRAME_DUMP is set.
+    DevFrameDump m_devFrameDump;
   };
 }
