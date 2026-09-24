@@ -237,3 +237,13 @@ Applies-when: faking bridge discovery for bridgeless development
 With the tier-1 fake running on localhost, NUX "checking" asked discovery.meethue.com, which returned the real LAN bridge (.154) -- pairing then registered against it while the console "button press" went to the fake, and Continue silently never advanced (the 101 wait-state re-render, by design). Merging the fake into cloud results would still be wrong: two bridges drops the NUX to the entry form instead of auto-advancing to pairing.
 
 **Fix:** when `AURORA_DEV_FAKE_HUE` is set, `/api/hue/discover` returns only the fake (address precedence: flag value > `AURORA_HUE_BRIDGE_ADDRESS` > default `127.0.0.1:18443`); unset is the production path byte-for-byte. General principle: substitute the discovery source in dev mode rather than unioning it -- a union preserves the real world's ambiguity while adding a fake entry nobody asked to choose between.
+
+---
+
+## Saved Hue credentials silently beat `AURORA_HUE_*` env vars -- a stale pairing streams empty frames at full rate
+Tags: output, hue, dev-fake, credentials, env
+Applies-when: pointing a dev run at the fake bridge (or any bridge) via env vars
+
+`registerOutputs()` loads `CredentialsStore` first and only falls back to `AURORA_HUE_*` when nothing is saved ([main.cpp:149-167](../../app/linux/src/main.cpp#L149-L167)). A Linux box with an old real-bridge pairing in `~/.config/aurora/hue-credentials.json` ignored `AURORA_HUE_BRIDGE_ADDRESS=127.0.0.1:18443` entirely: config selection failed, `zoneIds()` came back empty, `profiles/hue.json` was rewritten to `[]`, and the DevLightTap streamed `{"zones":[]}` at 60 fps -- every liveness signal green, zero content. Same trap inside a `--fresh` run: pairing through the WebUI writes credentials that then beat the env var's config id (picked `conf-office`, 1 channel, over `conf-living-room`).
+
+**Fix:** run fake-bridge sessions with `--fresh` and don't pair through the WebUI mid-run; check `profiles/hue.json` / zone count before trusting output. General principle: when a persisted store outranks env vars, an env-var dev override is a request, not a guarantee -- verify the effective source.

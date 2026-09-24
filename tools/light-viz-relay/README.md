@@ -40,6 +40,26 @@ source.onmessage = (event) => {
 Any number of tabs can subscribe at once (fan-out); each gets every
 datagram the relay receives from the moment it connects.
 
+## Validating a live run
+
+`validate.py` checks a real Aurora + relay (not a self-check):
+
+```sh
+# Sent vs received, byte for byte: validate.py tees the tap's UDP into the relay
+AURORA_DEV_LIGHT_TAP=1 AURORA_DEV_LIGHT_TAP_ADDRESS=127.0.0.1:18246 ./Aurora
+python3 validate.py passthrough --seconds 10
+
+# Values vs what's on screen (solid full-screen color; primaries are gamma-invariant)
+python3 validate.py color --expect red              # also green / blue
+python3 validate.py color --expect gray             # neutral check + reports implied gammaFactor
+python3 validate.py color --zone 0=red --zone 1=blue  # split screen: per-zone mapping
+python3 validate.py color                           # no expectation: just print per-zone values
+```
+
+`passthrough` sends a start/end sentinel frame (`{"zones":[], "_validate":...}`)
+through the relay to align the two recordings; open viz pages see those as
+empty frames.
+
 ## Contents
 
 - `relay.py` -- the server: one UDP socket (background thread), one
@@ -49,6 +69,7 @@ datagram the relay receives from the moment it connects.
 - `check.py` -- stdlib-only self-check (`python3 check.py`): single-
   subscriber delivery, malformed-datagram dropping, and multi-subscriber
   fan-out.
+- `validate.py` -- live-run validation (see above), stdlib only.
 
 ## Not in scope
 

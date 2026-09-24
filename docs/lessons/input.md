@@ -322,3 +322,13 @@ Applies-when: reading a negotiated PipeWire fraction as a plain number
 `PipewireGrabber::displayRefreshRate()` returned `max_framerate.num` raw as Hz. PipeWire fractions are frequently unreduced, so one backend negotiated a numerator of 15729223 -- persisted via Orchestrator's derive-from-display into config.json, the runtime loop then ran at 15.7M "updates per second" and wedged the daemon; the UI's untimed fetches hung in bootstrap, so every launch showed a blank page with the bad value surviving restarts because it was persisted. Same family as the narrowed-format fix that stopped trusting PipeWire's format tag.
 
 **Fix:** reduce the fraction (`num / denom`, `denom == 0` means unset) at the grabber boundary, clamp `Config::setRefreshRate` to a sane max so no future garbage source can persist, sanitize on `ConfigStore` load, and time out the UI's localhost probes so a hung daemon shows "unreachable" instead of blank. General principle: negotiated PipeWire fields are wire representations, not values.
+
+---
+
+## GNOME Wayland: PipeWire screen capture freezes on the first frame of a fullscreen window
+Tags: input, pipewire, wayland, gnome, fullscreen, validation
+Applies-when: validating capture with a fullscreen/kiosk window, or debugging "colors stuck" reports during fullscreen video
+
+Driving solid colors through a Firefox page: maximized, capture tracked every 1.5s change; after F11 it delivered one correct fullscreen frame, then held it ~18s while the page kept alternating, resuming the moment fullscreen exited. Two `--kiosk` launches froze the same way on Firefox's first paint (constant black, then constant near-white) -- which first looked like a broken test page, not a capture problem. Suspected GNOME direct scanout of fullscreen surfaces starving the screencast of new frames (unconfirmed). Tracked as `Aurora-1t1`; fullscreen video is the core use case.
+
+**Fix (until 1t1 lands):** validate capture with maximized, not fullscreen/kiosk, windows; when a capture reading is constant across stimuli, suspect the source froze before suspecting the stimulus.

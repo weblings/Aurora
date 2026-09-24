@@ -394,3 +394,23 @@ Applies-when: adding a heartbeat/poll that declares the backend dead
 The Dashboard heartbeat polls /api/capabilities precisely because that handler only reads the registry -- /api/monitors and /api/zones take the pipeline mutex, which tick starvation can hold for 8s+ (seen live in the NUX triage). A probe on a locking endpoint cannot distinguish "daemon dead" from "daemon wedged", which is the distinction it exists to draw.
 
 **Fix:** probe the most static endpoint available (capabilities/config over monitors/zones/status), with the abort inside the cadence and a recursive setTimeout so a hung server cannot stack polls.
+
+---
+
+## A lossless-transport PASS says nothing about content -- empty frames round-trip perfectly
+Tags: verification, oracles, streaming, validation
+Applies-when: writing or reading an end-to-end "sent == received" check
+
+`validate.py passthrough` compared tap-sent vs SSE-received byte for byte and passed -- while every frame was `{"zones":[]}` because the hue output had no zones (stale credentials, see output.md). The color check likewise returned PASS with an `--expect` and zero zones, and "gray" passed on pure black because only neutrality was asserted.
+
+**Fix:** every validator asserts non-vacuous content too (non-empty zone list, midtone actually mid) and fails loudly otherwise. General principle: an equality oracle over a stream is satisfied by an empty stream; pair it with a content floor.
+
+---
+
+## Solid-color checks against a whole-screen zone: fit one mixing model across colors instead of per-color tolerance
+Tags: verification, oracles, capture, zone-mapping
+Applies-when: judging captured zone colors against an on-screen stimulus that doesn't fill the zone
+
+A zone's color is a plain mean over its uvs, so a maximized page plus top bar/toolbar/dock read red as 0.945/0.106/0.106 and failed a strict ±0.08 check. Across red, green, blue and `#808080` every reading fit a single model -- ~16% of the frame averaging ~0.66, the rest the page -- which proves channel order and gamma correct more strongly than any single tolerance pass would.
+
+**Fix:** either shrink the zone to a region the stimulus fully covers, or solve for the contamination fraction from one color and check the others against it. General principle: when a fixed, unknown offset contaminates every reading, test consistency across stimuli, not closeness per stimulus.

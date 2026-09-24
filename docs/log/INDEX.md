@@ -22,4 +22,4 @@ Planning docs stay clean: decisions, status, and pointers here only.
 | 2026-09-23 | NUX black-screen triage (PipeWire fraction, tick starvation, tray terminate, Continue busy) | Aurora-k7p, Aurora-nzd, Aurora-cgr, Aurora-23a, Aurora-kwn, Aurora-4wi |
 | 2026-09-23 | Tray bus-name race (own_name needs context pump, icon renders) | Aurora-4wi |
 | 2026-09-23 | Windows headless dual-mode (LogSink, attach, rewire, flip; live pass green, closed) | Aurora-7l1 (+ 7l1.1-7l1.7) |
-| 2026-09-24 | Light-viz relay: HueOutput tap + UDP-to-SSE bridge (paused for Linux dry run) | Aurora-gj0.1, Aurora-gj0.2, Aurora-gj0.3 |
+| 2026-09-24 | Light-viz relay: HueOutput tap + UDP-to-SSE bridge; Linux dry run + validate.py | Aurora-gj0.1, Aurora-gj0.2, Aurora-gj0.3, Aurora-1t1, Aurora-1z9, Aurora-u1u |
