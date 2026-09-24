@@ -129,6 +129,12 @@ namespace Aurora::Output::Hue
 
     m_previouslyActiveZoneIds = std::unordered_set<uint8_t>(currentIds.begin(), currentIds.end());
 
+    // Unconditional, same as streamChannels() below -- this tap observes
+    // exactly what's computed regardless of DTLS connection state, never
+    // gating on it (see docs/lessons/output.md's isConnected()-swallowed-
+    // failure entries).
+    m_devLightTap.publish(channelStreams);
+
     m_streamer->streamChannels(channelStreams);
   }
 }

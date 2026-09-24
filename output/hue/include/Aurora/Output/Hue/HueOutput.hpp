@@ -9,6 +9,7 @@
 #include <Aurora/Output/IOutput.hpp>
 #include <Aurora/Output/Hue/Channel.hpp>
 #include <Aurora/Output/Hue/Credentials.hpp>
+#include <Aurora/Output/Hue/DevLightTap.hpp>
 #include <Aurora/Output/Hue/EntertainmentConfigurationSelector.hpp>
 #include <Aurora/Output/Hue/Streamer.hpp>
 
@@ -58,5 +59,8 @@ namespace Aurora::Output::Hue
     // Tracks which zones were streamed last tick, so a zone dropping out of
     // this tick's Frame gets exactly one final zero-color entry.
     std::unordered_set<uint8_t> m_previouslyActiveZoneIds;
+
+    // Dev-only visualization tap -- no-op unless AURORA_DEV_LIGHT_TAP is set.
+    DevLightTap m_devLightTap;
   };
 }

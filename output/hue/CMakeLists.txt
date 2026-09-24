@@ -83,6 +83,7 @@ if(AURORA_OUTPUT_HUE_ENABLE_IO)
     src/Streamer.cpp
     src/HueOutput.cpp
     src/PairingRoutes.cpp
+    src/DevLightTap.cpp
   )
   target_compile_definitions(AuroraOutputHue PUBLIC AURORA_OUTPUT_HUE_IO_AVAILABLE=1)
   # AuroraNetwork comes from the AuroraCore FetchContent above -- PairingRoutes.cpp
