@@ -650,7 +650,10 @@ namespace
         nlohmann::json json = {
           {"inputs", registry.inputNames()},
           {"audioInputs", registry.audioInputNames()},
-          {"outputs", outputs}
+          {"outputs", outputs},
+          // Literal per app binary, not runtime-detected -- see
+          // app/linux/src/main.cpp's registerCapabilitiesRoute for why.
+          {"platform", "windows"}
         };
 
         res.contentType = "application/json";

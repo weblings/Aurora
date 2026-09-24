@@ -719,7 +719,13 @@ namespace
         nlohmann::json json = {
           {"inputs", registry.inputNames()},
           {"audioInputs", registry.audioInputNames()},
-          {"outputs", outputs}
+          {"outputs", outputs},
+          // Literal per app binary, not runtime-detected -- each of
+          // app/linux, app/windows, app/mac is already its own platform-
+          // specific translation unit. Lets the WebUI show platform-
+          // specific messaging (e.g. Mac's Screen Recording permission
+          // recovery flow, Aurora-8mk.8) without guessing from other signals.
+          {"platform", "linux"}
         };
 
         res.contentType = "application/json";
