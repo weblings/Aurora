@@ -37,6 +37,14 @@ option(AURORA_ENABLE_OUTPUT_HUE "Build output/hue (needs libcurl, Mbed TLS)" ON)
 option(AURORA_ENABLE_APP_LINUX "Build app/linux" ${_AURORA_ON_LINUX})
 option(AURORA_ENABLE_APP_WINDOWS "Build app/windows" ${_AURORA_ON_WINDOWS})
 
+# Unlike Linux/Windows above, NOT auto-set ON on Darwin: input/mac and
+# app/mac don't exist yet (Aurora-8mk.2/.3), so add_subdirectory() below
+# would fail the configure step the moment this defaulted on on a Mac.
+# Flip the default once those slices land; until then this is here so
+# CMakePresets.json's mac-app preset (and CI) have something to target.
+option(AURORA_ENABLE_INPUT_MAC "Build input/mac (ScreenCaptureKit)" OFF)
+option(AURORA_ENABLE_APP_MAC "Build app/mac" OFF)
+
 include(CTest)
 
 if(AURORA_ENABLE_INPUT_LINUX)
@@ -44,6 +52,9 @@ if(AURORA_ENABLE_INPUT_LINUX)
 endif()
 if(AURORA_ENABLE_INPUT_WINDOWS)
   add_subdirectory(input/windows)
+endif()
+if(AURORA_ENABLE_INPUT_MAC)
+  add_subdirectory(input/mac)
 endif()
 if(AURORA_ENABLE_OUTPUT_HUE)
   add_subdirectory(output/hue)
@@ -53,4 +64,7 @@ if(AURORA_ENABLE_APP_LINUX)
 endif()
 if(AURORA_ENABLE_APP_WINDOWS)
   add_subdirectory(app/windows)
+endif()
+if(AURORA_ENABLE_APP_MAC)
+  add_subdirectory(app/mac)
 endif()
