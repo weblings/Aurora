@@ -18,6 +18,8 @@ import time
 import urllib.request
 from pathlib import Path
 
+from validate import crop_mean_rgb, expected_after_gamma
+
 HERE = Path(__file__).resolve().parent
 
 PASS_COUNT = 0
@@ -132,7 +134,52 @@ def main():
     finally:
         stop_relay(proc)
 
+    check_frame_math()
+
     print(f"\n{PASS_COUNT} checks passed")
+
+
+def check_frame_math():
+    # crop_mean_rgb/expected_after_gamma mirror ImageProcessing::getSubImage
+    # + Algorithms::mean + HueOutput::toChannelStream exactly (see
+    # validate.py's own comments) -- hand-computed expected values here,
+    # not just round-tripped against the same code being tested.
+
+    # Uniform 2x2 BGR image: B=50, G=100, R=200 at every pixel.
+    uniform = bytes([50, 100, 200] * 4)
+    r, g, b = crop_mean_rgb(2, 2, "BGR", uniform, (0, 0), (1, 1))
+    check("crop_mean_rgb reorders BGR->RGB and normalizes to 0..1",
+          abs(r - 200 / 255) < 1e-9 and abs(g - 100 / 255) < 1e-9 and abs(b - 50 / 255) < 1e-9,
+          repr((r, g, b)))
+
+    # 4x2 BGRA image, left half pure red, right half pure blue (BGRA bytes).
+    red_px = [0, 0, 255, 255]
+    blue_px = [255, 0, 0, 255]
+    row = red_px * 2 + blue_px * 2
+    split = bytes(row * 2)
+    left_r, left_g, left_b = crop_mean_rgb(4, 2, "BGRA", split, (0, 0), (0.5, 1))
+    right_r, right_g, right_b = crop_mean_rgb(4, 2, "BGRA", split, (0.5, 0), (1, 1))
+    check("crop_mean_rgb crops to the left half only (pure red, alpha ignored)",
+          left_r == 1.0 and left_g == 0.0 and left_b == 0.0, repr((left_r, left_g, left_b)))
+    check("crop_mean_rgb crops to the right half only (pure blue)",
+          right_r == 0.0 and right_g == 0.0 and right_b == 1.0, repr((right_r, right_g, right_b)))
+
+    # Degenerate (zero-area) uv rect -- matches getDominantColor's
+    # width<1/height<1 -> black, rather than dividing by zero.
+    degenerate = crop_mean_rgb(4, 2, "BGRA", split, (0.5, 0), (0.5, 1))
+    check("crop_mean_rgb returns black for a zero-width uv rect (no div-by-zero)",
+          degenerate == (0.0, 0.0, 0.0), repr(degenerate))
+
+    # gamma=0 -> exponent 2^0=1 -> identity.
+    identity = expected_after_gamma((0.7843, 0.5882, 0.3922), 0.0)
+    check("expected_after_gamma is identity at gammaFactor=0",
+          all(abs(a - b) < 1e-6 for a, b in zip(identity, (0.7843, 0.5882, 0.3922))),
+          repr(identity))
+
+    # gamma=0.5 -> exponent 2^-1=0.5 -> sqrt.
+    gammaed = expected_after_gamma((0.25, 0.25, 0.25), 0.5)
+    check("expected_after_gamma(0.25, gammaFactor=0.5) == sqrt(0.25) == 0.5",
+          all(abs(c - 0.5) < 1e-9 for c in gammaed), repr(gammaed))
 
 
 if __name__ == "__main__":

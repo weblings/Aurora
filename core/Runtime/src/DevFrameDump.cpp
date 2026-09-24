@@ -18,14 +18,18 @@ namespace Aurora::Runtime
   {
     constexpr const char* DefaultHost = "127.0.0.1";
 
-    // Single-UDP-datagram safety cap on the RAW (pre-base64) byte count --
-    // base64 inflates by 4/3, and this leaves headroom under IPv4's 65507
-    // theoretical max for the JSON wrapper around it. Loopback traffic
-    // doesn't hit real Ethernet MTU fragmentation, so one datagram is fine
-    // for this localhost-only dev tool; chunking/reassembly isn't worth
-    // building for it. Comfortably above any sane subsample width in
-    // practice (SubsampleDefaults picks ~1% of display width by default).
-    constexpr size_t MaxRawFrameBytes = 44000;
+    // Cap on the ENCODED (base64+JSON) payload size actually passed to
+    // send() -- checked against the real payload, not estimated from raw
+    // bytes, since the two aren't simply proportional once JSON overhead
+    // is folded in. Confirmed empirically, not just from IPv4's 65507
+    // theoretical max: macOS's actual limit is `net.inet.udp.maxdgram`,
+    // 9216 by default -- a 100x100 BGR frame (40051-byte payload) silently
+    // vanished in live testing (send() failing with EMSGSIZE, discarded
+    // as part of this being best-effort) until this cap was tightened to
+    // match reality. Comfortably above any sane subsample width in
+    // practice regardless (SubsampleDefaults picks ~1% of display width
+    // by default) -- this only matters for pathological configs.
+    constexpr size_t MaxPayloadBytes = 9000;
 
     const char* pixelFormatName(Contracts::PixelFormat format)
     {
@@ -200,15 +204,9 @@ namespace Aurora::Runtime
       return;
     }
 
-    size_t rawBytes = static_cast<size_t>(image.width()) * static_cast<size_t>(image.height())
-      * static_cast<size_t>(pixelFormatChannels(image.format));
-    if(rawBytes > MaxRawFrameBytes){
-      return; // see MaxRawFrameBytes -- dropped, not fragmented
-    }
-
     std::string payload = buildDevFrameDumpPayload(image);
-    if(payload.empty()){
-      return;
+    if(payload.empty() || payload.size() > MaxPayloadBytes){
+      return; // see MaxPayloadBytes -- dropped, not fragmented
     }
 
     ::send(m_socketFd, payload.data(), payload.size(), 0);

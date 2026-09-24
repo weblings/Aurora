@@ -13,14 +13,25 @@ Run against a real Aurora + relay.py, not a self-check (that's check.py).
                per zone (--zone ID=COLOR) or for all zones (--expect COLOR).
                No expectation = just print the per-zone table.
 
+  frame        Cross-checks the tap's reported zone colors against an
+               independent recomputation from DevFrameDump's raw captured
+               frame -- works for arbitrary (not just solid-color) on-screen
+               content, unlike `color`. Needs a zone-map JSON file (the same
+               shape Aurora::Runtime::ZoneMapStore saves/loads, e.g.
+               tools/fake-hue-bridge/room-4zone-zonemap.json) so it knows
+               each zone's uvs/gamma. Run Aurora with AURORA_DEV_LIGHT_TAP=1
+               AURORA_DEV_FRAME_DUMP=1.
+
 Examples:
     python3 validate.py passthrough --seconds 10
     python3 validate.py color --expect red
     python3 validate.py color --expect gray --gamma-factor 0.5
     python3 validate.py color --zone 0=red --zone 1=blue
+    python3 validate.py frame --zonemap ../fake-hue-bridge/room-4zone-zonemap.json
 """
 
 import argparse
+import base64
 import json
 import math
 import socket
@@ -281,6 +292,160 @@ def run_color(args):
     print("PASS")
 
 
+# --- frame --------------------------------------------------------------
+
+class FrameReader(threading.Thread):
+    """Collects DevFrameDump datagrams (parsed JSON dicts, arrival order)."""
+
+    def __init__(self, host, port):
+        super().__init__(daemon=True)
+        self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        self.sock.bind((host, port))
+        self.sock.settimeout(0.2)
+        self.frames = []
+        self.lock = threading.Lock()
+        self._stop = threading.Event()
+
+    def run(self):
+        while not self._stop.is_set():
+            try:
+                data, _addr = self.sock.recvfrom(65535)
+            except socket.timeout:
+                continue
+            try:
+                frame = json.loads(data.decode("utf-8"))
+            except (UnicodeDecodeError, json.JSONDecodeError):
+                continue
+            with self.lock:
+                self.frames.append(frame)
+
+    def snapshot(self):
+        with self.lock:
+            return list(self.frames)
+
+    def stop(self):
+        self._stop.set()
+        self.sock.close()
+
+
+def load_zonemap(path):
+    # Same shape Aurora::Runtime::ZoneMapStore saves/loads
+    # (core/Runtime/src/ZoneMapStore.cpp) -- a plain JSON array, not this
+    # tool's usual SSE/UDP JSON-line shapes.
+    with open(path) as f:
+        zone_map = json.load(f)
+    for zone in zone_map:
+        if "zoneId" not in zone or "uvs" not in zone:
+            sys.exit(f"FAIL: {path} doesn't look like a ZoneMapStore zone map: {zone!r}")
+    return {z["zoneId"]: z for z in zone_map}
+
+
+def crop_mean_rgb(width, height, fmt, raw, uv_min, uv_max):
+    # Mirrors ImageProcessing::getSubImage + Algorithms::mean
+    # (core/Processing/src/ImageProcessing.cpp) exactly: truncating
+    # (not rounding) uv->pixel conversion, per-channel arithmetic mean
+    # over the crop, format-aware channel reorder, uint8 truncation
+    # before normalization -- matching C++'s static_cast<uint8_t> before
+    # Color::toNormalized() divides by 255.
+    channels = 4 if fmt in ("RGBA", "BGRA") else 3
+
+    ax = max(0, int(uv_min[0] * width))
+    ay = max(0, int(uv_min[1] * height))
+    bx = min(int(uv_max[0] * width), width)
+    by = min(int(uv_max[1] * height), height)
+    if bx <= ax or by <= ay:
+        return (0.0, 0.0, 0.0)  # matches getDominantColor's width<1/height<1 case
+
+    sums = [0, 0, 0]
+    count = 0
+    for y in range(ay, by):
+        row = y * width * channels
+        for x in range(ax, bx):
+            p = row + x * channels
+            sums[0] += raw[p]
+            sums[1] += raw[p + 1]
+            sums[2] += raw[p + 2]
+            count += 1
+
+    means = [int(s / count) for s in sums]  # truncate like static_cast<uint8_t>
+    if fmt in ("RGB", "RGBA"):
+        r, g, b = means
+    else:  # BGR, BGRA
+        b, g, r = means
+
+    return (r / 255.0, g / 255.0, b / 255.0)
+
+
+def run_frame(args):
+    zone_map = load_zonemap(args.zonemap)
+
+    sse_reader = start_reader(args)
+    frame_reader = FrameReader(args.frame_host, args.frame_port)
+    frame_reader.start()
+
+    print(f"sampling {args.seconds}s (zonemap: {len(zone_map)} zones from {args.zonemap})...")
+    time.sleep(args.seconds)
+    frame_reader.stop()
+
+    tap_frames = [f for p in sse_reader.snapshot()
+                 for f in [json.loads(p)] if "_validate" not in f]
+    frames = frame_reader.snapshot()
+
+    if not frames:
+        sys.exit("FAIL: no frames received -- is Aurora running with "
+                 f"AURORA_DEV_FRAME_DUMP=1 AURORA_DEV_FRAME_DUMP_ADDRESS={args.frame_host}:{args.frame_port}?")
+    if not tap_frames:
+        sys.exit("FAIL: no tap zone-color frames received over SSE -- "
+                 "is AURORA_DEV_LIGHT_TAP=1 set and pointed at this relay?")
+
+    # Paired by arrival index, not a shared timestamp/sequence number:
+    # DevFrameDump.publish() and (via HueOutput::send()) DevLightTap's
+    # publish() both fire once per Orchestrator::update() tick, in that
+    # order, so the Nth frame and Nth tap message correspond -- true for a
+    # single registered output; a multi-output setup would need each
+    # output's own SSE stream disambiguated, out of scope here.
+    pairs = list(zip(frames, tap_frames))
+    print(f"{len(frames)} frames, {len(tap_frames)} tap zone-color messages, "
+          f"comparing {len(pairs)} paired samples")
+
+    worst_by_zone = {}
+    compared = 0
+    for frame, tap_frame in pairs:
+        raw = base64.b64decode(frame["data"])
+        for tap_zone in tap_frame.get("zones", []):
+            zid = tap_zone["id"]
+            if zid not in zone_map:
+                continue  # zone-map file doesn't cover this id -- can't cross-check it
+            zone = zone_map[zid]
+            if not zone.get("active", True):
+                continue
+
+            recomputed = crop_mean_rgb(
+                frame["width"], frame["height"], frame["format"], raw,
+                zone["uvs"]["min"], zone["uvs"]["max"])
+            expected = expected_after_gamma(recomputed, zone.get("gamma", 0.0))
+            observed = (tap_zone["r"], tap_zone["g"], tap_zone["b"])
+
+            delta = max(abs(o - e) for o, e in zip(observed, expected))
+            compared += 1
+            if delta > worst_by_zone.get(zid, -1):
+                worst_by_zone[zid] = delta
+
+    if not compared:
+        sys.exit("FAIL: nothing to compare -- tap zone ids never matched any id in the zone-map file")
+
+    failed = False
+    for zid in sorted(worst_by_zone):
+        worst = worst_by_zone[zid]
+        status = "ok" if worst <= args.tolerance else "FAIL"
+        failed |= worst > args.tolerance
+        print(f"  zone {zid}: worst per-channel delta over the run = {worst:.4f}  {status}")
+
+    if failed:
+        sys.exit("FAIL")
+    print("PASS")
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0],
                                      formatter_class=argparse.RawDescriptionHelpFormatter,
@@ -304,6 +469,14 @@ def main():
     c.add_argument("--gamma-factor", type=float,
                    help="zone gammaFactor to assert for midtones; omitted = report it instead")
     c.set_defaults(func=run_color)
+
+    fr = sub.add_parser("frame", help="tap values vs independent recomputation from the raw captured frame")
+    fr.add_argument("--seconds", type=float, default=5)
+    fr.add_argument("--zonemap", required=True, help="path to a ZoneMapStore-shaped zone-map JSON file")
+    fr.add_argument("--frame-host", default="127.0.0.1")
+    fr.add_argument("--frame-port", type=int, default=18247, help="point AURORA_DEV_FRAME_DUMP_ADDRESS here")
+    fr.add_argument("--tolerance", type=float, default=0.05, help="per-channel, 0..1 (default 0.05)")
+    fr.set_defaults(func=run_frame)
 
     args = parser.parse_args()
     args.func(args)

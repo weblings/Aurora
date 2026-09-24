@@ -23,6 +23,10 @@ out/
 # CLion / other JetBrains IDEs
 .idea/
 
+# --- Python (tools/fake-hue-bridge, tools/light-viz-relay) ---
+__pycache__/
+*.pyc
+
 # --- Node / web (web/, phases 3-5) ---
 node_modules/
 dist/

@@ -54,11 +54,31 @@ python3 validate.py color --expect red              # also green / blue
 python3 validate.py color --expect gray             # neutral check + reports implied gammaFactor
 python3 validate.py color --zone 0=red --zone 1=blue  # split screen: per-zone mapping
 python3 validate.py color                           # no expectation: just print per-zone values
+
+# Values vs an independent recomputation from the raw captured frame --
+# works for arbitrary (not just solid-color) content, unlike `color`
+AURORA_DEV_FRAME_DUMP=1 ./Aurora   # alongside AURORA_DEV_LIGHT_TAP=1 above
+python3 validate.py frame --zonemap ../fake-hue-bridge/room-4zone-zonemap.json
 ```
 
 `passthrough` sends a start/end sentinel frame (`{"zones":[], "_validate":...}`)
 through the relay to align the two recordings; open viz pages see those as
 empty frames.
+
+`frame` reads `output/hue`'s `DevLightTap`-reported zone colors over SSE
+(same as `color`) *and* `core/Runtime`'s `DevFrameDump`-reported raw
+captured frame over its own UDP port (`AURORA_DEV_FRAME_DUMP`, default
+`18247` -- a separate channel straight to this tool, not through
+`relay.py`, since raw pixel data doesn't fit `relay.py`'s JSON-line/SSE
+shape the way per-zone colors do), then recomputes each zone's color from
+the frame using the exact same crop+mean+gamma math
+`ImageProcessing`/`HueOutput` use, and compares the two. `--zonemap` needs
+a `ZoneMapStore`-shaped JSON file so it knows each zone's uvs/gamma --
+`tools/fake-hue-bridge/room-4zone-zonemap.json` is a ready-made one.
+Datagrams over ~9000 bytes (encoded) are dropped by the tap itself, not
+fragmented -- confirmed live against macOS's actual `net.inet.udp.maxdgram`
+(9216 by default, well under IPv4's theoretical max), so keep subsample
+width sane if `frame` reports fewer frames than expected.
 
 ## Contents
 
@@ -67,8 +87,9 @@ empty frames.
   as connect. Malformed datagrams are logged and dropped, never
   forwarded. Heartbeats (SSE comment lines) keep idle connections alive.
 - `check.py` -- stdlib-only self-check (`python3 check.py`): single-
-  subscriber delivery, malformed-datagram dropping, and multi-subscriber
-  fan-out.
+  subscriber delivery, malformed-datagram dropping, multi-subscriber
+  fan-out, and the `frame` mode's crop/mean/gamma math against hand-
+  computed values.
 - `validate.py` -- live-run validation (see above), stdlib only.
 
 ## Not in scope
