@@ -183,7 +183,7 @@ export function createRouter(store, hooks = {}) {
     // GET /api/version -- mirrors the native route: the CHANGELOG top entry
     // is the demo's version truth, pinned by demo-shim.test.mjs.
     if (method === 'GET' && path === '/api/version') {
-      return ok({ version: '1.0.0' });
+      return ok({ version: '1.0.3' });
     }
     if (method === 'GET' && path === '/api/config') {
       return ok(store.getConfig());

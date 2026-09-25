@@ -1,3 +1,6 @@
+v1.0.3:
+- In development: web fake-lights dev viz tool, Mac video-terminal support
+
 v1.0.2:
 - Executables can now be double-clicked to start Aurora. A second double-click launches its UI.
 - When Aurora is active, a tray icon for it appears in the taskbar. You can right click it to 'Stop' or 'Open UI'. This works on Windows and confirmed for Ubuntu 2022.4+
