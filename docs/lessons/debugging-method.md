@@ -442,3 +442,22 @@ Applies-when: stopping processes whose command lines resemble the stop command i
 `pkill -f "build/linux-app/bin/Aurora"` matched the `bash -c` invocation running the pkill (its command line contains the pattern) and SIGTERMed the shell mid-command -- the tool call reported failure with empty output. The first pkill in the chain had already killed its target, so state was half-torn-down with no report of which half.
 
 **Fix:** resolve PIDs first (`ps` with a bracket pattern like `[b]in/Aurora`, which can't match the grep itself), then `kill <pids>` and verify with `ss`/fresh `ps`. General principle: a pattern-kill aimed at a process family you belong to (shells running commands about those processes) must exclude the shooter.
+
+---
+
+## A macOS `.app` bundle launched via `open` doesn't inherit the invoking shell's environment, and `--fresh`-style flags can silently override a config-dir env var too
+Tags: debugging, macos, bundle, environment, methodology
+Applies-when: testing a macOS `.app` bundle's behavior under specific env vars/config
+
+Testing `Aurora-8mk.5` end to end needed `AURORA_HUE_BRIDGE_ADDRESS`/`AURORA_DEV_LIGHT_TAP`/etc. reaching the real bundled binary -- `export`ing them in the shell before `open Aurora.app` does nothing, since `open` launches through LaunchServices, not as a child of the shell. `open --env KEY=VALUE` (repeatable) is what actually reaches the process; confirmed with `ps eww -p <pid>` after launch, not assumed. Separately, `app/mac`'s own `--fresh` flag (passed via `open ... --args --fresh`) redirects the config root to `$TMPDIR/aurora-fresh` unconditionally -- it ignores `AURORA_CONFIG_DIR` entirely, even though both looked like they should compose. Cost a wasted attempt placing a zone-map file at the env-var path while the running process was reading from the temp-dir path instead.
+
+**Fix:** `open <bundle> --env KEY=VALUE --args <flags>` to pass both environment and CLI args through LaunchServices; verify what actually landed with `ps eww -p <pid> | tr ' ' '\n' | grep <VAR>` rather than trusting the launch command. When two config-source mechanisms exist (an env var override and a CLI flag), check the source for which one wins instead of assuming they compose -- read the resolution code (`isFreshRun`/`freshConfigRoot` vs. `resolveConfigRoot` in `app/mac/src/main.cpp`), don't guess from the flag names.
+---
+
+## DevLightTap confirmed real capture end to end on Mac; DevFrameDump's independent cross-check tool did not receive data, unresolved
+Tags: debugging, mac, devtools, unresolved
+Applies-when: validating a new Mac input backend and choosing between `AURORA_DEV_LIGHT_TAP` and `AURORA_DEV_FRAME_DUMP` for it
+
+Validating `Aurora-8mk.5`'s real capture: `tools/light-viz-relay/validate.py frame` (cross-checks `DevFrameDump`'s raw-frame UDP dump against the tap's reported colors) reported "no frames received" every time, despite `DevFrameDump`'s wiring (`Orchestrator::update()` → `m_devFrameDump.publish(source)`) being identical, platform-agnostic code already exercised on Linux, and `ps eww` confirming `AURORA_DEV_FRAME_DUMP=1` reached the process. Root cause not found. `AURORA_DEV_LIGHT_TAP` (the other dev tap, feeding `tools/light-viz-relay`'s SSE/`viz.html` path) worked immediately on the same run and gave a fully convincing end-to-end confirmation (real per-zone colors, tracking a dragged colorful window live) -- used as the validation path instead of chasing the `DevFrameDump` gap further.
+
+**Fix (until root-caused):** for Mac capture validation, prefer `AURORA_DEV_LIGHT_TAP` + `tools/light-viz-relay` (`relay.py`, `viz.html`, or `validate.py color`) over `validate.py frame`/`AURORA_DEV_FRAME_DUMP` -- the former is proven working on Mac, the latter isn't yet. Don't assume "identical shared code, confirmed env var present" guarantees the same runtime behavior across platforms without an actual positive observation on each one.

@@ -28,3 +28,4 @@ Planning docs stay clean: decisions, status, and pointers here only.
 | 2026-09-25 | gj0.5 refactor (3 slices) + gj0.6 viz page, browser-verified; demo footer 1.0.3 | Aurora-gj0.5, Aurora-gj0.6 |
 | 2026-09-25 | --fake-hue flag + agent-run gj0.7 validation; viz docs end-to-end recipe | Aurora-gj0.7 |
 | 2026-09-25 | TCC-identity probe resolved: Aurora.app bundle wrapper (+ icon) unblocks Mac track | Aurora-8mk.4, Aurora-8mk.11 |
+| 2026-09-25 | ScreenCaptureKit grabber lands: real Mac capture, validated end to end via fake-hue+viz | Aurora-8mk.5, Aurora-8mk.12 |

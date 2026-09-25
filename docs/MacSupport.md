@@ -304,19 +304,35 @@ pass.
   static files from within it. That's a dev-checkout-location artifact
   (a real install won't live under Documents), not a product concern.
 - **Phase 4 — ScreenCaptureKit grabber, single display, no
-  monitor-switching yet.** `enable_language(OBJCXX)`, link
-  `ScreenCaptureKit`/`CoreGraphics`/`AppKit`, implement the async→sync
-  bridge with a *bounded* wait (mirror
-  [`AudioGrabber.cpp:38`](../input/linux/src/AudioGrabber.cpp#L38)'s
-  `wait_for`, not `PipewireGrabber`'s unbounded one — see "Bridging the
-  async permission wait" above), get points-vs-pixels scaling right from
-  the start.
-  *Test:* swap `dummy` for the real "mac" input via `registerInputs`, run
-  `app/mac` via the Phase 3b bundle wrapper (not raw `exec`, now that
-  Phase 3 showed that changes who holds the grant), confirm frames flow
-  (no visual-preview endpoint exists yet on any platform, so correctness
-  here is indirect — via Hue output behavior or an ad-hoc frame dump —
-  until/unless a preview route gets added).
+  monitor-switching yet. DONE, verified 2026-09-25 (Aurora-8mk.5).**
+  `input/mac/src/ScreenCaptureKitGrabber.mm` (Objective-C++, PIMPL header
+  keeps every ScreenCaptureKit/AppKit type out of the C++ side), registered
+  as the `"mac"` input name (`"dummy"` stays the default so a fresh install
+  never triggers a Screen Recording prompt unasked). `SCShareableContent`'s
+  async completion bridged with a bounded `std::promise`/`future` (5s,
+  `AudioGrabber.cpp`'s pattern, not `PipewireGrabber`'s unbounded one).
+  Points-vs-pixels: `SCDisplay.width/height` matched against `NSScreen`
+  (via `NSScreenNumber`) for `backingScaleFactor`, `maximumFramesPerSecond`
+  doubling as the refresh rate (`SCDisplay` exposes neither directly).
+  `CGDisplayCreateImage` is gone as of macOS 15 — `SCShareableContent`/
+  `SCStream` is required, not just preferred.
+  *Test, as run:* fake Hue bridge (`tools/fake-hue-bridge`) +
+  `tools/light-viz-relay` + `viz.html`, same shape as `Aurora-gj0.7`'s
+  Linux baseline. Confirmed real per-zone colors flowing end to end
+  (ScreenCaptureKit → subsample → compose → smooth → `HueOutput` →
+  `DevLightTap` → relay → `viz.html`), including a dragged colorful window
+  visibly shifting the matching lamp's color live. Two TCC gates hit and
+  resolved: Screen Recording (System Settings, as expected) and a second,
+  separate "bypass the system picker" consent alert (macOS Sequoia+ —
+  capturing the whole display directly via `SCContentFilter
+  initWithDisplay:excludingWindows:` skips Apple's `SCContentSharingPicker`
+  UI, which is the right shape for a background daemon but requires this
+  extra one-time consent; it appears *after* `startCaptureWithCompletionHandler`
+  already reports success, gating actual frame delivery separately — see
+  `docs/lessons/input.md`). `AURORA_DEV_FRAME_DUMP`'s independent
+  cross-check tool (`validate.py frame`) didn't receive data on Mac for
+  reasons not yet root-caused (`Aurora-8mk.12`, not a blocker) —
+  `AURORA_DEV_LIGHT_TAP` worked and was used instead.
 - **Phase 5 — multi-monitor: `selectMonitor()`/`hasCustomScreenManagement()`.**
   Only after single-display capture is solid; check whether
   `X11Grabber`/`PipewireGrabber` already have prior art for stream-rebuild

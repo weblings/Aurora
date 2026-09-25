@@ -1,11 +1,10 @@
 // Mac terminal-only tier (docs/MacSupport.md, Aurora-8mk): ported from
-// app/linux's main.cpp, minus tray integration (no NSStatusItem/.app
-// bundle yet -- see "Tray-parity" in the doc) and minus the X11/Pipewire
-// backend-selection dance (macOS has exactly one capture API once
-// input/mac's ScreenCaptureKit grabber lands, Aurora-8mk.5 -- until then
-// this wires only the "dummy" input, matching build-sequencing Phase 2).
-// Bridge credentials still come from env vars or a persisted pairing flow,
-// same as app/linux.
+// app/linux's main.cpp, minus full tray-parity (LSUIElement/NSStatusItem/
+// SMAppService -- see "Tray-parity" in the doc; a minimal .app bundle for
+// TCC identity is already in from Aurora-8mk.11) and minus the X11/Pipewire
+// backend-selection dance (macOS has exactly one capture API -- "mac",
+// input/mac's ScreenCaptureKit grabber, Aurora-8mk.5). Bridge credentials
+// still come from env vars or a persisted pairing flow, same as app/linux.
 
 #include <algorithm>
 #include <chrono>
@@ -37,6 +36,7 @@
 
 #include <Aurora/Input/Mac/DummyGrabber.hpp>
 #include <Aurora/Input/Mac/InputControlDescriptors.hpp>
+#include <Aurora/Input/Mac/ScreenCaptureKitGrabber.hpp>
 
 #ifdef AURORA_OUTPUT_HUE_IO_AVAILABLE
 #include <Aurora/Output/Hue/Credentials.hpp>
@@ -56,14 +56,20 @@ namespace
   }
 
 
-  // Only "dummy" until Aurora-8mk.5 registers the real ScreenCaptureKit
-  // backend -- no backend-selection dance needed even then (unlike Linux's
-  // X11/Wayland-portal/Gamescope-PipeWire runtime choice): macOS has
-  // exactly one capture API, so that registration will be direct.
+  // "dummy" stays registered alongside "mac" -- no backend-selection dance
+  // needed the way Linux's X11/Wayland-portal/Gamescope-PipeWire runtime
+  // choice does (macOS has exactly one capture API), but dummy is still
+  // useful as a no-permission-needed dev/test target. Default activeInput
+  // (see below) stays "dummy" so a fresh install never triggers a Screen
+  // Recording prompt before the user has opted in via the WebUI.
   void registerInputs(Aurora::App::Registry& registry)
   {
     registry.registerInput("dummy", []{
       return std::make_unique<Aurora::Input::Mac::DummyGrabber>();
+    });
+
+    registry.registerInput("mac", []{
+      return std::make_unique<Aurora::Input::Mac::ScreenCaptureKitGrabber>();
     });
   }
 
@@ -316,9 +322,9 @@ namespace
 #endif
       }
       else{
-        // "dummy" default until Aurora-8mk.5 registers "mac" (the real
-        // ScreenCaptureKit backend) -- matches what registerInputs() above
-        // actually registers today.
+        // "dummy" default -- a fresh/unconfigured install shouldn't trigger
+        // a Screen Recording prompt unasked; the WebUI sets activeInputName
+        // to "mac" once the user picks the real capture source.
         std::string inputName = config.activeInputName().empty() ? "dummy" : config.activeInputName();
         auto input = registry.createInput(inputName);
         if(!input){
