@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Aurora Light Viz</title>
+  <link rel="icon" type="image/svg+xml" href="favicon.svg" />
+  <style>
+    html, body { margin: 0; height: 100%; background: #111318; overflow: hidden; }
+    #scene-pane { position: fixed; inset: 0; }
+    #scene-pane canvas { display: block; }
+    #viz-status {
+      position: fixed; left: 16px; top: 12px; z-index: 1;
+      font: 14px system-ui, sans-serif; color: #e8eaf0;
+      background: rgba(20, 22, 28, 0.75); padding: 8px 12px;
+      border: 1px solid #4a4f5c; border-radius: 6px;
+    }
+  </style>
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "./vendor/three/build/three.module.js",
+        "three/addons/": "./vendor/three/examples/jsm/"
+      }
+    }
+  </script>
+</head>
+<body>
+  <!-- Scene-only dev-viz (Aurora-gj0.6): the room rig driven live by the
+       light-viz relay. No WebUI, video, or audio DOM exists on this page by
+       design -- run relay.py, then send frames to UDP 18244 (see
+       tools/light-viz-relay/README.md). -->
+  <div id="scene-pane"></div>
+  <div id="viz-status">connecting...</div>
+  <script type="module" src="viz.js"></script>
+</body>
+</html>

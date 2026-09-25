@@ -25,6 +25,7 @@ import {
   video, videoTexture, testPatterns, getTvScreenTexture, invalidateScreenTexture,
   loadImagePattern, setSampleWidth, setSmoothing, sampleFrame as sampleVideoFrame,
 } from './video-source.js';
+import { applyFrameToTargets } from './frame-apply.js';
 import {
   setColorModel, applyAudioTuning, setPlaying, sampleFrame as sampleAudioFrame,
 } from './audio-source.js';
@@ -319,42 +320,20 @@ video.play().catch(() => {
   document.body.addEventListener('click', () => video.play(), { once: true });
 });
 
-// Orchestrator (gj0.5 slice 3): the render loop consumes color-provider
-// implementations and applies their frames to the rig targets. Contract --
-// sampleFrame() returns [{zoneId, color:{r,g,b} 0..1}] or null (no data this
-// frame). Video takes (zones, mode); audio takes ({zones, targets}); the
-// 'live' SSE provider (gj0.6) will be a third implementation, additive.
-function applyFrameToTargets(frame, zones) {
-  const frameById = new Map(zones.map((z) => [z.zoneId, z]));
-  const updated = new Set();
-  for (const zoneFrame of frame) {
-    const target = zoneLights.find((z) => z.zoneId === zoneFrame.zoneId);
-    if (!target) continue;
-    updated.add(zoneFrame.zoneId);
-    for (const light of target.lights) {
-      light.color.setRGB(zoneFrame.color.r, zoneFrame.color.g, zoneFrame.color.b);
-    }
-  }
-  // Demo deviation, same as before: inactive zones go dark instead of
-  // holding, so the toggle reads as on/off in the scene.
-  for (const { zoneId, lights } of zoneLights) {
-    if (updated.has(zoneId)) continue;
-    if (frameById.get(zoneId)?.active === false) {
-      for (const light of lights) light.color.setRGB(0, 0, 0);
-    }
-  }
-}
-
+// Orchestrator: the render loop consumes color-provider implementations and
+// applies their frames to the rig targets (see frame-apply.js). Video takes
+// (zones, mode); audio takes ({zones, targets}); the 'live' SSE provider
+// (gj0.6) is the third implementation.
 function animate() {
   if (sourceMode === 'audio') {
     // Room mode drives its 4 quadrant zones live from the shim (same array
     // the Dashboard edits), not the flat rigs' 8-zone zonemap.js.
     const zones = roomZones();
-    applyFrameToTargets(sampleAudioFrame({ zones, targets: zoneLights }), zones);
+    applyFrameToTargets(sampleAudioFrame({ zones, targets: zoneLights }), zones, zoneLights);
   } else {
     const activeZoneMap = currentRigType === 'room' ? roomZones() : demoZones();
     const frame = sampleVideoFrame(activeZoneMap, sourceMode);
-    if (frame) applyFrameToTargets(frame, activeZoneMap);
+    if (frame) applyFrameToTargets(frame, activeZoneMap, zoneLights);
   }
 
   roomRig.syncLampShades();
