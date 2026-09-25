@@ -332,3 +332,23 @@ Applies-when: validating capture with a fullscreen/kiosk window, or debugging "c
 Driving solid colors through a Firefox page: maximized, capture tracked every 1.5s change; after F11 it delivered one correct fullscreen frame, then held it ~18s while the page kept alternating, resuming the moment fullscreen exited. Two `--kiosk` launches froze the same way on Firefox's first paint (constant black, then constant near-white) -- which first looked like a broken test page, not a capture problem. Suspected GNOME direct scanout of fullscreen surfaces starving the screencast of new frames (unconfirmed). Tracked as `Aurora-1t1`; fullscreen video is the core use case.
 
 **Fix (until 1t1 lands):** validate capture with maximized, not fullscreen/kiosk, windows; when a capture reading is constant across stimuli, suspect the source froze before suspecting the stimulus.
+
+---
+
+## A bare Mach-O binary's TCC permission grant attaches to whatever launched it, not the binary -- even with an embedded Info.plist
+Tags: input, mac, tcc, permissions, screencapturekit
+Applies-when: designing a macOS capture-permission story for a CLI-launched binary
+
+Built a throwaway probe (`Aurora-8mk.4`) calling `SCShareableContent` two ways -- bare `exec`, and with `-sectcreate __TEXT __info_plist` embedding a real Info.plist/`CFBundleIdentifier` -- and ran both directly from Terminal. Both attributed the Screen Recording grant to Terminal itself in System Settings, not the probe binary: the embedded plist section alone didn't change TCC's responsible-process walk, because the binary was still `exec`'d directly by the shell rather than launched through LaunchServices. Wrapping the same binary as a real `.app` bundle (`Contents/{Info.plist,MacOS/<bin>}`) and launching it with `open` fixed it immediately -- the bundle showed up as its own entry, separate from Terminal. Confirmed the same fix on the real app target (`aurora-app-mac` built as a `MACOSX_BUNDLE`, `Aurora-8mk.11`).
+
+**Fix:** an embedded Info.plist section on a bare binary is not equivalent to a real bundle for TCC-attribution purposes -- only a LaunchServices launch (`open`/double-click) resets the responsible-process chain. A tool needing its own TCC identity (Screen Recording, Camera, etc.) still needs the full bundle directory structure even if it's meant to be launched via `open` rather than double-clicked; the plist-section trick is good enough to derisk notarization's Info.plist requirement, but not sufficient for permission attribution on its own.
+
+---
+
+## Once an app holds its own TCC identity, macOS separately gates its access to protected folders too -- not just camera/mic/screen
+Tags: input, mac, tcc, permissions, dev-environment
+Applies-when: testing macOS permission flows from a dev checkout
+
+After the bundle fix above made `Aurora.app` its own TCC-attributable process, a second, unrelated-looking prompt appeared on first launch -- "Aurora wants to access your Documents folder" -- despite the code only reading `~/Library/Application Support/Aurora` (not a protected folder). The actual cause: this repo checkout lives under `~/Documents/Coding/Aurora/Aurora`, and `AURORA_WEBUI_SOURCE_DIR` (the dev-mode WebUI static-files fallback) is baked to an absolute path inside it -- so merely serving static files from the repo counted as "app accessing Documents," gated independently of Screen Recording. Not a bug in Aurora; a property of where the dev checkout happens to sit.
+
+**Fix:** don't chase folder-access prompts as capture-permission bugs before checking whether the repo/build dir itself sits under a TCC-protected folder (Documents/Desktop/Downloads/iCloud Drive) -- a real install location won't reproduce this. Once a process gets `open`-launched bundle identity, every protected folder its own file reads touch becomes independently gated, not just the capture APIs under test.

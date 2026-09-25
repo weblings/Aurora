@@ -388,6 +388,15 @@ main.cpp's `#include "resource.h"` failed (MSVC C1083) though resource.h sat nex
 **Fix:** add `${CMAKE_CURRENT_SOURCE_DIR}` to that target's include dirs with a comment (done for aurora-app-windows); anchor asset paths the same way so standalone-slice and superbuild configures agree.
 ---
 
+## A bundle Info.plist's substitution variables must exist before configure_file(), and generated bundle resources need MACOSX_PACKAGE_LOCATION plus a real custom-command OUTPUT -- POST_BUILD is too late
+Tags: cmake, macos, bundle, codesign
+Applies-when: wrapping a CMake executable target as a real .app bundle (MACOSX_BUNDLE)
+
+Converting `app/mac`'s `aurora-app-mac` to `add_executable(... MACOSX_BUNDLE ...)` (`Aurora-8mk.11`) needed the version string the bundle's Info.plist uses (`_AURORA_VERSION`) computed *before* the target/`configure_file()` call, not down where the rest of `target_compile_definitions` already computed it -- CMake variable scope doesn't retroactively populate a file `configure_file()`'d earlier in the script. Separately, a build-time-generated Resources file (the bundle icon, built from the existing Linux tray icon set via a shell script, not committed as a binary) only lands inside the bundle if it's both (a) an `add_custom_command(OUTPUT ...)` with a real output path -- not a `POST_BUILD` step, which runs after CMake's own bundle-resource-copy machinery already ran -- and (b) listed as one of the executable target's own sources with `MACOSX_PACKAGE_LOCATION "Resources"` set via `set_source_files_properties()`. CMake's bundle packaging only copies files that are target sources carrying that property; it doesn't pick up files merely present in the build directory.
+
+**Fix:** order matters: determine any Info.plist-consumed variables first, `configure_file()` the plist, generate bundle resources via `add_custom_command(OUTPUT ...)`, mark each with `MACOSX_PACKAGE_LOCATION`, then list them all as `add_executable` sources alongside the real source files. Ad-hoc `codesign` is the one step that correctly stays `POST_BUILD`, since it needs the fully-assembled bundle as input, not a resource CMake needs to place inside it.
+---
+
 ## Without cmake, flags.make + link.txt are a complete build record for recompiling and relinking a single TU
 Tags: build, cmake, recovery, linking
 Applies-when: rebuilding after a toolchain loss (or on a machine without cmake) with a warm build dir

@@ -102,27 +102,43 @@ also means the Mac slice needs no `aubio` dependency at all —
 already gates the whole audio pipeline behind
 `if(TARGET AuroraAudioProcessing)`.
 
-**Load-bearing risk, not yet verified**: this tier assumes a bare,
-unbundled binary can hold its own Screen Recording permission grant,
-distinct from whatever terminal emulator launches it. That's not
-guaranteed — TCC attributes a permission request up the launching chain to
-a "responsible process," and terminal-launched binaries have been observed
-landing on the terminal app instead of the child process (a compiled
-binary launched from iTerm2 logged
+**Load-bearing risk, resolved 2026-09-25 (Aurora-8mk.4)**: this tier
+originally assumed a bare, unbundled binary could hold its own Screen
+Recording permission grant, distinct from whatever terminal emulator
+launches it. Tested empirically: compiled a throwaway Mach-O calling
+`SCShareableContent.getShareableContentWithCompletionHandler` two ways —
+once totally bare, once with an embedded `Info.plist`/`CFBundleIdentifier`
+via `-sectcreate __TEXT __info_plist` — and ran both directly from
+Terminal. **Both landed on Terminal in System Settings → Privacy &
+Security → Screen Recording, not on the probe binary itself**, confirming
+the risk: TCC attributes the permission request up the launching chain to
+the "responsible process" (here, Terminal), and an embedded Info.plist
+alone doesn't change that when the binary is still `exec`'d directly by a
+shell rather than launched through LaunchServices (a compiled binary
+launched from iTerm2 logged
 `responsible path = .../iTerm.app/Contents/MacOS/iTerm2`, per
-[Qt's writeup on responsible-process attribution](https://www.qt.io/blog/the-curious-case-of-the-responsible-process)).
-Separately, TCC doesn't list an app in System Settings until it makes a
-real capture attempt — checking permission status alone isn't enough to
-make Aurora show up for the user to grant it (an Electron project hit
-exactly this and had to add a throwaway no-op capture call just to force
-registration, see
-[focusd#1](https://github.com/video-db/focusd/issues/1)). Both need a
-cheap empirical test before committing to the no-`.app`-bundle premise of
-this tier: compile a hello-world Mach-O binary that calls a TCC-gated
-capture API, run it from Terminal, and check whether the grant/prompt
-lands on the binary or on Terminal itself. If it lands on Terminal, this
-tier's "no bundle needed" framing doesn't hold, and tier 1 may need to
-absorb some of tray-parity's bundling requirement early.
+[Qt's writeup on responsible-process attribution](https://www.qt.io/blog/the-curious-case-of-the-responsible-process),
+matching what we saw).
+
+Decision: pull forward a minimal `.app` bundle into tier 1 rather than
+accept Terminal-attribution (Aurora-8mk.11). This costs nothing and needs
+no Xcode/Apple Developer account — a bundle is just a directory
+(`Aurora.app/Contents/{Info.plist,MacOS/Aurora}`) plus a free local
+ad-hoc `codesign`; the $99/yr Developer ID requirement only shows up at
+notarization (Phase 8, still deferred, only relevant once a build is
+zipped and handed to a second machine). Launching the bundle via `open`
+(or double-click) rather than `exec`ing the raw binary routes the launch
+through LaunchServices, which resets the responsible-process chain so the
+bundle itself — not Terminal — becomes attributable. This is *not* the
+same as tray-parity: no `LSUIElement` agent style, no `NSStatusItem` menu,
+no `SMAppService` login item — just enough bundle structure to hold its
+own TCC identity. Separately, TCC doesn't list an app in System Settings
+until it makes a real capture attempt — checking permission status alone
+isn't enough to make Aurora show up for the user to grant it (an Electron
+project hit exactly this and had to add a throwaway no-op capture call
+just to force registration, see
+[focusd#1](https://github.com/video-db/focusd/issues/1)) — the bundle
+wrapper's own first-run capture attempt covers this for free.
 
 Checked how much of `app/linux` is actually Linux-specific vs. generic
 before scoping this, since it changes how much is genuinely new work:
@@ -253,17 +269,40 @@ pass.
   the WebUI in a browser, confirm the full pipeline (dummy frames →
   processing → Hue output) runs end-to-end on macOS.
 - **Phase 3 — TCC-identity probe (cheap; run in parallel with Phase
-  1/2, land before Phase 4).** Throwaway Mach-O binary calling a
-  TCC-gated capture API, run from Terminal — check whether the Screen
-  Recording grant lands on the binary or on Terminal itself (see
-  "Load-bearing risk" above). Worth building it two ways: once totally
-  bare, once with an embedded `Info.plist`/`CFBundleIdentifier`
-  (`-sectcreate __TEXT __info_plist`) — the embedded-plist version is also
-  what notarization will require later (Phase 8), so this one probe can
-  answer both the TCC-attribution question and derisk the future
-  Gatekeeper path at once.
-  *Test:* the probe run itself, checked against System Settings → Screen
-  Recording.
+  1/2, land before Phase 4). DONE (Aurora-8mk.4, 2026-09-25).**
+  Throwaway Mach-O binary calling a TCC-gated capture API
+  (`SCShareableContent`), run from Terminal both bare and with an
+  embedded `Info.plist`/`CFBundleIdentifier` (`-sectcreate __TEXT
+  __info_plist`). Result: **both landed on Terminal**, not the probe
+  binary — see "Load-bearing risk" above. Answered both questions at
+  once: confirms tier 1 needs a bundle wrapper (Phase 3b below), and
+  confirms the embedded-plist mechanism alone (without LaunchServices
+  launch) doesn't solve it — notarization (Phase 8) will need the bundle
+  form anyway, not just the `-sectcreate` shortcut.
+- **Phase 3b — minimal `.app` bundle wrapper for TCC identity
+  (Aurora-8mk.11, pulled forward from tray-parity). DONE, verified
+  2026-09-25.** Just enough bundle structure
+  (`Aurora.app/Contents/{Info.plist,MacOS/Aurora}`) to be launched via
+  `open`/double-click instead of `exec`'d directly, so LaunchServices
+  resets the responsible-process chain and Aurora itself holds the Screen
+  Recording grant. No `LSUIElement`, `NSStatusItem`, or `SMAppService` yet
+  — those stay deferred to real tray-parity. Free, local ad-hoc
+  `codesign`, no Apple Developer account needed (that's only Phase
+  8/notarization). Also picked up a bundle icon for free, built from the
+  Linux tray icon set (`app/linux/icons/hicolor/*/apps/aurora.png`) via
+  `app/mac/make_icns.sh`, embedded through CMake's `MACOSX_PACKAGE_LOCATION`
+  mechanism.
+  *Test:* rebuilt the Phase 3 probe as a bundle (`tcc-probe-app.app`),
+  launched via `open`, checked System Settings → Screen Recording.
+  **Confirmed: `tcc-probe-app` listed as its own entry, not Terminal** —
+  the LaunchServices-launch fix works. `app/mac`'s CMakeLists.txt now
+  builds `aurora-app-mac` as a `MACOSX_BUNDLE` target the same way,
+  ad-hoc-signed post-build. Side effect, not a bug: once Aurora had its
+  own TCC identity, a *separate* prompt appeared for the Documents folder
+  on this dev machine — because this repo happens to live under
+  `~/Documents/...`, and `app/mac`'s baked `AURORA_WEBUI_SOURCE_DIR` reads
+  static files from within it. That's a dev-checkout-location artifact
+  (a real install won't live under Documents), not a product concern.
 - **Phase 4 — ScreenCaptureKit grabber, single display, no
   monitor-switching yet.** `enable_language(OBJCXX)`, link
   `ScreenCaptureKit`/`CoreGraphics`/`AppKit`, implement the async→sync
@@ -273,9 +312,11 @@ pass.
   async permission wait" above), get points-vs-pixels scaling right from
   the start.
   *Test:* swap `dummy` for the real "mac" input via `registerInputs`, run
-  `app/mac`, confirm frames flow (no visual-preview endpoint exists yet on
-  any platform, so correctness here is indirect — via Hue output behavior
-  or an ad-hoc frame dump — until/unless a preview route gets added).
+  `app/mac` via the Phase 3b bundle wrapper (not raw `exec`, now that
+  Phase 3 showed that changes who holds the grant), confirm frames flow
+  (no visual-preview endpoint exists yet on any platform, so correctness
+  here is indirect — via Hue output behavior or an ad-hoc frame dump —
+  until/unless a preview route gets added).
 - **Phase 5 — multi-monitor: `selectMonitor()`/`hasCustomScreenManagement()`.**
   Only after single-display capture is solid; check whether
   `X11Grabber`/`PipewireGrabber` already have prior art for stream-rebuild
