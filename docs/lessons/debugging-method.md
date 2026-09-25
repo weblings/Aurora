@@ -424,3 +424,12 @@ Applies-when: sizing a payload/buffer against a protocol spec rather than the ru
 `DevFrameDump`'s size cap was set to 44000 bytes, reasoned from IPv4's theoretical 65507-byte UDP max with headroom for base64/JSON overhead. A 100x100 frame (40051-byte encoded payload, under that cap) silently never arrived. `send()`'s return value was discarded outright ("best-effort, never blocks, never throws"), so the failure produced no error anywhere -- not a crash, not a log line, just an absent datagram, indistinguishable from "nothing was published yet." `sysctl net.inet.udp.maxdgram` read 9216 on this machine: macOS's actual limit, unrelated to IPv4's spec ceiling and roughly 7x smaller than the value reasoned from it.
 
 **Fix:** cap checked against the real encoded payload size (`payload.size()`), not an estimated raw-byte proxy, and lowered to 9000 -- confirmed by sending progressively larger frames against a real listener until the exact threshold behavior was observed, not by rereading the RFC. General principle: a bound reasoned from a protocol's own spec is a hypothesis about the spec, not about the OS enforcing it -- and a best-effort/discarded-return-value design (chosen so a slow dev tool can never block the code path it observes) means a wrong bound produces silence, not a stack trace, so it won't surface on its own. Send a real datagram at the real size and confirm a real listener sees it.
+---
+
+## Probe channel-to-slot mapping one channel at a time; a full-pattern snapshot can't distinguish a mapping error from report order
+Tags: verification, zone-mapping, oracles
+Applies-when: validating which input channel drives which output slot
+
+A 4-zone split frame (R/G/B/W on ids 0-3) came back reported as "red, blue, green, white" and the id→slot map was nearly edited before the reporter clarified the list order wasn't positional -- no evidence of a swap existed at all. A simultaneous multi-channel stimulus entangles the mapping under test with the order someone happens to list what they see.
+
+**Fix:** one channel hot, rest black (`zone_send.py only <id>`), and ask for the physical position of the lit lamp: id 2 alone lit the back-left couch lamp, confirming that slot instead of "correcting" it. General principle: when the observation channel (a human listing colors) has its own unknown ordering, single-variable probes are the only oracle that separates mapping from reporting.

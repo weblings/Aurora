@@ -25,3 +25,4 @@ Planning docs stay clean: decisions, status, and pointers here only.
 | 2026-09-24 | Light-viz relay: HueOutput tap + UDP-to-SSE bridge; Linux dry run + validate.py | Aurora-gj0.1, Aurora-gj0.2, Aurora-gj0.3, Aurora-1t1, Aurora-1z9, Aurora-u1u |
 | 2026-09-24 | Light-viz relay: gj0.4 fixture + frame-dump hook + validate.py frame mode | Aurora-gj0.4, Aurora-gj0.9 |
 | 2026-09-24 | Mac terminal tier-1 skeleton: CMake gating, input/mac, app/mac (paused on TCC probe) | Aurora-8mk.1, Aurora-8mk.2, Aurora-8mk.3, Aurora-8mk.7, Aurora-y1q |
+| 2026-09-25 | gj0.5 refactor (3 slices) + gj0.6 viz page, browser-verified; demo footer 1.0.3 | Aurora-gj0.5, Aurora-gj0.6 |

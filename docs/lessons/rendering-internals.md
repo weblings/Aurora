@@ -66,3 +66,12 @@ and flip it once based on what's actually seen, rather than re-deriving
 the math. Cheaper than reasoning correctly about a coordinate convention
 (UV space vs. screen space vs. a separate `flipY` setting) that combines
 multiple unverified assumptions at once.
+---
+
+## A dev-viz page must force its lights dark until first data; authored glTF intensities read as output
+Tags: rendering, demo-web, lights, dev-tools
+Applies-when: building a scene-only page whose source arrives later over the network
+
+`TV_Room.glb`'s lamps export at real-world intensities (~543 cd, scaled 0.025), so before the first relay frame `viz.html` showed all four lamps white -- indistinguishable from received output and a direct violation of its own "shows nothing until data" acceptance. The model's as-loaded state is never neutral on a page whose whole job is displaying external data.
+
+**Fix:** `viz.js` zeroes every zone light on model load until the first mappable SSE frame lands. General principle: on a visualization page, "no data yet" must be an explicit visual state (dark), not whatever the assets happen to author.
