@@ -1,7 +1,10 @@
 import * as THREE from 'three';
-import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { createSceneCore } from './scene-core.js';
-import { RectAreaLightUniformsLib } from 'three/addons/lights/RectAreaLightUniformsLib.js';
+// RectAreaLightUniformsLib.init() moved to rectarea-rig.js (runs on import there).
+import { buildPointLights } from './point-rig.js';
+import { buildRectAreaLights } from './rectarea-rig.js';
+import { ROOM_ZONE_MAP, createRoomRig } from './room-rig.js';
+export { ROOM_ZONE_MAP };
 import { zoneMap } from './zonemap.js';
 import { getDemoStore } from './demo-state.js';
 import { configToPipeline } from './demo-tuning.js';
@@ -25,8 +28,6 @@ import {
   defaultAudioEffectSettings, createDriftState, createBounceState, updateDrift, updateBounce,
 } from './colorModel.js';
 
-RectAreaLightUniformsLib.init(); // required once for RectAreaLight to shade correctly
-
 const PLANE_WIDTH = 16;
 const DEFAULT_PLANE_HEIGHT = 9; // used until the real video's aspect ratio is known
 const FRAME_Z = -8; // pushes the video+lights+backdrop back from the camera/origin as a group
@@ -43,52 +44,18 @@ let sampleWidthPx = 160; // per-frame color-sampling resolution, not the video's
 let smoothingFactor = 0.85; // live-applied from transitionSmoothing via applyLiveTuning below;
 // native default is 0, so a default config un-smooths this (parity, not regression -- see tuning-ledger.md)
 
+// Rig tuning lives with its rig module now (point-rig.js, rectarea-rig.js,
+// room-rig.js); the flat rigs' shared frame constants stay here.
 // Two light rigs, selectable live (see the dropdown wiring below) rather than one
 // replacing the other -- useful for comparing approaches, not just picking one forever.
-const POINT_Z = FRAME_Z; // sits on the frame's own edge, one light per zone
-const POINT_INTENSITY = 25;
 // Sized against inter-light spacing (adjacent centroids are ~3-5.33 apart, opposite/diagonal
 // zones ~10+), not the backdrop edge (the mask owns that job) -- reaches immediate neighbors
 // for a real blend, but stops far/opposite zones from washing every hue together into gray.
-const POINT_DISTANCE = 6;
-const POINT_DECAY = 2;
-
-const RECTAREA_Z = FRAME_Z; // sits on the frame's own edge, like the point rig
-const RECTAREA_INTENSITY = 5; // matches Three's own official RectAreaLight example's order of magnitude
-const RECTAREA_DEPTH = 0.3; // the light panel's thickness in its short axis
-// >1 so neighboring panels along the same edge overlap instead of just touching.
-const RECTAREA_LENGTH_OVERLAP = 1;
-
-// Each physical edge is divided into 3 equal, snugly-adjacent segments along its own length --
-// not derived per-zone. Corner zones sit on two edges and get one light per edge (they
-// naturally overlap right at the corner, which is fine); edge-mid zones get just one.
-const RECTAREA_EDGES = [
-  { zoneIds: [0, 1, 2], horizontal: true, fixedSign: 1 }, // top
-  { zoneIds: [5, 6, 7], horizontal: true, fixedSign: -1 }, // bottom
-  { zoneIds: [0, 3, 5], horizontal: false, fixedSign: -1 }, // left
-  { zoneIds: [2, 4, 7], horizontal: false, fixedSign: 1 }, // right
-];
-
-// TV_Room.glb's lamps export at Blender's real Watt->candela conversion (~543 cd each),
-// physically-realistic but way past LinearToneMapping's clip point -- scaled down here instead
-// of re-exporting. Tune these directly while checking the room.
-const ROOM_LIGHT_INTENSITY_SCALE = 0.025; // multiplies every glTF-authored light's own intensity
-const ROOM_LIGHT_DISTANCE = 4; // meters; glTF export leaves this at 0 (unbounded/pure inverse-square)
-
-// Diffuse alone left most of each shade black -- no material here has an emissive component, and
-// the room has no ambient light, so faces angled away from their own bulb get zero incident light.
-const LAMP_SHADE_EMISSIVE_INTENSITY = 3; // <1 so the directly-lit panel still shows real shading
-
-// The room's own 4 point lights each drive one video quadrant instead of the flat rigs' 8 zones --
-// see assignRoomZoneLights() for how a light is matched to a quadrant.
-export const ROOM_ZONE_MAP = [
-  { zoneId: 'front-left', uvs: { min: [0, 0], max: [0.5, 0.5] }, active: true, gamma: 0 },
-  { zoneId: 'front-right', uvs: { min: [0.5, 0], max: [1, 0.5] }, active: true, gamma: 0 },
-  { zoneId: 'back-left', uvs: { min: [0, 0.5], max: [0.5, 1] }, active: true, gamma: 0 },
-  { zoneId: 'back-right', uvs: { min: [0.5, 0.5], max: [1, 1] }, active: true, gamma: 0 },
-];
-// Best guess, not verified visually -- flip if the room shows left/right swapped once rendered.
-const ROOM_LEFT_IS_POSITIVE_Z = true;
+const POINT_OPTS = () => ({ halfW: currentHalfW, halfH: currentHalfH, pointZ: FRAME_Z, intensity: 25, distance: 6, decay: 2 });
+const RECTAREA_OPTS = () => ({
+  halfW: currentHalfW, halfH: currentHalfH, rectZ: FRAME_Z, backdropZ: BACKDROP_Z,
+  intensity: 5, depth: 0.3, lengthOverlap: 1,
+});
 
 // gj0.5 slice 1: scene/renderer/camera/controls live in scene-core.js so the
 // viz.html standalone page can share them; same names, same behavior.
@@ -323,9 +290,9 @@ loadImagePattern('assets/ElectricCabello.jpg').then((pattern) => {
   if (sourceMode !== 'audio') return;
   plane.material.map = pattern.texture;
   plane.material.needsUpdate = true;
-  if (tvScreenMesh) {
-    tvScreenMesh.material.map = getTvScreenTexture('audio');
-    tvScreenMesh.material.needsUpdate = true;
+  if (roomRig.tvScreenMesh) {
+    roomRig.tvScreenMesh.material.map = getTvScreenTexture('audio');
+    roomRig.tvScreenMesh.material.needsUpdate = true;
   }
 }).catch((error) => console.error('Failed to load ElectricCabello.jpg', error));
 
@@ -337,12 +304,9 @@ let showGrid = false; // off by default -- see the toggle button wiring below
 let showBackdropBounds = true; // on by default while the backdrop's actual size is being tuned
 let showRectDebugQuads = true; // RectAreaLight has no visible geometry of its own otherwise
 let rectDebugQuads = [];
-let currentRigType = lightRigSelect.value; // 'point' kept in code (buildPointLights below) but no longer offered in the dropdown
-let roomModel = null; // THREE.Group, loaded once via GLTFLoader and reused across mode switches
-let roomModelLoading = null;
-let roomZoneLights = []; // computed once on load by assignRoomZoneLights(), see buildLights()
-let tvScreenMesh = null; // the room model's own 'TV_Screen' node, found once on load
-let roomLampShades = []; // [{mesh, light}], shades + bulbs, each tinted from its own nearest light
+let currentRigType = lightRigSelect.value; // 'point' kept in code (point-rig.js) but no longer offered in the dropdown
+// Room-model state (model, zone lights, shades, TV node) lives in room-rig.js;
+// main.js reaches it through roomRig (created further below, after getTvScreenTexture).
 let currentHalfW = PLANE_WIDTH / 2;
 let currentHalfH = DEFAULT_PLANE_HEIGHT / 2;
 
@@ -362,58 +326,9 @@ function fitCameraToFrame() {
   camera.position.set(0, 0, FRAME_Z + Math.max(distanceForHeight, distanceForWidth) * FIT_MARGIN);
 }
 
-// The center of the zone's own UV rect, in world space -- now that the mask (not the light's
-// position) is what hugs the screen edge, the light can sit where it actually represents its
-// own zone instead of pinned to a corner/edge point covering a much larger area.
-function zoneCentroid(zone) {
-  const centroidU = (zone.uvs.min[0] + zone.uvs.max[0]) / 2;
-  const centroidV = (zone.uvs.min[1] + zone.uvs.max[1]) / 2;
-  return [(centroidU - 0.5) * currentHalfW * 2, (0.5 - centroidV) * currentHalfH * 2];
-}
-
-function buildPointLights() {
-  return demoZones().map((zone) => {
-    const [x, y] = zoneCentroid(zone);
-    const light = new THREE.PointLight(0xffffff, POINT_INTENSITY, POINT_DISTANCE, POINT_DECAY);
-    light.position.set(x, y, POINT_Z);
-    return { zoneId: zone.zoneId, lights: [light] };
-  });
-}
-
-// One RectAreaLight per edge-segment (see RECTAREA_EDGES) rather than per zone -- a corner
-// zone accumulates a light from each edge it sits on.
-function buildRectAreaLights() {
-  const lightsByZoneId = new Map();
-
-  for (const edge of RECTAREA_EDGES) {
-    const edgeLength = edge.horizontal ? currentHalfW * 2 : currentHalfH * 2;
-    const segmentLength = (edgeLength / 3) * RECTAREA_LENGTH_OVERLAP;
-    const fixedCoord = edge.fixedSign * (edge.horizontal ? currentHalfH : currentHalfW);
-
-    edge.zoneIds.forEach((zoneId, i) => {
-      // zoneIds are listed low-x-to-high-x for horizontal edges, but top-to-bottom (i.e.
-      // high-y-to-low-y) for vertical ones -- the two axes run opposite directions in world space.
-      const thirdCenter = (i + 0.5) * (edgeLength / 3);
-      const along = edge.horizontal ? -edgeLength / 2 + thirdCenter : edgeLength / 2 - thirdCenter;
-      const x = edge.horizontal ? along : fixedCoord;
-      const y = edge.horizontal ? fixedCoord : along;
-      const width = edge.horizontal ? segmentLength : RECTAREA_DEPTH;
-      const height = edge.horizontal ? RECTAREA_DEPTH : segmentLength;
-
-      const light = new THREE.RectAreaLight(0xffffff, RECTAREA_INTENSITY, width, height);
-      light.position.set(x, y, RECTAREA_Z);
-      light.lookAt(x, y, BACKDROP_Z);
-
-      if (!lightsByZoneId.has(zoneId)) lightsByZoneId.set(zoneId, []);
-      lightsByZoneId.get(zoneId).push(light);
-    });
-  }
-
-  return demoZones().map((zone) => ({ zoneId: zone.zoneId, lights: lightsByZoneId.get(zone.zoneId) || [] }));
-}
-
 // Rebuilds just the lights for the currently selected rig -- swapping rigs (see the
 // dropdown below) doesn't need to touch the plane/backdrop/gridlines at all.
+// Builders live in point-rig.js / rectarea-rig.js / room-rig.js; this only dispatches.
 function buildLights() {
   for (const { lights } of zoneLights) {
     for (const light of lights) scene.remove(light);
@@ -426,13 +341,13 @@ function buildLights() {
   }
   rectDebugQuads = [];
 
-  if (currentRigType === 'rectArea') zoneLights = buildRectAreaLights();
+  if (currentRigType === 'rectArea') zoneLights = buildRectAreaLights(demoZones(), RECTAREA_OPTS());
   // 'point' stays reachable in code (not the dropdown) for reference/comparison.
-  else if (currentRigType === 'point') zoneLights = buildPointLights();
+  else if (currentRigType === 'point') zoneLights = buildPointLights(demoZones(), POINT_OPTS());
   else {
     // 'room': lights already live inside roomModel's own hierarchy (visibility follows the
     // model, not scene.add() below) -- reparenting them here would break that.
-    zoneLights = roomZoneLights;
+    zoneLights = roomRig.zoneLights;
     return;
   }
 
@@ -463,75 +378,9 @@ export function rebuildZoneLights() {
   buildLights();
 }
 
-// TV_Room.glb's own 4 KHR_lights_punctual lights ride along on gltf.scene as real PointLights,
-// each assigned to a video quadrant by assignRoomZoneLights() below.
-const gltfLoader = new GLTFLoader();
-const roomStatus = document.getElementById('room-status');
-
-function setRoomStatus(text) {
-  roomStatus.textContent = text;
-  roomStatus.hidden = !text;
-}
-
-// Matches each of the room's 4 point lights to a video quadrant by real geometry: distance to
-// TV_Screen splits front (flanking it) from back (rear wall); within each pair, whichever axis
-// actually differs between the two splits left from right (sign per ROOM_LEFT_IS_POSITIVE_Z).
-function assignRoomZoneLights(gltfScene) {
-  const tvScreen = gltfScene.getObjectByName('TV_Screen');
-  const pointLights = [];
-  gltfScene.traverse((obj) => { if (obj.isPointLight) pointLights.push(obj); });
-
-  if (!tvScreen || pointLights.length !== 4) {
-    console.warn('Room zone-light mapping skipped -- expected TV_Screen + 4 point lights, found', !!tvScreen, pointLights.length);
-    return [];
-  }
-
-  const tvPos = tvScreen.getWorldPosition(new THREE.Vector3());
-  const withDistance = pointLights
-    .map((light) => {
-      const pos = light.getWorldPosition(new THREE.Vector3());
-      return { light, pos, distance: pos.distanceTo(tvPos) };
-    })
-    .sort((a, b) => a.distance - b.distance);
-  const front = withDistance.slice(0, 2);
-  const back = withDistance.slice(2, 4);
-
-  const axis = ['x', 'y', 'z'].reduce((best, a) =>
-    Math.abs(front[0].pos[a] - front[1].pos[a]) > Math.abs(front[0].pos[best] - front[1].pos[best]) ? a : best);
-  const isLeft = (entry) => (entry.pos[axis] > 0) === ROOM_LEFT_IS_POSITIVE_Z;
-  const pick = (pair, wantLeft) => {
-    const entry = pair.find((e) => isLeft(e) === wantLeft);
-    return entry ? [entry.light] : [];
-  };
-
-  return [
-    { zoneId: 'front-left', lights: pick(front, true) },
-    { zoneId: 'front-right', lights: pick(front, false) },
-    { zoneId: 'back-left', lights: pick(back, true) },
-    { zoneId: 'back-right', lights: pick(back, false) },
-  ];
-}
-
-// Each of these glTF materials is one shared instance across the room's 4 lamps (shade panel,
-// bulb) -- clone per-mesh so each instance can be independently tinted from its own nearest light.
-function setupEmissiveTintMeshes(gltfScene, lights, materialName) {
-  const meshes = [];
-  gltfScene.traverse((obj) => { if (obj.isMesh && obj.material?.name === materialName) meshes.push(obj); });
-
-  return meshes.map((mesh) => {
-    mesh.material = mesh.material.clone();
-    mesh.material.transparent = false;
-    mesh.material.opacity = 1;
-    mesh.material.depthWrite = true; // GLTFLoader sets this false for alphaMode BLEND; undo it
-    mesh.material.color.set(0xffffff);
-    mesh.material.emissiveIntensity = LAMP_SHADE_EMISSIVE_INTENSITY; // animate() drives .emissive itself
-
-    const meshPos = mesh.getWorldPosition(new THREE.Vector3());
-    const byDistance = lights.map((l) => ({ l, d: l.getWorldPosition(new THREE.Vector3()).distanceTo(meshPos) }));
-    return { mesh, light: byDistance.sort((a, b) => a.d - b.d)[0].l };
-  });
-}
-
+// Room model loading, zone assignment (assignRoomZoneLights), and shade
+// tinting (setupEmissiveTintMeshes) now live in room-rig.js; TV-screen
+// textures stay here (source-dependent, not rig geometry).
 // The plane's own UV unwrap runs 90° off ours (floor showed on the left, not the bottom).
 // +Math.PI/2 rotated the wrong way on-screen (left->top); this is the confirmed opposite.
 const TV_SCREEN_ROTATION = -Math.PI / 2;
@@ -552,56 +401,12 @@ function getTvScreenTexture(mode) {
   return tvScreenTextures[mode];
 }
 
-// Loads the model once and reuses it across mode switches -- toggling the dropdown back and
-// forth shouldn't re-fetch/re-parse a multi-MB glb every time.
-function ensureRoomModelLoaded() {
-  if (!roomModelLoading) {
-    setRoomStatus('Loading TV_Room.glb...');
-    roomModelLoading = gltfLoader.loadAsync('assets/TV_Room.glb').then((gltf) => {
-      roomModel = gltf.scene;
-      roomModel.visible = false; // shown explicitly by the caller once ready
-      roomModel.traverse((obj) => {
-        if (!obj.isPointLight && !obj.isSpotLight) return;
-        obj.intensity *= ROOM_LIGHT_INTENSITY_SCALE;
-        if (obj.distance === 0) obj.distance = ROOM_LIGHT_DISTANCE;
-      });
-      scene.add(roomModel);
-      roomModel.updateMatrixWorld(true); // world positions below need real, not stale/identity, transforms
-      roomZoneLights = assignRoomZoneLights(roomModel);
-      console.log('Room zone lights:', roomZoneLights.map((z) => ({ zoneId: z.zoneId, light: z.lights[0]?.name })));
-      const roomLights = roomZoneLights.flatMap((z) => z.lights);
-      roomLampShades = [
-        ...setupEmissiveTintMeshes(roomModel, roomLights, 'LampShade'),
-        ...setupEmissiveTintMeshes(roomModel, roomLights, 'BlocksGem'), // the bulb geometry itself
-      ];
-
-      // Unlit (MeshBasicMaterial), like the flat plane -- this represents a self-lit screen,
-      // not a surface the room's own lights should shade.
-      tvScreenMesh = roomModel.getObjectByName('TV_Screen');
-      if (tvScreenMesh) tvScreenMesh.material = new THREE.MeshBasicMaterial({ map: getTvScreenTexture(sourceMode) });
-      setRoomStatus('');
-    }).catch((error) => {
-      console.error('Failed to load TV_Room.glb', error);
-      setRoomStatus('Failed to load TV_Room.glb -- see console');
-      roomModelLoading = null; // allow a retry on the next mode switch
-    });
-  }
-  return roomModelLoading;
-}
-
-// Fits the camera to the model's actual bounding box -- the flat demo's FRAME_Z/fitCameraToFrame
-// math assumes the arbitrary flat-scene scale, not the room's real (meter-scale) geometry.
-function frameCameraToRoom() {
-  if (!roomModel) return;
-  const box = new THREE.Box3().setFromObject(roomModel);
-  const center = box.getCenter(new THREE.Vector3());
-  const size = box.getSize(new THREE.Vector3());
-  const radius = Math.max(size.x, size.y, size.z) / 2;
-  const vFov = THREE.MathUtils.degToRad(camera.fov / 2);
-  const distance = (radius / Math.tan(vFov)) * FIT_MARGIN;
-  camera.position.set(center.x, center.y, center.z + distance);
-  controls.target.copy(center);
-}
+// The room rig owns the model and everything derived from it; the TV
+// texture stays source-driven (video vs test pattern) via this closure.
+const roomRig = createRoomRig({
+  scene, camera, controls, fitMargin: FIT_MARGIN,
+  getScreenTexture: () => getTvScreenTexture(sourceMode),
+});
 
 // Hides/shows the flat video+backdrop scene as a group, respecting the grid/bounds toggles'
 // own on/off state rather than forcing them on whenever the flat scene becomes visible again.
@@ -660,7 +465,7 @@ function buildStaticScene(planeHeight) {
   // undo the flat-camera move and re-hide the flat scene this function just did.
   if (currentRigType === 'room') {
     setFlatSceneVisible(false);
-    frameCameraToRoom();
+    roomRig.frameCameraToRoom();
   }
 }
 
@@ -790,8 +595,8 @@ function animate() {
 
   // Shared by both paths above -- each shade reads back its own already-updated light's color.
   // Emissive, not diffuse -- angle-independent, so every face glows regardless of whether this
-  // light's direction actually reaches it (see LAMP_SHADE_EMISSIVE_INTENSITY above).
-  for (const { mesh, light } of roomLampShades) mesh.material.emissive.setRGB(1, 1, 1).lerp(light.color, 0.95);
+  // light's direction actually reaches it (intensity lives in room-rig.js).
+  for (const { mesh, light } of roomRig.lampShades) mesh.material.emissive.setRGB(1, 1, 1).lerp(light.color, 0.95);
 
   controls.update();
   renderer.render(scene, camera);
@@ -803,8 +608,8 @@ new ResizeObserver(() => {
   const { width, height } = scenePaneSize();
   camera.aspect = width / height;
   if (currentRigType === 'room') {
-    frameCameraToRoom(); // no-op until the model's loaded; harmless
-    if (roomModel) applySpawnPose();
+    roomRig.frameCameraToRoom(); // no-op until the model's loaded; harmless
+    if (roomRig.model) applySpawnPose();
   } else {
     fitCameraToFrame(); // aspect changed, so the fit distance needs recomputing too
     rebuildBackdrop(); // its perspective-corrected size depends on that same fit distance
@@ -844,15 +649,15 @@ function activateLightRig(newType) {
   setFlatSceneVisible(!isRoom);
 
   if (isRoom) {
-    ensureRoomModelLoaded()?.then(() => {
-      if (currentRigType !== 'room' || !roomModel) return; // switched away (or load failed) while loading
-      roomModel.visible = true;
-      frameCameraToRoom();
+    roomRig.ensureRoomModelLoaded()?.then(() => {
+      if (currentRigType !== 'room' || !roomRig.model) return; // switched away (or load failed) while loading
+      roomRig.model.visible = true;
+      roomRig.frameCameraToRoom();
       buildLights(); // roomZoneLights is populated now; the earlier synchronous call ran before it was
       applySpawnPose();
     });
-  } else if (roomModel) {
-    roomModel.visible = false;
+  } else if (roomRig.model) {
+    roomRig.model.visible = false;
     fitCameraToFrame();
     controls.target.set(0, 0, FRAME_Z);
   }
@@ -867,9 +672,9 @@ function setSourceMode(mode) {
   sourceMode = mode;
   plane.material.map = sourceMode === 'video' ? videoTexture : testPatterns[sourceMode].texture;
   plane.material.needsUpdate = true;
-  if (tvScreenMesh) {
-    tvScreenMesh.material.map = getTvScreenTexture(sourceMode);
-    tvScreenMesh.material.needsUpdate = true;
+  if (roomRig.tvScreenMesh) {
+    roomRig.tvScreenMesh.material.map = getTvScreenTexture(sourceMode);
+    roomRig.tvScreenMesh.material.needsUpdate = true;
   }
   setAudioPlaying(sourceMode === 'audio');
   if (sourceModeSelect) sourceModeSelect.value = mode;
