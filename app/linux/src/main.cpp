@@ -21,6 +21,7 @@
 
 #include <nlohmann/json.hpp>
 
+#include <Aurora/App/FakeHue.hpp>
 #include <Aurora/App/InstanceLock.hpp>
 #include <Aurora/App/InstanceLock.hpp>
 #include <Aurora/App/Registry.hpp>
@@ -199,12 +200,7 @@ namespace
   // never read or written. Wins over AURORA_CONFIG_DIR and the default.
   bool isFreshRun(int argc, char** argv)
   {
-    for(int i = 1; i < argc; ++i){
-      if(std::string(argv[i]) == "--fresh"){
-        return true;
-      }
-    }
-    return false;
+    return Aurora::App::hasCliFlag(argc, argv, "--fresh");
   }
 
 
@@ -789,6 +785,13 @@ try
 {
   std::signal(SIGINT, handleStopSignal);
   std::signal(SIGTERM, handleStopSignal);
+
+  // --fake-hue: preset the fake-bridge dev flow (see FakeHue.hpp).
+  // Explicit env wins over the presets; applied before anything reads env.
+  if(Aurora::App::hasCliFlag(argc, argv, "--fake-hue")){
+    Aurora::App::applyFakeHueDefaults();
+    std::cout << "Hue: fake-bridge defaults (override via AURORA_HUE_* env)\n";
+  }
 
   std::filesystem::path configRoot;
   if(isFreshRun(argc, argv)){

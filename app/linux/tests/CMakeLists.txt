@@ -20,6 +20,7 @@ add_executable(AuroraAppLinuxTests
   TrayIconTests.cpp
   InstanceLockTests.cpp
   WebRootTests.cpp
+  FakeHueTests.cpp
 )
 
 target_link_libraries(AuroraAppLinuxTests PRIVATE
