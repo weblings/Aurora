@@ -151,9 +151,17 @@ export function createRoomRig({ scene, camera, controls, fitMargin, getScreenTex
     controls.target.copy(center);
   }
 
+  // Per-frame cosmetics: each shade reads back its own already-updated
+  // light's color. Emissive, not diffuse -- angle-independent, so every face
+  // glows regardless of whether this light's direction actually reaches it.
+  function syncLampShades() {
+    for (const { mesh, light } of roomLampShades) mesh.material.emissive.setRGB(1, 1, 1).lerp(light.color, 0.95);
+  }
+
   return {
     ensureRoomModelLoaded,
     frameCameraToRoom,
+    syncLampShades,
     get model() { return roomModel; },
     get zoneLights() { return roomZoneLights; },
     get lampShades() { return roomLampShades; },

@@ -21,12 +21,13 @@ function demoZones() {
 function roomZones() {
   return getDemoStore()?.liveZones() ?? ROOM_ZONE_MAP;
 }
-import { composeFrame } from './processing.js';
-import { Smoother } from './smoother.js';
-import { dbToLinear, computeRms, computeSpectralCentroid, OnsetDetector } from './audioFeatures.js';
 import {
-  defaultAudioEffectSettings, createDriftState, createBounceState, updateDrift, updateBounce,
-} from './colorModel.js';
+  video, videoTexture, testPatterns, getTvScreenTexture, invalidateScreenTexture,
+  loadImagePattern, setSampleWidth, setSmoothing, sampleFrame as sampleVideoFrame,
+} from './video-source.js';
+import {
+  setColorModel, applyAudioTuning, setPlaying, sampleFrame as sampleAudioFrame,
+} from './audio-source.js';
 
 const PLANE_WIDTH = 16;
 const DEFAULT_PLANE_HEIGHT = 9; // used until the real video's aspect ratio is known
@@ -40,8 +41,8 @@ const BACKDROP_MARGIN = 1.3 * (2 / 3); // lowered by a third
 // Fraction of the margin's own width used as the mask's blur radius -- higher = softer/more
 // gradual fade, lower = sharper edge. 1.0 would blur across the entire margin band.
 const MASK_FEATHER = 0.45;
-let sampleWidthPx = 160; // per-frame color-sampling resolution, not the video's playback resolution
-let smoothingFactor = 0.85; // live-applied from transitionSmoothing via applyLiveTuning below;
+// Sample width + smoothing live in video-source.js (setSampleWidth /
+// setSmoothing); tuned live via applyLiveTuning below.
 // native default is 0, so a default config un-smooths this (parity, not regression -- see tuning-ledger.md)
 
 // Rig tuning lives with its rig module now (point-rig.js, rectarea-rig.js,
@@ -62,155 +63,12 @@ const RECTAREA_OPTS = () => ({
 const { scene, camera, renderer, controls, scenePane, scenePaneSize, applySpawnPose } =
   createSceneCore({ frameZ: FRAME_Z });
 
-const video = document.createElement('video');
-video.src = 'assets/168273-838673780.webm';
-video.muted = true;
-video.loop = true;
-video.playsInline = true;
-video.autoplay = true;
-video.style.display = 'none';
-document.body.appendChild(video);
+// Video element/texture live in video-source.js; audio element/graph/state in
+// audio-source.js. What stays here is page wiring (metadata rebuilds, autoplay
+// fallback) further below.
 
-const videoTexture = new THREE.VideoTexture(video);
-videoTexture.colorSpace = THREE.SRGBColorSpace;
-
-// Hand-rolled against AnalyserNode rather than aubio-via-WASM or BeatDetector -- see
-// docs/AudioAnalysis.md; audioFeatures.js has the ported/tested pure math.
-const audioTrack = new Audio('assets/Electro Cabello.mp3');
-audioTrack.loop = true;
-
-const audioContext = new (window.AudioContext || window.webkitAudioContext)();
-const analyser = audioContext.createAnalyser();
-analyser.fftSize = 1024; // matches AudioFeatureExtractor's default bufSize -- comparable bin resolution
-analyser.smoothingTimeConstant = 0; // OnsetDetector does its own rolling-average smoothing (see audioFeatures.js)
-// createMediaElementSource silently reroutes the element's own audio output through this graph --
-// connecting to destination is required for audioTrack to actually be audible at all.
-audioContext.createMediaElementSource(audioTrack).connect(analyser).connect(audioContext.destination);
-
-const onsetDetector = new OnsetDetector();
-const freqDataDb = new Float32Array(analyser.frequencyBinCount);
-const freqDataLinear = new Float32Array(analyser.frequencyBinCount);
-const timeData = new Float32Array(analyser.fftSize);
-let audioHueDegrees = 0; // placeholder model's own state, see placeholderAudioColor() below
-
-// Real ported model (colorModel.js), three presets sharing the same functions/state shape --
-// 'ported' is native's own listening-tuned defaults (for real Hue bulbs); 'tuned' is a first
-// guess at a punchier demo-screen preset (see the A/B discussion this came out of), specifically
-// making brightness react much faster -- a viewer's eye reads brightness-lag-behind-the-beat as
-// "boring" more than hue lag, so that's the one knob turned hardest. 'midpoint' is halfway
-// between 'ported' and 'tuned' on all four tuned fields -- the settled-on choice, now also
-// native's own new Config.hpp defaults (see docs/RuntimeAnalysis.md).
-const audioEffectSettingsByModel = {
-  ported: defaultAudioEffectSettings(),
-  tuned: {
-    ...defaultAudioEffectSettings(),
-    bounceSmoothTime: 0.12,
-    brightnessSmoothTime: 0.08,
-    dynamismFloor: 0.3,
-    driftBaseRateDegPerSec: 14,
-  },
-  midpoint: {
-    ...defaultAudioEffectSettings(),
-    bounceSmoothTime: 0.285,
-    brightnessSmoothTime: 0.265,
-    dynamismFloor: 0.26,
-    driftBaseRateDegPerSec: 10,
-  },
-};
-const driftStateByModel = { ported: createDriftState(), tuned: createDriftState(), midpoint: createDriftState() };
-const bounceStateByModel = { ported: createBounceState(), tuned: createBounceState(), midpoint: createBounceState() };
-let lastAudioColorTime = null; // audioContext.currentTime as of the previous frame, for real dt
-
-function setAudioPlaying(playing) {
-  if (!playing) return audioTrack.pause();
-  // AudioContext needs the same user-gesture unlock video/audio elements do -- resume() is a
-  // no-op once already running, so calling it every time this fires is harmless.
-  audioContext.resume();
-  audioTrack.play().catch(() => {
-    document.body.addEventListener('click', () => { if (sourceMode === 'audio') audioTrack.play(); }, { once: true });
-  });
-}
-
-// Simple hue-jump-on-onset response -- deliberately not the real color model, see
-// placeholderAudioColor() vs. the ported one for how they actually differ in feel.
-function placeholderAudioColor({ onsetDetected, onsetStrength, rms }) {
-  if (onsetDetected) audioHueDegrees = (audioHueDegrees + 30 + onsetStrength * 60) % 360;
-  const brightness = Math.min(1, 0.4 + rms * 1.5); // 0.4 floor so it's never fully dark
-  return new THREE.Color().setHSL(audioHueDegrees / 360, 0.9, 0.5 * brightness);
-}
-
-// The real ported updateDrift/updateBounce, either preset -- needs a genuine elapsed-time dt
-// (their damping is exponential-in-time, unlike the placeholder's instant snap), tracked via
-// AudioContext's clock. Shared timer is fine since only one model runs per frame.
-function dampedAudioColor(model, features) {
-  const now = audioContext.currentTime;
-  const dt = lastAudioColorTime === null ? 0 : now - lastAudioColorTime;
-  lastAudioColorTime = now;
-
-  const settings = audioEffectSettingsByModel[model];
-  const driftState = driftStateByModel[model];
-  const bounceState = bounceStateByModel[model];
-  updateDrift(driftState, features, settings, dt);
-  const { r, g, b } = updateBounce(bounceState, driftState, features, settings, dt);
-  return new THREE.Color(r / 255, g / 255, b / 255);
-}
-
-// Option D: an experimental attack/decay flash layered on the *ported* preset's own smooth base
-// (shares its state, so switching 'ported' <-> 'attack' isolates just this layer) -- demo-only
-// for now, deliberately not in colorModel.js since native's updateBounce has no such mechanism
-// yet. If this reads well, native already has everything needed to add a real one (a per-tick
-// dt, persistent state, a tunable settings struct) -- see AudioOrchestrator.cpp.
-const FLASH_DECAY_TIME = 0.12; // seconds; short so it reads as a hit, not a second bounce
-const FLASH_INTENSITY = 0.5; // how much the flash adds on top of the smoothed base brightness
-let flashLevel = 0;
-let lastFlashTime = null;
-
-function attackAudioColor(features) {
-  const baseColor = dampedAudioColor('ported', features);
-
-  const now = audioContext.currentTime;
-  const dt = lastFlashTime === null ? 0 : now - lastFlashTime;
-  lastFlashTime = now;
-
-  if (features.onsetDetected) flashLevel = Math.max(flashLevel, features.onsetStrength);
-  flashLevel *= Math.exp(-dt / FLASH_DECAY_TIME);
-
-  const hsl = {};
-  baseColor.getHSL(hsl);
-  hsl.l = Math.min(1, hsl.l + flashLevel * FLASH_INTENSITY);
-  return new THREE.Color().setHSL(hsl.h, hsl.s, hsl.l);
-}
-
-// Reads the real AnalyserNode data and broadcasts one shared color to every zone light, matching
-// native's AudioOrchestrator shape (no per-zone spatial concept) rather than the video path's
-// per-zone sampling. Called from animate() only while sourceMode === 'audio'.
-function driveLightsFromAudio() {
-  analyser.getFloatFrequencyData(freqDataDb);
-  for (let i = 0; i < freqDataDb.length; i++) freqDataLinear[i] = dbToLinear(freqDataDb[i]);
-  analyser.getFloatTimeDomainData(timeData);
-
-  const rms = computeRms(timeData);
-  const spectralCentroid = computeSpectralCentroid(freqDataLinear, audioContext.sampleRate, analyser.fftSize);
-  const { onsetDetected, onsetStrength } = onsetDetector.process(freqDataLinear, audioContext.currentTime);
-  const features = { onsetDetected, onsetStrength, rms, spectralCentroid };
-
-  const audioColor = audioColorModel === 'placeholder' ? placeholderAudioColor(features)
-    : audioColorModel === 'attack' ? attackAudioColor(features)
-    : dampedAudioColor(audioColorModel, features);
-
-  // Demo legibility deviation (see tuning-ledger.md): inactive zones go
-  // dark here. Native holds last color (the stream carries active zones
-  // only), but a frozen quadrant reads as a broken toggle on a demo page --
-  // off means visibly off. Looked up live so Dashboard Active toggles land.
-  const liveById = new Map(roomZones().map((z) => [z.zoneId, z]));
-  for (const { zoneId, lights } of zoneLights) {
-    const off = liveById.get(zoneId)?.active === false;
-    for (const light of lights) {
-      if (off) light.color.setRGB(0, 0, 0);
-      else light.color.copy(audioColor);
-    }
-  }
-}
+// Audio color models, analyser graph, and playback live in audio-source.js;
+// the render loop below consumes them through sampleAudioFrame().
 
 // Read from the DOM, not hardcoded -- browsers restore a <select>'s displayed value across a
 // reload on their own, independent of any JS/HTML default; reading it back keeps state in sync
@@ -218,75 +76,14 @@ function driveLightsFromAudio() {
 const lightRigSelect = document.getElementById('light-rig');
 const sourceModeSelect = document.getElementById('source-mode');
 const audioColorModelSelect = document.getElementById('audio-color-model');
-let audioColorModel = audioColorModelSelect.value; // 'placeholder' | 'ported' | 'tuned' | 'midpoint' | 'attack', see driveLightsFromAudio()
+setColorModel(audioColorModelSelect.value); // 'placeholder' | 'ported' | 'tuned' | 'midpoint' | 'attack' (see audio-source.js)
 
-// Deterministic source modes for verifying the per-zone data pipeline and the light rig's
-// own behavior independent of real video content -- see the dropdown wiring below.
-// 'rainbow' checks per-zone color identification; 'white' isolates the light rig's own
-// falloff/brightness symmetry, since every zone samples the exact same input color.
+// Test patterns (rainbow/white/audio placeholder) live in video-source.js;
+// this only swaps in the real jpg once loaded.
 let sourceMode = sourceModeSelect ? sourceModeSelect.value : 'video';
-const testPatterns = {}; // mode -> { imageData, texture }, built once below
-
-// Same 3x3 layout as zonemap.js -- lets a pattern assign a value per grid cell directly.
-const ZONE_ID_BY_ROW_COL = { '0,0': 0, '0,1': 1, '0,2': 2, '1,0': 3, '1,2': 4, '2,0': 5, '2,1': 6, '2,2': 7 };
-
-function buildPatternCanvas(fillStyleForCell) {
-  const height = Math.round(sampleWidthPx * 9 / 16);
-  const canvas = document.createElement('canvas');
-  canvas.width = sampleWidthPx;
-  canvas.height = height;
-  const ctx = canvas.getContext('2d');
-  const cellW = sampleWidthPx / 3;
-  const cellH = height / 3;
-  for (let row = 0; row < 3; row++) {
-    for (let col = 0; col < 3; col++) {
-      ctx.fillStyle = fillStyleForCell(row, col);
-      ctx.fillRect(col * cellW, row * cellH, cellW, cellH);
-    }
-  }
-  const imageData = ctx.getImageData(0, 0, sampleWidthPx, height);
-  const texture = new THREE.CanvasTexture(canvas);
-  texture.colorSpace = THREE.SRGBColorSpace;
-  return { imageData, texture };
-}
-
-// Each zone gets its own evenly-spaced rainbow hue (by zoneId) -- every one of the 8 lights
-// is individually identifiable, not just by column; the unused center cell reads as neutral.
-testPatterns.rainbow = buildPatternCanvas((row, col) => {
-  const zoneId = ZONE_ID_BY_ROW_COL[`${row},${col}`];
-  return zoneId === undefined ? '#202020' : `hsl(${zoneId * 45}, 100%, 50%)`;
-});
-testPatterns.white = buildPatternCanvas(() => '#ffffff');
-
-// The texture uses the image at its own full resolution (like videoTexture does) -- only the
-// zone-averaging imageData needs the small sampleWidthPx canvas real video also downscales to.
-function loadImagePattern(url) {
-  return new Promise((resolve, reject) => {
-    const img = new Image();
-    img.onload = () => {
-      const sampleCanvas = document.createElement('canvas');
-      sampleCanvas.width = sampleWidthPx;
-      sampleCanvas.height = Math.round(sampleWidthPx * (img.height / img.width));
-      const sampleCtx = sampleCanvas.getContext('2d');
-      sampleCtx.drawImage(img, 0, 0, sampleCanvas.width, sampleCanvas.height);
-      const imageData = sampleCtx.getImageData(0, 0, sampleCanvas.width, sampleCanvas.height);
-
-      const texture = new THREE.Texture(img);
-      texture.colorSpace = THREE.SRGBColorSpace;
-      texture.needsUpdate = true; // THREE.Texture doesn't auto-upload on construction
-      resolve({ imageData, texture });
-    };
-    img.onerror = reject;
-    img.src = url;
-  });
-}
-
-// Placeholder until the real jpg loads (near-instant locally, but 'audio' could already be the
-// active mode at this point via the same browser dropdown-restoration this file works around).
-testPatterns.audio = buildPatternCanvas(() => '#000000');
 loadImagePattern('assets/ElectricCabello.jpg').then((pattern) => {
   testPatterns.audio = pattern;
-  delete tvScreenTextures.audio; // the cached clone (if any) still points at the placeholder
+  invalidateScreenTexture('audio'); // the cached clone (if any) still points at the placeholder
   if (sourceMode !== 'audio') return;
   plane.material.map = pattern.texture;
   plane.material.needsUpdate = true;
@@ -378,29 +175,8 @@ export function rebuildZoneLights() {
   buildLights();
 }
 
-// Room model loading, zone assignment (assignRoomZoneLights), and shade
-// tinting (setupEmissiveTintMeshes) now live in room-rig.js; TV-screen
-// textures stay here (source-dependent, not rig geometry).
-// The plane's own UV unwrap runs 90° off ours (floor showed on the left, not the bottom).
-// +Math.PI/2 rotated the wrong way on-screen (left->top); this is the confirmed opposite.
-const TV_SCREEN_ROTATION = -Math.PI / 2;
-
-// A separate clone per source, not the flat plane's own texture -- glTF UVs assume V=0 at the
-// top (flipY=false), while the flat plane's own PlaneGeometry assumes the opposite (flipY=true).
-const tvScreenTextures = {}; // mode -> cloned texture, cached so repeated mode switches don't re-clone
-function getTvScreenTexture(mode) {
-  if (!tvScreenTextures[mode]) {
-    const source = mode === 'video' ? videoTexture : testPatterns[mode].texture;
-    const clone = source.clone();
-    clone.flipY = false; // unverified -- flip back to true if the room shows the video upside down
-    clone.center.set(0.5, 0.5);
-    clone.rotation = TV_SCREEN_ROTATION;
-    clone.needsUpdate = true;
-    tvScreenTextures[mode] = clone;
-  }
-  return tvScreenTextures[mode];
-}
-
+// Room model loading, zone assignment, and shade tinting live in
+// room-rig.js; TV-screen textures live in video-source.js (imported above).
 // The room rig owns the model and everything derived from it; the TV
 // texture stays source-driven (video vs test pattern) via this closure.
 const roomRig = createRoomRig({
@@ -543,60 +319,45 @@ video.play().catch(() => {
   document.body.addEventListener('click', () => video.play(), { once: true });
 });
 
-// Real per-frame processing, replacing the scaffold's fake color driver.
-const sampleCanvas = document.createElement('canvas');
-const sampleCtx = sampleCanvas.getContext('2d', { willReadFrequently: true });
-const smoother = new Smoother();
-
-function sampleVideoFrame() {
-  if (sourceMode !== 'video') return testPatterns[sourceMode].imageData;
-  if (video.readyState < video.HAVE_CURRENT_DATA || video.videoWidth === 0) return null;
-
-  const sampleHeight = Math.round(sampleWidthPx * (video.videoHeight / video.videoWidth));
-  if (sampleCanvas.width !== sampleWidthPx || sampleCanvas.height !== sampleHeight) {
-    sampleCanvas.width = sampleWidthPx;
-    sampleCanvas.height = sampleHeight;
+// Orchestrator (gj0.5 slice 3): the render loop consumes color-provider
+// implementations and applies their frames to the rig targets. Contract --
+// sampleFrame() returns [{zoneId, color:{r,g,b} 0..1}] or null (no data this
+// frame). Video takes (zones, mode); audio takes ({zones, targets}); the
+// 'live' SSE provider (gj0.6) will be a third implementation, additive.
+function applyFrameToTargets(frame, zones) {
+  const frameById = new Map(zones.map((z) => [z.zoneId, z]));
+  const updated = new Set();
+  for (const zoneFrame of frame) {
+    const target = zoneLights.find((z) => z.zoneId === zoneFrame.zoneId);
+    if (!target) continue;
+    updated.add(zoneFrame.zoneId);
+    for (const light of target.lights) {
+      light.color.setRGB(zoneFrame.color.r, zoneFrame.color.g, zoneFrame.color.b);
+    }
   }
-  // drawImage's own scaling stands in for the native pipeline's separate rescale() step.
-  sampleCtx.drawImage(video, 0, 0, sampleWidthPx, sampleHeight);
-  return sampleCtx.getImageData(0, 0, sampleWidthPx, sampleHeight);
+  // Demo deviation, same as before: inactive zones go dark instead of
+  // holding, so the toggle reads as on/off in the scene.
+  for (const { zoneId, lights } of zoneLights) {
+    if (updated.has(zoneId)) continue;
+    if (frameById.get(zoneId)?.active === false) {
+      for (const light of lights) light.color.setRGB(0, 0, 0);
+    }
+  }
 }
 
 function animate() {
   if (sourceMode === 'audio') {
-    driveLightsFromAudio();
+    // Room mode drives its 4 quadrant zones live from the shim (same array
+    // the Dashboard edits), not the flat rigs' 8-zone zonemap.js.
+    const zones = roomZones();
+    applyFrameToTargets(sampleAudioFrame({ zones, targets: zoneLights }), zones);
   } else {
-    const imageData = sampleVideoFrame();
-    if (imageData) {
-      // Room mode drives its 4 quadrant zones live from the shim (same array
-      // the Dashboard edits), not the flat rigs' 8-zone zonemap.js.
-      const activeZoneMap = currentRigType === 'room' ? roomZones() : demoZones();
-      const frame = smoother.smooth(composeFrame(imageData, activeZoneMap), smoothingFactor);
-      const frameById = new Map(activeZoneMap.map((z) => [z.zoneId, z]));
-      const updated = new Set();
-      for (const zoneFrame of frame) {
-        const target = zoneLights.find((z) => z.zoneId === zoneFrame.zoneId);
-        if (!target) continue;
-        updated.add(zoneFrame.zoneId);
-        for (const light of target.lights) {
-          light.color.setRGB(zoneFrame.color.r / 255, zoneFrame.color.g / 255, zoneFrame.color.b / 255);
-        }
-      }
-      // Same demo deviation as the audio path above: inactive zones go dark
-      // instead of holding, so the toggle reads as on/off in the scene.
-      for (const { zoneId, lights } of zoneLights) {
-        if (updated.has(zoneId)) continue;
-        if (frameById.get(zoneId)?.active === false) {
-          for (const light of lights) light.color.setRGB(0, 0, 0);
-        }
-      }
-    }
+    const activeZoneMap = currentRigType === 'room' ? roomZones() : demoZones();
+    const frame = sampleVideoFrame(activeZoneMap, sourceMode);
+    if (frame) applyFrameToTargets(frame, activeZoneMap);
   }
 
-  // Shared by both paths above -- each shade reads back its own already-updated light's color.
-  // Emissive, not diffuse -- angle-independent, so every face glows regardless of whether this
-  // light's direction actually reaches it (intensity lives in room-rig.js).
-  for (const { mesh, light } of roomRig.lampShades) mesh.material.emissive.setRGB(1, 1, 1).lerp(light.color, 0.95);
+  roomRig.syncLampShades();
 
   controls.update();
   renderer.render(scene, camera);
@@ -676,7 +437,7 @@ function setSourceMode(mode) {
     roomRig.tvScreenMesh.material.map = getTvScreenTexture(sourceMode);
     roomRig.tvScreenMesh.material.needsUpdate = true;
   }
-  setAudioPlaying(sourceMode === 'audio');
+  setPlaying(sourceMode === 'audio', () => sourceMode === 'audio');
   if (sourceModeSelect) sourceModeSelect.value = mode;
 }
 if (sourceModeSelect) {
@@ -689,11 +450,11 @@ if (sourceModeSelect) {
 // sample width and mode land on the running scene.
 export function applyLiveTuning(config) {
   const mapped = configToPipeline(config);
-  Object.assign(audioEffectSettingsByModel.midpoint, mapped.audio);
-  smoothingFactor = mapped.transitionSmoothing;
-  if (mapped.sampleWidth !== null) sampleWidthPx = mapped.sampleWidth;
+  applyAudioTuning(mapped.audio);
+  setSmoothing(mapped.transitionSmoothing);
+  if (mapped.sampleWidth !== null) setSampleWidth(mapped.sampleWidth);
   setSourceMode(mapped.mode);
 }
-setAudioPlaying(sourceMode === 'audio'); // in case the browser restored 'audio' on reload
+setPlaying(sourceMode === 'audio', () => sourceMode === 'audio'); // in case the browser restored 'audio' on reload
 
-audioColorModelSelect.addEventListener('change', (event) => { audioColorModel = event.target.value; });
+audioColorModelSelect.addEventListener('change', (event) => { setColorModel(event.target.value); });
