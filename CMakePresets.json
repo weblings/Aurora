@@ -36,11 +36,11 @@
     {
       "name": "mac-app",
       "displayName": "Mac app (input + Hue + WebUI)",
-      "description": "Full native stack on macOS. AURORA_ENABLE_INPUT_MAC/AURORA_ENABLE_APP_MAC stay OFF until input/mac and app/mac exist (Aurora-8mk.2/.3) -- flip to ON here once they do. Until then this preset only confirms the toolchain/shared libraries (core/, output/hue/) configure cleanly on Darwin.",
+      "description": "Full native stack on macOS: terminal-only tier (Aurora-8mk), dummy input until Aurora-8mk.5 adds the real ScreenCaptureKit backend.",
       "binaryDir": "${sourceDir}/build/mac-app",
       "cacheVariables": {
-        "AURORA_ENABLE_APP_MAC": "OFF",
-        "AURORA_ENABLE_INPUT_MAC": "OFF",
+        "AURORA_ENABLE_APP_MAC": "ON",
+        "AURORA_ENABLE_INPUT_MAC": "ON",
         "AURORA_ENABLE_OUTPUT_HUE": "ON",
         "AURORA_ENABLE_APP_LINUX": "OFF",
         "AURORA_ENABLE_INPUT_LINUX": "OFF",
