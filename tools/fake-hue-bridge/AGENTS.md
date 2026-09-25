@@ -17,6 +17,10 @@ no build step.
   `Aurora::Runtime::ZoneMapStore` (`core/Runtime/src/ZoneMapStore.cpp`);
   `check.py`'s zonemap checks validate the JSON schema by hand since this
   tool has no C++ build to round-trip it through.
+- One-flag dev flow: app/linux `--fake-hue` presets the bridge
+  address/credentials/`conf-room-4zone`/dev-discovery env (see
+  `app/linux/include/Aurora/App/FakeHue.hpp`); full run order lives in
+  `tools/light-viz-relay/README.md` ("End-to-end viz run").
 - Daemon counterpart lives in `output/hue/src/PairingRoutes.cpp`
   (`/api/hue/link-button` passthrough + discover fake, both gated on
   `AURORA_DEV_FAKE_HUE`; address precedence: flag value >

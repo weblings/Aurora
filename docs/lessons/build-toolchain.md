@@ -386,3 +386,10 @@ Applies-when: adding a new header next to a slice CMakeLists.txt that sources in
 main.cpp's `#include "resource.h"` failed (MSVC C1083) though resource.h sat next to the slice CMakeLists -- quoted includes search only the includer's own dir plus target include dirs, and the exe target searched just the binary dir. Cost a full Windows build round-trip to learn.
 
 **Fix:** add `${CMAKE_CURRENT_SOURCE_DIR}` to that target's include dirs with a comment (done for aurora-app-windows); anchor asset paths the same way so standalone-slice and superbuild configures agree.
+---
+
+## Without cmake, flags.make + link.txt are a complete build record for recompiling and relinking a single TU
+Tags: build, cmake, recovery, linking
+Applies-when: rebuilding after a toolchain loss (or on a machine without cmake) with a warm build dir
+
+With no cmake binary available, `build/<preset>/app/linux/CMakeFiles/aurora-app-linux.dir/flags.make` supplied the exact defines/includes and `link.txt` the exact link line. One changed `main.cpp` recompiled and relinked cleanly against the prebuilt static libs. Two catches: the stale `libAuroraRuntime.a` predated a new TU, so the link failed on the first missing symbol -- recompiled the two changed sources and refreshed the archive with `ar r` (backup first); and archive member dates are normalized (all 1969), so dates can't identify staleness -- the linker error list is the oracle, iterate on it. Use absolute `-o` paths: a relative one combined with a failed link cost the only existing binary.

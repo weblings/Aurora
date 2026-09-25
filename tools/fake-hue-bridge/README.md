@@ -123,17 +123,23 @@ quadrant is a fixed decision, not derived from anything:
 `0=front-left, 1=front-right, 2=back-left, 3=back-right`.
 
 Point `AURORA_HUE_ENTERTAINMENT_CONFIG_ID=conf-room-4zone` at a `--fresh`
-run to select it. Aurora gives newly-discovered zones full-frame UVs by
-default (`core/Runtime/src/ZoneReconciler.cpp`), so channel count alone
-isn't enough to get real quadrant colors out of the tap -- either set each
-zone's UVs via the WebUI's Zone Mapping screen to match `ROOM_ZONE_MAP`, or
-skip that UI pass entirely by dropping `room-4zone-zonemap.json` in as the
-saved zone map before first run:
+run to select it (`--fake-hue` on app/linux presets this plus the bridge
+address/credentials/dev-discovery in one flag; see the "End-to-end viz run"
+in `tools/light-viz-relay/README.md`). Aurora gives newly-discovered zones
+full-frame UVs by default (`core/Runtime/src/ZoneReconciler.cpp`), so
+channel count alone isn't enough to get real quadrant colors out of the
+tap -- either set each zone's UVs via the WebUI's Zone Mapping screen to
+match `ROOM_ZONE_MAP`, or skip that UI pass entirely by dropping
+`room-4zone-zonemap.json` in as the saved zone map before first run:
 
 ```sh
 mkdir -p "$AURORA_CONFIG_DIR/profiles"
 cp room-4zone-zonemap.json "$AURORA_CONFIG_DIR/profiles/hue.json"
 ```
+
+(Under `--fresh` the config root is the cleared temp dir, not
+`$AURORA_CONFIG_DIR` -- place the file at
+`/tmp/aurora-fresh/profiles/hue.json` after launching, before pairing.)
 
 (`hue.json` because `ZoneMapStore` names the file after `HueOutput::name()`.)
 That file's shape is `Aurora::Runtime::ZoneMapStore`'s exact JSON schema

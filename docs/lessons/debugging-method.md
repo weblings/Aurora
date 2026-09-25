@@ -433,3 +433,12 @@ Applies-when: validating which input channel drives which output slot
 A 4-zone split frame (R/G/B/W on ids 0-3) came back reported as "red, blue, green, white" and the id→slot map was nearly edited before the reporter clarified the list order wasn't positional -- no evidence of a swap existed at all. A simultaneous multi-channel stimulus entangles the mapping under test with the order someone happens to list what they see.
 
 **Fix:** one channel hot, rest black (`zone_send.py only <id>`), and ask for the physical position of the lit lamp: id 2 alone lit the back-left couch lamp, confirming that slot instead of "correcting" it. General principle: when the observation channel (a human listing colors) has its own unknown ordering, single-variable probes are the only oracle that separates mapping from reporting.
+---
+
+## pkill -f matches the invoking shell's own command line -- kill by PID or not at all
+Tags: debugging, processes, footgun
+Applies-when: stopping processes whose command lines resemble the stop command itself
+
+`pkill -f "build/linux-app/bin/Aurora"` matched the `bash -c` invocation running the pkill (its command line contains the pattern) and SIGTERMed the shell mid-command -- the tool call reported failure with empty output. The first pkill in the chain had already killed its target, so state was half-torn-down with no report of which half.
+
+**Fix:** resolve PIDs first (`ps` with a bracket pattern like `[b]in/Aurora`, which can't match the grep itself), then `kill <pids>` and verify with `ss`/fresh `ps`. General principle: a pattern-kill aimed at a process family you belong to (shells running commands about those processes) must exclude the shooter.

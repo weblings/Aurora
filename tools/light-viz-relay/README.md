@@ -3,8 +3,8 @@
 Bridges `output/hue`'s `DevLightTap` (fire-and-forget UDP, one JSON line
 of computed per-zone colors per frame) to any number of browser tabs over
 Server-Sent Events, so the standalone three.js viz tool
-(`web/demo/viz.html`, once built) can watch real capture/output data
-without a physical Hue bridge. See `docs/lessons/output.md` and
+(`web/demo/viz.html`) can watch real capture/output data without a
+physical Hue bridge. See `docs/lessons/output.md` and
 `output/hue/include/Aurora/Output/Hue/DevLightTap.hpp` for the tap side.
 
 ## Run
@@ -22,6 +22,50 @@ needed unless you're running multiple relays at once):
 ```sh
 AURORA_DEV_LIGHT_TAP=1 ./Aurora
 ```
+
+## End-to-end viz run (no Hue hardware needed)
+
+Three processes plus a browser tab, in order. This is the `Aurora-gj0.7`
+validation flow; an agent with no prior context can run it as written.
+
+```sh
+# 1. Fake bridge (default https://127.0.0.1:18443, link button pressed):
+python3 tools/fake-hue-bridge/fake_bridge.py
+```
+
+```sh
+# 2. This relay (UDP :18244 in, SSE :18245 out):
+python3 tools/light-viz-relay/relay.py
+```
+
+```sh
+# 3. The app, clean-room against the fake (--fake-hue presets the bridge
+#    env + dev discovery; --fresh wipes the config root to a temp dir):
+AURORA_DEV_LIGHT_TAP=1 ./build/linux-app/bin/Aurora --fake-hue --fresh
+```
+
+```sh
+# 4. Room-quadrant zone map (else all 4 zones default to full-frame UVs
+#    and show identical colors). --fresh clears its temp root at startup,
+#    so place this AFTER launching the app, BEFORE pairing in the WebUI:
+mkdir -p /tmp/aurora-fresh/profiles
+cp tools/fake-hue-bridge/room-4zone-zonemap.json /tmp/aurora-fresh/profiles/hue.json
+```
+
+5. Serve `web/demo/` (`python3 -m http.server`), open `viz.html` in a
+   browser -- room renders, status reads "waiting for frames", lamps dark.
+   (If you are an agent that cannot open a browser, hand the user the
+   viz URL instead of stopping: they open it, you keep driving the
+   processes and confirm frames on the SSE endpoint.)
+6. Pair in the app's WebUI, then drag a colorful window through the
+   captured region: all 4 lamps track it live.
+
+No app build needed for a synthetic check (skips steps 3-4, 6): with only
+the relay running, send one JSON frame per UDP datagram to `127.0.0.1:18244`
+(`{"zones":[{"id":0,"r":1,"g":0,"b":0}, ...]}` -- numeric channel ids,
+RGB 0..1 already gamma-corrected). `viz.html` shows the frame on arrival;
+late joiners see nothing until the next datagram (no replay, by design).
+`smoke.html` in this dir shows the same data as raw colored divs.
 
 Options: `--host` (default `127.0.0.1`), `--udp-port` (default `18244`,
 must match `AURORA_DEV_LIGHT_TAP_ADDRESS` if that's overridden),
