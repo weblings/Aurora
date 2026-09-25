@@ -104,23 +104,18 @@ configure_file(
   @ONLY
 )
 
-# Bundle icon: built from the multi-resolution icon set already shipped for
-# the Linux tray icon (app/linux/icons/hicolor/*/apps/aurora.png, same "A"
-# logo), not a fresh asset -- see make_icns.sh for the size mapping/why.
-set(_AURORA_ICNS_SRC_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../linux/icons/hicolor")
+# Bundle icon: the dark "A" logo (docs/README/Logo_Square.svg), rasterized
+# at every needed size from the vector source -- see make_icns.sh for why.
+set(_AURORA_ICNS_SRC "${CMAKE_CURRENT_SOURCE_DIR}/../../docs/README/Logo_Square.svg")
 set(_AURORA_ICNS_OUT "${CMAKE_CURRENT_BINARY_DIR}/Aurora.icns")
 add_custom_command(
   OUTPUT "${_AURORA_ICNS_OUT}"
   COMMAND /bin/sh "${CMAKE_CURRENT_SOURCE_DIR}/make_icns.sh"
-          "${_AURORA_ICNS_SRC_DIR}" "${_AURORA_ICNS_OUT}" "${CMAKE_CURRENT_BINARY_DIR}"
+          "${_AURORA_ICNS_SRC}" "${_AURORA_ICNS_OUT}" "${CMAKE_CURRENT_BINARY_DIR}"
   DEPENDS
     "${CMAKE_CURRENT_SOURCE_DIR}/make_icns.sh"
-    "${_AURORA_ICNS_SRC_DIR}/16x16/apps/aurora.png"
-    "${_AURORA_ICNS_SRC_DIR}/32x32/apps/aurora.png"
-    "${_AURORA_ICNS_SRC_DIR}/64x64/apps/aurora.png"
-    "${_AURORA_ICNS_SRC_DIR}/128x128/apps/aurora.png"
-    "${_AURORA_ICNS_SRC_DIR}/256x256/apps/aurora.png"
-  COMMENT "Building Aurora.icns from the Linux tray icon set"
+    "${_AURORA_ICNS_SRC}"
+  COMMENT "Building Aurora.icns from the dark logo SVG"
   VERBATIM
 )
 set_source_files_properties("${_AURORA_ICNS_OUT}" PROPERTIES MACOSX_PACKAGE_LOCATION "Resources")
