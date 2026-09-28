@@ -1,7 +1,7 @@
 # Low-scope implementation plan
 
 Five phases to prove out the Input/Processing/Output split
-([`archive/ModuleSplitPlan.md`](archive/ModuleSplitPlan.md)) as a real, running vertical slice,
+([`archive/ModuleSplitPlan.md`](../archive/ModuleSplitPlan.md)) as a real, running vertical slice,
 plus one deferred stretch. Order matches how the phases were scoped. Phase
 2.5 (audio) was inserted later, independent of phases 3–5 — it doesn't
 renumber anything since it isn't sequentially gated by the browser work.
@@ -160,10 +160,10 @@ web/demo/         <- new repo (2026-09-14, not started, phase 3
                              separate repo more clearly than any plugin has).
 ```
 
-*Build history lives in [log/2026-09-13-phase1-2-build-history.md](log/2026-09-13-phase1-2-build-history.md) — per-repo verification narratives (test counts, env setup, bugs found per pass), not repeated here.*
+*Build history lives in [log/2026-09-13-phase1-2-build-history.md](../log/2026-09-13-phase1-2-build-history.md) — per-repo verification narratives (test counts, env setup, bugs found per pass), not repeated here.*
 
 ## Phase 1 — Refactor into three modules; Linux input + Hue output plugins
-Status: shipped 2026-09-13 (Aurora-4li) — see [log/2026-09-13-phase1-2-build-history.md](log/2026-09-13-phase1-2-build-history.md).
+Status: shipped 2026-09-13 (Aurora-4li) — see [log/2026-09-13-phase1-2-build-history.md](../log/2026-09-13-phase1-2-build-history.md).
 
 Pure restructuring, zero new features. **Demonstrable:** the restructured app
 captures the Linux screen and drives real Hue lights exactly like huenicorn does
@@ -265,7 +265,7 @@ today — this is the regression check everything else builds on.
    here.
 
 ## Phase 2 — Windows input plugin
-Status: shipped 2026-09-14 (Aurora-m4f) — see [log/2026-09-13-phase1-2-build-history.md](log/2026-09-13-phase1-2-build-history.md).
+Status: shipped 2026-09-14 (Aurora-m4f) — see [log/2026-09-13-phase1-2-build-history.md](../log/2026-09-13-phase1-2-build-history.md).
 
 Fills in `WindowsAdapter`'s `_createGrabber` stub (currently returns `nullptr`).
 

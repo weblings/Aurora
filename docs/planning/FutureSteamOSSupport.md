@@ -2,7 +2,7 @@
 
 Status: exploratory — no code or packaging changes yet, this is the
 conversation-so-far writeup. Started from a manual test: running the
-Debian/Ubuntu dependency list from [`README.md`](../README.md#L21) via
+Debian/Ubuntu dependency list from [`README.md`](../../README.md#L21) via
 `sudo apt install ...` on a Steam Deck.
 
 ## Problem observed
@@ -59,12 +59,12 @@ required first and doesn't survive an OS update).
 - Best fit for the Game-Mode capture case specifically: the backend runs in
   the same gamescope session as the game, as root, no sandbox to route
   through — the `GAMESCOPE_WAYLAND_DISPLAY` → direct Pipewire node path in
-  [`GamescopeNodeMatch.hpp`](../input/linux/include/Aurora/Input/Linux/GamescopeNodeMatch.hpp)
+  [`GamescopeNodeMatch.hpp`](../../input/linux/include/Aurora/Input/Linux/GamescopeNodeMatch.hpp)
   should work with no extra permission grants, unlike Flatpak's
   `--socket=pipewire` requirement.
 - UI integration fits naturally: Aurora already serves its control UI over
   local HTTP bound to `127.0.0.1`
-  ([`main.cpp:901`](../app/linux/src/main.cpp#L901)) rather than a native
+  ([`main.cpp:901`](../../app/linux/src/main.cpp#L901)) rather than a native
   GUI, so a Decky panel could start/stop the process and iframe the
   existing web UI instead of reimplementing it. Unverified: whether Steam's
   embedded CEF panel allows iframing localhost without CSP/CORS friction.
@@ -83,27 +83,27 @@ wiped on the next SteamOS update regardless. Not viable as a supported path.
 ## Does Aurora's capture code actually work in either sandbox?
 
 Yes — checked against the real Linux input plugin code
-([`input/linux/src/`](../input/linux/src)), not just in theory.
+([`input/linux/src/`](../../input/linux/src)), not just in theory.
 
 Aurora's `SessionDispatch` already picks between three capture backends at
-runtime (see [`archive/LinuxCaptureAnalysis.md`](archive/LinuxCaptureAnalysis.md)):
+runtime (see [`archive/LinuxCaptureAnalysis.md`](../archive/LinuxCaptureAnalysis.md)):
 
-1. **X11** ([`X11Grabber.cpp`](../input/linux/src/X11Grabber.cpp)) — XShm +
+1. **X11** ([`X11Grabber.cpp`](../../input/linux/src/X11Grabber.cpp)) — XShm +
    Xrandr, no portal involved.
 2. **Wayland via `xdg-desktop-portal`'s ScreenCast interface**
-   ([`XdgDesktopPortal.cpp`](../input/linux/src/XdgDesktopPortal.cpp)) — used
+   ([`XdgDesktopPortal.cpp`](../../input/linux/src/XdgDesktopPortal.cpp)) — used
    on a normal desktop compositor (e.g. Deck Desktop Mode's KDE Plasma).
    Already persists a restore token so the user isn't re-prompted every
    launch.
 3. **Gamescope direct Pipewire node** — detected via the
    `GAMESCOPE_WAYLAND_DISPLAY` env var, bypasses the portal entirely and
    connects straight to Pipewire's `gamescope` node
-   ([`GamescopeNodeMatch.hpp`](../input/linux/include/Aurora/Input/Linux/GamescopeNodeMatch.hpp)).
+   ([`GamescopeNodeMatch.hpp`](../../input/linux/include/Aurora/Input/Linux/GamescopeNodeMatch.hpp)).
    This is the path that matters for Deck **Game Mode**, since gamescope
    doesn't run a desktop-portal backend the way KDE/GNOME do.
 
 Audio capture goes through PipeWire as well
-([`AudioGrabber.cpp`](../input/linux/src/AudioGrabber.cpp)).
+([`AudioGrabber.cpp`](../../input/linux/src/AudioGrabber.cpp)).
 
 **Distrobox:** all three paths work unmodified — the container shares the
 host's X11/Wayland/D-Bus/PipeWire sockets by design.

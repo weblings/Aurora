@@ -12,7 +12,7 @@ Input↔Processing↔Output contract from `ModuleSplitPlan.md`. Getting it stabl
 tested first means every later module is built against something settled, not a
 moving target. It's also the only piece that's pure/deterministic, so it's where
 real automated tests actually pay off (per the tests discussion in
-`ImplementationPlan.md`).
+`planning/ImplementationPlan.md`).
 
 ## What each piece currently does
 
@@ -45,10 +45,10 @@ tag its output `PixelFormat::BGR` (confirmed: `DummyGrabber` sets
 `PixelFormat` tag exists and is checked exactly nowhere in this function. This
 was flagged as a latent risk in `FirstScan.md`; reading the actual line
 confirms it's real, not speculative. **Fixing now**, not deferring to phase 2 as
-originally planned in `ImplementationPlan.md` — writing golden-value tests for
+originally planned in `planning/ImplementationPlan.md` — writing golden-value tests for
 this function across all four `PixelFormat`s makes leaving the bug in place
 actively harder than fixing it (a correct test suite can't assert the buggy
-behavior on purpose). `ImplementationPlan.md` gets a note updating this.
+behavior on purpose). `planning/ImplementationPlan.md` gets a note updating this.
 
 **2. `rgbaToRgb` doesn't handle `BGRA` — a related, previously unflagged gap.**
 
@@ -136,7 +136,7 @@ not just by convention. Recorded back into `ModuleSplitPlan.md`.
 ## Test plan
 
 No existing usable tests to build on here (see the `tests/` findings already in
-`ImplementationPlan.md` — both CMake test targets are stale/non-building). New
+`planning/ImplementationPlan.md` — both CMake test targets are stale/non-building). New
 Catch2 suite, fixtures generated in-code (no checked-in binary images needed —
 these are small synthetic `cv::Mat`s, e.g. solid colors and 2×2 quadrants):
 

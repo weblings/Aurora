@@ -77,7 +77,7 @@ No new platform; each item makes an existing rule active.
   (`grep -c '^## '` + `wc -l`) as a pre-commit or CI warning,
   so exceeding the split threshold surfaces at append time.
 - Separate append-only log from plan: move build-verified history out
-  of `ImplementationPlan.md` into dated `docs/log/*.md` entries,
+  of `planning/ImplementationPlan.md` into dated `docs/log/*.md` entries,
   leaving the plan with `- [ ]` task checkboxes.
 - Link hygiene: use markdown-link-only references plus a link checker
   instead of plain-text filenames needing manual cross-repo grep
@@ -98,7 +98,7 @@ stretch goal (needs a docs-build root first).
 4. `check-lessons.sh` (entry/line counts) as pre-commit or CI warn —
    tiny script, makes the 15-entry split rule actually fire.
 5. Beads for tasks/history — medium effort (install `bd`, migrate
-   `ImplementationPlan.md` phases), removes the largest bloat source
+   `planning/ImplementationPlan.md` phases), removes the largest bloat source
    from plan docs and gives agents `--json` + ready-work queries.
 6. Split `lessons/engineering-hygiene.md` once along topic cuts — medium-large
    one-time edit; do after 1–4 so the new shape holds.

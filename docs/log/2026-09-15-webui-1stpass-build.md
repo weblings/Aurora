@@ -8,7 +8,7 @@ Moved out of WebUI_Design_1stPass.md — the design doc keeps screens, decisions
 
 Sequenced by actual dependency, not by the screen numbering used above — a
 screen can't be usefully built before the backend surface and shell pieces it
-depends on exist. Preview streaming, which `ImplementationPlan.md` lists first
+depends on exist. Preview streaming, which `planning/ImplementationPlan.md` lists first
 among Milestone 2's "three native surfaces," is intentionally pushed to the
 end here, since nothing in v1 consumes it (see Decisions log above).
 
@@ -179,7 +179,7 @@ Wiring and Polish
    WebUI is byte-identical for both apps and needs no C++ dependencies at
    all — its own split is justified by toolchain hygiene instead (it will
    eventually need real frontend tooling for phase 4's WebXR/uikit pass, per
-   `ImplementationPlan.md`, which has no business living inside a CMake/vcpkg
+   `planning/ImplementationPlan.md`, which has no business living inside a CMake/vcpkg
    repo). Wired as a **required** dependency in both apps (unconditional
    `FetchContent_Declare`/`MakeAvailable`, no `ENABLE_`-style toggle like
    Hue's IO gate) — reflecting that this is the product's one control

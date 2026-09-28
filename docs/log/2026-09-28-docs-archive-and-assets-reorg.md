@@ -82,6 +82,49 @@ to describe *current* architecture, and it's missing Mac entirely (last
 updated 2026-09-14, before Mac existed) — archived as a known-stale
 snapshot, not refreshed, since updating it is a separate, still-open task.
 
+## Third pass: `docs/planning/`, and `archive/GUILaunchUX.md` → `docs/archive/`
+
+Applying the same edit-history test to what was left at root: `Building.md`
+(operational reference, correctly current, last touched 09-22) and
+`UpstreamFindings.md` (a bug list for huenicorn, not a plan — frozen since
+2026-09-13 by the same test, but held out of this batch on genre grounds
+rather than evidence; still a candidate) aren't planning docs at all.
+`archive/GUILaunchUX.md` is, and fails the test hard: last substantive edit
+2026-09-21, still describing Windows tray as the only near-term item and
+Linux/macOS as merely "researched," while Linux tray actually shipped
+(09-23) and Mac shipped a tray icon plus reopen/second-launch fixes since —
+none reflected. Moved to `docs/archive/` with a corrected `Status:` line.
+
+`planning/ImplementationPlan.md` (the roadmap; per-phase `Status:` lines are already
+its own currency mechanism) and `planning/FutureSteamOSSupport.md` (genuinely still
+open/unstarted, not stale — nothing has happened in SteamOS-land to
+contradict it, it's just unprioritized, a different failure mode than the
+others) move to new `docs/planning/` instead: still-live, not yet decided,
+distinct from both `docs/archive/`'s finished/abandoned work and root's
+now much smaller "operational reference + narrow standalone" set
+(`Building.md`, `HttpServerAnalysis.md`, `UpstreamFindings.md`).
+
+Checked `HttpServerAnalysis.md`'s own justification for staying at root
+(feeds `Aurora-x7o`, "in progress") along the way: that bead hasn't been
+updated since 2026-09-20 and still names the pre-rename `Analysis/` path in
+its description — same stale-bead pattern as `Aurora-f06` — yet the actual
+`core/Network/src/HttpServer.cpp` was touched as late as 09-21 closing two
+other beads. Left as-is; whether Milestone 2 is actually still moving isn't
+something the repo alone can answer, and isn't this workstream's call to
+make unilaterally.
+
+Every relative link this pass touched was hand-verified for true path
+correctness (not just checker leniency, which tolerates plenty a real
+renderer wouldn't) — `planning/ImplementationPlan.md`'s and `planning/FutureSteamOSSupport.md`'s
+own outbound `../`-style links needed an extra `../` for the new depth, and
+`MacSupport.md`'s two line-anchored links to `archive/GUILaunchUX.md` needed both
+the `archive/` prefix and their anchors recomputed (the new `Status:` block
+shifted every line below it by 8).
+
+`AGENTS.md`'s "Where things go" now also names `docs/planning/` and states
+the edit-history-over-self-report rule explicitly, so the next session
+doesn't have to rediscover it by hand.
+
 ## Verification
 
 - `python3 docs/check-links.sh` — green, all of `docs/` actually scanned now.

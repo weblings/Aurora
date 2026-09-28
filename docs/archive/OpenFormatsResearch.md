@@ -217,7 +217,7 @@ in XR) than the theatrical-lighting formats above do.
   being genuinely reachable, not speculative.
 - **No standardized VJ project/composition format exists** — Resolume's `.avc`,
   VDMX's format, TouchDesigner's `.toe` are all proprietary and app-specific, the
-  same situation as lighting show files (`ImplementationPlan.md`'s xLights
+  same situation as lighting show files (`planning/ImplementationPlan.md`'s xLights
   finding). ISF only standardized the narrow "one shader + its declared
   parameters" unit — that narrowness is exactly why it succeeded as a cross-tool
   standard where whole-composition formats never did. Worth taking as a lesson

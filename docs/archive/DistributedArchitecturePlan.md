@@ -218,7 +218,7 @@ decision rather than generalizing from the two platforms built so far.
 - `RuntimeAnalysis.md` — `Orchestrator`'s current shape; the "accept a
   `Frame` from more than one kind of source" note above is a direct
   follow-up to it.
-- `ImplementationPlan.md` — the WebSockets stretch goal this question
+- `planning/ImplementationPlan.md` — the WebSockets stretch goal this question
   actually needs resolving before.
 - `BrowserAnalysis.md` — the decided Phase 3 demo strategy (shape 3 above),
   the Hue-API-throughput findings behind why the Entertainment API can't

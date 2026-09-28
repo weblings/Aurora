@@ -13,7 +13,7 @@ moves through each stack, and which dependency library is doing the
 interpreting/transporting at each step. Diagrams show one tick's worth of
 data, capture through bridge, for both the video pipeline (huenicorn has an
 equivalent) and the audio pipeline (huenicorn doesn't — see Phase 2.5 in
-`ImplementationPlan.md`); the `why` behind the module split itself is
+`planning/ImplementationPlan.md`); the `why` behind the module split itself is
 covered in `ModuleSplitPlan.md`/`RuntimeAnalysis.md`, not repeated here.
 
 ## 1. huenicorn — one process, one thread, one of everything

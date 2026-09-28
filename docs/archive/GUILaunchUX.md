@@ -1,6 +1,14 @@
 # GUI Launch UX
 
-Status: planning — Windows tray scoped for 1.0.2 (`Aurora-x2o`), Linux and
+Status: historical and known-stale — last substantive edit 2026-09-21, still
+describing Windows tray as the only near-term item and Linux/macOS as merely
+"researched." Since then Linux tray actually shipped (`docs/log/2026-09-23-linux-tray-install.md`)
+and Mac shipped a tray icon plus reopen/second-launch fixes, none reflected
+here. Kept as the original plan/research record, not a live design doc — if
+launch UX planning continues, start fresh against what's actually shipped
+rather than revise this in place.
+
+Original framing: Windows tray scoped for 1.0.2 (`Aurora-x2o`), Linux and
 macOS shapes researched, opens listed at the bottom. See also
 `docs/Building.md` (install/portable trees) and `CONTRIBUTING.md` (beads).
 

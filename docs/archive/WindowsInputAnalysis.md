@@ -3,7 +3,7 @@
 Status: shipped 2026-09-14 (Phase 2, Aurora-m4f) — kept as the record of what
 was built and why; the live code is `input/windows/`.
 
-Lighter pass than phase 1's ports, per `ImplementationPlan.md`'s own scoping:
+Lighter pass than phase 1's ports, per `planning/ImplementationPlan.md`'s own scoping:
 huenicorn's `WindowsAdapter::_createGrabber` is a genuine stub (verified by
 reading `WindowsAdapter.cpp` — `(void)config; return nullptr;`), so there's
 no upstream logic to port. This is original work against `IInput`'s existing
@@ -133,7 +133,7 @@ research above, found only by actually running it:
 - **No `Contracts`/`Runtime`/`Orchestrator` changes anticipated** — confirmed
   by reading `IInput.hpp`: everything DXGI-specific stays inside the new
   plugin, same boundary `X11Grabber`/`PipewireGrabber` already prove out.
-- One correction to `ImplementationPlan.md`'s phase 2 text: it names fixing
+- One correction to `planning/ImplementationPlan.md`'s phase 2 text: it names fixing
   `Algorithms::mean()`'s hardcoded BGR channel swap as this phase's moment —
   that's already done (`ProcessingAnalysis.md` finding 1, verified by reading
   `ImageProcessing.cpp`: it already switches on `PixelFormat` for both RGB*
@@ -230,7 +230,7 @@ fallback already added for the Ubuntu device's older Mbed TLS.
 
 ## Related docs
 
-- `ImplementationPlan.md` — phase 2, which this doc fulfills the "analysis
+- `planning/ImplementationPlan.md` — phase 2, which this doc fulfills the "analysis
   pass first" step for.
 - `LinuxCaptureAnalysis.md` — `X11Grabber`'s shape, mirrored throughout above.
 - `DistributedArchitecturePlan.md` — unaffected by this: a Windows `IInput`

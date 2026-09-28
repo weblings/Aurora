@@ -29,10 +29,19 @@ Core repo: shared `Contracts`, `Processing`, `Input`/`Output` interfaces,
   row on close — every material fact, stated once and tightly; paused work logs
   state + resume pointer. Findings over narration.
 - Planning docs: decisions, status, pointers only. No task lists, no build play-by-play.
-  Every doc/section carries a `Status:` line (shipped/superseded/exploratory/etc.).
-- Shipped or superseded plans and analyses: `docs/archive/`, once their `Status:`
-  line says so — kept as the historical record, not deleted or edited into the
-  present tense.
+  Every doc/section carries a `Status:` line (shipped/superseded/exploratory/etc.) —
+  but a `Status:` line is only as trustworthy as its last real edit. Before
+  trusting "still open"/"exploratory", check `git log --follow -- <path>` for
+  the last *substantive* edit (not renames/link fixes): if nothing revisited
+  it across real, related shipped work since, the doc is probably stale
+  regardless of what it claims, and belongs in `docs/archive/` with a
+  corrected `Status:` line naming the real last-touched date.
+- The overall roadmap: `docs/planning/ImplementationPlan.md` (per-phase
+  `Status:` lines are the source of truth for what's shipped) plus any other
+  still-active, not-yet-decided planning doc — `docs/planning/`, not root.
+- Shipped, superseded, or stale-and-abandoned plans and analyses:
+  `docs/archive/` — kept as the historical record, not deleted or edited into
+  the present tense.
 - WebUI-specific docs (design passes, tooltip content/plumbing): `docs/WebUI/`,
   not the `docs/` root.
 - Brand/icon source assets (logos, app-icon masters): `assets/brand/` — build

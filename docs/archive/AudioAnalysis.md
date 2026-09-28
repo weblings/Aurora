@@ -286,7 +286,7 @@ rather than quietly widening it once file support arrives.
 Only matters for provenance 3 (live capture) — now first in the build
 order above, so this needs addressing sooner than originally framed, but
 it's still the same "WebSockets stretch goal" already sitting in
-`ImplementationPlan.md`'s deferred section, and a second concrete instance
+`planning/ImplementationPlan.md`'s deferred section, and a second concrete instance
 of the one-seam-vs-double-seam fork `DistributedArchitecturePlan.md`
 leaves open — not a fresh unknown to design from scratch.
 

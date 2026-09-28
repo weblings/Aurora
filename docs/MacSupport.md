@@ -4,7 +4,7 @@ Status: exploratory — no code, CMake, or packaging changes yet, this is the
 conversation-so-far writeup. Started from a new Mac (Apple Silicon, current
 macOS) with no dev toolchain installed yet. No prior Mac exploration existed
 in the repo before this: macOS only came up in passing in
-[`GUILaunchUX.md`](GUILaunchUX.md#L26-L28) (tray reference, explicitly "not a
+[`archive/GUILaunchUX.md`](archive/GUILaunchUX.md#L34-L36) (tray reference, explicitly "not a
 target"), [`archive/FirstScan.md`](archive/FirstScan.md) (Huenicorn's unimplemented
 `MacOSAdapter.mm` stub), and [`archive/OpenFormatsResearch.md`](archive/OpenFormatsResearch.md)
 (Syphon mentioned once as the macOS analog to Spout).
@@ -95,7 +95,7 @@ Two tiers, from smallest to largest:
 This is the starting point — it skips the hardest and most speculative
 piece (menu-bar tray integration), which the project's own planning doc
 already treats as
-[an enhancement, never a requirement](GUILaunchUX.md#L25-L28), and it
+[an enhancement, never a requirement](archive/GUILaunchUX.md#L33-L36), and it
 defers audio capture entirely (see "Deferred: audio" below). Dropping audio
 also means the Mac slice needs no `aubio` dependency at all —
 [`core/Runtime/CMakeLists.txt`](../core/Runtime/CMakeLists.txt#L41-L47)
@@ -492,7 +492,7 @@ before `input/mac/` existed.
 
 Adds `LSUIElement` agent style and an `NSStatusItem` menu on top of the
 `.app` bundle already shipped (`Aurora-8mk.11`) — the macOS shapes
-`GUILaunchUX.md` already sketched as reference. Deferred until the
+`archive/GUILaunchUX.md` already sketched as reference. Deferred until the
 terminal-only slice was working and the audio-capture decision above was
 made; both conditions are now satisfied (`Aurora-8mk` and `Aurora-9z4` are
 closed), and this phase is scoped and sequenced as a beads epic,
@@ -534,7 +534,7 @@ sequenced-but-independent placeholder.
 
 ### LaunchServices intercepts a second launch before InstanceLock ever runs (Aurora-qps.4)
 
-`GUILaunchUX.md`'s decided design (`Second launch opens the configured URL
+`archive/GUILaunchUX.md`'s decided design (`Second launch opens the configured URL
 and exits`) assumes a second `open`/double-click always spawns a second
 process that runs `Aurora::App::InstanceLock`, finds the lock already
 held, and calls `openWebBrowser(url)` before exiting — exactly what

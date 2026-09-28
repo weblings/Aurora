@@ -15,7 +15,7 @@ processing, a Three.js 9-slice virtual-light output, video-only, no native
 backend, no Hue-in-browser stretch goal (cut, see below). Repo split
 (2026-09-14): the demo lives in its own new repo, `Aurora-Demo-Web`; only the
 hand-ported processing math stays in `Aurora/web-processing/` — see
-`ImplementationPlan.md`'s Phase 3. Still open at the time:
+`planning/ImplementationPlan.md`'s Phase 3. Still open at the time:
 implementation specifics (the exact 9-slice/zone-map wiring, the sample
 video's actual content) and anything audio-related, deferred past v1
 entirely.
@@ -137,7 +137,7 @@ decode, which leans on native `<video>` support) is the direction taken.
   **Repo placement (2026-09-14):** this hand-port lives in `Aurora/web-processing/`,
   not the demo's own repo — it's the one piece of the demo that mirrors
   existing C++ logic, so it stays next to `Processing`'s source for
-  drift-checking (see `ImplementationPlan.md`'s directory layout). The demo
+  drift-checking (see `planning/ImplementationPlan.md`'s directory layout). The demo
   repo (`Aurora-Demo-Web`) copies this source directly; not an npm package
   for now.
 
@@ -188,7 +188,7 @@ browser — not just fewer libraries, a different *kind* of dependency.
 
 The WASM-vs-hand-port conclusion above was reached purely from `ImageProcessing`'s
 shape (`rescale`/`dropAlpha`/`mean`) — the only `Processing`-family code that
-existed at the time. `AudioProcessing` (Phase 2.5, see `ImplementationPlan.md`)
+existed at the time. `AudioProcessing` (Phase 2.5, see `planning/ImplementationPlan.md`)
 now exists too, and applying the same framework to it doesn't give one answer
 for "the middle module" — it splits, which is exactly what a case-by-case
 framework should do once there's more than one case to apply it to:
@@ -265,7 +265,7 @@ Concretely, for Phase 3's Three.js browser demo (v1 scope, decided):
   complete/robust experience for anyone already in the Hue ecosystem — this
   framing is Hue-specific and worth revisiting once Output targets expand
   past Hue (DMX/Art-Net/sACN, other bulb brands, XR-scene effects are
-  already named as future Output targets in `ImplementationPlan.md`'s
+  already named as future Output targets in `planning/ImplementationPlan.md`'s
   stretch section).
 
 ## Considered and cut: CLIP-in-browser as a rougher real-bulb Output
@@ -370,7 +370,7 @@ assuming, verified this session:
   explicitly, not discovering it during implementation.
 - The native REST server needs CORS headers allowing the Pages origin --
   small, real, not yet implemented (no such server exists yet at all; this
-  is Phase 3's own prerequisite, see `ImplementationPlan.md`).
+  is Phase 3's own prerequisite, see `planning/ImplementationPlan.md`).
 
 ## Follow-up: backport the demo's audio color-model A/B tuning to Windows/Linux -- not started
 
@@ -408,7 +408,7 @@ mode running at all is a separate first step from the tuning comparison itself.
 - `OpenFormatsResearch.md` — the VJ-input/authored-track mapping this
   mirrors, and the phase-5 "verify a library's real behavior first" habit
   this doc's Ogg/OpenCV caveat follows.
-- `ImplementationPlan.md` — phase 3, which this doc feeds into once a shape
+- `planning/ImplementationPlan.md` — phase 3, which this doc feeds into once a shape
   is chosen.
 - `ModuleSplitPlan.md` — the repo-split reasoning (originally written for
   Input/Output plugins) that `Aurora-Demo-Web`'s split applies too, more
