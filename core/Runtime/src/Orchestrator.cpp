@@ -78,8 +78,14 @@ namespace Aurora::Runtime
 
   void Orchestrator::update()
   {
+    // Default true for every input except ScreenCaptureKitGrabber
+    // (Aurora-8mk.9) -- skips a tick entirely rather than re-pushing a
+    // frozen frame to every output while the input is known to be stale
+    // (e.g. macOS tore capture down on screen lock and hasn't rebuilt it
+    // yet). grabFrameSubsample() still runs every tick regardless, since
+    // that's also where the lazy rebuild attempt lives.
     m_input.grabFrameSubsample(m_frameData);
-    if(!m_frameData.hasData()){
+    if(!m_input.isHealthy() || !m_frameData.hasData()){
       return;
     }
 

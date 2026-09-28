@@ -54,6 +54,18 @@ namespace Aurora::Input
       return false;
     }
 
+    // Default true, so Linux/Windows (which have nothing analogous to
+    // macOS's screen-lock capture teardown -- Aurora-8mk.9) are unaffected
+    // by this existing at all. A grabber that can genuinely lose its
+    // capture source out from under it (and detect that, rather than just
+    // silently serving a stale frame forever) overrides this to reflect
+    // real state; Orchestrator::update() skips a tick while unhealthy
+    // rather than pushing a frozen frame to outputs.
+    virtual bool isHealthy() const
+    {
+      return true;
+    }
+
     virtual Resolution displayResolution() const = 0;
     virtual RefreshRate displayRefreshRate() const = 0;
 

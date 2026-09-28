@@ -80,6 +80,12 @@ namespace Aurora::Input::Mac
     Resolution displayResolution() const override;
     RefreshRate displayRefreshRate() const override;
 
+    // False from the moment the stream stops (Aurora-8mk.9 -- SCStream's
+    // delegate reports a real error when macOS tears capture down on screen
+    // lock, it isn't just paused) until the next grabFrameSubsample()'s
+    // lazy rebuild succeeds.
+    bool isHealthy() const override;
+
     void selectMonitor(unsigned monitorId) override;
     void grabFrameSubsample(Contracts::ImageData& imageData) override;
 

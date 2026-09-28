@@ -2,6 +2,7 @@
 
 #include <chrono>
 #include <future>
+#include <iostream>
 #include <mutex>
 #include <optional>
 #include <stdexcept>
@@ -43,6 +44,11 @@ namespace Aurora::Input::Mac
 {
   struct ScreenCaptureKitGrabber::Impl
   {
+    // stream/output/rebuildAttempted/healthy are touched both from the app's
+    // own thread (grabFrameSubsample()/selectMonitor(), serialized upstream
+    // by PipelineHost's own mutex) and from the SCStream delegate's callback
+    // thread (didStopWithError:, its own independent dispatch queue) --
+    // frameMutex guards all of them, not just latestFrame.
     SCStream* stream = nil;
     AuroraSCKStreamOutput* output = nil;
     CGDirectDisplayID displayID = 0; // no kCGDirectDisplayNull in this SDK; 0 is CGDirectDisplayID's own invalid sentinel
@@ -50,15 +56,20 @@ namespace Aurora::Input::Mac
     unsigned pixelHeight = 0;
     double refreshRate = 60.0;
 
-    // selectMonitor() tears the stream down and clears this; _ensureStream()
-    // sets it before its one rebuild attempt so a display that stays
-    // unreachable (permission revoked, display truly gone) doesn't cost
-    // every subsequent grabFrameSubsample() call a bounded-but-real
-    // SCShareableContent + SCStream round trip (unlike X11/Windows' local,
-    // effectively-free per-frame retry, Mac's is a genuine async round trip
-    // to another process). Self-healing beyond "try once per switch" is
-    // Aurora-8mk.9 (isHealthy()) territory, not this bead's scope.
+    // selectMonitor() and didStopWithError: both tear the stream down and
+    // clear this; _ensureStream() sets it before its one rebuild attempt so
+    // a display that stays unreachable (permission revoked, display truly
+    // gone) doesn't cost every subsequent grabFrameSubsample() call a
+    // bounded-but-real SCShareableContent + SCStream round trip (unlike
+    // X11/Windows' local, effectively-free per-frame retry, Mac's is a
+    // genuine async round trip to another process).
     bool rebuildAttempted = false;
+
+    // False from didStopWithError: (Aurora-8mk.9 -- macOS tears the stream
+    // down entirely on screen lock, it doesn't just pause) until
+    // configureAndStartStream() next succeeds. IVideoInput::isHealthy()
+    // defaults true, so Linux/Windows are unaffected by this existing at all.
+    bool healthy = true;
 
     std::mutex frameMutex;
     Contracts::ImageData latestFrame;
@@ -107,9 +118,28 @@ namespace Aurora::Input::Mac
 
 - (void)stream:(SCStream *)stream didStopWithError:(NSError *)error
 {
-  // No reconnect/recovery flow yet -- Aurora-8mk.8 (permission recovery)
-  // and Aurora-8mk.9 (lock/sleep health) own that. grabFrameSubsample()
-  // keeps serving the last frame it had until this grabber is torn down.
+  // Aurora-8mk.9: observed live that macOS doesn't just pause delivery on
+  // screen lock -- it first serves a run of SCFrameStatusIdle frames, then
+  // tears the stream down entirely with a real error ("Failed to find any
+  // displays or windows to capture"), landing here. Without this, `stream`/
+  // `output` kept pointing at the now-dead objects, so _ensureStream()'s
+  // `stream != nil` check thought capture was still fine and never
+  // attempted a rebuild -- grabFrameSubsample() would have served one
+  // frozen frame forever with no signal anything was wrong. Clearing them
+  // here (and resetting rebuildAttempted) makes the next
+  // grabFrameSubsample() call reuse Aurora-8mk.6's lazy-rebuild path
+  // exactly as if selectMonitor() had just torn it down -- it naturally
+  // recovers once the display is available again (unlock), no separate
+  // reconnect mechanism needed.
+  std::cerr << "ScreenCaptureKitGrabber: stream stopped ("
+            << (error != nil ? std::string(error.localizedDescription.UTF8String) : std::string("no error given"))
+            << ") -- will retry capture on the next frame\n";
+
+  std::lock_guard<std::mutex> lock(self.impl->frameMutex);
+  self.impl->stream = nil;
+  self.impl->output = nil;
+  self.impl->rebuildAttempted = false;
+  self.impl->healthy = false;
 }
 
 @end
@@ -244,12 +274,14 @@ namespace Aurora::Input::Mac
         throw std::runtime_error("ScreenCaptureKitGrabber: startCaptureWithCompletionHandler didn't succeed within 5s");
       }
 
+      std::lock_guard<std::mutex> lock(impl.frameMutex);
       impl.displayID = display.displayID;
       impl.pixelWidth = pixelWidth;
       impl.pixelHeight = pixelHeight;
       impl.refreshRate = refreshRate;
       impl.stream = stream;
       impl.output = output;
+      impl.healthy = true;
     }
 
 
@@ -258,20 +290,25 @@ namespace Aurora::Input::Mac
     // hang forever even if the stop callback never fires.
     void stopStream(ScreenCaptureKitGrabber::Impl& impl)
     {
-      if(impl.stream == nil){
+      SCStream* stream = nil;
+      {
+        std::lock_guard<std::mutex> lock(impl.frameMutex);
+        stream = impl.stream;
+      }
+      if(stream == nil){
         return;
       }
 
       auto stopPromise = std::make_shared<std::promise<void>>();
       auto stopFuture = stopPromise->get_future();
 
-      SCStream* stream = impl.stream;
       [stream stopCaptureWithCompletionHandler:^(NSError* error){
         stopPromise->set_value();
       }];
 
       stopFuture.wait_for(5s);
 
+      std::lock_guard<std::mutex> lock(impl.frameMutex);
       impl.stream = nil;
       impl.output = nil;
     }
@@ -332,8 +369,18 @@ namespace Aurora::Input::Mac
   )
   {
     stopStream(*m_impl);
-    m_impl->rebuildAttempted = false;
+    {
+      std::lock_guard<std::mutex> lock(m_impl->frameMutex);
+      m_impl->rebuildAttempted = false;
+    }
     m_monitorSelectionData.selectedMonitorId = monitorId;
+  }
+
+
+  bool ScreenCaptureKitGrabber::isHealthy() const
+  {
+    std::lock_guard<std::mutex> lock(m_impl->frameMutex);
+    return m_impl->healthy;
   }
 
 
@@ -350,11 +397,13 @@ namespace Aurora::Input::Mac
 
   void ScreenCaptureKitGrabber::_ensureStream()
   {
-    if(m_impl->stream != nil || m_impl->rebuildAttempted){
-      return;
+    {
+      std::lock_guard<std::mutex> lock(m_impl->frameMutex);
+      if(m_impl->stream != nil || m_impl->rebuildAttempted){
+        return;
+      }
+      m_impl->rebuildAttempted = true;
     }
-
-    m_impl->rebuildAttempted = true;
 
     try{
       CGDirectDisplayID targetDisplayID = CGMainDisplayID();
