@@ -518,6 +518,41 @@ That $99/yr remains relevant only for `Aurora-8mk.10` (Gatekeeper/
 notarization), once a build is zipped and leaves this machine — unrelated
 to this phase's scope.
 
+### LaunchServices intercepts a second launch before InstanceLock ever runs (Aurora-qps.4)
+
+`GUILaunchUX.md`'s decided design (`Second launch opens the configured URL
+and exits`) assumes a second `open`/double-click always spawns a second
+process that runs `Aurora::App::InstanceLock`, finds the lock already
+held, and calls `openWebBrowser(url)` before exiting — exactly what
+Windows (`Shell_NotifyIcon`/`CreateProcess`) and Linux (`xdg-open`/execve)
+both do, since neither has OS-level single-instance-per-bundle behavior of
+its own. **macOS does**, and it preempts this entirely: tested directly
+(`open <bundle>` invokes the identical LaunchServices path a Finder
+double-click does, so this needed no GUI/mouse simulation) by launching
+Aurora once, then launching it again while the first instance was still
+running, using `open --stdout/--stderr` to redirect the second launch's
+streams. `open` itself refused, printing *"Application ... was already
+running and so the redirected stdin/stdout/stderr provided could not be
+set"* — and `ps` confirmed only the original process ever existed, not a
+second one that ran and exited quickly. LaunchServices recognizes the
+bundle identifier is already running and never spawns a second process at
+all; `main()`, `InstanceLock`, and the `openWebBrowser(url)` call in its
+not-held branch never execute on a second launch.
+
+**Real consequence, not just a technicality**: under `LSUIElement` agent
+mode (`Aurora-qps.3`, no Dock icon), a second double-click today does
+*nothing visible* — no new browser tab, no window to activate, nothing.
+The `InstanceLock` handoff design's whole purpose (re-surface the running
+instance's URL) silently doesn't fire on Mac via the standard launch path,
+unlike Windows/Linux where it's the only mechanism and reliably runs.
+Follow-up filed to actually fix this (`Aurora-qps.7`) — the standard
+AppKit answer is an `NSApplicationDelegate` handling the reopen Apple
+Event (`applicationShouldHandleReopen:hasVisibleWindows:` or listening for
+`kAEReopenApplication` directly, since accessory apps have no windows for
+the former to key off), calling `openWebBrowser(url)` itself — real
+AppKit plumbing, not a one-line fix, so scoped separately rather than
+folded into this investigation.
+
 ## Build sequencing
 
 Phases 0-2 are portable engineering that don't depend on any permission
