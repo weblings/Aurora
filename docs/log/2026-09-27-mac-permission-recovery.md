@@ -71,6 +71,14 @@ side while this session drove the daemon:
 
 All 62 `app/mac` tests and 3 `input/mac` tests still pass.
 
+Two lessons filed in `docs/lessons/input.md`: an ad-hoc-signed dev
+binary's Screen Recording grant doesn't survive a rebuild even for the
+same bundle identifier (`tccutil reset` confirms a stale, non-matching
+entry rather than "never granted" -- cost the first grant/relaunch retest
+here), and `SCShareableContent`'s completion handler resolved as denied in
+under a second rather than hanging while the dialog was pending, so the
+`Pending` timeout path may be closer to theoretical than the common case.
+
 State: `Aurora-8mk.8` closed. Epic `Aurora-8mk` now 10/12 (83%). Remaining:
 `Aurora-8mk.9` (lock/sleep stream health -- needs the user to actually lock
 the screen mid-stream, an empirical step only they can do), `Aurora-8mk.10`
