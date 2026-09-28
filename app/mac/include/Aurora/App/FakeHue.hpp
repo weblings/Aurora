@@ -15,11 +15,11 @@ namespace Aurora::App
   // Also defaults AURORA_DEV_FAKE_HUE=1 so discovery targets the fake with
   // no address typing. Combine with --fresh for the full clean-room run.
   //
-  // Same content as app/mac's and app/windows' copies of this file -- three
-  // per-platform copies on purpose (matching Registry.hpp/InstanceLock.hpp's
-  // existing convention here), not a shared header, since each
-  // app/<platform> repo fetches independently. Keep all three in sync by
-  // hand if this ever changes (Aurora-zx4).
+  // Same content as app/linux's and app/windows' copies of this file --
+  // three per-platform copies on purpose (matching Registry.hpp/
+  // InstanceLock.hpp's existing convention here), not a shared header,
+  // since each app/<platform> repo fetches independently. Keep all three in
+  // sync by hand if this ever changes (Aurora-zx4).
   inline bool hasCliFlag(int argc, char** argv, const char* flag)
   {
     for(int i = 1; i < argc; ++i){

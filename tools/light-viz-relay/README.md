@@ -39,9 +39,19 @@ python3 tools/light-viz-relay/relay.py
 ```
 
 ```sh
-# 3. The app, clean-room against the fake (--fake-hue presets the bridge
-#    env + dev discovery; --fresh wipes the config root to a temp dir):
-AURORA_DEV_LIGHT_TAP=1 ./build/linux-app/bin/Aurora --fake-hue --fresh
+# 3. The app, clean-room against the fake. --fake-hue (all three platforms,
+#    Aurora-zx4) sets, only where unset: AURORA_HUE_BRIDGE_ADDRESS=127.0.0.1:18443,
+#    AURORA_HUE_USERNAME=fakedevuser01, AURORA_HUE_CLIENTKEY=<a fixed dev value>,
+#    AURORA_HUE_ENTERTAINMENT_CONFIG_ID=conf-room-4zone, and -- easy to miss,
+#    this is what actually makes the WebUI's own bridge-discovery step find
+#    the fake instead of trying real network discovery -- AURORA_DEV_FAKE_HUE=1.
+#    See app/*/include/Aurora/App/FakeHue.hpp for the literal values if you
+#    need to set any of these by hand instead (e.g. no --fake-hue support on
+#    your platform yet, or scripting against a prebuilt binary). --fresh
+#    wipes the config root to a temp dir:
+AURORA_DEV_LIGHT_TAP=1 ./build/linux-app/bin/Aurora --fake-hue --fresh    # Linux
+AURORA_DEV_LIGHT_TAP=1 ./build/mac-app/bin/Aurora.app/Contents/MacOS/Aurora --fake-hue --fresh   # Mac
+AURORA_DEV_LIGHT_TAP=1 .\build\windows-app\bin\Aurora.exe --fake-hue --fresh                     # Windows
 ```
 
 ```sh

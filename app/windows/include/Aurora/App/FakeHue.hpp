@@ -15,11 +15,12 @@ namespace Aurora::App
   // Also defaults AURORA_DEV_FAKE_HUE=1 so discovery targets the fake with
   // no address typing. Combine with --fresh for the full clean-room run.
   //
-  // Same content as app/mac's and app/windows' copies of this file -- three
+  // Same content as app/linux's and app/mac's copies of this file -- three
   // per-platform copies on purpose (matching Registry.hpp/InstanceLock.hpp's
   // existing convention here), not a shared header, since each
   // app/<platform> repo fetches independently. Keep all three in sync by
-  // hand if this ever changes (Aurora-zx4).
+  // hand if this ever changes (Aurora-zx4). Only real platform difference:
+  // plain ::setenv doesn't exist on Windows, so this uses _putenv_s.
   inline bool hasCliFlag(int argc, char** argv, const char* flag)
   {
     for(int i = 1; i < argc; ++i){
@@ -33,7 +34,7 @@ namespace Aurora::App
   inline void setEnvDefault(const char* name, const char* value)
   {
     if(!std::getenv(name)){
-      ::setenv(name, value, 0);
+      _putenv_s(name, value);
     }
   }
 

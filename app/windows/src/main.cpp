@@ -27,6 +27,7 @@
 
 #include <nlohmann/json.hpp>
 
+#include <Aurora/App/FakeHue.hpp>
 #include <Aurora/App/InstanceLock.hpp>
 #include <Aurora/App/LogSink.hpp>
 #include <Aurora/App/Registry.hpp>
@@ -945,6 +946,13 @@ try
   const bool consoleAttached = attachParentConsole(argc, argv);
   g_consoleAttached = consoleAttached;
   sink.setConsole(consoleAttached ? &std::cout : nullptr);
+
+  // --fake-hue: preset the fake-bridge dev flow (see FakeHue.hpp).
+  // Explicit env wins over the presets; applied before anything reads env.
+  if(Aurora::App::hasCliFlag(argc, argv, "--fake-hue")){
+    Aurora::App::applyFakeHueDefaults();
+    logLine("Hue: fake-bridge defaults (override via AURORA_HUE_* env)");
+  }
 
   // Resolved before registry setup now (unlike before CredentialsStore
   // existed) -- registerOutputs needs it to look up any persisted Hue
