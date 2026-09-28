@@ -38,3 +38,4 @@ Planning docs stay clean: decisions, status, and pointers here only.
 | 2026-09-28 | Mac audio-terminal support ships: permission signal + app/mac wiring, verified end to end via fake-hue-bridge | Aurora-9z4.4, Aurora-9z4.5 |
 | 2026-09-28 | WebUI banner for the audio permission signal, closes out Aurora-9z4 (7/7) -- browser rendering not verified, flagged | Aurora-9z4.7 |
 | 2026-09-28 | --fake-hue ported to Mac/Windows, README tightened to name the actual env vars -- Windows not compile-verified, flagged | Aurora-zx4 |
+| 2026-09-28 | Video<->audio handoff confirmed live; Screen Recording -3801 despite enabled toggle traced to a second, inline-Approve consent dialog | Aurora-z4q |
