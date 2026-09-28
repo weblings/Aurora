@@ -33,3 +33,5 @@ Planning docs stay clean: decisions, status, and pointers here only.
 | 2026-09-27 | Permission recovery flow lands, verified live through a real deny/grant cycle | Aurora-8mk.8 |
 | 2026-09-27 | Stream health lands: lock idles then kills the stream after ~1min+, isHealthy() self-heals via 8mk.6's rebuild | Aurora-8mk.9 |
 | 2026-09-27 | Bundle icon fix: qlmanage flattened transparency + a real 32px export offset, switched to sips+corrected 1024px master | Aurora-8hh |
+| 2026-09-28 | Audio process-tap probe: tap+aggregate-device+IOProc mechanism confirmed, permission signal stays opaque even hands-on | Aurora-9z4.1 |
+| 2026-09-28 | MacAudioGrabber lands: CMake plumbing, real IAudioInput impl, tests -- verified end to end against real system audio | Aurora-9z4.2, Aurora-9z4.3, Aurora-9z4.6 |

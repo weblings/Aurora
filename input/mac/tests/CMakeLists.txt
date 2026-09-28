@@ -20,6 +20,10 @@ add_executable(AuroraInputMacTests
   InputControlDescriptorTests.cpp
 )
 
+if(AURORA_INPUT_MAC_ENABLE_AUDIO)
+  target_sources(AuroraInputMacTests PRIVATE MacAudioInputTests.cpp)
+endif()
+
 target_link_libraries(AuroraInputMacTests PRIVATE
   AuroraInputMac
   Catch2::Catch2WithMain

@@ -359,7 +359,7 @@ library's real behavior before designing around it" habit:
   matching the 14.4+ floor this doc already settled on above for
   unrelated adoption-share reasons — no change needed, just corroboration.
 
-#### Potential build sequence (not started — Step 0 is next)
+#### Build sequence
 
 Mirrors the video tier's own successful shape: resolve the load-bearing
 permission/API risk with a cheap, throwaway probe before writing real
@@ -367,56 +367,84 @@ code against it, the same move `Aurora-8mk.4` made for Screen Recording
 before `input/mac/` existed.
 
 - **Step 0 — probe the tap → aggregate-device → IOProc chain and the
-  permission behavior around it, hands-on, on the real dev machine. Not
-  yet run.** Extend the existing `tcc-probe-app.app` bundle (or a new
-  throwaway one built the same way) to: build a real
-  `initStereoGlobalTapButExcludeProcesses` tap, wrap it in an aggregate
-  device using the concrete dictionary shape above (real output-device UID
-  as `kAudioAggregateDeviceMainSubDeviceKey`, tap in
+  permission behavior around it, hands-on, on the real dev machine. DONE,
+  `Aurora-9z4.1`, 2026-09-28** (full write-up:
+  [`docs/log/2026-09-28-mac-audio-tap-probe.md`](log/2026-09-28-mac-audio-tap-probe.md)).
+  Built a throwaway Objective-C++ probe wrapped as a real bundle
+  (`AudioProbe.app`, `com.aurora.audioprobe`), same shape as
+  `Aurora-8mk.4`/`.11`'s Screen Recording probe. **Capture mechanism:
+  confirmed working on the first attempt** — the exact dictionary shape
+  scoped above (real output-device UID as
+  `kAudioAggregateDeviceMainSubDeviceKey`, tap in
   `kAudioAggregateDeviceTapListKey`, `kAudioAggregateDeviceIsPrivateKey:
-  true`), start it via `AudioDeviceCreateIOProcID`, and confirm non-zero
-  samples actually arrive while something is playing. Alongside that,
-  deliberately walk the permission-denial path once (fresh install, deny,
-  then grant) to confirm firsthand — on Aurora's own bundle, not just from
-  others' reports — whether denial is truly silent (all-zero buffers,
-  `noErr` throughout); whether this grant is independent of the existing
-  Screen Recording grant (expected: yes, separate prompt, per the two
-  independently-keyed-grants finding above); whether the bundle wrapper
-  alone is sufficient for Aurora to register under "System Audio Recording
-  Only" at all (expected yes, per the Flutter report above, but Aurora's
-  own bundle hasn't been checked); and whether a rebuild between grant and
-  retest invalidates the grant the same way it does for Screen Recording.
-  This step's findings decide Step 3's actual design, not just its
-  implementation details.
-- **Step 1 — CMake plumbing.** Add `AURORA_INPUT_MAC_ENABLE_AUDIO`
-  (mirroring `AURORA_INPUT_WINDOWS_ENABLE_AUDIO` in
-  [`input/windows/CMakeLists.txt`](../input/windows/CMakeLists.txt)), and
-  flip [`input/mac/CMakeLists.txt`](../input/mac/CMakeLists.txt)'s
-  currently-hardcoded `set(AURORA_CORE_ENABLE_AUDIO FALSE CACHE BOOL ""
-  FORCE)` to gate on it instead, the way `input/linux` already ties its
-  own audio toggle through.
-- **Step 2 — `MacAudioGrabber` implementing `IAudioInput`.** Built against
-  Step 0's verified sequence: whole-system tap via
+  true`) delivered real, 100%-non-zero system audio from the very first
+  `AudioDeviceCreateIOProcID` callback, both run bare from Terminal and
+  `open`-launched from the real bundle as a never-before-run identity —
+  no aggregate-device misconfiguration, no delay. **Permission signal:
+  did not resolve cleanly, even with the user present at the keyboard** —
+  a dialog appeared during both runs, but the user (watching the screen
+  in real time, since this can't be observed programmatically or by an
+  agent without eyes on the display) couldn't attribute either one to a
+  specific permission, and `AudioProbe` never appeared as its own entry in
+  System Settings afterward despite genuinely capturing real audio. Most
+  likely explanation, not fully certain: the same async, non-gating dialog
+  behavior `Aurora-8mk.8` already found for `SCShareableContent` generalizes
+  to `AudioDeviceStart` too — the OS surfaces the dialog on its own
+  schedule without gating the call that triggers it, so both dialogs may
+  have appeared after capture had already succeeded. **Net effect on
+  Step 3: strengthens, doesn't change, the already-scoped conclusion** —
+  not just "there's no public API to check the grant" (per Apple's own
+  forum reply), but "even a human watching the screen couldn't reliably
+  attribute the dialogs that appeared." The zero-buffer-over-time-window
+  inference approach is the right design, not a reach for a cleaner signal
+  that doesn't appear to exist. A `tccutil reset` cycle to force a clean
+  denied→granted transition would likely give a sharper signal but wasn't
+  run — it would revoke Terminal's already-working grant on a real dev
+  machine, a disruptive trade-off worth the user's explicit sign-off before
+  attempting, not something to do speculatively.
+- **Step 1 — CMake plumbing. DONE, `Aurora-9z4.2`, 2026-09-28.**
+  [`input/mac/CMakeLists.txt`](../input/mac/CMakeLists.txt) gained
+  `AURORA_INPUT_MAC_ENABLE_AUDIO` (default `TRUE`), tying
+  `AURORA_CORE_ENABLE_AUDIO` through it the way `input/linux` already does.
+  Links `CoreAudio` only — a standalone link check confirmed `AudioToolbox`
+  isn't actually needed for this API surface. Folded into the existing
+  `AuroraInputMac` target rather than a separate `AuroraInputMacAudio`,
+  deviating from `docs/AudioAnalysis.md`'s original separate-target sketch
+  in favor of what `input/linux` actually shipped.
+- **Step 2 — `MacAudioGrabber` implementing `IAudioInput`. DONE,
+  `Aurora-9z4.3`, 2026-09-28** (full write-up:
+  [`docs/log/2026-09-28-mac-audio-grabber-lands.md`](log/2026-09-28-mac-audio-grabber-lands.md)).
+  Built against Step 0's verified sequence: whole-system tap via
   `initStereoGlobalTapButExcludeProcesses`, delivered through an aggregate
   device + `AudioDeviceCreateIOProcID`, bridged into the pull-based
   `readNextBuffer()` contract with the same mutex-guarded accumulator
   pattern `input/windows/src/AudioGrabber.cpp`'s miniaudio callback
-  already uses.
-- **Step 3 — audio-specific permission-recovery design.** Informed by
-  Step 0's findings, not a port of `Aurora-8mk.6`/`.8`'s completion-handler
-  shape — most likely an all-zero-buffer-over-time inference feeding the
-  same generic `permission_pending`-style REST response and WebUI
-  messaging those phases already built.
-- **Step 4 — `app/mac` wiring.** `registerAudioInputs` + the audio-mode
-  branch in `main.cpp`, mirroring
+  already uses. Before writing the buffer-copy logic, checked directly
+  (not assumed) whether this shape delivers one interleaved buffer or one
+  mono buffer per channel — confirmed interleaved, matching
+  `kAudioDevicePropertyStreamFormat`'s own report; filed as a new
+  `docs/lessons/input.md` entry, with the non-interleaved case kept only
+  as a defensive, unexercised fallback. Verified end to end through the
+  class's real public interface: a standalone harness got 285,696 real
+  non-zero interleaved float32 samples at 48kHz/2ch over a 3s window.
+- **Step 3 — audio-specific permission-recovery design.** Not yet started.
+  Informed by Step 0's findings, not a port of `Aurora-8mk.6`/`.8`'s
+  completion-handler shape — most likely an all-zero-buffer-over-time
+  inference feeding the same generic `permission_pending`-style REST
+  response and WebUI messaging those phases already built.
+- **Step 4 — `app/mac` wiring.** Not yet started. `registerAudioInputs` +
+  the audio-mode branch in `main.cpp`, mirroring
   [`app/linux/src/main.cpp`](../app/linux/src/main.cpp)'s existing audio
   wiring almost verbatim — this part is mechanical, not a design question.
-- **Step 5 — tests.** Decide whether to follow Windows'
+  Now has a working, verified `MacAudioGrabber` to wire in.
+- **Step 5 — tests. DONE, `Aurora-9z4.6`, 2026-09-28.** Followed Windows'
   precedent (`input/windows/tests/WindowsAudioInputTests.cpp` — no
-  dummy/fixture audio backend, real-hardware-only testing) or finally
-  build the fixture `docs/AudioAnalysis.md` deferred
-  (`AudioFile-Input` as a deterministic test source, the audio equivalent
-  of `DummyGrabber`).
+  dummy/fixture audio backend, real-hardware-only testing) rather than
+  building the fixture `docs/AudioAnalysis.md` had deferred:
+  [`input/mac/tests/MacAudioInputTests.cpp`](../input/mac/tests/MacAudioInputTests.cpp),
+  `[.][manual][MacAudioGrabber]`-tagged. Verified both ways: the normal
+  `ctest` suite is unaffected, and the manual suite's new audio test passes
+  cleanly against real system audio.
 
 ### Tray-parity (matches 1.0.2 Windows/Linux shape)
 

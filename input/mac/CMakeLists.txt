@@ -6,16 +6,20 @@ project(AuroraInputMac)
 enable_language(OBJCXX)
 
 option(AURORA_INPUT_MAC_BUILD_TESTS "Build this plugin's own tests" TRUE)
+# Same dependency-isolation reasoning as AURORA_INPUT_WINDOWS_ENABLE_AUDIO/
+# AURORA_INPUT_LINUX_ENABLE_AUDIO -- off skips Core's aubio requirement
+# entirely for a video-only build. Folded into AuroraInputMac itself
+# (one target, not a separate AuroraInputMacAudio), matching what
+# input/linux actually shipped rather than docs/AudioAnalysis.md's
+# original separate-target sketch -- simpler, and the real precedent now.
+option(AURORA_INPUT_MAC_ENABLE_AUDIO "Build Core Audio process-tap capture support" TRUE)
 
 include(FetchContent)
 
 # Aurora core -- SOURCE_DIR points into the monorepo tree.
 # Suppress its own test suite -- we only want its libraries here.
-# Video-only tier 1 (docs/MacSupport.md) needs no aubio/audio pipeline,
-# unlike input/linux which ties this to its own audio-input toggle --
-# Mac has no audio input option to tie it to yet.
 set(BUILD_TESTS FALSE CACHE BOOL "" FORCE)
-set(AURORA_CORE_ENABLE_AUDIO FALSE CACHE BOOL "" FORCE)
+set(AURORA_CORE_ENABLE_AUDIO ${AURORA_INPUT_MAC_ENABLE_AUDIO} CACHE BOOL "" FORCE)
 FetchContent_Declare(
   AuroraCore
   SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../../core
@@ -57,6 +61,22 @@ set_source_files_properties(src/ScreenCaptureKitGrabber.mm PROPERTIES
 )
 
 target_compile_features(AuroraInputMac PUBLIC cxx_std_20)
+
+if(AURORA_INPUT_MAC_ENABLE_AUDIO)
+  # Only CoreAudio (process taps, aggregate devices, the HAL IOProc) +
+  # Foundation (CATapDescription's NSArray/NSUUID/NSDictionary use) are
+  # actually needed -- confirmed by a standalone link check, not assumed;
+  # AudioToolbox is not required for this API surface.
+  find_library(FRAMEWORK_COREAUDIO CoreAudio REQUIRED)
+
+  target_sources(AuroraInputMac PRIVATE src/MacAudioGrabber.mm)
+  target_compile_definitions(AuroraInputMac PUBLIC AURORA_INPUT_MAC_AUDIO_AVAILABLE=1)
+  target_link_libraries(AuroraInputMac PUBLIC ${FRAMEWORK_COREAUDIO})
+
+  set_source_files_properties(src/MacAudioGrabber.mm PROPERTIES
+    COMPILE_FLAGS "-fobjc-arc"
+  )
+endif()
 
 if(AURORA_INPUT_MAC_BUILD_TESTS)
   enable_testing()
