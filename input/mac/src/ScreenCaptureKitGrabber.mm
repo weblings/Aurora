@@ -135,7 +135,8 @@ namespace Aurora::Input::Mac
       }];
 
       if(contentFuture.wait_for(5s) != std::future_status::ready){
-        throw std::runtime_error(
+        throw PermissionError(
+          PermissionErrorKind::Pending,
           "ScreenCaptureKitGrabber: SCShareableContent didn't respond within 5s -- "
           "check System Settings -> Privacy & Security -> Screen Recording"
         );
@@ -143,7 +144,8 @@ namespace Aurora::Input::Mac
 
       SCShareableContent* content = contentFuture.get();
       if(content == nil || content.displays.count == 0){
-        throw std::runtime_error(
+        throw PermissionError(
+          PermissionErrorKind::Denied,
           "ScreenCaptureKitGrabber: no shareable displays -- Screen Recording "
           "permission likely not granted (System Settings -> Privacy & "
           "Security -> Screen Recording; Aurora must be launched as a real "

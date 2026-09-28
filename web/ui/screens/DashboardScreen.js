@@ -26,6 +26,7 @@ import { screenDivisionRects } from '../ScreenDivision.js';
 import { AccordionSection } from '../AccordionSection.js';
 import { TuningFields } from '../TuningFields.js';
 import { applyTooltip } from '../Tooltips.js';
+import { renderReloadError, parseMacPermissionError } from '../MacPermissionRecovery.js';
 
 export class DashboardScreen {
   constructor(app) {
@@ -34,6 +35,7 @@ export class DashboardScreen {
     this.hasAudio = false;
     this.inputs = [];
     this.audioInputs = [];
+    this.platform = '';
     this.currentActiveInputName = '';
     this.currentActiveAudioInputName = '';
     this.monitors = [];
@@ -116,6 +118,7 @@ export class DashboardScreen {
     this.hasHue = capabilities.outputs?.includes('hue') ?? false;
     this.inputs = capabilities.inputs ?? [];
     this.audioInputs = capabilities.audioInputs ?? [];
+    this.platform = capabilities.platform ?? '';
     this.hasAudio = this.audioInputs.length > 0;
     this.showSinkField = this.audioInputs.includes('linux-audio');
 
@@ -229,7 +232,7 @@ export class DashboardScreen {
       return;
     }
 
-    const errorHtml = this.toggleError ? `<p class="status-text status-text-error">⚠ ${escapeHtml(this.toggleError)}</p>` : '';
+    const errorHtml = renderReloadError(this.toggleError, this.platform);
 
     controls.innerHTML = `
       <div class="db-controls-row">
@@ -257,7 +260,7 @@ export class DashboardScreen {
     this.deviceField?.destroy();
     this.deviceField = null;
 
-    const errorHtml = this.topTierError ? `<p class="status-text status-text-error">⚠ ${escapeHtml(this.topTierError)}</p>` : '';
+    const errorHtml = renderReloadError(this.topTierError, this.platform);
 
     topTier.innerHTML = `
       <div class="db-device-slot"></div>
@@ -454,7 +457,11 @@ export class DashboardScreen {
         this.topTierError = "Couldn't save capture settings.";
         this._renderTopTier();
       } else if (result.reloadError) {
-        this.topTierError = `Saved, but couldn't apply it live: ${result.reloadError}`;
+        // Kept raw (no framing) for the mac permission case -- renderReloadError()
+        // detects the prefix and shows its own guided text instead.
+        this.topTierError = (this.platform === 'mac' && parseMacPermissionError(result.reloadError))
+          ? result.reloadError
+          : `Saved, but couldn't apply it live: ${result.reloadError}`;
         this._renderTopTier();
       }
     } catch {
@@ -480,7 +487,9 @@ export class DashboardScreen {
       if (!result.succeeded) {
         this.toggleError = "Couldn't switch modes.";
       } else if (result.reloadError) {
-        this.toggleError = `Couldn't apply it live: ${result.reloadError}`;
+        this.toggleError = (this.platform === 'mac' && parseMacPermissionError(result.reloadError))
+          ? result.reloadError
+          : `Couldn't apply it live: ${result.reloadError}`;
       } else {
         this.mode = mode;
       }

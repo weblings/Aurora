@@ -30,6 +30,7 @@ import { renderTopBar } from '../topBar.js';
 import { renderNavFooter } from '../NavFooter.js';
 import { DeviceField, AUTO_MONITOR_VALUE } from '../DeviceField.js';
 import { applyTooltip } from '../Tooltips.js';
+import { renderReloadError, parseMacPermissionError } from '../MacPermissionRecovery.js';
 
 export function pickVideoInputName(inputs, current) {
   if (current && current !== 'dummy' && inputs.includes(current)) return current;
@@ -61,6 +62,7 @@ export class ModeDeviceScreen {
     this.selectedMonitorName = AUTO_MONITOR_VALUE;
     this.sinkName = '';
     this.showSinkField = false;
+    this.platform = '';
     this.error = null;
     this.deviceField = null;
     this.applyPromise = null; // latest _applyMode run, if any -- Continue awaits it (see _onContinue)
@@ -95,6 +97,7 @@ export class ModeDeviceScreen {
 
     this.inputs = capabilities.inputs ?? [];
     this.audioInputs = capabilities.audioInputs ?? [];
+    this.platform = capabilities.platform ?? '';
     this.hasAudio = this.audioInputs.length > 0;
     this.showSinkField = this.audioInputs.includes('linux-audio');
 
@@ -151,7 +154,7 @@ export class ModeDeviceScreen {
       ? `<p class="status-text">Zones react together in Audio mode — there's no per-zone mapping step.</p>`
       : '';
 
-    const errorHtml = this.error ? `<p class="status-text status-text-error">⚠ ${escapeHtml(this.error)}</p>` : '';
+    const errorHtml = renderReloadError(this.error, this.platform);
 
     body.innerHTML = `
       ${toggleHtml}
@@ -256,7 +259,13 @@ export class ModeDeviceScreen {
       if (!result.succeeded) {
         this.error = "Couldn't save capture settings.";
       } else if (result.reloadError) {
-        this.error = `Saved, but couldn't apply it live: ${result.reloadError}`;
+        // Kept raw (no "Saved, but..." framing) when it's the mac
+        // permission case -- renderReloadError() detects the prefix and
+        // shows its own guided text instead; framed here otherwise, same
+        // sentence as before.
+        this.error = (this.platform === 'mac' && parseMacPermissionError(result.reloadError))
+          ? result.reloadError
+          : `Saved, but couldn't apply it live: ${result.reloadError}`;
       } else if (this.mode === 'video') {
         this.currentActiveInputName = patch.activeInputName;
         // Now resolvable within this same screen visit, since the mode just
@@ -277,8 +286,4 @@ export class ModeDeviceScreen {
 
     this._render();
   }
-}
-
-function escapeHtml(s) {
-  return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }

@@ -515,6 +515,18 @@ namespace
       try{
         next = Pipeline::build(registry, config, configRoot);
       }
+      catch(const Aurora::Input::Mac::PermissionError& e){
+        // Stable prefix (not a separate JSON field -- SettingsRoutes'
+        // onConfigChanged contract is shared with linux/windows, which have
+        // nothing analogous to put there) the WebUI checks for
+        // (MacPermissionRecovery.js) to show its System-Settings-recovery
+        // state (Aurora-8mk.8) instead of the generic "couldn't apply it
+        // live" sentence every other reload failure gets.
+        using Aurora::Input::Mac::PermissionErrorKind;
+        errorOut = (e.kind == PermissionErrorKind::Denied ? "permission_denied: " : "permission_pending: ")
+          + std::string(e.what());
+        return false;
+      }
       catch(const std::exception& e){
         errorOut = e.what();
         return false;
