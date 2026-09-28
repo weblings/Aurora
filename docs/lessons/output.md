@@ -238,6 +238,8 @@ With the tier-1 fake running on localhost, NUX "checking" asked discovery.meethu
 
 **Fix:** when `AURORA_DEV_FAKE_HUE` is set, `/api/hue/discover` returns only the fake (address precedence: flag value > `AURORA_HUE_BRIDGE_ADDRESS` > default `127.0.0.1:18443`); unset is the production path byte-for-byte. General principle: substitute the discovery source in dev mode rather than unioning it -- a union preserves the real world's ambiguity while adding a fake entry nobody asked to choose between.
 
+**Restated live, the hard way (`Aurora-zx4`):** this var was documented right here, and still got missed -- launching the fake-lights-viz recipe on Mac, `AURORA_HUE_BRIDGE_ADDRESS`/`_USERNAME`/`_CLIENTKEY` were set by hand (enough for `registerOutputs()`'s own backend fallback to work), but `AURORA_DEV_FAKE_HUE` wasn't, because `app/mac` had no `--fake-hue` flag to set it automatically the way `app/linux` does -- only `app/linux/include/Aurora/App/FakeHue.hpp` existed. The backend pipeline ran fine; the WebUI's own discovery step stayed stuck, since it's gated on this var specifically, not the bridge-address one. Now fixed at the source: `FakeHue.hpp` ported to `app/mac`/`app/windows` too, so `--fake-hue` sets all five vars (this one included) identically on every platform -- see `docs/log/2026-09-28-fake-hue-flag-portability.md`.
+
 ---
 
 ## Saved Hue credentials silently beat `AURORA_HUE_*` env vars -- a stale pairing streams empty frames at full rate
