@@ -18,14 +18,17 @@
 // the dtor calling get_future() on the moved-from object) doesn't apply
 // here at all. Instead, pump() must be called once per tick-loop
 // iteration -- the AppKit analog of Windows' PeekMessage/DispatchMessage
-// pump (app/windows/src/main.cpp:1176-1181). The .mm scopes its run-loop
-// call to kCFRunLoopDefaultMode only, never kCFRunLoopCommonModes --
-// registering observers there breaks NSEventTrackingRunLoopMode (menu
-// tracking), the tao-apps/tao#1324 failure mode -- and this shape was
-// verified against a throwaway probe before being wired in here
-// (Aurora-qps.1: NSStatusItem/menu construct with no NSApplicationMain, no
-// bundle, no signing; a manual click test confirmed both menu items
-// dispatch and the menu doesn't auto-dismiss).
+// pump (app/windows/src/main.cpp:1176-1181). pump() drains AppKit's event
+// queue via -nextEventMatchingMask:/-sendEvent: in NSDefaultRunLoopMode
+// (never common modes -- registering anything in kCFRunLoopCommonModes
+// breaks NSEventTrackingRunLoopMode/menu tracking, the tao-apps/tao#1324
+// failure mode). A bare CFRunLoopRunInMode call was tried first
+// (Aurora-qps.2) and was enough for status-item clicks (Aurora-qps.1's
+// probe verified that shape), but never delivered Apple Events -- Aurora-
+// qps.7 needed the reopen event LaunchServices sends on a second launch,
+// found -sendEvent: is the actual dependency (a throwaway probe confirmed
+// this empirically, isolating pump mechanism from accessory status and
+// handler style) and switched to this shape instead.
 namespace Aurora::App
 {
 

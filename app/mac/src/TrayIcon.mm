@@ -14,6 +14,20 @@
 - (void)onStop:(id)sender;
 @end
 
+// Catches LaunchServices' reopen signal (Aurora-qps.7): with no Dock icon
+// (LSUIElement, Aurora-qps.3) and no window, a second `open`/double-click
+// while Aurora is already running is otherwise silent -- LaunchServices
+// never spawns a second process (Aurora-qps.4 confirmed InstanceLock's own
+// "second launch opens the URL and exits" logic never runs on Mac), it
+// just sends this app the standard reopen Apple Event instead. Needs
+// TrayIcon::pump() to actually drain AppKit's event queue via -sendEvent:
+// -- verified empirically that the bare CFRunLoopRunInMode pump this
+// shipped with in Aurora-qps.2 never delivers this event at all, regardless
+// of accessory status or handler style (a throwaway probe checked both).
+@interface AuroraTrayAppDelegate : NSObject <NSApplicationDelegate>
+@property (nonatomic, assign) Aurora::App::TrayIcon::Impl* impl;
+@end
+
 namespace Aurora::App
 {
   struct TrayIcon::Impl
@@ -25,6 +39,7 @@ namespace Aurora::App
 
     NSStatusItem* statusItem = nil;
     AuroraTrayMenuTarget* target = nil;
+    AuroraTrayAppDelegate* appDelegate = nil;
   };
 }
 
@@ -38,6 +53,16 @@ namespace Aurora::App
 - (void)onStop:(id)sender
 {
   if(self.impl && self.impl->onStop){ self.impl->onStop(); }
+}
+
+@end
+
+@implementation AuroraTrayAppDelegate
+
+- (BOOL)applicationShouldHandleReopen:(NSApplication*)sender hasVisibleWindows:(BOOL)hasVisibleWindows
+{
+  if(self.impl && self.impl->onLaunch){ self.impl->onLaunch(); }
+  return YES;
 }
 
 @end
@@ -66,6 +91,11 @@ m_impl(std::make_unique<Impl>())
   // to happen explicitly, or the status item's first click goes
   // unserviced -- verified missing (then fixed) in Aurora-qps.1's probe.
   [NSApp finishLaunching];
+
+  AuroraTrayAppDelegate* appDelegate = [[AuroraTrayAppDelegate alloc] init];
+  appDelegate.impl = m_impl.get();
+  NSApp.delegate = appDelegate;
+  m_impl->appDelegate = appDelegate;
 
   NSImage* icon = [[NSBundle mainBundle] imageForResource:@"tray-icon"];
   // Discards the icon's RGB, uses only alpha as a mask -- AppKit then
@@ -121,15 +151,28 @@ TrayIcon::~TrayIcon()
 
 void TrayIcon::pump()
 {
-  // Non-blocking drain of whatever AppKit already has queued (status item
-  // clicks, menu tracking) -- the direct analog of Windows'
-  // PeekMessage(..., PM_REMOVE)/DispatchMessage pump. A 0 timeout still
-  // services one already-available source before returning; it never
-  // waits for one to arrive, so this adds no latency on top of the tick
-  // loop's own pacing (sleep_until). Scoped to kCFRunLoopDefaultMode only
-  // -- never kCFRunLoopCommonModes, which would fire inside
-  // NSEventTrackingRunLoopMode and break menu tracking (tao-apps/tao#1324).
-  CFRunLoopRunInMode(kCFRunLoopDefaultMode, 0, true);
+  // Non-blocking drain of whatever AppKit already has queued -- the direct
+  // analog of Windows' PeekMessage(..., PM_REMOVE)/DispatchMessage pump.
+  //
+  // Aurora-qps.2 shipped this as a bare CFRunLoopRunInMode(kCFRunLoopDefaultMode,
+  // 0, true) call, which was enough to service NSStatusItem clicks (verified
+  // in Aurora-qps.1) but -- discovered while chasing Aurora-qps.7 -- never
+  // delivers Apple Events (including the reopen event LaunchServices sends
+  // on a second launch): those route through -sendEvent:, which bare
+  // CFRunLoopRunInMode never calls. Verified empirically with a throwaway
+  // probe: identical handler code (both the applicationShouldHandleReopen:
+  // delegate method and a raw NSAppleEventManager registration) never fired
+  // under the old pump, regardless of accessory (LSUIElement) status: fired
+  // reliably under this one. NSDefaultRunLoopMode is Foundation's name for
+  // the same mode as kCFRunLoopDefaultMode -- still never common modes, so
+  // the tao-apps/tao#1324 menu-tracking constraint still holds.
+  NSEvent* event;
+  while((event = [NSApp nextEventMatchingMask:NSEventMaskAny
+                                      untilDate:[NSDate distantPast]
+                                         inMode:NSDefaultRunLoopMode
+                                        dequeue:YES]) != nil){
+    [NSApp sendEvent:event];
+  }
 }
 
 } // namespace Aurora::App

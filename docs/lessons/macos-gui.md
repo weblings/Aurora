@@ -39,16 +39,57 @@ menu is open, AppKit runs a nested loop in `NSEventTrackingRunLoopMode`.
 `kCFRunLoopCommonModes` includes that mode, so any custom run-loop
 observer/timer registered there (a real bug hit by a third-party project,
 tauri-apps/tao#1324) fires *during* menu tracking and can prematurely end
-it — the menu closes right after opening. Aurora's `pump()` only ever
-calls `CFRunLoopRunInMode(kCFRunLoopDefaultMode, 0, true)` — it registers
-nothing in common modes — so this doesn't apply as written, but the
-scoping was deliberate, not incidental, and worth preserving if this code
-ever grows a custom observer/timer.
+it — the menu closes right after opening. Aurora's `pump()` (first a bare
+`CFRunLoopRunInMode`, later a `-nextEventMatchingMask:`/`-sendEvent:`
+drain — see the Apple Event entry below for why it changed) only ever
+touches `kCFRunLoopDefaultMode`/`NSDefaultRunLoopMode` — the same mode,
+Foundation's name for it — never common modes, so this doesn't apply as
+written in either version, but the scoping was deliberate, not
+incidental, and worth preserving if this code ever grows a custom
+observer/timer.
 
 **Fix:** if a future change needs to register a run-loop observer or timer
 alongside `NSStatusItem`/`NSMenu` UI, scope it to `kCFRunLoopDefaultMode`
 (+ `NSModalPanelRunLoopMode` if modal dialogs need the same treatment) —
 never `kCFRunLoopCommonModes` — or menu tracking silently breaks.
+
+---
+
+## Apple Events (including LaunchServices' reopen event) need `-sendEvent:` — bare `CFRunLoopRunInMode` never delivers them
+Tags: macos, appkit, runloop, appleevent, reopen, nsapplicationdelegate
+Applies-when: a manually-pumped app (no `-run`/`NSApplicationMain`) needs to catch `applicationShouldHandleReopen:` or any other Apple Event
+
+`TrayIcon::pump()` shipped first as a bare
+`CFRunLoopRunInMode(kCFRunLoopDefaultMode, 0, true)` call, which was
+enough to service `NSStatusItem` clicks (a throwaway probe confirmed
+this). It never delivered Apple Events, though — specifically, the
+`kAEReopenApplication` event LaunchServices sends to an already-running
+app on a second launch (relevant here because macOS's own
+single-instance-per-bundle behavior means that's the *only* signal an
+already-running Mac app gets about a second launch attempt; unlike
+Windows/Linux, no second process ever spawns to notice the same thing
+itself). First suspected this might be an `LSUIElement`/accessory-app
+quirk (no Dock icon to reactivate), but isolated with two throwaway probe
+bundles testing both `applicationShouldHandleReopen:` (delegate) and a
+raw `NSAppleEventManager` registration, as both accessory and regular
+(Dock-visible) apps: **neither handler style fired under the
+`CFRunLoopRunInMode` pump, regardless of accessory status** — ruling out
+an LSUIElement-specific cause and pointing at the pump mechanism itself.
+Apple Events route through `-[NSApplication sendEvent:]`, which bare
+`CFRunLoopRunInMode` never calls; switching the probe's pump to a
+`-nextEventMatchingMask:untilDate:inMode:dequeue:`/`-sendEvent:` drain
+(same `NSDefaultRunLoopMode` scoping, so the common-modes/menu-tracking
+constraint above still holds) made the standard delegate method fire
+reliably — no need for the lower-level raw `NSAppleEventManager`
+registration after all, once the pump itself was fixed.
+
+**Fix:** a manually-pumped AppKit app needs `-nextEventMatchingMask:`/
+`-sendEvent:` in its pump loop, not just `CFRunLoopRunInMode`, if it needs
+to receive Apple Events (reopen, quit, URL-open, or any other). Worth
+defaulting to the `-sendEvent:` shape from the start for any such app
+rather than the narrower `CFRunLoopRunInMode` call, which only happens to
+work for a subset of AppKit UI (menu/status-item interaction, verified
+separately) and silently drops everything else with no error.
 
 ---
 

@@ -545,13 +545,20 @@ mode (`Aurora-qps.3`, no Dock icon), a second double-click today does
 The `InstanceLock` handoff design's whole purpose (re-surface the running
 instance's URL) silently doesn't fire on Mac via the standard launch path,
 unlike Windows/Linux where it's the only mechanism and reliably runs.
-Follow-up filed to actually fix this (`Aurora-qps.7`) — the standard
-AppKit answer is an `NSApplicationDelegate` handling the reopen Apple
-Event (`applicationShouldHandleReopen:hasVisibleWindows:` or listening for
-`kAEReopenApplication` directly, since accessory apps have no windows for
-the former to key off), calling `openWebBrowser(url)` itself — real
-AppKit plumbing, not a one-line fix, so scoped separately rather than
-folded into this investigation.
+**Fixed (`Aurora-qps.7`).** Turned out to need more than just adding a
+delegate method: `TrayIcon::pump()`'s bare `CFRunLoopRunInMode` (above)
+never delivers Apple Events at all — a throwaway probe isolated this to
+the pump mechanism itself, not `LSUIElement`/accessory status (neither
+`applicationShouldHandleReopen:` nor a raw `NSAppleEventManager`
+registration fired under the old pump, as either an accessory or a
+regular Dock-visible app). Switching `pump()` to a
+`-nextEventMatchingMask:`/`-sendEvent:` drain (same `NSDefaultRunLoopMode`
+scoping as before) fixed it; the standard `applicationShouldHandleReopen:`
+delegate method works fine once that's in place, no raw registration
+needed. See `docs/lessons/macos-gui.md` ("Apple Events ... need
+`-sendEvent:`") for the full investigation. Verified end to end: a second
+`open` while Aurora is already running now opens/focuses a browser tab,
+and the tray's own menu still dispatches correctly under the new pump.
 
 ## Build sequencing
 
