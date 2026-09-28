@@ -51,3 +51,20 @@ real gap in this session's verification, not a silent assumption.
 `Aurora-9z4` closed out: 7/7 children done. Mac audio-terminal support
 (tier 1) is complete, backend and WebUI, matching the already-shipped
 Windows/Linux audio stack's shape.
+
+## Follow-up: closing the browser-verification gap above surfaced unrelated dev-tooling work
+
+Going back to actually check the banner in a real browser (the gap the
+"Verification" section flagged) turned into more than just opening a tab.
+Launching the fake-lights-viz recipe hit the WebUI's own bridge-discovery
+step stuck -- unrelated to the banner itself, but blocking any browser
+click-through past onboarding. Root cause: `app/mac` had no `--fake-hue`
+flag, so the dev-only `AURORA_DEV_FAKE_HUE` var (the one that makes
+`GET /api/hue/discover` return the fake bridge instead of trying real
+network discovery) never got set by hand alongside the bridge/username/
+clientkey vars. Fixed and closed separately as `Aurora-zx4` -- `FakeHue.hpp`
+ported to `app/mac`/`app/windows`, see
+[`docs/log/2026-09-28-fake-hue-flag-portability.md`](2026-09-28-fake-hue-flag-portability.md).
+The banner itself still wasn't visually confirmed in this session (that
+gap stands as written above) -- this follow-up only unblocked the path to
+actually trying.
