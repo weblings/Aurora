@@ -27,6 +27,34 @@ one layer independently of the others' claims about themselves.
 
 ---
 
+## "Did it actually stop, or does it just look that way?" — tap the live data stream with a timestamped log instead of trusting the visual impression
+Tags: debugging, live-testing, timing, sse, macos
+Applies-when: a user reports something looks frozen/paused in a live view and it's unclear whether that's real or a rendering artifact
+
+Asked whether frames genuinely stopped reaching `light-viz-relay`'s SSE
+viz while Aurora's tray menu was open, or whether it just looked that way
+(browser tab losing focus, canvas not repainting, etc.) — plausible either
+way without checking. Rather than reason about it, tapped the relay's own
+`/events` SSE endpoint directly with `curl -N` piped through a loop that
+appended one timestamp per received frame to a log file, running in the
+background while the user reproduced the scenario live. `uniq -c` on the
+per-second timestamps showed a clean, complete gap (zero frames for
+several full seconds) lining up exactly with the window the menu was held
+open, not a partial slowdown or a visual-only effect — real evidence, not
+inference from watching a page.
+
+**Fix:** when a live pipeline has an inspectable stream (SSE, a log file,
+a socket, a UDP tap) and the question is "did the data really stop, or
+does the UI just look stalled," tap the stream itself with a timestamped
+log rather than debating what a screenshot or a description means. Cheap
+to set up, and turns "probably" into a specific gap with exact start/end
+times — which then doubles as the evidence for root-causing *why*, not
+just confirming *that* it happened. Same principle as the entry above
+(distrust indirect evidence, get a narrow independent probe), applied to
+"is this real or a rendering thing" specifically.
+
+---
+
 ---
 
 ## Two symptoms that look identical (colors clustered together on a wheel) can have completely different causes if produced by different code paths

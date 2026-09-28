@@ -1,7 +1,8 @@
-# Mac tray-parity kickoff: scoping, run-loop spike, and the first real NSStatusItem
+# Mac tray-parity: scoping through qps.1–.4/.7, plus the tray-menu-freeze discovery
 
-Closed `Aurora-qps.1`, `Aurora-qps.2` (children of the new `Aurora-qps`
-epic, labels `1.0.4`/`MacGUI`).
+Closed `Aurora-qps.1`, `.2`, `.3`, `.4`, `.7` (children of the new
+`Aurora-qps` epic, labels `1.0.4`/`MacGUI`) and filed `Aurora-zlw` (a
+related but standalone finding, since it also affects Windows).
 
 ## Scoping
 
@@ -79,7 +80,131 @@ Not exercised: the `Aurora-cgr` high-refresh-rate tick-cadence cross-check
 (this run had no configured pipeline, so tick timing under real load
 wasn't stressed) — worth a look if `cgr` work ever touches this loop.
 
+## qps.3: LSUIElement agent mode + TCC identity re-check
+
+Added `LSUIElement=true` to `Info.plist.in`. Dock-hiding confirmed
+programmatically, not by eye: `osascript`/System Events was blocked
+(`Not authorized to send Apple events`, its own TCC gate) so instead
+built a throwaway `NSRunningApplication`-based probe — a plain public API
+query, no Automation permission needed — that queried the real launched
+bundle's `activationPolicy` directly. Came back `Accessory`, confirming
+the Dock icon/Cmd-Tab entry were really gone, not just visually absent.
+
+TCC identity re-check needed a real capture attempt, which needed a human
+for the resulting consent dialog: scoped `tccutil reset ScreenCapture
+com.aurora.app` (Aurora's bundle only, nothing else touched), relaunched,
+triggered `PUT /api/config {"activeInputName":"mac"}` through the live
+REST API with `--fake-hue` registering a fake output so `Pipeline::build()`
+actually reached the capture path. First attempt: `permission_denied`
+despite a dialog appearing — reproduced the exact dual-dialog pattern
+already documented in `Aurora-z4q` (a Settings-routed toggle reads
+"enabled" without backing a working grant; needs a genuine quit+relaunch).
+User toggled Aurora on in Settings, confirmed the entry read as Aurora
+itself (not Terminal, not a duplicate), quit+reopened — reload succeeded
+cleanly, `/api/monitors` returned real display data. `LSUIElement` doesn't
+disturb the TCC identity `Aurora-8mk.11` already established.
+
+## qps.4: does LaunchServices intercept a second launch before InstanceLock runs?
+
+Fully scriptable, no GUI/mouse needed: `open <bundle>` invokes the
+identical LaunchServices path a Finder double-click does. Launched Aurora
+once, then again while the first was still running, using `open
+--stdout/--stderr` to redirect the second launch's streams so its
+behavior would be observable even if it exited fast. `open` itself
+refused: *"Application ... was already running and so the redirected
+stdin/stdout/stderr provided could not be set"* — and `ps` confirmed only
+the original process ever existed. LaunchServices intercepts entirely;
+`main()`/`InstanceLock`/`openWebBrowser(url)` never run on a second
+launch. Real consequence under `LSUIElement`: a second double-click did
+*nothing visible at all* — no browser tab, no window. Finding written
+into `docs/MacSupport.md`; follow-up fix filed as `Aurora-qps.7` rather
+than folded into the investigation.
+
+## qps.7: fixing the second-launch (reopen) gap
+
+Spiked before writing real code, same discipline as qps.1. Built two
+throwaway probe *bundles* (LaunchServices dedup is bundle-ID-based, so a
+bare binary wouldn't trigger it) testing both `applicationShouldHandleReopen:`
+(delegate) and a raw `NSAppleEventManager` registration, as both accessory
+and regular (Dock-visible) apps. **Neither handler style fired** under the
+existing `CFRunLoopRunInMode` pump, regardless of accessory status — ruled
+out an `LSUIElement`-specific cause. Root cause: Apple Events route through
+`-sendEvent:`, which bare `CFRunLoopRunInMode` never calls. Switched the
+probe's pump to a `-nextEventMatchingMask:`/`-sendEvent:` drain (same safe
+`NSDefaultRunLoopMode` scoping) — the standard delegate method then fired
+reliably, no raw registration needed after all.
+
+Implemented for real: `TrayIcon.mm` gained `AuroraTrayAppDelegate`
+(`applicationShouldHandleReopen:`, reuses the same `onLaunch` callback
+`Launch UI`'s menu item already calls) and `pump()` switched to the
+verified drain. Re-verified the tray's own menu still dispatched correctly
+after changing the pump mechanism (real regression risk, not assumed
+safe) — confirmed. Reopen itself confirmed: a second `open` while Aurora
+was running opened/focused a browser tab. Lesson filed in
+`docs/lessons/macos-gui.md`.
+
+## Standing up the fake-Hue viz pipeline for GUI-only testing
+
+User launches via Finder double-click for real end-to-end checks, which
+can't pass `--fake-hue`/`--fresh`/`AURORA_DEV_LIGHT_TAP` as CLI flags or a
+Terminal-scoped env var (a GUI-launched process doesn't inherit a shell's
+environment). Started `fake_bridge.py` (`https://127.0.0.1:18443`,
+link-button pre-pressed), `light-viz-relay/relay.py` (UDP `:18244` in, SSE
+`:18245` out), and a static server for `web/demo/viz.html`
+(`:8765`). Used `launchctl setenv AURORA_DEV_LIGHT_TAP 1` — sets it for
+the whole GUI session, so a Finder-launched Aurora picks it up without
+needing a flag. Dropped the 4-zone room map into the real config root
+(`~/Library/Application Support/Aurora/profiles/hue.json`) so zones read
+distinctly instead of one flat color. Gave the user the bridge address to
+type into the WebUI's pairing screen (`127.0.0.1:18443`) and the viz URL
+— confirmed working end to end.
+
+## Aside: why doesn't Aurora show on Spotlight's blank-query page?
+
+Not a signing question, despite the shape of the question — the blank
+"Suggestions" page is usage-history-driven (frequency/recency of the
+*user* opening something via Finder/Dock/Spotlight), a completely
+different code path from text search. Aurora had been launched dozens of
+times today, almost entirely via `open` from Bash for testing, which
+doesn't generate the same engagement signal a real Finder/Dock/Spotlight
+launch does — so it's invisible on the blank page but found instantly by
+typing any prefix (confirmed: `A`, `Aur`, `Auror` all matched). Nothing to
+fix; resolves itself with normal use. Found a real, separate, minor issue
+along the way — two `Aurora.app` copies registered under the identical
+bundle ID (today's active build plus a stale `build-app-mac-test/`
+leftover) — deleted per user request, unrelated to the Spotlight question.
+
+## Discovery: the tray menu freezes the whole pipeline while open
+
+User asked whether frames genuinely stopped reaching the light-viz page
+while the tray menu was open, or whether that was just how it looked.
+Rather than reason about it, tapped the relay's SSE stream directly with a
+backgrounded `curl -N` loop appending one timestamp per frame to a log
+file, asked the user to hold the menu open for a few seconds. `uniq -c`
+on the result showed a clean, complete gap — zero frames for several full
+seconds, lining up exactly with the window the menu was open, resuming
+the instant it closed. Real, not a rendering artifact.
+
+Root cause: `NSMenu` tracking (entered from inside `-sendEvent:` when the
+status item is clicked) is a nested, blocking loop that doesn't return
+until the menu closes — and `TrayIcon::pump()` calls `-sendEvent:` from
+the same thread that runs `pipelineHost.tick()`, so the whole pipeline
+blocks for as long as the menu is open. Checked Windows and Linux in code
+rather than assuming Mac-specific: Windows shares it exactly
+(`TrackPopupMenuEx`, same single-thread design, same documented blocking
+behavior); Linux is structurally immune (its `TrayIcon` already runs on
+its own worker thread, for the unrelated `Aurora-nzd` reason). Judged
+acceptable for now by the user; filed as `Aurora-zlw` (`1.0.4`, standalone
+— affects Windows too, not Mac-specific) rather than fixed on the spot,
+since the real fix (moving the tick loop to its own thread) is a real
+architectural change, not a patch. Both lessons filed
+(`docs/lessons/macos-gui.md` for the AppKit mechanism,
+`docs/lessons/debugging-method.md` for the "tap the stream, don't guess"
+methodology).
+
 ## State
 
-`Aurora-qps.1`/`.2` closed. `Aurora-qps.3` (`LSUIElement` agent mode + TCC
-identity re-check) is next, unblocked, not yet started.
+`Aurora-qps`: 5/7 closed (`.1`/`.2`/`.3`/`.4`/`.7`). Remaining `.5`
+(first-run notification) and `.6` (signing spike) are both deliberately
+deprioritized, not blocking anything. `Aurora-zlw` (tray-menu-freeze fix)
+filed separately, also not urgent.

@@ -93,6 +93,50 @@ separately) and silently drops everything else with no error.
 
 ---
 
+## `NSMenu` tracking is a nested, blocking loop inside `-sendEvent:` — if your main work loop shares a thread with the AppKit pump, opening a menu freezes it
+Tags: macos, appkit, runloop, nsmenu, threading, windows
+Applies-when: a single-threaded app drives both its own work loop and AppKit event pumping on the same thread, and has a menu (status-item or otherwise)
+
+Asked whether a live visualization pausing while Aurora's tray menu was
+open was real or just how it looked (see the debugging-method.md entry
+on tapping the stream to check) — confirmed real via a timestamped log
+of the relay's SSE stream: a clean multi-second gap in frame arrival,
+exactly matching how long the menu was held open, resuming the instant
+it closed. Root cause: `-[NSMenu popUpMenuPositioningItem:...]` (invoked
+internally when the status item's click is delivered via `-sendEvent:`)
+runs its own nested tracking loop in `NSEventTrackingRunLoopMode` and
+does not return until the menu is dismissed. `TrayIcon::pump()` calls
+`-sendEvent:` from inside Aurora's tick loop, on the same thread that
+also runs `pipelineHost.tick()` — so the whole pipeline (capture,
+process, output) is blocked for as long as the menu stays open, not just
+AppKit event handling.
+
+Checked whether this was Mac-specific before assuming so: it isn't.
+`app/windows`'s tray menu (`TrackPopupMenuEx`, called from `trayWndProc`
+via the same single-threaded `PeekMessage`/`DispatchMessage` pump the
+tick loop uses) is documented Win32 behavior with the identical
+shape — its own nested modal loop, blocking the calling thread until
+dismissed. `app/linux`'s `TrayIcon` is structurally immune: it already
+runs its `GMainLoop` on a dedicated worker thread, separate from the
+main thread's tick loop, for an unrelated reason (`Aurora-nzd`'s
+promise/future bug class). That separation happens to also isolate menu
+tracking from the tick loop as a side effect Mac/Windows's simpler
+single-thread design doesn't get.
+
+**Fix:** there isn't a cheap one — this is a real architectural tradeoff,
+not a bug in the usual sense. A single thread driving both a UI event
+pump and a real-time work loop will always block the work loop for as
+long as any native, OS-provided modal UI (menu tracking, `NSOpenPanel`,
+`NSAlert`, `TrackPopupMenuEx`, common dialogs, etc.) is on screen. If
+that's unacceptable, the work loop needs its own thread, separate from
+whichever thread owns AppKit/the Win32 message loop (the mirror image of
+Linux's split: there the *UI* got its own thread; here the *work loop*
+would need to). Worth checking for this class of freeze early whenever a
+manually-pumped single-thread app adds any native modal UI, not just a
+tray menu specifically.
+
+---
+
 ## `NSImage.isTemplate` discards RGB and uses only the alpha channel — a multi-color source doesn't lose its *shape*, only its color
 Tags: macos, appkit, nsimage, template-image, icons
 Applies-when: deciding whether an existing full-color icon/logo asset can serve as a menu-bar template icon
