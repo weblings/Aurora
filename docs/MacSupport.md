@@ -490,14 +490,33 @@ before `input/mac/` existed.
 
 ### Tray-parity (matches 1.0.2 Windows/Linux shape)
 
-Adds an `.app` bundle, `LSUIElement` agent style, `NSStatusItem` menu, and
-`SMAppService` login item — the macOS shapes `GUILaunchUX.md` already
-sketched as reference. Also brings in code-signing and notarization as a
-real requirement, not an optional nicety: Gatekeeper quarantines unsigned
-downloaded binaries, so distributing a zip the way Windows/Linux releases
-do would need an Apple Developer ID ($99/yr). Deferred until the
-terminal-only slice is working and the audio-capture decision above is
-made.
+Adds `LSUIElement` agent style and an `NSStatusItem` menu on top of the
+`.app` bundle already shipped (`Aurora-8mk.11`) — the macOS shapes
+`GUILaunchUX.md` already sketched as reference. Deferred until the
+terminal-only slice was working and the audio-capture decision above was
+made; both conditions are now satisfied (`Aurora-8mk` and `Aurora-9z4` are
+closed), and this phase is scoped and sequenced as a beads epic,
+`Aurora-qps` (labels `1.0.4`, `MacGUI`), with children `Aurora-qps.1`
+through `.6` covering, in order: a manual click-test to resolve the
+`NSStatusItem`/run-loop-pump open a throwaway probe left unverified,
+wiring a real `TrayIcon` into `app/mac`, `LSUIElement` plus a re-check that
+it doesn't disturb the existing TCC grant, a newly surfaced open around
+`LaunchServices`' own single-instance semantics vs. `InstanceLock`,
+first-run discoverability, and last/lowest-priority a `SMAppService`
+login-item signing spike.
+
+Unlike the framing above once had it, code-signing/notarization is **not**
+a blanket requirement for this phase: local dev/testing of the tray and
+agent-mode mechanics needs no Apple Developer account at all (confirmed
+empirically — `Aurora-qps`'s description has the detail), the same as the
+already-shipped Screen Recording work. Only `SMAppService` (`Aurora-qps.6`,
+deliberately last and low-priority — neither Windows nor Linux ship
+launch-at-login yet, so this isn't catching up to a shipped feature) cares
+about signing-identity stability, and even there a free Xcode "Personal
+Team" certificate looks likely to suffice without the $99 Developer ID.
+That $99/yr remains relevant only for `Aurora-8mk.10` (Gatekeeper/
+notarization), once a build is zipped and leaves this machine — unrelated
+to this phase's scope.
 
 ## Build sequencing
 
