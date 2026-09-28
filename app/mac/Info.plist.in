@@ -18,5 +18,7 @@
     <string>@_AURORA_VERSION@</string>
     <key>NSAudioCaptureUsageDescription</key>
     <string>Aurora reacts to whatever audio your Mac is currently playing, driving your lights from it. This is a separate, narrower permission from Screen Recording -- Aurora can't see screen contents through it.</string>
+    <key>LSUIElement</key>
+    <true/>
 </dict>
 </plist>
