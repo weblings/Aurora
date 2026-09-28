@@ -6,18 +6,22 @@ option(AURORA_APP_BUILD_TESTS "Build this app's own tests" TRUE)
 # Which plugin repos this particular app binary is compiled with -- the
 # compile-time half of the two-level plugin-selection design; the run-time
 # half is Config's activeInputName/activeOutputNames, looked up in the
-# Registry these build. No audio toggle yet -- Mac tier 1 has no audio
-# input at all (docs/MacSupport.md, "Deferred: audio").
+# Registry these build.
 option(AURORA_APP_ENABLE_MAC_INPUT "Link in input/mac" TRUE)
 option(AURORA_APP_ENABLE_HUE_OUTPUT "Link in output/hue" TRUE)
+# Drives both AURORA_CORE_ENABLE_AUDIO and AURORA_INPUT_MAC_ENABLE_AUDIO
+# below -- Core fetches before input/mac does, so Core's own
+# add_subdirectory(AudioProcessing) decision must be set here, not left for
+# input/mac's own (later) default to decide. Mirrors
+# AURORA_APP_ENABLE_LINUX_AUDIO_INPUT (app/linux/CMakeLists.txt).
+option(AURORA_APP_ENABLE_MAC_AUDIO_INPUT "Link in input/mac audio capture (Core Audio process taps)" TRUE)
 
 include(FetchContent)
 
 # Aurora core -- needed directly (Config/Orchestrator/Contracts) regardless
 # of which plugins below are enabled, not just transitively through them.
-# No audio pipeline -- Mac tier 1 has no audio input to drive it.
 set(BUILD_TESTS FALSE CACHE BOOL "" FORCE)
-set(AURORA_CORE_ENABLE_AUDIO FALSE CACHE BOOL "" FORCE)
+set(AURORA_CORE_ENABLE_AUDIO ${AURORA_APP_ENABLE_MAC_AUDIO_INPUT} CACHE BOOL "" FORCE)
 FetchContent_Declare(
   AuroraCore
   SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../../core
@@ -39,6 +43,7 @@ FetchContent_MakeAvailable(AuroraWebUI)
 # FetchContent dedups by name but NOT against a manual add_subdirectory.
 if(AURORA_APP_ENABLE_MAC_INPUT AND NOT TARGET AuroraInputMac)
   set(AURORA_INPUT_MAC_BUILD_TESTS FALSE CACHE BOOL "" FORCE)
+  set(AURORA_INPUT_MAC_ENABLE_AUDIO ${AURORA_APP_ENABLE_MAC_AUDIO_INPUT} CACHE BOOL "" FORCE)
   FetchContent_Declare(
     AuroraInputMac
     SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../../input/mac

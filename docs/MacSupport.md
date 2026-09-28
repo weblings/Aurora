@@ -427,16 +427,41 @@ before `input/mac/` existed.
   as a defensive, unexercised fallback. Verified end to end through the
   class's real public interface: a standalone harness got 285,696 real
   non-zero interleaved float32 samples at 48kHz/2ch over a 3s window.
-- **Step 3 — audio-specific permission-recovery design.** Not yet started.
-  Informed by Step 0's findings, not a port of `Aurora-8mk.6`/`.8`'s
-  completion-handler shape — most likely an all-zero-buffer-over-time
-  inference feeding the same generic `permission_pending`-style REST
-  response and WebUI messaging those phases already built.
-- **Step 4 — `app/mac` wiring.** Not yet started. `registerAudioInputs` +
-  the audio-mode branch in `main.cpp`, mirroring
-  [`app/linux/src/main.cpp`](../app/linux/src/main.cpp)'s existing audio
-  wiring almost verbatim — this part is mechanical, not a design question.
-  Now has a working, verified `MacAudioGrabber` to wire in.
+- **Step 3 — audio-specific permission-recovery design. DONE,
+  `Aurora-9z4.4`, 2026-09-28.** Not a port of `Aurora-8mk.6`/`.8`'s
+  completion-handler shape after all — that shape needs a construction-time
+  throw to catch, and `AudioDeviceStart` never provides one. Added
+  `MacAudioGrabber::isLikelyPermissionDenied()`: latches `false` forever on
+  the first real non-zero sample, reports `true` beforehand only once a
+  10s grace window elapses with nothing but zeros. Deliberately kept
+  Mac-specific — not promoted to `IAudioInput`, matching `PermissionError`'s
+  own precedent (a platform-specific concept) rather than `isHealthy()`'s
+  (a genuinely cross-platform one). Verified against real hardware: the
+  already-granted case latches `false` immediately.
+- **Step 4 — `app/mac` wiring. DONE, `Aurora-9z4.5`, 2026-09-28** (full
+  write-up:
+  [`docs/log/2026-09-28-mac-audio-app-wiring.md`](log/2026-09-28-mac-audio-app-wiring.md)).
+  Far less new work than scoped — `app/mac`'s original skeleton
+  (`Aurora-8mk.3`) had already ported `app/linux/main.cpp` wholesale,
+  audio branch included, dormant behind `#ifdef
+  AURORA_RUNTIME_AUDIO_AVAILABLE` guards, waiting for a real Mac audio
+  input to register. Only `registerAudioInputs()` itself, its call site,
+  and `NSAudioCaptureUsageDescription` in `Info.plist.in` were genuinely
+  missing. Found and fixed a second copy of the same
+  `AURORA_CORE_ENABLE_AUDIO`-ordering bug Step 1 already fixed in
+  `input/mac/CMakeLists.txt` — `app/mac/CMakeLists.txt` fetches
+  `AuroraCore` directly, before it fetches `AuroraInputMac` (whose own copy
+  gets deduped away), so *its* hardcoded `FALSE` was the one actually
+  gating Core's audio subdirectory; filed as a new
+  `docs/lessons/build-toolchain.md` entry. Added `GET /api/mac/audio-status`
+  as its own route rather than folding into `/api/capabilities`, whose
+  heartbeat is deliberately lock-free. Verified fully end to end: built the
+  real bundle, launched it against a fresh config root plus
+  `tools/fake-hue-bridge` (env-var pairing), `PUT /api/config` with
+  `activeAudioInputName=mac-audio` succeeded, and `GET /api/zones`
+  confirmed `AudioOrchestrator` genuinely initialized a real zone map
+  against the live output. WebUI display for the permission signal filed
+  separately as `Aurora-9z4.7` (non-blocking, diagnostic-only).
 - **Step 5 — tests. DONE, `Aurora-9z4.6`, 2026-09-28.** Followed Windows'
   precedent (`input/windows/tests/WindowsAudioInputTests.cpp` — no
   dummy/fixture audio backend, real-hardware-only testing) rather than

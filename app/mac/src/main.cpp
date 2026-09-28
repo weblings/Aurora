@@ -37,6 +37,9 @@
 #include <Aurora/Input/Mac/DummyGrabber.hpp>
 #include <Aurora/Input/Mac/InputControlDescriptors.hpp>
 #include <Aurora/Input/Mac/ScreenCaptureKitGrabber.hpp>
+#ifdef AURORA_INPUT_MAC_AUDIO_AVAILABLE
+#include <Aurora/Input/Mac/MacAudioGrabber.hpp>
+#endif
 
 #ifdef AURORA_OUTPUT_HUE_IO_AVAILABLE
 #include <Aurora/Output/Hue/Credentials.hpp>
@@ -71,6 +74,22 @@ namespace
     registry.registerInput("mac", []{
       return std::make_unique<Aurora::Input::Mac::ScreenCaptureKitGrabber>();
     });
+  }
+
+
+  // No config parameter needed here, unlike app/linux's own
+  // registerAudioInputs (Config::audioTargetSinkName) -- the whole-system
+  // tap (initStereoGlobalTapButExcludeProcesses with an empty exclude list,
+  // Aurora-9z4.3) has no per-sink/per-device selection concept to resolve.
+  void registerAudioInputs(Aurora::App::Registry& registry)
+  {
+#ifdef AURORA_INPUT_MAC_AUDIO_AVAILABLE
+    registry.registerAudioInput("mac-audio", []{
+      return std::make_unique<Aurora::Input::Mac::MacAudioGrabber>();
+    });
+#else
+    (void)registry;
+#endif
   }
 
 
@@ -413,6 +432,25 @@ namespace
       return m_orchestrator->updateZone(m_outputPtrs.front()->name(), zoneId, uvs, active, gamma);
     }
 
+    // Aurora-9z4.4's permission-recovery design: false whenever not
+    // applicable (not audio mode, or an audio input other than Mac's
+    // process-tap grabber -- there's only one today, but this stays honest
+    // if that ever changes). MacAudioGrabber::isLikelyPermissionDenied()
+    // itself has no explicit pending/denied signal to report synchronously
+    // at Pipeline::build() time the way ScreenCaptureKitGrabber's
+    // PermissionError does -- see docs/MacSupport.md's audio section --
+    // so this is polled at runtime instead of thrown at construction.
+    bool audioPermissionLikelyDenied() const
+    {
+#ifdef AURORA_INPUT_MAC_AUDIO_AVAILABLE
+      if(!m_isAudioMode || !m_audioInput) return false;
+      auto* macAudio = dynamic_cast<Aurora::Input::Mac::MacAudioGrabber*>(m_audioInput.get());
+      return macAudio && macAudio->isLikelyPermissionDenied();
+#else
+      return false;
+#endif
+    }
+
     void shutdown(bool isReplacement)
     {
       for(auto* output : m_outputPtrs){
@@ -470,6 +508,18 @@ namespace
     {
       std::lock_guard<std::mutex> lock(m_mutex);
       return m_pipeline ? m_pipeline->tickIntervalSeconds() : (1.0 / 60.0);
+    }
+
+    // Deliberately its own small poll, not folded into
+    // registerCapabilitiesRoute's heartbeat -- that route's whole point is
+    // staying lock-free (its own comment: "static, no pipeline locks") so a
+    // held pipeline mutex can never stall the WebUI's liveness heartbeat.
+    // This one takes the same lock every other Pipeline-state accessor here
+    // does; callers just shouldn't poll it on that same tight cadence.
+    bool audioPermissionLikelyDenied()
+    {
+      std::lock_guard<std::mutex> lock(m_mutex);
+      return m_pipeline && m_pipeline->audioPermissionLikelyDenied();
     }
 
     Aurora::Input::Monitors listMonitors()
@@ -582,6 +632,35 @@ namespace
 
         res.contentType = "application/json";
         res.body = nlohmann::json{{"monitors", list}}.dump();
+      }
+    );
+  }
+
+
+  // Mac-only (registered unconditionally, but always reports false off
+  // Mac-audio mode -- see Pipeline::audioPermissionLikelyDenied()). A
+  // separate route rather than a new /api/capabilities field on purpose:
+  // that route's heartbeat is deliberately lock-free (its own comment),
+  // and unlike Screen Recording's PermissionError (thrown synchronously at
+  // Pipeline::build(), caught by reload()'s existing errorOut-prefix
+  // mechanism), a denied "System Audio Recording Only" grant has no
+  // construction-time signal at all to throw from -- Aurora-9z4.1 confirmed
+  // AudioDeviceStart always returns noErr regardless of grant state. The
+  // WebUI polls this only while genuinely in audio mode, not on the
+  // capabilities heartbeat's tight cadence.
+  void registerAudioStatusRoute(
+    Aurora::Network::Http::Server::HttpServer& httpServer,
+    PipelineHost& pipelineHost
+  )
+  {
+    httpServer.addRoute(
+      Aurora::Network::Http::Server::HttpMethod::Get,
+      "/api/mac/audio-status",
+      [&pipelineHost](const Aurora::Network::Http::Server::Request&, Aurora::Network::Http::Server::Response& res){
+        res.contentType = "application/json";
+        res.body = nlohmann::json{
+          {"permissionLikelyDenied", pipelineHost.audioPermissionLikelyDenied()}
+        }.dump();
       }
     );
   }
@@ -775,6 +854,7 @@ try
 
   Aurora::App::Registry registry;
   registerInputs(registry);
+  registerAudioInputs(registry);
   registerOutputs(registry, configRoot);
 
   // Built before any route is registered below -- the settings/reload routes
@@ -844,6 +924,7 @@ try
     }
   );
   registerMonitorsRoute(httpServer, pipelineHost);
+  registerAudioStatusRoute(httpServer, pipelineHost);
   registerReloadRoute(httpServer, pipelineHost, registry, configRoot);
   registerStopRoute(httpServer);
   Aurora::Runtime::registerZoneRoutes(

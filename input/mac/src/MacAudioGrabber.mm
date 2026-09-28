@@ -5,12 +5,23 @@
 #import <CoreAudio/CATapDescription.h>
 #import <CoreAudio/AudioHardwareTapping.h>
 
+#include <chrono>
 #include <mutex>
 #include <stdexcept>
 #include <vector>
 
 namespace Aurora::Input::Mac
 {
+  namespace
+  {
+    // Not listening-tested, tune by ear like docs/AudioAnalysis.md's other
+    // constants -- long enough that ordinary startup silence (no music
+    // playing yet) doesn't false-positive as "denied," short enough to
+    // still be a useful diagnostic signal.
+    constexpr std::chrono::seconds kPermissionGraceWindow{10};
+  }
+
+
   struct MacAudioGrabber::Impl
   {
     AudioObjectID tapID = kAudioObjectUnknown;
@@ -22,6 +33,9 @@ namespace Aurora::Input::Mac
     unsigned sampleRate = 0;
     unsigned channelCount = 0;
     bool running = false;
+
+    std::chrono::steady_clock::time_point startTime;
+    bool everSawNonZero = false;
 
     // Verified hands-on (docs/log/2026-09-28-mac-audio-tap-probe.md's
     // follow-up layout check): this tap+aggregate-device shape delivers a
@@ -48,6 +62,11 @@ namespace Aurora::Input::Mac
         const float* samples = static_cast<const float*>(buf.mData);
         size_t sampleCount = buf.mDataByteSize / sizeof(float);
         self->accumulated.insert(self->accumulated.end(), samples, samples + sampleCount);
+        if(!self->everSawNonZero){
+          for(size_t i = 0; i < sampleCount; ++i){
+            if(samples[i] != 0.0f){ self->everSawNonZero = true; break; }
+          }
+        }
         return noErr;
       }
 
@@ -62,7 +81,9 @@ namespace Aurora::Input::Mac
       for(UInt32 ch = 0; ch < channels; ++ch){
         const float* samples = static_cast<const float*>(inInputData->mBuffers[ch].mData);
         for(UInt32 f = 0; f < frameCount; ++f){
-          self->accumulated[base + static_cast<size_t>(f) * channels + ch] = samples[f];
+          float sample = samples[f];
+          self->accumulated[base + static_cast<size_t>(f) * channels + ch] = sample;
+          if(sample != 0.0f) self->everSawNonZero = true;
         }
       }
       return noErr;
@@ -193,6 +214,7 @@ namespace Aurora::Input::Mac
         throw std::runtime_error("MacAudioGrabber: AudioDeviceStart failed");
       }
 
+      m_impl->startTime = std::chrono::steady_clock::now();
       m_impl->running = true;
     }
   }
@@ -224,5 +246,13 @@ namespace Aurora::Input::Mac
     buffer.channelCount = m_impl->channelCount;
     buffer.samples = std::move(m_impl->accumulated);
     m_impl->accumulated.clear();
+  }
+
+
+  bool MacAudioGrabber::isLikelyPermissionDenied() const
+  {
+    std::lock_guard<std::mutex> lock(m_impl->mutex);
+    if(m_impl->everSawNonZero) return false;
+    return (std::chrono::steady_clock::now() - m_impl->startTime) >= kPermissionGraceWindow;
   }
 }
