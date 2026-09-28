@@ -26,7 +26,7 @@ import { screenDivisionRects } from '../ScreenDivision.js';
 import { AccordionSection } from '../AccordionSection.js';
 import { TuningFields } from '../TuningFields.js';
 import { applyTooltip } from '../Tooltips.js';
-import { renderReloadError, parseMacPermissionError } from '../MacPermissionRecovery.js';
+import { renderReloadError, parseMacPermissionError, renderAudioPermissionBanner } from '../MacPermissionRecovery.js';
 
 export class DashboardScreen {
   constructor(app) {
@@ -55,6 +55,8 @@ export class DashboardScreen {
     this.stopPhase = null; // null | 'confirm' | 'stopped' | 'error'
     this.stopError = null;
     this.heartbeatTimer = null;
+    this.audioStatusTimer = null;
+    this.audioPermissionLikelyDenied = false;
 
     // A single persistent instance, never recreated on re-render -- its own
     // onChange fires mid-callback, and recreating the instance whose own
@@ -87,10 +89,12 @@ export class DashboardScreen {
 
     await this._loadAll();
     this._startHeartbeat();
+    this._startAudioStatusPoll();
   }
 
   unmount() {
     this._stopHeartbeat();
+    this._stopAudioStatusPoll();
     this.entertainmentConfigSelect.destroy();
     this.deviceField?.destroy();
     this.deviceField = null;
@@ -261,10 +265,16 @@ export class DashboardScreen {
     this.deviceField = null;
 
     const errorHtml = renderReloadError(this.topTierError, this.platform);
+    // Only shown absent a reload error -- a real reload failure is the
+    // more actionable, more specific problem when both could apply.
+    const audioPermissionHtml = !this.topTierError && this.mode === 'audio'
+      ? renderAudioPermissionBanner(this.audioPermissionLikelyDenied)
+      : '';
 
     topTier.innerHTML = `
       <div class="db-device-slot"></div>
       ${errorHtml}
+      ${audioPermissionHtml}
     `;
 
     this.deviceField = new DeviceField(topTier.querySelector('.db-device-slot'), {
@@ -605,6 +615,59 @@ export class DashboardScreen {
     if(this.heartbeatTimer !== null){
       clearTimeout(this.heartbeatTimer);
       this.heartbeatTimer = null;
+    }
+  }
+
+
+  // Separate from _startHeartbeat() on purpose (Aurora-9z4.7) -- that poll
+  // is deliberately lock-free (its own comment), so this deliberately
+  // doesn't ride along on the same tick even though both hit the server;
+  // a slower, non-critical cadence (5s, vs. the heartbeat's 3s) since this
+  // is a diagnostic, not a liveness check. No-ops (just reschedules)
+  // outside Mac audio mode -- cheap to leave running across mode switches
+  // rather than starting/stopping it from _switchMode too.
+  _startAudioStatusPoll() {
+    this._stopAudioStatusPoll();
+    const poll = async () => {
+      if(this.audioStatusTimer === null){
+        return;
+      }
+
+      if(this.platform === 'mac' && this.mode === 'audio'){
+        try {
+          const result = await (await fetch('/api/mac/audio-status')).json();
+          const denied = !!result.permissionLikelyDenied;
+          if(denied !== this.audioPermissionLikelyDenied){
+            this.audioPermissionLikelyDenied = denied;
+            this._renderTopTier();
+          }
+        } catch {
+          // Same-origin poll against our own server -- a failure here
+          // means the daemon's gone, which _startHeartbeat's own poll is
+          // already handling; nothing extra to do from this one.
+        }
+      }
+      else if(this.audioPermissionLikelyDenied){
+        // Left video mode (or this isn't Mac) -- don't leave a stale
+        // "likely denied" banner showing if audio mode is re-entered later
+        // without a fresh poll landing first.
+        this.audioPermissionLikelyDenied = false;
+        this._renderTopTier();
+      }
+
+      if(this.audioStatusTimer === null){
+        return;
+      }
+      this.audioStatusTimer = setTimeout(poll, 5000);
+    };
+    this.audioStatusTimer = setTimeout(poll, 5000);
+  }
+
+
+  _stopAudioStatusPoll() {
+    if(this.audioStatusTimer !== null){
+      clearTimeout(this.audioStatusTimer);
+      this.audioStatusTimer = null;
     }
   }
 

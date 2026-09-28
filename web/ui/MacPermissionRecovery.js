@@ -66,3 +66,29 @@ export function renderReloadError(message, platform) {
 function escapeHtml(s) {
   return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
+
+// Aurora-9z4.4/.7: a live, ongoing signal from GET /api/mac/audio-status,
+// not a reload failure -- Core Audio's process-tap permission has no
+// explicit denied signal to throw at Pipeline::build() time the way
+// ScreenCaptureKitGrabber's PermissionError does (see docs/MacSupport.md's
+// audio section), so the backend infers it from a sustained run of silent
+// buffers instead. Worded as a heuristic ("doesn't seem to be") rather than
+// the sticky, confirmed "permission is off" language renderReloadError uses
+// for Screen Recording -- this can't rule out genuine prolonged silence,
+// even with the 10s grace window keeping that unlikely in practice.
+//
+// No verified deep link straight to the "System Audio Recording Only" row
+// exists (unlike Screen Recording's Privacy_ScreenCapture anchor) -- this
+// links to the general Privacy & Security pane rather than guess one.
+const SECURITY_SETTINGS_URL = 'x-apple.systempreferences:com.apple.preference.security';
+
+export function renderAudioPermissionBanner(permissionLikelyDenied) {
+  if (!permissionLikelyDenied) return '';
+
+  return `
+    <p class="status-text status-text-error">⚠ Aurora doesn't seem to be capturing real audio</p>
+    <p class="status-text">This usually means "System Audio Recording Only" isn't granted yet in Privacy &amp; Security -- a separate permission from Screen Recording. After enabling it, fully quit Aurora (⌘Q) and reopen it.</p>
+    <a class="btn btn-secondary" style="text-decoration: none; margin-top: var(--aurora-space-3);"
+       href="${SECURITY_SETTINGS_URL}">Open Privacy &amp; Security settings</a>
+  `;
+}

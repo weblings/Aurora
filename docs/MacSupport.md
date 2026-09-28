@@ -470,6 +470,23 @@ before `input/mac/` existed.
   `[.][manual][MacAudioGrabber]`-tagged. Verified both ways: the normal
   `ctest` suite is unaffected, and the manual suite's new audio test passes
   cleanly against real system audio.
+- **Step 6 — WebUI banner for the permission signal. DONE, `Aurora-9z4.7`,
+  2026-09-28.** A new [`renderAudioPermissionBanner`](../web/ui/MacPermissionRecovery.js)
+  (worded as a heuristic — "doesn't seem to be capturing real audio" — not
+  the sticky, confirmed language `renderReloadError` uses for Screen
+  Recording, since this is genuinely inferred, not a hard signal) shown in
+  [`DashboardScreen.js`](../web/ui/screens/DashboardScreen.js)'s top tier
+  while in audio mode. Its own poll (`_startAudioStatusPoll`,
+  `GET /api/mac/audio-status`, 5s cadence) deliberately doesn't ride along
+  on `_startHeartbeat`'s tick — that poll is documented lock-free on
+  purpose, and this one isn't as time-critical. No verified deep link
+  exists straight to the "System Audio Recording Only" settings row (unlike
+  Screen Recording's `Privacy_ScreenCapture` anchor), so the banner links to
+  the general Privacy & Security pane rather than guessing one. Verified
+  the served files and the full REST path (`PUT /api/config` →
+  `GET /api/mac/audio-status`) end to end against the real running app; not
+  verified in an actual browser DOM — no browser-automation tooling was
+  available this session, flagged rather than silently assumed.
 
 ### Tray-parity (matches 1.0.2 Windows/Linux shape)
 

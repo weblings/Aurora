@@ -35,4 +35,5 @@ Planning docs stay clean: decisions, status, and pointers here only.
 | 2026-09-27 | Bundle icon fix: qlmanage flattened transparency + a real 32px export offset, switched to sips+corrected 1024px master | Aurora-8hh |
 | 2026-09-28 | Audio process-tap probe: tap+aggregate-device+IOProc mechanism confirmed, permission signal stays opaque even hands-on | Aurora-9z4.1 |
 | 2026-09-28 | MacAudioGrabber lands: CMake plumbing, real IAudioInput impl, tests -- verified end to end against real system audio | Aurora-9z4.2, Aurora-9z4.3, Aurora-9z4.6 |
-| 2026-09-28 | Mac audio-terminal support ships: permission signal + app/mac wiring, verified end to end via fake-hue-bridge | Aurora-9z4.4, Aurora-9z4.5, Aurora-9z4.7 |
+| 2026-09-28 | Mac audio-terminal support ships: permission signal + app/mac wiring, verified end to end via fake-hue-bridge | Aurora-9z4.4, Aurora-9z4.5 |
+| 2026-09-28 | WebUI banner for the audio permission signal, closes out Aurora-9z4 (7/7) -- browser rendering not verified, flagged | Aurora-9z4.7 |
