@@ -1,14 +1,15 @@
 ---
 name: engineering-hygiene-lessons
-description: Build/tooling and general design gotchas — check before CMake/vcpkg/FetchContent changes, environment setup, debugging, or porting C patterns into C++.
+description: Build/tooling and general design gotchas — check before CMake/vcpkg/FetchContent changes, environment setup, macOS AppKit/GUI work, debugging, or porting C patterns into C++.
 allowed-tools: Read
 ---
 
 # Engineering hygiene lessons
 
 Before touching `CMakeLists.txt`, vcpkg ports, `FetchContent` blocks, compiler
-toolchains, debugging strategy, or porting C example code into C++, grep the
-query-coherent files (`build-toolchain`, `windows-env`, `debugging-method`,
+toolchains, macOS AppKit/status-item/run-loop code, debugging strategy, or
+porting C example code into C++, grep the query-coherent files
+(`build-toolchain`, `windows-env`, `macos-gui`, `debugging-method`,
 `architecture-process`, `web-testing`, `language-cpp` in `docs/lessons/`).
 
 ## How to use this skill

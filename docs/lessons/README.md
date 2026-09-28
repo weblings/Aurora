@@ -21,11 +21,12 @@ Aurora's own module boundaries instead of RockyRoad's. `rendering-apis.md` vs.
 |---|---|---|---|
 | [build-toolchain.md](build-toolchain.md) | CMake, vcpkg, compilers, WSL2, dev deps | 21 | build/tooling specific |
 | [windows-env.md](windows-env.md) | processes, installers, ACLs, probing | 12 | Windows-environment specific |
+| [macos-gui.md](macos-gui.md) | AppKit, tray/status-item, run-loop pumping, ObjC++ interop | 4 | macOS GUI/AppKit specific |
 | [debugging-method.md](debugging-method.md) | evidence, verification, oracles, timing | 28 | debugging/verification method |
 | [architecture-process.md](architecture-process.md) | splits, duplication, reload, presence | 23 | architecture or process decision |
 | [web-testing.md](web-testing.md) | jsdom, live tests, routes, settings | 8 | web testing specific |
 | [language-cpp.md](language-cpp.md) | namespace, threads, C-portability | 7 | C++ language gotcha |
-| [input.md](input.md) | capture/grabber/platform-adapter | 18 | capture/grabber specific |
+| [input.md](input.md) | capture/grabber/platform-adapter | 19 | capture/grabber specific |
 | [processing.md](processing.md) | color/effect transform, zone-mapping | 6 | color/effect/zone-mapping specific |
 | [output.md](output.md) | streaming/protocol, any target | 8 | streaming/protocol/wire-format specific |
 | [rendering-apis.md](rendering-apis.md) | third-party rendering facts | 4 | Three.js/GLTFLoader/Blender behavior, not our design |
@@ -36,17 +37,18 @@ Aurora's own module boundaries instead of RockyRoad's. `rendering-apis.md` vs.
 | [navigation-flow.md](navigation-flow.md) | Back/Continue, gating, NUX | 9 | WebUI flow finding |
 | [layout-css.md](layout-css.md) | responsive, pseudo-elements, flex | 9 | WebUI layout/CSS finding |
 
-Counts as of 2026-09-25 — bump the count when adding entries
+Counts as of 2026-09-28 — bump the count when adding entries
 (`grep -c '^## '` per file).
 
 ## Where a new lesson goes
 
 1. About *my own* verification/reliability habits, not code/design? → persistent
    memory (`feedback_*`), not the repo.
-2. Build/tooling, Windows env, debugging method, architecture/process,
-   web testing, or C++ language? → the matching query-coherent file
-   (`build-toolchain`, `windows-env`, `debugging-method`,
-   `architecture-process`, `web-testing`, `language-cpp` — see index).
+2. Build/tooling, Windows env, macOS GUI/AppKit, debugging method,
+   architecture/process, web testing, or C++ language? → the matching
+   query-coherent file (`build-toolchain`, `windows-env`, `macos-gui`,
+   `debugging-method`, `architecture-process`, `web-testing`,
+   `language-cpp` — see index).
 3. Capture/grabber/platform-adapter specific? → `input.md`.
 4. Color/effect transform or zone-mapping specific? → `processing.md`.
 5. Streaming/protocol/wire-format specific (Hue or any other target)? → `output.md`.
