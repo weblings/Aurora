@@ -6,7 +6,7 @@ macOS) with no dev toolchain installed yet. No prior Mac exploration existed
 in the repo before this: macOS only came up in passing in
 [`GUILaunchUX.md`](GUILaunchUX.md#L26-L28) (tray reference, explicitly "not a
 target"), [`archive/FirstScan.md`](archive/FirstScan.md) (Huenicorn's unimplemented
-`MacOSAdapter.mm` stub), and [`OpenFormatsResearch.md`](OpenFormatsResearch.md)
+`MacOSAdapter.mm` stub), and [`archive/OpenFormatsResearch.md`](archive/OpenFormatsResearch.md)
 (Syphon mentioned once as the macOS analog to Spout).
 
 ## Setup: getting the existing repo building on a new Mac
@@ -236,7 +236,7 @@ to get the same result process taps give natively.
 
 Audio is not greenfield for Aurora — it already shipped for Windows and
 Linux (`Aurora-ljj`, "Phase 2.5 audio stack shipped"), and
-[`docs/AudioAnalysis.md`](AudioAnalysis.md) is the as-built design, not a
+[`docs/archive/AudioAnalysis.md`](archive/AudioAnalysis.md) is the as-built design, not a
 speculative one. Everything above the platform boundary is already
 generic and needs no Mac-specific work: `IAudioInput`
 ([`core/Input/include/Aurora/Input/IAudioInput.hpp`](../core/Input/include/Aurora/Input/IAudioInput.hpp)),
@@ -409,7 +409,7 @@ before `input/mac/` existed.
   Links `CoreAudio` only — a standalone link check confirmed `AudioToolbox`
   isn't actually needed for this API surface. Folded into the existing
   `AuroraInputMac` target rather than a separate `AuroraInputMacAudio`,
-  deviating from `docs/AudioAnalysis.md`'s original separate-target sketch
+  deviating from `docs/archive/AudioAnalysis.md`'s original separate-target sketch
   in favor of what `input/linux` actually shipped.
 - **Step 2 — `MacAudioGrabber` implementing `IAudioInput`. DONE,
   `Aurora-9z4.3`, 2026-09-28** (full write-up:
@@ -465,7 +465,7 @@ before `input/mac/` existed.
 - **Step 5 — tests. DONE, `Aurora-9z4.6`, 2026-09-28.** Followed Windows'
   precedent (`input/windows/tests/WindowsAudioInputTests.cpp` — no
   dummy/fixture audio backend, real-hardware-only testing) rather than
-  building the fixture `docs/AudioAnalysis.md` had deferred:
+  building the fixture `docs/archive/AudioAnalysis.md` had deferred:
   [`input/mac/tests/MacAudioInputTests.cpp`](../input/mac/tests/MacAudioInputTests.cpp),
   `[.][manual][MacAudioGrabber]`-tagged. Verified both ways: the normal
   `ctest` suite is unaffected, and the manual suite's new audio test passes

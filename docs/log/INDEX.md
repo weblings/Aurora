@@ -40,3 +40,4 @@ Planning docs stay clean: decisions, status, and pointers here only.
 | 2026-09-28 | --fake-hue ported to Mac/Windows, README tightened to name the actual env vars -- Windows not compile-verified, flagged | Aurora-zx4 |
 | 2026-09-28 | Video<->audio handoff confirmed live; Screen Recording -3801 despite enabled toggle traced to a second, inline-Approve consent dialog | Aurora-z4q |
 | 2026-09-28 | Docs archive + WebUI doc relocation + brand-asset move; check-links.sh's stale Analysis->docs base fixed (was silently checking nothing under docs/) | Aurora-0ki |
+| 2026-09-28 | Docs archive follow-up: 6 more docs moved after edit-history check showed their exploratory Status: lines were stale, not live (DocsAndLessonsPainPoints, AudioAnalysis, BrowserAnalysis, DistributedArchitecturePlan, OpenFormatsResearch, StackComparison) | Aurora-rtp |

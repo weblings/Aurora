@@ -1,15 +1,21 @@
 # Browser video-upload input — findings, not a decision
 
+Status: historical — v1 shipped (Phase 3 Milestone 1, `Aurora-xcb`), and this
+doc hasn't had a substantive edit since 2026-09-15. One dangling thread
+(`Aurora-f06`, the native audio-tuning backport below) is still nominally
+open but hasn't been touched since 2026-09-20 either — treat this as the
+record of the v1 decision, not an active document.
+
 Prompted by a phase 3 idea: let a user upload a video file (Ogg or another
 open format) to the Three.js browser demo, run it through `Processing` as
 it plays, and drive an output from it. Captures what's actually true about
-the current codebase relevant to that idea. **Status: v1's shape is
-decided** — file input (bundled WebM sample + upload), hand-ported JS
+the current codebase relevant to that idea. Original framing: **v1's shape
+is decided** — file input (bundled WebM sample + upload), hand-ported JS
 processing, a Three.js 9-slice virtual-light output, video-only, no native
 backend, no Hue-in-browser stretch goal (cut, see below). Repo split
 (2026-09-14): the demo lives in its own new repo, `Aurora-Demo-Web`; only the
 hand-ported processing math stays in `Aurora/web-processing/` — see
-`ImplementationPlan.md`'s Phase 3. Still open:
+`ImplementationPlan.md`'s Phase 3. Still open at the time:
 implementation specifics (the exact 9-slice/zone-map wiring, the sample
 video's actual content) and anything audio-related, deferred past v1
 entirely.
@@ -193,7 +199,7 @@ framework should do once there's more than one case to apply it to:
 - **`AudioFeatureExtractor`** (onset detection + spectral centroid, wrapping
   aubio's stateful `pvoc`/`specdesc`/onset objects) — a genuinely different
   category. This is real DSP that took real effort to get right even with a
-  mature library doing the hard part (see `docs/AudioAnalysis.md`'s aubio
+  mature library doing the hard part (see `AudioAnalysis.md`'s aubio
   verification pass) — re-deriving onset detection and spectral analysis from
   scratch in JS is exactly the "substantial, risky to re-derive" case the
   reuse framework argues *for* WASM on, not against.
@@ -393,7 +399,7 @@ mode running at all is a separate first step from the tuning comparison itself.
 
 ## Related docs
 
-- `docs/AudioAnalysis.md` — the aubio verification pass and
+- `AudioAnalysis.md` — the aubio verification pass and
   `AudioFeatureExtractor`'s design, which the audio-reassessment section
   above argues makes it a WASM-reuse candidate.
 - `DistributedArchitecturePlan.md` — the one-seam/double-seam question this
@@ -404,7 +410,7 @@ mode running at all is a separate first step from the tuning comparison itself.
   this doc's Ogg/OpenCV caveat follows.
 - `ImplementationPlan.md` — phase 3, which this doc feeds into once a shape
   is chosen.
-- `archive/ModuleSplitPlan.md` — the repo-split reasoning (originally written for
+- `ModuleSplitPlan.md` — the repo-split reasoning (originally written for
   Input/Output plugins) that `Aurora-Demo-Web`'s split applies too, more
   cleanly than any existing plugin repo.
 - RockyRoadImport's `native-logic-reuse-decision` doc

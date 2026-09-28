@@ -1,5 +1,11 @@
 # Docs & lessons: scaling pain points
 
+Status: historical — the "Adopted design" and ranked backlog below are fully
+executed (items 1-9 by 2026-09-21's monorepo reorg; item 10, the
+`docs/archive/` split, by `Aurora-0ki` on 2026-09-28). Kept as the record of
+why the current shape (`docs/lessons/`, `docs/log/`, `docs/archive/`,
+`docs/WebUI/`, `check-links.sh`/`check-lessons.sh`) exists, not a live backlog.
+
 Prompted by the `WebUI/` doc reorg (`WebUI/WebUI_Design_1stPass.md`/`WebUI/WebUI_Fixes.md`/
 `WebUI/WebUI_Design_2ndPass.md`) — capturing *why* that reorg was needed, and being
 honest that the lessons system meant to prevent this has the same disease.
@@ -135,6 +141,6 @@ stretch goal (needs a docs-build root first).
   status, pointers only. Paused work logs state + resume pointer.
 - The what-goes-where breakdown lives in `AGENTS.md` ("Where things go") —
   that section, not this doc, is the contract new work follows.
-- Workstream record: [log/2026-09-20-docs-system-overhaul.md](log/2026-09-20-docs-system-overhaul.md) —
+- Workstream record: [log/2026-09-20-docs-system-overhaul.md](../log/2026-09-20-docs-system-overhaul.md) —
   what shipped, decisions, and open remainder. Task history in closed beads
   (`bd list --status all`, labels `docs`/`migrated`/`phase-*`).

@@ -1,12 +1,17 @@
 # Audio-reactive color — findings, not a decision
 
+Status: historical — written 2026-09-13, untouched since except renames/link
+fixes, despite two weeks of unrelated audio work shipping (Phase 2.5, native
+Windows/Linux/Mac audio input). Never revisited on the merits; treat as a
+record of the original framing, not an active question.
+
 Prompted by a phase-3-adjacent idea, general to the whole architecture, not
 web-specific: an audio-driven default `Processing` behavior — a vibrant,
 contrasting color pair (e.g. cyan + magenta) that zones bounce between on
 the beat, while the pair itself slowly HSV-lerps to a new contrasting,
-vibrant pair over time. **Status: not aligned on shape or direction yet**
-— same spirit as `BrowserAnalysis.md`, context for a future decision, not
-the decision itself.
+vibrant pair over time. Original framing: **not aligned on shape or
+direction yet** — same spirit as `BrowserAnalysis.md`, context for a
+possible future decision, not the decision itself.
 
 ## Nothing for this exists yet
 
@@ -444,7 +449,7 @@ audio that emits onset/beat events directly.
 is the piece that decides the actual colors — palette drift and
 beat-driven bounce both live here, not in the input plugin.
 
-This is a deliberate, conscious exception to `archive/ModuleSplitPlan.md`'s
+This is a deliberate, conscious exception to `ModuleSplitPlan.md`'s
 "core stays dependency-light, heavy dependencies isolated to plugins"
 rule — not a case that rule already accounted for. Whatever detection
 library core ends up using (aubio, most likely) becomes core's first
@@ -499,7 +504,7 @@ now followed by a second pass later to add the audio side.
 
 Looked up rather than assumed, per the "verify a library's real behavior
 before designing around it" habit already established (`OpenFormatsResearch.md`,
-`archive/WindowsInputAnalysis.md`).
+`WindowsInputAnalysis.md`).
 
 ### [aubio](https://aubio.org/) — native/general candidate
 
@@ -732,7 +737,7 @@ arrives, the same shape `activeMonitorName` already proved out.
 
 - `DistributedArchitecturePlan.md` — the "`Output` doesn't care about
   `Frame` provenance" finding this whole doc's convergence point builds on.
-- `archive/ModuleSplitPlan.md` — the repo-split/dependency-isolation rule the
+- `ModuleSplitPlan.md` — the repo-split/dependency-isolation rule the
   boundary question above bears directly on.
 - `BrowserAnalysis.md` — the Option B (browser-native, no backend) pattern
   the `BeatDetector` candidate fits into.

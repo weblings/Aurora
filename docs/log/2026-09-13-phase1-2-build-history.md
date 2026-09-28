@@ -128,7 +128,7 @@ WSL2, no real X11/Wayland session), and nothing in `main()` caught it —
 block around `main()`. Confirmed both failure paths now exit cleanly with a
 message (no backend available; no output configured) rather than aborting.
 Real end-to-end verification (real display + real bridge) is next, on the
-Ubuntu device — see `DistributedArchitecturePlan.md` for the architecture
+Ubuntu device — see `archive/DistributedArchitecturePlan.md` for the architecture
 question this app's shape feeds into.
 
 **First real hardware pass, on the actual Ubuntu device (2026-09-13): all

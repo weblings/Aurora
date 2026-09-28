@@ -299,7 +299,7 @@ Inserted between phases 2 and 3, not phase 6, because it's independent of
 phases 3–5 (browser/WebXR/ISF) — it's a new `Input`+`Processing` track,
 the same kind of foundational native work as phase 2, not something
 gated on or by the browser output work. **Analysis pass already done,
-extensively:** `docs/AudioAnalysis.md` — every decision below is
+extensively:** `docs/archive/AudioAnalysis.md` — every decision below is
 sourced from it rather than re-derived here.
 
 **Demonstrable:** play music through whatever the user normally uses
@@ -310,7 +310,7 @@ confirmed live against real hardware, same rigor as phase 2's real
 end-to-end verification.
 
 **In scope for this phase — live capture only** (provenance 3 in
-`AudioAnalysis.md`'s breakdown), because it's the only provenance that
+`archive/AudioAnalysis.md`'s breakdown), because it's the only provenance that
 lets tuning happen by ear without also building audio playback:
 
 **Unplanned, discovered mid-phase: X11/Pipewire pixel-format mistagging,
@@ -349,7 +349,7 @@ colors now match huenicorn. See `docs/lessons/input.md`.
    formula, onset-strength-scaled swing with a verified dynamism floor,
    RMS-driven brightness with a verified never-fully-dark floor) — all as
    pure functions taking an `AudioEffectSettings` struct (the
-   `Config`-parameterization decided earlier), per `AudioAnalysis.md`'s
+   `Config`-parameterization decided earlier), per `archive/AudioAnalysis.md`'s
    formulas. **Result: 38/38 core tests passing** (12 new `AudioProcessing`
    tests + the pre-existing 26), rebuilt clean against `Aurora-App-Windows`
    too (4/4 still passing) with no regressions.
@@ -380,7 +380,7 @@ colors now match huenicorn. See `docs/lessons/input.md`.
    pre-existing 42), `Aurora-App-Windows` rebuilt clean too (4/4, no
    regressions).
 3. **Live-capture plugins**, new CMake target in each existing repo (not
-   a new repo — see `AudioAnalysis.md`'s repo/target-structure section):
+   a new repo — see `archive/AudioAnalysis.md`'s repo/target-structure section):
    - **Windows: done, hardware-verified.** `Aurora-Input-Windows` gains
      `AuroraInputWindowsAudio` (new `AURORA_INPUT_WINDOWS_ENABLE_AUDIO`
      option) — `AudioGrabber`, miniaudio-backed WASAPI loopback (verified
@@ -433,7 +433,7 @@ colors now match huenicorn. See `docs/lessons/input.md`.
    TouchDesigner keeps audio (CHOPs) and video (TOPs) as genuinely separate
    operator families that can't even wire directly together, and Resolume
    treats audio purely as a *modulator* of video parameters rather than a
-   parallel output producer — see `AudioAnalysis.md`'s orchestration
+   parallel output producer — see `archive/AudioAnalysis.md`'s orchestration
    section.
 
    Takes an `AudioEffectSettings` struct in its constructor (the tunable
@@ -470,7 +470,7 @@ colors now match huenicorn. See `docs/lessons/input.md`.
 **Explicitly deferred, not part of this phase's demonstrable:**
 - **`AudioFile-Input`** (provenance 1) — resequenced to a later,
   lower-priority pass as a reproducible test fixture (libsndfile-backed,
-  already verified in `AudioAnalysis.md`), not needed for the live-capture
+  already verified in `archive/AudioAnalysis.md`), not needed for the live-capture
   demonstrable above.
 - **Video-embedded audio** (provenance 2) — needs a genuinely different
   joint-demux component, tied to phase 3's still-unscoped video-upload
@@ -480,7 +480,7 @@ colors now match huenicorn. See `docs/lessons/input.md`.
   UI is part of this phase. Unset `fixedAnchorHue` (random pick among the
   six pairs) stays the only exercised path until something actually writes
   to that field.
-- Every numeric constant in `AudioAnalysis.md` marked as needing a
+- Every numeric constant in `archive/AudioAnalysis.md` marked as needing a
   listening test (`smoothTime`, the dynamism floor, centroid `strength`,
   vibrancy S/V) — starting points to tune during this phase's actual
   build, not values to treat as final before real playback exists to
@@ -490,7 +490,7 @@ colors now match huenicorn. See `docs/lessons/input.md`.
 Status: partial — milestone 1 shipped (Aurora-xcb); milestone 2 in progress (Aurora-x7o).
 
 Split into two sequenced milestones after a long reasoning pass (see
-`docs/BrowserAnalysis.md` and `docs/DistributedArchitecturePlan.md`
+`docs/archive/BrowserAnalysis.md` and `docs/archive/DistributedArchitecturePlan.md`
 for the full findings this splits from) — a real change from this phase's
 original framing as one native `Output::ThreeJS` plugin.
 
@@ -520,7 +520,7 @@ Four pieces:
   bundled sample is the only video source today.
 - A web `Processing` module (`Aurora/web-processing/`, copied into
   `Aurora-Demo-Web`) — hand-ported crop/average math (JS), per
-  `BrowserAnalysis.md`'s reuse-vs-reimplement finding for that specific
+  `archive/BrowserAnalysis.md`'s reuse-vs-reimplement finding for that specific
   logic.
 - A Three.js virtual-light output module (`Aurora-Demo-Web`) — the original
   9-slice-grid concept (8 `Three.js` point lights around the video plane,
@@ -547,8 +547,8 @@ against the ported native defaults settled on a "tuned" preset (faster
 brightness smoothing than native's own bulb-tuned defaults — see
 `lessons/engineering-hygiene.md`'s brightness-lag-reads-as-boring finding) as the
 shipped default; a demo-only attack/decay variant was built and deliberately
-kept out of the tested port. Full detail in `AudioAnalysis.md` and
-`BrowserAnalysis.md`, including a tracked-but-not-started follow-up to
+kept out of the tested port. Full detail in `archive/AudioAnalysis.md` and
+`archive/BrowserAnalysis.md`, including a tracked-but-not-started follow-up to
 backport the same A/C tuning finding to native Windows/Linux (already
 possible with zero code changes, since `Config` already persists every
 relevant field).
@@ -559,7 +559,7 @@ API's UDP/DTLS stream. Cut because the premise doesn't survive contact
 with how browsers actually work, not for lack of interest: the whole
 appeal was reaching real bulbs *without* needing the native app running at
 all, but the Hue bridge doesn't grant CORS access to arbitrary public
-origins (confirmed, not assumed — see `BrowserAnalysis.md`), so a page
+origins (confirmed, not assumed — see `archive/BrowserAnalysis.md`), so a page
 hosted anywhere public (GitHub Pages included) can't reach a bridge
 directly regardless of Chrome's Local Network Access rollout. Some native
 process has to run locally either way to bridge that CORS gap — and once
@@ -752,7 +752,7 @@ already-solved groundwork instead of rediscovering it.
 Status: unbuilt.
 
 Wires ISF shaders in as the actual visual-effect layer for the browser/WebXR
-output, per `OpenFormatsResearch.md`'s finding that ISF fits this target better
+output, per `archive/OpenFormatsResearch.md`'s finding that ISF fits this target better
 than any lighting-specific format.
 
 - **Analysis pass first:** `docs/ISFRendererAnalysis.md` — read
@@ -785,9 +785,9 @@ Status: deferred.
   with a WebSocket one (new dependency — e.g. uWebSockets, IXWebSocket, Boost.Beast).
   Not needed for phases 1–5 to work end to end. **This is also the fork
   where the open one-seam-vs-double-seam question in
-  `DistributedArchitecturePlan.md` needs an actual answer** — pick it up
+  `archive/DistributedArchitecturePlan.md` needs an actual answer** — pick it up
   again when this stretch goal gets picked up, not before.
-- **Object detection (YOLO-style)** — designed in `OpenFormatsResearch.md`, not
+- **Object detection (YOLO-style)** — designed in `archive/OpenFormatsResearch.md`, not
   part of this pass; slots into `Processing` after phase 5.
 - **Additional Output targets** (DMX/Art-Net/sACN, OPC/DDP) — deferred the same way.
 - **Dynamic/hot-swappable plugin loading** — only revisit if compile-time module

@@ -102,7 +102,7 @@ Tags: web-audio, dsp, demo-web
 Applies-when: feeding AnalyserNode frequency data into DSP math
 
 Hit in `Aurora-Demo-Web` hand-rolling onset/RMS/spectral-centroid extraction
-against the Web Audio API instead of aubio-via-WASM (see `AudioAnalysis.md`).
+against the Web Audio API instead of aubio-via-WASM (see `archive/AudioAnalysis.md`).
 The ported math assumes linear magnitude, same as aubio's own spectrum data —
 but `AnalyserNode.getFloatFrequencyData()`/`getByteFrequencyData()` don't
 return that. Checked the real spec's own algorithm order, not assumed:
@@ -170,6 +170,6 @@ damping is actually driving that impression before uniformly speeding up
 every time constant — brightness/intensity is usually the more
 perceptually load-bearing one for "does this look reactive," while hue can
 stay slow without costing the same feeling of responsiveness. Relevant if
-this tuning is ever backported to real bulbs (see `BrowserAnalysis.md`'s
+this tuning is ever backported to real bulbs (see `archive/BrowserAnalysis.md`'s
 A/C follow-up) — worth confirming the same asymmetry holds physically, not
 just on a screen.

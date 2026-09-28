@@ -48,6 +48,40 @@ lesson refs unrelated to this move (`Analysis/lessons/*.md` leftovers from
 the same 2026-09-21 rename, plus a few lesson mentions missing their
 `lessons/` prefix) — fixed alongside since the checker was already open.
 
+## `docs/archive/DocsAndLessonsPainPoints.md` → `docs/archive/`
+
+Its own backlog is fully executed (items 1-9 by the 2026-09-21 monorepo
+reorg, item 10 — the `docs/archive/` split — by this entry). Marked
+`Status: historical` and moved; it's the record of why the current shape
+exists, not a live backlog anymore.
+
+## Second pass: five more docs → `docs/archive/`
+
+`archive/AudioAnalysis.md`, `archive/BrowserAnalysis.md`, `archive/DistributedArchitecturePlan.md`,
+`archive/OpenFormatsResearch.md`, `archive/StackComparison.md`.
+
+A follow-up review first proposed grouping these five into a new
+`docs/architecture/` — they cite each other and share one theme ("how far
+could the architecture extend"). Checking actual edit history instead of
+trusting their self-declared `Status:` lines killed that idea: every one of
+them had its last *substantive* content edit within the project's first two
+days (2026-09-13 to 09-15); nothing since but renames, link-hygiene passes,
+and status-header bureaucracy — across two weeks and ~480 commits that
+shipped the entire Mac platform, native audio on three OSes, and multiple
+WebUI passes, none of which prompted a revisit. `archive/BrowserAnalysis.md`'s one
+seemingly-live thread (`Aurora-f06`, an open bead) turned out to be equally
+stale — created 2026-09-20, never updated since, still citing the
+pre-rename `Analysis/` path in its own description. Self-reported `Status:`
+lines that are never re-validated are exactly as frozen as the doc around
+them; edit recency is the real signal.
+
+All five moved to `docs/archive/` with corrected `Status:` lines naming
+their actual last-touched date and what happened since. One exception noted
+in-place rather than silently fixed: `archive/StackComparison.md`'s own premise is
+to describe *current* architecture, and it's missing Mac entirely (last
+updated 2026-09-14, before Mac existed) — archived as a known-stale
+snapshot, not refreshed, since updating it is a separate, still-open task.
+
 ## Verification
 
 - `python3 docs/check-links.sh` — green, all of `docs/` actually scanned now.

@@ -1,6 +1,9 @@
 # Distributed architecture — how far to decompose Input/Processing/Output over a network
 
-Status: exploratory — future network-transport options, none scheduled; WebSocket question deferred.
+Status: historical — written 2026-09-13/14, untouched since except a
+2026-09-20 status-header pass; no network-transport work has been scheduled
+or started. Original framing: exploratory — future network-transport
+options, none scheduled; WebSocket question deferred.
 
 Prompted by comparing Aurora's shape against RockyRoad's self-hosted
 song-server pivot (one server, browser-only clients moving heavy
@@ -208,11 +211,11 @@ decision rather than generalizing from the two platforms built so far.
 
 ## Related docs
 
-- `archive/ModuleSplitPlan.md` — the Input/Processing/Output module boundaries this
+- `ModuleSplitPlan.md` — the Input/Processing/Output module boundaries this
   builds on.
 - `OpenFormatsResearch.md` — the VJ/lighting protocol research the mapping
   above draws on.
-- `archive/RuntimeAnalysis.md` — `Orchestrator`'s current shape; the "accept a
+- `RuntimeAnalysis.md` — `Orchestrator`'s current shape; the "accept a
   `Frame` from more than one kind of source" note above is a direct
   follow-up to it.
 - `ImplementationPlan.md` — the WebSockets stretch goal this question
