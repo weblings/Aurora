@@ -124,7 +124,7 @@ always still correct on the output.
 ---
 
 **Status:** Fixed and covered by tests in Aurora's port (`core/Processing/`,
-`core/tests/ProcessingTests.cpp`) — see `ProcessingAnalysis.md`.
+`core/tests/ProcessingTests.cpp`) — see `archive/ProcessingAnalysis.md`.
 
 ## Grabber (`IGrabber`)
 
@@ -159,7 +159,7 @@ sorted input) — `number` is always ≥ every other divisor, so appending it
 last keeps the vector sorted either way.
 
 **Status:** Fixed and covered by a regression test in Aurora's port
-(`input/linux/tests/LinuxInputTests.cpp`) — see `LinuxCaptureAnalysis.md`.
+(`input/linux/tests/LinuxInputTests.cpp`) — see `archive/LinuxCaptureAnalysis.md`.
 
 ## Pipewire (`XdgDesktopPortal`)
 
@@ -211,7 +211,7 @@ to be noticeable without a leak-detector run specifically targeting this path.
 `std::string(g_dbus_connection_get_unique_name(m_connection) + 1)` — no `strdup` needed.
 
 **Status (5 and 6):** Fixed in Aurora's port (`Aurora-Input-Linux`'s
-`XdgDesktopPortal.cpp`) — see `LinuxCaptureAnalysis.md`. No dedicated
+`XdgDesktopPortal.cpp`) — see `archive/LinuxCaptureAnalysis.md`. No dedicated
 regression test (this file's mechanics need a real Wayland portal session to
 exercise either branch at all).
 
@@ -274,7 +274,7 @@ already holds its final contents.
 
 **Status (7 and 8):** Fixed in Aurora's port (`Aurora-Output-Hue`'s
 `ApiTools.cpp`/`EntertainmentConfigurationSelector.cpp`) — see
-`HueOutputAnalysis.md`. Finding 7's fix is covered indirectly by
+`archive/HueOutputAnalysis.md`. Finding 7's fix is covered indirectly by
 `ApiToolsTests.cpp`'s pure-parsing tests; neither fix has a test exercising
 the actual failure path, since both need a live/failing bridge connection to
 trigger.

@@ -1,5 +1,8 @@
 # Runtime / Config — Conversion analysis
 
+Status: shipped 2026-09-13 (Phase 1, Aurora-4li) — kept as the record of what
+was ported and why; the live code is `core/Runtime/`.
+
 **Sources:** `huenicorn/include/Huenicorn/Core/{Runtime,CoreService,Config}.hpp`,
 `huenicorn/src/Core/{Runtime,CoreService,Config}.cpp`,
 `huenicorn/include/Huenicorn/Serialization/{Config,Channel}.hpp`.
@@ -221,4 +224,4 @@ unverifiable code with nothing concrete to build/test against. When it is
 built, it shouldn't be named `Runtime` given the `Aurora::Runtime` namespace
 these pieces already live in (e.g. `Aurora::Runtime::Orchestrator` instead)
 to avoid a class colliding with its own enclosing namespace's name.
-*Follow-up build record moved to [log/2026-09-13-runtime-orchestrator-followup.md](log/2026-09-13-runtime-orchestrator-followup.md) — not repeated here.*
+*Follow-up build record moved to [log/2026-09-13-runtime-orchestrator-followup.md](../log/2026-09-13-runtime-orchestrator-followup.md) — not repeated here.*

@@ -1,5 +1,8 @@
 # HTTP server analysis
 
+Status: active reference — feeds `ImplementationPlan.md`'s Phase 3 Milestone 2
+(Aurora-x7o), still in progress.
+
 Prerequisite analysis for `ImplementationPlan.md`'s Phase 3 Milestone 2 and
 `WebUI/WebUI_Design_1stPass.md`'s Build order step 1. Covers huenicorn's real
 `Network::Http::Server` C++ implementation (read directly, not the JS frontend

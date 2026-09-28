@@ -20,7 +20,7 @@ Distilled from [huenicorn](https://gitlab.com/openjowelsofts/huenicorn)
   Pipewire node). Gamescope-node matching and raw-buffer-to-`ImageData`
   conversion extracted as pure, tested helpers. Not unit-testable as a whole
   (needs a real Wayland session + portal backend) — see
-  [`docs/LinuxCaptureAnalysis.md`](../../docs/LinuxCaptureAnalysis.md).
+  [`docs/archive/LinuxCaptureAnalysis.md`](../../docs/archive/LinuxCaptureAnalysis.md).
 
 ## Building
 

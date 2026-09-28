@@ -39,3 +39,4 @@ Planning docs stay clean: decisions, status, and pointers here only.
 | 2026-09-28 | WebUI banner for the audio permission signal, closes out Aurora-9z4 (7/7) -- browser rendering not verified, flagged | Aurora-9z4.7 |
 | 2026-09-28 | --fake-hue ported to Mac/Windows, README tightened to name the actual env vars -- Windows not compile-verified, flagged | Aurora-zx4 |
 | 2026-09-28 | Video<->audio handoff confirmed live; Screen Recording -3801 despite enabled toggle traced to a second, inline-Approve consent dialog | Aurora-z4q |
+| 2026-09-28 | Docs archive + WebUI doc relocation + brand-asset move; check-links.sh's stale Analysis->docs base fixed (was silently checking nothing under docs/) | Aurora-0ki |

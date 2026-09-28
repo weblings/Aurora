@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="docs/README/Logo_Full_Dark.png" alt="Aurora" />
+  <img src="assets/brand/Logo_Full_Dark.png" alt="Aurora" />
 </p>
 
 # Aurora

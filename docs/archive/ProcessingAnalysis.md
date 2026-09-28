@@ -1,5 +1,8 @@
 # ImageProcessing / Color / Interpolation / ImageData / UV — Conversion analysis
 
+Status: shipped 2026-09-13 (Phase 1, Aurora-4li) — kept as the record of what
+was ported and why; the live code is `core/Processing/`.
+
 **Sources:** `huenicorn/include/Huenicorn/Imaging/*.hpp`, `huenicorn/src/Imaging/*.cpp`
 
 Starting the phase 1 port here, not with Input or Output. Reasoning: this section

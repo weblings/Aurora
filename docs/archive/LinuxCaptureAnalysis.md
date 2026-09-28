@@ -1,5 +1,8 @@
 # Grabber / GnuLinux capture — Conversion analysis
 
+Status: shipped 2026-09-13 (Phase 1, Aurora-4li) — kept as the record of what
+was ported and why; the live code is `input/linux/`.
+
 **Sources:** `huenicorn/include/Huenicorn/Grabber/**`,
 `huenicorn/src/Grabber/**`, `huenicorn/include/Huenicorn/Platform/Adapters/GnuLinux/**`,
 `huenicorn/src/Platform/Adapters/GnuLinux/**`

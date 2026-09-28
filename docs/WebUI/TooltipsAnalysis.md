@@ -1,5 +1,8 @@
 # Tooltips plumbing analysis (Aurora WebUI)
 
+Status: plumbing shipped; content still open, tracked in `Aurora-48x`
+("Wire TooltipContent draft into UI") — see `TooltipContent.md`.
+
 Goal: hover tooltips on Dashboard sliders, dropdowns, and (plumbed, low
 priority) bools, with identical behavior wherever the same control appears
 in NUX. Tooltips scale across a variable set of input/output/processing

@@ -11,7 +11,7 @@ Applies-when: polling an event-driven capture API with a zero timeout
 
 `WindowsGrabber`'s DXGI Desktop Duplication port used
 `AcquireNextFrame(0, ...)` — a non-blocking poll, planned in
-`WindowsInputAnalysis.md` to reproduce `X11Grabber`'s poll-anytime semantics
+`archive/WindowsInputAnalysis.md` to reproduce `X11Grabber`'s poll-anytime semantics
 (`XShmGetImage` re-reads whatever's currently on screen; DXGI's call instead
 waits for the *next* compositor-produced frame). On real hardware, `0`ms
 didn't just occasionally miss a frame and return `WAIT_TIMEOUT` (the assumed
@@ -260,7 +260,7 @@ change, a monitor swap) -- copying such a frame into the stale-sized
 staging texture and reading its `RowPitch` back can produce a step smaller
 than the new frame's own tightly-packed row size, and `cv::Mat`'s row-step
 constructor `CHECK`-asserts on that, crashing the whole daemon process, not
-just this one grab call. `WindowsInputAnalysis.md` had already flagged
+just this one grab call. `archive/WindowsInputAnalysis.md` had already flagged
 "RowPitch can exceed the tightly-packed row size" as a known, handled
 direction (GPU alignment padding, harmless) -- the *smaller*-than-expected
 direction was never considered, since the design research never asked "and

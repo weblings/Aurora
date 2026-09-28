@@ -7,7 +7,7 @@ interpreting/transporting at each step. Diagrams show one tick's worth of
 data, capture through bridge, for both the video pipeline (huenicorn has an
 equivalent) and the audio pipeline (huenicorn doesn't — see Phase 2.5 in
 `ImplementationPlan.md`); the `why` behind the module split itself is
-covered in `ModuleSplitPlan.md`/`RuntimeAnalysis.md`, not repeated here.
+covered in `archive/ModuleSplitPlan.md`/`archive/RuntimeAnalysis.md`, not repeated here.
 
 ## 1. huenicorn — one process, one thread, one of everything
 
@@ -202,7 +202,7 @@ identical:**
   vcpkg (classic mode) instead of `apt`/`pkg-config`, with zero change to
   how any of them are *used* — only how they're *provisioned* differs,
   which is a toolchain concern, not an architectural one (see
-  `WindowsInputAnalysis.md`).
+  `archive/WindowsInputAnalysis.md`).
 - **miniaudio** — the audio pipeline's one genuinely new library, same role
   DXGI/D3D11 play for video: the thing that turns an OS-owned audio device
   into readable bytes. `ma_device_type_loopback` captures whatever the
@@ -242,10 +242,10 @@ identical:**
 
 ## Related docs
 
-- `ModuleSplitPlan.md` — why the split happened where it did, and the
+- `archive/ModuleSplitPlan.md` — why the split happened where it did, and the
   repo-per-plugin reasoning behind `Aurora-Input-Linux`/`-Windows` and
   `Aurora-Output-Hue` being separate repos rather than folders.
-- `RuntimeAnalysis.md` / `WindowsInputAnalysis.md` — the deeper per-module
+- `archive/RuntimeAnalysis.md` / `archive/WindowsInputAnalysis.md` — the deeper per-module
   analysis this doc summarizes into one cross-platform comparison.
 - `DistributedArchitecturePlan.md` — the still-open question of whether the
   `ImageData` boundary shown here should ever become a real network seam.

@@ -1,7 +1,7 @@
 # Low-scope implementation plan
 
 Five phases to prove out the Input/Processing/Output split
-([`ModuleSplitPlan.md`](ModuleSplitPlan.md)) as a real, running vertical slice,
+([`archive/ModuleSplitPlan.md`](archive/ModuleSplitPlan.md)) as a real, running vertical slice,
 plus one deferred stretch. Order matches how the phases were scoped. Phase
 2.5 (audio) was inserted later, independent of phases 3–5 — it doesn't
 renumber anything since it isn't sequentially gated by the browser work.
@@ -25,7 +25,7 @@ Status: standing — principles, not a milestone.
   repo** (`Aurora-Input-Linux`, `Aurora-Output-Hue`, ...), not inside Aurora
   core, so a plugin's own dependencies (`pipewire`/`libX11` for Linux capture,
   `mbedtls`/`CURL` for Hue's DTLS+REST) aren't forced onto Aurora core or onto
-  unrelated plugins. See `ModuleSplitPlan.md`'s "Repo split" section for the
+  unrelated plugins. See `archive/ModuleSplitPlan.md`'s "Repo split" section for the
   full reasoning, including why this is *not* the same thing as license
   independence between plugins. A real hot-swappable runtime-loaded plugin
   system (stable ABI, `.dll`/`.so` loading, discovered by the web UI) is a
@@ -42,7 +42,7 @@ Status: standing — principles, not a milestone.
   analysis doc first, same shape as RockyRoad's own component docs
   (`SongPlayer.md`, `Camera3D.md`: what it does, what the new module actually
   needs from it, what maps directly vs. what needs rework). Goes in `docs/`
-  alongside `FirstScan.md`. This is what "holistic view before starting" means
+  alongside `archive/FirstScan.md`. This is what "holistic view before starting" means
   in each phase below — not a one-time exercise, a per-section step every
   phase repeats.
 
@@ -170,14 +170,14 @@ captures the Linux screen and drives real Hue lights exactly like huenicorn does
 today — this is the regression check everything else builds on.
 
 1. **Analysis pass first.** Three docs, each covering its section holistically
-   before any code moves. **All three done:** `docs/ProcessingAnalysis.md`
+   before any code moves. **All three done:** `docs/archive/ProcessingAnalysis.md`
    (the `Contracts` vs `Processing` split, three real bugs found during the
-   read/port), `docs/HueOutputAnalysis.md` (the pure-vs-I/O split that
+   read/port), `docs/archive/HueOutputAnalysis.md` (the pure-vs-I/O split that
    scoped that pass, the `Contracts::Frame` naming correction, the
    SSL-verification-disabled constraint worth carrying forward carefully), and
-   `docs/LinuxCaptureAnalysis.md` (why X11 ports now but Pipewire doesn't,
+   `docs/archive/LinuxCaptureAnalysis.md` (why X11 ports now but Pipewire doesn't,
    a fourth bug found — `_divisors()`'s off-by-one — and the `IInput`
-   refinement it drove). `FirstScan.md` already covers the interfaces at a
+   refinement it drove). `archive/FirstScan.md` already covers the interfaces at a
    high level; these go one level deeper, per section, right before that
    section's code is actually touched.
 
@@ -214,7 +214,7 @@ today — this is the regression check everything else builds on.
    huenicorn's, not an edit of `huenicorn/` itself.
 3. **Done.** Introduced `IInput` in Aurora core (generalized from `IGrabber`,
    refined with monitor selection + the pure divisor math — see
-   `ModuleSplitPlan.md`), and started `Aurora-Input-Linux` as its own repo
+   `archive/ModuleSplitPlan.md`), and started `Aurora-Input-Linux` as its own repo
    (repo-split decision, same doc). Ported and tested `DummyGrabber` and the
    session-dispatch decision logic (`SessionDispatch`); mechanically ported
    `X11Grabber` (builds, needs a real X11 session to manually verify
@@ -224,9 +224,9 @@ today — this is the regression check everything else builds on.
    `ImageData` conversion) that the first scoping pass hadn't surfaced.
    Builds cleanly against real `libpipewire`/`gio` dev packages; still needs
    a real Wayland session to manually verify capture — tracked in
-   `LinuxCaptureAnalysis.md`.
+   `archive/LinuxCaptureAnalysis.md`.
 4. **Done.** Introduced the `Processing` module (plus, as it turned out,
-   `Contracts` underneath it — see `ModuleSplitPlan.md`): moved
+   `Contracts` underneath it — see `archive/ModuleSplitPlan.md`): moved
    `ImageProcessing` into `Aurora::Processing`, and `Color`'s generic parts
    (`toNormalized()`/`brightness()`) plus `ImageData`/`UV`/`Interpolation`
    into `Aurora::Contracts`. Per the earlier gamma decision, `Color::toXYB()`
@@ -235,25 +235,25 @@ today — this is the regression check everything else builds on.
    method on it at all now, by construction, not just convention.
 5. **Done.** Introduced `IOutput` in Aurora core (header-only interface
    target, no `Config*` param, later gaining `zoneIds()` — see
-   `ModuleSplitPlan.md`/`RuntimeAnalysis.md`), and started
+   `archive/ModuleSplitPlan.md`/`archive/RuntimeAnalysis.md`), and started
    `Aurora-Output-Hue` as its own repo (repo-split decision, same doc).
    Ported and tested `toXYB()`, `Channel`, `HuestreamHeader`/`HuestreamPayload`,
    `sanitizeBridgeAddress`, `Credentials`'s byte-conversion first (everything
    pure), then the full I/O layer once `Config`/`Runtime` existed:
    `HttpClient` (libcurl), `ApiTools`, `EntertainmentConfigurationSelector`,
    `DtlsClient`/`MbedTlsImpl` (Mbed TLS), `Streamer`, and finally
-   `HueOutput : IOutput` itself — see `HueOutputAnalysis.md`'s staged
+   `HueOutput : IOutput` itself — see `archive/HueOutputAnalysis.md`'s staged
    follow-up pass. Genuine I/O still needs a live bridge to verify
    end-to-end, same category as `X11Grabber`.
 6. **Done.** `Contracts::Frame`/`Zone` — the neutral Input→Processing and
    Processing→Output contract (renamed from the `Processing::Frame` this step
-   originally described — see `ModuleSplitPlan.md`'s naming correction).
+   originally described — see `archive/ModuleSplitPlan.md`'s naming correction).
    Minimal v1 shape (zone id + linear color); positions/effects/detections
    aren't needed until phases 3 and 5.
 7. **Done against fakes; `HueOutput` now exists too (step 5), so real
    plugins can be wired in next.** Built `Runtime::Orchestrator`, depending
    on both `IInput`/`IOutput`, tested with a `FakeInput`/`FakeOutput` pair
-   standing in for `Input::Linux`/`Output::Hue` — see `RuntimeAnalysis.md`'s
+   standing in for `Input::Linux`/`Output::Hue` — see `archive/RuntimeAnalysis.md`'s
    follow-up pass. What's left is a real `main()` (compile-time or
    config-time plugin selection) constructing real `X11Grabber`/`HueOutput`
    instances and driving `Orchestrator::update()` in an actual timed loop —
@@ -271,18 +271,18 @@ Fills in `WindowsAdapter`'s `_createGrabber` stub (currently returns `nullptr`).
 
 - **Lighter analysis pass than phase 1** — there's no existing script to port
   here (the stub just returns `nullptr`), so this is a short note
-  (`docs/WindowsInputAnalysis.md`) on what `IInput` actually requires of an
+  (`docs/archive/WindowsInputAnalysis.md`) on what `IInput` actually requires of an
   implementer plus DXGI Desktop Duplication's real API shape (frame
   acquisition, format, the resize/re-acquire lifecycle) verified against
   Microsoft's docs before coding against assumed behavior — not a full
   conversion-analysis doc since nothing's being converted.
 - **Done.** Implemented `IInput` as `WindowsGrabber` using **DXGI Desktop
   Duplication**, built and hardware-verified — see the narrative paragraph
-  above and `WindowsInputAnalysis.md`'s hardware-verified-pass section.
+  above and `archive/WindowsInputAnalysis.md`'s hardware-verified-pass section.
 - Already fixed, not phase 2's doing: `ImageProcessing::Algorithms::mean()`
   already honors `PixelFormat` per-channel (done as part of phase 1's
-  `ProcessingAnalysis.md` finding 1) — the stale claim that phase 2 would be
-  the moment to fix it has been corrected in `WindowsInputAnalysis.md`.
+  `archive/ProcessingAnalysis.md` finding 1) — the stale claim that phase 2 would be
+  the moment to fix it has been corrected in `archive/WindowsInputAnalysis.md`.
 - **Done.** The same app, built on Windows (`Aurora-App-Windows`), capturing
   the Windows desktop and driving real Hue lights through the unchanged
   `Output::Hue` plugin — confirmed live against the real bridge. See the

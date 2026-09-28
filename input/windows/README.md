@@ -8,7 +8,7 @@ Distilled from [huenicorn](https://gitlab.com/openjowelsofts/huenicorn)
 huenicorn's own Windows adapter never implemented capture at all
 (`WindowsAdapter::_createGrabber` returns `nullptr`), so there's no upstream
 capture code to port here — see
-[`docs/WindowsInputAnalysis.md`](../../docs/WindowsInputAnalysis.md)
+[`docs/archive/WindowsInputAnalysis.md`](../../docs/archive/WindowsInputAnalysis.md)
 for the DXGI Desktop Duplication research this plugin is built against instead.
 
 ## Status
@@ -16,7 +16,7 @@ for the DXGI Desktop Duplication research this plugin is built against instead.
 - `DummyGrabber` — ported from `input/linux`'s copy, tested. No OS
   dependency, useful as a fallback/dev target.
 - `WindowsGrabber` (DXGI Desktop Duplication) — not started. See
-  `WindowsInputAnalysis.md` for the verified API shape, failure modes, and
+  `docs/archive/WindowsInputAnalysis.md` for the verified API shape, failure modes, and
   RAII/buffer-handling notes to build it against.
 
 ## Building

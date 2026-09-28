@@ -86,7 +86,7 @@ Yes — checked against the real Linux input plugin code
 ([`input/linux/src/`](../input/linux/src)), not just in theory.
 
 Aurora's `SessionDispatch` already picks between three capture backends at
-runtime (see [`LinuxCaptureAnalysis.md`](LinuxCaptureAnalysis.md)):
+runtime (see [`archive/LinuxCaptureAnalysis.md`](archive/LinuxCaptureAnalysis.md)):
 
 1. **X11** ([`X11Grabber.cpp`](../input/linux/src/X11Grabber.cpp)) — XShm +
    Xrandr, no portal involved.

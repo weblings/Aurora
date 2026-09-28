@@ -444,7 +444,7 @@ audio that emits onset/beat events directly.
 is the piece that decides the actual colors — palette drift and
 beat-driven bounce both live here, not in the input plugin.
 
-This is a deliberate, conscious exception to `ModuleSplitPlan.md`'s
+This is a deliberate, conscious exception to `archive/ModuleSplitPlan.md`'s
 "core stays dependency-light, heavy dependencies isolated to plugins"
 rule — not a case that rule already accounted for. Whatever detection
 library core ends up using (aubio, most likely) becomes core's first
@@ -499,7 +499,7 @@ now followed by a second pass later to add the audio side.
 
 Looked up rather than assumed, per the "verify a library's real behavior
 before designing around it" habit already established (`OpenFormatsResearch.md`,
-`WindowsInputAnalysis.md`).
+`archive/WindowsInputAnalysis.md`).
 
 ### [aubio](https://aubio.org/) — native/general candidate
 
@@ -732,7 +732,7 @@ arrives, the same shape `activeMonitorName` already proved out.
 
 - `DistributedArchitecturePlan.md` — the "`Output` doesn't care about
   `Frame` provenance" finding this whole doc's convergence point builds on.
-- `ModuleSplitPlan.md` — the repo-split/dependency-isolation rule the
+- `archive/ModuleSplitPlan.md` — the repo-split/dependency-isolation rule the
   boundary question above bears directly on.
 - `BrowserAnalysis.md` — the Option B (browser-native, no backend) pattern
   the `BeatDetector` candidate fits into.

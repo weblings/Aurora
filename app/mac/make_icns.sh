@@ -1,11 +1,11 @@
 #!/bin/sh
 # Build an .icns for the Aurora.app bundle (Aurora-8mk.11) from the dark
-# "A" logo's 1024px transparent master (docs/README/Logo_Square_Dark_1024.png),
+# "A" logo's 1024px transparent master (assets/brand/Logo_Square_Dark_1024.png),
 # downsampled with sips (a plain bitmap resizer, ships with every Mac) for
 # every smaller .iconset slot -- only ever downsampling, never up, so
 # nothing comes out soft.
 #
-# Previously rasterized directly from docs/README/Logo_Square.svg via
+# Previously rasterized directly from assets/brand/Logo_Square.svg via
 # qlmanage (macOS's QuickLook thumbnailer) instead, to get crisp results at
 # every size without a real SVG-rasterizer dependency. That produced a
 # genuinely broken icon, confirmed by extracting the built .icns and
@@ -20,7 +20,7 @@
 # size actually used (1024) rather than the SVG at all.
 set -e
 
-PNG_SRC="$1"      # docs/README/Logo_Square_Dark_1024.png
+PNG_SRC="$1"      # assets/brand/Logo_Square_Dark_1024.png
 OUT_ICNS="$2"
 WORK_DIR="$3"
 

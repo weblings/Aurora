@@ -166,7 +166,7 @@ include(GNUInstallDirs)
 install(TARGETS aurora-app-linux RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
 
 # Aurora-05r: launcher integration. aurora.desktop.in + hicolor icons are
-# checked-in assets generated from docs/README/Logo_Square_Light.png (see
+# checked-in assets generated from assets/brand/Logo_Square_Light.png (see
 # Aurora-05r bead comment). Anchored at CMAKE_CURRENT_SOURCE_DIR so both the
 # standalone-slice and superbuild configures resolve them.
 #

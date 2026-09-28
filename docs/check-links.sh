@@ -58,7 +58,7 @@ def check_file(path, dirpath):
         dead.append(f'DEAD: {os.path.relpath(path, root)} -> {t}')
 
 
-for base in ('Analysis', os.path.join('.claude', 'skills')):
+for base in ('docs', os.path.join('.claude', 'skills')):
     for dirpath, _, files in os.walk(os.path.join(root, base)):
         for fn in sorted(files):
             if fn.endswith('.md'):

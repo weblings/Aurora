@@ -404,7 +404,7 @@ mode running at all is a separate first step from the tuning comparison itself.
   this doc's Ogg/OpenCV caveat follows.
 - `ImplementationPlan.md` — phase 3, which this doc feeds into once a shape
   is chosen.
-- `ModuleSplitPlan.md` — the repo-split reasoning (originally written for
+- `archive/ModuleSplitPlan.md` — the repo-split reasoning (originally written for
   Input/Output plugins) that `Aurora-Demo-Web`'s split applies too, more
   cleanly than any existing plugin repo.
 - RockyRoadImport's `native-logic-reuse-decision` doc

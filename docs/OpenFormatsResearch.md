@@ -1,7 +1,7 @@
 # Existing open formats for video/audio-reactive lighting
 
 Survey done while scoping the Processing module (see
-[`ModuleSplitPlan.md`](ModuleSplitPlan.md)) — is there already a standard for
+[`archive/ModuleSplitPlan.md`](archive/ModuleSplitPlan.md)) — is there already a standard for
 "analyze media, produce zone/color/effect data, send it to fixtures," so Aurora
 isn't reinventing one?
 
@@ -21,7 +21,7 @@ just Hue-specific — good candidates for additional Output-module targets:
   multi-source sync built in. [Open Lighting Architecture](https://www.openlighting.org/)
   is the open-source hub that already speaks both plus 20+ USB DMX dongles — a
   useful reference for structuring a "many backends, one core" output layer (this
-  is effectively the `IOutput` idea in `ModuleSplitPlan.md`, already proven at
+  is effectively the `IOutput` idea in `archive/ModuleSplitPlan.md`, already proven at
   scale).
 - **Open Pixel Control / DDP / TPM2.net** — simpler "push an RGB array" protocols
   for addressable LED pixels (Fadecandy/OPC, WLED's preferred DDP, TPM2.net).
@@ -104,7 +104,7 @@ template — it's genuinely a close second, and its `CentsOffsets`-style continu
 curve is worth pulling in regardless of which base shape wins.
 
 **Implication:** none of the four gets adopted wholesale — Aurora's per-tick
-`Frame` type (referenced in `ModuleSplitPlan.md`'s `IOutput` section) has to be
+`Frame` type (referenced in `archive/ModuleSplitPlan.md`'s `IOutput` section) has to be
 designed from scratch, since nothing surveyed carries color-at-position, effect
 metadata, and detection AABBs together, and nothing surveyed both authors ahead of
 time and generates live from unknown content. The synthesized shape worth
@@ -224,7 +224,7 @@ in XR) than the theatrical-lighting formats above do.
 ## Conclusion for Aurora
 
 - **Live-reactive mode** (chosen as the near-term target — see
-  `ModuleSplitPlan.md`): no file format needed. Processing emits an in-memory,
+  `archive/ModuleSplitPlan.md`): no file format needed. Processing emits an in-memory,
   per-tick "zone → color/intensity" struct each frame, same role
   `Hue::Api::ChannelStream` plays today, just made output-agnostic.
 - **Output targets**: DMX/Art-Net/sACN and OPC/DDP for physical fixtures; **ISF**

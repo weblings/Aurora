@@ -1,5 +1,8 @@
 # Huenicorn pipeline scan
 
+Status: superseded 2026-09-12 by `ModuleSplitPlan.md`, which this scan's
+findings fed directly. Kept as the original pipeline read, not a live plan.
+
 Initial look at the huenicorn repo, focused on two questions: whether the video
 input can be swapped without breaking downstream code, and whether the color
 calculation / storage / transport is Hue-specific.

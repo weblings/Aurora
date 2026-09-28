@@ -914,13 +914,13 @@ Wiring and Polish
       section explicitly cut Pause for v1 ("`Orchestrator` has no concept
       of holding without exiting its loop"). Another instance of this plan
       doc's own sections drifting out of sync with each other (see
-      `Analysis/lessons/web-ui.md`'s already-filed entry on this) — not
+      `lessons/web-ui.md`'s already-filed entry on this) — not
       built, per the cut that was already made elsewhere in the same doc.
     - The mockup's status badge says "● Streaming," which would claim a
       live DTLS-connection health signal Aurora doesn't have and can't
       honestly show: `HueOutput::init()` succeeding is not proof a real
       streaming connection exists (`DtlsClient`'s handshake failure is
-      swallowed by design, already filed in `Analysis/lessons/output.md`).
+      swallowed by design, already filed in `lessons/output.md`).
       Shows "● Running" instead, once this screen's own capabilities probe
       succeeds — an honest claim (this screen only renders because the
       daemon answered a real request), not a fabricated one about a
@@ -1132,7 +1132,7 @@ Wiring and Polish
     width with a full-width Save; the Dashboard's mode-toggle-+-Stop row
     correctly stacks into two rows at constrained width rather than
     cramming (confirming this doc's own layout lesson, see
-    `Analysis/lessons/web-ui.md`); and the real 8-zone grid (this doc's own
+    `lessons/web-ui.md`); and the real 8-zone grid (this doc's own
     "~8 zones" assumption, not a token 2) renders with clearly separated
     touch targets at 390px, confirming that lesson's own conclusion against
     real rendered pixels rather than napkin math for the first time.

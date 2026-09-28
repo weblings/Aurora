@@ -5,7 +5,7 @@ conversation-so-far writeup. Started from a new Mac (Apple Silicon, current
 macOS) with no dev toolchain installed yet. No prior Mac exploration existed
 in the repo before this: macOS only came up in passing in
 [`GUILaunchUX.md`](GUILaunchUX.md#L26-L28) (tray reference, explicitly "not a
-target"), [`FirstScan.md`](FirstScan.md) (Huenicorn's unimplemented
+target"), [`archive/FirstScan.md`](archive/FirstScan.md) (Huenicorn's unimplemented
 `MacOSAdapter.mm` stub), and [`OpenFormatsResearch.md`](OpenFormatsResearch.md)
 (Syphon mentioned once as the macOS analog to Spout).
 

@@ -124,12 +124,12 @@ configure_file(
 )
 
 # Bundle icon: the dark "A" logo's 1024px transparent master
-# (docs/README/Logo_Square_Dark_1024.png), downsampled via sips for every
+# (assets/brand/Logo_Square_Dark_1024.png), downsampled via sips for every
 # smaller .iconset slot -- never upsampled, so nothing needs qlmanage's
 # SVG rasterization (which flattened transparency onto an opaque white
 # background and didn't preserve the SVG's own centering -- see
 # make_icns.sh for the finding).
-set(_AURORA_ICNS_SRC "${CMAKE_CURRENT_SOURCE_DIR}/../../docs/README/Logo_Square_Dark_1024.png")
+set(_AURORA_ICNS_SRC "${CMAKE_CURRENT_SOURCE_DIR}/../../assets/brand/Logo_Square_Dark_1024.png")
 set(_AURORA_ICNS_OUT "${CMAKE_CURRENT_BINARY_DIR}/Aurora.icns")
 add_custom_command(
   OUTPUT "${_AURORA_ICNS_OUT}"

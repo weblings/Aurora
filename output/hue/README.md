@@ -18,7 +18,7 @@ itself, and the daemon pairing routes (`PairingRoutes`, `/api/hue/*`).
 The I/O half is one toggle (`AURORA_OUTPUT_HUE_ENABLE_IO`, default ON;
 needs libcurl + Mbed TLS) -- a Hue plugin isn't useful with only one half
 of it. Background analysis lives in
-[`docs/HueOutputAnalysis.md`](../../docs/HueOutputAnalysis.md).
+[`docs/archive/HueOutputAnalysis.md`](../../docs/archive/HueOutputAnalysis.md).
 
 ## Developing without a bridge
 

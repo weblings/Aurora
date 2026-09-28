@@ -15,7 +15,7 @@ was called inside `tests/CMakeLists.txt` instead of the parent
 discover it — fixed by moving `enable_testing()` to the parent scope, before
 `add_subdirectory(tests)`. **Result: 8/8 tests passing**, covering all three
 regression fixes plus the pure `Color` math. Both lessons recorded in
-`Analysis/lessons/engineering-hygiene.md`.
+`lessons/engineering-hygiene.md`.
 
 **`Aurora-Output-Hue` build-verified** — same WSL2 flow, copied into
 `~/AuroraProjects/{Aurora,Aurora-Output-Hue}` (matching casing needed for the
@@ -59,7 +59,7 @@ still needs a real Wayland session + portal backend, which this Windows
 machine/WSL2 can't provide (same caveat as `X11Grabber`).
 
 Two real bugs found while porting `XdgDesktopPortal` (see
-`LinuxCaptureAnalysis.md`): a missing early `return` in
+`archive/LinuxCaptureAnalysis.md`): a missing early `return` in
 `onCreateSessionResponseReceivedCallback` that let a denied/cancelled session
 fall through to use an unvalidated result, and a pointless `strdup` leak in
 `getSenderName()`. Both fixed. Also flagged as a lesson (not fixed, since
@@ -71,7 +71,7 @@ prioritizing before the next I/O-heavy port (Hue's `Streamer`/DTLS layer).
 `nlohmann_json` as a new core dependency (same find-package-else-`FetchContent`
 pattern as glm; huenicorn already uses this exact library). Built
 `Config`/`ConfigStore`, `ZoneMap`/`ZoneMapStore`, `reconcileZoneMap`,
-`composeFrame`, `Smoother` per the decided `RuntimeAnalysis.md` shape (RGB
+`composeFrame`, `Smoother` per the decided `archive/RuntimeAnalysis.md` shape (RGB
 smoothing in Runtime, one profile file per plugin). **Result: 16/16 core
 tests passing** (8 pre-existing Processing + 8 new Runtime). Also rebuilt
 `Aurora-Output-Hue` (10/10) and `Aurora-Input-Linux` (11/11) against this
@@ -108,7 +108,7 @@ implementation to exist in Aurora. Writing `HueOutput::send()` surfaced a
 real gap — nowhere for a user's per-zone gamma setting to persist — closed
 by adding `gamma` to both `Runtime::ZoneConfig` and `Contracts::Zone`
 (reversing the earlier "gamma is Hue-specific" call; see
-`HueOutputAnalysis.md`). **Result: 22/22 `Aurora-Output-Hue` tests
+`archive/HueOutputAnalysis.md`). **Result: 22/22 `Aurora-Output-Hue` tests
 passing.** Rebuilt `Aurora` core (24/24) and `Aurora-Input-Linux` (11/11)
 against the `Contracts::Zone` field addition — both still clean.
 
@@ -168,7 +168,7 @@ the same formula), `channelId` → `zoneId` unchanged. No `devices`/
 `entertainmentConfigurationId` fields carried over — genuinely not part of
 Aurora's generic `ZoneMap` by design (device membership and entertainment
 config selection are `HueOutput`'s own live-discovery job now, not saved
-state — see `RuntimeAnalysis.md`'s two-file-split section).
+state — see `archive/RuntimeAnalysis.md`'s two-file-split section).
 
 **Confirms the transcription was correct, not just accepted:** `HueOutput`
 was constructed with no `entertainmentConfigurationId` override (empty
@@ -253,12 +253,12 @@ and the workload finishing successfully doesn't put `cmake`/`cl.exe` on
 shape) built clean against Aurora core via vcpkg's toolchain file — first
 proof the multi-repo `FetchContent`-sibling pattern holds on Windows too.
 
-Wrote `WindowsGrabber` against `WindowsInputAnalysis.md`'s researched DXGI
+Wrote `WindowsGrabber` against `archive/WindowsInputAnalysis.md`'s researched DXGI
 shape, then — since this dev machine has a real interactive desktop, unlike
 WSL2 for the Linux plugins — actually ran it against real hardware
 immediately, rather than deferring verification. Two real bugs found this
-way, both corrected in `WindowsInputAnalysis.md` and filed in the new
-`Analysis/lessons/input.md`: (1) `AcquireNextFrame`'s non-blocking `0`ms
+way, both corrected in `archive/WindowsInputAnalysis.md` and filed in the new
+`lessons/input.md`: (1) `AcquireNextFrame`'s non-blocking `0`ms
 timeout, the shape recommended by the original research, starved forever on
 empty placeholder frames on real hardware — fixed with a real `16`ms
 timeout; (2) the research's claimed-HDR finding turned out to be a
@@ -302,4 +302,4 @@ user-confirmed live — dragging a window onto the configured (but physically
 powered-off) monitor changed the real lights immediately. That last part
 also sharpened the monitor-powered-off finding above: an off monitor isn't
 inherently black, Windows keeps compositing real content to it regardless —
-see `Analysis/lessons/input.md`'s follow-up note.
+see `lessons/input.md`'s follow-up note.

@@ -1,5 +1,8 @@
 # Hue::Api / Auth / Stream — Conversion analysis
 
+Status: shipped 2026-09-13 (Phase 1, Aurora-4li) — kept as the record of what
+was ported and why; the live code is `output/hue/`.
+
 **Sources:** `huenicorn/include/Huenicorn/Hue/**`, `huenicorn/src/Hue/**`,
 `huenicorn/include/Huenicorn/Stream/**`, `huenicorn/src/Stream/**`
 
@@ -40,4 +43,4 @@ separate, larger effort, not shrunk to fit this pass. Deferred, not skipped:
 `Network::Http::Client`.
 
 ---
-*Follow-up build record moved to [log/2026-09-13-hue-io-layer-followup.md](log/2026-09-13-hue-io-layer-followup.md) — not repeated here.*
+*Follow-up build record moved to [log/2026-09-13-hue-io-layer-followup.md](../log/2026-09-13-hue-io-layer-followup.md) — not repeated here.*

@@ -1,6 +1,6 @@
 #!/bin/sh
 # Build the menu-bar tray icon (Aurora-qps.2) from the same dark "A" logo
-# master make_icns.sh already uses (docs/README/Logo_Square_Dark_1024.png),
+# master make_icns.sh already uses (assets/brand/Logo_Square_Dark_1024.png),
 # downsampled with sips -- only ever downsampling, matching make_icns.sh's
 # own reasoning (see that script's header comment).
 #
@@ -19,7 +19,7 @@
 # directory following Apple's naming convention -- no asset catalog needed.
 set -e
 
-PNG_SRC="$1"      # docs/README/Logo_Square_Dark_1024.png
+PNG_SRC="$1"      # assets/brand/Logo_Square_Dark_1024.png
 OUT_DIR="$2"
 
 sips -z 18 18 "${PNG_SRC}" --out "${OUT_DIR}/tray-icon.png" >/dev/null

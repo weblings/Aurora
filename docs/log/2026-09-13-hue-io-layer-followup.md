@@ -136,18 +136,18 @@ value without needing a `Channel` object populated with real bridge data
 that was never going to carry the user's gamma setting anyway.
 
 **Ported and tested this pass:** `toXYB()` (as a free function, not a `Color`
-method — see `ModuleSplitPlan.md`'s gamma decision), `Channel`'s pure
+method — see `archive/ModuleSplitPlan.md`'s gamma decision), `Channel`'s pure
 UV/gamma logic, `HuestreamHeader`/`HuestreamPayload` byte-packing,
 `sanitizeBridgeAddress()`, `Credentials`'s byte-conversion helpers.
 
 ## A naming/placement correction found while doing this
 
-`ModuleSplitPlan.md` called the Processing→Output contract type
+`archive/ModuleSplitPlan.md` called the Processing→Output contract type
 `Processing::Frame`. On reflection, doing the actual port: it belongs in
 **`Contracts`**, not `Processing` — it's a boundary type Output consumes and
 Processing produces, exactly the same relationship `ImageData` has to
 Input/Processing. Named `Contracts::Frame`/`Contracts::Zone` instead. Recorded
-back into `ModuleSplitPlan.md`.
+back into `archive/ModuleSplitPlan.md`.
 
 `Zone.color` carries **generic linear color** (`Contracts::Color`), not a
 pre-transformed value — `toXYB()` runs inside `Output::Hue`'s own `send()`,

@@ -29,6 +29,14 @@ Core repo: shared `Contracts`, `Processing`, `Input`/`Output` interfaces,
   row on close — every material fact, stated once and tightly; paused work logs
   state + resume pointer. Findings over narration.
 - Planning docs: decisions, status, pointers only. No task lists, no build play-by-play.
+  Every doc/section carries a `Status:` line (shipped/superseded/exploratory/etc.).
+- Shipped or superseded plans and analyses: `docs/archive/`, once their `Status:`
+  line says so — kept as the historical record, not deleted or edited into the
+  present tense.
+- WebUI-specific docs (design passes, tooltip content/plumbing): `docs/WebUI/`,
+  not the `docs/` root.
+- Brand/icon source assets (logos, app-icon masters): `assets/brand/` — build
+  inputs consumed by `app/*/CMakeLists.txt`, not documentation.
 - References: cite lessons by headline/topic, files by markdown link, external
   lessons by topic + directory (URLs live under Related directories).
 

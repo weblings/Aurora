@@ -1,5 +1,8 @@
 # Windows Input plugin — analysis pass
 
+Status: shipped 2026-09-14 (Phase 2, Aurora-m4f) — kept as the record of what
+was built and why; the live code is `input/windows/`.
+
 Lighter pass than phase 1's ports, per `ImplementationPlan.md`'s own scoping:
 huenicorn's `WindowsAdapter::_createGrabber` is a genuine stub (verified by
 reading `WindowsAdapter.cpp` — `(void)config; return nullptr;`), so there's

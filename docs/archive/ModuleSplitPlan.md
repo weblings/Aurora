@@ -1,5 +1,8 @@
 # Splitting huenicorn into Input / Processing / Output
 
+Status: shipped — modules exist as built (see per-section `Status:` lines
+below for the few still-open follow-ups).
+
 Goal: take huenicorn's monolithic "grab Linux screen → dominant-color-per-region →
 stream to Hue bridge" pipeline and split it into three modules with a
 platform-agnostic core in the middle. See [`FirstScan.md`](FirstScan.md) for the
@@ -7,7 +10,7 @@ original pipeline read that this plan builds on.
 
 These boundaries are also where a future network seam would go if any
 module ends up running on a separate device — see
-[`DistributedArchitecturePlan.md`](DistributedArchitecturePlan.md) for that
+[`DistributedArchitecturePlan.md`](../DistributedArchitecturePlan.md) for that
 open question (not resolved, doesn't block anything built so far).
 
 - **Input** — any 2D video source (screen, file, camera, eventually
@@ -18,7 +21,7 @@ open question (not resolved, doesn't block anything built so far).
   rigs, or XR-scene effects later). Target-specific by nature.
 
 Decision (2026-09-12, both live-now / authored-later chosen — see
-[`OpenFormatsResearch.md`](OpenFormatsResearch.md) for the format survey behind
+[`OpenFormatsResearch.md`](../OpenFormatsResearch.md) for the format survey behind
 this): Processing is designed **live-reactive first** — it reacts frame-by-frame to
 whatever the Input module hands it, no precomputed file format required. The
 per-tick contract between modules should stay generic enough that an *authored*
@@ -183,7 +186,7 @@ Status: mostly historical — audio greenfield item shipped 2026-09-15 (Aurora-l
   video path, since audio and video are independent capture sources that a shared
   Processing stage could fuse.
 
-See [`StackComparison.md`](StackComparison.md) for how this split's `IInput`
+See [`StackComparison.md`](../StackComparison.md) for how this split's `IInput`
 seam actually looks in practice once two real platforms exist behind it —
 huenicorn vs. Aurora-App-Linux vs. Aurora-App-Windows, with the data flow
 and dependency-library roles at each step.
