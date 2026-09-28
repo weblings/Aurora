@@ -7,7 +7,7 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
-const root = new URL('../../', import.meta.url);
+const root = new URL('../../../', import.meta.url);
 const read = (p) => readFileSync(new URL(p, root), 'utf8');
 
 // Single truth: the superbuild project() VERSION parses -- it is the

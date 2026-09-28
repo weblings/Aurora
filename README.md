@@ -19,19 +19,20 @@ Philips' official app.
 - Dependencies:
   - **Windows:** Try launching Aurora. If you get an error saying "The code execution cannot proceed because VCRUNTIME140.dll was not found", then you need: [Visual C++ Redistributable](https://learn.microsoft.com/en-us/cpp/windows/latest-supported-vc-redist). If not, it's already installed and you're good to go.
   - **Linux (Debian/Ubuntu):** `sudo apt install libx11-6 libxext6 libxrandr2 pipewire libaubio5 libcurl4t64 libopencv-core406t64 libmbedtls14t64` (ffmpeg and GL pieces arrive automatically as dependencies of those; on other releases the curl/opencv/mbedtls package names differ slightly — e.g. `libopencv-core410` / `libmbedtls21` — and a missing-`.so` error on launch names its package).
-  - **Compiling from source?** You need the `-dev` variants instead — see [docs/Building.md](docs/Building.md#prerequisites).
+  - **Mac (experimental, Apple Silicon, build from source only):** install [Homebrew](https://brew.sh), then `brew install cmake opencv curl aubio mbedtls@3 pkg-config` (must be `mbedtls@3`, not v4), and build via the `mac-app` preset, see [CONTRIBUTING.md](CONTRIBUTING.md#platform-notes). Run from a terminal and grant Screen Recording when prompted. GUI App launching and tray UX will come in 1.0.4.
+  - **Compiling from source on Linux?** You need the `-dev` variants instead — see [docs/Building.md](docs/Building.md#prerequisites).
 
 ## Layout
 
 One repo, with a directory per slice. You only build the ones for your platform:
 
 - [`core/`](core) — capture/processing/output contracts, pipelines, orchestration
-- [`app/windows`](app/windows) / [`app/linux`](app/linux) — the runnable apps; **start here to use Aurora**
-- [`input/windows`](input/windows) / [`input/linux`](input/linux) — screen + audio capture plugins (DXGI on Windows; X11 / Wayland-Pipewire on Linux)
+- [`app/windows`](app/windows) / [`app/linux`](app/linux) / [`app/mac`](app/mac) — the runnable apps; **start here to use Aurora** (Mac is experimental, terminal-only)
+- [`input/windows`](input/windows) / [`input/linux`](input/linux) / [`input/mac`](input/mac) — screen + audio capture plugins (DXGI on Windows; X11 / Wayland-Pipewire on Linux; ScreenCaptureKit on Mac)
 - [`output/hue`](output/hue) — Philips Hue entertainment-streaming output plugin
 - [`web/ui`](web/ui) — the setup/control interface the apps serve in your browser
 
-**Prebuilt binaries:** from the 1.0.1 GitHub Release above. To compile from source instead, see below.
+**Prebuilt binaries:** from the 1.0.2 GitHub Release above. To compile from source instead, see below.
 
 ## For Developers
 
@@ -40,11 +41,13 @@ To build from source or contribute, clone `git clone https://github.com/weblings
 [CONTRIBUTING.md](CONTRIBUTING.md) (tasks, version rules, test gates).
 
 ```
-content --> Input --> Processing --> Output --> bulbs
-(screen,      |           |             |
- audio,      DXGI /      color +       Hue
- video)      X11 /       effect
-             PipeWire    pipeline
+content --> Input ---------------> Processing --> Output --> bulbs
+(screen,      |                       |             |
+ audio,      DXGI /                  color +       Hue
+ video)      X11 /                   effect
+             PipeWire /              pipeline
+             ScreenCaptureKit /
+             CoreAudio
 ```
 
 Input, Processing, and Output are built to be swappable modules: write your own Input (capture source),
@@ -54,16 +57,13 @@ Processing (source to effects handling), or Output (color / effects) module
   install the [`bd` CLI](https://github.com/steveyegge/beads), then `bd list` / `bd show <id>`
   from the repo root — closed tasks carry the context behind these docs.
 - Each slice's README covers its own status, build flags, and tests;
-  `ctest --test-dir build/linux-app` (or `build/windows-app`) runs the full native suite.
+  `ctest --test-dir build/linux-app` (or `build/windows-app`, `build/mac-app`) runs the full native suite.
 - `docs/` holds the distillation notes (capture, Hue output, browser strategy), lessons, and build history.
 
 ## Troubleshooting
 
 **I'm not seeing audio reacting**
 - If no audio was actively playing before you toggled to audio the grabber might have trouble finding it. Switch back to video, play some audio, then try switching to audio.
-
-**I'm seeing some latency before UI loads on Linux**
-- This is a tracked bug. Fixes should be landing in 1.0.2
 
 ## Art
 - The aurora SVG in the logo is modified from <a href="https://www.vecteezy.com/vector-art/88906-free-northern-lights-vector-series"> Kaitlyn Parker's Northern Lights Series</a> on <a href="https://www.vecteezy.com/free-vector/nature">Nature Vectors by Vecteezy</a>

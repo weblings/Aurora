@@ -1,63 +1,19 @@
 # macOS support
 
-Status: exploratory — no code, CMake, or packaging changes yet, this is the
-conversation-so-far writeup. Started from a new Mac (Apple Silicon, current
-macOS) with no dev toolchain installed yet. No prior Mac exploration existed
-in the repo before this: macOS only came up in passing in
-[`GUILaunchUX.md`](GUILaunchUX.md#L26-L28) (tray reference, explicitly "not a
-target"), [`FirstScan.md`](FirstScan.md) (Huenicorn's unimplemented
-`MacOSAdapter.mm` stub), and [`OpenFormatsResearch.md`](OpenFormatsResearch.md)
-(Syphon mentioned once as the macOS analog to Spout).
+Status: tier 1 shipped in 1.0.3 — terminal-only app (`app/mac`) with video
+(ScreenCaptureKit, Aurora-8mk) + audio (Aurora-9z4) capture. No tray, no
+notarization: single-machine builds only. Install deps live in the
+[README](../README.md#quick-start) (Mac row), contributor setup in
+[CONTRIBUTING](../CONTRIBUTING.md#platform-notes); this doc keeps the
+scoping, pitfalls, and design writeup.
 
-## Setup: getting the existing repo building on a new Mac
+## Setup: toolchain and dependencies
 
-The root [`CMakeLists.txt`](../CMakeLists.txt#L23-L38) only auto-enables
-slices when `CMAKE_SYSTEM_NAME` is `Linux` or `Windows` — on Darwin,
-`cmake -S . -B build` configures a superbuild with nothing turned on, since
-no `input/mac` or `app/mac` exists yet. Until that slice exists, the useful
-thing to verify is that the toolchain and shared libraries (`core/`,
-`output/hue/`) build standalone.
-
-```sh
-# Xcode CLT (confirm even if Xcode.app is already installed)
-xcode-select --install
-
-# Homebrew
-/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
-
-# Deps: cmake (root pins 3.14 min, CMakePresets.json needs 3.24 — brew's is
-# current), OpenCV (needed by every platform), curl (system one usually
-# fine, but output/hue's find_package(CURL) is happiest with brew's),
-# aubio (core/AudioProcessing hard-requires it on every non-Windows
-# platform, not just Linux — see the pitfall below), mbedtls@3 (NOT the
-# bare `mbedtls` formula — see the pitfall below) + pkg-config for
-# output/hue's DTLS streamer
-brew install cmake opencv curl aubio mbedtls@3 pkg-config
-
-# mbedtls@3 is keg-only (brew's plain `mbedtls` formula is now v4, which
-# this project doesn't support yet — see below), so point pkg-config at it
-# and make it the active `mbedtls` on this machine:
-export PKG_CONFIG_PATH="$(brew --prefix mbedtls@3)/lib/pkgconfig:$PKG_CONFIG_PATH"
-brew link mbedtls@3 --force
-
-# bd (this repo's task tracker, used instead of markdown TODOs)
-brew install steveyegge/beads/bd
-bd import   # pick up the tracked .beads/issues.jsonl
-# On a truly fresh local DB, the very first `bd` command can fail with
-# "issue_prefix config is missing" — a beads first-run quirk, not a repo
-# config problem. Running any other bd command once (e.g. `bd list`) and
-# then `bd import` again clears it.
-```
-
-Confirm the toolchain by building what already exists (no full app yet):
-
-```sh
-cmake -S core -B build-core-test && cmake --build build-core-test
-ctest --test-dir build-core-test --output-on-failure
-
-cmake -S output/hue -B build-hue && cmake --build build-hue
-ctest --test-dir build-hue --output-on-failure
-```
+Installed from the primary docs now: the
+[README Quick Start](../README.md#quick-start) (Mac deps row) for what to
+install, [CONTRIBUTING](../CONTRIBUTING.md#platform-notes) for the full
+contributor setup and `mac-app` preset build/test. The Mac-specific
+pitfalls below stay here as reference.
 
 ### Pitfall: Homebrew's `mbedtls` is now v4, and it's a real incompatibility
 
@@ -91,6 +47,10 @@ so `/opt/homebrew/include/mbedtls/` resolves consistently to 3.6.7.
 Two tiers, from smallest to largest:
 
 ### Terminal-only, video-only (initial scope)
+
+**Update for 1.0.3:** audio shipped too (Aurora-9z4, closed) — tier 1 is
+now video + audio, and the Mac slice does need `aubio`. The rest of this
+section is the original video-only scoping, kept as history.
 
 This is the starting point — it skips the hardest and most speculative
 piece (menu-bar tray integration), which the project's own planning doc
@@ -202,6 +162,9 @@ copying into `app/mac/`.
     landed.
 
 ### Deferred: audio
+
+**Update for 1.0.3:** no longer deferred — shipped as Aurora-9z4 (process
+taps). The rest of this section is the original research, kept as history.
 
 Unlike Windows' WASAPI loopback, macOS has no built-in "capture what's
 playing" API for most of its history. Two candidate paths were identified

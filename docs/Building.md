@@ -10,9 +10,11 @@ contributors, packagers, and unsupported platforms.
 |---|---|---|
 | `linux-app` | `build/linux-app/bin/Aurora` | single-config |
 | `windows-app` | `build/windows-app/bin/Release/Aurora.exe` | multi-config (`bin/<Config>`) |
+| `mac-app` | `build/mac-app/bin/Aurora.app` | single-config (experimental, tier 1) |
 
 ```sh
 cmake --preset linux-app -DCMAKE_INSTALL_PREFIX=~/.local  # or windows-app
+cmake --preset mac-app  # experimental tier 1: no install step, run Aurora.app from the build tree
 cmake --build build/linux-app   # --config Release on Windows
 ctest --test-dir build/linux-app --output-on-failure
 cmake --install build/linux-app # registers launcher + tray icon (Linux)
@@ -39,6 +41,9 @@ imgproc)`).
 - **Linux (Debian/Ubuntu):** `sudo apt install build-essential cmake
   libopencv-dev libcurl4-openssl-dev libmbedtls-dev libx11-dev libxext-dev
   libxrandr-dev libglib2.0-dev libpipewire-0.3-dev libaubio-dev`
+- **macOS (Apple Silicon, experimental):** Xcode CLT + Homebrew — full setup
+  (packages, `mbedtls@3` pin, `mac-app` preset) lives in
+  [CONTRIBUTING.md](../CONTRIBUTING.md#platform-notes).
 
 Native dependencies stay system packages (no vendored `.so` set); see the
 `Aurora-b9q` bead for the decision.
@@ -69,6 +74,15 @@ standalone configures are dev-only and report version "dev".
 
   $env:AURORA_HUE_BRIDGE_ADDRESS = "..."; $env:AURORA_HUE_USERNAME = "..."; $env:AURORA_HUE_CLIENTKEY = "..."
   ./build/bin/Release/Aurora.exe
+  ```
+
+- Mac (`app/mac`, needs `core/`, `input/mac`, `output/hue` alongside, or
+  toggle `AURORA_APP_ENABLE_MAC_INPUT` / `_HUE_OUTPUT` off):
+
+  ```sh
+  cmake -S . -B build
+  cmake --build build
+  ctest --test-dir build --output-on-failure
   ```
 
 Running needs a Hue bridge with registered lamps and an entertainment area
@@ -111,6 +125,10 @@ unreliable outside a sandbox -- our native tarball gets nothing from it.
   [Visual C++ Redistributable](https://learn.microsoft.com/en-us/cpp/windows/latest-supported-vc-redist)
   (central deployment, serviced by Windows Update). It is deliberately not
   vendored — re-shipping the CRT means re-shipping every security update.
+- **Mac:** no `cmake --install` support yet (single-machine builds only) —
+  run `open build/mac-app/bin/Aurora.app` from the build tree. The `.app`
+  bundle exists so Aurora holds its own Screen Recording grant instead of
+  Terminal's; grant what it requests, then quit and relaunch.
 
 ## Tests
 

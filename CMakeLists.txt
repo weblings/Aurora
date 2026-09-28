@@ -5,7 +5,7 @@ cmake_minimum_required(VERSION 3.14)
 # /api/version route. Agents: bump the version only when asked, and never
 # edit CHANGELOG.txt -- its entries are the maintainer's own notes, and
 # nothing enforces the mirror.
-project(AuroraMonorepo VERSION 1.0.2)
+project(AuroraMonorepo VERSION 1.0.3)
 
 # Thin superbuild: selects slices, forwards nothing. Each slice pulls core/
 # itself via FetchContent (SOURCE_DIR into this tree), so this file never

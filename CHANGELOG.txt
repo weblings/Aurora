@@ -1,5 +1,8 @@
 v1.0.3:
-- In development: web fake-lights dev viz tool, Mac video-terminal support
+- Mac - Experimental terminal support added. Supports video and audio pipelines. You must compile a build on your machine. Grant permissions it requests, then quit and relaunch Aurora. GUI Launching and Tray UX will come in 1.0.4
+- Linux - Fix - Dismissing the screen-sharing popup no longer freezes settings saves, and the no-audio build option compiles again.  
+- Dev - Fake lights debug visualization. Debug stack emulates how Hue's bridge connects to Aurora and its lights.
+- Dev - Web Demo refactored to power fake lights visualization
 
 v1.0.2:
 - Executables can now be double-clicked to start Aurora. A second double-click launches its UI.

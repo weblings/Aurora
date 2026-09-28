@@ -62,8 +62,9 @@ mkdir -p /tmp/aurora-fresh/profiles
 cp tools/fake-hue-bridge/room-4zone-zonemap.json /tmp/aurora-fresh/profiles/hue.json
 ```
 
-5. Serve `web/demo/` (`python3 -m http.server`), open `viz.html` in a
-   browser -- room renders, status reads "waiting for frames", lamps dark.
+5. Serve `web/demo/` (`python3 -m http.server`, any port if 8000 is taken),
+   open `viz.html` in a browser -- room renders, status reads "waiting for
+   frames", lamps dark.
    (If you are an agent that cannot open a browser, hand the user the
    viz URL instead of stopping: they open it, you keep driving the
    processes and confirm frames on the SSE endpoint.)
@@ -133,6 +134,22 @@ Datagrams over ~9000 bytes (encoded) are dropped by the tap itself, not
 fragmented -- confirmed live against macOS's actual `net.inet.udp.maxdgram`
 (9216 by default, well under IPv4's theoretical max), so keep subsample
 width sane if `frame` reports fewer frames than expected.
+
+## Troubleshooting
+
+- viz.html stays dark ("waiting for frames"): isolate relay vs page with
+  one SSE sample (`curl -N http://127.0.0.1:18245/events`). Frames here
+  mean the pipeline is live and the problem is the tab; nothing here means
+  Aurora isn't emitting (check the tap env var and the app log). Pairing is
+  NOT required for frames -- under `--fake-hue --fresh` the tap streams
+  pre-pairing; the pairing step only rehearses NUX.
+- No-browser capture check: `PUT /api/config {"activeInputName":"dummy"}`
+  should turn SSE uniform and drifting (the dummy signature); switch back
+  to the platform input to restore varied static colors. Proves
+  capture-to-SSE end to end without opening a tab. (All three app shells
+  register `"dummy"`.)
+- App log empty when backgrounded (Linux): stdout block-buffers to file;
+  prefix `stdbuf -o0 -e0`, or find the WebUI port via `ss -ltnp`.
 
 ## Contents
 
