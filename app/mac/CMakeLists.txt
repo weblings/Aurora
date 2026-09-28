@@ -2,6 +2,9 @@ cmake_minimum_required(VERSION 3.14)
 
 project(AuroraAppMac)
 
+# TrayIcon.mm (Aurora-qps.2) is Objective-C++.
+enable_language(OBJCXX)
+
 option(AURORA_APP_BUILD_TESTS "Build this app's own tests" TRUE)
 # Which plugin repos this particular app binary is compiled with -- the
 # compile-time half of the two-level plugin-selection design; the run-time
@@ -63,12 +66,12 @@ if(AURORA_APP_ENABLE_HUE_OUTPUT AND NOT TARGET AuroraOutputHue)
 endif()
 
 # Registry as its own library (not folded into the executable) so tests can
-# link it without pulling in main()'s own main() symbol. No TrayIcon.cpp
-# here, unlike app/linux -- see "Tray-parity" in docs/MacSupport.md for
-# what a later tier adds (a .app bundle + NSStatusItem, needing AppKit).
+# link it without pulling in main()'s own main() symbol. TrayIcon.mm
+# (Aurora-qps.2) matches app/linux's TrayIcon.cpp living here too.
 add_library(AuroraApp STATIC
   src/Registry.cpp
   src/InstanceLock.cpp
+  src/TrayIcon.mm
 )
 
 target_include_directories(AuroraApp PUBLIC
@@ -78,6 +81,17 @@ target_include_directories(AuroraApp PUBLIC
 target_link_libraries(AuroraApp PUBLIC
   AuroraInputInterface
   AuroraOutputInterface
+)
+
+find_library(FRAMEWORK_APPKIT AppKit REQUIRED)
+target_link_libraries(AuroraApp PUBLIC ${FRAMEWORK_APPKIT})
+
+# ARC (retain/release for the AppKit object pointers held inside
+# TrayIcon::Impl, a plain C++ struct -- ARC manages those the same as any
+# other __strong Objective-C pointer member). Same precedent as
+# ScreenCaptureKitGrabber.mm.
+set_source_files_properties(src/TrayIcon.mm PROPERTIES
+  COMPILE_FLAGS "-fobjc-arc"
 )
 
 target_compile_features(AuroraApp PUBLIC cxx_std_20)
@@ -129,10 +143,29 @@ add_custom_command(
 )
 set_source_files_properties("${_AURORA_ICNS_OUT}" PROPERTIES MACOSX_PACKAGE_LOCATION "Resources")
 
+# Menu-bar tray icon (Aurora-qps.2), same source master as Aurora.icns
+# above, see make_tray_icon.sh for why this ships full-color (isTemplate
+# discards RGB at load time, no separate monochrome asset needed).
+set(_AURORA_TRAY_ICON_1X "${CMAKE_CURRENT_BINARY_DIR}/tray-icon.png")
+set(_AURORA_TRAY_ICON_2X "${CMAKE_CURRENT_BINARY_DIR}/tray-icon@2x.png")
+add_custom_command(
+  OUTPUT "${_AURORA_TRAY_ICON_1X}" "${_AURORA_TRAY_ICON_2X}"
+  COMMAND /bin/sh "${CMAKE_CURRENT_SOURCE_DIR}/make_tray_icon.sh"
+          "${_AURORA_ICNS_SRC}" "${CMAKE_CURRENT_BINARY_DIR}"
+  DEPENDS
+    "${CMAKE_CURRENT_SOURCE_DIR}/make_tray_icon.sh"
+    "${_AURORA_ICNS_SRC}"
+  COMMENT "Building menu-bar tray icon (18px/36px) from the dark logo's 1024px master"
+  VERBATIM
+)
+set_source_files_properties("${_AURORA_TRAY_ICON_1X}" "${_AURORA_TRAY_ICON_2X}" PROPERTIES MACOSX_PACKAGE_LOCATION "Resources")
+
 add_executable(aurora-app-mac MACOSX_BUNDLE
   src/main.cpp
   "${_AURORA_EMBEDDED_WEBROOT_HEADER}"
   "${_AURORA_ICNS_OUT}"
+  "${_AURORA_TRAY_ICON_1X}"
+  "${_AURORA_TRAY_ICON_2X}"
 )
 
 # Product binary is Aurora; build-tree output goes to bin/ directly under
@@ -196,10 +229,10 @@ add_custom_command(TARGET aurora-app-mac POST_BUILD
   VERBATIM
 )
 
-# No install()/packaging rules yet, unlike app/linux -- no LSUIElement,
-# NSStatusItem, or SMAppService (tray-parity tier). This tier is "build it,
-# launch build/bin/Aurora.app via `open`" -- see docs/MacSupport.md's
-# build-sequencing (Phase 3b).
+# No install()/packaging rules yet, unlike app/linux. NSStatusItem lands
+# above (Aurora-qps.2); LSUIElement/SMAppService are still later
+# tray-parity phases (Aurora-qps.3/.6) -- see docs/MacSupport.md's
+# "Tray-parity" section.
 
 target_compile_features(aurora-app-mac PRIVATE cxx_std_20)
 

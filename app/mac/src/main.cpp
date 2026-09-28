@@ -1,10 +1,11 @@
-// Mac terminal-only tier (docs/MacSupport.md, Aurora-8mk): ported from
-// app/linux's main.cpp, minus full tray-parity (LSUIElement/NSStatusItem/
-// SMAppService -- see "Tray-parity" in the doc; a minimal .app bundle for
-// TCC identity is already in from Aurora-8mk.11) and minus the X11/Pipewire
-// backend-selection dance (macOS has exactly one capture API -- "mac",
-// input/mac's ScreenCaptureKit grabber, Aurora-8mk.5). Bridge credentials
-// still come from env vars or a persisted pairing flow, same as app/linux.
+// Mac terminal/tray tier (docs/MacSupport.md, Aurora-8mk + Aurora-qps):
+// ported from app/linux's main.cpp, minus the X11/Pipewire backend-
+// selection dance (macOS has exactly one capture API -- "mac", input/mac's
+// ScreenCaptureKit grabber, Aurora-8mk.5). NSStatusItem tray presence
+// landed in Aurora-qps.2; LSUIElement agent mode and SMAppService login
+// items are still later tray-parity phases (Aurora-qps.3/.6) -- see
+// "Tray-parity" in the doc. Bridge credentials still come from env vars or
+// a persisted pairing flow, same as app/linux.
 
 #include <algorithm>
 #include <chrono>
@@ -21,6 +22,7 @@
 #include <Aurora/App/FakeHue.hpp>
 #include <Aurora/App/InstanceLock.hpp>
 #include <Aurora/App/Registry.hpp>
+#include <Aurora/App/TrayIcon.hpp>
 #include <Aurora/App/WebRoot.hpp>
 #include <EmbeddedWebRoot.hpp>
 #include <Aurora/Network/Http/Server/HttpServer.hpp>
@@ -985,10 +987,13 @@ try
 
   std::cout << "Aurora running. Ctrl+C to stop.\n";
 
-  // No tray icon in this tier -- no .app bundle, no NSStatusItem, no
-  // LSUIElement. Just a CLI binary printing its URL, same shape Linux/
-  // Windows had before tray icons landed. See "Tray-parity" in
-  // docs/MacSupport.md for what a later tier adds here.
+  // Aurora-qps.2: tray presence (NSStatusItem) from here until scope exit.
+  // No LSUIElement yet -- the Dock icon still shows; agent mode is
+  // Aurora-qps.3, sequenced separately. See "Tray-parity" in
+  // docs/MacSupport.md.
+  Aurora::App::TrayIcon trayIcon(url, webUiBound,
+    [&]{ openWebBrowser(url); },
+    []{ g_stopRequested = 1; });
 
   // Drives whichever Pipeline is current at the top of each iteration -- a
   // reload swapping it mid-loop is exactly what PipelineHost's own lock is
@@ -998,6 +1003,11 @@ try
     pipelineHost.tick();
     auto tickInterval = std::chrono::duration<double>(pipelineHost.tickIntervalSeconds());
     std::this_thread::sleep_until(tickStart + std::chrono::duration_cast<std::chrono::steady_clock::duration>(tickInterval));
+    // Pump the status item's run loop (x2o's Windows precedent:
+    // PeekMessage/DispatchMessage each iteration); no-op when nothing's
+    // queued. Placed after the sleep, not before, so a click during the
+    // sleep gets serviced promptly rather than waiting a full tick.
+    trayIcon.pump();
   }
 
   std::cout << "Stopping...\n";
