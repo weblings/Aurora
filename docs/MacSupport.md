@@ -204,12 +204,12 @@ copying into `app/mac/`.
 ### Deferred: audio
 
 Unlike Windows' WASAPI loopback, macOS has no built-in "capture what's
-playing" API for most of its history. Two candidate paths, to decide
-between whenever audio scope reopens:
+playing" API for most of its history. Two candidate paths were identified
+when this scope was first deferred:
 
 1. Core Audio **process taps** (`AudioHardwareCreateProcessTap`, macOS
-   14.4+) — no kernel extension, but needs a separate "Audio Capture" TCC
-   permission and a recent macOS.
+   14.4+) — no kernel extension, but needs a separate TCC permission and a
+   recent macOS.
 2. Ask users to install a virtual loopback driver (BlackHole), closer in
    spirit to how Linux leans on PipeWire monitor sources.
 
@@ -223,6 +223,200 @@ across 2026, per
 the real-world install base is already almost entirely past 14.4.
 Recommendation: set 14.4+ as Aurora's Mac floor from tier 1, rather than
 framing this as a future bump.
+
+**Decided: process taps over BlackHole.** The version floor above removes
+the only real cost of process taps (needing a recent macOS) while keeping
+their real advantage: zero new user-facing install step, matching the
+"react to whatever's playing" model Windows (miniaudio/WASAPI loopback)
+and Linux (PipeWire monitor source) already ship — BlackHole would mean
+asking every Mac user to install and route through a virtual driver just
+to get the same result process taps give natively.
+
+#### What's already reusable for free
+
+Audio is not greenfield for Aurora — it already shipped for Windows and
+Linux (`Aurora-ljj`, "Phase 2.5 audio stack shipped"), and
+[`docs/AudioAnalysis.md`](AudioAnalysis.md) is the as-built design, not a
+speculative one. Everything above the platform boundary is already
+generic and needs no Mac-specific work: `IAudioInput`
+([`core/Input/include/Aurora/Input/IAudioInput.hpp`](../core/Input/include/Aurora/Input/IAudioInput.hpp)),
+`Contracts::AudioBuffer`/`AudioFeatures`, `AudioProcessing`/
+`AudioFeatureExtractor` (aubio-backed), `AudioOrchestrator`, `Config`'s
+audio fields, `/api/capabilities`'s `platform` field (`Aurora-8mk.7`), and
+the WebUI's audio screens. The only missing piece is a Mac-specific
+`IAudioInput` implementation and its wiring into `app/mac` — the same
+shape ScreenCaptureKit filled for video.
+
+#### Real opens, checked directly rather than assumed
+
+Looked these up against real API behavior and in-flight developer reports
+(late 2026), not recalled from memory, per this doc's own "verify a
+library's real behavior before designing around it" habit:
+
+- **This is a distinct, narrower TCC permission from Screen Recording,
+  even though Tahoe 26 lists both under one settings pane.** macOS 26
+  Tahoe's Privacy & Security pane is labeled **Screen & System Audio
+  Recording**, but it governs two separately-scoped grants: full
+  screen+audio (ScreenCaptureKit, what `Aurora-8mk.5`/`.11` already hold)
+  and a narrower **"System Audio Recording Only"** grant
+  (`NSAudioCaptureUsageDescription`, what a process tap needs) with no
+  screen access at all
+  ([Recall.ai: how to get access to system audio on macOS](https://www.recall.ai/blog/how-to-get-access-to-system-audio)).
+  One pane, two independently-keyed grants — Aurora's existing Screen
+  Recording grant from the video work does **not** cover this; expect a
+  fresh, separate consent prompt the first time a process tap starts.
+- **The aggregate-device step is a silent-failure trap, not a documented
+  error.** A tap alone isn't a working capture path: it must be attached
+  as a sub-tap on an *aggregate device* whose main sub-device is a real
+  output device. Using the tap as the aggregate's only member (empty
+  sub-device list) compiles, runs, reports success, and then silently
+  delivers all-zero samples forever
+  ([Thunder Kitty: "2,000 Buffers of Nothing"](https://www.thunderkitty.app/learn/2000-buffers-of-nothing/)).
+  Same class of gotcha `docs/lessons/input.md` already collects for WASAPI
+  (zero callbacks, not silent ones) — worth its own entry there once
+  verified hands-on, not just designed around from a blog post. Concrete
+  dictionary shape, cross-checked against two independent implementations
+  ([sbooth/CAAudioHardware](https://github.com/sbooth/CAAudioHardware/blob/main/Sources/CAAudioHardware/AudioAggregateDevice.swift),
+  a community `SoundManager`-style wrapper): `kAudioAggregateDeviceTapListKey`
+  → `[{kAudioSubTapUIDKey, kAudioSubTapDriftCompensationKey: true}]`,
+  `kAudioAggregateDeviceSubDeviceListKey` → `[{kAudioSubDeviceUIDKey:
+  <real output device UID>}]`, `kAudioAggregateDeviceMainSubDeviceKey` →
+  that same output UID, plus `kAudioAggregateDeviceIsPrivateKey: true`
+  (keeps it from showing up as a selectable device elsewhere) and
+  optionally `kAudioAggregateDeviceTapAutoStartKey: true`. Good enough to
+  scope against; still needs building and running for real in Step 0,
+  not taken on faith from two blog posts.
+- **TCC enforcement for this permission is completely silent, and Apple
+  has confirmed there's no programmatic way to check it.** Every Core
+  Audio call involved returns `noErr` regardless of grant state; the only
+  observable symptom of denial is that the callback fires with all-zero
+  samples
+  ([Thunder Kitty, ibid.](https://www.thunderkitty.app/learn/2000-buffers-of-nothing/)).
+  An Apple engineer's own forum reply confirms this isn't a documentation
+  gap: *"There is no API to determine whether an app still has permission
+  to capture system audio"*, directing developers to file a Feedback
+  Assistant enhancement request instead
+  ([Apple Developer Forums](https://developer.apple.com/forums/thread/771864)).
+  **This breaks an assumption the existing Screen Recording
+  permission-recovery flow (`Aurora-8mk.6`/`.8`) was built on**: that flow
+  expects an explicit pending/denied signal from a completion handler, the
+  way `SCShareableContent` gives one. Audio has no such signal — detecting
+  denial means inferring it from behavior (e.g. "N seconds of all-zero
+  buffers while the system is known to be producing audio"), which is a
+  genuinely different, fuzzier design, not a port of the video flow.
+- **The responsible-process attribution risk is confirmed for this
+  permission too, by an independent real-world report — not just an
+  inferred parallel.** A Flutter-tooling integration-test report describes
+  exactly `Aurora-8mk.4`'s finding, for this exact permission: *"An app the
+  flutter tool launches is attributed to the terminal that runs the tool
+  [for System Audio Recording]... either grant that terminal [the
+  permission], or launch the built example app via `open` once and click
+  Allow"*
+  ([Apple Developer Forums](https://developer.apple.com/forums/thread/756783)).
+  That's the identical fix Aurora already built (`Aurora-8mk.11`'s bundle
+  + LaunchServices launch) confirmed to generalize to this second TCC
+  service by someone else's independent testing, not just a plausible
+  guess from Aurora's own Screen Recording fix. Separately, an [Apple
+  Developer Forums thread from Tahoe 26.1](https://developer.apple.com/forums/thread/807898)
+  is titled around plain executables not appearing under the
+  "Screen & System Audio Recording" pane at all, consistent with the same
+  root cause — still worth Aurora's own hands-on check in Step 0, since
+  "someone else's bundle fixed it" and "Aurora's specific bundle fixes it"
+  aren't quite the same claim.
+- **Whole-system capture (not a hand-enumerated process list) is directly
+  supported.** `CATapDescription`'s
+  `initStereoGlobalTapButExcludeProcesses`, called with an empty (or
+  self-only) exclude list, mixes every process's output into one stereo
+  stream at the HAL layer
+  ([per-app-audio](https://github.com/mavericksxx/per-app-audio),
+  [Sunshine PR #4209](https://github.com/LizardByte/Sunshine/pull/4209)).
+  This resolves a real architecture worry — the API is HAL-wide, not
+  fundamentally per-process — and matches the "react to whatever's
+  playing" model Windows/Linux already ship, with no need to enumerate or
+  track running audio-producing processes.
+- **`NSAudioCaptureUsageDescription` must be added to `Info.plist.in`
+  directly** — a manually-typed key, not exposed through normal
+  build-setting flows (irrelevant distinction for Aurora, which already
+  hand-templates
+  [`app/mac/Info.plist.in`](../app/mac/Info.plist.in), but the key itself
+  still needs adding).
+- **Entitlements likely aren't needed** — the entitlement question mostly
+  bites sandboxed (App Store) apps; Aurora ships as a plain,
+  non-sandboxed, ad-hoc-signed local build, the same shape that already
+  works for Screen Recording. Flagged as "likely," not confirmed — to be
+  checked hands-on in Step 0 below rather than assumed.
+- **The already-known rebuild-invalidates-grant lesson likely applies
+  again.** `docs/lessons/input.md`'s `Aurora-8mk.8` entry found that an
+  ad-hoc signature's hash changes every `cmake --build`, silently
+  invalidating a previously-granted TCC entry. Grants for this second
+  service are keyed the same way, so the same failure mode almost
+  certainly reproduces — to be confirmed empirically, not assumed
+  identical just because the mechanism sounds the same.
+- **Version floor, re-confirmed rather than re-guessed:** independent
+  sources converge on macOS 14.4 as the real public floor for process taps
+  ([DGR Labs](https://dgrlabs.co/blog/2026-04-25-capturing-system-audio-on-macos-in-2026.html),
+  [Recall.ai](https://www.recall.ai/blog/how-to-get-access-to-system-audio)),
+  matching the 14.4+ floor this doc already settled on above for
+  unrelated adoption-share reasons — no change needed, just corroboration.
+
+#### Potential build sequence (not started — Step 0 is next)
+
+Mirrors the video tier's own successful shape: resolve the load-bearing
+permission/API risk with a cheap, throwaway probe before writing real
+code against it, the same move `Aurora-8mk.4` made for Screen Recording
+before `input/mac/` existed.
+
+- **Step 0 — probe the tap → aggregate-device → IOProc chain and the
+  permission behavior around it, hands-on, on the real dev machine. Not
+  yet run.** Extend the existing `tcc-probe-app.app` bundle (or a new
+  throwaway one built the same way) to: build a real
+  `initStereoGlobalTapButExcludeProcesses` tap, wrap it in an aggregate
+  device using the concrete dictionary shape above (real output-device UID
+  as `kAudioAggregateDeviceMainSubDeviceKey`, tap in
+  `kAudioAggregateDeviceTapListKey`, `kAudioAggregateDeviceIsPrivateKey:
+  true`), start it via `AudioDeviceCreateIOProcID`, and confirm non-zero
+  samples actually arrive while something is playing. Alongside that,
+  deliberately walk the permission-denial path once (fresh install, deny,
+  then grant) to confirm firsthand — on Aurora's own bundle, not just from
+  others' reports — whether denial is truly silent (all-zero buffers,
+  `noErr` throughout); whether this grant is independent of the existing
+  Screen Recording grant (expected: yes, separate prompt, per the two
+  independently-keyed-grants finding above); whether the bundle wrapper
+  alone is sufficient for Aurora to register under "System Audio Recording
+  Only" at all (expected yes, per the Flutter report above, but Aurora's
+  own bundle hasn't been checked); and whether a rebuild between grant and
+  retest invalidates the grant the same way it does for Screen Recording.
+  This step's findings decide Step 3's actual design, not just its
+  implementation details.
+- **Step 1 — CMake plumbing.** Add `AURORA_INPUT_MAC_ENABLE_AUDIO`
+  (mirroring `AURORA_INPUT_WINDOWS_ENABLE_AUDIO` in
+  [`input/windows/CMakeLists.txt`](../input/windows/CMakeLists.txt)), and
+  flip [`input/mac/CMakeLists.txt`](../input/mac/CMakeLists.txt)'s
+  currently-hardcoded `set(AURORA_CORE_ENABLE_AUDIO FALSE CACHE BOOL ""
+  FORCE)` to gate on it instead, the way `input/linux` already ties its
+  own audio toggle through.
+- **Step 2 — `MacAudioGrabber` implementing `IAudioInput`.** Built against
+  Step 0's verified sequence: whole-system tap via
+  `initStereoGlobalTapButExcludeProcesses`, delivered through an aggregate
+  device + `AudioDeviceCreateIOProcID`, bridged into the pull-based
+  `readNextBuffer()` contract with the same mutex-guarded accumulator
+  pattern `input/windows/src/AudioGrabber.cpp`'s miniaudio callback
+  already uses.
+- **Step 3 — audio-specific permission-recovery design.** Informed by
+  Step 0's findings, not a port of `Aurora-8mk.6`/`.8`'s completion-handler
+  shape — most likely an all-zero-buffer-over-time inference feeding the
+  same generic `permission_pending`-style REST response and WebUI
+  messaging those phases already built.
+- **Step 4 — `app/mac` wiring.** `registerAudioInputs` + the audio-mode
+  branch in `main.cpp`, mirroring
+  [`app/linux/src/main.cpp`](../app/linux/src/main.cpp)'s existing audio
+  wiring almost verbatim — this part is mechanical, not a design question.
+- **Step 5 — tests.** Decide whether to follow Windows'
+  precedent (`input/windows/tests/WindowsAudioInputTests.cpp` — no
+  dummy/fixture audio backend, real-hardware-only testing) or finally
+  build the fixture `docs/AudioAnalysis.md` deferred
+  (`AudioFile-Input` as a deterministic test source, the audio equivalent
+  of `DummyGrabber`).
 
 ### Tray-parity (matches 1.0.2 Windows/Linux shape)
 
