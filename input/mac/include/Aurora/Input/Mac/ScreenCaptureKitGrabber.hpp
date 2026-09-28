@@ -1,8 +1,10 @@
 #pragma once
 
+#include <cstdint>
 #include <memory>
 
 #include <Aurora/Input/IVideoInput.hpp>
+#include <Aurora/Input/MonitorData.hpp>
 
 // Single-display ScreenCaptureKit capture (Aurora-8mk.5, docs/MacSupport.md
 // build-sequencing Phase 4). PIMPL: every ScreenCaptureKit/AppKit/CoreMedia
@@ -10,22 +12,45 @@
 // header -- and every C++ TU that includes it -- stays plain C++, the same
 // boundary input/mac's tests and app/mac's C++ call sites rely on.
 //
-// No monitor-switching yet: hasCustomScreenManagement()/selectMonitor() are
-// Aurora-8mk.6 -- this always captures CGMainDisplayID(), the primary
-// display, though _initMonitorsList() does populate the full monitor list
-// for that later work to build on.
+// Monitor-switching (Aurora-8mk.6): same shape as X11Grabber/WindowsGrabber
+// -- a MonitorData subclass carries the native handle needed to rebuild
+// capture (here, CGDirectDisplayID; stored as plain uint32_t, its actual
+// underlying type, so this header never needs a CoreGraphics include),
+// selectMonitor() tears the stream down, and the next grabFrameSubsample()
+// lazily rebuilds it against the newly selected display.
 namespace Aurora::Input::Mac
 {
   class ScreenCaptureKitGrabber : public IVideoInput
   {
   public:
+    struct SCKMonitorData : public Aurora::Input::MonitorData
+    {
+      SCKMonitorData(
+        const std::string& name,
+        unsigned width,
+        unsigned height,
+        double refreshRate,
+        bool isPrimary,
+        std::uint32_t displayID
+      );
+
+      std::uint32_t displayID{0};
+    };
+
     ScreenCaptureKitGrabber();
     ~ScreenCaptureKitGrabber() override;
 
     const std::string& name() const override;
+
+    bool hasCustomScreenManagement() const override
+    {
+      return true;
+    }
+
     Resolution displayResolution() const override;
     RefreshRate displayRefreshRate() const override;
 
+    void selectMonitor(unsigned monitorId) override;
     void grabFrameSubsample(Contracts::ImageData& imageData) override;
 
   protected:
@@ -44,6 +69,13 @@ namespace Aurora::Input::Mac
     struct Impl;
 
   private:
+    // Starts (or restarts, after selectMonitor() tore it down) the SCStream
+    // for whichever monitor is currently selected -- falls back to the
+    // primary display if the selected one is no longer present (unplugged
+    // since _initMonitorsList()). All ScreenCaptureKit types this needs stay
+    // inside the .mm; this declaration is plain C++.
+    void _ensureStream();
+
     std::unique_ptr<Impl> m_impl;
   };
 }

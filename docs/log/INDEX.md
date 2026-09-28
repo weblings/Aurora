@@ -29,3 +29,4 @@ Planning docs stay clean: decisions, status, and pointers here only.
 | 2026-09-25 | --fake-hue flag + agent-run gj0.7 validation; viz docs end-to-end recipe | Aurora-gj0.7 |
 | 2026-09-25 | TCC-identity probe resolved: Aurora.app bundle wrapper (+ icon) unblocks Mac track | Aurora-8mk.4, Aurora-8mk.11 |
 | 2026-09-25 | ScreenCaptureKit grabber lands: real Mac capture, validated end to end via fake-hue+viz | Aurora-8mk.5, Aurora-8mk.12 |
+| 2026-09-27 | Multi-monitor lands (unverified on hardware); DevFrameDump gap traced to gj0.9's fix | Aurora-8mk.6, Aurora-8mk.12 |
