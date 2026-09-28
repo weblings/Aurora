@@ -1,7 +1,13 @@
 # HTTP server analysis
 
-Status: active reference — feeds `planning/ImplementationPlan.md`'s Phase 3 Milestone 2
-(Aurora-x7o), still in progress.
+Status: historical — archived by owner decision, 2026-09-28: the `Aurora-x7o`
+"Phase 3 Milestone 2" tracking this doc was justified against was
+agent-proposed scaffolding, not something the project owner actually
+committed to. Independent of that: the native WebUI work itself is real and
+ongoing (`web/ui/screens/`, `SettingsRoutes`/`ZoneRoutes`/`PairingRoutes`,
+commits as recent as 2026-09-28) — this analysis fed the server skeleton
+that's already built (`core/Network/src/HttpServer.cpp`), so it's the
+record of that groundwork, not a live prerequisite anymore.
 
 Prerequisite analysis for `planning/ImplementationPlan.md`'s Phase 3 Milestone 2 and
 `WebUI/WebUI_Design_1stPass.md`'s Build order step 1. Covers huenicorn's real

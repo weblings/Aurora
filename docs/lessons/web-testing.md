@@ -96,7 +96,7 @@ Adding `/api/monitors` and `/api/reload` required both routes to capture a
 `PipelineHost` by reference -- meaning the whole Input/Output/Orchestrator
 pipeline now has to be built *before* `httpServer.bind()`, since
 `HttpServer`'s own contract (documented in its header, from
-`HttpServerAnalysis.md`'s original design) requires every route registered
+`archive/HttpServerAnalysis.md`'s original design) requires every route registered
 before `bind()` is called; there's no add-a-route-after-bind path. Previously
 the server bound and started listening immediately after `Config` loaded,
 with pipeline construction (real DXGI monitor enumeration on Windows) coming

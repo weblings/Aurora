@@ -12,9 +12,9 @@ already scoped as "future" in the 2026-09-21 monorepo-reorg log entry
 Moved, each already `Status: shipped` or `superseded` (added where missing):
 `archive/FirstScan.md`, `archive/ModuleSplitPlan.md`, `archive/WebDemoUIUpdate.md`,
 `archive/ProcessingAnalysis.md`, `archive/RuntimeAnalysis.md`, `archive/HueOutputAnalysis.md`,
-`archive/LinuxCaptureAnalysis.md`, `archive/WindowsInputAnalysis.md`. `HttpServerAnalysis.md`
-stays at root — it still feeds Phase 3 Milestone 2, in progress
-(`Aurora-x7o`) — with a `Status:` line added to say so.
+`archive/LinuxCaptureAnalysis.md`, `archive/WindowsInputAnalysis.md`.
+`archive/HttpServerAnalysis.md` moved too, later in this same session — see
+the fourth pass below.
 
 ## `docs/WebUI/`
 
@@ -102,9 +102,9 @@ contradict it, it's just unprioritized, a different failure mode than the
 others) move to new `docs/planning/` instead: still-live, not yet decided,
 distinct from both `docs/archive/`'s finished/abandoned work and root's
 now much smaller "operational reference + narrow standalone" set
-(`Building.md`, `HttpServerAnalysis.md`, `UpstreamFindings.md`).
+(`Building.md`, `archive/HttpServerAnalysis.md`, `UpstreamFindings.md`).
 
-Checked `HttpServerAnalysis.md`'s own justification for staying at root
+Checked `archive/HttpServerAnalysis.md`'s own justification for staying at root
 (feeds `Aurora-x7o`, "in progress") along the way: that bead hasn't been
 updated since 2026-09-20 and still names the pre-rename `Analysis/` path in
 its description — same stale-bead pattern as `Aurora-f06` — yet the actual
@@ -124,6 +124,19 @@ shifted every line below it by 8).
 `AGENTS.md`'s "Where things go" now also names `docs/planning/` and states
 the edit-history-over-self-report rule explicitly, so the next session
 doesn't have to rediscover it by hand.
+
+## Fourth pass: `archive/HttpServerAnalysis.md` → `docs/archive/`
+
+Held back from the earlier passes since real, currently-shipping work
+(`web/ui/screens/`, `SettingsRoutes`/`ZoneRoutes`/`PairingRoutes`, commits as
+recent as today) seemed to justify keeping it live against an "in progress"
+`Aurora-x7o`. Owner correction: `Aurora-x7o`'s "Phase 3 Milestone 2" framing
+was agent-proposed scaffolding from an earlier session, not something the
+project owner actually committed to — so the doc's justification for
+staying at root doesn't hold regardless of how much of the underlying
+WebUI work is real (most of it is). Archived with a `Status:` line
+separating the two facts: the tracking bead isn't authoritative, but the
+analysis still correctly fed the server skeleton that's actually built.
 
 ## Verification
 

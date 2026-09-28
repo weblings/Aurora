@@ -582,7 +582,7 @@ validates the funnel's front door before investing in the back half.
 **Corrected premise (2026-09-15):** verified there is no existing HTTP server
 or setup WebUI anywhere in Aurora's core or app repos today — no
 `Network::Http::Server`/`HttpLibServerImpl`-shaped code exists, and
-`docs/HttpServerAnalysis.md` was never actually written. This section
+`docs/archive/HttpServerAnalysis.md` was never actually written. This section
 used to read as "extend the existing httplib-based server (already present
 for the setup WebUI)" — that described **huenicorn's** own server
 (`SetupBackend`/`WebUIBackend`, `webroot/`), which Aurora's module-split
@@ -592,7 +592,7 @@ implementation is still the right template to follow closely (same
 cpp-httplib version even, `v0.46.0`), just not something already wired into
 this codebase.
 
-- **Analysis pass done (2026-09-15): `docs/HttpServerAnalysis.md`.**
+- **Analysis pass done (2026-09-15): `docs/archive/HttpServerAnalysis.md`.**
   Covers huenicorn's real `Network::Http::Server` C++ implementation (read
   directly — `HttpServer`/`Impl`/`SetupBackend.cpp`/`Runtime.cpp`, not just
   the JS frontend), its threading model (a dedicated server thread separate

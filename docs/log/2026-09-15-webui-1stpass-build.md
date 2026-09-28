@@ -60,7 +60,7 @@ Wiring and Polish
    `core/Network` (`Aurora::Network::Http::Server`), a near-verbatim port of huenicorn's
    `HttpServer`/`Impl`/`HttpDataStructs` shape plus `serveStaticFiles()` atop
    cpp-httplib's own mount-point support, in the new shared `core/` module
-   `HttpServerAnalysis.md` called for (not duplicated per app repo). Compiles
+   `archive/HttpServerAnalysis.md` called for (not duplicated per app repo). Compiles
    and links cleanly as a library (`AuroraNetwork.lib`, confirmed via a real
    build). Its Catch2 tests (`core/tests/NetworkTests.cpp` — a route
    round-trip, a path-param/body round-trip, and static-file serving, each
@@ -84,7 +84,7 @@ Wiring and Polish
    duplicated header across both app repos already, confirmed by `diff`, so
    this isn't a new inconsistency). Also wired the server's actual lifecycle
    in for the first time: bind on load, `listen()` on its own thread
-   (`HttpServerAnalysis.md`'s documented model), stopped after outputs shut
+   (`archive/HttpServerAnalysis.md`'s documented model), stopped after outputs shut
    down. Building this surfaced a real bug before it shipped: the first pass
    used a bare `std::thread`, stopped only at the tail of `main()` — the
    pre-existing "no outputs available" early return skips that tail
@@ -417,7 +417,7 @@ Wiring and Polish
     input-name/ifdef dispatch, both app-layer concepts, same reasoning that
     already keeps `registerInputs`/`registerOutputs` per-app). `Pipeline`
     is the swappable unit huenicorn's own design fork calls for
-    (`HttpServerAnalysis.md`: reconstruction, not mutation) — it owns
+    (`archive/HttpServerAnalysis.md`: reconstruction, not mutation) — it owns
     input/outputs/orchestrator and is thrown away and rebuilt whole, never
     mutated in place. `PipelineHost` wraps it in one mutex (the "one
     consistent lock around a swappable pipeline unit" that doc recommended,
