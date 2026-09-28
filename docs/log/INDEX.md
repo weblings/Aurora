@@ -32,3 +32,4 @@ Planning docs stay clean: decisions, status, and pointers here only.
 | 2026-09-27 | Multi-monitor lands (unverified on hardware); DevFrameDump gap traced to gj0.9's fix | Aurora-8mk.6, Aurora-8mk.12 |
 | 2026-09-27 | Permission recovery flow lands, verified live through a real deny/grant cycle | Aurora-8mk.8 |
 | 2026-09-27 | Stream health lands: lock idles then kills the stream after ~1min+, isHealthy() self-heals via 8mk.6's rebuild | Aurora-8mk.9 |
+| 2026-09-27 | Bundle icon fix: qlmanage flattened transparency + a real 32px export offset, switched to sips+corrected 1024px master | Aurora-8hh |

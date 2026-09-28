@@ -402,3 +402,13 @@ Tags: build, cmake, recovery, linking
 Applies-when: rebuilding after a toolchain loss (or on a machine without cmake) with a warm build dir
 
 With no cmake binary available, `build/<preset>/app/linux/CMakeFiles/aurora-app-linux.dir/flags.make` supplied the exact defines/includes and `link.txt` the exact link line. One changed `main.cpp` recompiled and relinked cleanly against the prebuilt static libs. Two catches: the stale `libAuroraRuntime.a` predated a new TU, so the link failed on the first missing symbol -- recompiled the two changed sources and refreshed the archive with `ar r` (backup first); and archive member dates are normalized (all 1969), so dates can't identify staleness -- the linker error list is the oracle, iterate on it. Use absolute `-o` paths: a relative one combined with a failed link cost the only existing binary.
+
+---
+
+## `qlmanage -t` is a Finder-preview thumbnailer, not an icon compiler -- it flattens transparency onto white
+Tags: build, mac, icons, assets, qlmanage
+Applies-when: rasterizing an SVG/vector asset into an `.iconset`/`.icns` on macOS without adding a build dependency
+
+`app/mac/make_icns.sh` rasterized `docs/README/Logo_Square.svg` at every `.iconset` size via `qlmanage -t` -- chosen specifically to avoid a real SVG-rasterizer dependency (Inkscape/librsvg/etc), since `qlmanage` ships with every Mac. The resulting `.icns` had an opaque white background instead of transparency. Extracting the built `.icns` back into PNGs (`iconutil -c iconset -o <dir> Foo.icns`) and comparing against the source confirmed it: `qlmanage` is a Finder-preview-thumbnail generator, and flattens onto white the same way a document preview would, not a faithful vector rasterizer. A second, initially conflated problem (the mark looked off-center) turned out to be unrelated -- a real offset already baked into the source export, confirmed by comparing the raw source PNG directly and measuring its alpha-channel bounding box, not a `qlmanage` artifact at all.
+
+**Fix:** `sips -z <h> <w> <src> --out <dst>` (built-in, zero new dependencies) is a plain bitmap resizer with none of `qlmanage`'s document-preview behavior -- correctly preserves alpha. It needs a real bitmap master at the largest size actually used (not the SVG), so only ever downsample from that master, never upsample, to stay crisp. General principle: when comparing a build tool's output against "what should have happened," extract and inspect the actual artifact (`iconutil -c iconset`, not just the `.icns`) before attributing a visual bug to the tool -- part of this bug was the tool, part was already in the source asset, and conflating them would have "fixed" the wrong thing first.

@@ -1,40 +1,49 @@
 #!/bin/sh
 # Build an .icns for the Aurora.app bundle (Aurora-8mk.11) from the dark
-# "A" logo (docs/README/Logo_Square.svg / Logo_Square_Dark.png), rasterized
-# at each size directly from the vector source via qlmanage (macOS's
-# QuickLook thumbnailer, the only SVG rasterizer available without adding
-# a build dependency) rather than upsampling a single PNG -- every slot
-# iconutil's .iconset format wants (16 through 1024) comes out crisp, not
-# just the ones a raster source happened to ship at.
+# "A" logo's 1024px transparent master (docs/README/Logo_Square_Dark_1024.png),
+# downsampled with sips (a plain bitmap resizer, ships with every Mac) for
+# every smaller .iconset slot -- only ever downsampling, never up, so
+# nothing comes out soft.
+#
+# Previously rasterized directly from docs/README/Logo_Square.svg via
+# qlmanage (macOS's QuickLook thumbnailer) instead, to get crisp results at
+# every size without a real SVG-rasterizer dependency. That produced a
+# genuinely broken icon, confirmed by extracting the built .icns and
+# comparing it against the source PNG: qlmanage flattened the transparent
+# background onto opaque white, and didn't preserve the SVG's own
+# centering -- the artwork came out compressed into roughly the top 70% of
+# the frame with a large dead zone at the bottom, not what the vector
+# source actually specifies. qlmanage is a Finder-preview-thumbnail
+# generator, not an icon compiler, and isn't a faithful rasterizer for
+# this. sips has none of that behavior -- it just resizes an already-
+# correct bitmap -- so this needs a real transparent master at the largest
+# size actually used (1024) rather than the SVG at all.
 set -e
 
-SVG_SRC="$1"      # docs/README/Logo_Square.svg
+PNG_SRC="$1"      # docs/README/Logo_Square_Dark_1024.png
 OUT_ICNS="$2"
 WORK_DIR="$3"
 
 ICONSET="${WORK_DIR}/Aurora.iconset"
-RASTER_DIR="${WORK_DIR}/Aurora.iconset.raster"
-rm -rf "${ICONSET}" "${RASTER_DIR}"
-mkdir -p "${ICONSET}" "${RASTER_DIR}"
+rm -rf "${ICONSET}"
+mkdir -p "${ICONSET}"
 
-rasterize() {
+resize() {
   size="$1"
   out="$2"
-  qlmanage -t -s "${size}" -o "${RASTER_DIR}" "${SVG_SRC}" >/dev/null 2>&1
-  mv "${RASTER_DIR}/$(basename "${SVG_SRC}").png" "${out}"
+  sips -z "${size}" "${size}" "${PNG_SRC}" --out "${out}" >/dev/null
 }
 
-rasterize 16   "${ICONSET}/icon_16x16.png"
-rasterize 32   "${ICONSET}/icon_16x16@2x.png"
-rasterize 32   "${ICONSET}/icon_32x32.png"
-rasterize 64   "${ICONSET}/icon_32x32@2x.png"
-rasterize 128  "${ICONSET}/icon_128x128.png"
-rasterize 256  "${ICONSET}/icon_128x128@2x.png"
-rasterize 256  "${ICONSET}/icon_256x256.png"
-rasterize 512  "${ICONSET}/icon_256x256@2x.png"
-rasterize 512  "${ICONSET}/icon_512x512.png"
-rasterize 1024 "${ICONSET}/icon_512x512@2x.png"
+resize 16   "${ICONSET}/icon_16x16.png"
+resize 32   "${ICONSET}/icon_16x16@2x.png"
+resize 32   "${ICONSET}/icon_32x32.png"
+resize 64   "${ICONSET}/icon_32x32@2x.png"
+resize 128  "${ICONSET}/icon_128x128.png"
+resize 256  "${ICONSET}/icon_128x128@2x.png"
+resize 256  "${ICONSET}/icon_256x256.png"
+resize 512  "${ICONSET}/icon_256x256@2x.png"
+resize 512  "${ICONSET}/icon_512x512.png"
+resize 1024 "${ICONSET}/icon_512x512@2x.png"
 
-rm -rf "${RASTER_DIR}"
 iconutil -c icns "${ICONSET}" -o "${OUT_ICNS}"
 rm -rf "${ICONSET}"
