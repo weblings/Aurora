@@ -179,3 +179,38 @@ keyword (`template`, `class`, `new`, `delete`, `private`, etc.) in a `.mm`
 file.
 
 ---
+
+## `UNUserNotificationCenter` categorically denies ad-hoc-signed apps, even `.provisional`, even on a bundle ID that's never been asked before
+Tags: macos, appkit, usernotifications, codesigning, ad-hoc
+Applies-when: requesting notification authorization from an ad-hoc-signed (no Team ID) `.app` bundle
+
+Assumed (from research, not yet verified hands-on) that `.provisional`
+authorization was a safe way to get first-run-notification plumbing
+working under ad-hoc signing, with only a *real visible banner* actually
+needing a stable identity — and that the risk with plain `.alert` was a
+**stale denial** left over from an earlier ad-hoc build's different code
+hash. Spiked it directly rather than trust that framing: built a
+throwaway bundle with a bundle identifier that had never requested
+notification authorization before, called
+`requestAuthorizationWithOptions:UNAuthorizationOptionProvisional`.
+Result: denied immediately, no dialog, `granted=NO`, error "Notifications
+are not allowed for this application." `tccutil reset UserNotification
+<bundle-id>` came back "No such bundle identifier" — TCC had never even
+created a record for it, so there was nothing stale to reset. Ruled out
+`LSUIElement`/accessory status as a factor too (identical denial as a
+plain regular/Dock-visible app). This isn't a rebuild-instability risk a
+reset can work around — it reads as a categorical block on any ad-hoc-
+signed (`TeamIdentifier=not set`) app ever obtaining `UserNotifications`
+authorization at all, `.provisional` included.
+
+**Fix:** don't scope a "land the silent placeholder now, revisit the
+banner once signing is stable" plan for `UserNotifications` under ad-hoc
+signing — verify empirically first, the same way this was caught, since
+neither half works without a real (even just a free Personal Team)
+signing identity. Same underlying cause as the other signing-instability
+findings this project has hit (TCC rebuild re-prompts, `SMAppService`) —
+worth checking whenever a new feature turns out to touch code-identity-
+gated APIs, since ad-hoc signing's failure mode tends to be "silently
+denied/broken," not a clear error pointing at signing.
+
+---

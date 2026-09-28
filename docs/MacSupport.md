@@ -509,14 +509,28 @@ Unlike the framing above once had it, code-signing/notarization is **not**
 a blanket requirement for this phase: local dev/testing of the tray and
 agent-mode mechanics needs no Apple Developer account at all (confirmed
 empirically — `Aurora-qps`'s description has the detail), the same as the
-already-shipped Screen Recording work. Only `SMAppService` (`Aurora-qps.6`,
-deliberately last and low-priority — neither Windows nor Linux ship
-launch-at-login yet, so this isn't catching up to a shipped feature) cares
-about signing-identity stability, and even there a free Xcode "Personal
-Team" certificate looks likely to suffice without the $99 Developer ID.
-That $99/yr remains relevant only for `Aurora-8mk.10` (Gatekeeper/
-notarization), once a build is zipped and leaves this machine — unrelated
-to this phase's scope.
+already-shipped Screen Recording work. That $99/yr remains relevant only
+for `Aurora-8mk.10` (Gatekeeper/notarization), once a build is zipped and
+leaves this machine — unrelated to this phase's scope, and even there a
+free Xcode "Personal Team" certificate looks likely to suffice for what
+this phase needs, without the $99 Developer ID.
+
+**Revised, 2026-09-28** — more of this phase cares about signing-identity
+stability than first thought. `SMAppService` (`Aurora-qps.6`) always did.
+`Aurora-qps.5` (first-run notification) was scoped believing a silent
+`.provisional`-authorization placeholder could land independent of
+`qps.6`, with only a real visible banner gated on stable signing — spiked
+that empirically and found it doesn't hold: `.provisional` was denied
+outright (no dialog, `granted=false`) on a completely fresh, never-before-
+seen bundle identifier under ad-hoc signing, not just an existing one with
+a stale prior denial. `tccutil reset UserNotification <bundle-id>`
+confirmed TCC never even had a record to be stale ("No such bundle
+identifier"), and the same denial held for both `LSUIElement`/accessory
+and regular apps, ruling that out as a factor too. Reads as a categorical
+block on ad-hoc-signed apps ever obtaining `UserNotifications`
+authorization, not a rebuild-instability risk a reset works around — so
+`Aurora-qps.5` is now a real dependency of `Aurora-qps.6`, not a
+sequenced-but-independent placeholder.
 
 ### LaunchServices intercepts a second launch before InstanceLock ever runs (Aurora-qps.4)
 
