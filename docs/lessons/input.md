@@ -408,3 +408,12 @@ Applies-when: a Screen Recording request still fails with `-3801`/`no shareable 
 What actually fixed it: after the scoped reset, retrying produced a *different* system dialog than every prior attempt -- one with an inline **Approve** button, not the Settings-only/Deny pair seen every previous time (self and this project's own precedent in `MacPermissionRecovery.js`'s design assumed Screen Recording is *never* inline-grantable). Clicking Approve directly worked immediately, confirmed via `GET /api/monitors` returning the real display. Every earlier "Settings" click had only navigated to the pane without itself granting anything, leaving whatever toggle state was visible disconnected from a working grant -- so a toggle reading "on" was necessary but not sufficient evidence of a real grant, and cycling quit/relaunch against a non-grant did nothing because there was nothing valid underneath to take effect.
 
 **Fix:** when `-3801` persists despite an "enabled" toggle, don't keep cycling quit/relaunch against it -- run `tccutil reset <service> <bundle-id>` (scoped, not the blanket service-wide reset) first; its success/failure message is ground truth for whether a matching entry exists at all, which the visible toggle is not. After a reset, expect the *next* consent dialog's exact shape to vary (Settings/Deny vs. an inline Approve) -- only the Approve variant grants anything immediately, and a Settings-routed toggle can visually read "on" without backing a working grant. Don't design a permission-recovery UX (or a debugging session) around a single assumed dialog shape for this API.
+---
+
+## A promise wait that includes a human dialog needs a human-scale bound -- don't copy machine-handshake timeouts literally
+Tags: input, pipewire, portal, permissions, timeout
+Applies-when: bounding an async wait on Linux where a permission/source dialog may appear mid-handshake
+
+`Aurora-1z9`: the portal fd future only settles after the user answers the source-picker dialog, so the in-repo `wait_for(5s)` precedent (AudioGrabber, a machine-only handshake) would have turned every slow first-run human into a spurious failure. The two waits in one constructor needed different bounds for different reasons.
+
+**Fix:** 60s for the portal wait (covers a human reading the dialog; dismissal still resolves promptly as false with its own message), 5s for the post-fd stream-params wait (no human in the loop). When a bead says "copy the timeout pattern", check whether a dialog sits inside the wait first.

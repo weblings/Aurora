@@ -461,3 +461,12 @@ Applies-when: validating a new Mac input backend and choosing between `AURORA_DE
 Validating `Aurora-8mk.5`'s real capture: `tools/light-viz-relay/validate.py frame` (cross-checks `DevFrameDump`'s raw-frame UDP dump against the tap's reported colors) reported "no frames received" every time, despite `DevFrameDump`'s wiring (`Orchestrator::update()` → `m_devFrameDump.publish(source)`) being identical, platform-agnostic code already exercised on Linux, and `ps eww` confirming `AURORA_DEV_FRAME_DUMP=1` reached the process. Root cause not found. `AURORA_DEV_LIGHT_TAP` (the other dev tap, feeding `tools/light-viz-relay`'s SSE/`viz.html` path) worked immediately on the same run and gave a fully convincing end-to-end confirmation (real per-zone colors, tracking a dragged colorful window live) -- used as the validation path instead of chasing the `DevFrameDump` gap further.
 
 **Fix (until root-caused):** for Mac capture validation, prefer `AURORA_DEV_LIGHT_TAP` + `tools/light-viz-relay` (`relay.py`, `viz.html`, or `validate.py color`) over `validate.py frame`/`AURORA_DEV_FRAME_DUMP` -- the former is proven working on Mac, the latter isn't yet. Don't assume "identical shared code, confirmed env var present" guarantees the same runtime behavior across platforms without an actual positive observation on each one.
+---
+
+## A build-toggle acceptance test is vacuous unless the toggle actually flips the build -- verify at flags.make level
+Tags: debugging, verification, cmake, negative-test
+Applies-when: accepting a fix whose proof is "configures/builds with option X off"
+
+`Aurora-y1q`'s acceptance (app/linux builds with its audio toggle OFF) passed on the unfixed code: via the superbuild the toggle never unset `AURORA_RUNTIME_AUDIO_AVAILABLE` (core was already configured by an earlier fetch -- see the FetchContent-ordering entry in build-toolchain.md), so the "OFF build" compiled the identical TU and the green build proved nothing.
+
+**Fix:** before believing a toggle-flip build, confirm the flip landed (`flags.make`/`compile_commands.json` carries or lacks the define), then run a true negative test: compile the touched TU with the define forcibly undefined (`-U...` appended to the recorded compile command) and confirm the old code fails exactly where the fix guards. If the toggle itself is broken (filed here as `Aurora-b87`), the negative test is the real acceptance, not the toggle build.

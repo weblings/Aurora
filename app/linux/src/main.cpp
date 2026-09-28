@@ -445,9 +445,11 @@ namespace
       }
 
       const std::string& name = m_outputPtrs.front()->name();
+#ifdef AURORA_RUNTIME_AUDIO_AVAILABLE
       if(m_isAudioMode){
         return {name, m_audioOrchestrator->zoneMap(name)};
       }
+#endif
       return {name, m_orchestrator->zoneMap(name)};
     }
 
@@ -462,9 +464,11 @@ namespace
         return false;
       }
 
+#ifdef AURORA_RUNTIME_AUDIO_AVAILABLE
       if(m_isAudioMode){
         return m_audioOrchestrator->updateZone(m_outputPtrs.front()->name(), zoneId, uvs, active, gamma);
       }
+#endif
       return m_orchestrator->updateZone(m_outputPtrs.front()->name(), zoneId, uvs, active, gamma);
     }
 

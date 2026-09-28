@@ -1,6 +1,7 @@
 #include <Aurora/Input/Linux/PipewireGrabber.hpp>
 #include <Aurora/Input/Linux/PipewireFramerate.hpp>
 
+#include <chrono>
 #include <sstream>
 #include <future>
 #include <fcntl.h>
@@ -56,19 +57,38 @@ namespace Aurora::Input::Linux
       auto fdReadyFuture = fdReadyPromise.get_future();
       m_capture.fdReadyPromise = std::move(fdReadyPromise);
       m_xdgThread.emplace(_initCapture, &m_capture);
-      fdReadyFuture.wait();
 
-      if(!fdReadyFuture.get()){
+      // Bounded, not indefinite -- but generous, unlike the machine-only
+      // handshake below: this wait includes the human answering the
+      // portal's source-picker dialog (first run, or whenever no restore
+      // token applies). A dismissed dialog resolves promptly as false;
+      // the bound covers the portal never replying, or the user ignoring
+      // the dialog -- either way the HTTP request thread that built this
+      // grabber (PUT /api/config, POST /api/reload) must not hang forever.
+      // Same _stop()-then-throw shape as AudioGrabber.cpp; _stop() cancels
+      // the portal handshake, so no late callback can touch this promise
+      // after the throw destroys it.
+      const bool portalSettled =
+        fdReadyFuture.wait_for(std::chrono::seconds(60)) == std::future_status::ready;
+      if(!portalSettled || !fdReadyFuture.get()){
         _stop();
+        if(!portalSettled){
+          throw std::runtime_error(
+            "PipewireGrabber: portal ScreenCast handshake didn't settle within 60s "
+            "-- the source-picker dialog may still be open, or the portal never replied"
+          );
+        }
         throw std::runtime_error("Failed to get monitor file descriptor");
       }
     }
 
     auto configDataReadyFuture = m_pwData.screenDataReadyPromise.get_future();
     m_pipewireThread.emplace(_pipewireThread, &m_capture, &m_pwData);
-    configDataReadyFuture.wait();
 
-    if(!configDataReadyFuture.get()){
+    // Bounded like AudioGrabber.cpp's own wait -- the portal has handed
+    // over a live fd by now, so this is a machine-only handshake (stream
+    // params) with no human in the loop; 5s matches that precedent.
+    if(configDataReadyFuture.wait_for(std::chrono::seconds(5)) != std::future_status::ready || !configDataReadyFuture.get()){
       _stop();
       throw std::runtime_error("Failed to initialize Pipewire capture");
     }
