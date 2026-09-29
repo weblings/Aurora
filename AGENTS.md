@@ -28,6 +28,16 @@ Core repo: shared `Contracts`, `Processing`, `Input`/`Output` interfaces,
 - Milestone detail (closed or paused): dated file in `docs/log/` + `INDEX.md`
   row on close — every material fact, stated once and tightly; paused work logs
   state + resume pointer. Findings over narration.
+- **Required, not optional, at the same time as the above:** when closing a
+  phase/milestone bead, check its description for a referenced
+  `docs/*.md` prerequisite analysis or plan. If that doc's `Status:` line
+  doesn't already say shipped/superseded, correct it and move the doc to
+  `docs/archive/` in this same close — do not leave it for a later cleanup
+  pass. A doc that fed already-shipped work and still reads as "exploratory"
+  or "in progress" a week later is a bug, not a style choice; every doc
+  archived in `Aurora-0ki`/`Aurora-rtp`/`Aurora-o1e`/`Aurora-afd` sat live
+  for one to two weeks past its actual ship date because this step was
+  skipped.
 - Planning docs: decisions, status, pointers only. No task lists, no build play-by-play.
   Every doc/section carries a `Status:` line (shipped/superseded/exploratory/etc.) —
   but a `Status:` line is only as trustworthy as its last real edit. Before
