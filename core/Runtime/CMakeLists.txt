@@ -39,6 +39,12 @@ target_link_libraries(AuroraRuntime PUBLIC
 
 target_compile_features(AuroraRuntime PUBLIC cxx_std_20)
 
+if(WIN32)
+  # DevFrameDump's Winsock sender (static lib, so consumers -- including
+  # core's own test exes -- must resolve the symbols).
+  target_link_libraries(AuroraRuntime PUBLIC ws2_32)
+endif()
+
 if(TARGET AuroraAudioProcessing)
   target_sources(AuroraRuntime PRIVATE src/AudioFrameCompositor.cpp src/AudioOrchestrator.cpp)
   target_link_libraries(AuroraRuntime PUBLIC AuroraAudioProcessing)

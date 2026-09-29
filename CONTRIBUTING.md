@@ -35,3 +35,37 @@ the changelog; nothing enforces the mirror.
 - Milestone detail (closed or paused) goes in a dated `docs/log/` file plus
   an `INDEX.md` row on close. Planning docs carry decisions, status, and
   pointers only — no task lists, no build play-by-play.
+
+## Platform notes
+
+### Mac (experimental, tier 1 as of 1.0.3)
+
+Terminal-only app with video + audio capture; no tray and no notarization
+(single-machine builds only). Scoping and design decisions live in
+`docs/MacSupport.md` — setup:
+
+```sh
+xcode-select --install  # Xcode CLT (confirm even if Xcode.app is installed)
+# Homebrew: https://brew.sh
+brew install cmake opencv curl aubio mbedtls@3 pkg-config
+# mbedtls@3 is keg-only, and plain `mbedtls` is v4 (incompatible API) — point
+# pkg-config at v3 and make it the active one (pitfall details in MacSupport.md):
+export PKG_CONFIG_PATH="$(brew --prefix mbedtls@3)/lib/pkgconfig:$PKG_CONFIG_PATH"
+brew link mbedtls@3 --force
+brew install steveyegge/beads/bd  # then `bd import` from the repo root
+# A first-ever `bd` command failing with "issue_prefix config is missing" is a
+# beads first-run quirk: run any other bd command once, then retry.
+```
+
+```sh
+cmake --preset mac-app
+cmake --build build/mac-app
+ctest --test-dir build/mac-app --output-on-failure
+```
+
+## Dev tools
+
+- Fake-lights viz: validate capture/output color with no Hue hardware via
+  `tools/light-viz-relay/README.md` ("End-to-end viz run") — fake bridge →
+  relay → app with `--fake-hue` → `viz.html` in a served `web/demo/`.
+  Agent notes live in `web/demo/AGENTS.md`.

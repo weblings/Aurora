@@ -51,7 +51,7 @@ python3 tools/light-viz-relay/relay.py
 #    wipes the config root to a temp dir:
 AURORA_DEV_LIGHT_TAP=1 ./build/linux-app/bin/Aurora --fake-hue --fresh    # Linux
 AURORA_DEV_LIGHT_TAP=1 ./build/mac-app/bin/Aurora.app/Contents/MacOS/Aurora --fake-hue --fresh   # Mac
-AURORA_DEV_LIGHT_TAP=1 .\build\windows-app\bin\Aurora.exe --fake-hue --fresh                     # Windows
+$env:AURORA_DEV_LIGHT_TAP="1"; .\build\windows-app\bin\Release\Aurora.exe --fake-hue --fresh     # Windows (see "On Windows" below)
 ```
 
 ```sh
@@ -62,13 +62,41 @@ mkdir -p /tmp/aurora-fresh/profiles
 cp tools/fake-hue-bridge/room-4zone-zonemap.json /tmp/aurora-fresh/profiles/hue.json
 ```
 
-5. Serve `web/demo/` (`python3 -m http.server`), open `viz.html` in a
-   browser -- room renders, status reads "waiting for frames", lamps dark.
+5. Serve `web/demo/` (`python3 -m http.server`, any port if 8000 is taken),
+   open `viz.html` in a browser -- room renders, status reads "waiting for
+   frames", lamps dark.
    (If you are an agent that cannot open a browser, hand the user the
    viz URL instead of stopping: they open it, you keep driving the
    processes and confirm frames on the SSE endpoint.)
 6. Pair in the app's WebUI, then drag a colorful window through the
    captured region: all 4 lamps track it live.
+
+### On Windows
+
+Verified end to end on Windows (`Aurora-gj0.10`); the tap has a real
+Winsock implementation as of that bead. What differs from the Linux flow:
+
+- `py` instead of `python3`. `fake_bridge.py` shells out to `openssl` for its
+  cert -- Git for Windows ships one at `C:\Program Files\Git\usr\bin`; add it
+  to `Path` if the bridge fails to start.
+- The `--fresh` config root is `%TEMP%\aurora-fresh`, so step 4 is
+  `Copy-Item tools\fake-hue-bridge\room-4zone-zonemap.json $env:TEMP\aurora-fresh\profiles\hue.json`
+  (create `profiles\` first if absent).
+- `--fresh` opens the WebUI in your default browser, and its first-run flow
+  can write credentials that beat `--fake-hue`'s config id (observed:
+  `conf-living-room` instead of `conf-room-4zone`; see the "Saved Hue
+  credentials silently beat `AURORA_HUE_*` env vars" lesson). If
+  `GET /api/hue/connection` doesn't say `conf-room-4zone`, `POST` it back:
+  `{"bridgeAddress":"127.0.0.1:18443","username":"fakedevuser01","clientkey":"00112233445566778899aabbccddeeff","entertainmentConfigurationId":"conf-room-4zone"}`
+  to `/api/hue/connection` on the WebUI port from the app log.
+- Serve `web/demo/` with a server that has a real accept backlog, not
+  `py -m http.server` -- see Troubleshooting.
+- `validate.py frame` works too (`Aurora-gj0.11` gave `DevFrameDump` its
+  Winsock port): launch the app with both `$env:AURORA_DEV_LIGHT_TAP="1"` and
+  `$env:AURORA_DEV_FRAME_DUMP="1"`, then
+  `py tools\light-viz-relay\validate.py frame --zonemap tools\fake-hue-bridge\room-4zone-zonemap.json`.
+- On a slow machine `viz.html` can take ~30s before it even requests its
+  scripts; Edge worked where Firefox did not (cause not isolated).
 
 No app build needed for a synthetic check (skips steps 3-4, 6): with only
 the relay running, send one JSON frame per UDP datagram to `127.0.0.1:18244`
@@ -133,6 +161,37 @@ Datagrams over ~9000 bytes (encoded) are dropped by the tap itself, not
 fragmented -- confirmed live against macOS's actual `net.inet.udp.maxdgram`
 (9216 by default, well under IPv4's theoretical max), so keep subsample
 width sane if `frame` reports fewer frames than expected.
+
+## Troubleshooting
+
+- viz.html stays dark ("waiting for frames"): isolate relay vs page with
+  one SSE sample (`curl -N http://127.0.0.1:18245/events`). Frames here
+  mean the pipeline is live and the problem is the tab; nothing here means
+  Aurora isn't emitting (check the tap env var and the app log). Pairing is
+  NOT required for frames -- under `--fake-hue --fresh` the tap streams
+  pre-pairing; the pairing step only rehearses NUX.
+- viz.html stuck on "connecting..." (never "connection error"), and the
+  browser console shows `Loading failed for the module ... three.module.js`
+  (Firefox) or `net::ERR_CONNECTION_RESET` (Edge/Chrome): the page script
+  died before opening the SSE stream, and the relay is fine (no client ever
+  connects to :18245). Cause on a slow Windows box: `python -m http.server`
+  accepts only 5 pending connections and resets the burst of module fetches.
+  Serve `web/demo/` with a `ThreadingHTTPServer` subclass setting
+  `request_queue_size = 256` (see the `http.server` lesson in
+  `docs/lessons/build-toolchain.md`). `smoke.html` here (open it directly
+  from disk) shows the same live data with no modules or WebGL, to prove the
+  pipeline independently of the 3D page.
+- Silent relay while everything else is green (bridge streaming, channels
+  listed, hue registered): check the tap is implemented for your platform
+  before anything else -- see the "platform stub that compiles to a no-op"
+  lesson in `docs/lessons/output.md`.
+- No-browser capture check: `PUT /api/config {"activeInputName":"dummy"}`
+  should turn SSE uniform and drifting (the dummy signature); switch back
+  to the platform input to restore varied static colors. Proves
+  capture-to-SSE end to end without opening a tab. (All three app shells
+  register `"dummy"`.)
+- App log empty when backgrounded (Linux): stdout block-buffers to file;
+  prefix `stdbuf -o0 -e0`, or find the WebUI port via `ss -ltnp`.
 
 ## Contents
 

@@ -422,3 +422,32 @@ Applies-when: a top-level CMakeLists.txt fetches Core directly *and* fetches a p
 `app/mac/CMakeLists.txt` fetches `AuroraCore` directly (needed unconditionally for `Config`/`Orchestrator`/`Contracts`), then separately fetches `AuroraInputMac`, which *also* fetches its own copy of `AuroraCore` -- deduped by `FetchContent` since it's the same declared name, so only the first `FetchContent_MakeAvailable(AuroraCore)` call actually runs `add_subdirectory()` on it; the second is a no-op. Wiring up `Aurora-9z4.5`'s audio support, `input/mac/CMakeLists.txt` already correctly set `AURORA_CORE_ENABLE_AUDIO ${AURORA_INPUT_MAC_ENABLE_AUDIO} CACHE BOOL "" FORCE` right before *its* `FetchContent_MakeAvailable(AuroraCore)` call -- but that line runs too late to matter, because `app/mac/CMakeLists.txt`'s own earlier `set(AURORA_CORE_ENABLE_AUDIO FALSE CACHE BOOL "" FORCE)` had already forced it to `FALSE` and `core/CMakeLists.txt`'s `if(AURORA_CORE_ENABLE_AUDIO)` gate had already evaluated (and skipped `add_subdirectory(AudioProcessing)`) by the time input/mac's fetch even ran. The audio option silently had zero effect until this was traced -- input/mac configured and built fine, it just never actually got a real `AudioOrchestrator`/`AuroraAudioProcessing` to link against, and nothing in the configure output said so.
 
 **Fix:** when a plugin repo's CMakeLists.txt sets a Core-level `CACHE FORCE` option to gate Core's own build, every *other* entry point that also fetches Core directly (an app repo's top-level CMakeLists, most directly) must set the exact same option to the exact same value *before its own* `FetchContent_MakeAvailable(AuroraCore)` call -- not rely on a later fetch's setting to reach back in time. `app/linux/CMakeLists.txt`'s `AURORA_APP_ENABLE_LINUX_AUDIO_INPUT` (set before its own Core fetch, then propagated forward to `AURORA_INPUT_LINUX_ENABLE_AUDIO` for the later input fetch) is the right shape to copy -- one option, set once, threaded through both fetch sites in the order they actually run, not two independent options that happen to agree by default.
+---
+
+## TEST_CASE names starting with `-` break CTest selection -- Catch2 parses them as options
+Tags: testing, catch2, ctest, cmake
+Applies-when: naming a Catch2 TEST_CASE, or debugging a ctest failure that reports `Unrecognised token` before any assertion runs
+
+`catch_discover_tests` registers each case as `binary "<name>"`, passing the name back as an argv filter. A name starting with `--` (here: `--fake-hue flag detection`) makes Catch2 parse it as a CLI option instead of a test spec, so the case fails in the argument parser and its body never runs -- green test file, red suite, no product code involved.
+
+**Fix:** never start a TEST_CASE name with `-`; describe the flag without its dashes (`fake-hue flag detection`). The `[tag]` still carries the grouping for `-R`/tag filters.
+
+---
+
+## Python's stdlib `http.server` queues only 5 pending connections -- module-heavy dev pages get `ERR_CONNECTION_RESET` on a slow Windows box
+Tags: python, http-server, windows, es-modules, three-js, dev-serving
+Applies-when: serving `web/demo/viz.html` (or any many-module ES page) with `python -m http.server`
+
+`viz.html` pulls three.js (1.3 MB) plus ~10 more ES modules at once. On a slow laptop the browser opened the burst faster than the single-accept-loop server drained it; `socketserver.TCPServer.request_queue_size` defaults to 5, so Windows reset the overflow. Errors seen: Firefox `Loading failed for the module with source ".../three.module.js"` (a different file each reload, including on a brand-new port, so not a cache issue) and Edge `net::ERR_CONNECTION_RESET`. The server log showed `200` for every request and the bytes were identical to the file on disk (matching SHA-256) -- nothing server-side looked wrong, and `curl` fetched every file fine.
+
+**Fix:** subclass `ThreadingHTTPServer` with `request_queue_size = 256` (and `daemon_threads = True`, `protocol_version = "HTTP/1.1"`), ~10 lines, serving the same directory. Kept outside the repo. General principle: a "200 in the log" plus a browser-side connection error means the failure is below HTTP -- suspect accept backlog before caches, MIME types or antivirus, and reproduce with a burst, not a single `curl`.
+
+---
+
+## Standalone `cmake -S core` on Windows doesn't find aubio through the vcpkg toolchain alone -- pass `-DAubio_DIR` explicitly
+Tags: cmake, vcpkg, aubio, windows, core-tests
+Applies-when: configuring core's own suite on Windows outside the `windows-app` preset
+
+With `aubio[core]:x64-windows` installed in vcpkg and `-DCMAKE_TOOLCHAIN_FILE=.../vcpkg.cmake`, the `windows-app` preset configured fine (its cache holds `Aubio_DIR=C:/vcpkg/installed/x64-windows/share/aubio`), but `cmake -S core` failed at `AudioProcessing/CMakeLists.txt:16 find_package(Aubio CONFIG REQUIRED)` even with generator and triplet pinned (`-G "Visual Studio 17 2022" -A x64 -DVCPKG_TARGET_TRIPLET=x64-windows`). Root cause not isolated -- how the app build gets `Aubio_DIR` on its own wasn't traced.
+
+**Fix:** add `-DAubio_DIR=C:/vcpkg/installed/x64-windows/share/aubio`; core then configures, builds and passes its suite (70/70). Noted in `docs/Building.md`. Unresolved: the app-slice path that makes it unnecessary.

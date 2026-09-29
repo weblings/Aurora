@@ -46,7 +46,7 @@ namespace
 } // namespace
 
 
-TEST_CASE("--fake-hue flag detection", "[fakehue]")
+TEST_CASE("fake-hue flag detection", "[fakehue]")
 {
   using Aurora::App::hasCliFlag;
 
@@ -76,7 +76,7 @@ TEST_CASE("--fake-hue flag detection", "[fakehue]")
 }
 
 
-TEST_CASE("--fake-hue env defaults", "[fakehue]")
+TEST_CASE("fake-hue env defaults", "[fakehue]")
 {
   using Aurora::App::applyFakeHueDefaults;
 
