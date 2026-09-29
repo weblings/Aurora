@@ -1,19 +1,26 @@
 # WebUI design, pass 2: accordion Dashboard + NUX redesign
 
-Follow-up to `WebUI_Fixes.md`'s Pass 1 — specifically its "Menu redesign"
+Status: shipped — both sections below still say `in progress (Aurora-x7o)`,
+but that bead is closed (2026-09-28, agent-proposed scaffolding the owner
+never committed to) and the actual work is real: `web/ui/AccordionSection.js`
+is wired into `DashboardScreen.js`/`shell.js`, and the NUX redesign's
+`WelcomeScreen.js` shipped 2026-09-20. Kept as the design rationale record,
+not a live document — don't trust the inline `Status:` lines below.
+
+Follow-up to `WebUI/WebUI_Fixes.md`'s Pass 1 — specifically its "Menu redesign"
 task. Bounded design doc: the full rationale for collapsing the Dashboard
 into an accordion and redesigning the onboarding flow that leads into it,
 worked out before any of it is built. Scoping + sequencing (the actual
 build order) is a separate section below, kept short on purpose — see
 `docs/lessons/engineering-hygiene.md`'s entry on build-log doc density
 for why design rationale and an unbounded build log don't share one file
-well. Once pass 2 actually ships, hands-on nits go to `WebUI_Fixes.md`'s
+well. Once pass 2 actually ships, hands-on nits go to `WebUI/WebUI_Fixes.md`'s
 Pass 2 section, not back into this doc.
 
 ## Menu redesign: accordion Dashboard
 Status: in progress (Aurora-x7o).
 
-Follow-up to the "Menu redesign" task in `WebUI_Fixes.md`'s Pass 1 Open
+Follow-up to the "Menu redesign" task in `WebUI/WebUI_Fixes.md`'s Pass 1 Open
 tasks. Prompted by hands-on nits after the Zone Mapping work there shipped:
 the Settings button does nothing on any page, Back/Forward availability is
 inconsistent screen to screen, and the Dashboard duplicates its own
@@ -36,7 +43,7 @@ silently re-ran real bridge pairing (demanding the physical link button
 again). The chain's own Back semantics are already correct — literal
 "previous screen in sequence," no skip-logic needed. The actual bug is that
 `OutputConnectScreen.mount()` always renders its blank entry form regardless
-of whether a connection is already saved. Fix (tracked in `WebUI_Fixes.md`'s
+of whether a connection is already saved. Fix (tracked in `WebUI/WebUI_Fixes.md`'s
 Back-button task): mount() checks saved state first and shows a "Connected
 to `<address>` — Change bridge" status view instead. Once that's true, Back
 naturally shows "what you already did there," matching that same task's own
@@ -92,7 +99,7 @@ relocated. Once that's done, "Capture Source" has no unique content left to
 justify its own accordion section.
 
 **Zone active/inactive: compact control up top, full list demoted to
-Bridge.** The 7-item Zone Mapping plan in `WebUI_Fixes.md`'s Pass 1 added an
+Bridge.** The 7-item Zone Mapping plan in `WebUI/WebUI_Fixes.md`'s Pass 1 added an
 always-visible toggle row per zone below the canvas — revisited here because
 in an accordion layout, a list that grows with zone count sitting directly
 above a stack of one-line collapsed headers reads as lopsided (tall on top,
@@ -449,13 +456,13 @@ switching configs is a real, live action.
 - **`OutputConnectScreen`'s CONNECTED state** needs the same `showBack`/
   `onBack`/`onComplete` footer every other screen already takes, plus
   "Change bridge" as a visually distinct third action — not built yet (see
-  `WebUI_Fixes.md`'s Back-button task, which this section resolves).
+  `WebUI/WebUI_Fixes.md`'s Back-button task, which this section resolves).
 
 ## Scoping + sequencing
 Status: planning — sequencing for the above.
 
 One line per step, on purpose — verification/findings once building starts
-go to `WebUI_Fixes.md`'s Pass 2 section, not inline here. Each phase should
+go to `WebUI/WebUI_Fixes.md`'s Pass 2 section, not inline here. Each phase should
 leave the app in a working state before the next one starts.
 
 ### In scope
@@ -505,7 +512,7 @@ below — this pass is almost entirely `Aurora-WebUI` frontend work.
    not "unconfigured," so it gets `everConfigured: true` added directly,
    once, alongside adding the field to the struct (Phase A) — not a
    generalized "old file missing this field" load-path rule, since there's
-   no population of old files to handle (same reasoning `WebUI_Fixes.md`'s
+   no population of old files to handle (same reasoning `WebUI/WebUI_Fixes.md`'s
    Pass 1 already used for "no huenicorn config migration path exists").
    Doesn't affect any already-saved zone's `active`/`uvs`/`gamma` values
    either way (`reconcileZoneMap` only applies defaults to zone IDs with no
@@ -642,5 +649,5 @@ catching here rather than first discovering it live.
     (`dropdown_test.mjs`, `zone_mapping_test.mjs`, etc.) once more here —
     Phase B verified them right after extraction, but Phase C/D touch the
     same files again afterward.
-24. Real findings from step 23 go to `WebUI_Fixes.md`'s Pass 2 section —
+24. Real findings from step 23 go to `WebUI/WebUI_Fixes.md`'s Pass 2 section —
     not back into this doc.

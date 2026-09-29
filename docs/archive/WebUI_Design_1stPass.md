@@ -1,5 +1,14 @@
 # WebUI screens, jobs, and component research
 
+Status: shipped — every section below already reads `Status: shipped
+2026-09-15` or `standing`. `Aurora-x7o`, the bead this fed, is closed
+(2026-09-28): its framing was agent-proposed scaffolding the owner never
+committed to, not a live milestone — everything genuinely built here
+(settings, pairing, zone mapping, the accordion Dashboard/NUX redesign)
+shipped regardless of that bead's status; the one piece it named that never
+got built (live MJPEG/SSE preview streaming) simply isn't tracked anywhere
+now, by owner choice.
+
 Detail doc for `planning/ImplementationPlan.md`'s Phase 3 Milestone 2 (native-facing WebUI).
 Covers the screen list, the navigation model, per-screen layout at two widths, and
 what existing huenicorn/RockyRoad/RockyRoadImport code was actually checked (not

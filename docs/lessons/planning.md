@@ -81,7 +81,7 @@ Tags: docs, planning, webui
 Applies-when: editing a living plan doc out of build order
 
 Recurred twice more since first filed (steps 13 and 17), all in
-`WebUI/WebUI_Design_1stPass.md` itself — the Dashboard section's own layout mockup still
+`archive/WebUI_Design_1stPass.md` itself — the Dashboard section's own layout mockup still
 drawing a "⏸ Pause" button after the same section's own prose had already
 cut Pause for v1, and the same mockup's "● Streaming" status-badge wording
 outliving the point at which building it honestly turned out to be
@@ -92,7 +92,7 @@ before relying on it, the same way `using namespace` not resolving a
 sibling namespace's own name earned that treatment after its own second
 occurrence.
 
-Two separate instances first surfaced this round, both in `WebUI/WebUI_Design_1stPass.md`
+Two separate instances first surfaced this round, both in `archive/WebUI_Design_1stPass.md`
 itself rather than in a claim about huenicorn/RockyRoad. First: the navigation-model flow
 diagram had always said a returning user reaches "each of 1/2/3/4" from the
 Dashboard, but the Dashboard screen's own ASCII mockup and nav-row list had
@@ -327,7 +327,7 @@ Tags: webui, verification, planning
 Applies-when: building a design pass over a previous pass
 
 Deciding to flip `ZoneReconciler`'s `active` default for the pass-2 NUX
-redesign, `../WebUI/WebUI_Design_1stPass.md`'s own prose gave no reason to expect
+redesign, `archive/WebUI_Design_1stPass.md`'s own prose gave no reason to expect
 trouble -- it never states anywhere that `active` defaulting to `false` is
 being relied on as a presence signal. The actual breakage only showed up by
 reading `app.js`'s real, current `probeState()` line by line:
@@ -357,7 +357,7 @@ Scoping the pass-2 build order, testing landed entirely in its final phase
 by default -- not a deliberate choice to defer it, just the natural shape a
 numbered "build these things in order" list falls into when nobody
 explicitly asks how testing should be distributed across it.
-`../WebUI/WebUI_Design_1stPass.md`'s own actual history already demonstrated the
+`archive/WebUI_Design_1stPass.md`'s own actual history already demonstrated the
 better shape: nearly every one of its 19 steps ends with its own "Tested
 with jsdom: ..." paragraph, verified as it was built, and its own late
 cross-width QA pass caught only three bugs specifically because everything

@@ -3,7 +3,7 @@
 Bounded doc: captures the layout/styling diffs found so far comparing the
 real, currently-shipped Dashboard against `Aurora-WebUI/Static_2.5_VisualPass`'s
 new visual pass, worked out before any of it is built. Not a rebuild of
-Pass 2's own rationale (`WebUI_Design_2ndPass.md`) — this is strictly "what
+Pass 2's own rationale (`archive/WebUI_Design_2ndPass.md`) — this is strictly "what
 changed visually," confirmed against the actual Figma-derived source one
 item at a time with the user, not guessed from the flattened export alone.
 

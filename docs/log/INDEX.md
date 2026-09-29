@@ -43,3 +43,4 @@ Planning docs stay clean: decisions, status, and pointers here only.
 | 2026-09-28 | Docs archive follow-up: 6 more docs moved after edit-history check showed their exploratory Status: lines were stale, not live (DocsAndLessonsPainPoints, AudioAnalysis, BrowserAnalysis, DistributedArchitecturePlan, OpenFormatsResearch, StackComparison) | Aurora-rtp |
 | 2026-09-28 | docs/planning/ added (ImplementationPlan, FutureSteamOSSupport); GUILaunchUX archived (stale vs. shipped Linux/Mac tray work) | Aurora-o1e |
 | 2026-09-28 | HttpServerAnalysis.md archived: its Aurora-x7o "Milestone 2" tracking was agent-proposed, not owner-committed, regardless of real shipped WebUI progress | Aurora-afd |
+| 2026-09-28 | docs/WebUI/ split: 4 shipped docs archived (1stPass, 2ndPass, tooltip content/analysis), 2 genuinely active docs kept; Aurora-x7o + Aurora-48x closed as agent-proposed/stale | Aurora-c90 |

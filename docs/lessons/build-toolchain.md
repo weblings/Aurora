@@ -68,7 +68,7 @@ path (`git config --global --add safe.directory <path>`), never a wildcard.
 
 **Update, later in the same project:** the original `configure_file` blocker
 above hasn't recurred across many later WSL2 builds run directly against
-this exact `/mnt/d` checkout (steps 11, 14, 15, 16 of `WebUI/WebUI_Design_1stPass.md` all
+this exact `/mnt/d` checkout (steps 11, 14, 15, 16 of `archive/WebUI_Design_1stPass.md` all
 configured and built successfully in place, no file transfer needed) —
 whatever combination of WSL2/DrvFs version this machine now runs no longer
 hits that specific compiler-detection failure, or it was narrower than

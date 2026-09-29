@@ -6,8 +6,8 @@ executed (items 1-9 by 2026-09-21's monorepo reorg; item 10, the
 why the current shape (`docs/lessons/`, `docs/log/`, `docs/archive/`,
 `docs/WebUI/`, `check-links.sh`/`check-lessons.sh`) exists, not a live backlog.
 
-Prompted by the `WebUI/` doc reorg (`WebUI/WebUI_Design_1stPass.md`/`WebUI/WebUI_Fixes.md`/
-`WebUI/WebUI_Design_2ndPass.md`) — capturing *why* that reorg was needed, and being
+Prompted by the `WebUI/` doc reorg (`WebUI_Design_1stPass.md`/`WebUI/WebUI_Fixes.md`/
+`WebUI_Design_2ndPass.md`) — capturing *why* that reorg was needed, and being
 honest that the lessons system meant to prevent this has the same disease.
 Out of scope for now: whether a different tool/structure should replace the
 markdown-file approach (see bottom).

@@ -10,7 +10,7 @@ that's already built (`core/Network/src/HttpServer.cpp`), so it's the
 record of that groundwork, not a live prerequisite anymore.
 
 Prerequisite analysis for `planning/ImplementationPlan.md`'s Phase 3 Milestone 2 and
-`WebUI/WebUI_Design_1stPass.md`'s Build order step 1. Covers huenicorn's real
+`WebUI_Design_1stPass.md`'s Build order step 1. Covers huenicorn's real
 `Network::Http::Server` C++ implementation (read directly, not the JS frontend
 this time) and what shape Aurora's own new server should take from it. Written
 2026-09-15, before any of this is built.
@@ -106,7 +106,7 @@ does, keeping the actual route logic written once.
 ## The one real design fork from huenicorn: reconstruction, not mutation
 
 huenicorn's WebUI handlers mutate live objects in place (reassign
-`m_streamer`, edit fields inside `m_channels`). `WebUI/WebUI_Design_1stPass.md`'s plan for
+`m_streamer`, edit fields inside `m_channels`). `WebUI_Design_1stPass.md`'s plan for
 Aurora is more ambitious on purpose: a generic reload entrypoint that tears
 down and **reconstructs** Input/Output/Orchestrator from a freshly-loaded
 `Config`+`ZoneMapStore`, because switching between video and audio mode needs
@@ -134,7 +134,7 @@ huenicorn's per-field, easy-to-miss locking pattern.
   Config/Registry/pipeline object → serialize the result → done. No business
   logic inside the lambda itself, matching huenicorn's own convention.
 
-## First-milestone route list (maps to `WebUI/WebUI_Design_1stPass.md`'s Build order)
+## First-milestone route list (maps to `WebUI_Design_1stPass.md`'s Build order)
 
 - `GET /api/capabilities` — reflects the `Registry` (which Input/Output
   plugins are actually compiled in), needed before the frontend can do its
@@ -150,7 +150,7 @@ huenicorn's per-field, easy-to-miss locking pattern.
   existing `reconcileZoneMap` (Build order step 14).
 - `POST /api/stop` — a close port of huenicorn's `_stop()`
   (`WebUI.js`/`WebUIBackend.cpp` pairing), including the same
-  confirm-before-stop shape already designed in `WebUI/WebUI_Design_1stPass.md`'s Dashboard
+  confirm-before-stop shape already designed in `WebUI_Design_1stPass.md`'s Dashboard
   (Build order step 16).
 - Deliberately not in this milestone: the MJPEG/SSE preview endpoints — see
-  `WebUI/WebUI_Design_1stPass.md`'s Build order for why they're sequenced last.
+  `WebUI_Design_1stPass.md`'s Build order for why they're sequenced last.

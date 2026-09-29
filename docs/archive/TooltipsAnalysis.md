@@ -1,7 +1,7 @@
 # Tooltips plumbing analysis (Aurora WebUI)
 
-Status: plumbing shipped; content still open, tracked in `Aurora-48x`
-("Wire TooltipContent draft into UI") — see `TooltipContent.md`.
+Status: shipped — plumbing and content both live; `Aurora-48x` (closed
+2026-09-28) was stale, not evidence of open work — see `TooltipContent.md`.
 
 Goal: hover tooltips on Dashboard sliders, dropdowns, and (plumbed, low
 priority) bools, with identical behavior wherever the same control appears

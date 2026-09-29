@@ -97,7 +97,7 @@ comparison along the way can still come back genuinely clean.
 Tags: process, tech-debt, lessons
 Applies-when: recording a root cause without removing it
 
-Implementing `../WebUI/WebUI_Design_2ndPass.md` step 3 hit the exact same
+Implementing `archive/WebUI_Design_2ndPass.md` step 3 hit the exact same
 `Catch2d.lib`/`__std_search_1`-style link failure the two entries above
 already describe. Investigating from scratch (per this session's own
 `prefer-code-confirmed-hypotheses-over-library-internals` habit) surfaced

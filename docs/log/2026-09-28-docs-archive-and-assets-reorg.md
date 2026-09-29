@@ -18,10 +18,10 @@ the fourth pass below.
 
 ## `docs/WebUI/`
 
-`WebUI/TooltipContent.md`/`WebUI/TooltipsAnalysis.md` moved in alongside the
+`archive/TooltipContent.md`/`archive/TooltipsAnalysis.md` moved in alongside the
 WebUI design passes they belong with (were orphaned at root). Not shipped:
 tooltip *plumbing* is live (`ControlDescriptor`, `web/ui/Tooltips.js`),
-content wiring is still open (`Aurora-48x`) — `WebUI/TooltipsAnalysis.md`
+content wiring is still open (`Aurora-48x`) — `archive/TooltipsAnalysis.md`
 now says so.
 
 ## `assets/brand/`
@@ -137,6 +137,43 @@ staying at root doesn't hold regardless of how much of the underlying
 WebUI work is real (most of it is). Archived with a `Status:` line
 separating the two facts: the tracking bead isn't authoritative, but the
 analysis still correctly fed the server skeleton that's actually built.
+
+## Fifth pass: `docs/WebUI/` split, and closing `Aurora-x7o`/`Aurora-48x`
+
+Checked whether `docs/WebUI/` itself needed the same archive/keep split
+applied to root — it did, and it wasn't uniform. Per file, against the
+actual code and beads:
+
+- `archive/WebUI_Design_1stPass.md` — every section already self-declared `Status:
+  shipped 2026-09-15` or `standing`. Straightforward archive.
+- `archive/WebUI_Design_2ndPass.md` — both live sections said `in progress
+  (Aurora-x7o)`, but the work is real: `web/ui/AccordionSection.js` is
+  wired into `DashboardScreen.js`/`shell.js` (the accordion Dashboard),
+  and `WelcomeScreen.js` (the NUX redesign) shipped 2026-09-20. Archived
+  with a `Status:` line saying not to trust the inline ones below it.
+- `archive/TooltipContent.md`/`archive/TooltipsAnalysis.md` — both still claimed content
+  wiring was open, tracked in `Aurora-48x`. Checked: zero literal `'Test'`
+  placeholders remain anywhere in `web/ui`, and a 2026-09-18 commit ("Wire
+  approved tooltip copy") predates the bead's own 2026-09-20 creation date
+  — the bead was stale for work already finished before it existed.
+  Archived both with corrected `Status:` lines.
+- `WebUI/WebUI_Fixes.md` and `WebUI/WebUI_Design_2.5Pass.md` — left in `WebUI/` as
+  genuinely active: `bd list -l webui` shows 20 real issues (14 open, 1
+  in-progress sub-task, live bugs like `Aurora-m2c`/`Aurora-mqi`). Worth
+  flagging separately: the 6 "Diff 2.5Pass vs 2_Pass" beads underneath it
+  (`Aurora-1dl`/`2yf`/`typ`/`wey`/`56v`/`73v`) share `Aurora-x7o`/
+  `Aurora-48x`'s exact staleness signature (created 09-20, never updated)
+  — different failure mode though: nothing has shipped to contradict them,
+  they're deprioritized, not disproven. Left open, not closed, since that's
+  a real prioritization call, not a docs-organization one.
+
+Owner correction that triggered this pass: `Aurora-x7o`'s "Phase 3
+Milestone 2" framing, and `Aurora-48x`'s tooltip-wiring framing, were both
+agent-proposed tracking the owner never actually signed onto — closed both.
+The live MJPEG/SSE preview streaming `Aurora-x7o` named (the one genuinely
+unbuilt piece of the four it covered) isn't being re-tracked as a new bead;
+if it's wanted later, that's a fresh decision, not a carry-forward of this
+one's framing.
 
 ## Verification
 

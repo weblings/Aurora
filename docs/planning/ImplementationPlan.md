@@ -605,7 +605,7 @@ this codebase.
   at all (no native backend in that shape) — this was purely a milestone-2
   prerequisite.
 - **Screen list, jobs-to-be-done, and component research: see
-  `docs/WebUI/WebUI_Design_1stPass.md`.** Covers the full screen breakdown (Output
+  `docs/archive/WebUI_Design_1stPass.md`.** Covers the full screen breakdown (Output
   Connect, Mode+Device Select, Zone Mapping, Tuning/Settings, Dashboard), the
   hub-and-spoke navigation model (RockyRoad's `App.ts`/`#screen-container`
   shell pattern, not a forced linear wizard for returning users), and per-screen
@@ -617,7 +617,7 @@ this codebase.
 - **Native side, three surfaces, not one:**
   - *Preview streaming* (the original plan here, still technically valid but
     **deliberately last in build order, not first** — see
-    `docs/WebUI/WebUI_Design_1stPass.md`'s Build order section: the Dashboard's live
+    `docs/archive/WebUI_Design_1stPass.md`'s Build order section: the Dashboard's live
     preview and per-zone swatch row were cut from v1 entirely, so nothing
     consumes this endpoint yet): a chunked MJPEG endpoint serving the
     already-downsampled preview frames (JPEG-encode the same small

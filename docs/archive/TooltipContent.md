@@ -1,8 +1,15 @@
 # Tooltip content draft (Aurora WebUI)
 
-Status: draft for review. Not yet wired -- every tooltip still serves the
-literal `Test` until this copy is approved, then each line replaces the
-`Test` in its module's descriptor table (no plumbing changes needed).
+Status: shipped 2026-09-18 ("Wire approved tooltip copy, add zones.select")
+— `Aurora-48x` is closed (2026-09-28): its "still open" tracking was stale,
+the content was already wired, no literal `Test` placeholders remain
+anywhere in `web/ui`. Kept as the record of the approved copy and the
+6-word/framing rules that governed it, not a live draft.
+
+Original status: draft for review. Not yet wired -- every tooltip still
+served the literal `Test` until this copy was approved, then each line
+replaced the `Test` in its module's descriptor table (no plumbing changes
+needed).
 
 Framing rule: each tooltip says what the control means for the visible
 color output. Generic "color output" phrasing for video/audio pipeline

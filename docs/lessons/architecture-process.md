@@ -178,7 +178,7 @@ is the only option.
 Tags: docs, planning, readability
 Applies-when: writing build-order or plan docs with verification detail
 
-Writing `WebUI/WebUI_Design_1stPass.md`'s 19-step build order, each step's writeup was
+Writing `archive/WebUI_Design_1stPass.md`'s 19-step build order, each step's writeup was
 judged against "is every claim in this entry accurate and well-supported"
 -- real bugs found, every jsdom/live verification performed, every
 doc-internal inconsistency resolved, all recorded in full. That's a
