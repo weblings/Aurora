@@ -5,6 +5,10 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 
 | Id | Path | Title |
 |---|---|---|
+| `implementation-plan` | [planning/ImplementationPlan.md](planning/ImplementationPlan.md) | Low-scope implementation plan |
+| `implementation-plan-directory-layout` | [archive/ImplementationPlan_DirectoryLayout.md](archive/ImplementationPlan_DirectoryLayout.md) | Implementation plan: proposed directory layout (superseded) |
+| `implementation-plan-early-phases` | [archive/ImplementationPlan_EarlyPhases.md](archive/ImplementationPlan_EarlyPhases.md) | Implementation plan: phases 1, 2, 2.5 (native build) |
+| `implementation-plan-phase-3` | [archive/ImplementationPlan_Phase3.md](archive/ImplementationPlan_Phase3.md) | Implementation plan: Phase 3 — Three.js browser demo, then the native WebUI milestone |
 | `mac-audio` | [archive/mac/Audio.md](archive/mac/Audio.md) | macOS audio capture |
 | `mac-notarization` | [planning/mac/Notarization.md](planning/mac/Notarization.md) | macOS Gatekeeper/notarization |
 | `mac-permissions` | [archive/mac/Permissions.md](archive/mac/Permissions.md) | macOS Screen Recording permission |

@@ -46,7 +46,7 @@ Core repo: shared `Contracts`, `Processing`, `Input`/`Output` interfaces,
   it across real, related shipped work since, the doc is probably stale
   regardless of what it claims, and belongs in `docs/archive/` with a
   corrected `Status:` line naming the real last-touched date.
-- The overall roadmap: `docs/planning/ImplementationPlan.md` (per-phase
+- The overall roadmap: [[implementation-plan]] (per-phase
   `Status:` lines are the source of truth for what's shipped) plus any other
   still-active, not-yet-decided planning doc — `docs/planning/`, not root.
 - Shipped, superseded, or stale-and-abandoned plans and analyses:

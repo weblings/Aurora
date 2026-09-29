@@ -11,7 +11,7 @@ shipped regardless of that bead's status; the one piece it named that never
 got built (live MJPEG/SSE preview streaming) simply isn't tracked anywhere
 now, by owner choice.
 
-Detail doc for `planning/ImplementationPlan.md`'s Phase 3 Milestone 2 (native-facing WebUI).
+Detail doc for [[implementation-plan-phase-3]]'s Milestone 2 (native-facing WebUI).
 Covers the screen list, the navigation model, per-screen layout at two widths, and
 what existing huenicorn/RockyRoad/RockyRoadImport code was actually checked (not
 assumed) as reusable for building it. Written 2026-09-15, before any of this is
@@ -417,7 +417,7 @@ confirming the pipeline is alive and giving quick controls. This is a real
 feature cut, not just a layout simplification: it removes the MJPEG/SSE
 consumption work from this milestone's browser-side scope entirely, though the
 native-side endpoints themselves are unaffected (still worth building per
-`planning/ImplementationPlan.md`, just not consumed by this Dashboard screen yet).
+[[implementation-plan-phase-3]], just not consumed by this Dashboard screen yet).
 
 **Layout:**
 ```
@@ -572,7 +572,7 @@ Status: standing — decisions taken, not a milestone.
   without re-pairing is an accepted, explicit v1 gap, not silently dropped.
 - Live preview and the per-zone swatch row are deferred out of v1 entirely
   (video-mode-only, and not required for the Dashboard's core job). Native-side
-  MJPEG/SSE endpoints from `planning/ImplementationPlan.md` are unaffected — they're
+  MJPEG/SSE endpoints from [[implementation-plan-phase-3]] are unaffected — they're
   just not consumed by this Dashboard yet.
 - Aurora's design tokens are grayscale-only, no brand accent — `#8b8b8b`
   already carries the interactive/active-state role in RockyRoad's proven

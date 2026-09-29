@@ -9,9 +9,11 @@ Distilled from [huenicorn](https://gitlab.com/openjowelsofts/huenicorn)
 
 ## Status
 
-A test script, not yet a real product app — see
-[`docs/ImplementationPlan.md`](../../docs/ImplementationPlan.md)
-phase 3 for what's still missing (a pairing flow, a zone-mapping UI).
+A CLI shell around the real product: pairing, zone mapping, and settings
+now ship via the WebUI (SettingsRoutes/ZoneRoutes/PairingRoutes), not the
+env-var-only setup [[implementation-plan-phase-3]]'s original plan assumed
+was still missing here — see that doc's corrected Status for how the
+real WebUI shipped through a different track than originally planned.
 
 - **`Registry`** — name → factory lookup for this binary's compiled-in
   plugins. Tested (`tests/RegistryTests.cpp`) against fake input/output
