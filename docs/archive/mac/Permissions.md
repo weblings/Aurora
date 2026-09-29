@@ -3,7 +3,7 @@
 Id: mac-permissions
 
 Status: resolved, implemented as Aurora-8mk.8 (permission recovery flow,
-closed). Split out of the old `docs/MacSupport.md` (Aurora-le6). See
+closed). Split out of the old MacSupport.md (Aurora-le6). See
 [[mac-video-capture]] for the tier this gates, [[mac-audio]] for the
 separate, narrower audio permission.
 

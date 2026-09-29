@@ -3,7 +3,7 @@
 Id: mac-audio
 
 Status: shipped 2026-09-28 (Aurora-9z4, all children closed). Split out of
-the old `docs/MacSupport.md` (Aurora-le6); video capture is
+the old MacSupport.md (Aurora-le6); video capture is
 [[mac-video-capture]].
 
 Unlike Windows' WASAPI loopback, macOS had no built-in "capture what's

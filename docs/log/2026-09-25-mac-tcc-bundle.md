@@ -11,7 +11,7 @@ Built a throwaway Mach-O calling `SCShareableContent` two ways: bare, and
 with an embedded `Info.plist`/`CFBundleIdentifier` via `-sectcreate __TEXT
 __info_plist`. Both, run directly from Terminal, attributed the Screen
 Recording grant to Terminal itself in System Settings, not the probe --
-confirming the risk `docs/MacSupport.md` had flagged but not yet tested.
+confirming the risk [[mac-video-capture#load-bearing-risk]] had flagged but not yet tested.
 Scope call (user-confirmed after establishing bundling needs no Xcode/paid
 Apple Developer account, just a free local `codesign`): pull a minimal
 `.app` bundle forward into tier 1 rather than accept Terminal-attribution,

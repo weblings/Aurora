@@ -11,7 +11,7 @@ already-proven bundle shape.
 
 ## Capture mechanism: confirmed working, first try
 
-The concrete API dictionary shape scoped into `docs/MacSupport.md` from
+The concrete API dictionary shape scoped into [[mac-audio]] from
 research (tap UID in `kAudioAggregateDeviceTapListKey`, real output UID as
 both the aggregate's main sub-device and its one sub-device,
 `kAudioAggregateDeviceIsPrivateKey: true`) compiled and worked exactly as

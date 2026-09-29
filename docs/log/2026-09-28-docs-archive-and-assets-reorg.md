@@ -117,7 +117,7 @@ Every relative link this pass touched was hand-verified for true path
 correctness (not just checker leniency, which tolerates plenty a real
 renderer wouldn't) — `planning/ImplementationPlan.md`'s and `planning/FutureSteamOSSupport.md`'s
 own outbound `../`-style links needed an extra `../` for the new depth, and
-`MacSupport.md`'s two line-anchored links to `archive/GUILaunchUX.md` needed both
+MacSupport.md's two line-anchored links to `archive/GUILaunchUX.md` needed both
 the `archive/` prefix and their anchors recomputed (the new `Status:` block
 shifted every line below it by 8).
 

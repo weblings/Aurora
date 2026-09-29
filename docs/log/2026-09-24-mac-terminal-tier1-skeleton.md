@@ -51,5 +51,5 @@ so this is the sequence's actual stopping point, not a scope choice.
 Resumes with the user running the TCC-identity probe by hand (compile a
 throwaway binary calling a TCC-gated capture API, run from Terminal, check
 System Settings -> Screen Recording for whether the grant lands on the
-binary or on Terminal) -- see docs/MacSupport.md's "Load-bearing risk" /
-build-sequencing Phase 3 for the full probe design.
+binary or on Terminal) -- see [[mac-video-capture#load-bearing-risk]] /
+build-history Phase 3 for the full probe design.

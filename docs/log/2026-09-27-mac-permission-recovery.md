@@ -59,7 +59,7 @@ side while this session drove the daemon:
   already documented -- both expected, neither a surprise once the prior
   log was checked.
 - First grant+relaunch cycle still came back denied -- reproduced
-  `docs/MacSupport.md`'s documented gotcha live: an ad-hoc-signed dev
+  [[mac-permissions#ad-hoc-signing-re-prompts-every-rebuild]] live: an ad-hoc-signed dev
   binary's TCC identity changes on every rebuild, so a grant made against
   an older build doesn't carry over. `tccutil reset ScreenCapture
   com.aurora.app` (the doc's own prescribed escape hatch) confirmed this --

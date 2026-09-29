@@ -190,7 +190,7 @@ naturally instead of needing a retroactive sweep:
 
 ## Process gaps found building the doc-linking mechanism (appended 2026-09-29)
 
-Scoping the `MacSupport.md` split into `docs/archive/mac`/`docs/planning/mac`
+Scoping the MacSupport.md split into `docs/archive/mac`/`docs/planning/mac`
 (`Aurora-lmn`/`Aurora-le6`/`Aurora-4ux`, `log/2026-09-29-doc-linking-mechanism.md`)
 surfaced three more gaps, on top of the six above:
 

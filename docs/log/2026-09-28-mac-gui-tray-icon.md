@@ -9,14 +9,14 @@ related but standalone finding, since it also affects Windows).
 Investigated what closing the Mac GUI-launch/tray gap against Windows
 (`Aurora-x2o`) and Linux (`Aurora-lx4`) would take, now that both Mac tier-1
 epics (`Aurora-8mk` video, `Aurora-9z4` audio) are closed and
-`docs/MacSupport.md`'s deferred "Tray-parity" phase's conditions are met.
+[[mac-tray-parity-history]]'s deferred "Tray-parity" phase's conditions are met.
 Landed on a 6-phase sequence (`Aurora-qps.1`–`.6`): run-loop click-test,
 wire the real `TrayIcon`, `LSUIElement` agent mode, a newly surfaced open
 around `LaunchServices`' own single-instance semantics vs. `InstanceLock`,
 first-run discoverability, and a deliberately low-priority/parallel
 `SMAppService` signing spike (neither Windows nor Linux ship launch-at-
 login yet, so this doesn't catch up to a shipped feature). Corrected
-`docs/MacSupport.md`'s stale claim that code-signing is a blanket
+[[mac-tray-parity-history]]'s stale claim that code-signing is a blanket
 requirement for this phase — confirmed empirically that it isn't, except
 for the login-item spike specifically.
 
@@ -117,8 +117,8 @@ the original process ever existed. LaunchServices intercepts entirely;
 `main()`/`InstanceLock`/`openWebBrowser(url)` never run on a second
 launch. Real consequence under `LSUIElement`: a second double-click did
 *nothing visible at all* — no browser tab, no window. Finding written
-into `docs/MacSupport.md`; follow-up fix filed as `Aurora-qps.7` rather
-than folded into the investigation.
+into what's now [[mac-tray-parity-history]]; follow-up fix filed as
+`Aurora-qps.7` rather than folded into the investigation.
 
 ## qps.7: fixing the second-launch (reopen) gap
 

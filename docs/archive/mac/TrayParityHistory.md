@@ -4,7 +4,7 @@ Id: mac-tray-parity-history
 
 Status: mostly shipped — Aurora-qps.1-.4 and .7 closed. The epic's
 remaining open tail (qps.5, qps.6) is [[mac-tray-parity]], not this doc.
-Split out of the old `docs/MacSupport.md` (Aurora-le6).
+Split out of the old MacSupport.md (Aurora-le6).
 
 ## Tray-parity (matches 1.0.2 Windows/Linux shape)
 

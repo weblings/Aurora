@@ -23,11 +23,12 @@ checklist to run when doing a periodic organization/reorg pass.
   routed by `.claude/skills/`. See its own `README.md` for filing rules.
 - **`log/`** — append-only, dated record of closed/paused milestones. See
   [`log/INDEX.md`](log/INDEX.md).
-- **Root** (`Building.md`, `MacSupport.md`, `UpstreamFindings.md`) —
-  operational reference and narrow standalone docs that don't fit any
-  bucket above. Kept intentionally small; if root starts accumulating
-  files again, that's the signal to run the checklist below, not to add
-  another folder reflexively.
+- **Root** (`Building.md`, `UpstreamFindings.md`) — operational reference
+  and narrow standalone docs that don't fit any bucket above. Kept
+  intentionally small; if root starts accumulating files again, that's
+  the signal to run the checklist below, not to add another folder
+  reflexively. (MacSupport.md used to live here — split into
+  `archive/mac/`/`planning/mac/` once it outgrew a single file, Aurora-le6.)
 
 ## Citing other docs: the `Id:`/`[[id]]` convention
 

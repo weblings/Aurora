@@ -42,14 +42,16 @@ the changelog; nothing enforces the mirror.
 
 Terminal-only app with video + audio capture; no tray and no notarization
 (single-machine builds only). Scoping and design decisions live in
-`docs/MacSupport.md` — setup:
+[[mac-video-capture]]/[[mac-audio]] (shipped) and
+[[mac-tray-parity]]/[[mac-notarization]] (still open) — setup:
 
 ```sh
 xcode-select --install  # Xcode CLT (confirm even if Xcode.app is installed)
 # Homebrew: https://brew.sh
 brew install cmake opencv curl aubio mbedtls@3 pkg-config
 # mbedtls@3 is keg-only, and plain `mbedtls` is v4 (incompatible API) — point
-# pkg-config at v3 and make it the active one (pitfall details in MacSupport.md):
+# pkg-config at v3 and make it the active one (pitfall details in
+# docs/lessons/build-toolchain.md):
 export PKG_CONFIG_PATH="$(brew --prefix mbedtls@3)/lib/pkgconfig:$PKG_CONFIG_PATH"
 brew link mbedtls@3 --force
 brew install steveyegge/beads/bd  # then `bd import` from the repo root

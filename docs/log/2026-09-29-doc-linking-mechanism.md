@@ -1,6 +1,6 @@
 # Doc-linking mechanism: `Id:`/`[[id]]` wikilinks (2026-09-29)
 
-Surfaced while scoping the `MacSupport.md` split into `docs/archive/mac` +
+Surfaced while scoping the MacSupport.md split into `docs/archive/mac` +
 `docs/planning/mac`: path/bare-filename citations break silently on move or
 rename, because `check-links.sh` only resolves a citation by walking upward
 from the citing file's own directory -- it can't see sideways across
@@ -43,7 +43,7 @@ leaving 6 issues in the tracked export that the live Dolt DB never saw --
 losing them. Fixed with `bd import`. See the new architecture-process.md
 entry.
 
-Sequencing: `Aurora-lmn` (this work) -> `Aurora-le6` (migrate `MacSupport.md`
+Sequencing: `Aurora-lmn` (this work) -> `Aurora-le6` (migrate MacSupport.md
 onto the new convention) -> `Aurora-4ux` (migrate WebUI docs, second
 validation pass). `Aurora-lmn.4` (CI enforcement) filed but deprioritized --
 CI doesn't run reliably in this repo currently; enforcement stays manual

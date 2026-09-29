@@ -6,7 +6,7 @@ Status: shipped 2026-09-25 (Aurora-8mk, closed except Aurora-8mk.10 —
 Gatekeeper/notarization, deliberately deferred, see
 [[mac-notarization]]). Terminal-only app (`app/mac`), no tray, no
 notarization: single-machine builds only. Split out of the old
-`docs/MacSupport.md` (Aurora-le6); audio capture is
+MacSupport.md (Aurora-le6); audio capture is
 [[mac-audio]], the Screen Recording permission investigation is
 [[mac-permissions]], tray-parity is [[mac-tray-parity-history]] /
 [[mac-tray-parity]].
