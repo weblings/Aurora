@@ -144,3 +144,46 @@ stretch goal (needs a docs-build root first).
 - Workstream record: [log/2026-09-20-docs-system-overhaul.md](../log/2026-09-20-docs-system-overhaul.md) —
   what shipped, decisions, and open remainder. Task history in closed beads
   (`bd list --status all`, labels `docs`/`migrated`/`phase-*`).
+
+## Process gaps found doing the archive split itself (appended 2026-09-28)
+
+Item 10 above (archive process) got done this session
+(`log/2026-09-28-docs-archive-and-assets-reorg.md`, `Aurora-0ki`/`Aurora-rtp`/
+`Aurora-o1e`/`Aurora-afd`), but doing it by hand — reading edit history,
+diffing bead timestamps, re-deriving which docs were actually stale —
+surfaced six process gaps that would have made the outcome fall out
+naturally instead of needing a retroactive sweep:
+
+1. **Archive-on-close, not archive-later.** Every doc archived this session
+   was already done the moment its phase/milestone shipped, but nothing
+   moved it then — some sat live for two weeks. Milestone close-out
+   (already a defined step: dated `docs/log/` entry + `INDEX.md` row)
+   should also archive that milestone's prerequisite analysis docs and
+   correct their `Status:` lines, in the same action, not as separate later
+   cleanup.
+2. **Run `bd stale` instead of hand `git log` archaeology.** It already
+   exists and would have flagged `Aurora-f06` and `Aurora-x7o` as
+   untouched-since-creation immediately, instead of needing manual
+   `git log --follow` date-diffing across five files to notice the same
+   thing.
+3. **Wire `check-links.sh`/`check-lessons.sh` into CI or a pre-commit
+   hook.** The stale `'Analysis'` base in `check-links.sh` sat silently
+   checking nothing under `docs/` for 8 days because nothing runs it
+   automatically — it only fires when someone thinks to type the command.
+4. **Mark agent-proposed plans as proposed, not committed.**
+   `Aurora-x7o`'s "Phase 3 Milestone 2" framing calcified into what looked
+   like a real roadmap item because nothing distinguished "an agent
+   suggested this shape" from "the owner signed off on it." A `proposed`
+   label that has to be explicitly promoted before a bead can carry a
+   `phase-*` label would stop that drift at the source.
+5. **Write the convention down before the first violation, not after.**
+   `docs/README/` holding build-input assets and `check-links.sh` never
+   scanning `docs/` were both "obviously wrong in hindsight," but nothing
+   in `AGENTS.md` said otherwise until this session forced the issue.
+6. **Make "run quality gates" concrete in the session-close checklist.**
+   Both the `bd prime` hook's close protocol and `AGENTS.md`'s own
+   "Session Completion" section say "run quality gates" without naming
+   which ones — satisfied today by `ctest` alone, never `bd stale` or the
+   two `check-*.sh` scripts. Naming them explicitly in that step is what
+   would make gaps 2 and 3 above actually fire every session instead of
+   needing a human to think of them.
