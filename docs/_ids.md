@@ -5,3 +5,9 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 
 | Id | Path | Title |
 |---|---|---|
+| `mac-audio` | [archive/mac/Audio.md](archive/mac/Audio.md) | macOS audio capture |
+| `mac-notarization` | [planning/mac/Notarization.md](planning/mac/Notarization.md) | macOS Gatekeeper/notarization |
+| `mac-permissions` | [archive/mac/Permissions.md](archive/mac/Permissions.md) | macOS Screen Recording permission |
+| `mac-tray-parity` | [planning/mac/TrayParity.md](planning/mac/TrayParity.md) | macOS tray-parity: open work |
+| `mac-tray-parity-history` | [archive/mac/TrayParityHistory.md](archive/mac/TrayParityHistory.md) | macOS tray-parity: build history |
+| `mac-video-capture` | [archive/mac/VideoCapture.md](archive/mac/VideoCapture.md) | macOS video capture (tier 1) |
