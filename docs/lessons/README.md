@@ -22,8 +22,8 @@ Aurora's own module boundaries instead of RockyRoad's. `rendering-apis.md` vs.
 | [build-toolchain.md](build-toolchain.md) | CMake, vcpkg, compilers, WSL2, dev deps | 24 | build/tooling specific |
 | [windows-env.md](windows-env.md) | processes, installers, ACLs, probing | 14 | Windows-environment specific |
 | [macos-gui.md](macos-gui.md) | AppKit, tray/status-item, run-loop pumping, ObjC++ interop | 7 | macOS GUI/AppKit specific |
-| [debugging-method.md](debugging-method.md) | evidence, verification, oracles, timing | 30 | debugging/verification method |
-| [architecture-process.md](architecture-process.md) | splits, duplication, reload, presence | 23 | architecture or process decision |
+| [debugging-method.md](debugging-method.md) | evidence, verification, oracles, timing | 31 | debugging/verification method |
+| [architecture-process.md](architecture-process.md) | splits, duplication, reload, presence | 24 | architecture or process decision |
 | [web-testing.md](web-testing.md) | jsdom, live tests, routes, settings | 8 | web testing specific |
 | [language-cpp.md](language-cpp.md) | namespace, threads, C-portability | 7 | C++ language gotcha |
 | [input.md](input.md) | capture/grabber/platform-adapter | 20 | capture/grabber specific |
@@ -37,7 +37,7 @@ Aurora's own module boundaries instead of RockyRoad's. `rendering-apis.md` vs.
 | [navigation-flow.md](navigation-flow.md) | Back/Continue, gating, NUX | 9 | WebUI flow finding |
 | [layout-css.md](layout-css.md) | responsive, pseudo-elements, flex | 9 | WebUI layout/CSS finding |
 
-Counts as of 2026-09-28 — bump the count when adding entries
+Counts as of 2026-09-29 — bump the count when adding entries
 (`grep -c '^## '` per file).
 
 ## Where a new lesson goes

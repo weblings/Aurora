@@ -187,3 +187,35 @@ naturally instead of needing a retroactive sweep:
    two `check-*.sh` scripts. Naming them explicitly in that step is what
    would make gaps 2 and 3 above actually fire every session instead of
    needing a human to think of them.
+
+## Process gaps found building the doc-linking mechanism (appended 2026-09-29)
+
+Scoping the `MacSupport.md` split into `docs/archive/mac`/`docs/planning/mac`
+(`Aurora-lmn`/`Aurora-le6`/`Aurora-4ux`, `log/2026-09-29-doc-linking-mechanism.md`)
+surfaced three more gaps, on top of the six above:
+
+1. **Path-based citations have no cross-subtree verification, by design, not
+   by oversight.** `check-links.sh` only ever walked *upward* from a citing
+   file's own directory — it can't see sideways from `docs/log/` into
+   `docs/archive/mac/`, so a citation into a sibling folder can go stale
+   without the checker ever catching it, independent of gap 3 above (the
+   checker running at all). Fixed with an id-based index
+   (`Id:`/`[[id]]`, `docs/README.md`) instead of teaching the walk to search
+   sideways — a directory-walk model has this limitation structurally.
+2. **A hand-merged `.beads/issues.jsonl` needs an explicit `bd import` step
+   that nothing prompts for.** Resolving the `dev`-branch merge conflict in
+   the tracked export by hand left 6 issues the live Dolt DB never saw —
+   caught only because a later `bd create` refused to auto-export over it,
+   not because anything in the merge workflow said to reconcile first. The
+   existing "after `git pull`, run `bd import`" guidance (`AGENTS.md`) covers
+   pulls; it doesn't mention merges, which hit the same divergence from the
+   opposite direction.
+3. **A directory-structure precedent that isn't written down gets
+   re-derived from git history every time, at conversation cost.** Whether
+   `docs/archive/`'s topic docs should be a real folder or flattened with a
+   filename prefix wasn't answered by `docs/README.md`'s own bucket
+   description — it took `git log --follow -- docs/WebUI/` to discover
+   `docs/WebUI/` *was* a real folder (no README, direct cross-citation)
+   before the one-off flattening in `Aurora-c90`. Worth writing that
+   precedent into `docs/README.md` directly once, rather than leaving it
+   recoverable only by archaeology.

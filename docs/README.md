@@ -10,7 +10,10 @@ checklist to run when doing a periodic organization/reorg pass.
 
 - **`archive/`** — shipped, superseded, or abandoned plans and analyses.
   Historical record: don't delete or edit into the present tense, only add
-  a corrected `Status:` line naming what actually happened.
+  a corrected `Status:` line naming what actually happened. Either a flat
+  file (most of it today) or a real topic subfolder (`docs/WebUI/` was one
+  before `Aurora-c90` flattened its archived half) is fine — no README
+  needed inside one either way, docs cross-cite each other directly.
 - **`planning/`** — still-active, not-yet-decided plans (the roadmap,
   unstarted platform exploration). Distinct from `archive/`: nothing here
   should be treated as settled just because it's written down.

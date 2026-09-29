@@ -455,3 +455,13 @@ Applies-when: catching up a second machine after git pull when the Dolt remote i
 After `git pull`, the live Dolt DB was a day behind and the first `bd` commands rewrote `.beads/issues.jsonl` from that stale DB -- silently reopening 6 beads the other machine had just closed (visible in `git diff HEAD` as `-closed`/`+open` pairs). The follow-up `bd import` then faithfully imported the clobbered file ("Imported 134", all open), so the success message itself was the misdirection.
 
 **Fix:** after pull, check `git diff` on the export before running any `bd` command; after `bd import`, diff again -- the worktree must show no regression vs HEAD. If it does, `git checkout HEAD -- .beads/issues.jsonl` and re-import: upsert restores the closes (verified: "Updated 8 existing issues ... open → closed"). General principle: treat the tracked export as disputed territory until DB and file agree -- the import direction is file→DB, so a stale-DB write to the file poisons the source.
+
+---
+
+## Hand-resolving a `.beads/issues.jsonl` merge conflict leaves the live DB behind until `bd import` catches up
+Tags: beads, sync, git, merge
+Applies-when: resolving a `.beads/issues.jsonl` merge conflict by hand, or any time issues land in the tracked export without going through the live DB first
+
+After hand-merging a `dev`-branch conflict in `.beads/issues.jsonl` (keeping distinct issues from both sides of the conflict), the next `bd create` warned "auto-export skipped: ... contains 6 JSONL-only issue record(s) absent from the local Dolt store" and refused to overwrite the file, rather than silently dropping the hand-merged entries. The live embedded Dolt DB only reflects whatever `bd` itself wrote or last imported -- a text-level git merge updates the tracked file directly and never touches the DB, so the two diverge the moment something other than `bd` is what changed the file.
+
+**Fix:** run `bd import` immediately after resolving any `.beads/issues.jsonl` merge conflict, before running any other `bd` command -- it upserts the file's content into the DB (confirmed here: "Imported 170 issues... Updated 3 existing issue(s)"), closing the gap the warning was refusing to paper over. Opposite direction from "A stale live DB can un-close just-pulled beads" above: there the DB lagged the file after a `pull`; here the file gained content the DB never saw because a merge, not `bd`, produced it -- same rule either way, diff/import before trusting either side.

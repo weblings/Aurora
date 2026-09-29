@@ -498,3 +498,13 @@ Applies-when: accepting a fix whose proof is "configures/builds with option X of
 `Aurora-y1q`'s acceptance (app/linux builds with its audio toggle OFF) passed on the unfixed code: via the superbuild the toggle never unset `AURORA_RUNTIME_AUDIO_AVAILABLE` (core was already configured by an earlier fetch -- see the FetchContent-ordering entry in build-toolchain.md), so the "OFF build" compiled the identical TU and the green build proved nothing.
 
 **Fix:** before believing a toggle-flip build, confirm the flip landed (`flags.make`/`compile_commands.json` carries or lacks the define), then run a true negative test: compile the touched TU with the define forcibly undefined (`-U...` appended to the recorded compile command) and confirm the old code fails exactly where the fix guards. If the toggle itself is broken (filed here as `Aurora-b87`), the negative test is the real acceptance, not the toggle build.
+
+---
+
+## A test where the normal path would also succeed doesn't prove an override branch actually takes priority
+Tags: debugging, verification, fixtures, resolver-logic
+Applies-when: building resolution logic with an override/fallback branch (e.g. a supersede or redirect chain layered on top of direct lookup)
+
+Building `check-links.sh`'s `[[id]]` resolver (`Aurora-lmn.2`), the first implementation checked "does this id resolve to a real file" before checking "does it have a `Superseded-by` chain" -- so a superseded id whose own file still physically existed (the realistic case: the old doc is marked retired but not yet deleted) resolved directly and silently skipped the chain-following/warning path entirely. Fixtures for the other new paths (missing id, bad anchor, duplicate id) all passed regardless, since none of them exercised a superseded-but-still-present file -- the override branch looked correct because nothing had tried to prove it was actually reachable.
+
+**Fix:** wrote a fixture where the *normal* resolution path would also technically succeed (an id with both `Id:` and `Superseded-by:` on the same still-existing file), which caught the bug immediately; reordered the resolver to check `Superseded-by` first, unconditionally. General principle: for any override/fallback branch, "resolves correctly when nothing else could" is a weaker test than "resolves correctly when something else also could" -- test the case that would let the wrong branch win by accident.

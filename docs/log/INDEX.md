@@ -46,3 +46,4 @@ Planning docs stay clean: decisions, status, and pointers here only.
 | 2026-09-28 | docs/WebUI/ split: 4 shipped docs archived (1stPass, 2ndPass, tooltip content/analysis), 2 genuinely active docs kept; Aurora-x7o + Aurora-48x closed as agent-proposed/stale | Aurora-c90 |
 | 2026-09-28 | Linux 1.0.3 bug fixes: portal wait bounds, audio ifdef guards, TEST_CASE dash names (suite 80/80; b87 + 5t2 filed as follow-ups) | Aurora-1z9, Aurora-y1q, Aurora-9yi |
 | 2026-09-28 | Windows light-viz bring-up: bare-machine build recipe, DevLightTap Winsock port (was a no-op), http.server backlog resets viz page | Aurora-gj0.10, Aurora-gj0.11 |
+| 2026-09-29 | Doc-linking mechanism: `Id:`/`[[id]]` convention, check-links.sh resolver + generated docs/_ids.md index, move-proof against the MacSupport.md split still to come | Aurora-lmn, Aurora-lmn.1, Aurora-lmn.2, Aurora-lmn.3 |
