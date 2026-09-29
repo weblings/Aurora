@@ -97,7 +97,16 @@ Before archiving or re-filing anything:
    Docs using the `Id:`/`[[id]]` convention above don't have this problem —
    the id resolves via the repo-wide index regardless of which directory
    the file ends up in, so a move alone needs no link-fixing pass.
-4. **Archive-on-close is required, not deferred** (see `AGENTS.md`): when
+4. **`grep -rn '<old-filename>' .` over the whole repo, not just `docs/`,
+   whenever a doc moves, renames, or gets an `Id:` for the first time.**
+   `check-links.sh` only scans `docs/` and `.claude/skills/` — a citer in
+   a top-level or module `README.md`/`AGENTS.md`/`CLAUDE.md` can go dead
+   on a move and nothing will flag it (this bit twice the same day:
+   Aurora-d8g caught it by hand, Aurora-w4c skipped it and left 5 more).
+   Convert what the grep finds to `[[id]]` while you're there — it's free
+   once you're already touching the target doc, and immune to the next
+   move.
+5. **Archive-on-close is required, not deferred** (see `AGENTS.md`): when
    closing a phase/milestone bead, archive its prerequisite doc and
    correct its `Status:` line in that same close. If you're running this
    checklist retroactively over several already-closed beads, that's a

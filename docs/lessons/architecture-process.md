@@ -491,6 +491,18 @@ Converting a found citer's link to `[[id]]` where the target already has
 one also makes it immune to the next move, so treat cleanup of these as
 free once you're already touching the target doc.
 
+Recurrence (Aurora-6wg, same day): despite this exact lesson being on file
+from Aurora-d8g, the very next migration bead (Aurora-w4c, moving
+[[browser-analysis]] among 16 others) skipped the repo-wide grep -- scoped
+to `docs/` only -- and left 5 fresh dead citers (`AGENTS.md` itself,
+`web-processing/README.md`, `web/demo/{README,CLAUDE,AGENTS}.md`)
+undiscovered until a user question about the convention's robustness
+surfaced them. Knowing the rule didn't make the next bead apply it: a doc
+migration's *scope statement* needs the repo-wide grep named explicitly
+(not just "migrate docs/X"), or add it as a fixed step in
+`docs/README.md`'s reorg checklist itself, since a lesson entry alone
+isn't load-bearing on the next similarly-scoped bead.
+
 ---
 
 ## A historical log entry keeps its pre-migration citations, don't retrofit `[[id]]` into an append-only record
