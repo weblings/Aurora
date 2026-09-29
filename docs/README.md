@@ -26,6 +26,42 @@ checklist to run when doing a periodic organization/reorg pass.
   files again, that's the signal to run the checklist below, not to add
   another folder reflexively.
 
+## Citing other docs: the `Id:`/`[[id]]` convention
+
+A bare relative-path citation (`archive/GUILaunchUX.md#L34-L36`) breaks
+silently on move or rename: `check-links.sh` only resolves a citation by
+walking *upward* from the citing file's own directory, so it can't see
+sideways across `docs/`'s subtrees — a citation into a sibling folder can go
+stale without the checker ever catching it. New docs use a stable id instead:
+
+- **`Id:`** — a line under the H1, same style as the existing
+  `Status:`/`Tags:`/`Applies-when:` lines, e.g. `Id: mac-video-capture`.
+  Kebab-case, assigned once, **never renamed** even if the title changes
+  later — the id's whole job is to outlive the file's current path.
+- **Cite it as `[[mac-video-capture]]`** in prose. This resolves against a
+  repo-wide `id -> path` index rather than a directory walk, so the doc can
+  move or its folder can be renamed without breaking anything that cites it.
+- **`[[id#anchor]]`** for passage-level precision — the replacement for a
+  line anchor like `#L34-L36`, which silently drifts every time someone edits
+  above it. The anchor is the target heading's own slug, so it survives
+  unrelated edits the same way `docs/lessons/README.md`'s "cite by headline,
+  never by filename" rule already does for lessons.
+- **`Superseded-by:`** — only for a doc id genuinely retiring (merged into or
+  replaced by a different doc), mirroring `bd supersede`'s chain semantics:
+  the old id still resolves, but to whatever it names as successor. A plain
+  folder move (e.g. `planning/` → `archive/` once work closes) needs none of
+  this — same id, the index just re-resolves to the new path.
+- **Doc ids and bead ids are separate namespaces.** `mac-video-capture` is a
+  doc id; `Aurora-8mk.4` is a bead id — don't conflate them. A doc's `Id:` is
+  for citing text, not for tracking work.
+- **Old-style path/bare-filename citations still resolve** — `check-links.sh`
+  runs both mechanisms side by side, so nothing needs a flag-day rewrite.
+  New docs use `Id:`/`[[id]]`; existing ones adopt it opportunistically when
+  next touched.
+- `[[id]]` renders as literal bracketed text on GitHub — there's no live
+  resolver behind it there. A generated lookup (id, current path, title) is
+  the human way to find the target — not yet built (see Aurora-lmn.3).
+
 ## Doing an organization/reorg pass
 
 A doc's own `Status:` line is only as trustworthy as its last real edit —
@@ -47,12 +83,15 @@ Before archiving or re-filing anything:
    what actually shipped in that area before trusting the doc over the
    code.
 3. **`python3 check-links.sh` and `bash check-lessons.sh` after every
-   move.** Both are lenient about *which* directory a bare citation lives
-   in (a citation resolves if the target exists anywhere from the citing
-   file's directory up to the repo root), so a clean run doesn't guarantee
-   every real `[label](href)` link is a *correct* relative path — verify
-   those by hand for actual navigability, especially after moving a file
-   into a new subdirectory.
+   move.** For old-style path/bare-filename citations, both are lenient
+   about *which* directory a citation lives in (a citation resolves if the
+   target exists anywhere from the citing file's directory up to the repo
+   root), so a clean run doesn't guarantee every real `[label](href)` link
+   is a *correct* relative path — verify those by hand for actual
+   navigability, especially after moving a file into a new subdirectory.
+   Docs using the `Id:`/`[[id]]` convention above don't have this problem —
+   the id resolves via the repo-wide index regardless of which directory
+   the file ends up in, so a move alone needs no link-fixing pass.
 4. **Archive-on-close is required, not deferred** (see `AGENTS.md`): when
    closing a phase/milestone bead, archive its prerequisite doc and
    correct its `Status:` line in that same close. If you're running this
