@@ -18,10 +18,10 @@ the fourth pass below.
 
 ## `docs/WebUI/`
 
-`archive/TooltipContent.md`/`archive/TooltipsAnalysis.md` moved in alongside the
+[[webui-tooltip-content]]/[[webui-tooltips-analysis]] moved in alongside the
 WebUI design passes they belong with (were orphaned at root). Not shipped:
 tooltip *plumbing* is live (`ControlDescriptor`, `web/ui/Tooltips.js`),
-content wiring is still open (`Aurora-48x`) — `archive/TooltipsAnalysis.md`
+content wiring is still open (`Aurora-48x`) — [[webui-tooltips-analysis]]
 now says so.
 
 ## `assets/brand/`
@@ -144,20 +144,20 @@ Checked whether `docs/WebUI/` itself needed the same archive/keep split
 applied to root — it did, and it wasn't uniform. Per file, against the
 actual code and beads:
 
-- `archive/WebUI_Design_1stPass.md` — every section already self-declared `Status:
+- [[webui-design-1st-pass]] — every section already self-declared `Status:
   shipped 2026-09-15` or `standing`. Straightforward archive.
-- `archive/WebUI_Design_2ndPass.md` — both live sections said `in progress
+- [[webui-design-2nd-pass]] — both live sections said `in progress
   (Aurora-x7o)`, but the work is real: `web/ui/AccordionSection.js` is
   wired into `DashboardScreen.js`/`shell.js` (the accordion Dashboard),
   and `WelcomeScreen.js` (the NUX redesign) shipped 2026-09-20. Archived
   with a `Status:` line saying not to trust the inline ones below it.
-- `archive/TooltipContent.md`/`archive/TooltipsAnalysis.md` — both still claimed content
+- [[webui-tooltip-content]]/[[webui-tooltips-analysis]] — both still claimed content
   wiring was open, tracked in `Aurora-48x`. Checked: zero literal `'Test'`
   placeholders remain anywhere in `web/ui`, and a 2026-09-18 commit ("Wire
   approved tooltip copy") predates the bead's own 2026-09-20 creation date
   — the bead was stale for work already finished before it existed.
   Archived both with corrected `Status:` lines.
-- `WebUI/WebUI_Fixes.md` and `WebUI/WebUI_Design_2.5Pass.md` — left in `WebUI/` as
+- [[webui-fixes]] and [[webui-design-2-5-pass]] — left in `WebUI/` as
   genuinely active: `bd list -l webui` shows 20 real issues (14 open, 1
   in-progress sub-task, live bugs like `Aurora-m2c`/`Aurora-mqi`). Worth
   flagging separately: the 6 "Diff 2.5Pass vs 2_Pass" beads underneath it

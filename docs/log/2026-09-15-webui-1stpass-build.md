@@ -1,6 +1,6 @@
 # WebUI 1stPass build order log (2026-09-15)
 
-Moved out of WebUI_Design_1stPass.md — the design doc keeps screens, decisions, and inventory; this file keeps the per-step build record. Beads: phase-3 closed milestones.
+Moved out of [[webui-design-1st-pass]] — the design doc keeps screens, decisions, and inventory; this file keeps the per-step build record. Beads: phase-3 closed milestones.
 
 ---
 
