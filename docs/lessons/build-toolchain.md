@@ -451,3 +451,34 @@ Applies-when: configuring core's own suite on Windows outside the `windows-app` 
 With `aubio[core]:x64-windows` installed in vcpkg and `-DCMAKE_TOOLCHAIN_FILE=.../vcpkg.cmake`, the `windows-app` preset configured fine (its cache holds `Aubio_DIR=C:/vcpkg/installed/x64-windows/share/aubio`), but `cmake -S core` failed at `AudioProcessing/CMakeLists.txt:16 find_package(Aubio CONFIG REQUIRED)` even with generator and triplet pinned (`-G "Visual Studio 17 2022" -A x64 -DVCPKG_TARGET_TRIPLET=x64-windows`). Root cause not isolated -- how the app build gets `Aubio_DIR` on its own wasn't traced.
 
 **Fix:** add `-DAubio_DIR=C:/vcpkg/installed/x64-windows/share/aubio`; core then configures, builds and passes its suite (70/70). Noted in `docs/Building.md`. Unresolved: the app-slice path that makes it unnecessary.
+
+---
+
+## Homebrew's plain `mbedtls` formula is v4 now -- a real API break, not just a version bump, and installing both side by side is worse than either alone
+Tags: cmake, macos, homebrew, mbedtls, dependencies
+Applies-when: building `output/hue` (or anything linking mbedTLS) on macOS via Homebrew
+
+`output/hue`'s `MbedTlsImpl.hpp` is written against the classic API "stable
+across 2.x and 3.x" (verified against 2.28.0 and 3.6.5) — the same
+generation Ubuntu's `libmbedtls-dev` and vcpkg's Windows port ship.
+Homebrew's plain `mbedtls` formula is now **4.2.0**, a major version that
+restructured headers (e.g. `ctr_drbg.h` moved out of the public include
+path into `mbedtls/private/`) and dropped manual RNG-configuration APIs
+entirely (`mbedtls_ssl_conf_rng` no longer exists — mbedtls 4.x wires RNG
+through PSA crypto internally instead). `brew install mbedtls@3` (3.6.7,
+matching Ubuntu's `libmbedtls21` ABI) is the one to use — but installing
+both side by side makes for a nastier failure than a clean "wrong
+version" error: mbedtls@3 is keg-only, so it doesn't get symlinked into
+`/opt/homebrew/include`. If the plain `mbedtls` (v4) formula is still
+linked, `/opt/homebrew/include/mbedtls/` holds a partial set of v4
+headers. Because that generic path sits earlier in the compiler's
+`-isystem` search order than the explicit `mbedtls@3` include dir
+pkg-config reports, `#include <mbedtls/ssl.h>` resolves to v4's copy
+(found there) while `#include <mbedtls/ctr_drbg.h>` falls through to
+v3.6.7 (missing from v4's public path) — a Frankenstein mix of two
+incompatible header sets in one translation unit, surfacing as a
+mystifying `use of undeclared identifier 'mbedtls_ssl_conf_rng'` instead
+of a missing-file error.
+
+**Fix:** `brew unlink mbedtls && brew link mbedtls@3 --force` so
+`/opt/homebrew/include/mbedtls/` resolves consistently to 3.6.7.
