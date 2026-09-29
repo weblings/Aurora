@@ -1,5 +1,7 @@
 # Findings worth upstreaming to huenicorn
 
+Id: upstream-findings
+
 Bugs found while reading/porting huenicorn into Aurora, all present in
 huenicorn's own code today, independent of anything Aurora-specific. Checked
 against huenicorn commit `ede353ac329ba1922d354aae89adf5fe6ddb03f5`

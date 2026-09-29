@@ -15,15 +15,20 @@ checklist to run when doing a periodic organization/reorg pass.
   before `Aurora-c90` flattened its archived half) is fine — no README
   needed inside one either way, docs cross-cite each other directly.
 - **`planning/`** — still-active, not-yet-decided plans (the roadmap,
-  unstarted platform exploration). Distinct from `archive/`: nothing here
-  should be treated as settled just because it's written down.
-- **`WebUI/`** — WebUI-specific design passes and their supporting docs
-  (tooltip content/plumbing, etc.), kept together rather than at root.
+  unstarted platform exploration), plus [[upstream-findings]]
+  (a frozen bug list, not a plan, but still open work in the sense that
+  it hasn't been sent upstream yet — see `Aurora-h45`) and
+  **`planning/WebUI/`** — WebUI-specific design passes and their
+  supporting docs (tooltip content/plumbing, etc.), kept together rather
+  than flattened, since both remaining docs ([[webui-fixes]],
+  [[webui-design-2-5-pass]]) are genuinely active work. Distinct from
+  `archive/`: nothing here should be treated as settled just because it's
+  written down.
 - **[`lessons/`](lessons/README.md)** — non-obvious gotchas, tagged and
   routed by `.claude/skills/`. See its own `README.md` for filing rules.
 - **`log/`** — append-only, dated record of closed/paused milestones. See
   [`log/INDEX.md`](log/INDEX.md).
-- **Root** (`Building.md`, `UpstreamFindings.md`) — operational reference
+- **Root** (`Building.md`) — operational reference
   and narrow standalone docs that don't fit any bucket above. Kept
   intentionally small; if root starts accumulating files again, that's
   the signal to run the checklist below, not to add another folder

@@ -7,7 +7,7 @@ allowed-tools: Read
 # WebUI lessons
 
 Before building WebUI screens or components, or editing
-`docs/WebUI/` plan docs, grep the query-coherent files (`planning`,
+`docs/planning/WebUI/` plan docs, grep the query-coherent files (`planning`,
 `components`, `webui-testing`, `navigation-flow`, `layout-css` in
 `docs/lessons/`).
 

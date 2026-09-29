@@ -43,6 +43,12 @@ GRANDFATHERED = {
     '../../RockyRoad/docs/lessons/engine/xr-3d-rendering.md',
     '../../RockyRoad/v2/ARCHITECTURE.md',
     '../../../RockyRoad/docs/lessons/README.md',
+    # UpstreamFindings.md moved to planning/ (root -> docs/planning/,
+    # Id: upstream-findings assigned); these bare-filename citations are in
+    # append-only docs/log/*.md entries, which record what was true on their
+    # own date and aren't rewritten for later moves.
+    'UpstreamFindings.md',
+    'docs/UpstreamFindings.md',
 }
 
 

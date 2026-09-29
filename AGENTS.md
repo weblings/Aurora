@@ -59,8 +59,8 @@ Core repo: shared `Contracts`, `Processing`, `Input`/`Output` interfaces,
 - Shipped, superseded, or stale-and-abandoned plans and analyses:
   `docs/archive/` — kept as the historical record, not deleted or edited into
   the present tense.
-- WebUI-specific docs (design passes, tooltip content/plumbing): `docs/WebUI/`,
-  not the `docs/` root.
+- WebUI-specific docs (design passes, tooltip content/plumbing):
+  `docs/planning/WebUI/`, not the `docs/` root.
 - Brand/icon source assets (logos, app-icon masters): `assets/brand/` — build
   inputs consumed by `app/*/CMakeLists.txt`, not documentation.
 - References: cite lessons by headline/topic, files by markdown link, external
