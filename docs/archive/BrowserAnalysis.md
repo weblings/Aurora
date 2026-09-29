@@ -1,5 +1,7 @@
 # Browser video-upload input — findings, not a decision
 
+Id: browser-analysis
+
 Status: historical — v1 shipped (Phase 3 Milestone 1, `Aurora-xcb`), and this
 doc hasn't had a substantive edit since 2026-09-15. One dangling thread
 (`Aurora-f06`, the native audio-tuning backport below) is still nominally
@@ -15,7 +17,7 @@ processing, a Three.js 9-slice virtual-light output, video-only, no native
 backend, no Hue-in-browser stretch goal (cut, see below). Repo split
 (2026-09-14): the demo lives in its own new repo, `Aurora-Demo-Web`; only the
 hand-ported processing math stays in `Aurora/web-processing/` — see
-`planning/ImplementationPlan.md`'s Phase 3. Still open at the time:
+[[implementation-plan]]'s Phase 3. Still open at the time:
 implementation specifics (the exact 9-slice/zone-map wiring, the sample
 video's actual content) and anything audio-related, deferred past v1
 entirely.
@@ -29,7 +31,7 @@ doc is pure groundwork, not a retrofit.
 
 ## The fit is real: this is "just another `IVideoInput`," not a redesign
 
-`DistributedArchitecturePlan.md` already found the general principle this
+[[distributed-architecture-plan]] already found the general principle this
 falls under: *"`Output` doesn't care where a `Frame` came from — live
 capture+crop, a VJ console, or a pre-authored cue file all look identical
 by the time they reach it."* A video file decoded frame-by-frame is the
@@ -50,7 +52,7 @@ exactly what phase 3 already planned: MJPEG preview + SSE zone data, no
 web-specific code added for this feature at all. Real open question, not
 assumed: whether OpenCV's build here actually decodes Ogg Theora — needs
 checking against the real library before designing around it, same rigor
-already planned for the ISF library in phase 5's `OpenFormatsResearch.md`.
+already planned for the ISF library in phase 5's [[open-formats-research]].
 
 **Option B — decode in the browser.** An HTML5 `<video>` element decodes
 the upload for free — no native codec dependency to verify at all. A
@@ -71,7 +73,7 @@ then fully self-contained, no backend involved.
   POSTs a `Frame`, a thin adapter calls the *unchanged* `HueOutput::send()`)
   — `HueOutput` needs zero modification, same "`IOutput` doesn't care about
   provenance" principle, but it's real new plumbing. This is also the first
-  *concrete* case landing on `DistributedArchitecturePlan.md`'s still-open
+  *concrete* case landing on [[distributed-architecture-plan]]'s still-open
   one-seam-vs-double-seam question: a browser tab acting as an `IVideoInput`
   (and partial `Processing`), talking to the native process over HTTP, is a
   mild instance of that double seam — worth revisiting that question with
@@ -137,7 +139,7 @@ decode, which leans on native `<video>` support) is the direction taken.
   **Repo placement (2026-09-14):** this hand-port lives in `Aurora/web-processing/`,
   not the demo's own repo — it's the one piece of the demo that mirrors
   existing C++ logic, so it stays next to `Processing`'s source for
-  drift-checking (see `planning/ImplementationPlan.md`'s directory layout). The demo
+  drift-checking (see [[implementation-plan]]'s directory layout). The demo
   repo (`Aurora-Demo-Web`) copies this source directly; not an npm package
   for now.
 
@@ -188,7 +190,7 @@ browser — not just fewer libraries, a different *kind* of dependency.
 
 The WASM-vs-hand-port conclusion above was reached purely from `ImageProcessing`'s
 shape (`rescale`/`dropAlpha`/`mean`) — the only `Processing`-family code that
-existed at the time. `AudioProcessing` (Phase 2.5, see `planning/ImplementationPlan.md`)
+existed at the time. `AudioProcessing` (Phase 2.5, see [[implementation-plan]])
 now exists too, and applying the same framework to it doesn't give one answer
 for "the middle module" — it splits, which is exactly what a case-by-case
 framework should do once there's more than one case to apply it to:
@@ -199,7 +201,7 @@ framework should do once there's more than one case to apply it to:
 - **`AudioFeatureExtractor`** (onset detection + spectral centroid, wrapping
   aubio's stateful `pvoc`/`specdesc`/onset objects) — a genuinely different
   category. This is real DSP that took real effort to get right even with a
-  mature library doing the hard part (see `AudioAnalysis.md`'s aubio
+  mature library doing the hard part (see [[audio-analysis]]'s aubio
   verification pass) — re-deriving onset detection and spectral analysis from
   scratch in JS is exactly the "substantial, risky to re-derive" case the
   reuse framework argues *for* WASM on, not against.
@@ -243,7 +245,7 @@ Concretely, for Phase 3's Three.js browser demo (v1 scope, decided):
   capture (`getDisplayMedia`) or a native decode step. This is the one
   piece of this whole plan that's actually load-bearing on "zero install":
   live capture needs a permission prompt every session and can't run
-  unattended (see `DistributedArchitecturePlan.md`'s browser-capture
+  unattended (see [[distributed-architecture-plan]]'s browser-capture
   reasoning); a file needs neither. Format handling deliberately kept
   simple: the demo is documented as working with WebM, not engineered for
   arbitrary-format robustness — an upload that fails to decode is the
@@ -265,7 +267,7 @@ Concretely, for Phase 3's Three.js browser demo (v1 scope, decided):
   complete/robust experience for anyone already in the Hue ecosystem — this
   framing is Hue-specific and worth revisiting once Output targets expand
   past Hue (DMX/Art-Net/sACN, other bulb brands, XR-scene effects are
-  already named as future Output targets in `planning/ImplementationPlan.md`'s
+  already named as future Output targets in [[implementation-plan]]'s
   stretch section).
 
 ## Considered and cut: CLIP-in-browser as a rougher real-bulb Output
@@ -282,7 +284,7 @@ assumed:
 
 - **Entertainment API** (UDP + DTLS-PSK, port 2100) — what `HueOutput`
   actually uses today, for both the video and audio pipelines (they
-  reconverge at the same `IOutput::send()` call, see `StackComparison.md`).
+  reconverge at the same `IOutput::send()` call, see [[stack-comparison]]).
   Categorically unreachable from a browser at any permission level —
   browsers have no raw UDP socket API at all, a missing platform capability,
   not a permission gate. Chrome's Local Network Access rollout (see below)
@@ -352,7 +354,7 @@ backend** -- the native Aurora app, already running on the user's own LAN,
 already is one (the same httplib server Phase 3's MJPEG/SSE preview needs).
 A Pages-hosted page can `fetch()` that already-running process directly,
 acting as a thin remote-control/relay client, the same "double seam" shape
-`DistributedArchitecturePlan.md` already named. Credentials never move to
+[[distributed-architecture-plan]] already named. Credentials never move to
 the browser -- only the already-configured native process needs them.
 
 Two real, current technical specifics worth designing around rather than
@@ -370,7 +372,7 @@ assuming, verified this session:
   explicitly, not discovering it during implementation.
 - The native REST server needs CORS headers allowing the Pages origin --
   small, real, not yet implemented (no such server exists yet at all; this
-  is Phase 3's own prerequisite, see `planning/ImplementationPlan.md`).
+  is Phase 3's own prerequisite, see [[implementation-plan]]).
 
 ## Follow-up: backport the demo's audio color-model A/B tuning to Windows/Linux -- not started
 
@@ -399,18 +401,18 @@ mode running at all is a separate first step from the tuning comparison itself.
 
 ## Related docs
 
-- `AudioAnalysis.md` — the aubio verification pass and
+- [[audio-analysis]] — the aubio verification pass and
   `AudioFeatureExtractor`'s design, which the audio-reassessment section
   above argues makes it a WASM-reuse candidate.
-- `DistributedArchitecturePlan.md` — the one-seam/double-seam question this
+- [[distributed-architecture-plan]] — the one-seam/double-seam question this
   connects to; the "`Output` doesn't care about `Frame` provenance" finding
   this whole doc builds on.
-- `OpenFormatsResearch.md` — the VJ-input/authored-track mapping this
+- [[open-formats-research]] — the VJ-input/authored-track mapping this
   mirrors, and the phase-5 "verify a library's real behavior first" habit
   this doc's Ogg/OpenCV caveat follows.
-- `planning/ImplementationPlan.md` — phase 3, which this doc feeds into once a shape
+- [[implementation-plan]] — phase 3, which this doc feeds into once a shape
   is chosen.
-- `ModuleSplitPlan.md` — the repo-split reasoning (originally written for
+- [[module-split-plan]] — the repo-split reasoning (originally written for
   Input/Output plugins) that `Aurora-Demo-Web`'s split applies too, more
   cleanly than any existing plugin repo.
 - RockyRoadImport's `native-logic-reuse-decision` doc

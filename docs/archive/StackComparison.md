@@ -1,5 +1,7 @@
 # Stack comparison — huenicorn vs. Aurora-App-Linux vs. Aurora-App-Windows
 
+Id: stack-comparison
+
 Status: historical and known-stale — last updated 2026-09-14 ("now that
 audio is done"); covers Linux/Windows only. Mac shipped its own capture and
 audio stack since (see `docs/log/`) and isn't reflected here. This doc's own
@@ -13,8 +15,8 @@ moves through each stack, and which dependency library is doing the
 interpreting/transporting at each step. Diagrams show one tick's worth of
 data, capture through bridge, for both the video pipeline (huenicorn has an
 equivalent) and the audio pipeline (huenicorn doesn't — see Phase 2.5 in
-`planning/ImplementationPlan.md`); the `why` behind the module split itself is
-covered in `ModuleSplitPlan.md`/`RuntimeAnalysis.md`, not repeated here.
+[[implementation-plan]]); the `why` behind the module split itself is
+covered in [[module-split-plan]]/[[runtime-analysis]], not repeated here.
 
 ## 1. huenicorn — one process, one thread, one of everything
 
@@ -209,7 +211,7 @@ identical:**
   vcpkg (classic mode) instead of `apt`/`pkg-config`, with zero change to
   how any of them are *used* — only how they're *provisioned* differs,
   which is a toolchain concern, not an architectural one (see
-  `WindowsInputAnalysis.md`).
+  [[windows-input-analysis]]).
 - **miniaudio** — the audio pipeline's one genuinely new library, same role
   DXGI/D3D11 play for video: the thing that turns an OS-owned audio device
   into readable bytes. `ma_device_type_loopback` captures whatever the
@@ -243,16 +245,16 @@ identical:**
   compare against — it's genuinely new, not a ported/refactored feature.
 - Whether `ImageData`/`AudioBuffer` stay the *only* seams that ever need to
   vary — vs. `Processing`/`Output` also splitting apart someday — is exactly
-  the open question `DistributedArchitecturePlan.md` leaves unresolved.
+  the open question [[distributed-architecture-plan]] leaves unresolved.
   Nothing here argues either way; it just shows what the seams built so far
   actually look like in working code.
 
 ## Related docs
 
-- `ModuleSplitPlan.md` — why the split happened where it did, and the
+- [[module-split-plan]] — why the split happened where it did, and the
   repo-per-plugin reasoning behind `Aurora-Input-Linux`/`-Windows` and
   `Aurora-Output-Hue` being separate repos rather than folders.
-- `RuntimeAnalysis.md` / `WindowsInputAnalysis.md` — the deeper per-module
+- [[runtime-analysis]] / [[windows-input-analysis]] — the deeper per-module
   analysis this doc summarizes into one cross-platform comparison.
-- `DistributedArchitecturePlan.md` — the still-open question of whether the
+- [[distributed-architecture-plan]] — the still-open question of whether the
   `ImageData` boundary shown here should ever become a real network seam.

@@ -1,5 +1,7 @@
 # ImageProcessing / Color / Interpolation / ImageData / UV — Conversion analysis
 
+Id: processing-analysis
+
 Status: shipped 2026-09-13 (Phase 1, Aurora-4li) — kept as the record of what
 was ported and why; the live code is `core/Processing/`.
 
@@ -8,18 +10,18 @@ was ported and why; the live code is `core/Processing/`.
 Starting the phase 1 port here, not with Input or Output. Reasoning: this section
 is the one both future Input plugins (Windows, Spout/Syphon/NDI, ...) and future
 Output plugins (DMX, ISF, ...) have to agree on — its shape *is* the
-Input↔Processing↔Output contract from `ModuleSplitPlan.md`. Getting it stable and
+Input↔Processing↔Output contract from [[module-split-plan]]. Getting it stable and
 tested first means every later module is built against something settled, not a
 moving target. It's also the only piece that's pure/deterministic, so it's where
 real automated tests actually pay off (per the tests discussion in
-`planning/ImplementationPlan.md`).
+[[implementation-plan]]).
 
 ## What each piece currently does
 
 | File | Role |
 |---|---|
 | `ImageData.hpp` | `cv::Mat` + `PixelFormat` enum (`RGB`/`RGBA`/`BGR`/`BGRA`) + `width()`/`height()`/`hasData()`. The frame contract Input produces and Processing consumes. |
-| `UV.hpp` | `UV = glm::vec2`; `UVs{min, max}`, normalized 0–1 rectangle; `UVCorner` enum for authoring. Already the bounding-box shape identified as reusable for detections in `OpenFormatsResearch.md`. |
+| `UV.hpp` | `UV = glm::vec2`; `UVs{min, max}`, normalized 0–1 rectangle; `UVCorner` enum for authoring. Already the bounding-box shape identified as reusable for detections in [[open-formats-research]]. |
 | `Color.hpp` | `uint8_t` r/g/b wrapper. `toNormalized()` (0–1 floats) and `brightness()` (perceptual-weighted 0–1) are generic. `toXYB()` (CIE xyY conversion) and `XYBBlack` are Hue's own colorimetry — confirmed again on this closer read, not generic. `GamutCoordinates`/`_sign()`/`_xyInGamut()` are dead code today: written, never called (`toXYB()`'s gamut-boundary check is commented out). |
 | `Interpolation.hpp/cpp` | `Type` enum (`Nearest`/`Cubic`/`Area`) + a name↔type lookup map. Used by `ImageProcessing::rescale` *and* exposed through `CoreService::availableInterpolations()` to the setup WebUI as a dropdown — it's a shared vocabulary item, not internal Processing plumbing. |
 | `ImageProcessing.hpp/cpp` | `rescale` (subsample via `cv::resize`, refuses to upscale), `rgbaToRgb` (alpha drop via `cv::cvtColor`), `getSubImage` (crop by `UVs`), `getDominantColor`/`Algorithms::mean` (average color of a region). The actual transform logic. |
@@ -43,12 +45,12 @@ assumes storage order is BGR/BGRA. Every grabber in huenicorn today happens to
 tag its output `PixelFormat::BGR` (confirmed: `DummyGrabber` sets
 `Imaging::PixelFormat::BGR` explicitly), so the bug has never fired — but the
 `PixelFormat` tag exists and is checked exactly nowhere in this function. This
-was flagged as a latent risk in `FirstScan.md`; reading the actual line
+was flagged as a latent risk in [[first-scan]]; reading the actual line
 confirms it's real, not speculative. **Fixing now**, not deferring to phase 2 as
-originally planned in `planning/ImplementationPlan.md` — writing golden-value tests for
+originally planned in [[implementation-plan]] — writing golden-value tests for
 this function across all four `PixelFormat`s makes leaving the bug in place
 actively harder than fixing it (a correct test suite can't assert the buggy
-behavior on purpose). `planning/ImplementationPlan.md` gets a note updating this.
+behavior on purpose). [[implementation-plan]] gets a note updating this.
 
 **2. `rgbaToRgb` doesn't handle `BGRA` — a related, previously unflagged gap.**
 
@@ -98,7 +100,7 @@ Added to the test plan below.
 
 ## The architectural refinement this analysis surfaced
 
-`ModuleSplitPlan.md` described three modules (Input/Processing/Output) but didn't
+[[module-split-plan]] described three modules (Input/Processing/Output) but didn't
 name where the *shared types* crossing their boundaries physically live. Reading
 this section end to end makes the gap concrete: `ImageData`, `PixelFormat`, `UV`/
 `UVs`, `Color` (its generic parts), and `Interpolation::Type` are all things
@@ -118,7 +120,7 @@ target-specific transform they need — which is also why `Color::toXYB()`
 doesn't need to survive as a *method on* `Color` at all once it moves to
 `Output/Hue/`: it becomes a free function there taking a `Contracts::Color` and
 returning Hue's xyY value. `Color` itself stops knowing Hue exists, structurally,
-not just by convention. Recorded back into `ModuleSplitPlan.md`.
+not just by convention. Recorded back into [[module-split-plan]].
 
 ## What maps directly vs. what needs rework
 
@@ -136,7 +138,7 @@ not just by convention. Recorded back into `ModuleSplitPlan.md`.
 ## Test plan
 
 No existing usable tests to build on here (see the `tests/` findings already in
-`planning/ImplementationPlan.md` — both CMake test targets are stale/non-building). New
+[[implementation-plan]] — both CMake test targets are stale/non-building). New
 Catch2 suite, fixtures generated in-code (no checked-in binary images needed —
 these are small synthetic `cv::Mat`s, e.g. solid colors and 2×2 quadrants):
 

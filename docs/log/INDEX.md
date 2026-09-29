@@ -49,3 +49,5 @@ Planning docs stay clean: decisions, status, and pointers here only.
 | 2026-09-29 | Doc-linking mechanism: `Id:`/`[[id]]` convention, check-links.sh resolver + generated docs/_ids.md index, move-proof against the MacSupport.md split still to come | Aurora-lmn, Aurora-lmn.1, Aurora-lmn.2, Aurora-lmn.3 |
 | 2026-09-29 | MacSupport.md split into docs/archive/mac + docs/planning/mac using the new Id:/`[[id]]` system; mbedtls pitfall extracted to lessons | Aurora-le6, Aurora-le6.1, Aurora-le6.2, Aurora-le6.3, Aurora-le6.4 |
 | 2026-09-29 | WebUI docs migrated to Id:/`[[id]]` (second mechanism validation, different shape than mac); deliberate-break regression test confirmed the resolver enforces | Aurora-4ux, Aurora-4ux.1, Aurora-4ux.2, Aurora-4ux.3 |
+| 2026-09-29 | ImplementationPlan.md staleness audit + split to Id:/`[[id]]`; 82% was shipped/superseded, ~140 lines genuinely still open; 6 dead external citers outside check-links.sh's scan scope fixed | Aurora-og2, Aurora-d8g |
+| 2026-09-29 | Remaining 17 archive/planning docs migrated to Id:/`[[id]]` (flat tag-and-convert, ~103 citation edges, delegated to a subagent) | Aurora-w4c |

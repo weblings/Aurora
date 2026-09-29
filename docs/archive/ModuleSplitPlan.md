@@ -1,16 +1,18 @@
 # Splitting huenicorn into Input / Processing / Output
 
+Id: module-split-plan
+
 Status: shipped — modules exist as built (see per-section `Status:` lines
 below for the few still-open follow-ups).
 
 Goal: take huenicorn's monolithic "grab Linux screen → dominant-color-per-region →
 stream to Hue bridge" pipeline and split it into three modules with a
-platform-agnostic core in the middle. See [`FirstScan.md`](FirstScan.md) for the
+platform-agnostic core in the middle. See [[first-scan]] for the
 original pipeline read that this plan builds on.
 
 These boundaries are also where a future network seam would go if any
 module ends up running on a separate device — see
-[`DistributedArchitecturePlan.md`](DistributedArchitecturePlan.md) for that
+[[distributed-architecture-plan]] for that
 open question (not resolved, doesn't block anything built so far).
 
 - **Input** — any 2D video source (screen, file, camera, eventually
@@ -21,7 +23,7 @@ open question (not resolved, doesn't block anything built so far).
   rigs, or XR-scene effects later). Target-specific by nature.
 
 Decision (2026-09-12, both live-now / authored-later chosen — see
-[`OpenFormatsResearch.md`](OpenFormatsResearch.md) for the format survey behind
+[[open-formats-research]] for the format survey behind
 this): Processing is designed **live-reactive first** — it reacts frame-by-frame to
 whatever the Input module hands it, no precomputed file format required. The
 per-tick contract between modules should stay generic enough that an *authored*
@@ -34,14 +36,14 @@ Status: shipped — modules exist as built.
 
 | New module | Current huenicorn pieces | Notes |
 |---|---|---|
-| Input | `Grabber::IGrabber` + `DummyGrabber`/`PipewireGrabber`/`X11Grabber`, `Platform::IAdapter`/`Selector`, `Imaging::ImageData`/`PixelFormat` | Already the cleanest seam in the codebase — see `FirstScan.md` Q1. `PixelFormat` needs to become fully honored (today `ImageProcessing::Algorithms::mean` hardcodes BGR regardless of the tag) before Input can safely feed non-BGR sources. Beyond platform screen capture: Spout/Syphon (same-machine GPU texture sharing) and NDI (networked) are concrete low-lift `IGrabber` candidates — see `OpenFormatsResearch.md`'s VJ-software section. |
-| Processing | `Imaging::ImageProcessing` (rescale/getSubImage/getDominantColor), `Imaging::Color` up through `toNormalized()`/`brightness()`, the per-channel loop in `Runtime::_update()` | `Color::toXYB()` is the current hard stop — it's Hue's CIE xyY math, not generic; moves to Output (see Decisions below). Needs to become one pluggable transform among several. This is also where new analysis (motion, edges, multiple sample points, beat-synced effects, and object detection — see `OpenFormatsResearch.md`'s YOLO-integration section) would plug in. `Imaging::UVs` already doubles as the right bounding-box type for detections, not just hand-authored zones. |
-| Output | `Hue::Api::Channel`/`ChannelStream`/`Devices`/`EntertainmentConfiguration*`, `Stream::Streamer`/`HuestreamHeader`/`HuestreamPayload`/`DtlsClient`, `Hue::Api::ApiTools`/`BridgeAddress`/`Credentials` | All Hue-Bridge-shaped today (see `FirstScan.md` Q2). Unlike Input, there is **no output-side interface** yet (`Runtime` holds a concrete `Stream::Streamer`) — an `IOutput`/`ISink` abstraction analogous to `IGrabber` needs to be introduced before a second target (another bulb brand, DMX/Art-Net/sACN, ISF-driven XR effects, an XR-scene effect channel) can coexist with Hue. See `OpenFormatsResearch.md` — ISF fits the XR-effects target better than any lighting-specific format. |
+| Input | `Grabber::IGrabber` + `DummyGrabber`/`PipewireGrabber`/`X11Grabber`, `Platform::IAdapter`/`Selector`, `Imaging::ImageData`/`PixelFormat` | Already the cleanest seam in the codebase — see [[first-scan]] Q1. `PixelFormat` needs to become fully honored (today `ImageProcessing::Algorithms::mean` hardcodes BGR regardless of the tag) before Input can safely feed non-BGR sources. Beyond platform screen capture: Spout/Syphon (same-machine GPU texture sharing) and NDI (networked) are concrete low-lift `IGrabber` candidates — see [[open-formats-research]]'s VJ-software section. |
+| Processing | `Imaging::ImageProcessing` (rescale/getSubImage/getDominantColor), `Imaging::Color` up through `toNormalized()`/`brightness()`, the per-channel loop in `Runtime::_update()` | `Color::toXYB()` is the current hard stop — it's Hue's CIE xyY math, not generic; moves to Output (see Decisions below). Needs to become one pluggable transform among several. This is also where new analysis (motion, edges, multiple sample points, beat-synced effects, and object detection — see [[open-formats-research]]'s YOLO-integration section) would plug in. `Imaging::UVs` already doubles as the right bounding-box type for detections, not just hand-authored zones. |
+| Output | `Hue::Api::Channel`/`ChannelStream`/`Devices`/`EntertainmentConfiguration*`, `Stream::Streamer`/`HuestreamHeader`/`HuestreamPayload`/`DtlsClient`, `Hue::Api::ApiTools`/`BridgeAddress`/`Credentials` | All Hue-Bridge-shaped today (see [[first-scan]] Q2). Unlike Input, there is **no output-side interface** yet (`Runtime` holds a concrete `Stream::Streamer`) — an `IOutput`/`ISink` abstraction analogous to `IGrabber` needs to be introduced before a second target (another bulb brand, DMX/Art-Net/sACN, ISF-driven XR effects, an XR-scene effect channel) can coexist with Hue. See [[open-formats-research]] — ISF fits the XR-effects target better than any lighting-specific format. |
 
 ## The middle contract (Input → Processing → Output)
 Status: shipped — Contracts and interfaces exist as built.
 
-**Update from actually porting Processing** (see `ProcessingAnalysis.md`): the
+**Update from actually porting Processing** (see [[processing-analysis]]): the
 three-module picture above didn't say where the shared types crossing these
 boundaries physically live. They can't live inside `Processing` itself — every
 `IInput` implementation would then need to link against `Processing`'s logic
@@ -87,11 +89,11 @@ Status: shipped.
 The payload question is resolved for v1: `Contracts::Frame` is `std::vector<Zone>`,
 `Zone` is `{ uint8_t id; Contracts::Color color; }` — generic linear color, no
 target-specific transform baked in. Naming/placement correction made while
-actually porting Hue (see `HueOutputAnalysis.md`): this was called
+actually porting Hue (see [[hue-output-analysis]]): this was called
 `Processing::Frame` earlier in this doc; it belongs in **`Contracts`**, not
 `Processing`, for the same reason `ImageData` does — it's a boundary type, not
 Processing's own logic. Richer fields (positions, effect metadata, detections —
-`OpenFormatsResearch.md`) extend `Zone` later without changing this shape's role.
+[[open-formats-research]]) extend `Zone` later without changing this shape's role.
 
 `IOutput` (`Aurora/core/Output/IOutput.hpp`, header-only interface target
 `AuroraOutputInterface`) dropped the `Core::Config*` constructor param the first
@@ -150,7 +152,7 @@ conflate these:**
   run as **separate processes** communicating over an interface (sockets,
   HTTP), not just separate repos or separate `.so`/`.dll` files still loaded
   into one running program. `Aurora-Demo-Web` (2026-09-14, split into its own
-  repo — see `planning/ImplementationPlan.md`'s Phase 3) already qualifies, by
+  repo — see [[implementation-plan]]'s Phase 3) already qualifies, by
   accident of its architecture (a browser tab, not a linked binary) —
   `core`-linked plugins don't.
 
@@ -186,7 +188,7 @@ Status: mostly historical — audio greenfield item shipped 2026-09-15 (Aurora-l
   video path, since audio and video are independent capture sources that a shared
   Processing stage could fuse.
 
-See [`StackComparison.md`](StackComparison.md) for how this split's `IInput`
+See [[stack-comparison]] for how this split's `IInput`
 seam actually looks in practice once two real platforms exist behind it —
 huenicorn vs. Aurora-App-Linux vs. Aurora-App-Windows, with the data flow
 and dependency-library roles at each step.

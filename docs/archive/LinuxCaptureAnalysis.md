@@ -1,5 +1,7 @@
 # Grabber / GnuLinux capture — Conversion analysis
 
+Id: linux-capture-analysis
+
 Status: shipped 2026-09-13 (Phase 1, Aurora-4li) — kept as the record of what
 was ported and why; the live code is `input/linux/`.
 
@@ -19,7 +21,7 @@ was ported and why; the live code is `input/linux/`.
 
 ## Scope decision for this pass
 
-Same shape as `ProcessingAnalysis.md`/`HueOutputAnalysis.md`, but the
+Same shape as [[processing-analysis]]/[[hue-output-analysis]], but the
 pure-vs-I/O line falls in a different place here: X11 capture is
 self-contained enough to port *mechanically* now (no missing Aurora-side
 infrastructure — it never touched `Config` for anything real), even though

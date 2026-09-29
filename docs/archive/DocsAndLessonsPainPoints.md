@@ -1,13 +1,15 @@
 # Docs & lessons: scaling pain points
 
+Id: docs-lessons-pain-points
+
 Status: historical — the "Adopted design" and ranked backlog below are fully
 executed (items 1-9 by 2026-09-21's monorepo reorg; item 10, the
 `docs/archive/` split, by `Aurora-0ki` on 2026-09-28). Kept as the record of
 why the current shape (`docs/lessons/`, `docs/log/`, `docs/archive/`,
 `docs/WebUI/`, `check-links.sh`/`check-lessons.sh`) exists, not a live backlog.
 
-Prompted by the `WebUI/` doc reorg (`WebUI_Design_1stPass.md`/`WebUI/WebUI_Fixes.md`/
-`WebUI_Design_2ndPass.md`) — capturing *why* that reorg was needed, and being
+Prompted by the `WebUI/` doc reorg ([[webui-design-1st-pass]]/[[webui-fixes]]/
+[[webui-design-2nd-pass]]) — capturing *why* that reorg was needed, and being
 honest that the lessons system meant to prevent this has the same disease.
 Out of scope for now: whether a different tool/structure should replace the
 markdown-file approach (see bottom).
@@ -77,7 +79,7 @@ No new platform; each item makes an existing rule active.
   (`grep -c '^## '` + `wc -l`) as a pre-commit or CI warning,
   so exceeding the split threshold surfaces at append time.
 - Separate append-only log from plan: move build-verified history out
-  of `planning/ImplementationPlan.md` into dated `docs/log/*.md` entries,
+  of [[implementation-plan]] into dated `docs/log/*.md` entries,
   leaving the plan with `- [ ]` task checkboxes.
 - Link hygiene: use markdown-link-only references plus a link checker
   instead of plain-text filenames needing manual cross-repo grep
@@ -98,7 +100,7 @@ stretch goal (needs a docs-build root first).
 4. `check-lessons.sh` (entry/line counts) as pre-commit or CI warn —
    tiny script, makes the 15-entry split rule actually fire.
 5. Beads for tasks/history — medium effort (install `bd`, migrate
-   `planning/ImplementationPlan.md` phases), removes the largest bloat source
+   [[implementation-plan]] phases), removes the largest bloat source
    from plan docs and gives agents `--json` + ready-work queries.
 6. Split `lessons/engineering-hygiene.md` once along topic cuts — medium-large
    one-time edit; do after 1–4 so the new shape holds.

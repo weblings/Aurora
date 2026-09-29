@@ -1,5 +1,7 @@
 # SteamOS / Steam Deck support
 
+Id: future-steamos-support
+
 Status: exploratory — no code or packaging changes yet, this is the
 conversation-so-far writeup. Started from a manual test: running the
 Debian/Ubuntu dependency list from [`README.md`](../../README.md#L21) via
@@ -86,7 +88,7 @@ Yes — checked against the real Linux input plugin code
 ([`input/linux/src/`](../../input/linux/src)), not just in theory.
 
 Aurora's `SessionDispatch` already picks between three capture backends at
-runtime (see [`archive/LinuxCaptureAnalysis.md`](../archive/LinuxCaptureAnalysis.md)):
+runtime (see [[linux-capture-analysis]]):
 
 1. **X11** ([`X11Grabber.cpp`](../../input/linux/src/X11Grabber.cpp)) — XShm +
    Xrandr, no portal involved.

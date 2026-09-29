@@ -1,5 +1,7 @@
 # Distributed architecture — how far to decompose Input/Processing/Output over a network
 
+Id: distributed-architecture-plan
+
 Status: historical — written 2026-09-13/14, untouched since except a
 2026-09-20 status-header pass; no network-transport work has been scheduled
 or started. Original framing: exploratory — future network-transport
@@ -89,7 +91,7 @@ turns out to matter in practice).
 
 ## Where VJ I/O and authored tracks land
 
-Tracing these against `OpenFormatsResearch.md`'s findings clarifies the
+Tracing these against [[open-formats-research]]'s findings clarifies the
 seam question rather than sitting outside it:
 
 - A VJ app's live output (NDI/Syphon/Spout) is just **another `IVideoInput`** —
@@ -158,7 +160,7 @@ only thing every shape below has in common.
 Not a decision — an inventory of what the existing Input/Processing/Output
 split plus `Contracts` already seems to accommodate, reasoned through
 directly against real platform constraints (web's permission/execution
-model, Hue's own API limits — see `BrowserAnalysis.md` for the Hue-specific
+model, Hue's own API limits — see [[browser-analysis]] for the Hue-specific
 findings) rather than staying abstract. None of these need a new
 architecture; each is a new *implementation* of the existing three roles,
 optionally split across a process/network boundary using `Contracts` as
@@ -171,12 +173,12 @@ the wire format when they are split.
    app) reaches it over the LAN for control/visualization/relay.
    Credentials stay native-side. The concrete case: a GitHub Pages-hosted
    page `fetch()`-ing an already-running native Aurora app (see
-   `BrowserAnalysis.md`).
+   [[browser-analysis]]).
 3. **Fully self-contained web/mobile demo** — its own Input (a file, not
    live capture), own Processing (JS or WASM), own Output (Three.js/canvas)
    — genuinely standalone, genuinely can't reach real bulbs, by design not
    as a limitation to fix. The decided Phase 3 demo strategy — see
-   `BrowserAnalysis.md`.
+   [[browser-analysis]].
 4. **Cast/mirror-fed native backend** — a phone casts (AirPlay/Chromecast/
    Miracast, already-solved OS-native mechanisms) to a new native
    `IVideoInput` that receives the stream, feeding the same always-on
@@ -211,20 +213,20 @@ decision rather than generalizing from the two platforms built so far.
 
 ## Related docs
 
-- `ModuleSplitPlan.md` — the Input/Processing/Output module boundaries this
+- [[module-split-plan]] — the Input/Processing/Output module boundaries this
   builds on.
-- `OpenFormatsResearch.md` — the VJ/lighting protocol research the mapping
+- [[open-formats-research]] — the VJ/lighting protocol research the mapping
   above draws on.
-- `RuntimeAnalysis.md` — `Orchestrator`'s current shape; the "accept a
+- [[runtime-analysis]] — `Orchestrator`'s current shape; the "accept a
   `Frame` from more than one kind of source" note above is a direct
   follow-up to it.
-- `planning/ImplementationPlan.md` — the WebSockets stretch goal this question
+- [[implementation-plan]] — the WebSockets stretch goal this question
   actually needs resolving before.
-- `BrowserAnalysis.md` — the decided Phase 3 demo strategy (shape 3 above),
+- [[browser-analysis]] — the decided Phase 3 demo strategy (shape 3 above),
   the Hue-API-throughput findings behind why the Entertainment API can't
   run in a browser, and the corrected GitHub Pages/Local Network Access
   finding behind shape 2's concrete example.
-- `StackComparison.md` — the `ImageData` seam built so far, shown as real
+- [[stack-comparison]] — the `ImageData` seam built so far, shown as real
   data flow across huenicorn and both current Aurora platforms rather than
   described in the abstract. Doesn't resolve the seam-count question above —
   it only shows what the one seam that exists today actually looks like.

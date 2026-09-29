@@ -1,5 +1,7 @@
 # Runtime / Config — Conversion analysis
 
+Id: runtime-analysis
+
 Status: shipped 2026-09-13 (Phase 1, Aurora-4li) — kept as the record of what
 was ported and why; the live code is `core/Runtime/`.
 
@@ -160,7 +162,7 @@ implemented — same status the X11-vs-Wayland split had before being built):
   `profileName()`/`setProfileName()` entirely; Runtime derives each active
   plugin's profile path from its name instead of a stored setting.
 
-**Correction, made while writing `HueOutput` (see `HueOutputAnalysis.md`'s
+**Correction, made while writing `HueOutput` (see [[hue-output-analysis]]'s
 "Where does a zone's gamma value actually live?"):** gamma turned out not
 to belong on the Hue-specific side of this split after all — there was
 nowhere else for a user's per-zone gamma setting to persist, and the

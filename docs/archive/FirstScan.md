@@ -1,5 +1,7 @@
 # Huenicorn pipeline scan
 
+Id: first-scan
+
 Status: superseded 2026-09-12 by `ModuleSplitPlan.md`, which this scan's
 findings fed directly. Kept as the original pipeline read, not a live plan.
 

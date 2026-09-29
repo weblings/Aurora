@@ -1,5 +1,7 @@
 # Audio-reactive color — findings, not a decision
 
+Id: audio-analysis
+
 Status: historical — written 2026-09-13, untouched since except renames/link
 fixes, despite two weeks of unrelated audio work shipping (Phase 2.5, native
 Windows/Linux/Mac audio input). Never revisited on the merits; treat as a
@@ -10,13 +12,13 @@ web-specific: an audio-driven default `Processing` behavior — a vibrant,
 contrasting color pair (e.g. cyan + magenta) that zones bounce between on
 the beat, while the pair itself slowly HSV-lerps to a new contrasting,
 vibrant pair over time. Original framing: **not aligned on shape or
-direction yet** — same spirit as `BrowserAnalysis.md`, context for a
+direction yet** — same spirit as [[browser-analysis]], context for a
 possible future decision, not the decision itself.
 
 ## Nothing for this exists yet
 
 No audio input, no audio processing, no HSV support in `Contracts::Color`.
-This doc is groundwork, same as `BrowserAnalysis.md` was before any browser
+This doc is groundwork, same as [[browser-analysis]] was before any browser
 code existed.
 
 ## Audio doesn't fit `IInput`'s shape — a parallel branch, not a variant
@@ -33,7 +35,7 @@ one, not a third grabber alongside `WindowsGrabber`/a future
 
 Both arms would still converge at `Contracts::Frame` before
 `Orchestrator`/`Smoother`/`IOutput`. This is the first *concrete* exercise
-of a principle `DistributedArchitecturePlan.md` already established but
+of a principle [[distributed-architecture-plan]] already established but
 only had hypothetical cases for (a VJ console, an authored cue track):
 *"`Output` doesn't care where a `Frame` came from."* Audio-driven color is
 a real instance of that, not a new argument for it.
@@ -286,8 +288,8 @@ rather than quietly widening it once file support arrives.
 Only matters for provenance 3 (live capture) — now first in the build
 order above, so this needs addressing sooner than originally framed, but
 it's still the same "WebSockets stretch goal" already sitting in
-`planning/ImplementationPlan.md`'s deferred section, and a second concrete instance
-of the one-seam-vs-double-seam fork `DistributedArchitecturePlan.md`
+[[implementation-plan]]'s deferred section, and a second concrete instance
+of the one-seam-vs-double-seam fork [[distributed-architecture-plan]]
 leaves open — not a fresh unknown to design from scratch.
 
 **Sample rate is just a runtime-variable field.** `AudioProcessing`
@@ -332,7 +334,7 @@ explicitly, not an open design question.
    [vcpkg](https://vcpkg.io/en/package/libsndfile.html) and apt, supports
    WAV/AIFF/AU/FLAC/**Ogg Vorbis**/**Opus** — a good fit with this
    project's existing open-format preference (the same reasoning behind
-   the Ogg-vs-WebM discussion in `BrowserAnalysis.md`). Doesn't cover MP3.
+   the Ogg-vs-WebM discussion in [[browser-analysis]]). Doesn't cover MP3.
 
 ### Live-capture library research (provenance 3, now first in build order)
 
@@ -449,7 +451,7 @@ audio that emits onset/beat events directly.
 is the piece that decides the actual colors — palette drift and
 beat-driven bounce both live here, not in the input plugin.
 
-This is a deliberate, conscious exception to `ModuleSplitPlan.md`'s
+This is a deliberate, conscious exception to [[module-split-plan]]'s
 "core stays dependency-light, heavy dependencies isolated to plugins"
 rule — not a case that rule already accounted for. Whatever detection
 library core ends up using (aubio, most likely) becomes core's first
@@ -465,7 +467,7 @@ than reasoning abstractly:
   its entire surface (`send(Contracts::Frame&)` plus `init`/`isConnected`/
   `shutdown`/`name`/`zoneIds`) is already modality-agnostic — no
   video-specific concept anywhere in it. That's the direct payoff of
-  `DistributedArchitecturePlan.md`'s "`Output` doesn't care about `Frame`
+  [[distributed-architecture-plan]]'s "`Output` doesn't care about `Frame`
   provenance" finding; audio-driven `Frame`s need nothing new from it.
   Renaming it to `IVideoOutput` would be wrong — there's no such thing as
   a video-specific output today.
@@ -503,8 +505,8 @@ now followed by a second pass later to add the audio side.
 ## Library candidates
 
 Looked up rather than assumed, per the "verify a library's real behavior
-before designing around it" habit already established (`OpenFormatsResearch.md`,
-`WindowsInputAnalysis.md`).
+before designing around it" habit already established ([[open-formats-research]],
+[[windows-input-analysis]]).
 
 ### [aubio](https://aubio.org/) — native/general candidate
 
@@ -592,7 +594,7 @@ findings that changed the design:**
   Audio API's built-in `AnalyserNode`/FFT, already shipped by every
   browser.
 - Very low integration cost for a self-contained browser demo — fits
-  `BrowserAnalysis.md`'s Option B spirit directly (JS-side logic, no
+  [[browser-analysis]]'s Option B spirit directly (JS-side logic, no
   backend involved).
 
 **Cons:**
@@ -643,7 +645,7 @@ Likely **not** a single shared library across native and browser — the two
 runtimes probably end up as two separate integrations (aubio native-side,
 something Web-Audio-API-based browser-side) that each just need to produce
 the same conceptual "beat happened" event for the same decay-curve/Frame
-logic downstream. Consistent with `StackComparison.md`'s finding that the
+logic downstream. Consistent with [[stack-comparison]]'s finding that the
 capture/input boundary is exactly the kind of thing that legitimately
 varies per platform while everything downstream of it stays shared.
 
@@ -735,11 +737,11 @@ arrives, the same shape `activeMonitorName` already proved out.
 
 ## Related docs
 
-- `DistributedArchitecturePlan.md` — the "`Output` doesn't care about
+- [[distributed-architecture-plan]] — the "`Output` doesn't care about
   `Frame` provenance" finding this whole doc's convergence point builds on.
-- `ModuleSplitPlan.md` — the repo-split/dependency-isolation rule the
+- [[module-split-plan]] — the repo-split/dependency-isolation rule the
   boundary question above bears directly on.
-- `BrowserAnalysis.md` — the Option B (browser-native, no backend) pattern
+- [[browser-analysis]] — the Option B (browser-native, no backend) pattern
   the `BeatDetector` candidate fits into.
 - RockyRoadImport's `native-logic-reuse-decision` doc
   — the same reuse-vs-hand-port framework already applied to

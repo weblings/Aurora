@@ -1,5 +1,7 @@
 # HTTP server analysis
 
+Id: http-server-analysis
+
 Status: historical — archived by owner decision, 2026-09-28: the `Aurora-x7o`
 "Phase 3 Milestone 2" tracking this doc was justified against was
 agent-proposed scaffolding, not something the project owner actually
@@ -9,8 +11,8 @@ commits as recent as 2026-09-28) — this analysis fed the server skeleton
 that's already built (`core/Network/src/HttpServer.cpp`), so it's the
 record of that groundwork, not a live prerequisite anymore.
 
-Prerequisite analysis for `planning/ImplementationPlan.md`'s Phase 3 Milestone 2 and
-`WebUI_Design_1stPass.md`'s Build order step 1. Covers huenicorn's real
+Prerequisite analysis for [[implementation-plan]]'s Phase 3 Milestone 2 and
+[[webui-design-1st-pass]]'s Build order step 1. Covers huenicorn's real
 `Network::Http::Server` C++ implementation (read directly, not the JS frontend
 this time) and what shape Aurora's own new server should take from it. Written
 2026-09-15, before any of this is built.
@@ -106,7 +108,7 @@ does, keeping the actual route logic written once.
 ## The one real design fork from huenicorn: reconstruction, not mutation
 
 huenicorn's WebUI handlers mutate live objects in place (reassign
-`m_streamer`, edit fields inside `m_channels`). `WebUI_Design_1stPass.md`'s plan for
+`m_streamer`, edit fields inside `m_channels`). [[webui-design-1st-pass]]'s plan for
 Aurora is more ambitious on purpose: a generic reload entrypoint that tears
 down and **reconstructs** Input/Output/Orchestrator from a freshly-loaded
 `Config`+`ZoneMapStore`, because switching between video and audio mode needs
@@ -125,7 +127,7 @@ huenicorn's per-field, easy-to-miss locking pattern.
 ## Route/response conventions to carry over
 
 - Plain JSON REST, no WebSocket, matching huenicorn (and matching
-  `planning/ImplementationPlan.md`'s existing "SSE for streaming, REST for everything
+  [[implementation-plan]]'s existing "SSE for streaming, REST for everything
   else" design for the deferred preview feature).
 - Static files served from a `webroot`-equivalent directory, same as
   huenicorn's `Utils::getWebFile(res, pageName)` pattern (including its
@@ -134,7 +136,7 @@ huenicorn's per-field, easy-to-miss locking pattern.
   Config/Registry/pipeline object → serialize the result → done. No business
   logic inside the lambda itself, matching huenicorn's own convention.
 
-## First-milestone route list (maps to `WebUI_Design_1stPass.md`'s Build order)
+## First-milestone route list (maps to [[webui-design-1st-pass]]'s Build order)
 
 - `GET /api/capabilities` — reflects the `Registry` (which Input/Output
   plugins are actually compiled in), needed before the frontend can do its
@@ -150,7 +152,7 @@ huenicorn's per-field, easy-to-miss locking pattern.
   existing `reconcileZoneMap` (Build order step 14).
 - `POST /api/stop` — a close port of huenicorn's `_stop()`
   (`WebUI.js`/`WebUIBackend.cpp` pairing), including the same
-  confirm-before-stop shape already designed in `WebUI_Design_1stPass.md`'s Dashboard
+  confirm-before-stop shape already designed in [[webui-design-1st-pass]]'s Dashboard
   (Build order step 16).
 - Deliberately not in this milestone: the MJPEG/SSE preview endpoints — see
-  `WebUI_Design_1stPass.md`'s Build order for why they're sequenced last.
+  [[webui-design-1st-pass]]'s Build order for why they're sequenced last.

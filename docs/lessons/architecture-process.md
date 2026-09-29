@@ -465,3 +465,28 @@ Applies-when: resolving a `.beads/issues.jsonl` merge conflict by hand, or any t
 After hand-merging a `dev`-branch conflict in `.beads/issues.jsonl` (keeping distinct issues from both sides of the conflict), the next `bd create` warned "auto-export skipped: ... contains 6 JSONL-only issue record(s) absent from the local Dolt store" and refused to overwrite the file, rather than silently dropping the hand-merged entries. The live embedded Dolt DB only reflects whatever `bd` itself wrote or last imported -- a text-level git merge updates the tracked file directly and never touches the DB, so the two diverge the moment something other than `bd` is what changed the file.
 
 **Fix:** run `bd import` immediately after resolving any `.beads/issues.jsonl` merge conflict, before running any other `bd` command -- it upserts the file's content into the DB (confirmed here: "Imported 170 issues... Updated 3 existing issue(s)"), closing the gap the warning was refusing to paper over. Opposite direction from "A stale live DB can un-close just-pulled beads" above: there the DB lagged the file after a `pull`; here the file gained content the DB never saw because a merge, not `bd`, produced it -- same rule either way, diff/import before trusting either side.
+
+---
+
+## A citer outside `docs/`'s scan scope can go dead on a doc move and nothing catches it
+Tags: docs, check-links, scope, doc-move
+Applies-when: moving or renaming a file under docs/ that other files might cite
+
+Migrating `docs/planning/ImplementationPlan.md` to the `Id:`/`[[id]]`
+convention (Aurora-d8g), six citers of the file living *outside*
+`docs/`'s scan scope -- `AGENTS.md`, `app/linux/README.md`,
+`app/windows/README.md`, and three `web/demo/{README,AGENTS,CLAUDE}.md`
+files -- turned out to already be dead. `check-links.sh` only walks
+`docs/` and `.claude/skills/`, so `app/linux/README.md`'s link had been
+silently broken since Aurora-o1e moved the file into `docs/planning/` the
+previous day (2026-09-28) -- a full day with a dead link nothing flagged,
+found only by grepping for the filename by hand while doing an unrelated
+migration.
+
+**Fix:** before or after moving/renaming any `docs/` file, `grep -rn
+'<old-filename>'` the whole repo (not just `docs/`), not only
+`check-links.sh` -- its scan boundary is real and doesn't cover
+top-level/module `README.md`/`AGENTS.md` files that also cite docs.
+Converting a found citer's link to `[[id]]` where the target already has
+one also makes it immune to the next move, so treat cleanup of these as
+free once you're already touching the target doc.

@@ -1,9 +1,11 @@
 # Windows Input plugin — analysis pass
 
+Id: windows-input-analysis
+
 Status: shipped 2026-09-14 (Phase 2, Aurora-m4f) — kept as the record of what
 was built and why; the live code is `input/windows/`.
 
-Lighter pass than phase 1's ports, per `planning/ImplementationPlan.md`'s own scoping:
+Lighter pass than phase 1's ports, per [[implementation-plan]]'s own scoping:
 huenicorn's `WindowsAdapter::_createGrabber` is a genuine stub (verified by
 reading `WindowsAdapter.cpp` — `(void)config; return nullptr;`), so there's
 no upstream logic to port. This is original work against `IInput`'s existing
@@ -133,9 +135,9 @@ research above, found only by actually running it:
 - **No `Contracts`/`Runtime`/`Orchestrator` changes anticipated** — confirmed
   by reading `IInput.hpp`: everything DXGI-specific stays inside the new
   plugin, same boundary `X11Grabber`/`PipewireGrabber` already prove out.
-- One correction to `planning/ImplementationPlan.md`'s phase 2 text: it names fixing
+- One correction to [[implementation-plan]]'s phase 2 text: it names fixing
   `Algorithms::mean()`'s hardcoded BGR channel swap as this phase's moment —
-  that's already done (`ProcessingAnalysis.md` finding 1, verified by reading
+  that's already done ([[processing-analysis]] finding 1, verified by reading
   `ImageProcessing.cpp`: it already switches on `PixelFormat` for both RGB*
   and BGR*). Nothing left to fix there.
 
@@ -230,12 +232,12 @@ fallback already added for the Ubuntu device's older Mbed TLS.
 
 ## Related docs
 
-- `planning/ImplementationPlan.md` — phase 2, which this doc fulfills the "analysis
+- [[implementation-plan]] — phase 2, which this doc fulfills the "analysis
   pass first" step for.
-- `LinuxCaptureAnalysis.md` — `X11Grabber`'s shape, mirrored throughout above.
-- `DistributedArchitecturePlan.md` — unaffected by this: a Windows `IInput`
+- [[linux-capture-analysis]] — `X11Grabber`'s shape, mirrored throughout above.
+- [[distributed-architecture-plan]] — unaffected by this: a Windows `IInput`
   is exactly the kind of swap the one-seam/double-seam question already
   anticipated, nothing here forces a seam-count decision now.
-- `StackComparison.md` — this doc's DXGI/ComPtr findings shown side-by-side
+- [[stack-comparison]] — this doc's DXGI/ComPtr findings shown side-by-side
   against `X11Grabber`'s equivalents and huenicorn's original single-adapter
   shape.

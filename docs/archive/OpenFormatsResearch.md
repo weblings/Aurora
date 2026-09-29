@@ -1,14 +1,16 @@
 # Existing open formats for video/audio-reactive lighting
 
+Id: open-formats-research
+
 Status: historical — written 2026-09-13, never substantively edited since
 (only renames/link fixes); nothing has been adopted from this survey.
 
 Survey done while scoping the Processing module (see
-[`ModuleSplitPlan.md`](ModuleSplitPlan.md)) — is there already a standard for
+[[module-split-plan]]) — is there already a standard for
 "analyze media, produce zone/color/effect data, send it to fixtures," so Aurora
 isn't reinventing one?
 
-See [`DistributedArchitecturePlan.md`](DistributedArchitecturePlan.md) for
+See [[distributed-architecture-plan]] for
 how VJ I/O (NDI/Syphon/Spout, Art-Net/sACN/OSC) and authored-track playback
 map onto Aurora's Input/Processing/Output boundaries if any of them end up
 running over a network.
@@ -24,7 +26,7 @@ just Hue-specific — good candidates for additional Output-module targets:
   multi-source sync built in. [Open Lighting Architecture](https://www.openlighting.org/)
   is the open-source hub that already speaks both plus 20+ USB DMX dongles — a
   useful reference for structuring a "many backends, one core" output layer (this
-  is effectively the `IOutput` idea in `ModuleSplitPlan.md`, already proven at
+  is effectively the `IOutput` idea in [[module-split-plan]], already proven at
   scale).
 - **Open Pixel Control / DDP / TPM2.net** — simpler "push an RGB array" protocols
   for addressable LED pixels (Fadecandy/OPC, WLED's preferred DDP, TPM2.net).
@@ -107,7 +109,7 @@ template — it's genuinely a close second, and its `CentsOffsets`-style continu
 curve is worth pulling in regardless of which base shape wins.
 
 **Implication:** none of the four gets adopted wholesale — Aurora's per-tick
-`Frame` type (referenced in `ModuleSplitPlan.md`'s `IOutput` section) has to be
+`Frame` type (referenced in [[module-split-plan]]'s `IOutput` section) has to be
 designed from scratch, since nothing surveyed carries color-at-position, effect
 metadata, and detection AABBs together, and nothing surveyed both authors ahead of
 time and generates live from unknown content. The synthesized shape worth
@@ -217,7 +219,7 @@ in XR) than the theatrical-lighting formats above do.
   being genuinely reachable, not speculative.
 - **No standardized VJ project/composition format exists** — Resolume's `.avc`,
   VDMX's format, TouchDesigner's `.toe` are all proprietary and app-specific, the
-  same situation as lighting show files (`planning/ImplementationPlan.md`'s xLights
+  same situation as lighting show files ([[implementation-plan]]'s xLights
   finding). ISF only standardized the narrow "one shader + its declared
   parameters" unit — that narrowness is exactly why it succeeded as a cross-tool
   standard where whole-composition formats never did. Worth taking as a lesson
@@ -227,7 +229,7 @@ in XR) than the theatrical-lighting formats above do.
 ## Conclusion for Aurora
 
 - **Live-reactive mode** (chosen as the near-term target — see
-  `ModuleSplitPlan.md`): no file format needed. Processing emits an in-memory,
+  [[module-split-plan]]): no file format needed. Processing emits an in-memory,
   per-tick "zone → color/intensity" struct each frame, same role
   `Hue::Api::ChannelStream` plays today, just made output-agnostic.
 - **Output targets**: DMX/Art-Net/sACN and OPC/DDP for physical fixtures; **ISF**

@@ -1,5 +1,7 @@
 # Hue::Api / Auth / Stream — Conversion analysis
 
+Id: hue-output-analysis
+
 Status: shipped 2026-09-13 (Phase 1, Aurora-4li) — kept as the record of what
 was ported and why; the live code is `output/hue/`.
 
@@ -10,7 +12,7 @@ was ported and why; the live code is `output/hue/`.
 
 | File | Role | Pure or I/O-bound? |
 |---|---|---|
-| `Channel.hpp/cpp` | Channel state, UV zone, `gammaFactor`/`gammaExponent()`. Already analyzed in `FirstScan.md`/`ModuleSplitPlan.md`. | Pure |
+| `Channel.hpp/cpp` | Channel state, UV zone, `gammaFactor`/`gammaExponent()`. Already analyzed in [[first-scan]]/[[module-split-plan]]. | Pure |
 | `Color::toXYB()` (in huenicorn's `Imaging::Color`, not ported to `Contracts`) | CIE xyY conversion — Hue's own colorimetry. | Pure |
 | `BridgeAddress.hpp/cpp` | `sanitizeBridgeAddress()` — strips protocol/trailing slashes from a user-typed bridge address. | Pure |
 | `Credentials.hpp/cpp` | Username/clientkey storage + `usernameBytes()`/`clientkeyBytes()` (hex→bytes) for DTLS auth. | Pure (the byte conversion) / the credentials themselves are obtained via I/O (`registerNewUser`) |
@@ -35,7 +37,7 @@ itself gets ported.
 
 ## Scope decision for this pass
 
-Same split as `ProcessingAnalysis.md`: port and test everything pure now;
+Same split as [[processing-analysis]]: port and test everything pure now;
 everything I/O-bound needs a live bridge (and, for `ApiTools`/`Streamer`, a
 `Network::Http::Client` port that doesn't exist in Aurora yet) — genuinely a
 separate, larger effort, not shrunk to fit this pass. Deferred, not skipped:

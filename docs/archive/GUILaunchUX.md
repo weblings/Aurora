@@ -1,5 +1,7 @@
 # GUI Launch UX
 
+Id: gui-launch-ux
+
 Status: historical and known-stale — last substantive edit 2026-09-21, still
 describing Windows tray as the only near-term item and Linux/macOS as merely
 "researched." Since then Linux tray actually shipped (`docs/log/2026-09-23-linux-tray-install.md`)
