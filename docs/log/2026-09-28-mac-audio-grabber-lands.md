@@ -12,7 +12,7 @@ tests), following straight on from the same day's probe (`Aurora-9z4.1`,
 standalone link check that `AudioToolbox` is not actually needed for this
 API surface, despite being a reasonable first guess. Audio folded into the
 existing `AuroraInputMac` target rather than a separate
-`AuroraInputMacAudio`, deviating from `docs/archive/AudioAnalysis.md`'s original
+`AuroraInputMacAudio`, deviating from [[audio-analysis]]'s original
 separate-target sketch in favor of what `input/linux` actually shipped --
 simpler, and the real precedent now.
 
@@ -46,7 +46,7 @@ sampling began).
 ## Tests (`Aurora-9z4.6`)
 
 Followed Windows' precedent (`input/windows/tests/WindowsAudioInputTests.cpp`)
-rather than building the fixture `docs/archive/AudioAnalysis.md` had deferred: no
+rather than building the fixture [[audio-analysis]] had deferred: no
 dummy/fixture audio backend, a real-hardware `[.]`-tagged manual test
 (`input/mac/tests/MacAudioInputTests.cpp`, `[manual][MacAudioGrabber]`).
 Verified both ways: the normal `ctest` suite is unaffected (12 assertions,

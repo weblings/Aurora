@@ -1,6 +1,6 @@
 # Runtime follow-up: Orchestrator (2026-09-13)
 
-Moved out of RuntimeAnalysis.md — RuntimeAnalysis.md — the analysis keeps the design, this file keeps the follow-up build record.
+Moved out of [[runtime-analysis]] — the analysis keeps the design, this file keeps the follow-up build record.
 
 ---
 
@@ -44,7 +44,7 @@ clean, since `Orchestrator`'s new dependency on `AuroraInputInterface`/
 `update()` in an actual timed loop — that's `Aurora-Output-Hue`'s I/O layer
 plus a small `main()`, not `Orchestrator` itself.
 
-See [`archive/DistributedArchitecturePlan.md`](../archive/DistributedArchitecturePlan.md) for
+See [[distributed-architecture-plan]] for
 an open question this shape feeds into: whether `Orchestrator` should
 eventually accept a `Frame` from more than one kind of upstream source
 (live-composited via `IInput`, or handed directly by an authored-track/VJ
@@ -52,6 +52,6 @@ bridge that skips cropping entirely), and how far Input/Processing/Output
 might eventually be split across separate devices. Not resolved, doesn't
 block anything built so far.
 
-See [`archive/StackComparison.md`](../archive/StackComparison.md) for `Orchestrator`'s
+See [[stack-comparison]] for `Orchestrator`'s
 tick-by-tick data flow shown side-by-side against huenicorn's
 `Runtime::_update()` and both real `IInput` backends now behind it.

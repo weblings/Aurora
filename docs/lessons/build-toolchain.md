@@ -208,7 +208,7 @@ Tags: vcpkg, cmake, manifest-mode, ide
 Applies-when: confusing link/build errors after an IDE touched the project
 
 Aurora core was set up for **classic** vcpkg mode (a shared, pre-installed
-package tree, chosen deliberately — see `archive/WindowsInputAnalysis.md`). A
+package tree, chosen deliberately — see [[windows-input-analysis]]). A
 `vcpkg.json` and `CMakePresets.json` appeared in `Aurora/core/` that no one
 on this side created — almost certainly VS Code's CMake Tools extension
 auto-configuring the folder using its own default preset. vcpkg's toolchain

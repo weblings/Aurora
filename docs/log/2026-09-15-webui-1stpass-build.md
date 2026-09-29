@@ -8,7 +8,7 @@ Moved out of [[webui-design-1st-pass]] — the design doc keeps screens, decisio
 
 Sequenced by actual dependency, not by the screen numbering used above — a
 screen can't be usefully built before the backend surface and shell pieces it
-depends on exist. Preview streaming, which `planning/ImplementationPlan.md` lists first
+depends on exist. Preview streaming, which [[implementation-plan]] lists first
 among Milestone 2's "three native surfaces," is intentionally pushed to the
 end here, since nothing in v1 consumes it (see Decisions log above).
 
@@ -60,7 +60,7 @@ Wiring and Polish
    `core/Network` (`Aurora::Network::Http::Server`), a near-verbatim port of huenicorn's
    `HttpServer`/`Impl`/`HttpDataStructs` shape plus `serveStaticFiles()` atop
    cpp-httplib's own mount-point support, in the new shared `core/` module
-   `archive/HttpServerAnalysis.md` called for (not duplicated per app repo). Compiles
+   [[http-server-analysis]] called for (not duplicated per app repo). Compiles
    and links cleanly as a library (`AuroraNetwork.lib`, confirmed via a real
    build). Its Catch2 tests (`core/tests/NetworkTests.cpp` — a route
    round-trip, a path-param/body round-trip, and static-file serving, each
@@ -84,7 +84,7 @@ Wiring and Polish
    duplicated header across both app repos already, confirmed by `diff`, so
    this isn't a new inconsistency). Also wired the server's actual lifecycle
    in for the first time: bind on load, `listen()` on its own thread
-   (`archive/HttpServerAnalysis.md`'s documented model), stopped after outputs shut
+   ([[http-server-analysis]]'s documented model), stopped after outputs shut
    down. Building this surfaced a real bug before it shipped: the first pass
    used a bare `std::thread`, stopped only at the tail of `main()` — the
    pre-existing "no outputs available" early return skips that tail
@@ -179,7 +179,7 @@ Wiring and Polish
    WebUI is byte-identical for both apps and needs no C++ dependencies at
    all — its own split is justified by toolchain hygiene instead (it will
    eventually need real frontend tooling for phase 4's WebXR/uikit pass, per
-   `planning/ImplementationPlan.md`, which has no business living inside a CMake/vcpkg
+   [[implementation-plan]], which has no business living inside a CMake/vcpkg
    repo). Wired as a **required** dependency in both apps (unconditional
    `FetchContent_Declare`/`MakeAvailable`, no `ENABLE_`-style toggle like
    Hue's IO gate) — reflecting that this is the product's one control
@@ -417,7 +417,7 @@ Wiring and Polish
     input-name/ifdef dispatch, both app-layer concepts, same reasoning that
     already keeps `registerInputs`/`registerOutputs` per-app). `Pipeline`
     is the swappable unit huenicorn's own design fork calls for
-    (`archive/HttpServerAnalysis.md`: reconstruction, not mutation) — it owns
+    ([[http-server-analysis]]: reconstruction, not mutation) — it owns
     input/outputs/orchestrator and is thrown away and rebuilt whole, never
     mutated in place. `PipelineHost` wraps it in one mutex (the "one
     consistent lock around a swappable pipeline unit" that doc recommended,
