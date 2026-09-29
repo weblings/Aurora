@@ -54,6 +54,11 @@ imgproc)`).
   cmake --build build/windows-app --config Release
   ```
 
+  Core's own suite on Windows (`cmake -S core -B <dir> -G "Visual Studio 17 2022" -A x64
+  -DCMAKE_TOOLCHAIN_FILE=... -DAubio_DIR=C:/vcpkg/installed/x64-windows/share/aubio`)
+  needs `Aubio_DIR` passed explicitly -- without it `find_package(Aubio CONFIG)`
+  fails standalone (the full-app preset resolves it on its own). 70/70 there too.
+
   Budget time: `opencv4` with default features took ~40 min (it also builds
   dnn/gapi/calib3d, none of which Aurora uses); everything else is minutes.
   `--source winget` is required, and open a new shell (or reload `Path`)

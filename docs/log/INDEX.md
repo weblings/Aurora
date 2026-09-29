@@ -40,4 +40,4 @@ Planning docs stay clean: decisions, status, and pointers here only.
 | 2026-09-28 | --fake-hue ported to Mac/Windows, README tightened to name the actual env vars -- Windows not compile-verified, flagged | Aurora-zx4 |
 | 2026-09-28 | Video<->audio handoff confirmed live; Screen Recording -3801 despite enabled toggle traced to a second, inline-Approve consent dialog | Aurora-z4q |
 | 2026-09-28 | Linux 1.0.3 bug fixes: portal wait bounds, audio ifdef guards, TEST_CASE dash names (suite 80/80; b87 + 5t2 filed as follow-ups) | Aurora-1z9, Aurora-y1q, Aurora-9yi |
-| 2026-09-28 | Windows light-viz bring-up: bare-machine build recipe, DevLightTap Winsock port (was a no-op), http.server backlog resets viz page | Aurora-gj0.10, Aurora-gj0.11 (filed) |
+| 2026-09-28 | Windows light-viz bring-up: bare-machine build recipe, DevLightTap Winsock port (was a no-op), http.server backlog resets viz page | Aurora-gj0.10, Aurora-gj0.11 |

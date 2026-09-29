@@ -10,6 +10,9 @@
 #include <netinet/in.h>
 #include <sys/socket.h>
 #include <unistd.h>
+#else
+#include <winsock2.h>
+#include <ws2tcpip.h>
 #endif
 
 namespace Aurora::Runtime
@@ -163,25 +166,26 @@ namespace Aurora::Runtime
     const char* addressEnv = std::getenv("AURORA_DEV_FRAME_DUMP_ADDRESS");
     DevFrameDumpAddress address = parseDevFrameDumpAddress(addressEnv ? addressEnv : "");
 
-    m_socketFd = ::socket(AF_INET, SOCK_DGRAM, 0);
-    if(m_socketFd < 0){
+    int fd = ::socket(AF_INET, SOCK_DGRAM, 0);
+    if(fd < 0){
       return;
     }
+    m_socketFd = fd;
 
-    int flags = ::fcntl(m_socketFd, F_GETFL, 0);
-    ::fcntl(m_socketFd, F_SETFL, flags | O_NONBLOCK);
+    int flags = ::fcntl(fd, F_GETFL, 0);
+    ::fcntl(fd, F_SETFL, flags | O_NONBLOCK);
 
     sockaddr_in destAddr{};
     destAddr.sin_family = AF_INET;
     destAddr.sin_port = htons(address.port);
     if(::inet_pton(AF_INET, address.host.c_str(), &destAddr.sin_addr) != 1){
-      ::close(m_socketFd);
+      ::close(fd);
       m_socketFd = -1;
       return;
     }
 
-    if(::connect(m_socketFd, reinterpret_cast<sockaddr*>(&destAddr), sizeof(destAddr)) < 0){
-      ::close(m_socketFd);
+    if(::connect(fd, reinterpret_cast<sockaddr*>(&destAddr), sizeof(destAddr)) < 0){
+      ::close(fd);
       m_socketFd = -1;
       return;
     }
@@ -193,7 +197,7 @@ namespace Aurora::Runtime
   DevFrameDump::~DevFrameDump()
   {
     if(m_socketFd >= 0){
-      ::close(m_socketFd);
+      ::close(static_cast<int>(m_socketFd));
     }
   }
 
@@ -209,16 +213,74 @@ namespace Aurora::Runtime
       return; // see MaxPayloadBytes -- dropped, not fragmented
     }
 
-    ::send(m_socketFd, payload.data(), payload.size(), 0);
+    ::send(static_cast<int>(m_socketFd), payload.data(), payload.size(), 0);
   }
 
 #else
 
-  // Windows: still a no-op (Aurora-gj0.11). DevLightTap's Winsock port
-  // (output/hue/src/DevLightTap.cpp) is the pattern to copy.
-  DevFrameDump::DevFrameDump() {}
-  DevFrameDump::~DevFrameDump() {}
-  void DevFrameDump::publish(const Contracts::ImageData&) const {}
+  // Winsock twin of the POSIX path above (same shape as DevLightTap's, in
+  // output/hue). WSAStartup is refcounted, so pairing it with any other
+  // Winsock user in the process is harmless.
+  DevFrameDump::DevFrameDump()
+  {
+    if(!std::getenv("AURORA_DEV_FRAME_DUMP")){
+      return;
+    }
+
+    const char* addressEnv = std::getenv("AURORA_DEV_FRAME_DUMP_ADDRESS");
+    DevFrameDumpAddress address = parseDevFrameDumpAddress(addressEnv ? addressEnv : "");
+
+    WSADATA wsaData;
+    if(::WSAStartup(MAKEWORD(2, 2), &wsaData) != 0){
+      return;
+    }
+
+    SOCKET sock = ::socket(AF_INET, SOCK_DGRAM, 0);
+    if(sock == INVALID_SOCKET){
+      ::WSACleanup();
+      return;
+    }
+
+    u_long nonBlocking = 1;
+    ::ioctlsocket(sock, FIONBIO, &nonBlocking);
+
+    sockaddr_in destAddr{};
+    destAddr.sin_family = AF_INET;
+    destAddr.sin_port = htons(address.port);
+    if(::inet_pton(AF_INET, address.host.c_str(), &destAddr.sin_addr) != 1
+       || ::connect(sock, reinterpret_cast<sockaddr*>(&destAddr), sizeof(destAddr)) == SOCKET_ERROR){
+      ::closesocket(sock);
+      ::WSACleanup();
+      return;
+    }
+
+    m_socketFd = static_cast<std::intptr_t>(sock);
+    m_enabled = true;
+  }
+
+
+  DevFrameDump::~DevFrameDump()
+  {
+    if(m_enabled){
+      ::closesocket(static_cast<SOCKET>(m_socketFd));
+      ::WSACleanup();
+    }
+  }
+
+
+  void DevFrameDump::publish(const Contracts::ImageData& image) const
+  {
+    if(!m_enabled || !image.hasData()){
+      return;
+    }
+
+    std::string payload = buildDevFrameDumpPayload(image);
+    if(payload.empty() || payload.size() > MaxPayloadBytes){
+      return; // see MaxPayloadBytes -- dropped, not fragmented
+    }
+
+    ::send(static_cast<SOCKET>(m_socketFd), payload.data(), static_cast<int>(payload.size()), 0);
+  }
 
 #endif
 }

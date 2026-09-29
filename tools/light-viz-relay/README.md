@@ -91,8 +91,10 @@ Winsock implementation as of that bead. What differs from the Linux flow:
   to `/api/hue/connection` on the WebUI port from the app log.
 - Serve `web/demo/` with a server that has a real accept backlog, not
   `py -m http.server` -- see Troubleshooting.
-- `validate.py frame` doesn't work yet: `DevFrameDump` is still a Windows
-  no-op (`Aurora-gj0.11`). `passthrough` and `color` are unaffected.
+- `validate.py frame` works too (`Aurora-gj0.11` gave `DevFrameDump` its
+  Winsock port): launch the app with both `$env:AURORA_DEV_LIGHT_TAP="1"` and
+  `$env:AURORA_DEV_FRAME_DUMP="1"`, then
+  `py tools\light-viz-relay\validate.py frame --zonemap tools\fake-hue-bridge\room-4zone-zonemap.json`.
 - On a slow machine `viz.html` can take ~30s before it even requests its
   scripts; Edge worked where Firefox did not (cause not isolated).
 

@@ -304,10 +304,11 @@ class FrameReader(threading.Thread):
         self.sock.settimeout(0.2)
         self.frames = []
         self.lock = threading.Lock()
-        self._stop = threading.Event()
+        # Not `_stop`: that name is threading.Thread's own internal method.
+        self._halt = threading.Event()
 
     def run(self):
-        while not self._stop.is_set():
+        while not self._halt.is_set():
             try:
                 data, _addr = self.sock.recvfrom(65535)
             except socket.timeout:
@@ -324,7 +325,11 @@ class FrameReader(threading.Thread):
             return list(self.frames)
 
     def stop(self):
-        self._stop.set()
+        # Join before closing: on Windows, closing a socket another thread is
+        # blocked in recvfrom() on raises OSError there (not socket.timeout),
+        # which crashed interpreter shutdown. The 0.2s timeout bounds the wait.
+        self._halt.set()
+        self.join(timeout=2)
         self.sock.close()
 
 

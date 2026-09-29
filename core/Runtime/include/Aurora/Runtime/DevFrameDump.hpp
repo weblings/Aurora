@@ -61,6 +61,7 @@ namespace Aurora::Runtime
 
   private:
     bool m_enabled{false};
-    int m_socketFd{-1};
+    // intptr_t so a Win64 SOCKET fits; POSIX fds convert losslessly.
+    std::intptr_t m_socketFd{-1};
   };
 }

@@ -216,3 +216,13 @@ Applies-when: bootstrapping a bare Windows machine from a script or agent sessio
 On a fresh Windows 11 install, `winget install --id Kitware.CMake -e` (and Python, VS Build Tools) exited 94 with "found among the working sources ... specify one using --source" because the same id resolves in both `winget` and `msstore`. Separately, installers update the machine/user `Path`, but the already-running shell keeps its old one -- `cmake`/`py` stayed "not recognized" until `Path` was rebuilt (`$env:Path = [Environment]::GetEnvironmentVariable('Path','Machine') + ';' + [Environment]::GetEnvironmentVariable('Path','User')`). Also: `python` on a fresh box is the Microsoft Store stub (prints a Store prompt); use `py`.
 
 **Fix:** always `--source winget`; rebuild `Path` at the top of each command in agent sessions (the shell state doesn't persist between calls anyway). VS Build Tools' `--override "--quiet --wait --norestart --add Microsoft.VisualStudio.Workload.VCTools --includeRecommended"` installs the C++ workload unattended. Recipe: `docs/Building.md`.
+
+---
+
+## Closing a socket while another thread is blocked in `recvfrom()` raises `OSError` on Windows -- join the reader first
+Tags: windows, sockets, python, threads, shutdown
+Applies-when: writing a dev/test tool with a UDP (or TCP) reader thread that a main thread stops by closing the socket
+
+`tools/light-viz-relay/validate.py frame` printed PASS but exited 9 with `Fatal Python error: _enter_buffered_busy ... at interpreter shutdown, possibly due to daemon threads`. `FrameReader.stop()` set its flag and then `sock.close()`d while the daemon reader thread sat in `recvfrom()` (0.2s timeout); on Windows that raises `OSError` in the thread, not `socket.timeout`, so the loop's `except socket.timeout` missed it and the traceback was printing as the interpreter tore down. It never showed on Linux/Mac. Same class as the earlier LockFileEx lesson: a POSIX-tolerated pattern with a Windows-specific failure mode. The same class also named its stop flag `_stop`, which shadows `threading.Thread._stop`; that was not shown to fail here, but it makes `join()` unsafe to add.
+
+**Fix:** set the flag, `join(timeout=...)` (the recv timeout bounds the wait), then close; flag renamed `_halt`. Re-run: PASS, exit 0. General principle: stop a blocked-reader thread by letting it exit its loop, never by pulling the socket out from under it -- and judge a tool run by its exit code, not just its printed verdict.

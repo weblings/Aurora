@@ -441,3 +441,13 @@ Applies-when: serving `web/demo/viz.html` (or any many-module ES page) with `pyt
 `viz.html` pulls three.js (1.3 MB) plus ~10 more ES modules at once. On a slow laptop the browser opened the burst faster than the single-accept-loop server drained it; `socketserver.TCPServer.request_queue_size` defaults to 5, so Windows reset the overflow. Errors seen: Firefox `Loading failed for the module with source ".../three.module.js"` (a different file each reload, including on a brand-new port, so not a cache issue) and Edge `net::ERR_CONNECTION_RESET`. The server log showed `200` for every request and the bytes were identical to the file on disk (matching SHA-256) -- nothing server-side looked wrong, and `curl` fetched every file fine.
 
 **Fix:** subclass `ThreadingHTTPServer` with `request_queue_size = 256` (and `daemon_threads = True`, `protocol_version = "HTTP/1.1"`), ~10 lines, serving the same directory. Kept outside the repo. General principle: a "200 in the log" plus a browser-side connection error means the failure is below HTTP -- suspect accept backlog before caches, MIME types or antivirus, and reproduce with a burst, not a single `curl`.
+
+---
+
+## Standalone `cmake -S core` on Windows doesn't find aubio through the vcpkg toolchain alone -- pass `-DAubio_DIR` explicitly
+Tags: cmake, vcpkg, aubio, windows, core-tests
+Applies-when: configuring core's own suite on Windows outside the `windows-app` preset
+
+With `aubio[core]:x64-windows` installed in vcpkg and `-DCMAKE_TOOLCHAIN_FILE=.../vcpkg.cmake`, the `windows-app` preset configured fine (its cache holds `Aubio_DIR=C:/vcpkg/installed/x64-windows/share/aubio`), but `cmake -S core` failed at `AudioProcessing/CMakeLists.txt:16 find_package(Aubio CONFIG REQUIRED)` even with generator and triplet pinned (`-G "Visual Studio 17 2022" -A x64 -DVCPKG_TARGET_TRIPLET=x64-windows`). Root cause not isolated -- how the app build gets `Aubio_DIR` on its own wasn't traced.
+
+**Fix:** add `-DAubio_DIR=C:/vcpkg/installed/x64-windows/share/aubio`; core then configures, builds and passes its suite (70/70). Noted in `docs/Building.md`. Unresolved: the app-slice path that makes it unnecessary.

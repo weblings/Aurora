@@ -1,6 +1,6 @@
 # Windows light-viz bring-up: bare-machine build, DevLightTap Winsock port, viz serving
 
-Closed `Aurora-gj0.10`. Filed, not fixed: `Aurora-gj0.11` (`DevFrameDump` is the same Windows no-op stub). Also closes the "Windows NOT compile-verified" caveat on `Aurora-zx4`: `app/windows` `--fake-hue` (`_putenv_s`) compiles and works.
+Closed `Aurora-gj0.10` and `Aurora-gj0.11` (`DevFrameDump` had the same Windows no-op stub; see the last section). Also closes the "Windows NOT compile-verified" caveat on `Aurora-zx4`: `app/windows` `--fake-hue` (`_putenv_s`) compiles and works.
 
 ## Bare-machine build
 
@@ -27,4 +27,22 @@ Not isolated: whether Firefox would also have worked on the big-backlog server (
 
 ## Docs touched
 
-`docs/Building.md` (Windows recipe), `tools/light-viz-relay/README.md` (Windows path fix `bin\Release\Aurora.exe`, "On Windows" section, two troubleshooting entries), `DevFrameDump.cpp` stub comment -> points at `Aurora-gj0.11`, lessons README counts (build-toolchain 23, windows-env 13, output 9).
+`docs/Building.md` (Windows recipe), `tools/light-viz-relay/README.md` (Windows path fix `bin\Release\Aurora.exe`, "On Windows" section, two troubleshooting entries), `DevFrameDump.cpp` stub comment (superseded by the gj0.11 port below), lessons README counts (build-toolchain 23, windows-env 13, output 9).
+
+## Aurora-gj0.11: DevFrameDump Winsock port
+
+Same shape as the `DevLightTap` port: Winsock branch in `core/Runtime/src/DevFrameDump.cpp`, `m_socketFd` -> `std::intptr_t`, and `target_link_libraries(AuroraRuntime PUBLIC ws2_32)` under `if(WIN32)` in `core/Runtime/CMakeLists.txt` (static lib, so consumers must resolve the symbols).
+
+Verified live on Windows: app with `AURORA_DEV_LIGHT_TAP=1` + `AURORA_DEV_FRAME_DUMP=1`, fake bridge + relay up, `validate.py frame --zonemap room-4zone-zonemap.json` -> PASS, 171 frames paired against 170 tap messages, worst per-channel delta 0.0275 across 4 zones (tolerance 0.05). `windows-app` suite 70/70 (its preset excludes core's own tests; the payload/address tests never touched the socket branch). Screen was near-uniform dark, so this proves the pipeline and math, not varied content.
+
+`validate.py` had a Windows-only bug, found by the first live run (result PASS but exit 9 with a "Fatal Python error ... daemon threads" crash): `FrameReader.stop()` closed its socket while the reader thread sat in `recvfrom()`, which raises `OSError` in that thread on Windows rather than `socket.timeout`. Fixed by joining the thread before closing. Its stop flag was also named `_stop`, shadowing `threading.Thread._stop`; renamed `_halt`. Re-run: PASS, exit 0.
+
+## Lessons filed (whole bring-up)
+
+- `A platform stub that compiles to a no-op is indistinguishable from a healthy idle pipeline` (output.md)
+- `Python's stdlib http.server queues only 5 pending connections` (build-toolchain.md)
+- `winget install fails with exit 94 unless --source winget is pinned` (windows-env.md)
+- `Closing a socket while another thread is blocked in recvfrom() raises OSError on Windows` (windows-env.md)
+- `Standalone cmake -S core on Windows doesn't find aubio through the vcpkg toolchain alone` (build-toolchain.md; cause of the app-vs-core difference not traced)
+
+No lesson for the `conf-living-room` config surprise: it is the existing "Saved Hue credentials silently beat AURORA_HUE_* env vars" entry.
