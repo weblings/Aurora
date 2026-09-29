@@ -1,5 +1,7 @@
 # Tooltip content draft (Aurora WebUI)
 
+Id: webui-tooltip-content
+
 Status: shipped 2026-09-18 ("Wire approved tooltip copy, add zones.select")
 — `Aurora-48x` is closed (2026-09-28): its "still open" tracking was stale,
 the content was already wired, no literal `Test` placeholders remain

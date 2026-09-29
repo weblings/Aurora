@@ -1,10 +1,12 @@
 # WebUI fixes
 
+Id: webui-fixes
+
 Tracks the gap between an AI-built pass and a human sitting down and using
 it, found by hands-on use after each pass's own build order closes out —
 one section per pass, so a pass's hands-on findings never get filed against
-the wrong build. `archive/WebUI_Design_1stPass.md`'s original 19-step build order
-lives on its own now; `archive/WebUI_Design_2ndPass.md` holds the accordion
+the wrong build. [[webui-design-1st-pass]]'s original 19-step build order
+lives on its own now; [[webui-design-2nd-pass]] holds the accordion
 Dashboard + NUX redesign this doc's own Pass 1 findings led into.
 
 Keep entries short: what's wrong, why it matters, a proposed fix if one's
@@ -15,7 +17,7 @@ entry on build-log doc density for why.
 ## Pass 1
 Status: active — open items tracked in beads (bd list -l webui).
 
-Follow-up to `archive/WebUI_Design_1stPass.md`. That doc's 19-step build order is
+Follow-up to [[webui-design-1st-pass]]. That doc's 19-step build order is
 done and each screen passed its own jsdom/live verification, but "verified"
 isn't the same as "actually usable."
 
@@ -32,7 +34,7 @@ isn't the same as "actually usable."
   that swaps between a monitor dropdown and a sink field depending on
   mode). Also closes out the Back-button task above as part of the same
   pass (`OutputConnectScreen`'s "already connected" state). See
-  `archive/WebUI_Design_2ndPass.md` for the full design discussion — the
+  [[webui-design-2nd-pass]] for the full design discussion — the
   tabs-vs-accordion comparison against `RockyRoadImport`, the final ASCII
   layouts (collapsed/expanded × video/audio), and the onboarding (NUX)
   redesign that leads into this menu — and its own "Scoping + sequencing"
@@ -108,7 +110,7 @@ isn't the same as "actually usable."
   into pairing; Back itself needs no change. Applies identically whether
   reached via chain Back or via Dashboard's own Bridge row.
   **Note:** this will likely get fixed as a byproduct of the NUX redo
-  rather than as its own standalone change — see `archive/WebUI_Design_2ndPass.md`'s
+  rather than as its own standalone change — see [[webui-design-2nd-pass]]'s
   "New user setup flow (NUX) redesign" section, which redraws every
   onboarding screen with a consistent Back/Continue footer and works
   through this exact Connected-state question directly.
@@ -257,7 +259,7 @@ not yet itemized here.
 ## Pass 2
 Status: active — open items tracked in beads (bd list -l webui).
 
-Empty until `archive/WebUI_Design_2ndPass.md`'s accordion Dashboard + NUX redesign
+Empty until [[webui-design-2nd-pass]]'s accordion Dashboard + NUX redesign
 actually ships and hands-on nits start coming in from using it — not
 pre-populated, matching how Pass 1's own section above didn't exist until
 after its build order closed out.

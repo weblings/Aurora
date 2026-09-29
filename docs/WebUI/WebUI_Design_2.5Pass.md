@@ -1,9 +1,11 @@
 # WebUI design, pass 2.5: visual polish diffs
 
+Id: webui-design-2-5-pass
+
 Bounded doc: captures the layout/styling diffs found so far comparing the
 real, currently-shipped Dashboard against `Aurora-WebUI/Static_2.5_VisualPass`'s
 new visual pass, worked out before any of it is built. Not a rebuild of
-Pass 2's own rationale (`archive/WebUI_Design_2ndPass.md`) — this is strictly "what
+Pass 2's own rationale ([[webui-design-2nd-pass]]) — this is strictly "what
 changed visually," confirmed against the actual Figma-derived source one
 item at a time with the user, not guessed from the flattened export alone.
 
@@ -215,7 +217,7 @@ the unreviewed set above.
 Status: planning — sequencing for the above.
 
 One line per step, on purpose -- verification/findings once building starts
-go to `WebUI_Fixes.md`'s Pass 2 section (or a new Pass 2.5 section there),
+go to [[webui-fixes]]'s Pass 2 section (or a new Pass 2.5 section there),
 not inline here. Each phase should leave the app in a working state before
 the next one starts.
 

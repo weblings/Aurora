@@ -11,3 +11,9 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `mac-tray-parity` | [planning/mac/TrayParity.md](planning/mac/TrayParity.md) | macOS tray-parity: open work |
 | `mac-tray-parity-history` | [archive/mac/TrayParityHistory.md](archive/mac/TrayParityHistory.md) | macOS tray-parity: build history |
 | `mac-video-capture` | [archive/mac/VideoCapture.md](archive/mac/VideoCapture.md) | macOS video capture (tier 1) |
+| `webui-design-1st-pass` | [archive/WebUI_Design_1stPass.md](archive/WebUI_Design_1stPass.md) | WebUI screens, jobs, and component research |
+| `webui-design-2-5-pass` | [WebUI/WebUI_Design_2.5Pass.md](WebUI/WebUI_Design_2.5Pass.md) | WebUI design, pass 2.5: visual polish diffs |
+| `webui-design-2nd-pass` | [archive/WebUI_Design_2ndPass.md](archive/WebUI_Design_2ndPass.md) | WebUI design, pass 2: accordion Dashboard + NUX redesign |
+| `webui-fixes` | [WebUI/WebUI_Fixes.md](WebUI/WebUI_Fixes.md) | WebUI fixes |
+| `webui-tooltip-content` | [archive/TooltipContent.md](archive/TooltipContent.md) | Tooltip content draft (Aurora WebUI) |
+| `webui-tooltips-analysis` | [archive/TooltipsAnalysis.md](archive/TooltipsAnalysis.md) | Tooltips plumbing analysis (Aurora WebUI) |

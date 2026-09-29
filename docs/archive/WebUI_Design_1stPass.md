@@ -1,5 +1,7 @@
 # WebUI screens, jobs, and component research
 
+Id: webui-design-1st-pass
+
 Status: shipped — every section below already reads `Status: shipped
 2026-09-15` or `standing`. `Aurora-x7o`, the bead this fed, is closed
 (2026-09-28): its framing was agent-proposed scaffolding the owner never
