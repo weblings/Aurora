@@ -47,3 +47,5 @@ Planning docs stay clean: decisions, status, and pointers here only.
 | 2026-09-28 | Linux 1.0.3 bug fixes: portal wait bounds, audio ifdef guards, TEST_CASE dash names (suite 80/80; b87 + 5t2 filed as follow-ups) | Aurora-1z9, Aurora-y1q, Aurora-9yi |
 | 2026-09-28 | Windows light-viz bring-up: bare-machine build recipe, DevLightTap Winsock port (was a no-op), http.server backlog resets viz page | Aurora-gj0.10, Aurora-gj0.11 |
 | 2026-09-29 | Doc-linking mechanism: `Id:`/`[[id]]` convention, check-links.sh resolver + generated docs/_ids.md index, move-proof against the MacSupport.md split still to come | Aurora-lmn, Aurora-lmn.1, Aurora-lmn.2, Aurora-lmn.3 |
+| 2026-09-29 | MacSupport.md split into docs/archive/mac + docs/planning/mac using the new Id:/`[[id]]` system; mbedtls pitfall extracted to lessons | Aurora-le6, Aurora-le6.1, Aurora-le6.2, Aurora-le6.3, Aurora-le6.4 |
+| 2026-09-29 | WebUI docs migrated to Id:/`[[id]]` (second mechanism validation, different shape than mac); deliberate-break regression test confirmed the resolver enforces | Aurora-4ux, Aurora-4ux.1, Aurora-4ux.2, Aurora-4ux.3 |
