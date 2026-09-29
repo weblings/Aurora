@@ -13,7 +13,7 @@ If a bug or improvement is found in one of these copies:
 3. Recopy the fixed file(s) here.
 
 See `../../CLAUDE.md` for the other side of this rule, and
-`../../docs/BrowserAnalysis.md`/[[implementation-plan-phase-3]] for
+[[browser-analysis]]/[[implementation-plan-phase-3]] for
 why this is a copy instead of a shared package.
 
 ## Check `../../docs/lessons/rendering-apis.md`/`rendering-internals.md` before touching the Three.js scene
