@@ -62,6 +62,7 @@ export class ModeDeviceScreen {
     this.selectedMonitorName = AUTO_MONITOR_VALUE;
     this.sinkName = '';
     this.showSinkField = false;
+    this.audioSinkStatus = null;
     this.platform = '';
     this.error = null;
     this.deviceField = null;
@@ -114,6 +115,7 @@ export class ModeDeviceScreen {
       this.monitors = [];
     }
 
+    await this._refreshAudioSinkStatus();
     this._render();
 
     // Connects the default/current mode immediately on landing, rather than
@@ -177,6 +179,7 @@ export class ModeDeviceScreen {
       selectedMonitorName: this.selectedMonitorName,
       showSinkField: this.showSinkField,
       sinkName: this.sinkName,
+      audioSinkStatus: this.audioSinkStatus,
       onChange: (patch) => this._onDeviceFieldChange(patch),
     });
 
@@ -284,6 +287,35 @@ export class ModeDeviceScreen {
       this.error = "Couldn't reach the daemon.";
     }
 
+    // A sink edit just applied live (or failed to) -- re-read which sink
+    // the daemon actually settled on, so the "Using:" hint tracks it.
+    // Skipped on error: a failed apply leaves the old pipeline (and its
+    // last-known status) in place, and a per-keystroke failure shouldn't
+    // blank the hint and flap it back on the next keystroke.
+    if (!this.error && this.mode === 'audio') {
+      await this._refreshAudioSinkStatus();
+    }
+
     this._render();
+  }
+
+  // One-shot read of GET /api/linux/audio-status for the DeviceField hint
+  // (Aurora-4vf) -- this screen has no poll loop (unlike DashboardScreen),
+  // so callers refresh after mount and after each successful audio apply.
+  // Nulls out off Linux/audio or on any failure; the field then falls back
+  // to its legacy no-list hint rather than showing something stale.
+  async _refreshAudioSinkStatus() {
+    if (this.platform !== 'linux' || this.mode !== 'audio') {
+      this.audioSinkStatus = null;
+      return;
+    }
+    try {
+      const result = await (await fetch('/api/linux/audio-status')).json();
+      this.audioSinkStatus = (result && typeof result.sinkName === 'string')
+        ? { followingDefault: result.followingDefault === true, sinkName: result.sinkName }
+        : null;
+    } catch {
+      this.audioSinkStatus = null;
+    }
   }
 }

@@ -18,6 +18,7 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `implementation-plan-directory-layout` | [archive/ImplementationPlan_DirectoryLayout.md](archive/ImplementationPlan_DirectoryLayout.md) | Implementation plan: proposed directory layout (superseded) |
 | `implementation-plan-early-phases` | [archive/ImplementationPlan_EarlyPhases.md](archive/ImplementationPlan_EarlyPhases.md) | Implementation plan: phases 1, 2, 2.5 (native build) |
 | `implementation-plan-phase-3` | [archive/ImplementationPlan_Phase3.md](archive/ImplementationPlan_Phase3.md) | Implementation plan: Phase 3 — Three.js browser demo, then the native WebUI milestone |
+| `linux-audio-sink-status` | [log/2026-09-29-linux-audio-sink-status.md](log/2026-09-29-linux-audio-sink-status.md) | Linux audio sink status: Using-hint replaces the no-list warning |
 | `linux-capture-analysis` | [archive/LinuxCaptureAnalysis.md](archive/LinuxCaptureAnalysis.md) | Grabber / GnuLinux capture — Conversion analysis |
 | `mac-audio` | [archive/mac/Audio.md](archive/mac/Audio.md) | macOS audio capture |
 | `mac-notarization` | [planning/mac/Notarization.md](planning/mac/Notarization.md) | macOS Gatekeeper/notarization |

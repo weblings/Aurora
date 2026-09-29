@@ -417,3 +417,22 @@ Applies-when: bounding an async wait on Linux where a permission/source dialog m
 `Aurora-1z9`: the portal fd future only settles after the user answers the source-picker dialog, so the in-repo `wait_for(5s)` precedent (AudioGrabber, a machine-only handshake) would have turned every slow first-run human into a spurious failure. The two waits in one constructor needed different bounds for different reasons.
 
 **Fix:** 60s for the portal wait (covers a human reading the dialog; dismissal still resolves promptly as false with its own message), 5s for the post-fd stream-params wait (no human in the loop). When a bead says "copy the timeout pattern", check whether a dialog sits inside the wait first.
+
+---
+
+## An unresolvable PipeWire target.object readies and links to the default sink instead of failing
+Tags: input, linux, pipewire, audio, target.object, fallback
+Applies-when: assuming a typo'd audioTargetSinkName fails loudly at AudioGrabber construction
+
+`AudioGrabber`'s constructor assumed a typo'd `targetSinkName` never fires
+`param_changed`, so the 5s ready timeout would surface it as a reload error.
+Verified live on PipeWire 1.0.5 + WirePlumber (Aurora-4vf): a stream with
+`target.object=no-such-sink-bogus` still negotiated format (ready), and
+`pw-dump` showed it linked active to the real default sink's monitor ports --
+the session manager silently falls back to the default instead of failing.
+
+**Fix:** "construction succeeded" proves nothing about *which* sink is
+captured on the explicit path; typo validation needs an explicit registry
+membership check against real node names, not the ready timeout. Don't treat
+a negotiated stream as proof its target resolved -- confirm the link target
+independently (`pw-dump` link inspection) before trusting it.

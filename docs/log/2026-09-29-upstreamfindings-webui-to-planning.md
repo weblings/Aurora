@@ -22,7 +22,7 @@ bucket into `planning/`'s), root `AGENTS.md` and
 `.claude/skills/web-ui-lessons/SKILL.md` (bare `docs/WebUI/` path --
 neither is in `check-links.sh`'s scan scope, same blind spot Aurora-6wg
 fixed once already), and `docs/lessons/navigation-flow.md` (converted its
-`WebUI_Fixes.md` citation to `[[webui-fixes]]`).
+bare-path citation to `[[webui-fixes]]`).
 
 Left untouched by design, same as the existing `docs/log/*.md`
 convention: `docs/log/*.md` entries and `docs/archive/

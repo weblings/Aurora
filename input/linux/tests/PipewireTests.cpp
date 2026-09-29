@@ -4,6 +4,7 @@
 #include <thread>
 #include <vector>
 
+#include <Aurora/Input/Linux/AudioSinkStatus.hpp>
 #include <Aurora/Input/Linux/GamescopeNodeMatch.hpp>
 #include <Aurora/Input/Linux/IRestoreTokenStore.hpp>
 #include <Aurora/Input/Linux/PipewireFrameBuffer.hpp>
@@ -112,6 +113,39 @@ TEST_CASE("reduceFramerate treats a zero denominator as unset", "[PipewireGrabbe
 {
   CHECK(reduceFramerate(60, 0) == 0);
   CHECK(reduceFramerate(0, 0) == 0);
+}
+
+
+TEST_CASE("makeAudioSinkStatus reports the resolved default when following it", "[AudioGrabber][sink-status]")
+{
+  // Aurora-4vf: empty request = follow-the-default, so the reported name
+  // is whatever default-sink discovery resolved (shown as "Using: <name>").
+  auto status = makeAudioSinkStatus("", "alsa_output.pci.analog-stereo");
+
+  CHECK(status.followingDefault);
+  CHECK(status.sinkName == "alsa_output.pci.analog-stereo");
+}
+
+
+TEST_CASE("makeAudioSinkStatus reports the explicit target when pinned", "[AudioGrabber][sink-status]")
+{
+  // A user-entered sink wins over any stray resolved value -- discovery
+  // never even runs on the explicit path, so resolved must be ignored.
+  auto status = makeAudioSinkStatus("my-usb-sink", "alsa_output.pci.analog-stereo");
+
+  CHECK_FALSE(status.followingDefault);
+  CHECK(status.sinkName == "my-usb-sink");
+}
+
+
+TEST_CASE("makeAudioSinkStatus reports unknown when default resolution found nothing", "[AudioGrabber][sink-status]")
+{
+  // Still following-the-default (nothing was pinned), but with no name to
+  // show -- the WebUI keeps its no-list warning in this state.
+  auto status = makeAudioSinkStatus("", "");
+
+  CHECK(status.followingDefault);
+  CHECK(status.sinkName.empty());
 }
 
 

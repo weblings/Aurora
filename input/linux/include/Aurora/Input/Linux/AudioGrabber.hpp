@@ -7,6 +7,7 @@
 // prompt).
 
 #include <Aurora/Input/IAudioInput.hpp>
+#include <Aurora/Input/Linux/AudioSinkStatus.hpp>
 
 #include <future>
 #include <mutex>
@@ -34,7 +35,7 @@ namespace Aurora::Input::Linux
       pw_context* context{nullptr};
       pw_stream* stream{nullptr};
       spa_audio_info format{};
-      std::mutex mutex;
+      mutable std::mutex mutex; // sinkStatus() reports under lock from any thread
       std::vector<float> accumulated;
       std::promise<bool> readyPromise;
       bool promiseSetAlready{false};
@@ -70,6 +71,14 @@ namespace Aurora::Input::Linux
     // accumulated under a lock since the last call.
     void readNextBuffer(Contracts::AudioBuffer& buffer) override;
 
+    // Which sink this grabber is actually capturing (Aurora-4vf): the
+    // auto-resolved default when targetSinkName was empty, else the
+    // explicit target. Linux-specific, not on IAudioInput -- callers
+    // dynamic_cast, the same shape as Mac's isLikelyPermissionDenied().
+    // Display-only: persisting a resolved name would pin the sink and
+    // break follow-the-default.
+    AudioSinkStatus sinkStatus() const;
+
   private:
     static void _onStreamProcess(void* userdata);
     static void _onStreamParamChanged(void* userdata, uint32_t id, const spa_pod* param);
@@ -90,5 +99,6 @@ namespace Aurora::Input::Linux
 
     std::optional<std::thread> m_pipewireThread;
     PipewireAudioData m_pwData;
+    std::string m_requestedSinkName; // ctor arg, immutable after -- sinkStatus() reads it
   };
 }
