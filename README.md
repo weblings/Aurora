@@ -12,8 +12,8 @@ Distilled from [huenicorn](https://gitlab.com/openjowelsofts/huenicorn)
 license forward — see `../../LICENSE`.
 
 See [`docs/BrowserAnalysis.md`](../../docs/BrowserAnalysis.md)
-and [`docs/ImplementationPlan.md`](../../docs/ImplementationPlan.md)'s
-Phase 3 (Milestone 1) for the full scoping and reasoning behind this repo's
+and [[implementation-plan-phase-3]]'s
+Milestone 1 for the full scoping and reasoning behind this repo's
 shape and its split from Aurora core.
 
 ## Status

@@ -2,7 +2,7 @@
 
 Self-contained Three.js browser demo of the Aurora effect. No native
 backend, no build step. Scoping lives in
-`docs/BrowserAnalysis.md` and `ImplementationPlan.md` (Phase 3),
+`docs/BrowserAnalysis.md` and [[implementation-plan-phase-3]],
 not here.
 
 - `processing.js`/`smoother.js`/`audioFeatures.js`/`colorModel.js` are copies
