@@ -490,3 +490,30 @@ top-level/module `README.md`/`AGENTS.md` files that also cite docs.
 Converting a found citer's link to `[[id]]` where the target already has
 one also makes it immune to the next move, so treat cleanup of these as
 free once you're already touching the target doc.
+
+---
+
+## A historical log entry keeps its pre-migration citations, don't retrofit `[[id]]` into an append-only record
+Tags: docs, check-links, doc-move, log
+Applies-when: repointing bare-path citations to `[[id]]` and one of the citers is a docs/log/ entry
+
+Auditing `docs/lessons/` and `docs/log/` for leftover bare-path citations
+after migrating the last 17 archive/planning docs to `Id:`/`[[id]]`
+(Aurora-0nu), one log entry stood out from the rest: `docs/log/2026-09-28-docs-archive-and-assets-reorg.md`,
+the append-only record of the original archive reorg, cites ~20 of those
+same files by the bare paths they had *at the time it was written* --
+before any of them had an `Id:`. Every other `docs/log/*.md` citer found
+in the audit was a build-history entry describing ongoing work and got
+converted normally.
+
+**Fix:** a build-history/follow-up log entry (referencing a doc as a live
+source of design/decisions) gets its citations repointed like any other
+file -- it's still being read for its content. A reorg/move-narrative log
+entry (recording *that* and *where* a file moved, as of that date) does
+not -- converting its citations to ids that didn't exist yet would make
+the record read as if the migration had already happened when it hadn't,
+which is revising history rather than fixing a live reference. The
+distinguishing question: is the citation being read for the target doc's
+content (repoint it), or is the citation itself part of what's being
+recorded (leave it)? Bare paths still resolve either way, so nothing
+breaks by leaving the second kind alone.
