@@ -10,6 +10,9 @@
 #include <netinet/in.h>
 #include <sys/socket.h>
 #include <unistd.h>
+#else
+#include <winsock2.h>
+#include <ws2tcpip.h>
 #endif
 
 namespace Aurora::Output::Hue
@@ -87,30 +90,31 @@ namespace Aurora::Output::Hue
     const char* addressEnv = std::getenv("AURORA_DEV_LIGHT_TAP_ADDRESS");
     DevLightTapAddress address = parseDevLightTapAddress(addressEnv ? addressEnv : "");
 
-    m_socketFd = ::socket(AF_INET, SOCK_DGRAM, 0);
-    if(m_socketFd < 0){
+    int fd = ::socket(AF_INET, SOCK_DGRAM, 0);
+    if(fd < 0){
       return;
     }
+    m_socketFd = fd;
 
     // Non-blocking: belt-and-suspenders on top of UDP's own connectionless
     // send never blocking on a slow/absent receiver -- this tap must never
     // add latency to the real streaming path.
-    int flags = ::fcntl(m_socketFd, F_GETFL, 0);
-    ::fcntl(m_socketFd, F_SETFL, flags | O_NONBLOCK);
+    int flags = ::fcntl(fd, F_GETFL, 0);
+    ::fcntl(fd, F_SETFL, flags | O_NONBLOCK);
 
     sockaddr_in destAddr{};
     destAddr.sin_family = AF_INET;
     destAddr.sin_port = htons(address.port);
     if(::inet_pton(AF_INET, address.host.c_str(), &destAddr.sin_addr) != 1){
-      ::close(m_socketFd);
+      ::close(fd);
       m_socketFd = -1;
       return;
     }
 
     // connect() on a UDP socket just fixes the default destination for
     // send() below -- no handshake, no connection state to fail.
-    if(::connect(m_socketFd, reinterpret_cast<sockaddr*>(&destAddr), sizeof(destAddr)) < 0){
-      ::close(m_socketFd);
+    if(::connect(fd, reinterpret_cast<sockaddr*>(&destAddr), sizeof(destAddr)) < 0){
+      ::close(fd);
       m_socketFd = -1;
       return;
     }
@@ -122,7 +126,7 @@ namespace Aurora::Output::Hue
   DevLightTap::~DevLightTap()
   {
     if(m_socketFd >= 0){
-      ::close(m_socketFd);
+      ::close(static_cast<int>(m_socketFd));
     }
   }
 
@@ -137,18 +141,69 @@ namespace Aurora::Output::Hue
     // Best-effort: return value intentionally ignored -- a dropped/partial
     // datagram just means one skipped frame in the visualization, never an
     // error the real streaming path should care about.
-    ::send(m_socketFd, payload.data(), payload.size(), 0);
+    ::send(static_cast<int>(m_socketFd), payload.data(), payload.size(), 0);
   }
 
 #else
 
-  // Windows: not yet implemented (SOCKET's Win64 width doesn't fit the
-  // plain int handle used above) -- stays permanently disabled rather than
-  // half-built. See docs/MacSupport.md-adjacent build-sequencing notes;
-  // Linux/Mac are this tool's actual near-term targets.
-  DevLightTap::DevLightTap() {}
-  DevLightTap::~DevLightTap() {}
-  void DevLightTap::publish(const ChannelStreams&) const {}
+  // Winsock twin of the POSIX path above. WSAStartup is refcounted, so
+  // calling it here alongside the DTLS client's own is harmless.
+  DevLightTap::DevLightTap()
+  {
+    if(!std::getenv("AURORA_DEV_LIGHT_TAP")){
+      return;
+    }
+
+    const char* addressEnv = std::getenv("AURORA_DEV_LIGHT_TAP_ADDRESS");
+    DevLightTapAddress address = parseDevLightTapAddress(addressEnv ? addressEnv : "");
+
+    WSADATA wsaData;
+    if(::WSAStartup(MAKEWORD(2, 2), &wsaData) != 0){
+      return;
+    }
+
+    SOCKET sock = ::socket(AF_INET, SOCK_DGRAM, 0);
+    if(sock == INVALID_SOCKET){
+      ::WSACleanup();
+      return;
+    }
+
+    u_long nonBlocking = 1;
+    ::ioctlsocket(sock, FIONBIO, &nonBlocking);
+
+    sockaddr_in destAddr{};
+    destAddr.sin_family = AF_INET;
+    destAddr.sin_port = htons(address.port);
+    if(::inet_pton(AF_INET, address.host.c_str(), &destAddr.sin_addr) != 1
+       || ::connect(sock, reinterpret_cast<sockaddr*>(&destAddr), sizeof(destAddr)) == SOCKET_ERROR){
+      ::closesocket(sock);
+      ::WSACleanup();
+      return;
+    }
+
+    m_socketFd = static_cast<std::intptr_t>(sock);
+    m_enabled = true;
+  }
+
+
+  DevLightTap::~DevLightTap()
+  {
+    if(m_enabled){
+      ::closesocket(static_cast<SOCKET>(m_socketFd));
+      ::WSACleanup();
+    }
+  }
+
+
+  void DevLightTap::publish(const ChannelStreams& channelStreams) const
+  {
+    if(!m_enabled){
+      return;
+    }
+
+    std::string payload = buildDevLightTapPayload(channelStreams);
+    ::send(static_cast<SOCKET>(m_socketFd), payload.data(), static_cast<int>(payload.size()), 0);
+  }
 
 #endif
 }

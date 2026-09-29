@@ -38,6 +38,26 @@ imgproc)`).
   the `OpenCV_DIR` env var) or via vcpkg (`install opencv`, passing its
   toolchain file — see the Windows slice command below). Either layout works;
   runtime DLLs resolve from CMake imported targets, never hardcoded paths.
+  The `windows-app` preset also needs curl, Mbed TLS, aubio and miniaudio, so
+  vcpkg is the practical route. Bare-machine recipe, verified end to end
+  (configure, build, 70/70 tests) on a fresh Windows 11 laptop, 2026-09-28
+  (the four `winget` lines and `vcpkg install` are all one-time setup):
+
+  ```powershell
+  winget install --id Kitware.CMake -e --source winget
+  winget install --id Python.Python.3.12 -e --source winget --scope user   # only for tools/ dev scripts
+  winget install --id Microsoft.VisualStudio.2022.BuildTools -e --source winget --override "--quiet --wait --norestart --add Microsoft.VisualStudio.Workload.VCTools --includeRecommended"
+  git clone --depth 1 https://github.com/microsoft/vcpkg C:\vcpkg; C:\vcpkg\bootstrap-vcpkg.bat -disableMetrics
+  C:\vcpkg\vcpkg install opencv4:x64-windows curl:x64-windows mbedtls:x64-windows "aubio[core]:x64-windows" miniaudio:x64-windows
+
+  cmake --preset windows-app -DCMAKE_TOOLCHAIN_FILE=C:/vcpkg/scripts/buildsystems/vcpkg.cmake
+  cmake --build build/windows-app --config Release
+  ```
+
+  Budget time: `opencv4` with default features took ~40 min (it also builds
+  dnn/gapi/calib3d, none of which Aurora uses); everything else is minutes.
+  `--source winget` is required, and open a new shell (or reload `Path`)
+  after the installs -- see the `winget install fails with exit 94` lesson.
 - **Linux (Debian/Ubuntu):** `sudo apt install build-essential cmake
   libopencv-dev libcurl4-openssl-dev libmbedtls-dev libx11-dev libxext-dev
   libxrandr-dev libglib2.0-dev libpipewire-0.3-dev libaubio-dev`

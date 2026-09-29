@@ -249,3 +249,13 @@ Applies-when: pointing a dev run at the fake bridge (or any bridge) via env vars
 `registerOutputs()` loads `CredentialsStore` first and only falls back to `AURORA_HUE_*` when nothing is saved ([main.cpp:149-167](../../app/linux/src/main.cpp#L149-L167)). A Linux box with an old real-bridge pairing in `~/.config/aurora/hue-credentials.json` ignored `AURORA_HUE_BRIDGE_ADDRESS=127.0.0.1:18443` entirely: config selection failed, `zoneIds()` came back empty, `profiles/hue.json` was rewritten to `[]`, and the DevLightTap streamed `{"zones":[]}` at 60 fps -- every liveness signal green, zero content. Same trap inside a `--fresh` run: pairing through the WebUI writes credentials that then beat the env var's config id (picked `conf-office`, 1 channel, over `conf-living-room`).
 
 **Fix:** run fake-bridge sessions with `--fresh` and don't pair through the WebUI mid-run; check `profiles/hue.json` / zone count before trusting output. General principle: when a persisted store outranks env vars, an env-var dev override is a request, not a guarantee -- verify the effective source.
+
+---
+
+## A platform stub that compiles to a no-op is indistinguishable from a healthy idle pipeline -- grep the `_WIN32` branch before debugging downstream
+Tags: output, dev-tap, windows, stub, light-viz
+Applies-when: a dev tool (light-viz relay, frame dump) shows "waiting for frames" while every other liveness signal is green
+
+`DevLightTap` had a real POSIX body and a `#else` branch on Windows with empty constructor/`publish()` -- fine while Linux/Mac were the only targets, invisible once someone ran the light-viz recipe on Windows. Symptoms: the fake bridge logged `stream conf-room-4zone -> active`, `/api/hue/channels` listed 4 channels, `hue` was registered, the relay listened and the app burned CPU at full frame rate -- and the relay's SSE stayed silent. Hours of "is it pairing? the zone map? the config id?" were spent on the wrong layer; the only tell was `AURORA_DEV_LIGHT_TAP` being read nowhere in the Windows build. `DevFrameDump` (`AURORA_DEV_FRAME_DUMP`) has the identical stub (`Aurora-gj0.11`).
+
+**Fix:** implemented the Winsock twin (`WSAStartup`/`SOCKET`/`ioctlsocket(FIONBIO)`/`closesocket`); the member became `std::intptr_t` because a Win64 `SOCKET` doesn't fit the POSIX `int`. General principle: when a dev tap is silent and everything upstream is green, grep for `#ifdef _WIN32`/`#ifndef _WIN32` around the emitter first -- and prefer a startup log line ("dev light tap: disabled on this platform") over a silent empty body, so the stub announces itself.

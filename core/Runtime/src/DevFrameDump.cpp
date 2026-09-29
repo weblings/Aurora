@@ -214,8 +214,8 @@ namespace Aurora::Runtime
 
 #else
 
-  // Windows: not yet implemented, same reasoning as DevLightTap's Windows
-  // stub -- Linux/Mac are this tool's actual near-term targets.
+  // Windows: still a no-op (Aurora-gj0.11). DevLightTap's Winsock port
+  // (output/hue/src/DevLightTap.cpp) is the pattern to copy.
   DevFrameDump::DevFrameDump() {}
   DevFrameDump::~DevFrameDump() {}
   void DevFrameDump::publish(const Contracts::ImageData&) const {}

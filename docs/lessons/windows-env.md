@@ -206,3 +206,13 @@ Applies-when: recording which process holds a LockFileEx lock for others to read
 A second instance cannot ReadFile the byte range another process locked with LockFileEx (ERROR_LOCK_VIOLATION), so storing the holder pid inside aurora.lock itself is unreadable exactly when it matters. flock on Linux has no such restriction (it gates flock(), never read()), but the portable shape is one advisory sidecar (aurora.pid) next to the lock on both: written only by the holder, best-effort, never affecting mutual exclusion.
 
 **Fix:** InstanceLock writes configRoot/aurora.pid on acquire (holder only) and reads it back as holderPid(), 0 when absent -- lock semantics untouched on either platform.
+
+---
+
+## `winget install` fails with exit 94 unless `--source winget` is pinned, and the shell that ran it never sees the new `Path`
+Tags: windows, winget, path, bootstrap
+Applies-when: bootstrapping a bare Windows machine from a script or agent session
+
+On a fresh Windows 11 install, `winget install --id Kitware.CMake -e` (and Python, VS Build Tools) exited 94 with "found among the working sources ... specify one using --source" because the same id resolves in both `winget` and `msstore`. Separately, installers update the machine/user `Path`, but the already-running shell keeps its old one -- `cmake`/`py` stayed "not recognized" until `Path` was rebuilt (`$env:Path = [Environment]::GetEnvironmentVariable('Path','Machine') + ';' + [Environment]::GetEnvironmentVariable('Path','User')`). Also: `python` on a fresh box is the Microsoft Store stub (prints a Store prompt); use `py`.
+
+**Fix:** always `--source winget`; rebuild `Path` at the top of each command in agent sessions (the shell state doesn't persist between calls anyway). VS Build Tools' `--override "--quiet --wait --norestart --add Microsoft.VisualStudio.Workload.VCTools --includeRecommended"` installs the C++ workload unattended. Recipe: `docs/Building.md`.
