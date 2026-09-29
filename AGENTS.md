@@ -10,7 +10,7 @@ Core repo: shared `Contracts`, `Processing`, `Input`/`Output` interfaces,
   presets in `CMakePresets.json`); core tests alone via `cmake -S core`.
 - `web-processing/` JS mirrors are hand-ports of C++ (`processing.js`/
   `smoother.js` <- `ImageProcessing.cpp` crop/mean, `Smoother.cpp` easing;
-  see `docs/BrowserAnalysis.md` for why hand-ported, not WASM): editing
+  see [[browser-analysis]] for why hand-ported, not WASM): editing
   either side means checking the other, updating golden values in
   `web-processing/*.test.mjs` (`node web-processing/<name>.test.mjs`, no
   build step), and recopying into `web/demo/` (verbatim copies, no npm
@@ -28,6 +28,13 @@ Core repo: shared `Contracts`, `Processing`, `Input`/`Output` interfaces,
 - Milestone detail (closed or paused): dated file in `docs/log/` + `INDEX.md`
   row on close — every material fact, stated once and tightly; paused work logs
   state + resume pointer. Findings over narration.
+- Citing another doc under `docs/`: use `Id:`/`[[id]]`, not a bare
+  relative path — see `docs/README.md`'s "Citing other docs" section for
+  the full convention. A bare path breaks silently on move/rename and
+  `check-links.sh` only scans `docs/` and `.claude/skills/`, so a citer
+  living outside those (this file included) won't be caught if it goes
+  dead. New docs get an `Id:` line under the H1 at creation, not as a
+  later cleanup pass.
 - **Required, not optional, at the same time as the above:** when closing a
   phase/milestone bead, check its description for a referenced
   `docs/*.md` prerequisite analysis or plan. If that doc's `Status:` line
