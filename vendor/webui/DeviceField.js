@@ -12,13 +12,16 @@ export const AUTO_MONITOR_VALUE = '';
 export class DeviceField {
   // onChange receives { selectedMonitorName } in video mode or
   // { sinkName } in audio mode, whichever this field can actually change.
-  constructor(container, { mode, monitors = [], selectedMonitorName = AUTO_MONITOR_VALUE, showSinkField = false, sinkName = '', onChange }) {
+  // audioSinkStatus is { followingDefault, sinkName } from
+  // GET /api/linux/audio-status, or null when unknown (fetch failed, old
+  // daemon, not capturing) -- null keeps the legacy no-list hint.
+  constructor(container, { mode, monitors = [], selectedMonitorName = AUTO_MONITOR_VALUE, showSinkField = false, sinkName = '', audioSinkStatus = null, onChange }) {
     this.container = container;
     this.onChange = onChange;
     this.dropdown = null;
 
     if (mode === 'video') this._renderVideo(monitors, selectedMonitorName);
-    else this._renderAudio(showSinkField, sinkName);
+    else this._renderAudio(showSinkField, sinkName, audioSinkStatus);
   }
 
   _renderVideo(monitors, selectedMonitorName) {
@@ -56,10 +59,21 @@ export class DeviceField {
     this.dropdown.setOptions(options);
   }
 
-  _renderAudio(showSinkField, sinkName) {
+  _renderAudio(showSinkField, sinkName, audioSinkStatus) {
     if (!showSinkField) {
       this.container.innerHTML = `<p class="status-text">Uses your system's default audio device.</p>`;
       return;
+    }
+
+    // The resolved name is hint text only, never written into the input --
+    // writing it would persist into audioTargetSinkName on save and pin the
+    // sink, breaking follow-the-default (Aurora-4vf, via Aurora-u1u).
+    let hintHtml = `<p class="status-text">No device list is available yet — enter a PipeWire sink name exactly, or leave blank for the default.</p>`;
+    if (audioSinkStatus && audioSinkStatus.sinkName) {
+      const name = escapeHtml(audioSinkStatus.sinkName);
+      hintHtml = audioSinkStatus.followingDefault
+        ? `<p class="status-text">Using: ${name} (system default). Type a sink name above to use a different device.</p>`
+        : `<p class="status-text">Using sink: ${name}. Clear the field to follow the system default.</p>`;
     }
 
     this.container.innerHTML = `
@@ -67,7 +81,7 @@ export class DeviceField {
         <label class="field-label" for="device-field-sink-input">Audio device (optional)</label>
         <input id="device-field-sink-input" class="text-input" type="text" placeholder="System default" />
       </div>
-      <p class="status-text">No device list is available yet — enter a PipeWire sink name exactly, or leave blank for the default.</p>
+      ${hintHtml}
     `;
     const input = this.container.querySelector('#device-field-sink-input');
     input.value = sinkName;
@@ -81,4 +95,8 @@ export class DeviceField {
     this.dropdown?.destroy();
     this.dropdown = null;
   }
+}
+
+function escapeHtml(s) {
+  return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
