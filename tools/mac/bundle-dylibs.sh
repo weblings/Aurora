@@ -29,7 +29,8 @@ done
 [ -d "$APP/Contents/MacOS" ] || { echo "usage: $0 <Aurora.app> [--identity ID] [--entitlements FILE]" >&2; exit 2; }
 [ -z "$ENTITLEMENTS" ] || [ -f "$ENTITLEMENTS" ] || { echo "no such entitlements file: $ENTITLEMENTS" >&2; exit 2; }
 
-EXE="$APP/Contents/MacOS/$(defaults read "$PWD/$APP/Contents/Info" CFBundleExecutable 2>/dev/null || echo Aurora)"
+APP_ABS="$(cd "$APP" && pwd)"   # absolute or relative APP both work (CMake passes an absolute path)
+EXE="$APP/Contents/MacOS/$(defaults read "$APP_ABS/Contents/Info" CFBundleExecutable 2>/dev/null || echo Aurora)"
 [ -f "$EXE" ] || EXE="$APP/Contents/MacOS/Aurora"
 FW="$APP/Contents/Frameworks"
 MANIFEST="$APP/Contents/Resources/bundled-dylibs.tsv"
@@ -119,8 +120,9 @@ done
 
 # sign inside-out: dylibs first, then the app (install_name_tool invalidated the old signature)
 if [ "$IDENTITY" = "-" ]; then TS=(--timestamp=none); else TS=(--timestamp); fi
-for f in "$FW"/*.dylib; do codesign --force --options runtime "${TS[@]}" --sign "$IDENTITY" "$f" >/dev/null 2>&1; done
+sign() { codesign "$@" >/dev/null 2>"$WORK/cs.err" || { echo "codesign failed:" >&2; cat "$WORK/cs.err" >&2; exit 1; }; }
+for f in "$FW"/*.dylib; do sign --force --options runtime "${TS[@]}" --sign "$IDENTITY" "$f"; done
 ARGS=(--force --options runtime "${TS[@]}" --sign "$IDENTITY"); [ -z "$ENTITLEMENTS" ] || ARGS+=(--entitlements "$ENTITLEMENTS")
-codesign "${ARGS[@]}" "$APP" >/dev/null 2>&1
+sign "${ARGS[@]}" "$APP"
 codesign --verify --strict "$APP"
 echo "bundled $(find "$FW" -name '*.dylib' | wc -l | tr -d ' ') dylibs into $FW ($(du -sh "$FW" | cut -f1)); manifest: $MANIFEST"

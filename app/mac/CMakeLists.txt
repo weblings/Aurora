@@ -227,18 +227,48 @@ target_include_directories(aurora-app-mac PRIVATE
   ${CMAKE_CURRENT_BINARY_DIR}
 )
 
-# Ad-hoc codesign (free, local, no Apple Developer account) -- required for
-# a bundle to run at all under Gatekeeper's baseline check, and for its TCC
-# identity to stay stable across rebuilds instead of re-prompting each time
-# (an unsigned/differently-signed bundle looks like a new app to TCC). Real
-# Developer ID signing + notarization is Aurora-8mk.10, still deferred --
-# this only covers "runs locally, holds a TCC grant reliably," not
-# distribution to a second machine.
-add_custom_command(TARGET aurora-app-mac POST_BUILD
-  COMMAND codesign --force --deep --sign - "$<TARGET_BUNDLE_DIR:aurora-app-mac>"
-  COMMENT "Ad-hoc signing Aurora.app"
-  VERBATIM
-)
+# Code signing. Default is ad-hoc ("-": free, local, no Apple Developer
+# account) -- required for a bundle to run at all under Gatekeeper's
+# baseline check, and for its TCC identity to stay stable across rebuilds
+# instead of re-prompting each time (an unsigned/differently-signed bundle
+# looks like a new app to TCC). That covers "runs locally, holds a TCC grant
+# reliably," not distribution to a second machine.
+#
+# Aurora-qy5.5: AURORA_MAC_SIGN_IDENTITY selects a real identity by *name*
+# (e.g. -DAURORA_MAC_SIGN_IDENTITY="Developer ID Application: Name (TEAMID)").
+# Only a name is ever read here: no key, password or profile touches CMake,
+# and the cert itself stays in the keychain. A non-ad-hoc identity runs
+# tools/mac/bundle-dylibs.sh, which copies the Homebrew dylibs into
+# Contents/Frameworks, rewrites their install names, and signs every nested
+# Mach-O inside-out, then the app, with the hardened runtime, a secure
+# timestamp and Aurora.entitlements (--deep is discouraged for Developer ID,
+# so it is not used on that path). Notarization is tools/mac/sign-notarize.sh
+# (Aurora-qy5.4); check the result with tools/mac/verify-bundle.sh.
+set(AURORA_MAC_SIGN_IDENTITY "-" CACHE STRING
+  "codesign identity name for Aurora.app; \"-\" (default) signs ad-hoc")
+
+if(AURORA_MAC_SIGN_IDENTITY STREQUAL "-")
+  # The relink that precedes this step restores the Homebrew-linked binary,
+  # so drop any Frameworks/manifest a previous identity build (or manual
+  # bundle-dylibs.sh run) left behind rather than ship a mixed bundle.
+  add_custom_command(TARGET aurora-app-mac POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E rm -rf
+            "$<TARGET_BUNDLE_DIR:aurora-app-mac>/Contents/Frameworks"
+            "$<TARGET_BUNDLE_DIR:aurora-app-mac>/Contents/Resources/bundled-dylibs.tsv"
+    COMMAND codesign --force --deep --sign - "$<TARGET_BUNDLE_DIR:aurora-app-mac>"
+    COMMENT "Ad-hoc signing Aurora.app"
+    VERBATIM
+  )
+else()
+  add_custom_command(TARGET aurora-app-mac POST_BUILD
+    COMMAND "${CMAKE_CURRENT_SOURCE_DIR}/../../tools/mac/bundle-dylibs.sh"
+            "$<TARGET_BUNDLE_DIR:aurora-app-mac>"
+            --identity "${AURORA_MAC_SIGN_IDENTITY}"
+            --entitlements "${CMAKE_CURRENT_SOURCE_DIR}/Aurora.entitlements"
+    COMMENT "Bundling dylibs and signing Aurora.app as \"${AURORA_MAC_SIGN_IDENTITY}\""
+    VERBATIM
+  )
+endif()
 
 # No install()/packaging rules yet, unlike app/linux. NSStatusItem lands
 # above (Aurora-qps.2); LSUIElement/SMAppService are still later
