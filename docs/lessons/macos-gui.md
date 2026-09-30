@@ -295,3 +295,33 @@ Applies-when: you need to reproduce or verify menu-open behaviour on Mac from a 
 `osascript` driving System Events to click the status item failed with `Not authorized to send Apple events to System Events (-1743)`: the calling process has no Accessibility/Automation grant, and one can't be given from that shell. Windows' `traygap.py` avoids this by posting the tray window message directly; AppKit has no equivalent public route to open an `NSStatusItem` menu from outside the process.
 
 **Fix:** `tools/light-viz-relay/traygap_mac.py` records SSE frame timestamps for a window, prompts for a manual click-and-hold, then reports every gap over 0.25s and PASS/FAIL. Keep the measurement automatic and only the click manual. (Aurora-zlw was closed on live user confirmation; the script's own gap numbers were not captured.)
+
+---
+
+## An unset deployment target means "the host OS", and bundled Homebrew dylibs carry it too, so `LSMinimumSystemVersion` alone proves nothing
+Tags: macos, deployment-target, minos, homebrew, bundling, notarization
+Applies-when: declaring a minimum macOS for a bundle, or claiming a bundled app runs on older Macs
+
+Without `CMAKE_OSX_DEPLOYMENT_TARGET`, Aurora's binary was built with `minos 27.0` (the build machine's OS): it would refuse to launch on anything older, with nothing in the build output saying so. Setting it to 14.2 (the Core Audio process-tap floor, `AudioHardwareCreateProcessTap`) fixed our own code, but 27 of the 28 bundled Homebrew dylibs still reported `minos 27.0` (bottles target the host OS; one was 11.0), so the *bundle* still only runs on 27+ regardless of the plist. A plist claiming 14.2 over 27.0 dylibs is a false promise (Aurora-qy5.3; follow-up bead filed).
+
+**Fix:** set the target in the preset and derive `LSMinimumSystemVersion` from the same variable; check by behaviour, not intent: `vtool -show-build <file>` for every Mach-O, compare the highest `minos` with the plist. `tools/mac/verify-bundle.sh` fails when the main binary needs more than the plist declares and warns when any bundled dylib does. Lowering the real floor needs the dylibs built from source with a lower target.
+
+---
+
+## A build step that re-links and re-signs can leave a mixed bundle when the previous build bundled dylibs; clear the derived state
+Tags: macos, cmake, codesign, bundling, stale-state
+Applies-when: switching signing identity (ad-hoc <-> named) or re-running bundle-dylibs.sh against an incremental build directory
+
+Making the CMake signing identity a cache variable (Aurora-qy5.5) exposed this: a named-identity build runs `bundle-dylibs.sh` in POST_BUILD, which copies `Contents/Frameworks` and rewrites the binary's install names. If that run failed (bogus identity), or the build was later reconfigured back to ad-hoc, the next relink produced a fresh Homebrew-linked binary while the old `Frameworks/` and `bundled-dylibs.tsv` stayed in the bundle: dylibs no one loads, with the wrong signatures. `verify-bundle.sh` caught it ("binary still links against Homebrew"), the app itself would have launched fine.
+
+**Fix:** the ad-hoc branch removes `Contents/Frameworks` and the manifest before signing (`cmake -E rm -rf`). General rule: any POST_BUILD step that adds things to the bundle needs a counterpart that clears them when the other mode runs, or the bundle's contents depend on build history.
+
+---
+
+## Homebrew license metadata is aggregate per package, and a keg may not ship the full text a license needs
+Tags: macos, licenses, homebrew, gpl, bundling, compliance
+Applies-when: generating third-party notices for dylibs bundled from Homebrew
+
+`brew info --json=v2` reports one SPDX expression per formula. For `flac` it lists BSD/GPL/LGPL/ISC/public-domain combined; the bundled `libFLAC` is only the Xiph BSD-style one (the keg's README and `format.h` header say so: libraries BSD-like, programs GPL/LGPL). For `gcc`, `libgcc_s`/`libgfortran` are GPL-3+ with the GCC Runtime Library Exception 3.1, but `libquadmath` is LGPL (its header says Library General Public License). The gcc keg's `COPYING` is GPLv2 and it has no GPLv3 text at all, so the notice has to point to Aurora's own GPLv3 LICENSE. Aurora-qy5.7 checked these against the shipped headers/READMEs, not upstream sites; not a legal review.
+
+**Fix:** `tools/mac/bundle-licenses.sh` copies every `LICENSE*/COPYING*/COPYRIGHT*/NOTICE*` from each keg, adds an "applies to what we bundle" note for the aggregate packages (flac, zstd, gcc), and fails when a keg has no license file. It runs before signing because files added after it invalidate the seal. Keep the per-package table in the script and re-verify it when versions change.

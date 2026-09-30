@@ -529,3 +529,13 @@ Applies-when: comparing a filed proposal against an alternative in code you have
 Aurora-zlw proposed moving the Mac tick loop to a worker thread; I first recommended a common-modes run-loop timer from the bead text alone, and only after reading `main.cpp`/`TrayIcon.hpp` found a header comment forbidding common modes (tao#1324) and that `[NSApp run]` is never called. The recommendation flipped. The bead's other premise, "Win32 needs the main thread too", had already been disproved by the Windows fix. Both the ticket and the first alternative were wrong in ways the code's comments recorded.
 
 **Fix:** before choosing between designs, read the affected files' header comments and grep for the constraint keywords of the alternative (here `CommonModes`, `run`, `pump`). Treat "I haven't read the code" as a reason to hedge in the recommendation, then check.
+
+---
+
+## A wrapper that sends a tool's stderr to /dev/null turns its one useful error into a silent failure
+Tags: debugging, shell, codesign, error-handling
+Applies-when: a script wraps codesign/install_name_tool/similar and only checks the exit code
+
+`bundle-dylibs.sh` ran `codesign ... >/dev/null 2>&1` (it was noisy on success: "replacing existing signature"). With a nonexistent identity the build stopped with a bare "Error 1" and no reason; the real message, `<identity>: no identity found`, was thrown away (Aurora-qy5.5). Suppressing on success is right; suppressing on failure is not.
+
+**Fix:** capture stderr to a temp file and print it only when the command fails (`sign() { codesign "$@" >/dev/null 2>"$WORK/err" || { cat "$WORK/err" >&2; exit 1; }; }`). Then test the negative path on purpose (a bogus identity) so the message is seen once before it's needed.
