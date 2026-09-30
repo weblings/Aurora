@@ -214,3 +214,13 @@ gated APIs, since ad-hoc signing's failure mode tends to be "silently
 denied/broken," not a clear error pointing at signing.
 
 ---
+
+---
+
+## macOS's temp dir is `$TMPDIR` (`/var/folders/...`), not `/tmp`; a hardcoded `/tmp` path silently misses it
+Tags: macos, tmpdir, config-root, scripts
+Applies-when: a script or doc hardcodes `/tmp/...` for a path the app derives from the platform temp dir (e.g. `--fresh`'s config root)
+
+`devstack.py` copied the zone map to `/tmp/aurora-fresh/profiles/` on non-Windows, following the Linux-shaped README. On Mac the app's `--fresh` root is `$TMPDIR/aurora-fresh`, so the copy landed in a directory the app never reads. Nothing errored; frames just never flowed (compounded by an unset input leaving the pipeline idle), so `up` only timed out. The app's own startup line (`Config root: ...`) had the true path all along.
+
+**Fix:** derive the path from the platform temp dir (`tempfile.gettempdir()`, `${TMPDIR:-/tmp}`), and when scripting against the app, read the path it logs rather than assuming it.
