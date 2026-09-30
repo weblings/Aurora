@@ -21,15 +21,17 @@
 // here refetches monitors right after -- this screen offers a single
 // "Auto (primary)" choice only for the brief window before that resolves.
 //
-// Audio has no sink-listing endpoint yet (a documented backend gap, see
-// step 11's writeup in WebUI/WebUI_Design_1stPass.md). Rather than a fake dropdown, this
-// offers a plain optional text field for `audioTargetSinkName`, shown only
-// when "linux-audio" is the registered audio input -- Windows audio always
-// uses the default device and has no such field at all.
+// Audio's sink list comes from GET /api/linux/audio-sinks (Aurora-67y
+// closed the "no sink-listing endpoint" gap step 11's writeup in
+// WebUI/WebUI_Design_1stPass.md documented) -- DeviceField renders it as a
+// dropdown with a System default entry, shown only when "linux-audio" is
+// the registered audio input. Windows audio always uses the default
+// device and has no such field at all.
 import { renderTopBar } from '../topBar.js';
 import { renderNavFooter } from '../NavFooter.js';
 import { DeviceField, AUTO_MONITOR_VALUE } from '../DeviceField.js';
 import { applyTooltip } from '../Tooltips.js';
+import { renderReloadError, parseMacPermissionError } from '../MacPermissionRecovery.js';
 
 export function pickVideoInputName(inputs, current) {
   if (current && current !== 'dummy' && inputs.includes(current)) return current;
@@ -61,6 +63,8 @@ export class ModeDeviceScreen {
     this.selectedMonitorName = AUTO_MONITOR_VALUE;
     this.sinkName = '';
     this.showSinkField = false;
+    this.audioSinkStatus = null;
+    this.platform = '';
     this.error = null;
     this.deviceField = null;
     this.applyPromise = null; // latest _applyMode run, if any -- Continue awaits it (see _onContinue)
@@ -95,6 +99,7 @@ export class ModeDeviceScreen {
 
     this.inputs = capabilities.inputs ?? [];
     this.audioInputs = capabilities.audioInputs ?? [];
+    this.platform = capabilities.platform ?? '';
     this.hasAudio = this.audioInputs.length > 0;
     this.showSinkField = this.audioInputs.includes('linux-audio');
 
@@ -111,6 +116,7 @@ export class ModeDeviceScreen {
       this.monitors = [];
     }
 
+    await this._refreshAudioSinkStatus();
     this._render();
 
     // Connects the default/current mode immediately on landing, rather than
@@ -151,7 +157,7 @@ export class ModeDeviceScreen {
       ? `<p class="status-text">Zones react together in Audio mode — there's no per-zone mapping step.</p>`
       : '';
 
-    const errorHtml = this.error ? `<p class="status-text status-text-error">⚠ ${escapeHtml(this.error)}</p>` : '';
+    const errorHtml = renderReloadError(this.error, this.platform);
 
     body.innerHTML = `
       ${toggleHtml}
@@ -174,6 +180,7 @@ export class ModeDeviceScreen {
       selectedMonitorName: this.selectedMonitorName,
       showSinkField: this.showSinkField,
       sinkName: this.sinkName,
+      audioSinkStatus: this.audioSinkStatus,
       onChange: (patch) => this._onDeviceFieldChange(patch),
     });
 
@@ -192,6 +199,15 @@ export class ModeDeviceScreen {
   // trap the user here: _applyMode already surfaces failures inline via
   // this.error, so navigate regardless and let the probe decide.
   async _onContinue() {
+    // The apply can take seconds (a mode switch rebuilds the pipeline
+    // server-side) -- show busy state while awaiting it, or the button
+    // reads as dead. No restore needed: the apply's own trailing _render
+    // rebuilds this footer fresh before navigation runs.
+    const button = this.container.querySelector('.nav-footer-continue');
+    if(button){
+      button.disabled = true;
+      button.textContent = 'Applying…';
+    }
     try {
       await this.applyPromise;
     } catch {
@@ -247,7 +263,13 @@ export class ModeDeviceScreen {
       if (!result.succeeded) {
         this.error = "Couldn't save capture settings.";
       } else if (result.reloadError) {
-        this.error = `Saved, but couldn't apply it live: ${result.reloadError}`;
+        // Kept raw (no "Saved, but..." framing) when it's the mac
+        // permission case -- renderReloadError() detects the prefix and
+        // shows its own guided text instead; framed here otherwise, same
+        // sentence as before.
+        this.error = (this.platform === 'mac' && parseMacPermissionError(result.reloadError))
+          ? result.reloadError
+          : `Saved, but couldn't apply it live: ${result.reloadError}`;
       } else if (this.mode === 'video') {
         this.currentActiveInputName = patch.activeInputName;
         // Now resolvable within this same screen visit, since the mode just
@@ -266,10 +288,35 @@ export class ModeDeviceScreen {
       this.error = "Couldn't reach the daemon.";
     }
 
+    // A sink edit just applied live (or failed to) -- re-read which sink
+    // the daemon actually settled on, so the "Using:" hint tracks it.
+    // Skipped on error: a failed apply leaves the old pipeline (and its
+    // last-known status) in place, and a per-keystroke failure shouldn't
+    // blank the hint and flap it back on the next keystroke.
+    if (!this.error && this.mode === 'audio') {
+      await this._refreshAudioSinkStatus();
+    }
+
     this._render();
   }
-}
 
-function escapeHtml(s) {
-  return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  // One-shot read of GET /api/linux/audio-status for the DeviceField hint
+  // (Aurora-4vf) -- this screen has no poll loop (unlike DashboardScreen),
+  // so callers refresh after mount and after each successful audio apply.
+  // Nulls out off Linux/audio or on any failure; the field then falls back
+  // to its legacy no-list hint rather than showing something stale.
+  async _refreshAudioSinkStatus() {
+    if (this.platform !== 'linux' || this.mode !== 'audio') {
+      this.audioSinkStatus = null;
+      return;
+    }
+    try {
+      const result = await (await fetch('/api/linux/audio-status')).json();
+      this.audioSinkStatus = (result && typeof result.sinkName === 'string')
+        ? { followingDefault: result.followingDefault === true, sinkName: result.sinkName }
+        : null;
+    } catch {
+      this.audioSinkStatus = null;
+    }
+  }
 }

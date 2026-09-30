@@ -140,6 +140,20 @@ function testRouter(seed) {
   assert.deepEqual(r.json.channels, [{ channelId: 'front-left', lightNames: ['Front Left'] }]);
 }
 
+// Audio sinks answer the DeviceField dropdown probe with name+description
+// pairs (Aurora-67y); copies isolate HTTP readers like the monitors route.
+{
+  const r = testRouter({})('GET', '/api/linux/audio-sinks');
+  assert.equal(r.status, 200);
+  assert.ok(Array.isArray(r.json.sinks) && r.json.sinks.length > 0, 'demo ships at least one sink');
+  for (const s of r.json.sinks) {
+    assert.equal(typeof s.name, 'string', 'sink carries a node name');
+    assert.equal(typeof s.description, 'string', 'sink carries a description');
+  }
+  r.json.sinks[0].name = 'mutated';
+  assert.notEqual(testRouter({})('GET', '/api/linux/audio-sinks').json.sinks[0].name, 'mutated', 'responses are copies');
+}
+
 // Unknown routes 404 instead of falling through to native fetch shapes.
 {
   const r = testRouter({})('GET', '/api/nope');
