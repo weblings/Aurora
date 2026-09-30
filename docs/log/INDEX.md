@@ -55,3 +55,4 @@ Planning docs stay clean: decisions, status, and pointers here only.
 | 2026-09-29 | AGENTS.md never pointed at docs/README.md's Id:/`[[id]]` convention; fixed 5 dead docs/BrowserAnalysis.md citers it missed, added a fixed repo-wide-grep step to the reorg checklist | Aurora-6wg |
 | 2026-09-29 | UpstreamFindings.md and docs/WebUI/ moved into docs/planning/ (owner-requested, against genre-based root/own-bucket calls from the 2026-09-28 pass); WebUI's existing Id:s needed no changes, only bare-path citers fixed | Aurora-7pk |
 | 2026-09-29 | Windows tray on its own thread (menu no longer freezes pipeline; Mac half open); light-viz-stack devstack.py + skill | Aurora-anw, Aurora-zlw, Aurora-dp2, Aurora-df4, Aurora-beh |
+| 2026-09-29 | light-viz-stack verified on Mac: config root is $TMPDIR not /tmp, Mac needs an input set (dummy); flags/relay/bridge wiring confirmed, zone map not | Aurora-df4 |

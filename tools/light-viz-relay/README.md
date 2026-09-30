@@ -61,8 +61,10 @@ $env:AURORA_DEV_LIGHT_TAP="1"; .\build\windows-app\bin\Release\Aurora.exe --fake
 # 4. Room-quadrant zone map (else all 4 zones default to full-frame UVs
 #    and show identical colors). --fresh clears its temp root at startup,
 #    so place this AFTER launching the app, BEFORE pairing in the WebUI:
-mkdir -p /tmp/aurora-fresh/profiles
-cp tools/fake-hue-bridge/room-4zone-zonemap.json /tmp/aurora-fresh/profiles/hue.json
+# (Mac: the root is $TMPDIR/aurora-fresh, not /tmp -- the app logs "Config root:")
+R=${TMPDIR:-/tmp}/aurora-fresh
+mkdir -p "$R/profiles"
+cp tools/fake-hue-bridge/room-4zone-zonemap.json "$R/profiles/hue.json"
 ```
 
 5. Serve `web/demo/` (`python3 -m http.server`, any port if 8000 is taken),

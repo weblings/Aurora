@@ -144,15 +144,14 @@ def _start(args, app, env, pids):
     STATE_FILE.write_text(json.dumps(pids))
     port = wait_for(find_webui, "the app's WebUI port (8215+)")
     # --fresh wipes the config root at startup, so the zone map goes in AFTER launch.
-    root = Path(tempfile.gettempdir()) / "aurora-fresh" if WIN else Path("/tmp/aurora-fresh")
+    root = Path(tempfile.gettempdir()) / "aurora-fresh"  # app logs "Config root:"; $TMPDIR on Mac
     (root / "profiles").mkdir(parents=True, exist_ok=True)
     shutil.copy(REPO / "tools/fake-hue-bridge/room-4zone-zonemap.json", root / "profiles/hue.json")
     # Pairing via REST instead of the WebUI. Note PUT (not POST) for /api/config.
     base = f"http://127.0.0.1:{port}"
     http("POST", base + "/api/hue/connection", CONNECTION)
     cfg = {"activeOutputNames": ["hue"], "nuxCompleted": True}
-    if WIN:
-        cfg["activeInputName"] = "windows"
+    cfg["activeInputName"] = "windows" if WIN else "dummy"
     http("PUT", base + "/api/config", cfg)
     frame = wait_for(one_frame, "a frame on the relay SSE", 40)
     print(f"UP. WebUI {base}/  viz http://localhost:{args.viz_port}/viz.html")

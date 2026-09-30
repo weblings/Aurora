@@ -23,6 +23,11 @@ viz URL (`http://localhost:8000/viz.html`). Options: `--app PATH` (default is
 `build/<platform>-app/...`, must already be built), `--viz-port`. Logs and
 pids live in `<tmp>/aurora-devstack`.
 
+Once `up` succeeds, hand the user the viz URL (and the WebUI URL) so they can
+open it, and leave the stack running until they are done; run `down` only
+afterwards. An agent that cannot open a browser should not stop there: confirm
+frames on the SSE endpoint yourself.
+
 ## What the script encodes (do these by hand if you must)
 
 1. Order: bridge, relay, app, zone map, viz server. `--fresh` wipes the
@@ -31,7 +36,8 @@ pids live in `<tmp>/aurora-devstack`.
    in after the app is up.
 2. Frames did not flow until output was activated: `PUT` (not POST)
    `/api/config` `{"activeOutputNames":["hue"],"nuxCompleted":true}` (plus
-   `"activeInputName":"windows"` on Windows), after `POST /api/hue/connection`
+   `"activeInputName":"windows"` on Windows, `"dummy"` on Mac, where an unset
+   input leaves the pipeline idle by design), after `POST /api/hue/connection`
    with the fake credentials (`tools/light-viz-relay/README.md`, "On Windows").
 3. Serve `web/demo/` with a `ThreadingHTTPServer` with
    `request_queue_size = 256`, never plain `http.server` (5-slot backlog
@@ -51,6 +57,12 @@ pids live in `<tmp>/aurora-devstack`.
 
 ## Status
 
-Verified end to end on Windows only. The Mac/Linux paths (`/tmp/aurora-fresh`
-root, default binary paths, input name left unset) follow the README but are
-untested with this script; fix the script and this note if they differ.
+Verified end to end on Windows and Mac (2026-09-29). Mac differences the
+script now handles: the config root is `$TMPDIR/aurora-fresh` (not
+`/tmp/aurora-fresh`; the app logs "Config root:"), and with no input set no
+frames flow, so it sets `activeInputName` to `dummy` (synthetic signal;
+Windows uses `windows`). `dummy` gives the same colour on all
+4 zones, so it proves the chain but not the zone map; for per-zone colours use
+`"activeInputName":"mac"` (triggers a Screen Recording prompt). `validate.py
+passthrough` needs its own launch (tap address env), not this stack. Linux is
+still untested.
