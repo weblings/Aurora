@@ -519,3 +519,13 @@ While a hardened-runtime test stalled with no frames, `~/Library/Logs/Diagnostic
 
 **Fix:** before attributing a failure to a crash report, compare its timestamp, pid and `procPath` with the live process (`pgrep`, `date`). Same binary name, same day is not the same run, especially when you have just produced expected crashes yourself.
 
+
+---
+
+## Grep the code for its own recorded constraints before recommending a design; a bead's proposal and a fresh idea can both be wrong
+Tags: debugging, design, verification, comments
+Applies-when: comparing a filed proposal against an alternative in code you haven't read yet
+
+Aurora-zlw proposed moving the Mac tick loop to a worker thread; I first recommended a common-modes run-loop timer from the bead text alone, and only after reading `main.cpp`/`TrayIcon.hpp` found a header comment forbidding common modes (tao#1324) and that `[NSApp run]` is never called. The recommendation flipped. The bead's other premise, "Win32 needs the main thread too", had already been disproved by the Windows fix. Both the ticket and the first alternative were wrong in ways the code's comments recorded.
+
+**Fix:** before choosing between designs, read the affected files' header comments and grep for the constraint keywords of the alternative (here `CommonModes`, `run`, `pump`). Treat "I haven't read the code" as a reason to hedge in the recommendation, then check.

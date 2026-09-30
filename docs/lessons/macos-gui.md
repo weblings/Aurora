@@ -275,3 +275,23 @@ Applies-when: you need evidence that a bundled app is self-contained and you hav
 
 **Fix:** treat it as a strong approximation, not a substitute for a Homebrew-free machine. Record the profile, the sanity check and the control result together.
 
+
+---
+
+## NSMenu tracking blocks the pumping thread inside `-sendEvent:`, and a common-modes timer is not the fix here; move the tick loop, not the tray
+Tags: macos, appkit, nsmenu, threading, runloop, tick-loop
+Applies-when: an app that shares one thread between AppKit's event pump and a real-time loop shows a stall while a status-item or context menu is open
+
+Holding the status-item menu froze frame delivery for exactly as long as it was open (Aurora-zlw). `[NSApp sendEvent:]` for the click enters NSMenu's tracking loop, nested and blocking, and returns only when the menu closes, so a `tick(); sleep_until(); pump();` loop can't tick. The Windows equivalent (`TrackPopupMenuEx`) was fixed by moving the *tray* to its own thread, but AppKit requires the main thread for the status item and menu, so on Mac the tick loop is what moves. The tempting single-thread alternative, a `CFRunLoopTimer` in `kCFRunLoopCommonModes` so ticks fire inside tracking mode, is ruled out by `TrayIcon.hpp`: registering anything in common modes breaks menu tracking (tao-apps/tao#1324), and the app never calls `[NSApp run]`, so it would also mean reworking the pump that Apple Events (qps.7 reopen) depend on.
+
+**Fix:** tick loop on an RAII-joined worker thread (exception captured and rethrown on main), main runs `pump(timeout)` in a loop, `g_stopRequested` becomes `std::atomic<bool>`, main joins the worker and then calls `pipelineHost.shutdown()` so shutdown order is unchanged. Nothing else needed to change: `PipelineHost`'s mutex already covered `reload()` on the HTTP thread, SCStream delivers on its own dispatch queue, and only `TrayIcon.mm` touches AppKit. The worker calls `cancelMenuTracking()` (dispatch to the main queue, `[menu cancelTracking]`) on exit so a stop from `/api/stop` or SIGINT can't leave main blocked in an open menu; the Windows analog is `WM_CANCELMODE`. That `/api/stop`-with-menu-open path was not exercised separately in the Aurora-zlw session.
+
+---
+
+## An agent shell can't open a status-item menu on Mac; capture the stall with a human click and a timestamp script
+Tags: macos, verification, accessibility, system-events, testing
+Applies-when: you need to reproduce or verify menu-open behaviour on Mac from a non-interactive/dev shell
+
+`osascript` driving System Events to click the status item failed with `Not authorized to send Apple events to System Events (-1743)`: the calling process has no Accessibility/Automation grant, and one can't be given from that shell. Windows' `traygap.py` avoids this by posting the tray window message directly; AppKit has no equivalent public route to open an `NSStatusItem` menu from outside the process.
+
+**Fix:** `tools/light-viz-relay/traygap_mac.py` records SSE frame timestamps for a window, prompts for a manual click-and-hold, then reports every gap over 0.25s and PASS/FAIL. Keep the measurement automatic and only the click manual. (Aurora-zlw was closed on live user confirmation; the script's own gap numbers were not captured.)
