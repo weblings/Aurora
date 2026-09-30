@@ -62,3 +62,4 @@ Planning docs stay clean: decisions, status, and pointers here only.
 | 2026-09-30 | Mac cert prep without a cert: sign-notarize.sh (dry-run only), notarization plist keys + 14.2 target + verify-bundle.sh, configurable signing identity, bundled license texts; dylibs still need macOS 27 | Aurora-qy5.3, Aurora-qy5.4, Aurora-qy5.5, Aurora-qy5.7 |
 | 2026-09-30 | Audio sink dropdown (enumeration endpoint, lazy DeviceField dropdown, loop-timer dead end filed as lesson; resolves 4xq for UI users) | Aurora-67y |
 | 2026-09-30 | Sink dropdown fetch rework (enter+open loads, diff gate, Refresh/hint/label removal, trigger resync; 1.0.4 bump; AirPods bluez5-off diagnosis) | Aurora-apn |
+| 2026-09-30 | Node-graph pipeline planning pass (React Flow decision, node inventory, UX/tooltips, live preview + fail states, YOLO/motion stretch scope); NaN-into-Color::fromHSV UB found and filed | Aurora-9ca |

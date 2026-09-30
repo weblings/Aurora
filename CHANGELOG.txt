@@ -1,4 +1,9 @@
 v1.0.4:
+- Mac - Full GUI parity (signed) TODO
+- Linux - Audio devices selection now a dropdown
+- Windows - Fix - Tray menu and frame transmission now on separate threads
+- Dev - docs reorganized and now connected by links
+- Dev - Fake light viz agent skill added
 
 v1.0.3:
 - Mac - Experimental terminal support added. Supports video and audio pipelines. You must compile a build on your machine. Grant permissions it requests, then quit and relaunch Aurora. GUI Launching and Tray UX will come in 1.0.4
