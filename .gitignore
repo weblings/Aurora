@@ -57,6 +57,17 @@ desktop.ini
 local/
 .local/
 
+# Apple signing/notarization material (Aurora-8mk.10). Keys and certs live in
+# the keychain; these are a backstop against an exported file landing in the repo.
+*.p8
+*.p12
+*.pfx
+*.cer
+*.certSigningRequest
+*.mobileprovision
+*.keychain
+*.keychain-db
+
 # --- Generated test output (golden-value / visual-diff fixtures) ---
 # Input fixtures stay tracked; only generated comparison output is ignored.
 **/test-output/
