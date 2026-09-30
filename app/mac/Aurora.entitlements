@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <!-- Hardened-runtime entitlements for Aurora.app (Aurora-qy5.2).
+         Only what was shown to be needed; keep this list minimal. Not sandboxed,
+         no JIT, no mic (Mac audio input does not exist yet), so nothing else. -->
+
+    <!-- STOPGAP: the app links Homebrew dylibs (ad-hoc, no Team ID), which the
+         hardened runtime's library validation rejects. Remove this once
+         Aurora-qy5.6 bundles the dylibs and app + dylibs are signed with one
+         Developer ID Team ID, then validation passes with no entitlement. -->
+    <key>com.apple.security.cs.disable-library-validation</key>
+    <true/>
+</dict>
+</plist>

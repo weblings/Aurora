@@ -245,3 +245,13 @@ TCC attributes the Screen Recording request to the *responsible process*, which 
 
 **Fix:** when capture is silent and the process is alive, check which app is responsible for the launch and grant *that* app Screen Recording (restart the stack after). Don't chase the pipeline code first.
 
+---
+
+## `plutil -lint` accepts an entitlements file that `codesign` rejects; a `--` inside an XML comment is enough
+Tags: macos, codesign, entitlements, plist, amfi
+Applies-when: writing or hand-editing an `.entitlements` (or any plist codesign parses), especially with comments
+
+`app/mac/Aurora.entitlements` linted OK with `plutil -lint`, but `codesign --entitlements` failed with `Failed to parse entitlements: AMFIUnserializeXML: syntax error near line 12`. The culprit was a `--` used as a dash inside an XML comment, which is illegal XML that plutil tolerates and AMFI's stricter parser does not. Worse, the failed `codesign` left the *previous* signature in place, so the launch test that followed still ran and "passed" against a binary that never got the entitlements.
+
+**Fix:** no `--` inside XML comments in plists codesign reads. After signing, confirm the result actually took (`codesign -d --entitlements - <app>` shows the keys, `codesign -dvv` shows the `runtime` flag) before trusting any launch test, and run the negative case (same signing without the entitlement fails) so the test can distinguish the two.
+
