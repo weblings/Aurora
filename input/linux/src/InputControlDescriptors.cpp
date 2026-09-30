@@ -6,7 +6,7 @@ namespace Aurora::Input::Linux
   {
     return {
       {"input.monitor", "dropdown", "Which display to capture"},
-      {"input.sink", "text", "Audio source to react to"},
+      {"input.sink", "dropdown", "Audio source to react to"},
     };
   }
 }

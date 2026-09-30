@@ -52,6 +52,7 @@
 #endif
 #ifdef AURORA_INPUT_LINUX_AUDIO_AVAILABLE
 #include <Aurora/Input/Linux/AudioGrabber.hpp>
+#include <Aurora/Input/Linux/AudioSinkList.hpp>
 #endif
 
 #ifdef AURORA_OUTPUT_HUE_IO_AVAILABLE
@@ -697,6 +698,37 @@ namespace
   }
 
 
+  // Linux-only sibling of /api/linux/audio-status (Aurora-67y): the live
+  // PipeWire Audio/Sink list backing the DeviceField audio dropdown.
+  // Unlike audio-status this takes no pipeline lock -- enumeration opens
+  // its own short-lived PipeWire connection, independent of whatever
+  // pipeline (if any) is running, so it works in any mode. Without audio
+  // support compiled in it reports an empty list, and the WebUI falls
+  // back to its System-default-only dropdown.
+  void registerAudioSinksRoute(
+    Aurora::Network::Http::Server::HttpServer& httpServer
+  )
+  {
+    httpServer.addRoute(
+      Aurora::Network::Http::Server::HttpMethod::Get,
+      "/api/linux/audio-sinks",
+      [](const Aurora::Network::Http::Server::Request&, Aurora::Network::Http::Server::Response& res){
+        nlohmann::json list = nlohmann::json::array();
+#ifdef AURORA_INPUT_LINUX_AUDIO_AVAILABLE
+        for(const auto& sink : Aurora::Input::Linux::enumerateAudioSinks()){
+          list.push_back({
+            {"name", sink.name},
+            {"description", sink.description}
+          });
+        }
+#endif
+        res.contentType = "application/json";
+        res.body = nlohmann::json{{"sinks", list}}.dump();
+      }
+    );
+  }
+
+
   // Manual escape hatch alongside PUT /api/config's automatic funnel-through
   // (e.g. "re-scan" after plugging in a monitor, with no field actually
   // changed).
@@ -981,6 +1013,7 @@ if(!instanceLock.held()){
   );
   registerMonitorsRoute(httpServer, pipelineHost);
   registerAudioStatusRoute(httpServer, pipelineHost);
+  registerAudioSinksRoute(httpServer);
   registerReloadRoute(httpServer, pipelineHost, registry, configRoot);
   registerStopRoute(httpServer);
   Aurora::Runtime::registerZoneRoutes(

@@ -55,3 +55,4 @@ Planning docs stay clean: decisions, status, and pointers here only.
 | 2026-09-29 | AGENTS.md never pointed at docs/README.md's Id:/`[[id]]` convention; fixed 5 dead docs/BrowserAnalysis.md citers it missed, added a fixed repo-wide-grep step to the reorg checklist | Aurora-6wg |
 | 2026-09-29 | UpstreamFindings.md and docs/WebUI/ moved into docs/planning/ (owner-requested, against genre-based root/own-bucket calls from the 2026-09-28 pass); WebUI's existing Id:s needed no changes, only bare-path citers fixed | Aurora-7pk |
 | 2026-09-29 | Linux audio sink status (Using-hint endpoint, fresh-config factory fix, bogus-falls-back-to-default surprise; 4xq + 67y filed as follow-ups) | Aurora-4vf, Aurora-4xq, Aurora-67y |
+| 2026-09-30 | Audio sink dropdown (enumeration endpoint, lazy DeviceField dropdown, loop-timer dead end filed as lesson; resolves 4xq for UI users) | Aurora-67y |

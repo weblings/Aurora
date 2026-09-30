@@ -171,6 +171,13 @@ const DEMO_MONITORS = [
   { id: 0, name: 'Demo Display', width: 1920, height: 1080, refreshRate: 60, isPrimary: true },
 ];
 
+// Demo sink list (Aurora-67y): mirrors GET /api/linux/audio-sinks'
+// [{name, description}] shape so the ported DeviceField audio dropdown
+// populates in audio mode instead of hitting unknown_route.
+const DEMO_AUDIO_SINKS = [
+  { name: 'demo_output.analog-stereo', description: 'Demo Audio Analog Stereo' },
+];
+
 export function createRouter(store, hooks = {}) {
   const ok = (json, status = 200) => ({ status, json });
 
@@ -201,6 +208,9 @@ export function createRouter(store, hooks = {}) {
     }
     if (method === 'GET' && path === '/api/monitors') {
       return ok({ monitors: DEMO_MONITORS.map((m) => ({ ...m })) });
+    }
+    if (method === 'GET' && path === '/api/linux/audio-sinks') {
+      return ok({ sinks: DEMO_AUDIO_SINKS.map((s) => ({ ...s })) });
     }
     if (method === 'GET' && path === '/api/zones') {
       return ok(store.getZones());

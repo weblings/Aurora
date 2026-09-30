@@ -77,7 +77,10 @@ if(AURORA_INPUT_LINUX_ENABLE_AUDIO)
   find_package(PkgConfig REQUIRED)
   pkg_check_modules(PIPEWIRE REQUIRED IMPORTED_TARGET libpipewire-0.3)
 
-  target_sources(AuroraInputLinux PRIVATE src/AudioGrabber.cpp)
+  target_sources(AuroraInputLinux PRIVATE
+    src/AudioGrabber.cpp
+    src/AudioSinkList.cpp
+  )
   target_compile_definitions(AuroraInputLinux PUBLIC AURORA_INPUT_LINUX_AUDIO_AVAILABLE=1)
   target_link_libraries(AuroraInputLinux PUBLIC PkgConfig::PIPEWIRE)
 endif()

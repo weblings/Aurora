@@ -4,6 +4,7 @@
 #include <thread>
 #include <vector>
 
+#include <Aurora/Input/Linux/AudioSinkList.hpp>
 #include <Aurora/Input/Linux/AudioSinkStatus.hpp>
 #include <Aurora/Input/Linux/GamescopeNodeMatch.hpp>
 #include <Aurora/Input/Linux/IRestoreTokenStore.hpp>
@@ -146,6 +147,58 @@ TEST_CASE("makeAudioSinkStatus reports unknown when default resolution found not
 
   CHECK(status.followingDefault);
   CHECK(status.sinkName.empty());
+}
+
+
+TEST_CASE("matchAudioSinkNode accepts Audio/Sink nodes with name and description", "[AudioGrabber][sink-list]")
+{
+  // Aurora-67y: the live shape from pw-dump -- media.class Audio/Sink
+  // plus node.name (the audioTargetSinkName value) and node.description
+  // (the dropdown's human-readable label).
+  auto sink = matchAudioSinkNode(
+    true, "Audio/Sink",
+    "alsa_output.pci-0000_00_1f.3.analog-stereo",
+    "Built-in Audio Analog Stereo"
+  );
+
+  REQUIRE(sink.has_value());
+  CHECK(sink->name == "alsa_output.pci-0000_00_1f.3.analog-stereo");
+  CHECK(sink->description == "Built-in Audio Analog Stereo");
+}
+
+
+TEST_CASE("matchAudioSinkNode rejects non-sink globals", "[AudioGrabber][sink-list]")
+{
+  // Sources, video nodes, and non-Node interfaces are never capture
+  // targets for a sink monitor dropdown.
+  CHECK_FALSE(matchAudioSinkNode(true, "Audio/Source", "alsa_input.usb-mic", "USB Mic").has_value());
+  CHECK_FALSE(matchAudioSinkNode(true, "Video/Source", "v4l2_input.webcam", "Webcam").has_value());
+  CHECK_FALSE(matchAudioSinkNode(false, "Audio/Sink", "alsa_output.pci", "Built-in").has_value());
+}
+
+
+TEST_CASE("matchAudioSinkNode rejects class-less clock nodes and nameless globals", "[AudioGrabber][sink-list]")
+{
+  // Dummy-Driver / Freewheel-Driver carry no media.class at all, and a
+  // daemon with no session manager answers queries with only those --
+  // matching on the class (not mere presence) keeps them out of the
+  // list. A sink with no node.name is unselectable, so it's out too.
+  CHECK_FALSE(matchAudioSinkNode(true, nullptr, "Dummy-Driver", nullptr).has_value());
+  CHECK_FALSE(matchAudioSinkNode(true, "Audio/Sink", nullptr, "No name").has_value());
+  CHECK_FALSE(matchAudioSinkNode(true, "Audio/Sink", "", "Empty name").has_value());
+}
+
+
+TEST_CASE("matchAudioSinkNode keeps sinks with no description, leaving the fallback to the caller", "[AudioGrabber][sink-list]")
+{
+  // node.description is optional on the wire -- the dropdown falls back
+  // to the node name for the label, so the helper passes the empty
+  // through instead of dropping a selectable sink.
+  auto sink = matchAudioSinkNode(true, "Audio/Sink", "bluez_output.headset", nullptr);
+
+  REQUIRE(sink.has_value());
+  CHECK(sink->name == "bluez_output.headset");
+  CHECK(sink->description.empty());
 }
 
 

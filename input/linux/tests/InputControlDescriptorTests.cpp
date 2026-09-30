@@ -24,9 +24,9 @@ TEST_CASE("linuxInputControlDescriptors covers the device UI with unique keys", 
     return false;
   };
 
-  // Monitor picker (video) + PipeWire sink field (audio).
+  // Monitor picker (video) + PipeWire sink dropdown (audio, Aurora-67y).
   CHECK(has("input.monitor", "dropdown"));
-  CHECK(has("input.sink", "text"));
+  CHECK(has("input.sink", "dropdown"));
 
   // Authored copy everywhere -- placeholders must not ship.
   for(const auto& descriptor : descriptors){
