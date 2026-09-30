@@ -462,3 +462,21 @@ so a late quit can't hit a destroyed loop), then join and report empty.
 General principle: when a wait needs a bound on a PipeWire loop, prefer the
 thread+quit shape already proven in this repo over a loop timer -- the
 timer API's failure mode here was silent data loss, not an error.
+
+---
+
+## Bluetooth "Connected" is not an audio transport -- check the bluez5 profile, not the link
+Tags: input, audio, bluetooth, pipewire, wireplumber, linux
+Applies-when: a paired and connected Bluetooth device exposes no PipeWire nodes
+
+AirPods Pro showed `Connected: yes` in bluetoothctl with full A2DP
+UUIDs and a bluez5 Device in `wpctl status`, yet PipeWire exposed zero
+nodes for them: `wpctl inspect` showed `bluez5.profile = "off"` and
+`api.bluez5.connection = "disconnected"` -- the baseband/BLE link was
+up with no A2DP transport acquired, so sink enumeration (correctly)
+listed only the built-in sink.
+
+**Fix:** select the device in Sound settings (or `wpctl set-profile`)
+to acquire the transport, then re-check `wpctl status` Sinks. General
+principle: layer the question -- bluetoothctl answers the radio link,
+only the bluez5 profile answers whether audio exists.

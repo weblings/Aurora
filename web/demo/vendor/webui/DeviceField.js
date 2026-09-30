@@ -6,8 +6,10 @@
 // method; callers rebuild a new instance when mode/props change.
 //
 // The audio sink list (GET /api/linux/audio-sinks, Aurora-67y) loads
-// lazily on first dropdown open plus an explicit Refresh -- never on
-// render and never on DashboardScreen's 5s audio-status poll.
+// on entering audio mode and refreshes on every dropdown open; the
+// menu only re-renders when the option rows actually differ, so
+// steady-state opens show no flicker or cursor jump. Never on
+// DashboardScreen's 5s audio-status poll (Aurora-apn).
 import { Dropdown } from './Dropdown.js';
 import { applyTooltip } from './Tooltips.js';
 
@@ -26,24 +28,30 @@ async function defaultLoadAudioSinks() {
 }
 
 export function sinkOptionLabel(sink) {
-  if (sink.description && sink.description !== sink.name) return `${sink.description} — ${sink.name}`;
-  return sink.name;
+  // Description only (the node name stays the option value) -- the
+  // "Description — node.name" pair read as clutter in the menu.
+  return sink.description || sink.name;
+}
+
+// Shallow row comparison for the open-refresh diff gate: label, value,
+// and selected all feed the rendered menu, so all three must match to
+// skip the setOptions rebuild.
+export function sinkOptionsEqual(a, b) {
+  if (a.length !== b.length) return false;
+  return a.every((o, i) => o.label === b[i].label && o.value === b[i].value && o.selected === b[i].selected);
 }
 
 export class DeviceField {
   // onChange receives { selectedMonitorName } in video mode or
   // { sinkName } in audio mode, whichever this field can actually change.
-  // audioSinkStatus is { followingDefault, sinkName } from
-  // GET /api/linux/audio-status, or null when unknown (fetch failed, old
-  // daemon, not capturing) -- null hides the Using-hint, not the dropdown.
-  constructor(container, { mode, monitors = [], selectedMonitorName = AUTO_MONITOR_VALUE, showSinkField = false, sinkName = '', audioSinkStatus = null, loadAudioSinks = defaultLoadAudioSinks, onChange }) {
+  constructor(container, { mode, monitors = [], selectedMonitorName = AUTO_MONITOR_VALUE, showSinkField = false, sinkName = '', loadAudioSinks = defaultLoadAudioSinks, onChange }) {
     this.container = container;
     this.onChange = onChange;
     this.dropdown = null;
     this._destroyed = false;
 
     if (mode === 'video') this._renderVideo(monitors, selectedMonitorName);
-    else this._renderAudio(showSinkField, sinkName, audioSinkStatus, loadAudioSinks);
+    else this._renderAudio(showSinkField, sinkName, loadAudioSinks);
   }
 
   _renderVideo(monitors, selectedMonitorName) {
@@ -81,26 +89,23 @@ export class DeviceField {
     this.dropdown.setOptions(options);
   }
 
-  _renderAudio(showSinkField, sinkName, audioSinkStatus, loadAudioSinks) {
+  _renderAudio(showSinkField, sinkName, loadAudioSinks) {
     if (!showSinkField) {
       this.container.innerHTML = `<p class="status-text">Uses your system's default audio device.</p>`;
       return;
     }
 
     this._sinkName = sinkName;
-    this._audioSinkStatus = audioSinkStatus;
     this._loadAudioSinks = loadAudioSinks;
-    this._sinks = null; // null until the first open/refresh loads them
+    this._sinks = null; // null until the entering-audio load lands
     this._sinksLoading = false;
-    this._sinksFailed = false;
+    this._appliedOptions = []; // last rows handed to setOptions (diff gate)
 
     this.container.innerHTML = `
       <div class="field">
-        <label class="field-label" id="device-field-sink-label">Audio device (optional)</label>
+        <label class="field-label" id="device-field-sink-label">Audio device</label>
         <div id="device-field-sink-dropdown-slot"></div>
       </div>
-      <button type="button" class="btn-link" id="device-field-sink-refresh">Refresh device list</button>
-      <div id="device-field-sink-hint"></div>
     `;
 
     const options = this._sinkOptions();
@@ -114,23 +119,30 @@ export class DeviceField {
         // Stash before notifying: a later refresh rebuilds options from
         // this, and must keep the new pick selected, not the ctor prop.
         this._sinkName = value;
+        // Keep the diff-gate snapshot in sync (Dropdown._commit mutates
+        // its own option objects, not this copy).
+        this._appliedOptions = this._appliedOptions.map((o) => ({ ...o, selected: o.value === value }));
         this.onChange?.({ sinkName: value });
       },
       { labelId: 'device-field-sink-label', fill: true, tooltipKey: 'input.sink' },
     );
     this.dropdown.setOptions(options);
+    this._appliedOptions = options.map((o) => ({ ...o }));
 
-    // Lazy load on first open: every open path (trigger click, Enter /
-    // Space / arrows, programmatic toggle) funnels through openMenu, so
-    // one wrap covers them all with no per-path listeners.
+    // Refresh on every open: hotplugged sinks appear on the next open.
+    // Every open path (trigger click, Enter / Space / arrows,
+    // programmatic toggle) funnels through openMenu, so one wrap covers
+    // them all with no per-path listeners.
     const baseOpen = this.dropdown.openMenu.bind(this.dropdown);
     this.dropdown.openMenu = () => {
       baseOpen();
-      this._ensureSinksLoaded();
+      this._reloadSinks();
     };
 
-    this.container.querySelector('#device-field-sink-refresh').addEventListener('click', () => this._reloadSinks());
-    this._renderSinkHint();
+    // Populate on entering audio mode; the openMenu wrap above refreshes
+    // on every open. Fire-and-forget: the _destroyed guard drops the
+    // trailing redraw if the field is rebuilt before it lands.
+    this._reloadSinks();
   }
 
   _sinkOptions() {
@@ -152,56 +164,33 @@ export class DeviceField {
     return options;
   }
 
-  async _ensureSinksLoaded() {
-    if (this._sinks !== null || this._sinksLoading) return;
-    await this._reloadSinks();
-  }
-
   async _reloadSinks() {
     if (this._sinksLoading) return;
     this._sinksLoading = true;
-    this._sinksFailed = false;
-    this._renderSinkHint();
     try {
       const sinks = await this._loadAudioSinks();
       if (this._destroyed) return;
       this._sinks = sinks;
     } catch {
       if (this._destroyed) return;
-      this._sinksFailed = true;
       // A refresh failure keeps the previously loaded options (a
-      // first-load failure keeps System-default-only + persisted).
+      // first-load failure keeps System-default-only + persisted); the
+      // next open retries silently.
     } finally {
       this._sinksLoading = false;
     }
-    this.dropdown.setOptions(this._sinkOptions());
-    this._renderSinkHint();
-  }
-
-  _renderSinkHint() {
-    const slot = this.container.querySelector('#device-field-sink-hint');
-    if (!slot) return;
-
-    // The resolved name is hint text only, never written into the input --
-    // writing it would persist into audioTargetSinkName on save and pin the
-    // sink, breaking follow-the-default (Aurora-4vf, via Aurora-u1u).
-    let usingHtml = '';
-    if (this._audioSinkStatus && this._audioSinkStatus.sinkName) {
-      const name = escapeHtml(this._audioSinkStatus.sinkName);
-      usingHtml = this._audioSinkStatus.followingDefault
-        ? `<p class="status-text">Using: ${name} (system default). Pick a device above to use a different one.</p>`
-        : `<p class="status-text">Using sink: ${name}. Pick System default above to follow the system default.</p>`;
+    // Diff gate: identical rows skip the rebuild, so steady-state opens
+    // show no flicker or keyboard-cursor jump.
+    const next = this._sinkOptions();
+    if (!sinkOptionsEqual(this._appliedOptions, next)) {
+      this._appliedOptions = next.map((o) => ({ ...o }));
+      this.dropdown.setOptions(next);
+      // setOptions rebuilds the menu rows but leaves the trigger label
+      // alone -- without this it keeps showing the raw persisted node
+      // name it was constructed with before the list landed.
+      const sel = next.find((o) => o.selected) ?? next[0];
+      this.dropdown.setTriggerLabel(sel.label);
     }
-
-    let loadHtml = '';
-    if (this._sinksLoading) {
-      loadHtml = `<p class="status-text">Loading device list…</p>`;
-    } else if (this._sinksFailed && this._sinks === null) {
-      loadHtml = `<p class="status-text">Couldn't load the device list — System default still works.</p>`;
-    } else if (this._sinks !== null && this._sinks.length === 0) {
-      loadHtml = `<p class="status-text">No audio devices found — System default still works.</p>`;
-    }
-    slot.innerHTML = `${usingHtml}${loadHtml}`;
   }
 
   // Call before discarding an instance (e.g. before a full-container
@@ -212,8 +201,4 @@ export class DeviceField {
     this.dropdown?.destroy();
     this.dropdown = null;
   }
-}
-
-function escapeHtml(s) {
-  return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
