@@ -10,9 +10,11 @@
 // evolve further.
 
 #include <algorithm>
+#include <atomic>
 #include <chrono>
 #include <cstdlib>
 #include <filesystem>
+#include <future>
 #include <iostream>
 #include <mutex>
 #include <sstream>
@@ -62,7 +64,9 @@
 
 namespace
 {
-  volatile bool g_stopRequested = false;
+  // Written from the console handler, the HTTP thread, and the tray thread,
+  // read by the tick loop -- must be atomic, not volatile.
+  std::atomic<bool> g_stopRequested{false};
 
   // Console-close/Ctrl+C handler -- Windows has no SIGINT/SIGTERM, this is
   // the console-app equivalent (services would need a different mechanism).
@@ -794,54 +798,42 @@ LRESULT CALLBACK trayWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam);
 class TrayIcon
 {
 public:
+  // Aurora-zlw: the tray owns its own thread -- windows, notification icon
+  // and message loop all live there. TrackPopupMenuEx runs a modal loop that
+  // blocks its calling thread until the menu closes; on the tick-loop thread
+  // that froze the whole pipeline while a menu was open. (Win32 window
+  // affinity is per creating thread, not "the main thread", so unlike
+  // AppKit this needs no change to the tick loop.) The constructor blocks
+  // until the thread has finished setup and rethrows its failure, so
+  // callers see the same throw-on-window-failure contract as before.
   explicit TrayIcon(const std::string& url, bool webUiBound)
     : m_url(url),
       m_webUiBound(webUiBound)
   {
-    const std::string tip = std::string("Aurora - ")
-      + (m_webUiBound ? m_url : std::string("WebUI unavailable"));
-    HINSTANCE instance = GetModuleHandleA(nullptr);
-    WNDCLASSEXA cls{};
-    cls.cbSize = sizeof(cls);
-    cls.lpfnWndProc = trayWndProc;
-    cls.hInstance = instance;
-    cls.lpszClassName = "AuroraTrayWindow";
-    RegisterClassExA(&cls);
-    m_window = CreateWindowExA(0, "AuroraTrayWindow", "Aurora", 0,
-      0, 0, 0, 0, HWND_MESSAGE, nullptr, instance, nullptr);
-    // 7l1.5: shutdown delivery. Session-ending broadcasts go to top-level
-    // windows only -- the HWND_MESSAGE tray window above never receives them
-    // (docs/lessons/windows-env.md). Never shown; destroyed with the tray.
-    m_sessionWindow = CreateWindowExA(0, "AuroraTrayWindow", "AuroraShutdown", 0,
-      0, 0, 0, 0, nullptr, nullptr, instance, nullptr);
-    if(!m_window){
-      throw std::runtime_error("Cannot create tray message window");
+    // Retrieve the future before moving the promise into the thread -- the
+    // Aurora-nzd bug class (get_future on a moved-from promise).
+    std::promise<DWORD> ready;
+    std::future<DWORD> readyFuture = ready.get_future();
+    m_thread = std::thread([this, ready = std::move(ready)]() mutable { run(std::move(ready)); });
+    try{
+      m_threadId = readyFuture.get();
     }
-    SetWindowLongPtrA(m_window, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(this));
-    m_icon.cbSize = sizeof(m_icon);
-    m_icon.hWnd = m_window;
-    m_icon.uID = 1;
-    m_icon.uFlags = NIF_ICON | NIF_TIP | NIF_MESSAGE;
-    m_icon.uCallbackMessage = WM_TRAYICON;
-    m_icon.hIcon = LoadIconA(instance, MAKEINTRESOURCEA(IDI_ICON1));
-    std::snprintf(m_icon.szTip, sizeof(m_icon.szTip), "%s", tip.c_str());
-    m_added = Shell_NotifyIconA(NIM_ADD, &m_icon) != FALSE;
-    if(!m_added){
-      logLine("No notification area -- running without tray icon");
+    catch(...){
+      m_thread.join();
+      throw;
     }
   }
 
   ~TrayIcon()
   {
-    if(m_added){
-      Shell_NotifyIconA(NIM_DELETE, &m_icon);
-    }
-    if(m_sessionWindow){
-      DestroyWindow(m_sessionWindow);
-    }
-    if(m_window){
-      DestroyWindow(m_window);
-    }
+    // A thread-posted WM_QUIT is not seen while TrackPopupMenuEx's modal loop
+    // is running, so a Stop from elsewhere (HTTP, Ctrl+C) with a menu open
+    // would hang here. WM_CANCELMODE dismisses the menu; the queued WM_QUIT
+    // is then picked up by the message loop. Teardown (NIM_DELETE,
+    // DestroyWindow) happens on the tray thread, which owns those handles.
+    PostThreadMessageA(m_threadId, WM_QUIT, 0, 0);
+    SendMessageTimeoutA(m_window, WM_CANCELMODE, 0, 0, SMTO_ABORTIFHUNG, 2000, nullptr);
+    m_thread.join();
   }
 
   // Right-click menu (x2o.2): Launch UI opens the bound URL, Stop sets
@@ -903,6 +895,66 @@ public:
   TrayIcon& operator=(const TrayIcon&) = delete;
 
 private:
+  // Tray thread body. Sets up, signals the constructor, pumps messages until
+  // WM_QUIT, then tears down on this same thread.
+  void run(std::promise<DWORD> ready)
+  {
+    const std::string tip = std::string("Aurora - ")
+      + (m_webUiBound ? m_url : std::string("WebUI unavailable"));
+    HINSTANCE instance = GetModuleHandleA(nullptr);
+    WNDCLASSEXA cls{};
+    cls.cbSize = sizeof(cls);
+    cls.lpfnWndProc = trayWndProc;
+    cls.hInstance = instance;
+    cls.lpszClassName = "AuroraTrayWindow";
+    RegisterClassExA(&cls);
+    m_window = CreateWindowExA(0, "AuroraTrayWindow", "Aurora", 0,
+      0, 0, 0, 0, HWND_MESSAGE, nullptr, instance, nullptr);
+    if(!m_window){
+      ready.set_exception(std::make_exception_ptr(
+        std::runtime_error("Cannot create tray message window")));
+      return;
+    }
+    // 7l1.5: shutdown delivery. Session-ending broadcasts go to top-level
+    // windows only -- the HWND_MESSAGE tray window above never receives them
+    // (docs/lessons/windows-env.md). Never shown; destroyed with the tray.
+    m_sessionWindow = CreateWindowExA(0, "AuroraTrayWindow", "AuroraShutdown", 0,
+      0, 0, 0, 0, nullptr, nullptr, instance, nullptr);
+    SetWindowLongPtrA(m_window, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(this));
+    m_icon.cbSize = sizeof(m_icon);
+    m_icon.hWnd = m_window;
+    m_icon.uID = 1;
+    m_icon.uFlags = NIF_ICON | NIF_TIP | NIF_MESSAGE;
+    m_icon.uCallbackMessage = WM_TRAYICON;
+    m_icon.hIcon = LoadIconA(instance, MAKEINTRESOURCEA(IDI_ICON1));
+    std::snprintf(m_icon.szTip, sizeof(m_icon.szTip), "%s", tip.c_str());
+    m_added = Shell_NotifyIconA(NIM_ADD, &m_icon) != FALSE;
+    if(!m_added){
+      logLine("No notification area -- running without tray icon");
+    }
+
+    // Force this thread's message queue into existence so the destructor's
+    // PostThreadMessage(WM_QUIT) cannot be lost, then release the constructor.
+    MSG msg;
+    PeekMessageA(&msg, nullptr, WM_USER, WM_USER, PM_NOREMOVE);
+    ready.set_value(GetCurrentThreadId());
+
+    while(GetMessageA(&msg, nullptr, 0, 0) > 0){
+      TranslateMessage(&msg);
+      DispatchMessageA(&msg);
+    }
+
+    if(m_added){
+      Shell_NotifyIconA(NIM_DELETE, &m_icon);
+    }
+    if(m_sessionWindow){
+      DestroyWindow(m_sessionWindow);
+    }
+    DestroyWindow(m_window);
+  }
+
+  std::thread m_thread;
+  DWORD m_threadId{0};
   HWND m_window{nullptr};
   HWND m_sessionWindow{nullptr};
   NOTIFYICONDATAA m_icon{};
@@ -1170,13 +1222,6 @@ if(!instanceLock.held()){
     pipelineHost.tick();
     auto tickInterval = std::chrono::duration<double>(pipelineHost.tickIntervalSeconds());
     std::this_thread::sleep_until(tickStart + std::chrono::duration_cast<std::chrono::steady_clock::duration>(tickInterval));
-    // Pump the tray message-only window (x2o.2 needs it);
-    // no-op when the queue is empty.
-    MSG msg;
-    while(PeekMessageA(&msg, nullptr, 0, 0, PM_REMOVE)){
-      TranslateMessage(&msg);
-      DispatchMessageA(&msg);
-    }
   }
 
   logLine("Stopping...");

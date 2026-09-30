@@ -1,0 +1,56 @@
+---
+name: light-viz-stack
+description: Bring up / tear down the fake-Hue light viz stack (fake bridge, relay, Aurora, viz page) — use when you need a running app streaming frames without Hue hardware, e.g. to validate pipeline behavior, tray/tick-loop bugs, or the viz tool. Windows, Mac, Linux.
+allowed-tools: Bash, Read
+---
+
+# Light viz stack
+
+Plain `Aurora.exe` / `Aurora` is NOT enough: the stack is fake bridge +
+relay + app launched with `--fake-hue --fresh` and `AURORA_DEV_LIGHT_TAP=1`
++ a viz web server. Use the script, don't hand-assemble it.
+
+```sh
+py tools/light-viz-relay/devstack.py up      # Windows (python3 on Mac/Linux)
+py tools/light-viz-relay/devstack.py status
+py tools/light-viz-relay/devstack.py down    # always tear down when done
+```
+
+`up` starts everything, drops in the 4-zone zone map, sets the fake
+connection and active output over REST, and waits for a frame on the SSE
+(`http://127.0.0.1:18245/events`). It prints the WebUI URL (port 8215+) and
+viz URL (`http://localhost:8000/viz.html`). Options: `--app PATH` (default is
+`build/<platform>-app/...`, must already be built), `--viz-port`. Logs and
+pids live in `<tmp>/aurora-devstack`.
+
+## What the script encodes (do these by hand if you must)
+
+1. Order: bridge, relay, app, zone map, viz server. `--fresh` wipes the
+   config root at startup, so the zone map (`tools/fake-hue-bridge/
+   room-4zone-zonemap.json` -> `<tmp>/aurora-fresh/profiles/hue.json`) goes
+   in after the app is up.
+2. Frames did not flow until output was activated: `PUT` (not POST)
+   `/api/config` `{"activeOutputNames":["hue"],"nuxCompleted":true}` (plus
+   `"activeInputName":"windows"` on Windows), after `POST /api/hue/connection`
+   with the fake credentials (`tools/light-viz-relay/README.md`, "On Windows").
+3. Serve `web/demo/` with a `ThreadingHTTPServer` with
+   `request_queue_size = 256`, never plain `http.server` (5-slot backlog
+   resets viz.html's module fetches; `docs/lessons/build-toolchain.md`).
+4. Windows: `py` not `python3`; `fake_bridge.py` needs `openssl`
+   (`C:\Program Files\Git\usr\bin`).
+5. The app log can be empty (stdout buffering); find the WebUI port by
+   probing `/api/hue/connection` on 8215+, not from the log.
+
+## Checks
+
+- Frames all near-black/dark gray just means a dark screen; put something
+  bright on it. `PUT /api/config {"activeInputName":"dummy"}` gives a
+  drifting synthetic signal without depending on the screen.
+- No frames: check `app.log` in the state dir, then `tools/light-viz-relay/
+  README.md` Troubleshooting.
+
+## Status
+
+Verified end to end on Windows only. The Mac/Linux paths (`/tmp/aurora-fresh`
+root, default binary paths, input name left unset) follow the README but are
+untested with this script; fix the script and this note if they differ.

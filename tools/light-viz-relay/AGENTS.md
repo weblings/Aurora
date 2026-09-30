@@ -4,6 +4,8 @@ Dev-only UDP-to-SSE relay for the standalone three.js viz tool. Standalone
 Python, no build step.
 
 - Run: `python3 relay.py` (stdlib only, no deps to install).
+- Full stack (bridge + relay + app + viz): use `devstack.py up|status|down` or the
+  `light-viz-stack` skill; do not hand-assemble it.
 - Self-check: `python3 check.py` (stdlib only) -- run before finishing.
 - Do NOT add a `CMakeLists.txt` or wire this into the root superbuild or
   any preset; it must stay out of shipped builds -- same rule as

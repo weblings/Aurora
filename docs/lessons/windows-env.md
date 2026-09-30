@@ -226,3 +226,14 @@ Applies-when: writing a dev/test tool with a UDP (or TCP) reader thread that a m
 `tools/light-viz-relay/validate.py frame` printed PASS but exited 9 with `Fatal Python error: _enter_buffered_busy ... at interpreter shutdown, possibly due to daemon threads`. `FrameReader.stop()` set its flag and then `sock.close()`d while the daemon reader thread sat in `recvfrom()` (0.2s timeout); on Windows that raises `OSError` in the thread, not `socket.timeout`, so the loop's `except socket.timeout` missed it and the traceback was printing as the interpreter tore down. It never showed on Linux/Mac. Same class as the earlier LockFileEx lesson: a POSIX-tolerated pattern with a Windows-specific failure mode. The same class also named its stop flag `_stop`, which shadows `threading.Thread._stop`; that was not shown to fail here, but it makes `join()` unsafe to add.
 
 **Fix:** set the flag, `join(timeout=...)` (the recv timeout bounds the wait), then close; flag renamed `_halt`. Re-run: PASS, exit 0. General principle: stop a blocked-reader thread by letting it exit its loop, never by pulling the socket out from under it -- and judge a tool run by its exit code, not just its printed verdict.
+
+
+---
+
+## TrackPopupMenuEx freezes any work loop sharing its thread; give the tray its own thread, and dismiss the menu before WM_QUIT
+Tags: windows, tray, win32, threading, menu, shutdown
+Applies-when: a Win32 tray/menu message loop shares a thread with a real-time work loop, or a tray thread must be stopped while a menu may be open
+
+`TrackPopupMenuEx` runs a modal loop and does not return until the menu closes, so pumping tray messages from the tick loop stalled the whole pipeline while a menu was open (Aurora-zlw; measured 0 SSE frames during a 5s hold). Win32 window affinity is per creating thread, not "the main thread" (unlike AppKit), so the fix is to move the tray, not the tick loop: `TrayIcon` owns a thread that creates both windows, adds the icon, and runs `GetMessage`; the constructor blocks on a future for setup. Second trap: a `PostThreadMessage(WM_QUIT)` is not seen while the menu's modal loop runs, so stopping from elsewhere (HTTP `/api/stop`, Ctrl+C) with a menu open hung the join forever.
+
+**Fix:** destructor posts `WM_QUIT` and then `SendMessageTimeout(WM_CANCELMODE)` to the tray window to dismiss the menu; teardown (`NIM_DELETE`, `DestroyWindow`) stays on the tray thread. Stop flag shared across threads must be `std::atomic`, not `volatile`. Verified with `tools/light-viz-relay/traygap.py` (posts the tray callback, holds the menu, reports frame gaps): 147 frames/5s, max gap 0.06s. General principle: a stop-with-menu-open test finds the hang a hold-the-menu test cannot.
