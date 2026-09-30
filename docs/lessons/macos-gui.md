@@ -325,3 +325,23 @@ Applies-when: generating third-party notices for dylibs bundled from Homebrew
 `brew info --json=v2` reports one SPDX expression per formula. For `flac` it lists BSD/GPL/LGPL/ISC/public-domain combined; the bundled `libFLAC` is only the Xiph BSD-style one (the keg's README and `format.h` header say so: libraries BSD-like, programs GPL/LGPL). For `gcc`, `libgcc_s`/`libgfortran` are GPL-3+ with the GCC Runtime Library Exception 3.1, but `libquadmath` is LGPL (its header says Library General Public License). The gcc keg's `COPYING` is GPLv2 and it has no GPLv3 text at all, so the notice has to point to Aurora's own GPLv3 LICENSE. Aurora-qy5.7 checked these against the shipped headers/READMEs, not upstream sites; not a legal review.
 
 **Fix:** `tools/mac/bundle-licenses.sh` copies every `LICENSE*/COPYING*/COPYRIGHT*/NOTICE*` from each keg, adds an "applies to what we bundle" note for the aggregate packages (flac, zstd, gcc), and fails when a keg has no license file. It runs before signing because files added after it invalidate the seal. Keep the per-package table in the script and re-verify it when versions change.
+
+---
+
+## `codesign` with a keychain key prompts once per signature until the key is authorized once; a multi-file signing script looks like a password loop
+Tags: macos, codesign, keychain, developer-id, bundling, agent-workflow
+Applies-when: running a script that signs many files (bundle-dylibs.sh, sign-notarize.sh) with a freshly created Developer ID key, especially from an agent session where the dialog appears on the user's screen
+
+The first real-identity run of `sign-notarize.sh` signs 29 Mach-O files. Each `codesign` call asks for access to the private key in the login keychain, and clicking plain Allow authorizes only that call. The user saw the same "login keychain password" dialog over and over, read it as a wrong password, and interrupted the run twice (Aurora-qy5 cert prep). After one throwaway sign with **Always Allow**, the same script ran to the dry-run line with no prompts. Whether the password itself was ever rejected was not established.
+
+**Fix:** before the first multi-file signing run, have the user sign one scratch file in their own terminal (`cp /bin/ls "$TMPDIR/sigtest" && codesign --force -s "<identity>" "$TMPDIR/sigtest"`) and choose Always Allow. Say this up front when launching such a script from an agent, so a burst of dialogs isn't mistaken for a failure. If the password really is refused, the login keychain password has drifted from the account password; change it in Keychain Access, and do not use Reset My Default Keychain, which deletes the signing key and the notarytool profile.
+
+---
+
+## Check signing credentials with the tools' own read-only commands before the first real run; identity names are not what a person would type
+Tags: macos, codesign, notarytool, developer-id, verification
+Applies-when: wiring up a new Developer ID certificate or notarytool keychain profile, or about to pass `--identity` / `--keychain-profile` to sign-notarize.sh
+
+The identity string was `Developer ID Application: ANDREW BUTE GWINNER (464U3WR286)`: legal name with the middle name, in capitals, plus the Team ID. `security find-identity -v -p codesigning` showed 0 identities until the certificate was created through Xcode (Settings > Accounts > Manage Certificates), which also creates the private key, and 1 afterwards. `xcrun notarytool history --keychain-profile <name>` failed with "No Keychain password item found for profile" after a first `store-credentials` attempt that had not saved anything (cause not captured), and listed an empty history, exit 0, after the second. An empty list is the pass result for a new account; nothing has been submitted yet.
+
+**Fix:** copy the identity from `find-identity` output rather than composing it, and treat `notarytool history` as the credential smoke test. Then run `sign-notarize.sh --dry-run` with the real identity: it exercises signing, `codesign --verify --strict` and `verify-bundle.sh` on all 29 files without contacting Apple, so the first upload is not also the first test of the signing path.

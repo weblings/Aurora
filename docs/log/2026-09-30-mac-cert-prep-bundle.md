@@ -18,7 +18,7 @@ Closed: Aurora-qy5.3, Aurora-qy5.4, Aurora-qy5.5, Aurora-qy5.7 (children of epic
 
 ## Not verified / open
 
-- Real Developer ID signing and notarization, including everything after the dry-run line of sign-notarize.sh (`notarytool submit`, staple, spctl, the notary-log-on-failure path): written, never executed; the `disable-library-validation` entitlement stays until it is proven removable with one Team ID.
+- Real Developer ID signing and notarization, including everything after the dry-run line of sign-notarize.sh (`notarytool submit`, staple, spctl, the notary-log-on-failure path): written; the dry-run path ran with a real identity later the same day (see [2026-09-30 Developer ID first signing](2026-09-30-mac-developer-id-first-signing.md)), the notarize/staple steps have still never executed; the `disable-library-validation` entitlement stays until it is proven removable with one Team ID.
 - Bundled dylibs need macOS 27 (27 of 28 report minos 27.0), so the bundle only runs on 27+ despite the 14.2 plist; follow-up bead filed under Aurora-qy5. verify-bundle prints a WARN.
 - flac/gcc license applicability checked against the kegs' headers/READMEs, not upstream sites; not a legal review.
 - qy5.5 was closed with `--force` (bd showed it blocked by qy5.4, the sign-notarize script, still open).
