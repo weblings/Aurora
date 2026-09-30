@@ -2,63 +2,22 @@
 
 Id: mac-tray-parity
 
-Status: active — Aurora-qps epic, 5/7 children closed. Full build history
+Status: active — Aurora-qps epic. qps.6 (SMAppService spike) dropped and
+qps.5 (first-run notification) superseded by qps.8 (open). Full build history
 (qps.1-.4, .7) is [[mac-tray-parity-history]]; this doc only tracks what's
 still open.
 
-## Aurora-qps.6 — free Personal Team signing spike (SMAppService feasibility)
+## Aurora-qps.8 — Mac-only NUX tip screen (open)
 
-Deliberately low priority and not blocking anything else: neither Windows
-nor Linux ship launch-at-login today (Linux's XDG-autostart equivalent,
-Aurora-lx4.1, is still open; Windows has no bead for it at all), so Mac
-doing `SMAppService` now would leapfrog both shipped platforms rather than
-catch up to them. Kept open only to resolve the signing question raised
-in the 2026-09-28 investigation, not because it's scoped for near-term
-work.
+Replaces the first-run notification: after Welcome, on Mac only, show
+`MacTray.gif` (moving into `web/ui/`) with Mac-specific wording; Continue
+proceeds. Findings and file-level plan are on the bead. Why not a
+notification: it worked only for a notarized build run from an ordinary
+apps folder, needs a permission dialog, and would fire once
+(`docs/log/2026-09-30-mac-first-run-notification-spike.md`).
 
-Research found ad-hoc signing is genuinely unreliable for `SMAppService`
-(no stable designated requirement across rebuilds), but a completely free
-Apple ID "Personal Team" in Xcode gets a real, stable, Team-ID-backed
-certificate — per Apple DTS/TN3127 guidance, this is the documented fix
-for "unstable code identity" problems, and doesn't require the $99
-Developer Program. The commonly-cited 7-day Personal Team
-provisioning-profile expiry looks like it doesn't apply here: macOS only
-needs a provisioning profile for *restricted* entitlements, and Aurora's
-mac target has none — so the certificate's own ~1-year validity likely
-governs instead, same order of magnitude free or paid. Unconfirmed
-empirically for this app specifically. The $99 Developer ID remains
-relevant only for notarization/distribution ([[mac-notarization]]), not
-for this.
-
-**Next step, not yet done:** install full Xcode (not just the CLT), sign
-in with an Apple ID for the free Personal Team "Apple Development" cert,
-re-sign the bundle with it instead of ad-hoc. Confirm `codesign -d -r-`
-(designated requirement) is identical across two separate rebuilds — the
-actual test of "stable identity," not just "did it sign." Then attempt
-`SMAppService.mainApp.register()` and a real (non-provisional)
-notification. Log out and back in (not just relaunch — login items need
-an actual login event) to confirm Aurora actually starts. Check System
-Settings → Login Items shows an accurate entry, watching for the
-`.notFound`-despite-registered status gotcha found in research.
-
-## Aurora-qps.5 — first-run discoverability (UNUserNotificationCenter, Windows-balloon analog)
-
-Blocked on `Aurora-qps.6` landing a stable Personal Team (or Developer
-ID) signing identity — [[mac-tray-parity-history]] has the full spike
-that found this dependency (a categorical block on ad-hoc-signed apps
-ever obtaining `UserNotifications` authorization, not a rebuild-instability
-risk a reset works around).
-
-**Next step, not yet done:** once `qps.6` lands a stable identity, re-run
-the same spike (`requestAuthorizationWithOptions:UNAuthorizationOptionProvisional`
-on a fresh bundle id, check granted/error, confirm via
-`getDeliveredNotificationsWithCompletionHandler` rather than asking a
-human to look) against a properly-signed bundle first, to confirm the
-identity is what actually unblocks it before writing any real `TrayIcon.mm`
-code. Only once confirmed: implement the sentinel-gated first-run
-notification (mirroring Windows' `x2o.3` "tray-balloon.seen"
-sentinel-in-config-root pattern), decide provisional (silent) vs. full
-alert (needs a visible dialog acceptance) once signing is sorted.
+**Dropped:** qps.6 (launch-at-login is out of scope; Windows/Linux don't
+ship it) and qps.5 (superseded above).
 
 ## Related, not part of this epic
 

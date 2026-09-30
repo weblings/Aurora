@@ -545,3 +545,13 @@ Applies-when: a script wraps codesign/install_name_tool/similar and only checks 
 `bundle-dylibs.sh` ran `codesign ... >/dev/null 2>&1` (it was noisy on success: "replacing existing signature"). With a nonexistent identity the build stopped with a bare "Error 1" and no reason; the real message, `<identity>: no identity found`, was thrown away (Aurora-qy5.5). Suppressing on success is right; suppressing on failure is not.
 
 **Fix:** capture stderr to a temp file and print it only when the command fails (`sign() { codesign "$@" >/dev/null 2>"$WORK/err" || { cat "$WORK/err" >&2; exit 1; }; }`). Then test the negative path on purpose (a bogus identity) so the message is seen once before it's needed.
+
+---
+
+## Two online sources that say the same thing may be one claim; trace the wording before counting them as corroboration
+Tags: research, verification, sources, debugging
+Applies-when: a bead, lesson or plan says research "independently confirmed" something, especially a platform-API restriction cited from issue trackers or blog posts
+
+The UserNotifications bead said independent research turned up "UNUserNotificationCenter will not register an app without a valid signature and stable bundle identity." The same sentence, nearly word for word, appeared in a GitHub issue proposing a fix it had not tried, and other write-ups said the opposite (ad-hoc bundles post fine, grant keyed on bundle ID). Eight probes on a real machine (Aurora-qps.5) showed the truth was narrower and different: signing alone did nothing; a notarized build in an ordinary apps folder got the permission request.
+
+**Fix:** when a claim drives a plan, search a distinctive phrase from it and see whether the "sources" share an origin; prefer a source that reports what it tried over one that proposes what to try. When sources conflict, run the smallest real probe before building, and write the plan's premise as unverified until one has run.
