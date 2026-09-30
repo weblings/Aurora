@@ -59,3 +59,4 @@ Planning docs stay clean: decisions, status, and pointers here only.
 | 2026-09-29 | light-viz-stack verified on Mac: config root is $TMPDIR not /tmp, Mac needs an input set (dummy); flags/relay/bridge wiring confirmed, zone map not | Aurora-df4 |
 | 2026-09-30 | Audio sink dropdown (enumeration endpoint, lazy DeviceField dropdown, loop-timer dead end filed as lesson; resolves 4xq for UI users) | Aurora-67y |
 | 2026-09-30 | Sink dropdown fetch rework (enter+open loads, diff gate, Refresh/hint/label removal, trigger resync; 1.0.4 bump; AirPods bluez5-off diagnosis) | Aurora-apn |
+| 2026-09-30 | Node-graph pipeline planning pass (React Flow decision, node inventory, UX/tooltips, live preview + fail states, YOLO/motion stretch scope); NaN-into-Color::fromHSV UB found and filed | Aurora-9ca |
