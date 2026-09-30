@@ -118,9 +118,9 @@ done
 [ "$bad" = 0 ] || { echo "verification failed" >&2; exit 1; }
 
 # sign inside-out: dylibs first, then the app (install_name_tool invalidated the old signature)
-if [ "$IDENTITY" = "-" ]; then TS="--timestamp=none"; else TS="--timestamp"; fi
-for f in "$FW"/*.dylib; do codesign --force --options runtime $TS --sign "$IDENTITY" "$f" >/dev/null 2>&1; done
-ARGS=(--force --options runtime $TS --sign "$IDENTITY"); [ -z "$ENTITLEMENTS" ] || ARGS+=(--entitlements "$ENTITLEMENTS")
+if [ "$IDENTITY" = "-" ]; then TS=(--timestamp=none); else TS=(--timestamp); fi
+for f in "$FW"/*.dylib; do codesign --force --options runtime "${TS[@]}" --sign "$IDENTITY" "$f" >/dev/null 2>&1; done
+ARGS=(--force --options runtime "${TS[@]}" --sign "$IDENTITY"); [ -z "$ENTITLEMENTS" ] || ARGS+=(--entitlements "$ENTITLEMENTS")
 codesign "${ARGS[@]}" "$APP" >/dev/null 2>&1
 codesign --verify --strict "$APP"
-echo "bundled $(ls "$FW"/*.dylib | wc -l | tr -d ' ') dylibs into $FW ($(du -sh "$FW" | cut -f1)); manifest: $MANIFEST"
+echo "bundled $(find "$FW" -name '*.dylib' | wc -l | tr -d ' ') dylibs into $FW ($(du -sh "$FW" | cut -f1)); manifest: $MANIFEST"

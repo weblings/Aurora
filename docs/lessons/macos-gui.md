@@ -265,3 +265,13 @@ The first bundling prototype rewrote every direct dependency to `@rpath/...`, ad
 
 **Fix:** delete every existing `LC_RPATH` (`otool -l | awk '/LC_RPATH/...'` then `install_name_tool -delete_rpath`) and add only the bundle-relative one, and verify by *behaviour*: run a copy signed without the hardened runtime under `DYLD_PRINT_LIBRARIES=1` and count libs loaded from the bundle vs `/opt/homebrew` (DYLD_* variables are stripped under the hardened runtime, so the check needs the non-hardened copy). Better still, run on a machine without the libraries.
 
+---
+
+## `sandbox-exec` with a deny profile is a cheap way to prove an app doesn't need a directory (e.g. Homebrew), but only with a negative control
+Tags: macos, sandbox-exec, verification, bundling, homebrew
+Applies-when: you need evidence that a bundled app is self-contained and you have no clean Mac or VM to test on
+
+`sandbox-exec -f deny.sb <binary>` with `(version 1)(allow default)(deny file-read* (subpath "/opt/homebrew"))` runs the app with reads under Homebrew refused, enforcing the check where `DYLD_PRINT_LIBRARIES` only observes it. The bundled Aurora.app launched and served; the unbundled build aborted in dyld on its first Homebrew library. Two things make it trustworthy: first confirm the profile bites (`sandbox-exec -f deny.sb /bin/ls /opt/homebrew/lib` -> "Operation not permitted"), and run the unbundled build as a control so a pass can't be a profile that denies nothing. It hides only what the profile names (not a clean Mac), the tool is deprecated, and it usually needs `(allow default)` so the app can otherwise run.
+
+**Fix:** treat it as a strong approximation, not a substitute for a Homebrew-free machine. Record the profile, the sanity check and the control result together.
+
