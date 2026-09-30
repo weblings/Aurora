@@ -98,21 +98,25 @@ if ls "$APP/Contents/Frameworks/"*.dylib >/dev/null 2>&1; then
 fi
 
 # ---- minimum OS -----------------------------------------------------------
+# Compare as three-component versions: sort -V ranks "27.0" above "27", so a
+# plist floor of "27" would otherwise look lower than a binary with minos 27.0.
+vn() { printf '%s' "$1" | awk -F. '{printf "%d.%d.%d", $1, $2+0, $3+0}'; }
+vle() { [ "$(printf '%s\n%s\n' "$(vn "$1")" "$(vn "$2")" | sort -V | tail -1)" = "$(vn "$2")" ]; }  # $1 <= $2
 declared="$(pl LSMinimumSystemVersion)"
 maxmin="0"
 while IFS= read -r f; do
   [ -n "$f" ] || continue
   m="$(vtool -show-build "$f" 2>/dev/null | awk '/minos/{print $2; exit}')"
   [ -n "$m" ] || continue
-  [ "$(printf '%s\n%s\n' "$m" "$maxmin" | sort -V | tail -1)" = "$m" ] && maxmin="$m"
+  vle "$m" "$maxmin" || maxmin="$m"
 done <<< "$machos"
 main_min="$(vtool -show-build "$main_exe" 2>/dev/null | awk '/minos/{print $2; exit}')"
 if [ -n "$declared" ] && [ -n "$main_min" ]; then
-  [ "$main_min" = "$declared" ] || [ "$(printf '%s\n%s\n' "$main_min" "$declared" | sort -V | tail -1)" = "$declared" ] \
+  vle "$main_min" "$declared" \
     && ok "main binary minos $main_min <= LSMinimumSystemVersion $declared" \
     || bad "main binary needs macOS $main_min but Info.plist declares $declared"
 fi
-if [ "$maxmin" != "0" ] && [ -n "$declared" ] && [ "$(printf '%s\n%s\n' "$maxmin" "$declared" | sort -V | tail -1)" != "$declared" ]; then
+if [ "$maxmin" != "0" ] && [ -n "$declared" ] && ! vle "$maxmin" "$declared"; then
   warn "bundle needs macOS $maxmin (highest minos of any Mach-O) but Info.plist declares $declared: it will not launch on macOS $declared..$maxmin. Bundled Homebrew dylibs are built for the host OS."
 fi
 
