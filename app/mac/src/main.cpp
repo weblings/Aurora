@@ -8,9 +8,11 @@
 // a persisted pairing flow, same as app/linux.
 
 #include <algorithm>
+#include <atomic>
 #include <chrono>
 #include <csignal>
 #include <cstdlib>
+#include <exception>
 #include <filesystem>
 #include <iostream>
 #include <mutex>
@@ -54,11 +56,14 @@
 
 namespace
 {
-  volatile std::sig_atomic_t g_stopRequested = 0;
+  // Written from the signal handler, HTTP thread and tray callback; read by
+  // the main and tick threads. Lock-free, so signal-safe (Aurora-zlw).
+  std::atomic<bool> g_stopRequested{false};
+  static_assert(std::atomic<bool>::is_always_lock_free);
 
   void handleStopSignal(int)
   {
-    g_stopRequested = 1;
+    g_stopRequested = true;
   }
 
 
@@ -711,7 +716,7 @@ namespace
       [](const Aurora::Network::Http::Server::Request&, Aurora::Network::Http::Server::Response& res){
         res.contentType = "application/json";
         res.body = nlohmann::json{{"succeeded", true}}.dump();
-        g_stopRequested = 1;
+        g_stopRequested = true;
       }
     );
   }
@@ -993,24 +998,52 @@ try
   // docs/MacSupport.md.
   Aurora::App::TrayIcon trayIcon(url, webUiBound,
     [&]{ openWebBrowser(url); },
-    []{ g_stopRequested = 1; });
+    []{ g_stopRequested = true; });
 
   // Drives whichever Pipeline is current at the top of each iteration -- a
   // reload swapping it mid-loop is exactly what PipelineHost's own lock is
   // for; this loop never needs to know a swap happened.
+  //
+  // Own thread (Aurora-zlw): NSMenu tracking blocks inside trayIcon.pump()
+  // for as long as the menu is open, and AppKit requires the main thread for
+  // that pump, so the tick loop is what moves. Any exception is captured and
+  // rethrown on the main thread, and cancelMenuTracking() on the way out
+  // guarantees a stop that didn't come from the menu (/api/stop, SIGINT)
+  // can't leave main blocked in a menu the user hasn't dismissed.
+  std::exception_ptr tickError;
+  std::thread tickThread([&]{
+    try{
+      while(!g_stopRequested){
+        auto tickStart = std::chrono::steady_clock::now();
+        pipelineHost.tick();
+        auto tickInterval = std::chrono::duration<double>(pipelineHost.tickIntervalSeconds());
+        std::this_thread::sleep_until(tickStart + std::chrono::duration_cast<std::chrono::steady_clock::duration>(tickInterval));
+      }
+    }
+    catch(...){
+      tickError = std::current_exception();
+      g_stopRequested = true;
+    }
+    trayIcon.cancelMenuTracking();
+  });
+
+  // std::thread::~thread() would std::terminate() if this scope unwound
+  // (e.g. pump() throwing) with the thread joinable.
+  struct TickThreadJoiner
+  {
+    std::thread& thread;
+    ~TickThreadJoiner(){ g_stopRequested = true; if(thread.joinable()){ thread.join(); } }
+  } tickThreadJoiner{tickThread};
+
+  // Main thread: AppKit's pump only. The timeout bounds how long a stop
+  // request that didn't wake AppKit (SIGINT, /api/stop) waits to be seen.
   while(!g_stopRequested){
-    auto tickStart = std::chrono::steady_clock::now();
-    pipelineHost.tick();
-    auto tickInterval = std::chrono::duration<double>(pipelineHost.tickIntervalSeconds());
-    std::this_thread::sleep_until(tickStart + std::chrono::duration_cast<std::chrono::steady_clock::duration>(tickInterval));
-    // Pump the status item's run loop (x2o's Windows precedent:
-    // PeekMessage/DispatchMessage each iteration); no-op when nothing's
-    // queued. Placed after the sleep, not before, so a click during the
-    // sleep gets serviced promptly rather than waiting a full tick.
-    trayIcon.pump();
+    trayIcon.pump(0.1);
   }
 
   std::cout << "Stopping...\n";
+  tickThread.join();
+  if(tickError){ std::rethrow_exception(tickError); }
   pipelineHost.shutdown();
 
   // httpServerThread stops and joins the WebUI in its destructor as this

@@ -16,9 +16,10 @@
 // there's no promise/future handoff to get wrong -- the class of bug
 // Aurora-nzd hit on Linux (a std::promise moved into a worker thread, then
 // the dtor calling get_future() on the moved-from object) doesn't apply
-// here at all. Instead, pump() must be called once per tick-loop
-// iteration -- the AppKit analog of Windows' PeekMessage/DispatchMessage
-// pump (app/windows/src/main.cpp:1176-1181). pump() drains AppKit's event
+// here at all. Instead, pump() must be called in a loop on the main
+// thread (main() runs it after handing the tick loop to a worker thread,
+// Aurora-zlw: NSMenu tracking blocks inside pump(), so the two can't share
+// a thread). pump() drains AppKit's event
 // queue via -nextEventMatchingMask:/-sendEvent: in NSDefaultRunLoopMode
 // (never common modes -- registering anything in kCFRunLoopCommonModes
 // breaks NSEventTrackingRunLoopMode/menu tracking, the tao-apps/tao#1324
@@ -36,9 +37,9 @@ class TrayIcon
 {
 public:
   // onLaunch/onStop run synchronously on whichever thread calls pump() --
-  // in practice always the main thread, since AppKit requires it. Keep
-  // them trivial (openWebBrowser / setting the stop flag), same precedent
-  // as app/linux and app/windows.
+  // always the main thread, since AppKit requires it. Keep them trivial
+  // (openWebBrowser / setting the stop flag), same precedent as
+  // app/linux and app/windows.
   TrayIcon(std::string url, bool webUiBound,
            std::function<void()> onLaunch, std::function<void()> onStop);
   ~TrayIcon();
@@ -46,10 +47,20 @@ public:
   TrayIcon(const TrayIcon&) = delete;
   TrayIcon& operator=(const TrayIcon&) = delete;
 
-  // Services any pending AppKit events (status item clicks, menu tracking)
-  // without blocking the caller for more than the given slice. Call once
-  // per tick-loop iteration.
-  void pump();
+  // Services AppKit events (status item clicks, menu tracking, Apple
+  // Events): waits up to timeoutSeconds for the first one, then drains
+  // whatever else is queued. Main thread only. While a menu is open this
+  // call does not return (NSMenu tracking is nested inside -sendEvent:),
+  // which is why the pipeline tick loop lives on its own thread
+  // (Aurora-zlw) rather than sharing this one.
+  void pump(double timeoutSeconds);
+
+  // Dismisses an open status-item menu, if any, so a blocked pump() call
+  // returns. Safe to call from any thread (hops to the main queue) -- the
+  // stop paths that don't originate in the menu (/api/stop, SIGINT) need it,
+  // or shutdown would wait on a menu the user hasn't closed. The Mac analog
+  // of app/windows' WM_CANCELMODE in TrayIcon's destructor.
+  void cancelMenuTracking();
 
   // Public only so TrayIcon.mm's Objective-C menu-action target (a real
   // NSObject, can't live behind this PIMPL boundary itself) can be typed

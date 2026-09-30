@@ -149,10 +149,11 @@ TrayIcon::~TrayIcon()
   }
 }
 
-void TrayIcon::pump()
+void TrayIcon::pump(double timeoutSeconds)
 {
-  // Non-blocking drain of whatever AppKit already has queued -- the direct
-  // analog of Windows' PeekMessage(..., PM_REMOVE)/DispatchMessage pump.
+  // Waits up to timeoutSeconds for AppKit's next event, then drains what's
+  // queued -- the analog of Windows' GetMessage/DispatchMessage pump, with
+  // a timeout so main()'s loop can notice the stop flag.
   //
   // Aurora-qps.2 shipped this as a bare CFRunLoopRunInMode(kCFRunLoopDefaultMode,
   // 0, true) call, which was enough to service NSStatusItem clicks (verified
@@ -167,12 +168,23 @@ void TrayIcon::pump()
   // the same mode as kCFRunLoopDefaultMode -- still never common modes, so
   // the tao-apps/tao#1324 menu-tracking constraint still holds.
   NSEvent* event;
+  NSDate* until = [NSDate dateWithTimeIntervalSinceNow:timeoutSeconds];
   while((event = [NSApp nextEventMatchingMask:NSEventMaskAny
-                                      untilDate:[NSDate distantPast]
+                                      untilDate:until
                                          inMode:NSDefaultRunLoopMode
                                         dequeue:YES]) != nil){
     [NSApp sendEvent:event];
+    until = [NSDate distantPast]; // drain the rest without waiting again
   }
+}
+
+void TrayIcon::cancelMenuTracking()
+{
+  // The dispatch block outlives no state it doesn't own: it captures the
+  // NSMenu strongly, so it stays valid even if ~TrayIcon runs first.
+  NSMenu* menu = m_impl ? m_impl->statusItem.menu : nil;
+  if(menu == nil){ return; }
+  dispatch_async(dispatch_get_main_queue(), ^{ [menu cancelTracking]; });
 }
 
 } // namespace Aurora::App
