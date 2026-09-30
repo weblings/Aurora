@@ -480,3 +480,13 @@ listed only the built-in sink.
 to acquire the transport, then re-check `wpctl status` Sinks. General
 principle: layer the question -- bluetoothctl answers the radio link,
 only the bluez5 profile answers whether audio exists.
+
+---
+
+## Switching a bundle from ad-hoc to a Developer ID signature strands the old TCC grant: Settings shows "on" but access is denied, and no consent dialog appears
+Tags: input, mac, tcc, permissions, codesign, developer-id
+Applies-when: a previously-granted Screen Recording or audio-capture permission stops working, or never prompts, right after the same bundle ID is first signed with a real identity (or the identity changes)
+
+First launch of the notarized, Developer ID-signed `Aurora.app` (bundle ID `com.aurora.app`) showed the "Screen Recording permission is off" card with Aurora toggled on in System Settings and no Allow dialog. The earlier ad-hoc builds had a cdhash-only designated requirement; the Developer ID build has an identifier + certificate requirement (`codesign -dr -`). TCC matches grants to that requirement, so the ad-hoc row no longer matched the new code, yet the row's existence kept macOS from prompting (Aurora-qy5 cert prep).
+
+**Fix:** quit the app, run the scoped resets (`tccutil reset ScreenCapture com.aurora.app`, and the audio-capture service), relaunch, approve the fresh dialog, then quit and relaunch once more. After that the grant persisted across a relaunch with no re-prompt; a certificate-based requirement is stable across rebuilds signed by the same identity, which is what ad-hoc builds lacked. Expect the same re-prompt when moving back to an ad-hoc build that shares the bundle ID.

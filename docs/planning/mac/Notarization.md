@@ -2,9 +2,12 @@
 
 Id: mac-notarization
 
-Status: deferred, not started (Aurora-8mk.10). Not needed for anything
-shipped so far — [[mac-video-capture]] and [[mac-audio]] are both
-terminal-only, single-machine builds today.
+Status: partly shipped 2026-09-30. Developer ID cert, sign/notarize/staple
+script and a notarized, launch-verified Aurora 1.0.4 bundle exist (macOS 27,
+Apple silicon only); nothing is published and there is no CI path yet. Detail:
+`docs/log/2026-09-30-mac-developer-id-first-signing.md` and
+`docs/log/2026-09-30-mac-cert-prep-bundle.md`. Still open: Aurora-8mk.10
+(release distribution), lower-target dylibs (Aurora-0ap), Intel (Aurora-pyo).
 
 Gatekeeper only fires on files carrying the `com.apple.quarantine`
 extended attribute, which is set by whatever app *wrote* a downloaded
@@ -30,7 +33,8 @@ certificate may cover that phase's signing-stability needs without
 reaching for the $99 Developer ID at all, which would leave this doc's
 scope purely about eventual distribution, not dev-loop annoyance.
 
-**Open:** signing/notarization cost and workflow for eventual release
-zips — deferred, but worth flagging early since it affects the release
-distribution story, not just the build. No bead work has started on this
-beyond the scoping above.
+**Open:** publishing the notarized zip (where it lives, release notes,
+version/tag flow) and an unattended signing path for CI (an App Store Connect
+API key instead of the personal Apple ID; `sign-notarize.sh` deliberately
+accepts only names and a keychain profile today). Both are release-process
+decisions, not build work.

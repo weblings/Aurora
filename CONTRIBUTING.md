@@ -40,10 +40,13 @@ the changelog; nothing enforces the mirror.
 
 ### Mac (experimental, tier 1 as of 1.0.3)
 
-Terminal-only app with video + audio capture; no tray and no notarization
-(single-machine builds only). Scoping and design decisions live in
+Terminal-only app with video + audio capture; no tray. Regular builds are
+single-machine (ad-hoc signed); a notarized build needs the maintainer's
+Developer ID. Scoping and design decisions live in
 [[mac-video-capture]]/[[mac-audio]] (shipped) and
-[[mac-tray-parity]]/[[mac-notarization]] (still open) — setup:
+[[mac-tray-parity]] (still open) and [[mac-notarization]] (partly shipped).
+
+Supported target: macOS 27 on Apple silicon. Building from source on macOS 14.2-26 should work (the code's own floor is 14.2, the process-tap API) but is untested below 27, and Intel Macs are not supported (Aurora-pyo). A normal build needs no Apple account. Setup:
 
 ```sh
 xcode-select --install  # Xcode CLT (confirm even if Xcode.app is installed)

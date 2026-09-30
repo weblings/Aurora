@@ -1,22 +1,29 @@
-# Mac Developer ID: identity and notary profile set up, first real-identity dry run (2026-09-30)
+# Mac Developer ID: identity set up, first notarized Aurora 1.0.4 bundle (2026-09-30)
 
-Beads: Aurora-qy5 (epic, 7/8 children closed), Aurora-8mk.10, Aurora-qps.5, Aurora-qps.6 (all still open, none closed here). Branch `feat/MacSupportV2`. No code changed; this closes the "never run with a real cert" gap from [2026-09-30 cert prep log](2026-09-30-mac-cert-prep-bundle.md) only as far as the dry-run line.
+Beads: Aurora-qy5.8 (claimed, floor declared), Aurora-0ap (15 follow-up, deferred), Aurora-pyo (Intel, deferred); Aurora-qy5, Aurora-8mk.10, Aurora-qps.5, Aurora-qps.6 still open. Branch `feat/MacSupportV2`. Closes the "never run with a real cert" gap from [2026-09-30 cert prep log](2026-09-30-mac-cert-prep-bundle.md).
 
 ## Done
 
 - Developer ID Application certificate created in Xcode (Settings > Accounts > Manage Certificates). Identity: `Developer ID Application: ANDREW BUTE GWINNER (464U3WR286)`; `security find-identity -v -p codesigning` went from 0 to 1 valid identity.
 - notarytool keychain profile `aurora-notary` stored by the user in their own terminal (app-specific password, Team ID 464U3WR286). `notarytool history --keychain-profile aurora-notary` returns an empty history, exit 0. Nothing secret is in the repo or was passed through the agent session.
 - `tools/mac/sign-notarize.sh build/mac-app/bin/Aurora.app --identity <above> --keychain-profile aurora-notary --dry-run` (output to `$TMPDIR`): copy, bundle 28 dylibs + 17 licence packages, sign inside-out, verify-bundle PASS (all 29 Mach-O files signed with the same identity, `codesign --verify --strict` ok, no Homebrew links), zip, stopped before `notarytool submit`. Input bundle unchanged.
+- Support decision: prebuilt/notarized target is macOS 27, Apple silicon only; 15 lowering deferred (Aurora-0ap); Intel unsupported (Aurora-pyo). Basis: third-party sources say macOS 27 is Apple-silicon only, Intel tops out at macOS 26, Apple patches 27/26/15 (not confirmed on an Apple page). README and CONTRIBUTING now state it.
+- Release build: `cmake --preset mac-app -B build/mac-release -DCMAKE_OSX_DEPLOYMENT_TARGET=27` (separate dir; the preset's 14.2 stays for source builds). Info.plist 1.0.4, LSMinimumSystemVersion 27, main binary minos 27.0.
+- `verify-bundle.sh` bug fixed: `sort -V` ranks "27.0" above "27", so a plist floor of "27" failed against minos 27.0. Versions are now compared as three components; pass, fail (floor 26) and the old 14.2 case all tested.
+- Notarization: submission `4f3cd46b-f9f5-4955-a5f1-9710658dc596` (`Aurora-1.0.4.zip`) Accepted with `disable-library-validation` still in the entitlements. Stapled and validated by hand; `spctl --assess` says `accepted, source=Notarized Developer ID, origin=Developer ID Application: ANDREW BUTE GWINNER (464U3WR286)`; `codesign --verify --strict` valid. Output in `build/notarize-out/` (gitignored): `Aurora.app`, `Aurora-1.0.4-notarized.zip` (19.9 MB). Not published anywhere.
+- Launch verification on this Mac (user-run): Screen Recording and audio permissions granted to the notarized app and persisted across a relaunch; video and audio capture confirmed working. Fake light-viz stack (`devstack.py up --app build/notarize-out/Aurora.app/Contents/MacOS/Aurora`) ran against it: SSE frames drifting on the dummy input, viz.html 200, `down` left no listeners. Dummy input only, so the zone map was not exercised.
+- Quarantined-download test (user-run, one Mac): zip given a hand-set `com.apple.quarantine` attribute, unzipped in Finder, app opened. Gatekeeper showed its normal first-launch prompt ("Safari created this file today at 4:08 PM. Apple checked it for malicious software and none was detected."), the user chose Open, then approved the Screen Recording dialog and capture worked. Not repeated on a second Mac or fresh user account; not re-run against the fake light-viz stack with the quarantined copy.
 
 ## Not verified / open
 
-- Notarization itself: `notarytool submit`, staple, `spctl`, the failure-log path. Still never executed.
-- The 1.0.3-labelled bundle is what was signed; the WARN stands: dylibs need macOS 27 while the plist says 14.2 (Aurora-qy5.8). A notarized zip from this bundle would only launch on 27+.
+- Dylibs are still macOS 27 binaries, so the prebuilt bundle runs on 27+ only, matching the declared floor (Aurora-qy5.8 closes on that basis; lower floor is Aurora-0ap).
 - Whether `disable-library-validation` can be dropped with one Team ID (Aurora-qy5.6.4 was written for a Personal Team cert; a Developer ID identity can test it directly). Not tried.
 - Aurora-qps.6 / qps.5 (SMAppService, UNUserNotificationCenter) are written around a free Personal Team cert. A Developer ID identity should give the stable Team ID they need, but neither spike was re-run.
-- `aurora-notary` was not visible to the agent session's keychain lookup before the user's second `store-credentials` run; the first run's failure cause was not captured. After the second run the agent did not re-check; the dry run never touches the profile.
+- `aurora-notary` was not visible to the agent session before the user's second `store-credentials` run; the first run's failure cause was not captured. The profile worked afterwards (history, then submit).
 
 ## Surprises
 
 - Repeated "login keychain password" dialogs during the dry run were per-`codesign` key-access prompts (29 signatures), not a wrong password; one throwaway sign with Always Allow removed them. The run was interrupted twice before that was understood.
-- Lessons: docs/lessons/macos-gui.md (per-signature key prompts; verify identity and notary profile with read-only commands first).
+- The notarytool `--wait` call died with NSURLErrorDomain -1009 ("Internet connection appears to be offline") when the machine lost network mid-wait; the script then reported "not accepted" with an empty `notary-result.json` and no submission ID. The upload had succeeded; `notarytool history` recovered the ID and `notarytool info <id>` showed Accepted, so no resubmit was needed. The script's failure path does not distinguish a lost connection from a rejection.
+- Lessons: docs/lessons/macos-gui.md (per-signature key prompts; verify credentials read-only first; notarytool wait vs network loss; version comparison; simulating a quarantined download), docs/lessons/input.md (TCC grant stranded by the ad-hoc to Developer ID switch).
+- First launch of the notarized app showed "Screen Recording permission is off" with Aurora toggled on in Settings and no consent dialog: the ad-hoc-era TCC rows for `com.aurora.app` did not match the new certificate-based signature. Scoped `tccutil reset` for Screen Recording and audio capture, then re-approving, fixed it, and the grant survived a relaunch. The audio-capture service name was not confirmed with tccutil. Lesson: docs/lessons/input.md.

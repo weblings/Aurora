@@ -345,3 +345,33 @@ Applies-when: wiring up a new Developer ID certificate or notarytool keychain pr
 The identity string was `Developer ID Application: ANDREW BUTE GWINNER (464U3WR286)`: legal name with the middle name, in capitals, plus the Team ID. `security find-identity -v -p codesigning` showed 0 identities until the certificate was created through Xcode (Settings > Accounts > Manage Certificates), which also creates the private key, and 1 afterwards. `xcrun notarytool history --keychain-profile <name>` failed with "No Keychain password item found for profile" after a first `store-credentials` attempt that had not saved anything (cause not captured), and listed an empty history, exit 0, after the second. An empty list is the pass result for a new account; nothing has been submitted yet.
 
 **Fix:** copy the identity from `find-identity` output rather than composing it, and treat `notarytool history` as the credential smoke test. Then run `sign-notarize.sh --dry-run` with the real identity: it exercises signing, `codesign --verify --strict` and `verify-bundle.sh` on all 29 files without contacting Apple, so the first upload is not also the first test of the signing path.
+
+---
+
+## `sort -V` ranks "27.0" above "27"; normalize versions before comparing, and re-test a version check when the format of an input changes
+Tags: macos, shell, version-compare, deployment-target, verification
+Applies-when: comparing macOS/minos versions in shell (verify-bundle.sh, CI checks) where one side may be written "27" and the other "27.0"
+
+`verify-bundle.sh` failed a correct bundle: Info.plist `LSMinimumSystemVersion` was `27` (the integer deployment target) and the binary's `minos` was `27.0`; `sort -V | tail -1` picked "27.0", so "declared < needed". Every earlier run (ad-hoc, dry run with a real identity) had "14.2" on both sides, so the comparison had never seen mixed formats (Aurora-qy5.8). It failed safe, before any upload.
+
+**Fix:** pad both to three components (`awk -F. '{printf "%d.%d.%d",$1,$2+0,$3+0}'`) and compare those. Test equal, lower and higher, and with mixed-format inputs, not only the format the last run happened to use.
+
+---
+
+## A `notarytool submit --wait` that dies with "Internet connection appears to be offline" leaves a live submission; recover by ID, do not resubmit
+Tags: macos, notarytool, notarization, network, recovery
+Applies-when: a notarization run ends with NSURLErrorDomain -1009 or an empty notary-result.json, or a laptop slept/lost network during the wait
+
+The upload finished and Apple processed it, but the local `--wait` polling call failed when the machine went offline. `sign-notarize.sh` then printed "not accepted" with no submission ID (the JSON result was empty), which reads like a rejection. `xcrun notarytool history --keychain-profile <p>` listed the submission with its ID and `notarytool info <id> --keychain-profile <p>` showed `Accepted`.
+
+**Fix:** check `history`/`info` before resubmitting. If Accepted, finish by hand on the already-signed bundle: `stapler staple` and `validate`, `spctl --assess --type execute -vv`, `codesign --verify --strict`, then `ditto -c -k --keepParent` for the final zip. The script should treat an empty status as "unknown, check history" rather than a rejection.
+
+---
+
+## Simulate a browser download on one Mac by hand-setting the quarantine attribute on the zip and unzipping in Finder
+Tags: macos, gatekeeper, quarantine, notarization, verification
+Applies-when: checking that a notarized, stapled app opens cleanly for someone who downloaded it, with no second Mac available
+
+`spctl --assess` passing on a bundle you built locally does not exercise the first-launch path: Gatekeeper only runs its download check on files carrying `com.apple.quarantine`, which browsers, AirDrop and Mail set and local builds never get. Setting it by hand on a fresh copy of the zip (`xattr -w com.apple.quarantine "0083;$(printf '%x' $(date +%s));Safari;" <zip>`), unzipping by double-click in Finder (Archive Utility passes the attribute on to the extracted app; command-line `unzip`/`ditto` may not), then opening the app gave the normal notarized-app prompt ("Safari created this file ... Apple checked it for malicious software and none was detected") with an Open button, and the TCC Screen Recording dialog followed (Aurora-qy5 cert prep). The "Safari" and timestamp in that prompt come from the attribute you wrote, not a real download.
+
+**Fix:** use a copy that has never been launched (a launched copy is already trusted), check `xattr <app>` lists `com.apple.quarantine` before opening, and treat "can't be checked / unidentified developer" as the failure. It approximates, not replaces, a real download on another Mac or a fresh user account.
