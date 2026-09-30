@@ -255,3 +255,13 @@ Applies-when: writing or hand-editing an `.entitlements` (or any plist codesign 
 
 **Fix:** no `--` inside XML comments in plists codesign reads. After signing, confirm the result actually took (`codesign -d --entitlements - <app>` shows the keys, `codesign -dvv` shows the `runtime` flag) before trusting any launch test, and run the negative case (same signing without the entitlement fails) so the test can distinguish the two.
 
+---
+
+## A bundling check that only reads install names doesn't prove what dyld loads: a leftover absolute rpath silently wins over the bundle
+Tags: macos, dyld, rpath, bundling, verification
+Applies-when: copying dylibs into `Contents/Frameworks` and rewriting them with `install_name_tool`, then declaring the bundle self-contained
+
+The first bundling prototype rewrote every direct dependency to `@rpath/...`, added `@executable_path/../Frameworks`, and reported "zero `/opt/homebrew` references" from `otool -L`. It launched. But `DYLD_PRINT_LIBRARIES=1` showed all 29 libraries loaded from Homebrew and none from the bundle: the binary still carried `LC_RPATH /opt/homebrew/lib`, listed *before* the bundle rpath, and several Homebrew dylibs carried absolute rpaths of their own. `@rpath/x` resolves through the first rpath that has the file, so the working machine's Homebrew always won. The result would have failed on any Mac without those libraries.
+
+**Fix:** delete every existing `LC_RPATH` (`otool -l | awk '/LC_RPATH/...'` then `install_name_tool -delete_rpath`) and add only the bundle-relative one, and verify by *behaviour*: run a copy signed without the hardened runtime under `DYLD_PRINT_LIBRARIES=1` and count libs loaded from the bundle vs `/opt/homebrew` (DYLD_* variables are stripped under the hardened runtime, so the check needs the non-hardened copy). Better still, run on a machine without the libraries.
+
