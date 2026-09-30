@@ -235,6 +235,8 @@ Library validation lets a hardened process load only Apple-signed libraries or o
 
 **Fix:** for distribution, bundle the dylibs and sign app and every dylib with the same Developer ID (Team ID) so validation passes with no entitlement; treat `disable-library-validation` as a dev-loop stopgap. Bundled-and-shared-Team-ID case was not yet verified (no cert at the time).
 
+
+**Confirmed removable (Aurora-qy5.6.4, 2026-09-30):** with the app and all 28 bundled dylibs signed by one Developer ID (Team ID 464U3WR286), a copy signed with `bundle-dylibs.sh` and *no* `--entitlements` launched under the hardened runtime and stayed up; `lsof` showed 28 bundled dylibs mapped and none from `/opt/homebrew`, and `codesign -d --entitlements -` showed no entitlements. The entitlement is only needed for ad-hoc or mixed-Team-ID bundles.
 ---
 
 ## Screen Recording is granted to the responsible process, not the binary; launched from an editor, a missing grant stalls capture silently
