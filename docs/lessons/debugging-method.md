@@ -273,14 +273,20 @@ After wiring the audio-mode zone branches into `Aurora-App-Windows`
 a Debug run showed no channel toggles in the Dashboard Bridge list -- the
 binary simply predated the edit; no rebuild had happened in between, and the
 old daemon was still the running process. Indistinguishable from a failed
-fix until the timestamps were compared.
+fix until the timestamps were compared. Aurora-67y's variant broke the
+same chain invisibly: `c++ … 2>&1 | head && ./probe` executed the stale
+probe binary after a failed compile, because `&&` saw `head`'s exit code
+(0), not the compiler's.
 
 **Fix:** process, not code -- before re-diagnosing a "fix didn't work,"
 check the binary's build timestamp against the edit, make sure the old
 daemon process is actually dead, and probe the API directly (`GET
 /api/zones` in the failing mode) to separate backend staleness from UI
-staleness. General principle: the edit → build → relaunch chain has three
-links, and a break in the second two looks exactly like a bug in the first.
+staleness. Build steps piped through `head`/`tail` need the same
+suspicion -- capture to a file and tail that instead, so a red compile
+can't silently promote a stale binary to "retested". General principle:
+the edit → build → relaunch chain has three links, and a break in the
+second two looks exactly like a bug in the first.
 
 ---
 
@@ -467,7 +473,7 @@ A 4-zone split frame (R/G/B/W on ids 0-3) came back reported as "red, blue, gree
 Tags: debugging, processes, footgun
 Applies-when: stopping processes whose command lines resemble the stop command itself
 
-`pkill -f "build/linux-app/bin/Aurora"` matched the `bash -c` invocation running the pkill (its command line contains the pattern) and SIGTERMed the shell mid-command -- the tool call reported failure with empty output. The first pkill in the chain had already killed its target, so state was half-torn-down with no report of which half.
+`pkill -f "build/linux-app/bin/Aurora"` matched the `bash -c` invocation running the pkill (its command line contains the pattern) and SIGTERMed the shell mid-command -- the tool call reported failure with empty output. The first pkill in the chain had already killed its target, so state was half-torn-down with no report of which half. Aurora-67y re-confirmed this with a worse shape: `pkill -f "[b]in/Aurora"` still killed its own shell, because the bracket trick only disguises the pattern text itself -- a later segment of the same one-liner held the literal `./build/bin/Aurora`, which matches. Bracket-tricks protect `ps | grep`, not a `pkill -f` compounded with a command naming its own target.
 
 **Fix:** resolve PIDs first (`ps` with a bracket pattern like `[b]in/Aurora`, which can't match the grep itself), then `kill <pids>` and verify with `ss`/fresh `ps`. General principle: a pattern-kill aimed at a process family you belong to (shells running commands about those processes) must exclude the shooter.
 

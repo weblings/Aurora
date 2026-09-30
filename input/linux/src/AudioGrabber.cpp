@@ -29,12 +29,17 @@ namespace Aurora::Input::Linux
 {
   AudioGrabber::AudioGrabber(std::string targetSinkName)
   {
+    m_requestedSinkName = targetSinkName; // copied before the move into the thread below
     auto readyFuture = m_pwData.readyPromise.get_future();
     m_pipewireThread.emplace(_pipewireThread, std::move(targetSinkName), &m_pwData);
 
-    // Bounded, not indefinite -- a typo'd sink name, or default-sink
-    // discovery finding nothing, never fires param_changed, and this
-    // constructor shouldn't hang forever over it.
+    // Bounded, not indefinite -- default-sink discovery finding nothing
+    // (no session manager, or no default set) never fires param_changed,
+    // and this constructor shouldn't hang forever over it. An unresolvable
+    // explicit name does NOT fail here -- PipeWire 1.0.5 + WirePlumber
+    // readies the stream anyway and links it to the default sink instead
+    // (verified live via pw-dump, Aurora-4vf), so typo'd names need
+    // explicit validation to surface, a separate gap from this timeout.
     if(readyFuture.wait_for(std::chrono::seconds(5)) != std::future_status::ready || !readyFuture.get()){
       _stop();
       throw std::runtime_error(
@@ -68,6 +73,13 @@ namespace Aurora::Input::Linux
     buffer.channelCount = m_pwData.format.info.raw.channels;
     buffer.samples = std::move(m_pwData.accumulated);
     m_pwData.accumulated.clear();
+  }
+
+
+  AudioSinkStatus AudioGrabber::sinkStatus() const
+  {
+    std::lock_guard<std::mutex> lock(m_pwData.mutex);
+    return makeAudioSinkStatus(m_requestedSinkName, m_pwData.resolvedSinkName);
   }
 
 
@@ -190,6 +202,9 @@ namespace Aurora::Input::Linux
         if(spa_json_parse_stringn(keyToken, keyLen, keyBuf, sizeof(keyBuf)) > 0 && spa_streq(keyBuf, "name")){
           char nameBuf[256];
           if(spa_json_parse_stringn(valueToken, valueLen, nameBuf, sizeof(nameBuf)) > 0){
+            // Locked: sinkStatus() reads this from the HTTP thread while
+            // this write runs on the PipeWire loop thread.
+            std::lock_guard<std::mutex> lock(pw->mutex);
             pw->resolvedSinkName.assign(nameBuf);
           }
         }

@@ -21,11 +21,12 @@
 // here refetches monitors right after -- this screen offers a single
 // "Auto (primary)" choice only for the brief window before that resolves.
 //
-// Audio has no sink-listing endpoint yet (a documented backend gap, see
-// step 11's writeup in WebUI/WebUI_Design_1stPass.md). Rather than a fake dropdown, this
-// offers a plain optional text field for `audioTargetSinkName`, shown only
-// when "linux-audio" is the registered audio input -- Windows audio always
-// uses the default device and has no such field at all.
+// Audio's sink list comes from GET /api/linux/audio-sinks (Aurora-67y
+// closed the "no sink-listing endpoint" gap step 11's writeup in
+// WebUI/WebUI_Design_1stPass.md documented) -- DeviceField renders it as a
+// dropdown with a System default entry, shown only when "linux-audio" is
+// the registered audio input. Windows audio always uses the default
+// device and has no such field at all.
 import { renderTopBar } from '../topBar.js';
 import { renderNavFooter } from '../NavFooter.js';
 import { DeviceField, AUTO_MONITOR_VALUE } from '../DeviceField.js';

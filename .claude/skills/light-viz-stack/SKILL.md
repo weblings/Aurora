@@ -36,9 +36,10 @@ frames on the SSE endpoint yourself.
    in after the app is up.
 2. Frames did not flow until output was activated: `PUT` (not POST)
    `/api/config` `{"activeOutputNames":["hue"],"nuxCompleted":true}` (plus
-   `"activeInputName":"windows"` on Windows, `"dummy"` on Mac, where an unset
-   input leaves the pipeline idle by design), after `POST /api/hue/connection`
-   with the fake credentials (`tools/light-viz-relay/README.md`, "On Windows").
+   `"activeInputName":"windows"` on Windows, `"dummy"` on Mac/Linux, where an
+   unset input leaves the pipeline idle by design), after `POST
+   /api/hue/connection` with the fake credentials
+   (`tools/light-viz-relay/README.md`, "On Windows").
 3. Serve `web/demo/` with a `ThreadingHTTPServer` with
    `request_queue_size = 256`, never plain `http.server` (5-slot backlog
    resets viz.html's module fetches; `docs/lessons/build-toolchain.md`).
@@ -57,12 +58,14 @@ frames on the SSE endpoint yourself.
 
 ## Status
 
-Verified end to end on Windows and Mac (2026-09-29). Mac differences the
-script now handles: the config root is `$TMPDIR/aurora-fresh` (not
-`/tmp/aurora-fresh`; the app logs "Config root:"), and with no input set no
-frames flow, so it sets `activeInputName` to `dummy` (synthetic signal;
-Windows uses `windows`). `dummy` gives the same colour on all
-4 zones, so it proves the chain but not the zone map; for per-zone colours use
-`"activeInputName":"mac"` (triggers a Screen Recording prompt). `validate.py
-passthrough` needs its own launch (tap address env), not this stack. Linux is
-still untested.
+Verified end to end on Windows and Mac (2026-09-29) and Linux
+(2026-09-30: `up` reaches first SSE frame, full viz.html module chain +
+TV_Room.glb serve 200, `down` leaves no listeners on
+8000/8215/18245/18443). Mac differences the script now handles: the config
+root is `$TMPDIR/aurora-fresh` (not `/tmp/aurora-fresh`; the app logs "Config
+root:"), and with no input set no frames flow, so it sets `activeInputName`
+to `dummy` (synthetic signal; Windows uses `windows`, Linux uses `dummy`).
+`dummy` gives the same colour on all 4 zones, so it proves the chain but not
+the zone map; for per-zone colours use `"activeInputName":"mac"` (triggers a
+Screen Recording prompt). `validate.py passthrough` needs its own launch (tap
+address env), not this stack.

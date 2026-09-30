@@ -57,6 +57,7 @@ export class DashboardScreen {
     this.heartbeatTimer = null;
     this.audioStatusTimer = null;
     this.audioPermissionLikelyDenied = false;
+    this.audioSinkStatus = null;
 
     // A single persistent instance, never recreated on re-render -- its own
     // onChange fires mid-callback, and recreating the instance whose own
@@ -283,6 +284,7 @@ export class DashboardScreen {
       selectedMonitorName: this.selectedMonitorName,
       showSinkField: this.showSinkField,
       sinkName: this.sinkName,
+      audioSinkStatus: this.audioSinkStatus,
       onChange: (patch) => this._onDeviceFieldChange(patch),
     });
   }
@@ -624,8 +626,8 @@ export class DashboardScreen {
   // doesn't ride along on the same tick even though both hit the server;
   // a slower, non-critical cadence (5s, vs. the heartbeat's 3s) since this
   // is a diagnostic, not a liveness check. No-ops (just reschedules)
-  // outside Mac audio mode -- cheap to leave running across mode switches
-  // rather than starting/stopping it from _switchMode too.
+  // outside Mac/Linux audio mode -- cheap to leave running across mode
+  // switches rather than starting/stopping it from _switchMode too.
   _startAudioStatusPoll() {
     this._stopAudioStatusPoll();
     const poll = async () => {
@@ -633,13 +635,31 @@ export class DashboardScreen {
         return;
       }
 
-      if(this.platform === 'mac' && this.mode === 'audio'){
+      // Per-platform audio-status route: Mac reports permission state,
+      // Linux reports the sink actually in use (Aurora-4vf). Other
+      // platforms (Windows) have no such route -- null skips the fetch.
+      const audioStatusUrl = this.platform === 'mac' ? '/api/mac/audio-status'
+        : this.platform === 'linux' ? '/api/linux/audio-status'
+        : null;
+
+      if(audioStatusUrl && this.mode === 'audio'){
         try {
-          const result = await (await fetch('/api/mac/audio-status')).json();
-          const denied = !!result.permissionLikelyDenied;
-          if(denied !== this.audioPermissionLikelyDenied){
-            this.audioPermissionLikelyDenied = denied;
-            this._renderTopTier();
+          const result = await (await fetch(audioStatusUrl)).json();
+          if(this.platform === 'mac'){
+            const denied = !!result.permissionLikelyDenied;
+            if(denied !== this.audioPermissionLikelyDenied){
+              this.audioPermissionLikelyDenied = denied;
+              this._renderTopTier();
+            }
+          }
+          else{
+            const next = (result && typeof result.sinkName === 'string')
+              ? { followingDefault: result.followingDefault === true, sinkName: result.sinkName }
+              : null;
+            if(JSON.stringify(next) !== JSON.stringify(this.audioSinkStatus)){
+              this.audioSinkStatus = next;
+              this._renderTopTier();
+            }
           }
         } catch {
           // Same-origin poll against our own server -- a failure here
@@ -647,11 +667,12 @@ export class DashboardScreen {
           // already handling; nothing extra to do from this one.
         }
       }
-      else if(this.audioPermissionLikelyDenied){
-        // Left video mode (or this isn't Mac) -- don't leave a stale
-        // "likely denied" banner showing if audio mode is re-entered later
-        // without a fresh poll landing first.
+      else if(this.audioPermissionLikelyDenied || this.audioSinkStatus){
+        // Left audio mode (or this platform has no status route) -- don't
+        // leave a stale banner or sink hint showing if audio mode is
+        // re-entered later without a fresh poll landing first.
         this.audioPermissionLikelyDenied = false;
+        this.audioSinkStatus = null;
         this._renderTopTier();
       }
 

@@ -26,13 +26,13 @@ Aurora's own module boundaries instead of RockyRoad's. `rendering-apis.md` vs.
 | [architecture-process.md](architecture-process.md) | splits, duplication, reload, presence | 26 | architecture or process decision |
 | [web-testing.md](web-testing.md) | jsdom, live tests, routes, settings | 8 | web testing specific |
 | [language-cpp.md](language-cpp.md) | namespace, threads, C-portability | 7 | C++ language gotcha |
-| [input.md](input.md) | capture/grabber/platform-adapter | 20 | capture/grabber specific |
+| [input.md](input.md) | capture/grabber/platform-adapter | 23 | capture/grabber specific |
 | [processing.md](processing.md) | color/effect transform, zone-mapping | 6 | color/effect/zone-mapping specific |
 | [output.md](output.md) | streaming/protocol, any target | 9 | streaming/protocol/wire-format specific |
 | [rendering-apis.md](rendering-apis.md) | third-party rendering facts | 4 | Three.js/GLTFLoader/Blender behavior, not our design |
 | [rendering-internals.md](rendering-internals.md) | own 3D-scene design | 4 | our scene technique, demonstrated by a real bug |
 | [planning.md](planning.md) | reuse research, JTBD, doc hygiene | 15 | WebUI planning/design-process finding |
-| [components.md](components.md) | behavior, callbacks, data shapes | 8 | WebUI component finding |
+| [components.md](components.md) | behavior, callbacks, data shapes | 9 | WebUI component finding |
 | [webui-testing.md](webui-testing.md) | jsdom limits, mocks, fixtures | 7 | WebUI testing finding |
 | [navigation-flow.md](navigation-flow.md) | Back/Continue, gating, NUX | 9 | WebUI flow finding |
 | [layout-css.md](layout-css.md) | responsive, pseudo-elements, flex | 9 | WebUI layout/CSS finding |

@@ -40,6 +40,7 @@
 #include <Aurora/Runtime/AudioOrchestrator.hpp>
 #endif
 
+#include <Aurora/Input/Linux/AudioSinkStatus.hpp>
 #include <Aurora/Input/Linux/DummyGrabber.hpp>
 #include <Aurora/Input/Linux/InputControlDescriptors.hpp>
 #include <Aurora/Input/Linux/SessionDispatch.hpp>
@@ -51,6 +52,7 @@
 #endif
 #ifdef AURORA_INPUT_LINUX_AUDIO_AVAILABLE
 #include <Aurora/Input/Linux/AudioGrabber.hpp>
+#include <Aurora/Input/Linux/AudioSinkList.hpp>
 #endif
 
 #ifdef AURORA_OUTPUT_HUE_IO_AVAILABLE
@@ -118,19 +120,23 @@ namespace
   }
 
 
-  void registerAudioInputs(Aurora::App::Registry& registry, const Aurora::Runtime::Config& config)
+  void registerAudioInputs(Aurora::App::Registry& registry, const std::filesystem::path& configRoot)
   {
 #ifdef AURORA_INPUT_LINUX_AUDIO_AVAILABLE
-    // Captured by value at registration time -- Config is loaded before
-    // this runs (see main()), unlike registerInputs/registerOutputs above
-    // which don't need it. Empty targetSinkName means AudioGrabber resolves
-    // the default sink itself; see Config::audioTargetSinkName.
-    registry.registerAudioInput("linux-audio", [targetSinkName = config.audioTargetSinkName()]{
-      return std::make_unique<Aurora::Input::Linux::AudioGrabber>(targetSinkName);
+    // Loads Config fresh on every factory call (each Pipeline::build, i.e.
+    // each reload) -- capturing targetSinkName at registration time would
+    // go stale after any PUT that changes it, since reload() never
+    // re-registers (Aurora-4vf: the sink field's own edits wouldn't apply
+    // live). Empty targetSinkName means AudioGrabber resolves the default
+    // sink itself; see Config::audioTargetSinkName.
+    registry.registerAudioInput("linux-audio", [configRoot]{
+      return std::make_unique<Aurora::Input::Linux::AudioGrabber>(
+        Aurora::Runtime::ConfigStore(configRoot).load().audioTargetSinkName()
+      );
     });
 #else
     (void)registry;
-    (void)config;
+    (void)configRoot;
 #endif
   }
 
@@ -433,6 +439,24 @@ namespace
       return m_videoInput ? m_videoInput->monitors() : Aurora::Input::Monitors{};
     }
 
+    // Linux audio's "which sink" report (Aurora-4vf): unknown unless a live
+    // audio pipeline holds this build's own AudioGrabber -- video mode, no
+    // pipeline, or a foreign audio input all report empty, not an error
+    // (same precedent as listMonitors()). Deliberately Linux-specific, not
+    // on IAudioInput -- dynamic_cast, the same shape Mac's own
+    // audioPermissionLikelyDenied() uses for its platform query.
+    Aurora::Input::Linux::AudioSinkStatus audioSinkStatus() const
+    {
+#ifdef AURORA_INPUT_LINUX_AUDIO_AVAILABLE
+      if(!m_isAudioMode || !m_audioInput) return {};
+      auto* audio = dynamic_cast<Aurora::Input::Linux::AudioGrabber*>(m_audioInput.get());
+      if(!audio) return {};
+      return audio->sinkStatus();
+#else
+      return {};
+#endif
+    }
+
     // Empty in audio mode or with no outputs -- same "nothing to report,
     // not an error" precedent as listMonitors(). Only the first output is
     // considered: today's only real output is Hue, and the WebUI's own
@@ -541,6 +565,15 @@ namespace
       return m_pipeline ? m_pipeline->listMonitors() : Aurora::Input::Monitors{};
     }
 
+    // Same lock as every other Pipeline-state accessor here -- callers poll
+    // this on a slow diagnostic cadence, never the lock-free capabilities
+    // heartbeat (same reasoning as Mac's own audio-status poll).
+    Aurora::Input::Linux::AudioSinkStatus audioSinkStatus()
+    {
+      std::lock_guard<std::mutex> lock(m_mutex);
+      return m_pipeline ? m_pipeline->audioSinkStatus() : Aurora::Input::Linux::AudioSinkStatus{};
+    }
+
     // Same lock as tick() -- a zone edit and an in-progress tick must never
     // interleave, but unlike reload(), this never swaps or rebuilds the
     // Pipeline at all, so it's cheap enough to call on every drag-frame a
@@ -633,6 +666,64 @@ namespace
 
         res.contentType = "application/json";
         res.body = nlohmann::json{{"monitors", list}}.dump();
+      }
+    );
+  }
+
+
+  // Linux-only (registered unconditionally, but reports unknown off
+  // linux-audio mode -- see Pipeline::audioSinkStatus()). A separate route
+  // rather than a new /api/capabilities field on purpose: that route's
+  // heartbeat is deliberately lock-free, and this takes the pipeline lock
+  // (same split Mac's /api/mac/audio-status already uses). The WebUI polls
+  // this only while genuinely in audio mode, not on the heartbeat cadence.
+  void registerAudioStatusRoute(
+    Aurora::Network::Http::Server::HttpServer& httpServer,
+    PipelineHost& pipelineHost
+  )
+  {
+    httpServer.addRoute(
+      Aurora::Network::Http::Server::HttpMethod::Get,
+      "/api/linux/audio-status",
+      [&pipelineHost](const Aurora::Network::Http::Server::Request&, Aurora::Network::Http::Server::Response& res){
+        auto status = pipelineHost.audioSinkStatus();
+
+        res.contentType = "application/json";
+        res.body = nlohmann::json{
+          {"followingDefault", status.followingDefault},
+          {"sinkName", status.sinkName}
+        }.dump();
+      }
+    );
+  }
+
+
+  // Linux-only sibling of /api/linux/audio-status (Aurora-67y): the live
+  // PipeWire Audio/Sink list backing the DeviceField audio dropdown.
+  // Unlike audio-status this takes no pipeline lock -- enumeration opens
+  // its own short-lived PipeWire connection, independent of whatever
+  // pipeline (if any) is running, so it works in any mode. Without audio
+  // support compiled in it reports an empty list, and the WebUI falls
+  // back to its System-default-only dropdown.
+  void registerAudioSinksRoute(
+    Aurora::Network::Http::Server::HttpServer& httpServer
+  )
+  {
+    httpServer.addRoute(
+      Aurora::Network::Http::Server::HttpMethod::Get,
+      "/api/linux/audio-sinks",
+      [](const Aurora::Network::Http::Server::Request&, Aurora::Network::Http::Server::Response& res){
+        nlohmann::json list = nlohmann::json::array();
+#ifdef AURORA_INPUT_LINUX_AUDIO_AVAILABLE
+        for(const auto& sink : Aurora::Input::Linux::enumerateAudioSinks()){
+          list.push_back({
+            {"name", sink.name},
+            {"description", sink.description}
+          });
+        }
+#endif
+        res.contentType = "application/json";
+        res.body = nlohmann::json{{"sinks", list}}.dump();
       }
     );
   }
@@ -839,12 +930,13 @@ if(!instanceLock.held()){
   Aurora::Runtime::ConfigStore configStore(configRoot);
   Aurora::Runtime::Config config = configStore.load();
 
-  // Loaded before registration (unlike Aurora-App-Windows) -- Linux's audio
-  // input needs Config::audioTargetSinkName at registration time, since
-  // Registry's factories are zero-arg closures.
+  // Loaded before registration (unlike Aurora-App-Windows) -- the initial
+  // Pipeline::build() below needs it. The audio factory loads Config fresh
+  // per build instead (see registerAudioInputs), since Registry's
+  // factories are zero-arg closures that reload() never re-registers.
   Aurora::App::Registry registry;
   registerInputs(registry);
-  registerAudioInputs(registry, config);
+  registerAudioInputs(registry, configRoot);
   registerOutputs(registry, configRoot);
 
   // Built before any route is registered below -- the settings/reload routes
@@ -920,6 +1012,8 @@ if(!instanceLock.held()){
     }
   );
   registerMonitorsRoute(httpServer, pipelineHost);
+  registerAudioStatusRoute(httpServer, pipelineHost);
+  registerAudioSinksRoute(httpServer);
   registerReloadRoute(httpServer, pipelineHost, registry, configRoot);
   registerStopRoute(httpServer);
   Aurora::Runtime::registerZoneRoutes(

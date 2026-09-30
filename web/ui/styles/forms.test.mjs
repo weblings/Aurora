@@ -8,7 +8,7 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
-const copies = ['./forms.css', '../../../demo/vendor/webui/styles/forms.css'];
+const copies = ['./forms.css', '../../demo/vendor/webui/styles/forms.css'];
 
 for (const rel of copies) {
   const raw = readFileSync(new URL(rel, import.meta.url), 'utf8');

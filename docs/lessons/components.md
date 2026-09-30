@@ -280,3 +280,19 @@ _toJson/parse code, and keep one contract test per route so a serializer
 change fails loudly. Never seed from the struct definition.
 
 ---
+
+## A row rebuild that skips the summary label goes stale after async loads -- resync both on every apply
+Tags: webui, components, dropdown, async
+Applies-when: a summary-plus-list component reloads its list asynchronously after construction
+
+`Dropdown.setOptions` rebuilds the menu rows but never touches the
+trigger label. After any parent rebuild, `DeviceField` constructed the
+trigger from the (then unloaded) rows -- the raw persisted node name --
+and the entering-audio load's `setOptions` updated the menu while the
+trigger kept showing the raw name indefinitely.
+
+**Fix:** on every diff-gated apply, set the trigger from the selected
+row (`next.find(o => o.selected) ?? next[0]`) alongside `setOptions`.
+General principle: a list refresh is only complete when every surface
+derived from the rows -- visible menu and collapsed summary alike --
+updates in the same apply.

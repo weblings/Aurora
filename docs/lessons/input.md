@@ -417,3 +417,66 @@ Applies-when: bounding an async wait on Linux where a permission/source dialog m
 `Aurora-1z9`: the portal fd future only settles after the user answers the source-picker dialog, so the in-repo `wait_for(5s)` precedent (AudioGrabber, a machine-only handshake) would have turned every slow first-run human into a spurious failure. The two waits in one constructor needed different bounds for different reasons.
 
 **Fix:** 60s for the portal wait (covers a human reading the dialog; dismissal still resolves promptly as false with its own message), 5s for the post-fd stream-params wait (no human in the loop). When a bead says "copy the timeout pattern", check whether a dialog sits inside the wait first.
+
+---
+
+## An unresolvable PipeWire target.object readies and links to the default sink instead of failing
+Tags: input, linux, pipewire, audio, target.object, fallback
+Applies-when: assuming a typo'd audioTargetSinkName fails loudly at AudioGrabber construction
+
+`AudioGrabber`'s constructor assumed a typo'd `targetSinkName` never fires
+`param_changed`, so the 5s ready timeout would surface it as a reload error.
+Verified live on PipeWire 1.0.5 + WirePlumber (Aurora-4vf): a stream with
+`target.object=no-such-sink-bogus` still negotiated format (ready), and
+`pw-dump` showed it linked active to the real default sink's monitor ports --
+the session manager silently falls back to the default instead of failing.
+
+**Fix:** "construction succeeded" proves nothing about *which* sink is
+captured on the explicit path; typo validation needs an explicit registry
+membership check against real node names, not the ready timeout. Don't treat
+a negotiated stream as proof its target resolved -- confirm the link target
+independently (`pw-dump` link inspection) before trusting it.
+
+---
+
+## Arming a PipeWire loop timer can silently break registry enumeration on the same loop -- bound the wait with a worker thread instead
+Tags: input, pipewire, loop, timer, async, linux
+Applies-when: bounding a pw_main_loop_run wait with a pw_loop timer
+
+Bounding `enumerateAudioSinks()`' sync round-trip (Aurora-67y) with a 3s
+one-shot `pw_loop_add_timer` + `pw_loop_update_timer` before
+`pw_main_loop_run` made the sync Done arrive instantly with zero registry
+globals -- no error, `update_timer` returned 0, the timeout callback never
+fired, and the sink list came back empty. Bisected hard: timer
+added-but-disarmed enumerated fine; armed (before or after `pw_core_sync`,
+null or zero interval, block-scope or hoisted timespecs) broke it every
+time. Mechanism unknown -- a timer value cannot explain the server sending
+Done with no preceding globals, yet removing the arm fixed it
+deterministically on PipeWire 1.0.5.
+
+**Fix:** bound the wait the way `AudioGrabber`'s constructor already does --
+run the loop on a worker thread, `wait_for` 3s on a future, and on timeout
+`pw_main_loop_quit` from this thread (proven cross-thread-safe by `_stop`)
+under a mutex-guarded loop pointer (cleared by the worker before teardown,
+so a late quit can't hit a destroyed loop), then join and report empty.
+General principle: when a wait needs a bound on a PipeWire loop, prefer the
+thread+quit shape already proven in this repo over a loop timer -- the
+timer API's failure mode here was silent data loss, not an error.
+
+---
+
+## Bluetooth "Connected" is not an audio transport -- check the bluez5 profile, not the link
+Tags: input, audio, bluetooth, pipewire, wireplumber, linux
+Applies-when: a paired and connected Bluetooth device exposes no PipeWire nodes
+
+AirPods Pro showed `Connected: yes` in bluetoothctl with full A2DP
+UUIDs and a bluez5 Device in `wpctl status`, yet PipeWire exposed zero
+nodes for them: `wpctl inspect` showed `bluez5.profile = "off"` and
+`api.bluez5.connection = "disconnected"` -- the baseband/BLE link was
+up with no A2DP transport acquired, so sink enumeration (correctly)
+listed only the built-in sink.
+
+**Fix:** select the device in Sound settings (or `wpctl set-profile`)
+to acquire the transport, then re-check `wpctl status` Sinks. General
+principle: layer the question -- bluetoothctl answers the radio link,
+only the bluez5 profile answers whether audio exists.
