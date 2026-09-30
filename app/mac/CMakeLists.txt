@@ -114,9 +114,20 @@ else()
   set(_AURORA_VERSION "dev")
 endif()
 
-# Minimal .app bundle Info.plist (Aurora-8mk.11) -- just enough bundle
-# identity (CFBundleIdentifier) for a `open`/double-click launch to hold its
-# own TCC grant; no LSUIElement/tray keys yet, see docs/MacSupport.md.
+# Minimum macOS: Core Audio process taps (MacAudioGrabber.mm) need 14.2, so
+# that is the floor for our own code. Left unset, CMake targets the *host*
+# OS and the binary refuses to launch anywhere older. The plist's
+# LSMinimumSystemVersion must agree with the binary's LC_BUILD_VERSION minos
+# (tools/mac/verify-bundle.sh checks both).
+if(CMAKE_OSX_DEPLOYMENT_TARGET)
+  set(_AURORA_MIN_OS "${CMAKE_OSX_DEPLOYMENT_TARGET}")
+else()
+  set(_AURORA_MIN_OS "14.2")
+endif()
+
+# .app bundle Info.plist (Aurora-8mk.11, notarization keys Aurora-qy5.3):
+# CFBundleIdentifier so a `open`/double-click launch holds its own TCC
+# grant, plus the identity/OS keys notarization and LaunchServices expect.
 configure_file(
   "${CMAKE_CURRENT_SOURCE_DIR}/Info.plist.in"
   "${CMAKE_CURRENT_BINARY_DIR}/Info.plist"

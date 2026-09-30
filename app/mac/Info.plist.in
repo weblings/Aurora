@@ -2,6 +2,10 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+    <key>CFBundleInfoDictionaryVersion</key>
+    <string>6.0</string>
+    <key>CFBundleDevelopmentRegion</key>
+    <string>en</string>
     <key>CFBundleExecutable</key>
     <string>Aurora</string>
     <key>CFBundleIdentifier</key>
@@ -18,6 +22,14 @@
     <string>@_AURORA_VERSION@</string>
     <key>NSAudioCaptureUsageDescription</key>
     <string>Aurora reacts to whatever audio your Mac is currently playing, driving your lights from it. This is a separate, narrower permission from Screen Recording -- Aurora can't see screen contents through it.</string>
+    <key>LSMinimumSystemVersion</key>
+    <string>@_AURORA_MIN_OS@</string>
+    <key>LSApplicationCategoryType</key>
+    <string>public.app-category.utilities</string>
+    <key>NSHighResolutionCapable</key>
+    <true/>
+    <key>NSHumanReadableCopyright</key>
+    <string>Copyright (c) Aurora contributors. Licensed under GPL-3.0-or-later.</string>
     <key>LSUIElement</key>
     <true/>
 </dict>
