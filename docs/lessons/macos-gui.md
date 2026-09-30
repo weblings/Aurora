@@ -224,3 +224,24 @@ Applies-when: a script or doc hardcodes `/tmp/...` for a path the app derives fr
 `devstack.py` copied the zone map to `/tmp/aurora-fresh/profiles/` on non-Windows, following the Linux-shaped README. On Mac the app's `--fresh` root is `$TMPDIR/aurora-fresh`, so the copy landed in a directory the app never reads. Nothing errored; frames just never flowed (compounded by an unset input leaving the pipeline idle), so `up` only timed out. The app's own startup line (`Config root: ...`) had the true path all along.
 
 **Fix:** derive the path from the platform temp dir (`tempfile.gettempdir()`, `${TMPDIR:-/tmp}`), and when scripting against the app, read the path it logs rather than assuming it.
+
+---
+
+## The hardened runtime rejects ad-hoc or other-team dylibs ("different Team IDs"), so an app linked against Homebrew libraries can't launch under it
+Tags: macos, codesign, hardened-runtime, library-validation, dylib
+Applies-when: signing with `--options runtime` (required for notarization) an app that loads dylibs it didn't sign itself
+
+Library validation lets a hardened process load only Apple-signed libraries or ones with the *same Team ID*. Aurora's mac binary links `/opt/homebrew/...` dylibs (ad-hoc, no Team ID), so `codesign --options runtime --sign -` gave a launch-time dyld abort: "code signature ... not valid for use in process: mapping process and mapped file (non-platform) have different Team IDs". Bundling the dylibs into `Contents/Frameworks` and rewriting them to `@rpath` fixed the *path* but not this: ad-hoc-signed app and ad-hoc-signed dylibs still share no Team ID, so they were rejected too. `com.apple.security.cs.disable-library-validation` makes both launch, at the cost of weakening the runtime.
+
+**Fix:** for distribution, bundle the dylibs and sign app and every dylib with the same Developer ID (Team ID) so validation passes with no entitlement; treat `disable-library-validation` as a dev-loop stopgap. Bundled-and-shared-Team-ID case was not yet verified (no cert at the time).
+
+---
+
+## Screen Recording is granted to the responsible process, not the binary; launched from an editor, a missing grant stalls capture silently
+Tags: macos, tcc, screen-recording, responsible-process, devstack
+Applies-when: running Aurora (or any capture app) from VS Code's terminal, an agent, or a script and capture produces no frames
+
+TCC attributes the Screen Recording request to the *responsible process*, which for an app started from VS Code's shell is VS Code. With `activeInputName=mac` and VS Code lacking the grant, the pipeline stopped emitting frames but the app stayed alive: no crash, no error (app log buffered/empty). After granting VS Code Screen Recording and restarting the stack, frames flowed and tracked screen content. A Terminal or Finder launch would attribute to that app instead.
+
+**Fix:** when capture is silent and the process is alive, check which app is responsible for the launch and grant *that* app Screen Recording (restart the stack after). Don't chase the pipeline code first.
+

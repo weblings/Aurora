@@ -508,3 +508,14 @@ Applies-when: building resolution logic with an override/fallback branch (e.g. a
 Building `check-links.sh`'s `[[id]]` resolver (`Aurora-lmn.2`), the first implementation checked "does this id resolve to a real file" before checking "does it have a `Superseded-by` chain" -- so a superseded id whose own file still physically existed (the realistic case: the old doc is marked retired but not yet deleted) resolved directly and silently skipped the chain-following/warning path entirely. Fixtures for the other new paths (missing id, bad anchor, duplicate id) all passed regardless, since none of them exercised a superseded-but-still-present file -- the override branch looked correct because nothing had tried to prove it was actually reachable.
 
 **Fix:** wrote a fixture where the *normal* resolution path would also technically succeed (an id with both `Id:` and `Superseded-by:` on the same still-existing file), which caught the bug immediately; reordered the resolver to check `Superseded-by` first, unconditionally. General principle: for any override/fallback branch, "resolves correctly when nothing else could" is a weaker test than "resolves correctly when something else also could" -- test the case that would let the wrong branch win by accident.
+
+---
+
+## Match a crash report's timestamp and pid to the run before treating it as the cause
+Tags: debugging, crash-reports, verification, macos
+Applies-when: a test stalls or fails and DiagnosticReports (or a core dir) already holds reports for the same binary name
+
+While a hardened-runtime test stalled with no frames, `~/Library/Logs/DiagnosticReports` held two fresh-looking `Aurora-*.ips` files with a dyld "Library not loaded" abort. Both were from earlier launches of *other copies* under deliberately broken signing; the stalled run had not crashed at all (its process was alive). Reading the `.ips` header timestamp and `pid` against the current run's pid and clock time separated them in one step.
+
+**Fix:** before attributing a failure to a crash report, compare its timestamp, pid and `procPath` with the live process (`pgrep`, `date`). Same binary name, same day is not the same run, especially when you have just produced expected crashes yourself.
+

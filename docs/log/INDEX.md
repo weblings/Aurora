@@ -56,3 +56,4 @@ Planning docs stay clean: decisions, status, and pointers here only.
 | 2026-09-29 | UpstreamFindings.md and docs/WebUI/ moved into docs/planning/ (owner-requested, against genre-based root/own-bucket calls from the 2026-09-28 pass); WebUI's existing Id:s needed no changes, only bare-path citers fixed | Aurora-7pk |
 | 2026-09-29 | Windows tray on its own thread (menu no longer freezes pipeline; Mac half open); light-viz-stack devstack.py + skill | Aurora-anw, Aurora-zlw, Aurora-dp2, Aurora-df4, Aurora-beh |
 | 2026-09-29 | light-viz-stack verified on Mac: config root is $TMPDIR not /tmp, Mac needs an input set (dummy); flags/relay/bridge wiring confirmed, zone map not | Aurora-df4 |
+| 2026-09-29 | MacCertPrep: hardened runtime breaks Homebrew dylibs (Team ID); capture passes with disable-library-validation; bundling feasible (29 dylibs, ~40 MB); licenses mixed but GPL-3-compatible; qy5.1 closed, qy5 epic opened | Aurora-qy5, Aurora-qy5.1, Aurora-8mk.10 |
