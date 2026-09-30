@@ -1,6 +1,6 @@
 # Windows tray threading + light-viz-stack tooling (2026-09-29)
 
-Paused: Windows half of Aurora-zlw shipped on `fix/WindowsTrayThreading`; the Mac half is open.
+Paused: Windows half (Aurora-anw, closed) split from Aurora-zlw and shipped on `fix/WindowsTrayThreading`; the Mac half is open.
 
 ## Finding
 
@@ -34,4 +34,4 @@ Paused: Windows half of Aurora-zlw shipped on `fix/WindowsTrayThreading`; the Ma
 
 ## Resume
 
-Aurora-zlw (Mac): move the pipeline tick loop off the main thread in app/mac, keep AppKit pump on main; design pass on `PipelineHost` lock and shutdown ordering first. Repeat the gap capture with a held status-item menu.
+Aurora-zlw (now Mac-only): move the pipeline tick loop off the main thread in app/mac, keep AppKit pump on main; design pass on `PipelineHost` lock and shutdown ordering first. Repeat the gap capture with a held status-item menu.
