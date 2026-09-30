@@ -80,6 +80,23 @@ else
   otool -L $machos 2>/dev/null | grep -q -E '/opt/homebrew' && warn "binary links against /opt/homebrew"
 fi
 
+# ---- licenses -------------------------------------------------------------
+# Every bundled dylib needs its license text in the bundle (Aurora-qy5.7):
+# GPL/LGPL/Apache/BSD all require it to travel with the binary.
+LIC="$APP/Contents/Resources/Licenses"
+if ls "$APP/Contents/Frameworks/"*.dylib >/dev/null 2>&1; then
+  lic_bad=0
+  [ -f "$LIC/Aurora/LICENSE" ] || { bad "Licenses/Aurora/LICENSE missing"; lic_bad=1; }
+  [ -f "$LIC/THIRD-PARTY-NOTICES.txt" ] || { bad "Licenses/THIRD-PARTY-NOTICES.txt missing"; lic_bad=1; }
+  for d in "$APP/Contents/Frameworks/"*.dylib; do
+    n="$(basename "$d")"
+    pkg="$(awk -F'\t' -v n="$n" '$1==n{print $2}' "$LIC/licenses.tsv" 2>/dev/null)"
+    if [ -z "$pkg" ]; then bad "$n has no license entry (run tools/mac/bundle-licenses.sh)"; lic_bad=1
+    elif ! ls "$LIC/$pkg/"* >/dev/null 2>&1; then bad "$n -> $pkg: no license file in Licenses/$pkg"; lic_bad=1; fi
+  done
+  [ "$lic_bad" = 0 ] && ok "every bundled dylib has a license text in Contents/Resources/Licenses"
+fi
+
 # ---- minimum OS -----------------------------------------------------------
 declared="$(pl LSMinimumSystemVersion)"
 maxmin="0"

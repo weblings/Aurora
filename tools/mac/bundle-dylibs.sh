@@ -118,6 +118,9 @@ for f in "$EXE" "$FW"/*.dylib; do
 done
 [ "$bad" = 0 ] || { echo "verification failed" >&2; exit 1; }
 
+# license texts go in before signing -- adding files afterwards would break the seal
+"$(dirname "$0")/bundle-licenses.sh" "$APP"
+
 # sign inside-out: dylibs first, then the app (install_name_tool invalidated the old signature)
 if [ "$IDENTITY" = "-" ]; then TS=(--timestamp=none); else TS=(--timestamp); fi
 sign() { codesign "$@" >/dev/null 2>"$WORK/cs.err" || { echo "codesign failed:" >&2; cat "$WORK/cs.err" >&2; exit 1; }; }
