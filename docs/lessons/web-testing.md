@@ -246,3 +246,13 @@ To exercise the embedded path on a dev machine: `resolveWebRoot` (`app/*/include
 
 The reverse also holds. Dev mode never consults the embedded map, so a build-only artifact that has no source-dir copy (the Aurora-lzj graph editor's Vite bundle) must come from an embedded map in both modes. `serveEmbeddedFilesAt(prefix, map)` exists for this: its routes answer only under the prefix and work beside the static mount.
 
+
+---
+
+## An entry script with import-time side effects can be proven equivalent by running HEAD and the working copy against stub modules
+Tags: webui, refactor, testing, no-dom, equivalence
+Applies-when: refactoring `web/ui/app.js` (or any browser entry that runs on import and navigates through injected screens)
+
+No DOM harness exists, so Aurora-4y9's `app.js` refactor had nothing to run. Copy `git show HEAD:web/ui/app.js` and the working copy into two sibling dirs, give each stub `shell.js`, `Tooltips.js` and `screens/*.js` that append their constructor name and key options to a shared trace, fake `globalThis.fetch` per scenario, and `await import('./<dir>/app.js?r=N')` (the query string defeats the module cache; `bootstrap()` runs on import). After each settle, call the last screen's `onComplete`/`onBack` and record again. 641 scenarios x 4 walks ran in seconds and `cmp` on the two traces is the verdict. Prove the harness can fail: break the copy on purpose (hard-code a flag, drop a guard) and confirm the diff.
+
+Related trap: `styles/mac-tray-tip.test.mjs` asserts on `app.js` *source text*, so a pure rename (`state.platform` -> `platform`) fails it with a message about "gating" that reads like a behaviour break. After a refactor, run every `web/ui` test, not just the ones for the code you touched, and update the string deliberately.

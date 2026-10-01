@@ -32,7 +32,7 @@ const app = read('../app.js');
 {
   // Wiring: platform gate, Back/Continue routing, discovery hand-off.
   assert.ok(app.includes('platform: capabilities.platform'), 'probeState returns platform');
-  assert.ok(app.includes("state.platform === 'mac'"), 'tip is gated on the mac platform');
+  assert.ok(app.includes("const isMac = platform === 'mac'"), 'tip is gated on the mac platform');
   assert.ok(
     app.includes('isMac ? showMacTip(discoveryPromise) : showOutputConnect(discoveryPromise, showWelcome)'),
     'Welcome goes to the tip on Mac, straight to Output Connect elsewhere',
