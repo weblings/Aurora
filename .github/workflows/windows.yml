@@ -11,6 +11,7 @@ on:
       - input/windows/**
       - output/hue/**
       - app/windows/**
+      - web/graph-editor/**
       - CMakeLists.txt
       - CMakePresets.json
       - .github/workflows/windows.yml
@@ -20,6 +21,7 @@ on:
       - input/windows/**
       - output/hue/**
       - app/windows/**
+      - web/graph-editor/**
       - CMakeLists.txt
       - CMakePresets.json
       - .github/workflows/windows.yml
@@ -31,10 +33,14 @@ jobs:
       - uses: actions/checkout@v4
       - name: Install OpenCV
         run: choco install opencv -y
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
       - name: Configure
         run: >
           cmake --preset windows-app
           -DOpenCV_DIR="C:/tools/opencv/build"
+          -DAURORA_ENABLE_GRAPH_EDITOR=ON
       - name: Build
         run: cmake --build build/windows-app --config Release
       - name: Test

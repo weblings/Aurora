@@ -68,14 +68,69 @@ started. The same session filed the Home Assistant prep beads.
   matched byte for byte.
 - Mutation check: un-isolating `\xNN` escapes makes
   `AuroraEmbedWebrootTests` fail, and restoring them makes it pass.
-- Not yet run: Windows (MSVC) and Mac (Apple Clang). App presets force
-  core tests off, so use a standalone `cmake -S core -B build/core-tests`
-  and `ctest -R "embed_webroot|HttpServer"`.
+- Mac (Apple M5, Apple Clang), 2026-10-01: standalone `cmake -S core -B
+  build-core-test`, clean rebuild, no compiler warnings, ctest 97/97
+  (including the 400 KB fixture round-trip and the 3 new `HttpServer`
+  cases). `build/mac-app` rebuilt: `EmbeddedWebRoot.hpp` (1.0 MB)
+  regenerated through the new encoder, no compiler warnings (only the
+  known macOS-14.2-vs-27.0 dylib linker warnings), app ctest 62/62.
+- Not yet run: Windows (MSVC). App presets force core tests off, so use a
+  standalone `cmake -S core -B build/core-tests` and
+  `ctest -R "embed_webroot|HttpServer"`.
+
+## Change B (editor build), Mac, 2026-10-01
+
+Built on Mac only; Linux and Windows edits are written but not built.
+
+- `web/graph-editor/`: exact-pinned `package.json` (vite 8.3.2, react 19.3.0,
+  @xyflow/react 12.12.0, @vitejs/plugin-react 6.1.1, typescript 7.0.2),
+  committed `package-lock.json`, `.npmrc` (ignore-scripts, engine-strict),
+  `vite.config.ts` (base `/graph-editor/`, `build.license`, `/api` dev
+  proxy), hello-world React Flow app that builds asset URLs from
+  `BASE_URL` and fetches `/api/version`. `npm run typecheck` is clean.
+- `web/graph-editor/cmake/GraphEditor.cmake`: declares
+  `AURORA_ENABLE_GRAPH_EDITOR` (OFF) and `AURORA_GRAPH_EDITOR_DIST`;
+  `aurora_graph_editor_embed()` runs `npm ci` (stamped on the lockfile),
+  `npm run build -- --outDir <bindir> --emptyOutDir` (stamped on a source
+  glob), then embeds with the new `NAMESPACE`/`DEPENDS` arguments of
+  `aurora_embed_webroot`. The three app CMakeLists include it; the three
+  `main.cpp` call `serveEmbeddedFilesAt("/graph-editor/", ...)` under
+  `AURORA_GRAPH_EDITOR`. The option lives in the module so one definition
+  serves the superbuild and standalone slice configures.
+- Notice shipping: Linux `install(FILES ...)` into the doc dir; Windows an
+  install rule into `Licenses`; Mac POST_BUILD copy into
+  `Contents/Resources/Licenses/graph-editor/`, which
+  `tools/mac/bundle-licenses.sh` now preserves across its wipe and lists in
+  its index.
+- Workflows: setup-node 22 and the option in linux.yml/windows.yml
+  (`web/graph-editor/**` added to their path filters). Building.md and
+  FutureSteamOSSupport.md updated.
+
+Mac results (Apple M5, Node 22.23.3, build/mac-app):
+
+- Option OFF (default): configure never looks for npm (`AURORA_NPM` not in
+  the cache); `EmbeddedWebRoot.hpp` byte-identical to before (same sha1);
+  the binary has no `graph-editor` strings.
+- Option ON: `npm ci` plus vite build (399 KB JS, 17 KB CSS, notices file),
+  embedded, linked, signature verifies, app ctest 62/62.
+- Running app (`--fresh`): `/graph-editor` 301 to `/graph-editor/`; index 200
+  `text/html`; the JS 200 `text/javascript`, byte-identical to the dist
+  file; `icon.svg` and the THIRD-PARTY-NOTICES file served with the right types;
+  `/` still serves the main WebUI.
+- Rebuilds: touching `main.cpp` recompiles and relinks without rerunning
+  vite; touching an editor source reruns vite and the embed; a no-change
+  build does nothing.
+- `bundle-licenses.sh` keeps the staged notice (checked with an empty dylib
+  manifest; a real identity-signed bundle not run).
+- Browser check: the user opened `/graph-editor/` from the running Mac app
+  and confirmed it works (2026-10-01).
+- Not verified: Linux and Windows builds of any of this, including the
+  MSVC literal-limit check.
 
 ## Resume
 
-Run the Windows and Mac core-test checks, then change B (lzj design
-steps 3-7).
+Windows (MSVC): core tests, then an app build with the option ON. Linux:
+app build with the option ON. Then close Aurora-lzj.
 
 ## Lessons
 
@@ -88,3 +143,10 @@ steps 3-7).
   paths entry (`web-testing`).
 - Beads memory: `bd export` after `bd create`/`update`. The automatic
   export wrote only the first of five new beads.
+- Change B, new in `build-toolchain`: a configure-time glob can't track a
+  build step's output, so embed depends on the producer's stamp; files added
+  to Aurora.app must precede the signing step and survive
+  `bundle-licenses.sh`'s wipe. Not filed (under the 30-minute bar): the link
+  checker treats any backticked `*.md` name as a link, including generated
+  files; Homebrew's `node@22` was linked on PATH despite `brew info` saying
+  keg-only.

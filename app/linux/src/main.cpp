@@ -28,6 +28,9 @@
 #include <Aurora/App/TrayIcon.hpp>
 #include <Aurora/App/WebRoot.hpp>
 #include <EmbeddedWebRoot.hpp>
+#ifdef AURORA_GRAPH_EDITOR
+#include <GraphEditorWebRoot.hpp>
+#endif
 #include <Aurora/Network/Http/Server/HttpServer.hpp>
 #include <Aurora/Runtime/ConfigStore.hpp>
 #include <Aurora/Runtime/ControlDescriptorTables.hpp>
@@ -1041,6 +1044,12 @@ if(!instanceLock.held()){
   else{
     httpServer.serveEmbeddedFiles(Aurora::EmbeddedWebRoot::files);
   }
+
+#ifdef AURORA_GRAPH_EDITOR
+  // Graph editor (Aurora-lzj): always the embedded bundle, in dev and
+  // standalone runs alike -- the dev web/ui mount above never reaches it.
+  httpServer.serveEmbeddedFilesAt("/graph-editor/", Aurora::GraphEditorWebRoot::files);
+#endif
 
   // Own thread, same as huenicorn's real Runtime::_initWebUI (see
   // docs/HttpServerAnalysis.md) -- listen() blocks until stop() is
