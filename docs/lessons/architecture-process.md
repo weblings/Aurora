@@ -572,3 +572,36 @@ bullets linking fork branches, one line per fix, and an explicit offer to
 split or drop. Then send grouped MRs one at a time, smallest and clearest
 first; the one that changes runtime behavior goes last, after a real-world
 check. Put a droppable trivial fix last in the most related group.
+
+---
+
+## Removing one commit message line from published history: find every ref first, rewrite in one pass, verify trees
+Tags: git, history-rewrite, force-push, tags, process
+Applies-when: a commit already on shared branches must change (trailer, secret, author) and the repo has several branches, a release tag and multiple clones
+
+Stripping a `Co-Authored-By` trailer from one commit (ab7b799) touched 5 branches, the `v1.0.4` tag and 3 clones, and went wrong in ways worth avoiding.
+
+- **List every ref that reaches the commit, untruncated.** `git branch -a --contains <sha> | head` hid `feat/HAPrep`, which was then left unrewritten and reported clean by mistake. Use `git for-each-ref --contains <sha>` with no `head`; it also covers tags, stashes and `refs/original`.
+- **A published release tag counts as a ref to rewrite.** It was the one decision the user had to make (move it or leave the old commit reachable via the tag). Ask before moving it.
+- **Rewrite all refs in one `git filter-branch --msg-filter ... -- <base>..<ref> <base>..<ref> ...` invocation.** Commits are deterministic given identical parents, tree and metadata, so shared ancestors get the same new hash on every branch. A later, separate pass over a branch built on the same history lined up with the new `dev` (8 ahead, 0 behind) for the same reason.
+- **Verify before pushing:** zero trailer matches, same commit counts, and every commit's tree equal to its original (`git rev-parse <c>^{tree}` paired over `rev-list --topo-order`). A message-only rewrite must change no trees.
+- **Back up first** with `git bundle create <file> --all`, outside the repo.
+- **Push each ref separately** with `--force-with-lease=<ref>:<FULL 40-char old sha>`. An abbreviated SHA or a pasted `...` ellipsis fails with "cannot parse expected object name". Never put abbreviations or ellipses in commands the user will copy.
+
+**Fix:** the order above. Cheaper alternative if the affected commit is unpushed: `git commit --amend`. Not worth rewriting published history for one trailer unless the user asks.
+
+---
+
+## After a history rewrite, other clones show "N and N different commits"; reset them, never pull or merge
+Tags: git, history-rewrite, clones, cherry, backups
+Applies-when: a force-pushed branch must be repaired on other machines
+
+An IDE or `git pull` offers to integrate when a branch has diverged ("16 and 16 different commits"). Merging brings the old commits back next to the rewritten ones, trailer included.
+
+- `git cherry -v origin/<b> <b>` decides safety: empty or every line `-` means each local commit already exists upstream under a new hash (nothing to lose); any `+` is real unpushed work and needs `git rebase --onto` or a plain `git rebase origin/<b>` (git drops patch-equivalent commits) instead of a reset.
+- Reset with `git branch backup-<b>-old <b>`, `git reset --hard origin/<b>`.
+- **Backups and leftovers keep the old history alive in `git log --all`.** `backup-*-old` branches, `refs/original/*` from a previous `filter-branch` (here a branch named `backup/pre-attribution-rewrite`), and local-only branches built on the old history (`fix/AvoidNaN`, `feat/MacSupportV2`) each still reach the old commit. Diagnose with `git for-each-ref --contains <sha> --format='%(refname)'`; clear with `git update-ref -d` and `git branch -D` once `git cherry -v dev <branch>` shows the work is in dev.
+- Old git versions reject `git rev-parse --short A B` ("needed a single revision"); run one ref per command.
+- A local branch that matches a remote tip with no unique commits can simply be deleted and recreated from the remote.
+
+**Fix:** per-branch cherry check, backup, reset, then a final `git log --all --regexp-ignore-case --grep=<pattern>` that must print nothing. Reflog entries survive until `git reflog expire --expire=now --all && git gc --prune=now`; they do not affect `--all` or pushes.

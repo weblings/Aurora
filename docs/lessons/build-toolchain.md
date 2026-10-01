@@ -559,3 +559,13 @@ Applies-when: putting a new file into `Contents/Resources` (notices, assets) fro
 POST_BUILD commands on `aurora-app-mac` run in the order they were added, and the ad-hoc `codesign --deep` seals the bundle, so a copy added after it breaks the signature. Separately, `tools/mac/bundle-licenses.sh` (the identity-signed path) does `rm -rf Contents/Resources/Licenses` and regenerates it, so a file staged there by CMake disappears on that path. Aurora-lzj hit both while shipping the graph editor's npm notice; caught by reading, not by a failure.
 
 **Fix:** add the copy `add_custom_command(TARGET ... POST_BUILD)` above the signing block in `app/mac/CMakeLists.txt`, and make `bundle-licenses.sh` stash and restore the staged file around its wipe. Verify with `codesign --verify --deep --strict` and by running the script against a fake bundle with an empty `bundled-dylibs.tsv`.
+
+---
+
+## `docs/check-links.sh` is Python with a `.sh` name: run it as `python`, with `PYTHONUTF8=1` on Windows, and it rewrites `docs/_ids.md`
+Tags: docs, check-links, windows, python, line-endings
+Applies-when: running the link checker from Windows or Git Bash
+
+`bash docs/check-links.sh` fails (`import: command not found`) because the file is a Python script. `python docs/check-links.sh` on Windows then dies with `UnicodeDecodeError: 'charmap' codec` on the first non-ASCII doc unless `PYTHONUTF8=1` is set. A successful run also regenerates `docs/_ids.md` with different line endings, so `git diff` shows ~100 changed lines of whitespace.
+
+**Fix:** `PYTHONUTF8=1 python docs/check-links.sh`; `git checkout docs/_ids.md` if the diff is only line endings, and commit it only when entries really changed.
