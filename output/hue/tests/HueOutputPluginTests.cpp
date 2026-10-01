@@ -66,4 +66,5 @@ TEST_CASE("HueOutput reports its name and starts unconnected", "[HueOutput]")
   CHECK(output.name() == "hue");
   CHECK_FALSE(output.isConnected());
   CHECK(output.zoneIds().empty()); // not init()'d -- no live bridge in this test
+  CHECK(output.zoneLabels().empty());
 }

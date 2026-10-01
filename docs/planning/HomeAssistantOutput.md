@@ -159,7 +159,7 @@ output protocol only if third parties ask for it; dlopen last, if ever.
 
 ## Prep work
 
-Status: proposed 2026-10-01; pp8, dwo and 4y9 implemented (pp8/dwo
+Status: proposed 2026-10-01; pp8, dwo, 4y9 and a0r implemented (pp8/dwo
 verification pending, see below). These items need no new
 dependency, work with Hue as the only output, and don't commit to building HA.
 Beads carry the details (label `ha-prep`):
@@ -170,7 +170,9 @@ Beads carry the details (label `ha-prep`):
   Added; Windows and Mac configures not yet run.
 - Aurora-4y9: per-output `{ probe, stages }` table in `probeState()`/`bootstrap()`.
   Done and checked against the old flow (trace compare + browser, Linux).
-- Aurora-a0r: output-neutral zone labels endpoint for Zone Mapping.
+- Aurora-a0r: output-neutral zone labels endpoint for Zone Mapping
+  (`IOutput::zoneLabels()`, `GET /api/zones/labels`). Done, checked on Linux
+  with fake-hue; Mac/Windows not compiled.
 - Aurora-d9v: WebSocket client build and connect check on all three platforms.
 
 Deferred until HA is a go: rate-limited sender, brightness/`rgb_color`

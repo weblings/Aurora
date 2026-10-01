@@ -417,10 +417,10 @@ namespace
       const std::string& name = m_outputPtrs.front()->name();
 #ifdef AURORA_RUNTIME_AUDIO_AVAILABLE
       if(m_isAudioMode){
-        return {name, m_audioOrchestrator->zoneMap(name)};
+        return {name, m_audioOrchestrator->zoneMap(name), m_outputPtrs.front()->zoneLabels()};
       }
 #endif
-      return {name, m_orchestrator->zoneMap(name)};
+      return {name, m_orchestrator->zoneMap(name), m_outputPtrs.front()->zoneLabels()};
     }
 
     bool updateZone(

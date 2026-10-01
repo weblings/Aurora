@@ -109,6 +109,23 @@ namespace Aurora::Output::Hue
   }
 
 
+  std::map<uint8_t, std::vector<std::string>> HueOutput::zoneLabels() const
+  {
+    std::map<uint8_t, std::vector<std::string>> labels;
+
+    if(m_selector && m_selector->validSelection()){
+      for(const auto& [id, channel] : m_selector->currentEntertainmentConfiguration().channels){
+        auto& names = labels[id];
+        for(const auto& device : channel.devices){
+          names.push_back(device.name);
+        }
+      }
+    }
+
+    return labels;
+  }
+
+
   void HueOutput::send(const Contracts::Frame& frame)
   {
     if(!m_streamer){

@@ -2,8 +2,10 @@
 
 #include <cstdint>
 #include <functional>
+#include <map>
 #include <optional>
 #include <string>
+#include <vector>
 
 #include <Aurora/Contracts/UV.hpp>
 #include <Aurora/Runtime/ZoneMap.hpp>
@@ -26,6 +28,9 @@ namespace Aurora::Runtime
     // outputs at all) -- see registerZoneRoutes' own header comment.
     std::string outputName;
     ZoneMap zones;
+    // From the live output's IOutput::zoneLabels() -- served by
+    // GET /api/zones/labels, not /api/zones itself.
+    std::map<std::uint8_t, std::vector<std::string>> labels;
   };
 
   void registerZoneRoutes(

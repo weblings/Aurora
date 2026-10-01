@@ -256,3 +256,13 @@ Applies-when: refactoring `web/ui/app.js` (or any browser entry that runs on imp
 No DOM harness exists, so Aurora-4y9's `app.js` refactor had nothing to run. Copy `git show HEAD:web/ui/app.js` and the working copy into two sibling dirs, give each stub `shell.js`, `Tooltips.js` and `screens/*.js` that append their constructor name and key options to a shared trace, fake `globalThis.fetch` per scenario, and `await import('./<dir>/app.js?r=N')` (the query string defeats the module cache; `bootstrap()` runs on import). After each settle, call the last screen's `onComplete`/`onBack` and record again. 641 scenarios x 4 walks ran in seconds and `cmp` on the two traces is the verdict. Prove the harness can fail: break the copy on purpose (hard-code a flag, drop a guard) and confirm the diff.
 
 Related trap: `styles/mac-tray-tip.test.mjs` asserts on `app.js` *source text*, so a pure rename (`state.platform` -> `platform`) fails it with a message about "gating" that reads like a behaviour break. After a refactor, run every `web/ui` test, not just the ones for the code you touched, and update the string deliberately.
+
+---
+
+## Headless Firefox here: `--screenshot` fires on load and exits, so read async-rendered DOM text through a beacon instead
+Tags: firefox, headless, screenshot, snap, browser-verification
+Applies-when: checking a WebUI screen that fills in after its first render (fetch-driven labels) in headless Firefox on this Linux box
+
+Aurora-a0r's label check hit three snags. (1) With the user's own Firefox open, `firefox --headless` exits "already running, but is not responding"; add `--no-remote --profile <dir>`. (2) The snap Firefox can't see `/tmp` or scratchpad paths ("Could not find profile folder", no screenshot written); keep the profile and `--screenshot` output under `$HOME`. (3) `--screenshot` captures at the load event and quits: a screen that fetches labels after mount shows "Loading…" or bare "Zone N", which reads like a bug. Top-level `await` in the page module doesn't hold `load` open, and the process exits before any timer fires.
+
+**Fix:** temporary harness page in `web/ui/` (served by the app from source) that mounts the screen, waits, then `navigator.sendBeacon('http://127.0.0.1:<port>/', document.body.innerText)` to a 15-line Python POST sink; run `timeout 15 firefox --headless --no-remote --profile ~/<dir> <url>` (no `--screenshot`) and read the sink's file. Delete the harness page and profile afterwards.
