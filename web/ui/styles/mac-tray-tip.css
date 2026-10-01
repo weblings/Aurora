@@ -1,0 +1,19 @@
+/* Mac menu-bar tip screen -- the GIF sits centered above the shared text
+   pair. Never upscaled past its own 398px width, shrinks on narrow viewports. */
+
+.mac-tray-tip-body {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--aurora-space-6);
+  margin-top: var(--aurora-space-6);
+  margin-bottom: var(--aurora-space-6);
+}
+
+.mac-tray-tip-gif {
+  display: block;
+  width: 100%;
+  max-width: 398px;
+  height: auto;
+  border-radius: var(--aurora-radius-panel);
+}

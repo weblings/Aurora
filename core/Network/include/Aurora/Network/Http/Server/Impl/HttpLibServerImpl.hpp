@@ -31,6 +31,7 @@ namespace Aurora::Network::Http::Server
         {".svg", "image/svg+xml"},
         {".json", "application/json"},
         {".png", "image/png"},
+        {".gif", "image/gif"},
         {".ico", "image/x-icon"},
         {".txt", "text/plain"},
       };

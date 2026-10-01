@@ -161,6 +161,59 @@ TEST_CASE("HttpServer's serveEmbeddedFiles answers paths with matching entries a
 }
 
 
+TEST_CASE("HttpServer's serveEmbeddedFiles serves a GIF as image/gif with its bytes intact", "[HttpServer]")
+{
+  // GIF89a header plus a NUL and a high byte, so a truncating or
+  // text-mangling path would show up in the body comparison.
+  const std::string gif("GIF89a\x01\x00\xff\x3b", 10);
+  HttpServer::EmbeddedFiles files = {
+    {"icons/MacTray.gif", gif},
+  };
+
+  HttpServer server;
+  server.serveEmbeddedFiles(files);
+
+  REQUIRE(server.bind("127.0.0.1", 18222));
+
+  std::thread serverThread([&](){ server.listen(); });
+
+  httplib::Client client("127.0.0.1", 18222);
+  auto result = getWithRetry(client, "/icons/MacTray.gif");
+
+  REQUIRE(result);
+  CHECK(result->status == 200);
+  CHECK(result->body == gif);
+  CHECK(result->get_header_value("Content-Type") == "image/gif");
+
+  server.stop();
+  serverThread.join();
+}
+
+
+TEST_CASE("HttpServer's serveStaticFiles serves a GIF as image/gif", "[HttpServer]")
+{
+  ScopedTempDir webroot("static-gif");
+  std::ofstream(webroot.path / "tip.gif", std::ios::binary) << "GIF89a";
+
+  HttpServer server;
+  server.serveStaticFiles(webroot.path);
+
+  REQUIRE(server.bind("127.0.0.1", 18223));
+
+  std::thread serverThread([&](){ server.listen(); });
+
+  httplib::Client client("127.0.0.1", 18223);
+  auto result = getWithRetry(client, "/tip.gif");
+
+  REQUIRE(result);
+  CHECK(result->status == 200);
+  CHECK(result->get_header_value("Content-Type") == "image/gif");
+
+  server.stop();
+  serverThread.join();
+}
+
+
 TEST_CASE("HttpServer's serveEmbeddedFiles answers / with index.html and 404s unknown paths", "[HttpServer]")
 {
   HttpServer::EmbeddedFiles files = {

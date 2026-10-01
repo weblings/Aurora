@@ -2,19 +2,23 @@
 
 Id: mac-tray-parity
 
-Status: active — Aurora-qps epic. qps.6 (SMAppService spike) dropped and
-qps.5 (first-run notification) superseded by qps.8 (open). Full build history
-(qps.1-.4, .7) is [[mac-tray-parity-history]]; this doc only tracks what's
-still open.
+Status: no open children — Aurora-qps epic. qps.6 (SMAppService spike)
+dropped, qps.5 (first-run notification) superseded by qps.8 (shipped, below).
+Full build history (qps.1-.4, .7) is [[mac-tray-parity-history]]. Epic close
+(and archiving this doc) is pending.
 
-## Aurora-qps.8 — Mac-only NUX tip screen (open)
+## Aurora-qps.8 — Mac-only NUX tip screen (shipped)
 
-Replaces the first-run notification: after Welcome, on Mac only, show
-`MacTray.gif` (moving into `web/ui/`) with Mac-specific wording; Continue
-proceeds. Findings and file-level plan are on the bead. Why not a
+After Welcome, on Mac only (`platform` from `/api/capabilities`, now returned
+by `probeState()`), `MacTrayTipScreen` shows `web/ui/icons/MacTray.gif` with
+menu-bar wording; Continue goes to Output Connect, Back to Welcome, and Back
+from Output Connect returns to the tip. Welcome's in-flight Hue discovery
+promise is carried through, so discovery keeps running. First-run only
+(inherits the `nuxCompleted` gate); Windows/Linux unchanged. Why not a
 notification: it worked only for a notarized build run from an ordinary
 apps folder, needs a permission dialog, and would fire once
-(`docs/log/2026-09-30-mac-first-run-notification-spike.md`).
+(`docs/log/2026-09-30-mac-first-run-notification-spike.md`). Log:
+`docs/log/2026-09-30-mac-nux-tray-tip.md`.
 
 **Dropped:** qps.6 (launch-at-login is out of scope; Windows/Linux don't
 ship it) and qps.5 (superseded above).

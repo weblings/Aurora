@@ -71,7 +71,7 @@ of 2026.9; a direct WLED/DDP output would be the fast Wi-Fi path.
 ## NUX changes
 
 Today's flow (`web/ui/app.js`) is Hue-only end to end: Welcome starts
-`/api/hue/discover`, then Output Connect (link button), Entertainment zone
+`/api/hue/discover`, then (Mac only) the menu-bar tip screen, then Output Connect (link button), Entertainment zone
 select, Mode+Device, Zone Mapping, Dashboard. `probeState()` derives each
 `needs*` flag from `/api/hue/connection`, and Dashboard's Bridge section and
 Zone Mapping's labels (`/api/hue/channels`) are Hue-specific too.

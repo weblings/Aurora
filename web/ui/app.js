@@ -6,6 +6,7 @@
 import { App } from './shell.js';
 import { DashboardScreen } from './screens/DashboardScreen.js';
 import { WelcomeScreen } from './screens/WelcomeScreen.js';
+import { MacTrayTipScreen } from './screens/MacTrayTipScreen.js';
 import { OutputConnectScreen } from './screens/OutputConnectScreen.js';
 import { EntertainmentZoneSelectScreen } from './screens/EntertainmentZoneSelectScreen.js';
 import { ModeDeviceScreen } from './screens/ModeDeviceScreen.js';
@@ -131,6 +132,7 @@ async function probeState() {
   }
 
   return {
+    platform: capabilities.platform,
     needsOutputConnect: hasHue && !connectionConfigured,
     needsEntertainmentZoneSelect: hasHue && connectionConfigured && !entertainmentConfigurationId,
     needsModeDevice: !modeConfigValid,
@@ -253,14 +255,25 @@ async function bootstrap() {
     // configured yet -- never from Dashboard's "Change bridge" or any other
     // OutputConnectScreen re-entry, which construct it directly with no
     // discoveryPromise and keep behaving exactly as before.
+    //
+    // Mac only: a menu-bar tip screen sits between Welcome and Output
+    // Connect. It just carries the discovery promise through (discovery
+    // keeps running while the tip is read); Back from Output Connect
+    // returns to it, reusing the same already-started promise.
+    const isMac = state.platform === 'mac';
     const showWelcome = () => app.navigate(new WelcomeScreen(app, {
-      onComplete: (discoveryPromise) => showOutputConnect(discoveryPromise),
+      onComplete: (discoveryPromise) => (isMac ? showMacTip(discoveryPromise) : showOutputConnect(discoveryPromise, showWelcome)),
     }));
-    const showOutputConnect = (discoveryPromise) => app.navigate(new OutputConnectScreen(app, {
-      showBack: true,
-      onBack: showWelcome,
+    const showMacTip = (discoveryPromise) => app.navigate(new MacTrayTipScreen(app, {
       discoveryPromise,
-      onComplete: () => goToEntertainmentZoneSelectStage(showOutputConnect),
+      onBack: showWelcome,
+      onComplete: () => showOutputConnect(discoveryPromise, () => showMacTip(discoveryPromise)),
+    }));
+    const showOutputConnect = (discoveryPromise, previousStep) => app.navigate(new OutputConnectScreen(app, {
+      showBack: true,
+      onBack: previousStep,
+      discoveryPromise,
+      onComplete: () => goToEntertainmentZoneSelectStage(() => showOutputConnect(undefined, previousStep)),
     }));
     showWelcome();
     return;
