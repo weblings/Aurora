@@ -280,12 +280,17 @@ is `G_IO_ERROR_CANCELLED`, i.e. our own teardown).
 
 **Why it hasn't fired (observably):** needs a broken or partial portal
 backend. Reproduced 2026-10-01 with the fake portal returning a D-Bus error
-from CreateSession: promise still unsettled after 5s, with 5's fix applied.
+from CreateSession, SelectSources, and OpenPipeWireRemote in turn: on
+`develop` each leaves the promise unsettled after 5s; with the fix each
+settles `false` and teardown is clean. (The second fd-retrieval branch,
+`g_unix_fd_list_get`, isn't reachable from a fake portal; same one-line fix.)
 
 **Suggested fix:** in each, settle `false` in the non-cancelled branch,
 matching `onStartedCallback`. The two callbacks that ignore `userData` get
 the capture through the `DbusCallData*` passed as `userData`, which the
-response callback hasn't freed yet when the call itself failed.
+response callback hasn't freed yet when the call itself failed. Dereference
+it only in the non-cancelled branch: on `G_IO_ERROR_CANCELLED`,
+`onCancelledCallback` may already have freed it.
 
 **Status (5, 6, 9 and 10):** 6 fixed in Aurora's port (`Aurora-Input-Linux`'s
 `XdgDesktopPortal.cpp`) — see `archive/LinuxCaptureAnalysis.md`. 5 and 9 only

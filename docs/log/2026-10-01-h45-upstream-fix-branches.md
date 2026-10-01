@@ -53,6 +53,11 @@ pushes and opens MRs.
 - `fix/portal-select-source-denied` (`269ecf1`, off `origin/develop`, not pushed):
   `onSelectSourceResponseReceivedCallback` settles `fdReadyPromise` with
   `false` before its existing return. Closed `Aurora-h45.6`.
+- `fix/portal-call-errors` (`7a29b7f`, off `origin/develop`, not pushed): settles
+  `fdReadyPromise` with `false` in the non-cancelled error branch of the
+  CreateSession, SelectSources and OpenPipeWireRemote call callbacks. Merges
+  cleanly with 5's and 9's branches (same file, separate hunks). Closed
+  `Aurora-h45.11`.
 - Pipewire also offers `RGB`/`YUY2`/`I420`, which the 4-byte decode can't
   handle. Not filed as a finding: screen-cast producers offer only 4-byte
   formats, so they never negotiate. Noted in 1's write-up for the MR instead.
@@ -79,6 +84,9 @@ pushes and opens MRs.
   after 5s, confirming 9 live.
 - 9: same harness, denied SelectSources: `develop` unsettled after 5s,
   fixed build settles `false` and tears down cleanly.
+- 10: fake portal extended with call-error modes for CreateSession,
+  SelectSources and OpenPipeWireRemote (after a successful Start): `develop`
+  unsettled after 5s for all three, fixed build settles `false` for all three.
 
 ## Lessons
 
@@ -89,6 +97,8 @@ pushes and opens MRs.
   portal on a private `dbus-run-session` bus.
 - Input: extended the promise-settling entry with call errors (10) and the
   CreateSession-denial segfault.
+- Input: a GLib async callback still runs after cancellation; don't
+  dereference `userData` a cancel handler may have freed.
 - Input: extended the existing "trusting a tag" entry (huenicorn's X11
   mistag) with this recurrence instead of filing a duplicate.
 - Input: every early return in a promise-driven portal callback chain must

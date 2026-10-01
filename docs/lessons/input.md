@@ -550,3 +550,25 @@ reproduction, including a segfault on `develop` nobody had seen.
 **Fix:** use this pattern instead of declaring portal branches untestable.
 `gdbus wait` avoids a sleep race on the name; keep the bus private so the
 real portal is never touched.
+
+---
+
+## A GLib async callback still runs after cancellation -- don't dereference `userData` that a cancel handler may already have freed
+Tags: input, linux, glib, xdg-portal, lifetime, huenicorn
+Applies-when: adding code to a `g_dbus_proxy_call` (or any GIO async) completion callback in `XdgDesktopPortal` that reads its `userData`
+
+`XdgDesktopPortal` hands one `DbusCallData*` to both the Response-signal
+subscription and the method call's completion callback. It's freed by the
+Response callback on the normal path, or by `onCancelledCallback` when
+teardown cancels the `GCancellable`. GIO still invokes every pending
+completion callback afterwards, with `G_IO_ERROR_CANCELLED`. So a completion
+callback that dereferences `userData` unconditionally (as huenicorn's
+`onStartedCallback` does at the top) can read freed memory if teardown races
+an in-flight call. While adding finding 10's fix (`Aurora-h45.11`), the
+dereference went inside the non-cancelled branch only. On that path no
+Response comes, so nothing has freed the data yet.
+
+**Fix:** in GIO completion callbacks, check the error first and touch
+`userData` only on paths where you can name who still owns it. Treat
+`G_IO_ERROR_CANCELLED` as "my owner is tearing down" and return without
+reading shared state.
