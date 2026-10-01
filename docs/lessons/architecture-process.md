@@ -539,3 +539,13 @@ distinguishing question: is the citation being read for the target doc's
 content (repoint it), or is the citation itself part of what's being
 recorded (leave it)? Bare paths still resolve either way, so nothing
 breaks by leaving the second kind alone.
+
+---
+
+## A validated setter doesn't protect state with a second write path that bypasses it
+Tags: architecture, config, validation, persistence
+Applies-when: adding validation to a setter for persisted state that also loads from disk
+
+`ConfigStore::fromJson` writes `ConfigData` fields directly, never through `Config::set*` -- so clamping `setAudioCentroidRangeHz` (Aurora-9ca) fixes the REST path but not a hand-edited `config.json` holding 0. The fix needed two layers for that reason: the setter clamp for the live path, plus a non-finite guard at the consumer (`Color::fromHSV`) that holds regardless of how the bad value arrived.
+
+**Fix:** when adding setter validation, grep for direct struct-field writes (loaders, migrations, tests) and decide per path -- sanitize the loader too, or harden the downstream consumer so every path is covered. A regression test that bypasses the setter (zero range straight into `updateDrift`) pins the defense-in-depth layer, not just the setter.

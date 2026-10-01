@@ -2,6 +2,7 @@
 #include <catch2/catch_approx.hpp>
 
 #include <cmath>
+#include <limits>
 
 #include <Aurora/Processing/AudioProcessing.hpp>
 
@@ -21,6 +22,42 @@ TEST_CASE("Color::fromHSV/toHSV round-trips the six named anchor hues", "[AudioP
     REQUIRE(hsv.y == Catch::Approx(1.0f).margin(0.01f));
     REQUIRE(hsv.z == Catch::Approx(1.0f).margin(0.01f));
   }
+}
+
+
+TEST_CASE("Color::fromHSV returns a defined color for non-finite input (Aurora-9ca)", "[AudioProcessing][Color]")
+{
+  // A zero-divided drift rate NaNs its way here -- the uint8_t cast
+  // must never see it, so the guard returns black instead of UB.
+  const float nan = std::numeric_limits<float>::quiet_NaN();
+  const float inf = std::numeric_limits<float>::infinity();
+  CHECK(Color::fromHSV(nan, 1.0f, 1.0f) == Color{});
+  CHECK(Color::fromHSV(inf, 1.0f, 1.0f) == Color{});
+  CHECK(Color::fromHSV(0.0f, nan, 1.0f) == Color{});
+  CHECK(Color::fromHSV(0.0f, 1.0f, inf) == Color{});
+}
+
+
+TEST_CASE("updateDrift with zero centroid range still yields a defined color (Aurora-9ca)", "[AudioProcessing]")
+{
+  // Bypasses Config's clamp the way a hand-edited config.json could --
+  // the fromHSV guard must make the pipeline defined anyway.
+  AudioProcessing::AudioEffectSettings settings;
+  settings.centroidRangeHz = 0.0f;
+
+  AudioFeatures silence; // centroid delta 0/0 = NaN on the second tick
+  AudioProcessing::DriftState drift;
+  AudioProcessing::updateDrift(drift, silence, settings, 1.0f); // init
+  AudioProcessing::updateDrift(drift, silence, settings, 1.0f); // NaN anchor
+
+  AudioFeatures onset;
+  onset.onsetDetected = true;
+  onset.onsetStrength = 1.0f;
+  onset.rms = 0.5f;
+
+  AudioProcessing::BounceState bounce;
+  Color result = AudioProcessing::updateBounce(bounce, drift, onset, settings, 1.0f);
+  CHECK(result == Color{}); // defined black, never a UB cast
 }
 
 

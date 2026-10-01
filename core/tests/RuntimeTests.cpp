@@ -2,6 +2,7 @@
 #include <catch2/catch_approx.hpp>
 
 #include <fstream>
+#include <limits>
 
 #include <Aurora/Runtime/Config.hpp>
 #include <Aurora/Runtime/ConfigStore.hpp>
@@ -61,6 +62,26 @@ TEST_CASE("Config setters clamp the same way huenicorn's did", "[Config]")
 
   config.setTransitionSmoothing(-1.f);
   CHECK(config.transitionSmoothing() == Catch::Approx(0.f));
+}
+
+
+TEST_CASE("setAudioCentroidRangeHz clamps away from zero (Aurora-9ca)", "[Config]")
+{
+  Config config;
+
+  // The REST repro: PUT /api/config {"audioCentroidRangeHz": 0} must
+  // never reach updateDrift's divide as zero.
+  config.setAudioCentroidRangeHz(0.f);
+  CHECK(config.audioCentroidRangeHz() == Catch::Approx(100.f));
+
+  config.setAudioCentroidRangeHz(-50.f);
+  CHECK(config.audioCentroidRangeHz() == Catch::Approx(100.f));
+
+  config.setAudioCentroidRangeHz(50000.f);
+  CHECK(config.audioCentroidRangeHz() == Catch::Approx(8000.f));
+
+  config.setAudioCentroidRangeHz(std::numeric_limits<float>::quiet_NaN());
+  CHECK(config.audioCentroidRangeHz() == Catch::Approx(2250.f));
 }
 
 

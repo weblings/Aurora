@@ -102,6 +102,12 @@ namespace Aurora::Contracts
      */
     static Color fromHSV(float hueDegrees, float saturation, float value)
     {
+      // Non-finite input (e.g. NaN from a zero-divided drift rate,
+      // Aurora-9ca) would fall through every hPrime branch and hit the
+      // uint8_t cast below as UB -- return black instead of casting.
+      if(!std::isfinite(hueDegrees) || !std::isfinite(saturation) || !std::isfinite(value)){
+        return Color{};
+      }
       float h = std::fmod(hueDegrees, 360.0f);
       if(h < 0.0f){
         h += 360.0f;
@@ -120,11 +126,12 @@ namespace Aurora::Contracts
       else if(hPrime < 5.0f) { r1 = x; g1 = 0.0f; b1 = c; }
       else                   { r1 = c; g1 = 0.0f; b1 = x; }
 
-      return Color(
-        static_cast<ChannelDepth>(std::round((r1 + m) * Color::Max)),
-        static_cast<ChannelDepth>(std::round((g1 + m) * Color::Max)),
-        static_cast<ChannelDepth>(std::round((b1 + m) * Color::Max))
-      );
+      // Clamp before the narrowing cast: out-of-range floats (value > 1
+      // via an unclamped setter, or non-finite slips) are UB to cast.
+      auto toChannel = [](float v){
+        return static_cast<ChannelDepth>(std::round(std::clamp(v * Color::Max, 0.0f, Color::Max)));
+      };
+      return Color(toChannel(r1 + m), toChannel(g1 + m), toChannel(b1 + m));
     }
 
 

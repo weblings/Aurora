@@ -145,7 +145,7 @@ namespace Aurora::Runtime
     void setAudioBrightnessFloor(float floor);
 
     float audioCentroidRangeHz() const;
-    void setAudioCentroidRangeHz(float hz);
+    void setAudioCentroidRangeHz(float hz); // clamped to [100, 8000], never zero
 
     float audioBrightnessSmoothTime() const;
     void setAudioBrightnessSmoothTime(float seconds);

@@ -116,6 +116,16 @@ Three rules, each learned by crash: (1) every g_variant_new_* container call sin
 
 ---
 
+## `std::clamp` passes NaN straight through -- a clamp-only setter doesn't sanitize non-finite input
+Tags: cpp, clamp, nan, validation
+Applies-when: clamping external or config-file input with std::clamp
+
+`std::clamp(v, lo, hi)` is `v < lo ? lo : hi < v ? hi : v` -- both comparisons are false for NaN, so it returns the NaN unchanged. A setter that only clamps (`setAudioCentroidRangeHz`, Aurora-9ca) still stores NaN, which then divides and UB-casts downstream exactly as if no clamp existed. JSON can't carry NaN, but a hand-edited config.json float field and a `float` query param both can in principle.
+
+**Fix:** check `std::isfinite` before clamping and substitute the default for non-finite input (`Config.cpp`). General principle: treat `std::clamp` as range-shaping for finite values only -- finiteness is a separate check that must come first whenever the input crosses a trust boundary.
+
+---
+
 ---
 
 ## `g_bus_own_name` never completes on a thread whose GMainContext isn't running -- polling GetNameOwner without pumping always times out

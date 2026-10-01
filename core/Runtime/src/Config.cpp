@@ -1,6 +1,7 @@
 #include <Aurora/Runtime/Config.hpp>
 
 #include <algorithm>
+#include <cmath>
 #include <utility>
 
 namespace Aurora::Runtime
@@ -164,7 +165,16 @@ namespace Aurora::Runtime
   void Config::setAudioBrightnessFloor(float floor) { m_data.audioBrightnessFloor = floor; }
 
   float Config::audioCentroidRangeHz() const { return m_data.audioCentroidRangeHz; }
-  void Config::setAudioCentroidRangeHz(float hz) { m_data.audioCentroidRangeHz = hz; }
+  void Config::setAudioCentroidRangeHz(float hz)
+  {
+    // Zero (or negative) would divide in updateDrift and NaN its way into
+    // Color::fromHSV's uint8_t cast (Aurora-9ca) -- clamp to the Tuning
+    // screen's own slider range so REST/file writes can't do what the UI can't.
+    if(!std::isfinite(hz)){
+      hz = ConfigData{}.audioCentroidRangeHz;
+    }
+    m_data.audioCentroidRangeHz = std::clamp(hz, 100.f, 8000.f);
+  }
 
   float Config::audioBrightnessSmoothTime() const { return m_data.audioBrightnessSmoothTime; }
   void Config::setAudioBrightnessSmoothTime(float seconds) { m_data.audioBrightnessSmoothTime = seconds; }
