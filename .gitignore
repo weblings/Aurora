@@ -26,6 +26,8 @@ out/
 # --- Python (tools/fake-hue-bridge, tools/light-viz-relay) ---
 __pycache__/
 *.pyc
+.venv/
+venv/
 
 # --- Node / web (web/, phases 3-5) ---
 node_modules/
