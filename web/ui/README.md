@@ -14,13 +14,11 @@ Design informed by patterns in huenicorn's own `webroot/`
 desktop token system, so this repo carries the same license forward -- see
 `LICENSE`.
 
-## Status
+## What's here
 
-Shipped: the onboarding flow (Welcome, a Mac-only menu-bar tip, Output Connect,
-Entertainment zone select, Capture, Zone Mapping) and the Dashboard, under
-`screens/`, with shared components alongside and design tokens in
-`styles/tokens.css`. Plan docs live in `docs/planning/WebUI/`; component and
-testing gotchas are filed under `docs/lessons/` (`web-ui-lessons` skill).
+Screens live in `screens/`, shared components alongside them, and design
+tokens in `styles/tokens.css`. Plan docs: `docs/planning/WebUI/`; component and
+testing gotchas: `docs/lessons/` (`web-ui-lessons` skill).
 
 Tests are plain node scripts with no framework (`node styles/welcome.test.mjs`,
 `node DeviceField.test.mjs`, ...).

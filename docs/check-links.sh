@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
-"""Verify every doc reference under docs/ and .claude/skills/ resolves:
+"""Verify every doc reference under docs/, .claude/skills/, the slice READMEs
+(app/ input/ output/ web/ tools/) and the root README/CONTRIBUTING/AGENTS/
+CLAUDE files resolves:
 markdown links [text](target), bare `path.md` mentions, and [[id]]/[[id#anchor]]
 wikilinks alike. Exit 1 on any dead reference or id-index problem (duplicate
 id, multiple Id: lines in one file, unresolvable [[id]]); a [[id]] that only
@@ -79,6 +81,27 @@ def find_all_md_files():
             for fn in sorted(files):
                 if fn.endswith('.md'):
                     yield os.path.join(dirpath, fn)
+
+
+# Slice READMEs and the root agent/contributor files cite docs too but sit
+# outside docs/ -- they went dead on moves twice (docs/README.md checklist
+# step 4) before this scan covered them. Citers only: the id index is built
+# from docs/ and skills, so these never define ids.
+EXTRA_CITER_DIRS = ('app', 'input', 'output', 'web', 'tools')
+EXTRA_CITER_ROOT_FILES = ('README.md', 'CONTRIBUTING.md', 'AGENTS.md', 'CLAUDE.md')
+
+
+def find_extra_citer_files():
+    for fn in EXTRA_CITER_ROOT_FILES:
+        path = os.path.join(root, fn)
+        if os.path.exists(path):
+            yield path
+    for base in EXTRA_CITER_DIRS:
+        for entry in sorted(os.listdir(os.path.join(root, base))):
+            for name in ('README.md', 'CLAUDE.md'):
+                path = os.path.join(root, base, entry, name)
+                if os.path.isfile(path):
+                    yield path
 
 
 # --- Pass 1: build the id index (id -> path, id -> heading-slug set,
@@ -198,7 +221,7 @@ def write_ids_index():
         f.write('\n'.join(lines))
 
 
-for path in find_all_md_files():
+for path in list(find_all_md_files()) + list(find_extra_citer_files()):
     check_file(path, os.path.dirname(path))
 
 write_ids_index()

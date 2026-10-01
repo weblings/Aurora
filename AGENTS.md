@@ -45,6 +45,13 @@ Core repo: shared `Contracts`, `Processing`, `Input`/`Output` interfaces,
   archived in `Aurora-0ki`/`Aurora-rtp`/`Aurora-o1e`/`Aurora-afd` sat live
   for one to two weeks past its actual ship date because this step was
   skipped.
+- **Slice READMEs** (`app/*`, `input/*`, `output/*`, `web/*`, `tools/*`) carry
+  only what doesn't go stale: what the slice is, entry points, slice-specific
+  build toggles, keep-in-sync invariants, credits, and `[[id]]` pointers. No
+  status or "not yet built" sections — that lives in `Status:` lines, beads,
+  and `docs/log/`. When closing a bead that changes what a slice does or how
+  it builds, update its README in the same close; `check-links.sh` scans them
+  for dead citations but cannot tell if the prose is still true.
 - Planning docs: decisions, status, pointers only. No task lists, no build play-by-play.
   Every doc/section carries a `Status:` line (shipped/superseded/exploratory/etc.) —
   but a `Status:` line is only as trustworthy as its last real edit. Before

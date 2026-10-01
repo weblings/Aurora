@@ -6,9 +6,9 @@ implements `Aurora::Output::IOutput`.
 Distilled from [huenicorn](https://gitlab.com/openjowelsofts/huenicorn)
 (GPL-3.0), so this repo carries the same license forward — see `../../LICENSE`.
 
-## Status
+## What's here
 
-Full plugin: the pure logic (Huestream wire-format byte-packing, CIE xyY
+The pure logic (Huestream wire-format byte-packing, CIE xyY
 colorimetry, channel gamma/UV math, bridge-address sanitizing, credential
 byte-conversion and file persistence) plus the I/O layer -- bridge REST
 over HTTPS (`HttpClient`, `ApiTools`: discovery, pairing, entertainment

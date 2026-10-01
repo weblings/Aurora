@@ -11,25 +11,22 @@ capture code to port here — see
 [`docs/archive/WindowsInputAnalysis.md`](../../docs/archive/WindowsInputAnalysis.md)
 for the DXGI Desktop Duplication research this plugin is built against instead.
 
-## Status
+## What's here
 
-- `DummyGrabber` — ported from `input/linux`'s copy, tested. No OS
-  dependency, useful as a fallback/dev target.
-- `WindowsGrabber` (DXGI Desktop Duplication) — not started. See
-  `docs/archive/WindowsInputAnalysis.md` for the verified API shape, failure modes, and
-  RAII/buffer-handling notes to build it against.
+- `WindowsGrabber` — DXGI Desktop Duplication screen capture. Not
+  unit-testable (needs a real display).
+- `AudioGrabber` — system audio capture.
+- `DummyGrabber` — no OS dependency; a fallback and dev target.
+- `InputControlDescriptors` — the per-platform control descriptor table.
+
+Grabber gotchas: `docs/lessons/input.md`.
 
 ## Building
 
 Depends on Aurora core (`Contracts`, the `Input` interface), resolved via a
-local sibling-directory path in `CMakeLists.txt` — expects this repo to sit
-next to `Aurora/` on disk. Needs a native Windows C++ toolchain (Visual
-Studio's "Desktop development with C++" workload — MSVC, Windows SDK,
-CMake tools) plus [vcpkg](https://github.com/microsoft/vcpkg) to supply
-Aurora core's own OpenCV/glm/nlohmann_json dependencies on Windows (no
-Windows equivalent of `apt` to install them from directly). `WindowsGrabber`
-itself needs no extra package once written — DXGI/Direct3D 11 ship with the
-Windows SDK, no vcpkg package required for them.
+relative path in `CMakeLists.txt`. Needs a native Windows C++ toolchain (MSVC)
+and vcpkg for core's dependencies; the full recipe is in
+[docs/Building.md](../../docs/Building.md). Standalone:
 
 ```
 cmake -S . -B build -DCMAKE_TOOLCHAIN_FILE=<path-to-vcpkg>/scripts/buildsystems/vcpkg.cmake

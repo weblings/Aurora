@@ -67,3 +67,4 @@ Planning docs stay clean: decisions, status, and pointers here only.
 | 2026-09-30 | Mac first-run notification spike (8 probe variants; only a notarized build in ~/Applications got the permission request), dropped for a Mac-only NUX tip screen; qps.5 superseded, qps.6 dropped | Aurora-qps.5, Aurora-qps.6, Aurora-qps.8 |
 | 2026-09-30 | Mac NUX menu-bar tip screen (MacTray.gif between Welcome and Output Connect, `.gif` content type in the embedded server) | Aurora-qps.8 |
 | 2026-09-30 | Per-slice AGENTS.md folded into READMEs; new READMEs for app/mac and input/mac | Aurora-cv1 |
+| 2026-09-30 | Slice READMEs made timeless; check-links scan widened to slice READMEs and root files (4 dead citations found); README close-checklist rule | Aurora-y2a |

@@ -6,11 +6,9 @@ The macOS app tying [Aurora core](../../), [input/mac](../../input/mac), and
 Ported from [app/linux](../linux) minus the X11/PipeWire backend selection --
 macOS has one capture API.
 
-Experimental. Supported target: macOS 27 on Apple silicon (the code's own
-floor is 14.2, the process-tap API; below 27 is untested, Intel is
-unsupported). Design and history: [[mac-video-capture]], [[mac-audio]],
-[[mac-permissions]], [[mac-tray-parity]] (all shipped), and
-[[mac-notarization]] (partly shipped).
+Support statement (supported macOS/hardware): see the root
+[README](../../README.md#quick-start). Design and history: [[mac-video-capture]],
+[[mac-audio]], [[mac-permissions]], [[mac-tray-parity]], [[mac-notarization]].
 
 ## What it is
 

@@ -555,3 +555,14 @@ Applies-when: a bead, lesson or plan says research "independently confirmed" som
 The UserNotifications bead said independent research turned up "UNUserNotificationCenter will not register an app without a valid signature and stable bundle identity." The same sentence, nearly word for word, appeared in a GitHub issue proposing a fix it had not tried, and other write-ups said the opposite (ad-hoc bundles post fine, grant keyed on bundle ID). Eight probes on a real machine (Aurora-qps.5) showed the truth was narrower and different: signing alone did nothing; a notarized build in an ordinary apps folder got the permission request.
 
 **Fix:** when a claim drives a plan, search a distinctive phrase from it and see whether the "sources" share an origin; prefer a source that reports what it tried over one that proposes what to try. When sources conflict, run the smallest real probe before building, and write the plan's premise as unverified until one has run.
+
+---
+
+## Piping a validator through `tail`/`head` hides its exit status, so a failing check can sit in front of a commit that proceeds anyway
+Tags: process, verification, git, scripts
+Applies-when: chaining a docs/lessons/test check before a commit or bead close, or trimming its output
+
+`python3 docs/check-links.sh | tail -1; ... git commit` printed a dead-link line, but the pipeline's exit status is `tail`'s (0), and the `;`-joined commit ran regardless. The commit landed with a failing link check and needed a fix-up commit. Reading only the last line of output is the same trap one step removed: it showed "lessons OK" while the line above it was the failure.
+
+**Fix:** let the validator's own status gate the next step (`python3 docs/check-links.sh && bash docs/check-lessons.sh && git commit ...`), print its full output when it fails rather than a trimmed tail, and if trimming is needed use `set -o pipefail`. Run the checks and the commit as separate steps so a red result is read before anything is staged.
+

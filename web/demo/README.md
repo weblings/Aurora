@@ -16,7 +16,7 @@ and [[implementation-plan-phase-3]]'s
 Milestone 1 for the full scoping and reasoning behind this repo's
 shape and its split from Aurora core.
 
-## Status
+## What's here
 
 The bundled sample video now actually drives the scene: a real `<video>`
 element plays `assets/168273-838673780.webm` as the plane's texture, each
@@ -45,13 +45,6 @@ once its metadata loads, rather than assuming exactly 16:9.
 - `vendor/webui/` — an intentional GitHub-Pages-targeted fork of `web/ui`, not
   a mirror. Do not "sync" it (decision recorded in Aurora-4jl).
 - `assets/` — bundled sample media. See "Media credits" below.
-
-## Not yet built
-
-- A user-upload option for the video (currently only the bundled sample plays).
-- Real end-to-end visual confirmation in an actual browser (built and
-  smoke-tested via a local static server; the render itself hasn't been
-  eyeballed yet).
 
 ## Media credits
 

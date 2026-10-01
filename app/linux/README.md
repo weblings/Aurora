@@ -7,13 +7,7 @@ process: capture the screen, crop/color per zone, stream to Hue lights.
 Distilled from [huenicorn](https://gitlab.com/openjowelsofts/huenicorn)
 (GPL-3.0), so this repo carries the same license forward — see `../../LICENSE`.
 
-## Status
-
-A CLI shell around the real product: pairing, zone mapping, and settings
-now ship via the WebUI (SettingsRoutes/ZoneRoutes/PairingRoutes), not the
-env-var-only setup [[implementation-plan-phase-3]]'s original plan assumed
-was still missing here — see that doc's corrected Status for how the
-real WebUI shipped through a different track than originally planned.
+## What's here
 
 - **`Registry`** — name → factory lookup for this binary's compiled-in
   plugins. Tested (`tests/RegistryTests.cpp`) against fake input/output
@@ -24,20 +18,18 @@ real WebUI shipped through a different track than originally planned.
   sensible defaults if unconfigured), and drives `Orchestrator::update()`
   in a real timed loop until `Ctrl+C`. Not unit-tested — real display,
   real bridge, real threading, same category as `X11Grabber`/`Streamer`.
+- Pairing, zone mapping, and settings are done in the WebUI
+  (`SettingsRoutes`/`ZoneRoutes`/`PairingRoutes`), not here.
 
-## Known stopgaps (not bugs — features that don't exist yet elsewhere)
+## Configuration
 
-- **No pairing flow.** Hue credentials come from environment variables:
-  `AURORA_HUE_BRIDGE_ADDRESS`, `AURORA_HUE_USERNAME`, `AURORA_HUE_CLIENTKEY`.
-  If any are unset, `hue` just isn't registered as an available output.
-- **No entertainment-config picker.** If the bridge has more than one
-  entertainment configuration, set `AURORA_HUE_ENTERTAINMENT_CONFIG_ID` to
-  the right one's UUID — otherwise `HueOutput` picks arbitrarily.
-- **No zone-mapping UI.** On first run every zone comes back inactive
-  (`reconcileZoneMap`'s default) — hand-edit
-  `<configRoot>/profiles/hue.json` to mark zones active with real UV rects
-  until a real UI exists. `configRoot` is `$AURORA_CONFIG_DIR`, or
-  `$HOME/.config/aurora` if unset.
+- Hue credentials come from pairing in the WebUI, or from
+  `AURORA_HUE_BRIDGE_ADDRESS`, `AURORA_HUE_USERNAME`, `AURORA_HUE_CLIENTKEY`
+  in the environment. If neither supplies them, `hue` isn't registered as an
+  available output.
+- If the bridge has more than one entertainment configuration, the WebUI's
+  zone-select step picks one; `AURORA_HUE_ENTERTAINMENT_CONFIG_ID` presets it.
+- `configRoot` is `$AURORA_CONFIG_DIR`, or `$HOME/.config/aurora` if unset.
 
 ## Building
 

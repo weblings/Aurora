@@ -27,7 +27,7 @@ the changelog; nothing enforces the mirror.
 
 ## Quality gates
 
-- Build and test per [docs/Building.md](Building.md); `ctest` for the
+- Build and test per [docs/Building.md](docs/Building.md); `ctest` for the
   touched preset/slice must pass before finishing.
 - Non-obvious gotchas worth saving future time go in `docs/lessons/` with
   `Tags:` / `Applies-when:` lines (enforced by `docs/check-lessons.sh`);

@@ -7,20 +7,21 @@ Linux screen-capture input plugin for [Aurora core](../../) — implements
 Distilled from [huenicorn](https://gitlab.com/openjowelsofts/huenicorn)
 (GPL-3.0), so this repo carries the same license forward — see `../../LICENSE`.
 
-## Status
+## What's here
 
-- `DummyGrabber` — ported, fully portable (no display needed), tested.
+- `DummyGrabber` — fully portable (no display needed), tested.
 - `SessionDispatch` — the session-type decision logic from huenicorn's
   `GnuLinuxAdapter`, split out and tested as pure logic.
-- `X11Grabber` — mechanically ported, builds against `libX11`/`libXext`/`libXrandr`.
-  Not unit-testable (needs a real X11 display) — manual verification pending,
-  same category as `output/hue`'s DTLS streaming.
-- `PipewireGrabber`/`XdgDesktopPortal` — mechanically ported (Wayland capture
-  via `xdg-desktop-portal`'s ScreenCast interface, plus Gamescope's direct
-  Pipewire node). Gamescope-node matching and raw-buffer-to-`ImageData`
-  conversion extracted as pure, tested helpers. Not unit-testable as a whole
-  (needs a real Wayland session + portal backend) — see
+- `X11Grabber` — builds against `libX11`/`libXext`/`libXrandr`. Not
+  unit-testable (needs a real X11 display).
+- `PipewireGrabber`/`XdgDesktopPortal` — Wayland capture via
+  `xdg-desktop-portal`'s ScreenCast interface, plus Gamescope's direct
+  Pipewire node. Gamescope-node matching and raw-buffer-to-`ImageData`
+  conversion are pure, tested helpers; the rest needs a real Wayland session
+  and portal backend — see
   [`docs/archive/LinuxCaptureAnalysis.md`](../../docs/archive/LinuxCaptureAnalysis.md).
+
+Grabber gotchas: `docs/lessons/input.md`.
 
 ## Building
 

@@ -503,6 +503,16 @@ migration's *scope statement* needs the repo-wide grep named explicitly
 `docs/README.md`'s reorg checklist itself, since a lesson entry alone
 isn't load-bearing on the next similarly-scoped bead.
 
+Resolution (Aurora-y2a): the durable fix was making the tool cover the gap,
+not another reminder. `check-links.sh` now also scans the slice READMEs and
+the root `README`/`CONTRIBUTING`/`AGENTS`/`CLAUDE` files. Its first run found
+four dead citations that had survived every prior review, including one
+whose visible label was correct but whose href was not
+(`[docs/Building.md](Building.md)` in `CONTRIBUTING.md`, broken on GitHub) --
+the kind a human skim reads as fine. Prefer widening a checker's scope over
+adding a "remember to grep" step; keep the reorg-checklist grep only for
+files outside even the widened scope.
+
 ---
 
 ## A historical log entry keeps its pre-migration citations, don't retrofit `[[id]]` into an append-only record

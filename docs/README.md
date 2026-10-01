@@ -104,10 +104,13 @@ Before archiving or re-filing anything:
    the file ends up in, so a move alone needs no link-fixing pass.
 4. **`grep -rn '<old-filename>' .` over the whole repo, not just `docs/`,
    whenever a doc moves, renames, or gets an `Id:` for the first time.**
-   `check-links.sh` only scans `docs/` and `.claude/skills/` — a citer in
-   a top-level or module `README.md`/`AGENTS.md`/`CLAUDE.md` can go dead
-   on a move and nothing will flag it (this bit twice the same day:
-   Aurora-d8g caught it by hand, Aurora-w4c skipped it and left 5 more).
+   `check-links.sh` scans `docs/`, `.claude/skills/`, the slice READMEs
+   (`app/` `input/` `output/` `web/` `tools/`) and the root
+   `README`/`CONTRIBUTING`/`AGENTS`/`CLAUDE` files since Aurora-y2a, but it
+   only checks citations resolve, not that prose is still true; anything
+   else (a new top-level file) can still go dead silently (this bit twice
+   the same day before the scan widened: Aurora-d8g caught it by hand,
+   Aurora-w4c skipped it and left 5 more).
    Convert what the grep finds to `[[id]]` while you're there — it's free
    once you're already touching the target doc, and immune to the next
    move.
