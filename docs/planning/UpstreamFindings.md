@@ -62,6 +62,11 @@ Pipewire maps negotiated `SPA_VIDEO_FORMAT_BGRx` → `BGRA`), or honoring the
 tag swaps red and blue for every X11/Pipewire user. Also depends on 3:
 `mean()` runs on `getSubImage()`'s output, whose `format` is unset until 3 lands.
 
+Related, not a separate finding: `PipewireGrabber` also offers `RGB`, `YUY2`
+and `I420`, which its fixed 4-byte-per-pixel decode can't handle. Screen-cast
+producers only offer 4-byte formats, so these never negotiate in practice;
+narrowing the list to `RGBA`/`RGBx`/`BGRx` (as Aurora did) is optional hardening.
+
 ---
 
 ### 2. `rgbaToRgb()` has no `BGRA` equivalent

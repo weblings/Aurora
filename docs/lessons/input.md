@@ -132,6 +132,10 @@ that found the bug. General principle: when a "port
 with a fix" changes code from ignoring a piece of metadata to trusting it,
 audit where that metadata was actually set, not just the consuming logic —
 upstream's own bugs can be invisible for as long as nothing reads them.
+The same trap recurred when writing up huenicorn's `mean()` for upstream
+([[upstream-findings]] finding 1): the write-up claimed every grabber tags
+`BGR`, and only a re-read of the grabbers before fixing it (`Aurora-h45.1`)
+caught that the fix must ship with the tag corrections.
 
 ---
 

@@ -173,23 +173,3 @@ stay slow without costing the same feeling of responsiveness. Relevant if
 this tuning is ever backported to real bulbs (see [[browser-analysis]]'s
 A/C follow-up) — worth confirming the same asymmetry holds physically, not
 just on a screen.
-
----
-
-## A hardcoded channel swap can be silently compensating for mislabeled format tags -- fix the tag producers with the consumer, or the "fix" swaps red and blue
-Tags: processing, input, pixel-format, huenicorn, upstream
-Applies-when: making a consumer honor `PixelFormat` (or any layout tag) where it previously assumed one fixed layout
-
-Upstream finding 1 in [[upstream-findings]] said huenicorn's `mean()` ignores
-`PixelFormat` but "every grabber tags BGR", so honoring the tag looked safe.
-Re-reading the grabbers before fixing it on `Aurora-h45.1` showed the opposite:
-`X11Grabber` tags `RGBA`/`RGB` and `PipewireGrabber` always tags `RGBA`,
-while the bytes are really BGRA (little-endian XShm ZPixmap) and usually
-BGRx (Pipewire's common negotiated format). The hardcoded `[2],[1],[0]` read
-was what kept colors right. Honoring the tag alone would have swapped red
-and blue for every real user.
-
-**Fix:** before making a consumer trust a tag, grep every producer of that
-tag and check what each one really writes. Ship the producer fixes in the
-same change. Aurora's port did this (X11 tags BGRA/BGR, Pipewire maps
-negotiated BGRx to BGRA), which the original write-up never mentioned.
