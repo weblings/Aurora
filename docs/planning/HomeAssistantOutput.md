@@ -159,8 +159,8 @@ output protocol only if third parties ask for it; dlopen last, if ever.
 
 ## Prep work
 
-Status: proposed 2026-10-01; pp8, dwo, 4y9 and a0r implemented (pp8/dwo
-verification pending, see below). These items need no new
+Status: proposed 2026-10-01; all five prep items implemented (pp8, dwo, d9v
+verification pending on Mac/Windows, see below). These items need no new
 dependency, work with Hue as the only output, and don't commit to building HA.
 Beads carry the details (label `ha-prep`):
 
@@ -174,6 +174,8 @@ Beads carry the details (label `ha-prep`):
   (`IOutput::zoneLabels()`, `GET /api/zones/labels`). Done, checked on Linux
   with fake-hue; Mac/Windows not compiled.
 - Aurora-d9v: WebSocket client build and connect check on all three platforms.
+  Linux passes (in-process echo test in `AuroraNetworkTests`); Windows and Mac
+  runs pending.
 
 Deferred until HA is a go: rate-limited sender, brightness/`rgb_color`
 split, Keychain token storage.

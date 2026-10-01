@@ -80,3 +80,4 @@ Planning docs stay clean: decisions, status, and pointers here only.
 | 2026-10-01 | HA prep 1-2: Mac NSLocalNetworkUsageDescription, cpp-httplib >= 0.46 floor (fake-package test); both open pending Mac/Windows checks; huenicorn branches pushed | Aurora-pp8, Aurora-dwo, Aurora-h45.10 |
 | 2026-10-01 | Aurora-4y9: OUTPUTS probe/stages table in web/ui/app.js (Hue only); 641-scenario trace compare + browser walk vs old app.js; paired-no-zone path nondeterministic in old too; 3 lessons | Aurora-4y9 |
 | 2026-10-01 | Aurora-a0r: IOutput::zoneLabels + GET /api/zones/labels, Zone Mapping switched off /api/hue/channels; Linux ctest 87/87 + fake-hue browser check; Mac/Windows uncompiled; 1 lesson | Aurora-a0r |
+| 2026-10-01 | Aurora-d9v (Linux half): in-process httplib ws:// echo smoke test (text/binary/256 KiB) in AuroraNetworkTests; core 98/98; Windows/Mac runs pending; 1 lesson | Aurora-d9v |

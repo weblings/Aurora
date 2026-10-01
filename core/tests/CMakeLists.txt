@@ -20,6 +20,7 @@ endif()
 
 add_executable(AuroraNetworkTests
   NetworkTests.cpp
+  WebSocketSmokeTests.cpp
 )
 
 target_link_libraries(AuroraNetworkTests PRIVATE

@@ -266,3 +266,11 @@ Applies-when: checking a WebUI screen that fills in after its first render (fetc
 Aurora-a0r's label check hit three snags. (1) With the user's own Firefox open, `firefox --headless` exits "already running, but is not responding"; add `--no-remote --profile <dir>`. (2) The snap Firefox can't see `/tmp` or scratchpad paths ("Could not find profile folder", no screenshot written); keep the profile and `--screenshot` output under `$HOME`. (3) `--screenshot` captures at the load event and quits: a screen that fetches labels after mount shows "Loading…" or bare "Zone N", which reads like a bug. Top-level `await` in the page module doesn't hold `load` open, and the process exits before any timer fires.
 
 **Fix:** temporary harness page in `web/ui/` (served by the app from source) that mounts the screen, waits, then `navigator.sendBeacon('http://127.0.0.1:<port>/', document.body.innerText)` to a 15-line Python POST sink; run `timeout 15 firefox --headless --no-remote --profile ~/<dir> <url>` (no `--screenshot`) and read the sink's file. Delete the harness page and profile afterwards.
+
+---
+
+## A WebSocket client test needs no external echo server: httplib ships the server side
+Tags: websocket, httplib, testing, cross-platform, ha
+Applies-when: writing a C++ test (or a fake Home Assistant) that needs a ws:// peer
+
+Aurora-d9v's bead assumed "a local ws:// echo server", i.e. a separate process and a port to pick per platform. cpp-httplib >= 0.46 has `Server::WebSocket(pattern, handler)` with a blocking `ws::WebSocket::read/send` loop, so the test hosts its own peer: `bind_to_any_port("127.0.0.1")`, `listen_after_bind()` on a thread, `wait_until_ready()`, then `httplib::ws::WebSocketClient("ws://127.0.0.1:<port>/path")`. No Python/Node dependency, no port clash, identical on Linux, Windows and Mac. The same handler shape works for a scripted fake HA server (auth handshake, `get_states` reply) when the HA client lands. `ws::ReadResult` (`Text`/`Binary`/`Fail`) lives in `httplib::ws`, not `httplib`. Stop with `server.stop()` and join the thread before the server goes out of scope.
