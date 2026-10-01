@@ -174,8 +174,8 @@ Beads carry the details (label `ha-prep`):
   (`IOutput::zoneLabels()`, `GET /api/zones/labels`). Done, checked on Linux
   with fake-hue; Mac/Windows not compiled.
 - Aurora-d9v: WebSocket client build and connect check on all three platforms.
-  Linux passes (in-process echo test in `AuroraNetworkTests`); Windows and Mac
-  runs pending.
+  Linux and Windows (MSVC) pass (in-process echo test in
+  `AuroraNetworkTests`); Mac run pending.
 
 Deferred until HA is a go: rate-limited sender, brightness/`rgb_color`
 split, Keychain token storage.
