@@ -2,7 +2,8 @@
 
 Id: home-assistant-output
 
-Status: exploratory (2026-09-30) — research only, nothing built, no bead yet.
+Status: exploratory (2026-09-30) — research only, nothing built; no bead for
+the module itself. Revised 2026-10-01: "Prep work" added (`ha-prep` beads).
 Findings came from reading `core/Output`, `output/hue`, `app/mac` and HA's
 public docs; per-vendor rate figures are from memory of vendor guidance, not
 re-measured — treat them as order-of-magnitude until tested on real lights.
@@ -155,3 +156,19 @@ already a step in this direction.)
 
 Suggested order: HA as a compiled-in first-party output; revisit the external
 output protocol only if third parties ask for it; dlopen last, if ever.
+
+## Prep work
+
+Status: proposed 2026-10-01, nothing shipped. These items need no new
+dependency, work with Hue as the only output, and don't commit to building HA.
+Beads carry the details (label `ha-prep`):
+
+- Aurora-pp8: `NSLocalNetworkUsageDescription` in `app/mac/Info.plist.in`
+  (already missing for Hue).
+- Aurora-dwo: cpp-httplib version floor (>= 0.46, for `ws::WebSocketClient`).
+- Aurora-4y9: per-output `{ probe, stages }` table in `probeState()`/`bootstrap()`.
+- Aurora-a0r: output-neutral zone labels endpoint for Zone Mapping.
+- Aurora-d9v: WebSocket client build and connect check on all three platforms.
+
+Deferred until HA is a go: rate-limited sender, brightness/`rgb_color`
+split, Keychain token storage.
