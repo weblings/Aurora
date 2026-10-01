@@ -49,6 +49,8 @@ had one hand-copied clamp (5y0) and ten unclamped setters.
   resizes full-Retina ScreenCaptureKit frames on the CPU every tick,
   overrunning the 60Hz budget inside `PipelineHost`'s lock; the app pins a
   core and `/api/monitors`/`/api/zones` wait 2-30s, so the Dashboard's mode
-  toggle looks stuck after a switch.
+  toggle looks stuck after a switch. The starvation mechanism itself was
+  already `Aurora-cgr`; 3qh is scoped to the Mac trigger and linked.
 - Lessons: float→JSON widening (`language-cpp`); VS Code Electron as
-  Node (`build-toolchain`).
+  Node (`build-toolchain`); stale-looking UI → time endpoints, sample,
+  search beads by mechanism (`debugging-method`).

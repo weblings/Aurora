@@ -566,3 +566,13 @@ Applies-when: chaining a docs/lessons/test check before a commit or bead close, 
 
 **Fix:** let the validator's own status gate the next step (`python3 docs/check-links.sh && bash docs/check-lessons.sh && git commit ...`), print its full output when it fails rather than a trimmed tail, and if trimming is needed use `set -o pipefail`. Run the checks and the commit as separate steps so a red result is read before anything is staged.
 
+
+---
+
+## A UI that "doesn't update" after an action can be a slow server, and a new root cause can sit on a known mechanism -- time the endpoints, sample the process, then search beads by mechanism
+Tags: debugging, webui, performance, locks, beads, process
+Applies-when: a UI control looks stuck after an action whose backend effect did happen
+
+Switching the Mac Dashboard to Video changed the lights, but the mode toggle stayed on Audio (Aurora-3qh). `GET /api/config` already said Video, so the state was right and the render was late: `_switchMode` re-renders only after `_loadAll`'s fetches, and timing each endpoint with `curl -w %{time_total}` showed `/api/monitors`/`/api/zones` at 2-30s while the rest were instant. `ps` showed ~105% CPU; `sample <pid> 3` put 2349/2360 tick-thread samples in `cv::resize` (full-Retina ScreenCaptureKit frames downscaled on the CPU every tick), so the tick overran and held the pipeline lock without sleeping. I filed that as one new bug -- but the starvation half was already `Aurora-cgr`, filed from 1000Hz testing; the new finding was only the *trigger* (60Hz is enough on Retina).
+
+**Fix:** for a stale-looking control, compare the backend's state to the UI first, then time every request the re-render waits on, then `sample` the process before theorizing. Before filing, `bd search` the *mechanism* (starvation, lock, tick), not just the symptom, and scope the new bead to what's actually new, linked to the existing one.
