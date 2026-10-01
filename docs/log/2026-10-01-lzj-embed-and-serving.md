@@ -124,13 +124,26 @@ Mac results (Apple M5, Node 22.23.3, build/mac-app):
   manifest; a real identity-signed bundle not run).
 - Browser check: the user opened `/graph-editor/` from the running Mac app
   and confirmed it works (2026-10-01).
-- Not verified: Linux and Windows builds of any of this, including the
-  MSVC literal-limit check.
+- Linux (Node 24.14, GCC), 2026-10-01: separate build dir with
+  `cmake --preset linux-app -B build/linux-app-ge
+  -DAURORA_ENABLE_GRAPH_EDITOR=ON` (cmake is the project `.venv` one, not on
+  PATH). Clean build in 1m40s, 0 warnings; ctest 87/87. Touching
+  `main.cpp` recompiled only that file (no vite or embed rerun). Ran the
+  binary with `--fresh` and a throwaway `AURORA_CONFIG_DIR`: `/graph-editor`
+  gives 301 to `/graph-editor/`, `/graph-editor/` 200 `text/html`, the
+  399 KB JS 200 `text/javascript` and byte-identical to the built file, `/`
+  still 200.
+- Linux browser check: headless Firefox (separate profile; the snap refuses
+  a second instance) rendered the React Flow canvas, Input/Output nodes
+  with an edge, controls, and "server: 1.0.4" from the Aurora call. Only a
+  screenshot; no interaction or console check.
+- Not verified: Windows build of any of this, including the MSVC
+  literal-limit check.
 
 ## Resume
 
-Windows (MSVC): core tests, then an app build with the option ON. Linux:
-app build with the option ON. Then close Aurora-lzj.
+Windows (MSVC): core tests, then an app build with the option ON. Then
+close Aurora-lzj. (Linux ON build done.)
 
 ## Lessons
 
