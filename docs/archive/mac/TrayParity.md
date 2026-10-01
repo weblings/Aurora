@@ -2,10 +2,10 @@
 
 Id: mac-tray-parity
 
-Status: no open children — Aurora-qps epic. qps.6 (SMAppService spike)
-dropped, qps.5 (first-run notification) superseded by qps.8 (shipped, below).
-Full build history (qps.1-.4, .7) is [[mac-tray-parity-history]]. Epic close
-(and archiving this doc) is pending.
+Status: shipped 2026-09-30 — Aurora-qps epic closed. qps.6 (SMAppService
+spike) dropped, qps.5 (first-run notification) superseded by qps.8 (below).
+Full build history (qps.1-.4, .7) is [[mac-tray-parity-history]]. Archived with
+the epic close; kept as the record of the last tray-parity piece.
 
 ## Aurora-qps.8 — Mac-only NUX tip screen (shipped)
 
