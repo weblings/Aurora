@@ -608,3 +608,23 @@ Applies-when: a plan's risk depends on how big or what shape a generated artifac
 Aurora-lzj's plan carried "React + xyflow minified is likely 200 KB+" and an unverified MSVC limit as its main risk. A 10-minute scratchpad scaffold (Vite 8 + React 19 + @xyflow/react, base `/graph-editor/`) replaced the guess with numbers and turned up four things no estimate would have: one 399 KB JS file; `??!` sequences in the minified output (a GCC trigraph warning); Vite 8's built-in `build.license`, so no extra plugin was needed; and Vite not emptying an `outDir` outside its project. Running the real encoder and a compiled round-trip over that output then showed GCC was fine and isolated MSVC as the only unknown.
 
 **Fix:** when a plan's risk hinges on artifact size or format, make the smallest realistic one in the scratchpad and run it through the real downstream steps (encoder, compiler, server). Record the measured numbers in the bead, not the estimate.
+
+---
+
+## Add a control run (old vs old) and event-driven waits before calling a browser difference a regression
+Tags: browser, playwright, flakiness, verification, baseline
+Applies-when: comparing a flow before and after a change by driving a real browser against a live app
+
+Aurora-4y9's browser walk first showed the new code "stalling" on a Continue press in 2 of 3 runs while the old code never did. Two things were wrong with the comparison. A fixed `sleep(1800)` after each click was shorter than a slow save, so the stall was my harness. And once waits followed the screen change (poll until the root element or text differs, up to 10s), one path still varied, but old-vs-old varied too: one old run jumped to the Dashboard, another stopped at Zone Mapping.
+
+**Fix:** wait on a visible state change, never a fixed sleep. Run the old code against itself at least twice before reading any old/new difference; only outcomes that old never produces are evidence. Playwright is not installed here, but `createRequire('<RockyRoad>/v2/')` can load its `playwright` and the cached Chromium works headless.
+
+---
+
+## `pgrep -f` inside a wait loop matches the loop's own shell
+Tags: shell, pgrep, background-tasks, hang
+Applies-when: writing `until ! pgrep -f "<name>"; do sleep; done` in a command that also contains `<name>`
+
+The agent's Bash wrapper runs the whole command string via `bash -c`, so its command line contains the pattern and `pgrep -f` always finds itself. The loop never exits, and a background job built on it looks "running" forever with no output; a `pkill -f` pattern aimed at it then kills the wrapper too (exit 144).
+
+**Fix:** don't gate on `pgrep -f`; run the steps sequentially in one command, or wait on a pid (`kill -0 <pid>`) or an output file. If a pattern is needed, use the `[n]ode` trick so the pattern text doesn't match its own command line.

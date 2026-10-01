@@ -159,16 +159,29 @@ output protocol only if third parties ask for it; dlopen last, if ever.
 
 ## Prep work
 
-Status: proposed 2026-10-01, nothing shipped. These items need no new
+Status: proposed 2026-10-01; all five prep items implemented and verified on
+Linux, Windows and Mac (2026-10-01). These items need no new
 dependency, work with Hue as the only output, and don't commit to building HA.
 Beads carry the details (label `ha-prep`):
 
 - Aurora-pp8: `NSLocalNetworkUsageDescription` in `app/mac/Info.plist.in`
-  (already missing for Hue).
+  (already missing for Hue). Done; the built Mac bundle's Info.plist carries
+  it and Aurora gets the Local Network prompt. macOS shows its own dialog
+  text, not this string (the key is needed for the prompt to fire on recent
+  macOS, but is not displayed).
 - Aurora-dwo: cpp-httplib version floor (>= 0.46, for `ws::WebSocketClient`).
+  Added; Windows and Mac configure and build pass (real ConfigVersion checked
+  on Windows).
 - Aurora-4y9: per-output `{ probe, stages }` table in `probeState()`/`bootstrap()`.
-- Aurora-a0r: output-neutral zone labels endpoint for Zone Mapping.
+  Done and checked against the old flow (trace compare + browser, Linux; web/ui
+  tests pass on Mac).
+- Aurora-a0r: output-neutral zone labels endpoint for Zone Mapping
+  (`IOutput::zoneLabels()`, `GET /api/zones/labels`). Done, checked on Linux
+  with fake-hue; Windows compiles, passes ctest and serves the endpoint
+  under fake-hue; Mac compiles and passes the Hue tests.
 - Aurora-d9v: WebSocket client build and connect check on all three platforms.
+  Linux, Windows (MSVC) and Mac pass (in-process echo test in
+  `AuroraNetworkTests`).
 
 Deferred until HA is a go: rate-limited sender, brightness/`rgb_color`
 split, Keychain token storage.

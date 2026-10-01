@@ -46,6 +46,7 @@ namespace Aurora::Output::Hue
     bool isConnected() const override;
     void shutdown(bool isReplacement) override;
     std::vector<uint8_t> zoneIds() const override;
+    std::map<uint8_t, std::vector<std::string>> zoneLabels() const override;
     void send(const Contracts::Frame& frame) override;
 
   private:

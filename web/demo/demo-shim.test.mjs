@@ -133,6 +133,14 @@ function testRouter(seed) {
   assert.deepEqual(r.json.channels[0].lightNames, ['Demo Light 0']);
 }
 
+// Output-neutral labels route Zone Mapping reads (Aurora-a0r).
+{
+  const r = testRouter({ zones: ZONES_FIXTURE })('GET', '/api/zones/labels');
+  assert.equal(r.json.succeeded, true);
+  assert.deepEqual(r.json.labels.map((l) => l.zoneId), [0, 1]);
+  assert.deepEqual(r.json.labels[0].names, ['Demo Light 0']);
+}
+
 // String zone ids (the room rig's quadrant names) prettify for labels.
 {
   const zones = [{ zoneId: 'front-left', uvs: { min: [0, 0], max: [0.5, 0.5] }, active: true, gamma: 0, everConfigured: true }];

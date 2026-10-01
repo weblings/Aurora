@@ -246,3 +246,31 @@ To exercise the embedded path on a dev machine: `resolveWebRoot` (`app/*/include
 
 The reverse also holds. Dev mode never consults the embedded map, so a build-only artifact that has no source-dir copy (the Aurora-lzj graph editor's Vite bundle) must come from an embedded map in both modes. `serveEmbeddedFilesAt(prefix, map)` exists for this: its routes answer only under the prefix and work beside the static mount.
 
+
+---
+
+## An entry script with import-time side effects can be proven equivalent by running HEAD and the working copy against stub modules
+Tags: webui, refactor, testing, no-dom, equivalence
+Applies-when: refactoring `web/ui/app.js` (or any browser entry that runs on import and navigates through injected screens)
+
+No DOM harness exists, so Aurora-4y9's `app.js` refactor had nothing to run. Copy `git show HEAD:web/ui/app.js` and the working copy into two sibling dirs, give each stub `shell.js`, `Tooltips.js` and `screens/*.js` that append their constructor name and key options to a shared trace, fake `globalThis.fetch` per scenario, and `await import('./<dir>/app.js?r=N')` (the query string defeats the module cache; `bootstrap()` runs on import). After each settle, call the last screen's `onComplete`/`onBack` and record again. 641 scenarios x 4 walks ran in seconds and `cmp` on the two traces is the verdict. Prove the harness can fail: break the copy on purpose (hard-code a flag, drop a guard) and confirm the diff.
+
+Related trap: `styles/mac-tray-tip.test.mjs` asserts on `app.js` *source text*, so a pure rename (`state.platform` -> `platform`) fails it with a message about "gating" that reads like a behaviour break. After a refactor, run every `web/ui` test, not just the ones for the code you touched, and update the string deliberately.
+
+---
+
+## Headless Firefox here: `--screenshot` fires on load and exits, so read async-rendered DOM text through a beacon instead
+Tags: firefox, headless, screenshot, snap, browser-verification
+Applies-when: checking a WebUI screen that fills in after its first render (fetch-driven labels) in headless Firefox on this Linux box
+
+Aurora-a0r's label check hit three snags. (1) With the user's own Firefox open, `firefox --headless` exits "already running, but is not responding"; add `--no-remote --profile <dir>`. (2) The snap Firefox can't see `/tmp` or scratchpad paths ("Could not find profile folder", no screenshot written); keep the profile and `--screenshot` output under `$HOME`. (3) `--screenshot` captures at the load event and quits: a screen that fetches labels after mount shows "Loading…" or bare "Zone N", which reads like a bug. Top-level `await` in the page module doesn't hold `load` open, and the process exits before any timer fires.
+
+**Fix:** temporary harness page in `web/ui/` (served by the app from source) that mounts the screen, waits, then `navigator.sendBeacon('http://127.0.0.1:<port>/', document.body.innerText)` to a 15-line Python POST sink; run `timeout 15 firefox --headless --no-remote --profile ~/<dir> <url>` (no `--screenshot`) and read the sink's file. Delete the harness page and profile afterwards.
+
+---
+
+## A WebSocket client test needs no external echo server: httplib ships the server side
+Tags: websocket, httplib, testing, cross-platform, ha
+Applies-when: writing a C++ test (or a fake Home Assistant) that needs a ws:// peer
+
+Aurora-d9v's bead assumed "a local ws:// echo server", i.e. a separate process and a port to pick per platform. cpp-httplib >= 0.46 has `Server::WebSocket(pattern, handler)` with a blocking `ws::WebSocket::read/send` loop, so the test hosts its own peer: `bind_to_any_port("127.0.0.1")`, `listen_after_bind()` on a thread, `wait_until_ready()`, then `httplib::ws::WebSocketClient("ws://127.0.0.1:<port>/path")`. No Python/Node dependency, no port clash, identical on Linux, Windows and Mac. The same handler shape works for a scripted fake HA server (auth handshake, `get_states` reply) when the HA client lands. `ws::ReadResult` (`Text`/`Binary`/`Fail`) lives in `httplib::ws`, not `httplib`. Stop with `server.stop()` and join the thread before the server goes out of scope.

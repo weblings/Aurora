@@ -167,3 +167,13 @@ confirming the fork is public.
   settle the promise.
 - Build-toolchain: the huenicorn fork needs Mbed TLS 3.x/4.x; verify per-TU
   with `make -k`.
+
+## Pushed
+
+All 13 `fix/*` branches (3 grouped, 10 per-finding) pushed to the fork's
+`origin` (gitlab.com/donthaveone-group8355240/huenicorn-fork) with `git push
+-u`; none existed there before, and no MRs were opened. Every branch is
+ancestor-checked against `origin/develop`. The "not pushed" notes above
+predate this. The issue draft's `FORK` placeholders can now be filled, once
+the fork's visibility is confirmed. Heads-up issue (`Aurora-h45.12`) still
+goes first.

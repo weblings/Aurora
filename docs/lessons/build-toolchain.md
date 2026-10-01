@@ -569,3 +569,13 @@ Applies-when: running the link checker from Windows or Git Bash
 `bash docs/check-links.sh` fails (`import: command not found`) because the file is a Python script. `python docs/check-links.sh` on Windows then dies with `UnicodeDecodeError: 'charmap' codec` on the first non-ASCII doc unless `PYTHONUTF8=1` is set. A successful run also regenerates `docs/_ids.md` with different line endings, so `git diff` shows ~100 changed lines of whitespace.
 
 **Fix:** `PYTHONUTF8=1 python docs/check-links.sh`; `git checkout docs/_ids.md` if the diff is only line endings, and commit it only when entries really changed.
+
+---
+
+## An unversioned `find_package(... QUIET)` takes any system copy, so a fetch-if-missing dep needs a version floor
+Tags: cmake, find_package, fetchcontent, version
+Applies-when: a fetch-if-missing dependency is chosen because the code needs a feature added in a specific release
+
+`core/CMakeLists.txt` did `find_package(httplib QUIET)` and fetched 0.46.0 only when nothing was found. Any distro or vcpkg copy won, however old, and cpp-httplib older than 0.46 has no `httplib::ws::WebSocketClient`: the failure would show up as a compile error in HA code on some machines only (Aurora-dwo).
+
+**Fix:** `find_package(httplib 0.46 QUIET)`; a too-old copy then counts as not found and the fetch runs. To test without installing old packages, write fake `<pkg>Config.cmake` and `<pkg>ConfigVersion.cmake` files under scratchpad prefixes and run a three-line project with `-DCMAKE_PREFIX_PATH` per version. Caveat: this only works if the package ships a version file; one that doesn't makes versioned `find_package` fail even for a good copy.

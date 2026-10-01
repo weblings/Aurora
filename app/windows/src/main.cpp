@@ -393,9 +393,9 @@ namespace
 
       const std::string& name = m_outputPtrs.front()->name();
       if(m_isAudioMode){
-        return {name, m_audioOrchestrator->zoneMap(name)};
+        return {name, m_audioOrchestrator->zoneMap(name), m_outputPtrs.front()->zoneLabels()};
       }
-      return {name, m_orchestrator->zoneMap(name)};
+      return {name, m_orchestrator->zoneMap(name), m_outputPtrs.front()->zoneLabels()};
     }
 
     bool updateZone(

@@ -74,7 +74,7 @@ export class ZoneMappingScreen {
       onError: (message) => { this.error = message; this._render(); },
     });
     this.zoneCanvas = null;
-    this.channelLightNames = {}; // channelId -> light name array, from /api/hue/channels
+    this.channelLightNames = {}; // zoneId -> label name array, from /api/zones/labels
     this._loadId = 0; // guards background decoration against a newer _load() (see _load)
   }
 
@@ -152,10 +152,10 @@ export class ZoneMappingScreen {
     // Best-effort: falls back to bare "Zone N" labels (via _zoneLabel) if
     // this fails or the route isn't available for the active output.
     try {
-      const channelsResult = await (await fetch('/api/hue/channels')).json();
+      const labelsResult = await (await fetch('/api/zones/labels')).json();
       this.channelLightNames = {};
-      if (channelsResult.succeeded) {
-        for (const c of channelsResult.channels) this.channelLightNames[c.channelId] = c.lightNames;
+      if (labelsResult.succeeded) {
+        for (const l of labelsResult.labels) this.channelLightNames[l.zoneId] = l.names;
       }
     } catch {
       this.channelLightNames = {};
