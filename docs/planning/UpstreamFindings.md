@@ -10,6 +10,10 @@ upstream later — citations are against huenicorn's own paths, not Aurora's.
 Grouped by the module each was found while porting; see that module's own
 `docs/*.md` for the full porting context each was found alongside.
 
+Re-verified 2026-09-30 against the `huenicorn-fork` sibling checkout (same
+commit): all of 1–8 still present at the cited lines. That pass also
+corrected 2's and 5's suggested fixes and added 9.
+
 ## Processing (`ImageProcessing`)
 
 Three bugs, none with an observable symptom in huenicorn *today* — see each
@@ -83,7 +87,8 @@ A `BGRA` frame today just skips the alpha-drop step and flows through as
 
 **Suggested fix:** branch on format, adding a `cv::COLOR_BGRA2BGR` case for
 `PixelFormat::BGRA` (and tag the output `PixelFormat::BGR` to match, per
-finding 3 below).
+finding 3 below). The `Runtime.cpp` call-site guard must also accept `BGRA`
+— otherwise the new branch is unreachable and the fix is dead code.
 
 ---
 
@@ -190,7 +195,11 @@ response) and proceeding to `selectSource()` on a half-initialized `Capture`.
 cancel the screen-selection portal prompt — the happy path never exercises
 this branch.
 
-**Suggested fix:** add `return;` after the warning, matching the sibling callbacks.
+**Suggested fix:** `capture->fdReadyPromise.set_value(false);` then
+`return;`, matching `onStartResponseReceivedCallback`. A bare `return;` is
+not enough: `PipewireGrabber`'s constructor blocks on an unbounded
+`fdReadyFuture.wait()`, so returning without settling the promise turns
+today's half-initialized session into a permanent startup hang.
 
 ### 6. `getSenderName()` leaks its `strdup`'d buffer
 
@@ -212,10 +221,33 @@ to be noticeable without a leak-detector run specifically targeting this path.
 **Suggested fix:** construct directly from the pointer GLib already owns —
 `std::string(g_dbus_connection_get_unique_name(m_connection) + 1)` — no `strdup` needed.
 
-**Status (5 and 6):** Fixed in Aurora's port (`Aurora-Input-Linux`'s
-`XdgDesktopPortal.cpp`) — see `archive/LinuxCaptureAnalysis.md`. No dedicated
-regression test (this file's mechanics need a real Wayland portal session to
-exercise either branch at all).
+### 9. `onSelectSourceResponseReceivedCallback` returns on denial without settling `fdReadyPromise`
+
+**Location:** `src/Grabber/GnuLinux/Pipewire/XdgDesktopPortal.cpp:431-434`
+
+```cpp
+if(response != 0){
+  Core::Logger::error("failed to select source, denied or cancelled by user");
+  return;
+}
+```
+
+Same shape as 5's corrected fix: the return is there, but the promise
+`PipewireGrabber`'s constructor is blocked on is never set, so denying the
+source picker hangs startup indefinitely instead of surfacing
+`GrabberCancelled`.
+
+**Why it hasn't fired (observably):** same as 5 — only a denied or cancelled
+portal prompt reaches it.
+
+**Suggested fix:** `capture->fdReadyPromise.set_value(false);` before the `return;`.
+
+**Status (5, 6 and 9):** 6 fixed in Aurora's port (`Aurora-Input-Linux`'s
+`XdgDesktopPortal.cpp`) — see `archive/LinuxCaptureAnalysis.md`. 5 and 9 only
+half-fixed there: both return on denial but never settle the promise, which
+Aurora's 60s-bounded wait turns into a 60s stall rather than a hang. No
+dedicated regression test (this file's mechanics need a real Wayland portal
+session to exercise any of these branches).
 
 ## Hue::Api (`ApiTools`, `EntertainmentConfigurationSelector`)
 
@@ -281,7 +313,31 @@ already holds its final contents.
 the actual failure path, since both need a live/failing bridge connection to
 trigger.
 
-## Not yet sent upstream
+## Upstream plan
 
-This doc is the write-up to send if/when that happens — none of the above
-have been reported to huenicorn yet.
+Status: in progress — none of the above reported to huenicorn yet. Tracked
+as epic `Aurora-h45` (one child per finding, sequenced, then a send step).
+
+**Decisions:**
+- One branch per finding in the `huenicorn-fork` sibling checkout, cut from
+  `origin/develop` (upstream merges `develop` into `master`), named
+  `fix/<slug>` to match the fork's existing `feature/<slug>` style.
+- One MR per branch, using that finding's write-up above as the description.
+- Fixes stay minimal: the one-line or few-line change each finding suggests,
+  no refactoring alongside.
+- Verification is compile-only for touched files plus throwaway scratch
+  checks where behavior is testable offline (1–4). The fork's `tests/` are
+  stale (reference pre-reorg paths, off by default via `BUILD_TESTS`), so no
+  in-repo tests are added. A full fork build needs Mbed TLS 3.x/4.x;
+  `DtlsClient.cpp` fails against 2.28, unrelated to any finding here.
+
+**Fork style to match** (observed, not documented upstream):
+- 2-space indent; `if(cond){` with no spaces; `}` and `else{` on separate lines.
+- Multi-line parameter lists, one parameter per line, closing `)` on its own line.
+- Two blank lines between functions; `// Attributes`-style section markers.
+- Doxygen `@brief` blocks in headers only; `.cpp` bodies are near-comment-free.
+- Logging via `Core::Logger::{log,warn,error}`; `std::optional` checked with
+  `has_value()` before `.value()`.
+
+**Related Aurora bug:** Aurora's own port carries 5 and 9 half-fixed (see
+their status above) — tracked separately as `Aurora-p91`.
