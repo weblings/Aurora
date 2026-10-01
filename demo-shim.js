@@ -249,6 +249,13 @@ export function createRouter(store, hooks = {}) {
       if (!result.ok) return ok({ succeeded: false, error: result.error }, result.status);
       return ok({ succeeded: true });
     }
+    if (method === 'GET' && path === '/api/zones/labels') {
+      const { zones } = store.getZones();
+      return ok({
+        succeeded: true,
+        labels: zones.map((z) => ({ zoneId: z.zoneId, names: [prettyZoneName(z.zoneId)] })),
+      });
+    }
     if (method === 'GET' && path === '/api/hue/channels') {
       // One channel per zone, channelId == zoneId -- the mapping
       // DashboardScreen._zoneLabel assumes for "Zone N (names)" labels.
