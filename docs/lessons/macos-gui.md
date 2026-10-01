@@ -381,3 +381,40 @@ Applies-when: checking that a notarized, stapled app opens cleanly for someone w
 `spctl --assess` passing on a bundle you built locally does not exercise the first-launch path: Gatekeeper only runs its download check on files carrying `com.apple.quarantine`, which browsers, AirDrop and Mail set and local builds never get. Setting it by hand on a fresh copy of the zip (`xattr -w com.apple.quarantine "0083;$(printf '%x' $(date +%s));Safari;" <zip>`), unzipping by double-click in Finder (Archive Utility passes the attribute on to the extracted app; command-line `unzip`/`ditto` may not), then opening the app gave the normal notarized-app prompt ("Safari created this file ... Apple checked it for malicious software and none was detected") with an Open button, and the TCC Screen Recording dialog followed (Aurora-qy5 cert prep). The "Safari" and timestamp in that prompt come from the attribute you wrote, not a real download.
 
 **Fix:** use a copy that has never been launched (a launched copy is already trusted), check `xattr <app>` lists `com.apple.quarantine` before opening, and treat "can't be checked / unidentified developer" as the failure. It approximates, not replaces, a real download on another Mac or a fresh user account.
+
+---
+
+## The macOS Local Network prompt is hard to trigger and impossible to reset, and does not show your `NSLocalNetworkUsageDescription`
+Tags: macos, local-network, privacy, tcc, nslocalnetworkusagedescription, ad-hoc-signing, verification
+Applies-when: testing that a Mac build gets the Local Network permission prompt, or acceptance says the prompt "shows" a reason string
+
+Three separate things made a one-line acceptance check (Aurora-pp8) take
+hours, each looking like "the prompt is broken":
+
+1. **Most test traffic never prompts.** Loopback (so the fake Hue bridge),
+   tools run from Terminal/SSH (so a shell `curl`, or running
+   `Contents/MacOS/Aurora` directly), and traffic to the default gateway
+   all produced no prompt. Launch the `.app` with `open` and point it at a
+   non-gateway LAN host (`curl -X PUT .../api/hue/validate` with
+   `{"bridgeAddress":"<neighbor IP from arp -an>"}`; the host need not be a
+   bridge).
+2. **There is no reset.** `tccutil` does not cover Local Network (Apple DTS:
+   "no good way to reset local network privacy on the Mac"); state lives
+   outside TCC and Settings toggles keep the entry. A new bundle ID gives a
+   fresh prompt, but a `cp -R` copy with a changed `CFBundleIdentifier` still
+   shares the executable UUID, which local network privacy uses (TN3179);
+   those copies were denied with no prompt, the app saw an instant
+   `unreachable` (2 ms where a real connect takes over a second), and the
+   Settings entries were off. Also patch `LC_UUID` (rewrite the 16 bytes at
+   the `LC_UUID` load command) and re-sign ad hoc.
+3. **macOS shows its own text, not ours.** The dialog read "Allow "Aurora" to
+   find devices on local networks? This will allow the app to discover,
+   connect to, and collect data from devices on your networks." The
+   `NSLocalNetworkUsageDescription` reason is an iOS-style field; on macOS
+   it is still required (reports: macOS 26.7+ will not prompt a GUI app
+   without it) but is not displayed.
+
+**Fix:** write the acceptance as "key present in the built bundle's
+`Info.plist` and the app gets the prompt", not "the prompt shows the string".
+Check the key with `plutil -p`, and make test copies with both a new bundle ID
+and a new `LC_UUID`.

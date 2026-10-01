@@ -2,8 +2,9 @@
 
 Id: ha-prep-pp8-dwo
 
-Items 1 and 2 of [[home-assistant-output]]'s prep work. Both beads stay open:
-each has an acceptance step this Linux box can't run.
+Items 1 and 2 of [[home-assistant-output]]'s prep work. dwo closed after the
+Mac configure; pp8 closed after the Mac checks (the acceptance premise that the
+prompt shows our string was wrong; see the Mac verification section).
 
 ## Change
 
@@ -17,8 +18,7 @@ each has an acceptance step this Linux box can't run.
 ## Verification
 
 - pp8: plist still well-formed (`xmllint`, version placeholders
-  substituted). Not checked: the built bundle's Info.plist and the prompt
-  text on a fresh Mac.
+  substituted). Built bundle and prompt: see the Mac section below.
 - dwo: scratchpad project with fake httplib config packages: none and 0.18.0
   not found (fetch path); 0.46.0 and 0.50.1 found. Real `core` configure
   with the fake 0.18.0 on the prefix path printed the fetch message and
@@ -47,3 +47,37 @@ each has an acceptance step this Linux box can't run.
   copy (standalone configure failed at an unrelated `find_package`, line 14).
 - Lesson: a scratch CMake tree under the long session temp path breaks MSBuild
   (MSB6003 tlog path); use a short path for scratch configures on Windows.
+
+## Mac verification (2026-10-01)
+
+- dwo: `cmake -S core -B build/core-tests -DBUILD_TESTS=ON` printed the fetch
+  message (no system httplib; Homebrew has none), configured, and
+  `_deps/httplib-src/httplib.h` is 0.46.0. The older-copy-ignored case was
+  not re-run on Mac; the version rule is the same file checked on Windows.
+- pp8: `build/mac-app` rebuilt; `plutil -p bin/Aurora.app/Contents/Info.plist`
+  shows `NSLocalNetworkUsageDescription` with the new string. A copy of the
+  app with a unique bundle ID and a unique executable UUID, ad-hoc signed,
+  got a Local Network prompt on macOS 27.0.1 when its `/api/hue/validate`
+  endpoint was pointed at a non-gateway LAN host. The dialog read "Allow
+  "Aurora" to find devices on local networks? This will allow the app to
+  discover, connect to, and collect data from devices on your networks."
+  That is system text; our string was not shown. The acceptance criterion
+  "the prompt shows the string" assumed iOS behaviour and is replaced by
+  "key present in the built bundle, and Aurora gets the prompt".
+
+### Findings (Mac Local Network prompt)
+
+- The prompt did not fire for: a terminal-launched binary, `curl` from a
+  shell (Terminal-run tools are exempt, per Apple/Eclectic Light), or traffic
+  to the default gateway (`192.168.0.1` answered with no prompt).
+- Copies made with `cp -R` and a new `CFBundleIdentifier` share the original's
+  executable UUID; Apple's TN3179 says local network privacy uses that UUID.
+  Those copies were denied with no visible prompt (instant `unreachable`
+  from the app, Settings entries off). A copy with a patched `LC_UUID` and
+  fresh bundle ID prompted normally.
+- There is no reset: `tccutil` does not cover Local Network (Apple DTS:
+  "no good way to reset local network privacy on the Mac"); use a new bundle
+  ID, a new user account or a VM. An earlier line here claiming `tccutil`
+  could reset it was wrong and has been removed.
+- A macOS 27.0b4 bug (rdar 181140179) is reported to cause local network
+  privacy problems; not checked whether 27.0.1 still has it.
