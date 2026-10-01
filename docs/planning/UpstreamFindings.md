@@ -255,8 +255,12 @@ Same shape as 5's corrected fix: the return is there, but the promise
 source picker hangs startup indefinitely instead of surfacing
 `GrabberCancelled`.
 
-**Why it hasn't fired (observably):** same as 5 — only a denied or cancelled
-portal prompt reaches it.
+**Why it hasn't fired (observably):** only a denied or cancelled source
+picker reaches it. Unlike 5, this is the prompt users actually see, so it
+plausibly has fired as an unexplained startup hang. Reproduced 2026-10-01
+with the fake portal answering SelectSources with `Response(1)`: on
+`develop` the promise is still unsettled after 5s; with the fix it settles
+`false` and teardown is clean.
 
 **Suggested fix:** `capture->fdReadyPromise.set_value(false);` before the `return;`.
 

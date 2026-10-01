@@ -50,6 +50,9 @@ pushes and opens MRs.
   `false` and returns on denial. Worse than the write-up said: on `develop`
   this denial segfaults (null session handle passed on as an object path).
   Closed `Aurora-h45.5`.
+- `fix/portal-select-source-denied` (`269ecf1`, off `origin/develop`, not pushed):
+  `onSelectSourceResponseReceivedCallback` settles `fdReadyPromise` with
+  `false` before its existing return. Closed `Aurora-h45.6`.
 - Pipewire also offers `RGB`/`YUY2`/`I420`, which the 4-byte decode can't
   handle. Not filed as a finding: screen-cast producers offer only 4-byte
   formats, so they never negotiate. Noted in 1's write-up for the MR instead.
@@ -74,6 +77,8 @@ pushes and opens MRs.
   CreateSession: `develop` segfaults, fixed build settles `false` and tears
   down cleanly. Denied SelectSources on the same build: promise unsettled
   after 5s, confirming 9 live.
+- 9: same harness, denied SelectSources: `develop` unsettled after 5s,
+  fixed build settles `false` and tears down cleanly.
 
 ## Lessons
 
