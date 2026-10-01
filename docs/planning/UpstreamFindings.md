@@ -382,10 +382,11 @@ trigger.
 
 ## Upstream plan
 
-Status: in progress — all 10 fixes committed on per-finding branches in the
-`huenicorn-fork` sibling checkout (none pushed); nothing reported to
-huenicorn yet. Tracked as epic `Aurora-h45`; the remaining work is grouping
-the branches for MRs and sending them.
+Status: in progress — all 10 fixes committed in the `huenicorn-fork` sibling
+checkout and grouped into the three MR branches below (`fix/hue-api-robustness`,
+`fix/portal-failure-handling`, `fix/capture-pipeline`; none pushed). Nothing
+reported to huenicorn yet. Tracked as epic `Aurora-h45`; what's left is the
+heads-up issue, the hardware check, and sending.
 
 **Decisions:**
 - One branch per finding, cut from `origin/develop` (upstream merges

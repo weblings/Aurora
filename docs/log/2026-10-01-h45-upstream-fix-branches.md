@@ -85,6 +85,21 @@ on real hardware. Recorded in [[upstream-findings]]'s plan. Beads: `.10`
 builds the grouped branches; `.12`–`.16` cover the issue, the three MRs, and
 the hardware check.
 
+Grouped branches built (`Aurora-h45.10`, local, not pushed), each off
+`origin/develop` by cherry-picking the per-finding commits unchanged
+(`git cherry` confirms every original patch is present):
+
+- `fix/hue-api-robustness`: 7, 8.
+- `fix/portal-failure-handling`: 5, 9, 10, 6.
+- `fix/capture-pipeline`: 3, 1, 2 (the existing stack), then 4.
+
+Re-verified on the combined code. Touched files compile warning-free.
+Portal: all five fake-portal failure modes settle `false` under
+AddressSanitizer, with no leaks or memory errors. Hue: the selector loads
+with a stalled light under `_GLIBCXX_DEBUG` and reports no selection without
+aborting. Capture: all four scratch checks pass. The per-finding branches
+stay as they are, for reference.
+
 ## Verification
 
 - The fork can't fully build here: `DtlsClient.cpp` needs Mbed TLS 3.x/4.x,
