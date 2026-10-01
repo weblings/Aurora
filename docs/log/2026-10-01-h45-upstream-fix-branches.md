@@ -1,4 +1,4 @@
-# Aurora-h45: upstream fix branches for huenicorn — started
+# Aurora-h45: upstream fix branches for huenicorn — fixes done, MRs planned
 
 Id: h45-upstream-fix-branches
 
@@ -65,9 +65,25 @@ pushes and opens MRs.
   per-light fetch checks `has_value()` and skips that device on failure
   (name stays empty). Worse than written up: the uncaught throw terminates
   huenicorn at startup. Closed `Aurora-h45.8`.
+- `fix/entconf-iterator-init` (`2084e96`, off `origin/develop`, not pushed): the
+  selector loads its map in the member-initializer list, so the selection
+  iterator's `end()` is taken from the final map. Closed `Aurora-h45.9`.
 - Pipewire also offers `RGB`/`YUY2`/`I420`, which the 4-byte decode can't
   handle. Not filed as a finding: screen-cast producers offer only 4-byte
   formats, so they never negotiate. Noted in 1's write-up for the MR instead.
+
+## MR grouping
+
+Ten branches is too much to land on a solo maintainer at once. Decided to
+send three MRs grouped by area, one commit per finding: Hue API robustness
+(7, 8), screencast portal failure handling (5, 9, 10, 6), and capture and
+image pipeline (3, 1, 2, 4). 4 goes in the capture MR as its last commit:
+same grabber → downsample path, and droppable. A heads-up issue goes first,
+then the MRs one at a time, smallest first. Capture goes last, after a
+real-hardware color check, because it's the only one that changes behavior
+on real hardware. Recorded in [[upstream-findings]]'s plan. Beads: `.10`
+builds the grouped branches; `.12`–`.16` cover the issue, the three MRs, and
+the hardware check.
 
 ## Verification
 
@@ -101,6 +117,9 @@ pushes and opens MRs.
   3s) driving the real `loadEntertainmentConfigurations`: `develop` throws
   `bad_optional_access`, fixed build returns the config with the slow
   light's name empty.
+- 8: real `EntertainmentConfigurationSelector` built with `-D_GLIBCXX_DEBUG`
+  against the fake bridge: `develop` aborts at the first `validSelection()`
+  (singular iterator compared to past-the-end), fixed build returns `false`.
 
 ## Lessons
 

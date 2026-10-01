@@ -363,6 +363,10 @@ detail, not a guarantee).
 **Why it hasn't fired (observably):** libstdc++'s `unordered_map`
 implementation happens to make this work reliably; a different standard
 library implementation (or a future libstdc++ change) isn't obligated to.
+Confirmed 2026-10-01 with libstdc++'s own checked mode: the real selector
+built with `-D_GLIBCXX_DEBUG` against a fake bridge aborts on `develop` at
+the first `validSelection()` ("attempt to compare a singular iterator to a
+past-the-end iterator"); with the fix it loads and reports no selection.
 
 **Suggested fix:** load the map in the constructor's member-initializer
 list instead of its body — member initializers run in declaration order, so
@@ -378,23 +382,44 @@ trigger.
 
 ## Upstream plan
 
-Status: in progress — none of the above reported to huenicorn yet. Tracked
-as epic `Aurora-h45` (one child per finding, sequenced, then a send step).
+Status: in progress — all 10 fixes committed on per-finding branches in the
+`huenicorn-fork` sibling checkout (none pushed); nothing reported to
+huenicorn yet. Tracked as epic `Aurora-h45`; the remaining work is grouping
+the branches for MRs and sending them.
 
 **Decisions:**
-- One branch per finding in the `huenicorn-fork` sibling checkout, cut from
-  `origin/develop` (upstream merges `develop` into `master`), named
-  `fix/<slug>` to match the fork's existing `feature/<slug>` style.
-- One MR per branch, using that finding's write-up above as the description.
-- Order 3 → 1 → 2 → 4 → 5 → 9 → 10 → 6 → 7 → 8. 1's branch is stacked on
-  3's, since `mean()` reads the `format` that 3 starts setting, and 2's on 1's.
+- One branch per finding, cut from `origin/develop` (upstream merges
+  `develop` into `master`), named `fix/<slug>` to match the fork's
+  `feature/<slug>` style. 1 is stacked on 3, and 2 on 1.
+- Sent as three MRs grouped by area, not ten, to keep the review load
+  manageable for a solo maintainer. Each MR keeps one commit per finding, so
+  any one can be reviewed, dropped, or reverted on its own:
+
+  | MR | Findings (commit order) | Notes |
+  |---|---|---|
+  | Hue API robustness | 7, 8 | Both in the configuration-loading startup path; both reproduced (startup termination, debug-mode iterator abort) |
+  | Screencast portal failure handling | 5, 9, 10, 6 | All `XdgDesktopPortal.cpp`, one pattern; reproduced with a fake portal (segfault, hangs, leak) |
+  | Capture and image pipeline fixes | 3, 1, 2, 4 | 1 needs 3, 2 needs 1; 4 rides along last (same grabber → downsample path, trivial, no measured effect) |
+
+- A short heads-up issue goes first ("found while porting, MRs to follow,
+  happy to restructure"), so the maintainer can ask for a different split.
+- MRs go one at a time, in the table's order: smallest and clearest first,
+  and the next only after the previous is reviewed. Capture goes last: it's
+  the only one that changes behavior on real hardware (grabber tags), so it
+  wants a real X11/Pipewire color check before sending. Huenicorn can't be
+  fully built on the Linux box here (Mbed TLS 2.28).
+- MR descriptions come from each finding's write-up above, trimmed to the
+  bug, the evidence, and the fix.
 - Fixes stay minimal: the one-line or few-line change each finding suggests,
   no refactoring alongside.
-- Verification is compile-only for touched files plus throwaway scratch
-  checks where behavior is testable offline (1–4). The fork's `tests/` are
-  stale (reference pre-reorg paths, off by default via `BUILD_TESTS`), so no
-  in-repo tests are added. A full fork build needs Mbed TLS 3.x/4.x;
-  `DtlsClient.cpp` fails against 2.28, unrelated to any finding here.
+- Verification: touched files compile warning-free, plus scratchpad
+  reproductions run before and after each fix. Those are throwaway drivers
+  for 1–4; a fake ScreenCast portal on `dbus-run-session` for 5, 9 and 10;
+  LeakSanitizer for 6; a fake HTTPS bridge for 7; `-D_GLIBCXX_DEBUG` for 8.
+  The fork's `tests/` are stale (pre-reorg paths, off by default via
+  `BUILD_TESTS`), so no in-repo tests are added. A full fork build needs
+  Mbed TLS 3.x/4.x; `DtlsClient.cpp` fails against 2.28, unrelated to any
+  finding here.
 
 **Fork style to match** (observed, not documented upstream):
 - 2-space indent; `if(cond){` with no spaces; `}` and `else{` on separate lines.
@@ -404,5 +429,5 @@ as epic `Aurora-h45` (one child per finding, sequenced, then a send step).
 - Logging via `Core::Logger::{log,warn,error}`; `std::optional` checked with
   `has_value()` before `.value()`.
 
-**Related Aurora bug:** Aurora's own port carries 5 and 9 half-fixed (see
-their status above) — tracked separately as `Aurora-p91`.
+**Related Aurora bug:** Aurora's own port carries 5 and 9 half-fixed and 10
+unfixed (see their status above) — tracked separately as `Aurora-p91`.
