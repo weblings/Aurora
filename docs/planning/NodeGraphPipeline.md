@@ -2,8 +2,10 @@
 
 Id: node-graph-pipeline
 
-Status: exploratory — no code yet. Written 2026-09-30 from a code read of
-`core/Runtime` + `core/*Processing`; no bead yet.
+Status: exploratory — no graph code yet. Written 2026-09-30 from a code read of
+`core/Runtime` + `core/*Processing`; no bead yet for the graph itself.
+Revised 2026-10-01: "Prep work before importing libraries" added, fail-state
+sanitizing corrected after Aurora-5y0.
 
 Question: could users rewire Aurora's video/audio processing in a web
 node editor (TouchDesigner/cables.gl-style) instead of the fixed pipelines?
@@ -390,11 +392,22 @@ Three categories, handled differently:
   (the hot-swap design already keeps it). Test-on-lights: optional "show
   errors on lights" toggle, off by default, steady magenta and never
   flashing.
-- **Sanitize at the output boundary regardless.** `Smoother`'s
-  `fromNormalized` clamps then casts float → `uint8_t`; a NaN survives
-  `glm::clamp`, and casting NaN to an integer is undefined behaviour. With
-  user-built graphs NaN becomes reachable, so `output.send` (and preview
-  sinks) must replace non-finite values before any cast.
+- **Sanitize at float → `Color`, not at the output.** `Color` and
+  `Frame` hold `uint8_t` channels, so a NaN can't travel along a Color
+  or Frame port; the UB happens where floats are cast into a `Color`.
+  That is `Color::fromNormalized`, the single guarded cast site
+  (non-finite → black, out-of-range clamps; Aurora-9ca, Aurora-5y0), now
+  used by both `fromHSV` and `Smoother`. Any node that produces a `Color`
+  from floats must go through it. Non-finite *Float/Angle* port values
+  are the graph's concern: they become the error value above.
+- **Stateful nodes must self-heal.** NaN + x and `fmod(NaN)` stay NaN, so
+  one bad tick poisons a state struct for the rest of the session: under
+  9ca's first fix, a zero centroid range left `DriftState`'s anchor NaN and
+  the lights black until restart. "Hold last good value" covers a node's
+  *outputs*, not its *state*. `updateDrift`/`updateBounce` now reset to
+  cold-start state when a field goes non-finite (Aurora-5y0); `INode`
+  should make that a contract (e.g. a per-node state check after
+  `evaluate`), not something each node remembers.
 
 ## Stretch: object detection and motion
 
@@ -460,6 +473,51 @@ retrofit):**
   choosing.
 - CPU inference cost on the target machines is unmeasured; likely
   needs a lower detection cadence or GPU.
+
+## Prep work before importing libraries
+
+Status: proposed 2026-10-01 (item 2 shipped as Aurora-5y0). Each item
+works under today's two orchestrators, needs no new dependency, and
+removes a risk the graph work or the React Flow import would otherwise
+hit.
+
+1. **Param schema in C++, single source.** Ranges live only in
+   `TuningFields.js` (`[key, label, min, max, step, unit]`); the C++ clamp
+   on `setAudioCentroidRangeHz` was hand-copied from it, the other ten
+   `audio*` setters have none, and `ConfigStore::fromJson` skips setters
+   entirely (5y0 re-applies two setters on load as a stopgap). Extend
+   `ControlDescriptor` (or add a sibling param schema) with kind, min,
+   max, step, unit, default; serve it from `/api/descriptors`, clamp
+   setters and the loader from it, and render `TuningFields` from it.
+   This *is* the `/api/nodes` param schema and half of the "generic Tuning
+   renderer" above, delivered early.
+2. **One guarded float → `Color` path.** Shipped: `Color::fromNormalized`
+   (see "Fail states").
+3. **Parity harness.** Record `AudioFeatures` sequences and a few
+   captured frames as fixtures; snapshot today's orchestrator outputs.
+   Tier 1 parity and the Tier 2 decomposition tests both need it, and it
+   needs no graph code.
+4. **Explicit `dt` and one clock.** Pass `dt` into both orchestrators
+   and drop `main.cpp`'s fixed 1/60s audio tick, preserving behaviour.
+   Lands the "one clock per graph" model as a no-regression refactor.
+5. **Toolchain spike.** A hello-world Vite + React app built by CMake,
+   embedded, served, and run on all three CI workflows, before any real
+   editor code. What it should shake out:
+   - **MSVC literal limit (unverified).** MSVC is believed to cap a
+     *concatenated* string literal near 64 KB (C1091);
+     `embed_webroot.py` assumes no total limit. Untested so far: the
+     largest embedded file is 40 KB, while React + xyflow minified is
+     likely 200 KB+. If it bites, emit byte arrays instead.
+   - **Serving.** `HttpLibServerImpl`'s MIME table lacks `.mjs`, `.map`,
+     `.woff2`, `.wasm`, `.webp`; a sub-app at `/graph-editor/` needs
+     index fallback and a matching Vite `base`.
+   - **CI.** `web.yml` assumes no build step; the Linux and Windows
+     workflows have no Node.
+   - **Licences.** `tools/mac/bundle-licenses.sh` covers Mac dylibs only;
+     npm packages compiled into the binary get no third-party notices on
+     any platform. Generate one at build time (e.g.
+     `rollup-plugin-license`) and ship it.
+   - **Supply chain.** Committed lockfile, `npm ci --ignore-scripts`.
 
 ## Open questions
 

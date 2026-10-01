@@ -128,6 +128,24 @@ TEST_CASE("ConfigStore clamps a persisted garbage refreshRate on load", "[Config
 }
 
 
+TEST_CASE("ConfigStore clamps persisted out-of-range tuning on load (Aurora-5y0)", "[ConfigStore]")
+{
+  // fromJson writes ConfigData directly -- load must re-apply the setter
+  // clamps or a hand-edited config.json skips them (Aurora-9ca's gap).
+  ScopedTempDir dir("garbage-tuning");
+  std::filesystem::create_directories(dir.path);
+  {
+    std::ofstream file(dir.path / "config.json");
+    file << "{\"audioCentroidRangeHz\": 0, \"transitionSmoothing\": 5}";
+  }
+
+  ConfigStore store(dir.path);
+  Config config = store.load();
+  CHECK(config.audioCentroidRangeHz() == Catch::Approx(100.f));
+  CHECK(config.transitionSmoothing() == Catch::Approx(0.97f));
+}
+
+
 namespace
 {
   // Mirrors X11Grabber/WindowsGrabber's monitor-list shape without needing

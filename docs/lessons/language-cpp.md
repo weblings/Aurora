@@ -135,3 +135,13 @@ Applies-when: acquiring a session-bus name on a worker thread before its GMainLo
 The tray worker called `g_bus_own_name` (async, no callbacks) then ran a bounded wait polling `GetNameOwner` with `g_usleep` between passes. The wait always timed out ("bus name never acquired -- running without icon") and registration was skipped -- yet `busctl` showed the name owned afterwards. Acquisition completes by dispatching on the calling thread's thread-default context, which nobody iterates until `g_main_loop_run` starts *after* the wait: the poll can never observe ownership because the reply it waits for needs the very loop that is blocked. Live state matched exactly (name owned, watcher list missing Aurora).
 
 **Fix:** pump the context each pass (`g_main_context_iteration(context, FALSE)` before the poll) in `app/linux/src/TrayIcon.cpp`. General principle: a synchronous poll from the same thread never substitutes for dispatching an async GLib/GIO call -- either pump the thread-default context while waiting or use the blocking `_sync` variant; `g_usleep` between polls only stretches a wait that cannot succeed.
+
+---
+
+## Guarding a NaN at the output doesn't un-poison the state that produced it -- NaN in an accumulator is permanent
+Tags: cpp, nan, state, audio, validation
+Applies-when: adding a non-finite guard downstream of a stateful accumulator (damper, integrator, rolling average)
+
+Aurora-9ca's `Color::fromHSV` guard turned a NaN hue into defined black -- but the NaN lived in `DriftState::anchorHueDegrees`, and `NaN + x` / `fmod(NaN)` stay NaN, so every later tick was black too: "defined" behavior that only a restart cleared. The regression test even pinned it (`result == Color{}`) without asking whether the *next* tick recovered.
+
+**Fix (Aurora-5y0):** guard the divisor that produced the NaN (`std::max(centroidRangeHz, 1.0f)`, matching the `referenceRms` guard beside it), and make each state struct self-heal: if any field is non-finite at the top of `updateDrift`/`updateBounce`, reset to cold-start state. General principle: an output guard bounds one tick's damage; anything that feeds back into state needs a state-level check, and a regression test should run one more tick to prove recovery, not just a defined value.

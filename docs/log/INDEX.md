@@ -70,3 +70,4 @@ Planning docs stay clean: decisions, status, and pointers here only.
 | 2026-09-30 | Slice READMEs made timeless; check-links scan widened to slice READMEs and root files (4 dead citations found); README close-checklist rule | Aurora-y2a |
 | 2026-09-30 | Mac release zip: Aurora 1.0.4 notarized twice (second without disable-library-validation), embedded webroot and fake light-viz verified, zip renamed to Aurora_Mac_v1.0.4.zip | (no bead; 8mk.10 dropped) |
 | 2026-10-01 | Aurora-9ca fix: centroid-range setter clamp + fromHSV non-finite/channel guard, 3 regression tests, core ctest 75/75; 2 lessons (clamp-NaN, setter-bypass) | Aurora-9ca |
+| 2026-10-01 | Aurora-5y0 (9ca follow-up): drift/bounce NaN state self-heal + divisor guard, single guarded Color::fromNormalized (Smoother uses it), config-load clamps; NodeGraphPipeline prep-work section; core ctest 78/78 | Aurora-5y0 |

@@ -126,12 +126,30 @@ namespace Aurora::Contracts
       else if(hPrime < 5.0f) { r1 = x; g1 = 0.0f; b1 = c; }
       else                   { r1 = c; g1 = 0.0f; b1 = x; }
 
-      // Clamp before the narrowing cast: out-of-range floats (value > 1
-      // via an unclamped setter, or non-finite slips) are UB to cast.
+      return fromNormalized(glm::vec3(r1 + m, g1 + m, b1 + m));
+    }
+
+
+    /**
+     * @brief Inverse of toNormalized() -- the one float -> channel cast
+     * site. Every float-producing path (fromHSV, Smoother, future graph
+     * nodes) goes through here, so the guard lives in one place.
+     *
+     * Non-finite input returns black; out-of-range input clamps. Both
+     * would otherwise be UB in the narrowing cast (Aurora-9ca, Aurora-5y0).
+     * Checked before clamping: std::clamp passes NaN straight through.
+     *
+     * @param color rgb in normalized 0-1 floating range
+     */
+    static Color fromNormalized(const glm::vec3& color)
+    {
+      if(!std::isfinite(color.r) || !std::isfinite(color.g) || !std::isfinite(color.b)){
+        return Color{};
+      }
       auto toChannel = [](float v){
-        return static_cast<ChannelDepth>(std::round(std::clamp(v * Color::Max, 0.0f, Color::Max)));
+        return static_cast<ChannelDepth>(std::round(std::clamp(v, 0.0f, 1.0f) * Color::Max));
       };
-      return Color(toChannel(r1 + m), toChannel(g1 + m), toChannel(b1 + m));
+      return Color(toChannel(color.r), toChannel(color.g), toChannel(color.b));
     }
 
 

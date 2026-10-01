@@ -104,7 +104,14 @@ namespace Aurora::Runtime
       return Config{};
     }
 
-    return Config(fromJson(json));
+    // fromJson writes fields directly, so re-run the validating setters
+    // over what it read -- otherwise a hand-edited config.json skips the
+    // clamps the REST path gets (Aurora-9ca/5y0). Interim until param
+    // ranges move into one C++ schema (NodeGraphPipeline.md, prep step 1).
+    Config config(fromJson(json));
+    config.setTransitionSmoothing(config.transitionSmoothing());
+    config.setAudioCentroidRangeHz(config.audioCentroidRangeHz());
+    return config;
   }
 
 
