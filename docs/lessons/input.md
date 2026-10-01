@@ -490,3 +490,24 @@ Applies-when: a previously-granted Screen Recording or audio-capture permission 
 First launch of the notarized, Developer ID-signed `Aurora.app` (bundle ID `com.aurora.app`) showed the "Screen Recording permission is off" card with Aurora toggled on in System Settings and no Allow dialog. The earlier ad-hoc builds had a cdhash-only designated requirement; the Developer ID build has an identifier + certificate requirement (`codesign -dr -`). TCC matches grants to that requirement, so the ad-hoc row no longer matched the new code, yet the row's existence kept macOS from prompting (Aurora-qy5 cert prep).
 
 **Fix:** quit the app, run the scoped resets (`tccutil reset ScreenCapture com.aurora.app`, and the audio-capture service), relaunch, approve the fresh dialog, then quit and relaunch once more. After that the grant persisted across a relaunch with no re-prompt; a certificate-based requirement is stable across rebuilds signed by the same identity, which is what ad-hoc builds lacked. Expect the same re-prompt when moving back to an ad-hoc build that shares the bundle ID.
+
+---
+
+## In a promise-driven portal callback chain, every early return must settle the promise -- "just return" turns a bad state into a hang
+Tags: input, linux, pipewire, xdg-portal, promise, huenicorn
+Applies-when: adding or reviewing an error/denial branch in `XdgDesktopPortal`'s response callbacks (or any async chain a caller blocks on via a future)
+
+`PipewireGrabber`'s constructor waits on `fdReadyFuture` while
+`XdgDesktopPortal` walks CreateSession → SelectSources → Start through D-Bus
+response callbacks. Only the Start callback settles the promise on denial.
+The CreateSession and SelectSources denial branches return without it, so
+the waiter is never woken. huenicorn's wait is unbounded (permanent hang);
+Aurora's is bounded at 60s, so a denied dialog stalls for a full minute
+despite the comment saying it "resolves promptly as false" (`Aurora-p91`).
+Upstream finding 5's original suggested fix, a bare `return;`, would have
+added a third hang.
+
+**Fix:** every terminal branch of the chain calls
+`capture->fdReadyPromise.set_value(false)` before returning. When reviewing
+a "missing return" fix, trace who is waiting on the state the early return
+skips.

@@ -70,3 +70,4 @@ Planning docs stay clean: decisions, status, and pointers here only.
 | 2026-09-30 | Slice READMEs made timeless; check-links scan widened to slice READMEs and root files (4 dead citations found); README close-checklist rule | Aurora-y2a |
 | 2026-09-30 | Mac release zip: Aurora 1.0.4 notarized twice (second without disable-library-validation), embedded webroot and fake light-viz verified, zip renamed to Aurora_Mac_v1.0.4.zip | (no bead; 8mk.10 dropped) |
 | 2026-10-01 | Aurora-9ca fix: centroid-range setter clamp + fromHSV non-finite/channel guard, 3 regression tests, core ctest 75/75; 2 lessons (clamp-NaN, setter-bypass) | Aurora-9ca |
+| 2026-10-01 | huenicorn upstream branches started: findings re-verified (1/2/5 corrected, new 9), chain reordered 3→1→2, fix #3 committed on fork; Aurora portal-denial stall filed; 3 lessons | Aurora-h45, Aurora-h45.3, Aurora-p91 |

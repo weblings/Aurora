@@ -482,3 +482,22 @@ of a missing-file error.
 
 **Fix:** `brew unlink mbedtls && brew link mbedtls@3 --force` so
 `/opt/homebrew/include/mbedtls/` resolves consistently to 3.6.7.
+
+---
+
+## The huenicorn fork needs Mbed TLS 3.x/4.x; this Linux box's 2.28 fails `DtlsClient.cpp` only -- verify per-TU with `make -k`
+Tags: cmake, linux, mbedtls, huenicorn, upstream
+Applies-when: building the `../huenicorn-fork` sibling checkout to verify an upstream fix on this Linux machine
+
+huenicorn's `DtlsClient.cpp` has an `#error Unsupported Mbed TLS version`
+guard for anything below 3.x (added in "Add distinct support for both MbedTLS
+3.x and 4.x"). Ubuntu's `libmbedtls-dev` here is 2.28.8, which Aurora's own
+`output/hue` still builds against fine, so the fork's full link always fails.
+Every other translation unit compiles. System cmake is also absent; use the
+Aurora `.venv`'s (see "Without cmake, flags.make + link.txt are a complete build record for recompiling and relinking a single TU").
+
+**Fix:** configure into the session scratchpad with the venv cmake, then
+`cmake --build <dir> -- -k` and check the touched `.o` files built without
+warnings. For testable logic, compile a scratch driver directly against the
+touched `.cpp` (e.g. `ImageProcessing.cpp` + OpenCV + `_deps/glm-src`)
+rather than reviving the fork's stale `tests/`.

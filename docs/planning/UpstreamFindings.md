@@ -17,8 +17,8 @@ corrected 2's and 5's suggested fixes and added 9.
 ## Processing (`ImageProcessing`)
 
 Three bugs, none with an observable symptom in huenicorn *today* — see each
-entry's "why it hasn't fired" note. All three would matter the moment a
-second real capture source with a different `PixelFormat` exists.
+entry's "why it hasn't fired" note. They interlock: 1 depends on 3, and on
+the grabbers' tags being corrected in the same change.
 
 ---
 
@@ -46,16 +46,21 @@ stores them — it has no concept of "red" or "blue". This unconditionally
 assumes storage order is BGR (channel 0 = B, channel 2 = R) and never consults
 `imageData.format`.
 
-**Why it hasn't fired:** every grabber in huenicorn today tags its output
-`PixelFormat::BGR` (confirmed: `DummyGrabber::grabFrameSubsample()`,
-`src/Grabber/DummyGrabber.cpp:60`, sets `Imaging::PixelFormat::BGR` explicitly;
-the X11/Pipewire grabbers follow the same convention). The `PixelFormat` tag
-exists precisely to let this function handle more than one layout, but it's
-never actually consulted.
+**Why it hasn't fired:** the swap is compensating for mislabeled tags.
+`DummyGrabber` tags `BGR` correctly, but `X11Grabber` tags `RGBA`/`RGB`
+(`src/Grabber/GnuLinux/X11/X11Grabber.cpp:166-170`) and `PipewireGrabber`
+always tags `RGBA` (`src/Grabber/GnuLinux/Pipewire/PipewireGrabber.cpp:234`),
+while the bytes are really BGRA/BGR (little-endian XShm ZPixmap) and usually
+BGRx (Pipewire's common negotiated format). Since `mean()` never reads the
+tag, the hardcoded BGR read is what keeps colors right. (Corrected
+2026-09-30; the original write-up said every grabber tags `BGR`.)
 
 **Suggested fix:** switch on `imageData.format` and pick channel indices
 accordingly — `RGB`/`RGBA` read channels 0,1,2 directly; `BGR`/`BGRA` keep
-today's swapped read.
+today's swapped read. Must ship with grabber tag fixes (X11 → `BGRA`/`BGR`;
+Pipewire maps negotiated `SPA_VIDEO_FORMAT_BGRx` → `BGRA`), or honoring the
+tag swaps red and blue for every X11/Pipewire user. Also depends on 3:
+`mean()` runs on `getSubImage()`'s output, whose `format` is unset until 3 lands.
 
 ---
 
@@ -323,6 +328,8 @@ as epic `Aurora-h45` (one child per finding, sequenced, then a send step).
   `origin/develop` (upstream merges `develop` into `master`), named
   `fix/<slug>` to match the fork's existing `feature/<slug>` style.
 - One MR per branch, using that finding's write-up above as the description.
+- Order 3 → 1 → 2, then the rest in numeric order. 1's branch is stacked on
+  3's, since `mean()` reads the `format` that 3 starts setting.
 - Fixes stay minimal: the one-line or few-line change each finding suggests,
   no refactoring alongside.
 - Verification is compile-only for touched files plus throwaway scratch
