@@ -37,6 +37,9 @@ pushes and opens MRs.
   `RGB`/`BGR`. Closed `Aurora-h45.2`. Finding 2's premise was wrong:
   `COLOR_RGBA2RGB` is an OpenCV alias of `COLOR_BGRA2BGR`, so no new
   conversion was needed.
+- `fix/divisors-half` (`c510d49`, off `origin/develop`, not pushed): `_divisors()` loops
+  `i <= number / 2`. Measured impact is nil for common displays (see 4's
+  write-up); kept as a contract fix. Closed `Aurora-h45.4`.
 - Pipewire also offers `RGB`/`YUY2`/`I420`, which the 4-byte decode can't
   handle. Not filed as a finding: screen-cast producers offer only 4-byte
   formats, so they never negotiate. Noted in 1's write-up for the MR instead.
@@ -52,6 +55,10 @@ pushes and opens MRs.
   crop, mean) on one color in all four layouts: all correct after 1; before
   it, true `RGBA` frames came out red/blue swapped. After 2, every layout
   reaches `mean()` as 3 channels with an `RGB`/`BGR` tag.
+- 4: the real `_divisors()` body, extracted into a scratch driver, returns
+  `{1,2,3,6}` for 6 and `{1,2,3,4,6,12}` for 12. A Python model of
+  `subsampleResolutionCandidates()` compared old against new across 15
+  resolutions.
 
 ## Lessons
 

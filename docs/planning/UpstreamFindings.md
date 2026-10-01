@@ -166,7 +166,13 @@ missing `3`; `_divisors(12)` returns `{1, 2, 3, 4, 12}`, missing `6`.
 **Why it hasn't fired (observably):** not a crash — this only feeds
 `subsampleResolutionCandidates()`, so the practical effect is silently
 offering fewer valid resample resolutions in the setup UI than there should
-be, easy to not notice without checking the math by hand.
+be, easy to not notice without checking the math by hand. Measured
+2026-10-01: a dropped `n / 2` only matters if it also divides the other
+dimension. Across 15 common resolutions (720p to 5120x1440, ultrawide,
+16:10, portrait), the candidate list and `Runtime::_initSettings()`'s
+default subsample width are unchanged. Only square and 2:1 displays gain
+candidates, and those are 2–4 px wide and never picked as the default. A
+correctness fix with no practical user-visible effect.
 
 **Suggested fix:** `i <= number / 2`. Doesn't break
 `_selectValidDivisors()`'s `std::set_intersection` precondition (needs
