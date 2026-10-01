@@ -32,3 +32,18 @@ each has an acceptance step this Linux box can't run.
   agent; pp8 landed on it on top of the h45.10 note commit.
 - Lesson: an unversioned `find_package` accepts any system copy
   (`build-toolchain`).
+
+## dwo: Windows and real-ConfigVersion check
+
+- Windows (MSVC, VS 2022): `cmake .` in `build/core-test` with no system
+  httplib printed the fetch message and configured; `AuroraNetworkTests`
+  built against the fetched 0.46.0 (see `ha-prep-d9v`).
+- Real `httplibConfigVersion.cmake` (httplib 0.46.0 built with
+  `HTTPLIB_INSTALL=ON`, installed to a scratch prefix, on `CMAKE_PREFIX_PATH`):
+  `find_package(httplib 0.46)` found 0.46.0; `find_package(httplib 0.47)`
+  rejected it. This confirms the version rule on the real file, not the
+  fakes. Only the 0.46.0 install was tried; no genuinely older release.
+- Not checked: Mac configure; a real `core` configure against the installed
+  copy (standalone configure failed at an unrelated `find_package`, line 14).
+- Lesson: a scratch CMake tree under the long session temp path breaks MSBuild
+  (MSB6003 tlog path); use a short path for scratch configures on Windows.
