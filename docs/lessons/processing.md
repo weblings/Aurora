@@ -173,3 +173,17 @@ stay slow without costing the same feeling of responsiveness. Relevant if
 this tuning is ever backported to real bulbs (see [[browser-analysis]]'s
 A/C follow-up) — worth confirming the same asymmetry holds physically, not
 just on a screen.
+
+---
+
+## Golden color fixtures must be designed for cross-platform float drift, not just recorded
+Tags: processing, testing, golden, determinism, aubio
+Applies-when: writing golden/snapshot tests over Color/Frame output that runs on several platforms
+
+The parity harness (Aurora-tft) is generated on Mac and must also pass when run on Linux/Windows builds (by hand -- the CI workflows exist but don't run). Sources of drift that a "record once, compare exactly" fixture would trip on: libm `exp`/`sin`/`fmod` last-ulp differences, FMA contraction (Apple clang on arm64 contracts `a*b+c` by default, x86 GCC/MSVC don't), OpenCV `Cubic` resize SIMD paths, `std::*_distribution` output (differs across standard libraries), and aubio's FFT backend (fftw / ooura / Accelerate by platform), which can move an onset decision by a tick.
+
+**Fix:** compare channels within 1/255 (a real regression breaks many frames by much more); use an LCG instead of `std::` distributions; keep sine phase arguments small (sample index modulo the sample rate) instead of multi-second float phases; resize with `Nearest` or `Area` at integer factors; make PCM onsets loud against a quiet bed so aubio's threshold has margin. Golden helpers: `core/tests/GoldenFrames.hpp`.
+
+One baseline, not one per platform: other platforms run against the Mac-generated fixtures. Per-platform baselines would hide exactly the divergence the run exists to catch; a platform-specific fixture is a last resort for one scenario whose difference is understood (e.g. an aubio onset landing a tick later).
+
+Sanity-check a freshly generated fixture before trusting it: a scenario designed to vary that records a constant (here `audio_features_silence_drift`, one color for 600 ticks) is a finding, not a pass -- it surfaced Aurora-7r3, drift never reaching the output.

@@ -476,7 +476,8 @@ retrofit):**
 
 ## Prep work before importing libraries
 
-Status: proposed 2026-10-01 (item 2 shipped as Aurora-5y0). Each item
+Status: proposed 2026-10-01 (item 2 shipped as Aurora-5y0; item 3 shipped as
+Aurora-tft; fixtures verified on Mac only). Each item
 works under today's two orchestrators, needs no new dependency, and
 removes a risk the graph work or the React Flow import would otherwise
 hit.
@@ -493,10 +494,13 @@ hit.
    renderer" above, delivered early.
 2. **One guarded float → `Color` path.** Shipped: `Color::fromNormalized`
    (see "Fail states").
-3. **Parity harness.** Record `AudioFeatures` sequences and a few
-   captured frames as fixtures; snapshot today's orchestrator outputs.
-   Tier 1 parity and the Tier 2 decomposition tests both need it, and it
-   needs no graph code.
+3. **Parity harness.** Built: `core/tests/{Video,Audio}ParityTests.cpp`
+   + `GoldenFrames.hpp`, fixtures in `core/tests/golden/`. Inputs are
+   generated per tick in code (no binary fixtures); audio runs both PCM
+   through `AudioOrchestrator` (incl. aubio) and scripted `AudioFeatures`
+   straight into `updateDrift`/`updateBounce` (the Tier 2 reference).
+   Regenerate with `AURORA_UPDATE_GOLDEN=1`. First finding: drift never
+   reaches the output (Aurora-7r3).
 4. **Explicit `dt` and one clock.** Pass `dt` into both orchestrators
    and drop `main.cpp`'s fixed 1/60s audio tick, preserving behaviour.
    Lands the "one clock per graph" model as a no-regression refactor.

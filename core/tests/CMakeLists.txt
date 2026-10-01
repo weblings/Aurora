@@ -85,6 +85,23 @@ target_link_libraries(AuroraDevFrameDumpTests PRIVATE
 
 target_compile_features(AuroraDevFrameDumpTests PUBLIC cxx_std_20)
 
+# Golden parity harness (Aurora-tft) -- fixtures live in the source tree so
+# AURORA_UPDATE_GOLDEN=1 rewrites the committed files in place.
+set(AURORA_GOLDEN_DIR "${CMAKE_CURRENT_SOURCE_DIR}/golden")
+
+add_executable(AuroraVideoParityTests
+  VideoParityTests.cpp
+)
+
+target_link_libraries(AuroraVideoParityTests PRIVATE
+  AuroraRuntime
+  nlohmann_json::nlohmann_json
+  Catch2::Catch2WithMain
+)
+
+target_compile_definitions(AuroraVideoParityTests PRIVATE AURORA_GOLDEN_DIR="${AURORA_GOLDEN_DIR}")
+target_compile_features(AuroraVideoParityTests PUBLIC cxx_std_20)
+
 # All three gated on AURORA_CORE_ENABLE_AUDIO -- AuroraAudioProcessing
 # (and the aubio it requires) may not exist in a video-only build.
 if(TARGET AuroraAudioProcessing)
@@ -120,6 +137,19 @@ if(TARGET AuroraAudioProcessing)
   )
 
   target_compile_features(AuroraAudioFeatureExtractorTests PUBLIC cxx_std_20)
+
+  add_executable(AuroraAudioParityTests
+    AudioParityTests.cpp
+  )
+
+  target_link_libraries(AuroraAudioParityTests PRIVATE
+    AuroraRuntime
+    nlohmann_json::nlohmann_json
+    Catch2::Catch2WithMain
+  )
+
+  target_compile_definitions(AuroraAudioParityTests PRIVATE AURORA_GOLDEN_DIR="${AURORA_GOLDEN_DIR}")
+  target_compile_features(AuroraAudioParityTests PUBLIC cxx_std_20)
 endif()
 
 # enable_testing() lives in the parent CMakeLists.txt now, not here -- see
@@ -131,8 +161,10 @@ catch_discover_tests(AuroraControlDescriptorTests)
 catch_discover_tests(AuroraRuntimeTests)
 catch_discover_tests(AuroraOrchestratorTests)
 catch_discover_tests(AuroraDevFrameDumpTests)
+catch_discover_tests(AuroraVideoParityTests)
 if(TARGET AuroraAudioProcessing)
   catch_discover_tests(AuroraAudioProcessingTests)
   catch_discover_tests(AuroraAudioOrchestratorTests)
   catch_discover_tests(AuroraAudioFeatureExtractorTests)
+  catch_discover_tests(AuroraAudioParityTests)
 endif()
