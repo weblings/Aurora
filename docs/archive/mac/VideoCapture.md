@@ -2,8 +2,8 @@
 
 Id: mac-video-capture
 
-Status: shipped 2026-09-25 (Aurora-8mk, closed except Aurora-8mk.10 —
-Gatekeeper/notarization, deliberately deferred, see
+Status: shipped 2026-09-25 (Aurora-8mk, closed 2026-09-30; its last child
+Aurora-8mk.10 — Gatekeeper/notarization distribution — was dropped, see
 [[mac-notarization]]). Terminal-only app (`app/mac`), no tray, no
 notarization: single-machine builds only. Split out of the old
 MacSupport.md (Aurora-le6); audio capture is

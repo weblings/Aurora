@@ -6,8 +6,9 @@ Status: partly shipped 2026-09-30. Developer ID cert, sign/notarize/staple
 script and a notarized, launch-verified Aurora 1.0.4 bundle exist (macOS 27,
 Apple silicon only); nothing is published and there is no CI path yet. Detail:
 `docs/log/2026-09-30-mac-developer-id-first-signing.md` and
-`docs/log/2026-09-30-mac-cert-prep-bundle.md`. Still open: Aurora-8mk.10
-(release distribution), lower-target dylibs (Aurora-0ap), Intel (Aurora-pyo).
+`docs/log/2026-09-30-mac-cert-prep-bundle.md`. Aurora-8mk.10 (release
+distribution) was dropped 2026-09-30, so publishing and CI signing (below) are
+untracked. Still open beads: lower-target dylibs (Aurora-0ap), Intel (Aurora-pyo).
 
 Gatekeeper only fires on files carrying the `com.apple.quarantine`
 extended attribute, which is set by whatever app *wrote* a downloaded
