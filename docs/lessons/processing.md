@@ -187,3 +187,21 @@ The parity harness (Aurora-tft) is generated on Mac and must also pass when run 
 One baseline, not one per platform: other platforms run against the Mac-generated fixtures. Per-platform baselines would hide exactly the divergence the run exists to catch; a platform-specific fixture is a last resort for one scenario whose difference is understood (e.g. an aubio onset landing a tick later).
 
 Sanity-check a freshly generated fixture before trusting it: a scenario designed to vary that records a constant (here `audio_features_silence_drift`, one color for 600 ticks) is a finding, not a pass -- it surfaced Aurora-7r3, drift never reaching the output.
+
+---
+
+## OpenCV's alpha-drop codes are aliases -- `COLOR_RGBA2RGB` and `COLOR_BGRA2BGR` are both 1, so the channel order in the name means nothing
+Tags: processing, opencv, pixel-format, huenicorn
+Applies-when: choosing or reviewing a `cv::cvtColor` code for dropping (or adding) an alpha channel on 4-channel frames of either channel order
+
+Upstream finding 2 in [[upstream-findings]] said huenicorn's `rgbaToRgb()`
+"assumes RGBA" because it passes `COLOR_RGBA2RGB`, and suggested adding a
+`COLOR_BGRA2BGR` branch. `imgproc.hpp` defines
+`COLOR_RGBA2RGB = COLOR_BGRA2BGR` (= 1): it drops channel 3 and never
+reorders, so the function was already correct for `BGRA` bytes. The same
+holds for `RGB2RGBA`/`BGR2BGRA`. The bugs were around it: a stale 4-channel
+format tag on the output, and a caller guard that skipped `BGRA`.
+
+**Fix:** check the enum's value in `imgproc.hpp` before branching on
+channel order. For alpha add/drop, track the order in the `PixelFormat`
+tag; the conversion code doesn't need to change.

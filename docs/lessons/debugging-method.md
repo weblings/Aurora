@@ -576,3 +576,25 @@ Applies-when: a UI control looks stuck after an action whose backend effect did 
 Switching the Mac Dashboard to Video changed the lights, but the mode toggle stayed on Audio (Aurora-3qh). `GET /api/config` already said Video, so the state was right and the render was late: `_switchMode` re-renders only after `_loadAll`'s fetches, and timing each endpoint with `curl -w %{time_total}` showed `/api/monitors`/`/api/zones` at 2-30s while the rest were instant. `ps` showed ~105% CPU; `sample <pid> 3` put 2349/2360 tick-thread samples in `cv::resize` (full-Retina ScreenCaptureKit frames downscaled on the CPU every tick), so the tick overran and held the pipeline lock without sleeping. I filed that as one new bug -- but the starvation half was already `Aurora-cgr`, filed from 1000Hz testing; the new finding was only the *trigger* (60Hz is enough on Retina).
 
 **Fix:** for a stale-looking control, compare the backend's state to the UI first, then time every request the re-render waits on, then `sample` the process before theorizing. Before filing, `bd search` the *mechanism* (starvation, lock, tick), not just the symptom, and scope the new bead to what's actually new, linked to the existing one.
+
+---
+
+## A findings write-up's "suggested fix" is a hypothesis -- re-check its premise against the code and library headers before implementing it
+Tags: debugging, verification, upstream, review
+Applies-when: implementing fixes from an existing analysis or findings doc (yours or anyone's), especially one written while porting other code
+
+Turning [[upstream-findings]] into fix branches (`Aurora-h45`), three of the
+first four findings carried a wrong premise even though each bug was real.
+1's "every grabber tags BGR" was false: honoring the tag would have swapped
+red/blue. 2's "COLOR_RGBA2RGB assumes RGBA" was false: it's an alias of
+`COLOR_BGRA2BGR`. 5's "add `return;`" would have hung startup on an
+unsettled promise. Each was caught only by reading the code the claim was
+about: the tag producers, `imgproc.hpp`, and the future's waiter. The same
+pattern as "Grep the code for its own recorded constraints before
+recommending a design".
+
+**Fix:** for each finding, before writing the fix, verify the "why it hasn't
+fired" claim and the suggested fix's mechanism: grep every producer of a
+value now being trusted, read library enum/header definitions behind a
+named constant, and trace who waits on any state an early return skips.
+Correct the write-up in the same pass.

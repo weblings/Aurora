@@ -500,3 +500,22 @@ Tags: macos, node, web, testing, toolchain
 Applies-when: running `web/ui` or `web-processing` `*.test.mjs` on a machine where `node` isn't installed
 
 `node` isn't on PATH (no Homebrew/nvm/volta install), but VS Code ships Electron, which runs as plain Node with `ELECTRON_RUN_AS_NODE=1`: `ELECTRON_RUN_AS_NODE=1 "/Applications/Visual Studio Code.app/Contents/MacOS/Code" TuningFields.test.mjs` (Node v24 as of Aurora-ta5). Enough for the framework-free `*.test.mjs` scripts and `--check`; not a substitute for the real Node the graph editor's npm build will need (Aurora-lzj).
+
+---
+
+## The huenicorn fork needs Mbed TLS 3.x/4.x; this Linux box's 2.28 fails `DtlsClient.cpp` only -- verify per-TU with `make -k`
+Tags: cmake, linux, mbedtls, huenicorn, upstream
+Applies-when: building the `../huenicorn-fork` sibling checkout to verify an upstream fix on this Linux machine
+
+huenicorn's `DtlsClient.cpp` has an `#error Unsupported Mbed TLS version`
+guard for anything below 3.x (added in "Add distinct support for both MbedTLS
+3.x and 4.x"). Ubuntu's `libmbedtls-dev` here is 2.28.8, which Aurora's own
+`output/hue` still builds against fine, so the fork's full link always fails.
+Every other translation unit compiles. System cmake is also absent; use the
+Aurora `.venv`'s (see "Without cmake, flags.make + link.txt are a complete build record for recompiling and relinking a single TU").
+
+**Fix:** configure into the session scratchpad with the venv cmake, then
+`cmake --build <dir> -- -k` and check the touched `.o` files built without
+warnings. For testable logic, compile a scratch driver directly against the
+touched `.cpp` (e.g. `ImageProcessing.cpp` + OpenCV + `_deps/glm-src`)
+rather than reviving the fork's stale `tests/`.

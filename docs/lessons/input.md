@@ -132,6 +132,10 @@ that found the bug. General principle: when a "port
 with a fix" changes code from ignoring a piece of metadata to trusting it,
 audit where that metadata was actually set, not just the consuming logic —
 upstream's own bugs can be invisible for as long as nothing reads them.
+The same trap recurred when writing up huenicorn's `mean()` for upstream
+([[upstream-findings]] finding 1): the write-up claimed every grabber tags
+`BGR`, and only a re-read of the grabbers before fixing it (`Aurora-h45.1`)
+caught that the fix must ship with the tag corrections.
 
 ---
 
@@ -502,3 +506,81 @@ Applies-when: choosing a capture size for a grabber whose frames get downsampled
 **Fix:** `IVideoInput::setCaptureWidthHint(width)` (default no-op), called by `Orchestrator::init` with `subsampleWidth`; the Mac grabber delivers an 8x oversample, at least 256px, never above full pixel size, so the CPU's INTER_AREA still averages the last step. Result: ~5.5% CPU, `/api/monitors`/`/api/zones` < 1ms, tick thread ~95% asleep. `displayResolution()` still reports full pixels (subsample candidates unchanged). When verifying, low CPU is also what a *failed* capture looks like (ticks skipped while unhealthy) -- confirm real frames: distinct per-zone colors on the light tap, a real display from `/api/monitors`, no permission errors in the log.
 
 Also observed: the rebuilt, still ad-hoc-signed `Aurora.app` kept capturing when relaunched by `devstack.py` -- consistent with "A bare Mach-O binary's TCC permission grant attaches to whatever launched it" above (the launcher's grant applied), not with the rebuild-invalidates-grant lesson, which concerns a bundle launched on its own.
+
+---
+
+## In a promise-driven portal callback chain, every early return must settle the promise -- "just return" turns a bad state into a hang
+Tags: input, linux, pipewire, xdg-portal, promise, huenicorn
+Applies-when: adding or reviewing an error/denial branch in `XdgDesktopPortal`'s response callbacks (or any async chain a caller blocks on via a future)
+
+`PipewireGrabber`'s constructor waits on `fdReadyFuture` while
+`XdgDesktopPortal` walks CreateSession → SelectSources → Start through D-Bus
+response callbacks. Only the Start callback settles the promise on denial.
+The CreateSession and SelectSources denial branches return without it, so
+the waiter is never woken. huenicorn's wait is unbounded (permanent hang);
+Aurora's is bounded at 60s, so a denied dialog stalls for a full minute
+despite the comment saying it "resolves promptly as false" (`Aurora-p91`).
+Upstream finding 5's original suggested fix, a bare `return;`, would have
+added a third hang.
+
+The D-Bus *call* error branches (CreateSession, SelectSources,
+OpenPipeWireRemote) have the same gap (upstream finding 10). And huenicorn's
+CreateSession denial, which falls through instead of returning, doesn't
+just half-initialize: it passes a null session handle on as an object path
+and segfaults (reproduced with a fake portal, `Aurora-h45.5`).
+
+**Fix:** every terminal branch of the chain, denial or call error, calls
+`capture->fdReadyPromise.set_value(false)` before returning, except
+`G_IO_ERROR_CANCELLED` (our own teardown, nobody waiting). When reviewing a
+"missing return" fix, trace who is waiting on the state the early return
+skips.
+
+---
+
+## xdg-desktop-portal ScreenCast failure paths are testable offline -- fake the portal on a private `dbus-run-session` bus
+Tags: input, linux, xdg-portal, dbus, testing, huenicorn
+Applies-when: verifying a portal denial/error branch in `XdgDesktopPortal` (huenicorn's or Aurora's) without a real Wayland portal or a human clicking Deny
+
+The portal code only talks to `org.freedesktop.portal.Desktop` on the session
+bus, so a ~60-line Python/Gio fake is enough. It owns that name and registers
+`org.freedesktop.portal.ScreenCast` at `/org/freedesktop/portal/desktop`, with
+`CreateSession`/`SelectSources`/`Start` and the `version`/`AvailableCursorModes`
+properties. Each method returns the request path
+`/org/freedesktop/portal/desktop/request/<sender minus ':' with '.'→'_'>/<handle_token>`
+and then emits `org.freedesktop.portal.Request.Response(u a{sv})` on it from
+`GLib.idle_add`, after the reply, since the client subscribes before calling.
+A code of 1 means denied; `invocation.return_dbus_error` simulates a call
+error. The driver links `XdgDesktopPortal.cpp` + `Logger.cpp` + gio, stubs the
+two `Config` restore-token methods, and copies `PipewireGrabber`'s
+constructor: portal thread, `wait_for` on the promise, then `_stop()`'s
+teardown. Run it as `dbus-run-session -- bash -c "python3 fake.py MODE & gdbus
+wait --session org.freedesktop.portal.Desktop; ./driver"`. Built with `-O0`:
+the portal thread spins on a plain `bool`. This turned 5/9/10 in
+[[upstream-findings]] from "needs a real portal" into a before/after
+reproduction, including a segfault on `develop` nobody had seen.
+
+**Fix:** use this pattern instead of declaring portal branches untestable.
+`gdbus wait` avoids a sleep race on the name; keep the bus private so the
+real portal is never touched.
+
+---
+
+## A GLib async callback still runs after cancellation -- don't dereference `userData` that a cancel handler may already have freed
+Tags: input, linux, glib, xdg-portal, lifetime, huenicorn
+Applies-when: adding code to a `g_dbus_proxy_call` (or any GIO async) completion callback in `XdgDesktopPortal` that reads its `userData`
+
+`XdgDesktopPortal` hands one `DbusCallData*` to both the Response-signal
+subscription and the method call's completion callback. It's freed by the
+Response callback on the normal path, or by `onCancelledCallback` when
+teardown cancels the `GCancellable`. GIO still invokes every pending
+completion callback afterwards, with `G_IO_ERROR_CANCELLED`. So a completion
+callback that dereferences `userData` unconditionally (as huenicorn's
+`onStartedCallback` does at the top) can read freed memory if teardown races
+an in-flight call. While adding finding 10's fix (`Aurora-h45.11`), the
+dereference went inside the non-cancelled branch only. On that path no
+Response comes, so nothing has freed the data yet.
+
+**Fix:** in GIO completion callbacks, check the error first and touch
+`userData` only on paths where you can name who still owns it. Treat
+`G_IO_ERROR_CANCELLED` as "my owner is tearing down" and return without
+reading shared state.
