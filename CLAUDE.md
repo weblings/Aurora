@@ -16,13 +16,13 @@ See `../../CLAUDE.md` for the other side of this rule, and
 [[browser-analysis]]/[[implementation-plan-phase-3]] for
 why this is a copy instead of a shared package.
 
-## Check `../../docs/lessons/rendering-apis.md`/`rendering-internals.md` before touching the Three.js scene
+## Check `../../docs/lessons/rendering-apis.md` and `../../docs/lessons/rendering-internals.md` before touching the Three.js scene
 
 All Aurora-family lessons-learned live in the core repo's `docs/lessons/`
-tree, not per-repo — this repo doesn't get its own `LESSONS.md`. Real,
+tree, not per-repo — this directory doesn't keep its own lessons file. Real,
 non-obvious findings from building `main.js`'s light rigs and the glTF room
-scene are filed there (`rendering-apis.md`: Three.js/GLTFLoader/Blender
-facts; `rendering-internals.md`: this project's own scene-design calls) —
+scene are filed there (rendering-apis: Three.js/GLTFLoader/Blender facts;
+rendering-internals: this project's own scene-design calls) —
 check before re-deriving something already worked out once. Cite lessons by
 headline/topic — every entry carries `Tags:`/`Applies-when:`, routed by the
 matching `.claude/skills/` skill in core.
