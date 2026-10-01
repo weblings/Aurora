@@ -1,5 +1,5 @@
 v1.0.4:
-- Mac - Full GUI parity (signed) TODO
+- Mac - Full GUI launching and tray menu parity with Windows and Linux. Requires macOS 27, Apple silicon only, release zip is signed and notarized.
 - Linux - Audio devices selection now a dropdown
 - Windows - Fix - Tray menu and frame transmission now on separate threads
 - Dev - docs reorganized and now connected by links
