@@ -539,3 +539,23 @@ Applies-when: adding a core test meant to prove something on a platform you only
 Each `app/*/CMakeLists.txt` sets `BUILD_TESTS FALSE CACHE BOOL "" FORCE` before fetching core, so `linux-app`, `windows-app` and `mac-app` build and run only the app's own tests. Aurora-lzj added `AuroraEmbedWebrootTests` to core to settle MSVC's concatenated-literal cap. The Windows app preset would never have compiled it, and a green `windows-app` run would have looked like proof.
 
 **Fix:** verify core tests per platform with a standalone core configure (`cmake -S core -B build/core-tests`, then `ctest -R <name>`), and name that command in the bead. A test meant to gate an app-level behaviour belongs in the app's own test target instead.
+
+---
+
+## A configure-time glob can't track the output of a build step, so an embed of generated files must depend on that step's stamp
+Tags: cmake, embed, glob, custom-command, npm
+Applies-when: feeding another build step's output directory (npm/Vite, codegen) into `aurora_embed_webroot` or any `file(GLOB ... CONFIGURE_DEPENDS)` consumer
+
+`aurora_embed_webroot` globs its input dir at configure time. The graph editor's Vite output (Aurora-lzj) doesn't exist then, and its hashed filenames change on every source edit, so the glob would see nothing or a stale list and the header would never regenerate. Found by reading the design, confirmed on Mac: touching an editor source reran vite and the embed only because of the wiring below.
+
+**Fix:** have the producing `add_custom_command` write a stamp file (`cmake -E touch`), and pass that stamp to the embed step as an extra `DEPENDS` (the `aurora_embed_webroot` `DEPENDS` argument). Stamp the producer on its real inputs (lockfile for `npm ci`, a source glob plus config files for the build) so a C++-only edit reruns neither. Check all three directions by hand: C++ touch, source touch, no change.
+
+---
+
+## Anything added to Aurora.app must be staged before the ad-hoc signing step and survive `bundle-licenses.sh`'s wipe
+Tags: cmake, macos, bundle, codesign, licenses
+Applies-when: putting a new file into `Contents/Resources` (notices, assets) from the Mac app build
+
+POST_BUILD commands on `aurora-app-mac` run in the order they were added, and the ad-hoc `codesign --deep` seals the bundle, so a copy added after it breaks the signature. Separately, `tools/mac/bundle-licenses.sh` (the identity-signed path) does `rm -rf Contents/Resources/Licenses` and regenerates it, so a file staged there by CMake disappears on that path. Aurora-lzj hit both while shipping the graph editor's npm notice; caught by reading, not by a failure.
+
+**Fix:** add the copy `add_custom_command(TARGET ... POST_BUILD)` above the signing block in `app/mac/CMakeLists.txt`, and make `bundle-licenses.sh` stash and restore the staged file around its wipe. Verify with `codesign --verify --deep --strict` and by running the script against a fake bundle with an empty `bundled-dylibs.tsv`.

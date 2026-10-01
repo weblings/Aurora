@@ -73,6 +73,35 @@ imgproc)`).
 Native dependencies stay system packages (no vendored `.so` set); see the
 `Aurora-b9q` bead for the decision.
 
+### Graph editor (optional, Node)
+
+The node-graph editor (`web/graph-editor/`, Vite + React + TypeScript) is
+opt-in: `-DAURORA_ENABLE_GRAPH_EDITOR=ON` on any app preset or slice
+configure. With it OFF (the default) no Node is needed and the embedded
+webroot is unchanged. With it ON the build runs `npm ci` and `npm run build`
+(Vite writes the bundle to the build dir, never under `web/ui/`), embeds the
+result, and the app serves it at `/graph-editor/`.
+
+- **Prerequisite:** Node >= 22.12 with npm (`engines` in `package.json`;
+  `.npmrc` enforces it). macOS: `brew install node@22`. Linux: your
+  distro's `nodejs`/`npm` if new enough, else nodejs.org or a version
+  manager. Windows: `winget install OpenJS.NodeJS.LTS`. CMake finds
+  `npm.cmd`/`npm` on `PATH` and stops with a pointer here when the option
+  is ON and it is missing.
+- **Install scripts are off** (`ignore-scripts=true` in `.npmrc`), and the
+  committed `package-lock.json` pins every platform's native Vite parts, so
+  one lockfile serves all three OSes.
+- **Offline / no-Node builds:** build the bundle elsewhere and pass
+  `-DAURORA_GRAPH_EDITOR_DIST=<dir>`; npm is then skipped entirely. Plain
+  `npm ci` also honours `npm_config_*` environment variables (offline
+  cache, proxy).
+- **Editor dev loop:** with an Aurora running, `cd web/graph-editor &&
+  AURORA_PORT=<port> npm run dev` gives hot reload and proxies `/api` to it.
+- **Third-party notices:** Vite writes the THIRD-PARTY-NOTICES file for the
+  bundled npm packages. It is served inside the editor's map, installed
+  next to the Linux copyright file, and copied into
+  `Aurora.app/Contents/Resources/Licenses/graph-editor/` on macOS.
+
 ## Slice builds (standalone)
 
 Each app also configures on its own (`cmake -S app/linux -B build`);

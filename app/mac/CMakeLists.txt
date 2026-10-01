@@ -104,6 +104,17 @@ include("${auroracore_SOURCE_DIR}/Network/cmake/EmbedWebroot.cmake")
 set(_AURORA_EMBEDDED_WEBROOT_HEADER "${CMAKE_CURRENT_BINARY_DIR}/EmbeddedWebRoot.hpp")
 aurora_embed_webroot("${_AURORA_EMBEDDED_WEBROOT_HEADER}" "${aurorawebui_SOURCE_DIR}")
 
+# Graph editor (Aurora-lzj): opt-in (AURORA_ENABLE_GRAPH_EDITOR, OFF by
+# default), so a default build needs no Node. When ON, the Vite bundle is
+# built by npm and embedded as Aurora::GraphEditorWebRoot::files, served
+# under /graph-editor/ in dev and standalone runs alike.
+include("${CMAKE_CURRENT_SOURCE_DIR}/../../web/graph-editor/cmake/GraphEditor.cmake")
+set(_AURORA_GRAPH_EDITOR_HEADER "")
+if(AURORA_ENABLE_GRAPH_EDITOR)
+  set(_AURORA_GRAPH_EDITOR_HEADER "${CMAKE_CURRENT_BINARY_DIR}/GraphEditorWebRoot.hpp")
+  aurora_graph_editor_embed("${_AURORA_GRAPH_EDITOR_HEADER}")
+endif()
+
 # Version single truth is the superbuild project() above; a standalone
 # slice configure is dev-only and reports "dev". Determined here (ahead of
 # the bundle Info.plist below) rather than down by target_compile_definitions
@@ -174,6 +185,7 @@ set_source_files_properties("${_AURORA_TRAY_ICON_1X}" "${_AURORA_TRAY_ICON_2X}" 
 add_executable(aurora-app-mac MACOSX_BUNDLE
   src/main.cpp
   "${_AURORA_EMBEDDED_WEBROOT_HEADER}"
+  ${_AURORA_GRAPH_EDITOR_HEADER}
   "${_AURORA_ICNS_OUT}"
   "${_AURORA_TRAY_ICON_1X}"
   "${_AURORA_TRAY_ICON_2X}"
@@ -222,6 +234,21 @@ target_compile_definitions(aurora-app-mac PRIVATE
   AURORA_WEBUI_SOURCE_DIR="${aurorawebui_SOURCE_DIR}"
   AURORA_VERSION="${_AURORA_VERSION}"
 )
+
+if(AURORA_ENABLE_GRAPH_EDITOR)
+  target_compile_definitions(aurora-app-mac PRIVATE AURORA_GRAPH_EDITOR=1)
+  # The editor's npm notice ships in Contents/Resources/Licenses, ahead of
+  # the signing step below. tools/mac/bundle-licenses.sh keeps it when it
+  # regenerates the dylib licenses for an identity-signed build.
+  add_custom_command(TARGET aurora-app-mac POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E make_directory
+            "$<TARGET_BUNDLE_DIR:aurora-app-mac>/Contents/Resources/Licenses/graph-editor"
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different "${AURORA_GRAPH_EDITOR_NOTICE}"
+            "$<TARGET_BUNDLE_DIR:aurora-app-mac>/Contents/Resources/Licenses/graph-editor/THIRD-PARTY-NOTICES.md"
+    COMMENT "Staging graph editor third-party notices into Aurora.app"
+    VERBATIM
+  )
+endif()
 
 target_include_directories(aurora-app-mac PRIVATE
   ${CMAKE_CURRENT_BINARY_DIR}

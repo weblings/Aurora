@@ -123,6 +123,11 @@ No code changes identified as necessary for either sandbox — this is a
 packaging/manifest problem, not a capability gap in the existing capture
 code.
 
+The graph editor build (Aurora-lzj) is offline-ready for a Flatpak or AUR
+package: committed lockfile, exact pins, no install scripts, plain `npm ci`
+(Flatpak's node generator or an AUR npm cache can feed it), and
+`AURORA_GRAPH_EDITOR_DIST` accepts a prebuilt bundle.
+
 ## Open questions / next steps
 
 - No Flatpak manifest exists yet — next concrete step if this is pursued is

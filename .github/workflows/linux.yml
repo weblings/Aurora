@@ -11,6 +11,7 @@ on:
       - input/linux/**
       - output/hue/**
       - app/linux/**
+      - web/graph-editor/**
       - CMakeLists.txt
       - CMakePresets.json
       - .github/workflows/linux.yml
@@ -20,6 +21,7 @@ on:
       - input/linux/**
       - output/hue/**
       - app/linux/**
+      - web/graph-editor/**
       - CMakeLists.txt
       - CMakePresets.json
       - .github/workflows/linux.yml
@@ -37,8 +39,11 @@ jobs:
           libpipewire-0.3-dev libglib2.0-dev
           libaubio-dev libopencv-dev
           libcurl4-openssl-dev libmbedtls-dev
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
       - name: Configure
-        run: cmake --preset linux-app
+        run: cmake --preset linux-app -DAURORA_ENABLE_GRAPH_EDITOR=ON
       - name: Build
         run: cmake --build build/linux-app
       - name: Test
