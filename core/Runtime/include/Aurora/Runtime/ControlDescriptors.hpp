@@ -55,8 +55,9 @@ namespace Aurora::Runtime
     // control exactly as without tooltips in that case, never an error.
     const ControlDescriptor* find(const std::string& key) const;
 
-    // {"descriptors": [{key, kind, description}, ...]} -- the shape the
-    // frontend fetches from the descriptors endpoint.
+    // {"descriptors": [{key, kind, description, param?}, ...]} -- the shape
+    // the frontend fetches from the descriptors endpoint. param (label/min/
+    // max/step/unit/default/allowsUnset) only for numeric settings.
     nlohmann::json toJson() const;
 
   private:

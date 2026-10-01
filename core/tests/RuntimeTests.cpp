@@ -1,11 +1,13 @@
 #include <catch2/catch_test_macros.hpp>
 #include <catch2/catch_approx.hpp>
 
+#include <algorithm>
 #include <fstream>
 #include <limits>
 
 #include <Aurora/Runtime/Config.hpp>
 #include <Aurora/Runtime/ConfigStore.hpp>
+#include <Aurora/Runtime/ControlDescriptorTables.hpp>
 #include <Aurora/Runtime/FrameCompositor.hpp>
 #include <Aurora/Runtime/MonitorSelector.hpp>
 #include <Aurora/Runtime/Smoother.hpp>
@@ -83,6 +85,113 @@ TEST_CASE("setAudioCentroidRangeHz clamps away from zero (Aurora-9ca)", "[Config
 
   config.setAudioCentroidRangeHz(std::numeric_limits<float>::quiet_NaN());
   CHECK(config.audioCentroidRangeHz() == Catch::Approx(2250.f));
+}
+
+
+namespace
+{
+  // Every numeric setting: descriptor key -> its Config setter/getter. The
+  // test-side list is checked against the descriptor tables below, so a
+  // slider added without wiring fails here rather than going unclamped.
+  struct NumericSetting
+  {
+    const char* key;
+    void (Config::*set)(float);
+    float (Config::*get)() const;
+  };
+
+  const NumericSetting NumericSettings[] = {
+    {"video.transitionSmoothing", &Config::setTransitionSmoothing, &Config::transitionSmoothing},
+    {"audio.fixedAnchorHue", &Config::setAudioFixedAnchorHue, &Config::audioFixedAnchorHue},
+    {"audio.bounceSmoothTime", &Config::setAudioBounceSmoothTime, &Config::audioBounceSmoothTime},
+    {"audio.dynamismFloor", &Config::setAudioDynamismFloor, &Config::audioDynamismFloor},
+    {"audio.centroidStrength", &Config::setAudioCentroidStrength, &Config::audioCentroidStrength},
+    {"audio.driftBaseRateDegPerSec", &Config::setAudioDriftBaseRateDegPerSec, &Config::audioDriftBaseRateDegPerSec},
+    {"audio.vibrancySaturation", &Config::setAudioVibrancySaturation, &Config::audioVibrancySaturation},
+    {"audio.vibrancyValue", &Config::setAudioVibrancyValue, &Config::audioVibrancyValue},
+    {"audio.referenceRms", &Config::setAudioReferenceRms, &Config::audioReferenceRms},
+    {"audio.brightnessFloor", &Config::setAudioBrightnessFloor, &Config::audioBrightnessFloor},
+    {"audio.centroidRangeHz", &Config::setAudioCentroidRangeHz, &Config::audioCentroidRangeHz},
+    {"audio.brightnessSmoothTime", &Config::setAudioBrightnessSmoothTime, &Config::audioBrightnessSmoothTime},
+  };
+}
+
+
+TEST_CASE("Every slider descriptor carries a ParamSchema and a wired setter (Aurora-ta5)", "[Config][Descriptors]")
+{
+  auto all = videoControlDescriptors();
+  auto audio = audioControlDescriptors();
+  all.insert(all.end(), audio.begin(), audio.end());
+
+  size_t sliders = 0;
+  for(const auto& descriptor : all){
+    if(descriptor.kind != "slider"){
+      CHECK_FALSE(descriptor.param);
+      continue;
+    }
+    ++sliders;
+    INFO(descriptor.key);
+    REQUIRE(descriptor.param);
+    CHECK(descriptor.param->min < descriptor.param->max);
+    CHECK_FALSE(descriptor.param->label.empty());
+    bool wired = std::any_of(std::begin(NumericSettings), std::end(NumericSettings),
+      [&](const NumericSetting& s){ return descriptor.key == s.key; });
+    CHECK(wired);
+  }
+  CHECK(sliders == std::size(NumericSettings));
+}
+
+
+TEST_CASE("Numeric setters clamp to their schema; non-finite resets to default (Aurora-ta5)", "[Config]")
+{
+  const float nan = std::numeric_limits<float>::quiet_NaN();
+  const float inf = std::numeric_limits<float>::infinity();
+
+  for(const auto& setting : NumericSettings){
+    INFO(setting.key);
+    const auto& param = paramSchema(setting.key);
+    Config config;
+
+    // Default comes from ConfigData, and a fresh Config holds it.
+    CHECK((config.*setting.get)() == Catch::Approx(param.defaultValue));
+
+    (config.*setting.set)(param.max + 1000.f);
+    CHECK((config.*setting.get)() == Catch::Approx(param.max));
+
+    (config.*setting.set)(nan);
+    CHECK((config.*setting.get)() == Catch::Approx(param.defaultValue));
+
+    (config.*setting.set)(inf);
+    CHECK((config.*setting.get)() == Catch::Approx(param.defaultValue));
+
+    (config.*setting.set)(param.min - 1000.f);
+    CHECK((config.*setting.get)() == Catch::Approx(param.allowsUnset ? -1.f : param.min));
+
+    const float mid = (param.min + param.max) / 2.f;
+    (config.*setting.set)(mid);
+    CHECK((config.*setting.get)() == Catch::Approx(mid));
+  }
+}
+
+
+TEST_CASE("Config built from raw ConfigData sanitizes every numeric field (Aurora-ta5)", "[Config]")
+{
+  // The ConfigStore::fromJson path: fields written directly, no setters.
+  ConfigData raw;
+  raw.transitionSmoothing = 5.f;
+  raw.audioBounceSmoothTime = 0.f;
+  raw.audioReferenceRms = -3.f;
+  raw.audioCentroidRangeHz = 0.f;
+  raw.audioVibrancyValue = std::numeric_limits<float>::quiet_NaN();
+  raw.audioFixedAnchorHue = -1.f; // unset sentinel survives
+
+  Config config(raw);
+  CHECK(config.transitionSmoothing() == Catch::Approx(0.97f));
+  CHECK(config.audioBounceSmoothTime() == Catch::Approx(0.05f));
+  CHECK(config.audioReferenceRms() == Catch::Approx(0.05f));
+  CHECK(config.audioCentroidRangeHz() == Catch::Approx(100.f));
+  CHECK(config.audioVibrancyValue() == Catch::Approx(ConfigData{}.audioVibrancyValue));
+  CHECK(config.audioFixedAnchorHue() == Catch::Approx(-1.f));
 }
 
 

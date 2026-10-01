@@ -1,6 +1,8 @@
 #include <Aurora/Runtime/ControlDescriptors.hpp>
 
+#include <charconv>
 #include <cstddef>
+#include <cstdlib>
 
 #include <Aurora/Network/Http/Server/HttpServer.hpp>
 
@@ -12,6 +14,19 @@ namespace Aurora::Runtime
     using Aurora::Network::Http::Server::HttpServer;
     using Aurora::Network::Http::Server::Request;
     using Aurora::Network::Http::Server::Response;
+
+
+    // nlohmann writes a float widened to double, so 0.01f goes out as
+    // 0.009999999776482582 -- and the WebUI derives a slider's displayed
+    // decimals from its step's digits. Round-trip through the float's own
+    // shortest decimal form so 0.01f serializes as 0.01.
+    double shortestDecimal(float value)
+    {
+      char buffer[32];
+      auto result = std::to_chars(buffer, buffer + sizeof(buffer), value);
+      *result.ptr = '\0';
+      return std::strtod(buffer, nullptr);
+    }
   }
   void DescriptorRegistry::add(
     std::string owner,
@@ -63,11 +78,24 @@ namespace Aurora::Runtime
   {
     nlohmann::json entries = nlohmann::json::array();
     for(const auto& descriptor : m_descriptors){
-      entries.push_back({
+      nlohmann::json entry = {
         {"key", descriptor.key},
         {"kind", descriptor.kind},
         {"description", descriptor.description},
-      });
+      };
+      if(descriptor.param){
+        const auto& param = *descriptor.param;
+        entry["param"] = {
+          {"label", param.label},
+          {"min", shortestDecimal(param.min)},
+          {"max", shortestDecimal(param.max)},
+          {"step", shortestDecimal(param.step)},
+          {"unit", param.unit},
+          {"default", shortestDecimal(param.defaultValue)},
+          {"allowsUnset", param.allowsUnset},
+        };
+      }
+      entries.push_back(std::move(entry));
     }
     return {{"descriptors", entries}};
   }

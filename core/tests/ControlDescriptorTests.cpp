@@ -121,3 +121,36 @@ TEST_CASE("Layer descriptor tables carry authored copy, never placeholders", "[D
     }
   }
 }
+
+
+TEST_CASE("DescriptorRegistry toJson emits param only for numeric settings (Aurora-ta5)", "[Descriptors]")
+{
+  DescriptorRegistry registry;
+  registry.add("audio", audioControlDescriptors());
+
+  const auto json = registry.toJson();
+  bool sawSlider = false;
+  for(const auto& entry : json["descriptors"]){
+    if(entry["key"] == "audio.centroidRangeHz"){
+      sawSlider = true;
+      REQUIRE(entry.contains("param"));
+      CHECK(entry["param"]["label"] == "Centroid range");
+      CHECK(entry["param"]["min"] == 100.f);
+      CHECK(entry["param"]["max"] == 8000.f);
+      CHECK(entry["param"]["unit"] == "Hz");
+      CHECK(entry["param"]["allowsUnset"] == false);
+    }
+    if(entry["key"] == "audio.fixedHueEnabled"){
+      CHECK_FALSE(entry.contains("param")); // bool, no range
+    }
+  }
+  CHECK(sawSlider);
+
+  // Floats serialize in their shortest decimal form: the WebUI derives a
+  // slider's displayed decimals from the step's digits, so 0.01f must not
+  // go out as 0.009999999776482582.
+  const std::string dumped = json.dump();
+  CHECK(dumped.find("\"step\":0.01") != std::string::npos);
+  CHECK(dumped.find("0.0099999") == std::string::npos);
+  CHECK(dumped.find("\"default\":0.285") != std::string::npos);
+}

@@ -155,3 +155,13 @@ Applies-when: inserting an include (or any line) into several files by script, a
 Adding `TickClock.hpp` to the three apps' `main.cpp` (Aurora-skv) by inserting after the last `#include <Aurora/Runtime/...>` put it inside `#ifdef AURORA_RUNTIME_AUDIO_AVAILABLE` on Mac and Linux, because `AudioOrchestrator.hpp` is the last Runtime include and is conditional. The audio-enabled local build compiled fine, so nothing caught it; a video-only build would have failed on `tickIntervalSeconds` being undeclared.
 
 **Fix:** anchor insertions on an unconditional line (here `SettingsRoutes.hpp`), and grep the result in context (`#if`/`#endif` around it) for every file the script touched, especially files you can't compile locally.
+
+---
+
+## nlohmann::json writes a `float` widened to `double` -- 0.01f goes out as 0.009999999776482582
+Tags: cpp, json, float, serialization, webui
+Applies-when: serializing float fields to JSON that a frontend displays or derives formatting from
+
+The param schema (Aurora-ta5) stores slider `min`/`max`/`step`/`default` as `float`; `nlohmann::json` stores numbers as `double`, so `0.01f` serialized as `0.009999999776482582` and `0.285f` as `0.2849999964237213`. The WebUI's `formatSliderValue` derives displayed decimals from the step's digits, so every 0.01-step slider would have shown 18 decimal places. Unit tests comparing `entry["param"]["min"] == 100.f` passed throughout -- only a live `curl` of the payload showed it.
+
+**Fix:** round-trip each float through its shortest decimal form before handing it to JSON (`std::to_chars(float)` then `strtod`, `shortestDecimal` in `ControlDescriptors.cpp`), and assert on the dumped text (`"step":0.01`), not on parsed values. `/api/config`'s float fields still widen (pre-existing; the UI only shows them via `toFixed`).

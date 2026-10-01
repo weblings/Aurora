@@ -477,21 +477,22 @@ retrofit):**
 ## Prep work before importing libraries
 
 Status: proposed 2026-10-01 (item 2 shipped as Aurora-5y0; item 3 shipped as
-Aurora-tft, fixtures verified on Mac only; item 4 shipped as Aurora-skv). Each item
+Aurora-tft, fixtures verified on Mac only; item 4 shipped as Aurora-skv;
+item 1 shipped as Aurora-ta5). Each item
 works under today's two orchestrators, needs no new dependency, and
 removes a risk the graph work or the React Flow import would otherwise
 hit.
 
-1. **Param schema in C++, single source.** Ranges live only in
-   `TuningFields.js` (`[key, label, min, max, step, unit]`); the C++ clamp
-   on `setAudioCentroidRangeHz` was hand-copied from it, the other ten
-   `audio*` setters have none, and `ConfigStore::fromJson` skips setters
-   entirely (5y0 re-applies two setters on load as a stopgap). Extend
-   `ControlDescriptor` (or add a sibling param schema) with kind, min,
-   max, step, unit, default; serve it from `/api/descriptors`, clamp
-   setters and the loader from it, and render `TuningFields` from it.
-   This *is* the `/api/nodes` param schema and half of the "generic Tuning
-   renderer" above, delivered early.
+1. **Param schema in C++, single source.** Shipped (Aurora-ta5):
+   `Contracts::ParamSchema` (label, min, max, step, unit, default,
+   allowsUnset) rides on `ControlDescriptor`; the 12 numeric settings'
+   descriptors carry it, defaults read from `ConfigData{}`. Every numeric
+   `Config` setter and `Config(ConfigData)` clamp through
+   `sanitizeParam`, so REST and hand-edited `config.json` match (5y0's
+   loader stopgap removed). `/api/descriptors` serves it; `TuningFields`
+   keeps only layout (which keys per section) and builds sliders from it.
+   Dropdown option lists (refresh presets, interpolation names, subsample
+   candidates) stay where they were. This is the `/api/nodes` param shape.
 2. **One guarded float → `Color` path.** Shipped: `Color::fromNormalized`
    (see "Fail states").
 3. **Parity harness.** Built: `core/tests/{Video,Audio}ParityTests.cpp`

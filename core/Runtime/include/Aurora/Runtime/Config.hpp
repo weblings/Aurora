@@ -103,7 +103,7 @@ namespace Aurora::Runtime
     void setInterpolation(Contracts::Interpolation::Type interpolation);
 
     float transitionSmoothing() const;
-    void setTransitionSmoothing(float transitionSmoothing); // clamped to [0, 0.97]
+    void setTransitionSmoothing(float transitionSmoothing);
 
     const std::string& activeInputName() const;
     void setActiveInputName(std::string name);
@@ -145,7 +145,7 @@ namespace Aurora::Runtime
     void setAudioBrightnessFloor(float floor);
 
     float audioCentroidRangeHz() const;
-    void setAudioCentroidRangeHz(float hz); // clamped to [100, 8000], never zero
+    void setAudioCentroidRangeHz(float hz);
 
     float audioBrightnessSmoothTime() const;
     void setAudioBrightnessSmoothTime(float seconds);

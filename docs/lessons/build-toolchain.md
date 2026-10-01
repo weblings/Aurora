@@ -492,3 +492,11 @@ Applies-when: sampling a stream (SSE, `curl -N`, a long-running command) in a sc
 `timeout 5 curl -sN .../events` is a GNU coreutils habit; on stock macOS `timeout` doesn't exist (it's `gtimeout` only with Homebrew coreutils), so the command fails with "command not found" and the check silently samples nothing (Aurora-skv's live viz check). 
 
 **Fix:** use the tool's own bound -- `curl -sN -m 4 http://127.0.0.1:18245/events | head -c 300` -- or `head -c`/`head -n` to end the pipe. Don't wrap `devstack.py up` in `timeout` either: it already waits for the first frame and exits.
+
+---
+
+## No `node` on this Mac -- VS Code's bundled Electron runs the web tests as Node
+Tags: macos, node, web, testing, toolchain
+Applies-when: running `web/ui` or `web-processing` `*.test.mjs` on a machine where `node` isn't installed
+
+`node` isn't on PATH (no Homebrew/nvm/volta install), but VS Code ships Electron, which runs as plain Node with `ELECTRON_RUN_AS_NODE=1`: `ELECTRON_RUN_AS_NODE=1 "/Applications/Visual Studio Code.app/Contents/MacOS/Code" TuningFields.test.mjs` (Node v24 as of Aurora-ta5). Enough for the framework-free `*.test.mjs` scripts and `--check`; not a substitute for the real Node the graph editor's npm build will need (Aurora-lzj).
