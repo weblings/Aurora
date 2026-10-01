@@ -69,9 +69,10 @@ Core repo: shared `Contracts`, `Processing`, `Input`/`Output` interfaces,
 ## Related directories to be aware of
 
 - This family, all in this repo: `input/linux`, `input/windows`,
-  `output/hue`, `app/linux`, `app/windows`, `web/demo`, `web/ui` --
+  `input/mac`, `output/hue`, `app/linux`, `app/windows`, `app/mac`,
+  `web/demo`, `web/ui` --
   core interfaces in `core/`, resolved by relative path. Per-slice notes in
-  each directory's own `AGENTS.md`; tasks and lessons live here at the root.
+  each directory's own `README.md`; tasks and lessons live here at the root.
 - [RockyRoad](https://github.com/weblings/RockyRoad) — reference for Three.js/WebXR
   scenes, design tokens, and UI components (checked directly during WebUI design).
 - [RockyRoadImport](https://github.com/weblings/RockyRoadImport) — import-pipeline

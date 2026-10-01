@@ -476,7 +476,7 @@ retrofit):**
 ## Library evaluation
 
 Researched 2026-09-30 (GitHub API, npm registry, project docs).
-Originally evaluated against `web/ui/AGENTS.md`'s "no build step, no npm"
+Originally evaluated against `web/ui/README.md`'s "no build step and no npm"
 rule; **that rule is waived for the graph editor** (owner decision,
 2026-09-30) — RockyRoad v2 already runs a Vite + TypeScript + npm
 frontend, so the toolchain is known ground. Still binding: the WebUI is

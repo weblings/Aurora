@@ -1,7 +1,7 @@
 # Building Aurora from source
 
 End users: start at the root [README Quick Start](../README.md#quick-start)
-(prebuilt 1.0.1 zips). This page is the full from-source reference for
+(prebuilt release zips). This page is the full from-source reference for
 contributors, packagers, and unsupported platforms.
 
 ## Presets (full-app builds)
@@ -151,7 +151,9 @@ unreliable outside a sandbox -- our native tarball gets nothing from it.
   (central deployment, serviced by Windows Update). It is deliberately not
   vendored — re-shipping the CRT means re-shipping every security update.
 - **Mac:** no `cmake --install` support yet (single-machine builds only) —
-  run `open build/mac-app/bin/Aurora.app` from the build tree. The `.app`
+  run `open build/mac-app/bin/Aurora.app` from the build tree. The release
+  zip is a separate manual step: `tools/mac/sign-notarize.sh` (Developer ID,
+  notarize, staple; see [[mac-notarization]]). The `.app`
   bundle exists so Aurora holds its own Screen Recording grant instead of
   Terminal's; grant what it requests, then quit and relaunch.
 

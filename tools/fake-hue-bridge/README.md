@@ -160,6 +160,25 @@ this tool has no C++ build to round-trip it through directly.
   status per config and are logged, as are light PUTs.
 - `check.py` -- stdlib-only self-check (`python3 check.py`).
 
+## Keeping in sync
+
+Run `python3 check.py` before finishing any change here.
+
+- Fixture shapes must track `output/hue/tests/ApiToolsTests.cpp` and the
+  parsing in `output/hue/src/ApiTools.cpp`; keep the `ent-N` and `light-N` id
+  spaces distinct.
+- `room-4zone-zonemap.json`'s shape must track `Aurora::Runtime::ZoneMapStore`
+  (`core/Runtime/src/ZoneMapStore.cpp`); `check.py` validates the schema by
+  hand since this tool has no C++ build to round-trip it through. Channel id ->
+  quadrant (the `conf-room-4zone` note above) is fixed and mirrors
+  `web/demo/main.js`.
+- The daemon counterpart lives in `output/hue/src/PairingRoutes.cpp`
+  (`/api/hue/link-button` passthrough and the discover fake, both gated on
+  `AURORA_DEV_FAKE_HUE`), covered by
+  `output/hue/tests/PairingRoutesTests.cpp`
+  (`ctest -R "discover|link-button"`). One-flag dev flow: `--fake-hue` in
+  `app/*/include/Aurora/App/FakeHue.hpp`.
+
 ## Not in scope
 
 DTLS/UDP-2100 streaming (tier 2), `discovery.meethue.com` emulation,

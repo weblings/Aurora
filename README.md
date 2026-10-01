@@ -15,11 +15,11 @@
 - You need a Philips Hue bridge with registered lamps, and an entertainment area defined through
 Philips' official app.
 - Locate the latest [GitHub Release](https://github.com/weblings/Aurora/releases) and download the zip for your platform. Keep the contents of the folder together so the app can work correctly.
-- (Read dependencies before this step) In a terminal window in the unzipped folder, launch the app. Ctrl + click on the link to open the UI and get setup. Enjoy!
+- (Read dependencies before this step) On Windows and Linux, in a terminal window in the unzipped folder, launch the app (on Mac, open `Aurora.app` instead). Ctrl + click on the link to open the UI and get setup. Enjoy!
 - Dependencies:
   - **Windows:** Try launching Aurora. If you get an error saying "The code execution cannot proceed because VCRUNTIME140.dll was not found", then you need: [Visual C++ Redistributable](https://learn.microsoft.com/en-us/cpp/windows/latest-supported-vc-redist). If not, it's already installed and you're good to go.
   - **Linux (Debian/Ubuntu):** `sudo apt install libx11-6 libxext6 libxrandr2 pipewire libaubio5 libcurl4t64 libopencv-core406t64 libmbedtls14t64` (ffmpeg and GL pieces arrive automatically as dependencies of those; on other releases the curl/opencv/mbedtls package names differ slightly — e.g. `libopencv-core410` / `libmbedtls21` — and a missing-`.so` error on launch names its package).
-  - **Mac (experimental, Apple Silicon, build from source only; macOS 27 is the supported target, older macOS is untested, Intel is not supported):** install [Homebrew](https://brew.sh), then `brew install cmake opencv curl aubio mbedtls@3 pkg-config` (must be `mbedtls@3`, not v4), and build via the `mac-app` preset, see [CONTRIBUTING.md](CONTRIBUTING.md#platform-notes). To find it with Spotlight and launch it like any other app, drag `Aurora.app` (from `build/mac-app/bin`) into your Applications folder. Run from a terminal and grant Screen Recording when prompted. GUI App launching and tray UX will come in 1.0.4.
+  - **Mac (experimental, Apple silicon only, macOS 27 is the supported target, older macOS is untested, Intel is not supported):** nothing to install, and no terminal needed. Unzip the Mac release, drag `Aurora.app` into your Applications folder (this also lets Spotlight find it), and open it. macOS may ask you to confirm opening an app downloaded from the internet; choose Open. Aurora runs from the menu bar: click its icon for Launch UI or Stop, and grant Screen Recording when prompted. To build from source instead, install [Homebrew](https://brew.sh), then `brew install cmake opencv curl aubio mbedtls@3 pkg-config` (must be `mbedtls@3`, not v4), and build via the `mac-app` preset, see [CONTRIBUTING.md](CONTRIBUTING.md#platform-notes).
   - **Compiling from source on Linux?** You need the `-dev` variants instead — see [docs/Building.md](docs/Building.md#prerequisites).
 
 ## Layout
@@ -27,7 +27,7 @@ Philips' official app.
 One repo, with a directory per slice. You only build the ones for your platform:
 
 - [`core/`](core) — capture/processing/output contracts, pipelines, orchestration
-- [`app/windows`](app/windows) / [`app/linux`](app/linux) / [`app/mac`](app/mac) — the runnable apps; **start here to use Aurora** (Mac is experimental, terminal-only)
+- [`app/windows`](app/windows) / [`app/linux`](app/linux) / [`app/mac`](app/mac) — the runnable apps; **start here to use Aurora** (Mac is experimental)
 - [`input/windows`](input/windows) / [`input/linux`](input/linux) / [`input/mac`](input/mac) — screen + audio capture plugins (DXGI on Windows; X11 / Wayland-Pipewire on Linux; ScreenCaptureKit on Mac)
 - [`output/hue`](output/hue) — Philips Hue entertainment-streaming output plugin
 - [`web/ui`](web/ui) — the setup/control interface the apps serve in your browser

@@ -231,3 +231,14 @@ Applies-when: adding a backend route consumed by vendored dashboard code
 A new /api/version route with no shim answer would have rendered an empty footer on Pages with zero test failures -- the demo suite only covers stubbed routes. The stub, its CHANGELOG-pinned value test, and the seam tripwire all landed in the same commit as the probe.
 
 **Fix:** new backend route consumed by the fork means three edits minimum: shim stub, shim value test, seam marker; grep the fork for fetch('...') against the shim's route list to prove nothing reachable goes unanswered.
+
+---
+
+## The static mount and the embedded-file map have separate content-type tables, so a new asset type can work in a dev run and break only in a release build
+Tags: httpserver, webui, embedded, mime, release
+Applies-when: adding a new file type (GIF, WebP, font, video) under `web/ui`
+
+Aurora-qps.8 added `web/ui/icons/MacTray.gif`. A dev run served it correctly as `image/gif` because dev uses `serveStaticFiles()`, i.e. cpp-httplib's own mount, whose built-in MIME table knows `.gif`. Standalone and release builds serve `serveEmbeddedFiles()` instead, and its `contentTypeFor()` (`HttpLibServerImpl.hpp`) is a separate hand-written table with no `.gif` entry, so the same file would have been sent as `application/octet-stream` and relied on browser sniffing. A browser pass against a dev run could never have shown it. `embed_webroot.py` was already binary-safe, so the only gap was the table.
+
+**Fix:** added the entry and two `NetworkTests` cases, one per serving path, each asserting the `Content-Type` header (the embedded one also asserts NUL and high bytes survive). General principle: when two code paths serve the same files (dev mount vs. embedded), a new file type needs a check on each, and "it loads in my dev run" says nothing about the embedded path. Check `contentTypeFor()` whenever a new extension lands in `web/ui`.
+

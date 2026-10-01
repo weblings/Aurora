@@ -210,6 +210,35 @@ width sane if `frame` reports fewer frames than expected.
   computed values.
 - `validate.py` -- live-run validation (see above), stdlib only.
 
+## Keeping in sync
+
+Run `python3 check.py` before finishing any change here. For the whole stack
+(bridge + relay + app + viz) use `devstack.py up|status|down` or the
+`light-viz-stack` skill rather than hand-assembling it.
+
+- The default UDP port (18244) must track `DevLightTapAddress`'s default in
+  `output/hue/include/Aurora/Output/Hue/DevLightTap.hpp`; change one, change
+  the other.
+- The payload shape (`{"zones":[{"id","r","g","b"}, ...]}`) must track
+  `buildDevLightTapPayload()` in `output/hue/src/DevLightTap.cpp`. Field names
+  deliberately match `ChannelStream`, so nothing here translates.
+- `udp_listener()` validates (`json.loads`) and drops malformed datagrams;
+  never forward them, so a subscriber never has to defend against garbage.
+- `validate.py frame`'s UDP port default (18247) must track
+  `DefaultDevFrameDumpPort` in `core/Runtime/include/Aurora/Runtime/DevFrameDump.hpp`.
+  It's a separate channel straight to `validate.py`, never through `relay.py`.
+- `crop_mean_rgb()` / `expected_after_gamma()` in `validate.py` must match
+  `ImageProcessing::getSubImage` / `Algorithms::mean`
+  (`core/Processing/src/ImageProcessing.cpp`) and `HueOutput::toChannelStream`
+  (`output/hue/src/HueOutput.cpp`) exactly: truncating (not rounding) uv->pixel
+  conversion, per-channel mean, format-aware BGR/RGB reorder, uint8 truncation
+  before normalization, then gamma.
+- The `DevFrameDump` size cap is checked against the real encoded payload size
+  (macOS's real UDP limit is `net.inet.udp.maxdgram`, 9216 by default, far
+  under IPv4's 65507). `send()` failures are silent by design, so if the cap or
+  the payload overhead changes, re-verify live; a wrong cap doesn't show up as
+  an error.
+
 ## Not in scope
 
 Persistence/replay of past frames (a client that connects late just sees

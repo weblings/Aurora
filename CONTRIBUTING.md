@@ -40,11 +40,13 @@ the changelog; nothing enforces the mirror.
 
 ### Mac (experimental, tier 1 as of 1.0.3)
 
-Terminal-only app with video + audio capture; no tray. Regular builds are
-single-machine (ad-hoc signed); a notarized build needs the maintainer's
-Developer ID. Scoping and design decisions live in
-[[mac-video-capture]]/[[mac-audio]] (shipped) and
-[[mac-tray-parity]] (still open) and [[mac-notarization]] (partly shipped).
+Menu-bar app (`Aurora.app`, `LSUIElement`) with video + audio capture, a tray
+menu (Launch UI / Stop), and a Mac-only first-run tip screen in the NUX.
+Regular builds are single-machine (ad-hoc signed); the notarized release zip
+is signed and notarized by hand with the maintainer's Developer ID
+(`tools/mac/sign-notarize.sh`). Scoping and design decisions live in
+[[mac-video-capture]], [[mac-audio]] and [[mac-tray-parity]] (all shipped) and
+[[mac-notarization]] (partly shipped: publishing is manual, no CI signing).
 
 Supported target: macOS 27 on Apple silicon. Building from source on macOS 14.2-26 should work (the code's own floor is 14.2, the process-tap API) but is untested below 27, and Intel Macs are not supported (Aurora-pyo). A normal build needs no Apple account. Setup:
 
@@ -73,4 +75,4 @@ ctest --test-dir build/mac-app --output-on-failure
 - Fake-lights viz: validate capture/output color with no Hue hardware via
   `tools/light-viz-relay/README.md` ("End-to-end viz run") — fake bridge →
   relay → app with `--fake-hue` → `viz.html` in a served `web/demo/`.
-  Agent notes live in `web/demo/AGENTS.md`.
+  Maintenance notes live in `web/demo/README.md` and `web/demo/CLAUDE.md`.
