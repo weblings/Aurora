@@ -69,7 +69,7 @@ narrowing the list to `RGBA`/`RGBx`/`BGRx` (as Aurora did) is optional hardening
 
 ---
 
-### 2. `rgbaToRgb()` has no `BGRA` equivalent
+### 2. `rgbaToRgb()` never runs on `BGRA` frames and leaves a stale 4-channel tag
 
 **Location:** `src/Imaging/ImageProcessing.cpp:46-52`
 
@@ -83,22 +83,20 @@ void rgbaToRgb(
 }
 ```
 
-`cv::COLOR_RGBA2RGB` assumes the 4-channel input is laid out RGBA. There's no
-equivalent for `BGRA`, which is what several real capture backends produce
-natively (Windows' DXGI Desktop Duplication, and many Wayland/X11 compositor
-paths).
+The conversion itself is fine: OpenCV defines `COLOR_RGBA2RGB` as an alias of
+`COLOR_BGRA2BGR` (both just drop channel 3), so it handles `BGRA` bytes
+already. (Corrected 2026-10-01; the original write-up said it assumes an
+RGBA layout.) The real gaps are around it: the output keeps its 4-channel
+`RGBA` tag on a 3-channel mat, and the only call site
+(`src/Core/Runtime.cpp:287-289`) admits `RGBA` alone, so a `BGRA` frame
+skips the alpha drop and flows through as 4-channel data.
 
-**Why it hasn't fired:** the only call site
-(`src/Core/Runtime.cpp:287-289`) guards it with
-`if(source.format == Imaging::PixelFormat::RGBA)`, so it's never actually
-invoked on a `BGRA` frame today — no huenicorn grabber currently produces one.
-A `BGRA` frame today just skips the alpha-drop step and flows through as
-4-channel data.
+**Why it hasn't fired:** no huenicorn grabber tags `BGRA` today, and
+`mean()` ignores the 4th channel anyway. Once 1's grabber tag fixes land,
+X11 32bpp and Pipewire `BGRx` frames are `BGRA` and skip the drop.
 
-**Suggested fix:** branch on format, adding a `cv::COLOR_BGRA2BGR` case for
-`PixelFormat::BGRA` (and tag the output `PixelFormat::BGR` to match, per
-finding 3 below). The `Runtime.cpp` call-site guard must also accept `BGRA`
-— otherwise the new branch is unreachable and the fix is dead code.
+**Suggested fix:** tag the output `RGB`/`BGR` from the input's format, and
+widen the `Runtime.cpp` guard to `RGBA || BGRA`. No new conversion code needed.
 
 ---
 

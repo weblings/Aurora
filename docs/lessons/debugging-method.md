@@ -566,3 +566,25 @@ Applies-when: chaining a docs/lessons/test check before a commit or bead close, 
 
 **Fix:** let the validator's own status gate the next step (`python3 docs/check-links.sh && bash docs/check-lessons.sh && git commit ...`), print its full output when it fails rather than a trimmed tail, and if trimming is needed use `set -o pipefail`. Run the checks and the commit as separate steps so a red result is read before anything is staged.
 
+
+---
+
+## A findings write-up's "suggested fix" is a hypothesis -- re-check its premise against the code and library headers before implementing it
+Tags: debugging, verification, upstream, review
+Applies-when: implementing fixes from an existing analysis or findings doc (yours or anyone's), especially one written while porting other code
+
+Turning [[upstream-findings]] into fix branches (`Aurora-h45`), three of the
+first four findings carried a wrong premise even though each bug was real.
+1's "every grabber tags BGR" was false: honoring the tag would have swapped
+red/blue. 2's "COLOR_RGBA2RGB assumes RGBA" was false: it's an alias of
+`COLOR_BGRA2BGR`. 5's "add `return;`" would have hung startup on an
+unsettled promise. Each was caught only by reading the code the claim was
+about: the tag producers, `imgproc.hpp`, and the future's waiter. The same
+pattern as "Grep the code for its own recorded constraints before
+recommending a design".
+
+**Fix:** for each finding, before writing the fix, verify the "why it hasn't
+fired" claim and the suggested fix's mechanism: grep every producer of a
+value now being trusted, read library enum/header definitions behind a
+named constant, and trace who waits on any state an early return skips.
+Correct the write-up in the same pass.

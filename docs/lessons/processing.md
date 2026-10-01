@@ -173,3 +173,21 @@ stay slow without costing the same feeling of responsiveness. Relevant if
 this tuning is ever backported to real bulbs (see [[browser-analysis]]'s
 A/C follow-up) — worth confirming the same asymmetry holds physically, not
 just on a screen.
+
+---
+
+## OpenCV's alpha-drop codes are aliases -- `COLOR_RGBA2RGB` and `COLOR_BGRA2BGR` are both 1, so the channel order in the name means nothing
+Tags: processing, opencv, pixel-format, huenicorn
+Applies-when: choosing or reviewing a `cv::cvtColor` code for dropping (or adding) an alpha channel on 4-channel frames of either channel order
+
+Upstream finding 2 in [[upstream-findings]] said huenicorn's `rgbaToRgb()`
+"assumes RGBA" because it passes `COLOR_RGBA2RGB`, and suggested adding a
+`COLOR_BGRA2BGR` branch. `imgproc.hpp` defines
+`COLOR_RGBA2RGB = COLOR_BGRA2BGR` (= 1): it drops channel 3 and never
+reorders, so the function was already correct for `BGRA` bytes. The same
+holds for `RGB2RGBA`/`BGR2BGRA`. The bugs were around it: a stale 4-channel
+format tag on the output, and a caller guard that skipped `BGRA`.
+
+**Fix:** check the enum's value in `imgproc.hpp` before branching on
+channel order. For alpha add/drop, track the order in the `PixelFormat`
+tag; the conversion code doesn't need to change.

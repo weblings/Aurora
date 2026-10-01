@@ -32,6 +32,11 @@ pushes and opens MRs.
   `mean()` picks red/blue by `format`; X11 tags `BGRA`/`BGR`; Pipewire tags
   negotiated `BGRx` as `BGRA`. Closed `Aurora-h45.1`. Until 2 lands, `BGRA`
   frames skip `Runtime`'s alpha drop (harmless: `mean()` ignores channel 3).
+- `fix/bgra-alpha-drop` (`991be7e`, stacked on the above, not pushed):
+  `Runtime`'s alpha-drop guard admits `BGRA`; `rgbaToRgb()` tags its output
+  `RGB`/`BGR`. Closed `Aurora-h45.2`. Finding 2's premise was wrong:
+  `COLOR_RGBA2RGB` is an OpenCV alias of `COLOR_BGRA2BGR`, so no new
+  conversion was needed.
 - Pipewire also offers `RGB`/`YUY2`/`I420`, which the 4-byte decode can't
   handle. Not filed as a finding: screen-cast producers offer only 4-byte
   formats, so they never negotiate. Noted in 1's write-up for the MR instead.
@@ -45,10 +50,14 @@ pushes and opens MRs.
   functions for all four `PixelFormat` values.
 - Scratch driver mirroring `Runtime`'s per-frame path (rescale, alpha drop,
   crop, mean) on one color in all four layouts: all correct after 1; before
-  it, true `RGBA` frames came out red/blue swapped.
+  it, true `RGBA` frames came out red/blue swapped. After 2, every layout
+  reaches `mean()` as 3 channels with an `RGB`/`BGR` tag.
 
 ## Lessons
 
+- Processing: OpenCV's alpha-drop codes are aliases (`RGBA2RGB` == `BGRA2BGR`).
+- Debugging method: a findings write-up's suggested fix is a hypothesis
+  (1, 2 and 5 each had a wrong premise).
 - Input: extended the existing "trusting a tag" entry (huenicorn's X11
   mistag) with this recurrence instead of filing a duplicate.
 - Input: every early return in a promise-driven portal callback chain must
