@@ -137,13 +137,23 @@ Mac results (Apple M5, Node 22.23.3, build/mac-app):
   a second instance) rendered the React Flow canvas, Input/Output nodes
   with an edge, controls, and "server: 1.0.4" from the Aurora call. Only a
   screenshot; no interaction or console check.
-- Not verified: Windows build of any of this, including the MSVC
-  literal-limit check.
+- Windows (MSVC 2022 Build Tools, Node 24.19, npm 11.17), verified:
+  - Standalone core build (`cmake -S core`, Release): no C1091, ctest
+    97/97 incl. the 400 KB embed fixture and the 3 serveEmbeddedFilesAt
+    NetworkTests. Only noise: MSB8029 (build dir under %TEMP%), C4996 getenv.
+  - `windows-app` preset with AURORA_ENABLE_GRAPH_EDITOR=ON (separate dir
+    build/windows-app-ge): configure 68s, build 2m40s, npm ci + vite ran,
+    GraphEditorWebRoot.hpp ~1 MB, app ctest 70/70.
+  - Live run: /graph-editor 301 -> /graph-editor/, 200 text/html; JS 200
+    text/javascript, SHA256-identical to the Vite output (399180 B); CSS
+    200 text/css; THIRD-PARTY-NOTICES.md 200; / still 200.
+  - Touching LogSink.cpp: npm/vite not rerun (the cheap embed step does
+    rerun on the VS generator).
+  - Not done on Windows: browser render, OFF-header byte comparison.
 
 ## Resume
 
-Windows (MSVC): core tests, then an app build with the option ON. Then
-close Aurora-lzj. (Linux ON build done.)
+Nothing; Aurora-lzj verified on Linux, Mac and Windows.
 
 ## Lessons
 
@@ -152,7 +162,7 @@ close Aurora-lzj. (Linux ON build done.)
   lambda captures need Clang 16+ (`language-cpp`); build a realistic
   throwaway artifact before planning around estimates
   (`debugging-method`).
-- Extended: the MSVC literal-cap entry (`language-cpp`) and the two serving
+- Extended: the MSVC literal-cap entry (`language-cpp`, now with the Windows result: segmenting confirmed, unsplit ~64 KB limit still untested) and the two serving
   paths entry (`web-testing`).
 - Beads memory: `bd export` after `bd create`/`update`. The automatic
   export wrote only the first of five new beads.

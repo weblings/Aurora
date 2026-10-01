@@ -106,6 +106,8 @@ The webroot embed encoder (StandaloneApps P1) passed GCC with literals up to 33K
 
 A second, total cap is believed to apply after concatenation (~64 KB, C1091; unverified as of Aurora-lzj). The largest file embedded before then was 40 KB, so it never showed up, but a 399 KB Vite bundle would exceed it. `embed_webroot.py` now splits files into 60000-byte `std::string` pieces joined with `+`, and `AuroraEmbedWebrootTests` round-trips a 400 KB fixture so the first MSVC build of core tests settles it.
 
+Settled 2026-10-01 (MSVC 2022, Aurora-lzj): the standalone core build with 60 KB pieces compiled with no C1091 and the 400 KB fixture round-trips (ctest 97/97), and so does the 1 MB Vite embed in `windows-app`. The segmented encoder is confirmed safe on MSVC. Still not known: whether an *unsplit* 399 KB literal would actually fail -- we never tried, so the ~64 KB figure stays unverified and the segmenting is the fix either way.
+
 ---
 
 ## GVariant builders sink, @ embeds, lookup matches inner types
