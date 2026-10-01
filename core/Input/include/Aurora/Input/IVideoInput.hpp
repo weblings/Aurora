@@ -76,6 +76,15 @@ namespace Aurora::Input
       }
     }
 
+    // The widest image the consumer will actually sample (Orchestrator's
+    // subsampleWidth; 0 = unknown). A grabber whose capture API can scale
+    // on the GPU may deliver a smaller frame than the display instead of
+    // making the CPU downscale full resolution every tick (Aurora-3qh).
+    // Default ignores it: frames stay full size, as before.
+    virtual void setCaptureWidthHint(unsigned /*width*/)
+    {
+    }
+
     // Pull model -- the app calls this once per tick.
     virtual void grabFrameSubsample(Contracts::ImageData& imageData) = 0;
 

@@ -1,6 +1,8 @@
 #include <Aurora/Input/Mac/ScreenCaptureKitGrabber.hpp>
 
+#include <algorithm>
 #include <chrono>
+#include <cmath>
 #include <future>
 #include <iostream>
 #include <mutex>
@@ -70,6 +72,9 @@ namespace Aurora::Input::Mac
     // configureAndStartStream() next succeeds. IVideoInput::isHealthy()
     // defaults true, so Linux/Windows are unaffected by this existing at all.
     bool healthy = true;
+
+    // IVideoInput::setCaptureWidthHint() -- 0 means deliver full pixel size.
+    unsigned captureWidthHint = 0;
 
     std::mutex frameMutex;
     Contracts::ImageData latestFrame;
@@ -200,6 +205,37 @@ namespace Aurora::Input::Mac
     }
 
 
+    // What SCK delivers: full pixel size, or -- once the consumer has said
+    // how narrow an image it samples -- an 8x oversample of that, at least
+    // 256px wide, aspect kept. The GPU does the bulk downscale; the CPU's
+    // INTER_AREA in Orchestrator still averages the final step, so zone
+    // colors keep area-averaging quality. Full-Retina frames resized on the
+    // CPU every tick overran a 60Hz tick and starved the WebUI (Aurora-3qh).
+    SCStreamConfiguration* makeStreamConfiguration(
+      unsigned pixelWidth,
+      unsigned pixelHeight,
+      double refreshRate,
+      unsigned captureWidthHint
+    )
+    {
+      unsigned width = pixelWidth;
+      unsigned height = pixelHeight;
+      if(captureWidthHint > 0 && pixelWidth > 0){
+        width = std::min(pixelWidth, std::max(captureWidthHint * 8u, 256u));
+        width -= width % 2; // even dimensions for the BGRA pixel buffer
+        height = static_cast<unsigned>(std::lround(static_cast<double>(pixelHeight) * width / pixelWidth));
+        height = std::max(2u, height - height % 2);
+      }
+
+      SCStreamConfiguration* streamConfig = [[SCStreamConfiguration alloc] init];
+      streamConfig.width = width;
+      streamConfig.height = height;
+      streamConfig.pixelFormat = kCVPixelFormatType_32BGRA;
+      streamConfig.minimumFrameInterval = CMTimeMake(1, static_cast<int32_t>(refreshRate));
+      return streamConfig;
+    }
+
+
     // Configures and starts the SCStream for `display`, writing the result
     // onto `impl` only once everything below has actually succeeded (a
     // half-built stream never gets assigned, so a throw here always leaves
@@ -238,11 +274,12 @@ namespace Aurora::Input::Mac
       // wants everything on screen, not a filtered subset.
       SCContentFilter* filter = [[SCContentFilter alloc] initWithDisplay:display excludingWindows:@[]];
 
-      SCStreamConfiguration* streamConfig = [[SCStreamConfiguration alloc] init];
-      streamConfig.width = pixelWidth;
-      streamConfig.height = pixelHeight;
-      streamConfig.pixelFormat = kCVPixelFormatType_32BGRA;
-      streamConfig.minimumFrameInterval = CMTimeMake(1, static_cast<int32_t>(refreshRate));
+      unsigned captureWidthHint = 0;
+      {
+        std::lock_guard<std::mutex> lock(impl.frameMutex);
+        captureWidthHint = impl.captureWidthHint;
+      }
+      SCStreamConfiguration* streamConfig = makeStreamConfiguration(pixelWidth, pixelHeight, refreshRate, captureWidthHint);
 
       AuroraSCKStreamOutput* output = [[AuroraSCKStreamOutput alloc] init];
       output.impl = &impl;
@@ -374,6 +411,46 @@ namespace Aurora::Input::Mac
       m_impl->rebuildAttempted = false;
     }
     m_monitorSelectionData.selectedMonitorId = monitorId;
+  }
+
+
+  void ScreenCaptureKitGrabber::setCaptureWidthHint(unsigned width)
+  {
+    SCStream* stream = nil;
+    unsigned pixelWidth = 0;
+    unsigned pixelHeight = 0;
+    double refreshRate = 60.0;
+    {
+      std::lock_guard<std::mutex> lock(m_impl->frameMutex);
+      if(m_impl->captureWidthHint == width){
+        return;
+      }
+      m_impl->captureWidthHint = width;
+      stream = m_impl->stream;
+      pixelWidth = m_impl->pixelWidth;
+      pixelHeight = m_impl->pixelHeight;
+      refreshRate = m_impl->refreshRate;
+    }
+
+    // No live stream: configureAndStartStream() picks the hint up on the
+    // next (re)build.
+    if(stream == nil){
+      return;
+    }
+
+    auto updatePromise = std::make_shared<std::promise<bool>>();
+    auto updateFuture = updatePromise->get_future();
+    [stream updateConfiguration:makeStreamConfiguration(pixelWidth, pixelHeight, refreshRate, width)
+              completionHandler:^(NSError* error){
+      updatePromise->set_value(error == nil);
+    }];
+
+    // Bounded like every other SCK wait here. On failure the stream keeps
+    // its previous size -- slower, never broken -- so log and carry on.
+    if(updateFuture.wait_for(5s) != std::future_status::ready || !updateFuture.get()){
+      std::cerr << "ScreenCaptureKitGrabber: updateConfiguration for capture width hint "
+                << width << " didn't succeed within 5s; keeping the previous frame size\n";
+    }
   }
 
 

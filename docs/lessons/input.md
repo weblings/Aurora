@@ -490,3 +490,15 @@ Applies-when: a previously-granted Screen Recording or audio-capture permission 
 First launch of the notarized, Developer ID-signed `Aurora.app` (bundle ID `com.aurora.app`) showed the "Screen Recording permission is off" card with Aurora toggled on in System Settings and no Allow dialog. The earlier ad-hoc builds had a cdhash-only designated requirement; the Developer ID build has an identifier + certificate requirement (`codesign -dr -`). TCC matches grants to that requirement, so the ad-hoc row no longer matched the new code, yet the row's existence kept macOS from prompting (Aurora-qy5 cert prep).
 
 **Fix:** quit the app, run the scoped resets (`tccutil reset ScreenCapture com.aurora.app`, and the audio-capture service), relaunch, approve the fresh dialog, then quit and relaunch once more. After that the grant persisted across a relaunch with no re-prompt; a certificate-based requirement is stable across rebuilds signed by the same identity, which is what ad-hoc builds lacked. Expect the same re-prompt when moving back to an ad-hoc build that shares the bundle ID.
+
+---
+
+## ScreenCaptureKit delivers whatever size you configure -- at full Retina pixels, the CPU downscale alone overruns a 60Hz tick
+Tags: input, mac, screencapturekit, performance, tick, gpu-scaling
+Applies-when: choosing a capture size for a grabber whose frames get downsampled anyway, or when Mac video mode is CPU-heavy
+
+`configureAndStartStream` set `SCStreamConfiguration.width/height` to the display's full pixel size (points x `backingScaleFactor`, deliberately, so Retina didn't capture at half resolution). Every tick then INTER_AREA-resized ~3420x2214 BGRA down to `subsampleWidth` (16) on the CPU: 2349/2360 tick-thread samples in `cv::resizeArea_`, ~105% CPU, and the overrunning tick starved the WebUI through `PipelineHost`'s lock (Aurora-3qh, mechanism Aurora-cgr). SCK scales on the GPU for free when the configured size is smaller, and `-[SCStream updateConfiguration:completionHandler:]` changes it on a live stream without a restart.
+
+**Fix:** `IVideoInput::setCaptureWidthHint(width)` (default no-op), called by `Orchestrator::init` with `subsampleWidth`; the Mac grabber delivers an 8x oversample, at least 256px, never above full pixel size, so the CPU's INTER_AREA still averages the last step. Result: ~5.5% CPU, `/api/monitors`/`/api/zones` < 1ms, tick thread ~95% asleep. `displayResolution()` still reports full pixels (subsample candidates unchanged). When verifying, low CPU is also what a *failed* capture looks like (ticks skipped while unhealthy) -- confirm real frames: distinct per-zone colors on the light tap, a real display from `/api/monitors`, no permission errors in the log.
+
+Also observed: the rebuilt, still ad-hoc-signed `Aurora.app` kept capturing when relaunched by `devstack.py` -- consistent with "A bare Mach-O binary's TCC permission grant attaches to whatever launched it" above (the launcher's grant applied), not with the rebuild-invalidates-grant lesson, which concerns a bundle launched on its own.

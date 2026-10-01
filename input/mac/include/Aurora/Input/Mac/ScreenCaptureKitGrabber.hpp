@@ -87,6 +87,12 @@ namespace Aurora::Input::Mac
     bool isHealthy() const override;
 
     void selectMonitor(unsigned monitorId) override;
+
+    // Reconfigures the live stream (SCStream updateConfiguration) to
+    // deliver a GPU-scaled frame: an 8x oversample of width, at least 256px,
+    // never above the display's pixel size. 0 restores full size. Applies
+    // to later stream rebuilds too (Aurora-3qh).
+    void setCaptureWidthHint(unsigned width) override;
     void grabFrameSubsample(Contracts::ImageData& imageData) override;
 
   protected:

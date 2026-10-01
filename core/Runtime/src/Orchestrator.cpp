@@ -43,6 +43,10 @@ namespace Aurora::Runtime
       }
     }
 
+    // Lets a GPU-scaling grabber (Mac) deliver a frame near the size
+    // _prepareSource() rescales to, instead of full resolution (Aurora-3qh).
+    m_input.setCaptureWidthHint(m_config.subsampleWidth());
+
     for(auto* output : m_outputs){
       ZoneMap saved = m_zoneMapStore.load(output->name());
       ZoneMap reconciled = reconcileZoneMap(saved, output->zoneIds());
