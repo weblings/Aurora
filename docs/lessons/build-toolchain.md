@@ -519,3 +519,23 @@ Aurora `.venv`'s (see "Without cmake, flags.make + link.txt are a complete build
 warnings. For testable logic, compile a scratch driver directly against the
 touched `.cpp` (e.g. `ImageProcessing.cpp` + OpenCV + `_deps/glm-src`)
 rather than reviving the fork's stale `tests/`.
+
+---
+
+## Vite doesn't empty an `outDir` outside its project root, so a build-time embed ships every stale hashed bundle
+Tags: vite, npm, cmake, embed, build-output
+Applies-when: building a Vite app into a CMake binary dir (or any outDir outside the Vite project) and consuming the whole directory
+
+Found while planning Aurora-lzj (graph editor embedded via `embed_webroot.py`), reproduced in a scratchpad with Vite 8.3.2. With `--outDir ../outside`, Vite prints `outDir ... is not inside project root and will not be emptied` and keeps the old files. After one source edit the dir held both `index-BbZnYOS4.js` and `index-Be-uGZcT.js`. Anything that ingests the whole dir (an embed step, an install glob) grows with every rebuild, and the warning is easy to miss in a CMake build log.
+
+**Fix:** pass `--emptyOutDir` (or `build.emptyOutDir: true`) whenever `outDir` is outside the project. If you'd rather not trust that, make the consumer read Vite's manifest instead of globbing the directory.
+
+---
+
+## App presets force core's `BUILD_TESTS` off, so a new core test never runs in an app build
+Tags: cmake, testing, fetchcontent, ctest, windows
+Applies-when: adding a core test meant to prove something on a platform you only build through an app preset
+
+Each `app/*/CMakeLists.txt` sets `BUILD_TESTS FALSE CACHE BOOL "" FORCE` before fetching core, so `linux-app`, `windows-app` and `mac-app` build and run only the app's own tests. Aurora-lzj added `AuroraEmbedWebrootTests` to core to settle MSVC's concatenated-literal cap. The Windows app preset would never have compiled it, and a green `windows-app` run would have looked like proof.
+
+**Fix:** verify core tests per platform with a standalone core configure (`cmake -S core -B build/core-tests`, then `ctest -R <name>`), and name that command in the bead. A test meant to gate an app-level behaviour belongs in the app's own test target instead.

@@ -1,6 +1,8 @@
 #include <chrono>
 #include <fstream>
 #include <thread>
+#include <utility>
+#include <vector>
 
 #include <catch2/catch_test_macros.hpp>
 #include <httplib.h>
@@ -268,6 +270,126 @@ TEST_CASE("HttpServer's API routes win ties over serveEmbeddedFiles entries", "[
   REQUIRE(result);
   CHECK(result->status == 200);
   CHECK(result->body == "route");
+
+  server.stop();
+  serverThread.join();
+}
+
+
+TEST_CASE("HttpServer's serveEmbeddedFilesAt serves a map under its prefix with index and redirect handling", "[HttpServer]")
+{
+  HttpServer::EmbeddedFiles files = {
+    {"index.html", "<html>editor</html>"},
+    {"assets/index.mjs", "export {};"},
+    {"assets/index.js.map", "{}"},
+    {"assets/font.woff2", "wOF2"},
+    {"assets/core.wasm", std::string("\0asm", 4)},
+    {"assets/photo.webp", "RIFF"},
+    {"THIRD-PARTY-NOTICES.md", "# Licenses"},
+  };
+
+  HttpServer server;
+  server.serveEmbeddedFilesAt("/graph-editor/", files);
+
+  REQUIRE(server.bind("127.0.0.1", 18224));
+
+  std::thread serverThread([&](){ server.listen(); });
+
+  httplib::Client client("127.0.0.1", 18224);
+
+  auto index = getWithRetry(client, "/graph-editor/");
+  REQUIRE(index);
+  CHECK(index->status == 200);
+  CHECK(index->body == "<html>editor</html>");
+  CHECK(index->get_header_value("Content-Type") == "text/html");
+
+  auto bare = getWithRetry(client, "/graph-editor");
+  REQUIRE(bare);
+  CHECK(bare->status == 301);
+  CHECK(bare->get_header_value("Location") == "/graph-editor/");
+
+  const std::vector<std::pair<std::string, std::string>> types = {
+    {"/graph-editor/assets/index.mjs", "text/javascript"},
+    {"/graph-editor/assets/index.js.map", "application/json"},
+    {"/graph-editor/assets/font.woff2", "font/woff2"},
+    {"/graph-editor/assets/core.wasm", "application/wasm"},
+    {"/graph-editor/assets/photo.webp", "image/webp"},
+    {"/graph-editor/THIRD-PARTY-NOTICES.md", "text/markdown"},
+  };
+  for(const auto& [path, type] : types){
+    INFO(path);
+    auto result = getWithRetry(client, path);
+    REQUIRE(result);
+    CHECK(result->status == 200);
+    CHECK(result->get_header_value("Content-Type") == type);
+  }
+
+  auto wasm = getWithRetry(client, "/graph-editor/assets/core.wasm");
+  REQUIRE(wasm);
+  CHECK(wasm->body == std::string("\0asm", 4));
+
+  auto missing = getWithRetry(client, "/graph-editor/nope.js");
+  REQUIRE(missing);
+  CHECK(missing->status == 404);
+
+  auto outside = getWithRetry(client, "/index.html");
+  REQUIRE(outside);
+  CHECK(outside->status == 404);
+
+  server.stop();
+  serverThread.join();
+}
+
+
+TEST_CASE("HttpServer's serveEmbeddedFilesAt works alongside serveStaticFiles", "[HttpServer]")
+{
+  ScopedTempDir webroot("static-with-prefixed");
+  std::ofstream(webroot.path / "app.js") << "static";
+
+  HttpServer server;
+  server.serveStaticFiles(webroot.path);
+  server.serveEmbeddedFilesAt("/graph-editor", {{"index.html", "editor"}});
+
+  REQUIRE(server.bind("127.0.0.1", 18225));
+
+  std::thread serverThread([&](){ server.listen(); });
+
+  httplib::Client client("127.0.0.1", 18225);
+
+  auto staticFile = getWithRetry(client, "/app.js");
+  REQUIRE(staticFile);
+  CHECK(staticFile->status == 200);
+  CHECK(staticFile->body == "static");
+
+  auto editor = getWithRetry(client, "/graph-editor/");
+  REQUIRE(editor);
+  CHECK(editor->status == 200);
+  CHECK(editor->body == "editor");
+
+  server.stop();
+  serverThread.join();
+}
+
+
+TEST_CASE("HttpServer's serveEmbeddedFilesAt wins over the root serveEmbeddedFiles fallback", "[HttpServer]")
+{
+  HttpServer server;
+  server.serveEmbeddedFiles({{"index.html", "root"}, {"graph-editor/index.html", "root copy"}});
+  server.serveEmbeddedFilesAt("graph-editor", {{"index.html", "editor"}});
+
+  REQUIRE(server.bind("127.0.0.1", 18226));
+
+  std::thread serverThread([&](){ server.listen(); });
+
+  httplib::Client client("127.0.0.1", 18226);
+
+  auto root = getWithRetry(client, "/");
+  REQUIRE(root);
+  CHECK(root->body == "root");
+
+  auto editor = getWithRetry(client, "/graph-editor/");
+  REQUIRE(editor);
+  CHECK(editor->body == "editor");
 
   server.stop();
   serverThread.join();

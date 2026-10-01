@@ -3,6 +3,8 @@
 #include <optional>
 #include <string>
 #include <unordered_map>
+#include <utility>
+#include <vector>
 
 #include <httplib.h>
 
@@ -34,6 +36,12 @@ namespace Aurora::Network::Http::Server
         {".gif", "image/gif"},
         {".ico", "image/x-icon"},
         {".txt", "text/plain"},
+        {".md", "text/markdown"},
+        {".mjs", "text/javascript"},
+        {".map", "application/json"},
+        {".woff2", "font/woff2"},
+        {".wasm", "application/wasm"},
+        {".webp", "image/webp"},
       };
       auto dot = key.rfind('.');
       if(dot != std::string::npos){
@@ -43,6 +51,47 @@ namespace Aurora::Network::Http::Server
         }
       }
       return "application/octet-stream";
+    }
+
+
+    // Shared by the root fallback and every prefixed map. "" or any
+    // trailing-slash key resolves to that directory's index.html; a miss
+    // serves the map's own 404.html when it has one.
+    static void serveEmbeddedKey(
+      const std::unordered_map<std::string, std::string>& files,
+      std::string key,
+      httplib::Response& res
+    )
+    {
+      if(key.empty() || key.back() == '/'){
+        key += "index.html";
+      }
+
+      auto it = files.find(key);
+      if(it == files.end()){
+        res.status = 404;
+        auto notFound = files.find("404.html");
+        if(notFound != files.end()){
+          res.set_content(notFound->second, "text/html");
+        }
+        return;
+      }
+
+      res.set_content(it->second, contentTypeFor(key));
+    }
+
+
+    static std::string escapeRegex(const std::string& text)
+    {
+      static const std::string special = R"(\^$.|?*+()[]{})";
+      std::string escaped;
+      for(char c : text){
+        if(special.find(c) != std::string::npos){
+          escaped += '\\';
+        }
+        escaped += c;
+      }
+      return escaped;
     }
 
 
@@ -78,7 +127,12 @@ namespace Aurora::Network::Http::Server
     }
 
 
-    Impl(const std::vector<Route>& routes, const std::optional<std::filesystem::path>& staticDir, const std::optional<std::unordered_map<std::string, std::string>>& embeddedFiles)
+    Impl(
+      const std::vector<Route>& routes,
+      const std::optional<std::filesystem::path>& staticDir,
+      const std::optional<std::unordered_map<std::string, std::string>>& embeddedFiles,
+      const std::vector<std::pair<std::string, std::unordered_map<std::string, std::string>>>& prefixedEmbeddedFiles
+    )
     {
       m_service.emplace();
 
@@ -126,27 +180,26 @@ namespace Aurora::Network::Http::Server
         }
       }
 
+      // Prefixed maps go before the root fallback so its "/(.*)" can't
+      // swallow them; cpp-httplib consults the static mount first and only
+      // falls through to handlers on a miss, so these also work beside it.
+      // Named captures, not structured bindings: capturing those needs
+      // Clang 16+, which older Apple Clang predates.
+      for(const auto& entry : prefixedEmbeddedFiles){
+        m_service->Get(escapeRegex(entry.first), [prefix = entry.first](const httplib::Request&, httplib::Response& res){
+          res.set_redirect(prefix + "/", 301);
+        });
+        m_service->Get(escapeRegex(entry.first) + "/(.*)", [files = entry.second](const httplib::Request& req, httplib::Response& res){
+          serveEmbeddedKey(files, req.matches.size() > 1 ? req.matches[1].str() : "", res);
+        });
+      }
+
       if(embeddedFiles.has_value()){
         // Fallback registered after every API route above, so explicit
         // routes win ties -- cpp-httplib matches handlers in registration
         // order. Main.cpp sets either this or the mount point, not both.
         m_service->Get("/(.*)", [files = *embeddedFiles](const httplib::Request& req, httplib::Response& res){
-          std::string key = req.matches.size() > 1 ? req.matches[1].str() : "";
-          if(key.empty()){
-            key = "index.html";
-          }
-
-          auto it = files.find(key);
-          if(it == files.end()){
-            res.status = 404;
-            auto notFound = files.find("404.html");
-            if(notFound != files.end()){
-              res.set_content(notFound->second, "text/html");
-            }
-            return;
-          }
-
-          res.set_content(it->second, contentTypeFor(key));
+          serveEmbeddedKey(files, req.matches.size() > 1 ? req.matches[1].str() : "", res);
         });
       }
     }

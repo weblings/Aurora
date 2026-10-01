@@ -152,6 +152,37 @@ if(TARGET AuroraAudioProcessing)
   target_compile_features(AuroraAudioParityTests PUBLIC cxx_std_20)
 endif()
 
+# Aurora-lzj: round-trip embed_webroot.py over a generated webroot, including a
+# 400 KB file past MSVC's believed ~64 KB concatenated-literal cap. Python is
+# already required by every app's webroot embed; skipped without it here.
+find_package(Python3 COMPONENTS Interpreter)
+if(Python3_FOUND)
+  set(_AURORA_EMBED_FIXTURE_DIR "${CMAKE_CURRENT_BINARY_DIR}/embed-fixture")
+  set(_AURORA_EMBED_FIXTURE_HEADER "${CMAKE_CURRENT_BINARY_DIR}/EmbedFixture.hpp")
+  set(_AURORA_EMBED_SCRIPT "${CMAKE_CURRENT_SOURCE_DIR}/../Network/tools/embed_webroot.py")
+
+  add_custom_command(
+    OUTPUT "${_AURORA_EMBED_FIXTURE_HEADER}"
+    COMMAND Python3::Interpreter "${CMAKE_CURRENT_SOURCE_DIR}/make_embed_fixture.py" "${_AURORA_EMBED_FIXTURE_DIR}"
+    COMMAND Python3::Interpreter "${_AURORA_EMBED_SCRIPT}" "${_AURORA_EMBED_FIXTURE_DIR}" "${_AURORA_EMBED_FIXTURE_HEADER}" EmbedFixture
+    DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/make_embed_fixture.py" "${_AURORA_EMBED_SCRIPT}"
+    COMMENT "Generating and embedding the embed_webroot.py round-trip fixture"
+    VERBATIM
+  )
+
+  add_executable(AuroraEmbedWebrootTests
+    EmbedWebrootTests.cpp
+    "${_AURORA_EMBED_FIXTURE_HEADER}"
+  )
+
+  target_include_directories(AuroraEmbedWebrootTests PRIVATE "${CMAKE_CURRENT_BINARY_DIR}")
+  target_link_libraries(AuroraEmbedWebrootTests PRIVATE Catch2::Catch2WithMain)
+  target_compile_definitions(AuroraEmbedWebrootTests PRIVATE AURORA_EMBED_FIXTURE_DIR="${_AURORA_EMBED_FIXTURE_DIR}")
+  target_compile_features(AuroraEmbedWebrootTests PUBLIC cxx_std_20)
+else()
+  message(STATUS "Python3 not found -- skipping AuroraEmbedWebrootTests")
+endif()
+
 # enable_testing() lives in the parent CMakeLists.txt now, not here -- see
 # the comment there. Only need Catch2's own CTest-integration module here.
 include(Catch)
@@ -162,6 +193,9 @@ catch_discover_tests(AuroraRuntimeTests)
 catch_discover_tests(AuroraOrchestratorTests)
 catch_discover_tests(AuroraDevFrameDumpTests)
 catch_discover_tests(AuroraVideoParityTests)
+if(TARGET AuroraEmbedWebrootTests)
+  catch_discover_tests(AuroraEmbedWebrootTests)
+endif()
 if(TARGET AuroraAudioProcessing)
   catch_discover_tests(AuroraAudioProcessingTests)
   catch_discover_tests(AuroraAudioOrchestratorTests)

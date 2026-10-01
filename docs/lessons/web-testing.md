@@ -244,3 +244,5 @@ Aurora-qps.8 added `web/ui/icons/MacTray.gif`. A dev run served it correctly as 
 
 To exercise the embedded path on a dev machine: `resolveWebRoot` (`app/*/include/Aurora/App/WebRoot.hpp`) only falls back to the embedded map when neither `AURORA_WEBUI_DIR` nor the baked checkout path is an existing directory, and an env var pointing at a nonexistent dir does not force it. Temporarily moving `web/ui` aside before launching does (restore it right after), or run the bundle on a machine without the checkout.
 
+The reverse also holds. Dev mode never consults the embedded map, so a build-only artifact that has no source-dir copy (the Aurora-lzj graph editor's Vite bundle) must come from an embedded map in both modes. `serveEmbeddedFilesAt(prefix, map)` exists for this: its routes answer only under the prefix and work beside the static mount.
+

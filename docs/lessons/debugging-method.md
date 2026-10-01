@@ -598,3 +598,13 @@ fired" claim and the suggested fix's mechanism: grep every producer of a
 value now being trusted, read library enum/header definitions behind a
 named constant, and trace who waits on any state an early return skips.
 Correct the write-up in the same pass.
+
+---
+
+## Build a realistic throwaway artifact before planning around an estimated size or format
+Tags: planning, measurement, scratchpad, toolchain
+Applies-when: a plan's risk depends on how big or what shape a generated artifact will be (bundle, header, binary)
+
+Aurora-lzj's plan carried "React + xyflow minified is likely 200 KB+" and an unverified MSVC limit as its main risk. A 10-minute scratchpad scaffold (Vite 8 + React 19 + @xyflow/react, base `/graph-editor/`) replaced the guess with numbers and turned up four things no estimate would have: one 399 KB JS file; `??!` sequences in the minified output (a GCC trigraph warning); Vite 8's built-in `build.license`, so no extra plugin was needed; and Vite not emptying an `outDir` outside its project. Running the real encoder and a compiled round-trip over that output then showed GCC was fine and isolated MSVC as the only unknown.
+
+**Fix:** when a plan's risk hinges on artifact size or format, make the smallest realistic one in the scratchpad and run it through the real downstream steps (encoder, compiler, server). Record the measured numbers in the bead, not the estimate.

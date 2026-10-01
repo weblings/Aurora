@@ -104,6 +104,8 @@ The webroot embed encoder (StandaloneApps P1) passed GCC with literals up to 33K
 
 **Fix:** cut printable runs at 16000 source chars (380 under the cap) into adjacent literals; keep one-binary-byte encodings (`\xNN`) isolated as before. Verify by asserting max literal length over the generated output plus the byte-identical round-trip, and treat the first build on each compiler as the real test -- a Linux-green embed proves nothing about MSVC.
 
+A second, total cap is believed to apply after concatenation (~64 KB, C1091; unverified as of Aurora-lzj). The largest file embedded before then was 40 KB, so it never showed up, but a 399 KB Vite bundle would exceed it. `embed_webroot.py` now splits files into 60000-byte `std::string` pieces joined with `+`, and `AuroraEmbedWebrootTests` round-trips a 400 KB fixture so the first MSVC build of core tests settles it.
+
 ---
 
 ## GVariant builders sink, @ embeds, lookup matches inner types
@@ -165,3 +167,13 @@ Applies-when: serializing float fields to JSON that a frontend displays or deriv
 The param schema (Aurora-ta5) stores slider `min`/`max`/`step`/`default` as `float`; `nlohmann::json` stores numbers as `double`, so `0.01f` serialized as `0.009999999776482582` and `0.285f` as `0.2849999964237213`. The WebUI's `formatSliderValue` derives displayed decimals from the step's digits, so every 0.01-step slider would have shown 18 decimal places. Unit tests comparing `entry["param"]["min"] == 100.f` passed throughout -- only a live `curl` of the payload showed it.
 
 **Fix:** round-trip each float through its shortest decimal form before handing it to JSON (`std::to_chars(float)` then `strtod`, `shortestDecimal` in `ControlDescriptors.cpp`), and assert on the dumped text (`"step":0.01`), not on parsed values. `/api/config`'s float fields still widen (pre-existing; the UI only shows them via `toFixed`).
+
+---
+
+## Capturing a structured binding in a lambda needs Clang 16+ -- older Apple Clang rejects code GCC accepts
+Tags: cpp, lambdas, structured-bindings, clang, macos, portability
+Applies-when: writing a lambda inside `for(auto& [a, b] : ...)` that captures `a` or `b`
+
+Avoided rather than hit (Aurora-lzj, `serveEmbeddedFilesAt`). The first draft registered routes with `for(const auto& [prefix, files] : ...)` and lambdas capturing `[prefix]` / `[files]`. GCC compiled it cleanly on Linux. Capturing structured bindings only became legal in C++20 (P1091/P1381), and Clang implements it from 16. Older Apple Clang predates that, so the Mac build could fail where the Linux one passed. This is from the compiler support tables, not reproduced here.
+
+**Fix:** iterate with a plain `entry` and use init-captures (`[prefix = entry.first]`). This works on every compiler Aurora targets and costs nothing. When the Linux build is the only one that ran, treat newer-standard syntax as unverified on Mac and Windows.
