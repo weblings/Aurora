@@ -482,3 +482,13 @@ of a missing-file error.
 
 **Fix:** `brew unlink mbedtls && brew link mbedtls@3 --force` so
 `/opt/homebrew/include/mbedtls/` resolves consistently to 3.6.7.
+
+---
+
+## macOS has no `timeout` command -- bound a streaming check with the tool's own limit
+Tags: macos, shell, tooling, sse, devstack
+Applies-when: sampling a stream (SSE, `curl -N`, a long-running command) in a scripted check on a Mac
+
+`timeout 5 curl -sN .../events` is a GNU coreutils habit; on stock macOS `timeout` doesn't exist (it's `gtimeout` only with Homebrew coreutils), so the command fails with "command not found" and the check silently samples nothing (Aurora-skv's live viz check). 
+
+**Fix:** use the tool's own bound -- `curl -sN -m 4 http://127.0.0.1:18245/events | head -c 300` -- or `head -c`/`head -n` to end the pipe. Don't wrap `devstack.py up` in `timeout` either: it already waits for the first frame and exits.

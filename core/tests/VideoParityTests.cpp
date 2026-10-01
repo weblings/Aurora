@@ -104,7 +104,7 @@ namespace
     orchestrator.init();
 
     for(tick = 0; tick < ticks; ++tick){
-      orchestrator.update();
+      orchestrator.update(1.0f / 60.0f);
     }
     return recording;
   }

@@ -42,6 +42,7 @@
 #include <Aurora/Runtime/ControlDescriptors.hpp>
 #include <Aurora/Runtime/Orchestrator.hpp>
 #include <Aurora/Runtime/SettingsRoutes.hpp>
+#include <Aurora/Runtime/TickClock.hpp>
 #include <Aurora/Runtime/ZoneMapStore.hpp>
 #include <Aurora/Runtime/ZoneRoutes.hpp>
 
@@ -318,7 +319,7 @@ namespace
         pipeline->m_audioOrchestrator->init();
         pipeline->m_audioInput = std::move(audioInput);
         pipeline->m_isAudioMode = true;
-        pipeline->m_tickIntervalSeconds = 1.0 / 60.0; // no display-derived rate for audio
+        pipeline->m_tickIntervalSeconds = Aurora::Runtime::tickIntervalSeconds(); // no display-derived rate for audio
 
         std::ostringstream audioRunning;
         audioRunning << "Aurora running: audio input='" << config.activeAudioInputName()
@@ -339,7 +340,7 @@ namespace
         pipeline->m_orchestrator->init();
         pipeline->m_videoInput = std::move(input);
         pipeline->m_isAudioMode = false;
-        pipeline->m_tickIntervalSeconds = 1.0 / pipeline->m_orchestrator->config().refreshRate();
+        pipeline->m_tickIntervalSeconds = Aurora::Runtime::tickIntervalSeconds(pipeline->m_orchestrator->config().refreshRate());
 
         // Persists any refreshRate/subsampleWidth just derived from the
         // display -- same as main() always did right after construction.
@@ -354,13 +355,14 @@ namespace
       return pipeline;
     }
 
-    void tick()
+    // dt comes from PipelineHost::tick() -- one clock for both modes.
+    void tick(float dt)
     {
       if(m_isAudioMode){
-        m_audioOrchestrator->update(static_cast<float>(m_tickIntervalSeconds));
+        m_audioOrchestrator->update(dt);
       }
       else{
-        m_orchestrator->update();
+        m_orchestrator->update(dt);
       }
     }
 
@@ -421,7 +423,7 @@ namespace
     Pipeline() = default;
 
     bool m_isAudioMode{false};
-    double m_tickIntervalSeconds{1.0 / 60.0};
+    double m_tickIntervalSeconds{Aurora::Runtime::tickIntervalSeconds()};
 
     // Declaration order matters: m_orchestrator/m_audioOrchestrator hold a
     // reference into m_videoInput/m_audioInput, so those must be declared
@@ -462,13 +464,15 @@ namespace
     void tick()
     {
       std::lock_guard<std::mutex> lock(m_mutex);
-      if(m_pipeline){ m_pipeline->tick(); }
+      // Interval read under the same lock as the tick, so a concurrent
+      // pipeline swap can't pair one pipeline's dt with another's tick.
+      if(m_pipeline){ m_pipeline->tick(static_cast<float>(m_pipeline->tickIntervalSeconds())); }
     }
 
     double tickIntervalSeconds()
     {
       std::lock_guard<std::mutex> lock(m_mutex);
-      return m_pipeline ? m_pipeline->tickIntervalSeconds() : (1.0 / 60.0);
+      return m_pipeline ? m_pipeline->tickIntervalSeconds() : Aurora::Runtime::tickIntervalSeconds();
     }
 
     Aurora::Input::Monitors listMonitors()

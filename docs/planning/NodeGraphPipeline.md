@@ -477,7 +477,7 @@ retrofit):**
 ## Prep work before importing libraries
 
 Status: proposed 2026-10-01 (item 2 shipped as Aurora-5y0; item 3 shipped as
-Aurora-tft; fixtures verified on Mac only). Each item
+Aurora-tft, fixtures verified on Mac only; item 4 shipped as Aurora-skv). Each item
 works under today's two orchestrators, needs no new dependency, and
 removes a risk the graph work or the React Flow import would otherwise
 hit.
@@ -501,9 +501,13 @@ hit.
    straight into `updateDrift`/`updateBounce` (the Tier 2 reference).
    Regenerate with `AURORA_UPDATE_GOLDEN=1`. First finding: drift never
    reaches the output (Aurora-7r3).
-4. **Explicit `dt` and one clock.** Pass `dt` into both orchestrators
-   and drop `main.cpp`'s fixed 1/60s audio tick, preserving behaviour.
-   Lands the "one clock per graph" model as a no-regression refactor.
+4. **Explicit `dt` and one clock.** Shipped: both orchestrators take
+   `update(dt)`; `Runtime::tickIntervalSeconds(rate)` (`TickClock.hpp`) is
+   the one rate rule (display refresh, else 60Hz) for all three apps, and
+   `PipelineHost::tick()` passes the interval as `dt` under its lock.
+   Behaviour unchanged: dt is the nominal interval (not measured), video
+   ignores it (Smoother stays per-tick), audio still ticks at 60Hz.
+   Measured dt and audio at the display rate are graph-time decisions.
 5. **Toolchain spike.** A hello-world Vite + React app built by CMake,
    embedded, served, and run on all three CI workflows, before any real
    editor code. What it should shake out:

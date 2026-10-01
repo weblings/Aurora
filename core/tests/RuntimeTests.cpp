@@ -9,6 +9,7 @@
 #include <Aurora/Runtime/FrameCompositor.hpp>
 #include <Aurora/Runtime/MonitorSelector.hpp>
 #include <Aurora/Runtime/Smoother.hpp>
+#include <Aurora/Runtime/TickClock.hpp>
 #include <Aurora/Runtime/ZoneMapStore.hpp>
 #include <Aurora/Runtime/ZoneReconciler.hpp>
 
@@ -143,6 +144,14 @@ TEST_CASE("ConfigStore clamps persisted out-of-range tuning on load (Aurora-5y0)
   Config config = store.load();
   CHECK(config.audioCentroidRangeHz() == Catch::Approx(100.f));
   CHECK(config.transitionSmoothing() == Catch::Approx(0.97f));
+}
+
+
+TEST_CASE("tickIntervalSeconds uses the given rate, else the 60Hz default (Aurora-skv)", "[TickClock]")
+{
+  CHECK(tickIntervalSeconds(144) == Catch::Approx(1.0 / 144.0));
+  CHECK(tickIntervalSeconds(0) == Catch::Approx(1.0 / 60.0)); // audio mode, nothing running
+  CHECK(tickIntervalSeconds() == Catch::Approx(1.0 / DefaultTickRateHz));
 }
 
 

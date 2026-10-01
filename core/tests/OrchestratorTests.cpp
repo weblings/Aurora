@@ -163,7 +163,7 @@ TEST_CASE("Orchestrator::update crops per zone and sends a smoothed Frame to eac
     {2, {{0.5f, 0.f}, {1.f, 1.f}}, true}
   });
   orchestrator.init();
-  orchestrator.update();
+  orchestrator.update(1.0f / 60.0f);
 
   REQUIRE(output.sendCount == 1);
   REQUIRE(output.lastFrame.size() == 2);
@@ -181,7 +181,7 @@ TEST_CASE("Orchestrator::update is a no-op when the input has no frame yet", "[O
 
   Orchestrator orchestrator(input, {&output}, Config{}, ZoneMapStore(dir.path));
   orchestrator.init();
-  orchestrator.update();
+  orchestrator.update(1.0f / 60.0f);
 
   CHECK(output.sendCount == 0);
 }

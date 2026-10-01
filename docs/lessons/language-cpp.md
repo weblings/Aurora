@@ -145,3 +145,13 @@ Applies-when: adding a non-finite guard downstream of a stateful accumulator (da
 Aurora-9ca's `Color::fromHSV` guard turned a NaN hue into defined black -- but the NaN lived in `DriftState::anchorHueDegrees`, and `NaN + x` / `fmod(NaN)` stay NaN, so every later tick was black too: "defined" behavior that only a restart cleared. The regression test even pinned it (`result == Color{}`) without asking whether the *next* tick recovered.
 
 **Fix (Aurora-5y0):** guard the divisor that produced the NaN (`std::max(centroidRangeHz, 1.0f)`, matching the `referenceRms` guard beside it), and make each state struct self-heal: if any field is non-finite at the top of `updateDrift`/`updateBounce`, reset to cold-start state. General principle: an output guard bounds one tick's damage; anything that feeds back into state needs a state-level check, and a regression test should run one more tick to prove recovery, not just a defined value.
+
+---
+
+## A scripted `#include` insertion "after the last match" can land inside an `#ifdef`
+Tags: cpp, includes, preprocessor, refactoring, scripting
+Applies-when: inserting an include (or any line) into several files by script, anchored on a neighbouring line
+
+Adding `TickClock.hpp` to the three apps' `main.cpp` (Aurora-skv) by inserting after the last `#include <Aurora/Runtime/...>` put it inside `#ifdef AURORA_RUNTIME_AUDIO_AVAILABLE` on Mac and Linux, because `AudioOrchestrator.hpp` is the last Runtime include and is conditional. The audio-enabled local build compiled fine, so nothing caught it; a video-only build would have failed on `tickIntervalSeconds` being undeclared.
+
+**Fix:** anchor insertions on an unconditional line (here `SettingsRoutes.hpp`), and grep the result in context (`#if`/`#endif` around it) for every file the script touched, especially files you can't compile locally.

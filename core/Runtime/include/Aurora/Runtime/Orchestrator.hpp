@@ -40,7 +40,10 @@ namespace Aurora::Runtime
 
     // One tick: grab -> prepare -> per-output crop/color -> smooth -> send.
     // No-ops if the input hasn't produced a frame yet (async grabbers can lag).
-    void update();
+    // dt (seconds) matches AudioOrchestrator::update's signature so both
+    // share one clock; unused here for now -- Smoother is deliberately
+    // per-tick, kept for parity (NodeGraphPipeline.md, "Two time models").
+    void update(float dt);
 
     // Throws std::out_of_range if outputName wasn't passed to the constructor.
     const ZoneMap& zoneMap(const std::string& outputName) const;

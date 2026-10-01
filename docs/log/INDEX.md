@@ -72,3 +72,4 @@ Planning docs stay clean: decisions, status, and pointers here only.
 | 2026-10-01 | Aurora-9ca fix: centroid-range setter clamp + fromHSV non-finite/channel guard, 3 regression tests, core ctest 75/75; 2 lessons (clamp-NaN, setter-bypass) | Aurora-9ca |
 | 2026-10-01 | Aurora-5y0 (9ca follow-up): drift/bounce NaN state self-heal + divisor guard, single guarded Color::fromNormalized (Smoother uses it), config-load clamps; NodeGraphPipeline prep-work section; core ctest 78/78 | Aurora-5y0 |
 | 2026-10-01 | Aurora-tft: golden parity harness (4 video + 6 audio scenarios, 10 fixtures, regenerate via AURORA_UPDATE_GOLDEN); Mac-only verified (Aurora-a97); found Aurora-7r3 (drift never reaches output) | Aurora-tft |
+| 2026-10-01 | Aurora-skv: Orchestrator::update(dt), Runtime::tickIntervalSeconds as the one tick-rate rule in all three apps, PipelineHost passes dt under its lock; parity fixtures unchanged, core 89/89, Mac app 62/62 + live viz | Aurora-skv |

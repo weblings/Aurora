@@ -76,7 +76,7 @@ namespace Aurora::Runtime
   }
 
 
-  void Orchestrator::update()
+  void Orchestrator::update(float /*dt*/)
   {
     // Default true for every input except ScreenCaptureKitGrabber
     // (Aurora-8mk.9) -- skips a tick entirely rather than re-pushing a
