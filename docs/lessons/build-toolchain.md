@@ -579,3 +579,13 @@ Applies-when: a fetch-if-missing dependency is chosen because the code needs a f
 `core/CMakeLists.txt` did `find_package(httplib QUIET)` and fetched 0.46.0 only when nothing was found. Any distro or vcpkg copy won, however old, and cpp-httplib older than 0.46 has no `httplib::ws::WebSocketClient`: the failure would show up as a compile error in HA code on some machines only (Aurora-dwo).
 
 **Fix:** `find_package(httplib 0.46 QUIET)`; a too-old copy then counts as not found and the fetch runs. To test without installing old packages, write fake `<pkg>Config.cmake` and `<pkg>ConfigVersion.cmake` files under scratchpad prefixes and run a three-line project with `-DCMAKE_PREFIX_PATH` per version. Caveat: this only works if the package ships a version file; one that doesn't makes versioned `find_package` fail even for a good copy.
+
+---
+
+## A failed first configure of a Visual Studio build dir poisons it: retrying with `-G`/`-A` errors "generator platform does not match", and build/ctest then find nothing
+Tags: cmake, windows, msvc, vcpkg, core, build-dir
+Applies-when: configuring core standalone (or any slice) on Windows with `-DCMAKE_TOOLCHAIN_FILE`/`-DAubio_DIR`, especially after a configure that errored
+
+`cmake -S core -B build/core-test` without the vcpkg toolchain fails at `find_package(OpenCV REQUIRED)` ("did not find one") -- but it still writes a cache with the default generator platform. Rerunning with `-G "Visual Studio 17 2022" -A x64` then stops with `generator platform: x64 Does not match the platform used previously`, and `cmake --build` (`MSB1009: ALL_BUILD.vcxproj does not exist`) and `ctest` (`No tests were found`) fail as a downstream effect, which reads like a second problem. The `windows-app` preset never shows the OpenCV failure because it resolves its own dependencies; core standalone does not.
+
+**Fix:** delete the build dir and configure once with everything: `-G "Visual Studio 17 2022" -A x64 -DCMAKE_TOOLCHAIN_FILE=C:/vcpkg/scripts/buildsystems/vcpkg.cmake -DAubio_DIR=C:/vcpkg/installed/x64-windows/share/aubio` (recipe in `docs/Building.md`). Treat "OpenCV not found" on Windows as a missing toolchain argument, not a missing install.

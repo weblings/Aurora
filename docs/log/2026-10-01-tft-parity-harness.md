@@ -27,7 +27,11 @@ refactors like node prep 4, can prove no regression.
 
 - Mac arm64, `build-core-test`: 88/88. A hand-tampered fixture value
   fails with an expected/got diff.
-- Linux/Windows not run (no CI in this project): `Aurora-a97` runs them
+- Windows (Aurora-a97, 2026-10-01, MSVC Debug, VS 2022 + vcpkg): core
+  standalone suite all passed incl. Parity against the Mac fixtures, no
+  regeneration; `windows-app` preset also compiled (covers Aurora-skv's
+  `main.cpp` edits). Linux still open under a97.
+- Linux not run (no CI in this project): `Aurora-a97` runs it
   by hand against the same Mac-generated fixtures -- one baseline, not one
   per platform. PCM scenarios are the risk (aubio FFT backend differs by
   platform).

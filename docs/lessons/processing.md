@@ -186,6 +186,8 @@ The parity harness (Aurora-tft) is generated on Mac and must also pass when run 
 
 One baseline, not one per platform: other platforms run against the Mac-generated fixtures. Per-platform baselines would hide exactly the divergence the run exists to catch; a platform-specific fixture is a last resort for one scenario whose difference is understood (e.g. an aubio onset landing a tick later).
 
+Windows result (Aurora-a97, MSVC Debug, 2026-10-01): the full core suite incl. every Parity scenario passed against the committed Mac fixtures, so the 1/255 tolerance, the LCG, and the loud-onset PCM margins held with no platform-specific fixture. Linux is the remaining platform.
+
 Sanity-check a freshly generated fixture before trusting it: a scenario designed to vary that records a constant (here `audio_features_silence_drift`, one color for 600 ticks) is a finding, not a pass -- it surfaced Aurora-7r3, drift never reaching the output.
 
 ---
