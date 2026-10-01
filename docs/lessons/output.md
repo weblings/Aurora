@@ -259,3 +259,28 @@ Applies-when: a dev tool (light-viz relay, frame dump) shows "waiting for frames
 `DevLightTap` had a real POSIX body and a `#else` branch on Windows with empty constructor/`publish()` -- fine while Linux/Mac were the only targets, invisible once someone ran the light-viz recipe on Windows. Symptoms: the fake bridge logged `stream conf-room-4zone -> active`, `/api/hue/channels` listed 4 channels, `hue` was registered, the relay listened and the app burned CPU at full frame rate -- and the relay's SSE stayed silent. Hours of "is it pairing? the zone map? the config id?" were spent on the wrong layer; the only tell was `AURORA_DEV_LIGHT_TAP` being read nowhere in the Windows build. `DevFrameDump` (`AURORA_DEV_FRAME_DUMP`) had the identical stub and got the same port (`Aurora-gj0.11`).
 
 **Fix:** implemented the Winsock twin (`WSAStartup`/`SOCKET`/`ioctlsocket(FIONBIO)`/`closesocket`); the member became `std::intptr_t` because a Win64 `SOCKET` doesn't fit the POSIX `int`. General principle: when a dev tap is silent and everything upstream is green, grep for `#ifdef _WIN32`/`#ifndef _WIN32` around the emitter first -- and prefer a startup log line ("dev light tap: disabled on this platform") over a silent empty body, so the stub announces itself.
+
+---
+
+## Bridge-loader failure paths need fault injection, which `tools/fake-hue-bridge` doesn't have -- a stalled endpoint on a tiny TLS fake reproduces curl timeouts
+Tags: output, hue, testing, fake-bridge, huenicorn, timeouts
+Applies-when: verifying how Hue API loading code (huenicorn's or Aurora's `ApiTools`) handles a failed or timed-out per-resource request
+
+Upstream finding 7 in [[upstream-findings]] (`Aurora-h45.8`) needed one light
+lookup to fail while the rest succeeded. `tools/fake-hue-bridge` serves the
+right CLIP v2 endpoints but has no latency or failure knobs. A ~40-line
+Python fake did it: `ThreadingHTTPServer`, a throwaway
+`openssl req -x509 -nodes` cert (the client disables peer verification for
+the self-signed bridge), and one `/light/<id>` handler that sleeps 3s, past
+curl's 1s `CURLOPT_TIMEOUT`. It must be threaded, or the stall blocks the
+next request. A driver linking the real `ApiTools.cpp` plus `CurlClient`,
+`Logger`, `Channel` and the platform selector showed `develop` throwing
+`bad_optional_access`. Tracing that throw upward found no catch between
+`Runtime::start()` and `main`, so the real impact is termination at
+startup, not the "aborted load" the write-up assumed.
+
+**Fix:** for timeout/failure behavior, stall or error one endpoint in a
+threaded fake instead of hoping for a flaky LAN. When sizing an uncaught
+exception's impact, follow it to the first `catch` (or `main`) before
+describing the symptom. Adding a `--stall`/`--fail <path>` option to
+`tools/fake-hue-bridge` would make this reusable.

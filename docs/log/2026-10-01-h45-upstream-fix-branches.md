@@ -61,6 +61,10 @@ pushes and opens MRs.
 - `fix/sender-name-leak` (`61ce539`, off `origin/develop`, not pushed):
   `getSenderName()` builds its `std::string` straight from GLib's pointer,
   no `strdup`. Closed `Aurora-h45.7`.
+- `fix/light-fetch-failure` (`0c7919c`, off `origin/develop`, not pushed):
+  per-light fetch checks `has_value()` and skips that device on failure
+  (name stays empty). Worse than written up: the uncaught throw terminates
+  huenicorn at startup. Closed `Aurora-h45.8`.
 - Pipewire also offers `RGB`/`YUY2`/`I420`, which the 4-byte decode can't
   handle. Not filed as a finding: screen-cast producers offer only 4-byte
   formats, so they never negotiate. Noted in 1's write-up for the MR instead.
@@ -93,6 +97,10 @@ pushes and opens MRs.
 - 6: no valgrind here; built the fake-portal driver with `-fsanitize=address`.
   LeakSanitizer on `develop`: 4 allocations / 16 bytes, all the `strdup` in
   `getSenderName()`. Fixed build: no leaks.
+- 7: fake HTTPS Hue bridge (Python, self-signed cert, one light stalling
+  3s) driving the real `loadEntertainmentConfigurations`: `develop` throws
+  `bad_optional_access`, fixed build returns the config with the slow
+  light's name empty.
 
 ## Lessons
 
@@ -105,6 +113,9 @@ pushes and opens MRs.
   CreateSession-denial segfault.
 - Input: a GLib async callback still runs after cancellation; don't
   dereference `userData` a cancel handler may have freed.
+- Output: bridge-loader failure paths need fault injection, which
+  `tools/fake-hue-bridge` lacks; a stalled endpoint on a tiny TLS fake
+  reproduces curl timeouts.
 - Input: extended the existing "trusting a tag" entry (huenicorn's X11
   mistag) with this recurrence instead of filing a duplicate.
 - Input: every early return in a promise-driven portal callback chain must

@@ -326,6 +326,13 @@ device — this only fires on a genuine transient failure (bridge briefly
 unreachable, a dropped packet on a 1-second-timeout local request), rare
 enough on a home LAN to go unnoticed.
 
+Worse than "aborting the load": nothing between `Runtime::start()` and
+`main` catches it, so the exception terminates huenicorn at startup.
+Reproduced 2026-10-01 with a fake HTTPS bridge whose second light stalls
+past curl's 1s timeout: on `develop` the loader throws
+`bad_optional_access`; with the fix the configuration loads, with only
+that light's name empty.
+
 **Suggested fix:** check `has_value()` first; on failure, leave that
 device's name empty instead of throwing.
 
