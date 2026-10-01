@@ -29,5 +29,5 @@ Closed: Aurora-qps.8. Branch `feat/MacSupportV2`. Replaces the dropped first-run
 
 ## Also (same day)
 
-- Aurora-qps epic closed; `TrayParity.md` archived to `docs/archive/mac/`. Aurora-8mk and 8mk.10 dropped by the user (notarized bundle exists; publishing the zip stays a manual release step, CI signing out of scope since Actions aren't working). Status lines in [[mac-notarization]] and [[mac-video-capture]] corrected.
+- Aurora-qps epic closed; [[mac-tray-parity]] archived to `docs/archive/mac/`. Aurora-8mk and 8mk.10 dropped by the user (notarized bundle exists; publishing the zip stays a manual release step, CI signing out of scope since Actions aren't working). Status lines in [[mac-notarization]] and [[mac-video-capture]] corrected.
 - README Mac section rewritten around a Mac release zip (macOS 27, Apple silicon, drag to Applications, menu-bar usage); stale lines fixed in `CONTRIBUTING.md`, `docs/Building.md`, and root `AGENTS.md`. The README describes a zip that is not yet attached to a GitHub Release; do not merge to the default branch before it is. The release itself needs a fresh `mac-release` build (the 2026-09-30 notarized zip predates this tip screen), which would also be the first real run of the GIF through the embedded webroot.
