@@ -549,3 +549,26 @@ Applies-when: adding validation to a setter for persisted state that also loads 
 `ConfigStore::fromJson` writes `ConfigData` fields directly, never through `Config::set*` -- so clamping `setAudioCentroidRangeHz` (Aurora-9ca) fixes the REST path but not a hand-edited `config.json` holding 0. The fix needed two layers for that reason: the setter clamp for the live path, plus a non-finite guard at the consumer (`Color::fromHSV`) that holds regardless of how the bad value arrived.
 
 **Fix:** when adding setter validation, grep for direct struct-field writes (loaders, migrations, tests) and decide per path -- sanitize the loader too, or harden the downstream consumer so every path is covered. A regression test that bypasses the setter (zero range straight into `updateDrift`) pins the defense-in-depth layer, not just the setter.
+
+---
+
+## Upstream many small fixes as one heads-up thread plus a few grouped MRs, one commit per fix -- not one MR per finding
+Tags: process, upstream, review, huenicorn, rockyroad
+Applies-when: sending several independent fixes found while porting someone else's project back to its maintainer
+
+Porting huenicorn produced 10 verified fixes on 10 branches (`Aurora-h45`).
+Ten MRs at once is a lot for a solo maintainer, and stacked MRs (1 needs 3,
+2 needs 1) each show their base's commits until it merges and need
+retargeting after it. Grouping by area gave three MRs: Hue API, portal,
+capture. Each keeps one commit per finding, so the maintainer can still
+review, drop or revert one fix. That keeps review manageable without
+merging unrelated changes into one diff. The pattern had already worked for
+RockyRoad: one heads-up issue (ChartConverter#6) listing the fork commits
+by group and asking "upstream or keep downstream?". The maintainer accepted
+the small focused fixes, declined one, and asked for PRs.
+
+**Fix:** open one short heads-up issue first: thanks, context, grouped
+bullets linking fork branches, one line per fix, and an explicit offer to
+split or drop. Then send grouped MRs one at a time, smallest and clearest
+first; the one that changes runtime behavior goes last, after a real-world
+check. Put a droppable trivial fix last in the most related group.

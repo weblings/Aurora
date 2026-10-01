@@ -100,6 +100,15 @@ with a stalled light under `_GLIBCXX_DEBUG` and reports no selection without
 aborting. Capture: all four scratch checks pass. The per-finding branches
 stay as they are, for reference.
 
+Heads-up issue drafted for `Aurora-h45.12`, modeled on the RockyRoad
+precedent (ChartConverter#6: one thread, grouped bullets linking fork
+commits, explicit offer to split or drop, which the maintainer answered by
+accepting the small fixes). The draft lives outside both repos at
+`../huenicorn-upstream-issue-draft.md`. No license section is needed: Aurora
+and huenicorn are both GPL-3.0, and Aurora's README already credits it. Its
+`FORK` link placeholders wait on pushing the three grouped branches and
+confirming the fork is public.
+
 ## Verification
 
 - The fork can't fully build here: `DtlsClient.cpp` needs Mbed TLS 3.x/4.x,
@@ -150,6 +159,8 @@ stay as they are, for reference.
 - Output: bridge-loader failure paths need fault injection, which
   `tools/fake-hue-bridge` lacks; a stalled endpoint on a tiny TLS fake
   reproduces curl timeouts.
+- Architecture/process: upstream many fixes as one heads-up thread plus a
+  few grouped MRs, one commit per fix.
 - Input: extended the existing "trusting a tag" entry (huenicorn's X11
   mistag) with this recurrence instead of filing a duplicate.
 - Input: every early return in a promise-driven portal callback chain must
