@@ -21,8 +21,13 @@ pushes and opens MRs.
   an unbounded `fdReadyFuture`. Corrected to settle the promise first.
 - **New finding 9**: the SelectSources denial branch has the same unsettled
   promise today.
-- **Aurora has the same bug**: its port carries 5/9 half-fixed, so denial
-  stalls the 60s bounded wait. Filed as `Aurora-p91`.
+- **New finding 10** (found during 5): D-Bus *call* errors in
+  CreateSession, SelectSources and OpenPipeWireRemote also leave the promise
+  unsettled. Reproduced with the fake portal returning an error. Bead
+  `Aurora-h45.11`, sequenced after 9.
+- **Aurora has the same bug**: its port carries 5/9 half-fixed and 10
+  unfixed, so a denial or call error stalls the 60s bounded wait. Filed as
+  `Aurora-p91`.
 
 ## Shipped
 
@@ -40,6 +45,11 @@ pushes and opens MRs.
 - `fix/divisors-half` (`c510d49`, off `origin/develop`, not pushed): `_divisors()` loops
   `i <= number / 2`. Measured impact is nil for common displays (see 4's
   write-up); kept as a contract fix. Closed `Aurora-h45.4`.
+- `fix/portal-create-session-denied` (`c66f6ec`, off `origin/develop`, not pushed):
+  `onCreateSessionResponseReceivedCallback` settles `fdReadyPromise` with
+  `false` and returns on denial. Worse than the write-up said: on `develop`
+  this denial segfaults (null session handle passed on as an object path).
+  Closed `Aurora-h45.5`.
 - Pipewire also offers `RGB`/`YUY2`/`I420`, which the 4-byte decode can't
   handle. Not filed as a finding: screen-cast producers offer only 4-byte
   formats, so they never negotiate. Noted in 1's write-up for the MR instead.
@@ -59,12 +69,21 @@ pushes and opens MRs.
   `{1,2,3,6}` for 6 and `{1,2,3,4,6,12}` for 12. A Python model of
   `subsampleResolutionCandidates()` compared old against new across 15
   resolutions.
+- 5: fake ScreenCast portal (Python/Gio) on a `dbus-run-session` bus plus a
+  driver copying `PipewireGrabber`'s constructor wait and `_stop()`. Denied
+  CreateSession: `develop` segfaults, fixed build settles `false` and tears
+  down cleanly. Denied SelectSources on the same build: promise unsettled
+  after 5s, confirming 9 live.
 
 ## Lessons
 
 - Processing: OpenCV's alpha-drop codes are aliases (`RGBA2RGB` == `BGRA2BGR`).
 - Debugging method: a findings write-up's suggested fix is a hypothesis
   (1, 2 and 5 each had a wrong premise).
+- Input: portal ScreenCast failure paths are testable offline with a fake
+  portal on a private `dbus-run-session` bus.
+- Input: extended the promise-settling entry with call errors (10) and the
+  CreateSession-denial segfault.
 - Input: extended the existing "trusting a tag" entry (huenicorn's X11
   mistag) with this recurrence instead of filing a duplicate.
 - Input: every early return in a promise-driven portal callback chain must

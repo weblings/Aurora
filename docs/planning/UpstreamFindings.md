@@ -11,8 +11,8 @@ Grouped by the module each was found while porting; see that module's own
 `docs/*.md` for the full porting context each was found alongside.
 
 Re-verified 2026-09-30 against the `huenicorn-fork` sibling checkout (same
-commit): all of 1–8 still present at the cited lines. That pass also
-corrected 2's and 5's suggested fixes and added 9.
+commit): all of 1–8 still present at the cited lines. That pass and the
+fix work after it corrected 1's, 2's and 5's premises and added 9 and 10.
 
 ## Processing (`ImageProcessing`)
 
@@ -205,9 +205,13 @@ this same warning. This one falls through instead, reading `session_handle`
 out of a `result` that was never validated (likely null/absent on a denied
 response) and proceeding to `selectSource()` on a half-initialized `Capture`.
 
-**Why it hasn't fired (observably):** requires a user to actually deny or
-cancel the screen-selection portal prompt — the happy path never exercises
-this branch.
+**Why it hasn't fired (observably):** requires the portal to deny or cancel
+CreateSession itself — the happy path never exercises this branch, and real
+portals usually prompt later (SelectSources/Start). Reproduced 2026-10-01
+against a fake ScreenCast portal on a private session bus: on `develop` the
+fall-through reads a null `session_handle`, passes it to `SelectSources` as
+an object path, and **segfaults**. With the fix the promise settles `false`
+and teardown is clean.
 
 **Suggested fix:** `capture->fdReadyPromise.set_value(false);` then
 `return;`, matching `onStartResponseReceivedCallback`. A bare `return;` is
@@ -256,12 +260,38 @@ portal prompt reaches it.
 
 **Suggested fix:** `capture->fdReadyPromise.set_value(false);` before the `return;`.
 
-**Status (5, 6 and 9):** 6 fixed in Aurora's port (`Aurora-Input-Linux`'s
+### 10. Portal method-call errors leave `fdReadyPromise` unsettled too
+
+**Locations:** `src/Grabber/GnuLinux/Pipewire/XdgDesktopPortal.cpp` —
+`onSessionCreatedCallback` (CreateSession call error),
+`onSourceSelectedCallback` (SelectSources call error), and both error
+returns in `onPipewireRemoteOpenedCallback` (OpenPipeWireRemote / fd lookup).
+
+5 and 9 cover the portal *denying* a request (a `Response` with a non-zero
+code). These cover the D-Bus *call itself* failing, e.g. a portal backend
+without a working ScreenCast implementation. Each logs and returns without
+settling the promise, so `PipewireGrabber`'s constructor hangs.
+`onStartedCallback` already does it right (settles `false` unless the error
+is `G_IO_ERROR_CANCELLED`, i.e. our own teardown).
+
+**Why it hasn't fired (observably):** needs a broken or partial portal
+backend. Reproduced 2026-10-01 with the fake portal returning a D-Bus error
+from CreateSession: promise still unsettled after 5s, with 5's fix applied.
+
+**Suggested fix:** in each, settle `false` in the non-cancelled branch,
+matching `onStartedCallback`. The two callbacks that ignore `userData` get
+the capture through the `DbusCallData*` passed as `userData`, which the
+response callback hasn't freed yet when the call itself failed.
+
+**Status (5, 6, 9 and 10):** 6 fixed in Aurora's port (`Aurora-Input-Linux`'s
 `XdgDesktopPortal.cpp`) — see `archive/LinuxCaptureAnalysis.md`. 5 and 9 only
 half-fixed there: both return on denial but never settle the promise, which
-Aurora's 60s-bounded wait turns into a 60s stall rather than a hang. No
-dedicated regression test (this file's mechanics need a real Wayland portal
-session to exercise any of these branches).
+Aurora's 60s-bounded wait turns into a 60s stall rather than a hang. 10 is
+unfixed there too (Aurora's port also dropped those branches' logging). No
+in-repo regression test, but 5 and 9 are reproducible offline: a small
+Python fake of the ScreenCast portal under `dbus-run-session` that answers
+CreateSession or SelectSources with `Response(1)`, plus a driver copying
+`PipewireGrabber`'s constructor wait and `_stop()` teardown.
 
 ## Hue::Api (`ApiTools`, `EntertainmentConfigurationSelector`)
 
@@ -337,8 +367,8 @@ as epic `Aurora-h45` (one child per finding, sequenced, then a send step).
   `origin/develop` (upstream merges `develop` into `master`), named
   `fix/<slug>` to match the fork's existing `feature/<slug>` style.
 - One MR per branch, using that finding's write-up above as the description.
-- Order 3 → 1 → 2, then the rest in numeric order. 1's branch is stacked on
-  3's, since `mean()` reads the `format` that 3 starts setting.
+- Order 3 → 1 → 2 → 4 → 5 → 9 → 10 → 6 → 7 → 8. 1's branch is stacked on
+  3's, since `mean()` reads the `format` that 3 starts setting, and 2's on 1's.
 - Fixes stay minimal: the one-line or few-line change each finding suggests,
   no refactoring alongside.
 - Verification is compile-only for touched files plus throwaway scratch

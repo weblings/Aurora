@@ -511,7 +511,42 @@ despite the comment saying it "resolves promptly as false" (`Aurora-p91`).
 Upstream finding 5's original suggested fix, a bare `return;`, would have
 added a third hang.
 
-**Fix:** every terminal branch of the chain calls
-`capture->fdReadyPromise.set_value(false)` before returning. When reviewing
-a "missing return" fix, trace who is waiting on the state the early return
+The D-Bus *call* error branches (CreateSession, SelectSources,
+OpenPipeWireRemote) have the same gap (upstream finding 10). And huenicorn's
+CreateSession denial, which falls through instead of returning, doesn't
+just half-initialize: it passes a null session handle on as an object path
+and segfaults (reproduced with a fake portal, `Aurora-h45.5`).
+
+**Fix:** every terminal branch of the chain, denial or call error, calls
+`capture->fdReadyPromise.set_value(false)` before returning, except
+`G_IO_ERROR_CANCELLED` (our own teardown, nobody waiting). When reviewing a
+"missing return" fix, trace who is waiting on the state the early return
 skips.
+
+---
+
+## xdg-desktop-portal ScreenCast failure paths are testable offline -- fake the portal on a private `dbus-run-session` bus
+Tags: input, linux, xdg-portal, dbus, testing, huenicorn
+Applies-when: verifying a portal denial/error branch in `XdgDesktopPortal` (huenicorn's or Aurora's) without a real Wayland portal or a human clicking Deny
+
+The portal code only talks to `org.freedesktop.portal.Desktop` on the session
+bus, so a ~60-line Python/Gio fake is enough. It owns that name and registers
+`org.freedesktop.portal.ScreenCast` at `/org/freedesktop/portal/desktop`, with
+`CreateSession`/`SelectSources`/`Start` and the `version`/`AvailableCursorModes`
+properties. Each method returns the request path
+`/org/freedesktop/portal/desktop/request/<sender minus ':' with '.'→'_'>/<handle_token>`
+and then emits `org.freedesktop.portal.Request.Response(u a{sv})` on it from
+`GLib.idle_add`, after the reply, since the client subscribes before calling.
+A code of 1 means denied; `invocation.return_dbus_error` simulates a call
+error. The driver links `XdgDesktopPortal.cpp` + `Logger.cpp` + gio, stubs the
+two `Config` restore-token methods, and copies `PipewireGrabber`'s
+constructor: portal thread, `wait_for` on the promise, then `_stop()`'s
+teardown. Run it as `dbus-run-session -- bash -c "python3 fake.py MODE & gdbus
+wait --session org.freedesktop.portal.Desktop; ./driver"`. Built with `-O0`:
+the portal thread spins on a plain `bool`. This turned 5/9/10 in
+[[upstream-findings]] from "needs a real portal" into a before/after
+reproduction, including a segfault on `develop` nobody had seen.
+
+**Fix:** use this pattern instead of declaring portal branches untestable.
+`gdbus wait` avoids a sleep race on the name; keep the bus private so the
+real portal is never touched.
