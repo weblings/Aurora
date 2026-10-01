@@ -3,10 +3,17 @@
 Id: mac-notarization
 
 Status: partly shipped 2026-09-30. Developer ID cert, sign/notarize/staple
-script and a notarized, launch-verified Aurora 1.0.4 bundle exist (macOS 27,
-Apple silicon only); nothing is published and there is no CI path yet. Detail:
+script and a notarized, launch-verified Aurora 1.0.4 release zip
+(`Aurora_Mac_v1.0.4.zip`, no `disable-library-validation`; macOS 27, Apple
+silicon only) exist; nothing is published and there is no CI path yet. Detail:
+`docs/log/2026-09-30-mac-notarized-release-1-0-4.md`,
 `docs/log/2026-09-30-mac-developer-id-first-signing.md` and
-`docs/log/2026-09-30-mac-cert-prep-bundle.md`. Aurora-8mk.10 (release
+`docs/log/2026-09-30-mac-cert-prep-bundle.md`. Release recipe: build
+`build/mac-release` (`cmake --preset mac-app -B build/mac-release
+-DCMAKE_OSX_DEPLOYMENT_TARGET=27`), run `tools/mac/sign-notarize.sh` with the
+Developer ID name and `aurora-notary` profile, then rename the
+`*-notarized.zip` to the release convention `Aurora_Mac_v<version>.zip`
+(the name does not matter to Apple, only the contents). Aurora-8mk.10 (release
 distribution) was dropped 2026-09-30, so publishing and CI signing (below) are
 untracked. Still open beads: lower-target dylibs (Aurora-0ap), Intel (Aurora-pyo).
 

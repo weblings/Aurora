@@ -242,3 +242,5 @@ Aurora-qps.8 added `web/ui/icons/MacTray.gif`. A dev run served it correctly as 
 
 **Fix:** added the entry and two `NetworkTests` cases, one per serving path, each asserting the `Content-Type` header (the embedded one also asserts NUL and high bytes survive). General principle: when two code paths serve the same files (dev mount vs. embedded), a new file type needs a check on each, and "it loads in my dev run" says nothing about the embedded path. Check `contentTypeFor()` whenever a new extension lands in `web/ui`.
 
+To exercise the embedded path on a dev machine: `resolveWebRoot` (`app/*/include/Aurora/App/WebRoot.hpp`) only falls back to the embedded map when neither `AURORA_WEBUI_DIR` nor the baked checkout path is an existing directory, and an env var pointing at a nonexistent dir does not force it. Temporarily moving `web/ui` aside before launching does (restore it right after), or run the bundle on a machine without the checkout.
+

@@ -136,9 +136,11 @@ decision. Costs:
   (`Frame`), so ABI is tied to compiler and stdlib. A real plugin ABI needs a
   new versioned C interface (function table + plain structs).
 - macOS: hardened runtime library validation only loads dylibs signed by the
-  same Team ID or Apple. `Aurora.entitlements` carries
-  `disable-library-validation` as a stopgap that Aurora-qy5.6 intends to
-  remove; third-party plugins would make it permanent. Downloaded plugins also
+  same Team ID or Apple. `Aurora.entitlements` carried
+  `disable-library-validation` as a stopgap; it was removed for the 1.0.4
+  Developer ID build once the dylibs were bundled and signed with the app
+  (`docs/lessons/macos-gui.md`). Third-party plugins loaded at runtime would
+  need it back, or signing under the same Team ID. Downloaded plugins also
   get quarantined, and ad-hoc/unsigned ones are refused on Apple silicon.
 - Each plugin's own dependencies (Hue: Mbed TLS, libcurl) must be bundled or
   vendored per plugin, and code loaded into Aurora's process must be

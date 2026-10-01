@@ -4,13 +4,11 @@
 <dict>
     <!-- Hardened-runtime entitlements for Aurora.app (Aurora-qy5.2).
          Only what was shown to be needed; keep this list minimal. Not sandboxed,
-         no JIT, no mic (Mac audio input does not exist yet), so nothing else. -->
+         no JIT, no mic (Mac audio input does not exist yet), so nothing is needed.
 
-    <!-- STOPGAP: the app links Homebrew dylibs (ad-hoc, no Team ID), which the
-         hardened runtime's library validation rejects. Remove this once
-         Aurora-qy5.6 bundles the dylibs and app + dylibs are signed with one
-         Developer ID Team ID, then validation passes with no entitlement. -->
-    <key>com.apple.security.cs.disable-library-validation</key>
-    <true/>
+         disable-library-validation was removed once the Homebrew dylibs were
+         bundled and signed with the app under one Developer ID Team ID, so
+         library validation passes without it (Aurora-qy5.6.4). Do not add it
+         back for an ad-hoc or mixed-Team-ID bundle: sign them consistently. -->
 </dict>
 </plist>

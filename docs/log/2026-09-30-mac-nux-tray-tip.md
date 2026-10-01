@@ -18,7 +18,7 @@ Closed: Aurora-qps.8. Branch `feat/MacSupportV2`. Replaces the dropped first-run
 ## Not verified
 
 - `mac-tray-tip.test.mjs` never ran under node (not installed here); a Python port of its assertions passed.
-- Embedded-webroot GIF serving in a rebuilt app (covered only by the unit test).
+- Embedded-webroot GIF serving in a rebuilt app (covered only by the unit test at close; later verified in the notarized 1.0.4 bundle, see `2026-09-30-mac-notarized-release-1-0-4.md`).
 - Windows/Linux flow unchanged is by code reading, not a run.
 - No `prefers-reduced-motion` fallback (a GIF cannot pause); out of scope.
 

@@ -68,3 +68,4 @@ Planning docs stay clean: decisions, status, and pointers here only.
 | 2026-09-30 | Mac NUX menu-bar tip screen (MacTray.gif between Welcome and Output Connect, `.gif` content type in the embedded server) | Aurora-qps.8 |
 | 2026-09-30 | Per-slice AGENTS.md folded into READMEs; new READMEs for app/mac and input/mac | Aurora-cv1 |
 | 2026-09-30 | Slice READMEs made timeless; check-links scan widened to slice READMEs and root files (4 dead citations found); README close-checklist rule | Aurora-y2a |
+| 2026-09-30 | Mac release zip: Aurora 1.0.4 notarized twice (second without disable-library-validation), embedded webroot and fake light-viz verified, zip renamed to Aurora_Mac_v1.0.4.zip | (no bead; 8mk.10 dropped) |

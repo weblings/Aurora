@@ -239,6 +239,8 @@ Library validation lets a hardened process load only Apple-signed libraries or o
 
 
 **Confirmed removable (Aurora-qy5.6.4, 2026-09-30):** with the app and all 28 bundled dylibs signed by one Developer ID (Team ID 464U3WR286), a copy signed with `bundle-dylibs.sh` and *no* `--entitlements` launched under the hardened runtime and stayed up; `lsof` showed 28 bundled dylibs mapped and none from `/opt/homebrew`, and `codesign -d --entitlements -` showed no entitlements. The entitlement is only needed for ad-hoc or mixed-Team-ID bundles.
+
+**Removed and shipped (2026-09-30):** `app/mac/Aurora.entitlements` is now an empty dict, and the notarized 1.0.4 bundle (submission `fc89af97-f64e-4609-8401-b4897cb9a614`, Accepted) has no entitlements (`codesign -d --entitlements -` prints just `[Dict]`). It launched, mapped the 28 bundled dylibs and none from `/opt/homebrew`, and the full fake-hue + relay + viz chain ran on it with no new permission prompts. Real Screen Recording / audio capture and Hue streaming were not re-run on it. A library `dlopen`ed at runtime that is not signed by the same Team ID would now fail with a library-validation error; none appeared. The default ad-hoc dev build never read this file (no hardened runtime), so only the Developer ID path changed.
 ---
 
 ## Screen Recording is granted to the responsible process, not the binary; launched from an editor, a missing grant stalls capture silently
