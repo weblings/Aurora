@@ -159,13 +159,15 @@ output protocol only if third parties ask for it; dlopen last, if ever.
 
 ## Prep work
 
-Status: proposed 2026-10-01, nothing shipped. These items need no new
+Status: proposed 2026-10-01; pp8 and dwo implemented (verification
+pending, see below). These items need no new
 dependency, work with Hue as the only output, and don't commit to building HA.
 Beads carry the details (label `ha-prep`):
 
 - Aurora-pp8: `NSLocalNetworkUsageDescription` in `app/mac/Info.plist.in`
-  (already missing for Hue).
+  (already missing for Hue). Added; bundle and prompt check waits on a Mac.
 - Aurora-dwo: cpp-httplib version floor (>= 0.46, for `ws::WebSocketClient`).
+  Added; Windows and Mac configures not yet run.
 - Aurora-4y9: per-output `{ probe, stages }` table in `probeState()`/`bootstrap()`.
 - Aurora-a0r: output-neutral zone labels endpoint for Zone Mapping.
 - Aurora-d9v: WebSocket client build and connect check on all three platforms.

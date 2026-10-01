@@ -384,7 +384,8 @@ trigger.
 
 Status: in progress — all 10 fixes committed in the `huenicorn-fork` sibling
 checkout and grouped into the three MR branches below (`fix/hue-api-robustness`,
-`fix/portal-failure-handling`, `fix/capture-pipeline`; none pushed). Nothing
+`fix/portal-failure-handling`, `fix/capture-pipeline`; all 13 branches,
+grouped and per-finding, pushed to the fork's `origin` on 2026-10-01). Nothing
 reported to huenicorn yet. Tracked as epic `Aurora-h45`; what's left is the
 heads-up issue, the hardware check, and sending.
 
