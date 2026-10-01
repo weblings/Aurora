@@ -22,6 +22,8 @@
     <string>@_AURORA_VERSION@</string>
     <key>NSAudioCaptureUsageDescription</key>
     <string>Aurora reacts to whatever audio your Mac is currently playing, driving your lights from it. This is a separate, narrower permission from Screen Recording -- Aurora can't see screen contents through it.</string>
+    <key>NSLocalNetworkUsageDescription</key>
+    <string>Aurora connects to your light bridge and Home Assistant over your local network to stream colors to your lights.</string>
     <key>LSMinimumSystemVersion</key>
     <string>@_AURORA_MIN_OS@</string>
     <key>LSApplicationCategoryType</key>
