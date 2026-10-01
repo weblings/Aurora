@@ -29,9 +29,21 @@ once its metadata loads, rather than assuming exactly 16:9.
 - `zonemap.js` — the 9-slice zone definitions, shaped to match Aurora
   core's `ZoneMapStore` JSON exactly (`zoneId`/`uvs.min`/`uvs.max`/`active`/
   `gamma`) so a real exported profile could drop in with no reshaping.
-- `processing.js` / `smoother.js` — copied verbatim from
-  [`Aurora/web-processing/`](../../web-processing) (not consumed as a
-  package, for now — see that repo's `CLAUDE.md` for the sync rule).
+- `processing.js` / `smoother.js` / `audioFeatures.js` / `colorModel.js` —
+  copied verbatim from [`web-processing/`](../../web-processing) (not consumed
+  as a package). Don't edit them here: fix upstream and recopy; see
+  [`CLAUDE.md`](CLAUDE.md) for the sync rule.
+- `viz.html` + `viz.js` — the standalone light-viz page (Aurora-gj0.6): the
+  room rig on the shared `scene-core.js`, no WebUI/video/audio DOM. Its color
+  source is `live-data-source.js` (an `EventSource` against the relay in
+  [`tools/light-viz-relay`](../../tools/light-viz-relay)), the third provider
+  beside `video-source.js` / `audio-source.js` (contract documented on
+  `main.js`'s `animate()`). Channel id -> `ROOM_ZONE_MAP` order is fixed
+  (0/1/2/3 = front-left/front-right/back-left/back-right). The page stays dark
+  until the first mappable frame, by design. Full live run: that README's
+  "End-to-end viz run".
+- `vendor/webui/` — an intentional GitHub-Pages-targeted fork of `web/ui`, not
+  a mirror. Do not "sync" it (decision recorded in Aurora-4jl).
 - `assets/` — bundled sample media. See "Media credits" below.
 
 ## Not yet built
@@ -62,5 +74,7 @@ Danny Bittman.
 No build step — any static file server works:
 
 ```
-npx serve .
+npx serve .          # or: python3 -m http.server
 ```
+
+Tests: `node <name>.test.mjs`, no build step.
