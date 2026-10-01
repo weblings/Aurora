@@ -569,3 +569,13 @@ Applies-when: running the link checker from Windows or Git Bash
 `bash docs/check-links.sh` fails (`import: command not found`) because the file is a Python script. `python docs/check-links.sh` on Windows then dies with `UnicodeDecodeError: 'charmap' codec` on the first non-ASCII doc unless `PYTHONUTF8=1` is set. A successful run also regenerates `docs/_ids.md` with different line endings, so `git diff` shows ~100 changed lines of whitespace.
 
 **Fix:** `PYTHONUTF8=1 python docs/check-links.sh`; `git checkout docs/_ids.md` if the diff is only line endings, and commit it only when entries really changed.
+
+---
+
+## A failed first configure of a Visual Studio build dir poisons it: retrying with `-G`/`-A` errors "generator platform does not match", and build/ctest then find nothing
+Tags: cmake, windows, msvc, vcpkg, core, build-dir
+Applies-when: configuring core standalone (or any slice) on Windows with `-DCMAKE_TOOLCHAIN_FILE`/`-DAubio_DIR`, especially after a configure that errored
+
+`cmake -S core -B build/core-test` without the vcpkg toolchain fails at `find_package(OpenCV REQUIRED)` ("did not find one") -- but it still writes a cache with the default generator platform. Rerunning with `-G "Visual Studio 17 2022" -A x64` then stops with `generator platform: x64 Does not match the platform used previously`, and `cmake --build` (`MSB1009: ALL_BUILD.vcxproj does not exist`) and `ctest` (`No tests were found`) fail as a downstream effect, which reads like a second problem. The `windows-app` preset never shows the OpenCV failure because it resolves its own dependencies; core standalone does not.
+
+**Fix:** delete the build dir and configure once with everything: `-G "Visual Studio 17 2022" -A x64 -DCMAKE_TOOLCHAIN_FILE=C:/vcpkg/scripts/buildsystems/vcpkg.cmake -DAubio_DIR=C:/vcpkg/installed/x64-windows/share/aubio` (recipe in `docs/Building.md`). Treat "OpenCV not found" on Windows as a missing toolchain argument, not a missing install.
