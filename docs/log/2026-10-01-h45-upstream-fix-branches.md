@@ -58,6 +58,9 @@ pushes and opens MRs.
   CreateSession, SelectSources and OpenPipeWireRemote call callbacks. Merges
   cleanly with 5's and 9's branches (same file, separate hunks). Closed
   `Aurora-h45.11`.
+- `fix/sender-name-leak` (`61ce539`, off `origin/develop`, not pushed):
+  `getSenderName()` builds its `std::string` straight from GLib's pointer,
+  no `strdup`. Closed `Aurora-h45.7`.
 - Pipewire also offers `RGB`/`YUY2`/`I420`, which the 4-byte decode can't
   handle. Not filed as a finding: screen-cast producers offer only 4-byte
   formats, so they never negotiate. Noted in 1's write-up for the MR instead.
@@ -87,6 +90,9 @@ pushes and opens MRs.
 - 10: fake portal extended with call-error modes for CreateSession,
   SelectSources and OpenPipeWireRemote (after a successful Start): `develop`
   unsettled after 5s for all three, fixed build settles `false` for all three.
+- 6: no valgrind here; built the fake-portal driver with `-fsanitize=address`.
+  LeakSanitizer on `develop`: 4 allocations / 16 bytes, all the `strdup` in
+  `getSenderName()`. Fixed build: no leaks.
 
 ## Lessons
 

@@ -235,6 +235,9 @@ passed to it, so the copy is both unnecessary and leaked.
 **Why it hasn't fired (observably):** a small, slow leak (one call per
 portal session negotiation, a handful of times per app run) — never enough
 to be noticeable without a leak-detector run specifically targeting this path.
+Confirmed 2026-10-01 with LeakSanitizer over the fake-portal driver: on
+`develop` all 4 leaked allocations (16 bytes) are this `strdup`, one per
+request/session path built; with the fix, no leaks reported.
 
 **Suggested fix:** construct directly from the pointer GLib already owns —
 `std::string(g_dbus_connection_get_unique_name(m_connection) + 1)` — no `strdup` needed.
