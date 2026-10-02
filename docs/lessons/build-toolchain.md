@@ -633,7 +633,7 @@ Applies-when: a CI job is green and you are about to treat it as verifying core 
 
 `linux-app`, `windows-app` and `mac-app` build and test only the app, input and output slices (Windows: 70 tests). Core's tests, including `AuroraVideoParityTests` and `AuroraAudioParityTests`, are added only when `core/` is the top-level project (`core/CMakeLists.txt`, `BUILD_TESTS`). The first green Windows CI run showed "100% tests passed out of 70" and no Parity test; this was caught only by searching the log for "parity". The same trap was already filed (verify core tests with a standalone core configure) and was missed anyway.
 
-**Fix:** each native workflow has a separate step configuring `core/` standalone (Windows also passes the toolchain, `OpenCV_DIR` and `Aubio_DIR`) and running `ctest`. After adding a check, find a named test in the log before relying on it.
+**Fix:** each native workflow has a separate step configuring `core/` standalone (Windows also passes the toolchain, `OpenCV_DIR` and `Aubio_DIR`) and running `ctest`. After adding a check, find a named test in the log before relying on it. The Actions page's Ctrl+F does not search collapsed steps, so a "no match" there can be a false negative: open the step, use the run's "Search logs" box, or download the raw logs.
 
 ---
 

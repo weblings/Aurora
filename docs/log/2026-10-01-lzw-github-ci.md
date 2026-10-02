@@ -34,6 +34,10 @@ move) and Aurora-7r3 (fixtures regenerated on Mac, now checked on all four).
   `--timeout 120` and job `timeout-minutes: 30` on all three, a constant vcpkg
   cache key (it hashed windows.yml, so every edit dropped the cache).
 - Not isolated: whether the OpenCV `PATH` step is needed for Windows tests.
+- Final: Linux, Windows, Mac and web green on fix/CI_Updates -> dev; raw logs
+  show the `Parity:` video and audio tests passing on all three native
+  platforms (Ctrl+F on the Actions page missed them: collapsed steps).
+  Windows total ~13 min after the manifest-mode fix.
 - Not covered by CI: screen/audio capture, permissions, Hue hardware.
 
 ## Findings
