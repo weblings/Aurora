@@ -628,3 +628,14 @@ Applies-when: writing `until ! pgrep -f "<name>"; do sleep; done` in a command t
 The agent's Bash wrapper runs the whole command string via `bash -c`, so its command line contains the pattern and `pgrep -f` always finds itself. The loop never exits, and a background job built on it looks "running" forever with no output; a `pkill -f` pattern aimed at it then kills the wrapper too (exit 144).
 
 **Fix:** don't gate on `pgrep -f`; run the steps sequentially in one command, or wait on a pid (`kill -0 <pid>`) or an output file. If a pattern is needed, use the `[n]ode` trick so the pattern text doesn't match its own command line.
+
+---
+
+## A Catch2 SIGSEGV with no debugger: install a vectored exception handler, link with `/MAP`, resolve the RVAs
+Tags: windows, segfault, catch2, msvc, stack-trace, map-file, bisect
+Applies-when: a test exe segfaults on Windows, `cdb`/WinDbg are not installed, and Catch2 only prints "Unknown expression after the reported line"
+
+Catch2 reports the last assertion that started, not where the crash is, and its SIGSEGV handler prints no stack. What worked, in order: (1) `std::cerr << ... << std::endl` markers (flushes before the crash) narrowed it to the first `client.Get` and then proved the route handler never ran; (2) swapping the real route for a trivial lambda showed it wasn't our code; (3) a temporary `AddVectoredExceptionHandler` in the test calling `CaptureStackBackTrace` and printing each frame's module and offset gave the crashing thread's frames; (4) relinking with `/MAP /DEBUG` (`-DCMAKE_EXE_LINKER_FLAGS_RELEASE="/MAP /DEBUG"`) and a short script mapping `preferred load address + RVA` to the nearest map symbol named `httplib::Server::process_request` on a `ThreadPool::worker` thread. Both the heredoc and `sed` mangled `
+` inside C string literals while patching, so use `std::endl`, or write patch scripts with the Write tool.
+
+**Fix:** keep the VEH snippet and map resolver as the first move for any Windows crash that has no debugger; the symbol names alone usually point at the cause (here, httplib compiled twice). Revert the instrumentation and the linker-flag cache entry afterwards.
