@@ -1,10 +1,11 @@
-# Aurora-2dz: OS secret store — Linux done, Mac/Windows pending
+# Aurora-2dz: OS secret store — Linux and Mac verified, Windows pending
 
 Id: 2dz-secret-store
 
 `Aurora-2dz` (HA prep 7) is **paused, still open**. The store is built and
-verified on Linux. The Mac and Windows backends are written but have never
-been compiled. Decisions are recorded once, in the "Secret store" section of
+verified on Linux (gnome-keyring) and Mac (login keychain, both signing
+modes). The Windows backend is written but has never been compiled.
+Decisions are recorded once, in the "Secret store" section of
 [[home-assistant-output]].
 
 ## Before building
@@ -71,16 +72,106 @@ been compiled. Decisions are recorded once, in the "Secret store" section of
 - **No sudo here:** the libsecret build used headers extracted from the
   `.deb` (see the lesson). The box itself still lacks `libsecret-1-dev`.
 
+## Mac verification (2026-10-02)
+
+- Merged `dev` into `feat/HAPrep2` (92077ff). Core standalone builds on the
+  Mac with `AuroraSecrets backend: Keychain`; ctest 127/127.
+- `[real]` 12/12 against the login keychain (same binary, no prompt).
+- Rebuild pair, ad-hoc signed: `[real-write]`, then a rebuild with a changed
+  binary (an unused static is dead-stripped and leaves the binary
+  byte-identical; use an emitted symbol, see the lesson), then `[real-read]` showed a system
+  dialog asking for the login keychain password. After Allow: `Ok`.
+  `[real-cleanup]` ran without a prompt; a read afterwards is `NotFound`.
+- Deny (ad-hoc, rebuilt binary): `Unavailable` with "User canceled the
+  operation". Mapping is right.
+- ~~Allow does not persist~~ (first read; corrected below). The same ad-hoc
+  binary prompted again on later reads after what I recorded as "Allow,
+  then Always Allow". Not reproduced; see "Follow-up".
+- Identity-signed (Developer ID, shared `-i` identifier): write with binary A,
+  read with differing binary B: `Ok` in 0.2 s, no prompt. `set` over the
+  existing entry from B also works.
+- **First read of a "bug", then corrected.** `[real-cleanup]` from B or a
+  later copy C (same identity, different binary) failed: `Keychain delete:
+  Invalid attempt to change the owner of this item`
+  (`errSecInvalidOwnerEdit`, mapped to `Error`); the creating binary A
+  deleted fine. That looked like "delete fails after an app update". It was
+  an artifact of my test: A, B and C were differently *named* files.
+  Re-run with the same file name (`d1/AuroraSecretsTests`,
+  `d2/AuroraSecretsTests`): a delete from another directory succeeded, and
+  so did a delete after replacing the binary at the same path (`rm` then
+  `cp`, new inode). The ad-hoc rebuild runs earlier were also same-name and
+  deleted fine. The cleanup test now prints the error text.
+- Still open here: Windows compile and `[real]`. The `Unavailable` UX is
+  Aurora-4zr.10.
+- `docs/Building.md` "Tests" now carries the corrected recipe (same file
+  name, `rm` + `cp`, Always Allow vs Allow, signing step, timing cue).
+
+## Delete research (web, 2026-10-02)
+
+- **Cause** (Apple DTS, developer forums thread 69841): the file-based
+  keychain shim compares the current executable's name with the app name
+  stored in the item's ACL; a mismatch gives -25244 on delete. Triggers:
+  renaming the app or executable, or running a renamed copy. In my test a
+  different directory with the same name was fine.
+- **Apple's recommendation:** use the data-protection keychain (TN3137),
+  which keys access on the code signature alone and has no ACL or prompts.
+- **For code that stays on the file-based keychain** (Apple's workarounds,
+  also used by open-source apps):
+  - Modify with `SecItemUpdate`, not delete + add (what `set` already does).
+  - If delete fails, `SecItemUpdate` the data to empty as cleanup (readers
+    must then treat empty as `NotFound`).
+  - Or look the item up with `kSecReturnRef` and call the deprecated
+    `SecKeychainItemDelete(ref)`, which works where `SecItemDelete` refuses
+    (jitpass/jit#170, Ogard-Labs/octant#924).
+  - Call `SecKeychainSetUserInteractionAllowed(false)` around background
+    reads so a foreign item fails fast (-25293) instead of hanging on a
+    hidden SecurityAgent prompt.
+- **Data-protection keychain cost for us:** `kSecUseDataProtectionKeychain`
+  plus a `keychain-access-groups` entitlement, which on macOS is restricted:
+  a Developer ID binary carrying it without a provisioning profile is
+  killed at launch (AMFI, exit 137; reported for Developer ID apps by
+  several projects, e.g. M1K3#319). So it needs a Developer ID
+  provisioning profile embedded in the bundle, plus a legacy-to-DP
+  migration (CodexBar#585 describes one). Real work, not a flag.
+- **Recommendation:** no backend change now. Keep the executable name
+  `Aurora` stable and document it. Revisit the data-protection keychain
+  if the prompt behavior on identity-signed builds proves bad in practice,
+  or if the product is ever renamed. Cheap optional hardening if wanted:
+  the `SecKeychainItemDelete(ref)` fallback on -25244.
+
+## Follow-up: the two unverified items (2026-10-02)
+
+Method: same file name (`AuroraSecretsTests`) and path every time, new
+inode via `rm` + `cp`; the item's ACL dumped with `security dump-keychain
+-a`, filtered to `Aurora/acl-check` (attributes only, secret never read).
+
+- **Item ACL after a write** (ad-hoc binary): decrypt authorized for the
+  creating app by `cdhash`; `partition_id` = `cdhash:<hash>`; `change_acl`
+  has no trusted apps (hence the password dialog to extend it).
+- **Always Allow sticks for ad-hoc.** Different ad-hoc build reads: dialog,
+  Always Allow, ACL gains that build's `cdhash` in the app list and the
+  partition list. The same binary then read in 0.02 s, and a re-copy in
+  0.10 s. So the earlier repeat prompts were most likely single-use Allow
+  clicks (Allow isn't recorded in the ACL, so each launch asks). I can't
+  prove what was clicked then; treat as explained, not reproduced.
+- **Ad-hoc, then Developer ID, same name:** the signed build prompted once
+  (12 s). After Always Allow the app list holds the signature requirement
+  (identifier + Team ID) and the partition list gains `teamid:464U3WR286`.
+  A *different* Developer ID build then read in 0.29 s and deleted in
+  0.13 s with no prompt. Entry removed (`NotFound`; zero matching items).
+- **Net for design:** release users get a silent read and delete on first
+  use and across updates. Only a dev who moves from ad-hoc to a signed
+  build, or whose Allow was single-use, sees dialogs. That is a developer
+  experience, not a user one.
+
 ## Resume
 
-1. Mac:
-   - Build core standalone and run `[real]`.
-   - Run the rebuild pair (`docs/Building.md`, "Tests"). Ad-hoc should
-     prompt; Allow → `Ok`, Deny → `Unavailable`. An identity-signed build
-     should not prompt.
+1. Mac: done (see "Mac verification"). The returning-user `Unavailable`
+   UX moved to Aurora-4zr.10 (blocks 4zr.2 and 4zr.5): nothing in Aurora
+   consumes the store until 4zr.5.
 2. Windows: compile, then `[real]` (expect `Ok` with no prompt).
-3. Then close 2dz. Optionally `sudo apt install libsecret-1-dev` here to
-   drop the configure warning.
+3. Then close 2dz (nothing else is outstanding on this bead). Optionally `sudo apt install libsecret-1-dev` on the
+   Linux box to drop the configure warning.
 
 ## Lessons
 
@@ -91,3 +182,13 @@ been compiled. Decisions are recorded once, in the "Secret store" section of
   (build-toolchain.md).
 - "Two build trees sharing `FETCHCONTENT_BASE_DIR` clobber each other"
   (build-toolchain.md).
+- "`SecItemDelete` returns `errSecInvalidOwnerEdit` to an executable with a
+  different file name than the creator's" (macos-gui.md).
+- "A legacy Keychain item's ACL can be dumped without reading the secret"
+  (macos-gui.md).
+- "A test that adds an unused static does not change the binary"
+  (build-toolchain.md).
+- "In zsh a word starting with `=` is replaced by a command path"
+  (build-toolchain.md).
+- "A cross-binary test that renames the binary changes more than the
+  variable under test" (debugging-method.md).

@@ -682,3 +682,23 @@ Applies-when: making a second build tree and tempted to reuse the first tree's `
 To skip re-fetching, a second core tree (Aurora-2dz, `core-tests-libsecret`) was configured with `-DFETCHCONTENT_BASE_DIR=build/core-tests/_deps`. That dir holds each dependency's *build* subdir (`catch2-build`) as well as its sources. The new tree regenerated those for itself, and the original tree then failed with `No rule to make target '_deps/catch2-build/.../depend'`. Its stale test binary still ran, which hid the breakage for one run.
 
 **Fix:** give every build tree its own `_deps`. To share only sources, use `-DFETCHCONTENT_SOURCE_DIR_<NAME>=<path>` per dependency. To recover, reconfigure the damaged tree. Read the build step's own exit status, not just whether a test binary ran.
+
+---
+
+## A test that adds an unused static does not change the binary: the compiler drops it, so a "rebuilt" binary can be byte-identical
+Tags: build, testing, dead-strip, codesign, cmake, macos
+Applies-when: you need a rebuild that produces a *different* binary (code-signature, ACL or cache tests) and a trivial source edit leaves the cdhash unchanged
+
+For Aurora-2dz's cross-rebuild Keychain check, appending `namespace { const char kMarker[] = "..."; }` to the test file rebuilt and relinked, but `cmp` showed the executable identical to the old one. Nothing referenced the constant, so it was optimized away and the ad-hoc signature (a hash of the bytes) did not change either, so a "rebuild prompt" could not appear. An `extern const char kMarker[] = "...";` at global scope has external linkage and is emitted.
+
+**Fix:** after the edit, `cmp` the new binary against a saved copy (or compare `codesign -dvv` hashes) before treating it as a different build. Revert the marker afterwards (`git checkout <file>`) and rebuild.
+
+---
+
+## In zsh a word starting with `=` is replaced by a command path: `echo =======LOG` fails with "======LOG not found"
+Tags: shell, zsh, macos, agent-workflow, quoting
+Applies-when: a macOS shell one-liner prints section dividers like `echo =====X` or `echo ----` mixed with `=====` and aborts with "not found"
+
+macOS's default shell is zsh. An unquoted word beginning with `=` is expanded to the full path of the named command (`=ls` becomes `/bin/ls`); if no such command exists, zsh stops the whole line with "<word> not found". A divider like `echo =======LOG` in a diagnostic one-liner therefore killed the command before the real work ran (Aurora-2dz). Linux bash doesn't do this, so a snippet that works on the Linux box can fail on the Mac.
+
+**Fix:** quote dividers (`echo '======= LOG'`), or use `---` / `printf`. Run the line again; nothing had run.

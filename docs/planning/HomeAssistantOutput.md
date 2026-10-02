@@ -269,11 +269,46 @@ build is the first compiler they meet).
 - **Hue stays in JSON.** Its username crosses the LAN in clear on every
   bridge call anyway, so a keyring adds little and would make the working
   pairing depend on a keyring being present.
-- **Mac signing (expected, unverified):** Keychain access is tied to the
-  code signature. Ad-hoc dev builds (`app/mac` default) will re-prompt
-  after each rebuild; identity-signed releases keep access across updates.
-  The `[real-write]` / `[real-read]` / `[real-cleanup]` tests check this
-  (recipe in `docs/Building.md`, "Tests").
+- **Mac signing (verified 2026-10-02):** Keychain access is tied to the
+  code signature.
+  - **Ad-hoc (`app/mac` default):** a binary reading an item written by an
+    earlier build gets a system dialog asking for the **login keychain
+    password** (the Mac account password), with Allow / Always Allow / Deny.
+    Allow returned `Ok`; **Deny returned `Unavailable`** (`User canceled the
+    operation`, `errSecUserCanceled`). A same-binary read and the delete did
+    not prompt. **Always Allow sticks** (ACL records the build's `cdhash`;
+    same binary then reads silently), but each rebuild is a new `cdhash`,
+    so every ad-hoc rebuild prompts once more. Plain Allow is presumably
+    per-launch (inferred: the ACL was not dumped after a plain Allow), so a
+    dev who clicks Allow would be asked on every launch.
+  - **Developer ID (`codesign -i <id> -s "Developer ID Application: ..."`):**
+    write with one binary, read with a different binary signed the same
+    way: `Ok` in 0.2 s, no prompt. The designated requirement is
+    identifier + Team ID, so it survives rebuilds and updates.
+  - **Delete depends on the executable's file name (not a bug in the
+    backend):** `SecItemDelete` on a legacy-keychain item fails with
+    `errSecInvalidOwnerEdit` (-25244, "Invalid attempt to change the owner
+    of this item") when the caller's executable name differs from the
+    creator's. Read and `set` still worked. Same name in another directory,
+    and a new binary replacing the old one at the same path, both deleted
+    fine (2026-10-02). My first test copied binaries to `A`/`B`/`C` and
+    wrongly looked like "delete fails after an update". Constraint: keep
+    the Mac executable name stable (`Aurora`); a rename orphans existing
+    items until the user deletes them in Keychain Access. Apple's longer-term
+    answer is the data-protection keychain (see the 2dz log, "Delete
+    research"); not needed now.
+  - **Dev (ad-hoc) to release (Developer ID), same file name, same Mac:**
+    the first signed build prompts once (password dialog); Always Allow
+    adds the signature (identifier + Team ID) and `teamid:464U3WR286` to
+    the item's ACL, and every later signed build reads and deletes
+    silently. So a developer's keychain upgrades in one prompt; end users
+    never see the ad-hoc case.
+  - **Design consequence:** only released, identity-signed builds give a
+    returning user a silent read. A returning user hits any prompt at
+    connect, not during NUX. Open gap (Aurora-4zr.10): `Unavailable` for a returning user
+    whose token exists but can't be read (Deny, locked keychain,
+    blank-password or auto-login account) has no defined UX; today's rule
+    covers only the Connect screen. Recipe in `docs/Building.md`, "Tests".
 
 ## Findings from HA core source
 

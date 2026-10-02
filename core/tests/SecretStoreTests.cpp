@@ -264,6 +264,7 @@ TEST_CASE("cross-rebuild check: remove the persistent entry", "[.][real-cleanup]
   if(result.status == SecretStatus::Unavailable){
     SKIP("no usable OS store in this session: " << result.error);
   }
+  INFO("remove: " << result.error);
   CHECK(result.ok());
   CHECK(store->get(AclKey).status == SecretStatus::NotFound);
 }

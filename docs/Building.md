@@ -201,16 +201,29 @@ because it writes to the user's keyring, and it skips where no store is
 usable.
 
 Keychain access across a rebuild (Mac) needs two binaries, so it's a
-three-step pair with a fixed entry (`acl-check/probe`):
+three-step pair with a fixed entry (`acl-check/probe`). Keep the executable's
+**file name** the same for both (`AuroraSecretsTests`): copies named `A`/`B`
+make a delete fail with -25244 for a reason a real rebuild never hits. Use
+`rm` then `cp` to swap binaries, not `cp` over the old file.
 
 1. `AuroraSecretsTests "[real-write]"` leaves the entry.
-2. Rebuild, changing any source so the binary differs, then run
+2. Rebuild so the bytes differ (an unused static is dead-stripped and leaves
+   the binary identical; add an `extern const char` instead), then run
    `AuroraSecretsTests "[real-read]"`.
-   - Ad-hoc build (default): expect the "wants to use your confidential
-     information" prompt. Allow → `Ok`; Deny → `Unavailable`. `Error` is a
-     mapping gap and fails.
-   - Identity-signed build: expect no prompt.
-3. `AuroraSecretsTests "[real-cleanup]"` removes the entry.
+   - Ad-hoc build (default): expect a dialog asking for the login keychain
+     password (your Mac account password). **Always Allow** adds this build
+     to the item's ACL (silent until the next rebuild); plain Allow leaves
+     it unchanged; Deny → `Unavailable`. `Error` is a mapping gap and fails.
+   - Identity-signed build (sign with `codesign -i <fixed id> -s "<identity>"`;
+     the first run asks for the signing key, choose Always Allow once): expect
+     no prompt, and a read of about 0.3 s. About 10 s means a dialog waited.
+3. `AuroraSecretsTests "[real-cleanup]"` removes the entry and prints the
+   delete error if there is one.
+
+To see what a dialog changed, dump the item's ACL, filtered to the one
+service so nothing else is shown (attributes only, no secret): see the
+lesson "A legacy Keychain item's ACL can be dumped without reading the
+secret".
 
 On Linux and Windows the read is simply `Ok`; access isn't tied to the
 binary there.
