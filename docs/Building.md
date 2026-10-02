@@ -239,6 +239,17 @@ binary there.
   after `/usr/bin/cmake` on some setups (and subshells may not inherit your
   `PATH` tweaks), so the old one can still win.
 
+**A long-lived Windows build dir crashes or fails after `core/vcpkg.json` changed**
+- Symptom: `Monitors and reload routes answer from PipelineHost` segfaults,
+  or `Cannot open include file: 'brotli/decode.h'`, while a fresh tree of the
+  same commit passes. The old dir's CMake cache and objects still point at
+  the previous `vcpkg_installed`. Fastest fix: delete the build dir and
+  reconfigure (pass `-DAubio_DIR=...` as above). To keep it:
+  `cmake -U "Brotli_*" -U "*BROTLI*" -S core -B <dir>`, then a full build.
+  Details: docs/lessons "Removing a dep from the vcpkg manifest doesn't clean
+  an existing build dir" (build-toolchain). CI is unaffected (fresh tree,
+  manifest mode off).
+
 **I'm not seeing audio reacting**
 - If no audio was actively playing before you toggled to audio the grabber
   might have trouble finding it. Switch back to video, play some audio, then
