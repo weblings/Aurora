@@ -628,3 +628,13 @@ Applies-when: writing `until ! pgrep -f "<name>"; do sleep; done` in a command t
 The agent's Bash wrapper runs the whole command string via `bash -c`, so its command line contains the pattern and `pgrep -f` always finds itself. The loop never exits, and a background job built on it looks "running" forever with no output; a `pkill -f` pattern aimed at it then kills the wrapper too (exit 144).
 
 **Fix:** don't gate on `pgrep -f`; run the steps sequentially in one command, or wait on a pid (`kill -0 <pid>`) or an output file. If a pattern is needed, use the `[n]ode` trick so the pattern text doesn't match its own command line.
+
+---
+
+## Unsetting `DBUS_SESSION_BUS_ADDRESS` doesn't simulate "no session bus": GIO falls back to `$XDG_RUNTIME_DIR/bus`
+Tags: linux, dbus, libsecret, testing, failure-injection
+Applies-when: testing a D-Bus client's "no bus / no service" path (libsecret, portals, notifications)
+
+For Aurora-2dz's "no Secret Service" case, `env -u DBUS_SESSION_BUS_ADDRESS` still reached gnome-keyring, and the `[real]` test passed instead of skipping. On systemd sessions GIO finds the user bus socket at `$XDG_RUNTIME_DIR/bus` without the variable. The failure injection silently didn't happen.
+
+**Fix:** point it at a dead socket, `DBUS_SESSION_BUS_ADDRESS=unix:path=/nonexistent`. libsecret then fails with "Could not connect" (`G_IO_ERROR`, mapped to `Unavailable`). Check that the injected failure really occurred (status or skip message) before trusting a "passes" result.

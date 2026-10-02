@@ -644,3 +644,29 @@ Applies-when: a core standalone build (CI or local) with `-DCMAKE_TOOLCHAIN_FILE
 `core/vcpkg.json` lists `opencv4`, `glm`, `catch2` and `cpp-httplib`. A `cmake -S core` configure that passes the vcpkg toolchain file finds that manifest and installs it into `<build>/vcpkg_installed`, even with `-DOpenCV_DIR` set. The first Windows CI run of the core step sat 13+ minutes in "core tests" with protobuf configuring in the log (protobuf is an opencv4 dependency): a full vcpkg OpenCV build, the ~40 minute one in `docs/Building.md`. The app presets don't hit this because `/CMakeLists.txt` has no manifest.
 
 **Fix:** pass `-DVCPKG_MANIFEST_MODE=OFF` so the toolchain stays in classic mode and uses the classic-installed ports (Aubio) plus choco OpenCV; core fetches glm, Catch2 and httplib itself when they aren't found. If the log shows `vcpkg_installed` under the core build dir, manifest mode is on.
+
+---
+
+## Building against a distro `-dev` package without sudo: `apt-get download` + `dpkg -x`, then a rewritten `.pc`
+Tags: linux, pkg-config, dependencies, sudo, apt
+Applies-when: a configure needs a missing `-dev` package on a machine where you can't install packages
+
+Aurora-2dz needed `libsecret-1-dev` on a box without sudo. The runtime `.so.0` was installed; only the headers, `.pc` and the unversioned `.so` link were missing.
+
+**Fix:**
+- `apt-get download libsecret-1-dev && dpkg -x *.deb root` (no root needed).
+- Copy the `.pc`: set `prefix=` to the extracted `usr` and `libdir=` to a dir holding `libsecret-1.so -> /usr/lib/x86_64-linux-gnu/libsecret-1.so.0`.
+- Drop `Requires.private` (libgcrypt, static-link only). pkg-config otherwise fails on it.
+- Configure with `PKG_CONFIG_PATH=<that dir>`.
+
+Local verification only; CI and real installs use the package.
+
+---
+
+## Two build trees sharing `FETCHCONTENT_BASE_DIR` clobber each other's dependency build dirs
+Tags: cmake, fetchcontent, build-dir, catch2
+Applies-when: making a second build tree and tempted to reuse the first tree's `_deps` to skip downloads
+
+To skip re-fetching, a second core tree (Aurora-2dz, `core-tests-libsecret`) was configured with `-DFETCHCONTENT_BASE_DIR=build/core-tests/_deps`. That dir holds each dependency's *build* subdir (`catch2-build`) as well as its sources. The new tree regenerated those for itself, and the original tree then failed with `No rule to make target '_deps/catch2-build/.../depend'`. Its stale test binary still ran, which hid the breakage for one run.
+
+**Fix:** give every build tree its own `_deps`. To share only sources, use `-DFETCHCONTENT_SOURCE_DIR_<NAME>=<path>` per dependency. To recover, reconfigure the damaged tree. Read the build step's own exit status, not just whether a test binary ran.

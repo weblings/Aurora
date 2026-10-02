@@ -65,7 +65,10 @@ imgproc)`).
   after the installs -- see the `winget install fails with exit 94` lesson.
 - **Linux (Debian/Ubuntu):** `sudo apt install build-essential cmake
   libopencv-dev libcurl4-openssl-dev libmbedtls-dev libx11-dev libxext-dev
-  libxrandr-dev libglib2.0-dev libpipewire-0.3-dev libaubio-dev`
+  libxrandr-dev libglib2.0-dev libpipewire-0.3-dev libaubio-dev
+  libsecret-1-dev`. Without `libsecret-1-dev`, configure warns and core's
+  `AuroraSecrets` builds a stub that reports every secret store as
+  unavailable (`-DAURORA_SECRETS_ENABLE_LIBSECRET=OFF` silences the warning).
 - **macOS (Apple Silicon, experimental):** Xcode CLT + Homebrew — full setup
   (packages, `mbedtls@3` pin, `mac-app` preset) lives in
   [CONTRIBUTING.md](../CONTRIBUTING.md#platform-notes).
@@ -191,6 +194,26 @@ unreliable outside a sandbox -- our native tarball gets nothing from it.
 `ctest --test-dir build/<preset>` runs the full native suite for that
 preset. Slice `tests/` dirs link the slice lib (`AuroraApp`), not the
 binary, and run under `ctest` wherever they land.
+
+`AuroraSecretsTests "[real]"` (core standalone build) round-trips through
+the real OS keyring under a throwaway scope. It's hidden from `ctest`
+because it writes to the user's keyring, and it skips where no store is
+usable.
+
+Keychain access across a rebuild (Mac) needs two binaries, so it's a
+three-step pair with a fixed entry (`acl-check/probe`):
+
+1. `AuroraSecretsTests "[real-write]"` leaves the entry.
+2. Rebuild, changing any source so the binary differs, then run
+   `AuroraSecretsTests "[real-read]"`.
+   - Ad-hoc build (default): expect the "wants to use your confidential
+     information" prompt. Allow → `Ok`; Deny → `Unavailable`. `Error` is a
+     mapping gap and fails.
+   - Identity-signed build: expect no prompt.
+3. `AuroraSecretsTests "[real-cleanup]"` removes the entry.
+
+On Linux and Windows the read is simply `Ok`; access isn't tied to the
+binary there.
 
 ## Troubleshooting
 

@@ -187,6 +187,9 @@ Beads carry the details (label `ha-prep`):
 - Aurora-5i3: local API hardening before any HA credential exists. Done;
   rules below, verified on Linux (`AuroraNetworkTests`, Hue
   `[PairingRoutes]`).
+- Aurora-2dz: OS secret store. Linux done (fake-backend tests plus a
+  real gnome-keyring round-trip); Mac and Windows pending a compile and a
+  `[real]` run. See "Secret store" below.
 
 Deferred until HA is a go: rate-limited sender, brightness/`rgb_color`
 split. (Token storage moved into prep as Aurora-2dz.)
@@ -222,6 +225,55 @@ route, today's Hue routes and any future HA route:
   needs it, and the Origin-vs-Host check still works across the LAN.
   `boundBackendIP` (`Config.hpp`) narrows it to `127.0.0.1` for anyone who
   wants local-only.
+
+### Secret store (Aurora-2dz)
+
+`core/Secrets` (`AuroraSecrets`): `ISecretStore` get/set/remove, one OS
+backend per build. Status: Linux built and verified against gnome-keyring.
+Mac and Windows are written but not yet compiled (CI's standalone core
+build is the first compiler they meet).
+
+- **Backends:**
+  - Mac: Keychain generic passwords.
+  - Windows: Credential Manager, not DPAPI. DPAPI only encrypts, so the
+    blob would still need a file of ours.
+  - Linux: libsecret / Secret Service. Without `libsecret-1-dev`, the build
+    gets a stub that reports `Unavailable`.
+- **No silent fallback.** No keyring, no Secret Service, a locked keyring
+  or a dismissed unlock prompt all return `Unavailable`. The store never
+  writes a file on its own.
+- **When the OS store is `Unavailable` (decided 2026-10-02):**
+  - **Default is session-only:** the token lives in a `MemorySecretStore`,
+    so after a restart the lights stay off until someone logs in again.
+  - **Explicit opt-in to keep it:** an unchecked "Remember on this device
+    — stored unencrypted in a file" choice, shown only when the OS store is
+    `Unavailable`. It switches to `FileSecretStore`
+    (`<configRoot>/secrets.plaintext.json`, owner-only 0600, written via a
+    locked-down temp file).
+  - **Why offer it:** autologin HTPC/ambient boxes are a core Aurora case,
+    and on Linux an unlocked keyring has no per-app access control anyway.
+    HA itself keeps refresh tokens in plaintext (`.storage/auth`).
+  - **Rule:** anything that later bundles the config root (export, bug
+    report) must leave `secrets.plaintext.json` out.
+- **Scoped per config root** (`scopeForConfigRoot`: a hash of the
+  canonical path), so two roots never share an entry. `--fresh` must wire a
+  `MemorySecretStore`, never the OS store. That wiring lands with the first
+  consumer (HA); today nothing links `AuroraSecrets` but its tests.
+- **Bound records** (`setBound`/`getBound`): a secret stored with its
+  endpoint (HA URL) reads as `NotFound` for any other endpoint. That
+  enforces the URL-change rule above even if a caller forgets to clear.
+- **One size cap everywhere:** 2560 bytes (Credential Manager's limit) and
+  no NUL bytes (libsecret's C-string API), so Linux tests catch both.
+- **Threading:** any call may block on an unlock prompt. Connect, login and
+  reset only; never the tick thread or under the API mutex.
+- **Hue stays in JSON.** Its username crosses the LAN in clear on every
+  bridge call anyway, so a keyring adds little and would make the working
+  pairing depend on a keyring being present.
+- **Mac signing (expected, unverified):** Keychain access is tied to the
+  code signature. Ad-hoc dev builds (`app/mac` default) will re-prompt
+  after each rebuild; identity-signed releases keep access across updates.
+  The `[real-write]` / `[real-read]` / `[real-cleanup]` tests check this
+  (recipe in `docs/Building.md`, "Tests").
 
 ## Findings from HA core source
 

@@ -75,6 +75,9 @@ endif()
 # kept first since nothing else here depends on it either.
 add_subdirectory(Network)
 
+# Secrets likewise has no internal-module dependency (Aurora-2dz).
+add_subdirectory(Secrets)
+
 # Contracts first (no internal deps), then Processing (depends on Contracts).
 add_subdirectory(Contracts)
 add_subdirectory(Processing)
