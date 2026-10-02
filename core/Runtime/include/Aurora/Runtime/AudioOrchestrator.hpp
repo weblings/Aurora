@@ -68,6 +68,15 @@ namespace Aurora::Runtime
       const std::optional<float>& gamma
     );
 
+    // Swaps the tuning knobs live (Aurora-c0g); the caller runs it under the
+    // lock that guards update(). updateDrift/updateBounce read every field
+    // fresh each tick except fixedAnchorHue, which only seeds the anchor when
+    // drift state is uninitialized. So a change *to* a different hue also
+    // resets drift and bounce state: both re-seed from the new anchor on the
+    // next tick and the color snaps to it. Going from a hue to unset keeps the
+    // current anchor drifting.
+    void setSettings(Processing::AudioProcessing::AudioEffectSettings settings);
+
   private:
     Input::IAudioInput& m_input;
     std::vector<Output::IOutput*> m_outputs;

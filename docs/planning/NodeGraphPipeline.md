@@ -5,7 +5,8 @@ Id: node-graph-pipeline
 Status: exploratory — no graph code yet. Written 2026-09-30 from a code read of
 `core/Runtime` + `core/*Processing`; no bead yet for the graph itself.
 Revised 2026-10-01: "Prep work before importing libraries" added, fail-state
-sanitizing corrected after Aurora-5y0.
+sanitizing corrected after Aurora-5y0. Revised 2026-10-02: Tuning edits to
+live-tunable fields now apply without a reload (Aurora-c0g, prep 7).
 
 Question: could users rewire Aurora's video/audio processing in a web
 node editor (TouchDesigner/cables.gl-style) instead of the fixed pipelines?
@@ -208,9 +209,10 @@ subgraphs instead.
 Today's Video/Audio segmented control (`DashboardScreen._switchMode`)
 switches *input* and *effect* together, and most of the Dashboard keys
 off that `mode`: DeviceField (monitor vs. sink), Zone Mapping (video
-only), Tuning's field set, the audio permission banner. Every Tuning
-edit also triggers a full `PipelineHost::reload()` (1-3s Hue DTLS
-re-handshake, see `TuningFields.js`'s header).
+only), Tuning's field set, the audio permission banner. Tuning edits
+used to trigger a full `PipelineHost::reload()` (1-3s Hue DTLS
+re-handshake); since Aurora-c0g only structural fields still do (see
+"Live apply" below).
 
 **Effects are siblings, not children, of Video/Audio.**
 
@@ -255,7 +257,8 @@ deletable.**
   enum whose options the server computes. Refresh rate stays app-level
   (it drives the tick loop, not a node).
 - Param edits go to the live node — no reload, fixing today's
-  1-3s-per-edit cost.
+  1-3s-per-edit cost. Shipped for today's two pipelines as Aurora-c0g;
+  the graph generalizes it to "set param on node".
 
 **Tooltips: one registry, three resolution tiers.**
 
@@ -530,10 +533,19 @@ hit.
 
 6. **One Pipeline, in core.** Shipped (Aurora-9ig, [[9ig-pipeline-to-core]]):
    `Registry`, `Pipeline`/`PipelineHost` and the monitors/reload routes
-   live in `core/Runtime`; each app passes `PipelineOptions`. Every reload
-   trigger goes through `reloadPipelineFromDisk`, the one place Aurora-c0g
-   (hot Tuning edits) changes. Follow-ups: Aurora-c0g, Aurora-kea,
-   Aurora-o13.
+   live in `core/Runtime`; each app passes `PipelineOptions`. POST
+   /api/reload and Hue pairing go through `reloadPipelineFromDisk`
+   (always rebuild); a settings PUT goes through `applyConfigFromDisk`
+   (see "Live apply"). Follow-ups: Aurora-kea, Aurora-o13.
+
+7. **Live apply.** Shipped (Aurora-c0g, [[c0g-live-tuning-apply]]).
+   `Pipeline::applyConfig` diffs the Config it was built from against the
+   new one; `ConfigApply` classifies each persisted field as hot, reload
+   or no-effect (an unclassified field reloads, and a test fails until it
+   is classified). Hot fields swap into the live orchestrator under the
+   `PipelineHost` lock; the Mac capture-width call runs after the lock is
+   released. Open: whether sliders PUT while dragging instead of on
+   release.
 
 ## Open questions
 

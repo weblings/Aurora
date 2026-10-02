@@ -659,3 +659,15 @@ Applies-when: simulating "a rebuilt or updated app" by copying binaries to new n
 Aurora-2dz copied one test binary to `A`, `B` and `C` to stand in for successive builds. Three things changed at once: the bytes, the file name and (for a while) the signature. Delete failed from `B`/`C` and I wrote it up as a Keychain bug in the bead, the planning doc and the log. Web research then pointed at the file name, and a rerun that changed only the directory (same name) and then only the bytes (new inode at the same path) both passed. The earlier ad-hoc rebuild runs, which kept the name, had already deleted fine; I hadn't compared them.
 
 **Fix:** before recording a bug from a simulation, list everything the harness changes, then vary one at a time. Compare against any earlier passing run of the same step. Make the harness mimic the real change (rebuild in place: same name and path, new bytes; use `rm` then `cp` to get a new inode so a cached signature doesn't kill the process). Mark early notes "unconfirmed" until that's done.
+
+---
+
+## Test a window race by firing the competing write from a fake's hook, then mutation-check the lock
+Tags: testing, concurrency, race, fakes, catch2
+Applies-when: writing a regression test for a lost update, or for an ordering or serialization guarantee between threads or entry points
+
+For the config race in Aurora-d6i7, threads and sleeps would have made a flaky test. Instead the fake output's `init()`, the slow step the real race hides in, calls a hook the test sets, and the hook does the competing write synchronously. The interleave is then exact on every run, and the test failed on the old code before the fix. For a serialization guarantee, run N clients against a deliberately slow callback that records the maximum number in flight. Then delete the lock and rerun: the test must fail (here 8 in flight, fields lost). A concurrency test that still passes without the lock proves nothing. Catch2 v3.6 (what core fetches) assertions are not thread-safe: worker threads count successes into atomics and the test thread asserts.
+
+Two traps hit the Aurora-c0g version of this. A "did the lock stay free?" probe built on `std::async` deadlocks exactly when the bug is present: the future's destructor waits for the blocked task, while the code holding the lock waits for the hook. And an interrupted mutation run leaves the mutated source behind, because the restore step never executes.
+
+**Fix:** put the competing action in a hook inside the slow step, write the test against the unfixed code first, and mutation-check each lock by removing it before trusting the test. Run the probe on a plain `std::thread` and join it only after the code under test returns, so a held lock times the hook out and fails the test. Run mutation checks with a backup copy, a shell `trap` that restores on any exit, and `ctest --timeout`; after any interruption, grep for the mutation marker before assuming the tree is clean.

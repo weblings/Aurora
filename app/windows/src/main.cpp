@@ -746,12 +746,13 @@ if(!instanceLock.held()){
     }
   );
 #endif
-  // "Every settings PUT funnels into the reload entrypoint" -- re-loads
-  // Config fresh (reflecting whatever the PUT that triggered this just
-  // saved) rather than closing over the request's own already-stale copy.
+  // Re-loads Config fresh (reflecting whatever the PUT that triggered this
+  // just saved) rather than closing over the request's own already-stale
+  // copy, then applies it live if only tuning fields changed, else reloads
+  // the pipeline (Aurora-c0g).
   Aurora::Runtime::registerSettingsRoutes(httpServer, configRoot,
     [&pipelineHost, &registry, configRoot]() -> std::string {
-      return Aurora::Runtime::reloadPipelineFromDisk(pipelineHost, registry, configRoot);
+      return Aurora::Runtime::applyConfigFromDisk(pipelineHost, registry, configRoot);
     }
   );
   Aurora::Runtime::registerMonitorsRoute(httpServer, pipelineHost);
