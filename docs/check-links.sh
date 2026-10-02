@@ -210,7 +210,8 @@ def write_ids_index():
     ]
     docs_dir = os.path.join(root, 'docs')
     for doc_id in sorted(id_to_path):
-        rel = os.path.relpath(os.path.join(root, id_to_path[doc_id]), docs_dir)
+        # Markdown link targets use '/', whatever the OS (Windows relpath gives '\\').
+        rel = os.path.relpath(os.path.join(root, id_to_path[doc_id]), docs_dir).replace(os.sep, '/')
         title = id_to_title[doc_id]
         note = ''
         if doc_id in id_to_superseded_by:

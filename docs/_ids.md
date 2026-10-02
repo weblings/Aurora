@@ -5,60 +5,60 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 
 | Id | Path | Title |
 |---|---|---|
-| `2dz-secret-store` | [log\2026-10-02-2dz-secret-store.md](log\2026-10-02-2dz-secret-store.md) | Aurora-2dz: OS secret store — verified on Linux, Mac and Windows |
-| `3ono-stale-core-test-tree` | [log\2026-10-02-3ono-stale-core-test-tree.md](log\2026-10-02-3ono-stale-core-test-tree.md) | Aurora-3ono: PipelineTests segfault on Windows was a stale build tree |
-| `3qh-mac-capture-width-hint` | [log\2026-10-01-3qh-mac-capture-width-hint.md](log\2026-10-01-3qh-mac-capture-width-hint.md) | Aurora-3qh: Mac video mode resized full-Retina frames every tick |
-| `5i3-local-api-hardening` | [log\2026-10-02-5i3-local-api-hardening.md](log\2026-10-02-5i3-local-api-hardening.md) | Aurora-5i3: local API hardening before any HA credential exists |
-| `5y0-nan-state-self-heal` | [log\2026-10-01-5y0-nan-state-self-heal.md](log\2026-10-01-5y0-nan-state-self-heal.md) | Aurora-5y0: 9ca follow-up — NaN state self-heal, one float→Color cast |
-| `9ca-fromhsv-nan-guard` | [log\2026-10-01-9ca-fromhsv-nan-guard.md](log\2026-10-01-9ca-fromhsv-nan-guard.md) | Aurora-9ca: NaN/Inf into Color::fromHSV's uint8_t cast — fixed |
-| `9ig-pipeline-to-core` | [log\2026-10-01-9ig-pipeline-to-core.md](log\2026-10-01-9ig-pipeline-to-core.md) | Aurora-9ig: Pipeline, PipelineHost and Registry moved into core |
-| `audio-analysis` | [archive\AudioAnalysis.md](archive\AudioAnalysis.md) | Audio-reactive color — findings, not a decision |
-| `audio-sink-dropdown-fetch-rework` | [log\2026-09-30-sink-dropdown-fetch-rework.md](log\2026-09-30-sink-dropdown-fetch-rework.md) | Sink dropdown: fetch rework, chrome removal, 1.0.4 |
-| `browser-analysis` | [archive\BrowserAnalysis.md](archive\BrowserAnalysis.md) | Browser video-upload input — findings, not a decision |
-| `distributed-architecture-plan` | [archive\DistributedArchitecturePlan.md](archive\DistributedArchitecturePlan.md) | Distributed architecture — how far to decompose Input/Processing/Output over a network |
-| `docs-lessons-pain-points` | [archive\DocsAndLessonsPainPoints.md](archive\DocsAndLessonsPainPoints.md) | Docs & lessons: scaling pain points |
-| `first-scan` | [archive\FirstScan.md](archive\FirstScan.md) | Huenicorn pipeline scan |
-| `future-steamos-support` | [planning\FutureSteamOSSupport.md](planning\FutureSteamOSSupport.md) | SteamOS / Steam Deck support |
-| `gui-launch-ux` | [archive\GUILaunchUX.md](archive\GUILaunchUX.md) | GUI Launch UX |
-| `h45-upstream-fix-branches` | [log\2026-10-01-h45-upstream-fix-branches.md](log\2026-10-01-h45-upstream-fix-branches.md) | Aurora-h45: upstream fix branches for huenicorn — fixes done, MRs planned |
-| `ha-prep-4y9` | [log\2026-10-01-ha-prep-4y9.md](log\2026-10-01-ha-prep-4y9.md) | Aurora-4y9: output-neutral NUX probe table in web/ui/app.js |
-| `ha-prep-a0r` | [log\2026-10-01-ha-prep-a0r.md](log\2026-10-01-ha-prep-a0r.md) | Aurora-a0r: output-neutral zone labels endpoint for Zone Mapping |
-| `ha-prep-d9v` | [log\2026-10-01-ha-prep-d9v.md](log\2026-10-01-ha-prep-d9v.md) | Aurora-d9v: httplib WebSocket client smoke test |
-| `ha-prep-pp8-dwo` | [log\2026-10-01-ha-prep-pp8-dwo.md](log\2026-10-01-ha-prep-pp8-dwo.md) | Aurora-pp8, Aurora-dwo: first two HA prep items implemented |
-| `home-assistant-output` | [planning\HomeAssistantOutput.md](planning\HomeAssistantOutput.md) | Home Assistant output module |
-| `http-server-analysis` | [archive\HttpServerAnalysis.md](archive\HttpServerAnalysis.md) | HTTP server analysis |
-| `hue-output-analysis` | [archive\HueOutputAnalysis.md](archive\HueOutputAnalysis.md) | Hue::Api / Auth / Stream — Conversion analysis |
-| `implementation-plan` | [planning\ImplementationPlan.md](planning\ImplementationPlan.md) | Low-scope implementation plan |
-| `implementation-plan-directory-layout` | [archive\ImplementationPlan_DirectoryLayout.md](archive\ImplementationPlan_DirectoryLayout.md) | Implementation plan: proposed directory layout (superseded) |
-| `implementation-plan-early-phases` | [archive\ImplementationPlan_EarlyPhases.md](archive\ImplementationPlan_EarlyPhases.md) | Implementation plan: phases 1, 2, 2.5 (native build) |
-| `implementation-plan-phase-3` | [archive\ImplementationPlan_Phase3.md](archive\ImplementationPlan_Phase3.md) | Implementation plan: Phase 3 — Three.js browser demo, then the native WebUI milestone |
-| `linux-audio-sink-dropdown` | [log\2026-09-30-audio-sink-dropdown.md](log\2026-09-30-audio-sink-dropdown.md) | Audio sink dropdown replaces the free-text field |
-| `linux-audio-sink-status` | [log\2026-09-29-linux-audio-sink-status.md](log\2026-09-29-linux-audio-sink-status.md) | Linux audio sink status: Using-hint replaces the no-list warning |
-| `linux-capture-analysis` | [archive\LinuxCaptureAnalysis.md](archive\LinuxCaptureAnalysis.md) | Grabber / GnuLinux capture — Conversion analysis |
-| `lzj-embed-and-serving` | [log\2026-10-01-lzj-embed-and-serving.md](log\2026-10-01-lzj-embed-and-serving.md) | Aurora-lzj: toolchain spike investigated, change A (embed + serving) done; HA prep filed |
-| `lzw-github-ci` | [log\2026-10-01-lzw-github-ci.md](log\2026-10-01-lzw-github-ci.md) | Aurora-lzw: GitHub CI unblocked for weblings/Aurora |
-| `mac-audio` | [archive\mac\Audio.md](archive\mac\Audio.md) | macOS audio capture |
-| `mac-notarization` | [planning\mac\Notarization.md](planning\mac\Notarization.md) | macOS Gatekeeper/notarization |
-| `mac-permissions` | [archive\mac\Permissions.md](archive\mac\Permissions.md) | macOS Screen Recording permission |
-| `mac-tray-parity` | [archive\mac\TrayParity.md](archive\mac\TrayParity.md) | macOS tray-parity: open work |
-| `mac-tray-parity-history` | [archive\mac\TrayParityHistory.md](archive\mac\TrayParityHistory.md) | macOS tray-parity: build history |
-| `mac-video-capture` | [archive\mac\VideoCapture.md](archive\mac\VideoCapture.md) | macOS video capture (tier 1) |
-| `module-split-plan` | [archive\ModuleSplitPlan.md](archive\ModuleSplitPlan.md) | Splitting huenicorn into Input / Processing / Output |
-| `node-graph-pipeline` | [planning\NodeGraphPipeline.md](planning\NodeGraphPipeline.md) | Node-graph processing pipeline |
-| `node-ha-prep-sequencing` | [log\2026-10-01-node-ha-prep-sequencing.md](log\2026-10-01-node-ha-prep-sequencing.md) | Node and HA prep: scoping, HA core read, bead sequences |
-| `open-formats-research` | [archive\OpenFormatsResearch.md](archive\OpenFormatsResearch.md) | Existing open formats for video/audio-reactive lighting |
-| `processing-analysis` | [archive\ProcessingAnalysis.md](archive\ProcessingAnalysis.md) | ImageProcessing / Color / Interpolation / ImageData / UV — Conversion analysis |
-| `runtime-analysis` | [archive\RuntimeAnalysis.md](archive\RuntimeAnalysis.md) | Runtime / Config — Conversion analysis |
-| `skv-one-tick-clock` | [log\2026-10-01-skv-one-tick-clock.md](log\2026-10-01-skv-one-tick-clock.md) | Aurora-skv: explicit dt into both orchestrators, one tick clock |
-| `stack-comparison` | [archive\StackComparison.md](archive\StackComparison.md) | Stack comparison — huenicorn vs. Aurora-App-Linux vs. Aurora-App-Windows |
-| `ta5-param-schema` | [log\2026-10-01-ta5-param-schema.md](log\2026-10-01-ta5-param-schema.md) | Aurora-ta5: C++ param schema as single source for tuning ranges |
-| `tft-parity-harness` | [log\2026-10-01-tft-parity-harness.md](log\2026-10-01-tft-parity-harness.md) | Aurora-tft: golden parity harness for both orchestrators |
-| `upstream-findings` | [planning\UpstreamFindings.md](planning\UpstreamFindings.md) | Findings worth upstreaming to huenicorn |
-| `web-demo-ui-update` | [archive\WebDemoUIUpdate.md](archive\WebDemoUIUpdate.md) | Web Demo Dashboard Port — Plan (WebDemoUIUpdate.md) |
-| `webui-design-1st-pass` | [archive\WebUI_Design_1stPass.md](archive\WebUI_Design_1stPass.md) | WebUI screens, jobs, and component research |
-| `webui-design-2-5-pass` | [planning\WebUI\WebUI_Design_2.5Pass.md](planning\WebUI\WebUI_Design_2.5Pass.md) | WebUI design, pass 2.5: visual polish diffs |
-| `webui-design-2nd-pass` | [archive\WebUI_Design_2ndPass.md](archive\WebUI_Design_2ndPass.md) | WebUI design, pass 2: accordion Dashboard + NUX redesign |
-| `webui-fixes` | [planning\WebUI\WebUI_Fixes.md](planning\WebUI\WebUI_Fixes.md) | WebUI fixes |
-| `webui-tooltip-content` | [archive\TooltipContent.md](archive\TooltipContent.md) | Tooltip content draft (Aurora WebUI) |
-| `webui-tooltips-analysis` | [archive\TooltipsAnalysis.md](archive\TooltipsAnalysis.md) | Tooltips plumbing analysis (Aurora WebUI) |
-| `windows-input-analysis` | [archive\WindowsInputAnalysis.md](archive\WindowsInputAnalysis.md) | Windows Input plugin — analysis pass |
+| `2dz-secret-store` | [log/2026-10-02-2dz-secret-store.md](log/2026-10-02-2dz-secret-store.md) | Aurora-2dz: OS secret store — verified on Linux, Mac and Windows |
+| `3ono-stale-core-test-tree` | [log/2026-10-02-3ono-stale-core-test-tree.md](log/2026-10-02-3ono-stale-core-test-tree.md) | Aurora-3ono: PipelineTests segfault on Windows was a stale build tree |
+| `3qh-mac-capture-width-hint` | [log/2026-10-01-3qh-mac-capture-width-hint.md](log/2026-10-01-3qh-mac-capture-width-hint.md) | Aurora-3qh: Mac video mode resized full-Retina frames every tick |
+| `5i3-local-api-hardening` | [log/2026-10-02-5i3-local-api-hardening.md](log/2026-10-02-5i3-local-api-hardening.md) | Aurora-5i3: local API hardening before any HA credential exists |
+| `5y0-nan-state-self-heal` | [log/2026-10-01-5y0-nan-state-self-heal.md](log/2026-10-01-5y0-nan-state-self-heal.md) | Aurora-5y0: 9ca follow-up — NaN state self-heal, one float→Color cast |
+| `9ca-fromhsv-nan-guard` | [log/2026-10-01-9ca-fromhsv-nan-guard.md](log/2026-10-01-9ca-fromhsv-nan-guard.md) | Aurora-9ca: NaN/Inf into Color::fromHSV's uint8_t cast — fixed |
+| `9ig-pipeline-to-core` | [log/2026-10-01-9ig-pipeline-to-core.md](log/2026-10-01-9ig-pipeline-to-core.md) | Aurora-9ig: Pipeline, PipelineHost and Registry moved into core |
+| `audio-analysis` | [archive/AudioAnalysis.md](archive/AudioAnalysis.md) | Audio-reactive color — findings, not a decision |
+| `audio-sink-dropdown-fetch-rework` | [log/2026-09-30-sink-dropdown-fetch-rework.md](log/2026-09-30-sink-dropdown-fetch-rework.md) | Sink dropdown: fetch rework, chrome removal, 1.0.4 |
+| `browser-analysis` | [archive/BrowserAnalysis.md](archive/BrowserAnalysis.md) | Browser video-upload input — findings, not a decision |
+| `distributed-architecture-plan` | [archive/DistributedArchitecturePlan.md](archive/DistributedArchitecturePlan.md) | Distributed architecture — how far to decompose Input/Processing/Output over a network |
+| `docs-lessons-pain-points` | [archive/DocsAndLessonsPainPoints.md](archive/DocsAndLessonsPainPoints.md) | Docs & lessons: scaling pain points |
+| `first-scan` | [archive/FirstScan.md](archive/FirstScan.md) | Huenicorn pipeline scan |
+| `future-steamos-support` | [planning/FutureSteamOSSupport.md](planning/FutureSteamOSSupport.md) | SteamOS / Steam Deck support |
+| `gui-launch-ux` | [archive/GUILaunchUX.md](archive/GUILaunchUX.md) | GUI Launch UX |
+| `h45-upstream-fix-branches` | [log/2026-10-01-h45-upstream-fix-branches.md](log/2026-10-01-h45-upstream-fix-branches.md) | Aurora-h45: upstream fix branches for huenicorn — fixes done, MRs planned |
+| `ha-prep-4y9` | [log/2026-10-01-ha-prep-4y9.md](log/2026-10-01-ha-prep-4y9.md) | Aurora-4y9: output-neutral NUX probe table in web/ui/app.js |
+| `ha-prep-a0r` | [log/2026-10-01-ha-prep-a0r.md](log/2026-10-01-ha-prep-a0r.md) | Aurora-a0r: output-neutral zone labels endpoint for Zone Mapping |
+| `ha-prep-d9v` | [log/2026-10-01-ha-prep-d9v.md](log/2026-10-01-ha-prep-d9v.md) | Aurora-d9v: httplib WebSocket client smoke test |
+| `ha-prep-pp8-dwo` | [log/2026-10-01-ha-prep-pp8-dwo.md](log/2026-10-01-ha-prep-pp8-dwo.md) | Aurora-pp8, Aurora-dwo: first two HA prep items implemented |
+| `home-assistant-output` | [planning/HomeAssistantOutput.md](planning/HomeAssistantOutput.md) | Home Assistant output module |
+| `http-server-analysis` | [archive/HttpServerAnalysis.md](archive/HttpServerAnalysis.md) | HTTP server analysis |
+| `hue-output-analysis` | [archive/HueOutputAnalysis.md](archive/HueOutputAnalysis.md) | Hue::Api / Auth / Stream — Conversion analysis |
+| `implementation-plan` | [planning/ImplementationPlan.md](planning/ImplementationPlan.md) | Low-scope implementation plan |
+| `implementation-plan-directory-layout` | [archive/ImplementationPlan_DirectoryLayout.md](archive/ImplementationPlan_DirectoryLayout.md) | Implementation plan: proposed directory layout (superseded) |
+| `implementation-plan-early-phases` | [archive/ImplementationPlan_EarlyPhases.md](archive/ImplementationPlan_EarlyPhases.md) | Implementation plan: phases 1, 2, 2.5 (native build) |
+| `implementation-plan-phase-3` | [archive/ImplementationPlan_Phase3.md](archive/ImplementationPlan_Phase3.md) | Implementation plan: Phase 3 — Three.js browser demo, then the native WebUI milestone |
+| `linux-audio-sink-dropdown` | [log/2026-09-30-audio-sink-dropdown.md](log/2026-09-30-audio-sink-dropdown.md) | Audio sink dropdown replaces the free-text field |
+| `linux-audio-sink-status` | [log/2026-09-29-linux-audio-sink-status.md](log/2026-09-29-linux-audio-sink-status.md) | Linux audio sink status: Using-hint replaces the no-list warning |
+| `linux-capture-analysis` | [archive/LinuxCaptureAnalysis.md](archive/LinuxCaptureAnalysis.md) | Grabber / GnuLinux capture — Conversion analysis |
+| `lzj-embed-and-serving` | [log/2026-10-01-lzj-embed-and-serving.md](log/2026-10-01-lzj-embed-and-serving.md) | Aurora-lzj: toolchain spike investigated, change A (embed + serving) done; HA prep filed |
+| `lzw-github-ci` | [log/2026-10-01-lzw-github-ci.md](log/2026-10-01-lzw-github-ci.md) | Aurora-lzw: GitHub CI unblocked for weblings/Aurora |
+| `mac-audio` | [archive/mac/Audio.md](archive/mac/Audio.md) | macOS audio capture |
+| `mac-notarization` | [planning/mac/Notarization.md](planning/mac/Notarization.md) | macOS Gatekeeper/notarization |
+| `mac-permissions` | [archive/mac/Permissions.md](archive/mac/Permissions.md) | macOS Screen Recording permission |
+| `mac-tray-parity` | [archive/mac/TrayParity.md](archive/mac/TrayParity.md) | macOS tray-parity: open work |
+| `mac-tray-parity-history` | [archive/mac/TrayParityHistory.md](archive/mac/TrayParityHistory.md) | macOS tray-parity: build history |
+| `mac-video-capture` | [archive/mac/VideoCapture.md](archive/mac/VideoCapture.md) | macOS video capture (tier 1) |
+| `module-split-plan` | [archive/ModuleSplitPlan.md](archive/ModuleSplitPlan.md) | Splitting huenicorn into Input / Processing / Output |
+| `node-graph-pipeline` | [planning/NodeGraphPipeline.md](planning/NodeGraphPipeline.md) | Node-graph processing pipeline |
+| `node-ha-prep-sequencing` | [log/2026-10-01-node-ha-prep-sequencing.md](log/2026-10-01-node-ha-prep-sequencing.md) | Node and HA prep: scoping, HA core read, bead sequences |
+| `open-formats-research` | [archive/OpenFormatsResearch.md](archive/OpenFormatsResearch.md) | Existing open formats for video/audio-reactive lighting |
+| `processing-analysis` | [archive/ProcessingAnalysis.md](archive/ProcessingAnalysis.md) | ImageProcessing / Color / Interpolation / ImageData / UV — Conversion analysis |
+| `runtime-analysis` | [archive/RuntimeAnalysis.md](archive/RuntimeAnalysis.md) | Runtime / Config — Conversion analysis |
+| `skv-one-tick-clock` | [log/2026-10-01-skv-one-tick-clock.md](log/2026-10-01-skv-one-tick-clock.md) | Aurora-skv: explicit dt into both orchestrators, one tick clock |
+| `stack-comparison` | [archive/StackComparison.md](archive/StackComparison.md) | Stack comparison — huenicorn vs. Aurora-App-Linux vs. Aurora-App-Windows |
+| `ta5-param-schema` | [log/2026-10-01-ta5-param-schema.md](log/2026-10-01-ta5-param-schema.md) | Aurora-ta5: C++ param schema as single source for tuning ranges |
+| `tft-parity-harness` | [log/2026-10-01-tft-parity-harness.md](log/2026-10-01-tft-parity-harness.md) | Aurora-tft: golden parity harness for both orchestrators |
+| `upstream-findings` | [planning/UpstreamFindings.md](planning/UpstreamFindings.md) | Findings worth upstreaming to huenicorn |
+| `web-demo-ui-update` | [archive/WebDemoUIUpdate.md](archive/WebDemoUIUpdate.md) | Web Demo Dashboard Port — Plan (WebDemoUIUpdate.md) |
+| `webui-design-1st-pass` | [archive/WebUI_Design_1stPass.md](archive/WebUI_Design_1stPass.md) | WebUI screens, jobs, and component research |
+| `webui-design-2-5-pass` | [planning/WebUI/WebUI_Design_2.5Pass.md](planning/WebUI/WebUI_Design_2.5Pass.md) | WebUI design, pass 2.5: visual polish diffs |
+| `webui-design-2nd-pass` | [archive/WebUI_Design_2ndPass.md](archive/WebUI_Design_2ndPass.md) | WebUI design, pass 2: accordion Dashboard + NUX redesign |
+| `webui-fixes` | [planning/WebUI/WebUI_Fixes.md](planning/WebUI/WebUI_Fixes.md) | WebUI fixes |
+| `webui-tooltip-content` | [archive/TooltipContent.md](archive/TooltipContent.md) | Tooltip content draft (Aurora WebUI) |
+| `webui-tooltips-analysis` | [archive/TooltipsAnalysis.md](archive/TooltipsAnalysis.md) | Tooltips plumbing analysis (Aurora WebUI) |
+| `windows-input-analysis` | [archive/WindowsInputAnalysis.md](archive/WindowsInputAnalysis.md) | Windows Input plugin — analysis pass |

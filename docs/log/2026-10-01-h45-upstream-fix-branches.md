@@ -103,8 +103,9 @@ stay as they are, for reference.
 Heads-up issue drafted for `Aurora-h45.12`, modeled on the RockyRoad
 precedent (ChartConverter#6: one thread, grouped bullets linking fork
 commits, explicit offer to split or drop, which the maintainer answered by
-accepting the small fixes). The draft lives outside both repos at
-`../huenicorn-upstream-issue-draft.md`. No license section is needed: Aurora
+accepting the small fixes). The draft lives outside both repos, as an
+untracked file named `huenicorn-upstream-issue-draft` next to the Aurora
+checkout on the machine that wrote it. No license section is needed: Aurora
 and huenicorn are both GPL-3.0, and Aurora's README already credits it. Its
 `FORK` link placeholders wait on pushing the three grouped branches and
 confirming the fork is public.
