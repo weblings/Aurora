@@ -560,6 +560,8 @@ the portal thread spins on a plain `bool`. This turned 5/9/10 in
 reproduction, including a segfault on `develop` nobody had seen.
 
 **Fix:** use this pattern instead of declaring portal branches untestable.
+It now lives in `tools/fake-xdg-portal` (`run.sh --ref <branch> [--asan]`);
+the first copy sat in a scratchpad and was lost.
 `gdbus wait` avoids a sleep race on the name; keep the bus private so the
 real portal is never touched.
 
