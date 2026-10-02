@@ -1,10 +1,10 @@
-# Aurora-2dz: OS secret store — Linux and Mac verified, Windows pending
+# Aurora-2dz: OS secret store — verified on Linux, Mac and Windows
 
 Id: 2dz-secret-store
 
-`Aurora-2dz` (HA prep 7) is **paused, still open**. The store is built and
-verified on Linux (gnome-keyring) and Mac (login keychain, both signing
-modes). The Windows backend is written but has never been compiled.
+`Aurora-2dz` (HA prep 7) is **closed**. The store is built and verified on
+Linux (gnome-keyring), Mac (login keychain, both signing modes) and Windows
+(Credential Manager).
 Decisions are recorded once, in the "Secret store" section of
 [[home-assistant-output]].
 
@@ -164,7 +164,28 @@ inode via `rm` + `cp`; the item's ACL dumped with `security dump-keychain
   build, or whose Allow was single-use, sees dialogs. That is a developer
   experience, not a user one.
 
-## Resume
+## Windows verification (2026-10-02)
+
+- `cmake -S core -B build/core-test` (VS 2022, vcpkg): `AuroraSecrets
+  backend: Credential Manager`; Release build of `AuroraSecrets` and
+  `AuroraSecretsTests` compiled clean on the first try.
+- `AuroraSecretsTests` (fake suite) passes (53 assertions, 6 cases);
+  `[real]` passes (12 assertions, `Ok`, no prompt); the
+  `[real-write]` / `[real-read]` / `[real-cleanup]` pair passes, and
+  `cmdkey /list` shows no leftover Aurora entry.
+- Behavior: Credential Manager entries are per-Windows-user (persistence
+  `CRED_PERSIST_LOCAL_MACHINE`-style, readable by any process of that
+  user), so access is not tied to the binary. None of the Mac problems
+  apply: no rebuild or update prompt, no executable-name constraint, no
+  signing requirement, and delete works from any binary. Reads and deletes
+  were instant (no dialog), and the 2560-byte blob cap is covered by the
+  largest-value `[real]` case.
+- Core ctest 126/127. The one failure, `Monitors and reload routes answer
+  from PipelineHost` (PipelineTests.cpp:503, SEGFAULT), is in a binary that
+  does not link `AuroraSecrets`. It is the test Aurora-rtwh was meant to
+  fix (httplib ODR); filed as Aurora-3ono, not investigated here.
+
+## Resume (historical)
 
 1. Mac: done (see "Mac verification"). The returning-user `Unavailable`
    UX moved to Aurora-4zr.10 (blocks 4zr.2 and 4zr.5): nothing in Aurora
