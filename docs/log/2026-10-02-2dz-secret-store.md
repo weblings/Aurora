@@ -101,8 +101,8 @@ Decisions are recorded once, in the "Secret store" section of
   so did a delete after replacing the binary at the same path (`rm` then
   `cp`, new inode). The ad-hoc rebuild runs earlier were also same-name and
   deleted fine. The cleanup test now prints the error text.
-- Still open here: Windows compile and `[real]`. The `Unavailable` UX is
-  Aurora-4zr.10.
+- Windows was verified separately (see "Windows verification"). The
+  `Unavailable` UX is Aurora-4zr.10.
 - `docs/Building.md` "Tests" now carries the corrected recipe (same file
   name, `rm` + `cp`, Always Allow vs Allow, signing step, timing cue).
 
@@ -192,9 +192,9 @@ inode via `rm` + `cp`; the item's ACL dumped with `security dump-keychain
 1. Mac: done (see "Mac verification"). The returning-user `Unavailable`
    UX moved to Aurora-4zr.10 (blocks 4zr.2 and 4zr.5): nothing in Aurora
    consumes the store until 4zr.5.
-2. Windows: compile, then `[real]` (expect `Ok` with no prompt).
-3. Then close 2dz (nothing else is outstanding on this bead). Optionally `sudo apt install libsecret-1-dev` on the
-   Linux box to drop the configure warning.
+2. Windows: done (see "Windows verification").
+3. 2dz closed. Optional: `sudo apt install libsecret-1-dev` on the Linux
+   box to drop the configure warning.
 
 ## Lessons
 

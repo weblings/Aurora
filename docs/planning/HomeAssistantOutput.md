@@ -187,9 +187,10 @@ Beads carry the details (label `ha-prep`):
 - Aurora-5i3: local API hardening before any HA credential exists. Done;
   rules below, verified on Linux (`AuroraNetworkTests`, Hue
   `[PairingRoutes]`).
-- Aurora-2dz: OS secret store. Linux done (fake-backend tests plus a
-  real gnome-keyring round-trip); Mac and Windows pending a compile and a
-  `[real]` run. See "Secret store" below.
+- Aurora-2dz: OS secret store. Done and closed: Linux (gnome-keyring), Mac
+  (login keychain, ad-hoc and Developer ID) and Windows (Credential
+  Manager) verified with real-backend round-trips. See "Secret store"
+  below. The returning-user `Unavailable` UX is Aurora-4zr.10.
 
 Deferred until HA is a go: rate-limited sender, brightness/`rgb_color`
 split. (Token storage moved into prep as Aurora-2dz.)
@@ -229,9 +230,8 @@ route, today's Hue routes and any future HA route:
 ### Secret store (Aurora-2dz)
 
 `core/Secrets` (`AuroraSecrets`): `ISecretStore` get/set/remove, one OS
-backend per build. Status: Linux built and verified against gnome-keyring.
-Mac and Windows are written but not yet compiled (CI's standalone core
-build is the first compiler they meet).
+backend per build. Status: verified against the real store on Linux
+(gnome-keyring), Mac (Keychain) and Windows (Credential Manager).
 
 - **Backends:**
   - Mac: Keychain generic passwords.
