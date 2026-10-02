@@ -274,3 +274,13 @@ Tags: websocket, httplib, testing, cross-platform, ha
 Applies-when: writing a C++ test (or a fake Home Assistant) that needs a ws:// peer
 
 Aurora-d9v's bead assumed "a local ws:// echo server", i.e. a separate process and a port to pick per platform. cpp-httplib >= 0.46 has `Server::WebSocket(pattern, handler)` with a blocking `ws::WebSocket::read/send` loop, so the test hosts its own peer: `bind_to_any_port("127.0.0.1")`, `listen_after_bind()` on a thread, `wait_until_ready()`, then `httplib::ws::WebSocketClient("ws://127.0.0.1:<port>/path")`. No Python/Node dependency, no port clash, identical on Linux, Windows and Mac. The same handler shape works for a scripted fake HA server (auth handshake, `get_states` reply) when the HA client lands. `ws::ReadResult` (`Text`/`Binary`/`Fail`) lives in `httplib::ws`, not `httplib`. Stop with `server.stop()` and join the thread before the server goes out of scope.
+
+---
+
+## A version string duplicated in code and checked against `CHANGELOG.txt` fails the first time someone starts a release entry and nobody runs the web tests
+Tags: version, changelog, demo-shim, web-tests, ci
+Applies-when: starting a release entry in CHANGELOG.txt, or `demo-shim.test.mjs` fails with "shim version matches CHANGELOG"
+
+`web/demo/demo-shim.js` hardcodes the version it returns from `/api/version`, and `demo-shim.test.mjs` asserts it equals the top `v…` line of `CHANGELOG.txt`. The 1.0.5 entry was started with the shim still at 1.0.4. The test guarded this correctly, but it had never run since: the web workflow never fired, and the web tests aren't part of `ctest`. The first CI run on a PR was the first time anyone ran it.
+
+**Fix:** the shim's version is bumped in the same commit that opens a new changelog entry. Running the web workflow's loop locally (`for t in web-processing/*.test.mjs web/demo/*.test.mjs web/ui/styles/*.test.mjs; do node "$t"; done`) is the pre-commit check; the web workflow now runs it on every PR touching `web/**`.

@@ -604,3 +604,43 @@ directory just wasn't there. `git sparse-checkout list` showed the typo.
 **Fix:** after `set` or `add`, run `git sparse-checkout list` and `ls` the
 expected directories. A missing directory means a wrong pattern, not an
 empty upstream folder.
+
+---
+
+## A workflow that triggers only on `push` to `main` can't be tested before merging; open a PR, and a path filter that excludes the PR's files runs nothing and reports nothing
+Tags: github-actions, ci, path-filters, pull-request
+Applies-when: adding or debugging a GitHub Actions workflow, or wondering why one "didn't run" on a PR
+
+Aurora's workflows had `push: branches: [main]` plus path filters, and the repo's CI sat unused for weeks ("CI does not run here") because no one pushed to `main` to find out. `pull_request` with no `branches:` filter fires for a PR into any base branch, and the workflow file is read from the PR's merge result, so editing the YAML and re-pushing is the fix-forward loop. Path filters apply per workflow: a PR touching only `windows.yml`, `mac.yml` and `web/demo/` ran those and web, not Linux (its paths never matched). A skipped workflow shows no check at all, which looks like Linux was removed.
+
+**Fix:** test workflow changes on a draft PR, not on `main`. Before reading a missing check as a failure or a removal, compare the PR's changed files (`git diff --name-only <base>...HEAD`) with that workflow's `paths:`. A PR that should exercise every platform has to touch `core/**` or each workflow file. Windows and Mac cost more than Linux on private repos, so keep `push` limited to `main` and let PRs do the testing.
+
+---
+
+## On `windows-latest`, install OpenCV with choco and everything else with the runner's vcpkg; vcpkg `opencv4` alone is a ~40 minute build
+Tags: github-actions, windows, vcpkg, choco, opencv, aubio
+Applies-when: writing or debugging the Windows CI job, or a Windows configure fails on Aubio, curl, Mbed TLS or miniaudio
+
+The first Windows CI run installed only OpenCV (choco) and failed at configure: `find_package(Aubio CONFIG)` found nothing. The `windows-app` preset needs curl, Mbed TLS, aubio and miniaudio too, which a developer machine already has from vcpkg. `windows-latest` ships vcpkg at `$env:VCPKG_INSTALLATION_ROOT`, so no clone or bootstrap is needed. vcpkg's default `opencv4` builds dnn/gapi/calib3d and takes about 40 minutes (`docs/Building.md`), so OpenCV stays on choco.
+
+**Fix:** in `windows.yml`, `choco install opencv -y`; `vcpkg install curl mbedtls "aubio[core]" miniaudio` (`:x64-windows`, same `aubio[core]` as the docs); configure with `-DCMAKE_TOOLCHAIN_FILE=$env:VCPKG_INSTALLATION_ROOT/scripts/buildsystems/vcpkg.cmake -DOpenCV_DIR=C:/tools/opencv/build`; cache `VCPKG_DEFAULT_BINARY_CACHE` with `actions/cache` so only the first run builds the ports. The choco OpenCV `bin` directory is added to `GITHUB_PATH` because only `aurora-app-windows` gets its DLLs copied beside the exe; whether the core test executables needed that was not isolated (the job went green with it in place), so remove it only by testing the removal.
+
+---
+
+## A green CI `ctest` on an app preset does not run core's suite: check the test count and names, not the pass line
+Tags: github-actions, ci, ctest, core, parity
+Applies-when: a CI job is green and you are about to treat it as verifying core or Parity
+
+`linux-app`, `windows-app` and `mac-app` build and test only the app, input and output slices (Windows: 70 tests). Core's tests, including `AuroraVideoParityTests` and `AuroraAudioParityTests`, are added only when `core/` is the top-level project (`core/CMakeLists.txt`, `BUILD_TESTS`). The first green Windows CI run showed "100% tests passed out of 70" and no Parity test; this was caught only by searching the log for "parity". The same trap was already filed (verify core tests with a standalone core configure) and was missed anyway.
+
+**Fix:** each native workflow has a separate step configuring `core/` standalone (Windows also passes the toolchain, `OpenCV_DIR` and `Aubio_DIR`) and running `ctest`. After adding a check, find a named test in the log before relying on it.
+
+---
+
+## Configuring core standalone with the vcpkg toolchain file switches on manifest mode and builds vcpkg's OpenCV, ignoring the OpenCV you pointed at
+Tags: vcpkg, manifest-mode, opencv, core, ci, windows
+Applies-when: a core standalone build (CI or local) with `-DCMAKE_TOOLCHAIN_FILE=…vcpkg.cmake` is slow, or its log shows protobuf/opencv4 ports building
+
+`core/vcpkg.json` lists `opencv4`, `glm`, `catch2` and `cpp-httplib`. A `cmake -S core` configure that passes the vcpkg toolchain file finds that manifest and installs it into `<build>/vcpkg_installed`, even with `-DOpenCV_DIR` set. The first Windows CI run of the core step sat 13+ minutes in "core tests" with protobuf configuring in the log (protobuf is an opencv4 dependency): a full vcpkg OpenCV build, the ~40 minute one in `docs/Building.md`. The app presets don't hit this because `/CMakeLists.txt` has no manifest.
+
+**Fix:** pass `-DVCPKG_MANIFEST_MODE=OFF` so the toolchain stays in classic mode and uses the classic-installed ports (Aubio) plus choco OpenCV; core fetches glm, Catch2 and httplib itself when they aren't found. If the log shows `vcpkg_installed` under the core build dir, manifest mode is on.

@@ -1,0 +1,59 @@
+# Mac native stack. Runs only when its slice (or core/) changes.
+# arm64 runner, matching the platform the parity fixtures were generated on.
+# NOTE: written blind -- expect the first live run to need tweaks (capture
+# tests that need ScreenCaptureKit/audio permissions are the likely culprit);
+# fix forward here. Builds are ad-hoc signed; notarization stays manual.
+name: mac
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - core/**
+      - input/mac/**
+      - output/hue/**
+      - app/mac/**
+      - web/graph-editor/**
+      - CMakeLists.txt
+      - CMakePresets.json
+      - .github/workflows/mac.yml
+  pull_request:
+    paths:
+      - core/**
+      - input/mac/**
+      - output/hue/**
+      - app/mac/**
+      - web/graph-editor/**
+      - CMakeLists.txt
+      - CMakePresets.json
+      - .github/workflows/mac.yml
+
+jobs:
+  build-test:
+    runs-on: macos-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      # mbedtls@3 is keg-only and plain `mbedtls` is v4 (incompatible API):
+      # pin v3 for pkg-config and link it (CONTRIBUTING.md#platform-notes).
+      - name: Install deps
+        run: |
+          brew install cmake opencv curl aubio mbedtls@3 pkg-config
+          brew link mbedtls@3 --force
+          echo "PKG_CONFIG_PATH=$(brew --prefix mbedtls@3)/lib/pkgconfig" >> "$GITHUB_ENV"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Configure
+        run: cmake --preset mac-app -DAURORA_ENABLE_GRAPH_EDITOR=ON
+      - name: Build
+        run: cmake --build build/mac-app
+      - name: Test
+        run: ctest --test-dir build/mac-app --output-on-failure
+      # Core's suite (incl. Parity) is not part of any app preset: it only
+      # builds when core/ is configured standalone (core/CMakeLists.txt).
+      - name: Core tests (incl. Parity)
+        run: |
+          cmake -S core -B build/core-test
+          cmake --build build/core-test
+          ctest --test-dir build/core-test --output-on-failure --timeout 120
