@@ -624,3 +624,13 @@ Applies-when: writing or debugging the Windows CI job, or a Windows configure fa
 The first Windows CI run installed only OpenCV (choco) and failed at configure: `find_package(Aubio CONFIG)` found nothing. The `windows-app` preset needs curl, Mbed TLS, aubio and miniaudio too, which a developer machine already has from vcpkg. `windows-latest` ships vcpkg at `$env:VCPKG_INSTALLATION_ROOT`, so no clone or bootstrap is needed. vcpkg's default `opencv4` builds dnn/gapi/calib3d and takes about 40 minutes (`docs/Building.md`), so OpenCV stays on choco.
 
 **Fix:** in `windows.yml`, `choco install opencv -y`; `vcpkg install curl mbedtls "aubio[core]" miniaudio` (`:x64-windows`, same `aubio[core]` as the docs); configure with `-DCMAKE_TOOLCHAIN_FILE=$env:VCPKG_INSTALLATION_ROOT/scripts/buildsystems/vcpkg.cmake -DOpenCV_DIR=C:/tools/opencv/build`; cache `VCPKG_DEFAULT_BINARY_CACHE` with `actions/cache` so only the first run builds the ports. The choco OpenCV `bin` directory is added to `GITHUB_PATH` because only `aurora-app-windows` gets its DLLs copied beside the exe; whether the core test executables needed that was not isolated (the job went green with it in place), so remove it only by testing the removal.
+
+---
+
+## A green CI `ctest` on an app preset does not run core's suite: check the test count and names, not the pass line
+Tags: github-actions, ci, ctest, core, parity
+Applies-when: a CI job is green and you are about to treat it as verifying core or Parity
+
+`linux-app`, `windows-app` and `mac-app` build and test only the app, input and output slices (Windows: 70 tests). Core's tests, including `AuroraVideoParityTests` and `AuroraAudioParityTests`, are added only when `core/` is the top-level project (`core/CMakeLists.txt`, `BUILD_TESTS`). The first green Windows CI run showed "100% tests passed out of 70" and no Parity test; this was caught only by searching the log for "parity". The same trap was already filed (verify core tests with a standalone core configure) and was missed anyway.
+
+**Fix:** each native workflow has a separate step configuring `core/` standalone (Windows also passes the toolchain, `OpenCV_DIR` and `Aubio_DIR`) and running `ctest`. After adding a check, find a named test in the log before relying on it.

@@ -12,6 +12,7 @@ move) and Aurora-7r3 (fixtures regenerated on Mac, now checked on all four).
 - `windows.yml`: vcpkg deps added (curl, mbedtls, `aubio[core]`, miniaudio from
   the runner's vcpkg, toolchain file at configure, binary cache); choco OpenCV
   `bin` on `GITHUB_PATH`.
+- All three native workflows: standalone core build + `ctest` step (Parity).
 - `mac.yml` (new): `macos-latest` arm64, `mac-app` preset, brew deps with the
   `mbedtls@3` pin, ctest. No signing or notarization (stays manual).
 - `web/demo/demo-shim.js`: version `1.0.4` -> `1.0.5` to match `CHANGELOG.txt`.
@@ -23,8 +24,12 @@ move) and Aurora-7r3 (fixtures regenerated on Mac, now checked on all four).
 - PR fix/CI_Updates -> dev: Mac, Windows and web passed. Linux did not run:
   the PR touched none of its `paths:` (not removed).
 - Cost: about $0.03 per Windows or Linux run. Mac run cost not recorded here.
-- Not isolated: whether the OpenCV `PATH` step is needed for Windows tests, and
-  whether the Windows `ctest` output shows `Parity` running (check the log).
+- First green runs did NOT cover core: the Windows job ran 70/70 tests, none
+  Parity, because `windows-app`/`linux-app`/`mac-app` don't build core's suite
+  (it only builds when `core/` is configured standalone). Linux and Mac have
+  the same gap. Added a standalone `cmake -S core` build + ctest step to all
+  three native workflows; not yet run.
+- Not isolated: whether the OpenCV `PATH` step is needed for Windows tests.
 - Not covered by CI: screen/audio capture, permissions, Hue hardware.
 
 ## Findings

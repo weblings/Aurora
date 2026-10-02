@@ -63,3 +63,15 @@ jobs:
         run: cmake --build build/windows-app --config Release
       - name: Test
         run: ctest --test-dir build/windows-app -C Release --output-on-failure
+      # Core's suite (incl. Parity) is not part of any app preset: it only
+      # builds when core/ is configured standalone (core/CMakeLists.txt).
+      # Aubio_DIR is explicit: standalone core doesn't find it through the
+      # toolchain alone (docs/lessons, build-toolchain).
+      - name: Core tests (incl. Parity)
+        run: |
+          cmake -S core -B build/core-test `
+            -DCMAKE_TOOLCHAIN_FILE="$env:VCPKG_INSTALLATION_ROOT/scripts/buildsystems/vcpkg.cmake" `
+            -DOpenCV_DIR="C:/tools/opencv/build" `
+            -DAubio_DIR="$env:VCPKG_INSTALLATION_ROOT/installed/x64-windows/share/aubio"
+          cmake --build build/core-test --config Release
+          ctest --test-dir build/core-test -C Release --output-on-failure

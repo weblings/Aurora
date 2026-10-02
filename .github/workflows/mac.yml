@@ -49,3 +49,10 @@ jobs:
         run: cmake --build build/mac-app
       - name: Test
         run: ctest --test-dir build/mac-app --output-on-failure
+      # Core's suite (incl. Parity) is not part of any app preset: it only
+      # builds when core/ is configured standalone (core/CMakeLists.txt).
+      - name: Core tests (incl. Parity)
+        run: |
+          cmake -S core -B build/core-test
+          cmake --build build/core-test
+          ctest --test-dir build/core-test --output-on-failure
