@@ -478,7 +478,7 @@ retrofit):**
 
 Status: proposed 2026-10-01 (item 2 shipped as Aurora-5y0; item 3 shipped as
 Aurora-tft, fixtures verified on Mac only; item 4 shipped as Aurora-skv;
-item 1 shipped as Aurora-ta5). Each item
+item 1 shipped as Aurora-ta5; item 6 shipped as Aurora-9ig). Each item
 works under today's two orchestrators, needs no new dependency, and
 removes a risk the graph work or the React Flow import would otherwise
 hit.
@@ -527,6 +527,13 @@ hit.
      any platform. Generate one at build time (e.g.
      `rollup-plugin-license`) and ship it.
    - **Supply chain.** Committed lockfile, `npm ci --ignore-scripts`.
+
+6. **One Pipeline, in core.** Shipped (Aurora-9ig, [[9ig-pipeline-to-core]]):
+   `Registry`, `Pipeline`/`PipelineHost` and the monitors/reload routes
+   live in `core/Runtime`; each app passes `PipelineOptions`. Every reload
+   trigger goes through `reloadPipelineFromDisk`, the one place Aurora-c0g
+   (hot Tuning edits) changes. Follow-ups: Aurora-c0g, Aurora-kea,
+   Aurora-o13.
 
 ## Open questions
 

@@ -1,11 +1,12 @@
-# Aurora-9ig: Pipeline, PipelineHost and Registry moved into core (paused on CI)
+# Aurora-9ig: Pipeline, PipelineHost and Registry moved into core
 
 Id: 9ig-pipeline-to-core
 
 Node prep 6 ([[node-graph-pipeline]]). The three apps' `main.cpp` each
 carried a copy of Pipeline/PipelineHost (~250 lines each), so node prep 7-9
-would each have landed three times. Paused: code done and verified locally
-on Mac, Windows and Linux; no CI run yet.
+would each have landed three times. Verified locally on Mac, Windows and
+Linux (manual builds, ctest, live fake-Hue checks); closed after CI on the
+draft PR (`feat/NodesPrep2` -> `dev`) also passed on all three platforms.
 
 ## What moved
 
@@ -60,8 +61,16 @@ on Mac, Windows and Linux; no CI run yet.
   500 (`Unknown input 'nope'`) on a bad one with the app staying up and the
   old pipeline still serving `/api/monitors`; `[timing]` lines in the same
   order as Mac/Windows; `Stopping...` and a clean exit on SIGINT (the one
-  case Windows's run skipped). Resume: push `feat/NodesPrep2`, open a draft
-  PR to run the real `linux.yml`/`windows.yml`/`mac.yml` CI, then close 9ig.
+  case Windows's run skipped).
+- CI (draft PR, after merging `dev`, which added a network test and an
+  Origin/Host write gate): Linux, Windows and Mac all green. Each core step
+  reported 121/121 with the 17 `Pipeline` cases listed, including the
+  audio-mode case (audio built everywhere) and the routes case under the
+  new write gate; the Linux and Windows app builds compiled the edited
+  `main.cpp` files, which were never compiled locally. This CI run is what
+  actually closed 9ig; the local Windows/Linux runs above ran on an earlier
+  commit, before this `dev` merge, and caught Aurora-rtwh (manifest-mode
+  only, so invisible to CI either way) that the PR run alone wouldn't have.
 
 ## Findings
 
