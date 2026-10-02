@@ -34,7 +34,11 @@ jobs:
       # OpenCV stays on choco: vcpkg's opencv4 default features take ~40 min
       # to build (docs/Building.md). The rest come from the runner's vcpkg.
       - name: Install OpenCV
-        run: choco install opencv -y
+        run: |
+          choco install opencv -y
+          # Only the app exe gets its DLLs copied beside it; the test
+          # executables find OpenCV's through PATH.
+          "C:\tools\opencv\build\x64\vc16\bin" | Out-File -Append -Encoding utf8 $env:GITHUB_PATH
       - name: Cache vcpkg binaries
         uses: actions/cache@v4
         with:
