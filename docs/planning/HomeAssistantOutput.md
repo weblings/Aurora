@@ -64,8 +64,9 @@ of 2026.9; a direct WLED/DDP output would be the fast Wi-Fi path.
 - No entitlement changes. Add `NSLocalNetworkUsageDescription` to
   `app/mac/Info.plist.in` (missing today, affects Hue too), and
   `NSBonjourServices` if mDNS discovery is added.
-- Store the HA token in the Keychain, not a JSON file: it grants control of
-  the whole home.
+- Store the HA token in the OS secret store (Keychain / Credential Manager /
+  libsecret; Aurora-2dz), not a JSON file: it grants control of the whole
+  home.
 - Licensing: HA Core is Apache-2.0; Aurora is GPL-3.0-or-later; only a
   network protocol is shared, so no conflict.
 
@@ -188,7 +189,7 @@ Beads carry the details (label `ha-prep`):
   `[PairingRoutes]`).
 
 Deferred until HA is a go: rate-limited sender, brightness/`rgb_color`
-split, Keychain token storage.
+split. (Token storage moved into prep as Aurora-2dz.)
 
 ### Local API rules
 
@@ -240,6 +241,22 @@ Read 2026-10-01 from a sparse clone of `home-assistant/core` (`f66cbe4`) in
   expiry. Store the refresh token (not the access token) in the secret
   store. A long-lived token (`auth/long_lived_access_token`, user-chosen
   lifespan) stays the fallback.
+- **Refresh-token lifecycle** (re-read 2026-10-02, same checkout):
+  - Bound to the login's `client_id`. A refresh with another `client_id`
+    gets `invalid_request` (`components/auth/__init__.py:438`). The check
+    on `client_id` itself is format-only (`indieauth.py:280`). So store the
+    exact string and reuse it, even after Aurora's IP or port changes.
+  - Never rotated: the refresh grant returns only an access token. The
+    secret is written once at login and read at each connect.
+  - Expiry slides: each refresh pushes it 90 days out
+    (`auth_store.py:283`). After about 90 days offline, refresh gets
+    `invalid_grant`. Treat that as "log in again", not as a retry.
+  - `/auth/revoke` takes the token itself, needs no auth, and always
+    answers 200 (`components/auth/__init__.py:237`). Revoke at HA before
+    deleting the local copy.
+  - A long-lived token is a JWT access token (`auth/__init__.py:609`), not
+    a refresh token. It is used directly in `auth` and never refreshed, so
+    it needs its own stored-record shape.
 - **`call_service` over WebSocket is blocking:** the result arrives after
   the light's service finishes (`websocket_api/commands.py`,
   `blocking=True`). That reply is the per-light "in flight" signal, so no
