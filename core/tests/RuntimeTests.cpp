@@ -4,6 +4,9 @@
 #include <algorithm>
 #include <fstream>
 #include <limits>
+#include <stdexcept>
+#include <thread>
+#include <vector>
 
 #include <Aurora/Runtime/Config.hpp>
 #include <Aurora/Runtime/ConfigStore.hpp>
@@ -221,6 +224,84 @@ TEST_CASE("ConfigStore round-trips through a real file and defaults on missing f
   CHECK(reloaded.activeInputName() == "x11");
   CHECK(reloaded.activeOutputNames() == std::vector<std::string>{"hue", "dmx"});
   CHECK(reloaded.activeMonitorName() == "\\\\.\\DISPLAY1");
+}
+
+
+TEST_CASE("ConfigStore::update saves only when mutate returns true (Aurora-d6i7)", "[ConfigStore]")
+{
+  ScopedTempDir dir("update-semantics");
+  ConfigStore store(dir.path);
+
+  Config saved = store.update([](Config& config){
+    config.setRefreshRate(45);
+    return true;
+  });
+  CHECK(saved.refreshRate() == 45);
+  CHECK(store.load().refreshRate() == 45);
+
+  // Declined: the in-memory change is returned but never reaches disk.
+  Config declined = store.update([](Config& config){
+    config.setRefreshRate(90);
+    return false;
+  });
+  CHECK(declined.refreshRate() == 90);
+  CHECK(store.load().refreshRate() == 45);
+
+  // Missing file: mutate sees defaults, same as load().
+  ScopedTempDir fresh("update-missing-file");
+  ConfigStore freshStore(fresh.path);
+  freshStore.update([](Config& config){
+    CHECK(config.refreshRate() == 0);
+    config.setSubsampleWidth(64);
+    return true;
+  });
+  CHECK(freshStore.load().subsampleWidth() == 64);
+}
+
+
+TEST_CASE("ConfigStore::update saves nothing when mutate throws (Aurora-d6i7)", "[ConfigStore]")
+{
+  ScopedTempDir dir("update-throws");
+  ConfigStore store(dir.path);
+  store.update([](Config& config){ config.setRefreshRate(45); return true; });
+
+  CHECK_THROWS_AS(store.update([](Config& config){
+    config.setRefreshRate(90);
+    throw std::runtime_error("bad patch");
+    return true;
+  }), std::runtime_error);
+
+  CHECK(store.load().refreshRate() == 45);
+
+  // The lock was released on the way out, or this would deadlock.
+  CHECK(store.update([](Config&){ return false; }).refreshRate() == 45);
+}
+
+
+TEST_CASE("Concurrent ConfigStore::update calls lose no write (Aurora-d6i7)", "[ConfigStore]")
+{
+  ScopedTempDir dir("update-concurrent");
+  ConfigStore store(dir.path);
+
+  constexpr int kThreads = 8;
+  constexpr int kPerThread = 25;
+
+  std::vector<std::thread> threads;
+  for(int t = 0; t < kThreads; ++t){
+    threads.emplace_back([&store, t]{
+      for(int i = 0; i < kPerThread; ++i){
+        store.update([t, i](Config& config){
+          auto names = config.activeOutputNames();
+          names.push_back("out-" + std::to_string(t) + "-" + std::to_string(i));
+          config.setActiveOutputNames(std::move(names));
+          return true;
+        });
+      }
+    });
+  }
+  for(auto& thread : threads){ thread.join(); }
+
+  CHECK(store.load().activeOutputNames().size() == static_cast<size_t>(kThreads * kPerThread));
 }
 
 

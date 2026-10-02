@@ -651,3 +651,12 @@ in `PairingRoutes.cpp`). Repointing the endpoint clears them. The HA token
 follows the same rule. To audit, trace each secret outward
 (header, PSK, body) and check who picked the destination.
 
+---
+
+## A save that follows slow work must write only the fields it derived -- saving the whole object overwrites edits made during the wait
+Tags: config, persistence, race, reload, configstore
+Applies-when: code loads a file-backed config, does slow work (device handshake, network), then saves; or two code paths update the same file with load() + save()
+
+`Pipeline::build` persisted its derived `refreshRate`/`subsampleWidth` by saving the orchestrator's whole `Config`, which came from a load made before output init. Hue's DTLS handshake takes 1-3s, so a settings PUT saved in that window was overwritten with the older values, and the next reload read the stale file (Aurora-d6i7). The PUT route was the second unlocked writer. `load()` could also read a file `save()` had just truncated, which parses as discarded and reads back as defaults.
+
+**Fix:** give the store an atomic `update(mutate)` under one leaf lock and use it for every partial change, never `load()` + `save()`. A save that follows slow work writes only the fields it derived, and only where still unset on disk. Serialize the whole PUT through its reload and keep a documented lock order (PUT mutex, file lock, host lock), so reloads run in the order their writes landed.

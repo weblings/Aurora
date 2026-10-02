@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <fstream>
+#include <mutex>
 
 #include <nlohmann/json.hpp>
 
@@ -10,6 +11,15 @@ namespace Aurora::Runtime
   namespace
   {
     using Json = nlohmann::json;
+
+    // One lock for every ConfigStore in the process: there is one config root
+    // per process, and tests that use several only pay a negligible wait.
+    std::mutex& _fileMutex()
+    {
+      static std::mutex s_mutex;
+      return s_mutex;
+    }
+
 
     Json toJson(const ConfigData& data)
     {
@@ -93,6 +103,31 @@ namespace Aurora::Runtime
 
   Config ConfigStore::load() const
   {
+    std::lock_guard<std::mutex> lock(_fileMutex());
+    return _loadLocked();
+  }
+
+
+  void ConfigStore::save(const Config& config) const
+  {
+    std::lock_guard<std::mutex> lock(_fileMutex());
+    _saveLocked(config);
+  }
+
+
+  Config ConfigStore::update(const std::function<bool(Config&)>& mutate) const
+  {
+    std::lock_guard<std::mutex> lock(_fileMutex());
+    Config config = _loadLocked();
+    if(mutate(config)){
+      _saveLocked(config);
+    }
+    return config;
+  }
+
+
+  Config ConfigStore::_loadLocked() const
+  {
     if(!std::filesystem::exists(m_configFilePath)){
       return Config{};
     }
@@ -110,7 +145,7 @@ namespace Aurora::Runtime
   }
 
 
-  void ConfigStore::save(const Config& config) const
+  void ConfigStore::_saveLocked(const Config& config) const
   {
     std::filesystem::create_directories(m_configFilePath.parent_path());
 

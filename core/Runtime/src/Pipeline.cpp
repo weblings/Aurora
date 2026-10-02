@@ -162,7 +162,23 @@ namespace Aurora::Runtime
 
       // Persists any refreshRate/subsampleWidth just derived from the
       // display -- same as main() always did right after construction.
-      ConfigStore(configRoot).save(pipeline->m_orchestrator->config());
+      // Only those two fields, and only where still unset on disk: this
+      // runs after output init (1-3s on Hue), so saving the whole Config
+      // built from the pre-init load would overwrite a settings PUT that
+      // landed meanwhile (Aurora-d6i7).
+      const Config& derived = pipeline->m_orchestrator->config();
+      ConfigStore(configRoot).update([&derived](Config& onDisk){
+        bool changed = false;
+        if(onDisk.refreshRate() == 0 && derived.refreshRate() != 0){
+          onDisk.setRefreshRate(derived.refreshRate());
+          changed = true;
+        }
+        if(onDisk.subsampleWidth() == 0 && derived.subsampleWidth() != 0){
+          onDisk.setSubsampleWidth(derived.subsampleWidth());
+          changed = true;
+        }
+        return changed;
+      });
 
       _log(options, LogLevel::Info,
         "Aurora running: input='" + inputName + "', "

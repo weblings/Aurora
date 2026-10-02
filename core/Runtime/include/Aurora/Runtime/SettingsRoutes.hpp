@@ -28,6 +28,10 @@ namespace Aurora::Network::Http::Server { class HttpServer; }
 // empty string on success or an error message on failure; a failure here
 // means the save succeeded but the live pipeline couldn't pick it up --
 // reported back distinctly, not conflated with a save failure.
+//
+// PUTs are serialized end to end (write + onConfigChanged), and the write is
+// ConfigStore::update(), atomic against Pipeline::build's own derived-rate
+// save -- so no PUT is lost and reloads run in the order their writes landed.
 namespace Aurora::Runtime
 {
   void registerSettingsRoutes(

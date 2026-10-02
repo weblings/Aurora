@@ -5,7 +5,9 @@
 #include <nlohmann/json.hpp>
 
 #include <algorithm>
+#include <atomic>
 #include <chrono>
+#include <functional>
 #include <memory>
 #include <stdexcept>
 #include <thread>
@@ -14,6 +16,7 @@
 #include <Aurora/Runtime/ConfigStore.hpp>
 #include <Aurora/Runtime/Pipeline.hpp>
 #include <Aurora/Runtime/PipelineRoutes.hpp>
+#include <Aurora/Runtime/SettingsRoutes.hpp>
 
 using namespace Aurora::Contracts;
 using namespace Aurora::Input;
@@ -51,6 +54,10 @@ namespace
   {
     std::vector<std::string> lines;
     int sendCount{0};
+
+    // Runs inside every FakeOutput::init(), i.e. in the window Pipeline::build
+    // spends on output init -- where a settings PUT can land on real hardware.
+    std::function<void()> onOutputInit;
 
     bool has(const std::string& line) const
     {
@@ -115,7 +122,12 @@ namespace
     {}
 
     const std::string& name() const override { return m_name; }
-    void init() override { m_connected = true; m_events->lines.push_back("init " + m_name); }
+    void init() override
+    {
+      m_connected = true;
+      m_events->lines.push_back("init " + m_name);
+      if(m_events->onOutputInit){ m_events->onOutputInit(); }
+    }
     bool isConnected() const override { return m_connected; }
 
     void shutdown(bool isReplacement) override
@@ -205,6 +217,64 @@ TEST_CASE("Pipeline::build returns null and creates nothing when Config names no
 
   CHECK(Pipeline::build(registry, Config{}, dir.path, {}) == nullptr);
   CHECK(events->lines.empty());
+}
+
+
+TEST_CASE("Pipeline::build's derived-field save keeps a PUT that landed mid-build (Aurora-d6i7)", "[Pipeline]")
+{
+  ScopedTempDir dir("build-race");
+  ConfigStore(dir.path).save(videoConfig());
+
+  auto events = std::make_shared<Events>();
+  auto registry = makeRegistry(events);
+
+  // A settings PUT's load -> patch -> save, landing after build() has already
+  // been handed its Config but before it persists the derived rate.
+  bool putLanded = false;
+  events->onOutputInit = [&]{
+    if(putLanded){ return; }
+    putLanded = true;
+    ConfigStore store(dir.path);
+    Config onDisk = store.load();
+    onDisk.setTransitionSmoothing(0.5f);
+    store.save(onDisk);
+  };
+
+  Config config = ConfigStore(dir.path).load();
+  auto pipeline = Pipeline::build(registry, config, dir.path, {});
+  REQUIRE(pipeline);
+  REQUIRE(putLanded);
+
+  Config persisted = ConfigStore(dir.path).load();
+  CHECK(persisted.transitionSmoothing() == Catch::Approx(0.5f)); // the PUT survived
+  CHECK(persisted.refreshRate() == 30);                          // the derived rate still landed
+  CHECK(persisted.activeInputName() == "fake-video");
+}
+
+
+TEST_CASE("Pipeline::build only fills derived fields that are still unset on disk (Aurora-d6i7)", "[Pipeline]")
+{
+  ScopedTempDir dir("build-derived-fill");
+  ConfigStore(dir.path).save(videoConfig());
+
+  auto events = std::make_shared<Events>();
+  auto registry = makeRegistry(events);
+
+  // The user picks 60 Hz while the build that would derive 30 is in flight.
+  bool putLanded = false;
+  events->onOutputInit = [&]{
+    if(putLanded){ return; }
+    putLanded = true;
+    ConfigStore store(dir.path);
+    Config onDisk = store.load();
+    onDisk.setRefreshRate(60);
+    store.save(onDisk);
+  };
+
+  Config config = ConfigStore(dir.path).load();
+  REQUIRE(Pipeline::build(registry, config, dir.path, {}));
+
+  CHECK(ConfigStore(dir.path).load().refreshRate() == 60);
 }
 
 
@@ -552,4 +622,77 @@ TEST_CASE("Monitors and reload routes answer from PipelineHost", "[PipelineRoute
 
   server.stop();
   serverThread.join();
+}
+
+
+TEST_CASE("Concurrent settings PUTs run one at a time and none is lost (Aurora-d6i7)", "[SettingsRoutes]")
+{
+  using namespace Aurora::Network::Http::Server;
+
+  ScopedTempDir dir("settings-put");
+
+  std::atomic<int> inFlight{0};
+  std::atomic<int> maxInFlight{0};
+  std::atomic<int> calls{0};
+
+  HttpServer server;
+  registerSettingsRoutes(server, dir.path, [&]() -> std::string{
+    int now = ++inFlight;
+    int seen = maxInFlight.load();
+    while(now > seen && !maxInFlight.compare_exchange_weak(seen, now)){}
+    std::this_thread::sleep_for(20ms); // a slow reload, the case that matters
+    --inFlight;
+    ++calls;
+    return {};
+  });
+  REQUIRE(server.bind("127.0.0.1", 18228));
+  std::thread serverThread([&](){ server.listen(); });
+
+  // Each PUT patches a different field, so a lost update shows as a field
+  // snapping back to its default.
+  const std::vector<std::pair<std::string, nlohmann::json>> patches{
+    {"refreshRate", 45},
+    {"subsampleWidth", 80},
+    {"transitionSmoothing", 0.5},
+    {"audioDynamismFloor", 0.3},
+    {"audioVibrancyValue", 0.7},
+    {"audioReferenceRms", 0.6},
+    {"audioBrightnessFloor", 0.5},
+    {"audioCentroidStrength", 0.4},
+  };
+
+  {
+    httplib::Client probe("127.0.0.1", 18228);
+    REQUIRE(getWithRetry(probe, "/api/config"));
+  }
+
+  // Catch2's assertions aren't thread-safe here, so the client threads only
+  // count successes and the checks run on this thread.
+  std::atomic<int> succeeded{0};
+  std::vector<std::thread> clients;
+  for(const auto& [field, value] : patches){
+    clients.emplace_back([&, field = field, value = value]{
+      httplib::Client client("127.0.0.1", 18228);
+      auto response = client.Put("/api/config", nlohmann::json{{field, value}}.dump(), "application/json");
+      if(response && response->status == 200){ ++succeeded; }
+    });
+  }
+  for(auto& client : clients){ client.join(); }
+
+  server.stop();
+  serverThread.join();
+
+  CHECK(succeeded == static_cast<int>(patches.size()));
+  CHECK(calls == static_cast<int>(patches.size()));
+  CHECK(maxInFlight == 1);
+
+  Config persisted = ConfigStore(dir.path).load();
+  CHECK(persisted.refreshRate() == 45);
+  CHECK(persisted.subsampleWidth() == 80);
+  CHECK(persisted.transitionSmoothing() == Catch::Approx(0.5f));
+  CHECK(persisted.audioDynamismFloor() == Catch::Approx(0.3f));
+  CHECK(persisted.audioVibrancyValue() == Catch::Approx(0.7f));
+  CHECK(persisted.audioReferenceRms() == Catch::Approx(0.6f));
+  CHECK(persisted.audioBrightnessFloor() == Catch::Approx(0.5f));
+  CHECK(persisted.audioCentroidStrength() == Catch::Approx(0.4f));
 }
