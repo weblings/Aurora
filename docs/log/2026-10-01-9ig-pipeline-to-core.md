@@ -4,8 +4,8 @@ Id: 9ig-pipeline-to-core
 
 Node prep 6 ([[node-graph-pipeline]]). The three apps' `main.cpp` each
 carried a copy of Pipeline/PipelineHost (~250 lines each), so node prep 7-9
-would each have landed three times. Paused: code done and verified on Mac
-and Windows (local); Linux not compiled yet; no CI run yet.
+would each have landed three times. Paused: code done and verified locally
+on Mac, Windows and Linux; no CI run yet.
 
 ## What moved
 
@@ -45,10 +45,23 @@ and Windows (local); Linux not compiled yet; no CI run yet.
   `reloadError` and `/api/reload` then answers 500 with the app still up.
   Not exercised: clean shutdown (process was killed, not Ctrl+C'd), so no
   "Stopping..." line seen.
-- Linux: not compiled. Resume: push `feat/NodesPrep2`, open a draft PR,
-  confirm `AuroraPipelineTests` runs in each platform's core step (windows.yml
-  has a "Core tests (incl. Parity)" step; the app ctest alone does not
-  contain them) and both app builds pass, then close 9ig.
+- Linux x64 (local, GCC 13.3, 2026-10-01): configured/built exactly as
+  `linux.yml` does. `cmake --preset linux-app -DAURORA_ENABLE_GRAPH_EDITOR=ON`
+  + `cmake --build build/linux-app`: `aurora-app-linux` links against core
+  `AuroraRuntime`; `ctest --test-dir build/linux-app` 85/85. Core standalone
+  (`cmake -S core -B build/core-test`, manifest mode never applies on
+  Linux): 121/121, including all 17 `AuroraPipelineTests` cases (the
+  "Monitors and reload routes answer from PipelineHost" case that hit the
+  httplib ODR segfault under Windows manifest mode passes cleanly here).
+  Core with `AURORA_CORE_ENABLE_AUDIO=OFF`: builds and links with no
+  Windows-style unguarded-audio failure, 85/85. Live, `--fake-hue --console`
+  with a temp `AURORA_CONFIG_DIR`: `/api/monitors`, `/api/zones`,
+  `/api/linux/audio-sinks` all answer; `/api/reload` 200 on a good config,
+  500 (`Unknown input 'nope'`) on a bad one with the app staying up and the
+  old pipeline still serving `/api/monitors`; `[timing]` lines in the same
+  order as Mac/Windows; `Stopping...` and a clean exit on SIGINT (the one
+  case Windows's run skipped). Resume: push `feat/NodesPrep2`, open a draft
+  PR to run the real `linux.yml`/`windows.yml`/`mac.yml` CI, then close 9ig.
 
 ## Findings
 
@@ -83,4 +96,15 @@ and Windows (local); Linux not compiled yet; no CI run yet.
   copy and passes 121/121. After the change, core with manifest OFF (121/121) and `windows-app`
   (68/68, `Aurora.exe` links) were rebuilt and still pass; Linux/Mac not run
   (no manifest there). Lessons: `build-toolchain` (two header copies), `debugging-method` (crash without a debugger).
+- Core with `AURORA_CORE_ENABLE_AUDIO=OFF` is 85/85 on Linux vs 84/84 on
+  Mac: expected (different platform-specific test sets, e.g. no
+  `embed_webroot.py` fixture test on Mac's run), not a regression -- the
+  count alone isn't the oracle, same principle as the existing
+  "check the test count and names, not the pass line" lesson
+  (`build-toolchain`).
+- No new lesson filed for the Linux run itself: the one tooling fact it
+  depends on (this box has no system `cmake`/`ctest`, only the `.venv`
+  pip-installed one) was already covered by two existing
+  `build-toolchain` entries ("Without cmake, flags.make + link.txt..." and
+  the huenicorn-fork Mbed TLS entry); nothing new to add.
 
