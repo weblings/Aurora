@@ -112,9 +112,14 @@ def entertainment_configurations():
              "members": [{"service": {"rid": rid}} for rid in members]}
             for channel_id, members in sorted(conf["channels"].items())
         ]
+        # Real bridges list each member light here; huenicorn's loader requires it
+        light_ids = {d["entertainment_id"]: d["light_id"] for d in DEVICES}
+        members = sorted({rid for rids in conf["channels"].values() for rid in rids})
         data.append({"id": conf["id"],
                      "metadata": {"name": conf["name"]},
-                     "channels": channels})
+                     "channels": channels,
+                     "light_services": [{"rtype": "light", "rid": light_ids[rid]}
+                                        for rid in members]})
     return {"data": data}
 
 
