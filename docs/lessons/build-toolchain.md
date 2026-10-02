@@ -659,6 +659,16 @@ In a Windows core build with vcpkg manifest mode ON, `cpp-httplib` 0.58.0 lands 
 
 ---
 
+## Removing a dep from the vcpkg manifest doesn't clean an existing build dir: cached `find_package` paths and old objects keep the old dep
+Tags: vcpkg, manifest-mode, cmake-cache, stale-build, brotli, httplib, windows
+Applies-when: a fix that changes `vcpkg.json` (or any dependency source) "works" in a fresh tree but a long-lived build dir still crashes or fails to compile
+
+After Aurora-rtwh dropped `cpp-httplib` from `core/vcpkg.json`, the pre-existing `build/core-test` still segfaulted `Monitors and reload routes answer from PipelineHost` (Aurora-3ono), while a fresh configure of the same commit passed 127/127. The old tree's CMake cache still held `Brotli_*` paths into the old `vcpkg_installed` (found as a transitive dep of httplib 0.58), so httplib was built with brotli support there and its objects were never rebuilt against the new setup. A `--clean-first` of just the httplib consumers exposed it as `Cannot open include file: 'brotli/decode.h'`. Fix: `cmake -U "Brotli_*" -U "*BROTLI*" -S core -B <dir>`, then a full build; 127/127. Faster: after changing the manifest, delete the build dir (its vcpkg_installed goes stale too).
+
+**Cue:** a crash that a fresh tree doesn't have. Configure a throwaway tree before debugging code, and `grep` the old `CMakeCache.txt` for the removed dep. Fresh tree needs `-DAubio_DIR=C:/vcpkg/installed/x64-windows/share/aubio` on this box (aubio isn't in the manifest).
+
+---
+
 ## Building against a distro `-dev` package without sudo: `apt-get download` + `dpkg -x`, then a rewritten `.pc`
 Tags: linux, pkg-config, dependencies, sudo, apt
 Applies-when: a configure needs a missing `-dev` package on a machine where you can't install packages

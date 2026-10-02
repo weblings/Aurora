@@ -183,7 +183,9 @@ inode via `rm` + `cp`; the item's ACL dumped with `security dump-keychain
 - Core ctest 126/127. The one failure, `Monitors and reload routes answer
   from PipelineHost` (PipelineTests.cpp:503, SEGFAULT), is in a binary that
   does not link `AuroraSecrets`. It is the test Aurora-rtwh was meant to
-  fix (httplib ODR); filed as Aurora-3ono, not investigated here.
+  fix (httplib ODR). Resolved in Aurora-3ono: stale `build/core-test` cache
+  and objects (cached `Brotli_*` paths from before rtwh), not a code
+  regression; fresh tree and the repaired old tree are both 127/127.
 
 ## Resume (historical)
 
