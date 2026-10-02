@@ -274,3 +274,20 @@ Tags: websocket, httplib, testing, cross-platform, ha
 Applies-when: writing a C++ test (or a fake Home Assistant) that needs a ws:// peer
 
 Aurora-d9v's bead assumed "a local ws:// echo server", i.e. a separate process and a port to pick per platform. cpp-httplib >= 0.46 has `Server::WebSocket(pattern, handler)` with a blocking `ws::WebSocket::read/send` loop, so the test hosts its own peer: `bind_to_any_port("127.0.0.1")`, `listen_after_bind()` on a thread, `wait_until_ready()`, then `httplib::ws::WebSocketClient("ws://127.0.0.1:<port>/path")`. No Python/Node dependency, no port clash, identical on Linux, Windows and Mac. The same handler shape works for a scripted fake HA server (auth handshake, `get_states` reply) when the HA client lands. `ws::ReadResult` (`Text`/`Binary`/`Fail`) lives in `httplib::ws`, not `httplib`. Stop with `server.stop()` and join the thread before the server goes out of scope.
+
+---
+
+## The Origin-vs-Host write gate 403s the WebUI if a dev proxy rewrites Host
+Tags: routes, security, vite, proxy, origin
+Applies-when: adding or changing a dev-server proxy in front of the daemon
+
+Since Aurora-5i3, `_wrapHandler` rejects a non-GET request whose `Origin`
+host differs from its `Host` (port ignored). Vite's `/api` proxy in
+`web/graph-editor` passes, because by default it forwards the browser's
+`Host` unchanged. Adding `changeOrigin: true` rewrites `Host` to
+`127.0.0.1` while Origin stays `localhost`. Every PUT/POST then fails with
+`cross_origin_forbidden`, but GETs still work, so it can look like a broken
+route.
+
+**Fix:** leave `changeOrigin` off, or open the dev page at the same host
+the proxy targets.

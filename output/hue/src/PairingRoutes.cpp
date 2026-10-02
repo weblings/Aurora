@@ -40,6 +40,34 @@ namespace Aurora::Output::Hue
         return std::nullopt;
       }
     }
+
+
+    struct BridgeTarget
+    {
+      std::string bridgeAddress;
+      std::string username;
+    };
+
+
+    // Aurora-5i3: stored credentials are only ever sent to the stored
+    // bridge. A body naming its own bridgeAddress but no username gets no
+    // fallback, so a LAN client can't aim the persisted app key at its host.
+    BridgeTarget _resolveTarget(const nlohmann::json& body, const std::filesystem::path& configRoot)
+    {
+      BridgeTarget target{sanitizeBridgeAddress(body.value("bridgeAddress", "")), body.value("username", "")};
+      if(!target.bridgeAddress.empty() && !target.username.empty()){
+        return target;
+      }
+
+      HueConnection persisted = CredentialsStore(configRoot).load();
+      if(target.bridgeAddress.empty()){
+        target.bridgeAddress = persisted.bridgeAddress;
+      }
+      if(target.username.empty() && target.bridgeAddress == persisted.bridgeAddress){
+        target.username = persisted.username;
+      }
+      return target;
+    }
   }
 
 
@@ -263,13 +291,7 @@ namespace Aurora::Output::Hue
         return;
       }
 
-      std::string bridgeAddress = sanitizeBridgeAddress(body->value("bridgeAddress", ""));
-      std::string username = body->value("username", "");
-      if(bridgeAddress.empty() || username.empty()){
-        HueConnection persisted = CredentialsStore(configRoot).load();
-        if(bridgeAddress.empty()) bridgeAddress = persisted.bridgeAddress;
-        if(username.empty()) username = persisted.username;
-      }
+      auto [bridgeAddress, username] = _resolveTarget(*body, configRoot);
       if(bridgeAddress.empty() || username.empty()){
         _writeJson(res, {{"succeeded", false}, {"error", "missing_bridge_address_or_username"}}, 400);
         return;
@@ -306,13 +328,7 @@ namespace Aurora::Output::Hue
         return;
       }
 
-      std::string bridgeAddress = sanitizeBridgeAddress(body->value("bridgeAddress", ""));
-      std::string username = body->value("username", "");
-      if(bridgeAddress.empty() || username.empty()){
-        HueConnection persisted = CredentialsStore(configRoot).load();
-        if(bridgeAddress.empty()) bridgeAddress = persisted.bridgeAddress;
-        if(username.empty()) username = persisted.username;
-      }
+      auto [bridgeAddress, username] = _resolveTarget(*body, configRoot);
       if(bridgeAddress.empty() || username.empty()){
         _writeJson(res, {{"succeeded", false}, {"error", "missing_bridge_address_or_username"}}, 400);
         return;
@@ -374,7 +390,16 @@ namespace Aurora::Output::Hue
       }
 
       HueConnection connection = CredentialsStore(configRoot).load();
-      if(body->contains("bridgeAddress")) connection.bridgeAddress = sanitizeBridgeAddress(body->value("bridgeAddress", ""));
+      if(body->contains("bridgeAddress")){
+        std::string bridgeAddress = sanitizeBridgeAddress(body->value("bridgeAddress", ""));
+        // Aurora-5i3: repointing drops the stored creds -- a new bridge
+        // needs its own pairing, never the old bridge's username/clientkey.
+        if(bridgeAddress != connection.bridgeAddress){
+          connection.username.clear();
+          connection.clientkey.clear();
+        }
+        connection.bridgeAddress = bridgeAddress;
+      }
       if(body->contains("username")) connection.username = body->value("username", "");
       if(body->contains("clientkey")) connection.clientkey = body->value("clientkey", "");
       if(body->contains("entertainmentConfigurationId")) connection.entertainmentConfigurationId = body->value("entertainmentConfigurationId", "");

@@ -605,3 +605,22 @@ An IDE or `git pull` offers to integrate when a branch has diverged ("16 and 16 
 - A local branch that matches a remote tip with no unique commits can simply be deleted and recreated from the remote.
 
 **Fix:** per-branch cherry check, backup, reset, then a final `git log --all --regexp-ignore-case --grep=<pattern>` that must print nothing. Reflog entries survive until `git reflog expire --expire=now --all && git gc --prune=now`; they do not affect `--all` or pushes.
+
+---
+
+## A "never return secrets" audit must also follow where each stored secret is *sent*, not just what routes respond with
+Tags: security, secrets, hue, ha, routes, contracts
+Applies-when: auditing or adding a route that uses stored credentials
+
+Aurora-5i3's audit found every `/api/hue/*` response clean. But two routes
+filled an omitted `username` from the stored pairing, while still taking
+`bridgeAddress` from the body. So `{"bridgeAddress":"<attacker>"}` made
+Aurora send the stored app key to that host, in one unauthenticated request.
+That fallback existed for a good reason: GET withholds creds, so the WebUI
+can't resend them (see the "full object round-trip" lesson in web-testing.md).
+
+**Fix:** stored creds only ever go to the stored endpoint (`_resolveTarget`
+in `PairingRoutes.cpp`). Repointing the endpoint clears them. The HA token
+follows the same rule. To audit, trace each secret outward
+(header, PSK, body) and check who picked the destination.
+
