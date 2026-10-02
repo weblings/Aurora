@@ -137,6 +137,11 @@ next similar-looking one -- re-derive whether constraint Y genuinely holds
 for the new code before reaching for the same workaround, since the
 constraint (not the pattern) is the actual thing worth checking for reuse.
 
+Update (Aurora-9ig): the constraint itself was removable. `Registry` was
+byte-identical across apps and depended only on core interfaces, so it and
+`Pipeline`/`PipelineHost` moved into `core/Runtime`, and the monitors/reload
+routes moved with them (`PipelineRoutes`).
+
 ---
 
 ---

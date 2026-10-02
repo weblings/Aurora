@@ -4,6 +4,7 @@
 #include <httplib.h>
 #include <nlohmann/json.hpp>
 
+#include <algorithm>
 #include <chrono>
 #include <memory>
 #include <stdexcept>
