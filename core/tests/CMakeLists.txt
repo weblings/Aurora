@@ -55,6 +55,7 @@ target_compile_features(AuroraControlDescriptorTests PUBLIC cxx_std_20)
 
 add_executable(AuroraRuntimeTests
   RuntimeTests.cpp
+  RegistryTests.cpp
 )
 
 target_link_libraries(AuroraRuntimeTests PRIVATE
@@ -63,6 +64,18 @@ target_link_libraries(AuroraRuntimeTests PRIVATE
 )
 
 target_compile_features(AuroraRuntimeTests PUBLIC cxx_std_20)
+
+add_executable(AuroraPipelineTests
+  PipelineTests.cpp
+)
+
+target_link_libraries(AuroraPipelineTests PRIVATE
+  AuroraRuntime
+  httplib::httplib
+  Catch2::Catch2WithMain
+)
+
+target_compile_features(AuroraPipelineTests PUBLIC cxx_std_20)
 
 add_executable(AuroraOrchestratorTests
   OrchestratorTests.cpp
@@ -192,6 +205,7 @@ catch_discover_tests(AuroraProcessingTests)
 catch_discover_tests(AuroraControlDescriptorTests)
 catch_discover_tests(AuroraRuntimeTests)
 catch_discover_tests(AuroraOrchestratorTests)
+catch_discover_tests(AuroraPipelineTests)
 catch_discover_tests(AuroraDevFrameDumpTests)
 catch_discover_tests(AuroraVideoParityTests)
 if(TARGET AuroraEmbedWebrootTests)

@@ -65,11 +65,11 @@ if(AURORA_APP_ENABLE_HUE_OUTPUT AND NOT TARGET AuroraOutputHue)
   FetchContent_MakeAvailable(AuroraOutputHue)
 endif()
 
-# Registry as its own library (not folded into the executable) so tests can
-# link it without pulling in main()'s own main() symbol. TrayIcon.mm
+# App-side pieces as their own library (not folded into the executable) so tests can
+# link them without pulling in main()'s own main() symbol (Registry lives in
+# core/Runtime). TrayIcon.mm
 # (Aurora-qps.2) matches app/linux's TrayIcon.cpp living here too.
 add_library(AuroraApp STATIC
-  src/Registry.cpp
   src/InstanceLock.cpp
   src/TrayIcon.mm
 )

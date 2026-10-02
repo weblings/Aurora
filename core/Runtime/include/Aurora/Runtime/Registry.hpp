@@ -10,14 +10,14 @@
 #include <Aurora/Input/IVideoInput.hpp>
 #include <Aurora/Output/IOutput.hpp>
 
-// Name -> factory lookup for this app's compiled-in plugins. Config picks
+// Name -> factory lookup for an app's compiled-in plugins. Config picks
 // which ones run by name; adding a plugin means adding one registry entry
 // here, not touching main()'s control flow. Factories are zero-arg closures
 // -- whatever a plugin needs to construct (credentials, addresses) is
 // captured when main() registers it, not passed through this type, since
 // each plugin's construction parameters differ and there's no shared
 // config schema for them yet. See docs/DistributedArchitecturePlan.md.
-namespace Aurora::App
+namespace Aurora::Runtime
 {
   using InputFactory = std::function<std::unique_ptr<Input::IVideoInput>()>;
   using AudioInputFactory = std::function<std::unique_ptr<Input::IAudioInput>()>;

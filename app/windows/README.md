@@ -9,9 +9,8 @@ Distilled from [huenicorn](https://gitlab.com/openjowelsofts/huenicorn)
 
 ## What's here
 
-- **`Registry`** — identical to `app/linux`'s copy (platform-neutral, no OS
-  dependency): name → factory lookup for this binary's compiled-in plugins.
-  Tested (`tests/RegistryTests.cpp`) against fake input/output fixtures.
+- **`Registry`** lives in `core/Runtime` (shared by all three apps);
+  `main.cpp` fills it with this binary's compiled-in plugins.
 - **`main.cpp`** — registers whichever plugins this build was compiled with
   (`AURORA_APP_ENABLE_WINDOWS_INPUT`/`_HUE_OUTPUT`), picks which of them to
   actually run from `Config::activeInputName()`/`activeOutputNames()` (or
