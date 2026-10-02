@@ -19,8 +19,9 @@ Philips' official app.
 - Dependencies:
   - **Windows:** Try launching Aurora. If you get an error saying "The code execution cannot proceed because VCRUNTIME140.dll was not found", then you need: [Visual C++ Redistributable](https://learn.microsoft.com/en-us/cpp/windows/latest-supported-vc-redist). If not, it's already installed and you're good to go.
   - **Linux (Debian/Ubuntu):** `sudo apt install libx11-6 libxext6 libxrandr2 pipewire libaubio5 libcurl4t64 libopencv-core406t64 libmbedtls14t64` (ffmpeg and GL pieces arrive automatically as dependencies of those; on other releases the curl/opencv/mbedtls package names differ slightly — e.g. `libopencv-core410` / `libmbedtls21` — and a missing-`.so` error on launch names its package).
+    - **Compiling from source on Linux?** You need the `-dev` variants instead — see [docs/Building.md](docs/Building.md#prerequisites).
   - **Mac (Apple silicon, macOS 27 is the supported target) older macOS is untested, Intel is not supported:** nothing to install, and no terminal needed. Unzip the Mac release, drag `Aurora.app` into your Applications folder (this also lets Spotlight find it), and open it. macOS may ask you to confirm opening an app downloaded from the internet; choose Open. Aurora runs from the menu bar: click its icon for Launch UI or Stop, and grant Screen Recording when prompted. To build from source instead, install [Homebrew](https://brew.sh), then `brew install cmake opencv curl aubio mbedtls@3 pkg-config` (must be `mbedtls@3`, not v4), and build via the `mac-app` preset, see [CONTRIBUTING.md](CONTRIBUTING.md#platform-notes).
-  - **Compiling from source on Linux?** You need the `-dev` variants instead — see [docs/Building.md](docs/Building.md#prerequisites).
+
 
 ## Layout
 
@@ -32,7 +33,7 @@ One repo, with a directory per slice. You only build the ones for your platform:
 - [`output/hue`](output/hue) — Philips Hue entertainment-streaming output plugin
 - [`web/ui`](web/ui) — the setup/control interface the apps serve in your browser
 
-**Prebuilt binaries:** from the 1.0.2 GitHub Release above. To compile from source instead, see below.
+**Prebuilt binaries:** See GitHub Releases. To compile from source instead, see below.
 
 ## For Developers
 
@@ -81,7 +82,7 @@ synchronizer for GNU/Linux. Huenicorn was the reason I started exploring Linux a
 
 ## Intent and AI Disclaimer
 
-- This repo is vibecoded. One project goal was to experiment with using AI to translate my past decade of Unity and XR coding knowledge to native Windows and Linux apps in C++.
+- This repo is vibecoded. One project goal was to experiment with using AI to translate my past decade of Unity and XR coding knowledge to native Windows, Linux, and MacOS apps in C++.
 - I've found the 1P Hue apps on various platforms unreliable over the years. Huenicorn has been a breath of fresh air! I was curious to see if I could extend some of the work its done.
 - Long-term I'd like to extend this framework to handle inputs beyond media and drive outpts beyond colors. We'll see 
 
