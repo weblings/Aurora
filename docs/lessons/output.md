@@ -262,7 +262,7 @@ Applies-when: a dev tool (light-viz relay, frame dump) shows "waiting for frames
 
 ---
 
-## Bridge-loader failure paths need fault injection, which `tools/fake-hue-bridge` doesn't have -- a stalled endpoint on a tiny TLS fake reproduces curl timeouts
+## Bridge-loader failure paths need fault injection -- a stalled endpoint on the threaded fake bridge reproduces curl timeouts
 Tags: output, hue, testing, fake-bridge, huenicorn, timeouts
 Applies-when: verifying how Hue API loading code (huenicorn's or Aurora's `ApiTools`) handles a failed or timed-out per-resource request
 
@@ -282,8 +282,10 @@ startup, not the "aborted load" the write-up assumed.
 **Fix:** for timeout/failure behavior, stall or error one endpoint in a
 threaded fake instead of hoping for a flaky LAN. When sizing an uncaught
 exception's impact, follow it to the first `catch` (or `main`) before
-describing the symptom. Adding a `--stall`/`--fail <path>` option to
-`tools/fake-hue-bridge` would make this reusable.
+describing the symptom. `tools/fake-hue-bridge --stall-light <id>` now does
+the stall (`tools/huenicorn-checks/hue.sh` uses it); the first fake was
+scratch and got lost. Its entertainment configs also list `light_services`
+now, which huenicorn's loader requires.
 
 ---
 

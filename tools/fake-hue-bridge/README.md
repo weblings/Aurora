@@ -27,6 +27,11 @@ Options: `--username`, `--clientkey`, `--link-button pressed|not-pressed`
 (`not-pressed` makes `POST /api` return bridge error 101 so the WebUI
 retry path is testable).
 
+Fault injection: `--stall-light LIGHT_ID` (repeatable) makes
+`GET /clip/v2/resource/light/LIGHT_ID` hang `--stall-seconds` (default 3)
+before answering, to outlast a client timeout. Used by
+`tools/huenicorn-checks` for huenicorn's light-fetch crash.
+
 ## Quickstart: full NUX rehearsal (copy-paste)
 
 Rebuild the daemon first so both dev routes exist, and run the new tests:

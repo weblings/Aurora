@@ -633,3 +633,21 @@ Applies-when: relying on the order of `Registry::outputNames()`/`inputNames()`, 
 
 **Fix:** tests select outputs explicitly (`setActiveOutputNames`) when they assert on "first output". Product side tracked in Aurora-9sm: give the unselected case a defined order, or make the zone routes name their output.
 
+---
+
+## A "never return secrets" audit must also follow where each stored secret is *sent*, not just what routes respond with
+Tags: security, secrets, hue, ha, routes, contracts
+Applies-when: auditing or adding a route that uses stored credentials
+
+Aurora-5i3's audit found every `/api/hue/*` response clean. But two routes
+filled an omitted `username` from the stored pairing, while still taking
+`bridgeAddress` from the body. So `{"bridgeAddress":"<attacker>"}` made
+Aurora send the stored app key to that host, in one unauthenticated request.
+That fallback existed for a good reason: GET withholds creds, so the WebUI
+can't resend them (see the "full object round-trip" lesson in web-testing.md).
+
+**Fix:** stored creds only ever go to the stored endpoint (`_resolveTarget`
+in `PairingRoutes.cpp`). Repointing the endpoint clears them. The HA token
+follows the same rule. To audit, trace each secret outward
+(header, PSK, body) and check who picked the destination.
+
