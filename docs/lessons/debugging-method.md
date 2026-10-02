@@ -631,6 +631,16 @@ The agent's Bash wrapper runs the whole command string via `bash -c`, so its com
 
 ---
 
+## Unsetting `DBUS_SESSION_BUS_ADDRESS` doesn't simulate "no session bus": GIO falls back to `$XDG_RUNTIME_DIR/bus`
+Tags: linux, dbus, libsecret, testing, failure-injection
+Applies-when: testing a D-Bus client's "no bus / no service" path (libsecret, portals, notifications)
+
+For Aurora-2dz's "no Secret Service" case, `env -u DBUS_SESSION_BUS_ADDRESS` still reached gnome-keyring, and the `[real]` test passed instead of skipping. On systemd sessions GIO finds the user bus socket at `$XDG_RUNTIME_DIR/bus` without the variable. The failure injection silently didn't happen.
+
+**Fix:** point it at a dead socket, `DBUS_SESSION_BUS_ADDRESS=unix:path=/nonexistent`. libsecret then fails with "Could not connect" (`G_IO_ERROR`, mapped to `Unavailable`). Check that the injected failure really occurred (status or skip message) before trusting a "passes" result.
+
+---
+
 ## A Catch2 SIGSEGV with no debugger: install a vectored exception handler, link with `/MAP`, resolve the RVAs
 Tags: windows, segfault, catch2, msvc, stack-trace, map-file, bisect
 Applies-when: a test exe segfaults on Windows, `cdb`/WinDbg are not installed, and Catch2 only prints "Unknown expression after the reported line"
@@ -639,3 +649,13 @@ Catch2 reports the last assertion that started, not where the crash is, and its 
 ` inside C string literals while patching, so use `std::endl`, or write patch scripts with the Write tool.
 
 **Fix:** keep the VEH snippet and map resolver as the first move for any Windows crash that has no debugger; the symbol names alone usually point at the cause (here, httplib compiled twice). Revert the instrumentation and the linker-flag cache entry afterwards.
+
+---
+
+## A cross-binary test that renames the binary changes more than the variable under test: vary one property at a time before recording a bug
+Tags: testing, experiment-design, false-positive, macos, keychain, binaries
+Applies-when: simulating "a rebuilt or updated app" by copying binaries to new names or paths, or about to file a bug found by such a harness
+
+Aurora-2dz copied one test binary to `A`, `B` and `C` to stand in for successive builds. Three things changed at once: the bytes, the file name and (for a while) the signature. Delete failed from `B`/`C` and I wrote it up as a Keychain bug in the bead, the planning doc and the log. Web research then pointed at the file name, and a rerun that changed only the directory (same name) and then only the bytes (new inode at the same path) both passed. The earlier ad-hoc rebuild runs, which kept the name, had already deleted fine; I hadn't compared them.
+
+**Fix:** before recording a bug from a simulation, list everything the harness changes, then vary one at a time. Compare against any earlier passing run of the same step. Make the harness mimic the real change (rebuild in place: same name and path, new bytes; use `rm` then `cp` to get a new inode so a cached signature doesn't kill the process). Mark early notes "unconfirmed" until that's done.

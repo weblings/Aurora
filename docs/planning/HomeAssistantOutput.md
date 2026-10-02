@@ -64,8 +64,9 @@ of 2026.9; a direct WLED/DDP output would be the fast Wi-Fi path.
 - No entitlement changes. Add `NSLocalNetworkUsageDescription` to
   `app/mac/Info.plist.in` (missing today, affects Hue too), and
   `NSBonjourServices` if mDNS discovery is added.
-- Store the HA token in the Keychain, not a JSON file: it grants control of
-  the whole home.
+- Store the HA token in the OS secret store (Keychain / Credential Manager /
+  libsecret; Aurora-2dz), not a JSON file: it grants control of the whole
+  home.
 - Licensing: HA Core is Apache-2.0; Aurora is GPL-3.0-or-later; only a
   network protocol is shared, so no conflict.
 
@@ -186,9 +187,12 @@ Beads carry the details (label `ha-prep`):
 - Aurora-5i3: local API hardening before any HA credential exists. Done;
   rules below, verified on Linux (`AuroraNetworkTests`, Hue
   `[PairingRoutes]`).
+- Aurora-2dz: OS secret store. Linux done (fake-backend tests plus a
+  real gnome-keyring round-trip); Mac and Windows pending a compile and a
+  `[real]` run. See "Secret store" below.
 
 Deferred until HA is a go: rate-limited sender, brightness/`rgb_color`
-split, Keychain token storage.
+split. (Token storage moved into prep as Aurora-2dz.)
 
 ### Local API rules
 
@@ -222,6 +226,90 @@ route, today's Hue routes and any future HA route:
   `boundBackendIP` (`Config.hpp`) narrows it to `127.0.0.1` for anyone who
   wants local-only.
 
+### Secret store (Aurora-2dz)
+
+`core/Secrets` (`AuroraSecrets`): `ISecretStore` get/set/remove, one OS
+backend per build. Status: Linux built and verified against gnome-keyring.
+Mac and Windows are written but not yet compiled (CI's standalone core
+build is the first compiler they meet).
+
+- **Backends:**
+  - Mac: Keychain generic passwords.
+  - Windows: Credential Manager, not DPAPI. DPAPI only encrypts, so the
+    blob would still need a file of ours.
+  - Linux: libsecret / Secret Service. Without `libsecret-1-dev`, the build
+    gets a stub that reports `Unavailable`.
+- **No silent fallback.** No keyring, no Secret Service, a locked keyring
+  or a dismissed unlock prompt all return `Unavailable`. The store never
+  writes a file on its own.
+- **When the OS store is `Unavailable` (decided 2026-10-02):**
+  - **Default is session-only:** the token lives in a `MemorySecretStore`,
+    so after a restart the lights stay off until someone logs in again.
+  - **Explicit opt-in to keep it:** an unchecked "Remember on this device
+    — stored unencrypted in a file" choice, shown only when the OS store is
+    `Unavailable`. It switches to `FileSecretStore`
+    (`<configRoot>/secrets.plaintext.json`, owner-only 0600, written via a
+    locked-down temp file).
+  - **Why offer it:** autologin HTPC/ambient boxes are a core Aurora case,
+    and on Linux an unlocked keyring has no per-app access control anyway.
+    HA itself keeps refresh tokens in plaintext (`.storage/auth`).
+  - **Rule:** anything that later bundles the config root (export, bug
+    report) must leave `secrets.plaintext.json` out.
+- **Scoped per config root** (`scopeForConfigRoot`: a hash of the
+  canonical path), so two roots never share an entry. `--fresh` must wire a
+  `MemorySecretStore`, never the OS store. That wiring lands with the first
+  consumer (HA); today nothing links `AuroraSecrets` but its tests.
+- **Bound records** (`setBound`/`getBound`): a secret stored with its
+  endpoint (HA URL) reads as `NotFound` for any other endpoint. That
+  enforces the URL-change rule above even if a caller forgets to clear.
+- **One size cap everywhere:** 2560 bytes (Credential Manager's limit) and
+  no NUL bytes (libsecret's C-string API), so Linux tests catch both.
+- **Threading:** any call may block on an unlock prompt. Connect, login and
+  reset only; never the tick thread or under the API mutex.
+- **Hue stays in JSON.** Its username crosses the LAN in clear on every
+  bridge call anyway, so a keyring adds little and would make the working
+  pairing depend on a keyring being present.
+- **Mac signing (verified 2026-10-02):** Keychain access is tied to the
+  code signature.
+  - **Ad-hoc (`app/mac` default):** a binary reading an item written by an
+    earlier build gets a system dialog asking for the **login keychain
+    password** (the Mac account password), with Allow / Always Allow / Deny.
+    Allow returned `Ok`; **Deny returned `Unavailable`** (`User canceled the
+    operation`, `errSecUserCanceled`). A same-binary read and the delete did
+    not prompt. **Always Allow sticks** (ACL records the build's `cdhash`;
+    same binary then reads silently), but each rebuild is a new `cdhash`,
+    so every ad-hoc rebuild prompts once more. Plain Allow is presumably
+    per-launch (inferred: the ACL was not dumped after a plain Allow), so a
+    dev who clicks Allow would be asked on every launch.
+  - **Developer ID (`codesign -i <id> -s "Developer ID Application: ..."`):**
+    write with one binary, read with a different binary signed the same
+    way: `Ok` in 0.2 s, no prompt. The designated requirement is
+    identifier + Team ID, so it survives rebuilds and updates.
+  - **Delete depends on the executable's file name (not a bug in the
+    backend):** `SecItemDelete` on a legacy-keychain item fails with
+    `errSecInvalidOwnerEdit` (-25244, "Invalid attempt to change the owner
+    of this item") when the caller's executable name differs from the
+    creator's. Read and `set` still worked. Same name in another directory,
+    and a new binary replacing the old one at the same path, both deleted
+    fine (2026-10-02). My first test copied binaries to `A`/`B`/`C` and
+    wrongly looked like "delete fails after an update". Constraint: keep
+    the Mac executable name stable (`Aurora`); a rename orphans existing
+    items until the user deletes them in Keychain Access. Apple's longer-term
+    answer is the data-protection keychain (see the 2dz log, "Delete
+    research"); not needed now.
+  - **Dev (ad-hoc) to release (Developer ID), same file name, same Mac:**
+    the first signed build prompts once (password dialog); Always Allow
+    adds the signature (identifier + Team ID) and `teamid:464U3WR286` to
+    the item's ACL, and every later signed build reads and deletes
+    silently. So a developer's keychain upgrades in one prompt; end users
+    never see the ad-hoc case.
+  - **Design consequence:** only released, identity-signed builds give a
+    returning user a silent read. A returning user hits any prompt at
+    connect, not during NUX. Open gap (Aurora-4zr.10): `Unavailable` for a returning user
+    whose token exists but can't be read (Deny, locked keychain,
+    blank-password or auto-login account) has no defined UX; today's rule
+    covers only the Connect screen. Recipe in `docs/Building.md`, "Tests".
+
 ## Findings from HA core source
 
 Read 2026-10-01 from a sparse clone of `home-assistant/core` (`f66cbe4`) in
@@ -240,6 +328,22 @@ Read 2026-10-01 from a sparse clone of `home-assistant/core` (`f66cbe4`) in
   expiry. Store the refresh token (not the access token) in the secret
   store. A long-lived token (`auth/long_lived_access_token`, user-chosen
   lifespan) stays the fallback.
+- **Refresh-token lifecycle** (re-read 2026-10-02, same checkout):
+  - Bound to the login's `client_id`. A refresh with another `client_id`
+    gets `invalid_request` (`components/auth/__init__.py:438`). The check
+    on `client_id` itself is format-only (`indieauth.py:280`). So store the
+    exact string and reuse it, even after Aurora's IP or port changes.
+  - Never rotated: the refresh grant returns only an access token. The
+    secret is written once at login and read at each connect.
+  - Expiry slides: each refresh pushes it 90 days out
+    (`auth_store.py:283`). After about 90 days offline, refresh gets
+    `invalid_grant`. Treat that as "log in again", not as a retry.
+  - `/auth/revoke` takes the token itself, needs no auth, and always
+    answers 200 (`components/auth/__init__.py:237`). Revoke at HA before
+    deleting the local copy.
+  - A long-lived token is a JWT access token (`auth/__init__.py:609`), not
+    a refresh token. It is used directly in `auth` and never refreshed, so
+    it needs its own stored-record shape.
 - **`call_service` over WebSocket is blocking:** the result arrives after
   the light's service finishes (`websocket_api/commands.py`,
   `blocking=True`). That reply is the per-light "in flight" signal, so no

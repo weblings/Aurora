@@ -656,3 +656,59 @@ In a Windows core build with vcpkg manifest mode ON, `cpp-httplib` 0.58.0 lands 
 **Fixed in Aurora-rtwh:** `cpp-httplib` is no longer in `core/vcpkg.json`; core fetches its pinned httplib (cpp-httplib's version file only accepts the same minor, so `find_package(httplib 0.46)` never accepts a newer installed one). A manifest-mode configure now has one httplib copy and core passes 121/121. Don't add a header-only dep to the manifest if core also fetches it.
 
 **General fix:** when an inline-library crash reproduces with a trivial handler, find every copy (`Get-ChildItem -Recurse -Filter httplib.h`, then compare the `AdditionalIncludeDirectories` order of each target and the version define). Prefer one copy per configure.
+
+---
+
+## Removing a dep from the vcpkg manifest doesn't clean an existing build dir: cached `find_package` paths and old objects keep the old dep
+Tags: vcpkg, manifest-mode, cmake-cache, stale-build, brotli, httplib, windows
+Applies-when: a fix that changes `vcpkg.json` (or any dependency source) "works" in a fresh tree but a long-lived build dir still crashes or fails to compile
+
+After Aurora-rtwh dropped `cpp-httplib` from `core/vcpkg.json`, the pre-existing `build/core-test` still segfaulted `Monitors and reload routes answer from PipelineHost` (Aurora-3ono), while a fresh configure of the same commit passed 127/127. The old tree's CMake cache still held `Brotli_*` paths into the old `vcpkg_installed` (found as a transitive dep of httplib 0.58), so httplib was built with brotli support there and its objects were never rebuilt against the new setup. A `--clean-first` of just the httplib consumers exposed it as `Cannot open include file: 'brotli/decode.h'`. Fix: `cmake -U "Brotli_*" -U "*BROTLI*" -S core -B <dir>`, then a full build; 127/127. Faster: after changing the manifest, delete the build dir (its vcpkg_installed goes stale too).
+
+**Cue:** a crash that a fresh tree doesn't have. Configure a throwaway tree before debugging code, and `grep` the old `CMakeCache.txt` for the removed dep. Fresh tree needs `-DAubio_DIR=C:/vcpkg/installed/x64-windows/share/aubio` on this box (aubio isn't in the manifest).
+
+---
+
+## Building against a distro `-dev` package without sudo: `apt-get download` + `dpkg -x`, then a rewritten `.pc`
+Tags: linux, pkg-config, dependencies, sudo, apt
+Applies-when: a configure needs a missing `-dev` package on a machine where you can't install packages
+
+Aurora-2dz needed `libsecret-1-dev` on a box without sudo. The runtime `.so.0` was installed; only the headers, `.pc` and the unversioned `.so` link were missing.
+
+**Fix:**
+- `apt-get download libsecret-1-dev && dpkg -x *.deb root` (no root needed).
+- Copy the `.pc`: set `prefix=` to the extracted `usr` and `libdir=` to a dir holding `libsecret-1.so -> /usr/lib/x86_64-linux-gnu/libsecret-1.so.0`.
+- Drop `Requires.private` (libgcrypt, static-link only). pkg-config otherwise fails on it.
+- Configure with `PKG_CONFIG_PATH=<that dir>`.
+
+Local verification only; CI and real installs use the package.
+
+---
+
+## Two build trees sharing `FETCHCONTENT_BASE_DIR` clobber each other's dependency build dirs
+Tags: cmake, fetchcontent, build-dir, catch2
+Applies-when: making a second build tree and tempted to reuse the first tree's `_deps` to skip downloads
+
+To skip re-fetching, a second core tree (Aurora-2dz, `core-tests-libsecret`) was configured with `-DFETCHCONTENT_BASE_DIR=build/core-tests/_deps`. That dir holds each dependency's *build* subdir (`catch2-build`) as well as its sources. The new tree regenerated those for itself, and the original tree then failed with `No rule to make target '_deps/catch2-build/.../depend'`. Its stale test binary still ran, which hid the breakage for one run.
+
+**Fix:** give every build tree its own `_deps`. To share only sources, use `-DFETCHCONTENT_SOURCE_DIR_<NAME>=<path>` per dependency. To recover, reconfigure the damaged tree. Read the build step's own exit status, not just whether a test binary ran.
+
+---
+
+## A test that adds an unused static does not change the binary: the compiler drops it, so a "rebuilt" binary can be byte-identical
+Tags: build, testing, dead-strip, codesign, cmake, macos
+Applies-when: you need a rebuild that produces a *different* binary (code-signature, ACL or cache tests) and a trivial source edit leaves the cdhash unchanged
+
+For Aurora-2dz's cross-rebuild Keychain check, appending `namespace { const char kMarker[] = "..."; }` to the test file rebuilt and relinked, but `cmp` showed the executable identical to the old one. Nothing referenced the constant, so it was optimized away and the ad-hoc signature (a hash of the bytes) did not change either, so a "rebuild prompt" could not appear. An `extern const char kMarker[] = "...";` at global scope has external linkage and is emitted.
+
+**Fix:** after the edit, `cmp` the new binary against a saved copy (or compare `codesign -dvv` hashes) before treating it as a different build. Revert the marker afterwards (`git checkout <file>`) and rebuild.
+
+---
+
+## In zsh a word starting with `=` is replaced by a command path: `echo =======LOG` fails with "======LOG not found"
+Tags: shell, zsh, macos, agent-workflow, quoting
+Applies-when: a macOS shell one-liner prints section dividers like `echo =====X` or `echo ----` mixed with `=====` and aborts with "not found"
+
+macOS's default shell is zsh. An unquoted word beginning with `=` is expanded to the full path of the named command (`=ls` becomes `/bin/ls`); if no such command exists, zsh stops the whole line with "<word> not found". A divider like `echo =======LOG` in a diagnostic one-liner therefore killed the command before the real work ran (Aurora-2dz). Linux bash doesn't do this, so a snippet that works on the Linux box can fail on the Mac.
+
+**Fix:** quote dividers (`echo '======= LOG'`), or use `---` / `printf`. Run the line again; nothing had run.

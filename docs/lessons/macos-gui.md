@@ -418,3 +418,23 @@ hours, each looking like "the prompt is broken":
 `Info.plist` and the app gets the prompt", not "the prompt shows the string".
 Check the key with `plutil -p`, and make test copies with both a new bundle ID
 and a new `LC_UUID`.
+
+---
+
+## `SecItemDelete` on a legacy-keychain item returns `errSecInvalidOwnerEdit` (-25244) to an executable whose file name differs from the creator's, even with an identical signature
+Tags: macos, keychain, secitemdelete, acl, codesign, developer-id, errSecInvalidOwnerEdit
+Applies-when: a Keychain delete fails with "Invalid attempt to change the owner of this item" / -25244, or you are designing a Keychain test or update path across different binaries
+
+Aurora-2dz's cross-binary check wrote an item with binary `A`, then read and overwrote it from `B` (same Developer ID, different build): both worked, with no prompt. `SecItemDelete` from `B` failed with -25244; only `A` could delete. It looked like "delete breaks after an app update". It does not. Apple DTS (developer forums thread 69841) says the file-based keychain shim compares the current app's *name* with the app name stored in the item's ACL; a mismatch gives this error. Re-running with the same file name (`d1/AuroraSecretsTests` writes, `d2/AuroraSecretsTests` deletes, and a new binary `rm`/`cp`'d over the same path deletes) succeeded every time. The Mac executable is `Aurora` across updates, so updates are safe; renaming it, or running a renamed copy, is not.
+
+**Fix:** keep the shipped executable name stable and give test copies the same file name in different directories. If a delete does fail, the known fallbacks are `SecItemUpdate` to empty data, or `SecKeychainItemDelete` on an item found with `kSecReturnRef` (deprecated but works). Apple's longer-term answer is the data-protection keychain, which on a Developer ID build needs `keychain-access-groups` plus an embedded provisioning profile (without one the binary is killed at launch). See [[2dz-secret-store]].
+
+---
+
+## A legacy Keychain item's ACL can be dumped without reading the secret; it shows what a prompt will trust, and why one appears
+Tags: macos, keychain, acl, partition-id, cdhash, codesign, developer-id, always-allow
+Applies-when: a Mac build gets unexpected Keychain password prompts, or you need to confirm that an Allow / Always Allow click took effect
+
+`security dump-keychain -a ~/Library/Keychains/login.keychain-db` lists attributes and ACL entries but not secrets (no `-d`). It prints the whole keychain, so filter it to the one service in a script (`Aurora/acl-check` in Aurora-2dz) and never paste the rest. An ad-hoc-created item showed: decrypt trusted for the creating app by `cdhash`; a `partition_id` entry `cdhash:<hash>`; and `change_acl` with no trusted apps, which is why extending the ACL asks for the login keychain password. Always Allow adds the new build's requirement to the app list and its id to the partition list (`cdhash:` for ad-hoc, `teamid:<TEAM>` for Developer ID). Plain Allow adds nothing, so the next launch prompts again. After one Always Allow on a Developer ID build, other builds with the same identifier and Team ID (and the same file name) read and deleted with no prompt. Two Aurora-2dz runs looked like "Always Allow does not stick"; the ACL dump showed it does when clicked, and the earlier clicks were not recorded.
+
+**Fix:** to test Keychain access across builds, dump the ACL before and after each dialog instead of trusting memory of which button was clicked, time each read (0.02-0.3 s means no prompt, about 10 s means a dialog waited), and keep file name and path constant. See [[2dz-secret-store]].

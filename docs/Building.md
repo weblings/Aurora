@@ -65,7 +65,10 @@ imgproc)`).
   after the installs -- see the `winget install fails with exit 94` lesson.
 - **Linux (Debian/Ubuntu):** `sudo apt install build-essential cmake
   libopencv-dev libcurl4-openssl-dev libmbedtls-dev libx11-dev libxext-dev
-  libxrandr-dev libglib2.0-dev libpipewire-0.3-dev libaubio-dev`
+  libxrandr-dev libglib2.0-dev libpipewire-0.3-dev libaubio-dev
+  libsecret-1-dev`. Without `libsecret-1-dev`, configure warns and core's
+  `AuroraSecrets` builds a stub that reports every secret store as
+  unavailable (`-DAURORA_SECRETS_ENABLE_LIBSECRET=OFF` silences the warning).
 - **macOS (Apple Silicon, experimental):** Xcode CLT + Homebrew — full setup
   (packages, `mbedtls@3` pin, `mac-app` preset) lives in
   [CONTRIBUTING.md](../CONTRIBUTING.md#platform-notes).
@@ -192,6 +195,39 @@ unreliable outside a sandbox -- our native tarball gets nothing from it.
 preset. Slice `tests/` dirs link the slice lib (`AuroraApp`), not the
 binary, and run under `ctest` wherever they land.
 
+`AuroraSecretsTests "[real]"` (core standalone build) round-trips through
+the real OS keyring under a throwaway scope. It's hidden from `ctest`
+because it writes to the user's keyring, and it skips where no store is
+usable.
+
+Keychain access across a rebuild (Mac) needs two binaries, so it's a
+three-step pair with a fixed entry (`acl-check/probe`). Keep the executable's
+**file name** the same for both (`AuroraSecretsTests`): copies named `A`/`B`
+make a delete fail with -25244 for a reason a real rebuild never hits. Use
+`rm` then `cp` to swap binaries, not `cp` over the old file.
+
+1. `AuroraSecretsTests "[real-write]"` leaves the entry.
+2. Rebuild so the bytes differ (an unused static is dead-stripped and leaves
+   the binary identical; add an `extern const char` instead), then run
+   `AuroraSecretsTests "[real-read]"`.
+   - Ad-hoc build (default): expect a dialog asking for the login keychain
+     password (your Mac account password). **Always Allow** adds this build
+     to the item's ACL (silent until the next rebuild); plain Allow leaves
+     it unchanged; Deny → `Unavailable`. `Error` is a mapping gap and fails.
+   - Identity-signed build (sign with `codesign -i <fixed id> -s "<identity>"`;
+     the first run asks for the signing key, choose Always Allow once): expect
+     no prompt, and a read of about 0.3 s. About 10 s means a dialog waited.
+3. `AuroraSecretsTests "[real-cleanup]"` removes the entry and prints the
+   delete error if there is one.
+
+To see what a dialog changed, dump the item's ACL, filtered to the one
+service so nothing else is shown (attributes only, no secret): see the
+lesson "A legacy Keychain item's ACL can be dumped without reading the
+secret".
+
+On Linux and Windows the read is simply `Ok`; access isn't tied to the
+binary there.
+
 ## Troubleshooting
 
 **CMake too old, or the old one keeps getting picked up (Linux)**
@@ -202,6 +238,17 @@ binary, and run under `ctest` wherever they land.
   `pip install cmake` outside a venv works too, but `~/.local/bin` sorts
   after `/usr/bin/cmake` on some setups (and subshells may not inherit your
   `PATH` tweaks), so the old one can still win.
+
+**A long-lived Windows build dir crashes or fails after `core/vcpkg.json` changed**
+- Symptom: `Monitors and reload routes answer from PipelineHost` segfaults,
+  or `Cannot open include file: 'brotli/decode.h'`, while a fresh tree of the
+  same commit passes. The old dir's CMake cache and objects still point at
+  the previous `vcpkg_installed`. Fastest fix: delete the build dir and
+  reconfigure (pass `-DAubio_DIR=...` as above). To keep it:
+  `cmake -U "Brotli_*" -U "*BROTLI*" -S core -B <dir>`, then a full build.
+  Details: docs/lessons "Removing a dep from the vcpkg manifest doesn't clean
+  an existing build dir" (build-toolchain). CI is unaffected (fresh tree,
+  manifest mode off).
 
 **I'm not seeing audio reacting**
 - If no audio was actively playing before you toggled to audio the grabber

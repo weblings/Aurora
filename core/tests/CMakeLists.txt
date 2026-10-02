@@ -53,6 +53,19 @@ target_link_libraries(AuroraControlDescriptorTests PRIVATE
 
 target_compile_features(AuroraControlDescriptorTests PUBLIC cxx_std_20)
 
+# Aurora-2dz. The [real] keyring case is hidden; run it explicitly with
+# `AuroraSecretsTests "[real]"`.
+add_executable(AuroraSecretsTests
+  SecretStoreTests.cpp
+)
+
+target_link_libraries(AuroraSecretsTests PRIVATE
+  AuroraSecrets
+  Catch2::Catch2WithMain
+)
+
+target_compile_features(AuroraSecretsTests PUBLIC cxx_std_20)
+
 add_executable(AuroraRuntimeTests
   RuntimeTests.cpp
   RegistryTests.cpp
@@ -203,6 +216,7 @@ include(Catch)
 catch_discover_tests(AuroraNetworkTests)
 catch_discover_tests(AuroraProcessingTests)
 catch_discover_tests(AuroraControlDescriptorTests)
+catch_discover_tests(AuroraSecretsTests)
 catch_discover_tests(AuroraRuntimeTests)
 catch_discover_tests(AuroraOrchestratorTests)
 catch_discover_tests(AuroraPipelineTests)

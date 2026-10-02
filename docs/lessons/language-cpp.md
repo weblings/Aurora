@@ -179,3 +179,13 @@ Applies-when: writing a lambda inside `for(auto& [a, b] : ...)` that captures `a
 Avoided rather than hit (Aurora-lzj, `serveEmbeddedFilesAt`). The first draft registered routes with `for(const auto& [prefix, files] : ...)` and lambdas capturing `[prefix]` / `[files]`. GCC compiled it cleanly on Linux. Capturing structured bindings only became legal in C++20 (P1091/P1381), and Clang implements it from 16. Older Apple Clang predates that, so the Mac build could fail where the Linux one passed. This is from the compiler support tables, not reproduced here.
 
 **Fix:** iterate with a plain `entry` and use init-captures (`[prefix = entry.first]`). This works on every compiler Aurora targets and costs nothing. When the Linux build is the only one that ran, treat newer-standard syntax as unverified on Mac and Windows.
+
+---
+
+## `weakly_canonical("dir/.")` keeps a trailing slash, so it doesn't give one spelling per directory
+Tags: filesystem, paths, hashing, libstdc++
+Applies-when: hashing or comparing paths as identity keys (scopes, caches, map keys)
+
+Aurora-2dz's `scopeForConfigRoot` hashed `weakly_canonical(root).generic_string()`. A test passing `root / "."` and `root / "sub" / ".."` got a different scope than `root`: libstdc++ returns `/tmp/x/` for those, with a trailing separator. The same config root would then have looked like a new install and lost its stored secrets.
+
+**Fix:** `.lexically_normal()`, then strip trailing `/` (keep a bare root). Test the identity function with `.`, `..` and trailing-slash spellings, not just the plain path.
