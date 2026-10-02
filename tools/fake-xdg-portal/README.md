@@ -4,6 +4,7 @@ Reproduces the screencast portal's denial and error paths offline, with no
 Wayland session and nobody clicking Deny. Built for upstream findings 5, 9,
 10 and 6 in `docs/planning/UpstreamFindings.md` (bead `Aurora-h45`); method
 in the `docs/lessons/input.md` entry on testing portal failure paths offline.
+The other findings' checks are in `tools/huenicorn-checks`.
 
 - `fake_portal.py`: Python/Gio fake that owns `org.freedesktop.portal.Desktop`
   and serves `org.freedesktop.portal.ScreenCast`. Each `MODE` denies one step
