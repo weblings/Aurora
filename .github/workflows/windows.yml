@@ -31,14 +31,28 @@ jobs:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
+      # OpenCV stays on choco: vcpkg's opencv4 default features take ~40 min
+      # to build (docs/Building.md). The rest come from the runner's vcpkg.
       - name: Install OpenCV
         run: choco install opencv -y
+      - name: Cache vcpkg binaries
+        uses: actions/cache@v4
+        with:
+          path: ${{ github.workspace }}/vcpkg-bincache
+          key: vcpkg-${{ runner.os }}-${{ hashFiles('.github/workflows/windows.yml') }}
+      - name: Install vcpkg deps
+        env:
+          VCPKG_DEFAULT_BINARY_CACHE: ${{ github.workspace }}/vcpkg-bincache
+        run: |
+          New-Item -ItemType Directory -Force $env:VCPKG_DEFAULT_BINARY_CACHE | Out-Null
+          & "$env:VCPKG_INSTALLATION_ROOT\vcpkg.exe" install curl:x64-windows mbedtls:x64-windows "aubio[core]:x64-windows" miniaudio:x64-windows
       - uses: actions/setup-node@v4
         with:
           node-version: 22
       - name: Configure
         run: >
           cmake --preset windows-app
+          -DCMAKE_TOOLCHAIN_FILE="$env:VCPKG_INSTALLATION_ROOT/scripts/buildsystems/vcpkg.cmake"
           -DOpenCV_DIR="C:/tools/opencv/build"
           -DAURORA_ENABLE_GRAPH_EDITOR=ON
       - name: Build
