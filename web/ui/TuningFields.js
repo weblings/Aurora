@@ -9,8 +9,8 @@
 // edit the way Zone Mapping's canvas/toggles do -- the Dashboard ended up
 // with two sections behaving oppositely (Zone Mapping live, Tuning
 // Save-gated) for a real reason (PipelineHost::reload(), each app's
-// main.cpp, has no settings-only update path -- every save here tears down
-// and reconstructs the *entire* live pipeline, including a real Hue DTLS
+// main.cpp, had no settings-only update path -- every save here tore down
+// and reconstructed the *entire* live pipeline, including a real Hue DTLS
 // handshake measured elsewhere at 1-3+ seconds), not an oversight. Fixed by
 // making every field commit on its own natural gesture-end signal instead
 // (a slider's drag-release/keyup, a dropdown/checkbox's own change) rather
@@ -18,6 +18,10 @@
 // web-ui.md's "gesture-end commit signal" entry. No more Save button or
 // manual gate anywhere on this screen; every option behaves the same way
 // now, matching Zone Mapping's own model.
+//
+// Since Aurora-c0g the server applies tuning-only saves live (no reload),
+// so the commit-on-gesture-end rule here is no longer forced by cost;
+// whether to PUT while dragging is an open follow-up, not decided.
 import { Dropdown } from './Dropdown.js';
 import { applyTooltip, descriptorsSettled, ensureTooltips, paramFor } from './Tooltips.js';
 import { sliderGroupHtml, sliderTooltipKey, wireSliderGroup } from './TuningSliderGroup.js';

@@ -152,8 +152,9 @@ Applies-when: adding a live-write mutation to the pipeline
 
 Every settings write built in steps 11-13 (`Config`-backed) has to go
 through a full `PipelineHost::reload()` -- confirmed there's no
-settings-only update path, `Pipeline::build()` always runs fresh, tearing
-down and reconstructing capture/output. Building zone edits next, the
+settings-only update path (historical: since Aurora-c0g, tuning-only
+edits apply live and only structural ones reload), `Pipeline::build()` then
+ran fresh, tearing down and reconstructing capture/output. Building zone edits next, the
 default assumption would have been that this is simply how any live write
 works here. It isn't, for this specific data: `ZoneMap` was never part of
 `Config` -- `Orchestrator` already holds it as a live, mutable
@@ -660,3 +661,14 @@ Applies-when: code loads a file-backed config, does slow work (device handshake,
 `Pipeline::build` persisted its derived `refreshRate`/`subsampleWidth` by saving the orchestrator's whole `Config`, which came from a load made before output init. Hue's DTLS handshake takes 1-3s, so a settings PUT saved in that window was overwritten with the older values, and the next reload read the stale file (Aurora-d6i7). The PUT route was the second unlocked writer. `load()` could also read a file `save()` had just truncated, which parses as discarded and reads back as defaults.
 
 **Fix:** give the store an atomic `update(mutate)` under one leaf lock and use it for every partial change, never `load()` + `save()`. A save that follows slow work writes only the fields it derived, and only where still unset on disk. Serialize the whole PUT through its reload and keep a documented lock order (PUT mutex, file lock, host lock), so reloads run in the order their writes landed.
+
+---
+
+## Diff a live change against what the running thing was built from, not against the persisted copy
+Tags: config, reload, hot-apply, diff, state
+Applies-when: deciding whether a saved settings change can be applied live or needs a rebuild
+
+Aurora-c0g classifies each config edit as live-tunable or structural by diffing old against new. "Old" read from disk looks natural and is wrong: a structural save whose reload fails leaves disk ahead of the running pipeline, so the next hot-only save diffs against a disk that already holds the failed change, sees "only tuning moved", applies it live, and the structural change is never retried. The baseline also has to be the post-derivation Config for video (display-derived `refreshRate`/`subsampleWidth` filled in), or the first diff reads as a change to 0.
+
+**Fix:** the pipeline keeps the Config it was built from (moved forward by each live apply) and the diff runs against that. A failed reload then keeps surfacing its error on later saves instead of silently diverging. Fields the running mode never reads still move the baseline, and an unclassified field defaults to reload.
+

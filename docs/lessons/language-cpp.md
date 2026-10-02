@@ -189,3 +189,14 @@ Applies-when: hashing or comparing paths as identity keys (scopes, caches, map k
 Aurora-2dz's `scopeForConfigRoot` hashed `weakly_canonical(root).generic_string()`. A test passing `root / "."` and `root / "sub" / ".."` got a different scope than `root`: libstdc++ returns `/tmp/x/` for those, with a trailing separator. The same config root would then have looked like a new install and lost its stored secrets.
 
 **Fix:** `.lexically_normal()`, then strip trailing `/` (keep a bare root). Test the identity function with `.`, `..` and trailing-slash spellings, not just the plain path.
+
+---
+
+## Range-for over `json.items()` of a temporary dangles -- and nlohmann objects iterate in sorted key order
+Tags: nlohmann, lifetime, range-for, segfault
+Applies-when: iterating a `nlohmann::json` returned by a function, or asserting on the order of its keys
+
+`for(const auto& item : toJson(data).items())` crashed with SIGSEGV in `configKeys()` (Aurora-c0g). `items()` returns a proxy holding a reference into the json, and a range-for only extends the lifetime of that proxy, not of the temporary it points into. Separately, a test that expected keys in insertion order failed: nlohmann stores objects in a sorted map, so iteration is alphabetical.
+
+**Fix:** bind the json to a named local before iterating. Compare key lists sorted or with an unordered matcher, never by position.
+

@@ -149,6 +149,12 @@ namespace Aurora::Runtime
   }
 
 
+  void Orchestrator::setConfig(Config config)
+  {
+    m_config = std::move(config);
+  }
+
+
   const Config& Orchestrator::config() const
   {
     return m_config;

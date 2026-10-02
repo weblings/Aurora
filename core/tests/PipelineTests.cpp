@@ -8,6 +8,7 @@
 #include <atomic>
 #include <chrono>
 #include <functional>
+#include <future>
 #include <memory>
 #include <stdexcept>
 #include <thread>
@@ -59,6 +60,11 @@ namespace
     // spends on output init -- where a settings PUT can land on real hardware.
     std::function<void()> onOutputInit;
 
+    // What FakeVideoInput::setCaptureWidthHint() was told, and a hook that
+    // runs inside it -- where a real capture API may block.
+    std::vector<unsigned> widthHints;
+    std::function<void()> onWidthHint;
+
     bool has(const std::string& line) const
     {
       return std::find(lines.begin(), lines.end(), line) != lines.end();
@@ -69,6 +75,17 @@ namespace
   class FakeVideoInput : public IVideoInput
   {
   public:
+    explicit FakeVideoInput(std::shared_ptr<Events> events = nullptr):
+    m_events(std::move(events))
+    {}
+
+    void setCaptureWidthHint(unsigned width) override
+    {
+      if(!m_events){ return; }
+      m_events->widthHints.push_back(width);
+      if(m_events->onWidthHint){ m_events->onWidthHint(); }
+    }
+
     const std::string& name() const override
     {
       static const std::string s_name = "fake-video";
@@ -92,6 +109,9 @@ namespace
         std::make_shared<MonitorData>("Fake Monitor", 4, 2, 30.0, true)
       );
     }
+
+  private:
+    std::shared_ptr<Events> m_events;
   };
 
 
@@ -149,7 +169,7 @@ namespace
   Registry makeRegistry(const std::shared_ptr<Events>& events)
   {
     Registry registry;
-    registry.registerInput("fake-video", []{ return std::make_unique<FakeVideoInput>(); });
+    registry.registerInput("fake-video", [events]{ return std::make_unique<FakeVideoInput>(events); });
     registry.registerAudioInput("fake-audio", []{ return std::make_unique<FakeAudioInput>(); });
     registry.registerOutput("out-a", [events]{ return std::make_unique<FakeOutput>("out-a", events); });
     registry.registerOutput("out-b", [events]{ return std::make_unique<FakeOutput>("out-b", events); });
@@ -695,4 +715,253 @@ TEST_CASE("Concurrent settings PUTs run one at a time and none is lost (Aurora-d
   CHECK(persisted.audioReferenceRms() == Catch::Approx(0.6f));
   CHECK(persisted.audioBrightnessFloor() == Catch::Approx(0.5f));
   CHECK(persisted.audioCentroidStrength() == Catch::Approx(0.4f));
+}
+
+
+namespace
+{
+  int initCount(const Events& events, const std::string& output = "out-a")
+  {
+    return static_cast<int>(std::count(events.lines.begin(), events.lines.end(), "init " + output));
+  }
+
+
+  // Video config with both derived-at-zero fields set, so tuning them is a
+  // live change rather than a 0 -> N reload.
+  Config tunedVideoConfig()
+  {
+    Config config = videoConfig();
+    config.setRefreshRate(30);
+    config.setSubsampleWidth(64);
+    return config;
+  }
+}
+
+
+TEST_CASE("Pipeline::build holds the post-derivation Config as its apply baseline (Aurora-c0g)", "[Pipeline]")
+{
+  ScopedTempDir dir("applied-baseline");
+  auto events = std::make_shared<Events>();
+  auto registry = makeRegistry(events);
+
+  auto pipeline = Pipeline::build(registry, videoConfig(), dir.path, {});
+  REQUIRE(pipeline);
+
+  // Config left refreshRate unset; the display (30 Hz) filled it in. Diffing
+  // a later disk Config against the 0 would read as a change to 0.
+  CHECK(pipeline->appliedConfig().refreshRate() == 30);
+}
+
+
+TEST_CASE("PipelineHost::applyConfig applies live-tunable video fields with no reload (Aurora-c0g)", "[PipelineHost]")
+{
+  ScopedTempDir dir("apply-video");
+  auto events = std::make_shared<Events>();
+  auto registry = makeRegistry(events);
+  PipelineHost host(nullptr, {});
+
+  std::string error;
+  REQUIRE(host.reload(registry, tunedVideoConfig(), dir.path, error));
+  REQUIRE(initCount(*events) == 1);
+  REQUIRE(events->widthHints == std::vector<unsigned>{64});
+
+  Config next = tunedVideoConfig();
+  next.setTransitionSmoothing(0.5f);
+  next.setRefreshRate(60);
+  next.setSubsampleWidth(96);
+  CHECK(host.applyConfig(next));
+
+  CHECK(initCount(*events) == 1);                                    // no output re-init
+  CHECK(host.tickIntervalSeconds() == Catch::Approx(1.0 / 60));      // tick loop picks this up
+  CHECK(events->widthHints == std::vector<unsigned>{64, 96});        // capture told the new width
+  CHECK(events->has("init out-a"));
+  CHECK_FALSE(events->has("shutdown out-a replacement"));
+}
+
+
+TEST_CASE("PipelineHost::applyConfig leaves the baseline moved so a repeat is a no-op (Aurora-c0g)", "[PipelineHost]")
+{
+  ScopedTempDir dir("apply-repeat");
+  auto events = std::make_shared<Events>();
+  auto registry = makeRegistry(events);
+  PipelineHost host(nullptr, {});
+
+  std::string error;
+  REQUIRE(host.reload(registry, tunedVideoConfig(), dir.path, error));
+
+  Config next = tunedVideoConfig();
+  next.setSubsampleWidth(96);
+  REQUIRE(host.applyConfig(next));
+  REQUIRE(host.applyConfig(next));
+
+  CHECK(events->widthHints == std::vector<unsigned>{64, 96}); // not told 96 twice
+}
+
+
+TEST_CASE("PipelineHost::applyConfig refuses structural changes and changes nothing (Aurora-c0g)", "[PipelineHost]")
+{
+  ScopedTempDir dir("apply-structural");
+  auto events = std::make_shared<Events>();
+  auto registry = makeRegistry(events);
+  PipelineHost host(nullptr, {});
+
+  std::string error;
+  REQUIRE(host.reload(registry, tunedVideoConfig(), dir.path, error));
+
+  Config next = tunedVideoConfig();
+  next.setActiveOutputNames({"out-b"});
+  next.setRefreshRate(60);
+  CHECK_FALSE(host.applyConfig(next));
+
+  // The hot field riding along was not applied either.
+  CHECK(host.tickIntervalSeconds() == Catch::Approx(1.0 / 30));
+}
+
+
+TEST_CASE("PipelineHost::applyConfig has nothing to apply to without a pipeline (Aurora-c0g)", "[PipelineHost]")
+{
+  PipelineHost host(nullptr, {});
+  CHECK_FALSE(host.applyConfig(tunedVideoConfig()));
+}
+
+
+TEST_CASE("PipelineHost::applyConfig ignores fields the running mode never reads (Aurora-c0g)", "[PipelineHost]")
+{
+  ScopedTempDir dir("apply-no-effect");
+  auto events = std::make_shared<Events>();
+  auto registry = makeRegistry(events);
+  PipelineHost host(nullptr, {});
+
+  std::string error;
+  REQUIRE(host.reload(registry, tunedVideoConfig(), dir.path, error));
+
+  Config next = tunedVideoConfig();
+  next.setAudioVibrancyValue(0.5f);
+  next.setNuxCompleted(true);
+  CHECK(host.applyConfig(next));
+  CHECK(initCount(*events) == 1);
+}
+
+
+TEST_CASE("PipelineHost::applyConfig sends a live audio tuning change to the audio orchestrator (Aurora-c0g)", "[PipelineHost]")
+{
+  ScopedTempDir dir("apply-audio");
+  auto events = std::make_shared<Events>();
+  auto registry = makeRegistry(events);
+  PipelineHost host(nullptr, {});
+
+  std::string error;
+  REQUIRE(host.reload(registry, audioConfig(), dir.path, error));
+
+  Config next = audioConfig();
+  next.setAudioVibrancyValue(0.5f);
+  next.setAudioFixedAnchorHue(200.f);
+  CHECK(host.applyConfig(next));
+  CHECK(initCount(*events) == 1);
+
+  // Video-side fields are not read in audio mode.
+  Config videoSide = next;
+  videoSide.setTransitionSmoothing(0.5f);
+  CHECK(host.applyConfig(videoSide));
+
+  // The audio input changing is structural.
+  Config structural = videoSide;
+  structural.setActiveAudioInputName("other");
+  CHECK_FALSE(host.applyConfig(structural));
+}
+
+
+TEST_CASE("PipelineHost::applyConfig runs the capture hint outside the pipeline lock (Aurora-c0g)", "[PipelineHost]")
+{
+  ScopedTempDir dir("apply-hint-lock");
+  auto events = std::make_shared<Events>();
+  auto registry = makeRegistry(events);
+  PipelineHost host(nullptr, {});
+
+  std::string error;
+  REQUIRE(host.reload(registry, tunedVideoConfig(), dir.path, error));
+
+  // The hint can block on the capture API for seconds (Mac SCK). Called under
+  // the host lock it would stall another thread's call (a tick or any API
+  // route) for that long. The probe runs on its own thread and is joined only
+  // after applyConfig returns: if the lock were wrongly held the hook times
+  // out and the test fails, instead of the join deadlocking against it.
+  std::promise<void> probeDone;
+  std::future<void> probeFuture = probeDone.get_future();
+  std::thread probe;
+  bool lockWasFree = false;
+  events->onWidthHint = [&]{
+    probe = std::thread([&]{
+      host.tickIntervalSeconds();
+      probeDone.set_value();
+    });
+    lockWasFree = probeFuture.wait_for(2s) == std::future_status::ready;
+  };
+
+  Config next = tunedVideoConfig();
+  next.setSubsampleWidth(96);
+  REQUIRE(host.applyConfig(next));
+  probe.join();
+  CHECK(lockWasFree);
+}
+
+
+TEST_CASE("applyConfigFromDisk applies live-tunable changes and reloads structural ones (Aurora-c0g)", "[PipelineHost]")
+{
+  ScopedTempDir dir("apply-from-disk");
+  auto events = std::make_shared<Events>();
+  auto registry = makeRegistry(events);
+  PipelineHost host(nullptr, {});
+  ConfigStore store(dir.path);
+
+  // No pipeline yet: builds one.
+  store.save(tunedVideoConfig());
+  CHECK(applyConfigFromDisk(host, registry, dir.path).empty());
+  REQUIRE(initCount(*events) == 1);
+
+  // Live-tunable: same pipeline, no re-init.
+  store.update([](Config& c){ c.setTransitionSmoothing(0.5f); c.setRefreshRate(60); return true; });
+  CHECK(applyConfigFromDisk(host, registry, dir.path).empty());
+  CHECK(initCount(*events) == 1);
+  CHECK(host.tickIntervalSeconds() == Catch::Approx(1.0 / 60));
+
+  // A save that changes nothing the pipeline reads (the NUX flag): no reload.
+  store.update([](Config& c){ c.setNuxCompleted(true); return true; });
+  CHECK(applyConfigFromDisk(host, registry, dir.path).empty());
+  CHECK(initCount(*events) == 1);
+
+  // Structural: rebuilt, outputs re-initialised.
+  store.update([](Config& c){ c.setActiveOutputNames({"out-a"}); return true; });
+  CHECK(applyConfigFromDisk(host, registry, dir.path).empty());
+  CHECK(initCount(*events) == 2);
+  CHECK(events->has("shutdown out-a replacement"));
+}
+
+
+TEST_CASE("A hot-only save after a failed structural reload retries the structural change (Aurora-c0g)", "[PipelineHost]")
+{
+  ScopedTempDir dir("apply-retry");
+  auto events = std::make_shared<Events>();
+  auto registry = makeRegistry(events);
+  PipelineHost host(nullptr, {});
+  ConfigStore store(dir.path);
+
+  store.save(tunedVideoConfig());
+  REQUIRE(applyConfigFromDisk(host, registry, dir.path).empty());
+
+  // Disk gets ahead of the running pipeline: the reload fails, the old
+  // pipeline keeps running.
+  store.update([](Config& c){ c.setActiveInputName("nope"); return true; });
+  CHECK(applyConfigFromDisk(host, registry, dir.path) == "Unknown input 'nope'");
+
+  // A later save touching only a hot field must not be applied against a
+  // disk baseline that already contains the failed change -- the structural
+  // difference from what is running is still there, so it reloads (and
+  // fails again, visibly) instead of silently diverging.
+  store.update([](Config& c){ c.setTransitionSmoothing(0.5f); return true; });
+  CHECK(applyConfigFromDisk(host, registry, dir.path) == "Unknown input 'nope'");
+
+  // Fixing the structural field recovers.
+  store.update([](Config& c){ c.setActiveInputName("fake-video"); return true; });
+  CHECK(applyConfigFromDisk(host, registry, dir.path).empty());
 }

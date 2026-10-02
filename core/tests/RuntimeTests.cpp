@@ -9,6 +9,7 @@
 #include <vector>
 
 #include <Aurora/Runtime/Config.hpp>
+#include <Aurora/Runtime/ConfigApply.hpp>
 #include <Aurora/Runtime/ConfigStore.hpp>
 #include <Aurora/Runtime/ControlDescriptorTables.hpp>
 #include <Aurora/Runtime/FrameCompositor.hpp>
@@ -302,6 +303,106 @@ TEST_CASE("Concurrent ConfigStore::update calls lose no write (Aurora-d6i7)", "[
   for(auto& thread : threads){ thread.join(); }
 
   CHECK(store.load().activeOutputNames().size() == static_cast<size_t>(kThreads * kPerThread));
+}
+
+
+TEST_CASE("changedConfigKeys names exactly the fields whose saved value differs (Aurora-c0g)", "[ConfigStore]")
+{
+  Config a;
+  Config b;
+  CHECK(changedConfigKeys(a, b).empty());
+
+  b.setTransitionSmoothing(0.5f);
+  b.setActiveOutputNames({"hue"});
+  b.setNuxCompleted(true);
+  auto changed = changedConfigKeys(a, b);
+  std::sort(changed.begin(), changed.end()); // order is the JSON library's, not a contract
+  CHECK(changed == std::vector<std::string>{"activeOutputNames", "nuxCompleted", "transitionSmoothing"});
+}
+
+
+TEST_CASE("Every persisted Config field is classified for live apply (Aurora-c0g)", "[ConfigApply]")
+{
+  // A new field added to ConfigStore's JSON without a ConfigApply row would
+  // silently reload on every change; this makes the omission a test failure.
+  for(const auto& key : configKeys()){
+    INFO("unclassified Config field: " << key);
+    CHECK(classifyConfigField(key) != nullptr);
+  }
+
+  CHECK(classifyConfigField("noSuchField") == nullptr);
+}
+
+
+TEST_CASE("planConfigChange sorts a change into None, Hot or Reload (Aurora-c0g)", "[ConfigApply]")
+{
+  Config applied;
+  applied.setRefreshRate(30);
+  applied.setSubsampleWidth(64);
+
+  auto plan = [&](auto edit, bool audioMode = false){
+    Config next = applied;
+    edit(next);
+    return planConfigChange(applied, next, audioMode);
+  };
+
+  CHECK(plan([](Config&){}) == ChangeAction::None);
+
+  // Video-side hot fields.
+  CHECK(plan([](Config& c){ c.setTransitionSmoothing(0.5f); }) == ChangeAction::Hot);
+  CHECK(plan([](Config& c){ c.setInterpolation(Interpolation::Type::Nearest); }) == ChangeAction::Hot);
+  CHECK(plan([](Config& c){ c.setRefreshRate(60); }) == ChangeAction::Hot);
+  CHECK(plan([](Config& c){ c.setSubsampleWidth(96); }) == ChangeAction::Hot);
+
+  // Audio-side hot fields, in audio mode.
+  CHECK(plan([](Config& c){ c.setAudioVibrancyValue(0.5f); }, true) == ChangeAction::Hot);
+  CHECK(plan([](Config& c){ c.setAudioFixedAnchorHue(120.f); }, true) == ChangeAction::Hot);
+
+  // A hot field the running mode never reads: neither applies nor reloads.
+  CHECK(plan([](Config& c){ c.setAudioVibrancyValue(0.5f); }, false) == ChangeAction::None);
+  CHECK(plan([](Config& c){ c.setTransitionSmoothing(0.5f); }, true) == ChangeAction::None);
+  CHECK(plan([](Config& c){ c.setRefreshRate(60); }, true) == ChangeAction::None);
+
+  // Fields nothing in the pipeline reads.
+  CHECK(plan([](Config& c){ c.setNuxCompleted(true); }) == ChangeAction::None);
+
+  // Structural fields.
+  CHECK(plan([](Config& c){ c.setActiveInputName("x11"); }) == ChangeAction::Reload);
+  CHECK(plan([](Config& c){ c.setActiveOutputNames({"hue"}); }) == ChangeAction::Reload);
+  CHECK(plan([](Config& c){ c.setActiveMonitorName("DP-1"); }) == ChangeAction::Reload);
+  CHECK(plan([](Config& c){ c.setActiveAudioInputName("pw"); }, true) == ChangeAction::Reload);
+  CHECK(plan([](Config& c){ c.setAudioTargetSinkName("sink"); }, true) == ChangeAction::Reload);
+
+  // One structural field among hot ones reloads the lot.
+  CHECK(plan([](Config& c){
+    c.setTransitionSmoothing(0.5f);
+    c.setActiveOutputNames({"hue"});
+  }) == ChangeAction::Reload);
+}
+
+
+TEST_CASE("planConfigChange reloads when a derived-at-zero field moves to or from 0 (Aurora-c0g)", "[ConfigApply]")
+{
+  Config derived;
+  derived.setRefreshRate(30);
+  derived.setSubsampleWidth(64);
+
+  // setRefreshRate clamps to >= 1, so 0 reaches a Config only from a loaded
+  // (hand-edited or first-run) file: build it the way ConfigStore does.
+  ConfigData unsetData = derived.data();
+  unsetData.refreshRate = 0;
+  Config unset(unsetData);
+  REQUIRE(unset.refreshRate() == 0);
+
+  CHECK(planConfigChange(derived, unset, false) == ChangeAction::Reload);
+  CHECK(planConfigChange(unset, derived, false) == ChangeAction::Reload);
+
+  Config unsetWidth = derived;
+  unsetWidth.setSubsampleWidth(0);
+  CHECK(planConfigChange(derived, unsetWidth, false) == ChangeAction::Reload);
+
+  // In audio mode neither field is read, so the same edit is a no-op.
+  CHECK(planConfigChange(derived, unset, true) == ChangeAction::None);
 }
 
 

@@ -2,6 +2,8 @@
 
 #include <filesystem>
 #include <functional>
+#include <string>
+#include <vector>
 
 #include <Aurora/Runtime/Config.hpp>
 
@@ -36,4 +38,14 @@ namespace Aurora::Runtime
 
     std::filesystem::path m_configFilePath;
   };
+
+
+  // The persisted field names, i.e. every key config.json carries. Anything
+  // that must say something about every field (ConfigApply's classification)
+  // is tested against this list, so a new field cannot be added unclassified.
+  std::vector<std::string> configKeys();
+
+  // Keys whose persisted value differs between a and b -- compared the way
+  // config.json stores them, so two Configs that save identically are equal.
+  std::vector<std::string> changedConfigKeys(const Config& a, const Config& b);
 }

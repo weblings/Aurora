@@ -67,6 +67,14 @@ namespace Aurora::Runtime
       const std::optional<float>& gamma
     );
 
+    // Replaces the Config the per-tick path reads (subsampleWidth,
+    // interpolation, transitionSmoothing) without touching inputs, outputs or
+    // zone maps (Aurora-c0g). The caller guarantees only those fields changed
+    // -- ConfigApply's planConfigChange() -- and runs it under the lock that
+    // guards update(). Capture-side effects of a subsampleWidth change
+    // (setCaptureWidthHint) are the caller's, since they can block.
+    void setConfig(Config config);
+
     const Config& config() const;
 
   private:

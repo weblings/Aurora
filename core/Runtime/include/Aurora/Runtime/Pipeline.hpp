@@ -47,6 +47,17 @@ namespace Aurora::Runtime
   };
 
 
+  // What Pipeline::applyConfig did. needsReload means nothing was changed and
+  // the caller must rebuild. afterUnlock, if set, is work that can block
+  // (a capture-API round trip) and so must run outside the PipelineHost lock
+  // -- see PipelineHost::applyConfig.
+  struct ConfigApplyResult
+  {
+    bool needsReload{false};
+    std::function<void()> afterUnlock;
+  };
+
+
   // The swappable unit a live reload tears down and reconstructs -- the
   // "reconstruction, not mutation" design fork from huenicorn recommended in
   // docs/HttpServerAnalysis.md. Inputs and outputs come from the app's
@@ -65,6 +76,19 @@ namespace Aurora::Runtime
       const std::filesystem::path& configRoot,
       const PipelineOptions& options
     );
+
+    // Applies a Config change to this running pipeline without rebuilding it
+    // (Aurora-c0g), when ConfigApply says only live-tunable fields moved. The
+    // diff baseline is the Config this pipeline holds (appliedConfig()), not
+    // whatever is on disk: after a failed reload, disk is ahead of what is
+    // running, and diffing against disk would hide that structural change.
+    // Under the lock that guards tick().
+    ConfigApplyResult applyConfig(const Config& next);
+
+    // The Config this pipeline was built from, as later changed by
+    // applyConfig(). Video mode holds the post-derivation values
+    // (refreshRate/subsampleWidth filled in from the display).
+    const Config& appliedConfig() const { return m_appliedConfig; }
 
     // dt comes from PipelineHost::tick() -- one clock for both modes.
     void tick(float dt);
@@ -101,6 +125,7 @@ namespace Aurora::Runtime
     Pipeline() = default;
 
     bool m_isAudioMode{false};
+    Config m_appliedConfig;
     double m_tickIntervalSeconds{Runtime::tickIntervalSeconds()};
 
     // Declaration order matters: m_orchestrator/m_audioOrchestrator hold a
@@ -165,6 +190,13 @@ namespace Aurora::Runtime
       return fn(m_pipeline ? m_pipeline->audioInput() : nullptr);
     }
 
+    // Applies `next` to the live pipeline when only live-tunable fields
+    // changed (Aurora-c0g). Returns false -- changing nothing -- when the
+    // change needs a reload or there is no pipeline yet; the caller then
+    // calls reload(). Anything that can block runs after the pipeline lock is
+    // released, so a slow capture API cannot stall ticks or other API calls.
+    bool applyConfig(const Config& next);
+
     // Returns true on success. On failure, errorOut is set and the previous
     // pipeline keeps running untouched -- a bad reload (e.g. an
     // activeInputName a settings PUT just wrote that doesn't resolve to any
@@ -181,12 +213,30 @@ namespace Aurora::Runtime
   private:
     PipelineOptions m_options;
     std::mutex m_mutex;
+
+    // Taken before m_mutex. Serializes applyConfig() against the swap in
+    // reload(), so the out-of-lock follow-up of an apply never runs against a
+    // pipeline a reload has just replaced and destroyed. The swap, not the
+    // (slow) build, is all that waits on it.
+    std::mutex m_changeMutex;
     std::unique_ptr<Pipeline> m_pipeline;
   };
 
 
+  // What a settings PUT calls (Aurora-c0g): loads Config fresh from disk,
+  // applies it live if only live-tunable fields changed, else reloads. Same
+  // return shape as reloadPipelineFromDisk. Not for POST /api/reload or Hue
+  // pairing, which must rebuild even though Config is unchanged.
+  std::string applyConfigFromDisk(
+    PipelineHost& pipelineHost,
+    const Registry& registry,
+    const std::filesystem::path& configRoot
+  );
+
+
   // "Every settings PUT funnels into the reload entrypoint": the one reload
-  // path POST /api/reload, a settings save and Hue pairing all share.
+  // path POST /api/reload and Hue pairing share (a settings save goes through
+  // applyConfigFromDisk, which falls back to this).
   // Re-loads Config from disk (reflecting whatever the caller just saved)
   // rather than closing over a stale copy. Returns "" on success, else the
   // error, the shape SettingsRoutes' onConfigChanged expects.

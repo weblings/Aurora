@@ -152,4 +152,33 @@ namespace Aurora::Runtime
     std::ofstream file(m_configFilePath);
     file << toJson(config.data()).dump(2) << "\n";
   }
+
+
+  std::vector<std::string> configKeys()
+  {
+    // Named, not a temporary: items() holds a reference into it, which a
+    // range-for would not keep alive.
+    const Json defaults = toJson(ConfigData{});
+
+    std::vector<std::string> keys;
+    for(const auto& item : defaults.items()){
+      keys.push_back(item.key());
+    }
+    return keys;
+  }
+
+
+  std::vector<std::string> changedConfigKeys(const Config& a, const Config& b)
+  {
+    const Json jsonA = toJson(a.data());
+    const Json jsonB = toJson(b.data());
+
+    std::vector<std::string> changed;
+    for(const auto& item : jsonA.items()){
+      if(item.value() != jsonB.at(item.key())){
+        changed.push_back(item.key());
+      }
+    }
+    return changed;
+  }
 }

@@ -4,6 +4,7 @@
 #include <iostream>
 #include <stdexcept>
 
+#include <Aurora/Runtime/ConfigApply.hpp>
 #include <Aurora/Runtime/ConfigStore.hpp>
 #include <Aurora/Runtime/ZoneMapStore.hpp>
 
@@ -23,6 +24,29 @@ namespace Aurora::Runtime
         std::cout << line << '\n';
       }
     }
+
+
+#ifdef AURORA_RUNTIME_AUDIO_AVAILABLE
+    // Shared by build() and applyConfig() so the two cannot drift apart.
+    Processing::AudioProcessing::AudioEffectSettings _audioSettingsFrom(const Config& config)
+    {
+      Processing::AudioProcessing::AudioEffectSettings settings;
+      if(config.audioFixedAnchorHue() >= 0.f){
+        settings.fixedAnchorHue = config.audioFixedAnchorHue();
+      }
+      settings.bounceSmoothTime = config.audioBounceSmoothTime();
+      settings.dynamismFloor = config.audioDynamismFloor();
+      settings.centroidStrength = config.audioCentroidStrength();
+      settings.driftBaseRateDegPerSec = config.audioDriftBaseRateDegPerSec();
+      settings.vibrancySaturation = config.audioVibrancySaturation();
+      settings.vibrancyValue = config.audioVibrancyValue();
+      settings.referenceRms = config.audioReferenceRms();
+      settings.brightnessFloor = config.audioBrightnessFloor();
+      settings.centroidRangeHz = config.audioCentroidRangeHz();
+      settings.brightnessSmoothTime = config.audioBrightnessSmoothTime();
+      return settings;
+    }
+#endif
 
 
     // Aurora-vf1.1: reload phase timing. Scoped span printer -- additive
@@ -114,20 +138,7 @@ namespace Aurora::Runtime
         throw std::runtime_error("Unknown audio input '" + config.activeAudioInputName() + "'");
       }
 
-      Processing::AudioProcessing::AudioEffectSettings settings;
-      if(config.audioFixedAnchorHue() >= 0.f){
-        settings.fixedAnchorHue = config.audioFixedAnchorHue();
-      }
-      settings.bounceSmoothTime = config.audioBounceSmoothTime();
-      settings.dynamismFloor = config.audioDynamismFloor();
-      settings.centroidStrength = config.audioCentroidStrength();
-      settings.driftBaseRateDegPerSec = config.audioDriftBaseRateDegPerSec();
-      settings.vibrancySaturation = config.audioVibrancySaturation();
-      settings.vibrancyValue = config.audioVibrancyValue();
-      settings.referenceRms = config.audioReferenceRms();
-      settings.brightnessFloor = config.audioBrightnessFloor();
-      settings.centroidRangeHz = config.audioCentroidRangeHz();
-      settings.brightnessSmoothTime = config.audioBrightnessSmoothTime();
+      Processing::AudioProcessing::AudioEffectSettings settings = _audioSettingsFrom(config);
 
       pipeline->m_audioOrchestrator.emplace(
         *audioInput, pipeline->m_outputPtrs, ZoneMapStore(configRoot), settings
@@ -135,6 +146,7 @@ namespace Aurora::Runtime
       pipeline->m_audioOrchestrator->init();
       pipeline->m_audioInput = std::move(audioInput);
       pipeline->m_isAudioMode = true;
+      pipeline->m_appliedConfig = config;
       pipeline->m_tickIntervalSeconds = Runtime::tickIntervalSeconds(); // no display-derived rate for audio
 
       _log(options, LogLevel::Info,
@@ -158,6 +170,9 @@ namespace Aurora::Runtime
       pipeline->m_orchestrator->init();
       pipeline->m_videoInput = std::move(input);
       pipeline->m_isAudioMode = false;
+      // Post-derivation: refreshRate/subsampleWidth are the display-derived
+      // values, matching what the settings save now holds on disk.
+      pipeline->m_appliedConfig = pipeline->m_orchestrator->config();
       pipeline->m_tickIntervalSeconds = Runtime::tickIntervalSeconds(pipeline->m_orchestrator->config().refreshRate());
 
       // Persists any refreshRate/subsampleWidth just derived from the
@@ -186,6 +201,44 @@ namespace Aurora::Runtime
     }
 
     return pipeline;
+  }
+
+
+  ConfigApplyResult Pipeline::applyConfig(const Config& next)
+  {
+    const ChangeAction action = planConfigChange(m_appliedConfig, next, m_isAudioMode);
+    if(action == ChangeAction::Reload){
+      return {/*needsReload*/ true, {}};
+    }
+
+    ConfigApplyResult result;
+    if(action == ChangeAction::Hot){
+      if(m_isAudioMode){
+#ifdef AURORA_RUNTIME_AUDIO_AVAILABLE
+        m_audioOrchestrator->setSettings(_audioSettingsFrom(next));
+#endif
+      }
+      else{
+        const unsigned width = next.subsampleWidth();
+        const bool widthChanged = width != m_appliedConfig.subsampleWidth();
+
+        m_orchestrator->setConfig(next);
+        m_tickIntervalSeconds = Runtime::tickIntervalSeconds(next.refreshRate());
+
+        if(widthChanged){
+          // Can block on the capture API (Mac SCK waits up to 5s), so the
+          // host runs it after releasing its lock. m_videoInput outlives the
+          // call: reload() cannot swap this pipeline out meanwhile.
+          Input::IVideoInput* input = m_videoInput.get();
+          result.afterUnlock = [input, width]{ input->setCaptureWidthHint(width); };
+        }
+      }
+    }
+
+    // None and Hot both: fields nothing here reads still move the baseline,
+    // so the next diff starts from what disk says now.
+    m_appliedConfig = next;
+    return result;
   }
 
 
@@ -307,6 +360,32 @@ namespace Aurora::Runtime
   }
 
 
+  bool PipelineHost::applyConfig(const Config& next)
+  {
+    std::lock_guard<std::mutex> change(m_changeMutex);
+
+    std::function<void()> afterUnlock;
+    {
+      std::lock_guard<std::mutex> lock(m_mutex);
+      if(!m_pipeline){
+        return false;
+      }
+
+      ConfigApplyResult result = m_pipeline->applyConfig(next);
+      if(result.needsReload){
+        return false;
+      }
+      afterUnlock = std::move(result.afterUnlock);
+    }
+
+    if(afterUnlock){
+      afterUnlock();
+    }
+    _log(m_options, LogLevel::Info, "Config applied live, no pipeline reload.");
+    return true;
+  }
+
+
   bool PipelineHost::reload(
     const Registry& registry,
     const Config& config,
@@ -326,6 +405,7 @@ namespace Aurora::Runtime
 
     std::unique_ptr<Pipeline> previous;
     {
+      std::lock_guard<std::mutex> change(m_changeMutex);
       std::lock_guard<std::mutex> lock(m_mutex);
       previous = std::move(m_pipeline);
       m_pipeline = std::move(next);
@@ -351,6 +431,23 @@ namespace Aurora::Runtime
   )
   {
     Config freshConfig = ConfigStore(configRoot).load();
+    std::string error;
+    pipelineHost.reload(registry, freshConfig, configRoot, error);
+    return error;
+  }
+
+
+  std::string applyConfigFromDisk(
+    PipelineHost& pipelineHost,
+    const Registry& registry,
+    const std::filesystem::path& configRoot
+  )
+  {
+    Config freshConfig = ConfigStore(configRoot).load();
+    if(pipelineHost.applyConfig(freshConfig)){
+      return {};
+    }
+
     std::string error;
     pipelineHost.reload(registry, freshConfig, configRoot, error);
     return error;
