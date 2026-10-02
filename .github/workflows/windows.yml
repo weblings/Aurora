@@ -29,6 +29,7 @@ on:
 jobs:
   build-test:
     runs-on: windows-latest
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
       # OpenCV stays on choco: vcpkg's opencv4 default features take ~40 min
@@ -43,7 +44,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ${{ github.workspace }}/vcpkg-bincache
-          key: vcpkg-${{ runner.os }}-${{ hashFiles('.github/workflows/windows.yml') }}
+          key: vcpkg-${{ runner.os }}-v1
       - name: Install vcpkg deps
         env:
           VCPKG_DEFAULT_BINARY_CACHE: ${{ github.workspace }}/vcpkg-bincache
@@ -66,12 +67,15 @@ jobs:
       # Core's suite (incl. Parity) is not part of any app preset: it only
       # builds when core/ is configured standalone (core/CMakeLists.txt).
       # Aubio_DIR is explicit: standalone core doesn't find it through the
-      # toolchain alone (docs/lessons, build-toolchain).
+      # toolchain alone (docs/lessons, build-toolchain). Manifest mode OFF:
+      # core/vcpkg.json lists opencv4, and with the toolchain file that would
+      # build vcpkg's OpenCV (~40 min) instead of using the choco one.
       - name: Core tests (incl. Parity)
         run: |
           cmake -S core -B build/core-test `
             -DCMAKE_TOOLCHAIN_FILE="$env:VCPKG_INSTALLATION_ROOT/scripts/buildsystems/vcpkg.cmake" `
+            -DVCPKG_MANIFEST_MODE=OFF `
             -DOpenCV_DIR="C:/tools/opencv/build" `
             -DAubio_DIR="$env:VCPKG_INSTALLATION_ROOT/installed/x64-windows/share/aubio"
           cmake --build build/core-test --config Release
-          ctest --test-dir build/core-test -C Release --output-on-failure
+          ctest --test-dir build/core-test -C Release --output-on-failure --timeout 120

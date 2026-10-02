@@ -28,7 +28,11 @@ move) and Aurora-7r3 (fixtures regenerated on Mac, now checked on all four).
   Parity, because `windows-app`/`linux-app`/`mac-app` don't build core's suite
   (it only builds when `core/` is configured standalone). Linux and Mac have
   the same gap. Added a standalone `cmake -S core` build + ctest step to all
-  three native workflows; not yet run.
+  three native workflows. Linux and Mac passed it; the first Windows run sat
+  13+ min building vcpkg OpenCV (core/vcpkg.json manifest mode, see
+  `build-toolchain`). Fixed with `-DVCPKG_MANIFEST_MODE=OFF`, ctest
+  `--timeout 120` and job `timeout-minutes: 30` on all three, a constant vcpkg
+  cache key (it hashed windows.yml, so every edit dropped the cache).
 - Not isolated: whether the OpenCV `PATH` step is needed for Windows tests.
 - Not covered by CI: screen/audio capture, permissions, Hue hardware.
 

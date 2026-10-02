@@ -634,3 +634,13 @@ Applies-when: a CI job is green and you are about to treat it as verifying core 
 `linux-app`, `windows-app` and `mac-app` build and test only the app, input and output slices (Windows: 70 tests). Core's tests, including `AuroraVideoParityTests` and `AuroraAudioParityTests`, are added only when `core/` is the top-level project (`core/CMakeLists.txt`, `BUILD_TESTS`). The first green Windows CI run showed "100% tests passed out of 70" and no Parity test; this was caught only by searching the log for "parity". The same trap was already filed (verify core tests with a standalone core configure) and was missed anyway.
 
 **Fix:** each native workflow has a separate step configuring `core/` standalone (Windows also passes the toolchain, `OpenCV_DIR` and `Aubio_DIR`) and running `ctest`. After adding a check, find a named test in the log before relying on it.
+
+---
+
+## Configuring core standalone with the vcpkg toolchain file switches on manifest mode and builds vcpkg's OpenCV, ignoring the OpenCV you pointed at
+Tags: vcpkg, manifest-mode, opencv, core, ci, windows
+Applies-when: a core standalone build (CI or local) with `-DCMAKE_TOOLCHAIN_FILE=…vcpkg.cmake` is slow, or its log shows protobuf/opencv4 ports building
+
+`core/vcpkg.json` lists `opencv4`, `glm`, `catch2` and `cpp-httplib`. A `cmake -S core` configure that passes the vcpkg toolchain file finds that manifest and installs it into `<build>/vcpkg_installed`, even with `-DOpenCV_DIR` set. The first Windows CI run of the core step sat 13+ minutes in "core tests" with protobuf configuring in the log (protobuf is an opencv4 dependency): a full vcpkg OpenCV build, the ~40 minute one in `docs/Building.md`. The app presets don't hit this because `/CMakeLists.txt` has no manifest.
+
+**Fix:** pass `-DVCPKG_MANIFEST_MODE=OFF` so the toolchain stays in classic mode and uses the classic-installed ports (Aubio) plus choco OpenCV; core fetches glm, Catch2 and httplib itself when they aren't found. If the log shows `vcpkg_installed` under the core build dir, manifest mode is on.
