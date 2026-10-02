@@ -2,9 +2,9 @@
 
 #include <algorithm>
 
-#include <Aurora/App/Registry.hpp>
+#include <Aurora/Runtime/Registry.hpp>
 
-using namespace Aurora::App;
+using namespace Aurora::Runtime;
 using namespace Aurora::Contracts;
 using namespace Aurora::Input;
 using namespace Aurora::Output;

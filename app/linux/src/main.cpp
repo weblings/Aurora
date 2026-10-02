@@ -24,7 +24,7 @@
 #include <Aurora/App/FakeHue.hpp>
 #include <Aurora/App/InstanceLock.hpp>
 #include <Aurora/App/InstanceLock.hpp>
-#include <Aurora/App/Registry.hpp>
+#include <Aurora/Runtime/Registry.hpp>
 #include <Aurora/App/TrayIcon.hpp>
 #include <Aurora/App/WebRoot.hpp>
 #include <EmbeddedWebRoot.hpp>
@@ -80,7 +80,7 @@ namespace
   // "linux" auto-selects X11 vs. Wayland/Pipewire the way huenicorn's
   // GnuLinuxAdapter did; the concrete backend names are also registered
   // individually for manual override while testing.
-  void registerInputs(Aurora::App::Registry& registry)
+  void registerInputs(Aurora::Runtime::Registry& registry)
   {
     registry.registerInput("dummy", []{
       return std::make_unique<Aurora::Input::Linux::DummyGrabber>();
@@ -124,7 +124,7 @@ namespace
   }
 
 
-  void registerAudioInputs(Aurora::App::Registry& registry, const std::filesystem::path& configRoot)
+  void registerAudioInputs(Aurora::Runtime::Registry& registry, const std::filesystem::path& configRoot)
   {
 #ifdef AURORA_INPUT_LINUX_AUDIO_AVAILABLE
     // Loads Config fresh on every factory call (each Pipeline::build, i.e.
@@ -154,7 +154,7 @@ namespace
   // checked first; env vars are a dev-only fallback for setups that
   // haven't paired through it yet, not a second, equally-valid source --
   // a persisted connection always wins over env vars when both are set.
-  void registerOutputs(Aurora::App::Registry& registry, const std::filesystem::path& configRoot)
+  void registerOutputs(Aurora::Runtime::Registry& registry, const std::filesystem::path& configRoot)
   {
 #ifdef AURORA_OUTPUT_HUE_IO_AVAILABLE
     Aurora::Output::Hue::CredentialsStore credentialsStore(configRoot);
@@ -307,7 +307,7 @@ namespace
     // outputs available) -- caller decides whether that's fatal (first
     // startup) or recoverable (a later reload, old pipeline stays running).
     static std::unique_ptr<Pipeline> build(
-      Aurora::App::Registry& registry,
+      Aurora::Runtime::Registry& registry,
       const Aurora::Runtime::Config& config,
       const std::filesystem::path& configRoot
     )
@@ -607,7 +607,7 @@ namespace
     // activeInputName a settings PUT just wrote that doesn't resolve to any
     // registered input) must not take down an already-working pipeline.
     bool reload(
-      Aurora::App::Registry& registry,
+      Aurora::Runtime::Registry& registry,
       const Aurora::Runtime::Config& config,
       const std::filesystem::path& configRoot,
       std::string& errorOut
@@ -742,7 +742,7 @@ namespace
   void registerReloadRoute(
     Aurora::Network::Http::Server::HttpServer& httpServer,
     PipelineHost& pipelineHost,
-    Aurora::App::Registry& registry,
+    Aurora::Runtime::Registry& registry,
     const std::filesystem::path& configRoot
   )
   {
@@ -795,7 +795,7 @@ namespace
   // loads -- addRoute() just captures it for bind() to hand to Impl later.
   void registerCapabilitiesRoute(
     Aurora::Network::Http::Server::HttpServer& httpServer,
-    const Aurora::App::Registry& registry
+    const Aurora::Runtime::Registry& registry
   )
   {
     httpServer.addRoute(
@@ -941,7 +941,7 @@ if(!instanceLock.held()){
   // Pipeline::build() below needs it. The audio factory loads Config fresh
   // per build instead (see registerAudioInputs), since Registry's
   // factories are zero-arg closures that reload() never re-registers.
-  Aurora::App::Registry registry;
+  Aurora::Runtime::Registry registry;
   registerInputs(registry);
   registerAudioInputs(registry, configRoot);
   registerOutputs(registry, configRoot);

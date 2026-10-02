@@ -55,6 +55,7 @@ target_compile_features(AuroraControlDescriptorTests PUBLIC cxx_std_20)
 
 add_executable(AuroraRuntimeTests
   RuntimeTests.cpp
+  RegistryTests.cpp
 )
 
 target_link_libraries(AuroraRuntimeTests PRIVATE

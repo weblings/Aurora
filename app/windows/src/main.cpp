@@ -32,7 +32,7 @@
 #include <Aurora/App/FakeHue.hpp>
 #include <Aurora/App/InstanceLock.hpp>
 #include <Aurora/App/LogSink.hpp>
-#include <Aurora/App/Registry.hpp>
+#include <Aurora/Runtime/Registry.hpp>
 #include <Aurora/App/WebRoot.hpp>
 #include <EmbeddedWebRoot.hpp>
 #ifdef AURORA_GRAPH_EDITOR
@@ -120,7 +120,7 @@ namespace
 
   // Only one real capture backend exists on Windows so far (unlike Linux's
   // X11-vs-Wayland auto-select) -- "windows" just is DXGI, no dispatch layer.
-  void registerInputs(Aurora::App::Registry& registry)
+  void registerInputs(Aurora::Runtime::Registry& registry)
   {
     registry.registerInput("dummy", []{
       return std::make_unique<Aurora::Input::Windows::DummyGrabber>();
@@ -134,7 +134,7 @@ namespace
   }
 
 
-  void registerAudioInputs(Aurora::App::Registry& registry)
+  void registerAudioInputs(Aurora::Runtime::Registry& registry)
   {
 #ifdef AURORA_INPUT_WINDOWS_AUDIO_AVAILABLE
     registry.registerAudioInput("windows-audio", []{
@@ -153,7 +153,7 @@ namespace
   // checked first; env vars are a dev-only fallback for setups that
   // haven't paired through it yet, not a second, equally-valid source --
   // a persisted connection always wins over env vars when both are set.
-  void registerOutputs(Aurora::App::Registry& registry, const std::filesystem::path& configRoot)
+  void registerOutputs(Aurora::Runtime::Registry& registry, const std::filesystem::path& configRoot)
   {
 #ifdef AURORA_OUTPUT_HUE_IO_AVAILABLE
     Aurora::Output::Hue::CredentialsStore credentialsStore(configRoot);
@@ -248,7 +248,7 @@ namespace
     // outputs available) -- caller decides whether that's fatal (first
     // startup) or recoverable (a later reload, old pipeline stays running).
     static std::unique_ptr<Pipeline> build(
-      Aurora::App::Registry& registry,
+      Aurora::Runtime::Registry& registry,
       const Aurora::Runtime::Config& config,
       const std::filesystem::path& configRoot
     )
@@ -510,7 +510,7 @@ namespace
     // activeInputName a settings PUT just wrote that doesn't resolve to any
     // registered input) must not take down an already-working pipeline.
     bool reload(
-      Aurora::App::Registry& registry,
+      Aurora::Runtime::Registry& registry,
       const Aurora::Runtime::Config& config,
       const std::filesystem::path& configRoot,
       std::string& errorOut
@@ -587,7 +587,7 @@ namespace
   void registerReloadRoute(
     Aurora::Network::Http::Server::HttpServer& httpServer,
     PipelineHost& pipelineHost,
-    Aurora::App::Registry& registry,
+    Aurora::Runtime::Registry& registry,
     const std::filesystem::path& configRoot
   )
   {
@@ -640,7 +640,7 @@ namespace
   // loads -- addRoute() just captures it for bind() to hand to Impl later.
   void registerCapabilitiesRoute(
     Aurora::Network::Http::Server::HttpServer& httpServer,
-    const Aurora::App::Registry& registry
+    const Aurora::Runtime::Registry& registry
   )
   {
     httpServer.addRoute(
@@ -1080,7 +1080,7 @@ if(!instanceLock.held()){
   Aurora::Runtime::ConfigStore configStore(configRoot);
   Aurora::Runtime::Config config = configStore.load();
 
-  Aurora::App::Registry registry;
+  Aurora::Runtime::Registry registry;
   registerInputs(registry);
   registerAudioInputs(registry);
   registerOutputs(registry, configRoot);
