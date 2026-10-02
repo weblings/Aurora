@@ -17,6 +17,7 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `browser-analysis` | [archive/BrowserAnalysis.md](archive/BrowserAnalysis.md) | Browser video-upload input — findings, not a decision |
 | `distributed-architecture-plan` | [archive/DistributedArchitecturePlan.md](archive/DistributedArchitecturePlan.md) | Distributed architecture — how far to decompose Input/Processing/Output over a network |
 | `docs-lessons-pain-points` | [archive/DocsAndLessonsPainPoints.md](archive/DocsAndLessonsPainPoints.md) | Docs & lessons: scaling pain points |
+| `external-control` | [planning/ExternalControl.md](planning/ExternalControl.md) | External control: assistants, hubs and Muse driving Aurora |
 | `first-scan` | [archive/FirstScan.md](archive/FirstScan.md) | Huenicorn pipeline scan |
 | `future-steamos-support` | [planning/FutureSteamOSSupport.md](planning/FutureSteamOSSupport.md) | SteamOS / Steam Deck support |
 | `gui-launch-ux` | [archive/GUILaunchUX.md](archive/GUILaunchUX.md) | GUI Launch UX |
@@ -44,6 +45,7 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `mac-tray-parity-history` | [archive/mac/TrayParityHistory.md](archive/mac/TrayParityHistory.md) | macOS tray-parity: build history |
 | `mac-video-capture` | [archive/mac/VideoCapture.md](archive/mac/VideoCapture.md) | macOS video capture (tier 1) |
 | `module-split-plan` | [archive/ModuleSplitPlan.md](archive/ModuleSplitPlan.md) | Splitting huenicorn into Input / Processing / Output |
+| `monorepo-reorg` | [log/2026-09-21-monorepo-reorg.md](log/2026-09-21-monorepo-reorg.md) | Monorepo reorg (2026-09-21) |
 | `node-graph-pipeline` | [planning/NodeGraphPipeline.md](planning/NodeGraphPipeline.md) | Node-graph processing pipeline |
 | `node-ha-prep-sequencing` | [log/2026-10-01-node-ha-prep-sequencing.md](log/2026-10-01-node-ha-prep-sequencing.md) | Node and HA prep: scoping, HA core read, bead sequences |
 | `open-formats-research` | [archive/OpenFormatsResearch.md](archive/OpenFormatsResearch.md) | Existing open formats for video/audio-reactive lighting |
