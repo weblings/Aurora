@@ -30,6 +30,17 @@ covered by `tests/PairingRoutesTests.cpp`. Append `--fresh` to the app
 binary for a guaranteed-empty config root. Production behavior with the
 env var unset is unchanged.
 
+## Credential rules for `/api/hue/*`
+
+Full list and reasoning: [Local API rules](../../docs/planning/HomeAssistantOutput.md#local-api-rules).
+
+- No route returns the stored username/clientkey. `PUT /api/hue/register`
+  is the exception: it returns freshly issued creds, gated by the link button.
+- Stored creds are sent only to the stored bridge. A body naming its own
+  `bridgeAddress` must also carry its own `username`.
+- Changing the bridge address through `POST /api/hue/connection` clears the
+  stored creds, unless the body brings new ones.
+
 ## Building
 
 Depends on Aurora core (`Contracts`, the `Output` interface), pulled in

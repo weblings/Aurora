@@ -284,3 +284,20 @@ Applies-when: starting a release entry in CHANGELOG.txt, or `demo-shim.test.mjs`
 `web/demo/demo-shim.js` hardcodes the version it returns from `/api/version`, and `demo-shim.test.mjs` asserts it equals the top `v…` line of `CHANGELOG.txt`. The 1.0.5 entry was started with the shim still at 1.0.4. The test guarded this correctly, but it had never run since: the web workflow never fired, and the web tests aren't part of `ctest`. The first CI run on a PR was the first time anyone ran it.
 
 **Fix:** the shim's version is bumped in the same commit that opens a new changelog entry. Running the web workflow's loop locally (`for t in web-processing/*.test.mjs web/demo/*.test.mjs web/ui/styles/*.test.mjs; do node "$t"; done`) is the pre-commit check; the web workflow now runs it on every PR touching `web/**`.
+
+---
+
+## The Origin-vs-Host write gate 403s the WebUI if a dev proxy rewrites Host
+Tags: routes, security, vite, proxy, origin
+Applies-when: adding or changing a dev-server proxy in front of the daemon
+
+Since Aurora-5i3, `_wrapHandler` rejects a non-GET request whose `Origin`
+host differs from its `Host` (port ignored). Vite's `/api` proxy in
+`web/graph-editor` passes, because by default it forwards the browser's
+`Host` unchanged. Adding `changeOrigin: true` rewrites `Host` to
+`127.0.0.1` while Origin stays `localhost`. Every PUT/POST then fails with
+`cross_origin_forbidden`, but GETs still work, so it can look like a broken
+route.
+
+**Fix:** leave `changeOrigin` off, or open the dev page at the same host
+the proxy targets.

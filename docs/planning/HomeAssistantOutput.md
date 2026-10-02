@@ -183,8 +183,44 @@ Beads carry the details (label `ha-prep`):
   Linux, Windows (MSVC) and Mac pass (in-process echo test in
   `AuroraNetworkTests`).
 
+- Aurora-5i3: local API hardening before any HA credential exists. Done;
+  rules below, verified on Linux (`AuroraNetworkTests`, Hue
+  `[PairingRoutes]`).
+
 Deferred until HA is a go: rate-limited sender, brightness/`rgb_color`
 split, Keychain token storage.
+
+### Local API rules
+
+The REST API has no auth and binds `0.0.0.0`. These rules hold for every
+route, today's Hue routes and any future HA route:
+
+- **Cross-origin writes are refused.** A non-GET request that carries an
+  `Origin` (else `Referer`) naming a different host than its `Host` header
+  gets 403 `cross_origin_forbidden` before the handler runs
+  (`HttpLibServerImpl.hpp`, `_wrapHandler`). Headerless clients (curl,
+  tests) and the same-origin WebUI pass, including the WebUI opened from
+  another LAN device. A malformed or `null` Origin fails closed.
+- **Residuals of that check.** It compares host only, not port, so a page
+  on another port of the same host passes. It is not a DNS-rebinding
+  defense. Closing either one needs a Host allowlist (future work).
+- **No route returns a stored secret.** `GET /api/hue/connection` reports
+  `configured` and the address only; `/api/config` carries no secrets.
+  The one exception is `PUT /api/hue/register`. It returns the
+  *freshly issued* username/clientkey, never stored ones, and the bridge
+  only issues them after the physical link button is pressed.
+- **Stored credentials go only to the stored endpoint.** A request that
+  names its own bridge address gets no fallback to the stored username
+  (`_resolveTarget` in `PairingRoutes.cpp`). Repointing `POST
+  /api/hue/connection` at a new address without new creds clears the old
+  ones and is refused as `incomplete_connection`.
+- **For HA (Aurora-4zr.5):** changing the HA URL clears the stored token,
+  for the same reason. Otherwise a LAN client could point Aurora at a fake
+  HA and collect the refresh token.
+- **`0.0.0.0` stays the default.** The WebUI from a phone or another PC
+  needs it, and the Origin-vs-Host check still works across the LAN.
+  `boundBackendIP` (`Config.hpp`) narrows it to `127.0.0.1` for anyone who
+  wants local-only.
 
 ## Findings from HA core source
 
