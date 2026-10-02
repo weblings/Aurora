@@ -1,11 +1,11 @@
-# Aurora-9ig: Pipeline, PipelineHost and Registry moved into core (paused on CI)
+# Aurora-9ig: Pipeline, PipelineHost and Registry moved into core
 
 Id: 9ig-pipeline-to-core
 
 Node prep 6 ([[node-graph-pipeline]]). The three apps' `main.cpp` each
 carried a copy of Pipeline/PipelineHost (~250 lines each), so node prep 7-9
-would each have landed three times. Paused: code done and verified on Mac;
-Linux and Windows not compiled yet.
+would each have landed three times. Closed after CI on the draft PR
+(`feat/NodesPrep2` -> `dev`) passed on all three platforms.
 
 ## What moved
 
@@ -35,9 +35,12 @@ Linux and Windows not compiled yet.
   `/api/reload` 200 and 500 (`Unknown input 'nope'`); a bad settings PUT
   reports `reloadError` and keeps the old pipeline; `/api/zones`,
   `/api/mac/audio-status`; `[timing]` lines in the same order; clean stop.
-- Linux and Windows: not compiled. Resume: push `feat/NodesPrep2`, open a
-  draft PR, confirm `AuroraPipelineTests` runs in each platform's core
-  step and both app builds pass, then close 9ig.
+- CI (draft PR, after merging `dev`, which added a network test and an
+  Origin/Host write gate): Linux, Windows and Mac all green. Each core step
+  reported 121/121 with the 17 `Pipeline` cases listed, including the
+  audio-mode case (audio built everywhere) and the routes case under the
+  new write gate; the Linux and Windows app builds compiled the edited
+  `main.cpp` files, which were never compiled locally.
 
 ## Findings
 
