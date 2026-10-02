@@ -589,3 +589,18 @@ Applies-when: configuring core standalone (or any slice) on Windows with `-DCMAK
 `cmake -S core -B build/core-test` without the vcpkg toolchain fails at `find_package(OpenCV REQUIRED)` ("did not find one") -- but it still writes a cache with the default generator platform. Rerunning with `-G "Visual Studio 17 2022" -A x64` then stops with `generator platform: x64 Does not match the platform used previously`, and `cmake --build` (`MSB1009: ALL_BUILD.vcxproj does not exist`) and `ctest` (`No tests were found`) fail as a downstream effect, which reads like a second problem. The `windows-app` preset never shows the OpenCV failure because it resolves its own dependencies; core standalone does not.
 
 **Fix:** delete the build dir and configure once with everything: `-G "Visual Studio 17 2022" -A x64 -DCMAKE_TOOLCHAIN_FILE=C:/vcpkg/scripts/buildsystems/vcpkg.cmake -DAubio_DIR=C:/vcpkg/installed/x64-windows/share/aubio` (recipe in `docs/Building.md`). Treat "OpenCV not found" on Windows as a missing toolchain argument, not a missing install.
+
+---
+
+## `git sparse-checkout set` accepts a path that matches nothing without any error
+Tags: git, sparse-checkout, tooling, external-repos
+Applies-when: sparse-cloning a large reference repo (e.g. home-assistant/core) to read part of it
+
+A sparse checkout of `home-assistant/core` was given
+`homeassistant/components/config.` (trailing period from copying a
+sentence). Git printed nothing and checked out nothing for it, so the
+directory just wasn't there. `git sparse-checkout list` showed the typo.
+
+**Fix:** after `set` or `add`, run `git sparse-checkout list` and `ls` the
+expected directories. A missing directory means a wrong pattern, not an
+empty upstream folder.

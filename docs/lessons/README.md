@@ -19,16 +19,16 @@ Aurora's own module boundaries instead of RockyRoad's. `rendering-apis.md` vs.
 
 | File | Scope | Entries | File here when |
 |---|---|---|---|
-| [build-toolchain.md](build-toolchain.md) | CMake, vcpkg, compilers, WSL2, dev deps | 35 | build/tooling specific |
+| [build-toolchain.md](build-toolchain.md) | CMake, vcpkg, compilers, WSL2, dev deps | 36 | build/tooling specific |
 | [windows-env.md](windows-env.md) | processes, installers, ACLs, probing | 15 | Windows-environment specific |
 | [macos-gui.md](macos-gui.md) | AppKit, tray/status-item, run-loop pumping, ObjC++ interop | 24 | macOS GUI/AppKit specific |
 | [debugging-method.md](debugging-method.md) | evidence, verification, oracles, timing | 41 | debugging/verification method |
 | [architecture-process.md](architecture-process.md) | splits, duplication, reload, presence | 30 | architecture or process decision |
 | [web-testing.md](web-testing.md) | jsdom, live tests, routes, settings | 12 | web testing specific |
 | [language-cpp.md](language-cpp.md) | namespace, threads, C-portability | 12 | C++ language gotcha |
-| [input.md](input.md) | capture/grabber/platform-adapter | 28 | capture/grabber specific |
+| [input.md](input.md) | capture/grabber/platform-adapter | 29 | capture/grabber specific |
 | [processing.md](processing.md) | color/effect transform, zone-mapping | 8 | color/effect/zone-mapping specific |
-| [output.md](output.md) | streaming/protocol, any target | 10 | streaming/protocol/wire-format specific |
+| [output.md](output.md) | streaming/protocol, any target | 12 | streaming/protocol/wire-format specific |
 | [rendering-apis.md](rendering-apis.md) | third-party rendering facts | 4 | Three.js/GLTFLoader/Blender behavior, not our design |
 | [rendering-internals.md](rendering-internals.md) | own 3D-scene design | 4 | our scene technique, demonstrated by a real bug |
 | [planning.md](planning.md) | reuse research, JTBD, doc hygiene | 15 | WebUI planning/design-process finding |

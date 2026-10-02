@@ -185,3 +185,47 @@ Beads carry the details (label `ha-prep`):
 
 Deferred until HA is a go: rate-limited sender, brightness/`rgb_color`
 split, Keychain token storage.
+
+## Findings from HA core source
+
+Read 2026-10-01 from a sparse clone of `home-assistant/core` (`f66cbe4`) in
+`../core`. Code reading only; nothing run against a live instance.
+
+- **Login flow works without a token paste (code says yes, untested live).**
+  `components/auth/indieauth.py`: if `redirect_uri` has the same scheme and
+  host:port as `client_id`, it passes with no fetch. `client_id` may be
+  `http://` and a LAN IP is accepted, since the netloc check is lenient:
+  `ip_address("192.168.1.5:8080")` fails to parse and is treated as a
+  hostname. So `client_id = http://<aurora-host>:<port>/` with a redirect
+  back to Aurora is valid.
+- **Tokens:** `/auth/token` returns a 30-minute access token plus a refresh
+  token. The refresh token expires 90 days after its *last use*
+  (`auth/const.py`, `auth_store.py`), so a running Aurora never hits that
+  expiry. Store the refresh token (not the access token) in the secret
+  store. A long-lived token (`auth/long_lived_access_token`, user-chosen
+  lifespan) stays the fallback.
+- **`call_service` over WebSocket is blocking:** the result arrives after
+  the light's service finishes (`websocket_api/commands.py`,
+  `blocking=True`). That reply is the per-light "in flight" signal, so no
+  `state_changed` subscription is needed for the rate limiter.
+- **Read replies promptly.** HA drops the connection at 4096 queued
+  outgoing messages, or after more than 1024 for 10s
+  (`websocket_api/const.py`, `http.py`). One result per command means a
+  stalled reader thread gets Aurora disconnected.
+- **Auth handshake:** HA closes the socket if `auth` isn't sent within 10s.
+- **Color:** sending `rgb_color` + `brightness` is right. `light/helper.py`
+  converts `rgb_color` to the bulb's mode (rgbw/rgbww/hs/xy). For
+  `color_temp`-only lights it picks the nearest white, so Light select
+  should still filter to color modes.
+- **mDNS:** `_home-assistant._tcp.local.` TXT records carry
+  `internal_url`, `external_url`, `base_url`, `uuid`, `version` and
+  `location_name` (`components/zeroconf/__init__.py`). Discovery can
+  prefill the URL and dedupe by `uuid`.
+- **Grouping by integration:** WebSocket `config/entity_registry/list`
+  (or `list_for_display`, which skips disabled entities) returns every
+  registry entry in one reply (`components/config/entity_registry.py`).
+  That each entry carries `platform` (the integration) is from memory:
+  `helpers/` isn't in the sparse checkout.
+- **Not answered yet:**
+  - Recorder exclusion (YAML; docs, not code).
+  - All real-light rates.

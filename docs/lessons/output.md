@@ -284,3 +284,49 @@ threaded fake instead of hoping for a flaky LAN. When sizing an uncaught
 exception's impact, follow it to the first `catch` (or `main`) before
 describing the symptom. Adding a `--stall`/`--fail <path>` option to
 `tools/fake-hue-bridge` would make this reusable.
+
+---
+
+## Home Assistant's login flow accepts a LAN `host:port` client_id, and its refresh tokens only work with the client_id they were issued to
+Tags: output, home-assistant, auth, oauth, indieauth
+Applies-when: designing Aurora's Home Assistant login, or storing and refreshing HA tokens
+
+The IndieAuth spec forbids IP-address hosts in a `client_id` except loopback.
+HA's `components/auth/indieauth.py` says it allows "any internal network IP".
+In practice it is more lenient than that: it calls `ip_address()` on the
+whole netloc, so `192.168.1.5:8080` fails to parse, falls through as a
+"domain name" and passes. A `redirect_uri` with the same scheme and
+`host:port` as the `client_id` is accepted without fetching anything, and
+plain `http://` is allowed. So Aurora can use its own WebUI URL as
+`client_id` and redirect back to itself. The catch is in
+`components/auth/__init__.py`: a refresh is rejected when its `client_id`
+differs from the one the token was issued to. Opening the WebUI at
+`127.0.0.1` one day and at the LAN IP the next would break refreshes.
+Normal refresh tokens expire 90 days after last use, so a running client
+never hits that expiry. Read from core `f66cbe4`; not yet run against a live
+HA.
+
+**Fix:** store the `client_id` alongside the refresh token and always refresh
+with it. Don't rebuild it from whatever URL the browser is using now.
+Confirm against a real HA (Docker) before relying on the netloc leniency,
+which is an implementation accident, not documented behavior.
+
+---
+
+## Home Assistant's WebSocket `call_service` replies only after the service finishes, and HA disconnects clients that read replies slowly
+Tags: output, home-assistant, websocket, rate-limiting, backpressure
+Applies-when: designing a sender, rate limiter or reader thread for the Home Assistant output
+
+`websocket_api/commands.py` runs `call_service` with `blocking=True`, so the
+result message arrives only once the light's service call has completed.
+That reply is a free per-light "command done" signal: no `state_changed`
+subscription is needed to keep one command in flight per light. The flip
+side is in `websocket_api/http.py`: HA cancels the connection at 4096 queued
+outgoing messages, or when the queue stays above 1024 for 10s. Every command
+produces a reply, so a client that sends fast but drains its socket slowly
+gets disconnected. HA also closes the socket if `auth` isn't sent within 10s
+of connecting.
+
+**Fix:** run a dedicated reader thread that always drains replies, separate
+from the sender. Gate each light on its previous command's reply (matched by
+message id). Send `auth` immediately after connecting.

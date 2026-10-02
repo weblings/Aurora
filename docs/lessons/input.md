@@ -584,3 +584,26 @@ Response comes, so nothing has freed the data yet.
 `userData` only on paths where you can name who still owns it. Treat
 `G_IO_ERROR_CANCELLED` as "my owner is tearing down" and return without
 reading shared state.
+
+---
+
+## "Default" audio capture means different things per platform: Mac taps every app, Linux and Windows capture one default device
+Tags: input, audio, mac, linux, windows, process-tap, pipewire, wasapi
+Applies-when: adding audio device selection, or comparing audio capture behavior across platforms
+
+With no device configured, each grabber captures something different.
+Mac's `MacAudioGrabber` uses `initStereoGlobalTapButExcludeProcesses:@[]`,
+which is everything every process plays, whatever output it goes to. The
+default output UID only sets the aggregate device's clock sub-device.
+Linux's `AudioGrabber` resolves the default sink by name once at start and
+captures that sink's monitor, so later default-sink changes aren't followed.
+Windows uses miniaudio loopback with `pDeviceID = nullptr`, the default
+playback device. It probably follows default changes through miniaudio's
+WASAPI stream routing, but that is unverified. So a dropdown whose first
+option is "today's default" is broader on Mac ("all audio") than on Linux
+and Windows ("default output"). Picking a specific device on Mac narrows
+capture to audio routed to that device. Found while scoping Aurora-9k1.
+
+**Fix:** label the default option per platform, or make Linux and Windows
+truly capture everything (one capture per device, mixed). Don't assume the
+same config value means the same capture everywhere.
