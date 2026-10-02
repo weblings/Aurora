@@ -461,6 +461,8 @@ After `git pull`, the live Dolt DB was a day behind and the first `bd` commands 
 
 **Fix:** after pull, check `git diff` on the export before running any `bd` command; after `bd import`, diff again -- the worktree must show no regression vs HEAD. If it does, `git checkout HEAD -- .beads/issues.jsonl` and re-import: upsert restores the closes (verified: "Updated 8 existing issues ... open → closed"). General principle: treat the tracked export as disputed territory until DB and file agree -- the import direction is file→DB, so a stale-DB write to the file poisons the source.
 
+Mixed drift is worse (Aurora-9ig, 2026-10-01): the DB held a newer `Aurora-9ig` while the file held a record the DB lacked (`Aurora-daa`) and a newer close (`Aurora-21h`). A full `bd import` would have put the file's stale 9ig over the DB; the export after importing only daa then reverted 21h's close. Pipe single lines in instead -- `grep '"id":"<id>"' .beads/issues.jsonl | bd import -` (or from `git show HEAD:.beads/issues.jsonl` when the export already clobbered it) -- export, and repeat until `git diff` on the file shows only the changes you meant.
+
 ---
 
 ## Hand-resolving a `.beads/issues.jsonl` merge conflict leaves the live DB behind until `bd import` catches up
@@ -610,3 +612,24 @@ An IDE or `git pull` offers to integrate when a branch has diverged ("16 and 16 
 - A local branch that matches a remote tip with no unique commits can simply be deleted and recreated from the remote.
 
 **Fix:** per-branch cherry check, backup, reset, then a final `git log --all --regexp-ignore-case --grep=<pattern>` that must print nothing. Reflog entries survive until `git reflog expire --expire=now --all && git gc --prune=now`; they do not affect `--all` or pushes.
+
+---
+
+## Before turning a per-copy difference into a hook, check the copy can actually reach it
+Tags: architecture, code-reuse, refactor, dead-code
+Applies-when: folding near-identical per-app or per-platform copies into one shared implementation with per-caller options
+
+Folding three app copies of `Pipeline::build` into core (Aurora-9ig), the diff showed each app's own default video input name (`"linux"`, `"dummy"`, `"windows"`), and the bead listed it as a platform hook. While writing the options struct it turned out to be unreachable in all three: `build()` returns early when no input is named at all, and an empty video name alongside an audio name always takes the audio branch, so the `empty() ? default : name` fallback never fired. Carrying it into core would have meant an option every app has to set, plus a test, for a value no run can observe.
+
+**Fix:** for each line that differs between the copies, trace whether any input reaches it before giving it a hook; delete unreachable differences in the shared version and say so in the commit. A diff between copies shows where they *differ*, not which differences are live -- the same caution as "a fully ported, fully unit-tested function can still be dead code" above.
+
+---
+
+## "First output" is hash order when no outputs are selected -- Registry name lists are unordered
+Tags: architecture, registry, zonemap, testing, nondeterminism
+Applies-when: relying on the order of `Registry::outputNames()`/`inputNames()`, or on "the first output" (zone listing, zone edits) with more than one output registered
+
+`Pipeline::build` runs every registered output when `activeOutputNames` is empty, in `Registry::outputNames()` order, and `listZones`/`updateZone` act on the *first* of them. `Registry` keeps an `unordered_map`, so that order is unspecified: a core test expecting `out-a` got `out-b` (Aurora-9ig). Harmless today with Hue as the only real output, but a second output (Home Assistant, Aurora-4zr) makes the Zone Mapping target depend on hashing.
+
+**Fix:** tests select outputs explicitly (`setActiveOutputNames`) when they assert on "first output". Product side tracked in Aurora-9sm: give the unselected case a defined order, or make the zone routes name their output.
+
