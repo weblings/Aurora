@@ -613,7 +613,7 @@ Applies-when: adding or debugging a GitHub Actions workflow, or wondering why on
 
 Aurora's workflows had `push: branches: [main]` plus path filters, and the repo's CI sat unused for weeks ("CI does not run here") because no one pushed to `main` to find out. `pull_request` with no `branches:` filter fires for a PR into any base branch, and the workflow file is read from the PR's merge result, so editing the YAML and re-pushing is the fix-forward loop. Path filters apply per workflow: a PR touching only `windows.yml`, `mac.yml` and `web/demo/` ran those and web, not Linux (its paths never matched). A skipped workflow shows no check at all, which looks like Linux was removed.
 
-**Fix:** test workflow changes on a draft PR, not on `main`. Before reading a missing check as a failure or a removal, compare the PR's changed files (`git diff --name-only <base>...HEAD`) with that workflow's `paths:`. A PR that should exercise every platform has to touch `core/**` or each workflow file. Windows and Mac cost more than Linux on private repos, so keep `push` limited to `main` and let PRs do the testing.
+**Fix:** test workflow changes on a draft PR, not on `main`. Before reading a missing check as a failure or a removal, compare the PR's changed files (`git diff --name-only <base>...HEAD`) with that workflow's `paths:`. A PR that should exercise every platform has to touch `core/**` or each workflow file. Keep `push` limited to `main` and let PRs do the testing. Minutes are free here because the repo is public (the billing page shows consumed usage fully offset by discounts); on a private repo Windows counts 2x and macOS 10x against the included minutes.
 
 ---
 

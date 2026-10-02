@@ -23,7 +23,10 @@ move) and Aurora-7r3 (fixtures regenerated on Mac, now checked on all four).
   drift above); Windows failed at configure (Aubio not found).
 - PR fix/CI_Updates -> dev: Mac, Windows and web passed. Linux did not run:
   the PR touched none of its `paths:` (not removed).
-- Cost: about $0.03 per Windows or Linux run. Mac run cost not recorded here.
+- Cost: the repo is public, so Actions minutes are free on standard runners
+  (billing page: $1.59 consumed, $1.59 discounts, $0 billable; ~$0.03 per
+  Windows or Linux run at list price). Fork PRs from other people cost nothing
+  either; Settings -> Actions -> General still gates first-time contributors.
 - First green runs did NOT cover core: the Windows job ran 70/70 tests, none
   Parity, because `windows-app`/`linux-app`/`mac-app` don't build core's suite
   (it only builds when `core/` is configured standalone). Linux and Mac have
@@ -48,4 +51,6 @@ move) and Aurora-7r3 (fixtures regenerated on Mac, now checked on all four).
   (`web-testing`).
 - The Mac workflow was written blind and passed first time, so the documented
   `mbedtls@3` pin was enough.
-- Decision: no `push` trigger beyond `main`; PRs do the testing.
+- Decision: no `push` trigger beyond `main`; PRs do the testing. Not added:
+  `concurrency` with `cancel-in-progress` (saves runner time on repeated
+  pushes; cost is not the reason now that the repo is public).
