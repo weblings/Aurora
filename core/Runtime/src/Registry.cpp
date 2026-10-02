@@ -1,6 +1,6 @@
-#include <Aurora/App/Registry.hpp>
+#include <Aurora/Runtime/Registry.hpp>
 
-namespace Aurora::App
+namespace Aurora::Runtime
 {
   void Registry::registerInput(const std::string& name, InputFactory factory)
   {

@@ -638,3 +638,14 @@ Applies-when: testing a D-Bus client's "no bus / no service" path (libsecret, po
 For Aurora-2dz's "no Secret Service" case, `env -u DBUS_SESSION_BUS_ADDRESS` still reached gnome-keyring, and the `[real]` test passed instead of skipping. On systemd sessions GIO finds the user bus socket at `$XDG_RUNTIME_DIR/bus` without the variable. The failure injection silently didn't happen.
 
 **Fix:** point it at a dead socket, `DBUS_SESSION_BUS_ADDRESS=unix:path=/nonexistent`. libsecret then fails with "Could not connect" (`G_IO_ERROR`, mapped to `Unavailable`). Check that the injected failure really occurred (status or skip message) before trusting a "passes" result.
+
+---
+
+## A Catch2 SIGSEGV with no debugger: install a vectored exception handler, link with `/MAP`, resolve the RVAs
+Tags: windows, segfault, catch2, msvc, stack-trace, map-file, bisect
+Applies-when: a test exe segfaults on Windows, `cdb`/WinDbg are not installed, and Catch2 only prints "Unknown expression after the reported line"
+
+Catch2 reports the last assertion that started, not where the crash is, and its SIGSEGV handler prints no stack. What worked, in order: (1) `std::cerr << ... << std::endl` markers (flushes before the crash) narrowed it to the first `client.Get` and then proved the route handler never ran; (2) swapping the real route for a trivial lambda showed it wasn't our code; (3) a temporary `AddVectoredExceptionHandler` in the test calling `CaptureStackBackTrace` and printing each frame's module and offset gave the crashing thread's frames; (4) relinking with `/MAP /DEBUG` (`-DCMAKE_EXE_LINKER_FLAGS_RELEASE="/MAP /DEBUG"`) and a short script mapping `preferred load address + RVA` to the nearest map symbol named `httplib::Server::process_request` on a `ThreadPool::worker` thread. Both the heredoc and `sed` mangled `
+` inside C string literals while patching, so use `std::endl`, or write patch scripts with the Write tool.
+
+**Fix:** keep the VEH snippet and map resolver as the first move for any Windows crash that has no debugger; the symbol names alone usually point at the cause (here, httplib compiled twice). Revert the instrumentation and the linker-flag cache entry afterwards.

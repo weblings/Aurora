@@ -641,9 +641,21 @@ Applies-when: a CI job is green and you are about to treat it as verifying core 
 Tags: vcpkg, manifest-mode, opencv, core, ci, windows
 Applies-when: a core standalone build (CI or local) with `-DCMAKE_TOOLCHAIN_FILE=…vcpkg.cmake` is slow, or its log shows protobuf/opencv4 ports building
 
-`core/vcpkg.json` lists `opencv4`, `glm`, `catch2` and `cpp-httplib`. A `cmake -S core` configure that passes the vcpkg toolchain file finds that manifest and installs it into `<build>/vcpkg_installed`, even with `-DOpenCV_DIR` set. The first Windows CI run of the core step sat 13+ minutes in "core tests" with protobuf configuring in the log (protobuf is an opencv4 dependency): a full vcpkg OpenCV build, the ~40 minute one in `docs/Building.md`. The app presets don't hit this because `/CMakeLists.txt` has no manifest.
+`core/vcpkg.json` lists `opencv4`, `glm` and `catch2` (`cpp-httplib` was removed in Aurora-rtwh, see the two-copies entry below). A `cmake -S core` configure that passes the vcpkg toolchain file finds that manifest and installs it into `<build>/vcpkg_installed`, even with `-DOpenCV_DIR` set. The first Windows CI run of the core step sat 13+ minutes in "core tests" with protobuf configuring in the log (protobuf is an opencv4 dependency): a full vcpkg OpenCV build, the ~40 minute one in `docs/Building.md`. The app presets don't hit this because `/CMakeLists.txt` has no manifest.
 
-**Fix:** pass `-DVCPKG_MANIFEST_MODE=OFF` so the toolchain stays in classic mode and uses the classic-installed ports (Aubio) plus choco OpenCV; core fetches glm, Catch2 and httplib itself when they aren't found. If the log shows `vcpkg_installed` under the core build dir, manifest mode is on.
+**Fix:** pass `-DVCPKG_MANIFEST_MODE=OFF` so the toolchain stays in classic mode and uses the classic-installed ports (Aubio) plus choco OpenCV; core fetches glm and Catch2 (and always httplib) itself when they aren't found. If the log shows `vcpkg_installed` under the core build dir, manifest mode is on.
+
+---
+
+## Two copies of a header-only library on one build's include paths: a target can compile a different version than the library it links
+Tags: httplib, odr, include-order, vcpkg, manifest-mode, fetchcontent, windows
+Applies-when: a test or app that includes `<httplib.h>` (or any header-only dep) crashes inside the library's own inline code, only in one build dir, with a trivial handler
+
+In a Windows core build with vcpkg manifest mode ON, `cpp-httplib` 0.58.0 lands in `vcpkg_installed/.../include`, `find_package(httplib 0.46)` still reports NOTFOUND, and core also fetches 0.46.0 into `_deps/httplib-src`. `AuroraNetwork` lists `httplib-src` first; `AuroraPipelineTests` (which links `AuroraRuntime`, and so OpenCV's vcpkg include dir) lists `vcpkg_installed` first. The test TU and `HttpServer.cpp` therefore compiled different httplib versions, and the first HTTP request segfaulted in `httplib::Server::process_request` before any handler ran (Aurora-rtwh). The compile definitions matched, so diffing `PreprocessorDefinitions` found nothing; the cue was the include-dir order in the `.vcxproj` plus `CPPHTTPLIB_VERSION` in each `httplib.h`. `AuroraNetworkTests` has the same code and passes only because its include order differs.
+
+**Fixed in Aurora-rtwh:** `cpp-httplib` is no longer in `core/vcpkg.json`; core fetches its pinned httplib (cpp-httplib's version file only accepts the same minor, so `find_package(httplib 0.46)` never accepts a newer installed one). A manifest-mode configure now has one httplib copy and core passes 121/121. Don't add a header-only dep to the manifest if core also fetches it.
+
+**General fix:** when an inline-library crash reproduces with a trivial handler, find every copy (`Get-ChildItem -Recurse -Filter httplib.h`, then compare the `AdditionalIncludeDirectories` order of each target and the version define). Prefer one copy per configure.
 
 ---
 
