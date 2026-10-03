@@ -22,8 +22,12 @@ Distilled from [huenicorn](https://gitlab.com/openjowelsofts/huenicorn)
   [`docs/archive/LinuxCaptureAnalysis.md`](../../docs/archive/LinuxCaptureAnalysis.md).
   `PortalTokenTests` drives the real `XdgDesktopPortal` against a fake
   portal on a private `dbus-daemon` (cases SKIP without the binary), pinning
-  what Aurora sends (`persist_mode`, `restore_token`) and stores. It cannot
-  say whether a real backend honors them.
+  what Aurora sends (`persist_mode`, `restore_token`) and stores, and that
+  every denial, call error, malformed reply, early-Response ordering and
+  missing bus/portal settles the fd promise false instead of stalling
+  `PipewireGrabber` for 60s. It cannot say whether a real backend honors
+  persistence. Run it under ASan + LeakSanitizer
+  (`-fsanitize=address,undefined`) after touching the callbacks; it is clean.
 
 Grabber gotchas: `docs/lessons/input.md`.
 

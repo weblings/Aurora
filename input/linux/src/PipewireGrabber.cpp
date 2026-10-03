@@ -78,7 +78,11 @@ namespace Aurora::Input::Linux
             "-- the source-picker dialog may still be open, or the portal never replied"
           );
         }
-        throw std::runtime_error("Failed to get monitor file descriptor");
+        throw std::runtime_error(
+          m_capture.failureReason.empty()
+            ? std::string("Failed to get monitor file descriptor")
+            : "Failed to get monitor file descriptor: " + m_capture.failureReason
+        );
       }
     }
 

@@ -59,6 +59,7 @@ Both columns were verified on 2026-10-01 (GLib 2.80).
   plain `bool` (`updateXdgContext`) that the optimizer may hoist out of the loop.
 - `driver.cpp`'s `initCapture` is a hand copy of
   `PipewireGrabber::_initCapture`; re-sync it if upstream changes that method.
-- Aurora's own port (`input/linux/src/XdgDesktopPortal.cpp`, bead
-  `Aurora-p91`) has the same bugs, but its API differs from huenicorn's, so
-  this driver doesn't link against it yet.
+- Aurora's own port (`input/linux/src/XdgDesktopPortal.cpp`) had the same
+  bugs (`Aurora-p91`, fixed), but its API differs from huenicorn's, so this
+  driver doesn't link against it. Its regression tests are the failure cases
+  in `input/linux/tests/PortalTokenTests.cpp` (in-process fake portal).
