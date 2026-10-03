@@ -207,3 +207,12 @@ format tag on the output, and a caller guard that skipped `BGRA`.
 **Fix:** check the enum's value in `imgproc.hpp` before branching on
 channel order. For alpha add/drop, track the order in the `PixelFormat`
 tag; the conversion code doesn't need to change.
+
+
+## Credits flashing is a downscale-interpolation problem, not a smoothing one
+Tags: interpolation, subsampling, credits, flicker
+Applies-when: lights flash on thin high-contrast detail (movie credits, small text)
+
+Huenicorn 1.0.5 fixed flashing on credits with the interpolation setting, not with smoothing: keeping it on "Area" fixes it completely (its release note). Nearest-neighbor samples sparse source pixels, so thin white text on black pops in and out of a zone's sample; Area averages every pixel. Smoothing only trades the flicker for lag. Aurora ports the setting and defaults to Area; the `video.interpolation` dropdown applies live, so switching to Nearest brings the flashing back.
+
+**Fix:** when a zone color flickers on fine detail, check the downscale interpolation before touching smoothing. Hard black-to-white scene cuts still step regardless, which is an output-side question (Aurora-pngj).

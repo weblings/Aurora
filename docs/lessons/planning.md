@@ -455,3 +455,12 @@ Applies-when: carrying a feature list from a research doc into a plan, bead or r
 During Hyperion comparison, DDP/E1.31/Art-Net outputs and YOLO/motion nodes were presented as Aurora's planned scope. The owner had never asked for them: they trace to [[open-formats-research]] and [[node-graph-pipeline]], both agent-written, and moved into the implementation plan's stretch list without attribution. HttpServerAnalysis was archived for the same reason (agent-proposed milestone, not an owner commitment).
 
 **Fix:** when citing planned work, say where it came from (owner request vs. agent research) and ask before treating agent-originated items as commitments. When writing a research doc, mark its proposals as proposals with their origin.
+
+
+## A prior-art project's missing feature may live in another stage under another name, and a session log says what was already read
+Tags: planning, prior-art, verification
+Applies-when: claiming a reference project lacks a behavior, or that it was not consulted
+
+While mapping brightness handling, Hyperion's HA device looked like it had no black-frame handling (luma-derived brightness 0 turns the light off), and the external-control doc was said to rest on web docs only. Both were wrong: the floor lives upstream in the color stage as `backlightThreshold` (`RgbTransform::applyBacklight`), and the 2026-10-02 session log records that Hyperion's code had been read. The error was written into two docs and a bead before being caught.
+
+**Fix:** before saying a reference lacks something, grep its whole tree for the concept's other names (floor, threshold, backlight) and check every stage, not just the output. Before saying a source was not consulted, read the session log and lessons that cite it.

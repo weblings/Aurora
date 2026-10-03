@@ -31,6 +31,15 @@ runtime-loaded plugin system).
   that channel is 255); HA maps that to the bulb's native mode. Same
   principle as the Hue XYB lesson in `docs/lessons/output.md`: let the
   device side do gamut mapping.
+- **Black frames (open, Aurora-pngj):** `turn_on` with brightness 0 switches
+  the light *off*, so a black zone (credits, dark scenes) or a global gain
+  of 0 ([[external-control]] brightness stage) would flicker lights off and
+  on. Policy undecided: a minimum-brightness floor, or explicit off/on with
+  hysteresis. Aurora-pngj decides it and blocks the split (Aurora-cyw).
+  Precedent: Hyperion's `backlightThreshold` (`RgbTransform::applyBacklight`)
+  is a minimum-brightness floor in its color stage, before any device, in
+  gray or colored form, so black never reaches its HA output as 0 (its HA
+  device itself has no black handling). Huenicorn needs none for Hue.
 - Rate limiting is the real design work. `send()` only stores the latest
   color per light; a sender thread drains them. Newest-wins (never queue),
   per-light max rate, at most one command in flight per light, skip

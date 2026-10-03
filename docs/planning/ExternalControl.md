@@ -2,8 +2,10 @@
 
 Id: external-control
 
-Status: exploratory (2026-10-02) — research only. One bead filed
-(Aurora-3ddb, pause/resume); nothing else built or scheduled. Prompted by
+Status: exploratory (2026-10-02) — research only; nothing built. Beads
+filed 2026-10-03 as epic Aurora-5ipy (label `external-control`; phases map
+to children `EC 0`-`EC 6c`, Phase 1 is Aurora-3ddb). Agent-proposed except
+pause/resume; not committed. Prompted by
 evaluating the Muse Gadgets SDK (Meta, Apache-2.0) as an optional
 integration.
 
@@ -117,12 +119,14 @@ Status: snapshot 2026-10-02.
 
 - **Shipped, directly useful:** param schema (Aurora-ta5) as the source
   for generated MCP tool schemas / MQTT entities via `/api/descriptors`;
-  `PipelineHost` in core (Aurora-9ig); output-neutral zone labels
+  `PipelineHost` in core (Aurora-9ig); tuning edits applied live without
+  a reload (Aurora-c0g, closed 2026-10-02: hot save ~2 ms and no bridge
+  traffic vs ~20 ms structural reload; Linux/Windows and real-hardware
+  refreshRate left to CI and Aurora-k0sx); output-neutral zone labels
   (Aurora-a0r); `platform` in `/api/capabilities` (Aurora-8mk.7); local
   API hardening (Aurora-5i3).
 - **Open, useful:** Aurora-kea (capabilities-driven sections → adapters
-  discover instead of hardcoding Video/Audio); Aurora-c0g (tuning without
-  reload, so "brighter" isn't a full rebuild); Aurora-lx4.1 / Aurora-x2o
+  discover instead of hardcoding Video/Audio); Aurora-lx4.1 / Aurora-x2o
   (always-running process); Aurora-kwn, Aurora-cgr, Aurora-m2c (reliability
   bugs a headless controller hits first); the graph preview's SSE endpoint.
 - **Neutral:** HA output (Aurora-4zr.*, Aurora-cyw), Aurora-2dz, Phase 4/5,
@@ -141,13 +145,16 @@ Status: exploratory — each needs a decision before its phase starts.
   blank while paused.
 - **Write storms.** Several controllers at once each trigger a full
   reload; Aurora-5t2 says concurrent reloads each open a portal dialog.
-  External writes need debouncing; Aurora-c0g becomes a prerequisite for
-  tuning commands.
+  External writes need debouncing. Tuning commands no longer need a
+  reload (Aurora-c0g shipped), so only structural writes (mode, source,
+  output) remain storm-prone.
 - **Public vs internal API.** Every route today is WebUI-private and free
   to change. Publish a small set of meaning-level routes (state, mode,
   capabilities, descriptors, events), never the raw `/api/config` blob.
 - **Brightness.** "Dim the lights" is the likely first voice command; no
-  global brightness control was found.
+  global brightness control was found. Bead: Aurora-5ipy.7 (EC 5a). A gain
+  of 0 yields black, which an HA output treats as off: it must follow the
+  same rule as a black scene (Aurora-pngj, [[home-assistant-output]]).
 - **Upgrading users.** Enforced pairing 401s a phone that worked
   yesterday; the 401 → "pair this device" path plus a CHANGELOG note
   covers it.
@@ -187,8 +194,12 @@ in parallel, then 2, 4, 5, 6.
 ### Phase 2 — state, then events
 - `GET /api/state` first (polling works); then `GET /api/events` with
   `state`/`health` topics, explicit pool size, subscriber cap, stop flag.
+  The stream's first event is the current `state`, so a client can skip
+  the GET and a change between GET and subscribe can't be lost (Hyperion's
+  `serverinfo` + `subscribe` returns snapshot and subscription together).
   Coordinate with the graph preview; after or with Aurora-cgr.
-- Tests: chunked-stream read asserting a pause emits `state`; `stop()`
+- Tests: a new stream's first event equals `GET /api/state`; chunked-stream
+  read asserting a pause emits `state`; `stop()`
   returns with a stream open; over-cap stream rejected; high-refresh tick
   with N streams keeps other routes inside a latency budget (doubles as a
   cgr regression).
@@ -202,7 +213,9 @@ in parallel, then 2, 4, 5, 6.
 
 ### Phase 4 — LAN pairing
 - Backend (mint, hash store, middleware, injectable is-local, test-only
-  mint path), enforced from the first release; WebUI pairing screen,
+  mint path), enforced from the first release with no opt-out (decided
+  2026-10-03; if users ask later, an explicit, visible "trust this subnet"
+  list, off by default); WebUI pairing screen,
   global 401 handler in `app.js`, device list + revoke. Before phase 6 and
   before graph thumbnails ship; must admit Aurora-4zr.5's callback.
 - Tests: middleware unit tests (local passes, remote without/revoked token
@@ -216,8 +229,8 @@ in parallel, then 2, 4, 5, 6.
   entry or the reverse; lint the spec with a standard OpenAPI validator.
 
 ### Phase 6 — adapters
-- MCP server, then MQTT bridge, then the Muse skill. After Aurora-c0g,
-  Aurora-kea, and fixes for Aurora-m2c / Aurora-kwn.
+- MCP server, then MQTT bridge, then the Muse skill. After Aurora-kea
+  (Aurora-c0g is done) and fixes for Aurora-m2c / Aurora-kwn.
 - Tests: each against `--fake-hue --fresh` + devstack; MCP via scripted
   client calls asserting `/api/state`; MQTT via Mosquitto + HA in Docker
   (shared with Aurora-4zr.8); Muse manual on a Pi (needs Meta's cloud).
@@ -232,7 +245,7 @@ in parallel, then 2, 4, 5, 6.
 | Graph preview SSE ([[node-graph-pipeline]]) | Shares phase 2's stream |
 | Aurora-4zr.5 (HA Connect) | Phase 3 first; 3–4 admit its callback |
 | Aurora-d7s (Output section) | Possible home for the device list |
-| Aurora-c0g, Aurora-kea | Prerequisites for phase 6 |
+| Aurora-kea | Prerequisite for phase 6 (Aurora-c0g shipped) |
 | Aurora-5t2 (concurrent reload portals) | Write debouncing helps both |
 | Aurora-1jb, Aurora-4zr.* data plane, Phases 4/5 | Independent |
 
@@ -315,7 +328,10 @@ what it resolves above.
   the entertainment stream Aurora uses is 16-bit RGB per channel, and the
   Sync Box's 0–200 is a *relative* modifier (100 = unchanged). Range:
   0–100 % first; widening to a boost later is backwards compatible, and
-  gamma may already cover dark content.
+  gamma may already cover dark content. Hyperion also puts the dimmer
+  upstream of its devices and applies a minimum-brightness floor
+  (`backlightThreshold`) in the same color stage, so zero never reaches its
+  HA output; the zero-brightness rule for Aurora is Aurora-pngj.
 - **Discovery (deferred).** Hyperion advertises `_hyperiond-json._tcp`,
   WLED `_wled._tcp`. A `_aurora._tcp` record would let software find
   Aurora's address, port and (in TXT) version, API base and
@@ -408,6 +424,21 @@ choices*, and anything coupled to a shared contract moves with it.
   EDL-1.0 (BSD-style), which is GPL-compatible. Still a separate process,
   so "no MQTT in core" and crash isolation both hold. MCP (client-spawned)
   and the Muse skill (Markdown) are unaffected.
+
+## Non-goals
+Status: decided 2026-10-03.
+
+- **No color or effect injection.** Aurora's lights react to inputs
+  (screen, audio) dynamically; they are not a "set the lights to red"
+  device. Hyperion's priority mux (API color, effects and grabber
+  arbitrated by priority and timeout) is deliberately not copied. The
+  control plane chooses *which* input drives the lights, the mode, the
+  zones, tuning and brightness, and pauses or resumes, never what color
+  they show. A voice "make it red" is declined, not routed to a
+  `/api/color` route.
+- **Revisit** only if the node graph ([[node-graph-pipeline]]) grows
+  external-value source nodes (MIDI/OSC-style parameter drivers). Those
+  would feed a graph input that still reacts, not bypass it.
 
 ## Still open
 Status: owner decisions.

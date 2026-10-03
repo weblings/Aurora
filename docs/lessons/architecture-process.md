@@ -705,3 +705,13 @@ Applies-when: choosing a language for a helper process the app itself starts
 Choosing "Aurora supervises adapters" rested on the assumption that python3 is on every desktop. It isn't: macOS's `/usr/bin/python3` is a stub that opens the Xcode Command Line Tools installer, and Windows' `python3` is an App Installer alias that opens the Microsoft Store. Linux distros do ship it. Hyperion gets Python everywhere only by embedding libpython plus a stdlib zip (Windows) or `Python.framework` (Mac bundle), with matching signing work.
 
 **Fix:** helpers Aurora launches are built in the same CMake superbuild (C++, existing deps and signing path); Python/Node stays for things the user or another client launches (MCP stdio servers, dev tools). Verify "it's preinstalled" claims per OS before designing on them.
+
+---
+
+## A state GET plus a separate event stream loses changes in the gap; send the snapshot as the stream's first event
+Tags: api, sse, events, state
+Applies-when: adding an events stream next to a polling state route
+
+[[external-control]] planned `GET /api/state` and `GET /api/events`. A client that fetches state and then opens the stream misses anything that changes between the two calls (a pause, say), and shows stale state until the next change. Hyperion's `serverinfo` with `subscribe` avoids it by returning the snapshot and subscribing in one call (`libsrc/api/JsonAPI.cpp`). This matters most for retained-state consumers such as the MQTT bridge.
+
+**Fix:** the stream's first event is the current state, so clients can skip the GET. Test that a new stream's first event equals `GET /api/state`.
