@@ -87,6 +87,11 @@ Core repo: shared `Contracts`, `Processing`, `Input`/`Output` interfaces,
 - [huenicorn](https://gitlab.com/openjowelsofts/huenicorn) — the original
   Hue-entertainment reference (`Runtime::_update`, `ScreenWidget.js`); ported
   from, not depended on.
+- [hyperion.ng](https://github.com/hyperion-project/hyperion.ng) — MIT
+  ambient-lighting reference: Hue TLS verification, Home Assistant output,
+  JSON API/auth/subscribe shape, black-border detection, PipeWire portal
+  capture (PR #2033). Consulted, not depended on; keep its MIT notice on
+  anything ported. See [[external-control]] for what it settled.
 
 Cite reference lessons by topic name, never by path — layouts differ per machine.
 

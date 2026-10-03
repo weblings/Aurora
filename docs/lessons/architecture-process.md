@@ -651,3 +651,27 @@ in `PairingRoutes.cpp`). Repointing the endpoint clears them. The HA token
 follows the same rule. To audit, trace each secret outward
 (header, PSK, body) and check who picked the destination.
 
+
+## A null pipeline is not a pause -- every reload path resumes it, and every reader goes blank
+Tags: architecture, pipeline, reload, pause
+Applies-when: adding a stopped/paused state on top of PipelineHost
+
+Designing pause (Aurora-3ddb) as "shut down the pipeline, keep the process" looked free, because `PipelineHost` already tolerates a null pipeline (the fresh-install idle state). Reading the callers showed two traps. `reloadPipelineFromDisk` is the one reload path for settings saves, `/api/reload` *and* Hue pairing, so a pause flag checked only in a new route would be undone by any of them. And `listZones()`/`listMonitors()` return empty with no pipeline, so Zone Mapping and the monitor picker go blank while paused.
+
+**Fix:** the paused flag lives inside `PipelineHost::reload` (a save writes config and stays paused), and readers that matter while paused fall back to on-disk or cached data (`ZoneMapStore`, last monitor list). General rule: before reusing an "empty" state as a new mode, list every writer that leaves that state and every reader that renders it.
+
+## DNS rebinding needs a hostname -- a Host allowlist can admit every IP literal
+Tags: security, local-api, dns-rebinding, host-header
+Applies-when: adding Host-header validation to a server bound to 0.0.0.0
+
+The Host-allowlist plan first assumed per-OS enumeration of the machine's LAN IPs so a phone could still reach the WebUI by IP. Vite and webpack-dev-server show it's unnecessary: a rebinding attack runs under the attacker's domain, so `Host` always carries that hostname; a request with a bare IP literal in `Host` cannot be a rebinding vector. The Origin-vs-Host check from Aurora-5i3 doesn't stop rebinding, since a rebound page is same-origin with itself.
+
+**Fix:** allow any IPv4/IPv6 literal, `localhost`/`*.localhost`, the machine's hostname and `.local` name, plus a user-set list; refuse other hostnames. Chrome's Local Network Access prompt (mandatory from Chrome 156) blunts rebinding in Chrome only, so keep the check.
+
+## macOS and Windows ship `python3` as an installer prompt, not an interpreter -- helpers an app launches must be compiled or bundle a runtime
+Tags: packaging, macos, windows, python, adapters
+Applies-when: choosing a language for a helper process the app itself starts
+
+Choosing "Aurora supervises adapters" rested on the assumption that python3 is on every desktop. It isn't: macOS's `/usr/bin/python3` is a stub that opens the Xcode Command Line Tools installer, and Windows' `python3` is an App Installer alias that opens the Microsoft Store. Linux distros do ship it. Hyperion gets Python everywhere only by embedding libpython plus a stdlib zip (Windows) or `Python.framework` (Mac bundle), with matching signing work.
+
+**Fix:** helpers Aurora launches are built in the same CMake superbuild (C++, existing deps and signing path); Python/Node stays for things the user or another client launches (MCP stdio servers, dev tools). Verify "it's preinstalled" claims per OS before designing on them.

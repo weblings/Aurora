@@ -79,6 +79,7 @@ Aurora is licensed under the [GNU General Public License v3.0 or later](LICENSE)
 - [Huenicorn](https://gitlab.com/openjowelsofts/huenicorn) by OpenJowel is a free Philips Hue screen
 synchronizer for GNU/Linux. Huenicorn was the reason I started exploring Linux again years ago, thank you OpenJowel!
 - [RockyRoad](https://github.com/weblings/RockyRoad) by me is a web browser note-highway music app for guitar and piano with full support for WebXR-capable headsets. I repurposed a lot of the design tokens and components I built out there for this project.
+- [Hyperion](https://github.com/hyperion-project/hyperion.ng) is an MIT-licensed open-source ambient lighting project with broad LED-device support. Aurora consults it as a design reference (Hue TLS handling, Home Assistant output, API and auth shape); any code ported from it keeps its MIT notice.
 
 ## Intent and AI Disclaimer
 
