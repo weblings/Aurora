@@ -388,6 +388,21 @@ TEST_CASE("Pipeline::build picks video when both an input and an audio input are
 }
 
 
+TEST_CASE("Pipeline::capabilities in video mode uses video and samples zones (Aurora-kea)", "[Pipeline]")
+{
+  ScopedTempDir dir("capabilities-video");
+  auto events = std::make_shared<Events>();
+  auto registry = makeRegistry(events);
+
+  auto pipeline = Pipeline::build(registry, videoConfig(), dir.path, {});
+  REQUIRE(pipeline);
+  const PipelineCapabilities capabilities = pipeline->capabilities();
+  CHECK(capabilities.usesVideoInput);
+  CHECK_FALSE(capabilities.usesAudioInput);
+  CHECK(capabilities.samplesZones);
+}
+
+
 #ifdef AURORA_RUNTIME_AUDIO_AVAILABLE
 TEST_CASE("Pipeline::build in audio mode ticks at the default rate with no monitors", "[Pipeline][Audio]")
 {
@@ -409,6 +424,21 @@ TEST_CASE("Pipeline::build in audio mode ticks at the default rate with no monit
   CHECK(events->sendCount > 0);
 
   CHECK(log.has(LogLevel::Info, "Aurora running: audio input='fake-audio', 2 output(s)."));
+}
+
+
+TEST_CASE("Pipeline::capabilities in audio mode uses audio and samples no zones (Aurora-kea)", "[Pipeline][Audio]")
+{
+  ScopedTempDir dir("capabilities-audio");
+  auto events = std::make_shared<Events>();
+  auto registry = makeRegistry(events);
+
+  auto pipeline = Pipeline::build(registry, audioConfig(), dir.path, {});
+  REQUIRE(pipeline);
+  const PipelineCapabilities capabilities = pipeline->capabilities();
+  CHECK_FALSE(capabilities.usesVideoInput);
+  CHECK(capabilities.usesAudioInput);
+  CHECK_FALSE(capabilities.samplesZones);
 }
 
 
@@ -771,6 +801,149 @@ TEST_CASE("PUT /api/state pauses and resumes, idempotently (Aurora-3ddb)", "[Pip
   server.stop();
   serverThread.join();
   host.shutdown();
+}
+
+
+namespace
+{
+  bool isIdle(const PipelineCapabilities& c)
+  {
+    return !c.usesVideoInput && !c.usesAudioInput && !c.samplesZones;
+  }
+}
+
+
+TEST_CASE("PipelineHost::capabilities follow swaps, not failed reloads or pause (Aurora-kea)", "[PipelineHost]")
+{
+  ScopedTempDir dir("host-capabilities");
+  auto events = std::make_shared<Events>();
+  auto registry = makeRegistry(events);
+  std::string error;
+
+  PipelineHost host(nullptr, {});
+  CHECK(isIdle(host.capabilities()));
+  CHECK(host.audioDevicesUrl().empty());
+
+  REQUIRE(host.reload(registry, videoConfig(), dir.path, error));
+  CHECK(host.capabilities().usesVideoInput);
+  CHECK(host.capabilities().samplesZones);
+
+  // The old pipeline keeps running, so its capabilities stand.
+  Config bad;
+  bad.setActiveInputName("nope");
+  CHECK_FALSE(host.reload(registry, bad, dir.path, error));
+  CHECK(host.capabilities().usesVideoInput);
+
+#ifdef AURORA_RUNTIME_AUDIO_AVAILABLE
+  REQUIRE(host.reload(registry, audioConfig(), dir.path, error));
+  CHECK_FALSE(host.capabilities().usesVideoInput);
+  CHECK(host.capabilities().usesAudioInput);
+  CHECK_FALSE(host.capabilities().samplesZones);
+
+  // Pause keeps the last capabilities; a reload while paused builds
+  // nothing, so they don't move either.
+  REQUIRE(host.pause());
+  CHECK(host.capabilities().usesAudioInput);
+  REQUIRE(host.reload(registry, videoConfig(), dir.path, error));
+  CHECK(host.capabilities().usesAudioInput);
+
+  REQUIRE(host.resume(registry, videoConfig(), dir.path, error));
+  CHECK(host.capabilities().usesVideoInput);
+  CHECK_FALSE(host.capabilities().usesAudioInput);
+#endif
+
+  // A reload into a Config naming no input leaves nothing running.
+  REQUIRE(host.reload(registry, Config{}, dir.path, error));
+  CHECK(isIdle(host.capabilities()));
+  host.shutdown();
+}
+
+
+TEST_CASE("PipelineHost::capabilities start from the initial pipeline (Aurora-kea)", "[PipelineHost]")
+{
+  ScopedTempDir dir("host-capabilities-initial");
+  auto events = std::make_shared<Events>();
+  auto registry = makeRegistry(events);
+
+  PipelineHost host(Pipeline::build(registry, videoConfig(), dir.path, {}), {});
+  CHECK(host.capabilities().usesVideoInput);
+  CHECK(host.capabilities().samplesZones);
+  host.shutdown();
+}
+
+
+TEST_CASE("GET /api/state reports paused and the running pipeline's capabilities (Aurora-kea)", "[PipelineRoutes]")
+{
+  using namespace Aurora::Network::Http::Server;
+
+  ScopedTempDir dir("state-get");
+  auto events = std::make_shared<Events>();
+  auto registry = makeRegistry(events);
+
+  PipelineOptions options;
+  options.audioDevicesUrl = "/api/test/audio-devices";
+  PipelineHost host(nullptr, options);
+
+  HttpServer server;
+  registerStateRoute(server, host, registry, dir.path);
+  REQUIRE(server.bind("127.0.0.1", 18240));
+  std::thread serverThread([&](){ server.listen(); });
+
+  httplib::Client client("127.0.0.1", 18240);
+  auto state = [&](){
+    auto result = getWithRetry(client, "/api/state");
+    REQUIRE(result);
+    REQUIRE(result->status == 200);
+    return nlohmann::json::parse(result->body);
+  };
+
+  CHECK(state() == nlohmann::json{
+    {"paused", false},
+    {"usesVideoInput", false},
+    {"usesAudioInput", false},
+    {"samplesZones", false},
+    {"audioDevicesUrl", "/api/test/audio-devices"}
+  });
+
+  std::string error;
+  REQUIRE(host.reload(registry, videoConfig(), dir.path, error));
+  auto running = state();
+  CHECK(running["usesVideoInput"] == true);
+  CHECK(running["usesAudioInput"] == false);
+  CHECK(running["samplesZones"] == true);
+
+  REQUIRE(host.pause());
+  auto paused = state();
+  CHECK(paused["paused"] == true);
+  CHECK(paused["usesVideoInput"] == true);
+  CHECK(paused["samplesZones"] == true);
+
+  server.stop();
+  serverThread.join();
+}
+
+
+TEST_CASE("GET /api/state reports a null audioDevicesUrl when the build has none (Aurora-kea)", "[PipelineRoutes]")
+{
+  using namespace Aurora::Network::Http::Server;
+
+  ScopedTempDir dir("state-get-no-devices");
+  auto events = std::make_shared<Events>();
+  auto registry = makeRegistry(events);
+  PipelineHost host(nullptr, {});
+
+  HttpServer server;
+  registerStateRoute(server, host, registry, dir.path);
+  REQUIRE(server.bind("127.0.0.1", 18241));
+  std::thread serverThread([&](){ server.listen(); });
+
+  httplib::Client client("127.0.0.1", 18241);
+  auto result = getWithRetry(client, "/api/state");
+  REQUIRE(result);
+  CHECK(nlohmann::json::parse(result->body)["audioDevicesUrl"].is_null());
+
+  server.stop();
+  serverThread.join();
 }
 
 

@@ -40,6 +40,29 @@ function testRouter(seed) {
   assert.equal(r.json.version, top[1], 'shim version matches CHANGELOG');
 }
 
+// State answers GET /api/state's shape (Aurora-kea), following the config
+// so a mode switch reads back: the Dashboard picks sections from it.
+{
+  const store = createShimStore(createMemoryStorage(), {});
+  const route = createRouter(store);
+  assert.deepEqual(route('GET', '/api/state').json, {
+    paused: false,
+    usesVideoInput: true,
+    usesAudioInput: false,
+    samplesZones: true,
+    audioDevicesUrl: '/api/linux/audio-sinks',
+  });
+
+  route('PUT', '/api/config', JSON.stringify({ activeInputName: '', activeAudioInputName: 'linux-audio' }));
+  const audio = route('GET', '/api/state').json;
+  assert.equal(audio.usesVideoInput, false);
+  assert.equal(audio.usesAudioInput, true);
+  assert.equal(audio.samplesZones, false);
+
+  // The advertised device route is one the shim answers.
+  assert.equal(route('GET', audio.audioDevicesUrl).status, 200);
+}
+
 // Config GET returns the full live-defaulted set incl. interpolation NAME.
 {
   const r = testRouter({})('GET', '/api/config');

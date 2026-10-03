@@ -4,8 +4,12 @@
 // pulled out of what used to be video's own always-visible top tier) plus
 // DeviceField, always collapsed either mode. Capture Source's old nav row
 // is gone entirely -- its one real field (DeviceField) now lives directly
-// in the top tier, swapped by mode the same way ModeDeviceScreen's own
-// _renderVideoDevice/_renderAudioDevice always did.
+// in the top tier.
+//
+// Sections follow what the running pipeline uses (GET /api/state flags via
+// CaptureSource.js, Aurora-kea), not the Video/Audio mode in config: after a
+// failed switch they keep showing what still runs. The toggle's highlight
+// still comes from config until Aurora-axoz.
 //
 // Mode switch (_switchMode) reuses the same full _loadAll()->_render() path
 // as the initial mount -- since _render() always builds fresh
@@ -17,7 +21,6 @@
 // silently collapsed again by an unrelated edit.
 import { renderTopBar } from '../topBar.js';
 import { OutputConnectScreen } from './OutputConnectScreen.js';
-import { ModeDeviceScreen, pickVideoInputName, pickAudioInputName } from './ModeDeviceScreen.js';
 import { DeviceField, AUTO_MONITOR_VALUE } from '../DeviceField.js';
 import { EntertainmentConfigSelect } from '../EntertainmentConfigSelect.js';
 import { ZoneCanvas } from '../ZoneCanvas.js';
@@ -27,6 +30,9 @@ import { AccordionSection } from '../AccordionSection.js';
 import { TuningFields } from '../TuningFields.js';
 import { applyTooltip } from '../Tooltips.js';
 import { renderReloadError, parseMacPermissionError, renderAudioPermissionBanner } from '../MacPermissionRecovery.js';
+import {
+  audioDevicesUrlFrom, devicePatch, effectiveFlags, flagsForMode, loadPipelineState, modeFromConfig, modeSwitchPatch,
+} from '../CaptureSource.js';
 
 export class DashboardScreen {
   constructor(app) {
@@ -40,7 +46,8 @@ export class DashboardScreen {
     this.currentActiveAudioInputName = '';
     this.monitors = [];
     this.selectedMonitorName = AUTO_MONITOR_VALUE;
-    this.showSinkField = false;
+    this.flags = flagsForMode('video');
+    this.audioDevicesUrl = null;
     this.sinkName = '';
     this.hasHue = false;
     this.bridgeConfigured = false;
@@ -125,7 +132,6 @@ export class DashboardScreen {
     this.audioInputs = capabilities.audioInputs ?? [];
     this.platform = capabilities.platform ?? '';
     this.hasAudio = this.audioInputs.length > 0;
-    this.showSinkField = this.audioInputs.includes('linux-audio');
 
     renderTopBar(this.container.querySelector('.top-bar-slot'), {
       title: 'Aurora',
@@ -157,11 +163,12 @@ export class DashboardScreen {
       }
     }
 
+    let config = {};
     try {
-      const config = await (await fetch('/api/config')).json();
+      config = await (await fetch('/api/config')).json();
       this.currentActiveInputName = config.activeInputName ?? '';
       this.currentActiveAudioInputName = config.activeAudioInputName ?? '';
-      this.mode = (!this.currentActiveInputName && this.currentActiveAudioInputName) ? 'audio' : 'video';
+      this.mode = modeFromConfig(config);
       this.selectedMonitorName = config.activeMonitorName || AUTO_MONITOR_VALUE;
       this.sinkName = config.audioTargetSinkName || '';
       this.tuningValues = config;
@@ -169,7 +176,11 @@ export class DashboardScreen {
       this.tuningValues = {};
     }
 
-    if (this.mode === 'video') {
+    const state = await loadPipelineState();
+    this.flags = effectiveFlags(state, config);
+    this.audioDevicesUrl = audioDevicesUrlFrom(state);
+
+    if (this.flags.usesVideoInput) {
       try {
         this.monitors = (await (await fetch('/api/monitors')).json()).monitors ?? [];
       } catch {
@@ -268,7 +279,7 @@ export class DashboardScreen {
     const errorHtml = renderReloadError(this.topTierError, this.platform);
     // Only shown absent a reload error -- a real reload failure is the
     // more actionable, more specific problem when both could apply.
-    const audioPermissionHtml = !this.topTierError && this.mode === 'audio'
+    const audioPermissionHtml = !this.topTierError && this.flags.usesAudioInput
       ? renderAudioPermissionBanner(this.audioPermissionLikelyDenied)
       : '';
 
@@ -279,12 +290,12 @@ export class DashboardScreen {
     `;
 
     this.deviceField = new DeviceField(topTier.querySelector('.db-device-slot'), {
-      mode: this.mode,
+      usesVideoInput: this.flags.usesVideoInput,
+      usesAudioInput: this.flags.usesAudioInput,
+      audioDevicesUrl: this.audioDevicesUrl,
       monitors: this.monitors,
       selectedMonitorName: this.selectedMonitorName,
-      showSinkField: this.showSinkField,
       sinkName: this.sinkName,
-      audioSinkStatus: this.audioSinkStatus,
       onChange: (patch) => this._onDeviceFieldChange(patch),
     });
   }
@@ -301,14 +312,14 @@ export class DashboardScreen {
     this.zoneCanvas?.destroy();
     this.zoneCanvas = null;
 
-    const showZoneRow = this.mode === 'video' && this.outputName && this.zones.length > 0;
+    const showZoneRow = this.flags.samplesZones && this.outputName && this.zones.length > 0;
 
     content.innerHTML = showZoneRow ? `
       <div class="db-zone-actions">
         <button type="button" class="btn btn-secondary" id="db-auto-divide">Auto-arrange zones</button>
       </div>
       <div class="db-canvas-slot"></div>
-    ` : '<p class="status-text">Zone mapping isn\'t available right now -- it needs an active output and Video mode.</p>';
+    ` : '<p class="status-text">Zone mapping isn\'t available right now -- it needs an active output and screen capture running.</p>';
 
     if (!showZoneRow) return;
 
@@ -387,7 +398,8 @@ export class DashboardScreen {
     this.tuningFields?.destroy();
     this.tuningSection = new AccordionSection(wrap.querySelector('.db-accordion-tuning'), { title: 'Tuning', expanded: false });
     this.tuningFields = new TuningFields(this.tuningSection.content, {
-      mode: this.mode,
+      usesVideoInput: this.flags.usesVideoInput,
+      usesAudioInput: this.flags.usesAudioInput,
       values: this.tuningValues,
       monitors: this.monitors,
       selectedMonitorName: this.selectedMonitorName,
@@ -455,9 +467,7 @@ export class DashboardScreen {
     Object.assign(this, patch);
     this.topTierError = null;
 
-    const apiPatch = this.mode === 'video'
-      ? { activeMonitorName: this.selectedMonitorName }
-      : { audioTargetSinkName: this.sinkName.trim() };
+    const apiPatch = devicePatch(this.flags, this);
 
     try {
       const result = await (await fetch('/api/config', {
@@ -485,9 +495,7 @@ export class DashboardScreen {
   async _switchMode(mode) {
     if (mode === this.mode) return;
 
-    const patch = mode === 'video'
-      ? { activeInputName: pickVideoInputName(this.inputs, this.currentActiveInputName) }
-      : { activeInputName: '', activeAudioInputName: pickAudioInputName(this.audioInputs, this.currentActiveAudioInputName) };
+    const patch = modeSwitchPatch(mode, this);
 
     this.toggleError = null;
     try {
@@ -642,7 +650,7 @@ export class DashboardScreen {
         : this.platform === 'linux' ? '/api/linux/audio-status'
         : null;
 
-      if(audioStatusUrl && this.mode === 'audio'){
+      if(audioStatusUrl && this.flags.usesAudioInput){
         try {
           const result = await (await fetch(audioStatusUrl)).json();
           if(this.platform === 'mac'){
@@ -668,7 +676,7 @@ export class DashboardScreen {
         }
       }
       else if(this.audioPermissionLikelyDenied || this.audioSinkStatus){
-        // Left audio mode (or this platform has no status route) -- don't
+        // Audio stopped running (or this platform has no status route) -- don't
         // leave a stale banner or sink hint showing if audio mode is
         // re-entered later without a fresh poll landing first.
         this.audioPermissionLikelyDenied = false;

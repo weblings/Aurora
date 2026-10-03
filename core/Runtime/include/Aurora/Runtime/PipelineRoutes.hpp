@@ -4,8 +4,8 @@
 
 namespace Aurora::Network::Http::Server { class HttpServer; }
 
-// The two routes that talk only to PipelineHost, once copied into every
-// app's main.cpp (Aurora-9ig moved them here with Pipeline itself).
+// Routes that talk only to PipelineHost. The first two were once copied
+// into every app's main.cpp (Aurora-9ig moved them here with Pipeline).
 namespace Aurora::Runtime
 {
   class PipelineHost;
@@ -27,6 +27,11 @@ namespace Aurora::Runtime
     const std::filesystem::path& configRoot
   );
 
+  // GET /api/state (Aurora-kea): {"paused", "usesVideoInput",
+  // "usesAudioInput", "samplesZones", "audioDevicesUrl" (string or null)}.
+  // The flags describe what the running pipeline uses, kept through pause;
+  // all false means nothing runs. Aurora-5ipy.2 extends this route.
+  //
   // PUT /api/state {"running": bool}: pause (false) or resume (true),
   // idempotent (Aurora-3ddb). Answers {"succeeded": true, "running": bool},
   // 400 on a bad body, or on a failed resume 500 {"succeeded": false,

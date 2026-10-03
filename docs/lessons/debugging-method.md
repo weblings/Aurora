@@ -682,6 +682,8 @@ After adding `PUT /api/state`, `devstack.py up` answered 404 for it. The route w
 
 **Fix:** pass `--app <fresh binary>` and, before reading anything into a failure, compare the binary's mtime or grep it for a string only the new code contains (`strings build/bin/Aurora | grep ...`). Prefer a harness default that follows the build you just ran, or an error when the default is older than the sources.
 
+Recurred in reverse during Aurora-kea (2026-10-03): `cmake --build build/linux-app` was fresh and a hand-launched `./build/bin/Aurora` was the stale one, so the new `GET /api/state` answered 404. Two app binaries exist on this box; neither path is "the" build.
+
 ---
 
 ## A LeakSanitizer report whose only non-libc frame is a test line is that line's own allocation -- trace it before blaming the library

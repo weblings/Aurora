@@ -268,6 +268,11 @@ namespace
     options.noAudioSupportMessage =
       "activeAudioInputName is set, but this build has no audio support "
       "(AURORA_CORE_ENABLE_AUDIO/AURORA_APP_ENABLE_LINUX_AUDIO_INPUT were off)";
+#ifdef AURORA_INPUT_LINUX_AUDIO_AVAILABLE
+    // Backs the WebUI's audio-device dropdown (Aurora-kea replaced its
+    // 'linux-audio' gate with this). Without audio there's nothing to pick.
+    options.audioDevicesUrl = "/api/linux/audio-sinks";
+#endif
     return options;
   }
 

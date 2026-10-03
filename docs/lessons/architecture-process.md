@@ -376,6 +376,8 @@ Applies-when: finding a lookalike directory (vendor snapshot, mirror, fork) insi
 The merge surfaced web/demo/vendor/webui sitting next to web/ui. Assumption said stale copy; diff -rq said diverged subset with vendor-only tooling (MANIFEST.json, generator) and ui-only app shell -- a deliberate GitHub-Pages-targeted fork, confirmed by the owner. A sync would have destroyed it.
 
 **Fix:** never classify duplication by directory name or memory; run the diff first, read the file lists on both sides, and only then choose mirror-rule, migration, or intentional-divergence (recorded where agents will trip over it: AGENTS.md plus the closed task).
+
+The fork's own tooling still reads as a re-vendor workflow (MANIFEST.json "verbatim copy except for the seams", closure-check.mjs "Run on every re-vendor"), while the owner's later Aurora-4jl says don't sync. During Aurora-kea that wording got a re-vendor recommended without 4jl in view. Since 4jl the fork changes by feature ports marked "mirrors web/ui" (Aurora-tnk, -qdk, -67y, -kea); a full re-vendor is its own decision (Aurora-ifkn).
 ---
 
 ## Vendored files take fork-local asset paths -- the src lives with the caller
@@ -665,12 +667,14 @@ Applies-when: code loads a file-backed config, does slow work (device handshake,
 ---
 
 ## Diff a live change against what the running thing was built from, not against the persisted copy
-Tags: config, reload, hot-apply, diff, state
-Applies-when: deciding whether a saved settings change can be applied live or needs a rebuild
+Tags: config, reload, hot-apply, diff, state, webui
+Applies-when: deciding whether a saved settings change can be applied live or needs a rebuild, or showing which mode is running in the UI
 
 Aurora-c0g classifies each config edit as live-tunable or structural by diffing old against new. "Old" read from disk looks natural and is wrong: a structural save whose reload fails leaves disk ahead of the running pipeline, so the next hot-only save diffs against a disk that already holds the failed change, sees "only tuning moved", applies it live, and the structural change is never retried. The baseline also has to be the post-derivation Config for video (display-derived `refreshRate`/`subsampleWidth` filled in), or the first diff reads as a change to 0.
 
 **Fix:** the pipeline keeps the Config it was built from (moved forward by each live apply) and the diff runs against that. A failed reload then keeps surfacing its error on later saves instead of silently diverging. Fields the running mode never reads still move the baseline, and an unclassified field defaults to reload.
+
+The WebUI has the same trap (found scoping Aurora-kea, 2026-10-03). `DashboardScreen._switchMode` refetches after a PUT and re-derives the Video/Audio mode from `/api/config`. On `reloadError` the old pipeline keeps running but the config holds the failed mode, so every section shows the mode that isn't running. `reload()` while paused also returns success without building anything. Neither "succeeded" nor the saved config means "running". **UI fix:** show running state from the pipeline itself (kea's `GET /api/state` flags), never from the saved config. Don't roll the save back either: Mac permission recovery depends on the saved mode starting after relaunch.
 
 ---
 

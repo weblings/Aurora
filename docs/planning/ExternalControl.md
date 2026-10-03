@@ -125,8 +125,10 @@ Status: snapshot 2026-10-02.
   refreshRate left to CI and Aurora-k0sx); output-neutral zone labels
   (Aurora-a0r); `platform` in `/api/capabilities` (Aurora-8mk.7); local
   API hardening (Aurora-5i3).
-- **Open, useful:** Aurora-kea (capabilities-driven sections → adapters
-  discover instead of hardcoding Video/Audio); Aurora-lx4.1 / Aurora-x2o
+- **Open, useful:** Aurora-kea (running-pipeline flags on a minimal
+  `GET /api/state` → adapters pick source controls, monitor vs sink, from
+  them; the mode list comes from `/api/capabilities` inputs, later the
+  Aurora-kep2 effect list); Aurora-lx4.1 / Aurora-x2o
   (always-running process); Aurora-kwn, Aurora-cgr, Aurora-m2c (reliability
   bugs a headless controller hits first); the graph preview's SSE endpoint.
 - **Neutral:** HA output (Aurora-4zr.*, Aurora-cyw), Aurora-2dz, Phase 4/5,
@@ -195,7 +197,10 @@ in parallel, then 2, 4, 5, 6.
   platform, Wayland no-dialog resume, Mac indicator clears.
 
 ### Phase 2 — state, then events
-- `GET /api/state` first (polling works); then `GET /api/events` with
+- `GET /api/state` first (polling works). Aurora-kea builds its minimal
+  form (`paused` + `usesVideoInput`/`usesAudioInput`/`samplesZones`/
+  `audioDevicesUrl`, owner-approved 2026-10-03); this phase adds mode,
+  source, health and idle/needs-setup. Then `GET /api/events` with
   `state`/`health` topics, explicit pool size, subscriber cap, stop flag.
   The stream's first event is the current `state`, so a client can skip
   the GET and a change between GET and subscribe can't be lost (Hyperion's
@@ -232,7 +237,9 @@ in parallel, then 2, 4, 5, 6.
   entry or the reverse; lint the spec with a standard OpenAPI validator.
 
 ### Phase 6 — adapters
-- MCP server, then MQTT bridge, then the Muse skill. After Aurora-kea
+- MCP server, then MQTT bridge, then the Muse skill. The MQTT bridge
+  re-publishes HA discovery when kea's flags change (mode switch), so the
+  monitor/sink entity matches the running pipeline. After Aurora-kea
   (Aurora-c0g is done) and fixes for Aurora-m2c / Aurora-kwn.
 - Tests: each against `--fake-hue --fresh` + devstack; MCP via scripted
   client calls asserting `/api/state`; MQTT via Mosquitto + HA in Docker
@@ -248,7 +255,7 @@ in parallel, then 2, 4, 5, 6.
 | Graph preview SSE ([[node-graph-pipeline]]) | Shares phase 2's stream |
 | Aurora-4zr.5 (HA Connect) | Phase 3 first; 3–4 admit its callback |
 | Aurora-d7s (Output section) | Possible home for the device list |
-| Aurora-kea | Prerequisite for phase 6 (Aurora-c0g shipped) |
+| Aurora-kea | Builds phase 2's minimal `GET /api/state`; prerequisite for phase 6 (Aurora-c0g shipped) |
 | Aurora-5t2 (concurrent reload portals) | Write debouncing helps both |
 | Aurora-1jb, Aurora-4zr.* data plane, Phases 4/5 | Independent |
 

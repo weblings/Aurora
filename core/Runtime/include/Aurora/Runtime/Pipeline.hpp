@@ -45,6 +45,23 @@ namespace Aurora::Runtime
     // uses e.what(). Mac maps its capture PermissionError to the stable
     // "permission_denied: "/"permission_pending: " prefixes the WebUI checks.
     std::function<std::string(const std::exception&)> describeBuildError;
+
+    // Route that lists this build's audio devices for the WebUI's device
+    // dropdown (Linux: /api/linux/audio-sinks). Empty when the build has
+    // none; Mac/Windows follow the default device. GET /api/state reports it.
+    std::string audioDevicesUrl;
+  };
+
+
+  // What a running pipeline uses (Aurora-kea), so the WebUI shows sections
+  // from what runs rather than from a Video/Audio mode read out of Config.
+  // Independent flags, not a mode: a later graph may set more than one, and
+  // none set means nothing runs (fresh install, or no input configured).
+  struct PipelineCapabilities
+  {
+    bool usesVideoInput{false};
+    bool usesAudioInput{false};
+    bool samplesZones{false};
   };
 
 
@@ -97,6 +114,8 @@ namespace Aurora::Runtime
     double tickIntervalSeconds() const { return m_tickIntervalSeconds; }
 
     bool isAudioMode() const { return m_isAudioMode; }
+
+    PipelineCapabilities capabilities() const;
 
     // Empty in audio mode -- no monitor concept applies then, not an error.
     Input::Monitors listMonitors() const;
@@ -229,7 +248,19 @@ namespace Aurora::Runtime
     // Lock-free, so the capabilities heartbeat can read it.
     bool isPaused() const { return m_paused.load(); }
 
+    // What the running pipeline uses, lock-free. Updated on every swap and
+    // kept through pause(), so a paused Dashboard keeps its sections. A
+    // failed reload leaves it unchanged: the old pipeline is still running.
+    PipelineCapabilities capabilities() const;
+
+    const std::string& audioDevicesUrl() const { return m_options.audioDevicesUrl; }
+
   private:
+    // Packs capabilities into one atomic, so a reader never sees half of
+    // a swap.
+    void _storeCapabilities(const Pipeline* pipeline);
+    std::atomic<std::uint8_t> m_capabilityBits{0};
+
     PipelineOptions m_options;
     std::mutex m_mutex;
 

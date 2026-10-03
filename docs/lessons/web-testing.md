@@ -267,6 +267,8 @@ Aurora-a0r's label check hit three snags. (1) With the user's own Firefox open, 
 
 **Fix:** temporary harness page in `web/ui/` (served by the app from source) that mounts the screen, waits, then `navigator.sendBeacon('http://127.0.0.1:<port>/', document.body.innerText)` to a 15-line Python POST sink; run `timeout 15 firefox --headless --no-remote --profile ~/<dir> <url>` (no `--screenshot`) and read the sink's file. Delete the harness page and profile afterwards.
 
+**Simpler, when the screen just needs to settle (Aurora-kea, 2026-10-03):** the cached Playwright headless shell (`~/.cache/ms-playwright/chromium_headless_shell-*/chrome-headless-shell-linux64/chrome-headless-shell --no-sandbox --window-size=480,1100 --virtual-time-budget=6000 --screenshot=<png> <url>`) holds the capture until virtual time runs out, so fetch-driven Dashboards render fully with no harness page. To compare against `HEAD`, serve a `git archive HEAD web/ui` export through `AURORA_WEBUI_DIR` on the same daemon and pixel-diff the PNGs (PIL `ImageChops.difference(...).getbbox()`); a `None` box is pixel-identical.
+
 ---
 
 ## A WebSocket client test needs no external echo server: httplib ships the server side
