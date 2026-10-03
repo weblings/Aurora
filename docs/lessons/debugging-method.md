@@ -681,3 +681,24 @@ Applies-when: a live check against a dev harness behaves as if new code is missi
 After adding `PUT /api/state`, `devstack.py up` answered 404 for it. The route was fine: the script's default app is `build/linux-app/bin/Aurora` (a preset build dir from Oct 1), while `cmake --build build` had produced `build/bin/Aurora`. A 404 on a route that unit tests pass reads like a wiring bug and invites a debugging detour.
 
 **Fix:** pass `--app <fresh binary>` and, before reading anything into a failure, compare the binary's mtime or grep it for a string only the new code contains (`strings build/bin/Aurora | grep ...`). Prefer a harness default that follows the build you just ran, or an error when the default is older than the sources.
+
+---
+
+## A LeakSanitizer report whose only non-libc frame is a test line is that line's own allocation -- trace it before blaming the library
+Tags: debugging, asan, leaksanitizer, verification, glib
+Applies-when: a sanitizer run reports a small fixed-size leak with unsymbolized library frames and you are about to call it library-internal or a known false positive
+
+A 21-byte `g_strdup` leak showed up on every portal test, with unsymbolized
+`libglib` frames. It was first written off as a "GLib-internal
+allocation from the fake's startup", and a README told people to disable leak
+detection. Running with `ASAN_OPTIONS=fast_unwind_on_malloc=0` and reading the
+test line it named found the cause in minutes: `g_find_program_in_path`
+returns an allocated string (`/usr/bin/dbus-daemon`, 20 chars + NUL = 21 B)
+and the skip check threw it away. The size was the clue.
+
+**Fix:** match the byte count against strings the code handles before
+attributing a leak to a library, and get the full stack (`fast_unwind_on_malloc=0`)
+first. Never ship "disable leak detection" as guidance for a leak you have not
+traced; a muted detector also hides real leaks (the fake's two ref-count
+leaks surfaced only because it stayed on).
+

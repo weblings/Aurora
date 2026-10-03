@@ -523,7 +523,11 @@ despite the comment saying it "resolves promptly as false" (`Aurora-p91`,
 fixed: every non-cancelled branch now settles through
 `XdgDesktopPortal::settle`, which sets once and records `failureReason`).
 Upstream finding 5's original suggested fix, a bare `return;`, would have
-added a third hang.
+added a third hang. The same gap hid at *init*: `initScreencastCapture`
+returned false on no session bus or no ScreenCast proxy (no portal
+installed, likely the commonest real case) and its caller ignored the
+return, so that path stalled the full 60s too. Count the setup returns, not
+only the callbacks.
 
 The D-Bus *call* error branches (CreateSession, SelectSources,
 OpenPipeWireRemote) have the same gap (upstream finding 10). And huenicorn's
@@ -628,3 +632,39 @@ Applies-when: faking org.freedesktop.portal.Desktop for a test, or using GTestDB
 `XdgDesktopPortal` subscribes to `Request.Response` with `G_DBUS_SIGNAL_FLAGS_NO_MATCH_RULE`, so it sends no AddMatch and relies on the portal addressing the signal to the caller, as real portals do. A fake that emitted the Response as a broadcast looked fine on the wire (the signal was sent) but was never delivered, and the handshake timed out with no error. Separately, `g_test_dbus_down` waits up to 30 s for the singleton session connection to finalize; `XdgDesktopPortal` keeps `m_connection` for the whole process, so every test process paid 30 s (a 2-minute ctest for four cases) plus a "Weak notify timeout" warning.
 
 **Fix:** emit the fake's Response with the caller's unique name as destination, and derive request and session paths from that name (`:1.1` becomes `1_1`) plus the caller's token. Start a plain `dbus-daemon --session --nofork --print-address=1` child, set `DBUS_SESSION_BUS_ADDRESS` from its first line, and kill it directly. Run the fake on its own connection and thread, and carry its setup failures back through a promise rather than test assertions, which are not safe to call off-thread in the Catch2 3.6 we use (unverified against its docs).
+
+---
+
+## A test that spawns a child bus must keep the child's stderr off the runner's pipe, or one crash stalls ctest for its whole timeout
+Tags: input, linux, dbus, testing, ctest
+Applies-when: a test fixture starts a long-lived child process (`dbus-daemon`, a fake server) and a case under it can crash
+
+`PortalTokenTests` starts `dbus-daemon --session` as a child. A case that
+segfaulted (the reproduced use-after-free, `Aurora-p91`) never reached the
+fixture's `force_exit`, orphaning the daemon. The daemon had inherited
+ctest's stderr pipe, so ctest saw the pipe stay open and waited out its
+300 s timeout per crashed case instead of reporting the crash.
+
+**Fix:** start the child with `G_SUBPROCESS_FLAGS_STDERR_SILENCE` (stdout is
+already piped for the address). After any crashed run, `pkill` the stray
+daemons before rerunning. Catch2 test names containing commas can't be passed
+as a filter by name; use a wildcard prefix.
+
+---
+
+## `g_variant_new` with a non-floating `@` argument adds a ref instead of stealing one
+Tags: input, linux, glib, gvariant, testing, leak
+Applies-when: building GVariants by hand (a fake portal, a D-Bus reply) and mixing `g_variant_ref`, `g_variant_ref_sink` and `g_variant_builder_end`
+
+`g_variant_builder_end` returns a *floating* variant, which `g_variant_new`
+consumes. A variant that is already sunk (owned) is not consumed: the new
+container takes its own ref. The fake portal's first `_answer` did
+`g_variant_ref(results)` before handing it to `g_variant_new("(u@a{sv})")`,
+so every reply leaked 64 bytes plus children (648 B in the early-Response
+case), and `g_variant_ref_sink` on an already-owned variant added a third
+ref.
+
+**Fix:** pass floating variants straight in, or keep exactly one owned ref
+and `g_variant_unref` it after the call; never `ref` just to pass it on.
+LeakSanitizer pinpoints it (`g_variant_builder_end` as the allocation site).
+
