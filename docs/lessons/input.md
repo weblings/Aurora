@@ -519,7 +519,9 @@ response callbacks. Only the Start callback settles the promise on denial.
 The CreateSession and SelectSources denial branches return without it, so
 the waiter is never woken. huenicorn's wait is unbounded (permanent hang);
 Aurora's is bounded at 60s, so a denied dialog stalls for a full minute
-despite the comment saying it "resolves promptly as false" (`Aurora-p91`).
+despite the comment saying it "resolves promptly as false" (`Aurora-p91`,
+fixed: every non-cancelled branch now settles through
+`XdgDesktopPortal::settle`, which sets once and records `failureReason`).
 Upstream finding 5's original suggested fix, a bare `return;`, would have
 added a third hang.
 
@@ -581,6 +583,13 @@ callback that dereferences `userData` unconditionally (as huenicorn's
 an in-flight call. While adding finding 10's fix (`Aurora-h45.11`), the
 dereference went inside the non-cancelled branch only. On that path no
 Response comes, so nothing has freed the data yet.
+
+Reproduced in Aurora's port (`Aurora-p91`): `PortalTokenTests`' fake emits
+the Response *before* the method reply (`Mode::ResponseFirst`), and ASan
+reports a heap-use-after-free in `onStartedCallback`. The portal docs don't
+order reply before Response, so this isn't only a teardown race. Aurora now
+hands the completion callbacks `capture` (which outlives the call) instead
+of the `DbusCallData`.
 
 **Fix:** in GIO completion callbacks, check the error first and touch
 `userData` only on paths where you can name who still owns it. Treat

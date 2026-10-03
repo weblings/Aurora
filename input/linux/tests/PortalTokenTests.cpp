@@ -12,6 +12,7 @@
 
 #include <chrono>
 #include <future>
+#include <map>
 #include <mutex>
 #include <optional>
 #include <stdexcept>
@@ -91,10 +92,29 @@ namespace
   }
 
 
+  // Which portal call a failure mode applies to.
+  enum class Step { CreateSession, SelectSources, Start, OpenRemote };
+
+  // How the fake answers a step. Every mode always replies to the method call
+  // (an error mode must not hang the client), and never emits a Response after
+  // a D-Bus error.
+  enum class Mode
+  {
+    Ok,
+    Deny,          // Response code 1: user cancelled
+    Ended,         // Response code 2: interaction ended some other way
+    DbusError,     // method call returns a D-Bus error, no Response
+    MissingField,  // Response 0 without session_handle / streams
+    EmptyStreams,  // Start only: Response 0 with an empty streams array
+    ResponseFirst  // Response (code 1) is emitted before the method reply
+  };
+
+
   class FakePortal
   {
   public:
-    FakePortal()
+    // serve=false is a bare bus with no org.freedesktop.portal.Desktop owner.
+    explicit FakePortal(bool serve = true) : m_serve(serve)
     {
       _startBus();
 
@@ -125,6 +145,18 @@ namespace
       m_nextToken = token;
     }
 
+    void setMode(Step step, Mode mode)
+    {
+      std::lock_guard<std::mutex> lock(m_mutex);
+      m_modes[step] = mode;
+    }
+
+    void resetModes()
+    {
+      std::lock_guard<std::mutex> lock(m_mutex);
+      m_modes.clear();
+    }
+
     std::vector<SelectSourcesOptions> selectSourcesCalls()
     {
       std::lock_guard<std::mutex> lock(m_mutex);
@@ -136,7 +168,8 @@ namespace
     {
       g_autoptr(GError) error = NULL;
       m_bus = g_subprocess_new(
-        G_SUBPROCESS_FLAGS_STDOUT_PIPE, &error,
+        // Silence stderr: an orphaned daemon (test crashed) must not hold ctest's pipe open.
+        static_cast<GSubprocessFlags>(G_SUBPROCESS_FLAGS_STDOUT_PIPE | G_SUBPROCESS_FLAGS_STDERR_SILENCE), &error,
         "dbus-daemon", "--session", "--nofork", "--print-address=1", NULL
       );
       if(!m_bus){ throw std::runtime_error(std::string("FakePortal: ") + error->message); }
@@ -180,12 +213,65 @@ namespace
 
     // Unicast to the caller, as real portals do: Aurora subscribes with
     // NO_MATCH_RULE, so a broadcast would never reach it.
-    void _respond(const char* sender, const std::string& path, GVariant* results)
+    void _respond(const char* sender, const std::string& path, GVariant* results, uint32_t code = 0)
     {
       g_dbus_connection_emit_signal(
         m_connection, sender, path.c_str(), "org.freedesktop.portal.Request", "Response",
-        g_variant_new("(u@a{sv})", 0u, results), NULL
+        g_variant_new("(u@a{sv})", code, results), NULL
       );
+    }
+
+    Mode _mode(Step step)
+    {
+      std::lock_guard<std::mutex> lock(m_mutex);
+      auto it = m_modes.find(step);
+      return it == m_modes.end() ? Mode::Ok : it->second;
+    }
+
+    static uint32_t _codeFor(Mode mode)
+    {
+      return mode == Mode::Deny || mode == Mode::ResponseFirst ? 1u : mode == Mode::Ended ? 2u : 0u;
+    }
+
+    static GVariant* _emptyResults()
+    {
+      GVariantBuilder results;
+      g_variant_builder_init(&results, G_VARIANT_TYPE_VARDICT);
+      return g_variant_builder_end(&results);
+    }
+
+    // Replies to the method call, and emits the Response before or after it.
+    // g_variant_new adds its own ref to a non-floating variant, so `results` is
+    // passed as-is and released here.
+    // Returns false when the call was answered with a D-Bus error (no Response).
+    bool _answer(
+      Step step, const char* sender, const std::string& request,
+      GDBusMethodInvocation* invocation, GVariant* okResults
+    )
+    {
+      const Mode mode = _mode(step);
+      g_variant_ref_sink(okResults);
+
+      if(mode == Mode::DbusError){
+        g_variant_unref(okResults);
+        g_dbus_method_invocation_return_dbus_error(invocation, "org.freedesktop.portal.Error.Failed", "fake portal failure");
+        return false;
+      }
+
+      GVariant* results = (_codeFor(mode) != 0u) ? g_variant_ref_sink(_emptyResults()) : g_variant_ref(okResults);
+
+      if(mode == Mode::ResponseFirst){
+        _respond(sender, request, results, _codeFor(mode));
+        g_dbus_method_invocation_return_value(invocation, g_variant_new("(o)", request.c_str()));
+      }
+      else{
+        g_dbus_method_invocation_return_value(invocation, g_variant_new("(o)", request.c_str()));
+        _respond(sender, request, results, _codeFor(mode));
+      }
+
+      g_variant_unref(results);
+      g_variant_unref(okResults);
+      return true;
     }
 
     static std::string _handleToken(GVariant* options)
@@ -206,11 +292,12 @@ namespace
         for(auto& c : escaped){ if(c == '.') c = '_'; }
         const std::string session = "/org/freedesktop/portal/desktop/session/" + escaped + "/" + (sessionToken ? sessionToken : "s");
 
-        g_dbus_method_invocation_return_value(invocation, g_variant_new("(o)", request.c_str()));
         GVariantBuilder results;
         g_variant_builder_init(&results, G_VARIANT_TYPE_VARDICT);
-        g_variant_builder_add(&results, "{sv}", "session_handle", g_variant_new_string(session.c_str()));
-        _respond(sender, request, g_variant_builder_end(&results));
+        if(_mode(Step::CreateSession) != Mode::MissingField){
+          g_variant_builder_add(&results, "{sv}", "session_handle", g_variant_new_string(session.c_str()));
+        }
+        _answer(Step::CreateSession, sender, request, invocation, g_variant_builder_end(&results));
       }
       else if(method == "SelectSources"){
         g_autoptr(GVariant) options = g_variant_get_child_value(params, 1);
@@ -225,10 +312,7 @@ namespace
         }
 
         const std::string request = requestPath(sender, _handleToken(options));
-        g_dbus_method_invocation_return_value(invocation, g_variant_new("(o)", request.c_str()));
-        GVariantBuilder results;
-        g_variant_builder_init(&results, G_VARIANT_TYPE_VARDICT);
-        _respond(sender, request, g_variant_builder_end(&results));
+        _answer(Step::SelectSources, sender, request, invocation, _emptyResults());
       }
       else if(method == "Start"){
         g_autoptr(GVariant) options = g_variant_get_child_value(params, 2);
@@ -239,16 +323,25 @@ namespace
           token = m_nextToken;
         }
 
-        g_dbus_method_invocation_return_value(invocation, g_variant_new("(o)", request.c_str()));
+        const Mode mode = _mode(Step::Start);
         GVariantBuilder results;
         g_variant_builder_init(&results, G_VARIANT_TYPE_VARDICT);
-        g_variant_builder_add(&results, "{sv}", "streams", g_variant_new_parsed("[(uint32 42, @a{sv} {})]"));
+        if(mode == Mode::EmptyStreams){
+          g_variant_builder_add(&results, "{sv}", "streams", g_variant_new_parsed("@a(ua{sv}) []"));
+        }
+        else if(mode != Mode::MissingField){
+          g_variant_builder_add(&results, "{sv}", "streams", g_variant_new_parsed("[(uint32 42, @a{sv} {})]"));
+        }
         if(!token.empty()){
           g_variant_builder_add(&results, "{sv}", "restore_token", g_variant_new_string(token.c_str()));
         }
-        _respond(sender, request, g_variant_builder_end(&results));
+        _answer(Step::Start, sender, request, invocation, g_variant_builder_end(&results));
       }
       else if(method == "OpenPipeWireRemote"){
+        if(_mode(Step::OpenRemote) == Mode::DbusError){
+          g_dbus_method_invocation_return_dbus_error(invocation, "org.freedesktop.portal.Error.Failed", "fake portal failure");
+          return;
+        }
         // A real fd so the client's g_unix_fd_list_get succeeds; the test
         // never reads from it.
         g_autoptr(GUnixFDList) fds = g_unix_fd_list_new();
@@ -285,19 +378,21 @@ namespace
       );
       if(!m_connection){ return fail(error ? error->message : "no connection"); }
 
-      g_autoptr(GDBusNodeInfo) info = g_dbus_node_info_new_for_xml(kInterfaceXml, &error);
-      if(!info){ return fail("bad introspection xml"); }
-      static const GDBusInterfaceVTable vtable = {_onMethod, _onGetProperty, NULL, {}};
-      g_dbus_connection_register_object(
-        m_connection, "/org/freedesktop/portal/desktop", info->interfaces[0], &vtable, this, NULL, &error
-      );
-      if(error){ return fail(error->message); }
+      if(m_serve){
+        g_autoptr(GDBusNodeInfo) info = g_dbus_node_info_new_for_xml(kInterfaceXml, &error);
+        if(!info){ return fail("bad introspection xml"); }
+        static const GDBusInterfaceVTable vtable = {_onMethod, _onGetProperty, NULL, {}};
+        g_dbus_connection_register_object(
+          m_connection, "/org/freedesktop/portal/desktop", info->interfaces[0], &vtable, this, NULL, &error
+        );
+        if(error){ return fail(error->message); }
 
-      g_autoptr(GVariant) owned = g_dbus_connection_call_sync(
-        m_connection, "org.freedesktop.DBus", "/org/freedesktop/DBus", "org.freedesktop.DBus", "RequestName",
-        g_variant_new("(su)", "org.freedesktop.portal.Desktop", 0u), NULL, G_DBUS_CALL_FLAGS_NONE, -1, NULL, &error
-      );
-      if(!owned){ return fail(error ? error->message : "RequestName failed"); }
+        g_autoptr(GVariant) owned = g_dbus_connection_call_sync(
+          m_connection, "org.freedesktop.DBus", "/org/freedesktop/DBus", "org.freedesktop.DBus", "RequestName",
+          g_variant_new("(su)", "org.freedesktop.portal.Desktop", 0u), NULL, G_DBUS_CALL_FLAGS_NONE, -1, NULL, &error
+        );
+        if(!owned){ return fail(error ? error->message : "RequestName failed"); }
+      }
 
       m_loop = g_main_loop_new(m_context, FALSE);
       ready.set_value();
@@ -309,6 +404,7 @@ namespace
       g_main_context_unref(m_context);
     }
 
+    const bool m_serve;
     GSubprocess* m_bus{nullptr};
     std::thread m_thread;
     GMainContext* m_context{nullptr};
@@ -317,6 +413,7 @@ namespace
 
     std::mutex m_mutex;
     std::string m_nextToken;
+    std::map<Step, Mode> m_modes;
     std::vector<SelectSourcesOptions> m_selectCalls;
   };
 
@@ -330,10 +427,20 @@ namespace
   }
 
 
-  // Same shape as PipewireGrabber::_initCapture: create the session on a
-  // worker thread that spins the default main context until the portal
-  // hands back the fd (updateXdgContext flips) or the bound expires.
-  bool runHandshake(IRestoreTokenStore& store)
+  // Same shape as PipewireGrabber::_initCapture and _stop: the portal handshake
+  // runs on a worker thread that spins the default main context until the
+  // portal hands back the fd (updateXdgContext flips); the caller waits on the
+  // promise, then tears down in _stop()'s order (flag, destroy, join).
+  struct Handshake
+  {
+    bool settled{false};  // the promise settled within the bound
+    bool ready{false};    // ... and settled true
+    std::chrono::milliseconds elapsed{0};
+    std::string failureReason;
+  };
+
+
+  Handshake runHandshakeBounded(IRestoreTokenStore& store, std::chrono::seconds bound)
   {
     XdgDesktopPortal::Capture capture;
     capture.restoreTokenStore = &store;
@@ -341,19 +448,57 @@ namespace
 
     std::thread worker([&capture]{
       XdgDesktopPortal::screencastPortalDesktopCaptureCreate(&capture, XdgDesktopPortal::CaptureType::Monitor, true);
-      const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(10);
+      const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(30);
       while(capture.updateXdgContext && std::chrono::steady_clock::now() < deadline){
         g_main_context_iteration(NULL, FALSE);
         std::this_thread::sleep_for(std::chrono::milliseconds(1));
       }
     });
 
-    const bool ready = settled.wait_for(std::chrono::seconds(10)) == std::future_status::ready && settled.get();
+    const auto start = std::chrono::steady_clock::now();
+    Handshake result;
+    result.settled = settled.wait_for(bound) == std::future_status::ready;
+    result.elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - start);
+    result.ready = result.settled && settled.get();
+    if(result.settled){ result.failureReason = capture.failureReason; }
+
+    capture.updateXdgContext = false;
+    XdgDesktopPortal::screencastPortalCaptureDestroy(&capture);
     worker.join();
 
-    if(ready && capture.pwFd){ close(static_cast<int>(capture.pwFd)); }
-    XdgDesktopPortal::screencastPortalCaptureDestroy(&capture);
-    return ready;
+    if(result.ready && capture.pwFd){ close(static_cast<int>(capture.pwFd)); }
+    return result;
+  }
+
+
+  bool runHandshake(IRestoreTokenStore& store)
+  {
+    return runHandshakeBounded(store, std::chrono::seconds(10)).ready;
+  }
+
+
+  // Sets one step's mode for the scope of a test.
+  struct ModeScope
+  {
+    ModeScope(Step step, Mode mode) { fakePortal().setMode(step, mode); }
+    ~ModeScope() { fakePortal().resetModes(); }
+  };
+
+
+  // A failed step must settle the promise false, promptly -- not run out
+  // PipewireGrabber's 60s bound (Aurora-p91).
+  Handshake expectSettlesFalse(Step step, Mode mode)
+  {
+    if(!g_find_program_in_path("dbus-daemon")){ SKIP("dbus-daemon is not installed"); }
+
+    ModeScope scope(step, mode);
+    RecordingStore store;
+    const Handshake result = runHandshakeBounded(store, std::chrono::seconds(3));
+
+    REQUIRE(result.settled);
+    CHECK_FALSE(result.ready);
+    CHECK_FALSE(result.failureReason.empty());
+    return result;
   }
 }
 
@@ -428,4 +573,124 @@ TEST_CASE("A backend that returns no token leaves the stored one alone", "[XdgDe
 
   CHECK(store.restoreToken() == "tok-kept");
   CHECK(store.writes == 0);
+}
+
+
+// Aurora-p91: every non-cancelled failure must settle the fd promise false.
+
+TEST_CASE("A denied CreateSession settles the handshake false", "[XdgDesktopPortal][failure]")
+{
+  const auto result = expectSettlesFalse(Step::CreateSession, Mode::Deny);
+  CHECK(result.failureReason.find("cancelled by the user") != std::string::npos);
+}
+
+
+TEST_CASE("A CreateSession that ended another way settles false", "[XdgDesktopPortal][failure]")
+{
+  const auto result = expectSettlesFalse(Step::CreateSession, Mode::Ended);
+  CHECK(result.failureReason.find("ended by the portal") != std::string::npos);
+}
+
+
+TEST_CASE("A CreateSession call error settles false", "[XdgDesktopPortal][failure]")
+{
+  const auto result = expectSettlesFalse(Step::CreateSession, Mode::DbusError);
+  CHECK(result.failureReason.find("fake portal failure") != std::string::npos);
+}
+
+
+TEST_CASE("A CreateSession reply without session_handle settles false", "[XdgDesktopPortal][failure]")
+{
+  expectSettlesFalse(Step::CreateSession, Mode::MissingField);
+}
+
+
+TEST_CASE("A denied SelectSources settles the handshake false", "[XdgDesktopPortal][failure]")
+{
+  expectSettlesFalse(Step::SelectSources, Mode::Deny);
+}
+
+
+TEST_CASE("A SelectSources call error settles false", "[XdgDesktopPortal][failure]")
+{
+  expectSettlesFalse(Step::SelectSources, Mode::DbusError);
+}
+
+
+TEST_CASE("A denied Start settles the handshake false", "[XdgDesktopPortal][failure]")
+{
+  expectSettlesFalse(Step::Start, Mode::Deny);
+}
+
+
+TEST_CASE("A Start call error settles false", "[XdgDesktopPortal][failure]")
+{
+  expectSettlesFalse(Step::Start, Mode::DbusError);
+}
+
+
+TEST_CASE("A Start reply without streams settles false", "[XdgDesktopPortal][failure]")
+{
+  expectSettlesFalse(Step::Start, Mode::MissingField);
+}
+
+
+TEST_CASE("A Start reply with an empty streams array settles false", "[XdgDesktopPortal][failure]")
+{
+  expectSettlesFalse(Step::Start, Mode::EmptyStreams);
+}
+
+
+TEST_CASE("An OpenPipeWireRemote call error settles false", "[XdgDesktopPortal][failure]")
+{
+  expectSettlesFalse(Step::OpenRemote, Mode::DbusError);
+}
+
+
+// The portal docs don't order the method reply before the Response signal, so
+// the call's completion callback can run after the Response handler freed it.
+TEST_CASE("A Start Response that arrives before the method reply settles false", "[XdgDesktopPortal][failure]")
+{
+  expectSettlesFalse(Step::Start, Mode::ResponseFirst);
+}
+
+
+TEST_CASE("A CreateSession Response that arrives before the method reply settles false", "[XdgDesktopPortal][failure]")
+{
+  expectSettlesFalse(Step::CreateSession, Mode::ResponseFirst);
+}
+
+
+TEST_CASE("A SelectSources Response that arrives before the method reply settles false", "[XdgDesktopPortal][failure]")
+{
+  expectSettlesFalse(Step::SelectSources, Mode::ResponseFirst);
+}
+
+
+// The two cases below rely on one TEST_CASE per process (catch_discover_tests
+// default): XdgDesktopPortal caches the bus connection and proxy in statics.
+
+TEST_CASE("No session bus settles the handshake false", "[XdgDesktopPortal][failure][isolated]")
+{
+  g_setenv("DBUS_SESSION_BUS_ADDRESS", "unix:path=/nonexistent/aurora-p91-bus", TRUE);
+
+  RecordingStore store;
+  const Handshake result = runHandshakeBounded(store, std::chrono::seconds(3));
+
+  REQUIRE(result.settled);
+  CHECK_FALSE(result.ready);
+}
+
+
+TEST_CASE("A bus with no ScreenCast portal settles the handshake false", "[XdgDesktopPortal][failure][isolated]")
+{
+  if(!g_find_program_in_path("dbus-daemon")){ SKIP("dbus-daemon is not installed"); }
+
+  FakePortal bareBus(false);
+
+  RecordingStore store;
+  const Handshake result = runHandshakeBounded(store, std::chrono::seconds(3));
+
+  REQUIRE(result.settled);
+  CHECK_FALSE(result.ready);
 }

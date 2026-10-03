@@ -5,6 +5,7 @@
   Ported from huenicorn's Huenicorn::Grabber::XdgDesktopPortal (GPL-3.0) -- see docs/LinuxCaptureAnalysis.md.
 */
 
+#include <atomic>
 #include <future>
 #include <string>
 
@@ -54,6 +55,11 @@ namespace Aurora::Input::Linux
       uint32_t pwFd{0};
       char cursorVisible;
       std::promise<bool> fdReadyPromise;
+      // Set once, by settle(): a second set_value would throw out of a GLib callback.
+      std::atomic<bool> fdSettled{false};
+      // Why the promise settled false; written before set_value, so the waiter
+      // may read it once the future is ready.
+      std::string failureReason;
       bool updateXdgContext{true};
       IRestoreTokenStore* restoreTokenStore{nullptr};
     };
@@ -89,6 +95,13 @@ namespace Aurora::Input::Linux
 
     // private methods
   private:
+    // Settles fdReadyPromise once; a failure carries its reason to the waiter.
+    static void settle(
+      Capture* capture,
+      bool ready,
+      const std::string& failureReason = std::string()
+    );
+
     static void ensureConnection();
 
     static std::string getSenderName();
