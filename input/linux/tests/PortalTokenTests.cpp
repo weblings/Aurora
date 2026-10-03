@@ -477,6 +477,14 @@ namespace
   }
 
 
+  // g_find_program_in_path returns an allocated path; free it so LeakSanitizer stays quiet.
+  bool haveDbusDaemon()
+  {
+    g_autofree char* path = g_find_program_in_path("dbus-daemon");
+    return path != nullptr;
+  }
+
+
   // Sets one step's mode for the scope of a test.
   struct ModeScope
   {
@@ -489,7 +497,7 @@ namespace
   // PipewireGrabber's 60s bound (Aurora-p91).
   Handshake expectSettlesFalse(Step step, Mode mode)
   {
-    if(!g_find_program_in_path("dbus-daemon")){ SKIP("dbus-daemon is not installed"); }
+    if(!haveDbusDaemon()){ SKIP("dbus-daemon is not installed"); }
 
     ModeScope scope(step, mode);
     RecordingStore store;
@@ -505,7 +513,7 @@ namespace
 
 TEST_CASE("A first session asks for persistence, offers no token, and stores the one it is given", "[XdgDesktopPortal][restore-token]")
 {
-  if(!g_find_program_in_path("dbus-daemon")){ SKIP("dbus-daemon is not installed"); }
+  if(!haveDbusDaemon()){ SKIP("dbus-daemon is not installed"); }
 
   auto& portal = fakePortal();
   portal.setNextStartToken("tok-1");
@@ -524,7 +532,7 @@ TEST_CASE("A first session asks for persistence, offers no token, and stores the
 
 TEST_CASE("A later session presents the stored token and replaces it with the rotated one", "[XdgDesktopPortal][restore-token]")
 {
-  if(!g_find_program_in_path("dbus-daemon")){ SKIP("dbus-daemon is not installed"); }
+  if(!haveDbusDaemon()){ SKIP("dbus-daemon is not installed"); }
 
   auto& portal = fakePortal();
   const size_t before = portal.selectSourcesCalls().size();
@@ -546,7 +554,7 @@ TEST_CASE("A later session presents the stored token and replaces it with the ro
 
 TEST_CASE("A token the backend hands back unchanged is not rewritten", "[XdgDesktopPortal][restore-token]")
 {
-  if(!g_find_program_in_path("dbus-daemon")){ SKIP("dbus-daemon is not installed"); }
+  if(!haveDbusDaemon()){ SKIP("dbus-daemon is not installed"); }
 
   auto& portal = fakePortal();
   RecordingStore store;
@@ -562,7 +570,7 @@ TEST_CASE("A token the backend hands back unchanged is not rewritten", "[XdgDesk
 
 TEST_CASE("A backend that returns no token leaves the stored one alone", "[XdgDesktopPortal][restore-token]")
 {
-  if(!g_find_program_in_path("dbus-daemon")){ SKIP("dbus-daemon is not installed"); }
+  if(!haveDbusDaemon()){ SKIP("dbus-daemon is not installed"); }
 
   auto& portal = fakePortal();
   RecordingStore store;
@@ -684,7 +692,7 @@ TEST_CASE("No session bus settles the handshake false", "[XdgDesktopPortal][fail
 
 TEST_CASE("A bus with no ScreenCast portal settles the handshake false", "[XdgDesktopPortal][failure][isolated]")
 {
-  if(!g_find_program_in_path("dbus-daemon")){ SKIP("dbus-daemon is not installed"); }
+  if(!haveDbusDaemon()){ SKIP("dbus-daemon is not installed"); }
 
   FakePortal bareBus(false);
 

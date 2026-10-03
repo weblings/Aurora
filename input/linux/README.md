@@ -26,9 +26,8 @@ Distilled from [huenicorn](https://gitlab.com/openjowelsofts/huenicorn)
   every denial, call error, malformed reply, early-Response ordering and
   missing bus/portal settles the fd promise false instead of stalling
   `PipewireGrabber` for 60s. It cannot say whether a real backend honors
-  persistence. Run it under ASan (`-fsanitize=address,undefined`) after
-  touching the callbacks; LeakSanitizer reports one 21-byte GLib-internal
-  allocation from the fake's startup, so use `ASAN_OPTIONS=detect_leaks=0`.
+  persistence. Run it under ASan + LeakSanitizer
+  (`-fsanitize=address,undefined`) after touching the callbacks; it is clean.
 
 Grabber gotchas: `docs/lessons/input.md`.
 
