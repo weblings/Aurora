@@ -183,8 +183,11 @@ in parallel, then 2, 4, 5, 6.
 - Test: `check-links.sh`.
 
 ### Phase 1 — pause/resume (Aurora-3ddb)
-- Core `PipelineHost` + route, then WebUI, then the three trays. With or
-  after Aurora-lx4.2; Aurora-vf1.1 sets resume-latency expectations.
+- Core `PipelineHost` + route (Aurora-3ddb, testable from the CLI with
+  `devstack.py up` and curl; no UI needed) unblocks phase 2. Follow-ups,
+  split 2026-10-03: Dashboard button (Aurora-5ipy.13), then Mac, Windows
+  and Linux tray items (Aurora-5ipy.14-.16; gated by Aurora-nzd, Linux also
+  by Aurora-lx4.2). Aurora-vf1.1 sets resume-latency expectations.
 - Tests: fake-output unit tests (one `shutdown(false)`; resume rebuilds the
   same config; reload or pairing while paused stays paused); loopback route
   test like the existing reload one; `devstack.py up` + `--fake-hue`
