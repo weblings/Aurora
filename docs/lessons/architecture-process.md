@@ -672,3 +672,13 @@ Aurora-c0g classifies each config edit as live-tunable or structural by diffing 
 
 **Fix:** the pipeline keeps the Config it was built from (moved forward by each live apply) and the diff runs against that. A failed reload then keeps surfacing its error on later saves instead of silently diverging. Fields the running mode never reads still move the baseline, and an unclassified field defaults to reload.
 
+---
+
+## Grep the discriminator itself when scoping a "stop gating on X" refactor -- the acceptance criterion names one use and misses the rest
+Tags: refactor, scoping, mode, dashboard, acceptance
+Applies-when: writing or reviewing acceptance criteria for removing a mode/flag/enum that code branches on
+
+Aurora-kea's acceptance read "no `mode ===` gating left for section visibility". Grepping `mode` in `DashboardScreen.js` and `TuningFields.js` found it also picks which config key gets saved (`_onDeviceFieldChange`, `_switchMode`, the `TuningFields` patch), whether the audio status poll runs, `TuningFields`' field set, and the Zone Mapping empty-state wording. A refactor that met the criterion would have left a mixed-input state showing both pickers but saving only one. The mode also cannot represent "both" or "neither" (both-set reads as video, nothing active reads as video), so the replacement must be independent flags, not a second enum.
+
+**Fix:** scope by grepping the discriminator's every read, not the use the issue names. Sort the hits into visibility, writes, polling, copy and data shape; then decide per group whether this issue or a named follow-up owns it.
+
