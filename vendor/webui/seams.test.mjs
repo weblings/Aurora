@@ -48,12 +48,19 @@ assert.ok(dashboard.includes('db-version'), 'footer slot mounted');
 assert.ok(dashboard.includes("fetch('/api/version')"), 'footer probes /api/version');
 assert.ok(read('styles/dashboard.css').includes('.db-version'), 'footer CSS vendored');
 
-// Audio-sinks dropdown (Aurora-67y, mirrors web/ui): the vendored
-// DeviceField probes /api/linux/audio-sinks on entering audio mode and
-// on every open (Aurora-apn), and the shim answers it, so the ported
-// dropdown populates in audio mode.
-assert.ok(read('DeviceField.js').includes('/api/linux/audio-sinks'), 'device field probes the sink list');
+// Audio-sinks dropdown (Aurora-67y, mirrors web/ui): since Aurora-kea the
+// vendored DeviceField loads the list from GET /api/state's
+// audioDevicesUrl (on build and on every open, Aurora-apn); the shim
+// answers both, so the ported dropdown populates in audio mode.
+assert.ok(read('DeviceField.js').includes('loadAudioSinksFrom(audioDevicesUrl)'), 'device field loads the advertised device list');
+assert.ok(read('../../demo-shim.js').includes("audioDevicesUrl: '/api/linux/audio-sinks'"), 'shim advertises the sink list');
 assert.ok(read('../../demo-shim.js').includes("path === '/api/linux/audio-sinks'"), 'shim answers the sink list');
+
+// Capability flags (Aurora-kea, mirrors web/ui): the Dashboard reads
+// GET /api/state through CaptureSource.js, and the shim answers it.
+assert.ok(read('CaptureSource.js').includes("fetch('/api/state')"), 'capture source probes /api/state');
+assert.ok(dashboard.includes('loadPipelineState()'), 'dashboard reads the running flags');
+assert.ok(read('../../demo-shim.js').includes("path === '/api/state'"), 'shim answers /api/state');
 assert.ok(!read('DeviceField.js').includes('device-field-sink-refresh'), 'no refresh button (enter + open cover it)');
 assert.ok(!read('DeviceField.js').includes('device-field-sink-hint'), 'no sink hint under the dropdown');
 
