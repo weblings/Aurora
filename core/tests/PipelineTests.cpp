@@ -645,6 +645,177 @@ TEST_CASE("Monitors and reload routes answer from PipelineHost", "[PipelineRoute
 }
 
 
+TEST_CASE("PipelineHost::pause shuts down for good once and resume rebuilds from the same config (Aurora-3ddb)", "[PipelineHost]")
+{
+  ScopedTempDir dir("pause-resume");
+  auto events = std::make_shared<Events>();
+  auto registry = makeRegistry(events);
+
+  auto config = videoConfig();
+  config.setActiveOutputNames({"out-a"});
+  PipelineHost host(Pipeline::build(registry, config, dir.path, {}), {});
+
+  CHECK(host.pause());
+  CHECK(host.isPaused());
+  CHECK(events->has("shutdown out-a final"));
+  CHECK_FALSE(host.pause());
+
+  // Dashboard data survives the teardown.
+  CHECK(host.listMonitors().size() == 1);
+  CHECK(host.listZones().outputName == "out-a");
+  CHECK_FALSE(host.updateZone(1, std::nullopt, true, std::nullopt));
+
+  std::string error;
+  REQUIRE(host.resume(registry, config, dir.path, error));
+  CHECK_FALSE(host.isPaused());
+  CHECK(host.listZones().outputName == "out-a");
+  CHECK(host.resume(registry, config, dir.path, error));
+  host.shutdown();
+}
+
+
+TEST_CASE("PipelineHost::pause with no pipeline is a no-op (Aurora-3ddb)", "[PipelineHost]")
+{
+  PipelineHost host(nullptr, {});
+  CHECK_FALSE(host.pause());
+  CHECK_FALSE(host.isPaused());
+}
+
+
+TEST_CASE("PipelineHost::reload and applyConfigFromDisk stay paused (Aurora-3ddb)", "[PipelineHost]")
+{
+  ScopedTempDir dir("pause-reload");
+  auto events = std::make_shared<Events>();
+  auto registry = makeRegistry(events);
+
+  ConfigStore(dir.path).save(videoConfig());
+  PipelineHost host(Pipeline::build(registry, videoConfig(), dir.path, {}), {});
+  REQUIRE(host.pause());
+
+  CHECK(reloadPipelineFromDisk(host, registry, dir.path).empty());
+  CHECK(applyConfigFromDisk(host, registry, dir.path).empty());
+  CHECK(host.isPaused());
+  CHECK(host.tickIntervalSeconds() == Catch::Approx(tickIntervalSeconds()));
+}
+
+
+TEST_CASE("PipelineHost::resume failure stays paused and reports the error (Aurora-3ddb)", "[PipelineHost]")
+{
+  ScopedTempDir dir("pause-resume-fail");
+  auto events = std::make_shared<Events>();
+  auto registry = makeRegistry(events);
+
+  PipelineHost host(Pipeline::build(registry, videoConfig(), dir.path, {}), {});
+  REQUIRE(host.pause());
+
+  Config bad;
+  bad.setActiveInputName("nope");
+  std::string error;
+  CHECK_FALSE(host.resume(registry, bad, dir.path, error));
+  CHECK(error == "Unknown input 'nope'");
+  CHECK(host.isPaused());
+
+  error.clear();
+  CHECK(host.resume(registry, videoConfig(), dir.path, error));
+  CHECK_FALSE(host.isPaused());
+}
+
+
+TEST_CASE("PUT /api/state pauses and resumes, idempotently (Aurora-3ddb)", "[PipelineRoutes]")
+{
+  using namespace Aurora::Network::Http::Server;
+
+  ScopedTempDir dir("state-route");
+  auto events = std::make_shared<Events>();
+  auto registry = makeRegistry(events);
+  ConfigStore(dir.path).save(videoConfig());
+  PipelineHost host(Pipeline::build(registry, videoConfig(), dir.path, {}), {});
+
+  HttpServer server;
+  registerStateRoute(server, host, registry, dir.path);
+  REQUIRE(server.bind("127.0.0.1", 18228));
+  std::thread serverThread([&](){ server.listen(); });
+
+  httplib::Client client("127.0.0.1", 18228);
+  auto put = [&](const std::string& body){ return client.Put("/api/state", body, "application/json"); };
+
+  for(int i = 0; i < 2; ++i){
+    auto paused = put(R"({"running":false})");
+    REQUIRE(paused);
+    CHECK(paused->status == 200);
+    CHECK(nlohmann::json::parse(paused->body) == nlohmann::json{{"succeeded", true}, {"running", false}});
+    CHECK(host.isPaused());
+  }
+
+  auto bad = put(R"({"running":"yes"})");
+  REQUIRE(bad);
+  CHECK(bad->status == 400);
+
+  Config broken;
+  broken.setActiveInputName("nope");
+  ConfigStore(dir.path).save(broken);
+  auto failed = put(R"({"running":true})");
+  REQUIRE(failed);
+  CHECK(failed->status == 500);
+  CHECK(nlohmann::json::parse(failed->body)["error"] == "Unknown input 'nope'");
+  CHECK(host.isPaused());
+
+  ConfigStore(dir.path).save(videoConfig());
+  for(int i = 0; i < 2; ++i){
+    auto resumed = put(R"({"running":true})");
+    REQUIRE(resumed);
+    CHECK(nlohmann::json::parse(resumed->body) == nlohmann::json{{"succeeded", true}, {"running", true}});
+    CHECK_FALSE(host.isPaused());
+  }
+
+  server.stop();
+  serverThread.join();
+  host.shutdown();
+}
+
+
+TEST_CASE("PUT /api/zones answers 409 while paused and GET still lists zones (Aurora-3ddb)", "[PipelineRoutes]")
+{
+  using namespace Aurora::Network::Http::Server;
+
+  ScopedTempDir dir("zones-paused");
+  auto events = std::make_shared<Events>();
+  auto registry = makeRegistry(events);
+  PipelineHost host(Pipeline::build(registry, videoConfig(), dir.path, {}), {});
+
+  HttpServer server;
+  registerZoneRoutes(
+    server,
+    [&host]{ return host.listZones(); },
+    [&host](std::uint8_t id, const auto& uvs, const auto& active, const auto& gamma){
+      return host.updateZone(id, uvs, active, gamma);
+    },
+    [&host]{ return host.isPaused(); }
+  );
+  REQUIRE(server.bind("127.0.0.1", 18229));
+  std::thread serverThread([&](){ server.listen(); });
+
+  httplib::Client client("127.0.0.1", 18229);
+  auto live = getWithRetry(client, "/api/zones");
+  REQUIRE(live);
+  auto liveJson = nlohmann::json::parse(live->body);
+
+  REQUIRE(host.pause());
+  auto paused = client.Get("/api/zones");
+  REQUIRE(paused);
+  CHECK(paused->status == 200);
+  CHECK(nlohmann::json::parse(paused->body) == liveJson);
+
+  auto edit = client.Put("/api/zones", R"({"zoneId":1,"active":false})", "application/json");
+  REQUIRE(edit);
+  CHECK(edit->status == 409);
+  CHECK(nlohmann::json::parse(edit->body)["error"] == "paused");
+
+  server.stop();
+  serverThread.join();
+}
+
+
 TEST_CASE("Concurrent settings PUTs run one at a time and none is lost (Aurora-d6i7)", "[SettingsRoutes]")
 {
   using namespace Aurora::Network::Http::Server;

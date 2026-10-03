@@ -38,6 +38,9 @@ namespace Aurora::Runtime
       const std::optional<Contracts::UVs>& uvs,
       const std::optional<bool>& active,
       const std::optional<float>& gamma
-    )> updateZone
+    )> updateZone,
+    // PUT /api/zones answers 409 "paused" while this is true (Aurora-3ddb):
+    // zone edits need live lights to be meaningful. Null = never paused.
+    std::function<bool()> isPaused = {}
   );
 }

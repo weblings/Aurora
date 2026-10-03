@@ -71,4 +71,46 @@ namespace Aurora::Runtime
       }
     );
   }
+
+
+  void registerStateRoute(
+    HttpServer& server,
+    PipelineHost& pipelineHost,
+    const Registry& registry,
+    const std::filesystem::path& configRoot
+  )
+  {
+    server.addRoute(
+      HttpMethod::Put,
+      "/api/state",
+      [&pipelineHost, &registry, configRoot](const Request& req, Response& res){
+        res.contentType = "application/json";
+
+        bool running;
+        try{
+          running = nlohmann::json::parse(req.body).at("running").get<bool>();
+        }
+        catch(const nlohmann::json::exception&){
+          res.status = 400;
+          res.body = nlohmann::json{{"succeeded", false}, {"error", "running_bool_required"}}.dump();
+          return;
+        }
+
+        if(!running){
+          pipelineHost.pause();
+        }
+        else if(pipelineHost.isPaused()){
+          Config config = ConfigStore(configRoot).load();
+          std::string error;
+          if(!pipelineHost.resume(registry, config, configRoot, error)){
+            res.status = 500;
+            res.body = nlohmann::json{{"succeeded", false}, {"error", error}}.dump();
+            return;
+          }
+        }
+
+        res.body = nlohmann::json{{"succeeded", true}, {"running", !pipelineHost.isPaused()}}.dump();
+      }
+    );
+  }
 }
