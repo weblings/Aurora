@@ -376,6 +376,8 @@ Applies-when: finding a lookalike directory (vendor snapshot, mirror, fork) insi
 The merge surfaced web/demo/vendor/webui sitting next to web/ui. Assumption said stale copy; diff -rq said diverged subset with vendor-only tooling (MANIFEST.json, generator) and ui-only app shell -- a deliberate GitHub-Pages-targeted fork, confirmed by the owner. A sync would have destroyed it.
 
 **Fix:** never classify duplication by directory name or memory; run the diff first, read the file lists on both sides, and only then choose mirror-rule, migration, or intentional-divergence (recorded where agents will trip over it: AGENTS.md plus the closed task).
+
+The fork's own tooling still reads as a re-vendor workflow (MANIFEST.json "verbatim copy except for the seams", closure-check.mjs "Run on every re-vendor"), while the owner's later Aurora-4jl says don't sync. During Aurora-kea that wording got a re-vendor recommended without 4jl in view. Since 4jl the fork changes by feature ports marked "mirrors web/ui" (Aurora-tnk, -qdk, -67y, -kea); a full re-vendor is its own decision (Aurora-ifkn).
 ---
 
 ## Vendored files take fork-local asset paths -- the src lives with the caller

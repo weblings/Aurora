@@ -206,6 +206,21 @@ export function createRouter(store, hooks = {}) {
       hooks.onConfigPatch?.(applied, store.getConfig());
       return ok({ succeeded: true });
     }
+    // GET /api/state (Aurora-kea) -- the demo "runs" whatever its config
+    // names, by Pipeline::build's rule (audio only with no video input), so
+    // a mode switch reads back at once. Never paused. The audio device list
+    // is the sink route below, as on Linux.
+    if (method === 'GET' && path === '/api/state') {
+      const config = store.getConfig();
+      const audio = !config.activeInputName && !!config.activeAudioInputName;
+      return ok({
+        paused: false,
+        usesVideoInput: !audio,
+        usesAudioInput: audio,
+        samplesZones: !audio,
+        audioDevicesUrl: '/api/linux/audio-sinks',
+      });
+    }
     if (method === 'GET' && path === '/api/monitors') {
       return ok({ monitors: DEMO_MONITORS.map((m) => ({ ...m })) });
     }

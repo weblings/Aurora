@@ -79,6 +79,11 @@ namespace Aurora::Runtime
       const char* m_phase;
       std::chrono::steady_clock::time_point m_start;
     };
+
+
+    constexpr std::uint8_t kUsesVideoInput = 1u << 0;
+    constexpr std::uint8_t kUsesAudioInput = 1u << 1;
+    constexpr std::uint8_t kSamplesZones = 1u << 2;
   }
 
 
@@ -255,6 +260,18 @@ namespace Aurora::Runtime
   }
 
 
+  PipelineCapabilities Pipeline::capabilities() const
+  {
+    // One orchestrator per pipeline today: video samples zones, audio
+    // doesn't. A graph pipeline will set these per node instead.
+    PipelineCapabilities capabilities;
+    capabilities.usesVideoInput = !m_isAudioMode;
+    capabilities.usesAudioInput = m_isAudioMode;
+    capabilities.samplesZones = !m_isAudioMode;
+    return capabilities;
+  }
+
+
   Input::Monitors Pipeline::listMonitors() const
   {
     return m_videoInput ? m_videoInput->monitors() : Input::Monitors{};
@@ -315,6 +332,31 @@ namespace Aurora::Runtime
   m_options(std::move(options)),
   m_pipeline(std::move(initial))
   {
+    _storeCapabilities(m_pipeline.get());
+  }
+
+
+  PipelineCapabilities PipelineHost::capabilities() const
+  {
+    const std::uint8_t bits = m_capabilityBits.load();
+    PipelineCapabilities capabilities;
+    capabilities.usesVideoInput = (bits & kUsesVideoInput) != 0;
+    capabilities.usesAudioInput = (bits & kUsesAudioInput) != 0;
+    capabilities.samplesZones = (bits & kSamplesZones) != 0;
+    return capabilities;
+  }
+
+
+  void PipelineHost::_storeCapabilities(const Pipeline* pipeline)
+  {
+    std::uint8_t bits = 0;
+    if(pipeline){
+      const PipelineCapabilities capabilities = pipeline->capabilities();
+      if(capabilities.usesVideoInput){ bits |= kUsesVideoInput; }
+      if(capabilities.usesAudioInput){ bits |= kUsesAudioInput; }
+      if(capabilities.samplesZones){ bits |= kSamplesZones; }
+    }
+    m_capabilityBits.store(bits);
   }
 
 
@@ -420,6 +462,7 @@ namespace Aurora::Runtime
       else{
         previous = std::move(m_pipeline);
         m_pipeline = std::move(next);
+        _storeCapabilities(m_pipeline.get());
       }
     }
     if(discardNext){
@@ -478,6 +521,7 @@ namespace Aurora::Runtime
     std::lock_guard<std::mutex> change(m_changeMutex);
     std::lock_guard<std::mutex> lock(m_mutex);
     m_pipeline = std::move(next);
+    _storeCapabilities(m_pipeline.get());
     m_pausedMonitors.clear();
     m_pausedZones = {};
     m_paused = false;

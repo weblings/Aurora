@@ -12,6 +12,7 @@ import { EntertainmentZoneSelectScreen } from './screens/EntertainmentZoneSelect
 import { ModeDeviceScreen } from './screens/ModeDeviceScreen.js';
 import { ZoneMappingScreen } from './screens/ZoneMappingScreen.js';
 import { ensureTooltips } from './Tooltips.js';
+import { isModeConfigValid, loadPipelineState } from './CaptureSource.js';
 
 const app = new App();
 
@@ -164,10 +165,7 @@ async function probeState() {
   } catch {
     // No config yet -- falls through as an invalid video config below, same as a genuinely unset one.
   }
-  const mode = (!config.activeInputName && config.activeAudioInputName) ? 'audio' : 'video';
-  const modeConfigValid = mode === 'video'
-    ? inputs.includes(config.activeInputName)
-    : audioInputs.includes(config.activeAudioInputName);
+  const modeConfigValid = isModeConfigValid(config, inputs, audioInputs);
 
   // Zones only need onboarding when no live zone has ever actually been
   // written (everConfigured) -- unlike the old `active` check, this stays a
@@ -176,7 +174,9 @@ async function probeState() {
   // reconciles a sane ZoneMap automatically on every boot regardless (see
   // core/Runtime/src/ZoneReconciler.cpp), so this can't rely on shape/count.
   let needsZoneMapping = false;
-  if (modeConfigValid && mode === 'video') {
+  // Only a pipeline that samples zones has zones to map (Aurora-kea: the
+  // running pipeline's flag, not the mode in config).
+  if (modeConfigValid && (await loadPipelineState())?.samplesZones === true) {
     try {
       const zonesResult = await fetchJson('/api/zones');
       needsZoneMapping = Boolean(zonesResult.outputName)

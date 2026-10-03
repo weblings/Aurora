@@ -21,31 +21,24 @@
 // here refetches monitors right after -- this screen offers a single
 // "Auto (primary)" choice only for the brief window before that resolves.
 //
-// Audio's sink list comes from GET /api/linux/audio-sinks (Aurora-67y
-// closed the "no sink-listing endpoint" gap step 11's writeup in
-// WebUI/WebUI_Design_1stPass.md documented) -- DeviceField renders it as a
-// dropdown with a System default entry, shown only when "linux-audio" is
-// the registered audio input. Windows audio always uses the default
-// device and has no such field at all.
+// Audio's device list comes from GET /api/state's audioDevicesUrl (Linux:
+// /api/linux/audio-sinks, Aurora-67y) -- DeviceField renders it as a
+// dropdown with a System default entry. Builds with no URL (Mac, Windows)
+// always use the default device and show no dropdown.
+//
+// Video/Audio logic is shared with DashboardScreen through CaptureSource.js
+// (Aurora-kea). This screen is the chooser, so its sections follow the
+// user's choice (flagsForMode) right away rather than waiting for it to run.
 import { renderTopBar } from '../topBar.js';
 import { renderNavFooter } from '../NavFooter.js';
 import { DeviceField, AUTO_MONITOR_VALUE } from '../DeviceField.js';
 import { applyTooltip } from '../Tooltips.js';
 import { renderReloadError, parseMacPermissionError } from '../MacPermissionRecovery.js';
+import {
+  audioDevicesUrlFrom, flagsForMode, isModeConfigValid, loadPipelineState, modeFromConfig, modeSwitchPatch,
+} from '../CaptureSource.js';
 
-export function pickVideoInputName(inputs, current) {
-  if (current && current !== 'dummy' && inputs.includes(current)) return current;
-  for (const preferred of ['linux', 'windows']) {
-    if (inputs.includes(preferred)) return preferred;
-  }
-  const real = inputs.filter((n) => n !== 'dummy');
-  return real[0] ?? inputs[0] ?? '';
-}
-
-export function pickAudioInputName(audioInputs, current) {
-  if (current && audioInputs.includes(current)) return current;
-  return audioInputs[0] ?? '';
-}
+export { pickVideoInputName, pickAudioInputName } from '../CaptureSource.js';
 
 export class ModeDeviceScreen {
   constructor(app, { onComplete, onBack, showBack = true }) {
@@ -62,7 +55,7 @@ export class ModeDeviceScreen {
     this.monitors = [];
     this.selectedMonitorName = AUTO_MONITOR_VALUE;
     this.sinkName = '';
-    this.showSinkField = false;
+    this.audioDevicesUrl = null;
     this.platform = '';
     this.error = null;
     this.deviceField = null;
@@ -86,10 +79,12 @@ export class ModeDeviceScreen {
 
     let capabilities;
     let config;
+    let state;
     try {
-      [capabilities, config] = await Promise.all([
+      [capabilities, config, state] = await Promise.all([
         fetch('/api/capabilities').then((r) => r.json()),
         fetch('/api/config').then((r) => r.json()),
+        loadPipelineState(),
       ]);
     } catch {
       body.innerHTML = `<p class="status-text status-text-error">⚠ Could not reach the daemon.</p>`;
@@ -100,11 +95,11 @@ export class ModeDeviceScreen {
     this.audioInputs = capabilities.audioInputs ?? [];
     this.platform = capabilities.platform ?? '';
     this.hasAudio = this.audioInputs.length > 0;
-    this.showSinkField = this.audioInputs.includes('linux-audio');
+    this.audioDevicesUrl = audioDevicesUrlFrom(state);
 
     this.currentActiveInputName = config.activeInputName ?? '';
     this.currentActiveAudioInputName = config.activeAudioInputName ?? '';
-    this.mode = (!this.currentActiveInputName && this.currentActiveAudioInputName) ? 'audio' : 'video';
+    this.mode = modeFromConfig(config);
     this.selectedMonitorName = config.activeMonitorName || AUTO_MONITOR_VALUE;
     this.sinkName = config.audioTargetSinkName || '';
 
@@ -122,10 +117,7 @@ export class ModeDeviceScreen {
     // click, so nothing ever actually reacted until the *next* screen loaded
     // (see WebUI_Fixes.md Pass 2). Skipped if a valid mode is already
     // applied (e.g. navigating back here) to avoid an unnecessary reconnect.
-    const modeAlreadyValid = this.mode === 'video'
-      ? this.inputs.includes(this.currentActiveInputName)
-      : this.audioInputs.includes(this.currentActiveAudioInputName);
-    if (!modeAlreadyValid) {
+    if (!isModeConfigValid(config, this.inputs, this.audioInputs)) {
       await this._applyMode();
     }
   }
@@ -148,10 +140,12 @@ export class ModeDeviceScreen {
       </div>
     ` : '';
 
-    // Zone Mapping is skipped entirely for Audio mode (probeState() in
-    // app.js only requires it for 'video') -- this just explains why, since
+    const flags = flagsForMode(this.mode);
+
+    // Zone Mapping is skipped when nothing samples zones (probeState() in
+    // app.js checks samplesZones) -- this just explains why, since
     // otherwise a NUX user would wonder why they never see that step.
-    const audioNoteHtml = this.mode === 'audio'
+    const audioNoteHtml = !flags.samplesZones
       ? `<p class="status-text">Zones react together in Audio mode — there's no per-zone mapping step.</p>`
       : '';
 
@@ -173,10 +167,11 @@ export class ModeDeviceScreen {
 
     const deviceSlot = body.querySelector('.md-device');
     this.deviceField = new DeviceField(deviceSlot, {
-      mode: this.mode,
+      usesVideoInput: flags.usesVideoInput,
+      usesAudioInput: flags.usesAudioInput,
+      audioDevicesUrl: this.audioDevicesUrl,
       monitors: this.monitors,
       selectedMonitorName: this.selectedMonitorName,
-      showSinkField: this.showSinkField,
       sinkName: this.sinkName,
       onChange: (patch) => this._onDeviceFieldChange(patch),
     });
@@ -240,16 +235,7 @@ export class ModeDeviceScreen {
   async _doApplyMode() {
     this.error = null;
 
-    const patch = this.mode === 'video'
-      ? {
-          activeInputName: pickVideoInputName(this.inputs, this.currentActiveInputName),
-          ...(this.monitors.length > 0 ? { activeMonitorName: this.selectedMonitorName } : {}),
-        }
-      : {
-          activeInputName: '',
-          activeAudioInputName: pickAudioInputName(this.audioInputs, this.currentActiveAudioInputName),
-          audioTargetSinkName: this.sinkName.trim(),
-        };
+    const patch = modeSwitchPatch(this.mode, this);
 
     try {
       const result = await (await fetch('/api/config', {
@@ -267,19 +253,22 @@ export class ModeDeviceScreen {
         this.error = (this.platform === 'mac' && parseMacPermissionError(result.reloadError))
           ? result.reloadError
           : `Saved, but couldn't apply it live: ${result.reloadError}`;
-      } else if (this.mode === 'video') {
-        this.currentActiveInputName = patch.activeInputName;
-        // Now resolvable within this same screen visit, since the mode just
-        // applied live instead of waiting for Continue -- refetch so a real
-        // monitor list can replace the "Auto (primary)" placeholder.
-        try {
-          const monitorsResult = await (await fetch('/api/monitors')).json();
-          this.monitors = monitorsResult.monitors ?? [];
-        } catch {
-          this.monitors = [];
-        }
       } else {
-        this.currentActiveAudioInputName = patch.activeAudioInputName;
+        // An audio switch clears activeInputName but keeps the remembered
+        // video input, so switching back picks the same one.
+        if (patch.activeInputName) this.currentActiveInputName = patch.activeInputName;
+        if (patch.activeAudioInputName) this.currentActiveAudioInputName = patch.activeAudioInputName;
+        if (flagsForMode(this.mode).usesVideoInput) {
+          // Now resolvable within this same screen visit, since the mode just
+          // applied live instead of waiting for Continue -- refetch so a real
+          // monitor list can replace the "Auto (primary)" placeholder.
+          try {
+            const monitorsResult = await (await fetch('/api/monitors')).json();
+            this.monitors = monitorsResult.monitors ?? [];
+          } catch {
+            this.monitors = [];
+          }
+        }
       }
     } catch {
       this.error = "Couldn't reach the daemon.";

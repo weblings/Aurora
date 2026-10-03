@@ -80,6 +80,26 @@ namespace Aurora::Runtime
     const std::filesystem::path& configRoot
   )
   {
+    // Lock-free reads only (atomics), so polling this never waits on a tick
+    // or a reload in progress.
+    server.addRoute(
+      HttpMethod::Get,
+      "/api/state",
+      [&pipelineHost](const Request&, Response& res){
+        const PipelineCapabilities capabilities = pipelineHost.capabilities();
+        const std::string& audioDevicesUrl = pipelineHost.audioDevicesUrl();
+
+        res.contentType = "application/json";
+        res.body = nlohmann::json{
+          {"paused", pipelineHost.isPaused()},
+          {"usesVideoInput", capabilities.usesVideoInput},
+          {"usesAudioInput", capabilities.usesAudioInput},
+          {"samplesZones", capabilities.samplesZones},
+          {"audioDevicesUrl", audioDevicesUrl.empty() ? nlohmann::json(nullptr) : nlohmann::json(audioDevicesUrl)}
+        }.dump();
+      }
+    );
+
     server.addRoute(
       HttpMethod::Put,
       "/api/state",

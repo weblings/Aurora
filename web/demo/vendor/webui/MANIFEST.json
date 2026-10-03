@@ -8,6 +8,7 @@
     "screens/ModeDeviceScreen.js",
     "screens/OutputConnectScreen.js",
     "AccordionSection.js",
+    "CaptureSource.js",
     "DeviceField.js",
     "Dropdown.js",
     "EntertainmentConfigSelect.js",
@@ -60,7 +61,7 @@
     {
       "id": "mode-device-helpers",
       "file": "screens/DashboardScreen.js",
-      "note": "Uses only pickVideoInputName/pickAudioInputName from ModeDeviceScreen.js (DashboardScreen.js:453-454); the ModeDeviceScreen class itself is unused here. ModeDeviceScreen.js is vendored dead so the import resolves; it is never mounted."
+      "note": "Since Aurora-kea the Dashboard takes pickVideoInputName/pickAudioInputName from CaptureSource.js and no longer imports ModeDeviceScreen.js. That file stays vendored dead (never imported or mounted) until the fork is re-vendored."
     },
     {
       "id": "shell-css-scope",

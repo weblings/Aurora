@@ -78,10 +78,14 @@ export class TuningFields {
   // already fetches this for its own mode toggle, so this never fetches on
   // its own (unlike every fetch+render component elsewhere in this app --
   // there's simply nothing left for it to fetch that the caller doesn't
-  // already have).
-  constructor(container, { mode, values, monitors = [], selectedMonitorName = AUTO_MONITOR_VALUE }) {
+  // already have). usesVideoInput/usesAudioInput: what runs (Aurora-kea).
+  constructor(container, { usesVideoInput = true, usesAudioInput = false, values, monitors = [], selectedMonitorName = AUTO_MONITOR_VALUE }) {
     this.container = container;
-    this.mode = mode;
+    this.usesVideoInput = usesVideoInput;
+    this.usesAudioInput = usesAudioInput;
+    // Still one of two field tables; Aurora-jpq2 replaces them with the
+    // graph's controls list. Video wins when both run.
+    this.fieldSet = (usesVideoInput || !usesAudioInput) ? 'video' : 'audio';
     this.values = { ...values };
     this.monitors = monitors;
     this.selectedMonitorName = selectedMonitorName;
@@ -111,7 +115,7 @@ export class TuningFields {
         if (!this._destroyed) this._render();
       });
     }
-    const keys = this.mode === 'video'
+    const keys = this.fieldSet === 'video'
       ? TRANSITION_SMOOTHING_KEYS
       : [...RESPONSE_SPEED_KEYS, ...COLOR_CHARACTER_KEYS, ...FIXED_HUE_KEYS, ...SENSITIVITY_KEYS];
     const rangesMissing = descriptorsSettled() && slidersFromParams(keys).length < keys.length;
@@ -124,7 +128,7 @@ export class TuningFields {
     `;
 
     const fields = this.container.querySelector('.tn-fields');
-    if (this.mode === 'video') this._renderVideoFields(fields);
+    if (this.fieldSet === 'video') this._renderVideoFields(fields);
     else this._renderAudioFields(fields);
   }
 
@@ -268,14 +272,15 @@ export class TuningFields {
   async _commit() {
     this.error = null;
 
-    const patch = this.mode === 'video'
-      ? {
+    // Saves the settings of each running input, both when both run.
+    const patch = {
+      ...(this.usesVideoInput || !this.usesAudioInput ? {
           refreshRate: Number(this.values.refreshRate),
           subsampleWidth: Number(this.values.subsampleWidth),
           interpolation: this.values.interpolation,
           transitionSmoothing: Number(this.values.transitionSmoothing),
-        }
-      : {
+        } : {}),
+      ...(this.usesAudioInput ? {
           audioBounceSmoothTime: Number(this.values.audioBounceSmoothTime),
           audioBrightnessSmoothTime: Number(this.values.audioBrightnessSmoothTime),
           audioDriftBaseRateDegPerSec: Number(this.values.audioDriftBaseRateDegPerSec),
@@ -287,7 +292,8 @@ export class TuningFields {
           audioBrightnessFloor: Number(this.values.audioBrightnessFloor),
           audioCentroidRangeHz: Number(this.values.audioCentroidRangeHz),
           audioFixedAnchorHue: this.fixedHueEnabled ? Number(this.values.audioFixedAnchorHue) : -1,
-        };
+        } : {}),
+    };
 
     try {
       const result = await (await fetch('/api/config', {

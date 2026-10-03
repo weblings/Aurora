@@ -38,6 +38,7 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `implementation-plan-directory-layout` | [archive/ImplementationPlan_DirectoryLayout.md](archive/ImplementationPlan_DirectoryLayout.md) | Implementation plan: proposed directory layout (superseded) |
 | `implementation-plan-early-phases` | [archive/ImplementationPlan_EarlyPhases.md](archive/ImplementationPlan_EarlyPhases.md) | Implementation plan: phases 1, 2, 2.5 (native build) |
 | `implementation-plan-phase-3` | [archive/ImplementationPlan_Phase3.md](archive/ImplementationPlan_Phase3.md) | Implementation plan: Phase 3 — Three.js browser demo, then the native WebUI milestone |
+| `kea-capability-flags` | [log/2026-10-03-kea-capability-flags.md](log/2026-10-03-kea-capability-flags.md) | Aurora-kea: running-pipeline flags drive the Dashboard (open: Mac/Windows unverified) |
 | `kea-dashboard-capabilities-scoping` | [log/2026-10-02-kea-dashboard-capabilities-scoping.md](log/2026-10-02-kea-dashboard-capabilities-scoping.md) | Aurora-kea: scoping pass on Dashboard capability-driven sections (paused, no code) |
 | `kea-route-and-shared-capture-source` | [log/2026-10-03-kea-route-and-shared-capture-source.md](log/2026-10-03-kea-route-and-shared-capture-source.md) | Aurora-kea: route decision, shared capture-source scope, pending-highlight follow-up (paused, no code) |
 | `linux-audio-sink-dropdown` | [log/2026-09-30-audio-sink-dropdown.md](log/2026-09-30-audio-sink-dropdown.md) | Audio sink dropdown replaces the free-text field |
