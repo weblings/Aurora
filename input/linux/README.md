@@ -20,6 +20,10 @@ Distilled from [huenicorn](https://gitlab.com/openjowelsofts/huenicorn)
   conversion are pure, tested helpers; the rest needs a real Wayland session
   and portal backend — see
   [`docs/archive/LinuxCaptureAnalysis.md`](../../docs/archive/LinuxCaptureAnalysis.md).
+  `PortalTokenTests` drives the real `XdgDesktopPortal` against a fake
+  portal on a private `dbus-daemon` (cases SKIP without the binary), pinning
+  what Aurora sends (`persist_mode`, `restore_token`) and stores. It cannot
+  say whether a real backend honors them.
 
 Grabber gotchas: `docs/lessons/input.md`.
 
