@@ -437,3 +437,21 @@ Applies-when: adding a repo badge, upsell, or any pattern RockyRoad already ship
 The Aurora scene pill started as a fresh design (text-only, own wording) until the owner pointed at RockyRoad v2's lib-source-ribbon: exact GitHub-mark SVG, "View Source Code" wording, noopener noreferrer, currentColor mark, brighten-plus-underline hover. Adopted all of it; only placement differed (overlay pill vs in-flow row, per the scene's own spec).
 
 **Fix:** before building any shared-pattern UI (badges, empty states, error copy), grep the sibling checkout first -- the adapted half is usually smaller than the invented whole.
+
+---
+
+## Search same-niche prior art before generic patterns -- a shipped project in the domain settles design questions in its code
+Tags: planning, reuse-research, prior-art
+Applies-when: an open design question has a likely answer in a product that already does what Aurora does
+
+External-control planning first researched generic patterns (OctoPrint, Jellyfin, Syncthing) and left brightness range, pause semantics, a video brightness floor and token storage open. The owner then cloned Hyperion, an ambient-lighting app solving Aurora's exact problem, and its code answered most of them directly: brightness and a minimum-brightness `backlightThreshold` in the color stage, component on/off that keeps the app running, SHA-512 token hashes in its auth table, and a Signify-CA check that exposed Aurora's own disabled Hue TLS verification (Aurora-70gs). The Hue Sync Box's local API did the same for the public command set.
+
+**Fix:** for any product-shaped question, first find projects in the same niche (here: Hyperion, WLED, Hue Sync Box) and read their code or API, then fall back to generic patterns. Record them as references in AGENTS.md so later sessions start there.
+
+## Agent-written research reads as owner scope unless the doc says who proposed it
+Tags: planning, provenance, doc-hygiene
+Applies-when: carrying a feature list from a research doc into a plan, bead or recommendation
+
+During Hyperion comparison, DDP/E1.31/Art-Net outputs and YOLO/motion nodes were presented as Aurora's planned scope. The owner had never asked for them: they trace to [[open-formats-research]] and [[node-graph-pipeline]], both agent-written, and moved into the implementation plan's stretch list without attribution. HttpServerAnalysis was archived for the same reason (agent-proposed milestone, not an owner commitment).
+
+**Fix:** when citing planned work, say where it came from (owner request vs. agent research) and ask before treating agent-originated items as commitments. When writing a research doc, mark its proposals as proposals with their origin.
