@@ -609,3 +609,13 @@ capture to audio routed to that device. Found while scoping Aurora-9k1.
 **Fix:** label the default option per platform, or make Linux and Windows
 truly capture everything (one capture per device, mixed). Don't assume the
 same config value means the same capture everywhere.
+
+---
+
+## A fake portal must answer Response unicast, and GTestDBus waits 30 s on a process-wide connection
+Tags: linux, portal, dbus, testing, gdbus
+Applies-when: faking org.freedesktop.portal.Desktop for a test, or using GTestDBus with a long-lived bus connection
+
+`XdgDesktopPortal` subscribes to `Request.Response` with `G_DBUS_SIGNAL_FLAGS_NO_MATCH_RULE`, so it sends no AddMatch and relies on the portal addressing the signal to the caller, as real portals do. A fake that emitted the Response as a broadcast looked fine on the wire (the signal was sent) but was never delivered, and the handshake timed out with no error. Separately, `g_test_dbus_down` waits up to 30 s for the singleton session connection to finalize; `XdgDesktopPortal` keeps `m_connection` for the whole process, so every test process paid 30 s (a 2-minute ctest for four cases) plus a "Weak notify timeout" warning.
+
+**Fix:** emit the fake's Response with the caller's unique name as destination, and derive request and session paths from that name (`:1.1` becomes `1_1`) plus the caller's token. Start a plain `dbus-daemon --session --nofork --print-address=1` child, set `DBUS_SESSION_BUS_ADDRESS` from its first line, and kill it directly. Run the fake on its own connection and thread, and carry its setup failures back through a promise rather than test assertions, which are not safe to call off-thread in the Catch2 3.6 we use (unverified against its docs).

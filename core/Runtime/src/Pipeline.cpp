@@ -337,14 +337,16 @@ namespace Aurora::Runtime
   Input::Monitors PipelineHost::listMonitors()
   {
     std::lock_guard<std::mutex> lock(m_mutex);
-    return m_pipeline ? m_pipeline->listMonitors() : Input::Monitors{};
+    if(m_pipeline){ return m_pipeline->listMonitors(); }
+    return m_paused ? m_pausedMonitors : Input::Monitors{};
   }
 
 
   ZoneListResult PipelineHost::listZones()
   {
     std::lock_guard<std::mutex> lock(m_mutex);
-    return m_pipeline ? m_pipeline->listZones() : ZoneListResult{};
+    if(m_pipeline){ return m_pipeline->listZones(); }
+    return m_paused ? m_pausedZones : ZoneListResult{};
   }
 
 
@@ -393,6 +395,9 @@ namespace Aurora::Runtime
     std::string& errorOut
   )
   {
+    // Paused: the config is already on disk and applies on resume.
+    if(m_paused){ return true; }
+
     ScopedPhaseTimer reloadTimer(m_options, "reload total");
     std::unique_ptr<Pipeline> next;
     try{
@@ -404,15 +409,78 @@ namespace Aurora::Runtime
     }
 
     std::unique_ptr<Pipeline> previous;
+    bool discardNext = false;
     {
       std::lock_guard<std::mutex> change(m_changeMutex);
       std::lock_guard<std::mutex> lock(m_mutex);
-      previous = std::move(m_pipeline);
-      m_pipeline = std::move(next);
+      // A pause() that landed during the build wins.
+      if(m_paused){
+        discardNext = true;
+      }
+      else{
+        previous = std::move(m_pipeline);
+        m_pipeline = std::move(next);
+      }
+    }
+    if(discardNext){
+      if(next){ next->shutdown(/*isReplacement*/ true); }
+      return true;
     }
     // previous is null on the first successful reload after a fresh
     // install started with no Pipeline at all.
     if(previous){ previous->shutdown(/*isReplacement*/ true); }
+    return true;
+  }
+
+
+  bool PipelineHost::pause()
+  {
+    std::lock_guard<std::mutex> pauseLock(m_pauseMutex);
+
+    std::unique_ptr<Pipeline> previous;
+    {
+      std::lock_guard<std::mutex> change(m_changeMutex);
+      std::lock_guard<std::mutex> lock(m_mutex);
+      if(m_paused || !m_pipeline){ return false; }
+
+      m_pausedMonitors = m_pipeline->listMonitors();
+      m_pausedZones = m_pipeline->listZones();
+      previous = std::move(m_pipeline);
+      m_paused = true;
+    }
+    // Outside the lock: Hue's disableStreaming is a blocking HTTP call that
+    // must not stall tick() or zone calls.
+    previous->shutdown(/*isReplacement*/ false);
+    return true;
+  }
+
+
+  bool PipelineHost::resume(
+    const Registry& registry,
+    const Config& config,
+    const std::filesystem::path& configRoot,
+    std::string& errorOut
+  )
+  {
+    std::lock_guard<std::mutex> pauseLock(m_pauseMutex);
+    if(!m_paused){ return true; }
+
+    ScopedPhaseTimer resumeTimer(m_options, "resume total");
+    std::unique_ptr<Pipeline> next;
+    try{
+      next = Pipeline::build(registry, config, configRoot, m_options);
+    }
+    catch(const std::exception& e){
+      errorOut = m_options.describeBuildError ? m_options.describeBuildError(e) : e.what();
+      return false;
+    }
+
+    std::lock_guard<std::mutex> change(m_changeMutex);
+    std::lock_guard<std::mutex> lock(m_mutex);
+    m_pipeline = std::move(next);
+    m_pausedMonitors.clear();
+    m_pausedZones = {};
+    m_paused = false;
     return true;
   }
 

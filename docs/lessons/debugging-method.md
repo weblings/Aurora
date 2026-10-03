@@ -671,3 +671,13 @@ For the config race in Aurora-d6i7, threads and sleeps would have made a flaky t
 Two traps hit the Aurora-c0g version of this. A "did the lock stay free?" probe built on `std::async` deadlocks exactly when the bug is present: the future's destructor waits for the blocked task, while the code holding the lock waits for the hook. And an interrupted mutation run leaves the mutated source behind, because the restore step never executes.
 
 **Fix:** put the competing action in a hook inside the slow step, write the test against the unfixed code first, and mutation-check each lock by removing it before trusting the test. Run the probe on a plain `std::thread` and join it only after the code under test returns, so a held lock times the hook out and fails the test. Run mutation checks with a backup copy, a shell `trap` that restores on any exit, and `ctest --timeout`; after any interruption, grep for the mutation marker before assuming the tree is clean.
+
+---
+
+## A harness's default binary may not be the one you just built
+Tags: debugging, devstack, verification, stale-binary
+Applies-when: a live check against a dev harness behaves as if new code is missing
+
+After adding `PUT /api/state`, `devstack.py up` answered 404 for it. The route was fine: the script's default app is `build/linux-app/bin/Aurora` (a preset build dir from Oct 1), while `cmake --build build` had produced `build/bin/Aurora`. A 404 on a route that unit tests pass reads like a wiring bug and invites a debugging detour.
+
+**Fix:** pass `--app <fresh binary>` and, before reading anything into a failure, compare the binary's mtime or grep it for a string only the new code contains (`strings build/bin/Aurora | grep ...`). Prefer a harness default that follows the build you just ran, or an error when the default is older than the sources.

@@ -1,5 +1,6 @@
 #pragma once
 
+#include <atomic>
 #include <cstdint>
 #include <exception>
 #include <filesystem>
@@ -210,9 +211,37 @@ namespace Aurora::Runtime
 
     void shutdown();
 
+    // Pause (Aurora-3ddb): tears the pipeline down (outputs shutdown(false),
+    // capture closed) but keeps the host and its HTTP server alive. No-op,
+    // returning false, when already paused or when there is no pipeline.
+    // The last monitor and zone lists stay served while paused.
+    bool pause();
+
+    // Rebuilds from `config`. No-op success when not paused. On a failed
+    // build, errorOut is set and the host stays paused so a retry works.
+    bool resume(
+      const Registry& registry,
+      const Config& config,
+      const std::filesystem::path& configRoot,
+      std::string& errorOut
+    );
+
+    // Lock-free, so the capabilities heartbeat can read it.
+    bool isPaused() const { return m_paused.load(); }
+
   private:
     PipelineOptions m_options;
     std::mutex m_mutex;
+
+    // Taken first, serializes pause()/resume() so two resumes cannot open
+    // two capture-portal dialogs (Aurora-5t2).
+    std::mutex m_pauseMutex;
+
+    // Set under m_mutex. reload() while set succeeds without building, so a
+    // settings save, /api/reload or Hue pairing cannot silently resume.
+    std::atomic<bool> m_paused{false};
+    Input::Monitors m_pausedMonitors;
+    ZoneListResult m_pausedZones;
 
     // Taken before m_mutex. Serializes applyConfig() against the swap in
     // reload(), so the out-of-lock follow-up of an apply never runs against a

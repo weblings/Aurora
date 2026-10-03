@@ -330,13 +330,14 @@ namespace
   // bind() to hand to Impl later.
   void registerCapabilitiesRoute(
     Aurora::Network::Http::Server::HttpServer& httpServer,
-    const Aurora::Runtime::Registry& registry
+    const Aurora::Runtime::Registry& registry,
+    const Aurora::Runtime::PipelineHost& pipelineHost
   )
   {
     httpServer.addRoute(
       Aurora::Network::Http::Server::HttpMethod::Get,
       "/api/capabilities",
-      [&registry](const Aurora::Network::Http::Server::Request&, Aurora::Network::Http::Server::Response& res){
+      [&registry, &pipelineHost](const Aurora::Network::Http::Server::Request&, Aurora::Network::Http::Server::Response& res){
         std::vector<std::string> outputs = registry.outputNames();
 #ifdef AURORA_OUTPUT_HUE_IO_AVAILABLE
         // registerOutputs() only adds "hue" to registry once credentials
@@ -354,7 +355,9 @@ namespace
           {"outputs", outputs},
           // Literal per app binary, not runtime-detected -- see
           // app/linux/src/main.cpp's registerCapabilitiesRoute for why.
-          {"platform", "mac"}
+          {"platform", "mac"},
+          // In-memory pause (Aurora-3ddb); read lock-free like the rest.
+          {"paused", pipelineHost.isPaused()}
         };
 
         res.contentType = "application/json";
@@ -488,7 +491,7 @@ try
   Aurora::Runtime::PipelineHost pipelineHost(std::move(initialPipeline), pipelineOptions());
 
   Aurora::Network::Http::Server::HttpServer httpServer;
-  registerCapabilitiesRoute(httpServer, registry);
+  registerCapabilitiesRoute(httpServer, registry, pipelineHost);
   registerVersionRoute(httpServer);
 
   // Tooltip descriptors: every layer contributes its own control
@@ -537,13 +540,15 @@ try
   Aurora::Runtime::registerMonitorsRoute(httpServer, pipelineHost);
   registerAudioStatusRoute(httpServer, pipelineHost);
   Aurora::Runtime::registerReloadRoute(httpServer, pipelineHost, registry, configRoot);
+  Aurora::Runtime::registerStateRoute(httpServer, pipelineHost, registry, configRoot);
   registerStopRoute(httpServer);
   Aurora::Runtime::registerZoneRoutes(
     httpServer,
     [&pipelineHost]{ return pipelineHost.listZones(); },
     [&pipelineHost](std::uint8_t zoneId, const auto& uvs, const auto& active, const auto& gamma){
       return pipelineHost.updateZone(zoneId, uvs, active, gamma);
-    }
+    },
+    [&pipelineHost]{ return pipelineHost.isPaused(); }
   );
 
   // WebUI static files -- must be set before bind() per HttpServer's own

@@ -88,7 +88,8 @@ namespace Aurora::Runtime
       const std::optional<Contracts::UVs>& uvs,
       const std::optional<bool>& active,
       const std::optional<float>& gamma
-    )> updateZone
+    )> updateZone,
+    std::function<bool()> isPaused
   )
   {
     server.addRoute(HttpMethod::Get, "/api/zones", [listZones](const Request&, Response& res){
@@ -109,7 +110,12 @@ namespace Aurora::Runtime
 
     // PATCH-style PUT, same convention as SettingsRoutes -- only zoneId is
     // required; uvs/active/gamma are applied only when present in the body.
-    server.addRoute(HttpMethod::Put, "/api/zones", [listZones, updateZone](const Request& req, Response& res){
+    server.addRoute(HttpMethod::Put, "/api/zones", [listZones, updateZone, isPaused](const Request& req, Response& res){
+      if(isPaused && isPaused()){
+        _writeJson(res, {{"succeeded", false}, {"error", "paused"}}, 409);
+        return;
+      }
+
       nlohmann::json body;
       try{
         body = nlohmann::json::parse(req.body);

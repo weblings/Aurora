@@ -26,4 +26,15 @@ namespace Aurora::Runtime
     const Registry& registry,
     const std::filesystem::path& configRoot
   );
+
+  // PUT /api/state {"running": bool}: pause (false) or resume (true),
+  // idempotent (Aurora-3ddb). Answers {"succeeded": true, "running": bool},
+  // 400 on a bad body, or on a failed resume 500 {"succeeded": false,
+  // "error": ...} with the host still paused.
+  void registerStateRoute(
+    Aurora::Network::Http::Server::HttpServer& server,
+    PipelineHost& pipelineHost,
+    const Registry& registry,
+    const std::filesystem::path& configRoot
+  );
 }

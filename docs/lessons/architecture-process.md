@@ -715,3 +715,13 @@ Applies-when: adding an events stream next to a polling state route
 [[external-control]] planned `GET /api/state` and `GET /api/events`. A client that fetches state and then opens the stream misses anything that changes between the two calls (a pause, say), and shows stale state until the next change. Hyperion's `serverinfo` with `subscribe` avoids it by returning the snapshot and subscribing in one call (`libsrc/api/JsonAPI.cpp`). This matters most for retained-state consumers such as the MQTT bridge.
 
 **Fix:** the stream's first event is the current state, so clients can skip the GET. Test that a new stream's first event equals `GET /api/state`.
+
+---
+
+## Pause needs its re-check at the swap, and its own mutex
+Tags: architecture, pipeline, pause, concurrency
+Applies-when: implementing pause/resume or any "hold" state on PipelineHost
+
+Checking the paused flag at the top of `PipelineHost::reload` is not enough: `reload()` builds outside the lock, so a `pause()` that lands during the build is undone when the build swaps in (the lights restart under a "paused" label). Two more traps from Aurora-3ddb. `resume()` twice at once would build two pipelines and open two capture-portal dialogs (Aurora-5t2). And `Pipeline::shutdown(false)` ends in Hue's blocking `disableStreaming` HTTP call, so running it under the pipeline lock stalls `tick()` and zone calls. A route that returned `false` for "no pipeline" (zone update, mapped to 404 `unknown_zone`) also gains a second cause once pause exists, and reports it wrongly.
+
+**Fix:** re-check the flag under the lock at the swap and discard (`shutdown(true)`) the stale build; serialize `pause()`/`resume()` on their own mutex taken first; swap the pipeline out under the lock and shut it down outside. Give each route that depends on a live pipeline an explicit paused answer (409) instead of reusing its "not found" path.

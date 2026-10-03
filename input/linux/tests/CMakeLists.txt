@@ -26,6 +26,12 @@ target_link_libraries(AuroraInputLinuxTests PRIVATE
   Catch2::Catch2WithMain
 )
 
+# Needs XdgDesktopPortal, which only builds with Pipewire support, and
+# dbus-daemon at run time (the cases SKIP without it).
+if(AURORA_INPUT_LINUX_ENABLE_PIPEWIRE)
+  target_sources(AuroraInputLinuxTests PRIVATE PortalTokenTests.cpp)
+endif()
+
 target_compile_features(AuroraInputLinuxTests PUBLIC cxx_std_20)
 
 include(Catch)
