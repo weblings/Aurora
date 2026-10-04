@@ -142,6 +142,10 @@ python3 validate.py color --expect gray             # neutral check + reports im
 python3 validate.py color --zone 0=red --zone 1=blue  # split screen: per-zone mapping
 python3 validate.py color                           # no expectation: just print per-zone values
 
+# Freeze detector for a changing source (pattern.html): fails if no zone color
+# changes by >0.08 for --max-stall seconds; reports the longest stall
+python3 validate.py color --track --seconds 30 --max-stall 5
+
 # Values vs an independent recomputation from the raw captured frame --
 # works for arbitrary (not just solid-color) content, unlike `color`
 AURORA_DEV_FRAME_DUMP=1 ./Aurora   # alongside AURORA_DEV_LIGHT_TAP=1 above
@@ -166,6 +170,20 @@ Datagrams over ~9000 bytes (encoded) are dropped by the tap itself, not
 fragmented -- confirmed live against macOS's actual `net.inet.udp.maxdgram`
 (9216 by default, well under IPv4's theoretical max), so keep subsample
 width sane if `frame` reports fewer frames than expected.
+
+## Test pattern page (`pattern.html`)
+
+Gives capture something known to look at (`Aurora-d0hl`, built for `Aurora-1t1`).
+
+- Open it directly in a browser; no server needed.
+- Cycles a solid full-screen color (default red,blue every 1500ms) with a
+  frame counter and a 50ms wall clock, so a stale captured frame shows an old
+  counter even when the color happens to match.
+- Params: `?interval=MS`, `?colors=red,blue,00ff00` (names or hex), `?kiosk`.
+- Click or press `f` to toggle fullscreen (no F11 needed).
+- Fullscreen freeze repro (`Aurora-1t1`): `devstack.py up`, open the page,
+  `python3 validate.py color --expect red` while it shows red, then fullscreen
+  it and watch whether the zones keep following red/blue.
 
 ## Troubleshooting
 
@@ -209,6 +227,13 @@ width sane if `frame` reports fewer frames than expected.
   fan-out, and the `frame` mode's crop/mean/gamma math against hand-
   computed values.
 - `validate.py` -- live-run validation (see above), stdlib only.
+- `pattern.html` -- full-screen color cycle + counter/clock for capture
+  debugging (see above).
+- `fullscreen_repro.py` -- `Aurora-1t1` runner: brings the devstack up if
+  needed, then runs `pattern.html` in Firefox windowed and `--kiosk`, judging
+  each with `validate.py color --track`. Prints per-phase PASS/FAIL and the
+  longest stall; exits 1 on any stall. Tears down only what it started.
+  First live run may need a click on GNOME's screen-share prompt.
 
 ## Keeping in sync
 

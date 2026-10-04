@@ -739,3 +739,15 @@ Applies-when: adding a stateful tray item (Pause/Resume, Start/Stop) on more tha
 State can change behind the tray's back (Dashboard button, `PUT /api/state`), so a label set only on click goes stale. A push needs per-platform plumbing (Linux `LayoutUpdated` signal and a thread-safe `refresh()`); an open-time read needs almost none. Aurora-5ipy.14/.15/.16 all read `isPaused()` at open: Windows builds the popup per `showMenu()`, Mac sets the title in `NSMenuDelegate menuNeedsUpdate:`, Linux returns needUpdate from `AboutToShow`. Linux also pushes, because SNI hosts can keep a menu rendered.
 
 **Fix:** pass the tray an `isPaused` getter (lock-free atomic) and have the open hook read it. The click callback only posts a flag; the tick loop does the multi-second `setRunning`, so no UI or D-Bus thread blocks and there is no extra thread to join at shutdown.
+
+
+---
+
+## A fork kept for upstream merge requests is not a mirror target -- a fix there is a new MR
+Tags: process, upstream, huenicorn, planning
+Applies-when: a plan says to "mirror" or "also apply" an Aurora fix in `../huenicorn-fork`
+
+The Aurora-1t1 rollout plan ended with "mirror into huenicorn-fork", written as if the fork were a second copy of the grabber. It is not: its branches are curated one per upstream merge request (Aurora-h45: MR 1 Hue API, MR 2 portal failures, MR 3 `fix/capture-pipeline`), and its `PipewireGrabber` lacks the trace and helper headers the Aurora fix builds on. Applying the fix there means a port, a branch choice that changes what an existing MR asks reviewers to accept, and its own hardware check.
+
+**Fix:** plan fork work as an upstream change, not a copy step: a child bead under the h45 epic with its own branch (stacked on the MR whose files it touches), filed when the Aurora fix lands. Don't fold it into the Aurora bead's acceptance.
+

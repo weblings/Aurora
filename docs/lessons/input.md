@@ -333,9 +333,9 @@ Applies-when: reading a negotiated PipeWire fraction as a plain number
 Tags: input, pipewire, wayland, gnome, fullscreen, validation
 Applies-when: validating capture with a fullscreen/kiosk window, or debugging "colors stuck" reports during fullscreen video
 
-Driving solid colors through a Firefox page: maximized, capture tracked every 1.5s change; after F11 it delivered one correct fullscreen frame, then held it ~18s while the page kept alternating, resuming the moment fullscreen exited. Two `--kiosk` launches froze the same way on Firefox's first paint (constant black, then constant near-white) -- which first looked like a broken test page, not a capture problem. Suspected GNOME direct scanout of fullscreen surfaces starving the screencast of new frames (unconfirmed). Tracked as `Aurora-1t1`; fullscreen video is the core use case.
+Driving solid colors through a Firefox page: maximized, capture tracked every 1.5s change; after F11 it delivered one correct fullscreen frame, then held it ~18s while the page kept alternating, resuming the moment fullscreen exited. Two `--kiosk` launches froze the same way on Firefox's first paint (constant black, then constant near-white) -- which first looked like a broken test page, not a capture problem. Direct scanout was the first suspect and a flag test did not support it; the cause turned out to be the memfd stream getting empty CORRUPTED buffers (see "On GNOME 46 Wayland, a memfd screencast stream got empty CORRUPTED buffers in fullscreen while a LINEAR DMA-BUF stream tracked"). Tracked as `Aurora-1t1`; fullscreen video is the core use case.
 
-**Fix (until 1t1 lands):** validate capture with maximized, not fullscreen/kiosk, windows; when a capture reading is constant across stimuli, suspect the source froze before suspecting the stimulus.
+**Fix:** since 1t1 phase 3 the grabber offers LINEAR DMA-BUF by default and fullscreen tracks on GNOME 46 (one machine verified). The freeze comes back whenever the stream ends up on memfd: `AURORA_PW_DMABUF=0`, or a driver where the DMA-BUF fallback fired (`[pw-dmabuf] ... renegotiating shared memory` in the log). In those cases validate with maximized, not fullscreen/kiosk, windows. A `[pw] capture stalled` line in the log is this freeze's signature. When a capture reading is constant across stimuli, suspect the source froze before suspecting the stimulus.
 
 ---
 
@@ -667,4 +667,40 @@ ref.
 **Fix:** pass floating variants straight in, or keep exactly one owned ref
 and `g_variant_unref` it after the call; never `ref` just to pass it on.
 LeakSanitizer pinpoints it (`g_variant_builder_end` as the allocation site).
+
+
+
+---
+
+## SSE frames still arriving does not mean capture is fresh
+Tags: input, linux, pipewire, verification, devstack, light-tap
+Applies-when: judging whether live capture is working from the light-viz relay SSE or `validate.py`
+
+During the Aurora-1t1 kiosk run, the relay delivered about 60 frames/s for 30s while every zone stayed on one red (0.98/0.02/0.02) and the page on screen kept flipping red/blue. The output side keeps publishing whatever frame the grabber last held, so a frozen capture still looks like a healthy, flowing stream. With `AURORA_DEV_PW_TRACE=1` the cause in that run was PipeWire still calling back ~25/s with `size=0`, `SPA_CHUNK_FLAG_CORRUPTED` chunks, which `_onStreamProcess` discards before replacing the held frame.
+
+**Fix:** judge capture by content changing, not by frames arriving: show a changing source (`pattern.html`) and run `validate.py color --track`. Frame counts alone only prove the output path. To see inside the grabber, run with `AURORA_DEV_PW_TRACE=1` (per-second callbacks, skips by reason, chunk flags).
+
+
+---
+
+## On GNOME 46 Wayland, a memfd screencast stream got empty CORRUPTED buffers in fullscreen while a LINEAR DMA-BUF stream tracked
+Tags: input, linux, pipewire, gnome, mutter, dmabuf, fullscreen
+Applies-when: a PipeWire/portal screen grabber freezes or serves a stale frame while a window is fullscreen on GNOME Wayland
+
+Observed on one machine (Ubuntu, GNOME 46, 1920x1200 BGRx, `PipewireGrabber` negotiating no modifier): in kiosk fullscreen the stream kept calling back ~25/s but every chunk was `size=0` with `SPA_CHUNK_FLAG_CORRUPTED` over `SPA_DATA_MemFd`, and the grabber (which discards such chunks) served its last frame for 30s, 4 of 4 runs. GNOME's own screen recorder captured the same fullscreen page fine. Offering a mandatory LINEAR modifier first, requesting `DmaBuf` buffers and mapping the fd with `DMA_BUF_IOCTL_SYNC` tracked for the full 30s, 2 of 2 runs (windowed also passed). `MUTTER_DEBUG_PAINT=disable-direct-scanout` did not help. Not verified: tiled-only GPUs, other compositors, long soaks, and why GNOME fails the memfd record.
+
+Later, with the productized path (buffers mapped once, checked syncs): window and kiosk both tracked again, and windowed CPU for the app was 68% of a core on DMA-BUF vs 79% on memfd (n=1 each, so noisy; DMA-BUF at least not costlier on this Intel-class machine).
+
+**Fix (default since Aurora-1t1 phase 3; `AURORA_PW_DMABUF=0` forces memfd):** offer LINEAR DMA-BUF first with the plain format as fallback, and treat CORRUPTED/empty chunks as "no new frame". Diagnose with `AURORA_DEV_PW_TRACE=1` before changing negotiation.
+
+
+---
+
+## Falling back from DMA-BUF mid-stream is a param update, not a reconnect -- but the DmaBuf-only Buffers request has to be replaced too
+Tags: input, linux, pipewire, dmabuf, negotiation, fallback
+Applies-when: a PipeWire consumer that negotiated DMA-BUF needs to drop to shared memory at runtime (mmap or sync fails, unsupported driver)
+
+A modifier can be negotiated and the CPU read can still fail afterwards (mmap of the dmabuf fd refused, `DMA_BUF_IOCTL_SYNC` erroring), so a negotiation-time fallback alone can leave capture blank on a bad driver. `PipewireGrabber` (Aurora-1t1) counts failed DMA-BUF reads; after 3 in a row it signals a loop event that calls `pw_stream_update_params` with only the plain (no-modifier) EnumFormat. GNOME 46 renegotiated on the spot: a new `Format` without a modifier arrived in `param_changed`, then memfd buffers (`dataType=2`). The grabber had earlier sent a Buffers param restricting `dataType` to `DmaBuf`; on the no-modifier format it sends a replacement allowing MemFd|MemPtr. Not tested without that replacement, so whether a stale DmaBuf-only request would actually block memfd is unverified. Forced live with `AURORA_DEV_PW_DMABUF_FAIL=1` (every map fails), confirmed in the log, not just by a passing run.
+
+**Fix:** do the renegotiation from a loop event (`pw_loop_add_event`/`pw_loop_signal_event`), not inline in `process`; rebuild EnumFormat without the modifier offer; on the next `param_changed` with no modifier, replace any DmaBuf-only Buffers param. Map dmabufs once in `add_buffer`/unmap in `remove_buffer`, and treat an unmapped buffer as a failed read so a driver that refuses mmap also lands in the fallback.
 

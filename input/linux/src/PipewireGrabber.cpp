@@ -1,10 +1,15 @@
 #include <Aurora/Input/Linux/PipewireGrabber.hpp>
 #include <Aurora/Input/Linux/PipewireFramerate.hpp>
 
+#include <cerrno>
 #include <chrono>
+#include <cstdio>
+#include <cstdlib>
 #include <sstream>
 #include <future>
 #include <fcntl.h>
+#include <linux/dma-buf.h>
+#include <sys/ioctl.h>
 #include <sys/mman.h>
 #include <unistd.h>
 
@@ -35,6 +40,112 @@
 
 
 using namespace std::chrono_literals;
+
+
+namespace
+{
+  // DRM_FORMAT_MOD_LINEAR (drm_fourcc.h), spelled out to avoid the dependency.
+  constexpr uint64_t kDrmFormatModLinear = 0;
+
+  double traceNowSeconds()
+  {
+    return std::chrono::duration<double>(std::chrono::steady_clock::now().time_since_epoch()).count();
+  }
+
+
+  // A DMA-BUF's CPU mapping, made in add_buffer and kept in pw_buffer::user_data.
+  struct DmabufMapping
+  {
+    void* base;
+    size_t size;
+  };
+
+
+  // The kernel asks callers to restart DMA_BUF_IOCTL_SYNC on EINTR/EAGAIN.
+  bool dmabufSync(int fd, uint64_t flags)
+  {
+    dma_buf_sync sync{};
+    sync.flags = flags;
+    int result;
+    do{
+      result = ioctl(fd, DMA_BUF_IOCTL_SYNC, &sync);
+    } while(result == -1 && (errno == EINTR || errno == EAGAIN));
+    return result == 0;
+  }
+
+
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wpedantic"
+#pragma GCC diagnostic ignored "-Wmissing-field-initializers"
+  // The formats we accept. Only 4-byte-per-pixel formats -- _onStreamProcess
+  // always builds a CV_8UC4 view, so 3-byte RGB or YUV would misread the
+  // buffer. With offerDmabuf (Aurora-1t1), the same format with a mandatory
+  // LINEAR modifier goes FIRST so a producer that can do DMA-BUF picks it;
+  // the plain one stays as the fallback. Returns how many were written.
+  uint32_t buildFormatParams(
+    spa_pod_builder* b,
+    bool offerDmabuf,
+    const spa_pod* out[2]
+  )
+  {
+    auto r1 = spa_rectangle(320, 240);
+    auto r2 = spa_rectangle(1, 1);
+    auto r3 = spa_rectangle(4096, 4096);
+
+    auto f1 = spa_fraction(25, 1);
+    auto f2 = spa_fraction(0, 1);
+    auto f3 = spa_fraction(1000, 1);
+
+    uint32_t count = 0;
+
+    if(offerDmabuf){
+      spa_pod_frame frames[2];
+      spa_pod_builder_push_object(b, &frames[0], SPA_TYPE_OBJECT_Format, SPA_PARAM_EnumFormat);
+      spa_pod_builder_add(
+        b,
+        SPA_FORMAT_mediaType,    SPA_POD_Id(SPA_MEDIA_TYPE_video),
+        SPA_FORMAT_mediaSubtype, SPA_POD_Id(SPA_MEDIA_SUBTYPE_raw),
+        SPA_FORMAT_VIDEO_format, SPA_POD_CHOICE_ENUM_Id(
+          4,
+          SPA_VIDEO_FORMAT_RGBA,
+          SPA_VIDEO_FORMAT_RGBA,
+          SPA_VIDEO_FORMAT_RGBx,
+          SPA_VIDEO_FORMAT_BGRx
+        ),
+        SPA_FORMAT_VIDEO_size,      SPA_POD_CHOICE_RANGE_Rectangle(&r1, &r2, &r3),
+        SPA_FORMAT_VIDEO_framerate, SPA_POD_CHOICE_RANGE_Fraction(&f1, &f2, &f3),
+        0
+      );
+      spa_pod_builder_prop(b, SPA_FORMAT_VIDEO_modifier, SPA_POD_PROP_FLAG_MANDATORY);
+      spa_pod_builder_push_choice(b, &frames[1], SPA_CHOICE_Enum, 0);
+      spa_pod_builder_long(b, kDrmFormatModLinear);  // default
+      spa_pod_builder_long(b, kDrmFormatModLinear);  // the only alternative
+      spa_pod_builder_pop(b, &frames[1]);
+      out[count++] = static_cast<const spa_pod*>(spa_pod_builder_pop(b, &frames[0]));
+    }
+
+    out[count++] = static_cast<const spa_pod*>(
+      spa_pod_builder_add_object(
+        b,
+        SPA_TYPE_OBJECT_Format, SPA_PARAM_EnumFormat,
+        SPA_FORMAT_mediaType,       SPA_POD_Id(SPA_MEDIA_TYPE_video),
+        SPA_FORMAT_mediaSubtype,    SPA_POD_Id(SPA_MEDIA_SUBTYPE_raw),
+        SPA_FORMAT_VIDEO_format,    SPA_POD_CHOICE_ENUM_Id(
+          4,
+          SPA_VIDEO_FORMAT_RGBA,
+          SPA_VIDEO_FORMAT_RGBA,
+          SPA_VIDEO_FORMAT_RGBx,
+          SPA_VIDEO_FORMAT_BGRx
+        ),
+        SPA_FORMAT_VIDEO_size,      SPA_POD_CHOICE_RANGE_Rectangle(&r1, &r2, &r3),
+        SPA_FORMAT_VIDEO_framerate, SPA_POD_CHOICE_RANGE_Fraction(&f1, &f2, &f3)
+      )
+    );
+
+    return count;
+  }
+#pragma GCC diagnostic pop
+}
 
 
 namespace Aurora::Input::Linux
@@ -185,8 +296,50 @@ namespace Aurora::Input::Linux
     }
 
     spa_buffer* spaBuffer = pwBuffer->buffer;
-    if(spaBuffer->datas[0].data == NULL){
+    spa_data& data = spaBuffer->datas[0];
+
+    // A callback without usable pixels: hand the buffer back, and warn once
+    // if nothing but these has arrived for a while (the 1t1 freeze).
+    auto skip = [&](PipewireTrace::SkipReason reason, int32_t chunkFlags, uint32_t chunkSize){
+      const double now = traceNowSeconds();
+      if(pw->trace.enabled){
+        pw->trace.onSkipped(now, data.type, reason, chunkFlags, chunkSize);
+      }
+      if(pw->staleWatch.onUnusable(now)){
+        std::fprintf(
+          stderr,
+          "[pw] capture stalled: %.1fs of buffers without pixels (dataType=%u chunkFlags=0x%x); "
+          "serving the last good frame\n",
+          pw->staleWatch.stalledFor(now), data.type, static_cast<unsigned>(chunkFlags)
+        );
+      }
       pw_stream_queue_buffer(pw->stream, pwBuffer);
+    };
+
+    // Counts toward giving up on DMA-BUF; the caller still skips the buffer.
+    auto dmabufReadFailed = [&](const char* why){
+      if(!pw->dmabufFallback.disabled()){
+        std::fprintf(stderr, "[pw-dmabuf] DMA-BUF read failed: %s\n", why);
+      }
+      if(pw->dmabufFallback.onReadFailed()){
+        std::fprintf(
+          stderr, "[pw-dmabuf] %d DMA-BUF reads failed in a row; renegotiating shared memory\n",
+          DmabufReadFallback::kMaxConsecutiveFailures
+        );
+        pw->dmabufOffered = false;
+        if(pw->renegotiateEvent){
+          pw_loop_signal_event(pw_main_loop_get_loop(pw->loop), pw->renegotiateEvent);
+        }
+      }
+    };
+
+    // DMA-BUFs are never mapped by PW_STREAM_FLAG_MAP_BUFFERS, so a NULL data
+    // pointer is expected for them; _onStreamAddBuffer mapped the fd instead.
+    const bool isDmaBuf = data.type == SPA_DATA_DmaBuf && data.fd >= 0;
+
+    if(data.data == NULL && !isDmaBuf){
+      const auto* skipChunk = data.chunk;
+      skip(PipewireTrace::SkipReason::NoData, skipChunk ? skipChunk->flags : -1, skipChunk ? skipChunk->size : 0);
       return;
     }
 
@@ -198,10 +351,13 @@ namespace Aurora::Input::Linux
       return;
     }
 
-    auto* chunk = spaBuffer->datas[0].chunk;
+    auto* chunk = data.chunk;
 
     if(chunk == nullptr || chunk->size == 0){
-      pw_stream_queue_buffer(pw->stream, pwBuffer);
+      skip(
+        chunk == nullptr ? PipewireTrace::SkipReason::NoChunk : PipewireTrace::SkipReason::EmptyChunk,
+        chunk ? chunk->flags : -1, chunk ? chunk->size : 0
+      );
       return;
     }
 
@@ -209,21 +365,40 @@ namespace Aurora::Input::Linux
       ? static_cast<size_t>(chunk->stride)
       : static_cast<size_t>(width) * 4;
 
-    // Some xdg-desktop-portal / pipewire combinations advertise SPA_DATA_MemFd
-    // buffers without auto-mapping them with PROT_READ even when
-    // PW_STREAM_FLAG_MAP_BUFFERS is set. Reading via the provided
-    // datas[0].data pointer then segfaults. Map the fd ourselves for the
-    // duration of this frame as a defensive fallback.
-    void* readPtr = spaBuffer->datas[0].data;
+    void* readPtr = data.data;
     void* localMap = MAP_FAILED;
     size_t localMapSize = 0;
-    const bool needRemap = spaBuffer->datas[0].type == SPA_DATA_MemFd
-      && spaBuffer->datas[0].fd >= 0;
+    const int fd = static_cast<int>(data.fd);
 
-    if(needRemap){
-      localMapSize = static_cast<size_t>(spaBuffer->datas[0].maxsize) + chunk->offset;
-      localMap = mmap(nullptr, localMapSize, PROT_READ, MAP_SHARED,
-                      static_cast<int>(spaBuffer->datas[0].fd), 0);
+    if(isDmaBuf){
+      // The CPU must bracket reads of a DMA-BUF with a sync, or it can see
+      // stale cache lines. Linear modifier only (the only one we offer).
+      const auto* mapping = static_cast<const DmabufMapping*>(pwBuffer->user_data);
+      const char* failure = nullptr;
+      if(mapping == nullptr){
+        failure = "buffer could not be mapped";
+      }
+      else if(!frameFitsBuffer(chunk->offset, step, width, height, data.maxsize)){
+        failure = "frame does not fit the buffer";
+      }
+      else if(!dmabufSync(fd, DMA_BUF_SYNC_START | DMA_BUF_SYNC_READ)){
+        failure = "sync start failed";
+      }
+      if(failure){
+        dmabufReadFailed(failure);
+        skip(PipewireTrace::SkipReason::NoData, chunk->flags, chunk->size);
+        return;
+      }
+      readPtr = static_cast<uint8_t*>(mapping->base) + data.mapoffset;
+    }
+    else if(data.type == SPA_DATA_MemFd && fd >= 0){
+      // Some xdg-desktop-portal / pipewire combinations advertise SPA_DATA_MemFd
+      // buffers without auto-mapping them with PROT_READ even when
+      // PW_STREAM_FLAG_MAP_BUFFERS is set. Reading via the provided
+      // datas[0].data pointer then segfaults. Map the fd ourselves for the
+      // duration of this frame as a defensive fallback.
+      localMapSize = static_cast<size_t>(data.maxsize) + chunk->offset;
+      localMap = mmap(nullptr, localMapSize, PROT_READ, MAP_SHARED, fd, 0);
       if(localMap != MAP_FAILED){
         readPtr = localMap;
       }
@@ -238,12 +413,48 @@ namespace Aurora::Input::Linux
 
     // See PipewireFrameBuffer.hpp -- clones the buffer, since Pipewire's
     // memory becomes invalid after queue_buffer() below.
-    Contracts::ImageData capturedFrame = toOwnedImage(
-      static_cast<uint8_t*>(readPtr) + chunk->offset, width, height, step, pixelFormat
-    );
+    const uint8_t* pixels = static_cast<const uint8_t*>(readPtr) + chunk->offset;
+    Contracts::ImageData capturedFrame = toOwnedImage(pixels, width, height, step, pixelFormat);
+    const uint64_t contentHash = pw->trace.enabled ? sampleContentHash(pixels, chunk->size) : 0;
 
     if(localMap != MAP_FAILED){
       munmap(localMap, localMapSize);
+    }
+
+    if(isDmaBuf){
+      if(!dmabufSync(fd, DMA_BUF_SYNC_END | DMA_BUF_SYNC_READ)){
+        dmabufReadFailed("sync end failed");
+        skip(PipewireTrace::SkipReason::NoData, chunk->flags, chunk->size);
+        return;
+      }
+      pw->dmabufFallback.onReadOk();
+    }
+
+    if(pw->trace.enabled){
+      const auto* header = static_cast<const spa_meta_header*>(
+        spa_buffer_find_meta_data(spaBuffer, SPA_META_Header, sizeof(spa_meta_header))
+      );
+      int damageRegions = -1;
+      if(const spa_meta* damage = spa_buffer_find_meta(spaBuffer, SPA_META_VideoDamage)){
+        damageRegions = 0;
+        const auto* region = static_cast<const spa_meta_region*>(damage->data);
+        for(uint32_t i = 0; i < damage->size / sizeof(spa_meta_region) && spa_meta_region_is_valid(&region[i]); ++i){
+          ++damageRegions;
+        }
+      }
+      pw->trace.onFrame(
+        traceNowSeconds(),
+        contentHash,
+        header ? static_cast<int64_t>(header->seq) : -1,
+        header ? header->pts : -1,
+        data.type,
+        chunk->flags,
+        damageRegions
+      );
+    }
+
+    if(pw->staleWatch.onFrame()){
+      std::fprintf(stderr, "[pw] capture recovered: frames with pixels are arriving again\n");
     }
 
     {
@@ -255,6 +466,77 @@ namespace Aurora::Input::Linux
   }
 
 
+  void PipewireGrabber::_onStreamAddBuffer(
+    void* userdata,
+    pw_buffer* buffer
+  )
+  {
+    PipewireData* pw = static_cast<PipewireData*>(userdata);
+    spa_data& data = buffer->buffer->datas[0];
+
+    if(data.type != SPA_DATA_DmaBuf || data.fd < 0){
+      return;
+    }
+
+    // Left unmapped (user_data NULL) on failure; _onStreamProcess counts
+    // that as a failed read, which ends in the shared-memory fallback.
+    if(pw->dmabufForceFail){
+      return;
+    }
+
+    const size_t size = static_cast<size_t>(data.mapoffset) + data.maxsize;
+    void* base = mmap(nullptr, size, PROT_READ, MAP_SHARED, static_cast<int>(data.fd), 0);
+    if(base == MAP_FAILED){
+      std::fprintf(stderr, "[pw-dmabuf] mmap of a DMA-BUF failed (errno %d)\n", errno);
+      return;
+    }
+    buffer->user_data = new DmabufMapping{base, size};
+  }
+
+
+  void PipewireGrabber::_onStreamRemoveBuffer(
+    void* /*userdata*/,
+    pw_buffer* buffer
+  )
+  {
+    auto* mapping = static_cast<DmabufMapping*>(buffer->user_data);
+    if(mapping == nullptr){
+      return;
+    }
+    munmap(mapping->base, mapping->size);
+    delete mapping;
+    buffer->user_data = nullptr;
+  }
+
+
+  void PipewireGrabber::_onRenegotiateWithoutDmabuf(
+    void* userdata,
+    uint64_t /*count*/
+  )
+  {
+    PipewireData* pw = static_cast<PipewireData*>(userdata);
+    if(pw->stream == nullptr){
+      return;
+    }
+
+    uint8_t storage[2048];
+    spa_pod_builder b = SPA_POD_BUILDER_INIT(storage, sizeof(storage));
+    const spa_pod* params[2];
+    const uint32_t count = buildFormatParams(&b, pw->dmabufOffered, params);
+    pw_stream_update_params(pw->stream, params, count);
+  }
+
+
+  void PipewireGrabber::_onTraceTimer(
+    void* userdata,
+    uint64_t /*expirations*/
+  )
+  {
+    PipewireData* pw = static_cast<PipewireData*>(userdata);
+    std::fprintf(stderr, "%s\n", pw->trace.takeSummary(traceNowSeconds()).c_str());
+  }
+
+
   void PipewireGrabber::_onStreamParamChanged(
     void* userdata,
     uint32_t id,
@@ -262,6 +544,13 @@ namespace Aurora::Input::Linux
   )
   {
     PipewireData* pw = static_cast<PipewireData*>(userdata);
+
+    if(pw->trace.enabled){
+      std::fprintf(
+        stderr, "[pw-trace] param_changed id=%s param=%s\n",
+        spa_debug_type_find_name(spa_type_param, id), param == NULL ? "NULL" : "set"
+      );
+    }
 
     if(param == NULL || id != SPA_PARAM_Format){
       return;
@@ -277,6 +566,41 @@ namespace Aurora::Input::Linux
 
     if(spa_format_video_raw_parse(param, &pw->format.info.raw) < 0){
       return;
+    }
+
+    if(pw->trace.enabled){
+      const auto& raw = pw->format.info.raw;
+      std::fprintf(
+        stderr, "[pw-trace] format=%s size=%ux%u fps=%u/%u modifier=%s\n",
+        spa_debug_type_find_name(spa_type_video_format, raw.format),
+        raw.size.width, raw.size.height, raw.max_framerate.num, raw.max_framerate.denom,
+        spa_pod_find_prop(param, NULL, SPA_FORMAT_VIDEO_modifier) ? "present" : "none"
+      );
+    }
+
+    // A modifier in the negotiated format means the producer will hand out
+    // DMA-BUFs, so say we accept that buffer type. After a fallback to
+    // shared memory, replace that request, or no buffer type would match.
+    const bool hasModifier = spa_pod_find_prop(param, NULL, SPA_FORMAT_VIDEO_modifier) != NULL;
+    if(pw->dmabufEnabled && (hasModifier || pw->dmabufBuffersRequested)){
+      const int dataTypes = hasModifier
+        ? (1 << SPA_DATA_DmaBuf)
+        : (1 << SPA_DATA_MemFd) | (1 << SPA_DATA_MemPtr);
+      uint8_t bufferParamStorage[512];
+      spa_pod_builder bufferBuilder = SPA_POD_BUILDER_INIT(bufferParamStorage, sizeof(bufferParamStorage));
+      const spa_pod* bufferParam = static_cast<const spa_pod*>(spa_pod_builder_add_object(
+        &bufferBuilder,
+        SPA_TYPE_OBJECT_ParamBuffers, SPA_PARAM_Buffers,
+        SPA_PARAM_BUFFERS_buffers,  SPA_POD_CHOICE_RANGE_Int(8, 2, 16),
+        SPA_PARAM_BUFFERS_blocks,   SPA_POD_Int(1),
+        SPA_PARAM_BUFFERS_dataType, SPA_POD_CHOICE_FLAGS_Int(dataTypes)
+      ));
+      pw_stream_update_params(pw->stream, &bufferParam, 1);
+      pw->dmabufBuffersRequested = hasModifier;
+      std::fprintf(
+        stderr, "[pw-dmabuf] %s\n",
+        hasModifier ? "modifier negotiated; requested DmaBuf buffers" : "no modifier; requested shared-memory buffers"
+      );
     }
 
     if(!pw->promiseSetAlready){
@@ -336,6 +660,10 @@ namespace Aurora::Input::Linux
     // A mode-switch reload builds the replacement grabber before destroying
     // this one, so per-instance pw_init()/pw_deinit() would deinit under it.
     ensurePipewireInitialized();
+    pw->trace.enabled = pipewireTraceEnabledFrom(std::getenv("AURORA_DEV_PW_TRACE"));
+    pw->dmabufEnabled = dmabufEnabledFrom(std::getenv("AURORA_PW_DMABUF"));
+    pw->dmabufForceFail = pipewireTraceEnabledFrom(std::getenv("AURORA_DEV_PW_DMABUF_FAIL"));
+    pw->dmabufOffered = pw->dmabufEnabled;
     pw_core_events coreEvents = {};
     coreEvents.version = PW_VERSION_CORE_EVENTS;
     coreEvents.info = _onCoreInfoCallback;
@@ -346,6 +674,8 @@ namespace Aurora::Input::Linux
     streamEvents.version = PW_VERSION_STREAM_EVENTS;
     streamEvents.param_changed = _onStreamParamChanged;
     streamEvents.process = _onStreamProcess;
+    streamEvents.add_buffer = _onStreamAddBuffer;
+    streamEvents.remove_buffer = _onStreamRemoveBuffer;
 
     pw->loop = pw_main_loop_new(NULL);
     pw->context = pw_context_new(pw_main_loop_get_loop(pw->loop), NULL, 0);
@@ -423,53 +753,41 @@ namespace Aurora::Input::Linux
       pw
     );
 
-    uint8_t buffer[1024];
+    uint8_t buffer[2048];
     spa_pod_builder b = SPA_POD_BUILDER_INIT(buffer, sizeof(buffer));
+    const spa_pod* params[2];
+    const uint32_t paramCount = buildFormatParams(&b, pw->dmabufOffered, params);
 
-    auto r1 = spa_rectangle(320, 240);
-    auto r2 = spa_rectangle(1, 1);
-    auto r3 = spa_rectangle(4096, 4096);
-
-    auto f1 = spa_fraction(25, 1);
-    auto f2 = spa_fraction(0, 1);
-    auto f3 = spa_fraction(1000, 1);
-
-    const spa_pod* params[1] = {
-      static_cast<spa_pod*>(
-        spa_pod_builder_add_object(
-          &b,
-          SPA_TYPE_OBJECT_Format, SPA_PARAM_EnumFormat,
-          SPA_FORMAT_mediaType,       SPA_POD_Id(SPA_MEDIA_TYPE_video),
-          SPA_FORMAT_mediaSubtype,    SPA_POD_Id(SPA_MEDIA_SUBTYPE_raw),
-          // Only 4-byte-per-pixel formats -- _onStreamProcess always builds a
-          // CV_8UC4 view, so 3-byte RGB or YUV here would misread the buffer.
-          SPA_FORMAT_VIDEO_format,    SPA_POD_CHOICE_ENUM_Id(
-            4,
-            SPA_VIDEO_FORMAT_RGBA,
-            SPA_VIDEO_FORMAT_RGBA,
-            SPA_VIDEO_FORMAT_RGBx,
-            SPA_VIDEO_FORMAT_BGRx
-          ),
-          SPA_FORMAT_VIDEO_size,
-          SPA_POD_CHOICE_RANGE_Rectangle(
-            &r1,
-            &r2,
-            &r3
-          ),
-          SPA_FORMAT_VIDEO_framerate,
-          SPA_POD_CHOICE_RANGE_Fraction(
-            &f1,
-            &f2,
-            &f3
-          )
-        )
-      )
-    };
+    if(pw->dmabufOffered){
+      pw->renegotiateEvent = pw_loop_add_event(pw_main_loop_get_loop(pw->loop), _onRenegotiateWithoutDmabuf, pw);
+      std::fprintf(stderr, "[pw-dmabuf] offering LINEAR DMA-BUF first, plain format as fallback\n");
+      if(pw->dmabufForceFail){
+        std::fprintf(stderr, "[pw-dmabuf] AURORA_DEV_PW_DMABUF_FAIL: every DMA-BUF map will fail\n");
+      }
+    }
 #pragma GCC diagnostic pop
 
-    pw_stream_connect(pw->stream, PW_DIRECTION_INPUT, targetNode, static_cast<pw_stream_flags>(PW_STREAM_FLAG_AUTOCONNECT | PW_STREAM_FLAG_MAP_BUFFERS), params, 1);
+    pw_stream_connect(pw->stream, PW_DIRECTION_INPUT, targetNode, static_cast<pw_stream_flags>(PW_STREAM_FLAG_AUTOCONNECT | PW_STREAM_FLAG_MAP_BUFFERS), params, paramCount);
+
+    if(pw->trace.enabled){
+      pw->traceTimer = pw_loop_add_timer(pw_main_loop_get_loop(pw->loop), _onTraceTimer, pw);
+      timespec first{1, 0};
+      timespec every{1, 0};
+      pw_loop_update_timer(pw_main_loop_get_loop(pw->loop), pw->traceTimer, &first, &every, false);
+      std::fprintf(stderr, "[pw-trace] enabled (AURORA_DEV_PW_TRACE), one summary per second\n");
+    }
 
     pw_main_loop_run(pw->loop);
+
+    if(pw->traceTimer){
+      pw_loop_destroy_source(pw_main_loop_get_loop(pw->loop), pw->traceTimer);
+      pw->traceTimer = nullptr;
+    }
+
+    if(pw->renegotiateEvent){
+      pw_loop_destroy_source(pw_main_loop_get_loop(pw->loop), pw->renegotiateEvent);
+      pw->renegotiateEvent = nullptr;
+    }
 
     pw_stream_disconnect(pw->stream);
 
