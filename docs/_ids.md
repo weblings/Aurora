@@ -15,6 +15,7 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `9ig-pipeline-to-core` | [log/2026-10-01-9ig-pipeline-to-core.md](log/2026-10-01-9ig-pipeline-to-core.md) | Aurora-9ig: Pipeline, PipelineHost and Registry moved into core |
 | `audio-analysis` | [archive/AudioAnalysis.md](archive/AudioAnalysis.md) | Audio-reactive color — findings, not a decision |
 | `audio-sink-dropdown-fetch-rework` | [log/2026-09-30-sink-dropdown-fetch-rework.md](log/2026-09-30-sink-dropdown-fetch-rework.md) | Sink dropdown: fetch rework, chrome removal, 1.0.4 |
+| `axoz-pending-highlight` | [log/2026-10-04-axoz-pending-highlight.md](log/2026-10-04-axoz-pending-highlight.md) | Aurora-axoz: pending highlight on Video/Audio switch (implemented, tracker close refused) |
 | `browser-analysis` | [archive/BrowserAnalysis.md](archive/BrowserAnalysis.md) | Browser video-upload input — findings, not a decision |
 | `c0g-live-tuning-apply` | [log/2026-10-02-c0g-live-tuning-apply.md](log/2026-10-02-c0g-live-tuning-apply.md) | Aurora-c0g: tuning edits apply to the running pipeline without a reload |
 | `d6i7-config-writer-race` | [log/2026-10-02-d6i7-config-writer-race.md](log/2026-10-02-d6i7-config-writer-race.md) | Aurora-d6i7: config.json writer race (Pipeline::build vs the settings PUT) |

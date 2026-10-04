@@ -16,8 +16,10 @@ Implemented 2026-10-04. Owner-requested; kea (dependency) already merged to dev.
 - `ModeDeviceScreen` sections follow the pending choice while in flight and
   revert on failure; device edits wait out an in-flight switch instead of
   racing it with a second PUT.
-- `web/ui/styles/forms.css`: `.segmented-btn.pending` outline,
-  `cursor: wait` on disabled.
+- `web/ui/styles/forms.css`: `.segmented-btn.pending` inset white outline
+  (`outline-offset: -2px`), `cursor: wait` on disabled. An accordion-divider
+  color trial was invisible on review; the inset white stroke is the final
+  design, mirrored to the vendor fork.
 - Demo: `CaptureSource.js` + `forms.css` verbatim; live Dashboard ported
   with seams intact + axoz seam tripwires. Dead `ModeDeviceScreen` copy left
   stale (pre-kea, never mounted). Shim unchanged — already answers every
@@ -37,7 +39,8 @@ Implemented 2026-10-04. Owner-requested; kea (dependency) already merged to dev.
 ## Surprises / notes
 
 - `bd close axoz` refused: tracker still lists kea as blocking although kea
-  is merged. Bead stays claimed; close needs `--force` or kea status fixed.
+  is merged. Done-note recorded on the bead; official close waits on kea's
+  machine test.
 - `cmake` absent from PATH on this machine; irrelevant here since no rebuild
   was needed. `make`/`python3`/`g++` present.
 - Later: upgrade 'confirmed' to lights-reacting on 5ipy.2 health; pattern
