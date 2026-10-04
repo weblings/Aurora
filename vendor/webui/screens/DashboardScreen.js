@@ -30,7 +30,8 @@ import { AccordionSection } from '../AccordionSection.js';
 import { TuningFields } from '../TuningFields.js';
 import { applyTooltip } from '../Tooltips.js';
 import {
-  audioDevicesUrlFrom, devicePatch, effectiveFlags, flagsForMode, loadPipelineState, modeFromConfig, modeSwitchPatch,
+  audioDevicesUrlFrom, devicePatch, effectiveFlags, flagsForMode, isSwitchConfirmed, loadPipelineState,
+  modeFromFlags, modeSwitchPatch,
 } from '../CaptureSource.js';
 
 export class DashboardScreen {
@@ -45,6 +46,8 @@ export class DashboardScreen {
     this.monitors = [];
     this.selectedMonitorName = AUTO_MONITOR_VALUE;
     this.flags = flagsForMode('video');
+    this.pipelineState = null;
+    this.pendingMode = null; // toggle choice with a switch in flight: outlined, not filled
     this.audioDevicesUrl = null;
     this.sinkName = '';
     this.hasHue = false;
@@ -159,7 +162,6 @@ export class DashboardScreen {
       config = await (await fetch('/api/config')).json();
       this.currentActiveInputName = config.activeInputName ?? '';
       this.currentActiveAudioInputName = config.activeAudioInputName ?? '';
-      this.mode = modeFromConfig(config);
       this.selectedMonitorName = config.activeMonitorName || AUTO_MONITOR_VALUE;
       this.sinkName = config.audioTargetSinkName || '';
       this.tuningValues = config;
@@ -168,7 +170,11 @@ export class DashboardScreen {
     }
 
     const state = await loadPipelineState();
+    this.pipelineState = state;
     this.flags = effectiveFlags(state, config);
+    // Toggle fill follows the running pipeline (Aurora-axoz), never the
+    // saved config: after a failed switch config holds the failed mode.
+    this.mode = modeFromFlags(this.flags);
     this.audioDevicesUrl = audioDevicesUrlFrom(state);
 
     if (this.flags.usesVideoInput) {
@@ -240,12 +246,13 @@ export class DashboardScreen {
     }
 
     const errorHtml = this.toggleError ? `<p class="status-text status-text-error">⚠ ${escapeHtml(this.toggleError)}</p>` : '';
+    const disabled = this.pendingMode ? ' disabled' : '';
 
     controls.innerHTML = `
       <div class="db-controls-row">
         <div class="segmented" role="group" aria-label="Capture mode">
-          <button type="button" class="segmented-btn${this.mode === 'video' ? ' active' : ''}" id="db-mode-video">Video</button>
-          <button type="button" class="segmented-btn${this.mode === 'audio' ? ' active' : ''}" id="db-mode-audio">Audio</button>
+          <button type="button" class="${this._toggleClasses('video')}" id="db-mode-video"${disabled}>Video</button>
+          <button type="button" class="${this._toggleClasses('audio')}" id="db-mode-audio"${disabled}>Audio</button>
         </div>
       </div>
       ${errorHtml}
@@ -255,6 +262,17 @@ export class DashboardScreen {
     applyTooltip(controls.querySelector('#db-mode-audio'), 'app.mode');
     controls.querySelector('#db-mode-video').addEventListener('click', () => this._switchMode('video'));
     controls.querySelector('#db-mode-audio').addEventListener('click', () => this._switchMode('audio'));
+  }
+
+  // Fill follows the running pipeline (Aurora-axoz); a switch in flight
+  // only outlines the choice and disables both buttons.
+  _toggleClasses(mode) {
+    const classes = ['segmented-btn'];
+    if (mode === 'video' ? this.flags.usesVideoInput : this.flags.usesAudioInput) {
+      classes.push('active');
+    }
+    if (this.pendingMode === mode) classes.push('pending');
+    return classes.join(' ');
   }
 
   // Top tier: just DeviceField (Monitor/device picker) + its own error now --
@@ -481,23 +499,27 @@ export class DashboardScreen {
   }
 
   async _switchMode(mode) {
-    if (mode === this.mode) return;
+    if (this.pendingMode || mode === this.mode) return;
 
     const patch = modeSwitchPatch(mode, this);
 
+    // Outline the clicked option and disable both buttons while the rebuild
+    // runs; the running option stays filled until the pipeline confirms.
+    this.pendingMode = mode;
     this.toggleError = null;
+    this._renderControls();
+
+    let putResult = null;
     try {
-      const result = await (await fetch('/api/config', {
+      putResult = await (await fetch('/api/config', {
         method: 'PUT',
         body: JSON.stringify(patch),
       })).json();
 
-      if (!result.succeeded) {
+      if (!putResult.succeeded) {
         this.toggleError = "Couldn't switch modes.";
-      } else if (result.reloadError) {
-        this.toggleError = `Couldn't apply it live: ${result.reloadError}`;
-      } else {
-        this.mode = mode;
+      } else if (putResult.reloadError) {
+        this.toggleError = `Couldn't apply it live: ${putResult.reloadError}`;
       }
     } catch {
       this.toggleError = "Couldn't reach the daemon.";
@@ -506,8 +528,18 @@ export class DashboardScreen {
     // Refreshes everything from the real endpoints rather than guessing the
     // new state locally -- also what resets both AccordionSections to
     // collapsed (see this file's header comment), and its own trailing
-    // _renderControls() picks up this.toggleError too either way.
+    // _renderControls() picks up this.toggleError too either way. _loadAll
+    // re-derives the fill from the still-running pipeline on failure, so a
+    // failed mode never sticks as filled even though config saved it.
     await this._loadAll();
+
+    // Fill moves only when the running pipeline agrees (Aurora-axoz). The
+    // shim derives state from its config, so a demo switch confirms at once.
+    if (isSwitchConfirmed(putResult, this.pipelineState, mode)) {
+      this.mode = mode;
+    }
+    this.pendingMode = null;
+    this._renderControls();
   }
 
   // Ported close to verbatim from huenicorn's own real WebUI.js:

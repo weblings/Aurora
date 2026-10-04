@@ -138,6 +138,10 @@
 .segmented-btn.active { background: var(--aurora-button-light); color: var(--aurora-text-on-light); }
 .segmented-btn.active:hover { background: var(--aurora-button-light-hover); }
 .segmented-btn.active:active { background: var(--aurora-button-light-active); }
+/* Pending mode-switch choice (Aurora-axoz): outline only, never the fill --
+   the running option stays filled until the pipeline confirms the switch. */
+.segmented-btn.pending { outline: 2px solid var(--aurora-button-light); outline-offset: 2px; }
+.segmented-btn:disabled { cursor: wait; }
 
 /* Section heading + divider -- ported from RockyRoadImport/SongConverter's
    real <h2> (20px/700 weight/16px margin-bottom) and .tab-panel::before (a
