@@ -142,6 +142,10 @@ python3 validate.py color --expect gray             # neutral check + reports im
 python3 validate.py color --zone 0=red --zone 1=blue  # split screen: per-zone mapping
 python3 validate.py color                           # no expectation: just print per-zone values
 
+# Freeze detector for a changing source (pattern.html): fails if no zone color
+# changes by >0.08 for --max-stall seconds; reports the longest stall
+python3 validate.py color --track --seconds 30 --max-stall 5
+
 # Values vs an independent recomputation from the raw captured frame --
 # works for arbitrary (not just solid-color) content, unlike `color`
 AURORA_DEV_FRAME_DUMP=1 ./Aurora   # alongside AURORA_DEV_LIGHT_TAP=1 above

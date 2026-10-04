@@ -18,7 +18,7 @@ import time
 import urllib.request
 from pathlib import Path
 
-from validate import crop_mean_rgb, expected_after_gamma
+from validate import crop_mean_rgb, expected_after_gamma, longest_stall
 
 HERE = Path(__file__).resolve().parent
 
@@ -135,6 +135,7 @@ def main():
         stop_relay(proc)
 
     check_frame_math()
+    check_track()
 
     print(f"\n{PASS_COUNT} checks passed")
 
@@ -180,6 +181,57 @@ def check_frame_math():
     gammaed = expected_after_gamma((0.25, 0.25, 0.25), 0.5)
     check("expected_after_gamma(0.25, gammaFactor=0.5) == sqrt(0.25) == 0.5",
           all(abs(c - 0.5) < 1e-9 for c in gammaed), repr(gammaed))
+
+
+def check_track():
+    # Pure stall math: red<->blue flips at t=0,1.5,3,...; then frozen after 6.
+    flips = [(0, (1, 0, 0)), (1.5, (0, 0, 1)), (3, (1, 0, 0)), (4.5, (0, 0, 1)), (6, (1, 0, 0))]
+    frozen = flips + [(t, (1, 0, 0)) for t in (7, 8, 9, 10)]
+    stall, changes = longest_stall(frozen, 0.15, 10)
+    check("longest_stall finds the freeze after the last flip",
+          abs(stall - 4.0) < 1e-9 and changes == 4, repr((stall, changes)))
+    stall, _ = longest_stall(flips, 0.15, 7)
+    check("longest_stall of a steadily flipping source is the flip period",
+          abs(stall - 1.5) < 1e-9, repr(stall))
+    stall, changes = longest_stall([(0, (1, 0, 0)), (5, (1, 0.05, 0))], 0.15, 6)
+    check("longest_stall ignores sub-threshold drift",
+          stall == 6 and changes == 0, repr((stall, changes)))
+
+    # End to end: validate.py color --track against a live relay.
+    proc, udp_port, http_port = start_relay()
+    try:
+        def run_validate(frames_fn):
+            stop = threading.Event()
+
+            def sender():
+                n = 0
+                while not stop.is_set():
+                    r, b = frames_fn(n)
+                    payload = json.dumps({"zones": [{"id": 0, "r": r, "g": 0.0, "b": b}]})
+                    send_udp(udp_port, payload.encode("utf-8"))
+                    n += 1
+                    time.sleep(0.05)
+
+            t = threading.Thread(target=sender, daemon=True)
+            t.start()
+            try:
+                return subprocess.run(
+                    [sys.executable, str(HERE / "validate.py"), "--http-port", str(http_port),
+                     "color", "--track", "--seconds", "4", "--max-stall", "1.5"],
+                    capture_output=True, text=True, timeout=30)
+            finally:
+                stop.set()
+                t.join()
+
+        # Flips every 10 frames (~0.5s).
+        res = run_validate(lambda n: (1.0, 0.0) if (n // 10) % 2 == 0 else (0.0, 1.0))
+        check("--track passes on a changing source", res.returncode == 0, res.stdout + res.stderr)
+        # Flips for the first 1s only, then frozen.
+        res = run_validate(lambda n: (1.0, 0.0) if (n // 10) % 2 == 0 or n > 20 else (0.0, 1.0))
+        check("--track fails on a frozen source and reports the stall",
+              res.returncode != 0 and "stuck for" in res.stderr, res.stdout + res.stderr)
+    finally:
+        stop_relay(proc)
 
 
 if __name__ == "__main__":
