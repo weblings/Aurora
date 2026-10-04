@@ -2,12 +2,20 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <cstring>
 
 // Bookkeeping for PipewireGrabber's DMA-BUF capture and stall detection
 // (Aurora-1t1). No Pipewire types, so it is testable without libpipewire.
 // Single-threaded: every call comes from the Pipewire loop thread.
 namespace Aurora::Input::Linux
 {
+  // AURORA_PW_DMABUF kill switch: DMA-BUF stays on unless set to "0".
+  inline bool dmabufEnabledFrom(const char* value)
+  {
+    return value == nullptr || std::strcmp(value, "0") != 0;
+  }
+
+
   // True when a frame of height rows (stride bytes apart, width * 4 bytes
   // each) starting at offset lies inside a buffer of bufferSize bytes.
   inline bool frameFitsBuffer(

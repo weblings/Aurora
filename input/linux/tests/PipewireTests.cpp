@@ -373,3 +373,13 @@ TEST_CASE("StaleFrameWatch ignores short gaps and starts a new stall after a fra
   CHECK_FALSE(watch.onUnusable(7.0));
   CHECK(watch.onUnusable(7.5));
 }
+
+
+TEST_CASE("dmabufEnabledFrom is on unless the kill switch is \"0\"", "[PipewireDmabuf]")
+{
+  CHECK(dmabufEnabledFrom(nullptr));
+  CHECK(dmabufEnabledFrom(""));
+  CHECK(dmabufEnabledFrom("1"));
+  CHECK_FALSE(dmabufEnabledFrom("0"));
+}
+

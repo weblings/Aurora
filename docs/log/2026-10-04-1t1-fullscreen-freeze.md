@@ -1,6 +1,7 @@
 # Fullscreen capture freeze: repro tooling, live repro, DMA-BUF fix
 
-Aurora-1t1 paused (open) after rollout phase 2 of 3. Closed: Aurora-d0hl,
+Aurora-1t1 paused (open) after rollout phase 3 of 3: fix is default and
+acceptance met on this machine; huenicorn-fork scope and closeout pending. Closed: Aurora-d0hl,
 Aurora-evyk. Open: Aurora-2ucb, Aurora-mvq1 (other hardware, phase 4).
 
 ## Built
@@ -118,19 +119,35 @@ Aurora-evyk. Open: Aurora-2ucb, Aurora-mvq1 (other hardware, phase 4).
 - Not covered: GNOME accepting the modifier then failing allocation (stream
   error; needs a reconnect, left out).
 
+## Phase 3: DMA-BUF by default
+
+- `AURORA_DEV_PW_DMABUF` removed. `dmabufEnabledFrom(AURORA_PW_DMABUF)`:
+  on unless `"0"` (kill switch, memfd from the start). `input/linux/README.md`
+  documents buffer order, fallback, kill switch, dev env vars. +1 test case;
+  full ctest 118/118.
+- Default build, no `AURORA_*` env, window then kiosk: both PASS (20 changes,
+  longest stall 1.5s); log shows the LINEAR offer and DmaBuf buffers.
+  1t1's acceptance criterion met on this machine.
+- `AURORA_PW_DMABUF=0` + trace: no DMA-BUF offer, `modifier=none`, memfd
+  only; window PASS, kiosk stuck 30s (memfd freeze) with stall warning and
+  recovery. Kill switch verified.
+- huenicorn-fork not mirrored: it is curated per upstream MR (h45), so the
+  fix there is a new MR, not a copy. Scope decision with the owner.
+
 ## Resume
 
-1. Phase 3: make DMA-BUF the default with an opt-out kill switch (e.g.
-   `AURORA_PW_DMABUF=0`); acceptance on the default build with no env; check
-   the kill switch gives `dataType=2`; mirror into huenicorn-fork. Then
-   close 1t1 and rewrite its fullscreen lesson's workaround.
+1. huenicorn-fork: owner decides between an h45 child bead (separate MR)
+   and porting under 1t1. Then close 1t1.
 2. Aurora-mvq1: tiled-only GPUs, AMD, KDE, wlroots, gamescope, soak.
+   Gamescope's direct node now also gets the DMA-BUF offer, untested.
 3. 2ucb: why the first run's `window` phase was fullscreen is unknown;
    the runner worked as a control in every run since.
 
-7 lessons: a control phase only counts if observed; `pkill -f` matches its
+8 lessons: a control phase only counts if observed; `pkill -f` matches its
 own shell; SSE frames arriving does not mean capture is fresh; a change to
 the pipeline under test can fail a harness before the test runs; memfd vs
 LINEAR DMA-BUF under GNOME fullscreen (one machine); falling back from
 DMA-BUF mid-stream is a param update; a test binary run directly is not
-the same run as ctest.
+the same run as ctest; a fork kept for upstream MRs is not a mirror target.
+The fullscreen-freeze entry's workaround now applies only when the stream
+is on memfd.

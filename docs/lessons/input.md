@@ -335,7 +335,7 @@ Applies-when: validating capture with a fullscreen/kiosk window, or debugging "c
 
 Driving solid colors through a Firefox page: maximized, capture tracked every 1.5s change; after F11 it delivered one correct fullscreen frame, then held it ~18s while the page kept alternating, resuming the moment fullscreen exited. Two `--kiosk` launches froze the same way on Firefox's first paint (constant black, then constant near-white) -- which first looked like a broken test page, not a capture problem. Direct scanout was the first suspect and a flag test did not support it; the cause turned out to be the memfd stream getting empty CORRUPTED buffers (see "On GNOME 46 Wayland, a memfd screencast stream got empty CORRUPTED buffers in fullscreen while a LINEAR DMA-BUF stream tracked"). Tracked as `Aurora-1t1`; fullscreen video is the core use case.
 
-**Fix (until 1t1 lands):** validate capture with maximized, not fullscreen/kiosk, windows; when a capture reading is constant across stimuli, suspect the source froze before suspecting the stimulus.
+**Fix:** since 1t1 phase 3 the grabber offers LINEAR DMA-BUF by default and fullscreen tracks on GNOME 46 (one machine verified). The freeze comes back whenever the stream ends up on memfd: `AURORA_PW_DMABUF=0`, or a driver where the DMA-BUF fallback fired (`[pw-dmabuf] ... renegotiating shared memory` in the log). In those cases validate with maximized, not fullscreen/kiosk, windows. A `[pw] capture stalled` line in the log is this freeze's signature. When a capture reading is constant across stimuli, suspect the source froze before suspecting the stimulus.
 
 ---
 
@@ -691,7 +691,7 @@ Observed on one machine (Ubuntu, GNOME 46, 1920x1200 BGRx, `PipewireGrabber` neg
 
 Later, with the productized path (buffers mapped once, checked syncs): window and kiosk both tracked again, and windowed CPU for the app was 68% of a core on DMA-BUF vs 79% on memfd (n=1 each, so noisy; DMA-BUF at least not costlier on this Intel-class machine).
 
-**Fix (experiment, `AURORA_DEV_PW_DMABUF=1`; becoming the default under Aurora-1t1, with a runtime fallback to memfd):** offer LINEAR DMA-BUF first with the plain format as fallback, and treat CORRUPTED/empty chunks as "no new frame". Diagnose with `AURORA_DEV_PW_TRACE=1` before changing negotiation.
+**Fix (default since Aurora-1t1 phase 3; `AURORA_PW_DMABUF=0` forces memfd):** offer LINEAR DMA-BUF first with the plain format as fallback, and treat CORRUPTED/empty chunks as "no new frame". Diagnose with `AURORA_DEV_PW_TRACE=1` before changing negotiation.
 
 
 ---

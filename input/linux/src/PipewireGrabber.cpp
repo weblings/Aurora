@@ -582,7 +582,7 @@ namespace Aurora::Input::Linux
     // DMA-BUFs, so say we accept that buffer type. After a fallback to
     // shared memory, replace that request, or no buffer type would match.
     const bool hasModifier = spa_pod_find_prop(param, NULL, SPA_FORMAT_VIDEO_modifier) != NULL;
-    if(pw->dmabufExperiment && (hasModifier || pw->dmabufBuffersRequested)){
+    if(pw->dmabufEnabled && (hasModifier || pw->dmabufBuffersRequested)){
       const int dataTypes = hasModifier
         ? (1 << SPA_DATA_DmaBuf)
         : (1 << SPA_DATA_MemFd) | (1 << SPA_DATA_MemPtr);
@@ -661,9 +661,9 @@ namespace Aurora::Input::Linux
     // this one, so per-instance pw_init()/pw_deinit() would deinit under it.
     ensurePipewireInitialized();
     pw->trace.enabled = pipewireTraceEnabledFrom(std::getenv("AURORA_DEV_PW_TRACE"));
-    pw->dmabufExperiment = pipewireTraceEnabledFrom(std::getenv("AURORA_DEV_PW_DMABUF"));
+    pw->dmabufEnabled = dmabufEnabledFrom(std::getenv("AURORA_PW_DMABUF"));
     pw->dmabufForceFail = pipewireTraceEnabledFrom(std::getenv("AURORA_DEV_PW_DMABUF_FAIL"));
-    pw->dmabufOffered = pw->dmabufExperiment;
+    pw->dmabufOffered = pw->dmabufEnabled;
     pw_core_events coreEvents = {};
     coreEvents.version = PW_VERSION_CORE_EVENTS;
     coreEvents.info = _onCoreInfoCallback;

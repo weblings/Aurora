@@ -48,8 +48,10 @@ namespace Aurora::Input::Linux
       // Aurora-1t1 diagnostics, active only with AURORA_DEV_PW_TRACE set.
       PipewireTrace trace;
       spa_source* traceTimer{nullptr};
-      // Aurora-1t1 experiment, active only with AURORA_DEV_PW_DMABUF set.
-      bool dmabufExperiment{false};
+      // Offer LINEAR DMA-BUF first (Aurora-1t1: GNOME fullscreen sends a
+      // memfd stream empty buffers). On by default; AURORA_PW_DMABUF=0 is
+      // the kill switch that forces shared memory.
+      bool dmabufEnabled{true};
       // Dev-only (AURORA_DEV_PW_DMABUF_FAIL): fail every DMA-BUF map, to
       // exercise the shared-memory fallback.
       bool dmabufForceFail{false};
