@@ -7,3 +7,4 @@
 #define WM_TRAYICON (WM_APP + 1)
 #define IDM_LAUNCH_UI 201
 #define IDM_STOP 202
+#define IDM_PAUSE 203

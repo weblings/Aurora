@@ -11,6 +11,7 @@
 
 #include <algorithm>
 #include <chrono>
+#include <atomic>
 #include <csignal>
 #include <cstdlib>
 #include <filesystem>
@@ -674,14 +675,32 @@ if(!instanceLock.held()){
   // Aurora-lx4.2: tray presence (SNI) from here until scope exit.
   // Best-effort: with no session bus or watcher there is simply no
   // icon, and the WebUI print above remains the fallback.
+  // Pause/Resume (Aurora-5ipy.16): the tray callback only posts a request;
+  // the tick loop below performs it, because resume takes seconds (Hue
+  // DTLS, portal dialog) and the D-Bus worker must stay responsive. With
+  // no pipeline while paused, blocking the loop here costs nothing.
+  std::atomic<bool> pauseToggleRequested{false};
   Aurora::App::TrayIcon trayIcon(url, webUiBound,
     [&]{ openWebBrowser(url); },
-    []{ g_stopRequested = 1; });
+    []{ g_stopRequested = 1; },
+    [&]{ pauseToggleRequested = true; },
+    [&]{ return pipelineHost.isPaused(); });
+  bool trayShowsPaused = pipelineHost.isPaused();
 
   // Drives whichever Pipeline is current at the top of each iteration -- a
   // reload swapping it mid-loop is exactly what PipelineHost's own lock is
   // for; this loop never needs to know a swap happened.
   while(!g_stopRequested){
+    if(pauseToggleRequested.exchange(false)){
+      std::string error;
+      if(!pipelineHost.setRunning(pipelineHost.isPaused(), registry, configRoot, error)){
+        std::cerr << "Resume failed, staying paused: " << error << "\n";
+      }
+    }
+    if(pipelineHost.isPaused() != trayShowsPaused){
+      trayShowsPaused = pipelineHost.isPaused();
+      trayIcon.refresh();
+    }
     auto tickStart = std::chrono::steady_clock::now();
     pipelineHost.tick();
     auto tickInterval = std::chrono::duration<double>(pipelineHost.tickIntervalSeconds());

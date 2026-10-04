@@ -729,3 +729,13 @@ Applies-when: implementing pause/resume or any "hold" state on PipelineHost
 Checking the paused flag at the top of `PipelineHost::reload` is not enough: `reload()` builds outside the lock, so a `pause()` that lands during the build is undone when the build swaps in (the lights restart under a "paused" label). Two more traps from Aurora-3ddb. `resume()` twice at once would build two pipelines and open two capture-portal dialogs (Aurora-5t2). And `Pipeline::shutdown(false)` ends in Hue's blocking `disableStreaming` HTTP call, so running it under the pipeline lock stalls `tick()` and zone calls. A route that returned `false` for "no pipeline" (zone update, mapped to 404 `unknown_zone`) also gains a second cause once pause exists, and reports it wrongly.
 
 **Fix:** re-check the flag under the lock at the swap and discard (`shutdown(true)`) the stale build; serialize `pause()`/`resume()` on their own mutex taken first; swap the pipeline out under the lock and shut it down outside. Give each route that depends on a live pipeline an explicit paused answer (409) instead of reusing its "not found" path.
+
+---
+
+## A tray label that mirrors app state should be read when the menu opens, not pushed
+Tags: tray, pause, ui-state, cross-platform
+Applies-when: adding a stateful tray item (Pause/Resume, Start/Stop) on more than one platform
+
+State can change behind the tray's back (Dashboard button, `PUT /api/state`), so a label set only on click goes stale. A push needs per-platform plumbing (Linux `LayoutUpdated` signal and a thread-safe `refresh()`); an open-time read needs almost none. Aurora-5ipy.14/.15/.16 all read `isPaused()` at open: Windows builds the popup per `showMenu()`, Mac sets the title in `NSMenuDelegate menuNeedsUpdate:`, Linux returns needUpdate from `AboutToShow`. Linux also pushes, because SNI hosts can keep a menu rendered.
+
+**Fix:** pass the tray an `isPaused` getter (lock-free atomic) and have the open hook read it. The click callback only posts a flag; the tick loop does the multi-second `setRunning`, so no UI or D-Bus thread blocks and there is no extra thread to join at shutdown.

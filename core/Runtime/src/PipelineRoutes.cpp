@@ -116,17 +116,11 @@ namespace Aurora::Runtime
           return;
         }
 
-        if(!running){
-          pipelineHost.pause();
-        }
-        else if(pipelineHost.isPaused()){
-          Config config = ConfigStore(configRoot).load();
-          std::string error;
-          if(!pipelineHost.resume(registry, config, configRoot, error)){
-            res.status = 500;
-            res.body = nlohmann::json{{"succeeded", false}, {"error", error}}.dump();
-            return;
-          }
+        std::string error;
+        if(!pipelineHost.setRunning(running, registry, configRoot, error)){
+          res.status = 500;
+          res.body = nlohmann::json{{"succeeded", false}, {"error", error}}.dump();
+          return;
         }
 
         res.body = nlohmann::json{{"succeeded", true}, {"running", !pipelineHost.isPaused()}}.dump();

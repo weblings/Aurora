@@ -14,6 +14,7 @@
 #include <chrono>
 #include <cstdlib>
 #include <filesystem>
+#include <functional>
 #include <future>
 #include <iostream>
 #include <mutex>
@@ -417,9 +418,15 @@ public:
   // AppKit this needs no change to the tick loop.) The constructor blocks
   // until the thread has finished setup and rethrows its failure, so
   // callers see the same throw-on-window-failure contract as before.
-  explicit TrayIcon(const std::string& url, bool webUiBound)
+  // Aurora-5ipy.15: onTogglePause runs on the tray thread and must only
+  // post the request (resume takes seconds: Hue DTLS); isPaused is read
+  // there each time the menu opens, so lock-free only.
+  TrayIcon(const std::string& url, bool webUiBound,
+           std::function<void()> onTogglePause, std::function<bool()> isPaused)
     : m_url(url),
-      m_webUiBound(webUiBound)
+      m_webUiBound(webUiBound),
+      m_onTogglePause(std::move(onTogglePause)),
+      m_isPaused(std::move(isPaused))
   {
     // Retrieve the future before moving the promise into the thread -- the
     // Aurora-nzd bug class (get_future on a moved-from promise).
@@ -458,6 +465,8 @@ public:
     }
     AppendMenuA(menu, MF_STRING | (m_webUiBound ? MF_ENABLED : MF_GRAYED),
       IDM_LAUNCH_UI, "Launch UI");
+    AppendMenuA(menu, MF_STRING, IDM_PAUSE,
+      (m_isPaused && m_isPaused()) ? "Resume" : "Pause");
     AppendMenuA(menu, MF_STRING, IDM_STOP, "Stop");
     POINT cursor{};
     GetCursorPos(&cursor);
@@ -471,6 +480,9 @@ public:
     PostMessageA(m_window, WM_NULL, 0, 0);
     if(picked == IDM_LAUNCH_UI){
       openWebBrowser(m_url);
+    }
+    else if(picked == IDM_PAUSE){
+      if(m_onTogglePause){ m_onTogglePause(); }
     }
     else if(picked == IDM_STOP){
       g_stopRequested = true;
@@ -572,6 +584,8 @@ private:
   bool m_added{false};
   std::string m_url;
   bool m_webUiBound{false};
+  std::function<void()> m_onTogglePause;
+  std::function<bool()> m_isPaused;
 };
 
 LRESULT CALLBACK trayWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
@@ -825,13 +839,26 @@ if(!instanceLock.held()){
 
   // Aurora-x2o.1: tray presence from here until scope exit (NIM_DELETE
   // in the destructor, including unwinding on exceptions below).
-  TrayIcon trayIcon(url, webUiBound);
+  //
+  // Pause/Resume (Aurora-5ipy.15): the menu callback only sets a flag; the
+  // tick loop below performs it. With no pipeline while paused, blocking
+  // the loop on a resume costs nothing.
+  std::atomic<bool> pauseToggleRequested{false};
+  TrayIcon trayIcon(url, webUiBound,
+    [&]{ pauseToggleRequested = true; },
+    [&]{ return pipelineHost.isPaused(); });
   trayIcon.showFirstRunBalloon(configRoot);
 
   // Drives whichever Pipeline is current at the top of each iteration -- a
   // reload swapping it mid-loop is exactly what PipelineHost's own lock is
   // for; this loop never needs to know a swap happened.
   while(!g_stopRequested){
+    if(pauseToggleRequested.exchange(false)){
+      std::string error;
+      if(!pipelineHost.setRunning(pipelineHost.isPaused(), registry, configRoot, error)){
+        logLine("Resume failed, staying paused: " + error);
+      }
+    }
     auto tickStart = std::chrono::steady_clock::now();
     pipelineHost.tick();
     auto tickInterval = std::chrono::duration<double>(pipelineHost.tickIntervalSeconds());
