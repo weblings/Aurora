@@ -32,6 +32,10 @@ DEFAULT_APP = {
 }.get(sys.platform, REPO / "build/linux-app/bin/Aurora")
 
 
+# Real capture input per platform; "dummy" is the synthetic drifting signal.
+LIVE_INPUT = {"win32": "windows", "darwin": "mac"}.get(sys.platform, "linux")
+
+
 def py():
     return ["py"] if WIN and shutil.which("py") else [sys.executable]
 
@@ -151,9 +155,11 @@ def _start(args, app, env, pids):
     base = f"http://127.0.0.1:{port}"
     http("POST", base + "/api/hue/connection", CONNECTION)
     cfg = {"activeOutputNames": ["hue"], "nuxCompleted": True}
-    cfg["activeInputName"] = "windows" if WIN else "dummy"
-    http("PUT", base + "/api/config", cfg)
-    frame = wait_for(one_frame, "a frame on the relay SSE", 40)
+    cfg["activeInputName"] = args.input if args.input != "live" else LIVE_INPUT
+    # Live capture can block on a permission/portal dialog; allow time to accept it.
+    live = args.input == "live"
+    http("PUT", base + "/api/config", cfg, timeout=120 if live else 3)
+    frame = wait_for(one_frame, "a frame on the relay SSE", 120 if live else 40)
     print(f"UP. WebUI {base}/  viz http://localhost:{args.viz_port}/viz.html")
     print(f"first frame: {frame}")
     print(f"logs: {STATE}")
@@ -186,6 +192,8 @@ if __name__ == "__main__":
     u = sub.add_parser("up")
     u.add_argument("--app")
     u.add_argument("--viz-port", type=int, default=8000)
+    u.add_argument("--input", default="live",
+                   help='"live" (default): this platform\'s real capture; "dummy": synthetic signal')
     sub.add_parser("status")
     sub.add_parser("down")
     a = ap.parse_args()

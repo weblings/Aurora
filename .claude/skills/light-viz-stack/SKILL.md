@@ -16,6 +16,11 @@ py tools/light-viz-relay/devstack.py status
 py tools/light-viz-relay/devstack.py down    # always tear down when done
 ```
 
+By default `up` captures the live screen (`--input live`: `windows` / `mac` /
+`linux`). Use `--input dummy` only when the user asks for the dummy input.
+Live capture may raise a Screen Recording (Mac) or portal (Linux Wayland)
+prompt the user must accept.
+
 `up` starts everything, drops in the 4-zone zone map, sets the fake
 connection and active output over REST, and waits for a frame on the SSE
 (`http://127.0.0.1:18245/events`). It prints the WebUI URL (port 8215+) and
@@ -36,8 +41,8 @@ frames on the SSE endpoint yourself.
    in after the app is up.
 2. Frames did not flow until output was activated: `PUT` (not POST)
    `/api/config` `{"activeOutputNames":["hue"],"nuxCompleted":true}` (plus
-   `"activeInputName":"windows"` on Windows, `"dummy"` on Mac/Linux, where an
-   unset input leaves the pipeline idle by design), after `POST
+   `"activeInputName"`: `windows` / `mac` / `linux` by default, `dummy` only
+   on request; an unset input leaves the pipeline idle by design), after `POST
    /api/hue/connection` with the fake credentials
    (`tools/light-viz-relay/README.md`, "On Windows").
 3. Serve `web/demo/` with a `ThreadingHTTPServer` with
@@ -52,7 +57,8 @@ frames on the SSE endpoint yourself.
 
 - Frames all near-black/dark gray just means a dark screen; put something
   bright on it. `PUT /api/config {"activeInputName":"dummy"}` gives a
-  drifting synthetic signal without depending on the screen.
+  drifting synthetic signal without depending on the screen (same as
+  `up --input dummy`).
 - No frames: check `app.log` in the state dir, then `tools/light-viz-relay/
   README.md` Troubleshooting.
 
@@ -64,8 +70,9 @@ TV_Room.glb serve 200, `down` leaves no listeners on
 8000/8215/18245/18443). Mac differences the script now handles: the config
 root is `$TMPDIR/aurora-fresh` (not `/tmp/aurora-fresh`; the app logs "Config
 root:"), and with no input set no frames flow, so it sets `activeInputName`
-to `dummy` (synthetic signal; Windows uses `windows`, Linux uses `dummy`).
-`dummy` gives the same colour on all 4 zones, so it proves the chain but not
-the zone map; for per-zone colours use `"activeInputName":"mac"` (triggers a
-Screen Recording prompt). `validate.py passthrough` needs its own launch (tap
+to the live input (`windows` / `mac` / `linux`; Mac triggers a Screen
+Recording prompt). The earlier verification runs used `dummy` on Mac/Linux;
+live capture is the default since 2026-10-04; verified on Linux Wayland (`linux` input, per-zone colours). The portal dialog blocks the config PUT until accepted (120s timeout); Mac/Windows not yet re-verified.
+`up --input dummy` gives the same colour on all 4 zones (drifting), so it
+proves the chain but not the zone map. `validate.py passthrough` needs its own launch (tap
 address env), not this stack.

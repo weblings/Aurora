@@ -18,7 +18,9 @@ Distilled from [huenicorn](https://gitlab.com/openjowelsofts/huenicorn)
   `xdg-desktop-portal`'s ScreenCast interface, plus Gamescope's direct
   Pipewire node. Gamescope-node matching and raw-buffer-to-`ImageData`
   conversion are pure, tested helpers; the rest needs a real Wayland session
-  and portal backend — see
+  and portal backend. Verified end to end on Ubuntu GNOME Wayland
+  (PipeWire via the `linux` input, Aurora-gj0.3/gj0.7, re-run 2026-10-04);
+  not verified on KDE, SteamOS/gamescope, or X11 sessions. See
   [`docs/archive/LinuxCaptureAnalysis.md`](../../docs/archive/LinuxCaptureAnalysis.md).
   `PortalTokenTests` drives the real `XdgDesktopPortal` against a fake
   portal on a private `dbus-daemon` (cases SKIP without the binary), pinning
