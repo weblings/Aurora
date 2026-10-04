@@ -5,7 +5,7 @@
 #include <string>
 
 // Mac menu-bar presence (Aurora-qps.2): NSStatusItem + NSMenu (Launch UI /
-// Stop), matching app/linux's TrayIcon and app/windows' Shell_NotifyIcon
+// Pause or Resume / Stop), matching app/linux's TrayIcon and app/windows' Shell_NotifyIcon
 // shape. PIMPL: every AppKit type stays inside TrayIcon.mm (Objective-C++)
 // so this header -- and every C++ TU that includes it -- stays plain C++,
 // the same boundary ScreenCaptureKitGrabber.hpp already established for
@@ -36,12 +36,16 @@ namespace Aurora::App
 class TrayIcon
 {
 public:
-  // onLaunch/onStop run synchronously on whichever thread calls pump() --
-  // always the main thread, since AppKit requires it. Keep them trivial
-  // (openWebBrowser / setting the stop flag), same precedent as
-  // app/linux and app/windows.
+  // onLaunch/onStop/onTogglePause run synchronously on whichever thread
+  // calls pump() -- always the main thread, since AppKit requires it. Keep
+  // them trivial (openWebBrowser / setting a flag), same precedent as
+  // app/linux and app/windows. Pause/Resume takes seconds, so
+  // onTogglePause must only post the request (Aurora-5ipy.14). isPaused is
+  // read on the main thread each time the menu opens (NSMenuDelegate), so
+  // the label is always current: lock-free only.
   TrayIcon(std::string url, bool webUiBound,
-           std::function<void()> onLaunch, std::function<void()> onStop);
+           std::function<void()> onLaunch, std::function<void()> onStop,
+           std::function<void()> onTogglePause, std::function<bool()> isPaused);
   ~TrayIcon();
 
   TrayIcon(const TrayIcon&) = delete;

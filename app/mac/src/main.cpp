@@ -603,9 +603,17 @@ try
   // No LSUIElement yet -- the Dock icon still shows; agent mode is
   // Aurora-qps.3, sequenced separately. See "Tray-parity" in
   // docs/MacSupport.md.
+  //
+  // Pause/Resume (Aurora-5ipy.14): the menu callback only posts a request;
+  // the tick thread below performs it, because resume takes seconds (Hue
+  // DTLS) and the main thread must keep pumping AppKit. With no pipeline
+  // while paused, blocking the tick thread there costs nothing.
+  std::atomic<bool> pauseToggleRequested{false};
   Aurora::App::TrayIcon trayIcon(url, webUiBound,
     [&]{ openWebBrowser(url); },
-    []{ g_stopRequested = true; });
+    []{ g_stopRequested = true; },
+    [&]{ pauseToggleRequested = true; },
+    [&]{ return pipelineHost.isPaused(); });
 
   // Drives whichever Pipeline is current at the top of each iteration -- a
   // reload swapping it mid-loop is exactly what PipelineHost's own lock is
@@ -621,6 +629,12 @@ try
   std::thread tickThread([&]{
     try{
       while(!g_stopRequested){
+        if(pauseToggleRequested.exchange(false)){
+          std::string error;
+          if(!pipelineHost.setRunning(pipelineHost.isPaused(), registry, configRoot, error)){
+            std::cerr << "Resume failed, staying paused: " << error << "\n";
+          }
+        }
         auto tickStart = std::chrono::steady_clock::now();
         pipelineHost.tick();
         auto tickInterval = std::chrono::duration<double>(pipelineHost.tickIntervalSeconds());

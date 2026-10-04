@@ -8,10 +8,11 @@
 // a non-owning pointer back to Impl; TrayIcon's destructor tears the menu
 // down (and with it, any in-flight action dispatch) before Impl itself is
 // destroyed.
-@interface AuroraTrayMenuTarget : NSObject
+@interface AuroraTrayMenuTarget : NSObject <NSMenuDelegate>
 @property (nonatomic, assign) Aurora::App::TrayIcon::Impl* impl;
 - (void)onLaunch:(id)sender;
 - (void)onStop:(id)sender;
+- (void)onTogglePause:(id)sender;
 @end
 
 // Catches LaunchServices' reopen signal (Aurora-qps.7): with no Dock icon
@@ -36,9 +37,12 @@ namespace Aurora::App
     bool webUiBound{false};
     std::function<void()> onLaunch;
     std::function<void()> onStop;
+    std::function<void()> onTogglePause;
+    std::function<bool()> isPaused;
 
     NSStatusItem* statusItem = nil;
     AuroraTrayMenuTarget* target = nil;
+    NSMenuItem* pauseItem = nil;
     AuroraTrayAppDelegate* appDelegate = nil;
   };
 }
@@ -53,6 +57,20 @@ namespace Aurora::App
 - (void)onStop:(id)sender
 {
   if(self.impl && self.impl->onStop){ self.impl->onStop(); }
+}
+
+- (void)onTogglePause:(id)sender
+{
+  if(self.impl && self.impl->onTogglePause){ self.impl->onTogglePause(); }
+}
+
+// Runs on the main thread each time the menu is about to open, so the
+// Pause/Resume label reflects a state change made elsewhere (Dashboard,
+// API) with no push needed.
+- (void)menuNeedsUpdate:(NSMenu*)menu
+{
+  if(!self.impl || !self.impl->pauseItem || !self.impl->isPaused){ return; }
+  self.impl->pauseItem.title = self.impl->isPaused() ? @"Resume" : @"Pause";
 }
 
 @end
@@ -71,13 +89,16 @@ namespace Aurora::App
 {
 
 TrayIcon::TrayIcon(std::string url, bool webUiBound,
-                    std::function<void()> onLaunch, std::function<void()> onStop):
+                    std::function<void()> onLaunch, std::function<void()> onStop,
+                    std::function<void()> onTogglePause, std::function<bool()> isPaused):
 m_impl(std::make_unique<Impl>())
 {
   m_impl->url = std::move(url);
   m_impl->webUiBound = webUiBound;
   m_impl->onLaunch = std::move(onLaunch);
   m_impl->onStop = std::move(onStop);
+  m_impl->onTogglePause = std::move(onTogglePause);
+  m_impl->isPaused = std::move(isPaused);
 
   // First (and, for this tier, only) AppKit consumer in app/mac -- owns the
   // one-time bootstrap. No activation-policy call here: this phase
@@ -130,16 +151,25 @@ m_impl(std::make_unique<Impl>())
   launchItem.enabled = webUiBound;
   [menu addItem:launchItem];
 
+  NSMenuItem* pauseItem = [[NSMenuItem alloc] initWithTitle:
+                              (m_impl->isPaused && m_impl->isPaused()) ? @"Resume" : @"Pause"
+                                                      action:@selector(onTogglePause:)
+                                               keyEquivalent:@""];
+  pauseItem.target = target;
+  [menu addItem:pauseItem];
+
   NSMenuItem* stopItem = [[NSMenuItem alloc] initWithTitle:@"Stop"
                                                       action:@selector(onStop:)
                                                keyEquivalent:@""];
   stopItem.target = target;
   [menu addItem:stopItem];
 
+  menu.delegate = target;
   item.menu = menu;
 
   m_impl->statusItem = item;
   m_impl->target = target;
+  m_impl->pauseItem = pauseItem;
 }
 
 TrayIcon::~TrayIcon()
