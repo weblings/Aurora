@@ -77,15 +77,30 @@ std::string itemLabel(GVariant* layout, gint32 wantId)
 } // namespace
 
 
-TEST_CASE("menu layout has Launch UI and Stop", "[traymenu]")
+TEST_CASE("menu layout has Launch UI, Pause and Stop in order", "[traymenu]")
 {
-  GVariant* layout = TrayIcon::menuLayoutForTest(true);
+  GVariant* layout = TrayIcon::menuLayoutForTest(true, false);
   REQUIRE(itemId(layout) == 0);
   GVariant* children = g_variant_get_child_value(layout, 2);
-  REQUIRE(g_variant_n_children(children) == 2);
+  REQUIRE(g_variant_n_children(children) == 3);
+  const gint32 expectedOrder[3] = {1, 3, 2};
+  for(gsize i = 0; i < 3; ++i){
+    GVariant* child = unboxChild(children, i);
+    CHECK(itemId(child) == expectedOrder[i]);
+    g_variant_unref(child);
+  }
   g_variant_unref(children);
   REQUIRE(itemLabel(layout, 1) == "Launch UI");
+  REQUIRE(itemLabel(layout, 3) == "Pause");
   REQUIRE(itemLabel(layout, 2) == "Stop");
+  g_variant_unref(layout);
+}
+
+TEST_CASE("Pause item flips to Resume while paused and stays enabled", "[traymenu]")
+{
+  GVariant* layout = TrayIcon::menuLayoutForTest(false, true);
+  REQUIRE(itemLabel(layout, 3) == "Resume");
+  REQUIRE(itemFlag(layout, 3, "enabled"));
   g_variant_unref(layout);
 }
 
@@ -96,18 +111,19 @@ TEST_CASE("TrayIcon constructs and destroys without terminating", "[tray]")
   // noexcept destructor -- terminating the process on every shutdown.
   // There is nothing to CHECK: pre-fix, this case aborts the runner.
   {
-    TrayIcon icon("http://127.0.0.1:9/", true, [](){}, [](){});
+    TrayIcon icon("http://127.0.0.1:9/", true, [](){}, [](){}, [](){}, []{ return false; });
+    icon.refresh();
   }
   SUCCEED();
 }
 
 TEST_CASE("Launch UI enabled tracks WebUI bound state", "[traymenu]")
 {
-  GVariant* bound = TrayIcon::menuLayoutForTest(true);
+  GVariant* bound = TrayIcon::menuLayoutForTest(true, false);
   REQUIRE(itemFlag(bound, 1, "enabled"));
   REQUIRE(itemFlag(bound, 2, "enabled"));
   g_variant_unref(bound);
-  GVariant* unbound = TrayIcon::menuLayoutForTest(false);
+  GVariant* unbound = TrayIcon::menuLayoutForTest(false, false);
   REQUIRE(!itemFlag(unbound, 1, "enabled"));
   REQUIRE(itemFlag(unbound, 2, "enabled"));
   g_variant_unref(unbound);
