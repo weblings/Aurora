@@ -704,3 +704,13 @@ first. Never ship "disable leak detection" as guidance for a leak you have not
 traced; a muted detector also hides real leaks (the fake's two ref-count
 leaks surfaced only because it stayed on).
 
+
+---
+
+## Signalling a wrapper's pid tests the wrapper, not the app, and `kill -9` of it leaks the child
+Tags: debugging, signals, shell, verification
+Applies-when: checking clean shutdown of an app started through `dbus-run-session`, `env`, `timeout` or a subshell
+
+The no-watcher tray check (Aurora-lx4.2) launched `dbus-run-session -- Aurora` and sent `SIGINT` to `$!`, which is the wrapper. Aurora never saw it, the check reported a hang, and the follow-up `kill -9` of the wrapper left Aurora running as an orphan. The "bug" was the harness; Aurora exited cleanly once signalled directly.
+
+**Fix:** find the real pid (`pgrep -f` on the binary) before signalling, or use `exec` so the app replaces the wrapper. After any forced kill, `pgrep -af <binary>` for strays before the next run.

@@ -1,8 +1,8 @@
-# Aurora-5ipy.16: Linux SNI tray Pause/Resume (done, close waits on lx4.2)
+# Aurora-5ipy.16: Linux SNI tray Pause/Resume (closed)
 
 Id: linux-tray-pause
 
-Done 2026-10-04; bead close is blocked by Aurora-lx4.2 (stale lease), not by this work. Builds on the shared helper (Aurora-5ipy.18); Mac (.14) and Windows (.15) follow the same shape. Aurora-3ddb dependency dropped from .14/.15/.16 (its code and tests were already in tree; only its live checks were open).
+Closed 2026-10-04 together with Aurora-lx4.2 (trayless paths checked on a private bus: no watcher and no bus both run cleanly; Plasma left to a follow-up bead). Builds on the shared helper (Aurora-5ipy.18); Mac (.14) and Windows (.15) follow the same shape. Aurora-3ddb dependency dropped from .14/.15/.16 (its code and tests were already in tree; only its live checks were open).
 
 ## What changed (app/linux)
 
@@ -22,6 +22,13 @@ Done 2026-10-04; bead close is blocked by Aurora-lx4.2 (stale lease), not by thi
 - Wayland resume (portal re-entry, failed-resume wording) and fake-bridge "streaming disabled" were not exercised.
 - Aurora-lx4.2 (SNI icon/menu, lease expired) is still open on its own bead.
 
+## Trayless emulation (lx4.2 matrix)
+
+- Private `dbus-run-session` bus with no watcher: app serves normally, no icon, silent; clean SIGINT exit. Dead `DBUS_SESSION_BUS_ADDRESS`: prints "Tray: no session bus -- running without icon", same result. Stub `xdg-open` kept the browser from opening.
+- First run looked like a hang: SIGINT went to the `dbus-run-session` wrapper, and `kill -9` of it orphaned Aurora (killed by hand after). Harness error, not an app bug.
+- Aurora-lx4.2 and this bead closed together; Plasma left to Aurora-lx4.4.
+
 ## Lessons
 
-- One new entry in language-cpp lessons: driving a dbusmenu tray headlessly with gdbus (`@i`/`@as` typing traps).
+- language-cpp: driving a dbusmenu tray headlessly with gdbus (`@i`/`@as` typing traps), extended with the trayless private-bus recipe.
+- debugging-method: signalling a wrapper pid tests the wrapper and `kill -9` leaks the child.
