@@ -14,6 +14,7 @@ No bead closed; follow-up to the Video-toggle question (Aurora-m2c, open).
   accepted both times. Mac/Windows live default not re-verified.
 - Doc/bead corrections: `input/linux/README.md` no longer says Wayland
   capture is unverified (GNOME Wayland verified; KDE, gamescope, X11 not).
-  Notes added to Aurora-moq and Aurora-3ee (3ee's "Linux not started" is
-  stale, likely closable).
+  Note added to Aurora-moq (real Hue bridge, X11, non-GNOME still pending).
+  Aurora-3ee closed: its "Linux not started" was stale (`app/linux` runs;
+  audio confirmed working by owner, not re-tested here).
 - No new lessons.
