@@ -200,3 +200,13 @@ Applies-when: iterating a `nlohmann::json` returned by a function, or asserting 
 
 **Fix:** bind the json to a named local before iterating. Compare key lists sorted or with an unordered matcher, never by position.
 
+
+---
+
+## A dbusmenu tray can be driven and checked headlessly with gdbus -- but `-1` and `[]` need typing
+Tags: dbus, gdbus, tray, testing, sni
+Applies-when: verifying an SNI/dbusmenu tray item without clicking a real panel
+
+Aurora-5ipy.16's Pause/Resume item was exercised on a live app with no tray host UI: find the bus name (`gdbus call --session --dest org.freedesktop.DBus --object-path /org/freedesktop/DBus --method org.freedesktop.DBus.ListNames`, grep `StatusNotifierItem`), then call `com.canonical.dbusmenu.Event 3 clicked '<0>' 0` on `/Menu` to click an item, `GetLayout` to read labels, and `gdbus monitor --session --dest <name>` to see `LayoutUpdated`. Two traps made `GetLayout` print only gdbus usage text: a bare `-1` is parsed as an option, and `'[]'` has no inferable type.
+
+**Fix:** pass `0 '@i 1' '@as []'` (depth 1 is enough for a flat menu; `@i -1` also works), and filter labels with `grep -o "'label': <'[^']*'>"`. This proves the D-Bus half only; a real host's rendering and click routing still needs one manual pass.
