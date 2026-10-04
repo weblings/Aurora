@@ -5,6 +5,14 @@
       "description": "Video or audio reactive mode"
     },
     {
+      "key": "app.pause",
+      "description": "Play/Pause"
+    },
+    {
+      "key": "app.stop",
+      "description": "Stop and Quit"
+    },
+    {
       "key": "audio.bounceSmoothTime",
       "description": "Bounce reaction speed"
     },
