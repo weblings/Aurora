@@ -668,3 +668,14 @@ ref.
 and `g_variant_unref` it after the call; never `ref` just to pass it on.
 LeakSanitizer pinpoints it (`g_variant_builder_end` as the allocation site).
 
+
+
+---
+
+## SSE frames still arriving does not mean capture is fresh
+Tags: input, linux, pipewire, verification, devstack, light-tap
+Applies-when: judging whether live capture is working from the light-viz relay SSE or `validate.py`
+
+During the Aurora-1t1 kiosk run, the relay delivered about 60 frames/s for 30s while every zone stayed on one red (0.98/0.02/0.02) and the page on screen kept flipping red/blue. The output side keeps publishing whatever frame the grabber last held, so a frozen capture still looks like a healthy, flowing stream. Whether PipeWire stopped calling back or delivered stale buffers is not yet known.
+
+**Fix:** judge capture by content changing, not by frames arriving: show a changing source (`pattern.html`) and run `validate.py color --track`. Frame counts alone only prove the output path.
