@@ -498,6 +498,22 @@ namespace Aurora::Runtime
   }
 
 
+  bool PipelineHost::setRunning(
+    bool running,
+    const Registry& registry,
+    const std::filesystem::path& configRoot,
+    std::string& errorOut
+  )
+  {
+    if(!running){
+      pause();
+      return true;
+    }
+    if(!isPaused()){ return true; }
+    return resume(registry, ConfigStore(configRoot).load(), configRoot, errorOut);
+  }
+
+
   bool PipelineHost::resume(
     const Registry& registry,
     const Config& config,

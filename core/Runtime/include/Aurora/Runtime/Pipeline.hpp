@@ -245,6 +245,18 @@ namespace Aurora::Runtime
       std::string& errorOut
     );
 
+    // The one pause/resume entry point (Aurora-5ipy.18): PUT /api/state and
+    // every tray item call this, so none reimplements resume. Idempotent.
+    // Resume loads config from configRoot and can take seconds (Hue DTLS,
+    // Linux portal dialog): call from a task, never a UI or D-Bus thread.
+    // False with errorOut set only when a resume build fails (stays paused).
+    bool setRunning(
+      bool running,
+      const Registry& registry,
+      const std::filesystem::path& configRoot,
+      std::string& errorOut
+    );
+
     // Lock-free, so the capabilities heartbeat can read it.
     bool isPaused() const { return m_paused.load(); }
 

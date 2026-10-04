@@ -751,6 +751,36 @@ TEST_CASE("PipelineHost::resume failure stays paused and reports the error (Auro
 }
 
 
+TEST_CASE("setRunning pauses and resumes idempotently and reports a failed resume (Aurora-5ipy.18)", "[PipelineHost]")
+{
+  ScopedTempDir dir("set-running");
+  auto events = std::make_shared<Events>();
+  auto registry = makeRegistry(events);
+  ConfigStore(dir.path).save(videoConfig());
+  PipelineHost host(Pipeline::build(registry, videoConfig(), dir.path, {}), {});
+  std::string error;
+
+  for(int i = 0; i < 2; ++i){
+    CHECK(host.setRunning(false, registry, dir.path, error));
+    CHECK(host.isPaused());
+  }
+
+  Config broken;
+  broken.setActiveInputName("nope");
+  ConfigStore(dir.path).save(broken);
+  CHECK_FALSE(host.setRunning(true, registry, dir.path, error));
+  CHECK(error == "Unknown input 'nope'");
+  CHECK(host.isPaused());
+
+  ConfigStore(dir.path).save(videoConfig());
+  for(int i = 0; i < 2; ++i){
+    CHECK(host.setRunning(true, registry, dir.path, error));
+    CHECK_FALSE(host.isPaused());
+  }
+  host.shutdown();
+}
+
+
 TEST_CASE("PUT /api/state pauses and resumes, idempotently (Aurora-3ddb)", "[PipelineRoutes]")
 {
   using namespace Aurora::Network::Http::Server;
