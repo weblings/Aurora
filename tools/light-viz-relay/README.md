@@ -167,6 +167,20 @@ fragmented -- confirmed live against macOS's actual `net.inet.udp.maxdgram`
 (9216 by default, well under IPv4's theoretical max), so keep subsample
 width sane if `frame` reports fewer frames than expected.
 
+## Test pattern page (`pattern.html`)
+
+Gives capture something known to look at (`Aurora-d0hl`, built for `Aurora-1t1`).
+
+- Open it directly in a browser; no server needed.
+- Cycles a solid full-screen color (default red,blue every 1500ms) with a
+  frame counter and a 50ms wall clock, so a stale captured frame shows an old
+  counter even when the color happens to match.
+- Params: `?interval=MS`, `?colors=red,blue,00ff00` (names or hex), `?kiosk`.
+- Click or press `f` to toggle fullscreen (no F11 needed).
+- Fullscreen freeze repro (`Aurora-1t1`): `devstack.py up`, open the page,
+  `python3 validate.py color --expect red` while it shows red, then fullscreen
+  it and watch whether the zones keep following red/blue.
+
 ## Troubleshooting
 
 - viz.html stays dark ("waiting for frames"): isolate relay vs page with
@@ -209,6 +223,8 @@ width sane if `frame` reports fewer frames than expected.
   fan-out, and the `frame` mode's crop/mean/gamma math against hand-
   computed values.
 - `validate.py` -- live-run validation (see above), stdlib only.
+- `pattern.html` -- full-screen color cycle + counter/clock for capture
+  debugging (see above).
 
 ## Keeping in sync
 
