@@ -13,10 +13,12 @@
 #pragma GCC diagnostic ignored "-Wpedantic"
 #pragma GCC diagnostic ignored "-Wmissing-field-initializers"
 #include <pipewire/pipewire.h>
+#include <spa/param/buffers.h>
 #include <spa/param/video/format-utils.h>
 #pragma GCC diagnostic pop
 
 #include <Aurora/Input/Linux/IRestoreTokenStore.hpp>
+#include <Aurora/Input/Linux/PipewireTrace.hpp>
 #include <Aurora/Input/Linux/XdgDesktopPortal.hpp>
 
 namespace Aurora::Input::Linux
@@ -41,6 +43,12 @@ namespace Aurora::Input::Linux
       SafeDoubleBuffer frameDoubleBuffer;
       std::promise<bool> screenDataReadyPromise;
       bool promiseSetAlready{false};
+
+      // Aurora-1t1 diagnostics, active only with AURORA_DEV_PW_TRACE set.
+      PipewireTrace trace;
+      spa_source* traceTimer{nullptr};
+      // Aurora-1t1 experiment, active only with AURORA_DEV_PW_DMABUF set.
+      bool dmabufExperiment{false};
 
       // Gamescope direct-capture support: gamescope exposes its composited
       // output as a plain (non-portal-gated) Pipewire node named "gamescope".
@@ -90,6 +98,11 @@ namespace Aurora::Input::Linux
 
     static void _onStreamProcess(
       void* userdata
+    );
+
+    static void _onTraceTimer(
+      void* userdata,
+      uint64_t expirations
     );
 
     static void _onStreamParamChanged(

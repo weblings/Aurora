@@ -722,7 +722,7 @@ The no-watcher tray check (Aurora-lx4.2) launched `dbus-run-session -- Aurora` a
 Tags: debugging, verification, control, repro, input
 Applies-when: an A/B repro has a "normal" phase meant to pass, especially one driven by a script you can't watch
 
-The first `fullscreen_repro.py` run (Aurora-1t1, 2026-10-04) had a `window` control and a `kiosk` phase. Both stalled for 30s, which read as "capture freezes even windowed". The owner, watching the screen, saw Firefox fullscreen in every phase, so the control never ran. Why it opened fullscreen is not confirmed; the suspect is the profile reused from the kiosk phase.
+The first `fullscreen_repro.py` run (Aurora-1t1, 2026-10-04) had a `window` control and a `kiosk` phase. Both stalled for 30s, which read as "capture freezes even windowed". The owner, watching the screen, saw Firefox fullscreen in every phase, so the control never ran. Why it opened fullscreen is unknown: the first guess (a profile reused from the kiosk phase) was contradicted, since that run's windowed phase came first and a later kiosk-then-window run had a genuinely windowed control.
 
 **Fix:** before reading an A/B result, check each phase was in its intended state (eyes on screen, or a probe the script asserts). Treat "the control failed too" as a reason to check the control first, not as a finding.
 
@@ -735,3 +735,14 @@ Applies-when: killing processes by command-line pattern from a scripted or agent
 `pkill -f "aurora-fullscreen-repro-profile"` ran inside a `bash -c` whose own command line contained that string. It killed its own shell (exit 144) along with Firefox, so the commands after it in the same invocation never ran.
 
 **Fix:** run `pkill -f` as its own command, or use a pattern the shell's command line can't match (`pkill -f "[a]urora-fullscreen..."`). Check `pgrep -af` afterwards.
+
+
+---
+
+## A change to the pipeline under test can fail the harness before the test runs
+Tags: debugging, harness, devstack, verification
+Applies-when: an experiment changes what the app produces (frames, buffers) and the repro script waits for that output before starting its test
+
+The first DMA-BUF run (Aurora-1t1) ended in `devstack up` timing out on "a frame on the relay SSE", before Firefox or the kiosk phase ever started. The grabber now received DMA-BUFs it did not know how to read, skipped every callback, and so produced no frame for the readiness check. The `[pw-trace]` log showed this in seconds; the run itself said only "devstack up failed".
+
+**Fix:** when an experiment changes the output path, read the app log before trusting a harness failure, and make the experiment produce pixels (here: map and sync the dmabuf) before judging it with the harness.

@@ -676,6 +676,17 @@ LeakSanitizer pinpoints it (`g_variant_builder_end` as the allocation site).
 Tags: input, linux, pipewire, verification, devstack, light-tap
 Applies-when: judging whether live capture is working from the light-viz relay SSE or `validate.py`
 
-During the Aurora-1t1 kiosk run, the relay delivered about 60 frames/s for 30s while every zone stayed on one red (0.98/0.02/0.02) and the page on screen kept flipping red/blue. The output side keeps publishing whatever frame the grabber last held, so a frozen capture still looks like a healthy, flowing stream. Whether PipeWire stopped calling back or delivered stale buffers is not yet known.
+During the Aurora-1t1 kiosk run, the relay delivered about 60 frames/s for 30s while every zone stayed on one red (0.98/0.02/0.02) and the page on screen kept flipping red/blue. The output side keeps publishing whatever frame the grabber last held, so a frozen capture still looks like a healthy, flowing stream. With `AURORA_DEV_PW_TRACE=1` the cause in that run was PipeWire still calling back ~25/s with `size=0`, `SPA_CHUNK_FLAG_CORRUPTED` chunks, which `_onStreamProcess` discards before replacing the held frame.
 
-**Fix:** judge capture by content changing, not by frames arriving: show a changing source (`pattern.html`) and run `validate.py color --track`. Frame counts alone only prove the output path.
+**Fix:** judge capture by content changing, not by frames arriving: show a changing source (`pattern.html`) and run `validate.py color --track`. Frame counts alone only prove the output path. To see inside the grabber, run with `AURORA_DEV_PW_TRACE=1` (per-second callbacks, skips by reason, chunk flags).
+
+
+---
+
+## On GNOME 46 Wayland, a memfd screencast stream got empty CORRUPTED buffers in fullscreen while a LINEAR DMA-BUF stream tracked
+Tags: input, linux, pipewire, gnome, mutter, dmabuf, fullscreen
+Applies-when: a PipeWire/portal screen grabber freezes or serves a stale frame while a window is fullscreen on GNOME Wayland
+
+Observed on one machine (Ubuntu, GNOME 46, 1920x1200 BGRx, `PipewireGrabber` negotiating no modifier): in kiosk fullscreen the stream kept calling back ~25/s but every chunk was `size=0` with `SPA_CHUNK_FLAG_CORRUPTED` over `SPA_DATA_MemFd`, and the grabber (which discards such chunks) served its last frame for 30s, 4 of 4 runs. GNOME's own screen recorder captured the same fullscreen page fine. Offering a mandatory LINEAR modifier first, requesting `DmaBuf` buffers and mapping the fd with `DMA_BUF_IOCTL_SYNC` tracked for the full 30s, 2 of 2 runs (windowed also passed). `MUTTER_DEBUG_PAINT=disable-direct-scanout` did not help. Not verified: tiled-only GPUs, other compositors, long soaks, and why GNOME fails the memfd record.
+
+**Fix (experiment, `AURORA_DEV_PW_DMABUF=1`; productizing is Aurora-1t1's remaining work):** offer LINEAR DMA-BUF first with the plain format as fallback, and treat CORRUPTED/empty chunks as "no new frame". Diagnose with `AURORA_DEV_PW_TRACE=1` before changing negotiation.
