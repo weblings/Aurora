@@ -122,6 +122,19 @@
   display: block;
 }
 
+/* Dashboard's Stop/power button (Aurora-5ipy.13): one step lighter than the
+   adjacent Pause button's .btn-secondary, so the two icon buttons don't read
+   as one control. Existing tokens only -- white power glyph stays legible. */
+.top-bar-power-btn {
+  background: var(--aurora-button-dark-hover);
+}
+.top-bar-power-btn:hover:not(:disabled) {
+  background: var(--aurora-button-dark-active);
+}
+.top-bar-power-btn:active:not(:disabled) {
+  background: var(--aurora-button-dark-active);
+}
+
 /* Matches RockyRoad's real .lib-badge (verified against v2/desktop.html)
    exactly, not the pill shape this rule originally guessed at before any
    screen actually used it -- radius 2px/6px padding kept literal rather

@@ -63,6 +63,33 @@ function testRouter(seed) {
   assert.equal(route('GET', audio.audioDevicesUrl).status, 200);
 }
 
+// PUT /api/state (Aurora-5ipy.13): {running: bool} flips the in-memory flag,
+// answered back as {running}; bad bodies 400 like the backend.
+{
+  const store = createShimStore(createMemoryStorage(), {});
+  const route = createRouter(store);
+  assert.equal(route('GET', '/api/state').json.paused, false);
+
+  const paused = route('PUT', '/api/state', JSON.stringify({ running: false }));
+  assert.equal(paused.status, 200);
+  assert.deepEqual(paused.json, { succeeded: true, running: false });
+  assert.equal(route('GET', '/api/state').json.paused, true);
+
+  // Idempotent repeat, then resume.
+  assert.deepEqual(route('PUT', '/api/state', JSON.stringify({ running: false })).json, { succeeded: true, running: false });
+  assert.deepEqual(route('PUT', '/api/state', JSON.stringify({ running: true })).json, { succeeded: true, running: true });
+  assert.equal(route('GET', '/api/state').json.paused, false);
+
+  assert.equal(route('PUT', '/api/state', 'not-json').status, 400);
+  assert.equal(route('PUT', '/api/state', JSON.stringify({})).json.error, 'running_bool_required');
+  assert.equal(route('PUT', '/api/state', JSON.stringify({ running: 'yes' })).status, 400);
+
+  // Seed-only: a fresh store always resumes, pause never persists.
+  const resumed = createShimStore(createMemoryStorage(), {});
+  assert.equal(resumed.isPaused(), false);
+  assert.equal(createRouter(createShimStore(createMemoryStorage(), { paused: true }))('GET', '/api/state').json.paused, true);
+}
+
 // Config GET returns the full live-defaulted set incl. interpolation NAME.
 {
   const r = testRouter({})('GET', '/api/config');
