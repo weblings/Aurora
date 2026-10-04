@@ -81,4 +81,13 @@ assert.ok(dashScreen.includes('onChange: () => this.zoneCanvas?.refreshActive()'
 assert.ok(dashScreen.includes('onActiveChange: () => this._renderBridgeZoneList()'),
   'Zone Mapping flips re-render the Bridge list');
 
+// Pending highlight (Aurora-axoz, mirrors web/ui): the toggle outlines the
+// clicked option while the switch is in flight and fills only once the
+// running flags confirm it. The shim derives state from its config, so a
+// demo switch confirms at once -- no new shim route needed.
+assert.ok(read('CaptureSource.js').includes('isSwitchConfirmed'), 'confirm helper ported');
+assert.ok(dashScreen.includes('pendingMode'), 'dashboard tracks the in-flight switch');
+assert.ok(dashScreen.includes('isSwitchConfirmed'), 'dashboard fills only on pipeline confirm');
+assert.ok(read('styles/forms.css').includes('.segmented-btn.pending'), 'pending outline CSS vendored');
+
 console.log('vendor seam checks passed.');
