@@ -2,8 +2,8 @@
 // the saves both screens send. No DOM -- run with `node CaptureSource.test.mjs`.
 import assert from 'node:assert/strict';
 import {
-  audioDevicesUrlFrom, devicePatch, effectiveFlags, flagsForMode, isIdle, isModeConfigValid,
-  loadPipelineState, modeFromConfig, modeSwitchPatch, runningFlags,
+  audioDevicesUrlFrom, devicePatch, effectiveFlags, flagsForMode, flagsMatchMode, isIdle, isModeConfigValid,
+  isSwitchConfirmed, loadPipelineState, modeFromConfig, modeFromFlags, modeSwitchPatch, runningFlags,
 } from './CaptureSource.js';
 
 const VIDEO = { usesVideoInput: true, usesAudioInput: false, samplesZones: true };
@@ -25,6 +25,39 @@ assert.equal(isModeConfigValid({}, ['linux'], ['a']), false);
 
 assert.deepEqual(flagsForMode('video'), VIDEO);
 assert.deepEqual(flagsForMode('audio'), AUDIO);
+
+// modeFromFlags reads the running flags as a toggle choice.
+assert.equal(modeFromFlags(VIDEO), 'video');
+assert.equal(modeFromFlags(AUDIO), 'audio');
+assert.equal(modeFromFlags(BOTH), 'video');
+assert.equal(modeFromFlags(NONE), 'video');
+
+// flagsMatchMode compares the input pair only: zone sampling follows the
+// effect, so video running without it still matches video.
+assert.equal(flagsMatchMode(VIDEO, 'video'), true);
+assert.equal(flagsMatchMode(AUDIO, 'audio'), true);
+assert.equal(flagsMatchMode(VIDEO, 'audio'), false);
+assert.equal(flagsMatchMode(AUDIO, 'video'), false);
+assert.equal(flagsMatchMode({ usesVideoInput: true, usesAudioInput: false, samplesZones: false }, 'video'), true);
+assert.equal(flagsMatchMode(null, 'video'), false);
+assert.equal(flagsMatchMode(null, 'audio'), false);
+
+// isSwitchConfirmed (Aurora-axoz): fill moves only on succeeded + no
+// reloadError + agreeing /api/state flags.
+assert.equal(isSwitchConfirmed({ succeeded: true }, AUDIO, 'audio'), true);
+assert.equal(isSwitchConfirmed({ succeeded: true }, VIDEO, 'video'), true);
+// Save or reload failure never confirms.
+assert.equal(isSwitchConfirmed({ succeeded: false }, AUDIO, 'audio'), false);
+assert.equal(isSwitchConfirmed({ succeeded: true, reloadError: 'boom' }, AUDIO, 'audio'), false);
+assert.equal(isSwitchConfirmed(null, AUDIO, 'audio'), false);
+// Flags disagreeing means no confirm even with a clean save...
+assert.equal(isSwitchConfirmed({ succeeded: true }, VIDEO, 'audio'), false);
+// ...which is exactly the paused case: reload() succeeds without building,
+// so the pre-pause flags still report the old pipeline.
+assert.equal(isSwitchConfirmed({ succeeded: true }, { paused: true, ...VIDEO }, 'audio'), false);
+assert.equal(isSwitchConfirmed({ succeeded: true }, { paused: true, ...VIDEO }, 'video'), true);
+// Unreachable state never confirms.
+assert.equal(isSwitchConfirmed({ succeeded: true }, null, 'audio'), false);
 
 // runningFlags reads only literal true; junk or missing reads false.
 assert.deepEqual(runningFlags(null), NONE);

@@ -35,7 +35,8 @@ import { DeviceField, AUTO_MONITOR_VALUE } from '../DeviceField.js';
 import { applyTooltip } from '../Tooltips.js';
 import { renderReloadError, parseMacPermissionError } from '../MacPermissionRecovery.js';
 import {
-  audioDevicesUrlFrom, flagsForMode, isModeConfigValid, loadPipelineState, modeFromConfig, modeSwitchPatch,
+  audioDevicesUrlFrom, effectiveFlags, flagsForMode, isModeConfigValid, isSwitchConfirmed, loadPipelineState,
+  modeFromFlags, modeSwitchPatch,
 } from '../CaptureSource.js';
 
 export { pickVideoInputName, pickAudioInputName } from '../CaptureSource.js';
@@ -57,6 +58,7 @@ export class ModeDeviceScreen {
     this.sinkName = '';
     this.audioDevicesUrl = null;
     this.platform = '';
+    this.pendingMode = null; // toggle choice with a switch in flight: outlined, not filled
     this.error = null;
     this.deviceField = null;
     this.applyPromise = null; // latest _applyMode run, if any -- Continue awaits it (see _onContinue)
@@ -99,7 +101,10 @@ export class ModeDeviceScreen {
 
     this.currentActiveInputName = config.activeInputName ?? '';
     this.currentActiveAudioInputName = config.activeAudioInputName ?? '';
-    this.mode = modeFromConfig(config);
+    // Fill follows the running pipeline, never the saved config: after a
+    // failed or paused switch config holds the new mode while the old
+    // pipeline still runs.
+    this.mode = modeFromFlags(effectiveFlags(state, config));
     this.selectedMonitorName = config.activeMonitorName || AUTO_MONITOR_VALUE;
     this.sinkName = config.audioTargetSinkName || '';
 
@@ -133,14 +138,18 @@ export class ModeDeviceScreen {
     this.deviceField?.destroy();
     this.deviceField = null;
 
+    // Fill follows the running pipeline (this.mode); the device section
+    // follows the user's choice, including a pending one still in flight.
+    const choice = this.pendingMode ?? this.mode;
+    const disabled = this.pendingMode ? ' disabled' : '';
     const toggleHtml = this.hasAudio ? `
       <div class="segmented" role="group" aria-label="Capture mode">
-        <button type="button" class="segmented-btn${this.mode === 'video' ? ' active' : ''}" id="md-mode-video">Video</button>
-        <button type="button" class="segmented-btn${this.mode === 'audio' ? ' active' : ''}" id="md-mode-audio">Audio</button>
+        <button type="button" class="${this._toggleClasses('video')}" id="md-mode-video"${disabled}>Video</button>
+        <button type="button" class="${this._toggleClasses('audio')}" id="md-mode-audio"${disabled}>Audio</button>
       </div>
     ` : '';
 
-    const flags = flagsForMode(this.mode);
+    const flags = flagsForMode(choice);
 
     // Zone Mapping is skipped when nothing samples zones (probeState() in
     // app.js checks samplesZones) -- this just explains why, since
@@ -208,17 +217,33 @@ export class ModeDeviceScreen {
     this.onComplete();
   }
 
+  _toggleClasses(mode) {
+    const classes = ['segmented-btn'];
+    if (this.mode === mode) classes.push('active');
+    if (this.pendingMode === mode) classes.push('pending');
+    return classes.join(' ');
+  }
+
   async _switchMode(mode) {
-    if (mode === this.mode) return;
-    this.mode = mode;
+    if (this.pendingMode || mode === this.mode) return;
+    // Outline the choice at once; the fill moves only once the running
+    // pipeline confirms it in _doApplyMode.
+    this.pendingMode = mode;
     this._render();
     await this._applyMode();
   }
 
   // Device field edits (monitor pick, sink name) apply live immediately,
-  // same convention DashboardScreen's own copy of this component uses.
+  // same convention DashboardScreen's own copy of this component uses. A
+  // mode switch in flight owns the PUT path, so wait it out first rather
+  // than racing it with a second save.
   async _onDeviceFieldChange(patch) {
     Object.assign(this, patch);
+    try {
+      await this.applyPromise;
+    } catch {
+      // A rejected apply already surfaces inline via this.error.
+    }
     await this._applyMode();
   }
 
@@ -235,7 +260,8 @@ export class ModeDeviceScreen {
   async _doApplyMode() {
     this.error = null;
 
-    const patch = modeSwitchPatch(this.mode, this);
+    const applying = this.pendingMode ?? this.mode;
+    const patch = modeSwitchPatch(applying, this);
 
     try {
       const result = await (await fetch('/api/config', {
@@ -254,19 +280,29 @@ export class ModeDeviceScreen {
           ? result.reloadError
           : `Saved, but couldn't apply it live: ${result.reloadError}`;
       } else {
-        // An audio switch clears activeInputName but keeps the remembered
-        // video input, so switching back picks the same one.
-        if (patch.activeInputName) this.currentActiveInputName = patch.activeInputName;
-        if (patch.activeAudioInputName) this.currentActiveAudioInputName = patch.activeAudioInputName;
-        if (flagsForMode(this.mode).usesVideoInput) {
-          // Now resolvable within this same screen visit, since the mode just
-          // applied live instead of waiting for Continue -- refetch so a real
-          // monitor list can replace the "Auto (primary)" placeholder.
-          try {
-            const monitorsResult = await (await fetch('/api/monitors')).json();
-            this.monitors = monitorsResult.monitors ?? [];
-          } catch {
-            this.monitors = [];
+        // The fill moves only when the running pipeline agrees: succeeded
+        // with no reloadError still means "saved, applies on resume" while
+        // paused (Pipeline.cpp), not "running". A paused or otherwise
+        // unconfirmed switch stays silent -- the saved mode applies later,
+        // so there is no failure to report.
+        const stateAfter = await loadPipelineState();
+        if (stateAfter) this.audioDevicesUrl = audioDevicesUrlFrom(stateAfter);
+        if (isSwitchConfirmed(result, stateAfter, applying)) {
+          this.mode = applying;
+          // An audio switch clears activeInputName but keeps the remembered
+          // video input, so switching back picks the same one.
+          if (patch.activeInputName) this.currentActiveInputName = patch.activeInputName;
+          if (patch.activeAudioInputName) this.currentActiveAudioInputName = patch.activeAudioInputName;
+          if (flagsForMode(this.mode).usesVideoInput) {
+            // Now resolvable within this same screen visit, since the mode just
+            // applied live instead of waiting for Continue -- refetch so a real
+            // monitor list can replace the "Auto (primary)" placeholder.
+            try {
+              const monitorsResult = await (await fetch('/api/monitors')).json();
+              this.monitors = monitorsResult.monitors ?? [];
+            } catch {
+              this.monitors = [];
+            }
           }
         }
       }
@@ -274,6 +310,7 @@ export class ModeDeviceScreen {
       this.error = "Couldn't reach the daemon.";
     }
 
+    this.pendingMode = null;
     this._render();
   }
 }

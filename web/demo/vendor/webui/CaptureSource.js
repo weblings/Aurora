@@ -54,6 +54,35 @@ export function runningFlags(state) {
   };
 }
 
+// The toggle choice the running flags read as. Audio only when an audio
+// input runs without video; both-true (a later mixed effect) and idle both
+// read as video, matching modeFromConfig's rule.
+export function modeFromFlags(flags) {
+  return (flags.usesAudioInput && !flags.usesVideoInput) ? 'audio' : 'video';
+}
+
+// Whether the running pipeline's inputs match a Video/Audio choice. Only
+// the input pair is compared: zone sampling follows the effect, so a video
+// pipeline that doesn't sample zones still confirms video.
+export function flagsMatchMode(state, mode) {
+  const running = runningFlags(state);
+  const want = flagsForMode(mode);
+  return running.usesVideoInput === want.usesVideoInput
+    && running.usesAudioInput === want.usesAudioInput;
+}
+
+// Whether a switch to `mode` is confirmed: the save landed, the reload
+// reported no error, AND the running pipeline's flags agree with the
+// choice. The flag check covers reload() returning success while paused
+// without building (Pipeline.cpp): succeeded + no reloadError is not
+// "running". A later health signal (Aurora-5ipy.2) upgrades this from
+// "the right pipeline runs" to "lights actually react".
+export function isSwitchConfirmed(putResult, stateAfter, mode) {
+  return putResult?.succeeded === true
+    && !putResult?.reloadError
+    && flagsMatchMode(stateAfter, mode);
+}
+
 export function isIdle(flags) {
   return !flags.usesVideoInput && !flags.usesAudioInput && !flags.samplesZones;
 }
