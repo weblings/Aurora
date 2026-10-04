@@ -1,6 +1,7 @@
-# Fullscreen capture freeze: repro tooling, live repro, DMA-BUF lead
+# Fullscreen capture freeze: repro tooling, live repro, DMA-BUF fix
 
-Aurora-1t1 paused (open). Closed: Aurora-d0hl, Aurora-evyk. Open: Aurora-2ucb.
+Aurora-1t1 paused (open) after rollout phase 2 of 3. Closed: Aurora-d0hl,
+Aurora-evyk. Open: Aurora-2ucb, Aurora-mvq1 (other hardware, phase 4).
 
 ## Built
 
@@ -60,8 +61,9 @@ Aurora-1t1 paused (open). Closed: Aurora-d0hl, Aurora-evyk. Open: Aurora-2ucb.
   SPA_META_Header (seq/pts -1), no damage meta, no modifier offered.
 - Not verified: why mutter can't record into our memfd buffer. No mutter
   error in the user journal. The direct-scanout flag was off for this run.
-- Tests: 5 new `PipewireTrace` cases pass; 2 `PortalTokenTests` cases fail
-  on the baseline too (unrelated).
+- Tests: 5 new `PipewireTrace` cases pass. The 2 `PortalTokenTests` cases
+  first logged here as baseline failures are not failures: they are
+  `[isolated]` (one process per case) and pass via ctest or alone.
 
 ## DMA-BUF experiment (AURORA_DEV_PW_DMABUF=1)
 
@@ -89,16 +91,46 @@ Aurora-1t1 paused (open). Closed: Aurora-d0hl, Aurora-evyk. Open: Aurora-2ucb.
 - No documented client-side fix (damage or framerate hints) found.
 - Ubuntu bug 2037121 is a display freeze, not screencast: not relevant.
 
+## Rollout plan and phases 1-2
+
+- Plan (owner-approved): phases 1-3 in 1t1 (safe fallback; live proof;
+  flip default to an opt-out kill switch), phase 4 (other GPUs and
+  compositors) split to Aurora-mvq1, not blocking 1.0.3.
+- Phase 1 code, still behind `AURORA_DEV_PW_DMABUF`: `PipewireDmabuf.hpp`
+  (pure: `frameFitsBuffer`, `DmabufReadFallback`, `StaleFrameWatch`, 6 test
+  cases); dmabufs mapped once in `add_buffer`/`remove_buffer`;
+  `DMA_BUF_IOCTL_SYNC` checked and retried on EINTR/EAGAIN; 3 failed reads
+  in a row -> loop event -> `pw_stream_update_params` without the modifier
+  offer, and the DmaBuf-only Buffers param replaced with MemFd|MemPtr;
+  `AURORA_DEV_PW_DMABUF_FAIL=1` fails every map. Default path: same format
+  offer, plus a one-shot `[pw] capture stalled` warning after 3s of
+  pixel-less buffers (log only, `isHealthy()` untouched).
+- Fallback run (DMABUF + FAIL, window then kiosk): log shows modifier
+  negotiated, 3 map failures, renegotiation, `modifier=none`, then memfd
+  only. Window PASS (20 changes); kiosk stuck 30s as memfd always is, with
+  the stall warning firing on `chunkFlags=0x1` and "recovered" after.
+- Acceptance run (DMABUF, window then kiosk): both PASS (20 changes,
+  longest stall 1.5s), DMA-BUF throughout, no read failures or stalls.
+- CPU (pidstat, app, 30x1s, windowed, fresh stack each): memfd 79% of a
+  core, DMA-BUF 68% (n=1 each).
+- Owner confirmed every `window` phase was windowed and every `kiosk` phase
+  fullscreen.
+- Not covered: GNOME accepting the modifier then failing allocation (stream
+  error; needs a reconnect, left out).
+
 ## Resume
 
-1. Productize: DMA-BUF-first with memfd fallback (exercise the fallback by
-   forcing the modifier offer to fail); treat CORRUPTED/empty chunks as "no
-   new frame" and surface staleness. Then the acceptance run (30s fullscreen).
-2. Other hardware/compositors: tiled-only GPUs, KDE, gamescope, X11 grabber.
+1. Phase 3: make DMA-BUF the default with an opt-out kill switch (e.g.
+   `AURORA_PW_DMABUF=0`); acceptance on the default build with no env; check
+   the kill switch gives `dataType=2`; mirror into huenicorn-fork. Then
+   close 1t1 and rewrite its fullscreen lesson's workaround.
+2. Aurora-mvq1: tiled-only GPUs, AMD, KDE, wlroots, gamescope, soak.
 3. 2ucb: why the first run's `window` phase was fullscreen is unknown;
-   the runner worked as a control later. Re-check on repeat before changing it.
+   the runner worked as a control in every run since.
 
-5 lessons: a control phase only counts if observed; `pkill -f` matches its
+7 lessons: a control phase only counts if observed; `pkill -f` matches its
 own shell; SSE frames arriving does not mean capture is fresh; a change to
 the pipeline under test can fail a harness before the test runs; memfd vs
-LINEAR DMA-BUF under GNOME fullscreen (one machine).
+LINEAR DMA-BUF under GNOME fullscreen (one machine); falling back from
+DMA-BUF mid-stream is a param update; a test binary run directly is not
+the same run as ctest.
