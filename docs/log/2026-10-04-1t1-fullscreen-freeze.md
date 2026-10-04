@@ -24,23 +24,29 @@ Aurora-1t1 paused (open). Closed: Aurora-d0hl, Aurora-evyk. Open: Aurora-2ucb.
   dead SSE/tap.
 - Still unseparated: no PipeWire callbacks vs stale buffers.
 
-## Unverified lead (research only)
+## Direct-scanout / DMA-BUF lead: tested, not supported
 
-- Mutter records direct-scanout frames for screencast only on DMA-BUF
-  streams (2022 "Immediately record scanout" commit; gnome-46
-  `before_stage_painted` returns early if `!uses_dma_bufs`).
-- `input/linux/src/PipewireGrabber.cpp` offers no modifier and no Buffers
-  dataType, so it gets memfd. Same code in huenicorn-fork.
-- Fits outside reports: GNOME recorder and OBS (DMA-BUF) don't freeze;
-  RustDesk #16313, mutter #3074/#3903, OBS #5070 do. Sources are in the 1t1 notes.
+- Research suggested mutter records direct-scanout frames for screencast
+  only on DMA-BUF streams (2022 "Immediately record scanout" commit;
+  gnome-46 `before_stage_painted` returns early if `!uses_dma_bufs`), and
+  `input/linux/src/PipewireGrabber.cpp` offers no modifier or Buffers
+  dataType (so memfd). Same code in huenicorn-fork. Sources are in the 1t1 notes.
+- Test: `MUTTER_DEBUG_PAINT=disable-direct-scanout` via
+  `~/.config/environment.d/`, re-login, flag confirmed in gnome-shell's
+  `/proc/<pid>/environ`. Kiosk run still stuck: 1782 frames, 0 changes, 30s;
+  owner saw Firefox fullscreen and flipping.
+- So direct scanout alone does not explain the freeze. DMA-BUF is not ruled
+  out as a factor, but nothing supports it now; do not build it on this basis.
+- Env file removed after the test.
 
 ## Resume
 
-1. Confirm: `MUTTER_DEBUG_PAINT=disable-direct-scanout` in
-   `~/.config/environment.d/`, re-login,
-   `fullscreen_repro.py --phases kiosk`. A pass confirms direct scanout.
-2. Fix: negotiate DMA-BUF (LINEAR modifier, CPU map with
-   `DMA_BUF_IOCTL_SYNC`), keep memfd fallback; cf. hyperion.ng PR #2033.
+1. Instrument `PipewireGrabber` (debug flag, no behavior change): process
+   callbacks/sec, buffer type, format/modifier, `param_changed` events.
+   Splits no-callbacks vs callbacks-with-stale-content vs renegotiation.
+   Needs a `linux-app` rebuild.
+2. Then pick a fix from the result (bead candidates: damage/framerate hints,
+   renegotiate on `param_changed`, staleness watchdog).
 3. 2ucb: fresh profile per phase so `window` is a real control.
 
 3 lessons: a control phase only counts if observed; `pkill -f` matches its
