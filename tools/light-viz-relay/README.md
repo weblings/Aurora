@@ -229,6 +229,11 @@ Gives capture something known to look at (`Aurora-d0hl`, built for `Aurora-1t1`)
 - `validate.py` -- live-run validation (see above), stdlib only.
 - `pattern.html` -- full-screen color cycle + counter/clock for capture
   debugging (see above).
+- `fullscreen_repro.py` -- `Aurora-1t1` runner: brings the devstack up if
+  needed, then runs `pattern.html` in Firefox windowed and `--kiosk`, judging
+  each with `validate.py color --track`. Prints per-phase PASS/FAIL and the
+  longest stall; exits 1 on any stall. Tears down only what it started.
+  First live run may need a click on GNOME's screen-share prompt.
 
 ## Keeping in sync
 
