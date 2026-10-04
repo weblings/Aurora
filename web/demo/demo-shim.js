@@ -97,6 +97,9 @@ export function createShimStore(storage = createMemoryStorage(), seed = {}) {
       entertainmentConfigurationId: 'demo-config-1',
       ...(seed.connection ?? {}),
     },
+    // Pause is in-memory only (Aurora-3ddb): a relaunch always resumes, so
+    // this never touches storage -- seed-only, like the backend's own flag.
+    paused: seed.paused === true,
   };
 
   const persist = () => {
@@ -123,6 +126,10 @@ export function createShimStore(storage = createMemoryStorage(), seed = {}) {
       persist();
       return applied;
     },
+    // Pause flag (Aurora-5ipy.13): mirrors PUT /api/state's in-memory
+    // semantics -- answered through GET /api/state, never persisted.
+    isPaused: () => state.paused,
+    setPaused: (paused) => { state.paused = paused === true; },
     getZones: () => ({ outputName: 'hue', zones: state.zones.map((z) => ({ ...z })) }),
     // Identity-preserving reseed: the scene holds liveZones() across calls,
     // so the array object must survive reseeds (entries are still copied).
@@ -208,18 +215,34 @@ export function createRouter(store, hooks = {}) {
     }
     // GET /api/state (Aurora-kea) -- the demo "runs" whatever its config
     // names, by Pipeline::build's rule (audio only with no video input), so
-    // a mode switch reads back at once. Never paused. The audio device list
-    // is the sink route below, as on Linux.
+    // a mode switch reads back at once. Paused flips only through
+    // PUT /api/state (Aurora-5ipy.13). The audio device list is the sink
+    // route below, as on Linux.
     if (method === 'GET' && path === '/api/state') {
       const config = store.getConfig();
       const audio = !config.activeInputName && !!config.activeAudioInputName;
       return ok({
-        paused: false,
+        paused: store.isPaused(),
         usesVideoInput: !audio,
         usesAudioInput: audio,
         samplesZones: !audio,
         audioDevicesUrl: '/api/linux/audio-sinks',
       });
+    }
+    // PUT /api/state (Aurora-5ipy.13) -- mirrors the backend's shape:
+    // {running: bool} flips the in-memory flag, answered back as {running}.
+    if (method === 'PUT' && path === '/api/state') {
+      let body;
+      try {
+        body = rawBody ? JSON.parse(rawBody) : {};
+      } catch {
+        return ok({ succeeded: false, error: 'invalid_json_body' }, 400);
+      }
+      if (typeof body.running !== 'boolean') {
+        return ok({ succeeded: false, error: 'running_bool_required' }, 400);
+      }
+      store.setPaused(!body.running);
+      return ok({ succeeded: true, running: body.running });
     }
     if (method === 'GET' && path === '/api/monitors') {
       return ok({ monitors: DEMO_MONITORS.map((m) => ({ ...m })) });

@@ -65,6 +65,8 @@ export class DashboardScreen {
     this.topTierError = null;
     this.stopPhase = null; // null | 'confirm' | 'stopped' | 'error'
     this.stopError = null;
+    this.paused = false; // from GET /api/state (Aurora-5ipy.13), falls back to capabilities
+    this.pauseBusy = false; // a PUT /api/state is in flight: pause button disabled, not hidden
     this.heartbeatTimer = null;
     this.audioStatusTimer = null;
     this.audioPermissionLikelyDenied = false;
@@ -137,12 +139,8 @@ export class DashboardScreen {
     this.platform = capabilities.platform ?? '';
     this.hasAudio = this.audioInputs.length > 0;
 
-    renderTopBar(this.container.querySelector('.top-bar-slot'), {
-      title: 'Aurora',
-      logo: { src: 'icons/aurora-logo.png', alt: 'Aurora' },
-      showBack: false,
-      trailingButton: { label: 'Stop', icon: 'icons/power-svgrepo-com.svg', onClick: () => this._openStopConfirm() },
-    });
+    this.paused = capabilities.paused === true;
+    this._renderTopBar();
 
     // Version footer (Aurora-qdk): secondary-color text at the page bottom
     // (see .db-version in dashboard.css). A failed probe leaves the slot
@@ -181,6 +179,10 @@ export class DashboardScreen {
 
     const state = await loadPipelineState();
     this.pipelineState = state;
+    // GET /api/state is the fresher paused word than capabilities (both
+    // carry it); fall back only when the state probe missed entirely.
+    if (state && typeof state.paused === 'boolean') this.paused = state.paused;
+    this._renderTopBar();
     this.flags = effectiveFlags(state, config);
     // The toggle's fill follows the running pipeline, never the saved
     // config: after a failed switch config holds the failed mode.
@@ -560,6 +562,65 @@ export class DashboardScreen {
     }
     this.pendingMode = null;
     this._renderControls();
+  }
+
+  // Top bar with the Pause/Resume + Stop pair (Aurora-5ipy.13). Pause sits
+  // next to power; icons are RockyRoad's play/pause glyphs (white fills for
+  // the dark buttons), and Stop keeps the power glyph on a lighter grey so
+  // the two adjacent icon buttons don't read as one control. Tooltips land
+  // on the buttons themselves (not the inner icons), where the hover does.
+  _renderTopBar() {
+    const slot = this.container.querySelector('.top-bar-slot');
+    renderTopBar(slot, {
+      title: 'Aurora',
+      logo: { src: 'icons/aurora-logo.png', alt: 'Aurora' },
+      showBack: false,
+      trailingButtons: [
+        {
+          id: 'top-bar-pause-btn',
+          label: this.paused ? 'Resume' : 'Pause',
+          icon: this.paused ? 'icons/play-rockyroad.svg' : 'icons/pause-rockyroad.svg',
+          onClick: () => this._togglePause(),
+          disabled: this.pauseBusy,
+        },
+        {
+          id: 'top-bar-stop-btn',
+          label: 'Stop',
+          icon: 'icons/power-svgrepo-com.svg',
+          onClick: () => this._openStopConfirm(),
+          buttonClass: 'btn btn-icon top-bar-power-btn',
+        },
+      ],
+    });
+    applyTooltip(slot.querySelector('#top-bar-pause-btn'), 'app.pause');
+    applyTooltip(slot.querySelector('#top-bar-stop-btn'), 'app.stop');
+  }
+
+  // Pause tears the pipeline down but leaves the daemon up (Aurora-3ddb);
+  // resume rebuilds from disk. Reloads everything after the PUT so sections
+  // follow the running pipeline, same as a mode switch.
+  async _togglePause() {
+    if (this.pauseBusy) return;
+    this.pauseBusy = true;
+    this._renderTopBar();
+    try {
+      const result = await (await fetch('/api/state', {
+        method: 'PUT',
+        body: JSON.stringify({ running: this.paused }),
+      })).json();
+      if (!result || result.succeeded !== true) {
+        this.topTierError = this.paused ? "Couldn't resume Aurora." : "Couldn't pause Aurora.";
+        this._renderTopTier();
+        return;
+      }
+      await this._loadAll();
+    } catch {
+      this.topTierError = "Couldn't reach the daemon.";
+      this._renderTopTier();
+    } finally {
+      this.pauseBusy = false;
+      this._renderTopBar();
+    }
   }
 
   // Ported close to verbatim from huenicorn's own real WebUI.js:

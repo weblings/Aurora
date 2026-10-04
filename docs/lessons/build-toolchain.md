@@ -712,3 +712,13 @@ Applies-when: a macOS shell one-liner prints section dividers like `echo =====X`
 macOS's default shell is zsh. An unquoted word beginning with `=` is expanded to the full path of the named command (`=ls` becomes `/bin/ls`); if no such command exists, zsh stops the whole line with "<word> not found". A divider like `echo =======LOG` in a diagnostic one-liner therefore killed the command before the real work ran (Aurora-2dz). Linux bash doesn't do this, so a snippet that works on the Linux box can fail on the Mac.
 
 **Fix:** quote dividers (`echo '======= LOG'`), or use `---` / `printf`. Run the line again; nothing had run.
+
+---
+
+## A codegen script's docstring can promise more than its regex parses: verify regen output before keeping it
+Tags: build, codegen, regex, descriptors, webui
+Applies-when: re-running a checked-in generator (`gen-descriptors.py`, or any regex-over-sources script) whose output is also checked in
+
+`web/demo/vendor/webui/gen-descriptors.py` says to re-run it on any tooltip-copy change, and its `ENTRY_RE` only matches the `{"key", "type", "desc"}` literal form — not the `slider(...)`/`button(...)` helper forms most tables actually use. A trial regen while adding `app.pause`/`app.stop` (Aurora-5ipy.13.1) wrote 17 entries over the committed 27, silently deleting 12 shipped tooltips; nothing in the script warns. Reverted and hand-added the two keys instead (Aurora-ncdd tracks the real fix).
+
+**Fix:** after any generator re-run, `git diff --stat` the output before keeping it — a pure-addition diff is the expectation for an additive change. Until Aurora-ncdd lands, extend `descriptors.json` by hand in sorted order.
