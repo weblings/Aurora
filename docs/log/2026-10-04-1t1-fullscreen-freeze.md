@@ -1,8 +1,9 @@
 # Fullscreen capture freeze: repro tooling, live repro, DMA-BUF fix
 
-Aurora-1t1 paused (open) after rollout phase 3 of 3: fix is default and
-acceptance met on this machine; huenicorn-fork scope and closeout pending. Closed: Aurora-d0hl,
-Aurora-evyk. Open: Aurora-2ucb, Aurora-mvq1 (other hardware, phase 4).
+Aurora-1t1 closed 2026-10-04: LINEAR DMA-BUF is the default, acceptance met
+on this machine. Follow-ups: Aurora-mvq1 (other hardware), Aurora-h45.17
+(huenicorn-fork port for MR 3). Also closed: Aurora-2ucb, Aurora-d0hl,
+Aurora-evyk.
 
 ## Built
 
@@ -132,16 +133,16 @@ Aurora-evyk. Open: Aurora-2ucb, Aurora-mvq1 (other hardware, phase 4).
   only; window PASS, kiosk stuck 30s (memfd freeze) with stall warning and
   recovery. Kill switch verified.
 - huenicorn-fork not mirrored: it is curated per upstream MR (h45), so the
-  fix there is a new MR, not a copy. Scope decision with the owner.
+  fix there is a new MR, not a copy. Owner chose Group 3: Aurora-h45.17.
 
-## Resume
+## Follow-ups
 
-1. huenicorn-fork: owner decides between an h45 child bead (separate MR)
-   and porting under 1t1. Then close 1t1.
+1. Aurora-h45.17: port to huenicorn-fork on `fix/capture-pipeline` (Group 3,
+   owner decision); blocks MR 3 (h45.16).
 2. Aurora-mvq1: tiled-only GPUs, AMD, KDE, wlroots, gamescope, soak.
    Gamescope's direct node now also gets the DMA-BUF offer, untested.
-3. 2ucb: why the first run's `window` phase was fullscreen is unknown;
-   the runner worked as a control in every run since.
+3. 2ucb closed: why its first run's `window` phase was fullscreen is
+   unknown and never recurred; recheck if a control phase fails again.
 
 8 lessons: a control phase only counts if observed; `pkill -f` matches its
 own shell; SSE frames arriving does not mean capture is fresh; a change to
