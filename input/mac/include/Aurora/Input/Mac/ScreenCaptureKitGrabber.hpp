@@ -118,6 +118,9 @@ namespace Aurora::Input::Mac
     // inside the .mm; this declaration is plain C++.
     void _ensureStream();
 
-    std::unique_ptr<Impl> m_impl;
+    // Shared, not unique: the stream-output delegate's callbacks hold the
+    // state too, so it outlives the grabber until the last one returns
+    // (Aurora-eq7a).
+    std::shared_ptr<Impl> m_impl;
   };
 }

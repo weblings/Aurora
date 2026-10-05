@@ -5,6 +5,7 @@
 #include <cmath>
 #include <future>
 #include <iostream>
+#include <memory>
 #include <mutex>
 #include <optional>
 #include <stdexcept>
@@ -35,16 +36,25 @@ namespace Aurora::Input::Mac
 // The SCStreamOutput/SCStreamDelegate conformer -- protocol conformance
 // needs a real NSObject, so this can't live behind the PIMPL boundary as a
 // plain C++ type the way PipewireGrabber's callbacks (plain C function
-// pointers) could. Holds a non-owning pointer back to Impl; the grabber
-// destructor stops the stream (and this delegate's callbacks) before the
-// Impl it points at is destroyed.
+// pointers) could. Holds shared ownership of Impl: the grabber destructor
+// cannot assume SCK's callbacks have finished by the time it returns (the
+// stop completion handler is no documented barrier), so a raw pointer here
+// raced teardown and crashed on a destroyed mutex (Aurora-eq7a).
 @interface AuroraSCKStreamOutput : NSObject <SCStreamOutput, SCStreamDelegate>
-@property (nonatomic, assign) Aurora::Input::Mac::ScreenCaptureKitGrabber::Impl* impl;
+// Takes shared ownership of the grabber's state, once, before the output is
+// handed to the stream (Aurora-eq7a).
+- (void)attach:(std::shared_ptr<Aurora::Input::Mac::ScreenCaptureKitGrabber::Impl>)impl;
 @end
 
 namespace Aurora::Input::Mac
 {
-  struct ScreenCaptureKitGrabber::Impl
+  // Shared with AuroraSCKStreamOutput (Aurora-eq7a): the stream's callbacks
+  // run on SCK's own queues and can still be executing, or queued, when the
+  // grabber is destroyed, so the state they lock must outlive the grabber.
+  // The output holds a shared_ptr back to this; this holds the output (and
+  // stream) strongly, a cycle that stopStream()/didStopWithError: break by
+  // clearing `output` and `stream`.
+  struct ScreenCaptureKitGrabber::Impl : std::enable_shared_from_this<ScreenCaptureKitGrabber::Impl>
   {
     // stream/output/rebuildAttempted/healthy are touched both from the app's
     // own thread (grabFrameSubsample()/selectMonitor(), serialized upstream
@@ -81,11 +91,21 @@ namespace Aurora::Input::Mac
   };
 }
 
-@implementation AuroraSCKStreamOutput
+@implementation AuroraSCKStreamOutput {
+  std::shared_ptr<Aurora::Input::Mac::ScreenCaptureKitGrabber::Impl> _impl;
+}
+
+- (void)attach:(std::shared_ptr<Aurora::Input::Mac::ScreenCaptureKitGrabber::Impl>)impl
+{
+  _impl = std::move(impl);
+}
 
 - (void)stream:(SCStream *)stream didOutputSampleBuffer:(CMSampleBufferRef)sampleBuffer ofType:(SCStreamOutputType)type
 {
-  if(type != SCStreamOutputTypeScreen || !self.impl || !CMSampleBufferIsValid(sampleBuffer)){
+  // Local copy: keeps the state alive for the whole callback even if the
+  // grabber is destroyed mid-way (Aurora-eq7a).
+  std::shared_ptr<Aurora::Input::Mac::ScreenCaptureKitGrabber::Impl> impl = _impl;
+  if(type != SCStreamOutputTypeScreen || !impl || !CMSampleBufferIsValid(sampleBuffer)){
     return;
   }
 
@@ -113,8 +133,8 @@ namespace Aurora::Input::Mac
     captured.imageMatrix = view.clone();
     captured.format = Aurora::Contracts::PixelFormat::BGRA;
 
-    std::lock_guard<std::mutex> lock(self.impl->frameMutex);
-    self.impl->latestFrame = std::move(captured);
+    std::lock_guard<std::mutex> lock(impl->frameMutex);
+    impl->latestFrame = std::move(captured);
   }
 
   CVPixelBufferUnlockBaseAddress(pixelBuffer, kCVPixelBufferLock_ReadOnly);
@@ -140,11 +160,19 @@ namespace Aurora::Input::Mac
             << (error != nil ? std::string(error.localizedDescription.UTF8String) : std::string("no error given"))
             << ") -- will retry capture on the next frame\n";
 
-  std::lock_guard<std::mutex> lock(self.impl->frameMutex);
-  self.impl->stream = nil;
-  self.impl->output = nil;
-  self.impl->rebuildAttempted = false;
-  self.impl->healthy = false;
+  // Clearing impl->output below can drop the last strong reference to this
+  // object; keep it (and the local state copy) alive to the end of the method.
+  AuroraSCKStreamOutput* __attribute__((objc_precise_lifetime)) keepAlive = self;
+  std::shared_ptr<Aurora::Input::Mac::ScreenCaptureKitGrabber::Impl> impl = _impl;
+  if(!impl){
+    return;
+  }
+
+  std::lock_guard<std::mutex> lock(impl->frameMutex);
+  impl->stream = nil;
+  impl->output = nil;
+  impl->rebuildAttempted = false;
+  impl->healthy = false;
 }
 
 @end
@@ -282,7 +310,7 @@ namespace Aurora::Input::Mac
       SCStreamConfiguration* streamConfig = makeStreamConfiguration(pixelWidth, pixelHeight, refreshRate, captureWidthHint);
 
       AuroraSCKStreamOutput* output = [[AuroraSCKStreamOutput alloc] init];
-      output.impl = &impl;
+      [output attach:impl.shared_from_this()];
 
       SCStream* stream = [[SCStream alloc] initWithFilter:filter configuration:streamConfig delegate:output];
 
@@ -333,6 +361,8 @@ namespace Aurora::Input::Mac
         stream = impl.stream;
       }
       if(stream == nil){
+        std::lock_guard<std::mutex> lock(impl.frameMutex);
+        impl.output = nil; // breaks the Impl <-> output cycle
         return;
       }
 
@@ -366,7 +396,7 @@ namespace Aurora::Input::Mac
 
 
   ScreenCaptureKitGrabber::ScreenCaptureKitGrabber():
-  m_impl(std::make_unique<Impl>())
+  m_impl(std::make_shared<Impl>())
   {
     // Real setup (permission-gated, async) happens in _initMonitorsList(),
     // per docs/MacSupport.md's "Bridging the async permission wait" -- the
