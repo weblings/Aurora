@@ -800,3 +800,13 @@ For an end-to-end look with no app launch, `MallocStackLogging=1 leaks --atExit 
 
 **Fix:** pick a failure that throws after the allocations but before any network wait (an odd-length hex key throws inside `_initSSL`, no handshake timeout), keep the replacement operators in the one test file (they are executable-wide), and keep the loop single-threaded so other threads' allocations do not move the counter.
 
+---
+
+## A fail-soft port bind turns "something else owns the port" into a harness timeout about frames
+Tags: devstack, port, bind, fail-soft, harness, mac
+Applies-when: `devstack.py up` times out waiting for a frame although the fake bridge and relay started fine
+
+On 2026-10-05 `devstack.py up` printed `timed out waiting for a frame on the relay SSE` and tore everything down. The cause was in `app.log`, not the SSE: `Could not bind WebUI to 0.0.0.0:8215 -- continuing without it`. A hand-launched `Aurora.app` (PID found with `lsof -nP -iTCP:8215 -sTCP:LISTEN`, started without `--fresh`, so not the stack's) already held 8215. The app deliberately keeps running without its WebUI, so `devstack` had no REST endpoint to configure and never reached "output active", and the failure surfaced two steps later as missing frames. The same stray instance explains a viz stuck on "connected - waiting for frames": relay and viz were up with nothing feeding the fake bridge.
+
+**Fix:** on a frame timeout read `app.log` first for the bind line, and check the owner of 8215+ with `lsof` before touching the pipeline. Only quit a process you started; check its command line (`--fresh`, `--fake-hue`) to see whether it belongs to the stack.
+

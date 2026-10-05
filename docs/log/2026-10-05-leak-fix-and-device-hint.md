@@ -12,6 +12,13 @@ Id: leak-fix-and-device-hint
 
 - **Aurora-9swq, Capture source copy (from the owner's Mac try):** with Screen Recording turned off while Audio was running, a switch to Video showed the Audio notes ("Zones react together in Audio mode...", "Uses your system's default audio device.") above the Screen Recording error. The screen follows the running pipeline (axoz), so Audio was still filled, which is intended; the pairing read as contradictory, and "per-zone mapping step" names a step a first-time user has not met. `ModeDeviceScreen._render` now says "In Audio mode, all your lights react to sound together." and hides that note and DeviceField's hint (`showHint: !this.error`) while an error shows, the 36b7 rule. New `web/ui/screens/ModeDeviceScreen.test.mjs` (note shown without error, hidden with one, no zone-mapping wording, Video never shows it; both gating mutants fail it). Demo fork: `web/demo/vendor/webui/screens/ModeDeviceScreen.js` is an older mode-based copy, so the same edit was applied by hand. Owner has not yet re-checked the refused switch in a browser.
 
+## Closed on owner confirmation (Mac, by hand)
+
+- **Aurora-36b7:** hint hidden under the permission error, no layout jump when toggling (Screen Recording off). Closed.
+- **Aurora-axoz:** failure revert (outline removed, previous option stays filled, one error) seen with Screen Recording off; with the earlier pending-state checks on Mac and Windows and kea closed, nothing remained. Closed.
+- **Aurora-9swq (Mac half):** Capture source in both modes, `--fresh` first launch connecting Video on landing, and the refused Audio to Video switch copy. `needs-mac` removed; Windows views still open.
+- **Aurora-5ipy.14:** only the failed-resume-stays-paused case remains (see Findings: needs an `open`-launched app).
+
 ## Not started
 
 - **Aurora-d3ec:** step 4 (what the user can do after a startup failure) is still undecided; the recommended Retry button on `POST /api/reload` is not built. It touches `PipelineHost`, the three `app/*/src/main.cpp`, `GET /api/state` and the Dashboard.
@@ -22,7 +29,16 @@ Id: leak-fix-and-device-hint
 - The demo fork's `ModeDeviceScreen.js` still passes `mode:` and `showSinkField:` to a flag-based `DeviceField` (vendored `DeviceField.js` has the new constructor), so its Audio view probably shows the monitor picker. Not investigated; belongs to the re-vendor (Aurora-ifkn).
 - `2lh` is the only thing keeping two lines reserved: if the video hint wraps to three lines at very narrow widths the layout would still shift. Unchecked in a browser.
 
+- **Terminal-launched stack runs under the terminal's grant.** `tccutil reset ScreenCapture com.aurora.app` succeeded, yet `devstack up` still captured the real display. Denied-state checks need `Aurora.app` launched on its own (lesson extended).
+- **`devstack` cannot show the NUX** (`nuxCompleted: true` over REST, then `app.js` goes to the Dashboard), so Capture source (a NUX step) and the first-launch behavior are only reachable with a hand launch and `--fresh`. `--fresh` is an empty temp config root, `--fake-hue` the fake-bridge defaults; the zone map is copied in by `devstack.py` after launch, not by either flag.
+- **A stray hand-launched Aurora on 8215 broke `devstack up`** with a frame timeout; the cause was `Could not bind WebUI` in `app.log`. Quit it (it was the owner's, with their go-ahead) and the stack came up.
+- **Owner observation, unrecorded until now and not verified here:** after granting Screen Recording mid-session, Aurora recovered on Video/Audio switches without a restart. That contradicts the "quit and reopen" wording in the permission lesson and in d3ec's copy. Which launch (`open`ed `Aurora.app` or terminal) it was is unconfirmed; do not tighten d3ec's wording until it is reproduced on an `open`-launched app.
+- **Mac loop details for 2pe5:** the `PUT /api/state` pause/resume loop needs no permission at all (`--input dummy`), so it is safe to run unattended.
+
 ## Lessons
 
 - [debugging-method.md](../lessons/debugging-method.md): a leak regression test with no sanitizer (count live `operator new` blocks in the test exe; `leaks --atExit` on a filtered test binary; prove the check on the unfixed source).
+- [macos-gui.md](../lessons/macos-gui.md): the responsible-process lesson extended (a terminal-launched stack ignores `tccutil reset` on Aurora's own bundle id).
+- [debugging-method.md](../lessons/debugging-method.md): a fail-soft port bind surfaces as a frame timeout (second entry this session).
+- [components.md](../lessons/components.md): hide a screen's state notes while a switch error shows.
 - [language-cpp.md](../lessons/language-cpp.md): the `unique_ptr` deleter lesson now records the confirmation instead of "confirm there".
