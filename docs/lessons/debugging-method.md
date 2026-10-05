@@ -758,3 +758,33 @@ Running `AuroraInputLinuxTests` directly reported 2 failing `PortalTokenTests` c
 
 **Fix:** before calling a test failure "pre-existing", rerun it the way CI does (`ctest --test-dir build -R <name>`) and alone (`<binary> "<case name>"`), and read the comment above the case. A failure that only appears when the whole binary runs in one process is test-isolation state, not a product bug.
 
+---
+
+## A PowerShell prompt that doesn't start a new line after a console app's last output looks like a hang
+Tags: debugging, verification, powershell, windows, shutdown, rendering
+Applies-when: a console app prints its last line ("Stopping...") and the terminal shows no prompt, so it looks like the process did not exit
+
+The owner saw `Stopping...` and no returned prompt and suspected a shutdown hang, then force-quit with Ctrl+C. The process had exited: the API quit path exited in about 1s while running, paused, and during an in-flight resume, and the app's last line has no trailing newline, so PowerShell did not redraw the prompt below it. A hang bead would have been filed for a rendering quirk.
+
+**Fix:** before calling a stop a hang, ask the system, not the terminal: `tasklist /FI "IMAGENAME eq <exe>"` or `Get-Process`. Press Enter to redraw the prompt. A force quit you cannot distinguish from a clean quit is no evidence either way, so reproduce through a path that reports its own exit (API stop, then poll for the process).
+
+---
+
+## A dev-tool client timeout must cover the slowest synchronous server work, not the typical case
+Tags: debugging, devstack, timeouts, flaky, reload, slow-machine
+Applies-when: a script or dev tool fails intermittently with `TimeoutError`/read timeout against the app's own API, mostly on slower machines
+
+`devstack.py up` failed about one run in three on a slow Windows box with `TimeoutError` from a read, not a refused connection. `POST /api/hue/connection` saves credentials and then runs the pipeline reload before it responds, and the script's `http()` helper defaulted to 3s. The reload measured median 0.4-0.7s but p90 1.8-3.2s and max 10.5s, so a 3s budget lost the coin flip on every fifth to third run. It never showed on faster machines, where the reload stayed under the limit.
+
+**Fix:** find which route does synchronous work (here, anything that reloads: connection POST, config PUT) and give those calls a timeout well above the measured max (30s); keep short timeouts on cheap probes. Confirm with a run of 10 consecutive successes, not one. A traceback ending in `recv_into ... timed out` means the server was slow, not down.
+
+---
+
+## Phase timers that do not sum to the total hide the real cost: compute total minus the sum
+Tags: debugging, timing, instrumentation, latency, reload, measurement
+Applies-when: per-phase timing lines exist for an operation and you are about to tune the phase that looks slowest
+
+Aurora's reload logs `capture+orchestrator init`, `outputs init` and `reload total`. One batch of 25 reloads suggested `outputs init` was the problem (median 152ms, max 3.3s, slow runs clustered). A second batch of 40 had `outputs init` max 406ms and capture init under 10ms, yet `reload total` still reached 10.5s. Subtracting the phases from the total showed the unexplained gap (median ~270ms, p90 ~1.3s, max ~10.4s) was bigger than any timed phase: it is the lock wait and old-pipeline shutdown, which are inside the total but have no timer. Tuning `outputs init` would have fixed the wrong thing, and a single batch would have named the wrong culprit.
+
+**Fix:** with phase timers, always report total minus the sum of phases; if the residual is large, instrument it before tuning anything. Repeat the batch at least twice (slow runs can be bursty), and report min/median/p90/max, not a mean.
+

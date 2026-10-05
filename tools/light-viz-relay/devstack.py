@@ -153,12 +153,13 @@ def _start(args, app, env, pids):
     shutil.copy(REPO / "tools/fake-hue-bridge/room-4zone-zonemap.json", root / "profiles/hue.json")
     # Pairing via REST instead of the WebUI. Note PUT (not POST) for /api/config.
     base = f"http://127.0.0.1:{port}"
-    http("POST", base + "/api/hue/connection", CONNECTION)
+    # Both calls below run a pipeline reload before they respond (up to ~10s on a slow box).
+    http("POST", base + "/api/hue/connection", CONNECTION, timeout=30)
     cfg = {"activeOutputNames": ["hue"], "nuxCompleted": True}
     cfg["activeInputName"] = args.input if args.input != "live" else LIVE_INPUT
     # Live capture can block on a permission/portal dialog; allow time to accept it.
     live = args.input == "live"
-    http("PUT", base + "/api/config", cfg, timeout=120 if live else 3)
+    http("PUT", base + "/api/config", cfg, timeout=120 if live else 30)
     frame = wait_for(one_frame, "a frame on the relay SSE", 120 if live else 40)
     print(f"UP. WebUI {base}/  viz http://localhost:{args.viz_port}/viz.html")
     print(f"first frame: {frame}")
