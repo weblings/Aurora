@@ -1,7 +1,7 @@
 v1.0.5:
 - Pause / Resume functionality
 - Mac - Fix - Video mode uses ~95% less CPU, and UI lag when switching modes greatly reduced
-- Mac - Fix - Crash when switching between Video and Audio
+- Mac - Fix - Crash when switching between Video and Audio repeatedly
 - Linux - Wayland - Fix - Capture no longer freezes on fullscreen
 - Dev - In-progress refactoring to prepare for custom visualizations driven by nodes, a Home Assistant output module, and external API access
 
