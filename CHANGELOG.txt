@@ -1,6 +1,9 @@
 v1.0.5:
-- Mac - Video mode uses ~95% less CPU, and UI lag when switching modes greatly reduced
-- Dev - Refactoring to prepare for node workflows and a Home Assistant output module
+- Pause / Resume functionality
+- Mac - Fix - Video mode uses ~95% less CPU, and UI lag when switching modes greatly reduced
+- Mac - Fix - Crash when switching between Video and Audio
+- Linux - Wayland - Fix - Capture no longer freezes on fullscreen
+- Dev - In-progress refactoring to prepare for custom visualizations driven by nodes, a Home Assistant output module, and external API access
 
 v1.0.4:
 - Mac - Full GUI launching and tray menu parity with Windows and Linux. Requires macOS 27, Apple silicon only, release zip is signed and notarized.
