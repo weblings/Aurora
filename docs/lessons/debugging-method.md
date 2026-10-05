@@ -788,3 +788,15 @@ Aurora's reload logs `capture+orchestrator init`, `outputs init` and `reload tot
 
 **Fix:** with phase timers, always report total minus the sum of phases; if the residual is large, instrument it before tuning anything. Repeat the batch at least twice (slow runs can be bursty), and report min/median/p90/max, not a mean.
 
+---
+
+## A leak regression test needs no sanitizer: count live operator-new blocks, and check a binary with `leaks`
+Tags: leak, operator-new, test, leaks, lsan, apple-silicon, regression
+Applies-when: writing a test that fails while objects allocated with `new` leak, on a machine where LeakSanitizer is unavailable (Apple Silicon) or the repo has no sanitizer preset
+
+Aurora-2pe5's test (`output/hue/tests/DtlsClientLeakTests.cpp`) replaces global `operator new`/`delete` in the test executable with versions that malloc/free and bump an `atomic<long>` live-block counter. It runs the operation once to warm up (locale, iostream and library statics), reads the counter, repeats the failing `DtlsClient::init()` 20 times, and checks the counter is unchanged. Before the fix it failed with a delta of exactly 120 (20 x 6 `new`s per init); after, it passes. It runs under plain ctest on every platform, so it guards the leak without anyone remembering to run ASan. Only `operator new` blocks are counted: a C library's own `malloc`/`calloc` allocations are not, so it tests the C++ side of the ownership, which is what a deleter bug is.
+
+For an end-to-end look with no app launch, `MallocStackLogging=1 leaks --atExit -- ./TestBinary "[tag]"` runs just the filtered case and prints root leaks with their allocators (`MbedTlsImpl::_initRNG` here). Check the check: run it once against the unfixed source and see it report leaks, or "0 leaks" proves nothing.
+
+**Fix:** pick a failure that throws after the allocations but before any network wait (an odd-length hex key throws inside `_initSSL`, no handshake timeout), keep the replacement operators in the one test file (they are executable-wide), and keep the loop single-threaded so other threads' allocations do not move the counter.
+

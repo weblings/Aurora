@@ -43,6 +43,7 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `kea-capability-flags` | [log/2026-10-03-kea-capability-flags.md](log/2026-10-03-kea-capability-flags.md) | Aurora-kea: running-pipeline flags drive the Dashboard (open: Mac/Windows unverified) |
 | `kea-dashboard-capabilities-scoping` | [log/2026-10-02-kea-dashboard-capabilities-scoping.md](log/2026-10-02-kea-dashboard-capabilities-scoping.md) | Aurora-kea: scoping pass on Dashboard capability-driven sections (paused, no code) |
 | `kea-route-and-shared-capture-source` | [log/2026-10-03-kea-route-and-shared-capture-source.md](log/2026-10-03-kea-route-and-shared-capture-source.md) | Aurora-kea: route decision, shared capture-source scope, pending-highlight follow-up (paused, no code) |
+| `leak-fix-and-device-hint` | [log/2026-10-05-leak-fix-and-device-hint.md](log/2026-10-05-leak-fix-and-device-hint.md) | Aurora-2pe5 fixed, Aurora-36b7 and the 9swq copy done; d3ec still waits on its retry path |
 | `linux-audio-sink-dropdown` | [log/2026-09-30-audio-sink-dropdown.md](log/2026-09-30-audio-sink-dropdown.md) | Audio sink dropdown replaces the free-text field |
 | `linux-audio-sink-status` | [log/2026-09-29-linux-audio-sink-status.md](log/2026-09-29-linux-audio-sink-status.md) | Linux audio sink status: Using-hint replaces the no-list warning |
 | `linux-capture-analysis` | [archive/LinuxCaptureAnalysis.md](archive/LinuxCaptureAnalysis.md) | Grabber / GnuLinux capture — Conversion analysis |
