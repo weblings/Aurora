@@ -66,7 +66,8 @@ frames on the SSE endpoint yourself.
   terminal's Screen Recording grant. Denied-state checks need `Aurora.app`
   launched on its own (`open ... --args --fresh`); the stack's bridge, relay
   and viz can stay up for it.
-- The first browser tab the app opens at launch shows the NUX, because it
+- The first browser tab the app opens at launch (`--fresh` means no
+  `config.json`, i.e. first setup, which auto-opens the browser) shows the NUX, because it
   loads before `up` sets `nuxCompleted` over REST; a refresh shows the
   Dashboard (owner-verified 2026-10-05). That first tab can be used to walk
   the NUX (e.g. Capture source), but input and output are already configured
