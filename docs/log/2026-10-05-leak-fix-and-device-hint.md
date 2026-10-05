@@ -17,7 +17,7 @@ Id: leak-fix-and-device-hint
 - **Aurora-36b7:** hint hidden under the permission error, no layout jump when toggling (Screen Recording off). Closed.
 - **Aurora-axoz:** failure revert (outline removed, previous option stays filled, one error) seen with Screen Recording off; with the earlier pending-state checks on Mac and Windows and kea closed, nothing remained. Closed.
 - **Aurora-9swq (Mac half):** Capture source in both modes, `--fresh` first launch connecting Video on landing, and the refused Audio to Video switch copy. `needs-mac` removed; Windows views still open.
-- **Aurora-5ipy.14:** only the failed-resume-stays-paused case remains (see Findings: needs an `open`-launched app).
+- **Aurora-5ipy.14:** the failed-resume case was run with an `open`-launched `Aurora.app --fake-hue` (own identity, bridge from `devstack`): running, tray Pause, `tccutil reset ScreenCapture com.aurora.app` while paused, tray Resume with the macOS dialog denied. The label stayed Resume and `GET /api/state` still said `paused: true`. Closed. Note the Dashboard's "Couldn't resume Aurora." belongs to the Dashboard's own Resume button (`_togglePause`), not to a tray resume; a tray resume leaves the Dashboard untouched and only logs to stderr (k73j, d3ec).
 
 ## Not started
 
