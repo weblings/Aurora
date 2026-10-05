@@ -149,11 +149,12 @@ export class ModeDeviceScreen {
       </div>
     ` : '';
 
-    // Zone Mapping is skipped entirely for Audio mode (probeState() in
-    // app.js only requires it for 'video') -- this just explains why, since
-    // otherwise a NUX user would wonder why they never see that step.
-    const audioNoteHtml = this.mode === 'audio'
-      ? `<p class="status-text">Zones react together in Audio mode — there's no per-zone mapping step.</p>`
+    // Audio mode skips the Zone Mapping step (probeState() in app.js only
+    // requires it for 'video'), which a NUX user hasn't met yet -- so the
+    // note says what Audio does for their lights, not which step is missing.
+    // Hidden with the device hint while a switch error shows (mirrors web/ui).
+    const audioNoteHtml = this.mode === 'audio' && !this.error
+      ? `<p class="status-text">In Audio mode, all your lights react to sound together.</p>`
       : '';
 
     const errorHtml = renderReloadError(this.error, this.platform);
@@ -179,6 +180,7 @@ export class ModeDeviceScreen {
       selectedMonitorName: this.selectedMonitorName,
       showSinkField: this.showSinkField,
       sinkName: this.sinkName,
+      showHint: !this.error,
       onChange: (patch) => this._onDeviceFieldChange(patch),
     });
 
