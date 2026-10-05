@@ -704,3 +704,15 @@ A modifier can be negotiated and the CPU read can still fail afterwards (mmap of
 
 **Fix:** do the renegotiation from a loop event (`pw_loop_add_event`/`pw_loop_signal_event`), not inline in `process`; rebuild EnumFormat without the modifier offer; on the next `param_changed` with no modifier, replace any DmaBuf-only Buffers param. Map dmabufs once in `add_buffer`/unmap in `remove_buffer`, and treat an unmapped buffer as a failed read so a driver that refuses mmap also lands in the fallback.
 
+
+---
+
+## An SCStream output that points at the grabber with a raw pointer crashes on teardown: SCK callbacks outlive the grabber, and no documented stop barrier says otherwise
+Tags: input, mac, screencapturekit, lifetime, threading, crash
+Applies-when: an Objective-C stream/capture delegate calls back into a C++ object (PIMPL state, mutex, frame buffer) that a destructor frees
+
+`AuroraSCKStreamOutput` held `Impl*` (the grabber's state, including `frameMutex`) as a non-owning pointer, on the assumption that the grabber destructor's `stopStream` finished all callbacks first. It did not: switching Video to Audio destroys the grabber, and a sample callback still running (or queued) on `com.aurora.sck.output` then locked a freed mutex, `std::mutex::lock()` threw `system_error`, and the process aborted with SIGABRT (`Aurora-2026-10-04-*.ips`, three crashes, Aurora-eq7a). It reproduced on demand: about 125 rapid Video/Audio/pause switches, and the old build also died within two gentle (1s) switches or seconds after startup. Apple documents nothing about callbacks after `stopCapture`'s completion handler or about output/delegate lifetime, and SCStream holds outputs weakly on Sonoma and later, so the completion handler is not a barrier you can lean on (AVCaptureSession documents `stopRunning` as blocking until callbacks finish; SCStream documents no equivalent). `stopStream` also waits at most 5s and frees regardless. Permissions were not involved: the crash happened with Screen Recording granted and no permission change.
+
+**Fix:** give the callbacks shared ownership of the state they touch. `Impl` is `enable_shared_from_this`, the grabber holds `shared_ptr<Impl>`, the output holds a `shared_ptr<Impl>` attached before `addStreamOutput`, and each callback copies it to a local first. `Impl` holds `output`/`stream` strongly, a cycle that `stopStream` and `didStopWithError:` break by clearing them. Keep `didStopWithError:` alive with `objc_precise_lifetime` because clearing `impl->output` can drop the last strong ref to `self`. Verify with a rapid mode-switch loop against the real capture, not by reasoning about ordering: 3,000+ iterations clean after the fix.
+
+---

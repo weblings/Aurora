@@ -50,6 +50,7 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `lzw-github-ci` | [log/2026-10-01-lzw-github-ci.md](log/2026-10-01-lzw-github-ci.md) | Aurora-lzw: GitHub CI unblocked for weblings/Aurora |
 | `mac-audio` | [archive/mac/Audio.md](archive/mac/Audio.md) | macOS audio capture |
 | `mac-notarization` | [planning/mac/Notarization.md](planning/mac/Notarization.md) | macOS Gatekeeper/notarization |
+| `mac-pause-verification-sck-crash` | [log/2026-10-05-mac-pause-verification-sck-crash.md](log/2026-10-05-mac-pause-verification-sck-crash.md) | Mac verification of pause/resume, kea and axoz; SCK teardown crash found and fixed (Aurora-eq7a) |
 | `mac-permissions` | [archive/mac/Permissions.md](archive/mac/Permissions.md) | macOS Screen Recording permission |
 | `mac-tray-parity` | [archive/mac/TrayParity.md](archive/mac/TrayParity.md) | macOS tray-parity: open work |
 | `mac-tray-parity-history` | [archive/mac/TrayParityHistory.md](archive/mac/TrayParityHistory.md) | macOS tray-parity: build history |
