@@ -38,6 +38,7 @@ import {
   audioDevicesUrlFrom, effectiveFlags, flagsForMode, isModeConfigValid, isSwitchConfirmed, loadPipelineState,
   modeFromFlags, modeSwitchPatch,
 } from '../CaptureSource.js';
+import { DAEMON_UNREACHABLE } from '../messages.js';
 
 export { pickVideoInputName, pickAudioInputName } from '../CaptureSource.js';
 
@@ -89,7 +90,7 @@ export class ModeDeviceScreen {
         loadPipelineState(),
       ]);
     } catch {
-      body.innerHTML = `<p class="status-text status-text-error">⚠ Could not reach the daemon.</p>`;
+      body.innerHTML = `<p class="status-text status-text-error">⚠ ${DAEMON_UNREACHABLE}</p>`;
       return;
     }
 
@@ -307,7 +308,7 @@ export class ModeDeviceScreen {
         }
       }
     } catch {
-      this.error = "Couldn't reach the daemon.";
+      this.error = DAEMON_UNREACHABLE;
     }
 
     this.pendingMode = null;

@@ -15,6 +15,7 @@
 // config (zones, channel light names) and calls load()+mount() again as
 // part of that.
 import { Dropdown } from './Dropdown.js';
+import { DAEMON_UNREACHABLE } from './messages.js';
 
 export class EntertainmentConfigSelect {
   // onChange(configId) fires after a successful switch is persisted.
@@ -132,7 +133,7 @@ export class EntertainmentConfigSelect {
       if (!result.succeeded) return { succeeded: false, error: "Couldn't switch entertainment configuration." };
       return { succeeded: true, reloadError: result.reloadError };
     } catch {
-      return { succeeded: false, error: "Couldn't reach the daemon." };
+      return { succeeded: false, error: DAEMON_UNREACHABLE };
     }
   }
 

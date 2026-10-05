@@ -32,6 +32,7 @@ import { renderNavFooter } from '../NavFooter.js';
 import { DeviceField, AUTO_MONITOR_VALUE } from '../DeviceField.js';
 import { applyTooltip } from '../Tooltips.js';
 import { renderReloadError, parseMacPermissionError } from '../MacPermissionRecovery.js';
+import { DAEMON_UNREACHABLE } from '../messages.js';
 
 export function pickVideoInputName(inputs, current) {
   if (current && current !== 'dummy' && inputs.includes(current)) return current;
@@ -92,7 +93,7 @@ export class ModeDeviceScreen {
         fetch('/api/config').then((r) => r.json()),
       ]);
     } catch {
-      body.innerHTML = `<p class="status-text status-text-error">⚠ Could not reach the daemon.</p>`;
+      body.innerHTML = `<p class="status-text status-text-error">⚠ ${DAEMON_UNREACHABLE}</p>`;
       return;
     }
 
@@ -282,7 +283,7 @@ export class ModeDeviceScreen {
         this.currentActiveAudioInputName = patch.activeAudioInputName;
       }
     } catch {
-      this.error = "Couldn't reach the daemon.";
+      this.error = DAEMON_UNREACHABLE;
     }
 
     this._render();

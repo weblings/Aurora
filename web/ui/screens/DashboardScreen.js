@@ -35,6 +35,7 @@ import {
   audioDevicesUrlFrom, devicePatch, effectiveFlags, flagsForMode, isSwitchConfirmed, isSwitchErrorStale,
   loadPipelineState, modeFromFlags, modeSwitchPatch,
 } from '../CaptureSource.js';
+import { DAEMON_UNREACHABLE } from '../messages.js';
 
 export class DashboardScreen {
   constructor(app) {
@@ -130,8 +131,8 @@ export class DashboardScreen {
     try {
       capabilities = await (await fetch('/api/capabilities')).json();
     } catch {
-      topTier.innerHTML = `<p class="status-text status-text-error">⚠ Could not reach the daemon.</p>`;
-      return;
+      topTier.innerHTML = `<p class="status-text status-text-error">⚠ ${DAEMON_UNREACHABLE}</p>`;
+      return false;
     }
 
     this.hasHue = capabilities.outputs?.includes('hue') ?? false;
@@ -209,6 +210,7 @@ export class DashboardScreen {
 
     await this._loadZoneData();
     this._render();
+    return true;
   }
 
   // Zones + the entertainment-config picker's own data + channel light
@@ -400,7 +402,7 @@ export class DashboardScreen {
           this.topTierError = "Couldn't save the auto-arranged zones.";
         }
       } catch {
-        this.topTierError = "Couldn't reach the daemon.";
+        this.topTierError = DAEMON_UNREACHABLE;
       }
       await this._loadZoneData();
     }
@@ -520,7 +522,7 @@ export class DashboardScreen {
         this._renderTopTier();
       }
     } catch {
-      this.topTierError = "Couldn't reach the daemon.";
+      this.topTierError = DAEMON_UNREACHABLE;
       this._renderTopTier();
     }
   }
@@ -539,6 +541,7 @@ export class DashboardScreen {
     this._renderControls();
 
     let putResult = null;
+    let unreachable = false;
     try {
       putResult = await (await fetch('/api/config', {
         method: 'PUT',
@@ -553,7 +556,7 @@ export class DashboardScreen {
           : `Couldn't switch to ${modeLabel}: ${putResult.reloadError}`, mode);
       }
     } catch {
-      this._setToggleError("Couldn't reach the daemon.", mode);
+      unreachable = true;
     }
 
     // Refreshes everything from the real endpoints rather than guessing the
@@ -562,7 +565,16 @@ export class DashboardScreen {
     // _renderControls() picks up this.toggleError too either way. _loadAll
     // re-derives the fill from the still-running pipeline on failure, so a
     // failed mode never sticks as filled even though config saved it.
-    await this._loadAll();
+    const loaded = await this._loadAll();
+
+    // The PUT could not reach the daemon: _loadAll's own message (and then
+    // the heartbeat's 'Aurora has stopped' overlay) owns that case, so no
+    // second message here (Aurora-jm6s). Only when the daemon answers again
+    // does the failed switch still need its own error.
+    if (unreachable && loaded) {
+      this._setToggleError(DAEMON_UNREACHABLE, mode);
+      this._renderTopTier();
+    }
 
     // The fill moves only when the running pipeline agrees with the choice:
     // succeeded + no reloadError is not enough, since reload() while paused
@@ -636,7 +648,7 @@ export class DashboardScreen {
       }
       await this._loadAll();
     } catch {
-      this.topTierError = "Couldn't reach the daemon.";
+      this.topTierError = DAEMON_UNREACHABLE;
       this._renderTopTier();
     } finally {
       this.pauseBusy = false;
@@ -836,7 +848,7 @@ export class DashboardScreen {
       this.stopPhase = 'stopped';
       this._renderStopOverlay();
     } catch {
-      this.stopError = "Couldn't reach the daemon.";
+      this.stopError = DAEMON_UNREACHABLE;
       button.disabled = false;
       this._renderStopOverlay();
     }
