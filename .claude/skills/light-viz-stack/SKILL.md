@@ -62,11 +62,10 @@ frames on the SSE endpoint yourself.
 - `up` times out on a frame: read `app.log` for `Could not bind WebUI to
   0.0.0.0:8215`; a hand-launched Aurora owns the port (`lsof -nP
   -iTCP:8215 -sTCP:LISTEN`). Quit only a process you started.
-- The stack never shows the NUX (it sets `nuxCompleted`, so the WebUI opens on
-  the Dashboard) and its app is a child of your terminal, so on Mac it runs
-  under the terminal's Screen Recording grant. NUX screens and denied-state
-  checks need `Aurora.app` launched on its own (`open ... --args --fresh`);
-  the stack's bridge, relay and viz can stay up for it.
+- The stack's app is a child of your terminal, so on Mac it runs under the
+  terminal's Screen Recording grant. Denied-state checks need `Aurora.app`
+  launched on its own (`open ... --args --fresh`); the stack's bridge, relay
+  and viz can stay up for it.
 - No frames: check `app.log` in the state dir, then `tools/light-viz-relay/
   README.md` Troubleshooting.
 

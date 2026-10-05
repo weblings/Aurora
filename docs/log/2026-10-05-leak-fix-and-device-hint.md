@@ -30,7 +30,7 @@ Id: leak-fix-and-device-hint
 - `2lh` is the only thing keeping two lines reserved: if the video hint wraps to three lines at very narrow widths the layout would still shift. Unchecked in a browser.
 
 - **Terminal-launched stack runs under the terminal's grant.** `tccutil reset ScreenCapture com.aurora.app` succeeded, yet `devstack up` still captured the real display. Denied-state checks need `Aurora.app` launched on its own (lesson extended).
-- **`devstack` cannot show the NUX** (`nuxCompleted: true` over REST, then `app.js` goes to the Dashboard), so Capture source (a NUX step) and the first-launch behavior are only reachable with a hand launch and `--fresh`. `--fresh` is an empty temp config root, `--fake-hue` the fake-bridge defaults; the zone map is copied in by `devstack.py` after launch, not by either flag.
+- `--fresh` is an empty temp config root and `--fake-hue` the fake-bridge defaults; the zone map is copied in by `devstack.py` after launch, not by either flag.
 - **A stray hand-launched Aurora on 8215 broke `devstack up`** with a frame timeout; the cause was `Could not bind WebUI` in `app.log`. Quit it (it was the owner's, with their go-ahead) and the stack came up.
 - **Owner observation, unrecorded until now and not verified here:** after granting Screen Recording mid-session, Aurora recovered on Video/Audio switches without a restart. That contradicts the "quit and reopen" wording in the permission lesson and in d3ec's copy. Which launch (`open`ed `Aurora.app` or terminal) it was is unconfirmed; do not tighten d3ec's wording until it is reproduced on an `open`-launched app.
 - **Mac loop details for 2pe5:** the `PUT /api/state` pause/resume loop needs no permission at all (`--input dummy`), so it is safe to run unattended.
