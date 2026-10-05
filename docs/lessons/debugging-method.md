@@ -758,3 +758,12 @@ Running `AuroraInputLinuxTests` directly reported 2 failing `PortalTokenTests` c
 
 **Fix:** before calling a test failure "pre-existing", rerun it the way CI does (`ctest --test-dir build -R <name>`) and alone (`<binary> "<case name>"`), and read the comment above the case. A failure that only appears when the whole binary runs in one process is test-isolation state, not a product bug.
 
+---
+
+## A PowerShell prompt that doesn't start a new line after a console app's last output looks like a hang
+Tags: debugging, verification, powershell, windows, shutdown, rendering
+Applies-when: a console app prints its last line ("Stopping...") and the terminal shows no prompt, so it looks like the process did not exit
+
+The owner saw `Stopping...` and no returned prompt and suspected a shutdown hang, then force-quit with Ctrl+C. The process had exited: the API quit path exited in about 1s while running, paused, and during an in-flight resume, and the app's last line has no trailing newline, so PowerShell did not redraw the prompt below it. A hang bead would have been filed for a rendering quirk.
+
+**Fix:** before calling a stop a hang, ask the system, not the terminal: `tasklist /FI "IMAGENAME eq <exe>"` or `Get-Process`. Press Enter to redraw the prompt. A force quit you cannot distinguish from a clean quit is no evidence either way, so reproduce through a path that reports its own exit (API stop, then poll for the process).
