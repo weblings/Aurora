@@ -476,6 +476,8 @@ After hand-merging a `dev`-branch conflict in `.beads/issues.jsonl` (keeping dis
 
 **Fix:** run `bd import` immediately after resolving any `.beads/issues.jsonl` merge conflict, before running any other `bd` command -- it upserts the file's content into the DB (confirmed here: "Imported 170 issues... Updated 3 existing issue(s)"), closing the gap the warning was refusing to paper over. Opposite direction from "A stale live DB can un-close just-pulled beads" above: there the DB lagged the file after a `pull`; here the file gained content the DB never saw because a merge, not `bd`, produced it -- same rule either way, diff/import before trusting either side.
 
+Aurora-jm6s session addition: when both sides changed the same issue (here `kea`, whose `dependent_count` I changed and `dev` changed the notes of), merge by issue id on the **raw lines**, not by parsing and re-dumping. A first pass that round-tripped every row through `json.dumps` rewrote 116 lines against HEAD (escaping and key formatting differ from `bd export`); keeping each side's original line text left exactly the 10 lines dev changed. Check it by `bd import`, then `bd export` to a file and diffing the sorted lines against the merged file: zero differences means the DB and the file agree.
+
 ---
 
 ## A citer outside `docs/`'s scan scope can go dead on a doc move and nothing catches it

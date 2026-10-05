@@ -25,19 +25,19 @@ Aurora's own module boundaries instead of RockyRoad's. `rendering-apis.md` vs.
 | [debugging-method.md](debugging-method.md) | evidence, verification, oracles, timing | 55 | debugging/verification method |
 | [architecture-process.md](architecture-process.md) | splits, duplication, reload, presence | 43 | architecture or process decision |
 | [web-testing.md](web-testing.md) | jsdom, live tests, routes, settings | 14 | web testing specific |
-| [language-cpp.md](language-cpp.md) | namespace, threads, C-portability | 15 | C++ language gotcha |
+| [language-cpp.md](language-cpp.md) | namespace, threads, C-portability | 16 | C++ language gotcha |
 | [input.md](input.md) | capture/grabber/platform-adapter | 36 | capture/grabber specific |
 | [processing.md](processing.md) | color/effect transform, zone-mapping | 9 | color/effect/zone-mapping specific |
 | [output.md](output.md) | streaming/protocol, any target | 12 | streaming/protocol/wire-format specific |
 | [rendering-apis.md](rendering-apis.md) | third-party rendering facts | 4 | Three.js/GLTFLoader/Blender behavior, not our design |
 | [rendering-internals.md](rendering-internals.md) | own 3D-scene design | 4 | our scene technique, demonstrated by a real bug |
 | [planning.md](planning.md) | reuse research, JTBD, doc hygiene | 18 | WebUI planning/design-process finding |
-| [components.md](components.md) | behavior, callbacks, data shapes | 9 | WebUI component finding |
+| [components.md](components.md) | behavior, callbacks, data shapes | 10 | WebUI component finding |
 | [webui-testing.md](webui-testing.md) | jsdom limits, mocks, fixtures | 7 | WebUI testing finding |
 | [navigation-flow.md](navigation-flow.md) | Back/Continue, gating, NUX | 9 | WebUI flow finding |
 | [layout-css.md](layout-css.md) | responsive, pseudo-elements, flex | 9 | WebUI layout/CSS finding |
 
-Counts as of 2026-10-04 — bump the count when adding entries
+Counts as of 2026-10-05 — bump the count when adding entries
 (`grep -c '^## '` per file).
 
 ## Where a new lesson goes
