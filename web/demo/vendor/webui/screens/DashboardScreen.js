@@ -30,8 +30,8 @@ import { AccordionSection } from '../AccordionSection.js';
 import { TuningFields } from '../TuningFields.js';
 import { applyTooltip } from '../Tooltips.js';
 import {
-  audioDevicesUrlFrom, devicePatch, effectiveFlags, flagsForMode, isSwitchConfirmed, loadPipelineState,
-  modeFromFlags, modeSwitchPatch,
+  audioDevicesUrlFrom, devicePatch, effectiveFlags, flagsForMode, isSwitchConfirmed, isSwitchErrorStale,
+  loadPipelineState, modeFromFlags, modeSwitchPatch,
 } from '../CaptureSource.js';
 
 export class DashboardScreen {
@@ -59,6 +59,7 @@ export class DashboardScreen {
     this.channelLightNames = {};
     this.tuningValues = {};
     this.toggleError = null;
+    this.toggleErrorMode = null; // the mode the failed switch was heading to (Aurora-tazx)
     this.topTierError = null;
     this.stopPhase = null; // null | 'confirm' | 'stopped' | 'error'
     this.stopError = null;
@@ -175,6 +176,12 @@ export class DashboardScreen {
     // Toggle fill follows the running pipeline (Aurora-axoz), never the
     // saved config: after a failed switch config holds the failed mode.
     this.mode = modeFromFlags(this.flags);
+    // A switch error lasts until the pipeline runs the mode it was heading
+    // to (Aurora-tazx), same rule as web/ui.
+    if (this.toggleError && isSwitchErrorStale(state, this.toggleErrorMode)) {
+      this.toggleError = null;
+      this.toggleErrorMode = null;
+    }
     this.audioDevicesUrl = audioDevicesUrlFrom(state);
 
     if (this.flags.usesVideoInput) {
@@ -502,11 +509,12 @@ export class DashboardScreen {
     if (this.pendingMode || mode === this.mode) return;
 
     const patch = modeSwitchPatch(mode, this);
+    const modeLabel = mode === 'audio' ? 'Audio' : 'Video';
 
     // Outline the clicked option and disable both buttons while the rebuild
     // runs; the running option stays filled until the pipeline confirms.
+    // Earlier switch error stays up through the retry; cleared on confirm (Aurora-tazx).
     this.pendingMode = mode;
-    this.toggleError = null;
     this._renderControls();
 
     let putResult = null;
@@ -517,12 +525,12 @@ export class DashboardScreen {
       })).json();
 
       if (!putResult.succeeded) {
-        this.toggleError = "Couldn't switch modes.";
+        this._setToggleError(`Couldn't switch to ${modeLabel}.`, mode);
       } else if (putResult.reloadError) {
-        this.toggleError = `Couldn't apply it live: ${putResult.reloadError}`;
+        this._setToggleError(`Couldn't switch to ${modeLabel}: ${putResult.reloadError}`, mode);
       }
     } catch {
-      this.toggleError = "Couldn't reach the daemon.";
+      this._setToggleError("Couldn't reach the daemon.", mode);
     }
 
     // Refreshes everything from the real endpoints rather than guessing the
@@ -537,9 +545,16 @@ export class DashboardScreen {
     // shim derives state from its config, so a demo switch confirms at once.
     if (isSwitchConfirmed(putResult, this.pipelineState, mode)) {
       this.mode = mode;
+      this.toggleError = null;
+      this.toggleErrorMode = null;
     }
     this.pendingMode = null;
     this._renderControls();
+  }
+
+  _setToggleError(message, mode) {
+    this.toggleError = message;
+    this.toggleErrorMode = mode;
   }
 
   // Ported close to verbatim from huenicorn's own real WebUI.js:

@@ -3,7 +3,7 @@
 import assert from 'node:assert/strict';
 import {
   audioDevicesUrlFrom, devicePatch, effectiveFlags, flagsForMode, flagsMatchMode, isIdle, isModeConfigValid,
-  isSwitchConfirmed, loadPipelineState, modeFromConfig, modeFromFlags, modeSwitchPatch, runningFlags,
+  isSwitchConfirmed, isSwitchErrorStale, loadPipelineState, modeFromConfig, modeFromFlags, modeSwitchPatch, runningFlags,
 } from './CaptureSource.js';
 
 const VIDEO = { usesVideoInput: true, usesAudioInput: false, samplesZones: true };
@@ -116,6 +116,21 @@ assert.deepEqual(modeSwitchPatch('audio', ctx), { activeInputName: '', activeAud
   } finally {
     globalThis.fetch = realFetch;
   }
+}
+
+// A lingering switch error is stale once the pipeline runs the mode it was
+// heading to (Aurora-tazx); no state or no remembered mode keeps it.
+{
+  const videoState = { paused: false, ...VIDEO };
+  const audioState = { paused: false, ...AUDIO };
+  assert.equal(isSwitchErrorStale(videoState, 'video'), true, 'running the failed target');
+  assert.equal(isSwitchErrorStale(audioState, 'video'), false, 'still on the old mode');
+  assert.equal(isSwitchErrorStale({ ...audioState, paused: true }, 'video'), false, 'paused on the old mode');
+  assert.equal(isSwitchErrorStale({ paused: true, ...VIDEO }, 'video'), true, 'resumed into the failed target');
+  assert.equal(isSwitchErrorStale({ ...audioState }, 'audio'), true);
+  assert.equal(isSwitchErrorStale(null, 'video'), false, 'no state probe keeps the error');
+  assert.equal(isSwitchErrorStale(videoState, null), false, 'no remembered mode keeps the error');
+  assert.equal(isSwitchErrorStale({ paused: false, usesVideoInput: false, usesAudioInput: false, samplesZones: false }, 'video'), false, 'idle is not the target');
 }
 
 console.log('CaptureSource.test.mjs: ok');

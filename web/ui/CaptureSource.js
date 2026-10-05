@@ -83,6 +83,14 @@ export function isSwitchConfirmed(putResult, stateAfter, mode) {
     && flagsMatchMode(stateAfter, mode);
 }
 
+// Whether a lingering switch error is stale: the running pipeline is now
+// the mode the failed switch was heading to (a confirmed retry, or a
+// resume/relaunch starting the mode the failed switch saved to config). No
+// state probe or no remembered mode keeps the error. Aurora-tazx.
+export function isSwitchErrorStale(state, errorMode) {
+  return !!state && !!errorMode && flagsMatchMode(state, errorMode);
+}
+
 export function isIdle(flags) {
   return !flags.usesVideoInput && !flags.usesAudioInput && !flags.samplesZones;
 }

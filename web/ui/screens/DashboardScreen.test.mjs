@@ -7,6 +7,7 @@
 import assert from 'node:assert/strict';
 import { DashboardScreen } from './DashboardScreen.js';
 import { ensureTooltips } from '../Tooltips.js';
+import { isSwitchErrorStale } from '../CaptureSource.js';
 
 function makeEl() {
   return {
@@ -186,6 +187,144 @@ function stubFetch(handler) {
     globalThis.fetch = realFetch;
   }
   assert.equal(fetches, 1, 'second click while busy is a no-op');
+}
+
+// ---- Mode-switch error (Aurora-tazx): one message, kept until confirmed ----
+
+const VIDEO_STATE = { paused: false, usesVideoInput: true, usesAudioInput: false, samplesZones: true, audioDevicesUrl: null };
+const AUDIO_STATE = { paused: false, usesVideoInput: false, usesAudioInput: true, samplesZones: false, audioDevicesUrl: null };
+
+// A switch screen double: _loadAll applies `loaded()` the way the real one
+// does (flags/state from the running pipeline, then the stale-error rule);
+// renders are counted instead of touching a DOM.
+function switchScreen({ state, platform = 'mac', toggleError = null, toggleErrorMode = null }) {
+  const calls = { controls: 0, topTier: 0 };
+  const inst = Object.create(DashboardScreen.prototype);
+  Object.assign(inst, {
+    platform, hasAudio: true, mode: 'audio', pendingMode: null,
+    inputs: ['mac'], audioInputs: ['mac-audio'],
+    currentActiveInputName: '', currentActiveAudioInputName: 'mac-audio',
+    monitors: [], selectedMonitorName: '', sinkName: '',
+    toggleError, toggleErrorMode, topTierError: null,
+    pipelineState: state,
+    _renderControls() { calls.controls++; },
+    _renderTopTier() { calls.topTier++; },
+    async _loadAll() {
+      this.pipelineState = this.nextState ?? this.pipelineState;
+      // the same stale-error rule the real _loadAll applies
+      if (this.toggleError && isSwitchErrorStale(this.pipelineState, this.toggleErrorMode)) {
+        this.toggleError = null;
+        this.toggleErrorMode = null;
+      }
+    },
+  });
+  return { inst, calls };
+}
+
+const PERMISSION_ERROR = 'permission_denied: ScreenCaptureKitGrabber: no shareable displays';
+
+// A failed switch keeps the old pipeline filled, names the target, and
+// remembers it. Mac permission text passes through untouched.
+{
+  stubFetch(() => ({ succeeded: true, reloadError: PERMISSION_ERROR }));
+  const { inst } = switchScreen({ state: AUDIO_STATE });
+  try { await inst._switchMode('video'); } finally { globalThis.fetch = realFetch; }
+  assert.equal(inst.toggleError, PERMISSION_ERROR, 'Mac permission error shown as-is');
+  assert.equal(inst.toggleErrorMode, 'video');
+  assert.equal(inst.mode, 'audio', 'fill stays on the running mode');
+  assert.equal(inst.pendingMode, null);
+}
+
+// Generic failures say which switch failed.
+{
+  stubFetch(() => ({ succeeded: true, reloadError: 'bridge unreachable' }));
+  const { inst } = switchScreen({ state: AUDIO_STATE, platform: 'linux' });
+  try { await inst._switchMode('video'); } finally { globalThis.fetch = realFetch; }
+  assert.equal(inst.toggleError, "Couldn't switch to Video: bridge unreachable");
+}
+{
+  stubFetch(() => ({ succeeded: false }));
+  const { inst } = switchScreen({ state: VIDEO_STATE });
+  inst.mode = 'video';
+  try { await inst._switchMode('audio'); } finally { globalThis.fetch = realFetch; }
+  assert.equal(inst.toggleError, "Couldn't switch to Audio.");
+  assert.equal(inst.toggleErrorMode, 'audio');
+}
+
+// The error is NOT cleared by the click: it is still set while the retry is
+// in flight (no hide/re-show), and a retry that fails again leaves one message.
+{
+  let errorDuringFlight = 'unset';
+  const { inst } = switchScreen({ state: AUDIO_STATE, toggleError: PERMISSION_ERROR, toggleErrorMode: 'video' });
+  globalThis.fetch = async () => {
+    errorDuringFlight = inst.toggleError;
+    return { json: async () => ({ succeeded: true, reloadError: PERMISSION_ERROR }) };
+  };
+  try { await inst._switchMode('video'); } finally { globalThis.fetch = realFetch; }
+  assert.equal(errorDuringFlight, PERMISSION_ERROR, 'error stays up while the retry is pending');
+  assert.equal(inst.toggleError, PERMISSION_ERROR);
+}
+
+// A confirmed switch clears the error and re-renders the top tier so the
+// audio banner (gated on toggleError) can come back.
+{
+  stubFetch(() => ({ succeeded: true }));
+  const { inst, calls } = switchScreen({ state: AUDIO_STATE, toggleError: PERMISSION_ERROR, toggleErrorMode: 'video' });
+  inst.nextState = VIDEO_STATE;
+  try { await inst._switchMode('video'); } finally { globalThis.fetch = realFetch; }
+  assert.equal(inst.toggleError, null);
+  assert.equal(inst.toggleErrorMode, null);
+  assert.equal(inst.mode, 'video');
+  assert.ok(calls.topTier >= 1, 'top tier re-rendered after the error clears');
+}
+
+// A confirmed switch clears an older error about the OTHER mode too (the
+// flag-match rule alone would keep it: the pipeline is not that mode).
+{
+  stubFetch(() => ({ succeeded: true }));
+  const { inst } = switchScreen({ state: AUDIO_STATE, toggleError: "Couldn't switch to Audio.", toggleErrorMode: 'audio' });
+  inst.nextState = VIDEO_STATE;
+  try { await inst._switchMode('video'); } finally { globalThis.fetch = realFetch; }
+  assert.equal(inst.toggleError, null, 'confirmed switch clears an error about the other mode');
+  assert.equal(inst.mode, 'video');
+}
+
+// A switch while paused succeeds without building (flags unchanged, not
+// confirmed): an existing error is left alone and none is added.
+{
+  stubFetch(() => ({ succeeded: true }));
+  const paused = { ...AUDIO_STATE, paused: true };
+  const { inst } = switchScreen({ state: paused, toggleError: PERMISSION_ERROR, toggleErrorMode: 'video' });
+  try { await inst._switchMode('video'); } finally { globalThis.fetch = realFetch; }
+  assert.equal(inst.toggleError, PERMISSION_ERROR, 'paused no-op switch keeps the error');
+  assert.equal(inst.mode, 'audio', 'no false confirm while paused');
+}
+{
+  stubFetch(() => ({ succeeded: true }));
+  const paused = { ...AUDIO_STATE, paused: true };
+  const { inst } = switchScreen({ state: paused });
+  try { await inst._switchMode('video'); } finally { globalThis.fetch = realFetch; }
+  assert.equal(inst.toggleError, null, 'paused no-op switch adds no error');
+}
+
+// The audio banner yields to a switch error (one message), and returns
+// once it clears.
+{
+  const topTier = makeEl();
+  const render = (toggleError) => {
+    const inst = Object.create(DashboardScreen.prototype);
+    Object.assign(inst, {
+      platform: 'mac', toggleError, topTierError: null, deviceField: null,
+      flags: { usesVideoInput: false, usesAudioInput: true, samplesZones: false },
+      audioPermissionLikelyDenied: true, audioDevicesUrl: null, monitors: [], selectedMonitorName: '', sinkName: '',
+      container: { querySelector: (sel) => (sel === '.db-top-tier' ? topTier : makeEl()) },
+    });
+    inst._renderTopTier();
+    inst.deviceField?.destroy();
+    return topTier.innerHTML;
+  };
+  assert.ok(!render(PERMISSION_ERROR).includes("capturing real audio"), 'audio banner hidden under a switch error');
+  assert.ok(render(null).includes("capturing real audio"), 'audio banner back once the error is gone');
 }
 
 console.log('DashboardScreen pause checks passed.');

@@ -32,8 +32,8 @@ import { TuningFields } from '../TuningFields.js';
 import { applyTooltip } from '../Tooltips.js';
 import { renderReloadError, parseMacPermissionError, renderAudioPermissionBanner } from '../MacPermissionRecovery.js';
 import {
-  audioDevicesUrlFrom, devicePatch, effectiveFlags, flagsForMode, isSwitchConfirmed, loadPipelineState,
-  modeFromFlags, modeSwitchPatch,
+  audioDevicesUrlFrom, devicePatch, effectiveFlags, flagsForMode, isSwitchConfirmed, isSwitchErrorStale,
+  loadPipelineState, modeFromFlags, modeSwitchPatch,
 } from '../CaptureSource.js';
 
 export class DashboardScreen {
@@ -62,6 +62,7 @@ export class DashboardScreen {
     this.channelLightNames = {};
     this.tuningValues = {};
     this.toggleError = null;
+    this.toggleErrorMode = null; // the mode the failed switch was heading to (Aurora-tazx)
     this.topTierError = null;
     this.stopPhase = null; // null | 'confirm' | 'stopped' | 'error'
     this.stopError = null;
@@ -187,6 +188,13 @@ export class DashboardScreen {
     // The toggle's fill follows the running pipeline, never the saved
     // config: after a failed switch config holds the failed mode.
     this.mode = modeFromFlags(this.flags);
+    // A switch error lasts until the pipeline is running the mode it was
+    // heading to (Aurora-tazx): a confirmed switch, or a resume/relaunch
+    // that starts the saved mode the failed switch left in config.
+    if (this.toggleError && isSwitchErrorStale(state, this.toggleErrorMode)) {
+      this.toggleError = null;
+      this.toggleErrorMode = null;
+    }
     this.audioDevicesUrl = audioDevicesUrlFrom(state);
 
     if (this.flags.usesVideoInput) {
@@ -301,9 +309,10 @@ export class DashboardScreen {
     this.deviceField = null;
 
     const errorHtml = renderReloadError(this.topTierError, this.platform);
-    // Only shown absent a reload error -- a real reload failure is the
-    // more actionable, more specific problem when both could apply.
-    const audioPermissionHtml = !this.topTierError && this.flags.usesAudioInput
+    // Only shown absent a reload or switch error -- a real failure is the
+    // more actionable, more specific problem when both could apply, and the
+    // user should see one message (Aurora-tazx).
+    const audioPermissionHtml = !this.topTierError && !this.toggleError && this.flags.usesAudioInput
       ? renderAudioPermissionBanner(this.audioPermissionLikelyDenied)
       : '';
 
@@ -520,11 +529,13 @@ export class DashboardScreen {
     if (this.pendingMode || mode === this.mode) return;
 
     const patch = modeSwitchPatch(mode, this);
+    const modeLabel = mode === 'audio' ? 'Audio' : 'Video';
 
     // Outline the clicked option and disable both buttons while the rebuild
     // runs; the running option stays filled until the pipeline confirms.
+    // An earlier switch error stays up while the retry runs and clears only
+    // when a switch is confirmed (Aurora-tazx); the outline is the busy cue.
     this.pendingMode = mode;
-    this.toggleError = null;
     this._renderControls();
 
     let putResult = null;
@@ -535,14 +546,14 @@ export class DashboardScreen {
       })).json();
 
       if (!putResult.succeeded) {
-        this.toggleError = "Couldn't switch modes.";
+        this._setToggleError(`Couldn't switch to ${modeLabel}.`, mode);
       } else if (putResult.reloadError) {
-        this.toggleError = (this.platform === 'mac' && parseMacPermissionError(putResult.reloadError))
+        this._setToggleError((this.platform === 'mac' && parseMacPermissionError(putResult.reloadError))
           ? putResult.reloadError
-          : `Couldn't apply it live: ${putResult.reloadError}`;
+          : `Couldn't switch to ${modeLabel}: ${putResult.reloadError}`, mode);
       }
     } catch {
-      this.toggleError = "Couldn't reach the daemon.";
+      this._setToggleError("Couldn't reach the daemon.", mode);
     }
 
     // Refreshes everything from the real endpoints rather than guessing the
@@ -557,11 +568,21 @@ export class DashboardScreen {
     // succeeded + no reloadError is not enough, since reload() while paused
     // succeeds without building (Pipeline.cpp). _loadAll already set the
     // fill from the flags, so this just records the confirmed running mode.
-    if (isSwitchConfirmed(putResult, this.pipelineState, mode)) {
+    const confirmed = isSwitchConfirmed(putResult, this.pipelineState, mode);
+    if (confirmed) {
       this.mode = mode;
+      this.toggleError = null;
+      this.toggleErrorMode = null;
     }
     this.pendingMode = null;
     this._renderControls();
+    // The audio banner is gated on toggleError, so it re-renders when one clears.
+    if (confirmed) this._renderTopTier();
+  }
+
+  _setToggleError(message, mode) {
+    this.toggleError = message;
+    this.toggleErrorMode = mode;
   }
 
   // Top bar with the Pause/Resume + Stop pair (Aurora-5ipy.13). Pause sits
