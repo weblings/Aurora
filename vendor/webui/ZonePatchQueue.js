@@ -4,6 +4,8 @@
 // (drag/gamma edits) and both ZoneActiveToggle variants (active flips) --
 // all three patch the same resource and can each fire faster than one
 // network round trip (a drag's pointermove stream; rapid double-toggling).
+import { DAEMON_UNREACHABLE } from './messages.js';
+
 export class ZonePatchQueue {
   constructor({ onError } = {}) {
     this.onError = onError;
@@ -32,7 +34,7 @@ export class ZonePatchQueue {
       })).json();
       if (!result.succeeded) this.onError?.("Couldn't save a zone edit.");
     } catch {
-      this.onError?.("Couldn't reach the daemon.");
+      this.onError?.(DAEMON_UNREACHABLE);
     }
 
     this._inFlight.delete(zoneId);
