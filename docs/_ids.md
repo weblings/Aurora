@@ -79,3 +79,4 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `webui-tooltip-content` | [archive/TooltipContent.md](archive/TooltipContent.md) | Tooltip content draft (Aurora WebUI) |
 | `webui-tooltips-analysis` | [archive/TooltipsAnalysis.md](archive/TooltipsAnalysis.md) | Tooltips plumbing analysis (Aurora WebUI) |
 | `windows-input-analysis` | [archive/WindowsInputAnalysis.md](archive/WindowsInputAnalysis.md) | Windows Input plugin — analysis pass |
+| `windows-pause-verification` | [log/2026-10-04-windows-pause-verification.md](log/2026-10-04-windows-pause-verification.md) | Windows verification of pause/resume and kea; Aurora.exe has no --help/--version (Aurora-v3in) |
