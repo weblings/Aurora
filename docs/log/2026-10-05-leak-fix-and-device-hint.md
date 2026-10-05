@@ -10,6 +10,8 @@ Id: leak-fix-and-device-hint
 - **Aurora-36b7 (code and tests done, bead left open, `needs-mac`):** `DeviceField` takes `showHint` (default true). `DashboardScreen._renderTopTier` passes `!topTierError && !toggleError`, so neither hint renders beside an error. The video and audio hints share `device-field-hint` (`min-height: 2lh` in `dashboard.css`) and the video copy is shorter (`Auto (primary display). A specific monitor can be chosen once Video connects.`), so a Video/Audio toggle should not move the content below. `DeviceField.test.mjs` covers the shared class and `showHint:false`. The same patch is applied to `web/demo/vendor/webui` (`DeviceField.js`, `DashboardScreen.js`, `dashboard.css`; the demo copies are older than `web/ui`, the patch applied with an offset). All `web/ui` and `web/demo` node tests pass.
 - **Aurora-9swq item 3:** `ZoneMappingScreen.js:244` says "...it needs an active output and screen capture running." like the Dashboard. The demo fork has no Zone Mapping screen. Items 1 and 2 (Capture source screen on Mac and Windows, Mac `--fresh` first launch) still need a machine.
 
+- **Aurora-9swq, Capture source copy (from the owner's Mac try):** with Screen Recording turned off while Audio was running, a switch to Video showed the Audio notes ("Zones react together in Audio mode...", "Uses your system's default audio device.") above the Screen Recording error. The screen follows the running pipeline (axoz), so Audio was still filled, which is intended; the pairing read as contradictory, and "per-zone mapping step" names a step a first-time user has not met. `ModeDeviceScreen._render` now says "In Audio mode, all your lights react to sound together." and hides that note and DeviceField's hint (`showHint: !this.error`) while an error shows, the 36b7 rule. New `web/ui/screens/ModeDeviceScreen.test.mjs` (note shown without error, hidden with one, no zone-mapping wording, Video never shows it; both gating mutants fail it). Demo fork: `web/demo/vendor/webui/screens/ModeDeviceScreen.js` is an older mode-based copy, so the same edit was applied by hand. Owner has not yet re-checked the refused switch in a browser.
+
 ## Not started
 
 - **Aurora-d3ec:** step 4 (what the user can do after a startup failure) is still undecided; the recommended Retry button on `POST /api/reload` is not built. It touches `PipelineHost`, the three `app/*/src/main.cpp`, `GET /api/state` and the Dashboard.
@@ -17,6 +19,7 @@ Id: leak-fix-and-device-hint
 ## Findings
 
 - `closure-check.mjs` in the demo vendor prints three STALE lines (`ZonePatchQueue.js`, `messages.js`, `topBar.js`). None of this change's files are among them; not investigated.
+- The demo fork's `ModeDeviceScreen.js` still passes `mode:` and `showSinkField:` to a flag-based `DeviceField` (vendored `DeviceField.js` has the new constructor), so its Audio view probably shows the monitor picker. Not investigated; belongs to the re-vendor (Aurora-ifkn).
 - `2lh` is the only thing keeping two lines reserved: if the video hint wraps to three lines at very narrow widths the layout would still shift. Unchecked in a browser.
 
 ## Lessons

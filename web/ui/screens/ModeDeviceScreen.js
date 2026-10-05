@@ -152,11 +152,13 @@ export class ModeDeviceScreen {
 
     const flags = flagsForMode(choice);
 
-    // Zone Mapping is skipped when nothing samples zones (probeState() in
-    // app.js checks samplesZones) -- this just explains why, since
-    // otherwise a NUX user would wonder why they never see that step.
-    const audioNoteHtml = !flags.samplesZones
-      ? `<p class="status-text">Zones react together in Audio mode — there's no per-zone mapping step.</p>`
+    // Audio mode skips the Zone Mapping step (probeState() in app.js checks
+    // samplesZones), which a NUX user hasn't met yet -- so the note says what
+    // Audio does for their lights, not which step is missing. Hidden with the
+    // device hint while a switch error shows: after a refused switch the
+    // running (old) mode's notes would sit beside an error about the other.
+    const audioNoteHtml = !flags.samplesZones && !this.error
+      ? `<p class="status-text">In Audio mode, all your lights react to sound together.</p>`
       : '';
 
     const errorHtml = renderReloadError(this.error, this.platform);
@@ -183,6 +185,7 @@ export class ModeDeviceScreen {
       monitors: this.monitors,
       selectedMonitorName: this.selectedMonitorName,
       sinkName: this.sinkName,
+      showHint: !this.error,
       onChange: (patch) => this._onDeviceFieldChange(patch),
     });
 
