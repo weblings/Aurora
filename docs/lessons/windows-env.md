@@ -237,3 +237,23 @@ Applies-when: a Win32 tray/menu message loop shares a thread with a real-time wo
 `TrackPopupMenuEx` runs a modal loop and does not return until the menu closes, so pumping tray messages from the tick loop stalled the whole pipeline while a menu was open (Aurora-zlw; measured 0 SSE frames during a 5s hold). Win32 window affinity is per creating thread, not "the main thread" (unlike AppKit), so the fix is to move the tray, not the tick loop: `TrayIcon` owns a thread that creates both windows, adds the icon, and runs `GetMessage`; the constructor blocks on a future for setup. Second trap: a `PostThreadMessage(WM_QUIT)` is not seen while the menu's modal loop runs, so stopping from elsewhere (HTTP `/api/stop`, Ctrl+C) with a menu open hung the join forever.
 
 **Fix:** destructor posts `WM_QUIT` and then `SendMessageTimeout(WM_CANCELMODE)` to the tray window to dismiss the menu; teardown (`NIM_DELETE`, `DestroyWindow`) stays on the tray thread. Stop flag shared across threads must be `std::atomic`, not `volatile`. Verified with `tools/light-viz-relay/traygap.py` (posts the tray callback, holds the menu, reports frame gaps): 147 frames/5s, max gap 0.06s. General principle: a stop-with-menu-open test finds the hang a hold-the-menu test cannot.
+
+---
+
+## Real-time antivirus can deny CreateProcess on a freshly linked exe (`WinError 5`)
+Tags: windows, antivirus, defender, build, process-launch, devstack
+Applies-when: a just-built Windows exe fails to launch from a script (Python `subprocess.Popen`, devstack) with Access denied although launching it by hand or from another shell worked
+
+`devstack.py up` failed twice in a row with `PermissionError: [WinError 5] Access is denied` from `CreateProcess` on the `Aurora.exe` the build had just produced. Launch flags were not the cause: the same `creationflags` (DETACHED_PROCESS | CREATE_NEW_PROCESS_GROUP) launched the exe and `cmd.exe` fine in isolation, and an absolute path made no difference. It launched once real-time antivirus was turned off on that machine; the exact blocker (scan lock vs. block) was not isolated.
+
+**Fix:** after a build, if a scripted launch gets Access denied on the new binary, check antivirus before debugging flags, paths or ACLs: wait and retry, exclude the build dir, or pause real-time scanning on a dev box. Do not conclude the binary is broken.
+
+---
+
+## Do not probe an exe with `--help` or `--version` unless it handles them: Aurora.exe starts a full instance
+Tags: windows, cli, process-launch, verification, orphans
+Applies-when: testing whether an exe launches, or which flags it takes, by running it with `--help`/`--version` (or in a loop of flag variants)
+
+`Aurora.exe` handles only its known flags and ignores the rest, so `--help` and `--version` start the real app (tray, HTTP server, capture). A loop that launched it once per `creationflags` variant started several live instances; killed ones lingered as zombie entries while a parent still held a handle (`taskkill` said "no running instance"), and a blocking wait on the launcher hung until the app exited. Filed as Aurora-v3in.
+
+**Fix:** probe with a harmless exe first (`cmd /c exit`), launch the real one once, kill it by pid, and verify with `tasklist`/`Get-CimInstance` that nothing is left. Never wrap a possibly-long-lived app in a blocking wait inside an agent call.
