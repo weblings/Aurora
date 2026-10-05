@@ -66,6 +66,12 @@ frames on the SSE endpoint yourself.
   terminal's Screen Recording grant. Denied-state checks need `Aurora.app`
   launched on its own (`open ... --args --fresh`); the stack's bridge, relay
   and viz can stay up for it.
+- The first browser tab the app opens at launch shows the NUX, because it
+  loads before `up` sets `nuxCompleted` over REST; a refresh shows the
+  Dashboard (owner-verified 2026-10-05). That first tab can be used to walk
+  the NUX (e.g. Capture source), but input and output are already configured
+  by then, so a first-launch "auto-connects Video on landing" check is not
+  representative; use a hand-launched `Aurora.app --fresh` for that.
 - No frames: check `app.log` in the state dir, then `tools/light-viz-relay/
   README.md` Troubleshooting.
 
