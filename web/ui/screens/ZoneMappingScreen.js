@@ -241,7 +241,7 @@ export class ZoneMappingScreen {
     }
 
     if (!this.outputName) {
-      body.innerHTML = `<p class="status-text">Zone mapping isn't available right now -- it needs an active output and Video mode.</p>`;
+      body.innerHTML = `<p class="status-text">Zone mapping isn't available right now -- it needs an active output and screen capture running.</p>`;
       return;
     }
 

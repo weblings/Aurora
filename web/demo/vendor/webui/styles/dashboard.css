@@ -42,6 +42,13 @@
   margin-bottom: var(--aurora-space-5);
 }
 
+/* DeviceField's hint in place of a picker: the video and audio copies differ
+   in length, so both reserve two lines and toggling Video/Audio doesn't shift
+   everything below by a line (Aurora-36b7). */
+.device-field-hint {
+  min-height: 2lh;
+}
+
 /* Above the canvas now, centered/content-hugging rather than a full-width
    bar (2.5 pass) -- flex+justify-content:center rather than text-align, so
    .btn's own inline-flex layout (icon + label) isn't disturbed. */

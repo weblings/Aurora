@@ -331,6 +331,9 @@ export class DashboardScreen {
       monitors: this.monitors,
       selectedMonitorName: this.selectedMonitorName,
       sinkName: this.sinkName,
+      // The hint ("once Video connects") reads wrong beside an error about
+      // that same input -- Screen Recording denied is blocked, not connecting.
+      showHint: !this.topTierError && !this.toggleError,
       onChange: (patch) => this._onDeviceFieldChange(patch),
     });
   }
