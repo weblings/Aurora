@@ -63,6 +63,9 @@ namespace Aurora::Output::Hue
       {
         if(ptr){
           FreeFunc(ptr);
+          // The mbedtls_*_free calls release what the context owns, not the
+          // struct itself, which _initMembers/_initRNG allocated with new.
+          delete ptr;
         }
       }
     };
