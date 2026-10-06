@@ -57,6 +57,14 @@ async function defaultFetchStatus(signal) {
   return { reachable: true, ...(body && typeof body === 'object' ? body : {}) };
 }
 
+// Row prefix per error source, so the raw server reason reads as a sentence
+// ("Couldn't start: <reason>"). Unknown sources show the message bare.
+const SOURCE_PREFIX = {
+  startup: "Couldn't start: ",
+  resume: "Couldn't resume: ",
+  reload: "Couldn't apply settings: ",
+};
+
 export class App {
   constructor({
     fetchStatus = defaultFetchStatus,
@@ -289,7 +297,7 @@ export class App {
 
     const collapsed = errors.length > 1 && !this._bannerExpanded;
     const body = collapsed
-      ? `<button type="button" class="shell-banner-summary" id="shell-banner-expand">⚠ ${errors.length} problems ▾</button>`
+      ? `<button type="button" class="shell-banner-summary" id="shell-banner-expand">${errors.length} problems ▾</button>`
       : errors.map((error) => this._renderBannerRow(error)).join('');
 
     this.bannerSlot.innerHTML = `
@@ -321,7 +329,7 @@ export class App {
     const retryId = `shell-banner-retry-${escapeHtml(error.source)}`;
     const inner = parsed
       ? renderReloadError(error.message, this.platform, { retryId })
-      : `<p class="status-text status-text-error">⚠ ${escapeHtml(error.message)}</p>
+      : `<p class="status-text status-text-error">⚠ ${escapeHtml((SOURCE_PREFIX[error.source] ?? '') + error.message)}</p>
          <button type="button" class="btn btn-secondary" id="${retryId}" style="margin-top: var(--aurora-space-3);">Retry</button>`;
     return `<div class="shell-banner-row">${inner}</div>`;
   }

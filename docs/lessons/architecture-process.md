@@ -794,3 +794,14 @@ Applies-when: re-vendoring a demo copy that has fallen behind the source screen
 Aurora-ewyz's acceptance said "re-vendor DashboardScreen". The vendor copy predated the Pause/Stop topbar entirely (no `_renderTopBar`), lacked the MacPermissionRecovery import (a whole new vendored module plus MANIFEST entry), and carried toggle-sync/string-zone-ids seams; the new TuningFields needed Tooltips exports the vendor copy lacks. A faithful sync would port months of Dashboard evolution and re-decide seams blind -- while the demo cannot exercise error UI at all (the shim always answers), so the sync buys regression risk with no observable benefit.
 
 **Fix:** decide sync-vs-leave as its own task per re-vendor: if the snapshot has drifted past a small seam re-application, leave the tree byte-identical, record the decision on the bead, and file the full re-sync as a demo-porting task. A demo that connects to nothing ideally never shows errors; its error paths are covered by the unit suites, not the demo.
+
+---
+
+## A failed reload on a running host keeps the old pipeline and holds no error -- the banner can't carry a rejected save
+Tags: reload, pipelinehost, errors, state, webui
+Applies-when: deciding whether a failed save or mode switch will show up in `GET /api/state`'s errors, or removing an inline error because "the banner has it"
+
+`PipelineHost::_recordFailure` returns early when a pipeline exists or the host is paused (`Pipeline.cpp:389-395`), so a failed `reload` while running leaves the previous pipeline live and `errors: []`. Confirmed live (Aurora-cj11, Mac): bogus `activeInputName` plus `POST /api/reload` returns `Unknown input 'bogus'` while `/api/state` stays `running`. Only a host with no pipeline (failed or idle) holds the `reload` error. I assumed the opposite for a day and filed a bead (Aurora-nkhi) that would have removed the only signal.
+
+**Fix:** a response's `reloadError` is the only signal when the host is running; the banner covers it only when the host was already failed or idle. Gate any inline suppression on the shell actually holding a matching host error, not on the response shape. Check `/api/state` after a failed reload before relying on it.
+

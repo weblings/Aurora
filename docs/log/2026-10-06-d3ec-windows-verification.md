@@ -7,7 +7,7 @@ Windows; bead closed -- Mac, Linux and Windows all confirmed now.
 
 ## Root cause found: standalone core configure silently drops into vcpkg manifest mode
 
-`build-toolchain.md` already had an entry for `cmake -S core` failing to
+`docs/lessons/build-toolchain.md` already had an entry for `cmake -S core` failing to
 find aubio on Windows ("root cause not isolated"). Isolated this session:
 `core/vcpkg.json` is a manifest listing only `opencv4`, `glm`, `catch2`.
 Pointing the vcpkg toolchain at `core` as the top-level source makes vcpkg
@@ -19,7 +19,7 @@ this: the repo root carries no `vcpkg.json`, so it stays in classic mode
 and sees the classic install (which already has all four) directly.
 
 **Fix:** `-DVCPKG_MANIFEST_MODE=OFF` on the standalone configure. Lesson
-rewritten in place (same entry, `build-toolchain.md`) rather than added
+rewritten in place (same entry, `docs/lessons/build-toolchain.md`) rather than added
 as new, since it corrects the existing one's root cause and fix.
 
 ## Compile
@@ -48,7 +48,7 @@ assertions, all pass.
 
 `cmake --build build/windows-app --config Release` -- clean. `ctest -C
 Release`: 79/79 (app/input/output slice tests; does not include core's
-Pipeline suite, see `build-toolchain.md:636` on that gate already being a
+Pipeline suite, see `docs/lessons/build-toolchain.md`, line 636, on that gate already being a
 known trap -- this is why a green `windows-app` run alone is not
 equivalent to the check above).
 

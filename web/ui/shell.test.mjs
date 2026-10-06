@@ -279,7 +279,7 @@ const stateOk = (extra = {}) => async () => ({ reachable: true, state: 'running'
 {
   const { app, banner } = makeApp(stateOk({ state: 'failed', errors: [{ source: 'startup', message: 'No outputs available' }] }));
   await app._pollOnce();
-  assert.ok(banner().includes('No outputs available'));
+  assert.ok(banner().includes("Couldn't start: No outputs available"), 'startup rows carry their source prefix');
   assert.ok(banner().includes('id="shell-banner-retry-startup"'));
   assert.ok(!banner().includes('problems'), 'a single error never collapses');
   uninstallDom();
@@ -294,11 +294,11 @@ const stateOk = (extra = {}) => async () => ({ reachable: true, state: 'running'
   ];
   const { app, banner, slots } = makeApp(stateOk({ state: 'failed', errors }));
   await app._pollOnce();
-  assert.ok(banner().includes('⚠ 2 problems'), 'collapsed summary');
+  assert.ok(banner().includes('2 problems'), 'collapsed summary');
   assert.ok(!banner().includes('No outputs available'), 'rows hidden while collapsed');
   slots.get('shell-banner-slot').querySelector('#shell-banner-expand').click();
   assert.ok(banner().includes('No outputs available'));
-  assert.ok(banner().includes('bridge unreachable'));
+  assert.ok(banner().includes("Couldn't resume: bridge unreachable"));
   assert.ok(banner().includes('id="shell-banner-retry-startup"'));
   assert.ok(banner().includes('id="shell-banner-retry-resume"'));
   uninstallDom();
@@ -316,8 +316,21 @@ const stateOk = (extra = {}) => async () => ({ reachable: true, state: 'running'
   await app._pollOnce();
   assert.ok(!banner().includes('Open Screen Recording settings'), 'banner row is Retry-only, no Settings link');
   assert.ok(banner().includes('id="shell-banner-retry-startup"'), 'permission row has a Retry button');
-  assert.ok(banner().includes('then press Retry'));
+  assert.ok(banner().includes('Screen Recording is off.'));
+  assert.ok(banner().includes('System Settings, then Retry'));
   assert.ok(!banner().includes('macOS won\'t ask again'), 'banner uses the retry copy, not the quit+relaunch copy');
+  uninstallDom();
+}
+{
+  // permission_pending reads the same one-line row as denied.
+  const { app, banner } = makeApp(stateOk({
+    state: 'failed',
+    errors: [{ source: 'startup', message: 'permission_pending: prompt shown' }],
+  }));
+  app.platform = 'mac';
+  await app._pollOnce();
+  assert.ok(banner().includes('Screen Recording is off.'));
+  assert.ok(banner().includes('id="shell-banner-retry-startup"'));
   uninstallDom();
 }
 {
@@ -387,7 +400,7 @@ const stateOk = (extra = {}) => async () => ({ reachable: true, state: 'running'
   assert.equal(banner(), '', 'reload error gated during NUX');
   app.navigate(blankScreen(), 'dashboard');
   await app._pollOnce();
-  assert.ok(banner().includes('No outputs available'), 'reload error shown once Dashboard is reached');
+  assert.ok(banner().includes("Couldn't apply settings: No outputs available"), 'reload error shown once Dashboard is reached');
   uninstallDom();
 }
 // A non-'reload' source is never gated, even mid-onboarding (a startup

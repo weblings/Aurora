@@ -109,18 +109,29 @@ under the session scratchpad) against the open-launched Aurora.app.
   was ruled out too: a retry while the prompt was unanswered coincided with
   a second prompt. Lessons filed (input.md, debugging-method.md).
 
+## Copy unification and follow-ups (same session)
+
+- **Copy** (implemented): permission rows are one line for denied and
+  pending alike ("Screen Recording is off. Allow it in the macOS prompt or
+  System Settings, then Retry."); other rows prefix their source ("Couldn't
+  start: " / "Couldn't resume: " / "Couldn't apply settings: "); the collapse
+  reads "N problems ▾". Non-banner callers of `renderReloadError` unchanged.
+- **Decisions:** demo re-vendoring dropped from these beads; top bar stays
+  non-sticky (the banner pins on its own; a sticky top bar would need
+  offsetting by the banner's variable height); the unexplained
+  self-recovery after a grant is accepted, not chased.
+- **Follow-up Aurora-nkhi** (inline `reloadError` duplicating the banner).
+  First filed on the premise that every `reloadError` leaves the host
+  failed; live check disproved it (a failed reload on a running host holds
+  no error), so the bead was corrected to suppress the inline copy only
+  when the shell already holds a matching host error. Lesson filed
+  (architecture-process.md).
+
 ## Remaining
 
-- **Banner/button copy** -- the permission copy above is a working draft;
-  `docs/planning/ErrorOverlay.md`'s open question (final wording for
-  banner/button text, "Retry", "⚠ N problems ▾") is still the owner's.
 - **Onboarding gate, live** -- the one real trigger (input saved, no output
   ever paired, so a `reload` error exists mid-onboarding) not run on the Mac:
   needs the owner's Hue output out of the real config.
-- **Demo re-vendoring** -- bead criterion still says "Demo re-vendored",
-  skipped per the ewyz precedent; owner confirmation outstanding.
-- **Unexplained self-recovery** -- the host sometimes went `running` after the
-  grant before any Retry was seen; not isolated (browser tab vs. host).
 - **Audio permission block** (`renderAudioPermissionBanner`) still says
   "quit and reopen"; untested, not part of this banner.
 - **Dead link** in the d3ec Windows verification log (a bare lessons-file
@@ -130,8 +141,8 @@ under the session scratchpad) against the open-launched Aurora.app.
 
 ## Footnotes
 
-- 5 lessons filed in all (3 this session: sticky parent/scroll container,
-  stale preflight, mocked OS signal). `check-lessons.sh` green; `check-links.sh`
+- 6 lessons filed in all (4 this session: sticky parent/scroll container,
+  stale preflight, mocked OS signal, failed reload on a running host). `check-lessons.sh` green; `check-links.sh`
   was run this session with python3 (the file is Python despite its name).
 - 2 lessons filed earlier (bead-field drift extending planning.md's existing entry;
   NUX-order gate collapse, navigation-flow.md). `check-lessons.sh` green;
