@@ -524,16 +524,21 @@ rebuilds from the saved config, `Pipeline.cpp:575-576`).
 - `pause()` publishes an empty error list (`Pipeline.cpp:554`), so pausing a
   running host with a held reload error clears it. Kept: the bad config
   resurfaces as a `resume` error on the next Resume.
-- Each entry gains an `id`, a monotonic counter bumped on every publish.
-  `since`, if added, is for display only.
+- Each entry gains an `id` from one host-wide monotonic counter, stamped
+  when the entry is created or replaced (decision 11). Entries a publish
+  leaves alone keep their id. `since`, if added, is for display only.
 - Publishing merges by source instead of replacing the whole list. Today
   every publish replaces it and at most one entry exists; the audio
   permission entry (decision 4) can coexist with a reload error, so the
   Model section's "at most one entry" no longer holds.
 - Reverses d3ec's "do not store" note for reload-with-a-pipeline and the
   cj11 lesson "a failed reload on a running host holds no error".
-- A dismiss route on all three apps (registered per app, like
-  `/api/stop`), cleared daemon-side so the tray and every tab agree.
+- A dismiss route on all three apps, cleared daemon-side so the tray and
+  every tab agree. It is registered once in `registerStateRoute` (decision
+  12), backed by `PipelineHost::dismissError(source, id)`.
+- A failed reload stores its error only if no build has landed since it
+  started (decision 10). The old "no pipeline exists" early return gave
+  that guard for free; holding while running removes it.
 - Mac: `MacAudioGrabber` publishes an `audio_permission` entry when
   `isLikelyPermissionDenied()` turns true and removes it when it turns
   false (decision 4).
@@ -654,9 +659,49 @@ done.
    answering. Likely shape: a timer in the Stop dialog that, if the daemon
    still answers N seconds after a confirmed stop, tells the user how to
    quit Aurora from the OS.
+10. **Stale failure guard: a build epoch.** A counter bumped on each
+    successful swap; a failing reload records it when its build starts and
+    stores its error only if it is unchanged, checked under `m_mutex`. Not
+    a reload mutex: Hue builds are slow and network-bound, and the late-
+    failure test's nested reload would deadlock. d3ec rejected a sequence
+    counter only because the early return covered the case. The existing
+    late-failure test (`PipelineTests.cpp`, "lands after a concurrent
+    successful build") stays as written and is the mutant check.
+11. **Id stamping: per entry, from a host-wide counter.** Stamped when an
+    entry is created or replaced, including a repeat failure with an
+    identical message (decision 5's "next failure arrives with a new id").
+    Not restamped on every publish: an unrelated publish (the audio entry
+    flipping) would otherwise invalidate the id under the user's click and
+    the X would silently do nothing.
+12. **Dismiss route is shared.** One route in `registerStateRoute`, since
+    the core `dismissError` is needed either way and per-app lambdas can
+    drift. Responses: 400 bad body, 409 host not running (as `PUT
+    /api/state`), 200 `{succeeded:true, dismissed:false}` for a stale id
+    (the client calls `checkNow()` regardless, so a stale click needs no
+    error UI). The earlier "per app like `/api/stop`" wording had no stated
+    reason; `/api/stop` is per-app only because it touches app-local
+    shutdown state.
+13. **Retry and row types in the shell.** `shell.js` `_retry` already posts
+    `/api/reload` for every source but `resume`, so a running-host `reload`
+    row needs no new retry rule, only a regression test. The new
+    `audio_permission` source must not fall through to it: its row gets
+    Open Settings and an X, no Retry (Aurora-h457). Aurora-98pr must also
+    check that `_visibleErrors`' hide-`reload`-off-dashboard gate hides
+    nothing a post-onboarding route needs.
+14. **Audio entry publisher: the Mac main loop, on edges.**
+    `isLikelyPermissionDenied()` is a 10-second timer, not an event, and
+    the grabber has no host handle. The tick thread polls the existing
+    `audioPermissionLikelyDenied` helper (it already takes the pipeline
+    lock, which only the HTTP route could not) and publishes or removes the
+    entry on transitions. Needs a remove-by-source operation in core. Any
+    successful build clears all entries and restarts the grabber's grace
+    window, so a dismissed row returns after a structural save if the
+    denial persists. Accepted.
 
 Verification needed when built: core tests (hold while running, clear on
 build and on pause, merge by source, dismiss with a stale `id` is a no-op,
-audio entry on transitions only), node tests for the banner X and its
+audio entry on transitions only, a failed reload that lands after a newer
+success stores nothing, an unrelated publish keeps the other entry's id),
+node tests for the banner X and its
 running-only rule, a new live Mac check (the existing checks assumed the old
 behavior), and updates to the lessons that record the old rule.
