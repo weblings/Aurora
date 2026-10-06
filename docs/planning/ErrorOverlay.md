@@ -454,3 +454,188 @@ into `web/demo/vendor/webui` (see Accepted gaps).
   `retryEnable`), shown as "Retrying 2/5…". Only safe if Aurora can tell
   "bridge busy" from "another app owns the entertainment area"; otherwise
   the retries fight that app. Not scheduled.
+
+## Proposed revision: errors go to the shell by cause (2026-10-06)
+
+Status: proposed, not built. Raised during Aurora-nkhi's live Mac check:
+with the host running and Screen Recording off, a failed Video switch left
+the permission block inline under the toggles and the banner empty. That is
+what the Model section prescribes today (rejected requests stay inline), but
+the owner expects every host-state error in the shell. The owner confirmed
+this split over "everything in the shell" on 2026-10-06, and the open
+questions are settled below (agent-proposed, owner-approved). The sections
+above are unchanged until this is built.
+
+### The rule
+
+Split by cause, not by which control sent the request:
+
+1. **Daemon unreachable**: full-screen takeover, unchanged.
+2. **Host-state errors**: Aurora is not doing what the user asked. Shell
+   banner, held by the daemon. This now includes a reload that failed while
+   a pipeline was running (the old pipeline keeps driving the lights, the
+   saved config and the running pipeline disagree), and the Mac audio
+   permission block (decision 4).
+3. **Field and step errors**: about a value or step the user is looking at
+   and fixes in place. Inline: bridge address and pairing on
+   OutputConnectScreen, "No active zones to arrange", auto-arrange save,
+   zone-select empty states, and ModeDeviceScreen's reload error during
+   onboarding (decision 3).
+
+Why not "everything in the shell": errors tied to a field read better next
+to it (NN/g: show the error close to its source; Carbon: banners are
+system-level, not task-specific), and a client-reported banner channel would
+reintroduce the client-side clearing rules the Model section removed. With
+this split the shell is fed only by daemon state. GOV.UK's error summary
+(top summary plus inline message, linked) was considered and not taken: it
+needs a page-fed banner, and it targets long forms with errors found on
+submit, not a control the user just touched.
+
+### Config PUT outcomes
+
+`PUT /api/config` already returns three different things, today handled by
+one code path in `DashboardScreen._onDeviceFieldChange` and
+`ModeDeviceScreen`:
+
+- **Saved, not applied** (`succeeded:true` plus `reloadError`,
+  `SettingsRoutes.cpp:153-158`): host-state error, goes to the shell.
+- **Rejected outright** (`succeeded:false`, 400, e.g. `invalid_field_type`,
+  `SettingsRoutes.cpp:132,149`): nothing changed and the daemon holds
+  nothing, so there is nothing for the shell to show. Stays inline as the
+  one exception (decision 8).
+- **Field validation**: detected by the screen or a step-specific endpoint,
+  inline.
+
+A paused host never reaches the first case: `reload()` returns success
+without building while paused (`Pipeline.cpp:499-500`), the config applies
+on resume, and a bad config then fails as a `resume` error (`resume`
+rebuilds from the saved config, `Pipeline.cpp:575-576`).
+
+### Core changes
+
+- `PipelineHost::_recordFailure` (`Pipeline.cpp:389-395`) returns early when
+  a pipeline is running or paused. It would hold the error while running
+  too. `HostStatus` can then carry `errors` while `running`; clients must
+  not read "has errors" as "failed". `_publishStatusLocked` already derives
+  the state from the pipeline, not from the error list. A successful build
+  still clears all errors.
+- `pause()` publishes an empty error list (`Pipeline.cpp:554`), so pausing a
+  running host with a held reload error clears it. Kept: the bad config
+  resurfaces as a `resume` error on the next Resume.
+- Each entry gains an `id`, a monotonic counter bumped on every publish.
+  `since`, if added, is for display only.
+- Publishing merges by source instead of replacing the whole list. Today
+  every publish replaces it and at most one entry exists; the audio
+  permission entry (decision 4) can coexist with a reload error, so the
+  Model section's "at most one entry" no longer holds.
+- Reverses d3ec's "do not store" note for reload-with-a-pipeline and the
+  cj11 lesson "a failed reload on a running host holds no error".
+- A dismiss route on all three apps (registered per app, like
+  `/api/stop`), cleared daemon-side so the tray and every tab agree.
+- Mac: `MacAudioGrabber` publishes an `audio_permission` entry when
+  `isLikelyPermissionDenied()` turns true and removes it when it turns
+  false (decision 4).
+
+### Dismiss (the X)
+
+User-triggered only, no timer (consistent with the rejected minimizing
+toast). Offered only while the old setup is still working:
+
+- `running` host with a held error: dismissible.
+- `paused` host with a failed resume: not dismissible. No lights are on and
+  the user asked for running; the row is the accurate reason it is paused,
+  as Accepted gaps already records.
+- `failed` host: not dismissible, Retry is the action and the row is the
+  only explanation for no lights.
+
+The daemon owns the dismissal. A client-only dismiss would reappear on the
+next poll, in the tray and in a second tab. The dismiss carries
+`{source, id}`; the daemon removes that entry only if the id still matches,
+otherwise it is a no-op, so an X click racing a new failure cannot clear the
+new one. Dismiss deletes the entry outright rather than setting a hidden
+flag, so no dismissal state is remembered and the next failure arrives with
+a new id.
+
+### Banner and copy changes
+
+- Mockup: the inline "Couldn't switch to Audio." line goes, the row sits in
+  the banner.
+- Saved-not-applied row: "Saved, but couldn't apply: ‹reason›. Aurora is
+  still running your previous setup and will try the new one next time it
+  starts." It must not promise the next launch works: that launch builds
+  from the same saved config and can fail the same way.
+- Retry on a running host with a held error is a reload against the saved
+  config. The banner's handler is keyed by source today (`POST /api/reload`
+  for `failed`, a state PUT for a failed resume); it needs a rule for this.
+  The resolve-action rule still applies first: a `permission_denied:` error
+  offers Open Settings, not Retry.
+- Audio permission row: the existing `renderAudioPermissionBanner` block and
+  its Open Settings link, inside a banner row, dismissible (the host is
+  running and the detection is a heuristic, e.g. a silent room).
+- The "Rejected requests in the banner" alternative above is superseded for
+  saved-not-applied errors: its "did the save hold?" clearing problem goes
+  away because the daemon clears on the next successful build or a dismiss.
+
+### Bead effects
+
+- **Aurora-nkhi**: superseded. Its suppress-if-banner-holds logic only
+  exists to patch the old split.
+- **Aurora-m0fy**: keeps its scope (owner fix for `topTierError`), shrunk to
+  the errors that stay inline.
+- **Aurora-k73j**: rule unchanged (running → Pause; paused with an error or
+  failed → `⚠ See Error`). Clarification: errors on a running host do not
+  change the label, so `buildError()` alone must not drive it.
+- New beads: core (hold the error on a running host, `id`, merge by source,
+  dismiss route), Mac core (audio permission entry, retire the
+  `/api/mac/audio-status` poll), WebUI (remove inline `reloadError` copies,
+  banner X, retry rule, saved-not-applied copy).
+- cj11 and d3ec are closed; their logs record the decision this reverses
+  and should get a pointer.
+
+### Decisions (2026-10-06)
+
+1. **Paused host with a failed resume: not dismissible.** It fails the
+   Dismiss rule's own test (no lights, the user asked for running), and
+   Accepted gaps keeps its "stays until the next successful build" entry.
+   Dismissible means `running`, nothing else.
+2. **Tray for a running host with a held error: keep Pause.** The slot only
+   relabels when its own action would fail, and Pause works. Relabelling
+   would take away pausing lights that are running. No paused host holds a
+   reload error (Config PUT outcomes), so k73j's rule needs no new case.
+3. **Mode+Device reload failure during onboarding: inline.** A step error
+   under rule 3: `renderReloadError` stays on ModeDeviceScreen and the
+   banner gate is unchanged. The daemon holds it, so the banner shows it if
+   the user reaches the Dashboard with it unresolved.
+4. **Audio permission block: moves to the banner, pushed by the daemon.**
+   Host-state by rule 2 (running, capturing silence). Today it comes from
+   the Mac-only `/api/mac/audio-status` route, which the Dashboard polls
+   only in audio mode and which takes the pipeline lock through
+   `withAudioInput` (`app/mac/src/main.cpp:265-276`), so the lock-free
+   heartbeat cannot call it. Instead the grabber publishes and removes an
+   `audio_permission` entry on the flag's transitions, so a dismiss holds
+   until the condition clears and returns. No `severity` field for now: the
+   copy already says "likely".
+5. **Dismiss identity: a monotonic `id`.** Timestamps can collide and depend
+   on the clock; a counter cannot and costs nothing.
+6. **Saved-not-applied: the X is enough, with honest copy** (Banner and copy
+   changes). Possible later bead, only if stale rows prove a problem in
+   use: a Revert action that re-saves the running config, or Kubernetes-
+   style `configRevision`/`appliedRevision` on `GET /api/state` so the row
+   is derived from the mismatch instead of held.
+7. **Demo fork: leave the demo alone**, per the ewyz/cj11 precedent. When
+   re-vendoring `DashboardScreen.js`, take the removal of the inline
+   `reloadError` copies with it so the demo does not keep the old split.
+8. **Rejected outright stays inline.** Nothing changed daemon-side, and
+   `invalid_field_type` is usually a client bug, so generic inline copy is
+   enough.
+9. **Stop failure: deferred.** `/api/stop` always returns `succeeded:true`,
+   so the real failure is a shutdown that hangs with the daemon still
+   answering. Likely shape: a timer in the Stop dialog that, if the daemon
+   still answers N seconds after a confirmed stop, tells the user how to
+   quit Aurora from the OS.
+
+Verification needed when built: core tests (hold while running, clear on
+build and on pause, merge by source, dismiss with a stale `id` is a no-op,
+audio entry on transitions only), node tests for the banner X and its
+running-only rule, a new live Mac check (the existing checks assumed the old
+behavior), and updates to the lessons that record the old rule.
