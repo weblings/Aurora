@@ -1,10 +1,11 @@
-// App shell connection watcher (Aurora-ewyz): the beat takes `failureThreshold`
-// consecutive failed polls to raise the unexpected-loss takeover (one blip
-// never shows), recovery calls onRecovered once with the preserved route,
-// confirmed Stop is terminal until the manual retry, and concurrent
-// checkNow() triggers share one poll. No DOM needed -- document and
-// fetchStatus doubles, real timers with tiny intervals. Run with
-// `node shell.test.mjs`.
+// App shell connection watcher (Aurora-ewyz, single-variant takeover
+// Aurora-yzp4): the beat takes `failureThreshold` consecutive failed polls
+// to raise the heading-only 'Aurora has stopped' takeover (one blip never
+// shows), recovery calls onRecovered once with the preserved route,
+// confirmed Stop keeps the same overlay and keeps polling until the daemon
+// answers, and concurrent checkNow() triggers share one poll. No DOM
+// needed -- document and fetchStatus doubles, real timers with tiny
+// intervals. Run with `node shell.test.mjs`.
 import assert from 'node:assert/strict';
 import { App } from './shell.js';
 
@@ -66,7 +67,7 @@ const ok = () => async () => ({ reachable: true });
 const down = (calls) => async () => { calls.count++; throw new Error('down'); };
 const blankScreen = () => ({ mount() {}, unmount() {} });
 
-// Two consecutive failed polls raise the unexpected-loss takeover, keep the
+// Two consecutive failed polls raise the heading-only takeover, keep the
 // preserved route, and do not call onRecovered.
 {
   const calls = { count: 0 };
@@ -76,8 +77,9 @@ const blankScreen = () => ({ mount() {}, unmount() {} });
   assert.equal(overlay(), '', 'one blip never shows the takeover');
   assert.equal(app.connectionState, 'live');
   assert.equal(await app._pollOnce(), false);
-  assert.ok(overlay().includes("Aurora isn't running"), 'takeover copy');
-  assert.ok(overlay().includes('reconnect on its own'), 'reconnect promise');
+  assert.ok(overlay().includes('Aurora has stopped'), 'takeover copy');
+  assert.ok(!overlay().includes('<button'), 'no button');
+  assert.ok(!overlay().includes('<p'), 'no body copy');
   assert.equal(app.connectionState, 'down');
   assert.equal(app.preservedRouteId, 'dashboard');
   assert.deepEqual(recovered, []);
@@ -124,35 +126,41 @@ const blankScreen = () => ({ mount() {}, unmount() {} });
   uninstallDom();
 }
 
-// Confirmed Stop is terminal: the stopped variant shows, the beat timer is
-// cleared, and checkNow() probes nothing until the manual retry.
+// Confirmed Stop keeps the same heading-only overlay and keeps polling;
+// the overlay clears on its own (via onRecovered) when the daemon answers.
 {
-  const calls = { count: 0 };
-  const { app, slots, overlay } = makeApp(down(calls));
+  let fail = true;
+  const { app, recovered, overlay } = makeApp(async () => {
+    if (fail) throw new Error('down');
+    return { reachable: true };
+  });
   app.navigate(blankScreen(), 'dashboard');
   app.startHeartbeat();
   app.notifyStopConfirmed();
   assert.ok(overlay().includes('Aurora has stopped'), 'intentional copy');
+  assert.ok(!overlay().includes('<button'), 'no button');
+  assert.ok(!overlay().includes('<p'), 'no body copy');
   assert.equal(app.connectionState, 'stopped');
-  assert.equal(app._beatTimer, null, 'polling stops');
-  assert.equal(await app.checkNow(), false);
-  assert.equal(calls.count, 0, 'no probing from under the intentional takeover');
-  slots.get('shell-overlay-slot').buttons.get('#shell-retry-connection').click();
-  assert.equal(app.connectionState, 'live');
-  assert.equal(overlay(), '', 'manual retry clears the takeover');
-  assert.notEqual(app._beatTimer, null, 'manual retry restarts the beat');
+  assert.notEqual(app._beatTimer, null, 'keeps polling for recovery');
+  assert.equal(await app.checkNow(), false, 'still down');
+  assert.ok(overlay().includes('Aurora has stopped'), 'same copy while down');
+  fail = false;
+  assert.equal(await app.checkNow(), true);
+  assert.equal(overlay(), '', 'overlay cleared on recovery');
+  assert.deepEqual(recovered, ['dashboard']);
+  assert.equal(app.preservedRouteId, null);
   app.stopHeartbeat();
   uninstallDom();
 }
 
-// A tray/quit Stop sends no signal: the unexpected-loss variant shows and
-// keeps polling (the beat timer is still armed).
+// A tray/quit Stop sends no signal: the same overlay shows and keeps
+// polling (the beat timer is still armed).
 {
   const calls = { count: 0 };
   const { app, overlay } = makeApp(down(calls), { pollIntervalMs: 10 });
   app.startHeartbeat();
   await sleep(40);
-  assert.ok(overlay().includes("Aurora isn't running"), 'unexpected variant without a signal');
+  assert.ok(overlay().includes('Aurora has stopped'), 'same overlay without a signal');
   assert.equal(app.connectionState, 'down');
   assert.notEqual(app._beatTimer, null, 'keeps polling for recovery');
   app.stopHeartbeat();
@@ -229,16 +237,17 @@ const blankScreen = () => ({ mount() {}, unmount() {} });
 }
 
 // showUnreachable (boot/stage path) raises the takeover and arms the beat;
-// it never disturbs the intentional variant.
+// the intentional path shows the same overlay and keeps polling.
 {
   const { app, overlay } = makeApp(ok());
   app.showUnreachable();
-  assert.ok(overlay().includes("Aurora isn't running"));
+  assert.ok(overlay().includes('Aurora has stopped'));
   assert.notEqual(app._beatTimer, null, 'beat armed for recovery');
   app.stopHeartbeat();
   app.notifyStopConfirmed();
-  app.showUnreachable();
-  assert.ok(overlay().includes('Aurora has stopped'), 'intentional variant wins');
+  assert.ok(overlay().includes('Aurora has stopped'), 'single variant');
+  assert.notEqual(app._beatTimer, null, 'stopped keeps polling');
+  app.stopHeartbeat();
   uninstallDom();
 }
 

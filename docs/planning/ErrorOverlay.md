@@ -219,20 +219,22 @@ what makes a new one noticeable.
 ## Daemon unreachable: take over the screen
 
 The existing stop overlay (`.overlay` scrim, `forms.css:365`) becomes a
-shell-level takeover with two variants:
+shell-level takeover with a single variant (Aurora-yzp4): heading-only
+"Aurora has stopped", no body copy and no button -- the page cannot
+relaunch the daemon, and the beat owns recovery.
 
-- **Unexpected loss**: title along the lines of "Aurora isn't running",
-  body "Start Aurora again from your apps. This page will reconnect on its
-  own." The heartbeat keeps polling; when the daemon answers, the overlay
-  clears and the shell calls `bootstrap()` (`app.js`) so routing is worked
-  out fresh. `bootstrap()`, not a re-mount of the current screen, because
-  screen instances hold state (`stopPhase`, `topTierError`) that would
-  bring stale errors back; it already goes straight to the Dashboard once
-  `nuxCompleted` is set. Cost: a NUX user loses Back history and any
-  half-finished pairing step, acceptable for a daemon restart.
+- **Unexpected loss**: the overlay shows and the heartbeat keeps polling;
+  when the daemon answers, the overlay clears and the shell calls
+  `bootstrap()` (`app.js`) so routing is worked out fresh. `bootstrap()`,
+  not a re-mount of the current screen, because screen instances hold
+  state (`stopPhase`, `topTierError`) that would bring stale errors back;
+  it already goes straight to the Dashboard once `nuxCompleted` is set.
+  Cost: a NUX user loses Back history and any half-finished pairing step,
+  acceptable for a daemon restart.
 - **Intentional stop** (user confirmed Stop): the Dashboard tells the shell
-  the stop was deliberate, and the overlay shows today's "Aurora has
-  stopped" copy. A dead end is the honest answer there.
+  the stop was deliberate, and the shell shows the same overlay. The beat
+  keeps polling rather than going terminal, so relaunching Aurora clears
+  it with no click and no reload.
 
 This replaces all three current surfaces: the Dashboard heartbeat overlay
 moves to the shell, the boot-time `renderUnreachable` becomes the same

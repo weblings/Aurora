@@ -190,3 +190,13 @@ Applies-when: verifying a WebKit- or Gecko-specific rendering fix, or triaging a
 The 5jj slider misalignment reproduced in Firefox on iOS but desktop Firefox never showed it: iOS forces every browser through WKWebView, so iOS Firefox reads ::-webkit-slider-thumb and ignores ::-moz-range-thumb entirely, while desktop Firefox (Gecko) centers range thumbs natively. "Works on desktop" had verified the wrong engine.
 
 **Fix:** triage and verify by rendering engine on the reporting platform, not by brand -- desktop Safari or Playwright-WebKit proxies iOS WebKit; desktop Firefox proves nothing about it. Name the engine in the task, not just the browser.
+
+---
+
+## A heading-only overlay's spacing rules assume nothing follows the heading
+Tags: webui, css, overlay
+Applies-when: adding body copy or buttons to an overlay panel that renders a bare heading today
+
+forms.css's `.overlay-panel h2:last-child` zeroes the heading's bottom margin and centers it, written explicitly for the post-stop dead-end screen -- and button top-margin lives on the `.overlay-actions` wrapper, not the button. ewyz appended bare buttons (plus a paragraph) to that panel, so the heading kept full margin, the text added its own, and the button sat flush with zero gap: uneven spacing with no rule violated on its face.
+
+**Fix:** keep the overlay's content contract, or wrap buttons in `.overlay-actions`. Before appending a sibling to a bare heading, check for `:last-child`/`:only-child` rules that assumed it was alone.

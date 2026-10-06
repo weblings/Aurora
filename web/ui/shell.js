@@ -12,10 +12,14 @@
 // must not be.
 //
 // Connection watcher (Aurora-ewyz): the shell also owns the daemon
-// heartbeat and the unreachable takeover, so every screen -- Dashboard and
+// heartbeat and the heading-only stopped takeover, so every screen -- Dashboard and
 // every NUX step alike -- gets them with no per-screen wiring. Design:
 // docs/planning/ErrorOverlay.md, 'Daemon unreachable: take over the
 // screen'. The takeover reuses the .overlay scrim (forms.css:365).
+// Single variant (Aurora-yzp4): the overlay is always just
+// <h2>Aurora has stopped</h2> -- no body copy, no button. The page cannot
+// relaunch the daemon, so the beat keeps polling in every state and clears
+// the overlay through onRecovered when the daemon answers.
 //
 // Failure taxonomy (contract Aurora-cj11's Retry relies on): only a
 // network error, an abort, or a timeout counts as unreachable. Any HTTP
@@ -107,9 +111,6 @@ export class App {
   // report the failed action inline) from a real outage (takeover owns
   // it). See docs/lessons/components.md:308.
   async checkNow() {
-    // A stopped beat stays stopped until the manual retry: no probing
-    // from under the intentional takeover.
-    if (this.connectionState === 'stopped') return false;
     // Always a fresh poll (or an attach to the one already running): a
     // cached verdict could predate the very failure that triggered this
     // call. Cost is bounded anyway -- concurrent triggers share one poll
@@ -122,21 +123,20 @@ export class App {
   }
 
   // A confirmed Stop (Dashboard's Stop button): the daemon is exiting on
-  // purpose, so this is the terminal variant -- polling stops, and the
-  // takeover offers a manual Retry connection instead of reconnecting on
-  // its own. A tray/quit Stop sends no signal and lands in the
-  // unexpected-loss variant instead, which keeps polling.
+  // purpose, so the takeover shows the intentional copy -- but the beat
+  // keeps polling, so relaunching Aurora clears it with no click
+  // (Aurora-yzp4). A tray/quit Stop sends no signal and lands in the same
+  // overlay through the beat instead.
   notifyStopConfirmed() {
-    this.stopHeartbeat();
     this.connectionState = 'stopped';
     this.preservedRouteId = this.currentRouteId;
     this._showTakeover('stopped');
+    this.startHeartbeat();
   }
 
   // Boot and stage-transition failure path (was renderUnreachable): show
   // the takeover and make sure the beat is watching for recovery.
   showUnreachable() {
-    if (this.connectionState === 'stopped') return;
     this.preservedRouteId = this.currentRouteId;
     this._showTakeover('unreachable');
     this.startHeartbeat();
@@ -169,7 +169,7 @@ export class App {
 
   _handleReachable() {
     this._consecutiveFailures = 0;
-    if (this.connectionState === 'down') {
+    if (this.connectionState === 'down' || this.connectionState === 'stopped') {
       this.connectionState = 'live';
       const preserved = this.preservedRouteId;
       this.preservedRouteId = null;
@@ -190,48 +190,26 @@ export class App {
     return false;
   }
 
+  // Single variant (Aurora-yzp4): heading only, never body copy or a
+  // button -- the page cannot relaunch the daemon, and the beat owns
+  // recovery. `kind` is kept so the two call sites read unchanged; both
+  // render the same overlay, which is also what forms.css's `h2:last-child`
+  // rule assumes.
   _showTakeover(kind) {
     if (!this.overlaySlot) return;
     this._takeover = kind;
-    if (kind === 'stopped') {
-      this.overlaySlot.innerHTML = `
-        <div class="overlay">
-          <div class="overlay-scrim"></div>
-          <div class="overlay-panel">
-            <h2>Aurora has stopped</h2>
-            <button type="button" class="btn btn-primary" id="shell-retry-connection">Retry connection</button>
-          </div>
+    this.overlaySlot.innerHTML = `
+      <div class="overlay">
+        <div class="overlay-scrim"></div>
+        <div class="overlay-panel">
+          <h2>Aurora has stopped</h2>
         </div>
-      `;
-      this.overlaySlot.querySelector('#shell-retry-connection')
-        ?.addEventListener('click', () => this._manualRetry());
-    } else {
-      this.overlaySlot.innerHTML = `
-        <div class="overlay">
-          <div class="overlay-scrim"></div>
-          <div class="overlay-panel">
-            <h2>Aurora isn't running</h2>
-            <p class="status-text">Start Aurora again from your apps. This page will reconnect on its own.</p>
-            <button type="button" class="btn btn-primary" id="shell-try-again">Try again</button>
-          </div>
-        </div>
-      `;
-      this.overlaySlot.querySelector('#shell-try-again')
-        ?.addEventListener('click', () => this.checkNow());
-    }
+      </div>
+    `;
   }
 
   _clearTakeover() {
     this._takeover = null;
     if (this.overlaySlot) this.overlaySlot.innerHTML = '';
-  }
-
-  _manualRetry() {
-    if (this.connectionState !== 'stopped') return;
-    this.connectionState = 'live';
-    this._consecutiveFailures = 0;
-    this._clearTakeover();
-    this.startHeartbeat();
-    void this.checkNow();
   }
 }

@@ -532,3 +532,13 @@ Applies-when: designing one shared surface for errors from several sources
 The first [[error-overlay]] draft put every failure (mode switch, device save, auto-arrange, resume, startup build) into one persistent overlay, which meant writing a "still true?" rule for each. Most had one (server state), but device save and auto-arrange did not: "a fresh read showing the save held" has no clean definition. Hyperion's split dissolved it. A rejected request leaves the system in its prior, consistent state; it's about something the user just did, at a control they are looking at. A degraded system (build failed, resume failed) is state that outlives any action, and the daemon that failed is the one that knows when it is fixed. A third kind, daemon unreachable, makes every server-derived error stale, so it belongs to neither surface.
 
 **Fix:** sort each error first: rejected request -> inline at its control, cleared by the next confirmed result; degraded system -> held by the daemon, keyed by source, read by every surface (WebUI and tray alike), cleared by the daemon on success; connection lost -> a takeover that replaces everything. Only the second kind needs a shared persistent surface, and it needs no client-side staleness rules.
+
+---
+
+## A green suite can enshrine drift -- tests asserting undesigned behavior read as design approval
+Tags: webui, errors, design-process, testing
+Applies-when: reviewing an implementation against its design doc, or treating suite-green as spec compliance
+
+Aurora-ewyz's shell.test.mjs asserted "Confirmed Stop is terminal until the manual retry", but [[error-overlay]]'s intentional-stop section described a dead end with no button anywhere: the Retry/Try-again buttons were an implementation addition, and the test made the drift look decided. The mismatch surfaced only on owner review of the badly-spaced button.
+
+**Fix:** when code and design disagree, re-read the design doc's exact copy and actions first, and treat a test asserting behavior the design never described as the bug -- rewrite the test with the fix, don't cite it as approval.

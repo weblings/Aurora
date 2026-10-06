@@ -91,3 +91,4 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `windows-failed-resume-n5ly` | [log/2026-10-06-windows-failed-resume-n5ly.md](log/2026-10-06-windows-failed-resume-n5ly.md) | Windows failed-resume verification closes Aurora-n5ly |
 | `windows-input-analysis` | [archive/WindowsInputAnalysis.md](archive/WindowsInputAnalysis.md) | Windows Input plugin — analysis pass |
 | `windows-pause-verification` | [log/2026-10-04-windows-pause-verification.md](log/2026-10-04-windows-pause-verification.md) | Windows verification of pause/resume and kea; Aurora.exe has no --help/--version (Aurora-v3in) |
+| `yzp4-takeover-unification` | [log/2026-10-06-yzp4-takeover-unification.md](log/2026-10-06-yzp4-takeover-unification.md) | Aurora-yzp4: takeover unified to heading-only "Aurora has stopped" |
