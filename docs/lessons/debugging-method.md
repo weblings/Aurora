@@ -812,6 +812,31 @@ On 2026-10-05 `devstack.py up` printed `timed out waiting for a frame on the rel
 
 ---
 
+## `value != "expected"` is `True` when `value` is `None` -- a dead oracle can pass a check it never actually ran
+Tags: debugging, verification, oracle, python
+Applies-when: writing a negative-outcome predicate (`!= "x"`, `is not "x"`) against a value that can legitimately be missing/`None`
+
+A pause/resume check (Aurora-jwcd) polled a real Hue bridge and asserted
+`status != "active"` to confirm a pause took effect. Every bridge call was
+actually failing (403, wrong application key -- see `output.md`'s pairing
+entry), so `status` was `None` on every poll, and `None != "active"`
+evaluates `True` in Python. The pause side of the check reported a clean
+pass for five straight cycles while never once getting a real answer from
+the bridge; only the resume side's *positive* predicate (`== "active"`)
+exposed the problem, because `None == "active"` is `False`.
+
+**Fix:** a negative predicate over an optional value needs its own explicit
+"got a real response at all" check (`value is not None and value != "x"`),
+not just the inequality -- otherwise a completely dead channel satisfies it
+by accident. More generally: distrust a "confirmed negative" from a check
+whose positive form has never also been seen to actually fire; a predicate
+that can be satisfied by *either* the real signal or total silence proves
+nothing on its own, same root shape as this file's "checker that passes
+vacuously" and "shares its subject's bug" entries, just a one-line operator
+instead of a shared assumption.
+
+---
+
 ## Proxy env vars hijack localhost HTTP — bypass the proxy in local test scripts
 Tags: testing, proxy, localhost, urllib, harness
 Applies-when: writing or running a script that drives the local app over HTTP and requests hang or return proxy errors

@@ -335,6 +335,56 @@ message id). Send `auth` immediately after connecting.
 
 ---
 
+## Re-running Hue pairing to "peek" at the app key mints a brand-new, unrelated bridge user
+Tags: output, hue, credentials, pairing, testing
+Applies-when: a script or test needs the real `hue-application-key` Aurora is already streaming with
+
+A bridge-side verification script for Aurora-jwcd needed the
+`hue-application-key` Aurora's running session uses, which
+`GET /api/hue/connection` deliberately withholds (see this file's
+resource-id entry and `PairingRoutes.cpp`). The first instinct -- "re-run
+pairing to see it once" -- is wrong: the bridge's `POST /api/0`
+registration (`ApiTools::registerNewUser`) always mints a fresh
+username/clientkey pair; it can't hand back a credential that already
+exists. Every call the script made with that fresh key got CLIP v2's
+`403` (an HTML "refused key" page, confirmed by web research, not a JSON
+error), while Aurora's own, separately-stored session kept streaming
+correctly the whole time -- two valid-looking but entirely unrelated
+credentials, one working, one not, with no overlap between them.
+
+**Fix:** read the real key straight from `CredentialsStore`'s file
+(`<configRoot>/hue-credentials.json` -- `%APPDATA%\Aurora` on Windows,
+`~/Library/Application Support/Aurora` on Mac, `~/.config/aurora` on
+Linux), never by re-pairing. General principle: when a credential is
+withheld from an API by design for security, "regenerate it" and "read the
+existing one" are different operations with different results whenever
+the underlying system treats registration as always-additive rather than
+idempotent -- check which one a recovery method actually performs before
+trusting its output.
+
+---
+
+## A Hue application key commonly starts with `-`, which breaks a naive `--flag value` CLI arg
+Tags: output, hue, credentials, cli, argparse
+Applies-when: writing a command-line tool that takes a Hue `username`/`hue-application-key` as a flag value
+
+`tools/hue-pause-resume-check/pause_resume_check.py --hue-key -WwOi...`
+failed with argparse's "expected one argument" -- not a bad value, a
+parsing ambiguity. The real bridge-issued key begins with `-`, so the
+space-separated form reads as two flags (`--hue-key` with no value,
+followed by an unrecognized `-WwOi...` flag) rather than one flag and its
+value. Nothing about the key is malformed; this is purely how `argparse`
+(and most getopt-style parsers) resolve a bare leading-dash token.
+
+**Fix:** accept the value via `--flag=value` (the `=` form bypasses the
+ambiguity) or an env var, and say so in the tool's own `--help`/usage text
+before anyone hits it. General principle: any CLI flag whose value is an
+opaque bridge/API-issued token should be documented as accepting `=` or an
+env var by default, since nothing guarantees such tokens won't start with
+`-`.
+
+---
+
 ## A dead Hue bridge cannot fail a pipeline resume — inject resume failures through the input config
 Tags: output, hue, testing, resume, failure-injection
 Applies-when: testing a failure path that needs `Pipeline::build` to throw, or injecting an output failure by killing the bridge
