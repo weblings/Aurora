@@ -581,8 +581,8 @@ a new id.
 ### Bead effects
 
 - **Aurora-nkhi**: superseded. Its suppress-if-banner-holds logic only
-  exists to patch the old split. Close, or ship as an interim fix, by owner
-  decision.
+  exists to patch the old split. Closed 2026-10-06 without shipping; its
+  node tests are carried into Aurora-98pr's notes.
 - **Aurora-m0fy**: keeps its scope (owner fix for `topTierError`), shrunk to
   the errors that stay inline; now after Aurora-98pr (same fields).
 - **Aurora-k73j**: rule unchanged (running → Pause; paused with an error or
