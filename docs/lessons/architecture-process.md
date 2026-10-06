@@ -742,6 +742,9 @@ State can change behind the tray's back (Dashboard button, `PUT /api/state`), so
 
 **Fix:** pass the tray an `isPaused` getter (lock-free atomic) and have the open hook read it. The click callback only posts a flag; the tick loop does the multi-second `setRunning`, so no UI or D-Bus thread blocks and there is no extra thread to join at shutdown.
 
+Extended 2026-10-05 (Aurora-k73j's tray-error sketch, [[error-overlay]]): the same open-time-read model covers relabeling the item itself (e.g. "Resume" -> "⚠ See Error"), not just its Pause/Resume text, it's the same getter shape, now also checking the source's current error. One implication worth stating outright: because the click callback only posts a flag and the menu closes immediately as a normal consequence of selecting any item, the menu that triggered a failing action is always already gone by the time that action's result exists -- there is no case where the triggering menu is still open and could show the failure live. Force-closing an open menu to fake a live update was considered (Mac's existing `cancelMenuTracking`, Windows' existing shutdown-time `WM_CANCELMODE`) and rejected: dismissing a menu the user is actively looking at, possibly mid-click on something unrelated, to buy freshness that's already an accepted limitation elsewhere isn't worth risking a dropped click.
+
+**Fix (extended):** when adding a new tray-visible condition beyond paused/resume, feed it through the same open-time getter rather than reaching for a push or forced-redraw mechanism -- the menu that would need the live update is, in this app's own click-then-tick-loop split, essentially never still open by the time the result exists anyway.
 
 ---
 

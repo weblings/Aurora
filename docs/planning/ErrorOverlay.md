@@ -4,9 +4,11 @@ Id: error-overlay
 
 Status: proposed — not built. Written 2026-10-05 from a design discussion.
 Elaborates Aurora-d3ec's open step 4 ("Retry path") and its "design
-sketches" section (tray relabel, single error channel); Aurora-k73j (tray
-feedback on a failed Resume) stays explicitly out of scope here, same split
-the bead review already made.
+sketches" section (tray relabel, single error channel). Aurora-k73j (tray
+feedback on a failed Resume) was kept out of the main design, which is
+Dashboard/WebUI-only, but its own sketch is worked out in Tray, below, once
+it became clear it leans on this doc's model (the WebUI is where its
+"See Error" click lands) rather than needing a separate design.
 
 Question: once Aurora-d3ec gives the Dashboard a real error field instead of
 stderr-only failures, where does it live, how does a user far down the page
@@ -205,6 +207,95 @@ remains, unmoved, so the user can reach whatever it was sitting over.
 - **One `currentError` winner among simultaneous sources.** Replaced by
   showing every currently-true source as its own row — see Model, above.
 
+## Tray (Aurora-k73j)
+
+Today the tray's only error-capable action is Pause/Resume (Launch UI and
+Stop have no comparable "failed, now what" state), and the menu is always
+exactly three items (Launch UI, Pause/Resume, Stop) on all three platforms.
+Scoped to that one source for now.
+
+**Relabel in place, not a new entry.** The failed item itself becomes
+`⚠ See Error`, in the same slot Pause/Resume already occupies, rather than
+inserting a separate entry above it. A new entry changes the list's
+length, which shifts every item below it the moment an error appears or
+clears, and tray menus get clicked by position as much as by reading. An
+in-place label swap never moves Launch UI or Stop, whatever a user's
+muscle memory already maps to "second item" stays correct through the
+whole error lifecycle. Scales the same way if the menu ever grows, each
+option's own slot still only reflects its own state, no new concept
+needed, though a long list of options could then show several scattered
+`⚠` rows with no single "how many things are wrong" count. If that ever
+matters, the fix is an *always-present*, fixed first slot (inert when
+clean, a real entry point when not) rather than a conditionally-inserted
+one, the same badge-plus-rows shape as the overlay above, not a new
+pattern to invent later. Not needed for three items.
+
+**Clicking it opens the WebUI, not Settings directly.** Reuses the
+existing, already-cross-platform "Launch UI" action (`ShellExecuteA` on
+Windows, `xdg-open` on Linux, the open-browser call on Mac) rather than
+duplicating the resolve-action logic (Retry vs. Open Settings vs. none)
+in the tray itself. The overlay is already where that lives; the tray's
+job is just noticing something's wrong and pointing at it.
+
+**The relabel is never visible live during the click that caused it.**
+Selecting a menu item closes the menu immediately on all three platforms,
+as a property of how native menus work, not something the app controls.
+Mac's click handler (`main.cpp:607-616`) only sets an atomic flag and
+returns; the actual `setRunning` attempt, which can take seconds and is
+what can fail, runs afterward on the tick thread (`:632-636`), well after
+the menu that triggered it is already gone. So the relabel only ever
+shows up on a *subsequent* open:
+
+- Mac and Windows compute the label once, immediately before display
+  (`TrayIcon.mm:67-73`'s `menuNeedsUpdate:`, `main.cpp:462-478`'s
+  freshly-rebuilt `HMENU`), with no mechanism to update an already-open
+  menu.
+- Linux already has a live push for this shape of thing: `refresh()`
+  (`TrayIcon.cpp:372-378`) emits a `LayoutUpdated` signal, already wired
+  from the tick loop whenever `isPaused()` changes (`main.cpp:700-703`).
+  The same compare-and-call pattern, extended to the error state, would
+  let Linux's label update even while the menu is open, if the host
+  honors the signal promptly (most do).
+
+Both Mac (`TrayIcon.mm:211-218`'s `cancelMenuTracking`) and Windows
+(`TrayIcon.cpp`'s shutdown-time `WM_CANCELMODE`) already have a working
+way to force an open menu closed, but forcibly dismissing a menu the user
+is actively looking at, possibly mid-click on something unrelated like
+Stop, to simulate a live update isn't worth the risk of eating a click for
+a freshness gain that's already accepted as a limitation on Pause/Resume
+today. Not pursued.
+
+**Ambient signaling (visible without opening the menu) needs a real icon,
+no badge API exists.** `NSStatusBarButton` is a plain button wrapper, no
+built-in badge/attention primitive, and Aurora has no Dock icon
+(`LSUIElement`) for `NSDockTile.badgeLabel` to apply to either, so there's
+no shortcut, only a discrete icon swap or a hand-composited overlay dot.
+Cost differs by platform: Windows reuses `Shell_NotifyIconA(NIM_MODIFY,
+...)`, already live in this file for the first-run balloon
+(`main.cpp:496-515`), just needs a second `HICON`. Linux's
+StatusNotifierItem already exposes the right properties (`Status`,
+`IconName`, `OverlayIconName`, `TrayIcon.cpp:169,175,183`) but they're
+hardcoded static today, real work, but spec-shaped, same pattern as the
+`LayoutUpdated` refresh already proven. Mac is smallest but genuinely new,
+and constrained to shape rather than color unless the alert variant
+deliberately opts out of the template-image convention the normal icon
+uses (`setTemplate:YES`, `TrayIcon.mm:133`).
+
+**System notifications, rejected, same reasoning as the toast above plus
+one more.** A notification is event-shaped for a condition that's
+state-shaped, the same mismatch already rejected for the WebUI. Mac also
+has zero existing notification code to build on, and the original k73j
+sketch's whole reason for proposing a menu relabel in the first place was
+avoiding notification permission. Windows is actually the cheapest
+platform to wire, `Shell_NotifyIconA`'s balloon fields are already used
+for the first-run message, but the state/event mismatch applies regardless
+of how cheap any one platform makes it.
+
+**Sequencing:** ship the in-place relabel and Launch-UI click-through
+first, it costs nothing beyond what this doc already specifies. Treat an
+icon swap as the next increment only if ambient-without-opening turns out
+to matter in practice. Skip notifications.
+
 ## Open questions
 
 - Generalized clearing rules for resume/pause, device save, and
@@ -224,3 +315,7 @@ remains, unmoved, so the user can reach whatever it was sitting over.
 - Exact badge corner set and drag threshold/feel — proposed top-right /
   bottom-right (same edge, so only vertical position varies), untested.
 - Row enter/exit animation — intentionally deferred, see The overlay, above.
+- Tray icon swap's actual asset(s) and, on Linux, the real wiring of
+  `Status`/`OverlayIconName` plus the matching change signal — sketched,
+  not built, and deliberately deferred unless the in-place relabel proves
+  insufficient on its own (see Tray, above).

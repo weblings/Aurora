@@ -6,8 +6,9 @@ Id: error-overlay-design
 question) and its "design sketches" section, worked out with the owner
 before any code. Follow-on to
 [[error-text-and-leak-beads]]'s own d3ec review. Aurora-k73j (tray feedback
-on a failed Resume) stayed explicitly out of scope, same split that review
-already made.
+on a failed Resume) was kept out of the main WebUI design, same split that
+review already made, then sketched separately once the Dashboard/overlay
+model was settled (see Tray, below).
 
 ## Done
 
@@ -50,6 +51,43 @@ already made.
   source set is small and fixed, but not worth building speculatively).
 - Wrote the converged design to [[error-overlay]].
 
+## Tray (Aurora-k73j)
+
+- Sketched relabeling the failed item in place (`⚠ See Error`, same slot
+  Pause/Resume already occupies) rather than inserting a new entry, so a
+  menu that grows or shrinks a row never shifts the other two items and
+  breaks click-by-position habits; scoped today to the one source the
+  tray can actually produce (resume/pause).
+- Traced the actual click-to-result sequencing across all three trays:
+  the menu closes immediately on selection, before the posted
+  `pauseToggleRequested` flag is even picked up by the tick thread
+  (`app/mac/src/main.cpp:607-636`), so the menu that caused a failure is
+  always already gone by the time the failure exists. That makes a
+  force-close-to-redraw workaround moot for the common case; considered
+  and rejected anyway (Mac's `cancelMenuTracking`, Windows'
+  `WM_CANCELMODE`, both already used for shutdown) given the risk of
+  eating a click to buy freshness Mac/Windows' pull-at-open model already
+  accepts as a limitation. Linux already pushes a redraw live via
+  `TrayIcon::refresh()`'s `LayoutUpdated` signal, wired today only for
+  the paused toggle (`main.cpp:700-703`), directly reusable for the error
+  state.
+- Researched whether macOS has a menu-bar icon badge/attention API for
+  ambient (no-menu-open) signaling: it doesn't. `NSStatusBarButton` is a
+  plain button wrapper, and `NSDockTile.badgeLabel` doesn't apply since
+  Aurora has no Dock icon (`LSUIElement`). An icon swap or hand-composited
+  overlay is the only lever, cost differs sharply by platform (near-free
+  on Windows reusing an existing `Shell_NotifyIconA(NIM_MODIFY, ...)`
+  call, spec-shaped but real work on Linux via StatusNotifierItem's
+  already-exposed-but-static `Status`/`OverlayIconName`, smallest-but-new
+  on Mac and shape-only given its template-image icon). System
+  notifications considered and rejected, same state-vs-event mismatch as
+  the WebUI toast, plus the original k73j sketch's own stated reason for
+  avoiding notification permission in the first place.
+- Decided ship order: in-place relabel + the existing Launch-UI action
+  first (nothing new to build beyond this doc), icon swap only if ambient
+  signaling proves necessary in practice, notifications skipped.
+- Added to [[error-overlay]].
+
 ## Lessons
 
 - [components.md](../lessons/components.md): extended "One failure
@@ -60,3 +98,10 @@ already made.
   wrong primitive for a condition that can be true before any user action"
   and "An error's resolve action is a property of what went wrong, not of
   which control produced it."
+- [architecture-process.md](../lessons/architecture-process.md): extended
+  "A tray label that mirrors app state should be read when the menu
+  opens, not pushed" with the error-relabel case and the finding that the
+  triggering menu is always already closed by the time a result exists.
+- [macos-gui.md](../lessons/macos-gui.md): new entry, "No badge/attention
+  API exists for an `NSStatusItem`, and `NSDockTile.badgeLabel` doesn't
+  apply to an `LSUIElement` app with no Dock icon."
