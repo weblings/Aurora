@@ -332,3 +332,13 @@ of connecting.
 **Fix:** run a dedicated reader thread that always drains replies, separate
 from the sender. Gate each light on its previous command's reply (matched by
 message id). Send `auth` immediately after connecting.
+
+---
+
+## A dead Hue bridge cannot fail a pipeline resume — inject resume failures through the input config
+Tags: output, hue, testing, resume, failure-injection
+Applies-when: testing a failure path that needs `Pipeline::build` to throw, or injecting an output failure by killing the bridge
+
+Aurora-n5ly's plan was "pause, kill the bridge, resume must fail". Live on Windows with the Ethernet unplugged, resume returned 200 `succeeded:true` in 6.3s (timeouts, then success): `loadEntertainmentConfigurations` returns an empty map without throwing when REST is unreachable, `HueOutput::init` ignores the selector's `false`, and the `Streamer` constructor swallows the DTLS failure per this file's `isConnected()` entry — while `PipelineHost::resume` only fails on a `Pipeline::build` throw. Complement, not duplicate, of the two existing entries: those cover a failure being invisible and success signals lying; this one covers a failure being *unproducable* through the output at all.
+
+**Fix:** break the input side instead — set `activeInputName` to a bogus value on disk (`setRunning` reloads from disk on every resume) and restore after. Note the config has separate video/audio input keys, so breaking one leaves the other mode's resume green. Separate product gap, still open: a resume against a dead bridge reports running with no tray/log/Dashboard signal.

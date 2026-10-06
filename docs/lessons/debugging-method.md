@@ -810,3 +810,13 @@ On 2026-10-05 `devstack.py up` printed `timed out waiting for a frame on the rel
 
 **Fix:** on a frame timeout read `app.log` first for the bind line, and check the owner of 8215+ with `lsof` before touching the pipeline. Only quit a process you started; check its command line (`--fresh`, `--fake-hue`) to see whether it belongs to the stack.
 
+---
+
+## Proxy env vars hijack localhost HTTP — bypass the proxy in local test scripts
+Tags: testing, proxy, localhost, urllib, harness
+Applies-when: writing or running a script that drives the local app over HTTP and requests hang or return proxy errors
+
+Sandbox and corporate environments set `http_proxy`/`https_proxy`, and Python's urllib honors them even for 127.0.0.1 unless `no_proxy` covers it. Symptom here: a stub-server self-test hung on plain GETs (proxy unreachable for the port) and error branches received empty proxy pages instead of app JSON. Raw sockets worked, which is the tell — TCP is fine, HTTP is being rerouted.
+
+**Fix:** build scripts' HTTP layer on an opener with an empty proxy map (`urllib.request.build_opener(urllib.request.ProxyHandler({}))`) and use it for every call, so local traffic can never be rerouted regardless of the machine's env. Verify the bypass in the script's own self-test by running it with the proxy vars set.
+
