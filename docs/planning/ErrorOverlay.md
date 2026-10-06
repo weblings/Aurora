@@ -697,6 +697,11 @@ done.
     successful build clears all entries and restarts the grabber's grace
     window, so a dismissed row returns after a structural save if the
     denial persists. Accepted.
+15. **A build failure supersedes earlier build entries.** Found building
+    ja76: with plain merge-by-source, a failed retry of a failed startup
+    held `startup` and `reload` together, two rows for one cause. A new
+    `startup`/`resume`/`reload` failure replaces the earlier ones; sources
+    other components hold (`audio_permission`) still merge.
 
 Verification needed when built: core tests (hold while running, clear on
 build and on pause, merge by source, dismiss with a stale `id` is a no-op,

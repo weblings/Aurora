@@ -1080,7 +1080,7 @@ TEST_CASE("PipelineHost keeps a failed resume's error on the paused snapshot unt
 }
 
 
-TEST_CASE("PipelineHost stores nothing for a failed reload while a pipeline is running (Aurora-d3ec)", "[PipelineHost]")
+TEST_CASE("PipelineHost holds a failed reload's error while the old pipeline keeps running (Aurora-ja76)", "[PipelineHost]")
 {
   ScopedTempDir dir("host-reload-running");
   auto events = std::make_shared<Events>();
@@ -1091,8 +1091,175 @@ TEST_CASE("PipelineHost stores nothing for a failed reload while a pipeline is r
   bad.setActiveInputName("nope");
   std::string error;
   CHECK_FALSE(host.reload(registry, bad, dir.path, error));
+  HostStatus status = host.status();
+  CHECK(status.state == HostState::Running);
+  REQUIRE(status.errors.size() == 1);
+  CHECK(status.errors[0].source == "reload");
+  CHECK(status.errors[0].message == "Unknown input 'nope'");
+  CHECK(status.errors[0].id > 0);
+
+  // A successful build clears everything held, including other sources.
+  REQUIRE(host.setError("audio_permission", "denied"));
+  CHECK(host.status().errors.size() == 2);
+  REQUIRE(host.reload(registry, videoConfig(), dir.path, error));
   CHECK(host.status().state == HostState::Running);
   CHECK(host.status().errors.empty());
+  host.shutdown();
+}
+
+
+TEST_CASE("PipelineHost: pause clears a held error and a reload while paused holds nothing (Aurora-ja76)", "[PipelineHost]")
+{
+  ScopedTempDir dir("host-reload-pause");
+  auto events = std::make_shared<Events>();
+  auto registry = makeRegistry(events);
+  PipelineHost host(Pipeline::build(registry, videoConfig(), dir.path, {}), {});
+
+  Config bad;
+  bad.setActiveInputName("nope");
+  std::string error;
+  REQUIRE_FALSE(host.reload(registry, bad, dir.path, error));
+  REQUIRE(host.status().errors.size() == 1);
+
+  REQUIRE(host.pause());
+  CHECK(host.status().state == HostState::Paused);
+  CHECK(host.status().errors.empty());
+
+  // Paused reload saves without building, so there is nothing to fail.
+  CHECK(host.reload(registry, bad, dir.path, error));
+  CHECK(host.status().errors.empty());
+  CHECK_FALSE(host.setError("audio_permission", "denied"));
+  host.shutdown();
+}
+
+
+TEST_CASE("A reload failure that lands after a pause stores nothing (Aurora-ja76)", "[PipelineHost]")
+{
+  ScopedTempDir dir("host-failure-after-pause");
+  auto events = std::make_shared<Events>();
+  auto registry = makeRegistry(events);
+  PipelineHost host(Pipeline::build(registry, videoConfig(), dir.path, {}), {});
+
+  // The failing build inits its outputs before it fails on the unknown
+  // input; a pause lands inside that window.
+  bool nested = false;
+  events->onOutputInit = [&]{
+    if(nested){ return; }
+    nested = true;
+    REQUIRE(host.pause());
+  };
+
+  Config bad;
+  bad.setActiveInputName("nope");
+  std::string error;
+  CHECK_FALSE(host.reload(registry, bad, dir.path, error));
+  CHECK(host.status().state == HostState::Paused);
+  CHECK(host.status().errors.empty());
+  host.shutdown();
+}
+
+
+TEST_CASE("PipelineHost merges errors by source and stamps ids per entry (Aurora-ja76)", "[PipelineHost]")
+{
+  ScopedTempDir dir("host-error-merge");
+  auto events = std::make_shared<Events>();
+  auto registry = makeRegistry(events);
+  PipelineHost host(Pipeline::build(registry, videoConfig(), dir.path, {}), {});
+
+  Config bad;
+  bad.setActiveInputName("nope");
+  std::string error;
+  REQUIRE_FALSE(host.reload(registry, bad, dir.path, error));
+  const std::uint64_t reloadId = host.status().errors[0].id;
+
+  // An unrelated source keeps the reload entry, and its id.
+  REQUIRE(host.setError("audio_permission", "denied"));
+  HostStatus status = host.status();
+  REQUIRE(status.errors.size() == 2);
+  CHECK(status.errors[0].source == "reload");
+  CHECK(status.errors[0].id == reloadId);
+  CHECK(status.errors[1].source == "audio_permission");
+  const std::uint64_t audioId = status.errors[1].id;
+  CHECK(audioId > reloadId);
+
+  // The same failure again replaces its entry with a new id, message unchanged.
+  REQUIRE_FALSE(host.reload(registry, bad, dir.path, error));
+  status = host.status();
+  REQUIRE(status.errors.size() == 2);
+  const auto reloadEntry = std::find_if(status.errors.begin(), status.errors.end(), [](const HostError& e){ return e.source == "reload"; });
+  REQUIRE(reloadEntry != status.errors.end());
+  CHECK(reloadEntry->id > audioId);
+  const auto audioEntry = std::find_if(status.errors.begin(), status.errors.end(), [](const HostError& e){ return e.source == "audio_permission"; });
+  REQUIRE(audioEntry != status.errors.end());
+  CHECK(audioEntry->id == audioId);
+
+  CHECK(host.removeError("audio_permission"));
+  CHECK_FALSE(host.removeError("audio_permission"));
+  status = host.status();
+  REQUIRE(status.errors.size() == 1);
+  CHECK(status.errors[0].source == "reload");
+  host.shutdown();
+}
+
+
+TEST_CASE("PipelineHost::dismissError removes on a matching id only while running (Aurora-ja76)", "[PipelineHost]")
+{
+  ScopedTempDir dir("host-dismiss");
+  auto events = std::make_shared<Events>();
+  auto registry = makeRegistry(events);
+  PipelineHost host(Pipeline::build(registry, videoConfig(), dir.path, {}), {});
+  using Result = PipelineHost::DismissResult;
+
+  Config bad;
+  bad.setActiveInputName("nope");
+  std::string error;
+  REQUIRE_FALSE(host.reload(registry, bad, dir.path, error));
+  const std::uint64_t staleId = host.status().errors[0].id;
+  REQUIRE_FALSE(host.reload(registry, bad, dir.path, error));  // a new failure, a new id
+  const std::uint64_t currentId = host.status().errors[0].id;
+  REQUIRE(currentId != staleId);
+
+  CHECK(host.dismissError("reload", staleId) == Result::Stale);
+  CHECK(host.dismissError("audio_permission", currentId) == Result::Stale);
+  CHECK(host.status().errors.size() == 1);
+
+  CHECK(host.dismissError("reload", currentId) == Result::Removed);
+  CHECK(host.status().errors.empty());
+  CHECK(host.status().state == HostState::Running);
+  CHECK(host.dismissError("reload", currentId) == Result::Stale);
+
+  // Paused with a failed resume: the row is the reason, so it stays.
+  REQUIRE(host.pause());
+  REQUIRE_FALSE(host.resume(registry, bad, dir.path, error));
+  const std::uint64_t resumeId = host.status().errors[0].id;
+  CHECK(host.dismissError("resume", resumeId) == Result::NotRunning);
+  CHECK(host.status().errors.size() == 1);
+  host.shutdown();
+
+  // Failed host: same.
+  PipelineHost failed(nullptr, {}, buildFailure(registry, dir.path));
+  REQUIRE(failed.status().state == HostState::Failed);
+  CHECK(failed.dismissError("startup", failed.status().errors[0].id) == Result::NotRunning);
+  CHECK(failed.status().errors.size() == 1);
+}
+
+
+TEST_CASE("A failed retry on a failed host replaces the startup error with one reload row (Aurora-ja76)", "[PipelineHost]")
+{
+  ScopedTempDir dir("host-failed-retry");
+  auto events = std::make_shared<Events>();
+  auto registry = makeRegistry(events);
+  PipelineHost host(nullptr, {}, buildFailure(registry, dir.path));
+  REQUIRE(host.status().errors.size() == 1);
+
+  Config bad;
+  bad.setActiveInputName("nope");
+  std::string error;
+  CHECK_FALSE(host.reload(registry, bad, dir.path, error));
+  HostStatus status = host.status();
+  CHECK(status.state == HostState::Failed);
+  REQUIRE(status.errors.size() == 1);
+  CHECK(status.errors[0].source == "reload");
   host.shutdown();
 }
 
@@ -1189,7 +1356,9 @@ TEST_CASE("PUT /api/state on a failed host: running:true retries, running:false 
   CHECK(shown["state"] == "failed");
   CHECK(shown["paused"] == false);
   REQUIRE(shown["errors"].size() == 1);
-  CHECK(shown["errors"][0] == nlohmann::json{{"source", "startup"}, {"message", "Unknown input 'nope'"}});
+  CHECK(shown["errors"][0]["source"] == "startup");
+  CHECK(shown["errors"][0]["message"] == "Unknown input 'nope'");
+  CHECK(shown["errors"][0]["id"].get<std::uint64_t>() > 0);
 
   auto nothing = put(R"({"running":false})");
   REQUIRE(nothing);
@@ -1214,6 +1383,69 @@ TEST_CASE("PUT /api/state on a failed host: running:true retries, running:false 
   CHECK(retried->status == 200);
   CHECK(nlohmann::json::parse(retried->body) == nlohmann::json{{"succeeded", true}, {"running", true}, {"state", "running"}});
   CHECK(get()["errors"].empty());
+
+  server.stop();
+  serverThread.join();
+  host.shutdown();
+}
+
+
+TEST_CASE("POST /api/state/dismiss removes a running host's held error by source and id (Aurora-ja76)", "[PipelineRoutes]")
+{
+  using namespace Aurora::Network::Http::Server;
+
+  ScopedTempDir dir("state-route-dismiss");
+  auto events = std::make_shared<Events>();
+  auto registry = makeRegistry(events);
+  PipelineHost host(Pipeline::build(registry, videoConfig(), dir.path, {}), {});
+
+  Config bad;
+  bad.setActiveInputName("nope");
+  std::string error;
+  REQUIRE_FALSE(host.reload(registry, bad, dir.path, error));
+
+  HttpServer server;
+  registerStateRoute(server, host, registry, dir.path);
+  REQUIRE(server.bind("127.0.0.1", 18244));
+  std::thread serverThread([&](){ server.listen(); });
+
+  httplib::Client client("127.0.0.1", 18244);
+  auto get = [&](){
+    auto result = getWithRetry(client, "/api/state");
+    REQUIRE(result);
+    return nlohmann::json::parse(result->body);
+  };
+  auto dismiss = [&](const std::string& body){ return client.Post("/api/state/dismiss", body, "application/json"); };
+
+  auto shown = get();
+  CHECK(shown["state"] == "running");
+  REQUIRE(shown["errors"].size() == 1);
+  const std::uint64_t id = shown["errors"][0]["id"].get<std::uint64_t>();
+
+  auto bad400 = dismiss(R"({"source":"reload"})");
+  REQUIRE(bad400);
+  CHECK(bad400->status == 400);
+
+  auto stale = dismiss(nlohmann::json{{"source", "reload"}, {"id", id + 100}}.dump());
+  REQUIRE(stale);
+  CHECK(stale->status == 200);
+  CHECK(nlohmann::json::parse(stale->body) == nlohmann::json{{"succeeded", true}, {"dismissed", false}});
+  CHECK(get()["errors"].size() == 1);
+
+  auto removed = dismiss(nlohmann::json{{"source", "reload"}, {"id", id}}.dump());
+  REQUIRE(removed);
+  CHECK(removed->status == 200);
+  CHECK(nlohmann::json::parse(removed->body) == nlohmann::json{{"succeeded", true}, {"dismissed", true}});
+  CHECK(get()["errors"].empty());
+
+  REQUIRE(host.pause());
+  REQUIRE_FALSE(host.resume(registry, bad, dir.path, error));
+  const std::uint64_t resumeId = get()["errors"][0]["id"].get<std::uint64_t>();
+  auto refused = dismiss(nlohmann::json{{"source", "resume"}, {"id", resumeId}}.dump());
+  REQUIRE(refused);
+  CHECK(refused->status == 409);
+  CHECK(nlohmann::json::parse(refused->body) == nlohmann::json{{"succeeded", false}, {"error", "not_running"}});
+  CHECK(get()["errors"].size() == 1);
 
   server.stop();
   serverThread.join();

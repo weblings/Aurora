@@ -797,11 +797,13 @@ Aurora-ewyz's acceptance said "re-vendor DashboardScreen". The vendor copy preda
 
 ---
 
-## A failed reload on a running host keeps the old pipeline and holds no error -- the banner can't carry a rejected save
+## A failed reload on a running host keeps the old pipeline and holds the error -- "has errors" is not "failed"
 Tags: reload, pipelinehost, errors, state, webui
-Applies-when: deciding whether a failed save or mode switch will show up in `GET /api/state`'s errors, or removing an inline error because "the banner has it"
+Applies-when: reading `GET /api/state`'s errors, deciding whether a failed save shows in the banner, or changing when `PipelineHost` stores or drops a build failure
 
-`PipelineHost::_recordFailure` returns early when a pipeline exists or the host is paused (`Pipeline.cpp:389-395`), so a failed `reload` while running leaves the previous pipeline live and `errors: []`. Confirmed live (Aurora-cj11, Mac): bogus `activeInputName` plus `POST /api/reload` returns `Unknown input 'bogus'` while `/api/state` stays `running`. Only a host with no pipeline (failed or idle) holds the `reload` error. I assumed the opposite for a day and filed a bead (Aurora-nkhi) that would have removed the only signal.
+Before Aurora-ja76, `_recordFailure` returned early when a pipeline existed, so a failed `reload` while running left `errors: []` and a response's `reloadError` was the only signal (confirmed live in Aurora-cj11; Aurora-nkhi was filed on the opposite assumption and closed). Now a running host holds the `reload` entry beside whatever else is held, `state` stays `running`, and clients must read `state`, never "errors non-empty", for failed.
 
-**Fix:** a response's `reloadError` is the only signal when the host is running; the banner covers it only when the host was already failed or idle. Gate any inline suppression on the shell actually holding a matching host error, not on the response shape. Check `/api/state` after a failed reload before relying on it. Planned reversal: Aurora-ja76 ([[error-overlay]], proposed revision) holds the error while running; until it lands this entry is current.
+Three rules came with it. (1) The old early return also dropped a failure that landed after a newer successful build; with it gone, a failing reload records `m_buildEpoch` before its build and stores only if no swap landed since (the late-failure test is the mutant check). (2) Ids are stamped per entry when it is created or replaced, never restamped by an unrelated publish, so a dismiss racing a new failure cannot clear it. (3) A build failure supersedes the earlier build entries (`startup`/`resume`/`reload`) instead of merging, so a failed retry of a failed startup is one row; other sources merge.
+
+**Fix:** see `PipelineHost::_recordFailure`, `_setBuildErrorLocked`, `dismissError`, and ErrorOverlay.md decisions 10-12. After a failed reload on a running host, `/api/state` shows `running` with one `reload` error carrying an id.
 
