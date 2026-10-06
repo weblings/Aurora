@@ -392,3 +392,14 @@ Applies-when: testing a failure path that needs `Pipeline::build` to throw, or i
 Aurora-n5ly's plan was "pause, kill the bridge, resume must fail". Live on Windows with the Ethernet unplugged, resume returned 200 `succeeded:true` in 6.3s (timeouts, then success): `loadEntertainmentConfigurations` returns an empty map without throwing when REST is unreachable, `HueOutput::init` ignores the selector's `false`, and the `Streamer` constructor swallows the DTLS failure per this file's `isConnected()` entry — while `PipelineHost::resume` only fails on a `Pipeline::build` throw. Complement, not duplicate, of the two existing entries: those cover a failure being invisible and success signals lying; this one covers a failure being *unproducable* through the output at all.
 
 **Fix:** break the input side instead — set `activeInputName` to a bogus value on disk (`setRunning` reloads from disk on every resume) and restore after. Note the config has separate video/audio input keys, so breaking one leaves the other mode's resume green. Separate product gap, still open: a resume against a dead bridge reports running with no tray/log/Dashboard signal.
+
+---
+
+## Reproducing "No outputs available": an empty `activeOutputNames` does not do it; an unpaired output plus a host with no pipeline does
+Tags: output, hue, testing, failure-injection, onboarding, reload
+Applies-when: you need a held `reload` error (`No outputs available -- nothing to drive`) to test the banner, the onboarding gate or anything reading `/api/state` errors
+
+Aurora-cj11's onboarding-gate check on the Mac. Setting `activeOutputNames: []` and reloading **succeeds** (the host runs with no output), so nothing fails. Moving `hue-credentials.json` aside with `activeOutputNames: ["hue"]` makes the build throw, but a reload on a *running* host still holds no error (the old pipeline is kept; see architecture-process.md's failed-reload entry). The error only appears when the host has no pipeline: launch it failed first (bogus `activeInputName` at startup), then fix the input and `POST /api/reload` with the credentials still missing. The running app also reads credentials at launch, so after restoring the file it kept failing until a relaunch.
+
+**Fix:** recipe = back up `hue-credentials.json` and `config.json`, move credentials aside, set `nuxCompleted:false` and `activeOutputNames:["hue"]`, launch with a bogus input, fix the input, `POST /api/reload`; restore both files and relaunch. Verify the checksum of the credentials file after restoring.
+

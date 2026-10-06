@@ -1,4 +1,4 @@
-# Aurora-cj11: sticky shell banner for system errors (Mac verified, copy and demo open)
+# Aurora-cj11: sticky shell banner for system errors (closed)
 
 Id: cj11-shell-banner
 
@@ -6,7 +6,8 @@ Id: cj11-shell-banner
 [[d3ec-host-build-errors]] and [[ewyz-connection-watcher]]. Paused: the
 node-test-driven, non-Mac portion was implemented and green; a second
 session on the owner's Mac (below) ran the real-browser and live checks.
-Final copy and the demo question are still open.
+Closed after the Mac session: copy unified, onboarding gate and permission
+row verified live, demo re-vendoring dropped for these beads.
 
 ## Done
 
@@ -136,19 +137,20 @@ under the session scratchpad) against the open-launched Aurora.app.
   drive" + Retry. Files restored (credentials sha unchanged); the running app
   reads credentials at launch, so it needed a relaunch to see them again.
 
-## Remaining
+## Remaining (follow-ups, none block close)
 
-- **Audio permission block** (`renderAudioPermissionBanner`) still says
-  "quit and reopen"; untested, not part of this banner.
-- **Dead link** in the d3ec Windows verification log (a bare lessons-file
-  name that doesn't resolve from `docs/log/`), reported by `check-links.sh`;
-  pre-existing, not from this bead.
-- **Bead close** -- k73j and m0fy both block on cj11 closing.
+- **Aurora-nkhi** -- inline `reloadError` duplicating the banner (only when
+  the host already holds the error).
+- **Aurora-tjoq** -- check whether the audio-tap grant applies live, then
+  align the audio permission block copy (still says quit and reopen).
+- **Aurora-m0fy** -- `topTierError` owner for rejected-request errors.
+- **Aurora-k73j** -- tray "⚠ See Error" relabel, now unblocked.
+- Unexplained host self-recovery after a grant: accepted, not chased.
 
 ## Footnotes
 
-- 6 lessons filed in all (4 this session: sticky parent/scroll container,
-  stale preflight, mocked OS signal, failed reload on a running host). `check-lessons.sh` green; `check-links.sh`
+- 7 lessons filed in all (5 this session: sticky parent/scroll container,
+  stale preflight, mocked OS signal, failed reload on a running host, reproducing the unpaired-output reload error). `check-lessons.sh` green; `check-links.sh`
   was run this session with python3 (the file is Python despite its name).
 - 2 lessons filed earlier (bead-field drift extending planning.md's existing entry;
   NUX-order gate collapse, navigation-flow.md). `check-lessons.sh` green;
