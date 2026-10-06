@@ -294,3 +294,36 @@ a dev-mode auto-pairing shortcut built for fast iteration is directly at odds
 with testing the one screen whose whole purpose is to be slow and
 interruptible -- the shortcut has to be deliberately disabled, not just
 "the fake path," to reproduce that screen's stuck states.
+
+---
+
+---
+
+## A fixed step order can make an open "which steps gate this" question collapse into state the shell already tracks, with no new flag to thread through
+Tags: webui, nux, gating, shell
+Applies-when: implementing a gate described as "before step X" in a multi-stage onboarding flow
+
+Aurora-cj11's banner needed to hide a `'reload'`-source build error while
+onboarding "hasn't reached the point of pairing an output" (ErrorOverlay.md's
+own wording, left as an open question: "which NUX steps gate the mid-onboarding
+reload error, confirmed when building cj11"). The naive reading suggested
+threading a new `onboardingGate`-style flag from `app.js`'s own stage-walk
+(`goToOutputSelectStage`/`goToModeDeviceStage`/...) down into `shell.js`,
+which owns the banner but has no view into onboarding progress. Reasoning
+through the actual failure instead: the `'reload'` error can only fire once
+`PUT /api/config` tries to build with an input saved and no output paired, and
+the fixed onboarding order (`output connect -> output select -> Mode+Device`)
+means that for any output this build knows how to onboard, reaching
+Mode+Device at all already implies the output was paired first. So "before
+the pairing step" and "any route other than `dashboard`" are the same
+condition for every real flow -- and `currentRouteId` was already tracked by
+the shell (`App.navigate`) for the connection watcher (Aurora-ewyz), needing
+no new state or cross-module wiring at all.
+
+**Fix:** gated on `currentRouteId !== 'dashboard'` in `shell.js` directly.
+General principle: before threading a new flag across a module boundary to
+implement a gate stated as "before step X happens," check whether the flow's
+own fixed ordering already makes "before step X" logically equivalent to
+some condition a nearby module already tracks for an unrelated reason -- a
+sequencing guarantee elsewhere in the same flow can retire an entire
+plumbing problem instead of solving it.

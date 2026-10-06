@@ -79,6 +79,32 @@ const realFetch = globalThis.fetch;
   assert.ok(pauseTag.includes('disabled'), 'pause disabled mid-flight');
 }
 
+// Failed host (Aurora-cj11): Pause/Resume is hidden entirely -- there is no
+// pipeline to act on, and the banner's Retry is the resolve action now --
+// Stop stays, since stopping a failed daemon is still meaningful.
+{
+  const { inst, slot } = fakeScreen({ hostState: 'failed' });
+  inst._renderTopBar();
+  assert.ok(!slot.innerHTML.includes('id="top-bar-pause-btn"'), 'pause button absent while failed');
+  assert.ok(slot.innerHTML.includes('id="top-bar-stop-btn"'), 'stop button still present');
+}
+
+// Shell heartbeat push (Aurora-cj11): paused/hostState update and the top
+// bar re-renders, with no _loadAll round trip.
+{
+  let rendered = 0;
+  const { inst } = fakeScreen({ paused: false, hostState: 'running', _renderTopBar: () => { rendered++; } });
+  inst._onHeartbeatState({ state: 'running', paused: false });
+  assert.equal(rendered, 0, 'no re-render when nothing changed');
+  inst._onHeartbeatState({ state: 'paused', paused: true });
+  assert.equal(inst.paused, true);
+  assert.equal(inst.hostState, 'paused');
+  assert.equal(rendered, 1);
+  inst._onHeartbeatState({ state: 'failed', paused: true });
+  assert.equal(inst.hostState, 'failed');
+  assert.equal(rendered, 2, 'hostState-only change still re-renders');
+}
+
 function stubFetch(handler) {
   const calls = [];
   globalThis.fetch = async (url, options) => {
@@ -226,8 +252,13 @@ function stubFetch(handler) {
 
 // ---- Mode-switch error (Aurora-tazx): one message, kept until confirmed ----
 
-const VIDEO_STATE = { paused: false, usesVideoInput: true, usesAudioInput: false, samplesZones: true, audioDevicesUrl: null };
-const AUDIO_STATE = { paused: false, usesVideoInput: false, usesAudioInput: true, samplesZones: false, audioDevicesUrl: null };
+// state/errors (Aurora-cj11): real fixture values, not the placeholder
+// gap webui-testing.md:162 warns about -- 'running' so a hostState read
+// these scenarios didn't originally anticipate stays accurate instead of
+// silently reading as 'failed' (Node's undefined !== 'failed' would have
+// hidden this by accident, not by a real assertion).
+const VIDEO_STATE = { state: 'running', errors: [], paused: false, usesVideoInput: true, usesAudioInput: false, samplesZones: true, audioDevicesUrl: null };
+const AUDIO_STATE = { state: 'running', errors: [], paused: false, usesVideoInput: false, usesAudioInput: true, samplesZones: false, audioDevicesUrl: null };
 
 // A switch screen double: _loadAll applies `loaded()` the way the real one
 // does (flags/state from the running pipeline, then the stale-error rule);

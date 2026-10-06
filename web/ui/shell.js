@@ -1,3 +1,5 @@
+import { renderReloadError, parseMacPermissionError } from './MacPermissionRecovery.js';
+
 // App shell: owns the one #screen-container mount point. Same navigate()
 // pattern as RockyRoad's own App.ts, trimmed to what Aurora actually needs
 // here -- no renderer, no song pause/resume/countdown, no per-instrument
@@ -30,21 +32,29 @@
 // consecutive failed polls. A failure that only means unreachable sets no
 // inline error anywhere -- the takeover owns it; inline catches just poke
 // checkNow() (see below) and stay silent unless the daemon answers.
+//
+// System-error banner (Aurora-cj11): the beat polls GET /api/state instead
+// of /api/capabilities -- one request gives reachability, host state and
+// the error list, and gives an open Dashboard live paused-state updates for
+// free (onStateUpdate below). The banner is shell-owned, same as the
+// takeover: mounted next to #screen-container, fed only while the daemon
+// answers (a stale error is worse than none, so the takeover clears it).
 const DEFAULT_POLL_INTERVAL_MS = 3000;
 const DEFAULT_ABORT_TIMEOUT_MS = 2500;
 const DEFAULT_FAILURE_THRESHOLD = 2;
 
 async function defaultFetchStatus(signal) {
-  const response = await fetch('/api/capabilities', { signal });
+  const response = await fetch('/api/state', { signal });
   // Any HTTP answer -- whatever its status -- means the daemon is up. The
   // body read itself must not throw the verdict away: a 500 with no JSON
   // body is still a live daemon.
+  let body = null;
   try {
-    await response.json();
+    body = await response.json();
   } catch {
     // Ignore body-read failures; the status line already answered.
   }
-  return { reachable: true };
+  return { reachable: true, ...(body && typeof body === 'object' ? body : {}) };
 }
 
 export class App {
@@ -58,12 +68,24 @@ export class App {
     this.currentRouteId = null;
     this.screenContainer = document.getElementById('screen-container');
     this.overlaySlot = document.getElementById('shell-overlay-slot');
+    this.bannerSlot = document.getElementById('shell-banner-slot');
     // onRecovered(preservedRouteId): re-probe and navigate back after the
     // daemon comes back. Set by app.js (bootstrap/recover); null in unit
     // tests that only assert the takeover itself.
     this.onRecovered = null;
+    // onStateUpdate({state, errors, paused}): called after every reachable
+    // poll with GET /api/state's own fields. Set by whichever screen cares
+    // (Dashboard, so a tray pause/resume updates its top bar live); null
+    // elsewhere, same single-slot shape as onRecovered.
+    this.onStateUpdate = null;
     this.connectionState = 'live'; // live | down | stopped
     this.preservedRouteId = null;
+    // Mac-permission detection inside a banner row needs the platform GET
+    // /api/state doesn't carry; set once capabilities has been fetched
+    // anywhere (app.js's probeState, DashboardScreen's _loadAll). Empty
+    // until then, which just means a Mac permission row renders generic
+    // (Retry, not Open Settings) for the few seconds before that happens.
+    this.platform = '';
     this._fetchStatus = fetchStatus;
     this._pollIntervalMs = pollIntervalMs;
     this._abortTimeoutMs = abortTimeoutMs;
@@ -72,6 +94,9 @@ export class App {
     this._inFlight = null;
     this._consecutiveFailures = 0;
     this._takeover = null; // null | 'unreachable' | 'stopped'
+    this.hostState = null; // idle | running | paused | failed, from the last reachable poll
+    this.hostErrors = []; // [{source, message}], from the last reachable poll
+    this._bannerExpanded = false;
   }
 
   navigate(screen, routeId = null) {
@@ -158,8 +183,8 @@ export class App {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), this._abortTimeoutMs);
     try {
-      await this._fetchStatus(controller.signal);
-      return this._handleReachable();
+      const result = await this._fetchStatus(controller.signal);
+      return this._handleReachable(result);
     } catch {
       return this._handleUnreachable();
     } finally {
@@ -167,7 +192,7 @@ export class App {
     }
   }
 
-  _handleReachable() {
+  _handleReachable(result) {
     this._consecutiveFailures = 0;
     if (this.connectionState === 'down' || this.connectionState === 'stopped') {
       this.connectionState = 'live';
@@ -176,7 +201,23 @@ export class App {
       this._clearTakeover();
       if (this.onRecovered) this.onRecovered(preserved);
     }
+    this._updateHostState(result);
     return true;
+  }
+
+  // Applies GET /api/state's fields from a reachable poll: feeds the
+  // banner and tells an open Dashboard the live paused word, same request
+  // the beat already made (Aurora-cj11). A test double's fetchStatus that
+  // only returns {reachable:true} (no state/errors) reads as "nothing to
+  // show", same as a malformed body -- never throws.
+  _updateHostState(result) {
+    const state = typeof result?.state === 'string' ? result.state : null;
+    const errors = Array.isArray(result?.errors) ? result.errors : [];
+    const paused = typeof result?.paused === 'boolean' ? result.paused : null;
+    this.hostState = state;
+    this.hostErrors = errors;
+    this._renderBanner();
+    if (this.onStateUpdate) this.onStateUpdate({ state, errors, paused });
   }
 
   _handleUnreachable() {
@@ -196,6 +237,14 @@ export class App {
   // render the same overlay, which is also what forms.css's `h2:last-child`
   // rule assumes.
   _showTakeover(kind) {
+    // Every banner row is server state that's stale the moment the daemon
+    // is gone; the takeover replaces it entirely rather than sitting next
+    // to it (ErrorOverlay.md, 'Daemon unreachable as a banner row' under
+    // Rejected alternatives). Fresh errors repopulate it on recovery, via
+    // the same poll that clears this takeover.
+    if (this.bannerSlot) this.bannerSlot.innerHTML = '';
+    this.hostState = null;
+    this.hostErrors = [];
     if (!this.overlaySlot) return;
     this._takeover = kind;
     this.overlaySlot.innerHTML = `
@@ -212,4 +261,88 @@ export class App {
     this._takeover = null;
     if (this.overlaySlot) this.overlaySlot.innerHTML = '';
   }
+
+  // One generic row per currently-true error source, never per-source
+  // markup (ErrorOverlay.md, 'The banner'). Two or more collapse to a
+  // summary line the user expands; a single error always shows in full.
+  // Onboarding gate: a 'reload' source is the mid-onboarding "no outputs
+  // paired" build failure (Aurora-d3ec's step-3 note) -- real only once
+  // onboarding has actually reached the point of pairing an output, which
+  // in the fixed NUX order (connect -> select -> Mode+Device) always
+  // precedes Mode+Device for any output this build knows how to onboard.
+  // So "before the pairing step" and "anywhere before the Dashboard route"
+  // are the same condition for every real flow; gating on the route id
+  // needs no extra state threaded in from app.js's own onboarding walk.
+  _visibleErrors() {
+    const suppressReload = this.currentRouteId !== 'dashboard';
+    return this.hostErrors.filter((error) => !(suppressReload && error.source === 'reload'));
+  }
+
+  _renderBanner() {
+    if (!this.bannerSlot) return;
+    const errors = this._visibleErrors();
+    if (errors.length === 0) {
+      this.bannerSlot.innerHTML = '';
+      this._bannerExpanded = false;
+      return;
+    }
+
+    const collapsed = errors.length > 1 && !this._bannerExpanded;
+    const body = collapsed
+      ? `<button type="button" class="shell-banner-summary" id="shell-banner-expand">⚠ ${errors.length} problems ▾</button>`
+      : errors.map((error) => this._renderBannerRow(error)).join('');
+
+    this.bannerSlot.innerHTML = `
+      <div class="shell-banner">
+        <div class="shell-banner-inner">${body}</div>
+      </div>
+    `;
+
+    if (collapsed) {
+      this.bannerSlot.querySelector('#shell-banner-expand')?.addEventListener('click', () => {
+        this._bannerExpanded = true;
+        this._renderBanner();
+      });
+      return;
+    }
+    for (const error of errors) {
+      this.bannerSlot.querySelector(`#shell-banner-retry-${error.source}`)?.addEventListener('click', () => this._retry(error.source));
+    }
+  }
+
+  // Permission-prefixed errors reuse renderReloadError (its own System
+  // Settings link is the only click that helps now); everything else gets
+  // the generic row with a Retry button (ErrorOverlay.md, 'Resolve
+  // action'). platform comes from wherever it's been set (see
+  // constructor); unknown platform just means no Mac row is ever detected.
+  _renderBannerRow(error) {
+    const parsed = this.platform === 'mac' ? parseMacPermissionError(error.message) : null;
+    const inner = parsed
+      ? renderReloadError(error.message, this.platform)
+      : `<p class="status-text status-text-error">⚠ ${escapeHtml(error.message)}</p>
+         <button type="button" class="btn btn-secondary" id="shell-banner-retry-${escapeHtml(error.source)}" style="margin-top: var(--aurora-space-3);">Retry</button>`;
+    return `<div class="shell-banner-row">${inner}</div>`;
+  }
+
+  // Failed host -> POST /api/reload (same route the banner's Retry always
+  // meant, Aurora-d3ec step 4); failed resume -> PUT /api/state
+  // {running:true}, the same retry _togglePause already sends. Either way,
+  // an immediate re-check refreshes the banner from whatever actually
+  // happened, success or another failure -- no optimistic clearing.
+  async _retry(source) {
+    const [url, options] = source === 'resume'
+      ? ['/api/state', { method: 'PUT', body: JSON.stringify({ running: true }) }]
+      : ['/api/reload', { method: 'POST' }];
+    try {
+      await fetch(url, options);
+    } catch {
+      // A network failure here is exactly what the beat's own unreachable
+      // path is for; checkNow() below reads it the same way.
+    }
+    await this.checkNow();
+  }
+}
+
+function escapeHtml(s) {
+  return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }

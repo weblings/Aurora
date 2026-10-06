@@ -68,6 +68,7 @@ export class DashboardScreen {
     this.stopPhase = null; // null | 'confirm'
     this.stopError = null;
     this.paused = false; // from GET /api/state (Aurora-5ipy.13), falls back to capabilities
+    this.hostState = null; // idle | running | paused | failed, from GET /api/state (Aurora-cj11): failed hides Pause entirely, the banner carries the resolve action
     this.pauseBusy = false; // a PUT /api/state is in flight: pause button disabled, not hidden
     this.audioStatusTimer = null;
     this.audioPermissionLikelyDenied = false;
@@ -107,11 +108,21 @@ export class DashboardScreen {
     `;
     renderTopBar(container.querySelector('.top-bar-slot'), { title: 'Aurora', logo: { src: 'icons/aurora-logo.png', alt: 'Aurora' }, showBack: false });
 
+    // Live paused/hostState from the shell's own GET /api/state beat
+    // (Aurora-cj11): a tray pause/resume, or a build recovering on its own,
+    // updates the top bar without waiting for anything to reload this
+    // screen. Single-slot callback (same shape as app.onRecovered) --
+    // bound once here so unmount can identify and clear exactly this
+    // instance's own handler.
+    this._onHeartbeatState = this._onHeartbeatState.bind(this);
+    this.app.onStateUpdate = this._onHeartbeatState;
+
     await this._loadAll();
     this._startAudioStatusPoll();
   }
 
   unmount() {
+    if (this.app.onStateUpdate === this._onHeartbeatState) this.app.onStateUpdate = null;
     this._stopAudioStatusPoll();
     this.entertainmentConfigSelect.destroy();
     this.deviceField?.destroy();
@@ -141,6 +152,9 @@ export class DashboardScreen {
     this.inputs = capabilities.inputs ?? [];
     this.audioInputs = capabilities.audioInputs ?? [];
     this.platform = capabilities.platform ?? '';
+    // The shell banner needs this too (GET /api/state carries no platform
+    // field) to tell a Mac permission row from a generic one.
+    this.app.platform = this.platform;
     this.hasAudio = this.audioInputs.length > 0;
 
     this.paused = capabilities.paused === true;
@@ -186,6 +200,7 @@ export class DashboardScreen {
     // GET /api/state is the fresher paused word than capabilities (both
     // carry it); fall back only when the state probe missed entirely.
     if (state && typeof state.paused === 'boolean') this.paused = state.paused;
+    this.hostState = typeof state?.state === 'string' ? state.state : null;
     this._renderTopBar();
     this.flags = effectiveFlags(state, config);
     // The toggle's fill follows the running pipeline, never the saved
@@ -623,26 +638,33 @@ export class DashboardScreen {
   // on the buttons themselves (not the inner icons), where the hover does.
   _renderTopBar() {
     const slot = this.container.querySelector('.top-bar-slot');
+    // A failed host has no pipeline to pause or resume -- Pause silently
+    // no-op'd here before Aurora-d3ec/cj11 gave the host an explicit
+    // failed state. The banner's Retry is the resolve action now; Pause
+    // is hidden entirely rather than shown disabled, same treatment Stop
+    // doesn't need since stopping a failed daemon is still meaningful.
+    const trailingButtons = [];
+    if (this.hostState !== 'failed') {
+      trailingButtons.push({
+        id: 'top-bar-pause-btn',
+        label: this.paused ? 'Resume' : 'Pause',
+        icon: this.paused ? 'icons/play-rockyroad.svg' : 'icons/pause-rockyroad.svg',
+        onClick: () => this._togglePause(),
+        disabled: this.pauseBusy,
+      });
+    }
+    trailingButtons.push({
+      id: 'top-bar-stop-btn',
+      label: 'Stop',
+      icon: 'icons/power-svgrepo-com.svg',
+      onClick: () => this._openStopConfirm(),
+      buttonClass: 'btn btn-icon top-bar-power-btn',
+    });
     renderTopBar(slot, {
       title: 'Aurora',
       logo: { src: 'icons/aurora-logo.png', alt: 'Aurora' },
       showBack: false,
-      trailingButtons: [
-        {
-          id: 'top-bar-pause-btn',
-          label: this.paused ? 'Resume' : 'Pause',
-          icon: this.paused ? 'icons/play-rockyroad.svg' : 'icons/pause-rockyroad.svg',
-          onClick: () => this._togglePause(),
-          disabled: this.pauseBusy,
-        },
-        {
-          id: 'top-bar-stop-btn',
-          label: 'Stop',
-          icon: 'icons/power-svgrepo-com.svg',
-          onClick: () => this._openStopConfirm(),
-          buttonClass: 'btn btn-icon top-bar-power-btn',
-        },
-      ],
+      trailingButtons,
     });
     applyTooltip(slot.querySelector('#top-bar-pause-btn'), 'app.pause');
     applyTooltip(slot.querySelector('#top-bar-stop-btn'), 'app.stop');
@@ -677,6 +699,16 @@ export class DashboardScreen {
       this.pauseBusy = false;
       this._renderTopBar();
     }
+  }
+
+  // Shell heartbeat push (Aurora-cj11): applies whatever changed and
+  // re-renders only the top bar -- never a full _loadAll(), which would
+  // fight the beat's own 3s cadence with a second round of requests.
+  _onHeartbeatState({ state, paused }) {
+    let changed = false;
+    if (typeof paused === 'boolean' && paused !== this.paused) { this.paused = paused; changed = true; }
+    if (state !== undefined && state !== this.hostState) { this.hostState = state; changed = true; }
+    if (changed) this._renderTopBar();
   }
 
   // Ported close to verbatim from huenicorn's own real WebUI.js:

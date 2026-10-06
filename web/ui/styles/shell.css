@@ -149,3 +149,44 @@ body {
   white-space: nowrap;
 }
 
+/* Shell-level system-error banner (Aurora-cj11, docs/planning/ErrorOverlay.md
+   'The banner'): sticky at the very top, in flow -- it pushes
+   #screen-container down rather than covering it, and pins to the window
+   top once the page scrolls past it (the document itself scrolls, see this
+   file's own #screen-container/html comments, so sticky needs no extra
+   scroll container). Same column width as the screen content so a row's
+   text wraps at the same point Dashboard's own status text does. */
+.shell-banner {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  background: var(--aurora-surface);
+  border-bottom: 1px solid var(--aurora-border);
+}
+
+.shell-banner-inner {
+  max-width: 640px;
+  margin: 0 auto;
+  padding: var(--aurora-space-4) var(--aurora-space-6);
+}
+
+.shell-banner-row + .shell-banner-row {
+  margin-top: var(--aurora-space-5);
+  padding-top: var(--aurora-space-5);
+  border-top: 1px solid var(--aurora-border);
+}
+
+.shell-banner-summary {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: none;
+  padding: 0;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--aurora-text-primary);
+  cursor: pointer;
+}
+
