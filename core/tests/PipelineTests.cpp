@@ -1217,6 +1217,7 @@ TEST_CASE("PipelineHost::applyConfig ignores fields the running mode never reads
 }
 
 
+#ifdef AURORA_RUNTIME_AUDIO_AVAILABLE
 TEST_CASE("PipelineHost::applyConfig sends a live audio tuning change to the audio orchestrator (Aurora-c0g)", "[PipelineHost]")
 {
   ScopedTempDir dir("apply-audio");
@@ -1243,6 +1244,7 @@ TEST_CASE("PipelineHost::applyConfig sends a live audio tuning change to the aud
   structural.setActiveAudioInputName("other");
   CHECK_FALSE(host.applyConfig(structural));
 }
+#endif
 
 
 TEST_CASE("PipelineHost::applyConfig runs the capture hint outside the pipeline lock (Aurora-c0g)", "[PipelineHost]")

@@ -20,7 +20,7 @@ SOURCES = [
     'input/linux/src/InputControlDescriptors.cpp',
     'input/windows/src/InputControlDescriptors.cpp',
 ]
-ENTRY_RE = re.compile(r'"([A-Za-z][A-Za-z.]*)", "[a-z]*", "([^"]*)"')
+ENTRY_RE = re.compile(r'"([A-Za-z][A-Za-z.]*)",\s*(?:"[a-z]*",\s*)?"([^"]*)"')
 
 entries = {}
 for source in SOURCES:
@@ -32,7 +32,10 @@ for source in SOURCES:
         entries[key] = description
 
 out = os.path.join(ROOT, 'web', 'demo', 'vendor', 'webui', 'descriptors.json')
-with open(out, 'w') as f:
-    json.dump({'descriptors': [{'key': k, 'description': v} for k, v in sorted(entries.items())]}, f, indent=2)
-    f.write('\n')
+# CRLF on purpose: the checked-in file is CRLF, so the write is
+# newline-explicit -- a plain text-mode newline would regen LF on Linux
+# and never be byte-identical.
+payload = json.dumps({'descriptors': [{'key': k, 'description': v} for k, v in sorted(entries.items())]}, indent=2) + '\n'
+with open(out, 'wb') as f:
+    f.write(payload.replace('\n', '\r\n').encode('utf-8'))
 print(f'wrote {len(entries)} descriptors to {out}')
