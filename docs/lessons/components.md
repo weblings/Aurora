@@ -307,6 +307,10 @@ Aurora-tazx and Aurora-jm6s were the same shape on the Dashboard: a failed Video
 
 **Fix:** decide which path owns each condition. A failure that only means "the daemon is unreachable" sets no inline error; the reload's message and the heartbeat own it. But if the reload then succeeds (a one-request blip), the action failed with nobody reporting it, so set the inline error in that case. Make the reload return whether it loaded so the caller can tell the two apart, and put the wording in one shared constant (`web/ui/messages.js`) with a source-scan test so no screen spells it out again. Separately, an error that must outlive a retry (tazx) is cleared only by a confirmed result, not by the click, or it flickers.
 
+Recurred again, 2026-10-05 (Aurora-d3ec's retry/design pass, [[error-overlay]]): the same shape shows up even within one field, not just across two DOM regions. `topTierError` has no owner at all on its success paths, `_togglePause`'s success branch never nulls it (a failed-then-succeeded Resume keeps showing the old message, `DashboardScreen.js:651-652`), and `_onAutoDivideClick`'s success path clears the field but never calls `_renderTopTier()`, so the stale text can sit on screen until an unrelated render happens to repaint that zone. Separately, forcing a single shared slot to pick one owner among several conditions that can be true *at the same time* (daemon-unreachable and a stale switch error can both hold at once) doesn't always have a right answer. Picking one just hides the other.
+
+**Fix:** generalize `toggleError`'s own `isSwitchErrorStale` approach to every source, re-derive each one's displayed state from server-confirmed state on every render, never from "did the handler that caused it get retried." And stop trying to pick one owner. Render every currently-true source as its own row instead, keyed by source rather than by message text, so a retry that comes back reworded updates its row in place instead of reading as a new, unrelated problem.
+
 ---
 
 ## A screen that follows the running mode shows that mode's notes beside a refused switch's error: hide state notes while an error shows

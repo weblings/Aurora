@@ -408,6 +408,62 @@ disabled since there's nothing valid to advance with.
 
 ---
 
+## A toast is the wrong primitive for a condition that can be true before any user action
+Tags: webui, errors, design-process
+Applies-when: choosing between a toast and a persistent element for an error or status
+
+Designing where the Dashboard should show a build/permission failure
+(Aurora-d3ec, [[error-overlay]]), a toast was the first instinct -- ephemeral,
+no layout shift. It breaks on a case a toast can't represent: a startup
+failure exists before the user has done anything this session, so there's no
+action to hang a "just happened" notification on, and a toast would have to
+guess whether to render as fresh or already-seen on a page that just loaded.
+A second instinct, a badge that used `IntersectionObserver` to track when a
+persistent zone scrolled out of view, had the same problem in reverse -- it
+solved a visibility question that only exists for an in-page element in the
+first place. A fixed-position overlay never scrolls out of view, so there
+was nothing to track.
+
+**Fix:** before reaching for a toast to report a *condition* rather than
+confirm an *action*, check whether that condition can be true before any
+user interaction happens. If it can, render it directly from current state
+(visible for exactly as long as the condition holds) instead of as a
+dismissable event, and don't build scroll-visibility tracking for something
+that could just as easily be fixed-position and never need it.
+
+---
+
+## An error's resolve action is a property of what went wrong, not of which control produced it
+Tags: webui, errors, retry
+Applies-when: deciding what action (if any) an error's display should offer
+
+Walking the Dashboard's concurrent failure cases for Aurora-d3ec's open
+"does this need a Retry button" question took two wrong turns before
+landing. First: "does a control elsewhere on the page already re-attempt
+this" -- missed that showing the action in a shared error surface saves a
+trip even when another control exists. Second: "which sources need Retry"
+-- still assumed Retry is always the action, just disputed when to offer
+it. Neither asked the actual question: what single click, if any, resolves
+*this* failure? Mode switch, resume, device save, and a failed startup
+build can each fail for a permission reason or a generic one depending on
+what actually went wrong this time -- the Mac-specific cases already route
+through the same check (`MacPermissionRecovery.js`'s
+`parseMacPermissionError`) regardless of which of them produced the
+failure, and that check already backs a real, working deep link
+(`renderReloadError`'s "Open Screen Recording settings" link, confirmed
+still working through the Tahoe rename), not something still to design.
+
+**Fix:** derive the action from the error's own content, not from a
+per-source lookup table. Permission-flavored -> reuse the existing Open
+Settings block. Otherwise, if resubmitting the identical request is
+plausibly the fix -> Retry. Otherwise -> no button at all (daemon
+unreachable resolves when the daemon comes back, which the heartbeat is
+already polling for, not something a click produces). The same source can
+land in any of the three depending on the specific failure, so the choice
+can't be fixed at the source level up front.
+
+---
+
 ## Order a rename against a merge by counting outward references from other repos, not just internal links
 Tags: planning, refactoring, monorepo, sequencing
 Applies-when: sequencing a directory rename against a repo consolidation
