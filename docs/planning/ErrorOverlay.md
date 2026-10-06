@@ -146,6 +146,13 @@ mechanism for telling them apart:
   user has actually been to Settings, so Open Settings is the click that
   helps *now*. The banner's job is to reuse this block inside a row, not
   invent a new one.
+
+  *Revised during Aurora-cj11's Mac check (2026-10-06):* the Open Settings
+  link opens the pane but never adds Aurora to the Screen Recording list
+  (only macOS's own prompt does), and a retry applies a fresh grant to the
+  running app. So the banner's permission row is Retry-only ("answer the
+  prompt, then press Retry"); `renderReloadError` takes an opt-in `retryId`
+  for that, and Dashboard/Mode screens keep the Settings link.
 - **No button** — nothing a single click does would help.
 
 This cuts across source, not along it. A startup build, a resume, a mode

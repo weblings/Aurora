@@ -310,17 +310,19 @@ export class App {
     }
   }
 
-  // Permission-prefixed errors reuse renderReloadError (its own System
-  // Settings link is the only click that helps now); everything else gets
-  // the generic row with a Retry button (ErrorOverlay.md, 'Resolve
+  // Permission-prefixed errors reuse renderReloadError with Retry only (no
+  // Open Settings link: it never adds Aurora to the Screen Recording list,
+  // only macOS's own prompt does, and a retry applies the grant live);
+  // everything else gets the generic row with a Retry button (ErrorOverlay.md, 'Resolve
   // action'). platform comes from wherever it's been set (see
   // constructor); unknown platform just means no Mac row is ever detected.
   _renderBannerRow(error) {
     const parsed = this.platform === 'mac' ? parseMacPermissionError(error.message) : null;
+    const retryId = `shell-banner-retry-${escapeHtml(error.source)}`;
     const inner = parsed
-      ? renderReloadError(error.message, this.platform)
+      ? renderReloadError(error.message, this.platform, { retryId })
       : `<p class="status-text status-text-error">⚠ ${escapeHtml(error.message)}</p>
-         <button type="button" class="btn btn-secondary" id="shell-banner-retry-${escapeHtml(error.source)}" style="margin-top: var(--aurora-space-3);">Retry</button>`;
+         <button type="button" class="btn btn-secondary" id="${retryId}" style="margin-top: var(--aurora-space-3);">Retry</button>`;
     return `<div class="shell-banner-row">${inner}</div>`;
   }
 

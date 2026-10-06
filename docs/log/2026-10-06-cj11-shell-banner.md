@@ -1,12 +1,12 @@
-# Aurora-cj11: sticky shell banner for system errors (paused)
+# Aurora-cj11: sticky shell banner for system errors (Mac verified, copy and demo open)
 
 Id: cj11-shell-banner
 
 2026-10-06. WebUI half of [[error-overlay]] (Sequencing step 2), built on
 [[d3ec-host-build-errors]] and [[ewyz-connection-watcher]]. Paused: the
-node-test-driven, non-Mac portion is implemented and green; Mac-specific
-verification, final copy, and a real-browser pass are still open and need
-the owner or a real device.
+node-test-driven, non-Mac portion was implemented and green; a second
+session on the owner's Mac (below) ran the real-browser and live checks.
+Final copy and the demo question are still open.
 
 ## Done
 
@@ -72,28 +72,68 @@ the owner or a real device.
   shell's existing `currentRouteId` (tracked for ewyz) already carries it.
   Lesson filed (navigation-flow.md).
 
+## Mac / real-browser session (2026-10-06, same day)
+
+Rebuilt `build/mac-app` (the bundled binary predated d3ec, so it held no
+errors) and drove the page with headless Chromium (Playwright, installed
+under the session scratchpad) against the open-launched Aurora.app.
+
+- **Sticky never worked, now does.** Banner scrolled away with the page at
+  every width though all node tests passed. Two causes: sticky on a child
+  of a slot sized to itself, and `body { overflow-x: hidden }` making body
+  a never-scrolling scroll container. Fixed in `styles/shell.css`: sticky on
+  `#shell-banner-slot`, `overflow-x: clip` on body. Verified at 480px and
+  1280px (top stays 0 after scrolling 1500px, content pushed not covered, no
+  horizontal scroll). Lesson filed (layout-css.md).
+- **Live failure cycle** (bogus `activeInputName`): banner row shows the
+  real reason + Retry; Retry fails again; after fixing the input the next
+  Retry succeeds. The host's `reload` error replaces the `startup` one per
+  source.
+- **Permission row on a real Mac** (stale grant after rebuild, then
+  `tccutil reset ScreenCapture com.aurora.app`): `failed`/`startup`/
+  `permission_denied` renders the permission block, not a blank page.
+  Answering macOS's own prompt then pressing Retry clears the banner and the
+  host goes running. The host also recovered on its own once or twice before
+  a click was seen; cause not isolated.
+- **Banner is Retry-only.** The "Open Screen Recording settings" link opens
+  the pane but never adds Aurora to the list (only macOS's prompt does), so
+  the banner row drops it and says "answer the macOS prompt (or toggle
+  Aurora under System Settings), then press Retry; quit and reopen only if
+  it still fails". `renderReloadError` gained an opt-in `{retryId}` so
+  Dashboard/Mode screens keep their Settings link and old copy.
+- **Retry on refocus, tried and removed.** Built a read-only
+  `/api/mac/screen-permission` (`CGPreflightScreenCaptureAccess`) plus a
+  refocus handler; the live app showed preflight stays `false` after a
+  mid-run grant (true only after relaunch), so it could never fire. Removed
+  route, handler, tests, and the CoreGraphics link. A blind retry on focus
+  was ruled out too: a retry while the prompt was unanswered coincided with
+  a second prompt. Lessons filed (input.md, debugging-method.md).
+
 ## Remaining
 
-- **Banner/button copy** — `docs/planning/ErrorOverlay.md`'s own open
-  question, still open. Current text ("Retry", "⚠ N problems ▾") is
-  placeholder, not reviewed copy.
-- **Mac live verification** — the `permission_denied:` banner row end to
-  end on an open-launched Aurora.app, and the onboarding-gate's one real
-  trigger path (input saved, no output ever paired) confirmed live. Needs
-  Mac hardware.
-- **Real-browser pass** — sticky behavior at 480px and desktop widths
-  (jsdom does no layout). The devstack/headless-Chrome recipe ewyz used is
-  documented Linux-only (`web-testing.md:270`, a Linux-specific cached
-  Playwright path); not attempted from this Windows session.
-- **Demo re-vendoring** — the bead's criteria say "Demo re-vendored"; skipped
-  per the ewyz precedent above. Worth a quick owner confirmation that the
-  precedent still applies here, since the written criterion was never
-  updated to match it.
-- k73j and m0fy both block on cj11 closing.
+- **Banner/button copy** -- the permission copy above is a working draft;
+  `docs/planning/ErrorOverlay.md`'s open question (final wording for
+  banner/button text, "Retry", "⚠ N problems ▾") is still the owner's.
+- **Onboarding gate, live** -- the one real trigger (input saved, no output
+  ever paired, so a `reload` error exists mid-onboarding) not run on the Mac:
+  needs the owner's Hue output out of the real config.
+- **Demo re-vendoring** -- bead criterion still says "Demo re-vendored",
+  skipped per the ewyz precedent; owner confirmation outstanding.
+- **Unexplained self-recovery** -- the host sometimes went `running` after the
+  grant before any Retry was seen; not isolated (browser tab vs. host).
+- **Audio permission block** (`renderAudioPermissionBanner`) still says
+  "quit and reopen"; untested, not part of this banner.
+- **Dead link** in the d3ec Windows verification log (a bare lessons-file
+  name that doesn't resolve from `docs/log/`), reported by `check-links.sh`;
+  pre-existing, not from this bead.
+- **Bead close** -- k73j and m0fy both block on cj11 closing.
 
 ## Footnotes
 
-- 2 lessons filed (bead-field drift extending planning.md's existing entry;
+- 5 lessons filed in all (3 this session: sticky parent/scroll container,
+  stale preflight, mocked OS signal). `check-lessons.sh` green; `check-links.sh`
+  was run this session with python3 (the file is Python despite its name).
+- 2 lessons filed earlier (bead-field drift extending planning.md's existing entry;
   NUX-order gate collapse, navigation-flow.md). `check-lessons.sh` green;
   `check-links.sh` not run this session (pre-existing cp1252 decode failure
   under this machine's Python on non-ASCII doc bytes, unrelated to these

@@ -40,7 +40,14 @@ const SCREEN_RECORDING_SETTINGS_URL =
 // prefixes above -- a distinct block with the actual fix (System Settings
 // link, quit+relaunch instructions) instead of a raw exception sentence.
 // `platform` comes from GET /api/capabilities.
-export function renderReloadError(message, platform) {
+// `retryId` (the shell banner, Aurora-cj11) switches to a Retry-only block: a
+// Retry button with that id, no Open Settings link (it never adds Aurora to
+// the Screen Recording list; only macOS's own prompt does), and copy that
+// says answer the prompt, then Retry. A fresh grant applies to the running
+// app via a retry (d3ec Mac check, macOS 27, open-launched), so quit+relaunch
+// is only the fallback. Callers with no Retry action leave it unset and keep
+// the Settings link and quit+relaunch copy.
+export function renderReloadError(message, platform, { retryId } = {}) {
   if (!message) return '';
 
   const parsed = platform === 'mac' ? parseMacPermissionError(message) : null;
@@ -51,15 +58,26 @@ export function renderReloadError(message, platform) {
   const heading = parsed.kind === 'denied'
     ? "Screen Recording permission is off"
     : "Waiting on macOS's Screen Recording prompt";
+  const deniedCopy = retryId
+    ? "Aurora can't capture your screen until this is turned on. Answer the macOS prompt (or turn Aurora on under System Settings → Privacy & Security → Screen Recording), then press Retry. If it still fails, fully quit Aurora (⌘Q) and reopen it."
+    : "Aurora can't capture your screen until this is turned on. After enabling it, fully quit Aurora (⌘Q) and reopen it -- macOS won't ask again on its own.";
   const body = parsed.kind === 'denied'
-    ? "Aurora can't capture your screen until this is turned on. After enabling it, fully quit Aurora (⌘Q) and reopen it -- macOS won't ask again on its own."
+    ? deniedCopy
     : "Answer the Screen Recording prompt macOS just showed (it may be behind another window), then try again.";
+  const retryButton = retryId
+    ? `<button type="button" class="btn btn-secondary" id="${escapeHtml(retryId)}" style="margin-top: var(--aurora-space-3);">Retry</button>`
+    : '';
+
+  const settingsLink = retryId
+    ? ''
+    : `<a class="btn btn-secondary" style="text-decoration: none; margin-top: var(--aurora-space-3);"
+       href="${SCREEN_RECORDING_SETTINGS_URL}">Open Screen Recording settings</a>`;
 
   return `
     <p class="status-text status-text-error">⚠ ${heading}</p>
     <p class="status-text">${body}</p>
-    <a class="btn btn-secondary" style="text-decoration: none; margin-top: var(--aurora-space-3);"
-       href="${SCREEN_RECORDING_SETTINGS_URL}">Open Screen Recording settings</a>
+    ${settingsLink}
+    ${retryButton}
   `;
 }
 

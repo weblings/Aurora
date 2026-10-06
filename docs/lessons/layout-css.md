@@ -200,3 +200,13 @@ Applies-when: adding body copy or buttons to an overlay panel that renders a bar
 forms.css's `.overlay-panel h2:last-child` zeroes the heading's bottom margin and centers it, written explicitly for the post-stop dead-end screen -- and button top-margin lives on the `.overlay-actions` wrapper, not the button. ewyz appended bare buttons (plus a paragraph) to that panel, so the heading kept full margin, the text added its own, and the button sat flush with zero gap: uneven spacing with no rule violated on its face.
 
 **Fix:** keep the overlay's content contract, or wrap buttons in `.overlay-actions`. Before appending a sibling to a bare heading, check for `:last-child`/`:only-child` rules that assumed it was alone.
+
+---
+
+## `position: sticky` needs a tall parent AND no scroll-container ancestor -- jsdom sees neither
+Tags: webui, css, sticky, jsdom, banner
+Applies-when: pinning an element to the top of the page with `position: sticky`, or auditing one whose node tests pass
+
+Aurora-cj11's shell banner passed every node test and never stuck. Two independent causes, both found only by scrolling in a real browser (headless Chromium, 3000px of injected content, banner top read back after `scrollTop = 1500`: it was -1500). (1) `.shell-banner` was the sticky element but its parent `#shell-banner-slot` was exactly as tall as it, and a sticky element can't leave its parent's box. (2) `body { overflow-x: hidden }` beside `html { overflow-y: scroll }` turns `body` into its own scroll container (a non-visible overflow on html stops the body's value propagating to the viewport), so sticky pinned to a body that never scrolls.
+
+**Fix:** put `position: sticky` on a direct child of `body` that is as tall as the content it must stay over (here the slot itself), and use `overflow-x: clip`, which clips without creating a scroll container. Verify by scrolling a real page and reading `getBoundingClientRect().top`, at narrow and wide widths; jsdom does no layout.

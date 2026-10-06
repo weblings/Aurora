@@ -728,3 +728,13 @@ Applies-when: a test spawns its own `dbus-daemon` as a "bus with no X" and the c
 **Fix (open):** either launch the fake daemon with a config whose servicedir is empty so activation fails fast (test-side, no behavior change), or pass `G_DBUS_PROXY_FLAGS_DO_NOT_AUTO_START` (owner decision -- changes app behavior on portal-installed-but-not-running sessions). When a fake-bus test hangs near exactly 25s, suspect activation, and confirm with `ps` mid-run: a service attached to `/tmp/dbus-XXX` is the tell.
 
 ---
+
+---
+
+## `CGPreflightScreenCaptureAccess` never sees a grant made while the process runs; and Aurora's Open Settings link can't add Aurora to the list
+Tags: macos, tcc, screen-recording, preflight, permissions
+Applies-when: trying to detect a Screen Recording grant without prompting, or deciding what a permission banner's buttons should do
+
+Live on macOS 27, `open`-launched ad-hoc `Aurora.app` (Aurora-cj11): after the grant the host reached `running` (capture worked) while a read-only route returning `CGPreflightScreenCaptureAccess()` kept answering `false`; a relaunch with the grant unchanged answered `true`. So preflight reports the state at process launch, not live (an Apple forum poster saw the same polling loop). Also: Aurora's "Open Screen Recording settings" deep link opens the pane but does not add Aurora to the list -- only macOS's own prompt, raised by a capture attempt, creates the entry. And a retry sent while the permission was still undecided (prompt unanswered) coincided with a second prompt, so a blind auto-retry on focus is unsafe.
+
+**Fix:** don't build a refocus gate on preflight. The banner is Retry-only: answer the macOS prompt (or toggle Aurora under Privacy & Security), press Retry; `PUT /api/state {running:true}` / `POST /api/reload` applies the grant live, quit+relaunch only as fallback. The preflight route was written, found stale, and removed. Untested: a fresh child process per check (would likely read current), and a `CGWindowListCopyWindowInfo` window-name heuristic (Chromium's pre-macOS-11 approach).

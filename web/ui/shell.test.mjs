@@ -304,8 +304,9 @@ const stateOk = (extra = {}) => async () => ({ reachable: true, state: 'running'
   uninstallDom();
 }
 
-// A permission-prefixed error on Mac reuses renderReloadError (System
-// Settings link, no Retry button for that row) instead of the generic row.
+// A permission-prefixed error on Mac reuses renderReloadError (Retry button
+// only, with "answer the prompt, then press Retry" copy) instead of the
+// generic row.
 {
   const { app, banner } = makeApp(stateOk({
     state: 'failed',
@@ -313,8 +314,10 @@ const stateOk = (extra = {}) => async () => ({ reachable: true, state: 'running'
   }));
   app.platform = 'mac';
   await app._pollOnce();
-  assert.ok(banner().includes('Open Screen Recording settings'));
-  assert.ok(!banner().includes('id="shell-banner-retry-startup"'), 'permission row has no Retry button');
+  assert.ok(!banner().includes('Open Screen Recording settings'), 'banner row is Retry-only, no Settings link');
+  assert.ok(banner().includes('id="shell-banner-retry-startup"'), 'permission row has a Retry button');
+  assert.ok(banner().includes('then press Retry'));
+  assert.ok(!banner().includes('macOS won\'t ask again'), 'banner uses the retry copy, not the quit+relaunch copy');
   uninstallDom();
 }
 {

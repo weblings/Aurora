@@ -847,3 +847,12 @@ Sandbox and corporate environments set `http_proxy`/`https_proxy`, and Python's 
 
 **Fix:** build scripts' HTTP layer on an opener with an empty proxy map (`urllib.request.build_opener(urllib.request.ProxyHandler({}))`) and use it for every call, so local traffic can never be rerouted regardless of the machine's env. Verify the bypass in the script's own self-test by running it with the proxy vars set.
 
+---
+
+## A mocked OS signal in a node test encodes your assumption about it -- read the real signal live before building on it
+Tags: testing, mocks, macos, verification
+Applies-when: writing a handler that branches on an OS/native answer (permission state, device presence) and testing it with a stubbed fetch
+
+Aurora-cj11's retry-on-refocus handler passed all its new node tests with a stubbed `/api/mac/screen-permission` returning `granted: true`, yet in the real app the route never flipped after a grant, so the handler could never fire. The stub had silently assumed the OS signal is live.
+
+**Fix:** before building logic on a native signal, call the real thing once across the transition it must detect (here: denied -> grant -> read again, without relaunch) and record the readings. Only then stub it.
