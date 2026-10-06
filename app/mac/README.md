@@ -30,6 +30,9 @@ Support statement (supported macOS/hardware): see the root
 - Flags: `--fresh` rehearses first-run flows (NUX, pairing) against a cleared
   temp config root (`$TMPDIR/aurora-fresh`); `--fake-hue` presets the fake
   bridge from [tools/fake-hue-bridge](../../tools/fake-hue-bridge).
+  `--help` prints usage and exits; `--version` prints the version and exits;
+  any other unrecognized flag errors with usage and a non-zero exit instead
+  of booting.
 
 ## Building
 
