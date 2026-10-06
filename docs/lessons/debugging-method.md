@@ -856,3 +856,11 @@ Applies-when: writing a handler that branches on an OS/native answer (permission
 Aurora-cj11's retry-on-refocus handler passed all its new node tests with a stubbed `/api/mac/screen-permission` returning `granted: true`, yet in the real app the route never flipped after a grant, so the handler could never fire. The stub had silently assumed the OS signal is live.
 
 **Fix:** before building logic on a native signal, call the real thing once across the transition it must detect (here: denied -> grant -> read again, without relaunch) and record the readings. Only then stub it.
+
+## A "denied" flag inferred from silence cannot be tested without a signal -- a silent baseline proves nothing
+Tags: testing, verification, macos, heuristics, audio
+Applies-when: live-testing a permission or health flag the backend infers from absence of data (silent buffers, no frames), before and after a fix or grant
+
+Aurora-tjoq: `permissionLikelyDenied` clears only on a non-zero sample, so with nothing playing it stayed `true` for 25s after the grant and the check was inconclusive; the "denied" baseline was equally what a granted-but-silent tap reads. Only with audio playing did the flag flip.
+
+**Fix:** supply the signal (play audio) for the baseline and the after-reading, and run the denied-with-signal control so the baseline is real denial. If the first poll after supplying the signal already shows the final value, say the flip was not observed.

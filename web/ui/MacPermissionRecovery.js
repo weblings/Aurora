@@ -96,6 +96,11 @@ function escapeHtml(s) {
 // for Screen Recording -- this can't rule out genuine prolonged silence,
 // even with the 10s grace window keeping that unlikely in practice.
 //
+// Aurora-tjoq: a System Audio Recording grant applies live (verified on
+// macOS 27, open-launched ad-hoc app: the flag flipped false in the same
+// process once audio played), and the Dashboard keeps polling the route, so
+// the block clears itself -- the copy says so; quit+reopen is the fallback.
+//
 // No verified deep link straight to the "System Audio Recording Only" row
 // exists (unlike Screen Recording's Privacy_ScreenCapture anchor) -- this
 // links to the general Privacy & Security pane rather than guess one.
@@ -106,7 +111,7 @@ export function renderAudioPermissionBanner(permissionLikelyDenied) {
 
   return `
     <p class="status-text status-text-error">⚠ Aurora doesn't seem to be capturing real audio</p>
-    <p class="status-text">This usually means "System Audio Recording Only" isn't granted yet in Privacy &amp; Security -- a separate permission from Screen Recording. After enabling it, fully quit Aurora (⌘Q) and reopen it.</p>
+    <p class="status-text">This usually means "System Audio Recording Only" isn't granted yet in Privacy &amp; Security -- a separate permission from Screen Recording. Turn it on there, then play some audio: a grant applies to the running app and this clears by itself once Aurora hears sound. Quit and reopen Aurora only if it doesn't.</p>
     <a class="btn btn-secondary" style="text-decoration: none; margin-top: var(--aurora-space-3);"
        href="${SECURITY_SETTINGS_URL}">Open Privacy &amp; Security settings</a>
   `;
