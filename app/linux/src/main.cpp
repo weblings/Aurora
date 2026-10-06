@@ -22,6 +22,7 @@
 
 #include <nlohmann/json.hpp>
 
+#include <Aurora/App/Cli.hpp>
 #include <Aurora/App/FakeHue.hpp>
 #include <Aurora/App/InstanceLock.hpp>
 #include <Aurora/App/InstanceLock.hpp>
@@ -481,6 +482,13 @@ try
 {
   std::signal(SIGINT, handleStopSignal);
   std::signal(SIGTERM, handleStopSignal);
+
+  // --help / --version / unknown-argument rejection (Aurora-0gd,
+  // Aurora-v3in): handled before anything boots -- no InstanceLock, no
+  // --fresh wipe of the temp dir, no pipeline, no port bind.
+  if(auto cliExit = Aurora::App::handleEarlyCli(argc, argv, AURORA_VERSION, /*withConsoleFlag=*/false, std::cout, std::cerr)){
+    return *cliExit;
+  }
 
   // --fake-hue: preset the fake-bridge dev flow (see FakeHue.hpp).
   // Explicit env wins over the presets; applied before anything reads env.

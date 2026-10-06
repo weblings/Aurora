@@ -42,3 +42,7 @@ AURORA_HUE_BRIDGE_ADDRESS=... AURORA_HUE_USERNAME=... AURORA_HUE_CLIENTKEY=... .
 
 Append `--fresh` to rehearse first-run flows (NUX, pairing) against a
 guaranteed-empty temp config root instead of your real one.
+
+`Aurora --help` prints usage and exits; `--version` prints the version and
+exits. Any other unrecognized flag prints usage with an error and exits
+non-zero instead of booting.
