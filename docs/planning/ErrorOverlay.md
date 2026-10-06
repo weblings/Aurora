@@ -97,14 +97,19 @@ the treatment that fits it.
    inline errors only exist while the daemon answers.
 
 **Host state becomes explicit.** `GET /api/state` gains a state field,
-`running | paused | failed`, so "no pipeline because the build failed" is
-no longer read as "running". `failed` replaces "Pause" with the error's
-resolve action on every surface (banner Retry, tray "⚠ See Error").
+`idle | running | paused | failed`, so "no pipeline because the build
+failed" is no longer read as "running". `failed` replaces "Pause" with the
+error's resolve action on every surface (banner Retry, tray "⚠ See Error").
+`idle` is no pipeline and no error: `Pipeline::build` returns null, not an
+exception, while no input is configured, which is every fresh install
+until Mode+Device is saved. Clients ignore states they do not know.
 
-**Error shape is keyed by source, not a single string.** d3ec step 2's
-`error` field becomes an object (or list) keyed by source (`startup`,
-`resume`, later `output`/runtime), so runtime faults can be added later
-without reshaping the API. Within the banner, every currently-true source
+**Error shape is keyed by source, not a single string.** `errors` is an
+array of `{source, message}` with `source` unique (`startup`, `resume`,
+`reload`, later `output`/runtime), decided in Aurora-d3ec: an array has a
+stable order for banner rows and a simple OpenAPI schema, and takes `code`
+or `since` later without reshaping. Today at most one entry exists, since
+any successful build clears all. Within the banner, every currently-true source
 is its own row, all at once, the same "show every current error, not one
 winner" rule as before: a row's identity is its source, not its message
 text, so a source that comes back reworded updates in place.
@@ -180,9 +185,12 @@ One sticky element mounted by the app shell, not by any screen:
   an open Dashboard live paused-state updates from the tray for free. The
   stored error string must stay lock-free to read (its own small mutex, not
   the pipeline lock `m_mutex`).
-- **Onboarding gate**: a fresh install's first build fails by design (no
-  output paired yet), so a `startup` error is not shown while NUX is still
-  reaching that step (d3ec notes, "check when building").
+- **Onboarding gate**: a fresh install is `idle`, not failed (no input
+  configured, so `build()` returns null), so it shows nothing. The failure
+  to gate is one step later: once Mode+Device saves an input but no output
+  is paired, the reload throws "No outputs available" and the host reports
+  `failed` with a `reload` error (checked live in Aurora-d3ec). The banner
+  hides that while NUX is still before the pairing step.
 - **Hidden entirely** when no source is currently true.
 - **No enter/exit animation in v1.** Rows just appear and disappear, same
   as every other render in `DashboardScreen.js`. Animating later is cheap
@@ -427,10 +435,8 @@ into `web/demo/vendor/webui` (see Accepted gaps).
 
 - Exact banner and takeover copy, and whether the top bar goes sticky with
   the banner.
-- Whether the error object is keyed by source or a list of `{source,
-  message}`; either works, decide in d3ec step 2.
-- Which steps in NUX gate the `startup` error (the onboarding gate above),
-  confirmed when building.
+- Which NUX steps gate the mid-onboarding `reload` error (the onboarding
+  gate above), confirmed when building Aurora-cj11.
 - Row enter/exit animation — intentionally deferred.
 - Tray icon swap's actual asset(s) and, on Linux, the real wiring of
   `Status`/`OverlayIconName` plus the matching change signal — deferred

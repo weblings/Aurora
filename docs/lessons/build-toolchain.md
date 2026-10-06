@@ -491,6 +491,8 @@ Applies-when: sampling a stream (SSE, `curl -N`, a long-running command) in a sc
 
 `timeout 5 curl -sN .../events` is a GNU coreutils habit; on stock macOS `timeout` doesn't exist (it's `gtimeout` only with Homebrew coreutils), so the command fails with "command not found" and the check silently samples nothing (Aurora-skv's live viz check). 
 
+It bit again inside a mutation check (Aurora-d3ec): `timeout 60 ./tests ... | grep -E "FAILED|passed"` printed nothing because `timeout` was missing, and "no FAILED lines" reads as a surviving mutant, i.e. a test that does not catch it. Any scripted check whose success is "grep found nothing" needs a positive signal too (the `passed`/`test cases` line, or the exit code); `perl -e 'alarm 60; exec @ARGV' cmd` is the stock-macOS bound.
+
 **Fix:** use the tool's own bound -- `curl -sN -m 4 http://127.0.0.1:18245/events | head -c 300` -- or `head -c`/`head -n` to end the pipe. Don't wrap `devstack.py up` in `timeout` either: it already waits for the first frame and exits.
 
 ---

@@ -803,7 +803,7 @@ TEST_CASE("PUT /api/state pauses and resumes, idempotently (Aurora-3ddb)", "[Pip
     auto paused = put(R"({"running":false})");
     REQUIRE(paused);
     CHECK(paused->status == 200);
-    CHECK(nlohmann::json::parse(paused->body) == nlohmann::json{{"succeeded", true}, {"running", false}});
+    CHECK(nlohmann::json::parse(paused->body) == nlohmann::json{{"succeeded", true}, {"running", false}, {"state", "paused"}});
     CHECK(host.isPaused());
   }
 
@@ -824,7 +824,7 @@ TEST_CASE("PUT /api/state pauses and resumes, idempotently (Aurora-3ddb)", "[Pip
   for(int i = 0; i < 2; ++i){
     auto resumed = put(R"({"running":true})");
     REQUIRE(resumed);
-    CHECK(nlohmann::json::parse(resumed->body) == nlohmann::json{{"succeeded", true}, {"running", true}});
+    CHECK(nlohmann::json::parse(resumed->body) == nlohmann::json{{"succeeded", true}, {"running", true}, {"state", "running"}});
     CHECK_FALSE(host.isPaused());
   }
 
@@ -928,6 +928,8 @@ TEST_CASE("GET /api/state reports paused and the running pipeline's capabilities
   };
 
   CHECK(state() == nlohmann::json{
+    {"state", "idle"},
+    {"errors", nlohmann::json::array()},
     {"paused", false},
     {"usesVideoInput", false},
     {"usesAudioInput", false},
@@ -938,12 +940,15 @@ TEST_CASE("GET /api/state reports paused and the running pipeline's capabilities
   std::string error;
   REQUIRE(host.reload(registry, videoConfig(), dir.path, error));
   auto running = state();
+  CHECK(running["state"] == "running");
   CHECK(running["usesVideoInput"] == true);
   CHECK(running["usesAudioInput"] == false);
   CHECK(running["samplesZones"] == true);
 
   REQUIRE(host.pause());
   auto paused = state();
+  CHECK(paused["state"] == "paused");
+  CHECK(paused["errors"].empty());
   CHECK(paused["paused"] == true);
   CHECK(paused["usesVideoInput"] == true);
   CHECK(paused["samplesZones"] == true);
@@ -971,6 +976,276 @@ TEST_CASE("GET /api/state reports a null audioDevicesUrl when the build has none
   auto result = getWithRetry(client, "/api/state");
   REQUIRE(result);
   CHECK(nlohmann::json::parse(result->body)["audioDevicesUrl"].is_null());
+
+  server.stop();
+  serverThread.join();
+}
+
+
+// Aurora-d3ec: the host holds the last build failure and reports it with its
+// state as one snapshot.
+namespace
+{
+  std::exception_ptr buildFailure(const Registry& registry, const std::filesystem::path& dir)
+  {
+    Config bad;
+    bad.setActiveInputName("nope");
+    try{ Pipeline::build(registry, bad, dir, {}); }
+    catch(...){ return std::current_exception(); }
+    return nullptr;
+  }
+}
+
+
+TEST_CASE("PipelineHost holds the startup failure as Failed + a startup error until a build succeeds (Aurora-d3ec)", "[PipelineHost]")
+{
+  ScopedTempDir dir("host-startup-failed");
+  auto events = std::make_shared<Events>();
+  auto registry = makeRegistry(events);
+
+  PipelineOptions options;
+  options.describeBuildError = [](const std::exception& e){ return std::string("mapped: ") + e.what(); };
+  PipelineHost host(nullptr, options, buildFailure(registry, dir.path));
+
+  HostStatus status = host.status();
+  CHECK(status.state == HostState::Failed);
+  REQUIRE(status.errors.size() == 1);
+  CHECK(status.errors[0].source == "startup");
+  CHECK(status.errors[0].message == "mapped: Unknown input 'nope'");
+  CHECK_FALSE(host.isPaused());
+
+  std::string error;
+  REQUIRE(host.reload(registry, videoConfig(), dir.path, error));
+  status = host.status();
+  CHECK(status.state == HostState::Running);
+  CHECK(status.errors.empty());
+  host.shutdown();
+}
+
+
+TEST_CASE("PipelineHost with nothing configured is Idle, not Failed (Aurora-d3ec)", "[PipelineHost]")
+{
+  ScopedTempDir dir("host-idle");
+  auto events = std::make_shared<Events>();
+  auto registry = makeRegistry(events);
+
+  // A fresh install: build() returns null (no input chosen yet), no throw.
+  auto initial = Pipeline::build(registry, Config{}, dir.path, {});
+  REQUIRE_FALSE(initial);
+  PipelineHost host(std::move(initial), {});
+  CHECK(host.status().state == HostState::Idle);
+  CHECK(host.status().errors.empty());
+
+  // Mid-onboarding: an input is chosen but no output is registered yet.
+  Registry noOutputs;
+  noOutputs.registerInput("fake-video", [events]{ return std::make_unique<FakeVideoInput>(events); });
+  std::string error;
+  CHECK_FALSE(host.reload(noOutputs, videoConfig(), dir.path, error));
+  CHECK(host.status().state == HostState::Failed);
+  REQUIRE(host.status().errors.size() == 1);
+  CHECK(host.status().errors[0].source == "reload");
+  CHECK(host.status().errors[0].message == "No outputs available -- nothing to drive");
+}
+
+
+TEST_CASE("PipelineHost keeps a failed resume's error on the paused snapshot until a resume succeeds (Aurora-d3ec)", "[PipelineHost]")
+{
+  ScopedTempDir dir("host-resume-failed");
+  auto events = std::make_shared<Events>();
+  auto registry = makeRegistry(events);
+  PipelineHost host(Pipeline::build(registry, videoConfig(), dir.path, {}), {});
+  REQUIRE(host.pause());
+  CHECK(host.status().state == HostState::Paused);
+  CHECK(host.status().errors.empty());
+
+  Config bad;
+  bad.setActiveInputName("nope");
+  std::string error;
+  CHECK_FALSE(host.resume(registry, bad, dir.path, error));
+  HostStatus status = host.status();
+  CHECK(status.state == HostState::Paused);
+  REQUIRE(status.errors.size() == 1);
+  CHECK(status.errors[0].source == "resume");
+  CHECK(status.errors[0].message == "Unknown input 'nope'");
+
+  // A settings reload while paused applies on resume and must not clear it.
+  REQUIRE(host.reload(registry, videoConfig(), dir.path, error));
+  CHECK(host.status().errors.size() == 1);
+
+  REQUIRE(host.resume(registry, videoConfig(), dir.path, error));
+  status = host.status();
+  CHECK(status.state == HostState::Running);
+  CHECK(status.errors.empty());
+  host.shutdown();
+}
+
+
+TEST_CASE("PipelineHost stores nothing for a failed reload while a pipeline is running (Aurora-d3ec)", "[PipelineHost]")
+{
+  ScopedTempDir dir("host-reload-running");
+  auto events = std::make_shared<Events>();
+  auto registry = makeRegistry(events);
+  PipelineHost host(Pipeline::build(registry, videoConfig(), dir.path, {}), {});
+
+  Config bad;
+  bad.setActiveInputName("nope");
+  std::string error;
+  CHECK_FALSE(host.reload(registry, bad, dir.path, error));
+  CHECK(host.status().state == HostState::Running);
+  CHECK(host.status().errors.empty());
+  host.shutdown();
+}
+
+
+TEST_CASE("A reload failure that lands after a concurrent successful build stores nothing (Aurora-d3ec)", "[PipelineHost]")
+{
+  ScopedTempDir dir("host-late-failure");
+  auto events = std::make_shared<Events>();
+  auto registry = makeRegistry(events);
+  PipelineHost host(nullptr, {});
+
+  // The failing build inits its outputs before it fails on the unknown
+  // input; a second reload succeeds inside that window.
+  bool nested = false;
+  events->onOutputInit = [&]{
+    if(nested){ return; }
+    nested = true;
+    std::string innerError;
+    REQUIRE(host.reload(registry, videoConfig(), dir.path, innerError));
+  };
+
+  Config bad;
+  bad.setActiveInputName("nope");
+  std::string error;
+  CHECK_FALSE(host.reload(registry, bad, dir.path, error));
+  CHECK(error == "Unknown input 'nope'");
+  CHECK(host.status().state == HostState::Running);
+  CHECK(host.status().errors.empty());
+  host.shutdown();
+}
+
+
+TEST_CASE("PipelineHost::status answers while a resume is blocked in its build (Aurora-d3ec)", "[PipelineHost]")
+{
+  ScopedTempDir dir("host-status-lockfree");
+  auto events = std::make_shared<Events>();
+  auto registry = makeRegistry(events);
+  PipelineHost host(Pipeline::build(registry, videoConfig(), dir.path, {}), {});
+  REQUIRE(host.pause());
+
+  std::promise<void> inBuild;
+  std::promise<void> release;
+  auto released = release.get_future().share();
+  bool blocked = false; // the hook fires once per output; block on the first
+  events->onOutputInit = [&]{
+    if(blocked){ return; }
+    blocked = true;
+    inBuild.set_value();
+    released.wait();
+  };
+
+  std::string error;
+  std::thread resumer([&]{ host.resume(registry, videoConfig(), dir.path, error); });
+  REQUIRE(inBuild.get_future().wait_for(5s) == std::future_status::ready);
+
+  auto polled = std::async(std::launch::async, [&]{ return host.status(); });
+  const bool answered = polled.wait_for(2s) == std::future_status::ready;
+
+  // Release before asserting, so a regression fails cleanly instead of
+  // leaving the resume thread blocked.
+  release.set_value();
+  resumer.join();
+  CHECK(answered);
+  CHECK(polled.get().state == HostState::Paused);
+  CHECK(host.status().state == HostState::Running);
+  host.shutdown();
+}
+
+
+TEST_CASE("PUT /api/state on a failed host: running:true retries, running:false has nothing to pause (Aurora-d3ec)", "[PipelineRoutes]")
+{
+  using namespace Aurora::Network::Http::Server;
+
+  ScopedTempDir dir("state-route-failed");
+  auto events = std::make_shared<Events>();
+  auto registry = makeRegistry(events);
+  PipelineHost host(nullptr, {}, buildFailure(registry, dir.path));
+  REQUIRE(host.status().state == HostState::Failed);
+
+  HttpServer server;
+  registerStateRoute(server, host, registry, dir.path);
+  REQUIRE(server.bind("127.0.0.1", 18242));
+  std::thread serverThread([&](){ server.listen(); });
+
+  httplib::Client client("127.0.0.1", 18242);
+  auto put = [&](const std::string& body){ return client.Put("/api/state", body, "application/json"); };
+  auto get = [&](){
+    auto result = getWithRetry(client, "/api/state");
+    REQUIRE(result);
+    return nlohmann::json::parse(result->body);
+  };
+
+  auto shown = get();
+  CHECK(shown["state"] == "failed");
+  CHECK(shown["paused"] == false);
+  REQUIRE(shown["errors"].size() == 1);
+  CHECK(shown["errors"][0] == nlohmann::json{{"source", "startup"}, {"message", "Unknown input 'nope'"}});
+
+  auto nothing = put(R"({"running":false})");
+  REQUIRE(nothing);
+  CHECK(nothing->status == 409);
+  CHECK(nlohmann::json::parse(nothing->body) == nlohmann::json{{"succeeded", false}, {"error", "nothing_to_pause"}});
+
+  // The config on disk still names a missing input: the retry fails again,
+  // and the error is now the reload's.
+  Config broken;
+  broken.setActiveInputName("nope");
+  ConfigStore(dir.path).save(broken);
+  auto failedRetry = put(R"({"running":true})");
+  REQUIRE(failedRetry);
+  CHECK(failedRetry->status == 500);
+  CHECK(nlohmann::json::parse(failedRetry->body)["error"] == "Unknown input 'nope'");
+  CHECK(get()["state"] == "failed");
+  CHECK(get()["errors"][0]["source"] == "reload");
+
+  ConfigStore(dir.path).save(videoConfig());
+  auto retried = put(R"({"running":true})");
+  REQUIRE(retried);
+  CHECK(retried->status == 200);
+  CHECK(nlohmann::json::parse(retried->body) == nlohmann::json{{"succeeded", true}, {"running", true}, {"state", "running"}});
+  CHECK(get()["errors"].empty());
+
+  server.stop();
+  serverThread.join();
+  host.shutdown();
+}
+
+
+TEST_CASE("PUT /api/state on an idle host: running:true is a no-op, running:false has nothing to pause (Aurora-d3ec)", "[PipelineRoutes]")
+{
+  using namespace Aurora::Network::Http::Server;
+
+  ScopedTempDir dir("state-route-idle");
+  auto events = std::make_shared<Events>();
+  auto registry = makeRegistry(events);
+  PipelineHost host(nullptr, {});
+
+  HttpServer server;
+  registerStateRoute(server, host, registry, dir.path);
+  REQUIRE(server.bind("127.0.0.1", 18243));
+  std::thread serverThread([&](){ server.listen(); });
+
+  httplib::Client client("127.0.0.1", 18243);
+  auto put = [&](const std::string& body){ return client.Put("/api/state", body, "application/json"); };
+
+  auto run = put(R"({"running":true})");
+  REQUIRE(run);
+  CHECK(run->status == 200);
+  CHECK(nlohmann::json::parse(run->body) == nlohmann::json{{"succeeded", true}, {"running", false}, {"state", "idle"}});
+
+  auto pause = put(R"({"running":false})");
+  REQUIRE(pause);
+  CHECK(pause->status == 409);
 
   server.stop();
   serverThread.join();

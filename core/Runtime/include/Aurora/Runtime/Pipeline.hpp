@@ -165,6 +165,33 @@ namespace Aurora::Runtime
   };
 
 
+  // What the host is doing (Aurora-d3ec). Idle is a host with no pipeline
+  // and no error: build() returns null when no input is configured yet (a
+  // fresh install), which is not a failure. Failed is no pipeline plus a
+  // build error. Paused keeps any failed-resume error. Clients must ignore
+  // states they do not know.
+  enum class HostState { Idle, Running, Paused, Failed };
+
+  const char* hostStateName(HostState state);
+
+  // One build failure, keyed by where it happened: "startup" (the first
+  // build, before the host existed), "resume" or "reload". Unique per
+  // source; today at most one exists, since any successful build clears all.
+  struct HostError
+  {
+    std::string source;
+    std::string message; // already through describeBuildError
+  };
+
+  // State and errors always read together, so a poll never sees Failed with
+  // no error.
+  struct HostStatus
+  {
+    HostState state{HostState::Idle};
+    std::vector<HostError> errors;
+  };
+
+
   // One consistent lock around the swappable Pipeline -- the design
   // HttpServerAnalysis.md recommended over huenicorn's own narrower
   // single-mutex approach, since Aurora reconstructs the whole pipeline
@@ -181,7 +208,15 @@ namespace Aurora::Runtime
     // yet, so there's nothing to build. Every method below tolerates that
     // empty state instead of requiring the WebUI to fail startup just to
     // reach pairing.
-    PipelineHost(std::unique_ptr<Pipeline> initial, PipelineOptions options);
+    //
+    // startupFailure is the exception the app's first Pipeline::build threw
+    // (nullptr when it did not): the host maps it through describeBuildError
+    // and holds it as the "startup" error until a build succeeds.
+    PipelineHost(
+      std::unique_ptr<Pipeline> initial,
+      PipelineOptions options,
+      std::exception_ptr startupFailure = nullptr
+    );
 
     void tick();
     double tickIntervalSeconds();
@@ -249,7 +284,11 @@ namespace Aurora::Runtime
     // every tray item call this, so none reimplements resume. Idempotent.
     // Resume loads config from configRoot and can take seconds (Hue DTLS,
     // Linux portal dialog): call from a task, never a UI or D-Bus thread.
-    // False with errorOut set only when a resume build fails (stays paused).
+    // running:true on a Failed host is a retry: it rebuilds like reload()
+    // and is the same attempt POST /api/reload makes. False with errorOut set
+    // when that build, or a resume build, fails (a paused host stays paused),
+    // and when running:false finds nothing to pause (errorOut is then
+    // kNothingToPause, since the host is idle or failed, not running).
     bool setRunning(
       bool running,
       const Registry& registry,
@@ -259,6 +298,13 @@ namespace Aurora::Runtime
 
     // Lock-free, so the capabilities heartbeat can read it.
     bool isPaused() const { return m_paused.load(); }
+
+    // State plus any held build errors as one snapshot. Takes only its own
+    // leaf lock, never m_mutex, so GET /api/state polling never waits on a
+    // tick or a reload in progress.
+    HostStatus status() const;
+
+    static constexpr const char* kNothingToPause = "nothing_to_pause";
 
     // What the running pipeline uses, lock-free. Updated on every swap and
     // kept through pause(), so a paused Dashboard keeps its sections. A
@@ -273,8 +319,24 @@ namespace Aurora::Runtime
     void _storeCapabilities(const Pipeline* pipeline);
     std::atomic<std::uint8_t> m_capabilityBits{0};
 
+    std::string _describeBuildError(const std::exception& e) const;
+
+    // Publishes state + errors for the current m_pipeline/m_paused. Caller
+    // holds m_mutex (and m_changeMutex when it also changed m_pipeline).
+    void _publishStatusLocked(std::vector<HostError> errors);
+
+    // A failed build with no pipeline to fall back on. Takes the locks
+    // itself; stores nothing when a pipeline is running (the old one keeps
+    // going and the caller reports the error) or when a pause landed during
+    // the build.
+    void _recordFailure(const char* source, const std::string& message);
+
     PipelineOptions m_options;
     std::mutex m_mutex;
+
+    // Leaf lock, taken last (after m_mutex), only around m_status.
+    mutable std::mutex m_statusMutex;
+    HostStatus m_status;
 
     // Taken first, serializes pause()/resume() so two resumes cannot open
     // two capture-portal dialogs (Aurora-5t2).
