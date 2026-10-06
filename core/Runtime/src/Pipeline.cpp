@@ -328,11 +328,70 @@ namespace Aurora::Runtime
   }
 
 
-  PipelineHost::PipelineHost(std::unique_ptr<Pipeline> initial, PipelineOptions options):
+  const char* hostStateName(HostState state)
+  {
+    switch(state){
+      case HostState::Idle: return "idle";
+      case HostState::Running: return "running";
+      case HostState::Paused: return "paused";
+      case HostState::Failed: return "failed";
+    }
+    return "idle";
+  }
+
+
+  PipelineHost::PipelineHost(
+    std::unique_ptr<Pipeline> initial,
+    PipelineOptions options,
+    std::exception_ptr startupFailure
+  ):
   m_options(std::move(options)),
   m_pipeline(std::move(initial))
   {
     _storeCapabilities(m_pipeline.get());
+
+    std::vector<HostError> errors;
+    if(!m_pipeline && startupFailure){
+      try{ std::rethrow_exception(startupFailure); }
+      catch(const std::exception& e){ errors.push_back({"startup", _describeBuildError(e)}); }
+      catch(...){ errors.push_back({"startup", "unknown error"}); }
+    }
+    std::lock_guard<std::mutex> lock(m_mutex);
+    _publishStatusLocked(std::move(errors));
+  }
+
+
+  std::string PipelineHost::_describeBuildError(const std::exception& e) const
+  {
+    return m_options.describeBuildError ? m_options.describeBuildError(e) : e.what();
+  }
+
+
+  HostStatus PipelineHost::status() const
+  {
+    std::lock_guard<std::mutex> lock(m_statusMutex);
+    return m_status;
+  }
+
+
+  void PipelineHost::_publishStatusLocked(std::vector<HostError> errors)
+  {
+    HostState state;
+    if(m_paused.load()){ state = HostState::Paused; }
+    else if(m_pipeline){ state = HostState::Running; }
+    else{ state = errors.empty() ? HostState::Idle : HostState::Failed; }
+
+    std::lock_guard<std::mutex> lock(m_statusMutex);
+    m_status = HostStatus{state, std::move(errors)};
+  }
+
+
+  void PipelineHost::_recordFailure(const char* source, const std::string& message)
+  {
+    std::lock_guard<std::mutex> change(m_changeMutex);
+    std::lock_guard<std::mutex> lock(m_mutex);
+    if(m_pipeline || m_paused.load()){ return; }
+    _publishStatusLocked({HostError{source, message}});
   }
 
 
@@ -446,7 +505,8 @@ namespace Aurora::Runtime
       next = Pipeline::build(registry, config, configRoot, m_options);
     }
     catch(const std::exception& e){
-      errorOut = m_options.describeBuildError ? m_options.describeBuildError(e) : e.what();
+      errorOut = _describeBuildError(e);
+      _recordFailure("reload", errorOut);
       return false;
     }
 
@@ -463,6 +523,7 @@ namespace Aurora::Runtime
         previous = std::move(m_pipeline);
         m_pipeline = std::move(next);
         _storeCapabilities(m_pipeline.get());
+        _publishStatusLocked({});
       }
     }
     if(discardNext){
@@ -490,6 +551,7 @@ namespace Aurora::Runtime
       m_pausedZones = m_pipeline->listZones();
       previous = std::move(m_pipeline);
       m_paused = true;
+      _publishStatusLocked({});
     }
     // Outside the lock: Hue's disableStreaming is a blocking HTTP call that
     // must not stall tick() or zone calls.
@@ -506,11 +568,20 @@ namespace Aurora::Runtime
   )
   {
     if(!running){
-      pause();
-      return true;
+      if(pause() || isPaused()){ return true; }
+      errorOut = kNothingToPause;
+      return false;
     }
-    if(!isPaused()){ return true; }
-    return resume(registry, ConfigStore(configRoot).load(), configRoot, errorOut);
+    if(isPaused()){
+      return resume(registry, ConfigStore(configRoot).load(), configRoot, errorOut);
+    }
+    // A failed host has no pipeline and is not paused: running:true is the
+    // retry, the same attempt POST /api/reload makes. Idle (nothing configured
+    // yet) and running hosts have nothing to retry.
+    if(status().state == HostState::Failed){
+      return reload(registry, ConfigStore(configRoot).load(), configRoot, errorOut);
+    }
+    return true;
   }
 
 
@@ -530,7 +601,12 @@ namespace Aurora::Runtime
       next = Pipeline::build(registry, config, configRoot, m_options);
     }
     catch(const std::exception& e){
-      errorOut = m_options.describeBuildError ? m_options.describeBuildError(e) : e.what();
+      errorOut = _describeBuildError(e);
+      // Still paused (m_pauseMutex is held, so nothing can change that):
+      // keep the reason on the paused snapshot.
+      std::lock_guard<std::mutex> change(m_changeMutex);
+      std::lock_guard<std::mutex> lock(m_mutex);
+      _publishStatusLocked({HostError{"resume", errorOut}});
       return false;
     }
 
@@ -541,6 +617,7 @@ namespace Aurora::Runtime
     m_pausedMonitors.clear();
     m_pausedZones = {};
     m_paused = false;
+    _publishStatusLocked({});
     return true;
   }
 

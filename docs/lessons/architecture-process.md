@@ -476,6 +476,8 @@ After hand-merging a `dev`-branch conflict in `.beads/issues.jsonl` (keeping dis
 
 **Fix:** run `bd import` immediately after resolving any `.beads/issues.jsonl` merge conflict, before running any other `bd` command -- it upserts the file's content into the DB (confirmed here: "Imported 170 issues... Updated 3 existing issue(s)"), closing the gap the warning was refusing to paper over. Opposite direction from "A stale live DB can un-close just-pulled beads" above: there the DB lagged the file after a `pull`; here the file gained content the DB never saw because a merge, not `bd`, produced it -- same rule either way, diff/import before trusting either side.
 
+A log, plan or commit message that says "beads X, Y, Z were created or narrowed" is a claim, not state: `bd show` each id before building on it (Aurora-d3ec's split was claimed in commit 7395754's message, but that commit's export lagged and carried only one of the four new beads; a follow-up commit exported the rest, and the live DB still lacked them until `bd import`). When ids are missing, check `git log -S'"id":"<id>"' -- .beads/issues.jsonl` and `git status` before concluding anything: the fix may already be committed on your own branch, and the DB only follows the file after an import.
+
 Aurora-jm6s session addition: when both sides changed the same issue (here `kea`, whose `dependent_count` I changed and `dev` changed the notes of), merge by issue id on the **raw lines**, not by parsing and re-dumping. A first pass that round-tripped every row through `json.dumps` rewrote 116 lines against HEAD (escaping and key formatting differ from `bd export`); keeping each side's original line text left exactly the 10 lines dev changed. Check it by `bd import`, then `bd export` to a file and diffing the sorted lines against the merged file: zero differences means the DB and the file agree.
 
 ---
@@ -742,6 +744,13 @@ State can change behind the tray's back (Dashboard button, `PUT /api/state`), so
 
 **Fix:** pass the tray an `isPaused` getter (lock-free atomic) and have the open hook read it. The click callback only posts a flag; the tick loop does the multi-second `setRunning`, so no UI or D-Bus thread blocks and there is no extra thread to join at shutdown.
 
+Extended 2026-10-05 (Aurora-k73j's tray-error sketch, [[error-overlay]]): the same open-time-read model covers relabeling the item itself (e.g. "Resume" -> "⚠ See Error"), not just its Pause/Resume text, it's the same getter shape, now also checking the source's current error. One implication worth stating outright: because the click callback only posts a flag and the menu closes immediately as a normal consequence of selecting any item, the menu that triggered a failing action is always already gone by the time that action's result exists -- there is no case where the triggering menu is still open and could show the failure live. Force-closing an open menu to fake a live update was considered (Mac's existing `cancelMenuTracking`, Windows' existing shutdown-time `WM_CANCELMODE`) and rejected: dismissing a menu the user is actively looking at, possibly mid-click on something unrelated, to buy freshness that's already an accepted limitation elsewhere isn't worth risking a dropped click.
+
+**Fix (extended):** when adding a new tray-visible condition beyond paused/resume, feed it through the same open-time getter rather than reaching for a push or forced-redraw mechanism -- the menu that would need the live update is, in this app's own click-then-tick-loop split, essentially never still open by the time the result exists anyway.
+
+Extended again 2026-10-05 (Aurora-q9l1, [[error-overlay]]): "the click callback only posts a flag" hides a race when the flag is a toggle. All three trays set `pauseToggleRequested` and the tick thread later runs `setRunning(pipelineHost.isPaused())`, so the target is decided seconds after the click. During a multi-second resume the menu still reads "Resume", and a second click pauses right after the resume succeeds. `PUT /api/state {running}` never had this, because it sends the target.
+
+**Fix (extended):** post the clicked target (run or pause, last click wins), never a toggle the worker resolves later.
 
 ---
 
@@ -753,3 +762,25 @@ The Aurora-1t1 rollout plan ended with "mirror into huenicorn-fork", written as 
 
 **Fix:** plan fork work as an upstream change, not a copy step: a child bead under the h45 epic with its own branch (stacked on the MR whose files it touches), filed when the Aurora fix lands. Don't fold it into the Aurora bead's acceptance.
 
+
+## A host with no pipeline is neither running nor paused -- a boolean paused flag reads a failed start as running
+Tags: pause, state-model, errors, tray, webui
+Applies-when: exposing run state to a UI or tray, or designing error display around pause/resume
+
+After a failed startup build, `PipelineHost` has `m_paused == false` and `m_pipeline == nullptr`. `pause()` returns false with nothing to pause, and `setRunning(true)` reports success because the host is not paused, so both the tray and the Dashboard offer "Pause", and clicking it silently does nothing. This is the headline case of Aurora-d3ec (Mac launched with Screen Recording denied). d3ec's retry-path notes had traced it, but the error-display design and the tray-feedback bead (k73j) were built on `isPaused()` alone and inherited the blind spot: k73j's relabel only fired on a failed Resume.
+
+**Fix:** expose the third state explicitly (`running | paused | failed` on `GET /api/state`, Aurora-d3ec) and drive every label from it. When a design elaborates a bead, read that bead's notes first. Gaps already traced there are easy to drop when the design starts from the API's current shape.
+
+**Correction found while building it:** "no pipeline" has a fourth cause, so the set is `idle | running | paused | failed`. `Pipeline::build` returns null, it does not throw, while no input is configured, so a *fresh install* is `idle` with no error. The design docs said "a fresh install's first build fails by design" and sized the onboarding gate around a `startup` error that never exists there; nobody had read what `build()` returns. The failure that does occur in onboarding is later: an input saved, no output paired, and the reload throws "No outputs available". Before encoding a state model or a UI gate around a "fails by design" claim, run the case once (here: a temp `AURORA_CONFIG_DIR`) and look at what the host reports. Mapping `null` to `failed` with an empty error list would have been the same lie as mapping it to `running`.
+
+---
+
+## Publish a host's state and errors as one snapshot under its own leaf lock, and store a failure only if nothing is running when you look
+Tags: pipelinehost, concurrency, state-model, locks, api
+Applies-when: adding a field a lock-free route must read next to state the host mutates under its main lock
+
+`GET /api/state` is polled and must not wait on a tick, so the error text (a `std::string`, not an atomic) cannot ride on `m_mutex`, and reading `state` and `errors` separately lets a poll see `failed` with an empty list. Aurora-d3ec keeps one `HostStatus{state, errors}` behind its own `m_statusMutex`, taken last (after `m_mutex`) and only around that struct. Every site that changes `m_pipeline` or `m_paused` (ctor, reload swap, pause, resume) republishes while it still holds its locks, so the snapshot never disagrees with the pipeline. The state is derived at publish time (paused, else running if a pipeline exists, else failed if errors, else idle), never stored as its own flag.
+
+A failed build runs outside every lock, so a competing success can land first. Rather than a sequence counter, the failure path takes the locks *after* the build and stores nothing if a pipeline now exists or a pause landed ("errors are held only while no pipeline runs"). That one rule also covers the plain "failed reload with a pipeline running" case, and the late-failure test shows it: a fake output's `init()` hook runs a successful reload inside the failing build.
+
+**Fix:** one leaf-locked snapshot for anything a lock-free reader needs together, republished wherever the inputs change; decide "store or drop" under the same locks that decide the state. `status()` waiting on `m_pauseMutex` (a resume in flight) is the regression to test for.

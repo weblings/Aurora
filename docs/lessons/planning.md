@@ -408,6 +408,64 @@ disabled since there's nothing valid to advance with.
 
 ---
 
+## A toast is the wrong primitive for a condition that can be true before any user action
+Tags: webui, errors, design-process
+Applies-when: choosing between a toast and a persistent element for an error or status
+
+Designing where the Dashboard should show a build/permission failure
+(Aurora-d3ec, [[error-overlay]]), a toast was the first instinct -- ephemeral,
+no layout shift. It breaks on a case a toast can't represent: a startup
+failure exists before the user has done anything this session, so there's no
+action to hang a "just happened" notification on, and a toast would have to
+guess whether to render as fresh or already-seen on a page that just loaded.
+A second instinct, a badge that used `IntersectionObserver` to track when a
+persistent zone scrolled out of view, had the same problem in reverse -- it
+solved a visibility question that only exists for an in-page element in the
+first place. A fixed-position overlay never scrolls out of view, so there
+was nothing to track.
+
+**Fix:** before reaching for a toast to report a *condition* rather than
+confirm an *action*, check whether that condition can be true before any
+user interaction happens. If it can, render it directly from current state
+(visible for exactly as long as the condition holds) instead of as a
+dismissable event, and don't build scroll-visibility tracking for something
+that could just as easily be fixed-position and never need it.
+
+Extended 2026-10-05 ([[error-overlay]] revision): the fixed-position overlay this entry landed on was itself replaced by a sticky, in-flow banner mounted by the app shell. Fixed-position solved scrolling but needed drag-to-snap, a saved position and a collapse toggle to uncover what it sat on. `position: sticky` in the shell, outside every screen, also never scrolls away and never covers content; its cost is layout shift. The "state, not event" half of this entry still holds.
+
+---
+
+## An error's resolve action is a property of what went wrong, not of which control produced it
+Tags: webui, errors, retry
+Applies-when: deciding what action (if any) an error's display should offer
+
+Walking the Dashboard's concurrent failure cases for Aurora-d3ec's open
+"does this need a Retry button" question took two wrong turns before
+landing. First: "does a control elsewhere on the page already re-attempt
+this" -- missed that showing the action in a shared error surface saves a
+trip even when another control exists. Second: "which sources need Retry"
+-- still assumed Retry is always the action, just disputed when to offer
+it. Neither asked the actual question: what single click, if any, resolves
+*this* failure? Mode switch, resume, device save, and a failed startup
+build can each fail for a permission reason or a generic one depending on
+what actually went wrong this time -- the Mac-specific cases already route
+through the same check (`MacPermissionRecovery.js`'s
+`parseMacPermissionError`) regardless of which of them produced the
+failure, and that check already backs a real, working deep link
+(`renderReloadError`'s "Open Screen Recording settings" link, confirmed
+still working through the Tahoe rename), not something still to design.
+
+**Fix:** derive the action from the error's own content, not from a
+per-source lookup table. Permission-flavored -> reuse the existing Open
+Settings block. Otherwise, if resubmitting the identical request is
+plausibly the fix -> Retry. Otherwise -> no button at all (daemon
+unreachable resolves when the daemon comes back, which the heartbeat is
+already polling for, not something a click produces). The same source can
+land in any of the three depending on the specific failure, so the choice
+can't be fixed at the source level up front.
+
+---
+
 ## Order a rename against a merge by counting outward references from other repos, not just internal links
 Tags: planning, refactoring, monorepo, sequencing
 Applies-when: sequencing a directory rename against a repo consolidation
@@ -448,6 +506,8 @@ External-control planning first researched generic patterns (OctoPrint, Jellyfin
 
 **Fix:** for any product-shaped question, first find projects in the same niche (here: Hyperion, WLED, Hue Sync Box) and read their code or API, then fall back to generic patterns. Record them as references in AGENTS.md so later sessions start there.
 
+Recurred 2026-10-05 ([[error-overlay]]): the error-display design converged over a full pass before Hyperion was consulted. Its code then reshaped it in one read: device faults held by the server and cleared by the server (`LedDevice::setInError`), a modal for rejected commands but a shell-level banner for "disabled" state (`#hyperion_disabled_notify`), and a connection-lost takeover (`hyperion.js` watchdog). Check the same-niche project before converging, not after.
+
 ## Agent-written research reads as owner scope unless the doc says who proposed it
 Tags: planning, provenance, doc-hygiene
 Applies-when: carrying a feature list from a research doc into a plan, bead or recommendation
@@ -464,3 +524,11 @@ Applies-when: claiming a reference project lacks a behavior, or that it was not 
 While mapping brightness handling, Hyperion's HA device looked like it had no black-frame handling (luma-derived brightness 0 turns the light off), and the external-control doc was said to rest on web docs only. Both were wrong: the floor lives upstream in the color stage as `backlightThreshold` (`RgbTransform::applyBacklight`), and the 2026-10-02 session log records that Hyperion's code had been read. The error was written into two docs and a bead before being caught.
 
 **Fix:** before saying a reference lacks something, grep its whole tree for the concept's other names (floor, threshold, backlight) and check every stage, not just the output. Before saying a source was not consulted, read the session log and lessons that cite it.
+
+## Classify an error by what it leaves behind before choosing where it renders
+Tags: webui, errors, design-process, ownership
+Applies-when: designing one shared surface for errors from several sources
+
+The first [[error-overlay]] draft put every failure (mode switch, device save, auto-arrange, resume, startup build) into one persistent overlay, which meant writing a "still true?" rule for each. Most had one (server state), but device save and auto-arrange did not: "a fresh read showing the save held" has no clean definition. Hyperion's split dissolved it. A rejected request leaves the system in its prior, consistent state; it's about something the user just did, at a control they are looking at. A degraded system (build failed, resume failed) is state that outlives any action, and the daemon that failed is the one that knows when it is fixed. A third kind, daemon unreachable, makes every server-derived error stale, so it belongs to neither surface.
+
+**Fix:** sort each error first: rejected request -> inline at its control, cleared by the next confirmed result; degraded system -> held by the daemon, keyed by source, read by every surface (WebUI and tray alike), cleared by the daemon on success; connection lost -> a takeover that replaces everything. Only the second kind needs a shared persistent surface, and it needs no client-side staleness rules.

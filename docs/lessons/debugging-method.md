@@ -670,6 +670,8 @@ For the config race in Aurora-d6i7, threads and sleeps would have made a flaky t
 
 Two traps hit the Aurora-c0g version of this. A "did the lock stay free?" probe built on `std::async` deadlocks exactly when the bug is present: the future's destructor waits for the blocked task, while the code holding the lock waits for the hook. And an interrupted mutation run leaves the mutated source behind, because the restore step never executes.
 
+Two more from Aurora-d3ec's host-status tests. A fake's hook fires once *per output* (the fake registry has two), so a hook that sets a `std::promise` or blocks must guard with a flag or the second call throws inside the build and fails the very operation under test. And when the test blocks another thread on purpose, release it *before* asserting: a `REQUIRE` that throws with the worker thread still joinable calls `std::terminate`, so a regression shows up as an abort with no failure message instead of a failed check (use a plain bool, release, join, then `CHECK`).
+
 **Fix:** put the competing action in a hook inside the slow step, write the test against the unfixed code first, and mutation-check each lock by removing it before trusting the test. Run the probe on a plain `std::thread` and join it only after the code under test returns, so a held lock times the hook out and fails the test. Run mutation checks with a backup copy, a shell `trap` that restores on any exit, and `ctest --timeout`; after any interruption, grep for the mutation marker before assuming the tree is clean.
 
 ---

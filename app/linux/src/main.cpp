@@ -555,13 +555,15 @@ if(!instanceLock.held()){
   // see WebUI/WebUI_Fixes.md's "HTTP server never binds" task. A later
   // failed *reload* is handled the same way; see PipelineHost::reload.
   std::unique_ptr<Aurora::Runtime::Pipeline> initialPipeline;
+  std::exception_ptr startupFailure; // held by the host so the WebUI can show it (Aurora-d3ec)
   try{
     initialPipeline = Aurora::Runtime::Pipeline::build(registry, config, configRoot, pipelineOptions());
   }
   catch(const std::exception& e){
+    startupFailure = std::current_exception();
     std::cerr << "Pipeline not started (" << e.what() << ") -- WebUI still available for setup\n";
   }
-  Aurora::Runtime::PipelineHost pipelineHost(std::move(initialPipeline), pipelineOptions());
+  Aurora::Runtime::PipelineHost pipelineHost(std::move(initialPipeline), pipelineOptions(), startupFailure);
 
   Aurora::Network::Http::Server::HttpServer httpServer;
   registerCapabilitiesRoute(httpServer, registry, pipelineHost);
@@ -702,7 +704,7 @@ if(!instanceLock.held()){
     if(pauseToggleRequested.exchange(false)){
       std::string error;
       if(!pipelineHost.setRunning(pipelineHost.isPaused(), registry, configRoot, error)){
-        std::cerr << "Resume failed, staying paused: " << error << "\n";
+        std::cerr << "Tray pause/resume failed: " << error << "\n";
       }
     }
     if(pipelineHost.isPaused() != trayShowsPaused){

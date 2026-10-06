@@ -440,3 +440,13 @@ Applies-when: a Mac build gets unexpected Keychain password prompts, or you need
 `security dump-keychain -a ~/Library/Keychains/login.keychain-db` lists attributes and ACL entries but not secrets (no `-d`). It prints the whole keychain, so filter it to the one service in a script (`Aurora/acl-check` in Aurora-2dz) and never paste the rest. An ad-hoc-created item showed: decrypt trusted for the creating app by `cdhash`; a `partition_id` entry `cdhash:<hash>`; and `change_acl` with no trusted apps, which is why extending the ACL asks for the login keychain password. Always Allow adds the new build's requirement to the app list and its id to the partition list (`cdhash:` for ad-hoc, `teamid:<TEAM>` for Developer ID). Plain Allow adds nothing, so the next launch prompts again. After one Always Allow on a Developer ID build, other builds with the same identifier and Team ID (and the same file name) read and deleted with no prompt. Two Aurora-2dz runs looked like "Always Allow does not stick"; the ACL dump showed it does when clicked, and the earlier clicks were not recorded.
 
 **Fix:** to test Keychain access across builds, dump the ACL before and after each dialog instead of trusting memory of which button was clicked, time each read (0.02-0.3 s means no prompt, about 10 s means a dialog waited), and keep file name and path constant. See [[2dz-secret-store]].
+
+---
+
+## No badge/attention API exists for an `NSStatusItem`, and `NSDockTile.badgeLabel` doesn't apply to an `LSUIElement` app with no Dock icon
+Tags: macos, nsstatusitem, tray, badge, dock, lsuielement
+Applies-when: wanting a menu-bar icon to show an ambient "something needs attention" signal
+
+Looking for a way to flag a tray error on the icon itself, without opening the menu (Aurora-k73j, [[error-overlay]]): `NSStatusBarButton` (the only thing `NSStatusItem` exposes for its appearance) is a plain `NSButton` wrapper, `.image`/`.alternateImage`/`.title`, with no badge or attention-state primitive. `NSDockTile.badgeLabel` is the closest OS-level analogue, but Aurora runs `LSUIElement` with no Dock icon at all (`app/mac/README.md`), so there's no Dock tile to badge in the first place, independent of the separate notification-permission gate that can silently suppress that badge even for apps that do have one.
+
+**Fix:** there is no shortcut, an ambient signal on the icon itself has to be a hand-built icon swap or a manually composited overlay (bake a dot into a second image, or draw a small subview/layer on top of the existing button), not an API call. Since `template` is a per-`NSImage` property (`TrayIcon.mm:133`'s `setTemplate:YES`), a deliberately non-template "alert" variant can still show real color even though the normal icon stays a system-tinted silhouette.
