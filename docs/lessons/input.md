@@ -718,3 +718,13 @@ Applies-when: an Objective-C stream/capture delegate calls back into a C++ objec
 **Fix:** give the callbacks shared ownership of the state they touch. `Impl` is `enable_shared_from_this`, the grabber holds `shared_ptr<Impl>`, the output holds a `shared_ptr<Impl>` attached before `addStreamOutput`, and each callback copies it to a local first. `Impl` holds `output`/`stream` strongly, a cycle that `stopStream` and `didStopWithError:` break by clearing them. Keep `didStopWithError:` alive with `objc_precise_lifetime` because clearing `impl->output` can drop the last strong ref to `self`. Verify with a rapid mode-switch loop against the real capture, not by reasoning about ordering: 3,000+ iterations clean after the fix.
 
 ---
+
+## A fake bare D-Bus bus is not bare where portal .service files exist: activation resurrects the real service
+Tags: input, linux, dbus, portal, test-harness, activation, flaky-test
+Applies-when: a test spawns its own `dbus-daemon` as a "bus with no X" and the code under test creates proxies without `G_DBUS_PROXY_FLAGS_DO_NOT_AUTO_START`
+
+`PortalTokenTests`' `FakePortal(false)` starts a bare `dbus-daemon` to mean "no ScreenCast portal", but `ensureScreencastPortalProxy` builds its proxy with `G_DBUS_PROXY_FLAGS_NONE`, so the fake daemon activates the real `/usr/libexec/xdg-desktop-portal` (plus gnome/gtk backends) onto the fake bus -- three portal processes on `/tmp/dbus-XXX` seen live mid-run. The handshake then hangs to the 25s method timeout instead of settling false in the 3s bound (25.08s elapsed, 0% CPU), failing `REQUIRE(result.settled)`. It passes on boxes without the portal installed, which is why CI stayed green (Aurora-gtkd).
+
+**Fix (open):** either launch the fake daemon with a config whose servicedir is empty so activation fails fast (test-side, no behavior change), or pass `G_DBUS_PROXY_FLAGS_DO_NOT_AUTO_START` (owner decision -- changes app behavior on portal-installed-but-not-running sessions). When a fake-bus test hangs near exactly 25s, suspect activation, and confirm with `ps` mid-run: a service attached to `/tmp/dbus-XXX` is the tell.
+
+---
