@@ -38,7 +38,6 @@ import {
   audioDevicesUrlFrom, effectiveFlags, flagsForMode, isModeConfigValid, isSwitchConfirmed, loadPipelineState,
   modeFromFlags, modeSwitchPatch,
 } from '../CaptureSource.js';
-import { DAEMON_UNREACHABLE } from '../messages.js';
 
 export { pickVideoInputName, pickAudioInputName } from '../CaptureSource.js';
 
@@ -90,7 +89,9 @@ export class ModeDeviceScreen {
         loadPipelineState(),
       ]);
     } catch {
-      body.innerHTML = `<p class="status-text status-text-error">⚠ ${DAEMON_UNREACHABLE}</p>`;
+      // Unreachable owns this (shell takeover, Aurora-ewyz): poke the beat,
+      // no inline error; the body keeps its loading text under the takeover.
+      this.app.checkNow();
       return;
     }
 
@@ -311,7 +312,9 @@ export class ModeDeviceScreen {
         }
       }
     } catch {
-      this.error = DAEMON_UNREACHABLE;
+      // Blip (the daemon answered the re-check): the failed apply still
+      // needs its own error. Outage: the shell takeover owns it.
+      if (await this.app.checkNow()) this.error = "Couldn't save capture settings.";
     }
 
     this.pendingMode = null;

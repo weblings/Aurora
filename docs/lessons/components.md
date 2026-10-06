@@ -321,3 +321,13 @@ With Screen Recording off while Audio ran, a switch to Video on the NUX Capture 
 
 **Fix:** pass `showHint: !error` to the shared `DeviceField` and gate screen-level notes on `!this.error`, so an error stands alone. Write onboarding copy in terms of what the choice does for the user's lights, not which later step is skipped. Test by calling `_render` with an `error` set and asserting the notes are absent while the error text is present, with a mutant that drops the gate (`web/ui/screens/ModeDeviceScreen.test.mjs`).
 
+
+---
+
+## An on-demand re-check must not answer from a cached verdict
+Tags: webui, errors, heartbeat, polling
+Applies-when: adding an immediate re-check alongside a polling heartbeat
+
+Aurora-ewyz first designed `checkNow()` with a ~500ms min-interval that returned the last-known verdict inside the window. A screen awaiting it right after a successful beat poll would misread a fresh outage as a one-request blip and set an inline action error -- then the beat's next poll would raise the takeover too, the exact two-messages-for-one-cause the heartbeat entry forbids, with a window of up to one full cadence.
+
+**Fix:** always poll or attach to the in-flight poll; never cache the verdict. Bound the cost structurally instead: single-flight (beat and triggers share one poll) plus an abort timer. On localhost the serialized cost is milliseconds, and a storm of triggers collapses onto one hung poll.

@@ -28,7 +28,12 @@ export class EntertainmentZoneSelectScreen {
     this.showBack = showBack;
     this.entertainmentConfigSelect = new EntertainmentConfigSelect({
       onChange: () => this._reload(),
-      onError: (message) => { this.error = message; this._render(); },
+      // Aurora-ewyz: an unreachable signal owns no inline error -- the
+      // shell takeover owns it. Poke the beat; anything else as before.
+      onError: (message) => {
+        if (message === DAEMON_UNREACHABLE) { this.app.checkNow(); return; }
+        this.error = message; this._render();
+      },
     });
     this.channelList = new ChannelList();
     this.error = null;

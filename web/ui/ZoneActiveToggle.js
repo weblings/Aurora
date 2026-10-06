@@ -19,12 +19,12 @@ export class ZoneActiveToggleList {
   // zones: live zone array (mutated in place, same convention as
   // ZoneCanvas). zoneLabel(zone) is injected -- this component knows
   // nothing about Hue channel/light names.
-  constructor(container, { zones, zoneLabel, onError, tooltipKey = null }) {
+  constructor(container, { zones, zoneLabel, onError, onUnreachable, tooltipKey = null }) {
     this.container = container;
     this.zones = zones;
     this.zoneLabel = zoneLabel;
     this.tooltipKey = tooltipKey;
-    this._queue = new ZonePatchQueue({ onError });
+    this._queue = new ZonePatchQueue({ onError, onUnreachable });
     this._render();
   }
 
@@ -57,10 +57,10 @@ export class ZoneActiveToggleList {
 }
 
 export class ZoneActiveToggleSingle {
-  constructor(container, { zone, onError }) {
+  constructor(container, { zone, onError, onUnreachable }) {
     this.container = container;
     this.zone = zone;
-    this._queue = new ZonePatchQueue({ onError });
+    this._queue = new ZonePatchQueue({ onError, onUnreachable });
     this._render();
   }
 

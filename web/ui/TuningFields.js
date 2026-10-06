@@ -80,7 +80,7 @@ export class TuningFields {
   // its own (unlike every fetch+render component elsewhere in this app --
   // there's simply nothing left for it to fetch that the caller doesn't
   // already have). usesVideoInput/usesAudioInput: what runs (Aurora-kea).
-  constructor(container, { usesVideoInput = true, usesAudioInput = false, values, monitors = [], selectedMonitorName = AUTO_MONITOR_VALUE }) {
+  constructor(container, { usesVideoInput = true, usesAudioInput = false, values, monitors = [], selectedMonitorName = AUTO_MONITOR_VALUE, onUnreachable = null }) {
     this.container = container;
     this.usesVideoInput = usesVideoInput;
     this.usesAudioInput = usesAudioInput;
@@ -308,7 +308,10 @@ export class TuningFields {
         this.error = `Saved, but couldn't apply it live: ${result.reloadError}`;
       }
     } catch {
-      this.error = DAEMON_UNREACHABLE;
+      // Unreachable owns this (shell takeover, Aurora-ewyz): poke the beat
+      // when wired, no inline error.
+      if (this.onUnreachable) this.onUnreachable();
+      else this.error = DAEMON_UNREACHABLE;
     }
 
     this._render();

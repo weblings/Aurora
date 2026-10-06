@@ -35,14 +35,18 @@ function fakeScreen(overrides = {}) {
     if (!stubs.has(sel)) stubs.set(sel, makeEl());
     return stubs.get(sel);
   };
+  const checkNowCalls = [];
   const inst = Object.create(DashboardScreen.prototype);
   inst.paused = false;
   inst.pauseBusy = false;
   inst.topTierError = null;
   inst.container = { querySelector: (sel) => (sel === '.top-bar-slot' ? slot : makeEl()) };
   inst._renderTopTier = () => {};
+  // Shell-beat double (Aurora-ewyz): records immediate re-checks. Tests
+  // override `app` when the verdict matters (false = outage stands).
+  inst.app = { checkNow: async () => { checkNowCalls.push(1); return true; } };
   Object.assign(inst, overrides);
-  return { inst, slot, stubs };
+  return { inst, slot, stubs, checkNowCalls };
 }
 
 const realFetch = globalThis.fetch;
@@ -135,18 +139,48 @@ function stubFetch(handler) {
   assert.equal(renderedTopTier, 1);
 }
 
-// Unreachable daemon: same shape, reachability copy.
+// Unreachable daemon (Aurora-ewyz): no inline error -- the shell takeover
+// owns the case, so one message, not two. The beat gets one immediate
+// re-check that also reads as down.
 {
   globalThis.fetch = async () => { throw new Error('down'); };
   let renderedTopTier = 0;
-  const { inst } = fakeScreen({ _renderTopTier: () => { renderedTopTier++; } });
+  const { inst, checkNowCalls } = fakeScreen({
+    _renderTopTier: () => { renderedTopTier++; },
+    app: null,
+  });
+  inst.app = { checkNow: async () => { checkNowCalls.push(1); return false; } };
   try {
     await inst._togglePause();
   } finally {
     globalThis.fetch = realFetch;
   }
-  assert.equal(inst.topTierError, "Couldn't reach the daemon.");
+  assert.equal(inst.topTierError, null);
+  assert.equal(renderedTopTier, 0);
+  assert.equal(checkNowCalls.length, 1);
+  assert.equal(inst.pauseBusy, false);
+}
+
+// Blip: the PUT throws but the daemon answers the re-check, so the failed
+// resume still gets its own error (no silent failure).
+{
+  globalThis.fetch = async (url) => {
+    if (url === '/api/state') throw new Error('blip');
+    return { json: async () => ({}) };
+  };
+  let renderedTopTier = 0;
+  const { inst, checkNowCalls } = fakeScreen({
+    paused: true,
+    _renderTopTier: () => { renderedTopTier++; },
+  });
+  try {
+    await inst._togglePause();
+  } finally {
+    globalThis.fetch = realFetch;
+  }
+  assert.equal(inst.topTierError, "Couldn't resume Aurora.");
   assert.equal(renderedTopTier, 1);
+  assert.equal(checkNowCalls.length, 1);
   assert.equal(inst.pauseBusy, false);
 }
 
@@ -199,9 +233,10 @@ const AUDIO_STATE = { paused: false, usesVideoInput: false, usesAudioInput: true
 // does (flags/state from the running pipeline, then the stale-error rule);
 // renders are counted instead of touching a DOM.
 function switchScreen({ state, platform = 'mac', toggleError = null, toggleErrorMode = null }) {
-  const calls = { controls: 0, topTier: 0 };
+  const calls = { controls: 0, topTier: 0, checkNow: 0 };
   const inst = Object.create(DashboardScreen.prototype);
   Object.assign(inst, {
+    app: { checkNow: async () => { calls.checkNow++; } },
     platform, hasAudio: true, mode: 'audio', pendingMode: null,
     inputs: ['mac'], audioInputs: ['mac-audio'],
     currentActiveInputName: '', currentActiveAudioInputName: 'mac-audio',
@@ -333,8 +368,8 @@ const PERMISSION_ERROR = 'permission_denied: ScreenCaptureKitGrabber: no shareab
 
 assert.equal(DAEMON_UNREACHABLE, "Couldn't reach the daemon.", 'the shared wording is the Couldn\'t form');
 
-// Daemon gone: the failed PUT adds no toggle error -- _loadAll's top-tier
-// message and the heartbeat overlay own the case, so one message, not two.
+// Daemon gone: the failed PUT adds no toggle error -- the shell takeover
+// owns the case, so one message, not two.
 {
   globalThis.fetch = async () => { throw new Error('down'); };
   const { inst, calls } = switchScreen({ state: AUDIO_STATE });
@@ -347,28 +382,35 @@ assert.equal(DAEMON_UNREACHABLE, "Couldn't reach the daemon.", 'the shared wordi
   assert.equal(inst.mode, 'audio', 'fill stays on the running mode');
 }
 
-// Transient failure: the PUT could not connect but the daemon answers the
-// reload, so the failed switch still gets its own error (no silent failure).
+// Transient failure (Aurora-ewyz): the PUT could not connect but the daemon
+// answers the reload, so the failed switch still gets its own error (no
+// silent failure) -- and it is the action's error, never the unreachable
+// wording (components.md:308).
 {
   globalThis.fetch = async () => { throw new Error('blip'); };
   const { inst, calls } = switchScreen({ state: AUDIO_STATE });
   try { await inst._switchMode('video'); } finally { globalThis.fetch = realFetch; }
-  assert.equal(inst.toggleError, DAEMON_UNREACHABLE);
+  assert.equal(inst.toggleError, "Couldn't switch to Video.");
   assert.equal(inst.toggleErrorMode, 'video');
   assert.equal(calls.topTier, 1, 'top tier re-rendered so the audio banner yields');
+  assert.equal(calls.checkNow, 1, 'the beat gets one immediate re-check');
 }
 
-// _loadAll with the daemon gone: the same wording in the top tier, and a
-// false return so callers can tell it did not load.
+// _loadAll with the daemon gone (Aurora-ewyz): nothing inline -- the shell
+// takeover owns it -- one beat poke, and a false return so callers can
+// tell it did not load.
 {
   const topTier = makeEl();
   globalThis.fetch = async () => { throw new Error('down'); };
   const inst = Object.create(DashboardScreen.prototype);
   inst.container = { querySelector: (sel) => (sel === '.db-top-tier' ? topTier : makeEl()) };
+  let checkNowCalls = 0;
+  inst.app = { checkNow: async () => { checkNowCalls++; return false; } };
   let loaded;
   try { loaded = await inst._loadAll(); } finally { globalThis.fetch = realFetch; }
   assert.equal(loaded, false);
-  assert.ok(topTier.innerHTML.includes(DAEMON_UNREACHABLE), '_loadAll shows the shared wording');
+  assert.equal(topTier.innerHTML, '', 'no inline error for an unreachable daemon');
+  assert.equal(checkNowCalls, 1);
 }
 
 console.log('DashboardScreen pause checks passed.');
