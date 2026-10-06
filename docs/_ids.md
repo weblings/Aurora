@@ -21,6 +21,7 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `d6i7-config-writer-race` | [log/2026-10-02-d6i7-config-writer-race.md](log/2026-10-02-d6i7-config-writer-race.md) | Aurora-d6i7: config.json writer race (Pipeline::build vs the settings PUT) |
 | `distributed-architecture-plan` | [archive/DistributedArchitecturePlan.md](archive/DistributedArchitecturePlan.md) | Distributed architecture — how far to decompose Input/Processing/Output over a network |
 | `docs-lessons-pain-points` | [archive/DocsAndLessonsPainPoints.md](archive/DocsAndLessonsPainPoints.md) | Docs & lessons: scaling pain points |
+| `error-text-and-leak-beads` | [log/2026-10-05-error-text-and-leak-beads.md](log/2026-10-05-error-text-and-leak-beads.md) | Aurora-jm6s, tazx and kea closed; 2pe5, d3ec designed; 36b7, k73j and 9swq filed |
 | `external-control` | [planning/ExternalControl.md](planning/ExternalControl.md) | External control: assistants, hubs and Muse driving Aurora |
 | `external-control-beads` | [log/2026-10-03-external-control-beads.md](log/2026-10-03-external-control-beads.md) | External control: bead sequence, overlap with nodes and HA |
 | `external-control-planning` | [log/2026-10-02-external-control-planning.md](log/2026-10-02-external-control-planning.md) | External control planning, Muse and Hyperion survey |
@@ -39,9 +40,11 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `implementation-plan-directory-layout` | [archive/ImplementationPlan_DirectoryLayout.md](archive/ImplementationPlan_DirectoryLayout.md) | Implementation plan: proposed directory layout (superseded) |
 | `implementation-plan-early-phases` | [archive/ImplementationPlan_EarlyPhases.md](archive/ImplementationPlan_EarlyPhases.md) | Implementation plan: phases 1, 2, 2.5 (native build) |
 | `implementation-plan-phase-3` | [archive/ImplementationPlan_Phase3.md](archive/ImplementationPlan_Phase3.md) | Implementation plan: Phase 3 — Three.js browser demo, then the native WebUI milestone |
+| `jwcd-real-bridge-pause-resume` | [log/2026-10-06-jwcd-real-bridge-pause-resume.md](log/2026-10-06-jwcd-real-bridge-pause-resume.md) | Real-bridge pause/resume closes Aurora-jwcd |
 | `kea-capability-flags` | [log/2026-10-03-kea-capability-flags.md](log/2026-10-03-kea-capability-flags.md) | Aurora-kea: running-pipeline flags drive the Dashboard (open: Mac/Windows unverified) |
 | `kea-dashboard-capabilities-scoping` | [log/2026-10-02-kea-dashboard-capabilities-scoping.md](log/2026-10-02-kea-dashboard-capabilities-scoping.md) | Aurora-kea: scoping pass on Dashboard capability-driven sections (paused, no code) |
 | `kea-route-and-shared-capture-source` | [log/2026-10-03-kea-route-and-shared-capture-source.md](log/2026-10-03-kea-route-and-shared-capture-source.md) | Aurora-kea: route decision, shared capture-source scope, pending-highlight follow-up (paused, no code) |
+| `leak-fix-and-device-hint` | [log/2026-10-05-leak-fix-and-device-hint.md](log/2026-10-05-leak-fix-and-device-hint.md) | Aurora-2pe5 fixed, Aurora-36b7 and the 9swq copy done; d3ec still waits on its retry path |
 | `linux-audio-sink-dropdown` | [log/2026-09-30-audio-sink-dropdown.md](log/2026-09-30-audio-sink-dropdown.md) | Audio sink dropdown replaces the free-text field |
 | `linux-audio-sink-status` | [log/2026-09-29-linux-audio-sink-status.md](log/2026-09-29-linux-audio-sink-status.md) | Linux audio sink status: Using-hint replaces the no-list warning |
 | `linux-capture-analysis` | [archive/LinuxCaptureAnalysis.md](archive/LinuxCaptureAnalysis.md) | Grabber / GnuLinux capture — Conversion analysis |
@@ -78,5 +81,6 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `webui-fixes` | [planning/WebUI/WebUI_Fixes.md](planning/WebUI/WebUI_Fixes.md) | WebUI fixes |
 | `webui-tooltip-content` | [archive/TooltipContent.md](archive/TooltipContent.md) | Tooltip content draft (Aurora WebUI) |
 | `webui-tooltips-analysis` | [archive/TooltipsAnalysis.md](archive/TooltipsAnalysis.md) | Tooltips plumbing analysis (Aurora WebUI) |
+| `windows-failed-resume-n5ly` | [log/2026-10-06-windows-failed-resume-n5ly.md](log/2026-10-06-windows-failed-resume-n5ly.md) | Windows failed-resume verification closes Aurora-n5ly |
 | `windows-input-analysis` | [archive/WindowsInputAnalysis.md](archive/WindowsInputAnalysis.md) | Windows Input plugin — analysis pass |
 | `windows-pause-verification` | [log/2026-10-04-windows-pause-verification.md](log/2026-10-04-windows-pause-verification.md) | Windows verification of pause/resume and kea; Aurora.exe has no --help/--version (Aurora-v3in) |

@@ -27,6 +27,7 @@ import { applyTooltip, descriptorsSettled, ensureTooltips, paramFor } from './To
 import { sliderGroupHtml, sliderTooltipKey, wireSliderGroup } from './TuningSliderGroup.js';
 import { AUTO_MONITOR_VALUE } from './DeviceField.js';
 import { subsampleCandidates } from './SubsampleCandidates.js';
+import { DAEMON_UNREACHABLE } from './messages.js';
 
 const INTERPOLATIONS = ['Nearest', 'Cubic', 'Area'];
 
@@ -307,7 +308,7 @@ export class TuningFields {
         this.error = `Saved, but couldn't apply it live: ${result.reloadError}`;
       }
     } catch {
-      this.error = "Couldn't reach the daemon.";
+      this.error = DAEMON_UNREACHABLE;
     }
 
     this._render();

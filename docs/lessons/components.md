@@ -296,3 +296,24 @@ row (`next.find(o => o.selected) ?? next[0]`) alongside `setOptions`.
 General principle: a list refresh is only complete when every surface
 derived from the rows -- visible menu and collapsed summary alike --
 updates in the same apply.
+
+---
+
+## One failure rendered by two paths needs one owner -- let a "daemon gone" catch yield, but not when the daemon is back
+Tags: webui, errors, reload, heartbeat, dashboard
+Applies-when: an action that fails and then reloads the screen, or any catch that sets an inline error while a reload and an overlay can report the same cause
+
+Aurora-tazx and Aurora-jm6s were the same shape on the Dashboard: a failed Video/Audio switch set `toggleError` (under the toggle) while the reload after it wrote its own message into the top tier, and the 3s heartbeat later raised the "Aurora has stopped" overlay. One cause, two or three messages, worded differently. The tempting fix for the daemon-gone case, "have the reload leave an identical message alone", cannot work: the two messages live in different DOM regions and the reload writes `innerHTML` directly rather than through shared state, so there is nothing to compare.
+
+**Fix:** decide which path owns each condition. A failure that only means "the daemon is unreachable" sets no inline error; the reload's message and the heartbeat own it. But if the reload then succeeds (a one-request blip), the action failed with nobody reporting it, so set the inline error in that case. Make the reload return whether it loaded so the caller can tell the two apart, and put the wording in one shared constant (`web/ui/messages.js`) with a source-scan test so no screen spells it out again. Separately, an error that must outlive a retry (tazx) is cleared only by a confirmed result, not by the click, or it flickers.
+
+---
+
+## A screen that follows the running mode shows that mode's notes beside a refused switch's error: hide state notes while an error shows
+Tags: webui, error, mode-switch, hint, copy, nux
+Applies-when: a screen derives its sections from the running pipeline (Aurora-kea/axoz) and also renders a switch error
+
+With Screen Recording off while Audio ran, a switch to Video on the NUX Capture source page rendered the Audio notes ("Zones react together in Audio mode...", the default-audio-device hint) directly above "Screen Recording permission is off". The fill correctly stayed on Audio (the running pipeline), but the page then read as a contradiction. Same shape on the Dashboard: a "once Video connects" hint under a Screen Recording error (Aurora-36b7). The zone sentence also named a step ("per-zone mapping") a first-time user has not met, so even without the error it explained nothing.
+
+**Fix:** pass `showHint: !error` to the shared `DeviceField` and gate screen-level notes on `!this.error`, so an error stands alone. Write onboarding copy in terms of what the choice does for the user's lights, not which later step is skipped. Test by calling `_render` with an `error` set and asserting the notes are absent while the error text is present, with a mutant that drops the gate (`web/ui/screens/ModeDeviceScreen.test.mjs`).
+

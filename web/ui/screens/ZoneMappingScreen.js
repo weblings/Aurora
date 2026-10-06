@@ -49,6 +49,7 @@ import { ZoneCanvas } from '../ZoneCanvas.js';
 import { ZoneActiveToggleList } from '../ZoneActiveToggle.js';
 import { screenDivisionRects } from '../ScreenDivision.js';
 import { applyTooltip } from '../Tooltips.js';
+import { DAEMON_UNREACHABLE } from '../messages.js';
 
 export class ZoneMappingScreen {
   // onboarding: the wizard variant (docs/WebUI/WebUI_Design_2ndPass.md
@@ -116,7 +117,7 @@ export class ZoneMappingScreen {
       this.zones = result.zones ?? [];
     } catch {
       this.zones = null;
-      this.error = "Couldn't reach the daemon.";
+      this.error = DAEMON_UNREACHABLE;
     }
 
     this.selectedZoneId = null;
@@ -194,7 +195,7 @@ export class ZoneMappingScreen {
         this.error = "Couldn't save the auto-arranged zones.";
       }
     } catch {
-      this.error = "Couldn't reach the daemon.";
+      this.error = DAEMON_UNREACHABLE;
     }
 
     try {
@@ -240,7 +241,7 @@ export class ZoneMappingScreen {
     }
 
     if (!this.outputName) {
-      body.innerHTML = `<p class="status-text">Zone mapping isn't available right now -- it needs an active output and Video mode.</p>`;
+      body.innerHTML = `<p class="status-text">Zone mapping isn't available right now -- it needs an active output and screen capture running.</p>`;
       return;
     }
 

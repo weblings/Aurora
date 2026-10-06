@@ -788,3 +788,60 @@ Aurora's reload logs `capture+orchestrator init`, `outputs init` and `reload tot
 
 **Fix:** with phase timers, always report total minus the sum of phases; if the residual is large, instrument it before tuning anything. Repeat the batch at least twice (slow runs can be bursty), and report min/median/p90/max, not a mean.
 
+---
+
+## A leak regression test needs no sanitizer: count live operator-new blocks, and check a binary with `leaks`
+Tags: leak, operator-new, test, leaks, lsan, apple-silicon, regression
+Applies-when: writing a test that fails while objects allocated with `new` leak, on a machine where LeakSanitizer is unavailable (Apple Silicon) or the repo has no sanitizer preset
+
+Aurora-2pe5's test (`output/hue/tests/DtlsClientLeakTests.cpp`) replaces global `operator new`/`delete` in the test executable with versions that malloc/free and bump an `atomic<long>` live-block counter. It runs the operation once to warm up (locale, iostream and library statics), reads the counter, repeats the failing `DtlsClient::init()` 20 times, and checks the counter is unchanged. Before the fix it failed with a delta of exactly 120 (20 x 6 `new`s per init); after, it passes. It runs under plain ctest on every platform, so it guards the leak without anyone remembering to run ASan. Only `operator new` blocks are counted: a C library's own `malloc`/`calloc` allocations are not, so it tests the C++ side of the ownership, which is what a deleter bug is.
+
+For an end-to-end look with no app launch, `MallocStackLogging=1 leaks --atExit -- ./TestBinary "[tag]"` runs just the filtered case and prints root leaks with their allocators (`MbedTlsImpl::_initRNG` here). Check the check: run it once against the unfixed source and see it report leaks, or "0 leaks" proves nothing.
+
+**Fix:** pick a failure that throws after the allocations but before any network wait (an odd-length hex key throws inside `_initSSL`, no handshake timeout), keep the replacement operators in the one test file (they are executable-wide), and keep the loop single-threaded so other threads' allocations do not move the counter.
+
+---
+
+## A fail-soft port bind turns "something else owns the port" into a harness timeout about frames
+Tags: devstack, port, bind, fail-soft, harness, mac
+Applies-when: `devstack.py up` times out waiting for a frame although the fake bridge and relay started fine
+
+On 2026-10-05 `devstack.py up` printed `timed out waiting for a frame on the relay SSE` and tore everything down. The cause was in `app.log`, not the SSE: `Could not bind WebUI to 0.0.0.0:8215 -- continuing without it`. A hand-launched `Aurora.app` (PID found with `lsof -nP -iTCP:8215 -sTCP:LISTEN`, started without `--fresh`, so not the stack's) already held 8215. The app deliberately keeps running without its WebUI, so `devstack` had no REST endpoint to configure and never reached "output active", and the failure surfaced two steps later as missing frames. The same stray instance explains a viz stuck on "connected - waiting for frames": relay and viz were up with nothing feeding the fake bridge.
+
+**Fix:** on a frame timeout read `app.log` first for the bind line, and check the owner of 8215+ with `lsof` before touching the pipeline. Only quit a process you started; check its command line (`--fresh`, `--fake-hue`) to see whether it belongs to the stack.
+
+---
+
+## `value != "expected"` is `True` when `value` is `None` -- a dead oracle can pass a check it never actually ran
+Tags: debugging, verification, oracle, python
+Applies-when: writing a negative-outcome predicate (`!= "x"`, `is not "x"`) against a value that can legitimately be missing/`None`
+
+A pause/resume check (Aurora-jwcd) polled a real Hue bridge and asserted
+`status != "active"` to confirm a pause took effect. Every bridge call was
+actually failing (403, wrong application key -- see `output.md`'s pairing
+entry), so `status` was `None` on every poll, and `None != "active"`
+evaluates `True` in Python. The pause side of the check reported a clean
+pass for five straight cycles while never once getting a real answer from
+the bridge; only the resume side's *positive* predicate (`== "active"`)
+exposed the problem, because `None == "active"` is `False`.
+
+**Fix:** a negative predicate over an optional value needs its own explicit
+"got a real response at all" check (`value is not None and value != "x"`),
+not just the inequality -- otherwise a completely dead channel satisfies it
+by accident. More generally: distrust a "confirmed negative" from a check
+whose positive form has never also been seen to actually fire; a predicate
+that can be satisfied by *either* the real signal or total silence proves
+nothing on its own, same root shape as this file's "checker that passes
+vacuously" and "shares its subject's bug" entries, just a one-line operator
+instead of a shared assumption.
+
+---
+
+## Proxy env vars hijack localhost HTTP — bypass the proxy in local test scripts
+Tags: testing, proxy, localhost, urllib, harness
+Applies-when: writing or running a script that drives the local app over HTTP and requests hang or return proxy errors
+
+Sandbox and corporate environments set `http_proxy`/`https_proxy`, and Python's urllib honors them even for 127.0.0.1 unless `no_proxy` covers it. Symptom here: a stub-server self-test hung on plain GETs (proxy unreachable for the port) and error branches received empty proxy pages instead of app JSON. Raw sockets worked, which is the tell — TCP is fine, HTTP is being rerouted.
+
+**Fix:** build scripts' HTTP layer on an opener with an empty proxy map (`urllib.request.build_opener(urllib.request.ProxyHandler({}))`) and use it for every call, so local traffic can never be rerouted regardless of the machine's env. Verify the bypass in the script's own self-test by running it with the proxy vars set.
+

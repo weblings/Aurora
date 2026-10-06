@@ -8,6 +8,7 @@ import assert from 'node:assert/strict';
 import { DashboardScreen } from './DashboardScreen.js';
 import { ensureTooltips } from '../Tooltips.js';
 import { isSwitchErrorStale } from '../CaptureSource.js';
+import { DAEMON_UNREACHABLE } from '../messages.js';
 
 function makeEl() {
   return {
@@ -216,6 +217,7 @@ function switchScreen({ state, platform = 'mac', toggleError = null, toggleError
         this.toggleError = null;
         this.toggleErrorMode = null;
       }
+      return !this.daemonDown;
     },
   });
   return { inst, calls };
@@ -325,6 +327,48 @@ const PERMISSION_ERROR = 'permission_denied: ScreenCaptureKitGrabber: no shareab
   };
   assert.ok(!render(PERMISSION_ERROR).includes("capturing real audio"), 'audio banner hidden under a switch error');
   assert.ok(render(null).includes("capturing real audio"), 'audio banner back once the error is gone');
+}
+
+// ---- One daemon-unreachable message, one wording (Aurora-jm6s) ----
+
+assert.equal(DAEMON_UNREACHABLE, "Couldn't reach the daemon.", 'the shared wording is the Couldn\'t form');
+
+// Daemon gone: the failed PUT adds no toggle error -- _loadAll's top-tier
+// message and the heartbeat overlay own the case, so one message, not two.
+{
+  globalThis.fetch = async () => { throw new Error('down'); };
+  const { inst, calls } = switchScreen({ state: AUDIO_STATE });
+  inst.daemonDown = true;
+  try { await inst._switchMode('video'); } finally { globalThis.fetch = realFetch; }
+  assert.equal(inst.toggleError, null, 'no toggle error for an unreachable daemon');
+  assert.equal(inst.toggleErrorMode, null);
+  assert.equal(calls.topTier, 0, 'top tier left to _loadAll');
+  assert.equal(inst.pendingMode, null, 'pending outline cleared');
+  assert.equal(inst.mode, 'audio', 'fill stays on the running mode');
+}
+
+// Transient failure: the PUT could not connect but the daemon answers the
+// reload, so the failed switch still gets its own error (no silent failure).
+{
+  globalThis.fetch = async () => { throw new Error('blip'); };
+  const { inst, calls } = switchScreen({ state: AUDIO_STATE });
+  try { await inst._switchMode('video'); } finally { globalThis.fetch = realFetch; }
+  assert.equal(inst.toggleError, DAEMON_UNREACHABLE);
+  assert.equal(inst.toggleErrorMode, 'video');
+  assert.equal(calls.topTier, 1, 'top tier re-rendered so the audio banner yields');
+}
+
+// _loadAll with the daemon gone: the same wording in the top tier, and a
+// false return so callers can tell it did not load.
+{
+  const topTier = makeEl();
+  globalThis.fetch = async () => { throw new Error('down'); };
+  const inst = Object.create(DashboardScreen.prototype);
+  inst.container = { querySelector: (sel) => (sel === '.db-top-tier' ? topTier : makeEl()) };
+  let loaded;
+  try { loaded = await inst._loadAll(); } finally { globalThis.fetch = realFetch; }
+  assert.equal(loaded, false);
+  assert.ok(topTier.innerHTML.includes(DAEMON_UNREACHABLE), '_loadAll shows the shared wording');
 }
 
 console.log('DashboardScreen pause checks passed.');

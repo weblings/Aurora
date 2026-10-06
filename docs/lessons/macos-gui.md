@@ -251,6 +251,8 @@ TCC attributes the Screen Recording request to the *responsible process*, which 
 
 **Fix:** when capture is silent and the process is alive, check which app is responsible for the launch and grant *that* app Screen Recording (restart the stack after). Don't chase the pipeline code first.
 
+The converse bit a denied-state test on 2026-10-05: `tccutil reset ScreenCapture com.aurora.app` (it reported success, so a grant for Aurora's own identity did exist) followed by `devstack.py up` still captured the real display, because the app was a child of the terminal and ran under the terminal's grant. Aurora's own grant, the one a user's double-click uses, never came into play. Denied-state checks (permission error UI, failed resume, refused mode switch) therefore need `Aurora.app` launched on its own (`open build/mac-app/bin/Aurora.app --args ...` or Finder), after the `tccutil reset`. The fake bridge, relay and viz from `devstack` are fine to keep running under a hand-launched app.
+
 ---
 
 ## `plutil -lint` accepts an entitlements file that `codesign` rejects; a `--` inside an XML comment is enough

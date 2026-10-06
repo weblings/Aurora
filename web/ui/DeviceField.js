@@ -18,6 +18,13 @@ import { applyTooltip } from './Tooltips.js';
 export const AUTO_MONITOR_VALUE = '';
 export const SYSTEM_DEFAULT_SINK_VALUE = '';
 
+// The video and audio hints share one class that reserves two lines
+// (dashboard.css), so toggling Video/Audio doesn't move what's below the
+// field. Keep the video copy short enough for two lines (Aurora-36b7).
+export const HINT_CLASS = 'device-field-hint';
+export const VIDEO_HINT = 'Auto (primary display). A specific monitor can be chosen once Video connects.';
+export const AUDIO_HINT = "Uses your system's default audio device.";
+
 // Default sink loader: [{name, description}] from the daemon, or a
 // rejection the caller turns into its System-default-only fallback.
 // Injectable via the constructor for tests.
@@ -47,7 +54,7 @@ export class DeviceField {
   constructor(container, {
     usesVideoInput = true, usesAudioInput = false, audioDevicesUrl = null,
     monitors = [], selectedMonitorName = AUTO_MONITOR_VALUE, sinkName = '',
-    loadAudioSinks, onChange,
+    showHint = true, loadAudioSinks, onChange,
   }) {
     this.container = container;
     this.onChange = onChange;
@@ -58,6 +65,12 @@ export class DeviceField {
     // Never empty: no flags at all still shows the monitor picker.
     const showVideo = usesVideoInput || !usesAudioInput;
     const showSinkDropdown = usesAudioInput && !!audioDevicesUrl;
+
+    // showHint=false drops the explanatory line shown in place of a picker
+    // (no monitors yet / no audio device list): a caller showing an error
+    // for the same input passes it, since "once Video mode finishes
+    // connecting" contradicts a permission error (Aurora-36b7).
+    this.showHint = showHint;
 
     // One container, no per-part wrappers, so a single picker's DOM is
     // unchanged from the mode-swapped field this replaced.
@@ -72,9 +85,9 @@ export class DeviceField {
 
   _videoHtml(monitors) {
     if (monitors.length === 0) {
-      return `
-        <p class="status-text">Auto (primary display) — a specific monitor can be chosen here once Video mode finishes connecting.</p>
-      `;
+      return this.showHint
+        ? `<p class="status-text ${HINT_CLASS}">${VIDEO_HINT}</p>`
+        : '';
     }
     return `
       <div class="field">
@@ -86,7 +99,9 @@ export class DeviceField {
 
   _audioHtml(showSinkDropdown) {
     if (!showSinkDropdown) {
-      return `<p class="status-text">Uses your system's default audio device.</p>`;
+      return this.showHint
+        ? `<p class="status-text ${HINT_CLASS}">${AUDIO_HINT}</p>`
+        : '';
     }
     return `
       <div class="field">

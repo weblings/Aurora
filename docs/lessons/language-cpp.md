@@ -212,3 +212,13 @@ Aurora-5ipy.16's Pause/Resume item was exercised on a live app with no tray host
 **Fix:** pass `0 '@i 1' '@as []'` (depth 1 is enough for a flat menu; `@i -1` also works), and filter labels with `grep -o "'label': <'[^']*'>"`. This proves the D-Bus half only; a real host's rendering and click routing still needs one manual pass.
 
 Trayless paths need no desktop change either: `dbus-run-session -- Aurora --fresh` gives a private bus with no StatusNotifierWatcher (silent, no icon), and `DBUS_SESSION_BUS_ADDRESS=unix:path=/nonexistent` gives no bus (prints "Tray: no session bus"). Both emulate stock GNOME without disabling the Ubuntu appindicator extension. Put a stub `xdg-open` first on `PATH` so the first-run browser launch does not open on the real desktop.
+
+---
+
+## A `unique_ptr` deleter that calls only a C library's `*_free` leaks the `new`ed struct itself
+Tags: unique_ptr, deleter, mbedtls, leak, c-portability
+Applies-when: wrapping a C library's init/free pair (`mbedtls_*_init`/`_free`, `*_destroy`) in a `unique_ptr` whose pointee you allocated with `new`
+
+`output/hue/src/MbedTlsImpl.hpp` held six mbedtls contexts as `unique_ptr<T, MbedTlsDeleter<mbedtls_*_free>>`, each created with `reset(new T{})`. The deleter called `FreeFunc(ptr)` and nothing else. mbedtls's `*_free` releases what the context points to and zeroes it; it does not free the struct, which the library never allocated. `leaks(1)` on a Mac rebuild stress loop (Aurora-2pe5) showed ~6 blocks and ~3.4KB per Hue output rebuild, all rooted in `_initMembers()` (5 `new`s) and `_initRNG()` (1 `new`). The block count matching the number of `new`s per init is what pointed at the struct, not at a missing `_free` call; the bead's own first hypothesis ("find the matching free") was wrong, since every context already had one.
+
+**Fix:** `delete ptr` after `FreeFunc(ptr)` in the deleter, or hold the contexts by value / `make_unique` with a free-only deleter that then lets the default delete run. When a leak report's block count equals the number of `new`s in one init function, check what the deleter does with the struct before hunting for a missing library free. Confirmed 2026-10-05: with the `delete`, 20 failed inits free all 120 structs (a counting test fails with exactly 20 x 6 leaked blocks before the fix), and `leaks(1)` goes from `_initRNG` root leaks to zero.

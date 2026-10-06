@@ -13,6 +13,7 @@ import { ModeDeviceScreen } from './screens/ModeDeviceScreen.js';
 import { ZoneMappingScreen } from './screens/ZoneMappingScreen.js';
 import { ensureTooltips } from './Tooltips.js';
 import { isModeConfigValid, loadPipelineState } from './CaptureSource.js';
+import { DAEMON_UNREACHABLE } from './messages.js';
 
 const app = new App();
 
@@ -37,7 +38,7 @@ document.addEventListener('keydown', async (e) => {
 });
 
 // Localhost probes should answer in ms -- a hung daemon (e.g. a runaway
-// runtime loop) must surface as "Could not reach the daemon" with Retry,
+// runtime loop) must surface as "Couldn't reach the daemon" with Retry,
 // never a blank page awaiting a response that never comes.
 async function fetchJson(url, { timeoutMs = 10000 } = {}) {
   const controller = new AbortController();
@@ -67,7 +68,7 @@ function renderUnreachable() {
     mount(container) {
       container.innerHTML = `
         <div class="top-bar-slot"></div>
-        <p class="status-text status-text-error">⚠ Could not reach the daemon.</p>
+        <p class="status-text status-text-error">⚠ ${DAEMON_UNREACHABLE}</p>
         <button type="button" class="btn btn-primary" id="boot-retry">Retry</button>
       `;
       container.querySelector('#boot-retry').addEventListener('click', bootstrap);

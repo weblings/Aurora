@@ -2,7 +2,7 @@
 // from the sink list, and the open-refresh diff gate. Methods are
 // prototype-called so no DOM is needed -- run with `node DeviceField.test.mjs`.
 import assert from 'node:assert/strict';
-import { DeviceField, sinkOptionsEqual } from './DeviceField.js';
+import { DeviceField, sinkOptionsEqual, HINT_CLASS, VIDEO_HINT, AUDIO_HINT } from './DeviceField.js';
 
 function rows(state) {
   return DeviceField.prototype._sinkOptions.call(state);
@@ -63,5 +63,26 @@ assert.equal(
   ]),
   false,
 );
+
+// Hints (Aurora-36b7): with no picker to show, the video and audio lines share
+// one height class so a Video/Audio toggle doesn't move the content below...
+function renderedHtml(props) {
+  const container = { innerHTML: '', querySelector: () => null };
+  new DeviceField(container, { monitors: [], ...props });
+  return container.innerHTML;
+}
+
+{
+  const video = renderedHtml({ usesVideoInput: true, usesAudioInput: false });
+  const audio = renderedHtml({ usesVideoInput: false, usesAudioInput: true });
+  assert.ok(video.includes(VIDEO_HINT));
+  assert.ok(audio.includes(AUDIO_HINT));
+  assert.ok(video.includes(`class="status-text ${HINT_CLASS}"`));
+  assert.ok(audio.includes(`class="status-text ${HINT_CLASS}"`));
+}
+
+// ...and showHint:false renders neither (an error is showing for that input).
+assert.equal(renderedHtml({ usesVideoInput: true, usesAudioInput: false, showHint: false }), '');
+assert.equal(renderedHtml({ usesVideoInput: false, usesAudioInput: true, showHint: false }), '');
 
 console.log('DeviceField.test.mjs: ok');

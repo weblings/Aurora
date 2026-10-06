@@ -32,6 +32,7 @@ import { renderNavFooter } from '../NavFooter.js';
 import { DeviceField, AUTO_MONITOR_VALUE } from '../DeviceField.js';
 import { applyTooltip } from '../Tooltips.js';
 import { renderReloadError, parseMacPermissionError } from '../MacPermissionRecovery.js';
+import { DAEMON_UNREACHABLE } from '../messages.js';
 
 export function pickVideoInputName(inputs, current) {
   if (current && current !== 'dummy' && inputs.includes(current)) return current;
@@ -92,7 +93,7 @@ export class ModeDeviceScreen {
         fetch('/api/config').then((r) => r.json()),
       ]);
     } catch {
-      body.innerHTML = `<p class="status-text status-text-error">⚠ Could not reach the daemon.</p>`;
+      body.innerHTML = `<p class="status-text status-text-error">⚠ ${DAEMON_UNREACHABLE}</p>`;
       return;
     }
 
@@ -148,11 +149,12 @@ export class ModeDeviceScreen {
       </div>
     ` : '';
 
-    // Zone Mapping is skipped entirely for Audio mode (probeState() in
-    // app.js only requires it for 'video') -- this just explains why, since
-    // otherwise a NUX user would wonder why they never see that step.
-    const audioNoteHtml = this.mode === 'audio'
-      ? `<p class="status-text">Zones react together in Audio mode — there's no per-zone mapping step.</p>`
+    // Audio mode skips the Zone Mapping step (probeState() in app.js only
+    // requires it for 'video'), which a NUX user hasn't met yet -- so the
+    // note says what Audio does for their lights, not which step is missing.
+    // Hidden with the device hint while a switch error shows (mirrors web/ui).
+    const audioNoteHtml = this.mode === 'audio' && !this.error
+      ? `<p class="status-text">In Audio mode, all your lights react to sound together.</p>`
       : '';
 
     const errorHtml = renderReloadError(this.error, this.platform);
@@ -178,6 +180,7 @@ export class ModeDeviceScreen {
       selectedMonitorName: this.selectedMonitorName,
       showSinkField: this.showSinkField,
       sinkName: this.sinkName,
+      showHint: !this.error,
       onChange: (patch) => this._onDeviceFieldChange(patch),
     });
 
@@ -282,7 +285,7 @@ export class ModeDeviceScreen {
         this.currentActiveAudioInputName = patch.activeAudioInputName;
       }
     } catch {
-      this.error = "Couldn't reach the daemon.";
+      this.error = DAEMON_UNREACHABLE;
     }
 
     this._render();
