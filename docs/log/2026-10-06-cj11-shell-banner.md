@@ -126,7 +126,9 @@ under the session scratchpad) against the open-launched Aurora.app.
   failed; live check disproved it (a failed reload on a running host holds
   no error), so the bead was corrected to suppress the inline copy only
   when the shell already holds a matching host error. Lesson filed
-  (architecture-process.md).
+  (architecture-process.md). Later the same day, [[error-overlay]]'s
+  proposed revision (errors to the shell by cause) reverses the "holds no
+  error" behavior and supersedes nkhi (Aurora-ja76, Aurora-98pr).
 
 - **Onboarding gate, live on the Mac** (done): `hue-credentials.json` moved
   aside, `nuxCompleted:false`, a failed-then-fixed host so the next

@@ -401,6 +401,8 @@ regardless.
 
 ## Sequencing
 
+Remaining work is resequenced under Proposed revision, Sequencing (below).
+
 0. **Core (prerequisite for 2 and 4), Aurora-d3ec**: d3ec steps 1–2, with the error
    keyed by source and the explicit `running | paused | failed` state
    added to `GET /api/state`. The startup build moves under `PipelineHost`
@@ -579,18 +581,37 @@ a new id.
 ### Bead effects
 
 - **Aurora-nkhi**: superseded. Its suppress-if-banner-holds logic only
-  exists to patch the old split.
+  exists to patch the old split. Close, or ship as an interim fix, by owner
+  decision.
 - **Aurora-m0fy**: keeps its scope (owner fix for `topTierError`), shrunk to
-  the errors that stay inline.
+  the errors that stay inline; now after Aurora-98pr (same fields).
 - **Aurora-k73j**: rule unchanged (running → Pause; paused with an error or
   failed → `⚠ See Error`). Clarification: errors on a running host do not
   change the label, so `buildError()` alone must not drive it.
-- New beads: core (hold the error on a running host, `id`, merge by source,
-  dismiss route), Mac core (audio permission entry, retire the
-  `/api/mac/audio-status` poll), WebUI (remove inline `reloadError` copies,
-  banner X, retry rule, saved-not-applied copy).
-- cj11 and d3ec are closed; their logs record the decision this reverses
-  and should get a pointer.
+- **Aurora-ja76** (new, core): hold the error on a running host, `id`, merge
+  by source, dismiss route on all three apps.
+- **Aurora-98pr** (new, WebUI): remove the Dashboard's inline `reloadError`
+  copies, banner X, running-host retry rule, saved-not-applied copy.
+- **Aurora-h457** (new, Mac): `audio_permission` entry pushed on
+  transitions, banner row, retire the Dashboard's `/api/mac/audio-status`
+  poll.
+- cj11 and d3ec are closed; their logs and the architecture-process lesson
+  on failed reloads point here.
+
+### Sequencing
+
+Replaces steps 3–4 of Sequencing above; steps 0–2 (d3ec, ewyz, cj11) are
+done.
+
+1. **Core, Aurora-ja76**: prerequisite for everything below.
+2. **WebUI, Aurora-98pr**: needs ja76.
+3. **Mac audio row, Aurora-h457**: needs ja76 (merge by source) and 98pr
+   (banner X).
+4. **WebUI inline cleanup, Aurora-m0fy**: after 98pr, which takes the
+   saved-not-applied copies out of the same fields first.
+5. **Tray**: Aurora-q9l1 stays independent. Aurora-k73j does not depend on
+   this revision's beads (its label reads host state), but its rule must
+   ignore ja76's running-host errors.
 
 ### Decisions (2026-10-06)
 
