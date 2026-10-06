@@ -2,7 +2,7 @@
 
 Id: ewyz-connection-watcher
 
-2026-10-06. WebUI half of [[error-overlay]] (Sequencing step 1). Verified: unit suites pass (Node 24 now available) and a live kill/restart against the fake-Hue devstack confirms the takeover overlay and silent auto-reconnect. `--fresh` mid-NUX reconnect not yet exercised. Ready to close pending `bd` access (none in this session's PATH).
+2026-10-06. WebUI half of [[error-overlay]] (Sequencing step 1). Verified: unit suites pass (Node 24 now available) and a live kill/restart against the fake-Hue devstack confirms the takeover overlay and silent auto-reconnect. `--fresh` mid-NUX reconnect attempted but not pinned down -- both dev bridges auto-pair too fast to catch the app on `output-connect` (lesson filed); accepted as a known, narrow, unverified gap rather than closing-blocking. Closing pending `bd` access (none in this session's PATH).
 
 ## Done
 
@@ -23,12 +23,13 @@ Id: ewyz-connection-watcher
 
 - **Unit suites**: `node web/ui/shell.test.mjs`, `node web/ui/screens/DashboardScreen.test.mjs`, `node web/ui/messages.test.mjs` all pass on Node v24.14.0.
 - **Live kill/restart**: `tools/light-viz-relay/devstack.py up` (live screen capture produced no frames in this sandbox -- no capturable desktop session; `--input dummy` confirmed the pipeline itself is fine, environment-only gap, not a code issue). Drove headless Chrome over CDP: loaded the WebUI on a zone-mapping screen with Zone 0 selected, `taskkill`'d `Aurora.exe`, and after ~11s (2 missed 3s beats) the shell showed the "Aurora isn't running" takeover with "This page will reconnect on its own." Relaunched `Aurora.exe --fake-hue` (no `--fresh`, config root preserved) and within ~9s the page silently returned to the same zone-mapping view with Zone 0 still selected -- no manual reload, no "Try again" click needed. Matches the designed `onRecovered(preservedRouteId)` path.
+- **`--fresh` mid-NUX attempted, not pinned down**: tried to catch the app on `output-connect` ("Connect to your Hue Bridge") to kill/restart it there and confirm `recover('output-connect')`'s resume-in-place carve-out (app.js). Both headless-CDP runs against `--fake-hue` raced past that screen into `output-select` within ~2s (the flag presets credentials on every launch, not just `--fresh` -- see lesson). Manual attempts (owner, live) also auto-paired instantly, once via `--fresh` against a real LAN bridge with no button press observed, once on relaunch without `--fresh`; cause not conclusively isolated (open window after an earlier press, or a bridge-side whitelist entry surviving the local `--fresh` wipe, are the two live theories). A fix direction (`AURORA_DEV_FAKE_HUE=1` alone, no `--fake-hue`, bridge held `--link-button not-pressed`) was identified but not tried. Lesson filed (navigation-flow.md) rather than spending further session time forcing it -- the carve-out's blast radius if broken is one extra click back to Welcome for a brand-new user whose daemon dies mid-pairing, not worth blocking closure over.
 
 ## Remaining
 
-- `--fresh` mid-NUX (Output Connect step) reconnect returning to the same step -- not exercised this pass.
-- Close ewyz via `bd` (unblocks cj11's banner work, which consumes the beat + taxonomy + gate) -- no `bd` binary in this session's PATH, needs to be run where beads is installed.
+- `--fresh` mid-NUX resume-in-place: genuinely unverified (see above), flagged rather than fixed-or-confirmed. Pick up via the fix direction above if it recurs or matters more later.
+- Close ewyz via `bd` -- no `bd` binary in this session's PATH, needs to be run where beads is installed. Unblocks cj11's banner work, which consumes the beat + taxonomy + gate.
 
 ## Footnotes
 
-- 2 lessons (verdict-cache, vendor-rot). `check-lessons.sh` and `check-links.sh` green.
+- 3 lessons (verdict-cache, vendor-rot, fake-hue-auto-pair-races-NUX). `check-lessons.sh` and `check-links.sh` green.
