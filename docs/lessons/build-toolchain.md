@@ -721,4 +721,14 @@ Applies-when: re-running a checked-in generator (`gen-descriptors.py`, or any re
 
 `web/demo/vendor/webui/gen-descriptors.py` says to re-run it on any tooltip-copy change, and its `ENTRY_RE` only matches the `{"key", "type", "desc"}` literal form — not the `slider(...)`/`button(...)` helper forms most tables actually use. A trial regen while adding `app.pause`/`app.stop` (Aurora-5ipy.13.1) wrote 17 entries over the committed 27, silently deleting 12 shipped tooltips; nothing in the script warns. Reverted and hand-added the two keys instead (Aurora-ncdd tracks the real fix).
 
-**Fix:** after any generator re-run, `git diff --stat` the output before keeping it — a pure-addition diff is the expectation for an additive change. Until Aurora-ncdd lands, extend `descriptors.json` by hand in sorted order.
+**Fix:** after any generator re-run, `git diff --stat` the output before keeping it — a pure-addition diff is the expectation for an additive change. Aurora-ncdd has landed (ENTRY_RE matches helper forms, CRLF-explicit write), so regen is byte-identical again and the hand-edit workaround is retired.
+
+---
+
+## A generated file checked in as CRLF will never regen byte-identical from a plain text-mode writer
+Tags: build, codegen, line-endings, windows
+Applies-when: a checked-in generated file must regen byte-identical and the writer runs on Linux while the file is CRLF
+
+`web/demo/vendor/webui/descriptors.json` is CRLF in the working tree, but Python text-mode output writes LF -- so the fixed `gen-descriptors.py` (Aurora-ncdd) produced the right 29 entries yet `cmp` failed at byte 2. Same trap class as the lossy regex above: content-correct, byte-different, caught only by comparing bytes.
+
+**Fix:** build the payload as text, then `open(out, 'wb')` with an explicit newline mapping and a comment saying CRLF is on purpose. Verify with `cmp` twice (content match, then determinism), not by eye.
