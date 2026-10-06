@@ -746,6 +746,10 @@ Extended 2026-10-05 (Aurora-k73j's tray-error sketch, [[error-overlay]]): the sa
 
 **Fix (extended):** when adding a new tray-visible condition beyond paused/resume, feed it through the same open-time getter rather than reaching for a push or forced-redraw mechanism -- the menu that would need the live update is, in this app's own click-then-tick-loop split, essentially never still open by the time the result exists anyway.
 
+Extended again 2026-10-05 (Aurora-q9l1, [[error-overlay]]): "the click callback only posts a flag" hides a race when the flag is a toggle. All three trays set `pauseToggleRequested` and the tick thread later runs `setRunning(pipelineHost.isPaused())`, so the target is decided seconds after the click. During a multi-second resume the menu still reads "Resume", and a second click pauses right after the resume succeeds. `PUT /api/state {running}` never had this, because it sends the target.
+
+**Fix (extended):** post the clicked target (run or pause, last click wins), never a toggle the worker resolves later.
+
 ---
 
 ## A fork kept for upstream merge requests is not a mirror target -- a fix there is a new MR
@@ -756,3 +760,11 @@ The Aurora-1t1 rollout plan ended with "mirror into huenicorn-fork", written as 
 
 **Fix:** plan fork work as an upstream change, not a copy step: a child bead under the h45 epic with its own branch (stacked on the MR whose files it touches), filed when the Aurora fix lands. Don't fold it into the Aurora bead's acceptance.
 
+
+## A host with no pipeline is neither running nor paused -- a boolean paused flag reads a failed start as running
+Tags: pause, state-model, errors, tray, webui
+Applies-when: exposing run state to a UI or tray, or designing error display around pause/resume
+
+After a failed startup build, `PipelineHost` has `m_paused == false` and `m_pipeline == nullptr`. `pause()` returns false with nothing to pause, and `setRunning(true)` reports success because the host is not paused, so both the tray and the Dashboard offer "Pause", and clicking it silently does nothing. This is the headline case of Aurora-d3ec (Mac launched with Screen Recording denied). d3ec's retry-path notes had traced it, but the error-display design and the tray-feedback bead (k73j) were built on `isPaused()` alone and inherited the blind spot: k73j's relabel only fired on a failed Resume.
+
+**Fix:** expose the third state explicitly (`running | paused | failed` on `GET /api/state`, Aurora-d3ec) and drive every label from it. When a design elaborates a bead, read that bead's notes first. Gaps already traced there are easy to drop when the design starts from the API's current shape.

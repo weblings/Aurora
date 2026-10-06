@@ -105,3 +105,48 @@ model was settled (see Tray, below).
 - [macos-gui.md](../lessons/macos-gui.md): new entry, "No badge/attention
   API exists for an `NSStatusItem`, and `NSDockTile.badgeLabel` doesn't
   apply to an `LSUIElement` app with no Dock icon."
+
+## Revision: Hyperion comparison
+
+- Read Hyperion's error, tray and suspend code (`LedDevice::setInError`,
+  `content_index.js` error modal, `#hyperion_disabled_notify`, the
+  `hyperion.js` watchdog, `systray.cpp`, `EventHandler`). Its tray has no
+  error feedback; its state model was the useful part.
+- Agent-proposed, owner approved folding in: errors split into system
+  errors (daemon-held, keyed by source, shell banner), rejected requests
+  (inline at the control) and daemon-unreachable (shell-level takeover
+  that reconnects via `bootstrap()`).
+- Fixed-position draggable overlay replaced by a sticky in-flow shell
+  banner; moved to Rejected.
+- Found: a failed startup leaves the host not paused with no pipeline, so
+  tray and Dashboard offer a Pause that no-ops (already noted in d3ec's
+  retry-path research; the overlay doc and k73j missed it). Added an
+  explicit `running | paused | failed` state.
+- Found: tray clicks resolve the toggle on the tick thread, so a second
+  click during a slow resume pauses right after success; the Dashboard
+  reads `paused` only on load.
+- Accepted gaps: runtime failures after a successful build, error staying
+  after a failed resume, demo re-vendoring, NUX Back history on reconnect.
+- Updated [[error-overlay]], appended notes to Aurora-d3ec and Aurora-k73j.
+
+## Bead split
+
+- Narrowed Aurora-d3ec to core: errors held in `PipelineHost` keyed by
+  source, explicit `running | paused | failed` on `GET /api/state`, startup
+  build moved under the host. Its WebUI step 3 and display acceptance
+  criteria moved to Aurora-cj11.
+- New WebUI beads: Aurora-ewyz (shell connection watcher, no blockers),
+  Aurora-cj11 (sticky banner, blocked by d3ec + ewyz), Aurora-m0fy
+  (`topTierError` owner fix, blocked by cj11).
+- New tray bead Aurora-q9l1 (send clicked target, not a toggle; no
+  blockers). Aurora-k73j retitled to the "⚠ See Error" relabel, related
+  link upgraded to blocked-by d3ec, plus blocked-by cj11 so the click lands
+  on a page that shows the error.
+- Each bead's acceptance criteria carry its tests: Catch2 for core, node
+  container-double tests for WebUI plus a real-browser sticky check, a pure
+  core label function for the tray (Mac/Windows have no tray tests), gdbus
+  for Linux, manual clicks on Mac (agent can't open a status-item menu).
+  Failure injection everywhere: bogus `activeInputName` on disk.
+- Lessons: two new ("Classify an error by what it leaves behind...", "A
+  host with no pipeline is neither running nor paused..."), three extended
+  (toast, same-niche prior art, tray open-time read).

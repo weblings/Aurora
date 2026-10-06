@@ -431,6 +431,8 @@ user interaction happens. If it can, render it directly from current state
 dismissable event, and don't build scroll-visibility tracking for something
 that could just as easily be fixed-position and never need it.
 
+Extended 2026-10-05 ([[error-overlay]] revision): the fixed-position overlay this entry landed on was itself replaced by a sticky, in-flow banner mounted by the app shell. Fixed-position solved scrolling but needed drag-to-snap, a saved position and a collapse toggle to uncover what it sat on. `position: sticky` in the shell, outside every screen, also never scrolls away and never covers content; its cost is layout shift. The "state, not event" half of this entry still holds.
+
 ---
 
 ## An error's resolve action is a property of what went wrong, not of which control produced it
@@ -504,6 +506,8 @@ External-control planning first researched generic patterns (OctoPrint, Jellyfin
 
 **Fix:** for any product-shaped question, first find projects in the same niche (here: Hyperion, WLED, Hue Sync Box) and read their code or API, then fall back to generic patterns. Record them as references in AGENTS.md so later sessions start there.
 
+Recurred 2026-10-05 ([[error-overlay]]): the error-display design converged over a full pass before Hyperion was consulted. Its code then reshaped it in one read: device faults held by the server and cleared by the server (`LedDevice::setInError`), a modal for rejected commands but a shell-level banner for "disabled" state (`#hyperion_disabled_notify`), and a connection-lost takeover (`hyperion.js` watchdog). Check the same-niche project before converging, not after.
+
 ## Agent-written research reads as owner scope unless the doc says who proposed it
 Tags: planning, provenance, doc-hygiene
 Applies-when: carrying a feature list from a research doc into a plan, bead or recommendation
@@ -520,3 +524,11 @@ Applies-when: claiming a reference project lacks a behavior, or that it was not 
 While mapping brightness handling, Hyperion's HA device looked like it had no black-frame handling (luma-derived brightness 0 turns the light off), and the external-control doc was said to rest on web docs only. Both were wrong: the floor lives upstream in the color stage as `backlightThreshold` (`RgbTransform::applyBacklight`), and the 2026-10-02 session log records that Hyperion's code had been read. The error was written into two docs and a bead before being caught.
 
 **Fix:** before saying a reference lacks something, grep its whole tree for the concept's other names (floor, threshold, backlight) and check every stage, not just the output. Before saying a source was not consulted, read the session log and lessons that cite it.
+
+## Classify an error by what it leaves behind before choosing where it renders
+Tags: webui, errors, design-process, ownership
+Applies-when: designing one shared surface for errors from several sources
+
+The first [[error-overlay]] draft put every failure (mode switch, device save, auto-arrange, resume, startup build) into one persistent overlay, which meant writing a "still true?" rule for each. Most had one (server state), but device save and auto-arrange did not: "a fresh read showing the save held" has no clean definition. Hyperion's split dissolved it. A rejected request leaves the system in its prior, consistent state; it's about something the user just did, at a control they are looking at. A degraded system (build failed, resume failed) is state that outlives any action, and the daemon that failed is the one that knows when it is fixed. A third kind, daemon unreachable, makes every server-derived error stale, so it belongs to neither surface.
+
+**Fix:** sort each error first: rejected request -> inline at its control, cleared by the next confirmed result; degraded system -> held by the daemon, keyed by source, read by every surface (WebUI and tray alike), cleared by the daemon on success; connection lost -> a takeover that replaces everything. Only the second kind needs a shared persistent surface, and it needs no client-side staleness rules.
