@@ -16,6 +16,7 @@ else()
 endif()
 
 add_executable(AuroraAppMacTests
+  CliTests.cpp
   InstanceLockTests.cpp
   WebRootTests.cpp
 )

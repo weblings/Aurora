@@ -30,6 +30,7 @@
 
 #include <nlohmann/json.hpp>
 
+#include <Aurora/App/Cli.hpp>
 #include <Aurora/App/FakeHue.hpp>
 #include <Aurora/App/InstanceLock.hpp>
 #include <Aurora/App/LogSink.hpp>
@@ -623,6 +624,13 @@ try
   const bool consoleAttached = attachParentConsole(argc, argv);
   g_consoleAttached = consoleAttached;
   sink.setConsole(consoleAttached ? &std::cout : nullptr);
+
+  // --help / --version / unknown-argument rejection (Aurora-v3in): after
+  // the console attach above so the printout is visible, before anything
+  // boots -- no InstanceLock, no --fresh wipe, no pipeline, no port bind.
+  if(auto cliExit = Aurora::App::handleEarlyCli(argc, argv, AURORA_VERSION, /*withConsoleFlag=*/true, std::cout, std::cerr)){
+    return *cliExit;
+  }
 
   // --fake-hue: preset the fake-bridge dev flow (see FakeHue.hpp).
   // Explicit env wins over the presets; applied before anything reads env.
