@@ -127,11 +127,17 @@ under the session scratchpad) against the open-launched Aurora.app.
   when the shell already holds a matching host error. Lesson filed
   (architecture-process.md).
 
+- **Onboarding gate, live on the Mac** (done): `hue-credentials.json` moved
+  aside, `nuxCompleted:false`, a failed-then-fixed host so the next
+  `POST /api/reload` held `reload: No outputs available -- nothing to drive`
+  (`activeOutputNames: []` alone does not trigger it: that reload succeeds).
+  Page on the Welcome step: banner empty. After `nuxCompleted:true`, on the
+  Dashboard: "Couldn't apply settings: No outputs available -- nothing to
+  drive" + Retry. Files restored (credentials sha unchanged); the running app
+  reads credentials at launch, so it needed a relaunch to see them again.
+
 ## Remaining
 
-- **Onboarding gate, live** -- the one real trigger (input saved, no output
-  ever paired, so a `reload` error exists mid-onboarding) not run on the Mac:
-  needs the owner's Hue output out of the real config.
 - **Audio permission block** (`renderAudioPermissionBanner`) still says
   "quit and reopen"; untested, not part of this banner.
 - **Dead link** in the d3ec Windows verification log (a bare lessons-file
