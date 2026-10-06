@@ -13,7 +13,6 @@ import { ModeDeviceScreen } from './screens/ModeDeviceScreen.js';
 import { ZoneMappingScreen } from './screens/ZoneMappingScreen.js';
 import { ensureTooltips } from './Tooltips.js';
 import { isModeConfigValid, loadPipelineState } from './CaptureSource.js';
-import { DAEMON_UNREACHABLE } from './messages.js';
 
 const app = new App();
 
@@ -60,21 +59,14 @@ function toDashboard() {
     .then((r) => r.json())
     .then((result) => { if (!result.succeeded) console.error('Failed to persist nuxCompleted:', result); })
     .catch((e) => console.error('Failed to persist nuxCompleted:', e));
-  app.navigate(new DashboardScreen(app));
+  app.navigate(new DashboardScreen(app), 'dashboard');
 }
 
+// Boot and stage-transition failure path: the shell's unexpected-loss
+// takeover owns it (Aurora-ewyz) -- same overlay as a mid-session loss,
+// already polling for recovery via the shell beat.
 function renderUnreachable() {
-  app.navigate({
-    mount(container) {
-      container.innerHTML = `
-        <div class="top-bar-slot"></div>
-        <p class="status-text status-text-error">⚠ ${DAEMON_UNREACHABLE}</p>
-        <button type="button" class="btn btn-primary" id="boot-retry">Retry</button>
-      `;
-      container.querySelector('#boot-retry').addEventListener('click', bootstrap);
-    },
-    unmount() {},
-  });
+  app.showUnreachable();
 }
 
 // Per-output onboarding: `probe()` says which of the output's own steps are
@@ -114,18 +106,18 @@ const OUTPUTS = {
         const isMac = platform === 'mac';
         const showWelcome = () => app.navigate(new WelcomeScreen(app, {
           onComplete: (discoveryPromise) => (isMac ? showMacTip(discoveryPromise) : showOutputConnect(discoveryPromise, showWelcome)),
-        }));
+        }), 'welcome');
         const showMacTip = (discoveryPromise) => app.navigate(new MacTrayTipScreen(app, {
           discoveryPromise,
           onBack: showWelcome,
           onComplete: () => showOutputConnect(discoveryPromise, () => showMacTip(discoveryPromise)),
-        }));
+        }), 'mac-tip');
         const showOutputConnect = (discoveryPromise, previousStep) => app.navigate(new OutputConnectScreen(app, {
           showBack: true,
           onBack: previousStep,
           discoveryPromise,
           onComplete: () => next(() => showOutputConnect(undefined, previousStep)),
-        }));
+        }), 'output-connect');
         showWelcome();
       },
       select({ previousStep, next }) {
@@ -133,7 +125,7 @@ const OUTPUTS = {
           showBack: previousStep !== null,
           onBack: previousStep ?? undefined,
           onComplete: () => next(thisStep),
-        }));
+        }), 'output-select');
         thisStep();
       },
     },
@@ -243,7 +235,7 @@ async function goToModeDeviceStage(previousStep) {
     showBack: previousStep !== null,
     onBack: previousStep ?? undefined,
     onComplete: () => goToZoneMappingStage(thisStep),
-  }));
+  }), 'mode-device');
   thisStep();
 }
 
@@ -266,7 +258,7 @@ async function goToZoneMappingStage(previousStep) {
     onBack: previousStep ?? undefined,
     onComplete: toDashboard,
     onboarding: true,
-  }));
+  }), 'zone-mapping');
 }
 
 async function bootstrap() {
@@ -311,5 +303,44 @@ async function bootstrap() {
 
   await goToOutputSelectStage(null);
 }
+
+// Shell-beat recovery path (Aurora-ewyz): re-probe, then return to the
+// preserved step with fresh screen instances. Only output-connect needs a
+// direct resume -- every other step re-derives to itself through
+// bootstrap() when the server state still needs it, except the connect
+// chain, which always restarts at Welcome.
+async function recover(preservedRouteId) {
+  if (preservedRouteId === 'output-connect') {
+    try {
+      const state = await probeState();
+      if (state.needsOutputConnect && state.output) {
+        // Fresh discovery, like WelcomeScreen's own mount -- the
+        // in-flight promise died with the outage, it is not resumed.
+        const discoveryPromise = fetch('/api/hue/discover').then((r) => r.json());
+        app.navigate(new OutputConnectScreen(app, {
+          showBack: true,
+          onBack: () => bootstrap(),
+          discoveryPromise,
+          onComplete: () => goToOutputSelectStage(() => bootstrap()),
+        }), 'output-connect');
+        return;
+      }
+    } catch {
+      // Falls through to the full bootstrap below, which owns unreachable.
+    }
+  }
+  await bootstrap();
+}
+
+app.onRecovered = (preservedRouteId) => {
+  void recover(preservedRouteId);
+};
+app.startHeartbeat();
+// A backgrounded tab's timers may be throttled for hours; re-check
+// immediately on return so a dead daemon surfaces without waiting out
+// the cadence.
+document.addEventListener('visibilitychange', () => {
+  if (!document.hidden) void app.checkNow();
+});
 
 bootstrap();

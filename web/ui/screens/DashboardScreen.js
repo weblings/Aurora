@@ -65,11 +65,10 @@ export class DashboardScreen {
     this.toggleError = null;
     this.toggleErrorMode = null; // the mode the failed switch was heading to (Aurora-tazx)
     this.topTierError = null;
-    this.stopPhase = null; // null | 'confirm' | 'stopped' | 'error'
+    this.stopPhase = null; // null | 'confirm'
     this.stopError = null;
     this.paused = false; // from GET /api/state (Aurora-5ipy.13), falls back to capabilities
     this.pauseBusy = false; // a PUT /api/state is in flight: pause button disabled, not hidden
-    this.heartbeatTimer = null;
     this.audioStatusTimer = null;
     this.audioPermissionLikelyDenied = false;
     this.audioSinkStatus = null;
@@ -80,7 +79,12 @@ export class DashboardScreen {
     // running it (same hazard ZoneCanvas's onSelect has to avoid).
     this.entertainmentConfigSelect = new EntertainmentConfigSelect({
       onChange: () => this._onEntertainmentConfigChange(),
-      onError: (message) => { this.topTierError = message; this._renderTopTier(); },
+      // Aurora-ewyz: an unreachable signal owns no inline error -- the shell
+      // takeover owns it. Poke the beat; anything else reports as before.
+      onError: (message) => {
+        if (message === DAEMON_UNREACHABLE) { this.app.checkNow(); return; }
+        this.topTierError = message; this._renderTopTier();
+      },
     });
 
     this.deviceField = null;
@@ -104,12 +108,10 @@ export class DashboardScreen {
     renderTopBar(container.querySelector('.top-bar-slot'), { title: 'Aurora', logo: { src: 'icons/aurora-logo.png', alt: 'Aurora' }, showBack: false });
 
     await this._loadAll();
-    this._startHeartbeat();
     this._startAudioStatusPoll();
   }
 
   unmount() {
-    this._stopHeartbeat();
     this._stopAudioStatusPoll();
     this.entertainmentConfigSelect.destroy();
     this.deviceField?.destroy();
@@ -125,13 +127,13 @@ export class DashboardScreen {
   // zones and tuning values all do). Everything else that changes only one
   // piece of state calls a narrower _render* method instead.
   async _loadAll() {
-    const topTier = this.container.querySelector('.db-top-tier');
-
     let capabilities;
     try {
       capabilities = await (await fetch('/api/capabilities')).json();
     } catch {
-      topTier.innerHTML = `<p class="status-text status-text-error">⚠ ${DAEMON_UNREACHABLE}</p>`;
+      // Unreachable owns this (shell takeover, Aurora-ewyz): poke the beat,
+      // no inline error.
+      this.app.checkNow();
       return false;
     }
 
@@ -366,12 +368,16 @@ export class DashboardScreen {
       selectedZoneId: this.selectedZoneId,
       zoneLabel: (zone) => this._zoneLabel(zone),
       onSelect: (zoneId) => { this.selectedZoneId = zoneId; },
-      onError: (message) => { this.topTierError = message; this._renderTopTier(); },
+      onError: (message) => {
+        if (message === DAEMON_UNREACHABLE) { this.app.checkNow(); return; }
+        this.topTierError = message; this._renderTopTier();
+      },
       onSeeAllZones: () => {
         this.bridgeSection.expand();
         this.bridgeSection.content.scrollIntoView({ behavior: 'smooth', block: 'start' });
       },
       renderActive: true,
+      onUnreachable: () => this.app.checkNow(),
     });
     this.selectedZoneId = this.zoneCanvas.selectedZoneId;
 
@@ -405,7 +411,9 @@ export class DashboardScreen {
           this.topTierError = "Couldn't save the auto-arranged zones.";
         }
       } catch {
-        this.topTierError = DAEMON_UNREACHABLE;
+        // Unreachable owns this (shell takeover, Aurora-ewyz): poke the
+        // beat, no inline error.
+        this.app.checkNow();
       }
       await this._loadZoneData();
     }
@@ -441,6 +449,7 @@ export class DashboardScreen {
       values: this.tuningValues,
       monitors: this.monitors,
       selectedMonitorName: this.selectedMonitorName,
+      onUnreachable: () => this.app.checkNow(),
     });
 
     this.bridgeSection = new AccordionSection(wrap.querySelector('.db-accordion-bridge'), { title: 'Bridge', expanded: false });
@@ -464,8 +473,8 @@ export class DashboardScreen {
     content.querySelector('#db-change-bridge').addEventListener('click', () => {
       this.app.navigate(new OutputConnectScreen(this.app, {
         startAtEntry: true,
-        onComplete: () => this.app.navigate(new DashboardScreen(this.app)),
-      }));
+        onComplete: () => this.app.navigate(new DashboardScreen(this.app), 'dashboard'),
+      }), 'output-connect');
     });
     this.entertainmentConfigSelect.mount(content.querySelector('.db-entertainment-slot'));
     this._renderBridgeZoneList();
@@ -485,7 +494,11 @@ export class DashboardScreen {
     new ZoneActiveToggleList(slot, {
       zones: this.zones,
       zoneLabel: (zone) => this._zoneLabel(zone),
-      onError: (message) => { this.topTierError = message; this._renderTopTier(); },
+      onError: (message) => {
+        if (message === DAEMON_UNREACHABLE) { this.app.checkNow(); return; }
+        this.topTierError = message; this._renderTopTier();
+      },
+      onUnreachable: () => this.app.checkNow(),
       tooltipKey: 'zones.active',
     });
   }
@@ -525,8 +538,9 @@ export class DashboardScreen {
         this._renderTopTier();
       }
     } catch {
-      this.topTierError = DAEMON_UNREACHABLE;
-      this._renderTopTier();
+      // Unreachable owns this (shell takeover, Aurora-ewyz): poke the beat,
+      // no inline error.
+      this.app.checkNow();
     }
   }
 
@@ -560,6 +574,7 @@ export class DashboardScreen {
       }
     } catch {
       unreachable = true;
+      this.app.checkNow();
     }
 
     // Refreshes everything from the real endpoints rather than guessing the
@@ -570,12 +585,13 @@ export class DashboardScreen {
     // failed mode never sticks as filled even though config saved it.
     const loaded = await this._loadAll();
 
-    // The PUT could not reach the daemon: _loadAll's own message (and then
-    // the heartbeat's 'Aurora has stopped' overlay) owns that case, so no
-    // second message here (Aurora-jm6s). Only when the daemon answers again
-    // does the failed switch still need its own error.
+    // The PUT could not reach the daemon: the shell takeover owns that case,
+    // so no second message here (Aurora-jm6s, Aurora-ewyz). Only when the
+    // daemon answers again does the failed switch still need its own error --
+    // and then it is the action's error, never the unreachable wording
+    // (components.md:308).
     if (unreachable && loaded) {
-      this._setToggleError(DAEMON_UNREACHABLE, mode);
+      this._setToggleError(`Couldn't switch to ${modeLabel}.`, mode);
       this._renderTopTier();
     }
 
@@ -651,8 +667,12 @@ export class DashboardScreen {
       }
       await this._loadAll();
     } catch {
-      this.topTierError = DAEMON_UNREACHABLE;
-      this._renderTopTier();
+      // Blip (the daemon answered the re-check): the failed action still
+      // needs its own error. Outage: the shell takeover owns it, no inline.
+      if (await this.app.checkNow()) {
+        this.topTierError = this.paused ? "Couldn't resume Aurora." : "Couldn't pause Aurora.";
+        this._renderTopTier();
+      }
     } finally {
       this.pauseBusy = false;
       this._renderTopBar();
@@ -704,67 +724,17 @@ export class DashboardScreen {
       return;
     }
 
-    // 'stopped': a dead end by design, matching huenicorn's own real
-    // behavior -- the server that would answer any further request is
-    // already on its way out. Scrim is purely visual here (no click
-    // listener, unlike confirm's) -- there's nothing to cancel back to.
-    slot.innerHTML = `
-      <div class="overlay">
-        <div class="overlay-scrim"></div>
-        <div class="overlay-panel">
-          <h2>Aurora has stopped</h2>
-        </div>
-      </div>
-    `;
   }
 
-  // A tray/quit-initiated shutdown kills the server out from under an
-  // already-open tab -- without this, the Dashboard would sit on a
-  // live-looking UI until the next click fails. /api/capabilities is
-  // static (no pipeline locks), so a failed poll means the daemon is
-  // gone, not slow. Recursive setTimeout (never setInterval) so a hung
-  // server cannot stack overlapping polls; the 2.5s abort sits inside
-  // the 3s cadence for the same reason.
-  _startHeartbeat() {
-    this._stopHeartbeat();
-    const beat = async () => {
-      if(this.heartbeatTimer === null){
-        return;
-      }
-      try {
-        const controller = new AbortController();
-        const timeout = setTimeout(() => controller.abort(), 2500);
-        try {
-          await (await fetch('/api/capabilities', { signal: controller.signal })).json();
-        } finally {
-          clearTimeout(timeout);
-        }
-      } catch {
-        this._stopHeartbeat();
-        if(this.stopPhase !== 'stopped'){
-          this.stopPhase = 'stopped';
-          this._renderStopOverlay();
-        }
-        return;
-      }
-      if(this.heartbeatTimer === null){
-        return;
-      }
-      this.heartbeatTimer = setTimeout(beat, 3000);
-    };
-    this.heartbeatTimer = setTimeout(beat, 3000);
-  }
+  // Unreachable watching lives in the shell beat (Aurora-ewyz): one
+  // recursive-setTimeout poll for the app's lifetime, on every screen
+  // including NUX -- no per-screen timer to start here. The audio poll
+  // below stays separate on purpose (Aurora-9z4.7): the beat is
+  // deliberately lock-free, so this diagnostic does not ride along on
+  // the same tick even though both hit the server.
 
 
-  _stopHeartbeat() {
-    if(this.heartbeatTimer !== null){
-      clearTimeout(this.heartbeatTimer);
-      this.heartbeatTimer = null;
-    }
-  }
-
-
-  // Separate from _startHeartbeat() on purpose (Aurora-9z4.7) -- that poll
+  // Separate from the shell beat on purpose (Aurora-9z4.7) -- that poll
   // is deliberately lock-free (its own comment), so this deliberately
   // doesn't ride along on the same tick even though both hit the server;
   // a slower, non-critical cadence (5s, vs. the heartbeat's 3s) since this
@@ -806,7 +776,7 @@ export class DashboardScreen {
           }
         } catch {
           // Same-origin poll against our own server -- a failure here
-          // means the daemon's gone, which _startHeartbeat's own poll is
+          // means the daemon's gone, which the shell beat's own poll is
           // already handling; nothing extra to do from this one.
         }
       }
@@ -848,10 +818,11 @@ export class DashboardScreen {
         this._renderStopOverlay();
         return;
       }
-      this.stopPhase = 'stopped';
-      this._renderStopOverlay();
+      // The daemon is exiting on purpose: the shell's intentional-stop
+      // takeover owns the UI from here (Aurora-ewyz).
+      this.app.notifyStopConfirmed();
     } catch {
-      this.stopError = DAEMON_UNREACHABLE;
+      if (await this.app.checkNow()) this.stopError = "Couldn't stop Aurora.";
       button.disabled = false;
       this._renderStopOverlay();
     }

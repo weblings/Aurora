@@ -37,7 +37,7 @@ export class ZoneCanvas {
   // through the same _queue as gamma/uvs, not a separate callback -- an
   // Active flip has no side effect any caller needs to react to beyond
   // persistence, same as gamma.
-  constructor(container, { zones, selectedZoneId, zoneLabel, onSelect, onError, onSeeAllZones, renderActive = false }) {
+  constructor(container, { zones, selectedZoneId, zoneLabel, onSelect, onError, onSeeAllZones, onUnreachable, renderActive = false }) {
     this.container = container;
     this.zones = zones;
     this.zoneLabel = zoneLabel;
@@ -45,7 +45,7 @@ export class ZoneCanvas {
     this.onSeeAllZones = onSeeAllZones;
     this.renderActive = renderActive;
     this.zoneDropdown = null;
-    this._queue = new ZonePatchQueue({ onError });
+    this._queue = new ZonePatchQueue({ onError, onUnreachable });
 
     const initial = zones.find((z) => z.zoneId === selectedZoneId) ?? zones[0];
     this._selectedZoneId = initial.zoneId;

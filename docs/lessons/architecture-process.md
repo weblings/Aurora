@@ -784,3 +784,13 @@ Applies-when: adding a field a lock-free route must read next to state the host 
 A failed build runs outside every lock, so a competing success can land first. Rather than a sequence counter, the failure path takes the locks *after* the build and stores nothing if a pipeline now exists or a pause landed ("errors are held only while no pipeline runs"). That one rule also covers the plain "failed reload with a pipeline running" case, and the late-failure test shows it: a fake output's `init()` hook runs a successful reload inside the failing build.
 
 **Fix:** one leaf-locked snapshot for anything a lock-free reader needs together, republished wherever the inputs change; decide "store or drop" under the same locks that decide the state. `status()` waiting on `m_pauseMutex` (a resume in flight) is the regression to test for.
+
+---
+
+## A vendored snapshot rots: re-syncing one screen can mean porting months
+Tags: webui, demo, vendoring
+Applies-when: re-vendoring a demo copy that has fallen behind the source screen
+
+Aurora-ewyz's acceptance said "re-vendor DashboardScreen". The vendor copy predated the Pause/Stop topbar entirely (no `_renderTopBar`), lacked the MacPermissionRecovery import (a whole new vendored module plus MANIFEST entry), and carried toggle-sync/string-zone-ids seams; the new TuningFields needed Tooltips exports the vendor copy lacks. A faithful sync would port months of Dashboard evolution and re-decide seams blind -- while the demo cannot exercise error UI at all (the shim always answers), so the sync buys regression risk with no observable benefit.
+
+**Fix:** decide sync-vs-leave as its own task per re-vendor: if the snapshot has drifted past a small seam re-application, leave the tree byte-identical, record the decision on the bead, and file the full re-sync as a demo-porting task. A demo that connects to nothing ideally never shows errors; its error paths are covered by the unit suites, not the demo.

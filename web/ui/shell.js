@@ -10,15 +10,228 @@
 // A screen is any object shaped { mount(container), unmount() } -- mount()
 // may be async (a screen fetching its own data before rendering), unmount()
 // must not be.
+//
+// Connection watcher (Aurora-ewyz): the shell also owns the daemon
+// heartbeat and the unreachable takeover, so every screen -- Dashboard and
+// every NUX step alike -- gets them with no per-screen wiring. Design:
+// docs/planning/ErrorOverlay.md, 'Daemon unreachable: take over the
+// screen'. The takeover reuses the .overlay scrim (forms.css:365).
+//
+// Failure taxonomy (contract Aurora-cj11's Retry relies on): only a
+// network error, an abort, or a timeout counts as unreachable. Any HTTP
+// response -- including a 500 with a JSON body -- counts as reachable, so
+// a failed Retry never reads as a dead daemon.
+//
+// A single blip never raises the takeover: it takes `failureThreshold`
+// consecutive failed polls. A failure that only means unreachable sets no
+// inline error anywhere -- the takeover owns it; inline catches just poke
+// checkNow() (see below) and stay silent unless the daemon answers.
+const DEFAULT_POLL_INTERVAL_MS = 3000;
+const DEFAULT_ABORT_TIMEOUT_MS = 2500;
+const DEFAULT_FAILURE_THRESHOLD = 2;
+
+async function defaultFetchStatus(signal) {
+  const response = await fetch('/api/capabilities', { signal });
+  // Any HTTP answer -- whatever its status -- means the daemon is up. The
+  // body read itself must not throw the verdict away: a 500 with no JSON
+  // body is still a live daemon.
+  try {
+    await response.json();
+  } catch {
+    // Ignore body-read failures; the status line already answered.
+  }
+  return { reachable: true };
+}
+
 export class App {
-  constructor() {
+  constructor({
+    fetchStatus = defaultFetchStatus,
+    pollIntervalMs = DEFAULT_POLL_INTERVAL_MS,
+    abortTimeoutMs = DEFAULT_ABORT_TIMEOUT_MS,
+    failureThreshold = DEFAULT_FAILURE_THRESHOLD,
+  } = {}) {
     this.currentScreen = null;
+    this.currentRouteId = null;
     this.screenContainer = document.getElementById('screen-container');
+    this.overlaySlot = document.getElementById('shell-overlay-slot');
+    // onRecovered(preservedRouteId): re-probe and navigate back after the
+    // daemon comes back. Set by app.js (bootstrap/recover); null in unit
+    // tests that only assert the takeover itself.
+    this.onRecovered = null;
+    this.connectionState = 'live'; // live | down | stopped
+    this.preservedRouteId = null;
+    this._fetchStatus = fetchStatus;
+    this._pollIntervalMs = pollIntervalMs;
+    this._abortTimeoutMs = abortTimeoutMs;
+    this._failureThreshold = failureThreshold;
+    this._beatTimer = null;
+    this._inFlight = null;
+    this._consecutiveFailures = 0;
+    this._takeover = null; // null | 'unreachable' | 'stopped'
   }
 
-  navigate(screen) {
+  navigate(screen, routeId = null) {
     this.currentScreen?.unmount();
     this.currentScreen = screen;
+    if (routeId !== null) this.currentRouteId = routeId;
     screen.mount(this.screenContainer);
+  }
+
+  // Recursive setTimeout (never setInterval) so a hung poll cannot stack
+  // overlapping beats; the abort sits inside the cadence for the same
+  // reason. Runs for the app's lifetime, across every screen.
+  startHeartbeat() {
+    this.stopHeartbeat();
+    const beat = async () => {
+      if (this._beatTimer === null) return;
+      await this._pollOnce();
+      if (this._beatTimer === null) return;
+      this._beatTimer = setTimeout(beat, this._pollIntervalMs);
+    };
+    this._beatTimer = setTimeout(beat, this._pollIntervalMs);
+  }
+
+  stopHeartbeat() {
+    if (this._beatTimer !== null) {
+      clearTimeout(this._beatTimer);
+      this._beatTimer = null;
+    }
+  }
+
+  // Immediate re-check for inline catches: they own no error text, but a
+  // failure there is the earliest hint the daemon may be gone. Concurrent
+  // triggers share the one in-flight poll, so N simultaneous triggers cost
+  // one request. Resolves true
+  // when the daemon answered, false otherwise -- never rejects, so a
+  // catch can `await` it to tell a one-request blip (daemon answered:
+  // report the failed action inline) from a real outage (takeover owns
+  // it). See docs/lessons/components.md:308.
+  async checkNow() {
+    // A stopped beat stays stopped until the manual retry: no probing
+    // from under the intentional takeover.
+    if (this.connectionState === 'stopped') return false;
+    // Always a fresh poll (or an attach to the one already running): a
+    // cached verdict could predate the very failure that triggered this
+    // call. Cost is bounded anyway -- concurrent triggers share one poll
+    // via _pollOnce, and a hung poll aborts on its own timer.
+    try {
+      return await this._pollOnce();
+    } catch {
+      return false;
+    }
+  }
+
+  // A confirmed Stop (Dashboard's Stop button): the daemon is exiting on
+  // purpose, so this is the terminal variant -- polling stops, and the
+  // takeover offers a manual Retry connection instead of reconnecting on
+  // its own. A tray/quit Stop sends no signal and lands in the
+  // unexpected-loss variant instead, which keeps polling.
+  notifyStopConfirmed() {
+    this.stopHeartbeat();
+    this.connectionState = 'stopped';
+    this.preservedRouteId = this.currentRouteId;
+    this._showTakeover('stopped');
+  }
+
+  // Boot and stage-transition failure path (was renderUnreachable): show
+  // the takeover and make sure the beat is watching for recovery.
+  showUnreachable() {
+    if (this.connectionState === 'stopped') return;
+    this.preservedRouteId = this.currentRouteId;
+    this._showTakeover('unreachable');
+    this.startHeartbeat();
+  }
+
+  // Single-flight: the beat and any number of checkNow() triggers share
+  // one poll, so overlapping requests are impossible by construction.
+  async _pollOnce() {
+    if (this._inFlight) return await this._inFlight;
+    this._inFlight = this._runPoll();
+    try {
+      return await this._inFlight;
+    } finally {
+      this._inFlight = null;
+    }
+  }
+
+  async _runPoll() {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), this._abortTimeoutMs);
+    try {
+      await this._fetchStatus(controller.signal);
+      return this._handleReachable();
+    } catch {
+      return this._handleUnreachable();
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+
+  _handleReachable() {
+    this._consecutiveFailures = 0;
+    if (this.connectionState === 'down') {
+      this.connectionState = 'live';
+      const preserved = this.preservedRouteId;
+      this.preservedRouteId = null;
+      this._clearTakeover();
+      if (this.onRecovered) this.onRecovered(preserved);
+    }
+    return true;
+  }
+
+  _handleUnreachable() {
+    if (this.connectionState === 'stopped') return false;
+    this._consecutiveFailures += 1;
+    if (this._consecutiveFailures >= this._failureThreshold && this.connectionState === 'live') {
+      this.connectionState = 'down';
+      this.preservedRouteId = this.currentRouteId;
+      this._showTakeover('unreachable');
+    }
+    return false;
+  }
+
+  _showTakeover(kind) {
+    if (!this.overlaySlot) return;
+    this._takeover = kind;
+    if (kind === 'stopped') {
+      this.overlaySlot.innerHTML = `
+        <div class="overlay">
+          <div class="overlay-scrim"></div>
+          <div class="overlay-panel">
+            <h2>Aurora has stopped</h2>
+            <button type="button" class="btn btn-primary" id="shell-retry-connection">Retry connection</button>
+          </div>
+        </div>
+      `;
+      this.overlaySlot.querySelector('#shell-retry-connection')
+        ?.addEventListener('click', () => this._manualRetry());
+    } else {
+      this.overlaySlot.innerHTML = `
+        <div class="overlay">
+          <div class="overlay-scrim"></div>
+          <div class="overlay-panel">
+            <h2>Aurora isn't running</h2>
+            <p class="status-text">Start Aurora again from your apps. This page will reconnect on its own.</p>
+            <button type="button" class="btn btn-primary" id="shell-try-again">Try again</button>
+          </div>
+        </div>
+      `;
+      this.overlaySlot.querySelector('#shell-try-again')
+        ?.addEventListener('click', () => this.checkNow());
+    }
+  }
+
+  _clearTakeover() {
+    this._takeover = null;
+    if (this.overlaySlot) this.overlaySlot.innerHTML = '';
+  }
+
+  _manualRetry() {
+    if (this.connectionState !== 'stopped') return;
+    this.connectionState = 'live';
+    this._consecutiveFailures = 0;
+    this._clearTakeover();
+    this.startHeartbeat();
+    void this.checkNow();
   }
 }

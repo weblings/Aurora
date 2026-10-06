@@ -72,7 +72,12 @@ export class ZoneMappingScreen {
     this.error = null;
     this.entertainmentConfigSelect = new EntertainmentConfigSelect({
       onChange: () => { this.error = null; this._load(); },
-      onError: (message) => { this.error = message; this._render(); },
+      // Aurora-ewyz: an unreachable signal owns no inline error -- the
+      // shell takeover owns it. Poke the beat; anything else as before.
+      onError: (message) => {
+        if (message === DAEMON_UNREACHABLE) { this.app.checkNow(); return; }
+        this.error = message; this._render();
+      },
     });
     this.zoneCanvas = null;
     this.channelLightNames = {}; // zoneId -> label name array, from /api/zones/labels
@@ -116,8 +121,10 @@ export class ZoneMappingScreen {
       this.outputName = result.outputName ?? '';
       this.zones = result.zones ?? [];
     } catch {
+      // Unreachable owns this (shell takeover, Aurora-ewyz): poke the beat,
+      // no inline error.
       this.zones = null;
-      this.error = DAEMON_UNREACHABLE;
+      this.app.checkNow();
     }
 
     this.selectedZoneId = null;
@@ -195,7 +202,9 @@ export class ZoneMappingScreen {
         this.error = "Couldn't save the auto-arranged zones.";
       }
     } catch {
-      this.error = DAEMON_UNREACHABLE;
+      // Unreachable owns this (shell takeover, Aurora-ewyz): poke the beat,
+      // no inline error. The refetch below re-reads; a blip just retries.
+      this.app.checkNow();
     }
 
     try {
@@ -296,7 +305,12 @@ export class ZoneMappingScreen {
       selectedZoneId: this.selectedZoneId,
       zoneLabel: (zone) => this._zoneLabel(zone),
       onSelect: (zoneId) => { this.selectedZoneId = zoneId; },
-      onError: (message) => { this.error = message; this._render(); },
+      // Aurora-ewyz: unreachable owns no inline error (shell takeover).
+      onError: (message) => {
+        if (message === DAEMON_UNREACHABLE) { this.app.checkNow(); return; }
+        this.error = message; this._render();
+      },
+      onUnreachable: () => this.app.checkNow(),
       renderActive: this.onboarding,
     });
     this.selectedZoneId = this.zoneCanvas.selectedZoneId;
@@ -313,8 +327,12 @@ export class ZoneMappingScreen {
   // ZoneCanvas's own row (renderActive: true above).
   _renderActiveSection() {
     const slot = this.container.querySelector('#zm-active-row');
-    const onError = (message) => { this.error = message; this._render(); };
-    new ZoneActiveToggleList(slot, { zones: this.zones, zoneLabel: (zone) => this._zoneLabel(zone), onError, tooltipKey: 'zones.active' });
+    const onError = (message) => {
+      // Aurora-ewyz: unreachable owns no inline error (shell takeover).
+      if (message === DAEMON_UNREACHABLE) { this.app.checkNow(); return; }
+      this.error = message; this._render();
+    };
+    new ZoneActiveToggleList(slot, { zones: this.zones, zoneLabel: (zone) => this._zoneLabel(zone), onError, onUnreachable: () => this.app.checkNow(), tooltipKey: 'zones.active' });
   }
 }
 

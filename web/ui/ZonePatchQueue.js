@@ -7,8 +7,12 @@
 import { DAEMON_UNREACHABLE } from './messages.js';
 
 export class ZonePatchQueue {
-  constructor({ onError } = {}) {
+  // onUnreachable (Aurora-ewyz): when set, a fetch failure calls it and
+  // emits no onError -- the shell takeover owns the message. Unset keeps
+  // the old DAEMON_UNREACHABLE emit (tests, unwired users).
+  constructor({ onError, onUnreachable } = {}) {
     this.onError = onError;
+    this.onUnreachable = onUnreachable;
     this._pending = new Map();
     this._inFlight = new Set();
   }
@@ -34,7 +38,8 @@ export class ZonePatchQueue {
       })).json();
       if (!result.succeeded) this.onError?.("Couldn't save a zone edit.");
     } catch {
-      this.onError?.(DAEMON_UNREACHABLE);
+      if (this.onUnreachable) this.onUnreachable();
+      else this.onError?.(DAEMON_UNREACHABLE);
     }
 
     this._inFlight.delete(zoneId);
