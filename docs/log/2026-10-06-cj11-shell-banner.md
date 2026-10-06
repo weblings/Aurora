@@ -142,9 +142,11 @@ under the session scratchpad) against the open-launched Aurora.app.
 ## Remaining (follow-ups, none block close)
 
 - **Aurora-nkhi** -- inline `reloadError` duplicating the banner (only when
-  the host already holds the error).
+  the host already holds the error). Closed unshipped, superseded (see
+  above).
 - **Aurora-tjoq** -- check whether the audio-tap grant applies live, then
   align the audio permission block copy (still says quit and reopen).
+  Closed: [[tjoq-audio-grant-live]].
 - **Aurora-m0fy** -- `topTierError` owner for rejected-request errors.
 - **Aurora-k73j** -- tray "⚠ See Error" relabel, now unblocked.
 - Unexplained host self-recovery after a grant: accepted, not chased.
