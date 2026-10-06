@@ -734,3 +734,13 @@ Applies-when: a checked-in generated file must regen byte-identical and the writ
 `web/demo/vendor/webui/descriptors.json` is CRLF in the working tree, but Python text-mode output writes LF -- so the fixed `gen-descriptors.py` (Aurora-ncdd) produced the right 29 entries yet `cmp` failed at byte 2. Same trap class as the lossy regex above: content-correct, byte-different, caught only by comparing bytes.
 
 **Fix:** build the payload as text, then `open(out, 'wb')` with an explicit newline mapping and a comment saying CRLF is on purpose. Verify with `cmp` twice (content match, then determinism), not by eye.
+
+---
+
+## A slice build dir can hold a stale app binary: check freshness before live-testing
+Tags: build, live-test, stale-binary, cmake, verification
+Applies-when: live-testing an app binary from a tree with more than one build dir (superbuild `build/` vs slice dirs like `build/linux-app/`)
+
+`build/linux-app/bin/Aurora` (Oct 4) predated Aurora-d3ec while `build/bin/Aurora` was fresh: the stale one booted fine and served the old `GET /api/state` shape with no `state`/`errors`, which reads exactly like a failed verification. Caught only by diffing the two binaries (`strings <bin> | grep <new marker>`, here `nothing_to_pause`).
+
+**Fix:** before any live run, `ls -la` the candidate binaries and grep the fresh one for a symbol the change under test must contain. Rebuild the tree you test from (`cmake --build build`), and boot `build/bin/Aurora`, not a slice-local copy, unless you just rebuilt that slice.
