@@ -444,13 +444,13 @@ Applies-when: serving `web/demo/viz.html` (or any many-module ES page) with `pyt
 
 ---
 
-## Standalone `cmake -S core` on Windows doesn't find aubio through the vcpkg toolchain alone -- pass `-DAubio_DIR` explicitly
+## Standalone `cmake -S core` on Windows doesn't find aubio through the vcpkg toolchain alone -- `core/vcpkg.json` silently switches vcpkg to manifest mode
 Tags: cmake, vcpkg, aubio, windows, core-tests
 Applies-when: configuring core's own suite on Windows outside the `windows-app` preset
 
-With `aubio[core]:x64-windows` installed in vcpkg and `-DCMAKE_TOOLCHAIN_FILE=.../vcpkg.cmake`, the `windows-app` preset configured fine (its cache holds `Aubio_DIR=C:/vcpkg/installed/x64-windows/share/aubio`), but `cmake -S core` failed at `AudioProcessing/CMakeLists.txt:16 find_package(Aubio CONFIG REQUIRED)` even with generator and triplet pinned (`-G "Visual Studio 17 2022" -A x64 -DVCPKG_TARGET_TRIPLET=x64-windows`). Root cause not isolated -- how the app build gets `Aubio_DIR` on its own wasn't traced.
+With `aubio[core]:x64-windows` installed in vcpkg's classic tree and `-DCMAKE_TOOLCHAIN_FILE=.../vcpkg.cmake`, the `windows-app` preset configured fine, but `cmake -S core` failed at `AudioProcessing/CMakeLists.txt:16 find_package(Aubio CONFIG REQUIRED)` even with generator and triplet pinned. Root cause (2026-10-06, isolated): `core/vcpkg.json` is a manifest listing only `opencv4`, `glm`, `catch2`. Any vcpkg-toolchain configure of `core` as the top-level source dir sees that manifest and switches to manifest mode, which builds an isolated `vcpkg_installed/` tree from just those three packages and ignores the classic install entirely -- aubio, mbedtls, curl and miniaudio are invisible regardless of `Aubio_DIR`. `windows-app` never hits this because the repo root carries no `vcpkg.json`, so it stays in classic mode and sees the classic install directly.
 
-**Fix:** add `-DAubio_DIR=C:/vcpkg/installed/x64-windows/share/aubio`; core then configures, builds and passes its suite (70/70). Noted in `docs/Building.md`. Unresolved: the app-slice path that makes it unnecessary.
+**Fix:** pass `-DVCPKG_MANIFEST_MODE=OFF` on the standalone configure (`cmake -S core -B <dir> -G "Visual Studio 17 2022" -A x64 -DVCPKG_TARGET_TRIPLET=x64-windows -DVCPKG_MANIFEST_MODE=OFF -DCMAKE_TOOLCHAIN_FILE=<vcpkg>/scripts/buildsystems/vcpkg.cmake -DBUILD_TESTS=ON`); core then configures, builds and passes its full suite (171/171, matching Mac/Linux) with no explicit `*_DIR` overrides needed. An explicit `-DAubio_DIR=...` (the previous workaround here) also escapes manifest mode's isolation for that one package, but `-DVCPKG_MANIFEST_MODE=OFF` is the actual fix and covers the other classic-only packages too.
 
 ---
 

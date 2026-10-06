@@ -2,7 +2,9 @@
 
 Id: d3ec-host-build-errors
 
-2026-10-06. Core half of [[error-overlay]] (Sequencing step 0). PAUSED, not closed: core built and tested on Mac; Linux/Windows and the commit remain. Resume: Remaining, below.
+2026-10-06. Core half of [[error-overlay]] (Sequencing step 0). Closed:
+core built and tested on Mac, Linux ([[d3ec-linux-verification]]) and
+Windows ([[d3ec-windows-verification]]).
 
 ## Done
 
@@ -22,8 +24,8 @@ Id: d3ec-host-build-errors
 
 ## Remaining
 
-- Linux live check (bogus `activeInputName`, output.md:388), Linux and Windows compile.
-- Stage the re-exported `.beads/issues.jsonl` with the pending `dev` merge, commit, then close d3ec.
+- None for d3ec. Linux and Windows compile/live checks done
+  ([[d3ec-linux-verification]], [[d3ec-windows-verification]]); bead closed.
 - Next: Aurora-cj11 (banner, Retry, onboarding gate on the mid-onboarding `reload` error, Mac wording), then k73j/q9l1. Aurora-5ipy.2 now only extends the route.
 
 ## Footnotes
