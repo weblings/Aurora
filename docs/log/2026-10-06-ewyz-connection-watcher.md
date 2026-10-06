@@ -1,8 +1,8 @@
-# Aurora-ewyz: shell-level connection watcher (implemented, unverified)
+# Aurora-ewyz: shell-level connection watcher (implemented, verified)
 
 Id: ewyz-connection-watcher
 
-2026-10-06. WebUI half of [[error-overlay]] (Sequencing step 1). OPEN, implemented but not run: no JS runtime on this machine, live checks pending. Resume: Remaining, below.
+2026-10-06. WebUI half of [[error-overlay]] (Sequencing step 1). Verified: unit suites pass (Node 24 now available) and a live kill/restart against the fake-Hue devstack confirms the takeover overlay and silent auto-reconnect. `--fresh` mid-NUX reconnect not yet exercised. Ready to close pending `bd` access (none in this session's PATH).
 
 ## Done
 
@@ -19,11 +19,15 @@ Id: ewyz-connection-watcher
 - **CI's `web.yml` gate does not cover `web/ui` tests** (only `web-processing`, `web/demo`, `web/ui/styles`). The new shell suite and the DashboardScreen suite run manually (`node <file>.test.mjs`), same as the existing screens tests. Follow-up: extend the gate loop or accept the manual convention.
 - **No JS runtime on this machine** (`node`/`bun`/`deno` all absent, no repo-shipped installer), so suites are authored-but-unrun. Tooling note, not a repo lesson.
 
+## Verified (2026-10-06, follow-up)
+
+- **Unit suites**: `node web/ui/shell.test.mjs`, `node web/ui/screens/DashboardScreen.test.mjs`, `node web/ui/messages.test.mjs` all pass on Node v24.14.0.
+- **Live kill/restart**: `tools/light-viz-relay/devstack.py up` (live screen capture produced no frames in this sandbox -- no capturable desktop session; `--input dummy` confirmed the pipeline itself is fine, environment-only gap, not a code issue). Drove headless Chrome over CDP: loaded the WebUI on a zone-mapping screen with Zone 0 selected, `taskkill`'d `Aurora.exe`, and after ~11s (2 missed 3s beats) the shell showed the "Aurora isn't running" takeover with "This page will reconnect on its own." Relaunched `Aurora.exe --fake-hue` (no `--fresh`, config root preserved) and within ~9s the page silently returned to the same zone-mapping view with Zone 0 still selected -- no manual reload, no "Try again" click needed. Matches the designed `onRecovered(preservedRouteId)` path.
+
 ## Remaining
 
-- Run: `node web/ui/shell.test.mjs`, `node web/ui/screens/DashboardScreen.test.mjs`, `node web/ui/messages.test.mjs` (needs node 18+; CI has 22).
-- Live: devstack up, kill Aurora, headless Chrome screenshot shows overlay; restart, page reconnects to Dashboard on the preserved route; same on `--fresh` mid-NUX (Output Connect) returning to the same step.
-- Then close ewyz (unblocks cj11's banner work, which consumes the beat + taxonomy + gate).
+- `--fresh` mid-NUX (Output Connect step) reconnect returning to the same step -- not exercised this pass.
+- Close ewyz via `bd` (unblocks cj11's banner work, which consumes the beat + taxonomy + gate) -- no `bd` binary in this session's PATH, needs to be run where beads is installed.
 
 ## Footnotes
 
