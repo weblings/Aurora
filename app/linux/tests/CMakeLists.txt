@@ -19,6 +19,7 @@ add_executable(AuroraAppLinuxTests
   TrayIconTests.cpp
   InstanceLockTests.cpp
   WebRootTests.cpp
+  CliTests.cpp
   FakeHueTests.cpp
 )
 
