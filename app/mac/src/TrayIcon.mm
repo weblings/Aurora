@@ -1,5 +1,6 @@
 #include <Aurora/App/TrayIcon.hpp>
 
+#include <Aurora/App/TrayClick.hpp>
 #include <Aurora/Runtime/TrayLabel.hpp>
 
 #import <AppKit/AppKit.h>
@@ -67,10 +68,10 @@ namespace Aurora::App
   // explains and offers the retry. Otherwise the normal run/pause target
   // post (Aurora-q9l1).
   if(!self.impl){ return; }
-  const Runtime::HostStatus clickStatus =
-      self.impl->hostStatus ? self.impl->hostStatus() : Runtime::HostStatus{};
-  if(Runtime::trayPauseItemShowsError(clickStatus.state, !clickStatus.errors.empty(),
-         self.impl->webUiBound)){
+  const Aurora::Runtime::HostStatus clickStatus =
+      self.impl->hostStatus ? self.impl->hostStatus() : Aurora::Runtime::HostStatus{};
+  if(Aurora::App::resolveTrayPauseClick(clickStatus, self.impl->webUiBound) ==
+         Aurora::App::TrayPauseClickAction::LaunchUi){
     if(self.impl->onLaunch){ self.impl->onLaunch(); }
   }
   else if(self.impl->onTogglePause){ self.impl->onTogglePause(); }
@@ -85,9 +86,9 @@ namespace Aurora::App
   // One status() snapshot per open (Aurora-k73j): state plus errors
   // together, so a running host holding errors (Aurora-ja76) still reads
   // Pause while a failed one reads See Error.
-  const Runtime::HostStatus hostStatus = self.impl->hostStatus();
+  const Aurora::Runtime::HostStatus hostStatus = self.impl->hostStatus();
   self.impl->pauseItem.title = [NSString stringWithUTF8String:
-      Runtime::trayPauseItemLabel(hostStatus.state, !hostStatus.errors.empty(),
+      Aurora::Runtime::trayPauseItemLabel(hostStatus.state, !hostStatus.errors.empty(),
           self.impl->webUiBound)];
 }
 

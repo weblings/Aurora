@@ -915,3 +915,13 @@ Applies-when: tray/SNI verification reports no session bus from an agent-run she
 `gdbus call ListNames` failed with "Unable to create socket: Operation not permitted", the app logged "Tray: no session bus", and devstack `up` timed out waiting for the WebUI port (spawned children inherit the sandbox) -- while TCP loopback worked fine. The machine's session bus was healthy all along; the tool sandbox blocked AF_UNIX sockets.
 
 **Fix:** re-run one read-only bus probe (`ListNames`) in an unsandboxed/escalated shell before concluding anything is headless; only if that fails, fall back to the trayless private-bus recipes. Never reinterpret a sandbox symptom as machine state.
+
+---
+
+## `--fresh` hides the Dashboard banner behind onboarding; forcing `Failed` on Mac needs a bogus input, not just an unpaired output
+Tags: debugging, manual-verification, fresh, nux, banner, tray, mac
+Applies-when: manually checking that a click or link lands on the error banner (Aurora-cj11) in a freshly launched app
+
+`--fresh` clears the config root, so `nuxCompleted` is false and the WebUI opens on first-run onboarding. The banner is a Dashboard feature, so a tray See Error click opens a page with no banner on it. Both the Windows and Mac k73j passes landed there first, and the Windows pass was recorded done without ever seeing the banner. Separately, `activeOutputNames: ["hue"]` unpaired plus `/api/reload` made Windows `failed` but left Mac `idle`; setting a bogus `activeInputName` and reloading gave `failed` ("No outputs available").
+
+**Fix:** after forcing `Failed`, `PUT /api/config` with `nuxCompleted: true` (read-modify-write the full object; the save reloads and fails again, so the host stays `failed`), then reload the page. Check `/api/state` for `state:"failed"` before asking for an eyes-on check, and name in the check what must be on screen (the banner text), not just that a page opened.

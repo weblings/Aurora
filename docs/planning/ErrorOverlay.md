@@ -716,3 +716,23 @@ success stores nothing, an unrelated publish keeps the other entry's id),
 node tests for the banner X and its
 running-only rule, a new live Mac check (the existing checks assumed the old
 behavior), and updates to the lessons that record the old rule.
+
+### Retry feedback when a retry fails identically (2026-10-07, agent-proposed, not decided)
+
+Found in the k73j Mac manual pass: with the host `failed` and the cause
+unfixed, a click on the banner's Retry runs a real reload (the daemon's error
+`id` advanced on each click) that fails with the same message, so the banner
+does not change at all and the click reads as a dead button. The
+Retry-clears-the-banner path works; the dead-button read is only the
+failing-again case. Proposal, for owner decision before any bead:
+
+- While the retry request is in flight, the Retry button disables and reads
+  "Retrying…" (it already waits on `/api/reload`, so this is a client-only
+  change in `shell.js`).
+- When the retry returns failed, keep the banner but flash or append
+  "Still failing" to the row for a moment, so a repeat of the same message is
+  distinguishable from no click.
+- Not an `id`-driven redraw: the new id is not user-visible, and an
+  id-keyed re-render would re-show a row the user just dismissed.
+
+Belongs with Aurora-cj11's banner rows if accepted. Not in k73j's scope.

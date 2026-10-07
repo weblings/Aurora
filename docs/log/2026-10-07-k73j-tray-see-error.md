@@ -1,4 +1,4 @@
-# Aurora-k73j: tray "See Error" — built, Linux- and Windows-verified, bead open
+# Aurora-k73j: tray "See Error" — built, Linux-, Windows- and Mac-verified
 
 Id: k73j-tray-see-error
 
@@ -68,3 +68,43 @@ and Mac/Windows manual passes.
   conversion; rebuilt, re-forced `Failed`, owner confirmed the label now
   renders and the click behavior is correct. Windows manual AC item is now
   done; Mac manual and the D-Bus live check remain open.
+
+## Mac follow-up (same day, separate session)
+
+Same combo as Windows: an automated step, then a manual pass on the real app.
+
+- **Committed Mac code did not compile.** `TrayIcon.mm`'s Objective-C method
+  bodies (`onTogglePause:`, `menuNeedsUpdate:`) sit outside `namespace
+  Aurora::App`, so the bare `Runtime::` calls from e9ea988 failed ("undeclared
+  identifier 'Runtime'"). Only the Linux and Windows builds had ever run on
+  that commit. Qualified as `Aurora::Runtime::`. See [[macos-gui]].
+- **Click dispatch extracted**, mirroring Windows' `resolveTrayClick`:
+  `Aurora::App::resolveTrayPauseClick(status, webUiBound)` in
+  `app/mac/src/TrayClick.cpp` (header `TrayClick.hpp`), called by
+  `onTogglePause:`. `TrayClickTests.cpp`: 1 case / 6 assertions. Inverting the
+  rule fails 2 (mutant check). Full `AuroraAppMacTests`: 69 assertions in 23
+  cases. Standalone `cmake -S core` configure and build clean, core ctest
+  179/179.
+- **Manual on the real `Aurora.app --fresh`.** Forcing `Failed` took a bogus
+  `activeInputName` plus `POST /api/reload` ("No outputs available"); the
+  Windows trick of an unpaired Hue output alone left Mac `idle`. Owner
+  confirmed the menu-bar Pause slot reads `⚠ See Error` (glyph correct,
+  `stringWithUTF8String:` needs no conversion) and the click opens the WebUI.
+- **Banner not reached, then fixed.** `--fresh` leaves `nuxCompleted: false`,
+  so the WebUI showed first-run onboarding, not the Dashboard banner (the same
+  happened on the Windows pass). `PUT /api/config` with `nuxCompleted: true`
+  (the save reloads and re-fails, host stays `failed`) lands the click on the
+  Aurora-cj11 banner: "Couldn't apply settings: No outputs available --
+  nothing to drive". Owner confirmed. The same two-step works on Windows
+  without a rebuild; not re-run there.
+- **Retry looks dead when the cause is unfixed.** The daemon error id
+  advanced per click (3 → 5): real reloads, failing identically, banner
+  unchanged. Proposal recorded in [[error-overlay]] ("Retry feedback when a
+  retry fails identically"), agent-proposed, undecided.
+
+## Still open
+
+- D-Bus live check on Linux (`GetLayout`, `LayoutUpdated`).
+- Windows banner landing (apply the `nuxCompleted` step) if the owner wants it
+  recorded; not blocking.
+

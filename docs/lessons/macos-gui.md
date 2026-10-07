@@ -450,3 +450,13 @@ Applies-when: wanting a menu-bar icon to show an ambient "something needs attent
 Looking for a way to flag a tray error on the icon itself, without opening the menu (Aurora-k73j, [[error-overlay]]): `NSStatusBarButton` (the only thing `NSStatusItem` exposes for its appearance) is a plain `NSButton` wrapper, `.image`/`.alternateImage`/`.title`, with no badge or attention-state primitive. `NSDockTile.badgeLabel` is the closest OS-level analogue, but Aurora runs `LSUIElement` with no Dock icon at all (`app/mac/README.md`), so there's no Dock tile to badge in the first place, independent of the separate notification-permission gate that can silently suppress that badge even for apps that do have one.
 
 **Fix:** there is no shortcut, an ambient signal on the icon itself has to be a hand-built icon swap or a manually composited overlay (bake a dot into a second image, or draw a small subview/layer on top of the existing button), not an API call. Since `template` is a per-`NSImage` property (`TrayIcon.mm:133`'s `setTemplate:YES`), a deliberately non-template "alert" variant can still show real color even though the normal icon stays a system-tinted silhouette.
+
+---
+
+## Objective-C method bodies in a `.mm` sit outside any C++ `namespace` block, so a project namespace must be spelled out there
+Tags: macos, objective-c++, namespace, compile-error, tray
+Applies-when: editing the `@implementation` section of `TrayIcon.mm` (or any `.mm`) that sits between `namespace X { ... }` blocks
+
+`TrayIcon.mm` has two `namespace Aurora::App` blocks with the `@implementation` of the menu target and app delegate between them. Aurora-k73j's e9ea988 used `Runtime::trayPauseItemLabel` inside `-menuNeedsUpdate:` and `-onTogglePause:` because the surrounding C++ code reads that way; the methods are outside the namespace, so Clang says `use of undeclared identifier 'Runtime'; did you mean 'Aurora::Runtime'?`. The commit had only been built on Linux and Windows, so it sat broken on Mac until the Mac manual pass built it.
+
+**Fix:** inside an `@implementation` write `Aurora::Runtime::` / `Aurora::App::` in full, or call a plain-C++ function in the namespaced part. The second is better: `resolveTrayPauseClick` (`TrayClick.cpp`) takes the decision out of the ObjC method, where the namespace trap is, and makes it unit-testable.

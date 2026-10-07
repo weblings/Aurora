@@ -71,6 +71,7 @@ endif()
 # (Aurora-qps.2) matches app/linux's TrayIcon.cpp living here too.
 add_library(AuroraApp STATIC
   src/InstanceLock.cpp
+  src/TrayClick.cpp
   src/TrayIcon.mm
 )
 
