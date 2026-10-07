@@ -61,10 +61,10 @@ live-checked.
 
 ## Lessons filed
 
-`input.md` (grant does not revive a running tap; either grant suffices; tjoq
-follow-up corrected), `architecture-process.md` (config save does not rebuild
-a same-mode pipeline), `components.md` (toggle stale after outside changes),
-`debugging-method.md` (Settings toggle quits the test app; devstack isolation).
+Input lessons (grant does not revive a running tap; either grant suffices;
+tjoq follow-up corrected), architecture-process (config save does not rebuild
+a same-mode pipeline), components (toggle stale after outside changes),
+debugging-method (Settings toggle quits the test app; devstack isolation).
 
 ## Not done
 
