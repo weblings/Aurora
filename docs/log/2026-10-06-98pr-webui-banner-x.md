@@ -58,22 +58,34 @@ with headless Chromium (Playwright). Not the owner's real instance.
 - Paused host with a failed `resume`: row reads "Couldn't resume: ...", Retry,
   no X. Fixing the input and resuming clears it.
 - Screenshot checked: X sits top-right, text does not run under it.
+- UI-clicked failing switch (second pass): the switch PUT overwrites a bogus
+  saved input, so the failure came from a saved `activeOutputNames:
+  ["nonexistent-output"]` (reload error "No outputs available"), dismissed,
+  then Video clicked from audio. Result: state stays `audio`/`running`, a new
+  `reload` error is held, the banner shows the saved-not-applied row with X,
+  no switch error inline. (Taking the fake bridge down did not fail the
+  build: Hue init failure is swallowed by design.)
+- Permission row with X, **mocked, not a real denial**: Playwright answered
+  `GET /api/state` with a running host and a `permission_denied:` reload
+  error (id 5) against the real page. Row reads "Screen Recording is off...
+  then Retry" with Retry and X; the X click posts `{source:'reload',id:5}`
+  to `/api/state/dismiss` and the row clears once the poll stops returning it.
 
 ## Findings
 
 - The bead text says permission rows keep Open Settings; the shell's
   existing permission row (cj11, live-verified) is Retry-only because Open
   Settings never adds Aurora to the Screen Recording list. Kept Retry-only.
-- A UI-driven failing mode switch could not be produced: the Dashboard's
-  switch PUT sends its own device fields, so a bogus saved input is
-  overwritten and the build succeeds. The no-inline rule for that path rests
-  on the node tests; the PUT-driven live case covers the same banner path.
+- A bogus saved input cannot fail a UI-clicked switch: the Dashboard's
+  switch PUT sends its own device fields, so the build succeeds. A bad
+  saved output does fail it (see above).
+- The "Aurora doesn't seem to be capturing real audio" line is still inline
+  on the Dashboard (the audio heuristic); Aurora-h457 moves it.
 - Banner state lags API-driven changes by up to a beat (about 5 s) since only
   UI actions call `checkNow()`; looked like a stale row until waited out.
 
 ## Not done
 
 - Demo fork left alone (decision 7).
-- Not run: the macOS Screen Recording permission row with an X (needs a TCC
-  reset on the owner's Mac; the row's X logic is the same code path, tested
-  in node).
+- Real macOS Screen Recording denial with an X: needs a TCC reset for
+  `com.aurora.app` on the owner's Mac, not done without their say-so.
