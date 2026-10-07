@@ -117,7 +117,9 @@ function escapeHtml(s) {
 // hears audio afterwards (Aurora-h457 live check: fresh grabber after the
 // grant cleared, the running one stayed silent with audio playing). So the
 // row carries Retry: /api/reload rebuilds the grabber, which clears the row
-// if the grant took and restarts the 10s grace window if not.
+// if the grant took and restarts the 10s grace window if not. Either grant
+// is enough for the tap: Screen Recording or "System Audio Recording Only"
+// (each confirmed alone); the row fires only with neither.
 //
 // Privacy_AudioCapture opens the "Screen & System Audio Recording" pane
 // (checked on macOS 27, Aurora-h457), the pane holding the "System Audio

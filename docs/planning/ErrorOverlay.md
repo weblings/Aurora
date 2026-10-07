@@ -686,15 +686,10 @@ done.
 13. **Retry and row types in the shell.** `shell.js` `_retry` already posts
     `/api/reload` for every source but `resume`, so a running-host `reload`
     row needs no new retry rule, only a regression test. The new
-    `audio_permission` source's Retry is "select Audio, then reload": a
-    grant does not revive a grabber created before it (found live,
-    Aurora-h457), and a plain reload rebuilds the saved mode, not the
-    running one. A Mac Screen Recording permission row's Retry likewise
-    selects Video (matched on the message prefix, since `startup`/`reload`
-    name when it failed, not which mode); a failed resume keeps its own.
-    Both use the Dashboard toggle's save (`CaptureSource.selectMode`). The
-    heartbeat re-derives the Dashboard when the running flags change, so
-    the toggle follows. Aurora-98pr must also
+    `audio_permission` source takes the generic Retry too: a grant does not
+    revive a grabber created before it (found live, Aurora-h457), and the
+    reload rebuilds it. Its row gets Retry, Open Settings and an X.
+    Aurora-98pr must also
     check that `_visibleErrors`' hide-`reload`-off-dashboard gate hides
     nothing a post-onboarding route needs.
 14. **Audio entry publisher: the Mac main loop, on edges.**

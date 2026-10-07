@@ -156,29 +156,3 @@ export function modeSwitchPatch(mode, {
 export async function putModeSwitch(patch) {
   return (await fetch('/api/config', { method: 'PUT', body: JSON.stringify(patch) })).json();
 }
-
-// A switch from outside the Dashboard (the shell banner's Retry on a row
-// about one mode): reads capabilities and config fresh, builds the same
-// patch a toggle click would, and saves it. Monitors are unknown here, so
-// the saved monitor stays as is. The save reloads only when the running
-// pipeline differs from the new config, so `rebuild` follows it with an
-// explicit reload for a caller whose running pipeline already is `mode` but
-// needs replacing (a grabber started before a permission grant).
-export async function selectMode(mode, { rebuild = false } = {}) {
-  const [capabilities, config] = await Promise.all([
-    fetch('/api/capabilities').then((r) => r.json()),
-    fetch('/api/config').then((r) => r.json()),
-  ]);
-  const result = await putModeSwitch(modeSwitchPatch(mode, {
-    inputs: capabilities.inputs ?? [],
-    audioInputs: capabilities.audioInputs ?? [],
-    currentActiveInputName: config.activeInputName ?? '',
-    currentActiveAudioInputName: config.activeAudioInputName ?? '',
-    monitors: [],
-    selectedMonitorName: '',
-    sinkName: config.audioTargetSinkName || '',
-  }));
-  if (!rebuild || !result.succeeded) return result;
-  const reload = await (await fetch('/api/reload', { method: 'POST' })).json();
-  return reload.succeeded ? result : { ...result, reloadError: reload.error };
-}

@@ -1,4 +1,3 @@
-import { selectMode } from './CaptureSource.js';
 import { renderReloadError, parseMacPermissionError, renderAudioPermissionBanner } from './MacPermissionRecovery.js';
 
 // App shell: owns the one #screen-container mount point. Same navigate()
@@ -65,21 +64,6 @@ const SOURCE_PREFIX = {
   resume: "Couldn't resume: ",
   reload: "Couldn't apply settings: ",
 };
-
-// Sources whose Retry is "select this mode", the same save a Video/Audio
-// toggle click makes (shared in CaptureSource.js). A plain reload rebuilds
-// the saved mode, which may not be the one the row is about, and never
-// replaces a grabber that started before a permission grant.
-const RETRY_SELECTS_MODE = { audio_permission: 'audio' };
-
-// A Mac Screen Recording permission row is about Video whichever source held
-// it (startup/reload name when it failed, not which mode), so its Retry
-// selects Video too. A failed resume keeps its own Retry (PUT running).
-function retryMode(source, message, platform) {
-  if (RETRY_SELECTS_MODE[source]) return RETRY_SELECTS_MODE[source];
-  if (source !== 'resume' && platform === 'mac' && parseMacPermissionError(message)) return 'video';
-  return null;
-}
 
 export class App {
   constructor({
@@ -331,7 +315,7 @@ export class App {
       return;
     }
     for (const error of errors) {
-      this.bannerSlot.querySelector(`#shell-banner-retry-${error.source}`)?.addEventListener('click', () => this._retry(error.source, error.message));
+      this.bannerSlot.querySelector(`#shell-banner-retry-${error.source}`)?.addEventListener('click', () => this._retry(error.source));
       this.bannerSlot.querySelector(`#shell-banner-dismiss-${error.source}`)?.addEventListener('click', () => this._dismiss(error));
     }
   }
@@ -387,14 +371,12 @@ export class App {
   // {running:true}, the same retry _togglePause already sends. Either way,
   // an immediate re-check refreshes the banner from whatever actually
   // happened, success or another failure -- no optimistic clearing.
-  async _retry(source, message = '') {
-    const mode = retryMode(source, message, this.platform);
+  async _retry(source) {
     const [url, options] = source === 'resume'
       ? ['/api/state', { method: 'PUT', body: JSON.stringify({ running: true }) }]
       : ['/api/reload', { method: 'POST' }];
     try {
-      if (mode) await selectMode(mode, { rebuild: true });
-      else await fetch(url, options);
+      await fetch(url, options);
     } catch {
       // A network failure here is exactly what the beat's own unreachable
       // path is for; checkNow() below reads it the same way.

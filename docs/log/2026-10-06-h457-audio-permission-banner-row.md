@@ -1,10 +1,10 @@
-# Aurora-h457: Mac audio permission becomes a daemon-pushed banner row (in progress)
+# Aurora-h457: Mac audio permission becomes a daemon-pushed banner row
 
 Id: h457-audio-permission-banner-row
 
 2026-10-06. Mac half of [[error-overlay]]'s shell-by-cause revision, on top of
 [[ja76-hold-running-reload-error]] and [[98pr-webui-banner-x]]. Built and
-live-checked; bead left open pending the follow-up below.
+live-checked.
 
 ## Done
 
@@ -18,10 +18,11 @@ live-checked; bead left open pending the follow-up below.
   removed (Linux's `/api/linux/audio-status` sink poll stays).
 - Shell row for source `audio_permission`: short copy, Retry, Open Settings
   (`?Privacy_AudioCapture`, opens "Screen & System Audio Recording"), X.
-- Retry: `RETRY_SELECTS_MODE` (audio row) and `retryMode` (Mac
-  `permission_denied:`/`permission_pending:` rows, not `resume`) make Retry
-  "select that mode, then reload" via `CaptureSource.selectMode`, which shares
-  `modeSwitchPatch` and the new `putModeSwitch` with `DashboardScreen`.
+- Retry on the audio row is the generic `POST /api/reload`. A "select the
+  row's mode, then reload" Retry (`selectMode`) was built and reverted once
+  the findings below showed either grant alone is enough.
+- `putModeSwitch` (`CaptureSource.js`) is the toggle's save, shared by
+  `DashboardScreen`.
 - Dashboard heartbeat (`_onHeartbeatState`) re-runs `_loadAll` once when the
   running flags change from outside the toggle (banner Retry, tray, relaunch).
   Predates h457: the toggle only refreshed on mount and on its own clicks.
@@ -31,7 +32,7 @@ live-checked; bead left open pending the follow-up below.
 - **A grant does not revive a running grabber.** A tap created before the
   grant stayed silent with audio playing; a fresh grabber after it heard
   sound. So tjoq's "applies live" held only for a process that built its
-  grabber after the grant.
+  grabber after the grant. A plain reload rebuilds it.
 - **`PUT /api/config` reloads only when the running pipeline differs from the
   new config.** Saving audio-only while audio ran rebuilt nothing, so the
   first Retry cleared nothing; `selectMode(..., {rebuild:true})` follows the
@@ -42,7 +43,8 @@ live-checked; bead left open pending the follow-up below.
   audio-list grant alone also worked (tjoq). Not tested: audio-only user with
   both off, and audio list on with Screen Recording off.
 - Plain-reload Retry rebuilds the saved mode, not the running one; they differ
-  after a failed mode switch.
+  after a failed mode switch (accepted: the row for that failure is the one to
+  retry).
 - `devstack.py` takes the first WebUI from 8215 and execs the binary under the
   terminal's permissions, so it would hit a running real instance and never
   show a denial. Stack run by hand: fake bridge, relay, `web/demo` server, and
@@ -56,8 +58,3 @@ live-checked; bead left open pending the follow-up below.
 - Live (isolated config, `tccutil reset AudioCapture` first): one
   `audio_permission` entry ~10s after launch; dismiss held 25s while denied;
   `/api/reload` with an audio-only config cleared it and it stayed gone.
-
-## Open
-
-- Owner is weighing reverting Retry to a plain reload and rewording the row
-  for the shared pane, since Screen Recording alone is enough.
