@@ -315,6 +315,7 @@ export class App {
     }
     for (const error of errors) {
       this.bannerSlot.querySelector(`#shell-banner-retry-${error.source}`)?.addEventListener('click', () => this._retry(error.source));
+      this.bannerSlot.querySelector(`#shell-banner-dismiss-${error.source}`)?.addEventListener('click', () => this._dismiss(error));
     }
   }
 
@@ -327,11 +328,37 @@ export class App {
   _renderBannerRow(error) {
     const parsed = this.platform === 'mac' ? parseMacPermissionError(error.message) : null;
     const retryId = `shell-banner-retry-${escapeHtml(error.source)}`;
+    // Saved-not-applied: a reload error on a running host (the old setup
+    // still drives the lights). Never promises the next launch works, it
+    // builds from the same saved config (ErrorOverlay.md, 'Banner and copy').
+    const text = this.hostState === 'running' && error.source === 'reload'
+      ? `Saved, but couldn't apply: ${error.message}. Aurora is still running your previous setup and will try the new one next time it starts.`
+      : (SOURCE_PREFIX[error.source] ?? '') + error.message;
     const inner = parsed
       ? renderReloadError(error.message, this.platform, { retryId })
-      : `<p class="status-text status-text-error">⚠ ${escapeHtml((SOURCE_PREFIX[error.source] ?? '') + error.message)}</p>
+      : `<p class="status-text status-text-error">⚠ ${escapeHtml(text)}</p>
          <button type="button" class="btn btn-secondary" id="${retryId}" style="margin-top: var(--aurora-space-3);">Retry</button>`;
-    return `<div class="shell-banner-row">${inner}</div>`;
+    // X only while the old setup still works (ErrorOverlay.md, 'Dismiss'):
+    // a paused or failed host's row is the reason there are no lights.
+    const dismiss = this.hostState === 'running' && Number.isInteger(error.id)
+      ? `<button type="button" class="shell-banner-dismiss" id="shell-banner-dismiss-${escapeHtml(error.source)}" aria-label="Dismiss">×</button>`
+      : '';
+    return `<div class="shell-banner-row">${dismiss}${inner}</div>`;
+  }
+
+  // The daemon owns the dismissal; the {source, id} pair makes a click that
+  // races a newer failure a no-op there. No optimistic clearing: checkNow()
+  // redraws from what the daemon holds, a stale id included.
+  async _dismiss(error) {
+    try {
+      await fetch('/api/state/dismiss', {
+        method: 'POST',
+        body: JSON.stringify({ source: error.source, id: error.id }),
+      });
+    } catch {
+      // Unreachable is the beat's takeover; checkNow() below reads it.
+    }
+    await this.checkNow();
   }
 
   // Failed host -> POST /api/reload (same route the banner's Retry always

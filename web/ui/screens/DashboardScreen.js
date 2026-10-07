@@ -30,7 +30,7 @@ import { screenDivisionRects } from '../ScreenDivision.js';
 import { AccordionSection } from '../AccordionSection.js';
 import { TuningFields } from '../TuningFields.js';
 import { applyTooltip } from '../Tooltips.js';
-import { renderReloadError, parseMacPermissionError, renderAudioPermissionBanner } from '../MacPermissionRecovery.js';
+import { renderReloadError, renderAudioPermissionBanner } from '../MacPermissionRecovery.js';
 import {
   audioDevicesUrlFrom, devicePatch, effectiveFlags, flagsForMode, isSwitchConfirmed, isSwitchErrorStale,
   loadPipelineState, modeFromFlags, modeSwitchPatch,
@@ -545,12 +545,9 @@ export class DashboardScreen {
         this.topTierError = "Couldn't save capture settings.";
         this._renderTopTier();
       } else if (result.reloadError) {
-        // Kept raw (no framing) for the mac permission case -- renderReloadError()
-        // detects the prefix and shows its own guided text instead.
-        this.topTierError = (this.platform === 'mac' && parseMacPermissionError(result.reloadError))
-          ? result.reloadError
-          : `Saved, but couldn't apply it live: ${result.reloadError}`;
-        this._renderTopTier();
+        // Saved, not applied: the daemon holds the error and the shell
+        // banner shows it (Aurora-98pr). Poke the beat for an early redraw.
+        this.app.checkNow();
       }
     } catch {
       // Unreachable owns this (shell takeover, Aurora-ewyz): poke the beat,
@@ -583,9 +580,9 @@ export class DashboardScreen {
       if (!putResult.succeeded) {
         this._setToggleError(`Couldn't switch to ${modeLabel}.`, mode);
       } else if (putResult.reloadError) {
-        this._setToggleError((this.platform === 'mac' && parseMacPermissionError(putResult.reloadError))
-          ? putResult.reloadError
-          : `Couldn't switch to ${modeLabel}: ${putResult.reloadError}`, mode);
+        // Saved, not applied: the shell banner owns it (Aurora-98pr); the
+        // fill below is re-derived from the still-running pipeline.
+        this.app.checkNow();
       }
     } catch {
       unreachable = true;

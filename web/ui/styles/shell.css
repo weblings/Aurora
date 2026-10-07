@@ -179,6 +179,32 @@ body {
   padding: var(--aurora-space-4) var(--aurora-space-6);
 }
 
+.shell-banner-row {
+  position: relative;
+}
+
+.shell-banner-dismiss {
+  position: absolute;
+  top: -4px;
+  right: -8px;
+  width: 28px;
+  height: 28px;
+  background: none;
+  border: none;
+  font-size: 20px;
+  line-height: 1;
+  color: var(--aurora-text-secondary);
+  cursor: pointer;
+}
+
+.shell-banner-dismiss ~ p {
+  padding-right: 24px;
+}
+
+.shell-banner-dismiss:hover {
+  color: var(--aurora-text-primary);
+}
+
 .shell-banner-row + .shell-banner-row {
   margin-top: var(--aurora-space-5);
   padding-top: var(--aurora-space-5);

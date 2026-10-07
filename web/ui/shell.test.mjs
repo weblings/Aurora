@@ -414,6 +414,83 @@ const stateOk = (extra = {}) => async () => ({ reachable: true, state: 'running'
   uninstallDom();
 }
 
+// ---- Banner X and saved-not-applied copy (Aurora-98pr) ----
+
+const HELD = { source: 'reload', message: 'bridge unreachable', id: 7 };
+
+// Running host with a held reload error: saved-not-applied copy, an X, and
+// the same source-keyed Retry (POST /api/reload, no new retry rule).
+{
+  const { app, banner, slots } = makeApp(stateOk({ errors: [HELD] }));
+  app.navigate(blankScreen(), 'dashboard');
+  await app._pollOnce();
+  assert.ok(banner().includes("Saved, but couldn't apply: bridge unreachable. Aurora is still running your previous setup and will try the new one next time it starts."));
+  assert.ok(banner().includes('id="shell-banner-dismiss-reload"'), 'X on a running host');
+  assert.ok(banner().includes('id="shell-banner-retry-reload"'));
+  const calls = [];
+  globalThis.fetch = async (url, options) => { calls.push({ url, options }); return { json: async () => ({}) }; };
+  try {
+    slots.get('shell-banner-slot').querySelector('#shell-banner-retry-reload').click();
+    await sleep(5);
+  } finally { delete globalThis.fetch; }
+  assert.equal(calls[0].url, '/api/reload');
+  assert.equal(calls[0].options.method, 'POST');
+  uninstallDom();
+}
+
+// Clicking the X posts {source, id} to the dismiss route and re-checks; the
+// row leaves only when the daemon stops reporting it (no optimistic clear).
+{
+  let errors = [HELD];
+  const { app, banner, slots } = makeApp(async () => ({ reachable: true, state: 'running', errors, paused: false }));
+  app.navigate(blankScreen(), 'dashboard');
+  await app._pollOnce();
+  const calls = [];
+  globalThis.fetch = async (url, options) => {
+    calls.push({ url, options });
+    return { json: async () => ({ succeeded: true, dismissed: true }) };
+  };
+  try {
+    slots.get('shell-banner-slot').querySelector('#shell-banner-dismiss-reload').click();
+    await sleep(5);
+    assert.equal(calls[0].url, '/api/state/dismiss');
+    assert.equal(calls[0].options.method, 'POST');
+    assert.deepEqual(JSON.parse(calls[0].options.body), { source: 'reload', id: 7 });
+    assert.ok(banner().includes('bridge unreachable'), 'daemon still holds it: row stays');
+    errors = [];
+    await app.checkNow();
+    assert.equal(banner(), '', 'row gone once the daemon cleared it');
+  } finally { delete globalThis.fetch; }
+  uninstallDom();
+}
+
+// No X unless the host is running (Dismiss rule, decision 1): a failed host
+// and a paused host with a failed resume keep their rows undismissable, and
+// the saved-not-applied copy is for a running host only.
+{
+  for (const [state, source] of [['failed', 'startup'], ['failed', 'reload'], ['paused', 'resume']]) {
+    const { app, banner } = makeApp(stateOk({ state, paused: state === 'paused', errors: [{ source, message: 'boom', id: 3 }] }));
+    app.navigate(blankScreen(), 'dashboard');
+    await app._pollOnce();
+    assert.ok(banner().includes('boom'));
+    assert.ok(!banner().includes('shell-banner-dismiss'), `no X for ${state}/${source}`);
+    assert.ok(!banner().includes('Saved, but'), `no saved-not-applied copy for ${state}/${source}`);
+    uninstallDom();
+  }
+}
+
+// A permission row on a running host gets the X too (and still Retry only).
+{
+  const { app, banner } = makeApp(stateOk({ errors: [{ source: 'reload', message: 'permission_denied: no displays', id: 9 }] }));
+  app.platform = 'mac';
+  app.navigate(blankScreen(), 'dashboard');
+  await app._pollOnce();
+  assert.ok(banner().includes('Screen Recording is off'));
+  assert.ok(banner().includes('id="shell-banner-dismiss-reload"'));
+  assert.ok(banner().includes('id="shell-banner-retry-reload"'));
+  uninstallDom();
+}
+
 // Daemon unreachable owns the whole screen: the takeover clears the banner
 // rather than showing it alongside stale errors.
 {

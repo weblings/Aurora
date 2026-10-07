@@ -291,25 +291,44 @@ function switchScreen({ state, platform = 'mac', toggleError = null, toggleError
 
 const PERMISSION_ERROR = 'permission_denied: ScreenCaptureKitGrabber: no shareable displays';
 
-// A failed switch keeps the old pipeline filled, names the target, and
-// remembers it. Mac permission text passes through untouched.
-{
-  stubFetch(() => ({ succeeded: true, reloadError: PERMISSION_ERROR }));
-  const { inst } = switchScreen({ state: AUDIO_STATE });
+// Saved, not applied (Aurora-98pr): the daemon holds the error and the shell
+// banner shows it, so no inline copy -- the mutant check for the removal.
+// The fill is still re-derived from the running pipeline, and the beat gets
+// one immediate re-check so the banner does not wait for the next poll.
+for (const reloadError of [PERMISSION_ERROR, 'bridge unreachable']) {
+  stubFetch(() => ({ succeeded: true, reloadError }));
+  const { inst, calls } = switchScreen({ state: AUDIO_STATE });
   try { await inst._switchMode('video'); } finally { globalThis.fetch = realFetch; }
-  assert.equal(inst.toggleError, PERMISSION_ERROR, 'Mac permission error shown as-is');
-  assert.equal(inst.toggleErrorMode, 'video');
+  assert.equal(inst.toggleError, null, 'banner owns the failure');
+  assert.equal(inst.toggleErrorMode, null);
   assert.equal(inst.mode, 'audio', 'fill stays on the running mode');
   assert.equal(inst.pendingMode, null);
+  assert.equal(calls.checkNow, 1);
 }
 
-// Generic failures say which switch failed.
+// Device save, same rule: no topTierError for a saved-not-applied reload.
 {
-  stubFetch(() => ({ succeeded: true, reloadError: 'bridge unreachable' }));
-  const { inst } = switchScreen({ state: AUDIO_STATE, platform: 'linux' });
-  try { await inst._switchMode('video'); } finally { globalThis.fetch = realFetch; }
-  assert.equal(inst.toggleError, "Couldn't switch to Video: bridge unreachable");
+  stubFetch(() => ({ succeeded: true, reloadError: PERMISSION_ERROR }));
+  const { inst, calls } = switchScreen({ state: AUDIO_STATE });
+  inst.flags = { usesVideoInput: false, usesAudioInput: true, samplesZones: false };
+  try { await inst._onDeviceFieldChange({}); } finally { globalThis.fetch = realFetch; }
+  assert.equal(inst.topTierError, null, 'banner owns the failure');
+  assert.equal(calls.topTier, 0);
+  assert.equal(calls.checkNow, 1);
 }
+
+// A plain rejection (succeeded:false) stays inline even with a held error
+// (decision 8).
+{
+  stubFetch(() => ({ succeeded: false }));
+  const { inst } = switchScreen({ state: AUDIO_STATE });
+  inst.app.hostErrors = [{ source: 'reload', message: PERMISSION_ERROR, id: 1 }];
+  try { await inst._switchMode('video'); } finally { globalThis.fetch = realFetch; }
+  assert.equal(inst.toggleError, "Couldn't switch to Video.");
+  assert.equal(inst.mode, 'audio');
+}
+
+// Plain rejections say which switch failed.
 {
   stubFetch(() => ({ succeeded: false }));
   const { inst } = switchScreen({ state: VIDEO_STATE });
@@ -326,11 +345,11 @@ const PERMISSION_ERROR = 'permission_denied: ScreenCaptureKitGrabber: no shareab
   const { inst } = switchScreen({ state: AUDIO_STATE, toggleError: PERMISSION_ERROR, toggleErrorMode: 'video' });
   globalThis.fetch = async () => {
     errorDuringFlight = inst.toggleError;
-    return { json: async () => ({ succeeded: true, reloadError: PERMISSION_ERROR }) };
+    return { json: async () => ({ succeeded: false }) };
   };
   try { await inst._switchMode('video'); } finally { globalThis.fetch = realFetch; }
   assert.equal(errorDuringFlight, PERMISSION_ERROR, 'error stays up while the retry is pending');
-  assert.equal(inst.toggleError, PERMISSION_ERROR);
+  assert.equal(inst.toggleError, "Couldn't switch to Video.", 'a retry that fails again leaves one message');
 }
 
 // A confirmed switch clears the error and re-renders the top tier so the
