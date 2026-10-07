@@ -257,3 +257,32 @@ Applies-when: testing whether an exe launches, or which flags it takes, by runni
 `Aurora.exe` handles only its known flags and ignores the rest, so `--help` and `--version` start the real app (tray, HTTP server, capture). A loop that launched it once per `creationflags` variant started several live instances; killed ones lingered as zombie entries while a parent still held a handle (`taskkill` said "no running instance"), and a blocking wait on the launcher hung until the app exited. Filed as Aurora-v3in.
 
 **Fix:** probe with a harmless exe first (`cmd /c exit`), launch the real one once, kill it by pid, and verify with `tasklist`/`Get-CimInstance` that nothing is left. Never wrap a possibly-long-lived app in a blocking wait inside an agent call.
+
+---
+
+## AppendMenuA reinterprets its string through the ANSI codepage, not UTF-8 -- a non-ASCII menu literal needs AppendMenuW
+Tags: windows, tray, win32, menu, unicode, encoding
+Applies-when: a Win32 menu item's text includes a non-ASCII UTF-8 character (e.g. an emoji/symbol literal)
+
+`TrayLabel.hpp`'s `kTraySeeErrorLabel` (Aurora-k73j) is a raw UTF-8 byte
+string (`"\xE2\x9A\xA0 See Error"`, the warning sign U+26A0). Mac decodes
+it correctly via `[NSString stringWithUTF8String:]` and Linux's dbusmenu
+is UTF-8-native, but the Windows tray built its menu with `AppendMenuA`
+(and the app's other "A"-suffixed calls throughout). `AppendMenuA` treats
+its `const char*` through the system ANSI codepage, not UTF-8, so each
+UTF-8 byte gets reinterpreted individually: on a CP1252 machine, bytes
+`E2 9A A0` decoded as `â`, `š`, then a non-breaking space -- on screen that
+reads as a stray "a" and "s" with diacritics ("lines on top"), which looks
+exactly like a missing-glyph/font problem but isn't one. Found live, by
+eye, during a manual tray verification pass -- the unit test on the pure
+label-string function never touches a real `HMENU` and could not have
+caught this.
+
+**Fix:** convert the UTF-8 literal to UTF-16 (`MultiByteToWideChar(CP_UTF8,
+...)`) and call `AppendMenuW` instead of `AppendMenuA` for a menu item
+carrying non-ASCII text (did all three items in the same `HMENU` for
+consistency; mixing `A`/`W` `AppendMenu` calls on one menu is safe if you
+don't). General principle: a cross-platform string literal with non-ASCII
+bytes needs the Unicode entry point on Windows specifically -- a passing
+test on the label string alone doesn't prove the native menu renders it,
+only a real, eyes-on manual pass does.

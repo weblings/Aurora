@@ -1,4 +1,4 @@
-# Aurora-k73j: tray "See Error" — built, Linux-verified, bead open
+# Aurora-k73j: tray "See Error" — built, Linux- and Windows-verified, bead open
 
 Id: k73j-tray-see-error
 
@@ -39,6 +39,32 @@ and Mac/Windows manual passes.
 
 - D-Bus live: `GetLayout` showing See Error and `LayoutUpdated` on
   appear/clear — needs a shell that can create sockets.
-- Mac/Windows manual: label shows, click lands on the cj11 banner.
-- Per-platform standalone core configures (app presets skip core tests).
+- Mac manual: label shows, click lands on the cj11 banner.
 - Scratch drivers in /tmp (`k73j-live.sh`, `k73j-apicycle.py`), not committed.
+
+## Windows follow-up (same day, separate session)
+
+- Per-platform standalone core configure done: `build-core-test-win`
+  (core only) and `build-app-windows` (full `aurora-app-windows`/
+  `AuroraAppWindowsTests`, via the vcpkg toolchain file) both configure and
+  build clean on this machine.
+- Windows click-dispatch extracted out of `TrayIcon::showMenu()` into a
+  pure `Aurora::App::resolveTrayClick(picked, status, webUiBound)`
+  (`app/windows/include/Aurora/App/TrayIcon.hpp` +
+  `src/TrayIcon.cpp`), covering the `IDM_*` → action table the way core's
+  `TrayLabelTests.cpp` covers the label itself — `TrackPopupMenuEx` needs
+  real input and can't run in a unit test, so this is as far down as the
+  Windows glue can be pulled. New `TrayIconTests.cpp`: 4 cases / 11
+  assertions, green. Full `AuroraAppWindowsTests`: 110/110.
+- Windows manual: real `Aurora.exe` built, launched with `--fresh`, forced
+  into `Failed` via `PUT /api/config` (`activeOutputNames: ["hue"]`
+  unpaired) + `POST /api/reload`, same trick as the Linux `/api/state`
+  cycle above. Owner's eyes-on right-click found the label rendering as
+  mojibake (not a missing glyph) — root cause and fix in
+  [[windows-env]] ("AppendMenuA reinterprets its string through the ANSI
+  codepage..."): `AppendMenuA` was decoding `kTraySeeErrorLabel`'s UTF-8
+  bytes through CP1252 instead of UTF-8. Switched the tray's three
+  `AppendMenuA` calls to `AppendMenuW` with a `MultiByteToWideChar`
+  conversion; rebuilt, re-forced `Failed`, owner confirmed the label now
+  renders and the click behavior is correct. Windows manual AC item is now
+  done; Mac manual and the D-Bus live check remain open.

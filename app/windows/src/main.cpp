@@ -34,6 +34,7 @@
 #include <Aurora/App/FakeHue.hpp>
 #include <Aurora/App/InstanceLock.hpp>
 #include <Aurora/App/LogSink.hpp>
+#include <Aurora/App/TrayIcon.hpp>
 #include <Aurora/Runtime/Registry.hpp>
 #include <Aurora/App/WebRoot.hpp>
 #include <EmbeddedWebRoot.hpp>
@@ -401,6 +402,23 @@ namespace
     std::thread m_thread;
   };
 
+// AppendMenuA reinterprets its string byte-by-byte through the system ANSI
+// codepage, not UTF-8 -- kTraySeeErrorLabel's multi-byte "warning sign"
+// (Aurora-k73j) came out as CP1252 mojibake (an "a" and "s" with stray
+// diacritics) rather than a missing-glyph box. AppendMenuW needs the bytes
+// actually converted to UTF-16 first.
+std::wstring utf8ToWide(const std::string& text)
+{
+  if(text.empty()){
+    return {};
+  }
+  const int len = MultiByteToWideChar(CP_UTF8, 0, text.data(), static_cast<int>(text.size()), nullptr, 0);
+  std::wstring wide(static_cast<size_t>(len), L'\0');
+  MultiByteToWideChar(CP_UTF8, 0, text.data(), static_cast<int>(text.size()), wide.data(), len);
+  return wide;
+}
+
+
 // Aurora-x2o.1: notification-area presence. Message-only window
 // (no visible UI) receives the tray callback; the icon is the
 // IDI_ICON1 resource embedded via app.rc, so no .ico path lookup.
@@ -469,17 +487,18 @@ public:
     if(!menu){
       return;
     }
-    AppendMenuA(menu, MF_STRING | (m_webUiBound ? MF_ENABLED : MF_GRAYED),
-      IDM_LAUNCH_UI, "Launch UI");
+    AppendMenuW(menu, MF_STRING | (m_webUiBound ? MF_ENABLED : MF_GRAYED),
+      IDM_LAUNCH_UI, L"Launch UI");
     // One status() snapshot per open (Aurora-k73j): state plus errors
     // together, so a running host holding errors (Aurora-ja76) still reads
     // Pause while a failed one reads See Error.
     const Aurora::Runtime::HostStatus menuStatus =
         (m_hostStatus ? m_hostStatus() : Aurora::Runtime::HostStatus{});
-    AppendMenuA(menu, MF_STRING, IDM_PAUSE,
+    const std::wstring pauseLabel = utf8ToWide(
       Aurora::Runtime::trayPauseItemLabel(menuStatus.state, !menuStatus.errors.empty(),
           m_webUiBound));
-    AppendMenuA(menu, MF_STRING, IDM_STOP, "Stop");
+    AppendMenuW(menu, MF_STRING, IDM_PAUSE, pauseLabel.c_str());
+    AppendMenuW(menu, MF_STRING, IDM_STOP, L"Stop");
     POINT cursor{};
     GetCursorPos(&cursor);
     // Required so the menu dismisses correctly and the next
@@ -490,23 +509,23 @@ public:
     DestroyMenu(menu);
     // KB135788: lets the next right-click re-open the menu.
     PostMessageA(m_window, WM_NULL, 0, 0);
-    if(picked == IDM_LAUNCH_UI){
-      openWebBrowser(m_url);
-    }
-    else if(picked == IDM_PAUSE){
-      // A "See Error" slot opens the WebUI (Aurora-k73j): the banner there
-      // explains and offers the retry. Otherwise the normal run/pause
-      // target post (Aurora-q9l1).
-      const Aurora::Runtime::HostStatus clickStatus =
-          (m_hostStatus ? m_hostStatus() : Aurora::Runtime::HostStatus{});
-      if(Aurora::Runtime::trayPauseItemShowsError(clickStatus.state,
-             !clickStatus.errors.empty(), m_webUiBound)){
+    const Aurora::Runtime::HostStatus clickStatus =
+        (m_hostStatus ? m_hostStatus() : Aurora::Runtime::HostStatus{});
+    // Dispatch table (Aurora::App::resolveTrayClick) incl. the See-Error-
+    // click-opens-WebUI rule (Aurora-k73j) -- unit-tested there since
+    // TrackPopupMenuEx itself needs real input and can't run in a test.
+    switch(Aurora::App::resolveTrayClick(picked, clickStatus, m_webUiBound)){
+      case Aurora::App::TrayClickAction::LaunchUi:
         openWebBrowser(m_url);
-      }
-      else if(m_onTogglePause){ m_onTogglePause(); }
-    }
-    else if(picked == IDM_STOP){
-      g_stopRequested = true;
+        break;
+      case Aurora::App::TrayClickAction::TogglePause:
+        if(m_onTogglePause){ m_onTogglePause(); }
+        break;
+      case Aurora::App::TrayClickAction::Stop:
+        g_stopRequested = true;
+        break;
+      case Aurora::App::TrayClickAction::None:
+        break;
     }
   }
 
