@@ -885,6 +885,29 @@ Aurora-q9l1's tray toggle race: two gdbus Resume clicks 4ms apart coalesced into
 
 ---
 
+## Stalling the wrong fake-bridge endpoint gives a silent no-op, not a slow resume
+Tags: debugging, verification, timing, tray, output, hue, windows
+Applies-when: reusing a fault-injected fake (e.g. `tools/fake-hue-bridge --stall-light`) to manufacture a timing window on a repeated operation
+
+Aurora-q9l1's Windows pass reused the Linux check's recipe (slow bridge,
+repoint via `POST /api/hue/connection`, click through `devstack.py`) but kept
+the stock `--stall-light <id>` flag, which only delays `GET
+.../light/<id>`. The bridge's own access log showed that call never fires
+past the initial pairing build -- every later resume (`Pipeline::build` via
+`PipelineHost::resume`) only hit `GET/PUT .../entertainment_configuration[/
+<id>]` and `GET .../resource`. The flag was a correct no-op on the repeated
+path, so resumes stayed ~1-2s and no race window ever opened; nothing in the
+test itself signaled that the chosen stall point was wrong.
+
+**Fix:** before trusting a stall to manufacture a window, read the fake's own
+request log for the iteration under test (not just the one-time setup) and
+confirm the stalled route actually appears there. Stalling the route that
+*is* hit every time (here, patching a scratch copy to delay the
+`action:"start"` PUT) is one extra flag away once you know which call
+repeats.
+
+---
+
 ## A missing session bus in an agent shell may be the sandbox, not the machine
 Tags: debugging, sandbox, dbus, tray
 Applies-when: tray/SNI verification reports no session bus from an agent-run shell

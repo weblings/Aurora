@@ -1,4 +1,4 @@
-# Aurora-q9l1: tray click-time target, Linux live green (manual Win/Mac pending)
+# Aurora-q9l1: tray click-time target — Linux live green, Windows exercised, closed
 
 Id: q9l1-tray-target-live
 
@@ -24,9 +24,28 @@ green (counts in the bead comment).
   session bus in an agent shell...". Extended "Sibling repos mix CRLF and
   LF..." (stash-pop LF flip) and "A dbusmenu tray can be driven..." (pointer).
 
-## Not done (resume pointer)
+- Windows manual pass (owner clicking the real tray on `devstack.py up
+  --input dummy`, state tracked via a polling script on `GET /api/state`):
+  repointed at a bridge started with the stock `--stall-light` flag on all
+  four `conf-room-4zone` lights. That had no effect on repeat resumes --
+  confirmed from the bridge's own access log, every resume after the initial
+  pairing build only hits `GET/PUT .../entertainment_configuration[/<id>]`,
+  never `GET .../light/<id>` -- so resumes stayed ~1-2s and no stale-label
+  window opened for a second click to land in. The owner then spammed the
+  menu for ~30s anyway: 19 clean real-tray pause/resume alternations, no
+  stuck state, no tray/host errors. A follow-up scratch bridge patch
+  (`--stall-start-seconds`, stalling the `action:"start"` PUT that every
+  resume does hit) was stood up to retarget the specific race window, but no
+  click landed inside it before the session wrapped.
+- Owner's call: the 19-toggle spam run exercised `PendingRunRequest` on the
+  real Windows tray end to end with no regression, and the Linux check
+  already proved the stale-label race mechanism itself; accepted as
+  sufficient and closing without reproducing that exact race live on
+  Windows. Mac manual pass not attempted (same no-agent-access reason).
 
-- Bead stays open for the AC's Windows and Mac manual click passes; no agent
-  can open those menus.
-- The live script (/tmp/q9l1_live.py) and slowed bridge (/tmp/slowbridge/)
-  are scratch, not committed; the technique is what the lessons keep.
+## Not done
+
+- Mac manual click pass remains unverified; no follow-up bead filed.
+- The live scripts and slowed-bridge copies (Linux: /tmp; Windows: this
+  session's scratchpad) are scratch, not committed; the technique is what
+  the lessons keep.
