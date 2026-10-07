@@ -64,7 +64,10 @@ export class DashboardScreen {
     this.tuningValues = {};
     this.toggleError = null;
     this.toggleErrorMode = null; // the mode the failed switch was heading to (Aurora-tazx)
-    this.topTierError = null;
+    // Inline rejected-request errors under the device field, keyed by the
+    // control that raised them (Aurora-m0fy): each clears only on its own
+    // confirmed result, and every current one renders as its own row.
+    this.topTierErrors = {};
     this.stopPhase = null; // null | 'confirm'
     this.stopError = null;
     this.paused = false; // from GET /api/state (Aurora-5ipy.13), falls back to capabilities
@@ -78,12 +81,12 @@ export class DashboardScreen {
     // callback is still on the stack would tear down the very component
     // running it (same hazard ZoneCanvas's onSelect has to avoid).
     this.entertainmentConfigSelect = new EntertainmentConfigSelect({
-      onChange: () => this._onEntertainmentConfigChange(),
+      onChange: (id, result) => this._onEntertainmentConfigChange(id, result),
       // Aurora-ewyz: an unreachable signal owns no inline error -- the shell
       // takeover owns it. Poke the beat; anything else reports as before.
       onError: (message) => {
         if (message === DAEMON_UNREACHABLE) { this.app.checkNow(); return; }
-        this.topTierError = message; this._renderTopTier();
+        this._setTopTierError('entertainmentConfig', message);
       },
     });
 
@@ -326,7 +329,8 @@ export class DashboardScreen {
     this.deviceField?.destroy();
     this.deviceField = null;
 
-    const errorHtml = renderReloadError(this.topTierError, this.platform);
+    const errorHtml = Object.values(this.topTierErrors)
+      .map((message) => renderReloadError(message, this.platform)).join('');
     topTier.innerHTML = `
       <div class="db-device-slot"></div>
       ${errorHtml}
@@ -341,7 +345,7 @@ export class DashboardScreen {
       sinkName: this.sinkName,
       // The hint ("once Video connects") reads wrong beside an error about
       // that same input -- Screen Recording denied is blocked, not connecting.
-      showHint: !this.topTierError && !this.toggleError,
+      showHint: Object.keys(this.topTierErrors).length === 0 && !this.toggleError,
       onChange: (patch) => this._onDeviceFieldChange(patch),
     });
   }
@@ -376,8 +380,9 @@ export class DashboardScreen {
       onSelect: (zoneId) => { this.selectedZoneId = zoneId; },
       onError: (message) => {
         if (message === DAEMON_UNREACHABLE) { this.app.checkNow(); return; }
-        this.topTierError = message; this._renderTopTier();
+        this._setTopTierError('zoneCanvas', message);
       },
+      onSuccess: () => this._clearTopTierError('zoneCanvas'),
       onSeeAllZones: () => {
         this.bridgeSection.expand();
         this.bridgeSection.content.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -402,9 +407,8 @@ export class DashboardScreen {
     const activeZones = this.zones.filter((z) => z.active).sort((a, b) => a.zoneId - b.zoneId);
 
     if (activeZones.length === 0) {
-      this.topTierError = 'No active zones to arrange.';
+      this._setTopTierError('autoArrange', 'No active zones to arrange.');
     } else {
-      this.topTierError = null;
       const rects = screenDivisionRects(activeZones.length);
       try {
         const results = await Promise.all(activeZones.map((zone, i) => (
@@ -414,7 +418,9 @@ export class DashboardScreen {
           }).then((r) => r.json())
         )));
         if (results.some((r) => !r.succeeded)) {
-          this.topTierError = "Couldn't save the auto-arranged zones.";
+          this._setTopTierError('autoArrange', "Couldn't save the auto-arranged zones.");
+        } else {
+          this._clearTopTierError('autoArrange');
         }
       } catch {
         // Unreachable owns this (shell takeover, Aurora-ewyz): poke the
@@ -502,15 +508,20 @@ export class DashboardScreen {
       zoneLabel: (zone) => this._zoneLabel(zone),
       onError: (message) => {
         if (message === DAEMON_UNREACHABLE) { this.app.checkNow(); return; }
-        this.topTierError = message; this._renderTopTier();
+        this._setTopTierError('zoneToggle', message);
       },
+      onSuccess: () => this._clearTopTierError('zoneToggle'),
       onUnreachable: () => this.app.checkNow(),
       tooltipKey: 'zones.active',
     });
   }
 
-  async _onEntertainmentConfigChange() {
-    this.topTierError = null;
+  // The switch saved, so a rejected one's row clears. A reload that failed
+  // after the save is host state: the shell banner owns it (Aurora-98pr);
+  // poke the beat for an early redraw.
+  async _onEntertainmentConfigChange(_id, { reloadError } = {}) {
+    this._clearTopTierError('entertainmentConfig');
+    if (reloadError) this.app.checkNow();
     await this._loadZoneData();
     this._renderZoneMappingContent();
     this._renderBridgeZoneList();
@@ -522,7 +533,6 @@ export class DashboardScreen {
   // of the same component.
   async _onDeviceFieldChange(patch) {
     Object.assign(this, patch);
-    this.topTierError = null;
 
     const apiPatch = devicePatch(this.flags, this);
 
@@ -533,12 +543,12 @@ export class DashboardScreen {
       })).json();
 
       if (!result.succeeded) {
-        this.topTierError = "Couldn't save capture settings.";
-        this._renderTopTier();
-      } else if (result.reloadError) {
+        this._setTopTierError('deviceSave', "Couldn't save capture settings.");
+      } else {
+        this._clearTopTierError('deviceSave');
         // Saved, not applied: the daemon holds the error and the shell
         // banner shows it (Aurora-98pr). Poke the beat for an early redraw.
-        this.app.checkNow();
+        if (result.reloadError) this.app.checkNow();
       }
     } catch {
       // Unreachable owns this (shell takeover, Aurora-ewyz): poke the beat,
@@ -611,6 +621,19 @@ export class DashboardScreen {
     if (confirmed) this._renderTopTier();
   }
 
+  // topTierErrors owners (Aurora-m0fy): both always repaint the top tier,
+  // and a clear only repaints when it removed something.
+  _setTopTierError(key, message) {
+    this.topTierErrors[key] = message;
+    this._renderTopTier();
+  }
+
+  _clearTopTierError(key) {
+    if (!(key in this.topTierErrors)) return;
+    delete this.topTierErrors[key];
+    this._renderTopTier();
+  }
+
   _setToggleError(message, mode) {
     this.toggleError = message;
     this.toggleErrorMode = mode;
@@ -674,17 +697,16 @@ export class DashboardScreen {
           this.app.checkNow();
           return;
         }
-        this.topTierError = "Couldn't pause Aurora.";
-        this._renderTopTier();
+        this._setTopTierError('pause', "Couldn't pause Aurora.");
         return;
       }
+      this._clearTopTierError('pause');
       await this._loadAll();
     } catch {
       // Blip (the daemon answered the re-check): the failed action still
       // needs its own error. Outage: the shell takeover owns it, no inline.
       if (await this.app.checkNow()) {
-        this.topTierError = this.paused ? "Couldn't resume Aurora." : "Couldn't pause Aurora.";
-        this._renderTopTier();
+        this._setTopTierError('pause', this.paused ? "Couldn't resume Aurora." : "Couldn't pause Aurora.");
       }
     } finally {
       this.pauseBusy = false;

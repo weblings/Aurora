@@ -39,7 +39,7 @@ function fakeScreen(overrides = {}) {
   const inst = Object.create(DashboardScreen.prototype);
   inst.paused = false;
   inst.pauseBusy = false;
-  inst.topTierError = null;
+  inst.topTierErrors = {};
   inst.container = { querySelector: (sel) => (sel === '.top-bar-slot' ? slot : makeEl()) };
   inst._renderTopTier = () => {};
   // Shell-beat double (Aurora-ewyz): records immediate re-checks. Tests
@@ -161,7 +161,7 @@ function stubFetch(handler) {
   }
   assert.equal(calls.length, 1);
   assert.equal(reloaded, 0, 'no reload on rejected toggle');
-  assert.equal(inst.topTierError, "Couldn't pause Aurora.");
+  assert.equal(inst.topTierErrors.pause, "Couldn't pause Aurora.");
   assert.equal(renderedTopTier, 1);
 }
 
@@ -179,7 +179,7 @@ function stubFetch(handler) {
   } finally {
     globalThis.fetch = realFetch;
   }
-  assert.equal(inst.topTierError, null);
+  assert.deepEqual(inst.topTierErrors, {});
   assert.equal(renderedTopTier, 0);
   assert.equal(checkNowCalls.length, 1);
   assert.equal(inst.pauseBusy, false);
@@ -201,7 +201,7 @@ function stubFetch(handler) {
   } finally {
     globalThis.fetch = realFetch;
   }
-  assert.equal(inst.topTierError, null);
+  assert.deepEqual(inst.topTierErrors, {});
   assert.equal(renderedTopTier, 0);
   assert.equal(checkNowCalls.length, 1);
   assert.equal(inst.pauseBusy, false);
@@ -224,7 +224,7 @@ function stubFetch(handler) {
   } finally {
     globalThis.fetch = realFetch;
   }
-  assert.equal(inst.topTierError, "Couldn't resume Aurora.");
+  assert.equal(inst.topTierErrors.pause, "Couldn't resume Aurora.");
   assert.equal(renderedTopTier, 1);
   assert.equal(checkNowCalls.length, 1);
   assert.equal(inst.pauseBusy, false);
@@ -292,7 +292,7 @@ function switchScreen({ state, platform = 'mac', toggleError = null, toggleError
     inputs: ['mac'], audioInputs: ['mac-audio'],
     currentActiveInputName: '', currentActiveAudioInputName: 'mac-audio',
     monitors: [], selectedMonitorName: '', sinkName: '',
-    toggleError, toggleErrorMode, topTierError: null,
+    toggleError, toggleErrorMode, topTierErrors: {},
     pipelineState: state,
     _renderControls() { calls.controls++; },
     _renderTopTier() { calls.topTier++; },
@@ -326,13 +326,13 @@ for (const reloadError of [PERMISSION_ERROR, 'bridge unreachable']) {
   assert.equal(calls.checkNow, 1);
 }
 
-// Device save, same rule: no topTierError for a saved-not-applied reload.
+// Device save, same rule: no topTierErrors entry for a saved-not-applied reload.
 {
   stubFetch(() => ({ succeeded: true, reloadError: PERMISSION_ERROR }));
   const { inst, calls } = switchScreen({ state: AUDIO_STATE });
   inst.flags = { usesVideoInput: false, usesAudioInput: true, samplesZones: false };
   try { await inst._onDeviceFieldChange({}); } finally { globalThis.fetch = realFetch; }
-  assert.equal(inst.topTierError, null, 'banner owns the failure');
+  assert.deepEqual(inst.topTierErrors, {}, 'banner owns the failure');
   assert.equal(calls.topTier, 0);
   assert.equal(calls.checkNow, 1);
 }
@@ -420,7 +420,7 @@ for (const reloadError of [PERMISSION_ERROR, 'bridge unreachable']) {
   const topTier = makeEl();
   const inst = Object.create(DashboardScreen.prototype);
   Object.assign(inst, {
-    platform: 'mac', toggleError: null, topTierError: null, deviceField: null,
+    platform: 'mac', toggleError: null, topTierErrors: {}, deviceField: null,
     flags: { usesVideoInput: false, usesAudioInput: true, samplesZones: false },
     audioDevicesUrl: null, monitors: [], selectedMonitorName: '', sinkName: '',
     container: { querySelector: (sel) => (sel === '.db-top-tier' ? topTier : makeEl()) },
@@ -521,6 +521,158 @@ assert.equal(DAEMON_UNREACHABLE, "Couldn't reach the daemon.", 'the shared wordi
   assert.equal(loaded, false);
   assert.equal(topTier.innerHTML, '', 'no inline error for an unreachable daemon');
   assert.equal(checkNowCalls, 1);
+}
+
+// ---- topTierErrors owners (Aurora-m0fy): each control clears only its own ----
+
+// Counts top-tier repaints and records the rows on screen each time, so a
+// cleared error that was never repainted shows up as a stale snapshot.
+function ownerScreen(extra = {}) {
+  const painted = [];
+  const { inst, checkNowCalls } = fakeScreen({
+    _renderTopTier() { painted.push({ ...this.topTierErrors }); },
+    ...extra,
+  });
+  return { inst, painted, checkNowCalls };
+}
+
+// Failed-then-successful device save clears its own error and repaints.
+{
+  const { inst, painted } = ownerScreen({
+    flags: { usesVideoInput: true, usesAudioInput: false, samplesZones: true },
+    monitors: [], selectedMonitorName: '', sinkName: '',
+  });
+  stubFetch(() => ({ succeeded: false }));
+  try { await inst._onDeviceFieldChange({}); } finally { globalThis.fetch = realFetch; }
+  assert.equal(inst.topTierErrors.deviceSave, "Couldn't save capture settings.");
+  stubFetch(() => ({ succeeded: true }));
+  try { await inst._onDeviceFieldChange({}); } finally { globalThis.fetch = realFetch; }
+  assert.deepEqual(inst.topTierErrors, {}, 'confirmed save clears its own error');
+  assert.deepEqual(painted.at(-1), {}, 'and the clear is painted');
+}
+
+// The click alone does not clear: a retry that is still in flight keeps the
+// old message (cleared only by a confirmed result).
+{
+  const { inst } = ownerScreen({
+    flags: { usesVideoInput: true, usesAudioInput: false, samplesZones: true },
+    monitors: [], selectedMonitorName: '', sinkName: '',
+  });
+  inst.topTierErrors.deviceSave = "Couldn't save capture settings.";
+  let release;
+  globalThis.fetch = () => new Promise((r) => { release = () => r({ json: async () => ({ succeeded: true }) }); });
+  const pending = inst._onDeviceFieldChange({});
+  assert.equal(inst.topTierErrors.deviceSave, "Couldn't save capture settings.", 'kept while retry runs');
+  release();
+  try { await pending; } finally { globalThis.fetch = realFetch; }
+  assert.deepEqual(inst.topTierErrors, {});
+}
+
+// An unrelated success leaves another control's error alone: device-save
+// error survives a good auto-arrange, a good pause, and a good config switch.
+{
+  const { inst } = ownerScreen({
+    zones: [{ zoneId: 1, active: true }],
+    _loadZoneData: async () => {}, _renderZoneMappingContent() {}, _renderBridgeZoneList() {},
+    _loadAll: async () => {},
+  });
+  inst.topTierErrors.deviceSave = "Couldn't save capture settings.";
+  stubFetch(() => ({ succeeded: true }));
+  try {
+    await inst._onAutoDivideClick({ disabled: false });
+    await inst._togglePause();
+    await inst._onEntertainmentConfigChange('cfg', {});
+  } finally { globalThis.fetch = realFetch; }
+  assert.equal(inst.topTierErrors.deviceSave, "Couldn't save capture settings.");
+}
+
+// Pause: failed then successful clears its own error.
+{
+  const { inst, painted } = ownerScreen({ _loadAll: async () => {} });
+  stubFetch(() => ({ succeeded: false }));
+  try { await inst._togglePause(); } finally { globalThis.fetch = realFetch; }
+  assert.equal(inst.topTierErrors.pause, "Couldn't pause Aurora.");
+  stubFetch(() => ({ succeeded: true }));
+  try { await inst._togglePause(); } finally { globalThis.fetch = realFetch; }
+  assert.deepEqual(inst.topTierErrors, {});
+  assert.deepEqual(painted.at(-1), {});
+}
+
+// Auto-arrange: success repaints the top tier (a failed attempt's text must
+// leave the screen), failure and the no-active-zones case are painted.
+{
+  const { inst, painted } = ownerScreen({
+    zones: [{ zoneId: 1, active: true }, { zoneId: 2, active: false }],
+    _loadZoneData: async () => {}, _renderZoneMappingContent() {}, _renderBridgeZoneList() {},
+  });
+  stubFetch(() => ({ succeeded: false }));
+  try { await inst._onAutoDivideClick({ disabled: false }); } finally { globalThis.fetch = realFetch; }
+  assert.equal(inst.topTierErrors.autoArrange, "Couldn't save the auto-arranged zones.");
+  assert.equal(painted.at(-1).autoArrange, "Couldn't save the auto-arranged zones.", 'failure painted');
+  stubFetch(() => ({ succeeded: true }));
+  try { await inst._onAutoDivideClick({ disabled: false }); } finally { globalThis.fetch = realFetch; }
+  assert.deepEqual(inst.topTierErrors, {});
+  assert.deepEqual(painted.at(-1), {}, 'success repaints the top tier');
+
+  inst.zones = [{ zoneId: 1, active: false }];
+  await inst._onAutoDivideClick({ disabled: false });
+  assert.equal(inst.topTierErrors.autoArrange, 'No active zones to arrange.');
+  assert.equal(painted.at(-1).autoArrange, 'No active zones to arrange.', 'painted, not just stored');
+}
+
+// A saved switch clears a rejected one's row; a reload that failed after the
+// save adds no inline row and pokes the beat (the shell banner owns it).
+{
+  const { inst, checkNowCalls } = ownerScreen({ _loadZoneData: async () => {}, _renderZoneMappingContent() {}, _renderBridgeZoneList() {} });
+  inst.topTierErrors.entertainmentConfig = "Couldn't switch entertainment configuration.";
+  await inst._onEntertainmentConfigChange('cfg', { reloadError: 'x' });
+  assert.deepEqual(inst.topTierErrors, {});
+  assert.equal(checkNowCalls.length, 1);
+  await inst._onEntertainmentConfigChange('cfg', {});
+  assert.equal(checkNowCalls.length, 1, 'clean switch needs no poke');
+}
+
+// Wiring: the real constructor's select forwards the reload result, and a
+// reload failure through it adds no inline row.
+{
+  const checks = [];
+  const inst = new DashboardScreen({ checkNow: async () => { checks.push(1); return true; } });
+  inst._loadZoneData = async () => {}; inst._renderZoneMappingContent = () => {}; inst._renderBridgeZoneList = () => {};
+  inst._renderTopTier = () => {};
+  await inst.entertainmentConfigSelect.onChange('cfg', { reloadError: 'x' });
+  assert.equal(checks.length, 1, 'result reaches the Dashboard handler');
+  assert.deepEqual(inst.topTierErrors, {});
+  inst.entertainmentConfigSelect.onError("Couldn't switch entertainment configuration.");
+  assert.ok(inst.topTierErrors.entertainmentConfig, 'rejected switch still shows inline');
+}
+
+// Zone toggle success (queue onSuccess) clears only the zoneToggle row.
+{
+  const { inst } = ownerScreen();
+  inst.topTierErrors.zoneToggle = "Couldn't save a zone edit.";
+  inst.topTierErrors.zoneCanvas = "Couldn't save a zone edit.";
+  inst._clearTopTierError('zoneToggle');
+  assert.deepEqual(Object.keys(inst.topTierErrors), ['zoneCanvas']);
+}
+
+// Two errors at once both render, each as its own row, in place on reword.
+{
+  const topTier = makeEl();
+  const inst = Object.create(DashboardScreen.prototype);
+  Object.assign(inst, {
+    platform: 'linux', toggleError: null, topTierErrors: {}, deviceField: null,
+    flags: { usesVideoInput: true, usesAudioInput: false, samplesZones: true },
+    audioDevicesUrl: null, monitors: [], selectedMonitorName: '', sinkName: '',
+    container: { querySelector: (sel) => (sel === '.db-top-tier' ? topTier : makeEl()) },
+  });
+  inst._setTopTierError('deviceSave', "Couldn't save capture settings.");
+  inst._setTopTierError('autoArrange', "Couldn't save the auto-arranged zones.");
+  assert.ok(topTier.innerHTML.includes("Couldn't save capture settings."));
+  assert.ok(topTier.innerHTML.includes("Couldn't save the auto-arranged zones."));
+  inst._setTopTierError('deviceSave', 'Reworded.');
+  assert.ok(!topTier.innerHTML.includes("Couldn't save capture settings."));
+  assert.ok(topTier.innerHTML.indexOf('Reworded.') < topTier.innerHTML.indexOf('auto-arranged'), 'row keeps its place');
+  inst.deviceField?.destroy();
 }
 
 console.log('DashboardScreen pause checks passed.');
