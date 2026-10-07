@@ -59,4 +59,28 @@ namespace Aurora::Runtime
     const Registry& registry,
     const std::filesystem::path& configRoot
   );
+
+  // POST /api/dev/errors {"source": string, "message": string} (dev-only):
+  // injects a generic host error through PipelineHost::setError, so the
+  // shell banner's one- and two-row layouts can be exercised without
+  // breaking the real pipeline (unlike the input-config recipes in
+  // docs/lessons/output.md). Any non-empty source string works; unknown
+  // sources render their message bare (shell.js's SOURCE_PREFIX). Answers
+  // 200 {"succeeded": true}; 409 {"succeeded": false, "error":
+  // "not_running"} when the host has no pipeline or is paused (setError's
+  // own rule); 400 on a bad body.
+  //
+  // POST /api/dev/errors/remove {"source": string} (dev-only): removes that
+  // entry again through PipelineHost::removeError. Answers 200
+  // {"succeeded": true, "removed": bool}; 400 on a bad body.
+  //
+  // Both routes only exist when AURORA_DEV_ERRORS is set (presence-only,
+  // same convention as AURORA_DEV_LIGHT_TAP): without it they stay
+  // unregistered and answer 404, so no production traffic can reach them.
+  // Every app main registers this next to registerStateRoute, which keeps
+  // the tooling cross-platform by construction.
+  void registerDevErrorsRoute(
+    Aurora::Network::Http::Server::HttpServer& server,
+    PipelineHost& pipelineHost
+  );
 }

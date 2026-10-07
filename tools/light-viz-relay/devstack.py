@@ -144,6 +144,10 @@ def _start(args, app, env, pids):
     wait_for(lambda: port_open(18443) and port_open(18245), "bridge + relay")
     pids["viz"] = spawn("viz", py() + [str(Path(__file__).resolve()), "_serve", str(args.viz_port)], env)
     aenv = dict(env, AURORA_DEV_LIGHT_TAP="1")
+    if args.banner_errors:
+        # Presence-only, same convention as AURORA_DEV_LIGHT_TAP: enables
+        # the dev-only /api/dev/errors routes in the app.
+        aenv["AURORA_DEV_ERRORS"] = "1"
     pids["app"] = spawn("app", [str(app), "--fake-hue", "--fresh"], aenv)
     STATE_FILE.write_text(json.dumps(pids))
     port = wait_for(find_webui, "the app's WebUI port (8215+)")
@@ -161,7 +165,14 @@ def _start(args, app, env, pids):
     live = args.input == "live"
     http("PUT", base + "/api/config", cfg, timeout=120 if live else 30)
     frame = wait_for(one_frame, "a frame on the relay SSE", 120 if live else 40)
+    for i in range(args.banner_errors):
+        http("POST", base + "/api/dev/errors", {
+            "source": f"dev-{i + 1}",
+            "message": f"simulated banner error {i + 1} (devstack --banner-errors)",
+        }, timeout=10)
     print(f"UP. WebUI {base}/  viz http://localhost:{args.viz_port}/viz.html")
+    if args.banner_errors:
+        print(f"banner: injected {args.banner_errors} dev error(s); the Dashboard shows 1 row, or a 'N problems' summary for 2")
     print(f"first frame: {frame}")
     print(f"logs: {STATE}")
 
@@ -193,6 +204,8 @@ if __name__ == "__main__":
     u = sub.add_parser("up")
     u.add_argument("--app")
     u.add_argument("--viz-port", type=int, default=8000)
+    u.add_argument("--banner-errors", type=int, default=0, choices=[0, 1, 2],
+                   help="inject 1 or 2 generic banner errors once up (dev-only /api/dev/errors, host keeps running)")
     u.add_argument("--input", default="live",
                    help='"live" (default): this platform\'s real capture; "dummy": synthetic signal')
     sub.add_parser("status")

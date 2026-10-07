@@ -296,10 +296,17 @@ export class App {
       return;
     }
 
-    const collapsed = errors.length > 1 && !this._bannerExpanded;
+    const collapsible = errors.length > 1;
+    const collapsed = collapsible && !this._bannerExpanded;
+    // Same chevron-down.svg the accordions use (dashboard.css's
+    // .accordion-chevron), not a one-off glyph -- rotated 180deg here for
+    // "collapse" the same way .accordion-section.expanded already does.
     const body = collapsed
-      ? `<button type="button" class="shell-banner-summary" id="shell-banner-expand">⚠ ${errors.length} problems ▾</button>`
-      : errors.map((error) => this._renderBannerRow(error)).join('');
+      ? `<button type="button" class="shell-banner-summary" id="shell-banner-expand">⚠ ${errors.length} problems <span class="accordion-chevron" aria-hidden="true"></span></button>`
+      : errors.map((error) => this._renderBannerRow(error)).join('')
+        + (collapsible
+          ? `<button type="button" class="shell-banner-summary shell-banner-collapse" id="shell-banner-collapse">Show less <span class="accordion-chevron shell-banner-chevron-up" aria-hidden="true"></span></button>`
+          : '');
 
     this.bannerSlot.innerHTML = `
       <div class="shell-banner">
@@ -313,6 +320,12 @@ export class App {
         this._renderBanner();
       });
       return;
+    }
+    if (collapsible) {
+      this.bannerSlot.querySelector('#shell-banner-collapse')?.addEventListener('click', () => {
+        this._bannerExpanded = false;
+        this._renderBanner();
+      });
     }
     for (const error of errors) {
       this.bannerSlot.querySelector(`#shell-banner-retry-${error.source}`)?.addEventListener('click', () => this._retry(error.source));
@@ -341,14 +354,18 @@ export class App {
       ? renderAudioPermissionBanner({ retryId })
       : parsed
       ? renderReloadError(error.message, this.platform, { retryId })
-      : `<p class="status-text status-text-error">⚠ ${escapeHtml(text)}</p>
+      : `<p class="status-text status-text-error"><strong>⚠</strong> ${escapeHtml(text)}</p>
          <button type="button" class="btn btn-secondary" id="${retryId}" style="margin-top: var(--aurora-space-3);">Retry</button>`;
     // X only while the old setup still works (ErrorOverlay.md, 'Dismiss'):
     // a paused or failed host's row is the reason there are no lights.
     const dismiss = this.hostState === 'running' && Number.isInteger(error.id)
       ? `<button type="button" class="shell-banner-dismiss" id="shell-banner-dismiss-${escapeHtml(error.source)}" aria-label="Dismiss">×</button>`
       : '';
-    return `<div class="shell-banner-row">${dismiss}${inner}</div>`;
+    // Content wrapped so the row can flex dismiss-beside-text instead of
+    // absolutely positioning the x with a fixed pixel nudge: that fixed
+    // offset doesn't track the text's actual first line, so it looks
+    // off whenever row padding or text length changes (see shell.css).
+    return `<div class="shell-banner-row"><div class="shell-banner-content">${inner}</div>${dismiss}</div>`;
   }
 
   // The daemon owns the dismissal; the {source, id} pair makes a click that

@@ -623,6 +623,7 @@ if(!instanceLock.held()){
   registerAudioSinksRoute(httpServer);
   Aurora::Runtime::registerReloadRoute(httpServer, pipelineHost, registry, configRoot);
   Aurora::Runtime::registerStateRoute(httpServer, pipelineHost, registry, configRoot);
+  Aurora::Runtime::registerDevErrorsRoute(httpServer, pipelineHost);
   registerStopRoute(httpServer);
   Aurora::Runtime::registerZoneRoutes(
     httpServer,
