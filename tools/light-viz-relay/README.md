@@ -171,6 +171,16 @@ fragmented -- confirmed live against macOS's actual `net.inet.udp.maxdgram`
 (9216 by default, well under IPv4's theoretical max), so keep subsample
 width sane if `frame` reports fewer frames than expected.
 
+## Simulating banner errors (no real failure needed)
+
+`devstack.py up --banner-errors 1` (or `2`) starts the app with
+`AURORA_DEV_ERRORS=1` and injects that many generic errors through the
+dev-only `POST /api/dev/errors` route once frames flow -- 1 shows a full
+row on the Dashboard, 2 collapse to the "N problems" summary. The host
+keeps running, so the rows carry the dismiss X. Without the env flag
+those routes stay unregistered (404). Removing one by hand:
+`POST /api/dev/errors/remove {"source":"dev-1"}`.
+
 ## Test pattern page (`pattern.html`)
 
 Gives capture something known to look at (`Aurora-d0hl`, built for `Aurora-1t1`).

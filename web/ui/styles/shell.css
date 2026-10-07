@@ -180,13 +180,33 @@ body {
 }
 
 .shell-banner-row {
-  position: relative;
+  display: flex;
+  align-items: flex-start;
+  gap: var(--aurora-space-3);
+  border: 2px solid var(--aurora-border);
+  border-radius: var(--aurora-radius-panel);
+  padding: var(--aurora-space-4) var(--aurora-space-6);
+}
+
+.shell-banner-content {
+  flex: 1;
+  min-width: 0;
+}
+
+/* .status-text's own margin-top (forms.css) assumes it follows some other
+   element in normal flow; as this row's first child, with the row now a
+   flex item/bordered box that no longer lets that margin collapse away, it
+   was stacking on the row's own padding and pushing the text down past
+   where the dismiss x aligns. */
+.shell-banner-content > :first-child {
+  margin-top: 0;
 }
 
 .shell-banner-dismiss {
-  position: absolute;
-  top: -4px;
-  right: -8px;
+  /* flex-start + a fixed nudge keyed to the first line, not the row's total
+     height -- stays put whether the text is one line or wraps to two. */
+  flex-shrink: 0;
+  margin: -4px -8px 0 0;
   width: 28px;
   height: 28px;
   background: none;
@@ -208,24 +228,21 @@ body {
   margin-top: 0 !important;
 }
 
-.shell-banner-dismiss ~ p {
-  padding-right: 24px;
-}
-
 .shell-banner-dismiss:hover {
   color: var(--aurora-text-primary);
 }
 
 .shell-banner-row + .shell-banner-row {
   margin-top: var(--aurora-space-5);
-  padding-top: var(--aurora-space-5);
-  border-top: 1px solid var(--aurora-border);
 }
 
 .shell-banner-summary {
-  display: block;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--aurora-space-2);
   width: 100%;
-  text-align: left;
+  text-align: center;
   background: none;
   border: none;
   padding: 0;
@@ -234,5 +251,17 @@ body {
   font-weight: 700;
   color: var(--aurora-text-primary);
   cursor: pointer;
+}
+
+/* Sits below the expanded rows, re-collapsing the banner (shell.js) --
+   same chevron asset as the summary button above, just pointed the other
+   way, so expand/collapse reads as one reversible control. */
+.shell-banner-collapse {
+  justify-content: center;
+  margin-top: var(--aurora-space-4);
+}
+
+.shell-banner-chevron-up {
+  transform: rotate(180deg);
 }
 

@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <atomic>
 #include <chrono>
+#include <cstdlib>
 #include <functional>
 #include <future>
 #include <memory>
@@ -1847,4 +1848,163 @@ TEST_CASE("A hot-only save after a failed structural reload retries the structur
   // Fixing the structural field recovers.
   store.update([](Config& c){ c.setActiveInputName("fake-video"); return true; });
   CHECK(applyConfigFromDisk(host, registry, dir.path).empty());
+}
+
+
+// Dev-only banner-error injection: without AURORA_DEV_ERRORS the routes do
+// not exist (404, host untouched); with it, generic errors can be set and
+// removed on a running host -- two at once for the banner's collapsed case.
+TEST_CASE("POST /api/dev/errors injects and removes generic host errors only when AURORA_DEV_ERRORS is set", "[PipelineRoutes]")
+{
+  using namespace Aurora::Network::Http::Server;
+
+  // The flag is read once per registerDevErrorsRoute call, so set it
+  // explicitly around each registration and restore whatever was there.
+  struct ScopedDevErrorsEnv
+  {
+    explicit ScopedDevErrorsEnv(bool on)
+    {
+      const char* previous = std::getenv("AURORA_DEV_ERRORS");
+      m_hadPrevious = previous != nullptr;
+      if(m_hadPrevious){ m_previous = previous; }
+      set(on);
+    }
+
+    ~ScopedDevErrorsEnv()
+    {
+      if(m_hadPrevious){ set(true, m_previous.c_str()); }
+      else{ set(false); }
+    }
+
+    ScopedDevErrorsEnv(const ScopedDevErrorsEnv&) = delete;
+    ScopedDevErrorsEnv& operator=(const ScopedDevErrorsEnv&) = delete;
+
+  private:
+    static void set(bool on, const char* value = "1")
+    {
+#ifdef _WIN32
+      _putenv(on ? "AURORA_DEV_ERRORS=1" : "AURORA_DEV_ERRORS=");
+      if(on && std::string(value) != "1"){ _putenv(("AURORA_DEV_ERRORS=" + std::string(value)).c_str()); }
+#else
+      if(on){ ::setenv("AURORA_DEV_ERRORS", value, 1); }
+      else{ ::unsetenv("AURORA_DEV_ERRORS"); }
+#endif
+    }
+
+    bool m_hadPrevious{false};
+    std::string m_previous;
+  };
+
+  auto errorsOf = [&](httplib::Client& client){
+    auto result = getWithRetry(client, "/api/state");
+    REQUIRE(result);
+    return nlohmann::json::parse(result->body);
+  };
+
+  // Without the flag the routes do not exist: 404, host untouched.
+  {
+    ScopedTempDir dir("dev-errors-gated");
+    auto events = std::make_shared<Events>();
+    auto registry = makeRegistry(events);
+    PipelineHost host(Pipeline::build(registry, videoConfig(), dir.path, {}), {});
+
+    ScopedDevErrorsEnv env(false);
+    HttpServer server;
+    registerDevErrorsRoute(server, host);
+    REQUIRE(server.bind("127.0.0.1", 18246));
+    std::thread serverThread([&](){ server.listen(); });
+
+    httplib::Client client("127.0.0.1", 18246);
+    auto res = client.Post("/api/dev/errors", R"({"source":"dev-1","message":"boom"})", "application/json");
+    REQUIRE(res);
+    CHECK(res->status == 404);
+    CHECK(host.status().errors.empty());
+
+    server.stop();
+    serverThread.join();
+    host.shutdown();
+  }
+
+  // With the flag: two generic errors coexist on a running host (the
+  // banner's collapsed case), and remove clears one.
+  {
+    ScopedTempDir dir("dev-errors-set");
+    auto events = std::make_shared<Events>();
+    auto registry = makeRegistry(events);
+    PipelineHost host(Pipeline::build(registry, videoConfig(), dir.path, {}), {});
+
+    ScopedDevErrorsEnv env(true);
+    HttpServer server;
+    registerStateRoute(server, host, registry, dir.path);
+    registerDevErrorsRoute(server, host);
+    REQUIRE(server.bind("127.0.0.1", 18246));
+    std::thread serverThread([&](){ server.listen(); });
+
+    httplib::Client client("127.0.0.1", 18246);
+    auto set = [&](const std::string& source, const std::string& message){
+      return client.Post("/api/dev/errors", nlohmann::json{{"source", source}, {"message", message}}.dump(), "application/json");
+    };
+
+    auto first = set("dev-1", "first failure");
+    REQUIRE(first);
+    CHECK(first->status == 200);
+    CHECK(nlohmann::json::parse(first->body) == nlohmann::json{{"succeeded", true}});
+
+    auto second = set("dev-2", "second failure");
+    REQUIRE(second);
+    CHECK(second->status == 200);
+
+    auto shown = errorsOf(client);
+    CHECK(shown["state"] == "running");
+    REQUIRE(shown["errors"].size() == 2);
+    CHECK(shown["errors"][0]["source"] == "dev-1");
+    CHECK(shown["errors"][1]["source"] == "dev-2");
+
+    auto bad = client.Post("/api/dev/errors", R"({"source":"dev-3"})", "application/json");
+    REQUIRE(bad);
+    CHECK(bad->status == 400);
+    CHECK(errorsOf(client)["errors"].size() == 2);
+
+    auto remove = [&](const std::string& source){
+      return client.Post("/api/dev/errors/remove", nlohmann::json{{"source", source}}.dump(), "application/json");
+    };
+    auto removed = remove("dev-1");
+    REQUIRE(removed);
+    CHECK(removed->status == 200);
+    CHECK(nlohmann::json::parse(removed->body) == nlohmann::json{{"succeeded", true}, {"removed", true}});
+    auto remaining = errorsOf(client);
+    REQUIRE(remaining["errors"].size() == 1);
+    CHECK(remaining["errors"][0]["source"] == "dev-2");
+
+    auto repeat = remove("dev-1");
+    REQUIRE(repeat);
+    CHECK(nlohmann::json::parse(repeat->body) == nlohmann::json{{"succeeded", true}, {"removed", false}});
+
+    server.stop();
+    serverThread.join();
+    host.shutdown();
+  }
+
+  // Idle host (no pipeline): set answers 409, like the dismiss route.
+  {
+    ScopedTempDir dir("dev-errors-idle");
+    auto events = std::make_shared<Events>();
+    auto registry = makeRegistry(events);
+    PipelineHost host(nullptr, {});
+
+    ScopedDevErrorsEnv env(true);
+    HttpServer server;
+    registerDevErrorsRoute(server, host);
+    REQUIRE(server.bind("127.0.0.1", 18246));
+    std::thread serverThread([&](){ server.listen(); });
+
+    httplib::Client client("127.0.0.1", 18246);
+    auto res = client.Post("/api/dev/errors", R"({"source":"dev-1","message":"boom"})", "application/json");
+    REQUIRE(res);
+    CHECK(res->status == 409);
+    CHECK(nlohmann::json::parse(res->body) == nlohmann::json{{"succeeded", false}, {"error", "not_running"}});
+
+    server.stop();
+    serverThread.join();
+  }
 }

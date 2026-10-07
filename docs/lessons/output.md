@@ -405,3 +405,14 @@ Aurora-cj11's onboarding-gate check on the Mac. Setting `activeOutputNames: []` 
 
 **Fix:** recipe = back up `hue-credentials.json` and `config.json`, move credentials aside, set `nuxCompleted:false` and `activeOutputNames:["hue"]`, launch with a bogus input, fix the input, `POST /api/reload`; restore both files and relaunch. Verify the checksum of the credentials file after restoring.
 
+---
+
+## Generic banner errors are injectable without breaking the pipeline
+Tags: output, testing, failure-injection, banner
+Applies-when: you need banner rows (1 or 2, with Retry/X) without a real failure, or two simultaneous errors, which no real build path produces on Linux
+
+The input-config recipes (bogus `activeInputName`, moved-aside credentials) produce real build errors but only one build-source entry at a time, and only by breaking the pipeline. `POST /api/dev/errors` (dev-only, needs `AURORA_DEV_ERRORS=1`; see `registerDevErrorsRoute`) injects any source/message through `PipelineHost::setError` on a running host instead, so two entries coexist for the collapsed "N problems" layout; `POST /api/dev/errors/remove` clears one. `devstack.py up --banner-errors 1|2` does both steps. Without the env flag the routes stay unregistered (404). Note the X is per-host-state, not per-row: injected errors on a running host always carry it; no-X rows need a real failed host, so the two states are sequential, never one mixed banner.
+
+**Fix:** for banner-layout work, inject via the dev route (or the devstack flag), not via broken input config; reserve the input-config recipes for testing real build-failure paths.
+
+**Extended (Aurora-x1lh):** a successful reload wipes injected errors too -- `PipelineHost::reload()` publishes an empty error list on success (`Pipeline.cpp`'s `_publishStatusLocked({})`), same as any other build. Clicking a real control that triggers a reload (e.g. the Dashboard's Video/Audio toggle) while dev-injected rows are up clears them as a side effect; re-POST `/api/dev/errors` afterward rather than treating the vanished banner as a CSS/markup bug.

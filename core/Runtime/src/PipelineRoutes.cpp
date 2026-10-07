@@ -1,3 +1,5 @@
+#include <cstdlib>
+
 #include <Aurora/Runtime/PipelineRoutes.hpp>
 
 #include <nlohmann/json.hpp>
@@ -174,6 +176,72 @@ namespace Aurora::Runtime
             res.body = nlohmann::json{{"succeeded", false}, {"error", "not_running"}}.dump();
             break;
         }
+      }
+      );
+  }
+
+  void registerDevErrorsRoute(
+    HttpServer& server,
+    PipelineHost& pipelineHost
+  )
+  {
+    // Presence-only flag, same convention as AURORA_DEV_LIGHT_TAP:
+    // without it the routes below are never registered, so release
+    // traffic always 404s here no matter who asks.
+    if(!std::getenv("AURORA_DEV_ERRORS")){
+      return;
+    }
+
+    server.addRoute(
+      HttpMethod::Post,
+      "/api/dev/errors",
+      [&pipelineHost](const Request& req, Response& res){
+        res.contentType = "application/json";
+
+        std::string source;
+        std::string message;
+        try{
+          const nlohmann::json body = nlohmann::json::parse(req.body);
+          source = body.at("source").get<std::string>();
+          message = body.at("message").get<std::string>();
+        }
+        catch(const nlohmann::json::exception&){
+          res.status = 400;
+          res.body = nlohmann::json{{"succeeded", false}, {"error", "source_and_message_required"}}.dump();
+          return;
+        }
+        if(source.empty() || message.empty()){
+          res.status = 400;
+          res.body = nlohmann::json{{"succeeded", false}, {"error", "source_and_message_required"}}.dump();
+          return;
+        }
+
+        if(!pipelineHost.setError(source, message)){
+          res.status = 409;
+          res.body = nlohmann::json{{"succeeded", false}, {"error", "not_running"}}.dump();
+          return;
+        }
+        res.body = nlohmann::json{{"succeeded", true}}.dump();
+      }
+    );
+
+    server.addRoute(
+      HttpMethod::Post,
+      "/api/dev/errors/remove",
+      [&pipelineHost](const Request& req, Response& res){
+        res.contentType = "application/json";
+
+        std::string source;
+        try{
+          source = nlohmann::json::parse(req.body).at("source").get<std::string>();
+        }
+        catch(const nlohmann::json::exception&){
+          res.status = 400;
+          res.body = nlohmann::json{{"succeeded", false}, {"error", "source_required"}}.dump();
+          return;
+        }
+
+        res.body = nlohmann::json{{"succeeded", true}, {"removed", pipelineHost.removeError(source)}}.dump();
       }
     );
   }

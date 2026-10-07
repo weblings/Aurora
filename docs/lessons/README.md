@@ -28,14 +28,14 @@ Aurora's own module boundaries instead of RockyRoad's. `rendering-apis.md` vs.
 | [language-cpp.md](language-cpp.md) | namespace, threads, C-portability | 16 | C++ language gotcha |
 | [input.md](input.md) | capture/grabber/platform-adapter | 40 | capture/grabber specific |
 | [processing.md](processing.md) | color/effect transform, zone-mapping | 9 | color/effect/zone-mapping specific |
-| [output.md](output.md) | streaming/protocol, any target | 16 | streaming/protocol/wire-format specific |
+| [output.md](output.md) | streaming/protocol, any target | 17 | streaming/protocol/wire-format specific |
 | [rendering-apis.md](rendering-apis.md) | third-party rendering facts | 4 | Three.js/GLTFLoader/Blender behavior, not our design |
 | [rendering-internals.md](rendering-internals.md) | own 3D-scene design | 4 | our scene technique, demonstrated by a real bug |
 | [planning.md](planning.md) | reuse research, JTBD, doc hygiene | 22 | WebUI planning/design-process finding |
 | [components.md](components.md) | behavior, callbacks, data shapes | 16 | WebUI component finding |
 | [webui-testing.md](webui-testing.md) | jsdom limits, mocks, fixtures | 8 | WebUI testing finding |
 | [navigation-flow.md](navigation-flow.md) | Back/Continue, gating, NUX | 11 | WebUI flow finding |
-| [layout-css.md](layout-css.md) | responsive, pseudo-elements, flex | 11 | WebUI layout/CSS finding |
+| [layout-css.md](layout-css.md) | responsive, pseudo-elements, flex | 12 | WebUI layout/CSS finding |
 
 Counts as of 2026-10-07 — bump the count when adding entries
 (`grep -c '^## '` per file).
