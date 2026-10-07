@@ -1,5 +1,7 @@
 # Architecture process
 
+Id: lesson-architecture-process
+
 Module splits, duplication, reload lifecycles, presence signals, docs hygiene. See [README.md](README.md) for filing rules.
 
 ---
@@ -490,7 +492,7 @@ Migrating `docs/planning/ImplementationPlan.md` to the `Id:`/`[[id]]`
 convention (Aurora-d8g), six citers of the file living *outside*
 `docs/`'s scan scope -- `AGENTS.md`, `app/linux/README.md`,
 `app/windows/README.md`, and three `web/demo/{README,AGENTS,CLAUDE}.md`
-files -- turned out to already be dead. `check-links.sh` only walks
+files -- turned out to already be dead. `check-links.py` only walks
 `docs/` and `.claude/skills/`, so `app/linux/README.md`'s link had been
 silently broken since Aurora-o1e moved the file into `docs/planning/` the
 previous day (2026-09-28) -- a full day with a dead link nothing flagged,
@@ -499,7 +501,7 @@ migration.
 
 **Fix:** before or after moving/renaming any `docs/` file, `grep -rn
 '<old-filename>'` the whole repo (not just `docs/`), not only
-`check-links.sh` -- its scan boundary is real and doesn't cover
+`check-links.py` -- its scan boundary is real and doesn't cover
 top-level/module `README.md`/`AGENTS.md` files that also cite docs.
 Converting a found citer's link to `[[id]]` where the target already has
 one also makes it immune to the next move, so treat cleanup of these as
@@ -518,7 +520,7 @@ migration's *scope statement* needs the repo-wide grep named explicitly
 isn't load-bearing on the next similarly-scoped bead.
 
 Resolution (Aurora-y2a): the durable fix was making the tool cover the gap,
-not another reminder. `check-links.sh` now also scans the slice READMEs and
+not another reminder. `check-links.py` now also scans the slice READMEs and
 the root `README`/`CONTRIBUTING`/`AGENTS`/`CLAUDE` files. Its first run found
 four dead citations that had survived every prior review, including one
 whose visible label was correct but whose href was not
@@ -821,7 +823,7 @@ Aurora-h457: a first audio-row Retry saved audio-only config and cleared nothing
 Tags: beads, git-hooks, tooling
 Applies-when: wiring a project script into a git hook in a repo that already uses `bd hooks install`
 
-Wiring `check-lessons.sh`/`check-links.sh` into pre-commit (Aurora-lmn.5), `core.hooksPath` already pointed at the bd-managed, git-tracked `.beads/hooks/pre-commit`. A separate hook file would never run (git only consults the one path `core.hooksPath` names), and hand-editing inside the `# --- BEGIN/END BEADS INTEGRATION ---` markers risked being clobbered by a future `bd hooks install`. `bd hooks install --help` documents the actual contract: "Hooks use section markers to coexist with existing hooks -- any user content outside the markers is preserved across installs and upgrades."
+Wiring `check-lessons.sh`/`check-links.py` into pre-commit (Aurora-lmn.5), `core.hooksPath` already pointed at the bd-managed, git-tracked `.beads/hooks/pre-commit`. A separate hook file would never run (git only consults the one path `core.hooksPath` names), and hand-editing inside the `# --- BEGIN/END BEADS INTEGRATION ---` markers risked being clobbered by a future `bd hooks install`. `bd hooks install --help` documents the actual contract: "Hooks use section markers to coexist with existing hooks -- any user content outside the markers is preserved across installs and upgrades."
 
 **Fix:** append custom hook logic after the `END BEADS INTEGRATION` marker in the relevant `.beads/hooks/<name>` file, never inside it and never as a separate file while `core.hooksPath` is bd-owned.
 
@@ -829,6 +831,6 @@ Wiring `check-lessons.sh`/`check-links.sh` into pre-commit (Aurora-lmn.5), `core
 Tags: process, enforcement, hooks, honor-system
 Applies-when: wiring a previously-manual checker into a hook or CI for the first time
 
-`check-links.sh`/`check-lessons.sh` ran "by convention" for weeks (Aurora-lmn.4, deferred). Wiring them into the pre-commit hook (Aurora-lmn.5) immediately caught a real `Tags:` formatting bug just added to `components.md` and two dead `[[windows-env]]`/`[[macos-gui]]` wikilinks that had sat in a committed log entry since the previous session -- neither was a false positive or a tooling bug, both were real violations the honor system had simply never caught.
+`check-links.py`/`check-lessons.sh` ran "by convention" for weeks (Aurora-lmn.4, deferred). Wiring them into the pre-commit hook (Aurora-lmn.5) immediately caught a real `Tags:` formatting bug just added to `components.md` and two dead `[[windows-env]]`/`[[macos-gui]]` wikilinks that had sat in a committed log entry since the previous session -- neither was a false positive or a tooling bug, both were real violations the honor system had simply never caught.
 
 **Fix:** expect a checker's first enforcement run to fail on a real backlog, not a bug in the checker itself. Fix the backlog in the same change that turns enforcement on, rather than disabling the check to unblock the commit — that's the whole gap this kind of hook exists to close.

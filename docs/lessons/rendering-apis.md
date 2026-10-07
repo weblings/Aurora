@@ -1,5 +1,7 @@
 # Rendering APIs
 
+Id: lesson-rendering-apis
+
 Third-party facts about Three.js/GLTFLoader/Blender's glTF export — not this project's own
 design choices, but real API/tool behavior that constrains how code against them must be
 written. See [`README.md`](README.md) for how entries get routed here vs. `rendering-internals.md`.

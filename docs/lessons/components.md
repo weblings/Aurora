@@ -1,5 +1,7 @@
 # WebUI components
 
+Id: lesson-components
+
 Component behavior, callbacks, data shapes, and side effects. See [README.md](README.md) for filing rules.
 
 ---

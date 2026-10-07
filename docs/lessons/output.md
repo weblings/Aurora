@@ -1,5 +1,7 @@
 # Output — streaming/protocol gotchas
 
+Id: lesson-output
+
 Hue and any later DMX/Art-Net/sACN/OPC targets. See [`README.md`](README.md) for how
 entries get routed here vs. elsewhere.
 

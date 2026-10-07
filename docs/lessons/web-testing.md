@@ -1,5 +1,7 @@
 # Web testing
 
+Id: lesson-web-testing
+
 jsdom, live tests, routes, settings round-trips, browser cache. See [README.md](README.md) for filing rules.
 
 ---

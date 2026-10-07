@@ -59,9 +59,9 @@ fi
 # --- END BEADS INTEGRATION v1.3.0 ---
 
 # --- BEGIN PROJECT DOC-LINT HOOKS (Aurora-lmn.5) ---
-# check-lessons.sh/check-links.sh only ran manually/by convention before
+# check-lessons.sh/check-links.py only ran manually/by convention before
 # this (docs/log/2026-09-20-docs-system-overhaul.md: "honor over hooks"),
-# which let check-links.sh's stale base path go unnoticed for 8 days
+# which let check-links.py's stale base path go unnoticed for 8 days
 # (docs/archive/DocsAndLessonsPainPoints.md). Gated to commits that
 # actually touch what they check, so an unrelated commit (e.g. pure C++)
 # pays nothing. Not piped (docs/lessons/debugging-method.md: piping a
@@ -83,10 +83,10 @@ if [ "$_docs_touched" -eq 1 ]; then
   fi
   _py=python3
   command -v python3 >/dev/null 2>&1 || _py=python
-  # check-links.sh regenerates docs/_ids.md as a side effect; re-stage it
+  # check-links.py regenerates docs/_ids.md as a side effect; re-stage it
   # so a successful run's fresh index lands in this same commit.
-  if ! "$_py" "$_repo_root/docs/check-links.sh"; then
-    echo >&2 "docs/check-links.sh failed -- fix the dead references above, or 'git commit --no-verify' to bypass."
+  if ! "$_py" "$_repo_root/docs/check-links.py"; then
+    echo >&2 "docs/check-links.py failed -- fix the dead references above, or 'git commit --no-verify' to bypass."
     exit 1
   fi
   git add "$_repo_root/docs/_ids.md"

@@ -182,7 +182,7 @@ in parallel, then 2, 4, 5, 6.
 - Settle the open questions below; apply the cross-reference corrections
   to [[implementation-plan]] (WebSocket dependency) and
   [[home-assistant-output]] (Local API rules → this doc).
-- Test: `check-links.sh`.
+- Test: `check-links.py`.
 
 ### Phase 1 — pause/resume (Aurora-3ddb)
 - Core `PipelineHost` + route (Aurora-3ddb, testable from the CLI with

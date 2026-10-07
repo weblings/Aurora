@@ -1,5 +1,7 @@
 # Rendering internals
 
+Id: lesson-rendering-internals
+
 This project's own 3D-scene design decisions and techniques (not a third-party library's own
 API/behavior — see `rendering-apis.md` for those), each demonstrated via a real issue while
 building `Aurora-Demo-Web`'s Three.js scenes. See [`README.md`](README.md) for routing rules.

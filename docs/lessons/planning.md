@@ -1,5 +1,7 @@
 # WebUI planning
 
+Id: lesson-planning
+
 Reuse research, JTBD, doc hygiene, and design-process lessons. See [README.md](README.md) for filing rules.
 
 ---

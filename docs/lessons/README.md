@@ -80,6 +80,8 @@ actually happened (root cause), then a bolded **Fix:** line. See RockyRoad's
 Cite entries by headline, never by filename — headlines survive splits,
 filenames don't.
 
+Each file also carries a file-level `Id: lesson-<slug>` line under its H1. Doc ids live in one global flat namespace (`docs/_ids.md` has no per-directory partitioning, and a bare `[[id]]` citation carries no directory context), so the `lesson-` prefix is what keeps lesson files distinct. Cite a whole file as `[[lesson-windows-env]]`; cite a specific entry as that plus its headline in prose (e.g. see `[[lesson-windows-env]]`'s AppendMenuA entry).
+
 ## Skills
 
 Per-bucket skills in `.claude/skills/` (mirroring RockyRoad's) route to

@@ -1,5 +1,7 @@
 # WebUI lessons (split)
 
+Id: lesson-web-ui
+
 Split by query coherence — see [README.md](README.md) for the index:
 
 - [planning.md](planning.md) — reuse research, JTBD, doc hygiene, design process.

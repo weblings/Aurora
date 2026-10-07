@@ -1,5 +1,7 @@
 # Windows environment
 
+Id: lesson-windows-env
+
 Processes, installers, ACLs, output capture, probing from this environment. See [README.md](README.md) for filing rules.
 
 ---
