@@ -41,12 +41,16 @@ the same day (below).
   button. A rejected resume now sets nothing and calls `checkNow()`; "Couldn't
   pause" and the blip-path copy stay inline (nothing held for them).
 - **Retry cannot recover a denied prompt.** After Don't Allow, macOS does not
-  prompt again, so Retry did nothing visible. `renderReloadError`'s banner row
-  now splits on the prefix: `permission_denied:` shows "Turn it on in System
-  Settings, then Retry" with the `Privacy_ScreenCapture` link beside Retry;
-  `permission_pending:` stays Retry-only (the prompt is the fix). Web search
-  confirmed only that an app cannot re-prompt after a denial; it did not
-  confirm the deep link on Tahoe (cj11's live check found it opens the pane).
+  prompt again, so Retry did nothing visible. The banner row for
+  `permission_denied:` now carries the `Privacy_ScreenCapture` link beside
+  Retry; `permission_pending:` stays Retry-only (the prompt is the fix).
+  Web search confirmed only that an app cannot re-prompt after a denial; the
+  deep link works on the owner's Mac. First cut keyed the copy on "denied =
+  Don't Allow clicked"; wrong: `Denied` in `ScreenCaptureKitGrabber.mm` is
+  "answered with zero displays", which is also the never-asked state after a
+  TCC reset (Retry then raises the prompt). Final copy covers both: "Allow it
+  in the macOS prompt if one appears, or turn it on in System Settings, then
+  Retry.", Retry first, Settings link second.
 - **Live, owner's real denial** (their `open`-launched Aurora.app on 8215,
   state `paused`, `resume: permission_denied: ScreenCaptureKitGrabber...`):
   row shows the new copy, link href `...?Privacy_ScreenCapture`, Retry, no X

@@ -58,10 +58,11 @@ export function renderReloadError(message, platform, { retryId } = {}) {
 
   // Banner row (Aurora-cj11): one line. Pending: the macOS prompt is the fix
   // (the Settings link never adds Aurora to the Screen Recording list, only
-  // the prompt does), so Retry only. Denied: macOS never prompts again after
-  // a Don't Allow, so Retry alone cannot recover; the pane is the only way
-  // forward and Aurora is already in its list, so the link comes back next to
-  // Retry (Aurora-98pr).
+  // the prompt does), so Retry only. Denied (Aurora-98pr): the daemon cannot
+  // tell "never asked" from "Don't Allow" -- both are an answer with zero
+  // displays -- so one row covers both: Retry first (it raises the prompt
+  // when macOS has not recorded a decision), the Settings link second (the
+  // only way forward after a Don't Allow, since macOS never prompts again).
   if (retryId) {
     if (parsed.kind === 'pending') {
       return `
@@ -70,10 +71,10 @@ export function renderReloadError(message, platform, { retryId } = {}) {
   `;
     }
     return `
-    <p class="status-text status-text-error">⚠ <strong>Screen Recording is off.</strong> Turn it on in System Settings, then Retry.</p>
+    <p class="status-text status-text-error">⚠ <strong>Screen Recording is off.</strong> Allow it in the macOS prompt if one appears, or turn it on in System Settings, then Retry.</p>
     <div class="shell-banner-actions">
-      <a class="btn btn-secondary" style="text-decoration: none;" href="${SCREEN_RECORDING_SETTINGS_URL}">Open Screen Recording settings</a>
       ${retryButton}
+      <a class="btn btn-secondary" style="text-decoration: none;" href="${SCREEN_RECORDING_SETTINGS_URL}">Open Screen Recording settings</a>
     </div>
   `;
   }

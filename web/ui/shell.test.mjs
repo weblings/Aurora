@@ -318,7 +318,8 @@ const stateOk = (extra = {}) => async () => ({ reachable: true, state: 'running'
   assert.ok(banner().includes('Privacy_ScreenCapture'));
   assert.ok(banner().includes('id="shell-banner-retry-startup"'), 'permission row has a Retry button');
   assert.ok(banner().includes('Screen Recording is off.'));
-  assert.ok(banner().includes('System Settings, then Retry'));
+  assert.ok(banner().includes('Allow it in the macOS prompt if one appears, or turn it on in System Settings, then Retry.'));
+  assert.ok(banner().indexOf('shell-banner-retry-startup') < banner().indexOf('Open Screen Recording settings'), 'Retry first, Settings second');
   assert.ok(!banner().includes('macOS won\'t ask again'), 'banner uses the retry copy, not the quit+relaunch copy');
   uninstallDom();
 }
