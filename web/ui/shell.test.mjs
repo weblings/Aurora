@@ -314,12 +314,12 @@ const stateOk = (extra = {}) => async () => ({ reachable: true, state: 'running'
   }));
   app.platform = 'mac';
   await app._pollOnce();
-  assert.ok(banner().includes('Open Screen Recording settings'), 'denied row offers the Settings link (macOS will not re-prompt)');
+  assert.ok(banner().includes('Open Settings'), 'denied row offers the Settings link (macOS will not re-prompt)');
   assert.ok(banner().includes('Privacy_ScreenCapture'));
   assert.ok(banner().includes('id="shell-banner-retry-startup"'), 'permission row has a Retry button');
   assert.ok(banner().includes('Screen Recording is off.'));
   assert.ok(banner().includes('Allow it in the macOS prompt if one appears, or turn it on in System Settings, then Retry.'));
-  assert.ok(banner().indexOf('shell-banner-retry-startup') < banner().indexOf('Open Screen Recording settings'), 'Retry first, Settings second');
+  assert.ok(banner().indexOf('shell-banner-retry-startup') < banner().indexOf('Open Settings'), 'Retry first, Settings second');
   assert.ok(!banner().includes('macOS won\'t ask again'), 'banner uses the retry copy, not the quit+relaunch copy');
   uninstallDom();
 }
@@ -333,7 +333,7 @@ const stateOk = (extra = {}) => async () => ({ reachable: true, state: 'running'
   await app._pollOnce();
   assert.ok(banner().includes('Screen Recording is off.'));
   assert.ok(banner().includes('id="shell-banner-retry-startup"'));
-  assert.ok(!banner().includes('Open Screen Recording settings'), 'pending row is Retry-only');
+  assert.ok(!banner().includes('Open Settings'), 'pending row is Retry-only');
   uninstallDom();
 }
 {
@@ -344,7 +344,7 @@ const stateOk = (extra = {}) => async () => ({ reachable: true, state: 'running'
   }));
   await app._pollOnce();
   assert.ok(banner().includes('id="shell-banner-retry-startup"'));
-  assert.ok(!banner().includes('Open Screen Recording settings'));
+  assert.ok(!banner().includes('Open Settings'));
   uninstallDom();
 }
 

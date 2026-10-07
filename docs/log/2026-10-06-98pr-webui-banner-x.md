@@ -50,7 +50,7 @@ the same day (below).
   "answered with zero displays", which is also the never-asked state after a
   TCC reset (Retry then raises the prompt). Final copy covers both: "Allow it
   in the macOS prompt if one appears, or turn it on in System Settings, then
-  Retry.", Retry first, Settings link second.
+  Retry.", Retry first, "Open Settings" second (banner row only; the non-banner block keeps "Open Screen Recording settings").
 - **Live, owner's real denial** (their `open`-launched Aurora.app on 8215,
   state `paused`, `resume: permission_denied: ScreenCaptureKitGrabber...`):
   row shows the new copy, link href `...?Privacy_ScreenCapture`, Retry, no X

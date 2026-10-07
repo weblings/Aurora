@@ -74,7 +74,7 @@ export function renderReloadError(message, platform, { retryId } = {}) {
     <p class="status-text status-text-error">⚠ <strong>Screen Recording is off.</strong> Allow it in the macOS prompt if one appears, or turn it on in System Settings, then Retry.</p>
     <div class="shell-banner-actions">
       ${retryButton}
-      <a class="btn btn-secondary" style="text-decoration: none;" href="${SCREEN_RECORDING_SETTINGS_URL}">Open Screen Recording settings</a>
+      <a class="btn btn-secondary" style="text-decoration: none;" href="${SCREEN_RECORDING_SETTINGS_URL}">Open Settings</a>
     </div>
   `;
   }
