@@ -303,3 +303,11 @@ route.
 
 **Fix:** leave `changeOrigin` off, or open the dev page at the same host
 the proxy targets.
+
+## Driving the banner live: API calls lag a beat, and a UI switch overwrites a bogus saved input
+Tags: live-test, playwright, banner, heartbeat, mode-switch, fake-bridge
+Applies-when: live-checking shell-banner behavior with Playwright against a running daemon, or trying to make a Dashboard mode switch fail on purpose
+
+Aurora-98pr's live checks hit three traps. (1) The banner only redraws on the beat (about 5s) or after a UI action's `checkNow()`. A `fetch` sent from the test (PUT/POST) changes daemon state without a re-check, so the page shows the old row; clicking its X then sends the old `id`, a correct stale no-op that looks like a broken X. Wait a beat (or `waitForFunction` on the banner text) before asserting or clicking. (2) A Dashboard mode switch cannot be made to fail with a bad saved `activeInputName`: its PUT sends the screen's own device fields, so the bad value is overwritten and the build succeeds. A bad saved `activeOutputNames: ["nonexistent-output"]` does fail it ("No outputs available") because the switch never sends outputs. Taking the fake bridge down does not fail a build (Hue init failures are swallowed by design). (3) Saving a working input while an error is held does not reload (the running baseline already matches), so the error stays until Retry or a structural save.
+
+**Fix:** for a failing UI switch, save the bad output, dismiss that first row, then click the toggle. Mock `GET /api/state` with `page.route` only for states a Mac cannot be put in (a running host with a `permission_denied:` row) and say it was mocked in the log. A binary exec'd from the shell runs under the terminal's grant, so real denials need an `open`-launched bundle (see the macos-gui entry on terminal-inherited grants).

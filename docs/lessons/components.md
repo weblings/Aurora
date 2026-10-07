@@ -331,3 +331,11 @@ Applies-when: adding an immediate re-check alongside a polling heartbeat
 Aurora-ewyz first designed `checkNow()` with a ~500ms min-interval that returned the last-known verdict inside the window. A screen awaiting it right after a successful beat poll would misread a fresh outage as a one-request blip and set an inline action error -- then the beat's next poll would raise the takeover too, the exact two-messages-for-one-cause the heartbeat entry forbids, with a window of up to one full cadence.
 
 **Fix:** always poll or attach to the in-flight poll; never cache the verdict. Bound the cost structurally instead: single-flight (beat and triggers share one poll) plus an abort timer. On localhost the serialized cost is milliseconds, and a storm of triggers collapses onto one hung poll.
+
+## Moving an error to the shell: grep every action path that sets an inline copy of the same cause
+Tags: webui, errors, shell, banner, dashboard, pause-resume
+Applies-when: moving a daemon-held error out of a screen into the shell banner, or reviewing a bead that says "remove the inline copies" of an error
+
+Aurora-98pr named two inline copies to remove (the `reloadError` branches of the device save and mode switch). The owner then found a third on the Mac: a failed Resume still set "Couldn't resume Aurora." under the toggles, far from the Pause button, next to the banner's own `resume` row. `_togglePause` set it whenever `PUT /api/state` returned `succeeded:false`, which for a resume is a 500 only when the build failed, i.e. exactly the error the daemon already holds. The bead, its plan section and the node tests all missed it because they were written from the field the plan listed (`reloadError`), not from every place the screen turns the same cause into text.
+
+**Fix:** when an error moves to the shell, search the screen for every setter of inline error state (`topTierError`, `toggleError`, string literals of the old copy) and decide per path whether the daemon holds that cause. A rejected resume is held (no inline copy, call `checkNow()`); a rejected pause is not (stays inline); the catch-after-blip path stays. Add a node test per path; a mutant check against the old file catches the one you missed.

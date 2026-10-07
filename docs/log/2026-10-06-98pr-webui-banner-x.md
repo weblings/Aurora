@@ -1,10 +1,10 @@
-# Aurora-98pr: saved-not-applied errors move to the banner; banner X (live checks in progress)
+# Aurora-98pr: saved-not-applied errors move to the banner; banner X (closed)
 
 Id: 98pr-webui-banner-x
 
 2026-10-06. WebUI half of [[error-overlay]]'s shell-by-cause revision, on top
-of [[ja76-hold-running-reload-error]]. Node tests green; live Mac check run
-the same day (below).
+of [[ja76-hold-running-reload-error]]. Node tests green; live Mac checks and
+the owner's own Mac pass the same day (below). Closed by the owner.
 
 ## Done
 
@@ -113,9 +113,19 @@ with headless Chromium (Playwright). Not the owner's real instance.
 - Banner state lags API-driven changes by up to a beat (about 5 s) since only
   UI actions call `checkNow()`; looked like a stale row until waited out.
 
+## Lessons filed
+
+input.md (`permission_denied:` is also "never asked"), components.md (grep
+every inline setter of the same cause when moving an error to the shell),
+web-testing.md (driving the banner live: beat lag, UI switch overwrites a
+bogus input, mock only what a Mac cannot reach).
+
 ## Not done
 
 - Demo fork left alone (decision 7).
-- Permission row with X on a *running* host (real denial): the owner's
-  denial case was a paused host (no X). Needs a running host to fail a Video
-  switch under a real denial.
+- Open items accepted at close: the X on a permission row with the host
+  *running* under a real denial (owner's case was paused; only the mocked
+  `/api/state` run covers it); what the Settings pane shows after a real Don't
+  Allow (the "Aurora is listed, toggle off" inference).
+- Next in the plan: Aurora-h457 (audio permission row; the inline "capturing
+  real audio" block stays until then), Aurora-m0fy, Aurora-k73j.
