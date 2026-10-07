@@ -55,9 +55,8 @@ the owner's own Mac pass the same day (below). Closed by the owner.
   state `paused`, `resume: permission_denied: ScreenCaptureKitGrabber...`):
   row shows the new copy, link href `...?Privacy_ScreenCapture`, Retry, no X
   (paused); clicking Resume again leaves no inline error. Confirms a real Don't
-  Allow produces the `permission_denied:` prefix. Not done: clicking the link
-  itself in a real browser, and whether Aurora shows in the pane with the
-  toggle off after Deny (the inference behind showing the link).
+  Allow produces the `permission_denied:` prefix. The owner then clicked the link
+  (works) and confirmed Aurora shows in the pane with the toggle off after Deny.
 - A directly exec'd binary runs under the terminal's grant, so it never shows
   the denial; only an `open`-launched bundle does.
 
@@ -123,9 +122,11 @@ bogus input, mock only what a Mac cannot reach).
 ## Not done
 
 - Demo fork left alone (decision 7).
-- Open items accepted at close: the X on a permission row with the host
+- Open item accepted at close: the X on a permission row with the host
   *running* under a real denial (owner's case was paused; only the mocked
-  `/api/state` run covers it); what the Settings pane shows after a real Don't
-  Allow (the "Aurora is listed, toggle off" inference).
+  `/api/state` run covers it).
+- Confirmed after close (owner, `tccutil reset` then a real Don't Allow):
+  Aurora is listed in Privacy & Security with its toggle off, so the Open
+  Settings link has something to turn on.
 - Next in the plan: Aurora-h457 (audio permission row; the inline "capturing
   real audio" block stays until then), Aurora-m0fy, Aurora-k73j.
