@@ -32,8 +32,8 @@ Aurora's own module boundaries instead of RockyRoad's. `rendering-apis.md` vs.
 | [rendering-apis.md](rendering-apis.md) | third-party rendering facts | 4 | Three.js/GLTFLoader/Blender behavior, not our design |
 | [rendering-internals.md](rendering-internals.md) | own 3D-scene design | 4 | our scene technique, demonstrated by a real bug |
 | [planning.md](planning.md) | reuse research, JTBD, doc hygiene | 22 | WebUI planning/design-process finding |
-| [components.md](components.md) | behavior, callbacks, data shapes | 14 | WebUI component finding |
-| [webui-testing.md](webui-testing.md) | jsdom limits, mocks, fixtures | 7 | WebUI testing finding |
+| [components.md](components.md) | behavior, callbacks, data shapes | 15 | WebUI component finding |
+| [webui-testing.md](webui-testing.md) | jsdom limits, mocks, fixtures | 8 | WebUI testing finding |
 | [navigation-flow.md](navigation-flow.md) | Back/Continue, gating, NUX | 11 | WebUI flow finding |
 | [layout-css.md](layout-css.md) | responsive, pseudo-elements, flex | 11 | WebUI layout/CSS finding |
 

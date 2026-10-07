@@ -234,3 +234,14 @@ Applies-when: pinning a size or offset that derives from another value
 The scene pill's bottom offset equals the top bar's top padding token, and the Welcome logo is 8x the title type -- so the tests assert token equality and the 8x multiple, never 10px or 160px. A token retune or type change then fails loudly at the contract instead of silently unmatching the frame.
 
 **Fix:** when a value is defined as "same as X" or "Nx", write the test as the equation (resolve both sides from source); literals in tests are only for true design constants.
+
+---
+
+## A test that calls the handler directly cannot see a wrapper that drops its arguments
+Tags: webui, testing, callbacks, wiring
+Applies-when: adding an argument to a component callback that a screen forwards through an arrow function
+
+Aurora-m0fy added `{ reloadError }` to `EntertainmentConfigSelect`'s `onChange`. The Dashboard registered `onChange: () => this._onEntertainmentConfigChange()`, so the argument never arrived. The first tests called `_onEntertainmentConfigChange(id, { reloadError })` directly and passed.
+
+**Fix:** also test through the component the real constructor builds (`inst.entertainmentConfigSelect.onChange(...)`), and run a mutant that drops the forwarded arguments. Prefer `onChange: (...args) => handler(...args)` when a callback's contract may grow.
+

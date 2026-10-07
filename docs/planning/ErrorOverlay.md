@@ -462,7 +462,8 @@ into `web/demo/vendor/webui` (see Accepted gaps).
 Status: in progress. Core (Aurora-ja76) shipped 2026-10-06
 ([[ja76-hold-running-reload-error]]); WebUI (98pr) shipped
 ([[98pr-webui-banner-x]]); Mac audio row (h457) shipped
-([[h457-audio-permission-banner-row]]); the rest is not built. Raised during Aurora-nkhi's live Mac check:
+([[h457-audio-permission-banner-row]]); WebUI inline cleanup (m0fy) shipped
+([[m0fy-top-tier-error-owners]]); the tray beads (q9l1, k73j) are not built. Raised during Aurora-nkhi's live Mac check:
 with the host running and Screen Recording off, a failed Video switch left
 the permission block inline under the toggles and the banner empty. That is
 what the Model section prescribes today (rejected requests stay inline), but
@@ -592,7 +593,9 @@ a new id.
   exists to patch the old split. Closed 2026-10-06 without shipping; its
   node tests are carried into Aurora-98pr's notes.
 - **Aurora-m0fy**: keeps its scope (owner fix for `topTierError`), shrunk to
-  the errors that stay inline; now after Aurora-98pr (same fields).
+  the errors that stay inline; now after Aurora-98pr (same fields). Shipped
+  2026-10-07 as one key per control, not one owner for the field
+  ([[m0fy-top-tier-error-owners]]).
 - **Aurora-k73j**: rule unchanged (running → Pause; paused with an error or
   failed → `⚠ See Error`). Clarification: errors on a running host do not
   change the label, so `buildError()` alone must not drive it.

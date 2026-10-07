@@ -309,7 +309,7 @@ Aurora-tazx and Aurora-jm6s were the same shape on the Dashboard: a failed Video
 
 Recurred again, 2026-10-05 (Aurora-d3ec's retry/design pass, [[error-overlay]]): the same shape shows up even within one field, not just across two DOM regions. `topTierError` has no owner at all on its success paths, `_togglePause`'s success branch never nulls it (a failed-then-succeeded Resume keeps showing the old message, `DashboardScreen.js:651-652`), and `_onAutoDivideClick`'s success path clears the field but never calls `_renderTopTier()`, so the stale text can sit on screen until an unrelated render happens to repaint that zone. Separately, forcing a single shared slot to pick one owner among several conditions that can be true *at the same time* (daemon-unreachable and a stale switch error can both hold at once) doesn't always have a right answer. Picking one just hides the other.
 
-**Fix:** generalize `toggleError`'s own `isSwitchErrorStale` approach to every source, re-derive each one's displayed state from server-confirmed state on every render, never from "did the handler that caused it get retried." And stop trying to pick one owner. Render every currently-true source as its own row instead, keyed by source rather than by message text, so a retry that comes back reworded updates its row in place instead of reading as a new, unrelated problem.
+**Fix:** generalize `toggleError`'s own `isSwitchErrorStale` approach to every source, re-derive each one's displayed state from server-confirmed state on every render, never from "did the handler that caused it get retried." And stop trying to pick one owner. Render every currently-true source as its own row instead, keyed by source rather than by message text, so a retry that comes back reworded updates its row in place instead of reading as a new, unrelated problem. Shipped as Aurora-m0fy; see "A shared inline error slot: one key per control".
 
 ---
 
@@ -347,3 +347,16 @@ Applies-when: anything other than the Video/Audio toggle can change the running 
 Found in Aurora-h457: a banner Retry that rebuilt the pipeline in another mode left the toggle and the sections under it on the old mode until a page refresh. `_onHeartbeatState` only applied `paused` and `state`; the running flags in the same `GET /api/state` were ignored.
 
 **Fix:** the shell passes the flags with each state update and the Dashboard re-runs `_loadAll()` once per flag change, never while `pendingMode` is set and never for an idle or failed host. Test with a stubbed `_loadAll` counting calls over repeated heartbeats.
+
+---
+
+## A shared inline error slot: one key per control, cleared by that control's confirmed result
+Tags: webui, errors, dashboard, callbacks, repaint
+Applies-when: several controls write into one inline error field, or a component reports a failure through a callback the screen only paints on
+
+Aurora-m0fy's `topTierError` was one string six controls wrote and four of them nulled, each at the start of its own retry. Three defects came from that shape. A click-time null hid the old message before the retry had succeeded. An unrelated success (a config switch) wiped another control's still-true error. And a clear without a repaint (auto-arrange success, and its "No active zones" message that was set and never drawn) left the screen disagreeing with the field. A single "owner" cannot fix it, since a device-save failure and an auto-arrange failure can both be true at once.
+
+**Fix:** a map keyed by the control, with one setter and one clearer that always repaint (the clearer only when it removed something). A key clears only when its own action's result is confirmed, never on click, and every current key renders as its own row. A shared component that can fail but never reports success (`ZonePatchQueue`) needs an `onSuccess`, or its row can never clear.
+
+Related: `EntertainmentConfigSelect` reported "saved, but the output couldn't reload" through `onError` and then called `onChange`, which cleared the field, so the message lived only until the next repaint. One callback per outcome: `onError` for a rejected action, the success callback carrying `{ reloadError }` for a saved one, and the caller decides (the Dashboard leaves it to the banner).
+
