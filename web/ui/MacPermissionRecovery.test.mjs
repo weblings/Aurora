@@ -1,17 +1,14 @@
-// Mac audio permission block (Aurora-tjoq): empty unless the backend
-// heuristic says the tap looks denied; the copy must say a grant applies
-// live and clears by itself (quit+reopen only as a fallback), not tell the
-// user to quit first. Run with `node MacPermissionRecovery.test.mjs`.
+// Mac audio permission block (Aurora-tjoq, h457): short copy, Retry first
+// (a grant does not revive a running grabber; the reload rebuilds it), then
+// the Settings link. Run with `node MacPermissionRecovery.test.mjs`.
 import assert from 'node:assert/strict';
 import { renderAudioPermissionBanner } from './MacPermissionRecovery.js';
 
-assert.equal(renderAudioPermissionBanner(false), '', 'nothing shown when not denied');
-
-const html = renderAudioPermissionBanner(true);
+const html = renderAudioPermissionBanner({ retryId: 'r1' });
 assert.ok(html.includes('System Audio Recording Only'));
-assert.ok(html.includes('clears by itself'), 'says the block clears on its own after a grant');
-assert.ok(html.includes('only if it doesn\'t'), 'quit+reopen is a fallback line');
-assert.ok(!html.includes('After enabling it, fully quit'), 'no longer demands a quit first');
-assert.ok(html.includes('x-apple.systempreferences:com.apple.preference.security'));
+assert.ok(html.includes('id="r1"'), 'Retry button carries the shell-assigned id');
+assert.ok(html.indexOf('Retry</button>') < html.indexOf('Open Settings'), 'Retry first, Settings second');
+assert.ok(html.includes('com.apple.preference.security?Privacy_AudioCapture'));
+assert.ok(html.replace(/<[^>]+>/g, '').length < 260, 'copy stays short');
 
 console.log('MacPermissionRecovery tests passed');

@@ -98,33 +98,38 @@ function escapeHtml(s) {
   return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
-// Aurora-9z4.4/.7: a live, ongoing signal from GET /api/mac/audio-status,
-// not a reload failure -- Core Audio's process-tap permission has no
-// explicit denied signal to throw at Pipeline::build() time the way
-// ScreenCaptureKitGrabber's PermissionError does (see docs/MacSupport.md's
-// audio section), so the backend infers it from a sustained run of silent
-// buffers instead. Worded as a heuristic ("doesn't seem to be") rather than
-// the sticky, confirmed "permission is off" language renderReloadError uses
-// for Screen Recording -- this can't rule out genuine prolonged silence,
-// even with the 10s grace window keeping that unlikely in practice.
+// Aurora-9z4.4/.7, Aurora-h457: a live, ongoing signal, not a reload failure
+// -- Core Audio's process-tap permission has no explicit denied signal to
+// throw at Pipeline::build() time the way ScreenCaptureKitGrabber's
+// PermissionError does (see docs/MacSupport.md's audio section), so the
+// backend infers it from a sustained run of silent buffers instead. The Mac
+// main loop publishes it as the host's "audio_permission" error entry on the
+// flag's transitions and removes it when the flag clears; the shell banner
+// renders this block for that source. Worded as a heuristic ("doesn't seem
+// to be") rather than the sticky, confirmed "permission is off" language
+// renderReloadError uses for Screen Recording -- this can't rule out genuine
+// prolonged silence, even with the 10s grace window keeping that unlikely in
+// practice.
 //
 // Aurora-tjoq: a System Audio Recording grant applies live (verified on
 // macOS 27, open-launched ad-hoc app: the flag flipped false in the same
-// process once audio played), and the Dashboard keeps polling the route, so
-// the block clears itself -- the copy says so; quit+reopen is the fallback.
+// process once audio played), but a grabber created BEFORE the grant never
+// hears audio afterwards (Aurora-h457 live check: fresh grabber after the
+// grant cleared, the running one stayed silent with audio playing). So the
+// row carries Retry: /api/reload rebuilds the grabber, which clears the row
+// if the grant took and restarts the 10s grace window if not.
 //
-// No verified deep link straight to the "System Audio Recording Only" row
-// exists (unlike Screen Recording's Privacy_ScreenCapture anchor) -- this
-// links to the general Privacy & Security pane rather than guess one.
-const SECURITY_SETTINGS_URL = 'x-apple.systempreferences:com.apple.preference.security';
+// Privacy_AudioCapture opens the "Screen & System Audio Recording" pane
+// (checked on macOS 27, Aurora-h457), the pane holding the "System Audio
+// Recording Only" list; no anchor reaches that list's row itself.
+const SECURITY_SETTINGS_URL = 'x-apple.systempreferences:com.apple.preference.security?Privacy_AudioCapture';
 
-export function renderAudioPermissionBanner(permissionLikelyDenied) {
-  if (!permissionLikelyDenied) return '';
-
+export function renderAudioPermissionBanner({ retryId } = {}) {
   return `
-    <p class="status-text status-text-error">⚠ Aurora doesn't seem to be capturing real audio</p>
-    <p class="status-text">This usually means "System Audio Recording Only" isn't granted yet in Privacy &amp; Security -- a separate permission from Screen Recording. Turn it on there, then play some audio: a grant applies to the running app and this clears by itself once Aurora hears sound. Quit and reopen Aurora only if it doesn't.</p>
-    <a class="btn btn-secondary" style="text-decoration: none; margin-top: var(--aurora-space-3);"
-       href="${SECURITY_SETTINGS_URL}">Open Privacy &amp; Security settings</a>
+    <p class="status-text status-text-error">⚠ <strong>Aurora can't hear your audio.</strong> Allow "System Audio Recording Only" in Settings, then Retry.</p>
+    <div class="shell-banner-actions">
+      <button type="button" class="btn btn-secondary" id="${escapeHtml(retryId ?? 'audio-permission-retry')}">Retry</button>
+      <a class="btn btn-secondary" style="text-decoration: none;" href="${SECURITY_SETTINGS_URL}">Open Settings</a>
+    </div>
   `;
 }

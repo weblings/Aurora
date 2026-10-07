@@ -494,6 +494,67 @@ const HELD = { source: 'reload', message: 'bridge unreachable', id: 7 };
   uninstallDom();
 }
 
+// The daemon-pushed audio_permission row (Aurora-h457): short audio copy with
+// Retry (the generic /api/reload, which rebuilds the grabber), Open Settings
+// and an X.
+{
+  const { app, banner } = makeApp(stateOk({ errors: [{ source: 'audio_permission', message: 'x', id: 4 }] }));
+  app.platform = 'mac';
+  app.navigate(blankScreen(), 'dashboard');
+  await app._pollOnce();
+  assert.ok(banner().includes("System Audio Recording Only"), 'renders the audio permission block');
+  assert.ok(banner().includes('Open Settings'));
+  assert.ok(banner().includes('id="shell-banner-dismiss-audio_permission"'), 'dismissible');
+  assert.ok(banner().includes('id="shell-banner-retry-audio_permission"'), 'Retry button');
+  uninstallDom();
+}
+
+// Retry on the audio row selects Audio (the shared mode save) and then
+// reloads, so a pipeline already in audio mode is still rebuilt.
+{
+  const { app } = makeApp(stateOk({ errors: [{ source: 'audio_permission', message: 'x', id: 4 }] }));
+  const calls = [];
+  const realFetch = globalThis.fetch;
+  globalThis.fetch = async (url, options) => {
+    calls.push([url, options?.method ?? 'GET']);
+    return { json: async () => (url === '/api/capabilities' ? { inputs: ['mac'], audioInputs: ['mac-audio'] } : { succeeded: true }) };
+  };
+  try { await app._retry('audio_permission'); } finally { globalThis.fetch = realFetch; }
+  assert.ok(calls.some(([url, method]) => url === '/api/config' && method === 'PUT'), 'saves the audio mode');
+  // The save alone does not rebuild a pipeline already in this mode, so the
+  // reload follows the save.
+  const putAt = calls.findIndex(([url, method]) => url === '/api/config' && method === 'PUT');
+  const reloadAt = calls.findIndex(([url]) => url === '/api/reload');
+  assert.ok(reloadAt > putAt && putAt >= 0, 'reload after the save');
+  uninstallDom();
+}
+
+// A Mac Screen Recording permission row's Retry selects Video; a failed
+// resume keeps PUT /api/state; other rows keep the plain reload.
+{
+  const run = async (source, message) => {
+    const { app } = makeApp(stateOk({ errors: [] }));
+    app.platform = 'mac';
+    const calls = [];
+    const realFetch = globalThis.fetch;
+    globalThis.fetch = async (url, options) => {
+      calls.push([url, options?.method ?? 'GET', options?.body]);
+      return { json: async () => (url === '/api/capabilities' ? { inputs: ['mac'], audioInputs: ['mac-audio'] } : { succeeded: true }) };
+    };
+    try { await app._retry(source, message); } finally { globalThis.fetch = realFetch; }
+    uninstallDom();
+    return calls;
+  };
+  const video = await run('reload', 'permission_denied: no displays');
+  const put = video.find(([url, method]) => url === '/api/config' && method === 'PUT');
+  assert.equal(JSON.parse(put[2]).activeInputName, 'mac', 'selects Video');
+  assert.ok(video.some(([url]) => url === '/api/reload'));
+  const resume = await run('resume', 'permission_denied: no displays');
+  assert.ok(resume.some(([url, method]) => url === '/api/state' && method === 'PUT'), 'resume keeps its own retry');
+  const plain = await run('reload', 'boom');
+  assert.ok(!plain.some(([url]) => url === '/api/config'), 'non-permission rows just reload');
+}
+
 // Daemon unreachable owns the whole screen: the takeover clears the banner
 // rather than showing it alongside stale errors.
 {

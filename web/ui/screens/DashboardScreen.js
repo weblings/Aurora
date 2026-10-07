@@ -30,10 +30,10 @@ import { screenDivisionRects } from '../ScreenDivision.js';
 import { AccordionSection } from '../AccordionSection.js';
 import { TuningFields } from '../TuningFields.js';
 import { applyTooltip } from '../Tooltips.js';
-import { renderReloadError, renderAudioPermissionBanner } from '../MacPermissionRecovery.js';
+import { renderReloadError } from '../MacPermissionRecovery.js';
 import {
   audioDevicesUrlFrom, devicePatch, effectiveFlags, flagsForMode, isSwitchConfirmed, isSwitchErrorStale,
-  loadPipelineState, modeFromFlags, modeSwitchPatch,
+  isIdle, loadPipelineState, modeFromFlags, modeSwitchPatch, putModeSwitch, runningFlags,
 } from '../CaptureSource.js';
 import { DAEMON_UNREACHABLE } from '../messages.js';
 
@@ -71,7 +71,6 @@ export class DashboardScreen {
     this.hostState = null; // idle | running | paused | failed, from GET /api/state (Aurora-cj11): failed hides Pause entirely, the banner carries the resolve action
     this.pauseBusy = false; // a PUT /api/state is in flight: pause button disabled, not hidden
     this.audioStatusTimer = null;
-    this.audioPermissionLikelyDenied = false;
     this.audioSinkStatus = null;
 
     // A single persistent instance, never recreated on re-render -- its own
@@ -328,17 +327,9 @@ export class DashboardScreen {
     this.deviceField = null;
 
     const errorHtml = renderReloadError(this.topTierError, this.platform);
-    // Only shown absent a reload or switch error -- a real failure is the
-    // more actionable, more specific problem when both could apply, and the
-    // user should see one message (Aurora-tazx).
-    const audioPermissionHtml = !this.topTierError && !this.toggleError && this.flags.usesAudioInput
-      ? renderAudioPermissionBanner(this.audioPermissionLikelyDenied)
-      : '';
-
     topTier.innerHTML = `
       <div class="db-device-slot"></div>
       ${errorHtml}
-      ${audioPermissionHtml}
     `;
 
     this.deviceField = new DeviceField(topTier.querySelector('.db-device-slot'), {
@@ -572,10 +563,7 @@ export class DashboardScreen {
     let putResult = null;
     let unreachable = false;
     try {
-      putResult = await (await fetch('/api/config', {
-        method: 'PUT',
-        body: JSON.stringify(patch),
-      })).json();
+      putResult = await putModeSwitch(patch);
 
       if (!putResult.succeeded) {
         this._setToggleError(`Couldn't switch to ${modeLabel}.`, mode);
@@ -707,7 +695,17 @@ export class DashboardScreen {
   // Shell heartbeat push (Aurora-cj11): applies whatever changed and
   // re-renders only the top bar -- never a full _loadAll(), which would
   // fight the beat's own 3s cadence with a second round of requests.
-  _onHeartbeatState({ state, paused }) {
+  _onHeartbeatState({ state, paused, ...flags }) {
+    // The running pipeline changed from outside the toggle (a banner Retry,
+    // the tray, a relaunch): re-derive the toggle and sections from it, once
+    // per change and never while a switch of our own is in flight.
+    const flagKey = (f) => `${f.usesVideoInput}|${f.usesAudioInput}|${f.samplesZones}`;
+    const running = runningFlags(flags);
+    const key = flagKey(running);
+    if (!this.pendingMode && !isIdle(running) && key !== flagKey(runningFlags(this.pipelineState)) && key !== this._requestedFlagKey) {
+      this._requestedFlagKey = key;
+      this._loadAll();
+    }
     let changed = false;
     if (typeof paused === 'boolean' && paused !== this.paused) { this.paused = paused; changed = true; }
     if (state !== undefined && state !== this.hostState) { this.hostState = state; changed = true; }
@@ -774,7 +772,7 @@ export class DashboardScreen {
   // doesn't ride along on the same tick even though both hit the server;
   // a slower, non-critical cadence (5s, vs. the heartbeat's 3s) since this
   // is a diagnostic, not a liveness check. No-ops (just reschedules)
-  // outside Mac/Linux audio mode -- cheap to leave running across mode
+  // outside Linux audio mode -- cheap to leave running across mode
   // switches rather than starting/stopping it from _switchMode too.
   _startAudioStatusPoll() {
     this._stopAudioStatusPoll();
@@ -783,31 +781,18 @@ export class DashboardScreen {
         return;
       }
 
-      // Per-platform audio-status route: Mac reports permission state,
-      // Linux reports the sink actually in use (Aurora-4vf). Other
-      // platforms (Windows) have no such route -- null skips the fetch.
-      const audioStatusUrl = this.platform === 'mac' ? '/api/mac/audio-status'
-        : this.platform === 'linux' ? '/api/linux/audio-status'
-        : null;
-
-      if(audioStatusUrl && this.flags.usesAudioInput){
+      // Linux reports the sink actually in use (Aurora-4vf). Mac's audio
+      // permission is a daemon-pushed banner row now (Aurora-h457), so no
+      // route here; Windows has none either.
+      if(this.platform === 'linux' && this.flags.usesAudioInput){
         try {
-          const result = await (await fetch(audioStatusUrl)).json();
-          if(this.platform === 'mac'){
-            const denied = !!result.permissionLikelyDenied;
-            if(denied !== this.audioPermissionLikelyDenied){
-              this.audioPermissionLikelyDenied = denied;
-              this._renderTopTier();
-            }
-          }
-          else{
-            const next = (result && typeof result.sinkName === 'string')
-              ? { followingDefault: result.followingDefault === true, sinkName: result.sinkName }
-              : null;
-            if(JSON.stringify(next) !== JSON.stringify(this.audioSinkStatus)){
-              this.audioSinkStatus = next;
-              this._renderTopTier();
-            }
+          const result = await (await fetch('/api/linux/audio-status')).json();
+          const next = (result && typeof result.sinkName === 'string')
+            ? { followingDefault: result.followingDefault === true, sinkName: result.sinkName }
+            : null;
+          if(JSON.stringify(next) !== JSON.stringify(this.audioSinkStatus)){
+            this.audioSinkStatus = next;
+            this._renderTopTier();
           }
         } catch {
           // Same-origin poll against our own server -- a failure here
@@ -815,11 +800,10 @@ export class DashboardScreen {
           // already handling; nothing extra to do from this one.
         }
       }
-      else if(this.audioPermissionLikelyDenied || this.audioSinkStatus){
+      else if(this.audioSinkStatus){
         // Audio stopped running (or this platform has no status route) -- don't
-        // leave a stale banner or sink hint showing if audio mode is
-        // re-entered later without a fresh poll landing first.
-        this.audioPermissionLikelyDenied = false;
+        // leave a stale sink hint showing if audio mode is re-entered later
+        // without a fresh poll landing first.
         this.audioSinkStatus = null;
         this._renderTopTier();
       }

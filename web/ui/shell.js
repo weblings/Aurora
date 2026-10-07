@@ -1,4 +1,5 @@
-import { renderReloadError, parseMacPermissionError } from './MacPermissionRecovery.js';
+import { selectMode } from './CaptureSource.js';
+import { renderReloadError, parseMacPermissionError, renderAudioPermissionBanner } from './MacPermissionRecovery.js';
 
 // App shell: owns the one #screen-container mount point. Same navigate()
 // pattern as RockyRoad's own App.ts, trimmed to what Aurora actually needs
@@ -65,6 +66,21 @@ const SOURCE_PREFIX = {
   reload: "Couldn't apply settings: ",
 };
 
+// Sources whose Retry is "select this mode", the same save a Video/Audio
+// toggle click makes (shared in CaptureSource.js). A plain reload rebuilds
+// the saved mode, which may not be the one the row is about, and never
+// replaces a grabber that started before a permission grant.
+const RETRY_SELECTS_MODE = { audio_permission: 'audio' };
+
+// A Mac Screen Recording permission row is about Video whichever source held
+// it (startup/reload name when it failed, not which mode), so its Retry
+// selects Video too. A failed resume keeps its own Retry (PUT running).
+function retryMode(source, message, platform) {
+  if (RETRY_SELECTS_MODE[source]) return RETRY_SELECTS_MODE[source];
+  if (source !== 'resume' && platform === 'mac' && parseMacPermissionError(message)) return 'video';
+  return null;
+}
+
 export class App {
   constructor({
     fetchStatus = defaultFetchStatus,
@@ -81,7 +97,7 @@ export class App {
     // daemon comes back. Set by app.js (bootstrap/recover); null in unit
     // tests that only assert the takeover itself.
     this.onRecovered = null;
-    // onStateUpdate({state, errors, paused}): called after every reachable
+    // onStateUpdate({state, errors, paused, uses*Input, samplesZones}): called after every reachable
     // poll with GET /api/state's own fields. Set by whichever screen cares
     // (Dashboard, so a tray pause/resume updates its top bar live); null
     // elsewhere, same single-slot shape as onRecovered.
@@ -222,10 +238,11 @@ export class App {
     const state = typeof result?.state === 'string' ? result.state : null;
     const errors = Array.isArray(result?.errors) ? result.errors : [];
     const paused = typeof result?.paused === 'boolean' ? result.paused : null;
+    const flags = { usesVideoInput: result?.usesVideoInput, usesAudioInput: result?.usesAudioInput, samplesZones: result?.samplesZones };
     this.hostState = state;
     this.hostErrors = errors;
     this._renderBanner();
-    if (this.onStateUpdate) this.onStateUpdate({ state, errors, paused });
+    if (this.onStateUpdate) this.onStateUpdate({ state, errors, paused, ...flags });
   }
 
   _handleUnreachable() {
@@ -314,7 +331,7 @@ export class App {
       return;
     }
     for (const error of errors) {
-      this.bannerSlot.querySelector(`#shell-banner-retry-${error.source}`)?.addEventListener('click', () => this._retry(error.source));
+      this.bannerSlot.querySelector(`#shell-banner-retry-${error.source}`)?.addEventListener('click', () => this._retry(error.source, error.message));
       this.bannerSlot.querySelector(`#shell-banner-dismiss-${error.source}`)?.addEventListener('click', () => this._dismiss(error));
     }
   }
@@ -334,7 +351,11 @@ export class App {
     const text = this.hostState === 'running' && error.source === 'reload'
       ? `Saved, but couldn't apply: ${error.message}. Aurora is still running your previous setup and will try the new one next time it starts.`
       : (SOURCE_PREFIX[error.source] ?? '') + error.message;
-    const inner = parsed
+    // Daemon-pushed heuristic (Aurora-h457). Retry is the generic reload: it
+    // rebuilds the grabber, which a grant alone does not revive.
+    const inner = error.source === 'audio_permission'
+      ? renderAudioPermissionBanner({ retryId })
+      : parsed
       ? renderReloadError(error.message, this.platform, { retryId })
       : `<p class="status-text status-text-error">⚠ ${escapeHtml(text)}</p>
          <button type="button" class="btn btn-secondary" id="${retryId}" style="margin-top: var(--aurora-space-3);">Retry</button>`;
@@ -366,12 +387,14 @@ export class App {
   // {running:true}, the same retry _togglePause already sends. Either way,
   // an immediate re-check refreshes the banner from whatever actually
   // happened, success or another failure -- no optimistic clearing.
-  async _retry(source) {
+  async _retry(source, message = '') {
+    const mode = retryMode(source, message, this.platform);
     const [url, options] = source === 'resume'
       ? ['/api/state', { method: 'PUT', body: JSON.stringify({ running: true }) }]
       : ['/api/reload', { method: 'POST' }];
     try {
-      await fetch(url, options);
+      if (mode) await selectMode(mode, { rebuild: true });
+      else await fetch(url, options);
     } catch {
       // A network failure here is exactly what the beat's own unreachable
       // path is for; checkNow() below reads it the same way.

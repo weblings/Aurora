@@ -414,24 +414,64 @@ for (const reloadError of [PERMISSION_ERROR, 'bridge unreachable']) {
   assert.equal(inst.toggleError, null, 'paused no-op switch adds no error');
 }
 
-// The audio banner yields to a switch error (one message), and returns
-// once it clears.
+// The audio permission block lives in the shell banner now (Aurora-h457):
+// the top tier never renders it inline, whatever the flags say.
 {
   const topTier = makeEl();
-  const render = (toggleError) => {
+  const inst = Object.create(DashboardScreen.prototype);
+  Object.assign(inst, {
+    platform: 'mac', toggleError: null, topTierError: null, deviceField: null,
+    flags: { usesVideoInput: false, usesAudioInput: true, samplesZones: false },
+    audioDevicesUrl: null, monitors: [], selectedMonitorName: '', sinkName: '',
+    container: { querySelector: (sel) => (sel === '.db-top-tier' ? topTier : makeEl()) },
+  });
+  inst._renderTopTier();
+  inst.deviceField?.destroy();
+  assert.ok(!topTier.innerHTML.includes("System Audio Recording Only"), 'no inline audio permission block');
+}
+
+// No Mac audio-status fetch: the audio poll only asks Linux's sink route.
+{
+  const urls = [];
+  globalThis.fetch = async (url) => { urls.push(url); return { json: async () => ({}) }; };
+  const inst = Object.create(DashboardScreen.prototype);
+  Object.assign(inst, { platform: 'mac', flags: { usesAudioInput: true }, audioStatusTimer: 1, audioSinkStatus: null });
+  const realSetTimeout = globalThis.setTimeout;
+  let scheduled = null;
+  globalThis.setTimeout = (fn) => { scheduled = fn; return 1; };
+  try {
+    inst._startAudioStatusPoll();
+    await scheduled();
+  } finally { globalThis.setTimeout = realSetTimeout; globalThis.fetch = realFetch; inst._stopAudioStatusPoll(); }
+  assert.deepEqual(urls, [], 'mac audio mode polls nothing');
+}
+
+// A running-mode change from outside the toggle (banner Retry, tray) makes
+// the heartbeat re-derive the screen once; not while our own switch runs.
+{
+  const make = (pendingMode) => {
     const inst = Object.create(DashboardScreen.prototype);
+    let loads = 0;
     Object.assign(inst, {
-      platform: 'mac', toggleError, topTierError: null, deviceField: null,
-      flags: { usesVideoInput: false, usesAudioInput: true, samplesZones: false },
-      audioPermissionLikelyDenied: true, audioDevicesUrl: null, monitors: [], selectedMonitorName: '', sinkName: '',
-      container: { querySelector: (sel) => (sel === '.db-top-tier' ? topTier : makeEl()) },
+      pendingMode, pipelineState: AUDIO_STATE, paused: false, hostState: 'running',
+      _renderTopBar() {}, _loadAll() { loads += 1; return Promise.resolve(true); },
     });
-    inst._renderTopTier();
-    inst.deviceField?.destroy();
-    return topTier.innerHTML;
+    return { inst, loads: () => loads };
   };
-  assert.ok(!render(PERMISSION_ERROR).includes("capturing real audio"), 'audio banner hidden under a switch error');
-  assert.ok(render(null).includes("capturing real audio"), 'audio banner back once the error is gone');
+  const video = { state: 'running', paused: false, usesVideoInput: true, usesAudioInput: false, samplesZones: true };
+  const same = make(null);
+  same.inst._onHeartbeatState({ ...AUDIO_STATE });
+  assert.equal(same.loads(), 0, 'same flags: no reload');
+  const changed = make(null);
+  changed.inst._onHeartbeatState(video);
+  changed.inst._onHeartbeatState(video);
+  assert.equal(changed.loads(), 1, 'changed flags reload once');
+  const busy = make('video');
+  busy.inst._onHeartbeatState(video);
+  assert.equal(busy.loads(), 0, 'not while our own switch runs');
+  const idle = make(null);
+  idle.inst._onHeartbeatState({ state: 'failed', paused: false });
+  assert.equal(idle.loads(), 0, 'idle/failed flags are not a mode change');
 }
 
 // ---- One daemon-unreachable message, one wording (Aurora-jm6s) ----
