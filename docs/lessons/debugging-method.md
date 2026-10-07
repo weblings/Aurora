@@ -927,3 +927,13 @@ Applies-when: manually checking that a click or link lands on the error banner (
 `--fresh` clears the config root, so `nuxCompleted` is false and the WebUI opens on first-run onboarding. The banner is a Dashboard feature, so a tray See Error click opens a page with no banner on it. Both the Windows and Mac k73j passes landed there first, and the Windows pass was recorded done without ever seeing the banner. Separately, `activeOutputNames: ["hue"]` unpaired plus `/api/reload` made Windows `failed` but left Mac `idle`; setting a bogus `activeInputName` and reloading gave `failed` ("No outputs available").
 
 **Fix:** after forcing `Failed`, `PUT /api/config` with `nuxCompleted: true` (read-modify-write the full object; the save reloads and fails again, so the host stays `failed`), then reload the page. Check `/api/state` for `state:"failed"` before asking for an eyes-on check, and name in the check what must be on screen (the banner text), not just that a page opened.
+
+---
+
+## Verify claims taken from commit and bead titles before they reach a changelog, README or schedule
+Tags: verification, release, changelog, beads, triage
+Applies-when: drafting release notes or user docs from history, or triaging old open bugs for a release
+
+The 1.1.0 audit drafted changelog and README lines from commit and bead titles, and three were wrong on a closer read. "Mac Local Network prompt now explains why" (Aurora-pp8) is false because macOS never displays `NSLocalNetworkUsageDescription` (macos-gui lessons). The new `core/Secrets` looked like a new Linux runtime dependency (libsecret) for the README apt line, but only `AuroraSecretsTests` links it. "Origin check on state-changing routes" was in Aurora-5i3's description but never landed (the nearest open work is Aurora-5ipy.4's Host allowlist). Separately, open bug Aurora-2uw's named suspect (an unguarded `entertainmentConfigSelect.load()`) already catches internally, so the bug as written can't happen.
+
+**Fix:** for each user-facing claim, grep the code path (who links it, whether the check exists) and search the lessons for the feature before writing the line. For an old open bug, read the suspect callee at HEAD before scheduling it, and re-scope or close it if the premise no longer holds.

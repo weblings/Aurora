@@ -20,6 +20,11 @@ Screens live in `screens/`, shared components alongside them, and design
 tokens in `styles/tokens.css`. Plan docs: `docs/planning/WebUI/`; component and
 testing gotchas: `docs/lessons/` (`web-ui-lessons` skill).
 
+`shell.js` owns app-wide state above the screens: the connection watcher
+("Aurora has stopped" takeover, reconnects on its own) and the system-error
+banner fed by `GET /api/state`. Screens keep only inline per-control errors.
+Design and copy rules: [[error-overlay]].
+
 Tests are plain node scripts with no framework (`node styles/welcome.test.mjs`,
 `node DeviceField.test.mjs`, ...).
 

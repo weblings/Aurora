@@ -834,3 +834,23 @@ Applies-when: wiring a previously-manual checker into a hook or CI for the first
 `check-links.py`/`check-lessons.sh` ran "by convention" for weeks (Aurora-lmn.4, deferred). Wiring them into the pre-commit hook (Aurora-lmn.5) immediately caught a real `Tags:` formatting bug just added to `components.md` and two dead `[[windows-env]]`/`[[macos-gui]]` wikilinks that had sat in a committed log entry since the previous session -- neither was a false positive or a tooling bug, both were real violations the honor system had simply never caught.
 
 **Fix:** expect a checker's first enforcement run to fail on a real backlog, not a bug in the checker itself. Fix the backlog in the same change that turns enforcement on, rather than disabling the check to unblock the commit — that's the whole gap this kind of hook exists to close.
+
+---
+
+## A release audit must check every published surface, not just the version string
+Tags: release, versioning, deployment, pages, branches
+Applies-when: cutting a release, bumping the version, or auditing work since the last tag
+
+The 1.1.0 audit found three surfaces that never move with a bump. `origin/main` was still at `v1.0.4` while 253 commits sat on `dev` (feature PRs merge to `dev`). `gh-pages` (the `web/demo` subtree) was last pushed 2026-09-25 and still showed 1.0.3 in its footer. And `web/demo/demo-shim.js` hardcodes `/api/version`, guarded only by a web test that a changelog-only edit doesn't trigger.
+
+**Fix:** treat the release as four sites plus two pushes: `CMakeLists.txt` `project(... VERSION)`, the `CHANGELOG.txt` top entry, `demo-shim.js`'s version, then merge `dev` into `main` and subtree-push `web/demo` to `gh-pages` (pruned, see the subtree lesson above). Check `git log origin/main..dev` and `git log -1 origin/gh-pages` before tagging.
+
+---
+
+## A vendored fork stays cheap to re-sync only if its adaptations live upstream as options
+Tags: vendor, duplication, fork, webui, demo
+Applies-when: copying a module tree into another site (web/demo/vendor/webui) and adapting it there
+
+`web/demo/vendor/webui` adapted its copies with hand edits inside the copied files (rewritten icon paths, re-scoped `shell.css` resets, a cut Stop button, string zone ids, extra sync callbacks). Every re-vendor had to re-apply each hunk, so re-vendoring kept getting deferred, and the fork fell behind `web/ui` by whole features (Mac permission recovery, slider ranges from descriptors). By 1.1.0 only 11 of 27 forked files still matched `web/ui`. `seams.test.mjs` caught a lost hunk but couldn't make re-applying it cheaper.
+
+**Fix:** move each adaptation upstream as a neutral change or an option the host reports (module-relative asset URLs via `import.meta.url`, page-only CSS in its own stylesheet, a capability flag the demo shim answers). Then vendoring is a verbatim scripted copy guarded by a byte-equality test in CI. Keep the copy inside the published subtree when the site is deployed by subtree push. Sequenced as Aurora-ifkn.1-8.
