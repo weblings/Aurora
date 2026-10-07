@@ -34,6 +34,7 @@
 #include <Aurora/App/FakeHue.hpp>
 #include <Aurora/App/InstanceLock.hpp>
 #include <Aurora/App/LogSink.hpp>
+#include <Aurora/App/TrayIcon.hpp>
 #include <Aurora/Runtime/Registry.hpp>
 #include <Aurora/App/WebRoot.hpp>
 #include <EmbeddedWebRoot.hpp>
@@ -44,7 +45,9 @@
 #include <Aurora/Runtime/ConfigStore.hpp>
 #include <Aurora/Runtime/ControlDescriptorTables.hpp>
 #include <Aurora/Runtime/ControlDescriptors.hpp>
+#include <Aurora/Runtime/PendingRunRequest.hpp>
 #include <Aurora/Runtime/Pipeline.hpp>
+#include <Aurora/Runtime/TrayLabel.hpp>
 #include <Aurora/Runtime/PipelineRoutes.hpp>
 #include <Aurora/Runtime/SettingsRoutes.hpp>
 #include <Aurora/Runtime/ZoneRoutes.hpp>
@@ -399,6 +402,23 @@ namespace
     std::thread m_thread;
   };
 
+// AppendMenuA reinterprets its string byte-by-byte through the system ANSI
+// codepage, not UTF-8 -- kTraySeeErrorLabel's multi-byte "warning sign"
+// (Aurora-k73j) came out as CP1252 mojibake (an "a" and "s" with stray
+// diacritics) rather than a missing-glyph box. AppendMenuW needs the bytes
+// actually converted to UTF-16 first.
+std::wstring utf8ToWide(const std::string& text)
+{
+  if(text.empty()){
+    return {};
+  }
+  const int len = MultiByteToWideChar(CP_UTF8, 0, text.data(), static_cast<int>(text.size()), nullptr, 0);
+  std::wstring wide(static_cast<size_t>(len), L'\0');
+  MultiByteToWideChar(CP_UTF8, 0, text.data(), static_cast<int>(text.size()), wide.data(), len);
+  return wide;
+}
+
+
 // Aurora-x2o.1: notification-area presence. Message-only window
 // (no visible UI) receives the tray callback; the icon is the
 // IDI_ICON1 resource embedded via app.rc, so no .ico path lookup.
@@ -420,14 +440,17 @@ public:
   // until the thread has finished setup and rethrows its failure, so
   // callers see the same throw-on-window-failure contract as before.
   // Aurora-5ipy.15: onTogglePause runs on the tray thread and must only
-  // post the request (resume takes seconds: Hue DTLS); isPaused is read
-  // there each time the menu opens, so lock-free only.
+  // post the request (resume takes seconds: Hue DTLS); hostStatus is read
+  // there each time the menu opens, so only the leaf lock, never the
+  // pipeline lock (PipelineHost::status contract). A "See Error" slot
+  // (Aurora-k73j) opens the WebUI instead of posting a run/pause target.
   TrayIcon(const std::string& url, bool webUiBound,
-           std::function<void()> onTogglePause, std::function<bool()> isPaused)
+           std::function<void()> onTogglePause,
+           std::function<Aurora::Runtime::HostStatus()> hostStatus)
     : m_url(url),
       m_webUiBound(webUiBound),
       m_onTogglePause(std::move(onTogglePause)),
-      m_isPaused(std::move(isPaused))
+      m_hostStatus(std::move(hostStatus))
   {
     // Retrieve the future before moving the promise into the thread -- the
     // Aurora-nzd bug class (get_future on a moved-from promise).
@@ -464,11 +487,18 @@ public:
     if(!menu){
       return;
     }
-    AppendMenuA(menu, MF_STRING | (m_webUiBound ? MF_ENABLED : MF_GRAYED),
-      IDM_LAUNCH_UI, "Launch UI");
-    AppendMenuA(menu, MF_STRING, IDM_PAUSE,
-      (m_isPaused && m_isPaused()) ? "Resume" : "Pause");
-    AppendMenuA(menu, MF_STRING, IDM_STOP, "Stop");
+    AppendMenuW(menu, MF_STRING | (m_webUiBound ? MF_ENABLED : MF_GRAYED),
+      IDM_LAUNCH_UI, L"Launch UI");
+    // One status() snapshot per open (Aurora-k73j): state plus errors
+    // together, so a running host holding errors (Aurora-ja76) still reads
+    // Pause while a failed one reads See Error.
+    const Aurora::Runtime::HostStatus menuStatus =
+        (m_hostStatus ? m_hostStatus() : Aurora::Runtime::HostStatus{});
+    const std::wstring pauseLabel = utf8ToWide(
+      Aurora::Runtime::trayPauseItemLabel(menuStatus.state, !menuStatus.errors.empty(),
+          m_webUiBound));
+    AppendMenuW(menu, MF_STRING, IDM_PAUSE, pauseLabel.c_str());
+    AppendMenuW(menu, MF_STRING, IDM_STOP, L"Stop");
     POINT cursor{};
     GetCursorPos(&cursor);
     // Required so the menu dismisses correctly and the next
@@ -479,14 +509,23 @@ public:
     DestroyMenu(menu);
     // KB135788: lets the next right-click re-open the menu.
     PostMessageA(m_window, WM_NULL, 0, 0);
-    if(picked == IDM_LAUNCH_UI){
-      openWebBrowser(m_url);
-    }
-    else if(picked == IDM_PAUSE){
-      if(m_onTogglePause){ m_onTogglePause(); }
-    }
-    else if(picked == IDM_STOP){
-      g_stopRequested = true;
+    const Aurora::Runtime::HostStatus clickStatus =
+        (m_hostStatus ? m_hostStatus() : Aurora::Runtime::HostStatus{});
+    // Dispatch table (Aurora::App::resolveTrayClick) incl. the See-Error-
+    // click-opens-WebUI rule (Aurora-k73j) -- unit-tested there since
+    // TrackPopupMenuEx itself needs real input and can't run in a test.
+    switch(Aurora::App::resolveTrayClick(picked, clickStatus, m_webUiBound)){
+      case Aurora::App::TrayClickAction::LaunchUi:
+        openWebBrowser(m_url);
+        break;
+      case Aurora::App::TrayClickAction::TogglePause:
+        if(m_onTogglePause){ m_onTogglePause(); }
+        break;
+      case Aurora::App::TrayClickAction::Stop:
+        g_stopRequested = true;
+        break;
+      case Aurora::App::TrayClickAction::None:
+        break;
     }
   }
 
@@ -586,7 +625,7 @@ private:
   std::string m_url;
   bool m_webUiBound{false};
   std::function<void()> m_onTogglePause;
-  std::function<bool()> m_isPaused;
+  std::function<Aurora::Runtime::HostStatus()> m_hostStatus;
 };
 
 LRESULT CALLBACK trayWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
@@ -850,22 +889,23 @@ if(!instanceLock.held()){
   // Aurora-x2o.1: tray presence from here until scope exit (NIM_DELETE
   // in the destructor, including unwinding on exceptions below).
   //
-  // Pause/Resume (Aurora-5ipy.15): the menu callback only sets a flag; the
-  // tick loop below performs it. With no pipeline while paused, blocking
-  // the loop on a resume costs nothing.
-  std::atomic<bool> pauseToggleRequested{false};
+  // Pause/Resume (Aurora-5ipy.15, Aurora-q9l1): the menu callback only posts
+  // the clicked target (run/pause, last click wins); the tick loop below
+  // performs it. With no pipeline while paused, blocking the loop on a
+  // resume costs nothing.
+  Aurora::Runtime::PendingRunRequest pendingRunRequest;
   TrayIcon trayIcon(url, webUiBound,
-    [&]{ pauseToggleRequested = true; },
-    [&]{ return pipelineHost.isPaused(); });
+    [&]{ pendingRunRequest.requestToggle(pipelineHost.isPaused()); },
+    [&]{ return pipelineHost.status(); });
   trayIcon.showFirstRunBalloon(configRoot);
 
   // Drives whichever Pipeline is current at the top of each iteration -- a
   // reload swapping it mid-loop is exactly what PipelineHost's own lock is
   // for; this loop never needs to know a swap happened.
   while(!g_stopRequested){
-    if(pauseToggleRequested.exchange(false)){
+    if(auto runTarget = pendingRunRequest.take()){
       std::string error;
-      if(!pipelineHost.setRunning(pipelineHost.isPaused(), registry, configRoot, error)){
+      if(!pipelineHost.setRunning(*runTarget, registry, configRoot, error)){
         logLine("Tray pause/resume failed: " + error);
       }
     }

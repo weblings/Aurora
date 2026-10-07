@@ -872,3 +872,56 @@ Applies-when: driving a permission denial/grant live with a throwaway instance o
 Aurora-h457: enabling a privacy toggle makes macOS offer "Quit & Reopen"; accepting it killed the isolated instance (port 8261, `AURORA_CONFIG_DIR`) and relaunched Aurora on the owner's real config (8215), so later clicks and "first Retry did nothing" were against a different process than the logger watched. `devstack.py` takes the first WebUI from 8215 and execs the binary directly, so it would reconfigure a running real instance and run under the terminal's grant, which never shows the denial.
 
 **Fix:** run the stack by hand: fake bridge, relay, `web/demo` server, and an `open -n --env AURORA_CONFIG_DIR=... --env AURORA_DEV_LIGHT_TAP=1 Aurora.app --args --fake-hue` bundle, paired with `POST /api/hue/connection`. Log state and a zone's colour per second (`python3 -u`; redirected stdout buffers). Choose Later on "Quit & Reopen", and confirm which port the human is clicking before reading the log.
+
+---
+
+## Back-to-back scripted inputs coalesce in the consumer loop and pass even unfixed — space race probes wider than one iteration
+Tags: debugging, verification, timing, tray
+Applies-when: verifying a click-then-worker (or any producer/consumer) race fix with scripted inputs
+
+Aurora-q9l1's tray toggle race: two gdbus Resume clicks 4ms apart coalesced into one tick-loop iteration and ended running even on the pre-fix binary -- the check passed without testing anything. The discriminating probe used a 1.5s gap (longer than one tick iteration, inside the 2.41s resume): pre-fix it ended paused with the menu stuck on Resume, fixed it ends running. The stock fake bridge resumed in 10ms, leaving no window at all, so the check ran against a private slowed copy (in /tmp, repo tooling untouched): 0.6s per response sits under HttpClient's 1s curl timeout, so the path still succeeds, while several sequential init calls stretch the resume past 2s. A menu-label sample taken with the second click still read Resume, proving the probe landed inside the stale-state window rather than after it.
+
+**Fix:** measure the slow operation first (baseline timing of the same path the worker uses), set the probe gap between one consumer iteration and the operation duration, and sample the stale-state indicator at probe time to prove the window. Keep fault-injected fakes private (a /tmp copy, not a repo edit) and sub-timeout so success paths stay successful.
+
+---
+
+## Stalling the wrong fake-bridge endpoint gives a silent no-op, not a slow resume
+Tags: debugging, verification, timing, tray, output, hue, windows
+Applies-when: reusing a fault-injected fake (e.g. `tools/fake-hue-bridge --stall-light`) to manufacture a timing window on a repeated operation
+
+Aurora-q9l1's Windows pass reused the Linux check's recipe (slow bridge,
+repoint via `POST /api/hue/connection`, click through `devstack.py`) but kept
+the stock `--stall-light <id>` flag, which only delays `GET
+.../light/<id>`. The bridge's own access log showed that call never fires
+past the initial pairing build -- every later resume (`Pipeline::build` via
+`PipelineHost::resume`) only hit `GET/PUT .../entertainment_configuration[/
+<id>]` and `GET .../resource`. The flag was a correct no-op on the repeated
+path, so resumes stayed ~1-2s and no race window ever opened; nothing in the
+test itself signaled that the chosen stall point was wrong.
+
+**Fix:** before trusting a stall to manufacture a window, read the fake's own
+request log for the iteration under test (not just the one-time setup) and
+confirm the stalled route actually appears there. Stalling the route that
+*is* hit every time (here, patching a scratch copy to delay the
+`action:"start"` PUT) is one extra flag away once you know which call
+repeats.
+
+---
+
+## A missing session bus in an agent shell may be the sandbox, not the machine
+Tags: debugging, sandbox, dbus, tray
+Applies-when: tray/SNI verification reports no session bus from an agent-run shell
+
+`gdbus call ListNames` failed with "Unable to create socket: Operation not permitted", the app logged "Tray: no session bus", and devstack `up` timed out waiting for the WebUI port (spawned children inherit the sandbox) -- while TCP loopback worked fine. The machine's session bus was healthy all along; the tool sandbox blocked AF_UNIX sockets.
+
+**Fix:** re-run one read-only bus probe (`ListNames`) in an unsandboxed/escalated shell before concluding anything is headless; only if that fails, fall back to the trayless private-bus recipes. Never reinterpret a sandbox symptom as machine state.
+
+---
+
+## `--fresh` hides the Dashboard banner behind onboarding; forcing `Failed` on Mac needs a bogus input, not just an unpaired output
+Tags: debugging, manual-verification, fresh, nux, banner, tray, mac
+Applies-when: manually checking that a click or link lands on the error banner (Aurora-cj11) in a freshly launched app
+
+`--fresh` clears the config root, so `nuxCompleted` is false and the WebUI opens on first-run onboarding. The banner is a Dashboard feature, so a tray See Error click opens a page with no banner on it. Both the Windows and Mac k73j passes landed there first, and the Windows pass was recorded done without ever seeing the banner. Separately, `activeOutputNames: ["hue"]` unpaired plus `/api/reload` made Windows `failed` but left Mac `idle`; setting a bogus `activeInputName` and reloading gave `failed` ("No outputs available").
+
+**Fix:** after forcing `Failed`, `PUT /api/config` with `nuxCompleted: true` (read-modify-write the full object; the save reloads and fails again, so the host stays `failed`), then reload the page. Check `/api/state` for `state:"failed"` before asking for an eyes-on check, and name in the check what must be on screen (the banner text), not just that a page opened.

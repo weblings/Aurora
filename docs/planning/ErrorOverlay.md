@@ -325,11 +325,9 @@ Not needed for three items.
 **Shows for a `failed` host, not only a failed Resume.** Driven by the
 daemon-held error, so it covers the startup-failure case (today the tray
 offers a "Pause" that does nothing) as well as a failed Resume, from
-either the tray or the WebUI. Implemented as a `buildError()` getter
-passed alongside the existing `isPaused()` and read when the menu opens,
+either the tray or the WebUI. Implemented as one `PipelineHost::status()` snapshot read when the menu opens (state plus errors together, never a separate `buildError()`/`isPaused()` pair: since Aurora-ja76 a running host can hold errors, so the error list alone cannot drive the label),
 the model `docs/lessons/architecture-process.md` already set for this
-label. Labels: running → Pause; paused, no error → Resume; failed or
-paused with an error → `⚠ See Error`.
+label. Labels: running → Pause (even with errors held); idle → Pause (status quo); paused, no error → Resume; failed or paused with an error → `⚠ See Error`.
 
 **Clicking it opens the WebUI, not Settings directly.** Reuses the
 existing, already-cross-platform "Launch UI" action (`ShellExecuteA` on
@@ -718,3 +716,23 @@ success stores nothing, an unrelated publish keeps the other entry's id),
 node tests for the banner X and its
 running-only rule, a new live Mac check (the existing checks assumed the old
 behavior), and updates to the lessons that record the old rule.
+
+### Retry feedback when a retry fails identically (2026-10-07, agent-proposed, not decided)
+
+Found in the k73j Mac manual pass: with the host `failed` and the cause
+unfixed, a click on the banner's Retry runs a real reload (the daemon's error
+`id` advanced on each click) that fails with the same message, so the banner
+does not change at all and the click reads as a dead button. The
+Retry-clears-the-banner path works; the dead-button read is only the
+failing-again case. Proposal, for owner decision before any bead:
+
+- While the retry request is in flight, the Retry button disables and reads
+  "Retrying…" (it already waits on `/api/reload`, so this is a client-only
+  change in `shell.js`).
+- When the retry returns failed, keep the banner but flash or append
+  "Still failing" to the row for a moment, so a repeat of the same message is
+  distinguishable from no click.
+- Not an `id`-driven redraw: the new id is not user-visible, and an
+  id-keyed re-render would re-show a row the user just dismissed.
+
+Belongs with Aurora-cj11's banner rows if accepted. Not in k73j's scope.

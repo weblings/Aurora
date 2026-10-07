@@ -20,9 +20,9 @@ Aurora's own module boundaries instead of RockyRoad's. `rendering-apis.md` vs.
 | File | Scope | Entries | File here when |
 |---|---|---|---|
 | [build-toolchain.md](build-toolchain.md) | CMake, vcpkg, compilers, WSL2, dev deps | 49 | build/tooling specific |
-| [windows-env.md](windows-env.md) | processes, installers, ACLs, probing | 17 | Windows-environment specific |
-| [macos-gui.md](macos-gui.md) | AppKit, tray/status-item, run-loop pumping, ObjC++ interop | 27 | macOS GUI/AppKit specific |
-| [debugging-method.md](debugging-method.md) | evidence, verification, oracles, timing | 62 | debugging/verification method |
+| [windows-env.md](windows-env.md) | processes, installers, ACLs, probing | 18 | Windows-environment specific |
+| [macos-gui.md](macos-gui.md) | AppKit, tray/status-item, run-loop pumping, ObjC++ interop | 28 | macOS GUI/AppKit specific |
+| [debugging-method.md](debugging-method.md) | evidence, verification, oracles, timing | 66 | debugging/verification method |
 | [architecture-process.md](architecture-process.md) | splits, duplication, reload, presence | 48 | architecture or process decision |
 | [web-testing.md](web-testing.md) | jsdom, live tests, routes, settings | 15 | web testing specific |
 | [language-cpp.md](language-cpp.md) | namespace, threads, C-portability | 16 | C++ language gotcha |
@@ -37,7 +37,7 @@ Aurora's own module boundaries instead of RockyRoad's. `rendering-apis.md` vs.
 | [navigation-flow.md](navigation-flow.md) | Back/Continue, gating, NUX | 11 | WebUI flow finding |
 | [layout-css.md](layout-css.md) | responsive, pseudo-elements, flex | 11 | WebUI layout/CSS finding |
 
-Counts as of 2026-10-06 — bump the count when adding entries
+Counts as of 2026-10-07 — bump the count when adding entries
 (`grep -c '^## '` per file).
 
 ## Where a new lesson goes

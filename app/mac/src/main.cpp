@@ -36,6 +36,7 @@
 #include <Aurora/Runtime/ConfigStore.hpp>
 #include <Aurora/Runtime/ControlDescriptorTables.hpp>
 #include <Aurora/Runtime/ControlDescriptors.hpp>
+#include <Aurora/Runtime/PendingRunRequest.hpp>
 #include <Aurora/Runtime/Pipeline.hpp>
 #include <Aurora/Runtime/PipelineRoutes.hpp>
 #include <Aurora/Runtime/SettingsRoutes.hpp>
@@ -585,16 +586,17 @@ try
   // Aurora-qps.3, sequenced separately. See "Tray-parity" in
   // docs/MacSupport.md.
   //
-  // Pause/Resume (Aurora-5ipy.14): the menu callback only posts a request;
-  // the tick thread below performs it, because resume takes seconds (Hue
-  // DTLS) and the main thread must keep pumping AppKit. With no pipeline
-  // while paused, blocking the tick thread there costs nothing.
-  std::atomic<bool> pauseToggleRequested{false};
+  // Pause/Resume (Aurora-5ipy.14, Aurora-q9l1): the menu callback only posts
+  // the clicked target (run/pause, last click wins); the tick thread below
+  // performs it, because resume takes seconds (Hue DTLS) and the main thread
+  // must keep pumping AppKit. With no pipeline while paused, blocking the
+  // tick thread there costs nothing.
+  Aurora::Runtime::PendingRunRequest pendingRunRequest;
   Aurora::App::TrayIcon trayIcon(url, webUiBound,
     [&]{ openWebBrowser(url); },
     []{ g_stopRequested = true; },
-    [&]{ pauseToggleRequested = true; },
-    [&]{ return pipelineHost.isPaused(); });
+    [&]{ pendingRunRequest.requestToggle(pipelineHost.isPaused()); },
+    [&]{ return pipelineHost.status(); });
 
   // Drives whichever Pipeline is current at the top of each iteration -- a
   // reload swapping it mid-loop is exactly what PipelineHost's own lock is
@@ -620,9 +622,9 @@ try
   std::thread tickThread([&]{
     try{
       while(!g_stopRequested){
-        if(pauseToggleRequested.exchange(false)){
+        if(auto runTarget = pendingRunRequest.take()){
           std::string error;
-          if(!pipelineHost.setRunning(pipelineHost.isPaused(), registry, configRoot, error)){
+          if(!pipelineHost.setRunning(*runTarget, registry, configRoot, error)){
             std::cerr << "Tray pause/resume failed: " << error << "\n";
           }
         }

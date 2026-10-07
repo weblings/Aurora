@@ -61,15 +61,20 @@ endif()
 add_library(AuroraApp STATIC
   src/InstanceLock.cpp
   src/LogSink.cpp
+  src/TrayIcon.cpp
 )
 
 target_include_directories(AuroraApp PUBLIC
   ${CMAKE_CURRENT_SOURCE_DIR}/include
+  # resource.h lives next to this file (Aurora-x2o.1); TrayIcon.cpp needs
+  # its IDM_* values, same include path main.cpp already resolves it from.
+  ${CMAKE_CURRENT_SOURCE_DIR}
 )
 
 target_link_libraries(AuroraApp PUBLIC
   AuroraInputInterface
   AuroraOutputInterface
+  AuroraRuntime
 )
 
 # InstanceLock's loopback probe speaks Winsock directly; PUBLIC so both

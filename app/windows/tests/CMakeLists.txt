@@ -19,6 +19,7 @@ add_executable(AuroraAppWindowsTests
   CliTests.cpp
   InstanceLockTests.cpp
   LogSinkTests.cpp
+  TrayIconTests.cpp
   WebRootTests.cpp
 )
 

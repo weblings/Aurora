@@ -19,6 +19,7 @@ add_executable(AuroraAppMacTests
   AudioPermissionPublisherTests.cpp
   CliTests.cpp
   InstanceLockTests.cpp
+  TrayClickTests.cpp
   WebRootTests.cpp
 )
 

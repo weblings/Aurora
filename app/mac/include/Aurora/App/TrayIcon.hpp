@@ -30,6 +30,11 @@
 // found -sendEvent: is the actual dependency (a throwaway probe confirmed
 // this empirically, isolating pump mechanism from accessory status and
 // handler style) and switched to this shape instead.
+namespace Aurora::Runtime
+{
+  struct HostStatus;
+}
+
 namespace Aurora::App
 {
 
@@ -40,12 +45,15 @@ public:
   // calls pump() -- always the main thread, since AppKit requires it. Keep
   // them trivial (openWebBrowser / setting a flag), same precedent as
   // app/linux and app/windows. Pause/Resume takes seconds, so
-  // onTogglePause must only post the request (Aurora-5ipy.14). isPaused is
-  // read on the main thread each time the menu opens (NSMenuDelegate), so
-  // the label is always current: lock-free only.
+  // onTogglePause must only post the request (Aurora-5ipy.14). hostStatus
+  // is read on the main thread each time the menu opens (NSMenuDelegate),
+  // so the label is always current: only the leaf lock, never the
+  // pipeline lock (PipelineHost::status contract). A "See Error" slot
+  // (Aurora-k73j) opens the WebUI instead of posting a run/pause target.
   TrayIcon(std::string url, bool webUiBound,
            std::function<void()> onLaunch, std::function<void()> onStop,
-           std::function<void()> onTogglePause, std::function<bool()> isPaused);
+           std::function<void()> onTogglePause,
+           std::function<Aurora::Runtime::HostStatus()> hostStatus);
   ~TrayIcon();
 
   TrayIcon(const TrayIcon&) = delete;
