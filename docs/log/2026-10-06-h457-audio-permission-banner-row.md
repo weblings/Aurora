@@ -1,4 +1,4 @@
-# Aurora-h457: Mac audio permission becomes a daemon-pushed banner row
+# Aurora-h457: Mac audio permission becomes a daemon-pushed banner row (closed)
 
 Id: h457-audio-permission-banner-row
 
@@ -58,3 +58,16 @@ live-checked.
 - Live (isolated config, `tccutil reset AudioCapture` first): one
   `audio_permission` entry ~10s after launch; dismiss held 25s while denied;
   `/api/reload` with an audio-only config cleared it and it stayed gone.
+
+## Lessons filed
+
+`input.md` (grant does not revive a running tap; either grant suffices; tjoq
+follow-up corrected), `architecture-process.md` (config save does not rebuild
+a same-mode pipeline), `components.md` (toggle stale after outside changes),
+`debugging-method.md` (Settings toggle quits the test app; devstack isolation).
+
+## Not done
+
+- Copy does not say "then play some audio"; with nothing playing the row
+  returns 10s after a Retry.
+- Untested: explicit Don't Allow on the audio prompt with Screen Recording on.

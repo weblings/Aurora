@@ -339,3 +339,11 @@ Applies-when: moving a daemon-held error out of a screen into the shell banner, 
 Aurora-98pr named two inline copies to remove (the `reloadError` branches of the device save and mode switch). The owner then found a third on the Mac: a failed Resume still set "Couldn't resume Aurora." under the toggles, far from the Pause button, next to the banner's own `resume` row. `_togglePause` set it whenever `PUT /api/state` returned `succeeded:false`, which for a resume is a 500 only when the build failed, i.e. exactly the error the daemon already holds. The bead, its plan section and the node tests all missed it because they were written from the field the plan listed (`reloadError`), not from every place the screen turns the same cause into text.
 
 **Fix:** when an error moves to the shell, search the screen for every setter of inline error state (`topTierError`, `toggleError`, string literals of the old copy) and decide per path whether the daemon holds that cause. A rejected resume is held (no inline copy, call `checkNow()`); a rejected pause is not (stays inline); the catch-after-blip path stays. Add a node test per path; a mutant check against the old file catches the one you missed.
+
+## The Dashboard's mode toggle only refreshed on mount and its own clicks -- an outside change left it stale
+Tags: dashboard, toggle, heartbeat, state, webui
+Applies-when: anything other than the Video/Audio toggle can change the running pipeline (banner Retry, tray, relaunch, a held reload)
+
+Found in Aurora-h457: a banner Retry that rebuilt the pipeline in another mode left the toggle and the sections under it on the old mode until a page refresh. `_onHeartbeatState` only applied `paused` and `state`; the running flags in the same `GET /api/state` were ignored.
+
+**Fix:** the shell passes the flags with each state update and the Dashboard re-runs `_loadAll()` once per flag change, never while `pendingMode` is set and never for an idle or failed host. Test with a stubbed `_loadAll` counting calls over repeated heartbeats.

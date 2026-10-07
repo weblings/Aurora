@@ -807,3 +807,10 @@ Three rules came with it. (1) The old early return also dropped a failure that l
 
 **Fix:** see `PipelineHost::_recordFailure`, `_setBuildErrorLocked`, `dismissError`, and ErrorOverlay.md decisions 10-12. After a failed reload on a running host, `/api/state` shows `running` with one `reload` error carrying an id.
 
+## `PUT /api/config` reloads only when the running pipeline differs from the new config -- a Retry in the running mode needs an explicit reload
+Tags: reload, config, retry, banner, pipeline
+Applies-when: a UI action must rebuild the pipeline that is already running in the mode it is about (permission Retry, restart-a-component)
+
+Aurora-h457: a first audio-row Retry saved audio-only config and cleared nothing, because the running pipeline was already audio, so the save's reload saw no structural change and rebuilt nothing; the stale grabber kept running. The saved mode can also differ from the running one after a failed switch (saved Video, running Audio): a plain `POST /api/reload` then builds the saved mode, not the running one.
+
+**Fix:** a Retry that must replace what is running calls `POST /api/reload` itself; do not rely on a config save to reload. For rows whose saved and running modes can diverge, the row of the failed switch is the one to retry. A "select the row's mode, then reload" Retry was built (shared `modeSwitchPatch`/`putModeSwitch`) and reverted once either grant alone proved enough.

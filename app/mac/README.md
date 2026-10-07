@@ -8,7 +8,7 @@ macOS has one capture API.
 
 Support statement (supported macOS/hardware): see the root
 [README](../../README.md#quick-start). Design and history: [[mac-video-capture]],
-[[mac-audio]], [[mac-permissions]], [[mac-tray-parity]], [[mac-notarization]].
+[[mac-audio]], [[mac-permissions]], [[h457-audio-permission-banner-row]], [[mac-tray-parity]], [[mac-notarization]].
 
 ## What it is
 

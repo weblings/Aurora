@@ -461,7 +461,8 @@ into `web/demo/vendor/webui` (see Accepted gaps).
 
 Status: in progress. Core (Aurora-ja76) shipped 2026-10-06
 ([[ja76-hold-running-reload-error]]); WebUI (98pr) shipped
-([[98pr-webui-banner-x]]); Mac audio row (h457) and the rest are not built. Raised during Aurora-nkhi's live Mac check:
+([[98pr-webui-banner-x]]); Mac audio row (h457) shipped
+([[h457-audio-permission-banner-row]]); the rest is not built. Raised during Aurora-nkhi's live Mac check:
 with the host running and Screen Recording off, a failed Video switch left
 the permission block inline under the toggles and the banner empty. That is
 what the Model section prescribes today (rejected requests stay inline), but
