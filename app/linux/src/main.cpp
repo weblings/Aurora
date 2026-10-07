@@ -37,6 +37,7 @@
 #include <Aurora/Runtime/ConfigStore.hpp>
 #include <Aurora/Runtime/ControlDescriptorTables.hpp>
 #include <Aurora/Runtime/ControlDescriptors.hpp>
+#include <Aurora/Runtime/PendingRunRequest.hpp>
 #include <Aurora/Runtime/Pipeline.hpp>
 #include <Aurora/Runtime/PipelineRoutes.hpp>
 #include <Aurora/Runtime/SettingsRoutes.hpp>
@@ -685,15 +686,16 @@ if(!instanceLock.held()){
   // Aurora-lx4.2: tray presence (SNI) from here until scope exit.
   // Best-effort: with no session bus or watcher there is simply no
   // icon, and the WebUI print above remains the fallback.
-  // Pause/Resume (Aurora-5ipy.16): the tray callback only posts a request;
-  // the tick loop below performs it, because resume takes seconds (Hue
-  // DTLS, portal dialog) and the D-Bus worker must stay responsive. With
-  // no pipeline while paused, blocking the loop here costs nothing.
-  std::atomic<bool> pauseToggleRequested{false};
+  // Pause/Resume (Aurora-5ipy.16, Aurora-q9l1): the tray callback only posts
+  // the clicked target (run/pause, last click wins); the tick loop below
+  // performs it, because resume takes seconds (Hue DTLS, portal dialog) and
+  // the D-Bus worker must stay responsive. With no pipeline while paused,
+  // blocking the loop here costs nothing.
+  Aurora::Runtime::PendingRunRequest pendingRunRequest;
   Aurora::App::TrayIcon trayIcon(url, webUiBound,
     [&]{ openWebBrowser(url); },
     []{ g_stopRequested = 1; },
-    [&]{ pauseToggleRequested = true; },
+    [&]{ pendingRunRequest.requestToggle(pipelineHost.isPaused()); },
     [&]{ return pipelineHost.isPaused(); });
   bool trayShowsPaused = pipelineHost.isPaused();
 
@@ -701,9 +703,9 @@ if(!instanceLock.held()){
   // reload swapping it mid-loop is exactly what PipelineHost's own lock is
   // for; this loop never needs to know a swap happened.
   while(!g_stopRequested){
-    if(pauseToggleRequested.exchange(false)){
+    if(auto runTarget = pendingRunRequest.take()){
       std::string error;
-      if(!pipelineHost.setRunning(pipelineHost.isPaused(), registry, configRoot, error)){
+      if(!pipelineHost.setRunning(*runTarget, registry, configRoot, error)){
         std::cerr << "Tray pause/resume failed: " << error << "\n";
       }
     }

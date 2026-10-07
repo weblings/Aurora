@@ -44,6 +44,7 @@
 #include <Aurora/Runtime/ConfigStore.hpp>
 #include <Aurora/Runtime/ControlDescriptorTables.hpp>
 #include <Aurora/Runtime/ControlDescriptors.hpp>
+#include <Aurora/Runtime/PendingRunRequest.hpp>
 #include <Aurora/Runtime/Pipeline.hpp>
 #include <Aurora/Runtime/PipelineRoutes.hpp>
 #include <Aurora/Runtime/SettingsRoutes.hpp>
@@ -850,12 +851,13 @@ if(!instanceLock.held()){
   // Aurora-x2o.1: tray presence from here until scope exit (NIM_DELETE
   // in the destructor, including unwinding on exceptions below).
   //
-  // Pause/Resume (Aurora-5ipy.15): the menu callback only sets a flag; the
-  // tick loop below performs it. With no pipeline while paused, blocking
-  // the loop on a resume costs nothing.
-  std::atomic<bool> pauseToggleRequested{false};
+  // Pause/Resume (Aurora-5ipy.15, Aurora-q9l1): the menu callback only posts
+  // the clicked target (run/pause, last click wins); the tick loop below
+  // performs it. With no pipeline while paused, blocking the loop on a
+  // resume costs nothing.
+  Aurora::Runtime::PendingRunRequest pendingRunRequest;
   TrayIcon trayIcon(url, webUiBound,
-    [&]{ pauseToggleRequested = true; },
+    [&]{ pendingRunRequest.requestToggle(pipelineHost.isPaused()); },
     [&]{ return pipelineHost.isPaused(); });
   trayIcon.showFirstRunBalloon(configRoot);
 
@@ -863,9 +865,9 @@ if(!instanceLock.held()){
   // reload swapping it mid-loop is exactly what PipelineHost's own lock is
   // for; this loop never needs to know a swap happened.
   while(!g_stopRequested){
-    if(pauseToggleRequested.exchange(false)){
+    if(auto runTarget = pendingRunRequest.take()){
       std::string error;
-      if(!pipelineHost.setRunning(pipelineHost.isPaused(), registry, configRoot, error)){
+      if(!pipelineHost.setRunning(*runTarget, registry, configRoot, error)){
         logLine("Tray pause/resume failed: " + error);
       }
     }

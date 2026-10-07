@@ -14,6 +14,7 @@
 #include <Aurora/Runtime/ControlDescriptorTables.hpp>
 #include <Aurora/Runtime/FrameCompositor.hpp>
 #include <Aurora/Runtime/MonitorSelector.hpp>
+#include <Aurora/Runtime/PendingRunRequest.hpp>
 #include <Aurora/Runtime/Smoother.hpp>
 #include <Aurora/Runtime/TickClock.hpp>
 #include <Aurora/Runtime/ZoneMapStore.hpp>
@@ -637,4 +638,40 @@ TEST_CASE("Smoother keeps separate outputs' same-numbered zones independent", "[
 
   // dmx's zone 1 has never been seen before -- must not inherit hue's state.
   CHECK(dmxFirst[0].color == Color(0, 255, 0));
+}
+
+
+TEST_CASE("PendingRunRequest posts the clicked target, last click wins (Aurora-q9l1)", "[Tray]")
+{
+  PendingRunRequest pending;
+
+  CHECK_FALSE(pending.take().has_value());
+
+  pending.requestPause();
+  REQUIRE(pending.take() == std::optional<bool>(false));
+  CHECK_FALSE(pending.take().has_value());
+
+  // Run then pause: the pause was clicked last.
+  pending.requestRun();
+  pending.requestPause();
+  REQUIRE(pending.take() == std::optional<bool>(false));
+
+  // Pause then run: the run was clicked last.
+  pending.requestPause();
+  pending.requestRun();
+  REQUIRE(pending.take() == std::optional<bool>(true));
+
+  // The menu offers Resume when paused, Pause when running, so the
+  // click-time target is run exactly when paused now.
+  pending.requestToggle(/*isPausedNow*/ true);
+  REQUIRE(pending.take() == std::optional<bool>(true));
+  pending.requestToggle(/*isPausedNow*/ false);
+  REQUIRE(pending.take() == std::optional<bool>(false));
+
+  // Two Resume clicks during a slow resume stay a run request: applied
+  // through the idempotent setRunning(true) it is a no-op, never a pause.
+  pending.requestToggle(/*isPausedNow*/ true);
+  pending.requestToggle(/*isPausedNow*/ true);
+  REQUIRE(pending.take() == std::optional<bool>(true));
+  CHECK_FALSE(pending.take().has_value());
 }

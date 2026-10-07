@@ -315,6 +315,13 @@ content diff shows only the intended lines. Where an editor can't match a
 CRLF block (e.g. two textually-identical guards), use a byte-exact scripted
 replacement with single-occurrence assertions, kept reviewable outside the
 repo, and re-check the diff afterward.
+Stash-specific variant (Aurora-q9l1, 2026-10-07): with `* text=auto`,
+`git stash` normalizes CRLF working copies to LF in the stash blob, and
+`git stash pop` on Linux checks out LF -- three app mains silently flipped
+LF-only while their content diffs stayed minimal, so the diff alone could
+not catch it. Repaired by re-adding CR and re-checking `git diff --stat`.
+Rule: after any stash pop touching CRLF files, check byte-level endings as
+well as the diff, not the diff alone.
 
 ---
 

@@ -213,6 +213,8 @@ Aurora-5ipy.16's Pause/Resume item was exercised on a live app with no tray host
 
 Trayless paths need no desktop change either: `dbus-run-session -- Aurora --fresh` gives a private bus with no StatusNotifierWatcher (silent, no icon), and `DBUS_SESSION_BUS_ADDRESS=unix:path=/nonexistent` gives no bus (prints "Tray: no session bus"). Both emulate stock GNOME without disabling the Ubuntu appindicator extension. Put a stub `xdg-open` first on `PATH` so the first-run browser launch does not open on the real desktop.
 
+Extended 2026-10-07 (Aurora-q9l1): back-to-back scripted clicks can coalesce in the consumer loop and pass even unfixed -- see "Back-to-back scripted inputs coalesce in the consumer loop..." for spacing race probes and stretching a fast fake dependency.
+
 ---
 
 ## A `unique_ptr` deleter that calls only a C library's `*_free` leaks the `new`ed struct itself
