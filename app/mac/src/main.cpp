@@ -21,6 +21,7 @@
 
 #include <nlohmann/json.hpp>
 
+#include <Aurora/App/AudioPermissionPublisher.hpp>
 #include <Aurora/App/Cli.hpp>
 #include <Aurora/App/FakeHue.hpp>
 #include <Aurora/App/InstanceLock.hpp>
@@ -276,35 +277,6 @@ namespace
   }
 
 
-  // Mac-only (registered unconditionally, but always reports false off
-  // Mac-audio mode -- see audioPermissionLikelyDenied() above). A
-  // separate route rather than a new /api/capabilities field on purpose:
-  // that route's heartbeat is deliberately lock-free (its own comment),
-  // and unlike Screen Recording's PermissionError (thrown synchronously at
-  // Pipeline::build(), caught by reload()'s existing errorOut-prefix
-  // mechanism), a denied "System Audio Recording Only" grant has no
-  // construction-time signal at all to throw from -- Aurora-9z4.1 confirmed
-  // AudioDeviceStart always returns noErr regardless of grant state. The
-  // WebUI polls this only while genuinely in audio mode, not on the
-  // capabilities heartbeat's tight cadence.
-  void registerAudioStatusRoute(
-    Aurora::Network::Http::Server::HttpServer& httpServer,
-    Aurora::Runtime::PipelineHost& pipelineHost
-  )
-  {
-    httpServer.addRoute(
-      Aurora::Network::Http::Server::HttpMethod::Get,
-      "/api/mac/audio-status",
-      [&pipelineHost](const Aurora::Network::Http::Server::Request&, Aurora::Network::Http::Server::Response& res){
-        res.contentType = "application/json";
-        res.body = nlohmann::json{
-          {"permissionLikelyDenied", audioPermissionLikelyDenied(pipelineHost)}
-        }.dump();
-      }
-    );
-  }
-
-
   // Sets the same flag SIGINT/SIGTERM already sets (the signal handler,
   // above) -- the daemon exits through its normal shutdown path (the tick
   // loop below sees g_stopRequested, calls pipelineHost.shutdown(), then
@@ -548,7 +520,6 @@ try
     }
   );
   Aurora::Runtime::registerMonitorsRoute(httpServer, pipelineHost);
-  registerAudioStatusRoute(httpServer, pipelineHost);
   Aurora::Runtime::registerReloadRoute(httpServer, pipelineHost, registry, configRoot);
   Aurora::Runtime::registerStateRoute(httpServer, pipelineHost, registry, configRoot);
   registerStopRoute(httpServer);
@@ -635,6 +606,16 @@ try
   // rethrown on the main thread, and cancelMenuTracking() on the way out
   // guarantees a stop that didn't come from the menu (/api/stop, SIGINT)
   // can't leave main blocked in a menu the user hasn't dismissed.
+  // Host-state row for the banner (Aurora-h457): edges of the grabber's
+  // permission flag become an "audio_permission" entry. Polled here because
+  // the flag is a timer, not an event, and this thread may take the pipeline
+  // lock that the lock-free heartbeat cannot.
+  Aurora::App::AudioPermissionPublisher audioPermission(
+    [&]{ return audioPermissionLikelyDenied(pipelineHost); },
+    [&](const std::string& source, const std::string& message){ return pipelineHost.setError(source, message); },
+    [&](const std::string& source){ pipelineHost.removeError(source); }
+  );
+
   std::exception_ptr tickError;
   std::thread tickThread([&]{
     try{
@@ -645,6 +626,7 @@ try
             std::cerr << "Tray pause/resume failed: " << error << "\n";
           }
         }
+        audioPermission.poll();
         auto tickStart = std::chrono::steady_clock::now();
         pipelineHost.tick();
         auto tickInterval = std::chrono::duration<double>(pipelineHost.tickIntervalSeconds());

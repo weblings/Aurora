@@ -11,6 +11,7 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `3qh-mac-capture-width-hint` | [log/2026-10-01-3qh-mac-capture-width-hint.md](log/2026-10-01-3qh-mac-capture-width-hint.md) | Aurora-3qh: Mac video mode resized full-Retina frames every tick |
 | `5i3-local-api-hardening` | [log/2026-10-02-5i3-local-api-hardening.md](log/2026-10-02-5i3-local-api-hardening.md) | Aurora-5i3: local API hardening before any HA credential exists |
 | `5y0-nan-state-self-heal` | [log/2026-10-01-5y0-nan-state-self-heal.md](log/2026-10-01-5y0-nan-state-self-heal.md) | Aurora-5y0: 9ca follow-up — NaN state self-heal, one float→Color cast |
+| `98pr-webui-banner-x` | [log/2026-10-06-98pr-webui-banner-x.md](log/2026-10-06-98pr-webui-banner-x.md) | Aurora-98pr: saved-not-applied errors move to the banner; banner X (closed) |
 | `9ca-fromhsv-nan-guard` | [log/2026-10-01-9ca-fromhsv-nan-guard.md](log/2026-10-01-9ca-fromhsv-nan-guard.md) | Aurora-9ca: NaN/Inf into Color::fromHSV's uint8_t cast — fixed |
 | `9ig-pipeline-to-core` | [log/2026-10-01-9ig-pipeline-to-core.md](log/2026-10-01-9ig-pipeline-to-core.md) | Aurora-9ig: Pipeline, PipelineHost and Registry moved into core |
 | `audio-analysis` | [archive/AudioAnalysis.md](archive/AudioAnalysis.md) | Audio-reactive color — findings, not a decision |
@@ -38,6 +39,7 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `future-steamos-support` | [planning/FutureSteamOSSupport.md](planning/FutureSteamOSSupport.md) | SteamOS / Steam Deck support |
 | `gui-launch-ux` | [archive/GUILaunchUX.md](archive/GUILaunchUX.md) | GUI Launch UX |
 | `h45-upstream-fix-branches` | [log/2026-10-01-h45-upstream-fix-branches.md](log/2026-10-01-h45-upstream-fix-branches.md) | Aurora-h45: upstream fix branches for huenicorn — fixes done, MRs planned |
+| `h457-audio-permission-banner-row` | [log/2026-10-06-h457-audio-permission-banner-row.md](log/2026-10-06-h457-audio-permission-banner-row.md) | Aurora-h457: Mac audio permission becomes a daemon-pushed banner row (closed) |
 | `ha-prep-4y9` | [log/2026-10-01-ha-prep-4y9.md](log/2026-10-01-ha-prep-4y9.md) | Aurora-4y9: output-neutral NUX probe table in web/ui/app.js |
 | `ha-prep-a0r` | [log/2026-10-01-ha-prep-a0r.md](log/2026-10-01-ha-prep-a0r.md) | Aurora-a0r: output-neutral zone labels endpoint for Zone Mapping |
 | `ha-prep-d9v` | [log/2026-10-01-ha-prep-d9v.md](log/2026-10-01-ha-prep-d9v.md) | Aurora-d9v: httplib WebSocket client smoke test |
@@ -49,6 +51,7 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `implementation-plan-directory-layout` | [archive/ImplementationPlan_DirectoryLayout.md](archive/ImplementationPlan_DirectoryLayout.md) | Implementation plan: proposed directory layout (superseded) |
 | `implementation-plan-early-phases` | [archive/ImplementationPlan_EarlyPhases.md](archive/ImplementationPlan_EarlyPhases.md) | Implementation plan: phases 1, 2, 2.5 (native build) |
 | `implementation-plan-phase-3` | [archive/ImplementationPlan_Phase3.md](archive/ImplementationPlan_Phase3.md) | Implementation plan: Phase 3 — Three.js browser demo, then the native WebUI milestone |
+| `ja76-hold-running-reload-error` | [log/2026-10-06-ja76-hold-running-reload-error.md](log/2026-10-06-ja76-hold-running-reload-error.md) | Aurora-ja76: hold a failed reload on a running host (closed) |
 | `jwcd-real-bridge-pause-resume` | [log/2026-10-06-jwcd-real-bridge-pause-resume.md](log/2026-10-06-jwcd-real-bridge-pause-resume.md) | Real-bridge pause/resume closes Aurora-jwcd |
 | `kea-capability-flags` | [log/2026-10-03-kea-capability-flags.md](log/2026-10-03-kea-capability-flags.md) | Aurora-kea: running-pipeline flags drive the Dashboard (open: Mac/Windows unverified) |
 | `kea-dashboard-capabilities-scoping` | [log/2026-10-02-kea-dashboard-capabilities-scoping.md](log/2026-10-02-kea-dashboard-capabilities-scoping.md) | Aurora-kea: scoping pass on Dashboard capability-driven sections (paused, no code) |
@@ -60,6 +63,7 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `linux-tray-pause` | [log/2026-10-04-linux-tray-pause.md](log/2026-10-04-linux-tray-pause.md) | Aurora-5ipy.16: Linux SNI tray Pause/Resume (closed) |
 | `lzj-embed-and-serving` | [log/2026-10-01-lzj-embed-and-serving.md](log/2026-10-01-lzj-embed-and-serving.md) | Aurora-lzj: toolchain spike investigated, change A (embed + serving) done; HA prep filed |
 | `lzw-github-ci` | [log/2026-10-01-lzw-github-ci.md](log/2026-10-01-lzw-github-ci.md) | Aurora-lzw: GitHub CI unblocked for weblings/Aurora |
+| `m0fy-top-tier-error-owners` | [log/2026-10-07-m0fy-top-tier-error-owners.md](log/2026-10-07-m0fy-top-tier-error-owners.md) | Aurora-m0fy: Dashboard inline errors get one owner per control (closed) |
 | `mac-audio` | [archive/mac/Audio.md](archive/mac/Audio.md) | macOS audio capture |
 | `mac-notarization` | [planning/mac/Notarization.md](planning/mac/Notarization.md) | macOS Gatekeeper/notarization |
 | `mac-pause-verification-sck-crash` | [log/2026-10-05-mac-pause-verification-sck-crash.md](log/2026-10-05-mac-pause-verification-sck-crash.md) | Mac verification of pause/resume, kea and axoz; SCK teardown crash found and fixed (Aurora-eq7a) |

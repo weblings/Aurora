@@ -39,7 +39,7 @@ function fakeScreen(overrides = {}) {
   const inst = Object.create(DashboardScreen.prototype);
   inst.paused = false;
   inst.pauseBusy = false;
-  inst.topTierError = null;
+  inst.topTierErrors = {};
   inst.container = { querySelector: (sel) => (sel === '.top-bar-slot' ? slot : makeEl()) };
   inst._renderTopTier = () => {};
   // Shell-beat double (Aurora-ewyz): records immediate re-checks. Tests
@@ -161,8 +161,28 @@ function stubFetch(handler) {
   }
   assert.equal(calls.length, 1);
   assert.equal(reloaded, 0, 'no reload on rejected toggle');
-  assert.equal(inst.topTierError, "Couldn't pause Aurora.");
+  assert.equal(inst.topTierErrors.pause, "Couldn't pause Aurora.");
   assert.equal(renderedTopTier, 1);
+}
+
+// Rejected resume (a failed build the daemon holds): no inline copy, the
+// shell banner owns it (Aurora-98pr); the beat gets one immediate re-check.
+{
+  stubFetch(() => ({ succeeded: false, error: 'boom' }));
+  let renderedTopTier = 0;
+  const { inst, checkNowCalls } = fakeScreen({
+    paused: true,
+    _renderTopTier: () => { renderedTopTier++; },
+  });
+  try {
+    await inst._togglePause();
+  } finally {
+    globalThis.fetch = realFetch;
+  }
+  assert.deepEqual(inst.topTierErrors, {});
+  assert.equal(renderedTopTier, 0);
+  assert.equal(checkNowCalls.length, 1);
+  assert.equal(inst.pauseBusy, false);
 }
 
 // Unreachable daemon (Aurora-ewyz): no inline error -- the shell takeover
@@ -181,7 +201,7 @@ function stubFetch(handler) {
   } finally {
     globalThis.fetch = realFetch;
   }
-  assert.equal(inst.topTierError, null);
+  assert.deepEqual(inst.topTierErrors, {});
   assert.equal(renderedTopTier, 0);
   assert.equal(checkNowCalls.length, 1);
   assert.equal(inst.pauseBusy, false);
@@ -204,7 +224,7 @@ function stubFetch(handler) {
   } finally {
     globalThis.fetch = realFetch;
   }
-  assert.equal(inst.topTierError, "Couldn't resume Aurora.");
+  assert.equal(inst.topTierErrors.pause, "Couldn't resume Aurora.");
   assert.equal(renderedTopTier, 1);
   assert.equal(checkNowCalls.length, 1);
   assert.equal(inst.pauseBusy, false);
@@ -272,7 +292,7 @@ function switchScreen({ state, platform = 'mac', toggleError = null, toggleError
     inputs: ['mac'], audioInputs: ['mac-audio'],
     currentActiveInputName: '', currentActiveAudioInputName: 'mac-audio',
     monitors: [], selectedMonitorName: '', sinkName: '',
-    toggleError, toggleErrorMode, topTierError: null,
+    toggleError, toggleErrorMode, topTierErrors: {},
     pipelineState: state,
     _renderControls() { calls.controls++; },
     _renderTopTier() { calls.topTier++; },
@@ -291,25 +311,44 @@ function switchScreen({ state, platform = 'mac', toggleError = null, toggleError
 
 const PERMISSION_ERROR = 'permission_denied: ScreenCaptureKitGrabber: no shareable displays';
 
-// A failed switch keeps the old pipeline filled, names the target, and
-// remembers it. Mac permission text passes through untouched.
-{
-  stubFetch(() => ({ succeeded: true, reloadError: PERMISSION_ERROR }));
-  const { inst } = switchScreen({ state: AUDIO_STATE });
+// Saved, not applied (Aurora-98pr): the daemon holds the error and the shell
+// banner shows it, so no inline copy -- the mutant check for the removal.
+// The fill is still re-derived from the running pipeline, and the beat gets
+// one immediate re-check so the banner does not wait for the next poll.
+for (const reloadError of [PERMISSION_ERROR, 'bridge unreachable']) {
+  stubFetch(() => ({ succeeded: true, reloadError }));
+  const { inst, calls } = switchScreen({ state: AUDIO_STATE });
   try { await inst._switchMode('video'); } finally { globalThis.fetch = realFetch; }
-  assert.equal(inst.toggleError, PERMISSION_ERROR, 'Mac permission error shown as-is');
-  assert.equal(inst.toggleErrorMode, 'video');
+  assert.equal(inst.toggleError, null, 'banner owns the failure');
+  assert.equal(inst.toggleErrorMode, null);
   assert.equal(inst.mode, 'audio', 'fill stays on the running mode');
   assert.equal(inst.pendingMode, null);
+  assert.equal(calls.checkNow, 1);
 }
 
-// Generic failures say which switch failed.
+// Device save, same rule: no topTierErrors entry for a saved-not-applied reload.
 {
-  stubFetch(() => ({ succeeded: true, reloadError: 'bridge unreachable' }));
-  const { inst } = switchScreen({ state: AUDIO_STATE, platform: 'linux' });
-  try { await inst._switchMode('video'); } finally { globalThis.fetch = realFetch; }
-  assert.equal(inst.toggleError, "Couldn't switch to Video: bridge unreachable");
+  stubFetch(() => ({ succeeded: true, reloadError: PERMISSION_ERROR }));
+  const { inst, calls } = switchScreen({ state: AUDIO_STATE });
+  inst.flags = { usesVideoInput: false, usesAudioInput: true, samplesZones: false };
+  try { await inst._onDeviceFieldChange({}); } finally { globalThis.fetch = realFetch; }
+  assert.deepEqual(inst.topTierErrors, {}, 'banner owns the failure');
+  assert.equal(calls.topTier, 0);
+  assert.equal(calls.checkNow, 1);
 }
+
+// A plain rejection (succeeded:false) stays inline even with a held error
+// (decision 8).
+{
+  stubFetch(() => ({ succeeded: false }));
+  const { inst } = switchScreen({ state: AUDIO_STATE });
+  inst.app.hostErrors = [{ source: 'reload', message: PERMISSION_ERROR, id: 1 }];
+  try { await inst._switchMode('video'); } finally { globalThis.fetch = realFetch; }
+  assert.equal(inst.toggleError, "Couldn't switch to Video.");
+  assert.equal(inst.mode, 'audio');
+}
+
+// Plain rejections say which switch failed.
 {
   stubFetch(() => ({ succeeded: false }));
   const { inst } = switchScreen({ state: VIDEO_STATE });
@@ -326,11 +365,11 @@ const PERMISSION_ERROR = 'permission_denied: ScreenCaptureKitGrabber: no shareab
   const { inst } = switchScreen({ state: AUDIO_STATE, toggleError: PERMISSION_ERROR, toggleErrorMode: 'video' });
   globalThis.fetch = async () => {
     errorDuringFlight = inst.toggleError;
-    return { json: async () => ({ succeeded: true, reloadError: PERMISSION_ERROR }) };
+    return { json: async () => ({ succeeded: false }) };
   };
   try { await inst._switchMode('video'); } finally { globalThis.fetch = realFetch; }
   assert.equal(errorDuringFlight, PERMISSION_ERROR, 'error stays up while the retry is pending');
-  assert.equal(inst.toggleError, PERMISSION_ERROR);
+  assert.equal(inst.toggleError, "Couldn't switch to Video.", 'a retry that fails again leaves one message');
 }
 
 // A confirmed switch clears the error and re-renders the top tier so the
@@ -375,24 +414,64 @@ const PERMISSION_ERROR = 'permission_denied: ScreenCaptureKitGrabber: no shareab
   assert.equal(inst.toggleError, null, 'paused no-op switch adds no error');
 }
 
-// The audio banner yields to a switch error (one message), and returns
-// once it clears.
+// The audio permission block lives in the shell banner now (Aurora-h457):
+// the top tier never renders it inline, whatever the flags say.
 {
   const topTier = makeEl();
-  const render = (toggleError) => {
+  const inst = Object.create(DashboardScreen.prototype);
+  Object.assign(inst, {
+    platform: 'mac', toggleError: null, topTierErrors: {}, deviceField: null,
+    flags: { usesVideoInput: false, usesAudioInput: true, samplesZones: false },
+    audioDevicesUrl: null, monitors: [], selectedMonitorName: '', sinkName: '',
+    container: { querySelector: (sel) => (sel === '.db-top-tier' ? topTier : makeEl()) },
+  });
+  inst._renderTopTier();
+  inst.deviceField?.destroy();
+  assert.ok(!topTier.innerHTML.includes("System Audio Recording Only"), 'no inline audio permission block');
+}
+
+// No Mac audio-status fetch: the audio poll only asks Linux's sink route.
+{
+  const urls = [];
+  globalThis.fetch = async (url) => { urls.push(url); return { json: async () => ({}) }; };
+  const inst = Object.create(DashboardScreen.prototype);
+  Object.assign(inst, { platform: 'mac', flags: { usesAudioInput: true }, audioStatusTimer: 1, audioSinkStatus: null });
+  const realSetTimeout = globalThis.setTimeout;
+  let scheduled = null;
+  globalThis.setTimeout = (fn) => { scheduled = fn; return 1; };
+  try {
+    inst._startAudioStatusPoll();
+    await scheduled();
+  } finally { globalThis.setTimeout = realSetTimeout; globalThis.fetch = realFetch; inst._stopAudioStatusPoll(); }
+  assert.deepEqual(urls, [], 'mac audio mode polls nothing');
+}
+
+// A running-mode change from outside the toggle (banner Retry, tray) makes
+// the heartbeat re-derive the screen once; not while our own switch runs.
+{
+  const make = (pendingMode) => {
     const inst = Object.create(DashboardScreen.prototype);
+    let loads = 0;
     Object.assign(inst, {
-      platform: 'mac', toggleError, topTierError: null, deviceField: null,
-      flags: { usesVideoInput: false, usesAudioInput: true, samplesZones: false },
-      audioPermissionLikelyDenied: true, audioDevicesUrl: null, monitors: [], selectedMonitorName: '', sinkName: '',
-      container: { querySelector: (sel) => (sel === '.db-top-tier' ? topTier : makeEl()) },
+      pendingMode, pipelineState: AUDIO_STATE, paused: false, hostState: 'running',
+      _renderTopBar() {}, _loadAll() { loads += 1; return Promise.resolve(true); },
     });
-    inst._renderTopTier();
-    inst.deviceField?.destroy();
-    return topTier.innerHTML;
+    return { inst, loads: () => loads };
   };
-  assert.ok(!render(PERMISSION_ERROR).includes("capturing real audio"), 'audio banner hidden under a switch error');
-  assert.ok(render(null).includes("capturing real audio"), 'audio banner back once the error is gone');
+  const video = { state: 'running', paused: false, usesVideoInput: true, usesAudioInput: false, samplesZones: true };
+  const same = make(null);
+  same.inst._onHeartbeatState({ ...AUDIO_STATE });
+  assert.equal(same.loads(), 0, 'same flags: no reload');
+  const changed = make(null);
+  changed.inst._onHeartbeatState(video);
+  changed.inst._onHeartbeatState(video);
+  assert.equal(changed.loads(), 1, 'changed flags reload once');
+  const busy = make('video');
+  busy.inst._onHeartbeatState(video);
+  assert.equal(busy.loads(), 0, 'not while our own switch runs');
+  const idle = make(null);
+  idle.inst._onHeartbeatState({ state: 'failed', paused: false });
+  assert.equal(idle.loads(), 0, 'idle/failed flags are not a mode change');
 }
 
 // ---- One daemon-unreachable message, one wording (Aurora-jm6s) ----
@@ -442,6 +521,158 @@ assert.equal(DAEMON_UNREACHABLE, "Couldn't reach the daemon.", 'the shared wordi
   assert.equal(loaded, false);
   assert.equal(topTier.innerHTML, '', 'no inline error for an unreachable daemon');
   assert.equal(checkNowCalls, 1);
+}
+
+// ---- topTierErrors owners (Aurora-m0fy): each control clears only its own ----
+
+// Counts top-tier repaints and records the rows on screen each time, so a
+// cleared error that was never repainted shows up as a stale snapshot.
+function ownerScreen(extra = {}) {
+  const painted = [];
+  const { inst, checkNowCalls } = fakeScreen({
+    _renderTopTier() { painted.push({ ...this.topTierErrors }); },
+    ...extra,
+  });
+  return { inst, painted, checkNowCalls };
+}
+
+// Failed-then-successful device save clears its own error and repaints.
+{
+  const { inst, painted } = ownerScreen({
+    flags: { usesVideoInput: true, usesAudioInput: false, samplesZones: true },
+    monitors: [], selectedMonitorName: '', sinkName: '',
+  });
+  stubFetch(() => ({ succeeded: false }));
+  try { await inst._onDeviceFieldChange({}); } finally { globalThis.fetch = realFetch; }
+  assert.equal(inst.topTierErrors.deviceSave, "Couldn't save capture settings.");
+  stubFetch(() => ({ succeeded: true }));
+  try { await inst._onDeviceFieldChange({}); } finally { globalThis.fetch = realFetch; }
+  assert.deepEqual(inst.topTierErrors, {}, 'confirmed save clears its own error');
+  assert.deepEqual(painted.at(-1), {}, 'and the clear is painted');
+}
+
+// The click alone does not clear: a retry that is still in flight keeps the
+// old message (cleared only by a confirmed result).
+{
+  const { inst } = ownerScreen({
+    flags: { usesVideoInput: true, usesAudioInput: false, samplesZones: true },
+    monitors: [], selectedMonitorName: '', sinkName: '',
+  });
+  inst.topTierErrors.deviceSave = "Couldn't save capture settings.";
+  let release;
+  globalThis.fetch = () => new Promise((r) => { release = () => r({ json: async () => ({ succeeded: true }) }); });
+  const pending = inst._onDeviceFieldChange({});
+  assert.equal(inst.topTierErrors.deviceSave, "Couldn't save capture settings.", 'kept while retry runs');
+  release();
+  try { await pending; } finally { globalThis.fetch = realFetch; }
+  assert.deepEqual(inst.topTierErrors, {});
+}
+
+// An unrelated success leaves another control's error alone: device-save
+// error survives a good auto-arrange, a good pause, and a good config switch.
+{
+  const { inst } = ownerScreen({
+    zones: [{ zoneId: 1, active: true }],
+    _loadZoneData: async () => {}, _renderZoneMappingContent() {}, _renderBridgeZoneList() {},
+    _loadAll: async () => {},
+  });
+  inst.topTierErrors.deviceSave = "Couldn't save capture settings.";
+  stubFetch(() => ({ succeeded: true }));
+  try {
+    await inst._onAutoDivideClick({ disabled: false });
+    await inst._togglePause();
+    await inst._onEntertainmentConfigChange('cfg', {});
+  } finally { globalThis.fetch = realFetch; }
+  assert.equal(inst.topTierErrors.deviceSave, "Couldn't save capture settings.");
+}
+
+// Pause: failed then successful clears its own error.
+{
+  const { inst, painted } = ownerScreen({ _loadAll: async () => {} });
+  stubFetch(() => ({ succeeded: false }));
+  try { await inst._togglePause(); } finally { globalThis.fetch = realFetch; }
+  assert.equal(inst.topTierErrors.pause, "Couldn't pause Aurora.");
+  stubFetch(() => ({ succeeded: true }));
+  try { await inst._togglePause(); } finally { globalThis.fetch = realFetch; }
+  assert.deepEqual(inst.topTierErrors, {});
+  assert.deepEqual(painted.at(-1), {});
+}
+
+// Auto-arrange: success repaints the top tier (a failed attempt's text must
+// leave the screen), failure and the no-active-zones case are painted.
+{
+  const { inst, painted } = ownerScreen({
+    zones: [{ zoneId: 1, active: true }, { zoneId: 2, active: false }],
+    _loadZoneData: async () => {}, _renderZoneMappingContent() {}, _renderBridgeZoneList() {},
+  });
+  stubFetch(() => ({ succeeded: false }));
+  try { await inst._onAutoDivideClick({ disabled: false }); } finally { globalThis.fetch = realFetch; }
+  assert.equal(inst.topTierErrors.autoArrange, "Couldn't save the auto-arranged zones.");
+  assert.equal(painted.at(-1).autoArrange, "Couldn't save the auto-arranged zones.", 'failure painted');
+  stubFetch(() => ({ succeeded: true }));
+  try { await inst._onAutoDivideClick({ disabled: false }); } finally { globalThis.fetch = realFetch; }
+  assert.deepEqual(inst.topTierErrors, {});
+  assert.deepEqual(painted.at(-1), {}, 'success repaints the top tier');
+
+  inst.zones = [{ zoneId: 1, active: false }];
+  await inst._onAutoDivideClick({ disabled: false });
+  assert.equal(inst.topTierErrors.autoArrange, 'No active zones to arrange.');
+  assert.equal(painted.at(-1).autoArrange, 'No active zones to arrange.', 'painted, not just stored');
+}
+
+// A saved switch clears a rejected one's row; a reload that failed after the
+// save adds no inline row and pokes the beat (the shell banner owns it).
+{
+  const { inst, checkNowCalls } = ownerScreen({ _loadZoneData: async () => {}, _renderZoneMappingContent() {}, _renderBridgeZoneList() {} });
+  inst.topTierErrors.entertainmentConfig = "Couldn't switch entertainment configuration.";
+  await inst._onEntertainmentConfigChange('cfg', { reloadError: 'x' });
+  assert.deepEqual(inst.topTierErrors, {});
+  assert.equal(checkNowCalls.length, 1);
+  await inst._onEntertainmentConfigChange('cfg', {});
+  assert.equal(checkNowCalls.length, 1, 'clean switch needs no poke');
+}
+
+// Wiring: the real constructor's select forwards the reload result, and a
+// reload failure through it adds no inline row.
+{
+  const checks = [];
+  const inst = new DashboardScreen({ checkNow: async () => { checks.push(1); return true; } });
+  inst._loadZoneData = async () => {}; inst._renderZoneMappingContent = () => {}; inst._renderBridgeZoneList = () => {};
+  inst._renderTopTier = () => {};
+  await inst.entertainmentConfigSelect.onChange('cfg', { reloadError: 'x' });
+  assert.equal(checks.length, 1, 'result reaches the Dashboard handler');
+  assert.deepEqual(inst.topTierErrors, {});
+  inst.entertainmentConfigSelect.onError("Couldn't switch entertainment configuration.");
+  assert.ok(inst.topTierErrors.entertainmentConfig, 'rejected switch still shows inline');
+}
+
+// Zone toggle success (queue onSuccess) clears only the zoneToggle row.
+{
+  const { inst } = ownerScreen();
+  inst.topTierErrors.zoneToggle = "Couldn't save a zone edit.";
+  inst.topTierErrors.zoneCanvas = "Couldn't save a zone edit.";
+  inst._clearTopTierError('zoneToggle');
+  assert.deepEqual(Object.keys(inst.topTierErrors), ['zoneCanvas']);
+}
+
+// Two errors at once both render, each as its own row, in place on reword.
+{
+  const topTier = makeEl();
+  const inst = Object.create(DashboardScreen.prototype);
+  Object.assign(inst, {
+    platform: 'linux', toggleError: null, topTierErrors: {}, deviceField: null,
+    flags: { usesVideoInput: true, usesAudioInput: false, samplesZones: true },
+    audioDevicesUrl: null, monitors: [], selectedMonitorName: '', sinkName: '',
+    container: { querySelector: (sel) => (sel === '.db-top-tier' ? topTier : makeEl()) },
+  });
+  inst._setTopTierError('deviceSave', "Couldn't save capture settings.");
+  inst._setTopTierError('autoArrange', "Couldn't save the auto-arranged zones.");
+  assert.ok(topTier.innerHTML.includes("Couldn't save capture settings."));
+  assert.ok(topTier.innerHTML.includes("Couldn't save the auto-arranged zones."));
+  inst._setTopTierError('deviceSave', 'Reworded.');
+  assert.ok(!topTier.innerHTML.includes("Couldn't save capture settings."));
+  assert.ok(topTier.innerHTML.indexOf('Reworded.') < topTier.innerHTML.indexOf('auto-arranged'), 'row keeps its place');
+  inst.deviceField?.destroy();
 }
 
 console.log('DashboardScreen pause checks passed.');

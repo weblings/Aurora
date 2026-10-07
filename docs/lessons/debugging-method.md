@@ -864,3 +864,11 @@ Applies-when: live-testing a permission or health flag the backend infers from a
 Aurora-tjoq: `permissionLikelyDenied` clears only on a non-zero sample, so with nothing playing it stayed `true` for 25s after the grant and the check was inconclusive; the "denied" baseline was equally what a granted-but-silent tap reads. Only with audio playing did the flag flip.
 
 **Fix:** supply the signal (play audio) for the baseline and the after-reading, and run the denied-with-signal control so the baseline is real denial. If the first poll after supplying the signal already shows the final value, say the flip was not observed.
+
+## Live-testing macOS permissions: the Settings toggle quits your test app, and `devstack.py` hits the real instance under the terminal's grant
+Tags: macos, tcc, live-testing, devstack, isolation
+Applies-when: driving a permission denial/grant live with a throwaway instance or the light-viz stack
+
+Aurora-h457: enabling a privacy toggle makes macOS offer "Quit & Reopen"; accepting it killed the isolated instance (port 8261, `AURORA_CONFIG_DIR`) and relaunched Aurora on the owner's real config (8215), so later clicks and "first Retry did nothing" were against a different process than the logger watched. `devstack.py` takes the first WebUI from 8215 and execs the binary directly, so it would reconfigure a running real instance and run under the terminal's grant, which never shows the denial.
+
+**Fix:** run the stack by hand: fake bridge, relay, `web/demo` server, and an `open -n --env AURORA_CONFIG_DIR=... --env AURORA_DEV_LIGHT_TAP=1 Aurora.app --args --fake-hue` bundle, paired with `POST /api/hue/connection`. Log state and a zone's colour per second (`python3 -u`; redirected stdout buffers). Choose Later on "Quit & Reopen", and confirm which port the human is clicking before reading the log.

@@ -678,7 +678,7 @@ Aurora-c0g classifies each config edit as live-tunable or structural by diffing 
 
 **Fix:** the pipeline keeps the Config it was built from (moved forward by each live apply) and the diff runs against that. A failed reload then keeps surfacing its error on later saves instead of silently diverging. Fields the running mode never reads still move the baseline, and an unclassified field defaults to reload.
 
-The WebUI has the same trap (found scoping Aurora-kea, 2026-10-03). `DashboardScreen._switchMode` refetches after a PUT and re-derives the Video/Audio mode from `/api/config`. On `reloadError` the old pipeline keeps running but the config holds the failed mode, so every section shows the mode that isn't running. `reload()` while paused also returns success without building anything. Neither "succeeded" nor the saved config means "running". **UI fix:** show running state from the pipeline itself (kea's `GET /api/state` flags), never from the saved config. Don't roll the save back either: Mac permission recovery depends on the saved mode starting after relaunch.
+The WebUI has the same trap (found scoping Aurora-kea, 2026-10-03). `DashboardScreen._switchMode` refetches after a PUT and re-derives the Video/Audio mode from `/api/config`. On `reloadError` the old pipeline keeps running but the config holds the failed mode, so every section shows the mode that isn't running. `reload()` while paused also returns success without building anything. Neither "succeeded" nor the saved config means "running". **UI fix:** show running state from the pipeline itself (kea's `GET /api/state` flags), never from the saved config. Don't roll the save back either: Mac permission recovery depends on the saved mode starting after relaunch. Since Aurora-98pr the Dashboard shows no inline copy of that `reloadError`; the daemon holds it and the shell banner shows it.
 
 ---
 
@@ -807,3 +807,10 @@ Three rules came with it. (1) The old early return also dropped a failure that l
 
 **Fix:** see `PipelineHost::_recordFailure`, `_setBuildErrorLocked`, `dismissError`, and ErrorOverlay.md decisions 10-12. After a failed reload on a running host, `/api/state` shows `running` with one `reload` error carrying an id.
 
+## `PUT /api/config` reloads only when the running pipeline differs from the new config -- a Retry in the running mode needs an explicit reload
+Tags: reload, config, retry, banner, pipeline
+Applies-when: a UI action must rebuild the pipeline that is already running in the mode it is about (permission Retry, restart-a-component)
+
+Aurora-h457: a first audio-row Retry saved audio-only config and cleared nothing, because the running pipeline was already audio, so the save's reload saw no structural change and rebuilt nothing; the stale grabber kept running. The saved mode can also differ from the running one after a failed switch (saved Video, running Audio): a plain `POST /api/reload` then builds the saved mode, not the running one.
+
+**Fix:** a Retry that must replace what is running calls `POST /api/reload` itself; do not rely on a config save to reload. For rows whose saved and running modes can diverge, the row of the failed switch is the one to retry. A "select the row's mode, then reload" Retry was built (shared `modeSwitchPatch`/`putModeSwitch`) and reverted once either grant alone proved enough.

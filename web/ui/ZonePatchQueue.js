@@ -10,8 +10,11 @@ export class ZonePatchQueue {
   // onUnreachable (Aurora-ewyz): when set, a fetch failure calls it and
   // emits no onError -- the shell takeover owns the message. Unset keeps
   // the old DAEMON_UNREACHABLE emit (tests, unwired users).
-  constructor({ onError, onUnreachable } = {}) {
+  // onSuccess (Aurora-m0fy): fires after a PUT the daemon accepted, so a
+  // caller that shows an inline error can clear it on a confirmed result.
+  constructor({ onError, onUnreachable, onSuccess } = {}) {
     this.onError = onError;
+    this.onSuccess = onSuccess;
     this.onUnreachable = onUnreachable;
     this._pending = new Map();
     this._inFlight = new Set();
@@ -37,6 +40,7 @@ export class ZonePatchQueue {
         body: JSON.stringify({ zoneId, ...patch }),
       })).json();
       if (!result.succeeded) this.onError?.("Couldn't save a zone edit.");
+      else this.onSuccess?.();
     } catch {
       if (this.onUnreachable) this.onUnreachable();
       else this.onError?.(DAEMON_UNREACHABLE);

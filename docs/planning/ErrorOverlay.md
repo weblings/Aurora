@@ -459,14 +459,18 @@ into `web/demo/vendor/webui` (see Accepted gaps).
 
 ## Proposed revision: errors go to the shell by cause (2026-10-06)
 
-Status: proposed, not built. Raised during Aurora-nkhi's live Mac check:
+Status: in progress. Core (Aurora-ja76) shipped 2026-10-06
+([[ja76-hold-running-reload-error]]); WebUI (98pr) shipped
+([[98pr-webui-banner-x]]); Mac audio row (h457) shipped
+([[h457-audio-permission-banner-row]]); WebUI inline cleanup (m0fy) shipped
+([[m0fy-top-tier-error-owners]]); the tray beads (q9l1, k73j) are not built. Raised during Aurora-nkhi's live Mac check:
 with the host running and Screen Recording off, a failed Video switch left
 the permission block inline under the toggles and the banner empty. That is
 what the Model section prescribes today (rejected requests stay inline), but
 the owner expects every host-state error in the shell. The owner confirmed
 this split over "everything in the shell" on 2026-10-06, and the open
 questions are settled below (agent-proposed, owner-approved). The sections
-above are unchanged until this is built.
+above are unchanged until this is built; the Core changes below are built.
 
 ### The rule
 
@@ -589,7 +593,9 @@ a new id.
   exists to patch the old split. Closed 2026-10-06 without shipping; its
   node tests are carried into Aurora-98pr's notes.
 - **Aurora-m0fy**: keeps its scope (owner fix for `topTierError`), shrunk to
-  the errors that stay inline; now after Aurora-98pr (same fields).
+  the errors that stay inline; now after Aurora-98pr (same fields). Shipped
+  2026-10-07 as one key per control, not one owner for the field
+  ([[m0fy-top-tier-error-owners]]).
 - **Aurora-k73j**: rule unchanged (running → Pause; paused with an error or
   failed → `⚠ See Error`). Clarification: errors on a running host do not
   change the label, so `buildError()` alone must not drive it.
@@ -684,8 +690,10 @@ done.
 13. **Retry and row types in the shell.** `shell.js` `_retry` already posts
     `/api/reload` for every source but `resume`, so a running-host `reload`
     row needs no new retry rule, only a regression test. The new
-    `audio_permission` source must not fall through to it: its row gets
-    Open Settings and an X, no Retry (Aurora-h457). Aurora-98pr must also
+    `audio_permission` source takes the generic Retry too: a grant does not
+    revive a grabber created before it (found live, Aurora-h457), and the
+    reload rebuilds it. Its row gets Retry, Open Settings and an X.
+    Aurora-98pr must also
     check that `_visibleErrors`' hide-`reload`-off-dashboard gate hides
     nothing a post-onboarding route needs.
 14. **Audio entry publisher: the Mac main loop, on edges.**
