@@ -459,14 +459,16 @@ into `web/demo/vendor/webui` (see Accepted gaps).
 
 ## Proposed revision: errors go to the shell by cause (2026-10-06)
 
-Status: proposed, not built. Raised during Aurora-nkhi's live Mac check:
+Status: in progress. Core (Aurora-ja76) shipped 2026-10-06
+([[ja76-hold-running-reload-error]]); WebUI (98pr), Mac audio row (h457)
+and the rest are not built. Raised during Aurora-nkhi's live Mac check:
 with the host running and Screen Recording off, a failed Video switch left
 the permission block inline under the toggles and the banner empty. That is
 what the Model section prescribes today (rejected requests stay inline), but
 the owner expects every host-state error in the shell. The owner confirmed
 this split over "everything in the shell" on 2026-10-06, and the open
 questions are settled below (agent-proposed, owner-approved). The sections
-above are unchanged until this is built.
+above are unchanged until this is built; the Core changes below are built.
 
 ### The rule
 
