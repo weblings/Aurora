@@ -1,4 +1,4 @@
-# Aurora-98pr: saved-not-applied errors move to the banner; banner X (closed)
+# Aurora-98pr: saved-not-applied errors move to the banner; banner X (live checks in progress)
 
 Id: 98pr-webui-banner-x
 

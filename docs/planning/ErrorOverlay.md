@@ -460,7 +460,7 @@ into `web/demo/vendor/webui` (see Accepted gaps).
 ## Proposed revision: errors go to the shell by cause (2026-10-06)
 
 Status: in progress. Core (Aurora-ja76) shipped 2026-10-06
-([[ja76-hold-running-reload-error]]); WebUI (98pr) shipped
+([[ja76-hold-running-reload-error]]); WebUI (98pr) built, live checks in progress
 ([[98pr-webui-banner-x]]); Mac audio row (h457) and the rest are not built. Raised during Aurora-nkhi's live Mac check:
 with the host running and Screen Recording off, a failed Video switch left
 the permission block inline under the toggles and the banner empty. That is
