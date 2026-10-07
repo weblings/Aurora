@@ -32,6 +32,31 @@ the same day (below).
   rows, permission row. Mutant check: the old DashboardScreen.js fails the
   flipped tests ("banner owns the failure").
 
+## Owner's Mac pass (same day, found by the owner)
+
+- **Failed resume was inline too.** `_togglePause` set "Couldn't resume
+  Aurora." under the toggles whenever `PUT /api/state` returned
+  `succeeded:false` (a 500 only for a failed build, which the daemon holds as
+  a `resume` error) -- a duplicate of the banner row, far from the Pause
+  button. A rejected resume now sets nothing and calls `checkNow()`; "Couldn't
+  pause" and the blip-path copy stay inline (nothing held for them).
+- **Retry cannot recover a denied prompt.** After Don't Allow, macOS does not
+  prompt again, so Retry did nothing visible. `renderReloadError`'s banner row
+  now splits on the prefix: `permission_denied:` shows "Turn it on in System
+  Settings, then Retry" with the `Privacy_ScreenCapture` link beside Retry;
+  `permission_pending:` stays Retry-only (the prompt is the fix). Web search
+  confirmed only that an app cannot re-prompt after a denial; it did not
+  confirm the deep link on Tahoe (cj11's live check found it opens the pane).
+- **Live, owner's real denial** (their `open`-launched Aurora.app on 8215,
+  state `paused`, `resume: permission_denied: ScreenCaptureKitGrabber...`):
+  row shows the new copy, link href `...?Privacy_ScreenCapture`, Retry, no X
+  (paused); clicking Resume again leaves no inline error. Confirms a real Don't
+  Allow produces the `permission_denied:` prefix. Not done: clicking the link
+  itself in a real browser, and whether Aurora shows in the pane with the
+  toggle off after Deny (the inference behind showing the link).
+- A directly exec'd binary runs under the terminal's grant, so it never shows
+  the denial; only an `open`-launched bundle does.
+
 ## Findings
 
 - The bead text says permission rows keep Open Settings; the shell's
@@ -87,5 +112,6 @@ with headless Chromium (Playwright). Not the owner's real instance.
 ## Not done
 
 - Demo fork left alone (decision 7).
-- Real macOS Screen Recording denial with an X: needs a TCC reset for
-  `com.aurora.app` on the owner's Mac, not done without their say-so.
+- Permission row with X on a *running* host (real denial): the owner's
+  denial case was a paused host (no X). Needs a running host to fail a Video
+  switch under a real denial.

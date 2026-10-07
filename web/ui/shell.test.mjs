@@ -314,7 +314,8 @@ const stateOk = (extra = {}) => async () => ({ reachable: true, state: 'running'
   }));
   app.platform = 'mac';
   await app._pollOnce();
-  assert.ok(!banner().includes('Open Screen Recording settings'), 'banner row is Retry-only, no Settings link');
+  assert.ok(banner().includes('Open Screen Recording settings'), 'denied row offers the Settings link (macOS will not re-prompt)');
+  assert.ok(banner().includes('Privacy_ScreenCapture'));
   assert.ok(banner().includes('id="shell-banner-retry-startup"'), 'permission row has a Retry button');
   assert.ok(banner().includes('Screen Recording is off.'));
   assert.ok(banner().includes('System Settings, then Retry'));
@@ -322,7 +323,7 @@ const stateOk = (extra = {}) => async () => ({ reachable: true, state: 'running'
   uninstallDom();
 }
 {
-  // permission_pending reads the same one-line row as denied.
+  // permission_pending: the macOS prompt is the fix, so Retry only, no link.
   const { app, banner } = makeApp(stateOk({
     state: 'failed',
     errors: [{ source: 'startup', message: 'permission_pending: prompt shown' }],
@@ -331,6 +332,7 @@ const stateOk = (extra = {}) => async () => ({ reachable: true, state: 'running'
   await app._pollOnce();
   assert.ok(banner().includes('Screen Recording is off.'));
   assert.ok(banner().includes('id="shell-banner-retry-startup"'));
+  assert.ok(!banner().includes('Open Screen Recording settings'), 'pending row is Retry-only');
   uninstallDom();
 }
 {

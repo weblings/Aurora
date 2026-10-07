@@ -197,6 +197,17 @@ body {
   cursor: pointer;
 }
 
+.shell-banner-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--aurora-space-3);
+  margin-top: var(--aurora-space-3);
+}
+
+.shell-banner-actions .btn {
+  margin-top: 0 !important;
+}
+
 .shell-banner-dismiss ~ p {
   padding-right: 24px;
 }

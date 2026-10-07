@@ -680,7 +680,13 @@ export class DashboardScreen {
         body: JSON.stringify({ running: this.paused }),
       })).json();
       if (!result || result.succeeded !== true) {
-        this.topTierError = this.paused ? "Couldn't resume Aurora." : "Couldn't pause Aurora.";
+        if (this.paused) {
+          // A rejected resume is a failed build: the daemon holds it as a
+          // `resume` error and the shell banner shows it (Aurora-98pr).
+          this.app.checkNow();
+          return;
+        }
+        this.topTierError = "Couldn't pause Aurora.";
         this._renderTopTier();
         return;
       }

@@ -165,6 +165,26 @@ function stubFetch(handler) {
   assert.equal(renderedTopTier, 1);
 }
 
+// Rejected resume (a failed build the daemon holds): no inline copy, the
+// shell banner owns it (Aurora-98pr); the beat gets one immediate re-check.
+{
+  stubFetch(() => ({ succeeded: false, error: 'boom' }));
+  let renderedTopTier = 0;
+  const { inst, checkNowCalls } = fakeScreen({
+    paused: true,
+    _renderTopTier: () => { renderedTopTier++; },
+  });
+  try {
+    await inst._togglePause();
+  } finally {
+    globalThis.fetch = realFetch;
+  }
+  assert.equal(inst.topTierError, null);
+  assert.equal(renderedTopTier, 0);
+  assert.equal(checkNowCalls.length, 1);
+  assert.equal(inst.pauseBusy, false);
+}
+
 // Unreachable daemon (Aurora-ewyz): no inline error -- the shell takeover
 // owns the case, so one message, not two. The beat gets one immediate
 // re-check that also reads as down.

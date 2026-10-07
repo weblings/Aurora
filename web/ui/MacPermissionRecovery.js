@@ -56,14 +56,25 @@ export function renderReloadError(message, platform, { retryId } = {}) {
     ? `<button type="button" class="btn btn-secondary" id="${escapeHtml(retryId)}" style="margin-top: var(--aurora-space-3);">Retry</button>`
     : '';
 
-  // Banner row (Aurora-cj11): one line, denied and pending alike -- the fix
-  // is the same either way (answer macOS's prompt or toggle Aurora in System
-  // Settings, then Retry). No Open Settings link: it never adds Aurora to
-  // the Screen Recording list, only macOS's own prompt does.
+  // Banner row (Aurora-cj11): one line. Pending: the macOS prompt is the fix
+  // (the Settings link never adds Aurora to the Screen Recording list, only
+  // the prompt does), so Retry only. Denied: macOS never prompts again after
+  // a Don't Allow, so Retry alone cannot recover; the pane is the only way
+  // forward and Aurora is already in its list, so the link comes back next to
+  // Retry (Aurora-98pr).
   if (retryId) {
-    return `
+    if (parsed.kind === 'pending') {
+      return `
     <p class="status-text status-text-error">⚠ <strong>Screen Recording is off.</strong> Allow it in the macOS prompt or System Settings, then Retry.</p>
     ${retryButton}
+  `;
+    }
+    return `
+    <p class="status-text status-text-error">⚠ <strong>Screen Recording is off.</strong> Turn it on in System Settings, then Retry.</p>
+    <div class="shell-banner-actions">
+      <a class="btn btn-secondary" style="text-decoration: none;" href="${SCREEN_RECORDING_SETTINGS_URL}">Open Screen Recording settings</a>
+      ${retryButton}
+    </div>
   `;
   }
 
