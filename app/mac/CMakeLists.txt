@@ -81,6 +81,7 @@ target_include_directories(AuroraApp PUBLIC
 target_link_libraries(AuroraApp PUBLIC
   AuroraInputInterface
   AuroraOutputInterface
+  AuroraRuntime
 )
 
 find_library(FRAMEWORK_APPKIT AppKit REQUIRED)

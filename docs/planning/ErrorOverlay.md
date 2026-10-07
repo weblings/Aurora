@@ -325,11 +325,9 @@ Not needed for three items.
 **Shows for a `failed` host, not only a failed Resume.** Driven by the
 daemon-held error, so it covers the startup-failure case (today the tray
 offers a "Pause" that does nothing) as well as a failed Resume, from
-either the tray or the WebUI. Implemented as a `buildError()` getter
-passed alongside the existing `isPaused()` and read when the menu opens,
+either the tray or the WebUI. Implemented as one `PipelineHost::status()` snapshot read when the menu opens (state plus errors together, never a separate `buildError()`/`isPaused()` pair: since Aurora-ja76 a running host can hold errors, so the error list alone cannot drive the label),
 the model `docs/lessons/architecture-process.md` already set for this
-label. Labels: running → Pause; paused, no error → Resume; failed or
-paused with an error → `⚠ See Error`.
+label. Labels: running → Pause (even with errors held); idle → Pause (status quo); paused, no error → Resume; failed or paused with an error → `⚠ See Error`.
 
 **Clicking it opens the WebUI, not Settings directly.** Reuses the
 existing, already-cross-platform "Launch UI" action (`ShellExecuteA` on

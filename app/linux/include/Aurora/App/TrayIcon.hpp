@@ -6,6 +6,8 @@
 
 #include <gio/gio.h>
 
+#include <Aurora/Runtime/Pipeline.hpp>
+
 // Linux notification-area presence via StatusNotifierItem (Aurora-lx4.2):
 // registers org.kde.StatusNotifierItem on the session bus with IconName
 // "aurora" (resolved through the installed hicolor theme -- no pixmap
@@ -27,10 +29,12 @@ public:
   // onLaunch/onStop/onTogglePause run on the D-Bus worker thread; keep them
   // trivial (openWebBrowser / setting a flag, per existing precedents).
   // Pause/Resume takes seconds, so onTogglePause must only post the request
-  // (Aurora-5ipy.16). isPaused is read on that thread too: lock-free only.
+  // (Aurora-5ipy.16). hostStatus is read on that thread too: only the
+  // leaf lock, never the pipeline lock (PipelineHost::status contract).
   TrayIcon(std::string url, bool webUiBound,
            std::function<void()> onLaunch, std::function<void()> onStop,
-           std::function<void()> onTogglePause, std::function<bool()> isPaused);
+           std::function<void()> onTogglePause,
+           std::function<Aurora::Runtime::HostStatus()> hostStatus);
   ~TrayIcon();
 
   TrayIcon(const TrayIcon&) = delete;
@@ -45,8 +49,12 @@ public:
   void refresh();
 
   // Test seam: the dbusmenu layout (root id 0, children Launch UI id 1 /
-  // Pause-or-Resume id 3 / Stop id 2). Caller owns the returned reference.
-  static GVariant* menuLayoutForTest(bool webUiBound, bool paused);
+  // Pause-slot id 3 / Stop id 2). The Pause-slot label comes from the core
+  // trayPauseItemLabel(state, hasError, webUiBound) (Aurora-k73j), so the
+  // layout case covers the label choice end to end. Caller owns the
+  // returned reference.
+  static GVariant* menuLayoutForTest(bool webUiBound, Aurora::Runtime::HostState state,
+                                     bool hasError);
 
 private:
   std::string m_url;
@@ -54,7 +62,7 @@ private:
   std::function<void()> m_onLaunch;
   std::function<void()> m_onStop;
   std::function<void()> m_onTogglePause;
-  std::function<bool()> m_isPaused;
+  std::function<Aurora::Runtime::HostStatus()> m_hostStatus;
   struct Worker;
   Worker* m_worker{nullptr};
 };

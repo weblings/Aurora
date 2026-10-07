@@ -696,8 +696,8 @@ if(!instanceLock.held()){
     [&]{ openWebBrowser(url); },
     []{ g_stopRequested = 1; },
     [&]{ pendingRunRequest.requestToggle(pipelineHost.isPaused()); },
-    [&]{ return pipelineHost.isPaused(); });
-  bool trayShowsPaused = pipelineHost.isPaused();
+    [&]{ return pipelineHost.status(); });
+  Aurora::Runtime::HostStatus trayShown = pipelineHost.status();
 
   // Drives whichever Pipeline is current at the top of each iteration -- a
   // reload swapping it mid-loop is exactly what PipelineHost's own lock is
@@ -709,8 +709,12 @@ if(!instanceLock.held()){
         std::cerr << "Tray pause/resume failed: " << error << "\n";
       }
     }
-    if(pipelineHost.isPaused() != trayShowsPaused){
-      trayShowsPaused = pipelineHost.isPaused();
+    // The Pause-slot label can also flip on the error state (Aurora-k73j),
+    // not just on paused: re-fetch the layout when either changes.
+    const Aurora::Runtime::HostStatus trayNow = pipelineHost.status();
+    if(trayNow.state != trayShown.state
+        || trayNow.errors.empty() != trayShown.errors.empty()){
+      trayShown = trayNow;
       trayIcon.refresh();
     }
     auto tickStart = std::chrono::steady_clock::now();

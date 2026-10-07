@@ -596,7 +596,7 @@ try
     [&]{ openWebBrowser(url); },
     []{ g_stopRequested = true; },
     [&]{ pendingRunRequest.requestToggle(pipelineHost.isPaused()); },
-    [&]{ return pipelineHost.isPaused(); });
+    [&]{ return pipelineHost.status(); });
 
   // Drives whichever Pipeline is current at the top of each iteration -- a
   // reload swapping it mid-loop is exactly what PipelineHost's own lock is

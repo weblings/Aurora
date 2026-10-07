@@ -46,6 +46,7 @@
 #include <Aurora/Runtime/ControlDescriptors.hpp>
 #include <Aurora/Runtime/PendingRunRequest.hpp>
 #include <Aurora/Runtime/Pipeline.hpp>
+#include <Aurora/Runtime/TrayLabel.hpp>
 #include <Aurora/Runtime/PipelineRoutes.hpp>
 #include <Aurora/Runtime/SettingsRoutes.hpp>
 #include <Aurora/Runtime/ZoneRoutes.hpp>
@@ -421,14 +422,17 @@ public:
   // until the thread has finished setup and rethrows its failure, so
   // callers see the same throw-on-window-failure contract as before.
   // Aurora-5ipy.15: onTogglePause runs on the tray thread and must only
-  // post the request (resume takes seconds: Hue DTLS); isPaused is read
-  // there each time the menu opens, so lock-free only.
+  // post the request (resume takes seconds: Hue DTLS); hostStatus is read
+  // there each time the menu opens, so only the leaf lock, never the
+  // pipeline lock (PipelineHost::status contract). A "See Error" slot
+  // (Aurora-k73j) opens the WebUI instead of posting a run/pause target.
   TrayIcon(const std::string& url, bool webUiBound,
-           std::function<void()> onTogglePause, std::function<bool()> isPaused)
+           std::function<void()> onTogglePause,
+           std::function<Aurora::Runtime::HostStatus()> hostStatus)
     : m_url(url),
       m_webUiBound(webUiBound),
       m_onTogglePause(std::move(onTogglePause)),
-      m_isPaused(std::move(isPaused))
+      m_hostStatus(std::move(hostStatus))
   {
     // Retrieve the future before moving the promise into the thread -- the
     // Aurora-nzd bug class (get_future on a moved-from promise).
@@ -467,8 +471,14 @@ public:
     }
     AppendMenuA(menu, MF_STRING | (m_webUiBound ? MF_ENABLED : MF_GRAYED),
       IDM_LAUNCH_UI, "Launch UI");
+    // One status() snapshot per open (Aurora-k73j): state plus errors
+    // together, so a running host holding errors (Aurora-ja76) still reads
+    // Pause while a failed one reads See Error.
+    const Aurora::Runtime::HostStatus menuStatus =
+        (m_hostStatus ? m_hostStatus() : Aurora::Runtime::HostStatus{});
     AppendMenuA(menu, MF_STRING, IDM_PAUSE,
-      (m_isPaused && m_isPaused()) ? "Resume" : "Pause");
+      Aurora::Runtime::trayPauseItemLabel(menuStatus.state, !menuStatus.errors.empty(),
+          m_webUiBound));
     AppendMenuA(menu, MF_STRING, IDM_STOP, "Stop");
     POINT cursor{};
     GetCursorPos(&cursor);
@@ -484,7 +494,16 @@ public:
       openWebBrowser(m_url);
     }
     else if(picked == IDM_PAUSE){
-      if(m_onTogglePause){ m_onTogglePause(); }
+      // A "See Error" slot opens the WebUI (Aurora-k73j): the banner there
+      // explains and offers the retry. Otherwise the normal run/pause
+      // target post (Aurora-q9l1).
+      const Aurora::Runtime::HostStatus clickStatus =
+          (m_hostStatus ? m_hostStatus() : Aurora::Runtime::HostStatus{});
+      if(Aurora::Runtime::trayPauseItemShowsError(clickStatus.state,
+             !clickStatus.errors.empty(), m_webUiBound)){
+        openWebBrowser(m_url);
+      }
+      else if(m_onTogglePause){ m_onTogglePause(); }
     }
     else if(picked == IDM_STOP){
       g_stopRequested = true;
@@ -587,7 +606,7 @@ private:
   std::string m_url;
   bool m_webUiBound{false};
   std::function<void()> m_onTogglePause;
-  std::function<bool()> m_isPaused;
+  std::function<Aurora::Runtime::HostStatus()> m_hostStatus;
 };
 
 LRESULT CALLBACK trayWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
@@ -858,7 +877,7 @@ if(!instanceLock.held()){
   Aurora::Runtime::PendingRunRequest pendingRunRequest;
   TrayIcon trayIcon(url, webUiBound,
     [&]{ pendingRunRequest.requestToggle(pipelineHost.isPaused()); },
-    [&]{ return pipelineHost.isPaused(); });
+    [&]{ return pipelineHost.status(); });
   trayIcon.showFirstRunBalloon(configRoot);
 
   // Drives whichever Pipeline is current at the top of each iteration -- a
