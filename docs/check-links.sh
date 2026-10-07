@@ -115,7 +115,7 @@ id_to_title = {}
 for path in find_all_md_files():
     if os.path.relpath(path, root) == IDS_INDEX_PATH:
         continue  # the generated index is never itself a citable id source
-    text = open(path).read()
+    text = open(path, encoding='utf-8').read()
     ids = id_line_re.findall(text)
     if len(ids) > 1:
         dead.append(f'MULTIPLE Id: lines in {os.path.relpath(path, root)}: {ids}')
@@ -166,7 +166,7 @@ def resolve_id(doc_id, anchor, citing_path):
 
 
 def check_file(path, dirpath):
-    text = open(path).read()
+    text = open(path, encoding='utf-8').read()
     targets = set(link_re.findall(text)) | set(bare_re.findall(text))
     ws = os.path.dirname(root)  # workspace: sibling checkouts resolve here
     above = os.path.dirname(ws)  # parent of workspace (cross-checkout refs)
@@ -218,7 +218,10 @@ def write_ids_index():
             note = f' (superseded by `{id_to_superseded_by[doc_id]}`)'
         lines.append(f'| `{doc_id}` | [{rel}]({rel}) | {title}{note} |')
     lines.append('')
-    with open(os.path.join(docs_dir, '_ids.md'), 'w') as f:
+    # newline='' keeps line endings as literally written (\n) regardless of
+    # platform -- the default text-mode translation to \r\n on Windows made
+    # every run show ~100 changed lines of pure whitespace in git diff.
+    with open(os.path.join(docs_dir, '_ids.md'), 'w', encoding='utf-8', newline='') as f:
         f.write('\n'.join(lines))
 
 

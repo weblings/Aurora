@@ -93,7 +93,12 @@ Before archiving or re-filing anything:
    what actually shipped in that area before trusting the doc over the
    code.
 3. **`python3 check-links.sh` and `bash check-lessons.sh` after every
-   move.** For old-style path/bare-filename citations, both are lenient
+   move.** The pre-commit hook (`.beads/hooks/pre-commit`, Aurora-lmn.5) now
+   runs both automatically on any commit touching `docs/`, `.claude/skills/`,
+   or a README/CLAUDE.md, so a forgotten manual run during a reorg no longer
+   goes unnoticed until the next sweep — but still run them by hand
+   mid-pass, before everything's staged. For old-style path/bare-filename
+   citations, both are lenient
    about *which* directory a citation lives in (a citation resolves if the
    target exists anywhere from the citing file's directory up to the repo
    root), so a clean run doesn't guarantee every real `[label](href)` link

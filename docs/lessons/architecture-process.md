@@ -814,3 +814,21 @@ Applies-when: a UI action must rebuild the pipeline that is already running in t
 Aurora-h457: a first audio-row Retry saved audio-only config and cleared nothing, because the running pipeline was already audio, so the save's reload saw no structural change and rebuilt nothing; the stale grabber kept running. The saved mode can also differ from the running one after a failed switch (saved Video, running Audio): a plain `POST /api/reload` then builds the saved mode, not the running one.
 
 **Fix:** a Retry that must replace what is running calls `POST /api/reload` itself; do not rely on a config save to reload. For rows whose saved and running modes can diverge, the row of the failed switch is the one to retry. A "select the row's mode, then reload" Retry was built (shared `modeSwitchPatch`/`putModeSwitch`) and reverted once either grant alone proved enough.
+
+---
+
+## bd-managed git hooks have a documented extension point: content outside the BEGIN/END markers survives `bd hooks install` upgrades
+Tags: beads, git-hooks, tooling
+Applies-when: wiring a project script into a git hook in a repo that already uses `bd hooks install`
+
+Wiring `check-lessons.sh`/`check-links.sh` into pre-commit (Aurora-lmn.5), `core.hooksPath` already pointed at the bd-managed, git-tracked `.beads/hooks/pre-commit`. A separate hook file would never run (git only consults the one path `core.hooksPath` names), and hand-editing inside the `# --- BEGIN/END BEADS INTEGRATION ---` markers risked being clobbered by a future `bd hooks install`. `bd hooks install --help` documents the actual contract: "Hooks use section markers to coexist with existing hooks -- any user content outside the markers is preserved across installs and upgrades."
+
+**Fix:** append custom hook logic after the `END BEADS INTEGRATION` marker in the relevant `.beads/hooks/<name>` file, never inside it and never as a separate file while `core.hooksPath` is bd-owned.
+
+## Turning on enforcement for a long-dormant checker surfaces a real backlog immediately -- budget to fix it in the same pass
+Tags: process, enforcement, hooks, honor-system
+Applies-when: wiring a previously-manual checker into a hook or CI for the first time
+
+`check-links.sh`/`check-lessons.sh` ran "by convention" for weeks (Aurora-lmn.4, deferred). Wiring them into the pre-commit hook (Aurora-lmn.5) immediately caught a real `Tags:` formatting bug just added to `components.md` and two dead `[[windows-env]]`/`[[macos-gui]]` wikilinks that had sat in a committed log entry since the previous session -- neither was a false positive or a tooling bug, both were real violations the honor system had simply never caught.
+
+**Fix:** expect a checker's first enforcement run to fail on a real backlog, not a bug in the checker itself. Fix the backlog in the same change that turns enforcement on, rather than disabling the check to unblock the commit — that's the whole gap this kind of hook exists to close.

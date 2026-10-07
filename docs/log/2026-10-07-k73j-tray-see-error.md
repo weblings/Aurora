@@ -61,8 +61,8 @@ and Mac/Windows manual passes.
   unpaired) + `POST /api/reload`, same trick as the Linux `/api/state`
   cycle above. Owner's eyes-on right-click found the label rendering as
   mojibake (not a missing glyph) — root cause and fix in
-  [[windows-env]] ("AppendMenuA reinterprets its string through the ANSI
-  codepage..."): `AppendMenuA` was decoding `kTraySeeErrorLabel`'s UTF-8
+  [windows-env.md](../lessons/windows-env.md) ("AppendMenuA reinterprets its
+  string through the ANSI codepage..."): `AppendMenuA` was decoding `kTraySeeErrorLabel`'s UTF-8
   bytes through CP1252 instead of UTF-8. Switched the tray's three
   `AppendMenuA` calls to `AppendMenuW` with a `MultiByteToWideChar`
   conversion; rebuilt, re-forced `Failed`, owner confirmed the label now
@@ -77,7 +77,7 @@ Same combo as Windows: an automated step, then a manual pass on the real app.
   bodies (`onTogglePause:`, `menuNeedsUpdate:`) sit outside `namespace
   Aurora::App`, so the bare `Runtime::` calls from e9ea988 failed ("undeclared
   identifier 'Runtime'"). Only the Linux and Windows builds had ever run on
-  that commit. Qualified as `Aurora::Runtime::`. See [[macos-gui]].
+  that commit. Qualified as `Aurora::Runtime::`. See [macos-gui.md](../lessons/macos-gui.md).
 - **Click dispatch extracted**, mirroring Windows' `resolveTrayClick`:
   `Aurora::App::resolveTrayPauseClick(status, webUiBound)` in
   `app/mac/src/TrayClick.cpp` (header `TrayClick.hpp`), called by

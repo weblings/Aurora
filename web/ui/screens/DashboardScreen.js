@@ -462,6 +462,7 @@ export class DashboardScreen {
       monitors: this.monitors,
       selectedMonitorName: this.selectedMonitorName,
       onUnreachable: () => this.app.checkNow(),
+      onReloadError: () => this.app.checkNow(),
     });
 
     this.bridgeSection = new AccordionSection(wrap.querySelector('.db-accordion-bridge'), { title: 'Bridge', expanded: false });

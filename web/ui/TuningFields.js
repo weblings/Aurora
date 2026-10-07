@@ -80,7 +80,7 @@ export class TuningFields {
   // its own (unlike every fetch+render component elsewhere in this app --
   // there's simply nothing left for it to fetch that the caller doesn't
   // already have). usesVideoInput/usesAudioInput: what runs (Aurora-kea).
-  constructor(container, { usesVideoInput = true, usesAudioInput = false, values, monitors = [], selectedMonitorName = AUTO_MONITOR_VALUE, onUnreachable = null }) {
+  constructor(container, { usesVideoInput = true, usesAudioInput = false, values, monitors = [], selectedMonitorName = AUTO_MONITOR_VALUE, onUnreachable = null, onReloadError = null }) {
     this.container = container;
     this.usesVideoInput = usesVideoInput;
     this.usesAudioInput = usesAudioInput;
@@ -91,6 +91,8 @@ export class TuningFields {
     this.monitors = monitors;
     this.selectedMonitorName = selectedMonitorName;
     this.fixedHueEnabled = (values.audioFixedAnchorHue ?? -1) >= 0;
+    this.onUnreachable = onUnreachable;
+    this.onReloadError = onReloadError;
     this.error = null;
     this.dropdowns = [];
     this._render();
@@ -120,7 +122,7 @@ export class TuningFields {
       ? TRANSITION_SMOOTHING_KEYS
       : [...RESPONSE_SPEED_KEYS, ...COLOR_CHARACTER_KEYS, ...FIXED_HUE_KEYS, ...SENSITIVITY_KEYS];
     const rangesMissing = descriptorsSettled() && slidersFromParams(keys).length < keys.length;
-    const message = this.error ?? (rangesMissing ? "Couldn't load slider ranges from the daemon." : null);
+    const message = this.error ?? (rangesMissing ? "Couldn't load slider ranges." : null);
     const errorHtml = message ? `<p class="status-text status-text-error">⚠ ${escapeHtml(message)}</p>` : '';
 
     this.container.innerHTML = `
@@ -305,7 +307,9 @@ export class TuningFields {
       if (!result.succeeded) {
         this.error = "Couldn't save settings.";
       } else if (result.reloadError) {
-        this.error = `Saved, but couldn't apply it live: ${result.reloadError}`;
+        // Saved, not applied: the daemon holds the error and the shell
+        // banner shows it (Aurora-98pr). Poke the beat for an early redraw.
+        this.onReloadError?.();
       }
     } catch {
       // Unreachable owns this (shell takeover, Aurora-ewyz): poke the beat
