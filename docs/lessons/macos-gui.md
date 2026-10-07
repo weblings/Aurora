@@ -1,5 +1,7 @@
 # macOS GUI (AppKit, tray, run loop)
 
+Id: lesson-macos-gui
+
 Menu-bar/status-item, run-loop-pumping, and Objective-C++ interop gotchas hit while building Mac tray-parity (`Aurora-qps`). See [README.md](README.md) for filing rules.
 
 ---

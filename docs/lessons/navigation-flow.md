@@ -1,5 +1,7 @@
 # Navigation flow
 
+Id: lesson-navigation-flow
+
 Back/Continue, gating, races, interaction models, NUX crossings. See [README.md](README.md) for filing rules.
 
 ---

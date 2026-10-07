@@ -1,5 +1,7 @@
 # WebUI components
 
+Id: lesson-components
+
 Component behavior, callbacks, data shapes, and side effects. See [README.md](README.md) for filing rules.
 
 ---
@@ -340,6 +342,8 @@ Aurora-98pr named two inline copies to remove (the `reloadError` branches of the
 
 **Fix:** when an error moves to the shell, search the screen for every setter of inline error state (`topTierError`, `toggleError`, string literals of the old copy) and decide per path whether the daemon holds that cause. A rejected resume is held (no inline copy, call `checkNow()`); a rejected pause is not (stays inline); the catch-after-blip path stays. Add a node test per path; a mutant check against the old file catches the one you missed.
 
+Related: a fourth instance turned up later, during an unrelated copy audit (Aurora-ijus). `TuningFields.js`'s own `reloadError` branch still said "Saved, but couldn't apply it live: ‹reason›" -- missed by both 98pr and m0fy because it isn't a `DashboardScreen.js` method, it's a separate component `DashboardScreen` mounts. The grep has to cross every file a screen delegates rendering to, not just the screen's own source file.
+
 ## The Dashboard's mode toggle only refreshed on mount and its own clicks -- an outside change left it stale
 Tags: dashboard, toggle, heartbeat, state, webui
 Applies-when: anything other than the Video/Audio toggle can change the running pipeline (banner Retry, tray, relaunch, a held reload)
@@ -359,4 +363,12 @@ Aurora-m0fy's `topTierError` was one string six controls wrote and four of them 
 **Fix:** a map keyed by the control, with one setter and one clearer that always repaint (the clearer only when it removed something). A key clears only when its own action's result is confirmed, never on click, and every current key renders as its own row. A shared component that can fail but never reports success (`ZonePatchQueue`) needs an `onSuccess`, or its row can never clear.
 
 Related: `EntertainmentConfigSelect` reported "saved, but the output couldn't reload" through `onError` and then called `onChange`, which cleared the field, so the message lived only until the next repaint. One callback per outcome: `onError` for a rejected action, the success callback carrying `{ reloadError }` for a saved one, and the caller decides (the Dashboard leaves it to the banner).
+
+## A constructor option destructured but never assigned to `this` is a silent no-op, not an error
+Tags: webui, callbacks, constructor
+Applies-when: adding or reviewing an optional constructor callback (`{ onX = null }`) on a WebUI component
+
+Found fixing the `TuningFields.js` duplicate above (Aurora-ijus): its constructor destructured `onUnreachable` from its options object but never wrote `this.onUnreachable = onUnreachable`. Everything around it was correct -- the catch block checked `if (this.onUnreachable) this.onUnreachable(); else this.error = DAEMON_UNREACHABLE;`, and `DashboardScreen` passed a working `onUnreachable: () => this.app.checkNow()` -- so `this.onUnreachable` was simply always `undefined`, and every network failure while saving tuning fields rendered "Couldn't reach the daemon." directly, bypassing the shell takeover it was meant to defer to. Plain JS raises no error for a destructured parameter that's never stored; a reviewer skimming the signature sees the callback wired and moves on.
+
+**Fix:** after adding `{ onX = null }` to a constructor's destructure, grep the constructor body for `this.onX =` before moving on -- the two lines are often far enough apart in a real constructor that eyeballing the signature alone won't catch a missing one. A node test that drives the actual failure path (not just the happy path) would also have caught this; `TuningFields.test.mjs` had none.
 

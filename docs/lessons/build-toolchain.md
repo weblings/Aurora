@@ -1,5 +1,7 @@
 # Build toolchain
 
+Id: lesson-build-toolchain
+
 CMake, vcpkg, compiler toolchains, WSL2 build checkouts, dev dependencies. See [README.md](README.md) for filing rules.
 
 ---
@@ -571,13 +573,13 @@ POST_BUILD commands on `aurora-app-mac` run in the order they were added, and th
 
 ---
 
-## `docs/check-links.sh` is Python with a `.sh` name: run it as `python`, with `PYTHONUTF8=1` on Windows, and it rewrites `docs/_ids.md`
-Tags: docs, check-links, windows, python, line-endings
+## `docs/check-links.py` is Python: run it as `python`, never `bash`
+Tags: docs, check-links, windows, python
 Applies-when: running the link checker from Windows or Git Bash
 
-`bash docs/check-links.sh` fails (`import: command not found`) because the file is a Python script. `python docs/check-links.sh` on Windows then dies with `UnicodeDecodeError: 'charmap' codec` on the first non-ASCII doc unless `PYTHONUTF8=1` is set. A successful run also regenerates `docs/_ids.md` with different line endings, so `git diff` shows ~100 changed lines of whitespace.
+`bash docs/check-links.py` fails (`import: command not found`) because the file is a Python script (renamed from `.sh` in Aurora-lmn.6 after living most of its life under the wrong extension). It used to also die with `UnicodeDecodeError: 'charmap' codec` on Windows on the first non-ASCII doc, and regenerate `docs/_ids.md` with different line endings every run (~100 changed lines of pure whitespace) -- both fixed at the source in Aurora-lmn.5 (`encoding='utf-8'` on every `open()`, `newline=''` on the `_ids.md` write), so `PYTHONUTF8=1` is no longer needed and a rerun only diffs real content.
 
-**Fix:** `PYTHONUTF8=1 python docs/check-links.sh`; `git checkout docs/_ids.md` if the diff is only line endings, and commit it only when entries really changed.
+**Fix:** `python docs/check-links.py` (or `python3`) on any OS -- no env var. It now also runs automatically from `.beads/hooks/pre-commit` on any commit touching `docs/`, so this mostly matters for a manual mid-pass run.
 
 ---
 

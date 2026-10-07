@@ -1,5 +1,7 @@
 # WebUI testing
 
+Id: lesson-webui-testing
+
 jsdom limits, mocks, fixtures, coverage, verification. See [README.md](README.md) for filing rules.
 
 ---

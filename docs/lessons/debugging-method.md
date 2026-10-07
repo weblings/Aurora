@@ -1,5 +1,7 @@
 # Debugging method
 
+Id: lesson-debugging-method
+
 Evidence handling, verification altitude, oracles, timing, diagnosis vs fix. See [README.md](README.md) for filing rules.
 
 ---
@@ -511,7 +513,7 @@ Applies-when: accepting a fix whose proof is "configures/builds with option X of
 Tags: debugging, verification, fixtures, resolver-logic
 Applies-when: building resolution logic with an override/fallback branch (e.g. a supersede or redirect chain layered on top of direct lookup)
 
-Building `check-links.sh`'s `[[id]]` resolver (`Aurora-lmn.2`), the first implementation checked "does this id resolve to a real file" before checking "does it have a `Superseded-by` chain" -- so a superseded id whose own file still physically existed (the realistic case: the old doc is marked retired but not yet deleted) resolved directly and silently skipped the chain-following/warning path entirely. Fixtures for the other new paths (missing id, bad anchor, duplicate id) all passed regardless, since none of them exercised a superseded-but-still-present file -- the override branch looked correct because nothing had tried to prove it was actually reachable.
+Building `check-links.py`'s `[[id]]` resolver (`Aurora-lmn.2`), the first implementation checked "does this id resolve to a real file" before checking "does it have a `Superseded-by` chain" -- so a superseded id whose own file still physically existed (the realistic case: the old doc is marked retired but not yet deleted) resolved directly and silently skipped the chain-following/warning path entirely. Fixtures for the other new paths (missing id, bad anchor, duplicate id) all passed regardless, since none of them exercised a superseded-but-still-present file -- the override branch looked correct because nothing had tried to prove it was actually reachable.
 
 **Fix:** wrote a fixture where the *normal* resolution path would also technically succeed (an id with both `Id:` and `Superseded-by:` on the same still-existing file), which caught the bug immediately; reordered the resolver to check `Superseded-by` first, unconditionally. General principle: for any override/fallback branch, "resolves correctly when nothing else could" is a weaker test than "resolves correctly when something else also could" -- test the case that would let the wrong branch win by accident.
 
@@ -562,9 +564,9 @@ The UserNotifications bead said independent research turned up "UNUserNotificati
 Tags: process, verification, git, scripts
 Applies-when: chaining a docs/lessons/test check before a commit or bead close, or trimming its output
 
-`python3 docs/check-links.sh | tail -1; ... git commit` printed a dead-link line, but the pipeline's exit status is `tail`'s (0), and the `;`-joined commit ran regardless. The commit landed with a failing link check and needed a fix-up commit. Reading only the last line of output is the same trap one step removed: it showed "lessons OK" while the line above it was the failure.
+`python3 docs/check-links.py | tail -1; ... git commit` printed a dead-link line, but the pipeline's exit status is `tail`'s (0), and the `;`-joined commit ran regardless. The commit landed with a failing link check and needed a fix-up commit. Reading only the last line of output is the same trap one step removed: it showed "lessons OK" while the line above it was the failure.
 
-**Fix:** let the validator's own status gate the next step (`python3 docs/check-links.sh && bash docs/check-lessons.sh && git commit ...`), print its full output when it fails rather than a trimmed tail, and if trimming is needed use `set -o pipefail`. Run the checks and the commit as separate steps so a red result is read before anything is staged.
+**Fix:** let the validator's own status gate the next step (`python3 docs/check-links.py && bash docs/check-lessons.sh && git commit ...`), print its full output when it fails rather than a trimmed tail, and if trimming is needed use `set -o pipefail`. Run the checks and the commit as separate steps so a red result is read before anything is staged.
 
 
 ---

@@ -1,5 +1,7 @@
 # Input / capture-backend lessons
 
+Id: lesson-input
+
 Capture/grabber/platform-adapter specific gotchas. See
 [`README.md`](README.md) for how entries get routed here vs. elsewhere.
 

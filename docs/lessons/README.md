@@ -23,7 +23,7 @@ Aurora's own module boundaries instead of RockyRoad's. `rendering-apis.md` vs.
 | [windows-env.md](windows-env.md) | processes, installers, ACLs, probing | 18 | Windows-environment specific |
 | [macos-gui.md](macos-gui.md) | AppKit, tray/status-item, run-loop pumping, ObjC++ interop | 28 | macOS GUI/AppKit specific |
 | [debugging-method.md](debugging-method.md) | evidence, verification, oracles, timing | 66 | debugging/verification method |
-| [architecture-process.md](architecture-process.md) | splits, duplication, reload, presence | 48 | architecture or process decision |
+| [architecture-process.md](architecture-process.md) | splits, duplication, reload, presence | 50 | architecture or process decision |
 | [web-testing.md](web-testing.md) | jsdom, live tests, routes, settings | 15 | web testing specific |
 | [language-cpp.md](language-cpp.md) | namespace, threads, C-portability | 16 | C++ language gotcha |
 | [input.md](input.md) | capture/grabber/platform-adapter | 40 | capture/grabber specific |
@@ -32,7 +32,7 @@ Aurora's own module boundaries instead of RockyRoad's. `rendering-apis.md` vs.
 | [rendering-apis.md](rendering-apis.md) | third-party rendering facts | 4 | Three.js/GLTFLoader/Blender behavior, not our design |
 | [rendering-internals.md](rendering-internals.md) | own 3D-scene design | 4 | our scene technique, demonstrated by a real bug |
 | [planning.md](planning.md) | reuse research, JTBD, doc hygiene | 22 | WebUI planning/design-process finding |
-| [components.md](components.md) | behavior, callbacks, data shapes | 15 | WebUI component finding |
+| [components.md](components.md) | behavior, callbacks, data shapes | 16 | WebUI component finding |
 | [webui-testing.md](webui-testing.md) | jsdom limits, mocks, fixtures | 8 | WebUI testing finding |
 | [navigation-flow.md](navigation-flow.md) | Back/Continue, gating, NUX | 11 | WebUI flow finding |
 | [layout-css.md](layout-css.md) | responsive, pseudo-elements, flex | 11 | WebUI layout/CSS finding |
@@ -79,6 +79,8 @@ actually happened (root cause), then a bolded **Fix:** line. See RockyRoad's
 
 Cite entries by headline, never by filename — headlines survive splits,
 filenames don't.
+
+Each file also carries a file-level `Id: lesson-<slug>` line under its H1. Doc ids live in one global flat namespace (`docs/_ids.md` has no per-directory partitioning, and a bare `[[id]]` citation carries no directory context), so the `lesson-` prefix is what keeps lesson files distinct. Cite a whole file as `[[lesson-windows-env]]`; cite a specific entry as that plus its headline in prose (e.g. see `[[lesson-windows-env]]`'s AppendMenuA entry).
 
 ## Skills
 

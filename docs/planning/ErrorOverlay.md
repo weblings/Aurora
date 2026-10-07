@@ -455,6 +455,42 @@ into `web/demo/vendor/webui` (see Accepted gaps).
   "bridge busy" from "another app owns the entertainment area"; otherwise
   the retries fight that app. Not scheduled.
 
+## Where error copy lives (map, not a transcript)
+
+A pointer list for the next copy pass, grepped once during Aurora-ijus's
+audit so it doesn't need re-deriving. Deliberately file/function
+references, not the strings themselves — a transcript here would silently
+drift from the code the next time any of it changes, while a pointer just
+needs re-grepping.
+
+- **Daemon unreachable (takeover):** `shell.js`'s `_showTakeover` — one
+  hardcoded heading, no body copy (Aurora-yzp4).
+- **Shell banner (host-state errors, held by the daemon):**
+  - `shell.js`'s `SOURCE_PREFIX` — the `startup`/`resume`/`reload` row
+    prefixes.
+  - `shell.js`'s `_renderBannerRow` — the saved-not-applied sentence for a
+    `reload` error on a running host, and the generic fallback row.
+  - `shell.js`'s collapsed-summary string ("N problems").
+  - `MacPermissionRecovery.js`'s `renderReloadError` (Screen Recording,
+    both the banner-row and NUX-inline variants) and
+    `renderAudioPermissionBanner` (the `audio_permission` row).
+  - `messages.js`'s `DAEMON_UNREACHABLE` — not actually rendered in normal
+    operation; every call site compares against it and pokes `checkNow()`
+    instead. Only reachable if a caller's `onUnreachable`-style callback
+    isn't wired — see the Aurora-ijus lesson on that failure mode in
+    `docs/lessons/components.md`.
+- **Inline field/step errors (rejected requests, rule 3):**
+  `OutputConnectScreen.js`, `ZoneMappingScreen.js`, `ModeDeviceScreen.js`
+  (also its intentionally-inline onboarding `reload` error, decision 3),
+  `EntertainmentZoneSelectScreen.js`, `EntertainmentConfigSelect.js`,
+  `ZonePatchQueue.js`, and `DashboardScreen.js`'s `topTierError`/
+  `toggleError`/`stopError` setters.
+- **Tray label:** `TrayLabel.hpp`'s `kTraySeeErrorLabel`.
+
+See the Model section above for which of the three buckets a new error
+belongs in, and `docs/lessons/components.md`'s "grep every action path"
+entry before moving any of these into a different bucket.
+
 ## Proposed revision: errors go to the shell by cause (2026-10-06)
 
 Status: in progress. Core (Aurora-ja76) shipped 2026-10-06

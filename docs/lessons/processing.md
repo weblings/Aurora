@@ -1,5 +1,7 @@
 # Processing / color-effect-transform lessons
 
+Id: lesson-processing
+
 Color/effect transform and zone-mapping specific gotchas. See
 [`README.md`](README.md) for how entries get routed here vs. elsewhere.
 

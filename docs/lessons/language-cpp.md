@@ -1,5 +1,7 @@
 # C++ language
 
+Id: lesson-language-cpp
+
 Namespace, thread-lifetime, and C-portability gotchas. See [README.md](README.md) for filing rules.
 
 ---

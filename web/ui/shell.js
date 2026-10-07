@@ -298,7 +298,7 @@ export class App {
 
     const collapsed = errors.length > 1 && !this._bannerExpanded;
     const body = collapsed
-      ? `<button type="button" class="shell-banner-summary" id="shell-banner-expand">${errors.length} problems ▾</button>`
+      ? `<button type="button" class="shell-banner-summary" id="shell-banner-expand">⚠ ${errors.length} problems ▾</button>`
       : errors.map((error) => this._renderBannerRow(error)).join('');
 
     this.bannerSlot.innerHTML = `
