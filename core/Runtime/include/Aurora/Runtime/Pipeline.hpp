@@ -174,13 +174,21 @@ namespace Aurora::Runtime
 
   const char* hostStateName(HostState state);
 
-  // One build failure, keyed by where it happened: "startup" (the first
-  // build, before the host existed), "resume" or "reload". Unique per
-  // source; today at most one exists, since any successful build clears all.
+  // One held error, keyed by where it happened: "startup" (the first build,
+  // before the host existed), "resume" or "reload", plus entries other
+  // components hold through setError (Mac's "audio_permission"). Unique per
+  // source. A reload failure is held while a pipeline runs too (the old
+  // pipeline keeps going), so "has errors" does not mean "failed"; state
+  // says that. Any successful build clears all entries.
   struct HostError
   {
     std::string source;
     std::string message; // already through describeBuildError
+    // From one host-wide counter, stamped when the entry is created or
+    // replaced (a repeat failure with the same message gets a new id) and
+    // never when a publish leaves it alone. dismissError matches on it, so a
+    // click racing a new failure cannot clear the new one.
+    std::uint64_t id{0};
   };
 
   // State and errors always read together, so a poll never sees Failed with
@@ -306,6 +314,25 @@ namespace Aurora::Runtime
 
     static constexpr const char* kNothingToPause = "nothing_to_pause";
 
+    // Holds an entry for `source` beside whatever else is held (merge by
+    // source, new id). Only while a pipeline runs: returns false, storing
+    // nothing, when paused, failed or idle.
+    bool setError(const std::string& source, const std::string& message);
+
+    // Removes the entry for `source`, whatever its id. False when none.
+    bool removeError(const std::string& source);
+
+    enum class DismissResult
+    {
+      Removed,
+      Stale,      // no entry with that source and id (already gone or replaced)
+      NotRunning  // paused, failed or idle: those errors are the explanation, not noise
+    };
+
+    // The banner's X: removes the entry only if its id still matches and the
+    // host is running.
+    DismissResult dismissError(const std::string& source, std::uint64_t id);
+
     // What the running pipeline uses, lock-free. Updated on every swap and
     // kept through pause(), so a paused Dashboard keeps its sections. A
     // failed reload leaves it unchanged: the old pipeline is still running.
@@ -321,15 +348,26 @@ namespace Aurora::Runtime
 
     std::string _describeBuildError(const std::exception& e) const;
 
-    // Publishes state + errors for the current m_pipeline/m_paused. Caller
-    // holds m_mutex (and m_changeMutex when it also changed m_pipeline).
+    // Publishes state + errors for the current m_pipeline/m_paused, replacing
+    // the whole list. Caller holds m_mutex (and m_changeMutex when it also
+    // changed m_pipeline). Entries must already carry their ids.
     void _publishStatusLocked(std::vector<HostError> errors);
 
-    // A failed build with no pipeline to fall back on. Takes the locks
-    // itself; stores nothing when a pipeline is running (the old one keeps
-    // going and the caller reports the error) or when a pause landed during
-    // the build.
-    void _recordFailure(const char* source, const std::string& message);
+    // Creates or replaces the entry for `source` (new id), keeping the rest.
+    // Caller holds m_mutex.
+    void _setErrorLocked(const std::string& source, const std::string& message);
+
+    // A build failure ("startup", "resume", "reload"): a newer attempt at the
+    // same build, so it supersedes the earlier build entries instead of
+    // sitting beside them (a failed retry of a failed startup shows one row,
+    // not two). Entries other components hold are kept. Caller holds m_mutex.
+    void _setBuildErrorLocked(const std::string& source, const std::string& message);
+
+    // A failed build. Takes the locks itself and stores nothing when a pause
+    // landed during the build or when a successful build landed since it
+    // started (`epoch`, read before the build): that error describes a
+    // config the host has since replaced.
+    void _recordFailure(const char* source, const std::string& message, std::uint64_t epoch);
 
     PipelineOptions m_options;
     std::mutex m_mutex;
@@ -337,6 +375,11 @@ namespace Aurora::Runtime
     // Leaf lock, taken last (after m_mutex), only around m_status.
     mutable std::mutex m_statusMutex;
     HostStatus m_status;
+
+    // Both under m_mutex.
+    std::uint64_t m_nextErrorId{1};
+    // Bumped on every successful swap (reload, resume); see _recordFailure.
+    std::atomic<std::uint64_t> m_buildEpoch{0};
 
     // Taken first, serializes pause()/resume() so two resumes cannot open
     // two capture-portal dialogs (Aurora-5t2).

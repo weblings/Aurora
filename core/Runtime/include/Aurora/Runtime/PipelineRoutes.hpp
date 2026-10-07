@@ -31,8 +31,11 @@ namespace Aurora::Runtime
   // "usesVideoInput", "usesAudioInput", "samplesZones", "audioDevicesUrl"
   // (string or null)}. state is idle|running|paused|failed (clients ignore
   // values they do not know); errors is an array of {"source", "message"}
-  // read in the same snapshot as state, empty unless a build failed with no
-  // pipeline to fall back on (host failed, or paused after a failed resume).
+  // read in the same snapshot as state. An entry is {"source", "message",
+  // "id"}; id is stamped when the entry is created or replaced. A running
+  // host holds errors too (a reload that failed while the old pipeline kept
+  // going, Aurora-ja76), so a non-empty list does not mean failed: read
+  // state. A paused host holds only a failed resume.
   // The flags describe what the running pipeline uses, kept through pause;
   // all false means nothing runs. Aurora-5ipy.2 extends this route.
   //
@@ -43,6 +46,13 @@ namespace Aurora::Runtime
   // {"succeeded": false, "error": "nothing_to_pause"} when the host is idle
   // or failed, or on a failed build 500 {"succeeded": false, "error": ...}
   // (a paused host stays paused).
+  //
+  // POST /api/state/dismiss {"source": string, "id": number} (Aurora-ja76):
+  // the banner's X. Removes that entry only if its id still matches and the
+  // host is running: 200 {"succeeded": true, "dismissed": true}; 200
+  // "dismissed": false for a stale id (already gone or replaced, nothing
+  // changes); 409 {"error": "not_running"} when paused, failed or idle (those
+  // errors are the reason, not noise); 400 on a bad body.
   void registerStateRoute(
     Aurora::Network::Http::Server::HttpServer& server,
     PipelineHost& pipelineHost,

@@ -119,6 +119,32 @@ section of this same doc says, spot-check it against whatever it's actually
 describing (another section, or the real built code) rather than trusting
 that "it's already in the plan" means it's still accurate.
 
+Recurred a fourth time, in a bead's own structured fields rather than a
+markdown doc: Aurora-d3ec's design was corrected mid-build (2026-10-06,
+"C1 corrected while building") — a fresh install reads as `idle`, not
+`failed`, since `Pipeline::build` returns null rather than throwing while
+no input is configured — and the bead's `notes` field was updated to say so
+in the same edit. Its sibling bead Aurora-cj11's own `acceptance_criteria`
+field, written the same day, still says the onboarding gate hides a
+`'startup'` error — the exact case the correction ruled out, since a fresh
+install can no longer produce a `startup` error at all. Nothing forced a
+cross-check between the two fields (different field, different bead) at
+correction time; it surfaced only when building cj11 and reasoning through
+which error source the gate could ever actually need to hide. The fixed
+step order (output connect/select always precede Mode+Device for any known
+output) meant 'reload' was the only source that could fire mid-onboarding,
+built against that instead of the stale 'startup' wording, flagged rather
+than silently overridden.
+
+**Fix:** a bead's own fields (`acceptance_criteria`, `notes`, `description`)
+are exactly as prone to drifting apart from each other as a plan doc's
+sections are — a correction recorded in one field is not a correction
+recorded in all of them. When a later bead's acceptance criteria cites an
+earlier bead's specific behavior (an error source, a field name, a state
+value), re-derive it from the earlier bead's *current* design/notes rather
+than trusting the citing text, especially when the citing bead was written
+the same day as a correction that could have invalidated it.
+
 ---
 
 ---

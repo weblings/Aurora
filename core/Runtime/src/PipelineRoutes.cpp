@@ -92,7 +92,7 @@ namespace Aurora::Runtime
 
         nlohmann::json errors = nlohmann::json::array();
         for(const HostError& error : status.errors){
-          errors.push_back({{"source", error.source}, {"message", error.message}});
+          errors.push_back({{"source", error.source}, {"message", error.message}, {"id", error.id}});
         }
 
         res.contentType = "application/json";
@@ -140,6 +140,40 @@ namespace Aurora::Runtime
           {"running", state == HostState::Running},
           {"state", hostStateName(state)}
         }.dump();
+      }
+    );
+
+    server.addRoute(
+      HttpMethod::Post,
+      "/api/state/dismiss",
+      [&pipelineHost](const Request& req, Response& res){
+        res.contentType = "application/json";
+
+        std::string source;
+        std::uint64_t id;
+        try{
+          const nlohmann::json body = nlohmann::json::parse(req.body);
+          source = body.at("source").get<std::string>();
+          id = body.at("id").get<std::uint64_t>();
+        }
+        catch(const nlohmann::json::exception&){
+          res.status = 400;
+          res.body = nlohmann::json{{"succeeded", false}, {"error", "source_and_id_required"}}.dump();
+          return;
+        }
+
+        switch(pipelineHost.dismissError(source, id)){
+          case PipelineHost::DismissResult::Removed:
+            res.body = nlohmann::json{{"succeeded", true}, {"dismissed", true}}.dump();
+            break;
+          case PipelineHost::DismissResult::Stale:
+            res.body = nlohmann::json{{"succeeded", true}, {"dismissed", false}}.dump();
+            break;
+          case PipelineHost::DismissResult::NotRunning:
+            res.status = 409;
+            res.body = nlohmann::json{{"succeeded", false}, {"error", "not_running"}}.dump();
+            break;
+        }
       }
     );
   }

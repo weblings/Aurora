@@ -22,20 +22,20 @@ Aurora's own module boundaries instead of RockyRoad's. `rendering-apis.md` vs.
 | [build-toolchain.md](build-toolchain.md) | CMake, vcpkg, compilers, WSL2, dev deps | 49 | build/tooling specific |
 | [windows-env.md](windows-env.md) | processes, installers, ACLs, probing | 17 | Windows-environment specific |
 | [macos-gui.md](macos-gui.md) | AppKit, tray/status-item, run-loop pumping, ObjC++ interop | 27 | macOS GUI/AppKit specific |
-| [debugging-method.md](debugging-method.md) | evidence, verification, oracles, timing | 59 | debugging/verification method |
-| [architecture-process.md](architecture-process.md) | splits, duplication, reload, presence | 46 | architecture or process decision |
+| [debugging-method.md](debugging-method.md) | evidence, verification, oracles, timing | 61 | debugging/verification method |
+| [architecture-process.md](architecture-process.md) | splits, duplication, reload, presence | 47 | architecture or process decision |
 | [web-testing.md](web-testing.md) | jsdom, live tests, routes, settings | 14 | web testing specific |
 | [language-cpp.md](language-cpp.md) | namespace, threads, C-portability | 16 | C++ language gotcha |
-| [input.md](input.md) | capture/grabber/platform-adapter | 37 | capture/grabber specific |
+| [input.md](input.md) | capture/grabber/platform-adapter | 38 | capture/grabber specific |
 | [processing.md](processing.md) | color/effect transform, zone-mapping | 9 | color/effect/zone-mapping specific |
-| [output.md](output.md) | streaming/protocol, any target | 15 | streaming/protocol/wire-format specific |
+| [output.md](output.md) | streaming/protocol, any target | 16 | streaming/protocol/wire-format specific |
 | [rendering-apis.md](rendering-apis.md) | third-party rendering facts | 4 | Three.js/GLTFLoader/Blender behavior, not our design |
 | [rendering-internals.md](rendering-internals.md) | own 3D-scene design | 4 | our scene technique, demonstrated by a real bug |
 | [planning.md](planning.md) | reuse research, JTBD, doc hygiene | 22 | WebUI planning/design-process finding |
 | [components.md](components.md) | behavior, callbacks, data shapes | 12 | WebUI component finding |
 | [webui-testing.md](webui-testing.md) | jsdom limits, mocks, fixtures | 7 | WebUI testing finding |
-| [navigation-flow.md](navigation-flow.md) | Back/Continue, gating, NUX | 10 | WebUI flow finding |
-| [layout-css.md](layout-css.md) | responsive, pseudo-elements, flex | 10 | WebUI layout/CSS finding |
+| [navigation-flow.md](navigation-flow.md) | Back/Continue, gating, NUX | 11 | WebUI flow finding |
+| [layout-css.md](layout-css.md) | responsive, pseudo-elements, flex | 11 | WebUI layout/CSS finding |
 
 Counts as of 2026-10-06 — bump the count when adding entries
 (`grep -c '^## '` per file).

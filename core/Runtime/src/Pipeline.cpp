@@ -1,5 +1,6 @@
 #include <Aurora/Runtime/Pipeline.hpp>
 
+#include <algorithm>
 #include <chrono>
 #include <iostream>
 #include <stdexcept>
@@ -357,6 +358,7 @@ namespace Aurora::Runtime
       catch(...){ errors.push_back({"startup", "unknown error"}); }
     }
     std::lock_guard<std::mutex> lock(m_mutex);
+    for(HostError& error : errors){ error.id = m_nextErrorId++; }
     _publishStatusLocked(std::move(errors));
   }
 
@@ -386,12 +388,80 @@ namespace Aurora::Runtime
   }
 
 
-  void PipelineHost::_recordFailure(const char* source, const std::string& message)
+  void PipelineHost::_setErrorLocked(const std::string& source, const std::string& message)
+  {
+    // Every writer of m_status holds m_mutex, so reading it here needs no
+    // m_statusMutex.
+    std::vector<HostError> errors = m_status.errors;
+    const HostError entry{source, message, m_nextErrorId++};
+    auto existing = std::find_if(errors.begin(), errors.end(), [&](const HostError& e){ return e.source == source; });
+    if(existing != errors.end()){ *existing = entry; }
+    else{ errors.push_back(entry); }
+    _publishStatusLocked(std::move(errors));
+  }
+
+
+  void PipelineHost::_setBuildErrorLocked(const std::string& source, const std::string& message)
+  {
+    const auto isBuildSource = [](const std::string& name){
+      return name == "startup" || name == "resume" || name == "reload";
+    };
+    std::vector<HostError> errors = m_status.errors;
+    errors.erase(
+      std::remove_if(errors.begin(), errors.end(), [&](const HostError& e){ return isBuildSource(e.source); }),
+      errors.end()
+    );
+    errors.push_back({source, message, m_nextErrorId++});
+    _publishStatusLocked(std::move(errors));
+  }
+
+
+  void PipelineHost::_recordFailure(const char* source, const std::string& message, std::uint64_t epoch)
   {
     std::lock_guard<std::mutex> change(m_changeMutex);
     std::lock_guard<std::mutex> lock(m_mutex);
-    if(m_pipeline || m_paused.load()){ return; }
-    _publishStatusLocked({HostError{source, message}});
+    if(m_paused.load() || m_buildEpoch.load() != epoch){ return; }
+    _setBuildErrorLocked(source, message);
+  }
+
+
+  bool PipelineHost::setError(const std::string& source, const std::string& message)
+  {
+    std::lock_guard<std::mutex> change(m_changeMutex);
+    std::lock_guard<std::mutex> lock(m_mutex);
+    if(m_paused.load() || !m_pipeline){ return false; }
+    _setErrorLocked(source, message);
+    return true;
+  }
+
+
+  bool PipelineHost::removeError(const std::string& source)
+  {
+    std::lock_guard<std::mutex> change(m_changeMutex);
+    std::lock_guard<std::mutex> lock(m_mutex);
+    std::vector<HostError> errors = m_status.errors;
+    const auto removed = std::remove_if(errors.begin(), errors.end(), [&](const HostError& e){ return e.source == source; });
+    if(removed == errors.end()){ return false; }
+    errors.erase(removed, errors.end());
+    _publishStatusLocked(std::move(errors));
+    return true;
+  }
+
+
+  PipelineHost::DismissResult PipelineHost::dismissError(const std::string& source, std::uint64_t id)
+  {
+    std::lock_guard<std::mutex> change(m_changeMutex);
+    std::lock_guard<std::mutex> lock(m_mutex);
+    if(m_paused.load() || !m_pipeline){ return DismissResult::NotRunning; }
+
+    std::vector<HostError> errors = m_status.errors;
+    const auto match = std::find_if(errors.begin(), errors.end(), [&](const HostError& e){
+      return e.source == source && e.id == id;
+    });
+    if(match == errors.end()){ return DismissResult::Stale; }
+    errors.erase(match);
+    _publishStatusLocked(std::move(errors));
+    return DismissResult::Removed;
   }
 
 
@@ -500,13 +570,14 @@ namespace Aurora::Runtime
     if(m_paused){ return true; }
 
     ScopedPhaseTimer reloadTimer(m_options, "reload total");
+    const std::uint64_t epoch = m_buildEpoch.load();
     std::unique_ptr<Pipeline> next;
     try{
       next = Pipeline::build(registry, config, configRoot, m_options);
     }
     catch(const std::exception& e){
       errorOut = _describeBuildError(e);
-      _recordFailure("reload", errorOut);
+      _recordFailure("reload", errorOut, epoch);
       return false;
     }
 
@@ -523,6 +594,7 @@ namespace Aurora::Runtime
         previous = std::move(m_pipeline);
         m_pipeline = std::move(next);
         _storeCapabilities(m_pipeline.get());
+        ++m_buildEpoch;
         _publishStatusLocked({});
       }
     }
@@ -606,7 +678,7 @@ namespace Aurora::Runtime
       // keep the reason on the paused snapshot.
       std::lock_guard<std::mutex> change(m_changeMutex);
       std::lock_guard<std::mutex> lock(m_mutex);
-      _publishStatusLocked({HostError{"resume", errorOut}});
+      _setBuildErrorLocked("resume", errorOut);
       return false;
     }
 
@@ -617,6 +689,7 @@ namespace Aurora::Runtime
     m_pausedMonitors.clear();
     m_pausedZones = {};
     m_paused = false;
+    ++m_buildEpoch;
     _publishStatusLocked({});
     return true;
   }

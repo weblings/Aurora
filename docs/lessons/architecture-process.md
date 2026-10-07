@@ -794,3 +794,16 @@ Applies-when: re-vendoring a demo copy that has fallen behind the source screen
 Aurora-ewyz's acceptance said "re-vendor DashboardScreen". The vendor copy predated the Pause/Stop topbar entirely (no `_renderTopBar`), lacked the MacPermissionRecovery import (a whole new vendored module plus MANIFEST entry), and carried toggle-sync/string-zone-ids seams; the new TuningFields needed Tooltips exports the vendor copy lacks. A faithful sync would port months of Dashboard evolution and re-decide seams blind -- while the demo cannot exercise error UI at all (the shim always answers), so the sync buys regression risk with no observable benefit.
 
 **Fix:** decide sync-vs-leave as its own task per re-vendor: if the snapshot has drifted past a small seam re-application, leave the tree byte-identical, record the decision on the bead, and file the full re-sync as a demo-porting task. A demo that connects to nothing ideally never shows errors; its error paths are covered by the unit suites, not the demo.
+
+---
+
+## A failed reload on a running host keeps the old pipeline and holds the error -- "has errors" is not "failed"
+Tags: reload, pipelinehost, errors, state, webui
+Applies-when: reading `GET /api/state`'s errors, deciding whether a failed save shows in the banner, or changing when `PipelineHost` stores or drops a build failure
+
+Before Aurora-ja76, `_recordFailure` returned early when a pipeline existed, so a failed `reload` while running left `errors: []` and a response's `reloadError` was the only signal (confirmed live in Aurora-cj11; Aurora-nkhi was filed on the opposite assumption and closed). Now a running host holds the `reload` entry beside whatever else is held, `state` stays `running`, and clients must read `state`, never "errors non-empty", for failed.
+
+Three rules came with it. (1) The old early return also dropped a failure that landed after a newer successful build; with it gone, a failing reload records `m_buildEpoch` before its build and stores only if no swap landed since (the late-failure test is the mutant check). (2) Ids are stamped per entry when it is created or replaced, never restamped by an unrelated publish, so a dismiss racing a new failure cannot clear it. (3) A build failure supersedes the earlier build entries (`startup`/`resume`/`reload`) instead of merging, so a failed retry of a failed startup is one row; other sources merge.
+
+**Fix:** see `PipelineHost::_recordFailure`, `_setBuildErrorLocked`, `dismissError`, and ErrorOverlay.md decisions 10-12. After a failed reload on a running host, `/api/state` shows `running` with one `reload` error carrying an id.
+

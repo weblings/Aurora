@@ -40,12 +40,31 @@ const SCREEN_RECORDING_SETTINGS_URL =
 // prefixes above -- a distinct block with the actual fix (System Settings
 // link, quit+relaunch instructions) instead of a raw exception sentence.
 // `platform` comes from GET /api/capabilities.
-export function renderReloadError(message, platform) {
+// `retryId` (the shell banner, Aurora-cj11) switches to the one-line
+// Retry-only row below. A fresh grant applies to the running app via a retry
+// (d3ec Mac check, macOS 27, open-launched). Callers with no Retry action
+// leave it unset and keep the Settings link and quit+relaunch copy.
+export function renderReloadError(message, platform, { retryId } = {}) {
   if (!message) return '';
 
   const parsed = platform === 'mac' ? parseMacPermissionError(message) : null;
   if (!parsed) {
     return `<p class="status-text status-text-error">⚠ ${escapeHtml(message)}</p>`;
+  }
+
+  const retryButton = retryId
+    ? `<button type="button" class="btn btn-secondary" id="${escapeHtml(retryId)}" style="margin-top: var(--aurora-space-3);">Retry</button>`
+    : '';
+
+  // Banner row (Aurora-cj11): one line, denied and pending alike -- the fix
+  // is the same either way (answer macOS's prompt or toggle Aurora in System
+  // Settings, then Retry). No Open Settings link: it never adds Aurora to
+  // the Screen Recording list, only macOS's own prompt does.
+  if (retryId) {
+    return `
+    <p class="status-text status-text-error">⚠ <strong>Screen Recording is off.</strong> Allow it in the macOS prompt or System Settings, then Retry.</p>
+    ${retryButton}
+  `;
   }
 
   const heading = parsed.kind === 'denied'
@@ -77,6 +96,11 @@ function escapeHtml(s) {
 // for Screen Recording -- this can't rule out genuine prolonged silence,
 // even with the 10s grace window keeping that unlikely in practice.
 //
+// Aurora-tjoq: a System Audio Recording grant applies live (verified on
+// macOS 27, open-launched ad-hoc app: the flag flipped false in the same
+// process once audio played), and the Dashboard keeps polling the route, so
+// the block clears itself -- the copy says so; quit+reopen is the fallback.
+//
 // No verified deep link straight to the "System Audio Recording Only" row
 // exists (unlike Screen Recording's Privacy_ScreenCapture anchor) -- this
 // links to the general Privacy & Security pane rather than guess one.
@@ -87,7 +111,7 @@ export function renderAudioPermissionBanner(permissionLikelyDenied) {
 
   return `
     <p class="status-text status-text-error">⚠ Aurora doesn't seem to be capturing real audio</p>
-    <p class="status-text">This usually means "System Audio Recording Only" isn't granted yet in Privacy &amp; Security -- a separate permission from Screen Recording. After enabling it, fully quit Aurora (⌘Q) and reopen it.</p>
+    <p class="status-text">This usually means "System Audio Recording Only" isn't granted yet in Privacy &amp; Security -- a separate permission from Screen Recording. Turn it on there, then play some audio: a grant applies to the running app and this clears by itself once Aurora hears sound. Quit and reopen Aurora only if it doesn't.</p>
     <a class="btn btn-secondary" style="text-decoration: none; margin-top: var(--aurora-space-3);"
        href="${SECURITY_SETTINGS_URL}">Open Privacy &amp; Security settings</a>
   `;

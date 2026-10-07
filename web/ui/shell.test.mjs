@@ -59,7 +59,8 @@ function makeApp(fetchStatus, opts = {}) {
   });
   app.onRecovered = (id) => recovered.push(id);
   const overlay = () => slots.get('shell-overlay-slot').innerHTML;
-  return { app, slots, recovered, overlay };
+  const banner = () => slots.get('shell-banner-slot').innerHTML;
+  return { app, slots, recovered, overlay, banner };
 }
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -258,6 +259,176 @@ const blankScreen = () => ({ mount() {}, unmount() {} });
   assert.equal(app.currentRouteId, 'mode-device');
   app.navigate(blankScreen());
   assert.equal(app.currentRouteId, 'mode-device');
+  uninstallDom();
+}
+
+// ---- System-error banner (Aurora-cj11) ----
+
+const stateOk = (extra = {}) => async () => ({ reachable: true, state: 'running', errors: [], paused: false, ...extra });
+
+// No errors: banner stays empty.
+{
+  const { app, banner } = makeApp(stateOk());
+  await app._pollOnce();
+  assert.equal(banner(), '');
+  uninstallDom();
+}
+
+// One error: shown in full, never collapsed, with a Retry button keyed to
+// its source.
+{
+  const { app, banner } = makeApp(stateOk({ state: 'failed', errors: [{ source: 'startup', message: 'No outputs available' }] }));
+  await app._pollOnce();
+  assert.ok(banner().includes("Couldn't start: No outputs available"), 'startup rows carry their source prefix');
+  assert.ok(banner().includes('id="shell-banner-retry-startup"'));
+  assert.ok(!banner().includes('problems'), 'a single error never collapses');
+  uninstallDom();
+}
+
+// Two or more collapse to a summary line; expanding shows every row, each
+// with its own source-keyed Retry button.
+{
+  const errors = [
+    { source: 'startup', message: 'No outputs available' },
+    { source: 'resume', message: 'bridge unreachable' },
+  ];
+  const { app, banner, slots } = makeApp(stateOk({ state: 'failed', errors }));
+  await app._pollOnce();
+  assert.ok(banner().includes('2 problems'), 'collapsed summary');
+  assert.ok(!banner().includes('No outputs available'), 'rows hidden while collapsed');
+  slots.get('shell-banner-slot').querySelector('#shell-banner-expand').click();
+  assert.ok(banner().includes('No outputs available'));
+  assert.ok(banner().includes("Couldn't resume: bridge unreachable"));
+  assert.ok(banner().includes('id="shell-banner-retry-startup"'));
+  assert.ok(banner().includes('id="shell-banner-retry-resume"'));
+  uninstallDom();
+}
+
+// A permission-prefixed error on Mac reuses renderReloadError (Retry button
+// only, with "answer the prompt, then press Retry" copy) instead of the
+// generic row.
+{
+  const { app, banner } = makeApp(stateOk({
+    state: 'failed',
+    errors: [{ source: 'startup', message: 'permission_denied: ScreenCaptureKitGrabber: no shareable displays' }],
+  }));
+  app.platform = 'mac';
+  await app._pollOnce();
+  assert.ok(!banner().includes('Open Screen Recording settings'), 'banner row is Retry-only, no Settings link');
+  assert.ok(banner().includes('id="shell-banner-retry-startup"'), 'permission row has a Retry button');
+  assert.ok(banner().includes('Screen Recording is off.'));
+  assert.ok(banner().includes('System Settings, then Retry'));
+  assert.ok(!banner().includes('macOS won\'t ask again'), 'banner uses the retry copy, not the quit+relaunch copy');
+  uninstallDom();
+}
+{
+  // permission_pending reads the same one-line row as denied.
+  const { app, banner } = makeApp(stateOk({
+    state: 'failed',
+    errors: [{ source: 'startup', message: 'permission_pending: prompt shown' }],
+  }));
+  app.platform = 'mac';
+  await app._pollOnce();
+  assert.ok(banner().includes('Screen Recording is off.'));
+  assert.ok(banner().includes('id="shell-banner-retry-startup"'));
+  uninstallDom();
+}
+{
+  // Same message, unknown platform: renders generic (Retry), never guesses Mac.
+  const { app, banner } = makeApp(stateOk({
+    state: 'failed',
+    errors: [{ source: 'startup', message: 'permission_denied: ScreenCaptureKitGrabber: no shareable displays' }],
+  }));
+  await app._pollOnce();
+  assert.ok(banner().includes('id="shell-banner-retry-startup"'));
+  assert.ok(!banner().includes('Open Screen Recording settings'));
+  uninstallDom();
+}
+
+// Retry: a failed-host source posts /api/reload; a failed-resume source
+// PUTs /api/state {running:true}. Either way it re-checks afterward.
+{
+  const realFetch = globalThis.fetch;
+  const retryCalls = [];
+  globalThis.fetch = async (url, options) => {
+    retryCalls.push({ url, options });
+    return { status: 200, json: async () => ({ succeeded: true }) };
+  };
+  try {
+    const { app, slots } = makeApp(stateOk({ state: 'failed', errors: [{ source: 'startup', message: 'boom' }] }));
+    await app._pollOnce();
+    slots.get('shell-banner-slot').querySelector('#shell-banner-retry-startup').click();
+    await Promise.resolve(); // let the retry's own await chain settle
+    await Promise.resolve();
+    assert.equal(retryCalls[0].url, '/api/reload');
+    assert.equal(retryCalls[0].options.method, 'POST');
+    uninstallDom();
+  } finally {
+    globalThis.fetch = realFetch;
+  }
+}
+{
+  const realFetch = globalThis.fetch;
+  const retryCalls = [];
+  globalThis.fetch = async (url, options) => {
+    retryCalls.push({ url, options });
+    return { status: 200, json: async () => ({ succeeded: true }) };
+  };
+  try {
+    const { app, slots } = makeApp(stateOk({ state: 'paused', errors: [{ source: 'resume', message: 'bridge unreachable' }] }));
+    await app._pollOnce();
+    slots.get('shell-banner-slot').querySelector('#shell-banner-retry-resume').click();
+    await Promise.resolve();
+    await Promise.resolve();
+    assert.equal(retryCalls[0].url, '/api/state');
+    assert.equal(retryCalls[0].options.method, 'PUT');
+    assert.deepEqual(JSON.parse(retryCalls[0].options.body), { running: true });
+    uninstallDom();
+  } finally {
+    globalThis.fetch = realFetch;
+  }
+}
+
+// Onboarding gate: a 'reload' source is the mid-onboarding "no outputs
+// paired" failure -- hidden on any route before the Dashboard, shown once
+// the Dashboard route is reached (ErrorOverlay.md's onboarding-gate note).
+{
+  const blankScreen = () => ({ mount() {}, unmount() {} });
+  const { app, banner } = makeApp(stateOk({ state: 'failed', errors: [{ source: 'reload', message: 'No outputs available' }] }));
+  app.navigate(blankScreen(), 'mode-device');
+  await app._pollOnce();
+  assert.equal(banner(), '', 'reload error gated during NUX');
+  app.navigate(blankScreen(), 'dashboard');
+  await app._pollOnce();
+  assert.ok(banner().includes("Couldn't apply settings: No outputs available"), 'reload error shown once Dashboard is reached');
+  uninstallDom();
+}
+// A non-'reload' source is never gated, even mid-onboarding (a startup
+// failure is real regardless of NUX progress).
+{
+  const blankScreen = () => ({ mount() {}, unmount() {} });
+  const { app, banner } = makeApp(stateOk({ state: 'failed', errors: [{ source: 'startup', message: 'boom' }] }));
+  app.navigate(blankScreen(), 'welcome');
+  await app._pollOnce();
+  assert.ok(banner().includes('boom'), 'startup error is never gated');
+  uninstallDom();
+}
+
+// Daemon unreachable owns the whole screen: the takeover clears the banner
+// rather than showing it alongside stale errors.
+{
+  let fail = false;
+  const { app, banner, overlay } = makeApp(async () => {
+    if (fail) throw new Error('down');
+    return { reachable: true, state: 'failed', errors: [{ source: 'startup', message: 'boom' }] };
+  });
+  await app._pollOnce();
+  assert.ok(banner().includes('boom'));
+  fail = true;
+  await app._pollOnce();
+  await app._pollOnce();
+  assert.equal(banner(), '', 'banner cleared once the takeover owns the screen');
+  assert.ok(overlay().includes('Aurora has stopped'));
   uninstallDom();
 }
 

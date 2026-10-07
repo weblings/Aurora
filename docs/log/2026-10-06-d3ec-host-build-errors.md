@@ -27,6 +27,7 @@ Windows ([[d3ec-windows-verification]]).
 - None for d3ec. Linux and Windows compile/live checks done
   ([[d3ec-linux-verification]], [[d3ec-windows-verification]]); bead closed.
 - Next: Aurora-cj11 (banner, Retry, onboarding gate on the mid-onboarding `reload` error, Mac wording), then k73j/q9l1. Aurora-5ipy.2 now only extends the route.
+- Later (2026-10-06): [[error-overlay]]'s proposed revision reverses "stored only while no pipeline runs" for a failed reload on a running host, and adds an error `id`, merge by source and a dismiss route (Aurora-ja76).
 
 ## Footnotes
 
