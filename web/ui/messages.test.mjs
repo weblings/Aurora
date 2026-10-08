@@ -35,11 +35,12 @@ for (const root of roots) {
 
 console.log('messages checks passed.');
 
-// Warning glyph is always bold in error lines (Aurora-x1lh); a bare "⚠ " in a
-// status-text-error paragraph is the regression.
+// Warning icon in error lines is the vector icons/warning.svg (Aurora-x1lh),
+// never the bare "⚠" character -- a status-text-error paragraph that still
+// spells it out, bold or not, is the regression.
 for (const file of jsFiles(roots[0])) {
   if (file.endsWith('.test.mjs')) continue;
   const text = readFileSync(file, 'utf8');
-  assert.ok(!/status-text-error">⚠/.test(text), `${file} renders an unbolded ⚠`);
-  assert.ok(!/<strong>⚠/.test(text), `${file} renders ⚠ without the warn-glyph class`);
+  assert.ok(!/status-text-error">⚠/.test(text), `${file} renders a bare ⚠ instead of the warn-glyph icon`);
+  assert.ok(!/<strong(?: class="warn-glyph")?>⚠/.test(text), `${file} renders ⚠ as text instead of the warn-glyph icon`);
 }

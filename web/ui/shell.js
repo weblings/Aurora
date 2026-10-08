@@ -303,7 +303,7 @@ export class App {
     // .accordion-chevron), not a one-off glyph -- rotated 180deg here for
     // "collapse" the same way .accordion-section.expanded already does.
     const body = collapsed
-      ? `<button type="button" class="shell-banner-summary" id="shell-banner-expand">⚠ ${errors.length} problems <span class="accordion-chevron" aria-hidden="true"></span></button>`
+      ? `<button type="button" class="shell-banner-summary" id="shell-banner-expand"><span class="warn-glyph" aria-hidden="true"></span> ${errors.length} problems <span class="accordion-chevron" aria-hidden="true"></span></button>`
       : errors.map((error) => this._renderBannerRow(error)).join('')
         + (collapsible
           ? `<button type="button" class="shell-banner-summary shell-banner-collapse" id="shell-banner-collapse">Show less <span class="accordion-chevron shell-banner-chevron-up" aria-hidden="true"></span></button>`
@@ -356,7 +356,7 @@ export class App {
       ? renderAudioPermissionBanner({ retryId })
       : parsed
       ? renderReloadError(error.message, this.platform, { retryId })
-      : `<p class="status-text status-text-error"><strong class="warn-glyph">⚠</strong> ${escapeHtml(text)}</p>
+      : `<p class="status-text status-text-error"><span class="warn-glyph" aria-hidden="true"></span> ${escapeHtml(text)}</p>
          <button type="button" class="btn btn-secondary" id="${retryId}" style="margin-top: var(--aurora-space-3);">Retry</button>`;
     // X only while the old setup still works (ErrorOverlay.md, 'Dismiss'):
     // a paused or failed host's row is the reason there are no lights.

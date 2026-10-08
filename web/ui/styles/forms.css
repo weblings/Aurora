@@ -108,10 +108,21 @@
   color: var(--aurora-text-primary);
 }
 
-/* The warning glyph comes from a symbol fallback font whose bold face is
-   barely heavier than regular at 13px; the stroke makes it read as bold. */
+/* Vector triangle (icons/warning.svg) masked like .accordion-chevron, not an
+   inline <img>, so it follows status-text-error's currentColor in both
+   themes instead of a baked-in fill. */
 .warn-glyph {
-  -webkit-text-stroke: 0.5px currentColor;
+  display: inline-block;
+  width: 14px;
+  height: 12px;
+  vertical-align: -1px;
+  background-color: currentColor;
+  -webkit-mask-image: url('../icons/warning.svg');
+  mask-image: url('../icons/warning.svg');
+  -webkit-mask-size: contain;
+  mask-size: contain;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
 }
 
 .status-text-success {

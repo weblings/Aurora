@@ -49,7 +49,7 @@ export function renderReloadError(message, platform, { retryId } = {}) {
 
   const parsed = platform === 'mac' ? parseMacPermissionError(message) : null;
   if (!parsed) {
-    return `<p class="status-text status-text-error"><strong class="warn-glyph">⚠</strong> ${escapeHtml(message)}</p>`;
+    return `<p class="status-text status-text-error"><span class="warn-glyph" aria-hidden="true"></span> ${escapeHtml(message)}</p>`;
   }
 
   const retryButton = retryId
@@ -66,12 +66,12 @@ export function renderReloadError(message, platform, { retryId } = {}) {
   if (retryId) {
     if (parsed.kind === 'pending') {
       return `
-    <p class="status-text status-text-error"><strong class="warn-glyph">⚠</strong> <strong>Screen Recording is off.</strong> Allow it in the macOS prompt or System Settings, then Retry.</p>
+    <p class="status-text status-text-error"><span class="warn-glyph" aria-hidden="true"></span> <strong>Screen Recording is off.</strong> Allow it in the macOS prompt or System Settings, then Retry.</p>
     ${retryButton}
   `;
     }
     return `
-    <p class="status-text status-text-error"><strong class="warn-glyph">⚠</strong> <strong>Screen Recording is off.</strong> Allow it in the macOS prompt if one appears, or turn it on in System Settings, then Retry.</p>
+    <p class="status-text status-text-error"><span class="warn-glyph" aria-hidden="true"></span> <strong>Screen Recording is off.</strong> Allow it in the macOS prompt if one appears, or turn it on in System Settings, then Retry.</p>
     <div class="shell-banner-actions">
       ${retryButton}
       <a class="btn btn-secondary" style="text-decoration: none;" href="${SCREEN_RECORDING_SETTINGS_URL}">Open Settings</a>
@@ -87,7 +87,7 @@ export function renderReloadError(message, platform, { retryId } = {}) {
     : "Answer the Screen Recording prompt macOS just showed (it may be behind another window), then try again.";
 
   return `
-    <p class="status-text status-text-error"><strong class="warn-glyph">⚠</strong> ${heading}</p>
+    <p class="status-text status-text-error"><span class="warn-glyph" aria-hidden="true"></span> ${heading}</p>
     <p class="status-text">${body}</p>
     <a class="btn btn-secondary" style="text-decoration: none; margin-top: var(--aurora-space-3);"
        href="${SCREEN_RECORDING_SETTINGS_URL}">Open Screen Recording settings</a>
@@ -128,7 +128,7 @@ const SECURITY_SETTINGS_URL = 'x-apple.systempreferences:com.apple.preference.se
 
 export function renderAudioPermissionBanner({ retryId } = {}) {
   return `
-    <p class="status-text status-text-error"><strong class="warn-glyph">⚠</strong> <strong>Aurora can't hear your audio.</strong> Allow "System Audio Recording Only" in Settings, then Retry.</p>
+    <p class="status-text status-text-error"><span class="warn-glyph" aria-hidden="true"></span> <strong>Aurora can't hear your audio.</strong> Allow "System Audio Recording Only" in Settings, then Retry.</p>
     <div class="shell-banner-actions">
       <button type="button" class="btn btn-secondary" id="${escapeHtml(retryId ?? 'audio-permission-retry')}">Retry</button>
       <a class="btn btn-secondary" style="text-decoration: none;" href="${SECURITY_SETTINGS_URL}">Open Settings</a>

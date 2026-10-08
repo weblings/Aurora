@@ -244,3 +244,31 @@ Aurora-ifkn.2 moved the demo's `.db-port *` reset from the top of the vendored `
 **Fix:** `:where(.db-port) *` keeps the scope at zero specificity, so it behaves like `*` wherever the file loads. For any CSS move or rescope, compare a screenshot against the commit before the change. Rule-content tests don't see cascade order.
 
 The same move also changed which box clips. The app's `body { overflow-x: clip }` clips at the window edge. Its demo stand-in on `.db-port` clipped at `#screen-container` itself, 5px inside the Dashboard's 21px overhang, which cut the top-right Pause button (Aurora-4jk4). When rescoping a page rule, put it on the element that plays the page's role, here the `#dashboard-pane` scroll container, not on the scope class.
+
+---
+
+## Font-metric math for inline-icon vertical alignment doesn't reliably beat eyeballing, even when the numbers check out
+Tags: webui, css, icon, vertical-align, typography
+Applies-when: sizing/positioning an inline icon (masked SVG, `<img>`) next to body text
+
+Aurora-xrl1 replaced a bold `⚠` character with a masked SVG triangle
+(`.warn-glyph`), starting at a 14x12px box with `vertical-align: -1px`
+(matched the old glyph's rough footprint). Recalculating against Inter's
+real cap-height at 13px (~9.5px) said the box should shrink to 12x10px --
+and the top edge did land within half a pixel of a capital letter's actual
+cap-height. It still looked wrong live: error copy is mostly lowercase
+prose, and lowercase only reaches x-height (visibly shorter than cap-height),
+so an icon sized to the one capital letter read as floating above the
+lowercase bulk of the line. Recalculating again against x-height (~7px,
+bottom on the baseline, no offset needed) was *more* theoretically
+defensible -- and looked worse once rendered. The original, un-derived
+14x12px/-1px box was the one that read as "good enough" after both
+metric-driven revisions were tried and rejected live.
+
+**Fix:** treat cap-height/x-height calculations as a starting hypothesis,
+not a destination -- verify every iteration against the real rendered page
+before treating the math as settled, and don't assume a later, more
+rigorously-derived value is actually closer; it can read worse than the
+value it replaced. For body text specifically, remember the icon sits next
+to a mix of cap-height and x-height characters, not a pure sample of either,
+so neither metric alone predicts the right box.

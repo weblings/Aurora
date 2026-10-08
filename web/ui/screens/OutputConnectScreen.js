@@ -132,7 +132,7 @@ export class OutputConnectScreen {
         </div>
         <button type="button" class="btn btn-secondary" id="oc-autodetect">Autodetect</button>
       </div>
-      ${this.error ? `<p class="status-text status-text-error"><strong class="warn-glyph">⚠</strong> ${escapeHtml(this.error)}</p>` : ''}
+      ${this.error ? `<p class="status-text status-text-error"><span class="warn-glyph" aria-hidden="true"></span> ${escapeHtml(this.error)}</p>` : ''}
     `;
 
     const input = body.querySelector('#oc-address-input');
@@ -158,7 +158,7 @@ export class OutputConnectScreen {
         <p class="text-primary">Press the button on your bridge</p>
         <p class="text-secondary">then Continue</p>
       </div>
-      ${this.error ? `<p class="status-text status-text-error"><strong class="warn-glyph">⚠</strong> ${escapeHtml(this.error)}</p>` : ''}
+      ${this.error ? `<p class="status-text status-text-error"><span class="warn-glyph" aria-hidden="true"></span> ${escapeHtml(this.error)}</p>` : ''}
     `;
 
     // "Wrong Bridge?" (still this.phase = 'entry' underneath, same as
