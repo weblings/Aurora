@@ -33,7 +33,7 @@ import { renderTopBar } from '../topBar.js';
 import { renderNavFooter } from '../NavFooter.js';
 import { DeviceField, AUTO_MONITOR_VALUE } from '../DeviceField.js';
 import { applyTooltip } from '../Tooltips.js';
-import { renderReloadError, parseMacPermissionError } from '../MacPermissionRecovery.js';
+import { renderReloadError } from '../MacPermissionRecovery.js';
 import {
   audioDevicesUrlFrom, effectiveFlags, flagsForMode, isModeConfigValid, isSwitchConfirmed, loadPipelineState,
   modeFromFlags, modeSwitchPatch,
@@ -60,6 +60,7 @@ export class ModeDeviceScreen {
     this.platform = '';
     this.pendingMode = null; // toggle choice with a switch in flight: outlined, not filled
     this.error = null;
+    this.reloadFailed = false; // saved but not applied: the shell banner shows it, not this screen
     this.deviceField = null;
     this.applyPromise = null; // latest _applyMode run, if any -- Continue awaits it (see _onContinue)
   }
@@ -98,6 +99,9 @@ export class ModeDeviceScreen {
     this.inputs = capabilities.inputs ?? [];
     this.audioInputs = capabilities.audioInputs ?? [];
     this.platform = capabilities.platform ?? '';
+    // The shell banner needs this to tell a Mac permission row from a generic
+    // one (GET /api/state carries no platform); Dashboard sets it too.
+    this.app.platform = this.platform;
     this.hasAudio = this.audioInputs.length > 0;
     this.audioDevicesUrl = audioDevicesUrlFrom(state);
 
@@ -158,7 +162,7 @@ export class ModeDeviceScreen {
     // Audio does for their lights, not which step is missing. Hidden with the
     // device hint while a switch error shows: after a refused switch the
     // running (old) mode's notes would sit beside an error about the other.
-    const audioNoteHtml = !flags.samplesZones && !this.error
+    const audioNoteHtml = !flags.samplesZones && !this.error && !this.reloadFailed
       ? `<p class="status-text">In Audio mode, all your lights react to sound together.</p>`
       : '';
 
@@ -186,7 +190,7 @@ export class ModeDeviceScreen {
       monitors: this.monitors,
       selectedMonitorName: this.selectedMonitorName,
       sinkName: this.sinkName,
-      showHint: !this.error,
+      showHint: !this.error && !this.reloadFailed,
       onChange: (patch) => this._onDeviceFieldChange(patch),
     });
 
@@ -264,6 +268,7 @@ export class ModeDeviceScreen {
 
   async _doApplyMode() {
     this.error = null;
+    this.reloadFailed = false;
 
     const applying = this.pendingMode ?? this.mode;
     const patch = modeSwitchPatch(applying, this);
@@ -277,13 +282,11 @@ export class ModeDeviceScreen {
       if (!result.succeeded) {
         this.error = "Couldn't save capture settings.";
       } else if (result.reloadError) {
-        // Kept raw (no "Saved, but..." framing) when it's the mac
-        // permission case -- renderReloadError() detects the prefix and
-        // shows its own guided text instead; framed here otherwise, same
-        // sentence as before.
-        this.error = (this.platform === 'mac' && parseMacPermissionError(result.reloadError))
-          ? result.reloadError
-          : `Saved, but couldn't apply it live: ${result.reloadError}`;
+        // Saved, not applied: the daemon holds the error and the shell
+        // banner shows it (Aurora-scig, as Dashboard since Aurora-98pr).
+        // Poke the beat for an early redraw.
+        this.reloadFailed = true;
+        this.app.checkNow();
       } else {
         // The fill moves only when the running pipeline agrees: succeeded
         // with no reloadError still means "saved, applies on resume" while

@@ -70,6 +70,9 @@ Processing (source to effects handling), or Output (color / effects) module
 **Linux (Wayland): capture freezes or goes black**
 - Aurora captures through DMA-BUF by default, which has been verified on Intel + GNOME. If capture freezes or goes black on another GPU or compositor, launch with `AURORA_PW_DMABUF=0` to fall back to shared memory (note that fullscreen windows may then freeze capture), and please file an issue.
 
+**Setup sees the Hue bridge but pairing never completes ("Press the button on your bridge")**
+- Make sure the computer is on the same Wi-Fi/network as the bridge. Discovery can still find the bridge from another network, but the button press only registers on the bridge's own network.
+
 **Mac: Aurora can't find or reach the Hue bridge**
 - macOS asks for Local Network access the first time Aurora talks to the bridge. If you chose Don't Allow, turn Aurora on in System Settings > Privacy & Security > Local Network, then quit and reopen Aurora.
 

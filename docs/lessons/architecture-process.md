@@ -876,3 +876,13 @@ Applies-when: merging a branch that closes or updates beads, before committing t
 Merging dev into feat/v1.1.0Prep brought a tracked `issues.jsonl` with Aurora-gtkd closed, but the live DB still had it open. The pre-commit hook's `bd export` then overwrote the worktree file with the stale DB content; running `bd import` after that pushed the stale state INTO the DB (import reads the file), actively regressing the close. Caught by field-diffing the worktree file against HEAD.
 
 **Fix:** after any merge touching `.beads/issues.jsonl`, `bd import` the tracked file into the live DB before any commit or hook runs; if the hook already clobbered the worktree copy, restore it from HEAD first (`git show HEAD:.beads/issues.jsonl`), then import, then export. Never import a file the hook just wrote without checking which side is newer. General principle: with two sources of truth (tracked export + live DB), every sync command has a direction -- run the one that flows from the newer side.
+
+---
+
+## A standing environment fact is not a build error: give it its own channel instead of bending error semantics
+Tags: architecture, pipelinehost, errors, conditions, banner, api-state
+Applies-when: something other than a pipeline build wants a shell banner row (a permission, a network fact), especially during first-run setup
+
+The first Aurora-rbp3 plan put the Mac Local Network denial in `PipelineHost`'s errors. That needed two patches: let `setError` hold while idle (it refuses unless a pipeline runs) and re-assert every poll (any successful build clears all errors). Each patch was a sign of a different concept. Errors are build results that the next good build supersedes; a condition lasts until the outside world changes, in every host state, with no dismiss. A second review also dropped a per-route `local_network_blocked` error code, which would have shown the same fact twice (the Aurora-tazx problem).
+
+**Fix:** a separate `HostCondition` list with its own lock, owned and cleared by its publisher, exposed as `conditions` on `/api/state`, rendered by a source -> renderer table in the shell. When a design needs "but don't let X clear it" and "but allow it when Y", stop and check whether it is the same kind of thing.

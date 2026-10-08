@@ -192,6 +192,31 @@ function name a newer environment (or an LLM's training data) suggested.
 
 ---
 
+## A header the code includes can be entirely absent on an older SPA, not just missing a function inside it
+Tags: input, pipewire, spa, headers, linux
+Applies-when: a `#include <spa/...>` line itself fails to resolve on the target machine
+
+`PipewireGrabber.hpp` unconditionally included `<spa/param/buffers.h>` for
+`SPA_PARAM_BUFFERS_buffers`/`_blocks`/`_dataType`. On the same Ubuntu 22.04
+`libspa-0.2-dev` 0.3.48 as the entry above, that header doesn't exist at all
+(`dpkg -L libspa-0.2-dev | grep buffers.h` -- nothing), a step further than
+the prior entry's "header exists but lacks a function" case. All three enum
+values are actually defined in `spa/param/param.h`, already pulled in
+transitively via `pipewire/pipewire.h`/`spa/param/video/format-utils.h`, so
+the broken include was dead weight on this version, not a real dependency.
+
+**Fix:** `#if __has_include(<spa/param/buffers.h>)` around the include,
+rather than deleting it outright -- it compiles clean where the header is
+absent (resolved transitively) and still picks it up on a newer SPA where
+`buffers.h` might someday declare something beyond that enum. General
+principle: when a distro's dev headers disagree with the code, check
+whether the symbol is available from a different, already-included header
+before assuming the include itself is required -- and prefer `__has_include`
+over a flat removal so the fix doesn't quietly regress on a system where the
+header really is needed.
+
+---
+
 ## Adding a second `pw_core_sync` round-trip can turn a dormant dangling-listener bug into a live, hard-to-place segfault
 Tags: input, pipewire, async, listeners
 Applies-when: adding async requests inside PipeWire callbacks

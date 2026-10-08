@@ -189,6 +189,10 @@ namespace Aurora::Input::Linux
             "-- the source-picker dialog may still be open, or the portal never replied"
           );
         }
+        // Stable token the WebUI maps to plain copy (messages.js).
+        if(m_capture.userDeclined){
+          throw std::runtime_error("screen_share_declined: " + m_capture.failureReason);
+        }
         throw std::runtime_error(
           m_capture.failureReason.empty()
             ? std::string("Failed to get monitor file descriptor")

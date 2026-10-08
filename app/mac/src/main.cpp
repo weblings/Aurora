@@ -25,6 +25,7 @@
 #include <Aurora/App/Cli.hpp>
 #include <Aurora/App/FakeHue.hpp>
 #include <Aurora/App/InstanceLock.hpp>
+#include <Aurora/App/LocalNetworkProbe.hpp>
 #include <Aurora/Runtime/Registry.hpp>
 #include <Aurora/App/TrayIcon.hpp>
 #include <Aurora/App/WebRoot.hpp>
@@ -476,6 +477,9 @@ try
   Aurora::Network::Http::Server::HttpServer httpServer;
   registerCapabilitiesRoute(httpServer, registry, pipelineHost);
   registerVersionRoute(httpServer);
+  // Raised at launch so the permission prompt appears before the user
+  // reaches the Connect screen (Aurora-o1qt).
+  Aurora::App::requestLocalNetworkPrompt();
 
   // Tooltip descriptors: every layer contributes its own control
   // descriptions; the frontend looks them up purely by key.
@@ -619,6 +623,14 @@ try
     [&](const std::string& source){ pipelineHost.removeError(source); }
   );
 
+  // Host condition for the banner (Aurora-rbp3): shows in every host state,
+  // first-run setup included, and clears itself when the user allows access.
+  Aurora::App::LocalNetworkConditionPublisher localNetworkCondition(
+    []{ return Aurora::App::checkLocalNetworkOnce(); },
+    [&](const std::string& source, const std::string& message){ pipelineHost.setCondition(source, message); },
+    [&](const std::string& source){ pipelineHost.clearCondition(source); }
+  );
+
   std::exception_ptr tickError;
   std::thread tickThread([&]{
     try{
@@ -630,6 +642,7 @@ try
           }
         }
         audioPermission.poll();
+        localNetworkCondition.poll();
         auto tickStart = std::chrono::steady_clock::now();
         pipelineHost.tick();
         auto tickInterval = std::chrono::duration<double>(pipelineHost.tickIntervalSeconds());

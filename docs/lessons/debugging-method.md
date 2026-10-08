@@ -937,3 +937,23 @@ Applies-when: drafting release notes or user docs from history, or triaging old 
 The 1.1.0 audit drafted changelog and README lines from commit and bead titles, and three were wrong on a closer read. "Mac Local Network prompt now explains why" (Aurora-pp8) is false because macOS never displays `NSLocalNetworkUsageDescription` (macos-gui lessons). The new `core/Secrets` looked like a new Linux runtime dependency (libsecret) for the README apt line, but only `AuroraSecretsTests` links it. "Origin check on state-changing routes" was in Aurora-5i3's description but never landed (the nearest open work is Aurora-5ipy.4's Host allowlist). Separately, open bug Aurora-2uw's named suspect (an unguarded `entertainmentConfigSelect.load()`) already catches internally, so the bug as written can't happen.
 
 **Fix:** for each user-facing claim, grep the code path (who links it, whether the check exists) and search the lessons for the feature before writing the line. For an old open bug, read the suspect callee at HEAD before scheduling it, and re-scope or close it if the premise no longer holds. The same applies to device behavior: the jwcd log said bulbs were "released" on pause, and reading that as "reset" made the demo's Pause turn lamps white, while real bulbs hold their last color (Aurora-calt). When a log doesn't state the observed end state, ask the person with the hardware before mirroring it.
+
+---
+
+## Before changing code for a symptom seen only on a test artifact, reproduce it on the shipping artifact; and check that a control run can actually tell the hypotheses apart
+Tags: debugging, verification, test-artifact, control-run, ad-hoc-signing, confound
+Applies-when: a symptom is only ever seen on a dev or test build (ad-hoc copy, fake bridge, patched binary), or a control run is being read as proof
+
+Aurora-dwvu chased a double Local Network prompt through three code hypotheses (the Bonjour browse, the periodic send, Welcome's mDNS query). Each ad-hoc build still showed two dialogs. A `dev` build with zero prompts was read as "both come from the probes", but it did no local network traffic at all, so it could not separate "one prompt per operation" from "two per first contact". One notarized build answered it: one dialog. The doubling came from the ad-hoc test copy.
+
+**Fix:** list how the test artifact differs from what ships (signing, identity, install path, config), and run the shipping form once before editing code. For each control, ask what result each hypothesis predicts. If they predict the same result, the run proves nothing. Also check a theory against counts you already have (here, a send repeated every 2 s still gave exactly two).
+
+---
+
+## "Still the old copy" after several relaunches: prove what the server serves, then trace the render condition, before relaunching again
+Tags: debugging, stale-cache, webui, verification, fresh-copy
+Applies-when: a UI change does not appear after reloads or app relaunches, and cache is the first suspect
+
+Aurora-scig spent several fresh-copy launches (and a browser-cache guess) on "old video copy on Capture Source". Two grep checks would have ended it sooner: `curl` the served module for the new symbol (it was there, and the server sends `no-store`), then read the render condition for the text on screen (`app.platform` was unset on that screen). The relaunches tested nothing the curl had not already answered, and the stale-tab guess was wrong here.
+
+**Fix:** (1) `curl` the served file for a string only the new code has; if present, the page is not stale. (2) Ask for the exact text on screen and grep for it, or enumerate the branches that can produce it. (3) Only then relaunch. Ask for DevTools "Disable cache" at the start if a tab is in play.

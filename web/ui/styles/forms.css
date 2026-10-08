@@ -108,6 +108,23 @@
   color: var(--aurora-text-primary);
 }
 
+/* Vector triangle (icons/warning.svg) masked like .accordion-chevron, not an
+   inline <img>, so it follows status-text-error's currentColor in both
+   themes instead of a baked-in fill. */
+.warn-glyph {
+  display: inline-block;
+  width: 14px;
+  height: 12px;
+  vertical-align: -1px;
+  background-color: currentColor;
+  -webkit-mask-image: url('../icons/warning.svg');
+  mask-image: url('../icons/warning.svg');
+  -webkit-mask-size: contain;
+  mask-size: contain;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+}
+
 .status-text-success {
   color: var(--aurora-text-primary);
   font-weight: 700;

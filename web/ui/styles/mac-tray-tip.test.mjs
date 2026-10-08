@@ -18,7 +18,7 @@ const app = read('../app.js');
   assert.ok(screen.includes('../icons/MacTray.gif') && screen.includes('import.meta.url'), 'screen resolves the GIF against its own module');
   assert.match(screen, /alt="[^"]+menu bar[^"]*"/, 'GIF has descriptive alt text');
   assert.ok(screen.includes('menu bar'), 'copy uses menu bar wording');
-  assert.ok(screen.includes('Launch UI') && screen.includes('Stop'), 'copy names the menu items');
+  assert.ok(screen.includes('Launch UI') && screen.includes('Pause / Resume') && screen.includes('Stop'), 'copy names the menu items');
 }
 
 {

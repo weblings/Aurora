@@ -199,6 +199,17 @@ namespace Aurora::Runtime
     std::vector<HostError> errors;
   };
 
+  // A standing fact about the environment, not a build result (Aurora-rbp3):
+  // e.g. Mac's "local_network" while macOS blocks LAN access. Its publisher
+  // sets and clears it; builds, pause and host state never touch it, so it
+  // shows during first-run setup (idle) too. No id and no dismiss: it goes
+  // away when the cause does. Unique per source.
+  struct HostCondition
+  {
+    std::string source;
+    std::string message;
+  };
+
 
   // One consistent lock around the swappable Pipeline -- the design
   // HttpServerAnalysis.md recommended over huenicorn's own narrower
@@ -333,6 +344,16 @@ namespace Aurora::Runtime
     // host is running.
     DismissResult dismissError(const std::string& source, std::uint64_t id);
 
+    // Creates or replaces the condition for `source`; any host state.
+    void setCondition(const std::string& source, const std::string& message);
+
+    // Removes the condition for `source`. False when none.
+    bool clearCondition(const std::string& source);
+
+    // Snapshot under its own leaf lock, never m_mutex, so /api/state
+    // polling never waits on a tick or a reload.
+    std::vector<HostCondition> conditions() const;
+
     // What the running pipeline uses, lock-free. Updated on every swap and
     // kept through pause(), so a paused Dashboard keeps its sections. A
     // failed reload leaves it unchanged: the old pipeline is still running.
@@ -375,6 +396,10 @@ namespace Aurora::Runtime
     // Leaf lock, taken last (after m_mutex), only around m_status.
     mutable std::mutex m_statusMutex;
     HostStatus m_status;
+
+    // Independent leaf lock: conditions never interact with m_status.
+    mutable std::mutex m_conditionsMutex;
+    std::vector<HostCondition> m_conditions;
 
     // Both under m_mutex.
     std::uint64_t m_nextErrorId{1};

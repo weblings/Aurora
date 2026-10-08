@@ -931,6 +931,7 @@ TEST_CASE("GET /api/state reports paused and the running pipeline's capabilities
   CHECK(state() == nlohmann::json{
     {"state", "idle"},
     {"errors", nlohmann::json::array()},
+    {"conditions", nlohmann::json::array()},
     {"paused", false},
     {"canStop", true},
     {"usesVideoInput", false},
@@ -946,6 +947,10 @@ TEST_CASE("GET /api/state reports paused and the running pipeline's capabilities
   CHECK(running["usesVideoInput"] == true);
   CHECK(running["usesAudioInput"] == false);
   CHECK(running["samplesZones"] == true);
+
+  host.setCondition("local_network", "blocked");
+  CHECK(state()["conditions"] == nlohmann::json::array({{{"source", "local_network"}, {"message", "blocked"}}}));
+  host.clearCondition("local_network");
 
   REQUIRE(host.pause());
   auto paused = state();
@@ -2008,4 +2013,38 @@ TEST_CASE("POST /api/dev/errors injects and removes generic host errors only whe
     server.stop();
     serverThread.join();
   }
+}
+
+
+TEST_CASE("PipelineHost conditions hold in every host state and survive builds and pause (Aurora-rbp3)", "[PipelineHost]")
+{
+  ScopedTempDir dir("host-conditions");
+  auto events = std::make_shared<Events>();
+  auto registry = makeRegistry(events);
+  PipelineHost host(nullptr, {});
+
+  // Idle (no pipeline): where setError refuses, a condition still holds.
+  CHECK_FALSE(host.setError("local_network", "blocked"));
+  host.setCondition("local_network", "blocked");
+  REQUIRE(host.conditions().size() == 1);
+  CHECK(host.status().errors.empty());
+
+  // Same source replaces, others sit beside it.
+  host.setCondition("local_network", "still blocked");
+  host.setCondition("other", "x");
+  REQUIRE(host.conditions().size() == 2);
+  CHECK(host.conditions()[0].message == "still blocked");
+
+  // A successful build clears errors, never conditions; nor does pause.
+  std::string error;
+  REQUIRE(host.reload(registry, videoConfig(), dir.path, error));
+  CHECK(host.conditions().size() == 2);
+  REQUIRE(host.pause());
+  CHECK(host.conditions().size() == 2);
+
+  CHECK(host.clearCondition("other"));
+  CHECK_FALSE(host.clearCondition("other"));
+  REQUIRE(host.conditions().size() == 1);
+  CHECK(host.conditions()[0].source == "local_network");
+  host.shutdown();
 }

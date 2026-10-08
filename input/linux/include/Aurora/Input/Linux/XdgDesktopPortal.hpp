@@ -60,6 +60,8 @@ namespace Aurora::Input::Linux
       // Why the promise settled false; written before set_value, so the waiter
       // may read it once the future is ready.
       std::string failureReason;
+      // True when the failure was the user dismissing the portal dialog.
+      bool userDeclined{false};
       bool updateXdgContext{true};
       IRestoreTokenStore* restoreTokenStore{nullptr};
     };
@@ -99,7 +101,8 @@ namespace Aurora::Input::Linux
     static void settle(
       Capture* capture,
       bool ready,
-      const std::string& failureReason = std::string()
+      const std::string& failureReason = std::string(),
+      bool userDeclined = false
     );
 
     static void ensureConnection();

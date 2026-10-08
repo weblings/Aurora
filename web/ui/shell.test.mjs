@@ -393,14 +393,19 @@ const stateOk = (extra = {}) => async () => ({ reachable: true, state: 'running'
 }
 
 // Onboarding gate: a 'reload' source is the mid-onboarding "no outputs
-// paired" failure -- hidden on any route before the Dashboard, shown once
-// the Dashboard route is reached (ErrorOverlay.md's onboarding-gate note).
+// paired" failure -- hidden on the pairing routes, shown from Mode+Device on
+// (Aurora-scig; ErrorOverlay.md's onboarding-gate note).
 {
   const blankScreen = () => ({ mount() {}, unmount() {} });
   const { app, banner } = makeApp(stateOk({ state: 'failed', errors: [{ source: 'reload', message: 'No outputs available' }] }));
+  for (const route of ['welcome', 'mac-tip', 'output-connect', 'output-select']) {
+    app.navigate(blankScreen(), route);
+    await app._pollOnce();
+    assert.equal(banner(), '', `reload error gated on ${route}`);
+  }
   app.navigate(blankScreen(), 'mode-device');
   await app._pollOnce();
-  assert.equal(banner(), '', 'reload error gated during NUX');
+  assert.ok(banner().includes("Couldn't apply settings: No outputs available"), 'reload error shown on Capture Source');
   app.navigate(blankScreen(), 'dashboard');
   await app._pollOnce();
   assert.ok(banner().includes("Couldn't apply settings: No outputs available"), 'reload error shown once Dashboard is reached');
@@ -418,6 +423,17 @@ const stateOk = (extra = {}) => async () => ({ reachable: true, state: 'running'
 }
 
 // ---- Banner X and saved-not-applied copy (Aurora-98pr) ----
+
+// A dismissed Linux screen-share dialog reads as plain copy, no portal text.
+{
+  const declined = { source: 'reload', message: 'screen_share_declined: Start cancelled by the user', id: 8 };
+  const { app, banner } = makeApp(stateOk({ errors: [declined] }));
+  app.navigate(blankScreen(), 'dashboard');
+  await app._pollOnce();
+  assert.ok(banner().includes("Saved, but couldn't apply: Screen sharing was declined. Aurora is still"));
+  assert.ok(!banner().includes('cancelled by the user'));
+  assert.ok(!banner().includes('screen_share_declined'));
+}
 
 const HELD = { source: 'reload', message: 'bridge unreachable', id: 7 };
 
@@ -502,7 +518,7 @@ const HELD = { source: 'reload', message: 'bridge unreachable', id: 7 };
   app.platform = 'mac';
   app.navigate(blankScreen(), 'dashboard');
   await app._pollOnce();
-  assert.ok(banner().includes("System Audio Recording Only"), 'renders the audio permission block');
+  assert.ok(banner().includes("Aurora can't hear any audio."), 'renders the audio permission block');
   assert.ok(banner().includes('Open Settings'));
   assert.ok(banner().includes('id="shell-banner-dismiss-audio_permission"'), 'dismissible');
   assert.ok(banner().includes('id="shell-banner-retry-audio_permission"'), 'Retry button');
@@ -535,6 +551,52 @@ const HELD = { source: 'reload', message: 'bridge unreachable', id: 7 };
   await app._pollOnce();
   assert.equal(banner(), '', 'banner cleared once the takeover owns the screen');
   assert.ok(overlay().includes('Aurora has stopped'));
+  uninstallDom();
+}
+
+// Host conditions (Aurora-rbp3): a standing fact renders on any route,
+// including first-run screens while the host is idle, with no Retry or X.
+{
+  const { app, banner } = makeApp(stateOk({ state: 'idle', conditions: [{ source: 'local_network', message: 'blocked' }] }));
+  app.navigate(blankScreen(), 'output-connect');
+  await app._pollOnce();
+  assert.ok(banner().includes("Aurora can't reach devices on your network"), 'local network row on a NUX route');
+  assert.ok(banner().includes('com.apple.preference.security'), 'Open Settings link');
+  assert.ok(!banner().includes('shell-banner-retry'), 'no Retry on a condition');
+  assert.ok(!banner().includes('shell-banner-dismiss'), 'no X on a condition');
+  uninstallDom();
+}
+
+// An unknown condition source still shows its message, escaped.
+{
+  const { app, banner } = makeApp(stateOk({ conditions: [{ source: 'future_thing', message: '<b>x</b>' }] }));
+  app.navigate(blankScreen(), 'dashboard');
+  await app._pollOnce();
+  assert.ok(banner().includes('&lt;b&gt;x&lt;/b&gt;'), 'generic, escaped');
+  uninstallDom();
+}
+
+// A condition plus an error collapse together as "2 problems"; the
+// condition clears from the banner once the daemon drops it.
+{
+  let conditions = [{ source: 'local_network', message: 'blocked' }];
+  const { app, banner } = makeApp(async () => ({ reachable: true, state: 'running', paused: false, errors: [{ source: 'reload', message: 'boom', id: 1 }], conditions }));
+  app.navigate(blankScreen(), 'dashboard');
+  await app._pollOnce();
+  assert.ok(banner().includes('2 problems'), 'counts conditions and errors together');
+  conditions = [];
+  await app._pollOnce();
+  assert.ok(!banner().includes('problems'), 'one row left, no summary');
+  assert.ok(!banner().includes('reach devices'), 'condition row gone');
+  uninstallDom();
+}
+
+// An absent conditions field (older daemon, demo shim) is the same as none.
+{
+  const { app, banner } = makeApp(stateOk());
+  app.navigate(blankScreen(), 'dashboard');
+  await app._pollOnce();
+  assert.equal(banner(), '');
   uninstallDom();
 }
 

@@ -1,6 +1,6 @@
 {
   "sourceRepo": "web/ui",
-  "sourceCommit": "57012d6",
+  "sourceCommit": "f9383d9",
   "layout": "Mirror of web/ui relative paths: vendor/webui/<path> is a byte-identical copy of web/ui/<path> (sync-webui.py). The seams below are demo-side behavior, not edits to the copies. Relative imports resolve unchanged.",
   "entry": "screens/DashboardScreen.js",
   "modules": [
@@ -44,7 +44,8 @@
     "icons/chevron-up.svg",
     "icons/pause-rockyroad.svg",
     "icons/play-rockyroad.svg",
-    "icons/power-svgrepo-com.svg"
+    "icons/power-svgrepo-com.svg",
+    "icons/warning.svg"
   ],
   "generated": [
     "descriptors.json (via gen-descriptors.py from core + Hue + Input descriptor tables, incl. slider params)"

@@ -416,3 +416,23 @@ The input-config recipes (bogus `activeInputName`, moved-aside credentials) prod
 **Fix:** for banner-layout work, inject via the dev route (or the devstack flag), not via broken input config; reserve the input-config recipes for testing real build-failure paths.
 
 **Extended (Aurora-x1lh):** a successful reload wipes injected errors too -- `PipelineHost::reload()` publishes an empty error list on success (`Pipeline.cpp`'s `_publishStatusLocked({})`), same as any other build. Clicking a real control that triggers a reload (e.g. the Dashboard's Video/Audio toggle) while dev-injected rows are up clears them as a side effect; re-POST `/api/dev/errors` afterward rather than treating the vanished banner as a CSS/markup bug.
+
+---
+
+## `discovery.meethue.com` rate-limits with HTTP 429 and an empty body; parsing that as JSON threw out of the route as a bare 500
+Tags: output, hue, discovery, rate-limit, 429, json-parse
+Applies-when: the Connect screen's Autodetect shows "Could not reach the discovery service", or code parses a cloud response body
+
+Repeated test runs got this network rate limited (`retry-after` about 2 minutes). `HttpClient`'s `HttpResponse` carries only the body, so `autodetectedBridge()` could not see the status; `asJson()` on the empty body threw, the route handler died, and the frontend's `fetch().json()` failed into its generic catch. It looked like a connectivity problem and followed a separate, real Local Network permission bug, which made it easy to blame.
+
+**Fix:** parse without throwing and require an array (`ApiTools.cpp`); return `succeeded: false` with a message that suggests retrying or typing the address. Manual entry never touches the cloud service. Autodetect now tries a local mDNS lookup first (Aurora-cyee, entry below), so the cloud service is only a fallback.
+
+---
+
+## Hue mDNS discovery: query from an ephemeral port and the bridge answers by unicast; resolve PTR -> SRV -> A and read `bridgeid` from TXT
+Tags: output, hue, mdns, dns-sd, discovery, multicast
+Applies-when: finding a Hue bridge (or any DNS-SD device) without the cloud discovery service
+
+A plain UDP socket that sends a PTR query for `_hue._tcp.local` to 224.0.0.251:5353 from an ordinary ephemeral port gets a "legacy unicast" reply straight back to that port, so no multicast group join or port 5353 bind is needed. The bridge's reply carries PTR (instance), SRV (target host), TXT (`bridgeid=...`, upper case) and A in one packet, with name compression. Verified against a real BSB002: found in 1.6 s with one resend at 500 ms. On Mac the send is subject to Local Network permission (it fails with `EHOSTUNREACH` when denied).
+
+**Fix:** `MdnsDiscovery.cpp`; try it before `discovery.meethue.com` and keep the cloud as fallback for networks that block multicast. Bound compression-pointer hops; truncated packets must yield nothing, not throw.

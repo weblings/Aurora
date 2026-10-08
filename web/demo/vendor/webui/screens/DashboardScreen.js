@@ -798,7 +798,7 @@ export class DashboardScreen {
     }
 
     if (this.stopPhase === 'confirm') {
-      const errorHtml = this.stopError ? `<p class="status-text status-text-error">⚠ ${escapeHtml(this.stopError)}</p>` : '';
+      const errorHtml = this.stopError ? `<p class="status-text status-text-error"><span class="warn-glyph" aria-hidden="true"></span> ${escapeHtml(this.stopError)}</p>` : '';
       slot.innerHTML = `
         <div class="overlay">
           <div class="overlay-scrim" id="db-stop-scrim"></div>

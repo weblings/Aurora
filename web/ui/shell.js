@@ -1,4 +1,5 @@
-import { renderReloadError, parseMacPermissionError, renderAudioPermissionBanner } from './MacPermissionRecovery.js';
+import { friendlyReloadError } from './messages.js';
+import { renderReloadError, parseMacPermissionError, renderAudioPermissionBanner, renderLocalNetworkBanner } from './MacPermissionRecovery.js';
 
 // App shell: owns the one #screen-container mount point. Same navigate()
 // pattern as RockyRoad's own App.ts, trimmed to what Aurora actually needs
@@ -42,6 +43,9 @@ import { renderReloadError, parseMacPermissionError, renderAudioPermissionBanner
 const DEFAULT_POLL_INTERVAL_MS = 3000;
 const DEFAULT_ABORT_TIMEOUT_MS = 2500;
 const DEFAULT_FAILURE_THRESHOLD = 2;
+// Routes where a 'reload' error is real (an output is paired); see
+// _visibleErrors. Capture Source is one: a denied capture permission lands here.
+const RELOAD_ERROR_ROUTES = new Set(['mode-device', 'zone-mapping', 'dashboard']);
 
 async function defaultFetchStatus(signal) {
   const response = await fetch('/api/state', { signal });
@@ -59,6 +63,12 @@ async function defaultFetchStatus(signal) {
 
 // Row prefix per error source, so the raw server reason reads as a sentence
 // ("Couldn't start: <reason>"). Unknown sources show the message bare.
+// Condition source -> row renderer. A new standing condition (another
+// permission, a network fact) adds one entry here, not a branch in the shell.
+const CONDITION_ROWS = {
+  local_network: renderLocalNetworkBanner,
+};
+
 const SOURCE_PREFIX = {
   startup: "Couldn't start: ",
   resume: "Couldn't resume: ",
@@ -104,6 +114,7 @@ export class App {
     this._takeover = null; // null | 'unreachable' | 'stopped'
     this.hostState = null; // idle | running | paused | failed, from the last reachable poll
     this.hostErrors = []; // [{source, message}], from the last reachable poll
+    this.hostConditions = []; // [{source, message}], standing facts (Aurora-rbp3)
     this._bannerExpanded = false;
   }
 
@@ -221,10 +232,12 @@ export class App {
   _updateHostState(result) {
     const state = typeof result?.state === 'string' ? result.state : null;
     const errors = Array.isArray(result?.errors) ? result.errors : [];
+    const conditions = Array.isArray(result?.conditions) ? result.conditions : [];
     const paused = typeof result?.paused === 'boolean' ? result.paused : null;
     const flags = { usesVideoInput: result?.usesVideoInput, usesAudioInput: result?.usesAudioInput, samplesZones: result?.samplesZones };
     this.hostState = state;
     this.hostErrors = errors;
+    this.hostConditions = conditions;
     this._renderBanner();
     if (this.onStateUpdate) this.onStateUpdate({ state, errors, paused, ...flags });
   }
@@ -254,6 +267,7 @@ export class App {
     if (this.bannerSlot) this.bannerSlot.innerHTML = '';
     this.hostState = null;
     this.hostErrors = [];
+    this.hostConditions = [];
     if (!this.overlaySlot) return;
     this._takeover = kind;
     this.overlaySlot.innerHTML = `
@@ -279,31 +293,34 @@ export class App {
   // onboarding has actually reached the point of pairing an output, which
   // in the fixed NUX order (connect -> select -> Mode+Device) always
   // precedes Mode+Device for any output this build knows how to onboard.
-  // So "before the pairing step" and "anywhere before the Dashboard route"
-  // are the same condition for every real flow; gating on the route id
-  // needs no extra state threaded in from app.js's own onboarding walk.
+  // So the gate is "before Mode+Device" (Aurora-scig moved it there from
+  // "before the Dashboard", so a Capture Source apply failure shows); gating
+  // on the route id needs no extra state from app.js's own onboarding walk.
   _visibleErrors() {
-    const suppressReload = this.currentRouteId !== 'dashboard';
+    const suppressReload = !RELOAD_ERROR_ROUTES.has(this.currentRouteId);
     return this.hostErrors.filter((error) => !(suppressReload && error.source === 'reload'));
   }
 
   _renderBanner() {
     if (!this.bannerSlot) return;
     const errors = this._visibleErrors();
-    if (errors.length === 0) {
+    const conditions = this.hostConditions;
+    const rowCount = conditions.length + errors.length;
+    if (rowCount === 0) {
       this.bannerSlot.innerHTML = '';
       this._bannerExpanded = false;
       return;
     }
 
-    const collapsible = errors.length > 1;
+    const collapsible = rowCount > 1;
     const collapsed = collapsible && !this._bannerExpanded;
     // Same chevron-down.svg the accordions use (dashboard.css's
     // .accordion-chevron), not a one-off glyph -- rotated 180deg here for
     // "collapse" the same way .accordion-section.expanded already does.
     const body = collapsed
-      ? `<button type="button" class="shell-banner-summary" id="shell-banner-expand">⚠ ${errors.length} problems <span class="accordion-chevron" aria-hidden="true"></span></button>`
-      : errors.map((error) => this._renderBannerRow(error)).join('')
+      ? `<button type="button" class="shell-banner-summary" id="shell-banner-expand"><span class="warn-glyph" aria-hidden="true"></span> ${rowCount} problems <span class="accordion-chevron" aria-hidden="true"></span></button>`
+      : conditions.map((condition) => this._renderConditionRow(condition)).join('')
+        + errors.map((error) => this._renderBannerRow(error)).join('')
         + (collapsible
           ? `<button type="button" class="shell-banner-summary shell-banner-collapse" id="shell-banner-collapse">Show less <span class="accordion-chevron shell-banner-chevron-up" aria-hidden="true"></span></button>`
           : '');
@@ -333,6 +350,18 @@ export class App {
     }
   }
 
+  // Conditions (Aurora-rbp3) are standing facts, not failures: no Retry
+  // (the daemon re-checks and clears them itself) and no X (they go away
+  // when the cause does). Known sources get their own row from
+  // CONDITION_ROWS; anything else shows its message plainly.
+  _renderConditionRow(condition) {
+    const render = CONDITION_ROWS[condition.source];
+    const inner = render
+      ? render()
+      : `<p class="status-text status-text-error"><span class="warn-glyph" aria-hidden="true"></span> ${escapeHtml(condition.message ?? '')}</p>`;
+    return `<div class="shell-banner-row"><div class="shell-banner-content">${inner}</div></div>`;
+  }
+
   // Permission-prefixed errors reuse renderReloadError with Retry only (no
   // Open Settings link: it never adds Aurora to the Screen Recording list,
   // only macOS's own prompt does, and a retry applies the grant live);
@@ -345,16 +374,17 @@ export class App {
     // Saved-not-applied: a reload error on a running host (the old setup
     // still drives the lights). Never promises the next launch works, it
     // builds from the same saved config (ErrorOverlay.md, 'Banner and copy').
+    const message = friendlyReloadError(error.message);
     const text = this.hostState === 'running' && error.source === 'reload'
-      ? `Saved, but couldn't apply: ${error.message}. Aurora is still running your previous setup and will try the new one next time it starts.`
-      : (SOURCE_PREFIX[error.source] ?? '') + error.message;
+      ? `Saved, but couldn't apply: ${message}. Aurora is still running your previous setup and will try the new one next time it starts.`
+      : (SOURCE_PREFIX[error.source] ?? '') + message;
     // Daemon-pushed heuristic (Aurora-h457). Retry is the generic reload: it
     // rebuilds the grabber, which a grant alone does not revive.
     const inner = error.source === 'audio_permission'
       ? renderAudioPermissionBanner({ retryId })
       : parsed
       ? renderReloadError(error.message, this.platform, { retryId })
-      : `<p class="status-text status-text-error"><strong>⚠</strong> ${escapeHtml(text)}</p>
+      : `<p class="status-text status-text-error"><span class="warn-glyph" aria-hidden="true"></span> ${escapeHtml(text)}</p>
          <button type="button" class="btn btn-secondary" id="${retryId}" style="margin-top: var(--aurora-space-3);">Retry</button>`;
     // X only while the old setup still works (ErrorOverlay.md, 'Dismiss'):
     // a paused or failed host's row is the reason there are no lights.

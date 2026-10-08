@@ -463,7 +463,7 @@ for (const reloadError of [PERMISSION_ERROR, 'bridge unreachable']) {
   });
   inst._renderTopTier();
   inst.deviceField?.destroy();
-  assert.ok(!topTier.innerHTML.includes("System Audio Recording Only"), 'no inline audio permission block');
+  assert.ok(!topTier.innerHTML.includes("Aurora can't hear any audio."), 'no inline audio permission block');
 }
 
 // No Mac audio-status fetch: the audio poll only asks Linux's sink route.

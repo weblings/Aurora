@@ -492,6 +492,7 @@ namespace
     bool ready{false};    // ... and settled true
     std::chrono::milliseconds elapsed{0};
     std::string failureReason;
+    bool userDeclined{false};
   };
 
 
@@ -515,7 +516,7 @@ namespace
     result.settled = settled.wait_for(bound) == std::future_status::ready;
     result.elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - start);
     result.ready = result.settled && settled.get();
-    if(result.settled){ result.failureReason = capture.failureReason; }
+    if(result.settled){ result.failureReason = capture.failureReason; result.userDeclined = capture.userDeclined; }
 
     capture.updateXdgContext = false;
     XdgDesktopPortal::screencastPortalCaptureDestroy(&capture);
@@ -645,6 +646,7 @@ TEST_CASE("A denied CreateSession settles the handshake false", "[XdgDesktopPort
 {
   const auto result = expectSettlesFalse(Step::CreateSession, Mode::Deny);
   CHECK(result.failureReason.find("cancelled by the user") != std::string::npos);
+  CHECK(result.userDeclined);
 }
 
 
@@ -652,6 +654,7 @@ TEST_CASE("A CreateSession that ended another way settles false", "[XdgDesktopPo
 {
   const auto result = expectSettlesFalse(Step::CreateSession, Mode::Ended);
   CHECK(result.failureReason.find("ended by the portal") != std::string::npos);
+  CHECK_FALSE(result.userDeclined);
 }
 
 
