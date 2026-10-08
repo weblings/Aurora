@@ -337,7 +337,15 @@ namespace Aurora::Output::Hue
         return {{"succeeded", false}, {"error", "Could not reach discovery service. Please check your internet connection."}};
       }
 
-      return {{"succeeded", true}, {"bridges", response->asJson()}};
+      // The cloud service answers HTTP 429 with an empty body when it is
+      // rate limiting; an unparsed body used to throw out of the route
+      // handler and surface as a bare 500.
+      nlohmann::json bridges = nlohmann::json::parse(response->asString(), nullptr, false);
+      if(!bridges.is_array()){
+        return {{"succeeded", false}, {"error", "The Hue discovery service didn't return a bridge list (it may be rate limiting). Wait a minute and retry, or enter the bridge address manually."}};
+      }
+
+      return {{"succeeded", true}, {"bridges", bridges}};
     }
 
 

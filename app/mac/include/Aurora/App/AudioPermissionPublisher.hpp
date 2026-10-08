@@ -20,7 +20,7 @@ class AudioPermissionPublisher
 {
 public:
   static constexpr const char* kSource = "audio_permission";
-  static constexpr const char* kMessage = "Aurora doesn't seem to be capturing real audio";
+  static constexpr const char* kMessage = "Aurora can't hear any audio. If needed, check Aurora's audio permission in System Settings.";
 
   using Denied = std::function<bool()>;
   using Publish = std::function<bool(const std::string& source, const std::string& message)>;

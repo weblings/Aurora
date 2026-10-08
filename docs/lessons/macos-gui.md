@@ -402,7 +402,7 @@ hours, each looking like "the prompt is broken":
    non-gateway LAN host (`curl -X PUT .../api/hue/validate` with
    `{"bridgeAddress":"<neighbor IP from arp -an>"}`; the host need not be a
    bridge).
-2. **There is no reset.** `tccutil` does not cover Local Network (Apple DTS:
+2. **There is no reset** (see the reset lesson below for the script that automates the test copy). `tccutil` does not cover Local Network (Apple DTS:
    "no good way to reset local network privacy on the Mac"); state lives
    outside TCC and Settings toggles keep the entry. A new bundle ID gives a
    fresh prompt, but a `cp -R` copy with a changed `CFBundleIdentifier` still
@@ -462,3 +462,24 @@ Applies-when: editing the `@implementation` section of `TrayIcon.mm` (or any `.m
 `TrayIcon.mm` has two `namespace Aurora::App` blocks with the `@implementation` of the menu target and app delegate between them. Aurora-k73j's e9ea988 used `Runtime::trayPauseItemLabel` inside `-menuNeedsUpdate:` and `-onTogglePause:` because the surrounding C++ code reads that way; the methods are outside the namespace, so Clang says `use of undeclared identifier 'Runtime'; did you mean 'Aurora::Runtime'?`. The commit had only been built on Linux and Windows, so it sat broken on Mac until the Mac manual pass built it.
 
 **Fix:** inside an `@implementation` write `Aurora::Runtime::` / `Aurora::App::` in full, or call a plain-C++ function in the namespaced part. The second is better: `resolveTrayPauseClick` (`TrayClick.cpp`) takes the decision out of the ObjC method, where the namespace trap is, and makes it unit-testable.
+
+---
+
+## NWBrowser says nothing about Local Network permission on macOS 27: it reports `ready` and sees its own advertisement while denied; a UDP send to mDNS or any LAN connect fails with `EHOSTUNREACH`
+Tags: macos, local-network, nwbrowser, bonjour, ehostunreach, permission-detection
+Applies-when: detecting whether Local Network access is granted, or reading an NWBrowser/NWListener state as a permission signal
+
+Aurora-o1qt shipped two probes that read `NWBrowser` state and both reported "granted" with the toggle off. Docs and forum posts say the browser goes `ready`, then `waiting(-65570: PolicyDenied)`. On macOS 27 it never reached `waiting`, and an `NWListener` plus `NWBrowser` round trip saw its own advertisement at once. Logging showed the real signal: with the permission off, a non-blocking TCP `connect()` to the bridge and a `sendto()` of an empty UDP datagram to 224.0.0.251:5353 both failed immediately with errno 65. The send is side-effect-free and needs no known LAN host. Note the pending-prompt window also looks denied, so keep retrying for a while after launch. A Mac with no network fails differently (not 65), which maps to unknown.
+
+**Fix:** decide from the send (`LocalNetworkProbe.mm`, mapping in `statusFromSend`). Keep a Bonjour browse for a service type declared in `NSBonjourServices` only because Bonjour traffic is what raises the prompt. Test any such probe with the toggle off before trusting it; the forum recipe was wrong here.
+
+---
+
+## Resetting the Local Network permission: no `tccutil`, no per-app reset; a changed bundle ID plus a patched `LC_UUID` is the practical route
+Tags: macos, local-network, tccutil, reset, lc-uuid, testing
+Applies-when: you need the Local Network prompt to appear again, or a "reset all permissions" step is being written
+
+`tccutil reset ScreenCapture|AudioCapture <bundle id>` works. Local Network is not in TCC: state lives in `/Library/Preferences/com.apple.networkextension.plist`, kept per user. Apple DTS says there is no good way to reset it. Deleting the plist on a running Mac fails (cfprefsd rewrites it at shutdown); deleting from macOS Recovery works but resets every app and can disturb VPN and Find My settings. A fresh user account or a VM snapshot also work and are slow.
+
+**Fix:** `tools/mac/make-fresh-localnet-copy.sh [--launch]` copies the built app, sets a new bundle ID and `LC_UUID`, re-signs ad hoc, and launches it. Each run is a never-seen app and raises the prompt. The copy shares the original's config folder and port, so quit the original first.
+

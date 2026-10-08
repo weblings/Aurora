@@ -25,6 +25,7 @@
 #include <Aurora/App/Cli.hpp>
 #include <Aurora/App/FakeHue.hpp>
 #include <Aurora/App/InstanceLock.hpp>
+#include <Aurora/App/LocalNetworkProbe.hpp>
 #include <Aurora/Runtime/Registry.hpp>
 #include <Aurora/App/TrayIcon.hpp>
 #include <Aurora/App/WebRoot.hpp>
@@ -364,6 +365,24 @@ namespace
   }
 
 
+  // Local Network permission state for the Connect screen (Aurora-o1qt): a
+  // bridge that fails instantly may just be blocked by macOS.
+  void registerLocalNetworkRoute(
+    Aurora::Network::Http::Server::HttpServer& httpServer,
+    Aurora::App::LocalNetworkProbe& probe
+  )
+  {
+    httpServer.addRoute(
+      Aurora::Network::Http::Server::HttpMethod::Get,
+      "/api/mac/local-network",
+      [&probe](const Aurora::Network::Http::Server::Request&, Aurora::Network::Http::Server::Response& res){
+        res.contentType = "application/json";
+        res.body = nlohmann::json{{"status", Aurora::App::toString(probe.recheck())}}.dump();
+      }
+    );
+  }
+
+
   // RAII wrapper so the server is stopped and its thread joined on every
   // exit path (early "no outputs"/"unknown input" returns included) --
   // std::thread::~thread() calls std::terminate() if it's still joinable,
@@ -476,6 +495,10 @@ try
   Aurora::Network::Http::Server::HttpServer httpServer;
   registerCapabilitiesRoute(httpServer, registry, pipelineHost);
   registerVersionRoute(httpServer);
+  // Started this early so the permission prompt appears at launch, before
+  // the user reaches the Connect screen.
+  Aurora::App::LocalNetworkProbe localNetworkProbe;
+  registerLocalNetworkRoute(httpServer, localNetworkProbe);
 
   // Tooltip descriptors: every layer contributes its own control
   // descriptions; the frontend looks them up purely by key.

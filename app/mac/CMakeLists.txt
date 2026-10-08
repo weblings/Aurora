@@ -71,6 +71,8 @@ endif()
 # (Aurora-qps.2) matches app/linux's TrayIcon.cpp living here too.
 add_library(AuroraApp STATIC
   src/InstanceLock.cpp
+  src/LocalNetworkProbe.cpp
+  src/LocalNetworkProbe.mm
   src/TrayClick.cpp
   src/TrayIcon.mm
 )
@@ -86,13 +88,14 @@ target_link_libraries(AuroraApp PUBLIC
 )
 
 find_library(FRAMEWORK_APPKIT AppKit REQUIRED)
-target_link_libraries(AuroraApp PUBLIC ${FRAMEWORK_APPKIT})
+find_library(FRAMEWORK_NETWORK Network REQUIRED)
+target_link_libraries(AuroraApp PUBLIC ${FRAMEWORK_APPKIT} ${FRAMEWORK_NETWORK})
 
 # ARC (retain/release for the AppKit object pointers held inside
 # TrayIcon::Impl, a plain C++ struct -- ARC manages those the same as any
 # other __strong Objective-C pointer member). Same precedent as
 # ScreenCaptureKitGrabber.mm.
-set_source_files_properties(src/TrayIcon.mm PROPERTIES
+set_source_files_properties(src/TrayIcon.mm src/LocalNetworkProbe.mm PROPERTIES
   COMPILE_FLAGS "-fobjc-arc"
 )
 
