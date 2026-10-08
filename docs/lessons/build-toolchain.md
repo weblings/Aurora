@@ -327,6 +327,14 @@ LF-only while their content diffs stayed minimal, so the diff alone could
 not catch it. Repaired by re-adding CR and re-checking `git diff --stat`.
 Rule: after any stash pop touching CRLF files, check byte-level endings as
 well as the diff, not the diff alone.
+Same-repo variant (Aurora-ifkn.3, 2026-10-08): after `* text=auto eol=lf`
+landed, worktree files can still carry CRLF (checked out before the rule)
+while `git status` reports clean -- normalization hides them from git but
+not from exact-match edit tools, which fail with no match found. `file`
+(or `cat -A`) is the check, never `git status`. `sed -i 's/\r$//'` back to
+LF is git-invisible when the stored blob is already LF (verify with
+`git diff --stat`: empty), so normalize-then-edit instead of fighting the
+match.
 
 ---
 

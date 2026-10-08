@@ -79,6 +79,7 @@ export class DashboardScreen {
     this.paused = false; // from GET /api/state (Aurora-5ipy.13), falls back to capabilities
     this.hostState = null; // idle | running | paused | failed, from GET /api/state (Aurora-cj11): failed hides Pause entirely, the banner carries the resolve action
     this.pauseBusy = false; // a PUT /api/state is in flight: pause button disabled, not hidden
+    this.canStop = true; // host capability from GET /api/state (Aurora-ifkn.3): absent means stoppable, the demo shim answers false
     this.audioStatusTimer = null;
     this.audioSinkStatus = null;
 
@@ -209,6 +210,9 @@ export class DashboardScreen {
     // carry it); fall back only when the state probe missed entirely.
     if (state && typeof state.paused === 'boolean') this.paused = state.paused;
     this.hostState = typeof state?.state === 'string' ? state.state : null;
+    // Hosts without a Stop path (the demo shim) hide the button; absent
+    // means stoppable so old binaries keep showing it (Aurora-ifkn.3).
+    this.canStop = state?.canStop !== false;
     this._renderTopBar();
     this.flags = effectiveFlags(state, config);
     // The toggle's fill follows the running pipeline, never the saved
@@ -668,13 +672,19 @@ export class DashboardScreen {
         disabled: this.pauseBusy,
       });
     }
-    trailingButtons.push({
-      id: 'top-bar-stop-btn',
-      label: 'Stop',
-      icon: POWER_URL,
-      onClick: () => this._openStopConfirm(),
-      buttonClass: 'btn btn-icon top-bar-power-btn',
-    });
+    // Hosts without a Stop path (the demo shim answers canStop: false)
+    // get no button at all -- same hidden-entirely treatment as Pause on
+    // a failed host, rather than a disabled button to nowhere (Aurora-ifkn.3).
+    // Absent reads as stoppable, so old binaries keep the button.
+    if (this.canStop !== false) {
+      trailingButtons.push({
+        id: 'top-bar-stop-btn',
+        label: 'Stop',
+        icon: POWER_URL,
+        onClick: () => this._openStopConfirm(),
+        buttonClass: 'btn btn-icon top-bar-power-btn',
+      });
+    }
     renderTopBar(slot, {
       title: 'Aurora',
       logo: { src: LOGO_URL, alt: 'Aurora' },
@@ -724,7 +734,7 @@ export class DashboardScreen {
   // Shell heartbeat push (Aurora-cj11): applies whatever changed and
   // re-renders only the top bar -- never a full _loadAll(), which would
   // fight the beat's own 3s cadence with a second round of requests.
-  _onHeartbeatState({ state, paused, ...flags }) {
+  _onHeartbeatState({ state, paused, canStop, ...flags }) {
     // The running pipeline changed from outside the toggle (a banner Retry,
     // the tray, a relaunch): re-derive the toggle and sections from it, once
     // per change and never while a switch of our own is in flight.
@@ -738,6 +748,7 @@ export class DashboardScreen {
     let changed = false;
     if (typeof paused === 'boolean' && paused !== this.paused) { this.paused = paused; changed = true; }
     if (state !== undefined && state !== this.hostState) { this.hostState = state; changed = true; }
+    if (canStop !== undefined && (canStop !== false) !== this.canStop) { this.canStop = canStop !== false; changed = true; }
     if (changed) this._renderTopBar();
   }
 

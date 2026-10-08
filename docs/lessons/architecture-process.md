@@ -854,3 +854,23 @@ Applies-when: copying a module tree into another site (web/demo/vendor/webui) an
 `web/demo/vendor/webui` adapted its copies with hand edits inside the copied files (rewritten icon paths, re-scoped `shell.css` resets, a cut Stop button, string zone ids, extra sync callbacks). Every re-vendor had to re-apply each hunk, so re-vendoring kept getting deferred, and the fork fell behind `web/ui` by whole features (Mac permission recovery, slider ranges from descriptors). By 1.1.0 only 11 of 27 forked files still matched `web/ui`. `seams.test.mjs` caught a lost hunk but couldn't make re-applying it cheaper.
 
 **Fix:** move each adaptation upstream as a neutral change or an option the host reports (module-relative asset URLs via `import.meta.url`, page-only CSS in its own stylesheet, a capability flag the demo shim answers). Then vendoring is a verbatim scripted copy guarded by a byte-equality test in CI. Keep the copy inside the published subtree when the site is deployed by subtree push. Sequenced as Aurora-ifkn.1-8.
+
+---
+
+## A byte-identical re-vendor must relocate the fork-only wiring it deletes, not just delete it
+Tags: vendor, demo, webui, testing
+Applies-when: re-vendoring one file byte-identical when the old fork copy carried extra wiring
+
+Aurora-ifkn.3 re-vendored `DashboardScreen.js` byte-identical to web/ui, deleting the fork's toggle-sync wiring (Bridge list <-> Zone Mapping canvas). The vendor modules kept their seam callbacks, but with nothing firing them the demo would have regressed silently -- and the old tripwire asserted the wiring text inside the screen file, so it failed on the identical copy by design.
+
+**Fix:** move the dropped wiring into demo-owned code (`demo-boot.js` mounts a `DemoDashboardScreen` subclass re-attaching both directions) and rewrite the tripwire to assert the new home: byte-identity asserts for the copies, wiring asserts against demo-boot. General principle: "identical" constrains the file, not the behavior -- every hunk the copy deletes needs a named new home or an explicit obituary in the bead notes.
+
+---
+
+## A merged beads export is newer than the live DB -- import before the hook exports stale state back over it
+Tags: beads, git, sync, export
+Applies-when: merging a branch that closes or updates beads, before committing the merge
+
+Merging dev into feat/v1.1.0Prep brought a tracked `issues.jsonl` with Aurora-gtkd closed, but the live DB still had it open. The pre-commit hook's `bd export` then overwrote the worktree file with the stale DB content; running `bd import` after that pushed the stale state INTO the DB (import reads the file), actively regressing the close. Caught by field-diffing the worktree file against HEAD.
+
+**Fix:** after any merge touching `.beads/issues.jsonl`, `bd import` the tracked file into the live DB before any commit or hook runs; if the hook already clobbered the worktree copy, restore it from HEAD first (`git show HEAD:.beads/issues.jsonl`), then import, then export. Never import a file the hook just wrote without checking which side is newer. General principle: with two sources of truth (tracked export + live DB), every sync command has a direction -- run the one that flows from the newer side.

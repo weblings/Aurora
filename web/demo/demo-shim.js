@@ -223,6 +223,9 @@ export function createRouter(store, hooks = {}) {
       const audio = !config.activeInputName && !!config.activeAudioInputName;
       return ok({
         paused: store.isPaused(),
+        // No daemon behind this page to stop (Aurora-ifkn.3): the
+        // Dashboard hides its Stop button on this flag (default true).
+        canStop: false,
         usesVideoInput: !audio,
         usesAudioInput: audio,
         samplesZones: !audio,

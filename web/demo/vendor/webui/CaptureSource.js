@@ -150,3 +150,9 @@ export function modeSwitchPatch(mode, {
     audioTargetSinkName: sinkName.trim(),
   };
 }
+
+// The save behind every Video/Audio switch: PUT the patch, which also
+// reloads. Resolves to the parsed result ({succeeded, reloadError?}).
+export async function putModeSwitch(patch) {
+  return (await fetch('/api/config', { method: 'PUT', body: JSON.stringify(patch) })).json();
+}
