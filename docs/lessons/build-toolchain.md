@@ -542,6 +542,16 @@ warnings. For testable logic, compile a scratch driver directly against the
 touched `.cpp` (e.g. `ImageProcessing.cpp` + OpenCV + `_deps/glm-src`)
 rather than reviving the fork's stale `tests/`.
 
+
+For code that needs the real DTLS path, build Mbed TLS itself into the
+scratchpad instead (2026-10-08, `Aurora-h45.18`): the GitHub release tarballs
+(`mbedtls-3.6.7.tar.bz2`, `mbedtls-4.2.0.tar.bz2`) configure with the venv
+cmake (`-DENABLE_TESTING=OFF -DENABLE_PROGRAMS=OFF`) and install static libs
+in a few minutes each. A 4.x driver must also link `libtfpsacrypto.a`.
+`DtlsClient.cpp` then compiles against both, and a driver aimed at a dead UDP
+port (`127.0.0.1:9`, `handshakeAttempts = 1`) fails `init()` in about a second,
+fast enough to loop under LeakSanitizer.
+
 ---
 
 ## Vite doesn't empty an `outDir` outside its project root, so a build-time embed ships every stale hashed bundle

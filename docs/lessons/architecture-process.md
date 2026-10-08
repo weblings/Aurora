@@ -886,3 +886,24 @@ Applies-when: something other than a pipeline build wants a shell banner row (a 
 The first Aurora-rbp3 plan put the Mac Local Network denial in `PipelineHost`'s errors. That needed two patches: let `setError` hold while idle (it refuses unless a pipeline runs) and re-assert every poll (any successful build clears all errors). Each patch was a sign of a different concept. Errors are build results that the next good build supersedes; a condition lasts until the outside world changes, in every host state, with no dismiss. A second review also dropped a per-route `local_network_blocked` error code, which would have shown the same fact twice (the Aurora-tazx problem).
 
 **Fix:** a separate `HostCondition` list with its own lock, owned and cleared by its publisher, exposed as `conditions` on `/api/state`, rendered by a source -> renderer table in the shell. When a design needs "but don't let X clear it" and "but allow it when Y", stop and check whether it is the same kind of thing.
+
+---
+
+## A bug fixed in code ported from upstream is also an upstream finding -- check the fork when you close it
+Tags: process, upstream, huenicorn, beads, porting
+Applies-when: closing a bug bead whose fix touches code that came from huenicorn (or any project Aurora ported)
+
+`Aurora-2pe5` fixed a leak in `MbedTlsImpl.hpp`'s deleter on 2026-10-05.
+The struct was ported unchanged from huenicorn, but nobody checked the fork,
+and the bead closed as an Aurora-only fix. It surfaced three days later only
+because a post-1.1.0 sweep re-read every closed bead against huenicorn-fork
+`origin/develop` (`Aurora-h45.18`, now finding 11 in MR 1). The same sweep
+turned up a second likely candidate (`Aurora-k7p`'s raw PipeWire
+`max_framerate.num`, `Aurora-h45.19`). Neither was hard to confirm, and a
+grep of one file would have caught it at close time.
+
+**Fix:** when closing a bug in a ported slice (`input/linux`, `output/hue`,
+`core/Processing`), `git -C ../huenicorn-fork grep` the pre-fix code on
+`origin/develop`. If it's there, file a child of the upstream epic before
+closing. A periodic sweep still works as a backstop.
+
