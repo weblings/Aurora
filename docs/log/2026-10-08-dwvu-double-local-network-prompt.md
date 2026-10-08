@@ -48,8 +48,19 @@ Not quarantined, so the Gatekeeper first-launch path was not exercised.
 
 - Aurora-awcg: remove the browse, `NSBonjourServices` and the header comment
   saying Bonjour is what prompts; acceptance on a notarized build.
-- Banner flash while the prompt is pending (sends fail like a denial until
-  answered) not looked at.
+
+## Follow-up: banner flash on first run
+
+On first run the banner showed briefly under the prompt and then hid: sends
+fail like a denial until the user answers. `LocalNetworkConditionPublisher`
+now needs 2 denials in a row (about 4 s at the 2 s interval) before it sets
+the condition; one grant or unknown resets the count and clearing is still
+immediate. Threshold is a constructor argument (default 2). Mac app tests
+84/84 (one new, killed by setting the default back to 1). Not verified live:
+whether 4 s is long enough for a real first-run click, and the banner after a
+real denial still appearing, on a device.
+
+Bead for the flash fix: Aurora-fjo7.
 
 Lessons: macos-gui (notarized vs ad-hoc prompt count; browse correction and
 27.2 reset folded into existing entries), debugging-method (rule out the test

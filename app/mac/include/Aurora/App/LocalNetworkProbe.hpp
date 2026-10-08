@@ -39,7 +39,10 @@ void requestLocalNetworkPrompt();
 // Level-triggered, not edge-only: it re-checks every `interval` and sets or
 // clears to match, so flipping the toggle in System Settings clears the
 // banner with no Retry. Unknown clears too: it means "no network", not a
-// denial. Callbacks rather than a PipelineHost so it tests without one.
+// denial. A denial must repeat `deniedThreshold` checks in a row before the
+// condition is set: while the first-run prompt is up the send fails like a
+// denial, and one miss flashed the banner under it (Aurora-dwvu). Clearing is
+// immediate. Callbacks rather than a PipelineHost so it tests without one.
 class LocalNetworkConditionPublisher
 {
 public:
@@ -51,16 +54,21 @@ public:
   using Clear = std::function<void(const std::string& source)>;
   using Clock = std::chrono::steady_clock;
 
+  static constexpr int kDefaultDeniedThreshold = 2;
+
   LocalNetworkConditionPublisher(Check check, Set set, Clear clear,
-                                 Clock::duration interval = std::chrono::seconds(2))
-    : m_check(std::move(check)), m_set(std::move(set)), m_clear(std::move(clear)), m_interval(interval) {}
+                                 Clock::duration interval = std::chrono::seconds(2),
+                                 int deniedThreshold = kDefaultDeniedThreshold)
+    : m_check(std::move(check)), m_set(std::move(set)), m_clear(std::move(clear)),
+      m_interval(interval), m_deniedThreshold(deniedThreshold) {}
 
   void poll(Clock::time_point now = Clock::now())
   {
     if(m_checked && now - m_lastCheck < m_interval){ return; }
     m_checked = true;
     m_lastCheck = now;
-    const bool denied = m_check() == LocalNetworkStatus::Denied;
+    m_deniedStreak = m_check() == LocalNetworkStatus::Denied ? m_deniedStreak + 1 : 0;
+    const bool denied = m_deniedStreak >= m_deniedThreshold;
     if(denied == m_isSet){ return; }
     if(denied){ m_set(kSource, kMessage); }
     else{ m_clear(kSource); }
@@ -72,6 +80,8 @@ private:
   Set m_set;
   Clear m_clear;
   Clock::duration m_interval;
+  int m_deniedThreshold;
+  int m_deniedStreak{0};
   Clock::time_point m_lastCheck{};
   bool m_checked{false};
   bool m_isSet{false};
