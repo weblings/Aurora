@@ -83,3 +83,18 @@ pause, so the demo now freezes instead:
   `devstack.py up` with live capture. The first SSE frame was all zeros
   before capture warmed up, then real per-zone colors followed. The owner
   checked the viz and WebUI, then `down` left no state file.
+
+## Follow-up: devstack viz server sends no-store (Aurora-57ct, closed)
+
+The owner saw no cache trouble in the devstack. Pause goes through the WebUI,
+which Aurora's own server already serves with `no-store`. The viz server only
+serves `viz.html` and its modules, so the risk was limited to editing those
+mid-session. `serve_viz`'s handler now adds `Cache-Control: no-store`
+(3 lines), and the skill's hand-assembly step says so.
+
+- Checked: `devstack.py _serve` alone returned `no-store` on `viz.html`,
+  `viz.js`, `scene-core.js` and `TV_Room.glb`. A full `up` then served
+  `viz.js` with `no-store`, the first frame arrived, and `down` left no
+  state file.
+
+Lesson: windows-env (a `CommandLine -match` kill from a shelled-out PowerShell matched and killed itself during the standalone check; exit 255 was that, not the server).

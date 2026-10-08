@@ -288,3 +288,13 @@ don't). General principle: a cross-platform string literal with non-ASCII
 bytes needs the Unicode entry point on Windows specifically -- a passing
 test on the label string alone doesn't prove the native menu renders it,
 only a real, eyes-on manual pass does.
+
+---
+
+## Killing processes by `CommandLine -match` from a shelled-out PowerShell also kills that PowerShell
+Tags: windows, processes, powershell, cleanup, devstack
+Applies-when: stopping a background server or child by matching its command line, especially from Git Bash via `powershell -Command`
+
+Stopping a test viz server with `powershell -NoProfile -Command "Get-CimInstance Win32_Process | Where-Object { $_.CommandLine -match '_serve 8799' } | ForEach-Object { Stop-Process ... }"` stopped two processes and exited 255 (Aurora-57ct check). The pattern was also in that `powershell.exe`'s own command line, so it matched and killed itself mid-pipeline. Filtering on `Name='python.exe'` first had avoided it in the earlier runs.
+
+**Fix:** narrow by process name before matching the command line (`-Filter "Name='python.exe'"`), or exclude `$PID`. Better still, kill by the PID you recorded at launch, as `devstack.py` does with its state file.
