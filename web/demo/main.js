@@ -320,12 +320,21 @@ video.play().catch(() => {
   document.body.addEventListener('click', () => video.play(), { once: true });
 });
 
+// Pause (Aurora-calt): real Hue bulbs hold their last streamed color when the
+// app pauses, so frames stop applying and lamps freeze; content keeps playing.
+let paused = false;
+export function setPaused(next) {
+  paused = next === true;
+}
+
 // Orchestrator: the render loop consumes color-provider implementations and
 // applies their frames to the rig targets (see frame-apply.js). Video takes
 // (zones, mode); audio takes ({zones, targets}); the 'live' SSE provider
 // (gj0.6) is the third implementation.
 function animate() {
-  if (sourceMode === 'audio') {
+  if (paused) {
+    // Frozen: lamps keep the last frame's colors until resume.
+  } else if (sourceMode === 'audio') {
     // Room mode drives its 4 quadrant zones live from the shim (same array
     // the Dashboard edits), not the flat rigs' 8-zone zonemap.js.
     const zones = roomZones();

@@ -331,3 +331,15 @@ function testRouter(seed) {
 }
 
 console.log('demo-shim contract tests passed.');
+
+// Pause hook (Aurora-calt): PUT /api/state tells the scene, so lamps freeze
+// on pause and resume driving on resume; a rejected body never fires it.
+{
+  const store = createShimStore(createMemoryStorage(), {});
+  const seen = [];
+  const route = createRouter(store, { onPausedChanged: (p) => seen.push(p) });
+  route('PUT', '/api/state', JSON.stringify({ running: false }));
+  route('PUT', '/api/state', JSON.stringify({ running: true }));
+  route('PUT', '/api/state', JSON.stringify({ running: 'nope' }));
+  assert.deepEqual(seen, [true, false]);
+}
