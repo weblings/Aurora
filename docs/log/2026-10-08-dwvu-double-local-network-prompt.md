@@ -56,9 +56,14 @@ fail like a denial until the user answers. `LocalNetworkConditionPublisher`
 now needs 2 denials in a row (about 4 s at the 2 s interval) before it sets
 the condition; one grant or unknown resets the count and clearing is still
 immediate. Threshold is a constructor argument (default 2). Mac app tests
-84/84 (one new, killed by setting the default back to 1). Not verified live:
-whether 4 s is long enough for a real first-run click, and the banner after a
-real denial still appearing, on a device.
+84/84 (one new, killed by setting the default back to 1).
+
+Verified live on notarized fresh-identity builds of HEAD (cde5df2): Allow on
+first run, no banner flash (an ad-hoc copy of the same code still flashed,
+like its two dialogs, so judge this only on a notarized build); Don't Allow on first
+run, banner appeared about 4 s later; allowing in System Settings cleared it
+with no relaunch. Each run needed its own `sign-notarize.sh` pass for a
+never-seen identity (a prior run's answer is recorded per bundle ID).
 
 Bead for the flash fix: Aurora-fjo7.
 
