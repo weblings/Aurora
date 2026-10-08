@@ -1,6 +1,6 @@
 ---
 name: light-viz-stack
-description: Bring up / tear down the fake-Hue light viz stack (fake bridge, relay, Aurora, viz page) — use when you need a running app streaming frames without Hue hardware, e.g. to validate pipeline behavior, tray/tick-loop bugs, or the viz tool. Windows, Mac, Linux.
+description: Bring up / tear down the fake-Hue light viz stack (fake bridge, relay, Aurora, viz page) — use when you need a running app streaming frames without Hue hardware, e.g. to validate pipeline behavior, tray/tick-loop bugs, or the viz tool. Also the way to show the shell error banner live (`up --banner-errors 1|2`, dev-only /api/dev/errors) instead of building a throwaway harness. Windows, Mac, Linux.
 allowed-tools: Bash, Read
 ---
 
@@ -15,6 +15,18 @@ py tools/light-viz-relay/devstack.py up      # Windows (python3 on Mac/Linux)
 py tools/light-viz-relay/devstack.py status
 py tools/light-viz-relay/devstack.py down    # always tear down when done
 ```
+
+Need to show the shell's error banner live (a CSS/copy change to a
+`status-text-error` row, the collapsed "N problems" summary, etc.) instead
+of a real failure? `up --banner-errors 1|2` injects 1 or 2 generic errors
+through the dev-only `POST /api/dev/errors` route (`AURORA_DEV_ERRORS=1`,
+gated off in release builds) once the stack is up, and `POST
+/api/dev/errors` / `/api/dev/errors/remove` work standalone against an
+already-`up` stack for custom source/message text (e.g. to check wrapped
+2/3-line error text). Don't build a standalone harness page for this —
+`AURORA_WEBUI_SOURCE_DIR` resolves to the real `web/ui` checkout with
+`Cache-Control: no-store`, so edits to the real markup/CSS are live on
+refresh against the real app, no rebuild needed.
 
 By default `up` captures the live screen (`--input live`: `windows` / `mac` /
 `linux`). Use `--input dummy` only when the user asks for the dummy input.
