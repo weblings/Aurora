@@ -78,6 +78,7 @@ if(AURORA_OUTPUT_HUE_ENABLE_IO)
   target_sources(AuroraOutputHue PRIVATE
     src/HttpClient.cpp
     src/ApiTools.cpp
+    src/MdnsDiscovery.cpp
     src/EntertainmentConfigurationSelector.cpp
     src/DtlsClient.cpp
     src/Streamer.cpp

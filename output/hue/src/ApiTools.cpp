@@ -1,4 +1,5 @@
 #include <Aurora/Output/Hue/ApiTools.hpp>
+#include <Aurora/Output/Hue/MdnsDiscovery.hpp>
 
 #include <algorithm>
 #include <chrono>
@@ -330,6 +331,16 @@ namespace Aurora::Output::Hue
 
     nlohmann::json autodetectedBridge()
     {
+      // Local first (Aurora-cyee): works offline and is not rate limited. The
+      // cloud service stays as the fallback for networks that block mDNS.
+      if(const auto local = discoverBridgesMdns(); !local.empty()){
+        nlohmann::json bridges = nlohmann::json::array();
+        for(const MdnsBridge& bridge : local){
+          bridges.push_back({{"id", bridge.id}, {"internalipaddress", bridge.address}});
+        }
+        return {{"succeeded", true}, {"bridges", bridges}};
+      }
+
       constexpr long DiscoveryTimeoutMs = 5000;
       auto response = sendHttpRequest("https://discovery.meethue.com/", "GET", "", {}, DiscoveryTimeoutMs);
 
