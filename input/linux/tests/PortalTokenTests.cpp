@@ -7,6 +7,8 @@
 // manual check per desktop (Aurora-3ddb).
 #include <catch2/catch_test_macros.hpp>
 
+#include <cstdlib>
+#include <cstring>
 #include <fcntl.h>
 #include <unistd.h>
 
@@ -164,14 +166,62 @@ namespace
     }
 
   private:
+    // A bare bus must stay bare where portal .service files exist: the
+    // default --session config carries <standard_session_servicedirs />,
+    // so a proxy created without DO_NOT_AUTO_START activates the real
+    // xdg-desktop-portal onto the fake bus (Aurora-gtkd). A config with
+    // an empty servicedir makes activation fail fast instead.
+    void _writeBareBusConfig()
+    {
+      char tmpl[] = "/tmp/aurora-bare-bus-XXXXXX";
+      const int fd = mkstemp(tmpl);
+      if(fd == -1){ throw std::runtime_error("FakePortal: mkstemp failed"); }
+      m_configPath = tmpl;
+      static const char* kConfig =
+        "<!DOCTYPE busconfig PUBLIC \"-//freedesktop//DTD D-Bus Bus Configuration 1.0//EN\"\n"
+        " \"http://www.freedesktop.org/standards/dbus/1.0/busconfig.dtd\">\n"
+        "<busconfig>\n"
+        "  <type>session</type>\n"
+        "  <keep_umask/>\n"
+        "  <listen>unix:tmpdir=/tmp</listen>\n"
+        "  <auth>EXTERNAL</auth>\n"
+        "  <servicedir>/nonexistent/aurora-no-services</servicedir>\n"
+        "  <policy context=\"default\">\n"
+        "    <allow send_destination=\"*\" eavesdrop=\"true\"/>\n"
+        "    <allow eavesdrop=\"true\"/>\n"
+        "    <allow own=\"*\"/>\n"
+        "  </policy>\n"
+        "</busconfig>\n";
+      const size_t len = std::strlen(kConfig);
+      ssize_t written = 0;
+      while(written < static_cast<ssize_t>(len)){
+        const ssize_t n = write(fd, kConfig + written, len - static_cast<size_t>(written));
+        if(n <= 0){ close(fd); throw std::runtime_error("FakePortal: bare bus config write failed"); }
+        written += n;
+      }
+      close(fd);
+    }
+
     void _startBus()
     {
       g_autoptr(GError) error = NULL;
-      m_bus = g_subprocess_new(
-        // Silence stderr: an orphaned daemon (test crashed) must not hold ctest's pipe open.
-        static_cast<GSubprocessFlags>(G_SUBPROCESS_FLAGS_STDOUT_PIPE | G_SUBPROCESS_FLAGS_STDERR_SILENCE), &error,
-        "dbus-daemon", "--session", "--nofork", "--print-address=1", NULL
-      );
+      std::string configArg;
+      if(!m_serve){
+        _writeBareBusConfig();
+        configArg = "--config-file=" + m_configPath;
+        m_bus = g_subprocess_new(
+          // Silence stderr: an orphaned daemon (test crashed) must not hold ctest's pipe open.
+          static_cast<GSubprocessFlags>(G_SUBPROCESS_FLAGS_STDOUT_PIPE | G_SUBPROCESS_FLAGS_STDERR_SILENCE), &error,
+          "dbus-daemon", configArg.c_str(), "--nofork", "--print-address=1", NULL
+        );
+      }
+      else{
+        m_bus = g_subprocess_new(
+          // Silence stderr: an orphaned daemon (test crashed) must not hold ctest's pipe open.
+          static_cast<GSubprocessFlags>(G_SUBPROCESS_FLAGS_STDOUT_PIPE | G_SUBPROCESS_FLAGS_STDERR_SILENCE), &error,
+          "dbus-daemon", "--session", "--nofork", "--print-address=1", NULL
+        );
+      }
       if(!m_bus){ throw std::runtime_error(std::string("FakePortal: ") + error->message); }
 
       // The daemon prints its listen address as its first line.
@@ -190,6 +240,10 @@ namespace
       g_subprocess_wait(m_bus, NULL, NULL);
       g_object_unref(m_bus);
       m_bus = nullptr;
+      if(!m_configPath.empty()){
+        unlink(m_configPath.c_str());
+        m_configPath.clear();
+      }
     }
 
     static void _onMethod(
@@ -406,6 +460,7 @@ namespace
 
     const bool m_serve;
     GSubprocess* m_bus{nullptr};
+    std::string m_configPath;
     std::thread m_thread;
     GMainContext* m_context{nullptr};
     GMainLoop* m_loop{nullptr};
