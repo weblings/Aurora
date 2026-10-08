@@ -42,5 +42,4 @@ from Dashboard's inline rows to the shell banner. The NUX Capture Source step
 - All `web/ui` and `web/demo` node tests pass.
 - Live on a `make-fresh-localnet-copy.sh` copy launched with `--fresh`: owner
   confirmed the Capture Source Screen Recording row is fixed.
-- Not verified: the final audio wording on screen (changed after the last
-  look at that row).
+- Owner confirmed the final audio wording.
