@@ -2,118 +2,255 @@
   "descriptors": [
     {
       "key": "app.mode",
+      "kind": "button",
       "description": "Video or audio reactive mode"
     },
     {
       "key": "app.pause",
+      "kind": "button",
       "description": "Play/Pause"
     },
     {
       "key": "app.stop",
+      "kind": "button",
       "description": "Stop and Quit"
     },
     {
       "key": "audio.bounceSmoothTime",
-      "description": "Bounce reaction speed"
+      "kind": "slider",
+      "description": "Bounce reaction speed",
+      "param": {
+        "label": "Bounce smooth time",
+        "min": 0.05,
+        "max": 2.0,
+        "step": 0.01,
+        "unit": "s",
+        "default": 0.285,
+        "allowsUnset": false
+      }
     },
     {
       "key": "audio.brightnessFloor",
-      "description": "Darkest output when quiet"
+      "kind": "slider",
+      "description": "Darkest output when quiet",
+      "param": {
+        "label": "Brightness floor",
+        "min": 0.0,
+        "max": 1.0,
+        "step": 0.01,
+        "unit": "",
+        "default": 0.4,
+        "allowsUnset": false
+      }
     },
     {
       "key": "audio.brightnessSmoothTime",
-      "description": "Brightness reaction speed"
+      "kind": "slider",
+      "description": "Brightness reaction speed",
+      "param": {
+        "label": "Brightness smooth time",
+        "min": 0.05,
+        "max": 2.0,
+        "step": 0.01,
+        "unit": "s",
+        "default": 0.265,
+        "allowsUnset": false
+      }
     },
     {
       "key": "audio.centroidRangeHz",
-      "description": "Pitch span affecting drift"
+      "kind": "slider",
+      "description": "Pitch span affecting drift",
+      "param": {
+        "label": "Centroid range",
+        "min": 100.0,
+        "max": 8000.0,
+        "step": 10.0,
+        "unit": "Hz",
+        "default": 2250.0,
+        "allowsUnset": false
+      }
     },
     {
       "key": "audio.centroidStrength",
-      "description": "Pitch influence on drift"
+      "kind": "slider",
+      "description": "Pitch influence on drift",
+      "param": {
+        "label": "Centroid strength",
+        "min": 0.0,
+        "max": 1.0,
+        "step": 0.01,
+        "unit": "",
+        "default": 0.3,
+        "allowsUnset": false
+      }
     },
     {
       "key": "audio.driftBaseRateDegPerSec",
-      "description": "Idle color drift speed"
+      "kind": "slider",
+      "description": "Idle color drift speed",
+      "param": {
+        "label": "Drift base rate",
+        "min": 0.0,
+        "max": 60.0,
+        "step": 1.0,
+        "unit": "°/s",
+        "default": 10.0,
+        "allowsUnset": false
+      }
     },
     {
       "key": "audio.dynamismFloor",
-      "description": "Bounce on quiet sounds"
+      "kind": "slider",
+      "description": "Bounce on quiet sounds",
+      "param": {
+        "label": "Dynamism floor",
+        "min": 0.0,
+        "max": 1.0,
+        "step": 0.01,
+        "unit": "",
+        "default": 0.26,
+        "allowsUnset": false
+      }
     },
     {
       "key": "audio.fixedAnchorHue",
-      "description": "Drift's starting hue"
+      "kind": "slider",
+      "description": "Drift's starting hue",
+      "param": {
+        "label": "Fixed hue",
+        "min": 0.0,
+        "max": 360.0,
+        "step": 1.0,
+        "unit": "°",
+        "default": -1.0,
+        "allowsUnset": true
+      }
     },
     {
       "key": "audio.fixedHueEnabled",
+      "kind": "bool",
       "description": "Drift starts at chosen hue"
     },
     {
       "key": "audio.referenceRms",
-      "description": "Loudness for full brightness"
+      "kind": "slider",
+      "description": "Loudness for full brightness",
+      "param": {
+        "label": "Reference RMS",
+        "min": 0.05,
+        "max": 1.0,
+        "step": 0.01,
+        "unit": "",
+        "default": 0.5,
+        "allowsUnset": false
+      }
     },
     {
       "key": "audio.vibrancySaturation",
-      "description": "Color saturation level"
+      "kind": "slider",
+      "description": "Color saturation level",
+      "param": {
+        "label": "Vibrancy saturation",
+        "min": 0.0,
+        "max": 1.0,
+        "step": 0.01,
+        "unit": "",
+        "default": 0.95,
+        "allowsUnset": false
+      }
     },
     {
       "key": "audio.vibrancyValue",
-      "description": "Maximum color brightness"
+      "kind": "slider",
+      "description": "Maximum color brightness",
+      "param": {
+        "label": "Vibrancy value",
+        "min": 0.0,
+        "max": 1.0,
+        "step": 0.01,
+        "unit": "",
+        "default": 0.95,
+        "allowsUnset": false
+      }
     },
     {
       "key": "input.monitor",
+      "kind": "dropdown",
       "description": "Which display to capture"
     },
     {
       "key": "input.sink",
+      "kind": "dropdown",
       "description": "Audio source to react to"
     },
     {
       "key": "output.hue.autodetect",
+      "kind": "button",
       "description": "Find bridge automatically"
     },
     {
       "key": "output.hue.bridgeAddress",
+      "kind": "text",
       "description": "Bridge network address"
     },
     {
       "key": "output.hue.changeBridge",
+      "kind": "button",
       "description": "Switch to another bridge"
     },
     {
       "key": "output.hue.entertainmentConfig",
+      "kind": "dropdown",
       "description": "Entertainment area to use"
     },
     {
       "key": "video.interpolation",
+      "kind": "dropdown",
       "description": "How sampled colors blend"
     },
     {
       "key": "video.refreshRate",
+      "kind": "dropdown",
       "description": "Color updates per second"
     },
     {
       "key": "video.subsampleWidth",
+      "kind": "dropdown",
       "description": "Captured image detail level"
     },
     {
       "key": "video.transitionSmoothing",
-      "description": "Easing between color changes"
+      "kind": "slider",
+      "description": "Easing between color changes",
+      "param": {
+        "label": "Transition smoothing",
+        "min": 0.0,
+        "max": 0.97,
+        "step": 0.01,
+        "unit": "",
+        "default": 0.0,
+        "allowsUnset": false
+      }
     },
     {
       "key": "zones.active",
+      "kind": "bool",
       "description": "Include zone in output"
     },
     {
       "key": "zones.autoArrange",
+      "kind": "button",
       "description": "Automatically arrange zone layout"
     },
     {
       "key": "zones.gamma",
+      "kind": "slider",
       "description": "Zone brightness curve"
     },
     {
       "key": "zones.select",
+      "kind": "dropdown",
       "description": "Zone to edit"
     }
   ]

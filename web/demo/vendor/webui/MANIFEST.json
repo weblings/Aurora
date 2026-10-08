@@ -1,17 +1,17 @@
 {
-  "sourceRepo": "Aurora-WebUI",
-  "sourceCommit": "0e97bf6",
-  "layout": "Mirror of Aurora-WebUI relative paths: vendor/webui/<path> is a verbatim copy of Aurora-WebUI/<path> except for the seams below. Relative imports resolve unchanged.",
+  "sourceRepo": "web/ui",
+  "sourceCommit": "57012d6",
+  "layout": "Mirror of web/ui relative paths: vendor/webui/<path> is a byte-identical copy of web/ui/<path> (sync-webui.py). The seams below are demo-side behavior, not edits to the copies. Relative imports resolve unchanged.",
   "entry": "screens/DashboardScreen.js",
   "modules": [
     "screens/DashboardScreen.js",
-    "screens/ModeDeviceScreen.js",
     "screens/OutputConnectScreen.js",
     "AccordionSection.js",
     "CaptureSource.js",
     "DeviceField.js",
     "Dropdown.js",
     "EntertainmentConfigSelect.js",
+    "MacPermissionRecovery.js",
     "NavFooter.js",
     "ScreenDivision.js",
     "SliderFill.js",
@@ -26,7 +26,6 @@
     "topBar.js"
   ],
   "deadModules": [
-    "screens/ModeDeviceScreen.js",
     "screens/OutputConnectScreen.js"
   ],
   "styles": [
@@ -48,38 +47,19 @@
     "icons/power-svgrepo-com.svg"
   ],
   "generated": [
-    "descriptors.json (via gen-descriptors.py from core + Hue + Input descriptor tables)"
+    "descriptors.json (via gen-descriptors.py from core + Hue + Input descriptor tables, incl. slider params)"
   ],
-  "notes": [
-    "icon-paths: NavFooter.js + Dropdown.js page-relative icons/*.svg rewritten to vendor/webui/icons/* (CSS mask urls resolve relatively and needed no change)",
-    "string-zone-ids: ZoneActiveToggle.js Number(dataset.zoneId) replaced with type-tolerant lookup + unknown-id guard (native ids are uint8; demo room ids are strings)",
-    "toggle-sync: ZoneActiveToggleList.onChange + ZoneCanvas.onActiveChange/refreshActive keep Bridge and Zone Mapping bools on the same shared objects in sync; DashboardScreen wires both directions (upstream has no sibling consumer, so no callbacks exist there)"
-  ],
+  "notes": [],
   "seams": [
     {
       "id": "no-output-connect",
       "file": "screens/DashboardScreen.js",
-      "note": "Line 383 navigates to OutputConnectScreen (NUX bridge setup). Never reachable in the demo: the shim answers /api/hue/connection as configured:true. OutputConnectScreen.js is vendored dead so the import resolves; it is never mounted."
-    },
-    {
-      "id": "mode-device-helpers",
-      "file": "screens/DashboardScreen.js",
-      "note": "Since Aurora-kea the Dashboard takes pickVideoInputName/pickAudioInputName from CaptureSource.js and no longer imports ModeDeviceScreen.js. That file stays vendored dead (never imported or mounted) until the fork is re-vendored."
-    },
-    {
-      "id": "shell-css-scope",
-      "file": "styles/shell.css",
-      "note": "Bare html/body rules (shell.css:18,23) and the * reset would leak onto the demo scene page. On vendoring, wrap them in the dashboard-pane scope class; re-apply on every re-vendor. Tokens (--aurora-*) and prefixed classes need no change."
-    },
-    {
-      "id": "no-stop-button",
-      "file": "screens/DashboardScreen.js",
-      "note": "Decided: no Stop button in the port. The vendored copy drops the trailingButton wiring (DashboardScreen.js:118-122). POST /api/stop needs no shim route."
+      "note": "DashboardScreen._renderBridgeContent navigates to OutputConnectScreen (NUX bridge setup). Never reachable in the demo: the shim answers /api/hue/connection as configured:true. OutputConnectScreen.js is vendored dead so the import resolves; it is never mounted."
     },
     {
       "id": "app-facade",
       "file": "(demo boot, not vendored)",
-      "note": "DashboardScreen takes an app object (this.app.navigate). app.js/shell.js are NOT vendored; the demo boot provides a minimal facade. Only navigate() needs to exist, and no reachable path calls it (seam no-output-connect)."
+      "note": "DashboardScreen takes an app object (this.app.navigate). app.js/shell.js are NOT vendored; the demo boot provides a minimal facade. navigate() only needs to exist, never to work (seam no-output-connect); checkNow() always reads as reachable since the shim never drops; onStateUpdate/platform are plain fields the screen assigns."
     }
   ]
 }

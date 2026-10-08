@@ -5,6 +5,7 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 
 | Id | Path | Title |
 |---|---|---|
+| `110-release-prep` | [log/2026-10-07-110-release-prep.md](log/2026-10-07-110-release-prep.md) | 1.1.0 release prep: audit, bump, docs, Aurora-07i, vendor sequencing |
 | `2dz-secret-store` | [log/2026-10-02-2dz-secret-store.md](log/2026-10-02-2dz-secret-store.md) | Aurora-2dz: OS secret store — verified on Linux, Mac and Windows |
 | `3ddb-pause-cli` | [log/2026-10-03-3ddb-pause-cli.md](log/2026-10-03-3ddb-pause-cli.md) | Aurora-3ddb: pause/resume, core and CLI only |
 | `3ono-stale-core-test-tree` | [log/2026-10-02-3ono-stale-core-test-tree.md](log/2026-10-02-3ono-stale-core-test-tree.md) | Aurora-3ono: PipelineTests segfault on Windows was a stale build tree |
@@ -49,6 +50,13 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `home-assistant-output` | [planning/HomeAssistantOutput.md](planning/HomeAssistantOutput.md) | Home Assistant output module |
 | `http-server-analysis` | [archive/HttpServerAnalysis.md](archive/HttpServerAnalysis.md) | HTTP server analysis |
 | `hue-output-analysis` | [archive/HueOutputAnalysis.md](archive/HueOutputAnalysis.md) | Hue::Api / Auth / Stream — Conversion analysis |
+| `ifkn2-page-css-split` | [log/2026-10-08-ifkn2-page-css-split.md](log/2026-10-08-ifkn2-page-css-split.md) | Aurora-ifkn.2 closed: shell.css page-wide rules split into page-only page.css |
+| `ifkn3-stop-capability` | [log/2026-10-08-ifkn3-stop-capability.md](log/2026-10-08-ifkn3-stop-capability.md) | Aurora-ifkn.3: Dashboard Stop gated on a canStop capability, screen re-vendored identical |
+| `ifkn4-string-zone-ids` | [log/2026-10-08-ifkn4-string-zone-ids.md](log/2026-10-08-ifkn4-string-zone-ids.md) | Aurora-ifkn.4 closed: ZoneActiveToggle accepts string and numeric zone ids |
+| `ifkn5-toggle-sync` | [log/2026-10-08-ifkn5-toggle-sync.md](log/2026-10-08-ifkn5-toggle-sync.md) | Aurora-ifkn.5 closed: toggle-sync callbacks upstream, Dashboard wires both zone views |
+| `ifkn6-descriptor-ranges` | [log/2026-10-08-ifkn6-descriptor-ranges.md](log/2026-10-08-ifkn6-descriptor-ranges.md) | Aurora-ifkn.6 closed: gen-descriptors.py emits Tuning slider ranges |
+| `ifkn7-sync-revendor` | [log/2026-10-08-ifkn7-sync-revendor.md](log/2026-10-08-ifkn7-sync-revendor.md) | Aurora-ifkn.7 (open, built): sync script + full re-vendor, vendor byte-identical |
+| `ifkn8-vendor-ci-docs` | [log/2026-10-08-ifkn8-vendor-ci-docs.md](log/2026-10-08-ifkn8-vendor-ci-docs.md) | Aurora-ifkn.8 (open, built): vendor test in web CI, docs, Pages publish open |
 | `ijus-shell-copy-fixes` | [log/2026-10-07-ijus-shell-copy-fixes.md](log/2026-10-07-ijus-shell-copy-fixes.md) | Aurora-ijus: shell error-copy audit — daemon leak, duplicate row, dead callback, closed |
 | `implementation-plan` | [planning/ImplementationPlan.md](planning/ImplementationPlan.md) | Low-scope implementation plan |
 | `implementation-plan-directory-layout` | [archive/ImplementationPlan_DirectoryLayout.md](archive/ImplementationPlan_DirectoryLayout.md) | Implementation plan: proposed directory layout (superseded) |
@@ -56,6 +64,7 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `implementation-plan-phase-3` | [archive/ImplementationPlan_Phase3.md](archive/ImplementationPlan_Phase3.md) | Implementation plan: Phase 3 — Three.js browser demo, then the native WebUI milestone |
 | `ja76-hold-running-reload-error` | [log/2026-10-06-ja76-hold-running-reload-error.md](log/2026-10-06-ja76-hold-running-reload-error.md) | Aurora-ja76: hold a failed reload on a running host (closed) |
 | `jwcd-real-bridge-pause-resume` | [log/2026-10-06-jwcd-real-bridge-pause-resume.md](log/2026-10-06-jwcd-real-bridge-pause-resume.md) | Real-bridge pause/resume closes Aurora-jwcd |
+| `jwt7-demo-reset-specificity` | [log/2026-10-08-jwt7-demo-reset-specificity.md](log/2026-10-08-jwt7-demo-reset-specificity.md) | Aurora-jwt7: demo Dashboard lost component padding after ifkn.2 (closed) |
 | `k73j-tray-see-error` | [log/2026-10-07-k73j-tray-see-error.md](log/2026-10-07-k73j-tray-see-error.md) | Aurora-k73j: tray "See Error" — built, Linux-, Windows- and Mac-verified |
 | `kea-capability-flags` | [log/2026-10-03-kea-capability-flags.md](log/2026-10-03-kea-capability-flags.md) | Aurora-kea: running-pipeline flags drive the Dashboard (open: Mac/Windows unverified) |
 | `kea-dashboard-capabilities-scoping` | [log/2026-10-02-kea-dashboard-capabilities-scoping.md](log/2026-10-02-kea-dashboard-capabilities-scoping.md) | Aurora-kea: scoping pass on Dashboard capability-driven sections (paused, no code) |

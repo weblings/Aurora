@@ -102,6 +102,11 @@ namespace Aurora::Runtime
           {"state", hostStateName(status.state)},
           {"errors", errors},
           {"paused", status.state == HostState::Paused},
+          // Every host ships a Stop path (tray/quit plus POST /api/stop),
+          // so this is unconditionally true here; hosts without one (the
+          // demo shim) answer false and the Dashboard hides Stop
+          // (Aurora-ifkn.3). Clients treat an absent flag as true.
+          {"canStop", true},
           {"usesVideoInput", capabilities.usesVideoInput},
           {"usesAudioInput", capabilities.usesAudioInput},
           {"samplesZones", capabilities.samplesZones},

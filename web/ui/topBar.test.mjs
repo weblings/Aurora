@@ -38,16 +38,16 @@ function render(options) {
   const { html, stubs } = render({
     title: 'Aurora',
     trailingButtons: [
-      { id: 'top-bar-pause-btn', label: 'Pause', icon: 'icons/pause-rockyroad.svg', onClick: () => { paused++; } },
-      { id: 'top-bar-stop-btn', label: 'Stop', icon: 'icons/power-svgrepo-com.svg', onClick: () => { stopped++; }, buttonClass: 'btn btn-icon top-bar-power-btn' },
+      { id: 'top-bar-pause-btn', label: 'Pause', icon: new URL('./icons/pause-rockyroad.svg', import.meta.url).href, onClick: () => { paused++; } },
+      { id: 'top-bar-stop-btn', label: 'Stop', icon: new URL('./icons/power-svgrepo-com.svg', import.meta.url).href, onClick: () => { stopped++; }, buttonClass: 'btn btn-icon top-bar-power-btn' },
     ],
   });
   assert.ok(html.includes('id="top-bar-pause-btn"'), 'pause button id rendered');
   assert.ok(html.includes('id="top-bar-stop-btn"'), 'stop button id rendered');
   assert.ok(html.includes('aria-label="Pause"'), 'icon-only pause keeps its label');
   assert.ok(html.includes('aria-label="Stop"'), 'icon-only stop keeps its label');
-  assert.ok(html.includes('src="icons/pause-rockyroad.svg"'), 'pause glyph rendered');
-  assert.ok(html.includes('src="icons/power-svgrepo-com.svg"'), 'power glyph rendered');
+  assert.ok(html.includes('pause-rockyroad.svg'), 'pause glyph rendered');
+  assert.ok(html.includes('power-svgrepo-com.svg'), 'power glyph rendered');
   assert.ok(html.includes('top-bar-power-btn'), 'power button reads lighter than pause');
   assert.ok(html.indexOf('top-bar-pause-btn') < html.indexOf('top-bar-stop-btn'), 'pause sits next to (before) power');
   stubs.get('#top-bar-pause-btn').listeners.click[0]();
@@ -61,11 +61,11 @@ function render(options) {
   const { html } = render({
     title: 'Aurora',
     trailingButtons: [
-      { id: 'top-bar-pause-btn', label: 'Resume', icon: 'icons/play-rockyroad.svg', onClick: () => {} },
+      { id: 'top-bar-pause-btn', label: 'Resume', icon: new URL('./icons/play-rockyroad.svg', import.meta.url).href, onClick: () => {} },
     ],
   });
   assert.ok(html.includes('aria-label="Resume"'), 'resume label rendered');
-  assert.ok(html.includes('src="icons/play-rockyroad.svg"'), 'play glyph rendered');
+  assert.ok(html.includes('play-rockyroad.svg'), 'play glyph rendered');
 }
 
 // Busy pause renders native disabled.
@@ -73,7 +73,7 @@ function render(options) {
   const { html } = render({
     title: 'Aurora',
     trailingButtons: [
-      { id: 'top-bar-pause-btn', label: 'Pause', icon: 'icons/pause-rockyroad.svg', onClick: () => {}, disabled: true },
+      { id: 'top-bar-pause-btn', label: 'Pause', icon: new URL('./icons/pause-rockyroad.svg', import.meta.url).href, onClick: () => {}, disabled: true },
     ],
   });
   assert.ok(html.includes('disabled'), 'busy pause is disabled, not hidden');
@@ -84,7 +84,7 @@ function render(options) {
   let n = 0;
   const { html, stubs } = render({
     title: 'Aurora',
-    trailingButton: { label: 'Stop', icon: 'icons/power-svgrepo-com.svg', onClick: () => { n++; } },
+    trailingButton: { label: 'Stop', icon: new URL('./icons/power-svgrepo-com.svg', import.meta.url).href, onClick: () => { n++; } },
   });
   assert.ok(html.includes('id="top-bar-trailing-btn"'), 'legacy id kept');
   assert.ok(html.includes('btn btn-secondary btn-icon'), 'legacy icon styling kept');

@@ -111,6 +111,12 @@ def serve_viz(port):
     class H(SimpleHTTPRequestHandler):
         protocol_version = "HTTP/1.1"
 
+        # no-store: a cached ES module beside a fresh importer breaks the page
+        # after an edit (Aurora-57ct, web-testing caching lesson).
+        def end_headers(self):
+            self.send_header("Cache-Control", "no-store")
+            super().end_headers()
+
     S(("127.0.0.1", port), functools.partial(H, directory=str(REPO / "web/demo"))).serve_forever()
 
 

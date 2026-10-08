@@ -222,3 +222,25 @@ Applies-when: adding a border, padding, or `display: flex` to an element whose c
 Aurora-x1lh (shell banner visual polish): `.status-text`'s `margin-top` (forms.css) assumes it follows some other element in normal flow, and previously got away with being the first/only child of `.shell-banner-row`, because that row had no border/padding of its own -- the child's margin collapsed straight through the parent and out into the row-to-row gap, landing as if it weren't there. Adding a border and padding to `.shell-banner-row` (for a bordered-card look) stopped that collapse (a border or padding on the parent blocks it), so the same margin started stacking on top of the row's own padding, pushing the text down past where an absolutely-positioned dismiss `x` was aligned -- read at first as "the x needs repositioning" when the actual text position had moved, not the x. Wrapping the row's content in a flex item (`.shell-banner-content`) for unrelated reasons (adaptive x alignment) didn't fix it either: a flex item is its own formatting-context root, which also blocks margin collapse from a child out through it.
 
 **Fix:** when a container gains a border, padding, or becomes a flex/grid item, re-check whether any child's own margin was relying on collapsing through it -- `:first-child { margin-top: 0 }` (or auditing the child's margin's original assumption) on the new container, rather than chasing the symptom on an unrelated sibling element.
+
+---
+
+## Port the upstream value, not the fork's drifted one, when de-seaming scoped CSS
+Tags: webui, css
+Applies-when: moving a demo fork's scoped patch into scope-owned CSS so the vendored file needs no edit
+
+Aurora-ifkn.2 absorbed the `shell-css-scope` seam (bare `*`/`html`/`body` rules rescoped under `.db-port`) into demo-owned `demo-layout.css`. The seam's frozen value was `overflow-x: hidden` on `.db-port`, but upstream's `body` rule has since moved to `overflow-x: clip` -- `hidden` beside a scroll container turns the element into a never-scrolling scroll container and a sticky banner pins to that instead of the real scroller (see the `position: sticky` entry in this file). Copying the seam verbatim would have perpetuated the breakage into every future re-vendor.
+
+**Fix:** when absorbing a seam, diff it against current upstream first and port the current value, not the seam's frozen one; note the delta in the new block's comment so the next re-vendor doesn't "fix" it back.
+
+---
+
+## Moving a scoped reset into a later-loaded stylesheet raises its precedence -- wrap the scope in `:where()`
+Tags: css, specificity, cascade, reset, vendor, demo
+Applies-when: relocating a `*` reset (or any low-precedence base rule) into a different stylesheet, or scoping one under a class
+
+Aurora-ifkn.2 moved the demo's `.db-port *` reset from the top of the vendored `shell.css` into `demo-layout.css`, which `index.html` loads last. `.db-port *` scores (0,1,0), the same as single-class component rules like `.segmented-btn`, so on equal specificity the later file won and zeroed every component's padding and margin: bare Video/Audio pills, no accordion chrome (Aurora-jwt7). In the app the reset is a bare `*` at (0,0,0), so it can never win. The byte-identity test, the layout test (which checked the reset's properties, not its precedence) and all node suites stayed green. A headless-Chrome screenshot next to one from the pre-refactor commit showed it at once.
+
+**Fix:** `:where(.db-port) *` keeps the scope at zero specificity, so it behaves like `*` wherever the file loads. For any CSS move or rescope, compare a screenshot against the commit before the change. Rule-content tests don't see cascade order.
+
+The same move also changed which box clips. The app's `body { overflow-x: clip }` clips at the window edge. Its demo stand-in on `.db-port` clipped at `#screen-container` itself, 5px inside the Dashboard's 21px overhang, which cut the top-right Pause button (Aurora-4jk4). When rescoping a page rule, put it on the element that plays the page's role, here the `#dashboard-pane` scroll container, not on the scope class.

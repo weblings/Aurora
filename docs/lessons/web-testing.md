@@ -225,7 +225,10 @@ a standing, silent source of "my fix isn't working" false alarms that look
 exactly like real bugs and can burn real debugging time before anyone
 thinks to suspect the browser's cache instead of the code.
 
+ES modules make it worse: a browser can mix a cached module with a freshly fetched importer. After `main.js` gained an export, Firefox reused its cached `main.js` while loading the new `demo-boot.js`, and the page died with `SyntaxError: The requested module ... doesn't provide an export named: 'setPaused'` (2026-10-08). Plain `python -m http.server` sends only `Last-Modified`, which invites that heuristic caching. A hard refresh fixed it. Ad-hoc static servers for `web/demo` need the same `no-store`, and devstack's viz server now sends it (Aurora-57ct).
+
 ---
+
 ## The shim must answer every route the ported UI probes
 Tags: demo, shim, routes
 Applies-when: adding a backend route consumed by vendored dashboard code

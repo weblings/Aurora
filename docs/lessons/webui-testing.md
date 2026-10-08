@@ -247,3 +247,22 @@ Aurora-m0fy added `{ reloadError }` to `EntertainmentConfigSelect`'s `onChange`.
 
 **Fix:** also test through the component the real constructor builds (`inst.entertainmentConfigSelect.onChange(...)`), and run a mutant that drops the forwarded arguments. Prefer `onChange: (...args) => handler(...args)` when a callback's contract may grow.
 
+---
+
+## A string-to-RegExp test helper moves the syntax error to the helper line
+Tags: webui, testing
+Applies-when: writing assertions through a test helper that builds RegExp from strings
+
+`demo-layout.test.mjs`'s `ruleBlocks(selector)` interpolates its argument into `new RegExp(...)`, so the new `.db-port` assertion needed double backslashes in the file where sibling regex literals need single ones. Authored with single backslashes, the suite died with `Nothing to repeat` pointing at the helper's `new RegExp` line -- two frames from the actual mistake.
+
+**Fix:** when the helper takes strings, write call-site arguments pre-escaped, and on an `Invalid regular expression` failure look at the caller's quoting layer first, not the helper.
+
+---
+
+## A screen-to-component wiring needs thin methods to stay testable without a DOM
+Tags: webui, testing, callbacks, wiring
+Applies-when: a screen passes callbacks into a component whose construction needs a real DOM
+
+`DashboardScreen` wires `ZoneCanvas`'s `onActiveChange` and `ZoneActiveToggleList`'s `onChange` so the two zone views refresh each other (Aurora-ifkn.5). `ZoneCanvas` construction needs `document` (SVG shapes, dropdown, sliders), so no node test can build the pair and fire a flip end to end -- and ES module imports can't be stubbed, so the options object the screen passes is unreachable from a test. Inline arrow closures would leave the contract covered only by inspection.
+
+**Fix:** route each callback through a one-line screen method (`_onZoneCanvasActiveChange()` re-renders the Bridge list, `_onBridgeZoneToggle()` calls `zoneCanvas?.refreshActive()`), pass `() => this._onX()` in the options, and prototype-call the methods against doubles in `DashboardScreen.test.mjs` (fake canvas counting `refreshActive`, stubbed `_renderBridgeZoneList`, null-canvas no-throw). The remaining one-line arrows are review-visible; the behavior contract is asserted.

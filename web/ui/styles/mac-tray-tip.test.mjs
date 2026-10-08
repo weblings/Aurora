@@ -15,7 +15,7 @@ const app = read('../app.js');
   const gif = new URL('../icons/MacTray.gif', import.meta.url);
   assert.ok(existsSync(gif), 'GIF lives under web/ui so the embedded webroot carries it');
   assert.ok(statSync(gif).size > 0, 'GIF is non-empty');
-  assert.ok(screen.includes('src="icons/MacTray.gif"'), 'screen references the GIF by webroot-relative path');
+  assert.ok(screen.includes('../icons/MacTray.gif') && screen.includes('import.meta.url'), 'screen resolves the GIF against its own module');
   assert.match(screen, /alt="[^"]+menu bar[^"]*"/, 'GIF has descriptive alt text');
   assert.ok(screen.includes('menu bar'), 'copy uses menu bar wording');
   assert.ok(screen.includes('Launch UI') && screen.includes('Stop'), 'copy names the menu items');

@@ -932,6 +932,7 @@ TEST_CASE("GET /api/state reports paused and the running pipeline's capabilities
     {"state", "idle"},
     {"errors", nlohmann::json::array()},
     {"paused", false},
+    {"canStop", true},
     {"usesVideoInput", false},
     {"usesAudioInput", false},
     {"samplesZones", false},

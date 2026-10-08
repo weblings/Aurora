@@ -1,39 +1,10 @@
-/* Aurora WebUI app shell: page reset, centered content column, top bar
-   formula, and the settings modal + scrim. Applies to every screen; a
-   screen's own CSS should only ever add to this, never redefine it.
+/* Aurora WebUI app shell: centered content column, top bar formula, and
+   the settings modal + scrim. Applies to every screen; a screen's own CSS
+   should only ever add to this, never redefine it. Page-wide element rules
+   (*, html, body) live in styles/page.css, loaded only by index.html.
    See docs/WebUIAnalysis.md's "Shell conventions" section for the design
    rationale -- values here are Aurora's tokens (styles/tokens.css), not
    copied literals. */
-
-/* DEMO SEAM shell-css-scope (see MANIFEST.json): the bare-element rules
-   below are scoped to the dashboard pane (.db-port) so they never leak onto
-   the demo scene page. Re-apply on every re-vendor. */
-/* (was: *) */
-.db-port * {
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
-}
-
-/* Reserve the scrollbar's width always, whether or not a given screen's
-   content actually overflows -- otherwise #screen-container's margin:auto
-   centering shifts sideways whenever a scrollbar appears (verified real
-   fix, RockyRoadImport/SongConverter/index.html). */
-/* DEMO SEAM: the html rule is dropped -- the dashboard pane owns its own
-   scroll container instead of the viewport. (was: html { scrollbar-gutter:
-   stable; overflow-y: scroll; }) */
-
-/* (was: body) */
-.db-port {
-  background: var(--aurora-bg);
-  color: var(--aurora-text-primary);
-  font-family: var(--aurora-font);
-  /* The accordion header pill (dashboard.css) overhangs #screen-container's
-     own 16px gutter by 21px a side -- wider than the gutter on narrow
-     viewports. Clipped at the real viewport edge, not at #screen-container
-     itself, so the intended overhang still renders in full everywhere it fits. */
-  overflow-x: hidden;
-}
 
 #screen-container {
   max-width: 640px;
@@ -151,5 +122,118 @@
   font-size: 10px;
   font-weight: 500;
   white-space: nowrap;
+}
+
+/* Shell-level system-error banner (Aurora-cj11, docs/planning/ErrorOverlay.md
+   'The banner'): sticky at the very top, in flow -- it pushes
+   #screen-container down rather than covering it, and pins to the window
+   top once the page scrolls past it (the document itself scrolls, see this
+   file's own #screen-container/html comments, so sticky needs no extra
+   scroll container). Same column width as the screen content so a row's
+   text wraps at the same point Dashboard's own status text does. */
+#shell-banner-slot {
+  /* Sticky lives on the slot (a direct child of body), not on .shell-banner:
+     a sticky element can't leave its parent's box, and the slot is exactly
+     as tall as the banner, so a sticky child never stuck. */
+  position: sticky;
+  top: 0;
+  z-index: 50;
+}
+
+.shell-banner {
+  background: var(--aurora-surface);
+  border-bottom: 1px solid var(--aurora-border);
+}
+
+.shell-banner-inner {
+  max-width: 640px;
+  margin: 0 auto;
+  padding: var(--aurora-space-4) var(--aurora-space-6);
+}
+
+.shell-banner-row {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--aurora-space-3);
+  border: 2px solid var(--aurora-border);
+  border-radius: var(--aurora-radius-panel);
+  padding: var(--aurora-space-4) var(--aurora-space-6);
+}
+
+.shell-banner-content {
+  flex: 1;
+  min-width: 0;
+}
+
+/* .status-text's own margin-top (forms.css) assumes it follows some other
+   element in normal flow; as this row's first child, with the row now a
+   flex item/bordered box that no longer lets that margin collapse away, it
+   was stacking on the row's own padding and pushing the text down past
+   where the dismiss x aligns. */
+.shell-banner-content > :first-child {
+  margin-top: 0;
+}
+
+.shell-banner-dismiss {
+  /* flex-start + a fixed nudge keyed to the first line, not the row's total
+     height -- stays put whether the text is one line or wraps to two. */
+  flex-shrink: 0;
+  margin: -4px -8px 0 0;
+  width: 28px;
+  height: 28px;
+  background: none;
+  border: none;
+  font-size: 20px;
+  line-height: 1;
+  color: var(--aurora-text-secondary);
+  cursor: pointer;
+}
+
+.shell-banner-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--aurora-space-3);
+  margin-top: var(--aurora-space-3);
+}
+
+.shell-banner-actions .btn {
+  margin-top: 0 !important;
+}
+
+.shell-banner-dismiss:hover {
+  color: var(--aurora-text-primary);
+}
+
+.shell-banner-row + .shell-banner-row {
+  margin-top: var(--aurora-space-5);
+}
+
+.shell-banner-summary {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--aurora-space-2);
+  width: 100%;
+  text-align: center;
+  background: none;
+  border: none;
+  padding: 0;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--aurora-text-primary);
+  cursor: pointer;
+}
+
+/* Sits below the expanded rows, re-collapsing the banner (shell.js) --
+   same chevron asset as the summary button above, just pointed the other
+   way, so expand/collapse reads as one reversible control. */
+.shell-banner-collapse {
+  justify-content: center;
+  margin-top: var(--aurora-space-4);
+}
+
+.shell-banner-chevron-up {
+  transform: rotate(180deg);
 }
 

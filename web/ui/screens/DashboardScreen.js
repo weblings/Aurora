@@ -36,6 +36,12 @@ import {
   isIdle, loadPipelineState, modeFromFlags, modeSwitchPatch, putModeSwitch, runningFlags,
 } from '../CaptureSource.js';
 import { DAEMON_UNREACHABLE } from '../messages.js';
+// Brand/toggle artwork resolved against this module (screens/ -> ../icons)
+// so the same file works from any mount.
+const LOGO_URL = new URL('../icons/aurora-logo.png', import.meta.url).href;
+const PLAY_URL = new URL('../icons/play-rockyroad.svg', import.meta.url).href;
+const PAUSE_URL = new URL('../icons/pause-rockyroad.svg', import.meta.url).href;
+const POWER_URL = new URL('../icons/power-svgrepo-com.svg', import.meta.url).href;
 
 export class DashboardScreen {
   constructor(app) {
@@ -73,6 +79,7 @@ export class DashboardScreen {
     this.paused = false; // from GET /api/state (Aurora-5ipy.13), falls back to capabilities
     this.hostState = null; // idle | running | paused | failed, from GET /api/state (Aurora-cj11): failed hides Pause entirely, the banner carries the resolve action
     this.pauseBusy = false; // a PUT /api/state is in flight: pause button disabled, not hidden
+    this.canStop = true; // host capability from GET /api/state (Aurora-ifkn.3): absent means stoppable, the demo shim answers false
     this.audioStatusTimer = null;
     this.audioSinkStatus = null;
 
@@ -108,7 +115,7 @@ export class DashboardScreen {
       <div id="db-overlay-slot"></div>
       <div class="db-version"></div>
     `;
-    renderTopBar(container.querySelector('.top-bar-slot'), { title: 'Aurora', logo: { src: 'icons/aurora-logo.png', alt: 'Aurora' }, showBack: false });
+    renderTopBar(container.querySelector('.top-bar-slot'), { title: 'Aurora', logo: { src: LOGO_URL, alt: 'Aurora' }, showBack: false });
 
     // Live paused/hostState from the shell's own GET /api/state beat
     // (Aurora-cj11): a tray pause/resume, or a build recovering on its own,
@@ -203,6 +210,9 @@ export class DashboardScreen {
     // carry it); fall back only when the state probe missed entirely.
     if (state && typeof state.paused === 'boolean') this.paused = state.paused;
     this.hostState = typeof state?.state === 'string' ? state.state : null;
+    // Hosts without a Stop path (the demo shim) hide the button; absent
+    // means stoppable so old binaries keep showing it (Aurora-ifkn.3).
+    this.canStop = state?.canStop !== false;
     this._renderTopBar();
     this.flags = effectiveFlags(state, config);
     // The toggle's fill follows the running pipeline, never the saved
@@ -389,6 +399,10 @@ export class DashboardScreen {
       },
       renderActive: true,
       onUnreachable: () => this.app.checkNow(),
+      // Toggle-sync (Aurora-ifkn.5): the canvas embeds the selected zone's
+      // Active bool while the Bridge section lists every zone -- both over
+      // the same shared objects, so a canvas flip re-renders the list.
+      onActiveChange: () => this._onZoneCanvasActiveChange(),
     });
     this.selectedZoneId = this.zoneCanvas.selectedZoneId;
 
@@ -493,6 +507,20 @@ export class DashboardScreen {
     this._renderBridgeZoneList();
   }
 
+  // Toggle-sync pair (Aurora-ifkn.5): the canvas embeds the selected
+  // zone's Active bool while the Bridge section lists every zone, both over
+  // the same shared zone objects. A canvas flip re-renders the list; a
+  // Bridge flip re-syncs the canvas bool in place (no full re-render, which
+  // would kill an open zone dropdown). Thin methods (not inline closures) so
+  // the contract is unit-testable without a DOM.
+  _onZoneCanvasActiveChange() {
+    this._renderBridgeZoneList();
+  }
+
+  _onBridgeZoneToggle() {
+    this.zoneCanvas?.refreshActive();
+  }
+
   // The full per-zone list, relocated here from Zone Mapping's own
   // always-visible list (see ZoneActiveToggle.js's header comment) --
   // refreshed whenever zone data changes (initial load, an
@@ -514,6 +542,9 @@ export class DashboardScreen {
       onSuccess: () => this._clearTopTierError('zoneToggle'),
       onUnreachable: () => this.app.checkNow(),
       tooltipKey: 'zones.active',
+      // Toggle-sync (Aurora-ifkn.5): a Bridge flip re-syncs the canvas bool
+      // in place (no full re-render, which would kill an open dropdown).
+      onChange: () => this._onBridgeZoneToggle(),
     });
   }
 
@@ -657,21 +688,27 @@ export class DashboardScreen {
       trailingButtons.push({
         id: 'top-bar-pause-btn',
         label: this.paused ? 'Resume' : 'Pause',
-        icon: this.paused ? 'icons/play-rockyroad.svg' : 'icons/pause-rockyroad.svg',
+        icon: this.paused ? PLAY_URL : PAUSE_URL,
         onClick: () => this._togglePause(),
         disabled: this.pauseBusy,
       });
     }
-    trailingButtons.push({
-      id: 'top-bar-stop-btn',
-      label: 'Stop',
-      icon: 'icons/power-svgrepo-com.svg',
-      onClick: () => this._openStopConfirm(),
-      buttonClass: 'btn btn-icon top-bar-power-btn',
-    });
+    // Hosts without a Stop path (the demo shim answers canStop: false)
+    // get no button at all -- same hidden-entirely treatment as Pause on
+    // a failed host, rather than a disabled button to nowhere (Aurora-ifkn.3).
+    // Absent reads as stoppable, so old binaries keep the button.
+    if (this.canStop !== false) {
+      trailingButtons.push({
+        id: 'top-bar-stop-btn',
+        label: 'Stop',
+        icon: POWER_URL,
+        onClick: () => this._openStopConfirm(),
+        buttonClass: 'btn btn-icon top-bar-power-btn',
+      });
+    }
     renderTopBar(slot, {
       title: 'Aurora',
-      logo: { src: 'icons/aurora-logo.png', alt: 'Aurora' },
+      logo: { src: LOGO_URL, alt: 'Aurora' },
       showBack: false,
       trailingButtons,
     });
@@ -718,7 +755,7 @@ export class DashboardScreen {
   // Shell heartbeat push (Aurora-cj11): applies whatever changed and
   // re-renders only the top bar -- never a full _loadAll(), which would
   // fight the beat's own 3s cadence with a second round of requests.
-  _onHeartbeatState({ state, paused, ...flags }) {
+  _onHeartbeatState({ state, paused, canStop, ...flags }) {
     // The running pipeline changed from outside the toggle (a banner Retry,
     // the tray, a relaunch): re-derive the toggle and sections from it, once
     // per change and never while a switch of our own is in flight.
@@ -732,6 +769,7 @@ export class DashboardScreen {
     let changed = false;
     if (typeof paused === 'boolean' && paused !== this.paused) { this.paused = paused; changed = true; }
     if (state !== undefined && state !== this.hostState) { this.hostState = state; changed = true; }
+    if (canStop !== undefined && (canStop !== false) !== this.canStop) { this.canStop = canStop !== false; changed = true; }
     if (changed) this._renderTopBar();
   }
 

@@ -197,7 +197,7 @@ export function createRouter(store, hooks = {}) {
     // GET /api/version -- mirrors the native route: the CHANGELOG top entry
     // is the demo's version truth, pinned by demo-shim.test.mjs.
     if (method === 'GET' && path === '/api/version') {
-      return ok({ version: '1.0.5' });
+      return ok({ version: '1.1.0' });
     }
     if (method === 'GET' && path === '/api/config') {
       return ok(store.getConfig());
@@ -223,6 +223,9 @@ export function createRouter(store, hooks = {}) {
       const audio = !config.activeInputName && !!config.activeAudioInputName;
       return ok({
         paused: store.isPaused(),
+        // No daemon behind this page to stop (Aurora-ifkn.3): the
+        // Dashboard hides its Stop button on this flag (default true).
+        canStop: false,
         usesVideoInput: !audio,
         usesAudioInput: audio,
         samplesZones: !audio,
@@ -242,6 +245,7 @@ export function createRouter(store, hooks = {}) {
         return ok({ succeeded: false, error: 'running_bool_required' }, 400);
       }
       store.setPaused(!body.running);
+      hooks.onPausedChanged?.(store.isPaused());
       return ok({ succeeded: true, running: body.running });
     }
     if (method === 'GET' && path === '/api/monitors') {
@@ -249,6 +253,15 @@ export function createRouter(store, hooks = {}) {
     }
     if (method === 'GET' && path === '/api/linux/audio-sinks') {
       return ok({ sinks: DEMO_AUDIO_SINKS.map((s) => ({ ...s })) });
+    }
+    // GET /api/linux/audio-status (Aurora-ifkn.7) -- mirrors the native
+    // {followingDefault, sinkName} shape from the demo config. The Dashboard
+    // polls it only on Linux audio, which the demo never reports as its
+    // platform, so this is route coverage for the re-vendored fetch, not
+    // live traffic.
+    if (method === 'GET' && path === '/api/linux/audio-status') {
+      const sinkName = store.getConfig().audioTargetSinkName ?? '';
+      return ok({ followingDefault: !sinkName, sinkName });
     }
     if (method === 'GET' && path === '/api/zones') {
       return ok(store.getZones());
@@ -275,6 +288,12 @@ export function createRouter(store, hooks = {}) {
         bridgeAddress: c.bridgeAddress,
         entertainmentConfigurationId: c.entertainmentConfigurationId,
       });
+    }
+    // GET /api/hue/discover (Aurora-ifkn.7) -- no bridge lives behind a
+    // static page, so discovery finds none and OutputConnectScreen falls
+    // through to its entry form (its documented ambiguous case).
+    if (method === 'GET' && path === '/api/hue/discover') {
+      return ok({ succeeded: true, bridges: [] });
     }
     if (method === 'POST' && path === '/api/hue/connection') {
       let body;

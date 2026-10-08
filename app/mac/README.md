@@ -13,7 +13,8 @@ Support statement (supported macOS/hardware): see the root
 ## What it is
 
 - **`Aurora.app`**, an `LSUIElement` menu-bar agent: an `NSStatusItem` with
-  Launch UI / Stop (`TrayIcon.mm`), no Dock icon. A second launch reopens the
+  Launch UI / Pause-Resume / Stop (`TrayIcon.mm`; the Pause slot reads See
+  Error when the pipeline failed), no Dock icon. A second launch reopens the
   browser (`InstanceLock`) instead of starting another instance. The `.app`
   bundle exists so Aurora holds its own Screen Recording grant instead of
   Terminal's.

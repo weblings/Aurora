@@ -330,7 +330,8 @@ namespace Aurora::Output::Hue
 
     nlohmann::json autodetectedBridge()
     {
-      auto response = sendHttpRequest("https://discovery.meethue.com/", "GET");
+      constexpr long DiscoveryTimeoutMs = 5000;
+      auto response = sendHttpRequest("https://discovery.meethue.com/", "GET", "", {}, DiscoveryTimeoutMs);
 
       if(!response.has_value()){
         return {{"succeeded", false}, {"error", "Could not reach discovery service. Please check your internet connection."}};

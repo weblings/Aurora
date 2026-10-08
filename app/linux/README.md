@@ -14,9 +14,12 @@ Distilled from [huenicorn](https://gitlab.com/openjowelsofts/huenicorn)
 - **`main.cpp`** — registers whichever plugins this build was compiled with
   (`AURORA_APP_ENABLE_LINUX_INPUT`/`_HUE_OUTPUT`), picks which of them to
   actually run from `Config::activeInputName()`/`activeOutputNames()` (or
-  sensible defaults if unconfigured), and drives `Orchestrator::update()`
-  in a real timed loop until `Ctrl+C`. Not unit-tested — real display,
+  sensible defaults if unconfigured), hands the built `Pipeline` to
+  core's `PipelineHost` (shared with the other apps), and ticks it in a real
+  timed loop until `Ctrl+C`. Not unit-tested — real display,
   real bridge, real threading, same category as `X11Grabber`/`Streamer`.
+- Tray (SNI): Launch UI / Pause-Resume / Stop; the Pause slot reads See Error
+  when the pipeline failed.
 - Pairing, zone mapping, and settings are done in the WebUI
   (`SettingsRoutes`/`ZoneRoutes`/`PairingRoutes`), not here.
 

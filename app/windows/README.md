@@ -14,8 +14,9 @@ Distilled from [huenicorn](https://gitlab.com/openjowelsofts/huenicorn)
 - **`main.cpp`** — registers whichever plugins this build was compiled with
   (`AURORA_APP_ENABLE_WINDOWS_INPUT`/`_HUE_OUTPUT`), picks which of them to
   actually run from `Config::activeInputName()`/`activeOutputNames()` (or
-  sensible defaults if unconfigured), and drives `Orchestrator::update()`
-  in a real timed loop until `Ctrl+C`/console close. Not unit-tested — real
+  sensible defaults if unconfigured), hands the built `Pipeline` to
+  core's `PipelineHost` (shared with the other apps), and ticks it in a real
+  timed loop until `Ctrl+C`/console close. Not unit-tested — real
   display, real bridge, real threading, same category as `WindowsGrabber`/
   `Streamer`. Two platform differences from `app/linux`'s copy, not reusable
   as-is: `SetConsoleCtrlHandler` instead of `std::signal` (Windows has no
@@ -24,6 +25,8 @@ Distilled from [huenicorn](https://gitlab.com/openjowelsofts/huenicorn)
   `WindowsAdapter::getConfigFilePath()` convention).
 - One capture backend (`WindowsGrabber`, DXGI Desktop Duplication), so there
   is no auto-select dispatch layer as on Linux.
+- Tray: Launch UI / Pause-Resume / Stop; the Pause slot reads See Error when
+  the pipeline failed.
 - Pairing, zone mapping, and settings are done in the WebUI
   (`SettingsRoutes`/`ZoneRoutes`/`PairingRoutes`), not here.
 

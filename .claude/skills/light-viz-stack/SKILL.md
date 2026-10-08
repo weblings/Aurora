@@ -47,7 +47,9 @@ frames on the SSE endpoint yourself.
    (`tools/light-viz-relay/README.md`, "On Windows").
 3. Serve `web/demo/` with a `ThreadingHTTPServer` with
    `request_queue_size = 256`, never plain `http.server` (5-slot backlog
-   resets viz.html's module fetches; `docs/lessons/build-toolchain.md`).
+   resets viz.html's module fetches; `docs/lessons/build-toolchain.md`),
+   and send `Cache-Control: no-store` so an edited module is never mixed
+   with a cached one (Aurora-57ct, web-testing caching lesson).
 4. Windows: `py` not `python3`; `fake_bridge.py` needs `openssl`
    (`C:\Program Files\Git\usr\bin`).
 5. The app log can be empty (stdout buffering); find the WebUI port by

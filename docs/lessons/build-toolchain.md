@@ -316,7 +316,10 @@ file's own convention; verify with `git diff --ignore-cr-at-eol` so the
 content diff shows only the intended lines. Where an editor can't match a
 CRLF block (e.g. two textually-identical guards), use a byte-exact scripted
 replacement with single-occurrence assertions, kept reviewable outside the
-repo, and re-check the diff afterward.
+repo, and re-check the diff afterward. And stage with plain `git add`:
+`git add --renormalize` only touches tracked files, so brand-new files are
+silently skipped (Aurora-ifkn.2 committed without its three new files; a
+--dry-run prints nothing for untracked paths, which is the tell).
 Stash-specific variant (Aurora-q9l1, 2026-10-07): with `* text=auto`,
 `git stash` normalizes CRLF working copies to LF in the stash blob, and
 `git stash pop` on Linux checks out LF -- three app mains silently flipped
@@ -324,6 +327,14 @@ LF-only while their content diffs stayed minimal, so the diff alone could
 not catch it. Repaired by re-adding CR and re-checking `git diff --stat`.
 Rule: after any stash pop touching CRLF files, check byte-level endings as
 well as the diff, not the diff alone.
+Same-repo variant (Aurora-ifkn.3, 2026-10-08): after `* text=auto eol=lf`
+landed, worktree files can still carry CRLF (checked out before the rule)
+while `git status` reports clean -- normalization hides them from git but
+not from exact-match edit tools, which fail with no match found. `file`
+(or `cat -A`) is the check, never `git status`. `sed -i 's/\r$//'` back to
+LF is git-invisible when the stored blob is already LF (verify with
+`git diff --stat`: empty), so normalize-then-edit instead of fighting the
+match.
 
 ---
 

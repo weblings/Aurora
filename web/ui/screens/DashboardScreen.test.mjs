@@ -39,6 +39,7 @@ function fakeScreen(overrides = {}) {
   const inst = Object.create(DashboardScreen.prototype);
   inst.paused = false;
   inst.pauseBusy = false;
+  inst.canStop = true; // mirrors the constructor default (Aurora-ifkn.3)
   inst.topTierErrors = {};
   inst.container = { querySelector: (sel) => (sel === '.top-bar-slot' ? slot : makeEl()) };
   inst._renderTopTier = () => {};
@@ -56,9 +57,10 @@ const realFetch = globalThis.fetch;
 {
   const { inst, slot } = fakeScreen();
   inst._renderTopBar();
-  assert.ok(slot.innerHTML.includes('src="icons/pause-rockyroad.svg"'), 'pause glyph while running');
+  assert.ok(slot.innerHTML.includes('pause-rockyroad.svg'), 'pause glyph while running');
+  assert.ok(!slot.innerHTML.includes('src="icons'), 'icon resolves against the module, not the page URL');
   assert.ok(slot.innerHTML.includes('aria-label="Pause"'), 'Pause label while running');
-  assert.ok(slot.innerHTML.includes('src="icons/power-svgrepo-com.svg"'), 'power glyph present');
+  assert.ok(slot.innerHTML.includes('power-svgrepo-com.svg'), 'power glyph present');
   assert.ok(slot.innerHTML.includes('top-bar-power-btn'), 'power button lighter than pause');
 }
 
@@ -66,7 +68,7 @@ const realFetch = globalThis.fetch;
 {
   const { inst, slot } = fakeScreen({ paused: true });
   inst._renderTopBar();
-  assert.ok(slot.innerHTML.includes('src="icons/play-rockyroad.svg"'), 'play glyph while paused');
+  assert.ok(slot.innerHTML.includes('play-rockyroad.svg'), 'play glyph while paused');
   assert.ok(slot.innerHTML.includes('aria-label="Resume"'), 'Resume label while paused');
   assert.ok(slot.innerHTML.includes('id="top-bar-pause-btn"'), 'pause button id stable');
 }
@@ -89,6 +91,23 @@ const realFetch = globalThis.fetch;
   assert.ok(slot.innerHTML.includes('id="top-bar-stop-btn"'), 'stop button still present');
 }
 
+// Stop capability (Aurora-ifkn.3): a host without a Stop path hides the
+// button entirely while Pause stays; an absent flag keeps the button, so
+// old binaries (and doubles that never ran the constructor) read as
+// stoppable.
+{
+  const { inst, slot } = fakeScreen({ canStop: false });
+  inst._renderTopBar();
+  assert.ok(!slot.innerHTML.includes('id="top-bar-stop-btn"'), 'stop hidden without the capability');
+  assert.ok(slot.innerHTML.includes('id="top-bar-pause-btn"'), 'pause unaffected by the capability');
+}
+{
+  const { inst, slot } = fakeScreen();
+  delete inst.canStop;
+  inst._renderTopBar();
+  assert.ok(slot.innerHTML.includes('id="top-bar-stop-btn"'), 'absent flag keeps stop');
+}
+
 // Shell heartbeat push (Aurora-cj11): paused/hostState update and the top
 // bar re-renders, with no _loadAll round trip.
 {
@@ -103,6 +122,23 @@ const realFetch = globalThis.fetch;
   inst._onHeartbeatState({ state: 'failed', paused: true });
   assert.equal(inst.hostState, 'failed');
   assert.equal(rendered, 2, 'hostState-only change still re-renders');
+}
+
+// Stop capability over the beat (Aurora-ifkn.3): the flag rides the same
+// GET /api/state payload; absent keeps the button, a flip re-renders.
+{
+  let rendered = 0;
+  const { inst } = fakeScreen({ paused: false, hostState: 'running', _renderTopBar: () => { rendered++; } });
+  inst._onHeartbeatState({ state: 'running', paused: false });
+  assert.equal(rendered, 0, 'absent flag keeps stop with no re-render');
+  inst._onHeartbeatState({ state: 'running', paused: false, canStop: false });
+  assert.equal(inst.canStop, false);
+  assert.equal(rendered, 1, 'losing the capability re-renders');
+  inst._onHeartbeatState({ state: 'running', paused: false, canStop: false });
+  assert.equal(rendered, 1, 'unchanged capability does not re-render');
+  inst._onHeartbeatState({ state: 'running', paused: false, canStop: true });
+  assert.equal(inst.canStop, true);
+  assert.equal(rendered, 2, 'regaining the capability re-renders');
 }
 
 function stubFetch(handler) {
@@ -673,6 +709,31 @@ function ownerScreen(extra = {}) {
   assert.ok(!topTier.innerHTML.includes("Couldn't save capture settings."));
   assert.ok(topTier.innerHTML.indexOf('Reworded.') < topTier.innerHTML.indexOf('auto-arranged'), 'row keeps its place');
   inst.deviceField?.destroy();
+}
+
+// Toggle-sync pair (Aurora-ifkn.5): the canvas and the Bridge list show the
+// same shared zone objects, so a flip on one side refreshes the other.
+// Prototype-called against doubles -- no DOM needed.
+{
+  const { inst } = fakeScreen();
+  let rendered = 0;
+  inst._renderBridgeZoneList = () => { rendered++; };
+  inst._onZoneCanvasActiveChange();
+  assert.equal(rendered, 1);
+}
+{
+  const { inst } = fakeScreen();
+  let refreshed = 0;
+  inst.zoneCanvas = { refreshActive: () => { refreshed++; } };
+  inst._onBridgeZoneToggle();
+  assert.equal(refreshed, 1);
+}
+{
+  // No canvas mounted yet (Bridge renders before the top tier): a no-op,
+  // never throws.
+  const { inst } = fakeScreen();
+  inst.zoneCanvas = null;
+  inst._onBridgeZoneToggle();
 }
 
 console.log('DashboardScreen pause checks passed.');

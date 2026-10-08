@@ -834,3 +834,45 @@ Applies-when: wiring a previously-manual checker into a hook or CI for the first
 `check-links.py`/`check-lessons.sh` ran "by convention" for weeks (Aurora-lmn.4, deferred). Wiring them into the pre-commit hook (Aurora-lmn.5) immediately caught a real `Tags:` formatting bug just added to `components.md` and two dead `[[windows-env]]`/`[[macos-gui]]` wikilinks that had sat in a committed log entry since the previous session -- neither was a false positive or a tooling bug, both were real violations the honor system had simply never caught.
 
 **Fix:** expect a checker's first enforcement run to fail on a real backlog, not a bug in the checker itself. Fix the backlog in the same change that turns enforcement on, rather than disabling the check to unblock the commit — that's the whole gap this kind of hook exists to close.
+
+---
+
+## A release audit must check every published surface, not just the version string
+Tags: release, versioning, deployment, pages, branches
+Applies-when: cutting a release, bumping the version, or auditing work since the last tag
+
+The 1.1.0 audit found three surfaces that never move with a bump. `origin/main` was still at `v1.0.4` while 253 commits sat on `dev` (feature PRs merge to `dev`). `gh-pages` (the `web/demo` subtree) was last pushed 2026-09-25 and still showed 1.0.3 in its footer. And `web/demo/demo-shim.js` hardcodes `/api/version`, guarded only by a web test that a changelog-only edit doesn't trigger.
+
+**Fix:** treat the release as four sites plus two pushes: `CMakeLists.txt` `project(... VERSION)`, the `CHANGELOG.txt` top entry, `demo-shim.js`'s version, then merge `dev` into `main` and subtree-push `web/demo` to `gh-pages` (pruned, see the subtree lesson above). Check `git log origin/main..dev` and `git log -1 origin/gh-pages` before tagging.
+
+---
+
+## A vendored fork stays cheap to re-sync only if its adaptations live upstream as options
+Tags: vendor, duplication, fork, webui, demo
+Applies-when: copying a module tree into another site (web/demo/vendor/webui) and adapting it there
+
+`web/demo/vendor/webui` adapted its copies with hand edits inside the copied files (rewritten icon paths, re-scoped `shell.css` resets, a cut Stop button, string zone ids, extra sync callbacks). Every re-vendor had to re-apply each hunk, so re-vendoring kept getting deferred, and the fork fell behind `web/ui` by whole features (Mac permission recovery, slider ranges from descriptors). By 1.1.0 only 11 of 27 forked files still matched `web/ui`. `seams.test.mjs` caught a lost hunk but couldn't make re-applying it cheaper.
+
+**Fix:** move each adaptation upstream as a neutral change or an option the host reports (module-relative asset URLs via `import.meta.url`, page-only CSS in its own stylesheet, a capability flag the demo shim answers). Then vendoring is a verbatim scripted copy guarded by a byte-equality test in CI. Keep the copy inside the published subtree when the site is deployed by subtree push. Sequenced as Aurora-ifkn.1-8.
+
+A byte-equality test guards only the files already listed. Reachability is a separate invariant: when `web/ui`'s Dashboard gains an import, the copies all still match, CI stays green, and Pages 404s on the new module. `closure-check.mjs` covered this but ran on nobody's path, and its default still pointed at the pre-monorepo `Aurora-WebUI` sibling, so it only passed when someone passed `../ui` by hand (the ifkn.7/.8 logs called it clean that way). Run both guards argument-free from the sync script and CI.
+
+---
+
+## A byte-identical re-vendor must relocate the fork-only wiring it deletes, not just delete it
+Tags: vendor, demo, webui, testing
+Applies-when: re-vendoring one file byte-identical when the old fork copy carried extra wiring
+
+Aurora-ifkn.3 re-vendored `DashboardScreen.js` byte-identical to web/ui, deleting the fork's toggle-sync wiring (Bridge list <-> Zone Mapping canvas). The vendor modules kept their seam callbacks, but with nothing firing them the demo would have regressed silently -- and the old tripwire asserted the wiring text inside the screen file, so it failed on the identical copy by design.
+
+**Fix:** move the dropped wiring into demo-owned code (`demo-boot.js` mounts a `DemoDashboardScreen` subclass re-attaching both directions) and rewrite the tripwire to assert the new home: byte-identity asserts for the copies, wiring asserts against demo-boot. General principle: "identical" constrains the file, not the behavior -- every hunk the copy deletes needs a named new home or an explicit obituary in the bead notes.
+
+---
+
+## A merged beads export is newer than the live DB -- import before the hook exports stale state back over it
+Tags: beads, git, sync, export
+Applies-when: merging a branch that closes or updates beads, before committing the merge
+
+Merging dev into feat/v1.1.0Prep brought a tracked `issues.jsonl` with Aurora-gtkd closed, but the live DB still had it open. The pre-commit hook's `bd export` then overwrote the worktree file with the stale DB content; running `bd import` after that pushed the stale state INTO the DB (import reads the file), actively regressing the close. Caught by field-diffing the worktree file against HEAD.
+
+**Fix:** after any merge touching `.beads/issues.jsonl`, `bd import` the tracked file into the live DB before any commit or hook runs; if the hook already clobbered the worktree copy, restore it from HEAD first (`git show HEAD:.beads/issues.jsonl`), then import, then export. Never import a file the hook just wrote without checking which side is newer. General principle: with two sources of truth (tracked export + live DB), every sync command has a direction -- run the one that flows from the newer side.

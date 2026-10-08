@@ -47,6 +47,8 @@ function testRouter(seed) {
   const route = createRouter(store);
   assert.deepEqual(route('GET', '/api/state').json, {
     paused: false,
+    // No Stop button on the static page (Aurora-ifkn.3).
+    canStop: false,
     usesVideoInput: true,
     usesAudioInput: false,
     samplesZones: true,
@@ -212,6 +214,22 @@ function testRouter(seed) {
   assert.notEqual(testRouter({})('GET', '/api/linux/audio-sinks').json.sinks[0].name, 'mutated', 'responses are copies');
 }
 
+// Audio status mirrors the native {followingDefault, sinkName} shape from
+// the demo config (Aurora-ifkn.7); unset target means following default.
+{
+  const r = testRouter({})('GET', '/api/linux/audio-status');
+  assert.equal(r.status, 200);
+  assert.deepEqual(r.json, { followingDefault: true, sinkName: '' });
+}
+
+// Discovery finds no bridge behind a static page (Aurora-ifkn.7), so
+// OutputConnectScreen takes its entry-form fallthrough, never a dead end.
+{
+  const r = testRouter({})('GET', '/api/hue/discover');
+  assert.equal(r.status, 200);
+  assert.deepEqual(r.json, { succeeded: true, bridges: [] });
+}
+
 // Unknown routes 404 instead of falling through to native fetch shapes.
 {
   const r = testRouter({})('GET', '/api/nope');
@@ -279,7 +297,49 @@ function testRouter(seed) {
   assert.deepEqual(missing, [], `fixture lacks requested keys: ${missing.join(', ')}`);
   for (const d of fixture.descriptors) {
     assert.ok(d.key && d.description, `malformed entry: ${JSON.stringify(d)}`);
+    assert.ok(d.kind, `kindless entry (backend always emits kind): ${d.key}`);
+    // Slider ranges (Aurora-ifkn.6): gen-descriptors.py emits the backend's
+    // param schema, so Tuning sliders never see "Couldn't load slider
+    // ranges". kind and param stay in lockstep; ranges stay sane.
+    // Params ride only on sliders (backend precedent: zones.gamma is slider
+    // kind with no param); a param anywhere else is a misshapen regen.
+    if (d.param) {
+      assert.equal(d.kind, 'slider', `param on non-slider: ${d.key}`);
+      const p = d.param;
+      assert.equal(typeof p.label, 'string');
+      for (const f of ['min', 'max', 'step', 'default']) assert.equal(typeof p[f], 'number', `${d.key}.${f} not a number`);
+      assert.equal(typeof p.unit, 'string');
+      assert.equal(typeof p.allowsUnset, 'boolean');
+      assert.ok(p.min < p.max, `${d.key} range inverted`);
+      assert.ok(p.step > 0, `${d.key} step not positive`);
+      assert.ok(p.allowsUnset || (p.default >= p.min && p.default <= p.max), `${d.key} default outside range`);
+    }
   }
+  // Every Tuning slider the demo renders resolves to a ranged param (not
+  // just a key): audio* + transitionSmoothing configKeys map to descriptor
+  // keys by the same group rule as above (refreshRate/subsampleWidth are
+  // dropdowns, ranges N/A).
+  const byKey = new Map(fixture.descriptors.map((d) => [d.key, d]));
+  const unslid = [];
+  for (const [, configKey] of text.matchAll(/\['(audio[A-Za-z]+|transitionSmoothing)'/g)) {
+    const key = configKey.startsWith('audio')
+      ? `audio.${configKey.charAt(5).toLowerCase()}${configKey.slice(6)}`
+      : `video.${configKey}`;
+    if (!byKey.get(key)?.param) unslid.push(key);
+  }
+  assert.deepEqual(unslid, [], `tuning slider without ranges: ${unslid.join(', ')}`);
 }
 
 console.log('demo-shim contract tests passed.');
+
+// Pause hook (Aurora-calt): PUT /api/state tells the scene, so lamps freeze
+// on pause and resume driving on resume; a rejected body never fires it.
+{
+  const store = createShimStore(createMemoryStorage(), {});
+  const seen = [];
+  const route = createRouter(store, { onPausedChanged: (p) => seen.push(p) });
+  route('PUT', '/api/state', JSON.stringify({ running: false }));
+  route('PUT', '/api/state', JSON.stringify({ running: true }));
+  route('PUT', '/api/state', JSON.stringify({ running: 'nope' }));
+  assert.deepEqual(seen, [true, false]);
+}

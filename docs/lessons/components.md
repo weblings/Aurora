@@ -372,3 +372,11 @@ Found fixing the `TuningFields.js` duplicate above (Aurora-ijus): its constructo
 
 **Fix:** after adding `{ onX = null }` to a constructor's destructure, grep the constructor body for `this.onX =` before moving on -- the two lines are often far enough apart in a real constructor that eyeballing the signature alone won't catch a missing one. A node test that drives the actual failure path (not just the happy path) would also have caught this; `TuningFields.test.mjs` had none.
 
+## Coercing a dataset id with Number() throws on non-numeric ids instead of missing silently
+Tags: webui, components, types
+Applies-when: reading a zone/entity id back out of dataset in a shared component
+
+The read-side twin of the Dropdown `dataset.value` lesson above (Aurora-ifkn.4): `ZoneActiveToggleList`'s change handler did `Number(e.currentTarget.dataset.zoneId)` then `find()`, which is fine while every caller uses numeric ids -- but the demo room rig uses string ids (`'front-left'`), so `Number()` yields `NaN`, `find()` misses, and the next line (`zone.active = ...`) throws `TypeError`. The Dropdown case failed silently (compare-then-no-commit); this one throws, because the miss is dereferenced immediately.
+
+**Fix:** `findZone(zones, rawId)` matches either form by strict equality (`z.zoneId === rawId || z.zoneId === Number(rawId)`), the handler guards (`if (!zone) return`), and the queue writes under the zone's own id so string ids are never coerced. General rule alongside the Dropdown entry: never `Number(dataset.x)` unconditionally -- match-then-guard, and keep the domain's original id type on the write path.
+

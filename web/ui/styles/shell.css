@@ -1,38 +1,10 @@
-/* Aurora WebUI app shell: page reset, centered content column, top bar
-   formula, and the settings modal + scrim. Applies to every screen; a
-   screen's own CSS should only ever add to this, never redefine it.
+/* Aurora WebUI app shell: centered content column, top bar formula, and
+   the settings modal + scrim. Applies to every screen; a screen's own CSS
+   should only ever add to this, never redefine it. Page-wide element rules
+   (*, html, body) live in styles/page.css, loaded only by index.html.
    See docs/WebUIAnalysis.md's "Shell conventions" section for the design
    rationale -- values here are Aurora's tokens (styles/tokens.css), not
    copied literals. */
-
-* {
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
-}
-
-/* Reserve the scrollbar's width always, whether or not a given screen's
-   content actually overflows -- otherwise #screen-container's margin:auto
-   centering shifts sideways whenever a scrollbar appears (verified real
-   fix, RockyRoadImport/SongConverter/index.html). */
-html {
-  scrollbar-gutter: stable;
-  overflow-y: scroll;
-}
-
-body {
-  background: var(--aurora-bg);
-  color: var(--aurora-text-primary);
-  font-family: var(--aurora-font);
-  /* The accordion header pill (dashboard.css) overhangs #screen-container's
-     own 16px gutter by 21px a side -- wider than the gutter on narrow
-     viewports. Clipped at the real viewport edge, not at #screen-container
-     itself, so the intended overhang still renders in full everywhere it fits.
-     `clip`, not `hidden`: with html's own overflow-y set, `hidden` turns body
-     into a (never-scrolling) scroll container and the sticky banner pins to
-     that instead of the viewport. */
-  overflow-x: clip;
-}
 
 #screen-container {
   max-width: 640px;

@@ -71,3 +71,7 @@ one-off for this bead.
   unrelated bridge user" (output.md).
 - "A Hue application key commonly starts with `-`, which breaks a naive
   `--flag value` CLI arg" (output.md).
+
+## Addendum 2026-10-08: what "released" looks like
+
+Owner observation on real bulbs: on pause they hold the last streamed color. They do not reset or return to a prior scene. Aurora sends only `action: "stop"` for the entertainment area (`ApiTools.cpp`), so the hold is the bridge's behavior. The demo's Pause matches it (Aurora-calt).
