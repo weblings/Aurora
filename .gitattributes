@@ -1,5 +1,8 @@
 # Normalize line endings on commit; check out natively per OS.
-* text=auto
+# Line endings: LF everywhere -- normalized on commit AND checked out
+# as LF, so Windows checkouts never produce CRLF churn that trips up
+# exact-match edits.
+* text=auto eol=lf
 # Shell scripts must stay LF: bash chokes on CRLF (seen on a Windows checkout).
 *.sh text eol=lf
 # Extensionless hook scripts too (same CRLF-shebang breakage):
