@@ -17,8 +17,8 @@ const shell = readFileSync(new URL('./shell.css', import.meta.url), 'utf8').repl
 {
   assert.ok(screen.includes('top-bar-slot welcome-top'), 'slot carries the welcome scope class');
   assert.ok(
-    screen.includes("logo: { src: 'icons/aurora-logo.png'"),
-    'Setup title passes the brand mark',
+    screen.includes('../icons/aurora-logo.png') && screen.includes('import.meta.url'),
+    'Setup title passes the module-relative brand mark',
   );
 }
 

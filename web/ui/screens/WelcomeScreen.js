@@ -8,6 +8,8 @@
 // own wait time instead of a separate spinner later.
 import { renderTopBar } from '../topBar.js';
 import { renderNavFooter } from '../NavFooter.js';
+// Brand mark resolved against this module (screens/ -> ../icons).
+const LOGO_URL = new URL('../icons/aurora-logo.png', import.meta.url).href;
 
 export class WelcomeScreen {
   constructor(app, { onComplete }) {
@@ -28,7 +30,7 @@ export class WelcomeScreen {
     `;
     renderTopBar(container.querySelector('.top-bar-slot'), {
       title: 'Setup',
-      logo: { src: 'icons/aurora-logo.png', alt: 'Aurora' },
+      logo: { src: LOGO_URL, alt: 'Aurora' },
       showBack: false,
     });
     renderNavFooter(container.querySelector('.nav-footer-slot'), {

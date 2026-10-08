@@ -56,9 +56,10 @@ const realFetch = globalThis.fetch;
 {
   const { inst, slot } = fakeScreen();
   inst._renderTopBar();
-  assert.ok(slot.innerHTML.includes('src="icons/pause-rockyroad.svg"'), 'pause glyph while running');
+  assert.ok(slot.innerHTML.includes('pause-rockyroad.svg'), 'pause glyph while running');
+  assert.ok(!slot.innerHTML.includes('src="icons'), 'icon resolves against the module, not the page URL');
   assert.ok(slot.innerHTML.includes('aria-label="Pause"'), 'Pause label while running');
-  assert.ok(slot.innerHTML.includes('src="icons/power-svgrepo-com.svg"'), 'power glyph present');
+  assert.ok(slot.innerHTML.includes('power-svgrepo-com.svg'), 'power glyph present');
   assert.ok(slot.innerHTML.includes('top-bar-power-btn'), 'power button lighter than pause');
 }
 
@@ -66,7 +67,7 @@ const realFetch = globalThis.fetch;
 {
   const { inst, slot } = fakeScreen({ paused: true });
   inst._renderTopBar();
-  assert.ok(slot.innerHTML.includes('src="icons/play-rockyroad.svg"'), 'play glyph while paused');
+  assert.ok(slot.innerHTML.includes('play-rockyroad.svg'), 'play glyph while paused');
   assert.ok(slot.innerHTML.includes('aria-label="Resume"'), 'Resume label while paused');
   assert.ok(slot.innerHTML.includes('id="top-bar-pause-btn"'), 'pause button id stable');
 }

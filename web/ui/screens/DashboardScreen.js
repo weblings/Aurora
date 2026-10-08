@@ -36,6 +36,12 @@ import {
   isIdle, loadPipelineState, modeFromFlags, modeSwitchPatch, putModeSwitch, runningFlags,
 } from '../CaptureSource.js';
 import { DAEMON_UNREACHABLE } from '../messages.js';
+// Brand/toggle artwork resolved against this module (screens/ -> ../icons)
+// so the same file works from any mount.
+const LOGO_URL = new URL('../icons/aurora-logo.png', import.meta.url).href;
+const PLAY_URL = new URL('../icons/play-rockyroad.svg', import.meta.url).href;
+const PAUSE_URL = new URL('../icons/pause-rockyroad.svg', import.meta.url).href;
+const POWER_URL = new URL('../icons/power-svgrepo-com.svg', import.meta.url).href;
 
 export class DashboardScreen {
   constructor(app) {
@@ -108,7 +114,7 @@ export class DashboardScreen {
       <div id="db-overlay-slot"></div>
       <div class="db-version"></div>
     `;
-    renderTopBar(container.querySelector('.top-bar-slot'), { title: 'Aurora', logo: { src: 'icons/aurora-logo.png', alt: 'Aurora' }, showBack: false });
+    renderTopBar(container.querySelector('.top-bar-slot'), { title: 'Aurora', logo: { src: LOGO_URL, alt: 'Aurora' }, showBack: false });
 
     // Live paused/hostState from the shell's own GET /api/state beat
     // (Aurora-cj11): a tray pause/resume, or a build recovering on its own,
@@ -657,7 +663,7 @@ export class DashboardScreen {
       trailingButtons.push({
         id: 'top-bar-pause-btn',
         label: this.paused ? 'Resume' : 'Pause',
-        icon: this.paused ? 'icons/play-rockyroad.svg' : 'icons/pause-rockyroad.svg',
+        icon: this.paused ? PLAY_URL : PAUSE_URL,
         onClick: () => this._togglePause(),
         disabled: this.pauseBusy,
       });
@@ -665,13 +671,13 @@ export class DashboardScreen {
     trailingButtons.push({
       id: 'top-bar-stop-btn',
       label: 'Stop',
-      icon: 'icons/power-svgrepo-com.svg',
+      icon: POWER_URL,
       onClick: () => this._openStopConfirm(),
       buttonClass: 'btn btn-icon top-bar-power-btn',
     });
     renderTopBar(slot, {
       title: 'Aurora',
-      logo: { src: 'icons/aurora-logo.png', alt: 'Aurora' },
+      logo: { src: LOGO_URL, alt: 'Aurora' },
       showBack: false,
       trailingButtons,
     });
