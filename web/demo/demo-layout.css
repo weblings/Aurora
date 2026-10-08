@@ -84,7 +84,10 @@ html, body {
    `clip`, not `hidden`: `hidden` beside a scroll container turns the port
    into one that never scrolls and a sticky banner would pin to that
    instead of the pane (same cause as the app body rule). */
-.db-port * {
+/* :where() keeps the reset at zero specificity, like web/ui's bare * --
+   this file loads last, so a plain .db-port * would beat every component
+   class rule and zero its padding (Aurora-jwt7). */
+:where(.db-port) * {
   margin: 0;
   padding: 0;
   box-sizing: border-box;

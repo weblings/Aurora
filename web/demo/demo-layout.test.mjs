@@ -46,7 +46,10 @@ function ruleBlocks(selector) {
 // needs an edit to the vendored shell.css. The html scrollbar rule is
 // intentionally not ported -- #dashboard-pane above owns its scroll pane.
 {
-  const reset = ruleBlocks('\\.db-port\\s+\\*');
+  // :where() keeps it at zero specificity like web/ui's bare *: this file
+  // loads last, so .db-port * would zero every component's padding (Aurora-jwt7).
+  const reset = ruleBlocks(':where\\(\\.db-port\\)\\s+\\*');
+  assert.ok(!/(^|[\s,}])\.db-port\s+\*\s*\{/m.test(css), 'no specificity-raising .db-port * reset');
   assert.ok(
     reset.some((b) => /margin\s*:\s*0/.test(b) && /padding\s*:\s*0/.test(b) && /box-sizing\s*:\s*border-box/.test(b)),
     'scoped reset lives in demo-layout.css',

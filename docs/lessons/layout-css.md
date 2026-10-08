@@ -232,3 +232,13 @@ Applies-when: moving a demo fork's scoped patch into scope-owned CSS so the vend
 Aurora-ifkn.2 absorbed the `shell-css-scope` seam (bare `*`/`html`/`body` rules rescoped under `.db-port`) into demo-owned `demo-layout.css`. The seam's frozen value was `overflow-x: hidden` on `.db-port`, but upstream's `body` rule has since moved to `overflow-x: clip` -- `hidden` beside a scroll container turns the element into a never-scrolling scroll container and a sticky banner pins to that instead of the real scroller (see the `position: sticky` entry in this file). Copying the seam verbatim would have perpetuated the breakage into every future re-vendor.
 
 **Fix:** when absorbing a seam, diff it against current upstream first and port the current value, not the seam's frozen one; note the delta in the new block's comment so the next re-vendor doesn't "fix" it back.
+
+---
+
+## Moving a scoped reset into a later-loaded stylesheet raises its precedence -- wrap the scope in `:where()`
+Tags: css, specificity, cascade, reset, vendor, demo
+Applies-when: relocating a `*` reset (or any low-precedence base rule) into a different stylesheet, or scoping one under a class
+
+Aurora-ifkn.2 moved the demo's `.db-port *` reset from the top of the vendored `shell.css` into `demo-layout.css`, which `index.html` loads last. `.db-port *` scores (0,1,0), the same as single-class component rules like `.segmented-btn`, so on equal specificity the later file won and zeroed every component's padding and margin: bare Video/Audio pills, no accordion chrome (Aurora-jwt7). In the app the reset is a bare `*` at (0,0,0), so it can never win. The byte-identity test, the layout test (which checked the reset's properties, not its precedence) and all node suites stayed green. A headless-Chrome screenshot next to one from the pre-refactor commit showed it at once.
+
+**Fix:** `:where(.db-port) *` keeps the scope at zero specificity, so it behaves like `*` wherever the file loads. For any CSS move or rescope, compare a screenshot against the commit before the change. Rule-content tests don't see cascade order.
