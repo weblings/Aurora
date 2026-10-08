@@ -13,7 +13,8 @@
 //   trailingButton ({ label, onClick, icon }, optional -- Dashboard's own
 //                   Stop button, 2.5 pass. Re-wired on every call, same as
 //                   onBack, since this function always rebuilds the bar's
-//                   whole innerHTML. icon (optional, a path under icons/)
+//                   whole innerHTML. icon (optional, a resolved artwork URL
+//                   from the caller, e.g. new URL(..., import.meta.url).href)
 //                   renders in place of the visible label -- label still
 //                   becomes the button's aria-label, so it stays
 //                   accessible with nothing visible to read.)

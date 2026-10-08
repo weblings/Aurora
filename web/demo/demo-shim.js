@@ -253,6 +253,15 @@ export function createRouter(store, hooks = {}) {
     if (method === 'GET' && path === '/api/linux/audio-sinks') {
       return ok({ sinks: DEMO_AUDIO_SINKS.map((s) => ({ ...s })) });
     }
+    // GET /api/linux/audio-status (Aurora-ifkn.7) -- mirrors the native
+    // {followingDefault, sinkName} shape from the demo config. The Dashboard
+    // polls it only on Linux audio, which the demo never reports as its
+    // platform, so this is route coverage for the re-vendored fetch, not
+    // live traffic.
+    if (method === 'GET' && path === '/api/linux/audio-status') {
+      const sinkName = store.getConfig().audioTargetSinkName ?? '';
+      return ok({ followingDefault: !sinkName, sinkName });
+    }
     if (method === 'GET' && path === '/api/zones') {
       return ok(store.getZones());
     }
@@ -278,6 +287,12 @@ export function createRouter(store, hooks = {}) {
         bridgeAddress: c.bridgeAddress,
         entertainmentConfigurationId: c.entertainmentConfigurationId,
       });
+    }
+    // GET /api/hue/discover (Aurora-ifkn.7) -- no bridge lives behind a
+    // static page, so discovery finds none and OutputConnectScreen falls
+    // through to its entry form (its documented ambiguous case).
+    if (method === 'GET' && path === '/api/hue/discover') {
+      return ok({ succeeded: true, bridges: [] });
     }
     if (method === 'POST' && path === '/api/hue/connection') {
       let body;

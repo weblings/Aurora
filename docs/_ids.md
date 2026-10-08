@@ -55,6 +55,7 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `ifkn4-string-zone-ids` | [log/2026-10-08-ifkn4-string-zone-ids.md](log/2026-10-08-ifkn4-string-zone-ids.md) | Aurora-ifkn.4 closed: ZoneActiveToggle accepts string and numeric zone ids |
 | `ifkn5-toggle-sync` | [log/2026-10-08-ifkn5-toggle-sync.md](log/2026-10-08-ifkn5-toggle-sync.md) | Aurora-ifkn.5 closed: toggle-sync callbacks upstream, Dashboard wires both zone views |
 | `ifkn6-descriptor-ranges` | [log/2026-10-08-ifkn6-descriptor-ranges.md](log/2026-10-08-ifkn6-descriptor-ranges.md) | Aurora-ifkn.6 closed: gen-descriptors.py emits Tuning slider ranges |
+| `ifkn7-sync-revendor` | [log/2026-10-08-ifkn7-sync-revendor.md](log/2026-10-08-ifkn7-sync-revendor.md) | Aurora-ifkn.7 (open, built): sync script + full re-vendor, vendor byte-identical |
 | `ijus-shell-copy-fixes` | [log/2026-10-07-ijus-shell-copy-fixes.md](log/2026-10-07-ijus-shell-copy-fixes.md) | Aurora-ijus: shell error-copy audit — daemon leak, duplicate row, dead callback, closed |
 | `implementation-plan` | [planning/ImplementationPlan.md](planning/ImplementationPlan.md) | Low-scope implementation plan |
 | `implementation-plan-directory-layout` | [archive/ImplementationPlan_DirectoryLayout.md](archive/ImplementationPlan_DirectoryLayout.md) | Implementation plan: proposed directory layout (superseded) |

@@ -214,6 +214,22 @@ function testRouter(seed) {
   assert.notEqual(testRouter({})('GET', '/api/linux/audio-sinks').json.sinks[0].name, 'mutated', 'responses are copies');
 }
 
+// Audio status mirrors the native {followingDefault, sinkName} shape from
+// the demo config (Aurora-ifkn.7); unset target means following default.
+{
+  const r = testRouter({})('GET', '/api/linux/audio-status');
+  assert.equal(r.status, 200);
+  assert.deepEqual(r.json, { followingDefault: true, sinkName: '' });
+}
+
+// Discovery finds no bridge behind a static page (Aurora-ifkn.7), so
+// OutputConnectScreen takes its entry-form fallthrough, never a dead end.
+{
+  const r = testRouter({})('GET', '/api/hue/discover');
+  assert.equal(r.status, 200);
+  assert.deepEqual(r.json, { succeeded: true, bridges: [] });
+}
+
 // Unknown routes 404 instead of falling through to native fetch shapes.
 {
   const r = testRouter({})('GET', '/api/nope');
