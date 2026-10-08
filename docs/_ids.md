@@ -49,6 +49,7 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `home-assistant-output` | [planning/HomeAssistantOutput.md](planning/HomeAssistantOutput.md) | Home Assistant output module |
 | `http-server-analysis` | [archive/HttpServerAnalysis.md](archive/HttpServerAnalysis.md) | HTTP server analysis |
 | `hue-output-analysis` | [archive/HueOutputAnalysis.md](archive/HueOutputAnalysis.md) | Hue::Api / Auth / Stream — Conversion analysis |
+| `ifkn2-page-css-split` | [log/2026-10-08-ifkn2-page-css-split.md](log/2026-10-08-ifkn2-page-css-split.md) | Aurora-ifkn.2 closed: shell.css page-wide rules split into page-only page.css |
 | `ijus-shell-copy-fixes` | [log/2026-10-07-ijus-shell-copy-fixes.md](log/2026-10-07-ijus-shell-copy-fixes.md) | Aurora-ijus: shell error-copy audit — daemon leak, duplicate row, dead callback, closed |
 | `implementation-plan` | [planning/ImplementationPlan.md](planning/ImplementationPlan.md) | Low-scope implementation plan |
 | `implementation-plan-directory-layout` | [archive/ImplementationPlan_DirectoryLayout.md](archive/ImplementationPlan_DirectoryLayout.md) | Implementation plan: proposed directory layout (superseded) |

@@ -222,3 +222,13 @@ Applies-when: adding a border, padding, or `display: flex` to an element whose c
 Aurora-x1lh (shell banner visual polish): `.status-text`'s `margin-top` (forms.css) assumes it follows some other element in normal flow, and previously got away with being the first/only child of `.shell-banner-row`, because that row had no border/padding of its own -- the child's margin collapsed straight through the parent and out into the row-to-row gap, landing as if it weren't there. Adding a border and padding to `.shell-banner-row` (for a bordered-card look) stopped that collapse (a border or padding on the parent blocks it), so the same margin started stacking on top of the row's own padding, pushing the text down past where an absolutely-positioned dismiss `x` was aligned -- read at first as "the x needs repositioning" when the actual text position had moved, not the x. Wrapping the row's content in a flex item (`.shell-banner-content`) for unrelated reasons (adaptive x alignment) didn't fix it either: a flex item is its own formatting-context root, which also blocks margin collapse from a child out through it.
 
 **Fix:** when a container gains a border, padding, or becomes a flex/grid item, re-check whether any child's own margin was relying on collapsing through it -- `:first-child { margin-top: 0 }` (or auditing the child's margin's original assumption) on the new container, rather than chasing the symptom on an unrelated sibling element.
+
+---
+
+## Port the upstream value, not the fork's drifted one, when de-seaming scoped CSS
+Tags: webui, css
+Applies-when: moving a demo fork's scoped patch into scope-owned CSS so the vendored file needs no edit
+
+Aurora-ifkn.2 absorbed the `shell-css-scope` seam (bare `*`/`html`/`body` rules rescoped under `.db-port`) into demo-owned `demo-layout.css`. The seam's frozen value was `overflow-x: hidden` on `.db-port`, but upstream's `body` rule has since moved to `overflow-x: clip` -- `hidden` beside a scroll container turns the element into a never-scrolling scroll container and a sticky banner pins to that instead of the real scroller (see the `position: sticky` entry in this file). Copying the seam verbatim would have perpetuated the breakage into every future re-vendor.
+
+**Fix:** when absorbing a seam, diff it against current upstream first and port the current value, not the seam's frozen one; note the delta in the new block's comment so the next re-vendor doesn't "fix" it back.

@@ -76,6 +76,27 @@ html, body {
   padding: 12px 16px 24px;
 }
 
+/* Dashboard port scope (Vendor 2 shell-css-scope, demo-owned -- not
+   vendored): the .db-port equivalents of web/ui's page-only rules
+   (styles/page.css), which the app loads document-wide but the demo must
+   not leak onto its scene page. The html scrollbar rule is intentionally
+   not ported -- #dashboard-pane above owns its own scroll container.
+   `clip`, not `hidden`: `hidden` beside a scroll container turns the port
+   into one that never scrolls and a sticky banner would pin to that
+   instead of the pane (same cause as the app body rule). */
+.db-port * {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+.db-port {
+  background: var(--aurora-bg);
+  color: var(--aurora-text-primary);
+  font-family: var(--aurora-font);
+  overflow-x: clip;
+}
+
 /* Demo scope reductions: no bridge-setup flow exists on a static page, so
    the Bridge accordion's Change Bridge button is hidden, not stubbed. */
 .db-port #db-change-bridge {

@@ -41,4 +41,22 @@ function ruleBlocks(selector) {
   );
 }
 
+// Page-rule split (Aurora-ifkn.2): the .db-port equivalents of web/ui's
+// page-only rules (styles/page.css) live here demo-owned, so the demo never
+// needs an edit to the vendored shell.css. The html scrollbar rule is
+// intentionally not ported -- #dashboard-pane above owns its scroll pane.
+{
+  const reset = ruleBlocks('\\.db-port\\s+\\*');
+  assert.ok(
+    reset.some((b) => /margin\s*:\s*0/.test(b) && /padding\s*:\s*0/.test(b) && /box-sizing\s*:\s*border-box/.test(b)),
+    'scoped reset lives in demo-layout.css',
+  );
+  const port = ruleBlocks('\\.db-port').find((b) => /overflow-x\s*:/.test(b));
+  assert.ok(port, '.db-port body-equivalent rule exists');
+  assert.ok(/background\s*:\s*var\(--aurora-bg\)/.test(port), 'port keeps the app background');
+  assert.ok(/color\s*:\s*var\(--aurora-text-primary\)/.test(port), 'port keeps the app text color');
+  assert.ok(/font-family\s*:\s*var\(--aurora-font\)/.test(port), 'port keeps the app font');
+  assert.ok(/overflow-x\s*:\s*clip/.test(port), 'port clips without becoming a scroll container');
+}
+
 console.log('demo-layout.test.mjs: ok');

@@ -247,3 +247,12 @@ Aurora-m0fy added `{ reloadError }` to `EntertainmentConfigSelect`'s `onChange`.
 
 **Fix:** also test through the component the real constructor builds (`inst.entertainmentConfigSelect.onChange(...)`), and run a mutant that drops the forwarded arguments. Prefer `onChange: (...args) => handler(...args)` when a callback's contract may grow.
 
+---
+
+## A string-to-RegExp test helper moves the syntax error to the helper line
+Tags: webui, testing
+Applies-when: writing assertions through a test helper that builds RegExp from strings
+
+`demo-layout.test.mjs`'s `ruleBlocks(selector)` interpolates its argument into `new RegExp(...)`, so the new `.db-port` assertion needed double backslashes in the file where sibling regex literals need single ones. Authored with single backslashes, the suite died with `Nothing to repeat` pointing at the helper's `new RegExp` line -- two frames from the actual mistake.
+
+**Fix:** when the helper takes strings, write call-site arguments pre-escaped, and on an `Invalid regular expression` failure look at the caller's quoting layer first, not the helper.
