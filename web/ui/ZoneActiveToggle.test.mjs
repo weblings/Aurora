@@ -76,4 +76,38 @@ function mount(zones, inputs) {
   assert.deepEqual(queued, []);
 }
 
+// Optional onChange (Aurora-ifkn.5): fires with the flipped zone; absent
+// (all pre-existing callers) flips exactly as before.
+{
+  const zones = [{ zoneId: 1, active: false }];
+  const inputs = [makeInput('1', true)];
+  const seen = [];
+  const container = {
+    innerHTML: '',
+    querySelectorAll(sel) {
+      if (sel === 'input[type="checkbox"]') return inputs;
+      return [];
+    },
+  };
+  const list = new ZoneActiveToggleList(container, {
+    zones,
+    zoneLabel: () => 'zone',
+    onError: () => {},
+    onChange: (zone) => seen.push(zone),
+  });
+  list._queue = { queue: () => {} };
+  inputs[0].listeners.change[0]({ currentTarget: inputs[0] });
+  assert.deepEqual(seen, [{ zoneId: 1, active: true }]);
+}
+
+// No onChange given: no throw, flip still persists.
+{
+  const zones = [{ zoneId: 1, active: false }];
+  const inputs = [makeInput('1', true)];
+  const { queued } = mount(zones, inputs);
+  inputs[0].listeners.change[0]({ currentTarget: inputs[0] });
+  assert.equal(zones[0].active, true);
+  assert.deepEqual(queued, [[1, { active: true }]]);
+}
+
 console.log('ZoneActiveToggle.test.mjs: ok');

@@ -711,4 +711,29 @@ function ownerScreen(extra = {}) {
   inst.deviceField?.destroy();
 }
 
+// Toggle-sync pair (Aurora-ifkn.5): the canvas and the Bridge list show the
+// same shared zone objects, so a flip on one side refreshes the other.
+// Prototype-called against doubles -- no DOM needed.
+{
+  const { inst } = fakeScreen();
+  let rendered = 0;
+  inst._renderBridgeZoneList = () => { rendered++; };
+  inst._onZoneCanvasActiveChange();
+  assert.equal(rendered, 1);
+}
+{
+  const { inst } = fakeScreen();
+  let refreshed = 0;
+  inst.zoneCanvas = { refreshActive: () => { refreshed++; } };
+  inst._onBridgeZoneToggle();
+  assert.equal(refreshed, 1);
+}
+{
+  // No canvas mounted yet (Bridge renders before the top tier): a no-op,
+  // never throws.
+  const { inst } = fakeScreen();
+  inst.zoneCanvas = null;
+  inst._onBridgeZoneToggle();
+}
+
 console.log('DashboardScreen pause checks passed.');

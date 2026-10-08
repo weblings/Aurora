@@ -53,14 +53,12 @@ applyLiveTuning(store.getConfig());
 // static tables land, and Tooltips degrades to {} on failure.
 ensureTooltips();
 
-// Demo Dashboard (Aurora-ifkn.3): the vendored screen stays byte-identical
-// to web/ui, so the fork-only toggle-sync wiring lives here instead.
-// Upstream has no sibling consumer for the two zone views, so the vendored
-// modules keep their demo callbacks (ZoneCanvas onActiveChange/
-// refreshActive, ZoneActiveToggleList onChange) and this subclass re-attaches
-// both directions: a canvas flip re-renders the Bridge list, a Bridge flip
-// re-syncs the canvas bool. Both views share the same zone objects, so this
-// is repaint-only, never data flow.
+// Demo Dashboard (Aurora-ifkn.3, wiring upstreamed in Aurora-ifkn.5): the
+// vendored screen stays byte-identical to web/ui and now wires the
+// toggle-sync natively (canvas flip re-renders the Bridge list, Bridge flip
+// re-syncs the canvas bool over the same shared zone objects -- repaint-only,
+// never data flow). This subclass re-attach is redundant but harmless (same
+// wiring twice) until Aurora-ifkn.7 removes it.
 //
 // Pause stays visible: the shim answers PUT /api/state, so it works.
 // Stop hides itself on the shim's canStop: false (no daemon to stop).

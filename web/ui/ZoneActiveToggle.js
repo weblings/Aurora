@@ -27,11 +27,14 @@ export class ZoneActiveToggleList {
   // zones: live zone array (mutated in place, same convention as
   // ZoneCanvas). zoneLabel(zone) is injected -- this component knows
   // nothing about Hue channel/light names.
-  constructor(container, { zones, zoneLabel, onError, onSuccess, onUnreachable, tooltipKey = null }) {
+  constructor(container, { zones, zoneLabel, onError, onSuccess, onUnreachable, tooltipKey = null, onChange = null }) {
     this.container = container;
     this.zones = zones;
     this.zoneLabel = zoneLabel;
     this.tooltipKey = tooltipKey;
+    // Optional (Aurora-ifkn.5): fires after an Active flip so an owner showing
+    // the same shared zone objects elsewhere can refresh that sibling view.
+    this.onChange = onChange;
     this._queue = new ZonePatchQueue({ onError, onSuccess, onUnreachable });
     this._render();
   }
@@ -59,6 +62,7 @@ export class ZoneActiveToggleList {
         if (!zone) return;
         zone.active = e.currentTarget.checked;
         this._queue.queue(zone.zoneId, { active: zone.active });
+        this.onChange?.(zone);
       });
     });
   }
