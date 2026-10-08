@@ -281,7 +281,37 @@ function testRouter(seed) {
   assert.deepEqual(missing, [], `fixture lacks requested keys: ${missing.join(', ')}`);
   for (const d of fixture.descriptors) {
     assert.ok(d.key && d.description, `malformed entry: ${JSON.stringify(d)}`);
+    assert.ok(d.kind, `kindless entry (backend always emits kind): ${d.key}`);
+    // Slider ranges (Aurora-ifkn.6): gen-descriptors.py emits the backend's
+    // param schema, so Tuning sliders never see "Couldn't load slider
+    // ranges". kind and param stay in lockstep; ranges stay sane.
+    // Params ride only on sliders (backend precedent: zones.gamma is slider
+    // kind with no param); a param anywhere else is a misshapen regen.
+    if (d.param) {
+      assert.equal(d.kind, 'slider', `param on non-slider: ${d.key}`);
+      const p = d.param;
+      assert.equal(typeof p.label, 'string');
+      for (const f of ['min', 'max', 'step', 'default']) assert.equal(typeof p[f], 'number', `${d.key}.${f} not a number`);
+      assert.equal(typeof p.unit, 'string');
+      assert.equal(typeof p.allowsUnset, 'boolean');
+      assert.ok(p.min < p.max, `${d.key} range inverted`);
+      assert.ok(p.step > 0, `${d.key} step not positive`);
+      assert.ok(p.allowsUnset || (p.default >= p.min && p.default <= p.max), `${d.key} default outside range`);
+    }
   }
+  // Every Tuning slider the demo renders resolves to a ranged param (not
+  // just a key): audio* + transitionSmoothing configKeys map to descriptor
+  // keys by the same group rule as above (refreshRate/subsampleWidth are
+  // dropdowns, ranges N/A).
+  const byKey = new Map(fixture.descriptors.map((d) => [d.key, d]));
+  const unslid = [];
+  for (const [, configKey] of text.matchAll(/\['(audio[A-Za-z]+|transitionSmoothing)'/g)) {
+    const key = configKey.startsWith('audio')
+      ? `audio.${configKey.charAt(5).toLowerCase()}${configKey.slice(6)}`
+      : `video.${configKey}`;
+    if (!byKey.get(key)?.param) unslid.push(key);
+  }
+  assert.deepEqual(unslid, [], `tuning slider without ranges: ${unslid.join(', ')}`);
 }
 
 console.log('demo-shim contract tests passed.');
