@@ -1,14 +1,14 @@
 """Re-vendor web/ui into web/demo/vendor/webui (Aurora-ifkn.7).
 
 Copies every MANIFEST.json modules/styles/icons path byte-verbatim from the
-source tree (default: this repo's web/ui; pass a sibling Aurora-WebUI
-checkout for closure parity), stamps sourceCommit, and regenerates
-descriptors.json via gen-descriptors.py. Vendor files are never hand-edited:
+source tree (default: this repo's web/ui), stamps sourceCommit, regenerates
+descriptors.json via gen-descriptors.py, then runs closure-check.mjs so a
+new web/ui import that the manifest doesn't list fails here. Vendor files are never hand-edited:
 upstream a seam (ifkn.1-6 pattern) or fix web/ui, then re-run this.
 
 Usage, from the repo root:
 
-  python3 web/demo/vendor/sync-webui.py [path-to-Aurora-WebUI]
+  python3 web/demo/vendor/sync-webui.py [path-to-web-ui]
 """
 import json
 import os
@@ -60,6 +60,11 @@ def main():
     gen = os.path.join(VENDOR_DIR, 'gen-descriptors.py')
     result = subprocess.run([sys.executable, gen], cwd=ROOT)
     if result.returncode != 0:
+        return result.returncode
+    closure = os.path.join(VENDOR_DIR, 'closure-check.mjs')
+    result = subprocess.run(['node', closure, source_ui], cwd=ROOT)
+    if result.returncode != 0:
+        print('closure check failed: add the module to MANIFEST.json and re-run', file=sys.stderr)
         return result.returncode
     print(f'vendored {copied} files from {source_ui}')
     return 0

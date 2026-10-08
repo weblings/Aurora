@@ -855,6 +855,8 @@ Applies-when: copying a module tree into another site (web/demo/vendor/webui) an
 
 **Fix:** move each adaptation upstream as a neutral change or an option the host reports (module-relative asset URLs via `import.meta.url`, page-only CSS in its own stylesheet, a capability flag the demo shim answers). Then vendoring is a verbatim scripted copy guarded by a byte-equality test in CI. Keep the copy inside the published subtree when the site is deployed by subtree push. Sequenced as Aurora-ifkn.1-8.
 
+A byte-equality test guards only the files already listed. Reachability is a separate invariant: when `web/ui`'s Dashboard gains an import, the copies all still match, CI stays green, and Pages 404s on the new module. `closure-check.mjs` covered this but ran on nobody's path, and its default still pointed at the pre-monorepo `Aurora-WebUI` sibling, so it only passed when someone passed `../ui` by hand (the ifkn.7/.8 logs called it clean that way). Run both guards argument-free from the sync script and CI.
+
 ---
 
 ## A byte-identical re-vendor must relocate the fork-only wiring it deletes, not just delete it

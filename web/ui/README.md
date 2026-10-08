@@ -31,10 +31,12 @@ Tests are plain node scripts with no framework (`node styles/welcome.test.mjs`,
 ## Demo vendor copy
 
 `web/demo/vendor/webui/` carries byte-identical copies of the files listed in
-its `MANIFEST.json`. After editing any file listed there, re-run
-`python3 web/demo/vendor/sync-webui.py` from the repo root and confirm
-`node web/demo/vendor/webui/seams.test.mjs` passes -- web CI fails on any
-drift. Never edit the vendored copies in place.
+its `MANIFEST.json`. After editing any file listed there, or adding an import
+to a file reachable from the Dashboard, re-run
+`python3 web/demo/vendor/sync-webui.py` from the repo root (it fails if a new
+import isn't in the manifest) and confirm
+`node web/demo/vendor/webui/seams.test.mjs` passes. Web CI fails on either
+kind of drift. Never edit the vendored copies in place.
 
 ## Reserved path
 

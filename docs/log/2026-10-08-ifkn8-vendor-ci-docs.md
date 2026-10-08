@@ -43,3 +43,24 @@ failed only at `seams.test.mjs`, restored byte-identical (`cmp`).
   doesn't run `web/ui/*.test.mjs` or `web/ui/screens/*.test.mjs`, so the new
   `ZoneActiveToggle`/`ZoneCanvas`/`DashboardScreen` unit tests don't gate in
   CI -- worth a bead if the owner wants full coverage there.
+
+## Review follow-up (2026-10-08)
+
+An audit of ifkn.1-8 against the bead specs found every listed file
+byte-identical, all `web/ui` and demo suites green, `canStop` reported by
+core with a test, and `descriptors.json` regenerating with no diff. Gaps
+fixed:
+
+- `closure-check.mjs` defaulted to the old sibling `Aurora-WebUI` path, so
+  run with no argument it failed (MISSING plus 19 STALE). It now defaults to
+  `web/ui`, runs at the end of `sync-webui.py`, and has its own web CI step.
+  Proven with a scratch `web/ui` copy whose Dashboard imported a new file:
+  `LEAK: ... NewThing.js`, exit 1. Before this, such an import kept CI green
+  and would have 404'd on Pages.
+- `web.yml` now also runs `web/ui/*.test.mjs` and `web/ui/screens/*.test.mjs`
+  (12 suites). The full CI set is green from the repo root.
+- `MANIFEST.json` `sourceRepo`/`layout` and the `sync-webui.py` docstring no
+  longer name `Aurora-WebUI`. Sync docs in `web/ui/README.md`,
+  `web/demo/README.md` and `web/demo/CLAUDE.md` name the closure check.
+- Aurora-ifkn.3 closed (acceptance met). Lesson: the vendored-fork entry in
+  architecture-process gained the reachability point.

@@ -25,4 +25,6 @@ jobs:
           node-version: 22
       - name: Web unit tests
         run: |
-          for t in web-processing/*.test.mjs web/demo/*.test.mjs web/demo/vendor/webui/*.test.mjs web/ui/styles/*.test.mjs; do node "$t"; done
+          for t in web-processing/*.test.mjs web/demo/*.test.mjs web/demo/vendor/webui/*.test.mjs web/ui/*.test.mjs web/ui/screens/*.test.mjs web/ui/styles/*.test.mjs; do node "$t"; done
+      - name: Demo vendor closure (every module the Dashboard imports is vendored)
+        run: node web/demo/vendor/webui/closure-check.mjs

@@ -34,6 +34,8 @@ files listed in `vendor/webui/MANIFEST.json` — never hand-edit them. To
 change anything the demo shows: fix it in `web/ui`, add a node test there if
 behavior changed, then re-run `python3 web/demo/vendor/sync-webui.py` from
 the repo root (copies verbatim, stamps `sourceCommit`, regenerates
-`descriptors.json`) and confirm `node vendor/webui/seams.test.mjs` passes.
+`descriptors.json`, runs `closure-check.mjs`) and confirm
+`node vendor/webui/seams.test.mjs` passes. If the closure check reports a
+LEAK, add that module to `MANIFEST.json` and re-run.
 `app.js`/`shell.js` are deliberately not vendored: `demo-boot.js` provides
 the minimal app facade instead.
