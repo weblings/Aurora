@@ -128,7 +128,7 @@ const SECURITY_SETTINGS_URL = 'x-apple.systempreferences:com.apple.preference.se
 
 export function renderAudioPermissionBanner({ retryId } = {}) {
   return `
-    <p class="status-text status-text-error"><span class="warn-glyph" aria-hidden="true"></span> <strong>Aurora can't hear your audio.</strong> Allow "System Audio Recording Only" in Settings, then Retry.</p>
+    <p class="status-text status-text-error"><span class="warn-glyph" aria-hidden="true"></span> <strong>Aurora can't hear any audio.</strong> If needed, allow Aurora under "System Audio Recording Only" in System Settings.</p>
     <div class="shell-banner-actions">
       <button type="button" class="btn btn-secondary" id="${escapeHtml(retryId ?? 'audio-permission-retry')}">Retry</button>
       <a class="btn btn-secondary" style="text-decoration: none;" href="${SECURITY_SETTINGS_URL}">Open Settings</a>
