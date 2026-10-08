@@ -135,3 +135,25 @@ export function renderAudioPermissionBanner({ retryId } = {}) {
     </div>
   `;
 }
+
+// Local Network (Aurora-o1qt, Aurora-rbp3): a host condition, not an error.
+// The daemon re-checks every couple of seconds and drops the condition once
+// access is allowed, so the row needs no Retry. macOS applies the toggle to
+// the running app (seen live on macOS 27), so no relaunch either. Generic
+// "devices" copy: every LAN output (Hue, Home Assistant) is blocked alike.
+// No deep link reaches the Local Network list (checked on macOS 27): anchors
+// such as Privacy_ScreenCapture come from the pane's search index
+// (SecurityPrivacyExtension's PrivacySecurity.searchTerms), and Local Network
+// is not in it, so every Privacy_LocalNetwork variant lands on Privacy &
+// Security. Open that page and name the last click in the copy.
+const LOCAL_NETWORK_SETTINGS_URL = 'x-apple.systempreferences:com.apple.preference.security';
+
+export function renderLocalNetworkBanner() {
+  return `
+    <p class="status-text status-text-error"><span class="warn-glyph" aria-hidden="true"></span> <strong>Aurora can't reach devices on your network.</strong> In Settings, click Local Network and allow&nbsp;Aurora.</p>
+    <div class="shell-banner-actions">
+      <a class="btn btn-secondary" style="text-decoration: none;" href="${LOCAL_NETWORK_SETTINGS_URL}">Open Settings</a>
+    </div>
+  `;
+}
+
