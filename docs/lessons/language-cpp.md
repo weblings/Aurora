@@ -226,3 +226,13 @@ Applies-when: wrapping a C library's init/free pair (`mbedtls_*_init`/`_free`, `
 `output/hue/src/MbedTlsImpl.hpp` held six mbedtls contexts as `unique_ptr<T, MbedTlsDeleter<mbedtls_*_free>>`, each created with `reset(new T{})`. The deleter called `FreeFunc(ptr)` and nothing else. mbedtls's `*_free` releases what the context points to and zeroes it; it does not free the struct, which the library never allocated. `leaks(1)` on a Mac rebuild stress loop (Aurora-2pe5) showed ~6 blocks and ~3.4KB per Hue output rebuild, all rooted in `_initMembers()` (5 `new`s) and `_initRNG()` (1 `new`). The block count matching the number of `new`s per init is what pointed at the struct, not at a missing `_free` call; the bead's own first hypothesis ("find the matching free") was wrong, since every context already had one.
 
 **Fix:** `delete ptr` after `FreeFunc(ptr)` in the deleter, or hold the contexts by value / `make_unique` with a free-only deleter that then lets the default delete run. When a leak report's block count equals the number of `new`s in one init function, check what the deleter does with the struct before hunting for a missing library free. Confirmed 2026-10-05: with the `delete`, 20 failed inits free all 120 structs (a counting test fails with exactly 20 x 6 leaked blocks before the fix), and `leaks(1)` goes from `_initRNG` root leaks to zero.
+
+---
+
+## C++ allows `2.f`: a float regex requiring post-dot digits misses every integral literal silently
+Tags: c++, regex, parsing, codegen
+Applies-when: regex-parsing float literals out of C++ sources (descriptor tables, config defaults, codegen inputs)
+
+Regenerating `descriptors.json` from `ControlDescriptorTables.cpp` (Aurora-ifkn.6), the float pattern `-?[0-9]+(?:\.[0-9]+)?f` matched `0.285f` but not `2.f`, `60.f`, `100.f` or `-1.f` -- all twelve slider entries silently failed the slider parse, fell through to the plain-entry parse (which correctly ignores them), and the regen wrote 17 param-less descriptors instead of 29 with 12 ranged. No error: the miss just looked like a table with no sliders.
+
+**Fix:** accept empty fractions in the literal pattern (`-?[0-9]+(?:\.[0-9]*)?f`), and assert the parsed slider count (or the param count of the output) instead of trusting a quiet loop -- a `slider(`-count vs parsed-count check would have failed loudly on the first regen.
