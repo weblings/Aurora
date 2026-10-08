@@ -91,6 +91,7 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `lesson-windows-env` | [lessons/windows-env.md](lessons/windows-env.md) | Windows environment |
 | `linux-audio-sink-dropdown` | [log/2026-09-30-audio-sink-dropdown.md](log/2026-09-30-audio-sink-dropdown.md) | Audio sink dropdown replaces the free-text field |
 | `linux-audio-sink-status` | [log/2026-09-29-linux-audio-sink-status.md](log/2026-09-29-linux-audio-sink-status.md) | Linux audio sink status: Using-hint replaces the no-list warning |
+| `linux-build-spa-headers` | [log/2026-10-07-linux-build-spa-headers.md](log/2026-10-07-linux-build-spa-headers.md) | Linux app preset built clean on a fresh checkout; one missing-header fix |
 | `linux-capture-analysis` | [archive/LinuxCaptureAnalysis.md](archive/LinuxCaptureAnalysis.md) | Grabber / GnuLinux capture — Conversion analysis |
 | `linux-tray-pause` | [log/2026-10-04-linux-tray-pause.md](log/2026-10-04-linux-tray-pause.md) | Aurora-5ipy.16: Linux SNI tray Pause/Resume (closed) |
 | `lmn5-doc-checkers-as-hook` | [log/2026-10-07-lmn5-doc-checkers-as-hook.md](log/2026-10-07-lmn5-doc-checkers-as-hook.md) | Aurora-lmn.5: check-links.sh/check-lessons.sh wired into the pre-commit hook |

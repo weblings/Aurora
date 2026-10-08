@@ -13,7 +13,13 @@
 #pragma GCC diagnostic ignored "-Wpedantic"
 #pragma GCC diagnostic ignored "-Wmissing-field-initializers"
 #include <pipewire/pipewire.h>
+#if __has_include(<spa/param/buffers.h>)
+// Not present on older SPA (e.g. 0.3.48/Ubuntu 22.04); the enum values this
+// code uses (SPA_PARAM_BUFFERS_*) come from spa/param/param.h regardless,
+// pulled in transitively below. Include it where it exists in case a newer
+// SPA's buffers.h ever declares something beyond that enum.
 #include <spa/param/buffers.h>
+#endif
 #include <spa/param/video/format-utils.h>
 #pragma GCC diagnostic pop
 
