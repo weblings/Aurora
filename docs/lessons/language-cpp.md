@@ -242,3 +242,21 @@ Applies-when: regex-parsing float literals out of C++ sources (descriptor tables
 Regenerating `descriptors.json` from `ControlDescriptorTables.cpp` (Aurora-ifkn.6), the float pattern `-?[0-9]+(?:\.[0-9]+)?f` matched `0.285f` but not `2.f`, `60.f`, `100.f` or `-1.f` -- all twelve slider entries silently failed the slider parse, fell through to the plain-entry parse (which correctly ignores them), and the regen wrote 17 param-less descriptors instead of 29 with 12 ranged. No error: the miss just looked like a table with no sliders.
 
 **Fix:** accept empty fractions in the literal pattern (`-?[0-9]+(?:\.[0-9]*)?f`), and assert the parsed slider count (or the param count of the output) instead of trusting a quiet loop -- a `slider(`-count vs parsed-count check would have failed loudly on the first regen.
+
+---
+
+## `#define private public` to read a class's internals in a scratch driver breaks libstdc++ unless every other header is included first
+Tags: c++, testing, scratch-driver, libstdc++, huenicorn
+Applies-when: a throwaway driver needs a private member of a class you can't edit (e.g. huenicorn's `PipewireGrabber::m_pwData`)
+
+`Aurora-h45.19` needed the raw `max_framerate` fraction, held in huenicorn's
+private `m_pwData`. Putting `#define private public` above
+`#include <.../PipewireGrabber.hpp>` failed inside the standard library:
+`<sstream>` and `<any>` gave "redeclared with different access", because
+the macro also rewrote libstdc++'s own `private:` sections on their first
+include.
+
+**Fix:** first include every header the target header pulls in (standard,
+system and project), then `#define private public`, the target header, and
+`#undef private`. Include guards then keep the macro off everything but the
+target class. Scratch drivers only; never in committed code.

@@ -100,3 +100,19 @@ for the same bug in huenicorn's own code. No code changed.
   `fix/capture-pipeline` after 4 (`git cherry` clean); both pushed. Driver
   rebuilt on the combined branch: 60, saved `"refreshRate": 60`. `h45.17`'s
   DMA-BUF port now lands after 12 on that branch.
+
+## Fullscreen fix status check
+
+- Owner asked whether the `Aurora-1t1` DMA-BUF fix was on the fork. It is
+  not: no local or `origin` branch has DMA-BUF code. `Aurora-h45.17` is still
+  open (Aurora's change: ~525+/145- lines, mostly `PipewireGrabber.cpp` plus
+  a 119-line `PipewireDmabuf.hpp`). Owner deferred it until the maintainer
+  replies. It blocks MR 3 (`h45.16`), which goes last anyway.
+
+## Lessons (second batch)
+
+- Language-cpp (new): `#define private public` in a scratch driver breaks
+  libstdc++ unless every other header is included first.
+- Input (new): reruns against the real portal skip the picker by reusing the
+  first run's saved restore token. Two reruns with the same token both worked
+  on GNOME 46.

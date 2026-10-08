@@ -783,3 +783,24 @@ Applies-when: changing `MacAudioGrabber`, the `audio_permission` row, or any rec
 Aurora-h457 live (macOS 27, `open`-launched `Aurora.app`, audio playing the whole time): a grabber built while the audio grant was off stayed silent after the grant, row and all, until the pipeline was rebuilt; a fresh grabber after the grant heard sound at once. The Aurora-tjoq follow-up ("applies live") held only because that check relaunched the process after the reset, and it never observed the flip. Separately, the tap is satisfied by either grant: Screen Recording on with the audio list off worked, the audio list on with Screen Recording off worked, and with neither the flag latched true about 10s after entering Audio with flat lights. Switching Video -> Audio after `tccutil reset AudioCapture` (Screen Recording on) entered Audio with no row. There is no build-time signal (`AudioDeviceStart` returns `noErr`, no public preflight), so the daemon cannot refuse Audio up front; the row is the failure.
 
 **Fix:** after a grant, rebuild the pipeline (`POST /api/reload`); the row's Retry does exactly that, and a reload clears every entry and restarts the 10s grace window, so with nothing playing the row returns 10s later (looks like a dead button). The row asks for "System Audio Recording Only", the least-privilege grant, and a Video user (already holding Screen Recording) never sees it. Not tested: explicit Don't Allow on the audio prompt with Screen Recording on.
+
+---
+
+## Reruns against the real ScreenCast portal can skip the picker: reuse the restore token the first run saved
+Tags: input, linux, xdg-portal, testing, huenicorn
+Applies-when: re-running a scratch driver or before/after check against the real xdg-desktop-portal, where each run would otherwise need a human to pick a monitor
+
+huenicorn's `XdgDesktopPortal` (and Aurora's port) saves the portal's
+`restore_token` into `config.json` after a successful Start, and sends it on
+the next `SelectSources`. On `Aurora-h45.19`, the first real-portal run
+needed the owner to pick a monitor. The before/after reruns
+(`Aurora-h45.20`, then again on the MR 3 branch) copied that `config.json`
+with only `refreshRate` reset to 0, and logged "Using saved restore token":
+no dialog appeared and the same monitor was captured (GNOME 46).
+
+**Fix:** keep the first run's config dir. For each rerun, copy it and reset
+only the field under test, so the session is reused and the comparison
+stays on the same monitor. Here both reruns copied the first run's token and
+both skipped the picker, so on GNOME 46 that token was not single-use. If a
+rerun prompts again, copy the newest token from the last run's config.
+Not checked on KDE or wlroots portals.
