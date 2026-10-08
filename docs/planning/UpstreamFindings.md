@@ -380,6 +380,39 @@ already holds its final contents.
 the actual failure path, since both need a live/failing bridge connection to
 trigger.
 
+## Stream (`DtlsClient`)
+
+### 11. `MbedTlsDeleter` frees each context's contents but never deletes the struct
+
+**Locations:** `include/Huenicorn/Stream/Impl/MbedTls/MbedTlsClient3Impl.hpp:43-54`
+and `MbedTlsClient4Impl.hpp:44-55` (checked at `origin/develop` `cfcaeb4`)
+
+```cpp
+if(ptr){
+  FreeFunc(ptr);
+  ptr = nullptr;
+}
+```
+
+`_initMembers()` (and, on Mbed TLS 3, `_initRNG()`) allocate each context
+with `new` and hand it to a `unique_ptr` with this deleter. The
+`mbedtls_*_free` calls release what a context owns, not the context itself,
+and `ptr = nullptr` only clears the local copy. Each `DtlsClient::init()`
+leaks 6 structs on Mbed TLS 3 and 4 on Mbed TLS 4 (PSA handles the RNG).
+
+**Why it hasn't fired (observably):** a few KB per `Streamer` build
+(`src/Core/Runtime.cpp:225`, each entertainment-configuration enable), so it
+only grows with repeated switching. Reproduced 2026-10-08: a driver building
+the real `DtlsClient` against a dead UDP port under LeakSanitizer reports 6
+leaks per `init()` on Mbed TLS 3.6.7 (5 from `_initMembers`, 1 from
+`_initRNG`) and 4 on 4.2.0; with the fix, none.
+
+**Suggested fix:** `delete ptr;` in place of `ptr = nullptr;`.
+
+**Status:** Fixed in Aurora's port as `Aurora-2pe5` (`output/hue`'s
+`MbedTlsImpl.hpp`, counting-new test in `DtlsClientLeakTests.cpp`). Upstream
+branch `fix/mbedtls-deleter-leak`, tracked as `Aurora-h45.18`.
+
 ## Upstream plan
 
 Status: in progress — all 10 fixes committed in the `huenicorn-fork` sibling
@@ -399,7 +432,7 @@ heads-up issue, the hardware check, and sending.
 
   | MR | Findings (commit order) | Notes |
   |---|---|---|
-  | Hue API robustness | 7, 8 | Both in the configuration-loading startup path; both reproduced (startup termination, debug-mode iterator abort) |
+  | Hue API robustness | 7, 8, 11 | 7 and 8 in the configuration-loading startup path, both reproduced (startup termination, debug-mode iterator abort); 11 (DTLS leak) added 2026-10-08 |
   | Screencast portal failure handling | 5, 9, 10, 6 | All `XdgDesktopPortal.cpp`, one pattern; reproduced with a fake portal (segfault, hangs, leak) |
   | Capture and image pipeline fixes | 3, 1, 2, 4 | 1 needs 3, 2 needs 1; 4 rides along last (same grabber → downsample path, trivial, no measured effect) |
 
@@ -433,3 +466,8 @@ heads-up issue, the hardware check, and sending.
 
 **Related Aurora bug:** Aurora's own port carries 5 and 9 half-fixed and 10
 unfixed (see their status above) — tracked separately as `Aurora-p91`.
+
+**Candidates after 1.1.0:** 11 above (`Aurora-h45.18`), and an unreduced
+PipeWire `refreshRate` still to verify (`Aurora-h45.19`); see
+[[h45-post-110-upstream-sweep]]. 11 joins MR 1 (owner, 2026-10-08); the
+heads-up issue is left as is, the maintainer gets the update when they reply.
