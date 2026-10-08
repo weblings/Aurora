@@ -399,6 +399,10 @@ export class DashboardScreen {
       },
       renderActive: true,
       onUnreachable: () => this.app.checkNow(),
+      // Toggle-sync (Aurora-ifkn.5): the canvas embeds the selected zone's
+      // Active bool while the Bridge section lists every zone -- both over
+      // the same shared objects, so a canvas flip re-renders the list.
+      onActiveChange: () => this._onZoneCanvasActiveChange(),
     });
     this.selectedZoneId = this.zoneCanvas.selectedZoneId;
 
@@ -503,6 +507,20 @@ export class DashboardScreen {
     this._renderBridgeZoneList();
   }
 
+  // Toggle-sync pair (Aurora-ifkn.5): the canvas embeds the selected
+  // zone's Active bool while the Bridge section lists every zone, both over
+  // the same shared zone objects. A canvas flip re-renders the list; a
+  // Bridge flip re-syncs the canvas bool in place (no full re-render, which
+  // would kill an open zone dropdown). Thin methods (not inline closures) so
+  // the contract is unit-testable without a DOM.
+  _onZoneCanvasActiveChange() {
+    this._renderBridgeZoneList();
+  }
+
+  _onBridgeZoneToggle() {
+    this.zoneCanvas?.refreshActive();
+  }
+
   // The full per-zone list, relocated here from Zone Mapping's own
   // always-visible list (see ZoneActiveToggle.js's header comment) --
   // refreshed whenever zone data changes (initial load, an
@@ -524,6 +542,9 @@ export class DashboardScreen {
       onSuccess: () => this._clearTopTierError('zoneToggle'),
       onUnreachable: () => this.app.checkNow(),
       tooltipKey: 'zones.active',
+      // Toggle-sync (Aurora-ifkn.5): a Bridge flip re-syncs the canvas bool
+      // in place (no full re-render, which would kill an open dropdown).
+      onChange: () => this._onBridgeZoneToggle(),
     });
   }
 

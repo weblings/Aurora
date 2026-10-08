@@ -54,7 +54,7 @@
   "notes": [
     "icon-paths: NavFooter.js + Dropdown.js page-relative icons/*.svg rewritten to vendor/webui/icons/* (CSS mask urls resolve relatively and needed no change)",
     "string-zone-ids: ZoneActiveToggle.js Number(dataset.zoneId) replaced with type-tolerant lookup + unknown-id guard (native ids are uint8; demo room ids are strings)",
-    "toggle-sync: ZoneActiveToggleList.onChange + ZoneCanvas.onActiveChange/refreshActive keep Bridge and Zone Mapping bools on the same shared objects in sync; the vendored screen is byte-identical to web/ui (Aurora-ifkn.3) and wires neither (upstream has no sibling consumer, so no callbacks exist there) -- demo-boot.js's DemoDashboardScreen re-attaches both directions"
+    "toggle-sync: ZoneActiveToggleList.onChange + ZoneCanvas.onActiveChange/refreshActive keep Bridge and Zone Mapping bools on the same shared objects in sync; upstreamed in Aurora-ifkn.5, so the vendored screen is byte-identical to web/ui and wires both natively -- demo-boot.js's DemoDashboardScreen re-attach is now redundant but harmless (same wiring twice) until Aurora-ifkn.7 removes it"
   ],
   "seams": [
     {
