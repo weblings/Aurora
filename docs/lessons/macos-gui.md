@@ -402,7 +402,7 @@ hours, each looking like "the prompt is broken":
    non-gateway LAN host (`curl -X PUT .../api/hue/validate` with
    `{"bridgeAddress":"<neighbor IP from arp -an>"}`; the host need not be a
    bridge).
-2. **There is no reset** (see the reset lesson below for the script that automates the test copy). `tccutil` does not cover Local Network (Apple DTS:
+2. **There is no reset before macOS 27.2** (see the reset lesson below for 27.2's remove button and the script that automates the test copy). `tccutil` does not cover Local Network (Apple DTS:
    "no good way to reset local network privacy on the Mac"); state lives
    outside TCC and Settings toggles keep the entry. A new bundle ID gives a
    fresh prompt, but a `cp -R` copy with a changed `CFBundleIdentifier` still
@@ -471,7 +471,7 @@ Applies-when: detecting whether Local Network access is granted, or reading an N
 
 Aurora-o1qt shipped two probes that read `NWBrowser` state and both reported "granted" with the toggle off. Docs and forum posts say the browser goes `ready`, then `waiting(-65570: PolicyDenied)`. On macOS 27 it never reached `waiting`, and an `NWListener` plus `NWBrowser` round trip saw its own advertisement at once. Logging showed the real signal: with the permission off, a non-blocking TCP `connect()` to the bridge and a `sendto()` of an empty UDP datagram to 224.0.0.251:5353 both failed immediately with errno 65. The send is side-effect-free and needs no known LAN host. Note the pending-prompt window also looks denied, so keep retrying for a while after launch. A Mac with no network fails differently (not 65), which maps to unknown.
 
-**Fix:** decide from the send (`LocalNetworkProbe.mm`, mapping in `statusFromSend`). Flipping the toggle in System Settings takes effect in the running app (the next send succeeds), so a 2 s re-check clears the shell's `local_network` condition with no relaunch (Aurora-rbp3). Keep a Bonjour browse for a service type declared in `NSBonjourServices` only because Bonjour traffic is what raises the prompt. Test any such probe with the toggle off before trusting it; the forum recipe was wrong here.
+**Fix:** decide from the send (`LocalNetworkProbe.mm`, mapping in `statusFromSend`). Flipping the toggle in System Settings takes effect in the running app (the next send succeeds), so a 2 s re-check clears the shell's `local_network` condition with no relaunch (Aurora-rbp3). The send also raises the prompt: TN3179 lists a UDP multicast send as a local network operation, and a build with the browse disabled still prompted (Aurora-dwvu). The Bonjour browse o1qt added "to raise the prompt" is redundant (removal: Aurora-awcg). Test any such probe with the toggle off before trusting it; the forum recipe was wrong here.
 
 ---
 
@@ -481,7 +481,19 @@ Applies-when: you need the Local Network prompt to appear again, or a "reset all
 
 `tccutil reset ScreenCapture|AudioCapture <bundle id>` works. Local Network is not in TCC: state lives in `/Library/Preferences/com.apple.networkextension.plist`, kept per user. Apple DTS says there is no good way to reset it. Deleting the plist on a running Mac fails (cfprefsd rewrites it at shutdown); deleting from macOS Recovery works but resets every app and can disturb VPN and Find My settings. A fresh user account or a VM snapshot also work and are slow.
 
-**Fix:** `tools/mac/make-fresh-localnet-copy.sh [--launch]` copies the built app, sets a new bundle ID and `LC_UUID`, re-signs ad hoc, and launches it. Each run is a never-seen app and raises the prompt. The copy shares the original's config folder and port, so quit the original first.
+macOS 27.2 changes this: TN3179 (rev. 2026-10-06) says the System Settings > Privacy & Security > Local Network list gains +/- buttons, and removing an app resets it. Earlier 27.x (this Mac was 27.0.1 in Aurora-dwvu) has no reset.
+
+**Fix:** on 27.2+, remove the app from the list. Before that, `tools/mac/make-fresh-localnet-copy.sh [--launch]` copies the built app, sets a new bundle ID and `LC_UUID`, re-signs ad hoc, and launches it. Each run is a never-seen app and raises the prompt. The copy shares the original's config folder and port, so quit the original first (or pass `--fresh`). Ad-hoc copies show two dialogs where a shipped build shows one; see the notarized-build entry before counting prompts.
+
+---
+
+## Ad-hoc test copies show two Local Network dialogs on first launch; a notarized Developer ID build shows one. Count prompts on a notarized build
+Tags: macos, local-network, ad-hoc-signing, notarization, developer-id, prompt-count, testing
+Applies-when: counting or reducing permission prompts on first launch, or a fresh test copy shows a duplicate dialog
+
+In Aurora-dwvu every ad-hoc fresh copy (new bundle ID and `LC_UUID`) showed two identical system "find devices on local networks" dialogs. That held for each pair of launch-time operations we tried (browse + send, send + Welcome's mDNS query), with or without `--fresh`. The same HEAD code, notarized and run under a never-seen bundle ID, showed one. The count was never one dialog per operation: the send repeats every 2 s on a new socket and one run had three or more operations, yet it was always two. The macOS cause is not established. TN3179 says local network privacy tracks identity by code signature plus executable UUID and calls ad-hoc identity unreliable. Removing the browse in an ad-hoc build changed nothing and would have looked like "still broken".
+
+**Fix:** to see what users see, test on a notarized build with a new identity. Build `build/mac-release`, then run `tools/mac/make-fresh-localnet-copy.sh <that app>` without `--launch`, then `tools/mac/sign-notarize.sh <copy> --identity "<Developer ID name>" --keychain-profile aurora-notary --out build/<dir>`. Developer ID replaces the ad-hoc signature, and the new bundle ID and UUID survive. Copy the result to `~/Applications` under a distinct name and launch it with `open ... --args --fresh`. Use ad-hoc copies for allowed/denied behaviour, not for counting dialogs. Notarization takes a few minutes.
 
 ---
 

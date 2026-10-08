@@ -940,6 +940,16 @@ The 1.1.0 audit drafted changelog and README lines from commit and bead titles, 
 
 ---
 
+## Before changing code for a symptom seen only on a test artifact, reproduce it on the shipping artifact; and check that a control run can actually tell the hypotheses apart
+Tags: debugging, verification, test-artifact, control-run, ad-hoc-signing, confound
+Applies-when: a symptom is only ever seen on a dev or test build (ad-hoc copy, fake bridge, patched binary), or a control run is being read as proof
+
+Aurora-dwvu chased a double Local Network prompt through three code hypotheses (the Bonjour browse, the periodic send, Welcome's mDNS query). Each ad-hoc build still showed two dialogs. A `dev` build with zero prompts was read as "both come from the probes", but it did no local network traffic at all, so it could not separate "one prompt per operation" from "two per first contact". One notarized build answered it: one dialog. The doubling came from the ad-hoc test copy.
+
+**Fix:** list how the test artifact differs from what ships (signing, identity, install path, config), and run the shipping form once before editing code. For each control, ask what result each hypothesis predicts. If they predict the same result, the run proves nothing. Also check a theory against counts you already have (here, a send repeated every 2 s still gave exactly two).
+
+---
+
 ## "Still the old copy" after several relaunches: prove what the server serves, then trace the render condition, before relaunching again
 Tags: debugging, stale-cache, webui, verification, fresh-copy
 Applies-when: a UI change does not appear after reloads or app relaunches, and cache is the first suspect
