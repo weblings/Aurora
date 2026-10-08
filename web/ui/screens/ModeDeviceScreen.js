@@ -34,6 +34,7 @@ import { renderNavFooter } from '../NavFooter.js';
 import { DeviceField, AUTO_MONITOR_VALUE } from '../DeviceField.js';
 import { applyTooltip } from '../Tooltips.js';
 import { renderReloadError, parseMacPermissionError } from '../MacPermissionRecovery.js';
+import { friendlyReloadError } from '../messages.js';
 import {
   audioDevicesUrlFrom, effectiveFlags, flagsForMode, isModeConfigValid, isSwitchConfirmed, loadPipelineState,
   modeFromFlags, modeSwitchPatch,
@@ -283,7 +284,7 @@ export class ModeDeviceScreen {
         // sentence as before.
         this.error = (this.platform === 'mac' && parseMacPermissionError(result.reloadError))
           ? result.reloadError
-          : `Saved, but couldn't apply it live: ${result.reloadError}`;
+          : `Saved, but couldn't apply it live: ${friendlyReloadError(result.reloadError)}`;
       } else {
         // The fill moves only when the running pipeline agrees: succeeded
         // with no reloadError still means "saved, applies on resume" while

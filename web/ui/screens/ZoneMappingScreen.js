@@ -245,7 +245,7 @@ export class ZoneMappingScreen {
     }
 
     if (this.zones === null) {
-      body.innerHTML = `<p class="status-text status-text-error">⚠ ${escapeHtml(this.error ?? 'Something went wrong.')}</p>`;
+      body.innerHTML = `<p class="status-text status-text-error"><strong class="warn-glyph">⚠</strong> ${escapeHtml(this.error ?? 'Something went wrong.')}</p>`;
       return;
     }
 
@@ -265,7 +265,7 @@ export class ZoneMappingScreen {
       return;
     }
 
-    const errorHtml = this.error ? `<p class="status-text status-text-error">⚠ ${escapeHtml(this.error)}</p>` : '';
+    const errorHtml = this.error ? `<p class="status-text status-text-error"><strong class="warn-glyph">⚠</strong> ${escapeHtml(this.error)}</p>` : '';
 
     // onboarding matches Dashboard's own Zone Mapping arrangement -- Auto-
     // arrange centered above the canvas, Zone/Active/Gamma bundled into the

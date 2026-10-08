@@ -123,7 +123,7 @@ export class TuningFields {
       : [...RESPONSE_SPEED_KEYS, ...COLOR_CHARACTER_KEYS, ...FIXED_HUE_KEYS, ...SENSITIVITY_KEYS];
     const rangesMissing = descriptorsSettled() && slidersFromParams(keys).length < keys.length;
     const message = this.error ?? (rangesMissing ? "Couldn't load slider ranges." : null);
-    const errorHtml = message ? `<p class="status-text status-text-error">⚠ ${escapeHtml(message)}</p>` : '';
+    const errorHtml = message ? `<p class="status-text status-text-error"><strong class="warn-glyph">⚠</strong> ${escapeHtml(message)}</p>` : '';
 
     this.container.innerHTML = `
       <div class="tn-fields"></div>

@@ -108,6 +108,12 @@
   color: var(--aurora-text-primary);
 }
 
+/* The warning glyph comes from a symbol fallback font whose bold face is
+   barely heavier than regular at 13px; the stroke makes it read as bold. */
+.warn-glyph {
+  -webkit-text-stroke: 0.5px currentColor;
+}
+
 .status-text-success {
   color: var(--aurora-text-primary);
   font-weight: 700;

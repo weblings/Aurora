@@ -6,9 +6,13 @@ import assert from 'node:assert/strict';
 import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { DAEMON_UNREACHABLE } from './messages.js';
+import { DAEMON_UNREACHABLE, friendlyReloadError } from './messages.js';
 
 assert.equal(DAEMON_UNREACHABLE, "Couldn't reach the daemon.");
+
+assert.equal(friendlyReloadError('screen_share_declined: Start cancelled by the user'), 'Screen sharing was declined');
+assert.equal(friendlyReloadError('Failed to get monitor file descriptor: Start ended by the portal'), 'Failed to get monitor file descriptor: Start ended by the portal');
+assert.equal(friendlyReloadError(undefined), undefined);
 
 function jsFiles(dir) {
   return readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
@@ -30,3 +34,12 @@ for (const root of roots) {
 }
 
 console.log('messages checks passed.');
+
+// Warning glyph is always bold in error lines (Aurora-x1lh); a bare "⚠ " in a
+// status-text-error paragraph is the regression.
+for (const file of jsFiles(roots[0])) {
+  if (file.endsWith('.test.mjs')) continue;
+  const text = readFileSync(file, 'utf8');
+  assert.ok(!/status-text-error">⚠/.test(text), `${file} renders an unbolded ⚠`);
+  assert.ok(!/<strong>⚠/.test(text), `${file} renders ⚠ without the warn-glyph class`);
+}

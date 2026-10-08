@@ -86,7 +86,7 @@ export class EntertainmentZoneSelectScreen {
     const usingLabelHtml = configs.length === 1 && selected
       ? `<p class="status-text">Using: <strong>${escapeHtml(selected.name)}</strong></p>`
       : '';
-    const errorHtml = this.error ? `<p class="status-text status-text-error">⚠ ${escapeHtml(this.error)}</p>` : '';
+    const errorHtml = this.error ? `<p class="status-text status-text-error"><strong class="warn-glyph">⚠</strong> ${escapeHtml(this.error)}</p>` : '';
 
     body.innerHTML = `
       <div id="ezs-config-slot"></div>

@@ -1,3 +1,4 @@
+import { friendlyReloadError } from './messages.js';
 import { renderReloadError, parseMacPermissionError, renderAudioPermissionBanner } from './MacPermissionRecovery.js';
 
 // App shell: owns the one #screen-container mount point. Same navigate()
@@ -345,16 +346,17 @@ export class App {
     // Saved-not-applied: a reload error on a running host (the old setup
     // still drives the lights). Never promises the next launch works, it
     // builds from the same saved config (ErrorOverlay.md, 'Banner and copy').
+    const message = friendlyReloadError(error.message);
     const text = this.hostState === 'running' && error.source === 'reload'
-      ? `Saved, but couldn't apply: ${error.message}. Aurora is still running your previous setup and will try the new one next time it starts.`
-      : (SOURCE_PREFIX[error.source] ?? '') + error.message;
+      ? `Saved, but couldn't apply: ${message}. Aurora is still running your previous setup and will try the new one next time it starts.`
+      : (SOURCE_PREFIX[error.source] ?? '') + message;
     // Daemon-pushed heuristic (Aurora-h457). Retry is the generic reload: it
     // rebuilds the grabber, which a grant alone does not revive.
     const inner = error.source === 'audio_permission'
       ? renderAudioPermissionBanner({ retryId })
       : parsed
       ? renderReloadError(error.message, this.platform, { retryId })
-      : `<p class="status-text status-text-error"><strong>⚠</strong> ${escapeHtml(text)}</p>
+      : `<p class="status-text status-text-error"><strong class="warn-glyph">⚠</strong> ${escapeHtml(text)}</p>
          <button type="button" class="btn btn-secondary" id="${retryId}" style="margin-top: var(--aurora-space-3);">Retry</button>`;
     // X only while the old setup still works (ErrorOverlay.md, 'Dismiss'):
     // a paused or failed host's row is the reason there are no lights.

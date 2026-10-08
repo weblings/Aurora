@@ -419,6 +419,17 @@ const stateOk = (extra = {}) => async () => ({ reachable: true, state: 'running'
 
 // ---- Banner X and saved-not-applied copy (Aurora-98pr) ----
 
+// A dismissed Linux screen-share dialog reads as plain copy, no portal text.
+{
+  const declined = { source: 'reload', message: 'screen_share_declined: Start cancelled by the user', id: 8 };
+  const { app, banner } = makeApp(stateOk({ errors: [declined] }));
+  app.navigate(blankScreen(), 'dashboard');
+  await app._pollOnce();
+  assert.ok(banner().includes("Saved, but couldn't apply: Screen sharing was declined. Aurora is still"));
+  assert.ok(!banner().includes('cancelled by the user'));
+  assert.ok(!banner().includes('screen_share_declined'));
+}
+
 const HELD = { source: 'reload', message: 'bridge unreachable', id: 7 };
 
 // Running host with a held reload error: saved-not-applied copy, an X, and

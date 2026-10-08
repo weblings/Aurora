@@ -56,7 +56,8 @@ namespace Aurora::Input::Linux
   void XdgDesktopPortal::settle(
     Capture* capture,
     bool ready,
-    const std::string& failureReason
+    const std::string& failureReason,
+    bool userDeclined
   )
   {
     if(capture->fdSettled.exchange(true)){
@@ -65,6 +66,7 @@ namespace Aurora::Input::Linux
 
     if(!ready){
       capture->failureReason = failureReason;
+      capture->userDeclined = userDeclined;
     }
 
     capture->fdReadyPromise.set_value(ready);
@@ -382,7 +384,7 @@ namespace Aurora::Input::Linux
     g_variant_get(parameters, "(u@a{sv})", &response, &result);
 
     if(response != 0){
-      settle(capture, false, describeResponse("Start", response));
+      settle(capture, false, describeResponse("Start", response), response == 1);
       return;
     }
 
@@ -472,7 +474,7 @@ namespace Aurora::Input::Linux
     g_variant_get(parameters, "(u@a{sv})", &response, &ret);
 
     if(response != 0){
-      settle(capture, false, describeResponse("SelectSources", response));
+      settle(capture, false, describeResponse("SelectSources", response), response == 1);
       return;
     }
 
@@ -559,7 +561,7 @@ namespace Aurora::Input::Linux
     // Fixed in the port: the original fell through here instead of
     // returning, reading session_handle out of an unvalidated result.
     if(response != 0){
-      settle(capture, false, describeResponse("CreateSession", response));
+      settle(capture, false, describeResponse("CreateSession", response), response == 1);
       return;
     }
 
