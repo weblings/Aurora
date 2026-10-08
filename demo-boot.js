@@ -12,7 +12,7 @@
 // edits with no new scene code.
 import { installDemoShim } from './demo-shim.js';
 import { setDemoStore } from './demo-state.js';
-import { ROOM_ZONE_MAP, rebuildZoneLights, applyLiveTuning } from './main.js';
+import { ROOM_ZONE_MAP, rebuildZoneLights, applyLiveTuning, setPaused } from './main.js';
 import { DashboardScreen } from './vendor/webui/screens/DashboardScreen.js';
 import { ensureTooltips } from './vendor/webui/Tooltips.js';
 
@@ -39,6 +39,8 @@ const { store } = installDemoShim({
     onZonesChanged: () => rebuildZoneLights(),
     // Phase 4: every Dashboard tuning/mode PUT lands on the running scene.
     onConfigPatch: (applied, config) => applyLiveTuning(config),
+    // Pause (Aurora-calt): the scene freezes the lamps, as real bulbs hold their last color.
+    onPausedChanged: (paused) => setPaused(paused),
   },
 });
 setDemoStore(store);
@@ -55,7 +57,8 @@ ensureTooltips();
 // (Aurora-ifkn.7) and wires everything natively, so the demo mounts it
 // directly -- no subclass.
 //
-// Pause stays visible: the shim answers PUT /api/state, so it works.
+// Pause stays visible: the shim answers PUT /api/state and onPausedChanged
+// freezes the scene's lamps on their last color (Aurora-calt).
 // Stop hides itself on the shim's canStop: false (no daemon to stop).
 const appFacade = {
   navigate() {},

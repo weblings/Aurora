@@ -245,6 +245,7 @@ export function createRouter(store, hooks = {}) {
         return ok({ succeeded: false, error: 'running_bool_required' }, 400);
       }
       store.setPaused(!body.running);
+      hooks.onPausedChanged?.(store.isPaused());
       return ok({ succeeded: true, running: body.running });
     }
     if (method === 'GET' && path === '/api/monitors') {

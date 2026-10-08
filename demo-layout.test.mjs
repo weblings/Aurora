@@ -54,12 +54,16 @@ function ruleBlocks(selector) {
     reset.some((b) => /margin\s*:\s*0/.test(b) && /padding\s*:\s*0/.test(b) && /box-sizing\s*:\s*border-box/.test(b)),
     'scoped reset lives in demo-layout.css',
   );
-  const port = ruleBlocks('\\.db-port').find((b) => /overflow-x\s*:/.test(b));
+  const port = ruleBlocks('\\.db-port').find((b) => /font-family\s*:/.test(b));
   assert.ok(port, '.db-port body-equivalent rule exists');
   assert.ok(/background\s*:\s*var\(--aurora-bg\)/.test(port), 'port keeps the app background');
   assert.ok(/color\s*:\s*var\(--aurora-text-primary\)/.test(port), 'port keeps the app text color');
   assert.ok(/font-family\s*:\s*var\(--aurora-font\)/.test(port), 'port keeps the app font');
-  assert.ok(/overflow-x\s*:\s*clip/.test(port), 'port clips without becoming a scroll container');
+  // The body rule's horizontal clip belongs on the pane, not the port: .db-port
+  // is #screen-container, so clipping there cut the 21px overhang (Aurora-4jk4).
+  assert.ok(!/overflow-x\s*:/.test(port), 'port does not clip the overhang');
+  const pane = ruleBlocks('#dashboard-pane').find((b) => /padding\s*:/.test(b));
+  assert.ok(/overflow-x\s*:\s*(hidden|clip)/.test(pane), 'pane clips horizontally at its own edge');
 }
 
 console.log('demo-layout.test.mjs: ok');
