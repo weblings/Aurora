@@ -26,7 +26,7 @@ export class MacTrayTipScreen {
         <img src="${MAC_TRAY_GIF_URL}" alt="The Aurora icon in the macOS menu bar, opening a menu with Launch UI and Stop" class="mac-tray-tip-gif" />
         <div class="text-pair">
           <p class="text-primary">Aurora lives in your menu bar</p>
-          <p class="text-secondary">Click the Aurora icon for Launch UI or Stop.</p>
+          <p class="text-secondary">Click the Aurora icon for Launch UI, Pause / Resume, or Stop.</p>
         </div>
       </div>
       <div class="nav-footer-slot"></div>
