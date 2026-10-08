@@ -52,6 +52,7 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `hue-output-analysis` | [archive/HueOutputAnalysis.md](archive/HueOutputAnalysis.md) | Hue::Api / Auth / Stream — Conversion analysis |
 | `ifkn2-page-css-split` | [log/2026-10-08-ifkn2-page-css-split.md](log/2026-10-08-ifkn2-page-css-split.md) | Aurora-ifkn.2 closed: shell.css page-wide rules split into page-only page.css |
 | `ifkn3-stop-capability` | [log/2026-10-08-ifkn3-stop-capability.md](log/2026-10-08-ifkn3-stop-capability.md) | Aurora-ifkn.3: Dashboard Stop gated on a canStop capability, screen re-vendored identical |
+| `ifkn4-string-zone-ids` | [log/2026-10-08-ifkn4-string-zone-ids.md](log/2026-10-08-ifkn4-string-zone-ids.md) | Aurora-ifkn.4 closed: ZoneActiveToggle accepts string and numeric zone ids |
 | `ijus-shell-copy-fixes` | [log/2026-10-07-ijus-shell-copy-fixes.md](log/2026-10-07-ijus-shell-copy-fixes.md) | Aurora-ijus: shell error-copy audit — daemon leak, duplicate row, dead callback, closed |
 | `implementation-plan` | [planning/ImplementationPlan.md](planning/ImplementationPlan.md) | Low-scope implementation plan |
 | `implementation-plan-directory-layout` | [archive/ImplementationPlan_DirectoryLayout.md](archive/ImplementationPlan_DirectoryLayout.md) | Implementation plan: proposed directory layout (superseded) |

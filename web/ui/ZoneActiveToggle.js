@@ -15,6 +15,14 @@ import { applyTooltip } from './Tooltips.js';
 // selected, and not huenicorn's two-column drag-and-drop, which solves a
 // different (open-ended bridge-light membership) problem Aurora doesn't
 // have -- Aurora's zone count is fixed.
+// dataset.zoneId always arrives as a string; native zoneIds are numbers
+// (uint8) while other rigs use string ids, so match either form.
+// Returns undefined for an unknown id -- the caller guards, never throws.
+// (Aurora-ifkn.4: upstreamed from the demo fork's string-zone-ids seam.)
+export function findZone(zones, rawId) {
+  return zones.find((z) => z.zoneId === rawId || z.zoneId === Number(rawId));
+}
+
 export class ZoneActiveToggleList {
   // zones: live zone array (mutated in place, same convention as
   // ZoneCanvas). zoneLabel(zone) is injected -- this component knows
@@ -47,10 +55,10 @@ export class ZoneActiveToggleList {
 
     this.container.querySelectorAll('input[type="checkbox"]').forEach((input) => {
       input.addEventListener('change', (e) => {
-        const zoneId = Number(e.currentTarget.dataset.zoneId);
-        const zone = this.zones.find((z) => z.zoneId === zoneId);
+        const zone = findZone(this.zones, e.currentTarget.dataset.zoneId);
+        if (!zone) return;
         zone.active = e.currentTarget.checked;
-        this._queue.queue(zoneId, { active: zone.active });
+        this._queue.queue(zone.zoneId, { active: zone.active });
       });
     });
   }
