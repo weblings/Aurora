@@ -11,6 +11,7 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `3qh-mac-capture-width-hint` | [log/2026-10-01-3qh-mac-capture-width-hint.md](log/2026-10-01-3qh-mac-capture-width-hint.md) | Aurora-3qh: Mac video mode resized full-Retina frames every tick |
 | `5i3-local-api-hardening` | [log/2026-10-02-5i3-local-api-hardening.md](log/2026-10-02-5i3-local-api-hardening.md) | Aurora-5i3: local API hardening before any HA credential exists |
 | `5y0-nan-state-self-heal` | [log/2026-10-01-5y0-nan-state-self-heal.md](log/2026-10-01-5y0-nan-state-self-heal.md) | Aurora-5y0: 9ca follow-up — NaN state self-heal, one float→Color cast |
+| `7ybx-dev-banner-errors` | [log/2026-10-07-dev-banner-errors.md](log/2026-10-07-dev-banner-errors.md) | Aurora-7ybx: dev banner-error injection tooling (closed) |
 | `98pr-webui-banner-x` | [log/2026-10-06-98pr-webui-banner-x.md](log/2026-10-06-98pr-webui-banner-x.md) | Aurora-98pr: saved-not-applied errors move to the banner; banner X (closed) |
 | `9ca-fromhsv-nan-guard` | [log/2026-10-01-9ca-fromhsv-nan-guard.md](log/2026-10-01-9ca-fromhsv-nan-guard.md) | Aurora-9ca: NaN/Inf into Color::fromHSV's uint8_t cast — fixed |
 | `9ig-pipeline-to-core` | [log/2026-10-01-9ig-pipeline-to-core.md](log/2026-10-01-9ig-pipeline-to-core.md) | Aurora-9ig: Pipeline, PipelineHost and Registry moved into core |
@@ -37,6 +38,7 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `external-control-planning` | [log/2026-10-02-external-control-planning.md](log/2026-10-02-external-control-planning.md) | External control planning, Muse and Hyperion survey |
 | `first-scan` | [archive/FirstScan.md](archive/FirstScan.md) | Huenicorn pipeline scan |
 | `future-steamos-support` | [planning/FutureSteamOSSupport.md](planning/FutureSteamOSSupport.md) | SteamOS / Steam Deck support |
+| `gtkd-bare-bus-fix` | [log/2026-10-07-gtkd-bare-bus-fix.md](log/2026-10-07-gtkd-bare-bus-fix.md) | Aurora-gtkd closed: fake bare bus no longer activates the real xdg-desktop-portal |
 | `gui-launch-ux` | [archive/GUILaunchUX.md](archive/GUILaunchUX.md) | GUI Launch UX |
 | `h45-upstream-fix-branches` | [log/2026-10-01-h45-upstream-fix-branches.md](log/2026-10-01-h45-upstream-fix-branches.md) | Aurora-h45: upstream fix branches for huenicorn — fixes done, MRs planned |
 | `h457-audio-permission-banner-row` | [log/2026-10-06-h457-audio-permission-banner-row.md](log/2026-10-06-h457-audio-permission-banner-row.md) | Aurora-h457: Mac audio permission becomes a daemon-pushed banner row (closed) |
@@ -121,4 +123,5 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `windows-failed-resume-n5ly` | [log/2026-10-06-windows-failed-resume-n5ly.md](log/2026-10-06-windows-failed-resume-n5ly.md) | Windows failed-resume verification closes Aurora-n5ly |
 | `windows-input-analysis` | [archive/WindowsInputAnalysis.md](archive/WindowsInputAnalysis.md) | Windows Input plugin — analysis pass |
 | `windows-pause-verification` | [log/2026-10-04-windows-pause-verification.md](log/2026-10-04-windows-pause-verification.md) | Windows verification of pause/resume and kea; Aurora.exe has no --help/--version (Aurora-v3in) |
+| `x1lh-error-shell-visual-polish` | [log/2026-10-07-error-shell-visual-polish.md](log/2026-10-07-error-shell-visual-polish.md) | Aurora-x1lh: error shell visual polish (closed) |
 | `yzp4-takeover-unification` | [log/2026-10-06-yzp4-takeover-unification.md](log/2026-10-06-yzp4-takeover-unification.md) | Aurora-yzp4: takeover unified to heading-only "Aurora has stopped" (closed) |
