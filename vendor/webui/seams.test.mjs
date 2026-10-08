@@ -12,8 +12,16 @@ const vendor = fileURLToPath(new URL('.', import.meta.url));
 const read = (p) => readFileSync(join(vendor, p), 'utf8');
 
 const dashboard = read('screens/DashboardScreen.js');
-assert.ok(dashboard.includes('DEMO SEAM no-stop-button'), 'Stop cut marker present');
-assert.ok(!dashboard.includes("trailingButton: { label: 'Stop'"), 'Stop wiring stays cut');
+// Stop capability (Aurora-ifkn.3): the fork's hand-cut Stop wiring is gone.
+// The screen is byte-identical to web/ui and gates the button on GET
+// /api/state's canStop (default true); the shim answers false, so the demo
+// shows no Stop while the app shows it. POST /api/stop needs no shim route.
+assert.equal(dashboard, read('../../../ui/screens/DashboardScreen.js'), 'vendored screen identical to web/ui');
+assert.equal(read('CaptureSource.js'), read('../../../ui/CaptureSource.js'), 'capture source identical (carries the putModeSwitch the screen needs)');
+assert.equal(read('MacPermissionRecovery.js'), read('../../../ui/MacPermissionRecovery.js'), 'permission recovery identical (new vendored module)');
+assert.ok(dashboard.includes('canStop'), 'dashboard gates Stop on the capability flag');
+assert.ok(!dashboard.includes('DEMO SEAM no-stop-button'), 'hand-cut Stop seam gone');
+assert.ok(read('../../demo-shim.js').includes('canStop: false'), 'shim turns Stop off');
 
 const shell = read('styles/shell.css');
 assert.ok(shell.includes('.db-port *'), 'reset scoped to dashboard pane');
@@ -32,14 +40,16 @@ for (const [name, text] of [['Dropdown.js', dropdown], ['NavFooter.js', navFoote
 assert.ok(dropdown.includes('vendor/webui/icons/chevron-down.svg'), 'dropdown chevron retargeted');
 assert.ok(navFooter.includes('vendor/webui/icons/back-arrow.svg'), 'back arrow retargeted');
 
-// Logo port (Aurora-tnk): the vendored top bar supports the brand mark and
-// the Dashboard passes it with a fork-local path -- never page-relative.
+// Logo port (Aurora-tnk, upstreamed by Aurora-ifkn.1): the brand mark
+// resolves against the screen module, so the identical copy works from any
+// mount -- never a page- or fork-relative path.
 const topBar = read('topBar.js');
 assert.ok(topBar.includes('logo = null'), 'vendored top bar takes the logo option');
 assert.ok(topBar.includes('top-bar-logo'), 'vendored top bar renders the brand mark');
 const dashTopBar = (dashboard.match(/renderTopBar\([^;]*\);/g) || []).join('\n');
-assert.ok(dashTopBar.includes("logo: { src: 'vendor/webui/icons/aurora-logo.png'"), 'dashboard brand mark uses the fork-local artwork');
-assert.ok(!/['"]icons\/aurora-logo\.png/.test(dashTopBar), 'brand mark stays off the page-relative icons/ path');
+assert.ok(dashTopBar.includes('logo: { src: LOGO_URL'), 'dashboard passes the module-relative brand mark');
+assert.ok(dashboard.includes("new URL('../icons/aurora-logo.png', import.meta.url)"), 'brand mark resolves against the module');
+assert.ok(!dashTopBar.includes('vendor/webui/icons/aurora-logo.png'), 'no fork-local artwork path');
 assert.ok(read('styles/shell.css').includes('.top-bar-logo'), 'brand-mark CSS vendored');
 
 // Version footer (Aurora-qdk, mirrors web/ui): the shim answers
@@ -75,19 +85,21 @@ const canvas = read('ZoneCanvas.js');
 assert.ok(canvas.includes('refreshActive()'), 'Canvas exposes bool re-sync');
 assert.ok(canvas.includes('this.onActiveChange?.(zone)'), 'Canvas notifies owner on flip');
 
-const dashScreen = read('screens/DashboardScreen.js');
-assert.ok(dashScreen.includes('onChange: () => this.zoneCanvas?.refreshActive()'),
-  'Bridge flips re-sync the Zone Mapping bool');
-assert.ok(dashScreen.includes('onActiveChange: () => this._renderBridgeZoneList()'),
-  'Zone Mapping flips re-render the Bridge list');
+// Toggle-sync (MANIFEST): the identical screen wires no canvas<->list sync
+// (upstream has no sibling consumer), so demo-boot.js's DemoDashboardScreen
+// re-attaches both directions on the shared zone objects.
+const boot = read('../../demo-boot.js');
+assert.ok(boot.includes('DemoDashboardScreen'), 'demo subclass carries the seam');
+assert.ok(boot.includes('onActiveChange'), 'canvas flips re-render the Bridge list');
+assert.ok(boot.includes('refreshActive()'), 'Bridge flips re-sync the canvas bool');
 
 // Pending highlight (Aurora-axoz, mirrors web/ui): the toggle outlines the
 // clicked option while the switch is in flight and fills only once the
 // running flags confirm it. The shim derives state from its config, so a
 // demo switch confirms at once -- no new shim route needed.
 assert.ok(read('CaptureSource.js').includes('isSwitchConfirmed'), 'confirm helper ported');
-assert.ok(dashScreen.includes('pendingMode'), 'dashboard tracks the in-flight switch');
-assert.ok(dashScreen.includes('isSwitchConfirmed'), 'dashboard fills only on pipeline confirm');
+assert.ok(dashboard.includes('pendingMode'), 'dashboard tracks the in-flight switch');
+assert.ok(dashboard.includes('isSwitchConfirmed'), 'dashboard fills only on pipeline confirm');
 assert.ok(read('styles/forms.css').includes('.segmented-btn.pending'), 'pending outline CSS vendored');
 
 console.log('vendor seam checks passed.');

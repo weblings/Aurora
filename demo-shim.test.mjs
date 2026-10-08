@@ -47,6 +47,8 @@ function testRouter(seed) {
   const route = createRouter(store);
   assert.deepEqual(route('GET', '/api/state').json, {
     paused: false,
+    // No Stop button on the static page (Aurora-ifkn.3).
+    canStop: false,
     usesVideoInput: true,
     usesAudioInput: false,
     samplesZones: true,

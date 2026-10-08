@@ -14,6 +14,8 @@ import { installDemoShim } from './demo-shim.js';
 import { setDemoStore } from './demo-state.js';
 import { ROOM_ZONE_MAP, rebuildZoneLights, applyLiveTuning } from './main.js';
 import { DashboardScreen } from './vendor/webui/screens/DashboardScreen.js';
+import { ZoneActiveToggleList } from './vendor/webui/ZoneActiveToggle.js';
+import { DAEMON_UNREACHABLE } from './vendor/webui/messages.js';
 import { ensureTooltips } from './vendor/webui/Tooltips.js';
 
 // Phase 5: tooltip copy ships as a generated static fixture (see
@@ -51,11 +53,55 @@ applyLiveTuning(store.getConfig());
 // static tables land, and Tooltips degrades to {} on failure.
 ensureTooltips();
 
+// Demo Dashboard (Aurora-ifkn.3): the vendored screen stays byte-identical
+// to web/ui, so the fork-only toggle-sync wiring lives here instead.
+// Upstream has no sibling consumer for the two zone views, so the vendored
+// modules keep their demo callbacks (ZoneCanvas onActiveChange/
+// refreshActive, ZoneActiveToggleList onChange) and this subclass re-attaches
+// both directions: a canvas flip re-renders the Bridge list, a Bridge flip
+// re-syncs the canvas bool. Both views share the same zone objects, so this
+// is repaint-only, never data flow.
+//
+// Pause stays visible: the shim answers PUT /api/state, so it works.
+// Stop hides itself on the shim's canStop: false (no daemon to stop).
+class DemoDashboardScreen extends DashboardScreen {
+  _renderZoneMappingContent() {
+    super._renderZoneMappingContent();
+    if (this.zoneCanvas) {
+      this.zoneCanvas.onActiveChange = () => this._renderBridgeZoneList();
+    }
+  }
+
+  // Mirrors DashboardScreen._renderBridgeZoneList plus the list->canvas
+  // onChange (kept in sync by hand until Aurora-ifkn.7 re-vendors).
+  _renderBridgeZoneList() {
+    const slot = this.bridgeSection?.content.querySelector('.db-bridge-zones-slot');
+    if (!slot) return;
+    slot.innerHTML = '';
+    if (this.zones.length === 0) return;
+    new ZoneActiveToggleList(slot, {
+      zones: this.zones,
+      zoneLabel: (zone) => this._zoneLabel(zone),
+      onError: (message) => {
+        if (message === DAEMON_UNREACHABLE) { this.app.checkNow(); return; }
+        this._setTopTierError('zoneToggle', message);
+      },
+      onSuccess: () => this._clearTopTierError('zoneToggle'),
+      onUnreachable: () => this.app.checkNow(),
+      tooltipKey: 'zones.active',
+      onChange: () => this.zoneCanvas?.refreshActive(),
+    });
+  }
+}
+
 const appFacade = {
   navigate() {},
+  // The shim always answers: an unreachable signal never fires, so every
+  // immediate re-check reads as reachable (Aurora-ifkn.3).
+  async checkNow() { return true; },
 };
 
-const screen = new DashboardScreen(appFacade);
+const screen = new DemoDashboardScreen(appFacade);
 await screen.mount(document.getElementById('screen-container'));
 // Demo scope: no capture devices exist on a static page (the monitor and
 // sink keys are ledgered no-ops), so the top tier is hidden outright via
