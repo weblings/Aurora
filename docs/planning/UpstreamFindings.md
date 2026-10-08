@@ -182,7 +182,7 @@ last keeps the vector sorted either way.
 **Status:** Fixed and covered by a regression test in Aurora's port
 (`input/linux/tests/LinuxInputTests.cpp`) — see `archive/LinuxCaptureAnalysis.md`.
 
-## Pipewire (`XdgDesktopPortal`)
+## Pipewire (`XdgDesktopPortal`, `PipewireGrabber`)
 
 ### 5. `onCreateSessionResponseReceivedCallback` doesn't return on a denied/cancelled session
 
@@ -304,6 +304,73 @@ in-repo regression test, but 5 and 9 are reproducible offline: a small
 Python fake of the ScreenCast portal under `dbus-run-session` that answers
 CreateSession or SelectSources with `Response(1)`, plus a driver copying
 `PipewireGrabber`'s constructor wait and `_stop()` teardown.
+
+### 12. `PipewireGrabber::displayRefreshRate()` returns an unreduced fraction's numerator as Hz
+
+**Location:** `src/Grabber/GnuLinux/Pipewire/PipewireGrabber.cpp:101-104`
+(checked at `origin/develop` `cfcaeb4`)
+
+```cpp
+return m_pwData.format.info.raw.max_framerate.num;
+```
+
+`max_framerate` is a `spa_fraction`, and producers don't reduce it. On first
+run `src/Core/Runtime.cpp:87-88` saves this value as `refreshRate`, and
+`CoreService::maxRefreshRate()`/`setRefreshRate()` use it as the cap.
+
+**Reproduced 2026-10-08** on Ubuntu 24.04, GNOME 46.0 Wayland, libpipewire
+1.0.5: a driver built from huenicorn's own `PipewireGrabber.cpp`,
+`XdgDesktopPortal.cpp` and `Config.cpp`, run against the real portal with an
+empty config dir, negotiated `max_framerate` `15729223/262144` (60.002 Hz).
+`displayRefreshRate()` returned 15729223 and `config.json` saved
+`"refreshRate": 15729223`.
+
+**Effect: extrapolated, not observed in huenicorn.** Nobody has run a full
+huenicorn build with this value. What follows comes from reading huenicorn's
+code and from what the same value did to Aurora (`Aurora-k7p`), where it
+wedged the daemon:
+- `Timing::fromHertz` gives a ~64 ns tick, so `LoopRegulator::sync()` never
+  sleeps. The runtime loop grabs, processes and streams as fast as it can:
+  likely about one CPU core while running.
+- Every overrun logs "Scheduled interval has been exceeded ... Please reduce
+  refresh rate", so likely one warning per loop pass.
+- Streaming to the bridge is likely far above the ~50-60 Hz it expects.
+- The value is saved, so it survives restarts. Lowering it in the web UI
+  should work, since the UI's cap is the same bogus number.
+
+**How to measure it in full huenicorn, if someone wants to:**
+1. Build: the fork with the scratchpad Mbed TLS 3.6.7 (or 4.x) install via
+   `-DCMAKE_PREFIX_PATH`, `HUENICORN_FETCH_DEPS=ON` for json/httplib/glm. See
+   the huenicorn Mbed TLS entry in [[lesson-build-toolchain]].
+2. Bridge: `Runtime::_initSettings()` needs a loadable entertainment
+   configuration before the loop starts. Either Aurora's
+   `tools/fake-hue-bridge` (REST only; DTLS fails, but `Streamer` swallows it
+   and the loop still runs. Check that `127.0.0.1:18443` works as
+   `bridgeAddress`), or a real bridge paired via the link button for traffic
+   and light behavior.
+3. Start from a config with `refreshRate` 0 on GNOME Wayland, select a
+   monitor, and confirm `config.json` saves the raw numerator.
+4. Measure 30 s each on `develop` and on the fix: CPU (`pidstat -p <pid> 1`),
+   warning lines per second in stdout, web UI request latency (`curl -w
+   '%{time_total}'` on a few endpoints) while the loop runs, and with a real
+   bridge, sends per second (`strace -f -c -e trace=sendto,write`) plus a
+   look at the lights.
+5. Expect develop to show high CPU and a warning flood. The fix should show
+   about 60 ticks per second.
+
+**Suggested fix:** return `num / denom`, with `denom == 0` returning 0
+(matching Aurora's `reduceFramerate`). In huenicorn a 0 reaches
+`Config::setRefreshRate`, which clamps it to 1 Hz. That edge has never been
+seen (GNOME sends a real denominator), but the MR should name it. An upper
+clamp in `Config::setRefreshRate` is optional hardening, left out to keep the
+change minimal.
+
+**Status:** Fixed in Aurora's port (`Aurora-k7p`, `reduceFramerate` in
+`input/linux`). Upstream branch `fix/reduce-max-framerate` (`Aurora-h45.20`), also in MR 3's
+`fix/capture-pipeline` after 4.
+Verified at unit level only: the h45.19 driver on the fix branch, with the
+same portal session, returns 60 from `15729223/262144` and saves
+`"refreshRate": 60`. Not run in full huenicorn.
 
 ## Hue::Api (`ApiTools`, `EntertainmentConfigurationSelector`)
 
@@ -434,7 +501,7 @@ heads-up issue, the hardware check, and sending.
   |---|---|---|
   | Hue API robustness | 7, 8, 11 | 7 and 8 in the configuration-loading startup path, both reproduced (startup termination, debug-mode iterator abort); 11 (DTLS leak) added 2026-10-08 |
   | Screencast portal failure handling | 5, 9, 10, 6 | All `XdgDesktopPortal.cpp`, one pattern; reproduced with a fake portal (segfault, hangs, leak) |
-  | Capture and image pipeline fixes | 3, 1, 2, 4 | 1 needs 3, 2 needs 1; 4 rides along last (same grabber → downsample path, trivial, no measured effect) |
+  | Capture and image pipeline fixes | 3, 1, 2, 4, 12 | 1 needs 3, 2 needs 1; 4 rides along (same grabber → downsample path, trivial, no measured effect); 12 (unreduced refresh rate) added 2026-10-08, unit-verified only |
 
 - A short heads-up issue goes first ("found while porting, MRs to follow,
   happy to restructure"), so the maintainer can ask for a different split.
@@ -467,7 +534,8 @@ heads-up issue, the hardware check, and sending.
 **Related Aurora bug:** Aurora's own port carries 5 and 9 half-fixed and 10
 unfixed (see their status above) — tracked separately as `Aurora-p91`.
 
-**Candidates after 1.1.0:** 11 above (`Aurora-h45.18`), and an unreduced
-PipeWire `refreshRate` still to verify (`Aurora-h45.19`); see
-[[h45-post-110-upstream-sweep]]. 11 joins MR 1 (owner, 2026-10-08); the
-heads-up issue is left as is, the maintainer gets the update when they reply.
+**Candidates after 1.1.0:** 11 (`Aurora-h45.18`, in MR 1 by owner decision
+2026-10-08) and 12 (confirmed by `Aurora-h45.19`, fix `Aurora-h45.20`, in MR 3 by owner
+decision 2026-10-08); see
+[[h45-post-110-upstream-sweep]]. The heads-up issue is left as is; the
+maintainer gets the update when they reply.
