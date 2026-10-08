@@ -1,6 +1,6 @@
 ---
 name: light-viz-stack
-description: Bring up / tear down the fake-Hue light viz stack (fake bridge, relay, Aurora, viz page) — use when you need a running app streaming frames without Hue hardware, e.g. to validate pipeline behavior, tray/tick-loop bugs, or the viz tool. Windows, Mac, Linux.
+description: Bring up / tear down the fake-Hue light viz stack (fake bridge, relay, Aurora, viz page) — use when you need a running app streaming frames without Hue hardware, e.g. to validate pipeline behavior, tray/tick-loop bugs, or the viz tool. Also the way to show the shell error banner live (`up --banner-errors 1|2`, dev-only /api/dev/errors) instead of building a throwaway harness. Windows, Mac, Linux.
 allowed-tools: Bash, Read
 ---
 
@@ -15,6 +15,23 @@ py tools/light-viz-relay/devstack.py up      # Windows (python3 on Mac/Linux)
 py tools/light-viz-relay/devstack.py status
 py tools/light-viz-relay/devstack.py down    # always tear down when done
 ```
+
+Need to show the shell's error banner live (a CSS/copy change to a
+`status-text-error` row, the collapsed "N problems" summary, etc.) instead
+of a real failure? `up --banner-errors 1|2` injects 1 or 2 generic errors
+through the dev-only `POST /api/dev/errors` route (`AURORA_DEV_ERRORS=1`,
+gated off in release builds) once the stack is up, and `POST
+/api/dev/errors` / `/api/dev/errors/remove` work standalone against an
+already-`up` stack for custom source/message text (e.g. to check wrapped
+2/3-line error text). Don't build a standalone harness page for this —
+`AURORA_WEBUI_SOURCE_DIR` resolves to the real `web/ui` checkout with
+`Cache-Control: no-store`, so edits to the real markup/CSS are live on
+refresh against the real app, no rebuild needed.
+
+By default `up` captures the live screen (`--input live`: `windows` / `mac` /
+`linux`). Use `--input dummy` only when the user asks for the dummy input.
+Live capture may raise a Screen Recording (Mac) or portal (Linux Wayland)
+prompt the user must accept.
 
 `up` starts everything, drops in the 4-zone zone map, sets the fake
 connection and active output over REST, and waits for a frame on the SSE
@@ -36,13 +53,15 @@ frames on the SSE endpoint yourself.
    in after the app is up.
 2. Frames did not flow until output was activated: `PUT` (not POST)
    `/api/config` `{"activeOutputNames":["hue"],"nuxCompleted":true}` (plus
-   `"activeInputName":"windows"` on Windows, `"dummy"` on Mac/Linux, where an
-   unset input leaves the pipeline idle by design), after `POST
+   `"activeInputName"`: `windows` / `mac` / `linux` by default, `dummy` only
+   on request; an unset input leaves the pipeline idle by design), after `POST
    /api/hue/connection` with the fake credentials
    (`tools/light-viz-relay/README.md`, "On Windows").
 3. Serve `web/demo/` with a `ThreadingHTTPServer` with
    `request_queue_size = 256`, never plain `http.server` (5-slot backlog
-   resets viz.html's module fetches; `docs/lessons/build-toolchain.md`).
+   resets viz.html's module fetches; `docs/lessons/build-toolchain.md`),
+   and send `Cache-Control: no-store` so an edited module is never mixed
+   with a cached one (Aurora-57ct, web-testing caching lesson).
 4. Windows: `py` not `python3`; `fake_bridge.py` needs `openssl`
    (`C:\Program Files\Git\usr\bin`).
 5. The app log can be empty (stdout buffering); find the WebUI port by
@@ -52,7 +71,22 @@ frames on the SSE endpoint yourself.
 
 - Frames all near-black/dark gray just means a dark screen; put something
   bright on it. `PUT /api/config {"activeInputName":"dummy"}` gives a
-  drifting synthetic signal without depending on the screen.
+  drifting synthetic signal without depending on the screen (same as
+  `up --input dummy`).
+- `up` times out on a frame: read `app.log` for `Could not bind WebUI to
+  0.0.0.0:8215`; a hand-launched Aurora owns the port (`lsof -nP
+  -iTCP:8215 -sTCP:LISTEN`). Quit only a process you started.
+- The stack's app is a child of your terminal, so on Mac it runs under the
+  terminal's Screen Recording grant. Denied-state checks need `Aurora.app`
+  launched on its own (`open ... --args --fresh`); the stack's bridge, relay
+  and viz can stay up for it.
+- The first browser tab the app opens at launch (`--fresh` means no
+  `config.json`, i.e. first setup, which auto-opens the browser) shows the NUX, because it
+  loads before `up` sets `nuxCompleted` over REST; a refresh shows the
+  Dashboard (owner-verified 2026-10-05). That first tab can be used to walk
+  the NUX (e.g. Capture source), but input and output are already configured
+  by then, so a first-launch "auto-connects Video on landing" check is not
+  representative; use a hand-launched `Aurora.app --fresh` for that.
 - No frames: check `app.log` in the state dir, then `tools/light-viz-relay/
   README.md` Troubleshooting.
 
@@ -64,8 +98,9 @@ TV_Room.glb serve 200, `down` leaves no listeners on
 8000/8215/18245/18443). Mac differences the script now handles: the config
 root is `$TMPDIR/aurora-fresh` (not `/tmp/aurora-fresh`; the app logs "Config
 root:"), and with no input set no frames flow, so it sets `activeInputName`
-to `dummy` (synthetic signal; Windows uses `windows`, Linux uses `dummy`).
-`dummy` gives the same colour on all 4 zones, so it proves the chain but not
-the zone map; for per-zone colours use `"activeInputName":"mac"` (triggers a
-Screen Recording prompt). `validate.py passthrough` needs its own launch (tap
+to the live input (`windows` / `mac` / `linux`; Mac triggers a Screen
+Recording prompt). The earlier verification runs used `dummy` on Mac/Linux;
+live capture is the default since 2026-10-04; verified on Linux Wayland (`linux` input, per-zone colours). The portal dialog blocks the config PUT until accepted (120s timeout); Mac/Windows not yet re-verified.
+`up --input dummy` gives the same colour on all 4 zones (drifting), so it
+proves the chain but not the zone map. `validate.py passthrough` needs its own launch (tap
 address env), not this stack.

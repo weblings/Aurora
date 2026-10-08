@@ -1,5 +1,7 @@
 # Debugging method
 
+Id: lesson-debugging-method
+
 Evidence handling, verification altitude, oracles, timing, diagnosis vs fix. See [README.md](README.md) for filing rules.
 
 ---
@@ -511,7 +513,7 @@ Applies-when: accepting a fix whose proof is "configures/builds with option X of
 Tags: debugging, verification, fixtures, resolver-logic
 Applies-when: building resolution logic with an override/fallback branch (e.g. a supersede or redirect chain layered on top of direct lookup)
 
-Building `check-links.sh`'s `[[id]]` resolver (`Aurora-lmn.2`), the first implementation checked "does this id resolve to a real file" before checking "does it have a `Superseded-by` chain" -- so a superseded id whose own file still physically existed (the realistic case: the old doc is marked retired but not yet deleted) resolved directly and silently skipped the chain-following/warning path entirely. Fixtures for the other new paths (missing id, bad anchor, duplicate id) all passed regardless, since none of them exercised a superseded-but-still-present file -- the override branch looked correct because nothing had tried to prove it was actually reachable.
+Building `check-links.py`'s `[[id]]` resolver (`Aurora-lmn.2`), the first implementation checked "does this id resolve to a real file" before checking "does it have a `Superseded-by` chain" -- so a superseded id whose own file still physically existed (the realistic case: the old doc is marked retired but not yet deleted) resolved directly and silently skipped the chain-following/warning path entirely. Fixtures for the other new paths (missing id, bad anchor, duplicate id) all passed regardless, since none of them exercised a superseded-but-still-present file -- the override branch looked correct because nothing had tried to prove it was actually reachable.
 
 **Fix:** wrote a fixture where the *normal* resolution path would also technically succeed (an id with both `Id:` and `Superseded-by:` on the same still-existing file), which caught the bug immediately; reordered the resolver to check `Superseded-by` first, unconditionally. General principle: for any override/fallback branch, "resolves correctly when nothing else could" is a weaker test than "resolves correctly when something else also could" -- test the case that would let the wrong branch win by accident.
 
@@ -562,7 +564,396 @@ The UserNotifications bead said independent research turned up "UNUserNotificati
 Tags: process, verification, git, scripts
 Applies-when: chaining a docs/lessons/test check before a commit or bead close, or trimming its output
 
-`python3 docs/check-links.sh | tail -1; ... git commit` printed a dead-link line, but the pipeline's exit status is `tail`'s (0), and the `;`-joined commit ran regardless. The commit landed with a failing link check and needed a fix-up commit. Reading only the last line of output is the same trap one step removed: it showed "lessons OK" while the line above it was the failure.
+`python3 docs/check-links.py | tail -1; ... git commit` printed a dead-link line, but the pipeline's exit status is `tail`'s (0), and the `;`-joined commit ran regardless. The commit landed with a failing link check and needed a fix-up commit. Reading only the last line of output is the same trap one step removed: it showed "lessons OK" while the line above it was the failure.
 
-**Fix:** let the validator's own status gate the next step (`python3 docs/check-links.sh && bash docs/check-lessons.sh && git commit ...`), print its full output when it fails rather than a trimmed tail, and if trimming is needed use `set -o pipefail`. Run the checks and the commit as separate steps so a red result is read before anything is staged.
+**Fix:** let the validator's own status gate the next step (`python3 docs/check-links.py && bash docs/check-lessons.sh && git commit ...`), print its full output when it fails rather than a trimmed tail, and if trimming is needed use `set -o pipefail`. Run the checks and the commit as separate steps so a red result is read before anything is staged.
 
+
+---
+
+## A UI that "doesn't update" after an action can be a slow server, and a new root cause can sit on a known mechanism -- time the endpoints, sample the process, then search beads by mechanism
+Tags: debugging, webui, performance, locks, beads, process
+Applies-when: a UI control looks stuck after an action whose backend effect did happen
+
+Switching the Mac Dashboard to Video changed the lights, but the mode toggle stayed on Audio (Aurora-3qh). `GET /api/config` already said Video, so the state was right and the render was late: `_switchMode` re-renders only after `_loadAll`'s fetches, and timing each endpoint with `curl -w %{time_total}` showed `/api/monitors`/`/api/zones` at 2-30s while the rest were instant. `ps` showed ~105% CPU; `sample <pid> 3` put 2349/2360 tick-thread samples in `cv::resize` (full-Retina ScreenCaptureKit frames downscaled on the CPU every tick), so the tick overran and held the pipeline lock without sleeping. I filed that as one new bug -- but the starvation half was already `Aurora-cgr`, filed from 1000Hz testing; the new finding was only the *trigger* (60Hz is enough on Retina).
+
+**Fix:** for a stale-looking control, compare the backend's state to the UI first, then time every request the re-render waits on, then `sample` the process before theorizing. Before filing, `bd search` the *mechanism* (starvation, lock, tick), not just the symptom, and scope the new bead to what's actually new, linked to the existing one.
+
+---
+
+## A findings write-up's "suggested fix" is a hypothesis -- re-check its premise against the code and library headers before implementing it
+Tags: debugging, verification, upstream, review
+Applies-when: implementing fixes from an existing analysis or findings doc (yours or anyone's), especially one written while porting other code
+
+Turning [[upstream-findings]] into fix branches (`Aurora-h45`), three of the
+first four findings carried a wrong premise even though each bug was real.
+1's "every grabber tags BGR" was false: honoring the tag would have swapped
+red/blue. 2's "COLOR_RGBA2RGB assumes RGBA" was false: it's an alias of
+`COLOR_BGRA2BGR`. 5's "add `return;`" would have hung startup on an
+unsettled promise. Each was caught only by reading the code the claim was
+about: the tag producers, `imgproc.hpp`, and the future's waiter. The same
+pattern as "Grep the code for its own recorded constraints before
+recommending a design".
+
+**Fix:** for each finding, before writing the fix, verify the "why it hasn't
+fired" claim and the suggested fix's mechanism: grep every producer of a
+value now being trusted, read library enum/header definitions behind a
+named constant, and trace who waits on any state an early return skips.
+Correct the write-up in the same pass.
+
+---
+
+## Build a realistic throwaway artifact before planning around an estimated size or format
+Tags: planning, measurement, scratchpad, toolchain
+Applies-when: a plan's risk depends on how big or what shape a generated artifact will be (bundle, header, binary)
+
+Aurora-lzj's plan carried "React + xyflow minified is likely 200 KB+" and an unverified MSVC limit as its main risk. A 10-minute scratchpad scaffold (Vite 8 + React 19 + @xyflow/react, base `/graph-editor/`) replaced the guess with numbers and turned up four things no estimate would have: one 399 KB JS file; `??!` sequences in the minified output (a GCC trigraph warning); Vite 8's built-in `build.license`, so no extra plugin was needed; and Vite not emptying an `outDir` outside its project. Running the real encoder and a compiled round-trip over that output then showed GCC was fine and isolated MSVC as the only unknown.
+
+**Fix:** when a plan's risk hinges on artifact size or format, make the smallest realistic one in the scratchpad and run it through the real downstream steps (encoder, compiler, server). Record the measured numbers in the bead, not the estimate.
+
+---
+
+## Add a control run (old vs old) and event-driven waits before calling a browser difference a regression
+Tags: browser, playwright, flakiness, verification, baseline
+Applies-when: comparing a flow before and after a change by driving a real browser against a live app
+
+Aurora-4y9's browser walk first showed the new code "stalling" on a Continue press in 2 of 3 runs while the old code never did. Two things were wrong with the comparison. A fixed `sleep(1800)` after each click was shorter than a slow save, so the stall was my harness. And once waits followed the screen change (poll until the root element or text differs, up to 10s), one path still varied, but old-vs-old varied too: one old run jumped to the Dashboard, another stopped at Zone Mapping.
+
+**Fix:** wait on a visible state change, never a fixed sleep. Run the old code against itself at least twice before reading any old/new difference; only outcomes that old never produces are evidence. Playwright is not installed here, but `createRequire('<RockyRoad>/v2/')` can load its `playwright` and the cached Chromium works headless.
+
+---
+
+## `pgrep -f` inside a wait loop matches the loop's own shell
+Tags: shell, pgrep, background-tasks, hang
+Applies-when: writing `until ! pgrep -f "<name>"; do sleep; done` in a command that also contains `<name>`
+
+The agent's Bash wrapper runs the whole command string via `bash -c`, so its command line contains the pattern and `pgrep -f` always finds itself. The loop never exits, and a background job built on it looks "running" forever with no output; a `pkill -f` pattern aimed at it then kills the wrapper too (exit 144).
+
+**Fix:** don't gate on `pgrep -f`; run the steps sequentially in one command, or wait on a pid (`kill -0 <pid>`) or an output file. If a pattern is needed, use the `[n]ode` trick so the pattern text doesn't match its own command line.
+
+---
+
+## Unsetting `DBUS_SESSION_BUS_ADDRESS` doesn't simulate "no session bus": GIO falls back to `$XDG_RUNTIME_DIR/bus`
+Tags: linux, dbus, libsecret, testing, failure-injection
+Applies-when: testing a D-Bus client's "no bus / no service" path (libsecret, portals, notifications)
+
+For Aurora-2dz's "no Secret Service" case, `env -u DBUS_SESSION_BUS_ADDRESS` still reached gnome-keyring, and the `[real]` test passed instead of skipping. On systemd sessions GIO finds the user bus socket at `$XDG_RUNTIME_DIR/bus` without the variable. The failure injection silently didn't happen.
+
+**Fix:** point it at a dead socket, `DBUS_SESSION_BUS_ADDRESS=unix:path=/nonexistent`. libsecret then fails with "Could not connect" (`G_IO_ERROR`, mapped to `Unavailable`). Check that the injected failure really occurred (status or skip message) before trusting a "passes" result.
+
+---
+
+## A Catch2 SIGSEGV with no debugger: install a vectored exception handler, link with `/MAP`, resolve the RVAs
+Tags: windows, segfault, catch2, msvc, stack-trace, map-file, bisect
+Applies-when: a test exe segfaults on Windows, `cdb`/WinDbg are not installed, and Catch2 only prints "Unknown expression after the reported line"
+
+Catch2 reports the last assertion that started, not where the crash is, and its SIGSEGV handler prints no stack. What worked, in order: (1) `std::cerr << ... << std::endl` markers (flushes before the crash) narrowed it to the first `client.Get` and then proved the route handler never ran; (2) swapping the real route for a trivial lambda showed it wasn't our code; (3) a temporary `AddVectoredExceptionHandler` in the test calling `CaptureStackBackTrace` and printing each frame's module and offset gave the crashing thread's frames; (4) relinking with `/MAP /DEBUG` (`-DCMAKE_EXE_LINKER_FLAGS_RELEASE="/MAP /DEBUG"`) and a short script mapping `preferred load address + RVA` to the nearest map symbol named `httplib::Server::process_request` on a `ThreadPool::worker` thread. Both the heredoc and `sed` mangled `
+` inside C string literals while patching, so use `std::endl`, or write patch scripts with the Write tool.
+
+**Fix:** keep the VEH snippet and map resolver as the first move for any Windows crash that has no debugger; the symbol names alone usually point at the cause (here, httplib compiled twice). Revert the instrumentation and the linker-flag cache entry afterwards.
+
+---
+
+## A cross-binary test that renames the binary changes more than the variable under test: vary one property at a time before recording a bug
+Tags: testing, experiment-design, false-positive, macos, keychain, binaries
+Applies-when: simulating "a rebuilt or updated app" by copying binaries to new names or paths, or about to file a bug found by such a harness
+
+Aurora-2dz copied one test binary to `A`, `B` and `C` to stand in for successive builds. Three things changed at once: the bytes, the file name and (for a while) the signature. Delete failed from `B`/`C` and I wrote it up as a Keychain bug in the bead, the planning doc and the log. Web research then pointed at the file name, and a rerun that changed only the directory (same name) and then only the bytes (new inode at the same path) both passed. The earlier ad-hoc rebuild runs, which kept the name, had already deleted fine; I hadn't compared them.
+
+**Fix:** before recording a bug from a simulation, list everything the harness changes, then vary one at a time. Compare against any earlier passing run of the same step. Make the harness mimic the real change (rebuild in place: same name and path, new bytes; use `rm` then `cp` to get a new inode so a cached signature doesn't kill the process). Mark early notes "unconfirmed" until that's done.
+
+---
+
+## Test a window race by firing the competing write from a fake's hook, then mutation-check the lock
+Tags: testing, concurrency, race, fakes, catch2
+Applies-when: writing a regression test for a lost update, or for an ordering or serialization guarantee between threads or entry points
+
+For the config race in Aurora-d6i7, threads and sleeps would have made a flaky test. Instead the fake output's `init()`, the slow step the real race hides in, calls a hook the test sets, and the hook does the competing write synchronously. The interleave is then exact on every run, and the test failed on the old code before the fix. For a serialization guarantee, run N clients against a deliberately slow callback that records the maximum number in flight. Then delete the lock and rerun: the test must fail (here 8 in flight, fields lost). A concurrency test that still passes without the lock proves nothing. Catch2 v3.6 (what core fetches) assertions are not thread-safe: worker threads count successes into atomics and the test thread asserts.
+
+Two traps hit the Aurora-c0g version of this. A "did the lock stay free?" probe built on `std::async` deadlocks exactly when the bug is present: the future's destructor waits for the blocked task, while the code holding the lock waits for the hook. And an interrupted mutation run leaves the mutated source behind, because the restore step never executes.
+
+Two more from Aurora-d3ec's host-status tests. A fake's hook fires once *per output* (the fake registry has two), so a hook that sets a `std::promise` or blocks must guard with a flag or the second call throws inside the build and fails the very operation under test. And when the test blocks another thread on purpose, release it *before* asserting: a `REQUIRE` that throws with the worker thread still joinable calls `std::terminate`, so a regression shows up as an abort with no failure message instead of a failed check (use a plain bool, release, join, then `CHECK`).
+
+**Fix:** put the competing action in a hook inside the slow step, write the test against the unfixed code first, and mutation-check each lock by removing it before trusting the test. Run the probe on a plain `std::thread` and join it only after the code under test returns, so a held lock times the hook out and fails the test. Run mutation checks with a backup copy, a shell `trap` that restores on any exit, and `ctest --timeout`; after any interruption, grep for the mutation marker before assuming the tree is clean.
+
+---
+
+## A harness's default binary may not be the one you just built
+Tags: debugging, devstack, verification, stale-binary
+Applies-when: a live check against a dev harness behaves as if new code is missing
+
+After adding `PUT /api/state`, `devstack.py up` answered 404 for it. The route was fine: the script's default app is `build/linux-app/bin/Aurora` (a preset build dir from Oct 1), while `cmake --build build` had produced `build/bin/Aurora`. A 404 on a route that unit tests pass reads like a wiring bug and invites a debugging detour.
+
+**Fix:** pass `--app <fresh binary>` and, before reading anything into a failure, compare the binary's mtime or grep it for a string only the new code contains (`strings build/bin/Aurora | grep ...`). Prefer a harness default that follows the build you just ran, or an error when the default is older than the sources.
+
+Recurred in reverse during Aurora-kea (2026-10-03): `cmake --build build/linux-app` was fresh and a hand-launched `./build/bin/Aurora` was the stale one, so the new `GET /api/state` answered 404. Two app binaries exist on this box; neither path is "the" build.
+
+---
+
+## A LeakSanitizer report whose only non-libc frame is a test line is that line's own allocation -- trace it before blaming the library
+Tags: debugging, asan, leaksanitizer, verification, glib
+Applies-when: a sanitizer run reports a small fixed-size leak with unsymbolized library frames and you are about to call it library-internal or a known false positive
+
+A 21-byte `g_strdup` leak showed up on every portal test, with unsymbolized
+`libglib` frames. It was first written off as a "GLib-internal
+allocation from the fake's startup", and a README told people to disable leak
+detection. Running with `ASAN_OPTIONS=fast_unwind_on_malloc=0` and reading the
+test line it named found the cause in minutes: `g_find_program_in_path`
+returns an allocated string (`/usr/bin/dbus-daemon`, 20 chars + NUL = 21 B)
+and the skip check threw it away. The size was the clue.
+
+**Fix:** match the byte count against strings the code handles before
+attributing a leak to a library, and get the full stack (`fast_unwind_on_malloc=0`)
+first. Never ship "disable leak detection" as guidance for a leak you have not
+traced; a muted detector also hides real leaks (the fake's two ref-count
+leaks surfaced only because it stayed on).
+
+
+---
+
+## Signalling a wrapper's pid tests the wrapper, not the app, and `kill -9` of it leaks the child
+Tags: debugging, signals, shell, verification
+Applies-when: checking clean shutdown of an app started through `dbus-run-session`, `env`, `timeout` or a subshell
+
+The no-watcher tray check (Aurora-lx4.2) launched `dbus-run-session -- Aurora` and sent `SIGINT` to `$!`, which is the wrapper. Aurora never saw it, the check reported a hang, and the follow-up `kill -9` of the wrapper left Aurora running as an orphan. The "bug" was the harness; Aurora exited cleanly once signalled directly.
+
+**Fix:** find the real pid (`pgrep -f` on the binary) before signalling, or use `exec` so the app replaces the wrapper. After any forced kill, `pgrep -af <binary>` for strays before the next run.
+
+
+---
+
+## A control phase only counts if it was observed in the control state
+Tags: debugging, verification, control, repro, input
+Applies-when: an A/B repro has a "normal" phase meant to pass, especially one driven by a script you can't watch
+
+The first `fullscreen_repro.py` run (Aurora-1t1, 2026-10-04) had a `window` control and a `kiosk` phase. Both stalled for 30s, which read as "capture freezes even windowed". The owner, watching the screen, saw Firefox fullscreen in every phase, so the control never ran. Why it opened fullscreen is unknown: the first guess (a profile reused from the kiosk phase) was contradicted, since that run's windowed phase came first and a later kiosk-then-window run had a genuinely windowed control.
+
+**Fix:** before reading an A/B result, check each phase was in its intended state (eyes on screen, or a probe the script asserts). Treat "the control failed too" as a reason to check the control first, not as a finding.
+
+---
+
+## `pkill -f <pattern>` also matches the shell running it
+Tags: debugging, shell, signals, processes
+Applies-when: killing processes by command-line pattern from a scripted or agent-run shell command
+
+`pkill -f "aurora-fullscreen-repro-profile"` ran inside a `bash -c` whose own command line contained that string. It killed its own shell (exit 144) along with Firefox, so the commands after it in the same invocation never ran.
+
+**Fix:** run `pkill -f` as its own command, or use a pattern the shell's command line can't match (`pkill -f "[a]urora-fullscreen..."`). Check `pgrep -af` afterwards.
+
+
+---
+
+## A change to the pipeline under test can fail the harness before the test runs
+Tags: debugging, harness, devstack, verification
+Applies-when: an experiment changes what the app produces (frames, buffers) and the repro script waits for that output before starting its test
+
+The first DMA-BUF run (Aurora-1t1) ended in `devstack up` timing out on "a frame on the relay SSE", before Firefox or the kiosk phase ever started. The grabber now received DMA-BUFs it did not know how to read, skipped every callback, and so produced no frame for the readiness check. The `[pw-trace]` log showed this in seconds; the run itself said only "devstack up failed".
+
+**Fix:** when an experiment changes the output path, read the app log before trusting a harness failure, and make the experiment produce pixels (here: map and sync the dmabuf) before judging it with the harness.
+
+
+---
+
+## A test binary run directly is not the same run as ctest when cases need one process each
+Tags: debugging, testing, catch2, ctest, verification
+Applies-when: a test fails when you run the Catch2/gtest binary directly but you haven't tried it through ctest or alone
+
+Running `AuroraInputLinuxTests` directly reported 2 failing `PortalTokenTests` cases, and the Aurora-1t1 notes recorded them as "pre-existing failures on the baseline, unrelated" for a day. Both are tagged `[isolated]`, and a comment above them says why: `XdgDesktopPortal` caches the D-Bus connection in statics, so each case needs a fresh process, which `catch_discover_tests` gives (one ctest entry per case). Run alone or via `ctest -R`, both pass.
+
+**Fix:** before calling a test failure "pre-existing", rerun it the way CI does (`ctest --test-dir build -R <name>`) and alone (`<binary> "<case name>"`), and read the comment above the case. A failure that only appears when the whole binary runs in one process is test-isolation state, not a product bug.
+
+---
+
+## A PowerShell prompt that doesn't start a new line after a console app's last output looks like a hang
+Tags: debugging, verification, powershell, windows, shutdown, rendering
+Applies-when: a console app prints its last line ("Stopping...") and the terminal shows no prompt, so it looks like the process did not exit
+
+The owner saw `Stopping...` and no returned prompt and suspected a shutdown hang, then force-quit with Ctrl+C. The process had exited: the API quit path exited in about 1s while running, paused, and during an in-flight resume, and the app's last line has no trailing newline, so PowerShell did not redraw the prompt below it. A hang bead would have been filed for a rendering quirk.
+
+**Fix:** before calling a stop a hang, ask the system, not the terminal: `tasklist /FI "IMAGENAME eq <exe>"` or `Get-Process`. Press Enter to redraw the prompt. A force quit you cannot distinguish from a clean quit is no evidence either way, so reproduce through a path that reports its own exit (API stop, then poll for the process).
+
+---
+
+## A dev-tool client timeout must cover the slowest synchronous server work, not the typical case
+Tags: debugging, devstack, timeouts, flaky, reload, slow-machine
+Applies-when: a script or dev tool fails intermittently with `TimeoutError`/read timeout against the app's own API, mostly on slower machines
+
+`devstack.py up` failed about one run in three on a slow Windows box with `TimeoutError` from a read, not a refused connection. `POST /api/hue/connection` saves credentials and then runs the pipeline reload before it responds, and the script's `http()` helper defaulted to 3s. The reload measured median 0.4-0.7s but p90 1.8-3.2s and max 10.5s, so a 3s budget lost the coin flip on every fifth to third run. It never showed on faster machines, where the reload stayed under the limit.
+
+**Fix:** find which route does synchronous work (here, anything that reloads: connection POST, config PUT) and give those calls a timeout well above the measured max (30s); keep short timeouts on cheap probes. Confirm with a run of 10 consecutive successes, not one. A traceback ending in `recv_into ... timed out` means the server was slow, not down.
+
+---
+
+## Phase timers that do not sum to the total hide the real cost: compute total minus the sum
+Tags: debugging, timing, instrumentation, latency, reload, measurement
+Applies-when: per-phase timing lines exist for an operation and you are about to tune the phase that looks slowest
+
+Aurora's reload logs `capture+orchestrator init`, `outputs init` and `reload total`. One batch of 25 reloads suggested `outputs init` was the problem (median 152ms, max 3.3s, slow runs clustered). A second batch of 40 had `outputs init` max 406ms and capture init under 10ms, yet `reload total` still reached 10.5s. Subtracting the phases from the total showed the unexplained gap (median ~270ms, p90 ~1.3s, max ~10.4s) was bigger than any timed phase: it is the lock wait and old-pipeline shutdown, which are inside the total but have no timer. Tuning `outputs init` would have fixed the wrong thing, and a single batch would have named the wrong culprit.
+
+**Fix:** with phase timers, always report total minus the sum of phases; if the residual is large, instrument it before tuning anything. Repeat the batch at least twice (slow runs can be bursty), and report min/median/p90/max, not a mean.
+
+---
+
+## A leak regression test needs no sanitizer: count live operator-new blocks, and check a binary with `leaks`
+Tags: leak, operator-new, test, leaks, lsan, apple-silicon, regression
+Applies-when: writing a test that fails while objects allocated with `new` leak, on a machine where LeakSanitizer is unavailable (Apple Silicon) or the repo has no sanitizer preset
+
+Aurora-2pe5's test (`output/hue/tests/DtlsClientLeakTests.cpp`) replaces global `operator new`/`delete` in the test executable with versions that malloc/free and bump an `atomic<long>` live-block counter. It runs the operation once to warm up (locale, iostream and library statics), reads the counter, repeats the failing `DtlsClient::init()` 20 times, and checks the counter is unchanged. Before the fix it failed with a delta of exactly 120 (20 x 6 `new`s per init); after, it passes. It runs under plain ctest on every platform, so it guards the leak without anyone remembering to run ASan. Only `operator new` blocks are counted: a C library's own `malloc`/`calloc` allocations are not, so it tests the C++ side of the ownership, which is what a deleter bug is.
+
+For an end-to-end look with no app launch, `MallocStackLogging=1 leaks --atExit -- ./TestBinary "[tag]"` runs just the filtered case and prints root leaks with their allocators (`MbedTlsImpl::_initRNG` here). Check the check: run it once against the unfixed source and see it report leaks, or "0 leaks" proves nothing.
+
+**Fix:** pick a failure that throws after the allocations but before any network wait (an odd-length hex key throws inside `_initSSL`, no handshake timeout), keep the replacement operators in the one test file (they are executable-wide), and keep the loop single-threaded so other threads' allocations do not move the counter.
+
+---
+
+## A fail-soft port bind turns "something else owns the port" into a harness timeout about frames
+Tags: devstack, port, bind, fail-soft, harness, mac
+Applies-when: `devstack.py up` times out waiting for a frame although the fake bridge and relay started fine
+
+On 2026-10-05 `devstack.py up` printed `timed out waiting for a frame on the relay SSE` and tore everything down. The cause was in `app.log`, not the SSE: `Could not bind WebUI to 0.0.0.0:8215 -- continuing without it`. A hand-launched `Aurora.app` (PID found with `lsof -nP -iTCP:8215 -sTCP:LISTEN`, started without `--fresh`, so not the stack's) already held 8215. The app deliberately keeps running without its WebUI, so `devstack` had no REST endpoint to configure and never reached "output active", and the failure surfaced two steps later as missing frames. The same stray instance explains a viz stuck on "connected - waiting for frames": relay and viz were up with nothing feeding the fake bridge.
+
+**Fix:** on a frame timeout read `app.log` first for the bind line, and check the owner of 8215+ with `lsof` before touching the pipeline. Only quit a process you started; check its command line (`--fresh`, `--fake-hue`) to see whether it belongs to the stack.
+
+---
+
+## `value != "expected"` is `True` when `value` is `None` -- a dead oracle can pass a check it never actually ran
+Tags: debugging, verification, oracle, python
+Applies-when: writing a negative-outcome predicate (`!= "x"`, `is not "x"`) against a value that can legitimately be missing/`None`
+
+A pause/resume check (Aurora-jwcd) polled a real Hue bridge and asserted
+`status != "active"` to confirm a pause took effect. Every bridge call was
+actually failing (403, wrong application key -- see `output.md`'s pairing
+entry), so `status` was `None` on every poll, and `None != "active"`
+evaluates `True` in Python. The pause side of the check reported a clean
+pass for five straight cycles while never once getting a real answer from
+the bridge; only the resume side's *positive* predicate (`== "active"`)
+exposed the problem, because `None == "active"` is `False`.
+
+**Fix:** a negative predicate over an optional value needs its own explicit
+"got a real response at all" check (`value is not None and value != "x"`),
+not just the inequality -- otherwise a completely dead channel satisfies it
+by accident. More generally: distrust a "confirmed negative" from a check
+whose positive form has never also been seen to actually fire; a predicate
+that can be satisfied by *either* the real signal or total silence proves
+nothing on its own, same root shape as this file's "checker that passes
+vacuously" and "shares its subject's bug" entries, just a one-line operator
+instead of a shared assumption.
+
+---
+
+## Proxy env vars hijack localhost HTTP — bypass the proxy in local test scripts
+Tags: testing, proxy, localhost, urllib, harness
+Applies-when: writing or running a script that drives the local app over HTTP and requests hang or return proxy errors
+
+Sandbox and corporate environments set `http_proxy`/`https_proxy`, and Python's urllib honors them even for 127.0.0.1 unless `no_proxy` covers it. Symptom here: a stub-server self-test hung on plain GETs (proxy unreachable for the port) and error branches received empty proxy pages instead of app JSON. Raw sockets worked, which is the tell — TCP is fine, HTTP is being rerouted.
+
+**Fix:** build scripts' HTTP layer on an opener with an empty proxy map (`urllib.request.build_opener(urllib.request.ProxyHandler({}))`) and use it for every call, so local traffic can never be rerouted regardless of the machine's env. Verify the bypass in the script's own self-test by running it with the proxy vars set.
+
+---
+
+## A mocked OS signal in a node test encodes your assumption about it -- read the real signal live before building on it
+Tags: testing, mocks, macos, verification
+Applies-when: writing a handler that branches on an OS/native answer (permission state, device presence) and testing it with a stubbed fetch
+
+Aurora-cj11's retry-on-refocus handler passed all its new node tests with a stubbed `/api/mac/screen-permission` returning `granted: true`, yet in the real app the route never flipped after a grant, so the handler could never fire. The stub had silently assumed the OS signal is live.
+
+**Fix:** before building logic on a native signal, call the real thing once across the transition it must detect (here: denied -> grant -> read again, without relaunch) and record the readings. Only then stub it.
+
+## A "denied" flag inferred from silence cannot be tested without a signal -- a silent baseline proves nothing
+Tags: testing, verification, macos, heuristics, audio
+Applies-when: live-testing a permission or health flag the backend infers from absence of data (silent buffers, no frames), before and after a fix or grant
+
+Aurora-tjoq: `permissionLikelyDenied` clears only on a non-zero sample, so with nothing playing it stayed `true` for 25s after the grant and the check was inconclusive; the "denied" baseline was equally what a granted-but-silent tap reads. Only with audio playing did the flag flip.
+
+**Fix:** supply the signal (play audio) for the baseline and the after-reading, and run the denied-with-signal control so the baseline is real denial. If the first poll after supplying the signal already shows the final value, say the flip was not observed.
+
+## Live-testing macOS permissions: the Settings toggle quits your test app, and `devstack.py` hits the real instance under the terminal's grant
+Tags: macos, tcc, live-testing, devstack, isolation
+Applies-when: driving a permission denial/grant live with a throwaway instance or the light-viz stack
+
+Aurora-h457: enabling a privacy toggle makes macOS offer "Quit & Reopen"; accepting it killed the isolated instance (port 8261, `AURORA_CONFIG_DIR`) and relaunched Aurora on the owner's real config (8215), so later clicks and "first Retry did nothing" were against a different process than the logger watched. `devstack.py` takes the first WebUI from 8215 and execs the binary directly, so it would reconfigure a running real instance and run under the terminal's grant, which never shows the denial.
+
+**Fix:** run the stack by hand: fake bridge, relay, `web/demo` server, and an `open -n --env AURORA_CONFIG_DIR=... --env AURORA_DEV_LIGHT_TAP=1 Aurora.app --args --fake-hue` bundle, paired with `POST /api/hue/connection`. Log state and a zone's colour per second (`python3 -u`; redirected stdout buffers). Choose Later on "Quit & Reopen", and confirm which port the human is clicking before reading the log.
+
+---
+
+## Back-to-back scripted inputs coalesce in the consumer loop and pass even unfixed — space race probes wider than one iteration
+Tags: debugging, verification, timing, tray
+Applies-when: verifying a click-then-worker (or any producer/consumer) race fix with scripted inputs
+
+Aurora-q9l1's tray toggle race: two gdbus Resume clicks 4ms apart coalesced into one tick-loop iteration and ended running even on the pre-fix binary -- the check passed without testing anything. The discriminating probe used a 1.5s gap (longer than one tick iteration, inside the 2.41s resume): pre-fix it ended paused with the menu stuck on Resume, fixed it ends running. The stock fake bridge resumed in 10ms, leaving no window at all, so the check ran against a private slowed copy (in /tmp, repo tooling untouched): 0.6s per response sits under HttpClient's 1s curl timeout, so the path still succeeds, while several sequential init calls stretch the resume past 2s. A menu-label sample taken with the second click still read Resume, proving the probe landed inside the stale-state window rather than after it.
+
+**Fix:** measure the slow operation first (baseline timing of the same path the worker uses), set the probe gap between one consumer iteration and the operation duration, and sample the stale-state indicator at probe time to prove the window. Keep fault-injected fakes private (a /tmp copy, not a repo edit) and sub-timeout so success paths stay successful.
+
+---
+
+## Stalling the wrong fake-bridge endpoint gives a silent no-op, not a slow resume
+Tags: debugging, verification, timing, tray, output, hue, windows
+Applies-when: reusing a fault-injected fake (e.g. `tools/fake-hue-bridge --stall-light`) to manufacture a timing window on a repeated operation
+
+Aurora-q9l1's Windows pass reused the Linux check's recipe (slow bridge,
+repoint via `POST /api/hue/connection`, click through `devstack.py`) but kept
+the stock `--stall-light <id>` flag, which only delays `GET
+.../light/<id>`. The bridge's own access log showed that call never fires
+past the initial pairing build -- every later resume (`Pipeline::build` via
+`PipelineHost::resume`) only hit `GET/PUT .../entertainment_configuration[/
+<id>]` and `GET .../resource`. The flag was a correct no-op on the repeated
+path, so resumes stayed ~1-2s and no race window ever opened; nothing in the
+test itself signaled that the chosen stall point was wrong.
+
+**Fix:** before trusting a stall to manufacture a window, read the fake's own
+request log for the iteration under test (not just the one-time setup) and
+confirm the stalled route actually appears there. Stalling the route that
+*is* hit every time (here, patching a scratch copy to delay the
+`action:"start"` PUT) is one extra flag away once you know which call
+repeats.
+
+---
+
+## A missing session bus in an agent shell may be the sandbox, not the machine
+Tags: debugging, sandbox, dbus, tray
+Applies-when: tray/SNI verification reports no session bus from an agent-run shell
+
+`gdbus call ListNames` failed with "Unable to create socket: Operation not permitted", the app logged "Tray: no session bus", and devstack `up` timed out waiting for the WebUI port (spawned children inherit the sandbox) -- while TCP loopback worked fine. The machine's session bus was healthy all along; the tool sandbox blocked AF_UNIX sockets.
+
+**Fix:** re-run one read-only bus probe (`ListNames`) in an unsandboxed/escalated shell before concluding anything is headless; only if that fails, fall back to the trayless private-bus recipes. Never reinterpret a sandbox symptom as machine state.
+
+---
+
+## `--fresh` hides the Dashboard banner behind onboarding; forcing `Failed` on Mac needs a bogus input, not just an unpaired output
+Tags: debugging, manual-verification, fresh, nux, banner, tray, mac
+Applies-when: manually checking that a click or link lands on the error banner (Aurora-cj11) in a freshly launched app
+
+`--fresh` clears the config root, so `nuxCompleted` is false and the WebUI opens on first-run onboarding. The banner is a Dashboard feature, so a tray See Error click opens a page with no banner on it. Both the Windows and Mac k73j passes landed there first, and the Windows pass was recorded done without ever seeing the banner. Separately, `activeOutputNames: ["hue"]` unpaired plus `/api/reload` made Windows `failed` but left Mac `idle`; setting a bogus `activeInputName` and reloading gave `failed` ("No outputs available").
+
+**Fix:** after forcing `Failed`, `PUT /api/config` with `nuxCompleted: true` (read-modify-write the full object; the save reloads and fails again, so the host stays `failed`), then reload the page. Check `/api/state` for `state:"failed"` before asking for an eyes-on check, and name in the check what must be on screen (the banner text), not just that a page opened.
+
+---
+
+## Verify claims taken from commit and bead titles before they reach a changelog, README or schedule
+Tags: verification, release, changelog, beads, triage
+Applies-when: drafting release notes or user docs from history, or triaging old open bugs for a release
+
+The 1.1.0 audit drafted changelog and README lines from commit and bead titles, and three were wrong on a closer read. "Mac Local Network prompt now explains why" (Aurora-pp8) is false because macOS never displays `NSLocalNetworkUsageDescription` (macos-gui lessons). The new `core/Secrets` looked like a new Linux runtime dependency (libsecret) for the README apt line, but only `AuroraSecretsTests` links it. "Origin check on state-changing routes" was in Aurora-5i3's description but never landed (the nearest open work is Aurora-5ipy.4's Host allowlist). Separately, open bug Aurora-2uw's named suspect (an unguarded `entertainmentConfigSelect.load()`) already catches internally, so the bug as written can't happen.
+
+**Fix:** for each user-facing claim, grep the code path (who links it, whether the check exists) and search the lessons for the feature before writing the line. For an old open bug, read the suspect callee at HEAD before scheduling it, and re-scope or close it if the premise no longer holds. The same applies to device behavior: the jwcd log said bulbs were "released" on pause, and reading that as "reset" made the demo's Pause turn lamps white, while real bulbs hold their last color (Aurora-calt). When a log doesn't state the observed end state, ask the person with the hardware before mirroring it.
+
+---
+
+## Before changing code for a symptom seen only on a test artifact, reproduce it on the shipping artifact; and check that a control run can actually tell the hypotheses apart
+Tags: debugging, verification, test-artifact, control-run, ad-hoc-signing, confound
+Applies-when: a symptom is only ever seen on a dev or test build (ad-hoc copy, fake bridge, patched binary), or a control run is being read as proof
+
+Aurora-dwvu chased a double Local Network prompt through three code hypotheses (the Bonjour browse, the periodic send, Welcome's mDNS query). Each ad-hoc build still showed two dialogs. A `dev` build with zero prompts was read as "both come from the probes", but it did no local network traffic at all, so it could not separate "one prompt per operation" from "two per first contact". One notarized build answered it: one dialog. The doubling came from the ad-hoc test copy.
+
+**Fix:** list how the test artifact differs from what ships (signing, identity, install path, config), and run the shipping form once before editing code. For each control, ask what result each hypothesis predicts. If they predict the same result, the run proves nothing. Also check a theory against counts you already have (here, a send repeated every 2 s still gave exactly two).
+
+---
+
+## "Still the old copy" after several relaunches: prove what the server serves, then trace the render condition, before relaunching again
+Tags: debugging, stale-cache, webui, verification, fresh-copy
+Applies-when: a UI change does not appear after reloads or app relaunches, and cache is the first suspect
+
+Aurora-scig spent several fresh-copy launches (and a browser-cache guess) on "old video copy on Capture Source". Two grep checks would have ended it sooner: `curl` the served module for the new symbol (it was there, and the server sends `no-store`), then read the render condition for the text on screen (`app.platform` was unset on that screen). The relaunches tested nothing the curl had not already answered, and the stale-tab guess was wrong here.
+
+**Fix:** (1) `curl` the served file for a string only the new code has; if present, the page is not stale. (2) Ask for the exact text on screen and grep for it, or enumerate the branches that can produce it. (3) Only then relaunch. Ask for DevTools "Disable cache" at the start if a tab is in play.

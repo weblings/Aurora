@@ -16,23 +16,25 @@
 Philips' official app.
 - Locate the latest [GitHub Release](https://github.com/weblings/Aurora/releases) and download the zip for your platform. Keep the contents of the folder together so the app can work correctly.
 - (Read dependencies before this step) On Windows and Linux, in a terminal window in the unzipped folder, launch the app (on Mac, open `Aurora.app` instead). Ctrl + click on the link to open the UI and get setup. Enjoy!
+- Once set up, the tray icon (menu bar on Mac) and the Dashboard both offer Pause / Resume, which stops sending colors to your lights without quitting Aurora. If Aurora stops on an error, the tray's Pause item becomes See Error and opens the UI, where a banner explains what went wrong.
 - Dependencies:
   - **Windows:** Try launching Aurora. If you get an error saying "The code execution cannot proceed because VCRUNTIME140.dll was not found", then you need: [Visual C++ Redistributable](https://learn.microsoft.com/en-us/cpp/windows/latest-supported-vc-redist). If not, it's already installed and you're good to go.
   - **Linux (Debian/Ubuntu):** `sudo apt install libx11-6 libxext6 libxrandr2 pipewire libaubio5 libcurl4t64 libopencv-core406t64 libmbedtls14t64` (ffmpeg and GL pieces arrive automatically as dependencies of those; on other releases the curl/opencv/mbedtls package names differ slightly — e.g. `libopencv-core410` / `libmbedtls21` — and a missing-`.so` error on launch names its package).
-  - **Mac (Apple silicon, macOS 27 is the supported target) older macOS is untested, Intel is not supported:** nothing to install, and no terminal needed. Unzip the Mac release, drag `Aurora.app` into your Applications folder (this also lets Spotlight find it), and open it. macOS may ask you to confirm opening an app downloaded from the internet; choose Open. Aurora runs from the menu bar: click its icon for Launch UI or Stop, and grant Screen Recording when prompted. To build from source instead, install [Homebrew](https://brew.sh), then `brew install cmake opencv curl aubio mbedtls@3 pkg-config` (must be `mbedtls@3`, not v4), and build via the `mac-app` preset, see [CONTRIBUTING.md](CONTRIBUTING.md#platform-notes).
-  - **Compiling from source on Linux?** You need the `-dev` variants instead — see [docs/Building.md](docs/Building.md#prerequisites).
+    - **Compiling from source on Linux?** You need the `-dev` variants instead — see [docs/Building.md](docs/Building.md#prerequisites).
+  - **Mac (Apple silicon, macOS 27 is the supported target) older macOS is untested, Intel is not supported:** nothing to install, and no terminal needed. Unzip the Mac release, drag `Aurora.app` into your Applications folder (this also lets Spotlight find it), and open it. macOS may ask you to confirm opening an app downloaded from the internet; choose Open. Aurora runs from the menu bar: click its icon for Launch UI, Pause / Resume, or Stop, and grant Screen Recording (and Local Network, so Aurora can reach your bridge) when prompted. To build from source instead, install [Homebrew](https://brew.sh), then `brew install cmake opencv curl aubio mbedtls@3 pkg-config` (must be `mbedtls@3`, not v4), and build via the `mac-app` preset, see [CONTRIBUTING.md](CONTRIBUTING.md#platform-notes).
+
 
 ## Layout
 
 One repo, with a directory per slice. You only build the ones for your platform:
 
 - [`core/`](core) — capture/processing/output contracts, pipelines, orchestration
-- [`app/windows`](app/windows) / [`app/linux`](app/linux) / [`app/mac`](app/mac) — the runnable apps; **start here to use Aurora** (Mac is experimental)
+- [`app/windows`](app/windows) / [`app/linux`](app/linux) / [`app/mac`](app/mac) — the runnable apps; **start here to use Aurora**
 - [`input/windows`](input/windows) / [`input/linux`](input/linux) / [`input/mac`](input/mac) — screen + audio capture plugins (DXGI on Windows; X11 / Wayland-Pipewire on Linux; ScreenCaptureKit on Mac)
 - [`output/hue`](output/hue) — Philips Hue entertainment-streaming output plugin
 - [`web/ui`](web/ui) — the setup/control interface the apps serve in your browser
 
-**Prebuilt binaries:** from the 1.0.2 GitHub Release above. To compile from source instead, see below.
+**Prebuilt binaries:** See GitHub Releases. To compile from source instead, see below.
 
 ## For Developers
 
@@ -65,6 +67,15 @@ Processing (source to effects handling), or Output (color / effects) module
 **I'm not seeing audio reacting**
 - If no audio was actively playing before you toggled to audio the grabber might have trouble finding it. Switch back to video, play some audio, then try switching to audio.
 
+**Linux (Wayland): capture freezes or goes black**
+- Aurora captures through DMA-BUF by default, which has been verified on Intel + GNOME. If capture freezes or goes black on another GPU or compositor, launch with `AURORA_PW_DMABUF=0` to fall back to shared memory (note that fullscreen windows may then freeze capture), and please file an issue.
+
+**Setup sees the Hue bridge but pairing never completes ("Press the button on your bridge")**
+- Make sure the computer is on the same Wi-Fi/network as the bridge. Discovery can still find the bridge from another network, but the button press only registers on the bridge's own network.
+
+**Mac: Aurora can't find or reach the Hue bridge**
+- macOS asks for Local Network access the first time Aurora talks to the bridge. If you chose Don't Allow, turn Aurora on in System Settings > Privacy & Security > Local Network, then quit and reopen Aurora.
+
 ## Art
 - The aurora SVG in the logo is modified from <a href="https://www.vecteezy.com/vector-art/88906-free-northern-lights-vector-series"> Kaitlyn Parker's Northern Lights Series</a> on <a href="https://www.vecteezy.com/free-vector/nature">Nature Vectors by Vecteezy</a>
 - Power icon from <a href="https://github.com/32pixelsCo/zest-icons/blob/master/packages/zest-free/LICENSE.md?ref=svgrepo.com" target="_blank">Zest</a> in MIT License via <a href="https://www.svgrepo.com/" target="_blank">SVG Repo</a>
@@ -78,10 +89,11 @@ Aurora is licensed under the [GNU General Public License v3.0 or later](LICENSE)
 - [Huenicorn](https://gitlab.com/openjowelsofts/huenicorn) by OpenJowel is a free Philips Hue screen
 synchronizer for GNU/Linux. Huenicorn was the reason I started exploring Linux again years ago, thank you OpenJowel!
 - [RockyRoad](https://github.com/weblings/RockyRoad) by me is a web browser note-highway music app for guitar and piano with full support for WebXR-capable headsets. I repurposed a lot of the design tokens and components I built out there for this project.
+- [Hyperion](https://github.com/hyperion-project/hyperion.ng) is an MIT-licensed open-source ambient lighting project with broad LED-device support. Aurora consults it as a design reference (Hue TLS handling, Home Assistant output, API and auth shape); any code ported from it keeps its MIT notice.
 
 ## Intent and AI Disclaimer
 
-- This repo is vibecoded. One project goal was to experiment with using AI to translate my past decade of Unity and XR coding knowledge to native Windows and Linux apps in C++.
+- This repo is vibecoded. One project goal was to experiment with using AI to translate my past decade of Unity and XR coding knowledge to native Windows, Linux, and MacOS apps in C++.
 - I've found the 1P Hue apps on various platforms unreliable over the years. Huenicorn has been a breath of fresh air! I was curious to see if I could extend some of the work its done.
 - Long-term I'd like to extend this framework to handle inputs beyond media and drive outpts beyond colors. We'll see 
 

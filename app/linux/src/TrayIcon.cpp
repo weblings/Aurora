@@ -1,5 +1,8 @@
 #include <Aurora/App/TrayIcon.hpp>
 
+#include <Aurora/Runtime/TrayLabel.hpp>
+
+#include <atomic>
 #include <functional>
 #include <future>
 #include <iostream>
@@ -17,9 +20,9 @@ namespace
 constexpr const char* kBusNamePrefix = "org.kde.StatusNotifierItem-";
 constexpr const char* kItemPath = "/StatusNotifierItem";
 constexpr const char* kMenuPath = "/Menu";
-constexpr guint kMenuRevision = 1;
 constexpr int kIdLaunchUi = 1;
 constexpr int kIdStop = 2;
+constexpr int kIdPause = 3;
 
 // --- dbusmenu layout (pure construction, unit-tested) ---
 
@@ -57,13 +60,14 @@ GVariant* boxed(GVariant* item)
   return g_variant_new_variant(item);
 }
 
-GVariant* buildMenuLayout(bool webUiBound)
+GVariant* buildMenuLayout(bool webUiBound, const char* pauseLabel)
 {
   GVariant* rootProps = g_variant_new_array(G_VARIANT_TYPE("{sv}"), nullptr, 0);
-  GVariant* kids[2];
+  GVariant* kids[3];
   kids[0] = boxed(menuItem(kIdLaunchUi, "Launch UI", webUiBound));
-  kids[1] = boxed(menuItem(kIdStop, "Stop", true));
-  GVariant* children = g_variant_new_array(G_VARIANT_TYPE("v"), kids, 2);
+  kids[1] = boxed(menuItem(kIdPause, pauseLabel, true));
+  kids[2] = boxed(menuItem(kIdStop, "Stop", true));
+  GVariant* children = g_variant_new_array(G_VARIANT_TYPE("v"), kids, 3);
   return g_variant_new("(i@a{sv}@av)", 0, rootProps, children);
 }
 
@@ -82,6 +86,12 @@ struct BusState
   bool webUiBound;
   std::function<void()> onLaunch;
   std::function<void()> onStop;
+  std::function<void()> onTogglePause;
+  std::function<Aurora::Runtime::HostStatus()> hostStatus;
+  // Published only once the loop exists, so refresh() never touches a
+  // context the worker is about to drop (no bus / no loop).
+  std::atomic<GMainContext*> loopContext{nullptr};
+  std::atomic<guint> revision{1};
   guint itemRegId{0};
   guint menuRegId{0};
   guint ownerId{0};
@@ -138,6 +148,10 @@ const char kMenuXml[] =
     "      <arg name='id' type='i' direction='in'/>"
     "      <arg name='needUpdate' type='b' direction='out'/>"
     "    </method>"
+    "    <signal name='LayoutUpdated'>"
+    "      <arg name='revision' type='u'/>"
+    "      <arg name='parent' type='i'/>"
+    "    </signal>"
     "    <property name='Version' type='s' access='read'/>"
     "    <property name='Status' type='s' access='read'/>"
     "  </interface>"
@@ -225,8 +239,14 @@ void menuMethod(GDBusConnection*, const gchar*, const gchar*, const gchar*,
 {
   auto* state = static_cast<BusState*>(userData);
   if(g_strcmp0(method, "GetLayout") == 0){
-    GVariant* layout = buildMenuLayout(state->webUiBound);
-    GVariant* reply = g_variant_new("(u@(ia{sv}av))", kMenuRevision, layout);
+    // One status() snapshot per open (Aurora-k73j): state plus errors
+    // together, so a running host holding errors (Aurora-ja76) still reads
+    // Pause while a failed one reads See Error.
+    const Aurora::Runtime::HostStatus hostStatus = state->hostStatus();
+    GVariant* layout = buildMenuLayout(state->webUiBound,
+        Aurora::Runtime::trayPauseItemLabel(hostStatus.state, !hostStatus.errors.empty(),
+            state->webUiBound));
+    GVariant* reply = g_variant_new("(u@(ia{sv}av))", state->revision.load(), layout);
     g_dbus_method_invocation_return_value(invocation, reply);
   }
   else if(g_strcmp0(method, "Event") == 0){
@@ -237,6 +257,19 @@ void menuMethod(GDBusConnection*, const gchar*, const gchar*, const gchar*,
       if(id == kIdLaunchUi && state->webUiBound){
         state->onLaunch();
       }
+      else if(id == kIdPause){
+        // A "See Error" slot opens the WebUI (Aurora-k73j): the banner
+        // there explains and offers the retry. Otherwise the normal
+        // run/pause target post (Aurora-q9l1).
+        const Aurora::Runtime::HostStatus clickStatus = state->hostStatus();
+        if(Aurora::Runtime::trayPauseItemShowsError(clickStatus.state,
+               !clickStatus.errors.empty(), state->webUiBound)){
+          state->onLaunch();
+        }
+        else{
+          state->onTogglePause();
+        }
+      }
       else if(id == kIdStop){
         state->onStop();
       }
@@ -244,9 +277,9 @@ void menuMethod(GDBusConnection*, const gchar*, const gchar*, const gchar*,
     g_dbus_method_invocation_return_value(invocation, g_variant_new("()"));
   }
   else if(g_strcmp0(method, "AboutToShow") == 0){
-    // Static layout for the process lifetime (bound state is fixed at
-    // construction) -- never needs an update.
-    g_dbus_method_invocation_return_value(invocation, g_variant_new("(b)", false));
+    // The Pause/Resume label can change behind the host's back (Dashboard,
+    // API), so always ask it to re-fetch the layout before showing.
+    g_dbus_method_invocation_return_value(invocation, g_variant_new("(b)", true));
   }
   else{
     g_dbus_method_invocation_return_error(invocation, G_DBUS_ERROR,
@@ -322,10 +355,27 @@ void registerWithWatcher(GDBusConnection* connection, const std::string& busName
 
 } // namespace
 
-GVariant* TrayIcon::menuLayoutForTest(bool webUiBound)
+GVariant* TrayIcon::menuLayoutForTest(bool webUiBound, Aurora::Runtime::HostState state,
+                                      bool hasError)
 {
-  return buildMenuLayout(webUiBound);
+  return buildMenuLayout(webUiBound,
+      Aurora::Runtime::trayPauseItemLabel(state, hasError, webUiBound));
 }
+
+namespace
+{
+gboolean emitLayoutUpdated(gpointer data)
+{
+  auto* state = static_cast<BusState*>(data);
+  if(state->connection){
+    g_dbus_connection_emit_signal(state->connection, nullptr, kMenuPath,
+        "com.canonical.dbusmenu", "LayoutUpdated",
+        g_variant_new("(ui)", ++state->revision, 0), nullptr);
+  }
+  return G_SOURCE_REMOVE;
+}
+} // namespace
+
 
 
 struct TrayIcon::Worker
@@ -338,6 +388,15 @@ struct TrayIcon::Worker
   // on it throws future_error, terminating the process on shutdown).
   std::future<GMainLoop*> readyFuture;
 };
+
+void TrayIcon::refresh()
+{
+  GMainContext* context = m_worker ? m_worker->state.loopContext.load() : nullptr;
+  if(context){
+    g_main_context_invoke(context, emitLayoutUpdated, &m_worker->state);
+  }
+}
+
 
 void runTrayWorker(BusState* state, std::promise<GMainLoop*> done)
 {
@@ -401,6 +460,7 @@ void runTrayWorker(BusState* state, std::promise<GMainLoop*> done)
       std::cerr << "Tray: bus name never acquired -- running without icon\n";
     }
     loop = g_main_loop_new(context, FALSE);
+    state->loopContext = context;
   } while(false);
   done.set_value(loop);
   if(loop){
@@ -418,17 +478,23 @@ void runTrayWorker(BusState* state, std::promise<GMainLoop*> done)
 }
 
 TrayIcon::TrayIcon(std::string url, bool webUiBound,
-                   std::function<void()> onLaunch, std::function<void()> onStop)
+                   std::function<void()> onLaunch, std::function<void()> onStop,
+                   std::function<void()> onTogglePause,
+                   std::function<Aurora::Runtime::HostStatus()> hostStatus)
   : m_url(std::move(url)),
     m_webUiBound(webUiBound),
     m_onLaunch(std::move(onLaunch)),
     m_onStop(std::move(onStop)),
+    m_onTogglePause(std::move(onTogglePause)),
+    m_hostStatus(std::move(hostStatus)),
     m_worker(new Worker())
 {
   m_worker->state.url = m_url;
   m_worker->state.webUiBound = m_webUiBound;
   m_worker->state.onLaunch = m_onLaunch;
   m_worker->state.onStop = m_onStop;
+  m_worker->state.onTogglePause = m_onTogglePause;
+  m_worker->state.hostStatus = m_hostStatus;
   m_worker->readyFuture = m_worker->ready.get_future();
   m_worker->thread = std::thread(runTrayWorker, &m_worker->state,
                                  std::move(m_worker->ready));

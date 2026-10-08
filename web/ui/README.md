@@ -20,8 +20,23 @@ Screens live in `screens/`, shared components alongside them, and design
 tokens in `styles/tokens.css`. Plan docs: `docs/planning/WebUI/`; component and
 testing gotchas: `docs/lessons/` (`web-ui-lessons` skill).
 
+`shell.js` owns app-wide state above the screens: the connection watcher
+("Aurora has stopped" takeover, reconnects on its own) and the system-error
+banner fed by `GET /api/state`. Screens keep only inline per-control errors.
+Design and copy rules: [[error-overlay]].
+
 Tests are plain node scripts with no framework (`node styles/welcome.test.mjs`,
 `node DeviceField.test.mjs`, ...).
+
+## Demo vendor copy
+
+`web/demo/vendor/webui/` carries byte-identical copies of the files listed in
+its `MANIFEST.json`. After editing any file listed there, or adding an import
+to a file reachable from the Dashboard, re-run
+`python3 web/demo/vendor/sync-webui.py` from the repo root (it fails if a new
+import isn't in the manifest) and confirm
+`node web/demo/vendor/webui/seams.test.mjs` passes. Web CI fails on either
+kind of drift. Never edit the vendored copies in place.
 
 ## Reserved path
 

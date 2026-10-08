@@ -19,25 +19,25 @@ Aurora's own module boundaries instead of RockyRoad's. `rendering-apis.md` vs.
 
 | File | Scope | Entries | File here when |
 |---|---|---|---|
-| [build-toolchain.md](build-toolchain.md) | CMake, vcpkg, compilers, WSL2, dev deps | 25 | build/tooling specific |
-| [windows-env.md](windows-env.md) | processes, installers, ACLs, probing | 15 | Windows-environment specific |
-| [macos-gui.md](macos-gui.md) | AppKit, tray/status-item, run-loop pumping, ObjC++ interop | 23 | macOS GUI/AppKit specific |
-| [debugging-method.md](debugging-method.md) | evidence, verification, oracles, timing | 36 | debugging/verification method |
-| [architecture-process.md](architecture-process.md) | splits, duplication, reload, presence | 26 | architecture or process decision |
-| [web-testing.md](web-testing.md) | jsdom, live tests, routes, settings | 9 | web testing specific |
-| [language-cpp.md](language-cpp.md) | namespace, threads, C-portability | 7 | C++ language gotcha |
-| [input.md](input.md) | capture/grabber/platform-adapter | 24 | capture/grabber specific |
-| [processing.md](processing.md) | color/effect transform, zone-mapping | 6 | color/effect/zone-mapping specific |
-| [output.md](output.md) | streaming/protocol, any target | 9 | streaming/protocol/wire-format specific |
+| [build-toolchain.md](build-toolchain.md) | CMake, vcpkg, compilers, WSL2, dev deps | 49 | build/tooling specific |
+| [windows-env.md](windows-env.md) | processes, installers, ACLs, probing | 19 | Windows-environment specific |
+| [macos-gui.md](macos-gui.md) | AppKit, tray/status-item, run-loop pumping, ObjC++ interop | 32 | macOS GUI/AppKit specific |
+| [debugging-method.md](debugging-method.md) | evidence, verification, oracles, timing | 69 | debugging/verification method |
+| [architecture-process.md](architecture-process.md) | splits, duplication, reload, presence | 55 | architecture or process decision |
+| [web-testing.md](web-testing.md) | jsdom, live tests, routes, settings | 15 | web testing specific |
+| [language-cpp.md](language-cpp.md) | namespace, threads, C-portability | 17 | C++ language gotcha |
+| [input.md](input.md) | capture/grabber/platform-adapter | 41 | capture/grabber specific |
+| [processing.md](processing.md) | color/effect transform, zone-mapping | 9 | color/effect/zone-mapping specific |
+| [output.md](output.md) | streaming/protocol, any target | 19 | streaming/protocol/wire-format specific |
 | [rendering-apis.md](rendering-apis.md) | third-party rendering facts | 4 | Three.js/GLTFLoader/Blender behavior, not our design |
 | [rendering-internals.md](rendering-internals.md) | own 3D-scene design | 4 | our scene technique, demonstrated by a real bug |
-| [planning.md](planning.md) | reuse research, JTBD, doc hygiene | 15 | WebUI planning/design-process finding |
-| [components.md](components.md) | behavior, callbacks, data shapes | 9 | WebUI component finding |
-| [webui-testing.md](webui-testing.md) | jsdom limits, mocks, fixtures | 7 | WebUI testing finding |
-| [navigation-flow.md](navigation-flow.md) | Back/Continue, gating, NUX | 9 | WebUI flow finding |
-| [layout-css.md](layout-css.md) | responsive, pseudo-elements, flex | 9 | WebUI layout/CSS finding |
+| [planning.md](planning.md) | reuse research, JTBD, doc hygiene | 22 | WebUI planning/design-process finding |
+| [components.md](components.md) | behavior, callbacks, data shapes | 18 | WebUI component finding |
+| [webui-testing.md](webui-testing.md) | jsdom limits, mocks, fixtures | 10 | WebUI testing finding |
+| [navigation-flow.md](navigation-flow.md) | Back/Continue, gating, NUX | 12 | WebUI flow finding |
+| [layout-css.md](layout-css.md) | responsive, pseudo-elements, flex | 16 | WebUI layout/CSS finding |
 
-Counts as of 2026-09-30 — bump the count when adding entries
+Counts as of 2026-10-08 — bump the count when adding entries
 (`grep -c '^## '` per file).
 
 ## Where a new lesson goes
@@ -79,6 +79,8 @@ actually happened (root cause), then a bolded **Fix:** line. See RockyRoad's
 
 Cite entries by headline, never by filename — headlines survive splits,
 filenames don't.
+
+Each file also carries a file-level `Id: lesson-<slug>` line under its H1. Doc ids live in one global flat namespace (`docs/_ids.md` has no per-directory partitioning, and a bare `[[id]]` citation carries no directory context), so the `lesson-` prefix is what keeps lesson files distinct. Cite a whole file as `[[lesson-windows-env]]`; cite a specific entry as that plus its headline in prose (e.g. see `[[lesson-windows-env]]`'s AppendMenuA entry).
 
 ## Skills
 

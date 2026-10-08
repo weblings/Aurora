@@ -1,5 +1,7 @@
 # C++ language
 
+Id: lesson-language-cpp
+
 Namespace, thread-lifetime, and C-portability gotchas. See [README.md](README.md) for filing rules.
 
 ---
@@ -104,6 +106,10 @@ The webroot embed encoder (StandaloneApps P1) passed GCC with literals up to 33K
 
 **Fix:** cut printable runs at 16000 source chars (380 under the cap) into adjacent literals; keep one-binary-byte encodings (`\xNN`) isolated as before. Verify by asserting max literal length over the generated output plus the byte-identical round-trip, and treat the first build on each compiler as the real test -- a Linux-green embed proves nothing about MSVC.
 
+A second, total cap is believed to apply after concatenation (~64 KB, C1091; unverified as of Aurora-lzj). The largest file embedded before then was 40 KB, so it never showed up, but a 399 KB Vite bundle would exceed it. `embed_webroot.py` now splits files into 60000-byte `std::string` pieces joined with `+`, and `AuroraEmbedWebrootTests` round-trips a 400 KB fixture so the first MSVC build of core tests settles it.
+
+Settled 2026-10-01 (MSVC 2022, Aurora-lzj): the standalone core build with 60 KB pieces compiled with no C1091 and the 400 KB fixture round-trips (ctest 97/97), and so does the 1 MB Vite embed in `windows-app`. The segmented encoder is confirmed safe on MSVC. Still not known: whether an *unsplit* 399 KB literal would actually fail -- we never tried, so the ~64 KB figure stays unverified and the segmenting is the fix either way.
+
 ---
 
 ## GVariant builders sink, @ embeds, lookup matches inner types
@@ -116,6 +122,16 @@ Three rules, each learned by crash: (1) every g_variant_new_* container call sin
 
 ---
 
+## `std::clamp` passes NaN straight through -- a clamp-only setter doesn't sanitize non-finite input
+Tags: cpp, clamp, nan, validation
+Applies-when: clamping external or config-file input with std::clamp
+
+`std::clamp(v, lo, hi)` is `v < lo ? lo : hi < v ? hi : v` -- both comparisons are false for NaN, so it returns the NaN unchanged. A setter that only clamps (`setAudioCentroidRangeHz`, Aurora-9ca) still stores NaN, which then divides and UB-casts downstream exactly as if no clamp existed. JSON can't carry NaN, but a hand-edited config.json float field and a `float` query param both can in principle.
+
+**Fix:** check `std::isfinite` before clamping and substitute the default for non-finite input (`Config.cpp`). General principle: treat `std::clamp` as range-shaping for finite values only -- finiteness is a separate check that must come first whenever the input crosses a trust boundary.
+
+---
+
 ---
 
 ## `g_bus_own_name` never completes on a thread whose GMainContext isn't running -- polling GetNameOwner without pumping always times out
@@ -125,3 +141,98 @@ Applies-when: acquiring a session-bus name on a worker thread before its GMainLo
 The tray worker called `g_bus_own_name` (async, no callbacks) then ran a bounded wait polling `GetNameOwner` with `g_usleep` between passes. The wait always timed out ("bus name never acquired -- running without icon") and registration was skipped -- yet `busctl` showed the name owned afterwards. Acquisition completes by dispatching on the calling thread's thread-default context, which nobody iterates until `g_main_loop_run` starts *after* the wait: the poll can never observe ownership because the reply it waits for needs the very loop that is blocked. Live state matched exactly (name owned, watcher list missing Aurora).
 
 **Fix:** pump the context each pass (`g_main_context_iteration(context, FALSE)` before the poll) in `app/linux/src/TrayIcon.cpp`. General principle: a synchronous poll from the same thread never substitutes for dispatching an async GLib/GIO call -- either pump the thread-default context while waiting or use the blocking `_sync` variant; `g_usleep` between polls only stretches a wait that cannot succeed.
+
+---
+
+## Guarding a NaN at the output doesn't un-poison the state that produced it -- NaN in an accumulator is permanent
+Tags: cpp, nan, state, audio, validation
+Applies-when: adding a non-finite guard downstream of a stateful accumulator (damper, integrator, rolling average)
+
+Aurora-9ca's `Color::fromHSV` guard turned a NaN hue into defined black -- but the NaN lived in `DriftState::anchorHueDegrees`, and `NaN + x` / `fmod(NaN)` stay NaN, so every later tick was black too: "defined" behavior that only a restart cleared. The regression test even pinned it (`result == Color{}`) without asking whether the *next* tick recovered.
+
+**Fix (Aurora-5y0):** guard the divisor that produced the NaN (`std::max(centroidRangeHz, 1.0f)`, matching the `referenceRms` guard beside it), and make each state struct self-heal: if any field is non-finite at the top of `updateDrift`/`updateBounce`, reset to cold-start state. General principle: an output guard bounds one tick's damage; anything that feeds back into state needs a state-level check, and a regression test should run one more tick to prove recovery, not just a defined value.
+
+---
+
+## A scripted `#include` insertion "after the last match" can land inside an `#ifdef`
+Tags: cpp, includes, preprocessor, refactoring, scripting
+Applies-when: inserting an include (or any line) into several files by script, anchored on a neighbouring line
+
+Adding `TickClock.hpp` to the three apps' `main.cpp` (Aurora-skv) by inserting after the last `#include <Aurora/Runtime/...>` put it inside `#ifdef AURORA_RUNTIME_AUDIO_AVAILABLE` on Mac and Linux, because `AudioOrchestrator.hpp` is the last Runtime include and is conditional. The audio-enabled local build compiled fine, so nothing caught it; a video-only build would have failed on `tickIntervalSeconds` being undeclared.
+
+**Fix:** anchor insertions on an unconditional line (here `SettingsRoutes.hpp`), and grep the result in context (`#if`/`#endif` around it) for every file the script touched, especially files you can't compile locally.
+
+---
+
+## nlohmann::json writes a `float` widened to `double` -- 0.01f goes out as 0.009999999776482582
+Tags: cpp, json, float, serialization, webui
+Applies-when: serializing float fields to JSON that a frontend displays or derives formatting from
+
+The param schema (Aurora-ta5) stores slider `min`/`max`/`step`/`default` as `float`; `nlohmann::json` stores numbers as `double`, so `0.01f` serialized as `0.009999999776482582` and `0.285f` as `0.2849999964237213`. The WebUI's `formatSliderValue` derives displayed decimals from the step's digits, so every 0.01-step slider would have shown 18 decimal places. Unit tests comparing `entry["param"]["min"] == 100.f` passed throughout -- only a live `curl` of the payload showed it.
+
+**Fix:** round-trip each float through its shortest decimal form before handing it to JSON (`std::to_chars(float)` then `strtod`, `shortestDecimal` in `ControlDescriptors.cpp`), and assert on the dumped text (`"step":0.01`), not on parsed values. `/api/config`'s float fields still widen (pre-existing; the UI only shows them via `toFixed`).
+
+---
+
+## Capturing a structured binding in a lambda needs Clang 16+ -- older Apple Clang rejects code GCC accepts
+Tags: cpp, lambdas, structured-bindings, clang, macos, portability
+Applies-when: writing a lambda inside `for(auto& [a, b] : ...)` that captures `a` or `b`
+
+Avoided rather than hit (Aurora-lzj, `serveEmbeddedFilesAt`). The first draft registered routes with `for(const auto& [prefix, files] : ...)` and lambdas capturing `[prefix]` / `[files]`. GCC compiled it cleanly on Linux. Capturing structured bindings only became legal in C++20 (P1091/P1381), and Clang implements it from 16. Older Apple Clang predates that, so the Mac build could fail where the Linux one passed. This is from the compiler support tables, not reproduced here.
+
+**Fix:** iterate with a plain `entry` and use init-captures (`[prefix = entry.first]`). This works on every compiler Aurora targets and costs nothing. When the Linux build is the only one that ran, treat newer-standard syntax as unverified on Mac and Windows.
+
+---
+
+## `weakly_canonical("dir/.")` keeps a trailing slash, so it doesn't give one spelling per directory
+Tags: filesystem, paths, hashing, libstdc++
+Applies-when: hashing or comparing paths as identity keys (scopes, caches, map keys)
+
+Aurora-2dz's `scopeForConfigRoot` hashed `weakly_canonical(root).generic_string()`. A test passing `root / "."` and `root / "sub" / ".."` got a different scope than `root`: libstdc++ returns `/tmp/x/` for those, with a trailing separator. The same config root would then have looked like a new install and lost its stored secrets.
+
+**Fix:** `.lexically_normal()`, then strip trailing `/` (keep a bare root). Test the identity function with `.`, `..` and trailing-slash spellings, not just the plain path.
+
+---
+
+## Range-for over `json.items()` of a temporary dangles -- and nlohmann objects iterate in sorted key order
+Tags: nlohmann, lifetime, range-for, segfault
+Applies-when: iterating a `nlohmann::json` returned by a function, or asserting on the order of its keys
+
+`for(const auto& item : toJson(data).items())` crashed with SIGSEGV in `configKeys()` (Aurora-c0g). `items()` returns a proxy holding a reference into the json, and a range-for only extends the lifetime of that proxy, not of the temporary it points into. Separately, a test that expected keys in insertion order failed: nlohmann stores objects in a sorted map, so iteration is alphabetical.
+
+**Fix:** bind the json to a named local before iterating. Compare key lists sorted or with an unordered matcher, never by position.
+
+
+---
+
+## A dbusmenu tray can be driven and checked headlessly with gdbus -- but `-1` and `[]` need typing
+Tags: dbus, gdbus, tray, testing, sni
+Applies-when: verifying an SNI/dbusmenu tray item without clicking a real panel
+
+Aurora-5ipy.16's Pause/Resume item was exercised on a live app with no tray host UI: find the bus name (`gdbus call --session --dest org.freedesktop.DBus --object-path /org/freedesktop/DBus --method org.freedesktop.DBus.ListNames`, grep `StatusNotifierItem`), then call `com.canonical.dbusmenu.Event 3 clicked '<0>' 0` on `/Menu` to click an item, `GetLayout` to read labels, and `gdbus monitor --session --dest <name>` to see `LayoutUpdated`. Two traps made `GetLayout` print only gdbus usage text: a bare `-1` is parsed as an option, and `'[]'` has no inferable type.
+
+**Fix:** pass `0 '@i 1' '@as []'` (depth 1 is enough for a flat menu; `@i -1` also works), and filter labels with `grep -o "'label': <'[^']*'>"`. This proves the D-Bus half only; a real host's rendering and click routing still needs one manual pass.
+
+Trayless paths need no desktop change either: `dbus-run-session -- Aurora --fresh` gives a private bus with no StatusNotifierWatcher (silent, no icon), and `DBUS_SESSION_BUS_ADDRESS=unix:path=/nonexistent` gives no bus (prints "Tray: no session bus"). Both emulate stock GNOME without disabling the Ubuntu appindicator extension. Put a stub `xdg-open` first on `PATH` so the first-run browser launch does not open on the real desktop.
+
+Extended 2026-10-07 (Aurora-q9l1): back-to-back scripted clicks can coalesce in the consumer loop and pass even unfixed -- see "Back-to-back scripted inputs coalesce in the consumer loop..." for spacing race probes and stretching a fast fake dependency.
+
+---
+
+## A `unique_ptr` deleter that calls only a C library's `*_free` leaks the `new`ed struct itself
+Tags: unique_ptr, deleter, mbedtls, leak, c-portability
+Applies-when: wrapping a C library's init/free pair (`mbedtls_*_init`/`_free`, `*_destroy`) in a `unique_ptr` whose pointee you allocated with `new`
+
+`output/hue/src/MbedTlsImpl.hpp` held six mbedtls contexts as `unique_ptr<T, MbedTlsDeleter<mbedtls_*_free>>`, each created with `reset(new T{})`. The deleter called `FreeFunc(ptr)` and nothing else. mbedtls's `*_free` releases what the context points to and zeroes it; it does not free the struct, which the library never allocated. `leaks(1)` on a Mac rebuild stress loop (Aurora-2pe5) showed ~6 blocks and ~3.4KB per Hue output rebuild, all rooted in `_initMembers()` (5 `new`s) and `_initRNG()` (1 `new`). The block count matching the number of `new`s per init is what pointed at the struct, not at a missing `_free` call; the bead's own first hypothesis ("find the matching free") was wrong, since every context already had one.
+
+**Fix:** `delete ptr` after `FreeFunc(ptr)` in the deleter, or hold the contexts by value / `make_unique` with a free-only deleter that then lets the default delete run. When a leak report's block count equals the number of `new`s in one init function, check what the deleter does with the struct before hunting for a missing library free. Confirmed 2026-10-05: with the `delete`, 20 failed inits free all 120 structs (a counting test fails with exactly 20 x 6 leaked blocks before the fix), and `leaks(1)` goes from `_initRNG` root leaks to zero.
+
+---
+
+## C++ allows `2.f`: a float regex requiring post-dot digits misses every integral literal silently
+Tags: c++, regex, parsing, codegen
+Applies-when: regex-parsing float literals out of C++ sources (descriptor tables, config defaults, codegen inputs)
+
+Regenerating `descriptors.json` from `ControlDescriptorTables.cpp` (Aurora-ifkn.6), the float pattern `-?[0-9]+(?:\.[0-9]+)?f` matched `0.285f` but not `2.f`, `60.f`, `100.f` or `-1.f` -- all twelve slider entries silently failed the slider parse, fell through to the plain-entry parse (which correctly ignores them), and the regen wrote 17 param-less descriptors instead of 29 with 12 ranged. No error: the miss just looked like a table with no sliders.
+
+**Fix:** accept empty fractions in the literal pattern (`-?[0-9]+(?:\.[0-9]*)?f`), and assert the parsed slider count (or the param count of the output) instead of trusting a quiet loop -- a `slider(`-count vs parsed-count check would have failed loudly on the first regen.

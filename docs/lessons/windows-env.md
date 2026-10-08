@@ -1,5 +1,7 @@
 # Windows environment
 
+Id: lesson-windows-env
+
 Processes, installers, ACLs, output capture, probing from this environment. See [README.md](README.md) for filing rules.
 
 ---
@@ -237,3 +239,62 @@ Applies-when: a Win32 tray/menu message loop shares a thread with a real-time wo
 `TrackPopupMenuEx` runs a modal loop and does not return until the menu closes, so pumping tray messages from the tick loop stalled the whole pipeline while a menu was open (Aurora-zlw; measured 0 SSE frames during a 5s hold). Win32 window affinity is per creating thread, not "the main thread" (unlike AppKit), so the fix is to move the tray, not the tick loop: `TrayIcon` owns a thread that creates both windows, adds the icon, and runs `GetMessage`; the constructor blocks on a future for setup. Second trap: a `PostThreadMessage(WM_QUIT)` is not seen while the menu's modal loop runs, so stopping from elsewhere (HTTP `/api/stop`, Ctrl+C) with a menu open hung the join forever.
 
 **Fix:** destructor posts `WM_QUIT` and then `SendMessageTimeout(WM_CANCELMODE)` to the tray window to dismiss the menu; teardown (`NIM_DELETE`, `DestroyWindow`) stays on the tray thread. Stop flag shared across threads must be `std::atomic`, not `volatile`. Verified with `tools/light-viz-relay/traygap.py` (posts the tray callback, holds the menu, reports frame gaps): 147 frames/5s, max gap 0.06s. General principle: a stop-with-menu-open test finds the hang a hold-the-menu test cannot.
+
+---
+
+## Real-time antivirus can deny CreateProcess on a freshly linked exe (`WinError 5`)
+Tags: windows, antivirus, defender, build, process-launch, devstack
+Applies-when: a just-built Windows exe fails to launch from a script (Python `subprocess.Popen`, devstack) with Access denied although launching it by hand or from another shell worked
+
+`devstack.py up` failed twice in a row with `PermissionError: [WinError 5] Access is denied` from `CreateProcess` on the `Aurora.exe` the build had just produced. Launch flags were not the cause: the same `creationflags` (DETACHED_PROCESS | CREATE_NEW_PROCESS_GROUP) launched the exe and `cmd.exe` fine in isolation, and an absolute path made no difference. It launched once real-time antivirus was turned off on that machine; the exact blocker (scan lock vs. block) was not isolated.
+
+**Fix:** after a build, if a scripted launch gets Access denied on the new binary, check antivirus before debugging flags, paths or ACLs: wait and retry, exclude the build dir, or pause real-time scanning on a dev box. Do not conclude the binary is broken.
+
+---
+
+## Do not probe an exe with `--help` or `--version` unless it handles them: Aurora.exe starts a full instance
+Tags: windows, cli, process-launch, verification, orphans
+Applies-when: testing whether an exe launches, or which flags it takes, by running it with `--help`/`--version` (or in a loop of flag variants)
+
+`Aurora.exe` handles only its known flags and ignores the rest, so `--help` and `--version` start the real app (tray, HTTP server, capture). A loop that launched it once per `creationflags` variant started several live instances; killed ones lingered as zombie entries while a parent still held a handle (`taskkill` said "no running instance"), and a blocking wait on the launcher hung until the app exited. Filed as Aurora-v3in.
+
+**Fix:** probe with a harmless exe first (`cmd /c exit`), launch the real one once, kill it by pid, and verify with `tasklist`/`Get-CimInstance` that nothing is left. Never wrap a possibly-long-lived app in a blocking wait inside an agent call.
+
+---
+
+## AppendMenuA reinterprets its string through the ANSI codepage, not UTF-8 -- a non-ASCII menu literal needs AppendMenuW
+Tags: windows, tray, win32, menu, unicode, encoding
+Applies-when: a Win32 menu item's text includes a non-ASCII UTF-8 character (e.g. an emoji/symbol literal)
+
+`TrayLabel.hpp`'s `kTraySeeErrorLabel` (Aurora-k73j) is a raw UTF-8 byte
+string (`"\xE2\x9A\xA0 See Error"`, the warning sign U+26A0). Mac decodes
+it correctly via `[NSString stringWithUTF8String:]` and Linux's dbusmenu
+is UTF-8-native, but the Windows tray built its menu with `AppendMenuA`
+(and the app's other "A"-suffixed calls throughout). `AppendMenuA` treats
+its `const char*` through the system ANSI codepage, not UTF-8, so each
+UTF-8 byte gets reinterpreted individually: on a CP1252 machine, bytes
+`E2 9A A0` decoded as `â`, `š`, then a non-breaking space -- on screen that
+reads as a stray "a" and "s" with diacritics ("lines on top"), which looks
+exactly like a missing-glyph/font problem but isn't one. Found live, by
+eye, during a manual tray verification pass -- the unit test on the pure
+label-string function never touches a real `HMENU` and could not have
+caught this.
+
+**Fix:** convert the UTF-8 literal to UTF-16 (`MultiByteToWideChar(CP_UTF8,
+...)`) and call `AppendMenuW` instead of `AppendMenuA` for a menu item
+carrying non-ASCII text (did all three items in the same `HMENU` for
+consistency; mixing `A`/`W` `AppendMenu` calls on one menu is safe if you
+don't). General principle: a cross-platform string literal with non-ASCII
+bytes needs the Unicode entry point on Windows specifically -- a passing
+test on the label string alone doesn't prove the native menu renders it,
+only a real, eyes-on manual pass does.
+
+---
+
+## Killing processes by `CommandLine -match` from a shelled-out PowerShell also kills that PowerShell
+Tags: windows, processes, powershell, cleanup, devstack
+Applies-when: stopping a background server or child by matching its command line, especially from Git Bash via `powershell -Command`
+
+Stopping a test viz server with `powershell -NoProfile -Command "Get-CimInstance Win32_Process | Where-Object { $_.CommandLine -match '_serve 8799' } | ForEach-Object { Stop-Process ... }"` stopped two processes and exited 255 (Aurora-57ct check). The pattern was also in that `powershell.exe`'s own command line, so it matched and killed itself mid-pipeline. Filtering on `Name='python.exe'` first had avoided it in the earlier runs.
+
+**Fix:** narrow by process name before matching the command line (`-Filter "Name='python.exe'"`), or exclude `$PID`. Better still, kill by the PID you recorded at launch, as `devstack.py` does with its state file.

@@ -15,16 +15,27 @@ import { applyTooltip } from './Tooltips.js';
 // selected, and not huenicorn's two-column drag-and-drop, which solves a
 // different (open-ended bridge-light membership) problem Aurora doesn't
 // have -- Aurora's zone count is fixed.
+// dataset.zoneId always arrives as a string; native zoneIds are numbers
+// (uint8) while other rigs use string ids, so match either form.
+// Returns undefined for an unknown id -- the caller guards, never throws.
+// (Aurora-ifkn.4: upstreamed from the demo fork's string-zone-ids seam.)
+export function findZone(zones, rawId) {
+  return zones.find((z) => z.zoneId === rawId || z.zoneId === Number(rawId));
+}
+
 export class ZoneActiveToggleList {
   // zones: live zone array (mutated in place, same convention as
   // ZoneCanvas). zoneLabel(zone) is injected -- this component knows
   // nothing about Hue channel/light names.
-  constructor(container, { zones, zoneLabel, onError, tooltipKey = null }) {
+  constructor(container, { zones, zoneLabel, onError, onSuccess, onUnreachable, tooltipKey = null, onChange = null }) {
     this.container = container;
     this.zones = zones;
     this.zoneLabel = zoneLabel;
     this.tooltipKey = tooltipKey;
-    this._queue = new ZonePatchQueue({ onError });
+    // Optional (Aurora-ifkn.5): fires after an Active flip so an owner showing
+    // the same shared zone objects elsewhere can refresh that sibling view.
+    this.onChange = onChange;
+    this._queue = new ZonePatchQueue({ onError, onSuccess, onUnreachable });
     this._render();
   }
 
@@ -47,20 +58,21 @@ export class ZoneActiveToggleList {
 
     this.container.querySelectorAll('input[type="checkbox"]').forEach((input) => {
       input.addEventListener('change', (e) => {
-        const zoneId = Number(e.currentTarget.dataset.zoneId);
-        const zone = this.zones.find((z) => z.zoneId === zoneId);
+        const zone = findZone(this.zones, e.currentTarget.dataset.zoneId);
+        if (!zone) return;
         zone.active = e.currentTarget.checked;
-        this._queue.queue(zoneId, { active: zone.active });
+        this._queue.queue(zone.zoneId, { active: zone.active });
+        this.onChange?.(zone);
       });
     });
   }
 }
 
 export class ZoneActiveToggleSingle {
-  constructor(container, { zone, onError }) {
+  constructor(container, { zone, onError, onUnreachable }) {
     this.container = container;
     this.zone = zone;
-    this._queue = new ZonePatchQueue({ onError });
+    this._queue = new ZonePatchQueue({ onError, onUnreachable });
     this._render();
   }
 

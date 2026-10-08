@@ -15,10 +15,10 @@ const app = read('../app.js');
   const gif = new URL('../icons/MacTray.gif', import.meta.url);
   assert.ok(existsSync(gif), 'GIF lives under web/ui so the embedded webroot carries it');
   assert.ok(statSync(gif).size > 0, 'GIF is non-empty');
-  assert.ok(screen.includes('src="icons/MacTray.gif"'), 'screen references the GIF by webroot-relative path');
+  assert.ok(screen.includes('../icons/MacTray.gif') && screen.includes('import.meta.url'), 'screen resolves the GIF against its own module');
   assert.match(screen, /alt="[^"]+menu bar[^"]*"/, 'GIF has descriptive alt text');
   assert.ok(screen.includes('menu bar'), 'copy uses menu bar wording');
-  assert.ok(screen.includes('Launch UI') && screen.includes('Stop'), 'copy names the menu items');
+  assert.ok(screen.includes('Launch UI') && screen.includes('Pause / Resume') && screen.includes('Stop'), 'copy names the menu items');
 }
 
 {
@@ -32,7 +32,7 @@ const app = read('../app.js');
 {
   // Wiring: platform gate, Back/Continue routing, discovery hand-off.
   assert.ok(app.includes('platform: capabilities.platform'), 'probeState returns platform');
-  assert.ok(app.includes("state.platform === 'mac'"), 'tip is gated on the mac platform');
+  assert.ok(app.includes("const isMac = platform === 'mac'"), 'tip is gated on the mac platform');
   assert.ok(
     app.includes('isMac ? showMacTip(discoveryPromise) : showOutputConnect(discoveryPromise, showWelcome)'),
     'Welcome goes to the tip on Mac, straight to Output Connect elsewhere',

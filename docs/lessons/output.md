@@ -1,5 +1,7 @@
 # Output — streaming/protocol gotchas
 
+Id: lesson-output
+
 Hue and any later DMX/Art-Net/sACN/OPC targets. See [`README.md`](README.md) for how
 entries get routed here vs. elsewhere.
 
@@ -259,3 +261,178 @@ Applies-when: a dev tool (light-viz relay, frame dump) shows "waiting for frames
 `DevLightTap` had a real POSIX body and a `#else` branch on Windows with empty constructor/`publish()` -- fine while Linux/Mac were the only targets, invisible once someone ran the light-viz recipe on Windows. Symptoms: the fake bridge logged `stream conf-room-4zone -> active`, `/api/hue/channels` listed 4 channels, `hue` was registered, the relay listened and the app burned CPU at full frame rate -- and the relay's SSE stayed silent. Hours of "is it pairing? the zone map? the config id?" were spent on the wrong layer; the only tell was `AURORA_DEV_LIGHT_TAP` being read nowhere in the Windows build. `DevFrameDump` (`AURORA_DEV_FRAME_DUMP`) had the identical stub and got the same port (`Aurora-gj0.11`).
 
 **Fix:** implemented the Winsock twin (`WSAStartup`/`SOCKET`/`ioctlsocket(FIONBIO)`/`closesocket`); the member became `std::intptr_t` because a Win64 `SOCKET` doesn't fit the POSIX `int`. General principle: when a dev tap is silent and everything upstream is green, grep for `#ifdef _WIN32`/`#ifndef _WIN32` around the emitter first -- and prefer a startup log line ("dev light tap: disabled on this platform") over a silent empty body, so the stub announces itself.
+
+---
+
+## Bridge-loader failure paths need fault injection -- a stalled endpoint on the threaded fake bridge reproduces curl timeouts
+Tags: output, hue, testing, fake-bridge, huenicorn, timeouts
+Applies-when: verifying how Hue API loading code (huenicorn's or Aurora's `ApiTools`) handles a failed or timed-out per-resource request
+
+Upstream finding 7 in [[upstream-findings]] (`Aurora-h45.8`) needed one light
+lookup to fail while the rest succeeded. `tools/fake-hue-bridge` serves the
+right CLIP v2 endpoints but has no latency or failure knobs. A ~40-line
+Python fake did it: `ThreadingHTTPServer`, a throwaway
+`openssl req -x509 -nodes` cert (the client disables peer verification for
+the self-signed bridge), and one `/light/<id>` handler that sleeps 3s, past
+curl's 1s `CURLOPT_TIMEOUT`. It must be threaded, or the stall blocks the
+next request. A driver linking the real `ApiTools.cpp` plus `CurlClient`,
+`Logger`, `Channel` and the platform selector showed `develop` throwing
+`bad_optional_access`. Tracing that throw upward found no catch between
+`Runtime::start()` and `main`, so the real impact is termination at
+startup, not the "aborted load" the write-up assumed.
+
+**Fix:** for timeout/failure behavior, stall or error one endpoint in a
+threaded fake instead of hoping for a flaky LAN. When sizing an uncaught
+exception's impact, follow it to the first `catch` (or `main`) before
+describing the symptom. `tools/fake-hue-bridge --stall-light <id>` now does
+the stall (`tools/huenicorn-checks/hue.sh` uses it); the first fake was
+scratch and got lost. Its entertainment configs also list `light_services`
+now, which huenicorn's loader requires.
+
+---
+
+## Home Assistant's login flow accepts a LAN `host:port` client_id, and its refresh tokens only work with the client_id they were issued to
+Tags: output, home-assistant, auth, oauth, indieauth
+Applies-when: designing Aurora's Home Assistant login, or storing and refreshing HA tokens
+
+The IndieAuth spec forbids IP-address hosts in a `client_id` except loopback.
+HA's `components/auth/indieauth.py` says it allows "any internal network IP".
+In practice it is more lenient than that: it calls `ip_address()` on the
+whole netloc, so `192.168.1.5:8080` fails to parse, falls through as a
+"domain name" and passes. A `redirect_uri` with the same scheme and
+`host:port` as the `client_id` is accepted without fetching anything, and
+plain `http://` is allowed. So Aurora can use its own WebUI URL as
+`client_id` and redirect back to itself. The catch is in
+`components/auth/__init__.py`: a refresh is rejected when its `client_id`
+differs from the one the token was issued to. Opening the WebUI at
+`127.0.0.1` one day and at the LAN IP the next would break refreshes.
+Normal refresh tokens expire 90 days after last use, so a running client
+never hits that expiry. Read from core `f66cbe4`; not yet run against a live
+HA.
+
+**Fix:** store the `client_id` alongside the refresh token and always refresh
+with it. Don't rebuild it from whatever URL the browser is using now.
+Confirm against a real HA (Docker) before relying on the netloc leniency,
+which is an implementation accident, not documented behavior.
+
+---
+
+## Home Assistant's WebSocket `call_service` replies only after the service finishes, and HA disconnects clients that read replies slowly
+Tags: output, home-assistant, websocket, rate-limiting, backpressure
+Applies-when: designing a sender, rate limiter or reader thread for the Home Assistant output
+
+`websocket_api/commands.py` runs `call_service` with `blocking=True`, so the
+result message arrives only once the light's service call has completed.
+That reply is a free per-light "command done" signal: no `state_changed`
+subscription is needed to keep one command in flight per light. The flip
+side is in `websocket_api/http.py`: HA cancels the connection at 4096 queued
+outgoing messages, or when the queue stays above 1024 for 10s. Every command
+produces a reply, so a client that sends fast but drains its socket slowly
+gets disconnected. HA also closes the socket if `auth` isn't sent within 10s
+of connecting.
+
+**Fix:** run a dedicated reader thread that always drains replies, separate
+from the sender. Gate each light on its previous command's reply (matched by
+message id). Send `auth` immediately after connecting.
+
+---
+
+## Re-running Hue pairing to "peek" at the app key mints a brand-new, unrelated bridge user
+Tags: output, hue, credentials, pairing, testing
+Applies-when: a script or test needs the real `hue-application-key` Aurora is already streaming with
+
+A bridge-side verification script for Aurora-jwcd needed the
+`hue-application-key` Aurora's running session uses, which
+`GET /api/hue/connection` deliberately withholds (see this file's
+resource-id entry and `PairingRoutes.cpp`). The first instinct -- "re-run
+pairing to see it once" -- is wrong: the bridge's `POST /api/0`
+registration (`ApiTools::registerNewUser`) always mints a fresh
+username/clientkey pair; it can't hand back a credential that already
+exists. Every call the script made with that fresh key got CLIP v2's
+`403` (an HTML "refused key" page, confirmed by web research, not a JSON
+error), while Aurora's own, separately-stored session kept streaming
+correctly the whole time -- two valid-looking but entirely unrelated
+credentials, one working, one not, with no overlap between them.
+
+**Fix:** read the real key straight from `CredentialsStore`'s file
+(`<configRoot>/hue-credentials.json` -- `%APPDATA%\Aurora` on Windows,
+`~/Library/Application Support/Aurora` on Mac, `~/.config/aurora` on
+Linux), never by re-pairing. General principle: when a credential is
+withheld from an API by design for security, "regenerate it" and "read the
+existing one" are different operations with different results whenever
+the underlying system treats registration as always-additive rather than
+idempotent -- check which one a recovery method actually performs before
+trusting its output.
+
+---
+
+## A Hue application key commonly starts with `-`, which breaks a naive `--flag value` CLI arg
+Tags: output, hue, credentials, cli, argparse
+Applies-when: writing a command-line tool that takes a Hue `username`/`hue-application-key` as a flag value
+
+`tools/hue-pause-resume-check/pause_resume_check.py --hue-key -WwOi...`
+failed with argparse's "expected one argument" -- not a bad value, a
+parsing ambiguity. The real bridge-issued key begins with `-`, so the
+space-separated form reads as two flags (`--hue-key` with no value,
+followed by an unrecognized `-WwOi...` flag) rather than one flag and its
+value. Nothing about the key is malformed; this is purely how `argparse`
+(and most getopt-style parsers) resolve a bare leading-dash token.
+
+**Fix:** accept the value via `--flag=value` (the `=` form bypasses the
+ambiguity) or an env var, and say so in the tool's own `--help`/usage text
+before anyone hits it. General principle: any CLI flag whose value is an
+opaque bridge/API-issued token should be documented as accepting `=` or an
+env var by default, since nothing guarantees such tokens won't start with
+`-`.
+
+---
+
+## A dead Hue bridge cannot fail a pipeline resume — inject resume failures through the input config
+Tags: output, hue, testing, resume, failure-injection
+Applies-when: testing a failure path that needs `Pipeline::build` to throw, or injecting an output failure by killing the bridge
+
+Aurora-n5ly's plan was "pause, kill the bridge, resume must fail". Live on Windows with the Ethernet unplugged, resume returned 200 `succeeded:true` in 6.3s (timeouts, then success): `loadEntertainmentConfigurations` returns an empty map without throwing when REST is unreachable, `HueOutput::init` ignores the selector's `false`, and the `Streamer` constructor swallows the DTLS failure per this file's `isConnected()` entry — while `PipelineHost::resume` only fails on a `Pipeline::build` throw. Complement, not duplicate, of the two existing entries: those cover a failure being invisible and success signals lying; this one covers a failure being *unproducable* through the output at all.
+
+**Fix:** break the input side instead — set `activeInputName` to a bogus value on disk (`setRunning` reloads from disk on every resume) and restore after. Note the config has separate video/audio input keys, so breaking one leaves the other mode's resume green. Separate product gap, still open: a resume against a dead bridge reports running with no tray/log/Dashboard signal.
+
+---
+
+## Reproducing "No outputs available": an empty `activeOutputNames` does not do it; an unpaired output plus a host with no pipeline does
+Tags: output, hue, testing, failure-injection, onboarding, reload
+Applies-when: you need a held `reload` error (`No outputs available -- nothing to drive`) to test the banner, the onboarding gate or anything reading `/api/state` errors
+
+Aurora-cj11's onboarding-gate check on the Mac. Setting `activeOutputNames: []` and reloading **succeeds** (the host runs with no output), so nothing fails. Moving `hue-credentials.json` aside with `activeOutputNames: ["hue"]` makes the build throw, but a reload on a *running* host still holds no error (the old pipeline is kept; see architecture-process.md's failed-reload entry). The error only appears when the host has no pipeline: launch it failed first (bogus `activeInputName` at startup), then fix the input and `POST /api/reload` with the credentials still missing. The running app also reads credentials at launch, so after restoring the file it kept failing until a relaunch.
+
+**Fix:** recipe = back up `hue-credentials.json` and `config.json`, move credentials aside, set `nuxCompleted:false` and `activeOutputNames:["hue"]`, launch with a bogus input, fix the input, `POST /api/reload`; restore both files and relaunch. Verify the checksum of the credentials file after restoring.
+
+---
+
+## Generic banner errors are injectable without breaking the pipeline
+Tags: output, testing, failure-injection, banner
+Applies-when: you need banner rows (1 or 2, with Retry/X) without a real failure, or two simultaneous errors, which no real build path produces on Linux
+
+The input-config recipes (bogus `activeInputName`, moved-aside credentials) produce real build errors but only one build-source entry at a time, and only by breaking the pipeline. `POST /api/dev/errors` (dev-only, needs `AURORA_DEV_ERRORS=1`; see `registerDevErrorsRoute`) injects any source/message through `PipelineHost::setError` on a running host instead, so two entries coexist for the collapsed "N problems" layout; `POST /api/dev/errors/remove` clears one. `devstack.py up --banner-errors 1|2` does both steps. Without the env flag the routes stay unregistered (404). Note the X is per-host-state, not per-row: injected errors on a running host always carry it; no-X rows need a real failed host, so the two states are sequential, never one mixed banner.
+
+**Fix:** for banner-layout work, inject via the dev route (or the devstack flag), not via broken input config; reserve the input-config recipes for testing real build-failure paths.
+
+**Extended (Aurora-x1lh):** a successful reload wipes injected errors too -- `PipelineHost::reload()` publishes an empty error list on success (`Pipeline.cpp`'s `_publishStatusLocked({})`), same as any other build. Clicking a real control that triggers a reload (e.g. the Dashboard's Video/Audio toggle) while dev-injected rows are up clears them as a side effect; re-POST `/api/dev/errors` afterward rather than treating the vanished banner as a CSS/markup bug.
+
+---
+
+## `discovery.meethue.com` rate-limits with HTTP 429 and an empty body; parsing that as JSON threw out of the route as a bare 500
+Tags: output, hue, discovery, rate-limit, 429, json-parse
+Applies-when: the Connect screen's Autodetect shows "Could not reach the discovery service", or code parses a cloud response body
+
+Repeated test runs got this network rate limited (`retry-after` about 2 minutes). `HttpClient`'s `HttpResponse` carries only the body, so `autodetectedBridge()` could not see the status; `asJson()` on the empty body threw, the route handler died, and the frontend's `fetch().json()` failed into its generic catch. It looked like a connectivity problem and followed a separate, real Local Network permission bug, which made it easy to blame.
+
+**Fix:** parse without throwing and require an array (`ApiTools.cpp`); return `succeeded: false` with a message that suggests retrying or typing the address. Manual entry never touches the cloud service. Autodetect now tries a local mDNS lookup first (Aurora-cyee, entry below), so the cloud service is only a fallback.
+
+---
+
+## Hue mDNS discovery: query from an ephemeral port and the bridge answers by unicast; resolve PTR -> SRV -> A and read `bridgeid` from TXT
+Tags: output, hue, mdns, dns-sd, discovery, multicast
+Applies-when: finding a Hue bridge (or any DNS-SD device) without the cloud discovery service
+
+A plain UDP socket that sends a PTR query for `_hue._tcp.local` to 224.0.0.251:5353 from an ordinary ephemeral port gets a "legacy unicast" reply straight back to that port, so no multicast group join or port 5353 bind is needed. The bridge's reply carries PTR (instance), SRV (target host), TXT (`bridgeid=...`, upper case) and A in one packet, with name compression. Verified against a real BSB002: found in 1.6 s with one resend at 500 ms. On Mac the send is subject to Local Network permission (it fails with `EHOSTUNREACH` when denied).
+
+**Fix:** `MdnsDiscovery.cpp`; try it before `discovery.meethue.com` and keep the cloud as fallback for networks that block multicast. Bound compression-pointer hops; truncated packets must yield nothing, not throw.

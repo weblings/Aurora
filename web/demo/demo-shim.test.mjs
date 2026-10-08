@@ -40,6 +40,58 @@ function testRouter(seed) {
   assert.equal(r.json.version, top[1], 'shim version matches CHANGELOG');
 }
 
+// State answers GET /api/state's shape (Aurora-kea), following the config
+// so a mode switch reads back: the Dashboard picks sections from it.
+{
+  const store = createShimStore(createMemoryStorage(), {});
+  const route = createRouter(store);
+  assert.deepEqual(route('GET', '/api/state').json, {
+    paused: false,
+    // No Stop button on the static page (Aurora-ifkn.3).
+    canStop: false,
+    usesVideoInput: true,
+    usesAudioInput: false,
+    samplesZones: true,
+    audioDevicesUrl: '/api/linux/audio-sinks',
+  });
+
+  route('PUT', '/api/config', JSON.stringify({ activeInputName: '', activeAudioInputName: 'linux-audio' }));
+  const audio = route('GET', '/api/state').json;
+  assert.equal(audio.usesVideoInput, false);
+  assert.equal(audio.usesAudioInput, true);
+  assert.equal(audio.samplesZones, false);
+
+  // The advertised device route is one the shim answers.
+  assert.equal(route('GET', audio.audioDevicesUrl).status, 200);
+}
+
+// PUT /api/state (Aurora-5ipy.13): {running: bool} flips the in-memory flag,
+// answered back as {running}; bad bodies 400 like the backend.
+{
+  const store = createShimStore(createMemoryStorage(), {});
+  const route = createRouter(store);
+  assert.equal(route('GET', '/api/state').json.paused, false);
+
+  const paused = route('PUT', '/api/state', JSON.stringify({ running: false }));
+  assert.equal(paused.status, 200);
+  assert.deepEqual(paused.json, { succeeded: true, running: false });
+  assert.equal(route('GET', '/api/state').json.paused, true);
+
+  // Idempotent repeat, then resume.
+  assert.deepEqual(route('PUT', '/api/state', JSON.stringify({ running: false })).json, { succeeded: true, running: false });
+  assert.deepEqual(route('PUT', '/api/state', JSON.stringify({ running: true })).json, { succeeded: true, running: true });
+  assert.equal(route('GET', '/api/state').json.paused, false);
+
+  assert.equal(route('PUT', '/api/state', 'not-json').status, 400);
+  assert.equal(route('PUT', '/api/state', JSON.stringify({})).json.error, 'running_bool_required');
+  assert.equal(route('PUT', '/api/state', JSON.stringify({ running: 'yes' })).status, 400);
+
+  // Seed-only: a fresh store always resumes, pause never persists.
+  const resumed = createShimStore(createMemoryStorage(), {});
+  assert.equal(resumed.isPaused(), false);
+  assert.equal(createRouter(createShimStore(createMemoryStorage(), { paused: true }))('GET', '/api/state').json.paused, true);
+}
+
 // Config GET returns the full live-defaulted set incl. interpolation NAME.
 {
   const r = testRouter({})('GET', '/api/config');
@@ -133,6 +185,14 @@ function testRouter(seed) {
   assert.deepEqual(r.json.channels[0].lightNames, ['Demo Light 0']);
 }
 
+// Output-neutral labels route Zone Mapping reads (Aurora-a0r).
+{
+  const r = testRouter({ zones: ZONES_FIXTURE })('GET', '/api/zones/labels');
+  assert.equal(r.json.succeeded, true);
+  assert.deepEqual(r.json.labels.map((l) => l.zoneId), [0, 1]);
+  assert.deepEqual(r.json.labels[0].names, ['Demo Light 0']);
+}
+
 // String zone ids (the room rig's quadrant names) prettify for labels.
 {
   const zones = [{ zoneId: 'front-left', uvs: { min: [0, 0], max: [0.5, 0.5] }, active: true, gamma: 0, everConfigured: true }];
@@ -152,6 +212,22 @@ function testRouter(seed) {
   }
   r.json.sinks[0].name = 'mutated';
   assert.notEqual(testRouter({})('GET', '/api/linux/audio-sinks').json.sinks[0].name, 'mutated', 'responses are copies');
+}
+
+// Audio status mirrors the native {followingDefault, sinkName} shape from
+// the demo config (Aurora-ifkn.7); unset target means following default.
+{
+  const r = testRouter({})('GET', '/api/linux/audio-status');
+  assert.equal(r.status, 200);
+  assert.deepEqual(r.json, { followingDefault: true, sinkName: '' });
+}
+
+// Discovery finds no bridge behind a static page (Aurora-ifkn.7), so
+// OutputConnectScreen takes its entry-form fallthrough, never a dead end.
+{
+  const r = testRouter({})('GET', '/api/hue/discover');
+  assert.equal(r.status, 200);
+  assert.deepEqual(r.json, { succeeded: true, bridges: [] });
 }
 
 // Unknown routes 404 instead of falling through to native fetch shapes.
@@ -221,7 +297,49 @@ function testRouter(seed) {
   assert.deepEqual(missing, [], `fixture lacks requested keys: ${missing.join(', ')}`);
   for (const d of fixture.descriptors) {
     assert.ok(d.key && d.description, `malformed entry: ${JSON.stringify(d)}`);
+    assert.ok(d.kind, `kindless entry (backend always emits kind): ${d.key}`);
+    // Slider ranges (Aurora-ifkn.6): gen-descriptors.py emits the backend's
+    // param schema, so Tuning sliders never see "Couldn't load slider
+    // ranges". kind and param stay in lockstep; ranges stay sane.
+    // Params ride only on sliders (backend precedent: zones.gamma is slider
+    // kind with no param); a param anywhere else is a misshapen regen.
+    if (d.param) {
+      assert.equal(d.kind, 'slider', `param on non-slider: ${d.key}`);
+      const p = d.param;
+      assert.equal(typeof p.label, 'string');
+      for (const f of ['min', 'max', 'step', 'default']) assert.equal(typeof p[f], 'number', `${d.key}.${f} not a number`);
+      assert.equal(typeof p.unit, 'string');
+      assert.equal(typeof p.allowsUnset, 'boolean');
+      assert.ok(p.min < p.max, `${d.key} range inverted`);
+      assert.ok(p.step > 0, `${d.key} step not positive`);
+      assert.ok(p.allowsUnset || (p.default >= p.min && p.default <= p.max), `${d.key} default outside range`);
+    }
   }
+  // Every Tuning slider the demo renders resolves to a ranged param (not
+  // just a key): audio* + transitionSmoothing configKeys map to descriptor
+  // keys by the same group rule as above (refreshRate/subsampleWidth are
+  // dropdowns, ranges N/A).
+  const byKey = new Map(fixture.descriptors.map((d) => [d.key, d]));
+  const unslid = [];
+  for (const [, configKey] of text.matchAll(/\['(audio[A-Za-z]+|transitionSmoothing)'/g)) {
+    const key = configKey.startsWith('audio')
+      ? `audio.${configKey.charAt(5).toLowerCase()}${configKey.slice(6)}`
+      : `video.${configKey}`;
+    if (!byKey.get(key)?.param) unslid.push(key);
+  }
+  assert.deepEqual(unslid, [], `tuning slider without ranges: ${unslid.join(', ')}`);
 }
 
 console.log('demo-shim contract tests passed.');
+
+// Pause hook (Aurora-calt): PUT /api/state tells the scene, so lamps freeze
+// on pause and resume driving on resume; a rejected body never fires it.
+{
+  const store = createShimStore(createMemoryStorage(), {});
+  const seen = [];
+  const route = createRouter(store, { onPausedChanged: (p) => seen.push(p) });
+  route('PUT', '/api/state', JSON.stringify({ running: false }));
+  route('PUT', '/api/state', JSON.stringify({ running: true }));
+  route('PUT', '/api/state', JSON.stringify({ running: 'nope' }));
+  assert.deepEqual(seen, [true, false]);
+}

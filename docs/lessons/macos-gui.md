@@ -1,5 +1,7 @@
 # macOS GUI (AppKit, tray, run loop)
 
+Id: lesson-macos-gui
+
 Menu-bar/status-item, run-loop-pumping, and Objective-C++ interop gotchas hit while building Mac tray-parity (`Aurora-qps`). See [README.md](README.md) for filing rules.
 
 ---
@@ -251,6 +253,8 @@ TCC attributes the Screen Recording request to the *responsible process*, which 
 
 **Fix:** when capture is silent and the process is alive, check which app is responsible for the launch and grant *that* app Screen Recording (restart the stack after). Don't chase the pipeline code first.
 
+The converse bit a denied-state test on 2026-10-05: `tccutil reset ScreenCapture com.aurora.app` (it reported success, so a grant for Aurora's own identity did exist) followed by `devstack.py up` still captured the real display, because the app was a child of the terminal and ran under the terminal's grant. Aurora's own grant, the one a user's double-click uses, never came into play. Denied-state checks (permission error UI, failed resume, refused mode switch) therefore need `Aurora.app` launched on its own (`open build/mac-app/bin/Aurora.app --args ...` or Finder), after the `tccutil reset`. The fake bridge, relay and viz from `devstack` are fine to keep running under a hand-launched app.
+
 ---
 
 ## `plutil -lint` accepts an entitlements file that `codesign` rejects; a `--` inside an XML comment is enough
@@ -381,3 +385,122 @@ Applies-when: checking that a notarized, stapled app opens cleanly for someone w
 `spctl --assess` passing on a bundle you built locally does not exercise the first-launch path: Gatekeeper only runs its download check on files carrying `com.apple.quarantine`, which browsers, AirDrop and Mail set and local builds never get. Setting it by hand on a fresh copy of the zip (`xattr -w com.apple.quarantine "0083;$(printf '%x' $(date +%s));Safari;" <zip>`), unzipping by double-click in Finder (Archive Utility passes the attribute on to the extracted app; command-line `unzip`/`ditto` may not), then opening the app gave the normal notarized-app prompt ("Safari created this file ... Apple checked it for malicious software and none was detected") with an Open button, and the TCC Screen Recording dialog followed (Aurora-qy5 cert prep). The "Safari" and timestamp in that prompt come from the attribute you wrote, not a real download.
 
 **Fix:** use a copy that has never been launched (a launched copy is already trusted), check `xattr <app>` lists `com.apple.quarantine` before opening, and treat "can't be checked / unidentified developer" as the failure. It approximates, not replaces, a real download on another Mac or a fresh user account.
+
+---
+
+## The macOS Local Network prompt is hard to trigger and impossible to reset, and does not show your `NSLocalNetworkUsageDescription`
+Tags: macos, local-network, privacy, tcc, nslocalnetworkusagedescription, ad-hoc-signing, verification
+Applies-when: testing that a Mac build gets the Local Network permission prompt, or acceptance says the prompt "shows" a reason string
+
+Three separate things made a one-line acceptance check (Aurora-pp8) take
+hours, each looking like "the prompt is broken":
+
+1. **Most test traffic never prompts.** Loopback (so the fake Hue bridge),
+   tools run from Terminal/SSH (so a shell `curl`, or running
+   `Contents/MacOS/Aurora` directly), and traffic to the default gateway
+   all produced no prompt. Launch the `.app` with `open` and point it at a
+   non-gateway LAN host (`curl -X PUT .../api/hue/validate` with
+   `{"bridgeAddress":"<neighbor IP from arp -an>"}`; the host need not be a
+   bridge).
+2. **There is no reset before macOS 27.2** (see the reset lesson below for 27.2's remove button and the script that automates the test copy). `tccutil` does not cover Local Network (Apple DTS:
+   "no good way to reset local network privacy on the Mac"); state lives
+   outside TCC and Settings toggles keep the entry. A new bundle ID gives a
+   fresh prompt, but a `cp -R` copy with a changed `CFBundleIdentifier` still
+   shares the executable UUID, which local network privacy uses (TN3179);
+   those copies were denied with no prompt, the app saw an instant
+   `unreachable` (2 ms where a real connect takes over a second), and the
+   Settings entries were off. Also patch `LC_UUID` (rewrite the 16 bytes at
+   the `LC_UUID` load command) and re-sign ad hoc.
+3. **macOS shows its own text, not ours.** The dialog read "Allow "Aurora" to
+   find devices on local networks? This will allow the app to discover,
+   connect to, and collect data from devices on your networks." The
+   `NSLocalNetworkUsageDescription` reason is an iOS-style field; on macOS
+   it is still required (reports: macOS 26.7+ will not prompt a GUI app
+   without it) but is not displayed.
+
+**Fix:** write the acceptance as "key present in the built bundle's
+`Info.plist` and the app gets the prompt", not "the prompt shows the string".
+Check the key with `plutil -p`, and make test copies with both a new bundle ID
+and a new `LC_UUID`.
+
+---
+
+## `SecItemDelete` on a legacy-keychain item returns `errSecInvalidOwnerEdit` (-25244) to an executable whose file name differs from the creator's, even with an identical signature
+Tags: macos, keychain, secitemdelete, acl, codesign, developer-id, errSecInvalidOwnerEdit
+Applies-when: a Keychain delete fails with "Invalid attempt to change the owner of this item" / -25244, or you are designing a Keychain test or update path across different binaries
+
+Aurora-2dz's cross-binary check wrote an item with binary `A`, then read and overwrote it from `B` (same Developer ID, different build): both worked, with no prompt. `SecItemDelete` from `B` failed with -25244; only `A` could delete. It looked like "delete breaks after an app update". It does not. Apple DTS (developer forums thread 69841) says the file-based keychain shim compares the current app's *name* with the app name stored in the item's ACL; a mismatch gives this error. Re-running with the same file name (`d1/AuroraSecretsTests` writes, `d2/AuroraSecretsTests` deletes, and a new binary `rm`/`cp`'d over the same path deletes) succeeded every time. The Mac executable is `Aurora` across updates, so updates are safe; renaming it, or running a renamed copy, is not.
+
+**Fix:** keep the shipped executable name stable and give test copies the same file name in different directories. If a delete does fail, the known fallbacks are `SecItemUpdate` to empty data, or `SecKeychainItemDelete` on an item found with `kSecReturnRef` (deprecated but works). Apple's longer-term answer is the data-protection keychain, which on a Developer ID build needs `keychain-access-groups` plus an embedded provisioning profile (without one the binary is killed at launch). See [[2dz-secret-store]].
+
+---
+
+## A legacy Keychain item's ACL can be dumped without reading the secret; it shows what a prompt will trust, and why one appears
+Tags: macos, keychain, acl, partition-id, cdhash, codesign, developer-id, always-allow
+Applies-when: a Mac build gets unexpected Keychain password prompts, or you need to confirm that an Allow / Always Allow click took effect
+
+`security dump-keychain -a ~/Library/Keychains/login.keychain-db` lists attributes and ACL entries but not secrets (no `-d`). It prints the whole keychain, so filter it to the one service in a script (`Aurora/acl-check` in Aurora-2dz) and never paste the rest. An ad-hoc-created item showed: decrypt trusted for the creating app by `cdhash`; a `partition_id` entry `cdhash:<hash>`; and `change_acl` with no trusted apps, which is why extending the ACL asks for the login keychain password. Always Allow adds the new build's requirement to the app list and its id to the partition list (`cdhash:` for ad-hoc, `teamid:<TEAM>` for Developer ID). Plain Allow adds nothing, so the next launch prompts again. After one Always Allow on a Developer ID build, other builds with the same identifier and Team ID (and the same file name) read and deleted with no prompt. Two Aurora-2dz runs looked like "Always Allow does not stick"; the ACL dump showed it does when clicked, and the earlier clicks were not recorded.
+
+**Fix:** to test Keychain access across builds, dump the ACL before and after each dialog instead of trusting memory of which button was clicked, time each read (0.02-0.3 s means no prompt, about 10 s means a dialog waited), and keep file name and path constant. See [[2dz-secret-store]].
+
+---
+
+## No badge/attention API exists for an `NSStatusItem`, and `NSDockTile.badgeLabel` doesn't apply to an `LSUIElement` app with no Dock icon
+Tags: macos, nsstatusitem, tray, badge, dock, lsuielement
+Applies-when: wanting a menu-bar icon to show an ambient "something needs attention" signal
+
+Looking for a way to flag a tray error on the icon itself, without opening the menu (Aurora-k73j, [[error-overlay]]): `NSStatusBarButton` (the only thing `NSStatusItem` exposes for its appearance) is a plain `NSButton` wrapper, `.image`/`.alternateImage`/`.title`, with no badge or attention-state primitive. `NSDockTile.badgeLabel` is the closest OS-level analogue, but Aurora runs `LSUIElement` with no Dock icon at all (`app/mac/README.md`), so there's no Dock tile to badge in the first place, independent of the separate notification-permission gate that can silently suppress that badge even for apps that do have one.
+
+**Fix:** there is no shortcut, an ambient signal on the icon itself has to be a hand-built icon swap or a manually composited overlay (bake a dot into a second image, or draw a small subview/layer on top of the existing button), not an API call. Since `template` is a per-`NSImage` property (`TrayIcon.mm:133`'s `setTemplate:YES`), a deliberately non-template "alert" variant can still show real color even though the normal icon stays a system-tinted silhouette.
+
+---
+
+## Objective-C method bodies in a `.mm` sit outside any C++ `namespace` block, so a project namespace must be spelled out there
+Tags: macos, objective-c++, namespace, compile-error, tray
+Applies-when: editing the `@implementation` section of `TrayIcon.mm` (or any `.mm`) that sits between `namespace X { ... }` blocks
+
+`TrayIcon.mm` has two `namespace Aurora::App` blocks with the `@implementation` of the menu target and app delegate between them. Aurora-k73j's e9ea988 used `Runtime::trayPauseItemLabel` inside `-menuNeedsUpdate:` and `-onTogglePause:` because the surrounding C++ code reads that way; the methods are outside the namespace, so Clang says `use of undeclared identifier 'Runtime'; did you mean 'Aurora::Runtime'?`. The commit had only been built on Linux and Windows, so it sat broken on Mac until the Mac manual pass built it.
+
+**Fix:** inside an `@implementation` write `Aurora::Runtime::` / `Aurora::App::` in full, or call a plain-C++ function in the namespaced part. The second is better: `resolveTrayPauseClick` (`TrayClick.cpp`) takes the decision out of the ObjC method, where the namespace trap is, and makes it unit-testable.
+
+---
+
+## NWBrowser says nothing about Local Network permission on macOS 27: it reports `ready` and sees its own advertisement while denied; a UDP send to mDNS or any LAN connect fails with `EHOSTUNREACH`
+Tags: macos, local-network, nwbrowser, bonjour, ehostunreach, permission-detection
+Applies-when: detecting whether Local Network access is granted, or reading an NWBrowser/NWListener state as a permission signal
+
+Aurora-o1qt shipped two probes that read `NWBrowser` state and both reported "granted" with the toggle off. Docs and forum posts say the browser goes `ready`, then `waiting(-65570: PolicyDenied)`. On macOS 27 it never reached `waiting`, and an `NWListener` plus `NWBrowser` round trip saw its own advertisement at once. Logging showed the real signal: with the permission off, a non-blocking TCP `connect()` to the bridge and a `sendto()` of an empty UDP datagram to 224.0.0.251:5353 both failed immediately with errno 65. The send is side-effect-free and needs no known LAN host. Note the pending-prompt window also looks denied: the first-run banner flashed under the dialog until the publisher required 2 denials in a row (Aurora-fjo7; verified live on a notarized build for Allow, Deny, and allowing later in Settings). A Mac with no network fails differently (not 65), which maps to unknown.
+
+**Fix:** decide from the send (`LocalNetworkProbe.mm`, mapping in `statusFromSend`). Flipping the toggle in System Settings takes effect in the running app (the next send succeeds), so a 2 s re-check clears the shell's `local_network` condition with no relaunch (Aurora-rbp3). The send also raises the prompt: TN3179 lists a UDP multicast send as a local network operation, and a build with the browse disabled still prompted (Aurora-dwvu). The Bonjour browse o1qt added "to raise the prompt" is redundant (removal: Aurora-awcg). Test any such probe with the toggle off before trusting it; the forum recipe was wrong here.
+
+---
+
+## Resetting the Local Network permission: no `tccutil`, no per-app reset; a changed bundle ID plus a patched `LC_UUID` is the practical route
+Tags: macos, local-network, tccutil, reset, lc-uuid, testing
+Applies-when: you need the Local Network prompt to appear again, or a "reset all permissions" step is being written
+
+`tccutil reset ScreenCapture|AudioCapture <bundle id>` works. Local Network is not in TCC: state lives in `/Library/Preferences/com.apple.networkextension.plist`, kept per user. Apple DTS says there is no good way to reset it. Deleting the plist on a running Mac fails (cfprefsd rewrites it at shutdown); deleting from macOS Recovery works but resets every app and can disturb VPN and Find My settings. A fresh user account or a VM snapshot also work and are slow.
+
+macOS 27.2 changes this: TN3179 (rev. 2026-10-06) says the System Settings > Privacy & Security > Local Network list gains +/- buttons, and removing an app resets it. Earlier 27.x (this Mac was 27.0.1 in Aurora-dwvu) has no reset.
+
+**Fix:** on 27.2+, remove the app from the list. Before that, `tools/mac/make-fresh-localnet-copy.sh [--launch]` copies the built app, sets a new bundle ID and `LC_UUID`, re-signs ad hoc, and launches it. Each run is a never-seen app and raises the prompt. The copy shares the original's config folder and port, so quit the original first (or pass `--fresh`). Ad-hoc copies show two dialogs where a shipped build shows one; see the notarized-build entry before counting prompts.
+
+---
+
+## Ad-hoc test copies show two Local Network dialogs on first launch; a notarized Developer ID build shows one. Count prompts on a notarized build
+Tags: macos, local-network, ad-hoc-signing, notarization, developer-id, prompt-count, testing
+Applies-when: counting or reducing permission prompts on first launch, or a fresh test copy shows a duplicate dialog
+
+In Aurora-dwvu every ad-hoc fresh copy (new bundle ID and `LC_UUID`) showed two identical system "find devices on local networks" dialogs. That held for each pair of launch-time operations we tried (browse + send, send + Welcome's mDNS query), with or without `--fresh`. The same HEAD code, notarized and run under a never-seen bundle ID, showed one. The count was never one dialog per operation: the send repeats every 2 s on a new socket and one run had three or more operations, yet it was always two. The macOS cause is not established. TN3179 says local network privacy tracks identity by code signature plus executable UUID and calls ad-hoc identity unreliable. Removing the browse in an ad-hoc build changed nothing and would have looked like "still broken".
+
+**Fix:** to see what users see, test on a notarized build with a new identity. Build `build/mac-release`, then run `tools/mac/make-fresh-localnet-copy.sh <that app>` without `--launch`, then `tools/mac/sign-notarize.sh <copy> --identity "<Developer ID name>" --keychain-profile aurora-notary --out build/<dir>`. Developer ID replaces the ad-hoc signature, and the new bundle ID and UUID survive. Copy the result to `~/Applications` under a distinct name and launch it with `open ... --args --fresh`. Use ad-hoc copies for allowed/denied behaviour, not for counting dialogs. Notarization takes a few minutes.
+
+---
+
+## No System Settings deep link reaches the Local Network list; anchors come from the pane's search index, so check it before guessing
+Tags: macos, system-settings, deep-link, x-apple.systempreferences, local-network, anchors
+Applies-when: adding an "Open Settings" link for a privacy pane, or a `?Privacy_...` link lands on the wrong page
+
+`x-apple.systempreferences:com.apple.preference.security?Privacy_LocalNetwork` (and the `com.apple.settings.PrivacySecurity.extension` variants, with or without `.privacy-localnetwork`) all land on the Privacy & Security page on macOS 27. Apple calls these URLs unsupported. The anchors that do work (`Privacy_ScreenCapture`, `Privacy_AudioCapture`) are keys in `/System/Library/ExtensionKit/Extensions/SecurityPrivacyExtension.appex/Contents/Resources/en.lproj/PrivacySecurity.searchTerms`; Local Network is not there, because its row is a code-driven service (`PrivacyLocalNetworkService` in `TCCServiceList.plist`), not an indexed one.
+
+**Fix:** list the real anchors with `grep -o "Privacy_[A-Za-z]*" .../PrivacySecurity.searchTerms | sort -u` before writing a link. When the pane has none, link the parent page and name the last click in the copy ("In Settings, click Local Network and allow Aurora."). Re-check after a macOS update.

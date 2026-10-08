@@ -11,6 +11,7 @@
 
 #include <algorithm>
 #include <chrono>
+#include <atomic>
 #include <csignal>
 #include <cstdlib>
 #include <filesystem>
@@ -21,24 +22,26 @@
 
 #include <nlohmann/json.hpp>
 
+#include <Aurora/App/Cli.hpp>
 #include <Aurora/App/FakeHue.hpp>
 #include <Aurora/App/InstanceLock.hpp>
 #include <Aurora/App/InstanceLock.hpp>
-#include <Aurora/App/Registry.hpp>
+#include <Aurora/Runtime/Registry.hpp>
 #include <Aurora/App/TrayIcon.hpp>
 #include <Aurora/App/WebRoot.hpp>
 #include <EmbeddedWebRoot.hpp>
+#ifdef AURORA_GRAPH_EDITOR
+#include <GraphEditorWebRoot.hpp>
+#endif
 #include <Aurora/Network/Http/Server/HttpServer.hpp>
 #include <Aurora/Runtime/ConfigStore.hpp>
 #include <Aurora/Runtime/ControlDescriptorTables.hpp>
 #include <Aurora/Runtime/ControlDescriptors.hpp>
-#include <Aurora/Runtime/Orchestrator.hpp>
+#include <Aurora/Runtime/PendingRunRequest.hpp>
+#include <Aurora/Runtime/Pipeline.hpp>
+#include <Aurora/Runtime/PipelineRoutes.hpp>
 #include <Aurora/Runtime/SettingsRoutes.hpp>
-#include <Aurora/Runtime/ZoneMapStore.hpp>
 #include <Aurora/Runtime/ZoneRoutes.hpp>
-#ifdef AURORA_RUNTIME_AUDIO_AVAILABLE
-#include <Aurora/Runtime/AudioOrchestrator.hpp>
-#endif
 
 #include <Aurora/Input/Linux/AudioSinkStatus.hpp>
 #include <Aurora/Input/Linux/DummyGrabber.hpp>
@@ -76,7 +79,7 @@ namespace
   // "linux" auto-selects X11 vs. Wayland/Pipewire the way huenicorn's
   // GnuLinuxAdapter did; the concrete backend names are also registered
   // individually for manual override while testing.
-  void registerInputs(Aurora::App::Registry& registry)
+  void registerInputs(Aurora::Runtime::Registry& registry)
   {
     registry.registerInput("dummy", []{
       return std::make_unique<Aurora::Input::Linux::DummyGrabber>();
@@ -120,7 +123,7 @@ namespace
   }
 
 
-  void registerAudioInputs(Aurora::App::Registry& registry, const std::filesystem::path& configRoot)
+  void registerAudioInputs(Aurora::Runtime::Registry& registry, const std::filesystem::path& configRoot)
   {
 #ifdef AURORA_INPUT_LINUX_AUDIO_AVAILABLE
     // Loads Config fresh on every factory call (each Pipeline::build, i.e.
@@ -150,7 +153,7 @@ namespace
   // checked first; env vars are a dev-only fallback for setups that
   // haven't paired through it yet, not a second, equally-valid source --
   // a persisted connection always wins over env vars when both are set.
-  void registerOutputs(Aurora::App::Registry& registry, const std::filesystem::path& configRoot)
+  void registerOutputs(Aurora::Runtime::Registry& registry, const std::filesystem::path& configRoot)
   {
 #ifdef AURORA_OUTPUT_HUE_IO_AVAILABLE
     Aurora::Output::Hue::CredentialsStore credentialsStore(configRoot);
@@ -260,433 +263,59 @@ namespace
   }
 
 
-  // Aurora-vf1.1: reload phase timing. Scoped span printer -- additive
-  // logging only, no behavior change. Read the [timing] lines after a
-  // Save to see which rebuild slice dominates before tuning anything.
-  // (DTLS/streamer time hides inside 'outputs init' -- drill there iff
-  // outputs dominate.)
-  class ScopedPhaseTimer
+  // Linux's per-app pieces of the shared Pipeline (core/Runtime, Aurora-9ig).
+  // Logging stays on the default stdout/stderr split.
+  Aurora::Runtime::PipelineOptions pipelineOptions()
   {
-  public:
-    explicit ScopedPhaseTimer(const char* phase):
-    m_phase(phase),
-    m_start(std::chrono::steady_clock::now())
-    {
-    }
-
-    ~ScopedPhaseTimer()
-    {
-      const auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(
-        std::chrono::steady_clock::now() - m_start).count();
-      std::cout << "[timing] " << m_phase << ": " << ms << " ms\n";
-    }
-
-    ScopedPhaseTimer(const ScopedPhaseTimer&) = delete;
-    ScopedPhaseTimer& operator=(const ScopedPhaseTimer&) = delete;
-
-  private:
-    const char* m_phase;
-    std::chrono::steady_clock::time_point m_start;
-  };
-
-
-  // The swappable unit a live reload tears down and reconstructs -- the
-  // "reconstruction, not mutation" design fork from huenicorn recommended in
-  // docs/HttpServerAnalysis.md. Lives here (not core::Runtime) because
-  // building one needs Registry and this app's own input-name/ifdef
-  // dispatch, both app-layer concepts. See docs/WebUI/WebUI_Design_1stPass.md's
-  // build-order step 11.
-  class Pipeline
-  {
-  public:
-    // Throws on any unrecoverable failure (unknown input/output name, no
-    // outputs available) -- caller decides whether that's fatal (first
-    // startup) or recoverable (a later reload, old pipeline stays running).
-    static std::unique_ptr<Pipeline> build(
-      Aurora::App::Registry& registry,
-      const Aurora::Runtime::Config& config,
-      const std::filesystem::path& configRoot
-    )
-    {
-      // Neither field ever set -- Mode+Device Select hasn't saved anything
-      // yet (onboarding still in progress). Previously masked by "no
-      // outputs available" always failing this early anyway (pairing alone
-      // couldn't make a reload succeed); once that's fixed, a reload right
-      // after pairing (Entertainment zone select's own connection save)
-      // would otherwise silently fall through to the "windows" video
-      // default below and start actually driving lights before the user
-      // ever confirmed a capture source. Returning null here (not
-      // throwing) is what PipelineHost::reload() already treats as an
-      // idle, non-error state -- see its own constructor comment.
-      if(config.activeInputName().empty() && config.activeAudioInputName().empty()){
-        return nullptr;
-      }
-
-      auto pipeline = std::unique_ptr<Pipeline>(new Pipeline());
-
-      std::vector<std::string> outputNames = config.activeOutputNames();
-      if(outputNames.empty()){
-        outputNames = registry.outputNames(); // no explicit selection -- run everything available
-      }
-
-      ScopedPhaseTimer outputsTimer("outputs init");
-      for(const auto& name : outputNames){
-        auto output = registry.createOutput(name);
-        if(!output){
-          std::cerr << "Unknown output '" << name << "', skipping\n";
-          continue;
-        }
-        output->init();
-        pipeline->m_outputPtrs.push_back(output.get());
-        pipeline->m_outputs.push_back(std::move(output));
-      }
-
-      if(pipeline->m_outputPtrs.empty()){
-        throw std::runtime_error("No outputs available -- nothing to drive");
-      }
-
-      // Video wins if both could apply -- explicit opt-in to audio requires
-      // leaving activeInputName unset. Same rule main() always used.
-      bool useAudioMode = config.activeInputName().empty() && !config.activeAudioInputName().empty();
-
-      ScopedPhaseTimer captureTimer("capture+orchestrator init");
-      if(useAudioMode){
-#ifdef AURORA_RUNTIME_AUDIO_AVAILABLE
-        auto audioInput = registry.createAudioInput(config.activeAudioInputName());
-        if(!audioInput){
-          throw std::runtime_error("Unknown audio input '" + config.activeAudioInputName() + "'");
-        }
-
-        Aurora::Processing::AudioProcessing::AudioEffectSettings settings;
-        if(config.audioFixedAnchorHue() >= 0.f){
-          settings.fixedAnchorHue = config.audioFixedAnchorHue();
-        }
-        settings.bounceSmoothTime = config.audioBounceSmoothTime();
-        settings.dynamismFloor = config.audioDynamismFloor();
-        settings.centroidStrength = config.audioCentroidStrength();
-        settings.driftBaseRateDegPerSec = config.audioDriftBaseRateDegPerSec();
-        settings.vibrancySaturation = config.audioVibrancySaturation();
-        settings.vibrancyValue = config.audioVibrancyValue();
-        settings.referenceRms = config.audioReferenceRms();
-        settings.brightnessFloor = config.audioBrightnessFloor();
-        settings.centroidRangeHz = config.audioCentroidRangeHz();
-        settings.brightnessSmoothTime = config.audioBrightnessSmoothTime();
-
-        pipeline->m_audioOrchestrator.emplace(
-          *audioInput, pipeline->m_outputPtrs, Aurora::Runtime::ZoneMapStore(configRoot), settings
-        );
-        pipeline->m_audioOrchestrator->init();
-        pipeline->m_audioInput = std::move(audioInput);
-        pipeline->m_isAudioMode = true;
-        pipeline->m_tickIntervalSeconds = 1.0 / 60.0; // no display-derived rate for audio
-
-        std::cout << "Aurora running: audio input='" << config.activeAudioInputName()
-                   << "', " << pipeline->m_outputPtrs.size() << " output(s).\n";
-#else
-        throw std::runtime_error(
-          "activeAudioInputName is set, but this build has no audio support "
-          "(AURORA_CORE_ENABLE_AUDIO/AURORA_APP_ENABLE_LINUX_AUDIO_INPUT were off)"
-        );
-#endif
-      }
-      else{
-        std::string inputName = config.activeInputName().empty() ? "linux" : config.activeInputName();
-        auto input = registry.createInput(inputName);
-        if(!input){
-          throw std::runtime_error("Unknown input '" + inputName + "'");
-        }
-        input->init();
-
-        pipeline->m_orchestrator.emplace(
-          *input, pipeline->m_outputPtrs, config, Aurora::Runtime::ZoneMapStore(configRoot)
-        );
-        pipeline->m_orchestrator->init();
-        pipeline->m_videoInput = std::move(input);
-        pipeline->m_isAudioMode = false;
-        pipeline->m_tickIntervalSeconds = 1.0 / pipeline->m_orchestrator->config().refreshRate();
-
-        // Persists any refreshRate/subsampleWidth just derived from the
-        // display -- same as main() always did right after construction.
-        Aurora::Runtime::ConfigStore(configRoot).save(pipeline->m_orchestrator->config());
-
-        std::cout << "Aurora running: input='" << inputName
-                   << "', " << pipeline->m_outputPtrs.size() << " output(s).\n";
-      }
-
-      return pipeline;
-    }
-
-    void tick()
-    {
-      if(m_isAudioMode){
-#ifdef AURORA_RUNTIME_AUDIO_AVAILABLE
-        m_audioOrchestrator->update(static_cast<float>(m_tickIntervalSeconds));
-#endif
-      }
-      else{
-        m_orchestrator->update();
-      }
-    }
-
-    double tickIntervalSeconds() const
-    {
-      return m_tickIntervalSeconds;
-    }
-
-    // Empty in audio mode -- no monitor concept applies then, not an error.
-    Aurora::Input::Monitors listMonitors() const
-    {
-      return m_videoInput ? m_videoInput->monitors() : Aurora::Input::Monitors{};
-    }
-
-    // Linux audio's "which sink" report (Aurora-4vf): unknown unless a live
-    // audio pipeline holds this build's own AudioGrabber -- video mode, no
-    // pipeline, or a foreign audio input all report empty, not an error
-    // (same precedent as listMonitors()). Deliberately Linux-specific, not
-    // on IAudioInput -- dynamic_cast, the same shape Mac's own
-    // audioPermissionLikelyDenied() uses for its platform query.
-    Aurora::Input::Linux::AudioSinkStatus audioSinkStatus() const
-    {
+    Aurora::Runtime::PipelineOptions options;
+    options.noAudioSupportMessage =
+      "activeAudioInputName is set, but this build has no audio support "
+      "(AURORA_CORE_ENABLE_AUDIO/AURORA_APP_ENABLE_LINUX_AUDIO_INPUT were off)";
 #ifdef AURORA_INPUT_LINUX_AUDIO_AVAILABLE
-      if(!m_isAudioMode || !m_audioInput) return {};
-      auto* audio = dynamic_cast<Aurora::Input::Linux::AudioGrabber*>(m_audioInput.get());
-      if(!audio) return {};
-      return audio->sinkStatus();
+    // Backs the WebUI's audio-device dropdown (Aurora-kea replaced its
+    // 'linux-audio' gate with this). Without audio there's nothing to pick.
+    options.audioDevicesUrl = "/api/linux/audio-sinks";
+#endif
+    return options;
+  }
+
+
+  // Linux audio's "which sink" report (Aurora-4vf): unknown unless a live
+  // audio pipeline holds this build's own AudioGrabber -- video mode, no
+  // pipeline, or a foreign audio input all report empty, not an error
+  // (same precedent as /api/monitors). Deliberately Linux-specific, not
+  // on IAudioInput -- dynamic_cast, the same shape Mac's own
+  // audioPermissionLikelyDenied() uses for its platform query.
+  Aurora::Input::Linux::AudioSinkStatus audioSinkStatus(Aurora::Runtime::PipelineHost& pipelineHost)
+  {
+#ifdef AURORA_INPUT_LINUX_AUDIO_AVAILABLE
+    return pipelineHost.withAudioInput([](Aurora::Input::IAudioInput* input){
+      auto* audio = dynamic_cast<Aurora::Input::Linux::AudioGrabber*>(input);
+      return audio ? audio->sinkStatus() : Aurora::Input::Linux::AudioSinkStatus{};
+    });
 #else
-      return {};
+    (void)pipelineHost;
+    return {};
 #endif
-    }
-
-    // Empty in audio mode or with no outputs -- same "nothing to report,
-    // not an error" precedent as listMonitors(). Only the first output is
-    // considered: today's only real output is Hue, and the WebUI's own
-    // Zone Mapping screen is designed around one unified zone grid, not
-    // per-output tabs -- a documented v1 scope limit, not an oversight.
-    Aurora::Runtime::ZoneListResult listZones() const
-    {
-      if(m_outputPtrs.empty()){
-        return {};
-      }
-
-      const std::string& name = m_outputPtrs.front()->name();
-#ifdef AURORA_RUNTIME_AUDIO_AVAILABLE
-      if(m_isAudioMode){
-        return {name, m_audioOrchestrator->zoneMap(name)};
-      }
-#endif
-      return {name, m_orchestrator->zoneMap(name)};
-    }
-
-    bool updateZone(
-      std::uint8_t zoneId,
-      const std::optional<Aurora::Contracts::UVs>& uvs,
-      const std::optional<bool>& active,
-      const std::optional<float>& gamma
-    )
-    {
-      if(m_outputPtrs.empty()){
-        return false;
-      }
-
-#ifdef AURORA_RUNTIME_AUDIO_AVAILABLE
-      if(m_isAudioMode){
-        return m_audioOrchestrator->updateZone(m_outputPtrs.front()->name(), zoneId, uvs, active, gamma);
-      }
-#endif
-      return m_orchestrator->updateZone(m_outputPtrs.front()->name(), zoneId, uvs, active, gamma);
-    }
-
-    void shutdown(bool isReplacement)
-    {
-      for(auto* output : m_outputPtrs){
-        output->shutdown(isReplacement);
-      }
-    }
-
-  private:
-    Pipeline() = default;
-
-    bool m_isAudioMode{false};
-    double m_tickIntervalSeconds{1.0 / 60.0};
-
-    // Declaration order matters: m_orchestrator/m_audioOrchestrator hold a
-    // reference into m_videoInput/m_audioInput, so those must be declared
-    // (and therefore destroyed after, since destruction runs in reverse
-    // declaration order) first -- same reasoning already applied to
-    // EntertainmentConfigurationSelector's own member order in
-    // Aurora-Output-Hue.
-    std::unique_ptr<Aurora::Input::IVideoInput> m_videoInput;
-    std::unique_ptr<Aurora::Input::IAudioInput> m_audioInput;
-    std::vector<std::unique_ptr<Aurora::Output::IOutput>> m_outputs;
-    std::vector<Aurora::Output::IOutput*> m_outputPtrs;
-    std::optional<Aurora::Runtime::Orchestrator> m_orchestrator;
-#ifdef AURORA_RUNTIME_AUDIO_AVAILABLE
-    std::optional<Aurora::Runtime::AudioOrchestrator> m_audioOrchestrator;
-#endif
-  };
-
-
-  // One consistent lock around the swappable Pipeline -- the design
-  // HttpServerAnalysis.md recommended over huenicorn's own narrower
-  // single-mutex approach, since Aurora reconstructs the whole pipeline
-  // rather than mutating pieces of a live one. tick() (main thread) and
-  // reload() (the HTTP server's thread, via a settings PUT or /api/reload)
-  // both take the same lock; reload() builds the replacement *before*
-  // acquiring it, so a slow or failing build never blocks a tick in
-  // progress, and the old pipeline's shutdown() runs only after the swap,
-  // once no tick() call can reach it anymore.
-  class PipelineHost
-  {
-  public:
-    // initial may be nullptr -- a fresh install has no outputs configured
-    // yet, so there's nothing to build (see main()'s catch around the first
-    // Pipeline::build()). Every method below tolerates that empty state
-    // instead of requiring the WebUI to fail startup just to reach pairing.
-    explicit PipelineHost(std::unique_ptr<Pipeline> initial):
-    m_pipeline(std::move(initial))
-    {
-    }
-
-    void tick()
-    {
-      std::lock_guard<std::mutex> lock(m_mutex);
-      if(m_pipeline){ m_pipeline->tick(); }
-    }
-
-    double tickIntervalSeconds()
-    {
-      std::lock_guard<std::mutex> lock(m_mutex);
-      return m_pipeline ? m_pipeline->tickIntervalSeconds() : (1.0 / 60.0);
-    }
-
-    Aurora::Input::Monitors listMonitors()
-    {
-      std::lock_guard<std::mutex> lock(m_mutex);
-      return m_pipeline ? m_pipeline->listMonitors() : Aurora::Input::Monitors{};
-    }
-
-    // Same lock as every other Pipeline-state accessor here -- callers poll
-    // this on a slow diagnostic cadence, never the lock-free capabilities
-    // heartbeat (same reasoning as Mac's own audio-status poll).
-    Aurora::Input::Linux::AudioSinkStatus audioSinkStatus()
-    {
-      std::lock_guard<std::mutex> lock(m_mutex);
-      return m_pipeline ? m_pipeline->audioSinkStatus() : Aurora::Input::Linux::AudioSinkStatus{};
-    }
-
-    // Same lock as tick() -- a zone edit and an in-progress tick must never
-    // interleave, but unlike reload(), this never swaps or rebuilds the
-    // Pipeline at all, so it's cheap enough to call on every drag-frame a
-    // real Zone Mapping UI sends, not just on a final "Save".
-    Aurora::Runtime::ZoneListResult listZones()
-    {
-      std::lock_guard<std::mutex> lock(m_mutex);
-      return m_pipeline ? m_pipeline->listZones() : Aurora::Runtime::ZoneListResult{};
-    }
-
-    bool updateZone(
-      std::uint8_t zoneId,
-      const std::optional<Aurora::Contracts::UVs>& uvs,
-      const std::optional<bool>& active,
-      const std::optional<float>& gamma
-    )
-    {
-      std::lock_guard<std::mutex> lock(m_mutex);
-      return m_pipeline && m_pipeline->updateZone(zoneId, uvs, active, gamma);
-    }
-
-    // Returns true on success. On failure, errorOut is set and the previous
-    // pipeline keeps running untouched -- a bad reload (e.g. an
-    // activeInputName a settings PUT just wrote that doesn't resolve to any
-    // registered input) must not take down an already-working pipeline.
-    bool reload(
-      Aurora::App::Registry& registry,
-      const Aurora::Runtime::Config& config,
-      const std::filesystem::path& configRoot,
-      std::string& errorOut
-    )
-    {
-      ScopedPhaseTimer reloadTimer("reload total");
-      std::unique_ptr<Pipeline> next;
-      try{
-        next = Pipeline::build(registry, config, configRoot);
-      }
-      catch(const std::exception& e){
-        errorOut = e.what();
-        return false;
-      }
-
-      std::unique_ptr<Pipeline> previous;
-      {
-        std::lock_guard<std::mutex> lock(m_mutex);
-        previous = std::move(m_pipeline);
-        m_pipeline = std::move(next);
-      }
-      // previous is null on the first successful reload after a fresh
-      // install started with no Pipeline at all.
-      if(previous){ previous->shutdown(/*isReplacement*/ true); }
-      return true;
-    }
-
-    void shutdown()
-    {
-      std::lock_guard<std::mutex> lock(m_mutex);
-      if(m_pipeline){ m_pipeline->shutdown(/*isReplacement*/ false); }
-    }
-
-  private:
-    std::mutex m_mutex;
-    std::unique_ptr<Pipeline> m_pipeline;
-  };
-
-
-  void registerMonitorsRoute(
-    Aurora::Network::Http::Server::HttpServer& httpServer,
-    PipelineHost& pipelineHost
-  )
-  {
-    httpServer.addRoute(
-      Aurora::Network::Http::Server::HttpMethod::Get,
-      "/api/monitors",
-      [&pipelineHost](const Aurora::Network::Http::Server::Request&, Aurora::Network::Http::Server::Response& res){
-        auto monitors = pipelineHost.listMonitors();
-
-        nlohmann::json list = nlohmann::json::array();
-        for(size_t i = 0; i < monitors.size(); ++i){
-          const auto& monitor = monitors[i];
-          list.push_back({
-            {"id", i},
-            {"name", monitor->name},
-            {"width", monitor->width},
-            {"height", monitor->height},
-            {"refreshRate", monitor->refreshRate},
-            {"isPrimary", monitor->isPrimary}
-          });
-        }
-
-        res.contentType = "application/json";
-        res.body = nlohmann::json{{"monitors", list}}.dump();
-      }
-    );
   }
 
 
   // Linux-only (registered unconditionally, but reports unknown off
-  // linux-audio mode -- see Pipeline::audioSinkStatus()). A separate route
+  // linux-audio mode -- see audioSinkStatus() above). A separate route
   // rather than a new /api/capabilities field on purpose: that route's
   // heartbeat is deliberately lock-free, and this takes the pipeline lock
   // (same split Mac's /api/mac/audio-status already uses). The WebUI polls
   // this only while genuinely in audio mode, not on the heartbeat cadence.
   void registerAudioStatusRoute(
     Aurora::Network::Http::Server::HttpServer& httpServer,
-    PipelineHost& pipelineHost
+    Aurora::Runtime::PipelineHost& pipelineHost
   )
   {
     httpServer.addRoute(
       Aurora::Network::Http::Server::HttpMethod::Get,
       "/api/linux/audio-status",
       [&pipelineHost](const Aurora::Network::Http::Server::Request&, Aurora::Network::Http::Server::Response& res){
-        auto status = pipelineHost.audioSinkStatus();
+        auto status = audioSinkStatus(pipelineHost);
 
         res.contentType = "application/json";
         res.body = nlohmann::json{
@@ -729,35 +358,6 @@ namespace
   }
 
 
-  // Manual escape hatch alongside PUT /api/config's automatic funnel-through
-  // (e.g. "re-scan" after plugging in a monitor, with no field actually
-  // changed).
-  void registerReloadRoute(
-    Aurora::Network::Http::Server::HttpServer& httpServer,
-    PipelineHost& pipelineHost,
-    Aurora::App::Registry& registry,
-    const std::filesystem::path& configRoot
-  )
-  {
-    httpServer.addRoute(
-      Aurora::Network::Http::Server::HttpMethod::Post,
-      "/api/reload",
-      [&pipelineHost, &registry, configRoot](const Aurora::Network::Http::Server::Request&, Aurora::Network::Http::Server::Response& res){
-        Aurora::Runtime::Config config = Aurora::Runtime::ConfigStore(configRoot).load();
-        std::string error;
-        res.contentType = "application/json";
-        if(pipelineHost.reload(registry, config, configRoot, error)){
-          res.body = nlohmann::json{{"succeeded", true}}.dump();
-        }
-        else{
-          res.status = 500;
-          res.body = nlohmann::json{{"succeeded", false}, {"error", error}}.dump();
-        }
-      }
-    );
-  }
-
-
   // Sets the same flag SIGINT/SIGTERM already sets (the signal handler,
   // above) -- the daemon exits through its normal shutdown path (the tick
   // loop below sees g_stopRequested, calls pipelineHost.shutdown(), then
@@ -788,13 +388,14 @@ namespace
   // loads -- addRoute() just captures it for bind() to hand to Impl later.
   void registerCapabilitiesRoute(
     Aurora::Network::Http::Server::HttpServer& httpServer,
-    const Aurora::App::Registry& registry
+    const Aurora::Runtime::Registry& registry,
+    const Aurora::Runtime::PipelineHost& pipelineHost
   )
   {
     httpServer.addRoute(
       Aurora::Network::Http::Server::HttpMethod::Get,
       "/api/capabilities",
-      [&registry](const Aurora::Network::Http::Server::Request&, Aurora::Network::Http::Server::Response& res){
+      [&registry, &pipelineHost](const Aurora::Network::Http::Server::Request&, Aurora::Network::Http::Server::Response& res){
         std::vector<std::string> outputs = registry.outputNames();
 #ifdef AURORA_OUTPUT_HUE_IO_AVAILABLE
         // registerOutputs() only adds "hue" to registry once credentials
@@ -816,7 +417,9 @@ namespace
           // specific translation unit. Lets the WebUI show platform-
           // specific messaging (e.g. Mac's Screen Recording permission
           // recovery flow, Aurora-8mk.8) without guessing from other signals.
-          {"platform", "linux"}
+          {"platform", "linux"},
+          // In-memory pause (Aurora-3ddb); read lock-free like the rest.
+          {"paused", pipelineHost.isPaused()}
         };
 
         res.contentType = "application/json";
@@ -881,6 +484,13 @@ try
   std::signal(SIGINT, handleStopSignal);
   std::signal(SIGTERM, handleStopSignal);
 
+  // --help / --version / unknown-argument rejection (Aurora-0gd,
+  // Aurora-v3in): handled before anything boots -- no InstanceLock, no
+  // --fresh wipe of the temp dir, no pipeline, no port bind.
+  if(auto cliExit = Aurora::App::handleEarlyCli(argc, argv, AURORA_VERSION, /*withConsoleFlag=*/false, std::cout, std::cerr)){
+    return *cliExit;
+  }
+
   // --fake-hue: preset the fake-bridge dev flow (see FakeHue.hpp).
   // Explicit env wins over the presets; applied before anything reads env.
   if(Aurora::App::hasCliFlag(argc, argv, "--fake-hue")){
@@ -934,7 +544,7 @@ if(!instanceLock.held()){
   // Pipeline::build() below needs it. The audio factory loads Config fresh
   // per build instead (see registerAudioInputs), since Registry's
   // factories are zero-arg closures that reload() never re-registers.
-  Aurora::App::Registry registry;
+  Aurora::Runtime::Registry registry;
   registerInputs(registry);
   registerAudioInputs(registry, configRoot);
   registerOutputs(registry, configRoot);
@@ -945,17 +555,19 @@ if(!instanceLock.held()){
   // fatal -- the WebUI still needs to bind so Output Connect is reachable;
   // see WebUI/WebUI_Fixes.md's "HTTP server never binds" task. A later
   // failed *reload* is handled the same way; see PipelineHost::reload.
-  std::unique_ptr<Pipeline> initialPipeline;
+  std::unique_ptr<Aurora::Runtime::Pipeline> initialPipeline;
+  std::exception_ptr startupFailure; // held by the host so the WebUI can show it (Aurora-d3ec)
   try{
-    initialPipeline = Pipeline::build(registry, config, configRoot);
+    initialPipeline = Aurora::Runtime::Pipeline::build(registry, config, configRoot, pipelineOptions());
   }
   catch(const std::exception& e){
+    startupFailure = std::current_exception();
     std::cerr << "Pipeline not started (" << e.what() << ") -- WebUI still available for setup\n";
   }
-  PipelineHost pipelineHost(std::move(initialPipeline));
+  Aurora::Runtime::PipelineHost pipelineHost(std::move(initialPipeline), pipelineOptions(), startupFailure);
 
   Aurora::Network::Http::Server::HttpServer httpServer;
-  registerCapabilitiesRoute(httpServer, registry);
+  registerCapabilitiesRoute(httpServer, registry, pipelineHost);
   registerVersionRoute(httpServer);
 
   // Tooltip descriptors (docs/TooltipsAnalysis.md): every layer
@@ -993,35 +605,33 @@ if(!instanceLock.held()){
       // even though pairing just succeeded. Found live, see
       // WebUI_Fixes.md's Pass 2 section.
       registerOutputs(registry, configRoot);
-      Aurora::Runtime::Config freshConfig = Aurora::Runtime::ConfigStore(configRoot).load();
-      std::string error;
-      pipelineHost.reload(registry, freshConfig, configRoot, error);
-      return error;
+      return Aurora::Runtime::reloadPipelineFromDisk(pipelineHost, registry, configRoot);
     }
   );
 #endif
-  // "Every settings PUT funnels into the reload entrypoint" -- re-loads
-  // Config fresh (reflecting whatever the PUT that triggered this just
-  // saved) rather than closing over the request's own already-stale copy.
+  // Re-loads Config fresh (reflecting whatever the PUT that triggered this
+  // just saved) rather than closing over the request's own already-stale
+  // copy, then applies it live if only tuning fields changed, else reloads
+  // the pipeline (Aurora-c0g).
   Aurora::Runtime::registerSettingsRoutes(httpServer, configRoot,
     [&pipelineHost, &registry, configRoot]() -> std::string {
-      Aurora::Runtime::Config freshConfig = Aurora::Runtime::ConfigStore(configRoot).load();
-      std::string error;
-      pipelineHost.reload(registry, freshConfig, configRoot, error);
-      return error;
+      return Aurora::Runtime::applyConfigFromDisk(pipelineHost, registry, configRoot);
     }
   );
-  registerMonitorsRoute(httpServer, pipelineHost);
+  Aurora::Runtime::registerMonitorsRoute(httpServer, pipelineHost);
   registerAudioStatusRoute(httpServer, pipelineHost);
   registerAudioSinksRoute(httpServer);
-  registerReloadRoute(httpServer, pipelineHost, registry, configRoot);
+  Aurora::Runtime::registerReloadRoute(httpServer, pipelineHost, registry, configRoot);
+  Aurora::Runtime::registerStateRoute(httpServer, pipelineHost, registry, configRoot);
+  Aurora::Runtime::registerDevErrorsRoute(httpServer, pipelineHost);
   registerStopRoute(httpServer);
   Aurora::Runtime::registerZoneRoutes(
     httpServer,
     [&pipelineHost]{ return pipelineHost.listZones(); },
     [&pipelineHost](std::uint8_t zoneId, const auto& uvs, const auto& active, const auto& gamma){
       return pipelineHost.updateZone(zoneId, uvs, active, gamma);
-    }
+    },
+    [&pipelineHost]{ return pipelineHost.isPaused(); }
   );
 
   // WebUI static files -- must be set before bind() per HttpServer's own contract.
@@ -1037,6 +647,12 @@ if(!instanceLock.held()){
   else{
     httpServer.serveEmbeddedFiles(Aurora::EmbeddedWebRoot::files);
   }
+
+#ifdef AURORA_GRAPH_EDITOR
+  // Graph editor (Aurora-lzj): always the embedded bundle, in dev and
+  // standalone runs alike -- the dev web/ui mount above never reaches it.
+  httpServer.serveEmbeddedFilesAt("/graph-editor/", Aurora::GraphEditorWebRoot::files);
+#endif
 
   // Own thread, same as huenicorn's real Runtime::_initWebUI (see
   // docs/HttpServerAnalysis.md) -- listen() blocks until stop() is
@@ -1071,14 +687,37 @@ if(!instanceLock.held()){
   // Aurora-lx4.2: tray presence (SNI) from here until scope exit.
   // Best-effort: with no session bus or watcher there is simply no
   // icon, and the WebUI print above remains the fallback.
+  // Pause/Resume (Aurora-5ipy.16, Aurora-q9l1): the tray callback only posts
+  // the clicked target (run/pause, last click wins); the tick loop below
+  // performs it, because resume takes seconds (Hue DTLS, portal dialog) and
+  // the D-Bus worker must stay responsive. With no pipeline while paused,
+  // blocking the loop here costs nothing.
+  Aurora::Runtime::PendingRunRequest pendingRunRequest;
   Aurora::App::TrayIcon trayIcon(url, webUiBound,
     [&]{ openWebBrowser(url); },
-    []{ g_stopRequested = 1; });
+    []{ g_stopRequested = 1; },
+    [&]{ pendingRunRequest.requestToggle(pipelineHost.isPaused()); },
+    [&]{ return pipelineHost.status(); });
+  Aurora::Runtime::HostStatus trayShown = pipelineHost.status();
 
   // Drives whichever Pipeline is current at the top of each iteration -- a
   // reload swapping it mid-loop is exactly what PipelineHost's own lock is
   // for; this loop never needs to know a swap happened.
   while(!g_stopRequested){
+    if(auto runTarget = pendingRunRequest.take()){
+      std::string error;
+      if(!pipelineHost.setRunning(*runTarget, registry, configRoot, error)){
+        std::cerr << "Tray pause/resume failed: " << error << "\n";
+      }
+    }
+    // The Pause-slot label can also flip on the error state (Aurora-k73j),
+    // not just on paused: re-fetch the layout when either changes.
+    const Aurora::Runtime::HostStatus trayNow = pipelineHost.status();
+    if(trayNow.state != trayShown.state
+        || trayNow.errors.empty() != trayShown.errors.empty()){
+      trayShown = trayNow;
+      trayIcon.refresh();
+    }
     auto tickStart = std::chrono::steady_clock::now();
     pipelineHost.tick();
     auto tickInterval = std::chrono::duration<double>(pipelineHost.tickIntervalSeconds());

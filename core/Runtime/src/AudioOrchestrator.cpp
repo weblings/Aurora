@@ -92,6 +92,20 @@ namespace Aurora::Runtime
   }
 
 
+  void AudioOrchestrator::setSettings(Processing::AudioProcessing::AudioEffectSettings settings)
+  {
+    const bool reAnchor = settings.fixedAnchorHue.has_value()
+      && settings.fixedAnchorHue != m_settings.fixedAnchorHue;
+
+    m_settings = std::move(settings);
+
+    if(reAnchor){
+      m_driftState = Processing::AudioProcessing::DriftState{};
+      m_bounceState = Processing::AudioProcessing::BounceState{};
+    }
+  }
+
+
   const ZoneMap& AudioOrchestrator::zoneMap(const std::string& outputName) const
   {
     return m_zoneMapsByOutput.at(outputName);

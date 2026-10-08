@@ -2,22 +2,21 @@
 
 #include <cstdint>
 #include <functional>
+#include <map>
 #include <optional>
 #include <string>
+#include <vector>
 
 #include <Aurora/Contracts/UV.hpp>
 #include <Aurora/Runtime/ZoneMap.hpp>
 
 namespace Aurora::Network::Http::Server { class HttpServer; }
 
-// Unlike SettingsRoutes/MonitorsRoute (registered directly in each app's
-// main.cpp because they need Registry/PipelineHost, both app-layer), this
-// can live in core: ZoneMap/ZoneConfig/Contracts::UVs are already core
-// types, so the only app-specific piece is *how* to reach the live
-// Orchestrator -- expressed as two generic callbacks, the same bridging
-// pattern SettingsRoutes already uses for its onConfigChanged. One
-// registration function serves both apps instead of duplicating the JSON
-// marshalling in each main.cpp the way step 11's monitors/reload routes had to.
+// ZoneMap/ZoneConfig/Contracts::UVs are core types, so the only
+// app-specific piece is *how* to reach the live Orchestrator -- expressed
+// as two generic callbacks, the same bridging pattern SettingsRoutes uses
+// for its onConfigChanged. One registration function serves every app
+// instead of duplicating the JSON marshalling in each main.cpp.
 namespace Aurora::Runtime
 {
   struct ZoneListResult
@@ -26,6 +25,9 @@ namespace Aurora::Runtime
     // outputs at all) -- see registerZoneRoutes' own header comment.
     std::string outputName;
     ZoneMap zones;
+    // From the live output's IOutput::zoneLabels() -- served by
+    // GET /api/zones/labels, not /api/zones itself.
+    std::map<std::uint8_t, std::vector<std::string>> labels;
   };
 
   void registerZoneRoutes(
@@ -36,6 +38,9 @@ namespace Aurora::Runtime
       const std::optional<Contracts::UVs>& uvs,
       const std::optional<bool>& active,
       const std::optional<float>& gamma
-    )> updateZone
+    )> updateZone,
+    // PUT /api/zones answers 409 "paused" while this is true (Aurora-3ddb):
+    // zone edits need live lights to be meaningful. Null = never paused.
+    std::function<bool()> isPaused = {}
   );
 }

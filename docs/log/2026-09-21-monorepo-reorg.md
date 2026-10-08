@@ -1,5 +1,7 @@
 # Monorepo reorg (2026-09-21)
 
+Id: monorepo-reorg
+
 Seven donor repos merged into `Aurora/` with history, `Analysis/` renamed to
 `docs/`, per-dir agents notes kept, planning sections given Status headers.
 README/logo/favicon/top-bar brand work is excluded -- logged separately later.

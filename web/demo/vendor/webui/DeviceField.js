@@ -1,12 +1,14 @@
-// Monitor dropdown (video) / sink dropdown (audio), swapped by mode --
-// pulled out of ModeDeviceScreen.js so DashboardScreen's top tier
-// (docs/WebUI/WebUI_Design_2ndPass.md) can compose the same field without
-// duplicating _renderVideoDevice/_renderAudioDevice. Same "destroy and
-// recreate on every re-render" convention as Dropdown itself -- no update()
-// method; callers rebuild a new instance when mode/props change.
+// Monitor dropdown (usesVideoInput) and/or audio device dropdown
+// (usesAudioInput) -- shared by ModeDeviceScreen and DashboardScreen's top
+// tier (docs/WebUI/WebUI_Design_2ndPass.md). Flags, not a mode (Aurora-kea):
+// both true shows both, monitor first. Same "destroy and recreate on every
+// re-render" convention as Dropdown itself -- no update() method; callers
+// rebuild a new instance when props change.
 //
-// The audio sink list (GET /api/linux/audio-sinks, Aurora-67y) loads
-// on entering audio mode and refreshes on every dropdown open; the
+// The audio device list comes from audioDevicesUrl (GET /api/state; Linux's
+// /api/linux/audio-sinks, Aurora-67y). With no URL the field just says it
+// uses the system default. The list loads when the field is built and
+// refreshes on every dropdown open; the
 // menu only re-renders when the option rows actually differ, so
 // steady-state opens show no flicker or cursor jump. Never on
 // DashboardScreen's 5s audio-status poll (Aurora-apn).
@@ -16,13 +18,18 @@ import { applyTooltip } from './Tooltips.js';
 export const AUTO_MONITOR_VALUE = '';
 export const SYSTEM_DEFAULT_SINK_VALUE = '';
 
-const AUDIO_SINKS_URL = '/api/linux/audio-sinks';
+// The video and audio hints share one class that reserves two lines
+// (dashboard.css), so toggling Video/Audio doesn't move what's below the
+// field. Keep the video copy short enough for two lines (Aurora-36b7).
+export const HINT_CLASS = 'device-field-hint';
+export const VIDEO_HINT = 'Auto (primary display). A specific monitor can be chosen once Video connects.';
+export const AUDIO_HINT = "Uses your system's default audio device.";
 
 // Default sink loader: [{name, description}] from the daemon, or a
 // rejection the caller turns into its System-default-only fallback.
 // Injectable via the constructor for tests.
-async function defaultLoadAudioSinks() {
-  const result = await (await fetch(AUDIO_SINKS_URL)).json();
+async function loadAudioSinksFrom(url) {
+  const result = await (await fetch(url)).json();
   if (!result || !Array.isArray(result.sinks)) throw new Error('bad audio-sinks shape');
   return result.sinks.filter((s) => s && typeof s.name === 'string');
 }
@@ -42,33 +49,69 @@ export function sinkOptionsEqual(a, b) {
 }
 
 export class DeviceField {
-  // onChange receives { selectedMonitorName } in video mode or
-  // { sinkName } in audio mode, whichever this field can actually change.
-  constructor(container, { mode, monitors = [], selectedMonitorName = AUTO_MONITOR_VALUE, showSinkField = false, sinkName = '', loadAudioSinks = defaultLoadAudioSinks, onChange }) {
+  // onChange receives { selectedMonitorName } from the monitor dropdown or
+  // { sinkName } from the audio device dropdown.
+  constructor(container, {
+    usesVideoInput = true, usesAudioInput = false, audioDevicesUrl = null,
+    monitors = [], selectedMonitorName = AUTO_MONITOR_VALUE, sinkName = '',
+    showHint = true, loadAudioSinks, onChange,
+  }) {
     this.container = container;
     this.onChange = onChange;
-    this.dropdown = null;
+    this.monitorDropdown = null;
+    this.dropdown = null; // the audio device dropdown
     this._destroyed = false;
 
-    if (mode === 'video') this._renderVideo(monitors, selectedMonitorName);
-    else this._renderAudio(showSinkField, sinkName, loadAudioSinks);
+    // Never empty: no flags at all still shows the monitor picker.
+    const showVideo = usesVideoInput || !usesAudioInput;
+    const showSinkDropdown = usesAudioInput && !!audioDevicesUrl;
+
+    // showHint=false drops the explanatory line shown in place of a picker
+    // (no monitors yet / no audio device list): a caller showing an error
+    // for the same input passes it, since "once Video mode finishes
+    // connecting" contradicts a permission error (Aurora-36b7).
+    this.showHint = showHint;
+
+    // One container, no per-part wrappers, so a single picker's DOM is
+    // unchanged from the mode-swapped field this replaced.
+    container.innerHTML = (showVideo ? this._videoHtml(monitors) : '')
+      + (usesAudioInput ? this._audioHtml(showSinkDropdown) : '');
+
+    if (showVideo && monitors.length > 0) this._wireVideo(monitors, selectedMonitorName);
+    if (showSinkDropdown) {
+      this._wireAudio(sinkName, loadAudioSinks ?? (() => loadAudioSinksFrom(audioDevicesUrl)));
+    }
   }
 
-  _renderVideo(monitors, selectedMonitorName) {
+  _videoHtml(monitors) {
     if (monitors.length === 0) {
-      this.container.innerHTML = `
-        <p class="status-text">Auto (primary display) — a specific monitor can be chosen here once Video mode finishes connecting.</p>
-      `;
-      return;
+      return this.showHint
+        ? `<p class="status-text ${HINT_CLASS}">${VIDEO_HINT}</p>`
+        : '';
     }
-
-    this.container.innerHTML = `
+    return `
       <div class="field">
         <label class="field-label" id="device-field-monitor-label">Monitor</label>
         <div id="device-field-monitor-dropdown-slot"></div>
       </div>
     `;
+  }
 
+  _audioHtml(showSinkDropdown) {
+    if (!showSinkDropdown) {
+      return this.showHint
+        ? `<p class="status-text ${HINT_CLASS}">${AUDIO_HINT}</p>`
+        : '';
+    }
+    return `
+      <div class="field">
+        <label class="field-label" id="device-field-sink-label">Audio device</label>
+        <div id="device-field-sink-dropdown-slot"></div>
+      </div>
+    `;
+  }
+
+  _wireVideo(monitors, selectedMonitorName) {
     const options = [
       { label: 'Auto (primary)', value: AUTO_MONITOR_VALUE, selected: selectedMonitorName === AUTO_MONITOR_VALUE },
       ...monitors.map((m) => ({
@@ -80,33 +123,21 @@ export class DeviceField {
     const selected = options.find((o) => o.selected) ?? options[0];
 
     const slot = this.container.querySelector('#device-field-monitor-dropdown-slot');
-    this.dropdown = new Dropdown(
+    this.monitorDropdown = new Dropdown(
       slot,
       selected.label,
       (value) => this.onChange?.({ selectedMonitorName: value }),
       { labelId: 'device-field-monitor-label', fill: true, tooltipKey: 'input.monitor' },
     );
-    this.dropdown.setOptions(options);
+    this.monitorDropdown.setOptions(options);
   }
 
-  _renderAudio(showSinkField, sinkName, loadAudioSinks) {
-    if (!showSinkField) {
-      this.container.innerHTML = `<p class="status-text">Uses your system's default audio device.</p>`;
-      return;
-    }
-
+  _wireAudio(sinkName, loadAudioSinks) {
     this._sinkName = sinkName;
     this._loadAudioSinks = loadAudioSinks;
-    this._sinks = null; // null until the entering-audio load lands
+    this._sinks = null; // null until the first load lands
     this._sinksLoading = false;
     this._appliedOptions = []; // last rows handed to setOptions (diff gate)
-
-    this.container.innerHTML = `
-      <div class="field">
-        <label class="field-label" id="device-field-sink-label">Audio device</label>
-        <div id="device-field-sink-dropdown-slot"></div>
-      </div>
-    `;
 
     const options = this._sinkOptions();
     const selected = options.find((o) => o.selected) ?? options[0];
@@ -139,7 +170,7 @@ export class DeviceField {
       this._reloadSinks();
     };
 
-    // Populate on entering audio mode; the openMenu wrap above refreshes
+    // Populate when built; the openMenu wrap above refreshes
     // on every open. Fire-and-forget: the _destroyed guard drops the
     // trailing redraw if the field is rebuilt before it lands.
     this._reloadSinks();
@@ -198,6 +229,8 @@ export class DeviceField {
   // disarms an in-flight sink load's trailing redraw.
   destroy() {
     this._destroyed = true;
+    this.monitorDropdown?.destroy();
+    this.monitorDropdown = null;
     this.dropdown?.destroy();
     this.dropdown = null;
   }

@@ -16,9 +16,10 @@ else()
 endif()
 
 add_executable(AuroraAppWindowsTests
-  RegistryTests.cpp
+  CliTests.cpp
   InstanceLockTests.cpp
   LogSinkTests.cpp
+  TrayIconTests.cpp
   WebRootTests.cpp
 )
 

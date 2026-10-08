@@ -20,7 +20,7 @@ namespace Aurora::Network::Http::Server
     unsigned port
   )
   {
-    m_httpServerImpl = std::make_unique<Impl>(m_routes, m_staticDir, m_embeddedFiles);
+    m_httpServerImpl = std::make_unique<Impl>(m_routes, m_staticDir, m_embeddedFiles, m_prefixedEmbeddedFiles);
 
     return m_httpServerImpl->bind(boundAddress, port);
   }
@@ -50,6 +50,21 @@ namespace Aurora::Network::Http::Server
   void HttpServer::serveEmbeddedFiles(EmbeddedFiles files)
   {
     m_embeddedFiles = std::move(files);
+  }
+
+
+  void HttpServer::serveEmbeddedFilesAt(const std::string& prefix, EmbeddedFiles files)
+  {
+    // Normalize to "/name" so "graph-editor", "/graph-editor/" and
+    // "/graph-editor" all register the same routes.
+    std::string normalized = prefix;
+    while(!normalized.empty() && normalized.back() == '/'){
+      normalized.pop_back();
+    }
+    if(normalized.empty() || normalized.front() != '/'){
+      normalized.insert(normalized.begin(), '/');
+    }
+    m_prefixedEmbeddedFiles.emplace_back(std::move(normalized), std::move(files));
   }
 
 

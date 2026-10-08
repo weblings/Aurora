@@ -1,5 +1,8 @@
 #include <Aurora/Runtime/SettingsRoutes.hpp>
 
+#include <memory>
+#include <mutex>
+
 #include <nlohmann/json.hpp>
 
 #include <Aurora/Contracts/Interpolation.hpp>
@@ -113,7 +116,14 @@ namespace Aurora::Runtime
       _writeJson(res, _toJson(config));
     });
 
-    server.addRoute(HttpMethod::Put, "/api/config", [configRoot, onConfigChanged](const Request& req, Response& res){
+    // Held from the config write through onConfigChanged, so two PUTs can't
+    // interleave their reloads: otherwise the older PUT's pipeline could be
+    // the one swapped in last while disk holds the newer config. Lock order
+    // is this mutex, then ConfigStore's file lock (a leaf, taken inside
+    // update()), then PipelineHost's -- never the reverse (Aurora-d6i7).
+    auto putMutex = std::make_shared<std::mutex>();
+
+    server.addRoute(HttpMethod::Put, "/api/config", [configRoot, onConfigChanged, putMutex](const Request& req, Response& res){
       nlohmann::json body;
       try{
         body = nlohmann::json::parse(req.body);
@@ -123,18 +133,22 @@ namespace Aurora::Runtime
         return;
       }
 
-      ConfigStore store(configRoot);
-      Config config = store.load();
+      std::lock_guard<std::mutex> lock(*putMutex);
 
+      // Atomic read-modify-write: Pipeline::build also writes config.json
+      // (derived rates), and a load() + save() here would lose its write or
+      // clobber ours. A throw from the patch saves nothing.
+      Config config;
       try{
-        _applyPatch(config, body);
+        config = ConfigStore(configRoot).update([&body](Config& current){
+          _applyPatch(current, body);
+          return true;
+        });
       }
       catch(const nlohmann::json::exception&){
         _writeJson(res, {{"succeeded", false}, {"error", "invalid_field_type"}}, 400);
         return;
       }
-
-      store.save(config);
 
       nlohmann::json responseJson = {{"succeeded", true}, {"config", _toJson(config)}};
       if(onConfigChanged){

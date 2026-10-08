@@ -11,6 +11,7 @@ on:
       - input/linux/**
       - output/hue/**
       - app/linux/**
+      - web/graph-editor/**
       - CMakeLists.txt
       - CMakePresets.json
       - .github/workflows/linux.yml
@@ -20,6 +21,7 @@ on:
       - input/linux/**
       - output/hue/**
       - app/linux/**
+      - web/graph-editor/**
       - CMakeLists.txt
       - CMakePresets.json
       - .github/workflows/linux.yml
@@ -27,6 +29,7 @@ on:
 jobs:
   build-test:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
       - name: Install deps
@@ -37,9 +40,20 @@ jobs:
           libpipewire-0.3-dev libglib2.0-dev
           libaubio-dev libopencv-dev
           libcurl4-openssl-dev libmbedtls-dev
+          libsecret-1-dev
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
       - name: Configure
-        run: cmake --preset linux-app
+        run: cmake --preset linux-app -DAURORA_ENABLE_GRAPH_EDITOR=ON
       - name: Build
         run: cmake --build build/linux-app
       - name: Test
         run: ctest --test-dir build/linux-app --output-on-failure
+      # Core's suite (incl. Parity) is not part of any app preset: it only
+      # builds when core/ is configured standalone (core/CMakeLists.txt).
+      - name: Core tests (incl. Parity)
+        run: |
+          cmake -S core -B build/core-test
+          cmake --build build/core-test
+          ctest --test-dir build/core-test --output-on-failure --timeout 120

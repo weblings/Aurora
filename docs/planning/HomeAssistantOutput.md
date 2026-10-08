@@ -2,7 +2,8 @@
 
 Id: home-assistant-output
 
-Status: exploratory (2026-09-30) — research only, nothing built, no bead yet.
+Status: exploratory (2026-09-30) — research only, nothing built; no bead for
+the module itself. Revised 2026-10-01: "Prep work" added (`ha-prep` beads).
 Findings came from reading `core/Output`, `output/hue`, `app/mac` and HA's
 public docs; per-vendor rate figures are from memory of vendor guidance, not
 re-measured — treat them as order-of-magnitude until tested on real lights.
@@ -30,6 +31,15 @@ runtime-loaded plugin system).
   that channel is 255); HA maps that to the bulb's native mode. Same
   principle as the Hue XYB lesson in `docs/lessons/output.md`: let the
   device side do gamut mapping.
+- **Black frames (open, Aurora-pngj):** `turn_on` with brightness 0 switches
+  the light *off*, so a black zone (credits, dark scenes) or a global gain
+  of 0 ([[external-control]] brightness stage) would flicker lights off and
+  on. Policy undecided: a minimum-brightness floor, or explicit off/on with
+  hysteresis. Aurora-pngj decides it and blocks the split (Aurora-cyw).
+  Precedent: Hyperion's `backlightThreshold` (`RgbTransform::applyBacklight`)
+  is a minimum-brightness floor in its color stage, before any device, in
+  gray or colored form, so black never reaches its HA output as 0 (its HA
+  device itself has no black handling). Huenicorn needs none for Hue.
 - Rate limiting is the real design work. `send()` only stores the latest
   color per light; a sender thread drains them. Newest-wins (never queue),
   per-light max rate, at most one command in flight per light, skip
@@ -63,8 +73,9 @@ of 2026.9; a direct WLED/DDP output would be the fast Wi-Fi path.
 - No entitlement changes. Add `NSLocalNetworkUsageDescription` to
   `app/mac/Info.plist.in` (missing today, affects Hue too), and
   `NSBonjourServices` if mDNS discovery is added.
-- Store the HA token in the Keychain, not a JSON file: it grants control of
-  the whole home.
+- Store the HA token in the OS secret store (Keychain / Credential Manager /
+  libsecret; Aurora-2dz), not a JSON file: it grants control of the whole
+  home.
 - Licensing: HA Core is Apache-2.0; Aurora is GPL-3.0-or-later; only a
   network protocol is shared, so no conflict.
 
@@ -155,3 +166,215 @@ already a step in this direction.)
 
 Suggested order: HA as a compiled-in first-party output; revisit the external
 output protocol only if third parties ask for it; dlopen last, if ever.
+
+## Prep work
+
+Status: proposed 2026-10-01; all five prep items implemented and verified on
+Linux, Windows and Mac (2026-10-01). These items need no new
+dependency, work with Hue as the only output, and don't commit to building HA.
+Beads carry the details (label `ha-prep`):
+
+- Aurora-pp8: `NSLocalNetworkUsageDescription` in `app/mac/Info.plist.in`
+  (already missing for Hue). Done; the built Mac bundle's Info.plist carries
+  it and Aurora gets the Local Network prompt. macOS shows its own dialog
+  text, not this string (the key is needed for the prompt to fire on recent
+  macOS, but is not displayed).
+- Aurora-dwo: cpp-httplib version floor (>= 0.46, for `ws::WebSocketClient`).
+  Added; Windows and Mac configure and build pass (real ConfigVersion checked
+  on Windows).
+- Aurora-4y9: per-output `{ probe, stages }` table in `probeState()`/`bootstrap()`.
+  Done and checked against the old flow (trace compare + browser, Linux; web/ui
+  tests pass on Mac).
+- Aurora-a0r: output-neutral zone labels endpoint for Zone Mapping
+  (`IOutput::zoneLabels()`, `GET /api/zones/labels`). Done, checked on Linux
+  with fake-hue; Windows compiles, passes ctest and serves the endpoint
+  under fake-hue; Mac compiles and passes the Hue tests.
+- Aurora-d9v: WebSocket client build and connect check on all three platforms.
+  Linux, Windows (MSVC) and Mac pass (in-process echo test in
+  `AuroraNetworkTests`).
+
+- Aurora-5i3: local API hardening before any HA credential exists. Done;
+  rules below, verified on Linux (`AuroraNetworkTests`, Hue
+  `[PairingRoutes]`).
+- Aurora-2dz: OS secret store. Done and closed: Linux (gnome-keyring), Mac
+  (login keychain, ad-hoc and Developer ID) and Windows (Credential
+  Manager) verified with real-backend round-trips. See "Secret store"
+  below. The returning-user `Unavailable` UX is Aurora-4zr.10.
+
+Deferred until HA is a go: rate-limited sender, brightness/`rgb_color`
+split. (Token storage moved into prep as Aurora-2dz.)
+
+### Local API rules
+
+The REST API has no auth and binds `0.0.0.0`. These rules hold for every
+route, today's Hue routes and any future HA route:
+
+- **Cross-origin writes are refused.** A non-GET request that carries an
+  `Origin` (else `Referer`) naming a different host than its `Host` header
+  gets 403 `cross_origin_forbidden` before the handler runs
+  (`HttpLibServerImpl.hpp`, `_wrapHandler`). Headerless clients (curl,
+  tests) and the same-origin WebUI pass, including the WebUI opened from
+  another LAN device. A malformed or `null` Origin fails closed.
+- **Residuals of that check.** It compares host only, not port, so a page
+  on another port of the same host passes. It is not a DNS-rebinding
+  defense. Closing either one needs a Host allowlist (future work).
+- **No route returns a stored secret.** `GET /api/hue/connection` reports
+  `configured` and the address only; `/api/config` carries no secrets.
+  The one exception is `PUT /api/hue/register`. It returns the
+  *freshly issued* username/clientkey, never stored ones, and the bridge
+  only issues them after the physical link button is pressed.
+- **Stored credentials go only to the stored endpoint.** A request that
+  names its own bridge address gets no fallback to the stored username
+  (`_resolveTarget` in `PairingRoutes.cpp`). Repointing `POST
+  /api/hue/connection` at a new address without new creds clears the old
+  ones and is refused as `incomplete_connection`.
+- **For HA (Aurora-4zr.5):** changing the HA URL clears the stored token,
+  for the same reason. Otherwise a LAN client could point Aurora at a fake
+  HA and collect the refresh token.
+- **`0.0.0.0` stays the default.** The WebUI from a phone or another PC
+  needs it, and the Origin-vs-Host check still works across the LAN.
+  `boundBackendIP` (`Config.hpp`) narrows it to `127.0.0.1` for anyone who
+  wants local-only.
+
+### Secret store (Aurora-2dz)
+
+`core/Secrets` (`AuroraSecrets`): `ISecretStore` get/set/remove, one OS
+backend per build. Status: verified against the real store on Linux
+(gnome-keyring), Mac (Keychain) and Windows (Credential Manager).
+
+- **Backends:**
+  - Mac: Keychain generic passwords.
+  - Windows: Credential Manager, not DPAPI. DPAPI only encrypts, so the
+    blob would still need a file of ours.
+  - Linux: libsecret / Secret Service. Without `libsecret-1-dev`, the build
+    gets a stub that reports `Unavailable`.
+- **No silent fallback.** No keyring, no Secret Service, a locked keyring
+  or a dismissed unlock prompt all return `Unavailable`. The store never
+  writes a file on its own.
+- **When the OS store is `Unavailable` (decided 2026-10-02):**
+  - **Default is session-only:** the token lives in a `MemorySecretStore`,
+    so after a restart the lights stay off until someone logs in again.
+  - **Explicit opt-in to keep it:** an unchecked "Remember on this device
+    — stored unencrypted in a file" choice, shown only when the OS store is
+    `Unavailable`. It switches to `FileSecretStore`
+    (`<configRoot>/secrets.plaintext.json`, owner-only 0600, written via a
+    locked-down temp file).
+  - **Why offer it:** autologin HTPC/ambient boxes are a core Aurora case,
+    and on Linux an unlocked keyring has no per-app access control anyway.
+    HA itself keeps refresh tokens in plaintext (`.storage/auth`).
+  - **Rule:** anything that later bundles the config root (export, bug
+    report) must leave `secrets.plaintext.json` out.
+- **Scoped per config root** (`scopeForConfigRoot`: a hash of the
+  canonical path), so two roots never share an entry. `--fresh` must wire a
+  `MemorySecretStore`, never the OS store. That wiring lands with the first
+  consumer (HA); today nothing links `AuroraSecrets` but its tests.
+- **Bound records** (`setBound`/`getBound`): a secret stored with its
+  endpoint (HA URL) reads as `NotFound` for any other endpoint. That
+  enforces the URL-change rule above even if a caller forgets to clear.
+- **One size cap everywhere:** 2560 bytes (Credential Manager's limit) and
+  no NUL bytes (libsecret's C-string API), so Linux tests catch both.
+- **Threading:** any call may block on an unlock prompt. Connect, login and
+  reset only; never the tick thread or under the API mutex.
+- **Hue stays in JSON.** Its username crosses the LAN in clear on every
+  bridge call anyway, so a keyring adds little and would make the working
+  pairing depend on a keyring being present.
+- **Mac signing (verified 2026-10-02):** Keychain access is tied to the
+  code signature.
+  - **Ad-hoc (`app/mac` default):** a binary reading an item written by an
+    earlier build gets a system dialog asking for the **login keychain
+    password** (the Mac account password), with Allow / Always Allow / Deny.
+    Allow returned `Ok`; **Deny returned `Unavailable`** (`User canceled the
+    operation`, `errSecUserCanceled`). A same-binary read and the delete did
+    not prompt. **Always Allow sticks** (ACL records the build's `cdhash`;
+    same binary then reads silently), but each rebuild is a new `cdhash`,
+    so every ad-hoc rebuild prompts once more. Plain Allow is presumably
+    per-launch (inferred: the ACL was not dumped after a plain Allow), so a
+    dev who clicks Allow would be asked on every launch.
+  - **Developer ID (`codesign -i <id> -s "Developer ID Application: ..."`):**
+    write with one binary, read with a different binary signed the same
+    way: `Ok` in 0.2 s, no prompt. The designated requirement is
+    identifier + Team ID, so it survives rebuilds and updates.
+  - **Delete depends on the executable's file name (not a bug in the
+    backend):** `SecItemDelete` on a legacy-keychain item fails with
+    `errSecInvalidOwnerEdit` (-25244, "Invalid attempt to change the owner
+    of this item") when the caller's executable name differs from the
+    creator's. Read and `set` still worked. Same name in another directory,
+    and a new binary replacing the old one at the same path, both deleted
+    fine (2026-10-02). My first test copied binaries to `A`/`B`/`C` and
+    wrongly looked like "delete fails after an update". Constraint: keep
+    the Mac executable name stable (`Aurora`); a rename orphans existing
+    items until the user deletes them in Keychain Access. Apple's longer-term
+    answer is the data-protection keychain (see the 2dz log, "Delete
+    research"); not needed now.
+  - **Dev (ad-hoc) to release (Developer ID), same file name, same Mac:**
+    the first signed build prompts once (password dialog); Always Allow
+    adds the signature (identifier + Team ID) and `teamid:464U3WR286` to
+    the item's ACL, and every later signed build reads and deletes
+    silently. So a developer's keychain upgrades in one prompt; end users
+    never see the ad-hoc case.
+  - **Design consequence:** only released, identity-signed builds give a
+    returning user a silent read. A returning user hits any prompt at
+    connect, not during NUX. Open gap (Aurora-4zr.10): `Unavailable` for a returning user
+    whose token exists but can't be read (Deny, locked keychain,
+    blank-password or auto-login account) has no defined UX; today's rule
+    covers only the Connect screen. Recipe in `docs/Building.md`, "Tests".
+
+## Findings from HA core source
+
+Read 2026-10-01 from a sparse clone of `home-assistant/core` (`f66cbe4`) in
+`../core`. Code reading only; nothing run against a live instance.
+
+- **Login flow works without a token paste (code says yes, untested live).**
+  `components/auth/indieauth.py`: if `redirect_uri` has the same scheme and
+  host:port as `client_id`, it passes with no fetch. `client_id` may be
+  `http://` and a LAN IP is accepted, since the netloc check is lenient:
+  `ip_address("192.168.1.5:8080")` fails to parse and is treated as a
+  hostname. So `client_id = http://<aurora-host>:<port>/` with a redirect
+  back to Aurora is valid.
+- **Tokens:** `/auth/token` returns a 30-minute access token plus a refresh
+  token. The refresh token expires 90 days after its *last use*
+  (`auth/const.py`, `auth_store.py`), so a running Aurora never hits that
+  expiry. Store the refresh token (not the access token) in the secret
+  store. A long-lived token (`auth/long_lived_access_token`, user-chosen
+  lifespan) stays the fallback.
+- **Refresh-token lifecycle** (re-read 2026-10-02, same checkout):
+  - Bound to the login's `client_id`. A refresh with another `client_id`
+    gets `invalid_request` (`components/auth/__init__.py:438`). The check
+    on `client_id` itself is format-only (`indieauth.py:280`). So store the
+    exact string and reuse it, even after Aurora's IP or port changes.
+  - Never rotated: the refresh grant returns only an access token. The
+    secret is written once at login and read at each connect.
+  - Expiry slides: each refresh pushes it 90 days out
+    (`auth_store.py:283`). After about 90 days offline, refresh gets
+    `invalid_grant`. Treat that as "log in again", not as a retry.
+  - `/auth/revoke` takes the token itself, needs no auth, and always
+    answers 200 (`components/auth/__init__.py:237`). Revoke at HA before
+    deleting the local copy.
+  - A long-lived token is a JWT access token (`auth/__init__.py:609`), not
+    a refresh token. It is used directly in `auth` and never refreshed, so
+    it needs its own stored-record shape.
+- **`call_service` over WebSocket is blocking:** the result arrives after
+  the light's service finishes (`websocket_api/commands.py`,
+  `blocking=True`). That reply is the per-light "in flight" signal, so no
+  `state_changed` subscription is needed for the rate limiter.
+- **Read replies promptly.** HA drops the connection at 4096 queued
+  outgoing messages, or after more than 1024 for 10s
+  (`websocket_api/const.py`, `http.py`). One result per command means a
+  stalled reader thread gets Aurora disconnected.
+- **Auth handshake:** HA closes the socket if `auth` isn't sent within 10s.
+- **Color:** sending `rgb_color` + `brightness` is right. `light/helper.py`
+  converts `rgb_color` to the bulb's mode (rgbw/rgbww/hs/xy). For
+  `color_temp`-only lights it picks the nearest white, so Light select
+  should still filter to color modes.
+- **mDNS:** `_home-assistant._tcp.local.` TXT records carry
+  `internal_url`, `external_url`, `base_url`, `uuid`, `version` and
+  `location_name` (`components/zeroconf/__init__.py`). Discovery can
+  prefill the URL and dedupe by `uuid`.
+- **Grouping by integration:** WebSocket `config/entity_registry/list`
+  (or `list_for_display`, which skips disabled entities) returns every
+  registry entry in one reply (`components/config/entity_registry.py`).
+  That each entry carries `platform` (the integration) is from memory:
+  `helpers/` isn't in the sparse checkout.
+- **Not answered yet:**
+  - Recorder exclusion (YAML; docs, not code).
+  - All real-light rates.

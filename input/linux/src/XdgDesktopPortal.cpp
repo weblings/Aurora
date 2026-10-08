@@ -23,6 +23,56 @@ namespace Aurora::Input::Linux
   const std::string XdgDesktopPortal::BusName = "org.freedesktop.portal.Desktop";
 
 
+  namespace
+  {
+    // Portal Response codes: 1 = user cancelled, 2 = ended some other way.
+    std::string describeResponse(
+      const char* step,
+      uint32_t response
+    )
+    {
+      if(response == 1){
+        return std::string(step) + " cancelled by the user";
+      }
+
+      if(response == 2){
+        return std::string(step) + " ended by the portal";
+      }
+
+      return std::string(step) + " failed (portal response " + std::to_string(response) + ")";
+    }
+
+
+    // Teardown cancels the GCancellable; a cancelled call is not a failure to report.
+    bool isCancelled(
+      const GError* error
+    )
+    {
+      return g_error_matches(error, G_IO_ERROR, G_IO_ERROR_CANCELLED);
+    }
+  }
+
+
+  void XdgDesktopPortal::settle(
+    Capture* capture,
+    bool ready,
+    const std::string& failureReason,
+    bool userDeclined
+  )
+  {
+    if(capture->fdSettled.exchange(true)){
+      return;
+    }
+
+    if(!ready){
+      capture->failureReason = failureReason;
+      capture->userDeclined = userDeclined;
+    }
+
+    capture->fdReadyPromise.set_value(ready);
+  }
+
+
   void XdgDesktopPortal::createSession(
     Capture* capture
   )
@@ -30,6 +80,8 @@ namespace Aurora::Input::Linux
     StringPair requestPathAndToken = portalCreatePath(CreatePathTokenType::Request);
     StringPair sessionPathAndToken = portalCreatePath(CreatePathTokenType::Session);
 
+    // The call data belongs to the signal subscription and the cancel handler;
+    // the completion callback gets `capture` (see onSessionCreatedCallback).
     DbusCallData* call = subscribeToSignal(capture, requestPathAndToken.first.c_str(), onCreateSessionResponseReceivedCallback);
 
     GVariantBuilder builder;
@@ -37,7 +89,8 @@ namespace Aurora::Input::Linux
     g_variant_builder_add(&builder, "{sv}", "handle_token", g_variant_new_string(requestPathAndToken.second.c_str()));
     g_variant_builder_add(&builder, "{sv}", "session_handle_token", g_variant_new_string(sessionPathAndToken.second.c_str()));
 
-    g_dbus_proxy_call(getScreencastPortalProxy(), "CreateSession", g_variant_new("(a{sv})", &builder), G_DBUS_CALL_FLAGS_NONE, -1, capture->cancellable, onSessionCreatedCallback, call);
+    (void)call;
+    g_dbus_proxy_call(getScreencastPortalProxy(), "CreateSession", g_variant_new("(a{sv})", &builder), G_DBUS_CALL_FLAGS_NONE, -1, capture->cancellable, onSessionCreatedCallback, capture);
   }
 
 
@@ -48,11 +101,13 @@ namespace Aurora::Input::Linux
     capture->cancellable = g_cancellable_new();
     GDBusConnection* connection = portalGetDbusConnection();
     if(!connection){
+      settle(capture, false, "no D-Bus session bus (is DBUS_SESSION_BUS_ADDRESS set?)");
       return false;
     }
 
     GDBusProxy* proxy = getScreencastPortalProxy();
     if(!proxy){
+      settle(capture, false, "xdg-desktop-portal ScreenCast is unavailable (no portal running, or no backend)");
       return false;
     }
 
@@ -277,6 +332,9 @@ namespace Aurora::Input::Linux
     g_autoptr(GVariant) result = g_dbus_proxy_call_with_unix_fd_list_finish(G_DBUS_PROXY(source), &fdList, res, &error);
 
     if(error){
+      if(!isCancelled(error)){
+        settle(capture, false, std::string("OpenPipeWireRemote failed: ") + error->message);
+      }
       return;
     }
 
@@ -285,12 +343,13 @@ namespace Aurora::Input::Linux
 
     int pwFd = g_unix_fd_list_get(fdList, fdIndex, &error);
     if(error){
+      settle(capture, false, std::string("OpenPipeWireRemote returned no usable fd: ") + error->message);
       return;
     }
 
     capture->pwFd = static_cast<uint32_t>(pwFd);
     capture->updateXdgContext = false;
-    capture->fdReadyPromise.set_value(true);
+    settle(capture, true);
   }
 
 
@@ -325,11 +384,15 @@ namespace Aurora::Input::Linux
     g_variant_get(parameters, "(u@a{sv})", &response, &result);
 
     if(response != 0){
-      capture->fdReadyPromise.set_value(false);
+      settle(capture, false, describeResponse("Start", response), response == 1);
       return;
     }
 
     g_autoptr(GVariant) streams = g_variant_lookup_value(result, "streams", G_VARIANT_TYPE_ARRAY);
+    if(!streams || g_variant_n_children(streams) == 0){
+      settle(capture, false, "Start returned no streams");
+      return;
+    }
 
     GVariantIter iter;
     g_variant_iter_init(&iter, streams);
@@ -360,15 +423,16 @@ namespace Aurora::Input::Linux
     void* userData
   )
   {
-    DbusCallData* call = static_cast<DbusCallData*>(userData);
-    Capture* capture = call->capture;
+    // `capture`, not the DbusCallData: the Response handler or the cancel
+    // handler may already have freed that, and this callback still runs.
+    Capture* capture = static_cast<Capture*>(userData);
 
     g_autoptr(GError) error = NULL;
     g_autoptr(GVariant) result = g_dbus_proxy_call_finish(G_DBUS_PROXY(source), res, &error);
     (void)result;
     if(error){
-      if(!g_error_matches(error, G_IO_ERROR, G_IO_ERROR_CANCELLED)){
-        capture->fdReadyPromise.set_value(false);
+      if(!isCancelled(error)){
+        settle(capture, false, std::string("Start failed: ") + error->message);
       }
       return;
     }
@@ -380,13 +444,13 @@ namespace Aurora::Input::Linux
   )
   {
     StringPair pathAndToken = portalCreatePath(CreatePathTokenType::Request);
-    DbusCallData* call = subscribeToSignal(capture, pathAndToken.first.c_str(), onStartResponseReceivedCallback);
+    (void)subscribeToSignal(capture, pathAndToken.first.c_str(), onStartResponseReceivedCallback);
 
     GVariantBuilder builder;
     g_variant_builder_init(&builder, G_VARIANT_TYPE_VARDICT);
     g_variant_builder_add(&builder, "{sv}", "handle_token", g_variant_new_string(pathAndToken.second.c_str()));
 
-    g_dbus_proxy_call(getScreencastPortalProxy(), "Start", g_variant_new("(osa{sv})", capture->sessionHandle, "", &builder), G_DBUS_CALL_FLAGS_NONE, -1, capture->cancellable, onStartedCallback, call);
+    g_dbus_proxy_call(getScreencastPortalProxy(), "Start", g_variant_new("(osa{sv})", capture->sessionHandle, "", &builder), G_DBUS_CALL_FLAGS_NONE, -1, capture->cancellable, onStartedCallback, capture);
   }
 
 
@@ -410,6 +474,7 @@ namespace Aurora::Input::Linux
     g_variant_get(parameters, "(u@a{sv})", &response, &ret);
 
     if(response != 0){
+      settle(capture, false, describeResponse("SelectSources", response), response == 1);
       return;
     }
 
@@ -423,11 +488,14 @@ namespace Aurora::Input::Linux
     void* userData
   )
   {
-    (void)userData;
+    Capture* capture = static_cast<Capture*>(userData);
 
     g_autoptr(GError) error = NULL;
     g_autoptr(GVariant) result = g_dbus_proxy_call_finish(G_DBUS_PROXY(source), res, &error);
     (void)result;
+    if(error && !isCancelled(error)){
+      settle(capture, false, std::string("SelectSources failed: ") + error->message);
+    }
   }
 
 
@@ -436,7 +504,7 @@ namespace Aurora::Input::Linux
   )
   {
     StringPair pathAndToken = portalCreatePath(CreatePathTokenType::Request);
-    DbusCallData* call = subscribeToSignal(capture, pathAndToken.first.c_str(), onSelectSourceResponseReceivedCallback);
+    (void)subscribeToSignal(capture, pathAndToken.first.c_str(), onSelectSourceResponseReceivedCallback);
 
     GVariantBuilder builder;
     g_variant_builder_init(&builder, G_VARIANT_TYPE_VARDICT);
@@ -468,7 +536,7 @@ namespace Aurora::Input::Linux
       g_variant_builder_add(&builder, "{sv}", "persist_mode", g_variant_new_uint32(2));
     }
 
-    g_dbus_proxy_call(getScreencastPortalProxy(), "SelectSources", g_variant_new("(oa{sv})", capture->sessionHandle, &builder), G_DBUS_CALL_FLAGS_NONE, -1, capture->cancellable, onSourceSelectedCallback, call);
+    g_dbus_proxy_call(getScreencastPortalProxy(), "SelectSources", g_variant_new("(oa{sv})", capture->sessionHandle, &builder), G_DBUS_CALL_FLAGS_NONE, -1, capture->cancellable, onSourceSelectedCallback, capture);
   }
 
 
@@ -493,10 +561,16 @@ namespace Aurora::Input::Linux
     // Fixed in the port: the original fell through here instead of
     // returning, reading session_handle out of an unvalidated result.
     if(response != 0){
+      settle(capture, false, describeResponse("CreateSession", response), response == 1);
       return;
     }
 
     g_autoptr(GVariant) sessionHandleVariant = g_variant_lookup_value(result, "session_handle", NULL);
+    if(!sessionHandleVariant || !g_variant_is_of_type(sessionHandleVariant, G_VARIANT_TYPE_STRING)){
+      settle(capture, false, "CreateSession returned no session_handle");
+      return;
+    }
+
     capture->sessionHandle = g_variant_dup_string(sessionHandleVariant, NULL);
 
     selectSource(capture);
@@ -506,11 +580,16 @@ namespace Aurora::Input::Linux
   void XdgDesktopPortal::onSessionCreatedCallback(
     GObject* source,
     GAsyncResult* res,
-    void* /*userData*/
+    void* userData
   )
   {
+    Capture* capture = static_cast<Capture*>(userData);
+
     g_autoptr(GError) error = NULL;
     g_autoptr(GVariant) result = g_dbus_proxy_call_finish(G_DBUS_PROXY(source), res, &error);
     (void)result;
+    if(error && !isCancelled(error)){
+      settle(capture, false, std::string("CreateSession failed: ") + error->message);
+    }
   }
 }

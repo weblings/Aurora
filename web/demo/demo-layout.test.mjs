@@ -41,4 +41,29 @@ function ruleBlocks(selector) {
   );
 }
 
+// Page-rule split (Aurora-ifkn.2): the .db-port equivalents of web/ui's
+// page-only rules (styles/page.css) live here demo-owned, so the demo never
+// needs an edit to the vendored shell.css. The html scrollbar rule is
+// intentionally not ported -- #dashboard-pane above owns its scroll pane.
+{
+  // :where() keeps it at zero specificity like web/ui's bare *: this file
+  // loads last, so .db-port * would zero every component's padding (Aurora-jwt7).
+  const reset = ruleBlocks(':where\\(\\.db-port\\)\\s+\\*');
+  assert.ok(!/(^|[\s,}])\.db-port\s+\*\s*\{/m.test(css), 'no specificity-raising .db-port * reset');
+  assert.ok(
+    reset.some((b) => /margin\s*:\s*0/.test(b) && /padding\s*:\s*0/.test(b) && /box-sizing\s*:\s*border-box/.test(b)),
+    'scoped reset lives in demo-layout.css',
+  );
+  const port = ruleBlocks('\\.db-port').find((b) => /font-family\s*:/.test(b));
+  assert.ok(port, '.db-port body-equivalent rule exists');
+  assert.ok(/background\s*:\s*var\(--aurora-bg\)/.test(port), 'port keeps the app background');
+  assert.ok(/color\s*:\s*var\(--aurora-text-primary\)/.test(port), 'port keeps the app text color');
+  assert.ok(/font-family\s*:\s*var\(--aurora-font\)/.test(port), 'port keeps the app font');
+  // The body rule's horizontal clip belongs on the pane, not the port: .db-port
+  // is #screen-container, so clipping there cut the 21px overhang (Aurora-4jk4).
+  assert.ok(!/overflow-x\s*:/.test(port), 'port does not clip the overhang');
+  const pane = ruleBlocks('#dashboard-pane').find((b) => /padding\s*:/.test(b));
+  assert.ok(/overflow-x\s*:\s*(hidden|clip)/.test(pane), 'pane clips horizontally at its own edge');
+}
+
 console.log('demo-layout.test.mjs: ok');

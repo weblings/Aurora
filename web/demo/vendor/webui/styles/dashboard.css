@@ -42,6 +42,13 @@
   margin-bottom: var(--aurora-space-5);
 }
 
+/* DeviceField's hint in place of a picker: the video and audio copies differ
+   in length, so both reserve two lines and toggling Video/Audio doesn't shift
+   everything below by a line (Aurora-36b7). */
+.device-field-hint {
+  min-height: 2lh;
+}
+
 /* Above the canvas now, centered/content-hugging rather than a full-width
    bar (2.5 pass) -- flex+justify-content:center rather than text-align, so
    .btn's own inline-flex layout (icon + label) isn't disturbed. */
@@ -72,7 +79,9 @@
 /* A floating pill wider than the content column, sitting above it -- not a
    panel that extends down to cover the expanded content (2.5 pass). 21px
    horizontal overhang is a literal design value, not rounded to the spacing
-   scale; margin-inline/width offset it back to the header's own row. */
+   scale; margin-inline/width offset it back to the header's own row. The
+   narrow-viewport @media below scales both values down -- keep all three
+   in sync. */
 .accordion-header {
   display: flex;
   align-items: center;
@@ -99,10 +108,36 @@
 /* The top bar spans the same overhang as the accordion header pills below
    it, so the trailing Stop button sits flush with the pills' right edge
    instead of stopping 21px short at the content column. Same literal
-   21px/42px design values as .accordion-header above -- keep in sync. */
+   21px/42px design values as .accordion-header above -- keep in sync,
+   including the narrow-viewport @media below. */
 .db-top-bar-slot .top-bar {
   width: calc(100% + 42px);
   margin-inline: -21px;
+}
+
+/* Narrow viewports: the 21px overhang exceeds #screen-container's 16px page
+   gutter, and below 650px there is no centering margin left to absorb the
+   extra 5px -- (vw-640)/2 >= 5 only for vw >= 650 -- so the pills and the
+   Stop button end up flush with both screen edges (seen at 292px). The demo
+   never shows this because its pane padding nests outside the ported
+   container's own gutter; here there is only the one gutter, so scale the
+   overhang back inside it instead: 6px a side leaves 10px breathing room,
+   matching the top bar's own 10px (--aurora-space-4) top padding, so the
+   pills sit in an even frame at any width. 6px is --aurora-space-2; the
+   pill's inner horizontal padding drops to match so label text stays
+   aligned with the content column. Applies to the top bar too -- the Stop
+   button borrows these width rules, so fixing only the pills would leave
+   the button on the edges. */
+@media (max-width: 649px) {
+  .accordion-header {
+    width: calc(100% + 12px);
+    margin-inline: -6px;
+    padding: var(--aurora-space-5) var(--aurora-space-2);
+  }
+  .db-top-bar-slot .top-bar {
+    width: calc(100% + 12px);
+    margin-inline: -6px;
+  }
 }
 
 .accordion-chevron {
@@ -157,10 +192,11 @@
   margin-top: 0;
 }
 
-/* Version footer (Aurora-qdk, mirrors web/ui): secondary-color text
-   centered at the pane bottom; the pane's own padding runs deeper, so pull
-   back up by the difference to land on the shared space-4 inset. Leads
-   with the same space-3 gap the accordions keep between each other. */
+/* Version footer (Aurora-qdk): secondary-color text centered at the page
+   bottom, as far up from the viewport bottom as the logo sits down from
+   its top. #screen-container's own space-8 bottom padding runs deeper than
+   that, so pull back up by the difference. Leads with the same space-3 gap
+   the accordions keep between each other, so it reads as the list's end. */
 .db-version {
   margin-top: var(--aurora-space-3);
   margin-bottom: calc(var(--aurora-space-4) - var(--aurora-space-8));

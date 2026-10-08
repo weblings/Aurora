@@ -1,5 +1,7 @@
 # WebUI components
 
+Id: lesson-components
+
 Component behavior, callbacks, data shapes, and side effects. See [README.md](README.md) for filing rules.
 
 ---
@@ -296,3 +298,94 @@ row (`next.find(o => o.selected) ?? next[0]`) alongside `setOptions`.
 General principle: a list refresh is only complete when every surface
 derived from the rows -- visible menu and collapsed summary alike --
 updates in the same apply.
+
+---
+
+## One failure rendered by two paths needs one owner -- let a "daemon gone" catch yield, but not when the daemon is back
+Tags: webui, errors, reload, heartbeat, dashboard
+Applies-when: an action that fails and then reloads the screen, or any catch that sets an inline error while a reload and an overlay can report the same cause
+
+Aurora-tazx and Aurora-jm6s were the same shape on the Dashboard: a failed Video/Audio switch set `toggleError` (under the toggle) while the reload after it wrote its own message into the top tier, and the 3s heartbeat later raised the "Aurora has stopped" overlay. One cause, two or three messages, worded differently. The tempting fix for the daemon-gone case, "have the reload leave an identical message alone", cannot work: the two messages live in different DOM regions and the reload writes `innerHTML` directly rather than through shared state, so there is nothing to compare.
+
+**Fix:** decide which path owns each condition. A failure that only means "the daemon is unreachable" sets no inline error; the reload's message and the heartbeat own it. But if the reload then succeeds (a one-request blip), the action failed with nobody reporting it, so set the inline error in that case. Make the reload return whether it loaded so the caller can tell the two apart, and put the wording in one shared constant (`web/ui/messages.js`) with a source-scan test so no screen spells it out again. Separately, an error that must outlive a retry (tazx) is cleared only by a confirmed result, not by the click, or it flickers.
+
+Recurred again, 2026-10-05 (Aurora-d3ec's retry/design pass, [[error-overlay]]): the same shape shows up even within one field, not just across two DOM regions. `topTierError` has no owner at all on its success paths, `_togglePause`'s success branch never nulls it (a failed-then-succeeded Resume keeps showing the old message, `DashboardScreen.js:651-652`), and `_onAutoDivideClick`'s success path clears the field but never calls `_renderTopTier()`, so the stale text can sit on screen until an unrelated render happens to repaint that zone. Separately, forcing a single shared slot to pick one owner among several conditions that can be true *at the same time* (daemon-unreachable and a stale switch error can both hold at once) doesn't always have a right answer. Picking one just hides the other.
+
+**Fix:** generalize `toggleError`'s own `isSwitchErrorStale` approach to every source, re-derive each one's displayed state from server-confirmed state on every render, never from "did the handler that caused it get retried." And stop trying to pick one owner. Render every currently-true source as its own row instead, keyed by source rather than by message text, so a retry that comes back reworded updates its row in place instead of reading as a new, unrelated problem. Shipped as Aurora-m0fy; see "A shared inline error slot: one key per control".
+
+---
+
+## A screen that follows the running mode shows that mode's notes beside a refused switch's error: hide state notes while an error shows
+Tags: webui, error, mode-switch, hint, copy, nux
+Applies-when: a screen derives its sections from the running pipeline (Aurora-kea/axoz) and also renders a switch error
+
+With Screen Recording off while Audio ran, a switch to Video on the NUX Capture source page rendered the Audio notes ("Zones react together in Audio mode...", the default-audio-device hint) directly above "Screen Recording permission is off". The fill correctly stayed on Audio (the running pipeline), but the page then read as a contradiction. Same shape on the Dashboard: a "once Video connects" hint under a Screen Recording error (Aurora-36b7). The zone sentence also named a step ("per-zone mapping") a first-time user has not met, so even without the error it explained nothing.
+
+**Fix:** pass `showHint: !error` to the shared `DeviceField` and gate screen-level notes on `!this.error`, so an error stands alone. Write onboarding copy in terms of what the choice does for the user's lights, not which later step is skipped. Test by calling `_render` with an `error` set and asserting the notes are absent while the error text is present, with a mutant that drops the gate (`web/ui/screens/ModeDeviceScreen.test.mjs`).
+
+
+---
+
+## An on-demand re-check must not answer from a cached verdict
+Tags: webui, errors, heartbeat, polling
+Applies-when: adding an immediate re-check alongside a polling heartbeat
+
+Aurora-ewyz first designed `checkNow()` with a ~500ms min-interval that returned the last-known verdict inside the window. A screen awaiting it right after a successful beat poll would misread a fresh outage as a one-request blip and set an inline action error -- then the beat's next poll would raise the takeover too, the exact two-messages-for-one-cause the heartbeat entry forbids, with a window of up to one full cadence.
+
+**Fix:** always poll or attach to the in-flight poll; never cache the verdict. Bound the cost structurally instead: single-flight (beat and triggers share one poll) plus an abort timer. On localhost the serialized cost is milliseconds, and a storm of triggers collapses onto one hung poll.
+
+## Moving an error to the shell: grep every action path that sets an inline copy of the same cause
+Tags: webui, errors, shell, banner, dashboard, pause-resume
+Applies-when: moving a daemon-held error out of a screen into the shell banner, or reviewing a bead that says "remove the inline copies" of an error
+
+Aurora-98pr named two inline copies to remove (the `reloadError` branches of the device save and mode switch). The owner then found a third on the Mac: a failed Resume still set "Couldn't resume Aurora." under the toggles, far from the Pause button, next to the banner's own `resume` row. `_togglePause` set it whenever `PUT /api/state` returned `succeeded:false`, which for a resume is a 500 only when the build failed, i.e. exactly the error the daemon already holds. The bead, its plan section and the node tests all missed it because they were written from the field the plan listed (`reloadError`), not from every place the screen turns the same cause into text.
+
+**Fix:** when an error moves to the shell, search the screen for every setter of inline error state (`topTierError`, `toggleError`, string literals of the old copy) and decide per path whether the daemon holds that cause. A rejected resume is held (no inline copy, call `checkNow()`); a rejected pause is not (stays inline); the catch-after-blip path stays. Add a node test per path; a mutant check against the old file catches the one you missed.
+
+Related: a fourth instance turned up later, during an unrelated copy audit (Aurora-ijus). `TuningFields.js`'s own `reloadError` branch still said "Saved, but couldn't apply it live: ‹reason›" -- missed by both 98pr and m0fy because it isn't a `DashboardScreen.js` method, it's a separate component `DashboardScreen` mounts. The grep has to cross every file a screen delegates rendering to, not just the screen's own source file.
+
+## The Dashboard's mode toggle only refreshed on mount and its own clicks -- an outside change left it stale
+Tags: dashboard, toggle, heartbeat, state, webui
+Applies-when: anything other than the Video/Audio toggle can change the running pipeline (banner Retry, tray, relaunch, a held reload)
+
+Found in Aurora-h457: a banner Retry that rebuilt the pipeline in another mode left the toggle and the sections under it on the old mode until a page refresh. `_onHeartbeatState` only applied `paused` and `state`; the running flags in the same `GET /api/state` were ignored.
+
+**Fix:** the shell passes the flags with each state update and the Dashboard re-runs `_loadAll()` once per flag change, never while `pendingMode` is set and never for an idle or failed host. Test with a stubbed `_loadAll` counting calls over repeated heartbeats.
+
+---
+
+## A shared inline error slot: one key per control, cleared by that control's confirmed result
+Tags: webui, errors, dashboard, callbacks, repaint
+Applies-when: several controls write into one inline error field, or a component reports a failure through a callback the screen only paints on
+
+Aurora-m0fy's `topTierError` was one string six controls wrote and four of them nulled, each at the start of its own retry. Three defects came from that shape. A click-time null hid the old message before the retry had succeeded. An unrelated success (a config switch) wiped another control's still-true error. And a clear without a repaint (auto-arrange success, and its "No active zones" message that was set and never drawn) left the screen disagreeing with the field. A single "owner" cannot fix it, since a device-save failure and an auto-arrange failure can both be true at once.
+
+**Fix:** a map keyed by the control, with one setter and one clearer that always repaint (the clearer only when it removed something). A key clears only when its own action's result is confirmed, never on click, and every current key renders as its own row. A shared component that can fail but never reports success (`ZonePatchQueue`) needs an `onSuccess`, or its row can never clear.
+
+Related: `EntertainmentConfigSelect` reported "saved, but the output couldn't reload" through `onError` and then called `onChange`, which cleared the field, so the message lived only until the next repaint. One callback per outcome: `onError` for a rejected action, the success callback carrying `{ reloadError }` for a saved one, and the caller decides (the Dashboard leaves it to the banner).
+
+## A constructor option destructured but never assigned to `this` is a silent no-op, not an error
+Tags: webui, callbacks, constructor
+Applies-when: adding or reviewing an optional constructor callback (`{ onX = null }`) on a WebUI component
+
+Found fixing the `TuningFields.js` duplicate above (Aurora-ijus): its constructor destructured `onUnreachable` from its options object but never wrote `this.onUnreachable = onUnreachable`. Everything around it was correct -- the catch block checked `if (this.onUnreachable) this.onUnreachable(); else this.error = DAEMON_UNREACHABLE;`, and `DashboardScreen` passed a working `onUnreachable: () => this.app.checkNow()` -- so `this.onUnreachable` was simply always `undefined`, and every network failure while saving tuning fields rendered "Couldn't reach the daemon." directly, bypassing the shell takeover it was meant to defer to. Plain JS raises no error for a destructured parameter that's never stored; a reviewer skimming the signature sees the callback wired and moves on.
+
+**Fix:** after adding `{ onX = null }` to a constructor's destructure, grep the constructor body for `this.onX =` before moving on -- the two lines are often far enough apart in a real constructor that eyeballing the signature alone won't catch a missing one. A node test that drives the actual failure path (not just the happy path) would also have caught this; `TuningFields.test.mjs` had none.
+
+## Coercing a dataset id with Number() throws on non-numeric ids instead of missing silently
+Tags: webui, components, types
+Applies-when: reading a zone/entity id back out of dataset in a shared component
+
+The read-side twin of the Dropdown `dataset.value` lesson above (Aurora-ifkn.4): `ZoneActiveToggleList`'s change handler did `Number(e.currentTarget.dataset.zoneId)` then `find()`, which is fine while every caller uses numeric ids -- but the demo room rig uses string ids (`'front-left'`), so `Number()` yields `NaN`, `find()` misses, and the next line (`zone.active = ...`) throws `TypeError`. The Dropdown case failed silently (compare-then-no-commit); this one throws, because the miss is dereferenced immediately.
+
+**Fix:** `findZone(zones, rawId)` matches either form by strict equality (`z.zoneId === rawId || z.zoneId === Number(rawId)`), the handler guards (`if (!zone) return`), and the queue writes under the zone's own id so string ids are never coerced. General rule alongside the Dropdown entry: never `Number(dataset.x)` unconditionally -- match-then-guard, and keep the domain's original id type on the write path.
+
+---
+
+## Rewording a daemon message does nothing when the web renderer draws its own text
+Tags: webui, banner, copy, audio-permission, daemon-message
+Applies-when: changing user-facing wording for an error or condition the daemon publishes, or a copy change "didn't carry over" to the screen
+
+Aurora-o1qt reworded the audio banner in `AudioPermissionPublisher.hpp` (`kMessage`). The screen never changed: the shell renders `audio_permission` through `renderAudioPermissionBanner` and ignores `error.message`, so the daemon string only appears in `/api/state`. The old text had also named the exact permission ("System Audio Recording Only"), which the reword dropped.
+
+**Fix:** before editing copy, grep the web for the old string and for the error's `source`; if a renderer table keys on the source (`shell.js`), the wording lives there. Change the renderer, update the tests that assert the old text (`MacPermissionRecovery`, `shell`, `DashboardScreen`), and keep the daemon string only if something else reads it. The reworded line keeps the permission name: "allow Aurora under "System Audio Recording Only" in System Settings".

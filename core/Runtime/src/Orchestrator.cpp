@@ -43,6 +43,10 @@ namespace Aurora::Runtime
       }
     }
 
+    // Lets a GPU-scaling grabber (Mac) deliver a frame near the size
+    // _prepareSource() rescales to, instead of full resolution (Aurora-3qh).
+    m_input.setCaptureWidthHint(m_config.subsampleWidth());
+
     for(auto* output : m_outputs){
       ZoneMap saved = m_zoneMapStore.load(output->name());
       ZoneMap reconciled = reconcileZoneMap(saved, output->zoneIds());
@@ -76,7 +80,7 @@ namespace Aurora::Runtime
   }
 
 
-  void Orchestrator::update()
+  void Orchestrator::update(float /*dt*/)
   {
     // Default true for every input except ScreenCaptureKitGrabber
     // (Aurora-8mk.9) -- skips a tick entirely rather than re-pushing a
@@ -142,6 +146,12 @@ namespace Aurora::Runtime
     }
 
     return false;
+  }
+
+
+  void Orchestrator::setConfig(Config config)
+  {
+    m_config = std::move(config);
   }
 
 

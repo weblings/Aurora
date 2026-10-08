@@ -42,8 +42,11 @@ once its metadata loads, rather than assuming exactly 16:9.
   (0/1/2/3 = front-left/front-right/back-left/back-right). The page stays dark
   until the first mappable frame, by design. Full live run: that README's
   "End-to-end viz run".
-- `vendor/webui/` — an intentional GitHub-Pages-targeted fork of `web/ui`, not
-  a mirror. Do not "sync" it (decision recorded in Aurora-4jl).
+- `vendor/webui/` — a byte-identical vendored copy of `web/ui` for the
+  GitHub-Pages demo (file list in `vendor/webui/MANIFEST.json`). Never
+  hand-edit: fix `web/ui` and re-run `python3 web/demo/vendor/sync-webui.py`
+  from the repo root; `vendor/webui/seams.test.mjs` (changed copies) and
+  `vendor/webui/closure-check.mjs` (unlisted new imports) fail CI on drift.
 - `assets/` — bundled sample media. See "Media credits" below.
 
 ## Media credits

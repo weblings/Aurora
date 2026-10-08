@@ -31,7 +31,7 @@ Core repo: shared `Contracts`, `Processing`, `Input`/`Output` interfaces,
 - Citing another doc under `docs/`: use `Id:`/`[[id]]`, not a bare
   relative path — see `docs/README.md`'s "Citing other docs" section for
   the full convention. A bare path breaks silently on move/rename and
-  `check-links.sh` only scans `docs/` and `.claude/skills/`, so a citer
+  `check-links.py` only scans `docs/` and `.claude/skills/`, so a citer
   living outside those (this file included) won't be caught if it goes
   dead. New docs get an `Id:` line under the H1 at creation, not as a
   later cleanup pass.
@@ -50,7 +50,7 @@ Core repo: shared `Contracts`, `Processing`, `Input`/`Output` interfaces,
   build toggles, keep-in-sync invariants, credits, and `[[id]]` pointers. No
   status or "not yet built" sections — that lives in `Status:` lines, beads,
   and `docs/log/`. When closing a bead that changes what a slice does or how
-  it builds, update its README in the same close; `check-links.sh` scans them
+  it builds, update its README in the same close; `check-links.py` scans them
   for dead citations but cannot tell if the prose is still true.
 - Planning docs: decisions, status, pointers only. No task lists, no build play-by-play.
   Every doc/section carries a `Status:` line (shipped/superseded/exploratory/etc.) —
@@ -87,6 +87,11 @@ Core repo: shared `Contracts`, `Processing`, `Input`/`Output` interfaces,
 - [huenicorn](https://gitlab.com/openjowelsofts/huenicorn) — the original
   Hue-entertainment reference (`Runtime::_update`, `ScreenWidget.js`); ported
   from, not depended on.
+- [hyperion.ng](https://github.com/hyperion-project/hyperion.ng) — MIT
+  ambient-lighting reference: Hue TLS verification, Home Assistant output,
+  JSON API/auth/subscribe shape, black-border detection, PipeWire portal
+  capture (PR #2033). Consulted, not depended on; keep its MIT notice on
+  anything ported. See [[external-control]] for what it settled.
 
 Cite reference lessons by topic name, never by path — layouts differ per machine.
 

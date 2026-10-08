@@ -1,77 +1,69 @@
-// Vendor seam tripwire: the demo's adaptations to its WebUI copies live in
-// a handful of marked hunks (see MANIFEST.json seams + notes). A re-vendor
-// that overwrites the copies without re-applying them must fail HERE, not as
-// a blank chevron or a tooltip-less render in the browser. No framework --
-// run with `node vendor/webui/seams.test.mjs`.
+// Vendor byte-identity tripwire (Aurora-ifkn.7): every MANIFEST.json
+// modules/styles/icons file must equal its web/ui source byte for byte.
+// The fork carries no tweaks anymore (ifkn.1-6 upstreamed each seam), so a
+// re-vendor that overwrites without re-running sync-webui.py -- or a web/ui
+// edit without re-syncing -- fails HERE, not as a blank chevron or a
+// tooltip-less render in the browser. No framework -- run with
+// `node vendor/webui/seams.test.mjs`.
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const vendor = fileURLToPath(new URL('.', import.meta.url));
-const read = (p) => readFileSync(join(vendor, p), 'utf8');
+const ui = join(vendor, '..', '..', '..', 'ui');
+const manifest = JSON.parse(readFileSync(join(vendor, 'MANIFEST.json'), 'utf8'));
 
-const dashboard = read('screens/DashboardScreen.js');
-assert.ok(dashboard.includes('DEMO SEAM no-stop-button'), 'Stop cut marker present');
-assert.ok(!dashboard.includes("trailingButton: { label: 'Stop'"), 'Stop wiring stays cut');
+for (const rel of [...manifest.modules, ...manifest.styles, ...manifest.icons]) {
+  const ours = readFileSync(join(vendor, rel));
+  const theirs = readFileSync(join(ui, rel));
+  assert.ok(ours.equals(theirs), `${rel} differs from web/ui -- re-run sync-webui.py`);
+}
+console.log(`vendor byte-identity checks passed (${manifest.modules.length} modules, ${manifest.styles.length} styles, ${manifest.icons.length} icons).`);
 
-const shell = read('styles/shell.css');
-assert.ok(shell.includes('.db-port *'), 'reset scoped to dashboard pane');
-assert.ok(shell.includes('.db-port {'), 'body rules scoped to dashboard pane');
+// Stop capability (Aurora-ifkn.3): the Dashboard gates its button on GET
+// /api/state's canStop (default true); the shim answers false, so the demo
+// shows no Stop while the app shows it. POST /api/stop needs no shim route.
+const dashboard = readFileSync(join(vendor, 'screens', 'DashboardScreen.js'), 'utf8');
+assert.ok(dashboard.includes('canStop'), 'dashboard gates Stop on the capability flag');
+assert.ok(readFileSync(join(vendor, '..', '..', 'demo-shim.js'), 'utf8').includes('canStop: false'), 'shim turns Stop off');
+
+// Toggle-sync (Aurora-ifkn.5) is upstream now: both callbacks ship in the
+// identical copies, and the Dashboard wires them natively -- no demo
+// subclass re-attaching them.
+const boot = readFileSync(join(vendor, '..', '..', 'demo-boot.js'), 'utf8');
+assert.ok(!boot.includes('DemoDashboardScreen'), 'demo subclass removed, upstream wiring serves');
+assert.ok(boot.includes('new DashboardScreen('), 'demo mounts the vendored screen directly');
+
+// Page-scope split (Aurora-ifkn.2): web/ui's bare rules live in page.css
+// (never vendored); the demo's equivalents stay scoped under .db-port in
+// demo-owned demo-layout.css, so the scene page never inherits them.
+const shell = readFileSync(join(vendor, 'styles', 'shell.css'), 'utf8');
 for (const line of shell.split('\n')) {
   assert.ok(!/^\s*\*\s*\{/.test(line), `bare reset leaked: ${line}`);
   assert.ok(!/^html\s*\{/.test(line), `bare html rule leaked: ${line}`);
   assert.ok(!/^body\s*\{/.test(line), `bare body rule leaked: ${line}`);
 }
+const layout = readFileSync(join(vendor, '..', '..', 'demo-layout.css'), 'utf8');
+assert.ok(layout.includes('.db-port'), 'demo keeps its own dashboard-pane scope');
 
-const dropdown = read('Dropdown.js');
-const navFooter = read('NavFooter.js');
-for (const [name, text] of [['Dropdown.js', dropdown], ['NavFooter.js', navFooter]]) {
+// Icon mechanism (Aurora-ifkn.1): module-relative URLs work from any mount,
+// so no fork-local artwork path may appear in the vendored copies.
+for (const name of ['Dropdown.js', 'NavFooter.js', 'topBar.js', 'screens/DashboardScreen.js']) {
+  const text = readFileSync(join(vendor, name), 'utf8');
   assert.ok(!/['"]icons\//.test(text), `${name} still references page-relative icons/`);
+  assert.ok(!text.includes('vendor/webui/icons/'), `${name} still references fork-local artwork`);
 }
-assert.ok(dropdown.includes('vendor/webui/icons/chevron-down.svg'), 'dropdown chevron retargeted');
-assert.ok(navFooter.includes('vendor/webui/icons/back-arrow.svg'), 'back arrow retargeted');
-
-// Logo port (Aurora-tnk): the vendored top bar supports the brand mark and
-// the Dashboard passes it with a fork-local path -- never page-relative.
-const topBar = read('topBar.js');
-assert.ok(topBar.includes('logo = null'), 'vendored top bar takes the logo option');
-assert.ok(topBar.includes('top-bar-logo'), 'vendored top bar renders the brand mark');
-const dashTopBar = (dashboard.match(/renderTopBar\([^;]*\);/g) || []).join('\n');
-assert.ok(dashTopBar.includes("logo: { src: 'vendor/webui/icons/aurora-logo.png'"), 'dashboard brand mark uses the fork-local artwork');
-assert.ok(!/['"]icons\/aurora-logo\.png/.test(dashTopBar), 'brand mark stays off the page-relative icons/ path');
-assert.ok(read('styles/shell.css').includes('.top-bar-logo'), 'brand-mark CSS vendored');
 
 // Version footer (Aurora-qdk, mirrors web/ui): the shim answers
 // /api/version, so the Pages footer shows the release text.
 assert.ok(dashboard.includes('db-version'), 'footer slot mounted');
 assert.ok(dashboard.includes("fetch('/api/version')"), 'footer probes /api/version');
-assert.ok(read('styles/dashboard.css').includes('.db-version'), 'footer CSS vendored');
 
 // Audio-sinks dropdown (Aurora-67y, mirrors web/ui): the vendored
-// DeviceField probes /api/linux/audio-sinks on entering audio mode and
-// on every open (Aurora-apn), and the shim answers it, so the ported
-// dropdown populates in audio mode.
-assert.ok(read('DeviceField.js').includes('/api/linux/audio-sinks'), 'device field probes the sink list');
-assert.ok(read('../../demo-shim.js').includes("path === '/api/linux/audio-sinks'"), 'shim answers the sink list');
-assert.ok(!read('DeviceField.js').includes('device-field-sink-refresh'), 'no refresh button (enter + open cover it)');
-assert.ok(!read('DeviceField.js').includes('device-field-sink-hint'), 'no sink hint under the dropdown');
-
-const toggles = read('ZoneActiveToggle.js');
-assert.ok(toggles.includes('DEMO SEAM string-zone-ids'), 'string-id seam marker present');
-assert.ok(!toggles.includes('Number(e.currentTarget.dataset.zoneId)'),
-  'numeric coercion stays out -- it NaNs string ids and crashes the handler');
-assert.ok(toggles.includes('if (!zone) return'), 'unknown-id guard stays');
-assert.ok(toggles.includes('this.onChange?.(zone)'), 'List notifies owner on flip');
-
-const canvas = read('ZoneCanvas.js');
-assert.ok(canvas.includes('refreshActive()'), 'Canvas exposes bool re-sync');
-assert.ok(canvas.includes('this.onActiveChange?.(zone)'), 'Canvas notifies owner on flip');
-
-const dashScreen = read('screens/DashboardScreen.js');
-assert.ok(dashScreen.includes('onChange: () => this.zoneCanvas?.refreshActive()'),
-  'Bridge flips re-sync the Zone Mapping bool');
-assert.ok(dashScreen.includes('onActiveChange: () => this._renderBridgeZoneList()'),
-  'Zone Mapping flips re-render the Bridge list');
+// DeviceField loads the list from GET /api/state's audioDevicesUrl; the
+// shim answers both, so the ported dropdown populates in audio mode.
+const deviceField = readFileSync(join(vendor, 'DeviceField.js'), 'utf8');
+assert.ok(deviceField.includes('loadAudioSinksFrom(audioDevicesUrl)'), 'device field loads the advertised device list');
 
 console.log('vendor seam checks passed.');

@@ -60,6 +60,24 @@ namespace
   }
 
 
+  httplib::Result postJsonWithRetry(
+    httplib::Client& client,
+    const std::string& path,
+    const Json& body
+  )
+  {
+    httplib::Result result;
+    for(int attempt = 0; attempt < 50; ++attempt){
+      result = client.Post(path, body.dump(), "application/json");
+      if(result && result->status != -1){
+        return result;
+      }
+      std::this_thread::sleep_for(10ms);
+    }
+    return result;
+  }
+
+
   struct ScopedTempDir
   {
     std::filesystem::path path;
@@ -241,4 +259,80 @@ TEST_CASE("link-button against a closed port reports unreachable", "[PairingRout
   Json body = Json::parse(result->body);
   CHECK(body.value("succeeded", true) == false);
   CHECK(body.value("error", "") == "unreachable");
+}
+
+
+// Aurora-5i3 secrets rules. The seeded bridge (127.0.0.1:1) is a closed
+// port, so nothing here leaves the box; each check distinguishes "creds
+// withheld" (400) from "creds sent somewhere" by status alone.
+namespace
+{
+  const Json kSeed = {
+    {"bridgeAddress", "127.0.0.1:1"},
+    {"username", "secret-user"},
+    {"clientkey", "secret-key"}
+  };
+}
+
+
+TEST_CASE("GET /api/hue/connection never returns username or clientkey", "[PairingRoutes]")
+{
+  ScopedTempDir configRoot("secrets-connection");
+  TestServer test(configRoot.path, 18237);
+  REQUIRE(postJsonWithRetry(test.client, "/api/hue/connection", kSeed)->status == 200);
+
+  auto result = getWithRetry(test.client, "/api/hue/connection");
+  REQUIRE(result);
+  Json body = Json::parse(result->body);
+  CHECK(body.value("configured", false));
+  CHECK_FALSE(body.contains("username"));
+  CHECK_FALSE(body.contains("clientkey"));
+  CHECK(result->body.find("secret-") == std::string::npos);
+}
+
+
+TEST_CASE("stored username is never sent to a caller-supplied bridge", "[PairingRoutes]")
+{
+  ScopedTempDir configRoot("secrets-retarget");
+  TestServer test(configRoot.path, 18238);
+  REQUIRE(postJsonWithRetry(test.client, "/api/hue/connection", kSeed)->status == 200);
+
+  const Json evil = {{"bridgeAddress", "127.0.0.1:2"}, {"entertainmentConfigurationId", "x"}};
+
+  auto configs = putJsonWithRetry(test.client, "/api/hue/entertainment-configurations", evil);
+  REQUIRE(configs);
+  CHECK(configs->status == 400);
+  CHECK(Json::parse(configs->body).value("error", "") == "missing_bridge_address_or_username");
+
+  auto pulse = postJsonWithRetry(test.client, "/api/hue/test-pulse", evil);
+  REQUIRE(pulse);
+  CHECK(pulse->status == 400);
+  CHECK(Json::parse(pulse->body).value("error", "") == "missing_bridge_address_or_username");
+
+  // The WebUI's own shape -- empty body, stored bridge -- still falls back.
+  auto own = putJsonWithRetry(test.client, "/api/hue/entertainment-configurations", Json::object());
+  REQUIRE(own);
+  CHECK(own->status == 200);
+}
+
+
+TEST_CASE("repointing the bridge without new creds clears the stored ones", "[PairingRoutes]")
+{
+  ScopedTempDir configRoot("secrets-repoint");
+  TestServer test(configRoot.path, 18239);
+  REQUIRE(postJsonWithRetry(test.client, "/api/hue/connection", kSeed)->status == 200);
+
+  auto repoint = postJsonWithRetry(test.client, "/api/hue/connection", {{"bridgeAddress", "127.0.0.1:2"}});
+  REQUIRE(repoint);
+  CHECK(repoint->status == 400);
+  CHECK(Json::parse(repoint->body).value("error", "") == "incomplete_connection");
+
+  // Rejected, so the original pairing is untouched...
+  Json connection = Json::parse(getWithRetry(test.client, "/api/hue/connection")->body);
+  CHECK(connection.value("bridgeAddress", "") == "127.0.0.1:1");
+  CHECK(connection.value("configured", false));
+
+  // ...and same-address PATCHes (Zone Mapping's picker) still work.
+  CHECK(postJsonWithRetry(test.client, "/api/hue/connection", {{"entertainmentConfigurationId", "x"}})->status == 200);
+  CHECK(postJsonWithRetry(test.client, "/api/hue/connection", {{"bridgeAddress", "127.0.0.1:1"}})->status == 200);
 }

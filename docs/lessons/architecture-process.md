@@ -1,5 +1,7 @@
 # Architecture process
 
+Id: lesson-architecture-process
+
 Module splits, duplication, reload lifecycles, presence signals, docs hygiene. See [README.md](README.md) for filing rules.
 
 ---
@@ -137,6 +139,11 @@ next similar-looking one -- re-derive whether constraint Y genuinely holds
 for the new code before reaching for the same workaround, since the
 constraint (not the pattern) is the actual thing worth checking for reuse.
 
+Update (Aurora-9ig): the constraint itself was removable. `Registry` was
+byte-identical across apps and depended only on core interfaces, so it and
+`Pipeline`/`PipelineHost` moved into `core/Runtime`, and the monitors/reload
+routes moved with them (`PipelineRoutes`).
+
 ---
 
 ---
@@ -147,8 +154,9 @@ Applies-when: adding a live-write mutation to the pipeline
 
 Every settings write built in steps 11-13 (`Config`-backed) has to go
 through a full `PipelineHost::reload()` -- confirmed there's no
-settings-only update path, `Pipeline::build()` always runs fresh, tearing
-down and reconstructing capture/output. Building zone edits next, the
+settings-only update path (historical: since Aurora-c0g, tuning-only
+edits apply live and only structural ones reload), `Pipeline::build()` then
+ran fresh, tearing down and reconstructing capture/output. Building zone edits next, the
 default assumption would have been that this is simply how any live write
 works here. It isn't, for this specific data: `ZoneMap` was never part of
 `Config` -- `Orchestrator` already holds it as a live, mutable
@@ -370,6 +378,8 @@ Applies-when: finding a lookalike directory (vendor snapshot, mirror, fork) insi
 The merge surfaced web/demo/vendor/webui sitting next to web/ui. Assumption said stale copy; diff -rq said diverged subset with vendor-only tooling (MANIFEST.json, generator) and ui-only app shell -- a deliberate GitHub-Pages-targeted fork, confirmed by the owner. A sync would have destroyed it.
 
 **Fix:** never classify duplication by directory name or memory; run the diff first, read the file lists on both sides, and only then choose mirror-rule, migration, or intentional-divergence (recorded where agents will trip over it: AGENTS.md plus the closed task).
+
+The fork's own tooling still reads as a re-vendor workflow (MANIFEST.json "verbatim copy except for the seams", closure-check.mjs "Run on every re-vendor"), while the owner's later Aurora-4jl says don't sync. During Aurora-kea that wording got a re-vendor recommended without 4jl in view. Since 4jl the fork changes by feature ports marked "mirrors web/ui" (Aurora-tnk, -qdk, -67y, -kea); a full re-vendor is its own decision (Aurora-ifkn).
 ---
 
 ## Vendored files take fork-local asset paths -- the src lives with the caller
@@ -456,6 +466,8 @@ After `git pull`, the live Dolt DB was a day behind and the first `bd` commands 
 
 **Fix:** after pull, check `git diff` on the export before running any `bd` command; after `bd import`, diff again -- the worktree must show no regression vs HEAD. If it does, `git checkout HEAD -- .beads/issues.jsonl` and re-import: upsert restores the closes (verified: "Updated 8 existing issues ... open → closed"). General principle: treat the tracked export as disputed territory until DB and file agree -- the import direction is file→DB, so a stale-DB write to the file poisons the source.
 
+Mixed drift is worse (Aurora-9ig, 2026-10-01): the DB held a newer `Aurora-9ig` while the file held a record the DB lacked (`Aurora-daa`) and a newer close (`Aurora-21h`). A full `bd import` would have put the file's stale 9ig over the DB; the export after importing only daa then reverted 21h's close. Pipe single lines in instead -- `grep '"id":"<id>"' .beads/issues.jsonl | bd import -` (or from `git show HEAD:.beads/issues.jsonl` when the export already clobbered it) -- export, and repeat until `git diff` on the file shows only the changes you meant.
+
 ---
 
 ## Hand-resolving a `.beads/issues.jsonl` merge conflict leaves the live DB behind until `bd import` catches up
@@ -465,6 +477,10 @@ Applies-when: resolving a `.beads/issues.jsonl` merge conflict by hand, or any t
 After hand-merging a `dev`-branch conflict in `.beads/issues.jsonl` (keeping distinct issues from both sides of the conflict), the next `bd create` warned "auto-export skipped: ... contains 6 JSONL-only issue record(s) absent from the local Dolt store" and refused to overwrite the file, rather than silently dropping the hand-merged entries. The live embedded Dolt DB only reflects whatever `bd` itself wrote or last imported -- a text-level git merge updates the tracked file directly and never touches the DB, so the two diverge the moment something other than `bd` is what changed the file.
 
 **Fix:** run `bd import` immediately after resolving any `.beads/issues.jsonl` merge conflict, before running any other `bd` command -- it upserts the file's content into the DB (confirmed here: "Imported 170 issues... Updated 3 existing issue(s)"), closing the gap the warning was refusing to paper over. Opposite direction from "A stale live DB can un-close just-pulled beads" above: there the DB lagged the file after a `pull`; here the file gained content the DB never saw because a merge, not `bd`, produced it -- same rule either way, diff/import before trusting either side.
+
+A log, plan or commit message that says "beads X, Y, Z were created or narrowed" is a claim, not state: `bd show` each id before building on it (Aurora-d3ec's split was claimed in commit 7395754's message, but that commit's export lagged and carried only one of the four new beads; a follow-up commit exported the rest, and the live DB still lacked them until `bd import`). When ids are missing, check `git log -S'"id":"<id>"' -- .beads/issues.jsonl` and `git status` before concluding anything: the fix may already be committed on your own branch, and the DB only follows the file after an import.
+
+Aurora-jm6s session addition: when both sides changed the same issue (here `kea`, whose `dependent_count` I changed and `dev` changed the notes of), merge by issue id on the **raw lines**, not by parsing and re-dumping. A first pass that round-tripped every row through `json.dumps` rewrote 116 lines against HEAD (escaping and key formatting differ from `bd export`); keeping each side's original line text left exactly the 10 lines dev changed. Check it by `bd import`, then `bd export` to a file and diffing the sorted lines against the merged file: zero differences means the DB and the file agree.
 
 ---
 
@@ -476,7 +492,7 @@ Migrating `docs/planning/ImplementationPlan.md` to the `Id:`/`[[id]]`
 convention (Aurora-d8g), six citers of the file living *outside*
 `docs/`'s scan scope -- `AGENTS.md`, `app/linux/README.md`,
 `app/windows/README.md`, and three `web/demo/{README,AGENTS,CLAUDE}.md`
-files -- turned out to already be dead. `check-links.sh` only walks
+files -- turned out to already be dead. `check-links.py` only walks
 `docs/` and `.claude/skills/`, so `app/linux/README.md`'s link had been
 silently broken since Aurora-o1e moved the file into `docs/planning/` the
 previous day (2026-09-28) -- a full day with a dead link nothing flagged,
@@ -485,7 +501,7 @@ migration.
 
 **Fix:** before or after moving/renaming any `docs/` file, `grep -rn
 '<old-filename>'` the whole repo (not just `docs/`), not only
-`check-links.sh` -- its scan boundary is real and doesn't cover
+`check-links.py` -- its scan boundary is real and doesn't cover
 top-level/module `README.md`/`AGENTS.md` files that also cite docs.
 Converting a found citer's link to `[[id]]` where the target already has
 one also makes it immune to the next move, so treat cleanup of these as
@@ -504,7 +520,7 @@ migration's *scope statement* needs the repo-wide grep named explicitly
 isn't load-bearing on the next similarly-scoped bead.
 
 Resolution (Aurora-y2a): the durable fix was making the tool cover the gap,
-not another reminder. `check-links.sh` now also scans the slice READMEs and
+not another reminder. `check-links.py` now also scans the slice READMEs and
 the root `README`/`CONTRIBUTING`/`AGENTS`/`CLAUDE` files. Its first run found
 four dead citations that had survived every prior review, including one
 whose visible label was correct but whose href was not
@@ -539,3 +555,334 @@ distinguishing question: is the citation being read for the target doc's
 content (repoint it), or is the citation itself part of what's being
 recorded (leave it)? Bare paths still resolve either way, so nothing
 breaks by leaving the second kind alone.
+
+---
+
+## A validated setter doesn't protect state with a second write path that bypasses it
+Tags: architecture, config, validation, persistence
+Applies-when: adding validation to a setter for persisted state that also loads from disk
+
+`ConfigStore::fromJson` writes `ConfigData` fields directly, never through `Config::set*` -- so clamping `setAudioCentroidRangeHz` (Aurora-9ca) fixes the REST path but not a hand-edited `config.json` holding 0. The fix needed two layers for that reason: the setter clamp for the live path, plus a non-finite guard at the consumer (`Color::fromHSV`) that holds regardless of how the bad value arrived.
+
+**Fix:** when adding setter validation, grep for direct struct-field writes (loaders, migrations, tests) and decide per path -- sanitize the loader too, or harden the downstream consumer so every path is covered. A regression test that bypasses the setter (zero range straight into `updateDrift`) pins the defense-in-depth layer, not just the setter.
+
+---
+
+## Upstream many small fixes as one heads-up thread plus a few grouped MRs, one commit per fix -- not one MR per finding
+Tags: process, upstream, review, huenicorn, rockyroad
+Applies-when: sending several independent fixes found while porting someone else's project back to its maintainer
+
+Porting huenicorn produced 10 verified fixes on 10 branches (`Aurora-h45`).
+Ten MRs at once is a lot for a solo maintainer, and stacked MRs (1 needs 3,
+2 needs 1) each show their base's commits until it merges and need
+retargeting after it. Grouping by area gave three MRs: Hue API, portal,
+capture. Each keeps one commit per finding, so the maintainer can still
+review, drop or revert one fix. That keeps review manageable without
+merging unrelated changes into one diff. The pattern had already worked for
+RockyRoad: one heads-up issue (ChartConverter#6) listing the fork commits
+by group and asking "upstream or keep downstream?". The maintainer accepted
+the small focused fixes, declined one, and asked for PRs.
+
+**Fix:** open one short heads-up issue first: thanks, context, grouped
+bullets linking fork branches, one line per fix, and an explicit offer to
+split or drop. Then send grouped MRs one at a time, smallest and clearest
+first; the one that changes runtime behavior goes last, after a real-world
+check. Put a droppable trivial fix last in the most related group.
+
+---
+
+## Removing one commit message line from published history: find every ref first, rewrite in one pass, verify trees
+Tags: git, history-rewrite, force-push, tags, process
+Applies-when: a commit already on shared branches must change (trailer, secret, author) and the repo has several branches, a release tag and multiple clones
+
+Stripping a `Co-Authored-By` trailer from one commit (ab7b799) touched 5 branches, the `v1.0.4` tag and 3 clones, and went wrong in ways worth avoiding.
+
+- **List every ref that reaches the commit, untruncated.** `git branch -a --contains <sha> | head` hid `feat/HAPrep`, which was then left unrewritten and reported clean by mistake. Use `git for-each-ref --contains <sha>` with no `head`; it also covers tags, stashes and `refs/original`.
+- **A published release tag counts as a ref to rewrite.** It was the one decision the user had to make (move it or leave the old commit reachable via the tag). Ask before moving it.
+- **Rewrite all refs in one `git filter-branch --msg-filter ... -- <base>..<ref> <base>..<ref> ...` invocation.** Commits are deterministic given identical parents, tree and metadata, so shared ancestors get the same new hash on every branch. A later, separate pass over a branch built on the same history lined up with the new `dev` (8 ahead, 0 behind) for the same reason.
+- **Verify before pushing:** zero trailer matches, same commit counts, and every commit's tree equal to its original (`git rev-parse <c>^{tree}` paired over `rev-list --topo-order`). A message-only rewrite must change no trees.
+- **Back up first** with `git bundle create <file> --all`, outside the repo.
+- **Push each ref separately** with `--force-with-lease=<ref>:<FULL 40-char old sha>`. An abbreviated SHA or a pasted `...` ellipsis fails with "cannot parse expected object name". Never put abbreviations or ellipses in commands the user will copy.
+
+**Fix:** the order above. Cheaper alternative if the affected commit is unpushed: `git commit --amend`. Not worth rewriting published history for one trailer unless the user asks.
+
+---
+
+## After a history rewrite, other clones show "N and N different commits"; reset them, never pull or merge
+Tags: git, history-rewrite, clones, cherry, backups
+Applies-when: a force-pushed branch must be repaired on other machines
+
+An IDE or `git pull` offers to integrate when a branch has diverged ("16 and 16 different commits"). Merging brings the old commits back next to the rewritten ones, trailer included.
+
+- `git cherry -v origin/<b> <b>` decides safety: empty or every line `-` means each local commit already exists upstream under a new hash (nothing to lose); any `+` is real unpushed work and needs `git rebase --onto` or a plain `git rebase origin/<b>` (git drops patch-equivalent commits) instead of a reset.
+- Reset with `git branch backup-<b>-old <b>`, `git reset --hard origin/<b>`.
+- **Backups and leftovers keep the old history alive in `git log --all`.** `backup-*-old` branches, `refs/original/*` from a previous `filter-branch` (here a branch named `backup/pre-attribution-rewrite`), and local-only branches built on the old history (`fix/AvoidNaN`, `feat/MacSupportV2`) each still reach the old commit. Diagnose with `git for-each-ref --contains <sha> --format='%(refname)'`; clear with `git update-ref -d` and `git branch -D` once `git cherry -v dev <branch>` shows the work is in dev.
+- Old git versions reject `git rev-parse --short A B` ("needed a single revision"); run one ref per command.
+- A local branch that matches a remote tip with no unique commits can simply be deleted and recreated from the remote.
+
+**Fix:** per-branch cherry check, backup, reset, then a final `git log --all --regexp-ignore-case --grep=<pattern>` that must print nothing. Reflog entries survive until `git reflog expire --expire=now --all && git gc --prune=now`; they do not affect `--all` or pushes.
+
+---
+
+## Before turning a per-copy difference into a hook, check the copy can actually reach it
+Tags: architecture, code-reuse, refactor, dead-code
+Applies-when: folding near-identical per-app or per-platform copies into one shared implementation with per-caller options
+
+Folding three app copies of `Pipeline::build` into core (Aurora-9ig), the diff showed each app's own default video input name (`"linux"`, `"dummy"`, `"windows"`), and the bead listed it as a platform hook. While writing the options struct it turned out to be unreachable in all three: `build()` returns early when no input is named at all, and an empty video name alongside an audio name always takes the audio branch, so the `empty() ? default : name` fallback never fired. Carrying it into core would have meant an option every app has to set, plus a test, for a value no run can observe.
+
+**Fix:** for each line that differs between the copies, trace whether any input reaches it before giving it a hook; delete unreachable differences in the shared version and say so in the commit. A diff between copies shows where they *differ*, not which differences are live -- the same caution as "a fully ported, fully unit-tested function can still be dead code" above.
+
+---
+
+## "First output" is hash order when no outputs are selected -- Registry name lists are unordered
+Tags: architecture, registry, zonemap, testing, nondeterminism
+Applies-when: relying on the order of `Registry::outputNames()`/`inputNames()`, or on "the first output" (zone listing, zone edits) with more than one output registered
+
+`Pipeline::build` runs every registered output when `activeOutputNames` is empty, in `Registry::outputNames()` order, and `listZones`/`updateZone` act on the *first* of them. `Registry` keeps an `unordered_map`, so that order is unspecified: a core test expecting `out-a` got `out-b` (Aurora-9ig). Harmless today with Hue as the only real output, but a second output (Home Assistant, Aurora-4zr) makes the Zone Mapping target depend on hashing.
+
+**Fix:** tests select outputs explicitly (`setActiveOutputNames`) when they assert on "first output". Product side tracked in Aurora-9sm: give the unselected case a defined order, or make the zone routes name their output.
+
+---
+
+## A "never return secrets" audit must also follow where each stored secret is *sent*, not just what routes respond with
+Tags: security, secrets, hue, ha, routes, contracts
+Applies-when: auditing or adding a route that uses stored credentials
+
+Aurora-5i3's audit found every `/api/hue/*` response clean. But two routes
+filled an omitted `username` from the stored pairing, while still taking
+`bridgeAddress` from the body. So `{"bridgeAddress":"<attacker>"}` made
+Aurora send the stored app key to that host, in one unauthenticated request.
+That fallback existed for a good reason: GET withholds creds, so the WebUI
+can't resend them (see the "full object round-trip" lesson in web-testing.md).
+
+**Fix:** stored creds only ever go to the stored endpoint (`_resolveTarget`
+in `PairingRoutes.cpp`). Repointing the endpoint clears them. The HA token
+follows the same rule. To audit, trace each secret outward
+(header, PSK, body) and check who picked the destination.
+
+---
+
+## A save that follows slow work must write only the fields it derived -- saving the whole object overwrites edits made during the wait
+Tags: config, persistence, race, reload, configstore
+Applies-when: code loads a file-backed config, does slow work (device handshake, network), then saves; or two code paths update the same file with load() + save()
+
+`Pipeline::build` persisted its derived `refreshRate`/`subsampleWidth` by saving the orchestrator's whole `Config`, which came from a load made before output init. Hue's DTLS handshake takes 1-3s, so a settings PUT saved in that window was overwritten with the older values, and the next reload read the stale file (Aurora-d6i7). The PUT route was the second unlocked writer. `load()` could also read a file `save()` had just truncated, which parses as discarded and reads back as defaults.
+
+**Fix:** give the store an atomic `update(mutate)` under one leaf lock and use it for every partial change, never `load()` + `save()`. A save that follows slow work writes only the fields it derived, and only where still unset on disk. Serialize the whole PUT through its reload and keep a documented lock order (PUT mutex, file lock, host lock), so reloads run in the order their writes landed.
+
+---
+
+## Diff a live change against what the running thing was built from, not against the persisted copy
+Tags: config, reload, hot-apply, diff, state, webui
+Applies-when: deciding whether a saved settings change can be applied live or needs a rebuild, or showing which mode is running in the UI
+
+Aurora-c0g classifies each config edit as live-tunable or structural by diffing old against new. "Old" read from disk looks natural and is wrong: a structural save whose reload fails leaves disk ahead of the running pipeline, so the next hot-only save diffs against a disk that already holds the failed change, sees "only tuning moved", applies it live, and the structural change is never retried. The baseline also has to be the post-derivation Config for video (display-derived `refreshRate`/`subsampleWidth` filled in), or the first diff reads as a change to 0.
+
+**Fix:** the pipeline keeps the Config it was built from (moved forward by each live apply) and the diff runs against that. A failed reload then keeps surfacing its error on later saves instead of silently diverging. Fields the running mode never reads still move the baseline, and an unclassified field defaults to reload.
+
+The WebUI has the same trap (found scoping Aurora-kea, 2026-10-03). `DashboardScreen._switchMode` refetches after a PUT and re-derives the Video/Audio mode from `/api/config`. On `reloadError` the old pipeline keeps running but the config holds the failed mode, so every section shows the mode that isn't running. `reload()` while paused also returns success without building anything. Neither "succeeded" nor the saved config means "running". **UI fix:** show running state from the pipeline itself (kea's `GET /api/state` flags), never from the saved config. Don't roll the save back either: Mac permission recovery depends on the saved mode starting after relaunch. Since Aurora-98pr the Dashboard shows no inline copy of that `reloadError`; the daemon holds it and the shell banner shows it.
+
+---
+
+## Grep the discriminator itself when scoping a "stop gating on X" refactor -- the acceptance criterion names one use and misses the rest
+Tags: refactor, scoping, mode, dashboard, acceptance
+Applies-when: writing or reviewing acceptance criteria for removing a mode/flag/enum that code branches on
+
+Aurora-kea's acceptance read "no `mode ===` gating left for section visibility". Grepping `mode` in `DashboardScreen.js` and `TuningFields.js` found it also picks which config key gets saved (`_onDeviceFieldChange`, `_switchMode`, the `TuningFields` patch), whether the audio status poll runs, `TuningFields`' field set, and the Zone Mapping empty-state wording. A refactor that met the criterion would have left a mixed-input state showing both pickers but saving only one. The mode also cannot represent "both" or "neither" (both-set reads as video, nothing active reads as video), so the replacement must be independent flags, not a second enum.
+
+**Fix:** scope by grepping the discriminator's every read, not the use the issue names. Sort the hits into visibility, writes, polling, copy and data shape; then decide per group whether this issue or a named follow-up owns it.
+
+## A null pipeline is not a pause -- every reload path resumes it, and every reader goes blank
+Tags: architecture, pipeline, reload, pause
+Applies-when: adding a stopped/paused state on top of PipelineHost
+
+Designing pause (Aurora-3ddb) as "shut down the pipeline, keep the process" looked free, because `PipelineHost` already tolerates a null pipeline (the fresh-install idle state). Reading the callers showed two traps. `reloadPipelineFromDisk` is the one reload path for settings saves, `/api/reload` *and* Hue pairing, so a pause flag checked only in a new route would be undone by any of them. And `listZones()`/`listMonitors()` return empty with no pipeline, so Zone Mapping and the monitor picker go blank while paused.
+
+**Fix:** the paused flag lives inside `PipelineHost::reload` (a save writes config and stays paused), and readers that matter while paused fall back to on-disk or cached data (`ZoneMapStore`, last monitor list). General rule: before reusing an "empty" state as a new mode, list every writer that leaves that state and every reader that renders it.
+
+## DNS rebinding needs a hostname -- a Host allowlist can admit every IP literal
+Tags: security, local-api, dns-rebinding, host-header
+Applies-when: adding Host-header validation to a server bound to 0.0.0.0
+
+The Host-allowlist plan first assumed per-OS enumeration of the machine's LAN IPs so a phone could still reach the WebUI by IP. Vite and webpack-dev-server show it's unnecessary: a rebinding attack runs under the attacker's domain, so `Host` always carries that hostname; a request with a bare IP literal in `Host` cannot be a rebinding vector. The Origin-vs-Host check from Aurora-5i3 doesn't stop rebinding, since a rebound page is same-origin with itself.
+
+**Fix:** allow any IPv4/IPv6 literal, `localhost`/`*.localhost`, the machine's hostname and `.local` name, plus a user-set list; refuse other hostnames. Chrome's Local Network Access prompt (mandatory from Chrome 156) blunts rebinding in Chrome only, so keep the check.
+
+## macOS and Windows ship `python3` as an installer prompt, not an interpreter -- helpers an app launches must be compiled or bundle a runtime
+Tags: packaging, macos, windows, python, adapters
+Applies-when: choosing a language for a helper process the app itself starts
+
+Choosing "Aurora supervises adapters" rested on the assumption that python3 is on every desktop. It isn't: macOS's `/usr/bin/python3` is a stub that opens the Xcode Command Line Tools installer, and Windows' `python3` is an App Installer alias that opens the Microsoft Store. Linux distros do ship it. Hyperion gets Python everywhere only by embedding libpython plus a stdlib zip (Windows) or `Python.framework` (Mac bundle), with matching signing work.
+
+**Fix:** helpers Aurora launches are built in the same CMake superbuild (C++, existing deps and signing path); Python/Node stays for things the user or another client launches (MCP stdio servers, dev tools). Verify "it's preinstalled" claims per OS before designing on them.
+
+---
+
+## A state GET plus a separate event stream loses changes in the gap; send the snapshot as the stream's first event
+Tags: api, sse, events, state
+Applies-when: adding an events stream next to a polling state route
+
+[[external-control]] planned `GET /api/state` and `GET /api/events`. A client that fetches state and then opens the stream misses anything that changes between the two calls (a pause, say), and shows stale state until the next change. Hyperion's `serverinfo` with `subscribe` avoids it by returning the snapshot and subscribing in one call (`libsrc/api/JsonAPI.cpp`). This matters most for retained-state consumers such as the MQTT bridge.
+
+**Fix:** the stream's first event is the current state, so clients can skip the GET. Test that a new stream's first event equals `GET /api/state`.
+
+---
+
+## Pause needs its re-check at the swap, and its own mutex
+Tags: architecture, pipeline, pause, concurrency
+Applies-when: implementing pause/resume or any "hold" state on PipelineHost
+
+Checking the paused flag at the top of `PipelineHost::reload` is not enough: `reload()` builds outside the lock, so a `pause()` that lands during the build is undone when the build swaps in (the lights restart under a "paused" label). Two more traps from Aurora-3ddb. `resume()` twice at once would build two pipelines and open two capture-portal dialogs (Aurora-5t2). And `Pipeline::shutdown(false)` ends in Hue's blocking `disableStreaming` HTTP call, so running it under the pipeline lock stalls `tick()` and zone calls. A route that returned `false` for "no pipeline" (zone update, mapped to 404 `unknown_zone`) also gains a second cause once pause exists, and reports it wrongly.
+
+**Fix:** re-check the flag under the lock at the swap and discard (`shutdown(true)`) the stale build; serialize `pause()`/`resume()` on their own mutex taken first; swap the pipeline out under the lock and shut it down outside. Give each route that depends on a live pipeline an explicit paused answer (409) instead of reusing its "not found" path.
+
+---
+
+## A tray label that mirrors app state should be read when the menu opens, not pushed
+Tags: tray, pause, ui-state, cross-platform
+Applies-when: adding a stateful tray item (Pause/Resume, Start/Stop) on more than one platform
+
+State can change behind the tray's back (Dashboard button, `PUT /api/state`), so a label set only on click goes stale. A push needs per-platform plumbing (Linux `LayoutUpdated` signal and a thread-safe `refresh()`); an open-time read needs almost none. Aurora-5ipy.14/.15/.16 all read `isPaused()` at open: Windows builds the popup per `showMenu()`, Mac sets the title in `NSMenuDelegate menuNeedsUpdate:`, Linux returns needUpdate from `AboutToShow`. Linux also pushes, because SNI hosts can keep a menu rendered.
+
+**Fix:** pass the tray an `isPaused` getter (lock-free atomic) and have the open hook read it. The click callback only posts a flag; the tick loop does the multi-second `setRunning`, so no UI or D-Bus thread blocks and there is no extra thread to join at shutdown.
+
+Extended 2026-10-05 (Aurora-k73j's tray-error sketch, [[error-overlay]]): the same open-time-read model covers relabeling the item itself (e.g. "Resume" -> "⚠ See Error"), not just its Pause/Resume text, it's the same getter shape, now also checking the source's current error. One implication worth stating outright: because the click callback only posts a flag and the menu closes immediately as a normal consequence of selecting any item, the menu that triggered a failing action is always already gone by the time that action's result exists -- there is no case where the triggering menu is still open and could show the failure live. Force-closing an open menu to fake a live update was considered (Mac's existing `cancelMenuTracking`, Windows' existing shutdown-time `WM_CANCELMODE`) and rejected: dismissing a menu the user is actively looking at, possibly mid-click on something unrelated, to buy freshness that's already an accepted limitation elsewhere isn't worth risking a dropped click.
+
+**Fix (extended):** when adding a new tray-visible condition beyond paused/resume, feed it through the same open-time getter rather than reaching for a push or forced-redraw mechanism -- the menu that would need the live update is, in this app's own click-then-tick-loop split, essentially never still open by the time the result exists anyway.
+
+Extended again 2026-10-05 (Aurora-q9l1, [[error-overlay]]): "the click callback only posts a flag" hides a race when the flag is a toggle. All three trays set `pauseToggleRequested` and the tick thread later runs `setRunning(pipelineHost.isPaused())`, so the target is decided seconds after the click. During a multi-second resume the menu still reads "Resume", and a second click pauses right after the resume succeeds. `PUT /api/state {running}` never had this, because it sends the target.
+
+**Fix (extended):** post the clicked target (run or pause, last click wins), never a toggle the worker resolves later.
+
+---
+
+## A fork kept for upstream merge requests is not a mirror target -- a fix there is a new MR
+Tags: process, upstream, huenicorn, planning
+Applies-when: a plan says to "mirror" or "also apply" an Aurora fix in `../huenicorn-fork`
+
+The Aurora-1t1 rollout plan ended with "mirror into huenicorn-fork", written as if the fork were a second copy of the grabber. It is not: its branches are curated one per upstream merge request (Aurora-h45: MR 1 Hue API, MR 2 portal failures, MR 3 `fix/capture-pipeline`), and its `PipewireGrabber` lacks the trace and helper headers the Aurora fix builds on. Applying the fix there means a port, a branch choice that changes what an existing MR asks reviewers to accept, and its own hardware check.
+
+**Fix:** plan fork work as an upstream change, not a copy step: a child bead under the h45 epic with its own branch (stacked on the MR whose files it touches), filed when the Aurora fix lands. Don't fold it into the Aurora bead's acceptance.
+
+
+## A host with no pipeline is neither running nor paused -- a boolean paused flag reads a failed start as running
+Tags: pause, state-model, errors, tray, webui
+Applies-when: exposing run state to a UI or tray, or designing error display around pause/resume
+
+After a failed startup build, `PipelineHost` has `m_paused == false` and `m_pipeline == nullptr`. `pause()` returns false with nothing to pause, and `setRunning(true)` reports success because the host is not paused, so both the tray and the Dashboard offer "Pause", and clicking it silently does nothing. This is the headline case of Aurora-d3ec (Mac launched with Screen Recording denied). d3ec's retry-path notes had traced it, but the error-display design and the tray-feedback bead (k73j) were built on `isPaused()` alone and inherited the blind spot: k73j's relabel only fired on a failed Resume.
+
+**Fix:** expose the third state explicitly (`running | paused | failed` on `GET /api/state`, Aurora-d3ec) and drive every label from it. When a design elaborates a bead, read that bead's notes first. Gaps already traced there are easy to drop when the design starts from the API's current shape.
+
+**Correction found while building it:** "no pipeline" has a fourth cause, so the set is `idle | running | paused | failed`. `Pipeline::build` returns null, it does not throw, while no input is configured, so a *fresh install* is `idle` with no error. The design docs said "a fresh install's first build fails by design" and sized the onboarding gate around a `startup` error that never exists there; nobody had read what `build()` returns. The failure that does occur in onboarding is later: an input saved, no output paired, and the reload throws "No outputs available". Before encoding a state model or a UI gate around a "fails by design" claim, run the case once (here: a temp `AURORA_CONFIG_DIR`) and look at what the host reports. Mapping `null` to `failed` with an empty error list would have been the same lie as mapping it to `running`.
+
+---
+
+## Publish a host's state and errors as one snapshot under its own leaf lock, and store a failure only if nothing is running when you look
+Tags: pipelinehost, concurrency, state-model, locks, api
+Applies-when: adding a field a lock-free route must read next to state the host mutates under its main lock
+
+`GET /api/state` is polled and must not wait on a tick, so the error text (a `std::string`, not an atomic) cannot ride on `m_mutex`, and reading `state` and `errors` separately lets a poll see `failed` with an empty list. Aurora-d3ec keeps one `HostStatus{state, errors}` behind its own `m_statusMutex`, taken last (after `m_mutex`) and only around that struct. Every site that changes `m_pipeline` or `m_paused` (ctor, reload swap, pause, resume) republishes while it still holds its locks, so the snapshot never disagrees with the pipeline. The state is derived at publish time (paused, else running if a pipeline exists, else failed if errors, else idle), never stored as its own flag.
+
+A failed build runs outside every lock, so a competing success can land first. Rather than a sequence counter, the failure path takes the locks *after* the build and stores nothing if a pipeline now exists or a pause landed ("errors are held only while no pipeline runs"). That one rule also covers the plain "failed reload with a pipeline running" case, and the late-failure test shows it: a fake output's `init()` hook runs a successful reload inside the failing build.
+
+**Fix:** one leaf-locked snapshot for anything a lock-free reader needs together, republished wherever the inputs change; decide "store or drop" under the same locks that decide the state. `status()` waiting on `m_pauseMutex` (a resume in flight) is the regression to test for.
+
+---
+
+## A vendored snapshot rots: re-syncing one screen can mean porting months
+Tags: webui, demo, vendoring
+Applies-when: re-vendoring a demo copy that has fallen behind the source screen
+
+Aurora-ewyz's acceptance said "re-vendor DashboardScreen". The vendor copy predated the Pause/Stop topbar entirely (no `_renderTopBar`), lacked the MacPermissionRecovery import (a whole new vendored module plus MANIFEST entry), and carried toggle-sync/string-zone-ids seams; the new TuningFields needed Tooltips exports the vendor copy lacks. A faithful sync would port months of Dashboard evolution and re-decide seams blind -- while the demo cannot exercise error UI at all (the shim always answers), so the sync buys regression risk with no observable benefit.
+
+**Fix:** decide sync-vs-leave as its own task per re-vendor: if the snapshot has drifted past a small seam re-application, leave the tree byte-identical, record the decision on the bead, and file the full re-sync as a demo-porting task. A demo that connects to nothing ideally never shows errors; its error paths are covered by the unit suites, not the demo.
+
+---
+
+## A failed reload on a running host keeps the old pipeline and holds the error -- "has errors" is not "failed"
+Tags: reload, pipelinehost, errors, state, webui
+Applies-when: reading `GET /api/state`'s errors, deciding whether a failed save shows in the banner, or changing when `PipelineHost` stores or drops a build failure
+
+Before Aurora-ja76, `_recordFailure` returned early when a pipeline existed, so a failed `reload` while running left `errors: []` and a response's `reloadError` was the only signal (confirmed live in Aurora-cj11; Aurora-nkhi was filed on the opposite assumption and closed). Now a running host holds the `reload` entry beside whatever else is held, `state` stays `running`, and clients must read `state`, never "errors non-empty", for failed.
+
+Three rules came with it. (1) The old early return also dropped a failure that landed after a newer successful build; with it gone, a failing reload records `m_buildEpoch` before its build and stores only if no swap landed since (the late-failure test is the mutant check). (2) Ids are stamped per entry when it is created or replaced, never restamped by an unrelated publish, so a dismiss racing a new failure cannot clear it. (3) A build failure supersedes the earlier build entries (`startup`/`resume`/`reload`) instead of merging, so a failed retry of a failed startup is one row; other sources merge.
+
+**Fix:** see `PipelineHost::_recordFailure`, `_setBuildErrorLocked`, `dismissError`, and ErrorOverlay.md decisions 10-12. After a failed reload on a running host, `/api/state` shows `running` with one `reload` error carrying an id.
+
+## `PUT /api/config` reloads only when the running pipeline differs from the new config -- a Retry in the running mode needs an explicit reload
+Tags: reload, config, retry, banner, pipeline
+Applies-when: a UI action must rebuild the pipeline that is already running in the mode it is about (permission Retry, restart-a-component)
+
+Aurora-h457: a first audio-row Retry saved audio-only config and cleared nothing, because the running pipeline was already audio, so the save's reload saw no structural change and rebuilt nothing; the stale grabber kept running. The saved mode can also differ from the running one after a failed switch (saved Video, running Audio): a plain `POST /api/reload` then builds the saved mode, not the running one.
+
+**Fix:** a Retry that must replace what is running calls `POST /api/reload` itself; do not rely on a config save to reload. For rows whose saved and running modes can diverge, the row of the failed switch is the one to retry. A "select the row's mode, then reload" Retry was built (shared `modeSwitchPatch`/`putModeSwitch`) and reverted once either grant alone proved enough.
+
+---
+
+## bd-managed git hooks have a documented extension point: content outside the BEGIN/END markers survives `bd hooks install` upgrades
+Tags: beads, git-hooks, tooling
+Applies-when: wiring a project script into a git hook in a repo that already uses `bd hooks install`
+
+Wiring `check-lessons.sh`/`check-links.py` into pre-commit (Aurora-lmn.5), `core.hooksPath` already pointed at the bd-managed, git-tracked `.beads/hooks/pre-commit`. A separate hook file would never run (git only consults the one path `core.hooksPath` names), and hand-editing inside the `# --- BEGIN/END BEADS INTEGRATION ---` markers risked being clobbered by a future `bd hooks install`. `bd hooks install --help` documents the actual contract: "Hooks use section markers to coexist with existing hooks -- any user content outside the markers is preserved across installs and upgrades."
+
+**Fix:** append custom hook logic after the `END BEADS INTEGRATION` marker in the relevant `.beads/hooks/<name>` file, never inside it and never as a separate file while `core.hooksPath` is bd-owned.
+
+## Turning on enforcement for a long-dormant checker surfaces a real backlog immediately -- budget to fix it in the same pass
+Tags: process, enforcement, hooks, honor-system
+Applies-when: wiring a previously-manual checker into a hook or CI for the first time
+
+`check-links.py`/`check-lessons.sh` ran "by convention" for weeks (Aurora-lmn.4, deferred). Wiring them into the pre-commit hook (Aurora-lmn.5) immediately caught a real `Tags:` formatting bug just added to `components.md` and two dead `[[windows-env]]`/`[[macos-gui]]` wikilinks that had sat in a committed log entry since the previous session -- neither was a false positive or a tooling bug, both were real violations the honor system had simply never caught.
+
+**Fix:** expect a checker's first enforcement run to fail on a real backlog, not a bug in the checker itself. Fix the backlog in the same change that turns enforcement on, rather than disabling the check to unblock the commit — that's the whole gap this kind of hook exists to close.
+
+---
+
+## A release audit must check every published surface, not just the version string
+Tags: release, versioning, deployment, pages, branches
+Applies-when: cutting a release, bumping the version, or auditing work since the last tag
+
+The 1.1.0 audit found three surfaces that never move with a bump. `origin/main` was still at `v1.0.4` while 253 commits sat on `dev` (feature PRs merge to `dev`). `gh-pages` (the `web/demo` subtree) was last pushed 2026-09-25 and still showed 1.0.3 in its footer. And `web/demo/demo-shim.js` hardcodes `/api/version`, guarded only by a web test that a changelog-only edit doesn't trigger.
+
+**Fix:** treat the release as four sites plus two pushes: `CMakeLists.txt` `project(... VERSION)`, the `CHANGELOG.txt` top entry, `demo-shim.js`'s version, then merge `dev` into `main` and subtree-push `web/demo` to `gh-pages` (pruned, see the subtree lesson above). Check `git log origin/main..dev` and `git log -1 origin/gh-pages` before tagging.
+
+---
+
+## A vendored fork stays cheap to re-sync only if its adaptations live upstream as options
+Tags: vendor, duplication, fork, webui, demo
+Applies-when: copying a module tree into another site (web/demo/vendor/webui) and adapting it there
+
+`web/demo/vendor/webui` adapted its copies with hand edits inside the copied files (rewritten icon paths, re-scoped `shell.css` resets, a cut Stop button, string zone ids, extra sync callbacks). Every re-vendor had to re-apply each hunk, so re-vendoring kept getting deferred, and the fork fell behind `web/ui` by whole features (Mac permission recovery, slider ranges from descriptors). By 1.1.0 only 11 of 27 forked files still matched `web/ui`. `seams.test.mjs` caught a lost hunk but couldn't make re-applying it cheaper.
+
+**Fix:** move each adaptation upstream as a neutral change or an option the host reports (module-relative asset URLs via `import.meta.url`, page-only CSS in its own stylesheet, a capability flag the demo shim answers). Then vendoring is a verbatim scripted copy guarded by a byte-equality test in CI. Keep the copy inside the published subtree when the site is deployed by subtree push. Sequenced as Aurora-ifkn.1-8.
+
+A byte-equality test guards only the files already listed. Reachability is a separate invariant: when `web/ui`'s Dashboard gains an import, the copies all still match, CI stays green, and Pages 404s on the new module. `closure-check.mjs` covered this but ran on nobody's path, and its default still pointed at the pre-monorepo `Aurora-WebUI` sibling, so it only passed when someone passed `../ui` by hand (the ifkn.7/.8 logs called it clean that way). Run both guards argument-free from the sync script and CI.
+
+---
+
+## A byte-identical re-vendor must relocate the fork-only wiring it deletes, not just delete it
+Tags: vendor, demo, webui, testing
+Applies-when: re-vendoring one file byte-identical when the old fork copy carried extra wiring
+
+Aurora-ifkn.3 re-vendored `DashboardScreen.js` byte-identical to web/ui, deleting the fork's toggle-sync wiring (Bridge list <-> Zone Mapping canvas). The vendor modules kept their seam callbacks, but with nothing firing them the demo would have regressed silently -- and the old tripwire asserted the wiring text inside the screen file, so it failed on the identical copy by design.
+
+**Fix:** move the dropped wiring into demo-owned code (`demo-boot.js` mounts a `DemoDashboardScreen` subclass re-attaching both directions) and rewrite the tripwire to assert the new home: byte-identity asserts for the copies, wiring asserts against demo-boot. General principle: "identical" constrains the file, not the behavior -- every hunk the copy deletes needs a named new home or an explicit obituary in the bead notes.
+
+---
+
+## A merged beads export is newer than the live DB -- import before the hook exports stale state back over it
+Tags: beads, git, sync, export
+Applies-when: merging a branch that closes or updates beads, before committing the merge
+
+Merging dev into feat/v1.1.0Prep brought a tracked `issues.jsonl` with Aurora-gtkd closed, but the live DB still had it open. The pre-commit hook's `bd export` then overwrote the worktree file with the stale DB content; running `bd import` after that pushed the stale state INTO the DB (import reads the file), actively regressing the close. Caught by field-diffing the worktree file against HEAD.
+
+**Fix:** after any merge touching `.beads/issues.jsonl`, `bd import` the tracked file into the live DB before any commit or hook runs; if the hook already clobbered the worktree copy, restore it from HEAD first (`git show HEAD:.beads/issues.jsonl`), then import, then export. Never import a file the hook just wrote without checking which side is newer. General principle: with two sources of truth (tracked export + live DB), every sync command has a direction -- run the one that flows from the newer side.
+
+---
+
+## A standing environment fact is not a build error: give it its own channel instead of bending error semantics
+Tags: architecture, pipelinehost, errors, conditions, banner, api-state
+Applies-when: something other than a pipeline build wants a shell banner row (a permission, a network fact), especially during first-run setup
+
+The first Aurora-rbp3 plan put the Mac Local Network denial in `PipelineHost`'s errors. That needed two patches: let `setError` hold while idle (it refuses unless a pipeline runs) and re-assert every poll (any successful build clears all errors). Each patch was a sign of a different concept. Errors are build results that the next good build supersedes; a condition lasts until the outside world changes, in every host state, with no dismiss. A second review also dropped a per-route `local_network_blocked` error code, which would have shown the same fact twice (the Aurora-tazx problem).
+
+**Fix:** a separate `HostCondition` list with its own lock, owned and cleared by its publisher, exposed as `conditions` on `/api/state`, rendered by a source -> renderer table in the shell. When a design needs "but don't let X clear it" and "but allow it when Y", stop and check whether it is the same kind of thing.

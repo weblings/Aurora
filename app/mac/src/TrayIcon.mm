@@ -1,5 +1,8 @@
 #include <Aurora/App/TrayIcon.hpp>
 
+#include <Aurora/App/TrayClick.hpp>
+#include <Aurora/Runtime/TrayLabel.hpp>
+
 #import <AppKit/AppKit.h>
 
 // The menu-item action target -- action selectors need a real NSObject,
@@ -8,10 +11,11 @@
 // a non-owning pointer back to Impl; TrayIcon's destructor tears the menu
 // down (and with it, any in-flight action dispatch) before Impl itself is
 // destroyed.
-@interface AuroraTrayMenuTarget : NSObject
+@interface AuroraTrayMenuTarget : NSObject <NSMenuDelegate>
 @property (nonatomic, assign) Aurora::App::TrayIcon::Impl* impl;
 - (void)onLaunch:(id)sender;
 - (void)onStop:(id)sender;
+- (void)onTogglePause:(id)sender;
 @end
 
 // Catches LaunchServices' reopen signal (Aurora-qps.7): with no Dock icon
@@ -36,9 +40,12 @@ namespace Aurora::App
     bool webUiBound{false};
     std::function<void()> onLaunch;
     std::function<void()> onStop;
+    std::function<void()> onTogglePause;
+    std::function<Runtime::HostStatus()> hostStatus;
 
     NSStatusItem* statusItem = nil;
     AuroraTrayMenuTarget* target = nil;
+    NSMenuItem* pauseItem = nil;
     AuroraTrayAppDelegate* appDelegate = nil;
   };
 }
@@ -53,6 +60,36 @@ namespace Aurora::App
 - (void)onStop:(id)sender
 {
   if(self.impl && self.impl->onStop){ self.impl->onStop(); }
+}
+
+- (void)onTogglePause:(id)sender
+{
+  // A "See Error" slot opens the WebUI (Aurora-k73j): the banner there
+  // explains and offers the retry. Otherwise the normal run/pause target
+  // post (Aurora-q9l1).
+  if(!self.impl){ return; }
+  const Aurora::Runtime::HostStatus clickStatus =
+      self.impl->hostStatus ? self.impl->hostStatus() : Aurora::Runtime::HostStatus{};
+  if(Aurora::App::resolveTrayPauseClick(clickStatus, self.impl->webUiBound) ==
+         Aurora::App::TrayPauseClickAction::LaunchUi){
+    if(self.impl->onLaunch){ self.impl->onLaunch(); }
+  }
+  else if(self.impl->onTogglePause){ self.impl->onTogglePause(); }
+}
+
+// Runs on the main thread each time the menu is about to open, so the
+// Pause-slot label reflects a state change made elsewhere (Dashboard,
+// API) with no push needed.
+- (void)menuNeedsUpdate:(NSMenu*)menu
+{
+  if(!self.impl || !self.impl->pauseItem || !self.impl->hostStatus){ return; }
+  // One status() snapshot per open (Aurora-k73j): state plus errors
+  // together, so a running host holding errors (Aurora-ja76) still reads
+  // Pause while a failed one reads See Error.
+  const Aurora::Runtime::HostStatus hostStatus = self.impl->hostStatus();
+  self.impl->pauseItem.title = [NSString stringWithUTF8String:
+      Aurora::Runtime::trayPauseItemLabel(hostStatus.state, !hostStatus.errors.empty(),
+          self.impl->webUiBound)];
 }
 
 @end
@@ -71,13 +108,17 @@ namespace Aurora::App
 {
 
 TrayIcon::TrayIcon(std::string url, bool webUiBound,
-                    std::function<void()> onLaunch, std::function<void()> onStop):
+                    std::function<void()> onLaunch, std::function<void()> onStop,
+                    std::function<void()> onTogglePause,
+                    std::function<Runtime::HostStatus()> hostStatus):
 m_impl(std::make_unique<Impl>())
 {
   m_impl->url = std::move(url);
   m_impl->webUiBound = webUiBound;
   m_impl->onLaunch = std::move(onLaunch);
   m_impl->onStop = std::move(onStop);
+  m_impl->onTogglePause = std::move(onTogglePause);
+  m_impl->hostStatus = std::move(hostStatus);
 
   // First (and, for this tier, only) AppKit consumer in app/mac -- owns the
   // one-time bootstrap. No activation-policy call here: this phase
@@ -130,16 +171,30 @@ m_impl(std::make_unique<Impl>())
   launchItem.enabled = webUiBound;
   [menu addItem:launchItem];
 
+  // Same snapshot rule as menuNeedsUpdate: below (Aurora-k73j).
+  const Runtime::HostStatus initialStatus =
+      (m_impl->hostStatus ? m_impl->hostStatus() : Runtime::HostStatus{});
+  NSMenuItem* pauseItem = [[NSMenuItem alloc] initWithTitle:
+                              [NSString stringWithUTF8String:
+                                  Runtime::trayPauseItemLabel(initialStatus.state,
+                                      !initialStatus.errors.empty(), m_impl->webUiBound)]
+                                                      action:@selector(onTogglePause:)
+                                               keyEquivalent:@""];
+  pauseItem.target = target;
+  [menu addItem:pauseItem];
+
   NSMenuItem* stopItem = [[NSMenuItem alloc] initWithTitle:@"Stop"
                                                       action:@selector(onStop:)
                                                keyEquivalent:@""];
   stopItem.target = target;
   [menu addItem:stopItem];
 
+  menu.delegate = target;
   item.menu = menu;
 
   m_impl->statusItem = item;
   m_impl->target = target;
+  m_impl->pauseItem = pauseItem;
 }
 
 TrayIcon::~TrayIcon()

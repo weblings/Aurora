@@ -58,7 +58,8 @@ namespace Aurora::Output::Hue
     const std::string& url,
     const std::string& method,
     const std::string& body,
-    const HttpHeaders& headers
+    const HttpHeaders& headers,
+    long timeoutMs
   )
   {
     // Borrowed, not owned: the thread-local handle outlives this call, so
@@ -68,7 +69,7 @@ namespace Aurora::Output::Hue
 
     curl_easy_setopt(handle, CURLOPT_URL, url.c_str());
     curl_easy_setopt(handle, CURLOPT_CUSTOMREQUEST, method.c_str());
-    curl_easy_setopt(handle, CURLOPT_TIMEOUT, 1);
+    curl_easy_setopt(handle, CURLOPT_TIMEOUT_MS, timeoutMs);
 
     // Requirement for self-signed Hue bridge certs.
     curl_easy_setopt(handle, CURLOPT_SSL_VERIFYPEER, false);

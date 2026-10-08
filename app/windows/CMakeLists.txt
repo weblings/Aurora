@@ -55,21 +55,26 @@ if(AURORA_APP_ENABLE_HUE_OUTPUT AND NOT TARGET AuroraOutputHue)
   FetchContent_MakeAvailable(AuroraOutputHue)
 endif()
 
-# Registry as its own library (not folded into the executable) so tests can
-# link it without pulling in main()'s own main() symbol.
+# App-side pieces as their own library (not folded into the executable) so tests can
+# link them without pulling in main()'s own main() symbol (Registry lives in
+# core/Runtime).
 add_library(AuroraApp STATIC
-  src/Registry.cpp
   src/InstanceLock.cpp
   src/LogSink.cpp
+  src/TrayIcon.cpp
 )
 
 target_include_directories(AuroraApp PUBLIC
   ${CMAKE_CURRENT_SOURCE_DIR}/include
+  # resource.h lives next to this file (Aurora-x2o.1); TrayIcon.cpp needs
+  # its IDM_* values, same include path main.cpp already resolves it from.
+  ${CMAKE_CURRENT_SOURCE_DIR}
 )
 
 target_link_libraries(AuroraApp PUBLIC
   AuroraInputInterface
   AuroraOutputInterface
+  AuroraRuntime
 )
 
 # InstanceLock's loopback probe speaks Winsock directly; PUBLIC so both
@@ -88,6 +93,17 @@ include("${auroracore_SOURCE_DIR}/Network/cmake/EmbedWebroot.cmake")
 set(_AURORA_EMBEDDED_WEBROOT_HEADER "${CMAKE_CURRENT_BINARY_DIR}/EmbeddedWebRoot.hpp")
 aurora_embed_webroot("${_AURORA_EMBEDDED_WEBROOT_HEADER}" "${aurorawebui_SOURCE_DIR}")
 
+# Graph editor (Aurora-lzj): opt-in (AURORA_ENABLE_GRAPH_EDITOR, OFF by
+# default), so a default build needs no Node. When ON, the Vite bundle is
+# built by npm and embedded as Aurora::GraphEditorWebRoot::files, served
+# under /graph-editor/ in dev and standalone runs alike.
+include("${CMAKE_CURRENT_SOURCE_DIR}/../../web/graph-editor/cmake/GraphEditor.cmake")
+set(_AURORA_GRAPH_EDITOR_HEADER "")
+if(AURORA_ENABLE_GRAPH_EDITOR)
+  set(_AURORA_GRAPH_EDITOR_HEADER "${CMAKE_CURRENT_BINARY_DIR}/GraphEditorWebRoot.hpp")
+  aurora_graph_editor_embed("${_AURORA_GRAPH_EDITOR_HEADER}")
+endif()
+
 # Aurora-05r: app.rc embeds app.ico (generated from
 # assets/brand/Logo_Square_Light.png) as the exe icon. Side-by-side in
 # this dir, so rc.exe/windres resolve ICON "app.ico" with no extra
@@ -96,6 +112,7 @@ add_executable(aurora-app-windows
   src/main.cpp
   app.rc
   "${_AURORA_EMBEDDED_WEBROOT_HEADER}"
+  ${_AURORA_GRAPH_EDITOR_HEADER}
 )
 
 # Aurora-e3d: product binary is Aurora; build-tree output goes to
@@ -183,6 +200,19 @@ target_compile_definitions(aurora-app-windows PRIVATE
   AURORA_WEBUI_SOURCE_DIR="${aurorawebui_SOURCE_DIR}"
   AURORA_VERSION="${_AURORA_VERSION}"
 )
+
+if(AURORA_ENABLE_GRAPH_EDITOR)
+  target_compile_definitions(aurora-app-windows PRIVATE AURORA_GRAPH_EDITOR=1)
+endif()
+
+# Windows has no install story yet (above), but the graph editor's npm notice
+# (Aurora-lzj) still gets an install rule so a future package picks it up.
+if(AURORA_ENABLE_GRAPH_EDITOR)
+  install(FILES "${AURORA_GRAPH_EDITOR_NOTICE}"
+    DESTINATION Licenses
+    RENAME graph-editor-THIRD-PARTY-NOTICES.md
+  )
+endif()
 
 if(AURORA_APP_BUILD_TESTS)
   enable_testing()

@@ -28,7 +28,12 @@ export class EntertainmentZoneSelectScreen {
     this.showBack = showBack;
     this.entertainmentConfigSelect = new EntertainmentConfigSelect({
       onChange: () => this._reload(),
-      onError: (message) => { this.error = message; this._render(); },
+      // Aurora-ewyz: an unreachable signal owns no inline error -- the
+      // shell takeover owns it. Poke the beat; anything else as before.
+      onError: (message) => {
+        if (message === DAEMON_UNREACHABLE) { this.app.checkNow(); return; }
+        this.error = message; this._render();
+      },
     });
     this.channelList = new ChannelList();
     this.error = null;
@@ -81,7 +86,7 @@ export class EntertainmentZoneSelectScreen {
     const usingLabelHtml = configs.length === 1 && selected
       ? `<p class="status-text">Using: <strong>${escapeHtml(selected.name)}</strong></p>`
       : '';
-    const errorHtml = this.error ? `<p class="status-text status-text-error">⚠ ${escapeHtml(this.error)}</p>` : '';
+    const errorHtml = this.error ? `<p class="status-text status-text-error"><span class="warn-glyph" aria-hidden="true"></span> ${escapeHtml(this.error)}</p>` : '';
 
     body.innerHTML = `
       <div id="ezs-config-slot"></div>

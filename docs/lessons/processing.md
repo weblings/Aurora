@@ -1,5 +1,7 @@
 # Processing / color-effect-transform lessons
 
+Id: lesson-processing
+
 Color/effect transform and zone-mapping specific gotchas. See
 [`README.md`](README.md) for how entries get routed here vs. elsewhere.
 
@@ -173,3 +175,46 @@ stay slow without costing the same feeling of responsiveness. Relevant if
 this tuning is ever backported to real bulbs (see [[browser-analysis]]'s
 A/C follow-up) — worth confirming the same asymmetry holds physically, not
 just on a screen.
+
+---
+
+## Golden color fixtures must be designed for cross-platform float drift, not just recorded
+Tags: processing, testing, golden, determinism, aubio
+Applies-when: writing golden/snapshot tests over Color/Frame output that runs on several platforms
+
+The parity harness (Aurora-tft) is generated on Mac and must also pass when run on Linux/Windows builds (by hand -- the CI workflows exist but don't run). Sources of drift that a "record once, compare exactly" fixture would trip on: libm `exp`/`sin`/`fmod` last-ulp differences, FMA contraction (Apple clang on arm64 contracts `a*b+c` by default, x86 GCC/MSVC don't), OpenCV `Cubic` resize SIMD paths, `std::*_distribution` output (differs across standard libraries), and aubio's FFT backend (fftw / ooura / Accelerate by platform), which can move an onset decision by a tick.
+
+**Fix:** compare channels within 1/255 (a real regression breaks many frames by much more); use an LCG instead of `std::` distributions; keep sine phase arguments small (sample index modulo the sample rate) instead of multi-second float phases; resize with `Nearest` or `Area` at integer factors; make PCM onsets loud against a quiet bed so aubio's threshold has margin. Golden helpers: `core/tests/GoldenFrames.hpp`.
+
+One baseline, not one per platform: other platforms run against the Mac-generated fixtures. Per-platform baselines would hide exactly the divergence the run exists to catch; a platform-specific fixture is a last resort for one scenario whose difference is understood (e.g. an aubio onset landing a tick later).
+
+Windows result (Aurora-a97, MSVC Debug, 2026-10-01): the full core suite incl. every Parity scenario passed against the committed Mac fixtures, so the 1/255 tolerance, the LCG, and the loud-onset PCM margins held with no platform-specific fixture. Linux is the remaining platform.
+
+Sanity-check a freshly generated fixture before trusting it: a scenario designed to vary that records a constant (here `audio_features_silence_drift`, one color for 600 ticks) is a finding, not a pass -- it surfaced Aurora-7r3, drift never reaching the output.
+
+---
+
+## OpenCV's alpha-drop codes are aliases -- `COLOR_RGBA2RGB` and `COLOR_BGRA2BGR` are both 1, so the channel order in the name means nothing
+Tags: processing, opencv, pixel-format, huenicorn
+Applies-when: choosing or reviewing a `cv::cvtColor` code for dropping (or adding) an alpha channel on 4-channel frames of either channel order
+
+Upstream finding 2 in [[upstream-findings]] said huenicorn's `rgbaToRgb()`
+"assumes RGBA" because it passes `COLOR_RGBA2RGB`, and suggested adding a
+`COLOR_BGRA2BGR` branch. `imgproc.hpp` defines
+`COLOR_RGBA2RGB = COLOR_BGRA2BGR` (= 1): it drops channel 3 and never
+reorders, so the function was already correct for `BGRA` bytes. The same
+holds for `RGB2RGBA`/`BGR2BGRA`. The bugs were around it: a stale 4-channel
+format tag on the output, and a caller guard that skipped `BGRA`.
+
+**Fix:** check the enum's value in `imgproc.hpp` before branching on
+channel order. For alpha add/drop, track the order in the `PixelFormat`
+tag; the conversion code doesn't need to change.
+
+
+## Credits flashing is a downscale-interpolation problem, not a smoothing one
+Tags: interpolation, subsampling, credits, flicker
+Applies-when: lights flash on thin high-contrast detail (movie credits, small text)
+
+Huenicorn 1.0.5 fixed flashing on credits with the interpolation setting, not with smoothing: keeping it on "Area" fixes it completely (its release note). Nearest-neighbor samples sparse source pixels, so thin white text on black pops in and out of a zone's sample; Area averages every pixel. Smoothing only trades the flicker for lag. Aurora ports the setting and defaults to Area; the `video.interpolation` dropdown applies live, so switching to Nearest brings the flashing back.
+
+**Fix:** when a zone color flickers on fine detail, check the downscale interpolation before touching smoothing. Hard black-to-white scene cuts still step regardless, which is an output-side question (Aurora-pngj).

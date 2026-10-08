@@ -1,3 +1,13 @@
+v1.1.0:
+- Pause / Resume - Available from a button in UI or from tray menus. If an error occurs, tray text will update on next open.
+- Error Shell - Problems now show in a banner with resolution buttons (Primarily for Mac permission errors). "Aurora has stopped" can be detected and recover on any screen now.
+- Mac - Fix - Video mode uses ~95% less CPU, and UI lag when switching modes greatly reduced
+- Mac - Fix - Crash when switching between Video and Audio repeatedly resolved
+- Linux - Wayland - Fix - Capture no longer freezes on browser fullscreen
+- Dev - Core Pipeline refactor: moved out of per-platform main.cpp files into a shared core module, reused by Windows, Linux, and Mac
+- Dev - CI and hook workflows up and running, lessons and logs added to docs links logic
+- Dev - In-progress refactoring to prepare for custom visualizations driven by nodes, a Home Assistant output module, and external API access
+
 v1.0.4:
 - Mac - Full GUI launching and tray menu parity with Windows and Linux. Requires macOS 27, Apple silicon only, release zip is signed and notarized.
 - Linux - Audio devices selection now a dropdown

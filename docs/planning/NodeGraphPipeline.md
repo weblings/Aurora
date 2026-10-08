@@ -2,8 +2,11 @@
 
 Id: node-graph-pipeline
 
-Status: exploratory — no code yet. Written 2026-09-30 from a code read of
-`core/Runtime` + `core/*Processing`; no bead yet.
+Status: exploratory — no graph code yet. Written 2026-09-30 from a code read of
+`core/Runtime` + `core/*Processing`; no bead yet for the graph itself.
+Revised 2026-10-01: "Prep work before importing libraries" added, fail-state
+sanitizing corrected after Aurora-5y0. Revised 2026-10-02: Tuning edits to
+live-tunable fields now apply without a reload (Aurora-c0g, prep 7).
 
 Question: could users rewire Aurora's video/audio processing in a web
 node editor (TouchDesigner/cables.gl-style) instead of the fixed pipelines?
@@ -206,9 +209,10 @@ subgraphs instead.
 Today's Video/Audio segmented control (`DashboardScreen._switchMode`)
 switches *input* and *effect* together, and most of the Dashboard keys
 off that `mode`: DeviceField (monitor vs. sink), Zone Mapping (video
-only), Tuning's field set, the audio permission banner. Every Tuning
-edit also triggers a full `PipelineHost::reload()` (1-3s Hue DTLS
-re-handshake, see `TuningFields.js`'s header).
+only), Tuning's field set, the audio permission banner. Tuning edits
+used to trigger a full `PipelineHost::reload()` (1-3s Hue DTLS
+re-handshake); since Aurora-c0g only structural fields still do (see
+"Live apply" below).
 
 **Effects are siblings, not children, of Video/Audio.**
 
@@ -253,7 +257,8 @@ deletable.**
   enum whose options the server computes. Refresh rate stays app-level
   (it drives the tick loop, not a node).
 - Param edits go to the live node — no reload, fixing today's
-  1-3s-per-edit cost.
+  1-3s-per-edit cost. Shipped for today's two pipelines as Aurora-c0g;
+  the graph generalizes it to "set param on node".
 
 **Tooltips: one registry, three resolution tiers.**
 
@@ -390,11 +395,22 @@ Three categories, handled differently:
   (the hot-swap design already keeps it). Test-on-lights: optional "show
   errors on lights" toggle, off by default, steady magenta and never
   flashing.
-- **Sanitize at the output boundary regardless.** `Smoother`'s
-  `fromNormalized` clamps then casts float → `uint8_t`; a NaN survives
-  `glm::clamp`, and casting NaN to an integer is undefined behaviour. With
-  user-built graphs NaN becomes reachable, so `output.send` (and preview
-  sinks) must replace non-finite values before any cast.
+- **Sanitize at float → `Color`, not at the output.** `Color` and
+  `Frame` hold `uint8_t` channels, so a NaN can't travel along a Color
+  or Frame port; the UB happens where floats are cast into a `Color`.
+  That is `Color::fromNormalized`, the single guarded cast site
+  (non-finite → black, out-of-range clamps; Aurora-9ca, Aurora-5y0), now
+  used by both `fromHSV` and `Smoother`. Any node that produces a `Color`
+  from floats must go through it. Non-finite *Float/Angle* port values
+  are the graph's concern: they become the error value above.
+- **Stateful nodes must self-heal.** NaN + x and `fmod(NaN)` stay NaN, so
+  one bad tick poisons a state struct for the rest of the session: under
+  9ca's first fix, a zero centroid range left `DriftState`'s anchor NaN and
+  the lights black until restart. "Hold last good value" covers a node's
+  *outputs*, not its *state*. `updateDrift`/`updateBounce` now reset to
+  cold-start state when a field goes non-finite (Aurora-5y0); `INode`
+  should make that a contract (e.g. a per-node state check after
+  `evaluate`), not something each node remembers.
 
 ## Stretch: object detection and motion
 
@@ -460,6 +476,76 @@ retrofit):**
   choosing.
 - CPU inference cost on the target machines is unmeasured; likely
   needs a lower detection cadence or GPU.
+
+## Prep work before importing libraries
+
+Status: proposed 2026-10-01 (item 2 shipped as Aurora-5y0; item 3 shipped as
+Aurora-tft, fixtures verified on Mac only; item 4 shipped as Aurora-skv;
+item 1 shipped as Aurora-ta5; item 6 shipped as Aurora-9ig). Each item
+works under today's two orchestrators, needs no new dependency, and
+removes a risk the graph work or the React Flow import would otherwise
+hit.
+
+1. **Param schema in C++, single source.** Shipped (Aurora-ta5):
+   `Contracts::ParamSchema` (label, min, max, step, unit, default,
+   allowsUnset) rides on `ControlDescriptor`; the 12 numeric settings'
+   descriptors carry it, defaults read from `ConfigData{}`. Every numeric
+   `Config` setter and `Config(ConfigData)` clamp through
+   `sanitizeParam`, so REST and hand-edited `config.json` match (5y0's
+   loader stopgap removed). `/api/descriptors` serves it; `TuningFields`
+   keeps only layout (which keys per section) and builds sliders from it.
+   Dropdown option lists (refresh presets, interpolation names, subsample
+   candidates) stay where they were. This is the `/api/nodes` param shape.
+2. **One guarded float → `Color` path.** Shipped: `Color::fromNormalized`
+   (see "Fail states").
+3. **Parity harness.** Built: `core/tests/{Video,Audio}ParityTests.cpp`
+   + `GoldenFrames.hpp`, fixtures in `core/tests/golden/`. Inputs are
+   generated per tick in code (no binary fixtures); audio runs both PCM
+   through `AudioOrchestrator` (incl. aubio) and scripted `AudioFeatures`
+   straight into `updateDrift`/`updateBounce` (the Tier 2 reference).
+   Regenerate with `AURORA_UPDATE_GOLDEN=1`. First finding: drift never
+   reaches the output (Aurora-7r3).
+4. **Explicit `dt` and one clock.** Shipped: both orchestrators take
+   `update(dt)`; `Runtime::tickIntervalSeconds(rate)` (`TickClock.hpp`) is
+   the one rate rule (display refresh, else 60Hz) for all three apps, and
+   `PipelineHost::tick()` passes the interval as `dt` under its lock.
+   Behaviour unchanged: dt is the nominal interval (not measured), video
+   ignores it (Smoother stays per-tick), audio still ticks at 60Hz.
+   Measured dt and audio at the display rate are graph-time decisions.
+5. **Toolchain spike.** A hello-world Vite + React app built by CMake,
+   embedded, served, and run on all three CI workflows, before any real
+   editor code. What it should shake out:
+   - **MSVC literal limit (unverified).** MSVC is believed to cap a
+     *concatenated* string literal near 64 KB (C1091);
+     `embed_webroot.py` assumes no total limit. Untested so far: the
+     largest embedded file is 40 KB, while React + xyflow minified is
+     likely 200 KB+. If it bites, emit byte arrays instead.
+   - **Serving.** `HttpLibServerImpl`'s MIME table lacks `.mjs`, `.map`,
+     `.woff2`, `.wasm`, `.webp`; a sub-app at `/graph-editor/` needs
+     index fallback and a matching Vite `base`.
+   - **CI.** `web.yml` assumes no build step; the Linux and Windows
+     workflows have no Node.
+   - **Licences.** `tools/mac/bundle-licenses.sh` covers Mac dylibs only;
+     npm packages compiled into the binary get no third-party notices on
+     any platform. Generate one at build time (e.g.
+     `rollup-plugin-license`) and ship it.
+   - **Supply chain.** Committed lockfile, `npm ci --ignore-scripts`.
+
+6. **One Pipeline, in core.** Shipped (Aurora-9ig, [[9ig-pipeline-to-core]]):
+   `Registry`, `Pipeline`/`PipelineHost` and the monitors/reload routes
+   live in `core/Runtime`; each app passes `PipelineOptions`. POST
+   /api/reload and Hue pairing go through `reloadPipelineFromDisk`
+   (always rebuild); a settings PUT goes through `applyConfigFromDisk`
+   (see "Live apply"). Follow-ups: Aurora-kea, Aurora-o13.
+
+7. **Live apply.** Shipped (Aurora-c0g, [[c0g-live-tuning-apply]]).
+   `Pipeline::applyConfig` diffs the Config it was built from against the
+   new one; `ConfigApply` classifies each persisted field as hot, reload
+   or no-effect (an unclassified field reloads, and a test fails until it
+   is classified). Hot fields swap into the live orchestrator under the
+   `PipelineHost` lock; the Mac capture-width call runs after the lock is
+   released. Open: whether sliders PUT while dragging instead of on
+   release.
 
 ## Open questions
 

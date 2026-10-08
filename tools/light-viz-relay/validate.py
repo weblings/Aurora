@@ -12,6 +12,9 @@ Run against a real Aurora + relay.py, not a self-check (that's check.py).
                expected on-screen color (solid red/green/blue/gray/#RRGGBB),
                per zone (--zone ID=COLOR) or for all zones (--expect COLOR).
                No expectation = just print the per-zone table.
+               --track: instead asserts the zones keep changing (no stall
+               longer than --max-stall), for a changing on-screen source
+               like pattern.html. Reports the longest stall.
 
   frame        Cross-checks the tap's reported zone colors against an
                independent recomputation from DevFrameDump's raw captured
@@ -27,6 +30,7 @@ Examples:
     python3 validate.py color --expect red
     python3 validate.py color --expect gray --gamma-factor 0.5
     python3 validate.py color --zone 0=red --zone 1=blue
+    python3 validate.py color --track --seconds 30 --max-stall 5   # freeze detector
     python3 validate.py frame --zonemap ../fake-hue-bridge/room-4zone-zonemap.json
 """
 
@@ -62,6 +66,7 @@ class SseReader(threading.Thread):
         super().__init__(daemon=True)
         self.url = url
         self.payloads = []
+        self.times = []  # time.monotonic() of each payload, parallel to payloads
         self.lock = threading.Lock()
         self.error = None
         self.connected = threading.Event()
@@ -75,6 +80,7 @@ class SseReader(threading.Thread):
                     if line.startswith("data: "):
                         with self.lock:
                             self.payloads.append(line[len("data: "):])
+                            self.times.append(time.monotonic())
         except Exception as exc:  # surfaced by the caller, not swallowed
             self.error = exc
             self.connected.set()
@@ -243,7 +249,57 @@ def check_zone(zid, observed, expected_src, args):
     return problems, ""
 
 
+def longest_stall(samples, threshold, end):
+    """samples: [(t, (channel values...))] in time order; end: window end time.
+
+    A "change" is any channel moving more than `threshold` from the last
+    change's values. Returns (longest gap in seconds, number of changes).
+    Gaps run start->first change, between changes, and last change->end.
+    """
+    if not samples:
+        return 0.0, 0
+    anchor_t, anchor = samples[0]
+    longest, changes = 0.0, 0
+    for t, values in samples[1:]:
+        if any(abs(a - b) > threshold for a, b in zip(values, anchor)):
+            longest = max(longest, t - anchor_t)
+            anchor_t, anchor = t, values
+            changes += 1
+    return max(longest, end - anchor_t), changes
+
+
+def run_track(args):
+    reader = start_reader(args)
+    start = time.monotonic()
+    print(f"tracking {args.seconds}s (stall = no >{args.tolerance} color change "
+          f"for >{args.max_stall}s)...")
+    time.sleep(args.seconds)
+    end = time.monotonic()
+
+    with reader.lock:
+        raw = list(zip(reader.times, reader.payloads))
+    samples = []
+    for t, p in raw:
+        try:
+            frame = json.loads(p)
+        except json.JSONDecodeError:
+            sys.exit(f"FAIL: relay forwarded non-JSON: {p[:200]}")
+        zones = sorted(frame.get("zones", []), key=lambda z: z["id"])
+        if "_validate" not in frame and zones:
+            samples.append((t - start, tuple(c for z in zones for c in (z["r"], z["g"], z["b"]))))
+    if not samples:
+        sys.exit("FAIL: no frames with zones received -- is Aurora running with the tap enabled?")
+
+    stall, changes = longest_stall(samples, args.tolerance, end - start)
+    print(f"{len(samples)} frames, {changes} color changes, longest stall {stall:.1f}s")
+    if stall > args.max_stall:
+        sys.exit(f"FAIL: stuck for {stall:.1f}s (limit {args.max_stall}s)")
+    print("PASS")
+
+
 def run_color(args):
+    if args.track:
+        return run_track(args)
     reader = start_reader(args)
     print(f"sampling {args.seconds}s (judging the last half, after smoothing settles)...")
     time.sleep(args.seconds)
@@ -467,12 +523,17 @@ def main():
     p.set_defaults(func=run_passthrough)
 
     c = sub.add_parser("color", help="per-zone values vs an expected on-screen color")
-    c.add_argument("--seconds", type=float, default=3)
+    c.add_argument("--seconds", type=float, help="sampling window (default 3; 30 with --track)")
     c.add_argument("--expect", type=parse_color, help="color every zone should show")
     c.add_argument("--zone", type=parse_zone_expectation, action="append", help="ID=COLOR, repeatable")
     c.add_argument("--tolerance", type=float, default=0.08, help="per-channel, 0..1 (default 0.08)")
     c.add_argument("--gamma-factor", type=float,
                    help="zone gammaFactor to assert for midtones; omitted = report it instead")
+    c.add_argument("--track", action="store_true",
+                   help="instead of judging a color, assert the zones keep changing "
+                        "(fails on a frozen capture); ignores --expect/--zone")
+    c.add_argument("--max-stall", type=float, default=5.0,
+                   help="--track: longest allowed time without a color change, seconds (default 5)")
     c.set_defaults(func=run_color)
 
     fr = sub.add_parser("frame", help="tap values vs independent recomputation from the raw captured frame")
@@ -484,6 +545,11 @@ def main():
     fr.set_defaults(func=run_frame)
 
     args = parser.parse_args()
+    if getattr(args, "track", False):
+        if args.seconds is None:
+            args.seconds = 30
+    elif args.mode == "color" and args.seconds is None:
+        args.seconds = 3
     args.func(args)
 
 

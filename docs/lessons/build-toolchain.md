@@ -1,5 +1,7 @@
 # Build toolchain
 
+Id: lesson-build-toolchain
+
 CMake, vcpkg, compiler toolchains, WSL2 build checkouts, dev dependencies. See [README.md](README.md) for filing rules.
 
 ---
@@ -314,7 +316,25 @@ file's own convention; verify with `git diff --ignore-cr-at-eol` so the
 content diff shows only the intended lines. Where an editor can't match a
 CRLF block (e.g. two textually-identical guards), use a byte-exact scripted
 replacement with single-occurrence assertions, kept reviewable outside the
-repo, and re-check the diff afterward.
+repo, and re-check the diff afterward. And stage with plain `git add`:
+`git add --renormalize` only touches tracked files, so brand-new files are
+silently skipped (Aurora-ifkn.2 committed without its three new files; a
+--dry-run prints nothing for untracked paths, which is the tell).
+Stash-specific variant (Aurora-q9l1, 2026-10-07): with `* text=auto`,
+`git stash` normalizes CRLF working copies to LF in the stash blob, and
+`git stash pop` on Linux checks out LF -- three app mains silently flipped
+LF-only while their content diffs stayed minimal, so the diff alone could
+not catch it. Repaired by re-adding CR and re-checking `git diff --stat`.
+Rule: after any stash pop touching CRLF files, check byte-level endings as
+well as the diff, not the diff alone.
+Same-repo variant (Aurora-ifkn.3, 2026-10-08): after `* text=auto eol=lf`
+landed, worktree files can still carry CRLF (checked out before the rule)
+while `git status` reports clean -- normalization hides them from git but
+not from exact-match edit tools, which fail with no match found. `file`
+(or `cat -A`) is the check, never `git status`. `sed -i 's/\r$//'` back to
+LF is git-invisible when the stored blob is already LF (verify with
+`git diff --stat`: empty), so normalize-then-edit instead of fighting the
+match.
 
 ---
 
@@ -444,13 +464,13 @@ Applies-when: serving `web/demo/viz.html` (or any many-module ES page) with `pyt
 
 ---
 
-## Standalone `cmake -S core` on Windows doesn't find aubio through the vcpkg toolchain alone -- pass `-DAubio_DIR` explicitly
+## Standalone `cmake -S core` on Windows doesn't find aubio through the vcpkg toolchain alone -- `core/vcpkg.json` silently switches vcpkg to manifest mode
 Tags: cmake, vcpkg, aubio, windows, core-tests
 Applies-when: configuring core's own suite on Windows outside the `windows-app` preset
 
-With `aubio[core]:x64-windows` installed in vcpkg and `-DCMAKE_TOOLCHAIN_FILE=.../vcpkg.cmake`, the `windows-app` preset configured fine (its cache holds `Aubio_DIR=C:/vcpkg/installed/x64-windows/share/aubio`), but `cmake -S core` failed at `AudioProcessing/CMakeLists.txt:16 find_package(Aubio CONFIG REQUIRED)` even with generator and triplet pinned (`-G "Visual Studio 17 2022" -A x64 -DVCPKG_TARGET_TRIPLET=x64-windows`). Root cause not isolated -- how the app build gets `Aubio_DIR` on its own wasn't traced.
+With `aubio[core]:x64-windows` installed in vcpkg's classic tree and `-DCMAKE_TOOLCHAIN_FILE=.../vcpkg.cmake`, the `windows-app` preset configured fine, but `cmake -S core` failed at `AudioProcessing/CMakeLists.txt:16 find_package(Aubio CONFIG REQUIRED)` even with generator and triplet pinned. Root cause (2026-10-06, isolated): `core/vcpkg.json` is a manifest listing only `opencv4`, `glm`, `catch2`. Any vcpkg-toolchain configure of `core` as the top-level source dir sees that manifest and switches to manifest mode, which builds an isolated `vcpkg_installed/` tree from just those three packages and ignores the classic install entirely -- aubio, mbedtls, curl and miniaudio are invisible regardless of `Aubio_DIR`. `windows-app` never hits this because the repo root carries no `vcpkg.json`, so it stays in classic mode and sees the classic install directly.
 
-**Fix:** add `-DAubio_DIR=C:/vcpkg/installed/x64-windows/share/aubio`; core then configures, builds and passes its suite (70/70). Noted in `docs/Building.md`. Unresolved: the app-slice path that makes it unnecessary.
+**Fix:** pass `-DVCPKG_MANIFEST_MODE=OFF` on the standalone configure (`cmake -S core -B <dir> -G "Visual Studio 17 2022" -A x64 -DVCPKG_TARGET_TRIPLET=x64-windows -DVCPKG_MANIFEST_MODE=OFF -DCMAKE_TOOLCHAIN_FILE=<vcpkg>/scripts/buildsystems/vcpkg.cmake -DBUILD_TESTS=ON`); core then configures, builds and passes its full suite (171/171, matching Mac/Linux) with no explicit `*_DIR` overrides needed. An explicit `-DAubio_DIR=...` (the previous workaround here) also escapes manifest mode's isolation for that one package, but `-DVCPKG_MANIFEST_MODE=OFF` is the actual fix and covers the other classic-only packages too.
 
 ---
 
@@ -482,3 +502,265 @@ of a missing-file error.
 
 **Fix:** `brew unlink mbedtls && brew link mbedtls@3 --force` so
 `/opt/homebrew/include/mbedtls/` resolves consistently to 3.6.7.
+
+---
+
+## macOS has no `timeout` command -- bound a streaming check with the tool's own limit
+Tags: macos, shell, tooling, sse, devstack
+Applies-when: sampling a stream (SSE, `curl -N`, a long-running command) in a scripted check on a Mac
+
+`timeout 5 curl -sN .../events` is a GNU coreutils habit; on stock macOS `timeout` doesn't exist (it's `gtimeout` only with Homebrew coreutils), so the command fails with "command not found" and the check silently samples nothing (Aurora-skv's live viz check). 
+
+It bit again inside a mutation check (Aurora-d3ec): `timeout 60 ./tests ... | grep -E "FAILED|passed"` printed nothing because `timeout` was missing, and "no FAILED lines" reads as a surviving mutant, i.e. a test that does not catch it. Any scripted check whose success is "grep found nothing" needs a positive signal too (the `passed`/`test cases` line, or the exit code); `perl -e 'alarm 60; exec @ARGV' cmd` is the stock-macOS bound.
+
+**Fix:** use the tool's own bound -- `curl -sN -m 4 http://127.0.0.1:18245/events | head -c 300` -- or `head -c`/`head -n` to end the pipe. Don't wrap `devstack.py up` in `timeout` either: it already waits for the first frame and exits.
+
+---
+
+## No `node` on this Mac -- VS Code's bundled Electron runs the web tests as Node
+Tags: macos, node, web, testing, toolchain
+Applies-when: running `web/ui` or `web-processing` `*.test.mjs` on a machine where `node` isn't installed
+
+`node` isn't on PATH (no Homebrew/nvm/volta install), but VS Code ships Electron, which runs as plain Node with `ELECTRON_RUN_AS_NODE=1`: `ELECTRON_RUN_AS_NODE=1 "/Applications/Visual Studio Code.app/Contents/MacOS/Code" TuningFields.test.mjs` (Node v24 as of Aurora-ta5). Enough for the framework-free `*.test.mjs` scripts and `--check`; not a substitute for the real Node the graph editor's npm build will need (Aurora-lzj).
+
+---
+
+## The huenicorn fork needs Mbed TLS 3.x/4.x; this Linux box's 2.28 fails `DtlsClient.cpp` only -- verify per-TU with `make -k`
+Tags: cmake, linux, mbedtls, huenicorn, upstream
+Applies-when: building the `../huenicorn-fork` sibling checkout to verify an upstream fix on this Linux machine
+
+huenicorn's `DtlsClient.cpp` has an `#error Unsupported Mbed TLS version`
+guard for anything below 3.x (added in "Add distinct support for both MbedTLS
+3.x and 4.x"). Ubuntu's `libmbedtls-dev` here is 2.28.8, which Aurora's own
+`output/hue` still builds against fine, so the fork's full link always fails.
+Every other translation unit compiles. System cmake is also absent; use the
+Aurora `.venv`'s (see "Without cmake, flags.make + link.txt are a complete build record for recompiling and relinking a single TU").
+
+**Fix:** configure into the session scratchpad with the venv cmake, then
+`cmake --build <dir> -- -k` and check the touched `.o` files built without
+warnings. For testable logic, compile a scratch driver directly against the
+touched `.cpp` (e.g. `ImageProcessing.cpp` + OpenCV + `_deps/glm-src`)
+rather than reviving the fork's stale `tests/`.
+
+---
+
+## Vite doesn't empty an `outDir` outside its project root, so a build-time embed ships every stale hashed bundle
+Tags: vite, npm, cmake, embed, build-output
+Applies-when: building a Vite app into a CMake binary dir (or any outDir outside the Vite project) and consuming the whole directory
+
+Found while planning Aurora-lzj (graph editor embedded via `embed_webroot.py`), reproduced in a scratchpad with Vite 8.3.2. With `--outDir ../outside`, Vite prints `outDir ... is not inside project root and will not be emptied` and keeps the old files. After one source edit the dir held both `index-BbZnYOS4.js` and `index-Be-uGZcT.js`. Anything that ingests the whole dir (an embed step, an install glob) grows with every rebuild, and the warning is easy to miss in a CMake build log.
+
+**Fix:** pass `--emptyOutDir` (or `build.emptyOutDir: true`) whenever `outDir` is outside the project. If you'd rather not trust that, make the consumer read Vite's manifest instead of globbing the directory.
+
+---
+
+## App presets force core's `BUILD_TESTS` off, so a new core test never runs in an app build
+Tags: cmake, testing, fetchcontent, ctest, windows
+Applies-when: adding a core test meant to prove something on a platform you only build through an app preset
+
+Each `app/*/CMakeLists.txt` sets `BUILD_TESTS FALSE CACHE BOOL "" FORCE` before fetching core, so `linux-app`, `windows-app` and `mac-app` build and run only the app's own tests. Aurora-lzj added `AuroraEmbedWebrootTests` to core to settle MSVC's concatenated-literal cap. The Windows app preset would never have compiled it, and a green `windows-app` run would have looked like proof.
+
+**Fix:** verify core tests per platform with a standalone core configure (`cmake -S core -B build/core-tests`, then `ctest -R <name>`), and name that command in the bead. A test meant to gate an app-level behaviour belongs in the app's own test target instead.
+
+---
+
+## A configure-time glob can't track the output of a build step, so an embed of generated files must depend on that step's stamp
+Tags: cmake, embed, glob, custom-command, npm
+Applies-when: feeding another build step's output directory (npm/Vite, codegen) into `aurora_embed_webroot` or any `file(GLOB ... CONFIGURE_DEPENDS)` consumer
+
+`aurora_embed_webroot` globs its input dir at configure time. The graph editor's Vite output (Aurora-lzj) doesn't exist then, and its hashed filenames change on every source edit, so the glob would see nothing or a stale list and the header would never regenerate. Found by reading the design, confirmed on Mac: touching an editor source reran vite and the embed only because of the wiring below.
+
+**Fix:** have the producing `add_custom_command` write a stamp file (`cmake -E touch`), and pass that stamp to the embed step as an extra `DEPENDS` (the `aurora_embed_webroot` `DEPENDS` argument). Stamp the producer on its real inputs (lockfile for `npm ci`, a source glob plus config files for the build) so a C++-only edit reruns neither. Check all three directions by hand: C++ touch, source touch, no change.
+
+---
+
+## Anything added to Aurora.app must be staged before the ad-hoc signing step and survive `bundle-licenses.sh`'s wipe
+Tags: cmake, macos, bundle, codesign, licenses
+Applies-when: putting a new file into `Contents/Resources` (notices, assets) from the Mac app build
+
+POST_BUILD commands on `aurora-app-mac` run in the order they were added, and the ad-hoc `codesign --deep` seals the bundle, so a copy added after it breaks the signature. Separately, `tools/mac/bundle-licenses.sh` (the identity-signed path) does `rm -rf Contents/Resources/Licenses` and regenerates it, so a file staged there by CMake disappears on that path. Aurora-lzj hit both while shipping the graph editor's npm notice; caught by reading, not by a failure.
+
+**Fix:** add the copy `add_custom_command(TARGET ... POST_BUILD)` above the signing block in `app/mac/CMakeLists.txt`, and make `bundle-licenses.sh` stash and restore the staged file around its wipe. Verify with `codesign --verify --deep --strict` and by running the script against a fake bundle with an empty `bundled-dylibs.tsv`.
+
+---
+
+## `docs/check-links.py` is Python: run it as `python`, never `bash`
+Tags: docs, check-links, windows, python
+Applies-when: running the link checker from Windows or Git Bash
+
+`bash docs/check-links.py` fails (`import: command not found`) because the file is a Python script (renamed from `.sh` in Aurora-lmn.6 after living most of its life under the wrong extension). It used to also die with `UnicodeDecodeError: 'charmap' codec` on Windows on the first non-ASCII doc, and regenerate `docs/_ids.md` with different line endings every run (~100 changed lines of pure whitespace) -- both fixed at the source in Aurora-lmn.5 (`encoding='utf-8'` on every `open()`, `newline=''` on the `_ids.md` write), so `PYTHONUTF8=1` is no longer needed and a rerun only diffs real content.
+
+**Fix:** `python docs/check-links.py` (or `python3`) on any OS -- no env var. It now also runs automatically from `.beads/hooks/pre-commit` on any commit touching `docs/`, so this mostly matters for a manual mid-pass run.
+
+---
+
+## An unversioned `find_package(... QUIET)` takes any system copy, so a fetch-if-missing dep needs a version floor
+Tags: cmake, find_package, fetchcontent, version
+Applies-when: a fetch-if-missing dependency is chosen because the code needs a feature added in a specific release
+
+`core/CMakeLists.txt` did `find_package(httplib QUIET)` and fetched 0.46.0 only when nothing was found. Any distro or vcpkg copy won, however old, and cpp-httplib older than 0.46 has no `httplib::ws::WebSocketClient`: the failure would show up as a compile error in HA code on some machines only (Aurora-dwo).
+
+**Fix:** `find_package(httplib 0.46 QUIET)`; a too-old copy then counts as not found and the fetch runs. To test without installing old packages, write fake `<pkg>Config.cmake` and `<pkg>ConfigVersion.cmake` files under scratchpad prefixes and run a three-line project with `-DCMAKE_PREFIX_PATH` per version. Caveat: this only works if the package ships a version file; one that doesn't makes versioned `find_package` fail even for a good copy.
+
+---
+
+## A failed first configure of a Visual Studio build dir poisons it: retrying with `-G`/`-A` errors "generator platform does not match", and build/ctest then find nothing
+Tags: cmake, windows, msvc, vcpkg, core, build-dir
+Applies-when: configuring core standalone (or any slice) on Windows with `-DCMAKE_TOOLCHAIN_FILE`/`-DAubio_DIR`, especially after a configure that errored
+
+`cmake -S core -B build/core-test` without the vcpkg toolchain fails at `find_package(OpenCV REQUIRED)` ("did not find one") -- but it still writes a cache with the default generator platform. Rerunning with `-G "Visual Studio 17 2022" -A x64` then stops with `generator platform: x64 Does not match the platform used previously`, and `cmake --build` (`MSB1009: ALL_BUILD.vcxproj does not exist`) and `ctest` (`No tests were found`) fail as a downstream effect, which reads like a second problem. The `windows-app` preset never shows the OpenCV failure because it resolves its own dependencies; core standalone does not.
+
+**Fix:** delete the build dir and configure once with everything: `-G "Visual Studio 17 2022" -A x64 -DCMAKE_TOOLCHAIN_FILE=C:/vcpkg/scripts/buildsystems/vcpkg.cmake -DAubio_DIR=C:/vcpkg/installed/x64-windows/share/aubio` (recipe in `docs/Building.md`). Treat "OpenCV not found" on Windows as a missing toolchain argument, not a missing install.
+
+---
+
+## `git sparse-checkout set` accepts a path that matches nothing without any error
+Tags: git, sparse-checkout, tooling, external-repos
+Applies-when: sparse-cloning a large reference repo (e.g. home-assistant/core) to read part of it
+
+A sparse checkout of `home-assistant/core` was given
+`homeassistant/components/config.` (trailing period from copying a
+sentence). Git printed nothing and checked out nothing for it, so the
+directory just wasn't there. `git sparse-checkout list` showed the typo.
+
+**Fix:** after `set` or `add`, run `git sparse-checkout list` and `ls` the
+expected directories. A missing directory means a wrong pattern, not an
+empty upstream folder.
+
+---
+
+## A workflow that triggers only on `push` to `main` can't be tested before merging; open a PR, and a path filter that excludes the PR's files runs nothing and reports nothing
+Tags: github-actions, ci, path-filters, pull-request
+Applies-when: adding or debugging a GitHub Actions workflow, or wondering why one "didn't run" on a PR
+
+Aurora's workflows had `push: branches: [main]` plus path filters, and the repo's CI sat unused for weeks ("CI does not run here") because no one pushed to `main` to find out. `pull_request` with no `branches:` filter fires for a PR into any base branch, and the workflow file is read from the PR's merge result, so editing the YAML and re-pushing is the fix-forward loop. Path filters apply per workflow: a PR touching only `windows.yml`, `mac.yml` and `web/demo/` ran those and web, not Linux (its paths never matched). A skipped workflow shows no check at all, which looks like Linux was removed.
+
+**Fix:** test workflow changes on a draft PR, not on `main`. Before reading a missing check as a failure or a removal, compare the PR's changed files (`git diff --name-only <base>...HEAD`) with that workflow's `paths:`. A PR that should exercise every platform has to touch `core/**` or each workflow file. Keep `push` limited to `main` and let PRs do the testing. Minutes are free here because the repo is public (the billing page shows consumed usage fully offset by discounts); on a private repo Windows counts 2x and macOS 10x against the included minutes.
+
+---
+
+## On `windows-latest`, install OpenCV with choco and everything else with the runner's vcpkg; vcpkg `opencv4` alone is a ~40 minute build
+Tags: github-actions, windows, vcpkg, choco, opencv, aubio
+Applies-when: writing or debugging the Windows CI job, or a Windows configure fails on Aubio, curl, Mbed TLS or miniaudio
+
+The first Windows CI run installed only OpenCV (choco) and failed at configure: `find_package(Aubio CONFIG)` found nothing. The `windows-app` preset needs curl, Mbed TLS, aubio and miniaudio too, which a developer machine already has from vcpkg. `windows-latest` ships vcpkg at `$env:VCPKG_INSTALLATION_ROOT`, so no clone or bootstrap is needed. vcpkg's default `opencv4` builds dnn/gapi/calib3d and takes about 40 minutes (`docs/Building.md`), so OpenCV stays on choco.
+
+**Fix:** in `windows.yml`, `choco install opencv -y`; `vcpkg install curl mbedtls "aubio[core]" miniaudio` (`:x64-windows`, same `aubio[core]` as the docs); configure with `-DCMAKE_TOOLCHAIN_FILE=$env:VCPKG_INSTALLATION_ROOT/scripts/buildsystems/vcpkg.cmake -DOpenCV_DIR=C:/tools/opencv/build`; cache `VCPKG_DEFAULT_BINARY_CACHE` with `actions/cache` so only the first run builds the ports. The choco OpenCV `bin` directory is added to `GITHUB_PATH` because only `aurora-app-windows` gets its DLLs copied beside the exe; whether the core test executables needed that was not isolated (the job went green with it in place), so remove it only by testing the removal.
+
+---
+
+## A green CI `ctest` on an app preset does not run core's suite: check the test count and names, not the pass line
+Tags: github-actions, ci, ctest, core, parity
+Applies-when: a CI job is green and you are about to treat it as verifying core or Parity
+
+`linux-app`, `windows-app` and `mac-app` build and test only the app, input and output slices (Windows: 70 tests). Core's tests, including `AuroraVideoParityTests` and `AuroraAudioParityTests`, are added only when `core/` is the top-level project (`core/CMakeLists.txt`, `BUILD_TESTS`). The first green Windows CI run showed "100% tests passed out of 70" and no Parity test; this was caught only by searching the log for "parity". The same trap was already filed (verify core tests with a standalone core configure) and was missed anyway.
+
+**Fix:** each native workflow has a separate step configuring `core/` standalone (Windows also passes the toolchain, `OpenCV_DIR` and `Aubio_DIR`) and running `ctest`. After adding a check, find a named test in the log before relying on it. The Actions page's Ctrl+F does not search collapsed steps, so a "no match" there can be a false negative: open the step, use the run's "Search logs" box, or download the raw logs.
+
+---
+
+## Configuring core standalone with the vcpkg toolchain file switches on manifest mode and builds vcpkg's OpenCV, ignoring the OpenCV you pointed at
+Tags: vcpkg, manifest-mode, opencv, core, ci, windows
+Applies-when: a core standalone build (CI or local) with `-DCMAKE_TOOLCHAIN_FILE=…vcpkg.cmake` is slow, or its log shows protobuf/opencv4 ports building
+
+`core/vcpkg.json` lists `opencv4`, `glm` and `catch2` (`cpp-httplib` was removed in Aurora-rtwh, see the two-copies entry below). A `cmake -S core` configure that passes the vcpkg toolchain file finds that manifest and installs it into `<build>/vcpkg_installed`, even with `-DOpenCV_DIR` set. The first Windows CI run of the core step sat 13+ minutes in "core tests" with protobuf configuring in the log (protobuf is an opencv4 dependency): a full vcpkg OpenCV build, the ~40 minute one in `docs/Building.md`. The app presets don't hit this because `/CMakeLists.txt` has no manifest.
+
+**Fix:** pass `-DVCPKG_MANIFEST_MODE=OFF` so the toolchain stays in classic mode and uses the classic-installed ports (Aubio) plus choco OpenCV; core fetches glm and Catch2 (and always httplib) itself when they aren't found. If the log shows `vcpkg_installed` under the core build dir, manifest mode is on.
+
+---
+
+## Two copies of a header-only library on one build's include paths: a target can compile a different version than the library it links
+Tags: httplib, odr, include-order, vcpkg, manifest-mode, fetchcontent, windows
+Applies-when: a test or app that includes `<httplib.h>` (or any header-only dep) crashes inside the library's own inline code, only in one build dir, with a trivial handler
+
+In a Windows core build with vcpkg manifest mode ON, `cpp-httplib` 0.58.0 lands in `vcpkg_installed/.../include`, `find_package(httplib 0.46)` still reports NOTFOUND, and core also fetches 0.46.0 into `_deps/httplib-src`. `AuroraNetwork` lists `httplib-src` first; `AuroraPipelineTests` (which links `AuroraRuntime`, and so OpenCV's vcpkg include dir) lists `vcpkg_installed` first. The test TU and `HttpServer.cpp` therefore compiled different httplib versions, and the first HTTP request segfaulted in `httplib::Server::process_request` before any handler ran (Aurora-rtwh). The compile definitions matched, so diffing `PreprocessorDefinitions` found nothing; the cue was the include-dir order in the `.vcxproj` plus `CPPHTTPLIB_VERSION` in each `httplib.h`. `AuroraNetworkTests` has the same code and passes only because its include order differs.
+
+**Fixed in Aurora-rtwh:** `cpp-httplib` is no longer in `core/vcpkg.json`; core fetches its pinned httplib (cpp-httplib's version file only accepts the same minor, so `find_package(httplib 0.46)` never accepts a newer installed one). A manifest-mode configure now has one httplib copy and core passes 121/121. Don't add a header-only dep to the manifest if core also fetches it.
+
+**General fix:** when an inline-library crash reproduces with a trivial handler, find every copy (`Get-ChildItem -Recurse -Filter httplib.h`, then compare the `AdditionalIncludeDirectories` order of each target and the version define). Prefer one copy per configure.
+
+---
+
+## Removing a dep from the vcpkg manifest doesn't clean an existing build dir: cached `find_package` paths and old objects keep the old dep
+Tags: vcpkg, manifest-mode, cmake-cache, stale-build, brotli, httplib, windows
+Applies-when: a fix that changes `vcpkg.json` (or any dependency source) "works" in a fresh tree but a long-lived build dir still crashes or fails to compile
+
+After Aurora-rtwh dropped `cpp-httplib` from `core/vcpkg.json`, the pre-existing `build/core-test` still segfaulted `Monitors and reload routes answer from PipelineHost` (Aurora-3ono), while a fresh configure of the same commit passed 127/127. The old tree's CMake cache still held `Brotli_*` paths into the old `vcpkg_installed` (found as a transitive dep of httplib 0.58), so httplib was built with brotli support there and its objects were never rebuilt against the new setup. A `--clean-first` of just the httplib consumers exposed it as `Cannot open include file: 'brotli/decode.h'`. Fix: `cmake -U "Brotli_*" -U "*BROTLI*" -S core -B <dir>`, then a full build; 127/127. Faster: after changing the manifest, delete the build dir (its vcpkg_installed goes stale too).
+
+**Cue:** a crash that a fresh tree doesn't have. Configure a throwaway tree before debugging code, and `grep` the old `CMakeCache.txt` for the removed dep. Fresh tree needs `-DAubio_DIR=C:/vcpkg/installed/x64-windows/share/aubio` on this box (aubio isn't in the manifest).
+
+---
+
+## Building against a distro `-dev` package without sudo: `apt-get download` + `dpkg -x`, then a rewritten `.pc`
+Tags: linux, pkg-config, dependencies, sudo, apt
+Applies-when: a configure needs a missing `-dev` package on a machine where you can't install packages
+
+Aurora-2dz needed `libsecret-1-dev` on a box without sudo. The runtime `.so.0` was installed; only the headers, `.pc` and the unversioned `.so` link were missing.
+
+**Fix:**
+- `apt-get download libsecret-1-dev && dpkg -x *.deb root` (no root needed).
+- Copy the `.pc`: set `prefix=` to the extracted `usr` and `libdir=` to a dir holding `libsecret-1.so -> /usr/lib/x86_64-linux-gnu/libsecret-1.so.0`.
+- Drop `Requires.private` (libgcrypt, static-link only). pkg-config otherwise fails on it.
+- Configure with `PKG_CONFIG_PATH=<that dir>`.
+
+Local verification only; CI and real installs use the package.
+
+---
+
+## Two build trees sharing `FETCHCONTENT_BASE_DIR` clobber each other's dependency build dirs
+Tags: cmake, fetchcontent, build-dir, catch2
+Applies-when: making a second build tree and tempted to reuse the first tree's `_deps` to skip downloads
+
+To skip re-fetching, a second core tree (Aurora-2dz, `core-tests-libsecret`) was configured with `-DFETCHCONTENT_BASE_DIR=build/core-tests/_deps`. That dir holds each dependency's *build* subdir (`catch2-build`) as well as its sources. The new tree regenerated those for itself, and the original tree then failed with `No rule to make target '_deps/catch2-build/.../depend'`. Its stale test binary still ran, which hid the breakage for one run.
+
+**Fix:** give every build tree its own `_deps`. To share only sources, use `-DFETCHCONTENT_SOURCE_DIR_<NAME>=<path>` per dependency. To recover, reconfigure the damaged tree. Read the build step's own exit status, not just whether a test binary ran.
+
+---
+
+## A test that adds an unused static does not change the binary: the compiler drops it, so a "rebuilt" binary can be byte-identical
+Tags: build, testing, dead-strip, codesign, cmake, macos
+Applies-when: you need a rebuild that produces a *different* binary (code-signature, ACL or cache tests) and a trivial source edit leaves the cdhash unchanged
+
+For Aurora-2dz's cross-rebuild Keychain check, appending `namespace { const char kMarker[] = "..."; }` to the test file rebuilt and relinked, but `cmp` showed the executable identical to the old one. Nothing referenced the constant, so it was optimized away and the ad-hoc signature (a hash of the bytes) did not change either, so a "rebuild prompt" could not appear. An `extern const char kMarker[] = "...";` at global scope has external linkage and is emitted.
+
+**Fix:** after the edit, `cmp` the new binary against a saved copy (or compare `codesign -dvv` hashes) before treating it as a different build. Revert the marker afterwards (`git checkout <file>`) and rebuild.
+
+---
+
+## In zsh a word starting with `=` is replaced by a command path: `echo =======LOG` fails with "======LOG not found"
+Tags: shell, zsh, macos, agent-workflow, quoting
+Applies-when: a macOS shell one-liner prints section dividers like `echo =====X` or `echo ----` mixed with `=====` and aborts with "not found"
+
+macOS's default shell is zsh. An unquoted word beginning with `=` is expanded to the full path of the named command (`=ls` becomes `/bin/ls`); if no such command exists, zsh stops the whole line with "<word> not found". A divider like `echo =======LOG` in a diagnostic one-liner therefore killed the command before the real work ran (Aurora-2dz). Linux bash doesn't do this, so a snippet that works on the Linux box can fail on the Mac.
+
+**Fix:** quote dividers (`echo '======= LOG'`), or use `---` / `printf`. Run the line again; nothing had run.
+
+---
+
+## A codegen script's docstring can promise more than its regex parses: verify regen output before keeping it
+Tags: build, codegen, regex, descriptors, webui
+Applies-when: re-running a checked-in generator (`gen-descriptors.py`, or any regex-over-sources script) whose output is also checked in
+
+`web/demo/vendor/webui/gen-descriptors.py` says to re-run it on any tooltip-copy change, and its `ENTRY_RE` only matches the `{"key", "type", "desc"}` literal form — not the `slider(...)`/`button(...)` helper forms most tables actually use. A trial regen while adding `app.pause`/`app.stop` (Aurora-5ipy.13.1) wrote 17 entries over the committed 27, silently deleting 12 shipped tooltips; nothing in the script warns. Reverted and hand-added the two keys instead (Aurora-ncdd tracks the real fix).
+
+**Fix:** after any generator re-run, `git diff --stat` the output before keeping it — a pure-addition diff is the expectation for an additive change. Aurora-ncdd has landed (ENTRY_RE matches helper forms, CRLF-explicit write), so regen is byte-identical again and the hand-edit workaround is retired.
+
+---
+
+## A generated file checked in as CRLF will never regen byte-identical from a plain text-mode writer
+Tags: build, codegen, line-endings, windows
+Applies-when: a checked-in generated file must regen byte-identical and the writer runs on Linux while the file is CRLF
+
+`web/demo/vendor/webui/descriptors.json` is CRLF in the working tree, but Python text-mode output writes LF -- so the fixed `gen-descriptors.py` (Aurora-ncdd) produced the right 29 entries yet `cmp` failed at byte 2. Same trap class as the lossy regex above: content-correct, byte-different, caught only by comparing bytes.
+
+**Fix:** build the payload as text, then `open(out, 'wb')` with an explicit newline mapping and a comment saying CRLF is on purpose. Verify with `cmp` twice (content match, then determinism), not by eye.
+
+---
+
+## A slice build dir can hold a stale app binary: check freshness before live-testing
+Tags: build, live-test, stale-binary, cmake, verification
+Applies-when: live-testing an app binary from a tree with more than one build dir (superbuild `build/` vs slice dirs like `build/linux-app/`)
+
+`build/linux-app/bin/Aurora` (Oct 4) predated Aurora-d3ec while `build/bin/Aurora` was fresh: the stale one booted fine and served the old `GET /api/state` shape with no `state`/`errors`, which reads exactly like a failed verification. Caught only by diffing the two binaries (`strings <bin> | grep <new marker>`, here `nothing_to_pause`).
+
+**Fix:** before any live run, `ls -la` the candidate binaries and grep the fresh one for a symbol the change under test must contain. Rebuild the tree you test from (`cmake --build build`), and boot `build/bin/Aurora`, not a slice-local copy, unless you just rebuilt that slice.

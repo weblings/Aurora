@@ -1,8 +1,11 @@
 #include <Aurora/Input/Mac/ScreenCaptureKitGrabber.hpp>
 
+#include <algorithm>
 #include <chrono>
+#include <cmath>
 #include <future>
 #include <iostream>
+#include <memory>
 #include <mutex>
 #include <optional>
 #include <stdexcept>
@@ -33,16 +36,25 @@ namespace Aurora::Input::Mac
 // The SCStreamOutput/SCStreamDelegate conformer -- protocol conformance
 // needs a real NSObject, so this can't live behind the PIMPL boundary as a
 // plain C++ type the way PipewireGrabber's callbacks (plain C function
-// pointers) could. Holds a non-owning pointer back to Impl; the grabber
-// destructor stops the stream (and this delegate's callbacks) before the
-// Impl it points at is destroyed.
+// pointers) could. Holds shared ownership of Impl: the grabber destructor
+// cannot assume SCK's callbacks have finished by the time it returns (the
+// stop completion handler is no documented barrier), so a raw pointer here
+// raced teardown and crashed on a destroyed mutex (Aurora-eq7a).
 @interface AuroraSCKStreamOutput : NSObject <SCStreamOutput, SCStreamDelegate>
-@property (nonatomic, assign) Aurora::Input::Mac::ScreenCaptureKitGrabber::Impl* impl;
+// Takes shared ownership of the grabber's state, once, before the output is
+// handed to the stream (Aurora-eq7a).
+- (void)attach:(std::shared_ptr<Aurora::Input::Mac::ScreenCaptureKitGrabber::Impl>)impl;
 @end
 
 namespace Aurora::Input::Mac
 {
-  struct ScreenCaptureKitGrabber::Impl
+  // Shared with AuroraSCKStreamOutput (Aurora-eq7a): the stream's callbacks
+  // run on SCK's own queues and can still be executing, or queued, when the
+  // grabber is destroyed, so the state they lock must outlive the grabber.
+  // The output holds a shared_ptr back to this; this holds the output (and
+  // stream) strongly, a cycle that stopStream()/didStopWithError: break by
+  // clearing `output` and `stream`.
+  struct ScreenCaptureKitGrabber::Impl : std::enable_shared_from_this<ScreenCaptureKitGrabber::Impl>
   {
     // stream/output/rebuildAttempted/healthy are touched both from the app's
     // own thread (grabFrameSubsample()/selectMonitor(), serialized upstream
@@ -71,16 +83,29 @@ namespace Aurora::Input::Mac
     // defaults true, so Linux/Windows are unaffected by this existing at all.
     bool healthy = true;
 
+    // IVideoInput::setCaptureWidthHint() -- 0 means deliver full pixel size.
+    unsigned captureWidthHint = 0;
+
     std::mutex frameMutex;
     Contracts::ImageData latestFrame;
   };
 }
 
-@implementation AuroraSCKStreamOutput
+@implementation AuroraSCKStreamOutput {
+  std::shared_ptr<Aurora::Input::Mac::ScreenCaptureKitGrabber::Impl> _impl;
+}
+
+- (void)attach:(std::shared_ptr<Aurora::Input::Mac::ScreenCaptureKitGrabber::Impl>)impl
+{
+  _impl = std::move(impl);
+}
 
 - (void)stream:(SCStream *)stream didOutputSampleBuffer:(CMSampleBufferRef)sampleBuffer ofType:(SCStreamOutputType)type
 {
-  if(type != SCStreamOutputTypeScreen || !self.impl || !CMSampleBufferIsValid(sampleBuffer)){
+  // Local copy: keeps the state alive for the whole callback even if the
+  // grabber is destroyed mid-way (Aurora-eq7a).
+  std::shared_ptr<Aurora::Input::Mac::ScreenCaptureKitGrabber::Impl> impl = _impl;
+  if(type != SCStreamOutputTypeScreen || !impl || !CMSampleBufferIsValid(sampleBuffer)){
     return;
   }
 
@@ -108,8 +133,8 @@ namespace Aurora::Input::Mac
     captured.imageMatrix = view.clone();
     captured.format = Aurora::Contracts::PixelFormat::BGRA;
 
-    std::lock_guard<std::mutex> lock(self.impl->frameMutex);
-    self.impl->latestFrame = std::move(captured);
+    std::lock_guard<std::mutex> lock(impl->frameMutex);
+    impl->latestFrame = std::move(captured);
   }
 
   CVPixelBufferUnlockBaseAddress(pixelBuffer, kCVPixelBufferLock_ReadOnly);
@@ -135,11 +160,19 @@ namespace Aurora::Input::Mac
             << (error != nil ? std::string(error.localizedDescription.UTF8String) : std::string("no error given"))
             << ") -- will retry capture on the next frame\n";
 
-  std::lock_guard<std::mutex> lock(self.impl->frameMutex);
-  self.impl->stream = nil;
-  self.impl->output = nil;
-  self.impl->rebuildAttempted = false;
-  self.impl->healthy = false;
+  // Clearing impl->output below can drop the last strong reference to this
+  // object; keep it (and the local state copy) alive to the end of the method.
+  AuroraSCKStreamOutput* __attribute__((objc_precise_lifetime)) keepAlive = self;
+  std::shared_ptr<Aurora::Input::Mac::ScreenCaptureKitGrabber::Impl> impl = _impl;
+  if(!impl){
+    return;
+  }
+
+  std::lock_guard<std::mutex> lock(impl->frameMutex);
+  impl->stream = nil;
+  impl->output = nil;
+  impl->rebuildAttempted = false;
+  impl->healthy = false;
 }
 
 @end
@@ -200,6 +233,37 @@ namespace Aurora::Input::Mac
     }
 
 
+    // What SCK delivers: full pixel size, or -- once the consumer has said
+    // how narrow an image it samples -- an 8x oversample of that, at least
+    // 256px wide, aspect kept. The GPU does the bulk downscale; the CPU's
+    // INTER_AREA in Orchestrator still averages the final step, so zone
+    // colors keep area-averaging quality. Full-Retina frames resized on the
+    // CPU every tick overran a 60Hz tick and starved the WebUI (Aurora-3qh).
+    SCStreamConfiguration* makeStreamConfiguration(
+      unsigned pixelWidth,
+      unsigned pixelHeight,
+      double refreshRate,
+      unsigned captureWidthHint
+    )
+    {
+      unsigned width = pixelWidth;
+      unsigned height = pixelHeight;
+      if(captureWidthHint > 0 && pixelWidth > 0){
+        width = std::min(pixelWidth, std::max(captureWidthHint * 8u, 256u));
+        width -= width % 2; // even dimensions for the BGRA pixel buffer
+        height = static_cast<unsigned>(std::lround(static_cast<double>(pixelHeight) * width / pixelWidth));
+        height = std::max(2u, height - height % 2);
+      }
+
+      SCStreamConfiguration* streamConfig = [[SCStreamConfiguration alloc] init];
+      streamConfig.width = width;
+      streamConfig.height = height;
+      streamConfig.pixelFormat = kCVPixelFormatType_32BGRA;
+      streamConfig.minimumFrameInterval = CMTimeMake(1, static_cast<int32_t>(refreshRate));
+      return streamConfig;
+    }
+
+
     // Configures and starts the SCStream for `display`, writing the result
     // onto `impl` only once everything below has actually succeeded (a
     // half-built stream never gets assigned, so a throw here always leaves
@@ -238,14 +302,15 @@ namespace Aurora::Input::Mac
       // wants everything on screen, not a filtered subset.
       SCContentFilter* filter = [[SCContentFilter alloc] initWithDisplay:display excludingWindows:@[]];
 
-      SCStreamConfiguration* streamConfig = [[SCStreamConfiguration alloc] init];
-      streamConfig.width = pixelWidth;
-      streamConfig.height = pixelHeight;
-      streamConfig.pixelFormat = kCVPixelFormatType_32BGRA;
-      streamConfig.minimumFrameInterval = CMTimeMake(1, static_cast<int32_t>(refreshRate));
+      unsigned captureWidthHint = 0;
+      {
+        std::lock_guard<std::mutex> lock(impl.frameMutex);
+        captureWidthHint = impl.captureWidthHint;
+      }
+      SCStreamConfiguration* streamConfig = makeStreamConfiguration(pixelWidth, pixelHeight, refreshRate, captureWidthHint);
 
       AuroraSCKStreamOutput* output = [[AuroraSCKStreamOutput alloc] init];
-      output.impl = &impl;
+      [output attach:impl.shared_from_this()];
 
       SCStream* stream = [[SCStream alloc] initWithFilter:filter configuration:streamConfig delegate:output];
 
@@ -296,6 +361,8 @@ namespace Aurora::Input::Mac
         stream = impl.stream;
       }
       if(stream == nil){
+        std::lock_guard<std::mutex> lock(impl.frameMutex);
+        impl.output = nil; // breaks the Impl <-> output cycle
         return;
       }
 
@@ -329,7 +396,7 @@ namespace Aurora::Input::Mac
 
 
   ScreenCaptureKitGrabber::ScreenCaptureKitGrabber():
-  m_impl(std::make_unique<Impl>())
+  m_impl(std::make_shared<Impl>())
   {
     // Real setup (permission-gated, async) happens in _initMonitorsList(),
     // per docs/MacSupport.md's "Bridging the async permission wait" -- the
@@ -374,6 +441,46 @@ namespace Aurora::Input::Mac
       m_impl->rebuildAttempted = false;
     }
     m_monitorSelectionData.selectedMonitorId = monitorId;
+  }
+
+
+  void ScreenCaptureKitGrabber::setCaptureWidthHint(unsigned width)
+  {
+    SCStream* stream = nil;
+    unsigned pixelWidth = 0;
+    unsigned pixelHeight = 0;
+    double refreshRate = 60.0;
+    {
+      std::lock_guard<std::mutex> lock(m_impl->frameMutex);
+      if(m_impl->captureWidthHint == width){
+        return;
+      }
+      m_impl->captureWidthHint = width;
+      stream = m_impl->stream;
+      pixelWidth = m_impl->pixelWidth;
+      pixelHeight = m_impl->pixelHeight;
+      refreshRate = m_impl->refreshRate;
+    }
+
+    // No live stream: configureAndStartStream() picks the hint up on the
+    // next (re)build.
+    if(stream == nil){
+      return;
+    }
+
+    auto updatePromise = std::make_shared<std::promise<bool>>();
+    auto updateFuture = updatePromise->get_future();
+    [stream updateConfiguration:makeStreamConfiguration(pixelWidth, pixelHeight, refreshRate, width)
+              completionHandler:^(NSError* error){
+      updatePromise->set_value(error == nil);
+    }];
+
+    // Bounded like every other SCK wait here. On failure the stream keeps
+    // its previous size -- slower, never broken -- so log and carry on.
+    if(updateFuture.wait_for(5s) != std::future_status::ready || !updateFuture.get()){
+      std::cerr << "ScreenCaptureKitGrabber: updateConfiguration for capture width hint "
+                << width << " didn't succeed within 5s; keeping the previous frame size\n";
+    }
   }
 
 

@@ -1,5 +1,7 @@
 # Web testing
 
+Id: lesson-web-testing
+
 jsdom, live tests, routes, settings round-trips, browser cache. See [README.md](README.md) for filing rules.
 
 ---
@@ -223,7 +225,10 @@ a standing, silent source of "my fix isn't working" false alarms that look
 exactly like real bugs and can burn real debugging time before anyone
 thinks to suspect the browser's cache instead of the code.
 
+ES modules make it worse: a browser can mix a cached module with a freshly fetched importer. After `main.js` gained an export, Firefox reused its cached `main.js` while loading the new `demo-boot.js`, and the page died with `SyntaxError: The requested module ... doesn't provide an export named: 'setPaused'` (2026-10-08). Plain `python -m http.server` sends only `Last-Modified`, which invites that heuristic caching. A hard refresh fixed it. Ad-hoc static servers for `web/demo` need the same `no-store`, and devstack's viz server now sends it (Aurora-57ct).
+
 ---
+
 ## The shim must answer every route the ported UI probes
 Tags: demo, shim, routes
 Applies-when: adding a backend route consumed by vendored dashboard code
@@ -244,3 +249,70 @@ Aurora-qps.8 added `web/ui/icons/MacTray.gif`. A dev run served it correctly as 
 
 To exercise the embedded path on a dev machine: `resolveWebRoot` (`app/*/include/Aurora/App/WebRoot.hpp`) only falls back to the embedded map when neither `AURORA_WEBUI_DIR` nor the baked checkout path is an existing directory, and an env var pointing at a nonexistent dir does not force it. Temporarily moving `web/ui` aside before launching does (restore it right after), or run the bundle on a machine without the checkout.
 
+The reverse also holds. Dev mode never consults the embedded map, so a build-only artifact that has no source-dir copy (the Aurora-lzj graph editor's Vite bundle) must come from an embedded map in both modes. `serveEmbeddedFilesAt(prefix, map)` exists for this: its routes answer only under the prefix and work beside the static mount.
+
+
+---
+
+## An entry script with import-time side effects can be proven equivalent by running HEAD and the working copy against stub modules
+Tags: webui, refactor, testing, no-dom, equivalence
+Applies-when: refactoring `web/ui/app.js` (or any browser entry that runs on import and navigates through injected screens)
+
+No DOM harness exists, so Aurora-4y9's `app.js` refactor had nothing to run. Copy `git show HEAD:web/ui/app.js` and the working copy into two sibling dirs, give each stub `shell.js`, `Tooltips.js` and `screens/*.js` that append their constructor name and key options to a shared trace, fake `globalThis.fetch` per scenario, and `await import('./<dir>/app.js?r=N')` (the query string defeats the module cache; `bootstrap()` runs on import). After each settle, call the last screen's `onComplete`/`onBack` and record again. 641 scenarios x 4 walks ran in seconds and `cmp` on the two traces is the verdict. Prove the harness can fail: break the copy on purpose (hard-code a flag, drop a guard) and confirm the diff.
+
+Related trap: `styles/mac-tray-tip.test.mjs` asserts on `app.js` *source text*, so a pure rename (`state.platform` -> `platform`) fails it with a message about "gating" that reads like a behaviour break. After a refactor, run every `web/ui` test, not just the ones for the code you touched, and update the string deliberately.
+
+---
+
+## Headless Firefox here: `--screenshot` fires on load and exits, so read async-rendered DOM text through a beacon instead
+Tags: firefox, headless, screenshot, snap, browser-verification
+Applies-when: checking a WebUI screen that fills in after its first render (fetch-driven labels) in headless Firefox on this Linux box
+
+Aurora-a0r's label check hit three snags. (1) With the user's own Firefox open, `firefox --headless` exits "already running, but is not responding"; add `--no-remote --profile <dir>`. (2) The snap Firefox can't see `/tmp` or scratchpad paths ("Could not find profile folder", no screenshot written); keep the profile and `--screenshot` output under `$HOME`. (3) `--screenshot` captures at the load event and quits: a screen that fetches labels after mount shows "Loading…" or bare "Zone N", which reads like a bug. Top-level `await` in the page module doesn't hold `load` open, and the process exits before any timer fires.
+
+**Fix:** temporary harness page in `web/ui/` (served by the app from source) that mounts the screen, waits, then `navigator.sendBeacon('http://127.0.0.1:<port>/', document.body.innerText)` to a 15-line Python POST sink; run `timeout 15 firefox --headless --no-remote --profile ~/<dir> <url>` (no `--screenshot`) and read the sink's file. Delete the harness page and profile afterwards.
+
+**Simpler, when the screen just needs to settle (Aurora-kea, 2026-10-03):** the cached Playwright headless shell (`~/.cache/ms-playwright/chromium_headless_shell-*/chrome-headless-shell-linux64/chrome-headless-shell --no-sandbox --window-size=480,1100 --virtual-time-budget=6000 --screenshot=<png> <url>`) holds the capture until virtual time runs out, so fetch-driven Dashboards render fully with no harness page. To compare against `HEAD`, serve a `git archive HEAD web/ui` export through `AURORA_WEBUI_DIR` on the same daemon and pixel-diff the PNGs (PIL `ImageChops.difference(...).getbbox()`); a `None` box is pixel-identical.
+
+---
+
+## A WebSocket client test needs no external echo server: httplib ships the server side
+Tags: websocket, httplib, testing, cross-platform, ha
+Applies-when: writing a C++ test (or a fake Home Assistant) that needs a ws:// peer
+
+Aurora-d9v's bead assumed "a local ws:// echo server", i.e. a separate process and a port to pick per platform. cpp-httplib >= 0.46 has `Server::WebSocket(pattern, handler)` with a blocking `ws::WebSocket::read/send` loop, so the test hosts its own peer: `bind_to_any_port("127.0.0.1")`, `listen_after_bind()` on a thread, `wait_until_ready()`, then `httplib::ws::WebSocketClient("ws://127.0.0.1:<port>/path")`. No Python/Node dependency, no port clash, identical on Linux, Windows and Mac. The same handler shape works for a scripted fake HA server (auth handshake, `get_states` reply) when the HA client lands. `ws::ReadResult` (`Text`/`Binary`/`Fail`) lives in `httplib::ws`, not `httplib`. Stop with `server.stop()` and join the thread before the server goes out of scope.
+
+---
+
+## A version string duplicated in code and checked against `CHANGELOG.txt` fails the first time someone starts a release entry and nobody runs the web tests
+Tags: version, changelog, demo-shim, web-tests, ci
+Applies-when: starting a release entry in CHANGELOG.txt, or `demo-shim.test.mjs` fails with "shim version matches CHANGELOG"
+
+`web/demo/demo-shim.js` hardcodes the version it returns from `/api/version`, and `demo-shim.test.mjs` asserts it equals the top `v…` line of `CHANGELOG.txt`. The 1.0.5 entry was started with the shim still at 1.0.4. The test guarded this correctly, but it had never run since: the web workflow never fired, and the web tests aren't part of `ctest`. The first CI run on a PR was the first time anyone ran it.
+
+**Fix:** the shim's version is bumped in the same commit that opens a new changelog entry. Running the web workflow's loop locally (`for t in web-processing/*.test.mjs web/demo/*.test.mjs web/ui/styles/*.test.mjs; do node "$t"; done`) is the pre-commit check; the web workflow now runs it on every PR touching `web/**`.
+
+---
+
+## The Origin-vs-Host write gate 403s the WebUI if a dev proxy rewrites Host
+Tags: routes, security, vite, proxy, origin
+Applies-when: adding or changing a dev-server proxy in front of the daemon
+
+Since Aurora-5i3, `_wrapHandler` rejects a non-GET request whose `Origin`
+host differs from its `Host` (port ignored). Vite's `/api` proxy in
+`web/graph-editor` passes, because by default it forwards the browser's
+`Host` unchanged. Adding `changeOrigin: true` rewrites `Host` to
+`127.0.0.1` while Origin stays `localhost`. Every PUT/POST then fails with
+`cross_origin_forbidden`, but GETs still work, so it can look like a broken
+route.
+
+**Fix:** leave `changeOrigin` off, or open the dev page at the same host
+the proxy targets.
+
+## Driving the banner live: API calls lag a beat, and a UI switch overwrites a bogus saved input
+Tags: live-test, playwright, banner, heartbeat, mode-switch, fake-bridge
+Applies-when: live-checking shell-banner behavior with Playwright against a running daemon, or trying to make a Dashboard mode switch fail on purpose
+
+Aurora-98pr's live checks hit three traps. (1) The banner only redraws on the beat (about 5s) or after a UI action's `checkNow()`. A `fetch` sent from the test (PUT/POST) changes daemon state without a re-check, so the page shows the old row; clicking its X then sends the old `id`, a correct stale no-op that looks like a broken X. Wait a beat (or `waitForFunction` on the banner text) before asserting or clicking. (2) A Dashboard mode switch cannot be made to fail with a bad saved `activeInputName`: its PUT sends the screen's own device fields, so the bad value is overwritten and the build succeeds. A bad saved `activeOutputNames: ["nonexistent-output"]` does fail it ("No outputs available") because the switch never sends outputs. Taking the fake bridge down does not fail a build (Hue init failures are swallowed by design). (3) Saving a working input while an error is held does not reload (the running baseline already matches), so the error stays until Retry or a structural save.
+
+**Fix:** for a failing UI switch, save the bad output, dismiss that first row, then click the toggle. Mock `GET /api/state` with `page.route` only for states a Mac cannot be put in (a running host with a `permission_denied:` row) and say it was mocked in the log. A binary exec'd from the shell runs under the terminal's grant, so real denials need an `open`-launched bundle (see the macos-gui entry on terminal-inherited grants).

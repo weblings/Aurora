@@ -108,6 +108,23 @@
   color: var(--aurora-text-primary);
 }
 
+/* Vector triangle (icons/warning.svg) masked like .accordion-chevron, not an
+   inline <img>, so it follows status-text-error's currentColor in both
+   themes instead of a baked-in fill. */
+.warn-glyph {
+  display: inline-block;
+  width: 14px;
+  height: 12px;
+  vertical-align: -1px;
+  background-color: currentColor;
+  -webkit-mask-image: url('../icons/warning.svg');
+  mask-image: url('../icons/warning.svg');
+  -webkit-mask-size: contain;
+  mask-size: contain;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+}
+
 .status-text-success {
   color: var(--aurora-text-primary);
   font-weight: 700;
@@ -138,6 +155,12 @@
 .segmented-btn.active { background: var(--aurora-button-light); color: var(--aurora-text-on-light); }
 .segmented-btn.active:hover { background: var(--aurora-button-light-hover); }
 .segmented-btn.active:active { background: var(--aurora-button-light-active); }
+/* Pending mode-switch choice (Aurora-axoz): inset outline only, never the
+   fill -- the running option stays filled until the pipeline confirms the
+   switch. Inset (not outer) so the stroke never shifts layout or bleeds
+   into the gap between the two buttons. */
+.segmented-btn.pending { outline: 2px solid var(--aurora-button-light); outline-offset: -2px; }
+.segmented-btn:disabled { cursor: wait; }
 
 /* Section heading + divider -- ported from RockyRoadImport/SongConverter's
    real <h2> (20px/700 weight/16px margin-bottom) and .tab-panel::before (a

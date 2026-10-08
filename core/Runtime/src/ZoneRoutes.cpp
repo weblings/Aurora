@@ -88,16 +88,34 @@ namespace Aurora::Runtime
       const std::optional<Contracts::UVs>& uvs,
       const std::optional<bool>& active,
       const std::optional<float>& gamma
-    )> updateZone
+    )> updateZone,
+    std::function<bool()> isPaused
   )
   {
     server.addRoute(HttpMethod::Get, "/api/zones", [listZones](const Request&, Response& res){
       _writeJson(res, _toJson(listZones()));
     });
 
+    // Output-neutral replacement for Hue-only /api/hue/channels: asks the
+    // active output for its zone labels. Empty list (not an error) when
+    // there's no live output.
+    server.addRoute(HttpMethod::Get, "/api/zones/labels", [listZones](const Request&, Response& res){
+      nlohmann::json labels = nlohmann::json::array();
+      for(const auto& [zoneId, names] : listZones().labels){
+        labels.push_back({{"zoneId", zoneId}, {"names", names}});
+      }
+
+      _writeJson(res, {{"succeeded", true}, {"labels", labels}});
+    });
+
     // PATCH-style PUT, same convention as SettingsRoutes -- only zoneId is
     // required; uvs/active/gamma are applied only when present in the body.
-    server.addRoute(HttpMethod::Put, "/api/zones", [listZones, updateZone](const Request& req, Response& res){
+    server.addRoute(HttpMethod::Put, "/api/zones", [listZones, updateZone, isPaused](const Request& req, Response& res){
+      if(isPaused && isPaused()){
+        _writeJson(res, {{"succeeded", false}, {"error", "paused"}}, 409);
+        return;
+      }
+
       nlohmann::json body;
       try{
         body = nlohmann::json::parse(req.body);

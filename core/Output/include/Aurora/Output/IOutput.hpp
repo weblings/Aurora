@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstdint>
+#include <map>
 #include <string>
 #include <vector>
 
@@ -33,6 +34,11 @@ namespace Aurora::Output
     // in the active entertainment configuration) -- reconciled by Runtime
     // against a saved Runtime::ZoneMap. May be empty before init().
     virtual std::vector<uint8_t> zoneIds() const = 0;
+
+    // Human-readable names per live zone ID (Hue: the light names behind each
+    // channel; HA later: friendly_name) -- for WebUI labels only, never
+    // addressing. Defaults to none; an ID missing here shows a bare "Zone N".
+    virtual std::map<uint8_t, std::vector<std::string>> zoneLabels() const { return {}; }
 
     virtual void send(const Contracts::Frame& frame) = 0;
   };

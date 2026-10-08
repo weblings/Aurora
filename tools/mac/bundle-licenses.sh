@@ -24,8 +24,14 @@ MANIFEST="$APP/Contents/Resources/bundled-dylibs.tsv"
 command -v brew >/dev/null || { echo "brew not found (needed for license metadata)" >&2; exit 1; }
 
 LIC="$APP/Contents/Resources/Licenses"
+# The graph editor's npm notice (Aurora-lzj) is staged here by the app build
+# when AURORA_ENABLE_GRAPH_EDITOR is ON; keep it across the wipe below.
+EDITOR_NOTICE="$LIC/graph-editor/THIRD-PARTY-NOTICES.md"
+KEEP=""
+if [ -f "$EDITOR_NOTICE" ]; then KEEP="$(mktemp)"; cp "$EDITOR_NOTICE" "$KEEP"; fi
 rm -rf "$LIC"; mkdir -p "$LIC/Aurora"
 cp "$ROOT/LICENSE" "$LIC/Aurora/LICENSE"
+if [ -n "$KEEP" ]; then mkdir -p "$LIC/graph-editor"; cp "$KEEP" "$EDITOR_NOTICE"; rm -f "$KEEP"; fi
 
 export APP ROOT MANIFEST LIC
 python3 - <<'PY'
@@ -97,6 +103,11 @@ same name (https://github.com/Homebrew/homebrew-core).
             out.write(f"  applies to what we bundle:   {applies}\n")
         out.write(f"  homepage:                    {home}\n  libraries:                   {', '.join(libs)}\n"
                   f"  license files:               {', '.join('Licenses/%s/%s' % (pkg, f) for f in files)}\n\n")
+
+if os.path.isfile(os.path.join(LIC, "graph-editor", "THIRD-PARTY-NOTICES.md")):
+    with open(os.path.join(LIC, "THIRD-PARTY-NOTICES.txt"), "a") as out:
+        out.write("The graph editor's JavaScript bundle (served at /graph-editor/) includes npm\n"
+                  "packages whose licenses are listed in Licenses/graph-editor/THIRD-PARTY-NOTICES.md.\n")
 
 with open(os.path.join(LIC, "licenses.tsv"), "w") as out:
     for pkg, *_rest, libs in rows:

@@ -34,24 +34,23 @@ export class ZoneCanvas {
   // (2.5 pass) instead of leaving it to the caller -- also opt-in and
   // default false, so the onboarding screen (out of scope this pass) keeps
   // its own separate always-visible Active section unchanged. Persists
-  // through the same _queue as gamma/uvs, not a separate callback -- an
-  // Active flip has no side effect any caller needs to react to beyond
-  // persistence, same as gamma.
-  // DEMO SEAM toggle-sync (see MANIFEST.json): onActiveChange fires after
-  // the embedded bool flips so the owner (Dashboard) can refresh the Bridge
-  // list showing the same shared objects; refreshActive() re-syncs the bool
-  // from the selected zone without a full re-render (which would kill an
-  // open zone dropdown mid-interaction).
-  constructor(container, { zones, selectedZoneId, zoneLabel, onSelect, onError, onSeeAllZones, renderActive = false, onActiveChange }) {
+  // through the same _queue as gamma/uvs -- an Active flip persists like
+  // gamma, and optionally notifies (onActiveChange, Aurora-ifkn.5) so an
+  // owner showing the same shared zone objects in a second view can refresh
+  // it; see refreshActive().
+  constructor(container, { zones, selectedZoneId, zoneLabel, onSelect, onError, onSuccess, onSeeAllZones, onUnreachable, renderActive = false, onActiveChange = null }) {
     this.container = container;
     this.zones = zones;
     this.zoneLabel = zoneLabel;
     this.onSelect = onSelect;
     this.onSeeAllZones = onSeeAllZones;
     this.renderActive = renderActive;
+    // Optional (Aurora-ifkn.5): fires after the embedded Active bool flips so
+    // an owner showing the same shared zone objects elsewhere can refresh
+    // that sibling view. Plain field, so an owner may also attach it later.
     this.onActiveChange = onActiveChange;
     this.zoneDropdown = null;
-    this._queue = new ZonePatchQueue({ onError });
+    this._queue = new ZonePatchQueue({ onError, onSuccess, onUnreachable });
 
     const initial = zones.find((z) => z.zoneId === selectedZoneId) ?? zones[0];
     this._selectedZoneId = initial.zoneId;
@@ -63,9 +62,10 @@ export class ZoneCanvas {
     return this._selectedZoneId;
   }
 
-  // DEMO SEAM toggle-sync: re-sync the embedded Active bool from the live
-  // zone objects after a sibling view (Bridge list) flips one. Cheaper than
-  // _render() and safe mid-interaction.
+  // Re-sync the embedded Active bool from the live zone objects after a
+  // sibling view flips one (Aurora-ifkn.5). Cheaper than _render() and safe
+  // mid-interaction (a full re-render would kill an open zone dropdown).
+  // No box mounted (renderActive false) is a no-op.
   refreshActive() {
     const box = this.container.querySelector('#zc-active-toggle');
     if (!box) return;

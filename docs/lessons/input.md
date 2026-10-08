@@ -1,5 +1,7 @@
 # Input / capture-backend lessons
 
+Id: lesson-input
+
 Capture/grabber/platform-adapter specific gotchas. See
 [`README.md`](README.md) for how entries get routed here vs. elsewhere.
 
@@ -132,6 +134,10 @@ that found the bug. General principle: when a "port
 with a fix" changes code from ignoring a piece of metadata to trusting it,
 audit where that metadata was actually set, not just the consuming logic —
 upstream's own bugs can be invisible for as long as nothing reads them.
+The same trap recurred when writing up huenicorn's `mean()` for upstream
+([[upstream-findings]] finding 1): the write-up claimed every grabber tags
+`BGR`, and only a re-read of the grabbers before fixing it (`Aurora-h45.1`)
+caught that the fix must ship with the tag corrections.
 
 ---
 
@@ -183,6 +189,31 @@ installed" only confirms presence, not API surface, for a library whose
 convenience helpers are still being added upstream -- verify against the
 exact header on the exact target machine before trusting an include or
 function name a newer environment (or an LLM's training data) suggested.
+
+---
+
+## A header the code includes can be entirely absent on an older SPA, not just missing a function inside it
+Tags: input, pipewire, spa, headers, linux
+Applies-when: a `#include <spa/...>` line itself fails to resolve on the target machine
+
+`PipewireGrabber.hpp` unconditionally included `<spa/param/buffers.h>` for
+`SPA_PARAM_BUFFERS_buffers`/`_blocks`/`_dataType`. On the same Ubuntu 22.04
+`libspa-0.2-dev` 0.3.48 as the entry above, that header doesn't exist at all
+(`dpkg -L libspa-0.2-dev | grep buffers.h` -- nothing), a step further than
+the prior entry's "header exists but lacks a function" case. All three enum
+values are actually defined in `spa/param/param.h`, already pulled in
+transitively via `pipewire/pipewire.h`/`spa/param/video/format-utils.h`, so
+the broken include was dead weight on this version, not a real dependency.
+
+**Fix:** `#if __has_include(<spa/param/buffers.h>)` around the include,
+rather than deleting it outright -- it compiles clean where the header is
+absent (resolved transitively) and still picks it up on a newer SPA where
+`buffers.h` might someday declare something beyond that enum. General
+principle: when a distro's dev headers disagree with the code, check
+whether the symbol is available from a different, already-included header
+before assuming the include itself is required -- and prefer `__has_include`
+over a flat removal so the fix doesn't quietly regress on a system where the
+header really is needed.
 
 ---
 
@@ -329,9 +360,9 @@ Applies-when: reading a negotiated PipeWire fraction as a plain number
 Tags: input, pipewire, wayland, gnome, fullscreen, validation
 Applies-when: validating capture with a fullscreen/kiosk window, or debugging "colors stuck" reports during fullscreen video
 
-Driving solid colors through a Firefox page: maximized, capture tracked every 1.5s change; after F11 it delivered one correct fullscreen frame, then held it ~18s while the page kept alternating, resuming the moment fullscreen exited. Two `--kiosk` launches froze the same way on Firefox's first paint (constant black, then constant near-white) -- which first looked like a broken test page, not a capture problem. Suspected GNOME direct scanout of fullscreen surfaces starving the screencast of new frames (unconfirmed). Tracked as `Aurora-1t1`; fullscreen video is the core use case.
+Driving solid colors through a Firefox page: maximized, capture tracked every 1.5s change; after F11 it delivered one correct fullscreen frame, then held it ~18s while the page kept alternating, resuming the moment fullscreen exited. Two `--kiosk` launches froze the same way on Firefox's first paint (constant black, then constant near-white) -- which first looked like a broken test page, not a capture problem. Direct scanout was the first suspect and a flag test did not support it; the cause turned out to be the memfd stream getting empty CORRUPTED buffers (see "On GNOME 46 Wayland, a memfd screencast stream got empty CORRUPTED buffers in fullscreen while a LINEAR DMA-BUF stream tracked"). Tracked as `Aurora-1t1`; fullscreen video is the core use case.
 
-**Fix (until 1t1 lands):** validate capture with maximized, not fullscreen/kiosk, windows; when a capture reading is constant across stimuli, suspect the source froze before suspecting the stimulus.
+**Fix:** since 1t1 phase 3 the grabber offers LINEAR DMA-BUF by default and fullscreen tracks on GNOME 46 (one machine verified). The freeze comes back whenever the stream ends up on memfd: `AURORA_PW_DMABUF=0`, or a driver where the DMA-BUF fallback fired (`[pw-dmabuf] ... renegotiating shared memory` in the log). In those cases validate with maximized, not fullscreen/kiosk, windows. A `[pw] capture stalled` line in the log is this freeze's signature. When a capture reading is constant across stimuli, suspect the source froze before suspecting the stimulus.
 
 ---
 
@@ -374,6 +405,8 @@ Verifying the permission-recovery flow (`Aurora-8mk.8`) live, with the user gran
 Separately: `SCShareableContent`'s completion handler did *not* hang toward `ScreenCaptureKitGrabber`'s 5s bound while a permission dialog was pending -- it resolved in well under a second with zero displays (`Aurora-8mk.8`'s `PermissionErrorKind::Denied`, not `::Pending`), while the OS asynchronously surfaced the actual dialog moments later on its own schedule. The `Pending` (timeout) code path exists for a real API contract (the completion handler is documented as potentially not firing until the user answers), but wasn't observed to fire in practice here even on a never-before-asked identity -- "denied" appears to be the actual first-request behavior, with the dialog arriving out-of-band rather than gating the call that triggers it.
 
 **Fix:** after granting a permission mid-development, always fully quit and relaunch before retesting -- and if it's still denied, check whether the binary was rebuilt since the grant before assuming the recovery-flow code is broken; `tccutil reset <service> <bundle-id>` is the fast way to confirm a stale entry is the cause (an error means no entry ever existed; success means one did, and just didn't match). Don't design a "pending" state's UX around the assumption that a fresh dialog blocks the triggering call -- empirically here it doesn't, so a caller can't distinguish "dialog just appeared, uncertain" from "already denied" by timing alone.
+
+**Follow-up (Aurora-d3ec, macOS 27, `open`-launched ad-hoc `Aurora.app`):** a fresh grant does apply to the *running* process, no relaunch needed. After `tccutil reset ScreenCapture com.aurora.app`, a relaunch (GET /api/state: `failed`, source `startup`, `permission_denied:`), then Aurora turned on in System Settings without quitting, `PUT /api/state {"running":true}` rebuilt the pipeline and the host went `running`. The failing run just before it (grant toggled, rebuilt binary, still denied after a relaunch) was the stale-entry case above, so "still denied after a grant" means check for a stale entry first, not "needs a relaunch". The fix line's "always quit and relaunch" is therefore too strict for the retest loop: reset, relaunch once to get a clean denial, grant, retry. The user-facing wording can say "turn it on, then try again" and keep quit-and-reopen as the fallback. One macOS version and one launch path; not yet checked for the Linux portal or the audio tap.
 
 ---
 
@@ -490,3 +523,263 @@ Applies-when: a previously-granted Screen Recording or audio-capture permission 
 First launch of the notarized, Developer ID-signed `Aurora.app` (bundle ID `com.aurora.app`) showed the "Screen Recording permission is off" card with Aurora toggled on in System Settings and no Allow dialog. The earlier ad-hoc builds had a cdhash-only designated requirement; the Developer ID build has an identifier + certificate requirement (`codesign -dr -`). TCC matches grants to that requirement, so the ad-hoc row no longer matched the new code, yet the row's existence kept macOS from prompting (Aurora-qy5 cert prep).
 
 **Fix:** quit the app, run the scoped resets (`tccutil reset ScreenCapture com.aurora.app`, and the audio-capture service), relaunch, approve the fresh dialog, then quit and relaunch once more. After that the grant persisted across a relaunch with no re-prompt; a certificate-based requirement is stable across rebuilds signed by the same identity, which is what ad-hoc builds lacked. Expect the same re-prompt when moving back to an ad-hoc build that shares the bundle ID.
+
+---
+
+## ScreenCaptureKit delivers whatever size you configure -- at full Retina pixels, the CPU downscale alone overruns a 60Hz tick
+Tags: input, mac, screencapturekit, performance, tick, gpu-scaling
+Applies-when: choosing a capture size for a grabber whose frames get downsampled anyway, or when Mac video mode is CPU-heavy
+
+`configureAndStartStream` set `SCStreamConfiguration.width/height` to the display's full pixel size (points x `backingScaleFactor`, deliberately, so Retina didn't capture at half resolution). Every tick then INTER_AREA-resized ~3420x2214 BGRA down to `subsampleWidth` (16) on the CPU: 2349/2360 tick-thread samples in `cv::resizeArea_`, ~105% CPU, and the overrunning tick starved the WebUI through `PipelineHost`'s lock (Aurora-3qh, mechanism Aurora-cgr). SCK scales on the GPU for free when the configured size is smaller, and `-[SCStream updateConfiguration:completionHandler:]` changes it on a live stream without a restart.
+
+**Fix:** `IVideoInput::setCaptureWidthHint(width)` (default no-op), called by `Orchestrator::init` with `subsampleWidth`; the Mac grabber delivers an 8x oversample, at least 256px, never above full pixel size, so the CPU's INTER_AREA still averages the last step. Result: ~5.5% CPU, `/api/monitors`/`/api/zones` < 1ms, tick thread ~95% asleep. `displayResolution()` still reports full pixels (subsample candidates unchanged). When verifying, low CPU is also what a *failed* capture looks like (ticks skipped while unhealthy) -- confirm real frames: distinct per-zone colors on the light tap, a real display from `/api/monitors`, no permission errors in the log.
+
+Also observed: the rebuilt, still ad-hoc-signed `Aurora.app` kept capturing when relaunched by `devstack.py` -- consistent with "A bare Mach-O binary's TCC permission grant attaches to whatever launched it" above (the launcher's grant applied), not with the rebuild-invalidates-grant lesson, which concerns a bundle launched on its own.
+
+---
+
+## In a promise-driven portal callback chain, every early return must settle the promise -- "just return" turns a bad state into a hang
+Tags: input, linux, pipewire, xdg-portal, promise, huenicorn
+Applies-when: adding or reviewing an error/denial branch in `XdgDesktopPortal`'s response callbacks (or any async chain a caller blocks on via a future)
+
+`PipewireGrabber`'s constructor waits on `fdReadyFuture` while
+`XdgDesktopPortal` walks CreateSession → SelectSources → Start through D-Bus
+response callbacks. Only the Start callback settles the promise on denial.
+The CreateSession and SelectSources denial branches return without it, so
+the waiter is never woken. huenicorn's wait is unbounded (permanent hang);
+Aurora's is bounded at 60s, so a denied dialog stalls for a full minute
+despite the comment saying it "resolves promptly as false" (`Aurora-p91`,
+fixed: every non-cancelled branch now settles through
+`XdgDesktopPortal::settle`, which sets once and records `failureReason`).
+Upstream finding 5's original suggested fix, a bare `return;`, would have
+added a third hang. The same gap hid at *init*: `initScreencastCapture`
+returned false on no session bus or no ScreenCast proxy (no portal
+installed, likely the commonest real case) and its caller ignored the
+return, so that path stalled the full 60s too. Count the setup returns, not
+only the callbacks.
+
+The D-Bus *call* error branches (CreateSession, SelectSources,
+OpenPipeWireRemote) have the same gap (upstream finding 10). And huenicorn's
+CreateSession denial, which falls through instead of returning, doesn't
+just half-initialize: it passes a null session handle on as an object path
+and segfaults (reproduced with a fake portal, `Aurora-h45.5`).
+
+**Fix:** every terminal branch of the chain, denial or call error, calls
+`capture->fdReadyPromise.set_value(false)` before returning, except
+`G_IO_ERROR_CANCELLED` (our own teardown, nobody waiting). When reviewing a
+"missing return" fix, trace who is waiting on the state the early return
+skips.
+
+---
+
+## xdg-desktop-portal ScreenCast failure paths are testable offline -- fake the portal on a private `dbus-run-session` bus
+Tags: input, linux, xdg-portal, dbus, testing, huenicorn
+Applies-when: verifying a portal denial/error branch in `XdgDesktopPortal` (huenicorn's or Aurora's) without a real Wayland portal or a human clicking Deny
+
+The portal code only talks to `org.freedesktop.portal.Desktop` on the session
+bus, so a ~60-line Python/Gio fake is enough. It owns that name and registers
+`org.freedesktop.portal.ScreenCast` at `/org/freedesktop/portal/desktop`, with
+`CreateSession`/`SelectSources`/`Start` and the `version`/`AvailableCursorModes`
+properties. Each method returns the request path
+`/org/freedesktop/portal/desktop/request/<sender minus ':' with '.'→'_'>/<handle_token>`
+and then emits `org.freedesktop.portal.Request.Response(u a{sv})` on it from
+`GLib.idle_add`, after the reply, since the client subscribes before calling.
+A code of 1 means denied; `invocation.return_dbus_error` simulates a call
+error. The driver links `XdgDesktopPortal.cpp` + `Logger.cpp` + gio, stubs the
+two `Config` restore-token methods, and copies `PipewireGrabber`'s
+constructor: portal thread, `wait_for` on the promise, then `_stop()`'s
+teardown. Run it as `dbus-run-session -- bash -c "python3 fake.py MODE & gdbus
+wait --session org.freedesktop.portal.Desktop; ./driver"`. Built with `-O0`:
+the portal thread spins on a plain `bool`. This turned 5/9/10 in
+[[upstream-findings]] from "needs a real portal" into a before/after
+reproduction, including a segfault on `develop` nobody had seen.
+
+**Fix:** use this pattern instead of declaring portal branches untestable.
+It now lives in `tools/fake-xdg-portal` (`run.sh --ref <branch> [--asan]`);
+the first copy sat in a scratchpad and was lost.
+`gdbus wait` avoids a sleep race on the name; keep the bus private so the
+real portal is never touched.
+
+---
+
+## A GLib async callback still runs after cancellation -- don't dereference `userData` that a cancel handler may already have freed
+Tags: input, linux, glib, xdg-portal, lifetime, huenicorn
+Applies-when: adding code to a `g_dbus_proxy_call` (or any GIO async) completion callback in `XdgDesktopPortal` that reads its `userData`
+
+`XdgDesktopPortal` hands one `DbusCallData*` to both the Response-signal
+subscription and the method call's completion callback. It's freed by the
+Response callback on the normal path, or by `onCancelledCallback` when
+teardown cancels the `GCancellable`. GIO still invokes every pending
+completion callback afterwards, with `G_IO_ERROR_CANCELLED`. So a completion
+callback that dereferences `userData` unconditionally (as huenicorn's
+`onStartedCallback` does at the top) can read freed memory if teardown races
+an in-flight call. While adding finding 10's fix (`Aurora-h45.11`), the
+dereference went inside the non-cancelled branch only. On that path no
+Response comes, so nothing has freed the data yet.
+
+Reproduced in Aurora's port (`Aurora-p91`): `PortalTokenTests`' fake emits
+the Response *before* the method reply (`Mode::ResponseFirst`), and ASan
+reports a heap-use-after-free in `onStartedCallback`. The portal docs don't
+order reply before Response, so this isn't only a teardown race. Aurora now
+hands the completion callbacks `capture` (which outlives the call) instead
+of the `DbusCallData`.
+
+**Fix:** in GIO completion callbacks, check the error first and touch
+`userData` only on paths where you can name who still owns it. Treat
+`G_IO_ERROR_CANCELLED` as "my owner is tearing down" and return without
+reading shared state.
+
+---
+
+## "Default" audio capture means different things per platform: Mac taps every app, Linux and Windows capture one default device
+Tags: input, audio, mac, linux, windows, process-tap, pipewire, wasapi
+Applies-when: adding audio device selection, or comparing audio capture behavior across platforms
+
+With no device configured, each grabber captures something different.
+Mac's `MacAudioGrabber` uses `initStereoGlobalTapButExcludeProcesses:@[]`,
+which is everything every process plays, whatever output it goes to. The
+default output UID only sets the aggregate device's clock sub-device.
+Linux's `AudioGrabber` resolves the default sink by name once at start and
+captures that sink's monitor, so later default-sink changes aren't followed.
+Windows uses miniaudio loopback with `pDeviceID = nullptr`, the default
+playback device. It probably follows default changes through miniaudio's
+WASAPI stream routing, but that is unverified. So a dropdown whose first
+option is "today's default" is broader on Mac ("all audio") than on Linux
+and Windows ("default output"). Picking a specific device on Mac narrows
+capture to audio routed to that device. Found while scoping Aurora-9k1.
+
+**Fix:** label the default option per platform, or make Linux and Windows
+truly capture everything (one capture per device, mixed). Don't assume the
+same config value means the same capture everywhere.
+
+---
+
+## A fake portal must answer Response unicast, and GTestDBus waits 30 s on a process-wide connection
+Tags: linux, portal, dbus, testing, gdbus
+Applies-when: faking org.freedesktop.portal.Desktop for a test, or using GTestDBus with a long-lived bus connection
+
+`XdgDesktopPortal` subscribes to `Request.Response` with `G_DBUS_SIGNAL_FLAGS_NO_MATCH_RULE`, so it sends no AddMatch and relies on the portal addressing the signal to the caller, as real portals do. A fake that emitted the Response as a broadcast looked fine on the wire (the signal was sent) but was never delivered, and the handshake timed out with no error. Separately, `g_test_dbus_down` waits up to 30 s for the singleton session connection to finalize; `XdgDesktopPortal` keeps `m_connection` for the whole process, so every test process paid 30 s (a 2-minute ctest for four cases) plus a "Weak notify timeout" warning.
+
+**Fix:** emit the fake's Response with the caller's unique name as destination, and derive request and session paths from that name (`:1.1` becomes `1_1`) plus the caller's token. Start a plain `dbus-daemon --session --nofork --print-address=1` child, set `DBUS_SESSION_BUS_ADDRESS` from its first line, and kill it directly. Run the fake on its own connection and thread, and carry its setup failures back through a promise rather than test assertions, which are not safe to call off-thread in the Catch2 3.6 we use (unverified against its docs).
+
+---
+
+## A test that spawns a child bus must keep the child's stderr off the runner's pipe, or one crash stalls ctest for its whole timeout
+Tags: input, linux, dbus, testing, ctest
+Applies-when: a test fixture starts a long-lived child process (`dbus-daemon`, a fake server) and a case under it can crash
+
+`PortalTokenTests` starts `dbus-daemon --session` as a child. A case that
+segfaulted (the reproduced use-after-free, `Aurora-p91`) never reached the
+fixture's `force_exit`, orphaning the daemon. The daemon had inherited
+ctest's stderr pipe, so ctest saw the pipe stay open and waited out its
+300 s timeout per crashed case instead of reporting the crash.
+
+**Fix:** start the child with `G_SUBPROCESS_FLAGS_STDERR_SILENCE` (stdout is
+already piped for the address). After any crashed run, `pkill` the stray
+daemons before rerunning. Catch2 test names containing commas can't be passed
+as a filter by name; use a wildcard prefix.
+
+---
+
+## `g_variant_new` with a non-floating `@` argument adds a ref instead of stealing one
+Tags: input, linux, glib, gvariant, testing, leak
+Applies-when: building GVariants by hand (a fake portal, a D-Bus reply) and mixing `g_variant_ref`, `g_variant_ref_sink` and `g_variant_builder_end`
+
+`g_variant_builder_end` returns a *floating* variant, which `g_variant_new`
+consumes. A variant that is already sunk (owned) is not consumed: the new
+container takes its own ref. The fake portal's first `_answer` did
+`g_variant_ref(results)` before handing it to `g_variant_new("(u@a{sv})")`,
+so every reply leaked 64 bytes plus children (648 B in the early-Response
+case), and `g_variant_ref_sink` on an already-owned variant added a third
+ref.
+
+**Fix:** pass floating variants straight in, or keep exactly one owned ref
+and `g_variant_unref` it after the call; never `ref` just to pass it on.
+LeakSanitizer pinpoints it (`g_variant_builder_end` as the allocation site).
+
+
+
+---
+
+## SSE frames still arriving does not mean capture is fresh
+Tags: input, linux, pipewire, verification, devstack, light-tap
+Applies-when: judging whether live capture is working from the light-viz relay SSE or `validate.py`
+
+During the Aurora-1t1 kiosk run, the relay delivered about 60 frames/s for 30s while every zone stayed on one red (0.98/0.02/0.02) and the page on screen kept flipping red/blue. The output side keeps publishing whatever frame the grabber last held, so a frozen capture still looks like a healthy, flowing stream. With `AURORA_DEV_PW_TRACE=1` the cause in that run was PipeWire still calling back ~25/s with `size=0`, `SPA_CHUNK_FLAG_CORRUPTED` chunks, which `_onStreamProcess` discards before replacing the held frame.
+
+**Fix:** judge capture by content changing, not by frames arriving: show a changing source (`pattern.html`) and run `validate.py color --track`. Frame counts alone only prove the output path. To see inside the grabber, run with `AURORA_DEV_PW_TRACE=1` (per-second callbacks, skips by reason, chunk flags).
+
+
+---
+
+## On GNOME 46 Wayland, a memfd screencast stream got empty CORRUPTED buffers in fullscreen while a LINEAR DMA-BUF stream tracked
+Tags: input, linux, pipewire, gnome, mutter, dmabuf, fullscreen
+Applies-when: a PipeWire/portal screen grabber freezes or serves a stale frame while a window is fullscreen on GNOME Wayland
+
+Observed on one machine (Ubuntu, GNOME 46, 1920x1200 BGRx, `PipewireGrabber` negotiating no modifier): in kiosk fullscreen the stream kept calling back ~25/s but every chunk was `size=0` with `SPA_CHUNK_FLAG_CORRUPTED` over `SPA_DATA_MemFd`, and the grabber (which discards such chunks) served its last frame for 30s, 4 of 4 runs. GNOME's own screen recorder captured the same fullscreen page fine. Offering a mandatory LINEAR modifier first, requesting `DmaBuf` buffers and mapping the fd with `DMA_BUF_IOCTL_SYNC` tracked for the full 30s, 2 of 2 runs (windowed also passed). `MUTTER_DEBUG_PAINT=disable-direct-scanout` did not help. Not verified: tiled-only GPUs, other compositors, long soaks, and why GNOME fails the memfd record.
+
+Later, with the productized path (buffers mapped once, checked syncs): window and kiosk both tracked again, and windowed CPU for the app was 68% of a core on DMA-BUF vs 79% on memfd (n=1 each, so noisy; DMA-BUF at least not costlier on this Intel-class machine).
+
+**Fix (default since Aurora-1t1 phase 3; `AURORA_PW_DMABUF=0` forces memfd):** offer LINEAR DMA-BUF first with the plain format as fallback, and treat CORRUPTED/empty chunks as "no new frame". Diagnose with `AURORA_DEV_PW_TRACE=1` before changing negotiation.
+
+
+---
+
+## Falling back from DMA-BUF mid-stream is a param update, not a reconnect -- but the DmaBuf-only Buffers request has to be replaced too
+Tags: input, linux, pipewire, dmabuf, negotiation, fallback
+Applies-when: a PipeWire consumer that negotiated DMA-BUF needs to drop to shared memory at runtime (mmap or sync fails, unsupported driver)
+
+A modifier can be negotiated and the CPU read can still fail afterwards (mmap of the dmabuf fd refused, `DMA_BUF_IOCTL_SYNC` erroring), so a negotiation-time fallback alone can leave capture blank on a bad driver. `PipewireGrabber` (Aurora-1t1) counts failed DMA-BUF reads; after 3 in a row it signals a loop event that calls `pw_stream_update_params` with only the plain (no-modifier) EnumFormat. GNOME 46 renegotiated on the spot: a new `Format` without a modifier arrived in `param_changed`, then memfd buffers (`dataType=2`). The grabber had earlier sent a Buffers param restricting `dataType` to `DmaBuf`; on the no-modifier format it sends a replacement allowing MemFd|MemPtr. Not tested without that replacement, so whether a stale DmaBuf-only request would actually block memfd is unverified. Forced live with `AURORA_DEV_PW_DMABUF_FAIL=1` (every map fails), confirmed in the log, not just by a passing run.
+
+**Fix:** do the renegotiation from a loop event (`pw_loop_add_event`/`pw_loop_signal_event`), not inline in `process`; rebuild EnumFormat without the modifier offer; on the next `param_changed` with no modifier, replace any DmaBuf-only Buffers param. Map dmabufs once in `add_buffer`/unmap in `remove_buffer`, and treat an unmapped buffer as a failed read so a driver that refuses mmap also lands in the fallback.
+
+
+---
+
+## An SCStream output that points at the grabber with a raw pointer crashes on teardown: SCK callbacks outlive the grabber, and no documented stop barrier says otherwise
+Tags: input, mac, screencapturekit, lifetime, threading, crash
+Applies-when: an Objective-C stream/capture delegate calls back into a C++ object (PIMPL state, mutex, frame buffer) that a destructor frees
+
+`AuroraSCKStreamOutput` held `Impl*` (the grabber's state, including `frameMutex`) as a non-owning pointer, on the assumption that the grabber destructor's `stopStream` finished all callbacks first. It did not: switching Video to Audio destroys the grabber, and a sample callback still running (or queued) on `com.aurora.sck.output` then locked a freed mutex, `std::mutex::lock()` threw `system_error`, and the process aborted with SIGABRT (`Aurora-2026-10-04-*.ips`, three crashes, Aurora-eq7a). It reproduced on demand: about 125 rapid Video/Audio/pause switches, and the old build also died within two gentle (1s) switches or seconds after startup. Apple documents nothing about callbacks after `stopCapture`'s completion handler or about output/delegate lifetime, and SCStream holds outputs weakly on Sonoma and later, so the completion handler is not a barrier you can lean on (AVCaptureSession documents `stopRunning` as blocking until callbacks finish; SCStream documents no equivalent). `stopStream` also waits at most 5s and frees regardless. Permissions were not involved: the crash happened with Screen Recording granted and no permission change.
+
+**Fix:** give the callbacks shared ownership of the state they touch. `Impl` is `enable_shared_from_this`, the grabber holds `shared_ptr<Impl>`, the output holds a `shared_ptr<Impl>` attached before `addStreamOutput`, and each callback copies it to a local first. `Impl` holds `output`/`stream` strongly, a cycle that `stopStream` and `didStopWithError:` break by clearing them. Keep `didStopWithError:` alive with `objc_precise_lifetime` because clearing `impl->output` can drop the last strong ref to `self`. Verify with a rapid mode-switch loop against the real capture, not by reasoning about ordering: 3,000+ iterations clean after the fix.
+
+---
+
+## A fake bare D-Bus bus is not bare where portal .service files exist: activation resurrects the real service
+Tags: input, linux, dbus, portal, test-harness, activation, flaky-test
+Applies-when: a test spawns its own `dbus-daemon` as a "bus with no X" and the code under test creates proxies without `G_DBUS_PROXY_FLAGS_DO_NOT_AUTO_START`
+
+`PortalTokenTests`' `FakePortal(false)` starts a bare `dbus-daemon` to mean "no ScreenCast portal", but `ensureScreencastPortalProxy` builds its proxy with `G_DBUS_PROXY_FLAGS_NONE`, so the fake daemon activates the real `/usr/libexec/xdg-desktop-portal` (plus gnome/gtk backends) onto the fake bus -- three portal processes on `/tmp/dbus-XXX` seen live mid-run. The handshake then hangs to the 25s method timeout instead of settling false in the 3s bound (25.08s elapsed, 0% CPU), failing `REQUIRE(result.settled)`. It passes on boxes without the portal installed, which is why CI stayed green (Aurora-gtkd).
+
+**Fix (Aurora-gtkd, test-side, landed):** the bare bus writes a temp `dbus-daemon` config (same listen/auth/policy as the session default, but `<servicedir>` pointed at a nonexistent empty dir instead of `<standard_session_servicedirs />`) and launches with `--config-file=`; activation then fails fast with ServiceUnknown. Test #55 settles false in ~0.03s on a portal-installed box (was 25.08s). `mkstemp` footnote: the template must end in `XXXXXX` -- a `.conf` suffix appended after them makes it fail. The `DO_NOT_AUTO_START` alternative stays an owner decision, not taken -- it would change app behavior on portal-installed-but-not-running sessions. When a fake-bus test hangs near exactly 25s, suspect activation, and confirm with `ps` mid-run: a service attached to `/tmp/dbus-XXX` is the tell.
+
+---
+
+---
+
+## `CGPreflightScreenCaptureAccess` never sees a grant made while the process runs; and Aurora's Open Settings link can't add Aurora to the list
+Tags: macos, tcc, screen-recording, preflight, permissions
+Applies-when: trying to detect a Screen Recording grant without prompting, or deciding what a permission banner's buttons should do
+
+Live on macOS 27, `open`-launched ad-hoc `Aurora.app` (Aurora-cj11): after the grant the host reached `running` (capture worked) while a read-only route returning `CGPreflightScreenCaptureAccess()` kept answering `false`; a relaunch with the grant unchanged answered `true`. So preflight reports the state at process launch, not live (an Apple forum poster saw the same polling loop). Also: Aurora's "Open Screen Recording settings" deep link opens the pane but does not add Aurora to the list -- only macOS's own prompt, raised by a capture attempt, creates the entry. And a retry sent while the permission was still undecided (prompt unanswered) coincided with a second prompt, so a blind auto-retry on focus is unsafe.
+
+**Fix:** don't build a refocus gate on preflight. The banner is Retry-only: answer the macOS prompt (or toggle Aurora under Privacy & Security), press Retry; `PUT /api/state {running:true}` / `POST /api/reload` applies the grant live, quit+relaunch only as fallback. The preflight route was written, found stale, and removed. Untested: a fresh child process per check (would likely read current), and a `CGWindowListCopyWindowInfo` window-name heuristic (Chromium's pre-macOS-11 approach).
+
+**Follow-up (Aurora-tjoq, same setup, macOS 27.0.1):** the audio tap behaves the same way -- a System Audio Recording grant applies to the *running* app. `tccutil reset AudioCapture com.aurora.app` (succeeded: an entry existed), relaunch in Audio mode, `/api/mac/audio-status` read `permissionLikelyDenied:true`, Aurora turned on under System Audio Recording Only without quitting, audio played: the same process (same pid) read `false` within the first poll (flip not observed; with nothing playing it stays `true`, because the flag only clears on a non-zero sample). So the audio block needs no Retry and no re-probe; the Dashboard already polls the route, so it clears itself once sound arrives. Copy says that and keeps quit+reopen as a fallback. Not checked: the denied-with-audio-playing control, the Linux portal, a non-`open` launch. **Corrected by Aurora-h457 (see the entry below): the grant reaches a tap built after it, not one already running.**
+
+## `permission_denied:` does not mean the user clicked Don't Allow -- "never asked" and "denied" look the same
+Tags: macos, screen-recording, tcc, permission, banner, webui
+Applies-when: writing copy or choosing actions for a Screen Recording permission error, or relying on `PermissionErrorKind::Denied` / the `permission_denied:` prefix to mean a recorded decision
+
+`ScreenCaptureKitGrabber` throws `Denied` when `SCShareableContent` answers with zero displays, and `Pending` only when it does not answer within 5s. After `tccutil reset ScreenCapture com.aurora.app` (never asked) and after a real Don't Allow the host reports the same `permission_denied:` error (found live, Aurora-98pr: the owner saw the denied row before ever hitting Deny). The two states need different fixes: undecided, Retry raises the macOS prompt; decided, macOS never prompts again, so Retry does nothing visible and the Privacy & Security pane is the only way forward. A first cut keyed the banner on "denied = Don't Allow clicked" (Settings link plus "turn it on in System Settings"), which misled the never-asked user; `CGPreflightScreenCaptureAccess` does not split them either (false for both).
+
+**Fix:** one row for `permission_denied:` that covers both: Retry first, an "Open Settings" link (`Privacy_ScreenCapture`) second, copy "Allow it in the macOS prompt if one appears, or turn it on in System Settings, then Retry." `permission_pending:` stays Retry-only (an unanswered prompt is the fix). See `renderReloadError` in `web/ui/MacPermissionRecovery.js`; this supersedes the Retry-only banner in the Aurora-cj11 entry above. Confirmed live by the owner (2026-10-06): after `tccutil reset` then a real Don't Allow, Aurora is listed in the pane with its toggle off, so the link has something to turn on.
+
+## A System Audio Recording grant does not revive a tap built before it, and either audio or Screen Recording alone is enough
+Tags: macos, audio, tcc, permission, grabber, reload
+Applies-when: changing `MacAudioGrabber`, the `audio_permission` row, or any recovery that assumes a permission grant reaches a running capture
+
+Aurora-h457 live (macOS 27, `open`-launched `Aurora.app`, audio playing the whole time): a grabber built while the audio grant was off stayed silent after the grant, row and all, until the pipeline was rebuilt; a fresh grabber after the grant heard sound at once. The Aurora-tjoq follow-up ("applies live") held only because that check relaunched the process after the reset, and it never observed the flip. Separately, the tap is satisfied by either grant: Screen Recording on with the audio list off worked, the audio list on with Screen Recording off worked, and with neither the flag latched true about 10s after entering Audio with flat lights. Switching Video -> Audio after `tccutil reset AudioCapture` (Screen Recording on) entered Audio with no row. There is no build-time signal (`AudioDeviceStart` returns `noErr`, no public preflight), so the daemon cannot refuse Audio up front; the row is the failure.
+
+**Fix:** after a grant, rebuild the pipeline (`POST /api/reload`); the row's Retry does exactly that, and a reload clears every entry and restarts the 10s grace window, so with nothing playing the row returns 10s later (looks like a dead button). The row asks for "System Audio Recording Only", the least-privilege grant, and a Video user (already holding Screen Recording) never sees it. Not tested: explicit Don't Allow on the audio prompt with Screen Recording on.

@@ -9,15 +9,17 @@ Distilled from [huenicorn](https://gitlab.com/openjowelsofts/huenicorn)
 
 ## What's here
 
-- **`Registry`** — name → factory lookup for this binary's compiled-in
-  plugins. Tested (`tests/RegistryTests.cpp`) against fake input/output
-  fixtures.
+- **`Registry`** lives in `core/Runtime` (shared by all three apps);
+  `main.cpp` fills it with this binary's compiled-in plugins.
 - **`main.cpp`** — registers whichever plugins this build was compiled with
   (`AURORA_APP_ENABLE_LINUX_INPUT`/`_HUE_OUTPUT`), picks which of them to
   actually run from `Config::activeInputName()`/`activeOutputNames()` (or
-  sensible defaults if unconfigured), and drives `Orchestrator::update()`
-  in a real timed loop until `Ctrl+C`. Not unit-tested — real display,
+  sensible defaults if unconfigured), hands the built `Pipeline` to
+  core's `PipelineHost` (shared with the other apps), and ticks it in a real
+  timed loop until `Ctrl+C`. Not unit-tested — real display,
   real bridge, real threading, same category as `X11Grabber`/`Streamer`.
+- Tray (SNI): Launch UI / Pause-Resume / Stop; the Pause slot reads See Error
+  when the pipeline failed.
 - Pairing, zone mapping, and settings are done in the WebUI
   (`SettingsRoutes`/`ZoneRoutes`/`PairingRoutes`), not here.
 
@@ -43,3 +45,7 @@ AURORA_HUE_BRIDGE_ADDRESS=... AURORA_HUE_USERNAME=... AURORA_HUE_CLIENTKEY=... .
 
 Append `--fresh` to rehearse first-run flows (NUX, pairing) against a
 guaranteed-empty temp config root instead of your real one.
+
+`Aurora --help` prints usage and exits; `--version` prints the version and
+exits. Any other unrecognized flag prints usage with an error and exits
+non-zero instead of booting.

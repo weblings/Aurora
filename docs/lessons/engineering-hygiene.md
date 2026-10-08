@@ -1,5 +1,7 @@
 # Engineering hygiene (split)
 
+Id: lesson-engineering-hygiene
+
 Split by query coherence — see [README.md](README.md) for the index:
 
 - [build-toolchain.md](build-toolchain.md) — CMake, vcpkg, compilers, WSL2, dev deps.

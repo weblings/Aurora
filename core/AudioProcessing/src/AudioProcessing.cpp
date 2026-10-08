@@ -86,6 +86,13 @@ namespace Aurora::Processing
       float dt
     )
     {
+      // NaN + x and fmod(NaN) stay NaN, so one bad tick would otherwise
+      // poison the anchor for the rest of the session (Aurora-5y0) --
+      // re-initialize instead, same as a cold start.
+      if(state.initialized && !(std::isfinite(state.anchorHueDegrees) && std::isfinite(state.rollingCentroid))){
+        state = DriftState{};
+      }
+
       if(!state.initialized){
         state.anchorHueDegrees = wrapDegrees(settings.fixedAnchorHue.value_or(randomAnchorHue()));
         state.rollingCentroid = features.spectralCentroid;
@@ -100,7 +107,10 @@ namespace Aurora::Processing
       state.rollingCentroid += (features.spectralCentroid - state.rollingCentroid) * rollingAlpha;
 
       float centroidDelta = features.spectralCentroid - state.rollingCentroid;
-      float normalizedCentroidDelta = std::clamp(centroidDelta / settings.centroidRangeHz, -1.0f, 1.0f);
+      // Guarded like referenceRms below: Config clamps the setter, but a
+      // hand-edited config.json or a direct caller can still pass 0.
+      float centroidRangeHz = std::max(settings.centroidRangeHz, 1.0f);
+      float normalizedCentroidDelta = std::clamp(centroidDelta / centroidRangeHz, -1.0f, 1.0f);
 
       // Rate-bias, not offset-bias: never reverses direction, only
       // speeds/slows it -- preserves the fixed-opposite-directions property
@@ -128,6 +138,14 @@ namespace Aurora::Processing
         settings.brightnessFloor,
         1.0f
       );
+
+      // Same self-heal as updateDrift: a non-finite field would otherwise
+      // stick for the session (Aurora-5y0).
+      if(state.initialized && !(std::isfinite(state.currentHueDegrees)
+          && std::isfinite(state.targetHueDegrees)
+          && std::isfinite(state.smoothedBrightnessFactor))){
+        state = BounceState{};
+      }
 
       if(!state.initialized){
         state.currentHueDegrees = driftState.anchorHueDegrees;

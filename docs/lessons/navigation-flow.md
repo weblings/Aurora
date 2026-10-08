@@ -1,5 +1,7 @@
 # Navigation flow
 
+Id: lesson-navigation-flow
+
 Back/Continue, gating, races, interaction models, NUX crossings. See [README.md](README.md) for filing rules.
 
 ---
@@ -257,3 +259,83 @@ Applies-when: awaiting an in-flight save across a user gesture
 `_onContinue()` correctly awaits the live-apply promise before navigating (the race entry above), but a mode switch rebuilds the pipeline server-side -- measured at 4.5s -- with zero UI feedback. After rapid video->audio->video toggles the user clicked Continue, nothing visibly happened for seconds, and reported it broken; the daemon was healthy throughout and refresh recovered fine. The earlier race fix made the wait correct and left it invisible.
 
 **Fix:** disable Continue with an "Applying..." label while the apply is in flight (restore on settle). General principle: any await crossing a user gesture needs visible busy state, or slowness is indistinguishable from broken.
+
+---
+
+## Both dev bridges available for NUX testing auto-pair in under the time it takes to kill and restart the app, defeating attempts to catch a screen mid-pairing
+Tags: webui, nux, fake-hue, devstack, testing
+Applies-when: trying to hold the app on `output-connect` (or any auto-advancing pairing/discovery screen) to test a mid-step crash/recovery
+
+Verifying ewyz's `recover('output-connect')` carve-out (app.js -- the one
+route that resumes in place instead of restarting the onboarding chain at
+Welcome) needs the app parked on "Connect to your Hue Bridge" long enough to
+kill and restart it there. Both available bridges defeat this: `--fake-hue`
+(FakeHue.hpp) preset `AURORA_HUE_USERNAME`/`CLIENTKEY`/`ENTERTAINMENT_CONFIG_ID`
+as env defaults that main.cpp reads on *every* launch (not just `--fresh`),
+so the connection reads as already-configured before the screen can even be
+screenshotted -- confirmed by two separate headless-CDP runs that raced past
+`output-connect` into `output-select` within the ~2s settle window regardless
+of the fake bridge's own `--link-button` state. A real physical Hue bridge on
+the LAN (reachable because neither `--fake-hue` nor `AURORA_DEV_FAKE_HUE` was
+set) auto-paired just as fast without a button press, for reasons that were
+never pinned down (likely a still-open post-press window or a bridge-side
+remembered whitelist entry surviving the local `--fresh` wipe, which only
+clears local state, not the bridge's own memory).
+
+**Fix direction (untried):** set `AURORA_DEV_FAKE_HUE=1` alone, without
+`--fake-hue` and without the `AURORA_HUE_*` credential presets, and start
+`fake_bridge.py --link-button not-pressed` -- that combination should route
+discovery to the fake bridge while forcing the real `/api/hue/register` path
+(PairingRoutes.cpp) through the bridge's own link-button check, genuinely
+stalling the screen on "Press the button on your bridge" until
+`PUT /dev/link-button {"pressed": true}` is called. Not exercised this pass;
+flagged on Aurora-ewyz instead of spending further session time chasing it
+given the carve-out's narrow blast radius (one extra click back to Welcome,
+only for a brand-new user whose daemon dies mid-pairing). General principle:
+a dev-mode auto-pairing shortcut built for fast iteration is directly at odds
+with testing the one screen whose whole purpose is to be slow and
+interruptible -- the shortcut has to be deliberately disabled, not just
+"the fake path," to reproduce that screen's stuck states.
+
+---
+
+---
+
+## A fixed step order can make an open "which steps gate this" question collapse into state the shell already tracks, with no new flag to thread through
+Tags: webui, nux, gating, shell
+Applies-when: implementing a gate described as "before step X" in a multi-stage onboarding flow
+
+Aurora-cj11's banner needed to hide a `'reload'`-source build error while
+onboarding "hasn't reached the point of pairing an output" (ErrorOverlay.md's
+own wording, left as an open question: "which NUX steps gate the mid-onboarding
+reload error, confirmed when building cj11"). The naive reading suggested
+threading a new `onboardingGate`-style flag from `app.js`'s own stage-walk
+(`goToOutputSelectStage`/`goToModeDeviceStage`/...) down into `shell.js`,
+which owns the banner but has no view into onboarding progress. Reasoning
+through the actual failure instead: the `'reload'` error can only fire once
+`PUT /api/config` tries to build with an input saved and no output paired, and
+the fixed onboarding order (`output connect -> output select -> Mode+Device`)
+means that for any output this build knows how to onboard, reaching
+Mode+Device at all already implies the output was paired first. So "before
+the pairing step" and "any route other than `dashboard`" are the same
+condition for every real flow -- and `currentRouteId` was already tracked by
+the shell (`App.navigate`) for the connection watcher (Aurora-ewyz), needing
+no new state or cross-module wiring at all.
+
+**Fix:** gated on `currentRouteId !== 'dashboard'` in `shell.js` directly. (Aurora-scig narrowed this: Mode+Device is already past pairing, so a capture-permission failure there is a real `reload` error. The gate is now `!RELOAD_ERROR_ROUTES.has(route)` with `mode-device`, `zone-mapping` and `dashboard` in the set; the pairing routes still hide it.)
+General principle: before threading a new flag across a module boundary to
+implement a gate stated as "before step X happens," check whether the flow's
+own fixed ordering already makes "before step X" logically equivalent to
+some condition a nearby module already tracks for an unrelated reason -- a
+sequencing guarantee elsewhere in the same flow can retire an entire
+plumbing problem instead of solving it.
+
+---
+
+## The shell banner reads state only one screen sets, so an earlier NUX screen silently gets the generic row
+Tags: webui, nux, shell, banner, platform, app-state
+Applies-when: the shell banner (or any shell-level renderer) branches on a value like `app.platform`, and a screen reached before the Dashboard can raise that error
+
+`GET /api/state` carries no platform, so the banner's Mac-permission row keys on `app.platform === 'mac'`, which only `DashboardScreen` set. On Capture Source in the NUX it was never set, so a Screen Recording failure fell through to the generic row: "Couldn't apply settings: permission_denied: ScreenCaptureKitGrabber: no shareable displays -- ... (System Settings -> ...)" with only Retry. Dashboard looked right, so the bug was invisible until someone walked the NUX with the permission denied (Aurora-scig).
+
+**Fix:** `ModeDeviceScreen.mount` sets `app.platform` as soon as it reads `/api/capabilities`, as Dashboard does, with a mount test. The cleaner fix is the shell reading the platform itself once; until then, any screen that can precede a banner error must set it. When a banner row looks "old" on one screen and right on another, compare what each screen puts on `app` before comparing copy.

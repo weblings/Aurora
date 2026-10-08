@@ -8,12 +8,13 @@ macOS has one capture API.
 
 Support statement (supported macOS/hardware): see the root
 [README](../../README.md#quick-start). Design and history: [[mac-video-capture]],
-[[mac-audio]], [[mac-permissions]], [[mac-tray-parity]], [[mac-notarization]].
+[[mac-audio]], [[mac-permissions]], [[h457-audio-permission-banner-row]], [[mac-tray-parity]], [[mac-notarization]].
 
 ## What it is
 
 - **`Aurora.app`**, an `LSUIElement` menu-bar agent: an `NSStatusItem` with
-  Launch UI / Stop (`TrayIcon.mm`), no Dock icon. A second launch reopens the
+  Launch UI / Pause-Resume / Stop (`TrayIcon.mm`; the Pause slot reads See
+  Error when the pipeline failed), no Dock icon. A second launch reopens the
   browser (`InstanceLock`) instead of starting another instance. The `.app`
   bundle exists so Aurora holds its own Screen Recording grant instead of
   Terminal's.
@@ -30,6 +31,9 @@ Support statement (supported macOS/hardware): see the root
 - Flags: `--fresh` rehearses first-run flows (NUX, pairing) against a cleared
   temp config root (`$TMPDIR/aurora-fresh`); `--fake-hue` presets the fake
   bridge from [tools/fake-hue-bridge](../../tools/fake-hue-bridge).
+  `--help` prints usage and exits; `--version` prints the version and exits;
+  any other unrecognized flag errors with usage and a non-zero exit instead
+  of booting.
 
 ## Building
 

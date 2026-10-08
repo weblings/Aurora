@@ -55,7 +55,10 @@ set(HTTPLIB_INSTALL OFF CACHE BOOL "" FORCE)
 # No TLS feature enabled here -- plain HTTP only, for now (see that doc's
 # note on the vendored vcpkg port's httplib features not including mbedtls,
 # unlike the raw header itself; revisit when phase 4's HTTPS need is real).
-find_package(httplib QUIET)
+# Version floor: 0.46 is the first release with httplib::ws::WebSocketClient
+# (Home Assistant output). An older system copy is ignored and the fetched
+# one is used instead.
+find_package(httplib 0.46 QUIET)
 if(NOT httplib_FOUND)
   message(STATUS "httplib is not installed. Now fetching online...")
   FetchContent_Declare(
@@ -71,6 +74,9 @@ endif()
 # Network has no internal-module dependency, so it can be added anywhere --
 # kept first since nothing else here depends on it either.
 add_subdirectory(Network)
+
+# Secrets likewise has no internal-module dependency (Aurora-2dz).
+add_subdirectory(Secrets)
 
 # Contracts first (no internal deps), then Processing (depends on Contracts).
 add_subdirectory(Contracts)

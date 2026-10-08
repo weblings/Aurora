@@ -217,3 +217,75 @@ TEST_CASE("AudioOrchestrator::updateZone returns false for an unknown output or 
   CHECK_FALSE(orchestrator.updateZone("not-a-real-output", 1, std::nullopt, true, std::nullopt));
   CHECK_FALSE(orchestrator.updateZone("fake", 99, std::nullopt, true, std::nullopt));
 }
+
+
+TEST_CASE("AudioOrchestrator::setSettings changes the next tick's color without re-init (Aurora-c0g)", "[AudioOrchestrator]")
+{
+  ScopedTempDir dir("set-settings");
+  FakeAudioInput input;
+  FakeOutput output("fake", {1});
+
+  Aurora::Processing::AudioProcessing::AudioEffectSettings settings;
+  settings.fixedAnchorHue = 120.f;
+  AudioOrchestrator orchestrator(input, {&output}, ZoneMapStore(dir.path), settings);
+  orchestrator.init();
+
+  orchestrator.update(1.0f / 60);
+  REQUIRE(output.sendCount == 1);
+  const Color before = output.lastFrame[0].color;
+  CHECK(before == Color::fromHSV(120.f, settings.vibrancySaturation, settings.vibrancyValue));
+
+  settings.vibrancyValue = 0.5f;
+  orchestrator.setSettings(settings);
+  orchestrator.update(1.0f / 60);
+
+  REQUIRE(output.sendCount == 2);
+  CHECK(output.lastFrame[0].color != before);
+  // Same hue, lower value: the anchor was not re-seeded.
+  CHECK(output.lastFrame[0].color == Color::fromHSV(120.f, settings.vibrancySaturation, 0.5f));
+}
+
+
+TEST_CASE("AudioOrchestrator::setSettings snaps to a newly chosen fixed hue (Aurora-c0g)", "[AudioOrchestrator]")
+{
+  ScopedTempDir dir("set-settings-anchor");
+  FakeAudioInput input;
+  FakeOutput output("fake", {1});
+
+  Aurora::Processing::AudioProcessing::AudioEffectSettings settings;
+  settings.fixedAnchorHue = 120.f;
+  AudioOrchestrator orchestrator(input, {&output}, ZoneMapStore(dir.path), settings);
+  orchestrator.init();
+  orchestrator.update(1.0f / 60);
+  orchestrator.update(1.0f / 60);
+
+  // fixedAnchorHue only seeds drift state at cold start, so a plain struct
+  // swap would leave the color at 120.
+  settings.fixedAnchorHue = 240.f;
+  orchestrator.setSettings(settings);
+  orchestrator.update(1.0f / 60);
+
+  CHECK(output.lastFrame[0].color == Color::fromHSV(240.f, settings.vibrancySaturation, settings.vibrancyValue));
+}
+
+
+TEST_CASE("AudioOrchestrator::setSettings keeps the current anchor when the fixed hue is cleared (Aurora-c0g)", "[AudioOrchestrator]")
+{
+  ScopedTempDir dir("set-settings-clear");
+  FakeAudioInput input;
+  FakeOutput output("fake", {1});
+
+  Aurora::Processing::AudioProcessing::AudioEffectSettings settings;
+  settings.fixedAnchorHue = 120.f;
+  AudioOrchestrator orchestrator(input, {&output}, ZoneMapStore(dir.path), settings);
+  orchestrator.init();
+  orchestrator.update(1.0f / 60);
+
+  // A reset here would re-seed from a random pair (and so usually move off
+  // 120); clearing the pin must leave the running color alone.
+  settings.fixedAnchorHue.reset();
+  orchestrator.setSettings(settings);
+  orchestrator.update(1.0f / 60);
+
+  CHECK(output.lastFrame[0].color == Color::fromHSV(120.f, settings.vibrancySaturation, settings.vibrancyValue));
+}

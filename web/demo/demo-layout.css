@@ -58,6 +58,10 @@ html, body {
 
 #dashboard-pane {
   overflow-y: auto;
+  /* The horizontal clip lives here, at the visible pane edge, like the app's
+     body clip at the window edge. On .db-port it cut the top bar's and pills'
+     21px overhang 5px short of the pane (Aurora-4jk4). */
+  overflow-x: hidden;
   overscroll-behavior: contain;
   min-width: 0;
   min-height: 0;
@@ -70,10 +74,32 @@ html, body {
   box-sizing: border-box;
   /* The Dashboard section renders the aurora background full-bleed, with
      breathing room between the page/pane edges and the UI column. The
-     accordion pills' 21px overhang still clips at the pane edge via
-     .db-port's own overflow-x rule. */
+     21px overhang of the accordion pills and top bar fits inside this
+     padding plus the container's 16px gutter. */
   background: var(--aurora-bg, #0a0a0a);
   padding: 12px 16px 24px;
+}
+
+/* Dashboard port scope (Vendor 2 shell-css-scope, demo-owned -- not
+   vendored): the .db-port equivalents of web/ui's page-only rules
+   (styles/page.css), which the app loads document-wide but the demo must
+   not leak onto its scene page. The html scrollbar rule is intentionally
+   not ported -- #dashboard-pane above owns its own scroll container, and
+   the body rule's overflow-x clip moved there too (Aurora-4jk4): .db-port
+   is #screen-container itself, so clipping here cut the 21px overhang. */
+/* :where() keeps the reset at zero specificity, like web/ui's bare * --
+   this file loads last, so a plain .db-port * would beat every component
+   class rule and zero its padding (Aurora-jwt7). */
+:where(.db-port) * {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+.db-port {
+  background: var(--aurora-bg);
+  color: var(--aurora-text-primary);
+  font-family: var(--aurora-font);
 }
 
 /* Demo scope reductions: no bridge-setup flow exists on a static page, so

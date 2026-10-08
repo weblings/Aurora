@@ -15,10 +15,11 @@
 // config (zones, channel light names) and calls load()+mount() again as
 // part of that.
 import { Dropdown } from './Dropdown.js';
+import { DAEMON_UNREACHABLE } from './messages.js';
 
 export class EntertainmentConfigSelect {
-  // onChange(configId) fires after a successful switch is persisted.
-  // onError(message) fires on a failed switch; the caller decides how/where
+  // onChange(configId, { reloadError }) fires after a successful switch is persisted.
+  // onError(message) fires on a rejected switch (never for a reloadError); the caller decides how/where
   // to show it (this component renders no error text of its own).
   constructor({ onChange, onError } = {}) {
     this.onChange = onChange;
@@ -114,10 +115,10 @@ export class EntertainmentConfigSelect {
       this.onError?.(persisted.error);
       return;
     }
-    if (persisted.reloadError) {
-      this.onError?.(`Saved, but the running output couldn't reload: ${persisted.reloadError}`);
-    }
-    this.onChange?.(entertainmentConfigurationId);
+    // Saved but the running output couldn't reload: not an error of this
+    // switch. The daemon holds it and the shell banner shows it (Aurora-98pr);
+    // callers get it through onChange and decide whether to say more.
+    this.onChange?.(entertainmentConfigurationId, { reloadError: persisted.reloadError });
   }
 
   // Raw POST, shared by _select() (a user-driven switch, which also fires
@@ -132,7 +133,7 @@ export class EntertainmentConfigSelect {
       if (!result.succeeded) return { succeeded: false, error: "Couldn't switch entertainment configuration." };
       return { succeeded: true, reloadError: result.reloadError };
     } catch {
-      return { succeeded: false, error: "Couldn't reach the daemon." };
+      return { succeeded: false, error: DAEMON_UNREACHABLE };
     }
   }
 

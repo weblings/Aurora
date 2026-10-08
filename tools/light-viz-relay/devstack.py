@@ -32,6 +32,10 @@ DEFAULT_APP = {
 }.get(sys.platform, REPO / "build/linux-app/bin/Aurora")
 
 
+# Real capture input per platform; "dummy" is the synthetic drifting signal.
+LIVE_INPUT = {"win32": "windows", "darwin": "mac"}.get(sys.platform, "linux")
+
+
 def py():
     return ["py"] if WIN and shutil.which("py") else [sys.executable]
 
@@ -107,6 +111,12 @@ def serve_viz(port):
     class H(SimpleHTTPRequestHandler):
         protocol_version = "HTTP/1.1"
 
+        # no-store: a cached ES module beside a fresh importer breaks the page
+        # after an edit (Aurora-57ct, web-testing caching lesson).
+        def end_headers(self):
+            self.send_header("Cache-Control", "no-store")
+            super().end_headers()
+
     S(("127.0.0.1", port), functools.partial(H, directory=str(REPO / "web/demo"))).serve_forever()
 
 
@@ -140,6 +150,10 @@ def _start(args, app, env, pids):
     wait_for(lambda: port_open(18443) and port_open(18245), "bridge + relay")
     pids["viz"] = spawn("viz", py() + [str(Path(__file__).resolve()), "_serve", str(args.viz_port)], env)
     aenv = dict(env, AURORA_DEV_LIGHT_TAP="1")
+    if args.banner_errors:
+        # Presence-only, same convention as AURORA_DEV_LIGHT_TAP: enables
+        # the dev-only /api/dev/errors routes in the app.
+        aenv["AURORA_DEV_ERRORS"] = "1"
     pids["app"] = spawn("app", [str(app), "--fake-hue", "--fresh"], aenv)
     STATE_FILE.write_text(json.dumps(pids))
     port = wait_for(find_webui, "the app's WebUI port (8215+)")
@@ -149,12 +163,22 @@ def _start(args, app, env, pids):
     shutil.copy(REPO / "tools/fake-hue-bridge/room-4zone-zonemap.json", root / "profiles/hue.json")
     # Pairing via REST instead of the WebUI. Note PUT (not POST) for /api/config.
     base = f"http://127.0.0.1:{port}"
-    http("POST", base + "/api/hue/connection", CONNECTION)
+    # Both calls below run a pipeline reload before they respond (up to ~10s on a slow box).
+    http("POST", base + "/api/hue/connection", CONNECTION, timeout=30)
     cfg = {"activeOutputNames": ["hue"], "nuxCompleted": True}
-    cfg["activeInputName"] = "windows" if WIN else "dummy"
-    http("PUT", base + "/api/config", cfg)
-    frame = wait_for(one_frame, "a frame on the relay SSE", 40)
+    cfg["activeInputName"] = args.input if args.input != "live" else LIVE_INPUT
+    # Live capture can block on a permission/portal dialog; allow time to accept it.
+    live = args.input == "live"
+    http("PUT", base + "/api/config", cfg, timeout=120 if live else 30)
+    frame = wait_for(one_frame, "a frame on the relay SSE", 120 if live else 40)
+    for i in range(args.banner_errors):
+        http("POST", base + "/api/dev/errors", {
+            "source": f"dev-{i + 1}",
+            "message": f"simulated banner error {i + 1} (devstack --banner-errors)",
+        }, timeout=10)
     print(f"UP. WebUI {base}/  viz http://localhost:{args.viz_port}/viz.html")
+    if args.banner_errors:
+        print(f"banner: injected {args.banner_errors} dev error(s); the Dashboard shows 1 row, or a 'N problems' summary for 2")
     print(f"first frame: {frame}")
     print(f"logs: {STATE}")
 
@@ -186,6 +210,10 @@ if __name__ == "__main__":
     u = sub.add_parser("up")
     u.add_argument("--app")
     u.add_argument("--viz-port", type=int, default=8000)
+    u.add_argument("--banner-errors", type=int, default=0, choices=[0, 1, 2],
+                   help="inject 1 or 2 generic banner errors once up (dev-only /api/dev/errors, host keeps running)")
+    u.add_argument("--input", default="live",
+                   help='"live" (default): this platform\'s real capture; "dummy": synthetic signal')
     sub.add_parser("status")
     sub.add_parser("down")
     a = ap.parse_args()

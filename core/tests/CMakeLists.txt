@@ -20,6 +20,7 @@ endif()
 
 add_executable(AuroraNetworkTests
   NetworkTests.cpp
+  WebSocketSmokeTests.cpp
 )
 
 target_link_libraries(AuroraNetworkTests PRIVATE
@@ -52,8 +53,22 @@ target_link_libraries(AuroraControlDescriptorTests PRIVATE
 
 target_compile_features(AuroraControlDescriptorTests PUBLIC cxx_std_20)
 
+# Aurora-2dz. The [real] keyring case is hidden; run it explicitly with
+# `AuroraSecretsTests "[real]"`.
+add_executable(AuroraSecretsTests
+  SecretStoreTests.cpp
+)
+
+target_link_libraries(AuroraSecretsTests PRIVATE
+  AuroraSecrets
+  Catch2::Catch2WithMain
+)
+
+target_compile_features(AuroraSecretsTests PUBLIC cxx_std_20)
+
 add_executable(AuroraRuntimeTests
   RuntimeTests.cpp
+  RegistryTests.cpp
 )
 
 target_link_libraries(AuroraRuntimeTests PRIVATE
@@ -62,6 +77,19 @@ target_link_libraries(AuroraRuntimeTests PRIVATE
 )
 
 target_compile_features(AuroraRuntimeTests PUBLIC cxx_std_20)
+
+add_executable(AuroraPipelineTests
+  PipelineTests.cpp
+  TrayLabelTests.cpp
+)
+
+target_link_libraries(AuroraPipelineTests PRIVATE
+  AuroraRuntime
+  httplib::httplib
+  Catch2::Catch2WithMain
+)
+
+target_compile_features(AuroraPipelineTests PUBLIC cxx_std_20)
 
 add_executable(AuroraOrchestratorTests
   OrchestratorTests.cpp
@@ -84,6 +112,23 @@ target_link_libraries(AuroraDevFrameDumpTests PRIVATE
 )
 
 target_compile_features(AuroraDevFrameDumpTests PUBLIC cxx_std_20)
+
+# Golden parity harness (Aurora-tft) -- fixtures live in the source tree so
+# AURORA_UPDATE_GOLDEN=1 rewrites the committed files in place.
+set(AURORA_GOLDEN_DIR "${CMAKE_CURRENT_SOURCE_DIR}/golden")
+
+add_executable(AuroraVideoParityTests
+  VideoParityTests.cpp
+)
+
+target_link_libraries(AuroraVideoParityTests PRIVATE
+  AuroraRuntime
+  nlohmann_json::nlohmann_json
+  Catch2::Catch2WithMain
+)
+
+target_compile_definitions(AuroraVideoParityTests PRIVATE AURORA_GOLDEN_DIR="${AURORA_GOLDEN_DIR}")
+target_compile_features(AuroraVideoParityTests PUBLIC cxx_std_20)
 
 # All three gated on AURORA_CORE_ENABLE_AUDIO -- AuroraAudioProcessing
 # (and the aubio it requires) may not exist in a video-only build.
@@ -120,6 +165,50 @@ if(TARGET AuroraAudioProcessing)
   )
 
   target_compile_features(AuroraAudioFeatureExtractorTests PUBLIC cxx_std_20)
+
+  add_executable(AuroraAudioParityTests
+    AudioParityTests.cpp
+  )
+
+  target_link_libraries(AuroraAudioParityTests PRIVATE
+    AuroraRuntime
+    nlohmann_json::nlohmann_json
+    Catch2::Catch2WithMain
+  )
+
+  target_compile_definitions(AuroraAudioParityTests PRIVATE AURORA_GOLDEN_DIR="${AURORA_GOLDEN_DIR}")
+  target_compile_features(AuroraAudioParityTests PUBLIC cxx_std_20)
+endif()
+
+# Aurora-lzj: round-trip embed_webroot.py over a generated webroot, including a
+# 400 KB file past MSVC's believed ~64 KB concatenated-literal cap. Python is
+# already required by every app's webroot embed; skipped without it here.
+find_package(Python3 COMPONENTS Interpreter)
+if(Python3_FOUND)
+  set(_AURORA_EMBED_FIXTURE_DIR "${CMAKE_CURRENT_BINARY_DIR}/embed-fixture")
+  set(_AURORA_EMBED_FIXTURE_HEADER "${CMAKE_CURRENT_BINARY_DIR}/EmbedFixture.hpp")
+  set(_AURORA_EMBED_SCRIPT "${CMAKE_CURRENT_SOURCE_DIR}/../Network/tools/embed_webroot.py")
+
+  add_custom_command(
+    OUTPUT "${_AURORA_EMBED_FIXTURE_HEADER}"
+    COMMAND Python3::Interpreter "${CMAKE_CURRENT_SOURCE_DIR}/make_embed_fixture.py" "${_AURORA_EMBED_FIXTURE_DIR}"
+    COMMAND Python3::Interpreter "${_AURORA_EMBED_SCRIPT}" "${_AURORA_EMBED_FIXTURE_DIR}" "${_AURORA_EMBED_FIXTURE_HEADER}" EmbedFixture
+    DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/make_embed_fixture.py" "${_AURORA_EMBED_SCRIPT}"
+    COMMENT "Generating and embedding the embed_webroot.py round-trip fixture"
+    VERBATIM
+  )
+
+  add_executable(AuroraEmbedWebrootTests
+    EmbedWebrootTests.cpp
+    "${_AURORA_EMBED_FIXTURE_HEADER}"
+  )
+
+  target_include_directories(AuroraEmbedWebrootTests PRIVATE "${CMAKE_CURRENT_BINARY_DIR}")
+  target_link_libraries(AuroraEmbedWebrootTests PRIVATE Catch2::Catch2WithMain)
+  target_compile_definitions(AuroraEmbedWebrootTests PRIVATE AURORA_EMBED_FIXTURE_DIR="${_AURORA_EMBED_FIXTURE_DIR}")
+  target_compile_features(AuroraEmbedWebrootTests PUBLIC cxx_std_20)
+else()
+  message(STATUS "Python3 not found -- skipping AuroraEmbedWebrootTests")
 endif()
 
 # enable_testing() lives in the parent CMakeLists.txt now, not here -- see
@@ -128,11 +217,18 @@ include(Catch)
 catch_discover_tests(AuroraNetworkTests)
 catch_discover_tests(AuroraProcessingTests)
 catch_discover_tests(AuroraControlDescriptorTests)
+catch_discover_tests(AuroraSecretsTests)
 catch_discover_tests(AuroraRuntimeTests)
 catch_discover_tests(AuroraOrchestratorTests)
+catch_discover_tests(AuroraPipelineTests)
 catch_discover_tests(AuroraDevFrameDumpTests)
+catch_discover_tests(AuroraVideoParityTests)
+if(TARGET AuroraEmbedWebrootTests)
+  catch_discover_tests(AuroraEmbedWebrootTests)
+endif()
 if(TARGET AuroraAudioProcessing)
   catch_discover_tests(AuroraAudioProcessingTests)
   catch_discover_tests(AuroraAudioOrchestratorTests)
   catch_discover_tests(AuroraAudioFeatureExtractorTests)
+  catch_discover_tests(AuroraAudioParityTests)
 endif()

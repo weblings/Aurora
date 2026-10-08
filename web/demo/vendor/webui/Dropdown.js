@@ -19,6 +19,12 @@
 // label, this owns open/closed state and the menu's DOM.
 import { applyTooltip } from './Tooltips.js';
 
+// Module-relative artwork URLs: the same file works from any mount (app
+// webroot, embedded webroot, demo vendor dir) since resolution anchors on
+// this module, not the page URL.
+const CHEVRON_DOWN_URL = new URL('./icons/chevron-down.svg', import.meta.url).href;
+const CHEVRON_UP_URL = new URL('./icons/chevron-up.svg', import.meta.url).href;
+
 let _nextId = 0;
 
 export class Dropdown {
@@ -61,9 +67,7 @@ export class Dropdown {
     // Single <img> with its src swapped on open/close, RockyRoad's own
     // up/down SVGs (Dropdown.ts) recolored to currentColor -- one element
     // instead of its two-image show/hide, same visual result.
-    // DEMO SEAM icon-paths (see MANIFEST.json): page-relative icons/ does not
-    // exist in the demo; vendored assets live under vendor/webui/icons/.
-    this.chevron.src = 'vendor/webui/icons/chevron-down.svg';
+    this.chevron.src = CHEVRON_DOWN_URL;
 
     this.trigger.append(this.labelEl, this.chevron);
 
@@ -138,7 +142,7 @@ export class Dropdown {
     this._open = true;
     this.root.classList.add('open');
     this.trigger.setAttribute('aria-expanded', 'true');
-    this.chevron.src = 'vendor/webui/icons/chevron-up.svg';
+    this.chevron.src = CHEVRON_UP_URL;
     const selectedIndex = this._options.findIndex((o) => o.selected);
     this._setActiveIndex(selectedIndex !== -1 ? selectedIndex : 0);
     this.menu.focus();
@@ -149,7 +153,7 @@ export class Dropdown {
     this._open = false;
     this.root.classList.remove('open');
     this.trigger.setAttribute('aria-expanded', 'false');
-    this.chevron.src = 'vendor/webui/icons/chevron-down.svg';
+    this.chevron.src = CHEVRON_DOWN_URL;
   }
 
   setTriggerLabel(text) {

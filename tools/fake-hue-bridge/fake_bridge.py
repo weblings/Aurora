@@ -12,6 +12,7 @@ entertainment stream on UDP 2100 (tier 2) is not emulated.
 
 Usage:
     python3 fake_bridge.py [--port 18443] [--link-button pressed|not-pressed]
+                           [--stall-light LIGHT_ID [--stall-seconds 3]]
 """
 
 import argparse
@@ -19,6 +20,7 @@ import json
 import ssl
 import subprocess
 import sys
+import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
@@ -96,6 +98,9 @@ class Handler(BaseHTTPRequestHandler):
                 conf_id, self.server.stream_status[conf_id]))
         elif route.startswith("/clip/v2/resource/light/"):
             light_id = route.rsplit("/", 1)[-1]
+            if light_id in cfg["stall_lights"]:
+                # Fault injection: outlast the client's timeout (huenicorn's curl uses 1s)
+                time.sleep(cfg["stall_seconds"])
             device = next((d for d in fixtures.DEVICES
                            if d["light_id"] == light_id), None)
             if device is None:
@@ -161,6 +166,10 @@ def main():
     parser.add_argument("--link-button", choices=("pressed", "not-pressed"),
                         default="pressed",
                         help="simulate the bridge link-button state for POST /api")
+    parser.add_argument("--stall-light", action="append", default=[], metavar="LIGHT_ID",
+                        help="delay GET /clip/v2/resource/light/LIGHT_ID (repeatable)")
+    parser.add_argument("--stall-seconds", type=float, default=3.0,
+                        help="how long a stalled light request hangs (default 3)")
     args = parser.parse_args()
 
     ensure_cert()
@@ -168,7 +177,9 @@ def main():
     server = ThreadingHTTPServer(("127.0.0.1", args.port), Handler)
     server.fake_config = {"username": args.username,
                           "clientkey": args.clientkey,
-                          "link_button": args.link_button}
+                          "link_button": args.link_button,
+                          "stall_lights": set(args.stall_light),
+                          "stall_seconds": args.stall_seconds}
     server.stream_status = {c["id"]: "inactive" for c in fixtures.CONFIGS}
 
     context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)

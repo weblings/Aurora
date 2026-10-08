@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <fstream>
+#include <mutex>
 
 #include <nlohmann/json.hpp>
 
@@ -10,6 +11,15 @@ namespace Aurora::Runtime
   namespace
   {
     using Json = nlohmann::json;
+
+    // One lock for every ConfigStore in the process: there is one config root
+    // per process, and tests that use several only pay a negligible wait.
+    std::mutex& _fileMutex()
+    {
+      static std::mutex s_mutex;
+      return s_mutex;
+    }
+
 
     Json toJson(const ConfigData& data)
     {
@@ -93,6 +103,31 @@ namespace Aurora::Runtime
 
   Config ConfigStore::load() const
   {
+    std::lock_guard<std::mutex> lock(_fileMutex());
+    return _loadLocked();
+  }
+
+
+  void ConfigStore::save(const Config& config) const
+  {
+    std::lock_guard<std::mutex> lock(_fileMutex());
+    _saveLocked(config);
+  }
+
+
+  Config ConfigStore::update(const std::function<bool(Config&)>& mutate) const
+  {
+    std::lock_guard<std::mutex> lock(_fileMutex());
+    Config config = _loadLocked();
+    if(mutate(config)){
+      _saveLocked(config);
+    }
+    return config;
+  }
+
+
+  Config ConfigStore::_loadLocked() const
+  {
     if(!std::filesystem::exists(m_configFilePath)){
       return Config{};
     }
@@ -104,15 +139,46 @@ namespace Aurora::Runtime
       return Config{};
     }
 
+    // Config's constructor applies every numeric setting's schema clamp
+    // (Aurora-ta5), so fromJson's direct field writes are sanitized too.
     return Config(fromJson(json));
   }
 
 
-  void ConfigStore::save(const Config& config) const
+  void ConfigStore::_saveLocked(const Config& config) const
   {
     std::filesystem::create_directories(m_configFilePath.parent_path());
 
     std::ofstream file(m_configFilePath);
     file << toJson(config.data()).dump(2) << "\n";
+  }
+
+
+  std::vector<std::string> configKeys()
+  {
+    // Named, not a temporary: items() holds a reference into it, which a
+    // range-for would not keep alive.
+    const Json defaults = toJson(ConfigData{});
+
+    std::vector<std::string> keys;
+    for(const auto& item : defaults.items()){
+      keys.push_back(item.key());
+    }
+    return keys;
+  }
+
+
+  std::vector<std::string> changedConfigKeys(const Config& a, const Config& b)
+  {
+    const Json jsonA = toJson(a.data());
+    const Json jsonB = toJson(b.data());
+
+    std::vector<std::string> changed;
+    for(const auto& item : jsonA.items()){
+      if(item.value() != jsonB.at(item.key())){
+        changed.push_back(item.key());
+      }
+    }
+    return changed;
   }
 }

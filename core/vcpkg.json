@@ -4,7 +4,6 @@
   "dependencies": [
     "opencv4",
     "glm",
-    "catch2",
-    "cpp-httplib"
+    "catch2"
   ]
 }

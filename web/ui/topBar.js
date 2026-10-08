@@ -13,19 +13,35 @@
 //   trailingButton ({ label, onClick, icon }, optional -- Dashboard's own
 //                   Stop button, 2.5 pass. Re-wired on every call, same as
 //                   onBack, since this function always rebuilds the bar's
-//                   whole innerHTML. icon (optional, a path under icons/)
+//                   whole innerHTML. icon (optional, a resolved artwork URL
+//                   from the caller, e.g. new URL(..., import.meta.url).href)
 //                   renders in place of the visible label -- label still
 //                   becomes the button's aria-label, so it stays
 //                   accessible with nothing visible to read.)
-export function renderTopBar(container, { title, logo = null, showBack = false, onBack, statusPill = null, trailingButton = null }) {
+//   trailingButtons ([{ id, label, onClick, icon, buttonClass, disabled }],
+//                   optional -- replaces trailingButton when present.
+//                   Dashboard's Pause + Stop pair (Aurora-5ipy.13): ids are
+//                   caller-chosen so each button keeps a stable handle;
+//                   buttonClass overrides the default icon/text styling
+//                   (Stop uses .top-bar-power-btn to read lighter than
+//                   Pause); disabled renders the native attribute.
+export function renderTopBar(container, { title, logo = null, showBack = false, onBack, statusPill = null, trailingButton = null, trailingButtons = null }) {
   const titleContent = logo
     ? `<img src="${escapeHtml(logo.src)}" alt="${escapeHtml(logo.alt ?? title)}" class="top-bar-logo" />`
     : escapeHtml(title);
-  const trailingBtnContent = trailingButton?.icon
-    ? `<img src="${escapeHtml(trailingButton.icon)}" alt="" class="top-bar-trailing-icon" />`
-    : escapeHtml(trailingButton?.label ?? '');
-  const trailingBtnLabelAttr = trailingButton?.icon ? ` aria-label="${escapeHtml(trailingButton.label)}"` : '';
-  const trailingBtnClass = trailingButton?.icon ? 'btn btn-secondary btn-icon' : 'btn btn-secondary';
+  const buttons = trailingButtons
+    ?? (trailingButton ? [{ ...trailingButton, id: 'top-bar-trailing-btn' }] : []);
+  const buttonsHtml = buttons.map((button, index) => {
+    const id = button.id ?? `top-bar-trailing-btn-${index}`;
+    const content = button.icon
+      ? `<img src="${escapeHtml(button.icon)}" alt="" class="top-bar-trailing-icon" />`
+      : escapeHtml(button.label ?? '');
+    const labelAttr = button.icon ? ` aria-label="${escapeHtml(button.label)}"` : '';
+    const buttonClass = button.buttonClass
+      ?? (button.icon ? 'btn btn-secondary btn-icon' : 'btn btn-secondary');
+    const disabledAttr = button.disabled ? ' disabled' : '';
+    return `<button type="button" class="${buttonClass}" id="${escapeHtml(id)}"${labelAttr}${disabledAttr}>${content}</button>`;
+  }).join('');
 
   container.innerHTML = `
     <div class="top-bar${logo ? ' top-bar-with-logo' : ''}">
@@ -33,7 +49,7 @@ export function renderTopBar(container, { title, logo = null, showBack = false, 
       <h1 class="top-bar-title">${titleContent}</h1>
       <div class="top-bar-trailing">
         ${statusPill ? `<span class="status-pill">${escapeHtml(statusPill)}</span>` : ''}
-        ${trailingButton ? `<button type="button" class="${trailingBtnClass}" id="top-bar-trailing-btn"${trailingBtnLabelAttr}>${trailingBtnContent}</button>` : ''}
+        ${buttonsHtml}
       </div>
     </div>
   `;
@@ -49,8 +65,11 @@ export function renderTopBar(container, { title, logo = null, showBack = false, 
       logoImg.replaceWith(document.createTextNode(title));
     });
   }
-  if (trailingButton) {
-    container.querySelector('#top-bar-trailing-btn').addEventListener('click', trailingButton.onClick);
+  for (const [index, button] of buttons.entries()) {
+    // Ids are caller-chosen ([a-z-] by convention), so no CSS.escape
+    // dependency -- keeps this importable in plain-node tests.
+    const id = button.id ?? `top-bar-trailing-btn-${index}`;
+    container.querySelector(`#${id}`)?.addEventListener('click', button.onClick);
   }
 }
 

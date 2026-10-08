@@ -35,8 +35,9 @@ export function wireSliderGroup(container, sliders, values, onCommit) {
 // Descriptor key from the slider's config key: `audio*` settings live
 // under `audio.*`, everything else in Tuning is video-pipeline owned
 // (`video.*`) -- mirrors ControlDescriptorTables' layer split without a
-// parallel table to keep in sync.
-function sliderTooltipKey(configKey) {
+// parallel table to keep in sync. Keys both the tooltip and the slider's
+// param schema (TuningFields' slidersFromParams).
+export function sliderTooltipKey(configKey) {
   if (configKey.startsWith('audio')) {
     return `audio.${configKey.charAt(5).toLowerCase()}${configKey.slice(6)}`;
   }

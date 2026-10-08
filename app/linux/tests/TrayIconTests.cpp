@@ -4,6 +4,8 @@
 
 #include <Aurora/App/TrayIcon.hpp>
 
+#include <Aurora/Runtime/Pipeline.hpp>
+
 using namespace Aurora::App;
 
 
@@ -77,16 +79,57 @@ std::string itemLabel(GVariant* layout, gint32 wantId)
 } // namespace
 
 
-TEST_CASE("menu layout has Launch UI and Stop", "[traymenu]")
+TEST_CASE("menu layout has Launch UI, Pause and Stop in order", "[traymenu]")
 {
-  GVariant* layout = TrayIcon::menuLayoutForTest(true);
+  GVariant* layout = TrayIcon::menuLayoutForTest(true, Aurora::Runtime::HostState::Running, false);
   REQUIRE(itemId(layout) == 0);
   GVariant* children = g_variant_get_child_value(layout, 2);
-  REQUIRE(g_variant_n_children(children) == 2);
+  REQUIRE(g_variant_n_children(children) == 3);
+  const gint32 expectedOrder[3] = {1, 3, 2};
+  for(gsize i = 0; i < 3; ++i){
+    GVariant* child = unboxChild(children, i);
+    CHECK(itemId(child) == expectedOrder[i]);
+    g_variant_unref(child);
+  }
   g_variant_unref(children);
   REQUIRE(itemLabel(layout, 1) == "Launch UI");
+  REQUIRE(itemLabel(layout, 3) == "Pause");
   REQUIRE(itemLabel(layout, 2) == "Stop");
   g_variant_unref(layout);
+}
+
+TEST_CASE("Pause item flips to Resume while paused and stays enabled", "[traymenu]")
+{
+  GVariant* layout =
+      TrayIcon::menuLayoutForTest(false, Aurora::Runtime::HostState::Paused, false);
+  REQUIRE(itemLabel(layout, 3) == "Resume");
+  REQUIRE(itemFlag(layout, 3, "enabled"));
+  g_variant_unref(layout);
+}
+
+TEST_CASE("Pause slot reads See Error for a failed host or a failed resume", "[traymenu]")
+{
+  using Aurora::Runtime::HostState;
+  GVariant* failed = TrayIcon::menuLayoutForTest(true, HostState::Failed, true);
+  REQUIRE(itemLabel(failed, 3) == "\u26a0 See Error");
+  REQUIRE(itemFlag(failed, 3, "enabled"));
+  g_variant_unref(failed);
+  GVariant* failedResume = TrayIcon::menuLayoutForTest(true, HostState::Paused, true);
+  REQUIRE(itemLabel(failedResume, 3) == "\u26a0 See Error");
+  g_variant_unref(failedResume);
+}
+
+TEST_CASE("Pause slot keeps Pause while running with errors and when unbound", "[traymenu]")
+{
+  using Aurora::Runtime::HostState;
+  // A running host can hold errors (Aurora-ja76) without changing the label.
+  GVariant* running = TrayIcon::menuLayoutForTest(true, HostState::Running, true);
+  REQUIRE(itemLabel(running, 3) == "Pause");
+  g_variant_unref(running);
+  // See Error would lead nowhere without a bound WebUI (Aurora-k73j).
+  GVariant* unbound = TrayIcon::menuLayoutForTest(false, HostState::Failed, true);
+  REQUIRE(itemLabel(unbound, 3) == "Pause");
+  g_variant_unref(unbound);
 }
 
 TEST_CASE("TrayIcon constructs and destroys without terminating", "[tray]")
@@ -96,18 +139,22 @@ TEST_CASE("TrayIcon constructs and destroys without terminating", "[tray]")
   // noexcept destructor -- terminating the process on every shutdown.
   // There is nothing to CHECK: pre-fix, this case aborts the runner.
   {
-    TrayIcon icon("http://127.0.0.1:9/", true, [](){}, [](){});
+    TrayIcon icon("http://127.0.0.1:9/", true, [](){}, [](){}, [](){},
+        []{ return Aurora::Runtime::HostStatus{}; });
+    icon.refresh();
   }
   SUCCEED();
 }
 
 TEST_CASE("Launch UI enabled tracks WebUI bound state", "[traymenu]")
 {
-  GVariant* bound = TrayIcon::menuLayoutForTest(true);
+  GVariant* bound =
+      TrayIcon::menuLayoutForTest(true, Aurora::Runtime::HostState::Running, false);
   REQUIRE(itemFlag(bound, 1, "enabled"));
   REQUIRE(itemFlag(bound, 2, "enabled"));
   g_variant_unref(bound);
-  GVariant* unbound = TrayIcon::menuLayoutForTest(false);
+  GVariant* unbound =
+      TrayIcon::menuLayoutForTest(false, Aurora::Runtime::HostState::Running, false);
   REQUIRE(!itemFlag(unbound, 1, "enabled"));
   REQUIRE(itemFlag(unbound, 2, "enabled"));
   g_variant_unref(unbound);

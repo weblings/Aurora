@@ -8,6 +8,11 @@
 .dropdown {
   position: relative;
   display: inline-flex;
+  /* Flex items default to min-width: auto (content-sized floor): inside a
+     flex field wrapper the root would overflow instead of constraining its
+     children, and the label ellipsis below would never engage. */
+  min-width: 0;
+  max-width: 100%;
 }
 
 .dropdown-fill {
@@ -32,6 +37,18 @@
   font-family: inherit;
   cursor: pointer;
   white-space: nowrap;
+  overflow: hidden;
+}
+
+/* Long labels ("Zone front-left (Front Left)") spill past the field at
+   narrow pane widths and swallow the page's right padding -- ported back
+   from web/demo/demo-layout.css, which fixed the same latent issue on the
+   demo side. Ellipsize the label instead (chevron keeps its footprint via
+   flex-shrink: 0 above); open menus keep full text. */
+.dropdown-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
 }
 
 .dropdown-trigger:hover {

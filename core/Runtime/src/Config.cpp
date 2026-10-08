@@ -1,5 +1,7 @@
 #include <Aurora/Runtime/Config.hpp>
 
+#include <Aurora/Runtime/ControlDescriptorTables.hpp>
+
 #include <algorithm>
 #include <utility>
 
@@ -7,7 +9,24 @@ namespace Aurora::Runtime
 {
   Config::Config(ConfigData data):
   m_data(std::move(data))
-  {}
+  {
+    // Every numeric setting goes through its setter's schema clamp here
+    // too, so a hand-edited config.json (ConfigStore::fromJson writes
+    // ConfigData directly) can't hold what a REST write couldn't
+    // (Aurora-9ca/5y0/ta5).
+    setTransitionSmoothing(m_data.transitionSmoothing);
+    setAudioFixedAnchorHue(m_data.audioFixedAnchorHue);
+    setAudioBounceSmoothTime(m_data.audioBounceSmoothTime);
+    setAudioDynamismFloor(m_data.audioDynamismFloor);
+    setAudioCentroidStrength(m_data.audioCentroidStrength);
+    setAudioDriftBaseRateDegPerSec(m_data.audioDriftBaseRateDegPerSec);
+    setAudioVibrancySaturation(m_data.audioVibrancySaturation);
+    setAudioVibrancyValue(m_data.audioVibrancyValue);
+    setAudioReferenceRms(m_data.audioReferenceRms);
+    setAudioBrightnessFloor(m_data.audioBrightnessFloor);
+    setAudioCentroidRangeHz(m_data.audioCentroidRangeHz);
+    setAudioBrightnessSmoothTime(m_data.audioBrightnessSmoothTime);
+  }
 
 
   const ConfigData& Config::data() const
@@ -84,7 +103,7 @@ namespace Aurora::Runtime
 
   void Config::setTransitionSmoothing(float transitionSmoothing)
   {
-    m_data.transitionSmoothing = std::clamp(transitionSmoothing, 0.f, 0.97f);
+    m_data.transitionSmoothing = sanitizeParam("video.transitionSmoothing", transitionSmoothing);
   }
 
 
@@ -137,37 +156,37 @@ namespace Aurora::Runtime
 
 
   float Config::audioFixedAnchorHue() const { return m_data.audioFixedAnchorHue; }
-  void Config::setAudioFixedAnchorHue(float hue) { m_data.audioFixedAnchorHue = hue; }
+  void Config::setAudioFixedAnchorHue(float hue) { m_data.audioFixedAnchorHue = sanitizeParam("audio.fixedAnchorHue", hue); }
 
   float Config::audioBounceSmoothTime() const { return m_data.audioBounceSmoothTime; }
-  void Config::setAudioBounceSmoothTime(float seconds) { m_data.audioBounceSmoothTime = seconds; }
+  void Config::setAudioBounceSmoothTime(float seconds) { m_data.audioBounceSmoothTime = sanitizeParam("audio.bounceSmoothTime", seconds); }
 
   float Config::audioDynamismFloor() const { return m_data.audioDynamismFloor; }
-  void Config::setAudioDynamismFloor(float floor) { m_data.audioDynamismFloor = floor; }
+  void Config::setAudioDynamismFloor(float floor) { m_data.audioDynamismFloor = sanitizeParam("audio.dynamismFloor", floor); }
 
   float Config::audioCentroidStrength() const { return m_data.audioCentroidStrength; }
-  void Config::setAudioCentroidStrength(float strength) { m_data.audioCentroidStrength = strength; }
+  void Config::setAudioCentroidStrength(float strength) { m_data.audioCentroidStrength = sanitizeParam("audio.centroidStrength", strength); }
 
   float Config::audioDriftBaseRateDegPerSec() const { return m_data.audioDriftBaseRateDegPerSec; }
-  void Config::setAudioDriftBaseRateDegPerSec(float degPerSec) { m_data.audioDriftBaseRateDegPerSec = degPerSec; }
+  void Config::setAudioDriftBaseRateDegPerSec(float degPerSec) { m_data.audioDriftBaseRateDegPerSec = sanitizeParam("audio.driftBaseRateDegPerSec", degPerSec); }
 
   float Config::audioVibrancySaturation() const { return m_data.audioVibrancySaturation; }
-  void Config::setAudioVibrancySaturation(float saturation) { m_data.audioVibrancySaturation = saturation; }
+  void Config::setAudioVibrancySaturation(float saturation) { m_data.audioVibrancySaturation = sanitizeParam("audio.vibrancySaturation", saturation); }
 
   float Config::audioVibrancyValue() const { return m_data.audioVibrancyValue; }
-  void Config::setAudioVibrancyValue(float value) { m_data.audioVibrancyValue = value; }
+  void Config::setAudioVibrancyValue(float value) { m_data.audioVibrancyValue = sanitizeParam("audio.vibrancyValue", value); }
 
   float Config::audioReferenceRms() const { return m_data.audioReferenceRms; }
-  void Config::setAudioReferenceRms(float rms) { m_data.audioReferenceRms = rms; }
+  void Config::setAudioReferenceRms(float rms) { m_data.audioReferenceRms = sanitizeParam("audio.referenceRms", rms); }
 
   float Config::audioBrightnessFloor() const { return m_data.audioBrightnessFloor; }
-  void Config::setAudioBrightnessFloor(float floor) { m_data.audioBrightnessFloor = floor; }
+  void Config::setAudioBrightnessFloor(float floor) { m_data.audioBrightnessFloor = sanitizeParam("audio.brightnessFloor", floor); }
 
   float Config::audioCentroidRangeHz() const { return m_data.audioCentroidRangeHz; }
-  void Config::setAudioCentroidRangeHz(float hz) { m_data.audioCentroidRangeHz = hz; }
+  void Config::setAudioCentroidRangeHz(float hz) { m_data.audioCentroidRangeHz = sanitizeParam("audio.centroidRangeHz", hz); }
 
   float Config::audioBrightnessSmoothTime() const { return m_data.audioBrightnessSmoothTime; }
-  void Config::setAudioBrightnessSmoothTime(float seconds) { m_data.audioBrightnessSmoothTime = seconds; }
+  void Config::setAudioBrightnessSmoothTime(float seconds) { m_data.audioBrightnessSmoothTime = sanitizeParam("audio.brightnessSmoothTime", seconds); }
 
   const std::string& Config::audioTargetSinkName() const { return m_data.audioTargetSinkName; }
   void Config::setAudioTargetSinkName(std::string name) { m_data.audioTargetSinkName = std::move(name); }

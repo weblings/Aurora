@@ -9,8 +9,8 @@
 // edit the way Zone Mapping's canvas/toggles do -- the Dashboard ended up
 // with two sections behaving oppositely (Zone Mapping live, Tuning
 // Save-gated) for a real reason (PipelineHost::reload(), each app's
-// main.cpp, has no settings-only update path -- every save here tears down
-// and reconstructs the *entire* live pipeline, including a real Hue DTLS
+// main.cpp, had no settings-only update path -- every save here tore down
+// and reconstructed the *entire* live pipeline, including a real Hue DTLS
 // handshake measured elsewhere at 1-3+ seconds), not an oversight. Fixed by
 // making every field commit on its own natural gesture-end signal instead
 // (a slider's drag-release/keyup, a dropdown/checkbox's own change) rather
@@ -18,11 +18,16 @@
 // web-ui.md's "gesture-end commit signal" entry. No more Save button or
 // manual gate anywhere on this screen; every option behaves the same way
 // now, matching Zone Mapping's own model.
+//
+// Since Aurora-c0g the server applies tuning-only saves live (no reload),
+// so the commit-on-gesture-end rule here is no longer forced by cost;
+// whether to PUT while dragging is an open follow-up, not decided.
 import { Dropdown } from './Dropdown.js';
-import { applyTooltip } from './Tooltips.js';
-import { sliderGroupHtml, wireSliderGroup } from './TuningSliderGroup.js';
+import { applyTooltip, descriptorsSettled, ensureTooltips, paramFor } from './Tooltips.js';
+import { sliderGroupHtml, sliderTooltipKey, wireSliderGroup } from './TuningSliderGroup.js';
 import { AUTO_MONITOR_VALUE } from './DeviceField.js';
 import { subsampleCandidates } from './SubsampleCandidates.js';
+import { DAEMON_UNREACHABLE } from './messages.js';
 
 const INTERPOLATIONS = ['Nearest', 'Cubic', 'Area'];
 
@@ -47,49 +52,54 @@ function _resolveMonitor(monitors, selectedMonitorName) {
   return monitors.find((m) => m.name === selectedMonitorName) ?? monitors[0];
 }
 
-// [key, label, min, max, step, unit]
-const TRANSITION_SMOOTHING_SLIDER = [
-  ['transitionSmoothing', 'Transition smoothing', 0, 0.97, 0.01, ''],
-];
-const RESPONSE_SPEED_SLIDERS = [
-  ['audioBounceSmoothTime', 'Bounce smooth time', 0.05, 2, 0.01, 's'],
-  ['audioBrightnessSmoothTime', 'Brightness smooth time', 0.05, 2, 0.01, 's'],
-  ['audioDriftBaseRateDegPerSec', 'Drift base rate', 0, 60, 1, '°/s'],
-];
-const COLOR_CHARACTER_SLIDERS = [
-  ['audioVibrancySaturation', 'Vibrancy saturation', 0, 1, 0.01, ''],
-  ['audioVibrancyValue', 'Vibrancy value', 0, 1, 0.01, ''],
-];
-const FIXED_HUE_SLIDER = [
-  ['audioFixedAnchorHue', 'Fixed hue', 0, 360, 1, '°'],
-];
-const SENSITIVITY_SLIDERS = [
-  ['audioDynamismFloor', 'Dynamism floor', 0, 1, 0.01, ''],
-  ['audioCentroidStrength', 'Centroid strength', 0, 1, 0.01, ''],
-  ['audioReferenceRms', 'Reference RMS', 0.05, 1, 0.01, ''],
-  ['audioBrightnessFloor', 'Brightness floor', 0, 1, 0.01, ''],
-  ['audioCentroidRangeHz', 'Centroid range', 100, 8000, 10, 'Hz'],
-];
+// Layout only: which settings each section shows, in order. Each slider's
+// label, range, step and unit come from the backend's param schema
+// (/api/descriptors, Aurora-ta5) -- the same definition Config's setters
+// clamp to, so the two can't drift.
+const TRANSITION_SMOOTHING_KEYS = ['transitionSmoothing'];
+const RESPONSE_SPEED_KEYS = ['audioBounceSmoothTime', 'audioBrightnessSmoothTime', 'audioDriftBaseRateDegPerSec'];
+const COLOR_CHARACTER_KEYS = ['audioVibrancySaturation', 'audioVibrancyValue'];
+const FIXED_HUE_KEYS = ['audioFixedAnchorHue'];
+const SENSITIVITY_KEYS = ['audioDynamismFloor', 'audioCentroidStrength', 'audioReferenceRms', 'audioBrightnessFloor', 'audioCentroidRangeHz'];
+
+// [key, label, min, max, step, unit] tuples for sliderGroupHtml, from the
+// param schema. A key without a schema (descriptors not loaded yet, or a
+// failed fetch) is skipped rather than rendered with invented numbers.
+export function slidersFromParams(configKeys, lookup = paramFor) {
+  const sliders = [];
+  for (const key of configKeys) {
+    const param = lookup(sliderTooltipKey(key));
+    if (param) sliders.push([key, param.label, param.min, param.max, param.step, param.unit]);
+  }
+  return sliders;
+}
 
 export class TuningFields {
   // values: the full /api/config response -- the caller (DashboardScreen)
   // already fetches this for its own mode toggle, so this never fetches on
   // its own (unlike every fetch+render component elsewhere in this app --
   // there's simply nothing left for it to fetch that the caller doesn't
-  // already have).
-  constructor(container, { mode, values, monitors = [], selectedMonitorName = AUTO_MONITOR_VALUE }) {
+  // already have). usesVideoInput/usesAudioInput: what runs (Aurora-kea).
+  constructor(container, { usesVideoInput = true, usesAudioInput = false, values, monitors = [], selectedMonitorName = AUTO_MONITOR_VALUE, onUnreachable = null, onReloadError = null }) {
     this.container = container;
-    this.mode = mode;
+    this.usesVideoInput = usesVideoInput;
+    this.usesAudioInput = usesAudioInput;
+    // Still one of two field tables; Aurora-jpq2 replaces them with the
+    // graph's controls list. Video wins when both run.
+    this.fieldSet = (usesVideoInput || !usesAudioInput) ? 'video' : 'audio';
     this.values = { ...values };
     this.monitors = monitors;
     this.selectedMonitorName = selectedMonitorName;
     this.fixedHueEnabled = (values.audioFixedAnchorHue ?? -1) >= 0;
+    this.onUnreachable = onUnreachable;
+    this.onReloadError = onReloadError;
     this.error = null;
     this.dropdowns = [];
     this._render();
   }
 
   destroy() {
+    this._destroyed = true;
     for (const dropdown of this.dropdowns) dropdown.destroy();
     this.dropdowns = [];
   }
@@ -98,7 +108,22 @@ export class TuningFields {
     for (const dropdown of this.dropdowns) dropdown.destroy();
     this.dropdowns = [];
 
-    const errorHtml = this.error ? `<p class="status-text status-text-error">⚠ ${escapeHtml(this.error)}</p>` : '';
+    // Sliders need the param schema. app.js fires ensureTooltips() at boot,
+    // so it has almost always settled by now; if not, render what we can
+    // and re-render once it lands.
+    if (!descriptorsSettled() && !this._awaitingParams) {
+      this._awaitingParams = true;
+      ensureTooltips().then(() => {
+        this._awaitingParams = false;
+        if (!this._destroyed) this._render();
+      });
+    }
+    const keys = this.fieldSet === 'video'
+      ? TRANSITION_SMOOTHING_KEYS
+      : [...RESPONSE_SPEED_KEYS, ...COLOR_CHARACTER_KEYS, ...FIXED_HUE_KEYS, ...SENSITIVITY_KEYS];
+    const rangesMissing = descriptorsSettled() && slidersFromParams(keys).length < keys.length;
+    const message = this.error ?? (rangesMissing ? "Couldn't load slider ranges." : null);
+    const errorHtml = message ? `<p class="status-text status-text-error"><span class="warn-glyph" aria-hidden="true"></span> ${escapeHtml(message)}</p>` : '';
 
     this.container.innerHTML = `
       <div class="tn-fields"></div>
@@ -106,7 +131,7 @@ export class TuningFields {
     `;
 
     const fields = this.container.querySelector('.tn-fields');
-    if (this.mode === 'video') this._renderVideoFields(fields);
+    if (this.fieldSet === 'video') this._renderVideoFields(fields);
     else this._renderAudioFields(fields);
   }
 
@@ -125,7 +150,7 @@ export class TuningFields {
           <label class="field-label" id="tn-interp-label">Interpolation</label>
           <div id="tn-interp-dropdown-slot"></div>
         </div>
-        ${sliderGroupHtml(TRANSITION_SMOOTHING_SLIDER, this.values, { controlBand: true })}
+        ${sliderGroupHtml(slidersFromParams(TRANSITION_SMOOTHING_KEYS), this.values, { controlBand: true })}
       </div>
     `;
 
@@ -180,19 +205,24 @@ export class TuningFields {
     interpDropdown.setOptions(INTERPOLATIONS.map((name) => ({ label: name, value: name, selected: name === currentInterp })));
     this.dropdowns.push(interpDropdown);
 
-    wireSliderGroup(container, TRANSITION_SMOOTHING_SLIDER, this.values, () => this._autoSave());
+    wireSliderGroup(container, slidersFromParams(TRANSITION_SMOOTHING_KEYS), this.values, () => this._autoSave());
   }
 
   _renderAudioFields(container) {
+    const responseSpeed = slidersFromParams(RESPONSE_SPEED_KEYS);
+    const colorCharacter = slidersFromParams(COLOR_CHARACTER_KEYS);
+    const fixedHue = slidersFromParams(FIXED_HUE_KEYS);
+    const sensitivity = slidersFromParams(SENSITIVITY_KEYS);
+
     container.innerHTML = `
       <h2 class="section-heading">Response speed</h2>
       <div class="tuning-grid">
-        ${sliderGroupHtml(RESPONSE_SPEED_SLIDERS, this.values)}
+        ${sliderGroupHtml(responseSpeed, this.values)}
       </div>
 
       <h2 class="section-heading">Color character</h2>
       <div class="tuning-grid">
-        ${sliderGroupHtml(COLOR_CHARACTER_SLIDERS, this.values)}
+        ${sliderGroupHtml(colorCharacter, this.values)}
         <div class="tuning-checkbox-row">
           <label class="toggle-row">
             <span class="toggle-row-label">Use fixed hue</span>
@@ -202,19 +232,19 @@ export class TuningFields {
             </span>
           </label>
         </div>
-        ${this.fixedHueEnabled ? sliderGroupHtml(FIXED_HUE_SLIDER, this.values) : ''}
+        ${this.fixedHueEnabled ? sliderGroupHtml(fixedHue, this.values) : ''}
       </div>
 
       <h2 class="section-heading">Sensitivity</h2>
       <div class="tuning-grid">
-        ${sliderGroupHtml(SENSITIVITY_SLIDERS, this.values)}
+        ${sliderGroupHtml(sensitivity, this.values)}
       </div>
     `;
 
-    wireSliderGroup(container, RESPONSE_SPEED_SLIDERS, this.values, () => this._autoSave());
-    wireSliderGroup(container, COLOR_CHARACTER_SLIDERS, this.values, () => this._autoSave());
-    wireSliderGroup(container, SENSITIVITY_SLIDERS, this.values, () => this._autoSave());
-    if (this.fixedHueEnabled) wireSliderGroup(container, FIXED_HUE_SLIDER, this.values, () => this._autoSave());
+    wireSliderGroup(container, responseSpeed, this.values, () => this._autoSave());
+    wireSliderGroup(container, colorCharacter, this.values, () => this._autoSave());
+    wireSliderGroup(container, sensitivity, this.values, () => this._autoSave());
+    if (this.fixedHueEnabled) wireSliderGroup(container, fixedHue, this.values, () => this._autoSave());
     applyTooltip(container.querySelector('label.tuning-checkbox-row'), 'audio.fixedHueEnabled');
 
     container.querySelector('#tn-fixed-hue-toggle').addEventListener('change', (e) => {
@@ -245,14 +275,15 @@ export class TuningFields {
   async _commit() {
     this.error = null;
 
-    const patch = this.mode === 'video'
-      ? {
+    // Saves the settings of each running input, both when both run.
+    const patch = {
+      ...(this.usesVideoInput || !this.usesAudioInput ? {
           refreshRate: Number(this.values.refreshRate),
           subsampleWidth: Number(this.values.subsampleWidth),
           interpolation: this.values.interpolation,
           transitionSmoothing: Number(this.values.transitionSmoothing),
-        }
-      : {
+        } : {}),
+      ...(this.usesAudioInput ? {
           audioBounceSmoothTime: Number(this.values.audioBounceSmoothTime),
           audioBrightnessSmoothTime: Number(this.values.audioBrightnessSmoothTime),
           audioDriftBaseRateDegPerSec: Number(this.values.audioDriftBaseRateDegPerSec),
@@ -264,7 +295,8 @@ export class TuningFields {
           audioBrightnessFloor: Number(this.values.audioBrightnessFloor),
           audioCentroidRangeHz: Number(this.values.audioCentroidRangeHz),
           audioFixedAnchorHue: this.fixedHueEnabled ? Number(this.values.audioFixedAnchorHue) : -1,
-        };
+        } : {}),
+    };
 
     try {
       const result = await (await fetch('/api/config', {
@@ -275,10 +307,15 @@ export class TuningFields {
       if (!result.succeeded) {
         this.error = "Couldn't save settings.";
       } else if (result.reloadError) {
-        this.error = `Saved, but couldn't apply it live: ${result.reloadError}`;
+        // Saved, not applied: the daemon holds the error and the shell
+        // banner shows it (Aurora-98pr). Poke the beat for an early redraw.
+        this.onReloadError?.();
       }
     } catch {
-      this.error = "Couldn't reach the daemon.";
+      // Unreachable owns this (shell takeover, Aurora-ewyz): poke the beat
+      // when wired, no inline error.
+      if (this.onUnreachable) this.onUnreachable();
+      else this.error = DAEMON_UNREACHABLE;
     }
 
     this._render();

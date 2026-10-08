@@ -97,6 +97,9 @@ export function createShimStore(storage = createMemoryStorage(), seed = {}) {
       entertainmentConfigurationId: 'demo-config-1',
       ...(seed.connection ?? {}),
     },
+    // Pause is in-memory only (Aurora-3ddb): a relaunch always resumes, so
+    // this never touches storage -- seed-only, like the backend's own flag.
+    paused: seed.paused === true,
   };
 
   const persist = () => {
@@ -123,6 +126,10 @@ export function createShimStore(storage = createMemoryStorage(), seed = {}) {
       persist();
       return applied;
     },
+    // Pause flag (Aurora-5ipy.13): mirrors PUT /api/state's in-memory
+    // semantics -- answered through GET /api/state, never persisted.
+    isPaused: () => state.paused,
+    setPaused: (paused) => { state.paused = paused === true; },
     getZones: () => ({ outputName: 'hue', zones: state.zones.map((z) => ({ ...z })) }),
     // Identity-preserving reseed: the scene holds liveZones() across calls,
     // so the array object must survive reseeds (entries are still copied).
@@ -190,7 +197,7 @@ export function createRouter(store, hooks = {}) {
     // GET /api/version -- mirrors the native route: the CHANGELOG top entry
     // is the demo's version truth, pinned by demo-shim.test.mjs.
     if (method === 'GET' && path === '/api/version') {
-      return ok({ version: '1.0.4' });
+      return ok({ version: '1.1.0' });
     }
     if (method === 'GET' && path === '/api/config') {
       return ok(store.getConfig());
@@ -206,11 +213,55 @@ export function createRouter(store, hooks = {}) {
       hooks.onConfigPatch?.(applied, store.getConfig());
       return ok({ succeeded: true });
     }
+    // GET /api/state (Aurora-kea) -- the demo "runs" whatever its config
+    // names, by Pipeline::build's rule (audio only with no video input), so
+    // a mode switch reads back at once. Paused flips only through
+    // PUT /api/state (Aurora-5ipy.13). The audio device list is the sink
+    // route below, as on Linux.
+    if (method === 'GET' && path === '/api/state') {
+      const config = store.getConfig();
+      const audio = !config.activeInputName && !!config.activeAudioInputName;
+      return ok({
+        paused: store.isPaused(),
+        // No daemon behind this page to stop (Aurora-ifkn.3): the
+        // Dashboard hides its Stop button on this flag (default true).
+        canStop: false,
+        usesVideoInput: !audio,
+        usesAudioInput: audio,
+        samplesZones: !audio,
+        audioDevicesUrl: '/api/linux/audio-sinks',
+      });
+    }
+    // PUT /api/state (Aurora-5ipy.13) -- mirrors the backend's shape:
+    // {running: bool} flips the in-memory flag, answered back as {running}.
+    if (method === 'PUT' && path === '/api/state') {
+      let body;
+      try {
+        body = rawBody ? JSON.parse(rawBody) : {};
+      } catch {
+        return ok({ succeeded: false, error: 'invalid_json_body' }, 400);
+      }
+      if (typeof body.running !== 'boolean') {
+        return ok({ succeeded: false, error: 'running_bool_required' }, 400);
+      }
+      store.setPaused(!body.running);
+      hooks.onPausedChanged?.(store.isPaused());
+      return ok({ succeeded: true, running: body.running });
+    }
     if (method === 'GET' && path === '/api/monitors') {
       return ok({ monitors: DEMO_MONITORS.map((m) => ({ ...m })) });
     }
     if (method === 'GET' && path === '/api/linux/audio-sinks') {
       return ok({ sinks: DEMO_AUDIO_SINKS.map((s) => ({ ...s })) });
+    }
+    // GET /api/linux/audio-status (Aurora-ifkn.7) -- mirrors the native
+    // {followingDefault, sinkName} shape from the demo config. The Dashboard
+    // polls it only on Linux audio, which the demo never reports as its
+    // platform, so this is route coverage for the re-vendored fetch, not
+    // live traffic.
+    if (method === 'GET' && path === '/api/linux/audio-status') {
+      const sinkName = store.getConfig().audioTargetSinkName ?? '';
+      return ok({ followingDefault: !sinkName, sinkName });
     }
     if (method === 'GET' && path === '/api/zones') {
       return ok(store.getZones());
@@ -238,6 +289,12 @@ export function createRouter(store, hooks = {}) {
         entertainmentConfigurationId: c.entertainmentConfigurationId,
       });
     }
+    // GET /api/hue/discover (Aurora-ifkn.7) -- no bridge lives behind a
+    // static page, so discovery finds none and OutputConnectScreen falls
+    // through to its entry form (its documented ambiguous case).
+    if (method === 'GET' && path === '/api/hue/discover') {
+      return ok({ succeeded: true, bridges: [] });
+    }
     if (method === 'POST' && path === '/api/hue/connection') {
       let body;
       try {
@@ -248,6 +305,13 @@ export function createRouter(store, hooks = {}) {
       const result = store.putConnection(body);
       if (!result.ok) return ok({ succeeded: false, error: result.error }, result.status);
       return ok({ succeeded: true });
+    }
+    if (method === 'GET' && path === '/api/zones/labels') {
+      const { zones } = store.getZones();
+      return ok({
+        succeeded: true,
+        labels: zones.map((z) => ({ zoneId: z.zoneId, names: [prettyZoneName(z.zoneId)] })),
+      });
     }
     if (method === 'GET' && path === '/api/hue/channels') {
       // One channel per zone, channelId == zoneId -- the mapping

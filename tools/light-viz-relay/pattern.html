@@ -1,0 +1,72 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>capture test pattern</title>
+<style>
+  html, body { margin: 0; height: 100%; overflow: hidden; cursor: none; }
+  #fill {
+    position: fixed; inset: 0; display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    font: bold 6vw monospace; color: #fff; text-shadow: 0 0 8px #000, 0 0 8px #000;
+  }
+  #fill.show-cursor { cursor: default; }
+  #help { font-size: 1.6vw; margin-top: 2vw; opacity: 0.85; }
+</style>
+</head>
+<body>
+<!--
+  Capture debugging pattern (Aurora-d0hl). Static, no deps.
+  - Solid full-screen color cycle + frame counter + wall clock, so a stale
+    captured frame is identifiable (old counter) as well as detectable (old color).
+  - Params: ?interval=1500 (ms) &colors=red,blue (names or hex without '#',
+    comma-separated) &kiosk (hide the help line).
+  - Click or press f to toggle fullscreen (no F11 needed).
+  - Colors are primaries by default so validate.py color is gamma-invariant.
+-->
+<div id="fill">
+  <div id="color">-</div>
+  <div id="counter">#0</div>
+  <div id="clock">-</div>
+  <div id="help">click or press f: fullscreen</div>
+</div>
+<script>
+  const params = new URLSearchParams(location.search);
+  const interval = Math.max(10, Number(params.get('interval')) || 1500);
+  const colors = (params.get('colors') || 'red,blue').split(',').map((c) => {
+    c = c.trim();
+    return /^[0-9a-f]{6}$/i.test(c) ? '#' + c : c;
+  });
+  if (params.has('kiosk')) document.getElementById('help').remove();
+
+  const fill = document.getElementById('fill');
+  let count = 0;
+
+  function tick() {
+    const color = colors[count % colors.length];
+    fill.style.background = color;
+    document.getElementById('color').textContent = color;
+    document.getElementById('counter').textContent = '#' + count;
+    count += 1;
+  }
+
+  // Clock updates between color flips so a frozen capture is visible even
+  // when the color has not changed yet.
+  function clock() {
+    document.getElementById('clock').textContent = new Date().toISOString().slice(11, 23);
+  }
+
+  function toggleFullscreen() {
+    if (document.fullscreenElement) document.exitFullscreen();
+    else document.documentElement.requestFullscreen();
+  }
+
+  document.addEventListener('click', toggleFullscreen);
+  document.addEventListener('keydown', (e) => { if (e.key === 'f') toggleFullscreen(); });
+
+  tick();
+  setInterval(tick, interval);
+  setInterval(clock, 50);
+</script>
+</body>
+</html>

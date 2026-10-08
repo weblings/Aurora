@@ -6,6 +6,7 @@
 # AURORA_CORE_ENABLE_AUDIO option.
 add_library(AuroraRuntime STATIC
   src/Config.cpp
+  src/ConfigApply.cpp
   src/ConfigStore.cpp
   src/ControlDescriptors.cpp
   src/ControlDescriptorTables.cpp
@@ -15,7 +16,10 @@ add_library(AuroraRuntime STATIC
   src/Smoother.cpp
   src/SubsampleDefaults.cpp
   src/MonitorSelector.cpp
+  src/Registry.cpp
   src/Orchestrator.cpp
+  src/Pipeline.cpp
+  src/PipelineRoutes.cpp
   src/SettingsRoutes.cpp
   src/ZoneRoutes.cpp
   src/DevFrameDump.cpp

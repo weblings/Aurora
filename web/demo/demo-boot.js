@@ -12,7 +12,7 @@
 // edits with no new scene code.
 import { installDemoShim } from './demo-shim.js';
 import { setDemoStore } from './demo-state.js';
-import { ROOM_ZONE_MAP, rebuildZoneLights, applyLiveTuning } from './main.js';
+import { ROOM_ZONE_MAP, rebuildZoneLights, applyLiveTuning, setPaused } from './main.js';
 import { DashboardScreen } from './vendor/webui/screens/DashboardScreen.js';
 import { ensureTooltips } from './vendor/webui/Tooltips.js';
 
@@ -39,6 +39,8 @@ const { store } = installDemoShim({
     onZonesChanged: () => rebuildZoneLights(),
     // Phase 4: every Dashboard tuning/mode PUT lands on the running scene.
     onConfigPatch: (applied, config) => applyLiveTuning(config),
+    // Pause (Aurora-calt): the scene freezes the lamps, as real bulbs hold their last color.
+    onPausedChanged: (paused) => setPaused(paused),
   },
 });
 setDemoStore(store);
@@ -51,8 +53,18 @@ applyLiveTuning(store.getConfig());
 // static tables land, and Tooltips degrades to {} on failure.
 ensureTooltips();
 
+// Demo Dashboard: the vendored screen is byte-identical to web/ui
+// (Aurora-ifkn.7) and wires everything natively, so the demo mounts it
+// directly -- no subclass.
+//
+// Pause stays visible: the shim answers PUT /api/state and onPausedChanged
+// freezes the scene's lamps on their last color (Aurora-calt).
+// Stop hides itself on the shim's canStop: false (no daemon to stop).
 const appFacade = {
   navigate() {},
+  // The shim always answers: an unreachable signal never fires, so every
+  // immediate re-check reads as reachable (Aurora-ifkn.3).
+  async checkNow() { return true; },
 };
 
 const screen = new DashboardScreen(appFacade);

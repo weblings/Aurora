@@ -12,6 +12,7 @@ import { EntertainmentZoneSelectScreen } from './screens/EntertainmentZoneSelect
 import { ModeDeviceScreen } from './screens/ModeDeviceScreen.js';
 import { ZoneMappingScreen } from './screens/ZoneMappingScreen.js';
 import { ensureTooltips } from './Tooltips.js';
+import { isModeConfigValid, loadPipelineState } from './CaptureSource.js';
 
 const app = new App();
 
@@ -36,7 +37,7 @@ document.addEventListener('keydown', async (e) => {
 });
 
 // Localhost probes should answer in ms -- a hung daemon (e.g. a runaway
-// runtime loop) must surface as "Could not reach the daemon" with Retry,
+// runtime loop) must surface as "Couldn't reach the daemon" with Retry,
 // never a blank page awaiting a response that never comes.
 async function fetchJson(url, { timeoutMs = 10000 } = {}) {
   const controller = new AbortController();
@@ -58,22 +59,78 @@ function toDashboard() {
     .then((r) => r.json())
     .then((result) => { if (!result.succeeded) console.error('Failed to persist nuxCompleted:', result); })
     .catch((e) => console.error('Failed to persist nuxCompleted:', e));
-  app.navigate(new DashboardScreen(app));
+  app.navigate(new DashboardScreen(app), 'dashboard');
 }
 
+// Boot and stage-transition failure path: the shell's unexpected-loss
+// takeover owns it (Aurora-ewyz) -- same overlay as a mid-session loss,
+// already polling for recovery via the shell beat.
 function renderUnreachable() {
-  app.navigate({
-    mount(container) {
-      container.innerHTML = `
-        <div class="top-bar-slot"></div>
-        <p class="status-text status-text-error">⚠ Could not reach the daemon.</p>
-        <button type="button" class="btn btn-primary" id="boot-retry">Retry</button>
-      `;
-      container.querySelector('#boot-retry').addEventListener('click', bootstrap);
-    },
-    unmount() {},
-  });
+  app.showUnreachable();
 }
+
+// Per-output onboarding: `probe()` says which of the output's own steps are
+// still missing, `stages` navigates them. Everything after (Mode+Device, Zone
+// Mapping, Dashboard) is shared. A new output adds one entry here.
+//   probe()  -> { needsConnect, needsSelect }
+//   stages.connect({ platform, next }) -- `next(previousStep)` continues the flow
+//   stages.select({ previousStep, next }) -- `next(thisStep)` continues the flow
+const OUTPUTS = {
+  hue: {
+    async probe() {
+      let configured = false;
+      let entertainmentConfigurationId = '';
+      try {
+        const connection = await fetchJson('/api/hue/connection');
+        configured = connection.configured === true;
+        entertainmentConfigurationId = connection.entertainmentConfigurationId ?? '';
+      } catch {
+        // Unreachable connection endpoint reads as not paired.
+      }
+      return {
+        needsConnect: !configured,
+        needsSelect: configured && !entertainmentConfigurationId,
+      };
+    },
+    stages: {
+      connect({ platform, next }) {
+        // Welcome only ever appears here -- the one branch where nothing is
+        // configured yet -- never from Dashboard's "Change bridge" or any other
+        // OutputConnectScreen re-entry, which construct it directly with no
+        // discoveryPromise and keep behaving exactly as before.
+        //
+        // Mac only: a menu-bar tip screen sits between Welcome and Output
+        // Connect. It just carries the discovery promise through (discovery
+        // keeps running while the tip is read); Back from Output Connect
+        // returns to it, reusing the same already-started promise.
+        const isMac = platform === 'mac';
+        const showWelcome = () => app.navigate(new WelcomeScreen(app, {
+          onComplete: (discoveryPromise) => (isMac ? showMacTip(discoveryPromise) : showOutputConnect(discoveryPromise, showWelcome)),
+        }), 'welcome');
+        const showMacTip = (discoveryPromise) => app.navigate(new MacTrayTipScreen(app, {
+          discoveryPromise,
+          onBack: showWelcome,
+          onComplete: () => showOutputConnect(discoveryPromise, () => showMacTip(discoveryPromise)),
+        }), 'mac-tip');
+        const showOutputConnect = (discoveryPromise, previousStep) => app.navigate(new OutputConnectScreen(app, {
+          showBack: true,
+          onBack: previousStep,
+          discoveryPromise,
+          onComplete: () => next(() => showOutputConnect(undefined, previousStep)),
+        }), 'output-connect');
+        showWelcome();
+      },
+      select({ previousStep, next }) {
+        const thisStep = () => app.navigate(new EntertainmentZoneSelectScreen(app, {
+          showBack: previousStep !== null,
+          onBack: previousStep ?? undefined,
+          onComplete: () => next(thisStep),
+        }), 'output-select');
+        thisStep();
+      },
+    },
+  },
+};
 
 // What the Navigation model (docs/WebUI/WebUI_Design_1stPass.md) calls "any
 // missing/invalid" vs. "all valid" -- evaluated fresh every time a stage
@@ -86,21 +143,14 @@ function renderUnreachable() {
 // DashboardScreen's own _loadStatus after a mutation).
 async function probeState() {
   const capabilities = await fetchJson('/api/capabilities'); // lets a real failure here propagate to bootstrap's own try/catch
-  const hasHue = capabilities.outputs?.includes('hue') ?? false;
   const inputs = capabilities.inputs ?? [];
   const audioInputs = capabilities.audioInputs ?? [];
 
-  let connectionConfigured = true;
-  let entertainmentConfigurationId = '';
-  if (hasHue) {
-    try {
-      const connection = await fetchJson('/api/hue/connection');
-      connectionConfigured = connection.configured === true;
-      entertainmentConfigurationId = connection.entertainmentConfigurationId ?? '';
-    } catch {
-      connectionConfigured = false;
-    }
-  }
+  // First output the daemon offers that the table knows how to onboard; none
+  // means no output stages at all.
+  const outputName = (capabilities.outputs ?? []).find((name) => Object.hasOwn(OUTPUTS, name));
+  const output = outputName === undefined ? null : OUTPUTS[outputName];
+  const outputState = output ? await output.probe() : { needsConnect: false, needsSelect: false };
 
   let config = {};
   try {
@@ -108,10 +158,7 @@ async function probeState() {
   } catch {
     // No config yet -- falls through as an invalid video config below, same as a genuinely unset one.
   }
-  const mode = (!config.activeInputName && config.activeAudioInputName) ? 'audio' : 'video';
-  const modeConfigValid = mode === 'video'
-    ? inputs.includes(config.activeInputName)
-    : audioInputs.includes(config.activeAudioInputName);
+  const modeConfigValid = isModeConfigValid(config, inputs, audioInputs);
 
   // Zones only need onboarding when no live zone has ever actually been
   // written (everConfigured) -- unlike the old `active` check, this stays a
@@ -120,7 +167,9 @@ async function probeState() {
   // reconciles a sane ZoneMap automatically on every boot regardless (see
   // core/Runtime/src/ZoneReconciler.cpp), so this can't rely on shape/count.
   let needsZoneMapping = false;
-  if (modeConfigValid && mode === 'video') {
+  // Only a pipeline that samples zones has zones to map (Aurora-kea: the
+  // running pipeline's flag, not the mode in config).
+  if (modeConfigValid && (await loadPipelineState())?.samplesZones === true) {
     try {
       const zonesResult = await fetchJson('/api/zones');
       needsZoneMapping = Boolean(zonesResult.outputName)
@@ -133,23 +182,25 @@ async function probeState() {
 
   return {
     platform: capabilities.platform,
-    needsOutputConnect: hasHue && !connectionConfigured,
-    needsEntertainmentZoneSelect: hasHue && connectionConfigured && !entertainmentConfigurationId,
+    output,
+    needsOutputConnect: outputState.needsConnect,
+    needsOutputSelect: outputState.needsSelect,
     needsModeDevice: !modeConfigValid,
     needsZoneMapping,
   };
 }
 
 // Walks whichever onboarding steps are actually still needed, in the doc's
-// fixed order (Output Connect -> Entertainment zone select -> Mode+Device ->
-// Zone Mapping -> Dashboard) -- no forced Tuning step at the end anymore,
+// fixed order (output connect -> output select -> Mode+Device -> Zone
+// Mapping -> Dashboard; the first two come from the active output's table
+// entry) -- no forced Tuning step at the end anymore,
 // unlike Pass 1 (there's no "already tuned" signal to skip it on, so
 // forcing it every time it was reachable was the actual bug).
 // `previousStep`, when set, is a zero-arg function that re-navigates to the
 // step shown right before this one -- Back re-mounts it fresh rather than
 // replaying "done," which is safe here since every screen already reloads
 // its own state on mount().
-async function goToEntertainmentZoneSelectStage(previousStep) {
+async function goToOutputSelectStage(previousStep) {
   let state;
   try {
     state = await probeState();
@@ -158,17 +209,12 @@ async function goToEntertainmentZoneSelectStage(previousStep) {
     return;
   }
 
-  if (!state.needsEntertainmentZoneSelect) {
+  if (!state.needsOutputSelect) {
     await goToModeDeviceStage(previousStep);
     return;
   }
 
-  const thisStep = () => app.navigate(new EntertainmentZoneSelectScreen(app, {
-    showBack: previousStep !== null,
-    onBack: previousStep ?? undefined,
-    onComplete: () => goToModeDeviceStage(thisStep),
-  }));
-  thisStep();
+  state.output.stages.select({ previousStep, next: goToModeDeviceStage });
 }
 
 async function goToModeDeviceStage(previousStep) {
@@ -189,7 +235,7 @@ async function goToModeDeviceStage(previousStep) {
     showBack: previousStep !== null,
     onBack: previousStep ?? undefined,
     onComplete: () => goToZoneMappingStage(thisStep),
-  }));
+  }), 'mode-device');
   thisStep();
 }
 
@@ -212,7 +258,7 @@ async function goToZoneMappingStage(previousStep) {
     onBack: previousStep ?? undefined,
     onComplete: toDashboard,
     onboarding: true,
-  }));
+  }), 'zone-mapping');
 }
 
 async function bootstrap() {
@@ -245,41 +291,56 @@ async function bootstrap() {
     return;
   }
 
-  if (!state.needsOutputConnect && !state.needsEntertainmentZoneSelect && !state.needsModeDevice && !state.needsZoneMapping) {
+  if (!state.needsOutputConnect && !state.needsOutputSelect && !state.needsModeDevice && !state.needsZoneMapping) {
     toDashboard();
     return;
   }
 
   if (state.needsOutputConnect) {
-    // Welcome only ever appears here -- the one branch where nothing is
-    // configured yet -- never from Dashboard's "Change bridge" or any other
-    // OutputConnectScreen re-entry, which construct it directly with no
-    // discoveryPromise and keep behaving exactly as before.
-    //
-    // Mac only: a menu-bar tip screen sits between Welcome and Output
-    // Connect. It just carries the discovery promise through (discovery
-    // keeps running while the tip is read); Back from Output Connect
-    // returns to it, reusing the same already-started promise.
-    const isMac = state.platform === 'mac';
-    const showWelcome = () => app.navigate(new WelcomeScreen(app, {
-      onComplete: (discoveryPromise) => (isMac ? showMacTip(discoveryPromise) : showOutputConnect(discoveryPromise, showWelcome)),
-    }));
-    const showMacTip = (discoveryPromise) => app.navigate(new MacTrayTipScreen(app, {
-      discoveryPromise,
-      onBack: showWelcome,
-      onComplete: () => showOutputConnect(discoveryPromise, () => showMacTip(discoveryPromise)),
-    }));
-    const showOutputConnect = (discoveryPromise, previousStep) => app.navigate(new OutputConnectScreen(app, {
-      showBack: true,
-      onBack: previousStep,
-      discoveryPromise,
-      onComplete: () => goToEntertainmentZoneSelectStage(() => showOutputConnect(undefined, previousStep)),
-    }));
-    showWelcome();
+    state.output.stages.connect({ platform: state.platform, next: goToOutputSelectStage });
     return;
   }
 
-  await goToEntertainmentZoneSelectStage(null);
+  await goToOutputSelectStage(null);
 }
+
+// Shell-beat recovery path (Aurora-ewyz): re-probe, then return to the
+// preserved step with fresh screen instances. Only output-connect needs a
+// direct resume -- every other step re-derives to itself through
+// bootstrap() when the server state still needs it, except the connect
+// chain, which always restarts at Welcome.
+async function recover(preservedRouteId) {
+  if (preservedRouteId === 'output-connect') {
+    try {
+      const state = await probeState();
+      if (state.needsOutputConnect && state.output) {
+        // Fresh discovery, like WelcomeScreen's own mount -- the
+        // in-flight promise died with the outage, it is not resumed.
+        const discoveryPromise = fetch('/api/hue/discover').then((r) => r.json());
+        app.navigate(new OutputConnectScreen(app, {
+          showBack: true,
+          onBack: () => bootstrap(),
+          discoveryPromise,
+          onComplete: () => goToOutputSelectStage(() => bootstrap()),
+        }), 'output-connect');
+        return;
+      }
+    } catch {
+      // Falls through to the full bootstrap below, which owns unreachable.
+    }
+  }
+  await bootstrap();
+}
+
+app.onRecovered = (preservedRouteId) => {
+  void recover(preservedRouteId);
+};
+app.startHeartbeat();
+// A backgrounded tab's timers may be throttled for hours; re-check
+// immediately on return so a dead daemon surfaces without waiting out
+// the cadence.
+document.addEventListener('visibilitychange', () => {
+  if (!document.hidden) void app.checkNow();
+});
 
 bootstrap();

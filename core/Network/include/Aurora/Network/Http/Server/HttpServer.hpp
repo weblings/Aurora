@@ -5,6 +5,7 @@
 #include <optional>
 #include <string>
 #include <unordered_map>
+#include <utility>
 #include <vector>
 
 #include <Aurora/Network/Http/Server/HttpDataStructs.hpp>
@@ -62,10 +63,18 @@ namespace Aurora::Network::Http::Server
     using EmbeddedFiles = std::unordered_map<std::string, std::string>;
     void serveEmbeddedFiles(EmbeddedFiles files);
 
+    // A second embedded map under its own URL prefix (e.g. "/graph-editor",
+    // Aurora-lzj). Unlike serveEmbeddedFiles(), this works alongside either
+    // serving mode, since its routes only answer under the prefix. A
+    // trailing-slash path serves that directory's index.html, and the bare
+    // prefix redirects to prefix + "/". Call once per prefix, before bind().
+    void serveEmbeddedFilesAt(const std::string& prefix, EmbeddedFiles files);
+
   private:
     std::unique_ptr<Impl> m_httpServerImpl;
     std::vector<Route> m_routes;
     std::optional<std::filesystem::path> m_staticDir;
     std::optional<EmbeddedFiles> m_embeddedFiles;
+    std::vector<std::pair<std::string, EmbeddedFiles>> m_prefixedEmbeddedFiles;
   };
 }

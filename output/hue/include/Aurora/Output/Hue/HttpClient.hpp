@@ -27,12 +27,17 @@ namespace Aurora::Output::Hue
     std::string m_body;
   };
 
+  // LAN bridge calls answer fast; a cold internet round trip (discovery) needs
+  // longer (Aurora-07i: 1s made Autodetect fail on its first click).
+  inline constexpr long DefaultHttpTimeoutMs = 1000;
+
   // Returns std::nullopt on transport failure (timeout, DNS, refused, ...);
   // an HTTP error status still returns a Response -- callers check the body.
   std::optional<HttpResponse> sendHttpRequest(
     const std::string& url,
     const std::string& method,
     const std::string& body = "",
-    const HttpHeaders& headers = {}
+    const HttpHeaders& headers = {},
+    long timeoutMs = DefaultHttpTimeoutMs
   );
 }
