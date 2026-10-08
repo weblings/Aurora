@@ -393,14 +393,19 @@ const stateOk = (extra = {}) => async () => ({ reachable: true, state: 'running'
 }
 
 // Onboarding gate: a 'reload' source is the mid-onboarding "no outputs
-// paired" failure -- hidden on any route before the Dashboard, shown once
-// the Dashboard route is reached (ErrorOverlay.md's onboarding-gate note).
+// paired" failure -- hidden on the pairing routes, shown from Mode+Device on
+// (Aurora-scig; ErrorOverlay.md's onboarding-gate note).
 {
   const blankScreen = () => ({ mount() {}, unmount() {} });
   const { app, banner } = makeApp(stateOk({ state: 'failed', errors: [{ source: 'reload', message: 'No outputs available' }] }));
+  for (const route of ['welcome', 'mac-tip', 'output-connect', 'output-select']) {
+    app.navigate(blankScreen(), route);
+    await app._pollOnce();
+    assert.equal(banner(), '', `reload error gated on ${route}`);
+  }
   app.navigate(blankScreen(), 'mode-device');
   await app._pollOnce();
-  assert.equal(banner(), '', 'reload error gated during NUX');
+  assert.ok(banner().includes("Couldn't apply settings: No outputs available"), 'reload error shown on Capture Source');
   app.navigate(blankScreen(), 'dashboard');
   await app._pollOnce();
   assert.ok(banner().includes("Couldn't apply settings: No outputs available"), 'reload error shown once Dashboard is reached');
@@ -513,7 +518,7 @@ const HELD = { source: 'reload', message: 'bridge unreachable', id: 7 };
   app.platform = 'mac';
   app.navigate(blankScreen(), 'dashboard');
   await app._pollOnce();
-  assert.ok(banner().includes("System Audio Recording Only"), 'renders the audio permission block');
+  assert.ok(banner().includes("Aurora can't hear any audio."), 'renders the audio permission block');
   assert.ok(banner().includes('Open Settings'));
   assert.ok(banner().includes('id="shell-banner-dismiss-audio_permission"'), 'dismissible');
   assert.ok(banner().includes('id="shell-banner-retry-audio_permission"'), 'Retry button');

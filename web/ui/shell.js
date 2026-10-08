@@ -43,6 +43,9 @@ import { renderReloadError, parseMacPermissionError, renderAudioPermissionBanner
 const DEFAULT_POLL_INTERVAL_MS = 3000;
 const DEFAULT_ABORT_TIMEOUT_MS = 2500;
 const DEFAULT_FAILURE_THRESHOLD = 2;
+// Routes where a 'reload' error is real (an output is paired); see
+// _visibleErrors. Capture Source is one: a denied capture permission lands here.
+const RELOAD_ERROR_ROUTES = new Set(['mode-device', 'zone-mapping', 'dashboard']);
 
 async function defaultFetchStatus(signal) {
   const response = await fetch('/api/state', { signal });
@@ -290,11 +293,11 @@ export class App {
   // onboarding has actually reached the point of pairing an output, which
   // in the fixed NUX order (connect -> select -> Mode+Device) always
   // precedes Mode+Device for any output this build knows how to onboard.
-  // So "before the pairing step" and "anywhere before the Dashboard route"
-  // are the same condition for every real flow; gating on the route id
-  // needs no extra state threaded in from app.js's own onboarding walk.
+  // So the gate is "before Mode+Device" (Aurora-scig moved it there from
+  // "before the Dashboard", so a Capture Source apply failure shows); gating
+  // on the route id needs no extra state from app.js's own onboarding walk.
   _visibleErrors() {
-    const suppressReload = this.currentRouteId !== 'dashboard';
+    const suppressReload = !RELOAD_ERROR_ROUTES.has(this.currentRouteId);
     return this.hostErrors.filter((error) => !(suppressReload && error.source === 'reload'));
   }
 

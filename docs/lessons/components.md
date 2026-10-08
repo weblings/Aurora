@@ -380,3 +380,12 @@ The read-side twin of the Dropdown `dataset.value` lesson above (Aurora-ifkn.4):
 
 **Fix:** `findZone(zones, rawId)` matches either form by strict equality (`z.zoneId === rawId || z.zoneId === Number(rawId)`), the handler guards (`if (!zone) return`), and the queue writes under the zone's own id so string ids are never coerced. General rule alongside the Dropdown entry: never `Number(dataset.x)` unconditionally -- match-then-guard, and keep the domain's original id type on the write path.
 
+---
+
+## Rewording a daemon message does nothing when the web renderer draws its own text
+Tags: webui, banner, copy, audio-permission, daemon-message
+Applies-when: changing user-facing wording for an error or condition the daemon publishes, or a copy change "didn't carry over" to the screen
+
+Aurora-o1qt reworded the audio banner in `AudioPermissionPublisher.hpp` (`kMessage`). The screen never changed: the shell renders `audio_permission` through `renderAudioPermissionBanner` and ignores `error.message`, so the daemon string only appears in `/api/state`. The old text had also named the exact permission ("System Audio Recording Only"), which the reword dropped.
+
+**Fix:** before editing copy, grep the web for the old string and for the error's `source`; if a renderer table keys on the source (`shell.js`), the wording lives there. Change the renderer, update the tests that assert the old text (`MacPermissionRecovery`, `shell`, `DashboardScreen`), and keep the daemon string only if something else reads it. The reworded line keeps the permission name: "allow Aurora under "System Audio Recording Only" in System Settings".

@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 import { renderAudioPermissionBanner, renderLocalNetworkBanner } from './MacPermissionRecovery.js';
 
 const html = renderAudioPermissionBanner({ retryId: 'r1' });
-assert.ok(html.includes('System Audio Recording Only'));
+assert.ok(html.includes("Aurora can't hear any audio."));
 assert.ok(html.includes('id="r1"'), 'Retry button carries the shell-assigned id');
 assert.ok(html.indexOf('Retry</button>') < html.indexOf('Open Settings'), 'Retry first, Settings second');
 assert.ok(html.includes('com.apple.preference.security?Privacy_AudioCapture'));

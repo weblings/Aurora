@@ -322,10 +322,20 @@ condition for every real flow -- and `currentRouteId` was already tracked by
 the shell (`App.navigate`) for the connection watcher (Aurora-ewyz), needing
 no new state or cross-module wiring at all.
 
-**Fix:** gated on `currentRouteId !== 'dashboard'` in `shell.js` directly.
+**Fix:** gated on `currentRouteId !== 'dashboard'` in `shell.js` directly. (Aurora-scig narrowed this: Mode+Device is already past pairing, so a capture-permission failure there is a real `reload` error. The gate is now `!RELOAD_ERROR_ROUTES.has(route)` with `mode-device`, `zone-mapping` and `dashboard` in the set; the pairing routes still hide it.)
 General principle: before threading a new flag across a module boundary to
 implement a gate stated as "before step X happens," check whether the flow's
 own fixed ordering already makes "before step X" logically equivalent to
 some condition a nearby module already tracks for an unrelated reason -- a
 sequencing guarantee elsewhere in the same flow can retire an entire
 plumbing problem instead of solving it.
+
+---
+
+## The shell banner reads state only one screen sets, so an earlier NUX screen silently gets the generic row
+Tags: webui, nux, shell, banner, platform, app-state
+Applies-when: the shell banner (or any shell-level renderer) branches on a value like `app.platform`, and a screen reached before the Dashboard can raise that error
+
+`GET /api/state` carries no platform, so the banner's Mac-permission row keys on `app.platform === 'mac'`, which only `DashboardScreen` set. On Capture Source in the NUX it was never set, so a Screen Recording failure fell through to the generic row: "Couldn't apply settings: permission_denied: ScreenCaptureKitGrabber: no shareable displays -- ... (System Settings -> ...)" with only Retry. Dashboard looked right, so the bug was invisible until someone walked the NUX with the permission denied (Aurora-scig).
+
+**Fix:** `ModeDeviceScreen.mount` sets `app.platform` as soon as it reads `/api/capabilities`, as Dashboard does, with a mount test. The cleaner fix is the shell reading the platform itself once; until then, any screen that can precede a banner error must set it. When a banner row looks "old" on one screen and right on another, compare what each screen puts on `app` before comparing copy.
