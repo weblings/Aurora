@@ -435,6 +435,37 @@ namespace Aurora::Runtime
   }
 
 
+  void PipelineHost::setCondition(const std::string& source, const std::string& message)
+  {
+    std::lock_guard<std::mutex> lock(m_conditionsMutex);
+    for(HostCondition& condition : m_conditions){
+      if(condition.source == source){
+        condition.message = message;
+        return;
+      }
+    }
+    m_conditions.push_back({source, message});
+  }
+
+
+  bool PipelineHost::clearCondition(const std::string& source)
+  {
+    std::lock_guard<std::mutex> lock(m_conditionsMutex);
+    const auto removed = std::remove_if(m_conditions.begin(), m_conditions.end(),
+      [&](const HostCondition& c){ return c.source == source; });
+    if(removed == m_conditions.end()){ return false; }
+    m_conditions.erase(removed, m_conditions.end());
+    return true;
+  }
+
+
+  std::vector<HostCondition> PipelineHost::conditions() const
+  {
+    std::lock_guard<std::mutex> lock(m_conditionsMutex);
+    return m_conditions;
+  }
+
+
   bool PipelineHost::removeError(const std::string& source)
   {
     std::lock_guard<std::mutex> change(m_changeMutex);

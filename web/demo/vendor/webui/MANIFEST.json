@@ -1,6 +1,6 @@
 {
   "sourceRepo": "web/ui",
-  "sourceCommit": "9f28061",
+  "sourceCommit": "7be2a29",
   "layout": "Mirror of web/ui relative paths: vendor/webui/<path> is a byte-identical copy of web/ui/<path> (sync-webui.py). The seams below are demo-side behavior, not edits to the copies. Relative imports resolve unchanged.",
   "entry": "screens/DashboardScreen.js",
   "modules": [

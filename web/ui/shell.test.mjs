@@ -549,4 +549,50 @@ const HELD = { source: 'reload', message: 'bridge unreachable', id: 7 };
   uninstallDom();
 }
 
+// Host conditions (Aurora-rbp3): a standing fact renders on any route,
+// including first-run screens while the host is idle, with no Retry or X.
+{
+  const { app, banner } = makeApp(stateOk({ state: 'idle', conditions: [{ source: 'local_network', message: 'blocked' }] }));
+  app.navigate(blankScreen(), 'output-connect');
+  await app._pollOnce();
+  assert.ok(banner().includes("Aurora can't reach devices on your network"), 'local network row on a NUX route');
+  assert.ok(banner().includes('com.apple.preference.security'), 'Open Settings link');
+  assert.ok(!banner().includes('shell-banner-retry'), 'no Retry on a condition');
+  assert.ok(!banner().includes('shell-banner-dismiss'), 'no X on a condition');
+  uninstallDom();
+}
+
+// An unknown condition source still shows its message, escaped.
+{
+  const { app, banner } = makeApp(stateOk({ conditions: [{ source: 'future_thing', message: '<b>x</b>' }] }));
+  app.navigate(blankScreen(), 'dashboard');
+  await app._pollOnce();
+  assert.ok(banner().includes('&lt;b&gt;x&lt;/b&gt;'), 'generic, escaped');
+  uninstallDom();
+}
+
+// A condition plus an error collapse together as "2 problems"; the
+// condition clears from the banner once the daemon drops it.
+{
+  let conditions = [{ source: 'local_network', message: 'blocked' }];
+  const { app, banner } = makeApp(async () => ({ reachable: true, state: 'running', paused: false, errors: [{ source: 'reload', message: 'boom', id: 1 }], conditions }));
+  app.navigate(blankScreen(), 'dashboard');
+  await app._pollOnce();
+  assert.ok(banner().includes('2 problems'), 'counts conditions and errors together');
+  conditions = [];
+  await app._pollOnce();
+  assert.ok(!banner().includes('problems'), 'one row left, no summary');
+  assert.ok(!banner().includes('reach devices'), 'condition row gone');
+  uninstallDom();
+}
+
+// An absent conditions field (older daemon, demo shim) is the same as none.
+{
+  const { app, banner } = makeApp(stateOk());
+  app.navigate(blankScreen(), 'dashboard');
+  await app._pollOnce();
+  assert.equal(banner(), '');
+  uninstallDom();
+}
+
 console.log('shell checks passed.');

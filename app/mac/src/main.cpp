@@ -365,24 +365,6 @@ namespace
   }
 
 
-  // Local Network permission state for the Connect screen (Aurora-o1qt): a
-  // bridge that fails instantly may just be blocked by macOS.
-  void registerLocalNetworkRoute(
-    Aurora::Network::Http::Server::HttpServer& httpServer,
-    Aurora::App::LocalNetworkProbe& probe
-  )
-  {
-    httpServer.addRoute(
-      Aurora::Network::Http::Server::HttpMethod::Get,
-      "/api/mac/local-network",
-      [&probe](const Aurora::Network::Http::Server::Request&, Aurora::Network::Http::Server::Response& res){
-        res.contentType = "application/json";
-        res.body = nlohmann::json{{"status", Aurora::App::toString(probe.recheck())}}.dump();
-      }
-    );
-  }
-
-
   // RAII wrapper so the server is stopped and its thread joined on every
   // exit path (early "no outputs"/"unknown input" returns included) --
   // std::thread::~thread() calls std::terminate() if it's still joinable,
@@ -495,10 +477,9 @@ try
   Aurora::Network::Http::Server::HttpServer httpServer;
   registerCapabilitiesRoute(httpServer, registry, pipelineHost);
   registerVersionRoute(httpServer);
-  // Started this early so the permission prompt appears at launch, before
-  // the user reaches the Connect screen.
-  Aurora::App::LocalNetworkProbe localNetworkProbe;
-  registerLocalNetworkRoute(httpServer, localNetworkProbe);
+  // Raised at launch so the permission prompt appears before the user
+  // reaches the Connect screen (Aurora-o1qt).
+  Aurora::App::requestLocalNetworkPrompt();
 
   // Tooltip descriptors: every layer contributes its own control
   // descriptions; the frontend looks them up purely by key.
@@ -642,6 +623,14 @@ try
     [&](const std::string& source){ pipelineHost.removeError(source); }
   );
 
+  // Host condition for the banner (Aurora-rbp3): shows in every host state,
+  // first-run setup included, and clears itself when the user allows access.
+  Aurora::App::LocalNetworkConditionPublisher localNetworkCondition(
+    []{ return Aurora::App::checkLocalNetworkOnce(); },
+    [&](const std::string& source, const std::string& message){ pipelineHost.setCondition(source, message); },
+    [&](const std::string& source){ pipelineHost.clearCondition(source); }
+  );
+
   std::exception_ptr tickError;
   std::thread tickThread([&]{
     try{
@@ -653,6 +642,7 @@ try
           }
         }
         audioPermission.poll();
+        localNetworkCondition.poll();
         auto tickStart = std::chrono::steady_clock::now();
         pipelineHost.tick();
         auto tickInterval = std::chrono::duration<double>(pipelineHost.tickIntervalSeconds());

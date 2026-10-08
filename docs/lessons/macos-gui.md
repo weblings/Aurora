@@ -471,7 +471,7 @@ Applies-when: detecting whether Local Network access is granted, or reading an N
 
 Aurora-o1qt shipped two probes that read `NWBrowser` state and both reported "granted" with the toggle off. Docs and forum posts say the browser goes `ready`, then `waiting(-65570: PolicyDenied)`. On macOS 27 it never reached `waiting`, and an `NWListener` plus `NWBrowser` round trip saw its own advertisement at once. Logging showed the real signal: with the permission off, a non-blocking TCP `connect()` to the bridge and a `sendto()` of an empty UDP datagram to 224.0.0.251:5353 both failed immediately with errno 65. The send is side-effect-free and needs no known LAN host. Note the pending-prompt window also looks denied, so keep retrying for a while after launch. A Mac with no network fails differently (not 65), which maps to unknown.
 
-**Fix:** decide from the send (`LocalNetworkProbe.mm`, mapping in `statusFromSend`). Keep a Bonjour browse for a service type declared in `NSBonjourServices` only because Bonjour traffic is what raises the prompt. Test any such probe with the toggle off before trusting it; the forum recipe was wrong here.
+**Fix:** decide from the send (`LocalNetworkProbe.mm`, mapping in `statusFromSend`). Flipping the toggle in System Settings takes effect in the running app (the next send succeeds), so a 2 s re-check clears the shell's `local_network` condition with no relaunch (Aurora-rbp3). Keep a Bonjour browse for a service type declared in `NSBonjourServices` only because Bonjour traffic is what raises the prompt. Test any such probe with the toggle off before trusting it; the forum recipe was wrong here.
 
 ---
 
@@ -483,3 +483,12 @@ Applies-when: you need the Local Network prompt to appear again, or a "reset all
 
 **Fix:** `tools/mac/make-fresh-localnet-copy.sh [--launch]` copies the built app, sets a new bundle ID and `LC_UUID`, re-signs ad hoc, and launches it. Each run is a never-seen app and raises the prompt. The copy shares the original's config folder and port, so quit the original first.
 
+---
+
+## No System Settings deep link reaches the Local Network list; anchors come from the pane's search index, so check it before guessing
+Tags: macos, system-settings, deep-link, x-apple.systempreferences, local-network, anchors
+Applies-when: adding an "Open Settings" link for a privacy pane, or a `?Privacy_...` link lands on the wrong page
+
+`x-apple.systempreferences:com.apple.preference.security?Privacy_LocalNetwork` (and the `com.apple.settings.PrivacySecurity.extension` variants, with or without `.privacy-localnetwork`) all land on the Privacy & Security page on macOS 27. Apple calls these URLs unsupported. The anchors that do work (`Privacy_ScreenCapture`, `Privacy_AudioCapture`) are keys in `/System/Library/ExtensionKit/Extensions/SecurityPrivacyExtension.appex/Contents/Resources/en.lproj/PrivacySecurity.searchTerms`; Local Network is not there, because its row is a code-driven service (`PrivacyLocalNetworkService` in `TCCServiceList.plist`), not an indexed one.
+
+**Fix:** list the real anchors with `grep -o "Privacy_[A-Za-z]*" .../PrivacySecurity.searchTerms | sort -u` before writing a link. When the pane has none, link the parent page and name the last click in the copy ("In Settings, click Local Network and allow Aurora."). Re-check after a macOS update.

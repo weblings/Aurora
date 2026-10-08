@@ -163,6 +163,9 @@
 .shell-banner-content {
   flex: 1;
   min-width: 0;
+  /* Avoids a one-word last line (an orphan) in banner copy, whatever the
+     width. Browsers without support just wrap normally. */
+  text-wrap: pretty;
 }
 
 /* .status-text's own margin-top (forms.css) assumes it follows some other

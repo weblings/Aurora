@@ -272,3 +272,13 @@ rigorously-derived value is actually closer; it can read worse than the
 value it replaced. For body text specifically, remember the icon sits next
 to a mix of cap-height and x-height characters, not a pure sample of either,
 so neither metric alone predicts the right box.
+
+---
+
+## A one-word last line in banner copy: `text-wrap: pretty` plus a non-breaking space in the line that must not orphan
+Tags: css, typography, text-wrap, orphan, banner
+Applies-when: a short message wraps with one word alone on its last line
+
+Cutting a word fixed the Local Network banner at one width and not another: the break point moves with the window. `text-wrap: pretty` on `.shell-banner-content` makes supporting browsers rebalance the last lines at any width; browsers without it ignore the rule, so the specific line also joins its last two words with `&nbsp;` ("allow&nbsp;Aurora").
+
+**Fix:** put `text-wrap: pretty` on the container, not on one message, so every banner row benefits; use `&nbsp;` only where an orphan must never happen.

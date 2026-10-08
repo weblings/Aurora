@@ -97,10 +97,16 @@ namespace Aurora::Runtime
           errors.push_back({{"source", error.source}, {"message", error.message}, {"id", error.id}});
         }
 
+        nlohmann::json conditions = nlohmann::json::array();
+        for(const HostCondition& condition : pipelineHost.conditions()){
+          conditions.push_back({{"source", condition.source}, {"message", condition.message}});
+        }
+
         res.contentType = "application/json";
         res.body = nlohmann::json{
           {"state", hostStateName(status.state)},
           {"errors", errors},
+          {"conditions", conditions},
           {"paused", status.state == HostState::Paused},
           // Every host ships a Stop path (tray/quit plus POST /api/stop),
           // so this is unconditionally true here; hosts without one (the

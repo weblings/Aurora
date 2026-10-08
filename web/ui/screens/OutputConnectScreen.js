@@ -254,7 +254,7 @@ export class OutputConnectScreen {
     }
 
     if (address) this.bridgeAddress = address;
-    else this.error = failureMessage;
+    else this.error = (await this._localNetworkBlocked()) ? null : failureMessage;
 
     button.disabled = false;
     this._render();
@@ -276,12 +276,13 @@ export class OutputConnectScreen {
     }
   }
 
-  // Mac-only route (404 elsewhere): true only when the app's Bonjour probe
-  // saw macOS deny the Local Network permission (Aurora-o1qt).
+  // True while the host holds the "local_network" condition (Aurora-rbp3):
+  // the shell banner already explains it with an Open Settings link, so the
+  // caller shows no inline line of its own -- one message, not two.
   async _localNetworkBlocked() {
     try {
-      const response = await fetch('/api/mac/local-network');
-      return response.ok && (await response.json()).status === 'denied';
+      const state = await (await fetch('/api/state')).json();
+      return Array.isArray(state.conditions) && state.conditions.some((c) => c.source === 'local_network');
     } catch {
       return false;
     }
@@ -299,7 +300,7 @@ export class OutputConnectScreen {
     this.error = null;
     if (!(await this._validate(address))) {
       this.error = (await this._localNetworkBlocked())
-        ? "macOS is blocking Aurora from your local network. Open System Settings > Privacy & Security > Local Network, turn Aurora on, then restart Aurora."
+        ? null
         : "Couldn't reach a bridge at that address.";
       button.disabled = false;
       this._render();
