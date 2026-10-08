@@ -227,6 +227,12 @@ Applies-when: wrapping a C library's init/free pair (`mbedtls_*_init`/`_free`, `
 
 **Fix:** `delete ptr` after `FreeFunc(ptr)` in the deleter, or hold the contexts by value / `make_unique` with a free-only deleter that then lets the default delete run. When a leak report's block count equals the number of `new`s in one init function, check what the deleter does with the struct before hunting for a missing library free. Confirmed 2026-10-05: with the `delete`, 20 failed inits free all 120 structs (a counting test fails with exactly 20 x 6 leaked blocks before the fix), and `leaks(1)` goes from `_initRNG` root leaks to zero.
 
+
+Recurrence 2026-10-08 (`Aurora-h45.18`): huenicorn's own `MbedTlsDeleter` has
+the same bug, since Aurora's was ported from it. Its Mbed TLS 4 header leaks
+4 structs per init, not 6: PSA owns the RNG, so there is no
+`_initRNG`. Expect the block count to follow each header's own `new`s.
+
 ---
 
 ## C++ allows `2.f`: a float regex requiring post-dot digits misses every integral literal silently

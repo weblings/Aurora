@@ -51,3 +51,12 @@ for the same bug in huenicorn's own code. No code changed.
   `8d1e658` onto `fix/hue-api-robustness` (now 7, 8, 11; `git cherry` clean).
   Both pushed to the fork's `origin`. LSan driver re-run on the group branch:
   no leaks on 3.6.7 or 4.2.0.
+
+## Lessons
+
+- Build-toolchain: extended the huenicorn Mbed TLS entry with building
+  3.6.7/4.2.0 from release tarballs and the dead-port DTLS driver.
+- Language-cpp: deleter entry gains the huenicorn recurrence (4 structs on
+  Mbed TLS 4, 6 on 3).
+- Architecture/process (new): a fix in ported code is an upstream finding;
+  grep the fork when closing the bead.
