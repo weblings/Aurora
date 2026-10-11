@@ -907,3 +907,20 @@ grep of one file would have caught it at close time.
 `origin/develop`. If it's there, file a child of the upstream epic before
 closing. A periodic sweep still works as a backstop.
 
+
+---
+
+## Two orchestrators sending to one output don't take turns -- the output streams both, and the lights flicker
+Tags: architecture, node-graph, output, hue, orchestrator
+Applies-when: letting more than one source (orchestrator, graph branch) call `IOutput::send()` on the same output
+
+The Aurora-o13 spike ran the video and audio orchestrators in one tick, each
+calling `send()` on the same `HueOutput`. The plan expected "last send in the
+tick wins". It doesn't: `HueOutput::send()` streams every call (no
+latest-wins buffer), so the bridge got both frames each tick. The light tap
+showed 47 frames/s (vs 23 for one source) and 27 video/audio switches per
+second: visible flicker, at twice the packet rate.
+
+**Fix:** treat `IOutput` as having exactly one writer. A graph puts one
+pick-or-mix node per output ahead of `send()`; two sources never reach an
+output directly.
