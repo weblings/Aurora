@@ -998,3 +998,23 @@ after `pkill -f "afplay tone.wav"` (the `sh -c` wrapper restarted it). Only a
 **Fix:** for a missing route, `git log -S"<route>"` before filing a bug, and
 read the removing commit's message. For a silence/control run, prove the
 source is dead (`pgrep -fl`) before trusting the count.
+
+---
+
+## A CPU or latency win measured on a static screen is a best case -- re-measure with changing content
+Tags: debugging, performance, measurement, capture, frame-reuse
+Applies-when: quoting a perf number for a capture or tick path that skips work when the frame is unchanged (repeat-frame reuse, damage-based grabbers)
+
+Aurora-wqzp.1: the igwa result (Windows video 31-43% -> 2.4% CPU) came from a static desktop, where the grab times out and the cached rescale is reused. With content changing every tick the same build ran 8-15% (video) and ~21% (video + audio), and the video-only tick rate swung 32-50 Hz between runs. Still a big win, but 3-6x the headline. The same run showed a per-tick stat that sums nominal `dt` reads "300 ticks/5.0s" at any real rate; only a wall-clock window gave ~56 Hz against a 60 Hz budget.
+
+**Fix:** report static and moving rows side by side, and take rates from `steady_clock`, not summed `dt`. Repeat a moving run: one pass was not representative.
+
+---
+
+## A changing-content test fixture must not flash -- use slow, dark, low-contrast motion
+Tags: debugging, testing, fixtures, accessibility, photosensitivity
+Applies-when: writing a pattern or window that changes the whole screen on purpose to exercise capture, a viz or a color path
+
+Aurora-wqzp.1: the first "moving content" fixture cycled the full screen red/green/blue/white about 15 times a second so every grab would see a new frame. That is far above the usual 3-flashes-per-second guideline and unpleasant to sit through. Capture cost follows frames delivered, not contrast: replacing it with dark stripes drifting at ~0.5 Hz per pixel (new frame every tick) reproduced the same CPU, Hz and frames/s within run-to-run noise.
+
+**Fix:** for a "something changed" signal use small, slow, low-luminance-contrast motion, not full-screen flips. If a test truly needs high-contrast change, keep it small, off most of the screen, and warn whoever runs it.

@@ -341,3 +341,13 @@ Applies-when: adding per-tick CPU work after a grabber that returns its cached f
 Aurora-igwa: on a static desktop DXGI times out and the grabber returns `m_lastFrame`, but `Orchestrator` rescaled that unchanged 4K frame every tick (7 ms). Comparing pixels would cost as much as the rescale, and only the grabber knows. `IVideoInput::frameSerial()` (0 = unknown, always prepare) lets the Orchestrator skip it, and `setConfig` must clear the cache because `subsampleWidth` and `interpolation` change the result. Pair it with a GPU downscale: `GenerateMips` on a `D3D11_RESOURCE_MISC_GENERATE_MIPS` texture plus a staging copy of one mip level (`CopySubresourceRegion`, source subresource = level) returns a small frame instead of a 4K readback (video-only CPU 36% -> 2.4% on the static case).
 
 **Fix:** have the grabber own "did this frame change", keep serial 0 as the safe default, and never cache across a config change. Measure a moving screen separately: a static-desktop result flatters both changes.
+
+---
+
+## Read another process's console buffer from a throwaway helper -- `FreeConsole` in your own process kills your stdout
+Tags: windows, console, ctypes, measurement, devstack
+Applies-when: a script needs `AttachConsole(<pid>)` + `ReadConsoleOutputCharacterW` on a GUI-subsystem app while still printing to its own terminal
+
+Aurora-wqzp.1: attaching to the app's console (see the `AURORA_CONSOLE=1` entry) requires `FreeConsole()` first, which detaches the calling process from its own terminal, so the harness's later prints vanish. Two more traps: `CONSOLE_SCREEN_BUFFER_INFO` is 2-byte-packed `COORD`s (declare `Coord` as two `c_short`, not a `c_uint32`, or the cursor row reads wrong), and rows come back padded, so a long log line that wrapped at the console width stays contiguous only if the rows are concatenated with no separator.
+
+**Fix:** run the attach-and-read in a short subprocess that prints the buffer to a pipe, and regex over the concatenated rows. `tools/perf-harness/perf.py` does this (`_readconsole`).
