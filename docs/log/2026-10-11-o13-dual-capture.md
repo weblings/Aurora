@@ -1,11 +1,10 @@
-# Aurora-o13: video and audio capture at the same time (paused: Linux, Mac capture done)
+# Aurora-o13: video and audio capture at the same time (paused: Linux, Mac done; Windows open)
 
 Id: o13-dual-capture
 
 2026-10-11. Spike for node prep 9: can one `Pipeline` run screen and audio
 capture together on each platform? Linux works. Mac capture works under the
-terminal's grants (2026-10-12); Mac bundled-identity permissions and Windows
-not finished.
+terminal's grants (2026-10-12). Windows not run yet.
 
 ## Built (dev flag, spike only)
 
@@ -77,17 +76,16 @@ after the mode switch settled (`ps %cpu` is a lifetime average, not used).
   `/api/state` `errors`). The 2026-10-05 note in Aurora-kea that it
   answered predates that.
 
-**Permission matrix: not finished.** Reset `ScreenCapture`, `AudioCapture`
-(and, by mistake, `SystemPolicyAllFiles`) for `com.aurora.app`, relaunched
-`Aurora.app` via `open` with both input names set. The PUT returned in 2 s
-(it did not block on a prompt); `/api/state` went `failed` with
-`permission_denied: ... no shareable displays` (the expected first-request
-result for Screen Recording, dialog arriving out of band). Remaining: record
-which dialogs appear and in what order, grant, retry, confirm both captures
-deliver under the bundled identity, measure CPU there. Aurora-h457 found
-that Screen Recording alone covers the audio tap and that a grant reaches a
-rebuilt grabber, not a running one, so expect to need `POST /api/reload`
-after granting.
+**Permission matrix: dropped (owner decision, 2026-10-12).** One attempt was
+made: reset `ScreenCapture`, `AudioCapture` (and, by mistake,
+`SystemPolicyAllFiles`) for `com.aurora.app`, relaunched `Aurora.app` via
+`open` with both inputs. The PUT returned in 2 s and `/api/state` went
+`failed` with `permission_denied` (expected first-request result). Not
+pursued: prompt order and grant order do not matter for this question, and
+Aurora-h457 already found Screen Recording alone covers the audio tap. The
+Mac result above is the same shape as Linux's (live stack, live capture).
+Side effect: those three grants for `com.aurora.app` are reset, so the
+installed app asks again on its next launch.
 
 ## Which output wins: neither
 
@@ -100,7 +98,7 @@ directly. Lesson in architecture-process.
 
 ## Resume
 
-- Mac: finish the bundled-identity permission matrix (above). Windows: not run.
+- Windows: not run.
 - Same flag on Mac and Windows: set both input names (`PUT /api/config`),
   run with `AURORA_DEV_DUAL_CAPTURE=1`, record CPU and the `[dual-capture]`
   lines for each mode. Mac: watch whether Screen Recording and the audio

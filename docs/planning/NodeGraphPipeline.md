@@ -540,8 +540,7 @@ hit.
    (see "Live apply"). Follow-ups: Aurora-kea, Aurora-o13.
 
 8. **Both captures at once (spike).** Linux and Mac capture work
-   (Aurora-o13, [[o13-dual-capture]]); Mac bundled-identity permissions and
-   Windows not finished. Behind
+   (Aurora-o13, [[o13-dual-capture]]); Windows not run yet. Behind
    `AURORA_DEV_DUAL_CAPTURE`. CPU is additive (video ~47% + audio ~4% of a
    core ≈ 48% together on Linux; Mac ~19% + ~3.5% ≈ 25%) with no capture
    conflict. Decided by the result:
