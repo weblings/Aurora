@@ -924,3 +924,24 @@ second: visible flicker, at twice the packet rate.
 **Fix:** treat `IOutput` as having exactly one writer. A graph puts one
 pick-or-mix node per output ahead of `send()`; two sources never reach an
 output directly.
+
+
+---
+
+## Don't freeze "mode: video|audio" into a public API while a graph that can run both is planned
+Tags: architecture, api, external-control, node-graph, versioning
+Applies-when: writing or reviewing the public `/api/v1` state/mode contract (Aurora-5ipy.2, .9), or adapters that read `mode`
+
+Aurora-o13 showed video and audio capture run together fine on Linux and Mac,
+and [[node-graph-pipeline]] replaces the Video/Audio toggle with an Effect
+choice (badges video / audio / both). The external-control plan still lists
+"mode (video/audio)" and "source (monitor/sink)" as public fields, and 5ipy.9
+asks for mode and brightness as one atomic write. A `/api/v1` that ships
+`mode` as a single enum breaks the day a both-inputs effect exists, and the
+route-walk test only guards "route has a spec", not "field will survive".
+Aurora-kea already did the right thing internally: independent booleans
+(`usesVideoInput`, `usesAudioInput`, `samplesZones`).
+
+**Fix:** public state exposes capability flags plus an effect id; keep `mode`
+only as a derived, deprecated convenience. Decide this before 5ipy.9 freezes
+the spec, and keep adapters (MCP tool lists) keyed on the flags.
