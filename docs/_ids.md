@@ -114,7 +114,7 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `monorepo-reorg` | [log/2026-09-21-monorepo-reorg.md](log/2026-09-21-monorepo-reorg.md) | Monorepo reorg (2026-09-21) |
 | `node-graph-pipeline` | [planning/NodeGraphPipeline.md](planning/NodeGraphPipeline.md) | Node-graph processing pipeline |
 | `node-ha-prep-sequencing` | [log/2026-10-01-node-ha-prep-sequencing.md](log/2026-10-01-node-ha-prep-sequencing.md) | Node and HA prep: scoping, HA core read, bead sequences |
-| `o13-dual-capture` | [log/2026-10-11-o13-dual-capture.md](log/2026-10-11-o13-dual-capture.md) | Aurora-o13: video and audio capture at the same time (paused: Linux done) |
+| `o13-dual-capture` | [log/2026-10-11-o13-dual-capture.md](log/2026-10-11-o13-dual-capture.md) | Aurora-o13: video and audio capture at the same time (Linux, Mac, Windows run) |
 | `o1qt-local-network-probe` | [log/2026-10-08-o1qt-local-network-probe.md](log/2026-10-08-o1qt-local-network-probe.md) | Aurora-o1qt: Mac Local Network permission detection (closed) |
 | `open-formats-research` | [archive/OpenFormatsResearch.md](archive/OpenFormatsResearch.md) | Existing open formats for video/audio-reactive lighting |
 | `p91-portal-settle` | [log/2026-10-03-p91-portal-settle.md](log/2026-10-03-p91-portal-settle.md) | Aurora-p91: portal denial and call errors settle the fd promise |

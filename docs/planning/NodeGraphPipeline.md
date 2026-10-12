@@ -539,11 +539,12 @@ hit.
    (always rebuild); a settings PUT goes through `applyConfigFromDisk`
    (see "Live apply"). Follow-ups: Aurora-kea, Aurora-o13.
 
-8. **Both captures at once (spike).** Linux and Mac capture work
-   (Aurora-o13, [[o13-dual-capture]]); Windows not run yet. Behind
+8. **Both captures at once (spike).** Linux, Mac and Windows capture
+   work (Aurora-o13, [[o13-dual-capture]]). Behind
    `AURORA_DEV_DUAL_CAPTURE`. CPU is additive (video ~47% + audio ~4% of a
-   core ≈ 48% together on Linux; Mac ~19% + ~3.5% ≈ 25%) with no capture
-   conflict. Decided by the result:
+   core ≈ 48% together on Linux; Mac ~19% + ~3.5% ≈ 25%; Windows video 31-43% and audio ~0.5%, noise
+   hides the sum) with no capture conflict. Windows video `update()` is
+   ~32 ms against a 16.67 ms budget, in every mode. Decided by the result:
    two sources must not share an output directly. Each `send()` streams,
    so the lights flicker between them; a graph needs one pick-or-mix node
    per output ahead of `send()`.

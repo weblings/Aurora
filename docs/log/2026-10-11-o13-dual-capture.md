@@ -1,10 +1,10 @@
-# Aurora-o13: video and audio capture at the same time (paused: Linux, Mac done; Windows open)
+# Aurora-o13: video and audio capture at the same time (Linux, Mac, Windows capture run)
 
 Id: o13-dual-capture
 
 2026-10-11. Spike for node prep 9: can one `Pipeline` run screen and audio
 capture together on each platform? Linux works. Mac capture works under the
-terminal's grants (2026-10-12). Windows not run yet.
+terminal's grants (2026-10-12). Windows works (2026-10-12); video `update()` is over the tick budget there.
 
 ## Built (dev flag, spike only)
 
@@ -87,6 +87,45 @@ Mac result above is the same shape as Linux's (live stack, live capture).
 Side effect: those three grants for `com.aurora.app` are reset, so the
 installed app asks again on its next launch.
 
+## Windows result (2026-10-12): works; video update is over budget
+
+Windows 11, `windows-app` Release rebuilt at d4d7abd (the exe on disk predated
+the spike). Run through `devstack.py up` with the flag exported: `windows`
+(DXGI) + `windows-audio` (miniaudio loopback), a looping 440 Hz WAV playing via
+`SoundPlayer` throughout. 60 Hz (16.67 ms budget). Process CPU from
+`GetProcessTimes` over 30 s after an 8 s settle; modes switched live by
+`PUT /api/config`. Four passes of video, three of the others (the first
+pass had no timings). `[dual-capture]` lines read from the app's own console
+(`AURORA_CONSOLE=1`, buffer read by pid) since devstack gives the exe no
+console.
+
+| Mode | CPU (one core), passes | `update()` avg / max ms (steady windows) |
+|---|---|---|
+| Video only | 36.6, 31.2, 43.3, 33.8% | video 31.6-32.1 / 50-52 |
+| Audio only | 0.5, 0.4, 0.6% | audio 0.15 / 0.4-0.8 |
+| Both | 30.5, 33.9, 38.7% | video 31.2-31.8 / 50-51; audio 0.10-0.11 / 0.2-0.3 |
+
+- No capture conflict: DXGI and loopback ran together, switched live with no
+  relaunch.
+- Video `update()` does not move with audio added (about 31.5 ms either way);
+  audio `update()` is cheaper in dual, as on Mac.
+- CPU additivity is not resolvable: video-only alone spans 31-43% across
+  passes (mean 36), larger than the ~0.5% audio cost, and both (mean 34) falls
+  inside it. Linux and Mac were additive but their audio costs were 3.5-4%.
+- Audio is ~0.5% CPU, 7x below Linux/Mac (3.5-4%). Frames flow (below), so
+  loopback is delivering; the cause is not chased.
+- **Video `update()` averages ~32 ms against a 16.67 ms budget** (Linux 7.3,
+  Mac 4.1), in video-only too, so it is not a dual cost. The window still
+  reports 300 ticks per 5 s, which 32 ms updates cannot produce; the timer
+  and the tick count disagree and this was not chased. Matters for the
+  graph's per-tick budget on Windows.
+- Startup outliers: video max 667-1090 ms in the first window after each
+  switch to a video mode (rebuild), never in steady state.
+- Light frames per 5 s on the relay SSE: audio+tone 161, video 158, both 313.
+  Same interleave as Linux and Mac (the output has two writers).
+- Audio-only with nothing playing gave zero frames (SSE read timed out), as
+  the loopback lesson predicts.
+
 ## Which output wins: neither
 
 Both orchestrators call `output->send()` each tick, and `HueOutput::send()`
@@ -98,12 +137,6 @@ directly. Lesson in architecture-process.
 
 ## Resume
 
-- Windows: not run.
-- Same flag on Mac and Windows: set both input names (`PUT /api/config`),
-  run with `AURORA_DEV_DUAL_CAPTURE=1`, record CPU and the `[dual-capture]`
-  lines for each mode. Mac: watch whether Screen Recording and the audio
-  prompt can both be granted (setup only asks for one today); Windows: WGC/DXGI
-  plus miniaudio loopback (loopback gives zero callbacks with nothing
-  playing, see input lessons).
-- Then update [[node-graph-pipeline]] and close Aurora-o13; remove or keep the
-  flag per what the graph work needs.
+- Windows: why video `update()` is ~32 ms against a 16.67 ms budget while
+  ticks still report 300 per 5 s (timer or tick-count bug?) is open.
+- Close Aurora-o13; remove or keep the flag per what the graph work needs.

@@ -298,3 +298,24 @@ Applies-when: stopping a background server or child by matching its command line
 Stopping a test viz server with `powershell -NoProfile -Command "Get-CimInstance Win32_Process | Where-Object { $_.CommandLine -match '_serve 8799' } | ForEach-Object { Stop-Process ... }"` stopped two processes and exited 255 (Aurora-57ct check). The pattern was also in that `powershell.exe`'s own command line, so it matched and killed itself mid-pipeline. Filtering on `Name='python.exe'` first had avoided it in the earlier runs.
 
 **Fix:** narrow by process name before matching the command line (`-Filter "Name='python.exe'"`), or exclude `$PID`. Better still, kill by the PID you recorded at launch, as `devstack.py` does with its state file.
+
+
+---
+
+## Aurora.exe under devstack has no console, so `app.log` stays empty -- read the app's own console buffer by pid
+Tags: windows, logging, console, devstack, measurement
+Applies-when: a log line you need (e.g. `[dual-capture]`) only goes to stdout on a Windows run launched by `devstack.py` or any detached launch
+
+Aurora-o13 Windows: `Aurora.exe` is a GUI-subsystem exe. It rejoins a parent console if one exists; devstack gives it none, so `app.log` was 0 bytes and the per-tick timing lines were invisible. Redirecting stdout does not help: the app reopens stdout onto `CONOUT$`, not the pipe.
+
+**Fix:** export `AURORA_CONSOLE=1` before `devstack.py up` (the app calls `AllocConsole`), then from a process with no console of its own `FreeConsole()`, `AttachConsole(<app pid>)`, open `CONOUT$` and `ReadConsoleOutputCharacterW` the buffer. Take the last matching lines per mode. For per-mode CPU on the same pid use `GetProcessTimes` deltas (kernel + user), not a lifetime average.
+
+---
+
+## `cmake --build --target Aurora` fails and `AuroraApp` builds only a lib -- the Windows exe target is `aurora-app-windows`, and check the exe's mtime
+Tags: windows, build, cmake, stale-binary
+Applies-when: rebuilding the Windows app for a live check, or running a `build/windows-app` exe after pulling source changes
+
+Aurora-o13: `build/windows-app/bin/Release/Aurora.exe` predated the spike by four days. `--target Aurora` gives "Project file does not exist: Aurora.vcxproj"; `--target AuroraApp` succeeds but only emits `AuroraApp.lib`, leaving the exe stale, and the output looks like a normal build. The first signal is the exe's timestamp not moving.
+
+**Fix:** `cmake --build build/windows-app --config Release --target aurora-app-windows` (`OUTPUT_NAME "Aurora"`), then compare `ls -l` mtime of `bin/Release/Aurora.exe` with the source before trusting a run.
