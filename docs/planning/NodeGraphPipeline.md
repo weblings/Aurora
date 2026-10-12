@@ -544,7 +544,7 @@ hit.
    `AURORA_DEV_DUAL_CAPTURE`. CPU is additive (video ~47% + audio ~4% of a
    core ≈ 48% together on Linux; Mac ~19% + ~3.5% ≈ 25%; Windows video 31-43% and audio ~0.5%, noise
    hides the sum) with no capture conflict. Windows video `update()` is
-   ~32 ms against a 16.67 ms budget, in every mode. Decided by the result:
+   ~32 ms (24 ms after a timer-resolution fix) against a 16.67 ms budget, in every mode. Decided by the result:
    two sources must not share an output directly. Each `send()` streams,
    so the lights flicker between them; a graph needs one pick-or-mix node
    per output ahead of `send()`.

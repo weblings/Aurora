@@ -115,10 +115,12 @@ console.
 - Audio is ~0.5% CPU, 7x below Linux/Mac (3.5-4%). Frames flow (below), so
   loopback is delivering; the cause is not chased.
 - **Video `update()` averages ~32 ms against a 16.67 ms budget** (Linux 7.3,
-  Mac 4.1), in video-only too, so it is not a dual cost. The window still
-  reports 300 ticks per 5 s, which 32 ms updates cannot produce; the timer
-  and the tick count disagree and this was not chased. Matters for the
-  graph's per-tick budget on Windows.
+  Mac 4.1), in video-only too, so it is not a dual cost. The "300 ticks/5.0s"
+  is not a rate: `elapsed` sums the nominal `dt`, so it always reads 5.0 s.
+  Real rate is ~31 ticks/s (matches ~158 light frames/5 s). Cause found under
+  Aurora-igwa: DXGI's 16 ms `AcquireNextFrame` wait rounds up to ~28-31 ms at
+  default timer resolution; `timeBeginPeriod(1)` brings it to ~24 ms (16.7 wait
+  + ~7 work). Remaining over-budget part is open in Aurora-igwa.
 - Startup outliers: video max 667-1090 ms in the first window after each
   switch to a video mode (rebuild), never in steady state.
 - Light frames per 5 s on the relay SSE: audio+tone 161, video 158, both 313.
@@ -137,6 +139,5 @@ directly. Lesson in architecture-process.
 
 ## Resume
 
-- Windows: why video `update()` is ~32 ms against a 16.67 ms budget while
-  ticks still report 300 per 5 s (timer or tick-count bug?) is open.
-- Close Aurora-o13; remove or keep the flag per what the graph work needs.
+- Windows video `update()` still ~24 ms after the timer fix (Aurora-igwa).
+- Flag kept for the graph work.

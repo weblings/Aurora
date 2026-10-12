@@ -319,3 +319,14 @@ Applies-when: rebuilding the Windows app for a live check, or running a `build/w
 Aurora-o13: `build/windows-app/bin/Release/Aurora.exe` predated the spike by four days. `--target Aurora` gives "Project file does not exist: Aurora.vcxproj"; `--target AuroraApp` succeeds but only emits `AuroraApp.lib`, leaving the exe stale, and the output looks like a normal build. The first signal is the exe's timestamp not moving.
 
 **Fix:** `cmake --build build/windows-app --config Release --target aurora-app-windows` (`OUTPUT_NAME "Aurora"`), then compare `ls -l` mtime of `bin/Release/Aurora.exe` with the source before trusting a run.
+
+
+---
+
+## A 16 ms blocking wait costs ~28-31 ms at default timer resolution -- `timeBeginPeriod(1)` or the tick rate halves
+Tags: windows, timers, dxgi, performance, tick-budget
+Applies-when: a Windows loop blocks on a short timeout (DXGI `AcquireNextFrame(16)`, `Sleep`, `sleep_until`) and runs slower than its budget with no obvious CPU cost
+
+Aurora-igwa: video `update()` averaged ~32 ms against 16.67 ms (~31 ticks/s, matching ~158 light frames/5 s). `WaitForSingleObject(ev, 16)` measured 28.3 ms in a default-resolution process and 16.7 ms after `timeBeginPeriod(1)`. The app never set it. After adding it, update dropped to ~24 ms (16.7 wait + ~7 work), so the timer was most, not all, of it. The log's "300 ticks/5.0s" looked like proof of 60 Hz but sums the nominal `dt`, not wall time.
+
+**Fix:** `timeBeginPeriod(1)` at startup (RAII, link `winmm`). Prove rates from wall-clock evidence (frame counts), not from a counter that adds the budget.
