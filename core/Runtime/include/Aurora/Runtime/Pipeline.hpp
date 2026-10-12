@@ -145,6 +145,17 @@ namespace Aurora::Runtime
     Pipeline() = default;
 
     bool m_isAudioMode{false};
+    // Aurora-o13 spike: AURORA_DEV_DUAL_CAPTURE builds both orchestrators
+    // and ticks both. Video stays primary for config, zones and monitors.
+    // The flag also logs per-orchestrator tick timing in single modes.
+    bool m_isDualCapture{false};
+    struct DualCaptureStats
+    {
+      std::function<void(LogLevel, const std::string&)> log;
+      double videoSum{0}, videoMax{0}, audioSum{0}, audioMax{0}, elapsed{0};
+      unsigned ticks{0};
+    };
+    DualCaptureStats m_dualStats;
     Config m_appliedConfig;
     double m_tickIntervalSeconds{Runtime::tickIntervalSeconds()};
 

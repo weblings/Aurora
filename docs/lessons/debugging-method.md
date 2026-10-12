@@ -957,3 +957,44 @@ Applies-when: a UI change does not appear after reloads or app relaunches, and c
 Aurora-scig spent several fresh-copy launches (and a browser-cache guess) on "old video copy on Capture Source". Two grep checks would have ended it sooner: `curl` the served module for the new symbol (it was there, and the server sends `no-store`), then read the render condition for the text on screen (`app.platform` was unset on that screen). The relaunches tested nothing the curl had not already answered, and the stale-tab guess was wrong here.
 
 **Fix:** (1) `curl` the served file for a string only the new code has; if present, the page is not stale. (2) Ask for the exact text on screen and grep for it, or enumerate the branches that can produce it. (3) Only then relaunch. Ask for DevTools "Disable cache" at the start if a tab is in play.
+
+
+---
+
+## `ps -o %cpu` is a lifetime average -- after a mode switch it measures the wrong mode
+Tags: debugging, measurement, cpu, mac, performance
+Applies-when: comparing CPU between modes of one long-running process (video / audio / both) on Mac or Linux
+
+Aurora-o13 Mac: `ps -o %cpu` on the same pid read 21-24% across the whole
+run, steady, through video-only (~19%), audio-only (~3.5%) and both (~25%).
+It is CPU time over process lifetime, so it lags every switch and blends the
+modes. `top -l 4 -s 5 -pid <pid> -stats pid,cpu,threads` takes interval
+samples; the first sample is also a lifetime-ish zero (`0.0`), so drop it.
+Wait for the mode to settle (a rebuild spike was 48 ms for one window) before
+sampling.
+
+**Fix:** per-mode CPU = interval samples after settling, first sample
+discarded; on Linux `/proc/<pid>/stat` deltas (as the Linux half did). Never
+quote `ps %cpu` for a per-mode comparison.
+
+---
+
+## A bead note saying a route answered is point-in-time -- `git log -S` before calling a later 404 a regression
+Tags: debugging, verification, beads, routes, stale-notes
+Applies-when: a route, flag or file a past note says worked is now missing or 404
+
+Aurora-o13 Mac saw `/api/mac/audio-status` return 404; Aurora-kea's
+2026-10-05 note says it answered `permissionLikelyDenied:false`. It looked
+like a regression. `git log -S"mac/audio-status"` found 96b9982
+(Aurora-h457, 2026-10-06), whose message says it removed the route on
+purpose; the signal moved to an `audio_permission` entry in `/api/state`
+errors. One command settled it.
+
+A second trap in the same run: the "tone off, audio-only" frame count equalled
+the tone-on count (252 vs 252). The looping `afplay` shell was still alive
+after `pkill -f "afplay tone.wav"` (the `sh -c` wrapper restarted it). Only a
+`pgrep` showing no process made the later true-silence run (0 frames) valid.
+
+**Fix:** for a missing route, `git log -S"<route>"` before filing a bug, and
+read the removing commit's message. For a silence/control run, prove the
+source is dead (`pgrep -fl`) before trusting the count.

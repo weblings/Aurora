@@ -907,3 +907,41 @@ grep of one file would have caught it at close time.
 `origin/develop`. If it's there, file a child of the upstream epic before
 closing. A periodic sweep still works as a backstop.
 
+
+---
+
+## Two orchestrators sending to one output don't take turns -- the output streams both, and the lights flicker
+Tags: architecture, node-graph, output, hue, orchestrator
+Applies-when: letting more than one source (orchestrator, graph branch) call `IOutput::send()` on the same output
+
+The Aurora-o13 spike ran the video and audio orchestrators in one tick, each
+calling `send()` on the same `HueOutput`. The plan expected "last send in the
+tick wins". It doesn't: `HueOutput::send()` streams every call (no
+latest-wins buffer), so the bridge got both frames each tick. The light tap
+showed 47 frames/s (vs 23 for one source) and 27 video/audio switches per
+second: visible flicker, at twice the packet rate.
+
+**Fix:** treat `IOutput` as having exactly one writer. A graph puts one
+pick-or-mix node per output ahead of `send()`; two sources never reach an
+output directly.
+
+
+---
+
+## Don't freeze "mode: video|audio" into a public API while a graph that can run both is planned
+Tags: architecture, api, external-control, node-graph, versioning
+Applies-when: writing or reviewing the public `/api/v1` state/mode contract (Aurora-5ipy.2, .9), or adapters that read `mode`
+
+Aurora-o13 showed video and audio capture run together fine on Linux and Mac,
+and [[node-graph-pipeline]] replaces the Video/Audio toggle with an Effect
+choice (badges video / audio / both). The external-control plan still lists
+"mode (video/audio)" and "source (monitor/sink)" as public fields, and 5ipy.9
+asks for mode and brightness as one atomic write. A `/api/v1` that ships
+`mode` as a single enum breaks the day a both-inputs effect exists, and the
+route-walk test only guards "route has a spec", not "field will survive".
+Aurora-kea already did the right thing internally: independent booleans
+(`usesVideoInput`, `usesAudioInput`, `samplesZones`).
+
+**Fix:** public state exposes capability flags plus an effect id; keep `mode`
+only as a derived, deprecated convenience. Decide this before 5ipy.9 freezes
+the spec, and keep adapters (MCP tool lists) keyed on the flags.

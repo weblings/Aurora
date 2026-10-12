@@ -88,6 +88,11 @@ namespace Aurora::Runtime
     Smoother m_smoother;
     Contracts::ImageData m_frameData;
 
+    // _prepareSource() output for m_preparedSerial (IVideoInput::frameSerial);
+    // reused while the serial is unchanged and nonzero.
+    Contracts::ImageData m_prepared;
+    std::uint64_t m_preparedSerial = 0;
+
     // Dev-only visualization tap -- no-op unless AURORA_DEV_FRAME_DUMP is set.
     DevFrameDump m_devFrameDump;
   };

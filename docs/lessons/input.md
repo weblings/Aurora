@@ -804,3 +804,42 @@ stays on the same monitor. Here both reruns copied the first run's token and
 both skipped the picker, so on GNOME 46 that token was not single-use. If a
 rerun prompts again, copy the newest token from the last run's config.
 Not checked on KDE or wlroots portals.
+
+
+---
+
+## A devstack run on Mac borrows the terminal's TCC grants -- it proves capture, not permissions
+Tags: input, mac, tcc, permissions, devstack, dual-capture
+Applies-when: measuring or verifying anything on Mac that a Screen Recording / System Audio Recording grant could change
+
+`devstack.py up` spawns `Aurora` as a child of the terminal, so macOS
+attributes capture to the terminal's already-held grants (the light-viz skill
+notes this for denied-state checks). The Aurora-o13 Mac run used it for the
+CPU/timing table: video, audio and both all worked with no prompt at all,
+which says nothing about whether the bundle's own two grants can be held at
+once. The same run, relaunched as `open -n Aurora.app` after `tccutil reset
+ScreenCapture`/`AudioCapture com.aurora.app`, failed straight away with
+`permission_denied`.
+
+**Fix:** split Mac verification in two. Terminal-identity devstack for
+throughput, CPU and tick timing; a bundle launched with `open` (after scoped
+resets) for anything about prompts, order or recovery. Say which identity a
+result came from.
+
+---
+
+## On Mac, `PUT /api/config` with a missing permission returns in seconds, not after the prompt
+Tags: input, mac, tcc, config, reload, dual-capture
+Applies-when: scripting a Mac launch that sets inputs over REST and waits for the response (devstack-style); comparing with Linux's portal
+
+Linux Wayland's portal dialog blocks the config PUT until accepted (devstack
+allows 120 s). On Mac the Aurora-o13 PUT of `activeInputName=mac` plus
+`activeAudioInputName=mac-audio` on a reset bundle returned in 2.2 s with the
+reload already failed: `GET /api/state` `state:"failed"`, error
+`permission_denied: ... no shareable displays`, while the OS dialogs arrive
+out of band afterwards. A script that treats "PUT returned" as "capture is
+up" is wrong on Mac.
+
+**Fix:** after the PUT, poll `/api/state` (not the PUT body) until `running`
+or a held error; after the user grants, `POST /api/reload`, since a grant
+reaches a grabber built after it, not a running one (Aurora-h457 entry above).

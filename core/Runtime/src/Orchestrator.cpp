@@ -93,8 +93,15 @@ namespace Aurora::Runtime
       return;
     }
 
-    Contracts::ImageData source = m_frameData;
-    _prepareSource(source);
+    // A static desktop repeats the same frame every tick; rescaling it again
+    // cost ~7 ms per tick at 4K on Windows (Aurora-igwa).
+    const std::uint64_t serial = m_input.frameSerial();
+    if(serial == 0 || serial != m_preparedSerial || !m_prepared.hasData()){
+      m_prepared = m_frameData;
+      _prepareSource(m_prepared);
+      m_preparedSerial = serial;
+    }
+    const Contracts::ImageData& source = m_prepared;
 
     // Unconditional, same reasoning as DevLightTap in HueOutput::send() --
     // this observes exactly the frame composeFrame() below is about to
@@ -152,6 +159,7 @@ namespace Aurora::Runtime
   void Orchestrator::setConfig(Config config)
   {
     m_config = std::move(config);
+    m_preparedSerial = 0; // subsampleWidth / interpolation may have changed
   }
 
 

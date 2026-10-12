@@ -298,3 +298,46 @@ Applies-when: stopping a background server or child by matching its command line
 Stopping a test viz server with `powershell -NoProfile -Command "Get-CimInstance Win32_Process | Where-Object { $_.CommandLine -match '_serve 8799' } | ForEach-Object { Stop-Process ... }"` stopped two processes and exited 255 (Aurora-57ct check). The pattern was also in that `powershell.exe`'s own command line, so it matched and killed itself mid-pipeline. Filtering on `Name='python.exe'` first had avoided it in the earlier runs.
 
 **Fix:** narrow by process name before matching the command line (`-Filter "Name='python.exe'"`), or exclude `$PID`. Better still, kill by the PID you recorded at launch, as `devstack.py` does with its state file.
+
+
+---
+
+## Aurora.exe under devstack has no console, so `app.log` stays empty -- read the app's own console buffer by pid
+Tags: windows, logging, console, devstack, measurement
+Applies-when: a log line you need (e.g. `[dual-capture]`) only goes to stdout on a Windows run launched by `devstack.py` or any detached launch
+
+Aurora-o13 Windows: `Aurora.exe` is a GUI-subsystem exe. It rejoins a parent console if one exists; devstack gives it none, so `app.log` was 0 bytes and the per-tick timing lines were invisible. Redirecting stdout does not help: the app reopens stdout onto `CONOUT$`, not the pipe.
+
+**Fix:** export `AURORA_CONSOLE=1` before `devstack.py up` (the app calls `AllocConsole`), then from a process with no console of its own `FreeConsole()`, `AttachConsole(<app pid>)`, open `CONOUT$` and `ReadConsoleOutputCharacterW` the buffer. Take the last matching lines per mode. For per-mode CPU on the same pid use `GetProcessTimes` deltas (kernel + user), not a lifetime average.
+
+---
+
+## `cmake --build --target Aurora` fails and `AuroraApp` builds only a lib -- the Windows exe target is `aurora-app-windows`, and check the exe's mtime
+Tags: windows, build, cmake, stale-binary
+Applies-when: rebuilding the Windows app for a live check, or running a `build/windows-app` exe after pulling source changes
+
+Aurora-o13: `build/windows-app/bin/Release/Aurora.exe` predated the spike by four days. `--target Aurora` gives "Project file does not exist: Aurora.vcxproj"; `--target AuroraApp` succeeds but only emits `AuroraApp.lib`, leaving the exe stale, and the output looks like a normal build. The first signal is the exe's timestamp not moving.
+
+**Fix:** `cmake --build build/windows-app --config Release --target aurora-app-windows` (`OUTPUT_NAME "Aurora"`), then compare `ls -l` mtime of `bin/Release/Aurora.exe` with the source before trusting a run.
+
+
+---
+
+## A 16 ms blocking wait costs ~28-31 ms at default timer resolution -- `timeBeginPeriod(1)` or the tick rate halves
+Tags: windows, timers, dxgi, performance, tick-budget
+Applies-when: a Windows loop blocks on a short timeout (DXGI `AcquireNextFrame(16)`, `Sleep`, `sleep_until`) and runs slower than its budget with no obvious CPU cost
+
+Aurora-igwa: video `update()` averaged ~32 ms against 16.67 ms (~31 ticks/s, matching ~158 light frames/5 s). `WaitForSingleObject(ev, 16)` measured 28.3 ms in a default-resolution process and 16.7 ms after `timeBeginPeriod(1)`. The app never set it. After adding it, update dropped to ~24 ms (16.7 wait + ~7 work), so the timer was most, not all, of it. The log's "300 ticks/5.0s" looked like proof of 60 Hz but sums the nominal `dt`, not wall time.
+
+**Fix:** `timeBeginPeriod(1)` at startup (RAII, link `winmm`). Prove rates from wall-clock evidence (frame counts), not from a counter that adds the budget.
+
+
+---
+
+## Reusing the previous tick's CPU work needs a frame counter from the grabber, and a repeat frame is the common case on a static desktop
+Tags: windows, dxgi, performance, caching, orchestrator
+Applies-when: adding per-tick CPU work after a grabber that returns its cached frame on a wait timeout, or giving another grabber a capture-size hint
+
+Aurora-igwa: on a static desktop DXGI times out and the grabber returns `m_lastFrame`, but `Orchestrator` rescaled that unchanged 4K frame every tick (7 ms). Comparing pixels would cost as much as the rescale, and only the grabber knows. `IVideoInput::frameSerial()` (0 = unknown, always prepare) lets the Orchestrator skip it, and `setConfig` must clear the cache because `subsampleWidth` and `interpolation` change the result. Pair it with a GPU downscale: `GenerateMips` on a `D3D11_RESOURCE_MISC_GENERATE_MIPS` texture plus a staging copy of one mip level (`CopySubresourceRegion`, source subresource = level) returns a small frame instead of a 4K readback (video-only CPU 36% -> 2.4% on the static case).
+
+**Fix:** have the grabber own "did this frame change", keep serial 0 as the safe default, and never cache across a config change. Measure a moving screen separately: a static-desktop result flatters both changes.

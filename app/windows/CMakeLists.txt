@@ -143,6 +143,7 @@ target_link_libraries(aurora-app-windows PRIVATE
   AuroraNetwork
   Threads::Threads
   Shell32
+  winmm
 )
 
 if(AURORA_APP_ENABLE_WINDOWS_INPUT)

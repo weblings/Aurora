@@ -1,5 +1,8 @@
 #pragma once
 
+#include <atomic>
+#include <cstdint>
+
 #include <d3d11.h>
 #include <dxgi1_2.h>
 #include <wrl/client.h>
@@ -48,6 +51,8 @@ namespace Aurora::Input::Windows
     RefreshRate displayRefreshRate() const override;
 
     void selectMonitor(unsigned monitorId) override;
+    void setCaptureWidthHint(unsigned width) override;
+    std::uint64_t frameSerial() const override;
     void grabFrameSubsample(Contracts::ImageData& imageData) override;
 
   protected:
@@ -56,12 +61,21 @@ namespace Aurora::Input::Windows
   private:
     bool _ensureDuplication();
     void _releaseDuplication();
+    // Halves the frame on the GPU (mip chain) down to the hint's 8x oversample,
+    // as the Mac grabber does (Aurora-3qh). Null = no usable mip; copy full size.
+    ID3D11Texture2D* _downscale(ID3D11Texture2D* frame, const D3D11_TEXTURE2D_DESC& desc, unsigned& level);
 
     Microsoft::WRL::ComPtr<IDXGIFactory1> m_factory;
     Microsoft::WRL::ComPtr<ID3D11Device> m_device;
     Microsoft::WRL::ComPtr<ID3D11DeviceContext> m_context;
     Microsoft::WRL::ComPtr<IDXGIOutputDuplication> m_duplication;
     Microsoft::WRL::ComPtr<ID3D11Texture2D> m_stagingTexture;
+    Microsoft::WRL::ComPtr<ID3D11Texture2D> m_mipTexture;
+    Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> m_mipView;
+
+    // Set from config apply (another thread) while the tick thread grabs.
+    std::atomic<unsigned> m_captureWidthHint{0};
+    std::uint64_t m_frameSerial = 0;
 
     // Returned on WAIT_TIMEOUT/ACCESS_LOST/transient failures -- see
     // docs/WindowsInputAnalysis.md's failure-mode table.
