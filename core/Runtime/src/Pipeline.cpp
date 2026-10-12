@@ -287,6 +287,7 @@ namespace Aurora::Runtime
       using Clock = std::chrono::steady_clock;
       DualCaptureStats& s = m_dualStats;
       const auto t0 = Clock::now();
+      if(s.ticks == 0){ s.windowStart = t0; }
       if(m_orchestrator){ m_orchestrator->update(dt); }
       const auto t1 = Clock::now();
 #ifdef AURORA_RUNTIME_AUDIO_AVAILABLE
@@ -298,14 +299,14 @@ namespace Aurora::Runtime
       const double audioMs = std::chrono::duration<double, std::milli>(t2 - t1).count();
       s.videoSum += videoMs; s.videoMax = std::max(s.videoMax, videoMs);
       s.audioSum += audioMs; s.audioMax = std::max(s.audioMax, audioMs);
-      s.elapsed += dt;
       ++s.ticks;
-      if(s.elapsed >= 5.0){
+      const double elapsed = std::chrono::duration<double>(t2 - s.windowStart).count();
+      if(elapsed >= 5.0){
         char line[220];
         std::snprintf(line, sizeof(line),
-          "[dual-capture] %s %u ticks/%.1fs: video avg %.2f max %.2f ms, audio avg %.2f max %.2f ms, budget %.2f ms",
+          "[dual-capture] %s %u ticks/%.1fs (%.1f Hz): video avg %.2f max %.2f ms, audio avg %.2f max %.2f ms, budget %.2f ms",
           m_isDualCapture ? "both" : (m_isAudioMode ? "audio-only" : "video-only"),
-          s.ticks, s.elapsed, s.videoSum / s.ticks, s.videoMax, s.audioSum / s.ticks, s.audioMax, dt * 1000.0);
+          s.ticks, elapsed, s.ticks / elapsed, s.videoSum / s.ticks, s.videoMax, s.audioSum / s.ticks, s.audioMax, dt * 1000.0);
         s.log(LogLevel::Info, line);
         std::cout.flush(); // app stdout is block-buffered under the devstack
         DualCaptureStats fresh;

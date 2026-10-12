@@ -1,6 +1,7 @@
 #pragma once
 
 #include <atomic>
+#include <chrono>
 #include <cstdint>
 #include <exception>
 #include <filesystem>
@@ -152,7 +153,9 @@ namespace Aurora::Runtime
     struct DualCaptureStats
     {
       std::function<void(LogLevel, const std::string&)> log;
-      double videoSum{0}, videoMax{0}, audioSum{0}, audioMax{0}, elapsed{0};
+      double videoSum{0}, videoMax{0}, audioSum{0}, audioMax{0};
+      // Wall clock: a tick's dt is its nominal interval, not the real rate.
+      std::chrono::steady_clock::time_point windowStart{};
       unsigned ticks{0};
     };
     DualCaptureStats m_dualStats;

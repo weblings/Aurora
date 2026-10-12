@@ -65,5 +65,6 @@ Core 182/182, windows-app 87/87.
 - **Other displays.** Only one 4K 60 Hz SDR display was run. The HDR (RGBA16F)
   path shares the mip code but was not exercised. Multi-monitor selection is
   untested.
-- **`[dual-capture]` stats still report nominal seconds.** Left as is (dev
-  flag), but any reader of `ticks/5.0s` can be misled again.
+- **`[dual-capture]` stats reported nominal seconds.** Fixed in Aurora-wqzp.1:
+  the window and `ticks/<s>` now use wall-clock time and print the real rate
+  in Hz. Numbers in this log predate that, so its "ticks/5.0s" were nominal.
