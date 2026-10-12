@@ -1,5 +1,6 @@
 #include <Aurora/Input/Windows/WindowsGrabber.hpp>
 
+#include <algorithm>
 #include <iostream>
 #include <stdexcept>
 
@@ -201,8 +202,76 @@ namespace Aurora::Input::Windows
   {
     m_duplication.Reset();
     m_stagingTexture.Reset();
+    m_mipView.Reset();
+    m_mipTexture.Reset();
     m_context.Reset();
     m_device.Reset();
+  }
+
+
+  void WindowsGrabber::setCaptureWidthHint(unsigned width)
+  {
+    m_captureWidthHint.store(width);
+  }
+
+
+  std::uint64_t WindowsGrabber::frameSerial() const
+  {
+    return m_frameSerial;
+  }
+
+
+  ID3D11Texture2D* WindowsGrabber::_downscale(ID3D11Texture2D* frame, const D3D11_TEXTURE2D_DESC& desc, unsigned& level)
+  {
+    level = 0;
+    const unsigned hint = m_captureWidthHint.load();
+    if(hint == 0){
+      return nullptr;
+    }
+
+    // Same floor as the Mac grabber: 8x the sampled width, at least 256 px.
+    const unsigned target = (std::max)(hint * 8u, 256u);
+    while((desc.Width >> (level + 1)) >= target && (desc.Height >> (level + 1)) > 0){
+      ++level;
+    }
+    if(level == 0){
+      return nullptr;
+    }
+
+    if(m_mipTexture){
+      D3D11_TEXTURE2D_DESC existing;
+      m_mipTexture->GetDesc(&existing);
+      if(existing.Width != desc.Width || existing.Height != desc.Height || existing.Format != desc.Format || existing.MipLevels != level + 1){
+        m_mipView.Reset();
+        m_mipTexture.Reset();
+      }
+    }
+
+    if(!m_mipTexture){
+      D3D11_TEXTURE2D_DESC mipDesc = {};
+      mipDesc.Width = desc.Width;
+      mipDesc.Height = desc.Height;
+      mipDesc.MipLevels = level + 1;
+      mipDesc.ArraySize = 1;
+      mipDesc.Format = desc.Format;
+      mipDesc.SampleDesc.Count = 1;
+      mipDesc.Usage = D3D11_USAGE_DEFAULT;
+      mipDesc.BindFlags = D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_RENDER_TARGET;
+      mipDesc.MiscFlags = D3D11_RESOURCE_MISC_GENERATE_MIPS;
+      if(FAILED(m_device->CreateTexture2D(&mipDesc, nullptr, &m_mipTexture))
+        || FAILED(m_device->CreateShaderResourceView(m_mipTexture.Get(), nullptr, &m_mipView))){
+        m_mipView.Reset();
+        m_mipTexture.Reset();
+        level = 0;
+        return nullptr;
+      }
+    }
+
+    // Each mip level is a 2x2 box average of the one above, so colours keep
+    // area-averaging quality like the CPU INTER_AREA path.
+    m_context->CopySubresourceRegion(m_mipTexture.Get(), 0, 0, 0, 0, frame, 0, nullptr);
+    m_context->GenerateMips(m_mipView.Get());
+    return m_mipTexture.Get();
   }
 
 
@@ -258,6 +327,11 @@ namespace Aurora::Input::Windows
       throw std::runtime_error("WindowsGrabber: unexpected DXGI_FORMAT " + std::to_string(static_cast<int>(desc.Format)));
     }
 
+    unsigned level = 0;
+    ID3D11Texture2D* scaled = _downscale(frameTexture.Get(), desc, level);
+    const UINT outWidth = (std::max)(1u, desc.Width >> level);
+    const UINT outHeight = (std::max)(1u, desc.Height >> level);
+
     if(m_stagingTexture){
       // The live frame's own size/format can change after the staging
       // texture was first created (display-mode change, DPI change, a
@@ -267,17 +341,21 @@ namespace Aurora::Input::Windows
       // path on every subsequent frame once it happens once.
       D3D11_TEXTURE2D_DESC existingStagingDesc;
       m_stagingTexture->GetDesc(&existingStagingDesc);
-      if(existingStagingDesc.Width != desc.Width || existingStagingDesc.Height != desc.Height || existingStagingDesc.Format != desc.Format){
+      if(existingStagingDesc.Width != outWidth || existingStagingDesc.Height != outHeight || existingStagingDesc.Format != desc.Format){
         m_stagingTexture.Reset();
       }
     }
 
     if(!m_stagingTexture){
-      D3D11_TEXTURE2D_DESC stagingDesc = desc;
+      D3D11_TEXTURE2D_DESC stagingDesc = {};
+      stagingDesc.Width = outWidth;
+      stagingDesc.Height = outHeight;
+      stagingDesc.MipLevels = 1;
+      stagingDesc.ArraySize = 1;
+      stagingDesc.Format = desc.Format;
+      stagingDesc.SampleDesc.Count = 1;
       stagingDesc.Usage = D3D11_USAGE_STAGING;
-      stagingDesc.BindFlags = 0;
       stagingDesc.CPUAccessFlags = D3D11_CPU_ACCESS_READ;
-      stagingDesc.MiscFlags = 0;
 
       if(FAILED(m_device->CreateTexture2D(&stagingDesc, nullptr, &m_stagingTexture))){
         m_duplication->ReleaseFrame();
@@ -286,7 +364,12 @@ namespace Aurora::Input::Windows
       }
     }
 
-    m_context->CopyResource(m_stagingTexture.Get(), frameTexture.Get());
+    if(scaled){
+      m_context->CopySubresourceRegion(m_stagingTexture.Get(), 0, 0, 0, 0, scaled, level, nullptr);
+    }
+    else{
+      m_context->CopyResource(m_stagingTexture.Get(), frameTexture.Get());
+    }
 
     D3D11_MAPPED_SUBRESOURCE mapped;
     if(FAILED(m_context->Map(m_stagingTexture.Get(), 0, D3D11_MAP_READ, 0, &mapped))){
@@ -305,10 +388,10 @@ namespace Aurora::Input::Windows
     // check above, but a crash here takes the whole daemon down, so it's
     // still worth failing soft instead of trusting that reasoning blindly.
     size_t bytesPerPixel = isHdr ? 8 : 4; // CV_16FC4 / CV_8UC4
-    size_t minRowBytes = static_cast<size_t>(desc.Width) * bytesPerPixel;
+    size_t minRowBytes = static_cast<size_t>(outWidth) * bytesPerPixel;
     if(mapped.RowPitch < minRowBytes){
       std::cerr << "WindowsGrabber: staging texture RowPitch (" << mapped.RowPitch
-                << ") smaller than " << desc.Width << "x" << desc.Height
+                << ") smaller than " << outWidth << "x" << outHeight
                 << (isHdr ? " HDR" : " SDR") << " frame's own row size (" << minRowBytes
                 << ") -- skipping this frame\n";
       m_context->Unmap(m_stagingTexture.Get(), 0);
@@ -323,7 +406,7 @@ namespace Aurora::Input::Windows
     if(isHdr){
       // scRGB linear, channel order R,G,B,A -- clamp to SDR range and
       // gamma-encode; good enough for averaging, not real HDR tone-mapping.
-      cv::Mat halfView(static_cast<int>(desc.Height), static_cast<int>(desc.Width), CV_16FC4, mapped.pData, mapped.RowPitch);
+      cv::Mat halfView(static_cast<int>(outHeight), static_cast<int>(outWidth), CV_16FC4, mapped.pData, mapped.RowPitch);
       cv::Mat linear;
       halfView.convertTo(linear, CV_32FC4);
       cv::min(linear, 1.0, linear);
@@ -333,13 +416,14 @@ namespace Aurora::Input::Windows
       m_lastFrame.format = Contracts::PixelFormat::RGBA;
     }
     else{
-      cv::Mat view(static_cast<int>(desc.Height), static_cast<int>(desc.Width), CV_8UC4, mapped.pData, mapped.RowPitch);
+      cv::Mat view(static_cast<int>(outHeight), static_cast<int>(outWidth), CV_8UC4, mapped.pData, mapped.RowPitch);
       m_lastFrame.imageMatrix = view.clone();
       m_lastFrame.format = Contracts::PixelFormat::BGRA;
     }
 
     m_context->Unmap(m_stagingTexture.Get(), 0);
     m_duplication->ReleaseFrame();
+    ++m_frameSerial;
 
     imageData = m_lastFrame;
   }

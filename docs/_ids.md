@@ -60,6 +60,7 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `ifkn6-descriptor-ranges` | [log/2026-10-08-ifkn6-descriptor-ranges.md](log/2026-10-08-ifkn6-descriptor-ranges.md) | Aurora-ifkn.6 closed: gen-descriptors.py emits Tuning slider ranges |
 | `ifkn7-sync-revendor` | [log/2026-10-08-ifkn7-sync-revendor.md](log/2026-10-08-ifkn7-sync-revendor.md) | Aurora-ifkn.7 (open, built): sync script + full re-vendor, vendor byte-identical |
 | `ifkn8-vendor-ci-docs` | [log/2026-10-08-ifkn8-vendor-ci-docs.md](log/2026-10-08-ifkn8-vendor-ci-docs.md) | Aurora-ifkn.8 (open, built): vendor test in web CI, docs, Pages publish open |
+| `igwa-windows-video-update` | [log/2026-10-12-igwa-windows-video-update.md](log/2026-10-12-igwa-windows-video-update.md) | Aurora-igwa: Windows video update() over the tick budget (closed) |
 | `ijus-shell-copy-fixes` | [log/2026-10-07-ijus-shell-copy-fixes.md](log/2026-10-07-ijus-shell-copy-fixes.md) | Aurora-ijus: shell error-copy audit — daemon leak, duplicate row, dead callback, closed |
 | `implementation-plan` | [planning/ImplementationPlan.md](planning/ImplementationPlan.md) | Low-scope implementation plan |
 | `implementation-plan-directory-layout` | [archive/ImplementationPlan_DirectoryLayout.md](archive/ImplementationPlan_DirectoryLayout.md) | Implementation plan: proposed directory layout (superseded) |

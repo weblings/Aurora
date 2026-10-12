@@ -330,3 +330,14 @@ Applies-when: a Windows loop blocks on a short timeout (DXGI `AcquireNextFrame(1
 Aurora-igwa: video `update()` averaged ~32 ms against 16.67 ms (~31 ticks/s, matching ~158 light frames/5 s). `WaitForSingleObject(ev, 16)` measured 28.3 ms in a default-resolution process and 16.7 ms after `timeBeginPeriod(1)`. The app never set it. After adding it, update dropped to ~24 ms (16.7 wait + ~7 work), so the timer was most, not all, of it. The log's "300 ticks/5.0s" looked like proof of 60 Hz but sums the nominal `dt`, not wall time.
 
 **Fix:** `timeBeginPeriod(1)` at startup (RAII, link `winmm`). Prove rates from wall-clock evidence (frame counts), not from a counter that adds the budget.
+
+
+---
+
+## Reusing the previous tick's CPU work needs a frame counter from the grabber, and a repeat frame is the common case on a static desktop
+Tags: windows, dxgi, performance, caching, orchestrator
+Applies-when: adding per-tick CPU work after a grabber that returns its cached frame on a wait timeout, or giving another grabber a capture-size hint
+
+Aurora-igwa: on a static desktop DXGI times out and the grabber returns `m_lastFrame`, but `Orchestrator` rescaled that unchanged 4K frame every tick (7 ms). Comparing pixels would cost as much as the rescale, and only the grabber knows. `IVideoInput::frameSerial()` (0 = unknown, always prepare) lets the Orchestrator skip it, and `setConfig` must clear the cache because `subsampleWidth` and `interpolation` change the result. Pair it with a GPU downscale: `GenerateMips` on a `D3D11_RESOURCE_MISC_GENERATE_MIPS` texture plus a staging copy of one mip level (`CopySubresourceRegion`, source subresource = level) returns a small frame instead of a 4K readback (video-only CPU 36% -> 2.4% on the static case).
+
+**Fix:** have the grabber own "did this frame change", keep serial 0 as the safe default, and never cache across a config change. Measure a moving screen separately: a static-desktop result flatters both changes.

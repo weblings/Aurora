@@ -4,7 +4,7 @@ Id: o13-dual-capture
 
 2026-10-11. Spike for node prep 9: can one `Pipeline` run screen and audio
 capture together on each platform? Linux works. Mac capture works under the
-terminal's grants (2026-10-12). Windows works (2026-10-12); video `update()` is over the tick budget there.
+terminal's grants (2026-10-12). Windows works (2026-10-12); video `update()` was over the tick budget there (fixed, see igwa).
 
 ## Built (dev flag, spike only)
 
@@ -139,5 +139,5 @@ directly. Lesson in architecture-process.
 
 ## Resume
 
-- Windows video `update()` still ~24 ms after the timer fix (Aurora-igwa).
-- Flag kept for the graph work.
+- Done. The Windows over-budget video update was split to Aurora-igwa and fixed
+  ([[igwa-windows-video-update]]). Flag kept for the graph work.
