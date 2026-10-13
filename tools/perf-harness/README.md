@@ -29,5 +29,6 @@ and tkinter for `moving`.
 - **Audio:** a looping 440 Hz tone plays throughout (`--no-tone` to skip),
   otherwise audio modes emit no light frames.
 
-Windows is verified. Linux and Mac paths are written but unrun (X11 vs Wayland
-capture of the tk window, Mac `ps` parsing, `mac-audio` and `linux-audio` names).
+Windows and Linux verified (Linux: Wayland, GNOME, `linux-audio`;
+X11 untested; moving via kiosk Firefox when tkinter is absent).
+Mac path is written but unrun (`ps` parsing, `mac-audio` name).
