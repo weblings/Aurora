@@ -120,7 +120,39 @@ class FrameCounter(threading.Thread):
 # ---- content and tone helpers ----
 
 def start_mover():
+    try:
+        import tkinter  # noqa: F401
+    except ImportError:
+        return start_firefox_mover()  # no tkinter on this box (e.g. Linux without python3-tk)
     return subprocess.Popen([sys.executable, str(Path(__file__).resolve()), "_mover"])
+
+
+def start_firefox_mover():
+    """Fallback moving content: fullscreen kiosk Firefox on stripes.html.
+
+    Same dark slow-drifting stripes as _mover (no flashing). Needs a graphical
+    session; uses a throwaway profile so the user's Firefox is untouched.
+    """
+    import shutil
+    exe = shutil.which("firefox")
+    if not exe:
+        sys.exit("moving content needs tkinter or firefox, found neither")
+    profile = Path(tempfile.mkdtemp(prefix="aurora-perf-ff-"))
+    url = (HERE / "stripes.html").as_uri()
+    p = subprocess.Popen([exe, "--no-remote", "--profile", str(profile),
+                          "--kiosk", url],
+                         stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    p._perf_profile = profile  # cleaned by stop_mover
+    time.sleep(3)  # fresh profile + kiosk settle before measuring
+    return p
+
+
+def stop_mover(p):
+    import shutil
+    stop(p)
+    profile = getattr(p, "_perf_profile", None) if p else None
+    if profile:
+        shutil.rmtree(profile, ignore_errors=True)
 
 
 def _mover():
@@ -246,7 +278,7 @@ def main():
                     print(f"measuring {mode} / {content} ...", flush=True)
                     results.append({"mode": mode, "content": content, **measure(pid, a.seconds, a.settle)})
             finally:
-                stop(mover)
+                stop_mover(mover)
     finally:
         stop(tone)
         if started and not a.keep_stack:

@@ -22,9 +22,10 @@ and tkinter for `moving`.
   `docs/lessons/windows-env.md`), others read the devstack `app.log`. Lines
   from the settle period are excluded.
 - **Static:** whatever the desktop shows, so keep it quiet.
-- **Moving:** a fullscreen topmost tkinter window of dark, low-contrast stripes
+- **Moving:** a fullscreen window of dark, low-contrast stripes
   drifting ~0.5 Hz per pixel, so every grab sees a new frame with no flashing
-  (photosensitivity). It covers the screen for the whole run.
+  (photosensitivity). tkinter when present, else kiosk Firefox on
+  `stripes.html` (same pattern). It covers the screen for the whole run.
 - **Audio:** a looping 440 Hz tone plays throughout (`--no-tone` to skip),
   otherwise audio modes emit no light frames.
 
