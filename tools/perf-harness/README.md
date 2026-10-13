@@ -10,7 +10,8 @@ python3 tools/perf-harness/perf.py              # Linux, Mac
 python3 tools/perf-harness/perf.py --modes video,both --content moving --seconds 20 --json out.json
 ```
 
-- Prints a `hardware:` line (CPU, logical cores, GPU, OS) above the table.
+- Prints a `hardware:` line (CPU, logical cores, GPU, OS, app build type) above the table,
+  and warns up front when the app is not an optimized build (Aurora-wqzp.15).
 - Windows also prints `displays:` (HDR on/off, SDR white nits, which one is
   captured). HDR on means the FP16 capture path (Aurora-wqzp.12), which costs
   more CPU, so compare runs only with matching display state.

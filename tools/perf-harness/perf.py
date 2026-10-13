@@ -410,6 +410,26 @@ def fmt(r):
     return cells
 
 
+OPTIMIZED = {"Release", "RelWithDebInfo", "MinSizeRel"}
+
+
+def build_type(app):
+    """The app's CMake build type. An empty one builds without -O (Aurora-wqzp.15).
+
+    Multi-config (Windows) names it in the path (bin/Release); single-config
+    keeps it in the nearest CMakeCache.txt above the binary.
+    """
+    for part in reversed(app.parts):
+        if part in OPTIMIZED | {"Debug"}:
+            return part
+    for d in app.parents:
+        cache = d / "CMakeCache.txt"
+        if cache.exists():
+            m = re.search(r"^CMAKE_BUILD_TYPE:\w+=(.*)$", cache.read_text(errors="replace"), re.M)
+            return (m.group(1).strip() if m else "") or "(none: unoptimized)"
+    return "unknown"
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--app")
@@ -422,6 +442,11 @@ def main():
     ap.add_argument("--no-tone", action="store_true", help="audio modes then produce no light frames")
     a = ap.parse_args()
     modes, contents = a.modes.split(","), a.content.split(",")
+
+    build = build_type(Path(a.app).resolve() if a.app else devstack.DEFAULT_APP)
+    if build not in OPTIMIZED:
+        print(f"WARNING: app build type is {build}; numbers are not comparable to an optimized build "
+              "(configure with -DCMAKE_BUILD_TYPE=RelWithDebInfo)", file=sys.stderr, flush=True)
 
     env = dict(os.environ, AURORA_DEV_DUAL_CAPTURE="1")
     if WIN:
@@ -459,7 +484,8 @@ def main():
             subprocess.run(devstack.py() + [str(RELAY_DIR / "devstack.py"), "down"])
 
     hw = hw_info()
-    print(f"hardware: {hw['cpu']} ({hw['logical_cores']} logical) | GPU: {'; '.join(hw['gpu'])} | {hw['os']}")
+    hw["build_type"] = build
+    print(f"hardware: {hw['cpu']} ({hw['logical_cores']} logical) | GPU: {'; '.join(hw['gpu'])} | {hw['os']} | build: {build}")
     if hw.get("displays"):
         print(f"displays: {fmt_displays(hw['displays'])}")
     head = ["mode", "content", "CPU", "frames/s", "Hz", "video avg/max ms", "audio avg/max ms", "budget"]

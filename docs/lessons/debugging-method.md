@@ -1096,3 +1096,13 @@ Applies-when: proving a stimulus (mover, fixture, signal) reaches the system und
 Aurora-wqzp.9: to catch a live-but-hidden mover, `perf.py` counted SSE frames whose zone colours changed. The first live run aborted at 0 of 49 frames/s although the mover was on screen: drifting stripes (240 px period) average to the same colour in every large zone, so zone output never changes however much the pixels move. The check was blind to the very motion it was meant to prove, and the same blindness would have passed a hidden mover as 'static, as expected'.
 
 **Fix:** make the stimulus carry a component the observer can see (slow +-10 level brightness breathing, no flashing), then require the observed signal to change. Before trusting an oracle's refusal, probe it once in isolation (stimulus only, read the raw output) to tell a dead stimulus from an insensitive oracle.
+
+## On a short periodic tick, a profile's hot loop can be wake-up cost that moves, not work -- confirm with an end-to-end number before optimizing it
+Tags: perf, profiling, sample, measurement, mac
+Applies-when: a sampling profile of a sub-millisecond, once-per-tick function points at a loop that is too cheap to cost what it shows
+
+Aurora-wqzp.7: on Mac, `sample` put 82 self-samples on the mono-downmix loop in `AudioFeatureExtractor::process` (about 1,900 floats per tick, which should cost microseconds). Removing its per-sample overhead (bulk copy into aubio, one erase per call) cut that loop to 17 samples, but `aubio_onset_do` grew from 25 to 84 and the update total stayed flat (155 vs 141 samples; 0.30 vs 0.34 ms). The cost follows whatever code runs first after the thread wakes every ~20 ms: cold caches and probably a low-clocked core, not that loop's instructions.
+
+**Fix:** pair any profile-guided change with the harness's end-to-end number (update avg, process CPU) before keeping it. If the hot spot just moves, the cost is per-wake, and the levers are wake count or placement, not the loop.
+
+Follow-up (Aurora-wqzp.15): a later full run of the same optimized code measured 0.07-0.15 ms, not 0.30 ms, so the 'remaining gap vs Windows' this was explaining was mostly run-to-run spread. Take 2-3 runs of the end-to-end number before attributing a small gap to anything.

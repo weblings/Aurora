@@ -774,3 +774,11 @@ Applies-when: live-testing an app binary from a tree with more than one build di
 `build/linux-app/bin/Aurora` (Oct 4) predated Aurora-d3ec while `build/bin/Aurora` was fresh: the stale one booted fine and served the old `GET /api/state` shape with no `state`/`errors`, which reads exactly like a failed verification. Caught only by diffing the two binaries (`strings <bin> | grep <new marker>`, here `nothing_to_pause`).
 
 **Fix:** before any live run, `ls -la` the candidate binaries and grep the fresh one for a symbol the change under test must contain. Rebuild the tree you test from (`cmake --build build`), and boot `build/bin/Aurora`, not a slice-local copy, unless you just rebuilt that slice.
+
+## A preset copied from a multi-config (Windows) preset builds unoptimized on single-config generators -- set `CMAKE_BUILD_TYPE` and check it before comparing perf
+Tags: cmake, presets, build-type, perf, mac, linux, windows
+Applies-when: adding a CMake preset, comparing CPU or timing numbers across platforms or builds, or cutting a release build from a preset
+
+Aurora-wqzp.7: `linux-app` and `mac-app` were written in the shape of `windows-app`, which never needs a build type because Visual Studio picks one per build (`--config Release`). They set no `CMAKE_BUILD_TYPE`, and with a single-config generator (Makefiles, Ninja) that means no `-O` flags at all, while Windows (multi-config) is built and measured `--config Release`. Every Linux and Mac perf number in the Aurora-wqzp epic came from unoptimized builds. The Mac 1.0.4 release was cut from `build/mac-release`, which also had an empty build type. Mac audio-only: 3.5% CPU / 0.68 ms update unoptimized, 1.6-1.8% / 0.30 ms with `-DCMAKE_BUILD_TYPE=Release`, on the same tree.
+
+**Fix:** every single-config preset sets `CMAKE_BUILD_TYPE` (Aurora-wqzp.15: `RelWithDebInfo`; no `assert()` in the tree, so its `NDEBUG` removes nothing). Before comparing numbers, check `grep CMAKE_BUILD_TYPE <build>/CMakeCache.txt`: the presets now set `RelWithDebInfo`, but a build dir configured before that keeps its empty cached value until `cmake --preset` runs again. `perf.py` prints the build type and warns on an unoptimized app.
