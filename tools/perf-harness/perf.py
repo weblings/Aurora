@@ -260,6 +260,59 @@ def _out(cmd):
         return ""
 
 
+def _win_displays():
+    """Windows: per display name, primary, HDR, SDR white (nits). HDR on means the
+    grabber takes the FP16 path (Aurora-wqzp.12). Best effort, [] on failure."""
+    import ctypes
+    from ctypes import wintypes
+    u = ctypes.windll.user32
+
+    class LUID(ctypes.Structure):
+        _fields_ = [("low", wintypes.DWORD), ("high", wintypes.LONG)]
+
+    class Path_(ctypes.Structure):  # DISPLAYCONFIG_PATH_INFO, 72 bytes
+        _fields_ = [("src_adapter", LUID), ("src_id", ctypes.c_uint32), ("_s", ctypes.c_uint32 * 2),
+                    ("tgt_adapter", LUID), ("tgt_id", ctypes.c_uint32), ("_t", ctypes.c_uint32 * 9),
+                    ("flags", ctypes.c_uint32)]
+
+    class Header(ctypes.Structure):
+        _fields_ = [("type", ctypes.c_int32), ("size", ctypes.c_uint32), ("adapter", LUID), ("id", ctypes.c_uint32)]
+
+    def info(type_, adapter, id_, fields):
+        cls = type("Info", (ctypes.Structure,), {"_fields_": [("header", Header)] + fields})
+        s = cls()
+        s.header = Header(type_, ctypes.sizeof(cls), adapter, id_)
+        return s if u.DisplayConfigGetDeviceInfo(ctypes.byref(s)) == 0 else None
+
+    class MonitorInfoEx(ctypes.Structure):
+        _fields_ = [("size", wintypes.DWORD), ("monitor", wintypes.RECT), ("work", wintypes.RECT),
+                    ("flags", wintypes.DWORD), ("device", wintypes.WCHAR * 32)]
+    u.MonitorFromPoint.restype = wintypes.HMONITOR
+    mi = MonitorInfoEx(size=ctypes.sizeof(MonitorInfoEx))
+    u.GetMonitorInfoW(u.MonitorFromPoint(wintypes.POINT(0, 0), 1), ctypes.byref(mi))  # 1 = DEFAULTTOPRIMARY
+
+    paths_n, modes_n = ctypes.c_uint32(), ctypes.c_uint32()
+    if u.GetDisplayConfigBufferSizes(2, ctypes.byref(paths_n), ctypes.byref(modes_n)):  # 2 = ONLY_ACTIVE_PATHS
+        return []
+    paths, modes = (Path_ * paths_n.value)(), (ctypes.c_byte * (64 * modes_n.value))()
+    if u.QueryDisplayConfig(2, ctypes.byref(paths_n), paths, ctypes.byref(modes_n), modes, None):
+        return []
+    out = []
+    for p in paths[:paths_n.value]:
+        src = info(1, p.src_adapter, p.src_id, [("gdi", wintypes.WCHAR * 32)])
+        name = info(2, p.tgt_adapter, p.tgt_id, [("_f", ctypes.c_uint32 * 2), ("_e", ctypes.c_uint16 * 2),
+                                                 ("_c", ctypes.c_uint32), ("friendly", wintypes.WCHAR * 64),
+                                                 ("path", wintypes.WCHAR * 128)])
+        colour = info(9, p.tgt_adapter, p.tgt_id, [("value", ctypes.c_uint32), ("_r", ctypes.c_uint32 * 2)])
+        white = info(11, p.tgt_adapter, p.tgt_id, [("level", ctypes.c_uint32)])
+        # advancedColorEnabled without wideColorEnforced (ACM on an SDR panel) = HDR.
+        hdr = bool(colour and colour.value & 2 and not colour.value & 4)
+        out.append({"name": name.friendly if name else "?", "gdi": src.gdi if src else "?",
+                    "primary": bool(src) and src.gdi == mi.device, "hdr": hdr,
+                    "sdr_white_nits": round(white.level * 80 / 1000) if hdr and white else None})
+    return out
+
+
 def hw_info():
     """CPU model, logical cores, GPU(s), OS -- best effort, '?' when unavailable."""
     cpu, gpu = "", []
@@ -274,8 +327,20 @@ def hw_info():
         m = re.search(r"Model name:\s*(.+)", _out(["lscpu"]))
         cpu = m.group(1).strip() if m else ""
         gpu = re.findall(r"(?:VGA|3D|Display)[^:]*: (.+)", _out(["lspci"]))
-    return {"cpu": cpu or platform.processor() or "?", "logical_cores": os.cpu_count(),
-            "gpu": gpu or ["?"], "os": platform.platform()}
+    hw = {"cpu": cpu or platform.processor() or "?", "logical_cores": os.cpu_count(),
+          "gpu": gpu or ["?"], "os": platform.platform()}
+    if WIN:
+        try:
+            hw["displays"] = _win_displays()
+        except (OSError, AttributeError, ValueError):
+            hw["displays"] = []
+    return hw
+
+
+def fmt_displays(displays):
+    """The app captures the primary display (devstack starts it --fresh)."""
+    return "; ".join(f"{d['name']} ({d['gdi']}) " + (f"HDR {d['sdr_white_nits']} nits" if d["hdr"] else "SDR")
+                     + (" [captured]" if d["primary"] else "") for d in displays)
 
 
 def fmt(r):
@@ -333,6 +398,8 @@ def main():
 
     hw = hw_info()
     print(f"hardware: {hw['cpu']} ({hw['logical_cores']} logical) | GPU: {'; '.join(hw['gpu'])} | {hw['os']}")
+    if hw.get("displays"):
+        print(f"displays: {fmt_displays(hw['displays'])}")
     head = ["mode", "content", "CPU", "frames/s", "Hz", "video avg/max ms", "audio avg/max ms", "budget"]
     rows = [[r["mode"], r["content"]] + fmt(r) for r in results]
     widths = [max(len(str(x)) for x in col) for col in zip(head, *rows)]

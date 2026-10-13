@@ -11,7 +11,10 @@ python3 tools/perf-harness/perf.py --modes video,both --content moving --seconds
 ```
 
 - Prints a `hardware:` line (CPU, logical cores, GPU, OS) above the table.
-- `--json` writes `{"hardware": ..., "results": [...]}`.
+- Windows also prints `displays:` (HDR on/off, SDR white nits, which one is
+  captured). HDR on means the FP16 capture path (Aurora-wqzp.12), which costs
+  more CPU, so compare runs only with matching display state.
+- `--json` writes `{"hardware": ..., "results": [...]}` (`hardware.displays` on Windows).
 
 Brings the devstack up (`tools/light-viz-relay/devstack.py`) with
 `AURORA_DEV_DUAL_CAPTURE=1`, switches mode by `PUT /api/config`, tears down what

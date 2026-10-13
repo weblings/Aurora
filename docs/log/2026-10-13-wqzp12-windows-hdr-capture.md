@@ -32,6 +32,8 @@ in `WindowsGrabber` never ran (no `DuplicateOutput1`).
   the 1 s white-level refresh, then none on a static desktop (grey 128 read
   162). The grabber now keeps the last FP16 readback and republishes it
   reconverted when the white level changes.
+- `perf.py` prints a Windows `displays:` line (HDR, SDR white, captured
+  display) and writes it to `--json` as `hardware.displays`.
 
 ## Result
 
@@ -53,4 +55,3 @@ in `WindowsGrabber` never ran (no `DuplicateOutput1`).
 - Decided: keep linear-light mip averaging on FP16, though Mac, Linux and
   Windows SDR average sRGB. Physically closer to emitted light, effect small.
 - CPU cost not yet attributed (Aurora-wqzp.14) before any GPU conversion.
-- perf.py does not yet record HDR state or SDR white level.
