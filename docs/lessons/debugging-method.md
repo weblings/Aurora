@@ -1078,3 +1078,11 @@ Applies-when: splitting a thread's CPU cost between stages before choosing an op
 Aurora-wqzp.14: per-stage CPU from `QueryThreadCycleTime` shares times a 5 s `GetThreadTimes` delta swung 2-3x between windows, because `GetThreadTimes` advances in ~15.6 ms ticks. The steady part was wall time: a blocking call (`Map()`, 3-5 ms) cost almost no CPU, while short CPU-bound stages (copy, convert) cost their wall time.
 
 **Fix:** time each stage with `steady_clock`. Read wall time as CPU only for stages that never block, and treat a blocking call's wall time as a wait unless cycle counts say otherwise. Re-measure the headline gap (3 alternating runs) before designing a fix for it: here the 5-point gap was mostly noise.
+
+## Prove a spawned helper is alive before measuring with it — Popen plus sleep is not proof
+Tags: perf-harness, verification, oracle, subprocess
+Applies-when: launching a helper process (mover, server, fixture) whose silent death would invalidate the measurement built on it
+
+Aurora-wqzp.11: `perf.py` launched kiosk Firefox, slept 3 s, and measured. The mover zombied on 3 of 5 launches, so 'moving' rows were really static with nothing in the output or JSON saying so. The Mac half (Aurora-wqzp.9) is the same trap from the other side: WebUI tabs landing in the kiosk window hide the stripes, again measuring static as moving.
+
+**Fix:** `poll()` the handle after the settle; retry a couple of times (cleaning each dead attempt's throwaway profile), then hard-fail naming the rows that would be invalid. A measurement whose precondition died must refuse to report, never degrade silently.

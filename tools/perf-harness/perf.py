@@ -127,25 +127,36 @@ def start_mover():
     return subprocess.Popen([sys.executable, str(Path(__file__).resolve()), "_mover"])
 
 
-def start_firefox_mover():
+def start_firefox_mover(attempts=3):
     """Fallback moving content: fullscreen kiosk Firefox on stripes.html.
 
     Same dark slow-drifting stripes as _mover (no flashing). Needs a graphical
     session; uses a throwaway profile so the user's Firefox is untouched.
+    Retries when the kiosk process zombies on launch so a 'moving' run never
+    silently measures a static desktop instead.
     """
     import shutil
     exe = shutil.which("firefox") or next(
         (c for c in ["/Applications/Firefox.app/Contents/MacOS/firefox"] if Path(c).exists()), None)
     if not exe:
         sys.exit("moving content needs tkinter or firefox, found neither")
-    profile = Path(tempfile.mkdtemp(prefix="aurora-perf-ff-"))
     url = (HERE / "stripes.html").as_uri()
-    p = subprocess.Popen([exe, "--no-remote", "--profile", str(profile),
-                          "--kiosk", url],
-                         stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-    p._perf_profile = profile  # cleaned by stop_mover
-    time.sleep(3)  # fresh profile + kiosk settle before measuring
-    return p
+    last_code = None
+    for attempt in range(1, attempts + 1):
+        profile = Path(tempfile.mkdtemp(prefix="aurora-perf-ff-"))
+        p = subprocess.Popen([exe, "--no-remote", "--profile", str(profile),
+                              "--kiosk", url],
+                             stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        p._perf_profile = profile  # cleaned by stop_mover
+        time.sleep(3)  # fresh profile + kiosk settle before measuring
+        if p.poll() is None:
+            return p
+        last_code = p.returncode
+        shutil.rmtree(profile, ignore_errors=True)
+        if attempt < attempts:
+            time.sleep(1)
+    sys.exit(f"firefox kiosk mover died on launch (exit {last_code}) after {attempts} attempts; "
+             "refusing to report 'moving' rows that would silently measure a static desktop")
 
 
 def start_cursor_mover():

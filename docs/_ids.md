@@ -142,6 +142,7 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `windows-input-analysis` | [archive/WindowsInputAnalysis.md](archive/WindowsInputAnalysis.md) | Windows Input plugin — analysis pass |
 | `windows-pause-verification` | [log/2026-10-04-windows-pause-verification.md](log/2026-10-04-windows-pause-verification.md) | Windows verification of pause/resume and kea; Aurora.exe has no --help/--version (Aurora-v3in) |
 | `wqzp1-x11-perf-verify` | [log/2026-10-12-wqzp1-x11-perf-verify.md](log/2026-10-12-wqzp1-x11-perf-verify.md) | Aurora-wqzp.1: Linux X11 perf-harness run |
+| `wqzp11-firefox-mover-retry` | [log/2026-10-13-wqzp11-firefox-mover-retry.md](log/2026-10-13-wqzp11-firefox-mover-retry.md) | Aurora-wqzp.11: kiosk-Firefox mover poll-check + retry/hard-fail |
 | `wqzp12-windows-hdr-capture` | [log/2026-10-13-wqzp12-windows-hdr-capture.md](log/2026-10-13-wqzp12-windows-hdr-capture.md) | Aurora-wqzp.12: Windows HDR desktops capture at the right colour |
 | `wqzp13-windows-display-rotation` | [log/2026-10-13-wqzp13-windows-display-rotation.md](log/2026-10-13-wqzp13-windows-display-rotation.md) | Aurora-wqzp.13: Windows capture honours display rotation |
 | `wqzp2-linux-frameserial` | [log/2026-10-13-wqzp2-linux-frameserial.md](log/2026-10-13-wqzp2-linux-frameserial.md) | Aurora-wqzp.2: Linux PipewireGrabber frameSerial() |
