@@ -1,8 +1,10 @@
 #include <Aurora/Input/Windows/WindowsGrabber.hpp>
 
 #include <algorithm>
+#include <chrono>
 #include <iostream>
 #include <stdexcept>
+#include <utility>
 
 #include <windows.h>
 
@@ -54,6 +56,12 @@ namespace Aurora::Input::Windows
   }
 
 
+  WindowsGrabber::~WindowsGrabber()
+  {
+    _stopCapture();
+  }
+
+
   const std::string& WindowsGrabber::name() const
   {
     static const std::string s_identifier = "WindowsGrabber";
@@ -85,6 +93,7 @@ namespace Aurora::Input::Windows
     unsigned monitorId
   )
   {
+    _stopCapture();
     _releaseDuplication();
     m_monitorSelectionData.selectedMonitorId = monitorId;
   }
@@ -217,7 +226,7 @@ namespace Aurora::Input::Windows
 
   std::uint64_t WindowsGrabber::frameSerial() const
   {
-    return m_frameSerial;
+    return m_grabbedSerial;
   }
 
 
@@ -279,40 +288,99 @@ namespace Aurora::Input::Windows
     Contracts::ImageData& imageData
   )
   {
+    // Never blocks: the capture thread owns the DXGI wait, so the tick's own
+    // sleep is the only pacing (Aurora-wqzp.6).
+    if(!m_captureThread.joinable()){
+      m_stopCapture = false;
+      m_captureThread = std::thread([this]{ _captureLoop(); });
+    }
+
+    std::exception_ptr error;
+    {
+      std::lock_guard lock(m_latestMutex);
+      error = std::exchange(m_captureError, nullptr);
+      if(!error){
+        imageData = m_latest;
+        m_grabbedSerial = m_latestSerial;
+        return;
+      }
+    }
+
+    // Capture thread died on a fatal error: reap it (restarts next call).
+    m_captureThread.join();
+    std::rethrow_exception(error);
+  }
+
+
+  void WindowsGrabber::_stopCapture()
+  {
+    if(m_captureThread.joinable()){
+      {
+        std::lock_guard lock(m_wakeMutex);
+        m_stopCapture = true;
+      }
+      m_wake.notify_all();
+      m_captureThread.join();
+    }
+
+    std::lock_guard lock(m_latestMutex);
+    m_latest = {};
+    m_latestSerial = 0;
+    m_grabbedSerial = 0;
+    m_captureError = nullptr;
+  }
+
+
+  void WindowsGrabber::_captureLoop()
+  {
+    while(!m_stopCapture){
+      try{
+        if(!_captureOnce()){
+          // Transient (wait timeout, access lost, no duplication yet):
+          // back off briefly so a persistent failure cannot spin.
+          std::unique_lock lock(m_wakeMutex);
+          m_wake.wait_for(lock, std::chrono::milliseconds(m_duplication ? 10 : 100), [this]{ return m_stopCapture.load(); });
+        }
+      }
+      catch(...){
+        std::lock_guard lock(m_latestMutex);
+        m_captureError = std::current_exception();
+        return;
+      }
+    }
+  }
+
+
+  bool WindowsGrabber::_captureOnce()
+  {
     if(!_ensureDuplication()){
-      imageData = m_lastFrame;
-      return;
+      return false;
     }
 
     ComPtr<IDXGIResource> resource;
     DXGI_OUTDUPL_FRAME_INFO frameInfo;
-    // 0ms (non-blocking) verified broken on hardware -- it can starve
-    // indefinitely on empty placeholder frames instead of ever seeing a
-    // real one. ~16ms (one 60Hz interval) reliably gets real data.
-    HRESULT hr = m_duplication->AcquireNextFrame(16, &frameInfo, &resource);
+    // Only this thread waits, so a long timeout costs nothing: it returns the
+    // moment a frame lands and bounds how late a stop request is seen.
+    HRESULT hr = m_duplication->AcquireNextFrame(50, &frameInfo, &resource);
 
     if(hr == DXGI_ERROR_WAIT_TIMEOUT){
-      imageData = m_lastFrame;
-      return;
+      return false;
     }
 
     if(hr == DXGI_ERROR_ACCESS_LOST){
-      // Desktop switch / mode change / DWM toggle -- reacquire lazily next call.
+      // Desktop switch / mode change / DWM toggle -- reacquire lazily next pass.
       _releaseDuplication();
-      imageData = m_lastFrame;
-      return;
+      return false;
     }
 
     if(FAILED(hr)){
-      imageData = m_lastFrame;
-      return;
+      return false;
     }
 
     ComPtr<ID3D11Texture2D> frameTexture;
     if(FAILED(resource.As(&frameTexture))){
       m_duplication->ReleaseFrame();
-      imageData = m_lastFrame;
-      return;
+      return false;
     }
 
     D3D11_TEXTURE2D_DESC desc;
@@ -359,8 +427,7 @@ namespace Aurora::Input::Windows
 
       if(FAILED(m_device->CreateTexture2D(&stagingDesc, nullptr, &m_stagingTexture))){
         m_duplication->ReleaseFrame();
-        imageData = m_lastFrame;
-        return;
+        return false;
       }
     }
 
@@ -374,8 +441,7 @@ namespace Aurora::Input::Windows
     D3D11_MAPPED_SUBRESOURCE mapped;
     if(FAILED(m_context->Map(m_stagingTexture.Get(), 0, D3D11_MAP_READ, 0, &mapped))){
       m_duplication->ReleaseFrame();
-      imageData = m_lastFrame;
-      return;
+      return false;
     }
 
     // Belt-and-suspenders against the recreate-on-mismatch above: cv::Mat's
@@ -397,12 +463,12 @@ namespace Aurora::Input::Windows
       m_context->Unmap(m_stagingTexture.Get(), 0);
       m_duplication->ReleaseFrame();
       m_stagingTexture.Reset(); // force a fresh, correctly-sized one next tick
-      imageData = m_lastFrame;
-      return;
+      return false;
     }
 
     // RowPitch can exceed the tightly-packed row size, and mapped.pData
     // dies at Unmap() -- own the result, same shape as Linux's toOwnedImage().
+    Contracts::ImageData frame;
     if(isHdr){
       // scRGB linear, channel order R,G,B,A -- clamp to SDR range and
       // gamma-encode; good enough for averaging, not real HDR tone-mapping.
@@ -412,19 +478,22 @@ namespace Aurora::Input::Windows
       cv::min(linear, 1.0, linear);
       cv::max(linear, 0.0, linear);
       cv::pow(linear, 1.0 / 2.2, linear);
-      linear.convertTo(m_lastFrame.imageMatrix, CV_8UC4, 255.0);
-      m_lastFrame.format = Contracts::PixelFormat::RGBA;
+      linear.convertTo(frame.imageMatrix, CV_8UC4, 255.0);
+      frame.format = Contracts::PixelFormat::RGBA;
     }
     else{
       cv::Mat view(static_cast<int>(outHeight), static_cast<int>(outWidth), CV_8UC4, mapped.pData, mapped.RowPitch);
-      m_lastFrame.imageMatrix = view.clone();
-      m_lastFrame.format = Contracts::PixelFormat::BGRA;
+      frame.imageMatrix = view.clone();
+      frame.format = Contracts::PixelFormat::BGRA;
     }
 
     m_context->Unmap(m_stagingTexture.Get(), 0);
     m_duplication->ReleaseFrame();
-    ++m_frameSerial;
 
-    imageData = m_lastFrame;
+    // Fresh buffers per frame: the tick thread may still hold the last one.
+    std::lock_guard lock(m_latestMutex);
+    m_latest = std::move(frame);
+    ++m_latestSerial;
+    return true;
   }
 }

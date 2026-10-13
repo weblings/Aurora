@@ -371,3 +371,25 @@ Applies-when: testing behavior that depends on the display's refresh rate (e.g. 
 Aurora-wqzp.5: a managed `DEVMODE` struct with guessed layout made `EnumDisplaySettings` return garbage (max "1200 Hz"). A zeroed 220-byte buffer with `dmSize` (offset 68) = 220 works: read width/height/hz at offsets 172/176/184, set `dmDisplayFrequency` = 184 and OR `DM_DISPLAYFREQUENCY` (0x400000) into `dmFields` (offset 72). `ChangeDisplaySettingsExW(dev, buf, 0, 0, 0)` with flags 0 is a dynamic change that does not persist to the registry. `Win32_VideoController.MaxRefreshRate` only describes one adapter, so enumerate modes per `\.\DISPLAYn` to find the fast panel.
 
 **Fix:** enumerate per device, change with flags 0, and set the old rate back when done. The app followed the change with no restart needed beyond relaunch (budget moved 16.67 -> 8.33 ms).
+
+
+---
+
+## `timeBeginPeriod(1)` is ignored by a windowless Win11 process -- `sleep_until` rounds up to 2 x 15.6 ms and a 60 Hz tick runs at 32 Hz
+Tags: windows, timer-resolution, tick-pacing, power-throttling
+Applies-when: a Windows loop paces itself with `sleep_for`/`sleep_until`, or you removed a blocking wait that was secretly doing the pacing
+
+Aurora-wqzp.6: once the DXGI wait moved to a capture thread, video-only ticks measured 32 Hz while video+audio held 56 Hz, same build. The old blocking `AcquireNextFrame(16)` had hidden it. Win11 drops a process's timer-resolution request when it has no visible window (a tray app) and nothing else raises the system rate; audio was doing that in "both".
+
+**Fix:** besides `timeBeginPeriod(1)`, call `SetProcessInformation(ProcessPowerThrottling, {PROCESS_POWER_THROTTLING_IGNORE_TIMER_RESOLUTION, StateMask 0})`. Video static went 32 -> 55.8 Hz. Tick rate sits at ~56, not 60, from ~1 ms sleep overshoot per tick.
+
+
+---
+
+## Perf and capture runs touch every attached display -- a TV powering on mid-run changes the mode and corrupts the multi-monitor check
+Tags: windows, multi-monitor, measurement, capture
+Applies-when: running `tools/perf-harness` or any grabber test on a box with extra displays (TV, virtual monitor), or reading a resolution mismatch between `displayResolution()` and the delivered frame
+
+Aurora-wqzp.6: this box has three outputs (4K primary, 1920x1200, and a TV). The `selectMonitor` test ran while the TV was off, then on. In one run display 2 reported 2560x1440 yet delivered 3840x2160 frames, and it did not repeat. A display mode change between `_initMonitorsList` (reads `DesktopCoordinates`) and the capture is the likely cause. The user also did not know tests were driving the TV.
+
+**Fix:** before a run, list the outputs (`found monitor:` lines in the manual capture test), say which will be captured or covered by the moving-content window, and get the user's OK. Keep the set of powered displays fixed for the run. Treat a size mismatch seen once as a mode change, not a grabber bug, until it reproduces.

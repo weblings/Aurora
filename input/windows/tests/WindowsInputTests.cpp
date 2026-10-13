@@ -1,6 +1,8 @@
 #include <catch2/catch_test_macros.hpp>
 
+#include <chrono>
 #include <iostream>
+#include <thread>
 
 #include <Aurora/Input/Windows/DummyGrabber.hpp>
 
@@ -52,7 +54,11 @@ TEST_CASE("WindowsGrabber captures real, non-empty frames", "[.][manual][Windows
 
   for(int i = 0; i < 5; ++i){
     ImageData image;
-    grabber.grabFrameSubsample(image);
+    // Capture runs on its own thread: the first grab may precede any frame.
+    for(int wait = 0; wait < 100 && !image.hasData(); ++wait){
+      grabber.grabFrameSubsample(image);
+      std::this_thread::sleep_for(std::chrono::milliseconds(20));
+    }
 
     // BGRA (SDR) or RGBA (HDR desktop, converted) -- both valid, see WindowsGrabber.
     REQUIRE(image.hasData());
@@ -61,6 +67,70 @@ TEST_CASE("WindowsGrabber captures real, non-empty frames", "[.][manual][Windows
     auto mean = cv::mean(image.imageMatrix);
     std::cerr << "Frame " << i << ": " << image.width() << "x" << image.height()
                << " mean BGRA = (" << mean[0] << ", " << mean[1] << ", " << mean[2] << ", " << mean[3] << ")\n";
+  }
+}
+
+
+// Static desktop required. Full-size capture resized by CPU INTER_AREA to the
+// mip size vs the GPU mip chain's own level: records the per-channel gap.
+TEST_CASE("WindowsGrabber GPU mips match CPU INTER_AREA", "[.][manual][WindowsGrabber]")
+{
+  auto grab = [](unsigned hint){
+    WindowsGrabber grabber;
+    grabber.init();
+    grabber.setCaptureWidthHint(hint);
+    ImageData image;
+    // Skip the leading all-black placeholder frames.
+    for(int i = 0; i < 100; ++i){
+      std::this_thread::sleep_for(std::chrono::milliseconds(50));
+      grabber.grabFrameSubsample(image);
+      if(image.hasData() && cv::mean(image.imageMatrix)[3] > 0){
+        break;
+      }
+    }
+    REQUIRE(image.hasData());
+    return image.imageMatrix.clone();
+  };
+
+  cv::Mat full = grab(0);
+  cv::Mat mip = grab(32);
+  REQUIRE(mip.cols < full.cols);
+
+  cv::Mat cpu;
+  cv::resize(full, cpu, mip.size(), 0, 0, cv::INTER_AREA);
+  cv::Mat diff;
+  cv::absdiff(cpu, mip, diff);
+  double maxDiff = 0;
+  cv::minMaxLoc(diff.reshape(1), nullptr, &maxDiff);
+  auto meanDiff = cv::mean(diff);
+  std::cerr << "full " << full.cols << "x" << full.rows << " -> mip " << mip.cols << "x" << mip.rows
+            << " mean |diff| (B,G,R) = " << meanDiff[0] << ", " << meanDiff[1] << ", " << meanDiff[2]
+            << " max = " << maxDiff << "\n";
+  CHECK(meanDiff[0] < 2.0);
+  CHECK(meanDiff[1] < 2.0);
+  CHECK(meanDiff[2] < 2.0);
+}
+
+
+// Switching monitors stops and restarts the capture thread.
+TEST_CASE("WindowsGrabber selectMonitor re-captures on each monitor", "[.][manual][WindowsGrabber]")
+{
+  WindowsGrabber grabber;
+  grabber.init();
+
+  for(unsigned id = 0; id < grabber.monitors().size(); ++id){
+    grabber.selectMonitor(id);
+    ImageData image;
+    for(int wait = 0; wait < 100 && !image.hasData(); ++wait){
+      grabber.grabFrameSubsample(image);
+      std::this_thread::sleep_for(std::chrono::milliseconds(20));
+    }
+    REQUIRE(image.hasData());
+    std::cerr << "monitor " << id << ": " << image.width() << "x" << image.height()
+              << " serial " << grabber.frameSerial() << "\n";
+    // Frame size vs reported resolution is logged, not asserted: they differ on
+    // a scaled display when the exe is DPI-unaware (Aurora-wqzp.6).
+    std::cerr << "  reported " << grabber.displayResolution().x << "x" << grabber.displayResolution().y << "\n";
   }
 }
 #endif
