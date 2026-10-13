@@ -1,6 +1,7 @@
 #pragma once
 
 #include <atomic>
+#include <chrono>
 #include <condition_variable>
 #include <cstdint>
 #include <exception>
@@ -70,6 +71,7 @@ namespace Aurora::Input::Windows
     void _stopCapture();
     bool _ensureDuplication();
     void _releaseDuplication();
+    void _refreshSdrWhiteScale();
     // Halves the frame on the GPU (mip chain) down to the hint's 8x oversample,
     // as the Mac grabber does (Aurora-3qh). Null = no usable mip; copy full size.
     ID3D11Texture2D* _downscale(ID3D11Texture2D* frame, const D3D11_TEXTURE2D_DESC& desc, unsigned& level);
@@ -97,6 +99,10 @@ namespace Aurora::Input::Windows
     std::uint64_t m_latestSerial = 0;
     // Panel rotation of the current duplication (capture thread only).
     DXGI_MODE_ROTATION m_rotation = DXGI_MODE_ROTATION_IDENTITY;
+    // SDR white in scRGB units for FP16 frames, re-read each second since the
+    // user can move the SDR brightness slider mid-session (capture thread only).
+    float m_sdrWhiteScale = 1.0f;
+    std::chrono::steady_clock::time_point m_sdrWhiteCheckedAt;
     // True once this duplication has produced an image (capture thread only).
     bool m_hasDesktopImage = false;
     std::exception_ptr m_captureError;

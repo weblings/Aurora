@@ -898,3 +898,12 @@ Applies-when: skipping or deduplicating `AcquireNextFrame` results, or changing 
 Aurora-wqzp.8: a pointer move delivers a frame whose desktop image is unchanged, but `WindowsGrabber` ran the mip, readback, clone and serial bump on it, so the Orchestrator rescaled again. The first `AcquireNextFrame` after `DuplicateOutput` also reports `AccumulatedFrames == 0` while carrying the only image there is.
 
 **Fix:** release and return early on `AccumulatedFrames == 0` only once this duplication has published an image (`m_hasDesktopImage`). Reset the flag in `_releaseDuplication` and `_stopCapture` (which clears `m_latest`), or a static desktop never delivers a first frame. Return true, not false, so the capture loop does not add its 10 ms back-off.
+
+
+## Legacy DXGI `DuplicateOutput` clips an HDR desktop at 80 nits, so ordinary SDR content blows out
+Tags: input, windows, dxgi, hdr, pixel-format, color
+Applies-when: capturing a Windows desktop that may have HDR on, or judging capture colour against what is on screen
+
+Aurora-wqzp.12: `IDXGIOutput1::DuplicateOutput` always returns BGRA8. On an HDR desktop it gets there by clipping linear scRGB at 1.0 (80 nits), but SDR white sits at the user's SDR brightness (240 nits here, scRGB 3.0). sRGB grey 128 captured as 210 and 192 as 255, and nothing flagged it: the frames were valid BGRA. The FP16 branch kept "defensively" never ran, and would have clipped the same way (no white-level divide).
+
+**Fix:** `IDXGIOutput5::DuplicateOutput1` with `[R16G16B16A16_FLOAT, B8G8R8A8_UNORM]`, then divide by the SDR white level (`DISPLAYCONFIG_SDR_WHITE_LEVEL`, re-read each second), clamp, sRGB-encode. Check capture colour with a known on-screen grey on each monitor (manual test "captures SDR greys"), since a frame-format check alone cannot catch clipping. `DuplicateOutput1` can also open with an alpha-0 black placeholder tagged FP16: don't publish it.

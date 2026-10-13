@@ -195,4 +195,104 @@ TEST_CASE("WindowsGrabber frames match the rotated desktop orientation", "[.][ma
   }
 }
 
+
+namespace
+{
+  // Topmost borderless window filled with one colour, covering a monitor.
+  struct SolidWindow
+  {
+    HWND hwnd = nullptr;
+
+    SolidWindow(const RECT& rect, COLORREF color)
+    {
+      WNDCLASSW wc{};
+      wc.lpfnWndProc = DefWindowProcW;
+      wc.hInstance = GetModuleHandleW(nullptr);
+      wc.lpszClassName = L"AuroraSolidTestWindow";
+      RegisterClassW(&wc); // fails harmlessly once already registered
+      hwnd = CreateWindowExW(WS_EX_TOPMOST | WS_EX_TOOLWINDOW, wc.lpszClassName, L"", WS_POPUP,
+                             rect.left, rect.top, rect.right - rect.left, rect.bottom - rect.top,
+                             nullptr, nullptr, wc.hInstance, nullptr);
+      SetClassLongPtrW(hwnd, GCLP_HBRBACKGROUND, reinterpret_cast<LONG_PTR>(CreateSolidBrush(color)));
+      ShowWindow(hwnd, SW_SHOWNOACTIVATE);
+      UpdateWindow(hwnd);
+    }
+
+    ~SolidWindow()
+    {
+      auto brush = reinterpret_cast<HBRUSH>(GetClassLongPtrW(hwnd, GCLP_HBRBACKGROUND));
+      DestroyWindow(hwnd);
+      DeleteObject(brush);
+    }
+  };
+
+  void pumpFor(std::chrono::milliseconds duration)
+  {
+    const auto end = std::chrono::steady_clock::now() + duration;
+    while(std::chrono::steady_clock::now() < end){
+      MSG msg;
+      while(PeekMessageW(&msg, nullptr, 0, 0, PM_REMOVE)){
+        DispatchMessageW(&msg);
+      }
+      std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    }
+  }
+
+  RECT monitorRect(const std::string& deviceName)
+  {
+    struct Search { std::string name; RECT rect{}; } search{deviceName};
+    EnumDisplayMonitors(nullptr, nullptr, [](HMONITOR monitor, HDC, LPRECT, LPARAM param) -> BOOL {
+      auto* s = reinterpret_cast<Search*>(param);
+      MONITORINFOEXA info{};
+      info.cbSize = sizeof(info);
+      if(GetMonitorInfoA(monitor, &info) && s->name == info.szDevice){
+        s->rect = info.rcMonitor;
+        return FALSE;
+      }
+      return TRUE;
+    }, reinterpret_cast<LPARAM>(&search));
+    return search.rect;
+  }
+}
+
+
+// Shows solid greys on every monitor in turn, so it takes over the screen
+// briefly. SDR content must capture at its sRGB value on HDR monitors too.
+TEST_CASE("WindowsGrabber captures SDR greys at their sRGB value on every monitor", "[.][manual][WindowsGrabber]")
+{
+  WindowsGrabber grabber;
+  grabber.init();
+
+  for(unsigned id = 0; id < grabber.monitors().size(); ++id){
+    const std::string name = grabber.monitors()[id]->name; // monitors() returns a copy
+    grabber.selectMonitor(id);
+
+    for(int grey : {64, 128, 192}){
+      SolidWindow window(monitorRect(name), RGB(grey, grey, grey));
+      pumpFor(std::chrono::milliseconds(500));
+
+      // Skip the all-black, alpha-0 placeholder frame a new duplication starts with.
+      ImageData image;
+      for(int wait = 0; wait < 100; ++wait){
+        grabber.grabFrameSubsample(image);
+        if(image.hasData() && cv::mean(image.imageMatrix)[3] > 0){
+          break;
+        }
+        pumpFor(std::chrono::milliseconds(20));
+      }
+      REQUIRE(image.hasData());
+
+      // Centre half only: keeps the window edges out of the mean.
+      cv::Rect centre(image.width() / 4, image.height() / 4, image.width() / 2, image.height() / 2);
+      auto mean = cv::mean(image.imageMatrix(centre));
+      std::cerr << name << " grey " << grey << ": "
+                << (image.format == PixelFormat::RGBA ? "RGBA(FP16)" : "BGRA") << " captured ("
+                << mean[0] << ", " << mean[1] << ", " << mean[2] << ")\n";
+      for(int channel = 0; channel < 3; ++channel){
+        CHECK(std::abs(mean[channel] - grey) < 3.0);
+      }
+    }
+  }
+}
+
 #endif

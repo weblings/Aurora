@@ -2,11 +2,17 @@
 
 #include <algorithm>
 #include <chrono>
+#include <cwchar>
 #include <iostream>
+#include <iterator>
 #include <stdexcept>
 #include <utility>
+#include <vector>
 
+#include <dxgi1_5.h>
 #include <windows.h>
+
+#include <Aurora/Input/Windows/ScRgbConversion.hpp>
 
 
 namespace
@@ -25,6 +31,56 @@ namespace
     std::string result(static_cast<size_t>(size - 1), '\0');
     WideCharToMultiByte(CP_UTF8, 0, wide, -1, result.data(), size, nullptr, nullptr);
     return result;
+  }
+
+
+  // SDR white in scRGB units (1.0 = 80 nits): above 1.0 only on an HDR desktop.
+  // Read via DisplayConfig, which is live, unlike IDXGIOutput6::GetDesc1.
+  float sdrWhiteScale(const wchar_t* gdiName)
+  {
+    UINT32 pathCount = 0;
+    UINT32 modeCount = 0;
+    if(GetDisplayConfigBufferSizes(QDC_ONLY_ACTIVE_PATHS, &pathCount, &modeCount) != ERROR_SUCCESS){
+      return 1.0f;
+    }
+    std::vector<DISPLAYCONFIG_PATH_INFO> paths(pathCount);
+    std::vector<DISPLAYCONFIG_MODE_INFO> modes(modeCount);
+    if(QueryDisplayConfig(QDC_ONLY_ACTIVE_PATHS, &pathCount, paths.data(), &modeCount, modes.data(), nullptr) != ERROR_SUCCESS){
+      return 1.0f;
+    }
+
+    for(UINT32 i = 0; i < pathCount; ++i){
+      DISPLAYCONFIG_SOURCE_DEVICE_NAME source{};
+      source.header.type = DISPLAYCONFIG_DEVICE_INFO_GET_SOURCE_NAME;
+      source.header.size = sizeof(source);
+      source.header.adapterId = paths[i].sourceInfo.adapterId;
+      source.header.id = paths[i].sourceInfo.id;
+      if(DisplayConfigGetDeviceInfo(&source.header) != ERROR_SUCCESS || std::wcscmp(source.viewGdiDeviceName, gdiName) != 0){
+        continue;
+      }
+
+      // Wide-colour-only (ACM on an SDR panel) keeps SDR white at 1.0.
+      DISPLAYCONFIG_GET_ADVANCED_COLOR_INFO colour{};
+      colour.header.type = DISPLAYCONFIG_DEVICE_INFO_GET_ADVANCED_COLOR_INFO;
+      colour.header.size = sizeof(colour);
+      colour.header.adapterId = paths[i].targetInfo.adapterId;
+      colour.header.id = paths[i].targetInfo.id;
+      if(DisplayConfigGetDeviceInfo(&colour.header) != ERROR_SUCCESS || !colour.advancedColorEnabled || colour.wideColorEnforced){
+        return 1.0f;
+      }
+
+      DISPLAYCONFIG_SDR_WHITE_LEVEL white{};
+      white.header.type = DISPLAYCONFIG_DEVICE_INFO_GET_SDR_WHITE_LEVEL;
+      white.header.size = sizeof(white);
+      white.header.adapterId = paths[i].targetInfo.adapterId;
+      white.header.id = paths[i].targetInfo.id;
+      if(DisplayConfigGetDeviceInfo(&white.header) != ERROR_SUCCESS || white.SDRWhiteLevel == 0){
+        return 1.0f;
+      }
+      // SDRWhiteLevel is in thousandths of 80 nits.
+      return static_cast<float>(white.SDRWhiteLevel) / 1000.0f;
+    }
+    return 1.0f;
   }
 }
 
@@ -121,8 +177,8 @@ namespace Aurora::Input::Windows
         monitorInfo.cbSize = sizeof(monitorInfo);
         bool isPrimary = GetMonitorInfoW(desc.Monitor, &monitorInfo) && (monitorInfo.dwFlags & MONITORINFOF_PRIMARY);
 
-        // AcquireNextFrame's surface is always B8G8R8A8, but its *resolution*
-        // is the current display mode -- read via GDI since DXGI_OUTPUT_DESC
+        // AcquireNextFrame's surface resolution is the current display
+        // mode -- refresh rate read via GDI since DXGI_OUTPUT_DESC
         // doesn't carry a refresh rate at all.
         DEVMODEW devMode{};
         devMode.dmSize = sizeof(devMode);
@@ -193,7 +249,16 @@ namespace Aurora::Input::Windows
       return false;
     }
 
-    hr = selectedMonitor->output->DuplicateOutput(m_device.Get(), &m_duplication);
+    // The legacy DuplicateOutput clips an HDR desktop to BGRA8 at 80 nits,
+    // blowing out SDR content. DuplicateOutput1 hands it back as scRGB FP16.
+    ComPtr<IDXGIOutput5> output5;
+    if(SUCCEEDED(selectedMonitor->output.As(&output5))){
+      constexpr DXGI_FORMAT formats[]{DXGI_FORMAT_R16G16B16A16_FLOAT, DXGI_FORMAT_B8G8R8A8_UNORM};
+      hr = output5->DuplicateOutput1(m_device.Get(), 0, static_cast<UINT>(std::size(formats)), formats, &m_duplication);
+    }
+    else{
+      hr = selectedMonitor->output->DuplicateOutput(m_device.Get(), &m_duplication);
+    }
     if(FAILED(hr)){
       // E_ACCESSDENIED (secure desktop/UAC), DXGI_ERROR_SESSION_DISCONNECTED
       // (RDP), etc. are expected/transient -- retry lazily next tick rather
@@ -207,8 +272,22 @@ namespace Aurora::Input::Windows
     DXGI_OUTDUPL_DESC duplDesc;
     m_duplication->GetDesc(&duplDesc);
     m_rotation = duplDesc.Rotation;
+    _refreshSdrWhiteScale();
 
     return true;
+  }
+
+
+  void WindowsGrabber::_refreshSdrWhiteScale()
+  {
+    m_sdrWhiteCheckedAt = std::chrono::steady_clock::now();
+    auto* selectedMonitor = dynamic_cast<WindowsMonitorData*>(m_monitorSelectionData.selectedMonitor());
+    DXGI_OUTPUT_DESC desc;
+    if(!selectedMonitor || FAILED(selectedMonitor->output->GetDesc(&desc))){
+      m_sdrWhiteScale = 1.0f;
+      return;
+    }
+    m_sdrWhiteScale = sdrWhiteScale(desc.DeviceName);
   }
 
 
@@ -364,6 +443,10 @@ namespace Aurora::Input::Windows
       return false;
     }
 
+    if(std::chrono::steady_clock::now() - m_sdrWhiteCheckedAt > std::chrono::seconds(1)){
+      _refreshSdrWhiteScale();
+    }
+
     ComPtr<IDXGIResource> resource;
     DXGI_OUTDUPL_FRAME_INFO frameInfo;
     // Only this thread waits, so a long timeout costs nothing: it returns the
@@ -400,8 +483,8 @@ namespace Aurora::Input::Windows
     D3D11_TEXTURE2D_DESC desc;
     frameTexture->GetDesc(&desc);
 
-    // MS docs claim this is always B8G8R8A8_UNORM; HDR desktops return
-    // R16G16B16A16_FLOAT instead -- handled defensively (see WindowsInputAnalysis.md).
+    // DuplicateOutput1 returns FP16 on an HDR desktop and BGRA8 otherwise
+    // (the all-black placeholder frame can also be tagged FP16).
     bool isHdr = desc.Format == DXGI_FORMAT_R16G16B16A16_FLOAT;
     if(!isHdr && desc.Format != DXGI_FORMAT_B8G8R8A8_UNORM){
       // Unrecognized format -- fail loud rather than silently misread bytes.
@@ -484,15 +567,10 @@ namespace Aurora::Input::Windows
     // dies at Unmap() -- own the result, same shape as Linux's toOwnedImage().
     Contracts::ImageData frame;
     if(isHdr){
-      // scRGB linear, channel order R,G,B,A -- clamp to SDR range and
-      // gamma-encode; good enough for averaging, not real HDR tone-mapping.
+      // Linear scRGB R,G,B,A (the mips above averaged it in linear light).
+      // HDR highlights above SDR white clip, as on an SDR display.
       cv::Mat halfView(static_cast<int>(outHeight), static_cast<int>(outWidth), CV_16FC4, mapped.pData, mapped.RowPitch);
-      cv::Mat linear;
-      halfView.convertTo(linear, CV_32FC4);
-      cv::min(linear, 1.0, linear);
-      cv::max(linear, 0.0, linear);
-      cv::pow(linear, 1.0 / 2.2, linear);
-      linear.convertTo(frame.imageMatrix, CV_8UC4, 255.0);
+      frame.imageMatrix = scRgbToSrgb8(halfView, m_sdrWhiteScale);
       frame.format = Contracts::PixelFormat::RGBA;
     }
     else{
@@ -503,6 +581,12 @@ namespace Aurora::Input::Windows
 
     m_context->Unmap(m_stagingTexture.Get(), 0);
     m_duplication->ReleaseFrame();
+
+    // A new duplication can open with an all-black, alpha-0 placeholder (seen
+    // on DuplicateOutput1): drop it and wait for the real first image.
+    if(!m_hasDesktopImage && cv::mean(frame.imageMatrix)[3] == 0){
+      return true;
+    }
 
     // Rotate the small readback to the desktop's orientation, so zones map correctly.
     switch(m_rotation){
