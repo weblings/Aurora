@@ -1070,3 +1070,11 @@ Applies-when: rebuilding then running a test or perf harness, especially with th
 Aurora-wqzp.12: a rebuild failed on a one-line typo, but the output was filtered to a couple of patterns that did not match and the old test exe ran green. The suspicious part was a perf number that had not moved. Nothing about the passing tests said they were the old code.
 
 **Fix:** check the build's exit status (or the exe timestamp) before trusting any result, and keep the filter broad enough to show the failing line (`error`, `FAILED`, the target name). A result that should have changed and did not is a stale-binary suspect first.
+
+## Attribute per-stage CPU from wall time of CPU-bound stages -- `GetThreadTimes` is tick-quantized
+Tags: perf, measurement, windows, attribution
+Applies-when: splitting a thread's CPU cost between stages before choosing an optimization
+
+Aurora-wqzp.14: per-stage CPU from `QueryThreadCycleTime` shares times a 5 s `GetThreadTimes` delta swung 2-3x between windows, because `GetThreadTimes` advances in ~15.6 ms ticks. The steady part was wall time: a blocking call (`Map()`, 3-5 ms) cost almost no CPU, while short CPU-bound stages (copy, convert) cost their wall time.
+
+**Fix:** time each stage with `steady_clock`. Read wall time as CPU only for stages that never block, and treat a blocking call's wall time as a wait unless cycle counts say otherwise. Re-measure the headline gap (3 alternating runs) before designing a fix for it: here the 5-point gap was mostly noise.
