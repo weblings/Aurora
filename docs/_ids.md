@@ -150,6 +150,7 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `wqzp4-linux-decimate-on-copy` | [log/2026-10-13-wqzp4-linux-decimate-on-copy.md](log/2026-10-13-wqzp4-linux-decimate-on-copy.md) | Aurora-wqzp.4: Linux downscale while copying out of the PipeWire buffer |
 | `wqzp6-windows-grab-thread` | [log/2026-10-13-wqzp6-windows-grab-thread.md](log/2026-10-13-wqzp6-windows-grab-thread.md) | Aurora-wqzp.6: Windows capture thread, tick headroom |
 | `wqzp7-mac-audio-cost` | [log/2026-10-13-wqzp7-mac-audio-cost.md](log/2026-10-13-wqzp7-mac-audio-cost.md) | Aurora-wqzp.7 / .15: where Mac audio-only CPU goes, and optimized presets |
+| `wqzp7-linux-audio-cost` | [log/2026-10-13-wqzp7-linux-audio-cost.md](log/2026-10-13-wqzp7-linux-audio-cost.md) | Aurora-wqzp.7: where Linux audio-only CPU goes |
 | `wqzp8-windows-skip-cursor-frames` | [log/2026-10-13-wqzp8-windows-skip-cursor-frames.md](log/2026-10-13-wqzp8-windows-skip-cursor-frames.md) | Aurora-wqzp.8: Windows skips cursor-only DXGI frames |
 | `wqzp9-mac-mover-proof` | [log/2026-10-13-wqzp9-mac-mover-proof.md](log/2026-10-13-wqzp9-mac-mover-proof.md) | Aurora-wqzp.9: perf-harness proves the mover from the relay SSE |
 | `x1lh-error-shell-visual-polish` | [log/2026-10-07-error-shell-visual-polish.md](log/2026-10-07-error-shell-visual-polish.md) | Aurora-x1lh: error shell visual polish (closed) |

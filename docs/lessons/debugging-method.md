@@ -1106,3 +1106,11 @@ Aurora-wqzp.7: on Mac, `sample` put 82 self-samples on the mono-downmix loop in 
 **Fix:** pair any profile-guided change with the harness's end-to-end number (update avg, process CPU) before keeping it. If the hot spot just moves, the cost is per-wake, and the levers are wake count or placement, not the loop.
 
 Follow-up (Aurora-wqzp.15): a later full run of the same optimized code measured 0.07-0.15 ms, not 0.30 ms, so the 'remaining gap vs Windows' this was explaining was mostly run-to-run spread. Take 2-3 runs of the end-to-end number before attributing a small gap to anything.
+
+## A before/after pair from two different machines cannot attribute a change -- re-run the "before" on the box you have
+Tags: perf, measurement, attribution, cross-machine
+Applies-when: crediting a perf delta to one cause (build type, a patch) using an older number from a log or another host
+
+Aurora-wqzp.7 (Linux): the log's unoptimized X11 row (6.2%, update 0.94 ms) came from an i5-7600K; the optimized run was on an i5-1334U (2.5%, 0.25 ms). It was first written up as "most of the 4% was the build type". Rebuilding unoptimized on the 1334U gave 3.7% / 0.43 ms, so the build type was about a third (1.2 points) and the older CPU the rest.
+
+**Fix:** before writing an attribution, check the `hardware:` line of both numbers; if they differ, re-measure the baseline on the current box (a scratch build dir, deleted afterwards) rather than inferring. Cheap here: one extra configure and build.
