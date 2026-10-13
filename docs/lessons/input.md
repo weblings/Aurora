@@ -855,3 +855,12 @@ up" is wrong on Mac.
 **Fix:** after the PUT, poll `/api/state` (not the PUT body) until `running`
 or a held error; after the user grants, `POST /api/reload`, since a grant
 reaches a grabber built after it, not a running one (Aurora-h457 entry above).
+
+## A frame serial must be captured with the frame, not read live afterwards
+Tags: input, pipewire, frameserial, orchestrator, concurrency
+Applies-when: adding frameSerial() to a grabber whose frames arrive on another thread
+
+Aurora-wqzp.2: `Orchestrator::update` calls `grabFrameSubsample()` then `frameSerial()`. With the serial read live from the PipeWire thread's counter, a frame landing between the two calls gives a new serial with the old pixels; the next tick sees an unchanged serial and reuses the stale prepared frame, so one real frame is lost. Same pattern as the Mac bufferSerial pairing (Aurora-wqzp.3).
+
+**Fix:** copy the serial inside the same lock as the frame copy, store it in a tick-thread member, and return that from `frameSerial()`. Bump the counter only after the no-data/skip returns so empty buffers never count. Result on GNOME: ~10 delivered frames/s on a static screen, so ~50 of 60 ticks skip the rescale (video 47.1% -> 13.7%).
+

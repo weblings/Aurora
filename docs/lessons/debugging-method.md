@@ -1030,3 +1030,14 @@ Aurora-wqzp.1 Mac and Linux: moving matched static within noise (Mac video 20.7%
 **Update (Aurora-wqzp.1, Linux X11):** a cheaper, earlier check catches a failure mode the SSE-brightness proof doesn't rule out by itself -- the kiosk Firefox child can zombie immediately after `Popen` returns, with no window ever created and no error on either fd (3 of 5 launches here; no conclusive cause, suspected snap-firefox startup race, direct shell launches of the identical command were reliable). `perf.py` never checked `poll()`, so a dead mover was indistinguishable from a slow one until the whole 28s measurement window had already been spent on a silently-static run. Filed as Aurora-wqzp.11.
 
 **Fix:** after starting the mover, compare zone output against the static baseline before trusting a flat moving row. A mover that changes nothing the lights can see is a failed fixture, not a finding. Check sooner than that too: confirm via `poll()`/`ps` that the mover process (and, for a multi-process browser, at least one child) is actually still alive a few seconds after launch, before spending the measurement window on it. On Mac the fallback browser is `/Applications/Firefox.app/Contents/MacOS/firefox` (not on PATH), and Homebrew Python has no tkinter.
+
+**Update (Aurora-wqzp.2, Linux Wayland, snap Firefox):** the kiosk mover was gone within ~5 s inside the harness (a hand launch of the same command survived), so the first "moving" run printed the static number (46.5%) and looked like a result. The real moving run, with a verified mover, was 88.5% before the fix and 60.0% after. Substitute that stayed up: `ffplay -fs -noborder -f lavfi -i "color=c=gray:s=960x600:r=60,format=gray,geq=lum='if(lt(mod(X/2+N,240),120),43,28)'"` (`drawbox` has no per-frame variable; `geq` has `N`), then run `perf.py --content static` while it is up. Proof: mean zone brightness 0.97 -> 0.09. When a probe also counts delivered frames per window, a flat ~10/s on a "moving" run is itself the tell.
+
+## Check `hostname` before attributing hardware to a recorded run
+Tags: debugging, measurement, provenance, perf
+Applies-when: writing machine specs next to numbers someone else (or an earlier session) recorded
+
+Aurora-wqzp.1: specs read from the box at hand (Framework laptop, i5-1334U) were logged beside Linux Wayland/X11 numbers that came from MediaServer (i5-7600K). The wrong comparison ("contrast with the X11 run") went into the bead before the earlier comment's hostname was re-read. Comments cannot be edited, so it needed a correction comment.
+
+**Fix:** compare the current `hostname` with the host named in the run being annotated before writing specs; with `perf.py` now printing a `hardware:` line, quote that line from the run's own output instead of querying the machine later.
+

@@ -249,6 +249,13 @@ namespace Aurora::Input::Linux
   {
     auto lock = std::lock_guard(m_pwData.frameDoubleBuffer.mutex);
     imageData = m_pwData.frameDoubleBuffer.frame.at(0);
+    m_grabbedSerial = m_pwData.frameDoubleBuffer.serial;
+  }
+
+
+  std::uint64_t PipewireGrabber::frameSerial() const
+  {
+    return m_grabbedSerial;
   }
 
 
@@ -465,6 +472,7 @@ namespace Aurora::Input::Linux
       auto lock = std::lock_guard(pw->frameDoubleBuffer.mutex);
       std::swap(pw->frameDoubleBuffer.frame[0], pw->frameDoubleBuffer.frame[1]);
       pw->frameDoubleBuffer.frame[0] = std::move(capturedFrame);
+      ++pw->frameDoubleBuffer.serial;
     }
     pw_stream_queue_buffer(pw->stream, pwBuffer);
   }

@@ -141,6 +141,9 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `windows-failed-resume-n5ly` | [log/2026-10-06-windows-failed-resume-n5ly.md](log/2026-10-06-windows-failed-resume-n5ly.md) | Windows failed-resume verification closes Aurora-n5ly |
 | `windows-input-analysis` | [archive/WindowsInputAnalysis.md](archive/WindowsInputAnalysis.md) | Windows Input plugin — analysis pass |
 | `windows-pause-verification` | [log/2026-10-04-windows-pause-verification.md](log/2026-10-04-windows-pause-verification.md) | Windows verification of pause/resume and kea; Aurora.exe has no --help/--version (Aurora-v3in) |
+| `wqzp1-x11-perf-verify` | [log/2026-10-12-wqzp1-x11-perf-verify.md](log/2026-10-12-wqzp1-x11-perf-verify.md) | Aurora-wqzp.1: Linux X11 perf-harness run |
+| `wqzp2-linux-frameserial` | [log/2026-10-13-wqzp2-linux-frameserial.md](log/2026-10-13-wqzp2-linux-frameserial.md) | Aurora-wqzp.2: Linux PipewireGrabber frameSerial() |
+| `wqzp3-mac-video-cpu` | [log/2026-10-12-wqzp3-mac-video-cpu.md](log/2026-10-12-wqzp3-mac-video-cpu.md) | Aurora-wqzp.3: Mac video CPU 19% vs 3qh's 5.5% |
 | `x1lh-error-shell-visual-polish` | [log/2026-10-07-error-shell-visual-polish.md](log/2026-10-07-error-shell-visual-polish.md) | Aurora-x1lh: error shell visual polish (closed) |
 | `xrl1-warning-icon` | [log/2026-10-07-xrl1-warning-icon.md](log/2026-10-07-xrl1-warning-icon.md) | Aurora-xrl1: vector warning icon replaces bold ⚠ (closed) |
 | `yzp4-takeover-unification` | [log/2026-10-06-yzp4-takeover-unification.md](log/2026-10-06-yzp4-takeover-unification.md) | Aurora-yzp4: takeover unified to heading-only "Aurora has stopped" (closed) |

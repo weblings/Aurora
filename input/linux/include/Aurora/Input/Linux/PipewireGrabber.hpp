@@ -36,6 +36,8 @@ namespace Aurora::Input::Linux
     struct SafeDoubleBuffer
     {
       std::array<Contracts::ImageData, 2> frame;
+      // Bumped under the mutex each time a delivered frame replaces frame[0].
+      std::uint64_t serial{0};
       std::mutex mutex;
     };
 
@@ -94,6 +96,7 @@ namespace Aurora::Input::Linux
     Resolution displayResolution() const override;
     RefreshRate displayRefreshRate() const override;
     void grabFrameSubsample(Contracts::ImageData& imageData) override;
+    std::uint64_t frameSerial() const override;
 
   private:
     static void _onCoreInfoCallback(
@@ -176,5 +179,9 @@ namespace Aurora::Input::Linux
     std::optional<std::thread> m_pipewireThread;
     XdgDesktopPortal::Capture m_capture;
     PipewireData m_pwData;
+    // Serial of the frame the last grabFrameSubsample() returned. Read on the
+    // same (tick) thread as the grab, so a frame landing between the grab and
+    // frameSerial() can't pair a new serial with old pixels.
+    std::uint64_t m_grabbedSerial{0};
   };
 }
