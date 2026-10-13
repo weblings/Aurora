@@ -15,13 +15,11 @@
 - You need a Philips Hue bridge with registered lamps, and an entertainment area defined through
 Philips' official app.
 - Locate the latest [GitHub Release](https://github.com/weblings/Aurora/releases) and download the zip for your platform. Keep the contents of the folder together so the app can work correctly.
-- (Read dependencies before this step) On Windows and Linux, in a terminal window in the unzipped folder, launch the app (on Mac, open `Aurora.app` instead). Ctrl + click on the link to open the UI and get setup. Enjoy!
-- Once set up, the tray icon (menu bar on Mac) and the Dashboard both offer Pause / Resume, which stops sending colors to your lights without quitting Aurora. If Aurora stops on an error, the tray's Pause item becomes See Error and opens the UI, where a banner explains what went wrong.
 - Dependencies:
   - **Windows:** Try launching Aurora. If you get an error saying "The code execution cannot proceed because VCRUNTIME140.dll was not found", then you need: [Visual C++ Redistributable](https://learn.microsoft.com/en-us/cpp/windows/latest-supported-vc-redist). If not, it's already installed and you're good to go.
   - **Linux (Debian/Ubuntu):** `sudo apt install libx11-6 libxext6 libxrandr2 pipewire libaubio5 libcurl4t64 libopencv-core406t64 libmbedtls14t64` (ffmpeg and GL pieces arrive automatically as dependencies of those; on other releases the curl/opencv/mbedtls package names differ slightly — e.g. `libopencv-core410` / `libmbedtls21` — and a missing-`.so` error on launch names its package).
     - **Compiling from source on Linux?** You need the `-dev` variants instead — see [docs/Building.md](docs/Building.md#prerequisites).
-  - **Mac (Apple silicon, macOS 27 is the supported target) older macOS is untested, Intel is not supported:** nothing to install, and no terminal needed. Unzip the Mac release, drag `Aurora.app` into your Applications folder (this also lets Spotlight find it), and open it. macOS may ask you to confirm opening an app downloaded from the internet; choose Open. Aurora runs from the menu bar: click its icon for Launch UI, Pause / Resume, or Stop, and grant Screen Recording (and Local Network, so Aurora can reach your bridge) when prompted. To build from source instead, install [Homebrew](https://brew.sh), then `brew install cmake opencv curl aubio mbedtls@3 pkg-config` (must be `mbedtls@3`, not v4), and build via the `mac-app` preset, see [CONTRIBUTING.md](CONTRIBUTING.md#platform-notes).
+  - **Mac (Apple silicon, macOS 27 is the supported target) older macOS is untested, Intel is not supported:** Drag `Aurora.app` into your Applications folder (this also lets Spotlight find it), and open it. macOS may ask you to confirm opening an app downloaded from the internet; choose Open. Grant Screen Recording (and Local Network, so Aurora can reach your bridge) when prompted.
 
 
 ## Layout
@@ -71,7 +69,7 @@ Processing (source to effects handling), or Output (color / effects) module
 - Aurora captures through DMA-BUF by default, which has been verified on Intel + GNOME. If capture freezes or goes black on another GPU or compositor, launch with `AURORA_PW_DMABUF=0` to fall back to shared memory (note that fullscreen windows may then freeze capture), and please file an issue.
 
 **Setup sees the Hue bridge but pairing never completes ("Press the button on your bridge")**
-- Make sure the computer is on the same Wi-Fi/network as the bridge. Discovery can still find the bridge from another network, but the button press only registers on the bridge's own network.
+- Make sure the computer is on the same Wi-Fi/network as the bridge, the button press only registers on the bridge's own network.
 
 **Mac: Aurora can't find or reach the Hue bridge**
 - macOS asks for Local Network access the first time Aurora talks to the bridge. If you chose Don't Allow, turn Aurora on in System Settings > Privacy & Security > Local Network, then quit and reopen Aurora.

@@ -1062,3 +1062,55 @@ Applies-when: writing a manual or perf check for a skip/dedup optimisation, or j
 Aurora-wqzp.8: the first cursor test asserted `bumps < moves / 10` (20). The unfixed build bumped the serial 14 times per 200 moves, so the check passed with and without the fix. Tightening to `<= 2` (fixed build: 0) made it discriminate. CPU could not: `SetCursorPos` yields few pointer-only DXGI frames, and the old build cost 0.5% under cursor motion, same as static.
 
 **Fix:** run the check once with the optimisation disabled, record that number, and set the bound between it and the fixed result. When CPU shows nothing, say so and cite the counter (serial bumps) that the change actually targets.
+
+## A failed build leaves the old binary, and a filtered build log hides it, so tests "pass" against stale code
+Tags: build, verification, stale-binary, windows
+Applies-when: rebuilding then running a test or perf harness, especially with the build output piped through a filter
+
+Aurora-wqzp.12: a rebuild failed on a one-line typo, but the output was filtered to a couple of patterns that did not match and the old test exe ran green. The suspicious part was a perf number that had not moved. Nothing about the passing tests said they were the old code.
+
+**Fix:** check the build's exit status (or the exe timestamp) before trusting any result, and keep the filter broad enough to show the failing line (`error`, `FAILED`, the target name). A result that should have changed and did not is a stale-binary suspect first.
+
+## Attribute per-stage CPU from wall time of CPU-bound stages -- `GetThreadTimes` is tick-quantized
+Tags: perf, measurement, windows, attribution
+Applies-when: splitting a thread's CPU cost between stages before choosing an optimization
+
+Aurora-wqzp.14: per-stage CPU from `QueryThreadCycleTime` shares times a 5 s `GetThreadTimes` delta swung 2-3x between windows, because `GetThreadTimes` advances in ~15.6 ms ticks. The steady part was wall time: a blocking call (`Map()`, 3-5 ms) cost almost no CPU, while short CPU-bound stages (copy, convert) cost their wall time.
+
+**Fix:** time each stage with `steady_clock`. Read wall time as CPU only for stages that never block, and treat a blocking call's wall time as a wait unless cycle counts say otherwise. Re-measure the headline gap (3 alternating runs) before designing a fix for it: here the 5-point gap was mostly noise.
+
+## Prove a spawned helper is alive before measuring with it — Popen plus sleep is not proof
+Tags: perf-harness, verification, oracle, subprocess
+Applies-when: launching a helper process (mover, server, fixture) whose silent death would invalidate the measurement built on it
+
+Aurora-wqzp.11: `perf.py` launched kiosk Firefox, slept 3 s, and measured. The mover zombied on 3 of 5 launches, so 'moving' rows were really static with nothing in the output or JSON saying so. The Mac half (Aurora-wqzp.9) is the same trap from the other side: WebUI tabs landing in the kiosk window hide the stripes, again measuring static as moving.
+
+**Fix:** `poll()` the handle after the settle; retry a couple of times (cleaning each dead attempt's throwaway profile), then hard-fail naming the rows that would be invalid. A measurement whose precondition died must refuse to report, never degrade silently.
+
+Follow-up (live run): the 3 s `poll()` was not enough either. Snap kiosk Firefox died at 4-17 s in 6/6 launches, after the check passed. A launch-time check only proves launch; keep checking through the measurement (`check_mover_alive` around each `measure`), and prefer a helper that stays up (ffplay) over retrying a flaky one. Neither check catches a live-but-hidden helper, which needs a signal from the measured side (SSE frame changes).
+
+## A liveness oracle must be sensitive to what the measured side can see
+Tags: perf-harness, verification, oracle, false-positive
+Applies-when: proving a stimulus (mover, fixture, signal) reaches the system under test by watching that system's output
+
+Aurora-wqzp.9: to catch a live-but-hidden mover, `perf.py` counted SSE frames whose zone colours changed. The first live run aborted at 0 of 49 frames/s although the mover was on screen: drifting stripes (240 px period) average to the same colour in every large zone, so zone output never changes however much the pixels move. The check was blind to the very motion it was meant to prove, and the same blindness would have passed a hidden mover as 'static, as expected'.
+
+**Fix:** make the stimulus carry a component the observer can see (slow +-10 level brightness breathing, no flashing), then require the observed signal to change. Before trusting an oracle's refusal, probe it once in isolation (stimulus only, read the raw output) to tell a dead stimulus from an insensitive oracle.
+
+## On a short periodic tick, a profile's hot loop can be wake-up cost that moves, not work -- confirm with an end-to-end number before optimizing it
+Tags: perf, profiling, sample, measurement, mac
+Applies-when: a sampling profile of a sub-millisecond, once-per-tick function points at a loop that is too cheap to cost what it shows
+
+Aurora-wqzp.7: on Mac, `sample` put 82 self-samples on the mono-downmix loop in `AudioFeatureExtractor::process` (about 1,900 floats per tick, which should cost microseconds). Removing its per-sample overhead (bulk copy into aubio, one erase per call) cut that loop to 17 samples, but `aubio_onset_do` grew from 25 to 84 and the update total stayed flat (155 vs 141 samples; 0.30 vs 0.34 ms). The cost follows whatever code runs first after the thread wakes every ~20 ms: cold caches and probably a low-clocked core, not that loop's instructions.
+
+**Fix:** pair any profile-guided change with the harness's end-to-end number (update avg, process CPU) before keeping it. If the hot spot just moves, the cost is per-wake, and the levers are wake count or placement, not the loop.
+
+Follow-up (Aurora-wqzp.15): a later full run of the same optimized code measured 0.07-0.15 ms, not 0.30 ms, so the 'remaining gap vs Windows' this was explaining was mostly run-to-run spread. Take 2-3 runs of the end-to-end number before attributing a small gap to anything.
+
+## A before/after pair from two different machines cannot attribute a change -- re-run the "before" on the box you have
+Tags: perf, measurement, attribution, cross-machine
+Applies-when: crediting a perf delta to one cause (build type, a patch) using an older number from a log or another host
+
+Aurora-wqzp.7 (Linux): the log's unoptimized X11 row (6.2%, update 0.94 ms) came from an i5-7600K; the optimized run was on an i5-1334U (2.5%, 0.25 ms). It was first written up as "most of the 4% was the build type". Rebuilding unoptimized on the 1334U gave 3.7% / 0.43 ms, so the build type was about a third (1.2 points) and the older CPU the rest.
+
+**Fix:** before writing an attribution, check the `hardware:` line of both numbers; if they differ, re-measure the baseline on the current box (a scratch build dir, deleted afterwards) rather than inferring. Cheap here: one extra configure and build.

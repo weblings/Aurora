@@ -10,7 +10,9 @@ silicon only) exist; nothing is published and there is no CI path yet. Detail:
 `docs/log/2026-09-30-mac-developer-id-first-signing.md` and
 `docs/log/2026-09-30-mac-cert-prep-bundle.md`. Release recipe: build
 `build/mac-release` (`cmake --preset mac-app -B build/mac-release
--DCMAKE_OSX_DEPLOYMENT_TARGET=27`), run `tools/mac/sign-notarize.sh` with the
+-DCMAKE_OSX_DEPLOYMENT_TARGET=27`; the preset sets `RelWithDebInfo`, and
+an existing build dir keeps an empty build type until reconfigured from the
+preset -- 1.0.4 shipped unoptimized that way, Aurora-wqzp.15), run `tools/mac/sign-notarize.sh` with the
 Developer ID name and `aurora-notary` profile, then rename the
 `*-notarized.zip` to the release convention `Aurora_Mac_v<version>.zip`
 (the name does not matter to Apple, only the contents). Aurora-8mk.10 (release

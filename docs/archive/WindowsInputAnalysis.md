@@ -88,6 +88,8 @@ research above, found only by actually running it:
   `RGBA`) is kept since it's cheap and harmless, but it has **not** actually
   been exercised against genuine HDR content — corrected from the earlier,
   overstated "verified on hardware" claim.
+  Later (Aurora-wqzp.12): real HDR frames need `DuplicateOutput1`. The
+  legacy call clips them to BGRA8, see `lessons/input.md`.
 - Also confirmed real: a monitor Windows still enumerates as
   `AttachedToDesktop` (and DWM may still actively present real frames to)
   can be genuinely powered off, reading back as valid, in-range, all-black

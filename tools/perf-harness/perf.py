@@ -102,7 +102,8 @@ def stats_lines(pid):
 class FrameCounter(threading.Thread):
     def __init__(self):
         super().__init__(daemon=True)
-        self.count, self.run_flag = 0, True
+        self.count, self.changed, self.run_flag = 0, 0, True
+        self._last = None
 
     def run(self):
         while self.run_flag:
@@ -113,6 +114,9 @@ class FrameCounter(threading.Thread):
                             return
                         if line.startswith(b"data:"):
                             self.count += 1
+                            if self._last is not None and line != self._last:
+                                self.changed += 1  # zone colours differ from the previous frame
+                            self._last = line
             except Exception:
                 time.sleep(0.2)
 
@@ -123,29 +127,76 @@ def start_mover():
     try:
         import tkinter  # noqa: F401
     except ImportError:
-        return start_firefox_mover()  # no tkinter on this box (e.g. Linux without python3-tk)
+        # no tkinter (e.g. Linux without python3-tk): ffplay is stable, snap kiosk Firefox dies mid-run
+        import shutil
+        return start_ffplay_mover() if shutil.which("ffplay") else start_firefox_mover()
     return subprocess.Popen([sys.executable, str(Path(__file__).resolve()), "_mover"])
 
 
-def start_firefox_mover():
+def start_ffplay_mover():
+    """Fullscreen ffplay stripes (same dark slow drift as _mover); needs a graphical session."""
+    # +-10 levels breathing (~0.4 Hz, slow, no flashing): stripes alone average out inside a zone,
+    # so without it the SSE change proof (check_mover_visible) can't see a working mover
+    geq = "geq=lum='if(lt(mod(X/2+N,240),120),43,28)+10*sin(N/24)'"
+    p = subprocess.Popen(["ffplay", "-fs", "-noborder", "-loglevel", "quiet", "-f", "lavfi",
+                          "-i", f"color=c=gray:s=960x600:r=60,format=gray,{geq}"],
+                         stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    time.sleep(2)
+    if p.poll() is not None:
+        sys.exit(f"ffplay mover died on launch (exit {p.returncode}); refusing 'moving' rows")
+    return p
+
+
+def check_mover_alive(p):
+    """Abort when the mover died mid-run: its rows would silently measure a static desktop."""
+    if p is not None and p.poll() is not None:
+        sys.exit(f"mover died mid-run (exit {p.returncode}); refusing 'moving' rows "
+                 "that would silently measure a static desktop")
+
+
+def check_mover_visible(res, mode):
+    """Abort when a live mover never changed the zone colours (hidden behind another window).
+
+    A mover process can be alive yet covered, e.g. by the WebUI tabs the app opens
+    in the kiosk Firefox (Aurora-wqzp.9); its rows would silently measure static.
+    Audio-only rows are driven by the tone, not the screen, so they are exempt.
+    """
+    if MODES[mode][0] and res["frames_per_s"] > 0 and res["changed_per_s"] < 1.0:
+        sys.exit(f"'moving' {mode} row saw {res['changed_per_s']:.1f} of {res['frames_per_s']:.1f} light "
+                 "frames/s change zone colours: the mover is hidden or not drawing. Bring it to the "
+                 "front (close browser/WebUI windows) and re-run; refusing to report a static row as moving")
+
+
+def start_firefox_mover(attempts=3):
     """Fallback moving content: fullscreen kiosk Firefox on stripes.html.
 
     Same dark slow-drifting stripes as _mover (no flashing). Needs a graphical
     session; uses a throwaway profile so the user's Firefox is untouched.
+    Retries when the kiosk process zombies on launch so a 'moving' run never
+    silently measures a static desktop instead.
     """
     import shutil
     exe = shutil.which("firefox") or next(
         (c for c in ["/Applications/Firefox.app/Contents/MacOS/firefox"] if Path(c).exists()), None)
     if not exe:
         sys.exit("moving content needs tkinter or firefox, found neither")
-    profile = Path(tempfile.mkdtemp(prefix="aurora-perf-ff-"))
     url = (HERE / "stripes.html").as_uri()
-    p = subprocess.Popen([exe, "--no-remote", "--profile", str(profile),
-                          "--kiosk", url],
-                         stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-    p._perf_profile = profile  # cleaned by stop_mover
-    time.sleep(3)  # fresh profile + kiosk settle before measuring
-    return p
+    last_code = None
+    for attempt in range(1, attempts + 1):
+        profile = Path(tempfile.mkdtemp(prefix="aurora-perf-ff-"))
+        p = subprocess.Popen([exe, "--no-remote", "--profile", str(profile),
+                              "--kiosk", url],
+                             stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        p._perf_profile = profile  # cleaned by stop_mover
+        time.sleep(3)  # fresh profile + kiosk settle before measuring
+        if p.poll() is None:
+            return p
+        last_code = p.returncode
+        shutil.rmtree(profile, ignore_errors=True)
+        if attempt < attempts:
+            time.sleep(1)
+    sys.exit(f"firefox kiosk mover died on launch (exit {last_code}) after {attempts} attempts; "
+             "refusing to report 'moving' rows that would silently measure a static desktop")
 
 
 def start_cursor_mover():
@@ -189,9 +240,14 @@ def _mover():
     # tick, no flashing (photosensitivity). Capture cost is per delivered frame.
     stripes = [cv.create_rectangle(x, 0, x + period // 2, height, fill="#2b303a", outline="")
                for x in range(-period, width + period, period)]
-    state = {"off": 0}
+    state = {"off": 0, "n": 0}
 
     def tick():
+        state["n"] += 1  # slow +-10 level breathing so zone averages change (see check_mover_visible)
+        d = round(10 * math.sin(state["n"] / 24))
+        cv.configure(bg=f"#{0x1c + d:02x}{0x1f + d:02x}{0x26 + d:02x}")
+        for sid in stripes:
+            cv.itemconfig(sid, fill=f"#{0x2b + d:02x}{0x30 + d:02x}{0x3a + d:02x}")
         for sid in stripes:
             cv.move(sid, dx, 0)
         state["off"] += dx
@@ -237,14 +293,15 @@ def measure(pid, seconds, settle):
     counter = FrameCounter()
     counter.start()
     time.sleep(0.5)  # SSE connect
-    counter.count = 0
+    counter.count = counter.changed = 0
     c0, t0 = cpu_seconds(pid), time.monotonic()
     time.sleep(seconds)
     c1, t1 = cpu_seconds(pid), time.monotonic()
     counter.run_flag = False
     wall = t1 - t0
     rows = [tuple(map(float, g[1:])) for g in stats_lines(pid)[before:]]  # [ticks, s, hz, vavg, vmax, aavg, amax, budget]
-    res = {"cpu_pct": 100 * (c1 - c0) / wall, "frames_per_s": counter.count / wall, "windows": len(rows)}
+    res = {"cpu_pct": 100 * (c1 - c0) / wall, "frames_per_s": counter.count / wall,
+           "changed_per_s": counter.changed / wall, "windows": len(rows)}
     if rows:
         res.update(hz=statistics.mean(r[2] for r in rows),
                    video_avg=statistics.mean(r[3] for r in rows), video_max=max(r[4] for r in rows),
@@ -258,6 +315,59 @@ def _out(cmd):
         return subprocess.run(cmd, capture_output=True, text=True, timeout=10).stdout
     except (OSError, subprocess.SubprocessError):
         return ""
+
+
+def _win_displays():
+    """Windows: per display name, primary, HDR, SDR white (nits). HDR on means the
+    grabber takes the FP16 path (Aurora-wqzp.12). Best effort, [] on failure."""
+    import ctypes
+    from ctypes import wintypes
+    u = ctypes.windll.user32
+
+    class LUID(ctypes.Structure):
+        _fields_ = [("low", wintypes.DWORD), ("high", wintypes.LONG)]
+
+    class Path_(ctypes.Structure):  # DISPLAYCONFIG_PATH_INFO, 72 bytes
+        _fields_ = [("src_adapter", LUID), ("src_id", ctypes.c_uint32), ("_s", ctypes.c_uint32 * 2),
+                    ("tgt_adapter", LUID), ("tgt_id", ctypes.c_uint32), ("_t", ctypes.c_uint32 * 9),
+                    ("flags", ctypes.c_uint32)]
+
+    class Header(ctypes.Structure):
+        _fields_ = [("type", ctypes.c_int32), ("size", ctypes.c_uint32), ("adapter", LUID), ("id", ctypes.c_uint32)]
+
+    def info(type_, adapter, id_, fields):
+        cls = type("Info", (ctypes.Structure,), {"_fields_": [("header", Header)] + fields})
+        s = cls()
+        s.header = Header(type_, ctypes.sizeof(cls), adapter, id_)
+        return s if u.DisplayConfigGetDeviceInfo(ctypes.byref(s)) == 0 else None
+
+    class MonitorInfoEx(ctypes.Structure):
+        _fields_ = [("size", wintypes.DWORD), ("monitor", wintypes.RECT), ("work", wintypes.RECT),
+                    ("flags", wintypes.DWORD), ("device", wintypes.WCHAR * 32)]
+    u.MonitorFromPoint.restype = wintypes.HMONITOR
+    mi = MonitorInfoEx(size=ctypes.sizeof(MonitorInfoEx))
+    u.GetMonitorInfoW(u.MonitorFromPoint(wintypes.POINT(0, 0), 1), ctypes.byref(mi))  # 1 = DEFAULTTOPRIMARY
+
+    paths_n, modes_n = ctypes.c_uint32(), ctypes.c_uint32()
+    if u.GetDisplayConfigBufferSizes(2, ctypes.byref(paths_n), ctypes.byref(modes_n)):  # 2 = ONLY_ACTIVE_PATHS
+        return []
+    paths, modes = (Path_ * paths_n.value)(), (ctypes.c_byte * (64 * modes_n.value))()
+    if u.QueryDisplayConfig(2, ctypes.byref(paths_n), paths, ctypes.byref(modes_n), modes, None):
+        return []
+    out = []
+    for p in paths[:paths_n.value]:
+        src = info(1, p.src_adapter, p.src_id, [("gdi", wintypes.WCHAR * 32)])
+        name = info(2, p.tgt_adapter, p.tgt_id, [("_f", ctypes.c_uint32 * 2), ("_e", ctypes.c_uint16 * 2),
+                                                 ("_c", ctypes.c_uint32), ("friendly", wintypes.WCHAR * 64),
+                                                 ("path", wintypes.WCHAR * 128)])
+        colour = info(9, p.tgt_adapter, p.tgt_id, [("value", ctypes.c_uint32), ("_r", ctypes.c_uint32 * 2)])
+        white = info(11, p.tgt_adapter, p.tgt_id, [("level", ctypes.c_uint32)])
+        # advancedColorEnabled without wideColorEnforced (ACM on an SDR panel) = HDR.
+        hdr = bool(colour and colour.value & 2 and not colour.value & 4)
+        out.append({"name": name.friendly if name else "?", "gdi": src.gdi if src else "?",
+                    "primary": bool(src) and src.gdi == mi.device, "hdr": hdr,
+                    "sdr_white_nits": round(white.level * 80 / 1000) if hdr and white else None})
+    return out
 
 
 def hw_info():
@@ -274,8 +384,20 @@ def hw_info():
         m = re.search(r"Model name:\s*(.+)", _out(["lscpu"]))
         cpu = m.group(1).strip() if m else ""
         gpu = re.findall(r"(?:VGA|3D|Display)[^:]*: (.+)", _out(["lspci"]))
-    return {"cpu": cpu or platform.processor() or "?", "logical_cores": os.cpu_count(),
-            "gpu": gpu or ["?"], "os": platform.platform()}
+    hw = {"cpu": cpu or platform.processor() or "?", "logical_cores": os.cpu_count(),
+          "gpu": gpu or ["?"], "os": platform.platform()}
+    if WIN:
+        try:
+            hw["displays"] = _win_displays()
+        except (OSError, AttributeError, ValueError):
+            hw["displays"] = []
+    return hw
+
+
+def fmt_displays(displays):
+    """The app captures the primary display (devstack starts it --fresh)."""
+    return "; ".join(f"{d['name']} ({d['gdi']}) " + (f"HDR {d['sdr_white_nits']} nits" if d["hdr"] else "SDR")
+                     + (" [captured]" if d["primary"] else "") for d in displays)
 
 
 def fmt(r):
@@ -286,6 +408,26 @@ def fmt(r):
     else:
         cells += ["  n/a"] * 4
     return cells
+
+
+OPTIMIZED = {"Release", "RelWithDebInfo", "MinSizeRel"}
+
+
+def build_type(app):
+    """The app's CMake build type. An empty one builds without -O (Aurora-wqzp.15).
+
+    Multi-config (Windows) names it in the path (bin/Release); single-config
+    keeps it in the nearest CMakeCache.txt above the binary.
+    """
+    for part in reversed(app.parts):
+        if part in OPTIMIZED | {"Debug"}:
+            return part
+    for d in app.parents:
+        cache = d / "CMakeCache.txt"
+        if cache.exists():
+            m = re.search(r"^CMAKE_BUILD_TYPE:\w+=(.*)$", cache.read_text(errors="replace"), re.M)
+            return (m.group(1).strip() if m else "") or "(none: unoptimized)"
+    return "unknown"
 
 
 def main():
@@ -300,6 +442,11 @@ def main():
     ap.add_argument("--no-tone", action="store_true", help="audio modes then produce no light frames")
     a = ap.parse_args()
     modes, contents = a.modes.split(","), a.content.split(",")
+
+    build = build_type(Path(a.app).resolve() if a.app else devstack.DEFAULT_APP)
+    if build not in OPTIMIZED:
+        print(f"WARNING: app build type is {build}; numbers are not comparable to an optimized build "
+              "(configure with -DCMAKE_BUILD_TYPE=RelWithDebInfo)", file=sys.stderr, flush=True)
 
     env = dict(os.environ, AURORA_DEV_DUAL_CAPTURE="1")
     if WIN:
@@ -323,7 +470,12 @@ def main():
                     devstack.http("PUT", base + "/api/config",
                                   {"activeInputName": video, "activeAudioInputName": audio}, timeout=120)
                     print(f"measuring {mode} / {content} ...", flush=True)
-                    results.append({"mode": mode, "content": content, **measure(pid, a.seconds, a.settle)})
+                    check_mover_alive(mover)
+                    res = measure(pid, a.seconds, a.settle)
+                    check_mover_alive(mover)
+                    if content == "moving":
+                        check_mover_visible(res, mode)
+                    results.append({"mode": mode, "content": content, **res})
             finally:
                 stop_mover(mover)
     finally:
@@ -332,7 +484,10 @@ def main():
             subprocess.run(devstack.py() + [str(RELAY_DIR / "devstack.py"), "down"])
 
     hw = hw_info()
-    print(f"hardware: {hw['cpu']} ({hw['logical_cores']} logical) | GPU: {'; '.join(hw['gpu'])} | {hw['os']}")
+    hw["build_type"] = build
+    print(f"hardware: {hw['cpu']} ({hw['logical_cores']} logical) | GPU: {'; '.join(hw['gpu'])} | {hw['os']} | build: {build}")
+    if hw.get("displays"):
+        print(f"displays: {fmt_displays(hw['displays'])}")
     head = ["mode", "content", "CPU", "frames/s", "Hz", "video avg/max ms", "audio avg/max ms", "budget"]
     rows = [[r["mode"], r["content"]] + fmt(r) for r in results]
     widths = [max(len(str(x)) for x in col) for col in zip(head, *rows)]
