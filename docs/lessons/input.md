@@ -923,3 +923,12 @@ Applies-when: judging the CPU cost of the `DuplicateOutput1` FP16 path, or propo
 Aurora-wqzp.14: the FP16 path looked 5 points of a core dearer than legacy BGRA, and a blocking `Map()` after a 4K FP16 mip chain was the obvious suspect (drivers can spin there). Timing the capture thread showed `Map()` waits 3-5 ms on both paths but costs ~0.1 ms CPU (RTX 3080 Ti): no spin. The real FP16 extra is the 480x270 readback clone (~0.14 vs ~0.065 ms) plus the half-float table (~0.18 ms), about 1.3% of a core at 56 fps, inside the ~3-point run-to-run noise.
 
 **Fix:** none needed. Accept it as the price of FP16. A GPU conversion shader would save at most that 1.3% and adds a build-time shader step. See `docs/log/2026-10-13-wqzp12-windows-hdr-capture.md`.
+
+## A "drop the placeholder frame" guard must test the whole frame, not one channel
+Tags: input, windows, dxgi, alpha, placeholder, regression
+Applies-when: adding a first-frame filter, "wait for a real image" logic, or any capture gate keyed on pixel content
+
+Aurora-d2r3: the wqzp.12 guard dropped a first frame whose mean alpha was 0 to skip the `DuplicateOutput1` placeholder. Real SDR BGRA frames on some drivers also have alpha 0, so every frame was dropped and video went silent while state read `running` with no error and no log line. It shipped in 1.1.1 because the box it was developed on (HDR, placeholder seen) never produced alpha-0 SDR frames.
+
+**Fix:** drop only a frame that is zero in every channel. Never gate on alpha alone for DXGI/BGRX sources, where alpha is often unused. A gate that can drop all frames needs a log line or counter, since the failure otherwise looks like a healthy idle pipeline. Test on an SDR display, not just HDR. See `docs/log/2026-10-13-d2r3-windows-sdr-alpha-guard.md`.
+

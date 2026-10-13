@@ -596,7 +596,8 @@ namespace Aurora::Input::Windows
 
     // A new duplication can open with an all-black, alpha-0 placeholder (seen
     // on DuplicateOutput1): drop it and wait for the real first image.
-    if(!m_hasDesktopImage && cv::mean(frame.imageMatrix)[3] == 0){
+    // Only a fully zero frame counts: SDR desktops may legitimately report alpha 0.
+    if(!m_hasDesktopImage && cv::countNonZero(frame.imageMatrix.reshape(1)) == 0){
       return true;
     }
 
