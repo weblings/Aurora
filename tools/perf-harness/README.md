@@ -10,6 +10,9 @@ python3 tools/perf-harness/perf.py              # Linux, Mac
 python3 tools/perf-harness/perf.py --modes video,both --content moving --seconds 20 --json out.json
 ```
 
+- Prints a `hardware:` line (CPU, logical cores, GPU, OS) above the table.
+- `--json` writes `{"hardware": ..., "results": [...]}`.
+
 Brings the devstack up (`tools/light-viz-relay/devstack.py`) with
 `AURORA_DEV_DUAL_CAPTURE=1`, switches mode by `PUT /api/config`, tears down what
 it started. Needs a built app (`--app PATH` to override), a graphical session,
