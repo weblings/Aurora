@@ -907,3 +907,11 @@ Applies-when: capturing a Windows desktop that may have HDR on, or judging captu
 Aurora-wqzp.12: `IDXGIOutput1::DuplicateOutput` always returns BGRA8. On an HDR desktop it gets there by clipping linear scRGB at 1.0 (80 nits), but SDR white sits at the user's SDR brightness (240 nits here, scRGB 3.0). sRGB grey 128 captured as 210 and 192 as 255, and nothing flagged it: the frames were valid BGRA. The FP16 branch kept "defensively" never ran, and would have clipped the same way (no white-level divide).
 
 **Fix:** `IDXGIOutput5::DuplicateOutput1` with `[R16G16B16A16_FLOAT, B8G8R8A8_UNORM]`, then divide by the SDR white level (`DISPLAYCONFIG_SDR_WHITE_LEVEL`, re-read each second), clamp, sRGB-encode. Check capture colour with a known on-screen grey on each monitor (manual test "captures SDR greys"), since a frame-format check alone cannot catch clipping. `DuplicateOutput1` can also open with an alpha-0 black placeholder tagged FP16: don't publish it. A periodically re-read white level goes stale on a static desktop: a slider move sends one frame (converted at the old level) and then nothing, so reconvert the last readback when the level changes.
+
+## `IVideoInput::monitors()` returns a copy, so `const auto&` into it dangles
+Tags: input, windows, monitors, lifetime, test
+Applies-when: holding a reference or pointer to an element of `monitors()` across a call
+
+Aurora-wqzp.12: `const auto& monitor = grabber.monitors()[id];` kept a reference into a temporary vector. The test died with a bare SIGSEGV before printing anything, which pointed at the grabber, not the test.
+
+**Fix:** copy what is needed (the `shared_ptr` or just the name) into a local, or bind the whole vector once (`const auto monitors = grabber.monitors();`). Any accessor returning a container by value invites this.

@@ -1062,3 +1062,11 @@ Applies-when: writing a manual or perf check for a skip/dedup optimisation, or j
 Aurora-wqzp.8: the first cursor test asserted `bumps < moves / 10` (20). The unfixed build bumped the serial 14 times per 200 moves, so the check passed with and without the fix. Tightening to `<= 2` (fixed build: 0) made it discriminate. CPU could not: `SetCursorPos` yields few pointer-only DXGI frames, and the old build cost 0.5% under cursor motion, same as static.
 
 **Fix:** run the check once with the optimisation disabled, record that number, and set the bound between it and the fixed result. When CPU shows nothing, say so and cite the counter (serial bumps) that the change actually targets.
+
+## A failed build leaves the old binary, and a filtered build log hides it, so tests "pass" against stale code
+Tags: build, verification, stale-binary, windows
+Applies-when: rebuilding then running a test or perf harness, especially with the build output piped through a filter
+
+Aurora-wqzp.12: a rebuild failed on a one-line typo, but the output was filtered to a couple of patterns that did not match and the old test exe ran green. The suspicious part was a perf number that had not moved. Nothing about the passing tests said they were the old code.
+
+**Fix:** check the build's exit status (or the exe timestamp) before trusting any result, and keep the filter broad enough to show the failing line (`error`, `FAILED`, the target name). A result that should have changed and did not is a stale-binary suspect first.
