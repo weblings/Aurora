@@ -24,6 +24,14 @@ in `WindowsGrabber` never ran (no `DuplicateOutput1`).
 - An alpha-0 placeholder that opens a duplication is no longer published.
 - Tests: `[ScRgbConversion]` unit tests (ctest), manual "captures SDR greys at
   their sRGB value on every monitor" (draws its own grey windows).
+- Manual "keeps SDR greys exact across HDR toggles and SDR white changes":
+  one live grabber on an HDR-capable non-primary monitor, HDR on/off/on via
+  `DisplayConfigSetDeviceInfo`, SDR white moved with the undocumented
+  setter the Settings slider uses (type `0xFFFFFFEE`), state restored after.
+- It caught a stale colour: a slider move sent one frame, converted before
+  the 1 s white-level refresh, then none on a static desktop (grey 128 read
+  162). The grabber now keeps the last FP16 readback and republishes it
+  reconverted when the white level changes.
 
 ## Result
 
@@ -33,6 +41,8 @@ in `WindowsGrabber` never ran (no `DuplicateOutput1`).
 | 128 | 128 | 210 | 128 |
 | 192 | 192 | 255 | 192 |
 
+- HDR toggle test: grey 128 exact at HDR on, SDR white 240 -> 400 nits, HDR
+  off (BGRA), HDR back on. No stale-output problem after toggles.
 - All manual Windows tests pass. Mips parity mean diff 0.19 -> 0.72 (max 1 ->
   65 at edges): GPU mips now average linear light, the CPU reference sRGB.
 - CPU, video moving, same day: legacy 18.2%, FP16 22.7-24.1% (float
@@ -40,7 +50,6 @@ in `WindowsGrabber` never ran (no `DuplicateOutput1`).
 
 ## Open
 
-- HDR toggle and SDR slider changes mid-session not exercised.
 - Decided: keep linear-light mip averaging on FP16, though Mac, Linux and
   Windows SDR average sRGB. Physically closer to emitted light, effect small.
 - CPU cost not yet attributed (Aurora-wqzp.14) before any GPU conversion.

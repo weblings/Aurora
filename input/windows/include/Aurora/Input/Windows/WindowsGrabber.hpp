@@ -72,6 +72,8 @@ namespace Aurora::Input::Windows
     bool _ensureDuplication();
     void _releaseDuplication();
     void _refreshSdrWhiteScale();
+    // Rotates, then hands the frame to the tick thread with a new serial.
+    void _publish(Contracts::ImageData frame);
     // Halves the frame on the GPU (mip chain) down to the hint's 8x oversample,
     // as the Mac grabber does (Aurora-3qh). Null = no usable mip; copy full size.
     ID3D11Texture2D* _downscale(ID3D11Texture2D* frame, const D3D11_TEXTURE2D_DESC& desc, unsigned& level);
@@ -103,6 +105,8 @@ namespace Aurora::Input::Windows
     // user can move the SDR brightness slider mid-session (capture thread only).
     float m_sdrWhiteScale = 1.0f;
     std::chrono::steady_clock::time_point m_sdrWhiteCheckedAt;
+    // Last published FP16 readback, reconverted when the SDR white level moves.
+    cv::Mat m_lastScRgb;
     // True once this duplication has produced an image (capture thread only).
     bool m_hasDesktopImage = false;
     std::exception_ptr m_captureError;

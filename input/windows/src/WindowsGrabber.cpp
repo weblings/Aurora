@@ -295,6 +295,7 @@ namespace Aurora::Input::Windows
   {
     m_duplication.Reset();
     m_hasDesktopImage = false;
+    m_lastScRgb.release();
     m_stagingTexture.Reset();
     m_mipView.Reset();
     m_mipTexture.Reset();
@@ -444,7 +445,16 @@ namespace Aurora::Input::Windows
     }
 
     if(std::chrono::steady_clock::now() - m_sdrWhiteCheckedAt > std::chrono::seconds(1)){
+      const float previousScale = m_sdrWhiteScale;
       _refreshSdrWhiteScale();
+      // Moving the SDR slider may bring one frame (converted at the old level)
+      // and then none on a static desktop: reconvert the last one.
+      if(m_sdrWhiteScale != previousScale && !m_lastScRgb.empty()){
+        Contracts::ImageData frame;
+        frame.imageMatrix = scRgbToSrgb8(m_lastScRgb, m_sdrWhiteScale);
+        frame.format = Contracts::PixelFormat::RGBA;
+        _publish(std::move(frame));
+      }
     }
 
     ComPtr<IDXGIResource> resource;
@@ -566,11 +576,13 @@ namespace Aurora::Input::Windows
     // RowPitch can exceed the tightly-packed row size, and mapped.pData
     // dies at Unmap() -- own the result, same shape as Linux's toOwnedImage().
     Contracts::ImageData frame;
+    cv::Mat scRgb;
     if(isHdr){
       // Linear scRGB R,G,B,A (the mips above averaged it in linear light).
       // HDR highlights above SDR white clip, as on an SDR display.
       cv::Mat halfView(static_cast<int>(outHeight), static_cast<int>(outWidth), CV_16FC4, mapped.pData, mapped.RowPitch);
-      frame.imageMatrix = scRgbToSrgb8(halfView, m_sdrWhiteScale);
+      scRgb = halfView.clone();
+      frame.imageMatrix = scRgbToSrgb8(scRgb, m_sdrWhiteScale);
       frame.format = Contracts::PixelFormat::RGBA;
     }
     else{
@@ -588,6 +600,14 @@ namespace Aurora::Input::Windows
       return true;
     }
 
+    m_lastScRgb = scRgb;
+    _publish(std::move(frame));
+    return true;
+  }
+
+
+  void WindowsGrabber::_publish(Contracts::ImageData frame)
+  {
     // Rotate the small readback to the desktop's orientation, so zones map correctly.
     switch(m_rotation){
       case DXGI_MODE_ROTATION_ROTATE90:
@@ -608,6 +628,5 @@ namespace Aurora::Input::Windows
     m_latest = std::move(frame);
     ++m_latestSerial;
     m_hasDesktopImage = true;
-    return true;
   }
 }
