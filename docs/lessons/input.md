@@ -534,6 +534,8 @@ Applies-when: choosing a capture size for a grabber whose frames get downsampled
 
 **Fix:** `IVideoInput::setCaptureWidthHint(width)` (default no-op), called by `Orchestrator::init` with `subsampleWidth`; the Mac grabber delivers an 8x oversample, at least 256px, never above full pixel size, so the CPU's INTER_AREA still averages the last step. Result: ~5.5% CPU, `/api/monitors`/`/api/zones` < 1ms, tick thread ~95% asleep. `displayResolution()` still reports full pixels (subsample candidates unchanged). When verifying, low CPU is also what a *failed* capture looks like (ticks skipped while unhealthy) -- confirm real frames: distinct per-zone colors on the light tap, a real display from `/api/monitors`, no permission errors in the log.
 
+**Update (Aurora-wqzp.3):** an oversample *factor* scales with `subsampleWidth`. 3qh measured at 16 (256 px), but the saved default on a 3420x2214 display is 190, the smallest candidate, so 8x meant 1520 px frames and ~22% CPU again. The rule is now 2x (>= 256 px): zone colours stayed within 1/255 of full resolution at 8x, 2x and 1x, so SCK's GPU scale averages fine. Measure a size rule at the real config's widths, not the one at hand.
+
 Also observed: the rebuilt, still ad-hoc-signed `Aurora.app` kept capturing when relaunched by `devstack.py` -- consistent with "A bare Mach-O binary's TCC permission grant attaches to whatever launched it" above (the launcher's grant applied), not with the rebuild-invalidates-grant lesson, which concerns a bundle launched on its own.
 
 ---
