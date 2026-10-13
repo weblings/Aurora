@@ -1,0 +1,57 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>perf moving content (Aurora-wqzp.1)</title>
+<style>
+  html, body { margin: 0; height: 100%; overflow: hidden; background: #1c1f26; cursor: none; }
+  #stage { position: fixed; inset: 0; }
+  .stripe { position: absolute; top: 0; bottom: 0; background: #2b303a; }
+</style>
+</head>
+<body>
+<!--
+  Perf-harness moving content (Aurora-wqzp.1). Mirrors the tkinter _mover in
+  perf.py exactly: dark, low-contrast stripes (bg #1c1f26, stripe #2b303a,
+  240 px period) drifting 2 px per animation frame, so every capture grab
+  sees a new frame with no flashing (photosensitivity: WCAG 2.3.1, nothing
+  here blinks). Used when tkinter is unavailable (firefox --kiosk fallback).
+-->
+<div id="stage"></div>
+<script>
+  const PERIOD = 240, DX = 2;
+  const stage = document.getElementById('stage');
+  const stripes = [];
+  function layout() {
+    stage.innerHTML = '';
+    stripes.length = 0;
+    for (let x = -PERIOD; x < window.innerWidth + PERIOD; x += PERIOD) {
+      const d = document.createElement('div');
+      d.className = 'stripe';
+      d.style.left = x + 'px';
+      d.style.width = (PERIOD / 2) + 'px';
+      stage.appendChild(d);
+      stripes.push(d);
+    }
+  }
+  let off = 0, n = 0;
+  function frame() {
+    off += DX;
+    if (off >= PERIOD) off -= PERIOD;  // one period shifted: pattern repeats
+    // slow +-10 level breathing (~0.4 Hz, no flashing) so zone averages change; see perf.py
+    n += 1;
+    const d10 = Math.round(10 * Math.sin(n / 24));
+    document.body.style.background = `rgb(${0x1c + d10},${0x1f + d10},${0x26 + d10})`;
+    for (const d of stripes) {
+      d.style.transform = `translateX(${off}px)`;
+      d.style.background = `rgb(${0x2b + d10},${0x30 + d10},${0x3a + d10})`;
+    }
+    requestAnimationFrame(frame);
+  }
+  window.addEventListener('resize', layout);
+  document.addEventListener('click', () => document.documentElement.requestFullscreen().catch(() => {}));
+  layout();
+  requestAnimationFrame(frame);
+</script>
+</body>
+</html>

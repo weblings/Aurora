@@ -570,3 +570,11 @@ Applies-when: reviewing an implementation against its design doc, or treating su
 Aurora-ewyz's shell.test.mjs asserted "Confirmed Stop is terminal until the manual retry", but [[error-overlay]]'s intentional-stop section described a dead end with no button anywhere: the Retry/Try-again buttons were an implementation addition, and the test made the drift look decided. The mismatch surfaced only on owner review of the badly-spaced button.
 
 **Fix:** when code and design disagree, re-read the design doc's exact copy and actions first, and treat a test asserting behavior the design never described as the bug -- rewrite the test with the fix, don't cite it as approval.
+
+## A bead's "prior art" pointer is a claim to verify in the source before planning around it
+Tags: planning, prior-art, beads, verification
+Applies-when: starting a bead whose description names another project as the reference implementation
+
+Aurora-wqzp.12 cited Hyperion's DDAGrabber for FP16-to-8-bit conversion. Reading its source showed it calls plain `DuplicateOutput` and has no HDR handling at all. The real references (OBS, RustDesk, GStreamer) only turned up by searching, and they showed the bug was bigger than the bead assumed.
+
+**Fix:** open the cited file and confirm it does the thing before building on it. Record what the reference does and does not do in the bead, so the next reader does not repeat the trust.

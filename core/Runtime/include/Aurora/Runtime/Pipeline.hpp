@@ -1,6 +1,7 @@
 #pragma once
 
 #include <atomic>
+#include <chrono>
 #include <cstdint>
 #include <exception>
 #include <filesystem>
@@ -145,6 +146,19 @@ namespace Aurora::Runtime
     Pipeline() = default;
 
     bool m_isAudioMode{false};
+    // Aurora-o13 spike: AURORA_DEV_DUAL_CAPTURE builds both orchestrators
+    // and ticks both. Video stays primary for config, zones and monitors.
+    // The flag also logs per-orchestrator tick timing in single modes.
+    bool m_isDualCapture{false};
+    struct DualCaptureStats
+    {
+      std::function<void(LogLevel, const std::string&)> log;
+      double videoSum{0}, videoMax{0}, audioSum{0}, audioMax{0};
+      // Wall clock: a tick's dt is its nominal interval, not the real rate.
+      std::chrono::steady_clock::time_point windowStart{};
+      unsigned ticks{0};
+    };
+    DualCaptureStats m_dualStats;
     Config m_appliedConfig;
     double m_tickIntervalSeconds{Runtime::tickIntervalSeconds()};
 

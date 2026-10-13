@@ -957,3 +957,160 @@ Applies-when: a UI change does not appear after reloads or app relaunches, and c
 Aurora-scig spent several fresh-copy launches (and a browser-cache guess) on "old video copy on Capture Source". Two grep checks would have ended it sooner: `curl` the served module for the new symbol (it was there, and the server sends `no-store`), then read the render condition for the text on screen (`app.platform` was unset on that screen). The relaunches tested nothing the curl had not already answered, and the stale-tab guess was wrong here.
 
 **Fix:** (1) `curl` the served file for a string only the new code has; if present, the page is not stale. (2) Ask for the exact text on screen and grep for it, or enumerate the branches that can produce it. (3) Only then relaunch. Ask for DevTools "Disable cache" at the start if a tab is in play.
+
+
+---
+
+## `ps -o %cpu` is a lifetime average -- after a mode switch it measures the wrong mode
+Tags: debugging, measurement, cpu, mac, performance
+Applies-when: comparing CPU between modes of one long-running process (video / audio / both) on Mac or Linux
+
+Aurora-o13 Mac: `ps -o %cpu` on the same pid read 21-24% across the whole
+run, steady, through video-only (~19%), audio-only (~3.5%) and both (~25%).
+It is CPU time over process lifetime, so it lags every switch and blends the
+modes. `top -l 4 -s 5 -pid <pid> -stats pid,cpu,threads` takes interval
+samples; the first sample is also a lifetime-ish zero (`0.0`), so drop it.
+Wait for the mode to settle (a rebuild spike was 48 ms for one window) before
+sampling.
+
+**Fix:** per-mode CPU = interval samples after settling, first sample
+discarded; on Linux `/proc/<pid>/stat` deltas (as the Linux half did). Never
+quote `ps %cpu` for a per-mode comparison.
+
+---
+
+## A bead note saying a route answered is point-in-time -- `git log -S` before calling a later 404 a regression
+Tags: debugging, verification, beads, routes, stale-notes
+Applies-when: a route, flag or file a past note says worked is now missing or 404
+
+Aurora-o13 Mac saw `/api/mac/audio-status` return 404; Aurora-kea's
+2026-10-05 note says it answered `permissionLikelyDenied:false`. It looked
+like a regression. `git log -S"mac/audio-status"` found 96b9982
+(Aurora-h457, 2026-10-06), whose message says it removed the route on
+purpose; the signal moved to an `audio_permission` entry in `/api/state`
+errors. One command settled it.
+
+A second trap in the same run: the "tone off, audio-only" frame count equalled
+the tone-on count (252 vs 252). The looping `afplay` shell was still alive
+after `pkill -f "afplay tone.wav"` (the `sh -c` wrapper restarted it). Only a
+`pgrep` showing no process made the later true-silence run (0 frames) valid.
+
+**Fix:** for a missing route, `git log -S"<route>"` before filing a bug, and
+read the removing commit's message. For a silence/control run, prove the
+source is dead (`pgrep -fl`) before trusting the count.
+
+---
+
+## A CPU or latency win measured on a static screen is a best case -- re-measure with changing content
+Tags: debugging, performance, measurement, capture, frame-reuse
+Applies-when: quoting a perf number for a capture or tick path that skips work when the frame is unchanged (repeat-frame reuse, damage-based grabbers)
+
+Aurora-wqzp.1: the igwa result (Windows video 31-43% -> 2.4% CPU) came from a static desktop, where the grab times out and the cached rescale is reused. With content changing every tick the same build ran 8-15% (video) and ~21% (video + audio), and the video-only tick rate swung 32-50 Hz between runs. Still a big win, but 3-6x the headline. The same run showed a per-tick stat that sums nominal `dt` reads "300 ticks/5.0s" at any real rate; only a wall-clock window gave ~56 Hz against a 60 Hz budget.
+
+**Fix:** report static and moving rows side by side, and take rates from `steady_clock`, not summed `dt`. Repeat a moving run: one pass was not representative.
+
+---
+
+## A changing-content test fixture must not flash -- use slow, dark, low-contrast motion
+Tags: debugging, testing, fixtures, accessibility, photosensitivity
+Applies-when: writing a pattern or window that changes the whole screen on purpose to exercise capture, a viz or a color path
+
+Aurora-wqzp.1: the first "moving content" fixture cycled the full screen red/green/blue/white about 15 times a second so every grab would see a new frame. Large-area flashing at that rate can trigger seizures in people with photosensitive epilepsy, so this is a safety risk to anyone who sees the screen (the runner, bystanders, recordings), not just a comfort issue. The standard is WCAG 2.3.1 "Three Flashes or Below Threshold"; neither author is an expert, so check it for the actual limits instead of trusting a number here. Capture cost follows frames delivered, not contrast: replacing it with dark stripes drifting at ~0.5 Hz per pixel (new frame every tick) reproduced the same CPU, Hz and frames/s within run-to-run noise.
+
+**Fix:** for a "something changed" signal use small, slow, low-luminance-contrast motion, not full-screen flips. If a test truly needs high-contrast change, keep it small, off most of the screen, and warn whoever runs it.
+
+---
+
+## "Moving equals static" is only a result if you proved the mover was captured
+Tags: debugging, performance, measurement, fixtures, capture, mac, linux
+Applies-when: a changing-content run reports the same CPU, Hz and frames/s as the static run
+
+Aurora-wqzp.1 Mac and Linux: moving matched static within noise (Mac video 20.7% vs 21.6%, Linux Wayland 52.6% vs 50.7%, Linux X11 66.7% vs 67.7%). That is the expected answer where no repeat-frame reuse exists yet (both rescale full-size every tick, see wqzp.2/.3), but it is also exactly what a mover that never reached the screen would print: Firefox started late, stayed behind another window, or was a second instance that did not go kiosk. The harness cannot tell the two apart from its own table. The proof was one extra read of the light SSE with and without the mover: Mac mean zone brightness 0.30 -> 0.34, Linux zones ~0.9 -> 0.05-0.25.
+
+**Update (Aurora-wqzp.1, Linux X11):** a cheaper, earlier check catches a failure mode the SSE-brightness proof doesn't rule out by itself -- the kiosk Firefox child can zombie immediately after `Popen` returns, with no window ever created and no error on either fd (3 of 5 launches here; no conclusive cause, suspected snap-firefox startup race, direct shell launches of the identical command were reliable). `perf.py` never checked `poll()`, so a dead mover was indistinguishable from a slow one until the whole 28s measurement window had already been spent on a silently-static run. Filed as Aurora-wqzp.11.
+
+**Fix:** after starting the mover, compare zone output against the static baseline before trusting a flat moving row. A mover that changes nothing the lights can see is a failed fixture, not a finding. Check sooner than that too: confirm via `poll()`/`ps` that the mover process (and, for a multi-process browser, at least one child) is actually still alive a few seconds after launch, before spending the measurement window on it. On Mac the fallback browser is `/Applications/Firefox.app/Contents/MacOS/firefox` (not on PATH), and Homebrew Python has no tkinter.
+
+**Update (Aurora-wqzp.2, Linux Wayland, snap Firefox):** the kiosk mover was gone within ~5 s inside the harness (a hand launch of the same command survived), so the first "moving" run printed the static number (46.5%) and looked like a result. The real moving run, with a verified mover, was 88.5% before the fix and 60.0% after. Substitute that stayed up: `ffplay -fs -noborder -f lavfi -i "color=c=gray:s=960x600:r=60,format=gray,geq=lum='if(lt(mod(X/2+N,240),120),43,28)'"` (`drawbox` has no per-frame variable; `geq` has `N`), then run `perf.py --content static` while it is up. Proof: mean zone brightness 0.97 -> 0.09. When a probe also counts delivered frames per window, a flat ~10/s on a "moving" run is itself the tell.
+
+## Check `hostname` before attributing hardware to a recorded run
+Tags: debugging, measurement, provenance, perf
+Applies-when: writing machine specs next to numbers someone else (or an earlier session) recorded
+
+Aurora-wqzp.1: specs read from the box at hand (Framework laptop, i5-1334U) were logged beside Linux Wayland/X11 numbers that came from MediaServer (i5-7600K). The wrong comparison ("contrast with the X11 run") went into the bead before the earlier comment's hostname was re-read. Comments cannot be edited, so it needed a correction comment.
+
+**Fix:** compare the current `hostname` with the host named in the run being annotated before writing specs; with `perf.py` now printing a `hardware:` line, quote that line from the run's own output instead of querying the machine later.
+
+
+---
+
+## A lower tick budget is not a lower tick rate -- read the measured Hz, and repeat noisy A/B runs
+Tags: perf, measurement, tick-rate, ab-testing
+Applies-when: judging whether a rate cap or interval change cut CPU
+
+Aurora-wqzp.5: capping the display-derived rate at 60 Hz moved the budget 8.33 -> 16.67 ms on a 120 Hz display, but the uncapped Windows build still ticked at ~58-62 Hz because the grab wait paces the tick (Aurora-wqzp.6). The real saving was ~20-45% of moving-content CPU, not the 2x the budget implies. Capped moving runs ranged 11.2-17.8% CPU, and one ran at 32 Hz, so a single pair would have shown anything from a 2x win to a small one.
+
+**Fix:** compare the measured wall-clock Hz and CPU together, run each variant 3 times alternating builds, and quote the range. Report the pacing source (here the grab wait) before promising a cap's headline ratio.
+
+
+---
+
+## Set a test threshold from the baseline run -- a loose bound passes the unfixed code
+Tags: testing, thresholds, baseline, perf-harness
+Applies-when: writing a manual or perf check for a skip/dedup optimisation, or judging it by CPU
+
+Aurora-wqzp.8: the first cursor test asserted `bumps < moves / 10` (20). The unfixed build bumped the serial 14 times per 200 moves, so the check passed with and without the fix. Tightening to `<= 2` (fixed build: 0) made it discriminate. CPU could not: `SetCursorPos` yields few pointer-only DXGI frames, and the old build cost 0.5% under cursor motion, same as static.
+
+**Fix:** run the check once with the optimisation disabled, record that number, and set the bound between it and the fixed result. When CPU shows nothing, say so and cite the counter (serial bumps) that the change actually targets.
+
+## A failed build leaves the old binary, and a filtered build log hides it, so tests "pass" against stale code
+Tags: build, verification, stale-binary, windows
+Applies-when: rebuilding then running a test or perf harness, especially with the build output piped through a filter
+
+Aurora-wqzp.12: a rebuild failed on a one-line typo, but the output was filtered to a couple of patterns that did not match and the old test exe ran green. The suspicious part was a perf number that had not moved. Nothing about the passing tests said they were the old code.
+
+**Fix:** check the build's exit status (or the exe timestamp) before trusting any result, and keep the filter broad enough to show the failing line (`error`, `FAILED`, the target name). A result that should have changed and did not is a stale-binary suspect first.
+
+## Attribute per-stage CPU from wall time of CPU-bound stages -- `GetThreadTimes` is tick-quantized
+Tags: perf, measurement, windows, attribution
+Applies-when: splitting a thread's CPU cost between stages before choosing an optimization
+
+Aurora-wqzp.14: per-stage CPU from `QueryThreadCycleTime` shares times a 5 s `GetThreadTimes` delta swung 2-3x between windows, because `GetThreadTimes` advances in ~15.6 ms ticks. The steady part was wall time: a blocking call (`Map()`, 3-5 ms) cost almost no CPU, while short CPU-bound stages (copy, convert) cost their wall time.
+
+**Fix:** time each stage with `steady_clock`. Read wall time as CPU only for stages that never block, and treat a blocking call's wall time as a wait unless cycle counts say otherwise. Re-measure the headline gap (3 alternating runs) before designing a fix for it: here the 5-point gap was mostly noise.
+
+## Prove a spawned helper is alive before measuring with it — Popen plus sleep is not proof
+Tags: perf-harness, verification, oracle, subprocess
+Applies-when: launching a helper process (mover, server, fixture) whose silent death would invalidate the measurement built on it
+
+Aurora-wqzp.11: `perf.py` launched kiosk Firefox, slept 3 s, and measured. The mover zombied on 3 of 5 launches, so 'moving' rows were really static with nothing in the output or JSON saying so. The Mac half (Aurora-wqzp.9) is the same trap from the other side: WebUI tabs landing in the kiosk window hide the stripes, again measuring static as moving.
+
+**Fix:** `poll()` the handle after the settle; retry a couple of times (cleaning each dead attempt's throwaway profile), then hard-fail naming the rows that would be invalid. A measurement whose precondition died must refuse to report, never degrade silently.
+
+Follow-up (live run): the 3 s `poll()` was not enough either. Snap kiosk Firefox died at 4-17 s in 6/6 launches, after the check passed. A launch-time check only proves launch; keep checking through the measurement (`check_mover_alive` around each `measure`), and prefer a helper that stays up (ffplay) over retrying a flaky one. Neither check catches a live-but-hidden helper, which needs a signal from the measured side (SSE frame changes).
+
+## A liveness oracle must be sensitive to what the measured side can see
+Tags: perf-harness, verification, oracle, false-positive
+Applies-when: proving a stimulus (mover, fixture, signal) reaches the system under test by watching that system's output
+
+Aurora-wqzp.9: to catch a live-but-hidden mover, `perf.py` counted SSE frames whose zone colours changed. The first live run aborted at 0 of 49 frames/s although the mover was on screen: drifting stripes (240 px period) average to the same colour in every large zone, so zone output never changes however much the pixels move. The check was blind to the very motion it was meant to prove, and the same blindness would have passed a hidden mover as 'static, as expected'.
+
+**Fix:** make the stimulus carry a component the observer can see (slow +-10 level brightness breathing, no flashing), then require the observed signal to change. Before trusting an oracle's refusal, probe it once in isolation (stimulus only, read the raw output) to tell a dead stimulus from an insensitive oracle.
+
+## On a short periodic tick, a profile's hot loop can be wake-up cost that moves, not work -- confirm with an end-to-end number before optimizing it
+Tags: perf, profiling, sample, measurement, mac
+Applies-when: a sampling profile of a sub-millisecond, once-per-tick function points at a loop that is too cheap to cost what it shows
+
+Aurora-wqzp.7: on Mac, `sample` put 82 self-samples on the mono-downmix loop in `AudioFeatureExtractor::process` (about 1,900 floats per tick, which should cost microseconds). Removing its per-sample overhead (bulk copy into aubio, one erase per call) cut that loop to 17 samples, but `aubio_onset_do` grew from 25 to 84 and the update total stayed flat (155 vs 141 samples; 0.30 vs 0.34 ms). The cost follows whatever code runs first after the thread wakes every ~20 ms: cold caches and probably a low-clocked core, not that loop's instructions.
+
+**Fix:** pair any profile-guided change with the harness's end-to-end number (update avg, process CPU) before keeping it. If the hot spot just moves, the cost is per-wake, and the levers are wake count or placement, not the loop.
+
+Follow-up (Aurora-wqzp.15): a later full run of the same optimized code measured 0.07-0.15 ms, not 0.30 ms, so the 'remaining gap vs Windows' this was explaining was mostly run-to-run spread. Take 2-3 runs of the end-to-end number before attributing a small gap to anything.
+
+## A before/after pair from two different machines cannot attribute a change -- re-run the "before" on the box you have
+Tags: perf, measurement, attribution, cross-machine
+Applies-when: crediting a perf delta to one cause (build type, a patch) using an older number from a log or another host
+
+Aurora-wqzp.7 (Linux): the log's unoptimized X11 row (6.2%, update 0.94 ms) came from an i5-7600K; the optimized run was on an i5-1334U (2.5%, 0.25 ms). It was first written up as "most of the 4% was the build type". Rebuilding unoptimized on the 1334U gave 3.7% / 0.43 ms, so the build type was about a third (1.2 points) and the older CPU the rest.
+
+**Fix:** before writing an attribution, check the `hardware:` line of both numbers; if they differ, re-measure the baseline on the current box (a scratch build dir, deleted afterwards) rather than inferring. Cheap here: one extra configure and build.

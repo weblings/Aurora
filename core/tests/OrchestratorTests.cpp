@@ -41,7 +41,7 @@ namespace
     }
 
     Resolution displayResolution() const override { return {4, 2}; }
-    RefreshRate displayRefreshRate() const override { return 30; }
+    RefreshRate displayRefreshRate() const override { return displayHz; }
 
     void grabFrameSubsample(ImageData& imageData) override
     {
@@ -52,11 +52,16 @@ namespace
 
       imageData.format = PixelFormat::RGB;
       imageData.imageMatrix = cv::Mat(2, 4, CV_8UC3, cv::Scalar(0, 0, 0));
-      imageData.imageMatrix(cv::Rect(0, 0, 2, 2)).setTo(cv::Scalar(255, 0, 0));
-      imageData.imageMatrix(cv::Rect(2, 0, 2, 2)).setTo(cv::Scalar(0, 0, 255));
+      imageData.imageMatrix(cv::Rect(swapHalves ? 2 : 0, 0, 2, 2)).setTo(cv::Scalar(255, 0, 0));
+      imageData.imageMatrix(cv::Rect(swapHalves ? 0 : 2, 0, 2, 2)).setTo(cv::Scalar(0, 0, 255));
     }
 
+    unsigned displayHz = 30;
+    std::uint64_t frameSerial() const override { return serial; }
+
     bool hasFrame{true};
+    bool swapHalves{false};
+    std::uint64_t serial{0};
   };
 
 
@@ -127,6 +132,25 @@ TEST_CASE("Orchestrator::init derives refreshRate/subsampleWidth from the displa
 }
 
 
+TEST_CASE("Orchestrator::init caps a derived refreshRate at kMaxDerivedRefreshRate", "[Orchestrator]")
+{
+  ScopedTempDir dir("init-cap");
+  FakeInput input;
+  input.displayHz = 144;
+  FakeOutput output("fake", {});
+
+  Orchestrator orchestrator(input, {&output}, Config{}, ZoneMapStore(dir.path));
+  orchestrator.init();
+  CHECK(orchestrator.config().refreshRate() == Config::kMaxDerivedRefreshRate);
+
+  Config explicitCfg;
+  explicitCfg.setRefreshRate(144);
+  Orchestrator explicitRate(input, {&output}, explicitCfg, ZoneMapStore(dir.path));
+  explicitRate.init();
+  CHECK(explicitRate.config().refreshRate() == 144); // user choice is not capped
+}
+
+
 TEST_CASE("Orchestrator::init reconciles and persists each output's zone map", "[Orchestrator]")
 {
   ScopedTempDir dir("init-reconcile");
@@ -169,6 +193,41 @@ TEST_CASE("Orchestrator::update crops per zone and sends a smoothed Frame to eac
   REQUIRE(output.lastFrame.size() == 2);
   CHECK(output.lastFrame[0].color == Color(255, 0, 0));
   CHECK(output.lastFrame[1].color == Color(0, 0, 255));
+}
+
+
+TEST_CASE("Orchestrator::update reuses the prepared frame while frameSerial is unchanged", "[Orchestrator]")
+{
+  ScopedTempDir dir("frame-serial");
+  FakeInput input;
+  FakeOutput output("fake", {1, 2});
+
+  Orchestrator orchestrator(input, {&output}, Config{}, ZoneMapStore(dir.path));
+  ZoneMapStore(dir.path).save("fake", ZoneMap{
+    {1, {{0.f, 0.f}, {0.5f, 1.f}}, true},
+    {2, {{0.5f, 0.f}, {1.f, 1.f}}, true}
+  });
+  orchestrator.init();
+
+  input.serial = 1;
+  orchestrator.update(1.0f / 60.0f);
+  REQUIRE(output.lastFrame.size() == 2);
+  CHECK(output.lastFrame[0].color == Color(255, 0, 0));
+
+  // Same serial: the grabber says nothing changed, so the cached frame wins.
+  input.swapHalves = true;
+  orchestrator.update(1.0f / 60.0f);
+  CHECK(output.lastFrame[0].color == Color(255, 0, 0));
+
+  input.serial = 2;
+  orchestrator.update(1.0f / 60.0f);
+  CHECK(output.lastFrame[0].color == Color(0, 0, 255));
+
+  // 0 = unknown: every frame is prepared fresh.
+  input.serial = 0;
+  input.swapHalves = false;
+  orchestrator.update(1.0f / 60.0f);
+  CHECK(output.lastFrame[0].color == Color(255, 0, 0));
 }
 
 

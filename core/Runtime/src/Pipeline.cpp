@@ -2,6 +2,8 @@
 
 #include <algorithm>
 #include <chrono>
+#include <cstdio>
+#include <cstdlib>
 #include <iostream>
 #include <stdexcept>
 
@@ -136,7 +138,36 @@ namespace Aurora::Runtime
     // activeInputName therefore always means audio mode.
     bool useAudioMode = config.activeInputName().empty();
 
+    // Aurora-o13 spike: presence-only flag, same convention as
+    // AURORA_DEV_LIGHT_TAP. Builds both inputs when both names are set;
+    // logs per-orchestrator tick timing in every mode, for comparison.
+    const bool dualFlag = std::getenv("AURORA_DEV_DUAL_CAPTURE") != nullptr;
+    const bool dualCapture = dualFlag
+      && !config.activeInputName().empty() && !config.activeAudioInputName().empty();
+    if(dualFlag){
+      pipeline->m_dualStats.log = [options](LogLevel level, const std::string& line){ _log(options, level, line); };
+    }
+
     ScopedPhaseTimer captureTimer(options, "capture+orchestrator init");
+    if(dualCapture){
+#ifdef AURORA_RUNTIME_AUDIO_AVAILABLE
+      // Audio first: on Mac its TCC prompt and SCK's are separate gates, and
+      // the order shows which one blocks the other.
+      auto audioInput = registry.createAudioInput(config.activeAudioInputName());
+      if(!audioInput){
+        throw std::runtime_error("Unknown audio input '" + config.activeAudioInputName() + "'");
+      }
+      pipeline->m_audioOrchestrator.emplace(
+        *audioInput, pipeline->m_outputPtrs, ZoneMapStore(configRoot), _audioSettingsFrom(config)
+      );
+      pipeline->m_audioOrchestrator->init();
+      pipeline->m_audioInput = std::move(audioInput);
+      pipeline->m_isDualCapture = true;
+      _log(options, LogLevel::Info, "[dual-capture] audio input='" + config.activeAudioInputName() + "' up; building video too");
+#else
+      throw std::runtime_error(options.noAudioSupportMessage);
+#endif
+    }
     if(useAudioMode){
 #ifdef AURORA_RUNTIME_AUDIO_AVAILABLE
       auto audioInput = registry.createAudioInput(config.activeAudioInputName());
@@ -250,6 +281,40 @@ namespace Aurora::Runtime
 
   void Pipeline::tick(float dt)
   {
+    if(m_dualStats.log){
+      // Video then audio. Both send to the same outputs every tick, so the
+      // output sees two frames per tick, one from each.
+      using Clock = std::chrono::steady_clock;
+      DualCaptureStats& s = m_dualStats;
+      const auto t0 = Clock::now();
+      if(s.ticks == 0){ s.windowStart = t0; }
+      if(m_orchestrator){ m_orchestrator->update(dt); }
+      const auto t1 = Clock::now();
+#ifdef AURORA_RUNTIME_AUDIO_AVAILABLE
+      if(m_audioOrchestrator){ m_audioOrchestrator->update(dt); }
+#endif
+      const auto t2 = Clock::now();
+
+      const double videoMs = std::chrono::duration<double, std::milli>(t1 - t0).count();
+      const double audioMs = std::chrono::duration<double, std::milli>(t2 - t1).count();
+      s.videoSum += videoMs; s.videoMax = std::max(s.videoMax, videoMs);
+      s.audioSum += audioMs; s.audioMax = std::max(s.audioMax, audioMs);
+      ++s.ticks;
+      const double elapsed = std::chrono::duration<double>(t2 - s.windowStart).count();
+      if(elapsed >= 5.0){
+        char line[220];
+        std::snprintf(line, sizeof(line),
+          "[dual-capture] %s %u ticks/%.1fs (%.1f Hz): video avg %.2f max %.2f ms, audio avg %.2f max %.2f ms, budget %.2f ms",
+          m_isDualCapture ? "both" : (m_isAudioMode ? "audio-only" : "video-only"),
+          s.ticks, elapsed, s.ticks / elapsed, s.videoSum / s.ticks, s.videoMax, s.audioSum / s.ticks, s.audioMax, dt * 1000.0);
+        s.log(LogLevel::Info, line);
+        std::cout.flush(); // app stdout is block-buffered under the devstack
+        DualCaptureStats fresh;
+        fresh.log = std::move(s.log);
+        s = std::move(fresh);
+      }
+      return;
+    }
     if(m_isAudioMode){
 #ifdef AURORA_RUNTIME_AUDIO_AVAILABLE
       m_audioOrchestrator->update(dt);
@@ -267,7 +332,7 @@ namespace Aurora::Runtime
     // doesn't. A graph pipeline will set these per node instead.
     PipelineCapabilities capabilities;
     capabilities.usesVideoInput = !m_isAudioMode;
-    capabilities.usesAudioInput = m_isAudioMode;
+    capabilities.usesAudioInput = m_isAudioMode || m_isDualCapture;
     capabilities.samplesZones = !m_isAudioMode;
     return capabilities;
   }
@@ -281,7 +346,7 @@ namespace Aurora::Runtime
 
   Input::IAudioInput* Pipeline::audioInput() const
   {
-    return m_isAudioMode ? m_audioInput.get() : nullptr;
+    return (m_isAudioMode || m_isDualCapture) ? m_audioInput.get() : nullptr;
   }
 
 

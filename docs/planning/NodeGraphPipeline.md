@@ -481,7 +481,8 @@ retrofit):**
 
 Status: proposed 2026-10-01 (item 2 shipped as Aurora-5y0; item 3 shipped as
 Aurora-tft, fixtures verified on Mac only; item 4 shipped as Aurora-skv;
-item 1 shipped as Aurora-ta5; item 6 shipped as Aurora-9ig). Each item
+item 1 shipped as Aurora-ta5; item 6 shipped as Aurora-9ig; item 8 Linux
+done 2026-10-11, Mac/Windows open). Each item
 works under today's two orchestrators, needs no new dependency, and
 removes a risk the graph work or the React Flow import would otherwise
 hit.
@@ -537,6 +538,16 @@ hit.
    /api/reload and Hue pairing go through `reloadPipelineFromDisk`
    (always rebuild); a settings PUT goes through `applyConfigFromDisk`
    (see "Live apply"). Follow-ups: Aurora-kea, Aurora-o13.
+
+8. **Both captures at once (spike).** Linux, Mac and Windows capture
+   work (Aurora-o13, [[o13-dual-capture]]). Behind
+   `AURORA_DEV_DUAL_CAPTURE`. CPU is additive (video ~47% + audio ~4% of a
+   core ≈ 48% together on Linux; Mac ~19% + ~3.5% ≈ 25%; Windows video 31-43% and audio ~0.5%, noise
+   hides the sum) with no capture conflict. Windows video `update()` is
+   ~32 ms (24 ms after a timer-resolution fix) against a 16.67 ms budget, in every mode. Decided by the result:
+   two sources must not share an output directly. Each `send()` streams,
+   so the lights flicker between them; a graph needs one pick-or-mix node
+   per output ahead of `send()`.
 
 7. **Live apply.** Shipped (Aurora-c0g, [[c0g-live-tuning-apply]]).
    `Pipeline::applyConfig` diffs the Config it was built from against the

@@ -314,6 +314,23 @@ takes the whole process down.
 
 ---
 
+## DXGI Desktop Duplication frames arrive in the panel's native orientation, and the monitor list already reports the rotated size
+Tags: input, dxgi, windows, rotation
+Applies-when: touching WindowsGrabber capture or zone mapping on portrait or rotated monitors
+
+`DXGI_OUTPUT_DESC::DesktopCoordinates` (so `displayResolution()`) is in
+desktop space, already rotated, but the duplicated texture is not. A portrait
+monitor therefore reported 1200x1920 while the raw frame was sideways, and
+zone mapping would have been applied to it unrotated.
+
+**Fix:** read `DXGI_OUTDUPL_DESC::Rotation` after `DuplicateOutput` and
+`cv::rotate` the small downscaled readback (cheap, no GPU pass). A frame
+aspect check against `displayResolution()` catches a missing rotation but not
+a 180 degree error, and a black or asleep monitor can't show orientation at
+all, so put readable content on the monitor before judging direction.
+
+---
+
 ## A process-global library init/deinit pair must not live in a per-instance constructor/destructor when the app deliberately overlaps old and new instances
 Tags: input, pipewire, lifecycle, reload, globals
 Applies-when: putting process-global init/deinit in a reloadable instance
@@ -534,7 +551,19 @@ Applies-when: choosing a capture size for a grabber whose frames get downsampled
 
 **Fix:** `IVideoInput::setCaptureWidthHint(width)` (default no-op), called by `Orchestrator::init` with `subsampleWidth`; the Mac grabber delivers an 8x oversample, at least 256px, never above full pixel size, so the CPU's INTER_AREA still averages the last step. Result: ~5.5% CPU, `/api/monitors`/`/api/zones` < 1ms, tick thread ~95% asleep. `displayResolution()` still reports full pixels (subsample candidates unchanged). When verifying, low CPU is also what a *failed* capture looks like (ticks skipped while unhealthy) -- confirm real frames: distinct per-zone colors on the light tap, a real display from `/api/monitors`, no permission errors in the log.
 
+**Update (Aurora-wqzp.3):** an oversample *factor* scales with `subsampleWidth`. 3qh measured at 16 (256 px), but the saved default on a 3420x2214 display is 190, the smallest candidate, so 8x meant 1520 px frames and ~22% CPU again. The rule is now 2x (>= 256 px): zone colours stayed within 1/255 of full resolution at 8x, 2x and 1x, so SCK's GPU scale averages fine. Measure a size rule at the real config's widths, not the one at hand.
+
 Also observed: the rebuilt, still ad-hoc-signed `Aurora.app` kept capturing when relaunched by `devstack.py` -- consistent with "A bare Mach-O binary's TCC permission grant attaches to whatever launched it" above (the launcher's grant applied), not with the rebuild-invalidates-grant lesson, which concerns a bundle launched on its own.
+
+---
+
+## SCK fires its callback on repeat ("Idle") frames too -- filtering by status and retaining the buffer instead of copying it turns a per-tick clone into a per-delivered-frame one
+Tags: input, mac, screencapturekit, performance, frame-reuse
+Applies-when: adding frame-reuse (a frameSerial/dirty counter) to an SCStream-based grabber, or explaining why its CPU cost doesn't drop on a static screen
+
+`ScreenCaptureKitGrabber`'s stream callback cloned every `CMSampleBuffer` it received and the tick thread resized it every time, even on a static screen: SCK keeps calling the callback with `SCFrameStatusIdle` buffers that repeat the last real frame, not just `Started`/`Complete` ones (confirmed against Hyperion's `OsxFrameGrabber.mm`, which already filters on this). Cloning and resizing those is pure waste on top of the real oversample cost (Aurora-wqzp.3).
+
+**Fix:** check `status.integerValue == SCFrameStatusComplete || status.integerValue == SCFrameStatusStarted` before touching the buffer; retain the `CVPixelBuffer` (not a copy) and convert only when `grabFrameSubsample()` is actually called and the buffer is new. Bump a `frameSerial()` counter only on a genuinely new delivered frame so `Orchestrator` can skip the rescale on a repeat -- the same pattern as Windows' `frameSerial()` (Aurora-igwa). `frameSerial()` alone only helps a static screen: moving content delivers a new frame every tick regardless, so it still needs the right oversample size.
 
 ---
 
@@ -783,3 +812,123 @@ Applies-when: changing `MacAudioGrabber`, the `audio_permission` row, or any rec
 Aurora-h457 live (macOS 27, `open`-launched `Aurora.app`, audio playing the whole time): a grabber built while the audio grant was off stayed silent after the grant, row and all, until the pipeline was rebuilt; a fresh grabber after the grant heard sound at once. The Aurora-tjoq follow-up ("applies live") held only because that check relaunched the process after the reset, and it never observed the flip. Separately, the tap is satisfied by either grant: Screen Recording on with the audio list off worked, the audio list on with Screen Recording off worked, and with neither the flag latched true about 10s after entering Audio with flat lights. Switching Video -> Audio after `tccutil reset AudioCapture` (Screen Recording on) entered Audio with no row. There is no build-time signal (`AudioDeviceStart` returns `noErr`, no public preflight), so the daemon cannot refuse Audio up front; the row is the failure.
 
 **Fix:** after a grant, rebuild the pipeline (`POST /api/reload`); the row's Retry does exactly that, and a reload clears every entry and restarts the 10s grace window, so with nothing playing the row returns 10s later (looks like a dead button). The row asks for "System Audio Recording Only", the least-privilege grant, and a Video user (already holding Screen Recording) never sees it. Not tested: explicit Don't Allow on the audio prompt with Screen Recording on.
+
+---
+
+## Reruns against the real ScreenCast portal can skip the picker: reuse the restore token the first run saved
+Tags: input, linux, xdg-portal, testing, huenicorn
+Applies-when: re-running a scratch driver or before/after check against the real xdg-desktop-portal, where each run would otherwise need a human to pick a monitor
+
+huenicorn's `XdgDesktopPortal` (and Aurora's port) saves the portal's
+`restore_token` into `config.json` after a successful Start, and sends it on
+the next `SelectSources`. On `Aurora-h45.19`, the first real-portal run
+needed the owner to pick a monitor. The before/after reruns
+(`Aurora-h45.20`, then again on the MR 3 branch) copied that `config.json`
+with only `refreshRate` reset to 0, and logged "Using saved restore token":
+no dialog appeared and the same monitor was captured (GNOME 46).
+
+**Fix:** keep the first run's config dir. For each rerun, copy it and reset
+only the field under test, so the session is reused and the comparison
+stays on the same monitor. Here both reruns copied the first run's token and
+both skipped the picker, so on GNOME 46 that token was not single-use. If a
+rerun prompts again, copy the newest token from the last run's config.
+Not checked on KDE or wlroots portals.
+
+
+---
+
+## A devstack run on Mac borrows the terminal's TCC grants -- it proves capture, not permissions
+Tags: input, mac, tcc, permissions, devstack, dual-capture
+Applies-when: measuring or verifying anything on Mac that a Screen Recording / System Audio Recording grant could change
+
+`devstack.py up` spawns `Aurora` as a child of the terminal, so macOS
+attributes capture to the terminal's already-held grants (the light-viz skill
+notes this for denied-state checks). The Aurora-o13 Mac run used it for the
+CPU/timing table: video, audio and both all worked with no prompt at all,
+which says nothing about whether the bundle's own two grants can be held at
+once. The same run, relaunched as `open -n Aurora.app` after `tccutil reset
+ScreenCapture`/`AudioCapture com.aurora.app`, failed straight away with
+`permission_denied`.
+
+**Fix:** split Mac verification in two. Terminal-identity devstack for
+throughput, CPU and tick timing; a bundle launched with `open` (after scoped
+resets) for anything about prompts, order or recovery. Say which identity a
+result came from.
+
+---
+
+## On Mac, `PUT /api/config` with a missing permission returns in seconds, not after the prompt
+Tags: input, mac, tcc, config, reload, dual-capture
+Applies-when: scripting a Mac launch that sets inputs over REST and waits for the response (devstack-style); comparing with Linux's portal
+
+Linux Wayland's portal dialog blocks the config PUT until accepted (devstack
+allows 120 s). On Mac the Aurora-o13 PUT of `activeInputName=mac` plus
+`activeAudioInputName=mac-audio` on a reset bundle returned in 2.2 s with the
+reload already failed: `GET /api/state` `state:"failed"`, error
+`permission_denied: ... no shareable displays`, while the OS dialogs arrive
+out of band afterwards. A script that treats "PUT returned" as "capture is
+up" is wrong on Mac.
+
+**Fix:** after the PUT, poll `/api/state` (not the PUT body) until `running`
+or a held error; after the user grants, `POST /api/reload`, since a grant
+reaches a grabber built after it, not a running one (Aurora-h457 entry above).
+
+## A frame serial must be captured with the frame, not read live afterwards
+Tags: input, pipewire, frameserial, orchestrator, concurrency
+Applies-when: adding frameSerial() to a grabber whose frames arrive on another thread
+
+Aurora-wqzp.2: `Orchestrator::update` calls `grabFrameSubsample()` then `frameSerial()`. With the serial read live from the PipeWire thread's counter, a frame landing between the two calls gives a new serial with the old pixels; the next tick sees an unchanged serial and reuses the stale prepared frame, so one real frame is lost. Same pattern as the Mac bufferSerial pairing (Aurora-wqzp.3).
+
+**Fix:** copy the serial inside the same lock as the frame copy, store it in a tick-thread member, and return that from `frameSerial()`. Bump the counter only after the no-data/skip returns so empty buffers never count. Result on GNOME: ~10 delivered frames/s on a static screen, so ~50 of 60 ticks skip the rescale (video 47.1% -> 13.7%).
+
+
+## INTER_AREA is only fast at integer ratios; measure the binary the harness runs
+Tags: input, pipewire, perf, opencv, perf-harness
+Applies-when: downscaling frames on the CPU, or benchmarking with tools/perf-harness
+
+Aurora-wqzp.4: resizing 1920 -> 512 (ratio 3.75) cost ~29 ms/frame, 10x the old 1920 -> 64 (ratio 30) rescale, so moving CPU went 64% -> 105% even though the tick time fell 9 -> 1 ms (work just moved to the PipeWire thread). A tick-time column alone hid it; process CPU caught it.
+
+**Fix:** decimate by an integer k (crop the < k px remainder) and let the Orchestrator finish the last step. Also: `devstack.py` launches `build/linux-app/bin/Aurora`, not `build/bin/Aurora`, so rebuild that tree before trusting a perf number.
+
+
+## DXGI cursor-only frames have `AccumulatedFrames == 0`, and so does the first frame after (re)duplication
+Tags: input, windows, dxgi, frame-serial, perf
+Applies-when: skipping or deduplicating `AcquireNextFrame` results, or changing when `WindowsGrabber` publishes a frame
+
+Aurora-wqzp.8: a pointer move delivers a frame whose desktop image is unchanged, but `WindowsGrabber` ran the mip, readback, clone and serial bump on it, so the Orchestrator rescaled again. The first `AcquireNextFrame` after `DuplicateOutput` also reports `AccumulatedFrames == 0` while carrying the only image there is.
+
+**Fix:** release and return early on `AccumulatedFrames == 0` only once this duplication has published an image (`m_hasDesktopImage`). Reset the flag in `_releaseDuplication` and `_stopCapture` (which clears `m_latest`), or a static desktop never delivers a first frame. Return true, not false, so the capture loop does not add its 10 ms back-off.
+
+
+## Legacy DXGI `DuplicateOutput` clips an HDR desktop at 80 nits, so ordinary SDR content blows out
+Tags: input, windows, dxgi, hdr, pixel-format, color
+Applies-when: capturing a Windows desktop that may have HDR on, or judging capture colour against what is on screen
+
+Aurora-wqzp.12: `IDXGIOutput1::DuplicateOutput` always returns BGRA8. On an HDR desktop it gets there by clipping linear scRGB at 1.0 (80 nits), but SDR white sits at the user's SDR brightness (240 nits here, scRGB 3.0). sRGB grey 128 captured as 210 and 192 as 255, and nothing flagged it: the frames were valid BGRA. The FP16 branch kept "defensively" never ran, and would have clipped the same way (no white-level divide).
+
+**Fix:** `IDXGIOutput5::DuplicateOutput1` with `[R16G16B16A16_FLOAT, B8G8R8A8_UNORM]`, then divide by the SDR white level (`DISPLAYCONFIG_SDR_WHITE_LEVEL`, re-read each second), clamp, sRGB-encode. Check capture colour with a known on-screen grey on each monitor (manual test "captures SDR greys"), since a frame-format check alone cannot catch clipping. `DuplicateOutput1` can also open with an alpha-0 black placeholder tagged FP16: don't publish it. A periodically re-read white level goes stale on a static desktop: a slider move sends one frame (converted at the old level) and then nothing, so reconvert the last readback when the level changes.
+
+## `IVideoInput::monitors()` returns a copy, so `const auto&` into it dangles
+Tags: input, windows, monitors, lifetime, test
+Applies-when: holding a reference or pointer to an element of `monitors()` across a call
+
+Aurora-wqzp.12: `const auto& monitor = grabber.monitors()[id];` kept a reference into a temporary vector. The test died with a bare SIGSEGV before printing anything, which pointed at the grabber, not the test.
+
+**Fix:** copy what is needed (the `shared_ptr` or just the name) into a local, or bind the whole vector once (`const auto monitors = grabber.monitors();`). Any accessor returning a container by value invites this.
+
+## FP16 desktop capture costs CPU-side copy and convert, not a `Map()` spin
+Tags: input, windows, dxgi, hdr, perf, readback
+Applies-when: judging the CPU cost of the `DuplicateOutput1` FP16 path, or proposing a GPU conversion pass to cut it
+
+Aurora-wqzp.14: the FP16 path looked 5 points of a core dearer than legacy BGRA, and a blocking `Map()` after a 4K FP16 mip chain was the obvious suspect (drivers can spin there). Timing the capture thread showed `Map()` waits 3-5 ms on both paths but costs ~0.1 ms CPU (RTX 3080 Ti): no spin. The real FP16 extra is the 480x270 readback clone (~0.14 vs ~0.065 ms) plus the half-float table (~0.18 ms), about 1.3% of a core at 56 fps, inside the ~3-point run-to-run noise.
+
+**Fix:** none needed. Accept it as the price of FP16. A GPU conversion shader would save at most that 1.3% and adds a build-time shader step. See `docs/log/2026-10-13-wqzp12-windows-hdr-capture.md`.
+
+## A "drop the placeholder frame" guard must test the whole frame, not one channel
+Tags: input, windows, dxgi, alpha, placeholder, regression
+Applies-when: adding a first-frame filter, "wait for a real image" logic, or any capture gate keyed on pixel content
+
+Aurora-d2r3: the wqzp.12 guard dropped a first frame whose mean alpha was 0 to skip the `DuplicateOutput1` placeholder. Real SDR BGRA frames on some drivers also have alpha 0, so every frame was dropped and video went silent while state read `running` with no error and no log line. It shipped in 1.1.1 because the box it was developed on (HDR, placeholder seen) never produced alpha-0 SDR frames.
+
+**Fix:** drop only a frame that is zero in every channel. Never gate on alpha alone for DXGI/BGRX sources, where alpha is often unused. A gate that can drop all frames needs a log line or counter, since the failure otherwise looks like a healthy idle pipeline. Test on an SDR display, not just HDR. See `docs/log/2026-10-13-d2r3-windows-sdr-alpha-guard.md`.
+

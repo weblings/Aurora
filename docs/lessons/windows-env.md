@@ -298,3 +298,98 @@ Applies-when: stopping a background server or child by matching its command line
 Stopping a test viz server with `powershell -NoProfile -Command "Get-CimInstance Win32_Process | Where-Object { $_.CommandLine -match '_serve 8799' } | ForEach-Object { Stop-Process ... }"` stopped two processes and exited 255 (Aurora-57ct check). The pattern was also in that `powershell.exe`'s own command line, so it matched and killed itself mid-pipeline. Filtering on `Name='python.exe'` first had avoided it in the earlier runs.
 
 **Fix:** narrow by process name before matching the command line (`-Filter "Name='python.exe'"`), or exclude `$PID`. Better still, kill by the PID you recorded at launch, as `devstack.py` does with its state file.
+
+
+---
+
+## Aurora.exe under devstack has no console, so `app.log` stays empty -- read the app's own console buffer by pid
+Tags: windows, logging, console, devstack, measurement
+Applies-when: a log line you need (e.g. `[dual-capture]`) only goes to stdout on a Windows run launched by `devstack.py` or any detached launch
+
+Aurora-o13 Windows: `Aurora.exe` is a GUI-subsystem exe. It rejoins a parent console if one exists; devstack gives it none, so `app.log` was 0 bytes and the per-tick timing lines were invisible. Redirecting stdout does not help: the app reopens stdout onto `CONOUT$`, not the pipe.
+
+**Fix:** export `AURORA_CONSOLE=1` before `devstack.py up` (the app calls `AllocConsole`), then from a process with no console of its own `FreeConsole()`, `AttachConsole(<app pid>)`, open `CONOUT$` and `ReadConsoleOutputCharacterW` the buffer. Take the last matching lines per mode. For per-mode CPU on the same pid use `GetProcessTimes` deltas (kernel + user), not a lifetime average.
+
+---
+
+## `cmake --build --target Aurora` fails and `AuroraApp` builds only a lib -- the Windows exe target is `aurora-app-windows`, and check the exe's mtime
+Tags: windows, build, cmake, stale-binary
+Applies-when: rebuilding the Windows app for a live check, or running a `build/windows-app` exe after pulling source changes
+
+Aurora-o13: `build/windows-app/bin/Release/Aurora.exe` predated the spike by four days. `--target Aurora` gives "Project file does not exist: Aurora.vcxproj"; `--target AuroraApp` succeeds but only emits `AuroraApp.lib`, leaving the exe stale, and the output looks like a normal build. The first signal is the exe's timestamp not moving.
+
+**Fix:** `cmake --build build/windows-app --config Release --target aurora-app-windows` (`OUTPUT_NAME "Aurora"`), then compare `ls -l` mtime of `bin/Release/Aurora.exe` with the source before trusting a run.
+
+
+---
+
+## A 16 ms blocking wait costs ~28-31 ms at default timer resolution -- `timeBeginPeriod(1)` or the tick rate halves
+Tags: windows, timers, dxgi, performance, tick-budget
+Applies-when: a Windows loop blocks on a short timeout (DXGI `AcquireNextFrame(16)`, `Sleep`, `sleep_until`) and runs slower than its budget with no obvious CPU cost
+
+Aurora-igwa: video `update()` averaged ~32 ms against 16.67 ms (~31 ticks/s, matching ~158 light frames/5 s). `WaitForSingleObject(ev, 16)` measured 28.3 ms in a default-resolution process and 16.7 ms after `timeBeginPeriod(1)`. The app never set it. After adding it, update dropped to ~24 ms (16.7 wait + ~7 work), so the timer was most, not all, of it. The log's "300 ticks/5.0s" looked like proof of 60 Hz but sums the nominal `dt`, not wall time.
+
+**Fix:** `timeBeginPeriod(1)` at startup (RAII, link `winmm`). Prove rates from wall-clock evidence (frame counts), not from a counter that adds the budget.
+
+
+---
+
+## Reusing the previous tick's CPU work needs a frame counter from the grabber, and a repeat frame is the common case on a static desktop
+Tags: windows, dxgi, performance, caching, orchestrator
+Applies-when: adding per-tick CPU work after a grabber that returns its cached frame on a wait timeout, or giving another grabber a capture-size hint
+
+Aurora-igwa: on a static desktop DXGI times out and the grabber returns `m_lastFrame`, but `Orchestrator` rescaled that unchanged 4K frame every tick (7 ms). Comparing pixels would cost as much as the rescale, and only the grabber knows. `IVideoInput::frameSerial()` (0 = unknown, always prepare) lets the Orchestrator skip it, and `setConfig` must clear the cache because `subsampleWidth` and `interpolation` change the result. Pair it with a GPU downscale: `GenerateMips` on a `D3D11_RESOURCE_MISC_GENERATE_MIPS` texture plus a staging copy of one mip level (`CopySubresourceRegion`, source subresource = level) returns a small frame instead of a 4K readback (video-only CPU 36% -> 2.4% on the static case).
+
+**Fix:** have the grabber own "did this frame change", keep serial 0 as the safe default, and never cache across a config change. Measure a moving screen separately: a static-desktop result flatters both changes.
+
+---
+
+## Read another process's console buffer from a throwaway helper -- `FreeConsole` in your own process kills your stdout
+Tags: windows, console, ctypes, measurement, devstack
+Applies-when: a script needs `AttachConsole(<pid>)` + `ReadConsoleOutputCharacterW` on a GUI-subsystem app while still printing to its own terminal
+
+Aurora-wqzp.1: attaching to the app's console (see the `AURORA_CONSOLE=1` entry) requires `FreeConsole()` first, which detaches the calling process from its own terminal, so the harness's later prints vanish. Two more traps: `CONSOLE_SCREEN_BUFFER_INFO` is 2-byte-packed `COORD`s (declare `Coord` as two `c_short`, not a `c_uint32`, or the cursor row reads wrong), and rows come back padded, so a long log line that wrapped at the console width stays contiguous only if the rows are concatenated with no separator.
+
+**Fix:** run the attach-and-read in a short subprocess that prints the buffer to a pipe, and regex over the concatenated rows. `tools/perf-harness/perf.py` does this (`_readconsole`).
+
+---
+
+## A built `Aurora.exe` copied elsewhere fails silently without its sibling DLLs, so A/B builds need a folder each
+Tags: windows, build, dll, perf, devstack
+Applies-when: stashing two builds of the same app (capped vs uncapped, before vs after) to compare them
+
+Aurora-wqzp.5: copying `Aurora.exe` alone to `%TEMP%` made `devstack.py up` time out waiting for the WebUI port, with no error in the logs. The exe needs `libcurl.dll`, `opencv_core4.dll`, `opencv_imgproc4.dll` and `z.dll` from `bin/Release` beside it.
+
+**Fix:** one folder per variant holding the exe plus those DLLs, then pass `--app <folder>/Aurora.exe` to `perf.py`. For an A/B of one constant, edit it, rebuild, copy, `git checkout` the edit, rebuild again.
+
+---
+
+## Switch a display's refresh rate from a script with `ChangeDisplaySettingsExW` and a raw 220-byte DEVMODE
+Tags: windows, display, refresh-rate, powershell, perf
+Applies-when: testing behavior that depends on the display's refresh rate (e.g. `displayRefreshRate()`) without touching Settings
+
+Aurora-wqzp.5: a managed `DEVMODE` struct with guessed layout made `EnumDisplaySettings` return garbage (max "1200 Hz"). A zeroed 220-byte buffer with `dmSize` (offset 68) = 220 works: read width/height/hz at offsets 172/176/184, set `dmDisplayFrequency` = 184 and OR `DM_DISPLAYFREQUENCY` (0x400000) into `dmFields` (offset 72). `ChangeDisplaySettingsExW(dev, buf, 0, 0, 0)` with flags 0 is a dynamic change that does not persist to the registry. `Win32_VideoController.MaxRefreshRate` only describes one adapter, so enumerate modes per `\.\DISPLAYn` to find the fast panel.
+
+**Fix:** enumerate per device, change with flags 0, and set the old rate back when done. The app followed the change with no restart needed beyond relaunch (budget moved 16.67 -> 8.33 ms).
+
+
+---
+
+## `timeBeginPeriod(1)` is ignored by a windowless Win11 process -- `sleep_until` rounds up to 2 x 15.6 ms and a 60 Hz tick runs at 32 Hz
+Tags: windows, timer-resolution, tick-pacing, power-throttling
+Applies-when: a Windows loop paces itself with `sleep_for`/`sleep_until`, or you removed a blocking wait that was secretly doing the pacing
+
+Aurora-wqzp.6: once the DXGI wait moved to a capture thread, video-only ticks measured 32 Hz while video+audio held 56 Hz, same build. The old blocking `AcquireNextFrame(16)` had hidden it. Win11 drops a process's timer-resolution request when it has no visible window (a tray app) and nothing else raises the system rate; audio was doing that in "both".
+
+**Fix:** besides `timeBeginPeriod(1)`, call `SetProcessInformation(ProcessPowerThrottling, {PROCESS_POWER_THROTTLING_IGNORE_TIMER_RESOLUTION, StateMask 0})`. Video static went 32 -> 55.8 Hz. Tick rate sits at ~56, not 60, from ~1 ms sleep overshoot per tick.
+
+
+---
+
+## Perf and capture runs touch every attached display -- a TV powering on mid-run changes the mode and corrupts the multi-monitor check
+Tags: windows, multi-monitor, measurement, capture
+Applies-when: running `tools/perf-harness` or any grabber test on a box with extra displays (TV, virtual monitor), or reading a resolution mismatch between `displayResolution()` and the delivered frame
+
+Aurora-wqzp.6: this box has three outputs (4K primary, 1920x1200, and a TV). The `selectMonitor` test ran while the TV was off, then on. In one run display 2 reported 2560x1440 yet delivered 3840x2160 frames, and it did not repeat. A display mode change between `_initMonitorsList` (reads `DesktopCoordinates`) and the capture is the likely cause. The user also did not know tests were driving the TV.
+
+**Fix:** before a run, list the outputs (`found monitor:` lines in the manual capture test), say which will be captured or covered by the moving-content window, and get the user's OK. Keep the set of powered displays fixed for the run. Treat a size mismatch seen once as a mode change, not a grabber bug, until it reproduces.

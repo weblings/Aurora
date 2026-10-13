@@ -542,6 +542,16 @@ warnings. For testable logic, compile a scratch driver directly against the
 touched `.cpp` (e.g. `ImageProcessing.cpp` + OpenCV + `_deps/glm-src`)
 rather than reviving the fork's stale `tests/`.
 
+
+For code that needs the real DTLS path, build Mbed TLS itself into the
+scratchpad instead (2026-10-08, `Aurora-h45.18`): the GitHub release tarballs
+(`mbedtls-3.6.7.tar.bz2`, `mbedtls-4.2.0.tar.bz2`) configure with the venv
+cmake (`-DENABLE_TESTING=OFF -DENABLE_PROGRAMS=OFF`) and install static libs
+in a few minutes each. A 4.x driver must also link `libtfpsacrypto.a`.
+`DtlsClient.cpp` then compiles against both, and a driver aimed at a dead UDP
+port (`127.0.0.1:9`, `handshakeAttempts = 1`) fails `init()` in about a second,
+fast enough to loop under LeakSanitizer.
+
 ---
 
 ## Vite doesn't empty an `outDir` outside its project root, so a build-time embed ships every stale hashed bundle
@@ -764,3 +774,11 @@ Applies-when: live-testing an app binary from a tree with more than one build di
 `build/linux-app/bin/Aurora` (Oct 4) predated Aurora-d3ec while `build/bin/Aurora` was fresh: the stale one booted fine and served the old `GET /api/state` shape with no `state`/`errors`, which reads exactly like a failed verification. Caught only by diffing the two binaries (`strings <bin> | grep <new marker>`, here `nothing_to_pause`).
 
 **Fix:** before any live run, `ls -la` the candidate binaries and grep the fresh one for a symbol the change under test must contain. Rebuild the tree you test from (`cmake --build build`), and boot `build/bin/Aurora`, not a slice-local copy, unless you just rebuilt that slice.
+
+## A preset copied from a multi-config (Windows) preset builds unoptimized on single-config generators -- set `CMAKE_BUILD_TYPE` and check it before comparing perf
+Tags: cmake, presets, build-type, perf, mac, linux, windows
+Applies-when: adding a CMake preset, comparing CPU or timing numbers across platforms or builds, or cutting a release build from a preset
+
+Aurora-wqzp.7: `linux-app` and `mac-app` were written in the shape of `windows-app`, which never needs a build type because Visual Studio picks one per build (`--config Release`). They set no `CMAKE_BUILD_TYPE`, and with a single-config generator (Makefiles, Ninja) that means no `-O` flags at all, while Windows (multi-config) is built and measured `--config Release`. Every Linux and Mac perf number in the Aurora-wqzp epic came from unoptimized builds. The Mac 1.0.4 release was cut from `build/mac-release`, which also had an empty build type. Mac audio-only: 3.5% CPU / 0.68 ms update unoptimized, 1.6-1.8% / 0.30 ms with `-DCMAKE_BUILD_TYPE=Release`, on the same tree.
+
+**Fix:** every single-config preset sets `CMAKE_BUILD_TYPE` (Aurora-wqzp.15: `RelWithDebInfo`; no `assert()` in the tree, so its `NDEBUG` removes nothing). Before comparing numbers, check `grep CMAKE_BUILD_TYPE <build>/CMakeCache.txt`: the presets now set `RelWithDebInfo`, but a build dir configured before that keeps its empty cached value until `cmake --preset` runs again. `perf.py` prints the build type and warns on an unoptimized app.

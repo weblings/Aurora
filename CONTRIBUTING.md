@@ -38,7 +38,7 @@ the changelog; nothing enforces the mirror.
 
 ## Platform notes
 
-### Mac (experimental, tier 1 as of 1.0.3)
+### Mac
 
 Menu-bar app (`Aurora.app`, `LSUIElement`) with video + audio capture, a tray
 menu (Launch UI / Stop), and a Mac-only first-run tip screen in the NUX.

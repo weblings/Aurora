@@ -1,6 +1,7 @@
 #pragma once
 
 #include <algorithm>
+#include <cstdint>
 #include <optional>
 #include <string>
 #include <vector>
@@ -83,6 +84,13 @@ namespace Aurora::Input
     // Default ignores it: frames stay full size, as before.
     virtual void setCaptureWidthHint(unsigned /*width*/)
     {
+    }
+
+    // Changes whenever grabFrameSubsample() delivers a new frame, so a
+    // consumer can reuse work on a repeat. 0 = unknown: treat every frame as new.
+    virtual std::uint64_t frameSerial() const
+    {
+      return 0;
     }
 
     // Pull model -- the app calls this once per tick.

@@ -249,6 +249,19 @@ namespace Aurora::Input::Linux
   {
     auto lock = std::lock_guard(m_pwData.frameDoubleBuffer.mutex);
     imageData = m_pwData.frameDoubleBuffer.frame.at(0);
+    m_grabbedSerial = m_pwData.frameDoubleBuffer.serial;
+  }
+
+
+  void PipewireGrabber::setCaptureWidthHint(unsigned width)
+  {
+    m_pwData.captureWidthHint.store(width);
+  }
+
+
+  std::uint64_t PipewireGrabber::frameSerial() const
+  {
+    return m_grabbedSerial;
   }
 
 
@@ -415,10 +428,14 @@ namespace Aurora::Input::Linux
       pixelFormat = Contracts::PixelFormat::BGRA;
     }
 
-    // See PipewireFrameBuffer.hpp -- clones the buffer, since Pipewire's
-    // memory becomes invalid after queue_buffer() below.
+    // See PipewireFrameBuffer.hpp -- copies out of the buffer (area-averaged
+    // down by the consumer's hint when there is one, else a full-size clone),
+    // since Pipewire's memory becomes invalid after queue_buffer() below.
     const uint8_t* pixels = static_cast<const uint8_t*>(readPtr) + chunk->offset;
-    Contracts::ImageData capturedFrame = toOwnedImage(pixels, width, height, step, pixelFormat);
+    Contracts::ImageData capturedFrame = toOwnedImage(
+      pixels, width, height, step, pixelFormat,
+      captureDecimation(pw->captureWidthHint.load(), width)
+    );
     const uint64_t contentHash = pw->trace.enabled ? sampleContentHash(pixels, chunk->size) : 0;
 
     if(localMap != MAP_FAILED){
@@ -465,6 +482,7 @@ namespace Aurora::Input::Linux
       auto lock = std::lock_guard(pw->frameDoubleBuffer.mutex);
       std::swap(pw->frameDoubleBuffer.frame[0], pw->frameDoubleBuffer.frame[1]);
       pw->frameDoubleBuffer.frame[0] = std::move(capturedFrame);
+      ++pw->frameDoubleBuffer.serial;
     }
     pw_stream_queue_buffer(pw->stream, pwBuffer);
   }

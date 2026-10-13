@@ -23,6 +23,7 @@
 #include <thread>
 
 #include <windows.h>
+#include <timeapi.h>
 #include <shellapi.h>
 #include <cstdio>
 #include <fstream>
@@ -658,6 +659,19 @@ int main(int argc, char** argv)
 try
 {
   SetConsoleCtrlHandler(handleConsoleEvent, TRUE);
+  // Default timer granularity rounds DXGI's 16 ms AcquireNextFrame wait up to
+  // ~28-31 ms (Aurora-igwa), halving the tick rate on a static desktop.
+  struct TimerResolution{
+    TimerResolution(){
+      timeBeginPeriod(1);
+      // Win11 ignores the request above for a process with no visible window
+      // unless it opts out of timer-resolution throttling (Aurora-wqzp.6).
+      PROCESS_POWER_THROTTLING_STATE state{PROCESS_POWER_THROTTLING_CURRENT_VERSION,
+        PROCESS_POWER_THROTTLING_IGNORE_TIMER_RESOLUTION, 0};
+      SetProcessInformation(GetCurrentProcess(), ProcessPowerThrottling, &state, sizeof(state));
+    }
+    ~TimerResolution(){ timeEndPeriod(1); }
+  } timerResolution;
   Aurora::App::LogSink sink;
   g_logSink = &sink;
   const bool consoleAttached = attachParentConsole(argc, argv);
