@@ -3,8 +3,8 @@
 Id: wqzp11-firefox-mover-retry
 
 2026-10-13. Box: `andrew-framework-12` (i5-1334U, Ubuntu 24.04, GNOME
-Wayland — same box as the wqzp.2 entry). Bead stays in_progress: fix
-implemented and refusal-path verified, live rescue not yet seen.
+Wayland — same box as the wqzp.2 entry). Closed after the follow-up
+below: launch retry plus mid-run abort and an ffplay mover.
 
 ## Fix (`tools/perf-harness/perf.py`, `start_firefox_mover`)
 
@@ -39,3 +39,22 @@ implemented and refusal-path verified, live rescue not yet seen.
 - `bd` needs an escalated sandbox here: default bwrap fails with
   `loopback: Failed RTM_NEWADDR`.
 - Aurora-wqzp.9 (Mac mover) untouched: needs-mac, this box is Linux.
+
+## Follow-up: live run outside the sandbox
+
+- Snap kiosk Firefox here exits 1 at 4–17 s in 6/6 launches (also by
+  hand), so the 3 s launch check can't catch it; retry never fired.
+- `start_mover` now prefers `start_ffplay_mover` (ffplay stripes) when
+  there's no tkinter and ffplay exists; Firefox stays as fallback.
+- `check_mover_alive` runs before/after each `measure`; a dead mover
+  aborts the run instead of writing mislabeled 'moving' rows.
+- Verified live: 3 ffplay launches all alive after 32 s; killed mover
+  → abort message. Full `perf.py --content moving` run not done.
+
+## Outcome
+
+- Closed: the silent static-as-moving failure can't recur on Linux
+  (ffplay mover, mid-run abort). Launch retry stays for the Firefox path.
+- Unexplained: why snap Firefox exits 1 on a fresh profile; not chased.
+- Not covered: a live-but-hidden mover (Mac WebUI tabs, Aurora-wqzp.9);
+  that needs the SSE frame-change check.

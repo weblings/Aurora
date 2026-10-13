@@ -123,8 +123,29 @@ def start_mover():
     try:
         import tkinter  # noqa: F401
     except ImportError:
-        return start_firefox_mover()  # no tkinter on this box (e.g. Linux without python3-tk)
+        # no tkinter (e.g. Linux without python3-tk): ffplay is stable, snap kiosk Firefox dies mid-run
+        import shutil
+        return start_ffplay_mover() if shutil.which("ffplay") else start_firefox_mover()
     return subprocess.Popen([sys.executable, str(Path(__file__).resolve()), "_mover"])
+
+
+def start_ffplay_mover():
+    """Fullscreen ffplay stripes (same dark slow drift as _mover); needs a graphical session."""
+    geq = "geq=lum='if(lt(mod(X/2+N,240),120),43,28)'"
+    p = subprocess.Popen(["ffplay", "-fs", "-noborder", "-loglevel", "quiet", "-f", "lavfi",
+                          "-i", f"color=c=gray:s=960x600:r=60,format=gray,{geq}"],
+                         stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    time.sleep(2)
+    if p.poll() is not None:
+        sys.exit(f"ffplay mover died on launch (exit {p.returncode}); refusing 'moving' rows")
+    return p
+
+
+def check_mover_alive(p):
+    """Abort when the mover died mid-run: its rows would silently measure a static desktop."""
+    if p is not None and p.poll() is not None:
+        sys.exit(f"mover died mid-run (exit {p.returncode}); refusing 'moving' rows "
+                 "that would silently measure a static desktop")
 
 
 def start_firefox_mover(attempts=3):
@@ -399,7 +420,10 @@ def main():
                     devstack.http("PUT", base + "/api/config",
                                   {"activeInputName": video, "activeAudioInputName": audio}, timeout=120)
                     print(f"measuring {mode} / {content} ...", flush=True)
-                    results.append({"mode": mode, "content": content, **measure(pid, a.seconds, a.settle)})
+                    check_mover_alive(mover)
+                    res = measure(pid, a.seconds, a.settle)
+                    check_mover_alive(mover)
+                    results.append({"mode": mode, "content": content, **res})
             finally:
                 stop_mover(mover)
     finally:

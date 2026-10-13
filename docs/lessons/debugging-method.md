@@ -1086,3 +1086,5 @@ Applies-when: launching a helper process (mover, server, fixture) whose silent d
 Aurora-wqzp.11: `perf.py` launched kiosk Firefox, slept 3 s, and measured. The mover zombied on 3 of 5 launches, so 'moving' rows were really static with nothing in the output or JSON saying so. The Mac half (Aurora-wqzp.9) is the same trap from the other side: WebUI tabs landing in the kiosk window hide the stripes, again measuring static as moving.
 
 **Fix:** `poll()` the handle after the settle; retry a couple of times (cleaning each dead attempt's throwaway profile), then hard-fail naming the rows that would be invalid. A measurement whose precondition died must refuse to report, never degrade silently.
+
+Follow-up (live run): the 3 s `poll()` was not enough either. Snap kiosk Firefox died at 4-17 s in 6/6 launches, after the check passed. A launch-time check only proves launch; keep checking through the measurement (`check_mover_alive` around each `measure`), and prefer a helper that stays up (ffplay) over retrying a flaky one. Neither check catches a live-but-hidden helper, which needs a signal from the measured side (SSE frame changes).
