@@ -1088,3 +1088,11 @@ Aurora-wqzp.11: `perf.py` launched kiosk Firefox, slept 3 s, and measured. The m
 **Fix:** `poll()` the handle after the settle; retry a couple of times (cleaning each dead attempt's throwaway profile), then hard-fail naming the rows that would be invalid. A measurement whose precondition died must refuse to report, never degrade silently.
 
 Follow-up (live run): the 3 s `poll()` was not enough either. Snap kiosk Firefox died at 4-17 s in 6/6 launches, after the check passed. A launch-time check only proves launch; keep checking through the measurement (`check_mover_alive` around each `measure`), and prefer a helper that stays up (ffplay) over retrying a flaky one. Neither check catches a live-but-hidden helper, which needs a signal from the measured side (SSE frame changes).
+
+## A liveness oracle must be sensitive to what the measured side can see
+Tags: perf-harness, verification, oracle, false-positive
+Applies-when: proving a stimulus (mover, fixture, signal) reaches the system under test by watching that system's output
+
+Aurora-wqzp.9: to catch a live-but-hidden mover, `perf.py` counted SSE frames whose zone colours changed. The first live run aborted at 0 of 49 frames/s although the mover was on screen: drifting stripes (240 px period) average to the same colour in every large zone, so zone output never changes however much the pixels move. The check was blind to the very motion it was meant to prove, and the same blindness would have passed a hidden mover as 'static, as expected'.
+
+**Fix:** make the stimulus carry a component the observer can see (slow +-10 level brightness breathing, no flashing), then require the observed signal to change. Before trusting an oracle's refusal, probe it once in isolation (stimulus only, read the raw output) to tell a dead stimulus from an insensitive oracle.

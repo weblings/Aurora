@@ -34,11 +34,18 @@
       stripes.push(d);
     }
   }
-  let off = 0;
+  let off = 0, n = 0;
   function frame() {
     off += DX;
     if (off >= PERIOD) off -= PERIOD;  // one period shifted: pattern repeats
-    for (const d of stripes) d.style.transform = `translateX(${off}px)`;
+    // slow +-10 level breathing (~0.4 Hz, no flashing) so zone averages change; see perf.py
+    n += 1;
+    const d10 = Math.round(10 * Math.sin(n / 24));
+    document.body.style.background = `rgb(${0x1c + d10},${0x1f + d10},${0x26 + d10})`;
+    for (const d of stripes) {
+      d.style.transform = `translateX(${off}px)`;
+      d.style.background = `rgb(${0x2b + d10},${0x30 + d10},${0x3a + d10})`;
+    }
     requestAnimationFrame(frame);
   }
   window.addEventListener('resize', layout);

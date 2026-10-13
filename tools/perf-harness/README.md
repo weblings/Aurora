@@ -43,3 +43,8 @@ tkinter is absent (Linux, Mac with Homebrew Python); on Mac it finds
 `/Applications/Firefox.app` off PATH. That Firefox fallback can launch and
 zombie immediately with no error (Aurora-wqzp.11) -- check the window
 actually came up before trusting a `moving` result.
+
+A `moving` row is also proven from the relay SSE: if fewer than 1 light frame/s
+differs from its predecessor, perf.py aborts ("mover is hidden or not drawing")
+instead of reporting static as moving (Aurora-wqzp.9). Typical cause on Mac: the app
+opened its WebUI in a running Firefox that now covers the mover; close those windows.

@@ -102,7 +102,8 @@ def stats_lines(pid):
 class FrameCounter(threading.Thread):
     def __init__(self):
         super().__init__(daemon=True)
-        self.count, self.run_flag = 0, True
+        self.count, self.changed, self.run_flag = 0, 0, True
+        self._last = None
 
     def run(self):
         while self.run_flag:
@@ -113,6 +114,9 @@ class FrameCounter(threading.Thread):
                             return
                         if line.startswith(b"data:"):
                             self.count += 1
+                            if self._last is not None and line != self._last:
+                                self.changed += 1  # zone colours differ from the previous frame
+                            self._last = line
             except Exception:
                 time.sleep(0.2)
 
@@ -131,7 +135,9 @@ def start_mover():
 
 def start_ffplay_mover():
     """Fullscreen ffplay stripes (same dark slow drift as _mover); needs a graphical session."""
-    geq = "geq=lum='if(lt(mod(X/2+N,240),120),43,28)'"
+    # +-10 levels breathing (~0.4 Hz, slow, no flashing): stripes alone average out inside a zone,
+    # so without it the SSE change proof (check_mover_visible) can't see a working mover
+    geq = "geq=lum='if(lt(mod(X/2+N,240),120),43,28)+10*sin(N/24)'"
     p = subprocess.Popen(["ffplay", "-fs", "-noborder", "-loglevel", "quiet", "-f", "lavfi",
                           "-i", f"color=c=gray:s=960x600:r=60,format=gray,{geq}"],
                          stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
@@ -146,6 +152,19 @@ def check_mover_alive(p):
     if p is not None and p.poll() is not None:
         sys.exit(f"mover died mid-run (exit {p.returncode}); refusing 'moving' rows "
                  "that would silently measure a static desktop")
+
+
+def check_mover_visible(res, mode):
+    """Abort when a live mover never changed the zone colours (hidden behind another window).
+
+    A mover process can be alive yet covered, e.g. by the WebUI tabs the app opens
+    in the kiosk Firefox (Aurora-wqzp.9); its rows would silently measure static.
+    Audio-only rows are driven by the tone, not the screen, so they are exempt.
+    """
+    if MODES[mode][0] and res["frames_per_s"] > 0 and res["changed_per_s"] < 1.0:
+        sys.exit(f"'moving' {mode} row saw {res['changed_per_s']:.1f} of {res['frames_per_s']:.1f} light "
+                 "frames/s change zone colours: the mover is hidden or not drawing. Bring it to the "
+                 "front (close browser/WebUI windows) and re-run; refusing to report a static row as moving")
 
 
 def start_firefox_mover(attempts=3):
@@ -221,9 +240,14 @@ def _mover():
     # tick, no flashing (photosensitivity). Capture cost is per delivered frame.
     stripes = [cv.create_rectangle(x, 0, x + period // 2, height, fill="#2b303a", outline="")
                for x in range(-period, width + period, period)]
-    state = {"off": 0}
+    state = {"off": 0, "n": 0}
 
     def tick():
+        state["n"] += 1  # slow +-10 level breathing so zone averages change (see check_mover_visible)
+        d = round(10 * math.sin(state["n"] / 24))
+        cv.configure(bg=f"#{0x1c + d:02x}{0x1f + d:02x}{0x26 + d:02x}")
+        for sid in stripes:
+            cv.itemconfig(sid, fill=f"#{0x2b + d:02x}{0x30 + d:02x}{0x3a + d:02x}")
         for sid in stripes:
             cv.move(sid, dx, 0)
         state["off"] += dx
@@ -269,14 +293,15 @@ def measure(pid, seconds, settle):
     counter = FrameCounter()
     counter.start()
     time.sleep(0.5)  # SSE connect
-    counter.count = 0
+    counter.count = counter.changed = 0
     c0, t0 = cpu_seconds(pid), time.monotonic()
     time.sleep(seconds)
     c1, t1 = cpu_seconds(pid), time.monotonic()
     counter.run_flag = False
     wall = t1 - t0
     rows = [tuple(map(float, g[1:])) for g in stats_lines(pid)[before:]]  # [ticks, s, hz, vavg, vmax, aavg, amax, budget]
-    res = {"cpu_pct": 100 * (c1 - c0) / wall, "frames_per_s": counter.count / wall, "windows": len(rows)}
+    res = {"cpu_pct": 100 * (c1 - c0) / wall, "frames_per_s": counter.count / wall,
+           "changed_per_s": counter.changed / wall, "windows": len(rows)}
     if rows:
         res.update(hz=statistics.mean(r[2] for r in rows),
                    video_avg=statistics.mean(r[3] for r in rows), video_max=max(r[4] for r in rows),
@@ -423,6 +448,8 @@ def main():
                     check_mover_alive(mover)
                     res = measure(pid, a.seconds, a.settle)
                     check_mover_alive(mover)
+                    if content == "moving":
+                        check_mover_visible(res, mode)
                     results.append({"mode": mode, "content": content, **res})
             finally:
                 stop_mover(mover)
