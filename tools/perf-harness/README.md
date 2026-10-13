@@ -29,6 +29,7 @@ and tkinter for `moving`.
 - **Audio:** a looping 440 Hz tone plays throughout (`--no-tone` to skip),
   otherwise audio modes emit no light frames.
 
-Windows and Linux verified (Linux: Wayland, GNOME, `linux-audio`;
-X11 untested; moving via kiosk Firefox when tkinter is absent).
-Mac path is written but unrun (`ps` parsing, `mac-audio` name).
+Windows, Linux and Mac verified (Linux: Wayland, GNOME, `linux-audio`;
+X11 untested; Mac: `mac-audio`, `ps -o cputime`). Moving falls back to kiosk
+Firefox when tkinter is absent (Linux, Mac with Homebrew Python); on Mac it
+finds `/Applications/Firefox.app` off PATH.

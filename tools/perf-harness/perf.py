@@ -134,7 +134,8 @@ def start_firefox_mover():
     session; uses a throwaway profile so the user's Firefox is untouched.
     """
     import shutil
-    exe = shutil.which("firefox")
+    exe = shutil.which("firefox") or next(
+        (c for c in ["/Applications/Firefox.app/Contents/MacOS/firefox"] if Path(c).exists()), None)
     if not exe:
         sys.exit("moving content needs tkinter or firefox, found neither")
     profile = Path(tempfile.mkdtemp(prefix="aurora-perf-ff-"))
