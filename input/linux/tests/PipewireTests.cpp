@@ -383,3 +383,44 @@ TEST_CASE("dmabufEnabledFrom is on unless the kill switch is \"0\"", "[PipewireD
   CHECK_FALSE(dmabufEnabledFrom("0"));
 }
 
+
+
+TEST_CASE("captureDecimation keeps the result at least 8x the hint and 256 px", "[PipewireGrabber][frame]")
+{
+  CHECK(captureDecimation(0, 1920) == 1);
+  CHECK(captureDecimation(64, 1920) == 3);   // 640 >= 512
+  CHECK(captureDecimation(10, 1920) == 7);   // 274 >= 256
+  CHECK(captureDecimation(64, 3840) == 7);
+  CHECK(captureDecimation(64, 512) == 1);
+  CHECK(captureDecimation(10, 200) == 1);
+}
+
+
+TEST_CASE("toOwnedImage with decimation area-averages, keeping format and cropping the remainder", "[PipewireGrabber][frame]")
+{
+  std::vector<uint8_t> buffer(9 * 5 * 4, 0);
+  for(size_t i = 0; i < buffer.size(); i += 4){
+    buffer[i] = 200; buffer[i + 1] = 100; buffer[i + 2] = 50; buffer[i + 3] = 255;
+  }
+  ImageData image = toOwnedImage(buffer.data(), 9, 5, 0, PixelFormat::BGRA, 2);
+  REQUIRE(image.hasData());
+  CHECK(image.width() == 4);
+  CHECK(image.height() == 2);
+  CHECK(image.format == PixelFormat::BGRA);
+  CHECK(image.imageMatrix.at<cv::Vec4b>(0, 0) == cv::Vec4b(200, 100, 50, 255));
+}
+
+
+TEST_CASE("toOwnedImage decimation matches a full clone then INTER_AREA (colour parity)", "[PipewireGrabber][frame]")
+{
+  const int width = 64, height = 36, paddedStride = width * 4 + 16;
+  std::vector<uint8_t> buffer(static_cast<size_t>(paddedStride) * height);
+  for(size_t i = 0; i < buffer.size(); ++i){
+    buffer[i] = static_cast<uint8_t>((i * 37 + i / 11) & 0xFF);
+  }
+  ImageData direct = toOwnedImage(buffer.data(), width, height, paddedStride, PixelFormat::RGBA, 4);
+  ImageData full = toOwnedImage(buffer.data(), width, height, paddedStride);
+  cv::Mat expected;
+  cv::resize(full.imageMatrix, expected, direct.imageMatrix.size(), 0, 0, cv::INTER_AREA);
+  CHECK(cv::norm(direct.imageMatrix, expected, cv::NORM_INF) == 0);
+}

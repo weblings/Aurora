@@ -2,7 +2,7 @@
 """Per-platform capture/tick perf harness (dev-only, Aurora-wqzp.1).
 
     py tools/perf-harness/perf.py [--app PATH] [--seconds 30] [--settle 8]
-                                  [--modes video,audio,both] [--content static,moving]
+                                  [--modes video,audio,both] [--content static,moving,cursor]
                                   [--json OUT] [--keep-stack] [--no-tone]
 
 Brings up the devstack with AURORA_DEV_DUAL_CAPTURE=1, then for every mode x
@@ -12,7 +12,7 @@ and light frames/s from the relay SSE. Stdlib only. Needs a graphical session
 and (for `moving`) tkinter. `static` assumes a quiet desktop. `moving` covers the
 screen with slow, dark, low-contrast stripes (no flashing).
 """
-import argparse, json, os, re, shutil, statistics, subprocess, sys, tempfile, threading, time, urllib.request, wave, struct, math
+import argparse, json, os, platform, re, shutil, statistics, subprocess, sys, tempfile, threading, time, urllib.request, wave, struct, math
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
@@ -148,6 +148,26 @@ def start_firefox_mover():
     return p
 
 
+def start_cursor_mover():
+    """Cursor-only content (Windows): wiggles the real cursor over a static desktop."""
+    if not WIN:
+        sys.exit("cursor content is Windows-only (DXGI cursor-only frames, Aurora-wqzp.8)")
+    return subprocess.Popen([sys.executable, str(Path(__file__).resolve()), "_cursor"])
+
+
+def _cursor():
+    import ctypes
+    import ctypes.wintypes as wt
+    user32 = ctypes.windll.user32
+    pt = wt.POINT()
+    user32.GetCursorPos(ctypes.byref(pt))
+    i = 0
+    while True:  # 60 moves/s, 40 px diagonal sweep
+        user32.SetCursorPos(pt.x + i % 40, pt.y + i % 40)
+        i += 1
+        time.sleep(1 / 60)
+
+
 def stop_mover(p):
     import shutil
     stop(p)
@@ -233,6 +253,31 @@ def measure(pid, seconds, settle):
     return res
 
 
+def _out(cmd):
+    try:
+        return subprocess.run(cmd, capture_output=True, text=True, timeout=10).stdout
+    except (OSError, subprocess.SubprocessError):
+        return ""
+
+
+def hw_info():
+    """CPU model, logical cores, GPU(s), OS -- best effort, '?' when unavailable."""
+    cpu, gpu = "", []
+    if sys.platform == "darwin":
+        cpu = _out(["sysctl", "-n", "machdep.cpu.brand_string"]).strip()
+        gpu = re.findall(r"Chipset Model: (.+)", _out(["system_profiler", "SPDisplaysDataType"]))
+    elif WIN:
+        ps = lambda q: _out(["powershell", "-NoProfile", "-Command", q]).strip().splitlines()
+        cpu = (ps("(Get-CimInstance Win32_Processor).Name") or [""])[0].strip()
+        gpu = [g.strip() for g in ps("(Get-CimInstance Win32_VideoController).Name")]
+    else:
+        m = re.search(r"Model name:\s*(.+)", _out(["lscpu"]))
+        cpu = m.group(1).strip() if m else ""
+        gpu = re.findall(r"(?:VGA|3D|Display)[^:]*: (.+)", _out(["lspci"]))
+    return {"cpu": cpu or platform.processor() or "?", "logical_cores": os.cpu_count(),
+            "gpu": gpu or ["?"], "os": platform.platform()}
+
+
 def fmt(r):
     cells = [f"{r['cpu_pct']:5.1f}%", f"{r['frames_per_s']:6.1f}"]
     if "hz" in r:
@@ -269,7 +314,8 @@ def main():
     results = []
     try:
         for content in contents:
-            mover = start_mover() if content == "moving" else None
+            mover = (start_mover() if content == "moving"
+                     else start_cursor_mover() if content == "cursor" else None)
             try:
                 time.sleep(2 if mover else 0)
                 for mode in modes:
@@ -285,13 +331,15 @@ def main():
         if started and not a.keep_stack:
             subprocess.run(devstack.py() + [str(RELAY_DIR / "devstack.py"), "down"])
 
+    hw = hw_info()
+    print(f"hardware: {hw['cpu']} ({hw['logical_cores']} logical) | GPU: {'; '.join(hw['gpu'])} | {hw['os']}")
     head = ["mode", "content", "CPU", "frames/s", "Hz", "video avg/max ms", "audio avg/max ms", "budget"]
     rows = [[r["mode"], r["content"]] + fmt(r) for r in results]
     widths = [max(len(str(x)) for x in col) for col in zip(head, *rows)]
     for row in [head] + rows:
         print("  ".join(str(c).ljust(w) for c, w in zip(row, widths)))
     if a.json:
-        Path(a.json).write_text(json.dumps(results, indent=2))
+        Path(a.json).write_text(json.dumps({"hardware": hw, "results": results}, indent=2))
 
 
 if __name__ == "__main__":
@@ -299,5 +347,7 @@ if __name__ == "__main__":
         _readconsole(int(sys.argv[2]))
     elif len(sys.argv) > 1 and sys.argv[1] == "_mover":
         _mover()
+    elif len(sys.argv) > 1 and sys.argv[1] == "_cursor":
+        _cursor()
     else:
         main()

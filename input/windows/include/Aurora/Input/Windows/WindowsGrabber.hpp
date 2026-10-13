@@ -1,7 +1,11 @@
 #pragma once
 
 #include <atomic>
+#include <condition_variable>
 #include <cstdint>
+#include <exception>
+#include <mutex>
+#include <thread>
 
 #include <d3d11.h>
 #include <dxgi1_2.h>
@@ -38,7 +42,7 @@ namespace Aurora::Input::Windows
     };
 
     WindowsGrabber();
-    virtual ~WindowsGrabber() {}
+    virtual ~WindowsGrabber();
 
     const std::string& name() const override;
 
@@ -59,6 +63,11 @@ namespace Aurora::Input::Windows
     void _initMonitorsList() override;
 
   private:
+    // Capture thread (Aurora-wqzp.6): owns the duplication objects below and
+    // publishes the newest frame; grabFrameSubsample() only copies it out.
+    void _captureLoop();
+    bool _captureOnce();
+    void _stopCapture();
     bool _ensureDuplication();
     void _releaseDuplication();
     // Halves the frame on the GPU (mip chain) down to the hint's 8x oversample,
@@ -75,10 +84,23 @@ namespace Aurora::Input::Windows
 
     // Set from config apply (another thread) while the tick thread grabs.
     std::atomic<unsigned> m_captureWidthHint{0};
-    std::uint64_t m_frameSerial = 0;
 
-    // Returned on WAIT_TIMEOUT/ACCESS_LOST/transient failures -- see
-    // docs/WindowsInputAnalysis.md's failure-mode table.
-    Contracts::ImageData m_lastFrame;
+    std::thread m_captureThread;
+    std::atomic<bool> m_stopCapture{false};
+    std::mutex m_wakeMutex;
+    std::condition_variable m_wake;
+
+    // Newest frame, kept across WAIT_TIMEOUT/ACCESS_LOST/transient failures
+    // -- see docs/WindowsInputAnalysis.md's failure-mode table.
+    std::mutex m_latestMutex;
+    Contracts::ImageData m_latest;
+    std::uint64_t m_latestSerial = 0;
+    // Panel rotation of the current duplication (capture thread only).
+    DXGI_MODE_ROTATION m_rotation = DXGI_MODE_ROTATION_IDENTITY;
+    // True once this duplication has produced an image (capture thread only).
+    bool m_hasDesktopImage = false;
+    std::exception_ptr m_captureError;
+    // Serial of the frame last handed out (tick thread only).
+    std::uint64_t m_grabbedSerial = 0;
   };
 }

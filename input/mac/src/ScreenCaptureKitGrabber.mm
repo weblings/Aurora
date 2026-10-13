@@ -87,7 +87,24 @@ namespace Aurora::Input::Mac
     unsigned captureWidthHint = 0;
 
     std::mutex frameMutex;
+
+    // The newest delivered frame, retained as SCK handed it over, and a count
+    // of delivered frames. Converting to an ImageData waits for
+    // grabFrameSubsample(), so a frame the tick never reads costs nothing and
+    // a repeat costs no copy (Aurora-wqzp.3).
+    CVPixelBufferRef latestBuffer = nullptr;
+    std::uint64_t bufferSerial = 0;
+
+    // latestBuffer converted, as of bufferSerial == frameSerial.
     Contracts::ImageData latestFrame;
+    std::uint64_t frameSerial = 0;
+
+    ~Impl()
+    {
+      if(latestBuffer != nullptr){
+        CVPixelBufferRelease(latestBuffer);
+      }
+    }
   };
 }
 
@@ -109,35 +126,40 @@ namespace Aurora::Input::Mac
     return;
   }
 
+  // Only Complete (and the first, Started) frames carry new content. Idle
+  // ones repeat the last frame (a static screen, and a run of them before a
+  // screen-lock teardown, Aurora-8mk.9); counting those would defeat
+  // frameSerial().
+  CFArrayRef attachments = CMSampleBufferGetSampleAttachmentsArray(sampleBuffer, false);
+  if(attachments == nullptr || CFArrayGetCount(attachments) == 0){
+    return;
+  }
+  NSDictionary* info = (__bridge NSDictionary*)CFArrayGetValueAtIndex(attachments, 0);
+  NSNumber* status = info[SCStreamFrameInfoStatus];
+  if(status == nil
+     || (status.integerValue != SCFrameStatusComplete && status.integerValue != SCFrameStatusStarted)){
+    return;
+  }
+
   CVPixelBufferRef pixelBuffer = CMSampleBufferGetImageBuffer(sampleBuffer);
   if(pixelBuffer == nullptr){
     return;
   }
 
-  CVPixelBufferLockBaseAddress(pixelBuffer, kCVPixelBufferLock_ReadOnly);
-
-  void* base = CVPixelBufferGetBaseAddress(pixelBuffer);
-  size_t width = CVPixelBufferGetWidth(pixelBuffer);
-  size_t height = CVPixelBufferGetHeight(pixelBuffer);
-  size_t bytesPerRow = CVPixelBufferGetBytesPerRow(pixelBuffer);
-
-  if(base != nullptr && width > 0 && height > 0){
-    // kCVPixelFormatType_32BGRA (set on SCStreamConfiguration below) maps
-    // directly onto Contracts::PixelFormat::BGRA -- no channel-order or
-    // byte-layout conversion needed, same "wrap then clone" shape as
-    // PipewireFrameBuffer.hpp (Pipewire's buffer is invalid once this
-    // callback returns, so the clone can't be deferred).
-    cv::Mat view(static_cast<int>(height), static_cast<int>(width), CV_8UC4, base, bytesPerRow);
-
-    Aurora::Contracts::ImageData captured;
-    captured.imageMatrix = view.clone();
-    captured.format = Aurora::Contracts::PixelFormat::BGRA;
-
+  // Keep the buffer, not a copy: grabFrameSubsample() converts it if and
+  // when the tick reads it. Holding one buffer leaves the rest of SCK's
+  // pool (queueDepth, default 3) free for delivery.
+  CVPixelBufferRetain(pixelBuffer);
+  CVPixelBufferRef previous = nullptr;
+  {
     std::lock_guard<std::mutex> lock(impl->frameMutex);
-    impl->latestFrame = std::move(captured);
+    previous = impl->latestBuffer;
+    impl->latestBuffer = pixelBuffer;
+    ++impl->bufferSerial;
   }
-
-  CVPixelBufferUnlockBaseAddress(pixelBuffer, kCVPixelBufferLock_ReadOnly);
+  if(previous != nullptr){
+    CVPixelBufferRelease(previous);
+  }
 }
 
 
@@ -234,11 +256,13 @@ namespace Aurora::Input::Mac
 
 
     // What SCK delivers: full pixel size, or -- once the consumer has said
-    // how narrow an image it samples -- an 8x oversample of that, at least
+    // how narrow an image it samples -- a 2x oversample of that, at least
     // 256px wide, aspect kept. The GPU does the bulk downscale; the CPU's
-    // INTER_AREA in Orchestrator still averages the final step, so zone
-    // colors keep area-averaging quality. Full-Retina frames resized on the
-    // CPU every tick overran a 60Hz tick and starved the WebUI (Aurora-3qh).
+    // INTER_AREA in Orchestrator averages the final step. Full-Retina frames
+    // resized on the CPU every tick overran a 60Hz tick and starved the WebUI
+    // (Aurora-3qh). 8x was the first rule: at subsampleWidth 190 that is a
+    // 1520px frame, ~24% CPU on moving content vs 4.4% at 2x, with zone
+    // colors within 1/255 of full resolution either way (Aurora-wqzp.3).
     SCStreamConfiguration* makeStreamConfiguration(
       unsigned pixelWidth,
       unsigned pixelHeight,
@@ -249,7 +273,7 @@ namespace Aurora::Input::Mac
       unsigned width = pixelWidth;
       unsigned height = pixelHeight;
       if(captureWidthHint > 0 && pixelWidth > 0){
-        width = std::min(pixelWidth, std::max(captureWidthHint * 8u, 256u));
+        width = std::min(pixelWidth, std::max(captureWidthHint * 2u, 256u));
         width -= width % 2; // even dimensions for the BGRA pixel buffer
         height = static_cast<unsigned>(std::lround(static_cast<double>(pixelHeight) * width / pixelWidth));
         height = std::max(2u, height - height % 2);
@@ -497,8 +521,48 @@ namespace Aurora::Input::Mac
   {
     _ensureStream();
 
+    CVPixelBufferRef pixelBuffer = nullptr;
+    std::uint64_t serial = 0;
+    {
+      std::lock_guard<std::mutex> lock(m_impl->frameMutex);
+      if(m_impl->bufferSerial == m_impl->frameSerial || m_impl->latestBuffer == nullptr){
+        imageData = m_impl->latestFrame;
+        return;
+      }
+      pixelBuffer = CVPixelBufferRetain(m_impl->latestBuffer);
+      serial = m_impl->bufferSerial;
+    }
+
+    // Copied out of the buffer outside the lock so the stream callback never
+    // waits on it. kCVPixelFormatType_32BGRA (set on SCStreamConfiguration)
+    // maps directly onto Contracts::PixelFormat::BGRA.
+    Contracts::ImageData converted;
+    CVPixelBufferLockBaseAddress(pixelBuffer, kCVPixelBufferLock_ReadOnly);
+    void* base = CVPixelBufferGetBaseAddress(pixelBuffer);
+    size_t width = CVPixelBufferGetWidth(pixelBuffer);
+    size_t height = CVPixelBufferGetHeight(pixelBuffer);
+    size_t bytesPerRow = CVPixelBufferGetBytesPerRow(pixelBuffer);
+    if(base != nullptr && width > 0 && height > 0){
+      cv::Mat view(static_cast<int>(height), static_cast<int>(width), CV_8UC4, base, bytesPerRow);
+      converted.imageMatrix = view.clone();
+      converted.format = Contracts::PixelFormat::BGRA;
+    }
+    CVPixelBufferUnlockBaseAddress(pixelBuffer, kCVPixelBufferLock_ReadOnly);
+    CVPixelBufferRelease(pixelBuffer);
+
     std::lock_guard<std::mutex> lock(m_impl->frameMutex);
+    if(converted.hasData()){
+      m_impl->latestFrame = std::move(converted);
+    }
+    m_impl->frameSerial = serial;
     imageData = m_impl->latestFrame;
+  }
+
+
+  std::uint64_t ScreenCaptureKitGrabber::frameSerial() const
+  {
+    std::lock_guard<std::mutex> lock(m_impl->frameMutex);
+    return m_impl->frameSerial;
   }
 
 

@@ -1025,6 +1025,40 @@ Aurora-wqzp.1: the first "moving content" fixture cycled the full screen red/gre
 Tags: debugging, performance, measurement, fixtures, capture, mac, linux
 Applies-when: a changing-content run reports the same CPU, Hz and frames/s as the static run
 
-Aurora-wqzp.1 Mac and Linux: moving matched static within noise (Mac video 20.7% vs 21.6%, Linux 52.6% vs 50.7%). That is the expected answer where no repeat-frame reuse exists yet (both rescale full-size every tick, see wqzp.2/.3), but it is also exactly what a mover that never reached the screen would print: Firefox started late, stayed behind another window, or was a second instance that did not go kiosk. The harness cannot tell the two apart from its own table. The proof was one extra read of the light SSE with and without the mover: Mac mean zone brightness 0.30 -> 0.34, Linux zones ~0.9 -> 0.05-0.25.
+Aurora-wqzp.1 Mac and Linux: moving matched static within noise (Mac video 20.7% vs 21.6%, Linux Wayland 52.6% vs 50.7%, Linux X11 66.7% vs 67.7%). That is the expected answer where no repeat-frame reuse exists yet (both rescale full-size every tick, see wqzp.2/.3), but it is also exactly what a mover that never reached the screen would print: Firefox started late, stayed behind another window, or was a second instance that did not go kiosk. The harness cannot tell the two apart from its own table. The proof was one extra read of the light SSE with and without the mover: Mac mean zone brightness 0.30 -> 0.34, Linux zones ~0.9 -> 0.05-0.25.
 
-**Fix:** after starting the mover, compare zone output against the static baseline before trusting a flat moving row. A mover that changes nothing the lights can see is a failed fixture, not a finding. On Mac the fallback browser is `/Applications/Firefox.app/Contents/MacOS/firefox` (not on PATH), and Homebrew Python has no tkinter.
+**Update (Aurora-wqzp.1, Linux X11):** a cheaper, earlier check catches a failure mode the SSE-brightness proof doesn't rule out by itself -- the kiosk Firefox child can zombie immediately after `Popen` returns, with no window ever created and no error on either fd (3 of 5 launches here; no conclusive cause, suspected snap-firefox startup race, direct shell launches of the identical command were reliable). `perf.py` never checked `poll()`, so a dead mover was indistinguishable from a slow one until the whole 28s measurement window had already been spent on a silently-static run. Filed as Aurora-wqzp.11.
+
+**Fix:** after starting the mover, compare zone output against the static baseline before trusting a flat moving row. A mover that changes nothing the lights can see is a failed fixture, not a finding. Check sooner than that too: confirm via `poll()`/`ps` that the mover process (and, for a multi-process browser, at least one child) is actually still alive a few seconds after launch, before spending the measurement window on it. On Mac the fallback browser is `/Applications/Firefox.app/Contents/MacOS/firefox` (not on PATH), and Homebrew Python has no tkinter.
+
+**Update (Aurora-wqzp.2, Linux Wayland, snap Firefox):** the kiosk mover was gone within ~5 s inside the harness (a hand launch of the same command survived), so the first "moving" run printed the static number (46.5%) and looked like a result. The real moving run, with a verified mover, was 88.5% before the fix and 60.0% after. Substitute that stayed up: `ffplay -fs -noborder -f lavfi -i "color=c=gray:s=960x600:r=60,format=gray,geq=lum='if(lt(mod(X/2+N,240),120),43,28)'"` (`drawbox` has no per-frame variable; `geq` has `N`), then run `perf.py --content static` while it is up. Proof: mean zone brightness 0.97 -> 0.09. When a probe also counts delivered frames per window, a flat ~10/s on a "moving" run is itself the tell.
+
+## Check `hostname` before attributing hardware to a recorded run
+Tags: debugging, measurement, provenance, perf
+Applies-when: writing machine specs next to numbers someone else (or an earlier session) recorded
+
+Aurora-wqzp.1: specs read from the box at hand (Framework laptop, i5-1334U) were logged beside Linux Wayland/X11 numbers that came from MediaServer (i5-7600K). The wrong comparison ("contrast with the X11 run") went into the bead before the earlier comment's hostname was re-read. Comments cannot be edited, so it needed a correction comment.
+
+**Fix:** compare the current `hostname` with the host named in the run being annotated before writing specs; with `perf.py` now printing a `hardware:` line, quote that line from the run's own output instead of querying the machine later.
+
+
+---
+
+## A lower tick budget is not a lower tick rate -- read the measured Hz, and repeat noisy A/B runs
+Tags: perf, measurement, tick-rate, ab-testing
+Applies-when: judging whether a rate cap or interval change cut CPU
+
+Aurora-wqzp.5: capping the display-derived rate at 60 Hz moved the budget 8.33 -> 16.67 ms on a 120 Hz display, but the uncapped Windows build still ticked at ~58-62 Hz because the grab wait paces the tick (Aurora-wqzp.6). The real saving was ~20-45% of moving-content CPU, not the 2x the budget implies. Capped moving runs ranged 11.2-17.8% CPU, and one ran at 32 Hz, so a single pair would have shown anything from a 2x win to a small one.
+
+**Fix:** compare the measured wall-clock Hz and CPU together, run each variant 3 times alternating builds, and quote the range. Report the pacing source (here the grab wait) before promising a cap's headline ratio.
+
+
+---
+
+## Set a test threshold from the baseline run -- a loose bound passes the unfixed code
+Tags: testing, thresholds, baseline, perf-harness
+Applies-when: writing a manual or perf check for a skip/dedup optimisation, or judging it by CPU
+
+Aurora-wqzp.8: the first cursor test asserted `bumps < moves / 10` (20). The unfixed build bumped the serial 14 times per 200 moves, so the check passed with and without the fix. Tightening to `<= 2` (fixed build: 0) made it discriminate. CPU could not: `SetCursorPos` yields few pointer-only DXGI frames, and the old build cost 0.5% under cursor motion, same as static.
+
+**Fix:** run the check once with the optimisation disabled, record that number, and set the bound between it and the fixed result. When CPU shows nothing, say so and cite the counter (serial bumps) that the change actually targets.

@@ -93,6 +93,11 @@ namespace Aurora::Runtime
     // loop cannot honor sub-4ms intervals with network streaming anyway.
     static constexpr unsigned kMaxRefreshRate = 240;
 
+    // Cap on the rate *derived* from the display when none is saved. The
+    // Hue bridge forwards ~25 Hz to lights, so 120/144 Hz only multiplies
+    // per-tick CPU (Aurora-wqzp.5). An explicit user choice is not capped.
+    static constexpr unsigned kMaxDerivedRefreshRate = 60;
+
     unsigned refreshRate() const;
     void setRefreshRate(unsigned refreshRate); // clamped to [1, kMaxRefreshRate]
 

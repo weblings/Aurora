@@ -314,6 +314,23 @@ takes the whole process down.
 
 ---
 
+## DXGI Desktop Duplication frames arrive in the panel's native orientation, and the monitor list already reports the rotated size
+Tags: input, dxgi, windows, rotation
+Applies-when: touching WindowsGrabber capture or zone mapping on portrait or rotated monitors
+
+`DXGI_OUTPUT_DESC::DesktopCoordinates` (so `displayResolution()`) is in
+desktop space, already rotated, but the duplicated texture is not. A portrait
+monitor therefore reported 1200x1920 while the raw frame was sideways, and
+zone mapping would have been applied to it unrotated.
+
+**Fix:** read `DXGI_OUTDUPL_DESC::Rotation` after `DuplicateOutput` and
+`cv::rotate` the small downscaled readback (cheap, no GPU pass). A frame
+aspect check against `displayResolution()` catches a missing rotation but not
+a 180 degree error, and a black or asleep monitor can't show orientation at
+all, so put readable content on the monitor before judging direction.
+
+---
+
 ## A process-global library init/deinit pair must not live in a per-instance constructor/destructor when the app deliberately overlaps old and new instances
 Tags: input, pipewire, lifecycle, reload, globals
 Applies-when: putting process-global init/deinit in a reloadable instance
@@ -534,7 +551,19 @@ Applies-when: choosing a capture size for a grabber whose frames get downsampled
 
 **Fix:** `IVideoInput::setCaptureWidthHint(width)` (default no-op), called by `Orchestrator::init` with `subsampleWidth`; the Mac grabber delivers an 8x oversample, at least 256px, never above full pixel size, so the CPU's INTER_AREA still averages the last step. Result: ~5.5% CPU, `/api/monitors`/`/api/zones` < 1ms, tick thread ~95% asleep. `displayResolution()` still reports full pixels (subsample candidates unchanged). When verifying, low CPU is also what a *failed* capture looks like (ticks skipped while unhealthy) -- confirm real frames: distinct per-zone colors on the light tap, a real display from `/api/monitors`, no permission errors in the log.
 
+**Update (Aurora-wqzp.3):** an oversample *factor* scales with `subsampleWidth`. 3qh measured at 16 (256 px), but the saved default on a 3420x2214 display is 190, the smallest candidate, so 8x meant 1520 px frames and ~22% CPU again. The rule is now 2x (>= 256 px): zone colours stayed within 1/255 of full resolution at 8x, 2x and 1x, so SCK's GPU scale averages fine. Measure a size rule at the real config's widths, not the one at hand.
+
 Also observed: the rebuilt, still ad-hoc-signed `Aurora.app` kept capturing when relaunched by `devstack.py` -- consistent with "A bare Mach-O binary's TCC permission grant attaches to whatever launched it" above (the launcher's grant applied), not with the rebuild-invalidates-grant lesson, which concerns a bundle launched on its own.
+
+---
+
+## SCK fires its callback on repeat ("Idle") frames too -- filtering by status and retaining the buffer instead of copying it turns a per-tick clone into a per-delivered-frame one
+Tags: input, mac, screencapturekit, performance, frame-reuse
+Applies-when: adding frame-reuse (a frameSerial/dirty counter) to an SCStream-based grabber, or explaining why its CPU cost doesn't drop on a static screen
+
+`ScreenCaptureKitGrabber`'s stream callback cloned every `CMSampleBuffer` it received and the tick thread resized it every time, even on a static screen: SCK keeps calling the callback with `SCFrameStatusIdle` buffers that repeat the last real frame, not just `Started`/`Complete` ones (confirmed against Hyperion's `OsxFrameGrabber.mm`, which already filters on this). Cloning and resizing those is pure waste on top of the real oversample cost (Aurora-wqzp.3).
+
+**Fix:** check `status.integerValue == SCFrameStatusComplete || status.integerValue == SCFrameStatusStarted` before touching the buffer; retain the `CVPixelBuffer` (not a copy) and convert only when `grabFrameSubsample()` is actually called and the buffer is new. Bump a `frameSerial()` counter only on a genuinely new delivered frame so `Orchestrator` can skip the rescale on a repeat -- the same pattern as Windows' `frameSerial()` (Aurora-igwa). `frameSerial()` alone only helps a static screen: moving content delivers a new frame every tick regardless, so it still needs the right oversample size.
 
 ---
 
@@ -843,3 +872,29 @@ up" is wrong on Mac.
 **Fix:** after the PUT, poll `/api/state` (not the PUT body) until `running`
 or a held error; after the user grants, `POST /api/reload`, since a grant
 reaches a grabber built after it, not a running one (Aurora-h457 entry above).
+
+## A frame serial must be captured with the frame, not read live afterwards
+Tags: input, pipewire, frameserial, orchestrator, concurrency
+Applies-when: adding frameSerial() to a grabber whose frames arrive on another thread
+
+Aurora-wqzp.2: `Orchestrator::update` calls `grabFrameSubsample()` then `frameSerial()`. With the serial read live from the PipeWire thread's counter, a frame landing between the two calls gives a new serial with the old pixels; the next tick sees an unchanged serial and reuses the stale prepared frame, so one real frame is lost. Same pattern as the Mac bufferSerial pairing (Aurora-wqzp.3).
+
+**Fix:** copy the serial inside the same lock as the frame copy, store it in a tick-thread member, and return that from `frameSerial()`. Bump the counter only after the no-data/skip returns so empty buffers never count. Result on GNOME: ~10 delivered frames/s on a static screen, so ~50 of 60 ticks skip the rescale (video 47.1% -> 13.7%).
+
+
+## INTER_AREA is only fast at integer ratios; measure the binary the harness runs
+Tags: input, pipewire, perf, opencv, perf-harness
+Applies-when: downscaling frames on the CPU, or benchmarking with tools/perf-harness
+
+Aurora-wqzp.4: resizing 1920 -> 512 (ratio 3.75) cost ~29 ms/frame, 10x the old 1920 -> 64 (ratio 30) rescale, so moving CPU went 64% -> 105% even though the tick time fell 9 -> 1 ms (work just moved to the PipeWire thread). A tick-time column alone hid it; process CPU caught it.
+
+**Fix:** decimate by an integer k (crop the < k px remainder) and let the Orchestrator finish the last step. Also: `devstack.py` launches `build/linux-app/bin/Aurora`, not `build/bin/Aurora`, so rebuild that tree before trusting a perf number.
+
+
+## DXGI cursor-only frames have `AccumulatedFrames == 0`, and so does the first frame after (re)duplication
+Tags: input, windows, dxgi, frame-serial, perf
+Applies-when: skipping or deduplicating `AcquireNextFrame` results, or changing when `WindowsGrabber` publishes a frame
+
+Aurora-wqzp.8: a pointer move delivers a frame whose desktop image is unchanged, but `WindowsGrabber` ran the mip, readback, clone and serial bump on it, so the Orchestrator rescaled again. The first `AcquireNextFrame` after `DuplicateOutput` also reports `AccumulatedFrames == 0` while carrying the only image there is.
+
+**Fix:** release and return early on `AccumulatedFrames == 0` only once this duplication has published an image (`m_hasDesktopImage`). Reset the flag in `_releaseDuplication` and `_stopCapture` (which clears `m_latest`), or a static desktop never delivers a first frame. Return true, not false, so the capture loop does not add its 10 ms back-off.

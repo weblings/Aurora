@@ -41,7 +41,7 @@ namespace
     }
 
     Resolution displayResolution() const override { return {4, 2}; }
-    RefreshRate displayRefreshRate() const override { return 30; }
+    RefreshRate displayRefreshRate() const override { return displayHz; }
 
     void grabFrameSubsample(ImageData& imageData) override
     {
@@ -56,6 +56,7 @@ namespace
       imageData.imageMatrix(cv::Rect(swapHalves ? 0 : 2, 0, 2, 2)).setTo(cv::Scalar(0, 0, 255));
     }
 
+    unsigned displayHz = 30;
     std::uint64_t frameSerial() const override { return serial; }
 
     bool hasFrame{true};
@@ -128,6 +129,25 @@ TEST_CASE("Orchestrator::init derives refreshRate/subsampleWidth from the displa
 
   CHECK(orchestrator.config().refreshRate() == 30); // from displayRefreshRate()
   CHECK(orchestrator.config().subsampleWidth() > 0);
+}
+
+
+TEST_CASE("Orchestrator::init caps a derived refreshRate at kMaxDerivedRefreshRate", "[Orchestrator]")
+{
+  ScopedTempDir dir("init-cap");
+  FakeInput input;
+  input.displayHz = 144;
+  FakeOutput output("fake", {});
+
+  Orchestrator orchestrator(input, {&output}, Config{}, ZoneMapStore(dir.path));
+  orchestrator.init();
+  CHECK(orchestrator.config().refreshRate() == Config::kMaxDerivedRefreshRate);
+
+  Config explicitCfg;
+  explicitCfg.setRefreshRate(144);
+  Orchestrator explicitRate(input, {&output}, explicitCfg, ZoneMapStore(dir.path));
+  explicitRate.init();
+  CHECK(explicitRate.config().refreshRate() == 144); // user choice is not capped
 }
 
 
