@@ -2,7 +2,7 @@
 
 Id: wqzp3-mac-video-cpu
 
-2026-10-12. Work done; the bead closes once Aurora-wqzp.1 (X11 run) does. Mac video mode measured ~19-22% CPU and a 4.1 ms
+2026-10-12. Closed (Aurora-wqzp.1's X11 run is done too). Mac video mode measured ~19-22% CPU and a 4.1 ms
 `update()` in the o13 and wqzp.1 runs, against 5.5% when Aurora-3qh closed
 ([[3qh-mac-capture-width-hint]], [[o13-dual-capture]]).
 

@@ -540,6 +540,16 @@ Also observed: the rebuilt, still ad-hoc-signed `Aurora.app` kept capturing when
 
 ---
 
+## SCK fires its callback on repeat ("Idle") frames too -- filtering by status and retaining the buffer instead of copying it turns a per-tick clone into a per-delivered-frame one
+Tags: input, mac, screencapturekit, performance, frame-reuse
+Applies-when: adding frame-reuse (a frameSerial/dirty counter) to an SCStream-based grabber, or explaining why its CPU cost doesn't drop on a static screen
+
+`ScreenCaptureKitGrabber`'s stream callback cloned every `CMSampleBuffer` it received and the tick thread resized it every time, even on a static screen: SCK keeps calling the callback with `SCFrameStatusIdle` buffers that repeat the last real frame, not just `Started`/`Complete` ones (confirmed against Hyperion's `OsxFrameGrabber.mm`, which already filters on this). Cloning and resizing those is pure waste on top of the real oversample cost (Aurora-wqzp.3).
+
+**Fix:** check `status.integerValue == SCFrameStatusComplete || status.integerValue == SCFrameStatusStarted` before touching the buffer; retain the `CVPixelBuffer` (not a copy) and convert only when `grabFrameSubsample()` is actually called and the buffer is new. Bump a `frameSerial()` counter only on a genuinely new delivered frame so `Orchestrator` can skip the rescale on a repeat -- the same pattern as Windows' `frameSerial()` (Aurora-igwa). `frameSerial()` alone only helps a static screen: moving content delivers a new frame every tick regardless, so it still needs the right oversample size.
+
+---
+
 ## In a promise-driven portal callback chain, every early return must settle the promise -- "just return" turns a bad state into a hang
 Tags: input, linux, pipewire, xdg-portal, promise, huenicorn
 Applies-when: adding or reviewing an error/denial branch in `XdgDesktopPortal`'s response callbacks (or any async chain a caller blocks on via a future)
