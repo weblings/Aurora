@@ -1051,3 +1051,14 @@ Applies-when: judging whether a rate cap or interval change cut CPU
 Aurora-wqzp.5: capping the display-derived rate at 60 Hz moved the budget 8.33 -> 16.67 ms on a 120 Hz display, but the uncapped Windows build still ticked at ~58-62 Hz because the grab wait paces the tick (Aurora-wqzp.6). The real saving was ~20-45% of moving-content CPU, not the 2x the budget implies. Capped moving runs ranged 11.2-17.8% CPU, and one ran at 32 Hz, so a single pair would have shown anything from a 2x win to a small one.
 
 **Fix:** compare the measured wall-clock Hz and CPU together, run each variant 3 times alternating builds, and quote the range. Report the pacing source (here the grab wait) before promising a cap's headline ratio.
+
+
+---
+
+## Set a test threshold from the baseline run -- a loose bound passes the unfixed code
+Tags: testing, thresholds, baseline, perf-harness
+Applies-when: writing a manual or perf check for a skip/dedup optimisation, or judging it by CPU
+
+Aurora-wqzp.8: the first cursor test asserted `bumps < moves / 10` (20). The unfixed build bumped the serial 14 times per 200 moves, so the check passed with and without the fix. Tightening to `<= 2` (fixed build: 0) made it discriminate. CPU could not: `SetCursorPos` yields few pointer-only DXGI frames, and the old build cost 0.5% under cursor motion, same as static.
+
+**Fix:** run the check once with the optimisation disabled, record that number, and set the bound between it and the fixed result. When CPU shows nothing, say so and cite the counter (serial bumps) that the change actually targets.

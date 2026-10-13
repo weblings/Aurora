@@ -872,3 +872,12 @@ Applies-when: downscaling frames on the CPU, or benchmarking with tools/perf-har
 Aurora-wqzp.4: resizing 1920 -> 512 (ratio 3.75) cost ~29 ms/frame, 10x the old 1920 -> 64 (ratio 30) rescale, so moving CPU went 64% -> 105% even though the tick time fell 9 -> 1 ms (work just moved to the PipeWire thread). A tick-time column alone hid it; process CPU caught it.
 
 **Fix:** decimate by an integer k (crop the < k px remainder) and let the Orchestrator finish the last step. Also: `devstack.py` launches `build/linux-app/bin/Aurora`, not `build/bin/Aurora`, so rebuild that tree before trusting a perf number.
+
+
+## DXGI cursor-only frames have `AccumulatedFrames == 0`, and so does the first frame after (re)duplication
+Tags: input, windows, dxgi, frame-serial, perf
+Applies-when: skipping or deduplicating `AcquireNextFrame` results, or changing when `WindowsGrabber` publishes a frame
+
+Aurora-wqzp.8: a pointer move delivers a frame whose desktop image is unchanged, but `WindowsGrabber` ran the mip, readback, clone and serial bump on it, so the Orchestrator rescaled again. The first `AcquireNextFrame` after `DuplicateOutput` also reports `AccumulatedFrames == 0` while carrying the only image there is.
+
+**Fix:** release and return early on `AccumulatedFrames == 0` only once this duplication has published an image (`m_hasDesktopImage`). Reset the flag in `_releaseDuplication` and `_stopCapture` (which clears `m_latest`), or a static desktop never delivers a first frame. Return true, not false, so the capture loop does not add its 10 ms back-off.

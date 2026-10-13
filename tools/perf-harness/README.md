@@ -29,6 +29,8 @@ and tkinter for `moving`.
   drifting ~0.5 Hz per pixel, so every grab sees a new frame with no flashing
   (photosensitivity). tkinter when present, else kiosk Firefox on
   `stripes.html` (same pattern). It covers the screen for the whole run.
+- **Cursor (Windows only):** wiggles the real cursor at 60 moves/s over a static desktop
+  (`--content cursor`), to exercise cursor-only DXGI frames (Aurora-wqzp.8).
 - **Audio:** a looping 440 Hz tone plays throughout (`--no-tone` to skip),
   otherwise audio modes emit no light frames.
 

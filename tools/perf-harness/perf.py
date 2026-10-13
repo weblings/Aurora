@@ -2,7 +2,7 @@
 """Per-platform capture/tick perf harness (dev-only, Aurora-wqzp.1).
 
     py tools/perf-harness/perf.py [--app PATH] [--seconds 30] [--settle 8]
-                                  [--modes video,audio,both] [--content static,moving]
+                                  [--modes video,audio,both] [--content static,moving,cursor]
                                   [--json OUT] [--keep-stack] [--no-tone]
 
 Brings up the devstack with AURORA_DEV_DUAL_CAPTURE=1, then for every mode x
@@ -146,6 +146,26 @@ def start_firefox_mover():
     p._perf_profile = profile  # cleaned by stop_mover
     time.sleep(3)  # fresh profile + kiosk settle before measuring
     return p
+
+
+def start_cursor_mover():
+    """Cursor-only content (Windows): wiggles the real cursor over a static desktop."""
+    if not WIN:
+        sys.exit("cursor content is Windows-only (DXGI cursor-only frames, Aurora-wqzp.8)")
+    return subprocess.Popen([sys.executable, str(Path(__file__).resolve()), "_cursor"])
+
+
+def _cursor():
+    import ctypes
+    import ctypes.wintypes as wt
+    user32 = ctypes.windll.user32
+    pt = wt.POINT()
+    user32.GetCursorPos(ctypes.byref(pt))
+    i = 0
+    while True:  # 60 moves/s, 40 px diagonal sweep
+        user32.SetCursorPos(pt.x + i % 40, pt.y + i % 40)
+        i += 1
+        time.sleep(1 / 60)
 
 
 def stop_mover(p):
@@ -294,7 +314,8 @@ def main():
     results = []
     try:
         for content in contents:
-            mover = start_mover() if content == "moving" else None
+            mover = (start_mover() if content == "moving"
+                     else start_cursor_mover() if content == "cursor" else None)
             try:
                 time.sleep(2 if mover else 0)
                 for mode in modes:
@@ -326,5 +347,7 @@ if __name__ == "__main__":
         _readconsole(int(sys.argv[2]))
     elif len(sys.argv) > 1 and sys.argv[1] == "_mover":
         _mover()
+    elif len(sys.argv) > 1 and sys.argv[1] == "_cursor":
+        _cursor()
     else:
         main()

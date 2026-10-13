@@ -71,6 +71,44 @@ TEST_CASE("WindowsGrabber captures real, non-empty frames", "[.][manual][Windows
 }
 
 
+// Static desktop required. Drives the real cursor (SetCursorPos) and checks
+// that cursor-only DXGI frames neither bump the serial nor lose the image.
+TEST_CASE("WindowsGrabber skips cursor-only frames", "[.][manual][WindowsGrabber]")
+{
+  WindowsGrabber grabber;
+  grabber.init();
+
+  ImageData image;
+  for(int wait = 0; wait < 100 && !image.hasData(); ++wait){
+    grabber.grabFrameSubsample(image);
+    std::this_thread::sleep_for(std::chrono::milliseconds(20));
+  }
+  // First frame after duplication is captured even on a static desktop.
+  REQUIRE(image.hasData());
+
+  std::this_thread::sleep_for(std::chrono::milliseconds(500));
+  grabber.grabFrameSubsample(image);
+  const auto before = grabber.frameSerial();
+
+  POINT origin;
+  GetCursorPos(&origin);
+  constexpr int moves = 200;
+  for(int i = 0; i < moves; ++i){
+    SetCursorPos(origin.x + (i % 40), origin.y + (i % 40));
+    std::this_thread::sleep_for(std::chrono::milliseconds(10));
+  }
+  SetCursorPos(origin.x, origin.y);
+  std::this_thread::sleep_for(std::chrono::milliseconds(100));
+
+  grabber.grabFrameSubsample(image);
+  const auto bumps = grabber.frameSerial() - before;
+  std::cerr << "cursor moves " << moves << ", serial bumps " << bumps << "\n";
+  CHECK(image.hasData());
+  // Baseline (no skip) bumps ~14 per 200 moves; allow a little real desktop activity.
+  CHECK(bumps <= 2);
+}
+
+
 // Static desktop required. Full-size capture resized by CPU INTER_AREA to the
 // mip size vs the GPU mip chain's own level: records the per-channel gap.
 TEST_CASE("WindowsGrabber GPU mips match CPU INTER_AREA", "[.][manual][WindowsGrabber]")

@@ -210,6 +210,7 @@ namespace Aurora::Input::Windows
   void WindowsGrabber::_releaseDuplication()
   {
     m_duplication.Reset();
+    m_hasDesktopImage = false;
     m_stagingTexture.Reset();
     m_mipView.Reset();
     m_mipTexture.Reset();
@@ -325,6 +326,7 @@ namespace Aurora::Input::Windows
 
     std::lock_guard lock(m_latestMutex);
     m_latest = {};
+    m_hasDesktopImage = false;
     m_latestSerial = 0;
     m_grabbedSerial = 0;
     m_captureError = nullptr;
@@ -375,6 +377,13 @@ namespace Aurora::Input::Windows
 
     if(FAILED(hr)){
       return false;
+    }
+
+    // Cursor-only update: the desktop image is unchanged, so skip the readback
+    // and keep the serial. The first frame after (re)duplication always passes.
+    if(frameInfo.AccumulatedFrames == 0 && m_hasDesktopImage){
+      m_duplication->ReleaseFrame();
+      return true;
     }
 
     ComPtr<ID3D11Texture2D> frameTexture;
@@ -494,6 +503,7 @@ namespace Aurora::Input::Windows
     std::lock_guard lock(m_latestMutex);
     m_latest = std::move(frame);
     ++m_latestSerial;
+    m_hasDesktopImage = true;
     return true;
   }
 }

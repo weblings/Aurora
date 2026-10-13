@@ -95,6 +95,8 @@ namespace Aurora::Input::Windows
     std::mutex m_latestMutex;
     Contracts::ImageData m_latest;
     std::uint64_t m_latestSerial = 0;
+    // True once this duplication has produced an image (capture thread only).
+    bool m_hasDesktopImage = false;
     std::exception_ptr m_captureError;
     // Serial of the frame last handed out (tick thread only).
     std::uint64_t m_grabbedSerial = 0;
