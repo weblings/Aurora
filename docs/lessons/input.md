@@ -314,6 +314,23 @@ takes the whole process down.
 
 ---
 
+## DXGI Desktop Duplication frames arrive in the panel's native orientation, and the monitor list already reports the rotated size
+Tags: input, dxgi, windows, rotation
+Applies-when: touching WindowsGrabber capture or zone mapping on portrait or rotated monitors
+
+`DXGI_OUTPUT_DESC::DesktopCoordinates` (so `displayResolution()`) is in
+desktop space, already rotated, but the duplicated texture is not. A portrait
+monitor therefore reported 1200x1920 while the raw frame was sideways, and
+zone mapping would have been applied to it unrotated.
+
+**Fix:** read `DXGI_OUTDUPL_DESC::Rotation` after `DuplicateOutput` and
+`cv::rotate` the small downscaled readback (cheap, no GPU pass). A frame
+aspect check against `displayResolution()` catches a missing rotation but not
+a 180 degree error, and a black or asleep monitor can't show orientation at
+all, so put readable content on the monitor before judging direction.
+
+---
+
 ## A process-global library init/deinit pair must not live in a per-instance constructor/destructor when the app deliberately overlaps old and new instances
 Tags: input, pipewire, lifecycle, reload, globals
 Applies-when: putting process-global init/deinit in a reloadable instance

@@ -203,6 +203,11 @@ namespace Aurora::Input::Windows
       return false;
     }
 
+    // Frames arrive in the panel's native orientation (rotated monitors).
+    DXGI_OUTDUPL_DESC duplDesc;
+    m_duplication->GetDesc(&duplDesc);
+    m_rotation = duplDesc.Rotation;
+
     return true;
   }
 
@@ -498,6 +503,21 @@ namespace Aurora::Input::Windows
 
     m_context->Unmap(m_stagingTexture.Get(), 0);
     m_duplication->ReleaseFrame();
+
+    // Rotate the small readback to the desktop's orientation, so zones map correctly.
+    switch(m_rotation){
+      case DXGI_MODE_ROTATION_ROTATE90:
+        cv::rotate(frame.imageMatrix, frame.imageMatrix, cv::ROTATE_90_CLOCKWISE);
+        break;
+      case DXGI_MODE_ROTATION_ROTATE180:
+        cv::rotate(frame.imageMatrix, frame.imageMatrix, cv::ROTATE_180);
+        break;
+      case DXGI_MODE_ROTATION_ROTATE270:
+        cv::rotate(frame.imageMatrix, frame.imageMatrix, cv::ROTATE_90_COUNTERCLOCKWISE);
+        break;
+      default:
+        break;
+    }
 
     // Fresh buffers per frame: the tick thread may still hold the last one.
     std::lock_guard lock(m_latestMutex);

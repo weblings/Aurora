@@ -95,6 +95,8 @@ namespace Aurora::Input::Windows
     std::mutex m_latestMutex;
     Contracts::ImageData m_latest;
     std::uint64_t m_latestSerial = 0;
+    // Panel rotation of the current duplication (capture thread only).
+    DXGI_MODE_ROTATION m_rotation = DXGI_MODE_ROTATION_IDENTITY;
     // True once this duplication has produced an image (capture thread only).
     bool m_hasDesktopImage = false;
     std::exception_ptr m_captureError;

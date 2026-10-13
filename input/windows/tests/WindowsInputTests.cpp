@@ -171,4 +171,28 @@ TEST_CASE("WindowsGrabber selectMonitor re-captures on each monitor", "[.][manua
     std::cerr << "  reported " << grabber.displayResolution().x << "x" << grabber.displayResolution().y << "\n";
   }
 }
+
+// Needs a rotated (e.g. portrait) monitor. Checks every monitor: frame aspect
+// must match the desktop-space resolution, not the panel's native one.
+TEST_CASE("WindowsGrabber frames match the rotated desktop orientation", "[.][manual][WindowsGrabber]")
+{
+  WindowsGrabber grabber;
+  grabber.init();
+
+  for(unsigned id = 0; id < grabber.monitors().size(); ++id){
+    grabber.selectMonitor(id);
+    ImageData image;
+    for(int wait = 0; wait < 100 && !image.hasData(); ++wait){
+      grabber.grabFrameSubsample(image);
+      std::this_thread::sleep_for(std::chrono::milliseconds(20));
+    }
+    REQUIRE(image.hasData());
+
+    const auto resolution = grabber.displayResolution();
+    std::cerr << "monitor " << id << ": reported " << resolution.x << "x" << resolution.y
+              << ", frame " << image.width() << "x" << image.height() << "\n";
+    CHECK((image.width() > image.height()) == (resolution.x > resolution.y));
+  }
+}
+
 #endif

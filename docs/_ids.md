@@ -142,6 +142,7 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `windows-input-analysis` | [archive/WindowsInputAnalysis.md](archive/WindowsInputAnalysis.md) | Windows Input plugin — analysis pass |
 | `windows-pause-verification` | [log/2026-10-04-windows-pause-verification.md](log/2026-10-04-windows-pause-verification.md) | Windows verification of pause/resume and kea; Aurora.exe has no --help/--version (Aurora-v3in) |
 | `wqzp1-x11-perf-verify` | [log/2026-10-12-wqzp1-x11-perf-verify.md](log/2026-10-12-wqzp1-x11-perf-verify.md) | Aurora-wqzp.1: Linux X11 perf-harness run |
+| `wqzp13-windows-display-rotation` | [log/2026-10-13-wqzp13-windows-display-rotation.md](log/2026-10-13-wqzp13-windows-display-rotation.md) | Aurora-wqzp.13: Windows capture honours display rotation |
 | `wqzp2-linux-frameserial` | [log/2026-10-13-wqzp2-linux-frameserial.md](log/2026-10-13-wqzp2-linux-frameserial.md) | Aurora-wqzp.2: Linux PipewireGrabber frameSerial() |
 | `wqzp3-mac-video-cpu` | [log/2026-10-12-wqzp3-mac-video-cpu.md](log/2026-10-12-wqzp3-mac-video-cpu.md) | Aurora-wqzp.3: Mac video CPU 19% vs 3qh's 5.5% |
 | `wqzp4-linux-decimate-on-copy` | [log/2026-10-13-wqzp4-linux-decimate-on-copy.md](log/2026-10-13-wqzp4-linux-decimate-on-copy.md) | Aurora-wqzp.4: Linux downscale while copying out of the PipeWire buffer |
