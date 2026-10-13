@@ -351,3 +351,23 @@ Applies-when: a script needs `AttachConsole(<pid>)` + `ReadConsoleOutputCharacte
 Aurora-wqzp.1: attaching to the app's console (see the `AURORA_CONSOLE=1` entry) requires `FreeConsole()` first, which detaches the calling process from its own terminal, so the harness's later prints vanish. Two more traps: `CONSOLE_SCREEN_BUFFER_INFO` is 2-byte-packed `COORD`s (declare `Coord` as two `c_short`, not a `c_uint32`, or the cursor row reads wrong), and rows come back padded, so a long log line that wrapped at the console width stays contiguous only if the rows are concatenated with no separator.
 
 **Fix:** run the attach-and-read in a short subprocess that prints the buffer to a pipe, and regex over the concatenated rows. `tools/perf-harness/perf.py` does this (`_readconsole`).
+
+---
+
+## A built `Aurora.exe` copied elsewhere fails silently without its sibling DLLs, so A/B builds need a folder each
+Tags: windows, build, dll, perf, devstack
+Applies-when: stashing two builds of the same app (capped vs uncapped, before vs after) to compare them
+
+Aurora-wqzp.5: copying `Aurora.exe` alone to `%TEMP%` made `devstack.py up` time out waiting for the WebUI port, with no error in the logs. The exe needs `libcurl.dll`, `opencv_core4.dll`, `opencv_imgproc4.dll` and `z.dll` from `bin/Release` beside it.
+
+**Fix:** one folder per variant holding the exe plus those DLLs, then pass `--app <folder>/Aurora.exe` to `perf.py`. For an A/B of one constant, edit it, rebuild, copy, `git checkout` the edit, rebuild again.
+
+---
+
+## Switch a display's refresh rate from a script with `ChangeDisplaySettingsExW` and a raw 220-byte DEVMODE
+Tags: windows, display, refresh-rate, powershell, perf
+Applies-when: testing behavior that depends on the display's refresh rate (e.g. `displayRefreshRate()`) without touching Settings
+
+Aurora-wqzp.5: a managed `DEVMODE` struct with guessed layout made `EnumDisplaySettings` return garbage (max "1200 Hz"). A zeroed 220-byte buffer with `dmSize` (offset 68) = 220 works: read width/height/hz at offsets 172/176/184, set `dmDisplayFrequency` = 184 and OR `DM_DISPLAYFREQUENCY` (0x400000) into `dmFields` (offset 72). `ChangeDisplaySettingsExW(dev, buf, 0, 0, 0)` with flags 0 is a dynamic change that does not persist to the registry. `Win32_VideoController.MaxRefreshRate` only describes one adapter, so enumerate modes per `\.\DISPLAYn` to find the fast panel.
+
+**Fix:** enumerate per device, change with flags 0, and set the old rate back when done. The app followed the change with no restart needed beyond relaunch (budget moved 16.67 -> 8.33 ms).

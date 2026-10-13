@@ -1041,3 +1041,13 @@ Aurora-wqzp.1: specs read from the box at hand (Framework laptop, i5-1334U) were
 
 **Fix:** compare the current `hostname` with the host named in the run being annotated before writing specs; with `perf.py` now printing a `hardware:` line, quote that line from the run's own output instead of querying the machine later.
 
+
+---
+
+## A lower tick budget is not a lower tick rate -- read the measured Hz, and repeat noisy A/B runs
+Tags: perf, measurement, tick-rate, ab-testing
+Applies-when: judging whether a rate cap or interval change cut CPU
+
+Aurora-wqzp.5: capping the display-derived rate at 60 Hz moved the budget 8.33 -> 16.67 ms on a 120 Hz display, but the uncapped Windows build still ticked at ~58-62 Hz because the grab wait paces the tick (Aurora-wqzp.6). The real saving was ~20-45% of moving-content CPU, not the 2x the budget implies. Capped moving runs ranged 11.2-17.8% CPU, and one ran at 32 Hz, so a single pair would have shown anything from a 2x win to a small one.
+
+**Fix:** compare the measured wall-clock Hz and CPU together, run each variant 3 times alternating builds, and quote the range. Report the pacing source (here the grab wait) before promising a cap's headline ratio.
