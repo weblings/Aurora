@@ -1,5 +1,6 @@
 #include <Aurora/Runtime/Orchestrator.hpp>
 
+#include <algorithm>
 #include <utility>
 
 #include <Aurora/Processing/ImageProcessing.hpp>
@@ -30,7 +31,7 @@ namespace Aurora::Runtime
     selectConfiguredMonitor(m_input, m_config);
 
     if(m_config.refreshRate() == 0){
-      m_config.setRefreshRate(m_input.displayRefreshRate());
+      m_config.setRefreshRate(std::min<unsigned>(m_input.displayRefreshRate(), Config::kMaxDerivedRefreshRate));
     }
 
     if(m_config.subsampleWidth() == 0){
