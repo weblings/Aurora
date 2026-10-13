@@ -1,3 +1,11 @@
+v1.1.1:
+- Windows - Video updates are faster, and HDR displays and rotated screens capture correctly
+- Mac - Fix - Video mode CPU use drops from ~22% to ~3-4%
+- Linux - Fix - Lower CPU use in Wayland capture, and refresh rate is read correctly
+- Fix - Memory leak in the Hue connection resolved
+- Dev - Dual capture (video + audio at once) spike behind AURORA_DEV_DUAL_CAPTURE
+- Dev - Perf harness for measuring capture and tick cost, with lessons logged in docs
+
 v1.1.0:
 - Pause / Resume - Available from a button in UI or from tray menus. If an error occurs, tray text will update on next open.
 - Error Shell - Problems now show in a banner with resolution buttons (Primarily for Mac permission errors). "Aurora has stopped" can be detected and recover on any screen now.
