@@ -60,7 +60,7 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `ifkn6-descriptor-ranges` | [log/2026-10-08-ifkn6-descriptor-ranges.md](log/2026-10-08-ifkn6-descriptor-ranges.md) | Aurora-ifkn.6 closed: gen-descriptors.py emits Tuning slider ranges |
 | `ifkn7-sync-revendor` | [log/2026-10-08-ifkn7-sync-revendor.md](log/2026-10-08-ifkn7-sync-revendor.md) | Aurora-ifkn.7 (open, built): sync script + full re-vendor, vendor byte-identical |
 | `ifkn8-vendor-ci-docs` | [log/2026-10-08-ifkn8-vendor-ci-docs.md](log/2026-10-08-ifkn8-vendor-ci-docs.md) | Aurora-ifkn.8 (open, built): vendor test in web CI, docs, Pages publish open |
-| `igwa-windows-video-update` | [log/2026-10-12-igwa-windows-video-update.md](log/2026-10-12-igwa-windows-video-update.md) | Aurora-igwa: Windows video update() over the tick budget (closed) |
+| `igwa-windows-video-update` | [log/2026-10-12-igwa-windows-video-update.md](log/2026-10-12-igwa-windows-video-update.md) | Aurora-igwa: Windows video update() over the tick budget |
 | `ijus-shell-copy-fixes` | [log/2026-10-07-ijus-shell-copy-fixes.md](log/2026-10-07-ijus-shell-copy-fixes.md) | Aurora-ijus: shell error-copy audit — daemon leak, duplicate row, dead callback, closed |
 | `implementation-plan` | [planning/ImplementationPlan.md](planning/ImplementationPlan.md) | Low-scope implementation plan |
 | `implementation-plan-directory-layout` | [archive/ImplementationPlan_DirectoryLayout.md](archive/ImplementationPlan_DirectoryLayout.md) | Implementation plan: proposed directory layout (superseded) |
@@ -115,7 +115,7 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `monorepo-reorg` | [log/2026-09-21-monorepo-reorg.md](log/2026-09-21-monorepo-reorg.md) | Monorepo reorg (2026-09-21) |
 | `node-graph-pipeline` | [planning/NodeGraphPipeline.md](planning/NodeGraphPipeline.md) | Node-graph processing pipeline |
 | `node-ha-prep-sequencing` | [log/2026-10-01-node-ha-prep-sequencing.md](log/2026-10-01-node-ha-prep-sequencing.md) | Node and HA prep: scoping, HA core read, bead sequences |
-| `o13-dual-capture` | [log/2026-10-11-o13-dual-capture.md](log/2026-10-11-o13-dual-capture.md) | Aurora-o13: video and audio capture at the same time (Linux, Mac, Windows run) |
+| `o13-dual-capture` | [log/2026-10-11-o13-dual-capture.md](log/2026-10-11-o13-dual-capture.md) | Aurora-o13: video and audio capture at the same time (Linux, Mac, Windows capture run) |
 | `o1qt-local-network-probe` | [log/2026-10-08-o1qt-local-network-probe.md](log/2026-10-08-o1qt-local-network-probe.md) | Aurora-o1qt: Mac Local Network permission detection (closed) |
 | `open-formats-research` | [archive/OpenFormatsResearch.md](archive/OpenFormatsResearch.md) | Existing open formats for video/audio-reactive lighting |
 | `p91-portal-settle` | [log/2026-10-03-p91-portal-settle.md](log/2026-10-03-p91-portal-settle.md) | Aurora-p91: portal denial and call errors settle the fd promise |

@@ -41,12 +41,38 @@ Mac 4.1). Closed the same day.
 
 Core 182/182, windows-app 87/87.
 
+## Moving content (Aurora-wqzp.1, `tools/perf-harness`)
+
+Same machine and build, fullscreen window redrawn every ~16 ms, 20 s windows,
+wall-clock Hz. Static rows re-run with the harness for comparison. The table
+is from a first, full-screen flashing pattern (since replaced as a
+photosensitivity risk). A re-run with slow dark stripes matched it: video
+9.7-15.5% CPU at 32 / 50 Hz, both 21.4% at 56 Hz. Cost follows frames
+delivered, not contrast.
+
+| Mode | Content | CPU | Update avg / max ms | Tick Hz | Light frames/s |
+|---|---|---|---|---|---|
+| video | static | 2.5% | 15.9 / 27 | 55.7 | 55.6 |
+| video | moving | 8.4-15.4% (3 runs) | 3.1-8.8 / 15-26 | 32, 32, 50 | 32, 32, 46 |
+| both | static | 2.4% | 15.9 / 33 (audio 0.09) | 56.2 | 111.9 |
+| both | moving | 19.7-21.7% (2 runs) | 10.0-10.3 / 22-23 | 56.3-56.4 | 111-112 |
+| audio | static / moving | 0.3% / 1.2% | 0.14-0.15 | 56 | 56 |
+
+- **Moving content costs 3-6x the static CPU** (video 2.5% -> 8-15%), well under
+  the old 31-43%. Not the "far below" guess for free: GPU mips plus readback
+  is real work.
+- **Real tick rate is ~56 Hz, not 60**, even in the best static case. The old
+  "ticks/5.0s" hid this.
+- **Video-only moving is erratic: 32 Hz twice, then 50 Hz**, with update avg
+  only 3 ms. A 3 ms update at 32 Hz means the loop idles ~28 ms per tick, so
+  something other than `update()` paces it. Not chased here (Aurora-wqzp.5 and
+  .6 own tick pacing). Both-mode moving held 56 Hz.
+- Audio-moving CPU (1.2% vs 0.3%) is the app process alone, cause not chased.
+
 ## Concerns left open
 
-- **Moving content not measured.** Every run was a static desktop, where the
-  grab times out and the reuse path dominates. With a changing screen the cost
-  is GPU mip generation plus a small readback: expected far below the old 4K
-  readback, but no number exists.
+- **Moving content measured on Windows only**, one display, a synthetic
+  stripe pattern, not real video.
 - **Colour parity unchecked.** GPU box-filter mips vs the CPU INTER_AREA path
   were not compared numerically. Odd sizes floor each level, so edge pixels may
   differ slightly.
@@ -65,5 +91,6 @@ Core 182/182, windows-app 87/87.
 - **Other displays.** Only one 4K 60 Hz SDR display was run. The HDR (RGBA16F)
   path shares the mip code but was not exercised. Multi-monitor selection is
   untested.
-- **`[dual-capture]` stats still report nominal seconds.** Left as is (dev
-  flag), but any reader of `ticks/5.0s` can be misled again.
+- **`[dual-capture]` stats reported nominal seconds.** Fixed in Aurora-wqzp.1:
+  the window and `ticks/<s>` now use wall-clock time and print the real rate
+  in Hz. Numbers in this log predate that, so its "ticks/5.0s" were nominal.
