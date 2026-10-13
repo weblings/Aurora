@@ -5,6 +5,7 @@
 
 #include <Aurora/Input/IVideoInput.hpp>
 
+#include <atomic>
 #include <mutex>
 #include <optional>
 #include <thread>
@@ -50,6 +51,9 @@ namespace Aurora::Input::Linux
       pw_stream* stream{nullptr};
       spa_video_info format;
       SafeDoubleBuffer frameDoubleBuffer;
+      // Consumer's sampled width (IVideoInput::setCaptureWidthHint); read on
+      // the Pipewire thread when copying a frame out.
+      std::atomic<unsigned> captureWidthHint{0};
       std::promise<bool> screenDataReadyPromise;
       bool promiseSetAlready{false};
 
@@ -97,6 +101,7 @@ namespace Aurora::Input::Linux
     RefreshRate displayRefreshRate() const override;
     void grabFrameSubsample(Contracts::ImageData& imageData) override;
     std::uint64_t frameSerial() const override;
+    void setCaptureWidthHint(unsigned width) override;
 
   private:
     static void _onCoreInfoCallback(

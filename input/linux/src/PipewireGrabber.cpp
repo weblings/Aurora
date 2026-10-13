@@ -253,6 +253,12 @@ namespace Aurora::Input::Linux
   }
 
 
+  void PipewireGrabber::setCaptureWidthHint(unsigned width)
+  {
+    m_pwData.captureWidthHint.store(width);
+  }
+
+
   std::uint64_t PipewireGrabber::frameSerial() const
   {
     return m_grabbedSerial;
@@ -422,10 +428,14 @@ namespace Aurora::Input::Linux
       pixelFormat = Contracts::PixelFormat::BGRA;
     }
 
-    // See PipewireFrameBuffer.hpp -- clones the buffer, since Pipewire's
-    // memory becomes invalid after queue_buffer() below.
+    // See PipewireFrameBuffer.hpp -- copies out of the buffer (area-averaged
+    // down by the consumer's hint when there is one, else a full-size clone),
+    // since Pipewire's memory becomes invalid after queue_buffer() below.
     const uint8_t* pixels = static_cast<const uint8_t*>(readPtr) + chunk->offset;
-    Contracts::ImageData capturedFrame = toOwnedImage(pixels, width, height, step, pixelFormat);
+    Contracts::ImageData capturedFrame = toOwnedImage(
+      pixels, width, height, step, pixelFormat,
+      captureDecimation(pw->captureWidthHint.load(), width)
+    );
     const uint64_t contentHash = pw->trace.enabled ? sampleContentHash(pixels, chunk->size) : 0;
 
     if(localMap != MAP_FAILED){

@@ -864,3 +864,11 @@ Aurora-wqzp.2: `Orchestrator::update` calls `grabFrameSubsample()` then `frameSe
 
 **Fix:** copy the serial inside the same lock as the frame copy, store it in a tick-thread member, and return that from `frameSerial()`. Bump the counter only after the no-data/skip returns so empty buffers never count. Result on GNOME: ~10 delivered frames/s on a static screen, so ~50 of 60 ticks skip the rescale (video 47.1% -> 13.7%).
 
+
+## INTER_AREA is only fast at integer ratios; measure the binary the harness runs
+Tags: input, pipewire, perf, opencv, perf-harness
+Applies-when: downscaling frames on the CPU, or benchmarking with tools/perf-harness
+
+Aurora-wqzp.4: resizing 1920 -> 512 (ratio 3.75) cost ~29 ms/frame, 10x the old 1920 -> 64 (ratio 30) rescale, so moving CPU went 64% -> 105% even though the tick time fell 9 -> 1 ms (work just moved to the PipeWire thread). A tick-time column alone hid it; process CPU caught it.
+
+**Fix:** decimate by an integer k (crop the < k px remainder) and let the Orchestrator finish the last step. Also: `devstack.py` launches `build/linux-app/bin/Aurora`, not `build/bin/Aurora`, so rebuild that tree before trusting a perf number.
