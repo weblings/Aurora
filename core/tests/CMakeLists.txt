@@ -69,6 +69,8 @@ target_compile_features(AuroraSecretsTests PUBLIC cxx_std_20)
 add_executable(AuroraRuntimeTests
   RuntimeTests.cpp
   RegistryTests.cpp
+  GraphTests.cpp
+  GraphBadCorpusTests.cpp
 )
 
 target_link_libraries(AuroraRuntimeTests PRIVATE

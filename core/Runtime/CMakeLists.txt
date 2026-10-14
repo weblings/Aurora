@@ -17,6 +17,10 @@ add_library(AuroraRuntime STATIC
   src/SubsampleDefaults.cpp
   src/MonitorSelector.cpp
   src/Registry.cpp
+  src/Graph/GraphTypes.cpp
+  src/Graph/NodeRegistry.cpp
+  src/Graph/Graph.cpp
+  src/Graph/GraphLoader.cpp
   src/Orchestrator.cpp
   src/Pipeline.cpp
   src/PipelineRoutes.cpp

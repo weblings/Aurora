@@ -961,3 +961,61 @@ bead where eight were expected.
 **Fix:** pull the id with `grep -o -E 'Aurora-[a-z0-9.]+' | head -1`, quote
 `"$id"` in later calls, and check `bd list -l <label>` before wiring
 dependencies.
+
+---
+
+## Optional graph inputs evaluate with Absent; only required inputs gate
+Tags: architecture, node-graph, INode, absent-data
+Applies-when: declaring an input port optional on a Tier 1/2 node, or handling Absent in `evaluate`
+
+The G0 doc says absent propagates to dependents, which reads as "any
+missing input skips the node" — but then an optional input could never do
+anything: unconnected means absent forever. G1 (Aurora-ra4o.2) splits the
+rule: an error on any input, or Absent on a *required* input, propagates
+without calling `evaluate`; Absent on an *optional* input flows into the
+`EvalContext` and the node decides (default value, hold, skip its own
+outputs). A missing edge to a required input is a load error, so at
+runtime required-absent always means "upstream had no data this tick".
+
+**Fix:** node authors must handle `isAbsent()` on every optional port —
+the evaluator will not do it for them. The `test.optin` case in
+`core/tests/GraphTests.cpp` is the reference shape.
+
+---
+
+## A bad-graph fixture for a later loader check must pass every earlier check
+Tags: node-graph, GraphLoader, testing, corpus
+Applies-when: adding a bad-graph corpus fixture, or reordering validation in `core/Runtime/src/Graph/GraphLoader.cpp`
+
+`GraphLoader::loadGraph` returns the *first* rejection in a fixed order
+(version → nodes → params → output bindings → edges → required inputs →
+sink collisions → controls → instantiate → cycles), so a fixture aimed at
+a later check fails earlier — and misleadingly — unless it satisfies all
+prior ones. G1b (Aurora-ra4o.3) hit it concretely: the two-sinks-on-one-output
+fixture binds `"hue"`, which dies first as "unregistered output" unless
+`knownOutputs` contains `"hue"`, while the unregistered-output fixture
+needs exactly the opposite. One shared `LoadOptions` cannot serve both.
+
+**Fix:** give each corpus case its own `LoadOptions` (per-case
+`knownOutputs`), and when a new fixture fails with the wrong rejection,
+read which earlier check fired instead of assuming the target check is
+broken. Keep this order in mind before reordering loader validation:
+existing fixtures pin the current sequence.
+
+---
+
+## Decomposing a monolith into nodes: list every hidden coupling before writing nodes
+Tags: node-graph, INode, ports, host-services
+Applies-when: splitting an orchestrator or processing function into graph nodes (G2a-c and later), or adding a node that needs more than its input ports
+
+Reading the orchestrators against the G1 API found two gaps that G1's own
+tests could not show, because test nodes capture probes in factory lambdas.
+- I/O nodes (capture, zone sampling, send) need live host objects and
+  there was no path to them, so each G2 bead would have invented one.
+- `updateBounce` reads `driftState.anchorHueDegrees` (a struct field, not
+  an argument), and no port type could carry it between split nodes.
+
+**Fix:** before writing a node, list every state read, shared struct field
+and host object the wrapped code touches, and give each one a port or an
+`IGraphHost` service. `AudioOrchestrator::setSettings` resetting both drift
+and bounce is the same class of coupling and must be reproduced per node.

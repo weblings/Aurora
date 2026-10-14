@@ -260,3 +260,37 @@ include.
 system and project), then `#define private public`, the target header, and
 `#undef private`. Include guards then keep the macro off everything but the
 target class. Scratch drivers only; never in committed code.
+
+---
+
+## Inspect the stored copy, never the local you just moved-from
+Tags: c++, variant, move-semantics, dangling-pointer
+Applies-when: checking the content of a `std::variant` (or any moved-from object) before `emplace`/`push` moving it into a container
+
+`Graph::tick` (Aurora-ra4o.2) gathered each input into a local `GraphValue`,
+took `asError()` on the local to detect error propagation, then moved the
+local into `ctx.inputs` — leaving the saved error pointer aimed at
+moved-from state. A move leaves the source valid but unspecified, so both
+error-propagation tests read back empty node ids with no crash and no
+sanitizer complaint. It looked like the loader dropped the id; the loader
+was innocent.
+
+**Fix:** move first, then inspect the stored copy (`ctx.inputs.at(name)`).
+Whenever a pointer or check must survive the move, derive it from the
+destination, never the source.
+
+---
+
+## Never let unordered_map iteration order decide evaluation or send order
+Tags: node-graph, determinism, unordered_map, parity
+Applies-when: writing a topo sort, scheduler or any loop whose order is observable (output sends, golden parity)
+
+G1's Kahn sort seeded its ready queue by iterating an `unordered_map`, so
+ties resolved differently on MSVC and libstdc++. That would have made the
+G2d byte-parity gate pass on one CI platform and fail on another, and
+changed the order of `output.send` calls across outputs.
+
+**Fix:** index nodes by declaration order and pop the lowest ready index
+(min-heap). `Graph::finalize` does this, and the "ties by declaration
+order" test pins it. Any hash-container loop with observable order needs
+the same treatment.
