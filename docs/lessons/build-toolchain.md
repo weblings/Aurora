@@ -795,3 +795,16 @@ Applies-when: building or running tests from a Claude/Git Bash shell on the Wind
 **Fix:** use `wsl -e bash -lc "cd /mnt/d/... && cmake --build build ..."` for
 the GCC tree, and `cmake --build build-core-test-win --config Debug` (exes in
 `tests/Debug/`) for MSVC. Run both when a change touches test code.
+
+## Git Bash turns MSBuild's `/v:m` into a path: pass MSBuild switches from PowerShell
+Tags: msbuild, git-bash, msys, path-conversion, windows
+Applies-when: running `cmake --build <vs-tree> -- /v:m` (or any `/switch`) from the Bash tool
+
+Aurora-ra4o.7: `cmake --build build-core-test-win --config Debug --target X -- /v:m`
+from Git Bash failed with `MSB1008: Only one project can be specified`. MSYS
+rewrites a lone `/v:m` argument into a Windows path, so MSBuild sees a second
+project. Two `--target` values in one call fail the same way (one project per
+call).
+
+**Fix:** drop the switch, or run the build from PowerShell. Build one target per
+`cmake --build` call, or none to build all.

@@ -73,6 +73,7 @@ add_executable(AuroraRuntimeTests
   GraphBadCorpusTests.cpp
   VideoNodesTests.cpp
   FrameNodesTests.cpp
+  BuiltInGraphsTests.cpp
 )
 
 target_link_libraries(AuroraRuntimeTests PRIVATE

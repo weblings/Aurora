@@ -131,6 +131,7 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `ra4o4-g2a-video-nodes` | [log/2026-10-14-ra4o4-g2a-video-nodes.md](log/2026-10-14-ra4o4-g2a-video-nodes.md) | G2a Tier 1 video nodes (Aurora-ra4o.4) |
 | `ra4o5-g2b-audio-nodes` | [log/2026-10-14-ra4o5-g2b-audio-nodes.md](log/2026-10-14-ra4o5-g2b-audio-nodes.md) | G2b Tier 1 audio nodes (Aurora-ra4o.5) |
 | `ra4o6-g2c-frame-nodes` | [log/2026-10-14-ra4o6-g2c-frame-nodes.md](log/2026-10-14-ra4o6-g2c-frame-nodes.md) | G2c Tier 1 frame nodes (Aurora-ra4o.6) |
+| `ra4o7-g2d-builtin-graphs` | [log/2026-10-14-ra4o7-g2d-builtin-graphs.md](log/2026-10-14-ra4o7-g2d-builtin-graphs.md) | G2d built-in Video and Audio graphs, parity gate (Aurora-ra4o.7) |
 | `ra4o9-g1c-pre-g2-adjustments` | [log/2026-10-14-ra4o9-g1c-pre-g2-adjustments.md](log/2026-10-14-ra4o9-g1c-pre-g2-adjustments.md) | G1c pre-G2 runtime adjustments (Aurora-ra4o.9) |
 | `runtime-analysis` | [archive/RuntimeAnalysis.md](archive/RuntimeAnalysis.md) | Runtime / Config — Conversion analysis |
 | `scig-capture-source-banner` | [log/2026-10-08-scig-capture-source-banner.md](log/2026-10-08-scig-capture-source-banner.md) | Aurora-scig: Capture Source (NUX) errors move to the shell banner (closed) |

@@ -307,3 +307,14 @@ because they were only built with GCC under WSL.
 **Fix:** spell the type `Aurora::Runtime::Graph::Graph` in tests that use
 both directives. Build at least the touched test exes with the MSVC tree
 before closing a bead, not only the WSL tree.
+
+## `IVideoInput::Resolution` is a class-nested alias: `using namespace` does not expose it
+Tags: namespace, nested-alias, ivideoinput, msvc
+Applies-when: a test or helper outside an `IVideoInput` subclass names `Resolution`, `Resolutions` or `RefreshRate`
+
+Aurora-ra4o.7: a free function parameter `Resolution resolution` failed with
+C2061 under `using namespace Aurora::Input`. The alias lives in
+`IVideoInput`'s public section, so it only resolves unqualified inside a
+subclass (as `SequenceVideoInput` does).
+
+**Fix:** spell `IVideoInput::Resolution` in free functions and test locals.

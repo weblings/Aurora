@@ -1131,3 +1131,20 @@ and output are active in the WebUI, so a freshly launched app records nothing.
 mean and max step per tick before touching code. Runs are not
 phase-aligned, so only large gaps mean anything. `tap.py`-style recorders are
 ~15 lines, no harness needed.
+
+## A dual-path parity gate needs fresh inputs per path and a mutation check
+Tags: parity, golden, graph, mutation, test-design
+Applies-when: running one golden fixture through two implementations (legacy path vs node graph)
+
+Aurora-ra4o.7: scenario inputs count calls (`SequenceVideoInput`,
+`SequenceAudioInput`), and the PCM generators captured a shared `Lcg` by
+reference. Reusing them for the second path would start mid-sequence and fail
+for the wrong reason (or pass by accident). Separately, a green second run
+proves nothing until the gate is shown to bite: it could be reading the
+wrong config or skipping frames.
+
+**Fix:** build the input per path (a `makeInput` factory, with the `Lcg` in a
+`shared_ptr` created inside it). Under `AURORA_UPDATE_GOLDEN` run only the legacy
+path so fixtures stay derived from it. After wiring the new path, break one
+overlay value on purpose (smoothing forced to 0 failed 18 Video assertions) and
+confirm red before reverting.

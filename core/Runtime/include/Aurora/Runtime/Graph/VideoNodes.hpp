@@ -11,8 +11,9 @@
 // DevFrameDump decision (bead notes): G2a nodes do NOT publish the dev
 // tap. Orchestrator::update still publishes the prepared source on the
 // legacy path; the graph equivalent (post-dropAlpha image) gets its tap
-// when G2d wires the built-in Video graph and parity gate, so there is
-// exactly one tap per path and no per-node duplication.
+// when G3 makes a host run the built-in Video graph (G2d only gates parity
+// in tests), so there is exactly one tap per path and no per-node
+// duplication.
 namespace Aurora::Runtime::Graph
 {
   void registerVideoNodes(NodeRegistry& registry);

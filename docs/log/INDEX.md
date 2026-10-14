@@ -184,3 +184,4 @@ Planning docs stay clean: decisions, status, and pointers here only.
 | 2026-10-14 | Audio drift reaches output: bounce target now anchor + onset offset, 6 audio goldens regenerated, live A/B capture; suite 224/224; 2 lessons. [[7r3-audio-drift-reaches-output]] | `bd show Aurora-7r3` |
 | 2026-10-14 | G2b Tier 1 audio nodes (audio.capture/features/drift/bounce) + 8 per-node Graph cases; full suite 232/232; 3 lessons. [[ra4o5-g2b-audio-nodes]] | `bd show Aurora-ra4o.5` |
 | 2026-10-14 | G2c Tier 1 frame nodes (frame.broadcast/smooth, output.send) + 7 per-node Graph cases; full suite 239/239 (GCC and MSVC); MSVC test fix; 3 lessons. [[ra4o6-g2c-frame-nodes]] | `bd show Aurora-ra4o.6` |
+| 2026-10-14 | G2d built-in Video/Audio graphs + ConfigData overlay; parity scenarios now run through legacy path and graph against the same fixtures; 6 new cases; full suite 245/245 (MSVC only); 3 lessons. [[ra4o7-g2d-builtin-graphs]] | `bd show Aurora-ra4o.7` |
