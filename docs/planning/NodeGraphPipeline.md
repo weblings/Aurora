@@ -8,6 +8,9 @@ Revised 2026-10-01: "Prep work before importing libraries" added, fail-state
 sanitizing corrected after Aurora-5y0. Revised 2026-10-02: Tuning edits to
 live-tunable fields now apply without a reload (Aurora-c0g, prep 7).
 
+Revised 2026-10-14 (G0, Aurora-ra4o.1): "Frozen format (G0)" added, agent-proposed
+and owner-approved. It supersedes the sketch where they differ.
+
 Question: could users rewire Aurora's video/audio processing in a web
 node editor (TouchDesigner/cables.gl-style) instead of the fixed pipelines?
 
@@ -203,6 +206,75 @@ subgraphs instead.
   mismatch, cycle, unregistered output name); on failure reject and keep
   the running graph.
 - Top-level `version`, per-type versions later if migrations need them.
+
+## Frozen format (G0)
+
+Status: frozen 2026-10-14 for Sequence A ([[nodes-agent-ux]]), agent-proposed
+and owner-approved. Where this section differs from the sketch above, this
+section wins.
+
+**Tick rate.**
+- Optional top-level `tickHz` on the graph. The built-in Audio graph declares
+  60 (today's fixed rate). Absent means the app rate (`refreshRate`).
+- One clock per graph. `dt` is the nominal interval, as in
+  `Runtime::tickIntervalSeconds`.
+
+**Node type names.** `domain.verb`, as in the Tier 1 table: `video.capture`,
+`image.rescale`, `image.dropAlpha`, `zones.sample`, `audio.capture`,
+`audio.features`, `audio.drift`, `audio.bounce`, `frame.broadcast`,
+`frame.smooth`, `output.send`. The sketch's `video.sampleZones` is retired.
+
+**Port types.**
+- Sequence A: `Image`, `AudioBuffer`, `AudioFeatures`, `Color`, `Frame`.
+- Tier 2 adds `Float`, `Angle`, `Trigger`. `UVs` stays a param shape, not a
+  port. `Detections` and `Motion` wait for the stretch work.
+- `audio.features` emits one `AudioFeatures` port in Tier 1, because
+  `updateDrift` and `updateBounce` take the whole struct. Split scalar ports
+  arrive with the Tier 2 primitives.
+- The runtime error value is outside the type system. The runtime carries it
+  with the originating node id, and it propagates downstream.
+
+**Edges and bindings.**
+- Edge: `["node.port", "node.port"]`, output first.
+- Fan-out from an output is allowed. One edge per input.
+- Per-output binding (`zones.sample`, `frame.broadcast`, `output.send`) is a
+  string param naming the output, not a port.
+- Load rejects more than one edge reaching one output's `send` (see prep 8).
+
+**Absent data.** A node output can be absent for a tick, with no value. This
+replaces today's skipped ticks (`!isHealthy()` video, empty audio buffer).
+Absent propagates to every dependent node, and `output.send` sends nothing.
+This is what keeps byte parity with the orchestrators.
+
+**Params.**
+- Kinds: `float`, `enum`, `bool`, `optional-float`, using
+  `Contracts::ParamSchema` (Aurora-ta5). Enum options may be computed by the
+  server.
+- `controls` ("Show in Tuning") is part of the frozen top-level format
+  even though no editor reads it in Sequence A.
+
+**INode.**
+- `evaluate(ctx, dt)`. `ctx` carries the tick's inputs, the node's state
+  slot (keyed by stable node id) and the output bindings.
+- Implemented in G1: a post-evaluate state self-heal check (Aurora-5y0).
+- Declared and reserved, not implemented: async variant returning the latest
+  result plus its age, per-node sampling width (replaces the global
+  `subsampleWidth`), and the error value.
+
+**Agent metadata.**
+- Per node type: `purpose`, `use_when`, `example`, `cost`. Per param: `unit`
+  comes from `ParamSchema.unit`.
+- They extend `ControlDescriptor`/`DescriptorRegistry` (keys
+  `node.<type>` and `node.<type>.<param>`), so tooltips and agent prompts
+  share one source. `details` and `purpose` are the same text.
+- `cost` is an enum: `cheap`, `moderate`, `heavy`. `example` is a JSON
+  snippet of the node as it appears in `graph.json`.
+
+**Storage and versioning.**
+- Built-in graphs live in the binary. Today's `ConfigData` values become a
+  param overlay on them. No `graph.json` is written to disk in Sequence A.
+- Top-level `version: 1` is frozen now. `ui` stays editor-only and ignored
+  by core.
 
 ## UX: effects, tuning, tooltips (proposed)
 
