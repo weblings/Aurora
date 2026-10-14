@@ -3,6 +3,7 @@
 #include <cmath>
 #include <functional>
 #include <memory>
+#include <vector>
 
 #include <Aurora/Runtime/AudioOrchestrator.hpp>
 #include <Aurora/Runtime/Graph/AudioNodes.hpp>
@@ -118,7 +119,21 @@ namespace
   }
 
 
-  Recording runPcmScenario(const std::string& tag, SequenceAudioInput& input, AudioProcessing::AudioEffectSettings settings, int ticks)
+  // A mid-run Tuning edit, applied before that tick's update. Legacy path:
+  // AudioOrchestrator::setSettings. Graph path: rebuild + adoptStateFrom, as G3 does.
+  struct SettingsEdit
+  {
+    int tick;
+    std::function<void(AudioProcessing::AudioEffectSettings&)> apply;
+  };
+
+
+  Recording runPcmScenario(
+    const std::string& tag,
+    SequenceAudioInput& input,
+    AudioProcessing::AudioEffectSettings settings,
+    int ticks,
+    const std::vector<SettingsEdit>& edits)
   {
     ScopedTempDir dir(tag);
     Recording recording;
@@ -131,6 +146,12 @@ namespace
     orchestrator.init();
 
     for(tick = 0; tick < ticks; ++tick){
+      for(const auto& edit : edits){
+        if(edit.tick == tick){
+          edit.apply(settings);
+          orchestrator.setSettings(settings);
+        }
+      }
       orchestrator.update(Dt);
     }
     return recording;
@@ -158,7 +179,11 @@ namespace
   };
 
 
-  Recording runGraphPcmScenario(SequenceAudioInput& input, const AudioProcessing::AudioEffectSettings& settings, int ticks)
+  Recording runGraphPcmScenario(
+    SequenceAudioInput& input,
+    AudioProcessing::AudioEffectSettings settings,
+    int ticks,
+    const std::vector<SettingsEdit>& edits)
   {
     GraphRig rig;
     rig.host.audio = &input;
@@ -169,6 +194,16 @@ namespace
     REQUIRE(loaded.graph.tickHz().value_or(0.0) == 60.0);
 
     for(rig.tick = 0; rig.tick < ticks; ++rig.tick){
+      for(const auto& edit : edits){
+        if(edit.tick == rig.tick){
+          edit.apply(settings);
+          auto next = Aurora::Runtime::Graph::loadBuiltInAudioGraph(rig.registry, {"hue"}, configFrom(settings));
+          INFO(next.error);
+          REQUIRE(next.ok);
+          next.graph.adoptStateFrom(loaded.graph);
+          loaded.graph = std::move(next.graph);
+        }
+      }
       loaded.graph.tick(Dt, &rig.host);
     }
     return rig.recording;
@@ -182,12 +217,13 @@ namespace
     const std::string& description,
     const MakeInput& makeInput,
     const AudioProcessing::AudioEffectSettings& settings,
-    int ticks)
+    int ticks,
+    const std::vector<SettingsEdit>& edits = {})
   {
     {
       INFO("path: AudioOrchestrator");
       SequenceAudioInput input = makeInput();
-      check(scenario, description, runPcmScenario(scenario, input, settings, ticks));
+      check(scenario, description, runPcmScenario(scenario, input, settings, ticks, edits));
     }
     if(std::getenv("AURORA_UPDATE_GOLDEN")){
       return;
@@ -195,7 +231,7 @@ namespace
     {
       INFO("path: built-in Audio graph");
       SequenceAudioInput input = makeInput();
-      check(scenario, description, runGraphPcmScenario(input, settings, ticks));
+      check(scenario, description, runGraphPcmScenario(input, settings, ticks, edits));
     }
   }
 
@@ -394,6 +430,32 @@ TEST_CASE("Parity: audio PCM click track through AudioOrchestrator", "[Parity][A
   };
 
   checkPcmBothPaths("audio_pcm_click_track", "48kHz mono, 220Hz bed + 120BPM noise clicks (alternate clicks + 3kHz), fixedAnchorHue 30, zones 1,2 active (2 gamma 0.5), 3 inactive, 240 ticks at 1/60s.", makeInput, pinnedSettings(), 240);
+}
+
+
+TEST_CASE("Parity: audio PCM live Tuning edits mid-run", "[Parity][Audio]")
+{
+  // Pins G3's hot-edit path (rebuild + adoptStateFrom) against setSettings:
+  // a plain retune, a fixed-hue change (re-seeds both states), then clearing
+  // the hue (keeps the running anchor, so no random seed).
+  const MakeInput makeInput = [] {
+    auto noise = std::make_shared<Lcg>(4242);
+    const long beatSamples = SampleRate / 2;
+    return SequenceAudioInput([noise, beatSamples](long i){
+      float bed = 0.05f * std::sin(2.0f * Pi * 220.0f * wrappedSeconds(i));
+      long beat = i / beatSamples;
+      float bright = (beat % 2) ? 3000.0f : 0.0f;
+      return bed + click(i - beat * beatSamples - SampleRate / 10, *noise, bright);
+    });
+  };
+
+  const std::vector<SettingsEdit> edits = {
+    {60, [](AudioProcessing::AudioEffectSettings& s){ s.bounceSmoothTime = 0.15f; s.driftBaseRateDegPerSec = 30.0f; }},
+    {120, [](AudioProcessing::AudioEffectSettings& s){ s.fixedAnchorHue = 200.0f; }},
+    {180, [](AudioProcessing::AudioEffectSettings& s){ s.fixedAnchorHue.reset(); s.vibrancySaturation = 0.6f; }},
+  };
+
+  checkPcmBothPaths("audio_pcm_live_edits", "Click track (seed 4242), fixedAnchorHue 30; tick 60 bounce 0.15s + drift 30deg/s, tick 120 hue 200 (re-seed), tick 180 hue cleared + S 0.6; 240 ticks at 1/60s.", makeInput, pinnedSettings(), 240, edits);
 }
 
 

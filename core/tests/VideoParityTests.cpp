@@ -2,6 +2,7 @@
 
 #include <cmath>
 #include <functional>
+#include <vector>
 
 #include <Aurora/Runtime/Graph/BuiltInGraphs.hpp>
 #include <Aurora/Runtime/Graph/FrameNodes.hpp>
@@ -100,6 +101,15 @@ namespace
   };
 
 
+  // A mid-run Tuning edit, applied before that tick's update. Legacy path:
+  // Orchestrator::setConfig. Graph path: rebuild + adoptStateFrom, as G3 does.
+  struct ConfigEdit
+  {
+    int tick;
+    std::function<void(Config&)> apply;
+  };
+
+
   void buildRig(Rig& rig, const std::vector<OutputSpec>& outputSpecs)
   {
     for(const auto& spec : outputSpecs){
@@ -121,7 +131,8 @@ namespace
     SequenceVideoInput& input,
     Config config,
     const std::vector<OutputSpec>& outputSpecs,
-    int ticks
+    int ticks,
+    const std::vector<ConfigEdit>& edits
   )
   {
     ScopedTempDir dir(tag);
@@ -135,6 +146,13 @@ namespace
     orchestrator.init();
 
     for(rig.tick = 0; rig.tick < ticks; ++rig.tick){
+      for(const auto& edit : edits){
+        if(edit.tick == rig.tick){
+          Config next = orchestrator.config();
+          edit.apply(next);
+          orchestrator.setConfig(std::move(next));
+        }
+      }
       orchestrator.update(1.0f / 60.0f);
     }
     return rig.recording;
@@ -143,9 +161,10 @@ namespace
 
   Recording runGraphScenario(
     SequenceVideoInput& input,
-    const Config& config,
+    Config config,
     const std::vector<OutputSpec>& outputSpecs,
-    int ticks
+    int ticks,
+    const std::vector<ConfigEdit>& edits
   )
   {
     Rig rig;
@@ -167,6 +186,16 @@ namespace
     REQUIRE(loaded.ok);
 
     for(rig.tick = 0; rig.tick < ticks; ++rig.tick){
+      for(const auto& edit : edits){
+        if(edit.tick == rig.tick){
+          edit.apply(config);
+          auto next = Aurora::Runtime::Graph::loadBuiltInVideoGraph(registry, rig.names, config.data());
+          INFO(next.error);
+          REQUIRE(next.ok);
+          next.graph.adoptStateFrom(loaded.graph);
+          loaded.graph = std::move(next.graph);
+        }
+      }
       loaded.graph.tick(1.0f / 60.0f, &host);
     }
     return rig.recording;
@@ -183,13 +212,14 @@ namespace
     const SequenceVideoInput::Generator& generator,
     const Config& config,
     const std::vector<OutputSpec>& outputSpecs,
-    int ticks
+    int ticks,
+    const std::vector<ConfigEdit>& edits = {}
   )
   {
     {
       INFO("path: Orchestrator");
       SequenceVideoInput input(resolution, generator);
-      check(scenario, description, runScenario(scenario, input, config, outputSpecs, ticks));
+      check(scenario, description, runScenario(scenario, input, config, outputSpecs, ticks, edits));
     }
     if(std::getenv("AURORA_UPDATE_GOLDEN")){
       return;
@@ -197,7 +227,7 @@ namespace
     {
       INFO("path: built-in Video graph");
       SequenceVideoInput input(resolution, generator);
-      check(scenario, description, runGraphScenario(input, config, outputSpecs, ticks));
+      check(scenario, description, runGraphScenario(input, config, outputSpecs, ticks, edits));
     }
   }
 
@@ -342,4 +372,41 @@ TEST_CASE("Parity: video letterboxed content", "[Parity][Video]")
     zone(3, 0.f, 0.66f, 1.f, 1.f)
   };
   checkBothPaths("video_letterbox", "32x18 BGR with black bars (rows 0-3, 14-17), cycling content color, three horizontal bands, smoothing 0.3, 30 ticks.", resolution, generator, config, {{"hue", zones}}, 30);
+}
+
+
+TEST_CASE("Parity: video live Tuning edits mid-run", "[Parity][Video]")
+{
+  // Pins G3's hot-edit path (rebuild + adoptStateFrom) against setConfig:
+  // smoothing, width and interpolation change while Smoother state is warm.
+  const IVideoInput::Resolution resolution{64, 32};
+  const SequenceVideoInput::Generator generator([](int tick, ImageData& image){
+    image.format = PixelFormat::BGRA;
+    image.imageMatrix = cv::Mat(32, 64, CV_8UC4);
+    for(int y = 0; y < 32; ++y){
+      for(int x = 0; x < 64; ++x){
+        int shifted = (x + tick * 5) % 64;
+        image.imageMatrix.at<cv::Vec4b>(y, x) = cv::Vec4b(
+          static_cast<uint8_t>(255 - shifted * 4),
+          static_cast<uint8_t>(shifted * 4),
+          static_cast<uint8_t>(y * 8),
+          255
+        );
+      }
+    }
+  });
+
+  Config config;
+  config.setRefreshRate(60);
+  config.setSubsampleWidth(16);
+  config.setInterpolation(Interpolation::Type::Area);
+  config.setTransitionSmoothing(0.3f);
+
+  const std::vector<ConfigEdit> edits = {
+    {8, [](Config& c){ c.setTransitionSmoothing(0.85f); }},
+    {16, [](Config& c){ c.setSubsampleWidth(32); }},
+    {24, [](Config& c){ c.setInterpolation(Interpolation::Type::Nearest); c.setTransitionSmoothing(0.f); }},
+  };
+
+  checkBothPaths("video_live_edits", "BGRA 64x32 shifting gradient; smoothing 0.3 -> 0.85 at tick 8, width 16 -> 32 at 16, Nearest + smoothing 0 at 24; 32 ticks.", resolution, generator, config, {{"hue", quadrants()}}, 32, edits);
 }

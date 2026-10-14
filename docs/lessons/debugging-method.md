@@ -1148,3 +1148,18 @@ wrong config or skipping frames.
 path so fixtures stay derived from it. After wiring the new path, break one
 overlay value on purpose (smoothing forced to 0 failed 18 Video assertions) and
 confirm red before reverting.
+
+---
+
+## A parity gate with fixed settings does not cover the hot-edit path
+Tags: parity, golden, graph, mutation, test-design
+Applies-when: replacing a mutable legacy object (`setConfig`, `setSettings`) with rebuild + `adoptStateFrom`
+
+Aurora-ra4o.10: every G2d parity scenario held settings constant from tick 0, yet
+G3's riskiest change is how a live Tuning edit carries node state across a graph
+swap. Nothing would have failed if `adoptStateFrom` were skipped.
+
+**Fix:** add scenarios that edit settings mid-run on both paths (legacy setter vs
+rebuild + adopt + swap), covering a plain retune, a re-seeding change and a clear.
+Then remove `adoptStateFrom` and confirm both go red (6 assertions each) before
+trusting them.

@@ -229,6 +229,14 @@ TEST_CASE("image.dropAlpha passes opaque images through, converts RGBA", "[Video
   const ImagePtr converted = requireImage(graph.portValue("opaque", "image"));
   CHECK(converted->format == PixelFormat::RGB);
   CHECK(converted->width() == 4);
+
+  // Same serial -> same input pointer -> no reconversion (Aurora-igwa).
+  graph.tick(1.f / 60.f, &host);
+  CHECK(requireImage(graph.portValue("opaque", "image")).get() == converted.get());
+
+  input.serial = 10;
+  graph.tick(1.f / 60.f, &host);
+  CHECK(requireImage(graph.portValue("opaque", "image")).get() != converted.get());
 }
 
 TEST_CASE("zones.sample reads the live zone map every tick", "[VideoNodes]")

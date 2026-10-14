@@ -1,6 +1,7 @@
 #include <Aurora/Runtime/Graph/BuiltInGraphs.hpp>
 
 #include <cctype>
+#include <initializer_list>
 #include <unordered_set>
 
 namespace Aurora::Runtime::Graph
@@ -19,19 +20,22 @@ namespace Aurora::Runtime::Graph
       return "Area";
     }
 
-    // `params` holds the node's declared params with defaults; overlay
-    // values replace only those, so a stray overlay key can't fail the load.
+    // `params` holds only bindings (e.g. "output"); the loader fills the
+    // rest from registry defaults. Overlay applies only to `tunable` names,
+    // so a stray overlay key can't fail the load.
     json nodeDoc(
       const std::string& id,
       const std::string& type,
       json params,
+      std::initializer_list<const char*> tunable,
       const ParamOverlay& overlay)
     {
       auto it = overlay.find(id);
       if(it != overlay.end()){
-        for(const auto& [name, value] : it->second){
-          if(params.contains(name)){
-            params[name] = value;
+        for(const char* name : tunable){
+          auto value = it->second.find(name);
+          if(value != it->second.end()){
+            params[name] = value->second;
           }
         }
       }
@@ -99,10 +103,10 @@ namespace Aurora::Runtime::Graph
     json nodes = json::array();
     json edges = json::array();
 
-    nodes.push_back(nodeDoc("cap", "video.capture", json::object(), overlay));
+    nodes.push_back(nodeDoc("cap", "video.capture", json::object(), {}, overlay));
     nodes.push_back(nodeDoc(
-      "rescale", "image.rescale", {{"width", 0.f}, {"interpolation", "Area"}}, overlay));
-    nodes.push_back(nodeDoc("opaque", "image.dropAlpha", json::object(), overlay));
+      "rescale", "image.rescale", json::object(), {"width", "interpolation"}, overlay));
+    nodes.push_back(nodeDoc("opaque", "image.dropAlpha", json::object(), {}, overlay));
     edges.push_back(edge("cap.image", "rescale.image"));
     edges.push_back(edge("rescale.image", "opaque.image"));
 
@@ -110,9 +114,9 @@ namespace Aurora::Runtime::Graph
       const std::string zones = perOutputNodeId("zones", output);
       const std::string ease = perOutputNodeId("ease", output);
       const std::string send = perOutputNodeId("send", output);
-      nodes.push_back(nodeDoc(zones, "zones.sample", {{"output", output}}, overlay));
-      nodes.push_back(nodeDoc(ease, "frame.smooth", {{"output", output}, {"smoothing", 0.f}}, overlay));
-      nodes.push_back(nodeDoc(send, "output.send", {{"output", output}}, overlay));
+      nodes.push_back(nodeDoc(zones, "zones.sample", {{"output", output}}, {}, overlay));
+      nodes.push_back(nodeDoc(ease, "frame.smooth", {{"output", output}}, {"smoothing"}, overlay));
+      nodes.push_back(nodeDoc(send, "output.send", {{"output", output}}, {}, overlay));
       edges.push_back(edge("opaque.image", zones + ".image"));
       edges.push_back(edge(zones + ".frame", ease + ".frame"));
       edges.push_back(edge(ease + ".frame", send + ".frame"));
@@ -126,27 +130,26 @@ namespace Aurora::Runtime::Graph
     json nodes = json::array();
     json edges = json::array();
 
-    nodes.push_back(nodeDoc("cap", "audio.capture", json::object(), overlay));
-    nodes.push_back(nodeDoc("feat", "audio.features", json::object(), overlay));
+    nodes.push_back(nodeDoc("cap", "audio.capture", json::object(), {}, overlay));
+    nodes.push_back(nodeDoc("feat", "audio.features", json::object(), {}, overlay));
     nodes.push_back(nodeDoc(
       "drift",
       "audio.drift",
-      {{"fixedAnchorHue", nullptr},
-       {"driftBaseRateDegPerSec", 10.f},
-       {"centroidStrength", 0.3f},
-       {"centroidRangeHz", 2250.f}},
+      json::object(),
+      {"fixedAnchorHue", "driftBaseRateDegPerSec", "centroidStrength", "centroidRangeHz"},
       overlay));
     nodes.push_back(nodeDoc(
       "beat",
       "audio.bounce",
-      {{"fixedAnchorHue", nullptr},
-       {"bounceSmoothTime", 0.285f},
-       {"dynamismFloor", 0.26f},
-       {"vibrancySaturation", 0.95f},
-       {"vibrancyValue", 0.95f},
-       {"referenceRms", 0.5f},
-       {"brightnessFloor", 0.4f},
-       {"brightnessSmoothTime", 0.265f}},
+      json::object(),
+      {"fixedAnchorHue",
+       "bounceSmoothTime",
+       "dynamismFloor",
+       "vibrancySaturation",
+       "vibrancyValue",
+       "referenceRms",
+       "brightnessFloor",
+       "brightnessSmoothTime"},
       overlay));
     edges.push_back(edge("cap.buffer", "feat.buffer"));
     edges.push_back(edge("feat.features", "drift.features"));
@@ -156,8 +159,8 @@ namespace Aurora::Runtime::Graph
     for(const auto& output : outputNames){
       const std::string all = perOutputNodeId("all", output);
       const std::string send = perOutputNodeId("send", output);
-      nodes.push_back(nodeDoc(all, "frame.broadcast", {{"output", output}}, overlay));
-      nodes.push_back(nodeDoc(send, "output.send", {{"output", output}}, overlay));
+      nodes.push_back(nodeDoc(all, "frame.broadcast", {{"output", output}}, {}, overlay));
+      nodes.push_back(nodeDoc(send, "output.send", {{"output", output}}, {}, overlay));
       edges.push_back(edge("beat.color", all + ".color"));
       edges.push_back(edge(all + ".frame", send + ".frame"));
     }

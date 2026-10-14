@@ -88,8 +88,6 @@ namespace Aurora::Runtime::Graph
         const ImagePtr& input = ctx.input<ImagePtr>("image");
         const float widthParam = ctx.param<float>("width");
         const std::string& interpName = ctx.param<std::string>("interpolation");
-        const Contracts::Interpolation::Type interp = parseInterpolation(interpName);
-        (void)interp;
         const int width = static_cast<int>(std::round(widthParam));
 
         if(width <= 0 || !input->hasData() || input->width() <= width){
@@ -130,8 +128,8 @@ namespace Aurora::Runtime::Graph
     };
 
     // image.dropAlpha: safe no-op for already-opaque formats. Passes the
-    // input pointer through when there is no alpha channel, so downstream
-    // identity caches keep hitting.
+    // input pointer through when there is no alpha channel, and caches by
+    // input identity so a static BGRA desktop converts once (Aurora-igwa).
     class DropAlphaNode : public INode
     {
     public:
@@ -149,14 +147,20 @@ namespace Aurora::Runtime::Graph
           outputs.emplace("image", input);
           return;
         }
-        Contracts::ImageData opaque{};
-        Processing::ImageProcessing::dropAlpha(*input, opaque);
-        outputs.emplace("image", std::make_shared<Contracts::ImageData>(std::move(opaque)));
+        if(m_lastInput != input || !m_cached){
+          Contracts::ImageData opaque{};
+          Processing::ImageProcessing::dropAlpha(*input, opaque);
+          m_cached = std::make_shared<Contracts::ImageData>(std::move(opaque));
+          m_lastInput = input;
+        }
+        outputs.emplace("image", m_cached);
       }
 
     private:
       std::vector<PortDecl> m_in{{"image", PortType::Image, true}};
       std::vector<PortDecl> m_out{{"image", PortType::Image, false}};
+      ImagePtr m_lastInput{};
+      ImagePtr m_cached{};
     };
 
     // zones.sample: composeFrame over the live zone map for one output.
@@ -197,7 +201,7 @@ namespace Aurora::Runtime::Graph
       decl.kind = ParamKind::Float;
       decl.schema.label = "Resample width";
       decl.schema.min = 0.f;
-      decl.schema.max = 3840.f;
+      decl.schema.max = 7680.f; // UI hint only, the loader doesn't range-check
       decl.schema.step = 1.f;
       decl.schema.unit = "px";
       decl.schema.defaultValue = 0.f; // 0 = passthrough (unset subsampleWidth)

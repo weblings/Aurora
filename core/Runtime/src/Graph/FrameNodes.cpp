@@ -6,6 +6,7 @@
 #include <vector>
 
 #include <Aurora/Output/IOutput.hpp>
+#include <Aurora/Runtime/ControlDescriptorTables.hpp>
 #include <Aurora/Runtime/Smoother.hpp>
 
 namespace Aurora::Runtime::Graph
@@ -92,11 +93,7 @@ namespace Aurora::Runtime::Graph
     ParamDecl smoothing;
     smoothing.name = "smoothing";
     smoothing.kind = ParamKind::Float;
-    smoothing.schema.label = "Transition smoothing";
-    smoothing.schema.min = 0.f;
-    smoothing.schema.max = 0.97f;
-    smoothing.schema.step = 0.01f;
-    smoothing.schema.defaultValue = 0.f;
+    smoothing.schema = paramSchema("video.transitionSmoothing"); // one source with Config
     smoothing.description =
       "Easing between color changes, 0 is instant (today's video.transitionSmoothing).";
 

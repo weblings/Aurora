@@ -3,12 +3,14 @@
 #include <cmath>
 #include <memory>
 #include <string>
+#include <string_view>
 #include <unordered_map>
 #include <vector>
 
 #include <Aurora/Processing/AudioFeatureExtractor.hpp>
 #include <Aurora/Processing/AudioProcessing.hpp>
 #include <Aurora/Runtime/AudioFrameCompositor.hpp>
+#include <Aurora/Runtime/ControlDescriptorTables.hpp>
 
 namespace Aurora::Runtime::Graph
 {
@@ -16,29 +18,14 @@ namespace Aurora::Runtime::Graph
   {
     using AudioSettings = Processing::AudioProcessing::AudioEffectSettings;
 
-    // Node param defaults follow the live Config defaults (what Pipeline's
-    // _audioSettingsFrom feeds the orchestrator), not the struct's own
-    // initializers -- the built-in Audio graph overlays Config values, so
-    // an omitted param must behave like today's pipeline.
-    ParamDecl floatParam(
-      std::string name,
-      std::string label,
-      float min,
-      float max,
-      float step,
-      std::string unit,
-      float def,
-      std::string description)
+    // Schema (range, default, label) comes from the Config descriptor
+    // tables, so node defaults always match the live Config defaults.
+    ParamDecl floatParam(std::string name, std::string_view configKey, std::string description)
     {
       ParamDecl decl;
       decl.name = std::move(name);
       decl.kind = ParamKind::Float;
-      decl.schema.label = std::move(label);
-      decl.schema.min = min;
-      decl.schema.max = max;
-      decl.schema.step = step;
-      decl.schema.unit = std::move(unit);
-      decl.schema.defaultValue = def;
+      decl.schema = paramSchema(configKey);
       decl.description = std::move(description);
       return decl;
     }
@@ -48,13 +35,7 @@ namespace Aurora::Runtime::Graph
       ParamDecl decl;
       decl.name = "fixedAnchorHue";
       decl.kind = ParamKind::OptionalFloat;
-      decl.schema.label = "Fixed hue";
-      decl.schema.min = 0.f;
-      decl.schema.max = 360.f;
-      decl.schema.step = 1.f;
-      decl.schema.unit = "°";
-      decl.schema.defaultValue = -1.f; // unset, like Config's < 0 means random anchor
-      decl.schema.allowsUnset = true;
+      decl.schema = paramSchema("audio.fixedAnchorHue"); // allowsUnset, default -1 (null in graph.json)
       decl.description = "Drift's starting hue in degrees; unset picks a random pair (null in graph.json).";
       return decl;
     }
@@ -358,30 +339,15 @@ namespace Aurora::Runtime::Graph
           {fixedAnchorParam(),
            floatParam(
              "driftBaseRateDegPerSec",
-             "Drift base rate",
-             0.f,
-             60.f,
-             1.f,
-             "°/s",
-             10.f,
+             "audio.driftBaseRateDegPerSec",
              "Idle drift speed in degrees per second (today's audio.driftBaseRateDegPerSec)."),
            floatParam(
              "centroidStrength",
-             "Centroid strength",
-             0.f,
-             1.f,
-             0.01f,
-             "",
-             0.3f,
+             "audio.centroidStrength",
              "How much spectral centroid speeds or slows the drift (today's audio.centroidStrength)."),
            floatParam(
              "centroidRangeHz",
-             "Centroid range",
-             100.f,
-             8000.f,
-             10.f,
-             "Hz",
-             2250.f,
+             "audio.centroidRangeHz",
              "Pitch spread normalizing the centroid nudge (today's audio.centroidRangeHz).")},
         .factory = [] { return std::make_unique<AudioDriftNode>(); },
       });
@@ -405,66 +371,31 @@ namespace Aurora::Runtime::Graph
           {fixedAnchorParam(),
            floatParam(
              "bounceSmoothTime",
-             "Bounce smooth time",
-             0.05f,
-             2.f,
-             0.01f,
-             "s",
-             0.285f,
+             "audio.bounceSmoothTime",
              "Beat hue damping time constant (today's audio.bounceSmoothTime)."),
            floatParam(
              "dynamismFloor",
-             "Dynamism floor",
-             0.f,
-             1.f,
-             0.01f,
-             "",
-             0.26f,
+             "audio.dynamismFloor",
              "Minimum swing fraction even for the weakest onset (today's audio.dynamismFloor)."),
            floatParam(
              "vibrancySaturation",
-             "Vibrancy saturation",
-             0.f,
-             1.f,
-             0.01f,
-             "",
-             0.95f,
+             "audio.vibrancySaturation",
              "HSV saturation of every generated color (today's audio.vibrancySaturation)."),
            floatParam(
              "vibrancyValue",
-             "Vibrancy value",
-             0.f,
-             1.f,
-             0.01f,
-             "",
-             0.95f,
+             "audio.vibrancyValue",
              "Brightness ceiling before loudness scaling (today's audio.vibrancyValue)."),
            floatParam(
              "referenceRms",
-             "Reference RMS",
-             0.05f,
-             1.f,
-             0.01f,
-             "",
-             0.5f,
+             "audio.referenceRms",
              "Loudness mapped to full brightness (today's audio.referenceRms)."),
            floatParam(
              "brightnessFloor",
-             "Brightness floor",
-             0.f,
-             1.f,
-             0.01f,
-             "",
-             0.4f,
+             "audio.brightnessFloor",
              "Darkest output when quiet (today's audio.brightnessFloor)."),
            floatParam(
              "brightnessSmoothTime",
-             "Brightness smooth time",
-             0.05f,
-             2.f,
-             0.01f,
-             "s",
-             0.265f,
+             "audio.brightnessSmoothTime",
              "Loudness damping time constant (today's audio.brightnessSmoothTime).")},
         .factory = [] { return std::make_unique<AudioBounceNode>(); },
       });
