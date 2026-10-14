@@ -12,6 +12,7 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `3qh-mac-capture-width-hint` | [log/2026-10-01-3qh-mac-capture-width-hint.md](log/2026-10-01-3qh-mac-capture-width-hint.md) | Aurora-3qh: Mac video mode resized full-Retina frames every tick |
 | `5i3-local-api-hardening` | [log/2026-10-02-5i3-local-api-hardening.md](log/2026-10-02-5i3-local-api-hardening.md) | Aurora-5i3: local API hardening before any HA credential exists |
 | `5y0-nan-state-self-heal` | [log/2026-10-01-5y0-nan-state-self-heal.md](log/2026-10-01-5y0-nan-state-self-heal.md) | Aurora-5y0: 9ca follow-up — NaN state self-heal, one float→Color cast |
+| `7r3-audio-drift-reaches-output` | [log/2026-10-14-7r3-audio-drift-reaches-output.md](log/2026-10-14-7r3-audio-drift-reaches-output.md) | Audio drift reaches output (Aurora-7r3) |
 | `7ybx-dev-banner-errors` | [log/2026-10-07-dev-banner-errors.md](log/2026-10-07-dev-banner-errors.md) | Aurora-7ybx: dev banner-error injection tooling (closed) |
 | `98pr-webui-banner-x` | [log/2026-10-06-98pr-webui-banner-x.md](log/2026-10-06-98pr-webui-banner-x.md) | Aurora-98pr: saved-not-applied errors move to the banner; banner X (closed) |
 | `9ca-fromhsv-nan-guard` | [log/2026-10-01-9ca-fromhsv-nan-guard.md](log/2026-10-01-9ca-fromhsv-nan-guard.md) | Aurora-9ca: NaN/Inf into Color::fromHSV's uint8_t cast — fixed |

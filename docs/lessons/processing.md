@@ -235,3 +235,22 @@ red from that fill.
 red under RGB is `Scalar(255,0,0)`. Same trap as the mislabeled-pixel-format
 entry in input.md from the other side: now that consumers trust the tag,
 tests must set it (and the bytes) truthfully too.
+
+## A smoothed value stored as an absolute target reads its moving reference only at init, so the reference goes dead
+Tags: processing, audio, state, drift-bounce
+Applies-when: layering a fast reaction (bounce) on a slow moving base (drift)
+
+`updateBounce` copied `driftState.anchorHueDegrees` into `targetHueDegrees`
+once, in its init branch. After that the target changed only on onsets, so the
+drifting anchor, and every setting feeding it (`driftBaseRateDegPerSec`,
+`centroidStrength`, `centroidRangeHz`), had no effect on output (Aurora-7r3).
+Unit tests passed because each function was correct in isolation. The golden
+parity harness caught it: `silence_drift` recorded one color for 600 ticks.
+
+**Fix:** store the reaction as an offset from the live reference and rebuild
+the target each tick (`target = anchor + offset`). Any new "fast on top of
+slow" pair should be tested with a silence or idle scenario that must vary.
+
+Follow-up: a live 60s capture before and after showed the same ~60 deg/s net
+hue travel. Drift (6 deg/s) is invisible under busy beat swings, so confirm it
+in quiet passages, not on music.
