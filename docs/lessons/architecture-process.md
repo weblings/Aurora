@@ -1053,3 +1053,18 @@ would break every video-only (`AURORA_CORE_ENABLE_AUDIO=OFF`) build.
 its tests inherit it too — check both the library-sources block and the
 test-exe membership, since they gate independently in
 `core/Runtime/CMakeLists.txt` vs `core/tests/CMakeLists.txt`.
+
+---
+
+## Sink nodes have no port to read an error from, so test them by their side effect
+Tags: architecture, node-graph, testing, sinks
+Applies-when: writing tests for a node with no output ports (`output.send`) or relying on `portValue` to observe a failure
+
+`Graph::portValue` only exposes declared output ports. `output.send` declares
+none, so a failed send (unknown output, no host) leaves nothing to inspect
+and the tick still completes. A test asserting on the error value would
+compile but find `nullptr`.
+
+**Fix:** assert on the side effect (the fake output received no frame) and
+that the tick survived. A future graph-level error report would let sinks
+surface failures the editor can highlight.

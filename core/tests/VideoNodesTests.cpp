@@ -85,7 +85,7 @@ namespace
     return registry;
   }
 
-  Graph::Graph requireGraph(const std::string& json, NodeRegistry& registry, FakeHost* host = nullptr)
+  Aurora::Runtime::Graph::Graph requireGraph(const std::string& json, NodeRegistry& registry, FakeHost* host = nullptr)
   {
     (void)host;
     LoadResult result = loadGraphFromString(json, registry);
@@ -106,7 +106,7 @@ namespace
 TEST_CASE("video.capture reuses the ImagePtr while the serial is unchanged", "[VideoNodes]")
 {
   NodeRegistry registry = makeVideoRegistry();
-  Graph::Graph graph = requireGraph(
+  Aurora::Runtime::Graph::Graph graph = requireGraph(
     R"({"version": 1, "nodes": [{"id": "cap", "type": "video.capture", "params": {}}], "edges": []})",
     registry);
 
@@ -132,7 +132,7 @@ TEST_CASE("video.capture reuses the ImagePtr while the serial is unchanged", "[V
 TEST_CASE("video.capture is Absent when unhealthy or empty, error without host", "[VideoNodes]")
 {
   NodeRegistry registry = makeVideoRegistry();
-  Graph::Graph graph = requireGraph(
+  Aurora::Runtime::Graph::Graph graph = requireGraph(
     R"({"version": 1, "nodes": [{"id": "cap", "type": "video.capture", "params": {}}], "edges": []})",
     registry);
 
@@ -151,7 +151,7 @@ TEST_CASE("video.capture is Absent when unhealthy or empty, error without host",
   CHECK(isAbsent(*graph.portValue("cap", "image")));
 
   // No host at all: evaluator turns the throw into a GraphError naming cap.
-  Graph::Graph noHost = requireGraph(
+  Aurora::Runtime::Graph::Graph noHost = requireGraph(
     R"({"version": 1, "nodes": [{"id": "cap", "type": "video.capture", "params": {}}], "edges": []})",
     registry);
   noHost.tick(1.f / 60.f, nullptr);
@@ -165,7 +165,7 @@ TEST_CASE("video.capture is Absent when unhealthy or empty, error without host",
 TEST_CASE("image.rescale downscales, caches by identity, passthrough on 0/upscale", "[VideoNodes]")
 {
   NodeRegistry registry = makeVideoRegistry();
-  Graph::Graph graph = requireGraph(
+  Aurora::Runtime::Graph::Graph graph = requireGraph(
     R"({"version": 1, "nodes": [
       {"id": "cap", "type": "video.capture", "params": {}},
       {"id": "small", "type": "image.rescale", "params": {"width": 2, "interpolation": "Area"}}
@@ -193,7 +193,7 @@ TEST_CASE("image.rescale downscales, caches by identity, passthrough on 0/upscal
   CHECK(third->width() == 2);
 
   // Width 0 passes through: same pointer as capture.
-  Graph::Graph pass = requireGraph(
+  Aurora::Runtime::Graph::Graph pass = requireGraph(
     R"({"version": 1, "nodes": [
       {"id": "cap", "type": "video.capture", "params": {}},
       {"id": "small", "type": "image.rescale", "params": {}}
@@ -208,7 +208,7 @@ TEST_CASE("image.rescale downscales, caches by identity, passthrough on 0/upscal
 TEST_CASE("image.dropAlpha passes opaque images through, converts RGBA", "[VideoNodes]")
 {
   NodeRegistry registry = makeVideoRegistry();
-  Graph::Graph graph = requireGraph(
+  Aurora::Runtime::Graph::Graph graph = requireGraph(
     R"({"version": 1, "nodes": [
       {"id": "cap", "type": "video.capture", "params": {}},
       {"id": "opaque", "type": "image.dropAlpha", "params": {}}
@@ -234,7 +234,7 @@ TEST_CASE("image.dropAlpha passes opaque images through, converts RGBA", "[Video
 TEST_CASE("zones.sample reads the live zone map every tick", "[VideoNodes]")
 {
   NodeRegistry registry = makeVideoRegistry();
-  Graph::Graph graph = requireGraph(
+  Aurora::Runtime::Graph::Graph graph = requireGraph(
     R"({"version": 1, "nodes": [
       {"id": "cap", "type": "video.capture", "params": {}},
       {"id": "zones", "type": "zones.sample", "params": {"output": "hue"}}
@@ -271,7 +271,7 @@ TEST_CASE("video chain capture -> rescale -> dropAlpha -> zones.sample", "[Video
   CHECK(registry.find("image.dropAlpha") != nullptr);
   CHECK(registry.find("zones.sample") != nullptr);
 
-  Graph::Graph graph = requireGraph(
+  Aurora::Runtime::Graph::Graph graph = requireGraph(
     R"({"version": 1, "nodes": [
       {"id": "cap", "type": "video.capture", "params": {}},
       {"id": "small", "type": "image.rescale", "params": {"width": 2, "interpolation": "Area"}},

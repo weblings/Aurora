@@ -8,6 +8,7 @@
 
 #include <Aurora/Processing/AudioFeatureExtractor.hpp>
 #include <Aurora/Processing/AudioProcessing.hpp>
+#include <Aurora/Runtime/AudioFrameCompositor.hpp>
 
 namespace Aurora::Runtime::Graph
 {
@@ -250,10 +251,64 @@ namespace Aurora::Runtime::Graph
       std::optional<float> m_lastAnchor{};
       bool m_hasLast{false};
     };
+
+    // frame.broadcast: composeAudioFrame over the live zone map for one
+    // output, read every tick so updateZone edits apply without a reload.
+    class FrameBroadcastNode : public INode
+    {
+    public:
+      const std::vector<PortDecl>& inputPorts() const override { return m_in; }
+      const std::vector<PortDecl>& outputPorts() const override { return m_out; }
+
+      void evaluate(
+        const EvalContext& ctx,
+        float,
+        std::unordered_map<std::string, GraphValue>& outputs) override
+      {
+        const Contracts::Color& color = ctx.input<Contracts::Color>("color");
+        const std::string& outputName = ctx.param<std::string>("output");
+        if(outputName.empty()){
+          ctx.fail("needs param 'output' naming an output (expected an output the app registered)");
+        }
+        const ZoneMap* zoneMap = ctx.requireHost().zoneMap(outputName);
+        if(zoneMap == nullptr){
+          ctx.fail("unknown output '" + outputName + "' (expected an output the app registered)");
+        }
+        outputs.emplace("frame", composeAudioFrame(color, *zoneMap));
+      }
+
+    private:
+      std::vector<PortDecl> m_in{{"color", PortType::Color, true}};
+      std::vector<PortDecl> m_out{{"frame", PortType::Frame, false}};
+    };
   } // namespace
 
   void registerAudioNodes(NodeRegistry& registry)
   {
+    ParamDecl broadcastOutput;
+    broadcastOutput.name = "output";
+    broadcastOutput.kind = ParamKind::Enum;
+    broadcastOutput.enumOptions = {}; // any output name; checked against knownOutputs at load
+    broadcastOutput.defaultEnum = "";
+    broadcastOutput.description =
+      "Output whose live zone map receives the color (per-output binding, not a port).";
+
+    registry.registerType(
+      "frame.broadcast",
+      NodeTypeInfo{
+        .meta =
+          {
+            .purpose = "Apply one Color to every active zone of an output as a Frame.",
+            .useWhen = "After audio.bounce; audio has no per-zone spatial concept.",
+            .example = "{\"id\": \"all\", \"type\": \"frame.broadcast\", \"params\": {\"output\": \"hue\"}}",
+            .cost = "cheap",
+          },
+        .inputs = {{"color", PortType::Color, true}},
+        .outputs = {{"frame", PortType::Frame, false}},
+        .params = {broadcastOutput},
+        .factory = [] { return std::make_unique<FrameBroadcastNode>(); },
+      });
+
     registry.registerType(
       "audio.capture",
       NodeTypeInfo{

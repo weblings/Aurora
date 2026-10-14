@@ -7,6 +7,7 @@
 #include <memory>
 #include <string>
 
+#include <Aurora/Runtime/AudioFrameCompositor.hpp>
 #include <Aurora/Runtime/Graph/AudioNodes.hpp>
 #include <Aurora/Runtime/Graph/Graph.hpp>
 #include <Aurora/Runtime/Graph/GraphLoader.hpp>
@@ -61,7 +62,7 @@ namespace
     return registry;
   }
 
-  Graph::Graph requireGraph(const std::string& json, NodeRegistry& registry)
+  Aurora::Runtime::Graph::Graph requireGraph(const std::string& json, NodeRegistry& registry)
   {
     LoadResult result = loadGraphFromString(json, registry);
     REQUIRE(result.ok);
@@ -126,7 +127,7 @@ TEST_CASE("audio node types are registered", "[AudioNodes]")
 TEST_CASE("audio.capture emits the buffer, Absent when empty, error without host", "[AudioNodes]")
 {
   NodeRegistry registry = makeAudioRegistry();
-  Graph::Graph graph = requireGraph(
+  Aurora::Runtime::Graph::Graph graph = requireGraph(
     R"({"version": 1, "nodes": [{"id": "cap", "type": "audio.capture", "params": {}}], "edges": []})",
     registry);
 
@@ -144,7 +145,7 @@ TEST_CASE("audio.capture emits the buffer, Absent when empty, error without host
   REQUIRE(graph.portValue("cap", "buffer") != nullptr);
   CHECK(isAbsent(*graph.portValue("cap", "buffer")));
 
-  Graph::Graph noHost = requireGraph(
+  Aurora::Runtime::Graph::Graph noHost = requireGraph(
     R"({"version": 1, "nodes": [{"id": "cap", "type": "audio.capture", "params": {}}], "edges": []})",
     registry);
   noHost.tick(1.f / 60.f, nullptr);
@@ -158,7 +159,7 @@ TEST_CASE("audio.capture emits the buffer, Absent when empty, error without host
 TEST_CASE("audio.features extracts rms through the Graph", "[AudioNodes]")
 {
   NodeRegistry registry = makeAudioRegistry();
-  Graph::Graph graph = requireGraph(
+  Aurora::Runtime::Graph::Graph graph = requireGraph(
     R"({"version": 1, "nodes": [
       {"id": "cap", "type": "audio.capture", "params": {}},
       {"id": "feat", "type": "audio.features", "params": {}}
@@ -180,7 +181,7 @@ TEST_CASE("audio.features extracts rms through the Graph", "[AudioNodes]")
 TEST_CASE("audio.drift seeds the anchor from fixedAnchorHue and drifts", "[AudioNodes]")
 {
   NodeRegistry registry = makeAudioRegistry();
-  Graph::Graph graph = requireGraph(
+  Aurora::Runtime::Graph::Graph graph = requireGraph(
     R"({"version": 1, "nodes": [
       {"id": "cap", "type": "audio.capture", "params": {}},
       {"id": "feat", "type": "audio.features", "params": {}},
@@ -211,7 +212,7 @@ TEST_CASE("audio.drift seeds the anchor from fixedAnchorHue and drifts", "[Audio
 TEST_CASE("audio chain capture -> features -> drift -> bounce matches the orchestrator's first tick", "[AudioNodes]")
 {
   NodeRegistry registry = makeAudioRegistry();
-  Graph::Graph graph = requireGraph(kFullChain, registry);
+  Aurora::Runtime::Graph::Graph graph = requireGraph(kFullChain, registry);
 
   FakeAudioInput input;
   FakeHost host;
@@ -228,7 +229,7 @@ TEST_CASE("audio chain capture -> features -> drift -> bounce matches the orches
 TEST_CASE("audio.drift and audio.bounce stay silent while capture is empty", "[AudioNodes]")
 {
   NodeRegistry registry = makeAudioRegistry();
-  Graph::Graph graph = requireGraph(kFullChain, registry);
+  Aurora::Runtime::Graph::Graph graph = requireGraph(kFullChain, registry);
 
   FakeAudioInput input;
   FakeHost host;
@@ -258,7 +259,7 @@ TEST_CASE("audio.drift and audio.bounce stay silent while capture is empty", "[A
 TEST_CASE("changing fixedAnchorHue re-seeds drift and bounce together", "[AudioNodes]")
 {
   NodeRegistry registry = makeAudioRegistry();
-  Graph::Graph live = requireGraph(kFullChain, registry);
+  Aurora::Runtime::Graph::Graph live = requireGraph(kFullChain, registry);
 
   FakeAudioInput input;
   FakeHost host;
@@ -273,7 +274,7 @@ TEST_CASE("changing fixedAnchorHue re-seeds drift and bounce together", "[AudioN
 
   // Same chain, new fixed hue on both nodes -- params arrive via a graph
   // swap, state carries by stable node id (adoptStateFrom).
-  Graph::Graph next = requireGraph(
+  Aurora::Runtime::Graph::Graph next = requireGraph(
     R"({"version": 1, "nodes": [
       {"id": "cap", "type": "audio.capture", "params": {}},
       {"id": "feat", "type": "audio.features", "params": {}},
@@ -300,7 +301,7 @@ TEST_CASE("changing fixedAnchorHue re-seeds drift and bounce together", "[AudioN
 TEST_CASE("clearing fixedAnchorHue keeps the running anchor", "[AudioNodes]")
 {
   NodeRegistry registry = makeAudioRegistry();
-  Graph::Graph live = requireGraph(kFullChain, registry);
+  Aurora::Runtime::Graph::Graph live = requireGraph(kFullChain, registry);
 
   FakeAudioInput input;
   FakeHost host;
@@ -309,7 +310,7 @@ TEST_CASE("clearing fixedAnchorHue keeps the running anchor", "[AudioNodes]")
   constexpr float dt = 1.f / 60.f;
   live.tick(dt, &host);
 
-  Graph::Graph next = requireGraph(
+  Aurora::Runtime::Graph::Graph next = requireGraph(
     R"({"version": 1, "nodes": [
       {"id": "cap", "type": "audio.capture", "params": {}},
       {"id": "feat", "type": "audio.features", "params": {}},
@@ -330,4 +331,71 @@ TEST_CASE("clearing fixedAnchorHue keeps the running anchor", "[AudioNodes]")
   CHECK_THAT(
     requireAngle(next.portValue("drift", "anchor")).degrees,
     Catch::Matchers::WithinRel(120.f - 10.f * dt, 1e-4f));
+}
+
+TEST_CASE("frame.broadcast matches composeAudioFrame over the live zone map", "[AudioNodes]")
+{
+  class ZoneHost : public IGraphHost
+  {
+  public:
+    const ZoneMap* zoneMap(std::string_view name) override
+    {
+      return name == "hue" ? &map : nullptr;
+    }
+    ZoneMap map{};
+  };
+
+  ZoneConfig a;
+  a.zoneId = 1;
+  a.gamma = 0.4f;
+  ZoneConfig off;
+  off.zoneId = 2;
+  off.active = false;
+  ZoneConfig b;
+  b.zoneId = 3;
+  ZoneHost host;
+  host.map = {a, off, b};
+
+  NodeRegistry registry = makeAudioRegistry();
+  Aurora::Runtime::Graph::Graph graph = requireGraph(
+    R"({"version": 1, "nodes": [
+      {"id": "cap", "type": "audio.capture", "params": {}},
+      {"id": "feat", "type": "audio.features", "params": {}},
+      {"id": "drift", "type": "audio.drift", "params": {"fixedAnchorHue": 120.0}},
+      {"id": "beat", "type": "audio.bounce", "params": {"fixedAnchorHue": 120.0}},
+      {"id": "all", "type": "frame.broadcast", "params": {"output": "hue"}}
+    ], "edges": [
+      ["cap.buffer", "feat.buffer"],
+      ["feat.features", "drift.features"],
+      ["feat.features", "beat.features"],
+      ["drift.anchor", "beat.anchor"],
+      ["beat.color", "all.color"]
+    ]})",
+    registry);
+
+  FakeAudioInput input;
+  struct Both : IGraphHost
+  {
+    IAudioInput* audioInput() override { return audio; }
+    const ZoneMap* zoneMap(std::string_view name) override { return zones->zoneMap(name); }
+    IAudioInput* audio{nullptr};
+    ZoneHost* zones{nullptr};
+  } both;
+  both.audio = &input;
+  both.zones = &host;
+
+  graph.tick(1.f / 60.f, &both);
+  const Color& color = requireColor(graph.portValue("beat", "color"));
+  const GraphValue* value = graph.portValue("all", "frame");
+  REQUIRE(value != nullptr);
+  const Frame* frame = std::get_if<Frame>(value);
+  REQUIRE(frame != nullptr);
+  Frame expected = composeAudioFrame(color, host.map);
+  REQUIRE(frame->size() == 2); // inactive zone omitted
+  REQUIRE(expected.size() == 2);
+  for(std::size_t i = 0; i < expected.size(); i++){
+    CHECK((*frame)[i].id == expected[i].id);
+    CHECK((*frame)[i].color == color);
+    CHECK((*frame)[i].gamma == expected[i].gamma);
+  }
 }

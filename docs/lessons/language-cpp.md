@@ -294,3 +294,16 @@ changed the order of `output.send` calls across outputs.
 (min-heap). `Graph::finalize` does this, and the "ties by declaration
 order" test pins it. Any hash-container loop with observable order needs
 the same treatment.
+
+## `Graph::Graph` is ambiguous under two using-directives on MSVC, fine on GCC
+Tags: cpp, msvc, namespace, using-directive, node-graph
+Applies-when: a test or source file has `using namespace Aurora::Runtime` and `using namespace Aurora::Runtime::Graph`, or any namespace shares its name with a class inside it
+
+`Aurora::Runtime::Graph` is both a namespace and (as `Graph::Graph`) a class.
+With both namespaces pulled in, MSVC reports C2872 "ambiguous symbol" for
+`Graph::Graph`, while GCC accepts it. The G2a and G2b tests shipped with it
+because they were only built with GCC under WSL.
+
+**Fix:** spell the type `Aurora::Runtime::Graph::Graph` in tests that use
+both directives. Build at least the touched test exes with the MSVC tree
+before closing a bead, not only the WSL tree.
