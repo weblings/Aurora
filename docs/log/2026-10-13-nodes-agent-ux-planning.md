@@ -31,3 +31,15 @@ first sequence.
   path only. A video or universal floor needs a much lower default.
 - The Dashboard has no general-controls section, only Zone Mapping, Tuning
   and Bridge accordions.
+
+## Revised 2026-10-14
+
+- G2c narrowed to its own nodes. New `.7` G2d (built-in graphs plus param
+  overlay, parity gate) depends on G2a, G2b and G2c. New `.8` G3 cutover
+  (PipelineHost on the Graph, orchestrators removed).
+- G2b now depends on `Aurora-7r3`, so parity doesn't lock in the drift bug.
+- G0 notes: tick rate, reserved INode hooks, node naming, metadata as
+  descriptor extensions, no `graph.json` on disk yet. G1 validator adds
+  missing input and one edge per output send.
+- pngj: gain after floor recommended. 6v36: built as a core function now,
+  wrapped by the Graph later.

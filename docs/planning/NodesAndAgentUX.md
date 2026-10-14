@@ -28,26 +28,31 @@ path ([[external-control]]) and an adapter an assistant can call (EC 6a).
 
 ## Sequence A: foundations
 
-Status: filed 2026-10-13. Epic `Aurora-ra4o` (G0 to G2c), plus the external
-and floor beads below.
+Status: filed 2026-10-13, revised 2026-10-14 (G2d and G3 added, G2c narrowed).
+Epic `Aurora-ra4o` (G0 to G3), plus the external and floor beads below.
 
 - **Goal:** a Graph runtime that reproduces today's pipelines byte-for-byte,
-  and the safety prerequisites for exposing it. No user-visible change.
+  the app running on it, and the safety prerequisites for exposing it. No
+  user-visible change.
 - **Beads:**
   - Node: `Aurora-ra4o.1` G0 spec freeze, `.2` G1 runtime, `.3` G1b corpus,
-    `.4` G2a video nodes, `.5` G2b audio nodes, `.6` G2c frame nodes and
-    default-graph synthesis.
+    `.4` G2a video nodes, `.5` G2b audio nodes, `.6` G2c frame nodes,
+    `.7` G2d built-in graphs and parity gate, `.8` G3 cutover.
+  - Prerequisite: `Aurora-7r3` (drift bug) before G2b, so parity doesn't
+    lock the bug into the audio nodes.
   - External: `Aurora-5ipy.4` EC 3, `.1` EC 0, `.2`/`.3` EC 2a/2b, `.8` EC 5b,
     `.5` EC 4a (with scopes), `.7` EC 5a.
   - Decision and floor: `Aurora-pngj`, `Aurora-6v36`, `Aurora-d7s`.
 - **Gate:** the golden parity harness (Aurora-tft) passes through the Graph
-  for both default graphs.
+  for both built-in graphs (G2d), and the app runs on the Graph with the
+  orchestrators removed (G3).
 - **Parallel:** node lane and external lane are independent. G2a, G2b and G2c
-  are independent once G1 lands. Floor stage waits only on pngj.
+  are independent once G1 lands. G2d joins them. Floor stage waits only on
+  pngj, which also settles its order relative to EC 5a gain.
 - **OS:** logic is platform-neutral and runs in core tests on all three CI
   platforms. Audio nodes need a per-OS capture recheck. EC 3 needs each OS's
-  hostnames, including the mDNS names. EC 4a uses the OS secret-store
-  interface, with a fallback where libsecret is absent.
+  hostnames, including the mDNS names. EC 4a stores token hashes beside
+  config, not in the OS secret store.
 - **Tests:** golden parity, bad-graph corpus plus loader fuzz, fake clock,
   middleware negative tests (rebinding, 401, revoked token).
 
@@ -57,7 +62,8 @@ Each gets a full section when it starts.
 
 - **B: read surface and primitives.** Status: not started. Read routes
   (`/api/nodes`, `GET /api/graph`), Tier 2 primitives in four parallel
-  families, pairing UI.
+  families, pairing UI. Decide how spatial nodes get zone geometry
+  (`Frame` has no position) before Frame ops ship.
 - **C: safe writes.** Status: not started. Draft/validate routes, apply route
   with scopes, draft vs. live with auto-revert, public API contract.
 - **D: agent path.** Status: not started. Annotated preset graphs, MCP tools
