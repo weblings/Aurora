@@ -945,3 +945,19 @@ Aurora-kea already did the right thing internally: independent booleans
 **Fix:** public state exposes capability flags plus an effect id; keep `mode`
 only as a derived, deprecated convenience. Decide this before 5ipy.9 freezes
 the spec, and keep adapters (MCP tool lists) keyed on the flags.
+
+---
+
+## Scripted `bd create` ids: `--silent` can still print hint lines, so extract the id and quote it
+Tags: beads, scripting, shell
+Applies-when: filing several dependent beads from one shell script
+
+`id=$(bd create ... --silent | tail -1)` captured a config-hint line instead
+of the id. Every later `--parent=$id` then expanded to many words, failed
+with "accepts at most 1 arg(s)", and created nothing, while the bare epic
+had already been made. Caught only because `bd list -l <label>` showed one
+bead where eight were expected.
+
+**Fix:** pull the id with `grep -o -E 'Aurora-[a-z0-9.]+' | head -1`, quote
+`"$id"` in later calls, and check `bd list -l <label>` before wiring
+dependencies.

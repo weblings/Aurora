@@ -24,6 +24,7 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `cj11-shell-banner` | [log/2026-10-06-cj11-shell-banner.md](log/2026-10-06-cj11-shell-banner.md) | Aurora-cj11: sticky shell banner for system errors (closed) |
 | `cli-help-version` | [log/2026-10-06-cli-help-version.md](log/2026-10-06-cli-help-version.md) | CLI --help/--version closes Aurora-v3in and Aurora-0gd |
 | `cyee-rbp3-mdns-and-host-conditions` | [log/2026-10-08-cyee-rbp3-mdns-and-host-conditions.md](log/2026-10-08-cyee-rbp3-mdns-and-host-conditions.md) | Aurora-cyee + Aurora-rbp3: local bridge discovery and host conditions (closed) |
+| `d2r3-windows-sdr-alpha-guard` | [log/2026-10-13-d2r3-windows-sdr-alpha-guard.md](log/2026-10-13-d2r3-windows-sdr-alpha-guard.md) | Aurora-d2r3: Windows SDR capture dropped every frame |
 | `d3ec-host-build-errors` | [log/2026-10-06-d3ec-host-build-errors.md](log/2026-10-06-d3ec-host-build-errors.md) | Aurora-d3ec: host holds build errors, GET /api/state reports state |
 | `d3ec-linux-verification` | [log/2026-10-06-d3ec-linux-verification.md](log/2026-10-06-d3ec-linux-verification.md) | Aurora-d3ec Linux verification (compile, Catch2, live failed-state cycle) |
 | `d3ec-windows-verification` | [log/2026-10-06-d3ec-windows-verification.md](log/2026-10-06-d3ec-windows-verification.md) | Aurora-d3ec Windows verification (compile, Catch2, live failed-state cycle) |
@@ -115,6 +116,8 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `monorepo-reorg` | [log/2026-09-21-monorepo-reorg.md](log/2026-09-21-monorepo-reorg.md) | Monorepo reorg (2026-09-21) |
 | `node-graph-pipeline` | [planning/NodeGraphPipeline.md](planning/NodeGraphPipeline.md) | Node-graph processing pipeline |
 | `node-ha-prep-sequencing` | [log/2026-10-01-node-ha-prep-sequencing.md](log/2026-10-01-node-ha-prep-sequencing.md) | Node and HA prep: scoping, HA core read, bead sequences |
+| `nodes-agent-ux` | [planning/NodesAndAgentUX.md](planning/NodesAndAgentUX.md) | Nodes and agent UX: sequences |
+| `nodes-agent-ux-planning` | [log/2026-10-13-nodes-agent-ux-planning.md](log/2026-10-13-nodes-agent-ux-planning.md) | Nodes and agent UX: planning session, Sequence A filed |
 | `o13-dual-capture` | [log/2026-10-11-o13-dual-capture.md](log/2026-10-11-o13-dual-capture.md) | Aurora-o13: video and audio capture at the same time (Linux, Mac, Windows capture run) |
 | `o1qt-local-network-probe` | [log/2026-10-08-o1qt-local-network-probe.md](log/2026-10-08-o1qt-local-network-probe.md) | Aurora-o1qt: Mac Local Network permission detection (closed) |
 | `open-formats-research` | [archive/OpenFormatsResearch.md](archive/OpenFormatsResearch.md) | Existing open formats for video/audio-reactive lighting |
@@ -149,8 +152,8 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `wqzp3-mac-video-cpu` | [log/2026-10-12-wqzp3-mac-video-cpu.md](log/2026-10-12-wqzp3-mac-video-cpu.md) | Aurora-wqzp.3: Mac video CPU 19% vs 3qh's 5.5% |
 | `wqzp4-linux-decimate-on-copy` | [log/2026-10-13-wqzp4-linux-decimate-on-copy.md](log/2026-10-13-wqzp4-linux-decimate-on-copy.md) | Aurora-wqzp.4: Linux downscale while copying out of the PipeWire buffer |
 | `wqzp6-windows-grab-thread` | [log/2026-10-13-wqzp6-windows-grab-thread.md](log/2026-10-13-wqzp6-windows-grab-thread.md) | Aurora-wqzp.6: Windows capture thread, tick headroom |
+| `wqzp7-linux-audio-cost` | [log/2026-10-13-wqzp7-linux-audio-cost.md](log/2026-10-13-wqzp7-linux-audio-cost.md) | Aurora-wqzp.7 (Linux half): where Linux audio-only CPU goes |
 | `wqzp7-mac-audio-cost` | [log/2026-10-13-wqzp7-mac-audio-cost.md](log/2026-10-13-wqzp7-mac-audio-cost.md) | Aurora-wqzp.7 / .15: where Mac audio-only CPU goes, and optimized presets |
-| `wqzp7-linux-audio-cost` | [log/2026-10-13-wqzp7-linux-audio-cost.md](log/2026-10-13-wqzp7-linux-audio-cost.md) | Aurora-wqzp.7: where Linux audio-only CPU goes |
 | `wqzp8-windows-skip-cursor-frames` | [log/2026-10-13-wqzp8-windows-skip-cursor-frames.md](log/2026-10-13-wqzp8-windows-skip-cursor-frames.md) | Aurora-wqzp.8: Windows skips cursor-only DXGI frames |
 | `wqzp9-mac-mover-proof` | [log/2026-10-13-wqzp9-mac-mover-proof.md](log/2026-10-13-wqzp9-mac-mover-proof.md) | Aurora-wqzp.9: perf-harness proves the mover from the relay SSE |
 | `x1lh-error-shell-visual-polish` | [log/2026-10-07-error-shell-visual-polish.md](log/2026-10-07-error-shell-visual-polish.md) | Aurora-x1lh: error shell visual polish (closed) |
