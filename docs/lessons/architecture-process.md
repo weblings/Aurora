@@ -961,3 +961,22 @@ bead where eight were expected.
 **Fix:** pull the id with `grep -o -E 'Aurora-[a-z0-9.]+' | head -1`, quote
 `"$id"` in later calls, and check `bd list -l <label>` before wiring
 dependencies.
+
+---
+
+## Optional graph inputs evaluate with Absent; only required inputs gate
+Tags: architecture, node-graph, INode, absent-data
+Applies-when: declaring an input port optional on a Tier 1/2 node, or handling Absent in `evaluate`
+
+The G0 doc says absent propagates to dependents, which reads as "any
+missing input skips the node" — but then an optional input could never do
+anything: unconnected means absent forever. G1 (Aurora-ra4o.2) splits the
+rule: an error on any input, or Absent on a *required* input, propagates
+without calling `evaluate`; Absent on an *optional* input flows into the
+`EvalContext` and the node decides (default value, hold, skip its own
+outputs). A missing edge to a required input is a load error, so at
+runtime required-absent always means "upstream had no data this tick".
+
+**Fix:** node authors must handle `isAbsent()` on every optional port —
+the evaluator will not do it for them. The `test.optin` case in
+`core/tests/GraphTests.cpp` is the reference shape.

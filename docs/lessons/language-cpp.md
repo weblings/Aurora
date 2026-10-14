@@ -260,3 +260,21 @@ include.
 system and project), then `#define private public`, the target header, and
 `#undef private`. Include guards then keep the macro off everything but the
 target class. Scratch drivers only; never in committed code.
+
+---
+
+## Inspect the stored copy, never the local you just moved-from
+Tags: c++, variant, move-semantics, dangling-pointer
+Applies-when: checking the content of a `std::variant` (or any moved-from object) before `emplace`/`push` moving it into a container
+
+`Graph::tick` (Aurora-ra4o.2) gathered each input into a local `GraphValue`,
+took `asError()` on the local to detect error propagation, then moved the
+local into `ctx.inputs` — leaving the saved error pointer aimed at
+moved-from state. A move leaves the source valid but unspecified, so both
+error-propagation tests read back empty node ids with no crash and no
+sanitizer complaint. It looked like the loader dropped the id; the loader
+was innocent.
+
+**Fix:** move first, then inspect the stored copy (`ctx.inputs.at(name)`).
+Whenever a pointer or check must survive the move, derive it from the
+destination, never the source.
