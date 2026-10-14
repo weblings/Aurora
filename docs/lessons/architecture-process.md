@@ -980,3 +980,24 @@ runtime required-absent always means "upstream had no data this tick".
 **Fix:** node authors must handle `isAbsent()` on every optional port —
 the evaluator will not do it for them. The `test.optin` case in
 `core/tests/GraphTests.cpp` is the reference shape.
+
+---
+
+## A bad-graph fixture for a later loader check must pass every earlier check
+Tags: node-graph, GraphLoader, testing, corpus
+Applies-when: adding a bad-graph corpus fixture, or reordering validation in `core/Runtime/src/Graph/GraphLoader.cpp`
+
+`GraphLoader::loadGraph` returns the *first* rejection in a fixed order
+(version → nodes → params → output bindings → edges → required inputs →
+sink collisions → controls → instantiate → cycles), so a fixture aimed at
+a later check fails earlier — and misleadingly — unless it satisfies all
+prior ones. G1b (Aurora-ra4o.3) hit it concretely: the two-sinks-on-one-output
+fixture binds `"hue"`, which dies first as "unregistered output" unless
+`knownOutputs` contains `"hue"`, while the unregistered-output fixture
+needs exactly the opposite. One shared `LoadOptions` cannot serve both.
+
+**Fix:** give each corpus case its own `LoadOptions` (per-case
+`knownOutputs`), and when a new fixture fails with the wrong rejection,
+read which earlier check fired instead of assuming the target check is
+broken. Keep this order in mind before reordering loader validation:
+existing fixtures pin the current sequence.

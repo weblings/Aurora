@@ -2,8 +2,9 @@
 
 Id: node-graph-pipeline
 
-Status: exploratory — G1 graph core landed (Aurora-ra4o.2, 2026-10-14);
-G2/G3 pending. Written 2026-09-30 from a code read of
+Status: exploratory — G1 graph core + bad-graph corpus/fuzz landed
+(Aurora-ra4o.2/.3, 2026-10-14); G2/G3 pending. Written 2026-09-30 from a
+code read of
 `core/Runtime` + `core/*Processing`; no bead yet for the graph itself.
 Revised 2026-10-01: "Prep work before importing libraries" added, fail-state
 sanitizing corrected after Aurora-5y0. Revised 2026-10-02: Tuning edits to
