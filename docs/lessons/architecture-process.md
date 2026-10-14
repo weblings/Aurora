@@ -1035,3 +1035,21 @@ that guard (passthrough the input pointer) or the chain stalls on empty.
 Identity caching goes with it: cache by input pointer plus every param,
 and rebuild on any param change, mirroring `setConfig` resetting
 `m_preparedSerial` for the same reason.
+
+---
+
+## Conditionally compiled nodes need their sources and tests behind the same gate
+Tags: architecture, node-graph, build-configuration, testing
+Applies-when: adding a graph node that wraps gated code (audio-only today), or choosing which test binary holds its tests
+
+`AudioNodes.cpp` wraps aubio-backed code, so it compiles only when `TARGET
+AuroraAudioProcessing` exists — added to the same `if()` block as
+`AudioOrchestrator.cpp`, not the unconditional node list. Its tests likewise
+went into the gated `AuroraAudioOrchestratorTests` exe, not
+`AuroraRuntimeTests` where G2a's video tests live: copying G2a's placement
+would break every video-only (`AURORA_CORE_ENABLE_AUDIO=OFF`) build.
+
+**Fix:** a new node file inherits the build gate of the code it wraps, and
+its tests inherit it too — check both the library-sources block and the
+test-exe membership, since they gate independently in
+`core/Runtime/CMakeLists.txt` vs `core/tests/CMakeLists.txt`.

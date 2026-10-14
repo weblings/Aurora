@@ -149,6 +149,7 @@ if(TARGET AuroraAudioProcessing)
 
   add_executable(AuroraAudioOrchestratorTests
     AudioOrchestratorTests.cpp
+    AudioNodesTests.cpp
   )
 
   target_link_libraries(AuroraAudioOrchestratorTests PRIVATE

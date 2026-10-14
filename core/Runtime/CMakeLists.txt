@@ -55,7 +55,7 @@ if(WIN32)
 endif()
 
 if(TARGET AuroraAudioProcessing)
-  target_sources(AuroraRuntime PRIVATE src/AudioFrameCompositor.cpp src/AudioOrchestrator.cpp)
+  target_sources(AuroraRuntime PRIVATE src/AudioFrameCompositor.cpp src/AudioOrchestrator.cpp src/Graph/AudioNodes.cpp)
   target_link_libraries(AuroraRuntime PUBLIC AuroraAudioProcessing)
   # Lets a consumer's main.cpp #ifdef around AudioOrchestrator.hpp, same
   # pattern as AURORA_INPUT_WINDOWS_AUDIO_AVAILABLE.

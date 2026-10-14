@@ -182,3 +182,4 @@ Planning docs stay clean: decisions, status, and pointers here only.
 | 2026-10-14 | G1c pre-G2 adjustments: IGraphHost host services, Angle port in Sequence A, declaration-order topo sort, typed EvalContext accessors, G0 amended; full suite 218/218; 2 lessons. [[ra4o9-g1c-pre-g2-adjustments]] | `bd show Aurora-ra4o.9` |
 | 2026-10-14 | G2a Tier 1 video nodes (video.capture, image.rescale/dropAlpha, zones.sample) + 6 per-node Graph cases; full suite 224/224; 2 lessons. [[ra4o4-g2a-video-nodes]] | `bd show Aurora-ra4o.4` |
 | 2026-10-14 | Audio drift reaches output: bounce target now anchor + onset offset, 6 audio goldens regenerated, live A/B capture; suite 224/224; 2 lessons. [[7r3-audio-drift-reaches-output]] | `bd show Aurora-7r3` |
+| 2026-10-14 | G2b Tier 1 audio nodes (audio.capture/features/drift/bounce) + 8 per-node Graph cases; full suite 232/232; 3 lessons. [[ra4o5-g2b-audio-nodes]] | `bd show Aurora-ra4o.5` |
