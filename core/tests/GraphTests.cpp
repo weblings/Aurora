@@ -251,6 +251,7 @@ namespace
         {"outFeatures", PortType::AudioFeatures, false},
         {"outColor", PortType::Color, false},
         {"outFrame", PortType::Frame, false},
+        {"outAngle", PortType::Angle, false},
       };
     }
 
@@ -278,6 +279,7 @@ namespace
       outputs.emplace("outFeatures", features);
       outputs.emplace("outColor", Color(1, 2, 3));
       outputs.emplace("outFrame", frame);
+      outputs.emplace("outAngle", Angle{123.5f});
     }
 
   private:
@@ -385,6 +387,62 @@ namespace
     bool m_armed{true};
   };
 
+  // G1c: reads the zone count of its bound output from host services.
+  class HostZonesNode : public INode
+  {
+  public:
+    const std::vector<PortDecl>& inputPorts() const override { return m_in; }
+    const std::vector<PortDecl>& outputPorts() const override { return m_out; }
+    void evaluate(
+      const EvalContext& ctx,
+      float,
+      std::unordered_map<std::string, GraphValue>& outputs) override
+    {
+      const auto* zones = ctx.requireHost().zoneMap(ctx.param<std::string>("output"));
+      if(zones == nullptr){
+        ctx.fail("host has no zone map for its output");
+      }
+      outputs.emplace("out", Color(static_cast<uint8_t>(zones->size()), 0, 0));
+    }
+
+  private:
+    std::vector<PortDecl> m_in{};
+    std::vector<PortDecl> m_out{{"out", PortType::Color, false}};
+  };
+
+  // G1c: exercises the typed accessors, including a wrong-kind read.
+  class TypedNode : public INode
+  {
+  public:
+    const std::vector<PortDecl>& inputPorts() const override { return m_in; }
+    const std::vector<PortDecl>& outputPorts() const override { return m_out; }
+    void evaluate(
+      const EvalContext& ctx,
+      float,
+      std::unordered_map<std::string, GraphValue>& outputs) override
+    {
+      if(ctx.param<bool>("wrongKind")){
+        (void)ctx.param<float>("wrongKind");
+      }
+      const Color* in = ctx.optionalInput<Color>("in");
+      outputs.emplace("out", in != nullptr ? *in : Color(0, 0, 255));
+    }
+
+  private:
+    std::vector<PortDecl> m_in{{"in", PortType::Color, false}};
+    std::vector<PortDecl> m_out{{"out", PortType::Color, false}};
+  };
+
+  struct FakeHost : IGraphHost
+  {
+    std::unordered_map<std::string, Aurora::Runtime::ZoneMap> zones;
+    const Aurora::Runtime::ZoneMap* zoneMap(std::string_view outputName) override
+    {
+      auto it = zones.find(std::string(outputName));
+      return it != zones.end() ? &it->second : nullptr;
+    }
+  };
+
   ParamDecl floatParam(
     const std::string& name,
     float min,
@@ -479,6 +537,7 @@ namespace
       {"outFeatures", PortType::AudioFeatures, false},
       {"outColor", PortType::Color, false},
       {"outFrame", PortType::Frame, false},
+      {"outAngle", PortType::Angle, false},
     };
     info.factory = []{ return std::make_unique<ValueSrcNode>(); };
     CHECK(registry.registerType("test.valuesrc", std::move(info)));
@@ -488,7 +547,8 @@ namespace
           PortType::AudioBuffer,
           PortType::AudioFeatures,
           PortType::Color,
-          PortType::Frame}){
+          PortType::Frame,
+          PortType::Angle}){
       info = {};
       info.meta = meta(
         std::string("passthrough for ") + portTypeName(type),
@@ -537,6 +597,29 @@ namespace
     info.params = {mode, flag, bias};
     info.factory = []{ return std::make_unique<ParamProbeNode>(); };
     CHECK(registry.registerType("test.paramprobe", std::move(info)));
+
+    info = {};
+    info.meta = meta("zone count of one output, from host services", R"({"id":"h","type":"test.hostzones"})");
+    info.outputs = {{"out", PortType::Color, false}};
+    ParamDecl hostOutput;
+    hostOutput.name = "output";
+    hostOutput.kind = ParamKind::Enum;
+    hostOutput.description = "output whose zones are counted";
+    info.params = {hostOutput};
+    info.factory = []{ return std::make_unique<HostZonesNode>(); };
+    CHECK(registry.registerType("test.hostzones", std::move(info)));
+
+    info = {};
+    info.meta = meta("typed accessor probe", R"({"id":"t","type":"test.typed"})");
+    info.inputs = {{"in", PortType::Color, false}};
+    info.outputs = {{"out", PortType::Color, false}};
+    ParamDecl wrongKind;
+    wrongKind.name = "wrongKind";
+    wrongKind.kind = ParamKind::Bool;
+    wrongKind.description = "read this bool as a float";
+    info.params = {wrongKind};
+    info.factory = []{ return std::make_unique<TypedNode>(); };
+    CHECK(registry.registerType("test.typed", std::move(info)));
 
     return registry;
   }
@@ -768,7 +851,7 @@ TEST_CASE("Graph optional input without an edge still evaluates", "[Graph]")
   CHECK(colorOf(fed, "o", "out") == Color(5, 6, 7));
 }
 
-TEST_CASE("Graph round-trips all five Sequence-A port types", "[Graph]")
+TEST_CASE("Graph round-trips all six Sequence-A port types", "[Graph]")
 {
   auto probes = std::make_shared<Probes>();
   NodeRegistry registry = makeTestRegistry(probes);
@@ -780,14 +863,16 @@ TEST_CASE("Graph round-trips all five Sequence-A port types", "[Graph]")
       {"id": "pa", "type": "test.pipe.audiobuffer"},
       {"id": "pf", "type": "test.pipe.audiofeatures"},
       {"id": "pc", "type": "test.pipe.color"},
-      {"id": "pr", "type": "test.pipe.frame"}
+      {"id": "pr", "type": "test.pipe.frame"},
+      {"id": "pg", "type": "test.pipe.angle"}
     ],
     "edges": [
       ["v.outImage", "pi.in"],
       ["v.outAudio", "pa.in"],
       ["v.outFeatures", "pf.in"],
       ["v.outColor", "pc.in"],
-      ["v.outFrame", "pr.in"]
+      ["v.outFrame", "pr.in"],
+      ["v.outAngle", "pg.in"]
     ]
   })");
   graph.tick(1.f / 60.f);
@@ -821,6 +906,10 @@ TEST_CASE("Graph round-trips all five Sequence-A port types", "[Graph]")
   CHECK(zones->at(0).id == 3);
   CHECK(zones->at(0).color == Color(11, 22, 33));
   CHECK(zones->at(0).gamma == 0.5f);
+
+  const GraphValue* angle = graph.portValue("pg", "out");
+  REQUIRE(angle != nullptr);
+  CHECK(std::get<Angle>(*angle) == Angle{123.5f});
 }
 
 TEST_CASE("Graph image travels by reference through fan-out", "[Graph]")
@@ -1222,3 +1311,136 @@ TEST_CASE("Graph failed load keeps the running graph", "[Graph]")
   CHECK(live.tickCount() == 3);
 }
 
+
+TEST_CASE("Graph breaks topo ties by declaration order", "[Graph]")
+{
+  auto probes = std::make_shared<Probes>();
+  NodeRegistry registry = makeTestRegistry(probes);
+  Graph graph = mustLoad(registry, R"({
+    "version": 1,
+    "nodes": [
+      {"id": "n7", "type": "test.passthrough"},
+      {"id": "src", "type": "test.const"},
+      {"id": "n2", "type": "test.passthrough"},
+      {"id": "zz", "type": "test.passthrough"},
+      {"id": "a1", "type": "test.passthrough"},
+      {"id": "n5", "type": "test.passthrough"},
+      {"id": "m0", "type": "test.passthrough"}
+    ],
+    "edges": [
+      ["src.out", "n7.in"], ["src.out", "n2.in"], ["src.out", "zz.in"],
+      ["src.out", "a1.in"], ["src.out", "n5.in"], ["src.out", "m0.in"]
+    ]
+  })");
+  CHECK(graph.evalOrder() == std::vector<std::string>{"src", "n7", "n2", "zz", "a1", "n5", "m0"});
+  graph.tick(1.f / 60.f);
+  CHECK(probes->order == std::vector<std::string>{"n7", "n2", "zz", "a1", "n5", "m0"});
+}
+
+TEST_CASE("Graph cycle error names nodes in declaration order", "[Graph]")
+{
+  auto probes = std::make_shared<Probes>();
+  NodeRegistry registry = makeTestRegistry(probes);
+  std::string error = failWith(registry, R"({
+    "version": 1,
+    "nodes": [
+      {"id": "z", "type": "test.join"},
+      {"id": "c", "type": "test.const"},
+      {"id": "a", "type": "test.passthrough"}
+    ],
+    "edges": [["c.out", "z.b"], ["z.out", "a.in"], ["a.out", "z.a"]]
+  })");
+  CHECK(error.find("cycle detected involving node 'z', node 'a'") != std::string::npos);
+}
+
+TEST_CASE("Graph passes host services to nodes", "[Graph]")
+{
+  auto probes = std::make_shared<Probes>();
+  NodeRegistry registry = makeTestRegistry(probes);
+  Graph graph = mustLoad(registry, R"({
+    "version": 1,
+    "nodes": [{"id": "h", "type": "test.hostzones", "params": {"output": "hue"}}],
+    "edges": []
+  })");
+
+  FakeHost host;
+  host.zones["hue"] = Aurora::Runtime::ZoneMap(3);
+  graph.tick(1.f / 60.f, &host);
+  CHECK(colorOf(graph, "h", "out") == Color(3, 0, 0));
+
+  // A live zone-map edit shows up on the next tick without a reload.
+  host.zones["hue"].resize(5);
+  graph.tick(1.f / 60.f, &host);
+  CHECK(colorOf(graph, "h", "out") == Color(5, 0, 0));
+}
+
+TEST_CASE("Graph node needing a host errors cleanly without one", "[Graph]")
+{
+  auto probes = std::make_shared<Probes>();
+  NodeRegistry registry = makeTestRegistry(probes);
+  Graph graph = mustLoad(registry, R"({
+    "version": 1,
+    "nodes": [{"id": "h", "type": "test.hostzones", "params": {"output": "hue"}}],
+    "edges": []
+  })");
+  graph.tick(1.f / 60.f);
+  const GraphValue* value = graph.portValue("h", "out");
+  REQUIRE(value != nullptr);
+  const GraphError* err = asError(*value);
+  REQUIRE(err != nullptr);
+  CHECK(err->nodeId == "h");
+  CHECK(err->message.find("without a host") != std::string::npos);
+}
+
+TEST_CASE("EvalContext typed accessors", "[Graph]")
+{
+  auto probes = std::make_shared<Probes>();
+  NodeRegistry registry = makeTestRegistry(probes);
+
+  SECTION("optionalInput is nullptr for Absent and the value when connected")
+  {
+    Graph graph = mustLoad(registry, R"({
+      "version": 1,
+      "nodes": [
+        {"id": "c", "type": "test.const", "params": {"r": 4, "g": 5, "b": 6}},
+        {"id": "wired", "type": "test.typed"},
+        {"id": "loose", "type": "test.typed"}
+      ],
+      "edges": [["c.out", "wired.in"]]
+    })");
+    graph.tick(1.f / 60.f);
+    CHECK(colorOf(graph, "wired", "out") == Color(4, 5, 6));
+    CHECK(colorOf(graph, "loose", "out") == Color(0, 0, 255));
+  }
+
+  SECTION("a wrong-kind param read becomes a GraphError naming node and param")
+  {
+    Graph graph = mustLoad(registry, R"({
+      "version": 1,
+      "nodes": [{"id": "t", "type": "test.typed", "params": {"wrongKind": true}}],
+      "edges": []
+    })");
+    graph.tick(1.f / 60.f);
+    const GraphValue* value = graph.portValue("t", "out");
+    REQUIRE(value != nullptr);
+    const GraphError* err = asError(*value);
+    REQUIRE(err != nullptr);
+    CHECK(err->message.find("node 't' param 'wrongKind' has an unexpected kind") != std::string::npos);
+  }
+}
+
+TEST_CASE("Graph loader rejects an Angle into a Color input", "[Graph]")
+{
+  auto probes = std::make_shared<Probes>();
+  NodeRegistry registry = makeTestRegistry(probes);
+  std::string error = failWith(registry, R"({
+    "version": 1,
+    "nodes": [
+      {"id": "v", "type": "test.valuesrc"},
+      {"id": "p", "type": "test.passthrough"}
+    ],
+    "edges": [["v.outAngle", "p.in"]]
+  })");
+  CHECK(error.find("Angle") != std::string::npos);
+  CHECK(error.find("Color") != std::string::npos);
+}

@@ -1,7 +1,6 @@
 #include <Aurora/Runtime/Graph/GraphLoader.hpp>
 
 #include <cmath>
-#include <queue>
 #include <sstream>
 
 namespace Aurora::Runtime::Graph
@@ -473,49 +472,7 @@ namespace Aurora::Runtime::Graph
       graph.addEdge(std::move(edge));
     }
 
-    // Cycle check with the nodes named, so an agent can break the loop.
-    {
-      std::unordered_map<std::string, std::size_t> indegree;
-      std::unordered_map<std::string, std::vector<std::string>> downstream;
-      for(const auto& node : pending){
-        indegree[node.id] = 0;
-      }
-      for(const auto& edge : graph.edges()){
-        downstream[edge.fromNode].push_back(edge.toNode);
-        indegree[edge.toNode]++;
-      }
-      std::queue<std::string> ready;
-      for(const auto& [id, degree] : indegree){
-        if(degree == 0){
-          ready.push(id);
-        }
-      }
-      std::size_t visited = 0;
-      while(!ready.empty()){
-        std::string id = std::move(ready.front());
-        ready.pop();
-        visited++;
-        for(const auto& next : downstream[id]){
-          if(--indegree[next] == 0){
-            ready.push(next);
-          }
-        }
-      }
-      if(visited != pending.size()){
-        std::ostringstream message;
-        message << "cycle detected involving";
-        bool first = true;
-        for(const auto& [id, degree] : indegree){
-          if(degree > 0){
-            message << (first ? " " : ", ") << "node '" << id << "'";
-            first = false;
-          }
-        }
-        message << " (expected a directed acyclic graph; break the loop with a buffer or reorder node)";
-        return fail(message.str());
-      }
-    }
-
+    // finalize() rejects cycles, naming the nodes so an agent can break the loop.
     {
       std::string error;
       if(!graph.finalize(error)){

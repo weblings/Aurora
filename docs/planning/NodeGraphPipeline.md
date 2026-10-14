@@ -3,7 +3,8 @@
 Id: node-graph-pipeline
 
 Status: exploratory — G1 graph core + bad-graph corpus/fuzz landed
-(Aurora-ra4o.2/.3, 2026-10-14); G2/G3 pending. Written 2026-09-30 from a
+(Aurora-ra4o.2/.3, 2026-10-14), pre-G2 adjustments in G1c (Aurora-ra4o.9);
+G2/G3 pending. Written 2026-09-30 from a
 code read of
 `core/Runtime` + `core/*Processing`; no bead yet for the graph itself.
 Revised 2026-10-01: "Prep work before importing libraries" added, fail-state
@@ -11,7 +12,9 @@ sanitizing corrected after Aurora-5y0. Revised 2026-10-02: Tuning edits to
 live-tunable fields now apply without a reload (Aurora-c0g, prep 7).
 
 Revised 2026-10-14 (G0, Aurora-ra4o.1): "Frozen format (G0)" added, agent-proposed
-and owner-approved. It supersedes the sketch where they differ.
+and owner-approved. It supersedes the sketch where they differ. Amended
+2026-10-14 (G1c, Aurora-ra4o.9): `Angle` port pulled into Sequence A, host
+services, evaluation order, INode wording matched to the G1 code.
 
 Question: could users rewire Aurora's video/audio processing in a web
 node editor (TouchDesigner/cables.gl-style) instead of the fixed pipelines?
@@ -100,8 +103,8 @@ still cover them.
 | `zones.sample` | `composeFrame` (`getSubImage` + `getDominantColor`) | Image + output → `Frame`; per-zone fan-out stays inside |
 | `audio.capture` | `IAudioInput::readNextBuffer` | Empty buffer → no fresh data this tick |
 | `audio.features` | `AudioFeatureExtractor` | Stateful (aubio). Split outputs: `rms`, `onset` (Trigger), `onsetStrength`, `centroid` (Hz) |
-| `audio.drift` | `updateDrift` | Compound; owns `DriftState` + random anchor |
-| `audio.bounce` | `updateBounce` | Compound; owns `BounceState`; outputs `Color` |
+| `audio.drift` | `updateDrift` | Compound; owns `DriftState` + random anchor; outputs anchor `Angle` |
+| `audio.bounce` | `updateBounce` | Compound; owns `BounceState`; reads anchor `Angle`, outputs `Color` |
 | `frame.broadcast` | `composeAudioFrame` | Color + output → `Frame` |
 | `frame.smooth` | `Smoother` | Per-output, per-zone state |
 | `output.send` | `IOutput::send` | Gamma stays in the output plugin (target-specific, per `Frame.hpp`) |
@@ -227,9 +230,16 @@ section wins.
 `frame.smooth`, `output.send`. The sketch's `video.sampleZones` is retired.
 
 **Port types.**
-- Sequence A: `Image`, `AudioBuffer`, `AudioFeatures`, `Color`, `Frame`.
-- Tier 2 adds `Float`, `Angle`, `Trigger`. `UVs` stays a param shape, not a
+- Sequence A: `Image`, `AudioBuffer`, `AudioFeatures`, `Color`, `Frame`,
+  `Angle` (degrees). `Angle` was pulled forward from Tier 2 (G1c) because
+  `updateBounce` reads the drift anchor, so `audio.drift` needs an output
+  `audio.bounce` can wire to.
+- Tier 2 adds `Float`, `Trigger`. `UVs` stays a param shape, not a
   port. `Detections` and `Motion` wait for the stretch work.
+- `Image` travels as a shared pointer. A capture node reuses the same pointer
+  while the source frame serial is unchanged, so downstream nodes
+  (`image.rescale`) cache by identity. This keeps Aurora-igwa's skip of
+  re-preparing a static frame.
 - `audio.features` emits one `AudioFeatures` port in Tier 1, because
   `updateDrift` and `updateBounce` take the whole struct. Split scalar ports
   arrive with the Tier 2 primitives.
@@ -256,12 +266,31 @@ This is what keeps byte parity with the orchestrators.
   even though no editor reads it in Sequence A.
 
 **INode.**
-- `evaluate(ctx, dt)`. `ctx` carries the tick's inputs, the node's state
-  slot (keyed by stable node id) and the output bindings.
-- Implemented in G1: a post-evaluate state self-heal check (Aurora-5y0).
+- `evaluate(ctx, dt, outputs)`. `ctx` carries the tick's inputs, the node's
+  params and the host services. Each node instance owns its own state. The
+  graph keeps instances by stable node id, and `adoptStateFrom` moves them
+  across a graph swap.
+- Nodes read through typed accessors (`ctx.param<T>`, `ctx.input<T>`,
+  `ctx.optionalInput<T>`). A missing name or wrong type throws, and the
+  evaluator turns the throw into an error value naming the node.
+- Implemented in G1: the post-evaluate state self-heal check (Aurora-5y0) and
+  the error value.
 - Declared and reserved, not implemented: async variant returning the latest
   result plus its age, per-node sampling width (replaces the global
-  `subsampleWidth`), and the error value.
+  `subsampleWidth`).
+
+**Host services.**
+- I/O nodes reach the app through an `IGraphHost` passed to `Graph::tick`.
+  It offers the video input, the audio input, an output by name, and the
+  live zone map for an output.
+- The node registry stays host-independent, so one registry serves
+  descriptors and agent prompts, and tests supply a fake host.
+- Zone maps are read every tick, so `updateZone` edits apply without a
+  graph reload. A node whose service is missing produces an error value.
+
+**Evaluation order.** Topological, ties broken by declaration order in
+`graph.json`. Every platform evaluates (and sends to outputs) in the same
+order.
 
 **Agent metadata.**
 - Per node type: `purpose`, `use_when`, `example`, `cost`. Per param: `unit`

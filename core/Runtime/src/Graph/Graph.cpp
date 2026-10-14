@@ -1,5 +1,6 @@
 #include <Aurora/Runtime/Graph/Graph.hpp>
 
+#include <functional>
 #include <queue>
 #include <sstream>
 
@@ -57,47 +58,48 @@ namespace Aurora::Runtime::Graph
       m_edgeByInput[edge.toNode][edge.toPort] = &edge;
     }
 
-    // Kahn's algorithm over node ids.
-    std::unordered_map<std::string, std::size_t> indegree;
-    std::unordered_map<std::string, std::vector<std::string>> downstream;
-    for(const auto& [id, _] : m_nodes){
-      indegree[id] = 0;
+    // Kahn's algorithm over declaration indices; the min-heap picks the
+    // earliest-declared ready node, so order never depends on hashing.
+    std::unordered_map<std::string, std::size_t> indexOf;
+    for(std::size_t i = 0; i < m_declOrder.size(); ++i){
+      indexOf[m_declOrder[i]] = i;
     }
+    std::vector<std::size_t> indegree(m_declOrder.size(), 0);
+    std::vector<std::vector<std::size_t>> downstream(m_declOrder.size());
     for(const auto& edge : m_edges){
-      downstream[edge.fromNode].push_back(edge.toNode);
-      indegree[edge.toNode]++;
+      const std::size_t from = indexOf.at(edge.fromNode);
+      const std::size_t to = indexOf.at(edge.toNode);
+      downstream[from].push_back(to);
+      indegree[to]++;
     }
-    std::queue<std::string> ready;
-    for(const auto& [id, degree] : indegree){
-      if(degree == 0){
-        ready.push(id);
+    std::priority_queue<std::size_t, std::vector<std::size_t>, std::greater<>> ready;
+    for(std::size_t i = 0; i < indegree.size(); ++i){
+      if(indegree[i] == 0){
+        ready.push(i);
       }
     }
     m_evalOrder.clear();
     while(!ready.empty()){
-      std::string id = std::move(ready.front());
+      const std::size_t i = ready.top();
       ready.pop();
-      m_evalOrder.push_back(id);
-      for(const auto& next : downstream[id]){
+      m_evalOrder.push_back(m_declOrder[i]);
+      for(const std::size_t next : downstream[i]){
         if(--indegree[next] == 0){
           ready.push(next);
         }
       }
     }
-    if(m_evalOrder.size() != m_nodes.size()){
+    if(m_evalOrder.size() != m_declOrder.size()){
       std::ostringstream message;
-      message << "cycle detected: no topo order over " << m_nodes.size() << " nodes (";
+      message << "cycle detected involving";
       bool first = true;
-      for(const auto& [id, degree] : indegree){
-        if(degree > 0){
-          if(!first){
-            message << ", ";
-          }
+      for(std::size_t i = 0; i < m_declOrder.size(); ++i){
+        if(indegree[i] > 0){
+          message << (first ? " " : ", ") << "node '" << m_declOrder[i] << "'";
           first = false;
-          message << "node '" << id << "'";
         }
       }
-      message << " never became ready; an agent must break the loop with a buffer or reorder node)";
+      message << " (expected a directed acyclic graph; remove an edge so no node depends on its own output)";
       errorOut = message.str();
       m_evalOrder.clear();
       return false;
@@ -105,7 +107,7 @@ namespace Aurora::Runtime::Graph
     return true;
   }
 
-  void Graph::tick(float dt)
+  void Graph::tick(float dt, IGraphHost* host)
   {
     for(const std::string& id : m_evalOrder){
       NodeInstance& instance = m_nodes.at(id);
@@ -113,6 +115,7 @@ namespace Aurora::Runtime::Graph
       EvalContext ctx;
       ctx.nodeId = id;
       ctx.params = instance.params;
+      ctx.host = host;
 
       // Gather inputs. An error on any input, or Absent on a required
       // input, propagates without calling evaluate. Absent on an

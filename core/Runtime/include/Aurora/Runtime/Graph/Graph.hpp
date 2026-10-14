@@ -6,6 +6,7 @@
 #include <unordered_map>
 #include <vector>
 
+#include <Aurora/Runtime/Graph/GraphHost.hpp>
 #include <Aurora/Runtime/Graph/GraphTypes.hpp>
 #include <Aurora/Runtime/Graph/GraphValue.hpp>
 #include <Aurora/Runtime/Graph/INode.hpp>
@@ -37,8 +38,9 @@ namespace Aurora::Runtime::Graph
     Graph(const Graph&) = delete;
     Graph& operator=(const Graph&) = delete;
 
-    // One tick in topo order with nominal dt seconds. Never throws.
-    void tick(float dt);
+    // One tick in topo order with nominal dt seconds. Never throws. `host`
+    // reaches every node's EvalContext; I/O nodes fail without one.
+    void tick(float dt, IGraphHost* host = nullptr);
 
     // Last tick's value, or nullptr when node/port is unknown or no tick
     // has run yet.
@@ -75,11 +77,15 @@ namespace Aurora::Runtime::Graph
     };
 
     // Loader-only assembly (public so the loader can use it; not for
-    // hosts). finalize() topo-sorts into m_evalOrder and returns false
-    // with errorOut on cycle (defensive: the loader already rejects
-    // cycles with a fuller message naming the nodes).
+    // hosts). finalize() topo-sorts into m_evalOrder, breaking ties by
+    // declaration order so every platform evaluates identically, and
+    // returns false with errorOut naming the nodes on a cycle.
     void setTickHz(std::optional<double> tickHz) { m_tickHz = tickHz; }
-    void addNode(NodeInstance instance) { m_nodes.emplace(instance.id, std::move(instance)); }
+    void addNode(NodeInstance instance)
+    {
+      m_declOrder.push_back(instance.id);
+      m_nodes.emplace(instance.id, std::move(instance));
+    }
     void addEdge(GraphEdge edge) { m_edges.push_back(std::move(edge)); }
     bool finalize(std::string& errorOut);
 
@@ -88,6 +94,7 @@ namespace Aurora::Runtime::Graph
     const NodeInstance* findNode(const std::string& id) const;
 
     std::unordered_map<std::string, NodeInstance> m_nodes;
+    std::vector<std::string> m_declOrder; // node ids as declared in graph.json
     std::vector<GraphEdge> m_edges;
     // toNode -> per-input edge (at most one edge per input, load guarantee).
     std::unordered_map<std::string, std::unordered_map<std::string, const GraphEdge*>> m_edgeByInput;

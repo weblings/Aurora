@@ -278,3 +278,19 @@ was innocent.
 **Fix:** move first, then inspect the stored copy (`ctx.inputs.at(name)`).
 Whenever a pointer or check must survive the move, derive it from the
 destination, never the source.
+
+---
+
+## Never let unordered_map iteration order decide evaluation or send order
+Tags: node-graph, determinism, unordered_map, parity
+Applies-when: writing a topo sort, scheduler or any loop whose order is observable (output sends, golden parity)
+
+G1's Kahn sort seeded its ready queue by iterating an `unordered_map`, so
+ties resolved differently on MSVC and libstdc++. That would have made the
+G2d byte-parity gate pass on one CI platform and fail on another, and
+changed the order of `output.send` calls across outputs.
+
+**Fix:** index nodes by declaration order and pop the lowest ready index
+(min-heap). `Graph::finalize` does this, and the "ties by declaration
+order" test pins it. Any hash-container loop with observable order needs
+the same treatment.

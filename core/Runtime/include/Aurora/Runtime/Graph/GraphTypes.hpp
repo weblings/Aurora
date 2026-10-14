@@ -12,15 +12,17 @@
 // Frozen format source: docs/planning/NodeGraphPipeline.md "Frozen format (G0)".
 namespace Aurora::Runtime::Graph
 {
-  // Sequence A port types. Tier 2 adds Float, Angle, Trigger; UVs stays a
-  // param shape, never a port.
+  // Sequence A port types. Angle was pulled forward from Tier 2 (G1c) so
+  // audio.drift can feed its anchor to audio.bounce. Tier 2 adds Float and
+  // Trigger; UVs stays a param shape, never a port.
   enum class PortType
   {
     Image,
     AudioBuffer,
     AudioFeatures,
     Color,
-    Frame
+    Frame,
+    Angle
   };
 
   const char* portTypeName(PortType type);

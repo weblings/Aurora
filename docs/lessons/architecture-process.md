@@ -1001,3 +1001,21 @@ needs exactly the opposite. One shared `LoadOptions` cannot serve both.
 read which earlier check fired instead of assuming the target check is
 broken. Keep this order in mind before reordering loader validation:
 existing fixtures pin the current sequence.
+
+---
+
+## Decomposing a monolith into nodes: list every hidden coupling before writing nodes
+Tags: node-graph, INode, ports, host-services
+Applies-when: splitting an orchestrator or processing function into graph nodes (G2a-c and later), or adding a node that needs more than its input ports
+
+Reading the orchestrators against the G1 API found two gaps that G1's own
+tests could not show, because test nodes capture probes in factory lambdas.
+- I/O nodes (capture, zone sampling, send) need live host objects and
+  there was no path to them, so each G2 bead would have invented one.
+- `updateBounce` reads `driftState.anchorHueDegrees` (a struct field, not
+  an argument), and no port type could carry it between split nodes.
+
+**Fix:** before writing a node, list every state read, shared struct field
+and host object the wrapped code touches, and give each one a port or an
+`IGraphHost` service. `AudioOrchestrator::setSettings` resetting both drift
+and bounce is the same class of coupling and must be reproduced per node.

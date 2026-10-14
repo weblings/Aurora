@@ -37,14 +37,27 @@ namespace Aurora::Runtime::Graph
     bool operator==(const GraphError&) const = default;
   };
 
+  // Hue in degrees. A distinct type so a future Float port can't be
+  // confused with it.
+  struct Angle
+  {
+    float degrees = 0.0f;
+    bool operator==(const Angle&) const = default;
+  };
+
+  // Shared, never copied. A capture node reuses the same pointer while the
+  // source frame is unchanged, so downstream nodes can cache by identity.
+  using ImagePtr = std::shared_ptr<Contracts::ImageData>;
+
   using GraphValue = std::variant<
     Absent,
     GraphError,
-    std::shared_ptr<Contracts::ImageData>,
+    ImagePtr,
     Contracts::AudioBuffer,
     Contracts::AudioFeatures,
     Contracts::Color,
-    Contracts::Frame>;
+    Contracts::Frame,
+    Angle>;
 
   inline bool isAbsent(const GraphValue& value)
   {
@@ -65,7 +78,7 @@ namespace Aurora::Runtime::Graph
   // (both flow on any port).
   inline std::optional<PortType> valuePortType(const GraphValue& value)
   {
-    if(std::holds_alternative<std::shared_ptr<Contracts::ImageData>>(value)){
+    if(std::holds_alternative<ImagePtr>(value)){
       return PortType::Image;
     }
     if(std::holds_alternative<Contracts::AudioBuffer>(value)){
@@ -79,6 +92,9 @@ namespace Aurora::Runtime::Graph
     }
     if(std::holds_alternative<Contracts::Frame>(value)){
       return PortType::Frame;
+    }
+    if(std::holds_alternative<Angle>(value)){
+      return PortType::Angle;
     }
     return std::nullopt;
   }

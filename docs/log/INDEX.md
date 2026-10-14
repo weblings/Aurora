@@ -179,3 +179,4 @@ Planning docs stay clean: decisions, status, and pointers here only.
 | 2026-10-13 | Nodes and agent UX planning: Sequence A filed (epic Aurora-ra4o, floor stage Aurora-6v36), write-access split by action, floor control in Output section. [[nodes-agent-ux-planning]] | `bd show Aurora-ra4o` |
 | 2026-10-14 | G1 graph runtime core (INode, registry, loader/validator, topo evaluator); 27 cases green, full suite 210/210; 2 lessons. [[ra4o2-g1-graph-core]] | `bd show Aurora-ra4o.2` |
 | 2026-10-14 | G1b bad-graph corpus (41 fixtures) + fixed-seed loader fuzz (2000 graphs, 500 mutations); `ctest -R "Graph"` 29/29, no loader change needed; 1 lesson. [[ra4o3-g1b-bad-graph-corpus]] | `bd show Aurora-ra4o.3` |
+| 2026-10-14 | G1c pre-G2 adjustments: IGraphHost host services, Angle port in Sequence A, declaration-order topo sort, typed EvalContext accessors, G0 amended; full suite 218/218; 2 lessons. [[ra4o9-g1c-pre-g2-adjustments]] | `bd show Aurora-ra4o.9` |
