@@ -19,15 +19,15 @@ Aurora's own module boundaries instead of RockyRoad's. `rendering-apis.md` vs.
 
 | File | Scope | Entries | File here when |
 |---|---|---|---|
-| [build-toolchain.md](build-toolchain.md) | CMake, vcpkg, compilers, WSL2, dev deps | 50 | build/tooling specific |
+| [build-toolchain.md](build-toolchain.md) | CMake, vcpkg, compilers, WSL2, dev deps | 52 | build/tooling specific |
 | [windows-env.md](windows-env.md) | processes, installers, ACLs, probing | 28 | Windows-environment specific |
 | [macos-gui.md](macos-gui.md) | AppKit, tray/status-item, run-loop pumping, ObjC++ interop | 32 | macOS GUI/AppKit specific |
-| [debugging-method.md](debugging-method.md) | evidence, verification, oracles, timing | 83 | debugging/verification method |
-| [architecture-process.md](architecture-process.md) | splits, duplication, reload, presence | 62 | architecture or process decision |
+| [debugging-method.md](debugging-method.md) | evidence, verification, oracles, timing | 86 | debugging/verification method |
+| [architecture-process.md](architecture-process.md) | splits, duplication, reload, presence | 67 | architecture or process decision |
 | [web-testing.md](web-testing.md) | jsdom, live tests, routes, settings | 15 | web testing specific |
-| [language-cpp.md](language-cpp.md) | namespace, threads, C-portability | 20 | C++ language gotcha |
+| [language-cpp.md](language-cpp.md) | namespace, threads, C-portability | 22 | C++ language gotcha |
 | [input.md](input.md) | capture/grabber/platform-adapter | 53 | capture/grabber specific |
-| [processing.md](processing.md) | color/effect transform, zone-mapping | 9 | color/effect/zone-mapping specific |
+| [processing.md](processing.md) | color/effect transform, zone-mapping | 13 | color/effect/zone-mapping specific |
 | [output.md](output.md) | streaming/protocol, any target | 19 | streaming/protocol/wire-format specific |
 | [rendering-apis.md](rendering-apis.md) | third-party rendering facts | 4 | Three.js/GLTFLoader/Blender behavior, not our design |
 | [rendering-internals.md](rendering-internals.md) | own 3D-scene design | 4 | our scene technique, demonstrated by a real bug |

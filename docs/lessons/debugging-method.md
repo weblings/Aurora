@@ -1114,3 +1114,52 @@ Applies-when: crediting a perf delta to one cause (build type, a patch) using an
 Aurora-wqzp.7 (Linux): the log's unoptimized X11 row (6.2%, update 0.94 ms) came from an i5-7600K; the optimized run was on an i5-1334U (2.5%, 0.25 ms). It was first written up as "most of the 4% was the build type". Rebuilding unoptimized on the 1334U gave 3.7% / 0.43 ms, so the build type was about a third (1.2 points) and the older CPU the rest.
 
 **Fix:** before writing an attribution, check the `hardware:` line of both numbers; if they differ, re-measure the baseline on the current box (a scratch build dir, deleted afterwards) rather than inferring. Cheap here: one extra configure and build.
+
+## Before treating "more flickery" as a regression, capture both builds' per-tick output and compare
+Tags: debugging, measurement, perception, dev-tooling
+Applies-when: a subjective visual or audio complaint follows a behavior change
+
+After the Aurora-7r3 drift fix the lights felt flickerier. A 60s capture of
+each build's per-zone output through the dev light tap
+(`AURORA_DEV_LIGHT_TAP=1`, UDP 127.0.0.1:18244, JSON `{"zones":[...]}` per
+send) showed the same behavior: ~60 deg/s net hue travel, same 120 deg
+max step, mean step 3.6 vs 3.1 deg. The rapid color change came from the
+always-positive beat swings and predated the fix. Output only flows once input
+and output are active in the WebUI, so a freshly launched app records nothing.
+
+**Fix:** record both builds (stash, rebuild, relaunch, same song) and compare
+mean and max step per tick before touching code. Runs are not
+phase-aligned, so only large gaps mean anything. `tap.py`-style recorders are
+~15 lines, no harness needed.
+
+## A dual-path parity gate needs fresh inputs per path and a mutation check
+Tags: parity, golden, graph, mutation, test-design
+Applies-when: running one golden fixture through two implementations (legacy path vs node graph)
+
+Aurora-ra4o.7: scenario inputs count calls (`SequenceVideoInput`,
+`SequenceAudioInput`), and the PCM generators captured a shared `Lcg` by
+reference. Reusing them for the second path would start mid-sequence and fail
+for the wrong reason (or pass by accident). Separately, a green second run
+proves nothing until the gate is shown to bite: it could be reading the
+wrong config or skipping frames.
+
+**Fix:** build the input per path (a `makeInput` factory, with the `Lcg` in a
+`shared_ptr` created inside it). Under `AURORA_UPDATE_GOLDEN` run only the legacy
+path so fixtures stay derived from it. After wiring the new path, break one
+overlay value on purpose (smoothing forced to 0 failed 18 Video assertions) and
+confirm red before reverting.
+
+---
+
+## A parity gate with fixed settings does not cover the hot-edit path
+Tags: parity, golden, graph, mutation, test-design
+Applies-when: replacing a mutable legacy object (`setConfig`, `setSettings`) with rebuild + `adoptStateFrom`
+
+Aurora-ra4o.10: every G2d parity scenario held settings constant from tick 0, yet
+G3's riskiest change is how a live Tuning edit carries node state across a graph
+swap. Nothing would have failed if `adoptStateFrom` were skipped.
+
+**Fix:** add scenarios that edit settings mid-run on both paths (legacy setter vs
+rebuild + adopt + swap), covering a plain retune, a re-seeding change and a clear.
+Then remove `adoptStateFrom` and confirm both go red (6 assertions each) before
+trusting them.

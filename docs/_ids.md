@@ -12,6 +12,7 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `3qh-mac-capture-width-hint` | [log/2026-10-01-3qh-mac-capture-width-hint.md](log/2026-10-01-3qh-mac-capture-width-hint.md) | Aurora-3qh: Mac video mode resized full-Retina frames every tick |
 | `5i3-local-api-hardening` | [log/2026-10-02-5i3-local-api-hardening.md](log/2026-10-02-5i3-local-api-hardening.md) | Aurora-5i3: local API hardening before any HA credential exists |
 | `5y0-nan-state-self-heal` | [log/2026-10-01-5y0-nan-state-self-heal.md](log/2026-10-01-5y0-nan-state-self-heal.md) | Aurora-5y0: 9ca follow-up — NaN state self-heal, one float→Color cast |
+| `7r3-audio-drift-reaches-output` | [log/2026-10-14-7r3-audio-drift-reaches-output.md](log/2026-10-14-7r3-audio-drift-reaches-output.md) | Audio drift reaches output (Aurora-7r3) |
 | `7ybx-dev-banner-errors` | [log/2026-10-07-dev-banner-errors.md](log/2026-10-07-dev-banner-errors.md) | Aurora-7ybx: dev banner-error injection tooling (closed) |
 | `98pr-webui-banner-x` | [log/2026-10-06-98pr-webui-banner-x.md](log/2026-10-06-98pr-webui-banner-x.md) | Aurora-98pr: saved-not-applied errors move to the banner; banner X (closed) |
 | `9ca-fromhsv-nan-guard` | [log/2026-10-01-9ca-fromhsv-nan-guard.md](log/2026-10-01-9ca-fromhsv-nan-guard.md) | Aurora-9ca: NaN/Inf into Color::fromHSV's uint8_t cast — fixed |
@@ -125,8 +126,13 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `pause-tooltips` | [log/2026-10-04-pause-tooltips.md](log/2026-10-04-pause-tooltips.md) | Aurora-5ipy.13.1: Pause/Stop button tooltips (closed) |
 | `processing-analysis` | [archive/ProcessingAnalysis.md](archive/ProcessingAnalysis.md) | ImageProcessing / Color / Interpolation / ImageData / UV — Conversion analysis |
 | `q9l1-tray-target-live` | [log/2026-10-07-q9l1-tray-target-live.md](log/2026-10-07-q9l1-tray-target-live.md) | Aurora-q9l1: tray click-time target — Linux live green, Windows exercised, closed |
+| `ra4o10-g2e-pre-g3-fixes` | [log/2026-10-14-ra4o10-g2e-pre-g3-fixes.md](log/2026-10-14-ra4o10-g2e-pre-g3-fixes.md) | G2e pre-G3 review fixes (Aurora-ra4o.10) |
 | `ra4o2-g1-graph-core` | [log/2026-10-14-ra4o2-g1-graph-core.md](log/2026-10-14-ra4o2-g1-graph-core.md) | G1 graph runtime core lands (Aurora-ra4o.2) |
 | `ra4o3-g1b-bad-graph-corpus` | [log/2026-10-14-ra4o3-g1b-bad-graph-corpus.md](log/2026-10-14-ra4o3-g1b-bad-graph-corpus.md) | G1b bad-graph corpus + loader fuzz (Aurora-ra4o.3) |
+| `ra4o4-g2a-video-nodes` | [log/2026-10-14-ra4o4-g2a-video-nodes.md](log/2026-10-14-ra4o4-g2a-video-nodes.md) | G2a Tier 1 video nodes (Aurora-ra4o.4) |
+| `ra4o5-g2b-audio-nodes` | [log/2026-10-14-ra4o5-g2b-audio-nodes.md](log/2026-10-14-ra4o5-g2b-audio-nodes.md) | G2b Tier 1 audio nodes (Aurora-ra4o.5) |
+| `ra4o6-g2c-frame-nodes` | [log/2026-10-14-ra4o6-g2c-frame-nodes.md](log/2026-10-14-ra4o6-g2c-frame-nodes.md) | G2c Tier 1 frame nodes (Aurora-ra4o.6) |
+| `ra4o7-g2d-builtin-graphs` | [log/2026-10-14-ra4o7-g2d-builtin-graphs.md](log/2026-10-14-ra4o7-g2d-builtin-graphs.md) | G2d built-in Video and Audio graphs, parity gate (Aurora-ra4o.7) |
 | `ra4o9-g1c-pre-g2-adjustments` | [log/2026-10-14-ra4o9-g1c-pre-g2-adjustments.md](log/2026-10-14-ra4o9-g1c-pre-g2-adjustments.md) | G1c pre-G2 runtime adjustments (Aurora-ra4o.9) |
 | `runtime-analysis` | [archive/RuntimeAnalysis.md](archive/RuntimeAnalysis.md) | Runtime / Config — Conversion analysis |
 | `scig-capture-source-banner` | [log/2026-10-08-scig-capture-source-banner.md](log/2026-10-08-scig-capture-source-banner.md) | Aurora-scig: Capture Source (NUX) errors move to the shell banner (closed) |

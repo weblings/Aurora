@@ -2,10 +2,17 @@
 
 #include <cmath>
 #include <functional>
+#include <memory>
+#include <vector>
 
 #include <Aurora/Runtime/AudioOrchestrator.hpp>
+#include <Aurora/Runtime/Graph/AudioNodes.hpp>
+#include <Aurora/Runtime/Graph/BuiltInGraphs.hpp>
+#include <Aurora/Runtime/Graph/FrameNodes.hpp>
+#include <Aurora/Runtime/ZoneReconciler.hpp>
 
 #include "GoldenFrames.hpp"
+#include "GraphParityHost.hpp"
 
 using namespace Aurora::Contracts;
 using namespace Aurora::Input;
@@ -22,6 +29,9 @@ namespace AudioProcessing = Aurora::Processing::AudioProcessing;
 //    checked against.
 // Every scenario pins fixedAnchorHue -- randomAnchorHue() seeds from
 // std::random_device. See GoldenFrames.hpp for fixtures/regeneration.
+// Each scenario also runs through the built-in Audio graph against the same
+// fixture (Aurora-ra4o.7); scripted features enter it through a test-only
+// node standing in for audio.capture + audio.features.
 namespace
 {
   constexpr float Pi = 3.14159265358979f;
@@ -77,27 +87,152 @@ namespace
   };
 
 
-  Recording runPcmScenario(const std::string& tag, SequenceAudioInput& input, AudioProcessing::AudioEffectSettings settings, int ticks)
+  using MakeInput = std::function<SequenceAudioInput()>;
+
+  // Two active zones plus an inactive one: broadcast reaches every active
+  // zone and omits inactive ones (composeAudioFrame).
+  ZoneMap pcmZones()
+  {
+    ZoneConfig a; a.zoneId = 1; a.everConfigured = true;
+    ZoneConfig b; b.zoneId = 2; b.gamma = 0.5f; b.everConfigured = true;
+    ZoneConfig c; c.zoneId = 3; c.active = false; c.everConfigured = true;
+    return {a, b, c};
+  }
+
+
+  // AudioEffectSettings -> the ConfigData fields the built-in graph overlays.
+  ConfigData configFrom(const AudioProcessing::AudioEffectSettings& settings)
+  {
+    ConfigData data;
+    data.audioFixedAnchorHue = settings.fixedAnchorHue.value_or(-1.0f);
+    data.audioBounceSmoothTime = settings.bounceSmoothTime;
+    data.audioDynamismFloor = settings.dynamismFloor;
+    data.audioCentroidStrength = settings.centroidStrength;
+    data.audioDriftBaseRateDegPerSec = settings.driftBaseRateDegPerSec;
+    data.audioVibrancySaturation = settings.vibrancySaturation;
+    data.audioVibrancyValue = settings.vibrancyValue;
+    data.audioReferenceRms = settings.referenceRms;
+    data.audioBrightnessFloor = settings.brightnessFloor;
+    data.audioCentroidRangeHz = settings.centroidRangeHz;
+    data.audioBrightnessSmoothTime = settings.brightnessSmoothTime;
+    return data;
+  }
+
+
+  // A mid-run Tuning edit, applied before that tick's update. Legacy path:
+  // AudioOrchestrator::setSettings. Graph path: rebuild + adoptStateFrom, as G3 does.
+  struct SettingsEdit
+  {
+    int tick;
+    std::function<void(AudioProcessing::AudioEffectSettings&)> apply;
+  };
+
+
+  Recording runPcmScenario(
+    const std::string& tag,
+    SequenceAudioInput& input,
+    AudioProcessing::AudioEffectSettings settings,
+    int ticks,
+    const std::vector<SettingsEdit>& edits)
   {
     ScopedTempDir dir(tag);
     Recording recording;
     int tick = 0;
 
-    // Two active zones plus an inactive one: broadcast reaches every active
-    // zone and omits inactive ones (composeAudioFrame).
-    ZoneConfig a; a.zoneId = 1; a.everConfigured = true;
-    ZoneConfig b; b.zoneId = 2; b.gamma = 0.5f; b.everConfigured = true;
-    ZoneConfig c; c.zoneId = 3; c.active = false; c.everConfigured = true;
-    ZoneMapStore(dir.path).save("hue", {a, b, c});
+    ZoneMapStore(dir.path).save("hue", pcmZones());
 
     RecordingOutput output("hue", {1, 2, 3}, recording, tick);
     AudioOrchestrator orchestrator(input, {&output}, ZoneMapStore(dir.path), settings);
     orchestrator.init();
 
     for(tick = 0; tick < ticks; ++tick){
+      for(const auto& edit : edits){
+        if(edit.tick == tick){
+          edit.apply(settings);
+          orchestrator.setSettings(settings);
+        }
+      }
       orchestrator.update(Dt);
     }
     return recording;
+  }
+
+
+  // One output "hue" with the PCM scenarios' zones, and the audio + frame
+  // nodes registered.
+  struct GraphRig
+  {
+    Recording recording;
+    int tick{0};
+    std::unique_ptr<RecordingOutput> output;
+    Aurora::Tests::Golden::ParityHost host;
+    Aurora::Runtime::Graph::NodeRegistry registry;
+
+    GraphRig()
+    {
+      output = std::make_unique<RecordingOutput>("hue", std::vector<uint8_t>{1, 2, 3}, recording, tick);
+      host.outputs["hue"] = output.get();
+      host.zoneMaps["hue"] = reconcileZoneMap(pcmZones(), output->zoneIds());
+      Aurora::Runtime::Graph::registerAudioNodes(registry);
+      Aurora::Runtime::Graph::registerFrameNodes(registry);
+    }
+  };
+
+
+  Recording runGraphPcmScenario(
+    SequenceAudioInput& input,
+    AudioProcessing::AudioEffectSettings settings,
+    int ticks,
+    const std::vector<SettingsEdit>& edits)
+  {
+    GraphRig rig;
+    rig.host.audio = &input;
+    auto loaded = Aurora::Runtime::Graph::loadBuiltInAudioGraph(rig.registry, {"hue"}, configFrom(settings));
+    INFO(loaded.error);
+    REQUIRE(loaded.ok);
+    // The built-in Audio graph declares today's fixed 60Hz tick.
+    REQUIRE(loaded.graph.tickHz().value_or(0.0) == 60.0);
+
+    for(rig.tick = 0; rig.tick < ticks; ++rig.tick){
+      for(const auto& edit : edits){
+        if(edit.tick == rig.tick){
+          edit.apply(settings);
+          auto next = Aurora::Runtime::Graph::loadBuiltInAudioGraph(rig.registry, {"hue"}, configFrom(settings));
+          INFO(next.error);
+          REQUIRE(next.ok);
+          next.graph.adoptStateFrom(loaded.graph);
+          loaded.graph = std::move(next.graph);
+        }
+      }
+      loaded.graph.tick(Dt, &rig.host);
+    }
+    return rig.recording;
+  }
+
+
+  // Fresh input per path (inputs count samples). The graph run is skipped
+  // while regenerating so fixtures stay derived from the legacy path.
+  void checkPcmBothPaths(
+    const std::string& scenario,
+    const std::string& description,
+    const MakeInput& makeInput,
+    const AudioProcessing::AudioEffectSettings& settings,
+    int ticks,
+    const std::vector<SettingsEdit>& edits = {})
+  {
+    {
+      INFO("path: AudioOrchestrator");
+      SequenceAudioInput input = makeInput();
+      check(scenario, description, runPcmScenario(scenario, input, settings, ticks, edits));
+    }
+    if(std::getenv("AURORA_UPDATE_GOLDEN")){
+      return;
+    }
+    {
+      INFO("path: built-in Audio graph");
+      SequenceAudioInput input = makeInput();
+      check(scenario, description, runGraphPcmScenario(input, settings, ticks, edits));
+    }
   }
 
 
@@ -149,6 +284,107 @@ namespace
   }
 
 
+  // Test-only stand-in for audio.capture + audio.features: replays the
+  // script's AudioFeatures, one per tick.
+  class ScriptedFeaturesNode : public Aurora::Runtime::Graph::INode
+  {
+  public:
+    explicit ScriptedFeaturesNode(FeatureScript script): m_script(std::move(script)) {}
+
+    const std::vector<Aurora::Runtime::Graph::PortDecl>& inputPorts() const override { return m_in; }
+    const std::vector<Aurora::Runtime::Graph::PortDecl>& outputPorts() const override { return m_out; }
+
+    void evaluate(
+      const Aurora::Runtime::Graph::EvalContext&,
+      float,
+      std::unordered_map<std::string, Aurora::Runtime::Graph::GraphValue>& outputs) override
+    {
+      outputs.emplace("features", m_script.at(m_tick * m_script.dt, m_tick));
+      ++m_tick;
+    }
+
+  private:
+    FeatureScript m_script;
+    int m_tick{0};
+    std::vector<Aurora::Runtime::Graph::PortDecl> m_in{};
+    std::vector<Aurora::Runtime::Graph::PortDecl> m_out{
+      {"features", Aurora::Runtime::Graph::PortType::AudioFeatures, false}};
+  };
+
+
+  // The built-in Audio graph with cap + feat swapped for the scripted node
+  // (same id "feat", so every downstream edge is the built-in's own). The
+  // recording is the color the bounce node outputs, as in runFeatureScenario.
+  Recording runGraphFeatureScenario(const FeatureScript& script, const AudioProcessing::AudioEffectSettings& settings)
+  {
+    using namespace Aurora::Runtime::Graph;
+
+    GraphRig rig;
+    rig.registry.registerType(
+      "test.features",
+      NodeTypeInfo{
+        .meta = {.purpose = "test", .useWhen = "test", .example = "{}", .cost = "cheap"},
+        .inputs = {},
+        .outputs = {{"features", PortType::AudioFeatures, false}},
+        .params = {},
+        .factory = [script] { return std::make_unique<ScriptedFeaturesNode>(script); },
+      });
+
+    nlohmann::json doc = builtInAudioGraph({"hue"}, audioOverlayFromConfig(configFrom(settings)));
+    nlohmann::json nodes = nlohmann::json::array();
+    nodes.push_back({{"id", "feat"}, {"type", "test.features"}, {"params", nlohmann::json::object()}});
+    for(const auto& node : doc["nodes"]){
+      if(node["id"] != "cap" && node["id"] != "feat"){
+        nodes.push_back(node);
+      }
+    }
+    nlohmann::json edges = nlohmann::json::array();
+    for(const auto& edge : doc["edges"]){
+      if(edge[0] != "cap.buffer"){
+        edges.push_back(edge);
+      }
+    }
+    doc["nodes"] = nodes;
+    doc["edges"] = edges;
+
+    LoadOptions options;
+    options.knownOutputs = {"hue"};
+    auto loaded = loadGraph(doc, rig.registry, options);
+    INFO(loaded.error);
+    REQUIRE(loaded.ok);
+
+    Recording recording;
+    for(rig.tick = 0; rig.tick < script.ticks; ++rig.tick){
+      loaded.graph.tick(script.dt, &rig.host);
+      const GraphValue* color = loaded.graph.portValue("beat", "color");
+      REQUIRE(color != nullptr);
+      REQUIRE(std::holds_alternative<Color>(*color));
+      recording.push_back({rig.tick, "color", Frame{{0, std::get<Color>(*color), 0.0f}}});
+    }
+    return recording;
+  }
+
+
+  void checkFeaturesBothPaths(
+    const std::string& scenario,
+    const std::string& description,
+    const FeatureScript& script,
+    const AudioProcessing::AudioEffectSettings& settings)
+  {
+    {
+      INFO("path: updateDrift/updateBounce");
+      check(scenario, description, runFeatureScenario(script, settings));
+    }
+    if(std::getenv("AURORA_UPDATE_GOLDEN")){
+      return;
+    }
+    {
+      INFO("path: built-in Audio graph");
+      check(scenario, description, runGraphFeatureScenario(script, settings));
+    }
+  }
+
+
   // Beats every 0.5s with strengths cycling strong/weak, a slow loudness
   // swell, and a centroid sweep -- every input the color model reads moves.
   // Onset ticks are derived from time, so the 60Hz and 144Hz runs describe
@@ -182,17 +418,44 @@ TEST_CASE("Parity: audio PCM click track through AudioOrchestrator", "[Parity][A
 {
   // 120 BPM clicks over a quiet 220Hz bed; every other click carries a 3kHz
   // tone so the spectral centroid moves too. 4s.
-  Lcg noise(12345);
-  const long beatSamples = SampleRate / 2;
-  SequenceAudioInput input([&](long i){
-    float bed = 0.05f * std::sin(2.0f * Pi * 220.0f * wrappedSeconds(i));
-    long beat = i / beatSamples;
-    float bright = (beat % 2) ? 3000.0f : 0.0f;
-    return bed + click(i - beat * beatSamples - SampleRate / 10, noise, bright);
-  });
+  const MakeInput makeInput = [] {
+    auto noise = std::make_shared<Lcg>(12345);
+    const long beatSamples = SampleRate / 2;
+    return SequenceAudioInput([noise, beatSamples](long i){
+      float bed = 0.05f * std::sin(2.0f * Pi * 220.0f * wrappedSeconds(i));
+      long beat = i / beatSamples;
+      float bright = (beat % 2) ? 3000.0f : 0.0f;
+      return bed + click(i - beat * beatSamples - SampleRate / 10, *noise, bright);
+    });
+  };
 
-  auto recording = runPcmScenario("clicks", input, pinnedSettings(), 240);
-  check("audio_pcm_click_track", "48kHz mono, 220Hz bed + 120BPM noise clicks (alternate clicks + 3kHz), fixedAnchorHue 30, zones 1,2 active (2 gamma 0.5), 3 inactive, 240 ticks at 1/60s.", recording);
+  checkPcmBothPaths("audio_pcm_click_track", "48kHz mono, 220Hz bed + 120BPM noise clicks (alternate clicks + 3kHz), fixedAnchorHue 30, zones 1,2 active (2 gamma 0.5), 3 inactive, 240 ticks at 1/60s.", makeInput, pinnedSettings(), 240);
+}
+
+
+TEST_CASE("Parity: audio PCM live Tuning edits mid-run", "[Parity][Audio]")
+{
+  // Pins G3's hot-edit path (rebuild + adoptStateFrom) against setSettings:
+  // a plain retune, a fixed-hue change (re-seeds both states), then clearing
+  // the hue (keeps the running anchor, so no random seed).
+  const MakeInput makeInput = [] {
+    auto noise = std::make_shared<Lcg>(4242);
+    const long beatSamples = SampleRate / 2;
+    return SequenceAudioInput([noise, beatSamples](long i){
+      float bed = 0.05f * std::sin(2.0f * Pi * 220.0f * wrappedSeconds(i));
+      long beat = i / beatSamples;
+      float bright = (beat % 2) ? 3000.0f : 0.0f;
+      return bed + click(i - beat * beatSamples - SampleRate / 10, *noise, bright);
+    });
+  };
+
+  const std::vector<SettingsEdit> edits = {
+    {60, [](AudioProcessing::AudioEffectSettings& s){ s.bounceSmoothTime = 0.15f; s.driftBaseRateDegPerSec = 30.0f; }},
+    {120, [](AudioProcessing::AudioEffectSettings& s){ s.fixedAnchorHue = 200.0f; }},
+    {180, [](AudioProcessing::AudioEffectSettings& s){ s.fixedAnchorHue.reset(); s.vibrancySaturation = 0.6f; }},
+  };
+
+  checkPcmBothPaths("audio_pcm_live_edits", "Click track (seed 4242), fixedAnchorHue 30; tick 60 bounce 0.15s + drift 30deg/s, tick 120 hue 200 (re-seed), tick 180 hue cleared + S 0.6; 240 ticks at 1/60s.", makeInput, pinnedSettings(), 240, edits);
 }
 
 
@@ -200,30 +463,30 @@ TEST_CASE("Parity: audio PCM silence then loud bursts", "[Parity][Audio]")
 {
   // 1s of digital silence (aubio on an all-zero spectrum), then a loud
   // two-tone chord with irregularly spaced clicks. 3s.
-  Lcg noise(777);
-  const long onsets[] = {60000, 70000, 91000, 100000, 118000, 130000};
-  SequenceAudioInput input([&](long i){
-    if(i < SampleRate){
-      return 0.0f;
-    }
-    float t = wrappedSeconds(i);
-    float chord = 0.15f * (std::sin(2.0f * Pi * 330.0f * t) + std::sin(2.0f * Pi * 495.0f * t));
-    float clicks = 0.0f;
-    for(long onset : onsets){
-      clicks += click(i - onset, noise, 1500.0f);
-    }
-    return chord + clicks;
-  });
+  const MakeInput makeInput = [] {
+    auto noise = std::make_shared<Lcg>(777);
+    return SequenceAudioInput([noise](long i){
+      static const long onsets[] = {60000, 70000, 91000, 100000, 118000, 130000};
+      if(i < SampleRate){
+        return 0.0f;
+      }
+      float t = wrappedSeconds(i);
+      float chord = 0.15f * (std::sin(2.0f * Pi * 330.0f * t) + std::sin(2.0f * Pi * 495.0f * t));
+      float clicks = 0.0f;
+      for(long onset : onsets){
+        clicks += click(i - onset, *noise, 1500.0f);
+      }
+      return chord + clicks;
+    });
+  };
 
-  auto recording = runPcmScenario("silence-burst", input, pinnedSettings(), 180);
-  check("audio_pcm_silence_then_burst", "1s digital silence, then 330+495Hz chord with clicks at samples 60000/70000/91000/100000/118000/130000, fixedAnchorHue 30, 180 ticks at 1/60s.", recording);
+  checkPcmBothPaths("audio_pcm_silence_then_burst", "1s digital silence, then 330+495Hz chord with clicks at samples 60000/70000/91000/100000/118000/130000, fixedAnchorHue 30, 180 ticks at 1/60s.", makeInput, pinnedSettings(), 180);
 }
 
 
 TEST_CASE("Parity: audio scripted features, beats at 60Hz", "[Parity][Audio]")
 {
-  auto recording = runFeatureScenario(beatScript(1.0f / 60.0f, 5.0f), pinnedSettings());
-  check("audio_features_beats_60hz", "Scripted features: onsets every 0.5s (strength 1/0.3/0.6/0.1), rms swell, centroid sweep; default settings, fixedAnchorHue 30; dt 1/60, 5s.", recording);
+  checkFeaturesBothPaths("audio_features_beats_60hz", "Scripted features: onsets every 0.5s (strength 1/0.3/0.6/0.1), rms swell, centroid sweep; default settings, fixedAnchorHue 30; dt 1/60, 5s.", beatScript(1.0f / 60.0f, 5.0f), pinnedSettings());
 }
 
 
@@ -231,8 +494,7 @@ TEST_CASE("Parity: audio scripted features, beats at 144Hz", "[Parity][Audio]")
 {
   // Same music as the 60Hz case at a different tick rate: drift/bounce are
   // time-based (1 - exp(-dt/tau)), so this pins dt handling.
-  auto recording = runFeatureScenario(beatScript(1.0f / 144.0f, 5.0f), pinnedSettings());
-  check("audio_features_beats_144hz", "Same script as audio_features_beats_60hz at dt 1/144, 5s.", recording);
+  checkFeaturesBothPaths("audio_features_beats_144hz", "Same script as audio_features_beats_60hz at dt 1/144, 5s.", beatScript(1.0f / 144.0f, 5.0f), pinnedSettings());
 }
 
 
@@ -245,14 +507,14 @@ TEST_CASE("Parity: audio scripted features, silence drift only", "[Parity][Audio
     features.spectralCentroid = 1500.0f;
     return features;
   }};
-  auto recording = runFeatureScenario(script, pinnedSettings());
-  check("audio_features_silence_drift", "Scripted silence: no onsets, rms 0, centroid 1500Hz constant; default settings, fixedAnchorHue 30; dt 1/60, 10s.", recording);
+  checkFeaturesBothPaths("audio_features_silence_drift", "Scripted silence: no onsets, rms 0, centroid 1500Hz constant; default settings, fixedAnchorHue 30; dt 1/60, 10s.", script, pinnedSettings());
 }
 
 
 TEST_CASE("Parity: audio scripted features, every setting off-default", "[Parity][Audio]")
 {
-  // Pins that each AudioEffectSettings field actually reaches the output.
+  // Pins that each AudioEffectSettings field actually reaches the output
+  // (through the graph: every ConfigData field reaches its node param).
   AudioProcessing::AudioEffectSettings settings;
   settings.fixedAnchorHue = 200.0f;
   settings.bounceSmoothTime = 0.2f;
@@ -266,6 +528,5 @@ TEST_CASE("Parity: audio scripted features, every setting off-default", "[Parity
   settings.centroidRangeHz = 500.0f;
   settings.brightnessSmoothTime = 0.1f;
 
-  auto recording = runFeatureScenario(beatScript(1.0f / 60.0f, 5.0f), settings);
-  check("audio_features_tuned_settings", "Beat script at dt 1/60, 5s, with every AudioEffectSettings field off-default (anchor 200, bounce 0.2s, dynamism 0.5, centroid strength 1 / range 500Hz, drift 20deg/s, S 0.7, V 0.8, refRms 0.3, floor 0.1, brightness 0.1s).", recording);
+  checkFeaturesBothPaths("audio_features_tuned_settings", "Beat script at dt 1/60, 5s, with every AudioEffectSettings field off-default (anchor 200, bounce 0.2s, dynamism 0.5, centroid strength 1 / range 500Hz, drift 20deg/s, S 0.7, V 0.8, refRms 0.3, floor 0.1, brightness 0.1s).", beatScript(1.0f / 60.0f, 5.0f), settings);
 }

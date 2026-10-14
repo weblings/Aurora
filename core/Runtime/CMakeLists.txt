@@ -19,6 +19,9 @@ add_library(AuroraRuntime STATIC
   src/Registry.cpp
   src/Graph/GraphTypes.cpp
   src/Graph/NodeRegistry.cpp
+  src/Graph/VideoNodes.cpp
+  src/Graph/FrameNodes.cpp
+  src/Graph/BuiltInGraphs.cpp
   src/Graph/Graph.cpp
   src/Graph/GraphLoader.cpp
   src/Orchestrator.cpp
@@ -54,7 +57,7 @@ if(WIN32)
 endif()
 
 if(TARGET AuroraAudioProcessing)
-  target_sources(AuroraRuntime PRIVATE src/AudioFrameCompositor.cpp src/AudioOrchestrator.cpp)
+  target_sources(AuroraRuntime PRIVATE src/AudioFrameCompositor.cpp src/AudioOrchestrator.cpp src/Graph/AudioNodes.cpp)
   target_link_libraries(AuroraRuntime PUBLIC AuroraAudioProcessing)
   # Lets a consumer's main.cpp #ifdef around AudioOrchestrator.hpp, same
   # pattern as AURORA_INPUT_WINDOWS_AUDIO_AVAILABLE.

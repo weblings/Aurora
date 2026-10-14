@@ -71,6 +71,9 @@ add_executable(AuroraRuntimeTests
   RegistryTests.cpp
   GraphTests.cpp
   GraphBadCorpusTests.cpp
+  VideoNodesTests.cpp
+  FrameNodesTests.cpp
+  BuiltInGraphsTests.cpp
 )
 
 target_link_libraries(AuroraRuntimeTests PRIVATE
@@ -148,6 +151,7 @@ if(TARGET AuroraAudioProcessing)
 
   add_executable(AuroraAudioOrchestratorTests
     AudioOrchestratorTests.cpp
+    AudioNodesTests.cpp
   )
 
   target_link_libraries(AuroraAudioOrchestratorTests PRIVATE

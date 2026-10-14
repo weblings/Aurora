@@ -1019,3 +1019,84 @@ tests could not show, because test nodes capture probes in factory lambdas.
 and host object the wrapped code touches, and give each one a port or an
 `IGraphHost` service. `AudioOrchestrator::setSettings` resetting both drift
 and bounce is the same class of coupling and must be reproduced per node.
+
+---
+
+## Node params have no int kind, and a wrapped function's empty-output convention must be re-implemented at the node boundary
+Tags: node-graph, INode, params, ports
+Applies-when: adding a graph node with an integer param, or wrapping a function whose caller guards on empty output
+
+`ParamKind` is Float/Bool/Enum/OptionalFloat only, so `image.rescale`'s
+width travels as a Float (schema step 1, `defaultValue` 0 = passthrough)
+and rounds at evaluate. Separately, `Processing::rescale()` answers an
+upscale request with empty output, and `Orchestrator::_prepareSource` keeps
+flowing via a `hasData()` guard -- a "wrap unchanged" node must repeat
+that guard (passthrough the input pointer) or the chain stalls on empty.
+Identity caching goes with it: cache by input pointer plus every param,
+and rebuild on any param change, mirroring `setConfig` resetting
+`m_preparedSerial` for the same reason.
+
+---
+
+## Conditionally compiled nodes need their sources and tests behind the same gate
+Tags: architecture, node-graph, build-configuration, testing
+Applies-when: adding a graph node that wraps gated code (audio-only today), or choosing which test binary holds its tests
+
+`AudioNodes.cpp` wraps aubio-backed code, so it compiles only when `TARGET
+AuroraAudioProcessing` exists — added to the same `if()` block as
+`AudioOrchestrator.cpp`, not the unconditional node list. Its tests likewise
+went into the gated `AuroraAudioOrchestratorTests` exe, not
+`AuroraRuntimeTests` where G2a's video tests live: copying G2a's placement
+would break every video-only (`AURORA_CORE_ENABLE_AUDIO=OFF`) build.
+
+**Fix:** a new node file inherits the build gate of the code it wraps, and
+its tests inherit it too — check both the library-sources block and the
+test-exe membership, since they gate independently in
+`core/Runtime/CMakeLists.txt` vs `core/tests/CMakeLists.txt`.
+
+---
+
+## Sink nodes have no port to read an error from, so test them by their side effect
+Tags: architecture, node-graph, testing, sinks
+Applies-when: writing tests for a node with no output ports (`output.send`) or relying on `portValue` to observe a failure
+
+`Graph::portValue` only exposes declared output ports. `output.send` declares
+none, so a failed send (unknown output, no host) leaves nothing to inspect
+and the tick still completes. A test asserting on the error value would
+compile but find `nullptr`.
+
+**Fix:** assert on the side effect (the fake output received no frame) and
+that the tick survived. A future graph-level error report would let sinks
+surface failures the editor can highlight.
+
+---
+
+## Splitting a cached legacy step into nodes: every node needs its own cache, and parity can't see the cost
+Tags: architecture, node-graph, performance, parity
+Applies-when: wrapping a legacy function that cached a multi-stage result (rescale + dropAlpha) as separate graph nodes
+
+Aurora-ra4o.10: `Orchestrator::update` cached the whole prepared image by
+`frameSerial` (Aurora-igwa), but G2a gave only `image.rescale` an identity cache.
+`image.dropAlpha` reconverted every tick, and on BGRA (Windows, Mac) that is an
+allocation plus a full-image copy on a static desktop. Golden parity compares
+output only, so it stayed green.
+
+**Fix:** when splitting a cached pipeline, list each stage that did real work and
+give it an input-identity cache (or an identity passthrough). Assert pointer
+identity across ticks in the node test, since parity cannot catch cost.
+
+---
+
+## Node param schemas must read the Config descriptor tables, not restate them
+Tags: architecture, node-graph, config, schema
+Applies-when: declaring `ParamDecl`s for a node that mirrors a Config field
+
+G2b-G2d copied label, range, step and default from `ControlDescriptorTables.cpp`
+into each node, then repeated the defaults as literals in `BuiltInGraphs.cpp`.
+A later retune of one Config default would silently split node behavior from the
+live app. The loader already fills missing params from the registry, so the
+built-in docs never needed the literals.
+
+**Fix:** `decl.schema = paramSchema("audio.bounceSmoothTime")`, and have the
+built-in graph docs carry only bindings (`output`) plus overlay values for named
+tunable params.

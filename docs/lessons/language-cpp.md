@@ -294,3 +294,27 @@ changed the order of `output.send` calls across outputs.
 (min-heap). `Graph::finalize` does this, and the "ties by declaration
 order" test pins it. Any hash-container loop with observable order needs
 the same treatment.
+
+## `Graph::Graph` is ambiguous under two using-directives on MSVC, fine on GCC
+Tags: cpp, msvc, namespace, using-directive, node-graph
+Applies-when: a test or source file has `using namespace Aurora::Runtime` and `using namespace Aurora::Runtime::Graph`, or any namespace shares its name with a class inside it
+
+`Aurora::Runtime::Graph` is both a namespace and (as `Graph::Graph`) a class.
+With both namespaces pulled in, MSVC reports C2872 "ambiguous symbol" for
+`Graph::Graph`, while GCC accepts it. The G2a and G2b tests shipped with it
+because they were only built with GCC under WSL.
+
+**Fix:** spell the type `Aurora::Runtime::Graph::Graph` in tests that use
+both directives. Build at least the touched test exes with the MSVC tree
+before closing a bead, not only the WSL tree.
+
+## `IVideoInput::Resolution` is a class-nested alias: `using namespace` does not expose it
+Tags: namespace, nested-alias, ivideoinput, msvc
+Applies-when: a test or helper outside an `IVideoInput` subclass names `Resolution`, `Resolutions` or `RefreshRate`
+
+Aurora-ra4o.7: a free function parameter `Resolution resolution` failed with
+C2061 under `using namespace Aurora::Input`. The alias lives in
+`IVideoInput`'s public section, so it only resolves unqualified inside a
+subclass (as `SequenceVideoInput` does).
+
+**Fix:** spell `IVideoInput::Resolution` in free functions and test locals.

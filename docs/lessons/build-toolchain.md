@@ -782,3 +782,29 @@ Applies-when: adding a CMake preset, comparing CPU or timing numbers across plat
 Aurora-wqzp.7: `linux-app` and `mac-app` were written in the shape of `windows-app`, which never needs a build type because Visual Studio picks one per build (`--config Release`). They set no `CMAKE_BUILD_TYPE`, and with a single-config generator (Makefiles, Ninja) that means no `-O` flags at all, while Windows (multi-config) is built and measured `--config Release`. Every Linux and Mac perf number in the Aurora-wqzp epic came from unoptimized builds. The Mac 1.0.4 release was cut from `build/mac-release`, which also had an empty build type. Mac audio-only: 3.5% CPU / 0.68 ms update unoptimized, 1.6-1.8% / 0.30 ms with `-DCMAKE_BUILD_TYPE=Release`, on the same tree.
 
 **Fix:** every single-config preset sets `CMAKE_BUILD_TYPE` (Aurora-wqzp.15: `RelWithDebInfo`; no `assert()` in the tree, so its `NDEBUG` removes nothing). Before comparing numbers, check `grep CMAKE_BUILD_TYPE <build>/CMakeCache.txt`: the presets now set `RelWithDebInfo`, but a build dir configured before that keeps its empty cached value until `cmake --preset` runs again. `perf.py` prints the build type and warns on an unoptimized app.
+
+## `build/` was configured under WSL: reconfigure and build it through `wsl`, not Git Bash
+Tags: cmake, wsl, build-dir, windows, cache
+Applies-when: building or running tests from a Claude/Git Bash shell on the Windows checkout
+
+`build/CMakeCache.txt` records `/mnt/d/...` paths and Unix Makefiles with
+`/usr/bin/c++`. Running `cmake -S . -B build` from Git Bash fails with
+"CMakeCache.txt directory is different" and "source does not match".
+`build-core-test-win/` is the separate Visual Studio tree.
+
+**Fix:** use `wsl -e bash -lc "cd /mnt/d/... && cmake --build build ..."` for
+the GCC tree, and `cmake --build build-core-test-win --config Debug` (exes in
+`tests/Debug/`) for MSVC. Run both when a change touches test code.
+
+## Git Bash turns MSBuild's `/v:m` into a path: pass MSBuild switches from PowerShell
+Tags: msbuild, git-bash, msys, path-conversion, windows
+Applies-when: running `cmake --build <vs-tree> -- /v:m` (or any `/switch`) from the Bash tool
+
+Aurora-ra4o.7: `cmake --build build-core-test-win --config Debug --target X -- /v:m`
+from Git Bash failed with `MSB1008: Only one project can be specified`. MSYS
+rewrites a lone `/v:m` argument into a Windows path, so MSBuild sees a second
+project. Two `--target` values in one call fail the same way (one project per
+call).
+
+**Fix:** drop the switch, or run the build from PowerShell. Build one target per
+`cmake --build` call, or none to build all.
