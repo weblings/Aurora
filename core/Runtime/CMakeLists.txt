@@ -19,6 +19,7 @@ add_library(AuroraRuntime STATIC
   src/Registry.cpp
   src/Graph/GraphTypes.cpp
   src/Graph/NodeRegistry.cpp
+  src/Graph/VideoNodes.cpp
   src/Graph/Graph.cpp
   src/Graph/GraphLoader.cpp
   src/Orchestrator.cpp

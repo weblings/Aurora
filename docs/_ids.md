@@ -127,6 +127,7 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `q9l1-tray-target-live` | [log/2026-10-07-q9l1-tray-target-live.md](log/2026-10-07-q9l1-tray-target-live.md) | Aurora-q9l1: tray click-time target — Linux live green, Windows exercised, closed |
 | `ra4o2-g1-graph-core` | [log/2026-10-14-ra4o2-g1-graph-core.md](log/2026-10-14-ra4o2-g1-graph-core.md) | G1 graph runtime core lands (Aurora-ra4o.2) |
 | `ra4o3-g1b-bad-graph-corpus` | [log/2026-10-14-ra4o3-g1b-bad-graph-corpus.md](log/2026-10-14-ra4o3-g1b-bad-graph-corpus.md) | G1b bad-graph corpus + loader fuzz (Aurora-ra4o.3) |
+| `ra4o4-g2a-video-nodes` | [log/2026-10-14-ra4o4-g2a-video-nodes.md](log/2026-10-14-ra4o4-g2a-video-nodes.md) | G2a Tier 1 video nodes (Aurora-ra4o.4) |
 | `ra4o9-g1c-pre-g2-adjustments` | [log/2026-10-14-ra4o9-g1c-pre-g2-adjustments.md](log/2026-10-14-ra4o9-g1c-pre-g2-adjustments.md) | G1c pre-G2 runtime adjustments (Aurora-ra4o.9) |
 | `runtime-analysis` | [archive/RuntimeAnalysis.md](archive/RuntimeAnalysis.md) | Runtime / Config — Conversion analysis |
 | `scig-capture-source-banner` | [log/2026-10-08-scig-capture-source-banner.md](log/2026-10-08-scig-capture-source-banner.md) | Aurora-scig: Capture Source (NUX) errors move to the shell banner (closed) |

@@ -218,3 +218,20 @@ Applies-when: lights flash on thin high-contrast detail (movie credits, small te
 Huenicorn 1.0.5 fixed flashing on credits with the interpolation setting, not with smoothing: keeping it on "Area" fixes it completely (its release note). Nearest-neighbor samples sparse source pixels, so thin white text on black pops in and out of a zone's sample; Area averages every pixel. Smoothing only trades the flicker for lag. Aurora ports the setting and defaults to Area; the `video.interpolation` dropdown applies live, so switching to Nearest brings the flashing back.
 
 **Fix:** when a zone color flickers on fine detail, check the downscale interpolation before touching smoothing. Hard black-to-white scene cuts still step regardless, which is an output-side question (Aurora-pngj).
+
+---
+
+## A synthetic test image's `cv::Scalar` fill is storage order, and the format-aware mean reads it per the `PixelFormat` tag
+Tags: processing, testing, pixel-format, test-signals
+Applies-when: writing synthetic-image tests for format-aware color code
+
+Filling a `CV_8UC3` mat with `Scalar(0,0,255)` and tagging it
+`PixelFormat::RGB` yields blue, not red: `Algorithms::mean()` returns
+`(mean[0],mean[1],mean[2])` for RGB/BGR-order tags, so channel 2 is blue
+under RGB. G2a's first `VideoNodesTests` run failed 2 asserts expecting
+red from that fill.
+
+**Fix:** fill the `Scalar` in storage order matching the declared tag --
+red under RGB is `Scalar(255,0,0)`. Same trap as the mislabeled-pixel-format
+entry in input.md from the other side: now that consumers trust the tag,
+tests must set it (and the bytes) truthfully too.

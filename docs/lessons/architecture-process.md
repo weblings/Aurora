@@ -1019,3 +1019,19 @@ tests could not show, because test nodes capture probes in factory lambdas.
 and host object the wrapped code touches, and give each one a port or an
 `IGraphHost` service. `AudioOrchestrator::setSettings` resetting both drift
 and bounce is the same class of coupling and must be reproduced per node.
+
+---
+
+## Node params have no int kind, and a wrapped function's empty-output convention must be re-implemented at the node boundary
+Tags: node-graph, INode, params, ports
+Applies-when: adding a graph node with an integer param, or wrapping a function whose caller guards on empty output
+
+`ParamKind` is Float/Bool/Enum/OptionalFloat only, so `image.rescale`'s
+width travels as a Float (schema step 1, `defaultValue` 0 = passthrough)
+and rounds at evaluate. Separately, `Processing::rescale()` answers an
+upscale request with empty output, and `Orchestrator::_prepareSource` keeps
+flowing via a `hasData()` guard -- a "wrap unchanged" node must repeat
+that guard (passthrough the input pointer) or the chain stalls on empty.
+Identity caching goes with it: cache by input pointer plus every param,
+and rebuild on any param change, mirroring `setConfig` resetting
+`m_preparedSerial` for the same reason.
