@@ -1172,9 +1172,12 @@ Applies-when: an app-level check fails (no frames, API hang) right after a refac
 
 Aurora-ra4o.8: after the orchestrator-to-graph cutover, live `windows`
 capture gave no light frames and `/api/*` calls timed out. The same
-symptom reproduced on a Release build of the commit before the change (HDR
-captured display on this machine), so it was the environment, not G3.
-Saved an hour of reading the new node code.
+symptom reproduced on a Release build of the commit before the change, so
+it was not G3. The cause was the agent shell, which cannot capture the
+screen (even the grabber's own manual tests fail there, on an SDR display
+too) while the user's own session captured fine. An early guess blamed the
+HDR display and was wrong; check the harness's access to the desktop
+before theorizing about display modes.
 
 **Fix:** build the prior commit (see the worktree lesson in
 build-toolchain) and run the identical check first. For perf, when live
