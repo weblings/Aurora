@@ -461,7 +461,7 @@ def run_frame(args):
 
     # Paired by arrival index, not a shared timestamp/sequence number:
     # DevFrameDump.publish() and (via HueOutput::send()) DevLightTap's
-    # publish() both fire once per Orchestrator::update() tick, in that
+    # publish() both fire once per GraphRunner::tick(), in that
     # order, so the Nth frame and Nth tap message correspond -- true for a
     # single registered output; a multi-output setup would need each
     # output's own SSE stream disambiguated, out of scope here.

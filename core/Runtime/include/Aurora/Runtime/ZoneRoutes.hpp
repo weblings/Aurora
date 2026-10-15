@@ -13,7 +13,7 @@
 namespace Aurora::Network::Http::Server { class HttpServer; }
 
 // ZoneMap/ZoneConfig/Contracts::UVs are core types, so the only
-// app-specific piece is *how* to reach the live Orchestrator -- expressed
+// app-specific piece is *how* to reach the live GraphRunner -- expressed
 // as two generic callbacks, the same bridging pattern SettingsRoutes uses
 // for its onConfigChanged. One registration function serves every app
 // instead of duplicating the JSON marshalling in each main.cpp.

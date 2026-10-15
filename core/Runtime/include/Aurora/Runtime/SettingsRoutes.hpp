@@ -23,7 +23,7 @@ namespace Aurora::Network::Http::Server { class HttpServer; }
 // called after every successful save -- "every settings PUT funnels into the
 // reload entrypoint" per this step's own build-order line. Deliberately a
 // callback rather than this module owning reload logic directly: the actual
-// pipeline being reloaded (Registry, Input/Output/Orchestrator) is an
+// pipeline being reloaded (Registry, Input/Output/GraphRunner) is an
 // app-layer concept core::Runtime has no business knowing about. Returns an
 // empty string on success or an error message on failure; a failure here
 // means the save succeeded but the live pipeline couldn't pick it up --

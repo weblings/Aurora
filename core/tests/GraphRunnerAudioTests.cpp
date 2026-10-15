@@ -1,6 +1,8 @@
 #include <catch2/catch_test_macros.hpp>
 
-#include <Aurora/Runtime/AudioOrchestrator.hpp>
+#include <Aurora/Runtime/GraphRunner.hpp>
+
+#include "AudioTestConfig.hpp"
 
 using namespace Aurora::Contracts;
 using namespace Aurora::Input;
@@ -16,7 +18,7 @@ namespace
     std::filesystem::path path;
 
     explicit ScopedTempDir(const std::string& name):
-    path(std::filesystem::temp_directory_path() / ("aurora-audio-orchestrator-tests-" + name))
+    path(std::filesystem::temp_directory_path() / ("aurora-graphrunner-audio-tests-" + name))
     {
       std::filesystem::remove_all(path);
     }
@@ -84,16 +86,16 @@ namespace
 }
 
 
-TEST_CASE("AudioOrchestrator::init reconciles and persists each output's zone map", "[AudioOrchestrator]")
+TEST_CASE("GraphRunner audio init reconciles and persists each output's zone map", "[GraphRunner]")
 {
   ScopedTempDir dir("init-reconcile");
   FakeAudioInput input;
   FakeOutput output("fake", {1, 2});
 
-  AudioOrchestrator orchestrator(input, {&output}, ZoneMapStore(dir.path), {});
-  orchestrator.init();
+  GraphRunner runner(input, {&output}, Aurora::Tests::audioConfigFrom(Aurora::Processing::AudioProcessing::AudioEffectSettings{}), ZoneMapStore(dir.path));
+  runner.init();
 
-  const ZoneMap& zoneMap = orchestrator.zoneMap("fake");
+  const ZoneMap& zoneMap = runner.zoneMap("fake");
   REQUIRE(zoneMap.size() == 2);
   CHECK(zoneMap[0].active); // no saved profile yet -- defaults active
   CHECK_FALSE(zoneMap[0].everConfigured); // but never actually written
@@ -103,21 +105,21 @@ TEST_CASE("AudioOrchestrator::init reconciles and persists each output's zone ma
 }
 
 
-TEST_CASE("AudioOrchestrator::update broadcasts the same color to every active zone", "[AudioOrchestrator]")
+TEST_CASE("GraphRunner audio update broadcasts the same color to every active zone", "[GraphRunner]")
 {
   ScopedTempDir dir("update-broadcast");
   FakeAudioInput input;
   FakeOutput output("fake", {1, 2});
 
-  AudioOrchestrator orchestrator(input, {&output}, ZoneMapStore(dir.path), {});
-  orchestrator.init();
+  GraphRunner runner(input, {&output}, Aurora::Tests::audioConfigFrom(Aurora::Processing::AudioProcessing::AudioEffectSettings{}), ZoneMapStore(dir.path));
+  runner.init();
 
   ZoneMapStore(dir.path).save("fake", ZoneMap{
     {1, {{0.f, 0.f}, {1.f, 1.f}}, true},
     {2, {{0.f, 0.f}, {1.f, 1.f}}, true}
   });
-  orchestrator.init();
-  orchestrator.update(1.0f);
+  runner.init();
+  runner.tick(1.0f);
 
   REQUIRE(output.sendCount == 1);
   REQUIRE(output.lastFrame.size() == 2);
@@ -126,55 +128,55 @@ TEST_CASE("AudioOrchestrator::update broadcasts the same color to every active z
 }
 
 
-TEST_CASE("AudioOrchestrator::update omits inactive zones, same convention as composeFrame", "[AudioOrchestrator]")
+TEST_CASE("GraphRunner audio update omits inactive zones, same convention as composeFrame", "[GraphRunner]")
 {
   ScopedTempDir dir("update-inactive");
   FakeAudioInput input;
   FakeOutput output("fake", {1, 2});
 
-  AudioOrchestrator orchestrator(input, {&output}, ZoneMapStore(dir.path), {});
-  orchestrator.init();
+  GraphRunner runner(input, {&output}, Aurora::Tests::audioConfigFrom(Aurora::Processing::AudioProcessing::AudioEffectSettings{}), ZoneMapStore(dir.path));
+  runner.init();
 
   ZoneMapStore(dir.path).save("fake", ZoneMap{
     {1, {{0.f, 0.f}, {1.f, 1.f}}, true},
     {2, {{0.f, 0.f}, {1.f, 1.f}}, false}
   });
-  orchestrator.init();
-  orchestrator.update(1.0f);
+  runner.init();
+  runner.tick(1.0f);
 
   REQUIRE(output.lastFrame.size() == 1);
   CHECK(output.lastFrame[0].id == 1);
 }
 
 
-TEST_CASE("AudioOrchestrator::update is a no-op when the input has no buffer yet", "[AudioOrchestrator]")
+TEST_CASE("GraphRunner audio update is a no-op when the input has no buffer yet", "[GraphRunner]")
 {
   ScopedTempDir dir("no-buffer");
   FakeAudioInput input;
   input.hasBuffer = false;
   FakeOutput output("fake", {1});
 
-  AudioOrchestrator orchestrator(input, {&output}, ZoneMapStore(dir.path), {});
-  orchestrator.init();
-  orchestrator.update(1.0f);
+  GraphRunner runner(input, {&output}, Aurora::Tests::audioConfigFrom(Aurora::Processing::AudioProcessing::AudioEffectSettings{}), ZoneMapStore(dir.path));
+  runner.init();
+  runner.tick(1.0f);
 
   CHECK(output.sendCount == 0);
 }
 
 
-TEST_CASE("AudioOrchestrator::updateZone edits only the fields given, live and persisted", "[AudioOrchestrator]")
+TEST_CASE("GraphRunner audio updateZone edits only the fields given, live and persisted", "[GraphRunner]")
 {
   ScopedTempDir dir("update-zone");
   FakeAudioInput input;
   FakeOutput output("fake", {1, 2});
 
-  AudioOrchestrator orchestrator(input, {&output}, ZoneMapStore(dir.path), {});
-  orchestrator.init();
+  GraphRunner runner(input, {&output}, Aurora::Tests::audioConfigFrom(Aurora::Processing::AudioProcessing::AudioEffectSettings{}), ZoneMapStore(dir.path));
+  runner.init();
 
   UVs newUvs{{0.1f, 0.2f}, {0.3f, 0.4f}};
-  CHECK(orchestrator.updateZone("fake", 1, newUvs, true, 0.5f));
+  CHECK(runner.updateZone("fake", 1, newUvs, true, 0.5f));
 
-  const ZoneMap& zoneMap = orchestrator.zoneMap("fake");
+  const ZoneMap& zoneMap = runner.zoneMap("fake");
   REQUIRE(zoneMap.size() == 2);
   CHECK(zoneMap[0].uvs.min == glm::vec2(0.1f, 0.2f));
   CHECK(zoneMap[0].uvs.max == glm::vec2(0.3f, 0.4f));
@@ -185,14 +187,14 @@ TEST_CASE("AudioOrchestrator::updateZone edits only the fields given, live and p
   CHECK_FALSE(zoneMap[1].everConfigured); // untouched -- never written
 
   // Omitted fields (nullopt) leave the existing value alone.
-  CHECK(orchestrator.updateZone("fake", 1, std::nullopt, false, std::nullopt));
-  CHECK(orchestrator.zoneMap("fake")[0].uvs.min == glm::vec2(0.1f, 0.2f)); // still the earlier edit
-  CHECK_FALSE(orchestrator.zoneMap("fake")[0].active);
-  CHECK(orchestrator.zoneMap("fake")[0].gamma == 0.5f);
-  CHECK(orchestrator.zoneMap("fake")[0].everConfigured); // stays true once set
+  CHECK(runner.updateZone("fake", 1, std::nullopt, false, std::nullopt));
+  CHECK(runner.zoneMap("fake")[0].uvs.min == glm::vec2(0.1f, 0.2f)); // still the earlier edit
+  CHECK_FALSE(runner.zoneMap("fake")[0].active);
+  CHECK(runner.zoneMap("fake")[0].gamma == 0.5f);
+  CHECK(runner.zoneMap("fake")[0].everConfigured); // stays true once set
 
   // A flip to inactive takes effect on the next composed frame.
-  orchestrator.update(1.0f);
+  runner.tick(1.0f);
   REQUIRE(output.lastFrame.size() == 1);
   CHECK(output.lastFrame[0].id == 2);
 
@@ -205,21 +207,21 @@ TEST_CASE("AudioOrchestrator::updateZone edits only the fields given, live and p
 }
 
 
-TEST_CASE("AudioOrchestrator::updateZone returns false for an unknown output or zoneId", "[AudioOrchestrator]")
+TEST_CASE("GraphRunner audio updateZone returns false for an unknown output or zoneId", "[GraphRunner]")
 {
   ScopedTempDir dir("update-zone-unknown");
   FakeAudioInput input;
   FakeOutput output("fake", {1});
 
-  AudioOrchestrator orchestrator(input, {&output}, ZoneMapStore(dir.path), {});
-  orchestrator.init();
+  GraphRunner runner(input, {&output}, Aurora::Tests::audioConfigFrom(Aurora::Processing::AudioProcessing::AudioEffectSettings{}), ZoneMapStore(dir.path));
+  runner.init();
 
-  CHECK_FALSE(orchestrator.updateZone("not-a-real-output", 1, std::nullopt, true, std::nullopt));
-  CHECK_FALSE(orchestrator.updateZone("fake", 99, std::nullopt, true, std::nullopt));
+  CHECK_FALSE(runner.updateZone("not-a-real-output", 1, std::nullopt, true, std::nullopt));
+  CHECK_FALSE(runner.updateZone("fake", 99, std::nullopt, true, std::nullopt));
 }
 
 
-TEST_CASE("AudioOrchestrator::setSettings changes the next tick's color without re-init (Aurora-c0g)", "[AudioOrchestrator]")
+TEST_CASE("GraphRunner audio setConfig changes the next tick's color without re-init (Aurora-c0g)", "[GraphRunner]")
 {
   ScopedTempDir dir("set-settings");
   FakeAudioInput input;
@@ -227,17 +229,20 @@ TEST_CASE("AudioOrchestrator::setSettings changes the next tick's color without 
 
   Aurora::Processing::AudioProcessing::AudioEffectSettings settings;
   settings.fixedAnchorHue = 120.f;
-  AudioOrchestrator orchestrator(input, {&output}, ZoneMapStore(dir.path), settings);
-  orchestrator.init();
+  GraphRunner runner(input, {&output}, Aurora::Tests::audioConfigFrom(settings), ZoneMapStore(dir.path));
+  runner.init();
 
-  orchestrator.update(1.0f / 60);
+  runner.tick(1.0f / 60);
   REQUIRE(output.sendCount == 1);
   const Color before = output.lastFrame[0].color;
   CHECK(before == Color::fromHSV(120.f, settings.vibrancySaturation, settings.vibrancyValue));
 
   settings.vibrancyValue = 0.5f;
-  orchestrator.setSettings(settings);
-  orchestrator.update(1.0f / 60);
+  {
+    std::string error;
+    REQUIRE(runner.setConfig(Aurora::Tests::audioConfigFrom(settings), error));
+  }
+  runner.tick(1.0f / 60);
 
   REQUIRE(output.sendCount == 2);
   CHECK(output.lastFrame[0].color != before);
@@ -246,7 +251,7 @@ TEST_CASE("AudioOrchestrator::setSettings changes the next tick's color without 
 }
 
 
-TEST_CASE("AudioOrchestrator::setSettings snaps to a newly chosen fixed hue (Aurora-c0g)", "[AudioOrchestrator]")
+TEST_CASE("GraphRunner audio setConfig snaps to a newly chosen fixed hue (Aurora-c0g)", "[GraphRunner]")
 {
   ScopedTempDir dir("set-settings-anchor");
   FakeAudioInput input;
@@ -254,22 +259,25 @@ TEST_CASE("AudioOrchestrator::setSettings snaps to a newly chosen fixed hue (Aur
 
   Aurora::Processing::AudioProcessing::AudioEffectSettings settings;
   settings.fixedAnchorHue = 120.f;
-  AudioOrchestrator orchestrator(input, {&output}, ZoneMapStore(dir.path), settings);
-  orchestrator.init();
-  orchestrator.update(1.0f / 60);
-  orchestrator.update(1.0f / 60);
+  GraphRunner runner(input, {&output}, Aurora::Tests::audioConfigFrom(settings), ZoneMapStore(dir.path));
+  runner.init();
+  runner.tick(1.0f / 60);
+  runner.tick(1.0f / 60);
 
   // fixedAnchorHue only seeds drift state at cold start, so a plain struct
   // swap would leave the color at 120.
   settings.fixedAnchorHue = 240.f;
-  orchestrator.setSettings(settings);
-  orchestrator.update(1.0f / 60);
+  {
+    std::string error;
+    REQUIRE(runner.setConfig(Aurora::Tests::audioConfigFrom(settings), error));
+  }
+  runner.tick(1.0f / 60);
 
   CHECK(output.lastFrame[0].color == Color::fromHSV(240.f, settings.vibrancySaturation, settings.vibrancyValue));
 }
 
 
-TEST_CASE("AudioOrchestrator::setSettings keeps the current anchor when the fixed hue is cleared (Aurora-c0g)", "[AudioOrchestrator]")
+TEST_CASE("GraphRunner audio setConfig keeps the current anchor when the fixed hue is cleared (Aurora-c0g)", "[GraphRunner]")
 {
   ScopedTempDir dir("set-settings-clear");
   FakeAudioInput input;
@@ -277,15 +285,18 @@ TEST_CASE("AudioOrchestrator::setSettings keeps the current anchor when the fixe
 
   Aurora::Processing::AudioProcessing::AudioEffectSettings settings;
   settings.fixedAnchorHue = 120.f;
-  AudioOrchestrator orchestrator(input, {&output}, ZoneMapStore(dir.path), settings);
-  orchestrator.init();
-  orchestrator.update(1.0f / 60);
+  GraphRunner runner(input, {&output}, Aurora::Tests::audioConfigFrom(settings), ZoneMapStore(dir.path));
+  runner.init();
+  runner.tick(1.0f / 60);
 
   // A reset here would re-seed from a random pair (and so usually move off
   // 120); clearing the pin must leave the running color alone.
   settings.fixedAnchorHue.reset();
-  orchestrator.setSettings(settings);
-  orchestrator.update(1.0f / 60);
+  {
+    std::string error;
+    REQUIRE(runner.setConfig(Aurora::Tests::audioConfigFrom(settings), error));
+  }
+  runner.tick(1.0f / 60);
 
   CHECK(output.lastFrame[0].color == Color::fromHSV(120.f, settings.vibrancySaturation, settings.vibrancyValue));
 }

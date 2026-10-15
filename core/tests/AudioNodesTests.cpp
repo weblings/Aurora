@@ -222,7 +222,7 @@ TEST_CASE("audio chain capture -> features -> drift -> bounce matches the orches
   // First tick: bounce seeds current/target from the live anchor (120) and
   // brightness from this tick's factor (rms 0.5 / ref 0.5 = full), so the
   // color is the anchor at full vibrancy -- same as
-  // AudioOrchestrator::update's first send with these settings.
+  // the former AudioOrchestrator::update's first send with these settings.
   CHECK(requireColor(graph.portValue("beat", "color")) == Color::fromHSV(120.f, 0.95f, 0.95f));
 }
 
@@ -291,7 +291,7 @@ TEST_CASE("changing fixedAnchorHue re-seeds drift and bounce together", "[AudioN
   next.tick(dt, &host);
 
   // Both ends re-seeded from the new anchor on the next tick, mirroring
-  // AudioOrchestrator::setSettings resetting both states: the color snaps
+  // the former AudioOrchestrator::setSettings resetting both states: the color snaps
   // to the new hue instead of damping from the old position.
   CHECK(next.portValue("drift", "anchor") != nullptr);
   CHECK(requireAngle(next.portValue("drift", "anchor")).degrees == 240.f);

@@ -40,7 +40,7 @@ namespace Aurora::Runtime::Graph
       return decl;
     }
 
-    // AudioOrchestrator::setSettings re-seeds when the fixed hue changes to
+    // the former AudioOrchestrator::setSettings re-seeds when the fixed hue changes to
     // a different hue. Nodes see params fresh each tick, so each stateful
     // node tracks the last value itself. First tick only records.
     bool changedAnchor(std::optional<float>& last, bool& hasLast, const std::optional<float>& current)
@@ -88,7 +88,7 @@ namespace Aurora::Runtime::Graph
     // audio.features: the stateful aubio extractor, built lazily from the
     // first buffer's sampleRate -- aubio configures its objects at
     // construction, and the rate isn't known until data arrives. Same as
-    // AudioOrchestrator's lazy m_featureExtractor.
+    // the former AudioOrchestrator's lazy m_featureExtractor.
     class AudioFeaturesNode : public INode
     {
     public:
@@ -187,7 +187,7 @@ namespace Aurora::Runtime::Graph
     // the whole DriftState -- bounce only reads anchorHueDegrees), so the
     // init branch still seeds current/target from the live anchor. Like
     // drift, resets on a fixedAnchorHue change so both ends re-seed
-    // together, as AudioOrchestrator::setSettings resets both states.
+    // together, as the former AudioOrchestrator::setSettings resets both states.
     class AudioBounceNode : public INode
     {
     public:

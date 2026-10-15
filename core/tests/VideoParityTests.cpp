@@ -4,25 +4,21 @@
 #include <functional>
 #include <vector>
 
-#include <Aurora/Runtime/Graph/BuiltInGraphs.hpp>
-#include <Aurora/Runtime/Graph/FrameNodes.hpp>
-#include <Aurora/Runtime/Graph/VideoNodes.hpp>
-#include <Aurora/Runtime/Orchestrator.hpp>
+#include <Aurora/Runtime/GraphRunner.hpp>
 #include <Aurora/Runtime/ZoneReconciler.hpp>
 
 #include "GoldenFrames.hpp"
-#include "GraphParityHost.hpp"
 
 using namespace Aurora::Contracts;
 using namespace Aurora::Input;
 using namespace Aurora::Runtime;
 using namespace Aurora::Tests::Golden;
 
-// Golden parity scenarios for the video path (Orchestrator: grab -> rescale
-// -> dropAlpha -> per-zone crop + mean -> Smoother -> send). Inputs are
-// generated per tick, so there are no binary fixtures; see GoldenFrames.hpp.
-// Every scenario runs twice against the same fixture: through Orchestrator
-// and through the built-in Video graph (Aurora-ra4o.7).
+// Golden scenarios for the video path (built-in Video graph via GraphRunner:
+// grab -> rescale -> dropAlpha -> per-zone crop + mean -> Smoother -> send).
+// Inputs are generated per tick, so there are no binary fixtures; see
+// GoldenFrames.hpp. The fixtures predate the graph (written by the former
+// Orchestrator) and pinned its output through the Aurora-ra4o.7 parity gate.
 namespace
 {
   struct ScopedTempDir
@@ -82,15 +78,7 @@ namespace
   };
 
 
-  enum class Path
-  {
-    Orchestrator,
-    Graph
-  };
-
-
-  // Zone maps and recording outputs for one run, saved/reconciled the way
-  // Orchestrator::init does so both paths start from identical maps.
+  // Recording outputs for one run.
   struct Rig
   {
     Recording recording;
@@ -101,8 +89,7 @@ namespace
   };
 
 
-  // A mid-run Tuning edit, applied before that tick's update. Legacy path:
-  // Orchestrator::setConfig. Graph path: rebuild + adoptStateFrom, as G3 does.
+  // A mid-run Tuning edit, applied before that tick via GraphRunner::setConfig.
   struct ConfigEdit
   {
     int tick;
@@ -142,70 +129,26 @@ namespace
       ZoneMapStore(dir.path).save(spec.name, spec.zoneMap);
     }
 
-    Orchestrator orchestrator(input, rig.outputPtrs, std::move(config), ZoneMapStore(dir.path));
-    orchestrator.init();
+    GraphRunner runner(input, rig.outputPtrs, std::move(config), ZoneMapStore(dir.path));
+    runner.init();
 
     for(rig.tick = 0; rig.tick < ticks; ++rig.tick){
       for(const auto& edit : edits){
         if(edit.tick == rig.tick){
-          Config next = orchestrator.config();
+          Config next = runner.config();
           edit.apply(next);
-          orchestrator.setConfig(std::move(next));
+          std::string error;
+          INFO(error);
+          REQUIRE(runner.setConfig(std::move(next), error));
         }
       }
-      orchestrator.update(1.0f / 60.0f);
+      runner.tick(1.0f / 60.0f);
     }
     return rig.recording;
   }
 
 
-  Recording runGraphScenario(
-    SequenceVideoInput& input,
-    Config config,
-    const std::vector<OutputSpec>& outputSpecs,
-    int ticks,
-    const std::vector<ConfigEdit>& edits
-  )
-  {
-    Rig rig;
-    buildRig(rig, outputSpecs);
-
-    Aurora::Tests::Golden::ParityHost host;
-    host.video = &input;
-    for(size_t i = 0; i < outputSpecs.size(); ++i){
-      host.outputs[outputSpecs[i].name] = rig.outputPtrs[i];
-      host.zoneMaps[outputSpecs[i].name] =
-        reconcileZoneMap(outputSpecs[i].zoneMap, rig.outputPtrs[i]->zoneIds());
-    }
-
-    Aurora::Runtime::Graph::NodeRegistry registry;
-    Aurora::Runtime::Graph::registerVideoNodes(registry);
-    Aurora::Runtime::Graph::registerFrameNodes(registry);
-    auto loaded = Aurora::Runtime::Graph::loadBuiltInVideoGraph(registry, rig.names, config.data());
-    INFO(loaded.error);
-    REQUIRE(loaded.ok);
-
-    for(rig.tick = 0; rig.tick < ticks; ++rig.tick){
-      for(const auto& edit : edits){
-        if(edit.tick == rig.tick){
-          edit.apply(config);
-          auto next = Aurora::Runtime::Graph::loadBuiltInVideoGraph(registry, rig.names, config.data());
-          INFO(next.error);
-          REQUIRE(next.ok);
-          next.graph.adoptStateFrom(loaded.graph);
-          loaded.graph = std::move(next.graph);
-        }
-      }
-      loaded.graph.tick(1.0f / 60.0f, &host);
-    }
-    return rig.recording;
-  }
-
-
-  // Same generator, fresh input per path (inputs count calls). The Graph
-  // run is skipped while regenerating so fixtures stay derived from the
-  // legacy path.
-  void checkBothPaths(
+  void checkScenario(
     const std::string& scenario,
     const std::string& description,
     IVideoInput::Resolution resolution,
@@ -216,19 +159,8 @@ namespace
     const std::vector<ConfigEdit>& edits = {}
   )
   {
-    {
-      INFO("path: Orchestrator");
-      SequenceVideoInput input(resolution, generator);
-      check(scenario, description, runScenario(scenario, input, config, outputSpecs, ticks, edits));
-    }
-    if(std::getenv("AURORA_UPDATE_GOLDEN")){
-      return;
-    }
-    {
-      INFO("path: built-in Video graph");
-      SequenceVideoInput input(resolution, generator);
-      check(scenario, description, runGraphScenario(input, config, outputSpecs, ticks, edits));
-    }
+    SequenceVideoInput input(resolution, generator);
+    check(scenario, description, runScenario(scenario, input, config, outputSpecs, ticks, edits));
   }
 
 
@@ -276,7 +208,7 @@ TEST_CASE("Parity: video static quadrants, no smoothing", "[Parity][Video]")
   config.setInterpolation(Interpolation::Type::Nearest);
   config.setTransitionSmoothing(0.f);
 
-  checkBothPaths("video_static_quadrants", "Flat RGB quadrants, smoothing 0, 5 ticks.", resolution, generator, config, {{"hue", quadrants()}}, 5);
+  checkScenario("video_static_quadrants", "Flat RGB quadrants, smoothing 0, 5 ticks.", resolution, generator, config, {{"hue", quadrants()}}, 5);
 }
 
 
@@ -298,7 +230,7 @@ TEST_CASE("Parity: video step change eased by the Smoother", "[Parity][Video]")
   config.setTransitionSmoothing(0.8f);
 
   ZoneMap zones = {zone(1, 0.f, 0.f, 1.f, 1.f, true, 0.5f)};
-  checkBothPaths("video_step_smoothed", "Black 5 ticks then white, smoothing 0.8, 40 ticks; zone gamma 0.5 carried through.", resolution, generator, config, {{"hue", zones}}, 40);
+  checkScenario("video_step_smoothed", "Black 5 ticks then white, smoothing 0.8, 40 ticks; zone gamma 0.5 carried through.", resolution, generator, config, {{"hue", zones}}, 40);
 }
 
 
@@ -338,7 +270,7 @@ TEST_CASE("Parity: video moving gradient, rescaled, two outputs", "[Parity][Vide
     zone(3, 0.5f, 0.f, 1.f, 1.f, false)
   };
 
-  checkBothPaths("video_gradient_two_outputs", "BGRA 64x32 shifting gradient, Area to 16 wide, smoothing 0.5, outputs a (quadrants) and b (inactive + overlapping zones), 30 ticks.", resolution, generator, config, {{"a", quadrants()}, {"b", outputB}}, 30);
+  checkScenario("video_gradient_two_outputs", "BGRA 64x32 shifting gradient, Area to 16 wide, smoothing 0.5, outputs a (quadrants) and b (inactive + overlapping zones), 30 ticks.", resolution, generator, config, {{"a", quadrants()}, {"b", outputB}}, 30);
 }
 
 
@@ -371,13 +303,13 @@ TEST_CASE("Parity: video letterboxed content", "[Parity][Video]")
     zone(2, 0.f, 0.33f, 1.f, 0.66f),
     zone(3, 0.f, 0.66f, 1.f, 1.f)
   };
-  checkBothPaths("video_letterbox", "32x18 BGR with black bars (rows 0-3, 14-17), cycling content color, three horizontal bands, smoothing 0.3, 30 ticks.", resolution, generator, config, {{"hue", zones}}, 30);
+  checkScenario("video_letterbox", "32x18 BGR with black bars (rows 0-3, 14-17), cycling content color, three horizontal bands, smoothing 0.3, 30 ticks.", resolution, generator, config, {{"hue", zones}}, 30);
 }
 
 
 TEST_CASE("Parity: video live Tuning edits mid-run", "[Parity][Video]")
 {
-  // Pins G3's hot-edit path (rebuild + adoptStateFrom) against setConfig:
+  // Pins the hot-edit path (rebuild + adoptStateFrom) through setConfig:
   // smoothing, width and interpolation change while Smoother state is warm.
   const IVideoInput::Resolution resolution{64, 32};
   const SequenceVideoInput::Generator generator([](int tick, ImageData& image){
@@ -408,5 +340,5 @@ TEST_CASE("Parity: video live Tuning edits mid-run", "[Parity][Video]")
     {24, [](Config& c){ c.setInterpolation(Interpolation::Type::Nearest); c.setTransitionSmoothing(0.f); }},
   };
 
-  checkBothPaths("video_live_edits", "BGRA 64x32 shifting gradient; smoothing 0.3 -> 0.85 at tick 8, width 16 -> 32 at 16, Nearest + smoothing 0 at 24; 32 ticks.", resolution, generator, config, {{"hue", quadrants()}}, 32, edits);
+  checkScenario("video_live_edits", "BGRA 64x32 shifting gradient; smoothing 0.3 -> 0.85 at tick 8, width 16 -> 32 at 16, Nearest + smoothing 0 at 24; 32 ticks.", resolution, generator, config, {{"hue", quadrants()}}, 32, edits);
 }

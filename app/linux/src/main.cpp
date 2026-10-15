@@ -1,5 +1,5 @@
 // Test-script entry point wiring one Linux input to one or more outputs
-// through Orchestrator. Not yet a real product app -- bridge credentials
+// through the Graph. Not yet a real product app -- bridge credentials
 // still come from env vars, not a persisted pairing flow (see
 // docs/ImplementationPlan.md phase 3). Zone maps now have a real REST
 // surface (registerZoneRoutes, below, build-order step 14) even though the
@@ -365,7 +365,7 @@ namespace
   // server), not a special-cased one. Same "stop the whole process, not
   // pause" semantics as huenicorn's real Runtime::stop() (m_keepLooping =
   // false, confirmed by reading it) -- no resume exists, matching this
-  // build order's own "Pause is cut for v1" decision (Orchestrator has no
+  // build order's own "Pause is cut for v1" decision (the graph has no
   // concept of holding without exiting its loop).
   void registerStopRoute(Aurora::Network::Http::Server::HttpServer& httpServer)
   {

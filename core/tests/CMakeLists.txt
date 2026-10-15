@@ -96,16 +96,16 @@ target_link_libraries(AuroraPipelineTests PRIVATE
 
 target_compile_features(AuroraPipelineTests PUBLIC cxx_std_20)
 
-add_executable(AuroraOrchestratorTests
-  OrchestratorTests.cpp
+add_executable(AuroraGraphRunnerVideoTests
+  GraphRunnerVideoTests.cpp
 )
 
-target_link_libraries(AuroraOrchestratorTests PRIVATE
+target_link_libraries(AuroraGraphRunnerVideoTests PRIVATE
   AuroraRuntime
   Catch2::Catch2WithMain
 )
 
-target_compile_features(AuroraOrchestratorTests PUBLIC cxx_std_20)
+target_compile_features(AuroraGraphRunnerVideoTests PUBLIC cxx_std_20)
 
 add_executable(AuroraDevFrameDumpTests
   DevFrameDumpTests.cpp
@@ -149,17 +149,17 @@ if(TARGET AuroraAudioProcessing)
 
   target_compile_features(AuroraAudioProcessingTests PUBLIC cxx_std_20)
 
-  add_executable(AuroraAudioOrchestratorTests
-    AudioOrchestratorTests.cpp
+  add_executable(AuroraGraphRunnerAudioTests
+    GraphRunnerAudioTests.cpp
     AudioNodesTests.cpp
   )
 
-  target_link_libraries(AuroraAudioOrchestratorTests PRIVATE
+  target_link_libraries(AuroraGraphRunnerAudioTests PRIVATE
     AuroraRuntime
     Catch2::Catch2WithMain
   )
 
-  target_compile_features(AuroraAudioOrchestratorTests PUBLIC cxx_std_20)
+  target_compile_features(AuroraGraphRunnerAudioTests PUBLIC cxx_std_20)
 
   add_executable(AuroraAudioFeatureExtractorTests
     AudioFeatureExtractorTests.cpp
@@ -225,7 +225,7 @@ catch_discover_tests(AuroraProcessingTests)
 catch_discover_tests(AuroraControlDescriptorTests)
 catch_discover_tests(AuroraSecretsTests)
 catch_discover_tests(AuroraRuntimeTests)
-catch_discover_tests(AuroraOrchestratorTests)
+catch_discover_tests(AuroraGraphRunnerVideoTests)
 catch_discover_tests(AuroraPipelineTests)
 catch_discover_tests(AuroraDevFrameDumpTests)
 catch_discover_tests(AuroraVideoParityTests)
@@ -234,7 +234,7 @@ if(TARGET AuroraEmbedWebrootTests)
 endif()
 if(TARGET AuroraAudioProcessing)
   catch_discover_tests(AuroraAudioProcessingTests)
-  catch_discover_tests(AuroraAudioOrchestratorTests)
+  catch_discover_tests(AuroraGraphRunnerAudioTests)
   catch_discover_tests(AuroraAudioFeatureExtractorTests)
   catch_discover_tests(AuroraAudioParityTests)
 endif()

@@ -13,7 +13,7 @@
 // module owning those settings rather than growing here.
 namespace Aurora::Runtime
 {
-  // Video-pipeline tunables (Orchestrator/Config).
+  // Video-pipeline tunables (GraphRunner/Config).
   std::vector<ControlDescriptor> videoControlDescriptors();
 
   // Audio-pipeline tunables (AudioProcessing/Config). fixedHueEnabled is
