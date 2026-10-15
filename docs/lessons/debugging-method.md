@@ -1163,3 +1163,22 @@ swap. Nothing would have failed if `adoptStateFrom` were skipped.
 rebuild + adopt + swap), covering a plain retune, a re-seeding change and a clear.
 Then remove `adoptStateFrom` and confirm both go red (6 assertions each) before
 trusting them.
+
+---
+
+## Before blaming your change for a dead capture, run the previous commit
+Tags: regression, baseline, ab-test, perf, live-capture
+Applies-when: an app-level check fails (no frames, API hang) right after a refactor
+
+Aurora-ra4o.8: after the orchestrator-to-graph cutover, live `windows`
+capture gave no light frames and `/api/*` calls timed out. The same
+symptom reproduced on a Release build of the commit before the change (HDR
+captured display on this machine), so it was the environment, not G3.
+Saved an hour of reading the new node code.
+
+**Fix:** build the prior commit (see the worktree lesson in
+build-toolchain) and run the identical check first. For perf, when live
+capture is unavailable, run the harness against `--input dummy` on both
+builds: it isolates the code path under test (graph vs orchestrator) and
+showed no cost (video update 0.10 to 0.12 ms on both). Run each build
+twice: max-ms swings of 1 to 6 ms between identical runs are noise.

@@ -1100,3 +1100,19 @@ built-in docs never needed the literals.
 **Fix:** `decl.schema = paramSchema("audio.bounceSmoothTime")`, and have the
 built-in graph docs carry only bindings (`output`) plus overlay values for named
 tunable params.
+
+---
+
+## Replacing a class means keeping the contracts its tests relied on silently
+Tags: refactor, cutover, init, tests
+Applies-when: deleting a stateful class and porting its tests to the replacement
+
+Aurora-ra4o.8: the orchestrator tests call `init()` twice (create, save a
+zone map, `init()` again to reload it). `GraphRunner::init` accumulated
+output names on the second call, so the built-in graph load failed with
+"duplicate node id 'zones_fake'". Nothing documented that `init()` was
+re-runnable, only the tests did.
+
+**Fix:** make `init()` clear its derived tables before rebuilding and say so
+in the header. When porting tests across a class swap, expect failures that
+are missing implicit contracts, not test bugs.

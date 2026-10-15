@@ -318,3 +318,20 @@ C2061 under `using namespace Aurora::Input`. The alias lives in
 subclass (as `SequenceVideoInput` does).
 
 **Fix:** spell `IVideoInput::Resolution` in free functions and test locals.
+
+---
+
+## A host-interface override can make a same-named public accessor ambiguous
+Tags: overload, inheritance, adapter, const
+Applies-when: a class both implements an interface and exposes its own accessor of the same name
+
+Aurora-ra4o.8: `GraphRunner` first derived from `IGraphHost`, whose
+`const ZoneMap* zoneMap(std::string_view)` sits beside the runner's own
+`const ZoneMap& zoneMap(const std::string&) const`. Tests calling
+`runner.zoneMap("fake")` on a non-const object picked the non-const
+string_view overload and got a pointer, failing with "cannot convert
+`const ZoneMap*` to `const ZoneMap&`".
+
+**Fix:** implement the interface in a nested adapter (`Host`) that holds a
+reference back to the runner, so the public API keeps one `zoneMap`. The
+adapter's back-reference makes the owner non-movable: delete copy/move.
