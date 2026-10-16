@@ -15,6 +15,8 @@ its step's digits. Integral values keep the backend's trailing .0 (8000.0).
 Re-run on any re-vendor or tooltip-copy change, from the repo root:
 
   python3 web/demo/vendor/webui/gen-descriptors.py
+
+Pass --check to write nothing and exit 1 when the checked-in file is stale (CI).
 """
 import json
 import os
@@ -126,6 +128,14 @@ out = os.path.join(ROOT, 'web', 'demo', 'vendor', 'webui', 'descriptors.json')
 # CRLF on purpose: the checked-in file is CRLF, so the write is
 # newline-explicit -- a plain text-mode newline would regen LF on Linux
 # and never be byte-identical.
-with open(out, 'wb') as f:
-    f.write(payload.replace('\n', '\r\n').encode('utf-8'))
-print(f'wrote {len(entries)} descriptors to {out}')
+data = payload.replace('\n', '\r\n').encode('utf-8')
+if '--check' in sys.argv:
+    with open(out, 'rb') as f:
+        # CI checks out LF (.gitattributes), so compare modulo line endings.
+        if f.read().replace(b'\r\n', b'\n') != data.replace(b'\r\n', b'\n'):
+            sys.exit(f'{out} is stale: rerun python3 web/demo/vendor/webui/gen-descriptors.py')
+    print('descriptors.json is current')
+else:
+    with open(out, 'wb') as f:
+        f.write(data)
+    print(f'wrote {len(entries)} descriptors to {out}')

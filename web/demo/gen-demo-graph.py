@@ -14,6 +14,8 @@ The demo has one output, "hue", so per-output node ids resolve to ease_hue.
 Re-run on any controls or node-param change, from the repo root:
 
   python3 web/demo/gen-demo-graph.py
+
+Pass --check to write nothing and exit 1 when the checked-in file is stale (CI).
 """
 import json
 import os
@@ -214,7 +216,14 @@ export function demoNodes() {{
   return {{ nodes: NODE_TYPES }};
 }}
 """
-    with open(os.path.join(HERE, 'demo-graph.js'), 'w', encoding='utf-8', newline='\n') as f:
+    path = os.path.join(HERE, 'demo-graph.js')
+    if '--check' in sys.argv:
+        with open(path, encoding='utf-8', newline='') as f:
+            if f.read().replace('\r\n', '\n') != out:
+                sys.exit('web/demo/demo-graph.js is stale: rerun python3 web/demo/gen-demo-graph.py')
+        print('demo-graph.js is current')
+        return
+    with open(path, 'w', encoding='utf-8', newline='\n') as f:
         f.write(out)
     print('wrote web/demo/demo-graph.js')
 
