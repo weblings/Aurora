@@ -191,3 +191,4 @@ Planning docs stay clean: decisions, status, and pointers here only.
 | 2026-10-15 | G4b descriptors emit useWhen/example/cost for node types, completeness tests per node family; suite 250/250 (MSVC); 1 lesson. [[ra4o12-g4b-descriptor-metadata]] | `bd show Aurora-ra4o.12` |
 | 2026-10-15 | G4c audio.bounce drops fixedAnchorHue and re-seeds on an anchor jump (drift re-seed); goldens unchanged; suite 250/250 (MSVC); 1 lesson. [[ra4o13-g4c-bounce-reseed]] | `bd show Aurora-ra4o.13` |
 | 2026-10-15 | G4d Absent-tick anchor change accepted, not fixed (drift only; needs Absent-tick param access); closes the G2-review items. [[ra4o14-g4d-absent-anchor-accepted]] | `bd show Aurora-ra4o.14` |
+| 2026-10-15 | Sequence B planning: spatial effects as Image generators, time-based Tier 2 smoothing, simple mode default, EC 3 first, floor policy decided; epic Aurora-id8j filed (10 children); ra4o and pngj closed. [[sequence-b-planning]] | `bd show Aurora-id8j` |

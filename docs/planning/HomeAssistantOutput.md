@@ -31,15 +31,24 @@ runtime-loaded plugin system).
   that channel is 255); HA maps that to the bulb's native mode. Same
   principle as the Hue XYB lesson in `docs/lessons/output.md`: let the
   device side do gamut mapping.
-- **Black frames (open, Aurora-pngj):** `turn_on` with brightness 0 switches
-  the light *off*, so a black zone (credits, dark scenes) or a global gain
-  of 0 ([[external-control]] brightness stage) would flicker lights off and
-  on. Policy undecided: a minimum-brightness floor, or explicit off/on with
-  hysteresis. Aurora-pngj decides it and blocks the split (Aurora-cyw).
-  Precedent: Hyperion's `backlightThreshold` (`RgbTransform::applyBacklight`)
-  is a minimum-brightness floor in its color stage, before any device, in
-  gray or colored form, so black never reaches its HA output as 0 (its HA
-  device itself has no black handling). Huenicorn needs none for Hue.
+- **Black frames (decided 2026-10-15, Aurora-pngj, agent-proposed,
+  owner-approved):** `turn_on` with brightness 0 switches the light *off*,
+  so a black zone (credits, dark scenes) or a global gain of 0
+  ([[external-control]] brightness stage) would flicker lights off and on.
+  - One output-neutral stage after the gain stage, so gain 0 and a black
+    scene follow the same rule. Per output; an output declares "brightness
+    0 means off" and the stage reads that.
+  - Per-output policy: **off** (default, Hue byte-identical), **hold
+    floor** (colored: scale so the largest channel reaches the floor, hue
+    kept; exact black holds the last non-black hue), or **switch off at
+    black** with a hold time before sending off, so credits don't flicker
+    bulbs on and off.
+  - Floor value and hold time are set when real bulbs are measured
+    (Aurora-4zr.9). Control lives in the Output section (Aurora-d7s).
+  - Precedent: Hyperion's `backlightThreshold` (`RgbTransform::applyBacklight`)
+    is a gray or colored floor in its color stage; Hyperion.ng smart-bulb
+    devices also carry `brightnessMin` and `brightnessSwitchOffOnMinimum`
+    (seen in issue 1939, not its schema docs). Huenicorn needs none for Hue.
 - Rate limiting is the real design work. `send()` only stores the latest
   color per light; a sender thread drains them. Newest-wins (never queue),
   per-light max rate, at most one command in flight per light, skip
