@@ -28,7 +28,7 @@ namespace Aurora::Network::Http::Server
       }
     }
 
-    m_httpServerImpl = std::make_unique<Impl>(m_routes, m_staticDir, m_embeddedFiles, m_prefixedEmbeddedFiles, allowedHosts);
+    m_httpServerImpl = std::make_unique<Impl>(m_routes, m_staticDir, m_embeddedFiles, m_prefixedEmbeddedFiles, allowedHosts, m_accessGuard);
   }
 
 
@@ -94,6 +94,12 @@ namespace Aurora::Network::Http::Server
   void HttpServer::setExtraAllowedHosts(std::vector<std::string> hosts)
   {
     m_extraAllowedHosts = std::move(hosts);
+  }
+
+
+  void HttpServer::setAccessGuard(std::shared_ptr<AccessGuard> guard)
+  {
+    m_accessGuard = std::move(guard);
   }
 
 

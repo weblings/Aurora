@@ -13,6 +13,7 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `5i3-local-api-hardening` | [log/2026-10-02-5i3-local-api-hardening.md](log/2026-10-02-5i3-local-api-hardening.md) | Aurora-5i3: local API hardening before any HA credential exists |
 | `5ipy2-state-effect-source` | [log/2026-10-16-5ipy2-state-effect-source.md](log/2026-10-16-5ipy2-state-effect-source.md) | Aurora-5ipy.2: GET /api/state adds effect and source |
 | `5ipy4-ec3-host-allowlist` | [log/2026-10-16-5ipy4-ec3-host-allowlist.md](log/2026-10-16-5ipy4-ec3-host-allowlist.md) | EC 3: Host header allowlist (Aurora-5ipy.4) |
+| `5ipy5-lan-pairing-backend` | [log/2026-10-16-5ipy5-lan-pairing-backend.md](log/2026-10-16-5ipy5-lan-pairing-backend.md) | LAN pairing backend (Aurora-5ipy.5) |
 | `5ipy7-global-brightness` | [log/2026-10-16-5ipy7-global-brightness.md](log/2026-10-16-5ipy7-global-brightness.md) | Aurora-5ipy.7: global brightness gain stage |
 | `5y0-nan-state-self-heal` | [log/2026-10-01-5y0-nan-state-self-heal.md](log/2026-10-01-5y0-nan-state-self-heal.md) | Aurora-5y0: 9ca follow-up — NaN state self-heal, one float→Color cast |
 | `7r3-audio-drift-reaches-output` | [log/2026-10-14-7r3-audio-drift-reaches-output.md](log/2026-10-14-7r3-audio-drift-reaches-output.md) | Audio drift reaches output (Aurora-7r3) |

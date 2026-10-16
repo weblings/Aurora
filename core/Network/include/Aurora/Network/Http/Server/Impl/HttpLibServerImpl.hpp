@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cctype>
+#include <memory>
 #include <optional>
 #include <string>
 #include <unordered_map>
@@ -21,6 +22,7 @@
 #endif
 
 #include <Aurora/Network/Http/Server/HttpDataStructs.hpp>
+#include <Aurora/Network/Http/Server/Pairing.hpp>
 
 // The only file in this module that includes <httplib.h> -- keeps
 // cpp-httplib swappable behind HttpServer without touching any route
@@ -251,9 +253,42 @@ namespace Aurora::Network::Http::Server
     }
 
 
-    static httplib::Server::Handler _wrapHandler(Handler handler, HttpMethod method)
+    static bool _methodOf(const std::string& name, HttpMethod& method)
     {
-      return [handler = std::move(handler), method](const httplib::Request& req, httplib::Response& res){
+      static const std::unordered_map<std::string, HttpMethod> table = {
+        {"GET", HttpMethod::Get},
+        {"HEAD", HttpMethod::Get},
+        {"POST", HttpMethod::Post},
+        {"PUT", HttpMethod::Put},
+        {"DELETE", HttpMethod::Delete},
+        {"PATCH", HttpMethod::Patch},
+      };
+      auto it = table.find(name);
+      if(it == table.end()){
+        return false;
+      }
+      method = it->second;
+      return true;
+    }
+
+
+    // Aurora-5ipy.5: unknown verbs (OPTIONS etc.) count as writes.
+    static AccessDecision _decide(const AccessGuard& guard, const httplib::Request& req)
+    {
+      AccessRequest access;
+      access.method = HttpMethod::Post;
+      _methodOf(req.method, access.method);
+      access.path = req.path;
+      access.remoteAddr = req.remote_addr;
+      access.authorization = req.get_header_value("Authorization");
+      access.cookie = req.get_header_value("Cookie");
+      return guard.decide(access);
+    }
+
+
+    static httplib::Server::Handler _wrapHandler(Handler handler, HttpMethod method, std::shared_ptr<AccessGuard> guard)
+    {
+      return [handler = std::move(handler), method, guard = std::move(guard)](const httplib::Request& req, httplib::Response& res){
         if(_crossOriginWrite(req, method)){
           res.status = 403;
           res.set_content("{\"succeeded\":false,\"error\":\"cross_origin_forbidden\"}", "application/json");
@@ -267,6 +302,13 @@ namespace Aurora::Network::Http::Server
         r.body = req.body;
         r.path = req.path;
 
+        if(guard){
+          AccessDecision decision = _decide(*guard, req);
+          r.remoteAddr = req.remote_addr;
+          r.local = decision.local;
+          r.scope = decision.scope;
+        }
+
         for(const auto& [key, value] : req.path_params){
           r.pathParams[key] = value;
         }
@@ -278,6 +320,9 @@ namespace Aurora::Network::Http::Server
         handler(r, w);
 
         res.status = w.status;
+        for(const auto& [name, value] : w.headers){
+          res.set_header(name, value);
+        }
         res.set_content(w.body, w.contentType);
       };
     }
@@ -294,18 +339,34 @@ namespace Aurora::Network::Http::Server
       const std::optional<std::filesystem::path>& staticDir,
       const std::optional<std::unordered_map<std::string, std::string>>& embeddedFiles,
       const std::vector<std::pair<std::string, std::unordered_map<std::string, std::string>>>& prefixedEmbeddedFiles,
-      const std::vector<std::string>& extraAllowedHosts
+      const std::vector<std::string>& extraAllowedHosts,
+      const std::shared_ptr<AccessGuard>& accessGuard
     )
     {
       m_service.emplace();
 
       // Runs before routing and the static mount, so no path is exempt.
-      m_service->set_pre_routing_handler([names = _allowedNames(extraAllowedHosts)](const httplib::Request& req, httplib::Response& res){
-        if(!req.has_header("Host") || _hostAllowed(req.get_header_value("Host"), names)){
+      // Host check first, then the pairing guard when one is set.
+      m_service->set_pre_routing_handler([names = _allowedNames(extraAllowedHosts), accessGuard](const httplib::Request& req, httplib::Response& res){
+        if(req.has_header("Host") && !_hostAllowed(req.get_header_value("Host"), names)){
+          res.status = 403;
+          res.set_content("{\"succeeded\":false,\"error\":\"host_forbidden\"}", "application/json");
+          return httplib::Server::HandlerResponse::Handled;
+        }
+        if(!accessGuard){
           return httplib::Server::HandlerResponse::Unhandled;
         }
-        res.status = 403;
-        res.set_content("{\"succeeded\":false,\"error\":\"host_forbidden\"}", "application/json");
+        AccessDecision decision = _decide(*accessGuard, req);
+        if(decision.result == AccessDecision::Result::Allow){
+          return httplib::Server::HandlerResponse::Unhandled;
+        }
+        const bool unauthorized = decision.result == AccessDecision::Result::Unauthorized;
+        res.status = unauthorized ? 401 : 403;
+        res.set_content(
+          unauthorized ? "{\"succeeded\":false,\"error\":\"pairing_required\"}"
+                       : "{\"succeeded\":false,\"error\":\"insufficient_scope\"}",
+          "application/json"
+        );
         return httplib::Server::HandlerResponse::Handled;
       });
 
@@ -328,7 +389,7 @@ namespace Aurora::Network::Http::Server
       });
 
       for(const auto& route : routes){
-        auto wrapped = _wrapHandler(route.handler, route.method);
+        auto wrapped = _wrapHandler(route.handler, route.method, accessGuard);
         switch(route.method)
         {
           case HttpMethod::Get:

@@ -34,6 +34,7 @@
 #include <GraphEditorWebRoot.hpp>
 #endif
 #include <Aurora/Network/Http/Server/HttpServer.hpp>
+#include <Aurora/Network/Http/Server/PairingRoutes.hpp>
 #include <Aurora/Runtime/ConfigStore.hpp>
 #include <Aurora/Runtime/ControlDescriptorTables.hpp>
 #include <Aurora/Runtime/ControlDescriptors.hpp>
@@ -476,6 +477,12 @@ try
   Aurora::Runtime::PipelineHost pipelineHost(std::move(initialPipeline), pipelineOptions(), startupFailure);
 
   Aurora::Network::Http::Server::HttpServer httpServer;
+
+  // Aurora-5ipy.5: loopback is trusted, other callers need a paired device.
+  auto pairingService = std::make_shared<Aurora::Network::Http::Server::PairingService>(configRoot / "paired-devices.json");
+  auto accessGuard = std::make_shared<Aurora::Network::Http::Server::AccessGuard>(pairingService);
+  Aurora::Network::Http::Server::registerPairingRoutes(httpServer, pairingService, *accessGuard);
+  httpServer.setAccessGuard(accessGuard);
   registerCapabilitiesRoute(httpServer, registry, pipelineHost);
   registerVersionRoute(httpServer);
   // Raised at launch so the permission prompt appears before the user

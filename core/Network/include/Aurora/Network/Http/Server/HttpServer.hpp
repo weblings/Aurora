@@ -9,6 +9,7 @@
 #include <vector>
 
 #include <Aurora/Network/Http/Server/HttpDataStructs.hpp>
+#include <Aurora/Network/Http/Server/Pairing.hpp>
 
 // Pimpl facade over cpp-httplib -- callers (route-definition classes, e.g. a
 // future SetupBackend/SettingsBackend) never include <httplib.h> or see its
@@ -80,6 +81,11 @@ namespace Aurora::Network::Http::Server
     // (comma-separated) is merged in at bind(). Call before bind().
     void setExtraAllowedHosts(std::vector<std::string> hosts);
 
+    // LAN pairing (Aurora-5ipy.5): runs after the Host check and before
+    // routing, so no path is exempt unless a guard rule opens it. Without a
+    // guard every caller is trusted. Call before bind().
+    void setAccessGuard(std::shared_ptr<AccessGuard> guard);
+
   private:
     void makeImpl();
 
@@ -89,5 +95,6 @@ namespace Aurora::Network::Http::Server
     std::optional<EmbeddedFiles> m_embeddedFiles;
     std::vector<std::pair<std::string, EmbeddedFiles>> m_prefixedEmbeddedFiles;
     std::vector<std::string> m_extraAllowedHosts;
+    std::shared_ptr<AccessGuard> m_accessGuard;
   };
 }
