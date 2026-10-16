@@ -91,7 +91,7 @@ namespace Aurora::Runtime
   {
 #ifdef AURORA_RUNTIME_AUDIO_AVAILABLE
     if(m_isAudio){
-      return Graph::builtInAudioGraph(m_outputNames, Graph::audioOverlayFromConfig(m_config.data()));
+      return Graph::builtInAudioGraph(m_outputNames, Graph::audioOverlayFromConfig(m_config.data(), m_outputNames));
     }
 #endif
     return Graph::builtInVideoGraph(

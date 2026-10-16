@@ -88,7 +88,7 @@ namespace Aurora::Runtime
     server.addRoute(
       HttpMethod::Get,
       "/api/state",
-      [&pipelineHost](const Request&, Response& res){
+      [&pipelineHost, configRoot](const Request&, Response& res){
         const PipelineCapabilities capabilities = pipelineHost.capabilities();
         const std::string& audioDevicesUrl = pipelineHost.audioDevicesUrl();
         const HostStatus status = pipelineHost.status();
@@ -128,6 +128,8 @@ namespace Aurora::Runtime
           {"state", hostStateName(status.state)},
           {"effect", summary.effect.empty() ? nlohmann::json(nullptr) : nlohmann::json(summary.effect)},
           {"source", {{"video", video}, {"audio", audio}}},
+          // The saved setting, so it reads right while paused or idle too.
+          {"brightness", ConfigStore(configRoot).load().brightness()},
           {"errors", errors},
           {"conditions", conditions},
           {"paused", status.state == HostState::Paused},

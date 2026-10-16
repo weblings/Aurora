@@ -16,6 +16,7 @@ namespace Aurora::Runtime
     constexpr ApplyKind NoEffect = ApplyKind::NoEffect;
     constexpr ModeScope Video = ModeScope::Video;
     constexpr ModeScope Audio = ModeScope::Audio;
+    constexpr ModeScope Both = ModeScope::Both;
 
     // The server's port and bind address are read once before it binds and
     // are not settable through PUT /api/config; Reload is the conservative
@@ -28,6 +29,8 @@ namespace Aurora::Runtime
       FieldApply{"subsampleWidth", Hot, Video, _subsampleWidth},
       FieldApply{"interpolation", Hot, Video},
       FieldApply{"transitionSmoothing", Hot, Video},
+
+      FieldApply{"brightness", Hot, Both},
 
       FieldApply{"activeInputName", Reload, Video},
       FieldApply{"activeOutputNames", Reload, Video},
@@ -77,7 +80,7 @@ namespace Aurora::Runtime
         continue;
       }
 
-      const bool readInThisMode = (field->scope == ModeScope::Audio) == audioMode;
+      const bool readInThisMode = field->scope == ModeScope::Both || (field->scope == ModeScope::Audio) == audioMode;
       if(!readInThisMode){
         continue;
       }

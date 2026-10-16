@@ -15,6 +15,7 @@
 #include <thread>
 
 #include <Aurora/Network/Http/Server/HttpServer.hpp>
+#include <Aurora/Runtime/ConfigApply.hpp>
 #include <Aurora/Runtime/ConfigStore.hpp>
 #include <Aurora/Runtime/Graph/FrameNodes.hpp>
 #include <Aurora/Runtime/Graph/MathNodes.hpp>
@@ -951,6 +952,7 @@ TEST_CASE("GET /api/state reports paused and the running pipeline's capabilities
     {"usesVideoInput", false},
     {"usesAudioInput", false},
     {"samplesZones", false},
+    {"brightness", 1.0},
     {"audioDevicesUrl", "/api/test/audio-devices"}
   });
 
@@ -1744,6 +1746,25 @@ TEST_CASE("PipelineHost::applyConfig applies live-tunable video fields with no r
   CHECK(events->widthHints == std::vector<unsigned>{64, 96});        // capture told the new width
   CHECK(events->has("init out-a"));
   CHECK_FALSE(events->has("shutdown out-a replacement"));
+}
+
+
+TEST_CASE("PipelineHost::applyConfig applies brightness live in both modes with no reload (Aurora-5ipy.7)", "[PipelineHost]")
+{
+  ScopedTempDir dir("apply-brightness");
+  auto events = std::make_shared<Events>();
+  auto registry = makeRegistry(events);
+  PipelineHost host(nullptr, {});
+
+  std::string error;
+  REQUIRE(host.reload(registry, tunedVideoConfig(), dir.path, error));
+
+  Config next = tunedVideoConfig();
+  next.setBrightness(0.25f);
+  CHECK(host.applyConfig(next));
+  CHECK(initCount(*events) == 1);
+  CHECK_FALSE(events->has("shutdown out-a replacement"));
+  CHECK(planConfigChange(tunedVideoConfig(), next, /*audioMode*/ true) == ChangeAction::Hot);
 }
 
 

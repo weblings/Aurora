@@ -19,6 +19,10 @@ namespace Aurora::Runtime
     Contracts::Interpolation::Type interpolation{Contracts::Interpolation::Type::Area};
     float transitionSmoothing{0.f};
 
+    // Global dimmer, 0..1 (1 = unchanged), applied to every frame before
+    // output in both modes (Aurora-5ipy.7).
+    float brightness{1.f};
+
     // Which of an app's compiled-in plugins are active, by name -- looked
     // up in that app's own registry, not known to Aurora core at all.
     // Empty means unconfigured. See docs/DistributedArchitecturePlan.md.
@@ -121,6 +125,9 @@ namespace Aurora::Runtime
 
     const std::string& activeAudioInputName() const;
     void setActiveAudioInputName(std::string name);
+
+    float brightness() const;
+    void setBrightness(float brightness);
 
     float audioFixedAnchorHue() const;
     void setAudioFixedAnchorHue(float hue);

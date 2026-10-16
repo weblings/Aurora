@@ -88,17 +88,21 @@ namespace Aurora::Runtime
       {"app.mode", "button", "Video or audio reactive mode"},
       {"app.pause", "button", "Play/Pause"},
       {"app.stop", "button", "Stop and Quit"},
+      slider("app.brightness", "Overall light brightness",
+        {"Brightness", 0.f, 1.f, 0.01f, "", defaults().brightness}),
     };
   }
 
 
   const ParamSchema& paramSchema(std::string_view key)
   {
-    // Built once; video + audio are the only tables carrying params.
+    // Built once; video, audio and app are the tables carrying params.
     static const std::vector<ControlDescriptor> s_withParams = []{
       std::vector<ControlDescriptor> all = videoControlDescriptors();
       auto audio = audioControlDescriptors();
       all.insert(all.end(), audio.begin(), audio.end());
+      auto app = appControlDescriptors();
+      all.insert(all.end(), app.begin(), app.end());
       std::erase_if(all, [](const ControlDescriptor& d){ return !d.param; });
       return all;
     }();

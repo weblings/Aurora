@@ -46,14 +46,15 @@ TEST_CASE("built-in Video graph overlays ConfigData and loads", "[BuiltInGraphs]
   config.subsampleWidth = 96;
   config.interpolation = Aurora::Contracts::Interpolation::Type::Cubic;
   config.transitionSmoothing = 0.4f;
+  config.brightness = 0.6f;
 
   NodeRegistry registry = videoRegistry();
   const std::vector<std::string> outputs{"hue", "ha.light"};
   LoadResult loaded = loadBuiltInVideoGraph(registry, outputs, config);
   INFO(loaded.error);
   REQUIRE(loaded.ok);
-  // cap, rescale, opaque + zones/ease/send per output.
-  CHECK(loaded.graph.nodeCount() == 3 + 3 * outputs.size());
+  // cap, rescale, opaque + zones/ease/gain/send per output.
+  CHECK(loaded.graph.nodeCount() == 3 + 4 * outputs.size());
   CHECK_FALSE(loaded.graph.tickHz().has_value());
 
   nlohmann::json doc = builtInVideoGraph(outputs, videoOverlayFromConfig(config, outputs));
@@ -61,6 +62,8 @@ TEST_CASE("built-in Video graph overlays ConfigData and loads", "[BuiltInGraphs]
   CHECK(nodeById(doc, "rescale").at("params").at("interpolation") == "Cubic");
   CHECK(nodeById(doc, "ease_hue").at("params").at("smoothing") == 0.4f);
   CHECK(nodeById(doc, "ease_ha_light").at("params").at("output") == "ha.light");
+  CHECK(nodeById(doc, "gain_hue").at("params").at("gain") == 0.6f);
+  CHECK(nodeById(doc, "gain_ha_light").at("params").at("gain") == 0.6f);
 }
 
 TEST_CASE("built-in Video graph rejects an unknown output", "[BuiltInGraphs]")
@@ -108,7 +111,7 @@ TEST_CASE("built-in Audio graph doc declares 60Hz and overlays ConfigData", "[Bu
   config.audioBounceSmoothTime = 0.5f;
   config.audioCentroidRangeHz = 3000.f;
 
-  nlohmann::json doc = builtInAudioGraph({"hue"}, audioOverlayFromConfig(config));
+  nlohmann::json doc = builtInAudioGraph({"hue"}, audioOverlayFromConfig(config, {"hue"}));
   CHECK(doc.at("tickHz") == 60);
   CHECK(nodeById(doc, "drift").at("params").at("fixedAnchorHue") == 120.f);
   CHECK(!nodeById(doc, "beat").at("params").contains("fixedAnchorHue"));
@@ -118,6 +121,6 @@ TEST_CASE("built-in Audio graph doc declares 60Hz and overlays ConfigData", "[Bu
 
   // Config's default (negative) anchor means random, spelled null.
   ConfigData unset;
-  nlohmann::json randomDoc = builtInAudioGraph({"hue"}, audioOverlayFromConfig(unset));
+  nlohmann::json randomDoc = builtInAudioGraph({"hue"}, audioOverlayFromConfig(unset, {"hue"}));
   CHECK(nodeById(randomDoc, "drift").at("params").at("fixedAnchorHue").is_null());
 }

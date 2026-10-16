@@ -46,6 +46,7 @@ namespace Aurora::Runtime
         {"subsampleWidth", config.subsampleWidth()},
         {"interpolation", _interpolationName(config.interpolation())},
         {"transitionSmoothing", config.transitionSmoothing()},
+        {"brightness", config.brightness()},
         {"activeInputName", config.activeInputName()},
         {"activeOutputNames", config.activeOutputNames()},
         {"activeMonitorName", config.activeMonitorName()},
@@ -84,6 +85,7 @@ namespace Aurora::Runtime
       }
 
       if(body.contains("transitionSmoothing")) config.setTransitionSmoothing(body.at("transitionSmoothing").get<float>());
+      if(body.contains("brightness")) config.setBrightness(body.at("brightness").get<float>());
       if(body.contains("activeInputName")) config.setActiveInputName(body.at("activeInputName").get<std::string>());
       if(body.contains("activeOutputNames")) config.setActiveOutputNames(body.at("activeOutputNames").get<std::vector<std::string>>());
       if(body.contains("activeMonitorName")) config.setActiveMonitorName(body.at("activeMonitorName").get<std::string>());

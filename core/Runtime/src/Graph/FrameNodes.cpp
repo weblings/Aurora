@@ -104,6 +104,38 @@ namespace Aurora::Runtime::Graph
       std::unordered_map<uint8_t, glm::vec3> m_previous;
     };
 
+    // frame.gain: scales every zone color by `gain`. Exactly 1 returns the
+    // input untouched, so golden parity holds at full brightness.
+    class FrameGainNode : public INode
+    {
+    public:
+      const std::vector<PortDecl>& inputPorts() const override { return m_in; }
+      const std::vector<PortDecl>& outputPorts() const override { return m_out; }
+
+      void evaluate(
+        const EvalContext& ctx,
+        float,
+        std::unordered_map<std::string, GraphValue>& outputs) override
+      {
+        const Contracts::Frame& frame = ctx.input<Contracts::Frame>("frame");
+        float gain = ctx.param<float>("gain");
+        if(gain >= 1.f){
+          outputs.emplace("frame", frame);
+          return;
+        }
+        Contracts::Frame result;
+        result.reserve(frame.size());
+        for(const auto& zone : frame){
+          result.push_back({zone.id, Contracts::Color::fromNormalized(zone.color.toNormalized() * gain), zone.gamma});
+        }
+        outputs.emplace("frame", std::move(result));
+      }
+
+    private:
+      std::vector<PortDecl> m_in{{"frame", PortType::Frame, true}};
+      std::vector<PortDecl> m_out{{"frame", PortType::Frame, false}};
+    };
+
     // output.send: sink. Absent/error inputs never reach evaluate, so a
     // skipped tick sends nothing, like today's early returns.
     class OutputSendNode : public INode
@@ -183,6 +215,28 @@ namespace Aurora::Runtime::Graph
         .outputs = {{"frame", PortType::Frame, false}},
         .params = {tau},
         .factory = [] { return std::make_unique<FrameSmoothTimeNode>(); },
+      });
+
+    ParamDecl gain;
+    gain.name = "gain";
+    gain.kind = ParamKind::Float;
+    gain.schema = paramSchema("app.brightness"); // one source with Config
+    gain.description = "Brightness multiplier, 1 leaves colors unchanged (the global brightness setting).";
+
+    registry.registerType(
+      "frame.gain",
+      NodeTypeInfo{
+        .meta =
+          {
+            .purpose = "Scale every zone's color by a brightness factor.",
+            .useWhen = "Last step before output.send; the built-in graphs run the global brightness here.",
+            .example = "{\"id\": \"dim\", \"type\": \"frame.gain\", \"params\": {\"gain\": 0.5}}",
+            .cost = "cheap",
+          },
+        .inputs = {{"frame", PortType::Frame, true}},
+        .outputs = {{"frame", PortType::Frame, false}},
+        .params = {gain},
+        .factory = [] { return std::make_unique<FrameGainNode>(); },
       });
 
     registry.registerType(

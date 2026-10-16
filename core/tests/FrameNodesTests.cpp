@@ -120,7 +120,40 @@ TEST_CASE("frame node types are registered", "[FrameNodes]")
 {
   NodeRegistry registry = makeFrameRegistry();
   CHECK(registry.find("frame.smooth") != nullptr);
+  CHECK(registry.find("frame.gain") != nullptr);
   CHECK(registry.find("output.send") != nullptr);
+}
+
+
+TEST_CASE("frame.gain scales colors, keeps ids and gamma, and is exact at 1 (Aurora-5ipy.7)", "[FrameNodes]")
+{
+  NodeRegistry registry = makeFrameRegistry();
+  FakeOutput hue("hue");
+  FakeHost host;
+  host.outputs = {{"hue", &hue}};
+  g_source = {{{1, Color(200, 100, 50), 0.4f}, {2, Color(255, 255, 255)}}, true};
+
+  auto run = [&](const char* gain){
+    hue.sent.clear();
+    std::string doc = std::string(R"({"version": 1, "nodes": [
+      {"id": "src", "type": "test.frame", "params": {}},
+      {"id": "dim", "type": "frame.gain", "params": {"gain": )") + gain + R"(}},
+      {"id": "send", "type": "output.send", "params": {"output": "hue"}}
+    ], "edges": [["src.frame", "dim.frame"], ["dim.frame", "send.frame"]]})";
+    Aurora::Runtime::Graph::Graph graph = requireGraph(doc, registry);
+    graph.tick(1.f / 60.f, &host);
+    REQUIRE(hue.sent.size() == 1);
+    return hue.sent[0];
+  };
+
+  Frame half = run("0.5");
+  CHECK(half[0].id == 1);
+  CHECK(half[0].gamma == 0.4f);
+  CHECK(half[0].color == Color(100, 50, 25));
+  CHECK(half[1].color == Color(128, 128, 128));
+
+  CHECK(run("0")[1].color == Color(0, 0, 0));
+  CHECK(run("1")[0].color == Color(200, 100, 50)); // untouched at full brightness
 }
 
 TEST_CASE("loader rejects two output.send nodes bound to one output (Aurora-cwos)", "[FrameNodes]")

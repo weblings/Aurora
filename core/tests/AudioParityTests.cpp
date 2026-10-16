@@ -272,7 +272,7 @@ namespace
         .factory = [script] { return std::make_unique<ScriptedFeaturesNode>(script); },
       });
 
-    nlohmann::json doc = builtInAudioGraph({"hue"}, audioOverlayFromConfig(audioConfigFrom(settings).data()));
+    nlohmann::json doc = builtInAudioGraph({"hue"}, audioOverlayFromConfig(audioConfigFrom(settings).data(), {"hue"}));
     nlohmann::json nodes = nlohmann::json::array();
     nodes.push_back({{"id", "feat"}, {"type", "test.features"}, {"params", nlohmann::json::object()}});
     for(const auto& node : doc["nodes"]){

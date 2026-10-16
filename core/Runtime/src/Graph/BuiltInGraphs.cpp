@@ -67,6 +67,17 @@ namespace Aurora::Runtime::Graph
     return id;
   }
 
+  namespace
+  {
+    // One gain node per output, before its send (Aurora-5ipy.7).
+    void _addGain(ParamOverlay& overlay, const ConfigData& config, const std::vector<std::string>& outputNames)
+    {
+      for(const auto& output : outputNames){
+        overlay[perOutputNodeId("gain", output)]["gain"] = config.brightness;
+      }
+    }
+  }
+
   ParamOverlay videoOverlayFromConfig(const ConfigData& config, const std::vector<std::string>& outputNames)
   {
     ParamOverlay overlay;
@@ -75,10 +86,11 @@ namespace Aurora::Runtime::Graph
     for(const auto& output : outputNames){
       overlay[perOutputNodeId("ease", output)]["smoothing"] = config.transitionSmoothing;
     }
+    _addGain(overlay, config, outputNames);
     return overlay;
   }
 
-  ParamOverlay audioOverlayFromConfig(const ConfigData& config)
+  ParamOverlay audioOverlayFromConfig(const ConfigData& config, const std::vector<std::string>& outputNames)
   {
     ParamOverlay overlay;
     // Config's negative hue means unset/random, which the graph spells null.
@@ -94,6 +106,7 @@ namespace Aurora::Runtime::Graph
     overlay["beat"]["referenceRms"] = config.audioReferenceRms;
     overlay["beat"]["brightnessFloor"] = config.audioBrightnessFloor;
     overlay["beat"]["brightnessSmoothTime"] = config.audioBrightnessSmoothTime;
+    _addGain(overlay, config, outputNames);
     return overlay;
   }
 
@@ -115,10 +128,13 @@ namespace Aurora::Runtime::Graph
       const std::string send = perOutputNodeId("send", output);
       nodes.push_back(nodeDoc(zones, "zones.sample", {{"output", output}}, {}, overlay));
       nodes.push_back(nodeDoc(ease, "frame.smooth", {{"output", output}}, {"smoothing"}, overlay));
+      const std::string gain = perOutputNodeId("gain", output);
+      nodes.push_back(nodeDoc(gain, "frame.gain", json::object(), {"gain"}, overlay));
       nodes.push_back(nodeDoc(send, "output.send", {{"output", output}}, {}, overlay));
       edges.push_back(edge("opaque.image", zones + ".image"));
       edges.push_back(edge(zones + ".frame", ease + ".frame"));
-      edges.push_back(edge(ease + ".frame", send + ".frame"));
+      edges.push_back(edge(ease + ".frame", gain + ".frame"));
+      edges.push_back(edge(gain + ".frame", send + ".frame"));
     }
 
     return json{{"version", 1}, {"nodes", std::move(nodes)}, {"edges", std::move(edges)}};
@@ -158,9 +174,12 @@ namespace Aurora::Runtime::Graph
       const std::string all = perOutputNodeId("all", output);
       const std::string send = perOutputNodeId("send", output);
       nodes.push_back(nodeDoc(all, "frame.broadcast", {{"output", output}}, {}, overlay));
+      const std::string gain = perOutputNodeId("gain", output);
+      nodes.push_back(nodeDoc(gain, "frame.gain", json::object(), {"gain"}, overlay));
       nodes.push_back(nodeDoc(send, "output.send", {{"output", output}}, {}, overlay));
       edges.push_back(edge("beat.color", all + ".color"));
-      edges.push_back(edge(all + ".frame", send + ".frame"));
+      edges.push_back(edge(all + ".frame", gain + ".frame"));
+      edges.push_back(edge(gain + ".frame", send + ".frame"));
     }
 
     // The Audio graph runs at today's fixed 60Hz, not the app refresh rate.
@@ -181,6 +200,6 @@ namespace Aurora::Runtime::Graph
     const std::vector<std::string>& outputNames,
     const ConfigData& config)
   {
-    return loadWith(builtInAudioGraph(outputNames, audioOverlayFromConfig(config)), registry, outputNames);
+    return loadWith(builtInAudioGraph(outputNames, audioOverlayFromConfig(config, outputNames)), registry, outputNames);
   }
 }

@@ -24,7 +24,8 @@ namespace Aurora::Runtime
   // Zone runtime (ZoneMap): per-zone gamma/active plus Auto-arrange.
   std::vector<ControlDescriptor> zoneControlDescriptors();
 
-  // App shell chrome with explanatory value (mode switch).
+  // App shell chrome with explanatory value (mode switch), plus the global
+  // brightness slider.
   std::vector<ControlDescriptor> appControlDescriptors();
 
   // The ParamSchema a video/audio slider descriptor carries, by descriptor
