@@ -2,9 +2,9 @@
 
 Id: 5ipy3-events-sse-stream
 
-EC 2b of [[external-control]]. Backend only. Aurora-cgr (tick loop starving the
-API mutex) is still open: the stream takes leaf locks only, but the
-`/api/state` audio-sink lookup still takes the pipeline lock while running.
+EC 2b of [[external-control]]. Backend only. Closed 2026-10-16 with Aurora-cgr mitigated
+([[cgr-tick-yield]]). The stream takes leaf locks only, but the `/api/state`
+audio-sink lookup still takes the pipeline lock while running.
 
 ## Done
 
@@ -32,8 +32,8 @@ API mutex) is still open: the stream takes leaf locks only, but the
 - `AuroraPipelineTests`: first `state` event equals `GET /api/state`, pause
   emits `state`, condition emits `health`, topics filter, 3 streams plus a
   back-to-back `tick()` storm keep `GET /api/state` under 500 ms.
-- Latency test uses `/api/state` (leaf locks), not `/api/monitors`: that route
-  still blocks on the tick lock until Aurora-cgr lands.
+- Latency test uses `/api/state` (leaf locks), not `/api/monitors`, which waits
+  on the tick lock.
 - Core ctest all pass on MSVC Debug except `PairingService stores only token
   hashes and survives a restart` (revoke check, then `remove_all` sharing
   violation on Windows). Pairing code is untouched here, needs its own bead.

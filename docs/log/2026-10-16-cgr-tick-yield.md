@@ -2,7 +2,7 @@
 
 Id: cgr-tick-yield
 
-Fix built 2026-10-16, bead left open pending hardware verification. Unblocks
+Closed 2026-10-16 as mitigated, not reproduced. Unblocks
 [[5ipy3-events-sse-stream]].
 
 ## Done
@@ -21,11 +21,16 @@ Fix built 2026-10-16, bead left open pending hardware verification. Unblocks
 - Hue stream still runs under the tick mutex, and monitors/zones are not
   served from last-known-good under `try_lock`. Either is the next step if the
   yield proves too little.
-- Not reproduced on MSVC (see lesson). Needs the refreshRate 1000 check on
-  real hardware: `/api/monitors` and a reload must answer.
+- The wedge did not reproduce on MSVC or on Windows hardware (see lesson), so
+  the fix is unproven against the original failure. `refreshRate` is now
+  clamped to 240, so the 1000 Hz case is unreachable by REST.
 
 ## Verification
 
+- Real Hue bridge, live capture at refreshRate 240, 2560x1440 and 3840x2160
+  displays: `/api/monitors`, `/api/zones`, `/api/state` median 1-2 ms, worst
+  about 26 ms, reload 1.1-1.6 s, all 200, identical with `MinTickYield` at 0.
+  This hardware cannot tell the builds apart.
 - `nextTickTime` unit test fails with the yield set to 0, passes with 1 ms.
 - Core ctest 364: all pass but the unrelated Pairing revoke failure. Windows
   app builds.
