@@ -14,8 +14,8 @@ Sequence A closed, and Sequence B of [[nodes-agent-ux]] was filed.
   B2a/b/c/f, B4 on B1.
 - Closed `Aurora-ra4o` (Sequence A) and `Aurora-pngj` (floor decision).
 - `Aurora-6v36` rewritten for the three floor policies, with tests per policy.
-- Docs: `NodeGraphPipeline.md`, `NodesAndAgentUX.md`,
-  `HomeAssistantOutput.md`, `ExternalControl.md`.
+- Docs updated: [[node-graph-pipeline]], [[nodes-agent-ux]],
+  [[home-assistant-output]], [[external-control]].
 
 ## Decisions (owner approved agent recommendations)
 
