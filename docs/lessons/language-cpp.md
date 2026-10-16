@@ -335,3 +335,17 @@ string_view overload and got a pointer, failing with "cannot convert
 **Fix:** implement the interface in a nested adapter (`Host`) that holds a
 reference back to the runner, so the public API keeps one `zoneMap`. The
 adapter's back-reference makes the owner non-movable: delete copy/move.
+
+---
+
+## nlohmann `get<float>()` turns an out-of-range JSON number into infinity
+Tags: nlohmann, json, float, clamp, validation
+Applies-when: reading a float from untrusted JSON and range-checking it
+
+Aurora-ra4o.11: `{"gain": 1e300}` parses as a valid double, and `get<float>()`
+narrows it to `inf` without throwing. `std::clamp(inf, 0, 1)` would return the
+max, silently turning garbage into a plausible value, and NaN passes through
+`std::clamp` untouched.
+
+**Fix:** test `std::isfinite` before clamping and reset to the param default,
+as `sanitizeParam` does. Keep the loader's copy of that rule in step with it.

@@ -127,6 +127,7 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `processing-analysis` | [archive/ProcessingAnalysis.md](archive/ProcessingAnalysis.md) | ImageProcessing / Color / Interpolation / ImageData / UV — Conversion analysis |
 | `q9l1-tray-target-live` | [log/2026-10-07-q9l1-tray-target-live.md](log/2026-10-07-q9l1-tray-target-live.md) | Aurora-q9l1: tray click-time target — Linux live green, Windows exercised, closed |
 | `ra4o10-g2e-pre-g3-fixes` | [log/2026-10-14-ra4o10-g2e-pre-g3-fixes.md](log/2026-10-14-ra4o10-g2e-pre-g3-fixes.md) | G2e pre-G3 review fixes (Aurora-ra4o.10) |
+| `ra4o11-g4a-loader-float-clamp` | [log/2026-10-15-ra4o11-g4a-loader-float-clamp.md](log/2026-10-15-ra4o11-g4a-loader-float-clamp.md) | G4a: loader clamps Float params (Aurora-ra4o.11) |
 | `ra4o2-g1-graph-core` | [log/2026-10-14-ra4o2-g1-graph-core.md](log/2026-10-14-ra4o2-g1-graph-core.md) | G1 graph runtime core lands (Aurora-ra4o.2) |
 | `ra4o3-g1b-bad-graph-corpus` | [log/2026-10-14-ra4o3-g1b-bad-graph-corpus.md](log/2026-10-14-ra4o3-g1b-bad-graph-corpus.md) | G1b bad-graph corpus + loader fuzz (Aurora-ra4o.3) |
 | `ra4o4-g2a-video-nodes` | [log/2026-10-14-ra4o4-g2a-video-nodes.md](log/2026-10-14-ra4o4-g2a-video-nodes.md) | G2a Tier 1 video nodes (Aurora-ra4o.4) |
