@@ -1,11 +1,13 @@
 #pragma once
 
+#include <cstddef>
 #include <optional>
 #include <string>
 #include <string_view>
 #include <variant>
 #include <vector>
 
+#include <Aurora/Contracts/Color.hpp>
 #include <Aurora/Contracts/ControlDescriptor.hpp>
 
 // Sequence-A port and param shapes for the node graph (G1, Aurora-ra4o.2).
@@ -47,11 +49,34 @@ namespace Aurora::Runtime::Graph
     Float,
     Bool,
     Enum,
-    OptionalFloat
+    OptionalFloat,
+    Gradient
   };
 
   const char* paramKindName(ParamKind kind);
   std::optional<ParamKind> parseParamKind(std::string_view name);
+
+  // Color stops along 0..1, ascending by position. The loader guarantees
+  // 2..kMaxGradientStops stops with positions in range (id8j.5).
+  struct GradientStop
+  {
+    float position = 0.0f;
+    Contracts::Color color{};
+    bool operator==(const GradientStop&) const = default;
+  };
+
+  struct Gradient
+  {
+    std::vector<GradientStop> stops;
+    bool operator==(const Gradient&) const = default;
+  };
+
+  constexpr size_t kMaxGradientStops = 16;
+
+  // "#rrggbb" (lowercase on output, either case on input), the gradient
+  // stop color form in graph.json and GET /api/nodes.
+  std::string colorToHex(const Contracts::Color& color);
+  std::optional<Contracts::Color> parseHexColor(std::string_view text);
 
   struct ParamDecl
   {
@@ -63,11 +88,14 @@ namespace Aurora::Runtime::Graph
     std::string defaultEnum{};
     // Bool only.
     bool defaultBool = false;
+    // Gradient only.
+    Gradient defaultGradient{};
     // Short agent/param description (details source for tooltips).
     std::string description{};
   };
 
   // float -> Float, bool -> Bool, string -> Enum,
-  // optional<float> -> OptionalFloat (nullopt == unset, e.g. random anchor).
-  using ParamValue = std::variant<float, bool, std::string, std::optional<float>>;
+  // optional<float> -> OptionalFloat (nullopt == unset, e.g. random anchor),
+  // Gradient -> Gradient.
+  using ParamValue = std::variant<float, bool, std::string, std::optional<float>, Gradient>;
 }

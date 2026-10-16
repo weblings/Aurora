@@ -7,6 +7,7 @@
 #include <Aurora/Runtime/Graph/BuiltInGraphs.hpp>
 #include <Aurora/Runtime/Graph/FrameNodes.hpp>
 #include <Aurora/Runtime/Graph/MathNodes.hpp>
+#include <Aurora/Runtime/Graph/ColorNodes.hpp>
 #include <Aurora/Runtime/Graph/TimeNodes.hpp>
 #include <Aurora/Runtime/Graph/VideoNodes.hpp>
 #ifdef AURORA_RUNTIME_AUDIO_AVAILABLE
@@ -41,6 +42,7 @@ namespace Aurora::Runtime
     Graph::registerFrameNodes(m_registry);
     Graph::registerMathNodes(m_registry);
     Graph::registerTimeNodes(m_registry);
+    Graph::registerColorNodes(m_registry);
   }
 
 
@@ -61,6 +63,7 @@ namespace Aurora::Runtime
     Graph::registerFrameNodes(m_registry);
     Graph::registerMathNodes(m_registry);
     Graph::registerTimeNodes(m_registry);
+    Graph::registerColorNodes(m_registry);
   }
 #endif
 

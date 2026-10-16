@@ -1026,7 +1026,7 @@ and bounce is the same class of coupling and must be reproduced per node.
 Tags: node-graph, INode, params, ports
 Applies-when: adding a graph node with an integer param, or wrapping a function whose caller guards on empty output
 
-`ParamKind` is Float/Bool/Enum/OptionalFloat only, so `image.rescale`'s
+`ParamKind` has no int kind (Float/Bool/Enum/OptionalFloat/Gradient), so `image.rescale`'s
 width travels as a Float (schema step 1, `defaultValue` 0 = passthrough)
 and rounds at evaluate. Separately, `Processing::rescale()` answers an
 upscale request with empty output, and `Orchestrator::_prepareSource` keeps
@@ -1202,3 +1202,18 @@ The wrapper rejects non-finite results with `ctx.fail`, so a NaN or inf never
 reaches a Float port and no node can forget the guard. Operand rule: constants
 are params, signals are ports. Zero divisor and inverted ranges fail the node
 with the param named.
+
+---
+
+## A new ParamKind needs six switch sites, and a missed one is easy to ship
+Tags: node-graph, params, ParamKind
+Applies-when: adding a ParamKind or ParamValue alternative to the node graph
+
+Aurora-id8j.5 added `Gradient`. The kind must be handled in `GraphTypes.cpp` (name and
+parse), `GraphLoader.cpp` `parseParamValue` (validate and default), `GraphRoutes.cpp`
+`paramJson` (the `/api/nodes` shape), `NodeRegistry.cpp` `descriptorKind`, plus the
+`ParamValue` variant and `ParamDecl` default field in `GraphTypes.hpp`. A missed
+switch is a warning at most and fails at runtime (`parseParamValue` ends in "unknown param kind").
+
+**Fix:** grep `ParamKind::OptionalFloat` for the full site list, and add a load-time
+reject case per malformed shape to the node's tests.

@@ -303,7 +303,8 @@ This is what keeps byte parity with the orchestrators.
 
 **Params.**
 - Kinds: `float`, `enum`, `bool`, `optional-float`, using
-  `Contracts::ParamSchema` (Aurora-ta5). Enum options may be computed by the
+  `Contracts::ParamSchema` (Aurora-ta5), plus `gradient` (id8j.5: 2 to 16
+  `{"pos", "color": "#rrggbb"}` stops, ascending). Enum options may be computed by the
   server.
 - `controls` ("Show in Tuning") is part of the frozen top-level format
   even though no editor reads it in Sequence A.

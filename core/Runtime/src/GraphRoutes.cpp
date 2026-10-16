@@ -6,6 +6,7 @@
 #include <Aurora/Runtime/ControlDescriptors.hpp>
 #include <Aurora/Runtime/Graph/FrameNodes.hpp>
 #include <Aurora/Runtime/Graph/MathNodes.hpp>
+#include <Aurora/Runtime/Graph/ColorNodes.hpp>
 #include <Aurora/Runtime/Graph/TimeNodes.hpp>
 #include <Aurora/Runtime/Graph/NodeRegistry.hpp>
 #include <Aurora/Runtime/Graph/VideoNodes.hpp>
@@ -63,6 +64,16 @@ namespace Aurora::Runtime
           entry["options"] = param.enumOptions;
           entry["default"] = param.defaultEnum;
           break;
+        case Graph::ParamKind::Gradient:{
+          nlohmann::json stops = nlohmann::json::array();
+          for(const auto& stop : param.defaultGradient.stops){
+            stops.push_back({
+              {"pos", shortestDecimal(stop.position)},
+              {"color", Graph::colorToHex(stop.color)}});
+          }
+          entry["default"] = std::move(stops);
+          break;
+        }
       }
       return entry;
     }
@@ -75,6 +86,7 @@ namespace Aurora::Runtime
       Graph::registerFrameNodes(registry);
       Graph::registerMathNodes(registry);
       Graph::registerTimeNodes(registry);
+      Graph::registerColorNodes(registry);
 #ifdef AURORA_RUNTIME_AUDIO_AVAILABLE
       Graph::registerAudioNodes(registry);
 #endif
