@@ -399,3 +399,19 @@ TEST_CASE("frame.broadcast matches composeAudioFrame over the live zone map", "[
     CHECK((*frame)[i].gamma == expected[i].gamma);
   }
 }
+
+TEST_CASE("Audio node descriptors carry full agent metadata", "[AudioNodes]")
+{
+  NodeRegistry registry;
+  registerAudioNodes(registry);
+  for(const auto& descriptor : registry.toDescriptors()){
+    if(registry.find(descriptor.key.substr(5)) == nullptr){
+      continue; // param entry
+    }
+    INFO(descriptor.key);
+    CHECK(!descriptor.description.empty());
+    CHECK(!descriptor.useWhen.empty());
+    CHECK(!descriptor.example.empty());
+    CHECK(!descriptor.cost.empty());
+  }
+}

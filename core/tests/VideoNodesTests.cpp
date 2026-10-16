@@ -10,6 +10,7 @@
 #include <Aurora/Runtime/Graph/Graph.hpp>
 #include <Aurora/Runtime/Graph/GraphLoader.hpp>
 #include <Aurora/Runtime/Graph/NodeRegistry.hpp>
+#include <Aurora/Runtime/Graph/FrameNodes.hpp>
 #include <Aurora/Runtime/Graph/VideoNodes.hpp>
 
 using namespace Aurora::Contracts;
@@ -302,4 +303,21 @@ TEST_CASE("video chain capture -> rescale -> dropAlpha -> zones.sample", "[Video
   REQUIRE(frame != nullptr);
   REQUIRE(frame->size() == 1);
   CHECK(frame->at(0).color == Color(255, 0, 0));
+}
+
+TEST_CASE("Video and frame node descriptors carry full agent metadata", "[VideoNodes]")
+{
+  NodeRegistry registry;
+  registerVideoNodes(registry);
+  registerFrameNodes(registry);
+  for(const auto& descriptor : registry.toDescriptors()){
+    if(registry.find(descriptor.key.substr(5)) == nullptr){
+      continue; // param entry
+    }
+    INFO(descriptor.key);
+    CHECK(!descriptor.description.empty());
+    CHECK(!descriptor.useWhen.empty());
+    CHECK(!descriptor.example.empty());
+    CHECK(!descriptor.cost.empty());
+  }
 }

@@ -83,6 +83,15 @@ namespace Aurora::Runtime
         {"kind", descriptor.kind},
         {"description", descriptor.description},
       };
+      if(!descriptor.useWhen.empty()){
+        entry["useWhen"] = descriptor.useWhen;
+      }
+      if(!descriptor.example.empty()){
+        entry["example"] = descriptor.example;
+      }
+      if(!descriptor.cost.empty()){
+        entry["cost"] = descriptor.cost;
+      }
       if(descriptor.param){
         const auto& param = *descriptor.param;
         entry["param"] = {

@@ -49,6 +49,9 @@ namespace Aurora::Runtime::Graph
       nodeEntry.key = "node." + type;
       nodeEntry.kind = "text";
       nodeEntry.description = info.meta.purpose;
+      nodeEntry.useWhen = info.meta.useWhen;
+      nodeEntry.example = info.meta.example;
+      nodeEntry.cost = info.meta.cost;
       out.push_back(std::move(nodeEntry));
       for(const auto& param : info.params){
         Contracts::ControlDescriptor entry;

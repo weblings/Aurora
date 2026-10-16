@@ -1116,3 +1116,18 @@ re-runnable, only the tests did.
 **Fix:** make `init()` clear its derived tables before rebuilding and say so
 in the header. When porting tests across a class swap, expect failures that
 are missing implicit contracts, not test bugs.
+
+---
+
+## Check a bead's premise against the code before scoping it
+Tags: beads, scoping, review-findings, descriptors
+Applies-when: picking up a bead written from a review finding
+
+Aurora-ra4o.12 said to "populate the metadata fields on the Tier 1 nodes".
+All 13 nodes already carried `useWhen`, `example` and `cost`. The real gap was
+that `ControlDescriptor` had no fields to carry them, so `toDescriptors()` and
+`/api/descriptors` dropped them.
+
+**Fix:** grep the named symbols first and restate the gap before editing. The
+acceptance test ("fails if a node leaves one empty") is what makes it durable.
+
