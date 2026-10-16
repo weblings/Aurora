@@ -17,6 +17,7 @@
 #include <Aurora/Network/Http/Server/HttpServer.hpp>
 #include <Aurora/Runtime/ConfigApply.hpp>
 #include <Aurora/Runtime/ConfigStore.hpp>
+#include <Aurora/Runtime/Graph/AllNodes.hpp>
 #include <Aurora/Runtime/Graph/FrameNodes.hpp>
 #include <Aurora/Runtime/Graph/MathNodes.hpp>
 #include <Aurora/Runtime/Graph/BlendNodes.hpp>
@@ -2151,21 +2152,25 @@ TEST_CASE("PipelineHost conditions hold in every host state and survive builds a
 }
 
 
+TEST_CASE("registerAllNodes gates audio nodes on includeAudio (Aurora-id8j.11)", "[GraphRoutes]")
+{
+  Aurora::Runtime::Graph::NodeRegistry withAudio, withoutAudio;
+  Aurora::Runtime::Graph::registerAllNodes(withAudio, true);
+  Aurora::Runtime::Graph::registerAllNodes(withoutAudio, false);
+  CHECK(withoutAudio.find("audio.capture") == nullptr);
+  CHECK(withoutAudio.find("video.capture") != nullptr);
+#ifdef AURORA_RUNTIME_AUDIO_AVAILABLE
+  CHECK(withAudio.find("audio.capture") != nullptr);
+#endif
+}
+
+
 TEST_CASE("GET /api/nodes serves every registered node and rejects a forged Host (Aurora-id8j.2)", "[GraphRoutes]")
 {
   using namespace Aurora::Network::Http::Server;
 
   Aurora::Runtime::Graph::NodeRegistry expected;
-  Aurora::Runtime::Graph::registerVideoNodes(expected);
-  Aurora::Runtime::Graph::registerFrameNodes(expected);
-  Aurora::Runtime::Graph::registerMathNodes(expected);
-  Aurora::Runtime::Graph::registerTimeNodes(expected);
-  Aurora::Runtime::Graph::registerColorNodes(expected);
-  Aurora::Runtime::Graph::registerBlendNodes(expected);
-  Aurora::Runtime::Graph::registerSpatialNodes(expected);
-#ifdef AURORA_RUNTIME_AUDIO_AVAILABLE
-  Aurora::Runtime::Graph::registerAudioNodes(expected);
-#endif
+  Aurora::Runtime::Graph::registerAllNodes(expected, true);
 
   HttpServer server;
   registerNodesRoute(server);

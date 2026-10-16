@@ -5,6 +5,7 @@
 #include <utility>
 
 #include <Aurora/Runtime/Graph/BuiltInGraphs.hpp>
+#include <Aurora/Runtime/Graph/AllNodes.hpp>
 #include <Aurora/Runtime/Graph/FrameNodes.hpp>
 #include <Aurora/Runtime/Graph/MathNodes.hpp>
 #include <Aurora/Runtime/Graph/BlendNodes.hpp>
@@ -40,13 +41,7 @@ namespace Aurora::Runtime
   m_config(std::move(config)),
   m_zoneMapStore(std::move(zoneMapStore))
   {
-    Graph::registerVideoNodes(m_registry);
-    Graph::registerFrameNodes(m_registry);
-    Graph::registerMathNodes(m_registry);
-    Graph::registerTimeNodes(m_registry);
-    Graph::registerColorNodes(m_registry);
-    Graph::registerBlendNodes(m_registry);
-    Graph::registerSpatialNodes(m_registry);
+    Graph::registerAllNodes(m_registry, true);
   }
 
 
@@ -63,13 +58,7 @@ namespace Aurora::Runtime
   m_config(std::move(config)),
   m_zoneMapStore(std::move(zoneMapStore))
   {
-    Graph::registerAudioNodes(m_registry);
-    Graph::registerFrameNodes(m_registry);
-    Graph::registerMathNodes(m_registry);
-    Graph::registerTimeNodes(m_registry);
-    Graph::registerColorNodes(m_registry);
-    Graph::registerBlendNodes(m_registry);
-    Graph::registerSpatialNodes(m_registry);
+    Graph::registerAllNodes(m_registry, true);
   }
 #endif
 

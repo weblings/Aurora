@@ -26,6 +26,7 @@ add_library(AuroraRuntime STATIC
   src/Graph/ColorNodes.cpp
   src/Graph/BlendNodes.cpp
   src/Graph/SpatialNodes.cpp
+  src/Graph/AllNodes.cpp
   src/Graph/BuiltInGraphs.cpp
   src/Graph/Graph.cpp
   src/Graph/GraphLoader.cpp
