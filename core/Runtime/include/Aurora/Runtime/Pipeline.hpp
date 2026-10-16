@@ -12,6 +12,8 @@
 #include <string>
 #include <vector>
 
+#include <nlohmann/json.hpp>
+
 #include <Aurora/Contracts/UV.hpp>
 #include <Aurora/Input/IAudioInput.hpp>
 #include <Aurora/Input/IVideoInput.hpp>
@@ -114,6 +116,9 @@ namespace Aurora::Runtime
     bool isAudioMode() const { return m_isAudioMode; }
 
     PipelineCapabilities capabilities() const;
+
+    // The primary runner's graph doc (video, or audio in audio mode).
+    nlohmann::json graphJson() const;
 
     // Empty in audio mode -- no monitor concept applies then, not an error.
     Input::Monitors listMonitors() const;
@@ -255,6 +260,11 @@ namespace Aurora::Runtime
     // Pipeline at all, so it's cheap enough to call on every drag-frame a
     // real Zone Mapping UI sends, not just on a final "Save".
     ZoneListResult listZones();
+
+    // The running pipeline's graph doc; nullopt when idle, failed or paused
+    // (no graph is running then). Same lock as tick().
+    std::optional<nlohmann::json> graphJson();
+
     bool updateZone(
       std::uint8_t zoneId,
       const std::optional<Contracts::UVs>& uvs,

@@ -24,6 +24,7 @@ add_library(AuroraRuntime STATIC
   src/Graph/BuiltInGraphs.cpp
   src/Graph/Graph.cpp
   src/Graph/GraphLoader.cpp
+  src/GraphRoutes.cpp
   src/GraphRunner.cpp
   src/Pipeline.cpp
   src/PipelineRoutes.cpp

@@ -81,6 +81,10 @@ namespace Aurora::Runtime
     // graph fails to load.
     bool setConfig(Config config, std::string& errorOut);
 
+    // The graph doc the running graph was built from (built-in doc plus the
+    // current Config overlay), as GET /api/graph serves it.
+    nlohmann::json graphJson() const;
+
     // Post-derivation for video (refreshRate/subsampleWidth filled in).
     const Config& config() const { return m_config; }
 

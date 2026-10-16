@@ -349,3 +349,19 @@ max, silently turning garbage into a plausible value, and NaN passes through
 
 **Fix:** test `std::isfinite` before clamping and reset to the param default,
 as `sanitizeParam` does. Keep the loader's copy of that rule in step with it.
+
+---
+
+## `operator[]` with a missing key on a const nlohmann json aborts a Debug MSVC test with a CRT dialog
+Tags: cpp, nlohmann, json, catch2, msvc, testing
+Applies-when: a test binary pops "abort() has been called" or hangs with no Catch2 output while indexing parsed JSON
+
+A `const nlohmann::json&` (including `const auto&` into a parsed body) hits an
+assert, not an exception, when `operator[]` names an absent key. In Debug MSVC
+that is a modal CRT dialog, and a backgrounded run just hangs with no failure
+report. Aurora-id8j.2: `send["sink"]` on `output.send`, which sets no
+`sinkBindingParam`.
+
+**Fix:** in tests use `contains()` before indexing, or `.at()` (throws, so Catch2
+reports it). Do not `kill` a hung run before reading its output file: the
+assertion text is in it.

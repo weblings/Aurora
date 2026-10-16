@@ -324,6 +324,12 @@ namespace Aurora::Runtime
   }
 
 
+  nlohmann::json Pipeline::graphJson() const
+  {
+    return (m_isAudioMode ? *m_audioRunner : *m_videoRunner).graphJson();
+  }
+
+
   ZoneListResult Pipeline::listZones() const
   {
     if(m_outputPtrs.empty()){
@@ -580,6 +586,14 @@ namespace Aurora::Runtime
     std::lock_guard<std::mutex> lock(m_mutex);
     if(m_pipeline){ return m_pipeline->listZones(); }
     return m_paused ? m_pausedZones : ZoneListResult{};
+  }
+
+
+  std::optional<nlohmann::json> PipelineHost::graphJson()
+  {
+    std::lock_guard<std::mutex> lock(m_mutex);
+    if(!m_pipeline){ return std::nullopt; }
+    return m_pipeline->graphJson();
   }
 
 

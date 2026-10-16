@@ -72,6 +72,18 @@ namespace Aurora::Runtime
   }
 
 
+  nlohmann::json GraphRunner::graphJson() const
+  {
+#ifdef AURORA_RUNTIME_AUDIO_AVAILABLE
+    if(m_isAudio){
+      return Graph::builtInAudioGraph(m_outputNames, Graph::audioOverlayFromConfig(m_config.data()));
+    }
+#endif
+    return Graph::builtInVideoGraph(
+      m_outputNames, Graph::videoOverlayFromConfig(m_config.data(), m_outputNames));
+  }
+
+
   void GraphRunner::init()
   {
     if(m_videoInput){

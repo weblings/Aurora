@@ -16,6 +16,13 @@
 
 #include <Aurora/Network/Http/Server/HttpServer.hpp>
 #include <Aurora/Runtime/ConfigStore.hpp>
+#include <Aurora/Runtime/Graph/FrameNodes.hpp>
+#include <Aurora/Runtime/Graph/NodeRegistry.hpp>
+#include <Aurora/Runtime/Graph/VideoNodes.hpp>
+#include <Aurora/Runtime/GraphRoutes.hpp>
+#ifdef AURORA_RUNTIME_AUDIO_AVAILABLE
+#include <Aurora/Runtime/Graph/AudioNodes.hpp>
+#endif
 #include <Aurora/Runtime/Pipeline.hpp>
 #include <Aurora/Runtime/PipelineRoutes.hpp>
 #include <Aurora/Runtime/SettingsRoutes.hpp>
@@ -2047,4 +2054,124 @@ TEST_CASE("PipelineHost conditions hold in every host state and survive builds a
   REQUIRE(host.conditions().size() == 1);
   CHECK(host.conditions()[0].source == "local_network");
   host.shutdown();
+}
+
+
+TEST_CASE("GET /api/nodes serves every registered node and rejects a forged Host (Aurora-id8j.2)", "[GraphRoutes]")
+{
+  using namespace Aurora::Network::Http::Server;
+
+  Aurora::Runtime::Graph::NodeRegistry expected;
+  Aurora::Runtime::Graph::registerVideoNodes(expected);
+  Aurora::Runtime::Graph::registerFrameNodes(expected);
+#ifdef AURORA_RUNTIME_AUDIO_AVAILABLE
+  Aurora::Runtime::Graph::registerAudioNodes(expected);
+#endif
+
+  HttpServer server;
+  registerNodesRoute(server);
+  REQUIRE(server.bind("127.0.0.1", 18247));
+  std::thread serverThread([&](){ server.listen(); });
+
+  httplib::Client client("127.0.0.1", 18247);
+  auto res = client.Get("/api/nodes");
+  REQUIRE(res);
+  CHECK(res->status == 200);
+
+  auto nodes = nlohmann::json::parse(res->body)["nodes"];
+  auto types = expected.types();
+  REQUIRE(nodes.size() == types.size());
+  for(size_t i = 0; i < types.size(); ++i){
+    const auto& node = nodes[i];
+    CHECK(node["type"] == types[i]);
+    for(const char* key : {"purpose", "useWhen", "example", "cost"}){
+      CHECK_FALSE(node[key].get<std::string>().empty());
+    }
+    CHECK(node["inputs"].is_array());
+    CHECK(node["outputs"].is_array());
+    CHECK(node["params"].size() == expected.find(types[i])->params.size());
+  }
+
+  // Spot-check the shapes an editor reads: a ported node, a float param
+  // with its schema, an enum's options.
+  auto find = [&](const std::string& type) -> const nlohmann::json& {
+    for(const auto& node : nodes){
+      if(node["type"] == type){ return node; }
+    }
+    FAIL("missing node type " << type);
+    return nodes[0];
+  };
+  const auto& send = find("output.send");
+  CHECK(send["inputs"][0].contains("required"));
+  CHECK_FALSE(send["outputs"].size() > 0);
+
+  bool sawFloat = false, sawEnum = false;
+  for(const auto& node : nodes){
+    for(const auto& param : node["params"]){
+      if(param["kind"] == "float"){
+        sawFloat = true;
+        for(const char* key : {"label", "min", "max", "step", "unit", "default", "allowsUnset"}){
+          CHECK(param.contains(key));
+        }
+      }
+      if(param["kind"] == "enum"){
+        sawEnum = true;
+        CHECK(param["options"].is_array());
+        // Per-output binding params have no static options.
+        if(!param["options"].empty()){
+          CHECK(std::find(param["options"].begin(), param["options"].end(), param["default"]) != param["options"].end());
+        }
+      }
+    }
+  }
+  CHECK(sawFloat);
+  CHECK(sawEnum);
+
+  auto forged = client.Get("/api/nodes", {{"Host", "evil.com"}});
+  REQUIRE(forged);
+  CHECK(forged->status == 403);
+
+  server.stop();
+  serverThread.join();
+}
+
+
+TEST_CASE("GET /api/graph serves the running graph, null when none runs (Aurora-id8j.2)", "[GraphRoutes]")
+{
+  using namespace Aurora::Network::Http::Server;
+
+  ScopedTempDir dir("graph-route");
+  auto events = std::make_shared<Events>();
+  auto registry = makeRegistry(events);
+  ConfigStore(dir.path).save(videoConfig());
+  PipelineHost host(Pipeline::build(registry, videoConfig(), dir.path, {}), {});
+
+  HttpServer server;
+  registerGraphRoute(server, host);
+  REQUIRE(server.bind("127.0.0.1", 18248));
+  std::thread serverThread([&](){ server.listen(); });
+
+  httplib::Client client("127.0.0.1", 18248);
+  auto res = client.Get("/api/graph");
+  REQUIRE(res);
+  CHECK(res->status == 200);
+  auto graph = nlohmann::json::parse(res->body)["graph"];
+  CHECK(graph["version"] == 1);
+  CHECK(graph["nodes"].is_array());
+  CHECK_FALSE(graph["nodes"].empty());
+  CHECK(graph["edges"].is_array());
+
+  auto forged = client.Get("/api/graph", {{"Host", "evil.com"}});
+  REQUIRE(forged);
+  CHECK(forged->status == 403);
+
+  REQUIRE(host.pause());
+  auto paused = client.Get("/api/graph");
+  REQUIRE(paused);
+  CHECK(paused->status == 200);
+  CHECK(nlohmann::json::parse(paused->body)["graph"].is_null());
+
+  host.shutdown();
+  server.stop();
+  serverThread.join();
 }
