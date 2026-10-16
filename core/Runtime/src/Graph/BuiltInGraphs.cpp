@@ -47,6 +47,21 @@ namespace Aurora::Runtime::Graph
       return json::array({from, to});
     }
 
+    // "Show in Tuning" entry. `config` is the PUT /api/config key that
+    // commits it, `section` the heading Tuning groups it under.
+    json control(
+      const std::string& node,
+      const std::string& param,
+      const std::string& config,
+      const std::string& section = {})
+    {
+      json entry{{"node", node}, {"param", param}, {"config", config}};
+      if(!section.empty()){
+        entry["section"] = section;
+      }
+      return entry;
+    }
+
     LoadResult loadWith(
       const json& doc,
       const NodeRegistry& registry,
@@ -137,7 +152,19 @@ namespace Aurora::Runtime::Graph
       edges.push_back(edge(gain + ".frame", send + ".frame"));
     }
 
-    return json{{"version", 1}, {"nodes", std::move(nodes)}, {"edges", std::move(edges)}};
+    // One smoothing slider drives every output's ease node; the first is its handle.
+    json controls = json::array();
+    controls.push_back(control("rescale", "width", "subsampleWidth"));
+    controls.push_back(control("rescale", "interpolation", "interpolation"));
+    if(!outputNames.empty()){
+      controls.push_back(control(perOutputNodeId("ease", outputNames.front()), "smoothing", "transitionSmoothing"));
+    }
+
+    return json{
+      {"version", 1},
+      {"nodes", std::move(nodes)},
+      {"edges", std::move(edges)},
+      {"controls", std::move(controls)}};
   }
 
   json builtInAudioGraph(const std::vector<std::string>& outputNames, const ParamOverlay& overlay)
@@ -182,8 +209,27 @@ namespace Aurora::Runtime::Graph
       edges.push_back(edge(gain + ".frame", send + ".frame"));
     }
 
+    json controls = json::array({
+      control("beat", "bounceSmoothTime", "audioBounceSmoothTime", "Response speed"),
+      control("beat", "brightnessSmoothTime", "audioBrightnessSmoothTime", "Response speed"),
+      control("drift", "driftBaseRateDegPerSec", "audioDriftBaseRateDegPerSec", "Response speed"),
+      control("beat", "vibrancySaturation", "audioVibrancySaturation", "Color character"),
+      control("beat", "vibrancyValue", "audioVibrancyValue", "Color character"),
+      control("drift", "fixedAnchorHue", "audioFixedAnchorHue", "Color character"),
+      control("beat", "dynamismFloor", "audioDynamismFloor", "Sensitivity"),
+      control("drift", "centroidStrength", "audioCentroidStrength", "Sensitivity"),
+      control("beat", "referenceRms", "audioReferenceRms", "Sensitivity"),
+      control("beat", "brightnessFloor", "audioBrightnessFloor", "Sensitivity"),
+      control("drift", "centroidRangeHz", "audioCentroidRangeHz", "Sensitivity"),
+    });
+
     // The Audio graph runs at today's fixed 60Hz, not the app refresh rate.
-    return json{{"version", 1}, {"tickHz", 60}, {"nodes", std::move(nodes)}, {"edges", std::move(edges)}};
+    return json{
+      {"version", 1},
+      {"tickHz", 60},
+      {"nodes", std::move(nodes)},
+      {"edges", std::move(edges)},
+      {"controls", std::move(controls)}};
   }
 
   LoadResult loadBuiltInVideoGraph(

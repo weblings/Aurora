@@ -26,7 +26,8 @@
 // input, unregistered output, more than one edge into one input
 // (including one output's send), duplicate node id, unknown
 // node/port in an edge, unknown or mistyped param, malformed controls.
-// `ui` is editor-only and ignored. Every error names the node, port and
+// A control may carry extra keys ("config", "section") for Tuning; the loader
+// ignores them. `ui` is editor-only and ignored. Every error names the node, port and
 // expectation so an agent can retry from the message alone.
 namespace Aurora::Runtime::Graph
 {

@@ -11,7 +11,9 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `3ono-stale-core-test-tree` | [log/2026-10-02-3ono-stale-core-test-tree.md](log/2026-10-02-3ono-stale-core-test-tree.md) | Aurora-3ono: PipelineTests segfault on Windows was a stale build tree |
 | `3qh-mac-capture-width-hint` | [log/2026-10-01-3qh-mac-capture-width-hint.md](log/2026-10-01-3qh-mac-capture-width-hint.md) | Aurora-3qh: Mac video mode resized full-Retina frames every tick |
 | `5i3-local-api-hardening` | [log/2026-10-02-5i3-local-api-hardening.md](log/2026-10-02-5i3-local-api-hardening.md) | Aurora-5i3: local API hardening before any HA credential exists |
+| `5ipy2-state-effect-source` | [log/2026-10-16-5ipy2-state-effect-source.md](log/2026-10-16-5ipy2-state-effect-source.md) | Aurora-5ipy.2: GET /api/state adds effect and source |
 | `5ipy4-ec3-host-allowlist` | [log/2026-10-16-5ipy4-ec3-host-allowlist.md](log/2026-10-16-5ipy4-ec3-host-allowlist.md) | EC 3: Host header allowlist (Aurora-5ipy.4) |
+| `5ipy7-global-brightness` | [log/2026-10-16-5ipy7-global-brightness.md](log/2026-10-16-5ipy7-global-brightness.md) | Aurora-5ipy.7: global brightness gain stage |
 | `5y0-nan-state-self-heal` | [log/2026-10-01-5y0-nan-state-self-heal.md](log/2026-10-01-5y0-nan-state-self-heal.md) | Aurora-5y0: 9ca follow-up — NaN state self-heal, one float→Color cast |
 | `7r3-audio-drift-reaches-output` | [log/2026-10-14-7r3-audio-drift-reaches-output.md](log/2026-10-14-7r3-audio-drift-reaches-output.md) | Audio drift reaches output (Aurora-7r3) |
 | `7ybx-dev-banner-errors` | [log/2026-10-07-dev-banner-errors.md](log/2026-10-07-dev-banner-errors.md) | Aurora-7ybx: dev banner-error injection tooling (closed) |
@@ -57,9 +59,15 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `http-server-analysis` | [archive/HttpServerAnalysis.md](archive/HttpServerAnalysis.md) | HTTP server analysis |
 | `hue-output-analysis` | [archive/HueOutputAnalysis.md](archive/HueOutputAnalysis.md) | Hue::Api / Auth / Stream — Conversion analysis |
 | `id8j1-b0-float-trigger-ports` | [log/2026-10-16-id8j1-b0-float-trigger-ports.md](log/2026-10-16-id8j1-b0-float-trigger-ports.md) | B0: Float and Trigger port types (Aurora-id8j.1) |
+| `id8j10-b4-tuning-renders-controls` | [log/2026-10-16-id8j10-b4-tuning-renders-controls.md](log/2026-10-16-id8j10-b4-tuning-renders-controls.md) | B4: Tuning renders the active graph's controls (Aurora-id8j.10) |
 | `id8j2-b1-read-routes` | [log/2026-10-16-id8j2-b1-read-routes.md](log/2026-10-16-id8j2-b1-read-routes.md) | B1: read routes GET /api/nodes and GET /api/graph (Aurora-id8j.2) |
 | `id8j3-b2a-scalar-math-nodes` | [log/2026-10-16-id8j3-b2a-scalar-math-nodes.md](log/2026-10-16-id8j3-b2a-scalar-math-nodes.md) | B2a: scalar math nodes (Aurora-id8j.3) |
 | `id8j4-b2b-time-state-nodes` | [log/2026-10-16-id8j4-b2b-time-state-nodes.md](log/2026-10-16-id8j4-b2b-time-state-nodes.md) | B2b: time/state nodes and LFO (Aurora-id8j.4) |
+| `id8j5-b2c-color-palette-nodes` | [log/2026-10-16-id8j5-b2c-color-palette-nodes.md](log/2026-10-16-id8j5-b2c-color-palette-nodes.md) | B2c: color and palette nodes, gradient param (Aurora-id8j.5) |
+| `id8j6-b2d-frame-image-blend-nodes` | [log/2026-10-16-id8j6-b2d-frame-image-blend-nodes.md](log/2026-10-16-id8j6-b2d-frame-image-blend-nodes.md) | B2d: frame and image ops with blend modes (Aurora-id8j.6) |
+| `id8j7-b2e-spatial-image-generators` | [log/2026-10-16-id8j7-b2e-spatial-image-generators.md](log/2026-10-16-id8j7-b2e-spatial-image-generators.md) | B2e: spatial Image generators (Aurora-id8j.7) |
+| `id8j8-b2f-audio-bands` | [log/2026-10-16-id8j8-b2f-audio-bands.md](log/2026-10-16-id8j8-b2f-audio-bands.md) | B2f: audio frequency bands (Aurora-id8j.8) |
+| `id8j9-b3-decomposition-parity` | [log/2026-10-16-id8j9-b3-decomposition-parity.md](log/2026-10-16-id8j9-b3-decomposition-parity.md) | B3: decomposition parity gate for drift and bounce (Aurora-id8j.9) |
 | `ifkn2-page-css-split` | [log/2026-10-08-ifkn2-page-css-split.md](log/2026-10-08-ifkn2-page-css-split.md) | Aurora-ifkn.2 closed: shell.css page-wide rules split into page-only page.css |
 | `ifkn3-stop-capability` | [log/2026-10-08-ifkn3-stop-capability.md](log/2026-10-08-ifkn3-stop-capability.md) | Aurora-ifkn.3: Dashboard Stop gated on a canStop capability, screen re-vendored identical |
 | `ifkn4-string-zone-ids` | [log/2026-10-08-ifkn4-string-zone-ids.md](log/2026-10-08-ifkn4-string-zone-ids.md) | Aurora-ifkn.4 closed: ZoneActiveToggle accepts string and numeric zone ids |

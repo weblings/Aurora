@@ -12,6 +12,8 @@
 // response shapes). The HTTP layer speaks interpolation NAMES ('Area'),
 // not the storage ints -- same as SettingsRoutes::_interpolationName.
 
+import { demoGraph, demoNodes } from './demo-graph.js';
+
 // Live Config.hpp persisted values (see Aurora/core/Runtime/.../Config.hpp).
 export const DEMO_DEFAULT_CONFIG = {
   refreshRate: 0,
@@ -326,6 +328,13 @@ export function createRouter(store, hooks = {}) {
     }
     if (method === 'GET' && path === '/api/descriptors') {
       return ok(store.getDescriptors());
+    }
+    // Tuning's field list (Aurora-id8j.10): the running mode's controls.
+    if (method === 'GET' && path === '/api/graph') {
+      return ok({ graph: demoGraph(store.getConfig()) });
+    }
+    if (method === 'GET' && path === '/api/nodes') {
+      return ok(demoNodes(store.getDescriptors().descriptors));
     }
     // PUT-for-read with {} body (PairingRoutes convention -- do NOT "fix" to
     // GET; the Dashboard sends PUT and parity means matching it).

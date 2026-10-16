@@ -5,6 +5,7 @@
 #include <algorithm>
 #include <string>
 
+#include <Aurora/Runtime/ConfigApply.hpp>
 #include <Aurora/Runtime/Graph/BuiltInGraphs.hpp>
 #include <Aurora/Runtime/Graph/FrameNodes.hpp>
 #include <Aurora/Runtime/Graph/VideoNodes.hpp>
@@ -123,4 +124,31 @@ TEST_CASE("built-in Audio graph doc declares 60Hz and overlays ConfigData", "[Bu
   ConfigData unset;
   nlohmann::json randomDoc = builtInAudioGraph({"hue"}, audioOverlayFromConfig(unset, {"hue"}));
   CHECK(nodeById(randomDoc, "drift").at("params").at("fixedAnchorHue").is_null());
+}
+
+
+TEST_CASE("built-in graphs declare Tuning controls bound to live config keys", "[BuiltInGraphs]")
+{
+  const auto configKeys = [](const nlohmann::json& doc){
+    std::vector<std::string> keys;
+    for(const auto& control : doc.at("controls")){
+      CHECK(classifyConfigField(control.at("config").get<std::string>()) != nullptr);
+      keys.push_back(control.at("config").get<std::string>());
+    }
+    return keys;
+  };
+
+  // Loads too: the loader checks each control's node and param exist.
+  NodeRegistry registry = videoRegistry();
+  REQUIRE(loadBuiltInVideoGraph(registry, {"hue", "ha.light"}, ConfigData{}).ok);
+
+  CHECK(configKeys(builtInVideoGraph({"hue", "ha.light"})) ==
+    std::vector<std::string>{"subsampleWidth", "interpolation", "transitionSmoothing"});
+  CHECK(builtInVideoGraph({"hue", "ha.light"}).at("controls")[2].at("node") == "ease_hue");
+  CHECK(configKeys(builtInVideoGraph({})).size() == 2);
+
+  nlohmann::json audio = builtInAudioGraph({"hue"});
+  CHECK(configKeys(audio).size() == 11);
+  CHECK(audio.at("controls")[5].at("config") == "audioFixedAnchorHue");
+  CHECK(audio.at("controls")[5].at("section") == "Color character");
 }

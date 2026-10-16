@@ -18,6 +18,10 @@
 //   Video: cap -> rescale -> opaque -> per output: zones -> ease -> send
 //   Audio: cap -> feat -> drift/beat -> per output: all -> send   (tickHz 60)
 //
+// Each declares `controls` (the Tuning list): {node, param, config, section?}
+// where `config` is the /api/config key that commits the value. Video's
+// refresh rate is an app setting, not a node param, so it is not listed.
+//
 // Per-output node ids come from perOutputNodeId(). Video needs
 // registerVideoNodes + registerFrameNodes; Audio also needs
 // registerAudioNodes (audio builds only).
