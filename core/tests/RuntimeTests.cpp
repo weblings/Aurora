@@ -107,6 +107,7 @@ namespace
 
   const NumericSetting NumericSettings[] = {
     {"video.transitionSmoothing", &Config::setTransitionSmoothing, &Config::transitionSmoothing},
+    {"app.brightness", &Config::setBrightness, &Config::brightness},
     {"audio.fixedAnchorHue", &Config::setAudioFixedAnchorHue, &Config::audioFixedAnchorHue},
     {"audio.bounceSmoothTime", &Config::setAudioBounceSmoothTime, &Config::audioBounceSmoothTime},
     {"audio.dynamismFloor", &Config::setAudioDynamismFloor, &Config::audioDynamismFloor},
@@ -127,6 +128,8 @@ TEST_CASE("Every slider descriptor carries a ParamSchema and a wired setter (Aur
   auto all = videoControlDescriptors();
   auto audio = audioControlDescriptors();
   all.insert(all.end(), audio.begin(), audio.end());
+  auto app = appControlDescriptors();
+  all.insert(all.end(), app.begin(), app.end());
 
   size_t sliders = 0;
   for(const auto& descriptor : all){

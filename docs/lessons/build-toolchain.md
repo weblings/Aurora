@@ -821,3 +821,45 @@ pass the vcpkg `CMAKE_TOOLCHAIN_FILE` from the main build's cache, point
 `FETCHCONTENT_SOURCE_DIR_{CATCH2,GLM,HTTPLIB,NLOHMANN_JSON}` at the main
 build's `_deps/*-src`, and set `AURORA_APP_BUILD_TESTS=OFF`. The Release app
 builds in a couple of minutes, then `git worktree remove --force` it.
+
+---
+
+## `build/` may be a WSL cache, build core tests in `build-core-test-win` from Windows
+Tags: cmake, wsl, windows, tests
+Applies-when: `cmake --build build` fails with "CMakeCache.txt directory is different" from a Windows shell
+
+Aurora-id8j.1: `build/` was configured under WSL (`/mnt/d/...`), so a Windows
+shell cannot reuse it. The configured MSVC tree for core tests is
+`build-core-test-win` (generator VS 2022, source `core/`).
+
+**Fix:** `cmake --build build-core-test-win --config Debug -j 8` then
+`ctest --test-dir build-core-test-win -C Debug`. Don't reconfigure `build/`.
+
+---
+
+## Git Bash heredocs with quotes and escapes can silently write nothing, use the Write tool
+Tags: agent-tooling, bash, heredoc, windows
+Applies-when: creating a multi-line source file from the Bash tool on Windows
+
+Aurora-id8j.3: a `cat <<EOF` block with C++ string escapes and apostrophes in
+text failed with "unexpected EOF while looking for matching" and the whole
+command, including later `sed` lines, never ran. No files were created.
+
+**Fix:** write source files with the Write tool and keep Bash for short
+commands. After a failed compound command, `git status` before assuming any
+step happened.
+
+---
+
+## Server tests bind OS-assigned ports, never literals, or parallel ctest collides
+Tags: ctest, catch2, parallel, ports, flaky
+Applies-when: writing a test that starts an HttpServer or any listener
+
+Aurora-vv46: `catch_discover_tests` runs each test case as its own process,
+so under `ctest -j8` two cases with the same hard-coded port race on bind and
+one fails at random. Unique literals (the first fix) only hold until the next
+test reuses a number.
+
+**Fix (Aurora-lby1):** `const int port = server.bindToAnyPort("127.0.0.1");`
+then build the client from `port`. Port literals left in `Host`/`Origin`
+header strings are fine: the allowlist and Origin check ignore the port.

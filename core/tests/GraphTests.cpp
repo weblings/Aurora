@@ -254,6 +254,8 @@ namespace
         {"outColor", PortType::Color, false},
         {"outFrame", PortType::Frame, false},
         {"outAngle", PortType::Angle, false},
+        {"outFloat", PortType::Float, false},
+        {"outTrigger", PortType::Trigger, false},
       };
     }
 
@@ -282,6 +284,8 @@ namespace
       outputs.emplace("outColor", Color(1, 2, 3));
       outputs.emplace("outFrame", frame);
       outputs.emplace("outAngle", Angle{123.5f});
+      outputs.emplace("outFloat", 0.625f);
+      outputs.emplace("outTrigger", Trigger{true});
     }
 
   private:
@@ -544,6 +548,8 @@ namespace
       {"outColor", PortType::Color, false},
       {"outFrame", PortType::Frame, false},
       {"outAngle", PortType::Angle, false},
+      {"outFloat", PortType::Float, false},
+      {"outTrigger", PortType::Trigger, false},
     };
     info.factory = []{ return std::make_unique<ValueSrcNode>(); };
     CHECK(registry.registerType("test.valuesrc", std::move(info)));
@@ -554,7 +560,9 @@ namespace
           PortType::AudioFeatures,
           PortType::Color,
           PortType::Frame,
-          PortType::Angle}){
+          PortType::Angle,
+          PortType::Float,
+          PortType::Trigger}){
       info = {};
       info.meta = meta(
         std::string("passthrough for ") + portTypeName(type),
@@ -870,7 +878,9 @@ TEST_CASE("Graph round-trips all six Sequence-A port types", "[Graph]")
       {"id": "pf", "type": "test.pipe.audiofeatures"},
       {"id": "pc", "type": "test.pipe.color"},
       {"id": "pr", "type": "test.pipe.frame"},
-      {"id": "pg", "type": "test.pipe.angle"}
+      {"id": "pg", "type": "test.pipe.angle"},
+      {"id": "pn", "type": "test.pipe.float"},
+      {"id": "pt", "type": "test.pipe.trigger"}
     ],
     "edges": [
       ["v.outImage", "pi.in"],
@@ -878,7 +888,9 @@ TEST_CASE("Graph round-trips all six Sequence-A port types", "[Graph]")
       ["v.outFeatures", "pf.in"],
       ["v.outColor", "pc.in"],
       ["v.outFrame", "pr.in"],
-      ["v.outAngle", "pg.in"]
+      ["v.outAngle", "pg.in"],
+      ["v.outFloat", "pn.in"],
+      ["v.outTrigger", "pt.in"]
     ]
   })");
   graph.tick(1.f / 60.f);
@@ -916,6 +928,14 @@ TEST_CASE("Graph round-trips all six Sequence-A port types", "[Graph]")
   const GraphValue* angle = graph.portValue("pg", "out");
   REQUIRE(angle != nullptr);
   CHECK(std::get<Angle>(*angle) == Angle{123.5f});
+
+  const GraphValue* scalar = graph.portValue("pn", "out");
+  REQUIRE(scalar != nullptr);
+  CHECK(std::get<float>(*scalar) == 0.625f);
+
+  const GraphValue* pulse = graph.portValue("pt", "out");
+  REQUIRE(pulse != nullptr);
+  CHECK(std::get<Trigger>(*pulse) == Trigger{true});
 }
 
 TEST_CASE("Graph image travels by reference through fan-out", "[Graph]")

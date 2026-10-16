@@ -30,6 +30,7 @@ endif()
 add_library(AuroraAudioProcessing STATIC
   src/AudioProcessing.cpp
   src/AudioFeatureExtractor.cpp
+  src/AudioBandAnalyzer.cpp
 )
 
 target_include_directories(AuroraAudioProcessing PUBLIC

@@ -30,6 +30,7 @@ namespace Aurora::Runtime
         {"subsampleWidth", data.subsampleWidth},
         {"interpolation", static_cast<int>(data.interpolation)},
         {"transitionSmoothing", data.transitionSmoothing},
+        {"brightness", data.brightness},
         {"activeInputName", data.activeInputName},
         {"activeOutputNames", data.activeOutputNames},
         {"activeMonitorName", data.activeMonitorName},
@@ -67,6 +68,7 @@ namespace Aurora::Runtime
         : std::clamp(storedRefreshRate, 1u, Config::kMaxRefreshRate);
       data.subsampleWidth = json.value("subsampleWidth", defaults.subsampleWidth);
       data.transitionSmoothing = json.value("transitionSmoothing", defaults.transitionSmoothing);
+      data.brightness = json.value("brightness", defaults.brightness);
 
       int interpolation = json.value("interpolation", static_cast<int>(defaults.interpolation));
       data.interpolation = (interpolation >= 0 && interpolation <= 2)

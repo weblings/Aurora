@@ -37,12 +37,20 @@ namespace Aurora::Runtime::Graph
     bool operator==(const GraphError&) const = default;
   };
 
-  // Hue in degrees. A distinct type so a future Float port can't be
-  // confused with it.
+  // Hue in degrees. A distinct type so a Float port can't be confused
+  // with it.
   struct Angle
   {
     float degrees = 0.0f;
     bool operator==(const Angle&) const = default;
+  };
+
+  // One-tick pulse: fired is true only on the tick the event happens. Sent
+  // every tick (not Absent when idle) so dependents keep evaluating.
+  struct Trigger
+  {
+    bool fired = false;
+    bool operator==(const Trigger&) const = default;
   };
 
   // Shared, never copied. A capture node reuses the same pointer while the
@@ -57,7 +65,9 @@ namespace Aurora::Runtime::Graph
     Contracts::AudioFeatures,
     Contracts::Color,
     Contracts::Frame,
-    Angle>;
+    Angle,
+    float,
+    Trigger>;
 
   inline bool isAbsent(const GraphValue& value)
   {
@@ -95,6 +105,12 @@ namespace Aurora::Runtime::Graph
     }
     if(std::holds_alternative<Angle>(value)){
       return PortType::Angle;
+    }
+    if(std::holds_alternative<float>(value)){
+      return PortType::Float;
+    }
+    if(std::holds_alternative<Trigger>(value)){
+      return PortType::Trigger;
     }
     return std::nullopt;
   }

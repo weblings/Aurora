@@ -39,6 +39,7 @@
 #include <Aurora/Runtime/ControlDescriptors.hpp>
 #include <Aurora/Runtime/PendingRunRequest.hpp>
 #include <Aurora/Runtime/Pipeline.hpp>
+#include <Aurora/Runtime/GraphRoutes.hpp>
 #include <Aurora/Runtime/PipelineRoutes.hpp>
 #include <Aurora/Runtime/SettingsRoutes.hpp>
 #include <Aurora/Runtime/ZoneRoutes.hpp>
@@ -275,6 +276,10 @@ namespace
     // Backs the WebUI's audio-device dropdown (Aurora-kea replaced its
     // 'linux-audio' gate with this). Without audio there's nothing to pick.
     options.audioDevicesUrl = "/api/linux/audio-sinks";
+    options.describeAudioSink = [](Aurora::Input::IAudioInput& input){
+      auto* audio = dynamic_cast<Aurora::Input::Linux::AudioGrabber*>(&input);
+      return audio ? audio->sinkStatus().sinkName : std::string{};
+    };
 #endif
     return options;
   }
@@ -623,6 +628,8 @@ if(!instanceLock.held()){
   registerAudioSinksRoute(httpServer);
   Aurora::Runtime::registerReloadRoute(httpServer, pipelineHost, registry, configRoot);
   Aurora::Runtime::registerStateRoute(httpServer, pipelineHost, registry, configRoot);
+  Aurora::Runtime::registerNodesRoute(httpServer);
+  Aurora::Runtime::registerGraphRoute(httpServer, pipelineHost);
   Aurora::Runtime::registerDevErrorsRoute(httpServer, pipelineHost);
   registerStopRoute(httpServer);
   Aurora::Runtime::registerZoneRoutes(

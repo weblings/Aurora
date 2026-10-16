@@ -5,7 +5,13 @@
 #include <utility>
 
 #include <Aurora/Runtime/Graph/BuiltInGraphs.hpp>
+#include <Aurora/Runtime/Graph/AllNodes.hpp>
 #include <Aurora/Runtime/Graph/FrameNodes.hpp>
+#include <Aurora/Runtime/Graph/MathNodes.hpp>
+#include <Aurora/Runtime/Graph/BlendNodes.hpp>
+#include <Aurora/Runtime/Graph/SpatialNodes.hpp>
+#include <Aurora/Runtime/Graph/ColorNodes.hpp>
+#include <Aurora/Runtime/Graph/TimeNodes.hpp>
 #include <Aurora/Runtime/Graph/VideoNodes.hpp>
 #ifdef AURORA_RUNTIME_AUDIO_AVAILABLE
 #include <Aurora/Runtime/Graph/AudioNodes.hpp>
@@ -35,8 +41,7 @@ namespace Aurora::Runtime
   m_config(std::move(config)),
   m_zoneMapStore(std::move(zoneMapStore))
   {
-    Graph::registerVideoNodes(m_registry);
-    Graph::registerFrameNodes(m_registry);
+    Graph::registerAllNodes(m_registry, true);
   }
 
 
@@ -53,8 +58,7 @@ namespace Aurora::Runtime
   m_config(std::move(config)),
   m_zoneMapStore(std::move(zoneMapStore))
   {
-    Graph::registerAudioNodes(m_registry);
-    Graph::registerFrameNodes(m_registry);
+    Graph::registerAllNodes(m_registry, true);
   }
 #endif
 
@@ -69,6 +73,18 @@ namespace Aurora::Runtime
 #endif
     result = Graph::loadBuiltInVideoGraph(m_registry, m_outputNames, config.data());
     return result.ok;
+  }
+
+
+  nlohmann::json GraphRunner::graphJson() const
+  {
+#ifdef AURORA_RUNTIME_AUDIO_AVAILABLE
+    if(m_isAudio){
+      return Graph::builtInAudioGraph(m_outputNames, Graph::audioOverlayFromConfig(m_config.data(), m_outputNames));
+    }
+#endif
+    return Graph::builtInVideoGraph(
+      m_outputNames, Graph::videoOverlayFromConfig(m_config.data(), m_outputNames));
   }
 
 

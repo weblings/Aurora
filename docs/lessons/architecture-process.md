@@ -1026,7 +1026,7 @@ and bounce is the same class of coupling and must be reproduced per node.
 Tags: node-graph, INode, params, ports
 Applies-when: adding a graph node with an integer param, or wrapping a function whose caller guards on empty output
 
-`ParamKind` is Float/Bool/Enum/OptionalFloat only, so `image.rescale`'s
+`ParamKind` has no int kind (Float/Bool/Enum/OptionalFloat/Gradient), so `image.rescale`'s
 width travels as a Float (schema step 1, `defaultValue` 0 = passthrough)
 and rounds at evaluate. Separately, `Processing::rescale()` answers an
 upscale request with empty output, and `Orchestrator::_prepareSource` keeps
@@ -1146,3 +1146,74 @@ its input shows the re-seed (anchor jump beyond what drift can move in one
 tick, bounded by the slider maxes). Goldens held because the old reset and the
 jump landed on the same tick. A re-seed inside the margin is missed and only
 damps instead of snapping.
+
+---
+
+## Model a per-tick event as a value sent every tick, not as Absent when idle
+Tags: node-graph, ports, trigger, absent, audio
+Applies-when: adding a pulse or event port to a graph where Absent propagates downstream
+
+Aurora-id8j.1: `Absent` means "no value this tick" and propagates to every
+dependent node. Emitting nothing when no onset fired would have stalled each
+node downstream of `audio.features.onset` on every quiet tick.
+
+**Fix:** `Trigger{fired}` is sent every tick and `fired` is true only on the
+tick the event happens. Reserve Absent for "the source has no data".
+
+---
+
+## A loader rule keyed on opt-in node metadata is inert until the real node opts in; test it with the real node
+Tags: node-graph, loader, validation, testing, test-doubles
+Applies-when: adding a validation that reads an optional `NodeTypeInfo` field, or trusting a loader test that passes with a test-only node
+
+The one-sender-per-output check (Aurora-o13) reads `sinkBindingParam`, which only
+the test node in `GraphTests.cpp` set. The real `output.send` did not, so the test
+passed while a graph with two real senders on one output loaded and would flicker.
+It surfaced only because `/api/nodes` (Aurora-id8j.2) printed the registry and
+`sink` was missing.
+
+**Fix:** set the field on the real node (Aurora-cwos) and add a loader test that
+registers the real node types (`FrameNodesTests`). For any new opt-in field,
+grep that every real node that should set it does.
+
+---
+
+## A new node family must be registered in four places, one of them a test
+Tags: node-graph, registry, nodes, tests
+Applies-when: adding a `register*Nodes` function for a new node family
+
+Aurora-id8j.3: nothing fails if a family is missing from one site, the node is
+just absent there. The sites are `GraphRunner` (video and audio constructors),
+`nodesPayload` in `GraphRoutes.cpp`, and the expected-registry copy in the
+`/api/nodes` test in `PipelineTests.cpp`. Only the last one is checked, and only
+if updated.
+
+**Fix:** grep `registerFrameNodes` and add the new call beside every hit. A
+family with no hardware dependency belongs in both `GraphRunner` constructors.
+
+---
+
+## A shared INode wrapper plus a compute lambda keeps stateless nodes to one spec each
+Tags: node-graph, nodes, math, non-finite
+Applies-when: adding many small stateless nodes that share ports and failure rules
+
+Aurora-id8j.3: nine math nodes share `ScalarMathNode` (ports + compute lambda).
+The wrapper rejects non-finite results with `ctx.fail`, so a NaN or inf never
+reaches a Float port and no node can forget the guard. Operand rule: constants
+are params, signals are ports. Zero divisor and inverted ranges fail the node
+with the param named.
+
+---
+
+## A new ParamKind needs six switch sites, and a missed one is easy to ship
+Tags: node-graph, params, ParamKind
+Applies-when: adding a ParamKind or ParamValue alternative to the node graph
+
+Aurora-id8j.5 added `Gradient`. The kind must be handled in `GraphTypes.cpp` (name and
+parse), `GraphLoader.cpp` `parseParamValue` (validate and default), `GraphRoutes.cpp`
+`paramJson` (the `/api/nodes` shape), `NodeRegistry.cpp` `descriptorKind`, plus the
+`ParamValue` variant and `ParamDecl` default field in `GraphTypes.hpp`. A missed
+switch is a warning at most and fails at runtime (`parseParamValue` ends in "unknown param kind").
+
+**Fix:** grep `ParamKind::OptionalFloat` for the full site list, and add a load-time
+reject case per malformed shape to the node's tests.

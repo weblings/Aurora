@@ -470,8 +470,6 @@ export class DashboardScreen {
     this.tuningFields?.destroy();
     this.tuningSection = new AccordionSection(wrap.querySelector('.db-accordion-tuning'), { title: 'Tuning', expanded: false });
     this.tuningFields = new TuningFields(this.tuningSection.content, {
-      usesVideoInput: this.flags.usesVideoInput,
-      usesAudioInput: this.flags.usesAudioInput,
       values: this.tuningValues,
       monitors: this.monitors,
       selectedMonitorName: this.selectedMonitorName,

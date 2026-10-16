@@ -11,6 +11,9 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `3ono-stale-core-test-tree` | [log/2026-10-02-3ono-stale-core-test-tree.md](log/2026-10-02-3ono-stale-core-test-tree.md) | Aurora-3ono: PipelineTests segfault on Windows was a stale build tree |
 | `3qh-mac-capture-width-hint` | [log/2026-10-01-3qh-mac-capture-width-hint.md](log/2026-10-01-3qh-mac-capture-width-hint.md) | Aurora-3qh: Mac video mode resized full-Retina frames every tick |
 | `5i3-local-api-hardening` | [log/2026-10-02-5i3-local-api-hardening.md](log/2026-10-02-5i3-local-api-hardening.md) | Aurora-5i3: local API hardening before any HA credential exists |
+| `5ipy2-state-effect-source` | [log/2026-10-16-5ipy2-state-effect-source.md](log/2026-10-16-5ipy2-state-effect-source.md) | Aurora-5ipy.2: GET /api/state adds effect and source |
+| `5ipy4-ec3-host-allowlist` | [log/2026-10-16-5ipy4-ec3-host-allowlist.md](log/2026-10-16-5ipy4-ec3-host-allowlist.md) | EC 3: Host header allowlist (Aurora-5ipy.4) |
+| `5ipy7-global-brightness` | [log/2026-10-16-5ipy7-global-brightness.md](log/2026-10-16-5ipy7-global-brightness.md) | Aurora-5ipy.7: global brightness gain stage |
 | `5y0-nan-state-self-heal` | [log/2026-10-01-5y0-nan-state-self-heal.md](log/2026-10-01-5y0-nan-state-self-heal.md) | Aurora-5y0: 9ca follow-up — NaN state self-heal, one float→Color cast |
 | `7r3-audio-drift-reaches-output` | [log/2026-10-14-7r3-audio-drift-reaches-output.md](log/2026-10-14-7r3-audio-drift-reaches-output.md) | Audio drift reaches output (Aurora-7r3) |
 | `7ybx-dev-banner-errors` | [log/2026-10-07-dev-banner-errors.md](log/2026-10-07-dev-banner-errors.md) | Aurora-7ybx: dev banner-error injection tooling (closed) |
@@ -55,6 +58,18 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `home-assistant-output` | [planning/HomeAssistantOutput.md](planning/HomeAssistantOutput.md) | Home Assistant output module |
 | `http-server-analysis` | [archive/HttpServerAnalysis.md](archive/HttpServerAnalysis.md) | HTTP server analysis |
 | `hue-output-analysis` | [archive/HueOutputAnalysis.md](archive/HueOutputAnalysis.md) | Hue::Api / Auth / Stream — Conversion analysis |
+| `id8j1-b0-float-trigger-ports` | [log/2026-10-16-id8j1-b0-float-trigger-ports.md](log/2026-10-16-id8j1-b0-float-trigger-ports.md) | B0: Float and Trigger port types (Aurora-id8j.1) |
+| `id8j10-b4-tuning-renders-controls` | [log/2026-10-16-id8j10-b4-tuning-renders-controls.md](log/2026-10-16-id8j10-b4-tuning-renders-controls.md) | B4: Tuning renders the active graph's controls (Aurora-id8j.10) |
+| `id8j11-b5-register-all-nodes` | [log/2026-10-16-id8j11-b5-register-all-nodes.md](log/2026-10-16-id8j11-b5-register-all-nodes.md) | B5: one registerAllNodes for runner, /api/nodes and tests (Aurora-id8j.11) |
+| `id8j12-b6-math-optional-b` | [log/2026-10-16-id8j12-b6-math-optional-b.md](log/2026-10-16-id8j12-b6-math-optional-b.md) | B6: math nodes take an optional input with param fallback (Aurora-id8j.12) |
+| `id8j2-b1-read-routes` | [log/2026-10-16-id8j2-b1-read-routes.md](log/2026-10-16-id8j2-b1-read-routes.md) | B1: read routes GET /api/nodes and GET /api/graph (Aurora-id8j.2) |
+| `id8j3-b2a-scalar-math-nodes` | [log/2026-10-16-id8j3-b2a-scalar-math-nodes.md](log/2026-10-16-id8j3-b2a-scalar-math-nodes.md) | B2a: scalar math nodes (Aurora-id8j.3) |
+| `id8j4-b2b-time-state-nodes` | [log/2026-10-16-id8j4-b2b-time-state-nodes.md](log/2026-10-16-id8j4-b2b-time-state-nodes.md) | B2b: time/state nodes and LFO (Aurora-id8j.4) |
+| `id8j5-b2c-color-palette-nodes` | [log/2026-10-16-id8j5-b2c-color-palette-nodes.md](log/2026-10-16-id8j5-b2c-color-palette-nodes.md) | B2c: color and palette nodes, gradient param (Aurora-id8j.5) |
+| `id8j6-b2d-frame-image-blend-nodes` | [log/2026-10-16-id8j6-b2d-frame-image-blend-nodes.md](log/2026-10-16-id8j6-b2d-frame-image-blend-nodes.md) | B2d: frame and image ops with blend modes (Aurora-id8j.6) |
+| `id8j7-b2e-spatial-image-generators` | [log/2026-10-16-id8j7-b2e-spatial-image-generators.md](log/2026-10-16-id8j7-b2e-spatial-image-generators.md) | B2e: spatial Image generators (Aurora-id8j.7) |
+| `id8j8-b2f-audio-bands` | [log/2026-10-16-id8j8-b2f-audio-bands.md](log/2026-10-16-id8j8-b2f-audio-bands.md) | B2f: audio frequency bands (Aurora-id8j.8) |
+| `id8j9-b3-decomposition-parity` | [log/2026-10-16-id8j9-b3-decomposition-parity.md](log/2026-10-16-id8j9-b3-decomposition-parity.md) | B3: decomposition parity gate for drift and bounce (Aurora-id8j.9) |
 | `ifkn2-page-css-split` | [log/2026-10-08-ifkn2-page-css-split.md](log/2026-10-08-ifkn2-page-css-split.md) | Aurora-ifkn.2 closed: shell.css page-wide rules split into page-only page.css |
 | `ifkn3-stop-capability` | [log/2026-10-08-ifkn3-stop-capability.md](log/2026-10-08-ifkn3-stop-capability.md) | Aurora-ifkn.3: Dashboard Stop gated on a canStop capability, screen re-vendored identical |
 | `ifkn4-string-zone-ids` | [log/2026-10-08-ifkn4-string-zone-ids.md](log/2026-10-08-ifkn4-string-zone-ids.md) | Aurora-ifkn.4 closed: ZoneActiveToggle accepts string and numeric zone ids |
@@ -76,6 +91,7 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `kea-capability-flags` | [log/2026-10-03-kea-capability-flags.md](log/2026-10-03-kea-capability-flags.md) | Aurora-kea: running-pipeline flags drive the Dashboard (open: Mac/Windows unverified) |
 | `kea-dashboard-capabilities-scoping` | [log/2026-10-02-kea-dashboard-capabilities-scoping.md](log/2026-10-02-kea-dashboard-capabilities-scoping.md) | Aurora-kea: scoping pass on Dashboard capability-driven sections (paused, no code) |
 | `kea-route-and-shared-capture-source` | [log/2026-10-03-kea-route-and-shared-capture-source.md](log/2026-10-03-kea-route-and-shared-capture-source.md) | Aurora-kea: route decision, shared capture-source scope, pending-highlight follow-up (paused, no code) |
+| `lby1-os-assigned-test-ports` | [log/2026-10-16-lby1-os-assigned-test-ports.md](log/2026-10-16-lby1-os-assigned-test-ports.md) | Route tests bind OS-assigned ports (Aurora-lby1) |
 | `leak-fix-and-device-hint` | [log/2026-10-05-leak-fix-and-device-hint.md](log/2026-10-05-leak-fix-and-device-hint.md) | Aurora-2pe5 fixed, Aurora-36b7 and the 9swq copy done; d3ec still waits on its retry path |
 | `lesson-architecture-process` | [lessons/architecture-process.md](lessons/architecture-process.md) | Architecture process |
 | `lesson-build-toolchain` | [lessons/build-toolchain.md](lessons/build-toolchain.md) | Build toolchain |
@@ -124,6 +140,7 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `open-formats-research` | [archive/OpenFormatsResearch.md](archive/OpenFormatsResearch.md) | Existing open formats for video/audio-reactive lighting |
 | `p91-portal-settle` | [log/2026-10-03-p91-portal-settle.md](log/2026-10-03-p91-portal-settle.md) | Aurora-p91: portal denial and call errors settle the fd promise |
 | `pause-tooltips` | [log/2026-10-04-pause-tooltips.md](log/2026-10-04-pause-tooltips.md) | Aurora-5ipy.13.1: Pause/Stop button tooltips (closed) |
+| `pmg5-generated-demo-graph` | [log/2026-10-16-pmg5-generated-demo-graph.md](log/2026-10-16-pmg5-generated-demo-graph.md) | Generated demo-graph.js and --check drift guards (Aurora-pmg5) |
 | `processing-analysis` | [archive/ProcessingAnalysis.md](archive/ProcessingAnalysis.md) | ImageProcessing / Color / Interpolation / ImageData / UV — Conversion analysis |
 | `q9l1-tray-target-live` | [log/2026-10-07-q9l1-tray-target-live.md](log/2026-10-07-q9l1-tray-target-live.md) | Aurora-q9l1: tray click-time target — Linux live green, Windows exercised, closed |
 | `ra4o10-g2e-pre-g3-fixes` | [log/2026-10-14-ra4o10-g2e-pre-g3-fixes.md](log/2026-10-14-ra4o10-g2e-pre-g3-fixes.md) | G2e pre-G3 review fixes (Aurora-ra4o.10) |
@@ -141,6 +158,7 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `ra4o9-g1c-pre-g2-adjustments` | [log/2026-10-14-ra4o9-g1c-pre-g2-adjustments.md](log/2026-10-14-ra4o9-g1c-pre-g2-adjustments.md) | G1c pre-G2 runtime adjustments (Aurora-ra4o.9) |
 | `runtime-analysis` | [archive/RuntimeAnalysis.md](archive/RuntimeAnalysis.md) | Runtime / Config — Conversion analysis |
 | `scig-capture-source-banner` | [log/2026-10-08-scig-capture-source-banner.md](log/2026-10-08-scig-capture-source-banner.md) | Aurora-scig: Capture Source (NUX) errors move to the shell banner (closed) |
+| `sequence-b-planning` | [log/2026-10-15-sequence-b-planning.md](log/2026-10-15-sequence-b-planning.md) | Sequence B planning: decisions recorded, epic filed |
 | `set-running-helper` | [log/2026-10-04-set-running-helper.md](log/2026-10-04-set-running-helper.md) | Aurora-5ipy.18: shared setRunning helper (closed) |
 | `skv-one-tick-clock` | [log/2026-10-01-skv-one-tick-clock.md](log/2026-10-01-skv-one-tick-clock.md) | Aurora-skv: explicit dt into both orchestrators, one tick clock |
 | `stack-comparison` | [archive/StackComparison.md](archive/StackComparison.md) | Stack comparison — huenicorn vs. Aurora-App-Linux vs. Aurora-App-Windows |
@@ -148,6 +166,7 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `tft-parity-harness` | [log/2026-10-01-tft-parity-harness.md](log/2026-10-01-tft-parity-harness.md) | Aurora-tft: golden parity harness for both orchestrators |
 | `tjoq-audio-grant-live` | [log/2026-10-06-tjoq-audio-grant-live.md](log/2026-10-06-tjoq-audio-grant-live.md) | Aurora-tjoq: audio permission block copy vs. live grant |
 | `upstream-findings` | [planning/UpstreamFindings.md](planning/UpstreamFindings.md) | Findings worth upstreaming to huenicorn |
+| `vv46-route-test-port-collisions` | [log/2026-10-16-vv46-route-test-port-collisions.md](log/2026-10-16-vv46-route-test-port-collisions.md) | Route test flakes under parallel ctest (Aurora-vv46) |
 | `web-demo-ui-update` | [archive/WebDemoUIUpdate.md](archive/WebDemoUIUpdate.md) | Web Demo Dashboard Port — Plan (WebDemoUIUpdate.md) |
 | `webui-design-1st-pass` | [archive/WebUI_Design_1stPass.md](archive/WebUI_Design_1stPass.md) | WebUI screens, jobs, and component research |
 | `webui-design-2-5-pass` | [planning/WebUI/WebUI_Design_2.5Pass.md](planning/WebUI/WebUI_Design_2.5Pass.md) | WebUI design, pass 2.5: visual polish diffs |

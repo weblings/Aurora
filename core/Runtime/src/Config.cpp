@@ -15,6 +15,7 @@ namespace Aurora::Runtime
     // ConfigData directly) can't hold what a REST write couldn't
     // (Aurora-9ca/5y0/ta5).
     setTransitionSmoothing(m_data.transitionSmoothing);
+    setBrightness(m_data.brightness);
     setAudioFixedAnchorHue(m_data.audioFixedAnchorHue);
     setAudioBounceSmoothTime(m_data.audioBounceSmoothTime);
     setAudioDynamismFloor(m_data.audioDynamismFloor);
@@ -104,6 +105,18 @@ namespace Aurora::Runtime
   void Config::setTransitionSmoothing(float transitionSmoothing)
   {
     m_data.transitionSmoothing = sanitizeParam("video.transitionSmoothing", transitionSmoothing);
+  }
+
+
+  float Config::brightness() const
+  {
+    return m_data.brightness;
+  }
+
+
+  void Config::setBrightness(float brightness)
+  {
+    m_data.brightness = sanitizeParam("app.brightness", brightness);
   }
 
 

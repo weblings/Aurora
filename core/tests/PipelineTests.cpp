@@ -15,7 +15,21 @@
 #include <thread>
 
 #include <Aurora/Network/Http/Server/HttpServer.hpp>
+#include <Aurora/Runtime/ConfigApply.hpp>
 #include <Aurora/Runtime/ConfigStore.hpp>
+#include <Aurora/Runtime/Graph/AllNodes.hpp>
+#include <Aurora/Runtime/Graph/FrameNodes.hpp>
+#include <Aurora/Runtime/Graph/MathNodes.hpp>
+#include <Aurora/Runtime/Graph/BlendNodes.hpp>
+#include <Aurora/Runtime/Graph/SpatialNodes.hpp>
+#include <Aurora/Runtime/Graph/ColorNodes.hpp>
+#include <Aurora/Runtime/Graph/TimeNodes.hpp>
+#include <Aurora/Runtime/Graph/NodeRegistry.hpp>
+#include <Aurora/Runtime/Graph/VideoNodes.hpp>
+#include <Aurora/Runtime/GraphRoutes.hpp>
+#ifdef AURORA_RUNTIME_AUDIO_AVAILABLE
+#include <Aurora/Runtime/Graph/AudioNodes.hpp>
+#endif
 #include <Aurora/Runtime/Pipeline.hpp>
 #include <Aurora/Runtime/PipelineRoutes.hpp>
 #include <Aurora/Runtime/SettingsRoutes.hpp>
@@ -633,10 +647,11 @@ TEST_CASE("Monitors and reload routes answer from PipelineHost", "[PipelineRoute
   HttpServer server;
   registerMonitorsRoute(server, host);
   registerReloadRoute(server, host, registry, dir.path);
-  REQUIRE(server.bind("127.0.0.1", 18227));
+  const int port = server.bindToAnyPort("127.0.0.1");
+  REQUIRE(port > 0);
   std::thread serverThread([&](){ server.listen(); });
 
-  httplib::Client client("127.0.0.1", 18227);
+  httplib::Client client("127.0.0.1", port);
 
   // No pipeline yet: an empty list, not an error.
   auto empty = getWithRetry(client, "/api/monitors");
@@ -794,10 +809,11 @@ TEST_CASE("PUT /api/state pauses and resumes, idempotently (Aurora-3ddb)", "[Pip
 
   HttpServer server;
   registerStateRoute(server, host, registry, dir.path);
-  REQUIRE(server.bind("127.0.0.1", 18228));
+  const int port = server.bindToAnyPort("127.0.0.1");
+  REQUIRE(port > 0);
   std::thread serverThread([&](){ server.listen(); });
 
-  httplib::Client client("127.0.0.1", 18228);
+  httplib::Client client("127.0.0.1", port);
   auto put = [&](const std::string& body){ return client.Put("/api/state", body, "application/json"); };
 
   for(int i = 0; i < 2; ++i){
@@ -917,10 +933,11 @@ TEST_CASE("GET /api/state reports paused and the running pipeline's capabilities
 
   HttpServer server;
   registerStateRoute(server, host, registry, dir.path);
-  REQUIRE(server.bind("127.0.0.1", 18240));
+  const int port = server.bindToAnyPort("127.0.0.1");
+  REQUIRE(port > 0);
   std::thread serverThread([&](){ server.listen(); });
 
-  httplib::Client client("127.0.0.1", 18240);
+  httplib::Client client("127.0.0.1", port);
   auto state = [&](){
     auto result = getWithRetry(client, "/api/state");
     REQUIRE(result);
@@ -930,6 +947,8 @@ TEST_CASE("GET /api/state reports paused and the running pipeline's capabilities
 
   CHECK(state() == nlohmann::json{
     {"state", "idle"},
+    {"effect", nullptr},
+    {"source", {{"video", nullptr}, {"audio", nullptr}}},
     {"errors", nlohmann::json::array()},
     {"conditions", nlohmann::json::array()},
     {"paused", false},
@@ -937,6 +956,7 @@ TEST_CASE("GET /api/state reports paused and the running pipeline's capabilities
     {"usesVideoInput", false},
     {"usesAudioInput", false},
     {"samplesZones", false},
+    {"brightness", 1.0},
     {"audioDevicesUrl", "/api/test/audio-devices"}
   });
 
@@ -965,6 +985,73 @@ TEST_CASE("GET /api/state reports paused and the running pipeline's capabilities
 }
 
 
+TEST_CASE("GET /api/state reports effect and source, kept through pause (Aurora-5ipy.2)", "[PipelineRoutes]")
+{
+  using namespace Aurora::Network::Http::Server;
+
+  ScopedTempDir dir("state-get-source");
+  auto events = std::make_shared<Events>();
+  auto registry = makeRegistry(events);
+  PipelineOptions options;
+  options.describeAudioSink = [](Aurora::Input::IAudioInput&){ return std::string("resolved-sink"); };
+  PipelineHost host(nullptr, options);
+
+  HttpServer server;
+  registerStateRoute(server, host, registry, dir.path);
+  const int port = server.bindToAnyPort("127.0.0.1");
+  REQUIRE(port > 0);
+  std::thread serverThread([&](){ server.listen(); });
+
+  httplib::Client client("127.0.0.1", port);
+  auto state = [&](){
+    auto result = getWithRetry(client, "/api/state");
+    REQUIRE(result);
+    return nlohmann::json::parse(result->body);
+  };
+
+  std::string error;
+  REQUIRE(host.reload(registry, videoConfig(), dir.path, error));
+  auto video = state();
+  CHECK(video["effect"] == "builtin.video");
+  CHECK(video["source"] == nlohmann::json{
+    {"video", {{"input", "fake-video"}, {"monitor", nullptr}}},
+    {"audio", nullptr}
+  });
+
+  REQUIRE(host.pause());
+  CHECK(state()["effect"] == "builtin.video");
+  CHECK(state()["source"]["video"]["input"] == "fake-video");
+
+#ifdef AURORA_RUNTIME_AUDIO_AVAILABLE
+  REQUIRE(host.resume(registry, audioConfig(), dir.path, error));
+  auto audio = state();
+  CHECK(audio["effect"] == "builtin.audio");
+  CHECK(audio["source"]["video"].is_null());
+  // Running: the platform hook's resolved sink, still following the default.
+  CHECK(audio["source"]["audio"] == nlohmann::json{
+    {"input", "fake-audio"}, {"sink", "resolved-sink"}, {"auto", true}
+  });
+
+  auto pinned = audioConfig();
+  pinned.setAudioTargetSinkName("usb-sink");
+  REQUIRE(host.reload(registry, pinned, dir.path, error));
+  REQUIRE(host.pause());
+  // Paused: no live input to ask, so the configured target.
+  CHECK(state()["source"]["audio"] == nlohmann::json{
+    {"input", "fake-audio"}, {"sink", "usb-sink"}, {"auto", false}
+  });
+#endif
+
+  // Still paused here, so resume is what applies the empty Config.
+  REQUIRE(host.resume(registry, Config{}, dir.path, error));
+  CHECK(state()["effect"].is_null());
+
+  server.stop();
+  serverThread.join();
+  host.shutdown();
+}
+
+
 TEST_CASE("GET /api/state reports a null audioDevicesUrl when the build has none (Aurora-kea)", "[PipelineRoutes]")
 {
   using namespace Aurora::Network::Http::Server;
@@ -976,10 +1063,11 @@ TEST_CASE("GET /api/state reports a null audioDevicesUrl when the build has none
 
   HttpServer server;
   registerStateRoute(server, host, registry, dir.path);
-  REQUIRE(server.bind("127.0.0.1", 18241));
+  const int port = server.bindToAnyPort("127.0.0.1");
+  REQUIRE(port > 0);
   std::thread serverThread([&](){ server.listen(); });
 
-  httplib::Client client("127.0.0.1", 18241);
+  httplib::Client client("127.0.0.1", port);
   auto result = getWithRetry(client, "/api/state");
   REQUIRE(result);
   CHECK(nlohmann::json::parse(result->body)["audioDevicesUrl"].is_null());
@@ -1348,10 +1436,11 @@ TEST_CASE("PUT /api/state on a failed host: running:true retries, running:false 
 
   HttpServer server;
   registerStateRoute(server, host, registry, dir.path);
-  REQUIRE(server.bind("127.0.0.1", 18242));
+  const int port = server.bindToAnyPort("127.0.0.1");
+  REQUIRE(port > 0);
   std::thread serverThread([&](){ server.listen(); });
 
-  httplib::Client client("127.0.0.1", 18242);
+  httplib::Client client("127.0.0.1", port);
   auto put = [&](const std::string& body){ return client.Put("/api/state", body, "application/json"); };
   auto get = [&](){
     auto result = getWithRetry(client, "/api/state");
@@ -1413,10 +1502,11 @@ TEST_CASE("POST /api/state/dismiss removes a running host's held error by source
 
   HttpServer server;
   registerStateRoute(server, host, registry, dir.path);
-  REQUIRE(server.bind("127.0.0.1", 18244));
+  const int port = server.bindToAnyPort("127.0.0.1");
+  REQUIRE(port > 0);
   std::thread serverThread([&](){ server.listen(); });
 
-  httplib::Client client("127.0.0.1", 18244);
+  httplib::Client client("127.0.0.1", port);
   auto get = [&](){
     auto result = getWithRetry(client, "/api/state");
     REQUIRE(result);
@@ -1471,10 +1561,11 @@ TEST_CASE("PUT /api/state on an idle host: running:true is a no-op, running:fals
 
   HttpServer server;
   registerStateRoute(server, host, registry, dir.path);
-  REQUIRE(server.bind("127.0.0.1", 18243));
+  const int port = server.bindToAnyPort("127.0.0.1");
+  REQUIRE(port > 0);
   std::thread serverThread([&](){ server.listen(); });
 
-  httplib::Client client("127.0.0.1", 18243);
+  httplib::Client client("127.0.0.1", port);
   auto put = [&](const std::string& body){ return client.Put("/api/state", body, "application/json"); };
 
   auto run = put(R"({"running":true})");
@@ -1509,10 +1600,11 @@ TEST_CASE("PUT /api/zones answers 409 while paused and GET still lists zones (Au
     },
     [&host]{ return host.isPaused(); }
   );
-  REQUIRE(server.bind("127.0.0.1", 18229));
+  const int port = server.bindToAnyPort("127.0.0.1");
+  REQUIRE(port > 0);
   std::thread serverThread([&](){ server.listen(); });
 
-  httplib::Client client("127.0.0.1", 18229);
+  httplib::Client client("127.0.0.1", port);
   auto live = getWithRetry(client, "/api/zones");
   REQUIRE(live);
   auto liveJson = nlohmann::json::parse(live->body);
@@ -1553,7 +1645,8 @@ TEST_CASE("Concurrent settings PUTs run one at a time and none is lost (Aurora-d
     ++calls;
     return {};
   });
-  REQUIRE(server.bind("127.0.0.1", 18228));
+  const int port = server.bindToAnyPort("127.0.0.1");
+  REQUIRE(port > 0);
   std::thread serverThread([&](){ server.listen(); });
 
   // Each PUT patches a different field, so a lost update shows as a field
@@ -1570,7 +1663,7 @@ TEST_CASE("Concurrent settings PUTs run one at a time and none is lost (Aurora-d
   };
 
   {
-    httplib::Client probe("127.0.0.1", 18228);
+    httplib::Client probe("127.0.0.1", port);
     REQUIRE(getWithRetry(probe, "/api/config"));
   }
 
@@ -1580,7 +1673,7 @@ TEST_CASE("Concurrent settings PUTs run one at a time and none is lost (Aurora-d
   std::vector<std::thread> clients;
   for(const auto& [field, value] : patches){
     clients.emplace_back([&, field = field, value = value]{
-      httplib::Client client("127.0.0.1", 18228);
+      httplib::Client client("127.0.0.1", port);
       auto response = client.Put("/api/config", nlohmann::json{{field, value}}.dump(), "application/json");
       if(response && response->status == 200){ ++succeeded; }
     });
@@ -1664,6 +1757,25 @@ TEST_CASE("PipelineHost::applyConfig applies live-tunable video fields with no r
   CHECK(events->widthHints == std::vector<unsigned>{64, 96});        // capture told the new width
   CHECK(events->has("init out-a"));
   CHECK_FALSE(events->has("shutdown out-a replacement"));
+}
+
+
+TEST_CASE("PipelineHost::applyConfig applies brightness live in both modes with no reload (Aurora-5ipy.7)", "[PipelineHost]")
+{
+  ScopedTempDir dir("apply-brightness");
+  auto events = std::make_shared<Events>();
+  auto registry = makeRegistry(events);
+  PipelineHost host(nullptr, {});
+
+  std::string error;
+  REQUIRE(host.reload(registry, tunedVideoConfig(), dir.path, error));
+
+  Config next = tunedVideoConfig();
+  next.setBrightness(0.25f);
+  CHECK(host.applyConfig(next));
+  CHECK(initCount(*events) == 1);
+  CHECK_FALSE(events->has("shutdown out-a replacement"));
+  CHECK(planConfigChange(tunedVideoConfig(), next, /*audioMode*/ true) == ChangeAction::Hot);
 }
 
 
@@ -1917,10 +2029,11 @@ TEST_CASE("POST /api/dev/errors injects and removes generic host errors only whe
     ScopedDevErrorsEnv env(false);
     HttpServer server;
     registerDevErrorsRoute(server, host);
-    REQUIRE(server.bind("127.0.0.1", 18246));
+    const int port = server.bindToAnyPort("127.0.0.1");
+  REQUIRE(port > 0);
     std::thread serverThread([&](){ server.listen(); });
 
-    httplib::Client client("127.0.0.1", 18246);
+    httplib::Client client("127.0.0.1", port);
     auto res = client.Post("/api/dev/errors", R"({"source":"dev-1","message":"boom"})", "application/json");
     REQUIRE(res);
     CHECK(res->status == 404);
@@ -1943,10 +2056,11 @@ TEST_CASE("POST /api/dev/errors injects and removes generic host errors only whe
     HttpServer server;
     registerStateRoute(server, host, registry, dir.path);
     registerDevErrorsRoute(server, host);
-    REQUIRE(server.bind("127.0.0.1", 18246));
+    const int port = server.bindToAnyPort("127.0.0.1");
+  REQUIRE(port > 0);
     std::thread serverThread([&](){ server.listen(); });
 
-    httplib::Client client("127.0.0.1", 18246);
+    httplib::Client client("127.0.0.1", port);
     auto set = [&](const std::string& source, const std::string& message){
       return client.Post("/api/dev/errors", nlohmann::json{{"source", source}, {"message", message}}.dump(), "application/json");
     };
@@ -2001,10 +2115,11 @@ TEST_CASE("POST /api/dev/errors injects and removes generic host errors only whe
     ScopedDevErrorsEnv env(true);
     HttpServer server;
     registerDevErrorsRoute(server, host);
-    REQUIRE(server.bind("127.0.0.1", 18246));
+    const int port = server.bindToAnyPort("127.0.0.1");
+  REQUIRE(port > 0);
     std::thread serverThread([&](){ server.listen(); });
 
-    httplib::Client client("127.0.0.1", 18246);
+    httplib::Client client("127.0.0.1", port);
     auto res = client.Post("/api/dev/errors", R"({"source":"dev-1","message":"boom"})", "application/json");
     REQUIRE(res);
     CHECK(res->status == 409);
@@ -2047,4 +2162,135 @@ TEST_CASE("PipelineHost conditions hold in every host state and survive builds a
   REQUIRE(host.conditions().size() == 1);
   CHECK(host.conditions()[0].source == "local_network");
   host.shutdown();
+}
+
+
+TEST_CASE("registerAllNodes gates audio nodes on includeAudio (Aurora-id8j.11)", "[GraphRoutes]")
+{
+  Aurora::Runtime::Graph::NodeRegistry withAudio, withoutAudio;
+  Aurora::Runtime::Graph::registerAllNodes(withAudio, true);
+  Aurora::Runtime::Graph::registerAllNodes(withoutAudio, false);
+  CHECK(withoutAudio.find("audio.capture") == nullptr);
+  CHECK(withoutAudio.find("video.capture") != nullptr);
+#ifdef AURORA_RUNTIME_AUDIO_AVAILABLE
+  CHECK(withAudio.find("audio.capture") != nullptr);
+#endif
+}
+
+
+TEST_CASE("GET /api/nodes serves every registered node and rejects a forged Host (Aurora-id8j.2)", "[GraphRoutes]")
+{
+  using namespace Aurora::Network::Http::Server;
+
+  Aurora::Runtime::Graph::NodeRegistry expected;
+  Aurora::Runtime::Graph::registerAllNodes(expected, true);
+
+  HttpServer server;
+  registerNodesRoute(server);
+  const int port = server.bindToAnyPort("127.0.0.1");
+  REQUIRE(port > 0);
+  std::thread serverThread([&](){ server.listen(); });
+
+  httplib::Client client("127.0.0.1", port);
+  auto res = client.Get("/api/nodes");
+  REQUIRE(res);
+  CHECK(res->status == 200);
+
+  auto nodes = nlohmann::json::parse(res->body)["nodes"];
+  auto types = expected.types();
+  REQUIRE(nodes.size() == types.size());
+  for(size_t i = 0; i < types.size(); ++i){
+    const auto& node = nodes[i];
+    CHECK(node["type"] == types[i]);
+    for(const char* key : {"purpose", "useWhen", "example", "cost"}){
+      CHECK_FALSE(node[key].get<std::string>().empty());
+    }
+    CHECK(node["inputs"].is_array());
+    CHECK(node["outputs"].is_array());
+    CHECK(node["params"].size() == expected.find(types[i])->params.size());
+  }
+
+  // Spot-check the shapes an editor reads: a ported node, a float param
+  // with its schema, an enum's options.
+  auto find = [&](const std::string& type) -> const nlohmann::json& {
+    for(const auto& node : nodes){
+      if(node["type"] == type){ return node; }
+    }
+    FAIL("missing node type " << type);
+    return nodes[0];
+  };
+  const auto& send = find("output.send");
+  CHECK(send["inputs"][0].contains("required"));
+  CHECK_FALSE(send["outputs"].size() > 0);
+
+  bool sawFloat = false, sawEnum = false;
+  for(const auto& node : nodes){
+    for(const auto& param : node["params"]){
+      if(param["kind"] == "float"){
+        sawFloat = true;
+        for(const char* key : {"label", "min", "max", "step", "unit", "default", "allowsUnset"}){
+          CHECK(param.contains(key));
+        }
+      }
+      if(param["kind"] == "enum"){
+        sawEnum = true;
+        CHECK(param["options"].is_array());
+        // Per-output binding params have no static options.
+        if(!param["options"].empty()){
+          CHECK(std::find(param["options"].begin(), param["options"].end(), param["default"]) != param["options"].end());
+        }
+      }
+    }
+  }
+  CHECK(sawFloat);
+  CHECK(sawEnum);
+
+  auto forged = client.Get("/api/nodes", {{"Host", "evil.com"}});
+  REQUIRE(forged);
+  CHECK(forged->status == 403);
+
+  server.stop();
+  serverThread.join();
+}
+
+
+TEST_CASE("GET /api/graph serves the running graph, null when none runs (Aurora-id8j.2)", "[GraphRoutes]")
+{
+  using namespace Aurora::Network::Http::Server;
+
+  ScopedTempDir dir("graph-route");
+  auto events = std::make_shared<Events>();
+  auto registry = makeRegistry(events);
+  ConfigStore(dir.path).save(videoConfig());
+  PipelineHost host(Pipeline::build(registry, videoConfig(), dir.path, {}), {});
+
+  HttpServer server;
+  registerGraphRoute(server, host);
+  const int port = server.bindToAnyPort("127.0.0.1");
+  REQUIRE(port > 0);
+  std::thread serverThread([&](){ server.listen(); });
+
+  httplib::Client client("127.0.0.1", port);
+  auto res = client.Get("/api/graph");
+  REQUIRE(res);
+  CHECK(res->status == 200);
+  auto graph = nlohmann::json::parse(res->body)["graph"];
+  CHECK(graph["version"] == 1);
+  CHECK(graph["nodes"].is_array());
+  CHECK_FALSE(graph["nodes"].empty());
+  CHECK(graph["edges"].is_array());
+
+  auto forged = client.Get("/api/graph", {{"Host", "evil.com"}});
+  REQUIRE(forged);
+  CHECK(forged->status == 403);
+
+  REQUIRE(host.pause());
+  auto paused = client.Get("/api/graph");
+  REQUIRE(paused);
+  CHECK(paused->status == 200);
+  CHECK(nlohmann::json::parse(paused->body)["graph"].is_null());
+
+  host.shutdown();
+  server.stop();
+  serverThread.join();
 }

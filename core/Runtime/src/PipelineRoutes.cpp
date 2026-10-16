@@ -82,12 +82,13 @@ namespace Aurora::Runtime
     const std::filesystem::path& configRoot
   )
   {
-    // Lock-free reads only (atomics), so polling this never waits on a tick
-    // or a reload in progress.
+    // Leaf-lock reads only, so polling never waits on a tick or a reload.
+    // Exception: a running audio side asks the platform hook for its sink,
+    // which takes the pipeline lock for the length of one tick.
     server.addRoute(
       HttpMethod::Get,
       "/api/state",
-      [&pipelineHost](const Request&, Response& res){
+      [&pipelineHost, configRoot](const Request&, Response& res){
         const PipelineCapabilities capabilities = pipelineHost.capabilities();
         const std::string& audioDevicesUrl = pipelineHost.audioDevicesUrl();
         const HostStatus status = pipelineHost.status();
@@ -102,9 +103,33 @@ namespace Aurora::Runtime
           conditions.push_back({{"source", condition.source}, {"message", condition.message}});
         }
 
+        const PipelineSummary summary = pipelineHost.summary();
+        nlohmann::json video(nullptr);
+        if(summary.video){
+          video = {
+            {"input", summary.video->input},
+            {"monitor", summary.video->monitor.empty() ? nlohmann::json(nullptr) : nlohmann::json(summary.video->monitor)}
+          };
+        }
+        nlohmann::json audio(nullptr);
+        if(summary.audio){
+          // A paused host has no live input to ask: it reports the configured target.
+          std::string sink = status.state == HostState::Running ? pipelineHost.resolvedAudioSink() : std::string{};
+          if(sink.empty()){ sink = summary.audio->sink; }
+          audio = {
+            {"input", summary.audio->input},
+            {"sink", sink.empty() ? nlohmann::json(nullptr) : nlohmann::json(sink)},
+            {"auto", summary.audio->followsDefault}
+          };
+        }
+
         res.contentType = "application/json";
         res.body = nlohmann::json{
           {"state", hostStateName(status.state)},
+          {"effect", summary.effect.empty() ? nlohmann::json(nullptr) : nlohmann::json(summary.effect)},
+          {"source", {{"video", video}, {"audio", audio}}},
+          // The saved setting, so it reads right while paused or idle too.
+          {"brightness", ConfigStore(configRoot).load().brightness()},
           {"errors", errors},
           {"conditions", conditions},
           {"paused", status.state == HostState::Paused},

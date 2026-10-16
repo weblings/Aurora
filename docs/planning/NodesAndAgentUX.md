@@ -21,14 +21,22 @@ path ([[external-control]]) and an adapter an assistant can call (EC 6a).
 - **Agent metadata ships in the node registry.** Each node carries purpose,
   use_when, example, units and cost, served by `GET /api/nodes`. One source for
   editor tooltips and agent prompts. Detail lives in [[node-graph-pipeline]].
-- **Brightness floor** is per output, colored, holds the last hue at exact
-  black, default off. Control lands in the Output section. Decision bead is
-  Aurora-pngj, see [[home-assistant-output]].
+- **Brightness floor** (decided 2026-10-15, Aurora-pngj): one stage after
+  gain, per-output policy off (default), colored hold floor, or switch off
+  at black after a hold time. Control lands in the Output section. Detail
+  in [[home-assistant-output]].
+- **Simple mode stays the default** (decided 2026-10-15). Tuning renders the
+  active graph's `controls`; the editor is an advanced screen over the same
+  `graph.json`. Detail in [[node-graph-pipeline]].
+- **External-control order** (decided 2026-10-15): EC 3 Host allowlist
+  before Sequence B's read routes, EC 2a beside B, EC 4a before C. Detail
+  in [[external-control]].
 - **Not decided here:** whether HA output is a go (Aurora-4zr).
 
 ## Sequence A: foundations
 
-Status: filed 2026-10-13, revised 2026-10-14 (G2d and G3 added, G2c narrowed).
+Status: done 2026-10-15 (epic closed). Filed 2026-10-13, revised 2026-10-14
+(G2d and G3 added, G2c narrowed), G4a-d review fixes added 2026-10-15.
 Epic `Aurora-ra4o` (G0 to G3), plus the external and floor beads below.
 
 - **Goal:** a Graph runtime that reproduces today's pipelines byte-for-byte,
@@ -56,14 +64,37 @@ Epic `Aurora-ra4o` (G0 to G3), plus the external and floor beads below.
 - **Tests:** golden parity, bad-graph corpus plus loader fuzz, fake clock,
   middleware negative tests (rebinding, 401, revoked token).
 
+## Sequence B: read surface and Tier 2 primitives
+
+Status: filed 2026-10-15. Epic `Aurora-id8j`. Decisions it rests on, all
+2026-10-15 in [[node-graph-pipeline]]: spatial effects are Image generators
+sampled by `zones.sample` (no `Frame` position), Tier 2 smoothing is
+time-based, Tier 2 adds gradients, blend modes, bands and LFO.
+
+- **Goal:** the graph is readable from outside, the primitive set can
+  express today's compounds, and Tuning is driven by the graph. No editor yet.
+- **Beads:** `Aurora-id8j.1` B0 Float/Trigger ports and split audio
+  features, `.2` B1 read routes, `.3` B2a scalar math, `.4` B2b time/state
+  and LFO, `.5` B2c color/palette/gradient, `.6` B2d frame and image ops
+  with blend modes, `.7` B2e spatial Image generators, `.8` B2f frequency
+  bands, `.9` B3 decomposition parity, `.10` B4 Tuning renders `controls`.
+- **Prerequisite:** `Aurora-5ipy.4` (EC 3) before B1. Pairing UI
+  (`Aurora-5ipy.6`) stays in the external lane, needed by C, not B.
+- **Gate:** B3, the decomposed drift and bounce graphs match the compound
+  nodes within epsilon on the existing parity fixtures, and B4 shows
+  today's Tuning controls from the built-in graphs' `controls`.
+- **Parallel:** B0 first. Then B2a to B2f are independent of each other.
+  B1 needs only EC 3. B3 joins B2a, B2b, B2c and B2f. B4 follows B1.
+- **OS:** all nodes platform-neutral, core tests on three CI platforms. B2f
+  reads the existing audio buffer, no capture change. B4 is WebUI only.
+- **Tests:** per-node Graph cases, descriptor completeness, fake-clock
+  settle-time checks at 30/60/240 Hz for B2b, bad-graph corpus extended for
+  the new port types, generator render cost logged for B2e.
+
 ## Later sequences (stubs)
 
 Each gets a full section when it starts.
 
-- **B: read surface and primitives.** Status: not started. Read routes
-  (`/api/nodes`, `GET /api/graph`), Tier 2 primitives in four parallel
-  families, pairing UI. Decide how spatial nodes get zone geometry
-  (`Frame` has no position) before Frame ops ship.
 - **C: safe writes.** Status: not started. Draft/validate routes, apply route
   with scopes, draft vs. live with auto-revert, public API contract.
 - **D: agent path.** Status: not started. Annotated preset graphs, MCP tools

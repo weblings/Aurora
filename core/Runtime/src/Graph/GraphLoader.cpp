@@ -160,6 +160,37 @@ namespace Aurora::Runtime::Graph
           out = std::optional<float>{clampToSchema(decl.schema, raw->get<float>())};
           return true;
         }
+        case ParamKind::Gradient:{
+          if(raw == nullptr){
+            out = decl.defaultGradient;
+            return true;
+          }
+          const std::string shape =
+            "must be an array of 2 to 16 {\"pos\": 0..1, \"color\": \"#rrggbb\"} stops in ascending pos";
+          if(!raw->is_array() || raw->size() < 2 || raw->size() > kMaxGradientStops){
+            return fail(shape);
+          }
+          Gradient gradient;
+          for(const auto& stop : *raw){
+            if(!stop.is_object()){
+              return fail(shape);
+            }
+            auto pos = stop.find("pos");
+            auto color = stop.find("color");
+            if(pos == stop.end() || color == stop.end() || !pos->is_number() || !color->is_string()){
+              return fail(shape);
+            }
+            float position = pos->get<float>();
+            std::optional<Contracts::Color> parsed = parseHexColor(color->get<std::string>());
+            if(!std::isfinite(position) || position < 0.f || position > 1.f || !parsed ||
+               (!gradient.stops.empty() && position < gradient.stops.back().position)){
+              return fail(shape);
+            }
+            gradient.stops.push_back({position, *parsed});
+          }
+          out = std::move(gradient);
+          return true;
+        }
       }
       return fail("has an unknown param kind");
     }

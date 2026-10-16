@@ -215,6 +215,11 @@ in parallel, then 2, 4, 5, 6.
 ### Phase 3 — Host allowlist
 - Small, independent, fixes today's rebinding gap. Land before
   Aurora-4zr.5 (first HA credential), same logic as Aurora-5i3.
+- Ordering decided 2026-10-15 (agent-proposed, owner-approved): first in
+  the lane, before [[nodes-agent-ux]] Sequence B adds read routes. Then
+  phase 2a beside B, and phase 4a before Sequence C. Precedent: Ollama
+  CVE-2024-28224 and 2026 MCP HTTP advisories, all fixed by a Host/Origin
+  allowlist checked before routing.
 - Tests: forged hostname `Host` → 403; IPv4/IPv6 literals, `localhost`,
   hostname and `.local` pass with and without port; configured extra name
   passes; manual phone check.

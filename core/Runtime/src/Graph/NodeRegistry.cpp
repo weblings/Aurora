@@ -35,6 +35,8 @@ namespace Aurora::Runtime::Graph
           return "bool";
         case ParamKind::Enum:
           return "dropdown";
+        case ParamKind::Gradient:
+          return "text";
       }
       return "text";
     }

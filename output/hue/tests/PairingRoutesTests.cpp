@@ -151,14 +151,22 @@ namespace
     std::thread thread;
     httplib::Client client;
 
-    TestServer(const std::filesystem::path& configRoot, unsigned port):
-    client("127.0.0.1", static_cast<int>(port))
+    explicit TestServer(const std::filesystem::path& configRoot):
+    client("127.0.0.1", registerAndBind(server, configRoot))
+    {
+      thread = std::thread([this](){ server.listen(); });
+    }
+
+    // Routes must exist before bind; runs from the client's initializer
+    // because `server` is declared (so constructed) before `client`.
+    static int registerAndBind(HttpServer& server, const std::filesystem::path& configRoot)
     {
       registerPairingRoutes(server, configRoot);
-      if(!server.bind("127.0.0.1", port)){
+      const int port = server.bindToAnyPort("127.0.0.1");
+      if(port <= 0){
         throw std::runtime_error("bind failed");
       }
-      thread = std::thread([this](){ server.listen(); });
+      return port;
     }
 
     ~TestServer()
@@ -190,7 +198,7 @@ TEST_CASE("discover prefers the explicit fake address over AURORA_HUE_BRIDGE_ADD
   ScopedEnv dev("AURORA_DEV_FAKE_HUE", "10.9.9.9:18443");
   ScopedEnv hue("AURORA_HUE_BRIDGE_ADDRESS", "10.1.2.3:18443");
   ScopedTempDir configRoot("discover-explicit");
-  TestServer test(configRoot.path, 18231);
+  TestServer test(configRoot.path);
 
   CHECK(discoverAddress(test.client) == "10.9.9.9:18443");
 }
@@ -201,7 +209,7 @@ TEST_CASE("discover reuses AURORA_HUE_BRIDGE_ADDRESS when the dev flag carries n
   ScopedEnv dev("AURORA_DEV_FAKE_HUE", kDevFlagNoAddress);
   ScopedEnv hue("AURORA_HUE_BRIDGE_ADDRESS", "10.1.2.3:18443");
   ScopedTempDir configRoot("discover-reuse");
-  TestServer test(configRoot.path, 18232);
+  TestServer test(configRoot.path);
 
   CHECK(discoverAddress(test.client) == "10.1.2.3:18443");
 }
@@ -212,7 +220,7 @@ TEST_CASE("discover defaults to localhost when no address is configured anywhere
   ScopedEnv dev("AURORA_DEV_FAKE_HUE", kDevFlagNoAddress);
   ScopedEnv hue("AURORA_HUE_BRIDGE_ADDRESS", "");
   ScopedTempDir configRoot("discover-default");
-  TestServer test(configRoot.path, 18233);
+  TestServer test(configRoot.path);
 
   CHECK(discoverAddress(test.client) == "127.0.0.1:18443");
 }
@@ -223,7 +231,7 @@ TEST_CASE("discover treats a bare presence flag as no explicit address", "[Pairi
   ScopedEnv dev("AURORA_DEV_FAKE_HUE", "1");
   ScopedEnv hue("AURORA_HUE_BRIDGE_ADDRESS", "10.1.2.3:18443");
   ScopedTempDir configRoot("discover-flag");
-  TestServer test(configRoot.path, 18234);
+  TestServer test(configRoot.path);
 
   CHECK(discoverAddress(test.client) == "10.1.2.3:18443");
 }
@@ -234,7 +242,7 @@ TEST_CASE("link-button without an address fails as missing_bridge_address, never
   ScopedEnv dev("AURORA_DEV_FAKE_HUE", "1");
   ScopedEnv hue("AURORA_HUE_BRIDGE_ADDRESS", "");
   ScopedTempDir configRoot("link-button-no-address");
-  TestServer test(configRoot.path, 18235);
+  TestServer test(configRoot.path);
 
   auto result = putJsonWithRetry(test.client, "/api/hue/link-button", Json::object());
   REQUIRE(result);
@@ -250,7 +258,7 @@ TEST_CASE("link-button against a closed port reports unreachable", "[PairingRout
   ScopedEnv dev("AURORA_DEV_FAKE_HUE", "1");
   ScopedEnv hue("AURORA_HUE_BRIDGE_ADDRESS", "");
   ScopedTempDir configRoot("link-button-unreachable");
-  TestServer test(configRoot.path, 18236);
+  TestServer test(configRoot.path);
 
   auto result = putJsonWithRetry(
     test.client, "/api/hue/link-button",
@@ -278,7 +286,7 @@ namespace
 TEST_CASE("GET /api/hue/connection never returns username or clientkey", "[PairingRoutes]")
 {
   ScopedTempDir configRoot("secrets-connection");
-  TestServer test(configRoot.path, 18237);
+  TestServer test(configRoot.path);
   REQUIRE(postJsonWithRetry(test.client, "/api/hue/connection", kSeed)->status == 200);
 
   auto result = getWithRetry(test.client, "/api/hue/connection");
@@ -294,7 +302,7 @@ TEST_CASE("GET /api/hue/connection never returns username or clientkey", "[Pairi
 TEST_CASE("stored username is never sent to a caller-supplied bridge", "[PairingRoutes]")
 {
   ScopedTempDir configRoot("secrets-retarget");
-  TestServer test(configRoot.path, 18238);
+  TestServer test(configRoot.path);
   REQUIRE(postJsonWithRetry(test.client, "/api/hue/connection", kSeed)->status == 200);
 
   const Json evil = {{"bridgeAddress", "127.0.0.1:2"}, {"entertainmentConfigurationId", "x"}};
@@ -319,7 +327,7 @@ TEST_CASE("stored username is never sent to a caller-supplied bridge", "[Pairing
 TEST_CASE("repointing the bridge without new creds clears the stored ones", "[PairingRoutes]")
 {
   ScopedTempDir configRoot("secrets-repoint");
-  TestServer test(configRoot.path, 18239);
+  TestServer test(configRoot.path);
   REQUIRE(postJsonWithRetry(test.client, "/api/hue/connection", kSeed)->status == 200);
 
   auto repoint = postJsonWithRetry(test.client, "/api/hue/connection", {{"bridgeAddress", "127.0.0.1:2"}});

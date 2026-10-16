@@ -8,7 +8,10 @@
 #include <Aurora/Runtime/GraphRunner.hpp>
 #include <Aurora/Runtime/Graph/AudioNodes.hpp>
 #include <Aurora/Runtime/Graph/BuiltInGraphs.hpp>
+#include <Aurora/Runtime/Graph/ColorNodes.hpp>
 #include <Aurora/Runtime/Graph/FrameNodes.hpp>
+#include <Aurora/Runtime/Graph/MathNodes.hpp>
+#include <Aurora/Runtime/Graph/TimeNodes.hpp>
 #include <Aurora/Runtime/ZoneReconciler.hpp>
 
 #include "AudioTestConfig.hpp"
@@ -161,6 +164,9 @@ namespace
       host.zoneMaps["hue"] = reconcileZoneMap(pcmZones(), output->zoneIds());
       Aurora::Runtime::Graph::registerAudioNodes(registry);
       Aurora::Runtime::Graph::registerFrameNodes(registry);
+      Aurora::Runtime::Graph::registerMathNodes(registry);
+      Aurora::Runtime::Graph::registerTimeNodes(registry);
+      Aurora::Runtime::Graph::registerColorNodes(registry);
     }
   };
 
@@ -226,6 +232,19 @@ namespace
   }
 
 
+  // Same ports as audio.features.
+  std::vector<Aurora::Runtime::Graph::PortDecl> scriptedFeaturePorts()
+  {
+    using Aurora::Runtime::Graph::PortType;
+    return {
+      {"features", PortType::AudioFeatures, false},
+      {"rms", PortType::Float, false},
+      {"onset", PortType::Trigger, false},
+      {"onsetStrength", PortType::Float, false},
+      {"centroid", PortType::Float, false}};
+  }
+
+
   // Test-only stand-in for audio.capture + audio.features: replays the
   // script's AudioFeatures, one per tick.
   class ScriptedFeaturesNode : public Aurora::Runtime::Graph::INode
@@ -241,7 +260,12 @@ namespace
       float,
       std::unordered_map<std::string, Aurora::Runtime::Graph::GraphValue>& outputs) override
     {
-      outputs.emplace("features", m_script.at(m_tick * m_script.dt, m_tick));
+      Aurora::Contracts::AudioFeatures features = m_script.at(m_tick * m_script.dt, m_tick);
+      outputs.emplace("features", features);
+      outputs.emplace("rms", features.rms);
+      outputs.emplace("onset", Aurora::Runtime::Graph::Trigger{features.onsetDetected});
+      outputs.emplace("onsetStrength", features.onsetStrength);
+      outputs.emplace("centroid", features.spectralCentroid);
       ++m_tick;
     }
 
@@ -249,8 +273,7 @@ namespace
     FeatureScript m_script;
     int m_tick{0};
     std::vector<Aurora::Runtime::Graph::PortDecl> m_in{};
-    std::vector<Aurora::Runtime::Graph::PortDecl> m_out{
-      {"features", Aurora::Runtime::Graph::PortType::AudioFeatures, false}};
+    std::vector<Aurora::Runtime::Graph::PortDecl> m_out{scriptedFeaturePorts()};
   };
 
 
@@ -267,12 +290,12 @@ namespace
       NodeTypeInfo{
         .meta = {.purpose = "test", .useWhen = "test", .example = "{}", .cost = "cheap"},
         .inputs = {},
-        .outputs = {{"features", PortType::AudioFeatures, false}},
+        .outputs = scriptedFeaturePorts(),
         .params = {},
         .factory = [script] { return std::make_unique<ScriptedFeaturesNode>(script); },
       });
 
-    nlohmann::json doc = builtInAudioGraph({"hue"}, audioOverlayFromConfig(audioConfigFrom(settings).data()));
+    nlohmann::json doc = builtInAudioGraph({"hue"}, audioOverlayFromConfig(audioConfigFrom(settings).data(), {"hue"}));
     nlohmann::json nodes = nlohmann::json::array();
     nodes.push_back({{"id", "feat"}, {"type", "test.features"}, {"params", nlohmann::json::object()}});
     for(const auto& node : doc["nodes"]){
@@ -323,6 +346,163 @@ namespace
     {
       INFO("path: built-in Audio graph");
       check(scenario, description, runGraphFeatureScenario(script, settings));
+    }
+  }
+
+
+  // Aurora-id8j.9: drift and bounce rebuilt from Tier 2 primitives, checked
+  // against updateDrift/updateBounce on the same scripted features.
+  //
+  // 60Hz only. The compound rolling centroid is a per-tick alpha of 0.02,
+  // while rollingAverage is time-based, so tau = -dt/ln(0.98) matches at one
+  // rate (about 0.825s at 60Hz) and drifts apart at any other.
+  constexpr int DecompSeed = 1;
+  constexpr float DecompDt = 1.0f / 60.0f;
+
+  nlohmann::json decompNode(
+    const std::string& id,
+    const std::string& type,
+    nlohmann::json params = nlohmann::json::object())
+  {
+    return {{"id", id}, {"type", type}, {"params", std::move(params)}};
+  }
+
+  // The graph from the design doc's decomposition check. The drift anchor is
+  // seed.anchor + integrated drift, so bounce's target is anchor + offset.
+  nlohmann::json decomposedDriftBounceGraph(const AudioProcessing::AudioEffectSettings& settings)
+  {
+    using nlohmann::json;
+    const float rollingTau = -DecompDt / std::log(1.0f - 0.02f);
+    const float base = settings.driftBaseRateDegPerSec;
+
+    json nodes = json::array({
+      decompNode("feat", "test.features"),
+      decompNode("seed", "palette.randomAnchor", {{"seed", DecompSeed}}),
+      // Drift: centroid deviation from its rolling average, as a rate.
+      decompNode("avg", "rollingAverage", {{"tau", rollingTau}}),
+      decompNode("avgNeg", "math.scale", {{"factor", -1.0f}}),
+      decompNode("delta", "math.add"),
+      decompNode("norm", "math.divide", {{"divisor", std::max(settings.centroidRangeHz, 1.0f)}}),
+      decompNode("nclamp", "math.clamp", {{"min", -1.0f}, {"max", 1.0f}}),
+      decompNode("bias", "math.lerp", {{"from", 1.0f}, {"to", 1.0f + settings.centroidStrength}}),
+      decompNode("rate", "math.scale", {{"factor", base}}),
+      decompNode("rateMin", "math.clamp", {{"min", 0.0f}, {"max", 1.0e6f}}),
+      decompNode("rateDir", "math.scale", {{"factor", -1.0f}}),
+      // The compound's first tick only seeds state, so pre-cancel the one
+      // base-rate step integrate takes on tick 0.
+      decompNode("drift", "integrate", {{"initial", base * DecompDt}}),
+      decompNode("anchor", "angle.add"),
+      // Bounce: onset swings the hue, rms sets brightness.
+      decompNode("strength", "math.clamp", {{"min", 0.0f}, {"max", 1.0f}}),
+      decompNode("swing", "math.lerp", {{"from", settings.dynamismFloor}, {"to", 1.0f}}),
+      decompNode("offset", "stepOnTrigger", {{"scale", 180.0f}}),
+      decompNode("target", "angle.add"),
+      decompNode("hue", "smooth.angle", {{"tau", settings.bounceSmoothTime}}),
+      decompNode("loud", "math.divide", {{"divisor", std::max(settings.referenceRms, 1e-4f)}}),
+      decompNode("loudClamp", "math.clamp", {{"min", settings.brightnessFloor}, {"max", 1.0f}}),
+      decompNode("loudSmooth", "smooth.exp", {{"tau", settings.brightnessSmoothTime}}),
+      decompNode("value", "math.scale", {{"factor", settings.vibrancyValue}}),
+      decompNode("col", "color.fromHSV", {{"saturation", settings.vibrancySaturation}}),
+    });
+
+    json edges = json::array({
+      {"feat.centroid", "avg.value"},
+      {"avg.value", "avgNeg.value"},
+      {"feat.centroid", "delta.a"},
+      {"avgNeg.value", "delta.b"},
+      {"delta.value", "norm.value"},
+      {"norm.value", "nclamp.value"},
+      {"nclamp.value", "bias.t"},
+      {"bias.value", "rate.value"},
+      {"rate.value", "rateMin.value"},
+      {"rateMin.value", "rateDir.value"},
+      {"rateDir.value", "drift.rate"},
+      {"seed.anchor", "anchor.a"},
+      {"drift.angle", "anchor.b"},
+      {"feat.onsetStrength", "strength.value"},
+      {"strength.value", "swing.t"},
+      {"feat.onset", "offset.trigger"},
+      {"swing.value", "offset.amount"},
+      {"anchor.angle", "target.a"},
+      {"offset.angle", "target.b"},
+      {"target.angle", "hue.angle"},
+      {"feat.rms", "loud.value"},
+      {"loud.value", "loudClamp.value"},
+      {"loudClamp.value", "loudSmooth.value"},
+      {"loudSmooth.value", "value.value"},
+      {"hue.angle", "col.hue"},
+      {"value.value", "col.value"},
+    });
+    return {{"version", 1}, {"tickHz", 60}, {"nodes", nodes}, {"edges", edges}};
+  }
+
+  // palette.randomAnchor's pick for DecompSeed, read back so the compound
+  // can be pinned to the same anchor (its own rng is unseedable).
+  float seededAnchor()
+  {
+    Aurora::Runtime::Graph::NodeRegistry registry;
+    Aurora::Runtime::Graph::registerColorNodes(registry);
+    nlohmann::json doc = {
+      {"version", 1},
+      {"nodes", nlohmann::json::array({decompNode("seed", "palette.randomAnchor", {{"seed", DecompSeed}})})},
+      {"edges", nlohmann::json::array()}};
+    auto loaded = Aurora::Runtime::Graph::loadGraph(doc, registry, {});
+    INFO(loaded.error);
+    REQUIRE(loaded.ok);
+    loaded.graph.tick(DecompDt);
+    const auto* anchor = loaded.graph.portValue("seed", "anchor");
+    REQUIRE(anchor != nullptr);
+    return std::get<Aurora::Runtime::Graph::Angle>(*anchor).degrees;
+  }
+
+  // Shortest signed arc, so 359.99 vs 0.01 reads as 0.02.
+  float hueGap(float a, float b)
+  {
+    return std::fabs(std::remainder(a - b, 360.0f));
+  }
+
+  void checkDecomposedMatchesCompound(const FeatureScript& script, AudioProcessing::AudioEffectSettings settings)
+  {
+    using namespace Aurora::Runtime::Graph;
+
+    settings.fixedAnchorHue = seededAnchor();
+
+    GraphRig rig;
+    rig.registry.registerType(
+      "test.features",
+      NodeTypeInfo{
+        .meta = {.purpose = "test", .useWhen = "test", .example = "{}", .cost = "cheap"},
+        .inputs = {},
+        .outputs = scriptedFeaturePorts(),
+        .params = {},
+        .factory = [script] { return std::make_unique<ScriptedFeaturesNode>(script); },
+      });
+    auto loaded = loadGraph(decomposedDriftBounceGraph(settings), rig.registry, {});
+    INFO(loaded.error);
+    REQUIRE(loaded.ok);
+
+    AudioProcessing::DriftState drift;
+    AudioProcessing::BounceState bounce;
+    for(int tick = 0; tick < script.ticks; ++tick){
+      AudioFeatures features = script.at(tick * script.dt, tick);
+      AudioProcessing::updateDrift(drift, features, settings, script.dt);
+      Color want = AudioProcessing::updateBounce(bounce, drift, features, settings, script.dt);
+
+      loaded.graph.tick(script.dt, &rig.host);
+      const GraphValue* anchor = loaded.graph.portValue("anchor", "angle");
+      const GraphValue* color = loaded.graph.portValue("col", "color");
+      REQUIRE(anchor != nullptr);
+      REQUIRE(color != nullptr);
+      REQUIRE(std::holds_alternative<Angle>(*anchor));
+      REQUIRE(std::holds_alternative<Color>(*color));
+      const Color got = std::get<Color>(*color);
+
+      INFO("tick " << tick);
+      CHECK(hueGap(std::get<Angle>(*anchor).degrees, drift.anchorHueDegrees) < 0.05f);
+      // One step of 255 for the uint8 round trip.
+      CHECK(std::abs(static_cast<int>(got.m_r) - static_cast<int>(want.m_r)) <= 1);
+      CHECK(std::abs(static_cast<int>(got.m_g) - static_cast<int>(want.m_g)) <= 1);
+      CHECK(std::abs(static_cast<int>(got.m_b) - static_cast<int>(want.m_b)) <= 1);
     }
   }
 
@@ -471,4 +651,38 @@ TEST_CASE("Parity: audio scripted features, every setting off-default", "[Parity
   settings.brightnessSmoothTime = 0.1f;
 
   checkFeaturesBothPaths("audio_features_tuned_settings", "Beat script at dt 1/60, 5s, with every AudioEffectSettings field off-default (anchor 200, bounce 0.2s, dynamism 0.5, centroid strength 1 / range 500Hz, drift 20deg/s, S 0.7, V 0.8, refRms 0.3, floor 0.1, brightness 0.1s).", beatScript(1.0f / 60.0f, 5.0f), settings);
+}
+
+
+TEST_CASE("Decomposition: drift and bounce from Tier 2 primitives, beats at 60Hz", "[Parity][Audio][Decomposition]")
+{
+  checkDecomposedMatchesCompound(beatScript(DecompDt, 5.0f), pinnedSettings());
+}
+
+
+TEST_CASE("Decomposition: drift and bounce from Tier 2 primitives, silence drift only", "[Parity][Audio][Decomposition]")
+{
+  FeatureScript script{DecompDt, 600, [](float, int){
+    AudioFeatures features;
+    features.spectralCentroid = 1500.0f;
+    return features;
+  }};
+  checkDecomposedMatchesCompound(script, pinnedSettings());
+}
+
+
+TEST_CASE("Decomposition: drift and bounce from Tier 2 primitives, every setting off-default", "[Parity][Audio][Decomposition]")
+{
+  AudioProcessing::AudioEffectSettings settings;
+  settings.bounceSmoothTime = 0.2f;
+  settings.dynamismFloor = 0.5f;
+  settings.centroidStrength = 1.0f;
+  settings.driftBaseRateDegPerSec = 20.0f;
+  settings.vibrancySaturation = 0.7f;
+  settings.vibrancyValue = 0.8f;
+  settings.referenceRms = 0.3f;
+  settings.brightnessFloor = 0.1f;
+  settings.centroidRangeHz = 500.0f;
+  settings.brightnessSmoothTime = 0.1f;
+  checkDecomposedMatchesCompound(beatScript(DecompDt, 5.0f), settings);
 }

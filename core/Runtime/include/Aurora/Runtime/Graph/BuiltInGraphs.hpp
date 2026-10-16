@@ -18,6 +18,10 @@
 //   Video: cap -> rescale -> opaque -> per output: zones -> ease -> send
 //   Audio: cap -> feat -> drift/beat -> per output: all -> send   (tickHz 60)
 //
+// Each declares `controls` (the Tuning list): {node, param, config, section?}
+// where `config` is the /api/config key that commits the value. Video's
+// refresh rate is an app setting, not a node param, so it is not listed.
+//
 // Per-output node ids come from perOutputNodeId(). Video needs
 // registerVideoNodes + registerFrameNodes; Audio also needs
 // registerAudioNodes (audio builds only).
@@ -27,13 +31,13 @@ namespace Aurora::Runtime::Graph
 
   // "<prefix>_<output>" with non-alphanumerics in the name mapped to '_'
   // (a '.' would break the node.port edge syntax). Prefixes: zones, ease,
-  // send (Video); all, send (Audio).
+  // gain, send (Video); all, gain, send (Audio).
   std::string perOutputNodeId(const std::string& prefix, const std::string& outputName);
 
   // Pass the ConfigData the pipeline actually runs with: an unset (0)
   // subsampleWidth stays 0 here, i.e. rescale passes through.
   ParamOverlay videoOverlayFromConfig(const ConfigData& config, const std::vector<std::string>& outputNames);
-  ParamOverlay audioOverlayFromConfig(const ConfigData& config);
+  ParamOverlay audioOverlayFromConfig(const ConfigData& config, const std::vector<std::string>& outputNames);
 
   // Overlay entries naming a node or param the graph lacks are ignored
   // (the loader still rejects a mistyped value).
