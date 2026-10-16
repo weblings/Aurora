@@ -1,5 +1,8 @@
 #include <Aurora/Runtime/SettingsRoutes.hpp>
 
+#include <condition_variable>
+#include <cstdint>
+#include <map>
 #include <memory>
 #include <mutex>
 
@@ -25,6 +28,53 @@ namespace Aurora::Runtime
       res.contentType = "application/json";
       res.body = json.dump();
     }
+
+
+    // One reload in flight, at most one queued behind it. Every run loads
+    // config from disk when it starts, so a queued run covers all writes
+    // that landed before it (newest wins) and its waiters share its result.
+    class ReloadCoalescer
+    {
+    public:
+      explicit ReloadCoalescer(std::function<std::string()> reload)
+        : m_reload(std::move(reload))
+      {}
+
+      std::string submit()
+      {
+        std::unique_lock<std::mutex> lock(m_mutex);
+        const std::uint64_t target = m_started + 1;
+        while(m_completed < target){
+          if(!m_running && m_started + 1 == target){
+            m_started = target;
+            m_running = true;
+            lock.unlock();
+            std::string error = m_reload();
+            lock.lock();
+            m_results[target] = std::move(error);
+            m_results.erase(m_results.begin(), m_results.lower_bound(target > kKeep ? target - kKeep : 0));
+            m_completed = target;
+            m_running = false;
+            m_cv.notify_all();
+          }
+          else{
+            m_cv.wait(lock);
+          }
+        }
+        return m_results[target];
+      }
+
+    private:
+      static constexpr std::uint64_t kKeep = 64;
+
+      std::function<std::string()> m_reload;
+      std::mutex m_mutex;
+      std::condition_variable m_cv;
+      std::map<std::uint64_t, std::string> m_results;
+      std::uint64_t m_started{0};
+      std::uint64_t m_completed{0};
+      bool m_running{false};
+    };
 
 
     std::string _interpolationName(Contracts::Interpolation::Type type)
@@ -118,14 +168,14 @@ namespace Aurora::Runtime
       _writeJson(res, _toJson(config));
     });
 
-    // Held from the config write through onConfigChanged, so two PUTs can't
-    // interleave their reloads: otherwise the older PUT's pipeline could be
-    // the one swapped in last while disk holds the newer config. Lock order
-    // is this mutex, then ConfigStore's file lock (a leaf, taken inside
-    // update()), then PipelineHost's -- never the reverse (Aurora-d6i7).
-    auto putMutex = std::make_shared<std::mutex>();
+    // Writes are atomic via ConfigStore::update(); reloads are coalesced so
+    // concurrent PUTs cost at most one in-flight plus one pending reload.
+    std::shared_ptr<ReloadCoalescer> coalescer;
+    if(onConfigChanged){
+      coalescer = std::make_shared<ReloadCoalescer>(onConfigChanged);
+    }
 
-    server.addRoute(HttpMethod::Put, "/api/config", [configRoot, onConfigChanged, putMutex](const Request& req, Response& res){
+    server.addRoute(HttpMethod::Put, "/api/config", [configRoot, coalescer](const Request& req, Response& res){
       nlohmann::json body;
       try{
         body = nlohmann::json::parse(req.body);
@@ -134,8 +184,6 @@ namespace Aurora::Runtime
         _writeJson(res, {{"succeeded", false}, {"error", "invalid_json_body"}}, 400);
         return;
       }
-
-      std::lock_guard<std::mutex> lock(*putMutex);
 
       // Atomic read-modify-write: Pipeline::build also writes config.json
       // (derived rates), and a load() + save() here would lose its write or
@@ -153,8 +201,8 @@ namespace Aurora::Runtime
       }
 
       nlohmann::json responseJson = {{"succeeded", true}, {"config", _toJson(config)}};
-      if(onConfigChanged){
-        std::string reloadError = onConfigChanged();
+      if(coalescer){
+        std::string reloadError = coalescer->submit();
         if(!reloadError.empty()){
           // The save itself succeeded -- this is reported separately, not as
           // "succeeded": false, since the persisted value is correct even

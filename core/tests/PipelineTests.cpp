@@ -7,11 +7,14 @@
 #include <algorithm>
 #include <atomic>
 #include <chrono>
+#include <condition_variable>
 #include <cstdlib>
 #include <functional>
 #include <future>
 #include <memory>
+#include <mutex>
 #include <stdexcept>
+#include <vector>
 #include <thread>
 
 #include <Aurora/Network/Http/Server/HttpServer.hpp>
@@ -1631,7 +1634,7 @@ TEST_CASE("PUT /api/zones answers 409 while paused and GET still lists zones (Au
 }
 
 
-TEST_CASE("Concurrent settings PUTs run one at a time and none is lost (Aurora-d6i7)", "[SettingsRoutes]")
+TEST_CASE("Concurrent settings PUTs coalesce reloads and none is lost (Aurora-d6i7, Aurora-5ipy.8)", "[SettingsRoutes]")
 {
   using namespace Aurora::Network::Http::Server;
 
@@ -1640,15 +1643,20 @@ TEST_CASE("Concurrent settings PUTs run one at a time and none is lost (Aurora-d
   std::atomic<int> inFlight{0};
   std::atomic<int> maxInFlight{0};
   std::atomic<int> calls{0};
+  std::mutex seenMutex;
+  std::vector<int> seenRefreshRates;
 
   HttpServer server;
   registerSettingsRoutes(server, dir.path, [&]() -> std::string{
     int now = ++inFlight;
     int seen = maxInFlight.load();
     while(now > seen && !maxInFlight.compare_exchange_weak(seen, now)){}
+    int rate = ConfigStore(dir.path).load().refreshRate();
     std::this_thread::sleep_for(20ms); // a slow reload, the case that matters
     --inFlight;
     ++calls;
+    std::lock_guard<std::mutex> seenLock(seenMutex);
+    seenRefreshRates.push_back(rate);
     return {};
   });
   const int port = server.bindToAnyPort("127.0.0.1");
@@ -1690,8 +1698,11 @@ TEST_CASE("Concurrent settings PUTs run one at a time and none is lost (Aurora-d
   serverThread.join();
 
   CHECK(succeeded == static_cast<int>(patches.size()));
-  CHECK(calls == static_cast<int>(patches.size()));
+  CHECK(calls >= 1);
+  CHECK(calls <= static_cast<int>(patches.size()));
   CHECK(maxInFlight == 1);
+  // The final reload ran after every write, so it saw the last config.
+  CHECK(seenRefreshRates.back() == 45);
 
   Config persisted = ConfigStore(dir.path).load();
   CHECK(persisted.refreshRate() == 45);
@@ -1702,6 +1713,76 @@ TEST_CASE("Concurrent settings PUTs run one at a time and none is lost (Aurora-d
   CHECK(persisted.audioReferenceRms() == Catch::Approx(0.6f));
   CHECK(persisted.audioBrightnessFloor() == Catch::Approx(0.5f));
   CHECK(persisted.audioCentroidStrength() == Catch::Approx(0.4f));
+}
+
+
+TEST_CASE("Settings PUTs behind a slow reload coalesce into one pending reload with the last config (Aurora-5ipy.8)", "[SettingsRoutes]")
+{
+  using namespace Aurora::Network::Http::Server;
+
+  ScopedTempDir dir("settings-coalesce");
+
+  std::mutex mutex;
+  std::condition_variable cv;
+  bool firstStarted = false;
+  bool releaseFirst = false;
+  std::vector<int> seen;
+
+  HttpServer server;
+  registerSettingsRoutes(server, dir.path, [&]() -> std::string{
+    int rate = ConfigStore(dir.path).load().refreshRate();
+    std::unique_lock<std::mutex> lock(mutex);
+    seen.push_back(rate);
+    if(seen.size() == 1){
+      firstStarted = true;
+      cv.notify_all();
+      cv.wait(lock, [&]{ return releaseFirst; });
+    }
+    return {};
+  });
+  const int port = server.bindToAnyPort("127.0.0.1");
+  REQUIRE(port > 0);
+  std::thread serverThread([&](){ server.listen(); });
+  {
+    httplib::Client probe("127.0.0.1", port);
+    REQUIRE(getWithRetry(probe, "/api/config"));
+  }
+
+  std::atomic<int> ok{0};
+  auto put = [&](int rate){
+    httplib::Client client("127.0.0.1", port);
+    auto response = client.Put("/api/config", nlohmann::json{{"refreshRate", rate}}.dump(), "application/json");
+    if(response && response->status == 200){ ++ok; }
+  };
+
+  std::thread first(put, 10);
+  {
+    std::unique_lock<std::mutex> lock(mutex);
+    REQUIRE(cv.wait_for(lock, 5s, [&]{ return firstStarted; }));
+  }
+
+  std::vector<std::thread> rest;
+  for(int rate : {20, 30, 40}){ rest.emplace_back(put, rate); }
+  // Let the three writes land and queue behind the blocked reload.
+  for(int i = 0; i < 200 && ConfigStore(dir.path).load().refreshRate() == 10; ++i){
+    std::this_thread::sleep_for(10ms);
+  }
+  std::this_thread::sleep_for(100ms);
+  {
+    std::lock_guard<std::mutex> lock(mutex);
+    releaseFirst = true;
+  }
+  cv.notify_all();
+
+  first.join();
+  for(auto& thread : rest){ thread.join(); }
+  server.stop();
+  serverThread.join();
+
+  CHECK(ok == 4);
+  REQUIRE(seen.size() == 2);
+  CHECK(seen[0] == 10);
+  CHECK(seen[1] == ConfigStore(dir.path).load().refreshRate());
 }
 
 

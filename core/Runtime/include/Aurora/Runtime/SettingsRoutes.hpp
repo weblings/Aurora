@@ -29,9 +29,11 @@ namespace Aurora::Network::Http::Server { class HttpServer; }
 // means the save succeeded but the live pipeline couldn't pick it up --
 // reported back distinctly, not conflated with a save failure.
 //
-// PUTs are serialized end to end (write + onConfigChanged), and the write is
-// ConfigStore::update(), atomic against Pipeline::build's own derived-rate
-// save -- so no PUT is lost and reloads run in the order their writes landed.
+// Writes are ConfigStore::update(), atomic against Pipeline::build's own
+// derived-rate save. onConfigChanged calls are coalesced (Aurora-5ipy.8): never
+// concurrent, at most one queued behind the one in flight, so it must load
+// config fresh from disk. A queued call covers every write before it starts and
+// its waiting PUTs all receive its result.
 namespace Aurora::Runtime
 {
   void registerSettingsRoutes(
