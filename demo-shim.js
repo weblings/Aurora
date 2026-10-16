@@ -334,7 +334,7 @@ export function createRouter(store, hooks = {}) {
       return ok({ graph: demoGraph(store.getConfig()) });
     }
     if (method === 'GET' && path === '/api/nodes') {
-      return ok(demoNodes(store.getDescriptors().descriptors));
+      return ok(demoNodes());
     }
     // PUT-for-read with {} body (PairingRoutes convention -- do NOT "fix" to
     // GET; the Dashboard sends PUT and parity means matching it).

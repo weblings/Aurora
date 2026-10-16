@@ -39,3 +39,9 @@ the repo root (copies verbatim, stamps `sourceCommit`, regenerates
 LEAK, add that module to `MANIFEST.json` and re-run.
 `app.js`/`shell.js` are deliberately not vendored: `demo-boot.js` provides
 the minimal app facade instead.
+
+## `demo-graph.js` is generated from core's built-in graphs
+
+Never hand-edit it. After a `controls` or node-param change in
+`core/Runtime/src/Graph/`, run `python3 web/demo/gen-demo-graph.py` from the
+repo root (after `gen-descriptors.py` if slider ranges changed) and commit the result.
