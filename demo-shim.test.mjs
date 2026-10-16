@@ -330,6 +330,24 @@ function testRouter(seed) {
   assert.deepEqual(unslid, [], `tuning slider without ranges: ${unslid.join(', ')}`);
 }
 
+// Tuning's controls (Aurora-id8j.10): the demo's graph + node schema resolve to
+// today's fields in both modes, every control bound to a real config key.
+{
+  const descriptors = JSON.parse(readFileSync(new URL('./vendor/webui/descriptors.json', import.meta.url), 'utf8')).descriptors;
+  const { resolveControls } = await import('./vendor/webui/TuningControls.js');
+  const route = testRouter({ descriptors });
+  const nodeTypes = route('GET', '/api/nodes').json.nodes;
+  const video = resolveControls(route('GET', '/api/graph').json.graph, nodeTypes);
+  assert.deepEqual(video.map((c) => c.configKey), ['subsampleWidth', 'interpolation', 'transitionSmoothing']);
+  const audioRoute = testRouter({ descriptors, config: { activeInputName: '', activeAudioInputName: 'linux-audio' } });
+  const audioGraph = audioRoute('GET', '/api/graph').json.graph;
+  assert.equal(audioGraph.tickHz, 60);
+  const audio = resolveControls(audioGraph, nodeTypes);
+  assert.equal(audio.length, 11);
+  for (const c of [...video, ...audio]) assert.ok(c.configKey in DEMO_DEFAULT_CONFIG, c.configKey);
+  assert.equal(audio.find((c) => c.configKey === 'audioFixedAnchorHue').allowsUnset, true);
+}
+
 console.log('demo-shim contract tests passed.');
 
 // Pause hook (Aurora-calt): PUT /api/state tells the scene, so lamps freeze

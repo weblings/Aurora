@@ -1,6 +1,6 @@
 {
   "sourceRepo": "web/ui",
-  "sourceCommit": "f9383d9",
+  "sourceCommit": "36cefd2",
   "layout": "Mirror of web/ui relative paths: vendor/webui/<path> is a byte-identical copy of web/ui/<path> (sync-webui.py). The seams below are demo-side behavior, not edits to the copies. Relative imports resolve unchanged.",
   "entry": "screens/DashboardScreen.js",
   "modules": [
@@ -17,6 +17,7 @@
     "SliderFill.js",
     "SubsampleCandidates.js",
     "Tooltips.js",
+    "TuningControls.js",
     "TuningFields.js",
     "TuningSliderGroup.js",
     "ZoneActiveToggle.js",
