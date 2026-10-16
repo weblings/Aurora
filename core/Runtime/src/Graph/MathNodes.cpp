@@ -96,6 +96,13 @@ namespace Aurora::Runtime::Graph
 
     float in(const EvalContext& ctx, const char* name) { return ctx.input<float>(name); }
     float param(const EvalContext& ctx, const char* name) { return ctx.param<float>(name); }
+
+    // Float input if wired, else the param of the same name.
+    float inputOrParam(const EvalContext& ctx, const char* name)
+    {
+      const float* value = ctx.optionalInput<float>(name);
+      return value != nullptr ? *value : ctx.param<float>(name);
+    }
   } // namespace
 
   void registerMathNodes(NodeRegistry& registry)
@@ -178,28 +185,28 @@ namespace Aurora::Runtime::Graph
       });
 
     add(registry, "math.add",
-      {.purpose = "Add two Floats.",
-       .useWhen = "Combine two signals or offset one by another.",
-       .example = "{\"id\": \"sum\", \"type\": \"math.add\", \"params\": {}}"},
-      {{"a", PortType::Float, true}, {"b", PortType::Float, true}},
-      {},
-      [](const EvalContext& c) { return in(c, "a") + in(c, "b"); });
+      {.purpose = "Add two Floats. Input b is optional and falls back to param b.",
+       .useWhen = "Combine two signals, or offset one by a constant (leave b unwired, set param b).",
+       .example = "{\"id\": \"sum\", \"type\": \"math.add\", \"params\": {\"b\": 0.5}}"},
+      {{"a", PortType::Float, true}, {"b", PortType::Float, false}},
+      {floatParam("b", "B", 0.f, "Used when input b is not wired.")},
+      [](const EvalContext& c) { return in(c, "a") + inputOrParam(c, "b"); });
 
     add(registry, "math.multiply",
-      {.purpose = "Multiply two Floats.",
-       .useWhen = "Modulate one signal by another, e.g. brightness times a loudness envelope.",
-       .example = "{\"id\": \"mod\", \"type\": \"math.multiply\", \"params\": {}}"},
-      {{"a", PortType::Float, true}, {"b", PortType::Float, true}},
-      {},
-      [](const EvalContext& c) { return in(c, "a") * in(c, "b"); });
+      {.purpose = "Multiply two Floats. Input b is optional and falls back to param b.",
+       .useWhen = "Modulate one signal by another, e.g. brightness times a loudness envelope, or by a constant via param b.",
+       .example = "{\"id\": \"mod\", \"type\": \"math.multiply\", \"params\": {\"b\": 0.5}}"},
+      {{"a", PortType::Float, true}, {"b", PortType::Float, false}},
+      {floatParam("b", "B", 1.f, "Used when input b is not wired.")},
+      [](const EvalContext& c) { return in(c, "a") * inputOrParam(c, "b"); });
 
     add(registry, "math.max",
-      {.purpose = "The larger of two Floats.",
-       .useWhen = "Floor one signal with another, e.g. keep a rate from going negative.",
-       .example = "{\"id\": \"floor\", \"type\": \"math.max\", \"params\": {}}"},
-      {{"a", PortType::Float, true}, {"b", PortType::Float, true}},
-      {},
-      [](const EvalContext& c) { return std::max(in(c, "a"), in(c, "b")); });
+      {.purpose = "The larger of two Floats. Input b is optional and falls back to param b.",
+       .useWhen = "Floor one signal with another or a constant, e.g. keep a rate from going negative (param b 0).",
+       .example = "{\"id\": \"floor\", \"type\": \"math.max\", \"params\": {\"b\": 0}}"},
+      {{"a", PortType::Float, true}, {"b", PortType::Float, false}},
+      {floatParam("b", "B", 0.f, "Used when input b is not wired.")},
+      [](const EvalContext& c) { return std::max(in(c, "a"), inputOrParam(c, "b")); });
 
     add(registry, "math.invert",
       {.purpose = "Flip a 0..1 Float to 1 minus the value.",

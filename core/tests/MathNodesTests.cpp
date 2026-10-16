@@ -169,6 +169,16 @@ TEST_CASE("math.add, multiply and max combine two inputs", "[MathNodes]")
   CHECK(run("math.max", "{}", 1.f, 2.f, "a,b").value == Approx(2.f));
 }
 
+TEST_CASE("math.add, multiply and max use param b when b is unwired", "[MathNodes]")
+{
+  CHECK(run("math.add", R"({"b": 0.5})", 1.5f, 0.f, "a").value == Approx(2.f));
+  CHECK(run("math.multiply", R"({"b": 3})", 1.5f, 0.f, "a").value == Approx(4.5f));
+  CHECK(run("math.max", R"({"b": 0})", -1.f, 0.f, "a").value == Approx(0.f));
+  CHECK(run("math.multiply", "{}", 1.5f, 0.f, "a").value == Approx(1.5f)); // default b 1
+  // A wired b wins over the param.
+  CHECK(run("math.add", R"({"b": 100})", 1.5f, 2.f, "a,b").value == Approx(3.5f));
+}
+
 TEST_CASE("math.invert flips 0..1", "[MathNodes]")
 {
   CHECK(run("math.invert", "{}", 0.25f).value == Approx(0.75f));
