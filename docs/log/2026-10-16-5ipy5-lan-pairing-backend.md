@@ -43,3 +43,7 @@ pairing screen, global 401 handler and device list are Aurora-5ipy.6.
 - `AuroraNetworkTests` 25 cases/216 assertions incl. SHA-256 vectors, guard
   unit tests, persistence, and an end-to-end remote flow (Origin check still
   403s a valid cookie, revoke 401s). Linux app builds, ctest 136/136 (WSL).
+
+## Lessons
+
+- 1 filed in output: one pre-routing slot shared by Host check and pairing guard.

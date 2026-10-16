@@ -11,6 +11,7 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `3ono-stale-core-test-tree` | [log/2026-10-02-3ono-stale-core-test-tree.md](log/2026-10-02-3ono-stale-core-test-tree.md) | Aurora-3ono: PipelineTests segfault on Windows was a stale build tree |
 | `3qh-mac-capture-width-hint` | [log/2026-10-01-3qh-mac-capture-width-hint.md](log/2026-10-01-3qh-mac-capture-width-hint.md) | Aurora-3qh: Mac video mode resized full-Retina frames every tick |
 | `5i3-local-api-hardening` | [log/2026-10-02-5i3-local-api-hardening.md](log/2026-10-02-5i3-local-api-hardening.md) | Aurora-5i3: local API hardening before any HA credential exists |
+| `5ipy1-ec0-decisions` | [log/2026-10-16-5ipy1-ec0-decisions.md](log/2026-10-16-5ipy1-ec0-decisions.md) | EC 0: open questions and cross-references (Aurora-5ipy.1) |
 | `5ipy2-state-effect-source` | [log/2026-10-16-5ipy2-state-effect-source.md](log/2026-10-16-5ipy2-state-effect-source.md) | Aurora-5ipy.2: GET /api/state adds effect and source |
 | `5ipy4-ec3-host-allowlist` | [log/2026-10-16-5ipy4-ec3-host-allowlist.md](log/2026-10-16-5ipy4-ec3-host-allowlist.md) | EC 3: Host header allowlist (Aurora-5ipy.4) |
 | `5ipy5-lan-pairing-backend` | [log/2026-10-16-5ipy5-lan-pairing-backend.md](log/2026-10-16-5ipy5-lan-pairing-backend.md) | LAN pairing backend (Aurora-5ipy.5) |
