@@ -28,6 +28,7 @@ import { ZoneCanvas } from '../ZoneCanvas.js';
 import { ZoneActiveToggleList } from '../ZoneActiveToggle.js';
 import { screenDivisionRects } from '../ScreenDivision.js';
 import { AccordionSection } from '../AccordionSection.js';
+import { PairedDevices } from '../PairedDevices.js';
 import { TuningFields } from '../TuningFields.js';
 import { applyTooltip } from '../Tooltips.js';
 import { renderReloadError } from '../MacPermissionRecovery.js';
@@ -142,6 +143,7 @@ export class DashboardScreen {
     this.tuningFields = null;
     this.tuningSection = null;
     this.outputSection = null;
+    this.pairedDevices = null;
   }
 
   async mount(container) {
@@ -164,6 +166,8 @@ export class DashboardScreen {
     // instance's own handler.
     this._onHeartbeatState = this._onHeartbeatState.bind(this);
     this.app.onStateUpdate = this._onHeartbeatState;
+    this._onPairedDevicesChanged = () => this.pairedDevices?.load();
+    this.app.onPairedDevicesChanged = this._onPairedDevicesChanged;
 
     await this._loadAll();
     this._startAudioStatusPoll();
@@ -171,6 +175,9 @@ export class DashboardScreen {
 
   unmount() {
     if (this.app.onStateUpdate === this._onHeartbeatState) this.app.onStateUpdate = null;
+    if (this.app.onPairedDevicesChanged === this._onPairedDevicesChanged) this.app.onPairedDevicesChanged = null;
+    this.pairedDevices?.destroy();
+    this.pairedDevices = null;
     this._stopAudioStatusPoll();
     this.entertainmentConfigSelect.destroy();
     this.deviceField?.destroy();
@@ -494,6 +501,7 @@ export class DashboardScreen {
       <div class="db-accordion-zone-mapping"></div>
       <div class="db-accordion-tuning"></div>
       <div class="db-accordion-output"></div>
+      <div class="db-accordion-paired-devices"></div>
     `;
 
     this.zoneMappingSection = new AccordionSection(wrap.querySelector('.db-accordion-zone-mapping'), { title: 'Zone Mapping', expanded: true });
@@ -511,6 +519,16 @@ export class DashboardScreen {
 
     this.outputSection = new AccordionSection(wrap.querySelector('.db-accordion-output'), { title: this._outputEntry()?.title ?? 'Output', expanded: false });
     this._renderOutputContent();
+
+    // Admin only (Aurora-5ipy.6): the demo facade has no canApprove, so it never shows.
+    this.pairedDevices?.destroy();
+    this.pairedDevices = null;
+    if (this.app.canApprove === true) {
+      const section = new AccordionSection(wrap.querySelector('.db-accordion-paired-devices'), { title: 'Paired devices', expanded: false });
+      this.pairedDevices = new PairedDevices(section.content, { onUnreachable: () => this.app.checkNow() });
+      this.pairedDevices.render();
+      void this.pairedDevices.load();
+    }
   }
 
   _renderOutputContent() {

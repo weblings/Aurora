@@ -69,6 +69,13 @@ const CONDITION_ROWS = {
   local_network: renderLocalNetworkBanner,
 };
 
+// Pending LAN pairing requests (Aurora-5ipy.6), polled with the beat only
+// while this browser can approve them (loopback or a paired admin).
+async function defaultFetchPending() {
+  const body = await (await fetch('/api/pairing/pending')).json();
+  return Array.isArray(body?.pending) ? body.pending : [];
+}
+
 const SOURCE_PREFIX = {
   startup: "Couldn't start: ",
   resume: "Couldn't resume: ",
@@ -81,6 +88,7 @@ export class App {
     pollIntervalMs = DEFAULT_POLL_INTERVAL_MS,
     abortTimeoutMs = DEFAULT_ABORT_TIMEOUT_MS,
     failureThreshold = DEFAULT_FAILURE_THRESHOLD,
+    fetchPending = defaultFetchPending,
   } = {}) {
     this.currentScreen = null;
     this.currentRouteId = null;
@@ -104,7 +112,13 @@ export class App {
     // until then, which just means a Mac permission row renders generic
     // (Retry, not Open Settings) for the few seconds before that happens.
     this.platform = '';
+    // Set by app.js from GET /api/pairing/status: true on loopback or a paired admin.
+    this.canApprove = false;
+    this.pendingPairings = []; // [{ref, name, scope, code}]
+    // Fired after an approval, so an open Dashboard refreshes its device list.
+    this.onPairedDevicesChanged = null;
     this._fetchStatus = fetchStatus;
+    this._fetchPending = fetchPending;
     this._pollIntervalMs = pollIntervalMs;
     this._abortTimeoutMs = abortTimeoutMs;
     this._failureThreshold = failureThreshold;
@@ -221,7 +235,18 @@ export class App {
       if (this.onRecovered) this.onRecovered(preserved);
     }
     this._updateHostState(result);
+    if (this.canApprove) void this._refreshPending();
     return true;
+  }
+
+  // A failed pending read keeps the last list; the beat retries next cadence.
+  async _refreshPending() {
+    try {
+      this.pendingPairings = await this._fetchPending();
+    } catch {
+      return;
+    }
+    this._renderBanner();
   }
 
   // Applies GET /api/state's fields from a reachable poll: feeds the
@@ -268,6 +293,7 @@ export class App {
     this.hostState = null;
     this.hostErrors = [];
     this.hostConditions = [];
+    this.pendingPairings = [];
     if (!this.overlaySlot) return;
     this._takeover = kind;
     this.overlaySlot.innerHTML = `
@@ -305,8 +331,10 @@ export class App {
     if (!this.bannerSlot) return;
     const errors = this._visibleErrors();
     const conditions = this.hostConditions;
+    // Pairing requests sit above the problems and never collapse: each waits on a click.
+    const pairings = this.pendingPairings;
     const rowCount = conditions.length + errors.length;
-    if (rowCount === 0) {
+    if (rowCount === 0 && pairings.length === 0) {
       this.bannerSlot.innerHTML = '';
       this._bannerExpanded = false;
       return;
@@ -317,7 +345,8 @@ export class App {
     // Same chevron-down.svg the accordions use (dashboard.css's
     // .accordion-chevron), not a one-off glyph -- rotated 180deg here for
     // "collapse" the same way .accordion-section.expanded already does.
-    const body = collapsed
+    const pairingRows = pairings.map((request) => this._renderPairingRow(request)).join('');
+    const problems = rowCount === 0 ? '' : collapsed
       ? `<button type="button" class="shell-banner-summary" id="shell-banner-expand"><span class="warn-glyph" aria-hidden="true"></span> ${rowCount} problems <span class="accordion-chevron" aria-hidden="true"></span></button>`
       : conditions.map((condition) => this._renderConditionRow(condition)).join('')
         + errors.map((error) => this._renderBannerRow(error)).join('')
@@ -327,10 +356,17 @@ export class App {
 
     this.bannerSlot.innerHTML = `
       <div class="shell-banner">
-        <div class="shell-banner-inner">${body}</div>
+        <div class="shell-banner-inner">${pairingRows}${problems}</div>
       </div>
     `;
 
+    for (const request of pairings) {
+      const ref = escapeHtml(request.ref);
+      this.bannerSlot.querySelector(`#shell-pairing-approve-${ref}`)?.addEventListener('click', () => this._decidePairing(request.ref, 'approve'));
+      this.bannerSlot.querySelector(`#shell-pairing-deny-${ref}`)?.addEventListener('click', () => this._decidePairing(request.ref, 'deny'));
+    }
+
+    if (rowCount === 0) return;
     if (collapsed) {
       this.bannerSlot.querySelector('#shell-banner-expand')?.addEventListener('click', () => {
         this._bannerExpanded = true;
@@ -348,6 +384,32 @@ export class App {
       this.bannerSlot.querySelector(`#shell-banner-retry-${error.source}`)?.addEventListener('click', () => this._retry(error.source));
       this.bannerSlot.querySelector(`#shell-banner-dismiss-${error.source}`)?.addEventListener('click', () => this._dismiss(error));
     }
+  }
+
+  // The code is the user's check that the request is their own device.
+  _renderPairingRow(request) {
+    const ref = escapeHtml(request.ref);
+    return `<div class="shell-banner-row"><div class="shell-banner-content">
+      <p class="status-text">Pair <strong>${escapeHtml(request.name ?? '')}</strong> with Aurora? Approve only if it shows code <strong class="shell-pairing-code">${escapeHtml(request.code ?? '')}</strong>.</p>
+      <div class="shell-banner-actions">
+        <button type="button" class="btn btn-primary" id="shell-pairing-approve-${ref}">Approve</button>
+        <button type="button" class="btn btn-secondary" id="shell-pairing-deny-${ref}">Deny</button>
+      </div>
+    </div></div>`;
+  }
+
+  // No optimistic removal: the re-read shows what the daemon holds (an
+  // expired request just disappears, same as a decided one).
+  async _decidePairing(ref, decision) {
+    let approved = false;
+    try {
+      const response = await fetch(`/api/pairing/pending/${encodeURIComponent(ref)}/${decision}`, { method: 'POST' });
+      approved = decision === 'approve' && response.ok;
+    } catch {
+      // Unreachable is the beat's takeover.
+    }
+    await this._refreshPending();
+    if (approved && this.onPairedDevicesChanged) this.onPairedDevicesChanged();
   }
 
   // Conditions (Aurora-rbp3) are standing facts, not failures: no Retry

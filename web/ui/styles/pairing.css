@@ -1,0 +1,20 @@
+/* Pair this device screen (Aurora-5ipy.6): name field, then the code the
+   Aurora computer shows beside its Approve button. */
+.pairing-body {
+  margin-top: var(--aurora-space-6);
+  margin-bottom: var(--aurora-space-6);
+}
+
+.pairing-name-field {
+  margin-top: var(--aurora-space-7);
+}
+
+.pairing-code {
+  margin: var(--aurora-space-7) 0 0;
+  font-size: 32px;
+  font-weight: 600;
+  letter-spacing: 0.2em;
+  text-align: center;
+  color: var(--aurora-text-primary);
+  font-variant-numeric: tabular-nums;
+}
