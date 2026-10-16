@@ -1131,3 +1131,18 @@ that `ControlDescriptor` had no fields to carry them, so `toDescriptors()` and
 **Fix:** grep the named symbols first and restate the gap before editing. The
 acceptance test ("fails if a node leaves one empty") is what makes it durable.
 
+---
+
+## Don't duplicate a reset-trigger param across graph nodes, derive it from the upstream signal
+Tags: node-graph, state, reset, params, agent-ux
+Applies-when: two stateful nodes must re-seed together when one setting changes
+
+Aurora-ra4o.13: `fixedAnchorHue` sat on both `audio.drift` and `audio.bounce`,
+and bounce used it only as a reset trigger. An agent that set it on one node
+got the two out of step, and the param looked like it did something on bounce.
+
+**Fix:** keep the param on the owner (drift). The downstream node resets when
+its input shows the re-seed (anchor jump beyond what drift can move in one
+tick, bounded by the slider maxes). Goldens held because the old reset and the
+jump landed on the same tick. A re-seed inside the margin is missed and only
+damps instead of snapping.

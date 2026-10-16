@@ -106,7 +106,7 @@ namespace
     {"id": "cap", "type": "audio.capture", "params": {}},
     {"id": "feat", "type": "audio.features", "params": {}},
     {"id": "drift", "type": "audio.drift", "params": {"fixedAnchorHue": 120.0}},
-    {"id": "beat", "type": "audio.bounce", "params": {"fixedAnchorHue": 120.0}}
+    {"id": "beat", "type": "audio.bounce", "params": {}}
   ], "edges": [
     ["cap.buffer", "feat.buffer"],
     ["feat.features", "drift.features"],
@@ -256,7 +256,7 @@ TEST_CASE("audio.drift and audio.bounce stay silent while capture is empty", "[A
     Catch::Matchers::WithinRel(120.f - 10.f / 60.f, 1e-4f));
 }
 
-TEST_CASE("changing fixedAnchorHue re-seeds drift and bounce together", "[AudioNodes]")
+TEST_CASE("changing fixedAnchorHue re-seeds drift and bounce follows", "[AudioNodes]")
 {
   NodeRegistry registry = makeAudioRegistry();
   Aurora::Runtime::Graph::Graph live = requireGraph(kFullChain, registry);
@@ -279,7 +279,7 @@ TEST_CASE("changing fixedAnchorHue re-seeds drift and bounce together", "[AudioN
       {"id": "cap", "type": "audio.capture", "params": {}},
       {"id": "feat", "type": "audio.features", "params": {}},
       {"id": "drift", "type": "audio.drift", "params": {"fixedAnchorHue": 240.0}},
-      {"id": "beat", "type": "audio.bounce", "params": {"fixedAnchorHue": 240.0}}
+      {"id": "beat", "type": "audio.bounce", "params": {}}
     ], "edges": [
       ["cap.buffer", "feat.buffer"],
       ["feat.features", "drift.features"],
@@ -362,7 +362,7 @@ TEST_CASE("frame.broadcast matches composeAudioFrame over the live zone map", "[
       {"id": "cap", "type": "audio.capture", "params": {}},
       {"id": "feat", "type": "audio.features", "params": {}},
       {"id": "drift", "type": "audio.drift", "params": {"fixedAnchorHue": 120.0}},
-      {"id": "beat", "type": "audio.bounce", "params": {"fixedAnchorHue": 120.0}},
+      {"id": "beat", "type": "audio.bounce", "params": {}},
       {"id": "all", "type": "frame.broadcast", "params": {"output": "hue"}}
     ], "edges": [
       ["cap.buffer", "feat.buffer"],

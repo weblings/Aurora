@@ -189,3 +189,4 @@ Planning docs stay clean: decisions, status, and pointers here only.
 | 2026-10-15 | G3 cutover: GraphRunner replaces Orchestrator/AudioOrchestrator, Pipeline ticks the Graph, parity goldens unchanged; suite 247/247 (MSVC), light viz stack and perf A/B (no cost) checked; 4 lessons. [[ra4o8-g3-cutover]] | `bd show Aurora-ra4o.8` |
 | 2026-10-15 | G4a loader clamps Float/OptionalFloat params to the declared range (non-finite resets to default); suite 248/248 (MSVC); 1 lesson. [[ra4o11-g4a-loader-float-clamp]] | `bd show Aurora-ra4o.11` |
 | 2026-10-15 | G4b descriptors emit useWhen/example/cost for node types, completeness tests per node family; suite 250/250 (MSVC); 1 lesson. [[ra4o12-g4b-descriptor-metadata]] | `bd show Aurora-ra4o.12` |
+| 2026-10-15 | G4c audio.bounce drops fixedAnchorHue and re-seeds on an anchor jump (drift re-seed); goldens unchanged; suite 250/250 (MSVC); 1 lesson. [[ra4o13-g4c-bounce-reseed]] | `bd show Aurora-ra4o.13` |
