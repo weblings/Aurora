@@ -60,6 +60,8 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `hue-output-analysis` | [archive/HueOutputAnalysis.md](archive/HueOutputAnalysis.md) | Hue::Api / Auth / Stream — Conversion analysis |
 | `id8j1-b0-float-trigger-ports` | [log/2026-10-16-id8j1-b0-float-trigger-ports.md](log/2026-10-16-id8j1-b0-float-trigger-ports.md) | B0: Float and Trigger port types (Aurora-id8j.1) |
 | `id8j10-b4-tuning-renders-controls` | [log/2026-10-16-id8j10-b4-tuning-renders-controls.md](log/2026-10-16-id8j10-b4-tuning-renders-controls.md) | B4: Tuning renders the active graph's controls (Aurora-id8j.10) |
+| `id8j11-b5-register-all-nodes` | [log/2026-10-16-id8j11-b5-register-all-nodes.md](log/2026-10-16-id8j11-b5-register-all-nodes.md) | B5: one registerAllNodes for runner, /api/nodes and tests (Aurora-id8j.11) |
+| `id8j12-b6-math-optional-b` | [log/2026-10-16-id8j12-b6-math-optional-b.md](log/2026-10-16-id8j12-b6-math-optional-b.md) | B6: math nodes take an optional input with param fallback (Aurora-id8j.12) |
 | `id8j2-b1-read-routes` | [log/2026-10-16-id8j2-b1-read-routes.md](log/2026-10-16-id8j2-b1-read-routes.md) | B1: read routes GET /api/nodes and GET /api/graph (Aurora-id8j.2) |
 | `id8j3-b2a-scalar-math-nodes` | [log/2026-10-16-id8j3-b2a-scalar-math-nodes.md](log/2026-10-16-id8j3-b2a-scalar-math-nodes.md) | B2a: scalar math nodes (Aurora-id8j.3) |
 | `id8j4-b2b-time-state-nodes` | [log/2026-10-16-id8j4-b2b-time-state-nodes.md](log/2026-10-16-id8j4-b2b-time-state-nodes.md) | B2b: time/state nodes and LFO (Aurora-id8j.4) |
