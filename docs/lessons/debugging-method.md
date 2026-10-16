@@ -688,6 +688,8 @@ After adding `PUT /api/state`, `devstack.py up` answered 404 for it. The route w
 
 Recurred in reverse during Aurora-kea (2026-10-03): `cmake --build build/linux-app` was fresh and a hand-launched `./build/bin/Aurora` was the stale one, so the new `GET /api/state` answered 404. Two app binaries exist on this box; neither path is "the" build.
 
+Recurred on Windows during Aurora-so1o (2026-10-16): `build/windows-app` (the preset superbuild) and `build-app-windows` (a standalone `app/windows` configure) each hold a `bin/Release/Aurora.exe`, and only the one just built had the new code. The Dashboard footer is a fast tell: a standalone configure reports `vdev`, the preset build reports the real version (docs/Building.md, "Slice builds"). Check both the path's mtime and the footer before judging behavior.
+
 ---
 
 ## A LeakSanitizer report whose only non-libc frame is a test line is that line's own allocation -- trace it before blaming the library

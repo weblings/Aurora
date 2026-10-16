@@ -78,8 +78,8 @@ export class PairingScreen {
   _renderWaiting(body, footer) {
     body.innerHTML = `
       <div class="text-pair">
-        <p class="text-primary">Approve this device on the Aurora computer</p>
-        <p class="text-secondary">Open Aurora on the computer it runs on and approve ${escapeHtml(this.deviceName.trim() || 'this device')} if the code matches.</p>
+        <p class="text-primary">Approve this device in Aurora</p>
+        <p class="text-secondary">On the computer running Aurora, open Aurora and approve ${escapeHtml(this.deviceName.trim() || 'this device')} if its code matches the one below.</p>
       </div>
       <p class="pairing-code" aria-label="Pairing code">${escapeHtml(this.code)}</p>
       <p class="status-text">Waiting for approval…</p>

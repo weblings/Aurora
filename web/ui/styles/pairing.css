@@ -18,3 +18,9 @@
   color: var(--aurora-text-primary);
   font-variant-numeric: tabular-nums;
 }
+
+/* Centered like the .text-pair copy above it (waiting line, declined/expired
+   error). */
+.pairing-body .status-text {
+  text-align: center;
+}

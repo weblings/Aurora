@@ -42,7 +42,7 @@ export class PairedDevices {
       </li>
     `).join('');
     this.container.innerHTML = `
-      <p class="status-text">Devices on the Aurora computer itself never need pairing.</p>
+      <p class="status-text">The computer running Aurora never needs pairing. Other approved devices are listed below.</p>
       ${this.devices.length === 0
         ? `<p class="status-text">No other devices are paired.</p>`
         : `<ul class="paired-device-list">${rows}</ul>`}
