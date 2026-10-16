@@ -834,3 +834,17 @@ shell cannot reuse it. The configured MSVC tree for core tests is
 
 **Fix:** `cmake --build build-core-test-win --config Debug -j 8` then
 `ctest --test-dir build-core-test-win -C Debug`. Don't reconfigure `build/`.
+
+---
+
+## Git Bash heredocs with quotes and escapes can silently write nothing, use the Write tool
+Tags: agent-tooling, bash, heredoc, windows
+Applies-when: creating a multi-line source file from the Bash tool on Windows
+
+Aurora-id8j.3: a `cat <<EOF` block with C++ string escapes and apostrophes in
+text failed with "unexpected EOF while looking for matching" and the whole
+command, including later `sed` lines, never ran. No files were created.
+
+**Fix:** write source files with the Write tool and keep Bash for short
+commands. After a failed compound command, `git status` before assuming any
+step happened.

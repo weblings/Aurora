@@ -193,5 +193,6 @@ Planning docs stay clean: decisions, status, and pointers here only.
 | 2026-10-15 | G4d Absent-tick anchor change accepted, not fixed (drift only; needs Absent-tick param access); closes the G2-review items. [[ra4o14-g4d-absent-anchor-accepted]] | `bd show Aurora-ra4o.14` |
 | 2026-10-15 | Sequence B planning: spatial effects as Image generators, time-based Tier 2 smoothing, simple mode default, EC 3 first, floor policy decided; epic Aurora-id8j filed (10 children); ra4o and pngj closed. [[sequence-b-planning]] | `bd show Aurora-id8j` |
 | 2026-10-16 | B0 Float and Trigger port types, audio.features scalar ports, G0 amended, corpus extended; goldens unchanged; suite 250/250 (MSVC); 2 lessons. [[id8j1-b0-float-trigger-ports]] | `bd show Aurora-id8j.1` |
+| 2026-10-16 | B2a scalar math nodes (9 Float nodes, non-finite fails the node); suite green (MSVC); 3 lessons. [[id8j3-b2a-scalar-math-nodes]] | `bd show Aurora-id8j.3` |
 | 2026-10-16 | EC 3 Host header allowlist (rebinding defense) in HttpServer pre-routing; core suite 251/251 (MSVC); phone-verified; 1 lesson. [[5ipy4-ec3-host-allowlist]] | `bd show Aurora-5ipy.4` |
 | 2026-10-16 | B1 read routes GET /api/nodes (full catalog) and GET /api/graph (running graph or null); core suite 254/254 (MSVC); sink check fixed (Aurora-cwos); 2 lessons. [[id8j2-b1-read-routes]] | `bd show Aurora-id8j.2` |

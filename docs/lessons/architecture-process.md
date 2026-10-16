@@ -1175,3 +1175,30 @@ It surfaced only because `/api/nodes` (Aurora-id8j.2) printed the registry and
 **Fix:** set the field on the real node (Aurora-cwos) and add a loader test that
 registers the real node types (`FrameNodesTests`). For any new opt-in field,
 grep that every real node that should set it does.
+
+---
+
+## A new node family must be registered in four places, one of them a test
+Tags: node-graph, registry, nodes, tests
+Applies-when: adding a `register*Nodes` function for a new node family
+
+Aurora-id8j.3: nothing fails if a family is missing from one site, the node is
+just absent there. The sites are `GraphRunner` (video and audio constructors),
+`nodesPayload` in `GraphRoutes.cpp`, and the expected-registry copy in the
+`/api/nodes` test in `PipelineTests.cpp`. Only the last one is checked, and only
+if updated.
+
+**Fix:** grep `registerFrameNodes` and add the new call beside every hit. A
+family with no hardware dependency belongs in both `GraphRunner` constructors.
+
+---
+
+## A shared INode wrapper plus a compute lambda keeps stateless nodes to one spec each
+Tags: node-graph, nodes, math, non-finite
+Applies-when: adding many small stateless nodes that share ports and failure rules
+
+Aurora-id8j.3: nine math nodes share `ScalarMathNode` (ports + compute lambda).
+The wrapper rejects non-finite results with `ctx.fail`, so a NaN or inf never
+reaches a Float port and no node can forget the guard. Operand rule: constants
+are params, signals are ports. Zero divisor and inverted ranges fail the node
+with the param named.

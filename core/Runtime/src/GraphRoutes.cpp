@@ -5,6 +5,7 @@
 #include <Aurora/Network/Http/Server/HttpServer.hpp>
 #include <Aurora/Runtime/ControlDescriptors.hpp>
 #include <Aurora/Runtime/Graph/FrameNodes.hpp>
+#include <Aurora/Runtime/Graph/MathNodes.hpp>
 #include <Aurora/Runtime/Graph/NodeRegistry.hpp>
 #include <Aurora/Runtime/Graph/VideoNodes.hpp>
 #include <Aurora/Runtime/Pipeline.hpp>
@@ -71,6 +72,7 @@ namespace Aurora::Runtime
       Graph::NodeRegistry registry;
       Graph::registerVideoNodes(registry);
       Graph::registerFrameNodes(registry);
+      Graph::registerMathNodes(registry);
 #ifdef AURORA_RUNTIME_AUDIO_AVAILABLE
       Graph::registerAudioNodes(registry);
 #endif
