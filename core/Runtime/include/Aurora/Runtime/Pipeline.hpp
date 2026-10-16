@@ -18,6 +18,7 @@
 #include <Aurora/Input/IAudioInput.hpp>
 #include <Aurora/Input/IVideoInput.hpp>
 #include <Aurora/Output/IOutput.hpp>
+#include <Aurora/Runtime/ChangeSignal.hpp>
 #include <Aurora/Runtime/Config.hpp>
 #include <Aurora/Runtime/GraphRunner.hpp>
 #include <Aurora/Runtime/Registry.hpp>
@@ -403,6 +404,10 @@ namespace Aurora::Runtime
     // polling never waits on a tick or a reload.
     std::vector<HostCondition> conditions() const;
 
+    // Moves whenever status, errors or conditions change (Aurora-5ipy.3), so
+    // GET /api/events wakes without polling. Leaf lock only, never m_mutex.
+    ChangeSignal& changes() const { return m_changes; }
+
     // What the running pipeline uses, lock-free. Updated on every swap and
     // kept through pause(), so a paused Dashboard keeps its sections. A
     // failed reload leaves it unchanged: the old pipeline is still running.
@@ -461,6 +466,8 @@ namespace Aurora::Runtime
     // Independent leaf lock: conditions never interact with m_status.
     mutable std::mutex m_conditionsMutex;
     std::vector<HostCondition> m_conditions;
+
+    mutable ChangeSignal m_changes;
 
     // Both under m_mutex.
     std::uint64_t m_nextErrorId{1};

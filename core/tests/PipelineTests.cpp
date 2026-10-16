@@ -34,6 +34,8 @@
 #include <Aurora/Runtime/PipelineRoutes.hpp>
 #include <Aurora/Runtime/SettingsRoutes.hpp>
 
+#include "SseReader.hpp"
+
 using namespace Aurora::Contracts;
 using namespace Aurora::Input;
 using namespace Aurora::Output;
@@ -2290,6 +2292,156 @@ TEST_CASE("GET /api/graph serves the running graph, null when none runs (Aurora-
   CHECK(paused->status == 200);
   CHECK(nlohmann::json::parse(paused->body)["graph"].is_null());
 
+  host.shutdown();
+  server.stop();
+  serverThread.join();
+}
+
+
+namespace
+{
+  // The data payloads of every `event: <topic>` block in an SSE capture.
+  std::vector<nlohmann::json> eventsOf(const std::string& capture, const std::string& topic)
+  {
+    std::vector<nlohmann::json> found;
+    const std::string marker = "event: " + topic + "\ndata: ";
+    for(size_t at = capture.find(marker); at != std::string::npos; at = capture.find(marker, at + 1)){
+      const size_t start = at + marker.size();
+      const size_t end = capture.find("\n\n", start);
+      if(end == std::string::npos){ break; }
+      found.push_back(nlohmann::json::parse(capture.substr(start, end - start)));
+    }
+    return found;
+  }
+}
+
+
+TEST_CASE("GET /api/events opens with the current state and health, then pushes changes (Aurora-5ipy.3)", "[PipelineRoutes][Events]")
+{
+  using namespace Aurora::Network::Http::Server;
+
+  ScopedTempDir dir("events-route");
+  auto events = std::make_shared<Events>();
+  auto registry = makeRegistry(events);
+  ConfigStore(dir.path).save(videoConfig());
+  PipelineHost host(Pipeline::build(registry, videoConfig(), dir.path, {}), {});
+
+  HttpServer server;
+  registerStateRoute(server, host, registry, dir.path);
+  registerEventsRoute(server, host, dir.path, 100ms);
+  const int port = server.bindToAnyPort("127.0.0.1");
+  REQUIRE(port > 0);
+  std::thread serverThread([&](){ server.listen(); });
+
+  httplib::Client client("127.0.0.1", port);
+  SseReader reader(port, "/api/events");
+  REQUIRE(reader.status() == 200);
+  REQUIRE(reader.waitFor("event: health\n"));
+
+  auto polled = client.Get("/api/state");
+  REQUIRE(polled);
+  const auto firstState = eventsOf(reader.data(), "state");
+  REQUIRE(firstState.size() == 1);
+  CHECK(firstState[0] == nlohmann::json::parse(polled->body));
+  CHECK(firstState[0]["state"] == "running");
+
+  const auto firstHealth = eventsOf(reader.data(), "health");
+  REQUIRE(firstHealth.size() == 1);
+  CHECK(firstHealth[0] == nlohmann::json{{"errors", nlohmann::json::array()}, {"conditions", nlohmann::json::array()}});
+
+  REQUIRE(host.pause());
+  REQUIRE(reader.waitFor("\"state\":\"paused\""));
+  const auto afterPause = eventsOf(reader.data(), "state");
+  REQUIRE(afterPause.size() == 2);
+  CHECK(afterPause[1]["paused"] == true);
+
+  host.setCondition("test", "something is off");
+  // The state event lands first, so wait for the health one by count.
+  std::vector<nlohmann::json> health;
+  for(int attempt = 0; attempt < 100 && health.size() < 2; ++attempt){
+    std::this_thread::sleep_for(20ms);
+    health = eventsOf(reader.data(), "health");
+  }
+  REQUIRE(health.size() == 2);
+  CHECK(health[1]["conditions"][0]["source"] == "test");
+
+  // The heartbeat keeps an idle stream writing so a dead peer is noticed.
+  CHECK(reader.waitFor(": ping\n\n"));
+
+  host.shutdown();
+  server.stop();
+  serverThread.join();
+}
+
+
+TEST_CASE("GET /api/events honors the topics filter and ignores unknown topics (Aurora-5ipy.3)", "[PipelineRoutes][Events]")
+{
+  using namespace Aurora::Network::Http::Server;
+
+  ScopedTempDir dir("events-topics");
+  auto events = std::make_shared<Events>();
+  auto registry = makeRegistry(events);
+  ConfigStore(dir.path).save(videoConfig());
+  PipelineHost host(Pipeline::build(registry, videoConfig(), dir.path, {}), {});
+
+  HttpServer server;
+  registerEventsRoute(server, host, dir.path, 100ms);
+  const int port = server.bindToAnyPort("127.0.0.1");
+  REQUIRE(port > 0);
+  std::thread serverThread([&](){ server.listen(); });
+
+  SseReader healthOnly(port, "/api/events?topics=health,nonsense");
+  REQUIRE(healthOnly.waitFor("event: health\n"));
+  host.setCondition("test", "visible");
+  REQUIRE(healthOnly.waitFor("visible"));
+  CHECK(healthOnly.data().find("event: state") == std::string::npos);
+
+  host.shutdown();
+  server.stop();
+  serverThread.join();
+}
+
+
+TEST_CASE("GET /api/events streams do not slow other routes under a tick storm (Aurora-5ipy.3)", "[PipelineRoutes][Events]")
+{
+  using namespace Aurora::Network::Http::Server;
+
+  ScopedTempDir dir("events-latency");
+  auto events = std::make_shared<Events>();
+  auto registry = makeRegistry(events);
+  ConfigStore(dir.path).save(videoConfig());
+  PipelineHost host(Pipeline::build(registry, videoConfig(), dir.path, {}), {});
+
+  HttpServer server;
+  registerStateRoute(server, host, registry, dir.path);
+  registerEventsRoute(server, host, dir.path, 100ms);
+  const int port = server.bindToAnyPort("127.0.0.1");
+  REQUIRE(port > 0);
+  std::thread serverThread([&](){ server.listen(); });
+
+  std::vector<std::unique_ptr<SseReader>> readers;
+  for(int i = 0; i < 3; ++i){
+    readers.push_back(std::make_unique<SseReader>(port, "/api/events"));
+    REQUIRE(readers.back()->waitFor("event: state\n"));
+  }
+
+  // Back-to-back ticks, as a refresh rate far above what the host can serve.
+  std::atomic<bool> ticking{true};
+  std::thread tickThread([&](){ while(ticking.load()){ host.tick(); } });
+
+  httplib::Client client("127.0.0.1", port);
+  std::chrono::milliseconds slowest{0};
+  for(int i = 0; i < 20; ++i){
+    const auto started = std::chrono::steady_clock::now();
+    auto polled = client.Get("/api/state");
+    slowest = std::max(slowest, std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - started));
+    REQUIRE(polled);
+    CHECK(polled->status == 200);
+  }
+  CHECK(slowest < 500ms);
+
+  ticking.store(false);
+  tickThread.join();
   host.shutdown();
   server.stop();
   serverThread.join();

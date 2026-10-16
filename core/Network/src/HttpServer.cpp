@@ -28,7 +28,7 @@ namespace Aurora::Network::Http::Server
       }
     }
 
-    m_httpServerImpl = std::make_unique<Impl>(m_routes, m_staticDir, m_embeddedFiles, m_prefixedEmbeddedFiles, allowedHosts, m_accessGuard);
+    m_httpServerImpl = std::make_unique<Impl>(m_routes, m_streamRoutes, m_workerThreads, m_maxStreams, m_staticDir, m_embeddedFiles, m_prefixedEmbeddedFiles, allowedHosts, m_accessGuard);
   }
 
 
@@ -67,6 +67,22 @@ namespace Aurora::Network::Http::Server
   )
   {
     m_routes.push_back({method, path, handler});
+  }
+
+
+  void HttpServer::addStreamRoute(
+    const std::string& path,
+    StreamHandler handler
+  )
+  {
+    m_streamRoutes.push_back({path, std::move(handler)});
+  }
+
+
+  void HttpServer::setStreamLimits(size_t workerThreads, size_t maxStreams)
+  {
+    m_workerThreads = workerThreads;
+    m_maxStreams = maxStreams;
   }
 
 

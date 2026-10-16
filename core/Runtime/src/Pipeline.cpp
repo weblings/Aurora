@@ -436,8 +436,11 @@ namespace Aurora::Runtime
     else if(m_pipeline){ state = HostState::Running; }
     else{ state = errors.empty() ? HostState::Idle : HostState::Failed; }
 
-    std::lock_guard<std::mutex> lock(m_statusMutex);
-    m_status = HostStatus{state, std::move(errors)};
+    {
+      std::lock_guard<std::mutex> lock(m_statusMutex);
+      m_status = HostStatus{state, std::move(errors)};
+    }
+    m_changes.bump();
   }
 
 
@@ -490,24 +493,32 @@ namespace Aurora::Runtime
 
   void PipelineHost::setCondition(const std::string& source, const std::string& message)
   {
-    std::lock_guard<std::mutex> lock(m_conditionsMutex);
-    for(HostCondition& condition : m_conditions){
-      if(condition.source == source){
-        condition.message = message;
-        return;
+    {
+      std::lock_guard<std::mutex> lock(m_conditionsMutex);
+      bool found = false;
+      for(HostCondition& condition : m_conditions){
+        if(condition.source == source){
+          condition.message = message;
+          found = true;
+          break;
+        }
       }
+      if(!found){ m_conditions.push_back({source, message}); }
     }
-    m_conditions.push_back({source, message});
+    m_changes.bump();
   }
 
 
   bool PipelineHost::clearCondition(const std::string& source)
   {
-    std::lock_guard<std::mutex> lock(m_conditionsMutex);
-    const auto removed = std::remove_if(m_conditions.begin(), m_conditions.end(),
-      [&](const HostCondition& c){ return c.source == source; });
-    if(removed == m_conditions.end()){ return false; }
-    m_conditions.erase(removed, m_conditions.end());
+    {
+      std::lock_guard<std::mutex> lock(m_conditionsMutex);
+      const auto removed = std::remove_if(m_conditions.begin(), m_conditions.end(),
+        [&](const HostCondition& c){ return c.source == source; });
+      if(removed == m_conditions.end()){ return false; }
+      m_conditions.erase(removed, m_conditions.end());
+    }
+    m_changes.bump();
     return true;
   }
 

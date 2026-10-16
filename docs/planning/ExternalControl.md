@@ -197,6 +197,8 @@ in parallel, then 2, 4, 5, 6.
   platform, Wayland no-dialog resume, Mac indicator clears.
 
 ### Phase 2 — state, then events
+Status: state shipped (Aurora-5ipy.2), events stream built 2026-10-16 (Aurora-5ipy.3,
+[[5ipy3-events-sse-stream]]), awaiting commit. Aurora-cgr still open.
 - `GET /api/state` first (polling works). Aurora-kea builds its minimal
   form (`paused` + `usesVideoInput`/`usesAudioInput`/`samplesZones`/
   `audioDevicesUrl`, owner-approved 2026-10-03); this phase adds mode,

@@ -846,6 +846,7 @@ if(!instanceLock.held()){
   Aurora::Runtime::registerMonitorsRoute(httpServer, pipelineHost);
   Aurora::Runtime::registerReloadRoute(httpServer, pipelineHost, registry, configRoot);
   Aurora::Runtime::registerStateRoute(httpServer, pipelineHost, registry, configRoot);
+  Aurora::Runtime::registerEventsRoute(httpServer, pipelineHost, configRoot);
   Aurora::Runtime::registerNodesRoute(httpServer);
   Aurora::Runtime::registerGraphRoute(httpServer, pipelineHost);
   Aurora::Runtime::registerDevErrorsRoute(httpServer, pipelineHost);

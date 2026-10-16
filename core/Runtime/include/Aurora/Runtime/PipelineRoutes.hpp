@@ -1,5 +1,6 @@
 #pragma once
 
+#include <chrono>
 #include <filesystem>
 
 namespace Aurora::Network::Http::Server { class HttpServer; }
@@ -64,6 +65,24 @@ namespace Aurora::Runtime
     PipelineHost& pipelineHost,
     const Registry& registry,
     const std::filesystem::path& configRoot
+  );
+
+  // GET /api/events?topics=state,health (Aurora-5ipy.3): one text/event-stream
+  // for every live topic (browsers cap ~6 connections per host), default all.
+  // Each event is "event: <topic>\ndata: <json>\n\n"; unknown topics are
+  // ignored. "state" carries exactly the GET /api/state document and "health"
+  // its {"errors", "conditions"} part, each sent first on connect (so clients
+  // can skip the GET and nothing is lost between GET and subscribe), then
+  // again only when it changed. A ": ping" comment every `heartbeat` makes a
+  // dead client's write fail so it frees its worker. Streams past the
+  // server's cap answer 503 {"error": "too_many_streams"}. Changes are
+  // pushed by PipelineHost::changes(), never from the tick loop; brightness
+  // is re-read from config.json about once a second.
+  void registerEventsRoute(
+    Aurora::Network::Http::Server::HttpServer& server,
+    PipelineHost& pipelineHost,
+    const std::filesystem::path& configRoot,
+    std::chrono::milliseconds heartbeat = std::chrono::seconds(15)
   );
 
   // POST /api/dev/errors {"source": string, "message": string} (dev-only):
