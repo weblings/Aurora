@@ -647,10 +647,11 @@ TEST_CASE("Monitors and reload routes answer from PipelineHost", "[PipelineRoute
   HttpServer server;
   registerMonitorsRoute(server, host);
   registerReloadRoute(server, host, registry, dir.path);
-  REQUIRE(server.bind("127.0.0.1", 18260));
+  const int port = server.bindToAnyPort("127.0.0.1");
+  REQUIRE(port > 0);
   std::thread serverThread([&](){ server.listen(); });
 
-  httplib::Client client("127.0.0.1", 18260);
+  httplib::Client client("127.0.0.1", port);
 
   // No pipeline yet: an empty list, not an error.
   auto empty = getWithRetry(client, "/api/monitors");
@@ -808,10 +809,11 @@ TEST_CASE("PUT /api/state pauses and resumes, idempotently (Aurora-3ddb)", "[Pip
 
   HttpServer server;
   registerStateRoute(server, host, registry, dir.path);
-  REQUIRE(server.bind("127.0.0.1", 18261));
+  const int port = server.bindToAnyPort("127.0.0.1");
+  REQUIRE(port > 0);
   std::thread serverThread([&](){ server.listen(); });
 
-  httplib::Client client("127.0.0.1", 18261);
+  httplib::Client client("127.0.0.1", port);
   auto put = [&](const std::string& body){ return client.Put("/api/state", body, "application/json"); };
 
   for(int i = 0; i < 2; ++i){
@@ -931,10 +933,11 @@ TEST_CASE("GET /api/state reports paused and the running pipeline's capabilities
 
   HttpServer server;
   registerStateRoute(server, host, registry, dir.path);
-  REQUIRE(server.bind("127.0.0.1", 18240));
+  const int port = server.bindToAnyPort("127.0.0.1");
+  REQUIRE(port > 0);
   std::thread serverThread([&](){ server.listen(); });
 
-  httplib::Client client("127.0.0.1", 18240);
+  httplib::Client client("127.0.0.1", port);
   auto state = [&](){
     auto result = getWithRetry(client, "/api/state");
     REQUIRE(result);
@@ -995,10 +998,11 @@ TEST_CASE("GET /api/state reports effect and source, kept through pause (Aurora-
 
   HttpServer server;
   registerStateRoute(server, host, registry, dir.path);
-  REQUIRE(server.bind("127.0.0.1", 18242));
+  const int port = server.bindToAnyPort("127.0.0.1");
+  REQUIRE(port > 0);
   std::thread serverThread([&](){ server.listen(); });
 
-  httplib::Client client("127.0.0.1", 18242);
+  httplib::Client client("127.0.0.1", port);
   auto state = [&](){
     auto result = getWithRetry(client, "/api/state");
     REQUIRE(result);
@@ -1059,10 +1063,11 @@ TEST_CASE("GET /api/state reports a null audioDevicesUrl when the build has none
 
   HttpServer server;
   registerStateRoute(server, host, registry, dir.path);
-  REQUIRE(server.bind("127.0.0.1", 18241));
+  const int port = server.bindToAnyPort("127.0.0.1");
+  REQUIRE(port > 0);
   std::thread serverThread([&](){ server.listen(); });
 
-  httplib::Client client("127.0.0.1", 18241);
+  httplib::Client client("127.0.0.1", port);
   auto result = getWithRetry(client, "/api/state");
   REQUIRE(result);
   CHECK(nlohmann::json::parse(result->body)["audioDevicesUrl"].is_null());
@@ -1431,10 +1436,11 @@ TEST_CASE("PUT /api/state on a failed host: running:true retries, running:false 
 
   HttpServer server;
   registerStateRoute(server, host, registry, dir.path);
-  REQUIRE(server.bind("127.0.0.1", 18263));
+  const int port = server.bindToAnyPort("127.0.0.1");
+  REQUIRE(port > 0);
   std::thread serverThread([&](){ server.listen(); });
 
-  httplib::Client client("127.0.0.1", 18263);
+  httplib::Client client("127.0.0.1", port);
   auto put = [&](const std::string& body){ return client.Put("/api/state", body, "application/json"); };
   auto get = [&](){
     auto result = getWithRetry(client, "/api/state");
@@ -1496,10 +1502,11 @@ TEST_CASE("POST /api/state/dismiss removes a running host's held error by source
 
   HttpServer server;
   registerStateRoute(server, host, registry, dir.path);
-  REQUIRE(server.bind("127.0.0.1", 18244));
+  const int port = server.bindToAnyPort("127.0.0.1");
+  REQUIRE(port > 0);
   std::thread serverThread([&](){ server.listen(); });
 
-  httplib::Client client("127.0.0.1", 18244);
+  httplib::Client client("127.0.0.1", port);
   auto get = [&](){
     auto result = getWithRetry(client, "/api/state");
     REQUIRE(result);
@@ -1554,10 +1561,11 @@ TEST_CASE("PUT /api/state on an idle host: running:true is a no-op, running:fals
 
   HttpServer server;
   registerStateRoute(server, host, registry, dir.path);
-  REQUIRE(server.bind("127.0.0.1", 18243));
+  const int port = server.bindToAnyPort("127.0.0.1");
+  REQUIRE(port > 0);
   std::thread serverThread([&](){ server.listen(); });
 
-  httplib::Client client("127.0.0.1", 18243);
+  httplib::Client client("127.0.0.1", port);
   auto put = [&](const std::string& body){ return client.Put("/api/state", body, "application/json"); };
 
   auto run = put(R"({"running":true})");
@@ -1592,10 +1600,11 @@ TEST_CASE("PUT /api/zones answers 409 while paused and GET still lists zones (Au
     },
     [&host]{ return host.isPaused(); }
   );
-  REQUIRE(server.bind("127.0.0.1", 18229));
+  const int port = server.bindToAnyPort("127.0.0.1");
+  REQUIRE(port > 0);
   std::thread serverThread([&](){ server.listen(); });
 
-  httplib::Client client("127.0.0.1", 18229);
+  httplib::Client client("127.0.0.1", port);
   auto live = getWithRetry(client, "/api/zones");
   REQUIRE(live);
   auto liveJson = nlohmann::json::parse(live->body);
@@ -1636,7 +1645,8 @@ TEST_CASE("Concurrent settings PUTs run one at a time and none is lost (Aurora-d
     ++calls;
     return {};
   });
-  REQUIRE(server.bind("127.0.0.1", 18262));
+  const int port = server.bindToAnyPort("127.0.0.1");
+  REQUIRE(port > 0);
   std::thread serverThread([&](){ server.listen(); });
 
   // Each PUT patches a different field, so a lost update shows as a field
@@ -1653,7 +1663,7 @@ TEST_CASE("Concurrent settings PUTs run one at a time and none is lost (Aurora-d
   };
 
   {
-    httplib::Client probe("127.0.0.1", 18262);
+    httplib::Client probe("127.0.0.1", port);
     REQUIRE(getWithRetry(probe, "/api/config"));
   }
 
@@ -1663,7 +1673,7 @@ TEST_CASE("Concurrent settings PUTs run one at a time and none is lost (Aurora-d
   std::vector<std::thread> clients;
   for(const auto& [field, value] : patches){
     clients.emplace_back([&, field = field, value = value]{
-      httplib::Client client("127.0.0.1", 18262);
+      httplib::Client client("127.0.0.1", port);
       auto response = client.Put("/api/config", nlohmann::json{{field, value}}.dump(), "application/json");
       if(response && response->status == 200){ ++succeeded; }
     });
@@ -2019,10 +2029,11 @@ TEST_CASE("POST /api/dev/errors injects and removes generic host errors only whe
     ScopedDevErrorsEnv env(false);
     HttpServer server;
     registerDevErrorsRoute(server, host);
-    REQUIRE(server.bind("127.0.0.1", 18246));
+    const int port = server.bindToAnyPort("127.0.0.1");
+  REQUIRE(port > 0);
     std::thread serverThread([&](){ server.listen(); });
 
-    httplib::Client client("127.0.0.1", 18246);
+    httplib::Client client("127.0.0.1", port);
     auto res = client.Post("/api/dev/errors", R"({"source":"dev-1","message":"boom"})", "application/json");
     REQUIRE(res);
     CHECK(res->status == 404);
@@ -2045,10 +2056,11 @@ TEST_CASE("POST /api/dev/errors injects and removes generic host errors only whe
     HttpServer server;
     registerStateRoute(server, host, registry, dir.path);
     registerDevErrorsRoute(server, host);
-    REQUIRE(server.bind("127.0.0.1", 18246));
+    const int port = server.bindToAnyPort("127.0.0.1");
+  REQUIRE(port > 0);
     std::thread serverThread([&](){ server.listen(); });
 
-    httplib::Client client("127.0.0.1", 18246);
+    httplib::Client client("127.0.0.1", port);
     auto set = [&](const std::string& source, const std::string& message){
       return client.Post("/api/dev/errors", nlohmann::json{{"source", source}, {"message", message}}.dump(), "application/json");
     };
@@ -2103,10 +2115,11 @@ TEST_CASE("POST /api/dev/errors injects and removes generic host errors only whe
     ScopedDevErrorsEnv env(true);
     HttpServer server;
     registerDevErrorsRoute(server, host);
-    REQUIRE(server.bind("127.0.0.1", 18246));
+    const int port = server.bindToAnyPort("127.0.0.1");
+  REQUIRE(port > 0);
     std::thread serverThread([&](){ server.listen(); });
 
-    httplib::Client client("127.0.0.1", 18246);
+    httplib::Client client("127.0.0.1", port);
     auto res = client.Post("/api/dev/errors", R"({"source":"dev-1","message":"boom"})", "application/json");
     REQUIRE(res);
     CHECK(res->status == 409);
@@ -2174,10 +2187,11 @@ TEST_CASE("GET /api/nodes serves every registered node and rejects a forged Host
 
   HttpServer server;
   registerNodesRoute(server);
-  REQUIRE(server.bind("127.0.0.1", 18247));
+  const int port = server.bindToAnyPort("127.0.0.1");
+  REQUIRE(port > 0);
   std::thread serverThread([&](){ server.listen(); });
 
-  httplib::Client client("127.0.0.1", 18247);
+  httplib::Client client("127.0.0.1", port);
   auto res = client.Get("/api/nodes");
   REQUIRE(res);
   CHECK(res->status == 200);
@@ -2252,10 +2266,11 @@ TEST_CASE("GET /api/graph serves the running graph, null when none runs (Aurora-
 
   HttpServer server;
   registerGraphRoute(server, host);
-  REQUIRE(server.bind("127.0.0.1", 18248));
+  const int port = server.bindToAnyPort("127.0.0.1");
+  REQUIRE(port > 0);
   std::thread serverThread([&](){ server.listen(); });
 
-  httplib::Client client("127.0.0.1", 18248);
+  httplib::Client client("127.0.0.1", port);
   auto res = client.Get("/api/graph");
   REQUIRE(res);
   CHECK(res->status == 200);

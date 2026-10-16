@@ -848,3 +848,18 @@ command, including later `sed` lines, never ran. No files were created.
 **Fix:** write source files with the Write tool and keep Bash for short
 commands. After a failed compound command, `git status` before assuming any
 step happened.
+
+---
+
+## Server tests bind OS-assigned ports, never literals, or parallel ctest collides
+Tags: ctest, catch2, parallel, ports, flaky
+Applies-when: writing a test that starts an HttpServer or any listener
+
+Aurora-vv46: `catch_discover_tests` runs each test case as its own process,
+so under `ctest -j8` two cases with the same hard-coded port race on bind and
+one fails at random. Unique literals (the first fix) only hold until the next
+test reuses a number.
+
+**Fix (Aurora-lby1):** `const int port = server.bindToAnyPort("127.0.0.1");`
+then build the client from `port`. Port literals left in `Host`/`Origin`
+header strings are fine: the allowlist and Origin check ignore the port.

@@ -65,11 +65,12 @@ TEST_CASE("HttpServer serves a registered route on its own thread", "[HttpServer
     res.body = "world";
   });
 
-  REQUIRE(server.bind("127.0.0.1", 18215));
+  const int port = server.bindToAnyPort("127.0.0.1");
+  REQUIRE(port > 0);
 
   std::thread serverThread([&](){ server.listen(); });
 
-  httplib::Client client("127.0.0.1", 18215);
+  httplib::Client client("127.0.0.1", port);
   auto result = getWithRetry(client, "/hello");
 
   REQUIRE(result);
@@ -89,11 +90,12 @@ TEST_CASE("HttpServer reads a request body and path params into the plain Reques
     res.body = "{\"name\":\"" + req.pathParams.at("name") + "\",\"body\":\"" + req.body + "\"}";
   });
 
-  REQUIRE(server.bind("127.0.0.1", 18216));
+  const int port = server.bindToAnyPort("127.0.0.1");
+  REQUIRE(port > 0);
 
   std::thread serverThread([&](){ server.listen(); });
 
-  httplib::Client client("127.0.0.1", 18216);
+  httplib::Client client("127.0.0.1", port);
   httplib::Result result;
   for(int attempt = 0; attempt < 50; ++attempt){
     result = client.Put("/echo/zone1", "hi", "text/plain");
@@ -120,11 +122,12 @@ TEST_CASE("HttpServer's serveStaticFiles answers a request path with the matchin
   HttpServer server;
   server.serveStaticFiles(webroot.path);
 
-  REQUIRE(server.bind("127.0.0.1", 18217));
+  const int port = server.bindToAnyPort("127.0.0.1");
+  REQUIRE(port > 0);
 
   std::thread serverThread([&](){ server.listen(); });
 
-  httplib::Client client("127.0.0.1", 18217);
+  httplib::Client client("127.0.0.1", port);
   auto result = getWithRetry(client, "/app.js");
 
   REQUIRE(result);
@@ -144,11 +147,12 @@ TEST_CASE("HttpServer's serveEmbeddedFiles answers paths with matching entries a
   HttpServer server;
   server.serveEmbeddedFiles(files);
 
-  REQUIRE(server.bind("127.0.0.1", 18218));
+  const int port = server.bindToAnyPort("127.0.0.1");
+  REQUIRE(port > 0);
 
   std::thread serverThread([&](){ server.listen(); });
 
-  httplib::Client client("127.0.0.1", 18218);
+  httplib::Client client("127.0.0.1", port);
 
   auto js = getWithRetry(client, "/app.js");
   REQUIRE(js);
@@ -179,11 +183,12 @@ TEST_CASE("HttpServer's serveEmbeddedFiles serves a GIF as image/gif with its by
   HttpServer server;
   server.serveEmbeddedFiles(files);
 
-  REQUIRE(server.bind("127.0.0.1", 18222));
+  const int port = server.bindToAnyPort("127.0.0.1");
+  REQUIRE(port > 0);
 
   std::thread serverThread([&](){ server.listen(); });
 
-  httplib::Client client("127.0.0.1", 18222);
+  httplib::Client client("127.0.0.1", port);
   auto result = getWithRetry(client, "/icons/MacTray.gif");
 
   REQUIRE(result);
@@ -204,11 +209,12 @@ TEST_CASE("HttpServer's serveStaticFiles serves a GIF as image/gif", "[HttpServe
   HttpServer server;
   server.serveStaticFiles(webroot.path);
 
-  REQUIRE(server.bind("127.0.0.1", 18223));
+  const int port = server.bindToAnyPort("127.0.0.1");
+  REQUIRE(port > 0);
 
   std::thread serverThread([&](){ server.listen(); });
 
-  httplib::Client client("127.0.0.1", 18223);
+  httplib::Client client("127.0.0.1", port);
   auto result = getWithRetry(client, "/tip.gif");
 
   REQUIRE(result);
@@ -230,11 +236,12 @@ TEST_CASE("HttpServer's serveEmbeddedFiles answers / with index.html and 404s un
   HttpServer server;
   server.serveEmbeddedFiles(files);
 
-  REQUIRE(server.bind("127.0.0.1", 18219));
+  const int port = server.bindToAnyPort("127.0.0.1");
+  REQUIRE(port > 0);
 
   std::thread serverThread([&](){ server.listen(); });
 
-  httplib::Client client("127.0.0.1", 18219);
+  httplib::Client client("127.0.0.1", port);
 
   auto root = getWithRetry(client, "/");
   REQUIRE(root);
@@ -264,11 +271,12 @@ TEST_CASE("HttpServer's API routes win ties over serveEmbeddedFiles entries", "[
   });
   server.serveEmbeddedFiles(files);
 
-  REQUIRE(server.bind("127.0.0.1", 18220));
+  const int port = server.bindToAnyPort("127.0.0.1");
+  REQUIRE(port > 0);
 
   std::thread serverThread([&](){ server.listen(); });
 
-  httplib::Client client("127.0.0.1", 18220);
+  httplib::Client client("127.0.0.1", port);
   auto result = getWithRetry(client, "/app.js");
 
   REQUIRE(result);
@@ -295,11 +303,12 @@ TEST_CASE("HttpServer's serveEmbeddedFilesAt serves a map under its prefix with 
   HttpServer server;
   server.serveEmbeddedFilesAt("/graph-editor/", files);
 
-  REQUIRE(server.bind("127.0.0.1", 18224));
+  const int port = server.bindToAnyPort("127.0.0.1");
+  REQUIRE(port > 0);
 
   std::thread serverThread([&](){ server.listen(); });
 
-  httplib::Client client("127.0.0.1", 18224);
+  httplib::Client client("127.0.0.1", port);
 
   auto index = getWithRetry(client, "/graph-editor/");
   REQUIRE(index);
@@ -354,11 +363,12 @@ TEST_CASE("HttpServer's serveEmbeddedFilesAt works alongside serveStaticFiles", 
   server.serveStaticFiles(webroot.path);
   server.serveEmbeddedFilesAt("/graph-editor", {{"index.html", "editor"}});
 
-  REQUIRE(server.bind("127.0.0.1", 18225));
+  const int port = server.bindToAnyPort("127.0.0.1");
+  REQUIRE(port > 0);
 
   std::thread serverThread([&](){ server.listen(); });
 
-  httplib::Client client("127.0.0.1", 18225);
+  httplib::Client client("127.0.0.1", port);
 
   auto staticFile = getWithRetry(client, "/app.js");
   REQUIRE(staticFile);
@@ -381,11 +391,12 @@ TEST_CASE("HttpServer's serveEmbeddedFilesAt wins over the root serveEmbeddedFil
   server.serveEmbeddedFiles({{"index.html", "root"}, {"graph-editor/index.html", "root copy"}});
   server.serveEmbeddedFilesAt("graph-editor", {{"index.html", "editor"}});
 
-  REQUIRE(server.bind("127.0.0.1", 18226));
+  const int port = server.bindToAnyPort("127.0.0.1");
+  REQUIRE(port > 0);
 
   std::thread serverThread([&](){ server.listen(); });
 
-  httplib::Client client("127.0.0.1", 18226);
+  httplib::Client client("127.0.0.1", port);
 
   auto root = getWithRetry(client, "/");
   REQUIRE(root);
@@ -417,11 +428,12 @@ TEST_CASE("HttpServer rejects cross-origin writes but allows same-origin and hea
     res.body = "read";
   });
 
-  REQUIRE(server.bind("127.0.0.1", 18227));
+  const int port = server.bindToAnyPort("127.0.0.1");
+  REQUIRE(port > 0);
 
   std::thread serverThread([&](){ server.listen(); });
 
-  httplib::Client client("127.0.0.1", 18227);
+  httplib::Client client("127.0.0.1", port);
   auto putWithOrigin = [&](const char* origin){
     httplib::Result result;
     httplib::Headers headers;
@@ -497,11 +509,12 @@ TEST_CASE("HttpServer Host allowlist rejects forged hostnames and admits literal
   server.serveEmbeddedFiles({{"index.html", "root"}});
   server.setExtraAllowedHosts({"aurora.example.test"});
 
-  REQUIRE(server.bind("127.0.0.1", 18228));
+  const int port = server.bindToAnyPort("127.0.0.1");
+  REQUIRE(port > 0);
 
   std::thread serverThread([&](){ server.listen(); });
 
-  httplib::Client client("127.0.0.1", 18228);
+  httplib::Client client("127.0.0.1", port);
   auto statusFor = [&](const std::string& host, const char* path = "/thing"){
     for(int attempt = 0; attempt < 50; ++attempt){
       auto result = client.Get(path, {{"Host", host}});

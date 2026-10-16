@@ -400,6 +400,12 @@ namespace Aurora::Network::Http::Server
     }
 
 
+    int bindToAnyPort(const std::string& boundAddress)
+    {
+      return m_service->bind_to_any_port(boundAddress);
+    }
+
+
     bool listen()
     {
       if(!m_service){

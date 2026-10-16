@@ -18,10 +18,7 @@ namespace Aurora::Network::Http::Server
   }
 
 
-  bool HttpServer::bind(
-    const std::string& boundAddress,
-    unsigned port
-  )
+  void HttpServer::makeImpl()
   {
     std::vector<std::string> allowedHosts = m_extraAllowedHosts;
     if(const char* env = std::getenv("AURORA_ALLOWED_HOSTS")){
@@ -32,8 +29,23 @@ namespace Aurora::Network::Http::Server
     }
 
     m_httpServerImpl = std::make_unique<Impl>(m_routes, m_staticDir, m_embeddedFiles, m_prefixedEmbeddedFiles, allowedHosts);
+  }
 
+
+  bool HttpServer::bind(
+    const std::string& boundAddress,
+    unsigned port
+  )
+  {
+    makeImpl();
     return m_httpServerImpl->bind(boundAddress, port);
+  }
+
+
+  int HttpServer::bindToAnyPort(const std::string& boundAddress)
+  {
+    makeImpl();
+    return m_httpServerImpl->bindToAnyPort(boundAddress);
   }
 
 

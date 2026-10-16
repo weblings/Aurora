@@ -35,6 +35,10 @@ namespace Aurora::Network::Http::Server
       unsigned port
     );
 
+    // Binds an OS-assigned free port and returns it, or -1 on failure.
+    // Tests use it so parallel ctest processes never collide (Aurora-lby1).
+    int bindToAnyPort(const std::string& boundAddress);
+
     bool listen();
 
     bool stop();
@@ -77,6 +81,8 @@ namespace Aurora::Network::Http::Server
     void setExtraAllowedHosts(std::vector<std::string> hosts);
 
   private:
+    void makeImpl();
+
     std::unique_ptr<Impl> m_httpServerImpl;
     std::vector<Route> m_routes;
     std::optional<std::filesystem::path> m_staticDir;
