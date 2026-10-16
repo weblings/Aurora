@@ -647,10 +647,10 @@ TEST_CASE("Monitors and reload routes answer from PipelineHost", "[PipelineRoute
   HttpServer server;
   registerMonitorsRoute(server, host);
   registerReloadRoute(server, host, registry, dir.path);
-  REQUIRE(server.bind("127.0.0.1", 18227));
+  REQUIRE(server.bind("127.0.0.1", 18260));
   std::thread serverThread([&](){ server.listen(); });
 
-  httplib::Client client("127.0.0.1", 18227);
+  httplib::Client client("127.0.0.1", 18260);
 
   // No pipeline yet: an empty list, not an error.
   auto empty = getWithRetry(client, "/api/monitors");
@@ -808,10 +808,10 @@ TEST_CASE("PUT /api/state pauses and resumes, idempotently (Aurora-3ddb)", "[Pip
 
   HttpServer server;
   registerStateRoute(server, host, registry, dir.path);
-  REQUIRE(server.bind("127.0.0.1", 18228));
+  REQUIRE(server.bind("127.0.0.1", 18261));
   std::thread serverThread([&](){ server.listen(); });
 
-  httplib::Client client("127.0.0.1", 18228);
+  httplib::Client client("127.0.0.1", 18261);
   auto put = [&](const std::string& body){ return client.Put("/api/state", body, "application/json"); };
 
   for(int i = 0; i < 2; ++i){
@@ -1431,10 +1431,10 @@ TEST_CASE("PUT /api/state on a failed host: running:true retries, running:false 
 
   HttpServer server;
   registerStateRoute(server, host, registry, dir.path);
-  REQUIRE(server.bind("127.0.0.1", 18242));
+  REQUIRE(server.bind("127.0.0.1", 18263));
   std::thread serverThread([&](){ server.listen(); });
 
-  httplib::Client client("127.0.0.1", 18242);
+  httplib::Client client("127.0.0.1", 18263);
   auto put = [&](const std::string& body){ return client.Put("/api/state", body, "application/json"); };
   auto get = [&](){
     auto result = getWithRetry(client, "/api/state");
@@ -1636,7 +1636,7 @@ TEST_CASE("Concurrent settings PUTs run one at a time and none is lost (Aurora-d
     ++calls;
     return {};
   });
-  REQUIRE(server.bind("127.0.0.1", 18228));
+  REQUIRE(server.bind("127.0.0.1", 18262));
   std::thread serverThread([&](){ server.listen(); });
 
   // Each PUT patches a different field, so a lost update shows as a field
@@ -1653,7 +1653,7 @@ TEST_CASE("Concurrent settings PUTs run one at a time and none is lost (Aurora-d
   };
 
   {
-    httplib::Client probe("127.0.0.1", 18228);
+    httplib::Client probe("127.0.0.1", 18262);
     REQUIRE(getWithRetry(probe, "/api/config"));
   }
 
@@ -1663,7 +1663,7 @@ TEST_CASE("Concurrent settings PUTs run one at a time and none is lost (Aurora-d
   std::vector<std::thread> clients;
   for(const auto& [field, value] : patches){
     clients.emplace_back([&, field = field, value = value]{
-      httplib::Client client("127.0.0.1", 18228);
+      httplib::Client client("127.0.0.1", 18262);
       auto response = client.Put("/api/config", nlohmann::json{{field, value}}.dump(), "application/json");
       if(response && response->status == 200){ ++succeeded; }
     });
