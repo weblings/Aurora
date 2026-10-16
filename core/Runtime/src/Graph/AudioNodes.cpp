@@ -8,6 +8,7 @@
 #include <unordered_map>
 #include <vector>
 
+#include <Aurora/Processing/AudioBandAnalyzer.hpp>
 #include <Aurora/Processing/AudioFeatureExtractor.hpp>
 #include <Aurora/Processing/AudioProcessing.hpp>
 #include <Aurora/Runtime/AudioFrameCompositor.hpp>
@@ -151,6 +152,62 @@ namespace Aurora::Runtime::Graph
       std::vector<PortDecl> m_out{kFeatureOutputs};
       std::unique_ptr<Processing::AudioProcessing::AudioFeatureExtractor> m_extractor{};
     };
+
+    // audio.bands: bass/mid/treble band RMS from the buffer. Holds the last
+    // levels while the first window fills; Absent when the buffer is empty.
+    class AudioBandsNode : public INode
+    {
+    public:
+      const std::vector<PortDecl>& inputPorts() const override { return m_in; }
+      const std::vector<PortDecl>& outputPorts() const override { return m_out; }
+
+      void evaluate(
+        const EvalContext& ctx,
+        float,
+        std::unordered_map<std::string, GraphValue>& outputs) override
+      {
+        const Contracts::AudioBuffer& buffer = ctx.input<Contracts::AudioBuffer>("buffer");
+        if(buffer.samples.empty()){
+          for(const PortDecl& port : m_out){
+            outputs.emplace(port.name, Absent{});
+          }
+          return;
+        }
+        float bassMaxHz = ctx.param<float>("bassMaxHz");
+        float trebleMinHz = ctx.param<float>("trebleMinHz");
+        if(trebleMinHz < bassMaxHz){
+          ctx.fail("needs trebleMinHz >= bassMaxHz");
+        }
+        Processing::AudioProcessing::BandLevels levels = m_analyzer.process(buffer, bassMaxHz, trebleMinHz);
+        outputs.emplace("bass", levels.bass);
+        outputs.emplace("mid", levels.mid);
+        outputs.emplace("treble", levels.treble);
+      }
+
+    private:
+      std::vector<PortDecl> m_in{{"buffer", PortType::AudioBuffer, true}};
+      std::vector<PortDecl> m_out{
+        {"bass", PortType::Float, false},
+        {"mid", PortType::Float, false},
+        {"treble", PortType::Float, false},
+      };
+      Processing::AudioProcessing::AudioBandAnalyzer m_analyzer{};
+    };
+
+    ParamDecl hzParam(std::string name, std::string label, float defaultValue, std::string description)
+    {
+      ParamDecl decl;
+      decl.name = std::move(name);
+      decl.kind = ParamKind::Float;
+      decl.schema.label = std::move(label);
+      decl.schema.min = 20.f;
+      decl.schema.max = 20000.f;
+      decl.schema.step = 10.f;
+      decl.schema.unit = "Hz";
+      decl.schema.defaultValue = defaultValue;
+      decl.description = std::move(description);
+      return decl;
+    }
 
     AudioSettings driftSettingsFrom(const EvalContext& ctx)
     {
@@ -350,6 +407,27 @@ namespace Aurora::Runtime::Graph
         .outputs = kFeatureOutputs,
         .params = {},
         .factory = [] { return std::make_unique<AudioFeaturesNode>(); },
+      });
+
+    registry.registerType(
+      "audio.bands",
+      NodeTypeInfo{
+        .meta =
+          {
+            .purpose = "Bass, mid and treble loudness (band RMS, like audio.features rms) as Float outputs.",
+            .useWhen = "After capture, to drive brightness, color or motion from one frequency range.",
+            .example = "{\"id\": \"bands\", \"type\": \"audio.bands\", \"params\": {\"bassMaxHz\": 250}}",
+            .cost = "moderate",
+          },
+        .inputs = {{"buffer", PortType::AudioBuffer, true}},
+        .outputs =
+          {{"bass", PortType::Float, false},
+           {"mid", PortType::Float, false},
+           {"treble", PortType::Float, false}},
+        .params =
+          {hzParam("bassMaxHz", "Bass ceiling", 250.f, "Upper edge of the bass band; mid starts here."),
+           hzParam("trebleMinHz", "Treble floor", 4000.f, "Lower edge of the treble band; mid ends here.")},
+        .factory = [] { return std::make_unique<AudioBandsNode>(); },
       });
 
     registry.registerType(

@@ -4,8 +4,10 @@
 #include <catch2/catch_test_macros.hpp>
 #include <catch2/matchers/catch_matchers_floating_point.hpp>
 
+#include <cmath>
 #include <memory>
 #include <string>
+#include <vector>
 
 #include <Aurora/Runtime/AudioFrameCompositor.hpp>
 #include <Aurora/Runtime/Graph/AudioNodes.hpp>
@@ -122,6 +124,7 @@ TEST_CASE("audio node types are registered", "[AudioNodes]")
   CHECK(registry.find("audio.features") != nullptr);
   CHECK(registry.find("audio.drift") != nullptr);
   CHECK(registry.find("audio.bounce") != nullptr);
+  CHECK(registry.find("audio.bands") != nullptr);
 }
 
 TEST_CASE("audio.capture emits the buffer, Absent when empty, error without host", "[AudioNodes]")
@@ -420,4 +423,97 @@ TEST_CASE("Audio node descriptors carry full agent metadata", "[AudioNodes]")
     CHECK(!descriptor.example.empty());
     CHECK(!descriptor.cost.empty());
   }
+}
+
+namespace
+{
+  std::vector<float> tone(float hz, size_t count, float amplitude, unsigned rate = 44100)
+  {
+    std::vector<float> samples(count);
+    for(size_t i = 0; i < count; ++i){
+      samples[i] = amplitude * std::sin(2.0f * 3.14159265f * hz * static_cast<float>(i) / static_cast<float>(rate));
+    }
+    return samples;
+  }
+
+  struct Bands
+  {
+    float bass, mid, treble;
+  };
+
+  Bands bandsFor(const std::vector<float>& samples, const char* params = "{}")
+  {
+    NodeRegistry registry = makeAudioRegistry();
+    Aurora::Runtime::Graph::Graph graph = requireGraph(
+      std::string(R"({"version": 1, "nodes": [
+        {"id": "cap", "type": "audio.capture", "params": {}},
+        {"id": "bands", "type": "audio.bands", "params": )") + params + R"(}
+      ], "edges": [["cap.buffer", "bands.buffer"]]})",
+      registry);
+    FakeAudioInput input;
+    input.samples = samples;
+    FakeHost host;
+    host.audio = &input;
+    graph.tick(1.f / 60.f, &host);
+    return {
+      std::get<float>(*graph.portValue("bands", "bass")),
+      std::get<float>(*graph.portValue("bands", "mid")),
+      std::get<float>(*graph.portValue("bands", "treble")),
+    };
+  }
+} // namespace
+
+TEST_CASE("audio.bands puts a synthetic tone's energy in the right band", "[AudioNodes]")
+{
+  // Amplitude 0.8 sine reads 0.8 / sqrt(2) = 0.566 in its own band.
+  const float expected = 0.8f / std::sqrt(2.f);
+
+  Bands low = bandsFor(tone(100.f, 2048, 0.8f));
+  CHECK_THAT(low.bass, Catch::Matchers::WithinRel(expected, 0.05f));
+  CHECK(low.mid < 0.02f);
+  CHECK(low.treble < 0.02f);
+
+  Bands middle = bandsFor(tone(1000.f, 2048, 0.8f));
+  CHECK_THAT(middle.mid, Catch::Matchers::WithinRel(expected, 0.05f));
+  CHECK(middle.bass < 0.02f);
+  CHECK(middle.treble < 0.02f);
+
+  Bands high = bandsFor(tone(8000.f, 2048, 0.8f));
+  CHECK_THAT(high.treble, Catch::Matchers::WithinRel(expected, 0.05f));
+  CHECK(high.bass < 0.02f);
+  CHECK(high.mid < 0.02f);
+}
+
+TEST_CASE("audio.bands edges move with params and silence reads zero", "[AudioNodes]")
+{
+  // 1 kHz is mid by default, bass once bassMaxHz is raised past it.
+  Bands moved = bandsFor(tone(1000.f, 2048, 0.8f), R"({"bassMaxHz": 2000, "trebleMinHz": 6000})");
+  CHECK(moved.bass > 0.5f);
+  CHECK(moved.mid < 0.02f);
+
+  Bands silent = bandsFor(std::vector<float>(2048, 0.f));
+  CHECK(silent.bass == 0.f);
+  CHECK(silent.mid == 0.f);
+  CHECK(silent.treble == 0.f);
+}
+
+TEST_CASE("audio.bands holds zero until a window fills and is Absent without data", "[AudioNodes]")
+{
+  Bands partial = bandsFor(tone(100.f, 256, 0.8f));
+  CHECK(partial.bass == 0.f);
+
+  NodeRegistry registry = makeAudioRegistry();
+  Aurora::Runtime::Graph::Graph graph = requireGraph(
+    R"({"version": 1, "nodes": [
+      {"id": "cap", "type": "audio.capture", "params": {}},
+      {"id": "bands", "type": "audio.bands", "params": {}}
+    ], "edges": [["cap.buffer", "bands.buffer"]]})",
+    registry);
+  FakeAudioInput input;
+  input.hasBuffer = false;
+  FakeHost host;
+  host.audio = &input;
+  graph.tick(1.f / 60.f, &host);
+  REQUIRE(graph.portValue("bands", "bass") != nullptr);
+  CHECK(isAbsent(*graph.portValue("bands", "bass")));
 }
