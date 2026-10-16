@@ -67,6 +67,22 @@ TEST_CASE("built-in Video graph overlays ConfigData and loads", "[BuiltInGraphs]
   CHECK(nodeById(doc, "gain_ha_light").at("params").at("gain") == 0.6f);
 }
 
+TEST_CASE("built-in graphs overlay each output's floor settings (Aurora-4zr.11)", "[BuiltInGraphs]")
+{
+  ConfigData config;
+  config.outputFloors["ha.light"] = {"switchOff", 0.1f, 4.f};
+
+  const std::vector<std::string> outputs{"hue", "ha.light"};
+  nlohmann::json doc = builtInVideoGraph(outputs, videoOverlayFromConfig(config, outputs));
+  CHECK(nodeById(doc, "floor_ha_light").at("params").at("policy") == "switchOff");
+  CHECK(nodeById(doc, "floor_ha_light").at("params").at("floor") == 0.1f);
+  CHECK(nodeById(doc, "floor_ha_light").at("params").at("holdSeconds") == 4.f);
+  CHECK(nodeById(doc, "floor_hue").at("params").at("policy") == "off");
+
+  NodeRegistry registry = videoRegistry();
+  CHECK(loadBuiltInVideoGraph(registry, outputs, config).ok);
+}
+
 TEST_CASE("built-in Video graph rejects an unknown output", "[BuiltInGraphs]")
 {
   NodeRegistry registry = videoRegistry();

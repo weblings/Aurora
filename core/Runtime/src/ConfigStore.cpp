@@ -21,6 +21,38 @@ namespace Aurora::Runtime
     }
 
 
+    Json outputFloorsToJson(const std::map<std::string, OutputFloor>& floors)
+    {
+      Json out = Json::object();
+      for(const auto& [name, floor] : floors){
+        out[name] = {{"policy", floor.policy}, {"floor", floor.floor}, {"holdSeconds", floor.holdSeconds}};
+      }
+      return out;
+    }
+
+    // Lenient like the rest of fromJson: a malformed entry is skipped, and
+    // Config's constructor clamps the values.
+    std::map<std::string, OutputFloor> outputFloorsFromJson(const Json& json)
+    {
+      std::map<std::string, OutputFloor> floors;
+      if(!json.is_object()){
+        return floors;
+      }
+      const OutputFloor defaults;
+      for(const auto& item : json.items()){
+        if(!item.value().is_object()){
+          continue;
+        }
+        OutputFloor floor;
+        floor.policy = item.value().value("policy", defaults.policy);
+        floor.floor = item.value().value("floor", defaults.floor);
+        floor.holdSeconds = item.value().value("holdSeconds", defaults.holdSeconds);
+        floors[item.key()] = floor;
+      }
+      return floors;
+    }
+
+
     Json toJson(const ConfigData& data)
     {
       return Json{
@@ -31,6 +63,7 @@ namespace Aurora::Runtime
         {"interpolation", static_cast<int>(data.interpolation)},
         {"transitionSmoothing", data.transitionSmoothing},
         {"brightness", data.brightness},
+        {"outputFloors", outputFloorsToJson(data.outputFloors)},
         {"activeInputName", data.activeInputName},
         {"activeOutputNames", data.activeOutputNames},
         {"activeMonitorName", data.activeMonitorName},
@@ -69,6 +102,9 @@ namespace Aurora::Runtime
       data.subsampleWidth = json.value("subsampleWidth", defaults.subsampleWidth);
       data.transitionSmoothing = json.value("transitionSmoothing", defaults.transitionSmoothing);
       data.brightness = json.value("brightness", defaults.brightness);
+      if(json.contains("outputFloors")){
+        data.outputFloors = outputFloorsFromJson(json.at("outputFloors"));
+      }
 
       int interpolation = json.value("interpolation", static_cast<int>(defaults.interpolation));
       data.interpolation = (interpolation >= 0 && interpolation <= 2)

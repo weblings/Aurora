@@ -85,7 +85,7 @@ TEST_CASE("AccessGuard rejects a revoked token", "[Pairing]")
   auto request = remoteRequest(HttpMethod::Post, "/api/reload", token);
   REQUIRE(guard.decide(request).result == AccessDecision::Result::Allow);
 
-  REQUIRE(service->revoke(service->devices().front().id));
+  REQUIRE(service->revoke(service->devices().front().id) == PairingService::RevokeResult::Revoked);
   CHECK(guard.decide(request).result == AccessDecision::Result::Unauthorized);
 }
 
@@ -136,9 +136,12 @@ TEST_CASE("PairingService stores only token hashes and survives a restart", "[Pa
     token = service.mintForTest("phone", Scope::Apply);
   }
 
-  std::ifstream file(path);
+  // Scoped: an open handle blocks the store's rename on Windows.
   std::stringstream text;
-  text << file.rdbuf();
+  {
+    std::ifstream file(path);
+    text << file.rdbuf();
+  }
   CHECK(text.str().find(token) == std::string::npos);
   CHECK(text.str().find(sha256Hex(token)) != std::string::npos);
 
@@ -148,12 +151,33 @@ TEST_CASE("PairingService stores only token hashes and survives a restart", "[Pa
   CHECK(device->scope == Scope::Apply);
   CHECK(device->name == "phone");
 
-  REQUIRE(reloaded.revoke(device->id));
+  REQUIRE(reloaded.revoke(device->id) == PairingService::RevokeResult::Revoked);
   PairingService afterRevoke(path);
   CHECK_FALSE(afterRevoke.authenticate(token));
 
   std::filesystem::remove_all(path.parent_path());
 }
+
+
+#ifdef _WIN32
+TEST_CASE("PairingService reports a revoke it could not persist", "[Pairing]")
+{
+  auto path = tempStore("locked");
+  PairingService service(path);
+  std::string token = service.mintForTest("phone", Scope::Apply);
+  std::string id = service.devices().front().id;
+
+  {
+    // Another process (antivirus, backup) holding the store blocks the rename.
+    std::ifstream holder(path);
+    REQUIRE(holder);
+    CHECK(service.revoke(id) == PairingService::RevokeResult::NotPersisted);
+    CHECK_FALSE(service.authenticate(token)); // still revoked in memory
+  }
+
+  std::filesystem::remove_all(path.parent_path());
+}
+#endif
 
 
 TEST_CASE("PairingService treats a corrupt store as no devices", "[Pairing]")

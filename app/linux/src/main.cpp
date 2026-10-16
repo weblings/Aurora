@@ -418,6 +418,8 @@ namespace
           {"inputs", registry.inputNames()},
           {"audioInputs", registry.audioInputNames()},
           {"outputs", outputs},
+          // Outputs where brightness 0 means off; the Dashboard shows the floor control only for these.
+          {"zeroOffOutputs", registry.zeroOffOutputNames()},
           // Literal per app binary, not runtime-detected -- each of
           // app/linux, app/windows, app/mac is already its own platform-
           // specific translation unit. Lets the WebUI show platform-

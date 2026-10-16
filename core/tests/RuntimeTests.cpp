@@ -232,6 +232,27 @@ TEST_CASE("ConfigStore round-trips through a real file and defaults on missing f
 }
 
 
+TEST_CASE("Per-output floor settings persist, clamp and default (Aurora-4zr.11)", "[ConfigStore]")
+{
+  ScopedTempDir dir("config");
+  ConfigStore store(dir.path);
+
+  Config toSave;
+  CHECK(toSave.outputFloor("ha").policy == "off"); // unset output: policy off, node defaults
+  toSave.setOutputFloor("ha", {"switchOff", 0.2f, 5.f});
+  toSave.setOutputFloor("wild", {"bogus", 7.f, -3.f});
+  store.save(toSave);
+
+  Config reloaded = store.load();
+  CHECK(reloaded.outputFloor("ha").policy == "switchOff");
+  CHECK(reloaded.outputFloor("ha").floor == Catch::Approx(0.2f));
+  CHECK(reloaded.outputFloor("ha").holdSeconds == Catch::Approx(5.f));
+  CHECK(reloaded.outputFloor("wild").policy == "off");
+  CHECK(reloaded.outputFloor("wild").floor == 1.f);
+  CHECK(reloaded.outputFloor("wild").holdSeconds == 0.f);
+}
+
+
 TEST_CASE("ConfigStore::update saves only when mutate returns true (Aurora-d6i7)", "[ConfigStore]")
 {
   ScopedTempDir dir("update-semantics");
@@ -357,6 +378,7 @@ TEST_CASE("planConfigChange sorts a change into None, Hot or Reload (Aurora-c0g)
   CHECK(plan([](Config& c){ c.setInterpolation(Interpolation::Type::Nearest); }) == ChangeAction::Hot);
   CHECK(plan([](Config& c){ c.setRefreshRate(60); }) == ChangeAction::Hot);
   CHECK(plan([](Config& c){ c.setSubsampleWidth(96); }) == ChangeAction::Hot);
+  CHECK(plan([](Config& c){ c.setOutputFloor("ha", {"hold", 0.1f, 2.f}); }) == ChangeAction::Hot);
 
   // Audio-side hot fields, in audio mode.
   CHECK(plan([](Config& c){ c.setAudioVibrancyValue(0.5f); }, true) == ChangeAction::Hot);

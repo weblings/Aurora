@@ -40,6 +40,7 @@ function fakeScreen(overrides = {}) {
   inst.paused = false;
   inst.pauseBusy = false;
   inst.canStop = true; // mirrors the constructor default (Aurora-ifkn.3)
+  inst.zeroOffOutputs = []; // mirrors the constructor default (Aurora-4zr.11)
   inst.topTierErrors = {};
   inst.container = { querySelector: (sel) => (sel === '.top-bar-slot' ? slot : makeEl()) };
   inst._renderTopTier = () => {};

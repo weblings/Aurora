@@ -30,6 +30,7 @@ import { screenDivisionRects } from '../ScreenDivision.js';
 import { AccordionSection } from '../AccordionSection.js';
 import { PairedDevices } from '../PairedDevices.js';
 import { TuningFields } from '../TuningFields.js';
+import { sliderGroupHtml, wireSliderGroup } from '../TuningSliderGroup.js';
 import { applyTooltip } from '../Tooltips.js';
 import { renderReloadError } from '../MacPermissionRecovery.js';
 import {
@@ -100,6 +101,7 @@ export class DashboardScreen {
     this.pendingMode = null; // toggle choice with a switch in flight: outlined, not filled
     this.audioDevicesUrl = null;
     this.sinkName = '';
+    this.zeroOffOutputs = []; // outputs where brightness 0 means off: they get the floor control
     this.output = null; // key into OUTPUT_SECTIONS, null when the build's outputs aren't in it
     this.bridgeConfigured = false;
     this.bridgeAddress = '';
@@ -204,6 +206,7 @@ export class DashboardScreen {
     }
 
     this.output = (capabilities.outputs ?? []).find((name) => Object.hasOwn(OUTPUT_SECTIONS, name)) ?? null;
+    this.zeroOffOutputs = capabilities.zeroOffOutputs ?? [];
     this.inputs = capabilities.inputs ?? [];
     this.audioInputs = capabilities.audioInputs ?? [];
     this.platform = capabilities.platform ?? '';
@@ -539,7 +542,58 @@ export class DashboardScreen {
       return;
     }
     entry.render(this, content);
+    this._renderOutputFloor(content);
     this._renderBridgeZoneList();
+  }
+
+  // Black handling for outputs that treat brightness 0 as off (Aurora-4zr.11).
+  // Every edit saves at once like the rest of the Dashboard.
+  _renderOutputFloor(content) {
+    if (this.output === null || !this.zeroOffOutputs.includes(this.output)) return;
+    const saved = this.tuningValues.outputFloors?.[this.output] ?? {};
+    const floor = { policy: saved.policy ?? 'off', floor: saved.floor ?? 0.05, holdSeconds: saved.holdSeconds ?? 2 };
+    const sliders = [
+      ['floor', 'Floor', 0, 1, 0.01, ''],
+      ['holdSeconds', 'Hold time', 0, 60, 0.1, 's'],
+    ];
+    const policies = [['off', 'Off'], ['hold', 'Hold dim'], ['switchOff', 'Switch off']];
+    const wrap = document.createElement('div');
+    wrap.className = 'db-output-floor';
+    wrap.innerHTML = `
+      <p class="field-label">Black handling</p>
+      <div class="segmented" role="group" aria-label="Black handling">
+        ${policies.map(([id, label]) => `<button type="button" class="segmented-btn${floor.policy === id ? ' active' : ''}" data-policy="${id}">${label}</button>`).join('')}
+      </div>
+      <div class="db-floor-sliders"${floor.policy === 'off' ? ' hidden' : ''}>${sliderGroupHtml(sliders.slice(0, floor.policy === 'switchOff' ? 2 : 1), floor)}</div>
+    `;
+    content.appendChild(wrap);
+
+    const save = async () => {
+      try {
+        const result = await (await fetch('/api/config', {
+          method: 'PUT',
+          body: JSON.stringify({ outputFloors: { [this.output]: {
+            policy: floor.policy, floor: Number(floor.floor), holdSeconds: Number(floor.holdSeconds),
+          } } }),
+        })).json();
+        if (!result.succeeded) { this._setTopTierError('outputFloor', "Couldn't save black handling."); return; }
+        this._clearTopTierError('outputFloor');
+        this.tuningValues.outputFloors = { ...this.tuningValues.outputFloors, [this.output]: { ...floor } };
+        if (result.reloadError) this.app.checkNow();
+      } catch {
+        this.app.checkNow();
+      }
+    };
+
+    wireSliderGroup(wrap, sliders.slice(0, floor.policy === 'switchOff' ? 2 : 1), floor, save);
+    for (const button of wrap.querySelectorAll('[data-policy]')) {
+      button.addEventListener('click', async () => {
+        floor.policy = button.dataset.policy;
+        await save();
+        wrap.remove();
+        this._renderOutputFloor(content);
+      });
+    }
   }
 
   // Toggle-sync pair (Aurora-ifkn.5): the canvas embeds the selected

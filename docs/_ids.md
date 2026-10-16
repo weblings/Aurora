@@ -10,6 +10,7 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `3ddb-pause-cli` | [log/2026-10-03-3ddb-pause-cli.md](log/2026-10-03-3ddb-pause-cli.md) | Aurora-3ddb: pause/resume, core and CLI only |
 | `3ono-stale-core-test-tree` | [log/2026-10-02-3ono-stale-core-test-tree.md](log/2026-10-02-3ono-stale-core-test-tree.md) | Aurora-3ono: PipelineTests segfault on Windows was a stale build tree |
 | `3qh-mac-capture-width-hint` | [log/2026-10-01-3qh-mac-capture-width-hint.md](log/2026-10-01-3qh-mac-capture-width-hint.md) | Aurora-3qh: Mac video mode resized full-Retina frames every tick |
+| `4zr11-floor-wiring` | [log/2026-10-16-4zr11-floor-wiring.md](log/2026-10-16-4zr11-floor-wiring.md) | Brightness floor wiring (Aurora-4zr.11) |
 | `5i3-local-api-hardening` | [log/2026-10-02-5i3-local-api-hardening.md](log/2026-10-02-5i3-local-api-hardening.md) | Aurora-5i3: local API hardening before any HA credential exists |
 | `5ipy1-ec0-decisions` | [log/2026-10-16-5ipy1-ec0-decisions.md](log/2026-10-16-5ipy1-ec0-decisions.md) | EC 0: open questions and cross-references (Aurora-5ipy.1) |
 | `5ipy2-state-effect-source` | [log/2026-10-16-5ipy2-state-effect-source.md](log/2026-10-16-5ipy2-state-effect-source.md) | Aurora-5ipy.2: GET /api/state adds effect and source |
@@ -39,6 +40,7 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `d3ec-linux-verification` | [log/2026-10-06-d3ec-linux-verification.md](log/2026-10-06-d3ec-linux-verification.md) | Aurora-d3ec Linux verification (compile, Catch2, live failed-state cycle) |
 | `d3ec-windows-verification` | [log/2026-10-06-d3ec-windows-verification.md](log/2026-10-06-d3ec-windows-verification.md) | Aurora-d3ec Windows verification (compile, Catch2, live failed-state cycle) |
 | `d6i7-config-writer-race` | [log/2026-10-02-d6i7-config-writer-race.md](log/2026-10-02-d6i7-config-writer-race.md) | Aurora-d6i7: config.json writer race (Pipeline::build vs the settings PUT) |
+| `d7s-dashboard-output-section` | [log/2026-10-16-d7s-dashboard-output-section.md](log/2026-10-16-d7s-dashboard-output-section.md) | Dashboard Output section (Aurora-d7s) |
 | `distributed-architecture-plan` | [archive/DistributedArchitecturePlan.md](archive/DistributedArchitecturePlan.md) | Distributed architecture — how far to decompose Input/Processing/Output over a network |
 | `docs-lessons-pain-points` | [archive/DocsAndLessonsPainPoints.md](archive/DocsAndLessonsPainPoints.md) | Docs & lessons: scaling pain points |
 | `dwvu-double-local-network-prompt` | [log/2026-10-08-dwvu-double-local-network-prompt.md](log/2026-10-08-dwvu-double-local-network-prompt.md) | Aurora-dwvu: two Local Network prompts on first Mac launch (closed) |
@@ -127,6 +129,7 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `lzj-embed-and-serving` | [log/2026-10-01-lzj-embed-and-serving.md](log/2026-10-01-lzj-embed-and-serving.md) | Aurora-lzj: toolchain spike investigated, change A (embed + serving) done; HA prep filed |
 | `lzw-github-ci` | [log/2026-10-01-lzw-github-ci.md](log/2026-10-01-lzw-github-ci.md) | Aurora-lzw: GitHub CI unblocked for weblings/Aurora |
 | `m0fy-top-tier-error-owners` | [log/2026-10-07-m0fy-top-tier-error-owners.md](log/2026-10-07-m0fy-top-tier-error-owners.md) | Aurora-m0fy: Dashboard inline errors get one owner per control (closed) |
+| `m4wp-pairing-revoke-persist` | [log/2026-10-16-m4wp-pairing-revoke-persist.md](log/2026-10-16-m4wp-pairing-revoke-persist.md) | Pairing revoke may not persist on Windows (Aurora-m4wp) |
 | `m6pd-close-gate` | [log/2026-10-16-m6pd-close-gate.md](log/2026-10-16-m6pd-close-gate.md) | Pre-commit close gate (Aurora-m6pd) |
 | `mac-audio` | [archive/mac/Audio.md](archive/mac/Audio.md) | macOS audio capture |
 | `mac-notarization` | [planning/mac/Notarization.md](planning/mac/Notarization.md) | macOS Gatekeeper/notarization |

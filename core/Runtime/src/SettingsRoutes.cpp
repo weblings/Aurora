@@ -89,6 +89,16 @@ namespace Aurora::Runtime
     }
 
 
+    nlohmann::json _outputFloorsJson(const Config& config)
+    {
+      nlohmann::json floors = nlohmann::json::object();
+      for(const auto& [name, floor] : config.data().outputFloors){
+        floors[name] = {{"policy", floor.policy}, {"floor", floor.floor}, {"holdSeconds", floor.holdSeconds}};
+      }
+      return floors;
+    }
+
+
     nlohmann::json _toJson(const Config& config)
     {
       return {
@@ -97,6 +107,7 @@ namespace Aurora::Runtime
         {"interpolation", _interpolationName(config.interpolation())},
         {"transitionSmoothing", config.transitionSmoothing()},
         {"brightness", config.brightness()},
+        {"outputFloors", _outputFloorsJson(config)},
         {"activeInputName", config.activeInputName()},
         {"activeOutputNames", config.activeOutputNames()},
         {"activeMonitorName", config.activeMonitorName()},
@@ -136,6 +147,16 @@ namespace Aurora::Runtime
 
       if(body.contains("transitionSmoothing")) config.setTransitionSmoothing(body.at("transitionSmoothing").get<float>());
       if(body.contains("brightness")) config.setBrightness(body.at("brightness").get<float>());
+      if(body.contains("outputFloors")){
+        // Per-output merge: a partial entry keeps the saved values it omits.
+        for(const auto& item : body.at("outputFloors").items()){
+          OutputFloor floor = config.outputFloor(item.key());
+          if(item.value().contains("policy")) floor.policy = item.value().at("policy").get<std::string>();
+          if(item.value().contains("floor")) floor.floor = item.value().at("floor").get<float>();
+          if(item.value().contains("holdSeconds")) floor.holdSeconds = item.value().at("holdSeconds").get<float>();
+          config.setOutputFloor(item.key(), floor);
+        }
+      }
       if(body.contains("activeInputName")) config.setActiveInputName(body.at("activeInputName").get<std::string>());
       if(body.contains("activeOutputNames")) config.setActiveOutputNames(body.at("activeOutputNames").get<std::vector<std::string>>());
       if(body.contains("activeMonitorName")) config.setActiveMonitorName(body.at("activeMonitorName").get<std::string>());

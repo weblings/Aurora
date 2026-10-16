@@ -102,9 +102,27 @@ writes are refused ([[home-assistant-output#local-api-rules]],
   under "Prior art"), held as a long-lived revocable cookie. Adapters get
   bearer tokens through the same flow. Phone WebUI keeps working after
   one pairing.
-- **Layer 3, LAN reads too:** skip until something sensitive is readable.
-  Graph-preview thumbnails would be the first route carrying screen
-  pixels; keep that topic localhost-only or off until an editor subscribes.
+- **Layer 3, LAN reads too (decided 2026-10-16, agent-proposed,
+  owner-approved):** LAN GETs need the `read` scope, matching the
+  [[nodes-agent-ux]] standing decision. Loopback stays trusted. Open: the
+  pairing handshake (`/api/pairing/status`, `/api/pairing/request`), the HA
+  callback and the static WebUI files, so the pairing screen loads. Ships
+  with or after the pairing screen (Aurora-5ipy.6), never before.
+  - Why: `/api/state` and `/api/events` show when someone is watching
+    (occupancy), and `/api/config`, `/api/zones` and `/api/graph` show the
+    whole setup. An unpaired device can also fill the event-stream cap. Every
+    real LAN client pairs anyway, because the WebUI and adapters write.
+  - Patterns: Home Assistant (token on every route but a status probe),
+    Plex (all access once claimed, LAN exemptions an advanced option with a
+    warning), OctoPrint (mandatory since 1.5 after open instances were
+    attacked). Hyperion.ng is the open precedent: `localApiAuth` defaults
+    off, so its whole subnet gets reads and control without a token, and
+    only config and token management need admin. Aurora already chose
+    stricter writes, and open reads beside them would leave `/api/config`
+    readable where Hyperion gates it.
+  - A future opt-in LAN read exemption (Hyperion's `localApiAuth`, Plex's
+    allowed networks) is the escape hatch if a client cannot pair. Not
+    planned.
 - Still plain HTTP: a token is visible to a LAN sniffer. Real fix is LAN
   TLS, the same cert-distribution problem as WebXR
   ([[implementation-plan]] Phase 4).

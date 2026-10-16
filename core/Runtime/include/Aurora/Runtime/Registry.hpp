@@ -39,6 +39,10 @@ namespace Aurora::Runtime
     std::vector<std::string> audioInputNames() const;
     std::vector<std::string> outputNames() const;
 
+    // Registered outputs whose zeroBrightnessMeansOff() is true. Builds each
+    // output once, so call it per request, not per frame.
+    std::vector<std::string> zeroOffOutputNames() const;
+
   private:
     std::unordered_map<std::string, InputFactory> m_inputFactories;
     std::unordered_map<std::string, AudioInputFactory> m_audioInputFactories;

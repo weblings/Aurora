@@ -221,10 +221,10 @@ namespace Aurora::Network::Http::Server
   }
 
 
-  void PairingService::saveLocked()
+  bool PairingService::saveLocked()
   {
     if(m_storePath.empty()){
-      return;
+      return true;
     }
     nlohmann::json devices = nlohmann::json::array();
     for(const auto& [id, device] : m_devices){
@@ -250,7 +250,7 @@ namespace Aurora::Network::Http::Server
       std::ofstream out(temp, std::ios::trunc);
       out << doc.dump(2);
       if(!out){
-        return;
+        return false;
       }
     }
     std::filesystem::rename(temp, m_storePath, ec);
@@ -258,6 +258,7 @@ namespace Aurora::Network::Http::Server
       std::filesystem::remove(m_storePath, ec);
       std::filesystem::rename(temp, m_storePath, ec);
     }
+    return !ec;
   }
 
 
@@ -418,18 +419,17 @@ namespace Aurora::Network::Http::Server
   }
 
 
-  bool PairingService::revoke(const std::string& id)
+  PairingService::RevokeResult PairingService::revoke(const std::string& id)
   {
     std::lock_guard lock(m_mutex);
     auto it = m_devices.find(id);
     if(it == m_devices.end()){
-      return false;
+      return RevokeResult::NotFound;
     }
     m_hashToId.erase(m_idToHash[id]);
     m_idToHash.erase(id);
     m_devices.erase(it);
-    saveLocked();
-    return true;
+    return saveLocked() ? RevokeResult::Revoked : RevokeResult::NotPersisted;
   }
 
 

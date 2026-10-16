@@ -273,6 +273,8 @@ namespace
           {"inputs", registry.inputNames()},
           {"audioInputs", registry.audioInputNames()},
           {"outputs", outputs},
+          // Outputs where brightness 0 means off; the Dashboard shows the floor control only for these.
+          {"zeroOffOutputs", registry.zeroOffOutputNames()},
           // Literal per app binary, not runtime-detected -- see
           // app/linux/src/main.cpp's registerCapabilitiesRoute for why.
           {"platform", "windows"},

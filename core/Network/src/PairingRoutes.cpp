@@ -127,8 +127,18 @@ namespace Aurora::Network::Http::Server
     });
 
     server.addRoute(HttpMethod::Delete, "/api/pairing/devices/:id", [service](const Request& req, Response& res){
-      bool ok = service->revoke(req.pathParams.at("id"));
-      reply(res, ok ? 200 : 404, {{"succeeded", ok}});
+      switch(service->revoke(req.pathParams.at("id"))){
+        case PairingService::RevokeResult::Revoked:
+          reply(res, 200, {{"succeeded", true}});
+          break;
+        case PairingService::RevokeResult::NotFound:
+          reply(res, 404, {{"succeeded", false}});
+          break;
+        case PairingService::RevokeResult::NotPersisted:
+          // Revoked until restart only: tell the admin so they can retry.
+          reply(res, 500, {{"succeeded", false}, {"error", "store_write_failed"}});
+          break;
+      }
     });
   }
 }

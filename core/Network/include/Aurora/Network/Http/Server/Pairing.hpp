@@ -91,7 +91,11 @@ namespace Aurora::Network::Http::Server
     std::optional<PairedDevice> authenticate(const std::string& token);
 
     std::vector<PairedDevice> devices();
-    bool revoke(const std::string& id);
+
+    // NotPersisted: revoked in memory, but the store write failed (Windows
+    // blocks the rename while any handle is open), so a restart would undo it.
+    enum class RevokeResult { Revoked, NotFound, NotPersisted };
+    RevokeResult revoke(const std::string& id);
 
     // Test-only: skips the approval flow.
     std::string mintForTest(const std::string& name, Scope scope);
@@ -112,7 +116,7 @@ namespace Aurora::Network::Http::Server
     std::string mintLocked(const std::string& name, Scope scope);
     void expireLocked();
     void loadLocked();
-    void saveLocked();
+    bool saveLocked();
 
     std::mutex m_mutex;
     std::filesystem::path m_storePath;
