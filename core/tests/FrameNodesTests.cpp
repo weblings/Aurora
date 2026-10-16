@@ -156,6 +156,64 @@ TEST_CASE("frame.gain scales colors, keeps ids and gamma, and is exact at 1 (Aur
   CHECK(run("1")[0].color == Color(200, 100, 50)); // untouched at full brightness
 }
 
+TEST_CASE("frame.floor policies on a credits sequence and gain 0 (Aurora-6v36)", "[FrameNodes]")
+{
+  NodeRegistry registry = makeFrameRegistry();
+  FakeOutput hue("hue");
+  FakeHost host;
+  host.outputs = {{"hue", &hue}};
+
+  auto makeGraph = [&](const char* policy){
+    std::string doc = std::string(R"({"version": 1, "nodes": [
+      {"id": "src", "type": "test.frame", "params": {}},
+      {"id": "dim", "type": "frame.gain", "params": {"gain": 1}},
+      {"id": "keep", "type": "frame.floor", "params": {"policy": ")") + policy +
+      R"(", "floor": 0.1, "holdSeconds": 1}},
+      {"id": "send", "type": "output.send", "params": {"output": "hue"}}
+    ], "edges": [["src.frame", "dim.frame"], ["dim.frame", "keep.frame"], ["keep.frame", "send.frame"]]})";
+    return requireGraph(doc, registry);
+  };
+  // Fake clock: 0.5 s per tick. Credits: orange text step, then black frames.
+  auto run = [&](const char* policy, const std::vector<Color>& colors){
+    hue.sent.clear();
+    Aurora::Runtime::Graph::Graph graph = makeGraph(policy);
+    for(const Color& color : colors){
+      g_source = {{{1, color, 0.4f}}, true};
+      graph.tick(0.5f, &host);
+    }
+    std::vector<Color> out;
+    for(const Frame& frame : hue.sent){ out.push_back(frame[0].color); }
+    return out;
+  };
+  const Color orange(200, 100, 0);
+  const Color black(0, 0, 0);
+  const std::vector<Color> credits{orange, black, black, black, orange, Color(1, 0, 0)};
+
+  CHECK(run("off", credits) == credits); // byte-identical, gamma and ids too
+  CHECK(hue.sent[0][0].gamma == 0.4f);
+
+  // Floor 0.1 -> 26 (25.5 rounds up); hue (255, 128, 0) is kept.
+  const Color held(26, 13, 0);
+  CHECK(run("hold", credits) == std::vector<Color>{orange, held, held, held, orange, Color(26, 0, 0)});
+
+  // Black for >= 1 s switches off; a non-black frame resets the timer.
+  CHECK(run("switchOff", credits) == std::vector<Color>{orange, held, black, black, orange, Color(26, 0, 0)});
+
+  // Gain 0 is exact black, so it follows the same rule as a black scene.
+  g_source = {{{1, orange}}, true};
+  std::string zeroDoc = R"({"version": 1, "nodes": [
+    {"id": "src", "type": "test.frame", "params": {}},
+    {"id": "dim", "type": "frame.gain", "params": {"gain": 0}},
+    {"id": "keep", "type": "frame.floor", "params": {"policy": "hold", "floor": 0.1}},
+    {"id": "send", "type": "output.send", "params": {"output": "hue"}}
+  ], "edges": [["src.frame", "dim.frame"], ["dim.frame", "keep.frame"], ["keep.frame", "send.frame"]]})";
+  hue.sent.clear();
+  Aurora::Runtime::Graph::Graph zero = requireGraph(zeroDoc, registry);
+  zero.tick(0.5f, &host);
+  REQUIRE(hue.sent.size() == 1);
+  CHECK(hue.sent[0][0].color == Color(26, 26, 26)); // no hue seen yet: gray floor
+}
+
 TEST_CASE("loader rejects two output.send nodes bound to one output (Aurora-cwos)", "[FrameNodes]")
 {
   NodeRegistry registry = makeFrameRegistry();

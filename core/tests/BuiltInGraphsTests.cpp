@@ -54,8 +54,8 @@ TEST_CASE("built-in Video graph overlays ConfigData and loads", "[BuiltInGraphs]
   LoadResult loaded = loadBuiltInVideoGraph(registry, outputs, config);
   INFO(loaded.error);
   REQUIRE(loaded.ok);
-  // cap, rescale, opaque + zones/ease/gain/send per output.
-  CHECK(loaded.graph.nodeCount() == 3 + 4 * outputs.size());
+  // cap, rescale, opaque + zones/ease/gain/floor/send per output.
+  CHECK(loaded.graph.nodeCount() == 3 + 5 * outputs.size());
   CHECK_FALSE(loaded.graph.tickHz().has_value());
 
   nlohmann::json doc = builtInVideoGraph(outputs, videoOverlayFromConfig(config, outputs));

@@ -9,6 +9,7 @@
 #include <glm/vec3.hpp>
 
 #include <Aurora/Output/IOutput.hpp>
+#include <Aurora/Runtime/BrightnessFloor.hpp>
 #include <Aurora/Runtime/ControlDescriptorTables.hpp>
 #include <Aurora/Runtime/Smoother.hpp>
 
@@ -136,6 +137,37 @@ namespace Aurora::Runtime::Graph
       std::vector<PortDecl> m_out{{"frame", PortType::Frame, false}};
     };
 
+    // frame.floor: BrightnessFloor per zone. Off (default) returns the input
+    // untouched, so outputs that don't need it stay byte-identical.
+    class FrameFloorNode : public INode
+    {
+    public:
+      const std::vector<PortDecl>& inputPorts() const override { return m_in; }
+      const std::vector<PortDecl>& outputPorts() const override { return m_out; }
+
+      void evaluate(
+        const EvalContext& ctx,
+        float dt,
+        std::unordered_map<std::string, GraphValue>& outputs) override
+      {
+        const std::string& policy = ctx.param<std::string>("policy");
+        BrightnessFloor::Settings settings;
+        settings.policy = policy == "hold" ? BrightnessFloor::Policy::HoldFloor
+          : policy == "switchOff"          ? BrightnessFloor::Policy::SwitchOff
+                                           : BrightnessFloor::Policy::Off;
+        settings.floor = ctx.param<float>("floor");
+        settings.holdSeconds = ctx.param<float>("holdSeconds");
+        outputs.emplace("frame", m_floor.apply(ctx.input<Contracts::Frame>("frame"), settings, dt));
+      }
+
+      void resetState() override { m_floor.reset(); }
+
+    private:
+      std::vector<PortDecl> m_in{{"frame", PortType::Frame, true}};
+      std::vector<PortDecl> m_out{{"frame", PortType::Frame, false}};
+      BrightnessFloor m_floor{};
+    };
+
     // output.send: sink. Absent/error inputs never reach evaluate, so a
     // skipped tick sends nothing, like today's early returns.
     class OutputSendNode : public INode
@@ -237,6 +269,54 @@ namespace Aurora::Runtime::Graph
         .outputs = {{"frame", PortType::Frame, false}},
         .params = {gain},
         .factory = [] { return std::make_unique<FrameGainNode>(); },
+      });
+
+    ParamDecl floorPolicy;
+    floorPolicy.name = "policy";
+    floorPolicy.kind = ParamKind::Enum;
+    floorPolicy.schema.label = "Black handling";
+    floorPolicy.enumOptions = {"off", "hold", "switchOff"};
+    floorPolicy.defaultEnum = "off";
+    floorPolicy.description =
+      "off passes frames through, hold raises dim colors to the floor keeping hue (black holds the last hue), "
+      "switchOff is hold but goes to real black after holdSeconds of black.";
+
+    ParamDecl floorLevel;
+    floorLevel.name = "floor";
+    floorLevel.kind = ParamKind::Float;
+    floorLevel.schema.label = "Floor";
+    floorLevel.schema.min = 0.f;
+    floorLevel.schema.max = 1.f;
+    floorLevel.schema.step = 0.01f;
+    floorLevel.schema.defaultValue = 0.05f;
+    floorLevel.description = "Minimum largest-channel level (0-1) while the policy is not off.";
+
+    ParamDecl floorHold;
+    floorHold.name = "holdSeconds";
+    floorHold.kind = ParamKind::Float;
+    floorHold.schema.label = "Hold time";
+    floorHold.schema.min = 0.f;
+    floorHold.schema.max = 60.f;
+    floorHold.schema.step = 0.1f;
+    floorHold.schema.unit = "s";
+    floorHold.schema.defaultValue = 2.f;
+    floorHold.description = "switchOff only: seconds of exact black before the output goes to black.";
+
+    registry.registerType(
+      "frame.floor",
+      NodeTypeInfo{
+        .meta =
+          {
+            .purpose = "Keep zones above a minimum brightness for outputs where brightness 0 means off.",
+            .useWhen = "After frame.gain, before output.send, per output; leave policy off for Hue.",
+            .example =
+              "{\"id\": \"keep\", \"type\": \"frame.floor\", \"params\": {\"policy\": \"hold\", \"floor\": 0.05}}",
+            .cost = "cheap",
+          },
+        .inputs = {{"frame", PortType::Frame, true}},
+        .outputs = {{"frame", PortType::Frame, false}},
+        .params = {floorPolicy, floorLevel, floorHold},
+        .factory = [] { return std::make_unique<FrameFloorNode>(); },
       });
 
     registry.registerType(

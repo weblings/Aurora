@@ -145,11 +145,14 @@ namespace Aurora::Runtime::Graph
       nodes.push_back(nodeDoc(ease, "frame.smooth", {{"output", output}}, {"smoothing"}, overlay));
       const std::string gain = perOutputNodeId("gain", output);
       nodes.push_back(nodeDoc(gain, "frame.gain", json::object(), {"gain"}, overlay));
+      const std::string floorId = perOutputNodeId("floor", output);
+      nodes.push_back(nodeDoc(floorId, "frame.floor", json::object(), {}, overlay));
       nodes.push_back(nodeDoc(send, "output.send", {{"output", output}}, {}, overlay));
       edges.push_back(edge("opaque.image", zones + ".image"));
       edges.push_back(edge(zones + ".frame", ease + ".frame"));
       edges.push_back(edge(ease + ".frame", gain + ".frame"));
-      edges.push_back(edge(gain + ".frame", send + ".frame"));
+      edges.push_back(edge(gain + ".frame", floorId + ".frame"));
+      edges.push_back(edge(floorId + ".frame", send + ".frame"));
     }
 
     // One smoothing slider drives every output's ease node; the first is its handle.
@@ -203,10 +206,13 @@ namespace Aurora::Runtime::Graph
       nodes.push_back(nodeDoc(all, "frame.broadcast", {{"output", output}}, {}, overlay));
       const std::string gain = perOutputNodeId("gain", output);
       nodes.push_back(nodeDoc(gain, "frame.gain", json::object(), {"gain"}, overlay));
+      const std::string floorId = perOutputNodeId("floor", output);
+      nodes.push_back(nodeDoc(floorId, "frame.floor", json::object(), {}, overlay));
       nodes.push_back(nodeDoc(send, "output.send", {{"output", output}}, {}, overlay));
       edges.push_back(edge("beat.color", all + ".color"));
       edges.push_back(edge(all + ".frame", gain + ".frame"));
-      edges.push_back(edge(gain + ".frame", send + ".frame"));
+      edges.push_back(edge(gain + ".frame", floorId + ".frame"));
+      edges.push_back(edge(floorId + ".frame", send + ".frame"));
     }
 
     json controls = json::array({
