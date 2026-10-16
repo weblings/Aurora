@@ -736,4 +736,32 @@ function ownerScreen(extra = {}) {
   inst._onBridgeZoneToggle();
 }
 
+// Output section (Aurora-d7s): content comes from a per-output table. Hue
+// keeps its 'Bridge' title and markup, an output the table lacks gets the
+// generic placeholder and title.
+{
+  const { inst } = fakeScreen();
+  inst.output = 'hue';
+  assert.equal(inst._outputEntry().title, 'Bridge');
+  const content = makeEl();
+  inst.entertainmentConfigSelect = { mount() {} };
+  inst.outputSection = { content };
+  inst._renderBridgeZoneList = () => {};
+  inst.bridgeConfigured = true;
+  inst.bridgeAddress = '10.0.0.2';
+  inst._renderOutputContent();
+  assert.ok(content.innerHTML.includes('Connected to 10.0.0.2'));
+  assert.ok(content.innerHTML.includes('id="db-change-bridge"'));
+  assert.ok(content.innerHTML.includes('db-bridge-zones-slot'));
+}
+{
+  const { inst } = fakeScreen();
+  inst.output = null;
+  assert.equal(inst._outputEntry(), null);
+  const content = makeEl();
+  inst.outputSection = { content };
+  inst._renderOutputContent();
+  assert.ok(content.innerHTML.includes('Not available in this build.'));
+}
+
 console.log('DashboardScreen pause checks passed.');
