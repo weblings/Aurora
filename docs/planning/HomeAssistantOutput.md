@@ -216,7 +216,8 @@ split. (Token storage moved into prep as Aurora-2dz.)
 ### Local API rules
 
 The REST API has no auth and binds `0.0.0.0`. These rules hold for every
-route, today's Hue routes and any future HA route:
+route, today's Hue routes and any future HA route. Further hardening (Host
+allowlist, LAN pairing, scoped access) is planned in [[external-control]]:
 
 - **Cross-origin writes are refused.** A non-GET request that carries an
   `Origin` (else `Referer`) naming a different host than its `Host` header

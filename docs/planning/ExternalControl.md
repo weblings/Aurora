@@ -179,9 +179,9 @@ stable); 6 is cheap once the rest exists. Suggested order: 0, then 1 and 3
 in parallel, then 2, 4, 5, 6.
 
 ### Phase 0 — decisions
-- Settle the open questions below; apply the cross-reference corrections
-  to [[implementation-plan]] (WebSocket dependency) and
-  [[home-assistant-output]] (Local API rules → this doc).
+- Open questions below are deferred (Aurora-5ipy.1). Cross-reference
+  corrections applied to [[implementation-plan]] (WebSocket dependency)
+  and [[home-assistant-output]] (Local API rules → this doc).
 - Test: `check-links.py`.
 
 ### Phase 1 — pause/resume (Aurora-3ddb)
@@ -456,10 +456,12 @@ Status: decided 2026-10-03.
   would feed a graph input that still reacts, not bypass it.
 
 ## Still open
-Status: owner decisions.
+Status: deferred (Aurora-5ipy.1). Neither blocks the dimmer (Aurora-5ipy.7).
 
-- **Brightness boost above 100%:** only if real content proves too dim
-  and gamma doesn't fix it.
-- **Video brightness floor:** audio mode keeps lights from going fully
-  dark on quiet passages; video has nothing equivalent for black frames.
-  Whether to add one is a tuning question, separate from the dimmer.
+- **Brightness boost above 100%:** deferred. Ship 0-100% first, add a boost
+  only if real content proves too dim and gamma doesn't fix it. Widening
+  is backwards compatible.
+- **Video brightness floor:** deferred. Audio mode keeps lights from going
+  fully dark on quiet passages; video has nothing equivalent for black
+  frames. A tuning question, separate from the dimmer. Revisit after the
+  dimmer ships.
