@@ -130,6 +130,7 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `ra4o11-g4a-loader-float-clamp` | [log/2026-10-15-ra4o11-g4a-loader-float-clamp.md](log/2026-10-15-ra4o11-g4a-loader-float-clamp.md) | G4a: loader clamps Float params (Aurora-ra4o.11) |
 | `ra4o12-g4b-descriptor-metadata` | [log/2026-10-15-ra4o12-g4b-descriptor-metadata.md](log/2026-10-15-ra4o12-g4b-descriptor-metadata.md) | G4b: descriptors emit useWhen, example and cost (Aurora-ra4o.12) |
 | `ra4o13-g4c-bounce-reseed` | [log/2026-10-15-ra4o13-g4c-bounce-reseed.md](log/2026-10-15-ra4o13-g4c-bounce-reseed.md) | G4c: audio.bounce re-seeds when drift re-seeds (Aurora-ra4o.13) |
+| `ra4o14-g4d-absent-anchor-accepted` | [log/2026-10-15-ra4o14-g4d-absent-anchor-accepted.md](log/2026-10-15-ra4o14-g4d-absent-anchor-accepted.md) | G4d: Absent-tick anchor change accepted (Aurora-ra4o.14) |
 | `ra4o2-g1-graph-core` | [log/2026-10-14-ra4o2-g1-graph-core.md](log/2026-10-14-ra4o2-g1-graph-core.md) | G1 graph runtime core lands (Aurora-ra4o.2) |
 | `ra4o3-g1b-bad-graph-corpus` | [log/2026-10-14-ra4o3-g1b-bad-graph-corpus.md](log/2026-10-14-ra4o3-g1b-bad-graph-corpus.md) | G1b bad-graph corpus + loader fuzz (Aurora-ra4o.3) |
 | `ra4o4-g2a-video-nodes` | [log/2026-10-14-ra4o4-g2a-video-nodes.md](log/2026-10-14-ra4o4-g2a-video-nodes.md) | G2a Tier 1 video nodes (Aurora-ra4o.4) |
