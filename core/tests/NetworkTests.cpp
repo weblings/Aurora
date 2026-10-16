@@ -541,7 +541,9 @@ TEST_CASE("HttpServer Host allowlist rejects forged hostnames and admits literal
     std::string machine = name;
     CHECK(statusFor(machine) == 200);
     CHECK(statusFor(machine + ":18228") == 200);
-    CHECK(statusFor(machine + ".local") == 200);
+    // macOS reports a hostname that may already end in ".local"; the
+    // server admits <short name>.local, so build it from the short name.
+    CHECK(statusFor(machine.substr(0, machine.find('.')) + ".local") == 200);
   }
 
   server.stop();
