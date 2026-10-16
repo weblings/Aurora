@@ -276,6 +276,10 @@ namespace
     // Backs the WebUI's audio-device dropdown (Aurora-kea replaced its
     // 'linux-audio' gate with this). Without audio there's nothing to pick.
     options.audioDevicesUrl = "/api/linux/audio-sinks";
+    options.describeAudioSink = [](Aurora::Input::IAudioInput& input){
+      auto* audio = dynamic_cast<Aurora::Input::Linux::AudioGrabber*>(&input);
+      return audio ? audio->sinkStatus().sinkName : std::string{};
+    };
 #endif
     return options;
   }

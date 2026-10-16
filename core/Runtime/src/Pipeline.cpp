@@ -212,6 +212,22 @@ namespace Aurora::Runtime
         + std::to_string(pipeline->m_outputPtrs.size()) + " output(s).");
     }
 
+    // Audio-only is the audio graph; video (plain or dual-capture) is the
+    // video graph, matching what the dev spike runs as primary.
+    pipeline->m_summary.effect = useAudioMode ? "builtin.audio" : "builtin.video";
+    if(!useAudioMode){
+      pipeline->m_summary.video = PipelineSummary::Video{
+        config.activeInputName(), pipeline->m_videoInput->selectedMonitorName()
+      };
+    }
+    if(useAudioMode || dualCapture){
+      pipeline->m_summary.audio = PipelineSummary::Audio{
+        config.activeAudioInputName(),
+        config.audioTargetSinkName(),
+        config.audioTargetSinkName().empty()
+      };
+    }
+
     return pipeline;
   }
 
@@ -554,6 +570,25 @@ namespace Aurora::Runtime
       if(capabilities.samplesZones){ bits |= kSamplesZones; }
     }
     m_capabilityBits.store(bits);
+
+    std::lock_guard<std::mutex> lock(m_summaryMutex);
+    m_summary = pipeline ? pipeline->summary() : PipelineSummary{};
+  }
+
+
+  PipelineSummary PipelineHost::summary() const
+  {
+    std::lock_guard<std::mutex> lock(m_summaryMutex);
+    return m_summary;
+  }
+
+
+  std::string PipelineHost::resolvedAudioSink()
+  {
+    if(!m_options.describeAudioSink){ return {}; }
+    return withAudioInput([this](Input::IAudioInput* input){
+      return input ? m_options.describeAudioSink(*input) : std::string{};
+    });
   }
 
 

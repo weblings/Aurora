@@ -50,6 +50,33 @@ namespace Aurora::Runtime
     // dropdown (Linux: /api/linux/audio-sinks). Empty when the build has
     // none; Mac/Windows follow the default device. GET /api/state reports it.
     std::string audioDevicesUrl;
+
+    // Resolved sink for a live audio input, where the platform knows it
+    // (Linux follows the default sink). Null, or an empty return, reports
+    // the configured target instead. Runs under the pipeline lock.
+    std::function<std::string(Input::IAudioInput&)> describeAudioSink;
+  };
+
+
+  // What a built pipeline is doing, for GET /api/state (Aurora-5ipy.2).
+  // effect is a graph id; each side is nullopt when unused.
+  struct PipelineSummary
+  {
+    struct Video
+    {
+      std::string input;
+      std::string monitor; // empty when the input has no selected monitor
+    };
+    struct Audio
+    {
+      std::string input;
+      std::string sink;     // configured target; empty when following the default
+      bool followsDefault{true};
+    };
+
+    std::string effect;
+    std::optional<Video> video;
+    std::optional<Audio> audio;
   };
 
 
@@ -117,6 +144,8 @@ namespace Aurora::Runtime
 
     PipelineCapabilities capabilities() const;
 
+    PipelineSummary summary() const { return m_summary; }
+
     // The primary runner's graph doc (video, or audio in audio mode).
     nlohmann::json graphJson() const;
 
@@ -162,6 +191,7 @@ namespace Aurora::Runtime
     };
     DualCaptureStats m_dualStats;
     Config m_appliedConfig;
+    PipelineSummary m_summary;
     double m_tickIntervalSeconds{Runtime::tickIntervalSeconds()};
 
     // Declaration order matters: m_videoRunner/m_audioRunner hold a
@@ -378,9 +408,21 @@ namespace Aurora::Runtime
     // failed reload leaves it unchanged: the old pipeline is still running.
     PipelineCapabilities capabilities() const;
 
+    // The last built pipeline's summary, kept through pause like
+    // capabilities(); empty (no effect, no sides) when idle or failed. Its
+    // own leaf lock, so polling never waits on a tick or reload.
+    PipelineSummary summary() const;
+
+    // Resolved audio sink via PipelineOptions::describeAudioSink; empty when
+    // there is no hook, no live audio input, or nothing resolved. Takes the
+    // pipeline lock, so call it only when an audio side is reported.
+    std::string resolvedAudioSink();
+
     const std::string& audioDevicesUrl() const { return m_options.audioDevicesUrl; }
 
   private:
+    mutable std::mutex m_summaryMutex;
+    PipelineSummary m_summary;
     // Packs capabilities into one atomic, so a reader never sees half of
     // a swap.
     void _storeCapabilities(const Pipeline* pipeline);

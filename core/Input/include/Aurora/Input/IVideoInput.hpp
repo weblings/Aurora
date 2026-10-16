@@ -101,6 +101,13 @@ namespace Aurora::Input
       return m_monitorSelectionData.monitors;
     }
 
+    // Empty when no monitor is selected (or the input has no monitor list).
+    inline std::string selectedMonitorName() const
+    {
+      const MonitorData* monitor = m_monitorSelectionData.selectedMonitor();
+      return monitor ? monitor->name : std::string{};
+    }
+
     // Fixed a completeness bug in the port -- see LinuxCaptureAnalysis.md: the
     // original excluded number/2 itself even when it was a valid divisor.
     Resolutions subsampleResolutionCandidates() const

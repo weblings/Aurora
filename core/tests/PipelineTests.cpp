@@ -942,6 +942,8 @@ TEST_CASE("GET /api/state reports paused and the running pipeline's capabilities
 
   CHECK(state() == nlohmann::json{
     {"state", "idle"},
+    {"effect", nullptr},
+    {"source", {{"video", nullptr}, {"audio", nullptr}}},
     {"errors", nlohmann::json::array()},
     {"conditions", nlohmann::json::array()},
     {"paused", false},
@@ -974,6 +976,72 @@ TEST_CASE("GET /api/state reports paused and the running pipeline's capabilities
 
   server.stop();
   serverThread.join();
+}
+
+
+TEST_CASE("GET /api/state reports effect and source, kept through pause (Aurora-5ipy.2)", "[PipelineRoutes]")
+{
+  using namespace Aurora::Network::Http::Server;
+
+  ScopedTempDir dir("state-get-source");
+  auto events = std::make_shared<Events>();
+  auto registry = makeRegistry(events);
+  PipelineOptions options;
+  options.describeAudioSink = [](Aurora::Input::IAudioInput&){ return std::string("resolved-sink"); };
+  PipelineHost host(nullptr, options);
+
+  HttpServer server;
+  registerStateRoute(server, host, registry, dir.path);
+  REQUIRE(server.bind("127.0.0.1", 18242));
+  std::thread serverThread([&](){ server.listen(); });
+
+  httplib::Client client("127.0.0.1", 18242);
+  auto state = [&](){
+    auto result = getWithRetry(client, "/api/state");
+    REQUIRE(result);
+    return nlohmann::json::parse(result->body);
+  };
+
+  std::string error;
+  REQUIRE(host.reload(registry, videoConfig(), dir.path, error));
+  auto video = state();
+  CHECK(video["effect"] == "builtin.video");
+  CHECK(video["source"] == nlohmann::json{
+    {"video", {{"input", "fake-video"}, {"monitor", nullptr}}},
+    {"audio", nullptr}
+  });
+
+  REQUIRE(host.pause());
+  CHECK(state()["effect"] == "builtin.video");
+  CHECK(state()["source"]["video"]["input"] == "fake-video");
+
+#ifdef AURORA_RUNTIME_AUDIO_AVAILABLE
+  REQUIRE(host.resume(registry, audioConfig(), dir.path, error));
+  auto audio = state();
+  CHECK(audio["effect"] == "builtin.audio");
+  CHECK(audio["source"]["video"].is_null());
+  // Running: the platform hook's resolved sink, still following the default.
+  CHECK(audio["source"]["audio"] == nlohmann::json{
+    {"input", "fake-audio"}, {"sink", "resolved-sink"}, {"auto", true}
+  });
+
+  auto pinned = audioConfig();
+  pinned.setAudioTargetSinkName("usb-sink");
+  REQUIRE(host.reload(registry, pinned, dir.path, error));
+  REQUIRE(host.pause());
+  // Paused: no live input to ask, so the configured target.
+  CHECK(state()["source"]["audio"] == nlohmann::json{
+    {"input", "fake-audio"}, {"sink", "usb-sink"}, {"auto", false}
+  });
+#endif
+
+  // Still paused here, so resume is what applies the empty Config.
+  REQUIRE(host.resume(registry, Config{}, dir.path, error));
+  CHECK(state()["effect"].is_null());
+
+  server.stop();
+  serverThread.join();
+  host.shutdown();
 }
 
 

@@ -37,7 +37,13 @@ namespace Aurora::Runtime
   // going, Aurora-ja76), so a non-empty list does not mean failed: read
   // state. A paused host holds only a failed resume.
   // The flags describe what the running pipeline uses, kept through pause;
-  // all false means nothing runs. Aurora-5ipy.2 extends this route.
+  // all false means nothing runs.
+  // Aurora-5ipy.2 adds "effect" (active graph id, "builtin.video" or
+  // "builtin.audio" today, null when idle or failed) and "source": {"video":
+  // {"input", "monitor" (string or null)} or null, "audio": {"input", "sink"
+  // (string or null), "auto" (follows the default sink)} or null}. A null side
+  // is unused. Kept through pause; "sink" is the platform-resolved sink while
+  // running where the build can tell (Linux), else the configured target.
   //
   // PUT /api/state {"running": bool}: pause (false) or resume (true),
   // idempotent (Aurora-3ddb); on a failed host running:true is a retry
