@@ -7,7 +7,7 @@
 //
 //   color.fromHSV, color.toHSV, color.brightness, color.mix,
 //   color.hueShift, color.complement, color.fromGradient,
-//   palette.randomAnchor, palette.pick
+//   palette.randomAnchor, palette.pick, angle.add
 namespace Aurora::Runtime::Graph
 {
   void registerColorNodes(NodeRegistry& registry);

@@ -26,6 +26,7 @@ namespace
   GraphValue g_float = 0.f;
   GraphValue g_float2 = 0.f;
   GraphValue g_angle = Angle{};
+  GraphValue g_angle2 = Angle{};
   GraphValue g_colorA = Color{};
   GraphValue g_colorB = Color{};
 
@@ -74,6 +75,7 @@ namespace
     addSource(registry, "test.float", &g_float, PortType::Float);
     addSource(registry, "test.float2", &g_float2, PortType::Float);
     addSource(registry, "test.angle", &g_angle, PortType::Angle);
+    addSource(registry, "test.angle2", &g_angle2, PortType::Angle);
     addSource(registry, "test.colorA", &g_colorA, PortType::Color);
     addSource(registry, "test.colorB", &g_colorB, PortType::Color);
     return registry;
@@ -237,6 +239,19 @@ TEST_CASE("color.complement flips to the opposite hue", "[ColorNodes]")
   Graph graph = load("color.complement", "{}", {kColorA});
   graph.tick(1.f / 60.f);
   CHECK(outColor(graph) == Color(0, 255, 255));
+}
+
+TEST_CASE("angle.add sums two Angles and wraps at 360", "[ColorNodes]")
+{
+  Graph graph = load("angle.add", "{}", {{"test.angle", "x", "a"}, {"test.angle2", "y", "b"}});
+  g_angle = Angle{100.f};
+  g_angle2 = Angle{50.f};
+  graph.tick(1.f / 60.f);
+  CHECK(outAngle(graph, "angle") == Approx(150.f));
+  g_angle = Angle{300.f};
+  g_angle2 = Angle{100.f};
+  graph.tick(1.f / 60.f);
+  CHECK(outAngle(graph, "angle") == Approx(40.f));
 }
 
 TEST_CASE("color.fromGradient samples stops, holds past the ends and clamps t", "[ColorNodes]")

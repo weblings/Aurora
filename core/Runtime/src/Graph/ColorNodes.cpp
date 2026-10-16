@@ -299,6 +299,19 @@ namespace Aurora::Runtime::Graph
         .factory = [] { return std::make_unique<RandomAnchorNode>(); },
       });
 
+    add(registry, "angle.add",
+      {.purpose = "Add two Angles, wrapping at 360.",
+       .useWhen = "Offset a hue by another, e.g. a drifting anchor plus a beat swing.",
+       .example = "{\"id\": \"target\", \"type\": \"angle.add\", \"params\": {}}"},
+      {{"a", PortType::Angle, true}, {"b", PortType::Angle, true}},
+      {{"angle", PortType::Angle, false}},
+      {},
+      [](const EvalContext& c, Outputs& out) {
+        float sum = c.input<Angle>("a").degrees + c.input<Angle>("b").degrees;
+        requireFinite(c, sum, "angle");
+        out.emplace("angle", Angle{wrapDegrees(sum)});
+      });
+
     ParamDecl side;
     side.name = "side";
     side.kind = ParamKind::Enum;
