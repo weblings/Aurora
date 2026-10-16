@@ -1198,3 +1198,14 @@ a rate-dependence bug in the node but was the test running extra time.
 
 **Fix:** pick durations and LFO rates where every rate gives an integer tick
 count (0.5 s, 1 s, 0.5 Hz), or assert the tick count in the helper.
+
+
+---
+
+## An unfair-mutex starvation bug may not reproduce on MSVC: test the scheduling rule, not the symptom
+Tags: debugging, threads, mutex, tick-loop, testing
+Applies-when: writing a regression test for a lock-starvation or "never yields" bug found on hardware
+
+Aurora-cgr (tick loop holding the host mutex back to back) was proven on real hardware, but a loop of 1 ms ticks against `listMonitors()` on MSVC Debug stayed inside budget with the fix reverted, so a latency test alone cannot fail. The pure rule that decides the next wake time (`nextTickTime`) can: with the minimum yield set to 0, its unit test fails.
+
+**Fix:** pull the timing decision into a pure function and assert its output with literal bounds (not the same constant it uses). Keep the contention test as a smoke check, and verify on hardware.

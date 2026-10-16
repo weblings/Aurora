@@ -282,7 +282,9 @@ namespace Aurora::Runtime
       std::exception_ptr startupFailure = nullptr
     );
 
-    void tick();
+    // Runs one tick and returns the interval it used, read under the same
+    // lock so the loop needs no second lock round trip (Aurora-cgr).
+    double tick();
     double tickIntervalSeconds();
     Input::Monitors listMonitors();
 

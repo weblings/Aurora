@@ -734,9 +734,8 @@ if(!instanceLock.held()){
       trayIcon.refresh();
     }
     auto tickStart = std::chrono::steady_clock::now();
-    pipelineHost.tick();
-    auto tickInterval = std::chrono::duration<double>(pipelineHost.tickIntervalSeconds());
-    std::this_thread::sleep_until(tickStart + std::chrono::duration_cast<std::chrono::steady_clock::duration>(tickInterval));
+    const double tickInterval = pipelineHost.tick();
+    std::this_thread::sleep_until(Aurora::Runtime::nextTickTime(tickStart, tickInterval, std::chrono::steady_clock::now()));
   }
 
   std::cout << "Stopping...\n";

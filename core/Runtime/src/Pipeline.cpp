@@ -603,12 +603,15 @@ namespace Aurora::Runtime
   }
 
 
-  void PipelineHost::tick()
+  double PipelineHost::tick()
   {
     std::lock_guard<std::mutex> lock(m_mutex);
     // Interval read under the same lock as the tick, so a concurrent
     // pipeline swap can't pair one pipeline's dt with another's tick.
-    if(m_pipeline){ m_pipeline->tick(static_cast<float>(m_pipeline->tickIntervalSeconds())); }
+    if(!m_pipeline){ return Runtime::tickIntervalSeconds(); }
+    const double interval = m_pipeline->tickIntervalSeconds();
+    m_pipeline->tick(static_cast<float>(interval));
+    return interval;
   }
 
 

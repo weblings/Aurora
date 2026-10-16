@@ -82,6 +82,9 @@ namespace
     std::vector<unsigned> widthHints;
     std::function<void()> onWidthHint;
 
+    // Runs inside every FakeVideoInput grab, i.e. on the tick, under the host lock.
+    std::function<void()> onGrab;
+
     bool has(const std::string& line) const
     {
       return std::find(lines.begin(), lines.end(), line) != lines.end();
@@ -115,6 +118,7 @@ namespace
 
     void grabFrameSubsample(ImageData& imageData) override
     {
+      if(m_events && m_events->onGrab){ m_events->onGrab(); }
       imageData.format = PixelFormat::RGB;
       imageData.imageMatrix = cv::Mat(2, 4, CV_8UC3, cv::Scalar(255, 0, 0));
     }
@@ -2445,4 +2449,59 @@ TEST_CASE("GET /api/events streams do not slow other routes under a tick storm (
   host.shutdown();
   server.stop();
   serverThread.join();
+}
+
+
+TEST_CASE("nextTickTime keeps the interval on time and forces a yield on overrun (Aurora-cgr)", "[TickClock]")
+{
+  using Clock = std::chrono::steady_clock;
+  const Clock::time_point start{};
+
+  CHECK(MinTickYield >= 1ms);
+
+  // On time: wakes one interval after the tick started.
+  CHECK(nextTickTime(start, 1.0 / 60, start + 2ms) == start + std::chrono::duration_cast<Clock::duration>(std::chrono::duration<double>(1.0 / 60)));
+
+  // Overran the interval, or a rate far above what the host serves: still sleeps the minimum.
+  CHECK(nextTickTime(start, 1.0 / 60, start + 30ms) >= start + 31ms);
+  CHECK(nextTickTime(start, 1.0 / 1000, start + 1500us) >= start + 2500us);
+  CHECK(nextTickTime(start, 0.0, start + 5ms) >= start + 6ms);
+}
+
+
+TEST_CASE("A tick loop at an extreme rate leaves other host calls inside a latency budget (Aurora-cgr)", "[PipelineHost][TickClock]")
+{
+  ScopedTempDir dir("tick-starvation");
+  auto events = std::make_shared<Events>();
+  auto registry = makeRegistry(events);
+  ConfigStore(dir.path).save(videoConfig());
+  PipelineHost host(Pipeline::build(registry, videoConfig(), dir.path, {}), {});
+
+  // A grab that costs 1 ms, as on hardware, and the app loop with a zero
+  // interval: every tick overruns and re-enters at once.
+  events->onGrab = []{
+    const auto until = std::chrono::steady_clock::now() + 1ms;
+    while(std::chrono::steady_clock::now() < until){}
+  };
+  std::atomic<bool> ticking{true};
+  std::thread tickThread([&](){
+    while(ticking.load()){
+      const auto tickStart = std::chrono::steady_clock::now();
+      const double interval = host.tick() * 0.0;
+      std::this_thread::sleep_until(nextTickTime(tickStart, interval, std::chrono::steady_clock::now()));
+    }
+  });
+
+  std::chrono::milliseconds slowest{0};
+  for(int i = 0; i < 50; ++i){
+    const auto started = std::chrono::steady_clock::now();
+    host.listMonitors();
+    host.listZones();
+    slowest = std::max(slowest, std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - started));
+  }
+  CHECK(slowest < 250ms);
+
+  ticking.store(false);
+  tickThread.join();
+  host.shutdown();
 }
