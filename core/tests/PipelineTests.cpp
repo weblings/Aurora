@@ -18,6 +18,7 @@
 #include <Aurora/Runtime/ConfigStore.hpp>
 #include <Aurora/Runtime/Graph/FrameNodes.hpp>
 #include <Aurora/Runtime/Graph/MathNodes.hpp>
+#include <Aurora/Runtime/Graph/TimeNodes.hpp>
 #include <Aurora/Runtime/Graph/NodeRegistry.hpp>
 #include <Aurora/Runtime/Graph/VideoNodes.hpp>
 #include <Aurora/Runtime/GraphRoutes.hpp>
@@ -2066,6 +2067,7 @@ TEST_CASE("GET /api/nodes serves every registered node and rejects a forged Host
   Aurora::Runtime::Graph::registerVideoNodes(expected);
   Aurora::Runtime::Graph::registerFrameNodes(expected);
   Aurora::Runtime::Graph::registerMathNodes(expected);
+  Aurora::Runtime::Graph::registerTimeNodes(expected);
 #ifdef AURORA_RUNTIME_AUDIO_AVAILABLE
   Aurora::Runtime::Graph::registerAudioNodes(expected);
 #endif

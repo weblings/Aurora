@@ -57,8 +57,9 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `http-server-analysis` | [archive/HttpServerAnalysis.md](archive/HttpServerAnalysis.md) | HTTP server analysis |
 | `hue-output-analysis` | [archive/HueOutputAnalysis.md](archive/HueOutputAnalysis.md) | Hue::Api / Auth / Stream — Conversion analysis |
 | `id8j1-b0-float-trigger-ports` | [log/2026-10-16-id8j1-b0-float-trigger-ports.md](log/2026-10-16-id8j1-b0-float-trigger-ports.md) | B0: Float and Trigger port types (Aurora-id8j.1) |
-| `id8j3-b2a-scalar-math-nodes` | [log/2026-10-16-id8j3-b2a-scalar-math-nodes.md](log/2026-10-16-id8j3-b2a-scalar-math-nodes.md) | B2a: scalar math nodes (Aurora-id8j.3) |
 | `id8j2-b1-read-routes` | [log/2026-10-16-id8j2-b1-read-routes.md](log/2026-10-16-id8j2-b1-read-routes.md) | B1: read routes GET /api/nodes and GET /api/graph (Aurora-id8j.2) |
+| `id8j3-b2a-scalar-math-nodes` | [log/2026-10-16-id8j3-b2a-scalar-math-nodes.md](log/2026-10-16-id8j3-b2a-scalar-math-nodes.md) | B2a: scalar math nodes (Aurora-id8j.3) |
+| `id8j4-b2b-time-state-nodes` | [log/2026-10-16-id8j4-b2b-time-state-nodes.md](log/2026-10-16-id8j4-b2b-time-state-nodes.md) | B2b: time/state nodes and LFO (Aurora-id8j.4) |
 | `ifkn2-page-css-split` | [log/2026-10-08-ifkn2-page-css-split.md](log/2026-10-08-ifkn2-page-css-split.md) | Aurora-ifkn.2 closed: shell.css page-wide rules split into page-only page.css |
 | `ifkn3-stop-capability` | [log/2026-10-08-ifkn3-stop-capability.md](log/2026-10-08-ifkn3-stop-capability.md) | Aurora-ifkn.3: Dashboard Stop gated on a canStop capability, screen re-vendored identical |
 | `ifkn4-string-zone-ids` | [log/2026-10-08-ifkn4-string-zone-ids.md](log/2026-10-08-ifkn4-string-zone-ids.md) | Aurora-ifkn.4 closed: ZoneActiveToggle accepts string and numeric zone ids |

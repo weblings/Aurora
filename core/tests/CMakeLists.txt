@@ -74,6 +74,7 @@ add_executable(AuroraRuntimeTests
   VideoNodesTests.cpp
   FrameNodesTests.cpp
   MathNodesTests.cpp
+  TimeNodesTests.cpp
   BuiltInGraphsTests.cpp
 )
 

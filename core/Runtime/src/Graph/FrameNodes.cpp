@@ -1,9 +1,12 @@
 #include <Aurora/Runtime/Graph/FrameNodes.hpp>
 
+#include <cmath>
 #include <memory>
 #include <string>
 #include <unordered_map>
 #include <vector>
+
+#include <glm/vec3.hpp>
 
 #include <Aurora/Output/IOutput.hpp>
 #include <Aurora/Runtime/ControlDescriptorTables.hpp>
@@ -60,6 +63,47 @@ namespace Aurora::Runtime::Graph
       Smoother m_smoother{};
     };
 
+    // frame.smoothTime: time-based easing, 1 - exp(-dt/tau) per zone. State
+    // is float so small steps are not lost to 8-bit rounding, and zones that
+    // leave the frame are forgotten so a returning zone snaps.
+    class FrameSmoothTimeNode : public INode
+    {
+    public:
+      const std::vector<PortDecl>& inputPorts() const override { return m_in; }
+      const std::vector<PortDecl>& outputPorts() const override { return m_out; }
+
+      void evaluate(
+        const EvalContext& ctx,
+        float dt,
+        std::unordered_map<std::string, GraphValue>& outputs) override
+      {
+        const Contracts::Frame& frame = ctx.input<Contracts::Frame>("frame");
+        float tau = ctx.param<float>("tau");
+        float blend = tau <= 0.f ? 1.f : 1.f - std::exp(-dt / tau);
+
+        std::unordered_map<uint8_t, glm::vec3> next;
+        Contracts::Frame result;
+        result.reserve(frame.size());
+        for(const auto& zone : frame){
+          glm::vec3 target = zone.color.toNormalized();
+          auto previous = m_previous.find(zone.id);
+          glm::vec3 eased =
+            previous == m_previous.end() ? target : previous->second + (target - previous->second) * blend;
+          next[zone.id] = eased;
+          result.push_back({zone.id, Contracts::Color::fromNormalized(eased), zone.gamma});
+        }
+        m_previous = std::move(next);
+        outputs.emplace("frame", std::move(result));
+      }
+
+      void resetState() override { m_previous.clear(); }
+
+    private:
+      std::vector<PortDecl> m_in{{"frame", PortType::Frame, true}};
+      std::vector<PortDecl> m_out{{"frame", PortType::Frame, false}};
+      std::unordered_map<uint8_t, glm::vec3> m_previous;
+    };
+
     // output.send: sink. Absent/error inputs never reach evaluate, so a
     // skipped tick sends nothing, like today's early returns.
     class OutputSendNode : public INode
@@ -112,6 +156,33 @@ namespace Aurora::Runtime::Graph
         .outputs = {{"frame", PortType::Frame, false}},
         .params = {outputParam("Output whose zones are smoothed (keys the smoother state)."), smoothing},
         .factory = [] { return std::make_unique<FrameSmoothNode>(); },
+      });
+
+    ParamDecl tau;
+    tau.name = "tau";
+    tau.kind = ParamKind::Float;
+    tau.schema.label = "Tau";
+    tau.schema.min = 0.f;
+    tau.schema.max = 60.f;
+    tau.schema.step = 0.01f;
+    tau.schema.unit = "s";
+    tau.schema.defaultValue = 0.15f;
+    tau.description = "Easing time constant in seconds, 0 is instant. Same settle time at any tick rate.";
+
+    registry.registerType(
+      "frame.smoothTime",
+      NodeTypeInfo{
+        .meta =
+          {
+            .purpose = "Ease each zone's color toward its new value over tau seconds, at any tick rate.",
+            .useWhen = "Instead of frame.smooth when easing must feel the same at every refresh rate.",
+            .example = "{\"id\": \"ease\", \"type\": \"frame.smoothTime\", \"params\": {\"tau\": 0.15}}",
+            .cost = "cheap",
+          },
+        .inputs = {{"frame", PortType::Frame, true}},
+        .outputs = {{"frame", PortType::Frame, false}},
+        .params = {tau},
+        .factory = [] { return std::make_unique<FrameSmoothTimeNode>(); },
       });
 
     registry.registerType(

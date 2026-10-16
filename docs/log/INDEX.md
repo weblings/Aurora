@@ -196,3 +196,4 @@ Planning docs stay clean: decisions, status, and pointers here only.
 | 2026-10-16 | B2a scalar math nodes (9 Float nodes, non-finite fails the node); suite green (MSVC); 3 lessons. [[id8j3-b2a-scalar-math-nodes]] | `bd show Aurora-id8j.3` |
 | 2026-10-16 | EC 3 Host header allowlist (rebinding defense) in HttpServer pre-routing; core suite 251/251 (MSVC); phone-verified; 1 lesson. [[5ipy4-ec3-host-allowlist]] | `bd show Aurora-5ipy.4` |
 | 2026-10-16 | B1 read routes GET /api/nodes (full catalog) and GET /api/graph (running graph or null); core suite 254/254 (MSVC); sink check fixed (Aurora-cwos); 2 lessons. [[id8j2-b1-read-routes]] | `bd show Aurora-id8j.2` |
+| 2026-10-16 | B2b time/state nodes (smooth.exp, smooth.angle, rollingAverage, integrate, stepOnTrigger, lfo) and frame.smoothTime; same settle time at 30/60/240 Hz; ctest 282/282 (MSVC); 1 lesson. [[id8j4-b2b-time-state-nodes]] | `bd show Aurora-id8j.4` |

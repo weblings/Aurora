@@ -1185,3 +1185,16 @@ capture is unavailable, run the harness against `--input dummy` on both
 builds: it isolates the code path under test (graph vs orchestrator) and
 showed no cost (video update 0.10 to 0.12 ms on both). Run each build
 twice: max-ms swings of 1 to 6 ms between identical runs are noise.
+
+---
+
+## Fake-clock settle tests must use whole tick counts at every rate
+Tags: node-graph, tests, fake-clock, time
+Applies-when: writing a settle-time or period check that runs the same duration at 30, 60 and 240 Hz
+
+Aurora-id8j.4: a helper that rounds `seconds * hz` to whole ticks turned 0.25 s at
+30 Hz (7.5 ticks) into 8, and the check failed by a few percent. It looked like
+a rate-dependence bug in the node but was the test running extra time.
+
+**Fix:** pick durations and LFO rates where every rate gives an integer tick
+count (0.5 s, 1 s, 0.5 Hz), or assert the tick count in the helper.
