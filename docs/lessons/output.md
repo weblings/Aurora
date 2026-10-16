@@ -436,3 +436,13 @@ Applies-when: finding a Hue bridge (or any DNS-SD device) without the cloud disc
 A plain UDP socket that sends a PTR query for `_hue._tcp.local` to 224.0.0.251:5353 from an ordinary ephemeral port gets a "legacy unicast" reply straight back to that port, so no multicast group join or port 5353 bind is needed. The bridge's reply carries PTR (instance), SRV (target host), TXT (`bridgeid=...`, upper case) and A in one packet, with name compression. Verified against a real BSB002: found in 1.6 s with one resend at 500 ms. On Mac the send is subject to Local Network permission (it fails with `EHOSTUNREACH` when denied).
 
 **Fix:** `MdnsDiscovery.cpp`; try it before `discovery.meethue.com` and keep the cloud as fallback for networks that block multicast. Bound compression-pointer hops; truncated packets must yield nothing, not throw.
+
+---
+
+## Host allowlist: a bare machine name failing on a phone is DNS, not the check; test rejection with a name that resolves to the daemon
+Tags: output, http, host-header, dns-rebinding, mdns, testing
+Applies-when: verifying or debugging the HttpServer Host allowlist from a phone or another LAN device
+
+Phones usually can't resolve a bare Windows hostname (no NetBIOS), so `http://BeefyBoy:8215` never reaches the daemon even though `Host: BeefyBoy` is allowed. `BeefyBoy.local` (mDNS) and the LAN IP work. A `curl -H "Host: BeefyBoy:8215" http://127.0.0.1:8215/` separates the two cases: 200 means the allowlist is fine.
+
+**Fix:** to see a real forged-name rejection from a device, use a wildcard-DNS name that resolves to the daemon's LAN IP (`192.168.0.224.nip.io`) and expect 403 `host_forbidden`. The check is a cpp-httplib pre-routing handler, so it also covers the static mount and embedded WebUI.

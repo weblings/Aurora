@@ -4,10 +4,21 @@
 #include <optional>
 #include <string>
 #include <unordered_map>
+#include <unordered_set>
 #include <utility>
 #include <vector>
 
 #include <httplib.h>
+
+#ifdef _WIN32
+#include <winsock2.h>
+#include <ws2tcpip.h>
+#else
+#include <arpa/inet.h>
+#include <netinet/in.h>
+#include <sys/socket.h>
+#include <unistd.h>
+#endif
 
 #include <Aurora/Network/Http/Server/HttpDataStructs.hpp>
 
@@ -104,9 +115,8 @@ namespace Aurora::Network::Http::Server
     // names a different host than the request's own Host header.
     // Same-origin WebUI traffic matches by construction, including a WebUI
     // opened from another device (both sides carry the LAN host).
-    // Deliberately not a DNS-rebinding defense: a page whose URL already
-    // resolves at the daemon would match; that needs a Host allowlist and
-    // is tracked as future work in docs/planning/HomeAssistantOutput.md.
+    // Not a DNS-rebinding defense (a rebound page matches its own Host);
+    // the Host allowlist in _hostAllowed covers that.
     static std::string _lowered(std::string text)
     {
       for(char& c : text){
@@ -124,6 +134,82 @@ namespace Aurora::Network::Http::Server
       }
       auto colon = authority.find(':');
       return colon == std::string::npos ? authority : authority.substr(0, colon);
+    }
+
+
+    // Aurora-5ipy.4: DNS rebinding sends the victim's browser to an
+    // attacker hostname that resolves to this daemon, so Host carries a
+    // name we never served. A bare IP literal can't be that name, so admit
+    // IP literals, localhost, this machine's hostname and .local name, and
+    // the user's extra list. A missing Host (HTTP/1.0 tools) is not a browser.
+    static bool _isIpLiteral(const std::string& host)
+    {
+      if(host.empty()){
+        return false;
+      }
+      in_addr v4;
+      in6_addr v6;
+      return inet_pton(AF_INET, host.c_str(), &v4) == 1
+        || inet_pton(AF_INET6, host.c_str(), &v6) == 1;
+    }
+
+
+    static std::string _machineHostname()
+    {
+      char buffer[256] = {};
+      if(::gethostname(buffer, sizeof(buffer) - 1) != 0){
+        return "";
+      }
+      return _lowered(buffer);
+    }
+
+
+    static std::string _normalizedHost(std::string host)
+    {
+      host = _lowered(std::move(host));
+      while(!host.empty() && host.back() == '.'){
+        host.pop_back();
+      }
+      return host;
+    }
+
+
+    static bool _hostAllowed(const std::string& hostHeader, const std::unordered_set<std::string>& names)
+    {
+      std::string host = _normalizedHost(_hostPart(hostHeader));
+      if(host.empty()){
+        return false;
+      }
+      if(_isIpLiteral(host) || host == "localhost"){
+        return true;
+      }
+      constexpr const char suffix[] = ".localhost";
+      if(host.size() > sizeof(suffix) - 1
+        && host.compare(host.size() - (sizeof(suffix) - 1), std::string::npos, suffix) == 0){
+        return true;
+      }
+      return names.count(host) > 0;
+    }
+
+
+    static std::unordered_set<std::string> _allowedNames(const std::vector<std::string>& extraHosts)
+    {
+      std::unordered_set<std::string> names;
+      std::string machine = _normalizedHost(_machineHostname());
+      if(!machine.empty()){
+        names.insert(machine);
+        auto dot = machine.find('.');
+        std::string shortName = dot == std::string::npos ? machine : machine.substr(0, dot);
+        names.insert(shortName);
+        names.insert(shortName + ".local");
+      }
+      for(const std::string& extra : extraHosts){
+        std::string name = _normalizedHost(_hostPart(extra));
+        if(!name.empty()){
+          names.insert(name);
+        }
+      }
+      return names;
     }
 
 
@@ -207,10 +293,21 @@ namespace Aurora::Network::Http::Server
       const std::vector<Route>& routes,
       const std::optional<std::filesystem::path>& staticDir,
       const std::optional<std::unordered_map<std::string, std::string>>& embeddedFiles,
-      const std::vector<std::pair<std::string, std::unordered_map<std::string, std::string>>>& prefixedEmbeddedFiles
+      const std::vector<std::pair<std::string, std::unordered_map<std::string, std::string>>>& prefixedEmbeddedFiles,
+      const std::vector<std::string>& extraAllowedHosts
     )
     {
       m_service.emplace();
+
+      // Runs before routing and the static mount, so no path is exempt.
+      m_service->set_pre_routing_handler([names = _allowedNames(extraAllowedHosts)](const httplib::Request& req, httplib::Response& res){
+        if(!req.has_header("Host") || _hostAllowed(req.get_header_value("Host"), names)){
+          return httplib::Server::HandlerResponse::Unhandled;
+        }
+        res.status = 403;
+        res.set_content("{\"succeeded\":false,\"error\":\"host_forbidden\"}", "application/json");
+        return httplib::Server::HandlerResponse::Handled;
+      });
 
       m_service->set_socket_options([](socket_t sock) {
         httplib::set_socket_opt(sock, SOL_SOCKET, SO_REUSEADDR, 1);

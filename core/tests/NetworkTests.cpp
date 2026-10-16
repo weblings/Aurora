@@ -4,6 +4,10 @@
 #include <utility>
 #include <vector>
 
+#ifndef _WIN32
+#include <unistd.h>
+#endif
+
 #include <catch2/catch_test_macros.hpp>
 #include <httplib.h>
 
@@ -476,6 +480,56 @@ TEST_CASE("HttpServer rejects cross-origin writes but allows same-origin and hea
   auto readEvil = client.Get("/thing", {{"Origin", "http://evil.com"}});
   REQUIRE(readEvil);
   CHECK(readEvil->status == 200);
+
+  server.stop();
+  serverThread.join();
+}
+
+
+TEST_CASE("HttpServer Host allowlist rejects forged hostnames and admits literals, localhost and extras", "[HttpServer]")
+{
+  // Aurora-5ipy.4: DNS rebinding arrives with the attacker's hostname in Host.
+  HttpServer server;
+  server.addRoute(HttpMethod::Get, "/thing", [](const Request&, Response& res){
+    res.contentType = "text/plain";
+    res.body = "read";
+  });
+  server.serveEmbeddedFiles({{"index.html", "root"}});
+  server.setExtraAllowedHosts({"aurora.example.test"});
+
+  REQUIRE(server.bind("127.0.0.1", 18228));
+
+  std::thread serverThread([&](){ server.listen(); });
+
+  httplib::Client client("127.0.0.1", 18228);
+  auto statusFor = [&](const std::string& host, const char* path = "/thing"){
+    for(int attempt = 0; attempt < 50; ++attempt){
+      auto result = client.Get(path, {{"Host", host}});
+      if(result && result->status != -1){
+        return result->status;
+      }
+      std::this_thread::sleep_for(10ms);
+    }
+    return -1;
+  };
+
+  CHECK(statusFor("evil.com") == 403);
+  CHECK(statusFor("evil.com:18228") == 403);
+  CHECK(statusFor("evil.com", "/") == 403);
+  CHECK(statusFor("localhost.evil.com") == 403);
+
+  for(const char* ok : {"127.0.0.1", "127.0.0.1:18228", "192.168.1.20:8080", "[::1]", "[::1]:18228",
+                        "localhost", "LOCALHOST:18228", "app.localhost", "aurora.example.test:18228"}){
+    CHECK(statusFor(ok) == 200);
+  }
+
+  char name[256] = {};
+  if(gethostname(name, sizeof(name) - 1) == 0 && name[0] != '\0'){
+    std::string machine = name;
+    CHECK(statusFor(machine) == 200);
+    CHECK(statusFor(machine + ":18228") == 200);
+    CHECK(statusFor(machine + ".local") == 200);
+  }
 
   server.stop();
   serverThread.join();

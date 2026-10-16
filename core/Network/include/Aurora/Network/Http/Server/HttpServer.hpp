@@ -70,11 +70,18 @@ namespace Aurora::Network::Http::Server
     // prefix redirects to prefix + "/". Call once per prefix, before bind().
     void serveEmbeddedFilesAt(const std::string& prefix, EmbeddedFiles files);
 
+    // Host header allowlist (DNS-rebinding defense, Aurora-5ipy.4). IP
+    // literals, localhost, *.localhost and this machine's hostname/.local
+    // name always pass; names added here pass too. AURORA_ALLOWED_HOSTS
+    // (comma-separated) is merged in at bind(). Call before bind().
+    void setExtraAllowedHosts(std::vector<std::string> hosts);
+
   private:
     std::unique_ptr<Impl> m_httpServerImpl;
     std::vector<Route> m_routes;
     std::optional<std::filesystem::path> m_staticDir;
     std::optional<EmbeddedFiles> m_embeddedFiles;
     std::vector<std::pair<std::string, EmbeddedFiles>> m_prefixedEmbeddedFiles;
+    std::vector<std::string> m_extraAllowedHosts;
   };
 }

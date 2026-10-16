@@ -2,6 +2,9 @@
 
 #include <Aurora/Network/Http/Server/Impl/HttpLibServerImpl.hpp>
 
+#include <cstdlib>
+#include <sstream>
+
 
 namespace Aurora::Network::Http::Server
 {
@@ -20,7 +23,15 @@ namespace Aurora::Network::Http::Server
     unsigned port
   )
   {
-    m_httpServerImpl = std::make_unique<Impl>(m_routes, m_staticDir, m_embeddedFiles, m_prefixedEmbeddedFiles);
+    std::vector<std::string> allowedHosts = m_extraAllowedHosts;
+    if(const char* env = std::getenv("AURORA_ALLOWED_HOSTS")){
+      std::stringstream list(env);
+      for(std::string item; std::getline(list, item, ',');){
+        allowedHosts.push_back(item);
+      }
+    }
+
+    m_httpServerImpl = std::make_unique<Impl>(m_routes, m_staticDir, m_embeddedFiles, m_prefixedEmbeddedFiles, allowedHosts);
 
     return m_httpServerImpl->bind(boundAddress, port);
   }
@@ -65,6 +76,12 @@ namespace Aurora::Network::Http::Server
       normalized.insert(normalized.begin(), '/');
     }
     m_prefixedEmbeddedFiles.emplace_back(std::move(normalized), std::move(files));
+  }
+
+
+  void HttpServer::setExtraAllowedHosts(std::vector<std::string> hosts)
+  {
+    m_extraAllowedHosts = std::move(hosts);
   }
 
 
