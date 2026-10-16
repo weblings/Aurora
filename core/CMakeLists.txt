@@ -7,7 +7,7 @@ set(BUILD_TESTS TRUE CACHE BOOL "Build tests")
 # Off by default for a consumer with no audio input plugin of its own yet
 # (e.g. Aurora-App-Linux) -- AudioProcessing hard-requires aubio via
 # find_package(CONFIG REQUIRED), which shouldn't block a video-only build.
-option(AURORA_CORE_ENABLE_AUDIO "Build the audio-reactive pipeline (AudioProcessing + Runtime's AudioOrchestrator); requires aubio" TRUE)
+option(AURORA_CORE_ENABLE_AUDIO "Build the audio-reactive pipeline (AudioProcessing + Runtime's audio graph nodes); requires aubio" TRUE)
 
 include(FetchContent)
 
@@ -91,7 +91,7 @@ endif()
 add_subdirectory(Input)
 add_subdirectory(Output)
 
-# Runtime last -- its Orchestrator depends on Contracts/Processing/Input/Output.
+# Runtime last -- its GraphRunner depends on Contracts/Processing/Input/Output.
 add_subdirectory(Runtime)
 
 if(BUILD_TESTS)

@@ -6,7 +6,7 @@
 #include <Aurora/Contracts/ImageData.hpp>
 
 // Dev-only, fire-and-forget UDP broadcast of the subsampled source frame
-// Orchestrator::update() composes zone colors from -- lets a dev tool
+// the video graph's zone sampling reads (GraphRunner::tick() publishes the post-dropAlpha image) -- lets a dev tool
 // (tools/light-viz-relay/validate.py) independently recompute each zone's
 // mean over its own uvs and cross-check against DevLightTap's reported
 // values, for arbitrary (not just solid-color) on-screen content. No-op

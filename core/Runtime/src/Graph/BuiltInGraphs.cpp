@@ -87,7 +87,6 @@ namespace Aurora::Runtime::Graph
     overlay["drift"]["driftBaseRateDegPerSec"] = config.audioDriftBaseRateDegPerSec;
     overlay["drift"]["centroidStrength"] = config.audioCentroidStrength;
     overlay["drift"]["centroidRangeHz"] = config.audioCentroidRangeHz;
-    overlay["beat"]["fixedAnchorHue"] = anchor;
     overlay["beat"]["bounceSmoothTime"] = config.audioBounceSmoothTime;
     overlay["beat"]["dynamismFloor"] = config.audioDynamismFloor;
     overlay["beat"]["vibrancySaturation"] = config.audioVibrancySaturation;
@@ -142,8 +141,7 @@ namespace Aurora::Runtime::Graph
       "beat",
       "audio.bounce",
       json::object(),
-      {"fixedAnchorHue",
-       "bounceSmoothTime",
+      {"bounceSmoothTime",
        "dynamismFloor",
        "vibrancySaturation",
        "vibrancyValue",

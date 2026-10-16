@@ -12,7 +12,7 @@ option(AURORA_APP_ENABLE_HUE_OUTPUT "Link in output/hue" TRUE)
 
 include(FetchContent)
 
-# Aurora core -- needed directly (Config/Orchestrator/Contracts) regardless
+# Aurora core -- needed directly (Config/GraphRunner/Contracts) regardless
 # of which plugins below are enabled, not just transitively through them.
 set(BUILD_TESTS FALSE CACHE BOOL "" FORCE)
 FetchContent_Declare(

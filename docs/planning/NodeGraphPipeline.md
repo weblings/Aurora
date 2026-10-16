@@ -5,7 +5,7 @@ Id: node-graph-pipeline
 Status: exploratory — G1 graph core + bad-graph corpus/fuzz landed
 (Aurora-ra4o.2/.3, 2026-10-14), pre-G2 adjustments in G1c (Aurora-ra4o.9),
 built-in graphs + parity gate in G2d (Aurora-ra4o.7);
-G3 pending. Written 2026-09-30 from a
+G3 cutover shipped 2026-10-15 (Aurora-ra4o.8, app runs on the Graph). Written 2026-09-30 from a
 code read of
 `core/Runtime` + `core/*Processing`; no bead yet for the graph itself.
 Revised 2026-10-01: "Prep work before importing libraries" added, fail-state

@@ -5,12 +5,13 @@
 #include <memory>
 #include <vector>
 
-#include <Aurora/Runtime/AudioOrchestrator.hpp>
+#include <Aurora/Runtime/GraphRunner.hpp>
 #include <Aurora/Runtime/Graph/AudioNodes.hpp>
 #include <Aurora/Runtime/Graph/BuiltInGraphs.hpp>
 #include <Aurora/Runtime/Graph/FrameNodes.hpp>
 #include <Aurora/Runtime/ZoneReconciler.hpp>
 
+#include "AudioTestConfig.hpp"
 #include "GoldenFrames.hpp"
 #include "GraphParityHost.hpp"
 
@@ -21,17 +22,17 @@ using namespace Aurora::Tests::Golden;
 namespace AudioProcessing = Aurora::Processing::AudioProcessing;
 
 // Golden parity scenarios for the audio path, at two levels:
-//  - PCM through AudioOrchestrator: the full path incl. aubio's
-//    AudioFeatureExtractor, which update() always runs internally.
+//  - PCM through GraphRunner (built-in Audio graph): the full path incl.
+//    aubio's AudioFeatureExtractor, which audio.features always runs.
 //  - Scripted AudioFeatures straight into updateDrift/updateBounce: no
 //    aubio, so these pin the color model exactly; they are also what the
 //    node graph's Tier 2 decomposition (drift/bounce as primitives) is
 //    checked against.
 // Every scenario pins fixedAnchorHue -- randomAnchorHue() seeds from
 // std::random_device. See GoldenFrames.hpp for fixtures/regeneration.
-// Each scenario also runs through the built-in Audio graph against the same
-// fixture (Aurora-ra4o.7); scripted features enter it through a test-only
-// node standing in for audio.capture + audio.features.
+// The feature scenarios run both directly and through the built-in Audio
+// graph against the same fixture (Aurora-ra4o.7); scripted features enter the
+// graph through a test-only node standing in for audio.capture + audio.features.
 namespace
 {
   constexpr float Pi = 3.14159265358979f;
@@ -100,27 +101,10 @@ namespace
   }
 
 
-  // AudioEffectSettings -> the ConfigData fields the built-in graph overlays.
-  ConfigData configFrom(const AudioProcessing::AudioEffectSettings& settings)
-  {
-    ConfigData data;
-    data.audioFixedAnchorHue = settings.fixedAnchorHue.value_or(-1.0f);
-    data.audioBounceSmoothTime = settings.bounceSmoothTime;
-    data.audioDynamismFloor = settings.dynamismFloor;
-    data.audioCentroidStrength = settings.centroidStrength;
-    data.audioDriftBaseRateDegPerSec = settings.driftBaseRateDegPerSec;
-    data.audioVibrancySaturation = settings.vibrancySaturation;
-    data.audioVibrancyValue = settings.vibrancyValue;
-    data.audioReferenceRms = settings.referenceRms;
-    data.audioBrightnessFloor = settings.brightnessFloor;
-    data.audioCentroidRangeHz = settings.centroidRangeHz;
-    data.audioBrightnessSmoothTime = settings.brightnessSmoothTime;
-    return data;
-  }
+  using Aurora::Tests::audioConfigFrom;
 
 
-  // A mid-run Tuning edit, applied before that tick's update. Legacy path:
-  // AudioOrchestrator::setSettings. Graph path: rebuild + adoptStateFrom, as G3 does.
+  // A mid-run Tuning edit, applied before that tick via GraphRunner::setConfig.
   struct SettingsEdit
   {
     int tick;
@@ -142,17 +126,19 @@ namespace
     ZoneMapStore(dir.path).save("hue", pcmZones());
 
     RecordingOutput output("hue", {1, 2, 3}, recording, tick);
-    AudioOrchestrator orchestrator(input, {&output}, ZoneMapStore(dir.path), settings);
-    orchestrator.init();
+    GraphRunner runner(input, {&output}, audioConfigFrom(settings), ZoneMapStore(dir.path));
+    runner.init();
 
     for(tick = 0; tick < ticks; ++tick){
       for(const auto& edit : edits){
         if(edit.tick == tick){
           edit.apply(settings);
-          orchestrator.setSettings(settings);
+          std::string error;
+          INFO(error);
+          REQUIRE(runner.setConfig(audioConfigFrom(settings), error));
         }
       }
-      orchestrator.update(Dt);
+      runner.tick(Dt);
     }
     return recording;
   }
@@ -179,40 +165,7 @@ namespace
   };
 
 
-  Recording runGraphPcmScenario(
-    SequenceAudioInput& input,
-    AudioProcessing::AudioEffectSettings settings,
-    int ticks,
-    const std::vector<SettingsEdit>& edits)
-  {
-    GraphRig rig;
-    rig.host.audio = &input;
-    auto loaded = Aurora::Runtime::Graph::loadBuiltInAudioGraph(rig.registry, {"hue"}, configFrom(settings));
-    INFO(loaded.error);
-    REQUIRE(loaded.ok);
-    // The built-in Audio graph declares today's fixed 60Hz tick.
-    REQUIRE(loaded.graph.tickHz().value_or(0.0) == 60.0);
-
-    for(rig.tick = 0; rig.tick < ticks; ++rig.tick){
-      for(const auto& edit : edits){
-        if(edit.tick == rig.tick){
-          edit.apply(settings);
-          auto next = Aurora::Runtime::Graph::loadBuiltInAudioGraph(rig.registry, {"hue"}, configFrom(settings));
-          INFO(next.error);
-          REQUIRE(next.ok);
-          next.graph.adoptStateFrom(loaded.graph);
-          loaded.graph = std::move(next.graph);
-        }
-      }
-      loaded.graph.tick(Dt, &rig.host);
-    }
-    return rig.recording;
-  }
-
-
-  // Fresh input per path (inputs count samples). The graph run is skipped
-  // while regenerating so fixtures stay derived from the legacy path.
-  void checkPcmBothPaths(
+  void checkPcm(
     const std::string& scenario,
     const std::string& description,
     const MakeInput& makeInput,
@@ -220,19 +173,8 @@ namespace
     int ticks,
     const std::vector<SettingsEdit>& edits = {})
   {
-    {
-      INFO("path: AudioOrchestrator");
-      SequenceAudioInput input = makeInput();
-      check(scenario, description, runPcmScenario(scenario, input, settings, ticks, edits));
-    }
-    if(std::getenv("AURORA_UPDATE_GOLDEN")){
-      return;
-    }
-    {
-      INFO("path: built-in Audio graph");
-      SequenceAudioInput input = makeInput();
-      check(scenario, description, runGraphPcmScenario(input, settings, ticks, edits));
-    }
+    SequenceAudioInput input = makeInput();
+    check(scenario, description, runPcmScenario(scenario, input, settings, ticks, edits));
   }
 
 
@@ -330,7 +272,7 @@ namespace
         .factory = [script] { return std::make_unique<ScriptedFeaturesNode>(script); },
       });
 
-    nlohmann::json doc = builtInAudioGraph({"hue"}, audioOverlayFromConfig(configFrom(settings)));
+    nlohmann::json doc = builtInAudioGraph({"hue"}, audioOverlayFromConfig(audioConfigFrom(settings).data()));
     nlohmann::json nodes = nlohmann::json::array();
     nodes.push_back({{"id", "feat"}, {"type", "test.features"}, {"params", nlohmann::json::object()}});
     for(const auto& node : doc["nodes"]){
@@ -414,7 +356,7 @@ namespace
 }
 
 
-TEST_CASE("Parity: audio PCM click track through AudioOrchestrator", "[Parity][Audio]")
+TEST_CASE("Parity: audio PCM click track through GraphRunner", "[Parity][Audio]")
 {
   // 120 BPM clicks over a quiet 220Hz bed; every other click carries a 3kHz
   // tone so the spectral centroid moves too. 4s.
@@ -429,13 +371,13 @@ TEST_CASE("Parity: audio PCM click track through AudioOrchestrator", "[Parity][A
     });
   };
 
-  checkPcmBothPaths("audio_pcm_click_track", "48kHz mono, 220Hz bed + 120BPM noise clicks (alternate clicks + 3kHz), fixedAnchorHue 30, zones 1,2 active (2 gamma 0.5), 3 inactive, 240 ticks at 1/60s.", makeInput, pinnedSettings(), 240);
+  checkPcm("audio_pcm_click_track", "48kHz mono, 220Hz bed + 120BPM noise clicks (alternate clicks + 3kHz), fixedAnchorHue 30, zones 1,2 active (2 gamma 0.5), 3 inactive, 240 ticks at 1/60s.", makeInput, pinnedSettings(), 240);
 }
 
 
 TEST_CASE("Parity: audio PCM live Tuning edits mid-run", "[Parity][Audio]")
 {
-  // Pins G3's hot-edit path (rebuild + adoptStateFrom) against setSettings:
+  // Pins the hot-edit path (rebuild + adoptStateFrom) through setConfig:
   // a plain retune, a fixed-hue change (re-seeds both states), then clearing
   // the hue (keeps the running anchor, so no random seed).
   const MakeInput makeInput = [] {
@@ -455,7 +397,7 @@ TEST_CASE("Parity: audio PCM live Tuning edits mid-run", "[Parity][Audio]")
     {180, [](AudioProcessing::AudioEffectSettings& s){ s.fixedAnchorHue.reset(); s.vibrancySaturation = 0.6f; }},
   };
 
-  checkPcmBothPaths("audio_pcm_live_edits", "Click track (seed 4242), fixedAnchorHue 30; tick 60 bounce 0.15s + drift 30deg/s, tick 120 hue 200 (re-seed), tick 180 hue cleared + S 0.6; 240 ticks at 1/60s.", makeInput, pinnedSettings(), 240, edits);
+  checkPcm("audio_pcm_live_edits", "Click track (seed 4242), fixedAnchorHue 30; tick 60 bounce 0.15s + drift 30deg/s, tick 120 hue 200 (re-seed), tick 180 hue cleared + S 0.6; 240 ticks at 1/60s.", makeInput, pinnedSettings(), 240, edits);
 }
 
 
@@ -480,7 +422,7 @@ TEST_CASE("Parity: audio PCM silence then loud bursts", "[Parity][Audio]")
     });
   };
 
-  checkPcmBothPaths("audio_pcm_silence_then_burst", "1s digital silence, then 330+495Hz chord with clicks at samples 60000/70000/91000/100000/118000/130000, fixedAnchorHue 30, 180 ticks at 1/60s.", makeInput, pinnedSettings(), 180);
+  checkPcm("audio_pcm_silence_then_burst", "1s digital silence, then 330+495Hz chord with clicks at samples 60000/70000/91000/100000/118000/130000, fixedAnchorHue 30, 180 ticks at 1/60s.", makeInput, pinnedSettings(), 180);
 }
 
 

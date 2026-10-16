@@ -111,7 +111,7 @@ TEST_CASE("built-in Audio graph doc declares 60Hz and overlays ConfigData", "[Bu
   nlohmann::json doc = builtInAudioGraph({"hue"}, audioOverlayFromConfig(config));
   CHECK(doc.at("tickHz") == 60);
   CHECK(nodeById(doc, "drift").at("params").at("fixedAnchorHue") == 120.f);
-  CHECK(nodeById(doc, "beat").at("params").at("fixedAnchorHue") == 120.f);
+  CHECK(!nodeById(doc, "beat").at("params").contains("fixedAnchorHue"));
   CHECK(nodeById(doc, "beat").at("params").at("bounceSmoothTime") == 0.5f);
   CHECK(nodeById(doc, "drift").at("params").at("centroidRangeHz") == 3000.f);
   CHECK(nodeById(doc, "all_hue").at("params").at("output") == "hue");

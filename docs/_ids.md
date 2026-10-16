@@ -127,12 +127,17 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `processing-analysis` | [archive/ProcessingAnalysis.md](archive/ProcessingAnalysis.md) | ImageProcessing / Color / Interpolation / ImageData / UV — Conversion analysis |
 | `q9l1-tray-target-live` | [log/2026-10-07-q9l1-tray-target-live.md](log/2026-10-07-q9l1-tray-target-live.md) | Aurora-q9l1: tray click-time target — Linux live green, Windows exercised, closed |
 | `ra4o10-g2e-pre-g3-fixes` | [log/2026-10-14-ra4o10-g2e-pre-g3-fixes.md](log/2026-10-14-ra4o10-g2e-pre-g3-fixes.md) | G2e pre-G3 review fixes (Aurora-ra4o.10) |
+| `ra4o11-g4a-loader-float-clamp` | [log/2026-10-15-ra4o11-g4a-loader-float-clamp.md](log/2026-10-15-ra4o11-g4a-loader-float-clamp.md) | G4a: loader clamps Float params (Aurora-ra4o.11) |
+| `ra4o12-g4b-descriptor-metadata` | [log/2026-10-15-ra4o12-g4b-descriptor-metadata.md](log/2026-10-15-ra4o12-g4b-descriptor-metadata.md) | G4b: descriptors emit useWhen, example and cost (Aurora-ra4o.12) |
+| `ra4o13-g4c-bounce-reseed` | [log/2026-10-15-ra4o13-g4c-bounce-reseed.md](log/2026-10-15-ra4o13-g4c-bounce-reseed.md) | G4c: audio.bounce re-seeds when drift re-seeds (Aurora-ra4o.13) |
+| `ra4o14-g4d-absent-anchor-accepted` | [log/2026-10-15-ra4o14-g4d-absent-anchor-accepted.md](log/2026-10-15-ra4o14-g4d-absent-anchor-accepted.md) | G4d: Absent-tick anchor change accepted (Aurora-ra4o.14) |
 | `ra4o2-g1-graph-core` | [log/2026-10-14-ra4o2-g1-graph-core.md](log/2026-10-14-ra4o2-g1-graph-core.md) | G1 graph runtime core lands (Aurora-ra4o.2) |
 | `ra4o3-g1b-bad-graph-corpus` | [log/2026-10-14-ra4o3-g1b-bad-graph-corpus.md](log/2026-10-14-ra4o3-g1b-bad-graph-corpus.md) | G1b bad-graph corpus + loader fuzz (Aurora-ra4o.3) |
 | `ra4o4-g2a-video-nodes` | [log/2026-10-14-ra4o4-g2a-video-nodes.md](log/2026-10-14-ra4o4-g2a-video-nodes.md) | G2a Tier 1 video nodes (Aurora-ra4o.4) |
 | `ra4o5-g2b-audio-nodes` | [log/2026-10-14-ra4o5-g2b-audio-nodes.md](log/2026-10-14-ra4o5-g2b-audio-nodes.md) | G2b Tier 1 audio nodes (Aurora-ra4o.5) |
 | `ra4o6-g2c-frame-nodes` | [log/2026-10-14-ra4o6-g2c-frame-nodes.md](log/2026-10-14-ra4o6-g2c-frame-nodes.md) | G2c Tier 1 frame nodes (Aurora-ra4o.6) |
 | `ra4o7-g2d-builtin-graphs` | [log/2026-10-14-ra4o7-g2d-builtin-graphs.md](log/2026-10-14-ra4o7-g2d-builtin-graphs.md) | G2d built-in Video and Audio graphs, parity gate (Aurora-ra4o.7) |
+| `ra4o8-g3-cutover` | [log/2026-10-15-ra4o8-g3-cutover.md](log/2026-10-15-ra4o8-g3-cutover.md) | G3 cutover: the app runs on the Graph (Aurora-ra4o.8) |
 | `ra4o9-g1c-pre-g2-adjustments` | [log/2026-10-14-ra4o9-g1c-pre-g2-adjustments.md](log/2026-10-14-ra4o9-g1c-pre-g2-adjustments.md) | G1c pre-G2 runtime adjustments (Aurora-ra4o.9) |
 | `runtime-analysis` | [archive/RuntimeAnalysis.md](archive/RuntimeAnalysis.md) | Runtime / Config — Conversion analysis |
 | `scig-capture-source-banner` | [log/2026-10-08-scig-capture-source-banner.md](log/2026-10-08-scig-capture-source-banner.md) | Aurora-scig: Capture Source (NUX) errors move to the shell banner (closed) |

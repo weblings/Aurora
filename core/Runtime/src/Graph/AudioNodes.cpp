@@ -1,5 +1,6 @@
 #include <Aurora/Runtime/Graph/AudioNodes.hpp>
 
+#include <algorithm>
 #include <cmath>
 #include <memory>
 #include <string>
@@ -40,7 +41,7 @@ namespace Aurora::Runtime::Graph
       return decl;
     }
 
-    // AudioOrchestrator::setSettings re-seeds when the fixed hue changes to
+    // the former AudioOrchestrator::setSettings re-seeds when the fixed hue changes to
     // a different hue. Nodes see params fresh each tick, so each stateful
     // node tracks the last value itself. First tick only records.
     bool changedAnchor(std::optional<float>& last, bool& hasLast, const std::optional<float>& current)
@@ -49,6 +50,21 @@ namespace Aurora::Runtime::Graph
       last = current;
       hasLast = true;
       return changed;
+    }
+
+    // True when the anchor moved farther than drift can in `dt` (slider
+    // maxes: 60 deg/s base x 2 at full centroid strength), i.e. drift re-seeded.
+    bool anchorJumped(std::optional<float>& last, float anchorDegrees, float dt)
+    {
+      constexpr float kMaxDriftDegPerSec = 120.f;
+      bool jumped = false;
+      if(last.has_value()){
+        float delta = std::fmod(std::fabs(anchorDegrees - *last), 360.f);
+        delta = std::min(delta, 360.f - delta);
+        jumped = delta > kMaxDriftDegPerSec * dt + 1.f;
+      }
+      last = anchorDegrees;
+      return jumped;
     }
 
     // audio.capture: readNextBuffer every tick; empty -> Absent (today's
@@ -88,7 +104,7 @@ namespace Aurora::Runtime::Graph
     // audio.features: the stateful aubio extractor, built lazily from the
     // first buffer's sampleRate -- aubio configures its objects at
     // construction, and the rate isn't known until data arrives. Same as
-    // AudioOrchestrator's lazy m_featureExtractor.
+    // the former AudioOrchestrator's lazy m_featureExtractor.
     class AudioFeaturesNode : public INode
     {
     public:
@@ -171,7 +187,6 @@ namespace Aurora::Runtime::Graph
     AudioSettings bounceSettingsFrom(const EvalContext& ctx)
     {
       AudioSettings settings;
-      settings.fixedAnchorHue = ctx.param<std::optional<float>>("fixedAnchorHue");
       settings.bounceSmoothTime = ctx.param<float>("bounceSmoothTime");
       settings.dynamismFloor = ctx.param<float>("dynamismFloor");
       settings.vibrancySaturation = ctx.param<float>("vibrancySaturation");
@@ -185,9 +200,8 @@ namespace Aurora::Runtime::Graph
     // audio.bounce: owns BounceState, reads the live anchor every tick and
     // outputs the Color to send. The anchor arrives as an Angle port (not
     // the whole DriftState -- bounce only reads anchorHueDegrees), so the
-    // init branch still seeds current/target from the live anchor. Like
-    // drift, resets on a fixedAnchorHue change so both ends re-seed
-    // together, as AudioOrchestrator::setSettings resets both states.
+    // init branch still seeds current/target from the live anchor. Resets
+    // when the anchor jumps, i.e. when drift re-seeds.
     class AudioBounceNode : public INode
     {
     public:
@@ -202,7 +216,7 @@ namespace Aurora::Runtime::Graph
         const Contracts::AudioFeatures& features = ctx.input<Contracts::AudioFeatures>("features");
         const Angle& anchor = ctx.input<Angle>("anchor");
         AudioSettings settings = bounceSettingsFrom(ctx);
-        if(changedAnchor(m_lastAnchor, m_hasLast, settings.fixedAnchorHue)){
+        if(anchorJumped(m_lastAnchorDegrees, anchor.degrees, dt)){
           m_state = Processing::AudioProcessing::BounceState{};
         }
         Processing::AudioProcessing::DriftState anchorShim;
@@ -229,8 +243,7 @@ namespace Aurora::Runtime::Graph
       };
       std::vector<PortDecl> m_out{{"color", PortType::Color, false}};
       Processing::AudioProcessing::BounceState m_state{};
-      std::optional<float> m_lastAnchor{};
-      bool m_hasLast{false};
+      std::optional<float> m_lastAnchorDegrees{};
     };
 
     // frame.broadcast: composeAudioFrame over the live zone map for one
@@ -358,7 +371,9 @@ namespace Aurora::Runtime::Graph
         .meta =
           {
             .purpose = "Beat-driven color bounce around the drift anchor; outputs a Color.",
-            .useWhen = "After features and the drift anchor; the audio path's color output.",
+            .useWhen =
+              "After features and the drift anchor; the audio path's color output. Re-seeds (snaps) when "
+              "audio.drift re-seeds, so set the fixed hue on audio.drift only.",
             .example =
               "{\"id\": \"beat\", \"type\": \"audio.bounce\", \"params\": {\"bounceSmoothTime\": 0.285}}",
             .cost = "cheap",
@@ -368,8 +383,7 @@ namespace Aurora::Runtime::Graph
            {"anchor", PortType::Angle, true}},
         .outputs = {{"color", PortType::Color, false}},
         .params =
-          {fixedAnchorParam(),
-           floatParam(
+          {floatParam(
              "bounceSmoothTime",
              "audio.bounceSmoothTime",
              "Beat hue damping time constant (today's audio.bounceSmoothTime)."),

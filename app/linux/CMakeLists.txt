@@ -17,7 +17,7 @@ option(AURORA_APP_ENABLE_LINUX_AUDIO_INPUT "Link in input/linux audio capture (r
 
 include(FetchContent)
 
-# Aurora core -- needed directly (Config/Orchestrator/Contracts) regardless
+# Aurora core -- needed directly (Config/GraphRunner/Contracts) regardless
 # of which plugins below are enabled, not just transitively through them.
 set(BUILD_TESTS FALSE CACHE BOOL "" FORCE)
 set(AURORA_CORE_ENABLE_AUDIO ${AURORA_APP_ENABLE_LINUX_AUDIO_INPUT} CACHE BOOL "" FORCE)

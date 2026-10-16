@@ -46,7 +46,7 @@ namespace Aurora::Processing
     };
 
     // Persistent state for palette drift, owned by whoever drives the tick
-    // loop (AudioOrchestrator) -- updateDrift is pure given this state, not
+    // loop (GraphRunner) -- updateDrift is pure given this state, not
     // global/static, so it's independently testable with literal values.
     struct DriftState
     {

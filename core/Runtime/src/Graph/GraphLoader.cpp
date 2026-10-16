@@ -1,5 +1,6 @@
 #include <Aurora/Runtime/Graph/GraphLoader.hpp>
 
+#include <algorithm>
 #include <cmath>
 #include <sstream>
 
@@ -64,6 +65,19 @@ namespace Aurora::Runtime::Graph
       return true;
     }
 
+    // Same rule as sanitizeParam: non-finite resets to the default, values
+    // below min become unset (-1) when allowed, otherwise clamp to the range.
+    float clampToSchema(const Contracts::ParamSchema& schema, float value)
+    {
+      if(!std::isfinite(value)){
+        return schema.defaultValue;
+      }
+      if(schema.allowsUnset && value < schema.min){
+        return -1.f;
+      }
+      return std::clamp(value, schema.min, schema.max);
+    }
+
     // Validates one JSON param value against its declaration, filling the
     // default when the key is absent. Errors name node, param and the
     // expectation.
@@ -90,7 +104,7 @@ namespace Aurora::Runtime::Graph
           if(!raw->is_number()){
             return fail("must be a number");
           }
-          out = raw->get<float>();
+          out = clampToSchema(decl.schema, raw->get<float>());
           return true;
         }
         case ParamKind::Bool:{
@@ -143,7 +157,7 @@ namespace Aurora::Runtime::Graph
           if(!raw->is_number()){
             return fail("must be a number or null (null means unset)");
           }
-          out = std::optional<float>{raw->get<float>()};
+          out = std::optional<float>{clampToSchema(decl.schema, raw->get<float>())};
           return true;
         }
       }

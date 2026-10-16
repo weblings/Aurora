@@ -106,7 +106,7 @@ namespace
     {"id": "cap", "type": "audio.capture", "params": {}},
     {"id": "feat", "type": "audio.features", "params": {}},
     {"id": "drift", "type": "audio.drift", "params": {"fixedAnchorHue": 120.0}},
-    {"id": "beat", "type": "audio.bounce", "params": {"fixedAnchorHue": 120.0}}
+    {"id": "beat", "type": "audio.bounce", "params": {}}
   ], "edges": [
     ["cap.buffer", "feat.buffer"],
     ["feat.features", "drift.features"],
@@ -222,7 +222,7 @@ TEST_CASE("audio chain capture -> features -> drift -> bounce matches the orches
   // First tick: bounce seeds current/target from the live anchor (120) and
   // brightness from this tick's factor (rms 0.5 / ref 0.5 = full), so the
   // color is the anchor at full vibrancy -- same as
-  // AudioOrchestrator::update's first send with these settings.
+  // the former AudioOrchestrator::update's first send with these settings.
   CHECK(requireColor(graph.portValue("beat", "color")) == Color::fromHSV(120.f, 0.95f, 0.95f));
 }
 
@@ -256,7 +256,7 @@ TEST_CASE("audio.drift and audio.bounce stay silent while capture is empty", "[A
     Catch::Matchers::WithinRel(120.f - 10.f / 60.f, 1e-4f));
 }
 
-TEST_CASE("changing fixedAnchorHue re-seeds drift and bounce together", "[AudioNodes]")
+TEST_CASE("changing fixedAnchorHue re-seeds drift and bounce follows", "[AudioNodes]")
 {
   NodeRegistry registry = makeAudioRegistry();
   Aurora::Runtime::Graph::Graph live = requireGraph(kFullChain, registry);
@@ -279,7 +279,7 @@ TEST_CASE("changing fixedAnchorHue re-seeds drift and bounce together", "[AudioN
       {"id": "cap", "type": "audio.capture", "params": {}},
       {"id": "feat", "type": "audio.features", "params": {}},
       {"id": "drift", "type": "audio.drift", "params": {"fixedAnchorHue": 240.0}},
-      {"id": "beat", "type": "audio.bounce", "params": {"fixedAnchorHue": 240.0}}
+      {"id": "beat", "type": "audio.bounce", "params": {}}
     ], "edges": [
       ["cap.buffer", "feat.buffer"],
       ["feat.features", "drift.features"],
@@ -291,7 +291,7 @@ TEST_CASE("changing fixedAnchorHue re-seeds drift and bounce together", "[AudioN
   next.tick(dt, &host);
 
   // Both ends re-seeded from the new anchor on the next tick, mirroring
-  // AudioOrchestrator::setSettings resetting both states: the color snaps
+  // the former AudioOrchestrator::setSettings resetting both states: the color snaps
   // to the new hue instead of damping from the old position.
   CHECK(next.portValue("drift", "anchor") != nullptr);
   CHECK(requireAngle(next.portValue("drift", "anchor")).degrees == 240.f);
@@ -362,7 +362,7 @@ TEST_CASE("frame.broadcast matches composeAudioFrame over the live zone map", "[
       {"id": "cap", "type": "audio.capture", "params": {}},
       {"id": "feat", "type": "audio.features", "params": {}},
       {"id": "drift", "type": "audio.drift", "params": {"fixedAnchorHue": 120.0}},
-      {"id": "beat", "type": "audio.bounce", "params": {"fixedAnchorHue": 120.0}},
+      {"id": "beat", "type": "audio.bounce", "params": {}},
       {"id": "all", "type": "frame.broadcast", "params": {"output": "hue"}}
     ], "edges": [
       ["cap.buffer", "feat.buffer"],
@@ -397,5 +397,21 @@ TEST_CASE("frame.broadcast matches composeAudioFrame over the live zone map", "[
     CHECK((*frame)[i].id == expected[i].id);
     CHECK((*frame)[i].color == color);
     CHECK((*frame)[i].gamma == expected[i].gamma);
+  }
+}
+
+TEST_CASE("Audio node descriptors carry full agent metadata", "[AudioNodes]")
+{
+  NodeRegistry registry;
+  registerAudioNodes(registry);
+  for(const auto& descriptor : registry.toDescriptors()){
+    if(registry.find(descriptor.key.substr(5)) == nullptr){
+      continue; // param entry
+    }
+    INFO(descriptor.key);
+    CHECK(!descriptor.description.empty());
+    CHECK(!descriptor.useWhen.empty());
+    CHECK(!descriptor.example.empty());
+    CHECK(!descriptor.cost.empty());
   }
 }

@@ -808,3 +808,16 @@ call).
 
 **Fix:** drop the switch, or run the build from PowerShell. Build one target per
 `cmake --build` call, or none to build all.
+
+---
+
+## Build a baseline commit in a worktree by reusing the existing _deps
+Tags: worktree, FetchContent, vcpkg, ab-test
+Applies-when: checking whether a bug or a perf number predates your change
+
+Aurora-ra4o.8: a fresh `git worktree` plus `cmake -S app/windows` fails on
+OpenCV (no toolchain) and would refetch every dependency. What worked:
+pass the vcpkg `CMAKE_TOOLCHAIN_FILE` from the main build's cache, point
+`FETCHCONTENT_SOURCE_DIR_{CATCH2,GLM,HTTPLIB,NLOHMANN_JSON}` at the main
+build's `_deps/*-src`, and set `AURORA_APP_BUILD_TESTS=OFF`. The Release app
+builds in a couple of minutes, then `git worktree remove --force` it.

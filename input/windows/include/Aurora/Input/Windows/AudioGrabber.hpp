@@ -27,7 +27,7 @@ namespace Aurora::Input::Windows
     // Push-to-pull adaptation lives here, not the interface -- miniaudio's
     // callback runs on its own real-time audio thread. This buffers
     // incoming samples under a lock and hands back whatever's accumulated
-    // since the last call, possibly empty (matching AudioOrchestrator's
+    // since the last call, possibly empty (matching the audio.capture node's
     // existing no-op-on-empty convention).
     void readNextBuffer(Contracts::AudioBuffer& buffer) override;
 

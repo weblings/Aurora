@@ -17,13 +17,10 @@
 #include <Aurora/Input/IVideoInput.hpp>
 #include <Aurora/Output/IOutput.hpp>
 #include <Aurora/Runtime/Config.hpp>
-#include <Aurora/Runtime/Orchestrator.hpp>
+#include <Aurora/Runtime/GraphRunner.hpp>
 #include <Aurora/Runtime/Registry.hpp>
 #include <Aurora/Runtime/TickClock.hpp>
 #include <Aurora/Runtime/ZoneRoutes.hpp>
-#ifdef AURORA_RUNTIME_AUDIO_AVAILABLE
-#include <Aurora/Runtime/AudioOrchestrator.hpp>
-#endif
 
 namespace Aurora::Runtime
 {
@@ -34,7 +31,7 @@ namespace Aurora::Runtime
   struct PipelineOptions
   {
     // Thrown when Config asks for audio but this build has no
-    // AudioOrchestrator. Apps name their own build toggles here.
+    // audio support. Apps name their own build toggles here.
     std::string noAudioSupportMessage{
       "activeAudioInputName is set, but this build has no audio support"
     };
@@ -146,9 +143,9 @@ namespace Aurora::Runtime
     Pipeline() = default;
 
     bool m_isAudioMode{false};
-    // Aurora-o13 spike: AURORA_DEV_DUAL_CAPTURE builds both orchestrators
+    // Aurora-o13 spike: AURORA_DEV_DUAL_CAPTURE builds both runners
     // and ticks both. Video stays primary for config, zones and monitors.
-    // The flag also logs per-orchestrator tick timing in single modes.
+    // The flag also logs per-runner tick timing in single modes.
     bool m_isDualCapture{false};
     struct DualCaptureStats
     {
@@ -162,7 +159,7 @@ namespace Aurora::Runtime
     Config m_appliedConfig;
     double m_tickIntervalSeconds{Runtime::tickIntervalSeconds()};
 
-    // Declaration order matters: m_orchestrator/m_audioOrchestrator hold a
+    // Declaration order matters: m_videoRunner/m_audioRunner hold a
     // reference into m_videoInput/m_audioInput, so those must be declared
     // (and therefore destroyed after, since destruction runs in reverse
     // declaration order) first -- same reasoning already applied to
@@ -172,10 +169,8 @@ namespace Aurora::Runtime
     std::unique_ptr<Input::IAudioInput> m_audioInput;
     std::vector<std::unique_ptr<Output::IOutput>> m_outputs;
     std::vector<Output::IOutput*> m_outputPtrs;
-    std::optional<Orchestrator> m_orchestrator;
-#ifdef AURORA_RUNTIME_AUDIO_AVAILABLE
-    std::optional<AudioOrchestrator> m_audioOrchestrator;
-#endif
+    std::optional<GraphRunner> m_videoRunner;
+    std::optional<GraphRunner> m_audioRunner;
   };
 
 

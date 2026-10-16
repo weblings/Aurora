@@ -25,6 +25,8 @@ namespace
   {
     std::vector<std::string> order; // node ids in evaluate-call order
     std::unordered_map<std::string, Color> sinkReceived;
+    float lastGain = -1.f;                // paramprobe's last evaluated Float
+    std::optional<float> lastBias{};      // paramprobe's last evaluated OptionalFloat
   };
 
   class ConstNode : public INode
@@ -318,6 +320,7 @@ namespace
   class ParamProbeNode : public INode
   {
   public:
+    explicit ParamProbeNode(std::shared_ptr<Probes> probes) : m_probes(std::move(probes)) {}
     const std::vector<PortDecl>& inputPorts() const override { return m_in; }
     const std::vector<PortDecl>& outputPorts() const override { return m_out; }
     void evaluate(
@@ -328,6 +331,8 @@ namespace
       const std::string& mode = std::get<std::string>(ctx.params.at("mode"));
       bool flag = std::get<bool>(ctx.params.at("flag"));
       const std::optional<float>& bias = std::get<std::optional<float>>(ctx.params.at("bias"));
+      m_probes->lastGain = std::get<float>(ctx.params.at("gain"));
+      m_probes->lastBias = bias;
       outputs.emplace(
         "out",
         Color(
@@ -337,6 +342,7 @@ namespace
     }
 
   private:
+    std::shared_ptr<Probes> m_probes;
     std::vector<PortDecl> m_in{};
     std::vector<PortDecl> m_out{{"out", PortType::Color, false}};
   };
@@ -594,8 +600,8 @@ namespace
     bias.kind = ParamKind::OptionalFloat;
     bias.schema = {"bias", -100.f, 100.f, 0.1f, "", 0.f, false};
     bias.description = "bias";
-    info.params = {mode, flag, bias};
-    info.factory = []{ return std::make_unique<ParamProbeNode>(); };
+    info.params = {mode, flag, bias, floatParam("gain", 0.f, 1.f, 0.5f)};
+    info.factory = [probes]{ return std::make_unique<ParamProbeNode>(probes); };
     CHECK(registry.registerType("test.paramprobe", std::move(info)));
 
     info = {};
@@ -1035,6 +1041,31 @@ TEST_CASE("Graph param kinds fill defaults and validate", "[Graph]")
     "version": 1,
     "nodes": [{"id": "q", "type": "test.paramprobe", "params": {"nope": 1}}]
   })").find("unknown param 'nope'") != std::string::npos);
+}
+
+TEST_CASE("Graph loader clamps Float params to the declared range", "[Graph]")
+{
+  auto probes = std::make_shared<Probes>();
+  NodeRegistry registry = makeTestRegistry(probes);
+  auto loaded = [&](const std::string& params){
+    Graph graph = mustLoad(registry,
+      R"({"version": 1, "nodes": [{"id": "q", "type": "test.paramprobe", "params": )" + params + "}]}");
+    graph.tick(1.f / 60.f);
+  };
+
+  loaded(R"({"gain": 5})");
+  CHECK(probes->lastGain == 1.f);
+  loaded(R"({"gain": -3})");
+  CHECK(probes->lastGain == 0.f);
+  loaded(R"({"gain": 0.25})");
+  CHECK(probes->lastGain == 0.25f);
+  // Beyond float range reads as infinity, which resets to the default.
+  loaded(R"({"gain": 1e300})");
+  CHECK(probes->lastGain == 0.5f);
+  loaded(R"({"bias": 500})");
+  CHECK(probes->lastBias == 100.f);
+  loaded(R"({"bias": -500})");
+  CHECK(probes->lastBias == -100.f);
 }
 
 TEST_CASE("Graph registry metadata exports node descriptors", "[Graph]")

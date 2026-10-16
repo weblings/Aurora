@@ -1100,3 +1100,49 @@ built-in docs never needed the literals.
 **Fix:** `decl.schema = paramSchema("audio.bounceSmoothTime")`, and have the
 built-in graph docs carry only bindings (`output`) plus overlay values for named
 tunable params.
+
+---
+
+## Replacing a class means keeping the contracts its tests relied on silently
+Tags: refactor, cutover, init, tests
+Applies-when: deleting a stateful class and porting its tests to the replacement
+
+Aurora-ra4o.8: the orchestrator tests call `init()` twice (create, save a
+zone map, `init()` again to reload it). `GraphRunner::init` accumulated
+output names on the second call, so the built-in graph load failed with
+"duplicate node id 'zones_fake'". Nothing documented that `init()` was
+re-runnable, only the tests did.
+
+**Fix:** make `init()` clear its derived tables before rebuilding and say so
+in the header. When porting tests across a class swap, expect failures that
+are missing implicit contracts, not test bugs.
+
+---
+
+## Check a bead's premise against the code before scoping it
+Tags: beads, scoping, review-findings, descriptors
+Applies-when: picking up a bead written from a review finding
+
+Aurora-ra4o.12 said to "populate the metadata fields on the Tier 1 nodes".
+All 13 nodes already carried `useWhen`, `example` and `cost`. The real gap was
+that `ControlDescriptor` had no fields to carry them, so `toDescriptors()` and
+`/api/descriptors` dropped them.
+
+**Fix:** grep the named symbols first and restate the gap before editing. The
+acceptance test ("fails if a node leaves one empty") is what makes it durable.
+
+---
+
+## Don't duplicate a reset-trigger param across graph nodes, derive it from the upstream signal
+Tags: node-graph, state, reset, params, agent-ux
+Applies-when: two stateful nodes must re-seed together when one setting changes
+
+Aurora-ra4o.13: `fixedAnchorHue` sat on both `audio.drift` and `audio.bounce`,
+and bounce used it only as a reset trigger. An agent that set it on one node
+got the two out of step, and the param looked like it did something on bounce.
+
+**Fix:** keep the param on the owner (drift). The downstream node resets when
+its input shows the re-seed (anchor jump beyond what drift can move in one
+tick, bounded by the slider maxes). Goldens held because the old reset and the
+jump landed on the same tick. A re-seed inside the margin is missed and only
+damps instead of snapping.
