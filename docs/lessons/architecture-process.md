@@ -1159,3 +1159,19 @@ node downstream of `audio.features.onset` on every quiet tick.
 
 **Fix:** `Trigger{fired}` is sent every tick and `fired` is true only on the
 tick the event happens. Reserve Absent for "the source has no data".
+
+---
+
+## A loader rule keyed on opt-in node metadata is inert until the real node opts in; test it with the real node
+Tags: node-graph, loader, validation, testing, test-doubles
+Applies-when: adding a validation that reads an optional `NodeTypeInfo` field, or trusting a loader test that passes with a test-only node
+
+The one-sender-per-output check (Aurora-o13) reads `sinkBindingParam`, which only
+the test node in `GraphTests.cpp` set. The real `output.send` did not, so the test
+passed while a graph with two real senders on one output loaded and would flicker.
+It surfaced only because `/api/nodes` (Aurora-id8j.2) printed the registry and
+`sink` was missing.
+
+**Fix:** set the field on the real node (Aurora-cwos) and add a loader test that
+registers the real node types (`FrameNodesTests`). For any new opt-in field,
+grep that every real node that should set it does.

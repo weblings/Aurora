@@ -18,12 +18,17 @@ the EC 3 Host allowlist ([[5ipy4-ec3-host-allowlist]]).
   in the three app mains. `shortestDecimal` is now shared from
   `ControlDescriptors.hpp`.
 - Tests: both routes in `PipelineTests.cpp`, including a forged Host (403).
-- Windows MSVC Debug: core suite 253/253.
-- Lessons: 1 (language-cpp, const json `operator[]` aborts Debug tests).
+- Windows MSVC Debug: core suite 254/254 (with the follow-up below).
+- Lessons: 2 (language-cpp, const json `operator[]` aborts Debug tests; architecture-process, opt-in loader metadata is inert until real nodes set it).
+
+## Follow-up fixed (Aurora-cwos)
+
+- `output.send` set no `sinkBindingParam`, so the loader's one-sender-per-output
+  check never ran for real graphs. It is now `"output"`, `/api/nodes` reports
+  `sink` for it, and a `FrameNodesTests` case loads two real `output.send`
+  nodes on one output and expects the rejection. Suite 254/254 (MSVC).
 
 ## Carried forward
 
-- `output.send` sets no `sinkBindingParam`, so the loader's one-sink-per-output
-  check is inert and `/api/nodes` omits `sink` for it. Not changed here.
 - Built-in graphs carry no `controls` yet (B4).
 - App mains were edited but not built here (only core tests on Windows).

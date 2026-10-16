@@ -13,6 +13,7 @@
 #include <Aurora/Runtime/Graph/Graph.hpp>
 #include <Aurora/Runtime/Graph/GraphLoader.hpp>
 #include <Aurora/Runtime/Graph/NodeRegistry.hpp>
+#include <Aurora/Runtime/Graph/VideoNodes.hpp>
 #include <Aurora/Runtime/Smoother.hpp>
 
 using namespace Aurora::Contracts;
@@ -121,6 +122,31 @@ TEST_CASE("frame node types are registered", "[FrameNodes]")
   CHECK(registry.find("frame.smooth") != nullptr);
   CHECK(registry.find("output.send") != nullptr);
 }
+
+TEST_CASE("loader rejects two output.send nodes bound to one output (Aurora-cwos)", "[FrameNodes]")
+{
+  NodeRegistry registry = makeFrameRegistry();
+  registerVideoNodes(registry);
+  LoadOptions options;
+  options.knownOutputs = {"hue"};
+  auto result = loadGraphFromString(R"({
+    "version": 1,
+    "nodes": [
+      {"id": "cap", "type": "video.capture"},
+      {"id": "z1", "type": "zones.sample", "params": {"output": "hue"}},
+      {"id": "z2", "type": "zones.sample", "params": {"output": "hue"}},
+      {"id": "s1", "type": "output.send", "params": {"output": "hue"}},
+      {"id": "s2", "type": "output.send", "params": {"output": "hue"}}
+    ],
+    "edges": [
+      ["cap.image", "z1.image"], ["cap.image", "z2.image"],
+      ["z1.frame", "s1.frame"], ["z2.frame", "s2.frame"]
+    ]
+  })", registry, options);
+  CHECK_FALSE(result.ok);
+  CHECK(result.error.find("both send to it") != std::string::npos);
+}
+
 
 TEST_CASE("frame.smooth matches Smoother::smooth tick for tick", "[FrameNodes]")
 {

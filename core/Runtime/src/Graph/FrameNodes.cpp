@@ -128,6 +128,7 @@ namespace Aurora::Runtime::Graph
         .outputs = {},
         .params = {outputParam("Output that receives the frame (per-output binding, not a port).")},
         .factory = [] { return std::make_unique<OutputSendNode>(); },
+        .sinkBindingParam = "output",
       });
   }
 } // namespace Aurora::Runtime::Graph
