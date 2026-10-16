@@ -6,9 +6,9 @@ Closed 2026-10-16. Phase 0 of [[external-control]]. Docs only, no code.
 
 ## What changed
 
-- `ExternalControl.md` "Still open": brightness boost above 100% and the video brightness floor are deferred, not settled. Neither blocks the dimmer (Aurora-5ipy.7). Phase 0 text updated to match.
-- `ImplementationPlan.md`: both "WebSockets deferred" and the stretch "Networking fork" no longer claim a new dependency. cpp-httplib 0.46 already ships `Server::WebSocket`, so Aurora-1jb needs none.
-- `HomeAssistantOutput.md`: "Local API rules" intro points to [[external-control]] for the planned Host allowlist, LAN pairing and scoped access.
+- [[external-control]] "Still open": brightness boost above 100% and the video brightness floor are deferred, not settled. Neither blocks the dimmer (Aurora-5ipy.7). Phase 0 text updated to match.
+- [[implementation-plan]]: both "WebSockets deferred" and the stretch "Networking fork" no longer claim a new dependency. cpp-httplib 0.46 already ships `Server::WebSocket`, so Aurora-1jb needs none.
+- [[home-assistant-output]]: "Local API rules" intro points to [[external-control]] for the planned Host allowlist, LAN pairing and scoped access.
 
 ## Verification
 
