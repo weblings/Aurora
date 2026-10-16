@@ -275,15 +275,17 @@ section wins.
   `Angle` (degrees). `Angle` was pulled forward from Tier 2 (G1c) because
   `updateBounce` reads the drift anchor, so `audio.drift` needs an output
   `audio.bounce` can wire to.
-- Tier 2 adds `Float`, `Trigger`. `UVs` stays a param shape, not a
-  port. `Detections` and `Motion` wait for the stretch work.
+- Tier 2 adds `Float` (a plain scalar) and `Trigger` (a per-tick pulse that
+  is sent every tick, `fired` true only on the tick it happens; amended
+  2026-10-16, id8j.1). `UVs` stays a param shape, not a port. `Detections` and `Motion` wait for the stretch work.
 - `Image` travels as a shared pointer. A capture node reuses the same pointer
   while the source frame serial is unchanged, so downstream nodes
   (`image.rescale`) cache by identity. This keeps Aurora-igwa's skip of
   re-preparing a static frame.
 - `audio.features` emits one `AudioFeatures` port in Tier 1, because
-  `updateDrift` and `updateBounce` take the whole struct. Split scalar ports
-  arrive with the Tier 2 primitives.
+  `updateDrift` and `updateBounce` take the whole struct. Tier 2 (id8j.1)
+  adds scalar ports beside it: `rms`, `onsetStrength`, `centroid` (Float) and
+  `onset` (Trigger). The `features` port is unchanged, so parity holds.
 - The runtime error value is outside the type system. The runtime carries it
   with the originating node id, and it propagates downstream.
 

@@ -821,3 +821,16 @@ pass the vcpkg `CMAKE_TOOLCHAIN_FILE` from the main build's cache, point
 `FETCHCONTENT_SOURCE_DIR_{CATCH2,GLM,HTTPLIB,NLOHMANN_JSON}` at the main
 build's `_deps/*-src`, and set `AURORA_APP_BUILD_TESTS=OFF`. The Release app
 builds in a couple of minutes, then `git worktree remove --force` it.
+
+---
+
+## `build/` may be a WSL cache, build core tests in `build-core-test-win` from Windows
+Tags: cmake, wsl, windows, tests
+Applies-when: `cmake --build build` fails with "CMakeCache.txt directory is different" from a Windows shell
+
+Aurora-id8j.1: `build/` was configured under WSL (`/mnt/d/...`), so a Windows
+shell cannot reuse it. The configured MSVC tree for core tests is
+`build-core-test-win` (generator VS 2022, source `core/`).
+
+**Fix:** `cmake --build build-core-test-win --config Debug -j 8` then
+`ctest --test-dir build-core-test-win -C Debug`. Don't reconfigure `build/`.

@@ -11,6 +11,8 @@ namespace Aurora::Runtime::Graph
       case PortType::Color: return "Color";
       case PortType::Frame: return "Frame";
       case PortType::Angle: return "Angle";
+      case PortType::Float: return "Float";
+      case PortType::Trigger: return "Trigger";
     }
     return "?";
   }
@@ -23,6 +25,8 @@ namespace Aurora::Runtime::Graph
     if(name == "Color"){ return PortType::Color; }
     if(name == "Frame"){ return PortType::Frame; }
     if(name == "Angle"){ return PortType::Angle; }
+    if(name == "Float"){ return PortType::Float; }
+    if(name == "Trigger"){ return PortType::Trigger; }
     return std::nullopt;
   }
 

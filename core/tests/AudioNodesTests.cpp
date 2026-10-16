@@ -176,6 +176,12 @@ TEST_CASE("audio.features extracts rms through the Graph", "[AudioNodes]")
   // fill a 512-sample aubio hop, so no onset fires.
   CHECK_THAT(features.rms, Catch::Matchers::WithinRel(0.5f, 1e-6f));
   CHECK_FALSE(features.onsetDetected);
+
+  // Scalar ports mirror the struct fields.
+  CHECK(std::get<float>(*graph.portValue("feat", "rms")) == features.rms);
+  CHECK(std::get<float>(*graph.portValue("feat", "centroid")) == features.spectralCentroid);
+  CHECK(std::get<float>(*graph.portValue("feat", "onsetStrength")) == features.onsetStrength);
+  CHECK_FALSE(std::get<Aurora::Runtime::Graph::Trigger>(*graph.portValue("feat", "onset")).fired);
 }
 
 TEST_CASE("audio.drift seeds the anchor from fixedAnchorHue and drifts", "[AudioNodes]")

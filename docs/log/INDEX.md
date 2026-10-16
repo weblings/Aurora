@@ -192,3 +192,4 @@ Planning docs stay clean: decisions, status, and pointers here only.
 | 2026-10-15 | G4c audio.bounce drops fixedAnchorHue and re-seeds on an anchor jump (drift re-seed); goldens unchanged; suite 250/250 (MSVC); 1 lesson. [[ra4o13-g4c-bounce-reseed]] | `bd show Aurora-ra4o.13` |
 | 2026-10-15 | G4d Absent-tick anchor change accepted, not fixed (drift only; needs Absent-tick param access); closes the G2-review items. [[ra4o14-g4d-absent-anchor-accepted]] | `bd show Aurora-ra4o.14` |
 | 2026-10-15 | Sequence B planning: spatial effects as Image generators, time-based Tier 2 smoothing, simple mode default, EC 3 first, floor policy decided; epic Aurora-id8j filed (10 children); ra4o and pngj closed. [[sequence-b-planning]] | `bd show Aurora-id8j` |
+| 2026-10-16 | B0 Float and Trigger port types, audio.features scalar ports, G0 amended, corpus extended; goldens unchanged; suite 250/250 (MSVC); 2 lessons. [[id8j1-b0-float-trigger-ports]] | `bd show Aurora-id8j.1` |

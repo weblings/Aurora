@@ -1146,3 +1146,16 @@ its input shows the re-seed (anchor jump beyond what drift can move in one
 tick, bounded by the slider maxes). Goldens held because the old reset and the
 jump landed on the same tick. A re-seed inside the margin is missed and only
 damps instead of snapping.
+
+---
+
+## Model a per-tick event as a value sent every tick, not as Absent when idle
+Tags: node-graph, ports, trigger, absent, audio
+Applies-when: adding a pulse or event port to a graph where Absent propagates downstream
+
+Aurora-id8j.1: `Absent` means "no value this tick" and propagates to every
+dependent node. Emitting nothing when no onset fired would have stalled each
+node downstream of `audio.features.onset` on every quiet tick.
+
+**Fix:** `Trigger{fired}` is sent every tick and `fired` is true only on the
+tick the event happens. Reserve Absent for "the source has no data".

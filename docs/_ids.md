@@ -55,6 +55,7 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `home-assistant-output` | [planning/HomeAssistantOutput.md](planning/HomeAssistantOutput.md) | Home Assistant output module |
 | `http-server-analysis` | [archive/HttpServerAnalysis.md](archive/HttpServerAnalysis.md) | HTTP server analysis |
 | `hue-output-analysis` | [archive/HueOutputAnalysis.md](archive/HueOutputAnalysis.md) | Hue::Api / Auth / Stream — Conversion analysis |
+| `id8j1-b0-float-trigger-ports` | [log/2026-10-16-id8j1-b0-float-trigger-ports.md](log/2026-10-16-id8j1-b0-float-trigger-ports.md) | B0: Float and Trigger port types (Aurora-id8j.1) |
 | `ifkn2-page-css-split` | [log/2026-10-08-ifkn2-page-css-split.md](log/2026-10-08-ifkn2-page-css-split.md) | Aurora-ifkn.2 closed: shell.css page-wide rules split into page-only page.css |
 | `ifkn3-stop-capability` | [log/2026-10-08-ifkn3-stop-capability.md](log/2026-10-08-ifkn3-stop-capability.md) | Aurora-ifkn.3: Dashboard Stop gated on a canStop capability, screen re-vendored identical |
 | `ifkn4-string-zone-ids` | [log/2026-10-08-ifkn4-string-zone-ids.md](log/2026-10-08-ifkn4-string-zone-ids.md) | Aurora-ifkn.4 closed: ZoneActiveToggle accepts string and numeric zone ids |

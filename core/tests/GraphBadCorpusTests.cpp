@@ -91,6 +91,31 @@ namespace
     std::vector<PortDecl> m_out{{"out", PortType::Frame, false}};
   };
 
+  // Float/Trigger passthrough with the port type chosen at registration.
+  class TypedPipeNode : public INode
+  {
+  public:
+    explicit TypedPipeNode(PortType type):
+    m_in{{"in", type, true}},
+    m_out{{"out", type, false}}
+    {
+    }
+
+    const std::vector<PortDecl>& inputPorts() const override { return m_in; }
+    const std::vector<PortDecl>& outputPorts() const override { return m_out; }
+    void evaluate(
+      const EvalContext& ctx,
+      float,
+      std::unordered_map<std::string, GraphValue>& outputs) override
+    {
+      outputs.emplace("out", ctx.inputs.at("in"));
+    }
+
+  private:
+    std::vector<PortDecl> m_in;
+    std::vector<PortDecl> m_out;
+  };
+
   class CounterNode : public INode
   {
   public:
@@ -198,6 +223,16 @@ namespace
     info.outputs = {{"out", PortType::Frame, false}};
     info.factory = []{ return std::make_unique<FramePipeNode>(); };
     CHECK(registry.registerType("test.framepipe", std::move(info)));
+
+    for(PortType type : {PortType::Float, PortType::Trigger}){
+      info = {};
+      info.meta = meta(std::string(portTypeName(type)) + " passthrough");
+      info.inputs = {{"in", type, true}};
+      info.outputs = {{"out", type, false}};
+      info.factory = [type]{ return std::make_unique<TypedPipeNode>(type); };
+      CHECK(registry.registerType(
+        type == PortType::Float ? "test.floatpipe" : "test.triggerpipe", std::move(info)));
+    }
 
     info = {};
     info.meta = meta("sourceless color emitter");
@@ -348,6 +383,17 @@ namespace
       {"port-type-mismatch",
        R"({"version": 1, "nodes": [{"id": "c", "type": "test.const"}, {"id": "f", "type": "test.framepipe"}], "edges": [["c.out", "f.in"]]})",
        {"port-type mismatch", "c.out", "Color", "f.in", "Frame"}},
+      {"float-into-trigger",
+       R"({"version": 1, "nodes": [{"id": "a", "type": "test.floatpipe"}, {"id": "b", "type": "test.triggerpipe"}], "edges": [["a.out", "b.in"]]})",
+       {"port-type mismatch", "a.out", "Float", "b.in", "Trigger"}},
+      {"trigger-into-float",
+       R"({"version": 1, "nodes": [{"id": "a", "type": "test.triggerpipe"}, {"id": "b", "type": "test.floatpipe"}], "edges": [["a.out", "b.in"]]})",
+       {"port-type mismatch", "a.out", "Trigger", "b.in", "Float"}},
+      {"float-into-color",
+       R"({"version": 1, "nodes": [{"id": "a", "type": "test.floatpipe"}, {"id": "p", "type": "test.passthrough"}], "edges": [["a.out", "p.in"]]})",
+       {"port-type mismatch", "a.out", "Float", "p.in", "Color"}},
+      {"missing-required-float-input", R"({"version": 1, "nodes": [{"id": "f", "type": "test.floatpipe"}]})",
+       {"'f'", "missing required input 'in'", "Float"}},
       {"two-edges-one-input",
        R"({"version": 1, "nodes": [{"id": "a", "type": "test.const"}, {"id": "b", "type": "test.const"}, {"id": "p", "type": "test.passthrough"}], "edges": [["a.out", "p.in"], ["b.out", "p.in"]]})",
        {"more than one edge into 'p.in'"}},

@@ -101,6 +101,16 @@ namespace Aurora::Runtime::Graph
       Contracts::AudioBuffer m_scratch{};
     };
 
+    // Scalar ports sit beside the whole-struct port so drift/bounce parity
+    // is untouched. onsetStrength is only meaningful when onset fires.
+    const std::vector<PortDecl> kFeatureOutputs{
+      {"features", PortType::AudioFeatures, false},
+      {"rms", PortType::Float, false},
+      {"onset", PortType::Trigger, false},
+      {"onsetStrength", PortType::Float, false},
+      {"centroid", PortType::Float, false},
+    };
+
     // audio.features: the stateful aubio extractor, built lazily from the
     // first buffer's sampleRate -- aubio configures its objects at
     // construction, and the rate isn't known until data arrives. Same as
@@ -118,7 +128,9 @@ namespace Aurora::Runtime::Graph
       {
         const Contracts::AudioBuffer& buffer = ctx.input<Contracts::AudioBuffer>("buffer");
         if(buffer.samples.empty()){
-          outputs.emplace("features", Absent{});
+          for(const PortDecl& port : m_out){
+            outputs.emplace(port.name, Absent{});
+          }
           return;
         }
         if(!m_extractor){
@@ -126,12 +138,17 @@ namespace Aurora::Runtime::Graph
             buffer.sampleRate
           );
         }
-        outputs.emplace("features", m_extractor->process(buffer));
+        Contracts::AudioFeatures features = m_extractor->process(buffer);
+        outputs.emplace("features", features);
+        outputs.emplace("rms", features.rms);
+        outputs.emplace("onset", Trigger{features.onsetDetected});
+        outputs.emplace("onsetStrength", features.onsetStrength);
+        outputs.emplace("centroid", features.spectralCentroid);
       }
 
     private:
       std::vector<PortDecl> m_in{{"buffer", PortType::AudioBuffer, true}};
-      std::vector<PortDecl> m_out{{"features", PortType::AudioFeatures, false}};
+      std::vector<PortDecl> m_out{kFeatureOutputs};
       std::unique_ptr<Processing::AudioProcessing::AudioFeatureExtractor> m_extractor{};
     };
 
@@ -324,13 +341,13 @@ namespace Aurora::Runtime::Graph
       NodeTypeInfo{
         .meta =
           {
-            .purpose = "Extract onset, loudness and centroid features from an audio buffer.",
+            .purpose = "Extract onset, loudness and centroid features from an audio buffer, as one struct and as scalar ports.",
             .useWhen = "After capture; feeds drift and bounce.",
             .example = "{\"id\": \"feat\", \"type\": \"audio.features\", \"params\": {}}",
             .cost = "moderate",
           },
         .inputs = {{"buffer", PortType::AudioBuffer, true}},
-        .outputs = {{"features", PortType::AudioFeatures, false}},
+        .outputs = kFeatureOutputs,
         .params = {},
         .factory = [] { return std::make_unique<AudioFeaturesNode>(); },
       });
