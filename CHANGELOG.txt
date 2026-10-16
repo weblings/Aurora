@@ -1,3 +1,6 @@
+Unreleased:
+- Pairing - Phones and other devices on your network must now be paired before they can view or change Aurora. The first time you open Aurora from one, it shows a short code. Approve that code from Aurora on the computer it runs on (the request appears in a banner). The computer running Aurora never needs pairing, and paired devices can be revoked from the Dashboard.
+
 v1.1.1:
 - Windows - Video updates are faster, and HDR displays and rotated screens capture correctly
 - Mac - Fix - Video mode CPU use drops from ~22% to ~3-4%

@@ -508,8 +508,10 @@ namespace Aurora::Network::Http::Server
       return decision;
     }
 
-    // Longest matching prefix wins; no rule means GET open, anything else Admin.
-    Scope required = request.method == HttpMethod::Get ? Scope::None : Scope::Admin;
+    // Longest matching prefix wins. No rule: API GETs need Read (LAN reads
+    // paired, ExternalControl Layer 3), other GETs (WebUI files) open, rest Admin.
+    Scope required = request.method != HttpMethod::Get ? Scope::Admin
+      : underPrefix(request.path, "/api") ? Scope::Read : Scope::None;
     std::size_t best = 0;
     bool matched = false;
     for(const auto& [prefix, scope] : m_rules){

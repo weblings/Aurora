@@ -63,7 +63,15 @@ TEST_CASE("AccessGuard trusts loopback and gates remote writes on a valid token"
   loopback.remoteAddr = "::1";
   CHECK(guard.decide(loopback).result == AccessDecision::Result::Allow);
 
-  CHECK(guard.decide(remoteRequest(HttpMethod::Get, "/api/state")).result == AccessDecision::Result::Allow);
+  // LAN reads are paired (Aurora-5ipy.19); WebUI files stay open so the pairing screen loads.
+  CHECK(guard.decide(remoteRequest(HttpMethod::Get, "/api/state")).result == AccessDecision::Result::Unauthorized);
+  CHECK(guard.decide(remoteRequest(HttpMethod::Get, "/api/events")).result == AccessDecision::Result::Unauthorized);
+  CHECK(guard.decide(remoteRequest(HttpMethod::Get, "/")).result == AccessDecision::Result::Allow);
+  CHECK(guard.decide(remoteRequest(HttpMethod::Get, "/styles/shell.css")).result == AccessDecision::Result::Allow);
+  CHECK(guard.decide(remoteRequest(HttpMethod::Get, "/apiary.html")).result == AccessDecision::Result::Allow);
+  std::string reader = service->mintForTest("reader", Scope::Read);
+  CHECK(guard.decide(remoteRequest(HttpMethod::Get, "/api/state", reader)).result == AccessDecision::Result::Allow);
+  CHECK(guard.decide(remoteRequest(HttpMethod::Put, "/api/config", reader)).result == AccessDecision::Result::Forbidden);
   CHECK(guard.decide(remoteRequest(HttpMethod::Put, "/api/config")).result == AccessDecision::Result::Unauthorized);
   CHECK(guard.decide(remoteRequest(HttpMethod::Put, "/api/config", "aur_bogus")).result == AccessDecision::Result::Unauthorized);
 
@@ -271,7 +279,7 @@ TEST_CASE("HttpServer with an AccessGuard enforces pairing end to end for a remo
     std::this_thread::sleep_for(10ms);
   }
   REQUIRE(read);
-  CHECK(read->status == 200);
+  CHECK(read->status == 401); // LAN reads are paired (Aurora-5ipy.19)
 
   auto unpaired = client.Put("/api/config", "{}", "application/json");
   REQUIRE(unpaired);
@@ -312,7 +320,10 @@ TEST_CASE("HttpServer with an AccessGuard enforces pairing end to end for a remo
   CHECK(approved->get_header_value("Set-Cookie").find("HttpOnly") != std::string::npos);
   CHECK(client.Get(pollPath)->status == 404);
 
-  // Paired: bearer and cookie both pass.
+  // Paired: reads and writes pass, by bearer or cookie.
+  auto pairedRead = client.Get("/api/state", httplib::Headers{{"Cookie", "aurora_token=" + token}});
+  REQUIRE(pairedRead);
+  CHECK(pairedRead->status == 200);
   auto viaBearer = client.Put("/api/config", httplib::Headers{{"Authorization", "Bearer " + token}}, "{}", "application/json");
   REQUIRE(viaBearer);
   CHECK(viaBearer->status == 200);

@@ -154,8 +154,9 @@ namespace Aurora::Network::Http::Server
 
 
   // Middleware core, free of httplib so it unit-tests directly. Loopback
-  // passes as Admin. Otherwise the longest matching rule decides, and a path
-  // with no rule is open for GET and Admin for everything else (fail closed).
+  // passes as Admin. Otherwise the longest matching rule decides. With no
+  // rule, a GET under /api needs Read, other GETs (WebUI files) are open, and
+  // everything else needs Admin (fail closed).
   class AccessGuard
   {
   public:
