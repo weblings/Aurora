@@ -18,6 +18,8 @@
 #include <Aurora/Runtime/ConfigStore.hpp>
 #include <Aurora/Runtime/Graph/FrameNodes.hpp>
 #include <Aurora/Runtime/Graph/MathNodes.hpp>
+#include <Aurora/Runtime/Graph/BlendNodes.hpp>
+#include <Aurora/Runtime/Graph/SpatialNodes.hpp>
 #include <Aurora/Runtime/Graph/ColorNodes.hpp>
 #include <Aurora/Runtime/Graph/TimeNodes.hpp>
 #include <Aurora/Runtime/Graph/NodeRegistry.hpp>
@@ -2070,6 +2072,8 @@ TEST_CASE("GET /api/nodes serves every registered node and rejects a forged Host
   Aurora::Runtime::Graph::registerMathNodes(expected);
   Aurora::Runtime::Graph::registerTimeNodes(expected);
   Aurora::Runtime::Graph::registerColorNodes(expected);
+  Aurora::Runtime::Graph::registerBlendNodes(expected);
+  Aurora::Runtime::Graph::registerSpatialNodes(expected);
 #ifdef AURORA_RUNTIME_AUDIO_AVAILABLE
   Aurora::Runtime::Graph::registerAudioNodes(expected);
 #endif

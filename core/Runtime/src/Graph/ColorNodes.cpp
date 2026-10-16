@@ -144,26 +144,26 @@ namespace Aurora::Runtime::Graph
       return Color::fromHSV(hsv.x + degrees, hsv.y, hsv.z);
     }
 
-    // Stops are ascending and non-empty (loader guarantee); t is in 0..1.
-    Color sampleGradient(const Gradient& gradient, float t)
-    {
-      const auto& stops = gradient.stops;
-      if(t <= stops.front().position){
-        return stops.front().color;
-      }
-      for(size_t i = 1; i < stops.size(); ++i){
-        if(t <= stops[i].position){
-          const GradientStop& lo = stops[i - 1];
-          const GradientStop& hi = stops[i];
-          float span = hi.position - lo.position;
-          float f = span > 0.f ? (t - lo.position) / span : 1.f;
-          glm::vec3 a = lo.color.toNormalized();
-          return Color::fromNormalized(a + (hi.color.toNormalized() - a) * f);
-        }
-      }
-      return stops.back().color;
-    }
   } // namespace
+
+  Color sampleGradient(const Gradient& gradient, float t)
+  {
+    const auto& stops = gradient.stops;
+    if(t <= stops.front().position){
+      return stops.front().color;
+    }
+    for(size_t i = 1; i < stops.size(); ++i){
+      if(t <= stops[i].position){
+        const GradientStop& lo = stops[i - 1];
+        const GradientStop& hi = stops[i];
+        float span = hi.position - lo.position;
+        float f = span > 0.f ? (t - lo.position) / span : 1.f;
+        glm::vec3 a = lo.color.toNormalized();
+        return Color::fromNormalized(a + (hi.color.toNormalized() - a) * f);
+      }
+    }
+    return stops.back().color;
+  }
 
   void registerColorNodes(NodeRegistry& registry)
   {

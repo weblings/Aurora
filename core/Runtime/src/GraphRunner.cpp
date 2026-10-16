@@ -7,6 +7,8 @@
 #include <Aurora/Runtime/Graph/BuiltInGraphs.hpp>
 #include <Aurora/Runtime/Graph/FrameNodes.hpp>
 #include <Aurora/Runtime/Graph/MathNodes.hpp>
+#include <Aurora/Runtime/Graph/BlendNodes.hpp>
+#include <Aurora/Runtime/Graph/SpatialNodes.hpp>
 #include <Aurora/Runtime/Graph/ColorNodes.hpp>
 #include <Aurora/Runtime/Graph/TimeNodes.hpp>
 #include <Aurora/Runtime/Graph/VideoNodes.hpp>
@@ -43,6 +45,8 @@ namespace Aurora::Runtime
     Graph::registerMathNodes(m_registry);
     Graph::registerTimeNodes(m_registry);
     Graph::registerColorNodes(m_registry);
+    Graph::registerBlendNodes(m_registry);
+    Graph::registerSpatialNodes(m_registry);
   }
 
 
@@ -64,6 +68,8 @@ namespace Aurora::Runtime
     Graph::registerMathNodes(m_registry);
     Graph::registerTimeNodes(m_registry);
     Graph::registerColorNodes(m_registry);
+    Graph::registerBlendNodes(m_registry);
+    Graph::registerSpatialNodes(m_registry);
   }
 #endif
 

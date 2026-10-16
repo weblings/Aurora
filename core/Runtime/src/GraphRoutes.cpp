@@ -6,6 +6,8 @@
 #include <Aurora/Runtime/ControlDescriptors.hpp>
 #include <Aurora/Runtime/Graph/FrameNodes.hpp>
 #include <Aurora/Runtime/Graph/MathNodes.hpp>
+#include <Aurora/Runtime/Graph/BlendNodes.hpp>
+#include <Aurora/Runtime/Graph/SpatialNodes.hpp>
 #include <Aurora/Runtime/Graph/ColorNodes.hpp>
 #include <Aurora/Runtime/Graph/TimeNodes.hpp>
 #include <Aurora/Runtime/Graph/NodeRegistry.hpp>
@@ -87,6 +89,8 @@ namespace Aurora::Runtime
       Graph::registerMathNodes(registry);
       Graph::registerTimeNodes(registry);
       Graph::registerColorNodes(registry);
+      Graph::registerBlendNodes(registry);
+      Graph::registerSpatialNodes(registry);
 #ifdef AURORA_RUNTIME_AUDIO_AVAILABLE
       Graph::registerAudioNodes(registry);
 #endif

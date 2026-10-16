@@ -11,4 +11,7 @@
 namespace Aurora::Runtime::Graph
 {
   void registerColorNodes(NodeRegistry& registry);
+
+  // Stops are ascending and non-empty (loader guarantee); t is in 0..1.
+  Contracts::Color sampleGradient(const Gradient& gradient, float t);
 }
