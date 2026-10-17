@@ -1,5 +1,8 @@
-Unreleased:
-- Pairing - Phones and other devices on your network must now be paired before they can view or change Aurora. The first time you open Aurora from one, it shows a short code. Approve that code from Aurora on the computer it runs on (the request appears in a banner). The computer running Aurora never needs pairing, and paired devices can be revoked from the Dashboard.
+v1.1.2:
+- Pairing - Phones and other devices on your network must now be paired before they can view or change Aurora. Open Aurora on the device, then approve the code it shows from the computer running Aurora. Paired devices are listed on the Dashboard and can be revoked there. The computer running Aurora never needs pairing, and reaching Aurora by a custom hostname or reverse proxy now needs AURORA_ALLOWED_HOSTS set.
+- Brightness - New global brightness slider in Tuning, applied live to all lights
+- Dev - Read-only routes for nodes, the running graph, and a live events stream (unstable, not a public API yet)
+- Dev - Node graph code prep: now runs audio and video pipelines, more helper nodes added, no editor exists yet.
 
 v1.1.1:
 - Windows - Video updates are faster, and HDR displays and rotated screens capture correctly
