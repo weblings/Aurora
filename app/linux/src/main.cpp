@@ -34,6 +34,7 @@
 #include <GraphEditorWebRoot.hpp>
 #endif
 #include <Aurora/Network/Http/Server/HttpServer.hpp>
+#include <Aurora/Network/Http/Server/PairingRoutes.hpp>
 #include <Aurora/Runtime/ConfigStore.hpp>
 #include <Aurora/Runtime/ControlDescriptorTables.hpp>
 #include <Aurora/Runtime/ControlDescriptors.hpp>
@@ -417,6 +418,8 @@ namespace
           {"inputs", registry.inputNames()},
           {"audioInputs", registry.audioInputNames()},
           {"outputs", outputs},
+          // Outputs where brightness 0 means off; the Dashboard shows the floor control only for these.
+          {"zeroOffOutputs", registry.zeroOffOutputNames()},
           // Literal per app binary, not runtime-detected -- each of
           // app/linux, app/windows, app/mac is already its own platform-
           // specific translation unit. Lets the WebUI show platform-
@@ -572,6 +575,12 @@ if(!instanceLock.held()){
   Aurora::Runtime::PipelineHost pipelineHost(std::move(initialPipeline), pipelineOptions(), startupFailure);
 
   Aurora::Network::Http::Server::HttpServer httpServer;
+
+  // Aurora-5ipy.5: loopback is trusted, other callers need a paired device.
+  auto pairingService = std::make_shared<Aurora::Network::Http::Server::PairingService>(configRoot / "paired-devices.json");
+  auto accessGuard = std::make_shared<Aurora::Network::Http::Server::AccessGuard>(pairingService);
+  Aurora::Network::Http::Server::registerPairingRoutes(httpServer, pairingService, *accessGuard);
+  httpServer.setAccessGuard(accessGuard);
   registerCapabilitiesRoute(httpServer, registry, pipelineHost);
   registerVersionRoute(httpServer);
 
@@ -628,6 +637,7 @@ if(!instanceLock.held()){
   registerAudioSinksRoute(httpServer);
   Aurora::Runtime::registerReloadRoute(httpServer, pipelineHost, registry, configRoot);
   Aurora::Runtime::registerStateRoute(httpServer, pipelineHost, registry, configRoot);
+  Aurora::Runtime::registerEventsRoute(httpServer, pipelineHost, configRoot);
   Aurora::Runtime::registerNodesRoute(httpServer);
   Aurora::Runtime::registerGraphRoute(httpServer, pipelineHost);
   Aurora::Runtime::registerDevErrorsRoute(httpServer, pipelineHost);
@@ -726,9 +736,8 @@ if(!instanceLock.held()){
       trayIcon.refresh();
     }
     auto tickStart = std::chrono::steady_clock::now();
-    pipelineHost.tick();
-    auto tickInterval = std::chrono::duration<double>(pipelineHost.tickIntervalSeconds());
-    std::this_thread::sleep_until(tickStart + std::chrono::duration_cast<std::chrono::steady_clock::duration>(tickInterval));
+    const double tickInterval = pipelineHost.tick();
+    std::this_thread::sleep_until(Aurora::Runtime::nextTickTime(tickStart, tickInterval, std::chrono::steady_clock::now()));
   }
 
   std::cout << "Stopping...\n";

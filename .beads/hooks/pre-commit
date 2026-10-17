@@ -58,6 +58,19 @@ if command -v bd >/dev/null 2>&1; then
 fi
 # --- END BEADS INTEGRATION v1.3.0 ---
 
+# --- BEGIN PROJECT CLOSE GATE (Aurora-m6pd) ---
+# Blocks a commit that closes a bead until its log entry, INDEX row and
+# Lessons section are staged. Runs before doc-lint so it checks the new docs.
+_repo_root=$(git rev-parse --show-toplevel)
+if ! git diff --quiet HEAD -- .beads/issues.jsonl 2>/dev/null; then
+  _py=python3
+  command -v python3 >/dev/null 2>&1 || _py=python
+  if ! "$_py" "$_repo_root/docs/check-close.py"; then
+    exit 1
+  fi
+fi
+# --- END PROJECT CLOSE GATE ---
+
 # --- BEGIN PROJECT DOC-LINT HOOKS (Aurora-lmn.5) ---
 # check-lessons.sh/check-links.py only ran manually/by convention before
 # this (docs/log/2026-09-20-docs-system-overhaul.md: "honor over hooks"),

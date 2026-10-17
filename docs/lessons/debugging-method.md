@@ -688,6 +688,8 @@ After adding `PUT /api/state`, `devstack.py up` answered 404 for it. The route w
 
 Recurred in reverse during Aurora-kea (2026-10-03): `cmake --build build/linux-app` was fresh and a hand-launched `./build/bin/Aurora` was the stale one, so the new `GET /api/state` answered 404. Two app binaries exist on this box; neither path is "the" build.
 
+Recurred on Windows during Aurora-so1o (2026-10-16): `build/windows-app` (the preset superbuild) and `build-app-windows` (a standalone `app/windows` configure) each hold a `bin/Release/Aurora.exe`, and only the one just built had the new code. The Dashboard footer is a fast tell: a standalone configure reports `vdev`, the preset build reports the real version (docs/Building.md, "Slice builds"). Check both the path's mtime and the footer before judging behavior.
+
 ---
 
 ## A LeakSanitizer report whose only non-libc frame is a test line is that line's own allocation -- trace it before blaming the library
@@ -1198,3 +1200,14 @@ a rate-dependence bug in the node but was the test running extra time.
 
 **Fix:** pick durations and LFO rates where every rate gives an integer tick
 count (0.5 s, 1 s, 0.5 Hz), or assert the tick count in the helper.
+
+
+---
+
+## An unfair-mutex starvation bug may not reproduce on MSVC: test the scheduling rule, not the symptom
+Tags: debugging, threads, mutex, tick-loop, testing
+Applies-when: writing a regression test for a lock-starvation or "never yields" bug found on hardware
+
+Aurora-cgr (tick loop holding the host mutex back to back) was proven on real hardware, but a loop of 1 ms ticks against `listMonitors()` on MSVC Debug stayed inside budget with the fix reverted, so a latency test alone cannot fail. The pure rule that decides the next wake time (`nextTickTime`) can: with the minimum yield set to 0, its unit test fails.
+
+**Fix:** pull the timing decision into a pure function and assert its output with literal bounds (not the same constant it uses). Keep the contention test as a smoke check, and verify on hardware.

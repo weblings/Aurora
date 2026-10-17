@@ -20,12 +20,14 @@ endif()
 
 add_executable(AuroraNetworkTests
   NetworkTests.cpp
+  PairingTests.cpp
   WebSocketSmokeTests.cpp
 )
 
 target_link_libraries(AuroraNetworkTests PRIVATE
   AuroraNetwork
   httplib::httplib
+  nlohmann_json::nlohmann_json
   Catch2::Catch2WithMain
 )
 

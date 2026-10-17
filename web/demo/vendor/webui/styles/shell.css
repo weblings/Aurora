@@ -240,3 +240,10 @@
   transform: rotate(180deg);
 }
 
+
+/* Pairing request row (Aurora-5ipy.6): the code is what the user compares
+   with the phone, so it reads apart from the sentence. */
+.shell-pairing-code {
+  letter-spacing: 0.15em;
+  color: var(--aurora-text-primary);
+}

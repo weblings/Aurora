@@ -34,6 +34,7 @@ function makeSlot() {
 }
 
 const realDocument = globalThis.document;
+const realFetchForPairing = globalThis.fetch;
 function installDom() {
   const slots = new Map();
   globalThis.document = {
@@ -597,6 +598,73 @@ const HELD = { source: 'reload', message: 'bridge unreachable', id: 7 };
   app.navigate(blankScreen(), 'dashboard');
   await app._pollOnce();
   assert.equal(banner(), '');
+  uninstallDom();
+}
+
+// Pairing requests (Aurora-5ipy.6): polled only while this browser can
+// approve, shown with name and code above any problem, never collapsed.
+{
+  const pendingCalls = [];
+  const fetchPending = async () => { pendingCalls.push(1); return [{ ref: 'r1', name: '<Phone>', scope: 'admin', code: 'K7Q2X' }]; };
+  const { app, banner } = makeApp(async () => ({ reachable: true, state: 'running', errors: [{ source: 'reload', message: 'a', id: 1 }, { source: 'startup', message: 'b', id: 2 }] }), { fetchPending });
+  app.navigate(blankScreen(), 'dashboard');
+  await app._pollOnce();
+  await sleep(0);
+  assert.equal(pendingCalls.length, 0, 'not polled without canApprove');
+  app.canApprove = true;
+  await app._pollOnce();
+  await sleep(0);
+  assert.equal(pendingCalls.length, 1, 'polled with the beat');
+  assert.ok(banner().includes('&lt;Phone&gt;'), 'name escaped');
+  assert.ok(banner().includes('K7Q2X'), 'code shown');
+  assert.ok(banner().includes('shell-pairing-approve-r1') && banner().includes('shell-pairing-deny-r1'), 'approve and deny');
+  assert.ok(banner().includes('2 problems'), 'problems still collapse beside the request');
+  uninstallDom();
+}
+
+// Approve POSTs, re-reads pending and tells the Dashboard; a deny does not.
+{
+  let pending = [{ ref: 'r1', name: 'Phone', scope: 'admin', code: 'K7Q2X' }];
+  const { app, slots, banner } = makeApp(ok(), { fetchPending: async () => pending });
+  app.canApprove = true;
+  let changed = 0;
+  app.onPairedDevicesChanged = () => { changed++; };
+  await app._pollOnce();
+  await sleep(0);
+  const posts = [];
+  globalThis.fetch = async (url, init) => { posts.push([url, init?.method]); pending = []; return { ok: true, status: 200 }; };
+  slots.get('shell-banner-slot').querySelector('#shell-pairing-approve-r1').click();
+  await sleep(0);
+  await sleep(0);
+  assert.deepEqual(posts, [['/api/pairing/pending/r1/approve', 'POST']]);
+  assert.equal(banner(), '', 'row gone once the daemon drops it');
+  assert.equal(changed, 1, 'device list refresh');
+
+  pending = [{ ref: 'r2', name: 'Tablet', scope: 'admin', code: 'ABCDE' }];
+  await app._pollOnce();
+  await sleep(0);
+  slots.get('shell-banner-slot').querySelector('#shell-pairing-deny-r2').click();
+  await sleep(0);
+  await sleep(0);
+  assert.deepEqual(posts.at(-1), ['/api/pairing/pending/r2/deny', 'POST']);
+  assert.equal(changed, 1, 'deny adds no device');
+  globalThis.fetch = realFetchForPairing;
+  uninstallDom();
+}
+
+// The takeover drops pending rows with everything else.
+{
+  let fail = false;
+  const { app, banner } = makeApp(async () => { if (fail) throw new Error('down'); return { reachable: true }; }, { fetchPending: async () => [{ ref: 'r1', name: 'Phone', code: 'K7Q2X' }] });
+  app.canApprove = true;
+  await app._pollOnce();
+  await sleep(0);
+  assert.ok(banner().includes('K7Q2X'));
+  fail = true;
+  await app._pollOnce();
+  await app._pollOnce();
+  assert.equal(banner(), '');
+  assert.deepEqual(app.pendingPairings, []);
   uninstallDom();
 }
 

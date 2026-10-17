@@ -1,6 +1,6 @@
 // Dashboard, rebuilt as the accordion hub (docs/WebUI/
 // WebUI_Design_2ndPass.md, step 20): three collapsible sections (Zone
-// Mapping, Tuning, Bridge -- the first added in a 2.5-pass correction,
+// Mapping, Tuning, Output -- the first added in a 2.5-pass correction,
 // pulled out of what used to be video's own always-visible top tier) plus
 // DeviceField, always collapsed either mode. Capture Source's old nav row
 // is gone entirely -- its one real field (DeviceField) now lives directly
@@ -28,7 +28,9 @@ import { ZoneCanvas } from '../ZoneCanvas.js';
 import { ZoneActiveToggleList } from '../ZoneActiveToggle.js';
 import { screenDivisionRects } from '../ScreenDivision.js';
 import { AccordionSection } from '../AccordionSection.js';
+import { PairedDevices } from '../PairedDevices.js';
 import { TuningFields } from '../TuningFields.js';
+import { sliderGroupHtml, wireSliderGroup } from '../TuningSliderGroup.js';
 import { applyTooltip } from '../Tooltips.js';
 import { renderReloadError } from '../MacPermissionRecovery.js';
 import {
@@ -42,6 +44,45 @@ const LOGO_URL = new URL('../icons/aurora-logo.png', import.meta.url).href;
 const PLAY_URL = new URL('../icons/play-rockyroad.svg', import.meta.url).href;
 const PAUSE_URL = new URL('../icons/pause-rockyroad.svg', import.meta.url).href;
 const POWER_URL = new URL('../icons/power-svgrepo-com.svg', import.meta.url).href;
+
+// Per-output content for the Output section; a new output adds one entry.
+// The title stays the output's own word (Hue: 'Bridge'), `load` runs once per
+// full load, `loadZones` on every zone refresh, `render` fills the section.
+// Outputs absent from the table get the generic placeholder.
+const OUTPUT_SECTIONS = {
+  hue: {
+    title: 'Bridge',
+    async load(screen) {
+      try {
+        const connection = await (await fetch('/api/hue/connection')).json();
+        screen.bridgeConfigured = connection.configured === true;
+        screen.bridgeAddress = connection.bridgeAddress ?? '';
+      } catch {
+        screen.bridgeConfigured = false;
+        screen.bridgeAddress = '';
+      }
+    },
+    async loadZones(screen) {
+      await screen.entertainmentConfigSelect.load();
+    },
+    render(screen, content) {
+      content.innerHTML = `
+        <p class="status-text db-bridge-connected">${screen.bridgeConfigured ? `Connected to ${escapeHtml(screen.bridgeAddress)}` : 'Not connected'}</p>
+        <button type="button" class="btn btn-secondary" id="db-change-bridge">Change bridge</button>
+        <div class="db-entertainment-slot"></div>
+        <div class="db-bridge-zones-slot"></div>
+      `;
+      applyTooltip(content.querySelector('#db-change-bridge'), 'output.hue.changeBridge');
+      content.querySelector('#db-change-bridge').addEventListener('click', () => {
+        screen.app.navigate(new OutputConnectScreen(screen.app, {
+          startAtEntry: true,
+          onComplete: () => screen.app.navigate(new DashboardScreen(screen.app), 'dashboard'),
+        }), 'output-connect');
+      });
+      screen.entertainmentConfigSelect.mount(content.querySelector('.db-entertainment-slot'));
+    },
+  },
+};
 
 export class DashboardScreen {
   constructor(app) {
@@ -60,7 +101,8 @@ export class DashboardScreen {
     this.pendingMode = null; // toggle choice with a switch in flight: outlined, not filled
     this.audioDevicesUrl = null;
     this.sinkName = '';
-    this.hasHue = false;
+    this.zeroOffOutputs = []; // outputs where brightness 0 means off: they get the floor control
+    this.output = null; // key into OUTPUT_SECTIONS, null when the build's outputs aren't in it
     this.bridgeConfigured = false;
     this.bridgeAddress = '';
     this.outputName = '';
@@ -102,7 +144,8 @@ export class DashboardScreen {
     this.zoneMappingSection = null;
     this.tuningFields = null;
     this.tuningSection = null;
-    this.bridgeSection = null;
+    this.outputSection = null;
+    this.pairedDevices = null;
   }
 
   async mount(container) {
@@ -125,6 +168,8 @@ export class DashboardScreen {
     // instance's own handler.
     this._onHeartbeatState = this._onHeartbeatState.bind(this);
     this.app.onStateUpdate = this._onHeartbeatState;
+    this._onPairedDevicesChanged = () => this.pairedDevices?.load();
+    this.app.onPairedDevicesChanged = this._onPairedDevicesChanged;
 
     await this._loadAll();
     this._startAudioStatusPoll();
@@ -132,6 +177,9 @@ export class DashboardScreen {
 
   unmount() {
     if (this.app.onStateUpdate === this._onHeartbeatState) this.app.onStateUpdate = null;
+    if (this.app.onPairedDevicesChanged === this._onPairedDevicesChanged) this.app.onPairedDevicesChanged = null;
+    this.pairedDevices?.destroy();
+    this.pairedDevices = null;
     this._stopAudioStatusPoll();
     this.entertainmentConfigSelect.destroy();
     this.deviceField?.destroy();
@@ -157,7 +205,8 @@ export class DashboardScreen {
       return false;
     }
 
-    this.hasHue = capabilities.outputs?.includes('hue') ?? false;
+    this.output = (capabilities.outputs ?? []).find((name) => Object.hasOwn(OUTPUT_SECTIONS, name)) ?? null;
+    this.zeroOffOutputs = capabilities.zeroOffOutputs ?? [];
     this.inputs = capabilities.inputs ?? [];
     this.audioInputs = capabilities.audioInputs ?? [];
     this.platform = capabilities.platform ?? '';
@@ -181,16 +230,7 @@ export class DashboardScreen {
       // No daemon, no version -- the slot stays empty.
     }
 
-    if (this.hasHue) {
-      try {
-        const connection = await (await fetch('/api/hue/connection')).json();
-        this.bridgeConfigured = connection.configured === true;
-        this.bridgeAddress = connection.bridgeAddress ?? '';
-      } catch {
-        this.bridgeConfigured = false;
-        this.bridgeAddress = '';
-      }
-    }
+    await this._outputEntry()?.load?.(this);
 
     let config = {};
     try {
@@ -258,9 +298,7 @@ export class DashboardScreen {
     this.selectedZoneId = null;
     this.channelLightNames = {};
 
-    if (this.hasHue) {
-      await this.entertainmentConfigSelect.load();
-    }
+    await this._outputEntry()?.loadZones?.(this);
 
     if (this.outputName) {
       try {
@@ -272,6 +310,10 @@ export class DashboardScreen {
         this.channelLightNames = {};
       }
     }
+  }
+
+  _outputEntry() {
+    return this.output === null ? null : OUTPUT_SECTIONS[this.output];
   }
 
   _zoneLabel(zone) {
@@ -394,8 +436,8 @@ export class DashboardScreen {
       },
       onSuccess: () => this._clearTopTierError('zoneCanvas'),
       onSeeAllZones: () => {
-        this.bridgeSection.expand();
-        this.bridgeSection.content.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        this.outputSection.expand();
+        this.outputSection.content.scrollIntoView({ behavior: 'smooth', block: 'start' });
       },
       renderActive: true,
       onUnreachable: () => this.app.checkNow(),
@@ -461,7 +503,8 @@ export class DashboardScreen {
     wrap.innerHTML = `
       <div class="db-accordion-zone-mapping"></div>
       <div class="db-accordion-tuning"></div>
-      <div class="db-accordion-bridge"></div>
+      <div class="db-accordion-output"></div>
+      <div class="db-accordion-paired-devices"></div>
     `;
 
     this.zoneMappingSection = new AccordionSection(wrap.querySelector('.db-accordion-zone-mapping'), { title: 'Zone Mapping', expanded: true });
@@ -477,32 +520,80 @@ export class DashboardScreen {
       onReloadError: () => this.app.checkNow(),
     });
 
-    this.bridgeSection = new AccordionSection(wrap.querySelector('.db-accordion-bridge'), { title: 'Bridge', expanded: false });
-    this._renderBridgeContent();
+    this.outputSection = new AccordionSection(wrap.querySelector('.db-accordion-output'), { title: this._outputEntry()?.title ?? 'Output', expanded: false });
+    this._renderOutputContent();
+
+    // Admin only (Aurora-5ipy.6): the demo facade has no canApprove, so it never shows.
+    this.pairedDevices?.destroy();
+    this.pairedDevices = null;
+    if (this.app.canApprove === true) {
+      const section = new AccordionSection(wrap.querySelector('.db-accordion-paired-devices'), { title: 'Paired devices', expanded: false });
+      this.pairedDevices = new PairedDevices(section.content, { onUnreachable: () => this.app.checkNow() });
+      this.pairedDevices.render();
+      void this.pairedDevices.load();
+    }
   }
 
-  _renderBridgeContent() {
-    const content = this.bridgeSection.content;
-    if (!this.hasHue) {
+  _renderOutputContent() {
+    const content = this.outputSection.content;
+    const entry = this._outputEntry();
+    if (!entry) {
       content.innerHTML = `<p class="status-text">Not available in this build.</p>`;
       return;
     }
-
-    content.innerHTML = `
-      <p class="status-text db-bridge-connected">${this.bridgeConfigured ? `Connected to ${escapeHtml(this.bridgeAddress)}` : 'Not connected'}</p>
-      <button type="button" class="btn btn-secondary" id="db-change-bridge">Change bridge</button>
-      <div class="db-entertainment-slot"></div>
-      <div class="db-bridge-zones-slot"></div>
-    `;
-    applyTooltip(content.querySelector('#db-change-bridge'), 'output.hue.changeBridge');
-    content.querySelector('#db-change-bridge').addEventListener('click', () => {
-      this.app.navigate(new OutputConnectScreen(this.app, {
-        startAtEntry: true,
-        onComplete: () => this.app.navigate(new DashboardScreen(this.app), 'dashboard'),
-      }), 'output-connect');
-    });
-    this.entertainmentConfigSelect.mount(content.querySelector('.db-entertainment-slot'));
+    entry.render(this, content);
+    this._renderOutputFloor(content);
     this._renderBridgeZoneList();
+  }
+
+  // Black handling for outputs that treat brightness 0 as off (Aurora-4zr.11).
+  // Every edit saves at once like the rest of the Dashboard.
+  _renderOutputFloor(content) {
+    if (this.output === null || !this.zeroOffOutputs.includes(this.output)) return;
+    const saved = this.tuningValues.outputFloors?.[this.output] ?? {};
+    const floor = { policy: saved.policy ?? 'off', floor: saved.floor ?? 0.05, holdSeconds: saved.holdSeconds ?? 2 };
+    const sliders = [
+      ['floor', 'Floor', 0, 1, 0.01, ''],
+      ['holdSeconds', 'Hold time', 0, 60, 0.1, 's'],
+    ];
+    const policies = [['off', 'Off'], ['hold', 'Hold dim'], ['switchOff', 'Switch off']];
+    const wrap = document.createElement('div');
+    wrap.className = 'db-output-floor';
+    wrap.innerHTML = `
+      <p class="field-label">Black handling</p>
+      <div class="segmented" role="group" aria-label="Black handling">
+        ${policies.map(([id, label]) => `<button type="button" class="segmented-btn${floor.policy === id ? ' active' : ''}" data-policy="${id}">${label}</button>`).join('')}
+      </div>
+      <div class="db-floor-sliders"${floor.policy === 'off' ? ' hidden' : ''}>${sliderGroupHtml(sliders.slice(0, floor.policy === 'switchOff' ? 2 : 1), floor)}</div>
+    `;
+    content.appendChild(wrap);
+
+    const save = async () => {
+      try {
+        const result = await (await fetch('/api/config', {
+          method: 'PUT',
+          body: JSON.stringify({ outputFloors: { [this.output]: {
+            policy: floor.policy, floor: Number(floor.floor), holdSeconds: Number(floor.holdSeconds),
+          } } }),
+        })).json();
+        if (!result.succeeded) { this._setTopTierError('outputFloor', "Couldn't save black handling."); return; }
+        this._clearTopTierError('outputFloor');
+        this.tuningValues.outputFloors = { ...this.tuningValues.outputFloors, [this.output]: { ...floor } };
+        if (result.reloadError) this.app.checkNow();
+      } catch {
+        this.app.checkNow();
+      }
+    };
+
+    wireSliderGroup(wrap, sliders.slice(0, floor.policy === 'switchOff' ? 2 : 1), floor, save);
+    for (const button of wrap.querySelectorAll('[data-policy]')) {
+      button.addEventListener('click', async () => {
+        floor.policy = button.dataset.policy;
+        await save();
+        wrap.remove();
+        this._renderOutputFloor(content);
+      });
+    }
   }
 
   // Toggle-sync pair (Aurora-ifkn.5): the canvas embeds the selected
@@ -522,11 +613,11 @@ export class DashboardScreen {
   // The full per-zone list, relocated here from Zone Mapping's own
   // always-visible list (see ZoneActiveToggle.js's header comment) --
   // refreshed whenever zone data changes (initial load, an
-  // entertainment-config switch) without recreating bridgeSection itself,
+  // entertainment-config switch) without recreating outputSection itself,
   // so an already-expanded Bridge section doesn't collapse just because the
   // list underneath it changed.
   _renderBridgeZoneList() {
-    const slot = this.bridgeSection?.content.querySelector('.db-bridge-zones-slot');
+    const slot = this.outputSection?.content.querySelector('.db-bridge-zones-slot');
     if (!slot) return;
     slot.innerHTML = '';
     if (this.zones.length === 0) return;

@@ -31,6 +31,7 @@ namespace Aurora::Runtime
       FieldApply{"transitionSmoothing", Hot, Video},
 
       FieldApply{"brightness", Hot, Both},
+      FieldApply{"outputFloors", Hot, Both},
 
       FieldApply{"activeInputName", Reload, Video},
       FieldApply{"activeOutputNames", Reload, Video},

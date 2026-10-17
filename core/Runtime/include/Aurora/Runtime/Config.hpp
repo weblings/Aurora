@@ -1,5 +1,6 @@
 #pragma once
 
+#include <map>
 #include <string>
 #include <vector>
 
@@ -10,6 +11,17 @@
 // See docs/RuntimeAnalysis.md.
 namespace Aurora::Runtime
 {
+  // Brightness floor for one output (Aurora-4zr.11), only meaningful for
+  // outputs that report zeroBrightnessMeansOff(). policy: off, hold, switchOff.
+  struct OutputFloor
+  {
+    std::string policy{"off"};
+    float floor{0.05f};       // 0-1
+    float holdSeconds{2.f};   // 0-60, switchOff only
+
+    bool operator==(const OutputFloor&) const = default;
+  };
+
   struct ConfigData
   {
     unsigned restServerPort{8215};
@@ -22,6 +34,9 @@ namespace Aurora::Runtime
     // Global dimmer, 0..1 (1 = unchanged), applied to every frame before
     // output in both modes (Aurora-5ipy.7).
     float brightness{1.f};
+
+    // Per-output floor settings by output name; absent means policy off.
+    std::map<std::string, OutputFloor> outputFloors;
 
     // Which of an app's compiled-in plugins are active, by name -- looked
     // up in that app's own registry, not known to Aurora core at all.
@@ -128,6 +143,10 @@ namespace Aurora::Runtime
 
     float brightness() const;
     void setBrightness(float brightness);
+
+    // Clamps floor/holdSeconds and falls back to policy off for unknown names.
+    OutputFloor outputFloor(const std::string& output) const;
+    void setOutputFloor(const std::string& output, OutputFloor floor);
 
     float audioFixedAnchorHue() const;
     void setAudioFixedAnchorHue(float hue);

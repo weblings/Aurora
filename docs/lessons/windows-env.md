@@ -393,3 +393,21 @@ Applies-when: running `tools/perf-harness` or any grabber test on a box with ext
 Aurora-wqzp.6: this box has three outputs (4K primary, 1920x1200, and a TV). The `selectMonitor` test ran while the TV was off, then on. In one run display 2 reported 2560x1440 yet delivered 3840x2160 frames, and it did not repeat. A display mode change between `_initMonitorsList` (reads `DesktopCoordinates`) and the capture is the likely cause. The user also did not know tests were driving the TV.
 
 **Fix:** before a run, list the outputs (`found monitor:` lines in the manual capture test), say which will be captured or covered by the moving-content window, and get the user's OK. Keep the set of powered displays fixed for the run. Treat a size mismatch seen once as a mode change, not a grabber bug, until it reproduces.
+
+
+---
+
+## Write-then-rename fails on Windows while any handle is open on the target, so the save must report it
+Tags: windows, filesystem, rename, persistence, security
+Applies-when: persisting state with temp file plus `std::filesystem::rename`, especially state a user relies on being gone (revocations)
+
+Aurora-m4wp: `PairingService::saveLocked` ignored a failed rename. A test kept an
+`ifstream` open on `paired-devices.json`, the rename and the remove fallback both
+failed with a sharing violation, and `revoke()` still returned true. After a
+restart the revoked token worked again. Antivirus, backup tools or an editor
+holding the file do the same in production. POSIX renames over an open file fine,
+so Linux CI never sees it.
+
+**Fix:** return the rename result from the save and surface it (`RevokeResult::
+NotPersisted`, route 500 `store_write_failed`), keep the in-memory change, and
+close test streams before the code under test writes.

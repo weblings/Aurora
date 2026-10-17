@@ -9,6 +9,7 @@
 #include <vector>
 
 #include <Aurora/Network/Http/Server/HttpDataStructs.hpp>
+#include <Aurora/Network/Http/Server/Pairing.hpp>
 
 // Pimpl facade over cpp-httplib -- callers (route-definition classes, e.g. a
 // future SetupBackend/SettingsBackend) never include <httplib.h> or see its
@@ -49,6 +50,23 @@ namespace Aurora::Network::Http::Server
       Handler handler
     );
 
+    // A GET route answering text/event-stream (Aurora-5ipy.3). The handler
+    // runs on a server worker for the life of the connection and returns
+    // when open() goes false. Streams past the cap from setStreamLimits get
+    // 503 {"error":"too_many_streams"}; stop() waits for open streams to
+    // return. Call before bind().
+    void addStreamRoute(
+      const std::string& path,
+      StreamHandler handler
+    );
+
+    // Worker pool size and the most streams open at once (each holds a
+    // worker for its whole life, so the cap must stay below the pool or
+    // plain routes starve). 0 picks the defaults: max(8, cores - 1)
+    // workers, growing to 4x under load, and half of the base for streams.
+    // Call before bind().
+    void setStreamLimits(size_t workerThreads, size_t maxStreams);
+
     // Serves plain files under `directory` at the request path they share a
     // suffix with (cpp-httplib's own mount-point semantics) -- e.g. a
     // `directory/app.js` answers a GET for `/app.js`. Must be called before
@@ -80,14 +98,23 @@ namespace Aurora::Network::Http::Server
     // (comma-separated) is merged in at bind(). Call before bind().
     void setExtraAllowedHosts(std::vector<std::string> hosts);
 
+    // LAN pairing (Aurora-5ipy.5): runs after the Host check and before
+    // routing, so no path is exempt unless a guard rule opens it. Without a
+    // guard every caller is trusted. Call before bind().
+    void setAccessGuard(std::shared_ptr<AccessGuard> guard);
+
   private:
     void makeImpl();
 
     std::unique_ptr<Impl> m_httpServerImpl;
     std::vector<Route> m_routes;
+    std::vector<StreamRoute> m_streamRoutes;
+    size_t m_workerThreads{0};
+    size_t m_maxStreams{0};
     std::optional<std::filesystem::path> m_staticDir;
     std::optional<EmbeddedFiles> m_embeddedFiles;
     std::vector<std::pair<std::string, EmbeddedFiles>> m_prefixedEmbeddedFiles;
     std::vector<std::string> m_extraAllowedHosts;
+    std::shared_ptr<AccessGuard> m_accessGuard;
   };
 }

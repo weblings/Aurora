@@ -7,11 +7,14 @@
 #include <algorithm>
 #include <atomic>
 #include <chrono>
+#include <condition_variable>
 #include <cstdlib>
 #include <functional>
 #include <future>
 #include <memory>
+#include <mutex>
 #include <stdexcept>
+#include <vector>
 #include <thread>
 
 #include <Aurora/Network/Http/Server/HttpServer.hpp>
@@ -33,6 +36,8 @@
 #include <Aurora/Runtime/Pipeline.hpp>
 #include <Aurora/Runtime/PipelineRoutes.hpp>
 #include <Aurora/Runtime/SettingsRoutes.hpp>
+
+#include "SseReader.hpp"
 
 using namespace Aurora::Contracts;
 using namespace Aurora::Input;
@@ -80,6 +85,9 @@ namespace
     std::vector<unsigned> widthHints;
     std::function<void()> onWidthHint;
 
+    // Runs inside every FakeVideoInput grab, i.e. on the tick, under the host lock.
+    std::function<void()> onGrab;
+
     bool has(const std::string& line) const
     {
       return std::find(lines.begin(), lines.end(), line) != lines.end();
@@ -113,6 +121,7 @@ namespace
 
     void grabFrameSubsample(ImageData& imageData) override
     {
+      if(m_events && m_events->onGrab){ m_events->onGrab(); }
       imageData.format = PixelFormat::RGB;
       imageData.imageMatrix = cv::Mat(2, 4, CV_8UC3, cv::Scalar(255, 0, 0));
     }
@@ -1625,7 +1634,7 @@ TEST_CASE("PUT /api/zones answers 409 while paused and GET still lists zones (Au
 }
 
 
-TEST_CASE("Concurrent settings PUTs run one at a time and none is lost (Aurora-d6i7)", "[SettingsRoutes]")
+TEST_CASE("Concurrent settings PUTs coalesce reloads and none is lost (Aurora-d6i7, Aurora-5ipy.8)", "[SettingsRoutes]")
 {
   using namespace Aurora::Network::Http::Server;
 
@@ -1634,15 +1643,20 @@ TEST_CASE("Concurrent settings PUTs run one at a time and none is lost (Aurora-d
   std::atomic<int> inFlight{0};
   std::atomic<int> maxInFlight{0};
   std::atomic<int> calls{0};
+  std::mutex seenMutex;
+  std::vector<int> seenRefreshRates;
 
   HttpServer server;
   registerSettingsRoutes(server, dir.path, [&]() -> std::string{
     int now = ++inFlight;
     int seen = maxInFlight.load();
     while(now > seen && !maxInFlight.compare_exchange_weak(seen, now)){}
+    int rate = ConfigStore(dir.path).load().refreshRate();
     std::this_thread::sleep_for(20ms); // a slow reload, the case that matters
     --inFlight;
     ++calls;
+    std::lock_guard<std::mutex> seenLock(seenMutex);
+    seenRefreshRates.push_back(rate);
     return {};
   });
   const int port = server.bindToAnyPort("127.0.0.1");
@@ -1684,8 +1698,11 @@ TEST_CASE("Concurrent settings PUTs run one at a time and none is lost (Aurora-d
   serverThread.join();
 
   CHECK(succeeded == static_cast<int>(patches.size()));
-  CHECK(calls == static_cast<int>(patches.size()));
+  CHECK(calls >= 1);
+  CHECK(calls <= static_cast<int>(patches.size()));
   CHECK(maxInFlight == 1);
+  // The final reload ran after every write, so it saw the last config.
+  CHECK(seenRefreshRates.back() == 45);
 
   Config persisted = ConfigStore(dir.path).load();
   CHECK(persisted.refreshRate() == 45);
@@ -1696,6 +1713,76 @@ TEST_CASE("Concurrent settings PUTs run one at a time and none is lost (Aurora-d
   CHECK(persisted.audioReferenceRms() == Catch::Approx(0.6f));
   CHECK(persisted.audioBrightnessFloor() == Catch::Approx(0.5f));
   CHECK(persisted.audioCentroidStrength() == Catch::Approx(0.4f));
+}
+
+
+TEST_CASE("Settings PUTs behind a slow reload coalesce into one pending reload with the last config (Aurora-5ipy.8)", "[SettingsRoutes]")
+{
+  using namespace Aurora::Network::Http::Server;
+
+  ScopedTempDir dir("settings-coalesce");
+
+  std::mutex mutex;
+  std::condition_variable cv;
+  bool firstStarted = false;
+  bool releaseFirst = false;
+  std::vector<int> seen;
+
+  HttpServer server;
+  registerSettingsRoutes(server, dir.path, [&]() -> std::string{
+    int rate = ConfigStore(dir.path).load().refreshRate();
+    std::unique_lock<std::mutex> lock(mutex);
+    seen.push_back(rate);
+    if(seen.size() == 1){
+      firstStarted = true;
+      cv.notify_all();
+      cv.wait(lock, [&]{ return releaseFirst; });
+    }
+    return {};
+  });
+  const int port = server.bindToAnyPort("127.0.0.1");
+  REQUIRE(port > 0);
+  std::thread serverThread([&](){ server.listen(); });
+  {
+    httplib::Client probe("127.0.0.1", port);
+    REQUIRE(getWithRetry(probe, "/api/config"));
+  }
+
+  std::atomic<int> ok{0};
+  auto put = [&](int rate){
+    httplib::Client client("127.0.0.1", port);
+    auto response = client.Put("/api/config", nlohmann::json{{"refreshRate", rate}}.dump(), "application/json");
+    if(response && response->status == 200){ ++ok; }
+  };
+
+  std::thread first(put, 10);
+  {
+    std::unique_lock<std::mutex> lock(mutex);
+    REQUIRE(cv.wait_for(lock, 5s, [&]{ return firstStarted; }));
+  }
+
+  std::vector<std::thread> rest;
+  for(int rate : {20, 30, 40}){ rest.emplace_back(put, rate); }
+  // Let the three writes land and queue behind the blocked reload.
+  for(int i = 0; i < 200 && ConfigStore(dir.path).load().refreshRate() == 10; ++i){
+    std::this_thread::sleep_for(10ms);
+  }
+  std::this_thread::sleep_for(100ms);
+  {
+    std::lock_guard<std::mutex> lock(mutex);
+    releaseFirst = true;
+  }
+  cv.notify_all();
+
+  first.join();
+  for(auto& thread : rest){ thread.join(); }
+  server.stop();
+  serverThread.join();
+
+  CHECK(ok == 4);
+  REQUIRE(seen.size() == 2);
+  CHECK(seen[0] == 10);
+  CHECK(seen[1] == ConfigStore(dir.path).load().refreshRate());
 }
 
 
@@ -2293,4 +2380,209 @@ TEST_CASE("GET /api/graph serves the running graph, null when none runs (Aurora-
   host.shutdown();
   server.stop();
   serverThread.join();
+}
+
+
+namespace
+{
+  // The data payloads of every `event: <topic>` block in an SSE capture.
+  std::vector<nlohmann::json> eventsOf(const std::string& capture, const std::string& topic)
+  {
+    std::vector<nlohmann::json> found;
+    const std::string marker = "event: " + topic + "\ndata: ";
+    for(size_t at = capture.find(marker); at != std::string::npos; at = capture.find(marker, at + 1)){
+      const size_t start = at + marker.size();
+      const size_t end = capture.find("\n\n", start);
+      if(end == std::string::npos){ break; }
+      found.push_back(nlohmann::json::parse(capture.substr(start, end - start)));
+    }
+    return found;
+  }
+}
+
+
+TEST_CASE("GET /api/events opens with the current state and health, then pushes changes (Aurora-5ipy.3)", "[PipelineRoutes][Events]")
+{
+  using namespace Aurora::Network::Http::Server;
+
+  ScopedTempDir dir("events-route");
+  auto events = std::make_shared<Events>();
+  auto registry = makeRegistry(events);
+  ConfigStore(dir.path).save(videoConfig());
+  PipelineHost host(Pipeline::build(registry, videoConfig(), dir.path, {}), {});
+
+  HttpServer server;
+  registerStateRoute(server, host, registry, dir.path);
+  registerEventsRoute(server, host, dir.path, 100ms);
+  const int port = server.bindToAnyPort("127.0.0.1");
+  REQUIRE(port > 0);
+  std::thread serverThread([&](){ server.listen(); });
+
+  httplib::Client client("127.0.0.1", port);
+  SseReader reader(port, "/api/events");
+  REQUIRE(reader.status() == 200);
+  REQUIRE(reader.waitFor("event: health\n"));
+
+  auto polled = client.Get("/api/state");
+  REQUIRE(polled);
+  const auto firstState = eventsOf(reader.data(), "state");
+  REQUIRE(firstState.size() == 1);
+  CHECK(firstState[0] == nlohmann::json::parse(polled->body));
+  CHECK(firstState[0]["state"] == "running");
+
+  const auto firstHealth = eventsOf(reader.data(), "health");
+  REQUIRE(firstHealth.size() == 1);
+  CHECK(firstHealth[0] == nlohmann::json{{"errors", nlohmann::json::array()}, {"conditions", nlohmann::json::array()}});
+
+  REQUIRE(host.pause());
+  REQUIRE(reader.waitFor("\"state\":\"paused\""));
+  const auto afterPause = eventsOf(reader.data(), "state");
+  REQUIRE(afterPause.size() == 2);
+  CHECK(afterPause[1]["paused"] == true);
+
+  host.setCondition("test", "something is off");
+  // The state event lands first, so wait for the health one by count.
+  std::vector<nlohmann::json> health;
+  for(int attempt = 0; attempt < 100 && health.size() < 2; ++attempt){
+    std::this_thread::sleep_for(20ms);
+    health = eventsOf(reader.data(), "health");
+  }
+  REQUIRE(health.size() == 2);
+  CHECK(health[1]["conditions"][0]["source"] == "test");
+
+  // The heartbeat keeps an idle stream writing so a dead peer is noticed.
+  CHECK(reader.waitFor(": ping\n\n"));
+
+  host.shutdown();
+  server.stop();
+  serverThread.join();
+}
+
+
+TEST_CASE("GET /api/events honors the topics filter and ignores unknown topics (Aurora-5ipy.3)", "[PipelineRoutes][Events]")
+{
+  using namespace Aurora::Network::Http::Server;
+
+  ScopedTempDir dir("events-topics");
+  auto events = std::make_shared<Events>();
+  auto registry = makeRegistry(events);
+  ConfigStore(dir.path).save(videoConfig());
+  PipelineHost host(Pipeline::build(registry, videoConfig(), dir.path, {}), {});
+
+  HttpServer server;
+  registerEventsRoute(server, host, dir.path, 100ms);
+  const int port = server.bindToAnyPort("127.0.0.1");
+  REQUIRE(port > 0);
+  std::thread serverThread([&](){ server.listen(); });
+
+  SseReader healthOnly(port, "/api/events?topics=health,nonsense");
+  REQUIRE(healthOnly.waitFor("event: health\n"));
+  host.setCondition("test", "visible");
+  REQUIRE(healthOnly.waitFor("visible"));
+  CHECK(healthOnly.data().find("event: state") == std::string::npos);
+
+  host.shutdown();
+  server.stop();
+  serverThread.join();
+}
+
+
+TEST_CASE("GET /api/events streams do not slow other routes under a tick storm (Aurora-5ipy.3)", "[PipelineRoutes][Events]")
+{
+  using namespace Aurora::Network::Http::Server;
+
+  ScopedTempDir dir("events-latency");
+  auto events = std::make_shared<Events>();
+  auto registry = makeRegistry(events);
+  ConfigStore(dir.path).save(videoConfig());
+  PipelineHost host(Pipeline::build(registry, videoConfig(), dir.path, {}), {});
+
+  HttpServer server;
+  registerStateRoute(server, host, registry, dir.path);
+  registerEventsRoute(server, host, dir.path, 100ms);
+  const int port = server.bindToAnyPort("127.0.0.1");
+  REQUIRE(port > 0);
+  std::thread serverThread([&](){ server.listen(); });
+
+  std::vector<std::unique_ptr<SseReader>> readers;
+  for(int i = 0; i < 3; ++i){
+    readers.push_back(std::make_unique<SseReader>(port, "/api/events"));
+    REQUIRE(readers.back()->waitFor("event: state\n"));
+  }
+
+  // Back-to-back ticks, as a refresh rate far above what the host can serve.
+  std::atomic<bool> ticking{true};
+  std::thread tickThread([&](){ while(ticking.load()){ host.tick(); } });
+
+  httplib::Client client("127.0.0.1", port);
+  std::chrono::milliseconds slowest{0};
+  for(int i = 0; i < 20; ++i){
+    const auto started = std::chrono::steady_clock::now();
+    auto polled = client.Get("/api/state");
+    slowest = std::max(slowest, std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - started));
+    REQUIRE(polled);
+    CHECK(polled->status == 200);
+  }
+  CHECK(slowest < 500ms);
+
+  ticking.store(false);
+  tickThread.join();
+  host.shutdown();
+  server.stop();
+  serverThread.join();
+}
+
+
+TEST_CASE("nextTickTime keeps the interval on time and forces a yield on overrun (Aurora-cgr)", "[TickClock]")
+{
+  using Clock = std::chrono::steady_clock;
+  const Clock::time_point start{};
+
+  CHECK(MinTickYield >= 1ms);
+
+  // On time: wakes one interval after the tick started.
+  CHECK(nextTickTime(start, 1.0 / 60, start + 2ms) == start + std::chrono::duration_cast<Clock::duration>(std::chrono::duration<double>(1.0 / 60)));
+
+  // Overran the interval, or a rate far above what the host serves: still sleeps the minimum.
+  CHECK(nextTickTime(start, 1.0 / 60, start + 30ms) >= start + 31ms);
+  CHECK(nextTickTime(start, 1.0 / 1000, start + 1500us) >= start + 2500us);
+  CHECK(nextTickTime(start, 0.0, start + 5ms) >= start + 6ms);
+}
+
+
+TEST_CASE("A tick loop at an extreme rate leaves other host calls inside a latency budget (Aurora-cgr)", "[PipelineHost][TickClock]")
+{
+  ScopedTempDir dir("tick-starvation");
+  auto events = std::make_shared<Events>();
+  auto registry = makeRegistry(events);
+  ConfigStore(dir.path).save(videoConfig());
+  PipelineHost host(Pipeline::build(registry, videoConfig(), dir.path, {}), {});
+
+  // A grab that costs 1 ms, as on hardware, and the app loop with a zero
+  // interval: every tick overruns and re-enters at once.
+  events->onGrab = []{
+    const auto until = std::chrono::steady_clock::now() + 1ms;
+    while(std::chrono::steady_clock::now() < until){}
+  };
+  std::atomic<bool> ticking{true};
+  std::thread tickThread([&](){
+    while(ticking.load()){
+      const auto tickStart = std::chrono::steady_clock::now();
+      const double interval = host.tick() * 0.0;
+      std::this_thread::sleep_until(nextTickTime(tickStart, interval, std::chrono::steady_clock::now()));
+    }
+  });
+
+  std::chrono::milliseconds slowest{0};
+  for(int i = 0; i < 50; ++i){
+    const auto started = std::chrono::steady_clock::now();
+    host.listMonitors();
+    host.listZones();
+    slowest = std::max(slowest, std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - started));
+  }
+  CHECK(slowest < 250ms);
+
+  ticking.store(false);
+  tickThread.join();
+  host.shutdown();
 }

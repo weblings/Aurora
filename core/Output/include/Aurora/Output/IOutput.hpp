@@ -40,6 +40,10 @@ namespace Aurora::Output
     // addressing. Defaults to none; an ID missing here shows a bare "Zone N".
     virtual std::map<uint8_t, std::vector<std::string>> zoneLabels() const { return {}; }
 
+    // True when brightness 0 switches the light off (HA's turn_on), so the
+    // brightness floor stage (Aurora-6v36) applies. Hue's stream does not.
+    virtual bool zeroBrightnessMeansOff() const { return false; }
+
     virtual void send(const Contracts::Frame& frame) = 0;
   };
 }

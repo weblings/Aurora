@@ -3,10 +3,26 @@
 #include <Aurora/Runtime/ControlDescriptorTables.hpp>
 
 #include <algorithm>
+#include <cmath>
 #include <utility>
 
 namespace Aurora::Runtime
 {
+  namespace
+  {
+    OutputFloor sanitizeOutputFloor(OutputFloor floor)
+    {
+      if(floor.policy != "hold" && floor.policy != "switchOff"){
+        floor.policy = "off";
+      }
+      // NaN fails both comparisons, so std::clamp alone would pass it through.
+      floor.floor = std::isfinite(floor.floor) ? std::clamp(floor.floor, 0.f, 1.f) : OutputFloor{}.floor;
+      floor.holdSeconds = std::isfinite(floor.holdSeconds) ? std::clamp(floor.holdSeconds, 0.f, 60.f) : OutputFloor{}.holdSeconds;
+      return floor;
+    }
+  }
+
+
   Config::Config(ConfigData data):
   m_data(std::move(data))
   {
@@ -16,6 +32,9 @@ namespace Aurora::Runtime
     // (Aurora-9ca/5y0/ta5).
     setTransitionSmoothing(m_data.transitionSmoothing);
     setBrightness(m_data.brightness);
+    for(auto& [name, floor] : m_data.outputFloors){
+      floor = sanitizeOutputFloor(floor);
+    }
     setAudioFixedAnchorHue(m_data.audioFixedAnchorHue);
     setAudioBounceSmoothTime(m_data.audioBounceSmoothTime);
     setAudioDynamismFloor(m_data.audioDynamismFloor);
@@ -117,6 +136,19 @@ namespace Aurora::Runtime
   void Config::setBrightness(float brightness)
   {
     m_data.brightness = sanitizeParam("app.brightness", brightness);
+  }
+
+
+  OutputFloor Config::outputFloor(const std::string& output) const
+  {
+    auto it = m_data.outputFloors.find(output);
+    return it == m_data.outputFloors.end() ? OutputFloor{} : it->second;
+  }
+
+
+  void Config::setOutputFloor(const std::string& output, OutputFloor floor)
+  {
+    m_data.outputFloors[output] = sanitizeOutputFloor(std::move(floor));
   }
 
 

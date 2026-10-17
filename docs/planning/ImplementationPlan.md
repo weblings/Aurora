@@ -44,7 +44,9 @@ Status: standing — principles, not a milestone.
   httplib-based HTTP server with chunked responses (MJPEG for video preview,
   Server-Sent Events for effect/zone ticks) — zero new network dependency. True
   WebSocket duplex is a stretch "networking fork" after all five phases land,
-  for when bidirectional/binary efficiency actually earns its keep.
+  for when bidirectional/binary efficiency actually earns its keep. No new
+  dependency needed: cpp-httplib 0.46 ships `Server::WebSocket`
+  ([[external-control]], Aurora-1jb).
 - **Analysis pass before touching each section.** Before porting or extending
   any existing code — huenicorn's C++ (phase 1), its HTTP server (phase 3),
   RockyRoad's IWSDK/XR scaffolding (phase 4), or a third-party library's actual
@@ -162,7 +164,8 @@ Status: deferred.
 - **Networking fork: WebSockets.** Once bandwidth or bidirectional control
   (WebXR pose back to the native core, browser-side effect selection persisted
   server-side) actually need it, replace phase 3's SSE+chunked-MJPEG channel
-  with a WebSocket one (new dependency — e.g. uWebSockets, IXWebSocket, Boost.Beast).
+  with a WebSocket one (no new dependency: cpp-httplib 0.46 already ships
+  `Server::WebSocket`, see [[external-control]]).
   Not needed for phases 1–5 to work end to end. **This is also the fork
   where the open one-seam-vs-double-seam question in
   `archive/DistributedArchitecturePlan.md` needs an actual answer** — pick it up

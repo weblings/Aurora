@@ -446,3 +446,25 @@ Applies-when: verifying or debugging the HttpServer Host allowlist from a phone 
 Phones usually can't resolve a bare Windows hostname (no NetBIOS), so `http://BeefyBoy:8215` never reaches the daemon even though `Host: BeefyBoy` is allowed. `BeefyBoy.local` (mDNS) and the LAN IP work. A `curl -H "Host: BeefyBoy:8215" http://127.0.0.1:8215/` separates the two cases: 200 means the allowlist is fine.
 
 **Fix:** to see a real forged-name rejection from a device, use a wildcard-DNS name that resolves to the daemon's LAN IP (`192.168.0.224.nip.io`) and expect 403 `host_forbidden`. The check is a cpp-httplib pre-routing handler, so it also covers the static mount and embedded WebUI.
+
+
+---
+
+## HttpServer has one pre-routing slot, shared by the Host check and the pairing guard
+Tags: output, http, pairing, middleware, cpp-httplib, testing
+Applies-when: adding another check that must run before routing, or testing LAN-only behavior from loopback
+
+cpp-httplib's `set_pre_routing_handler` holds a single handler, so a second registration silently replaces the first (the Host allowlist would vanish). Aurora-5ipy.5 folds both into the one handler in `HttpLibServerImpl.hpp`: Host check, then `AccessGuard`. Route tests run on loopback, which is trusted, so a remote caller is simulated by injecting an is-local predicate (`AccessGuard(service, [](auto&){ return false; })`) rather than a second machine. A same-machine reverse proxy looks loopback to the guard.
+
+**Fix:** extend the existing handler, not a new `set_pre_routing_handler` call. Test remote behavior through the injected predicate.
+
+
+---
+
+## An SSE stream pins a cpp-httplib worker: cap it below the pool, and stop() must wait for it
+Tags: output, http, sse, cpp-httplib, thread-pool, shutdown
+Applies-when: adding a long-lived response (SSE, chunked) to HttpServer or debugging a hang in stop()
+
+A chunked content provider runs on the connection's worker for as long as the handler loops, so each open stream costs one of the pool's threads and a dead peer holds it until a write fails. Aurora-5ipy.3 sizes the pool explicitly (`max(8, cores-1)`, growing to 4x), caps streams at half the base (503 `too_many_streams` past it), and sends a `: ping` comment so a vanished client's write fails. `Server::stop()` alone does not end a running provider and the server must not be destroyed under one: handlers poll a stop flag and `Impl::stop()` waits (5 s bound) for the open-stream count to reach 0. The count is released from the response's resource releaser, which cpp-httplib runs when the Response is destroyed.
+
+**Fix:** write stream handlers as `while(stream.open())` loops with short waits (250 ms slices), never an unbounded block. Test with a stream held open across `stop()`.

@@ -13,6 +13,8 @@
 
 #include <Aurora/Network/Http/Server/HttpServer.hpp>
 
+#include "SseReader.hpp"
+
 using namespace Aurora::Network::Http::Server;
 using namespace std::chrono_literals;
 
@@ -544,6 +546,100 @@ TEST_CASE("HttpServer Host allowlist rejects forged hostnames and admits literal
     // macOS reports a hostname that may already end in ".local"; the
     // server admits <short name>.local, so build it from the short name.
     CHECK(statusFor(machine.substr(0, machine.find('.')) + ".local") == 200);
+  }
+
+  server.stop();
+  serverThread.join();
+}
+
+
+namespace
+{
+  // Writes one event per 20 ms until the stream closes.
+  void tickingStream(const Request&, EventStream& stream)
+  {
+    while(stream.open()){
+      stream.write("data: tick\n\n");
+      std::this_thread::sleep_for(20ms);
+    }
+  }
+}
+
+
+TEST_CASE("HttpServer stream route answers text/event-stream and delivers writes", "[HttpServer][Stream]")
+{
+  HttpServer server;
+  server.addStreamRoute("/events", tickingStream);
+  const int port = server.bindToAnyPort("127.0.0.1");
+  REQUIRE(port > 0);
+  std::thread serverThread([&](){ server.listen(); });
+
+  {
+    SseReader reader(port, "/events");
+    CHECK(reader.status() == 200);
+    CHECK(reader.waitFor("data: tick\n\n"));
+  }
+
+  server.stop();
+  serverThread.join();
+}
+
+
+TEST_CASE("HttpServer stop() returns while a stream is open (Aurora-5ipy.3)", "[HttpServer][Stream]")
+{
+  HttpServer server;
+  server.addStreamRoute("/events", tickingStream);
+  const int port = server.bindToAnyPort("127.0.0.1");
+  REQUIRE(port > 0);
+  std::thread serverThread([&](){ server.listen(); });
+
+  SseReader reader(port, "/events");
+  REQUIRE(reader.waitFor("data: tick"));
+
+  const auto started = std::chrono::steady_clock::now();
+  server.stop();
+  CHECK(std::chrono::steady_clock::now() - started < 3s);
+  serverThread.join();
+  CHECK(reader.waitFinished());
+}
+
+
+TEST_CASE("HttpServer rejects a stream past the cap and frees the slot on disconnect (Aurora-5ipy.3)", "[HttpServer][Stream]")
+{
+  HttpServer server;
+  server.addStreamRoute("/events", tickingStream);
+  server.addRoute(HttpMethod::Get, "/ping", [](const Request&, Response& res){ res.body = "pong"; });
+  server.setStreamLimits(4, 2);
+  const int port = server.bindToAnyPort("127.0.0.1");
+  REQUIRE(port > 0);
+  std::thread serverThread([&](){ server.listen(); });
+
+  {
+    auto first = std::make_unique<SseReader>(port, "/events");
+    SseReader second(port, "/events");
+    REQUIRE(first->waitFor("data: tick"));
+    REQUIRE(second.waitFor("data: tick"));
+
+    SseReader third(port, "/events");
+    CHECK(third.status() == 503);
+    CHECK(third.waitFinished());
+    CHECK(third.data().find("too_many_streams") != std::string::npos);
+
+    // Plain routes still answer with every stream slot taken.
+    httplib::Client client("127.0.0.1", port);
+    auto ping = getWithRetry(client, "/ping");
+    REQUIRE(ping);
+    CHECK(ping->body == "pong");
+
+    // Dropping a stream frees its slot for a new one.
+    first.reset();
+    bool admitted = false;
+    for(int attempt = 0; attempt < 50 && !admitted; ++attempt){
+      SseReader retry(port, "/events");
+      admitted = retry.status() == 200 && retry.waitFor("data: tick");
+      if(!admitted){ std::this_thread::sleep_for(50ms); }
+    }
+    CHECK(admitted);
   }
 
   server.stop();
