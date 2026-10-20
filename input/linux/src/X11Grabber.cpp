@@ -22,10 +22,22 @@ namespace
   // decimate), so an uncapped grabber eats the whole tick budget on any
   // screen that damages most ticks -- and this box's root reports
   // fullscreen damage ~60% of ticks even idling. Quiet screens still skip
-  // via damage (no periodic wake-ups); the cap only binds busy ones.
+  // via damage (bar the kMaxStaleMs refresh); the cap only binds busy ones.
   // Tune here if 20 fps capture proves too steppy (or too rich) for
   // lights: lower costs CPU back toward 60%, higher coarsens motion.
   constexpr long long kMinGrabIntervalMs = 50;
+
+  // Max time a frame is re-served with no damage before a full grab
+  // anyway (Aurora-es51): ~1.7% of a core at 4K, and the only refresh
+  // when a driver under-reports root damage (NVIDIA fullscreen flipping
+  // without a compositor is the known case).
+  constexpr long long kMaxStaleMs = 1000;
+
+  long long steadyNowMs()
+  {
+    return std::chrono::duration_cast<std::chrono::milliseconds>(
+      std::chrono::steady_clock::now().time_since_epoch()).count();
+  }
 }
 
 
@@ -96,7 +108,8 @@ namespace Aurora::Input::Linux
   }
 
 
-  X11Grabber::X11Grabber()
+  X11Grabber::X11Grabber():
+  m_grabGate(kMinGrabIntervalMs, kMaxStaleMs)
   {
     _ensureXThreadsInit();
 
@@ -160,7 +173,7 @@ namespace Aurora::Input::Linux
     m_xshmData.reset();
     m_monitorSelectionData.selectedMonitorId = monitorId;
     // The cached frame belongs to the old monitor; the next grab is full.
-    m_hasFrame = false;
+    m_grabGate.reset();
   }
 
 
@@ -178,17 +191,13 @@ namespace Aurora::Input::Linux
     // when the monitor is undamaged, and grab at most every
     // kMinGrabIntervalMs on a busy screen. Poll every tick regardless:
     // the drain keeps the server-side region and the client queue from
-    // growing, and a grab always reads the live screen, so damage
-    // discarded by a capped tick only delays a refresh by one interval.
-    // m_grabbedSerial stays put on a skip, so the capture/rescale nodes
-    // reuse their outputs.
-    const auto now = std::chrono::steady_clock::now();
-    const bool damaged = m_hasFrame ? _pollDamage(selectedMonitor) : true;
-    const auto nowMs = std::chrono::duration_cast<std::chrono::milliseconds>(
-      now.time_since_epoch()).count();
-    const auto lastGrabMs = std::chrono::duration_cast<std::chrono::milliseconds>(
-      m_lastGrabAt.time_since_epoch()).count();
-    if(!shouldGrabFrame(m_hasFrame, damaged, nowMs, lastGrabMs, kMinGrabIntervalMs)){
+    // growing. Damage drained on a capped tick stays latched in
+    // m_grabGate until a grab consumes it (Aurora-es51), and a quiet
+    // screen is still re-grabbed every kMaxStaleMs. m_grabbedSerial stays
+    // put on a skip, so the capture/rescale nodes reuse their outputs.
+    const long long nowMs = steadyNowMs();
+    const bool damaged = m_grabGate.hasFrame() ? _pollDamage(selectedMonitor) : true;
+    if(!m_grabGate.shouldGrab(damaged, nowMs)){
       imageData = m_lastFrame;
       return;
     }
@@ -238,10 +247,9 @@ namespace Aurora::Input::Linux
     }
 
     imageData = m_lastFrame;
-    m_hasFrame = true;
+    m_grabGate.markGrabbed(nowMs);
     ++m_frameSerial;
     m_grabbedSerial = m_frameSerial;
-    m_lastGrabAt = now;
   }
 
 

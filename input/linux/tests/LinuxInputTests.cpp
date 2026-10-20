@@ -141,18 +141,60 @@ TEST_CASE("damageRectIntersectsMonitor rejects empty rects", "[X11Damage]")
 }
 
 
-TEST_CASE("shouldGrabFrame grabs first, reuses when undamaged, caps busy screens", "[X11Damage]")
+TEST_CASE("shouldGrabFrame grabs first, caps busy screens, refreshes stale quiet ones", "[X11Damage]")
 {
   // No frame yet: always grab, even with no damage (first tick skips the
   // poll, so damaged=false must not veto it).
-  CHECK(shouldGrabFrame(false, false, 1000, 0, 50));
-  CHECK(shouldGrabFrame(false, true, 1000, 0, 50));
-  // Quiet screen: reuse forever, however long since the last grab.
-  CHECK_FALSE(shouldGrabFrame(true, false, 99999, 1000, 50));
+  CHECK(shouldGrabFrame(false, false, 1000, 0, 50, 1000));
+  CHECK(shouldGrabFrame(false, true, 1000, 0, 50, 1000));
   // Busy screen: grab once the interval elapsed (boundary inclusive)...
-  CHECK(shouldGrabFrame(true, true, 1050, 1000, 50));
-  CHECK(shouldGrabFrame(true, true, 1051, 1000, 50));
+  CHECK(shouldGrabFrame(true, true, 1050, 1000, 50, 1000));
+  CHECK(shouldGrabFrame(true, true, 1051, 1000, 50, 1000));
   // ...and reuse inside it.
-  CHECK_FALSE(shouldGrabFrame(true, true, 1049, 1000, 50));
-  CHECK_FALSE(shouldGrabFrame(true, true, 1000, 1000, 50));
+  CHECK_FALSE(shouldGrabFrame(true, true, 1049, 1000, 50, 1000));
+  CHECK_FALSE(shouldGrabFrame(true, true, 1000, 1000, 50, 1000));
+  // Quiet screen: reuse until maxStaleMs, then grab anyway (drivers that
+  // under-report damage still refresh).
+  CHECK_FALSE(shouldGrabFrame(true, false, 1999, 1000, 50, 1000));
+  CHECK(shouldGrabFrame(true, false, 2000, 1000, 50, 1000));
+}
+
+
+TEST_CASE("X11GrabGate keeps damage from a capped tick pending until a grab", "[X11Damage]")
+{
+  // Aurora-es51: damage drained on a tick the cap blocks used to be
+  // dropped, so a static screen re-served the pre-change frame forever.
+  X11GrabGate gate(50, 1000);
+  REQUIRE(gate.shouldGrab(true, 1000));
+  gate.markGrabbed(1000);
+
+  // The last change of a burst lands inside the cap window: blocked...
+  CHECK_FALSE(gate.shouldGrab(true, 1020));
+  // ...and later ticks carry no new damage, but it is still pending.
+  CHECK_FALSE(gate.shouldGrab(false, 1040));
+  CHECK(gate.shouldGrab(false, 1050));
+  gate.markGrabbed(1050);
+
+  // Consumed: quiet ticks reuse again until the staleness refresh.
+  CHECK_FALSE(gate.shouldGrab(false, 1100));
+  CHECK_FALSE(gate.shouldGrab(false, 2049));
+  CHECK(gate.shouldGrab(false, 2050));
+}
+
+
+TEST_CASE("X11GrabGate reset forces the next grab and clears the latch", "[X11Damage]")
+{
+  X11GrabGate gate(50, 1000);
+  CHECK_FALSE(gate.hasFrame());
+  REQUIRE(gate.shouldGrab(false, 1000));
+  gate.markGrabbed(1000);
+  CHECK(gate.hasFrame());
+  CHECK_FALSE(gate.shouldGrab(true, 1010));
+
+  gate.reset();
+  CHECK_FALSE(gate.hasFrame());
+  CHECK(gate.shouldGrab(false, 1011));
+  gate.markGrabbed(1011);
+  // The pre-reset damage didn't survive into the new monitor's cache.
+  CHECK_FALSE(gate.shouldGrab(false, 1100));
 }

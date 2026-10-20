@@ -932,3 +932,11 @@ Aurora-d2r3: the wqzp.12 guard dropped a first frame whose mean alpha was 0 to s
 
 **Fix:** drop only a frame that is zero in every channel. Never gate on alpha alone for DXGI/BGRX sources, where alpha is often unused. A gate that can drop all frames needs a log line or counter, since the failure otherwise looks like a healthy idle pipeline. Test on an SDR display, not just HDR. See `docs/log/2026-10-13-d2r3-windows-sdr-alpha-guard.md`.
 
+
+## A rate cap over drained damage events must latch pending damage
+Tags: input, linux, x11, xdamage, perf, stale-frame
+Applies-when: gating grabs on change notifications (XDamage, frame-ready callbacks, dirty flags) that are consumed every tick, combined with a rate cap or other deferral
+
+Aurora-es51: X11Grabber drained XDamage events and `XDamageSubtract`ed every tick, then let the 50 ms cap veto the grab. Damage seen on a vetoed tick was gone, so if a change burst ended inside the cap window, every later tick read "undamaged" and the lights stayed on the pre-change frame indefinitely. Perf runs never showed it because the box reported fullscreen root damage on ~60% of idle ticks, so fresh damage always arrived.
+
+**Fix:** keep a pending flag that only a successful grab clears (`X11GrabGate`), and add a max-staleness grab as a floor (1 s), so drivers that under-report damage still refresh. Test the event *sequence* (damage on a capped tick, then quiet ticks), not just the per-tick decision. A box with noisy damage hides the bug, so a perf run is no substitute. See [[es51-x11-damage-latch]].

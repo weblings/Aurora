@@ -1,13 +1,13 @@
 #pragma once
 
 #include <atomic>
-#include <chrono>
 #include <cstdint>
 #include <memory>
 #include <optional>
 
 #include <Aurora/Input/IVideoInput.hpp>
 #include <Aurora/Input/MonitorData.hpp>
+#include <Aurora/Input/Linux/X11Damage.hpp>
 
 #include <X11/extensions/Xdamage.h>
 #include <X11/extensions/Xrandr.h>
@@ -128,13 +128,13 @@ namespace Aurora::Input::Linux
     // Static-frame reuse (Aurora-1pwk): the X server reports damage, so a
     // tick with no damage re-serves m_lastFrame instead of paying for
     // XShmGetImage plus the full-buffer decimate; on a busy screen grabs
-    // are also rate-capped (see kMinGrabIntervalMs). All tick-thread only,
-    // like PipewireGrabber's m_grabbedSerial.
+    // are also rate-capped (see kMinGrabIntervalMs) and quiet ones still
+    // refreshed every kMaxStaleMs. All tick-thread only, like
+    // PipewireGrabber's m_grabbedSerial.
     Damage m_damage{None};
     int m_damageEventBase{0};
-    bool m_hasFrame{false};
+    X11GrabGate m_grabGate;
     std::uint64_t m_frameSerial{0};
     std::uint64_t m_grabbedSerial{0};
-    std::chrono::steady_clock::time_point m_lastGrabAt{};
   };
 }
