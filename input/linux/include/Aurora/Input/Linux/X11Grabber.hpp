@@ -1,5 +1,6 @@
 #pragma once
 
+#include <atomic>
 #include <memory>
 #include <optional>
 
@@ -98,6 +99,7 @@ namespace Aurora::Input::Linux
 
     void selectMonitor(unsigned monitorId) override;
     void grabFrameSubsample(Contracts::ImageData& imageData) override;
+    void setCaptureWidthHint(unsigned width) override;
 
   protected:
     void _initMonitorsList() override;
@@ -110,6 +112,9 @@ namespace Aurora::Input::Linux
     UniqueDisplay m_display; // must be destroyed after m_xshmData
 
     std::unique_ptr<XShmData> m_xshmData;
-    Contracts::ImageData m_lastFullScreenFrame;
+    Contracts::ImageData m_lastFrame;
+    // Consumer's sampled width (IVideoInput::setCaptureWidthHint), set from
+    // the config thread and read on the tick thread when grabbing.
+    std::atomic<unsigned> m_captureWidthHint{0};
   };
 }

@@ -1,8 +1,11 @@
 #include <Aurora/Input/Linux/X11Grabber.hpp>
 
 #include <algorithm>
+#include <cstdint>
 #include <limits>
 #include <stdexcept>
+
+#include <Aurora/Input/Linux/PipewireFrameBuffer.hpp>
 
 #include <X11/Xutil.h>
 #include <sys/shm.h>
@@ -146,19 +149,46 @@ namespace Aurora::Input::Linux
     // RGBA/RGB (ported from huenicorn's identical mistagging, which never
     // surfaced there since its mean() ignored the tag and hardcoded
     // BGR-order indices; see docs/lessons/input.md).
-    int cvFormat;
+    Contracts::PixelFormat format;
+    int bytesPerPixel;
     if(ximage->bits_per_pixel > 24){
-      cvFormat = CV_8UC4;
-      m_lastFullScreenFrame.format = Contracts::PixelFormat::BGRA;
+      format = Contracts::PixelFormat::BGRA;
+      bytesPerPixel = 4;
     }
     else{
-      cvFormat = CV_8UC3;
-      m_lastFullScreenFrame.format = Contracts::PixelFormat::BGR;
+      format = Contracts::PixelFormat::BGR;
+      bytesPerPixel = 3;
     }
 
-    m_lastFullScreenFrame.imageMatrix = cv::Mat(height, width, cvFormat, ximage->data);
+    // Same decimate-on-copy as PipewireGrabber (Aurora-u5k0): area-average
+    // straight out of the XShm buffer by an integer factor -- INTER_AREA is
+    // only fast at exact integer ratios, a fractional target made CPU worse
+    // -- so a 4K frame never crosses the tick at full size. bytes_per_line
+    // is the real stride; XImage rows can be padded past width * bytesPerPixel.
+    const int decimation = captureDecimation(m_captureWidthHint.load(), width);
+    if(decimation <= 1){
+      // No hint (or a small screen): keep the historic zero-copy header over
+      // the persistent XShm buffer instead of cloning for nothing.
+      const int cvType = bytesPerPixel == 4 ? CV_8UC4 : CV_8UC3;
+      m_lastFrame.format = format;
+      m_lastFrame.imageMatrix = cv::Mat(
+        height, width, cvType, ximage->data, static_cast<size_t>(ximage->bytes_per_line));
+    }
+    else{
+      m_lastFrame = toOwnedImage(
+        reinterpret_cast<const uint8_t*>(ximage->data),
+        width, height,
+        static_cast<size_t>(ximage->bytes_per_line),
+        format, decimation, bytesPerPixel);
+    }
 
-    imageData = m_lastFullScreenFrame;
+    imageData = m_lastFrame;
+  }
+
+
+  void X11Grabber::setCaptureWidthHint(unsigned width)
+  {
+    m_captureWidthHint.store(width);
   }
 
 

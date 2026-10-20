@@ -424,3 +424,86 @@ TEST_CASE("toOwnedImage decimation matches a full clone then INTER_AREA (colour 
   cv::resize(full.imageMatrix, expected, direct.imageMatrix.size(), 0, 0, cv::INTER_AREA);
   CHECK(cv::norm(direct.imageMatrix, expected, cv::NORM_INF) == 0);
 }
+
+
+// The 3-byte-per-pixel path exists for X11Grabber's 24bpp visuals
+// (Aurora-u5k0); same contract as the 4-byte path above.
+
+
+TEST_CASE("toOwnedImage supports 3-byte pixels with the negotiated format", "[PipewireGrabber][frame]")
+{
+  std::vector<uint8_t> buffer(4 * 4 * 3, 0x7F);
+  ImageData image = toOwnedImage(buffer.data(), 4, 4, 0, PixelFormat::BGR, 1, 3);
+
+  REQUIRE(image.hasData());
+  CHECK(image.width() == 4);
+  CHECK(image.height() == 4);
+  CHECK(image.format == PixelFormat::BGR);
+  CHECK(image.imageMatrix.type() == CV_8UC3);
+}
+
+
+TEST_CASE("toOwnedImage clones 3-byte pixels rather than aliasing the source buffer", "[PipewireGrabber][frame]")
+{
+  std::vector<uint8_t> buffer(2 * 2 * 3, 0x11);
+  ImageData image = toOwnedImage(buffer.data(), 2, 2, 0, PixelFormat::BGR, 1, 3);
+
+  std::memset(buffer.data(), 0xFF, buffer.size());
+
+  CHECK(image.imageMatrix.data[0] == 0x11);
+}
+
+
+TEST_CASE("toOwnedImage honors a padded stride on 3-byte pixels", "[PipewireGrabber][frame]")
+{
+  // Odd width, like an XImage whose rows pad past width * 3.
+  const int width = 3, height = 2;
+  const size_t paddedStride = static_cast<size_t>(width) * 3 + 3;
+  std::vector<uint8_t> buffer(paddedStride * height, 0);
+
+  // Mark just the first pixel of row 1 so a wrong stride would read padding.
+  buffer[paddedStride] = 0xAB;
+
+  ImageData image = toOwnedImage(buffer.data(), width, height, paddedStride, PixelFormat::BGR, 1, 3);
+
+  REQUIRE(image.hasData());
+  CHECK(image.imageMatrix.at<cv::Vec3b>(1, 0)[0] == 0xAB);
+}
+
+
+TEST_CASE("toOwnedImage with decimation on 3-byte pixels area-averages, keeping format and cropping the remainder", "[PipewireGrabber][frame]")
+{
+  std::vector<uint8_t> buffer(9 * 5 * 3, 0);
+  for(size_t i = 0; i < buffer.size(); i += 3){
+    buffer[i] = 200; buffer[i + 1] = 100; buffer[i + 2] = 50;
+  }
+  ImageData image = toOwnedImage(buffer.data(), 9, 5, 0, PixelFormat::BGR, 2, 3);
+  REQUIRE(image.hasData());
+  CHECK(image.width() == 4);
+  CHECK(image.height() == 2);
+  CHECK(image.format == PixelFormat::BGR);
+  CHECK(image.imageMatrix.at<cv::Vec3b>(0, 0) == cv::Vec3b(200, 100, 50));
+}
+
+
+TEST_CASE("toOwnedImage 3-byte decimation matches a full clone then INTER_AREA (colour parity)", "[PipewireGrabber][frame]")
+{
+  const int width = 64, height = 36, paddedStride = width * 3 + 8;
+  std::vector<uint8_t> buffer(static_cast<size_t>(paddedStride) * height);
+  for(size_t i = 0; i < buffer.size(); ++i){
+    buffer[i] = static_cast<uint8_t>((i * 37 + i / 11) & 0xFF);
+  }
+  ImageData direct = toOwnedImage(buffer.data(), width, height, paddedStride, PixelFormat::BGR, 4, 3);
+  ImageData full = toOwnedImage(buffer.data(), width, height, paddedStride, PixelFormat::BGR, 1, 3);
+  cv::Mat expected;
+  cv::resize(full.imageMatrix, expected, direct.imageMatrix.size(), 0, 0, cv::INTER_AREA);
+  CHECK(cv::norm(direct.imageMatrix, expected, cv::NORM_INF) == 0);
+}
+
+
+TEST_CASE("toOwnedImage rejects a bytes-per-pixel that is neither 3 nor 4", "[PipewireGrabber][frame]")
+{
+  std::vector<uint8_t> buffer(4 * 4 * 4, 0x7F);
+  CHECK_FALSE(toOwnedImage(buffer.data(), 4, 4, 0, PixelFormat::RGBA, 1, 2).hasData());
+  CHECK_FALSE(toOwnedImage(buffer.data(), 4, 4, 0, PixelFormat::RGBA, 1, 1).hasData());
+}
