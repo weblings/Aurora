@@ -14,7 +14,7 @@
 #include <X11/extensions/XShm.h>
 
 // Mechanically ported from huenicorn's X11Grabber -- self-contained (only
-// needs libX11/libXext/libXrandr), so it ports now even though PipewireGrabber
+// needs libX11/libXext/libXrandr/libXdamage), so it ports now even though PipewireGrabber
 // doesn't yet. Needs a real X11 session to manually verify capture -- not
 // unit-testable, same category as Hue's DTLS streaming.
 namespace Aurora::Input::Linux
