@@ -10,6 +10,8 @@ add_library(AuroraRuntime STATIC
   src/ConfigStore.cpp
   src/EffectStore.cpp
   src/EffectsRoutes.cpp
+  src/DraftStore.cpp
+  src/DraftRoutes.cpp
   src/ControlDescriptors.cpp
   src/ControlDescriptorTables.cpp
   src/ZoneMapStore.cpp

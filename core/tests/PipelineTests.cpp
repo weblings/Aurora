@@ -22,6 +22,7 @@
 #include <Aurora/Network/Http/Server/Pairing.hpp>
 #include <Aurora/Runtime/ConfigApply.hpp>
 #include <Aurora/Runtime/ConfigStore.hpp>
+#include <Aurora/Runtime/DraftRoutes.hpp>
 #include <Aurora/Runtime/EffectStore.hpp>
 #include <Aurora/Runtime/EffectsRoutes.hpp>
 #include <Aurora/Runtime/Graph/BuiltInGraphs.hpp>
@@ -2893,3 +2894,189 @@ TEST_CASE("A custom graph with both capture nodes builds both inputs, and a miss
   CHECK(fallback->summary().fallbackReason.find("audio input") != std::string::npos);
 }
 #endif
+
+
+TEST_CASE("DraftStore keeps one draft per session under caps and evicts idle ones (Aurora-52oz.3)", "[Drafts]")
+{
+  std::int64_t now = 1000;
+  DraftLimits limits;
+  limits.maxDrafts = 2;
+  limits.maxBytes = 64;
+  limits.idleSeconds = 100;
+  DraftStore store(limits, [&]{ return now; });
+  using Put = DraftStore::PutResult;
+
+  CHECK(store.put("a", {{"x", 1}}) == Put::Saved);
+  CHECK(store.put("b", {{"x", 2}}) == Put::Saved);
+  CHECK(store.get("a")->at("x") == 1);
+  CHECK(store.get("b")->at("x") == 2);
+
+  // Replacing a session's draft is not a new draft, so it fits at the cap.
+  CHECK(store.put("a", {{"x", 3}}) == Put::Saved);
+  CHECK(store.get("a")->at("x") == 3);
+  CHECK(store.put("c", {{"x", 4}}) == Put::TooMany);
+  CHECK(store.size() == 2);
+
+  CHECK(store.put("big", nlohmann::json{{"pad", std::string(100, 'x')}}) == Put::TooLarge);
+  CHECK(store.put("bad/id", {{"x", 1}}) == Put::InvalidSession);
+  CHECK(store.put("", {{"x", 1}}) == Put::InvalidSession);
+  CHECK(store.put(std::string(65, 'a'), {{"x", 1}}) == Put::InvalidSession);
+
+  // Reading counts as use: b is polled, a is not.
+  now += 60;
+  CHECK(store.get("b").has_value());
+  now += 60;
+  CHECK_FALSE(store.get("a").has_value());
+  CHECK(store.get("b").has_value());
+  CHECK(store.size() == 1);
+
+  // Eviction frees a slot for a new session.
+  CHECK(store.put("c", {{"x", 4}}) == Put::Saved);
+  CHECK(store.put("d", {{"x", 5}}) == Put::TooMany);
+  CHECK(store.remove("c"));
+  CHECK_FALSE(store.remove("c"));
+  CHECK(store.put("d", {{"x", 5}}) == Put::Saved);
+}
+
+
+TEST_CASE("Draft routes save invalid drafts, keep sessions apart and validate (Aurora-52oz.3)", "[Drafts]")
+{
+  using namespace Aurora::Network::Http::Server;
+
+  ScopedTempDir dir("draft-routes");
+  auto events = std::make_shared<Events>();
+  auto registry = makeRegistry(events);
+  Config config = videoConfig();
+  config.setActiveOutputNames({"out-a"});
+  ConfigStore(dir.path).save(config);
+
+  std::atomic<std::int64_t> now{0};
+  DraftLimits limits;
+  limits.maxDrafts = 2;
+  limits.maxBytes = 16 * 1024;
+  limits.idleSeconds = 100;
+  HttpServer server;
+  registerDraftRoutes(server, registry, dir.path, nullptr, limits, [&]{ return now.load(); });
+  const int port = server.bindToAnyPort("127.0.0.1");
+  REQUIRE(port > 0);
+  std::thread serverThread([&](){ server.listen(); });
+  httplib::Client client("127.0.0.1", port);
+
+  auto put = [&](const std::string& session, const nlohmann::json& graph){
+    return client.Put("/api/graph/drafts/" + session, nlohmann::json{{"graph", graph}}.dump(), "application/json");
+  };
+  auto body = [](const httplib::Result& result){
+    REQUIRE(result);
+    return nlohmann::json::parse(result->body);
+  };
+
+  const nlohmann::json good = Graph::builtInVideoGraph({"out-a"});
+  REQUIRE(good.dump().size() < limits.maxBytes);
+  nlohmann::json broken = good;
+  broken["nodes"].push_back({{"id", "mystery"}, {"type", "nope.nope"}});
+  broken["edges"].push_back({"ghost.out", good["nodes"][0]["id"].get<std::string>() + ".in"});
+
+  // An invalid draft saves and reports each error with its node.
+  auto saved = put("agent", broken);
+  REQUIRE(saved);
+  CHECK(saved->status == 200);
+  auto savedBody = nlohmann::json::parse(saved->body);
+  CHECK(savedBody["succeeded"] == true);
+  CHECK(savedBody["valid"] == false);
+  bool mysteryNamed = false;
+  for(const auto& error : savedBody["errors"]){
+    mysteryNamed = mysteryNamed || (error["node"] == "mystery" &&
+      error["message"].get<std::string>().find("nope.nope") != std::string::npos);
+  }
+  CHECK(mysteryNamed);
+
+  // A second session has its own draft.
+  auto editorSaved = body(put("editor", good));
+  CHECK(editorSaved["valid"] == true);
+  CHECK(editorSaved["errors"].empty());
+  CHECK(body(getWithRetry(client, "/api/graph/drafts/agent"))["graph"] == broken);
+  auto editorDraft = body(getWithRetry(client, "/api/graph/drafts/editor"));
+  CHECK(editorDraft["graph"] == good);
+  CHECK(editorDraft["session"] == "editor");
+  CHECK(editorDraft["valid"] == true);
+
+  // Overwriting one session leaves the other alone.
+  CHECK(body(put("agent", good))["valid"] == true);
+  CHECK(body(getWithRetry(client, "/api/graph/drafts/editor"))["graph"] == good);
+
+  // Caps: a third session is refused, an oversize draft is refused.
+  CHECK(put("third", good)->status == 429);
+  nlohmann::json huge = good;
+  huge["pad"] = std::string(limits.maxBytes, 'x');
+  CHECK(put("agent", huge)->status == 413);
+  CHECK(body(getWithRetry(client, "/api/graph/drafts/agent"))["graph"] == good);
+
+  // Bad session id and bad bodies.
+  CHECK(put("bad.id", good)->status == 400);
+  CHECK(client.Put("/api/graph/drafts/agent", "{not json", "application/json")->status == 400);
+  CHECK(client.Put("/api/graph/drafts/agent", R"({"graph": [1]})", "application/json")->status == 400);
+  CHECK(client.Put("/api/graph/drafts/agent", R"({"other": {}})", "application/json")->status == 400);
+  CHECK(getWithRetry(client, "/api/graph/drafts/bad.id")->status == 400);
+  CHECK(getWithRetry(client, "/api/graph/drafts/nobody")->status == 404);
+
+  // Validate does not store, and checks outputs against the config.
+  nlohmann::json wrongOutput = Graph::builtInVideoGraph({"out-b"});
+  auto validatedBody = body(client.Post(
+    "/api/graph/validate", nlohmann::json{{"graph", wrongOutput}}.dump(), "application/json"));
+  CHECK(validatedBody["valid"] == false);
+  REQUIRE_FALSE(validatedBody["errors"].empty());
+  CHECK(validatedBody["errors"][0]["message"].get<std::string>().find("unregistered output 'out-b'") !=
+    std::string::npos);
+  CHECK(body(client.Post(
+    "/api/graph/validate", nlohmann::json{{"graph", good}}.dump(), "application/json"))["valid"] == true);
+  CHECK(client.Post("/api/graph/validate", "nope", "application/json")->status == 400);
+  CHECK(getWithRetry(client, "/api/graph/drafts/third")->status == 404);
+
+  // Delete frees the session, and idle drafts go.
+  CHECK(client.Delete("/api/graph/drafts/agent")->status == 200);
+  CHECK(client.Delete("/api/graph/drafts/agent")->status == 404);
+  CHECK(put("third", good)->status == 200);
+  now = 500;
+  CHECK(getWithRetry(client, "/api/graph/drafts/editor")->status == 404);
+
+  server.stop();
+  serverThread.join();
+}
+
+
+TEST_CASE("Draft routes: writes need draft scope, reads need read (Aurora-52oz.3)", "[Drafts][Pairing]")
+{
+  using namespace Aurora::Network::Http::Server;
+  auto service = std::make_shared<PairingService>();
+  AccessGuard guard(service, [](const std::string& addr){ return addr == "127.0.0.1"; });
+  addDraftAccessRules(guard);
+
+  const std::string read = service->mintForTest("viewer", Scope::Read);
+  const std::string draft = service->mintForTest("editor", Scope::Draft);
+  const std::string apply = service->mintForTest("adapter", Scope::Apply);
+
+  auto decide = [&](HttpMethod method, const std::string& path, const std::string& token,
+                    const std::string& addr = "192.168.1.20"){
+    AccessRequest request;
+    request.method = method;
+    request.path = path;
+    request.remoteAddr = addr;
+    if(!token.empty()){ request.authorization = "Bearer " + token; }
+    return guard.decide(request).result;
+  };
+  using Result = AccessDecision::Result;
+
+  CHECK(decide(HttpMethod::Get, "/api/graph/drafts/s1", read) == Result::Allow);
+  CHECK(decide(HttpMethod::Get, "/api/graph/drafts/s1", "") == Result::Unauthorized);
+  const std::vector<std::pair<HttpMethod, std::string>> writes{
+    {HttpMethod::Put, "/api/graph/drafts/s1"},
+    {HttpMethod::Delete, "/api/graph/drafts/s1"},
+    {HttpMethod::Post, "/api/graph/validate"}};
+  for(const auto& [method, path] : writes){
+    CHECK(decide(method, path, read) == Result::Forbidden);
+    CHECK(decide(method, path, draft) == Result::Allow);
+    CHECK(decide(method, path, apply) == Result::Allow);
+    CHECK(decide(method, path, "") == Result::Unauthorized);
+    CHECK(decide(method, path, "", "127.0.0.1") == Result::Allow);
+  }
+}

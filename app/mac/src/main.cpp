@@ -40,6 +40,7 @@
 #include <Aurora/Runtime/ControlDescriptors.hpp>
 #include <Aurora/Runtime/PendingRunRequest.hpp>
 #include <Aurora/Runtime/Pipeline.hpp>
+#include <Aurora/Runtime/DraftRoutes.hpp>
 #include <Aurora/Runtime/EffectsRoutes.hpp>
 #include <Aurora/Runtime/GraphRoutes.hpp>
 #include <Aurora/Runtime/PipelineRoutes.hpp>
@@ -546,6 +547,7 @@ try
       return Aurora::Runtime::applyConfigFromDisk(pipelineHost, registry, configRoot);
     },
     accessGuard.get());
+  Aurora::Runtime::registerDraftRoutes(httpServer, registry, configRoot, accessGuard.get());
   Aurora::Runtime::registerDevErrorsRoute(httpServer, pipelineHost);
   registerStopRoute(httpServer);
   Aurora::Runtime::registerZoneRoutes(
