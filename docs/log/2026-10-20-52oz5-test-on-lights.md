@@ -1,10 +1,9 @@
-# Aurora-52oz.5: test on lights with server-side auto-revert (paused, e2e open)
+# Aurora-52oz.5: test on lights with server-side auto-revert (closed)
 
 Id: 52oz5-test-on-lights
 
 C4 of [[sequence-c-planning]]. Core suite 398/398 on Windows Debug. The three
-app `main.cpp` files got the same registration, none rebuilt. Resume: the
-fake-Hue e2e (killed client, lights return to live) is still owed, then close.
+app `main.cpp` files got the same registration, only Windows rebuilt.
 
 ## Built
 
@@ -32,6 +31,14 @@ fake-Hue e2e (killed client, lights return to live) is still owed, then close.
   draft no longer equals the tested graph, else runs apply's own function
   (`registerApplyRoutes` now returns it as `ApplyDraftFn`) and disarms.
 - `PipelineHost::applyEffect` and the new swaps share `_swapInPlace`.
+
+## Verified
+
+- Fake-Hue stack, Windows Release, dummy input: a draft with `gain_hue` 0 took
+  the viz zones from 0.88 to 0.0 and `GET /api/graph` showed gain 0. Two
+  heartbeats kept it dark. With none, the lights returned 6.0 s after the last
+  one, `lastEnd` `heartbeat_lost`, gain 1.0, state running, no errors.
+- An earlier run reverted at the 15 s confirm window (`confirm_timeout`).
 
 ## Decisions
 
