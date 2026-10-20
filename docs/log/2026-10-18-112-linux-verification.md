@@ -55,11 +55,27 @@ running app, the desktop session and a second device. No bead.
   - Phone over `192.168.0.126`: pair, accept, deny and revoke work.
   - Phone over `<hostname>.local:8215` loads and works.
   - Audio reaction with real music and the Dashboard on the phone are fine.
+  - X11 capture in an X11 session: video and audio both tested correctly.
+- Agent-run X11 checks 2026-10-19 (X11 session, HDMI-0 3840x2160, fake-Hue
+  stack, `x11` input, same 1.1.2 binary):
+  - `/api/version` 1.1.2; `PUT` to `x11` returned in 0.06 s and frames flowed.
+  - 200 alternating `x11` / `linux-audio` switches with a pause and resume
+    (`PUT /api/state` `running`) every fifth, 13 s: no errors, app alive, RSS
+    57 MB, frames still flowing afterwards.
+  - `POST /api/stop` with an SSE client attached: exit in 0.30 s, stream
+    closed; no listeners left on 8000/8215/18245/18443 after `down`.
+  - CPU in video mode at 4K: `x11` 65.8% of one core vs 2.7% on the dummy
+    input (15 s window after an 8 s settle, two runs: 65.7%, 65.8%). Host is
+    `MediaServer` (i5-7600K, GTX 1070, the oldest box), the same one as
+    [[wqzp1-x11-perf-verify]], which logged 66.7-67.7% for X11 video, so this
+    matches the baseline (no regression). The 2.3% above is the Framework
+    laptop on Wayland, not comparable.
 
 ## Not verified
 
-- Nothing outstanding that needs hardware or a person; X11 capture needs an X11
-  session (XWayland on Wayland gives black frames, expected).
+- Nothing outstanding that needs hardware or a person. The earlier X11 gap was
+  a Wayland limit (XWayland gives black frames, expected); X11 video and audio
+  are now confirmed on an X11 session.
 - Settings PUT coalescing: the live run (21 concurrent PUTs, no errors, newest
   value won) cannot show reload counts; the route tests prove one-in-flight
   plus one-pending (`PipelineTests.cpp`, Aurora-d6i7, Aurora-5ipy.8).
