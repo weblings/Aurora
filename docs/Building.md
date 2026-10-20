@@ -65,7 +65,7 @@ imgproc)`).
   after the installs -- see the `winget install fails with exit 94` lesson.
 - **Linux (Debian/Ubuntu):** `sudo apt install build-essential cmake
   libopencv-dev libcurl4-openssl-dev libmbedtls-dev libx11-dev libxext-dev
-  libxrandr-dev libglib2.0-dev libpipewire-0.3-dev libaubio-dev
+  libxrandr-dev libxdamage-dev libglib2.0-dev libpipewire-0.3-dev libaubio-dev
   libsecret-1-dev`. Without `libsecret-1-dev`, configure warns and core's
   `AuroraSecrets` builds a stub that reports every secret store as
   unavailable (`-DAURORA_SECRETS_ENABLE_LIBSECRET=OFF` silences the warning).

@@ -1,14 +1,32 @@
 #include <Aurora/Input/Linux/X11Grabber.hpp>
 
 #include <algorithm>
+#include <chrono>
 #include <cstdint>
 #include <limits>
 #include <stdexcept>
 
 #include <Aurora/Input/Linux/PipewireFrameBuffer.hpp>
+#include <Aurora/Input/Linux/X11Damage.hpp>
+
+#include <X11/extensions/Xdamage.h>
 
 #include <X11/Xutil.h>
 #include <sys/shm.h>
+
+
+namespace
+{
+  // Min time between full X11 grabs: 20 fps capture. A full grab costs
+  // ~17 ms/tick at 4K (5.6 ms XShmGetImage wall + 11 ms full-buffer
+  // decimate), so an uncapped grabber eats the whole tick budget on any
+  // screen that damages most ticks -- and this box's root reports
+  // fullscreen damage ~60% of ticks even idling. Quiet screens still skip
+  // via damage (no periodic wake-ups); the cap only binds busy ones.
+  // Tune here if 20 fps capture proves too steppy (or too rich) for
+  // lights: lower costs CPU back toward 60%, higher coarsens motion.
+  constexpr long long kMinGrabIntervalMs = 50;
+}
 
 
 namespace Aurora::Input::Linux
@@ -89,6 +107,22 @@ namespace Aurora::Input::Linux
     }
 
     m_screenId = XDefaultScreen(m_display.get());
+
+    // Fail-soft: without the Damage extension every grab is full (the old
+    // behavior), so exotic X servers keep working instead of throwing here.
+    int damageErrorBase = 0;
+    if(XDamageQueryExtension(m_display.get(), &m_damageEventBase, &damageErrorBase)){
+      m_damage = XDamageCreate(
+        m_display.get(), RootWindow(m_display.get(), m_screenId), XDamageReportRawRectangles);
+    }
+  }
+
+
+  X11Grabber::~X11Grabber()
+  {
+    if(m_damage != None){
+      XDamageDestroy(m_display.get(), m_damage);
+    }
   }
 
 
@@ -125,6 +159,8 @@ namespace Aurora::Input::Linux
   {
     m_xshmData.reset();
     m_monitorSelectionData.selectedMonitorId = monitorId;
+    // The cached frame belongs to the old monitor; the next grab is full.
+    m_hasFrame = false;
   }
 
 
@@ -137,6 +173,25 @@ namespace Aurora::Input::Linux
     }
 
     auto* selectedMonitor = dynamic_cast<X11MonitorData*>(m_monitorSelectionData.selectedMonitor());
+
+    // Damage skip + rate cap (Aurora-1pwk): re-serve the cached frame
+    // when the monitor is undamaged, and grab at most every
+    // kMinGrabIntervalMs on a busy screen. Poll every tick regardless:
+    // the drain keeps the server-side region and the client queue from
+    // growing, and a grab always reads the live screen, so damage
+    // discarded by a capped tick only delays a refresh by one interval.
+    // m_grabbedSerial stays put on a skip, so the capture/rescale nodes
+    // reuse their outputs.
+    const auto now = std::chrono::steady_clock::now();
+    const bool damaged = m_hasFrame ? _pollDamage(selectedMonitor) : true;
+    const auto nowMs = std::chrono::duration_cast<std::chrono::milliseconds>(
+      now.time_since_epoch()).count();
+    const auto lastGrabMs = std::chrono::duration_cast<std::chrono::milliseconds>(
+      m_lastGrabAt.time_since_epoch()).count();
+    if(!shouldGrabFrame(m_hasFrame, damaged, nowMs, lastGrabMs, kMinGrabIntervalMs)){
+      imageData = m_lastFrame;
+      return;
+    }
 
     int width = static_cast<int>(selectedMonitor->width);
     int height = static_cast<int>(selectedMonitor->height);
@@ -183,12 +238,22 @@ namespace Aurora::Input::Linux
     }
 
     imageData = m_lastFrame;
+    m_hasFrame = true;
+    ++m_frameSerial;
+    m_grabbedSerial = m_frameSerial;
+    m_lastGrabAt = now;
   }
 
 
   void X11Grabber::setCaptureWidthHint(unsigned width)
   {
     m_captureWidthHint.store(width);
+  }
+
+
+  std::uint64_t X11Grabber::frameSerial() const
+  {
+    return m_grabbedSerial;
   }
 
 
@@ -289,5 +354,35 @@ namespace Aurora::Input::Linux
     }
 
     return false;
+  }
+
+
+  bool X11Grabber::_pollDamage(X11MonitorData* monitor)
+  {
+    if(m_damage == None){
+      return true;
+    }
+
+    // DamageNotify carries the root drawable where XAnyEvent has its
+    // window, so the typed-window check matches our subscription.
+    bool damaged = false;
+    XEvent event;
+    while(XCheckTypedWindowEvent(
+      m_display.get(), RootWindow(m_display.get(), m_screenId),
+      m_damageEventBase + XDamageNotify, &event
+    )){
+      const auto* notify = reinterpret_cast<XDamageNotifyEvent*>(&event);
+      if(damageRectIntersectsMonitor(
+        notify->area.x, notify->area.y, notify->area.width, notify->area.height,
+        monitor->xPos, monitor->yPos,
+        static_cast<int>(monitor->width), static_cast<int>(monitor->height)
+      )){
+        damaged = true;
+      }
+    }
+
+    // Re-arm: clear the server-side region so only new damage reports.
+    XDamageSubtract(m_display.get(), m_damage, None, None);
+    return damaged;
   }
 }

@@ -12,8 +12,10 @@ Distilled from [huenicorn](https://gitlab.com/openjowelsofts/huenicorn)
 - `DummyGrabber` — fully portable (no display needed), tested.
 - `SessionDispatch` — the session-type decision logic from huenicorn's
   `GnuLinuxAdapter`, split out and tested as pure logic.
-- `X11Grabber` — builds against `libX11`/`libXext`/`libXrandr`. Not
-  unit-testable (needs a real X11 display).
+- `X11Grabber` — builds against `libX11`/`libXext`/`libXrandr`/
+  `libXdamage` (damage events drive static-frame reuse, Aurora-1pwk). Not
+  unit-testable (needs a real X11 display); the damage-rect intersection
+  is a pure, tested helper (`X11Damage.hpp`).
 - `PipewireGrabber`/`XdgDesktopPortal` — Wayland capture via
   `xdg-desktop-portal`'s ScreenCast interface, plus Gamescope's direct
   Pipewire node. Gamescope-node matching and raw-buffer-to-`ImageData`
@@ -46,7 +48,7 @@ local sibling-directory path in `CMakeLists.txt` — expects this repo to sit
 next to `Aurora/` on disk. Also needs, on Debian/Ubuntu:
 
 ```
-sudo apt install libx11-dev libxext-dev libxrandr-dev libpipewire-0.3-dev libglib2.0-dev
+sudo apt install libx11-dev libxext-dev libxrandr-dev libxdamage-dev libpipewire-0.3-dev libglib2.0-dev
 ```
 
 Either capture backend can be skipped independently via

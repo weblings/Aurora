@@ -4,6 +4,7 @@
 
 #include <Aurora/Input/Linux/DummyGrabber.hpp>
 #include <Aurora/Input/Linux/SessionDispatch.hpp>
+#include <Aurora/Input/Linux/X11Damage.hpp>
 
 using namespace Aurora::Input;
 using namespace Aurora::Input::Linux;
@@ -96,4 +97,62 @@ TEST_CASE("selectBackend respects which backends are actually compiled in", "[Se
 {
   CHECK(selectBackend("wayland", false, /*pipewire*/ false, true) == Backend::Unavailable);
   CHECK(selectBackend("x11", false, true, /*x11*/ false) == Backend::Unavailable);
+}
+
+
+// Pure half of X11Grabber's damage skip (Aurora-1pwk): the drain loop
+// needs a live X server, but the "does this damage touch my monitor?"
+// question is plain rect math.
+
+
+TEST_CASE("damageRectIntersectsMonitor hits overlap and containment", "[X11Damage]")
+{
+  // Partial overlap, containment both ways, identical rects.
+  CHECK(damageRectIntersectsMonitor(100, 100, 50, 50, 0, 0, 3840, 2160));
+  CHECK(damageRectIntersectsMonitor(0, 0, 3840, 2160, 100, 100, 50, 50));
+  CHECK(damageRectIntersectsMonitor(0, 0, 3840, 2160, 0, 0, 3840, 2160));
+  // Single-pixel overlap at the monitor's bottom-right corner.
+  CHECK(damageRectIntersectsMonitor(3839, 2159, 10, 10, 0, 0, 3840, 2160));
+}
+
+
+TEST_CASE("damageRectIntersectsMonitor misses disjoint rects", "[X11Damage]")
+{
+  CHECK_FALSE(damageRectIntersectsMonitor(0, 0, 100, 100, 200, 0, 3840, 2160));
+  CHECK_FALSE(damageRectIntersectsMonitor(0, 3000, 100, 100, 0, 0, 3840, 2160));
+  // Second monitor's damage doesn't touch the first (side-by-side 4K).
+  CHECK_FALSE(damageRectIntersectsMonitor(3900, 100, 50, 50, 0, 0, 3840, 2160));
+  CHECK(damageRectIntersectsMonitor(3900, 100, 50, 50, 3840, 0, 3840, 2160));
+}
+
+
+TEST_CASE("damageRectIntersectsMonitor treats touching edges as no area", "[X11Damage]")
+{
+  CHECK_FALSE(damageRectIntersectsMonitor(3840, 0, 50, 50, 0, 0, 3840, 2160));
+  CHECK_FALSE(damageRectIntersectsMonitor(0, 2160, 50, 50, 0, 0, 3840, 2160));
+}
+
+
+TEST_CASE("damageRectIntersectsMonitor rejects empty rects", "[X11Damage]")
+{
+  CHECK_FALSE(damageRectIntersectsMonitor(100, 100, 0, 50, 0, 0, 3840, 2160));
+  CHECK_FALSE(damageRectIntersectsMonitor(100, 100, 50, -1, 0, 0, 3840, 2160));
+  CHECK_FALSE(damageRectIntersectsMonitor(100, 100, 50, 50, 0, 0, 0, 2160));
+}
+
+
+TEST_CASE("shouldGrabFrame grabs first, reuses when undamaged, caps busy screens", "[X11Damage]")
+{
+  // No frame yet: always grab, even with no damage (first tick skips the
+  // poll, so damaged=false must not veto it).
+  CHECK(shouldGrabFrame(false, false, 1000, 0, 50));
+  CHECK(shouldGrabFrame(false, true, 1000, 0, 50));
+  // Quiet screen: reuse forever, however long since the last grab.
+  CHECK_FALSE(shouldGrabFrame(true, false, 99999, 1000, 50));
+  // Busy screen: grab once the interval elapsed (boundary inclusive)...
+  CHECK(shouldGrabFrame(true, true, 1050, 1000, 50));
+  CHECK(shouldGrabFrame(true, true, 1051, 1000, 50));
+  // ...and reuse inside it.
+  CHECK_FALSE(shouldGrabFrame(true, true, 1049, 1000, 50));
+  CHECK_FALSE(shouldGrabFrame(true, true, 1000, 1000, 50));
 }

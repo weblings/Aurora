@@ -1,12 +1,15 @@
 #pragma once
 
 #include <atomic>
+#include <chrono>
+#include <cstdint>
 #include <memory>
 #include <optional>
 
 #include <Aurora/Input/IVideoInput.hpp>
 #include <Aurora/Input/MonitorData.hpp>
 
+#include <X11/extensions/Xdamage.h>
 #include <X11/extensions/Xrandr.h>
 #include <X11/extensions/XShm.h>
 
@@ -83,7 +86,7 @@ namespace Aurora::Input::Linux
 
 
     X11Grabber();
-    virtual ~X11Grabber(){}
+    ~X11Grabber() override;
 
     const std::string& name() const override;
 
@@ -100,6 +103,7 @@ namespace Aurora::Input::Linux
     void selectMonitor(unsigned monitorId) override;
     void grabFrameSubsample(Contracts::ImageData& imageData) override;
     void setCaptureWidthHint(unsigned width) override;
+    std::uint64_t frameSerial() const override;
 
   protected:
     void _initMonitorsList() override;
@@ -107,6 +111,10 @@ namespace Aurora::Input::Linux
   private:
     void _ensureXThreadsInit();
     bool _ensureXShmData();
+    // Drains pending root-window damage events and reports whether any
+    // touched the monitor. Always true without the Damage extension
+    // (fail-soft: every grab is full, the pre-1pwk behavior).
+    bool _pollDamage(X11MonitorData* monitor);
 
     int m_screenId;
     UniqueDisplay m_display; // must be destroyed after m_xshmData
@@ -116,5 +124,17 @@ namespace Aurora::Input::Linux
     // Consumer's sampled width (IVideoInput::setCaptureWidthHint), set from
     // the config thread and read on the tick thread when grabbing.
     std::atomic<unsigned> m_captureWidthHint{0};
+
+    // Static-frame reuse (Aurora-1pwk): the X server reports damage, so a
+    // tick with no damage re-serves m_lastFrame instead of paying for
+    // XShmGetImage plus the full-buffer decimate; on a busy screen grabs
+    // are also rate-capped (see kMinGrabIntervalMs). All tick-thread only,
+    // like PipewireGrabber's m_grabbedSerial.
+    Damage m_damage{None};
+    int m_damageEventBase{0};
+    bool m_hasFrame{false};
+    std::uint64_t m_frameSerial{0};
+    std::uint64_t m_grabbedSerial{0};
+    std::chrono::steady_clock::time_point m_lastGrabAt{};
   };
 }
