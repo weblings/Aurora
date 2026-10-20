@@ -365,3 +365,17 @@ report. Aurora-id8j.2: `send["sink"]` on `output.send`, which sets no
 **Fix:** in tests use `contains()` before indexing, or `.at()` (throws, so Catch2
 reports it). Do not `kill` a hung run before reading its output file: the
 assertion text is in it.
+
+---
+
+## A nested brace list of strings in nlohmann json collapses to a flat array
+Tags: cpp, nlohmann, json, init-list, graph, testing
+Applies-when: writing a graph doc literal in C++ with `"edges"` (or any array of pairs)
+
+Aurora-52oz.6: `{"edges", {{"src.frame", "send.frame"}}}` builds `["src.frame", "send.frame"]`, because
+a one-element list of a two-string list is read as the pair itself. The loader then rejects the doc
+with "top-level 'edges' must be an array of [\"node.port\", \"node.port\"]", which reads like a graph
+bug, not a test typo.
+
+**Fix:** build pairs explicitly: `nlohmann::json::array({nlohmann::json::array({"a.x", "b.y"})})`.
+With two or more edges the init-list form works, so a one-edge test is where it bites.

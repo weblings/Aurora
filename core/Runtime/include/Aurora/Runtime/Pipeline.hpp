@@ -152,6 +152,15 @@ namespace Aurora::Runtime
     // live Config differs from the running one, so the caller rebuilds.
     bool restoreEffect(const Config& live, const std::optional<nlohmann::json>& doc);
 
+    // Draft previews beside the live graph (Aurora-52oz.6), see
+    // GraphRunner::openPreview. Null with errorOut set when the graph would
+    // need other inputs than the ones running, the dev dual-capture spike is
+    // on, or the graph fails to load. Under the lock that guards tick().
+    std::shared_ptr<GraphPreview> openPreview(
+      const std::string& session, const nlohmann::json& doc, std::string& errorOut);
+    bool reloadPreview(GraphPreview& preview, const nlohmann::json& doc, std::string& errorOut);
+    void closePreview(const std::string& session, const GraphPreview* preview);
+
     // The Config this pipeline was built from, as later changed by
     // applyConfig(). Video mode holds the post-derivation values
     // (refreshRate/subsampleWidth filled in from the display).
@@ -356,6 +365,14 @@ namespace Aurora::Runtime
     // restoreEffect. False when there is no pipeline or the pipeline refuses.
     bool testGraph(const nlohmann::json& doc);
     bool restoreEffect(const Config& live, const std::optional<nlohmann::json>& doc);
+
+    // Draft previews under the pipeline lock, see Pipeline::openPreview. They
+    // die with the pipeline: a rebuild moves buildEpoch() and a stream that
+    // saw the old one ends.
+    std::shared_ptr<GraphPreview> openPreview(
+      const std::string& session, const nlohmann::json& doc, std::string& errorOut);
+    bool reloadPreview(GraphPreview& preview, const nlohmann::json& doc, std::string& errorOut);
+    void closePreview(const std::string& session, const GraphPreview* preview);
 
     // Moves on every rebuild (reload, resume). With isPaused() it tells a test
     // on lights its pipeline is gone.

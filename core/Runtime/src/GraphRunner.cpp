@@ -196,6 +196,10 @@ namespace Aurora::Runtime
         }
       }
     }
+
+    for(auto& entry : m_previews){
+      entry.second->tick(dt, m_host);
+    }
   }
 
 
@@ -233,6 +237,40 @@ namespace Aurora::Runtime
     }
 
     return false;
+  }
+
+
+  std::shared_ptr<GraphPreview> GraphRunner::openPreview(
+    const std::string& session, const nlohmann::json& doc, std::string& errorOut)
+  {
+    auto preview = GraphPreview::create(
+      doc, m_registry, std::unordered_set<std::string>(m_outputNames.begin(), m_outputNames.end()), errorOut);
+    if(!preview){
+      return nullptr;
+    }
+    auto& slot = m_previews[session];
+    if(slot){
+      slot->close();
+    }
+    slot = preview;
+    return preview;
+  }
+
+
+  bool GraphRunner::reloadPreview(GraphPreview& preview, const nlohmann::json& doc, std::string& errorOut)
+  {
+    return preview.reload(
+      doc, m_registry, std::unordered_set<std::string>(m_outputNames.begin(), m_outputNames.end()), errorOut);
+  }
+
+
+  void GraphRunner::closePreview(const std::string& session, const GraphPreview* preview)
+  {
+    auto it = m_previews.find(session);
+    if(it != m_previews.end() && it->second.get() == preview){
+      it->second->close();
+      m_previews.erase(it);
+    }
   }
 
 

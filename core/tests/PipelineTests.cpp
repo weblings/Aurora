@@ -43,6 +43,7 @@
 #endif
 #include <Aurora/Runtime/Pipeline.hpp>
 #include <Aurora/Runtime/PipelineRoutes.hpp>
+#include <Aurora/Runtime/PreviewRoutes.hpp>
 #include <Aurora/Runtime/SettingsRoutes.hpp>
 
 #include "SseReader.hpp"
@@ -3636,4 +3637,210 @@ TEST_CASE("The watchdog thread reverts a test whose client went silent (Aurora-5
   }
   CHECK(reverts == 1);
   CHECK_FALSE(test.heartbeat("editor"));
+}
+
+
+namespace
+{
+  // The video graph with every frame.gain set to `gain`: all-red input shows as
+  // red scaled by it, so the draft is told apart from the live graph.
+  nlohmann::json gainGraph(float gain)
+  {
+    nlohmann::json doc = Graph::builtInVideoGraph({"out-a"});
+    for(auto& node : doc["nodes"]){
+      if(node["type"] == "frame.gain"){
+        node["params"]["gain"] = gain;
+      }
+    }
+    return doc;
+  }
+
+  // Draft routes plus the preview stream on a real server.
+  struct PreviewHarness
+  {
+    explicit PreviewHarness(const std::string& name, std::chrono::milliseconds interval = 20ms):
+    dir(name),
+    events(std::make_shared<Events>()),
+    registry(makeRegistry(events))
+    {
+      ConfigStore(dir.path).save(tunedVideoConfig());
+      host = std::make_unique<PipelineHost>(Pipeline::build(registry, tunedVideoConfig(), dir.path, {}), PipelineOptions{});
+      drafts = registerDraftRoutes(server, registry, dir.path);
+      PreviewOptions options;
+      options.interval = interval;
+      registerPreviewRoutes(server, *host, drafts, options);
+      port = server.bindToAnyPort("127.0.0.1");
+      REQUIRE(port > 0);
+      serverThread = std::thread([this](){ server.listen(); });
+      client = std::make_unique<httplib::Client>("127.0.0.1", port);
+    }
+
+    ~PreviewHarness()
+    {
+      server.stop();
+      serverThread.join();
+      host->shutdown();
+    }
+
+    void putDraft(const std::string& session, const nlohmann::json& graph)
+    {
+      auto result = client->Put("/api/graph/drafts/" + session, nlohmann::json{{"graph", graph}}.dump(), "application/json");
+      REQUIRE(result);
+    }
+
+    // Ticks until the stream's latest preview event satisfies `done`.
+    template<typename Pred>
+    bool tickUntil(SseReader& reader, Pred done)
+    {
+      for(int attempt = 0; attempt < 200; ++attempt){
+        host->tick();
+        std::this_thread::sleep_for(10ms);
+        const auto shown = eventsOf(reader.data(), "preview");
+        if(!shown.empty() && done(shown.back())){
+          return true;
+        }
+      }
+      return false;
+    }
+
+    ScopedTempDir dir;
+    std::shared_ptr<Events> events;
+    Registry registry;
+    std::unique_ptr<PipelineHost> host;
+    Aurora::Network::Http::Server::HttpServer server;
+    std::shared_ptr<DraftStore> drafts;
+    int port{0};
+    std::thread serverThread;
+    std::unique_ptr<httplib::Client> client;
+  };
+
+  float firstRed(const nlohmann::json& preview)
+  {
+    return preview.at("outputs").at(0).at("zones").at(0).at("r").get<float>();
+  }
+}
+
+
+TEST_CASE("GET /api/graph/preview streams the draft's zone colors and never sends to an output (Aurora-52oz.6)", "[Preview]")
+{
+  PreviewHarness h("preview-colors");
+  h.putDraft("editor", gainGraph(0.f));
+
+  SseReader reader(h.port, "/api/graph/preview?session=editor");
+  REQUIRE(reader.status() == 200);
+  REQUIRE(reader.waitFor("event: preview\n"));
+
+  const int sendsBefore = h.events->sendCount;
+  REQUIRE(h.tickUntil(reader, [](const nlohmann::json& p){ return !p["outputs"].empty(); }));
+  CHECK(h.events->sendCount - sendsBefore > 0);
+  const auto first = eventsOf(reader.data(), "preview").back();
+  CHECK(first["session"] == "editor");
+  CHECK(first["outputs"][0]["output"] == "out-a");
+  CHECK(first["outputs"][0]["zones"].size() == 2);
+  CHECK(firstRed(first) == 0.f);
+  CHECK_FALSE(first["outputs"][0]["zones"][0]["error"].get<bool>());
+
+  // An edit to the draft shows up in the same stream, with no reconnect.
+  h.putDraft("editor", gainGraph(1.f));
+  CHECK(h.tickUntil(reader, [](const nlohmann::json& p){ return firstRed(p) > 0.f; }));
+
+  // The live path alone reaches the outputs: one send per output per tick.
+  const int ticksBefore = h.events->sendCount;
+  for(int i = 0; i < 10; ++i){ h.host->tick(); }
+  CHECK(h.events->sendCount - ticksBefore == 10 * 2);
+}
+
+
+TEST_CASE("The preview stream is throttled to its interval and costs the live tick little (Aurora-52oz.6)", "[Preview]")
+{
+  PreviewHarness h("preview-throttle", 100ms);
+  h.putDraft("editor", gainGraph(1.f));
+
+  using Clock = std::chrono::steady_clock;
+  auto timeTicks = [&](int count){
+    const auto start = Clock::now();
+    for(int i = 0; i < count; ++i){ h.host->tick(); }
+    return std::chrono::duration<double, std::milli>(Clock::now() - start).count() / count;
+  };
+  const double bare = timeTicks(200);
+
+  SseReader reader(h.port, "/api/graph/preview?session=editor");
+  REQUIRE(reader.waitFor("event: preview\n"));
+
+  const auto start = Clock::now();
+  const double withPreview = timeTicks(200);
+  // Paced ticks keep the colors moving while the stream samples them.
+  for(int i = 0; i < 40; ++i){
+    h.host->tick();
+    std::this_thread::sleep_for(5ms);
+  }
+  const double elapsedMs = std::chrono::duration<double, std::milli>(Clock::now() - start).count();
+
+  const auto shown = eventsOf(reader.data(), "preview");
+  INFO("live tick " << bare << " ms bare, " << withPreview << " ms with a preview; "
+    << shown.size() << " preview events in " << elapsedMs << " ms; preview tick "
+    << (shown.empty() ? 0.0 : shown.back()["tickMs"].get<double>()) << " ms");
+  CHECK(static_cast<double>(shown.size()) <= elapsedMs / 100.0 + 3.0);
+  // The tick budget at 30 Hz is 33 ms; the preview must stay far inside it.
+  CHECK(withPreview < 33.0 / 4.0);
+}
+
+
+TEST_CASE("The preview stream flags bad sessions and missing drafts, then ends (Aurora-52oz.6)", "[Preview]")
+{
+  PreviewHarness h("preview-refusals");
+
+  SseReader badSession(h.port, "/api/graph/preview?session=has%20space");
+  REQUIRE(badSession.waitFor("\"error\":\"invalid_session\""));
+  CHECK(badSession.waitFinished());
+
+  SseReader noDraft(h.port, "/api/graph/preview?session=editor");
+  REQUIRE(noDraft.waitFor("\"error\":\"no_draft\""));
+  CHECK(noDraft.waitFinished());
+
+  // Needs an input the running pipeline does not have: refused, not reloaded.
+  nlohmann::json both = Graph::builtInVideoGraph({"out-a"});
+  both["nodes"].push_back({{"id", "mic"}, {"type", "audio.capture"}, {"params", nlohmann::json::object()}});
+  h.putDraft("other", both);
+  SseReader cannot(h.port, "/api/graph/preview?session=other");
+  REQUIRE(cannot.waitFor("event: error\n"));
+  CHECK(cannot.waitFinished());
+}
+
+
+TEST_CASE("The preview stream closes when its draft is deleted or the pipeline pauses (Aurora-52oz.6)", "[Preview]")
+{
+  PreviewHarness h("preview-closing");
+  h.putDraft("editor", gainGraph(1.f));
+  h.putDraft("second", gainGraph(1.f));
+
+  SseReader deleted(h.port, "/api/graph/preview?session=editor");
+  SseReader paused(h.port, "/api/graph/preview?session=second");
+  REQUIRE(deleted.waitFor("event: preview\n"));
+  REQUIRE(paused.waitFor("event: preview\n"));
+
+  auto removed = h.client->Delete("/api/graph/drafts/editor");
+  REQUIRE(removed);
+  CHECK(deleted.waitFor("\"reason\":\"draft_deleted\""));
+  CHECK(deleted.waitFinished());
+
+  REQUIRE(h.host->pause());
+  CHECK(paused.waitFor("\"reason\":\"pipeline_gone\""));
+  CHECK(paused.waitFinished());
+}
+
+
+TEST_CASE("A second stream for a session replaces the first (Aurora-52oz.6)", "[Preview]")
+{
+  PreviewHarness h("preview-replaced");
+  h.putDraft("editor", gainGraph(1.f));
+
+  SseReader first(h.port, "/api/graph/preview?session=editor");
+  REQUIRE(first.waitFor("event: preview\n"));
+  SseReader second(h.port, "/api/graph/preview?session=editor");
+  REQUIRE(second.waitFor("event: preview\n"));
+
+  CHECK(first.waitFor("\"reason\":\"replaced\""));
+  CHECK(first.waitFinished());
+  CHECK(h.tickUntil(second, [](const nlohmann::json& p){ return !p["outputs"].empty(); }));
 }

@@ -15,6 +15,8 @@ add_library(AuroraRuntime STATIC
   src/ApplyRoutes.cpp
   src/LightTest.cpp
   src/TestRoutes.cpp
+  src/GraphPreview.cpp
+  src/PreviewRoutes.cpp
   src/ControlDescriptors.cpp
   src/ControlDescriptorTables.cpp
   src/ZoneMapStore.cpp

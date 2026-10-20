@@ -440,6 +440,34 @@ namespace Aurora::Runtime
   }
 
 
+  std::shared_ptr<GraphPreview> Pipeline::openPreview(
+    const std::string& session, const nlohmann::json& doc, std::string& errorOut)
+  {
+    if(m_videoRunner && m_audioRunner){
+      errorOut = "preview is off while the dual-capture spike runs";
+      return nullptr;
+    }
+    const ModePlan plan = _planMode(m_appliedConfig, &doc);
+    if(!plan.missing.empty() || plan.audioMode != m_isAudioMode || plan.bothInputs != m_bothInputs){
+      errorOut = "the graph needs other inputs than the running pipeline has";
+      return nullptr;
+    }
+    return (m_isAudioMode ? *m_audioRunner : *m_videoRunner).openPreview(session, doc, errorOut);
+  }
+
+
+  bool Pipeline::reloadPreview(GraphPreview& preview, const nlohmann::json& doc, std::string& errorOut)
+  {
+    return (m_isAudioMode ? *m_audioRunner : *m_videoRunner).reloadPreview(preview, doc, errorOut);
+  }
+
+
+  void Pipeline::closePreview(const std::string& session, const GraphPreview* preview)
+  {
+    (m_isAudioMode ? *m_audioRunner : *m_videoRunner).closePreview(session, preview);
+  }
+
+
   bool Pipeline::restoreEffect(const Config& live, const std::optional<nlohmann::json>& doc)
   {
     if(doc){
@@ -929,6 +957,38 @@ namespace Aurora::Runtime
   bool PipelineHost::testGraph(const nlohmann::json& doc)
   {
     return _swapInPlace([&](Pipeline& p){ return p.testGraph(doc); }, false, "Test graph running on the lights.");
+  }
+
+
+  std::shared_ptr<GraphPreview> PipelineHost::openPreview(
+    const std::string& session, const nlohmann::json& doc, std::string& errorOut)
+  {
+    std::lock_guard<std::mutex> lock(m_mutex);
+    if(!m_pipeline){
+      errorOut = "no pipeline is running";
+      return nullptr;
+    }
+    return m_pipeline->openPreview(session, doc, errorOut);
+  }
+
+
+  bool PipelineHost::reloadPreview(GraphPreview& preview, const nlohmann::json& doc, std::string& errorOut)
+  {
+    std::lock_guard<std::mutex> lock(m_mutex);
+    if(!m_pipeline){
+      errorOut = "no pipeline is running";
+      return false;
+    }
+    return m_pipeline->reloadPreview(preview, doc, errorOut);
+  }
+
+
+  void PipelineHost::closePreview(const std::string& session, const GraphPreview* preview)
+  {
+    std::lock_guard<std::mutex> lock(m_mutex);
+    if(m_pipeline){
+      m_pipeline->closePreview(session, preview);
+    }
   }
 
 

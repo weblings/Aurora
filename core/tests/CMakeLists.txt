@@ -114,6 +114,17 @@ target_link_libraries(AuroraGraphRunnerVideoTests PRIVATE
 
 target_compile_features(AuroraGraphRunnerVideoTests PUBLIC cxx_std_20)
 
+add_executable(AuroraGraphPreviewTests
+  GraphPreviewTests.cpp
+)
+
+target_link_libraries(AuroraGraphPreviewTests PRIVATE
+  AuroraRuntime
+  Catch2::Catch2WithMain
+)
+
+target_compile_features(AuroraGraphPreviewTests PUBLIC cxx_std_20)
+
 add_executable(AuroraDevFrameDumpTests
   DevFrameDumpTests.cpp
 )
@@ -233,6 +244,7 @@ catch_discover_tests(AuroraControlDescriptorTests)
 catch_discover_tests(AuroraSecretsTests)
 catch_discover_tests(AuroraRuntimeTests)
 catch_discover_tests(AuroraGraphRunnerVideoTests)
+catch_discover_tests(AuroraGraphPreviewTests)
 catch_discover_tests(AuroraPipelineTests)
 catch_discover_tests(AuroraDevFrameDumpTests)
 catch_discover_tests(AuroraVideoParityTests)
