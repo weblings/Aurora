@@ -1,6 +1,6 @@
 #include <catch2/catch_test_macros.hpp>
 
-#include <Aurora/Runtime/Orchestrator.hpp>
+#include <Aurora/Runtime/GraphRunner.hpp>
 #include <Aurora/Runtime/SubsampleDefaults.hpp>
 
 using namespace Aurora::Contracts;
@@ -17,7 +17,7 @@ namespace
     std::filesystem::path path;
 
     explicit ScopedTempDir(const std::string& name):
-    path(std::filesystem::temp_directory_path() / ("aurora-orchestrator-tests-" + name))
+    path(std::filesystem::temp_directory_path() / ("aurora-graphrunner-video-tests-" + name))
     {
       std::filesystem::remove_all(path);
     }
@@ -118,49 +118,49 @@ TEST_CASE("pickDefaultSubsampleWidth returns 0 for an empty candidate list", "[S
 }
 
 
-TEST_CASE("Orchestrator::init derives refreshRate/subsampleWidth from the display when unset", "[Orchestrator]")
+TEST_CASE("GraphRunner video init derives refreshRate/subsampleWidth from the display when unset", "[GraphRunner]")
 {
   ScopedTempDir dir("init-defaults");
   FakeInput input;
   FakeOutput output("fake", {});
 
-  Orchestrator orchestrator(input, {&output}, Config{}, ZoneMapStore(dir.path));
-  orchestrator.init();
+  GraphRunner runner(input, {&output}, Config{}, ZoneMapStore(dir.path));
+  runner.init();
 
-  CHECK(orchestrator.config().refreshRate() == 30); // from displayRefreshRate()
-  CHECK(orchestrator.config().subsampleWidth() > 0);
+  CHECK(runner.config().refreshRate() == 30); // from displayRefreshRate()
+  CHECK(runner.config().subsampleWidth() > 0);
 }
 
 
-TEST_CASE("Orchestrator::init caps a derived refreshRate at kMaxDerivedRefreshRate", "[Orchestrator]")
+TEST_CASE("GraphRunner video init caps a derived refreshRate at kMaxDerivedRefreshRate", "[GraphRunner]")
 {
   ScopedTempDir dir("init-cap");
   FakeInput input;
   input.displayHz = 144;
   FakeOutput output("fake", {});
 
-  Orchestrator orchestrator(input, {&output}, Config{}, ZoneMapStore(dir.path));
-  orchestrator.init();
-  CHECK(orchestrator.config().refreshRate() == Config::kMaxDerivedRefreshRate);
+  GraphRunner runner(input, {&output}, Config{}, ZoneMapStore(dir.path));
+  runner.init();
+  CHECK(runner.config().refreshRate() == Config::kMaxDerivedRefreshRate);
 
   Config explicitCfg;
   explicitCfg.setRefreshRate(144);
-  Orchestrator explicitRate(input, {&output}, explicitCfg, ZoneMapStore(dir.path));
+  GraphRunner explicitRate(input, {&output}, explicitCfg, ZoneMapStore(dir.path));
   explicitRate.init();
   CHECK(explicitRate.config().refreshRate() == 144); // user choice is not capped
 }
 
 
-TEST_CASE("Orchestrator::init reconciles and persists each output's zone map", "[Orchestrator]")
+TEST_CASE("GraphRunner video init reconciles and persists each output's zone map", "[GraphRunner]")
 {
   ScopedTempDir dir("init-reconcile");
   FakeInput input;
   FakeOutput output("fake", {1, 2});
 
-  Orchestrator orchestrator(input, {&output}, Config{}, ZoneMapStore(dir.path));
-  orchestrator.init();
+  GraphRunner runner(input, {&output}, Config{}, ZoneMapStore(dir.path));
+  runner.init();
 
-  const ZoneMap& zoneMap = orchestrator.zoneMap("fake");
+  const ZoneMap& zoneMap = runner.zoneMap("fake");
   REQUIRE(zoneMap.size() == 2);
   CHECK(zoneMap[0].active); // no saved profile yet -- defaults active
   CHECK_FALSE(zoneMap[0].everConfigured); // but never actually written
@@ -171,23 +171,23 @@ TEST_CASE("Orchestrator::init reconciles and persists each output's zone map", "
 }
 
 
-TEST_CASE("Orchestrator::update crops per zone and sends a smoothed Frame to each output", "[Orchestrator]")
+TEST_CASE("GraphRunner video tick crops per zone and sends a smoothed Frame to each output", "[GraphRunner]")
 {
   ScopedTempDir dir("update");
   FakeInput input;
   FakeOutput output("fake", {1, 2});
 
-  Orchestrator orchestrator(input, {&output}, Config{}, ZoneMapStore(dir.path));
-  orchestrator.init();
+  GraphRunner runner(input, {&output}, Config{}, ZoneMapStore(dir.path));
+  runner.init();
 
   // Activate both zones with a saved mapping matching the fixture's halves,
-  // then re-init() so the orchestrator reloads and reconciles against it.
+  // then re-init() so the runner reloads and reconciles against it.
   ZoneMapStore(dir.path).save("fake", ZoneMap{
     {1, {{0.f, 0.f}, {0.5f, 1.f}}, true},
     {2, {{0.5f, 0.f}, {1.f, 1.f}}, true}
   });
-  orchestrator.init();
-  orchestrator.update(1.0f / 60.0f);
+  runner.init();
+  runner.tick(1.0f / 60.0f);
 
   REQUIRE(output.sendCount == 1);
   REQUIRE(output.lastFrame.size() == 2);
@@ -196,69 +196,69 @@ TEST_CASE("Orchestrator::update crops per zone and sends a smoothed Frame to eac
 }
 
 
-TEST_CASE("Orchestrator::update reuses the prepared frame while frameSerial is unchanged", "[Orchestrator]")
+TEST_CASE("GraphRunner video tick reuses the prepared frame while frameSerial is unchanged", "[GraphRunner]")
 {
   ScopedTempDir dir("frame-serial");
   FakeInput input;
   FakeOutput output("fake", {1, 2});
 
-  Orchestrator orchestrator(input, {&output}, Config{}, ZoneMapStore(dir.path));
+  GraphRunner runner(input, {&output}, Config{}, ZoneMapStore(dir.path));
   ZoneMapStore(dir.path).save("fake", ZoneMap{
     {1, {{0.f, 0.f}, {0.5f, 1.f}}, true},
     {2, {{0.5f, 0.f}, {1.f, 1.f}}, true}
   });
-  orchestrator.init();
+  runner.init();
 
   input.serial = 1;
-  orchestrator.update(1.0f / 60.0f);
+  runner.tick(1.0f / 60.0f);
   REQUIRE(output.lastFrame.size() == 2);
   CHECK(output.lastFrame[0].color == Color(255, 0, 0));
 
   // Same serial: the grabber says nothing changed, so the cached frame wins.
   input.swapHalves = true;
-  orchestrator.update(1.0f / 60.0f);
+  runner.tick(1.0f / 60.0f);
   CHECK(output.lastFrame[0].color == Color(255, 0, 0));
 
   input.serial = 2;
-  orchestrator.update(1.0f / 60.0f);
+  runner.tick(1.0f / 60.0f);
   CHECK(output.lastFrame[0].color == Color(0, 0, 255));
 
   // 0 = unknown: every frame is prepared fresh.
   input.serial = 0;
   input.swapHalves = false;
-  orchestrator.update(1.0f / 60.0f);
+  runner.tick(1.0f / 60.0f);
   CHECK(output.lastFrame[0].color == Color(255, 0, 0));
 }
 
 
-TEST_CASE("Orchestrator::update is a no-op when the input has no frame yet", "[Orchestrator]")
+TEST_CASE("GraphRunner video tick is a no-op when the input has no frame yet", "[GraphRunner]")
 {
   ScopedTempDir dir("no-frame");
   FakeInput input;
   input.hasFrame = false;
   FakeOutput output("fake", {1});
 
-  Orchestrator orchestrator(input, {&output}, Config{}, ZoneMapStore(dir.path));
-  orchestrator.init();
-  orchestrator.update(1.0f / 60.0f);
+  GraphRunner runner(input, {&output}, Config{}, ZoneMapStore(dir.path));
+  runner.init();
+  runner.tick(1.0f / 60.0f);
 
   CHECK(output.sendCount == 0);
 }
 
 
-TEST_CASE("Orchestrator::updateZone edits only the fields given, live and persisted", "[Orchestrator]")
+TEST_CASE("GraphRunner video tickZone edits only the fields given, live and persisted", "[GraphRunner]")
 {
   ScopedTempDir dir("update-zone");
   FakeInput input;
   FakeOutput output("fake", {1, 2});
 
-  Orchestrator orchestrator(input, {&output}, Config{}, ZoneMapStore(dir.path));
-  orchestrator.init();
+  GraphRunner runner(input, {&output}, Config{}, ZoneMapStore(dir.path));
+  runner.init();
 
   UVs newUvs{{0.1f, 0.2f}, {0.3f, 0.4f}};
-  CHECK(orchestrator.updateZone("fake", 1, newUvs, true, 0.5f));
+  CHECK(runner.updateZone("fake", 1, newUvs, true, 0.5f));
 
-  const ZoneMap& zoneMap = orchestrator.zoneMap("fake");
+  const ZoneMap& zoneMap = runner.zoneMap("fake");
   REQUIRE(zoneMap.size() == 2);
   CHECK(zoneMap[0].uvs.min == glm::vec2(0.1f, 0.2f));
   CHECK(zoneMap[0].uvs.max == glm::vec2(0.3f, 0.4f));
@@ -269,11 +269,11 @@ TEST_CASE("Orchestrator::updateZone edits only the fields given, live and persis
   CHECK_FALSE(zoneMap[1].everConfigured); // untouched -- never written
 
   // Omitted fields (nullopt) leave the existing value alone.
-  CHECK(orchestrator.updateZone("fake", 1, std::nullopt, false, std::nullopt));
-  CHECK(orchestrator.zoneMap("fake")[0].uvs.min == glm::vec2(0.1f, 0.2f)); // still the earlier edit
-  CHECK_FALSE(orchestrator.zoneMap("fake")[0].active);
-  CHECK(orchestrator.zoneMap("fake")[0].gamma == 0.5f);
-  CHECK(orchestrator.zoneMap("fake")[0].everConfigured); // stays true once set
+  CHECK(runner.updateZone("fake", 1, std::nullopt, false, std::nullopt));
+  CHECK(runner.zoneMap("fake")[0].uvs.min == glm::vec2(0.1f, 0.2f)); // still the earlier edit
+  CHECK_FALSE(runner.zoneMap("fake")[0].active);
+  CHECK(runner.zoneMap("fake")[0].gamma == 0.5f);
+  CHECK(runner.zoneMap("fake")[0].everConfigured); // stays true once set
 
   // Persisted immediately, not just held in memory.
   ZoneMapStore reread(dir.path);
@@ -283,15 +283,15 @@ TEST_CASE("Orchestrator::updateZone edits only the fields given, live and persis
 }
 
 
-TEST_CASE("Orchestrator::updateZone returns false for an unknown output or zoneId", "[Orchestrator]")
+TEST_CASE("GraphRunner video tickZone returns false for an unknown output or zoneId", "[GraphRunner]")
 {
   ScopedTempDir dir("update-zone-unknown");
   FakeInput input;
   FakeOutput output("fake", {1});
 
-  Orchestrator orchestrator(input, {&output}, Config{}, ZoneMapStore(dir.path));
-  orchestrator.init();
+  GraphRunner runner(input, {&output}, Config{}, ZoneMapStore(dir.path));
+  runner.init();
 
-  CHECK_FALSE(orchestrator.updateZone("not-a-real-output", 1, std::nullopt, true, std::nullopt));
-  CHECK_FALSE(orchestrator.updateZone("fake", 99, std::nullopt, true, std::nullopt));
+  CHECK_FALSE(runner.updateZone("not-a-real-output", 1, std::nullopt, true, std::nullopt));
+  CHECK_FALSE(runner.updateZone("fake", 99, std::nullopt, true, std::nullopt));
 }

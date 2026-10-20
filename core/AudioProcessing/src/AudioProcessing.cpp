@@ -143,6 +143,7 @@ namespace Aurora::Processing
       // stick for the session (Aurora-5y0).
       if(state.initialized && !(std::isfinite(state.currentHueDegrees)
           && std::isfinite(state.targetHueDegrees)
+          && std::isfinite(state.offsetDegrees)
           && std::isfinite(state.smoothedBrightnessFactor))){
         state = BounceState{};
       }
@@ -150,6 +151,7 @@ namespace Aurora::Processing
       if(!state.initialized){
         state.currentHueDegrees = driftState.anchorHueDegrees;
         state.targetHueDegrees = driftState.anchorHueDegrees;
+        state.offsetDegrees = 0.0f;
         state.smoothedBrightnessFactor = brightnessFactor; // no fade-in from zero on the first tick
         state.initialized = true;
       }
@@ -157,8 +159,10 @@ namespace Aurora::Processing
       if(features.onsetDetected){
         float normalizedStrength = std::clamp(features.onsetStrength, 0.0f, 1.0f);
         float swingFraction = settings.dynamismFloor + (1.0f - settings.dynamismFloor) * normalizedStrength;
-        state.targetHueDegrees = wrapDegrees(state.targetHueDegrees + bounceDirection * swingFraction * 180.0f);
+        state.offsetDegrees = wrapDegrees(state.offsetDegrees + bounceDirection * swingFraction * 180.0f);
       }
+      // Target rides the live drift anchor so drift stays audible (Aurora-7r3).
+      state.targetHueDegrees = wrapDegrees(driftState.anchorHueDegrees + state.offsetDegrees);
 
       // Continuous exponential damping toward the target, applied
       // unconditionally (not gated on "an onset just fired") -- this is why

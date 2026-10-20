@@ -1,6 +1,6 @@
 # Generic Config/ZoneMap/compositing pieces from RuntimeAnalysis.md, plus
-# Orchestrator -- allowed to depend on both Input and Output interfaces,
-# since gluing them together is their entire job. AudioOrchestrator is
+# GraphRunner -- allowed to depend on both Input and Output interfaces,
+# since gluing them together is their entire job. The audio nodes are
 # added below, only if AuroraAudioProcessing (and the aubio it requires)
 # is actually being built -- see core/CMakeLists.txt's
 # AURORA_CORE_ENABLE_AUDIO option.
@@ -14,10 +14,25 @@ add_library(AuroraRuntime STATIC
   src/ZoneReconciler.cpp
   src/FrameCompositor.cpp
   src/Smoother.cpp
+  src/BrightnessFloor.cpp
   src/SubsampleDefaults.cpp
   src/MonitorSelector.cpp
   src/Registry.cpp
-  src/Orchestrator.cpp
+  src/Graph/GraphTypes.cpp
+  src/Graph/NodeRegistry.cpp
+  src/Graph/VideoNodes.cpp
+  src/Graph/FrameNodes.cpp
+  src/Graph/MathNodes.cpp
+  src/Graph/TimeNodes.cpp
+  src/Graph/ColorNodes.cpp
+  src/Graph/BlendNodes.cpp
+  src/Graph/SpatialNodes.cpp
+  src/Graph/AllNodes.cpp
+  src/Graph/BuiltInGraphs.cpp
+  src/Graph/Graph.cpp
+  src/Graph/GraphLoader.cpp
+  src/GraphRoutes.cpp
+  src/GraphRunner.cpp
   src/Pipeline.cpp
   src/PipelineRoutes.cpp
   src/SettingsRoutes.cpp
@@ -50,9 +65,9 @@ if(WIN32)
 endif()
 
 if(TARGET AuroraAudioProcessing)
-  target_sources(AuroraRuntime PRIVATE src/AudioFrameCompositor.cpp src/AudioOrchestrator.cpp)
+  target_sources(AuroraRuntime PRIVATE src/AudioFrameCompositor.cpp src/Graph/AudioNodes.cpp)
   target_link_libraries(AuroraRuntime PUBLIC AuroraAudioProcessing)
-  # Lets a consumer's main.cpp #ifdef around AudioOrchestrator.hpp, same
+  # Lets a consumer's main.cpp #ifdef around audio code, same
   # pattern as AURORA_INPUT_WINDOWS_AUDIO_AVAILABLE.
   target_compile_definitions(AuroraRuntime PUBLIC AURORA_RUNTIME_AUDIO_AVAILABLE=1)
 endif()

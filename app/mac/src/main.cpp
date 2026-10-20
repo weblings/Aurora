@@ -34,11 +34,13 @@
 #include <GraphEditorWebRoot.hpp>
 #endif
 #include <Aurora/Network/Http/Server/HttpServer.hpp>
+#include <Aurora/Network/Http/Server/PairingRoutes.hpp>
 #include <Aurora/Runtime/ConfigStore.hpp>
 #include <Aurora/Runtime/ControlDescriptorTables.hpp>
 #include <Aurora/Runtime/ControlDescriptors.hpp>
 #include <Aurora/Runtime/PendingRunRequest.hpp>
 #include <Aurora/Runtime/Pipeline.hpp>
+#include <Aurora/Runtime/GraphRoutes.hpp>
 #include <Aurora/Runtime/PipelineRoutes.hpp>
 #include <Aurora/Runtime/SettingsRoutes.hpp>
 #include <Aurora/Runtime/ZoneRoutes.hpp>
@@ -328,6 +330,8 @@ namespace
           {"inputs", registry.inputNames()},
           {"audioInputs", registry.audioInputNames()},
           {"outputs", outputs},
+          // Outputs where brightness 0 means off; the Dashboard shows the floor control only for these.
+          {"zeroOffOutputs", registry.zeroOffOutputNames()},
           // Literal per app binary, not runtime-detected -- see
           // app/linux/src/main.cpp's registerCapabilitiesRoute for why.
           {"platform", "mac"},
@@ -475,6 +479,12 @@ try
   Aurora::Runtime::PipelineHost pipelineHost(std::move(initialPipeline), pipelineOptions(), startupFailure);
 
   Aurora::Network::Http::Server::HttpServer httpServer;
+
+  // Aurora-5ipy.5: loopback is trusted, other callers need a paired device.
+  auto pairingService = std::make_shared<Aurora::Network::Http::Server::PairingService>(configRoot / "paired-devices.json");
+  auto accessGuard = std::make_shared<Aurora::Network::Http::Server::AccessGuard>(pairingService);
+  Aurora::Network::Http::Server::registerPairingRoutes(httpServer, pairingService, *accessGuard);
+  httpServer.setAccessGuard(accessGuard);
   registerCapabilitiesRoute(httpServer, registry, pipelineHost);
   registerVersionRoute(httpServer);
   // Raised at launch so the permission prompt appears before the user
@@ -527,6 +537,9 @@ try
   Aurora::Runtime::registerMonitorsRoute(httpServer, pipelineHost);
   Aurora::Runtime::registerReloadRoute(httpServer, pipelineHost, registry, configRoot);
   Aurora::Runtime::registerStateRoute(httpServer, pipelineHost, registry, configRoot);
+  Aurora::Runtime::registerEventsRoute(httpServer, pipelineHost, configRoot);
+  Aurora::Runtime::registerNodesRoute(httpServer);
+  Aurora::Runtime::registerGraphRoute(httpServer, pipelineHost);
   Aurora::Runtime::registerDevErrorsRoute(httpServer, pipelineHost);
   registerStopRoute(httpServer);
   Aurora::Runtime::registerZoneRoutes(
@@ -644,9 +657,8 @@ try
         audioPermission.poll();
         localNetworkCondition.poll();
         auto tickStart = std::chrono::steady_clock::now();
-        pipelineHost.tick();
-        auto tickInterval = std::chrono::duration<double>(pipelineHost.tickIntervalSeconds());
-        std::this_thread::sleep_until(tickStart + std::chrono::duration_cast<std::chrono::steady_clock::duration>(tickInterval));
+        const double tickInterval = pipelineHost.tick();
+        std::this_thread::sleep_until(Aurora::Runtime::nextTickTime(tickStart, tickInterval, std::chrono::steady_clock::now()));
       }
     }
     catch(...){

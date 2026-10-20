@@ -2,11 +2,20 @@
 
 Id: node-graph-pipeline
 
-Status: exploratory — no graph code yet. Written 2026-09-30 from a code read of
+Status: exploratory — G1 graph core + bad-graph corpus/fuzz landed
+(Aurora-ra4o.2/.3, 2026-10-14), pre-G2 adjustments in G1c (Aurora-ra4o.9),
+built-in graphs + parity gate in G2d (Aurora-ra4o.7);
+G3 cutover shipped 2026-10-15 (Aurora-ra4o.8, app runs on the Graph). Written 2026-09-30 from a
+code read of
 `core/Runtime` + `core/*Processing`; no bead yet for the graph itself.
 Revised 2026-10-01: "Prep work before importing libraries" added, fail-state
 sanitizing corrected after Aurora-5y0. Revised 2026-10-02: Tuning edits to
 live-tunable fields now apply without a reload (Aurora-c0g, prep 7).
+
+Revised 2026-10-14 (G0, Aurora-ra4o.1): "Frozen format (G0)" added, agent-proposed
+and owner-approved. It supersedes the sketch where they differ. Amended
+2026-10-14 (G1c, Aurora-ra4o.9): `Angle` port pulled into Sequence A, host
+services, evaluation order, INode wording matched to the G1 code.
 
 Question: could users rewire Aurora's video/audio processing in a web
 node editor (TouchDesigner/cables.gl-style) instead of the fixed pipelines?
@@ -95,8 +104,8 @@ still cover them.
 | `zones.sample` | `composeFrame` (`getSubImage` + `getDominantColor`) | Image + output → `Frame`; per-zone fan-out stays inside |
 | `audio.capture` | `IAudioInput::readNextBuffer` | Empty buffer → no fresh data this tick |
 | `audio.features` | `AudioFeatureExtractor` | Stateful (aubio). Split outputs: `rms`, `onset` (Trigger), `onsetStrength`, `centroid` (Hz) |
-| `audio.drift` | `updateDrift` | Compound; owns `DriftState` + random anchor |
-| `audio.bounce` | `updateBounce` | Compound; owns `BounceState`; outputs `Color` |
+| `audio.drift` | `updateDrift` | Compound; owns `DriftState` + random anchor; outputs anchor `Angle` |
+| `audio.bounce` | `updateBounce` | Compound; owns `BounceState`; reads anchor `Angle`, outputs `Color` |
 | `frame.broadcast` | `composeAudioFrame` | Color + output → `Frame` |
 | `frame.smooth` | `Smoother` | Per-output, per-zone state |
 | `output.send` | `IOutput::send` | Gamma stays in the output plugin (target-specific, per `Frame.hpp`) |
@@ -111,6 +120,13 @@ these.
   audio dampers are time-based (`1 - exp(-dt / τ)`). Parity keeps
   `frame.smooth` per-tick; new smoothing primitives should all be
   time-based, and a mixed graph makes the difference visible.
+  **Decided 2026-10-15** (agent-proposed, owner-approved): every Tier 2
+  smoothing node takes τ in seconds and uses `1 - exp(-dt/τ)`, the
+  frame-rate-independent form game engines converge on. `frame.smooth`
+  stays per-tick for parity; a time-based `frame.smoothTime` lets presets
+  move later. `dt` stays nominal (G0) for deterministic fake-clock tests,
+  so smoothing runs slow when ticks lag (56 Hz on a 60 Hz budget is ~7%).
+  Switch to measured `dt` only if that shows up.
 - **One clock per graph.** Today video ticks at `refreshRate` and audio
   at a fixed 1/60s (`main.cpp`). A mixed graph needs one tick rate
   (`refreshRate`) with `dt` in the eval context; audio nodes consume
@@ -145,6 +161,41 @@ Decomposition check: **drift** = centroid → `rollingAverage` → deviation
 `×vibrancyValue` → V; `color.fromHSV(hue, S, V)`. Everything needed is
 in the list above.
 
+**Tier 2 additions (decided 2026-10-15, agent-proposed, owner-approved),**
+from the survey of WLED, LedFx and Hyperion effect libraries:
+
+- **Palette/gradient as a value:** a gradient param shape plus
+  `color.fromGradient(t)`. WLED effects mostly draw from palettes and LedFx
+  shares a `gradient` mixin across effects.
+- **Blend mode on mixing:** `frame.mix` and `image.mix` take
+  `mode` (normal, add, multiply, screen, difference), after WLED's segment
+  overlay modes.
+- **Promoted from Stretch:** frequency bands (bass/mid/treble) and an LFO
+  generator. Audio-reactive libraries lean on bands (WLED GEQ/Freqmap,
+  LedFx `bands`/`melbank`), and LedFx `modulate` / WLED Speed sliders
+  are LFO-shaped. Inferred from effect and module names, not code reads.
+
+### Spatial effects (decided)
+
+Decided 2026-10-15 (agent-proposed, owner-approved). Spatial effects draw
+an `Image` and reach zones through `zones.sample`, which already maps each
+zone's ZoneMap UV rect. `Frame` stays `{id, color, gamma}` and no host
+geometry service is added.
+
+- **Pattern:** WLED 2D, xLights render buffers, TouchDesigner and Resolume
+  pixel mapping all render to a grid and sample it at each fixture's
+  layout position. LedFx and Hyperion effects see only indices; Hue
+  Entertainment (Q42 `LightSourceEffect`) gives lights x,y.
+- **Nodes:** `image.gradient`, `image.bar` (chase), `image.hueRamp`, plus
+  `image.mix` so video × generator mixing can happen before sampling.
+  Generators cache by params and phase, like `image.dropAlpha` caches by
+  input identity. Per-tick render cost at subsample width is unmeasured.
+- **Screen vs room space:** ZoneMap UVs are screen positions. Room
+  positions exist only on Hue (`entertainment_configuration`
+  `channels[].position {x,y,z}`, which `ApiTools` does not parse yet); HA
+  lights have none. Room-space effects are a later, Hue-only decision: a
+  second layout source sampled the same way.
+
 Compounds stay as the default building blocks in presets; once the
 editor supports subgraphs, the built-ins can be shown as primitive
 subgraphs instead.
@@ -157,17 +208,15 @@ subgraphs instead.
 - **Image:** `image.crop(uvs)` + `image.reduce` for single-region
   effects, blur, colour correction; motion and detection (see "Stretch:
   object detection and motion").
-- **Audio:** frequency bands (bass/mid/treble), beat tracking / BPM +
+- **Audio:** beat tracking / BPM +
   beat phase (aubio `tempo`), pitch (aubio `pitch`), spectral flux,
   stereo L/R features (left zones vs. right zones), envelope follower
   with separate attack/release.
-- **Generators:** LFO (sine/saw/square, free or BPM-synced), noise,
+- **Generators:** BPM-synced LFO (free-running LFO is Tier 2), noise,
   clock; `trigger.flash` (hit-and-decay), gate/hold.
 - **Spatial across zones:** chase, gradient along an axis, rotate
-  colors between zones, per-zone hue spread. **Design point:** `Frame`
-  is `{id, color, gamma}` with no position, so spatial nodes need zone
-  geometry, either by `Frame` carrying a zone centroid or by nodes
-  reading `ZoneMap`. Decide before Frame ops ship.
+  colors between zones, per-zone hue spread. See "Spatial effects
+  (decided)" below: these are Image generators, not Frame ops.
 - **External control:** MIDI / OSC inputs as param drivers; ISF shader
   nodes (Phase 5).
 - **Multiple outputs per graph** with different processing each.
@@ -203,6 +252,104 @@ subgraphs instead.
   mismatch, cycle, unregistered output name); on failure reject and keep
   the running graph.
 - Top-level `version`, per-type versions later if migrations need them.
+
+## Frozen format (G0)
+
+Status: frozen 2026-10-14 for Sequence A ([[nodes-agent-ux]]), agent-proposed
+and owner-approved. Where this section differs from the sketch above, this
+section wins.
+
+**Tick rate.**
+- Optional top-level `tickHz` on the graph. The built-in Audio graph declares
+  60 (today's fixed rate). Absent means the app rate (`refreshRate`).
+- One clock per graph. `dt` is the nominal interval, as in
+  `Runtime::tickIntervalSeconds`.
+
+**Node type names.** `domain.verb`, as in the Tier 1 table: `video.capture`,
+`image.rescale`, `image.dropAlpha`, `zones.sample`, `audio.capture`,
+`audio.features`, `audio.drift`, `audio.bounce`, `frame.broadcast`,
+`frame.smooth`, `output.send`. The sketch's `video.sampleZones` is retired.
+
+**Port types.**
+- Sequence A: `Image`, `AudioBuffer`, `AudioFeatures`, `Color`, `Frame`,
+  `Angle` (degrees). `Angle` was pulled forward from Tier 2 (G1c) because
+  `updateBounce` reads the drift anchor, so `audio.drift` needs an output
+  `audio.bounce` can wire to.
+- Tier 2 adds `Float` (a plain scalar) and `Trigger` (a per-tick pulse that
+  is sent every tick, `fired` true only on the tick it happens; amended
+  2026-10-16, id8j.1). `UVs` stays a param shape, not a port. `Detections` and `Motion` wait for the stretch work.
+- `Image` travels as a shared pointer. A capture node reuses the same pointer
+  while the source frame serial is unchanged, so downstream nodes
+  (`image.rescale`) cache by identity. This keeps Aurora-igwa's skip of
+  re-preparing a static frame.
+- `audio.features` emits one `AudioFeatures` port in Tier 1, because
+  `updateDrift` and `updateBounce` take the whole struct. Tier 2 (id8j.1)
+  adds scalar ports beside it: `rms`, `onsetStrength`, `centroid` (Float) and
+  `onset` (Trigger). The `features` port is unchanged, so parity holds.
+- The runtime error value is outside the type system. The runtime carries it
+  with the originating node id, and it propagates downstream.
+
+**Edges and bindings.**
+- Edge: `["node.port", "node.port"]`, output first.
+- Fan-out from an output is allowed. One edge per input.
+- Per-output binding (`zones.sample`, `frame.broadcast`, `output.send`) is a
+  string param naming the output, not a port.
+- Load rejects more than one edge reaching one output's `send` (see prep 8).
+
+**Absent data.** A node output can be absent for a tick, with no value. This
+replaces today's skipped ticks (`!isHealthy()` video, empty audio buffer).
+Absent propagates to every dependent node, and `output.send` sends nothing.
+This is what keeps byte parity with the orchestrators.
+
+**Params.**
+- Kinds: `float`, `enum`, `bool`, `optional-float`, using
+  `Contracts::ParamSchema` (Aurora-ta5), plus `gradient` (id8j.5: 2 to 16
+  `{"pos", "color": "#rrggbb"}` stops, ascending). Enum options may be computed by the
+  server.
+- `controls` ("Show in Tuning") is part of the frozen top-level format
+  even though no editor reads it in Sequence A.
+
+**INode.**
+- `evaluate(ctx, dt, outputs)`. `ctx` carries the tick's inputs, the node's
+  params and the host services. Each node instance owns its own state. The
+  graph keeps instances by stable node id, and `adoptStateFrom` moves them
+  across a graph swap.
+- Nodes read through typed accessors (`ctx.param<T>`, `ctx.input<T>`,
+  `ctx.optionalInput<T>`). A missing name or wrong type throws, and the
+  evaluator turns the throw into an error value naming the node.
+- Implemented in G1: the post-evaluate state self-heal check (Aurora-5y0) and
+  the error value.
+- Declared and reserved, not implemented: async variant returning the latest
+  result plus its age, per-node sampling width (replaces the global
+  `subsampleWidth`).
+
+**Host services.**
+- I/O nodes reach the app through an `IGraphHost` passed to `Graph::tick`.
+  It offers the video input, the audio input, an output by name, and the
+  live zone map for an output.
+- The node registry stays host-independent, so one registry serves
+  descriptors and agent prompts, and tests supply a fake host.
+- Zone maps are read every tick, so `updateZone` edits apply without a
+  graph reload. A node whose service is missing produces an error value.
+
+**Evaluation order.** Topological, ties broken by declaration order in
+`graph.json`. Every platform evaluates (and sends to outputs) in the same
+order.
+
+**Agent metadata.**
+- Per node type: `purpose`, `use_when`, `example`, `cost`. Per param: `unit`
+  comes from `ParamSchema.unit`.
+- They extend `ControlDescriptor`/`DescriptorRegistry` (keys
+  `node.<type>` and `node.<type>.<param>`), so tooltips and agent prompts
+  share one source. `details` and `purpose` are the same text.
+- `cost` is an enum: `cheap`, `moderate`, `heavy`. `example` is a JSON
+  snippet of the node as it appears in `graph.json`.
+
+**Storage and versioning.**
+- Built-in graphs live in the binary. Today's `ConfigData` values become a
+  param overlay on them. No `graph.json` is written to disk in Sequence A.
+- Top-level `version: 1` is frozen now. `ui` stays editor-only and ignored
+  by core.
 
 ## UX: effects, tuning, tooltips (proposed)
 
@@ -562,8 +709,13 @@ hit.
 
 - Editor library — decided: React Flow, built by CMake; see "Library
   evaluation" below.
-- Whether simple mode (today's two pipelines) stays the default UX,
-  with the graph editor as an advanced screen over preset graphs.
+- Simple mode vs. editor — decided 2026-10-15 (agent-proposed,
+  owner-approved): simple mode stays the default. A mode or preset choice
+  is a graph swap, Tuning renders the active graph's `controls` instead of
+  a hard-coded list, and the editor is an advanced "Edit graph" screen over
+  the same `graph.json`. Pattern: Blender modifier panels expose a node
+  group's inputs, Ableton racks expose macros, Home Assistant's visual
+  editor and YAML are two views of one automation.
 - Whether graph evaluation cost matters at 240Hz with many zones —
   expected negligible at subsample widths, unmeasured.
 - Interaction with [[distributed-architecture-plan]]'s seam question: a

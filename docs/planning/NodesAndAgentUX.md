@@ -1,0 +1,105 @@
+# Nodes and agent UX: sequences
+
+Id: nodes-agent-ux
+
+Status: exploratory (2026-10-13), agent-proposed, not committed. One section
+per sequence, added when that sequence is about to start. Order lives in bead
+dependencies (`bd show Aurora-ra4o`), not here. This doc holds each
+sequence's goal, gate, parallelism, OS notes and test approach.
+
+Goal: users tweak an agent-built graph instead of starting from a blank
+canvas. That needs the graph runtime ([[node-graph-pipeline]]), a safe write
+path ([[external-control]]) and an adapter an assistant can call (EC 6a).
+
+## Standing decisions (agent-proposed)
+
+- **Write access split by action.** Reads and graph draft/validate are open on
+  loopback and paired on LAN. Apply and test-on-lights need the WebUI session
+  or an apply-scoped token. Host allowlist and Origin check are mandatory.
+  Scopes (read, draft, apply) belong in EC 4a from the start. Owner approved
+  this split on 2026-10-13, and on 2026-10-16 kept LAN reads paired after
+  5ipy.5 had left them open. Detail lives in [[external-control]].
+- **Agent metadata ships in the node registry.** Each node carries purpose,
+  use_when, example, units and cost, served by `GET /api/nodes`. One source for
+  editor tooltips and agent prompts. Detail lives in [[node-graph-pipeline]].
+- **Brightness floor** (decided 2026-10-15, Aurora-pngj): one stage after
+  gain, per-output policy off (default), colored hold floor, or switch off
+  at black after a hold time. Control lands in the Output section. Detail
+  in [[home-assistant-output]].
+- **Simple mode stays the default** (decided 2026-10-15). Tuning renders the
+  active graph's `controls`; the editor is an advanced screen over the same
+  `graph.json`. Detail in [[node-graph-pipeline]].
+- **External-control order** (decided 2026-10-15): EC 3 Host allowlist
+  before Sequence B's read routes, EC 2a beside B, EC 4a before C. Detail
+  in [[external-control]].
+- **Not decided here:** whether HA output is a go (Aurora-4zr).
+
+## Sequence A: foundations
+
+Status: done 2026-10-15 (epic closed). Filed 2026-10-13, revised 2026-10-14
+(G2d and G3 added, G2c narrowed), G4a-d review fixes added 2026-10-15.
+Epic `Aurora-ra4o` (G0 to G3), plus the external and floor beads below.
+
+- **Goal:** a Graph runtime that reproduces today's pipelines byte-for-byte,
+  the app running on it, and the safety prerequisites for exposing it. No
+  user-visible change.
+- **Beads:**
+  - Node: `Aurora-ra4o.1` G0 spec freeze, `.2` G1 runtime, `.3` G1b corpus,
+    `.4` G2a video nodes, `.5` G2b audio nodes, `.6` G2c frame nodes,
+    `.7` G2d built-in graphs and parity gate, `.8` G3 cutover.
+  - Prerequisite: `Aurora-7r3` (drift bug) before G2b, so parity doesn't
+    lock the bug into the audio nodes.
+  - External: `Aurora-5ipy.4` EC 3, `.1` EC 0, `.2`/`.3` EC 2a/2b, `.8` EC 5b,
+    `.5` EC 4a (with scopes), `.7` EC 5a.
+  - Decision and floor: `Aurora-pngj`, `Aurora-6v36`, `Aurora-d7s`.
+- **Gate:** the golden parity harness (Aurora-tft) passes through the Graph
+  for both built-in graphs (G2d), and the app runs on the Graph with the
+  orchestrators removed (G3).
+- **Parallel:** node lane and external lane are independent. G2a, G2b and G2c
+  are independent once G1 lands. G2d joins them. Floor stage waits only on
+  pngj, which also settles its order relative to EC 5a gain.
+- **OS:** logic is platform-neutral and runs in core tests on all three CI
+  platforms. Audio nodes need a per-OS capture recheck. EC 3 needs each OS's
+  hostnames, including the mDNS names. EC 4a stores token hashes beside
+  config, not in the OS secret store.
+- **Tests:** golden parity, bad-graph corpus plus loader fuzz, fake clock,
+  middleware negative tests (rebinding, 401, revoked token).
+
+## Sequence B: read surface and Tier 2 primitives
+
+Status: filed 2026-10-15. Epic `Aurora-id8j`. Decisions it rests on, all
+2026-10-15 in [[node-graph-pipeline]]: spatial effects are Image generators
+sampled by `zones.sample` (no `Frame` position), Tier 2 smoothing is
+time-based, Tier 2 adds gradients, blend modes, bands and LFO.
+
+- **Goal:** the graph is readable from outside, the primitive set can
+  express today's compounds, and Tuning is driven by the graph. No editor yet.
+- **Beads:** `Aurora-id8j.1` B0 Float/Trigger ports and split audio
+  features, `.2` B1 read routes, `.3` B2a scalar math, `.4` B2b time/state
+  and LFO, `.5` B2c color/palette/gradient, `.6` B2d frame and image ops
+  with blend modes, `.7` B2e spatial Image generators, `.8` B2f frequency
+  bands, `.9` B3 decomposition parity, `.10` B4 Tuning renders `controls`.
+- **Prerequisite:** `Aurora-5ipy.4` (EC 3) before B1. Pairing UI
+  (`Aurora-5ipy.6`) stays in the external lane, needed by C, not B.
+- **Gate:** B3, the decomposed drift and bounce graphs match the compound
+  nodes within epsilon on the existing parity fixtures, and B4 shows
+  today's Tuning controls from the built-in graphs' `controls`.
+- **Parallel:** B0 first. Then B2a to B2f are independent of each other.
+  B1 needs only EC 3. B3 joins B2a, B2b, B2c and B2f. B4 follows B1.
+- **OS:** all nodes platform-neutral, core tests on three CI platforms. B2f
+  reads the existing audio buffer, no capture change. B4 is WebUI only.
+- **Tests:** per-node Graph cases, descriptor completeness, fake-clock
+  settle-time checks at 30/60/240 Hz for B2b, bad-graph corpus extended for
+  the new port types, generator render cost logged for B2e.
+
+## Later sequences (stubs)
+
+Each gets a full section when it starts.
+
+- **C: safe writes.** Status: not started. Draft/validate routes, apply route
+  with scopes, draft vs. live with auto-revert, public API contract.
+- **D: agent path.** Status: not started. Annotated preset graphs, MCP tools
+  (`list_nodes`, `get_graph`, `validate_graph`, `put_draft`, `preview`,
+  `apply`), agent skill, and an eval corpus of plain-language prompts scored
+  on first-try validity and simple rendered properties.
+- **E: editor.** Status: not started. React Flow editor, in parallel with D.

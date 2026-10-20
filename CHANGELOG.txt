@@ -1,3 +1,9 @@
+v1.1.2:
+- Other devices on your network must now be paired by approving them on the computer running Aurora, and can be revoked on the Dashboard. Custom hostnames and reverse proxies need AURORA_ALLOWED_HOSTS
+- New global brightness slider in Tuning, applied live to all lights
+- Dev - Read-only routes for nodes, the running graph, and a live events stream (unstable, not a public API yet)
+- Dev - Node graph code prep: now runs audio and video pipelines, more helper nodes added, no editor exists yet.
+
 v1.1.1:
 - Windows - Video updates are faster, and HDR displays and rotated screens capture correctly
 - Mac - Fix - Video mode CPU use drops from ~22% to ~3-4%

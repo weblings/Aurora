@@ -945,3 +945,275 @@ Aurora-kea already did the right thing internally: independent booleans
 **Fix:** public state exposes capability flags plus an effect id; keep `mode`
 only as a derived, deprecated convenience. Decide this before 5ipy.9 freezes
 the spec, and keep adapters (MCP tool lists) keyed on the flags.
+
+---
+
+## Scripted `bd create` ids: `--silent` can still print hint lines, so extract the id and quote it
+Tags: beads, scripting, shell
+Applies-when: filing several dependent beads from one shell script
+
+`id=$(bd create ... --silent | tail -1)` captured a config-hint line instead
+of the id. Every later `--parent=$id` then expanded to many words, failed
+with "accepts at most 1 arg(s)", and created nothing, while the bare epic
+had already been made. Caught only because `bd list -l <label>` showed one
+bead where eight were expected.
+
+**Fix:** pull the id with `grep -o -E 'Aurora-[a-z0-9.]+' | head -1`, quote
+`"$id"` in later calls, and check `bd list -l <label>` before wiring
+dependencies.
+
+---
+
+## Optional graph inputs evaluate with Absent; only required inputs gate
+Tags: architecture, node-graph, INode, absent-data
+Applies-when: declaring an input port optional on a Tier 1/2 node, or handling Absent in `evaluate`
+
+The G0 doc says absent propagates to dependents, which reads as "any
+missing input skips the node" — but then an optional input could never do
+anything: unconnected means absent forever. G1 (Aurora-ra4o.2) splits the
+rule: an error on any input, or Absent on a *required* input, propagates
+without calling `evaluate`; Absent on an *optional* input flows into the
+`EvalContext` and the node decides (default value, hold, skip its own
+outputs). A missing edge to a required input is a load error, so at
+runtime required-absent always means "upstream had no data this tick".
+
+**Fix:** node authors must handle `isAbsent()` on every optional port —
+the evaluator will not do it for them. The `test.optin` case in
+`core/tests/GraphTests.cpp` is the reference shape.
+
+---
+
+## A bad-graph fixture for a later loader check must pass every earlier check
+Tags: node-graph, GraphLoader, testing, corpus
+Applies-when: adding a bad-graph corpus fixture, or reordering validation in `core/Runtime/src/Graph/GraphLoader.cpp`
+
+`GraphLoader::loadGraph` returns the *first* rejection in a fixed order
+(version → nodes → params → output bindings → edges → required inputs →
+sink collisions → controls → instantiate → cycles), so a fixture aimed at
+a later check fails earlier — and misleadingly — unless it satisfies all
+prior ones. G1b (Aurora-ra4o.3) hit it concretely: the two-sinks-on-one-output
+fixture binds `"hue"`, which dies first as "unregistered output" unless
+`knownOutputs` contains `"hue"`, while the unregistered-output fixture
+needs exactly the opposite. One shared `LoadOptions` cannot serve both.
+
+**Fix:** give each corpus case its own `LoadOptions` (per-case
+`knownOutputs`), and when a new fixture fails with the wrong rejection,
+read which earlier check fired instead of assuming the target check is
+broken. Keep this order in mind before reordering loader validation:
+existing fixtures pin the current sequence.
+
+---
+
+## Decomposing a monolith into nodes: list every hidden coupling before writing nodes
+Tags: node-graph, INode, ports, host-services
+Applies-when: splitting an orchestrator or processing function into graph nodes (G2a-c and later), or adding a node that needs more than its input ports
+
+Reading the orchestrators against the G1 API found two gaps that G1's own
+tests could not show, because test nodes capture probes in factory lambdas.
+- I/O nodes (capture, zone sampling, send) need live host objects and
+  there was no path to them, so each G2 bead would have invented one.
+- `updateBounce` reads `driftState.anchorHueDegrees` (a struct field, not
+  an argument), and no port type could carry it between split nodes.
+
+**Fix:** before writing a node, list every state read, shared struct field
+and host object the wrapped code touches, and give each one a port or an
+`IGraphHost` service. `AudioOrchestrator::setSettings` resetting both drift
+and bounce is the same class of coupling and must be reproduced per node.
+
+---
+
+## Node params have no int kind, and a wrapped function's empty-output convention must be re-implemented at the node boundary
+Tags: node-graph, INode, params, ports
+Applies-when: adding a graph node with an integer param, or wrapping a function whose caller guards on empty output
+
+`ParamKind` has no int kind (Float/Bool/Enum/OptionalFloat/Gradient), so `image.rescale`'s
+width travels as a Float (schema step 1, `defaultValue` 0 = passthrough)
+and rounds at evaluate. Separately, `Processing::rescale()` answers an
+upscale request with empty output, and `Orchestrator::_prepareSource` keeps
+flowing via a `hasData()` guard -- a "wrap unchanged" node must repeat
+that guard (passthrough the input pointer) or the chain stalls on empty.
+Identity caching goes with it: cache by input pointer plus every param,
+and rebuild on any param change, mirroring `setConfig` resetting
+`m_preparedSerial` for the same reason.
+
+---
+
+## Conditionally compiled nodes need their sources and tests behind the same gate
+Tags: architecture, node-graph, build-configuration, testing
+Applies-when: adding a graph node that wraps gated code (audio-only today), or choosing which test binary holds its tests
+
+`AudioNodes.cpp` wraps aubio-backed code, so it compiles only when `TARGET
+AuroraAudioProcessing` exists — added to the same `if()` block as
+`AudioOrchestrator.cpp`, not the unconditional node list. Its tests likewise
+went into the gated `AuroraAudioOrchestratorTests` exe, not
+`AuroraRuntimeTests` where G2a's video tests live: copying G2a's placement
+would break every video-only (`AURORA_CORE_ENABLE_AUDIO=OFF`) build.
+
+**Fix:** a new node file inherits the build gate of the code it wraps, and
+its tests inherit it too — check both the library-sources block and the
+test-exe membership, since they gate independently in
+`core/Runtime/CMakeLists.txt` vs `core/tests/CMakeLists.txt`.
+
+---
+
+## Sink nodes have no port to read an error from, so test them by their side effect
+Tags: architecture, node-graph, testing, sinks
+Applies-when: writing tests for a node with no output ports (`output.send`) or relying on `portValue` to observe a failure
+
+`Graph::portValue` only exposes declared output ports. `output.send` declares
+none, so a failed send (unknown output, no host) leaves nothing to inspect
+and the tick still completes. A test asserting on the error value would
+compile but find `nullptr`.
+
+**Fix:** assert on the side effect (the fake output received no frame) and
+that the tick survived. A future graph-level error report would let sinks
+surface failures the editor can highlight.
+
+---
+
+## Splitting a cached legacy step into nodes: every node needs its own cache, and parity can't see the cost
+Tags: architecture, node-graph, performance, parity
+Applies-when: wrapping a legacy function that cached a multi-stage result (rescale + dropAlpha) as separate graph nodes
+
+Aurora-ra4o.10: `Orchestrator::update` cached the whole prepared image by
+`frameSerial` (Aurora-igwa), but G2a gave only `image.rescale` an identity cache.
+`image.dropAlpha` reconverted every tick, and on BGRA (Windows, Mac) that is an
+allocation plus a full-image copy on a static desktop. Golden parity compares
+output only, so it stayed green.
+
+**Fix:** when splitting a cached pipeline, list each stage that did real work and
+give it an input-identity cache (or an identity passthrough). Assert pointer
+identity across ticks in the node test, since parity cannot catch cost.
+
+---
+
+## Node param schemas must read the Config descriptor tables, not restate them
+Tags: architecture, node-graph, config, schema
+Applies-when: declaring `ParamDecl`s for a node that mirrors a Config field
+
+G2b-G2d copied label, range, step and default from `ControlDescriptorTables.cpp`
+into each node, then repeated the defaults as literals in `BuiltInGraphs.cpp`.
+A later retune of one Config default would silently split node behavior from the
+live app. The loader already fills missing params from the registry, so the
+built-in docs never needed the literals.
+
+**Fix:** `decl.schema = paramSchema("audio.bounceSmoothTime")`, and have the
+built-in graph docs carry only bindings (`output`) plus overlay values for named
+tunable params.
+
+---
+
+## Replacing a class means keeping the contracts its tests relied on silently
+Tags: refactor, cutover, init, tests
+Applies-when: deleting a stateful class and porting its tests to the replacement
+
+Aurora-ra4o.8: the orchestrator tests call `init()` twice (create, save a
+zone map, `init()` again to reload it). `GraphRunner::init` accumulated
+output names on the second call, so the built-in graph load failed with
+"duplicate node id 'zones_fake'". Nothing documented that `init()` was
+re-runnable, only the tests did.
+
+**Fix:** make `init()` clear its derived tables before rebuilding and say so
+in the header. When porting tests across a class swap, expect failures that
+are missing implicit contracts, not test bugs.
+
+---
+
+## Check a bead's premise against the code before scoping it
+Tags: beads, scoping, review-findings, descriptors
+Applies-when: picking up a bead written from a review finding
+
+Aurora-ra4o.12 said to "populate the metadata fields on the Tier 1 nodes".
+All 13 nodes already carried `useWhen`, `example` and `cost`. The real gap was
+that `ControlDescriptor` had no fields to carry them, so `toDescriptors()` and
+`/api/descriptors` dropped them.
+
+**Fix:** grep the named symbols first and restate the gap before editing. The
+acceptance test ("fails if a node leaves one empty") is what makes it durable.
+
+---
+
+## Don't duplicate a reset-trigger param across graph nodes, derive it from the upstream signal
+Tags: node-graph, state, reset, params, agent-ux
+Applies-when: two stateful nodes must re-seed together when one setting changes
+
+Aurora-ra4o.13: `fixedAnchorHue` sat on both `audio.drift` and `audio.bounce`,
+and bounce used it only as a reset trigger. An agent that set it on one node
+got the two out of step, and the param looked like it did something on bounce.
+
+**Fix:** keep the param on the owner (drift). The downstream node resets when
+its input shows the re-seed (anchor jump beyond what drift can move in one
+tick, bounded by the slider maxes). Goldens held because the old reset and the
+jump landed on the same tick. A re-seed inside the margin is missed and only
+damps instead of snapping.
+
+---
+
+## Model a per-tick event as a value sent every tick, not as Absent when idle
+Tags: node-graph, ports, trigger, absent, audio
+Applies-when: adding a pulse or event port to a graph where Absent propagates downstream
+
+Aurora-id8j.1: `Absent` means "no value this tick" and propagates to every
+dependent node. Emitting nothing when no onset fired would have stalled each
+node downstream of `audio.features.onset` on every quiet tick.
+
+**Fix:** `Trigger{fired}` is sent every tick and `fired` is true only on the
+tick the event happens. Reserve Absent for "the source has no data".
+
+---
+
+## A loader rule keyed on opt-in node metadata is inert until the real node opts in; test it with the real node
+Tags: node-graph, loader, validation, testing, test-doubles
+Applies-when: adding a validation that reads an optional `NodeTypeInfo` field, or trusting a loader test that passes with a test-only node
+
+The one-sender-per-output check (Aurora-o13) reads `sinkBindingParam`, which only
+the test node in `GraphTests.cpp` set. The real `output.send` did not, so the test
+passed while a graph with two real senders on one output loaded and would flicker.
+It surfaced only because `/api/nodes` (Aurora-id8j.2) printed the registry and
+`sink` was missing.
+
+**Fix:** set the field on the real node (Aurora-cwos) and add a loader test that
+registers the real node types (`FrameNodesTests`). For any new opt-in field,
+grep that every real node that should set it does.
+
+---
+
+## A new node family must be registered in four places, one of them a test
+Tags: node-graph, registry, nodes, tests
+Applies-when: adding a `register*Nodes` function for a new node family
+
+Aurora-id8j.3: nothing fails if a family is missing from one site, the node is
+just absent there. The sites are `GraphRunner` (video and audio constructors),
+`nodesPayload` in `GraphRoutes.cpp`, and the expected-registry copy in the
+`/api/nodes` test in `PipelineTests.cpp`. Only the last one is checked, and only
+if updated.
+
+**Fix:** grep `registerFrameNodes` and add the new call beside every hit. A
+family with no hardware dependency belongs in both `GraphRunner` constructors.
+
+---
+
+## A shared INode wrapper plus a compute lambda keeps stateless nodes to one spec each
+Tags: node-graph, nodes, math, non-finite
+Applies-when: adding many small stateless nodes that share ports and failure rules
+
+Aurora-id8j.3: nine math nodes share `ScalarMathNode` (ports + compute lambda).
+The wrapper rejects non-finite results with `ctx.fail`, so a NaN or inf never
+reaches a Float port and no node can forget the guard. Operand rule: constants
+are params, signals are ports. Zero divisor and inverted ranges fail the node
+with the param named.
+
+---
+
+## A new ParamKind needs six switch sites, and a missed one is easy to ship
+Tags: node-graph, params, ParamKind
+Applies-when: adding a ParamKind or ParamValue alternative to the node graph
+
+Aurora-id8j.5 added `Gradient`. The kind must be handled in `GraphTypes.cpp` (name and
+parse), `GraphLoader.cpp` `parseParamValue` (validate and default), `GraphRoutes.cpp`
+`paramJson` (the `/api/nodes` shape), `NodeRegistry.cpp` `descriptorKind`, plus the
+`ParamValue` variant and `ParamDecl` default field in `GraphTypes.hpp`. A missed
+switch is a warning at most and fails at runtime (`parseParamValue` ends in "unknown param kind").
+
+**Fix:** grep `ParamKind::OptionalFloat` for the full site list, and add a load-time
+reject case per malformed shape to the node's tests.

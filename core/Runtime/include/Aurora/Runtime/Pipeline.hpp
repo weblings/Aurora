@@ -12,18 +12,18 @@
 #include <string>
 #include <vector>
 
+#include <nlohmann/json.hpp>
+
 #include <Aurora/Contracts/UV.hpp>
 #include <Aurora/Input/IAudioInput.hpp>
 #include <Aurora/Input/IVideoInput.hpp>
 #include <Aurora/Output/IOutput.hpp>
+#include <Aurora/Runtime/ChangeSignal.hpp>
 #include <Aurora/Runtime/Config.hpp>
-#include <Aurora/Runtime/Orchestrator.hpp>
+#include <Aurora/Runtime/GraphRunner.hpp>
 #include <Aurora/Runtime/Registry.hpp>
 #include <Aurora/Runtime/TickClock.hpp>
 #include <Aurora/Runtime/ZoneRoutes.hpp>
-#ifdef AURORA_RUNTIME_AUDIO_AVAILABLE
-#include <Aurora/Runtime/AudioOrchestrator.hpp>
-#endif
 
 namespace Aurora::Runtime
 {
@@ -34,7 +34,7 @@ namespace Aurora::Runtime
   struct PipelineOptions
   {
     // Thrown when Config asks for audio but this build has no
-    // AudioOrchestrator. Apps name their own build toggles here.
+    // audio support. Apps name their own build toggles here.
     std::string noAudioSupportMessage{
       "activeAudioInputName is set, but this build has no audio support"
     };
@@ -51,6 +51,33 @@ namespace Aurora::Runtime
     // dropdown (Linux: /api/linux/audio-sinks). Empty when the build has
     // none; Mac/Windows follow the default device. GET /api/state reports it.
     std::string audioDevicesUrl;
+
+    // Resolved sink for a live audio input, where the platform knows it
+    // (Linux follows the default sink). Null, or an empty return, reports
+    // the configured target instead. Runs under the pipeline lock.
+    std::function<std::string(Input::IAudioInput&)> describeAudioSink;
+  };
+
+
+  // What a built pipeline is doing, for GET /api/state (Aurora-5ipy.2).
+  // effect is a graph id; each side is nullopt when unused.
+  struct PipelineSummary
+  {
+    struct Video
+    {
+      std::string input;
+      std::string monitor; // empty when the input has no selected monitor
+    };
+    struct Audio
+    {
+      std::string input;
+      std::string sink;     // configured target; empty when following the default
+      bool followsDefault{true};
+    };
+
+    std::string effect;
+    std::optional<Video> video;
+    std::optional<Audio> audio;
   };
 
 
@@ -118,6 +145,11 @@ namespace Aurora::Runtime
 
     PipelineCapabilities capabilities() const;
 
+    PipelineSummary summary() const { return m_summary; }
+
+    // The primary runner's graph doc (video, or audio in audio mode).
+    nlohmann::json graphJson() const;
+
     // Empty in audio mode -- no monitor concept applies then, not an error.
     Input::Monitors listMonitors() const;
 
@@ -146,9 +178,9 @@ namespace Aurora::Runtime
     Pipeline() = default;
 
     bool m_isAudioMode{false};
-    // Aurora-o13 spike: AURORA_DEV_DUAL_CAPTURE builds both orchestrators
+    // Aurora-o13 spike: AURORA_DEV_DUAL_CAPTURE builds both runners
     // and ticks both. Video stays primary for config, zones and monitors.
-    // The flag also logs per-orchestrator tick timing in single modes.
+    // The flag also logs per-runner tick timing in single modes.
     bool m_isDualCapture{false};
     struct DualCaptureStats
     {
@@ -160,9 +192,10 @@ namespace Aurora::Runtime
     };
     DualCaptureStats m_dualStats;
     Config m_appliedConfig;
+    PipelineSummary m_summary;
     double m_tickIntervalSeconds{Runtime::tickIntervalSeconds()};
 
-    // Declaration order matters: m_orchestrator/m_audioOrchestrator hold a
+    // Declaration order matters: m_videoRunner/m_audioRunner hold a
     // reference into m_videoInput/m_audioInput, so those must be declared
     // (and therefore destroyed after, since destruction runs in reverse
     // declaration order) first -- same reasoning already applied to
@@ -172,10 +205,8 @@ namespace Aurora::Runtime
     std::unique_ptr<Input::IAudioInput> m_audioInput;
     std::vector<std::unique_ptr<Output::IOutput>> m_outputs;
     std::vector<Output::IOutput*> m_outputPtrs;
-    std::optional<Orchestrator> m_orchestrator;
-#ifdef AURORA_RUNTIME_AUDIO_AVAILABLE
-    std::optional<AudioOrchestrator> m_audioOrchestrator;
-#endif
+    std::optional<GraphRunner> m_videoRunner;
+    std::optional<GraphRunner> m_audioRunner;
   };
 
 
@@ -251,7 +282,9 @@ namespace Aurora::Runtime
       std::exception_ptr startupFailure = nullptr
     );
 
-    void tick();
+    // Runs one tick and returns the interval it used, read under the same
+    // lock so the loop needs no second lock round trip (Aurora-cgr).
+    double tick();
     double tickIntervalSeconds();
     Input::Monitors listMonitors();
 
@@ -260,6 +293,11 @@ namespace Aurora::Runtime
     // Pipeline at all, so it's cheap enough to call on every drag-frame a
     // real Zone Mapping UI sends, not just on a final "Save".
     ZoneListResult listZones();
+
+    // The running pipeline's graph doc; nullopt when idle, failed or paused
+    // (no graph is running then). Same lock as tick().
+    std::optional<nlohmann::json> graphJson();
+
     bool updateZone(
       std::uint8_t zoneId,
       const std::optional<Contracts::UVs>& uvs,
@@ -368,14 +406,30 @@ namespace Aurora::Runtime
     // polling never waits on a tick or a reload.
     std::vector<HostCondition> conditions() const;
 
+    // Moves whenever status, errors or conditions change (Aurora-5ipy.3), so
+    // GET /api/events wakes without polling. Leaf lock only, never m_mutex.
+    ChangeSignal& changes() const { return m_changes; }
+
     // What the running pipeline uses, lock-free. Updated on every swap and
     // kept through pause(), so a paused Dashboard keeps its sections. A
     // failed reload leaves it unchanged: the old pipeline is still running.
     PipelineCapabilities capabilities() const;
 
+    // The last built pipeline's summary, kept through pause like
+    // capabilities(); empty (no effect, no sides) when idle or failed. Its
+    // own leaf lock, so polling never waits on a tick or reload.
+    PipelineSummary summary() const;
+
+    // Resolved audio sink via PipelineOptions::describeAudioSink; empty when
+    // there is no hook, no live audio input, or nothing resolved. Takes the
+    // pipeline lock, so call it only when an audio side is reported.
+    std::string resolvedAudioSink();
+
     const std::string& audioDevicesUrl() const { return m_options.audioDevicesUrl; }
 
   private:
+    mutable std::mutex m_summaryMutex;
+    PipelineSummary m_summary;
     // Packs capabilities into one atomic, so a reader never sees half of
     // a swap.
     void _storeCapabilities(const Pipeline* pipeline);
@@ -414,6 +468,8 @@ namespace Aurora::Runtime
     // Independent leaf lock: conditions never interact with m_status.
     mutable std::mutex m_conditionsMutex;
     std::vector<HostCondition> m_conditions;
+
+    mutable ChangeSignal m_changes;
 
     // Both under m_mutex.
     std::uint64_t m_nextErrorId{1};

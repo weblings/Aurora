@@ -11,10 +11,20 @@ import { OutputConnectScreen } from './screens/OutputConnectScreen.js';
 import { EntertainmentZoneSelectScreen } from './screens/EntertainmentZoneSelectScreen.js';
 import { ModeDeviceScreen } from './screens/ModeDeviceScreen.js';
 import { ZoneMappingScreen } from './screens/ZoneMappingScreen.js';
+import { PairingScreen } from './screens/PairingScreen.js';
+import { fetchPairingStatus, needsPairing, canManagePairing, installPairingFetchHook } from './Pairing.js';
 import { ensureTooltips } from './Tooltips.js';
 import { isModeConfigValid, loadPipelineState } from './CaptureSource.js';
 
 const app = new App();
+
+// Global 401 handler (Aurora-5ipy.6): a revoked or never-paired LAN browser
+// lands on Pair this device from whichever write it tried.
+function showPairing() {
+  if (app.currentRouteId === 'pairing') return;
+  app.navigate(new PairingScreen(app, { onComplete: () => bootstrap() }), 'pairing');
+}
+installPairingFetchHook(globalThis, showPairing);
 
 // DEBUG -- press H to download the current screen's rendered HTML+CSS as one
 // standalone file, for Figma reference (same idea as RockyRoad's own
@@ -266,6 +276,14 @@ async function bootstrap() {
   // awaited, never gating any screen; controls apply whatever has arrived
   // at render time and pick up the rest on the next render.
   ensureTooltips();
+  // Pairing first: an unpaired LAN browser could read every screen but
+  // change nothing. A failed probe falls through (the 401 hook still guards).
+  const pairing = await fetchPairingStatus();
+  app.canApprove = canManagePairing(pairing);
+  if (needsPairing(pairing)) {
+    showPairing();
+    return;
+  }
   // Once onboarding has ever reached the Dashboard, skip re-deriving
   // "what's still missing" from several live signals (bridge pairing,
   // entertainment config, mode/device, zone mapping) on every single boot --

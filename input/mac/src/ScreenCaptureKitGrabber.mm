@@ -258,7 +258,7 @@ namespace Aurora::Input::Mac
     // What SCK delivers: full pixel size, or -- once the consumer has said
     // how narrow an image it samples -- a 2x oversample of that, at least
     // 256px wide, aspect kept. The GPU does the bulk downscale; the CPU's
-    // INTER_AREA in Orchestrator averages the final step. Full-Retina frames
+    // INTER_AREA in the rescale node averages the final step. Full-Retina frames
     // resized on the CPU every tick overran a 60Hz tick and starved the WebUI
     // (Aurora-3qh). 8x was the first rule: at subsampleWidth 190 that is a
     // 1520px frame, ~24% CPU on moving content vs 4.4% at 2x, with zone
@@ -594,7 +594,7 @@ namespace Aurora::Input::Mac
     }
     catch(const std::exception&){
       // Per-frame lazy rebuild must never throw out of grabFrameSubsample()
-      // -- Orchestrator::update() has no try/catch around that call.
+      // -- a throw here would surface as a graph node error every tick.
       // Leave m_impl->stream nil; grabFrameSubsample() keeps serving the
       // last frame it had, same graceful-degradation shape as
       // WindowsGrabber's m_lastFrame-on-transient-failure. Surfacing a

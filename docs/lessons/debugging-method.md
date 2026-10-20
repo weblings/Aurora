@@ -688,6 +688,8 @@ After adding `PUT /api/state`, `devstack.py up` answered 404 for it. The route w
 
 Recurred in reverse during Aurora-kea (2026-10-03): `cmake --build build/linux-app` was fresh and a hand-launched `./build/bin/Aurora` was the stale one, so the new `GET /api/state` answered 404. Two app binaries exist on this box; neither path is "the" build.
 
+Recurred on Windows during Aurora-so1o (2026-10-16): `build/windows-app` (the preset superbuild) and `build-app-windows` (a standalone `app/windows` configure) each hold a `bin/Release/Aurora.exe`, and only the one just built had the new code. The Dashboard footer is a fast tell: a standalone configure reports `vdev`, the preset build reports the real version (docs/Building.md, "Slice builds"). Check both the path's mtime and the footer before judging behavior.
+
 ---
 
 ## A LeakSanitizer report whose only non-libc frame is a test line is that line's own allocation -- trace it before blaming the library
@@ -1114,3 +1116,98 @@ Applies-when: crediting a perf delta to one cause (build type, a patch) using an
 Aurora-wqzp.7 (Linux): the log's unoptimized X11 row (6.2%, update 0.94 ms) came from an i5-7600K; the optimized run was on an i5-1334U (2.5%, 0.25 ms). It was first written up as "most of the 4% was the build type". Rebuilding unoptimized on the 1334U gave 3.7% / 0.43 ms, so the build type was about a third (1.2 points) and the older CPU the rest.
 
 **Fix:** before writing an attribution, check the `hardware:` line of both numbers; if they differ, re-measure the baseline on the current box (a scratch build dir, deleted afterwards) rather than inferring. Cheap here: one extra configure and build.
+
+## Before treating "more flickery" as a regression, capture both builds' per-tick output and compare
+Tags: debugging, measurement, perception, dev-tooling
+Applies-when: a subjective visual or audio complaint follows a behavior change
+
+After the Aurora-7r3 drift fix the lights felt flickerier. A 60s capture of
+each build's per-zone output through the dev light tap
+(`AURORA_DEV_LIGHT_TAP=1`, UDP 127.0.0.1:18244, JSON `{"zones":[...]}` per
+send) showed the same behavior: ~60 deg/s net hue travel, same 120 deg
+max step, mean step 3.6 vs 3.1 deg. The rapid color change came from the
+always-positive beat swings and predated the fix. Output only flows once input
+and output are active in the WebUI, so a freshly launched app records nothing.
+
+**Fix:** record both builds (stash, rebuild, relaunch, same song) and compare
+mean and max step per tick before touching code. Runs are not
+phase-aligned, so only large gaps mean anything. `tap.py`-style recorders are
+~15 lines, no harness needed.
+
+## A dual-path parity gate needs fresh inputs per path and a mutation check
+Tags: parity, golden, graph, mutation, test-design
+Applies-when: running one golden fixture through two implementations (legacy path vs node graph)
+
+Aurora-ra4o.7: scenario inputs count calls (`SequenceVideoInput`,
+`SequenceAudioInput`), and the PCM generators captured a shared `Lcg` by
+reference. Reusing them for the second path would start mid-sequence and fail
+for the wrong reason (or pass by accident). Separately, a green second run
+proves nothing until the gate is shown to bite: it could be reading the
+wrong config or skipping frames.
+
+**Fix:** build the input per path (a `makeInput` factory, with the `Lcg` in a
+`shared_ptr` created inside it). Under `AURORA_UPDATE_GOLDEN` run only the legacy
+path so fixtures stay derived from it. After wiring the new path, break one
+overlay value on purpose (smoothing forced to 0 failed 18 Video assertions) and
+confirm red before reverting.
+
+---
+
+## A parity gate with fixed settings does not cover the hot-edit path
+Tags: parity, golden, graph, mutation, test-design
+Applies-when: replacing a mutable legacy object (`setConfig`, `setSettings`) with rebuild + `adoptStateFrom`
+
+Aurora-ra4o.10: every G2d parity scenario held settings constant from tick 0, yet
+G3's riskiest change is how a live Tuning edit carries node state across a graph
+swap. Nothing would have failed if `adoptStateFrom` were skipped.
+
+**Fix:** add scenarios that edit settings mid-run on both paths (legacy setter vs
+rebuild + adopt + swap), covering a plain retune, a re-seeding change and a clear.
+Then remove `adoptStateFrom` and confirm both go red (6 assertions each) before
+trusting them.
+
+---
+
+## Before blaming your change for a dead capture, run the previous commit
+Tags: regression, baseline, ab-test, perf, live-capture
+Applies-when: an app-level check fails (no frames, API hang) right after a refactor
+
+Aurora-ra4o.8: after the orchestrator-to-graph cutover, live `windows`
+capture gave no light frames and `/api/*` calls timed out. The same
+symptom reproduced on a Release build of the commit before the change, so
+it was not G3. The cause was the agent shell, which cannot capture the
+screen (even the grabber's own manual tests fail there, on an SDR display
+too) while the user's own session captured fine. An early guess blamed the
+HDR display and was wrong; check the harness's access to the desktop
+before theorizing about display modes.
+
+**Fix:** build the prior commit (see the worktree lesson in
+build-toolchain) and run the identical check first. For perf, when live
+capture is unavailable, run the harness against `--input dummy` on both
+builds: it isolates the code path under test (graph vs orchestrator) and
+showed no cost (video update 0.10 to 0.12 ms on both). Run each build
+twice: max-ms swings of 1 to 6 ms between identical runs are noise.
+
+---
+
+## Fake-clock settle tests must use whole tick counts at every rate
+Tags: node-graph, tests, fake-clock, time
+Applies-when: writing a settle-time or period check that runs the same duration at 30, 60 and 240 Hz
+
+Aurora-id8j.4: a helper that rounds `seconds * hz` to whole ticks turned 0.25 s at
+30 Hz (7.5 ticks) into 8, and the check failed by a few percent. It looked like
+a rate-dependence bug in the node but was the test running extra time.
+
+**Fix:** pick durations and LFO rates where every rate gives an integer tick
+count (0.5 s, 1 s, 0.5 Hz), or assert the tick count in the helper.
+
+
+---
+
+## An unfair-mutex starvation bug may not reproduce on MSVC: test the scheduling rule, not the symptom
+Tags: debugging, threads, mutex, tick-loop, testing
+Applies-when: writing a regression test for a lock-starvation or "never yields" bug found on hardware
+
+Aurora-cgr (tick loop holding the host mutex back to back) was proven on real hardware, but a loop of 1 ms ticks against `listMonitors()` on MSVC Debug stayed inside budget with the fix reverted, so a latency test alone cannot fail. The pure rule that decides the next wake time (`nextTickTime`) can: with the minimum yield set to 0, its unit test fails.
+
+**Fix:** pull the timing decision into a pure function and assert its output with literal bounds (not the same constant it uses). Keep the contention test as a smoke check, and verify on hardware.

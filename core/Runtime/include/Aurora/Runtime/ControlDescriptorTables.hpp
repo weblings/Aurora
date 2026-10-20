@@ -13,7 +13,7 @@
 // module owning those settings rather than growing here.
 namespace Aurora::Runtime
 {
-  // Video-pipeline tunables (Orchestrator/Config).
+  // Video-pipeline tunables (GraphRunner/Config).
   std::vector<ControlDescriptor> videoControlDescriptors();
 
   // Audio-pipeline tunables (AudioProcessing/Config). fixedHueEnabled is
@@ -24,7 +24,8 @@ namespace Aurora::Runtime
   // Zone runtime (ZoneMap): per-zone gamma/active plus Auto-arrange.
   std::vector<ControlDescriptor> zoneControlDescriptors();
 
-  // App shell chrome with explanatory value (mode switch).
+  // App shell chrome with explanatory value (mode switch), plus the global
+  // brightness slider.
   std::vector<ControlDescriptor> appControlDescriptors();
 
   // The ParamSchema a video/audio slider descriptor carries, by descriptor

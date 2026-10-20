@@ -8,11 +8,21 @@ on:
     paths:
       - web/**
       - web-processing/**
+      - core/Runtime/src/Graph/**
+      - core/Runtime/src/ControlDescriptorTables.cpp
+      - core/Runtime/include/Aurora/Runtime/Config.hpp
+      - output/hue/src/HueControlDescriptors.cpp
+      - input/*/src/InputControlDescriptors.cpp
       - .github/workflows/web.yml
   pull_request:
     paths:
       - web/**
       - web-processing/**
+      - core/Runtime/src/Graph/**
+      - core/Runtime/src/ControlDescriptorTables.cpp
+      - core/Runtime/include/Aurora/Runtime/Config.hpp
+      - output/hue/src/HueControlDescriptors.cpp
+      - input/*/src/InputControlDescriptors.cpp
       - .github/workflows/web.yml
 
 jobs:
@@ -28,3 +38,7 @@ jobs:
           for t in web-processing/*.test.mjs web/demo/*.test.mjs web/demo/vendor/webui/*.test.mjs web/ui/*.test.mjs web/ui/screens/*.test.mjs web/ui/styles/*.test.mjs; do node "$t"; done
       - name: Demo vendor closure (every module the Dashboard imports is vendored)
         run: node web/demo/vendor/webui/closure-check.mjs
+      - name: Generated files are current (demo graph, descriptors)
+        run: |
+          python3 web/demo/gen-demo-graph.py --check
+          python3 web/demo/vendor/webui/gen-descriptors.py --check

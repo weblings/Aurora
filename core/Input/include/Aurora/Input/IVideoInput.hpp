@@ -60,7 +60,7 @@ namespace Aurora::Input
     // by this existing at all. A grabber that can genuinely lose its
     // capture source out from under it (and detect that, rather than just
     // silently serving a stale frame forever) overrides this to reflect
-    // real state; Orchestrator::update() skips a tick while unhealthy
+    // real state; the video.capture node skips a tick while unhealthy
     // rather than pushing a frozen frame to outputs.
     virtual bool isHealthy() const
     {
@@ -77,7 +77,7 @@ namespace Aurora::Input
       }
     }
 
-    // The widest image the consumer will actually sample (Orchestrator's
+    // The widest image the consumer will actually sample (the rescale node's
     // subsampleWidth; 0 = unknown). A grabber whose capture API can scale
     // on the GPU may deliver a smaller frame than the display instead of
     // making the CPU downscale full resolution every tick (Aurora-3qh).
@@ -99,6 +99,13 @@ namespace Aurora::Input
     inline Monitors monitors() const
     {
       return m_monitorSelectionData.monitors;
+    }
+
+    // Empty when no monitor is selected (or the input has no monitor list).
+    inline std::string selectedMonitorName() const
+    {
+      const MonitorData* monitor = m_monitorSelectionData.selectedMonitor();
+      return monitor ? monitor->name : std::string{};
     }
 
     // Fixed a completeness bug in the port -- see LinuxCaptureAnalysis.md: the

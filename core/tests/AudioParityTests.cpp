@@ -2,10 +2,21 @@
 
 #include <cmath>
 #include <functional>
+#include <memory>
+#include <vector>
 
-#include <Aurora/Runtime/AudioOrchestrator.hpp>
+#include <Aurora/Runtime/GraphRunner.hpp>
+#include <Aurora/Runtime/Graph/AudioNodes.hpp>
+#include <Aurora/Runtime/Graph/BuiltInGraphs.hpp>
+#include <Aurora/Runtime/Graph/ColorNodes.hpp>
+#include <Aurora/Runtime/Graph/FrameNodes.hpp>
+#include <Aurora/Runtime/Graph/MathNodes.hpp>
+#include <Aurora/Runtime/Graph/TimeNodes.hpp>
+#include <Aurora/Runtime/ZoneReconciler.hpp>
 
+#include "AudioTestConfig.hpp"
 #include "GoldenFrames.hpp"
+#include "GraphParityHost.hpp"
 
 using namespace Aurora::Contracts;
 using namespace Aurora::Input;
@@ -14,14 +25,17 @@ using namespace Aurora::Tests::Golden;
 namespace AudioProcessing = Aurora::Processing::AudioProcessing;
 
 // Golden parity scenarios for the audio path, at two levels:
-//  - PCM through AudioOrchestrator: the full path incl. aubio's
-//    AudioFeatureExtractor, which update() always runs internally.
+//  - PCM through GraphRunner (built-in Audio graph): the full path incl.
+//    aubio's AudioFeatureExtractor, which audio.features always runs.
 //  - Scripted AudioFeatures straight into updateDrift/updateBounce: no
 //    aubio, so these pin the color model exactly; they are also what the
 //    node graph's Tier 2 decomposition (drift/bounce as primitives) is
 //    checked against.
 // Every scenario pins fixedAnchorHue -- randomAnchorHue() seeds from
 // std::random_device. See GoldenFrames.hpp for fixtures/regeneration.
+// The feature scenarios run both directly and through the built-in Audio
+// graph against the same fixture (Aurora-ra4o.7); scripted features enter the
+// graph through a test-only node standing in for audio.capture + audio.features.
 namespace
 {
   constexpr float Pi = 3.14159265358979f;
@@ -77,27 +91,96 @@ namespace
   };
 
 
-  Recording runPcmScenario(const std::string& tag, SequenceAudioInput& input, AudioProcessing::AudioEffectSettings settings, int ticks)
+  using MakeInput = std::function<SequenceAudioInput()>;
+
+  // Two active zones plus an inactive one: broadcast reaches every active
+  // zone and omits inactive ones (composeAudioFrame).
+  ZoneMap pcmZones()
+  {
+    ZoneConfig a; a.zoneId = 1; a.everConfigured = true;
+    ZoneConfig b; b.zoneId = 2; b.gamma = 0.5f; b.everConfigured = true;
+    ZoneConfig c; c.zoneId = 3; c.active = false; c.everConfigured = true;
+    return {a, b, c};
+  }
+
+
+  using Aurora::Tests::audioConfigFrom;
+
+
+  // A mid-run Tuning edit, applied before that tick via GraphRunner::setConfig.
+  struct SettingsEdit
+  {
+    int tick;
+    std::function<void(AudioProcessing::AudioEffectSettings&)> apply;
+  };
+
+
+  Recording runPcmScenario(
+    const std::string& tag,
+    SequenceAudioInput& input,
+    AudioProcessing::AudioEffectSettings settings,
+    int ticks,
+    const std::vector<SettingsEdit>& edits)
   {
     ScopedTempDir dir(tag);
     Recording recording;
     int tick = 0;
 
-    // Two active zones plus an inactive one: broadcast reaches every active
-    // zone and omits inactive ones (composeAudioFrame).
-    ZoneConfig a; a.zoneId = 1; a.everConfigured = true;
-    ZoneConfig b; b.zoneId = 2; b.gamma = 0.5f; b.everConfigured = true;
-    ZoneConfig c; c.zoneId = 3; c.active = false; c.everConfigured = true;
-    ZoneMapStore(dir.path).save("hue", {a, b, c});
+    ZoneMapStore(dir.path).save("hue", pcmZones());
 
     RecordingOutput output("hue", {1, 2, 3}, recording, tick);
-    AudioOrchestrator orchestrator(input, {&output}, ZoneMapStore(dir.path), settings);
-    orchestrator.init();
+    GraphRunner runner(input, {&output}, audioConfigFrom(settings), ZoneMapStore(dir.path));
+    runner.init();
 
     for(tick = 0; tick < ticks; ++tick){
-      orchestrator.update(Dt);
+      for(const auto& edit : edits){
+        if(edit.tick == tick){
+          edit.apply(settings);
+          std::string error;
+          INFO(error);
+          REQUIRE(runner.setConfig(audioConfigFrom(settings), error));
+        }
+      }
+      runner.tick(Dt);
     }
     return recording;
+  }
+
+
+  // One output "hue" with the PCM scenarios' zones, and the audio + frame
+  // nodes registered.
+  struct GraphRig
+  {
+    Recording recording;
+    int tick{0};
+    std::unique_ptr<RecordingOutput> output;
+    Aurora::Tests::Golden::ParityHost host;
+    Aurora::Runtime::Graph::NodeRegistry registry;
+
+    GraphRig()
+    {
+      output = std::make_unique<RecordingOutput>("hue", std::vector<uint8_t>{1, 2, 3}, recording, tick);
+      host.outputs["hue"] = output.get();
+      host.zoneMaps["hue"] = reconcileZoneMap(pcmZones(), output->zoneIds());
+      Aurora::Runtime::Graph::registerAudioNodes(registry);
+      Aurora::Runtime::Graph::registerFrameNodes(registry);
+      Aurora::Runtime::Graph::registerMathNodes(registry);
+      Aurora::Runtime::Graph::registerTimeNodes(registry);
+      Aurora::Runtime::Graph::registerColorNodes(registry);
+    }
+  };
+
+
+  void checkPcm(
+    const std::string& scenario,
+    const std::string& description,
+    const MakeInput& makeInput,
+    const AudioProcessing::AudioEffectSettings& settings,
+    int ticks,
+    const std::vector<SettingsEdit>& edits = {})
+  {
+    SequenceAudioInput input = makeInput();
+    check(scenario, description, runPcmScenario(scenario, input, settings, ticks, edits));
   }
 
 
@@ -149,6 +232,281 @@ namespace
   }
 
 
+  // Same ports as audio.features.
+  std::vector<Aurora::Runtime::Graph::PortDecl> scriptedFeaturePorts()
+  {
+    using Aurora::Runtime::Graph::PortType;
+    return {
+      {"features", PortType::AudioFeatures, false},
+      {"rms", PortType::Float, false},
+      {"onset", PortType::Trigger, false},
+      {"onsetStrength", PortType::Float, false},
+      {"centroid", PortType::Float, false}};
+  }
+
+
+  // Test-only stand-in for audio.capture + audio.features: replays the
+  // script's AudioFeatures, one per tick.
+  class ScriptedFeaturesNode : public Aurora::Runtime::Graph::INode
+  {
+  public:
+    explicit ScriptedFeaturesNode(FeatureScript script): m_script(std::move(script)) {}
+
+    const std::vector<Aurora::Runtime::Graph::PortDecl>& inputPorts() const override { return m_in; }
+    const std::vector<Aurora::Runtime::Graph::PortDecl>& outputPorts() const override { return m_out; }
+
+    void evaluate(
+      const Aurora::Runtime::Graph::EvalContext&,
+      float,
+      std::unordered_map<std::string, Aurora::Runtime::Graph::GraphValue>& outputs) override
+    {
+      Aurora::Contracts::AudioFeatures features = m_script.at(m_tick * m_script.dt, m_tick);
+      outputs.emplace("features", features);
+      outputs.emplace("rms", features.rms);
+      outputs.emplace("onset", Aurora::Runtime::Graph::Trigger{features.onsetDetected});
+      outputs.emplace("onsetStrength", features.onsetStrength);
+      outputs.emplace("centroid", features.spectralCentroid);
+      ++m_tick;
+    }
+
+  private:
+    FeatureScript m_script;
+    int m_tick{0};
+    std::vector<Aurora::Runtime::Graph::PortDecl> m_in{};
+    std::vector<Aurora::Runtime::Graph::PortDecl> m_out{scriptedFeaturePorts()};
+  };
+
+
+  // The built-in Audio graph with cap + feat swapped for the scripted node
+  // (same id "feat", so every downstream edge is the built-in's own). The
+  // recording is the color the bounce node outputs, as in runFeatureScenario.
+  Recording runGraphFeatureScenario(const FeatureScript& script, const AudioProcessing::AudioEffectSettings& settings)
+  {
+    using namespace Aurora::Runtime::Graph;
+
+    GraphRig rig;
+    rig.registry.registerType(
+      "test.features",
+      NodeTypeInfo{
+        .meta = {.purpose = "test", .useWhen = "test", .example = "{}", .cost = "cheap"},
+        .inputs = {},
+        .outputs = scriptedFeaturePorts(),
+        .params = {},
+        .factory = [script] { return std::make_unique<ScriptedFeaturesNode>(script); },
+      });
+
+    nlohmann::json doc = builtInAudioGraph({"hue"}, audioOverlayFromConfig(audioConfigFrom(settings).data(), {"hue"}));
+    nlohmann::json nodes = nlohmann::json::array();
+    nodes.push_back({{"id", "feat"}, {"type", "test.features"}, {"params", nlohmann::json::object()}});
+    for(const auto& node : doc["nodes"]){
+      if(node["id"] != "cap" && node["id"] != "feat"){
+        nodes.push_back(node);
+      }
+    }
+    nlohmann::json edges = nlohmann::json::array();
+    for(const auto& edge : doc["edges"]){
+      if(edge[0] != "cap.buffer"){
+        edges.push_back(edge);
+      }
+    }
+    doc["nodes"] = nodes;
+    doc["edges"] = edges;
+
+    LoadOptions options;
+    options.knownOutputs = {"hue"};
+    auto loaded = loadGraph(doc, rig.registry, options);
+    INFO(loaded.error);
+    REQUIRE(loaded.ok);
+
+    Recording recording;
+    for(rig.tick = 0; rig.tick < script.ticks; ++rig.tick){
+      loaded.graph.tick(script.dt, &rig.host);
+      const GraphValue* color = loaded.graph.portValue("beat", "color");
+      REQUIRE(color != nullptr);
+      REQUIRE(std::holds_alternative<Color>(*color));
+      recording.push_back({rig.tick, "color", Frame{{0, std::get<Color>(*color), 0.0f}}});
+    }
+    return recording;
+  }
+
+
+  void checkFeaturesBothPaths(
+    const std::string& scenario,
+    const std::string& description,
+    const FeatureScript& script,
+    const AudioProcessing::AudioEffectSettings& settings)
+  {
+    {
+      INFO("path: updateDrift/updateBounce");
+      check(scenario, description, runFeatureScenario(script, settings));
+    }
+    if(std::getenv("AURORA_UPDATE_GOLDEN")){
+      return;
+    }
+    {
+      INFO("path: built-in Audio graph");
+      check(scenario, description, runGraphFeatureScenario(script, settings));
+    }
+  }
+
+
+  // Aurora-id8j.9: drift and bounce rebuilt from Tier 2 primitives, checked
+  // against updateDrift/updateBounce on the same scripted features.
+  //
+  // 60Hz only. The compound rolling centroid is a per-tick alpha of 0.02,
+  // while rollingAverage is time-based, so tau = -dt/ln(0.98) matches at one
+  // rate (about 0.825s at 60Hz) and drifts apart at any other.
+  constexpr int DecompSeed = 1;
+  constexpr float DecompDt = 1.0f / 60.0f;
+
+  nlohmann::json decompNode(
+    const std::string& id,
+    const std::string& type,
+    nlohmann::json params = nlohmann::json::object())
+  {
+    return {{"id", id}, {"type", type}, {"params", std::move(params)}};
+  }
+
+  // The graph from the design doc's decomposition check. The drift anchor is
+  // seed.anchor + integrated drift, so bounce's target is anchor + offset.
+  nlohmann::json decomposedDriftBounceGraph(const AudioProcessing::AudioEffectSettings& settings)
+  {
+    using nlohmann::json;
+    const float rollingTau = -DecompDt / std::log(1.0f - 0.02f);
+    const float base = settings.driftBaseRateDegPerSec;
+
+    json nodes = json::array({
+      decompNode("feat", "test.features"),
+      decompNode("seed", "palette.randomAnchor", {{"seed", DecompSeed}}),
+      // Drift: centroid deviation from its rolling average, as a rate.
+      decompNode("avg", "rollingAverage", {{"tau", rollingTau}}),
+      decompNode("avgNeg", "math.scale", {{"factor", -1.0f}}),
+      decompNode("delta", "math.add"),
+      decompNode("norm", "math.divide", {{"divisor", std::max(settings.centroidRangeHz, 1.0f)}}),
+      decompNode("nclamp", "math.clamp", {{"min", -1.0f}, {"max", 1.0f}}),
+      decompNode("bias", "math.lerp", {{"from", 1.0f}, {"to", 1.0f + settings.centroidStrength}}),
+      decompNode("rate", "math.scale", {{"factor", base}}),
+      decompNode("rateMin", "math.clamp", {{"min", 0.0f}, {"max", 1.0e6f}}),
+      decompNode("rateDir", "math.scale", {{"factor", -1.0f}}),
+      // The compound's first tick only seeds state, so pre-cancel the one
+      // base-rate step integrate takes on tick 0.
+      decompNode("drift", "integrate", {{"initial", base * DecompDt}}),
+      decompNode("anchor", "angle.add"),
+      // Bounce: onset swings the hue, rms sets brightness.
+      decompNode("strength", "math.clamp", {{"min", 0.0f}, {"max", 1.0f}}),
+      decompNode("swing", "math.lerp", {{"from", settings.dynamismFloor}, {"to", 1.0f}}),
+      decompNode("offset", "stepOnTrigger", {{"scale", 180.0f}}),
+      decompNode("target", "angle.add"),
+      decompNode("hue", "smooth.angle", {{"tau", settings.bounceSmoothTime}}),
+      decompNode("loud", "math.divide", {{"divisor", std::max(settings.referenceRms, 1e-4f)}}),
+      decompNode("loudClamp", "math.clamp", {{"min", settings.brightnessFloor}, {"max", 1.0f}}),
+      decompNode("loudSmooth", "smooth.exp", {{"tau", settings.brightnessSmoothTime}}),
+      decompNode("value", "math.scale", {{"factor", settings.vibrancyValue}}),
+      decompNode("col", "color.fromHSV", {{"saturation", settings.vibrancySaturation}}),
+    });
+
+    json edges = json::array({
+      {"feat.centroid", "avg.value"},
+      {"avg.value", "avgNeg.value"},
+      {"feat.centroid", "delta.a"},
+      {"avgNeg.value", "delta.b"},
+      {"delta.value", "norm.value"},
+      {"norm.value", "nclamp.value"},
+      {"nclamp.value", "bias.t"},
+      {"bias.value", "rate.value"},
+      {"rate.value", "rateMin.value"},
+      {"rateMin.value", "rateDir.value"},
+      {"rateDir.value", "drift.rate"},
+      {"seed.anchor", "anchor.a"},
+      {"drift.angle", "anchor.b"},
+      {"feat.onsetStrength", "strength.value"},
+      {"strength.value", "swing.t"},
+      {"feat.onset", "offset.trigger"},
+      {"swing.value", "offset.amount"},
+      {"anchor.angle", "target.a"},
+      {"offset.angle", "target.b"},
+      {"target.angle", "hue.angle"},
+      {"feat.rms", "loud.value"},
+      {"loud.value", "loudClamp.value"},
+      {"loudClamp.value", "loudSmooth.value"},
+      {"loudSmooth.value", "value.value"},
+      {"hue.angle", "col.hue"},
+      {"value.value", "col.value"},
+    });
+    return {{"version", 1}, {"tickHz", 60}, {"nodes", nodes}, {"edges", edges}};
+  }
+
+  // palette.randomAnchor's pick for DecompSeed, read back so the compound
+  // can be pinned to the same anchor (its own rng is unseedable).
+  float seededAnchor()
+  {
+    Aurora::Runtime::Graph::NodeRegistry registry;
+    Aurora::Runtime::Graph::registerColorNodes(registry);
+    nlohmann::json doc = {
+      {"version", 1},
+      {"nodes", nlohmann::json::array({decompNode("seed", "palette.randomAnchor", {{"seed", DecompSeed}})})},
+      {"edges", nlohmann::json::array()}};
+    auto loaded = Aurora::Runtime::Graph::loadGraph(doc, registry, {});
+    INFO(loaded.error);
+    REQUIRE(loaded.ok);
+    loaded.graph.tick(DecompDt);
+    const auto* anchor = loaded.graph.portValue("seed", "anchor");
+    REQUIRE(anchor != nullptr);
+    return std::get<Aurora::Runtime::Graph::Angle>(*anchor).degrees;
+  }
+
+  // Shortest signed arc, so 359.99 vs 0.01 reads as 0.02.
+  float hueGap(float a, float b)
+  {
+    return std::fabs(std::remainder(a - b, 360.0f));
+  }
+
+  void checkDecomposedMatchesCompound(const FeatureScript& script, AudioProcessing::AudioEffectSettings settings)
+  {
+    using namespace Aurora::Runtime::Graph;
+
+    settings.fixedAnchorHue = seededAnchor();
+
+    GraphRig rig;
+    rig.registry.registerType(
+      "test.features",
+      NodeTypeInfo{
+        .meta = {.purpose = "test", .useWhen = "test", .example = "{}", .cost = "cheap"},
+        .inputs = {},
+        .outputs = scriptedFeaturePorts(),
+        .params = {},
+        .factory = [script] { return std::make_unique<ScriptedFeaturesNode>(script); },
+      });
+    auto loaded = loadGraph(decomposedDriftBounceGraph(settings), rig.registry, {});
+    INFO(loaded.error);
+    REQUIRE(loaded.ok);
+
+    AudioProcessing::DriftState drift;
+    AudioProcessing::BounceState bounce;
+    for(int tick = 0; tick < script.ticks; ++tick){
+      AudioFeatures features = script.at(tick * script.dt, tick);
+      AudioProcessing::updateDrift(drift, features, settings, script.dt);
+      Color want = AudioProcessing::updateBounce(bounce, drift, features, settings, script.dt);
+
+      loaded.graph.tick(script.dt, &rig.host);
+      const GraphValue* anchor = loaded.graph.portValue("anchor", "angle");
+      const GraphValue* color = loaded.graph.portValue("col", "color");
+      REQUIRE(anchor != nullptr);
+      REQUIRE(color != nullptr);
+      REQUIRE(std::holds_alternative<Angle>(*anchor));
+      REQUIRE(std::holds_alternative<Color>(*color));
+      const Color got = std::get<Color>(*color);
+
+      INFO("tick " << tick);
+      CHECK(hueGap(std::get<Angle>(*anchor).degrees, drift.anchorHueDegrees) < 0.05f);
+      // One step of 255 for the uint8 round trip.
+      CHECK(std::abs(static_cast<int>(got.m_r) - static_cast<int>(want.m_r)) <= 1);
+      CHECK(std::abs(static_cast<int>(got.m_g) - static_cast<int>(want.m_g)) <= 1);
+      CHECK(std::abs(static_cast<int>(got.m_b) - static_cast<int>(want.m_b)) <= 1);
+    }
+  }
+
+
   // Beats every 0.5s with strengths cycling strong/weak, a slow loudness
   // swell, and a centroid sweep -- every input the color model reads moves.
   // Onset ticks are derived from time, so the 60Hz and 144Hz runs describe
@@ -178,21 +536,48 @@ namespace
 }
 
 
-TEST_CASE("Parity: audio PCM click track through AudioOrchestrator", "[Parity][Audio]")
+TEST_CASE("Parity: audio PCM click track through GraphRunner", "[Parity][Audio]")
 {
   // 120 BPM clicks over a quiet 220Hz bed; every other click carries a 3kHz
   // tone so the spectral centroid moves too. 4s.
-  Lcg noise(12345);
-  const long beatSamples = SampleRate / 2;
-  SequenceAudioInput input([&](long i){
-    float bed = 0.05f * std::sin(2.0f * Pi * 220.0f * wrappedSeconds(i));
-    long beat = i / beatSamples;
-    float bright = (beat % 2) ? 3000.0f : 0.0f;
-    return bed + click(i - beat * beatSamples - SampleRate / 10, noise, bright);
-  });
+  const MakeInput makeInput = [] {
+    auto noise = std::make_shared<Lcg>(12345);
+    const long beatSamples = SampleRate / 2;
+    return SequenceAudioInput([noise, beatSamples](long i){
+      float bed = 0.05f * std::sin(2.0f * Pi * 220.0f * wrappedSeconds(i));
+      long beat = i / beatSamples;
+      float bright = (beat % 2) ? 3000.0f : 0.0f;
+      return bed + click(i - beat * beatSamples - SampleRate / 10, *noise, bright);
+    });
+  };
 
-  auto recording = runPcmScenario("clicks", input, pinnedSettings(), 240);
-  check("audio_pcm_click_track", "48kHz mono, 220Hz bed + 120BPM noise clicks (alternate clicks + 3kHz), fixedAnchorHue 30, zones 1,2 active (2 gamma 0.5), 3 inactive, 240 ticks at 1/60s.", recording);
+  checkPcm("audio_pcm_click_track", "48kHz mono, 220Hz bed + 120BPM noise clicks (alternate clicks + 3kHz), fixedAnchorHue 30, zones 1,2 active (2 gamma 0.5), 3 inactive, 240 ticks at 1/60s.", makeInput, pinnedSettings(), 240);
+}
+
+
+TEST_CASE("Parity: audio PCM live Tuning edits mid-run", "[Parity][Audio]")
+{
+  // Pins the hot-edit path (rebuild + adoptStateFrom) through setConfig:
+  // a plain retune, a fixed-hue change (re-seeds both states), then clearing
+  // the hue (keeps the running anchor, so no random seed).
+  const MakeInput makeInput = [] {
+    auto noise = std::make_shared<Lcg>(4242);
+    const long beatSamples = SampleRate / 2;
+    return SequenceAudioInput([noise, beatSamples](long i){
+      float bed = 0.05f * std::sin(2.0f * Pi * 220.0f * wrappedSeconds(i));
+      long beat = i / beatSamples;
+      float bright = (beat % 2) ? 3000.0f : 0.0f;
+      return bed + click(i - beat * beatSamples - SampleRate / 10, *noise, bright);
+    });
+  };
+
+  const std::vector<SettingsEdit> edits = {
+    {60, [](AudioProcessing::AudioEffectSettings& s){ s.bounceSmoothTime = 0.15f; s.driftBaseRateDegPerSec = 30.0f; }},
+    {120, [](AudioProcessing::AudioEffectSettings& s){ s.fixedAnchorHue = 200.0f; }},
+    {180, [](AudioProcessing::AudioEffectSettings& s){ s.fixedAnchorHue.reset(); s.vibrancySaturation = 0.6f; }},
+  };
+
+  checkPcm("audio_pcm_live_edits", "Click track (seed 4242), fixedAnchorHue 30; tick 60 bounce 0.15s + drift 30deg/s, tick 120 hue 200 (re-seed), tick 180 hue cleared + S 0.6; 240 ticks at 1/60s.", makeInput, pinnedSettings(), 240, edits);
 }
 
 
@@ -200,30 +585,30 @@ TEST_CASE("Parity: audio PCM silence then loud bursts", "[Parity][Audio]")
 {
   // 1s of digital silence (aubio on an all-zero spectrum), then a loud
   // two-tone chord with irregularly spaced clicks. 3s.
-  Lcg noise(777);
-  const long onsets[] = {60000, 70000, 91000, 100000, 118000, 130000};
-  SequenceAudioInput input([&](long i){
-    if(i < SampleRate){
-      return 0.0f;
-    }
-    float t = wrappedSeconds(i);
-    float chord = 0.15f * (std::sin(2.0f * Pi * 330.0f * t) + std::sin(2.0f * Pi * 495.0f * t));
-    float clicks = 0.0f;
-    for(long onset : onsets){
-      clicks += click(i - onset, noise, 1500.0f);
-    }
-    return chord + clicks;
-  });
+  const MakeInput makeInput = [] {
+    auto noise = std::make_shared<Lcg>(777);
+    return SequenceAudioInput([noise](long i){
+      static const long onsets[] = {60000, 70000, 91000, 100000, 118000, 130000};
+      if(i < SampleRate){
+        return 0.0f;
+      }
+      float t = wrappedSeconds(i);
+      float chord = 0.15f * (std::sin(2.0f * Pi * 330.0f * t) + std::sin(2.0f * Pi * 495.0f * t));
+      float clicks = 0.0f;
+      for(long onset : onsets){
+        clicks += click(i - onset, *noise, 1500.0f);
+      }
+      return chord + clicks;
+    });
+  };
 
-  auto recording = runPcmScenario("silence-burst", input, pinnedSettings(), 180);
-  check("audio_pcm_silence_then_burst", "1s digital silence, then 330+495Hz chord with clicks at samples 60000/70000/91000/100000/118000/130000, fixedAnchorHue 30, 180 ticks at 1/60s.", recording);
+  checkPcm("audio_pcm_silence_then_burst", "1s digital silence, then 330+495Hz chord with clicks at samples 60000/70000/91000/100000/118000/130000, fixedAnchorHue 30, 180 ticks at 1/60s.", makeInput, pinnedSettings(), 180);
 }
 
 
 TEST_CASE("Parity: audio scripted features, beats at 60Hz", "[Parity][Audio]")
 {
-  auto recording = runFeatureScenario(beatScript(1.0f / 60.0f, 5.0f), pinnedSettings());
-  check("audio_features_beats_60hz", "Scripted features: onsets every 0.5s (strength 1/0.3/0.6/0.1), rms swell, centroid sweep; default settings, fixedAnchorHue 30; dt 1/60, 5s.", recording);
+  checkFeaturesBothPaths("audio_features_beats_60hz", "Scripted features: onsets every 0.5s (strength 1/0.3/0.6/0.1), rms swell, centroid sweep; default settings, fixedAnchorHue 30; dt 1/60, 5s.", beatScript(1.0f / 60.0f, 5.0f), pinnedSettings());
 }
 
 
@@ -231,8 +616,7 @@ TEST_CASE("Parity: audio scripted features, beats at 144Hz", "[Parity][Audio]")
 {
   // Same music as the 60Hz case at a different tick rate: drift/bounce are
   // time-based (1 - exp(-dt/tau)), so this pins dt handling.
-  auto recording = runFeatureScenario(beatScript(1.0f / 144.0f, 5.0f), pinnedSettings());
-  check("audio_features_beats_144hz", "Same script as audio_features_beats_60hz at dt 1/144, 5s.", recording);
+  checkFeaturesBothPaths("audio_features_beats_144hz", "Same script as audio_features_beats_60hz at dt 1/144, 5s.", beatScript(1.0f / 144.0f, 5.0f), pinnedSettings());
 }
 
 
@@ -245,14 +629,14 @@ TEST_CASE("Parity: audio scripted features, silence drift only", "[Parity][Audio
     features.spectralCentroid = 1500.0f;
     return features;
   }};
-  auto recording = runFeatureScenario(script, pinnedSettings());
-  check("audio_features_silence_drift", "Scripted silence: no onsets, rms 0, centroid 1500Hz constant; default settings, fixedAnchorHue 30; dt 1/60, 10s.", recording);
+  checkFeaturesBothPaths("audio_features_silence_drift", "Scripted silence: no onsets, rms 0, centroid 1500Hz constant; default settings, fixedAnchorHue 30; dt 1/60, 10s.", script, pinnedSettings());
 }
 
 
 TEST_CASE("Parity: audio scripted features, every setting off-default", "[Parity][Audio]")
 {
-  // Pins that each AudioEffectSettings field actually reaches the output.
+  // Pins that each AudioEffectSettings field actually reaches the output
+  // (through the graph: every ConfigData field reaches its node param).
   AudioProcessing::AudioEffectSettings settings;
   settings.fixedAnchorHue = 200.0f;
   settings.bounceSmoothTime = 0.2f;
@@ -266,6 +650,39 @@ TEST_CASE("Parity: audio scripted features, every setting off-default", "[Parity
   settings.centroidRangeHz = 500.0f;
   settings.brightnessSmoothTime = 0.1f;
 
-  auto recording = runFeatureScenario(beatScript(1.0f / 60.0f, 5.0f), settings);
-  check("audio_features_tuned_settings", "Beat script at dt 1/60, 5s, with every AudioEffectSettings field off-default (anchor 200, bounce 0.2s, dynamism 0.5, centroid strength 1 / range 500Hz, drift 20deg/s, S 0.7, V 0.8, refRms 0.3, floor 0.1, brightness 0.1s).", recording);
+  checkFeaturesBothPaths("audio_features_tuned_settings", "Beat script at dt 1/60, 5s, with every AudioEffectSettings field off-default (anchor 200, bounce 0.2s, dynamism 0.5, centroid strength 1 / range 500Hz, drift 20deg/s, S 0.7, V 0.8, refRms 0.3, floor 0.1, brightness 0.1s).", beatScript(1.0f / 60.0f, 5.0f), settings);
+}
+
+
+TEST_CASE("Decomposition: drift and bounce from Tier 2 primitives, beats at 60Hz", "[Parity][Audio][Decomposition]")
+{
+  checkDecomposedMatchesCompound(beatScript(DecompDt, 5.0f), pinnedSettings());
+}
+
+
+TEST_CASE("Decomposition: drift and bounce from Tier 2 primitives, silence drift only", "[Parity][Audio][Decomposition]")
+{
+  FeatureScript script{DecompDt, 600, [](float, int){
+    AudioFeatures features;
+    features.spectralCentroid = 1500.0f;
+    return features;
+  }};
+  checkDecomposedMatchesCompound(script, pinnedSettings());
+}
+
+
+TEST_CASE("Decomposition: drift and bounce from Tier 2 primitives, every setting off-default", "[Parity][Audio][Decomposition]")
+{
+  AudioProcessing::AudioEffectSettings settings;
+  settings.bounceSmoothTime = 0.2f;
+  settings.dynamismFloor = 0.5f;
+  settings.centroidStrength = 1.0f;
+  settings.driftBaseRateDegPerSec = 20.0f;
+  settings.vibrancySaturation = 0.7f;
+  settings.vibrancyValue = 0.8f;
+  settings.referenceRms = 0.3f;
+  settings.brightnessFloor = 0.1f;
+  settings.centroidRangeHz = 500.0f;
+  settings.brightnessSmoothTime = 0.1f;
+  checkDecomposedMatchesCompound(beatScript(DecompDt, 5.0f), settings);
 }

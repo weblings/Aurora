@@ -1,15 +1,34 @@
 #pragma once
 
+#include <algorithm>
+#include <atomic>
 #include <cctype>
+#include <chrono>
+#include <condition_variable>
+#include <memory>
+#include <mutex>
 #include <optional>
 #include <string>
+#include <thread>
 #include <unordered_map>
+#include <unordered_set>
 #include <utility>
 #include <vector>
 
 #include <httplib.h>
 
+#ifdef _WIN32
+#include <winsock2.h>
+#include <ws2tcpip.h>
+#else
+#include <arpa/inet.h>
+#include <netinet/in.h>
+#include <sys/socket.h>
+#include <unistd.h>
+#endif
+
 #include <Aurora/Network/Http/Server/HttpDataStructs.hpp>
+#include <Aurora/Network/Http/Server/Pairing.hpp>
 
 // The only file in this module that includes <httplib.h> -- keeps
 // cpp-httplib swappable behind HttpServer without touching any route
@@ -104,9 +123,8 @@ namespace Aurora::Network::Http::Server
     // names a different host than the request's own Host header.
     // Same-origin WebUI traffic matches by construction, including a WebUI
     // opened from another device (both sides carry the LAN host).
-    // Deliberately not a DNS-rebinding defense: a page whose URL already
-    // resolves at the daemon would match; that needs a Host allowlist and
-    // is tracked as future work in docs/planning/HomeAssistantOutput.md.
+    // Not a DNS-rebinding defense (a rebound page matches its own Host);
+    // the Host allowlist in _hostAllowed covers that.
     static std::string _lowered(std::string text)
     {
       for(char& c : text){
@@ -124,6 +142,82 @@ namespace Aurora::Network::Http::Server
       }
       auto colon = authority.find(':');
       return colon == std::string::npos ? authority : authority.substr(0, colon);
+    }
+
+
+    // Aurora-5ipy.4: DNS rebinding sends the victim's browser to an
+    // attacker hostname that resolves to this daemon, so Host carries a
+    // name we never served. A bare IP literal can't be that name, so admit
+    // IP literals, localhost, this machine's hostname and .local name, and
+    // the user's extra list. A missing Host (HTTP/1.0 tools) is not a browser.
+    static bool _isIpLiteral(const std::string& host)
+    {
+      if(host.empty()){
+        return false;
+      }
+      in_addr v4;
+      in6_addr v6;
+      return inet_pton(AF_INET, host.c_str(), &v4) == 1
+        || inet_pton(AF_INET6, host.c_str(), &v6) == 1;
+    }
+
+
+    static std::string _machineHostname()
+    {
+      char buffer[256] = {};
+      if(::gethostname(buffer, sizeof(buffer) - 1) != 0){
+        return "";
+      }
+      return _lowered(buffer);
+    }
+
+
+    static std::string _normalizedHost(std::string host)
+    {
+      host = _lowered(std::move(host));
+      while(!host.empty() && host.back() == '.'){
+        host.pop_back();
+      }
+      return host;
+    }
+
+
+    static bool _hostAllowed(const std::string& hostHeader, const std::unordered_set<std::string>& names)
+    {
+      std::string host = _normalizedHost(_hostPart(hostHeader));
+      if(host.empty()){
+        return false;
+      }
+      if(_isIpLiteral(host) || host == "localhost"){
+        return true;
+      }
+      constexpr const char suffix[] = ".localhost";
+      if(host.size() > sizeof(suffix) - 1
+        && host.compare(host.size() - (sizeof(suffix) - 1), std::string::npos, suffix) == 0){
+        return true;
+      }
+      return names.count(host) > 0;
+    }
+
+
+    static std::unordered_set<std::string> _allowedNames(const std::vector<std::string>& extraHosts)
+    {
+      std::unordered_set<std::string> names;
+      std::string machine = _normalizedHost(_machineHostname());
+      if(!machine.empty()){
+        names.insert(machine);
+        auto dot = machine.find('.');
+        std::string shortName = dot == std::string::npos ? machine : machine.substr(0, dot);
+        names.insert(shortName);
+        names.insert(shortName + ".local");
+      }
+      for(const std::string& extra : extraHosts){
+        std::string name = _normalizedHost(_hostPart(extra));
+        if(!name.empty()){
+          names.insert(name);
+        }
+      }
+      return names;
     }
 
 
@@ -165,36 +259,153 @@ namespace Aurora::Network::Http::Server
     }
 
 
-    static httplib::Server::Handler _wrapHandler(Handler handler, HttpMethod method)
+    static bool _methodOf(const std::string& name, HttpMethod& method)
     {
-      return [handler = std::move(handler), method](const httplib::Request& req, httplib::Response& res){
+      static const std::unordered_map<std::string, HttpMethod> table = {
+        {"GET", HttpMethod::Get},
+        {"HEAD", HttpMethod::Get},
+        {"POST", HttpMethod::Post},
+        {"PUT", HttpMethod::Put},
+        {"DELETE", HttpMethod::Delete},
+        {"PATCH", HttpMethod::Patch},
+      };
+      auto it = table.find(name);
+      if(it == table.end()){
+        return false;
+      }
+      method = it->second;
+      return true;
+    }
+
+
+    // Aurora-5ipy.5: unknown verbs (OPTIONS etc.) count as writes.
+    static AccessDecision _decide(const AccessGuard& guard, const httplib::Request& req)
+    {
+      AccessRequest access;
+      access.method = HttpMethod::Post;
+      _methodOf(req.method, access.method);
+      access.path = req.path;
+      access.remoteAddr = req.remote_addr;
+      access.authorization = req.get_header_value("Authorization");
+      access.cookie = req.get_header_value("Cookie");
+      return guard.decide(access);
+    }
+
+
+    static Request _makeRequest(const httplib::Request& req, HttpMethod method, const std::shared_ptr<AccessGuard>& guard)
+    {
+      Request r;
+
+      r.method = method;
+      r.body = req.body;
+      r.path = req.path;
+
+      if(guard){
+        AccessDecision decision = _decide(*guard, req);
+        r.remoteAddr = req.remote_addr;
+        r.local = decision.local;
+        r.scope = decision.scope;
+      }
+
+      for(const auto& [key, value] : req.path_params){
+        r.pathParams[key] = value;
+      }
+
+      for(const auto& [key, value] : req.params){
+        r.queryParams[key] = value;
+      }
+
+      return r;
+    }
+
+
+    static httplib::Server::Handler _wrapHandler(Handler handler, HttpMethod method, std::shared_ptr<AccessGuard> guard)
+    {
+      return [handler = std::move(handler), method, guard = std::move(guard)](const httplib::Request& req, httplib::Response& res){
         if(_crossOriginWrite(req, method)){
           res.status = 403;
           res.set_content("{\"succeeded\":false,\"error\":\"cross_origin_forbidden\"}", "application/json");
           return;
         }
 
-        Request r;
+        Request r = _makeRequest(req, method, guard);
         Response w;
-
-        r.method = method;
-        r.body = req.body;
-        r.path = req.path;
-
-        for(const auto& [key, value] : req.path_params){
-          r.pathParams[key] = value;
-        }
-
-        for(const auto& [key, value] : req.params){
-          r.queryParams[key] = value;
-        }
 
         handler(r, w);
 
         res.status = w.status;
+        for(const auto& [name, value] : w.headers){
+          res.set_header(name, value);
+        }
         res.set_content(w.body, w.contentType);
       };
     }
+
+
+    class SinkStream final : public EventStream
+    {
+    public:
+      SinkStream(httplib::DataSink& sink, const std::atomic<bool>& stopping):
+      m_sink(sink),
+      m_stopping(stopping)
+      {
+      }
+
+      bool open() const override
+      {
+        return m_ok && !m_stopping.load() && m_sink.is_writable();
+      }
+
+      bool write(const std::string& text) override
+      {
+        if(m_ok){
+          m_ok = m_sink.write(text.data(), text.size());
+        }
+        return m_ok;
+      }
+
+    private:
+      httplib::DataSink& m_sink;
+      const std::atomic<bool>& m_stopping;
+      bool m_ok{true};
+    };
+
+
+    // Holds the stream's slot from the 200 until cpp-httplib destroys the
+    // response, which is also when the worker is done with the connection.
+    void _serveStream(const StreamHandler& handler, const httplib::Request& req, httplib::Response& res, const std::shared_ptr<AccessGuard>& guard)
+    {
+      const size_t previous = m_openStreams.fetch_add(1);
+      if(previous >= m_maxStreams || m_stopping.load()){
+        _releaseStream();
+        res.status = 503;
+        res.set_content("{\"succeeded\":false,\"error\":\"too_many_streams\"}", "application/json");
+        return;
+      }
+
+      res.set_header("Cache-Control", "no-store");
+      res.set_chunked_content_provider(
+        "text/event-stream",
+        [this, handler, request = _makeRequest(req, HttpMethod::Get, guard)](size_t, httplib::DataSink& sink){
+          SinkStream stream(sink, m_stopping);
+          handler(request, stream);
+          sink.done();
+          return true;
+        },
+        [this](bool){ _releaseStream(); }
+      );
+    }
+
+
+    void _releaseStream()
+    {
+      {
+        std::lock_guard<std::mutex> lock(m_streamsMutex);
+        m_openStreams.fetch_sub(1);
+      }
+      m_streamsCv.notify_all();
+    }
+
 
   public:
     ~Impl()
@@ -205,12 +416,51 @@ namespace Aurora::Network::Http::Server
 
     Impl(
       const std::vector<Route>& routes,
+      const std::vector<StreamRoute>& streamRoutes,
+      size_t workerThreads,
+      size_t maxStreams,
       const std::optional<std::filesystem::path>& staticDir,
       const std::optional<std::unordered_map<std::string, std::string>>& embeddedFiles,
-      const std::vector<std::pair<std::string, std::unordered_map<std::string, std::string>>>& prefixedEmbeddedFiles
+      const std::vector<std::pair<std::string, std::unordered_map<std::string, std::string>>>& prefixedEmbeddedFiles,
+      const std::vector<std::string>& extraAllowedHosts,
+      const std::shared_ptr<AccessGuard>& accessGuard
     )
     {
       m_service.emplace();
+
+      // Explicit pool (cpp-httplib's own default is the same shape): every
+      // open stream pins one worker, so size it here rather than inherit it.
+      const size_t cores = std::thread::hardware_concurrency();
+      const size_t baseWorkers = workerThreads > 0 ? workerThreads : std::max<size_t>(8, cores > 1 ? cores - 1 : 1);
+      m_maxStreams = maxStreams > 0 ? maxStreams : std::max<size_t>(1, baseWorkers / 2);
+      m_service->new_task_queue = [baseWorkers]{
+        return new httplib::ThreadPool(baseWorkers, baseWorkers * 4);
+      };
+
+      // Runs before routing and the static mount, so no path is exempt.
+      // Host check first, then the pairing guard when one is set.
+      m_service->set_pre_routing_handler([names = _allowedNames(extraAllowedHosts), accessGuard](const httplib::Request& req, httplib::Response& res){
+        if(req.has_header("Host") && !_hostAllowed(req.get_header_value("Host"), names)){
+          res.status = 403;
+          res.set_content("{\"succeeded\":false,\"error\":\"host_forbidden\"}", "application/json");
+          return httplib::Server::HandlerResponse::Handled;
+        }
+        if(!accessGuard){
+          return httplib::Server::HandlerResponse::Unhandled;
+        }
+        AccessDecision decision = _decide(*accessGuard, req);
+        if(decision.result == AccessDecision::Result::Allow){
+          return httplib::Server::HandlerResponse::Unhandled;
+        }
+        const bool unauthorized = decision.result == AccessDecision::Result::Unauthorized;
+        res.status = unauthorized ? 401 : 403;
+        res.set_content(
+          unauthorized ? "{\"succeeded\":false,\"error\":\"pairing_required\"}"
+                       : "{\"succeeded\":false,\"error\":\"insufficient_scope\"}",
+          "application/json"
+        );
+        return httplib::Server::HandlerResponse::Handled;
+      });
 
       m_service->set_socket_options([](socket_t sock) {
         httplib::set_socket_opt(sock, SOL_SOCKET, SO_REUSEADDR, 1);
@@ -231,7 +481,7 @@ namespace Aurora::Network::Http::Server
       });
 
       for(const auto& route : routes){
-        auto wrapped = _wrapHandler(route.handler, route.method);
+        auto wrapped = _wrapHandler(route.handler, route.method, accessGuard);
         switch(route.method)
         {
           case HttpMethod::Get:
@@ -254,6 +504,12 @@ namespace Aurora::Network::Http::Server
             m_service->Patch(route.path, wrapped);
             break;
         }
+      }
+
+      for(const auto& route : streamRoutes){
+        m_service->Get(route.path, [this, handler = route.handler, accessGuard](const httplib::Request& req, httplib::Response& res){
+          _serveStream(handler, req, res, accessGuard);
+        });
       }
 
       // Prefixed maps go before the root fallback so its "/(.*)" can't
@@ -287,7 +543,14 @@ namespace Aurora::Network::Http::Server
         return false;
       }
 
+      // Streams watch m_stopping; wait them out so the server is not
+      // destroyed under a worker still inside a handler.
+      m_stopping.store(true);
       m_service->stop();
+      {
+        std::unique_lock<std::mutex> lock(m_streamsMutex);
+        m_streamsCv.wait_for(lock, std::chrono::seconds(5), [this]{ return m_openStreams.load() == 0; });
+      }
       m_service.reset();
 
       return true;
@@ -303,6 +566,12 @@ namespace Aurora::Network::Http::Server
     }
 
 
+    int bindToAnyPort(const std::string& boundAddress)
+    {
+      return m_service->bind_to_any_port(boundAddress);
+    }
+
+
     bool listen()
     {
       if(!m_service){
@@ -311,6 +580,12 @@ namespace Aurora::Network::Http::Server
 
       return m_service->listen_after_bind();
     }
+
+    std::atomic<bool> m_stopping{false};
+    std::atomic<size_t> m_openStreams{0};
+    size_t m_maxStreams{0};
+    std::mutex m_streamsMutex;
+    std::condition_variable m_streamsCv;
 
     std::optional<httplib::Server> m_service;
   };

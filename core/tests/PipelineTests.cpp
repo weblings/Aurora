@@ -7,18 +7,37 @@
 #include <algorithm>
 #include <atomic>
 #include <chrono>
+#include <condition_variable>
 #include <cstdlib>
 #include <functional>
 #include <future>
 #include <memory>
+#include <mutex>
 #include <stdexcept>
+#include <vector>
 #include <thread>
 
 #include <Aurora/Network/Http/Server/HttpServer.hpp>
+#include <Aurora/Runtime/ConfigApply.hpp>
 #include <Aurora/Runtime/ConfigStore.hpp>
+#include <Aurora/Runtime/Graph/AllNodes.hpp>
+#include <Aurora/Runtime/Graph/FrameNodes.hpp>
+#include <Aurora/Runtime/Graph/MathNodes.hpp>
+#include <Aurora/Runtime/Graph/BlendNodes.hpp>
+#include <Aurora/Runtime/Graph/SpatialNodes.hpp>
+#include <Aurora/Runtime/Graph/ColorNodes.hpp>
+#include <Aurora/Runtime/Graph/TimeNodes.hpp>
+#include <Aurora/Runtime/Graph/NodeRegistry.hpp>
+#include <Aurora/Runtime/Graph/VideoNodes.hpp>
+#include <Aurora/Runtime/GraphRoutes.hpp>
+#ifdef AURORA_RUNTIME_AUDIO_AVAILABLE
+#include <Aurora/Runtime/Graph/AudioNodes.hpp>
+#endif
 #include <Aurora/Runtime/Pipeline.hpp>
 #include <Aurora/Runtime/PipelineRoutes.hpp>
 #include <Aurora/Runtime/SettingsRoutes.hpp>
+
+#include "SseReader.hpp"
 
 using namespace Aurora::Contracts;
 using namespace Aurora::Input;
@@ -66,6 +85,9 @@ namespace
     std::vector<unsigned> widthHints;
     std::function<void()> onWidthHint;
 
+    // Runs inside every FakeVideoInput grab, i.e. on the tick, under the host lock.
+    std::function<void()> onGrab;
+
     bool has(const std::string& line) const
     {
       return std::find(lines.begin(), lines.end(), line) != lines.end();
@@ -99,6 +121,7 @@ namespace
 
     void grabFrameSubsample(ImageData& imageData) override
     {
+      if(m_events && m_events->onGrab){ m_events->onGrab(); }
       imageData.format = PixelFormat::RGB;
       imageData.imageMatrix = cv::Mat(2, 4, CV_8UC3, cv::Scalar(255, 0, 0));
     }
@@ -633,10 +656,11 @@ TEST_CASE("Monitors and reload routes answer from PipelineHost", "[PipelineRoute
   HttpServer server;
   registerMonitorsRoute(server, host);
   registerReloadRoute(server, host, registry, dir.path);
-  REQUIRE(server.bind("127.0.0.1", 18227));
+  const int port = server.bindToAnyPort("127.0.0.1");
+  REQUIRE(port > 0);
   std::thread serverThread([&](){ server.listen(); });
 
-  httplib::Client client("127.0.0.1", 18227);
+  httplib::Client client("127.0.0.1", port);
 
   // No pipeline yet: an empty list, not an error.
   auto empty = getWithRetry(client, "/api/monitors");
@@ -794,10 +818,11 @@ TEST_CASE("PUT /api/state pauses and resumes, idempotently (Aurora-3ddb)", "[Pip
 
   HttpServer server;
   registerStateRoute(server, host, registry, dir.path);
-  REQUIRE(server.bind("127.0.0.1", 18228));
+  const int port = server.bindToAnyPort("127.0.0.1");
+  REQUIRE(port > 0);
   std::thread serverThread([&](){ server.listen(); });
 
-  httplib::Client client("127.0.0.1", 18228);
+  httplib::Client client("127.0.0.1", port);
   auto put = [&](const std::string& body){ return client.Put("/api/state", body, "application/json"); };
 
   for(int i = 0; i < 2; ++i){
@@ -917,10 +942,11 @@ TEST_CASE("GET /api/state reports paused and the running pipeline's capabilities
 
   HttpServer server;
   registerStateRoute(server, host, registry, dir.path);
-  REQUIRE(server.bind("127.0.0.1", 18240));
+  const int port = server.bindToAnyPort("127.0.0.1");
+  REQUIRE(port > 0);
   std::thread serverThread([&](){ server.listen(); });
 
-  httplib::Client client("127.0.0.1", 18240);
+  httplib::Client client("127.0.0.1", port);
   auto state = [&](){
     auto result = getWithRetry(client, "/api/state");
     REQUIRE(result);
@@ -930,6 +956,8 @@ TEST_CASE("GET /api/state reports paused and the running pipeline's capabilities
 
   CHECK(state() == nlohmann::json{
     {"state", "idle"},
+    {"effect", nullptr},
+    {"source", {{"video", nullptr}, {"audio", nullptr}}},
     {"errors", nlohmann::json::array()},
     {"conditions", nlohmann::json::array()},
     {"paused", false},
@@ -937,6 +965,7 @@ TEST_CASE("GET /api/state reports paused and the running pipeline's capabilities
     {"usesVideoInput", false},
     {"usesAudioInput", false},
     {"samplesZones", false},
+    {"brightness", 1.0},
     {"audioDevicesUrl", "/api/test/audio-devices"}
   });
 
@@ -965,6 +994,73 @@ TEST_CASE("GET /api/state reports paused and the running pipeline's capabilities
 }
 
 
+TEST_CASE("GET /api/state reports effect and source, kept through pause (Aurora-5ipy.2)", "[PipelineRoutes]")
+{
+  using namespace Aurora::Network::Http::Server;
+
+  ScopedTempDir dir("state-get-source");
+  auto events = std::make_shared<Events>();
+  auto registry = makeRegistry(events);
+  PipelineOptions options;
+  options.describeAudioSink = [](Aurora::Input::IAudioInput&){ return std::string("resolved-sink"); };
+  PipelineHost host(nullptr, options);
+
+  HttpServer server;
+  registerStateRoute(server, host, registry, dir.path);
+  const int port = server.bindToAnyPort("127.0.0.1");
+  REQUIRE(port > 0);
+  std::thread serverThread([&](){ server.listen(); });
+
+  httplib::Client client("127.0.0.1", port);
+  auto state = [&](){
+    auto result = getWithRetry(client, "/api/state");
+    REQUIRE(result);
+    return nlohmann::json::parse(result->body);
+  };
+
+  std::string error;
+  REQUIRE(host.reload(registry, videoConfig(), dir.path, error));
+  auto video = state();
+  CHECK(video["effect"] == "builtin.video");
+  CHECK(video["source"] == nlohmann::json{
+    {"video", {{"input", "fake-video"}, {"monitor", nullptr}}},
+    {"audio", nullptr}
+  });
+
+  REQUIRE(host.pause());
+  CHECK(state()["effect"] == "builtin.video");
+  CHECK(state()["source"]["video"]["input"] == "fake-video");
+
+#ifdef AURORA_RUNTIME_AUDIO_AVAILABLE
+  REQUIRE(host.resume(registry, audioConfig(), dir.path, error));
+  auto audio = state();
+  CHECK(audio["effect"] == "builtin.audio");
+  CHECK(audio["source"]["video"].is_null());
+  // Running: the platform hook's resolved sink, still following the default.
+  CHECK(audio["source"]["audio"] == nlohmann::json{
+    {"input", "fake-audio"}, {"sink", "resolved-sink"}, {"auto", true}
+  });
+
+  auto pinned = audioConfig();
+  pinned.setAudioTargetSinkName("usb-sink");
+  REQUIRE(host.reload(registry, pinned, dir.path, error));
+  REQUIRE(host.pause());
+  // Paused: no live input to ask, so the configured target.
+  CHECK(state()["source"]["audio"] == nlohmann::json{
+    {"input", "fake-audio"}, {"sink", "usb-sink"}, {"auto", false}
+  });
+#endif
+
+  // Still paused here, so resume is what applies the empty Config.
+  REQUIRE(host.resume(registry, Config{}, dir.path, error));
+  CHECK(state()["effect"].is_null());
+
+  server.stop();
+  serverThread.join();
+  host.shutdown();
+}
+
+
 TEST_CASE("GET /api/state reports a null audioDevicesUrl when the build has none (Aurora-kea)", "[PipelineRoutes]")
 {
   using namespace Aurora::Network::Http::Server;
@@ -976,10 +1072,11 @@ TEST_CASE("GET /api/state reports a null audioDevicesUrl when the build has none
 
   HttpServer server;
   registerStateRoute(server, host, registry, dir.path);
-  REQUIRE(server.bind("127.0.0.1", 18241));
+  const int port = server.bindToAnyPort("127.0.0.1");
+  REQUIRE(port > 0);
   std::thread serverThread([&](){ server.listen(); });
 
-  httplib::Client client("127.0.0.1", 18241);
+  httplib::Client client("127.0.0.1", port);
   auto result = getWithRetry(client, "/api/state");
   REQUIRE(result);
   CHECK(nlohmann::json::parse(result->body)["audioDevicesUrl"].is_null());
@@ -1348,10 +1445,11 @@ TEST_CASE("PUT /api/state on a failed host: running:true retries, running:false 
 
   HttpServer server;
   registerStateRoute(server, host, registry, dir.path);
-  REQUIRE(server.bind("127.0.0.1", 18242));
+  const int port = server.bindToAnyPort("127.0.0.1");
+  REQUIRE(port > 0);
   std::thread serverThread([&](){ server.listen(); });
 
-  httplib::Client client("127.0.0.1", 18242);
+  httplib::Client client("127.0.0.1", port);
   auto put = [&](const std::string& body){ return client.Put("/api/state", body, "application/json"); };
   auto get = [&](){
     auto result = getWithRetry(client, "/api/state");
@@ -1413,10 +1511,11 @@ TEST_CASE("POST /api/state/dismiss removes a running host's held error by source
 
   HttpServer server;
   registerStateRoute(server, host, registry, dir.path);
-  REQUIRE(server.bind("127.0.0.1", 18244));
+  const int port = server.bindToAnyPort("127.0.0.1");
+  REQUIRE(port > 0);
   std::thread serverThread([&](){ server.listen(); });
 
-  httplib::Client client("127.0.0.1", 18244);
+  httplib::Client client("127.0.0.1", port);
   auto get = [&](){
     auto result = getWithRetry(client, "/api/state");
     REQUIRE(result);
@@ -1471,10 +1570,11 @@ TEST_CASE("PUT /api/state on an idle host: running:true is a no-op, running:fals
 
   HttpServer server;
   registerStateRoute(server, host, registry, dir.path);
-  REQUIRE(server.bind("127.0.0.1", 18243));
+  const int port = server.bindToAnyPort("127.0.0.1");
+  REQUIRE(port > 0);
   std::thread serverThread([&](){ server.listen(); });
 
-  httplib::Client client("127.0.0.1", 18243);
+  httplib::Client client("127.0.0.1", port);
   auto put = [&](const std::string& body){ return client.Put("/api/state", body, "application/json"); };
 
   auto run = put(R"({"running":true})");
@@ -1509,10 +1609,11 @@ TEST_CASE("PUT /api/zones answers 409 while paused and GET still lists zones (Au
     },
     [&host]{ return host.isPaused(); }
   );
-  REQUIRE(server.bind("127.0.0.1", 18229));
+  const int port = server.bindToAnyPort("127.0.0.1");
+  REQUIRE(port > 0);
   std::thread serverThread([&](){ server.listen(); });
 
-  httplib::Client client("127.0.0.1", 18229);
+  httplib::Client client("127.0.0.1", port);
   auto live = getWithRetry(client, "/api/zones");
   REQUIRE(live);
   auto liveJson = nlohmann::json::parse(live->body);
@@ -1533,7 +1634,7 @@ TEST_CASE("PUT /api/zones answers 409 while paused and GET still lists zones (Au
 }
 
 
-TEST_CASE("Concurrent settings PUTs run one at a time and none is lost (Aurora-d6i7)", "[SettingsRoutes]")
+TEST_CASE("Concurrent settings PUTs coalesce reloads and none is lost (Aurora-d6i7, Aurora-5ipy.8)", "[SettingsRoutes]")
 {
   using namespace Aurora::Network::Http::Server;
 
@@ -1542,18 +1643,24 @@ TEST_CASE("Concurrent settings PUTs run one at a time and none is lost (Aurora-d
   std::atomic<int> inFlight{0};
   std::atomic<int> maxInFlight{0};
   std::atomic<int> calls{0};
+  std::mutex seenMutex;
+  std::vector<int> seenRefreshRates;
 
   HttpServer server;
   registerSettingsRoutes(server, dir.path, [&]() -> std::string{
     int now = ++inFlight;
     int seen = maxInFlight.load();
     while(now > seen && !maxInFlight.compare_exchange_weak(seen, now)){}
+    int rate = ConfigStore(dir.path).load().refreshRate();
     std::this_thread::sleep_for(20ms); // a slow reload, the case that matters
     --inFlight;
     ++calls;
+    std::lock_guard<std::mutex> seenLock(seenMutex);
+    seenRefreshRates.push_back(rate);
     return {};
   });
-  REQUIRE(server.bind("127.0.0.1", 18228));
+  const int port = server.bindToAnyPort("127.0.0.1");
+  REQUIRE(port > 0);
   std::thread serverThread([&](){ server.listen(); });
 
   // Each PUT patches a different field, so a lost update shows as a field
@@ -1570,7 +1677,7 @@ TEST_CASE("Concurrent settings PUTs run one at a time and none is lost (Aurora-d
   };
 
   {
-    httplib::Client probe("127.0.0.1", 18228);
+    httplib::Client probe("127.0.0.1", port);
     REQUIRE(getWithRetry(probe, "/api/config"));
   }
 
@@ -1580,7 +1687,7 @@ TEST_CASE("Concurrent settings PUTs run one at a time and none is lost (Aurora-d
   std::vector<std::thread> clients;
   for(const auto& [field, value] : patches){
     clients.emplace_back([&, field = field, value = value]{
-      httplib::Client client("127.0.0.1", 18228);
+      httplib::Client client("127.0.0.1", port);
       auto response = client.Put("/api/config", nlohmann::json{{field, value}}.dump(), "application/json");
       if(response && response->status == 200){ ++succeeded; }
     });
@@ -1591,8 +1698,11 @@ TEST_CASE("Concurrent settings PUTs run one at a time and none is lost (Aurora-d
   serverThread.join();
 
   CHECK(succeeded == static_cast<int>(patches.size()));
-  CHECK(calls == static_cast<int>(patches.size()));
+  CHECK(calls >= 1);
+  CHECK(calls <= static_cast<int>(patches.size()));
   CHECK(maxInFlight == 1);
+  // The final reload ran after every write, so it saw the last config.
+  CHECK(seenRefreshRates.back() == 45);
 
   Config persisted = ConfigStore(dir.path).load();
   CHECK(persisted.refreshRate() == 45);
@@ -1603,6 +1713,76 @@ TEST_CASE("Concurrent settings PUTs run one at a time and none is lost (Aurora-d
   CHECK(persisted.audioReferenceRms() == Catch::Approx(0.6f));
   CHECK(persisted.audioBrightnessFloor() == Catch::Approx(0.5f));
   CHECK(persisted.audioCentroidStrength() == Catch::Approx(0.4f));
+}
+
+
+TEST_CASE("Settings PUTs behind a slow reload coalesce into one pending reload with the last config (Aurora-5ipy.8)", "[SettingsRoutes]")
+{
+  using namespace Aurora::Network::Http::Server;
+
+  ScopedTempDir dir("settings-coalesce");
+
+  std::mutex mutex;
+  std::condition_variable cv;
+  bool firstStarted = false;
+  bool releaseFirst = false;
+  std::vector<int> seen;
+
+  HttpServer server;
+  registerSettingsRoutes(server, dir.path, [&]() -> std::string{
+    int rate = ConfigStore(dir.path).load().refreshRate();
+    std::unique_lock<std::mutex> lock(mutex);
+    seen.push_back(rate);
+    if(seen.size() == 1){
+      firstStarted = true;
+      cv.notify_all();
+      cv.wait(lock, [&]{ return releaseFirst; });
+    }
+    return {};
+  });
+  const int port = server.bindToAnyPort("127.0.0.1");
+  REQUIRE(port > 0);
+  std::thread serverThread([&](){ server.listen(); });
+  {
+    httplib::Client probe("127.0.0.1", port);
+    REQUIRE(getWithRetry(probe, "/api/config"));
+  }
+
+  std::atomic<int> ok{0};
+  auto put = [&](int rate){
+    httplib::Client client("127.0.0.1", port);
+    auto response = client.Put("/api/config", nlohmann::json{{"refreshRate", rate}}.dump(), "application/json");
+    if(response && response->status == 200){ ++ok; }
+  };
+
+  std::thread first(put, 10);
+  {
+    std::unique_lock<std::mutex> lock(mutex);
+    REQUIRE(cv.wait_for(lock, 5s, [&]{ return firstStarted; }));
+  }
+
+  std::vector<std::thread> rest;
+  for(int rate : {20, 30, 40}){ rest.emplace_back(put, rate); }
+  // Let the three writes land and queue behind the blocked reload.
+  for(int i = 0; i < 200 && ConfigStore(dir.path).load().refreshRate() == 10; ++i){
+    std::this_thread::sleep_for(10ms);
+  }
+  std::this_thread::sleep_for(100ms);
+  {
+    std::lock_guard<std::mutex> lock(mutex);
+    releaseFirst = true;
+  }
+  cv.notify_all();
+
+  first.join();
+  for(auto& thread : rest){ thread.join(); }
+  server.stop();
+  serverThread.join();
+
+  CHECK(ok == 4);
+  REQUIRE(seen.size() == 2);
+  CHECK(seen[0] == 10);
+  CHECK(seen[1] == ConfigStore(dir.path).load().refreshRate());
 }
 
 
@@ -1664,6 +1844,25 @@ TEST_CASE("PipelineHost::applyConfig applies live-tunable video fields with no r
   CHECK(events->widthHints == std::vector<unsigned>{64, 96});        // capture told the new width
   CHECK(events->has("init out-a"));
   CHECK_FALSE(events->has("shutdown out-a replacement"));
+}
+
+
+TEST_CASE("PipelineHost::applyConfig applies brightness live in both modes with no reload (Aurora-5ipy.7)", "[PipelineHost]")
+{
+  ScopedTempDir dir("apply-brightness");
+  auto events = std::make_shared<Events>();
+  auto registry = makeRegistry(events);
+  PipelineHost host(nullptr, {});
+
+  std::string error;
+  REQUIRE(host.reload(registry, tunedVideoConfig(), dir.path, error));
+
+  Config next = tunedVideoConfig();
+  next.setBrightness(0.25f);
+  CHECK(host.applyConfig(next));
+  CHECK(initCount(*events) == 1);
+  CHECK_FALSE(events->has("shutdown out-a replacement"));
+  CHECK(planConfigChange(tunedVideoConfig(), next, /*audioMode*/ true) == ChangeAction::Hot);
 }
 
 
@@ -1917,10 +2116,11 @@ TEST_CASE("POST /api/dev/errors injects and removes generic host errors only whe
     ScopedDevErrorsEnv env(false);
     HttpServer server;
     registerDevErrorsRoute(server, host);
-    REQUIRE(server.bind("127.0.0.1", 18246));
+    const int port = server.bindToAnyPort("127.0.0.1");
+  REQUIRE(port > 0);
     std::thread serverThread([&](){ server.listen(); });
 
-    httplib::Client client("127.0.0.1", 18246);
+    httplib::Client client("127.0.0.1", port);
     auto res = client.Post("/api/dev/errors", R"({"source":"dev-1","message":"boom"})", "application/json");
     REQUIRE(res);
     CHECK(res->status == 404);
@@ -1943,10 +2143,11 @@ TEST_CASE("POST /api/dev/errors injects and removes generic host errors only whe
     HttpServer server;
     registerStateRoute(server, host, registry, dir.path);
     registerDevErrorsRoute(server, host);
-    REQUIRE(server.bind("127.0.0.1", 18246));
+    const int port = server.bindToAnyPort("127.0.0.1");
+  REQUIRE(port > 0);
     std::thread serverThread([&](){ server.listen(); });
 
-    httplib::Client client("127.0.0.1", 18246);
+    httplib::Client client("127.0.0.1", port);
     auto set = [&](const std::string& source, const std::string& message){
       return client.Post("/api/dev/errors", nlohmann::json{{"source", source}, {"message", message}}.dump(), "application/json");
     };
@@ -2001,10 +2202,11 @@ TEST_CASE("POST /api/dev/errors injects and removes generic host errors only whe
     ScopedDevErrorsEnv env(true);
     HttpServer server;
     registerDevErrorsRoute(server, host);
-    REQUIRE(server.bind("127.0.0.1", 18246));
+    const int port = server.bindToAnyPort("127.0.0.1");
+  REQUIRE(port > 0);
     std::thread serverThread([&](){ server.listen(); });
 
-    httplib::Client client("127.0.0.1", 18246);
+    httplib::Client client("127.0.0.1", port);
     auto res = client.Post("/api/dev/errors", R"({"source":"dev-1","message":"boom"})", "application/json");
     REQUIRE(res);
     CHECK(res->status == 409);
@@ -2046,5 +2248,341 @@ TEST_CASE("PipelineHost conditions hold in every host state and survive builds a
   CHECK_FALSE(host.clearCondition("other"));
   REQUIRE(host.conditions().size() == 1);
   CHECK(host.conditions()[0].source == "local_network");
+  host.shutdown();
+}
+
+
+TEST_CASE("registerAllNodes gates audio nodes on includeAudio (Aurora-id8j.11)", "[GraphRoutes]")
+{
+  Aurora::Runtime::Graph::NodeRegistry withAudio, withoutAudio;
+  Aurora::Runtime::Graph::registerAllNodes(withAudio, true);
+  Aurora::Runtime::Graph::registerAllNodes(withoutAudio, false);
+  CHECK(withoutAudio.find("audio.capture") == nullptr);
+  CHECK(withoutAudio.find("video.capture") != nullptr);
+#ifdef AURORA_RUNTIME_AUDIO_AVAILABLE
+  CHECK(withAudio.find("audio.capture") != nullptr);
+#endif
+}
+
+
+TEST_CASE("GET /api/nodes serves every registered node and rejects a forged Host (Aurora-id8j.2)", "[GraphRoutes]")
+{
+  using namespace Aurora::Network::Http::Server;
+
+  Aurora::Runtime::Graph::NodeRegistry expected;
+  Aurora::Runtime::Graph::registerAllNodes(expected, true);
+
+  HttpServer server;
+  registerNodesRoute(server);
+  const int port = server.bindToAnyPort("127.0.0.1");
+  REQUIRE(port > 0);
+  std::thread serverThread([&](){ server.listen(); });
+
+  httplib::Client client("127.0.0.1", port);
+  auto res = client.Get("/api/nodes");
+  REQUIRE(res);
+  CHECK(res->status == 200);
+
+  auto nodes = nlohmann::json::parse(res->body)["nodes"];
+  auto types = expected.types();
+  REQUIRE(nodes.size() == types.size());
+  for(size_t i = 0; i < types.size(); ++i){
+    const auto& node = nodes[i];
+    CHECK(node["type"] == types[i]);
+    for(const char* key : {"purpose", "useWhen", "example", "cost"}){
+      CHECK_FALSE(node[key].get<std::string>().empty());
+    }
+    CHECK(node["inputs"].is_array());
+    CHECK(node["outputs"].is_array());
+    CHECK(node["params"].size() == expected.find(types[i])->params.size());
+  }
+
+  // Spot-check the shapes an editor reads: a ported node, a float param
+  // with its schema, an enum's options.
+  auto find = [&](const std::string& type) -> const nlohmann::json& {
+    for(const auto& node : nodes){
+      if(node["type"] == type){ return node; }
+    }
+    FAIL("missing node type " << type);
+    return nodes[0];
+  };
+  const auto& send = find("output.send");
+  CHECK(send["inputs"][0].contains("required"));
+  CHECK_FALSE(send["outputs"].size() > 0);
+
+  bool sawFloat = false, sawEnum = false;
+  for(const auto& node : nodes){
+    for(const auto& param : node["params"]){
+      if(param["kind"] == "float"){
+        sawFloat = true;
+        for(const char* key : {"label", "min", "max", "step", "unit", "default", "allowsUnset"}){
+          CHECK(param.contains(key));
+        }
+      }
+      if(param["kind"] == "enum"){
+        sawEnum = true;
+        CHECK(param["options"].is_array());
+        // Per-output binding params have no static options.
+        if(!param["options"].empty()){
+          CHECK(std::find(param["options"].begin(), param["options"].end(), param["default"]) != param["options"].end());
+        }
+      }
+    }
+  }
+  CHECK(sawFloat);
+  CHECK(sawEnum);
+
+  auto forged = client.Get("/api/nodes", {{"Host", "evil.com"}});
+  REQUIRE(forged);
+  CHECK(forged->status == 403);
+
+  server.stop();
+  serverThread.join();
+}
+
+
+TEST_CASE("GET /api/graph serves the running graph, null when none runs (Aurora-id8j.2)", "[GraphRoutes]")
+{
+  using namespace Aurora::Network::Http::Server;
+
+  ScopedTempDir dir("graph-route");
+  auto events = std::make_shared<Events>();
+  auto registry = makeRegistry(events);
+  ConfigStore(dir.path).save(videoConfig());
+  PipelineHost host(Pipeline::build(registry, videoConfig(), dir.path, {}), {});
+
+  HttpServer server;
+  registerGraphRoute(server, host);
+  const int port = server.bindToAnyPort("127.0.0.1");
+  REQUIRE(port > 0);
+  std::thread serverThread([&](){ server.listen(); });
+
+  httplib::Client client("127.0.0.1", port);
+  auto res = client.Get("/api/graph");
+  REQUIRE(res);
+  CHECK(res->status == 200);
+  auto graph = nlohmann::json::parse(res->body)["graph"];
+  CHECK(graph["version"] == 1);
+  CHECK(graph["nodes"].is_array());
+  CHECK_FALSE(graph["nodes"].empty());
+  CHECK(graph["edges"].is_array());
+
+  auto forged = client.Get("/api/graph", {{"Host", "evil.com"}});
+  REQUIRE(forged);
+  CHECK(forged->status == 403);
+
+  REQUIRE(host.pause());
+  auto paused = client.Get("/api/graph");
+  REQUIRE(paused);
+  CHECK(paused->status == 200);
+  CHECK(nlohmann::json::parse(paused->body)["graph"].is_null());
+
+  host.shutdown();
+  server.stop();
+  serverThread.join();
+}
+
+
+namespace
+{
+  // The data payloads of every `event: <topic>` block in an SSE capture.
+  std::vector<nlohmann::json> eventsOf(const std::string& capture, const std::string& topic)
+  {
+    std::vector<nlohmann::json> found;
+    const std::string marker = "event: " + topic + "\ndata: ";
+    for(size_t at = capture.find(marker); at != std::string::npos; at = capture.find(marker, at + 1)){
+      const size_t start = at + marker.size();
+      const size_t end = capture.find("\n\n", start);
+      if(end == std::string::npos){ break; }
+      found.push_back(nlohmann::json::parse(capture.substr(start, end - start)));
+    }
+    return found;
+  }
+}
+
+
+TEST_CASE("GET /api/events opens with the current state and health, then pushes changes (Aurora-5ipy.3)", "[PipelineRoutes][Events]")
+{
+  using namespace Aurora::Network::Http::Server;
+
+  ScopedTempDir dir("events-route");
+  auto events = std::make_shared<Events>();
+  auto registry = makeRegistry(events);
+  ConfigStore(dir.path).save(videoConfig());
+  PipelineHost host(Pipeline::build(registry, videoConfig(), dir.path, {}), {});
+
+  HttpServer server;
+  registerStateRoute(server, host, registry, dir.path);
+  registerEventsRoute(server, host, dir.path, 100ms);
+  const int port = server.bindToAnyPort("127.0.0.1");
+  REQUIRE(port > 0);
+  std::thread serverThread([&](){ server.listen(); });
+
+  httplib::Client client("127.0.0.1", port);
+  SseReader reader(port, "/api/events");
+  REQUIRE(reader.status() == 200);
+  REQUIRE(reader.waitFor("event: health\n"));
+
+  auto polled = client.Get("/api/state");
+  REQUIRE(polled);
+  const auto firstState = eventsOf(reader.data(), "state");
+  REQUIRE(firstState.size() == 1);
+  CHECK(firstState[0] == nlohmann::json::parse(polled->body));
+  CHECK(firstState[0]["state"] == "running");
+
+  const auto firstHealth = eventsOf(reader.data(), "health");
+  REQUIRE(firstHealth.size() == 1);
+  CHECK(firstHealth[0] == nlohmann::json{{"errors", nlohmann::json::array()}, {"conditions", nlohmann::json::array()}});
+
+  REQUIRE(host.pause());
+  REQUIRE(reader.waitFor("\"state\":\"paused\""));
+  const auto afterPause = eventsOf(reader.data(), "state");
+  REQUIRE(afterPause.size() == 2);
+  CHECK(afterPause[1]["paused"] == true);
+
+  host.setCondition("test", "something is off");
+  // The state event lands first, so wait for the health one by count.
+  std::vector<nlohmann::json> health;
+  for(int attempt = 0; attempt < 100 && health.size() < 2; ++attempt){
+    std::this_thread::sleep_for(20ms);
+    health = eventsOf(reader.data(), "health");
+  }
+  REQUIRE(health.size() == 2);
+  CHECK(health[1]["conditions"][0]["source"] == "test");
+
+  // The heartbeat keeps an idle stream writing so a dead peer is noticed.
+  CHECK(reader.waitFor(": ping\n\n"));
+
+  host.shutdown();
+  server.stop();
+  serverThread.join();
+}
+
+
+TEST_CASE("GET /api/events honors the topics filter and ignores unknown topics (Aurora-5ipy.3)", "[PipelineRoutes][Events]")
+{
+  using namespace Aurora::Network::Http::Server;
+
+  ScopedTempDir dir("events-topics");
+  auto events = std::make_shared<Events>();
+  auto registry = makeRegistry(events);
+  ConfigStore(dir.path).save(videoConfig());
+  PipelineHost host(Pipeline::build(registry, videoConfig(), dir.path, {}), {});
+
+  HttpServer server;
+  registerEventsRoute(server, host, dir.path, 100ms);
+  const int port = server.bindToAnyPort("127.0.0.1");
+  REQUIRE(port > 0);
+  std::thread serverThread([&](){ server.listen(); });
+
+  SseReader healthOnly(port, "/api/events?topics=health,nonsense");
+  REQUIRE(healthOnly.waitFor("event: health\n"));
+  host.setCondition("test", "visible");
+  REQUIRE(healthOnly.waitFor("visible"));
+  CHECK(healthOnly.data().find("event: state") == std::string::npos);
+
+  host.shutdown();
+  server.stop();
+  serverThread.join();
+}
+
+
+TEST_CASE("GET /api/events streams do not slow other routes under a tick storm (Aurora-5ipy.3)", "[PipelineRoutes][Events]")
+{
+  using namespace Aurora::Network::Http::Server;
+
+  ScopedTempDir dir("events-latency");
+  auto events = std::make_shared<Events>();
+  auto registry = makeRegistry(events);
+  ConfigStore(dir.path).save(videoConfig());
+  PipelineHost host(Pipeline::build(registry, videoConfig(), dir.path, {}), {});
+
+  HttpServer server;
+  registerStateRoute(server, host, registry, dir.path);
+  registerEventsRoute(server, host, dir.path, 100ms);
+  const int port = server.bindToAnyPort("127.0.0.1");
+  REQUIRE(port > 0);
+  std::thread serverThread([&](){ server.listen(); });
+
+  std::vector<std::unique_ptr<SseReader>> readers;
+  for(int i = 0; i < 3; ++i){
+    readers.push_back(std::make_unique<SseReader>(port, "/api/events"));
+    REQUIRE(readers.back()->waitFor("event: state\n"));
+  }
+
+  // Back-to-back ticks, as a refresh rate far above what the host can serve.
+  std::atomic<bool> ticking{true};
+  std::thread tickThread([&](){ while(ticking.load()){ host.tick(); } });
+
+  httplib::Client client("127.0.0.1", port);
+  std::chrono::milliseconds slowest{0};
+  for(int i = 0; i < 20; ++i){
+    const auto started = std::chrono::steady_clock::now();
+    auto polled = client.Get("/api/state");
+    slowest = std::max(slowest, std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - started));
+    REQUIRE(polled);
+    CHECK(polled->status == 200);
+  }
+  CHECK(slowest < 500ms);
+
+  ticking.store(false);
+  tickThread.join();
+  host.shutdown();
+  server.stop();
+  serverThread.join();
+}
+
+
+TEST_CASE("nextTickTime keeps the interval on time and forces a yield on overrun (Aurora-cgr)", "[TickClock]")
+{
+  using Clock = std::chrono::steady_clock;
+  const Clock::time_point start{};
+
+  CHECK(MinTickYield >= 1ms);
+
+  // On time: wakes one interval after the tick started.
+  CHECK(nextTickTime(start, 1.0 / 60, start + 2ms) == start + std::chrono::duration_cast<Clock::duration>(std::chrono::duration<double>(1.0 / 60)));
+
+  // Overran the interval, or a rate far above what the host serves: still sleeps the minimum.
+  CHECK(nextTickTime(start, 1.0 / 60, start + 30ms) >= start + 31ms);
+  CHECK(nextTickTime(start, 1.0 / 1000, start + 1500us) >= start + 2500us);
+  CHECK(nextTickTime(start, 0.0, start + 5ms) >= start + 6ms);
+}
+
+
+TEST_CASE("A tick loop at an extreme rate leaves other host calls inside a latency budget (Aurora-cgr)", "[PipelineHost][TickClock]")
+{
+  ScopedTempDir dir("tick-starvation");
+  auto events = std::make_shared<Events>();
+  auto registry = makeRegistry(events);
+  ConfigStore(dir.path).save(videoConfig());
+  PipelineHost host(Pipeline::build(registry, videoConfig(), dir.path, {}), {});
+
+  // A grab that costs 1 ms, as on hardware, and the app loop with a zero
+  // interval: every tick overruns and re-enters at once.
+  events->onGrab = []{
+    const auto until = std::chrono::steady_clock::now() + 1ms;
+    while(std::chrono::steady_clock::now() < until){}
+  };
+  std::atomic<bool> ticking{true};
+  std::thread tickThread([&](){
+    while(ticking.load()){
+      const auto tickStart = std::chrono::steady_clock::now();
+      const double interval = host.tick() * 0.0;
+      std::this_thread::sleep_until(nextTickTime(tickStart, interval, std::chrono::steady_clock::now()));
+    }
+  });
+
+  std::chrono::milliseconds slowest{0};
+  for(int i = 0; i < 50; ++i){
+    const auto started = std::chrono::steady_clock::now();
+    host.listMonitors();
+    host.listZones();
+    slowest = std::max(slowest, std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - started));
+  }
+  CHECK(slowest < 250ms);
+
+  ticking.store(false);
+  tickThread.join();
   host.shutdown();
 }

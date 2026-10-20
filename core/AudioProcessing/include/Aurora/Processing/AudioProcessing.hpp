@@ -46,7 +46,7 @@ namespace Aurora::Processing
     };
 
     // Persistent state for palette drift, owned by whoever drives the tick
-    // loop (AudioOrchestrator) -- updateDrift is pure given this state, not
+    // loop (GraphRunner) -- updateDrift is pure given this state, not
     // global/static, so it's independently testable with literal values.
     struct DriftState
     {
@@ -59,7 +59,8 @@ namespace Aurora::Processing
     struct BounceState
     {
       float currentHueDegrees = 0.0f; // the actually-displayed position
-      float targetHueDegrees = 0.0f;  // where currentHueDegrees is damping toward
+      float targetHueDegrees = 0.0f;  // where currentHueDegrees is damping toward (anchor + offset)
+      float offsetDegrees = 0.0f;     // accumulated onset swing, relative to the live drift anchor
       float smoothedBrightnessFactor = 0.0f; // damped separately from hue, see brightnessSmoothTime
       bool initialized = false;
     };
@@ -94,8 +95,8 @@ namespace Aurora::Processing
 
     // Fast process: continuous exponential damping (RockyRoad's
     // shortest-arc formula, see AudioAnalysis.md) toward a target that
-    // advances -- in bounce's fixed positive direction, from wherever
-    // current already is -- by a fraction of 180 degrees on each detected
+    // follows the live drift anchor plus an offset that advances -- in
+    // bounce's fixed positive direction -- by a fraction of 180 degrees on each detected
     // onset, scaled by that onset's strength with a dynamism floor so even
     // the weakest beat still moves it. Returns the actual color to send,
     // combining the current hue with RMS-scaled brightness (gated by a

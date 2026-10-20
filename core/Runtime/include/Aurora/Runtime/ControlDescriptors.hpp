@@ -29,6 +29,11 @@ namespace Aurora::Runtime
   using ControlDescriptor = Aurora::Contracts::ControlDescriptor;
 
 
+  // A float's shortest decimal form widened to double, so 0.01f serializes
+  // as 0.01 rather than 0.009999999776482582.
+  double shortestDecimal(float value);
+
+
   // Merges every contributor's descriptors into one frontend payload.
   // Pure logic, no I/O: collisions are recorded (not logged) so the app
   // shell can emit them on its own diagnostic channel. Later

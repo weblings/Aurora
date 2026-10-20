@@ -1,0 +1,359 @@
+// G2c Tier 1 frame nodes (Aurora-ra4o.6): per-node tests through the Graph.
+// Wraps existing functions unchanged: Smoother::smooth and IOutput::send.
+// frame.broadcast (composeAudioFrame) is audio-gated, tested in AudioNodesTests.
+#include <catch2/catch_test_macros.hpp>
+
+#include <memory>
+#include <string>
+#include <unordered_map>
+#include <vector>
+
+#include <Aurora/Output/IOutput.hpp>
+#include <Aurora/Runtime/Graph/FrameNodes.hpp>
+#include <Aurora/Runtime/Graph/Graph.hpp>
+#include <Aurora/Runtime/Graph/GraphLoader.hpp>
+#include <Aurora/Runtime/Graph/NodeRegistry.hpp>
+#include <Aurora/Runtime/Graph/VideoNodes.hpp>
+#include <Aurora/Runtime/Smoother.hpp>
+
+using namespace Aurora::Contracts;
+using namespace Aurora::Output;
+using namespace Aurora::Runtime;
+using namespace Aurora::Runtime::Graph;
+
+namespace
+{
+  // Test-only Frame source: the ungated frame nodes have no ungated producer.
+  struct SourceState
+  {
+    Frame frame{};
+    bool present{true};
+  };
+  SourceState g_source;
+
+  class TestFrameSource : public INode
+  {
+  public:
+    const std::vector<PortDecl>& inputPorts() const override { return m_in; }
+    const std::vector<PortDecl>& outputPorts() const override { return m_out; }
+
+    void evaluate(
+      const EvalContext&,
+      float,
+      std::unordered_map<std::string, GraphValue>& outputs) override
+    {
+      if(g_source.present){
+        outputs.emplace("frame", g_source.frame);
+      } else {
+        outputs.emplace("frame", Absent{});
+      }
+    }
+
+  private:
+    std::vector<PortDecl> m_in{};
+    std::vector<PortDecl> m_out{{"frame", PortType::Frame, false}};
+  };
+
+  class FakeOutput : public IOutput
+  {
+  public:
+    explicit FakeOutput(std::string outputName)
+    : m_name(std::move(outputName))
+    {}
+
+    const std::string& name() const override { return m_name; }
+    void init() override {}
+    bool isConnected() const override { return true; }
+    void shutdown(bool) override {}
+    std::vector<uint8_t> zoneIds() const override { return {1}; }
+    void send(const Frame& frame) override { sent.push_back(frame); }
+
+    std::vector<Frame> sent{};
+
+  private:
+    std::string m_name;
+  };
+
+  class FakeHost : public IGraphHost
+  {
+  public:
+    IOutput* output(std::string_view name) override
+    {
+      auto it = outputs.find(std::string(name));
+      return it != outputs.end() ? it->second : nullptr;
+    }
+
+    std::unordered_map<std::string, IOutput*> outputs{};
+  };
+
+  NodeRegistry makeFrameRegistry()
+  {
+    NodeRegistry registry;
+    registerFrameNodes(registry);
+    registry.registerType(
+      "test.frame",
+      NodeTypeInfo{
+        .meta = {.purpose = "test", .useWhen = "test", .example = "{}", .cost = "cheap"},
+        .inputs = {},
+        .outputs = {{"frame", PortType::Frame, false}},
+        .params = {},
+        .factory = [] { return std::make_unique<TestFrameSource>(); },
+      });
+    return registry;
+  }
+
+  Aurora::Runtime::Graph::Graph requireGraph(const std::string& json, NodeRegistry& registry)
+  {
+    LoadResult result = loadGraphFromString(json, registry);
+    REQUIRE(result.ok);
+    return std::move(result.graph);
+  }
+
+  const char* kSmoothSend = R"({"version": 1, "nodes": [
+    {"id": "src", "type": "test.frame", "params": {}},
+    {"id": "ease", "type": "frame.smooth", "params": {"output": "hue", "smoothing": 0.5}},
+    {"id": "send", "type": "output.send", "params": {"output": "hue"}}
+  ], "edges": [["src.frame", "ease.frame"], ["ease.frame", "send.frame"]]})";
+} // namespace
+
+TEST_CASE("frame node types are registered", "[FrameNodes]")
+{
+  NodeRegistry registry = makeFrameRegistry();
+  CHECK(registry.find("frame.smooth") != nullptr);
+  CHECK(registry.find("frame.gain") != nullptr);
+  CHECK(registry.find("output.send") != nullptr);
+}
+
+
+TEST_CASE("frame.gain scales colors, keeps ids and gamma, and is exact at 1 (Aurora-5ipy.7)", "[FrameNodes]")
+{
+  NodeRegistry registry = makeFrameRegistry();
+  FakeOutput hue("hue");
+  FakeHost host;
+  host.outputs = {{"hue", &hue}};
+  g_source = {{{1, Color(200, 100, 50), 0.4f}, {2, Color(255, 255, 255)}}, true};
+
+  auto run = [&](const char* gain){
+    hue.sent.clear();
+    std::string doc = std::string(R"({"version": 1, "nodes": [
+      {"id": "src", "type": "test.frame", "params": {}},
+      {"id": "dim", "type": "frame.gain", "params": {"gain": )") + gain + R"(}},
+      {"id": "send", "type": "output.send", "params": {"output": "hue"}}
+    ], "edges": [["src.frame", "dim.frame"], ["dim.frame", "send.frame"]]})";
+    Aurora::Runtime::Graph::Graph graph = requireGraph(doc, registry);
+    graph.tick(1.f / 60.f, &host);
+    REQUIRE(hue.sent.size() == 1);
+    return hue.sent[0];
+  };
+
+  Frame half = run("0.5");
+  CHECK(half[0].id == 1);
+  CHECK(half[0].gamma == 0.4f);
+  CHECK(half[0].color == Color(100, 50, 25));
+  CHECK(half[1].color == Color(128, 128, 128));
+
+  CHECK(run("0")[1].color == Color(0, 0, 0));
+  CHECK(run("1")[0].color == Color(200, 100, 50)); // untouched at full brightness
+}
+
+TEST_CASE("frame.floor policies on a credits sequence and gain 0 (Aurora-6v36)", "[FrameNodes]")
+{
+  NodeRegistry registry = makeFrameRegistry();
+  FakeOutput hue("hue");
+  FakeHost host;
+  host.outputs = {{"hue", &hue}};
+
+  auto makeGraph = [&](const char* policy){
+    std::string doc = std::string(R"({"version": 1, "nodes": [
+      {"id": "src", "type": "test.frame", "params": {}},
+      {"id": "dim", "type": "frame.gain", "params": {"gain": 1}},
+      {"id": "keep", "type": "frame.floor", "params": {"policy": ")") + policy +
+      R"(", "floor": 0.1, "holdSeconds": 1}},
+      {"id": "send", "type": "output.send", "params": {"output": "hue"}}
+    ], "edges": [["src.frame", "dim.frame"], ["dim.frame", "keep.frame"], ["keep.frame", "send.frame"]]})";
+    return requireGraph(doc, registry);
+  };
+  // Fake clock: 0.5 s per tick. Credits: orange text step, then black frames.
+  auto run = [&](const char* policy, const std::vector<Color>& colors){
+    hue.sent.clear();
+    Aurora::Runtime::Graph::Graph graph = makeGraph(policy);
+    for(const Color& color : colors){
+      g_source = {{{1, color, 0.4f}}, true};
+      graph.tick(0.5f, &host);
+    }
+    std::vector<Color> out;
+    for(const Frame& frame : hue.sent){ out.push_back(frame[0].color); }
+    return out;
+  };
+  const Color orange(200, 100, 0);
+  const Color black(0, 0, 0);
+  const std::vector<Color> credits{orange, black, black, black, orange, Color(1, 0, 0)};
+
+  CHECK(run("off", credits) == credits); // byte-identical, gamma and ids too
+  CHECK(hue.sent[0][0].gamma == 0.4f);
+
+  // Floor 0.1 -> 26 (25.5 rounds up); hue (255, 128, 0) is kept.
+  const Color held(26, 13, 0);
+  CHECK(run("hold", credits) == std::vector<Color>{orange, held, held, held, orange, Color(26, 0, 0)});
+
+  // Black for >= 1 s switches off; a non-black frame resets the timer.
+  CHECK(run("switchOff", credits) == std::vector<Color>{orange, held, black, black, orange, Color(26, 0, 0)});
+
+  // Gain 0 is exact black, so it follows the same rule as a black scene.
+  g_source = {{{1, orange}}, true};
+  std::string zeroDoc = R"({"version": 1, "nodes": [
+    {"id": "src", "type": "test.frame", "params": {}},
+    {"id": "dim", "type": "frame.gain", "params": {"gain": 0}},
+    {"id": "keep", "type": "frame.floor", "params": {"policy": "hold", "floor": 0.1}},
+    {"id": "send", "type": "output.send", "params": {"output": "hue"}}
+  ], "edges": [["src.frame", "dim.frame"], ["dim.frame", "keep.frame"], ["keep.frame", "send.frame"]]})";
+  hue.sent.clear();
+  Aurora::Runtime::Graph::Graph zero = requireGraph(zeroDoc, registry);
+  zero.tick(0.5f, &host);
+  REQUIRE(hue.sent.size() == 1);
+  CHECK(hue.sent[0][0].color == Color(26, 26, 26)); // no hue seen yet: gray floor
+}
+
+TEST_CASE("loader rejects two output.send nodes bound to one output (Aurora-cwos)", "[FrameNodes]")
+{
+  NodeRegistry registry = makeFrameRegistry();
+  registerVideoNodes(registry);
+  LoadOptions options;
+  options.knownOutputs = {"hue"};
+  auto result = loadGraphFromString(R"({
+    "version": 1,
+    "nodes": [
+      {"id": "cap", "type": "video.capture"},
+      {"id": "z1", "type": "zones.sample", "params": {"output": "hue"}},
+      {"id": "z2", "type": "zones.sample", "params": {"output": "hue"}},
+      {"id": "s1", "type": "output.send", "params": {"output": "hue"}},
+      {"id": "s2", "type": "output.send", "params": {"output": "hue"}}
+    ],
+    "edges": [
+      ["cap.image", "z1.image"], ["cap.image", "z2.image"],
+      ["z1.frame", "s1.frame"], ["z2.frame", "s2.frame"]
+    ]
+  })", registry, options);
+  CHECK_FALSE(result.ok);
+  CHECK(result.error.find("both send to it") != std::string::npos);
+}
+
+
+TEST_CASE("frame.smooth matches Smoother::smooth tick for tick", "[FrameNodes]")
+{
+  NodeRegistry registry = makeFrameRegistry();
+  Aurora::Runtime::Graph::Graph graph = requireGraph(
+    R"({"version": 1, "nodes": [
+      {"id": "src", "type": "test.frame", "params": {}},
+      {"id": "ease", "type": "frame.smooth", "params": {"output": "hue", "smoothing": 0.5}}
+    ], "edges": [["src.frame", "ease.frame"]]})",
+    registry);
+
+  Smoother reference;
+  const std::vector<Frame> inputs{
+    {{1, Color(0, 0, 0), 0.6f}, {2, Color(10, 20, 30)}},
+    {{1, Color(255, 255, 255), 0.6f}, {2, Color(200, 100, 50)}},
+    {{1, Color(100, 0, 200), 0.6f}, {2, Color(0, 0, 0)}},
+  };
+  for(const Frame& input : inputs){
+    g_source.frame = input;
+    graph.tick(1.f / 60.f);
+    Frame expected = reference.smooth("hue", input, 0.5f);
+
+    const GraphValue* value = graph.portValue("ease", "frame");
+    REQUIRE(value != nullptr);
+    const Frame* actual = std::get_if<Frame>(value);
+    REQUIRE(actual != nullptr);
+    REQUIRE(actual->size() == expected.size());
+    for(std::size_t i = 0; i < expected.size(); i++){
+      CHECK((*actual)[i].id == expected[i].id);
+      CHECK((*actual)[i].color == expected[i].color);
+      CHECK((*actual)[i].gamma == expected[i].gamma);
+    }
+  }
+}
+
+TEST_CASE("frame.smooth without an output param fails the node", "[FrameNodes]")
+{
+  NodeRegistry registry = makeFrameRegistry();
+  Aurora::Runtime::Graph::Graph graph = requireGraph(
+    R"({"version": 1, "nodes": [
+      {"id": "src", "type": "test.frame", "params": {}},
+      {"id": "ease", "type": "frame.smooth", "params": {}}
+    ], "edges": [["src.frame", "ease.frame"]]})",
+    registry);
+
+  g_source = {{{1, Color(1, 2, 3)}}, true};
+  graph.tick(1.f / 60.f);
+  const GraphValue* value = graph.portValue("ease", "frame");
+  REQUIRE(value != nullptr);
+  const GraphError* err = asError(*value);
+  REQUIRE(err != nullptr);
+  CHECK(err->nodeId == "ease");
+}
+
+TEST_CASE("output.send delivers the smoothed frame to the named output", "[FrameNodes]")
+{
+  NodeRegistry registry = makeFrameRegistry();
+  Aurora::Runtime::Graph::Graph graph = requireGraph(kSmoothSend, registry);
+
+  FakeOutput hue("hue");
+  FakeOutput other("other");
+  FakeHost host;
+  host.outputs = {{"hue", &hue}, {"other", &other}};
+
+  g_source = {{{1, Color(0, 0, 0)}}, true};
+  graph.tick(1.f / 60.f, &host);
+  g_source = {{{1, Color(255, 255, 255)}}, true};
+  graph.tick(1.f / 60.f, &host);
+
+  REQUIRE(hue.sent.size() == 2);
+  CHECK(other.sent.empty());
+  CHECK(hue.sent[0][0].color == Color(0, 0, 0)); // first tick is never smoothed
+  Smoother reference;
+  reference.smooth("hue", {{1, Color(0, 0, 0)}}, 0.5f);
+  CHECK(hue.sent[1][0].color == reference.smooth("hue", {{1, Color(255, 255, 255)}}, 0.5f)[0].color);
+}
+
+TEST_CASE("output.send sends nothing when the frame is Absent", "[FrameNodes]")
+{
+  NodeRegistry registry = makeFrameRegistry();
+  Aurora::Runtime::Graph::Graph graph = requireGraph(kSmoothSend, registry);
+
+  FakeOutput hue("hue");
+  FakeHost host;
+  host.outputs = {{"hue", &hue}};
+
+  g_source = {{{1, Color(9, 9, 9)}}, false};
+  graph.tick(1.f / 60.f, &host);
+  CHECK(hue.sent.empty());
+}
+
+TEST_CASE("output.send fails on an unknown output or a missing host", "[FrameNodes]")
+{
+  NodeRegistry registry = makeFrameRegistry();
+  Aurora::Runtime::Graph::Graph graph = requireGraph(
+    R"({"version": 1, "nodes": [
+      {"id": "src", "type": "test.frame", "params": {}},
+      {"id": "send", "type": "output.send", "params": {"output": "ghost"}}
+    ], "edges": [["src.frame", "send.frame"]]})",
+    registry);
+  g_source = {{{1, Color(1, 1, 1)}}, true};
+
+  // Sinks have no port to read an error from: check the tick survives and
+  // nothing reaches the registered (different) output.
+  FakeOutput hue("hue");
+  FakeHost host;
+  host.outputs = {{"hue", &hue}};
+  graph.tick(1.f / 60.f, &host);
+  CHECK(hue.sent.empty());
+
+  Aurora::Runtime::Graph::Graph noHost = requireGraph(
+    R"({"version": 1, "nodes": [
+      {"id": "src", "type": "test.frame", "params": {}},
+      {"id": "send", "type": "output.send", "params": {"output": "hue"}}
+    ], "edges": [["src.frame", "send.frame"]]})",
+    registry);
+  noHost.tick(1.f / 60.f, nullptr);
+  CHECK(hue.sent.empty());
+}

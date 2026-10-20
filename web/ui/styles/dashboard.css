@@ -204,3 +204,41 @@
   color: var(--aurora-text-secondary);
   font-size: 13px;
 }
+
+/* Paired devices section (Aurora-5ipy.6): one row per device, name and
+   dates left, Revoke right. Rows wrap under each other at phone width. */
+.paired-device-list {
+  list-style: none;
+  margin: var(--aurora-space-4) 0 0;
+  padding: 0;
+}
+
+.paired-device-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--aurora-space-3);
+  padding: var(--aurora-space-3) 0;
+  border-top: 1px solid var(--aurora-border);
+}
+
+.paired-device-text {
+  min-width: 0;
+}
+
+.paired-device-name {
+  margin: 0;
+  font-size: 13px;
+  color: var(--aurora-text-primary);
+  overflow-wrap: anywhere;
+}
+
+.paired-device-meta {
+  margin: var(--aurora-space-1) 0 0;
+  font-size: 12px;
+  color: var(--aurora-text-secondary);
+}
+
+.paired-device-revoke {
+  flex-shrink: 0;
+}

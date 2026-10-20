@@ -57,6 +57,13 @@ namespace
   };
 
 
+  class ZeroOffOutput : public FakeOutput
+  {
+  public:
+    bool zeroBrightnessMeansOff() const override { return true; }
+  };
+
+
   bool contains(const std::vector<std::string>& names, const std::string& target)
   {
     return std::find(names.begin(), names.end(), target) != names.end();
@@ -116,6 +123,17 @@ TEST_CASE("Registry lists every registered name", "[Registry]")
   auto outputNames = registry.outputNames();
   CHECK(outputNames.size() == 1);
   CHECK(contains(outputNames, "c"));
+}
+
+
+TEST_CASE("Registry lists only outputs where brightness 0 means off (Aurora-4zr.11)", "[Registry]")
+{
+  Registry registry;
+  registry.registerOutput("hue", []{ return std::make_unique<FakeOutput>(); });
+  registry.registerOutput("ha", []{ return std::make_unique<ZeroOffOutput>(); });
+
+  auto names = registry.zeroOffOutputNames();
+  CHECK(names == std::vector<std::string>{"ha"});
 }
 
 

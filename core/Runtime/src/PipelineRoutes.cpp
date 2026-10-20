@@ -1,4 +1,7 @@
+#include <chrono>
 #include <cstdlib>
+#include <set>
+#include <sstream>
 
 #include <Aurora/Runtime/PipelineRoutes.hpp>
 
@@ -10,10 +13,74 @@
 
 namespace Aurora::Runtime
 {
+  using Aurora::Network::Http::Server::EventStream;
   using Aurora::Network::Http::Server::HttpMethod;
   using Aurora::Network::Http::Server::HttpServer;
   using Aurora::Network::Http::Server::Request;
   using Aurora::Network::Http::Server::Response;
+
+
+  namespace
+  {
+    // Shared by GET /api/state and the events stream's state topic, so the
+    // stream's first event is byte-for-byte what a poll would read.
+    nlohmann::json buildStateJson(PipelineHost& pipelineHost, const std::filesystem::path& configRoot)
+    {
+      const PipelineCapabilities capabilities = pipelineHost.capabilities();
+      const std::string& audioDevicesUrl = pipelineHost.audioDevicesUrl();
+      const HostStatus status = pipelineHost.status();
+
+      nlohmann::json errors = nlohmann::json::array();
+      for(const HostError& error : status.errors){
+        errors.push_back({{"source", error.source}, {"message", error.message}, {"id", error.id}});
+      }
+
+      nlohmann::json conditions = nlohmann::json::array();
+      for(const HostCondition& condition : pipelineHost.conditions()){
+        conditions.push_back({{"source", condition.source}, {"message", condition.message}});
+      }
+
+      const PipelineSummary summary = pipelineHost.summary();
+      nlohmann::json video(nullptr);
+      if(summary.video){
+        video = {
+          {"input", summary.video->input},
+          {"monitor", summary.video->monitor.empty() ? nlohmann::json(nullptr) : nlohmann::json(summary.video->monitor)}
+        };
+      }
+      nlohmann::json audio(nullptr);
+      if(summary.audio){
+        // A paused host has no live input to ask: it reports the configured target.
+        std::string sink = status.state == HostState::Running ? pipelineHost.resolvedAudioSink() : std::string{};
+        if(sink.empty()){ sink = summary.audio->sink; }
+        audio = {
+          {"input", summary.audio->input},
+          {"sink", sink.empty() ? nlohmann::json(nullptr) : nlohmann::json(sink)},
+          {"auto", summary.audio->followsDefault}
+        };
+      }
+
+      return nlohmann::json{
+        {"state", hostStateName(status.state)},
+        {"effect", summary.effect.empty() ? nlohmann::json(nullptr) : nlohmann::json(summary.effect)},
+        {"source", {{"video", video}, {"audio", audio}}},
+        // The saved setting, so it reads right while paused or idle too.
+        {"brightness", ConfigStore(configRoot).load().brightness()},
+        {"errors", errors},
+        {"conditions", conditions},
+        {"paused", status.state == HostState::Paused},
+        // Every host ships a Stop path (tray/quit plus POST /api/stop),
+        // so this is unconditionally true here; hosts without one (the
+        // demo shim) answer false and the Dashboard hides Stop
+        // (Aurora-ifkn.3). Clients treat an absent flag as true.
+        {"canStop", true},
+        {"usesVideoInput", capabilities.usesVideoInput},
+        {"usesAudioInput", capabilities.usesAudioInput},
+        {"samplesZones", capabilities.samplesZones},
+        {"audioDevicesUrl", audioDevicesUrl.empty() ? nlohmann::json(nullptr) : nlohmann::json(audioDevicesUrl)}
+      };
+    }
+  }
 
 
   void registerMonitorsRoute(
@@ -82,42 +149,15 @@ namespace Aurora::Runtime
     const std::filesystem::path& configRoot
   )
   {
-    // Lock-free reads only (atomics), so polling this never waits on a tick
-    // or a reload in progress.
+    // Leaf-lock reads only, so polling never waits on a tick or a reload.
+    // Exception: a running audio side asks the platform hook for its sink,
+    // which takes the pipeline lock for the length of one tick.
     server.addRoute(
       HttpMethod::Get,
       "/api/state",
-      [&pipelineHost](const Request&, Response& res){
-        const PipelineCapabilities capabilities = pipelineHost.capabilities();
-        const std::string& audioDevicesUrl = pipelineHost.audioDevicesUrl();
-        const HostStatus status = pipelineHost.status();
-
-        nlohmann::json errors = nlohmann::json::array();
-        for(const HostError& error : status.errors){
-          errors.push_back({{"source", error.source}, {"message", error.message}, {"id", error.id}});
-        }
-
-        nlohmann::json conditions = nlohmann::json::array();
-        for(const HostCondition& condition : pipelineHost.conditions()){
-          conditions.push_back({{"source", condition.source}, {"message", condition.message}});
-        }
-
+      [&pipelineHost, configRoot](const Request&, Response& res){
         res.contentType = "application/json";
-        res.body = nlohmann::json{
-          {"state", hostStateName(status.state)},
-          {"errors", errors},
-          {"conditions", conditions},
-          {"paused", status.state == HostState::Paused},
-          // Every host ships a Stop path (tray/quit plus POST /api/stop),
-          // so this is unconditionally true here; hosts without one (the
-          // demo shim) answer false and the Dashboard hides Stop
-          // (Aurora-ifkn.3). Clients treat an absent flag as true.
-          {"canStop", true},
-          {"usesVideoInput", capabilities.usesVideoInput},
-          {"usesAudioInput", capabilities.usesAudioInput},
-          {"samplesZones", capabilities.samplesZones},
-          {"audioDevicesUrl", audioDevicesUrl.empty() ? nlohmann::json(nullptr) : nlohmann::json(audioDevicesUrl)}
-        }.dump();
+        res.body = buildStateJson(pipelineHost, configRoot).dump();
       }
     );
 
@@ -190,6 +230,83 @@ namespace Aurora::Runtime
       }
       );
   }
+
+  void registerEventsRoute(
+    HttpServer& server,
+    PipelineHost& pipelineHost,
+    const std::filesystem::path& configRoot,
+    std::chrono::milliseconds heartbeat
+  )
+  {
+    server.addStreamRoute(
+      "/api/events",
+      [&pipelineHost, configRoot, heartbeat](const Request& req, EventStream& stream){
+        // Unknown topics are ignored, as clients ignore unknown state values.
+        std::set<std::string> topics;
+        const auto asked = req.queryParams.find("topics");
+        if(asked != req.queryParams.end()){
+          std::stringstream list(asked->second);
+          for(std::string item; std::getline(list, item, ',');){
+            topics.insert(item);
+          }
+        }
+        if(topics.empty()){
+          topics = {"state", "health"};
+        }
+
+        // Read before the first snapshot: a change landing in between wakes
+        // the loop instead of being lost.
+        ChangeSignal& changes = pipelineHost.changes();
+        std::uint64_t seen = changes.revision();
+
+        using Clock = std::chrono::steady_clock;
+        nlohmann::json lastState;
+        nlohmann::json lastHealth;
+        auto lastWrite = Clock::now();
+        auto lastCheck = lastWrite;
+
+        const auto send = [&](const char* topic, const nlohmann::json& data){
+          lastWrite = Clock::now();
+          return stream.write(std::string("event: ") + topic + "\ndata: " + data.dump() + "\n\n");
+        };
+
+        const auto publish = [&]{
+          lastCheck = Clock::now();
+          const nlohmann::json state = buildStateJson(pipelineHost, configRoot);
+          if(topics.count("state") && state != lastState){
+            lastState = state;
+            send("state", state);
+          }
+          if(topics.count("health")){
+            const nlohmann::json health = {{"errors", state.at("errors")}, {"conditions", state.at("conditions")}};
+            if(health != lastHealth){
+              lastHealth = health;
+              send("health", health);
+            }
+          }
+        };
+
+        publish();
+        while(stream.open()){
+          // Short slices so a stop or a dead peer is noticed promptly.
+          const std::uint64_t now = changes.waitPast(seen, std::chrono::milliseconds(250));
+          const bool changed = now != seen;
+          seen = now;
+
+          // Brightness lives in config.json, which nothing signals, so
+          // re-read it about once a second even without a signal.
+          if(changed || Clock::now() - lastCheck >= std::chrono::seconds(1)){
+            publish();
+          }
+          if(Clock::now() - lastWrite >= heartbeat){
+            lastWrite = Clock::now();
+            stream.write(": ping\n\n");
+          }
+        }
+      }
+    );
+  }
+
 
   void registerDevErrorsRoute(
     HttpServer& server,

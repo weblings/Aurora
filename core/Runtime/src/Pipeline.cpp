@@ -29,29 +29,6 @@ namespace Aurora::Runtime
     }
 
 
-#ifdef AURORA_RUNTIME_AUDIO_AVAILABLE
-    // Shared by build() and applyConfig() so the two cannot drift apart.
-    Processing::AudioProcessing::AudioEffectSettings _audioSettingsFrom(const Config& config)
-    {
-      Processing::AudioProcessing::AudioEffectSettings settings;
-      if(config.audioFixedAnchorHue() >= 0.f){
-        settings.fixedAnchorHue = config.audioFixedAnchorHue();
-      }
-      settings.bounceSmoothTime = config.audioBounceSmoothTime();
-      settings.dynamismFloor = config.audioDynamismFloor();
-      settings.centroidStrength = config.audioCentroidStrength();
-      settings.driftBaseRateDegPerSec = config.audioDriftBaseRateDegPerSec();
-      settings.vibrancySaturation = config.audioVibrancySaturation();
-      settings.vibrancyValue = config.audioVibrancyValue();
-      settings.referenceRms = config.audioReferenceRms();
-      settings.brightnessFloor = config.audioBrightnessFloor();
-      settings.centroidRangeHz = config.audioCentroidRangeHz();
-      settings.brightnessSmoothTime = config.audioBrightnessSmoothTime();
-      return settings;
-    }
-#endif
-
-
     // Aurora-vf1.1: reload phase timing. Scoped span printer -- additive
     // logging only, no behavior change. Read the [timing] lines after a
     // Save to see which rebuild slice dominates before tuning anything.
@@ -140,7 +117,7 @@ namespace Aurora::Runtime
 
     // Aurora-o13 spike: presence-only flag, same convention as
     // AURORA_DEV_LIGHT_TAP. Builds both inputs when both names are set;
-    // logs per-orchestrator tick timing in every mode, for comparison.
+    // logs per-runner tick timing in every mode, for comparison.
     const bool dualFlag = std::getenv("AURORA_DEV_DUAL_CAPTURE") != nullptr;
     const bool dualCapture = dualFlag
       && !config.activeInputName().empty() && !config.activeAudioInputName().empty();
@@ -148,7 +125,7 @@ namespace Aurora::Runtime
       pipeline->m_dualStats.log = [options](LogLevel level, const std::string& line){ _log(options, level, line); };
     }
 
-    ScopedPhaseTimer captureTimer(options, "capture+orchestrator init");
+    ScopedPhaseTimer captureTimer(options, "capture+graph init");
     if(dualCapture){
 #ifdef AURORA_RUNTIME_AUDIO_AVAILABLE
       // Audio first: on Mac its TCC prompt and SCK's are separate gates, and
@@ -157,10 +134,10 @@ namespace Aurora::Runtime
       if(!audioInput){
         throw std::runtime_error("Unknown audio input '" + config.activeAudioInputName() + "'");
       }
-      pipeline->m_audioOrchestrator.emplace(
-        *audioInput, pipeline->m_outputPtrs, ZoneMapStore(configRoot), _audioSettingsFrom(config)
+      pipeline->m_audioRunner.emplace(
+        *audioInput, pipeline->m_outputPtrs, config, ZoneMapStore(configRoot)
       );
-      pipeline->m_audioOrchestrator->init();
+      pipeline->m_audioRunner->init();
       pipeline->m_audioInput = std::move(audioInput);
       pipeline->m_isDualCapture = true;
       _log(options, LogLevel::Info, "[dual-capture] audio input='" + config.activeAudioInputName() + "' up; building video too");
@@ -175,12 +152,10 @@ namespace Aurora::Runtime
         throw std::runtime_error("Unknown audio input '" + config.activeAudioInputName() + "'");
       }
 
-      Processing::AudioProcessing::AudioEffectSettings settings = _audioSettingsFrom(config);
-
-      pipeline->m_audioOrchestrator.emplace(
-        *audioInput, pipeline->m_outputPtrs, ZoneMapStore(configRoot), settings
+      pipeline->m_audioRunner.emplace(
+        *audioInput, pipeline->m_outputPtrs, config, ZoneMapStore(configRoot)
       );
-      pipeline->m_audioOrchestrator->init();
+      pipeline->m_audioRunner->init();
       pipeline->m_audioInput = std::move(audioInput);
       pipeline->m_isAudioMode = true;
       pipeline->m_appliedConfig = config;
@@ -201,16 +176,16 @@ namespace Aurora::Runtime
       }
       input->init();
 
-      pipeline->m_orchestrator.emplace(
+      pipeline->m_videoRunner.emplace(
         *input, pipeline->m_outputPtrs, config, ZoneMapStore(configRoot)
       );
-      pipeline->m_orchestrator->init();
+      pipeline->m_videoRunner->init();
       pipeline->m_videoInput = std::move(input);
       pipeline->m_isAudioMode = false;
       // Post-derivation: refreshRate/subsampleWidth are the display-derived
       // values, matching what the settings save now holds on disk.
-      pipeline->m_appliedConfig = pipeline->m_orchestrator->config();
-      pipeline->m_tickIntervalSeconds = Runtime::tickIntervalSeconds(pipeline->m_orchestrator->config().refreshRate());
+      pipeline->m_appliedConfig = pipeline->m_videoRunner->config();
+      pipeline->m_tickIntervalSeconds = Runtime::tickIntervalSeconds(pipeline->m_videoRunner->config().refreshRate());
 
       // Persists any refreshRate/subsampleWidth just derived from the
       // display -- same as main() always did right after construction.
@@ -218,7 +193,7 @@ namespace Aurora::Runtime
       // runs after output init (1-3s on Hue), so saving the whole Config
       // built from the pre-init load would overwrite a settings PUT that
       // landed meanwhile (Aurora-d6i7).
-      const Config& derived = pipeline->m_orchestrator->config();
+      const Config& derived = pipeline->m_videoRunner->config();
       ConfigStore(configRoot).update([&derived](Config& onDisk){
         bool changed = false;
         if(onDisk.refreshRate() == 0 && derived.refreshRate() != 0){
@@ -237,6 +212,22 @@ namespace Aurora::Runtime
         + std::to_string(pipeline->m_outputPtrs.size()) + " output(s).");
     }
 
+    // Audio-only is the audio graph; video (plain or dual-capture) is the
+    // video graph, matching what the dev spike runs as primary.
+    pipeline->m_summary.effect = useAudioMode ? "builtin.audio" : "builtin.video";
+    if(!useAudioMode){
+      pipeline->m_summary.video = PipelineSummary::Video{
+        config.activeInputName(), pipeline->m_videoInput->selectedMonitorName()
+      };
+    }
+    if(useAudioMode || dualCapture){
+      pipeline->m_summary.audio = PipelineSummary::Audio{
+        config.activeAudioInputName(),
+        config.audioTargetSinkName(),
+        config.audioTargetSinkName().empty()
+      };
+    }
+
     return pipeline;
   }
 
@@ -250,16 +241,19 @@ namespace Aurora::Runtime
 
     ConfigApplyResult result;
     if(action == ChangeAction::Hot){
+      std::string error;
       if(m_isAudioMode){
-#ifdef AURORA_RUNTIME_AUDIO_AVAILABLE
-        m_audioOrchestrator->setSettings(_audioSettingsFrom(next));
-#endif
+        if(!m_audioRunner->setConfig(next, error)){
+          return {/*needsReload*/ true, {}};
+        }
       }
       else{
         const unsigned width = next.subsampleWidth();
         const bool widthChanged = width != m_appliedConfig.subsampleWidth();
 
-        m_orchestrator->setConfig(next);
+        if(!m_videoRunner->setConfig(next, error)){
+          return {/*needsReload*/ true, {}};
+        }
         m_tickIntervalSeconds = Runtime::tickIntervalSeconds(next.refreshRate());
 
         if(widthChanged){
@@ -288,11 +282,9 @@ namespace Aurora::Runtime
       DualCaptureStats& s = m_dualStats;
       const auto t0 = Clock::now();
       if(s.ticks == 0){ s.windowStart = t0; }
-      if(m_orchestrator){ m_orchestrator->update(dt); }
+      if(m_videoRunner){ m_videoRunner->tick(dt); }
       const auto t1 = Clock::now();
-#ifdef AURORA_RUNTIME_AUDIO_AVAILABLE
-      if(m_audioOrchestrator){ m_audioOrchestrator->update(dt); }
-#endif
+      if(m_audioRunner){ m_audioRunner->tick(dt); }
       const auto t2 = Clock::now();
 
       const double videoMs = std::chrono::duration<double, std::milli>(t1 - t0).count();
@@ -316,20 +308,18 @@ namespace Aurora::Runtime
       return;
     }
     if(m_isAudioMode){
-#ifdef AURORA_RUNTIME_AUDIO_AVAILABLE
-      m_audioOrchestrator->update(dt);
-#endif
+      m_audioRunner->tick(dt);
     }
     else{
-      m_orchestrator->update(dt);
+      m_videoRunner->tick(dt);
     }
   }
 
 
   PipelineCapabilities Pipeline::capabilities() const
   {
-    // One orchestrator per pipeline today: video samples zones, audio
-    // doesn't. A graph pipeline will set these per node instead.
+    // One built-in graph per pipeline today: video samples zones, audio
+    // doesn't. Arbitrary graphs will set these per node instead.
     PipelineCapabilities capabilities;
     capabilities.usesVideoInput = !m_isAudioMode;
     capabilities.usesAudioInput = m_isAudioMode || m_isDualCapture;
@@ -350,6 +340,12 @@ namespace Aurora::Runtime
   }
 
 
+  nlohmann::json Pipeline::graphJson() const
+  {
+    return (m_isAudioMode ? *m_audioRunner : *m_videoRunner).graphJson();
+  }
+
+
   ZoneListResult Pipeline::listZones() const
   {
     if(m_outputPtrs.empty()){
@@ -357,12 +353,8 @@ namespace Aurora::Runtime
     }
 
     const std::string& name = m_outputPtrs.front()->name();
-#ifdef AURORA_RUNTIME_AUDIO_AVAILABLE
-    if(m_isAudioMode){
-      return {name, m_audioOrchestrator->zoneMap(name), m_outputPtrs.front()->zoneLabels()};
-    }
-#endif
-    return {name, m_orchestrator->zoneMap(name), m_outputPtrs.front()->zoneLabels()};
+    const GraphRunner& runner = m_isAudioMode ? *m_audioRunner : *m_videoRunner;
+    return {name, runner.zoneMap(name), m_outputPtrs.front()->zoneLabels()};
   }
 
 
@@ -377,12 +369,8 @@ namespace Aurora::Runtime
       return false;
     }
 
-#ifdef AURORA_RUNTIME_AUDIO_AVAILABLE
-    if(m_isAudioMode){
-      return m_audioOrchestrator->updateZone(m_outputPtrs.front()->name(), zoneId, uvs, active, gamma);
-    }
-#endif
-    return m_orchestrator->updateZone(m_outputPtrs.front()->name(), zoneId, uvs, active, gamma);
+    GraphRunner& runner = m_isAudioMode ? *m_audioRunner : *m_videoRunner;
+    return runner.updateZone(m_outputPtrs.front()->name(), zoneId, uvs, active, gamma);
   }
 
 
@@ -448,8 +436,11 @@ namespace Aurora::Runtime
     else if(m_pipeline){ state = HostState::Running; }
     else{ state = errors.empty() ? HostState::Idle : HostState::Failed; }
 
-    std::lock_guard<std::mutex> lock(m_statusMutex);
-    m_status = HostStatus{state, std::move(errors)};
+    {
+      std::lock_guard<std::mutex> lock(m_statusMutex);
+      m_status = HostStatus{state, std::move(errors)};
+    }
+    m_changes.bump();
   }
 
 
@@ -502,24 +493,32 @@ namespace Aurora::Runtime
 
   void PipelineHost::setCondition(const std::string& source, const std::string& message)
   {
-    std::lock_guard<std::mutex> lock(m_conditionsMutex);
-    for(HostCondition& condition : m_conditions){
-      if(condition.source == source){
-        condition.message = message;
-        return;
+    {
+      std::lock_guard<std::mutex> lock(m_conditionsMutex);
+      bool found = false;
+      for(HostCondition& condition : m_conditions){
+        if(condition.source == source){
+          condition.message = message;
+          found = true;
+          break;
+        }
       }
+      if(!found){ m_conditions.push_back({source, message}); }
     }
-    m_conditions.push_back({source, message});
+    m_changes.bump();
   }
 
 
   bool PipelineHost::clearCondition(const std::string& source)
   {
-    std::lock_guard<std::mutex> lock(m_conditionsMutex);
-    const auto removed = std::remove_if(m_conditions.begin(), m_conditions.end(),
-      [&](const HostCondition& c){ return c.source == source; });
-    if(removed == m_conditions.end()){ return false; }
-    m_conditions.erase(removed, m_conditions.end());
+    {
+      std::lock_guard<std::mutex> lock(m_conditionsMutex);
+      const auto removed = std::remove_if(m_conditions.begin(), m_conditions.end(),
+        [&](const HostCondition& c){ return c.source == source; });
+      if(removed == m_conditions.end()){ return false; }
+      m_conditions.erase(removed, m_conditions.end());
+    }
+    m_changes.bump();
     return true;
   }
 
@@ -582,15 +581,37 @@ namespace Aurora::Runtime
       if(capabilities.samplesZones){ bits |= kSamplesZones; }
     }
     m_capabilityBits.store(bits);
+
+    std::lock_guard<std::mutex> lock(m_summaryMutex);
+    m_summary = pipeline ? pipeline->summary() : PipelineSummary{};
   }
 
 
-  void PipelineHost::tick()
+  PipelineSummary PipelineHost::summary() const
+  {
+    std::lock_guard<std::mutex> lock(m_summaryMutex);
+    return m_summary;
+  }
+
+
+  std::string PipelineHost::resolvedAudioSink()
+  {
+    if(!m_options.describeAudioSink){ return {}; }
+    return withAudioInput([this](Input::IAudioInput* input){
+      return input ? m_options.describeAudioSink(*input) : std::string{};
+    });
+  }
+
+
+  double PipelineHost::tick()
   {
     std::lock_guard<std::mutex> lock(m_mutex);
     // Interval read under the same lock as the tick, so a concurrent
     // pipeline swap can't pair one pipeline's dt with another's tick.
-    if(m_pipeline){ m_pipeline->tick(static_cast<float>(m_pipeline->tickIntervalSeconds())); }
+    if(!m_pipeline){ return Runtime::tickIntervalSeconds(); }
+    const double interval = m_pipeline->tickIntervalSeconds();
+    m_pipeline->tick(static_cast<float>(interval));
+    return interval;
   }
 
 
@@ -614,6 +635,14 @@ namespace Aurora::Runtime
     std::lock_guard<std::mutex> lock(m_mutex);
     if(m_pipeline){ return m_pipeline->listZones(); }
     return m_paused ? m_pausedZones : ZoneListResult{};
+  }
+
+
+  std::optional<nlohmann::json> PipelineHost::graphJson()
+  {
+    std::lock_guard<std::mutex> lock(m_mutex);
+    if(!m_pipeline){ return std::nullopt; }
+    return m_pipeline->graphJson();
   }
 
 

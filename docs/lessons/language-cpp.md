@@ -260,3 +260,108 @@ include.
 system and project), then `#define private public`, the target header, and
 `#undef private`. Include guards then keep the macro off everything but the
 target class. Scratch drivers only; never in committed code.
+
+---
+
+## Inspect the stored copy, never the local you just moved-from
+Tags: c++, variant, move-semantics, dangling-pointer
+Applies-when: checking the content of a `std::variant` (or any moved-from object) before `emplace`/`push` moving it into a container
+
+`Graph::tick` (Aurora-ra4o.2) gathered each input into a local `GraphValue`,
+took `asError()` on the local to detect error propagation, then moved the
+local into `ctx.inputs` — leaving the saved error pointer aimed at
+moved-from state. A move leaves the source valid but unspecified, so both
+error-propagation tests read back empty node ids with no crash and no
+sanitizer complaint. It looked like the loader dropped the id; the loader
+was innocent.
+
+**Fix:** move first, then inspect the stored copy (`ctx.inputs.at(name)`).
+Whenever a pointer or check must survive the move, derive it from the
+destination, never the source.
+
+---
+
+## Never let unordered_map iteration order decide evaluation or send order
+Tags: node-graph, determinism, unordered_map, parity
+Applies-when: writing a topo sort, scheduler or any loop whose order is observable (output sends, golden parity)
+
+G1's Kahn sort seeded its ready queue by iterating an `unordered_map`, so
+ties resolved differently on MSVC and libstdc++. That would have made the
+G2d byte-parity gate pass on one CI platform and fail on another, and
+changed the order of `output.send` calls across outputs.
+
+**Fix:** index nodes by declaration order and pop the lowest ready index
+(min-heap). `Graph::finalize` does this, and the "ties by declaration
+order" test pins it. Any hash-container loop with observable order needs
+the same treatment.
+
+## `Graph::Graph` is ambiguous under two using-directives on MSVC, fine on GCC
+Tags: cpp, msvc, namespace, using-directive, node-graph
+Applies-when: a test or source file has `using namespace Aurora::Runtime` and `using namespace Aurora::Runtime::Graph`, or any namespace shares its name with a class inside it
+
+`Aurora::Runtime::Graph` is both a namespace and (as `Graph::Graph`) a class.
+With both namespaces pulled in, MSVC reports C2872 "ambiguous symbol" for
+`Graph::Graph`, while GCC accepts it. The G2a and G2b tests shipped with it
+because they were only built with GCC under WSL.
+
+**Fix:** spell the type `Aurora::Runtime::Graph::Graph` in tests that use
+both directives. Build at least the touched test exes with the MSVC tree
+before closing a bead, not only the WSL tree.
+
+## `IVideoInput::Resolution` is a class-nested alias: `using namespace` does not expose it
+Tags: namespace, nested-alias, ivideoinput, msvc
+Applies-when: a test or helper outside an `IVideoInput` subclass names `Resolution`, `Resolutions` or `RefreshRate`
+
+Aurora-ra4o.7: a free function parameter `Resolution resolution` failed with
+C2061 under `using namespace Aurora::Input`. The alias lives in
+`IVideoInput`'s public section, so it only resolves unqualified inside a
+subclass (as `SequenceVideoInput` does).
+
+**Fix:** spell `IVideoInput::Resolution` in free functions and test locals.
+
+---
+
+## A host-interface override can make a same-named public accessor ambiguous
+Tags: overload, inheritance, adapter, const
+Applies-when: a class both implements an interface and exposes its own accessor of the same name
+
+Aurora-ra4o.8: `GraphRunner` first derived from `IGraphHost`, whose
+`const ZoneMap* zoneMap(std::string_view)` sits beside the runner's own
+`const ZoneMap& zoneMap(const std::string&) const`. Tests calling
+`runner.zoneMap("fake")` on a non-const object picked the non-const
+string_view overload and got a pointer, failing with "cannot convert
+`const ZoneMap*` to `const ZoneMap&`".
+
+**Fix:** implement the interface in a nested adapter (`Host`) that holds a
+reference back to the runner, so the public API keeps one `zoneMap`. The
+adapter's back-reference makes the owner non-movable: delete copy/move.
+
+---
+
+## nlohmann `get<float>()` turns an out-of-range JSON number into infinity
+Tags: nlohmann, json, float, clamp, validation
+Applies-when: reading a float from untrusted JSON and range-checking it
+
+Aurora-ra4o.11: `{"gain": 1e300}` parses as a valid double, and `get<float>()`
+narrows it to `inf` without throwing. `std::clamp(inf, 0, 1)` would return the
+max, silently turning garbage into a plausible value, and NaN passes through
+`std::clamp` untouched.
+
+**Fix:** test `std::isfinite` before clamping and reset to the param default,
+as `sanitizeParam` does. Keep the loader's copy of that rule in step with it.
+
+---
+
+## `operator[]` with a missing key on a const nlohmann json aborts a Debug MSVC test with a CRT dialog
+Tags: cpp, nlohmann, json, catch2, msvc, testing
+Applies-when: a test binary pops "abort() has been called" or hangs with no Catch2 output while indexing parsed JSON
+
+A `const nlohmann::json&` (including `const auto&` into a parsed body) hits an
+assert, not an exception, when `operator[]` names an absent key. In Debug MSVC
+that is a modal CRT dialog, and a backgrounded run just hangs with no failure
+report. Aurora-id8j.2: `send["sink"]` on `output.send`, which sets no
+`sinkBindingParam`.
+
+**Fix:** in tests use `contains()` before indexing, or `.at()` (throws, so Catch2
+reports it). Do not `kill` a hung run before reading its output file: the
+assertion text is in it.

@@ -69,4 +69,17 @@ namespace Aurora::Runtime
     }
     return names;
   }
+
+
+  std::vector<std::string> Registry::zeroOffOutputNames() const
+  {
+    std::vector<std::string> names;
+    for(const auto& [name, factory] : m_outputFactories){
+      auto output = factory();
+      if(output && output->zeroBrightnessMeansOff()){
+        names.push_back(name);
+      }
+    }
+    return names;
+  }
 }

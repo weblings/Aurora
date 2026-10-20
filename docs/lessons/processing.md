@@ -218,3 +218,76 @@ Applies-when: lights flash on thin high-contrast detail (movie credits, small te
 Huenicorn 1.0.5 fixed flashing on credits with the interpolation setting, not with smoothing: keeping it on "Area" fixes it completely (its release note). Nearest-neighbor samples sparse source pixels, so thin white text on black pops in and out of a zone's sample; Area averages every pixel. Smoothing only trades the flicker for lag. Aurora ports the setting and defaults to Area; the `video.interpolation` dropdown applies live, so switching to Nearest brings the flashing back.
 
 **Fix:** when a zone color flickers on fine detail, check the downscale interpolation before touching smoothing. Hard black-to-white scene cuts still step regardless, which is an output-side question (Aurora-pngj).
+
+---
+
+## A synthetic test image's `cv::Scalar` fill is storage order, and the format-aware mean reads it per the `PixelFormat` tag
+Tags: processing, testing, pixel-format, test-signals
+Applies-when: writing synthetic-image tests for format-aware color code
+
+Filling a `CV_8UC3` mat with `Scalar(0,0,255)` and tagging it
+`PixelFormat::RGB` yields blue, not red: `Algorithms::mean()` returns
+`(mean[0],mean[1],mean[2])` for RGB/BGR-order tags, so channel 2 is blue
+under RGB. G2a's first `VideoNodesTests` run failed 2 asserts expecting
+red from that fill.
+
+**Fix:** fill the `Scalar` in storage order matching the declared tag --
+red under RGB is `Scalar(255,0,0)`. Same trap as the mislabeled-pixel-format
+entry in input.md from the other side: now that consumers trust the tag,
+tests must set it (and the bytes) truthfully too.
+
+## A smoothed value stored as an absolute target reads its moving reference only at init, so the reference goes dead
+Tags: processing, audio, state, drift-bounce
+Applies-when: layering a fast reaction (bounce) on a slow moving base (drift)
+
+`updateBounce` copied `driftState.anchorHueDegrees` into `targetHueDegrees`
+once, in its init branch. After that the target changed only on onsets, so the
+drifting anchor, and every setting feeding it (`driftBaseRateDegPerSec`,
+`centroidStrength`, `centroidRangeHz`), had no effect on output (Aurora-7r3).
+Unit tests passed because each function was correct in isolation. The golden
+parity harness caught it: `silence_drift` recorded one color for 600 ticks.
+
+**Fix:** store the reaction as an offset from the live reference and rebuild
+the target each tick (`target = anchor + offset`). Any new "fast on top of
+slow" pair should be tested with a silence or idle scenario that must vary.
+
+Follow-up: a live 60s capture before and after showed the same ~60 deg/s net
+hue travel. Drift (6 deg/s) is invisible under busy beat swings, so confirm it
+in quiet passages, not on music.
+
+---
+
+## Buffers smaller than one aubio hop give deterministic Graph-test features
+Tags: processing, audio, dsp, testing
+Applies-when: testing audio graph nodes through the Graph without feeding full aubio hops
+
+`AudioFeatureExtractor::process` only runs aubio when the ring buffer holds
+a full hop (512 samples). A 4-sample test buffer completes zero hops, so the
+returned features are exactly `extractFeatures`' output: real rms (0.5 for
+`{0.5, -0.5, ...}`, exact in float), onset false/0, centroid 0. G2b's Graph
+tests rely on this: exact rms assertions, no onset swings in bounce, no
+centroid rate-bias in drift — all deterministic with no 512-sample fixture.
+
+**Fix (convention):** keep Graph-level audio tests sub-hop for plumbing and
+determinism; aubio's real behavior stays covered by
+`AudioFeatureExtractorTests` with full hops. If a Graph test ever needs a
+real onset or centroid, it must push ≥512 samples, and the exact-value
+assertions above stop holding.
+
+---
+
+## Node param defaults must match the live Config defaults, not the settings struct's initializers
+Tags: processing, audio, node-graph, parity
+Applies-when: exposing an existing processing knob as a graph node param, or comparing graph output against the legacy pipeline
+
+`AudioEffectSettings`'s initializers (bounceSmoothTime 0.45, dynamismFloor
+0.22, drift rate 6.0, brightnessSmoothTime 0.45) are not what runs in
+production: `Pipeline::_audioSettingsFrom` overwrites every field from
+`Config` (0.285, 0.26, 10.0, 0.265). A node param defaulted from the struct
+would silently behave differently from today's pipeline whenever the agent
+omits it, and the G2d parity gate would catch it late.
+
+**Fix:** when a node wraps an existing knob, copy the default from the
+overlay source (`ConfigData` / `ControlDescriptorTables`, the values the
+built-in graph overlays), not the settings struct. Note the divergence in
+a comment so the next reader doesn't "simplify" it back.

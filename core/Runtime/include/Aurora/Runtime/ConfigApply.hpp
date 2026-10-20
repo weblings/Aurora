@@ -23,7 +23,7 @@ namespace Aurora::Runtime
 
   // Which pipeline mode a Hot field is read in. A Hot field changed in the
   // other mode has no effect, so it neither applies nor forces a reload.
-  enum class ModeScope { Video, Audio };
+  enum class ModeScope { Video, Audio, Both };
 
   struct FieldApply
   {
