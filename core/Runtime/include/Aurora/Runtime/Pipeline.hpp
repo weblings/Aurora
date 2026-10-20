@@ -135,6 +135,13 @@ namespace Aurora::Runtime
     // Under the lock that guards tick().
     ConfigApplyResult applyConfig(const Config& next);
 
+    // Swaps the running graph for `doc` without a rebuild (Aurora-52oz.4), as
+    // `next`'s activeEffectId names it. False, changing nothing, when anything
+    // else differs from the running Config, the graph needs other inputs than
+    // the ones open, or it fails to load: the caller then rebuilds. Under the
+    // lock that guards tick().
+    bool swapEffect(const Config& next, const nlohmann::json& doc);
+
     // The Config this pipeline was built from, as later changed by
     // applyConfig(). Video mode holds the post-derivation values
     // (refreshRate/subsampleWidth filled in from the display).
@@ -182,6 +189,8 @@ namespace Aurora::Runtime
     Pipeline() = default;
 
     bool m_isAudioMode{false};
+    // A custom graph running with both captures on the video runner.
+    bool m_bothInputs{false};
     // Aurora-o13 spike: AURORA_DEV_DUAL_CAPTURE builds both runners
     // and ticks both. Video stays primary for config, zones and monitors.
     // The flag also logs per-runner tick timing in single modes.
@@ -326,6 +335,12 @@ namespace Aurora::Runtime
     // calls reload(). Anything that can block runs after the pipeline lock is
     // released, so a slow capture API cannot stall ticks or other API calls.
     bool applyConfig(const Config& next);
+
+    // Swaps a custom effect into the running pipeline in place (Aurora-52oz.4),
+    // keeping inputs, outputs and node state, so the Hue stream is not
+    // re-handshaken. False, changing nothing, when there is no pipeline or
+    // Pipeline::swapEffect refuses; the caller then calls reload().
+    bool applyEffect(const Config& next, const nlohmann::json& doc);
 
     // Returns true on success. On failure, errorOut is set and the previous
     // pipeline keeps running untouched -- a bad reload (e.g. an
@@ -509,6 +524,16 @@ namespace Aurora::Runtime
   // return shape as reloadPipelineFromDisk. Not for POST /api/reload or Hue
   // pairing, which must rebuild even though Config is unchanged.
   std::string applyConfigFromDisk(
+    PipelineHost& pipelineHost,
+    const Registry& registry,
+    const std::filesystem::path& configRoot
+  );
+
+
+  // What an effect apply calls (Aurora-52oz.4): loads Config and the active
+  // custom effect's file fresh from disk and swaps it in place, else reloads.
+  // Same return shape as reloadPipelineFromDisk.
+  std::string applyEffectFromDisk(
     PipelineHost& pipelineHost,
     const Registry& registry,
     const std::filesystem::path& configRoot

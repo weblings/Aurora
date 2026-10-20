@@ -31,32 +31,6 @@ namespace Aurora::Runtime
       res.body = body.dump();
     }
 
-    // {"valid", "errors"} for one doc, against the outputs a load would use.
-    nlohmann::json _validate(
-      const Graph::NodeRegistry& nodes,
-      const Registry& registry,
-      const std::filesystem::path& configRoot,
-      const nlohmann::json& doc)
-    {
-      const Config config = ConfigStore(configRoot).load();
-      std::vector<std::string> names = config.activeOutputNames();
-      if(names.empty()){
-        names = registry.outputNames();
-      }
-      Graph::LoadOptions options;
-      options.knownOutputs = std::unordered_set<std::string>(names.begin(), names.end());
-
-      const Graph::LoadResult result = Graph::loadGraph(doc, nodes, options);
-      nlohmann::json errors = nlohmann::json::array();
-      for(const Graph::LoadIssue& issue : result.issues){
-        errors.push_back({
-          {"node", issue.node.empty() ? nlohmann::json(nullptr) : nlohmann::json(issue.node)},
-          {"message", issue.message}
-        });
-      }
-      return {{"valid", result.ok}, {"errors", errors}};
-    }
-
     // The "graph" member of a request body, or nullopt when the body is not
     // JSON or the member is missing or not an object.
     std::optional<nlohmann::json> _graphFromBody(const std::string& body)
@@ -73,6 +47,32 @@ namespace Aurora::Runtime
         return std::nullopt;
       }
     }
+  }
+
+
+  nlohmann::json validateGraphDoc(
+    const Graph::NodeRegistry& nodes,
+    const Registry& registry,
+    const std::filesystem::path& configRoot,
+    const nlohmann::json& doc)
+  {
+    const Config config = ConfigStore(configRoot).load();
+    std::vector<std::string> names = config.activeOutputNames();
+    if(names.empty()){
+      names = registry.outputNames();
+    }
+    Graph::LoadOptions options;
+    options.knownOutputs = std::unordered_set<std::string>(names.begin(), names.end());
+
+    const Graph::LoadResult result = Graph::loadGraph(doc, nodes, options);
+    nlohmann::json errors = nlohmann::json::array();
+    for(const Graph::LoadIssue& issue : result.issues){
+      errors.push_back({
+        {"node", issue.node.empty() ? nlohmann::json(nullptr) : nlohmann::json(issue.node)},
+        {"message", issue.message}
+      });
+    }
+    return {{"valid", result.ok}, {"errors", errors}};
   }
 
 
@@ -131,7 +131,7 @@ namespace Aurora::Runtime
             _reply(res, 400, {{"succeeded", false}, {"error", "invalid_session"}});
             return;
         }
-        nlohmann::json body = _validate(*nodes, registry, configRoot, *graph);
+        nlohmann::json body = validateGraphDoc(*nodes, registry, configRoot, *graph);
         body["succeeded"] = true;
         body["session"] = session;
         _reply(res, 200, body);
@@ -152,7 +152,7 @@ namespace Aurora::Runtime
           _reply(res, 404, {{"error", "no_draft"}});
           return;
         }
-        nlohmann::json body = _validate(*nodes, registry, configRoot, *draft);
+        nlohmann::json body = validateGraphDoc(*nodes, registry, configRoot, *draft);
         body["session"] = session;
         body["graph"] = std::move(*draft);
         _reply(res, 200, body);
@@ -185,7 +185,7 @@ namespace Aurora::Runtime
           _reply(res, 400, {{"error", "invalid_body"}});
           return;
         }
-        _reply(res, 200, _validate(*nodes, registry, configRoot, *graph));
+        _reply(res, 200, validateGraphDoc(*nodes, registry, configRoot, *graph));
       }
     );
 

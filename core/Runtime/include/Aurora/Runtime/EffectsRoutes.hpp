@@ -42,8 +42,8 @@ namespace Aurora::Runtime
   // "unknown_effect". Answers {"succeeded": true, "deleted": id, "fellBack":
   // bool} plus "reloadError".
   //
-  // Writing a graph file is not a route here: drafts and apply come later in
-  // Sequence C. When `guard` is set the access rules are added to it.
+  // Writing a graph file is not a route here: it is POST /api/graph/apply
+  // (ApplyRoutes.hpp). When `guard` is set the access rules are added to it.
   void registerEffectsRoutes(
     Aurora::Network::Http::Server::HttpServer& server,
     PipelineHost& pipelineHost,

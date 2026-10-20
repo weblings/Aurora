@@ -88,6 +88,11 @@ namespace Aurora::Runtime
       const std::optional<float>& gamma
     );
 
+    // Swaps a running custom (or built-in) graph for `doc` in place, moving node
+    // state across by id (Aurora-52oz.4). Inputs and outputs are untouched.
+    // False with errorOut set, running graph untouched, if `doc` fails to load.
+    bool swapCustomGraph(nlohmann::json doc, std::string& errorOut);
+
     // Applies a live-tunable Config change (Aurora-c0g): rebuilds the graph
     // from the new Config and moves node state across by id. Capture-side
     // effects of a subsampleWidth change are the caller's, since they can

@@ -3,15 +3,28 @@
 #include <filesystem>
 #include <memory>
 
+#include <nlohmann/json.hpp>
+
 #include <Aurora/Runtime/DraftStore.hpp>
 
 namespace Aurora::Network::Http::Server { class AccessGuard; class HttpServer; }
+namespace Aurora::Runtime::Graph { class NodeRegistry; }
 
 // Draft and validate routes (Aurora-52oz.3). A draft is a graph.json doc held
 // per client session id, never applied by these routes.
 namespace Aurora::Runtime
 {
   class Registry;
+
+  // {"valid", "errors"} for one graph doc, against the outputs a load would use
+  // (the saved Config's, else every registered one). The shape every draft
+  // answer and the apply refusal carry.
+  nlohmann::json validateGraphDoc(
+    const Graph::NodeRegistry& nodes,
+    const Registry& registry,
+    const std::filesystem::path& configRoot,
+    const nlohmann::json& doc
+  );
 
   // Writes under both prefixes need `draft` (LAN only, loopback is trusted).
   // Reads of a draft keep the default `read` requirement.

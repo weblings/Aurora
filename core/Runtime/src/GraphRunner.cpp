@@ -257,6 +257,25 @@ namespace Aurora::Runtime
   }
 
 
+  bool GraphRunner::swapCustomGraph(nlohmann::json doc, std::string& errorOut)
+  {
+    Graph::LoadOptions options;
+    options.knownOutputs = std::unordered_set<std::string>(m_outputNames.begin(), m_outputNames.end());
+    Graph::LoadResult loaded = Graph::loadGraph(doc, m_registry, options);
+    if(!loaded.ok){
+      errorOut = loaded.error;
+      return false;
+    }
+
+    loaded.graph.adoptStateFrom(m_graph);
+    m_graph = std::move(loaded.graph);
+    m_customDoc = std::move(doc);
+    m_runningCustom = true;
+    m_customError.clear();
+    return true;
+  }
+
+
   Output::IOutput* GraphRunner::Host::output(std::string_view name)
   {
     auto it = m_runner.m_outputsByName.find(std::string(name));

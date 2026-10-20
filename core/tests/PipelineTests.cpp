@@ -20,6 +20,7 @@
 
 #include <Aurora/Network/Http/Server/HttpServer.hpp>
 #include <Aurora/Network/Http/Server/Pairing.hpp>
+#include <Aurora/Runtime/ApplyRoutes.hpp>
 #include <Aurora/Runtime/ConfigApply.hpp>
 #include <Aurora/Runtime/ConfigStore.hpp>
 #include <Aurora/Runtime/DraftRoutes.hpp>
@@ -2121,7 +2122,7 @@ TEST_CASE("POST /api/dev/errors injects and removes generic host errors only whe
     PipelineHost host(Pipeline::build(registry, videoConfig(), dir.path, {}), {});
 
     ScopedDevErrorsEnv env(false);
-    HttpServer server;
+    Aurora::Network::Http::Server::HttpServer server;
     registerDevErrorsRoute(server, host);
     const int port = server.bindToAnyPort("127.0.0.1");
   REQUIRE(port > 0);
@@ -2147,7 +2148,7 @@ TEST_CASE("POST /api/dev/errors injects and removes generic host errors only whe
     PipelineHost host(Pipeline::build(registry, videoConfig(), dir.path, {}), {});
 
     ScopedDevErrorsEnv env(true);
-    HttpServer server;
+    Aurora::Network::Http::Server::HttpServer server;
     registerStateRoute(server, host, registry, dir.path);
     registerDevErrorsRoute(server, host);
     const int port = server.bindToAnyPort("127.0.0.1");
@@ -2207,7 +2208,7 @@ TEST_CASE("POST /api/dev/errors injects and removes generic host errors only whe
     PipelineHost host(nullptr, {});
 
     ScopedDevErrorsEnv env(true);
-    HttpServer server;
+    Aurora::Network::Http::Server::HttpServer server;
     registerDevErrorsRoute(server, host);
     const int port = server.bindToAnyPort("127.0.0.1");
   REQUIRE(port > 0);
@@ -3079,4 +3080,243 @@ TEST_CASE("Draft routes: writes need draft scope, reads need read (Aurora-52oz.3
     CHECK(decide(method, path, "") == Result::Unauthorized);
     CHECK(decide(method, path, "", "127.0.0.1") == Result::Allow);
   }
+}
+
+
+namespace
+{
+  // A server with the draft and apply routes over one host, the way the apps
+  // wire them.
+  struct ApplyHarness
+  {
+    explicit ApplyHarness(const std::string& name, Config config, const std::string& activeEffect = ""):
+    dir(name),
+    events(std::make_shared<Events>()),
+    registry(makeRegistry(events))
+    {
+      config.setActiveEffectId(activeEffect);
+      ConfigStore(dir.path).save(config);
+      host = std::make_unique<PipelineHost>(Pipeline::build(registry, config, dir.path, {}), PipelineOptions{});
+      auto drafts = registerDraftRoutes(server, registry, dir.path);
+      registerApplyRoutes(server, *host, registry, dir.path, drafts,
+        [this]{ return applyEffectFromDisk(*host, registry, dir.path); });
+      const int port = server.bindToAnyPort("127.0.0.1");
+      REQUIRE(port > 0);
+      serverThread = std::thread([this](){ server.listen(); });
+      client = std::make_unique<httplib::Client>("127.0.0.1", port);
+    }
+
+    ~ApplyHarness()
+    {
+      server.stop();
+      serverThread.join();
+      host->shutdown();
+    }
+
+    nlohmann::json putDraft(const std::string& session, const nlohmann::json& graph)
+    {
+      auto result = client->Put("/api/graph/drafts/" + session, nlohmann::json{{"graph", graph}}.dump(), "application/json");
+      REQUIRE(result);
+      return nlohmann::json::parse(result->body);
+    }
+
+    httplib::Result apply(const nlohmann::json& body)
+    {
+      return client->Post("/api/graph/apply", body.dump(), "application/json");
+    }
+
+    ScopedTempDir dir;
+    std::shared_ptr<Events> events;
+    Registry registry;
+    std::unique_ptr<PipelineHost> host;
+    Aurora::Network::Http::Server::HttpServer server;
+    std::thread serverThread;
+    std::unique_ptr<httplib::Client> client;
+  };
+}
+
+
+TEST_CASE("Apply swaps a graph-only change in place, with no output re-init, and it survives restart (Aurora-52oz.4)", "[Apply]")
+{
+  ApplyHarness h("apply-swap", tunedVideoConfig());
+  REQUIRE(initCount(*h.events) == 1);
+  CHECK(h.host->summary().effect == "builtin.video");
+
+  // A re-handshake would cost this per output; the swap must not pay it.
+  h.events->onOutputInit = []{ std::this_thread::sleep_for(300ms); };
+
+  const nlohmann::json first = Graph::builtInVideoGraph({"out-a"});
+  h.putDraft("editor", first);
+  auto started = std::chrono::steady_clock::now();
+  auto applied = h.apply({{"session", "editor"}, {"id", "calm"}});
+  const auto elapsed = std::chrono::steady_clock::now() - started;
+  REQUIRE(applied);
+  CHECK(applied->status == 200);
+  auto body = nlohmann::json::parse(applied->body);
+  CHECK(body["succeeded"] == true);
+  CHECK(body["effect"] == "calm");
+  CHECK(body["requestedEffect"] == "calm");
+  CHECK_FALSE(body.contains("reloadError"));
+  CHECK(elapsed < 250ms);
+  CHECK(initCount(*h.events) == 1);
+  CHECK_FALSE(h.events->has("shutdown out-a replacement"));
+  CHECK(*h.host->graphJson() == first);
+
+  // The file, the setting and the running summary agree.
+  std::string error;
+  auto stored = EffectStore(h.dir.path).read("calm", error);
+  REQUIRE(stored);
+  CHECK(*stored == first);
+  CHECK(ConfigStore(h.dir.path).load().activeEffectId() == "calm");
+
+  // Re-applying an existing id with new content swaps again and keeps the draft.
+  const nlohmann::json second = Graph::builtInVideoGraph({"out-a", "out-b"});
+  h.putDraft("editor", second);
+  auto again = h.apply({{"session", "editor"}, {"id", "calm"}});
+  REQUIRE(again);
+  CHECK(again->status == 200);
+  CHECK(*h.host->graphJson() == second);
+  CHECK(initCount(*h.events) == 1);
+  CHECK(h.client->Get("/api/graph/drafts/editor")->status == 200);
+
+  // A restart builds the applied effect from disk.
+  h.events->onOutputInit = nullptr;
+  auto restarted = Pipeline::build(h.registry, ConfigStore(h.dir.path).load(), h.dir.path, {});
+  REQUIRE(restarted);
+  CHECK(restarted->summary().effect == "calm");
+  CHECK(restarted->graphJson() == second);
+  restarted->shutdown(false);
+}
+
+
+TEST_CASE("Apply refuses an invalid draft and leaves disk and the live effect untouched (Aurora-52oz.4)", "[Apply]")
+{
+  ApplyHarness h("apply-invalid", tunedVideoConfig());
+  const nlohmann::json before = *h.host->graphJson();
+
+  nlohmann::json broken = Graph::builtInVideoGraph({"out-a"});
+  broken["nodes"].push_back({{"id", "mystery"}, {"type", "nope.nope"}});
+  h.putDraft("agent", broken);
+
+  auto refused = h.apply({{"session", "agent"}, {"id", "bad"}});
+  REQUIRE(refused);
+  CHECK(refused->status == 422);
+  auto body = nlohmann::json::parse(refused->body);
+  CHECK(body["succeeded"] == false);
+  CHECK(body["error"] == "invalid_graph");
+  CHECK(body["valid"] == false);
+  CHECK(body["errors"][0]["node"] == "mystery");
+
+  CHECK_FALSE(EffectStore(h.dir.path).exists("bad"));
+  CHECK(ConfigStore(h.dir.path).load().activeEffectId() == "");
+  CHECK(*h.host->graphJson() == before);
+  CHECK(h.host->summary().effect == "builtin.video");
+  CHECK(initCount(*h.events) == 1);
+
+  // Other refusals change nothing either.
+  CHECK(h.apply({{"session", "nobody"}, {"id", "ok"}})->status == 404);
+  h.putDraft("good", Graph::builtInVideoGraph({"out-a"}));
+  CHECK(h.apply({{"session", "good"}, {"id", "builtin.video"}})->status == 400);
+  CHECK(h.apply({{"session", "good"}, {"id", "../escape"}})->status == 400);
+  CHECK(h.apply({{"session", "bad/session"}, {"id", "ok"}})->status == 400);
+  CHECK(h.apply({{"session", "good"}})->status == 400);
+  CHECK(h.client->Post("/api/graph/apply", "not json", "application/json")->status == 400);
+  CHECK(EffectStore(h.dir.path).list().empty());
+  CHECK(ConfigStore(h.dir.path).load().activeEffectId() == "");
+}
+
+
+TEST_CASE("Apply clears a held effect_fallback once the new effect runs (Aurora-52oz.4)", "[Apply]")
+{
+  ApplyHarness h("apply-fallback", tunedVideoConfig(), "nope");
+  REQUIRE(h.host->status().errors.size() == 1);
+  CHECK(h.host->summary().effect == "builtin.video");
+
+  h.putDraft("editor", Graph::builtInVideoGraph({"out-a"}));
+  auto applied = h.apply({{"session", "editor"}, {"id", "fixed"}});
+  REQUIRE(applied);
+  CHECK(applied->status == 200);
+  CHECK(h.host->status().errors.empty());
+  CHECK(h.host->summary().effect == "fixed");
+  CHECK(h.host->summary().fallbackReason.empty());
+  CHECK(initCount(*h.events) == 1);
+}
+
+
+TEST_CASE("Apply on a host with no pipeline reloads and builds the effect (Aurora-52oz.4)", "[Apply]")
+{
+  ScopedTempDir dir("apply-idle");
+  auto events = std::make_shared<Events>();
+  auto registry = makeRegistry(events);
+  ConfigStore(dir.path).save(tunedVideoConfig());
+  PipelineHost host(nullptr, {});
+  std::string error;
+  EffectStore store(dir.path);
+  REQUIRE(store.write("mine", Graph::builtInVideoGraph({"out-a"}), error));
+  ConfigStore(dir.path).update([](Config& config){ config.setActiveEffectId("mine"); return true; });
+
+  CHECK(applyEffectFromDisk(host, registry, dir.path).empty());
+  CHECK(host.summary().effect == "mine");
+  CHECK(initCount(*events) == 1);
+  host.shutdown();
+}
+
+
+#ifdef AURORA_RUNTIME_AUDIO_AVAILABLE
+TEST_CASE("Apply reloads when the graph needs different inputs (Aurora-52oz.4)", "[Apply][Audio]")
+{
+  Config config = tunedVideoConfig();
+  config.setActiveAudioInputName("fake-audio");
+  ApplyHarness h("apply-inputs", config);
+  REQUIRE(initCount(*h.events) == 1);
+
+  // Video to audio-only changes the open inputs, so the pipeline rebuilds.
+  h.putDraft("editor", Graph::builtInAudioGraph({"out-a", "out-b"}));
+  auto applied = h.apply({{"session", "editor"}, {"id", "sound"}});
+  REQUIRE(applied);
+  CHECK(applied->status == 200);
+  CHECK(nlohmann::json::parse(applied->body)["effect"] == "sound");
+  CHECK(initCount(*h.events) == 2);
+  CHECK(h.events->has("shutdown out-a replacement"));
+  CHECK(h.host->capabilities().usesAudioInput);
+  CHECK_FALSE(h.host->capabilities().usesVideoInput);
+
+  // Another audio-only graph keeps the inputs, so it swaps in place.
+  h.putDraft("editor", Graph::builtInAudioGraph({"out-a"}));
+  auto swapped = h.apply({{"session", "editor"}, {"id", "sound"}});
+  REQUIRE(swapped);
+  CHECK(swapped->status == 200);
+  CHECK(initCount(*h.events) == 2);
+  CHECK(*h.host->graphJson() == Graph::builtInAudioGraph({"out-a"}));
+}
+#endif
+
+
+TEST_CASE("Apply: draft scope is refused, apply scope passes (Aurora-52oz.4)", "[Apply][Pairing]")
+{
+  using namespace Aurora::Network::Http::Server;
+  auto service = std::make_shared<PairingService>();
+  AccessGuard guard(service, [](const std::string& addr){ return addr == "127.0.0.1"; });
+  addDraftAccessRules(guard);
+  addApplyAccessRules(guard);
+
+  const std::string read = service->mintForTest("viewer", Scope::Read);
+  const std::string draft = service->mintForTest("editor", Scope::Draft);
+  const std::string apply = service->mintForTest("adapter", Scope::Apply);
+
+  auto decide = [&](const std::string& token, const std::string& addr = "192.168.1.20"){
+    AccessRequest request;
+    request.method = HttpMethod::Post;
+    request.path = "/api/graph/apply";
+    request.remoteAddr = addr;
+    if(!token.empty()){ request.authorization = "Bearer " + token; }
+    return guard.decide(request).result;
+  };
+  using Result = AccessDecision::Result;
+
+  CHECK(decide(read) == Result::Forbidden);
+  CHECK(decide(draft) == Result::Forbidden);
+  CHECK(decide(apply) == Result::Allow);
+  CHECK(decide("") == Result::Unauthorized);
+  CHECK(decide("", "127.0.0.1") == Result::Allow);
 }
