@@ -940,3 +940,11 @@ Applies-when: gating grabs on change notifications (XDamage, frame-ready callbac
 Aurora-es51: X11Grabber drained XDamage events and `XDamageSubtract`ed every tick, then let the 50 ms cap veto the grab. Damage seen on a vetoed tick was gone, so if a change burst ended inside the cap window, every later tick read "undamaged" and the lights stayed on the pre-change frame indefinitely. Perf runs never showed it because the box reported fullscreen root damage on ~60% of idle ticks, so fresh damage always arrived.
 
 **Fix:** keep a pending flag that only a successful grab clears (`X11GrabGate`), and add a max-staleness grab as a floor (1 s), so drivers that under-report damage still refresh. Test the event *sequence* (damage on a capped tick, then quiet ticks), not just the per-tick decision. A box with noisy damage hides the bug, so a perf run is no substitute. See [[es51-x11-damage-latch]].
+
+## Idle fullscreen X11 damage: probe per-window, and use Xephyr as the clean session
+Tags: input, linux, x11, xdamage, perf, electron
+Applies-when: root XDamage looks noisy or fullscreen on an "idle" desktop, or a perf number needs a desktop that truly idles
+
+Aurora-i5hq: the root reported fullscreen damage on ~60% of idle ticks and the driver was blamed. Creating a Damage per viewable window (skip InputOnly, which gives BadMatch) showed one Electron window (VS Code) emitting ~6 whole-window events/s; the root just inherits the union. Chromium-style GPU-composited windows damage everything on any change, so any open Electron app defeats damage skipping.
+
+**Fix:** none in Aurora. To measure a quiet desktop, run `Xephyr :7 -screen 3840x2160 -ac` and point `perf.py` at it with `DISPLAY=:7` (3.4% static vs 31.9% on the live desktop). Software-rendered, so it validates pipeline cost, not NVIDIA server behavior. See [[i5hq-x11-idle-damage-source]].
