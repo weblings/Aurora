@@ -112,6 +112,7 @@ namespace Aurora::Runtime
         {"activeOutputNames", config.activeOutputNames()},
         {"activeMonitorName", config.activeMonitorName()},
         {"activeAudioInputName", config.activeAudioInputName()},
+        {"activeEffectId", config.activeEffectId()},
         {"audioTargetSinkName", config.audioTargetSinkName()},
         {"audioFixedAnchorHue", config.audioFixedAnchorHue()},
         {"audioBounceSmoothTime", config.audioBounceSmoothTime()},
@@ -161,6 +162,7 @@ namespace Aurora::Runtime
       if(body.contains("activeOutputNames")) config.setActiveOutputNames(body.at("activeOutputNames").get<std::vector<std::string>>());
       if(body.contains("activeMonitorName")) config.setActiveMonitorName(body.at("activeMonitorName").get<std::string>());
       if(body.contains("activeAudioInputName")) config.setActiveAudioInputName(body.at("activeAudioInputName").get<std::string>());
+      if(body.contains("activeEffectId")) config.setActiveEffectId(body.at("activeEffectId").get<std::string>());
       if(body.contains("audioTargetSinkName")) config.setAudioTargetSinkName(body.at("audioTargetSinkName").get<std::string>());
       if(body.contains("audioFixedAnchorHue")) config.setAudioFixedAnchorHue(body.at("audioFixedAnchorHue").get<float>());
       if(body.contains("audioBounceSmoothTime")) config.setAudioBounceSmoothTime(body.at("audioBounceSmoothTime").get<float>());

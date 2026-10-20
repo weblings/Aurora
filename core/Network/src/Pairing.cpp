@@ -457,7 +457,13 @@ namespace Aurora::Network::Http::Server
 
   void AccessGuard::addRule(const std::string& pathPrefix, Scope required)
   {
-    m_rules.emplace_back(pathPrefix, required);
+    m_rules.push_back({pathPrefix, required, false});
+  }
+
+
+  void AccessGuard::addWriteRule(const std::string& pathPrefix, Scope required)
+  {
+    m_rules.push_back({pathPrefix, required, true});
   }
 
 
@@ -514,10 +520,13 @@ namespace Aurora::Network::Http::Server
       : underPrefix(request.path, "/api") ? Scope::Read : Scope::None;
     std::size_t best = 0;
     bool matched = false;
-    for(const auto& [prefix, scope] : m_rules){
-      if(underPrefix(request.path, prefix) && (!matched || prefix.size() > best)){
-        required = scope;
-        best = prefix.size();
+    for(const auto& rule : m_rules){
+      if(rule.writesOnly && request.method == HttpMethod::Get){
+        continue;
+      }
+      if(underPrefix(request.path, rule.prefix) && (!matched || rule.prefix.size() > best)){
+        required = rule.scope;
+        best = rule.prefix.size();
         matched = true;
       }
     }

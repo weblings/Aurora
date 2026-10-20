@@ -50,6 +50,7 @@
 #include <Aurora/Runtime/PendingRunRequest.hpp>
 #include <Aurora/Runtime/Pipeline.hpp>
 #include <Aurora/Runtime/TrayLabel.hpp>
+#include <Aurora/Runtime/EffectsRoutes.hpp>
 #include <Aurora/Runtime/GraphRoutes.hpp>
 #include <Aurora/Runtime/PipelineRoutes.hpp>
 #include <Aurora/Runtime/SettingsRoutes.hpp>
@@ -851,6 +852,11 @@ if(!instanceLock.held()){
   Aurora::Runtime::registerEventsRoute(httpServer, pipelineHost, configRoot);
   Aurora::Runtime::registerNodesRoute(httpServer);
   Aurora::Runtime::registerGraphRoute(httpServer, pipelineHost);
+  Aurora::Runtime::registerEffectsRoutes(httpServer, pipelineHost, registry, configRoot,
+    [&pipelineHost, &registry, configRoot]() -> std::string {
+      return Aurora::Runtime::applyConfigFromDisk(pipelineHost, registry, configRoot);
+    },
+    accessGuard.get());
   Aurora::Runtime::registerDevErrorsRoute(httpServer, pipelineHost);
   registerStopRoute(httpServer);
   Aurora::Runtime::registerZoneRoutes(

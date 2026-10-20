@@ -1217,3 +1217,16 @@ switch is a warning at most and fails at runtime (`parseParamValue` ends in "unk
 
 **Fix:** grep `ParamKind::OptionalFloat` for the full site list, and add a load-time
 reject case per malformed shape to the node's tests.
+
+---
+
+## AccessGuard rules match by path only, so one path cannot split read from write
+Tags: pairing, AccessGuard, scopes, routes
+Applies-when: giving GET and PUT/DELETE on the same path prefix different scopes
+
+Aurora-52oz.1 needed `read` for `GET /api/effects/<id>` and `apply` for `DELETE` on it.
+`addRule` ignores the method, so one rule would raise the GETs too. A switch through
+`PUT /api/config` cannot take `apply` either, since that path is `admin`.
+
+**Fix:** `addWriteRule` applies only to non-GET methods, and the switch got its own path
+(`PUT /api/effects`). Check each new write route's path against the existing rules first.

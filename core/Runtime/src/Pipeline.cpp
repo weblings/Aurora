@@ -9,6 +9,7 @@
 
 #include <Aurora/Runtime/ConfigApply.hpp>
 #include <Aurora/Runtime/ConfigStore.hpp>
+#include <Aurora/Runtime/EffectStore.hpp>
 #include <Aurora/Runtime/ZoneMapStore.hpp>
 
 namespace Aurora::Runtime
@@ -125,6 +126,15 @@ namespace Aurora::Runtime
       pipeline->m_dualStats.log = [options](LogLevel level, const std::string& line){ _log(options, level, line); };
     }
 
+    // A custom effect runs on the primary runner only. An unreadable file
+    // becomes the fallback reason; the dev dual-capture spike ignores customs.
+    const std::string customId = dualCapture ? std::string{} : config.customEffectId();
+    std::string customFailure;
+    std::optional<nlohmann::json> customDoc;
+    if(!customId.empty()){
+      customDoc = EffectStore(configRoot).read(customId, customFailure);
+    }
+
     ScopedPhaseTimer captureTimer(options, "capture+graph init");
     if(dualCapture){
 #ifdef AURORA_RUNTIME_AUDIO_AVAILABLE
@@ -155,6 +165,7 @@ namespace Aurora::Runtime
       pipeline->m_audioRunner.emplace(
         *audioInput, pipeline->m_outputPtrs, config, ZoneMapStore(configRoot)
       );
+      if(customDoc){ pipeline->m_audioRunner->setCustomGraph(*customDoc); }
       pipeline->m_audioRunner->init();
       pipeline->m_audioInput = std::move(audioInput);
       pipeline->m_isAudioMode = true;
@@ -179,6 +190,7 @@ namespace Aurora::Runtime
       pipeline->m_videoRunner.emplace(
         *input, pipeline->m_outputPtrs, config, ZoneMapStore(configRoot)
       );
+      if(customDoc){ pipeline->m_videoRunner->setCustomGraph(*customDoc); }
       pipeline->m_videoRunner->init();
       pipeline->m_videoInput = std::move(input);
       pipeline->m_isAudioMode = false;
@@ -214,7 +226,18 @@ namespace Aurora::Runtime
 
     // Audio-only is the audio graph; video (plain or dual-capture) is the
     // video graph, matching what the dev spike runs as primary.
-    pipeline->m_summary.effect = useAudioMode ? "builtin.audio" : "builtin.video";
+    const std::string builtInId = useAudioMode ? kBuiltInAudioEffectId : kBuiltInVideoEffectId;
+    pipeline->m_summary.effect = builtInId;
+    pipeline->m_summary.requestedEffect = customId.empty() ? builtInId : customId;
+    if(!customId.empty()){
+      const GraphRunner& primary = useAudioMode ? *pipeline->m_audioRunner : *pipeline->m_videoRunner;
+      if(primary.runningCustom()){
+        pipeline->m_summary.effect = customId;
+      }
+      else{
+        pipeline->m_summary.fallbackReason = customFailure.empty() ? primary.customError() : customFailure;
+      }
+    }
     if(!useAudioMode){
       pipeline->m_summary.video = PipelineSummary::Video{
         config.activeInputName(), pipeline->m_videoInput->selectedMonitorName()
@@ -412,7 +435,12 @@ namespace Aurora::Runtime
     }
     std::lock_guard<std::mutex> lock(m_mutex);
     for(HostError& error : errors){ error.id = m_nextErrorId++; }
-    _publishStatusLocked(std::move(errors));
+    if(errors.empty()){
+      _publishBuiltLocked();
+    }
+    else{
+      _publishStatusLocked(std::move(errors));
+    }
   }
 
 
@@ -441,6 +469,24 @@ namespace Aurora::Runtime
       m_status = HostStatus{state, std::move(errors)};
     }
     m_changes.bump();
+  }
+
+
+  void PipelineHost::_publishBuiltLocked()
+  {
+    std::vector<HostError> errors;
+    if(m_pipeline && !m_pipeline->summary().fallbackReason.empty()){
+      // After the build, not before: a successful build clears held errors,
+      // and this one describes the build that just succeeded.
+      const PipelineSummary summary = m_pipeline->summary();
+      errors.push_back({
+        "effect_fallback",
+        "Custom effect '" + summary.requestedEffect + "' did not load, so " + summary.effect
+          + " is running: " + summary.fallbackReason,
+        m_nextErrorId++
+      });
+    }
+    _publishStatusLocked(std::move(errors));
   }
 
 
@@ -720,7 +766,7 @@ namespace Aurora::Runtime
         m_pipeline = std::move(next);
         _storeCapabilities(m_pipeline.get());
         ++m_buildEpoch;
-        _publishStatusLocked({});
+        _publishBuiltLocked();
       }
     }
     if(discardNext){
@@ -815,7 +861,7 @@ namespace Aurora::Runtime
     m_pausedZones = {};
     m_paused = false;
     ++m_buildEpoch;
-    _publishStatusLocked({});
+    _publishBuiltLocked();
     return true;
   }
 

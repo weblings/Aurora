@@ -50,6 +50,11 @@ namespace Aurora::Runtime
     GraphRunner(const GraphRunner&) = delete;
     GraphRunner& operator=(const GraphRunner&) = delete;
 
+    // A custom graph doc to run instead of the built-in one. Call before
+    // init(). If it fails to load, the runner runs the built-in graph and
+    // customError() says why.
+    void setCustomGraph(nlohmann::json doc);
+
     // Video: selects the configured monitor, fills an unset refreshRate and
     // subsampleWidth from the display, hints the capture width. Both kinds:
     // reconciles and persists each output's zone map against its live
@@ -85,6 +90,12 @@ namespace Aurora::Runtime
     // current Config overlay), as GET /api/graph serves it.
     nlohmann::json graphJson() const;
 
+    // True while the custom graph from setCustomGraph() is the one running.
+    bool runningCustom() const { return m_runningCustom; }
+
+    // Why the custom graph was not loaded; empty when it was, or none was set.
+    const std::string& customError() const { return m_customError; }
+
     // Post-derivation for video (refreshRate/subsampleWidth filled in).
     const Config& config() const { return m_config; }
 
@@ -105,7 +116,9 @@ namespace Aurora::Runtime
       GraphRunner& m_runner;
     };
 
-    bool _load(const Config& config, Graph::LoadResult& result) const;
+    // Loads the custom graph if one is set, else (or when it fails, with
+    // customError set) the built-in one.
+    bool _load(const Config& config, Graph::LoadResult& result, bool& custom, std::string& customError) const;
 
     bool m_isAudio{false};
     Input::IVideoInput* m_videoInput{nullptr};
@@ -119,6 +132,9 @@ namespace Aurora::Runtime
     Graph::NodeRegistry m_registry;
     Graph::Graph m_graph;
     bool m_loaded{false};
+    std::optional<nlohmann::json> m_customDoc;
+    bool m_runningCustom{false};
+    std::string m_customError;
     Host m_host{*this};
 
     // Dev-only visualization tap, no-op unless AURORA_DEV_FRAME_DUMP is set.

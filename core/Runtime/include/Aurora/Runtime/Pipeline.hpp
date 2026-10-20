@@ -75,7 +75,11 @@ namespace Aurora::Runtime
       bool followsDefault{true};
     };
 
+    // What runs, and what Config asked for. They differ after a fallback.
     std::string effect;
+    std::string requestedEffect;
+    // Why a requested custom effect is not the one running; empty otherwise.
+    std::string fallbackReason;
     std::optional<Video> video;
     std::optional<Audio> audio;
   };
@@ -441,6 +445,11 @@ namespace Aurora::Runtime
     // the whole list. Caller holds m_mutex (and m_changeMutex when it also
     // changed m_pipeline). Entries must already carry their ids.
     void _publishStatusLocked(std::vector<HostError> errors);
+
+    // Publishes a freshly built pipeline's status: no errors, except the
+    // effect_fallback entry when it fell back from a custom effect. Caller
+    // holds m_mutex.
+    void _publishBuiltLocked();
 
     // Creates or replaces the entry for `source` (new id), keeping the rest.
     // Caller holds m_mutex.

@@ -39,8 +39,11 @@ namespace Aurora::Runtime
   // state. A paused host holds only a failed resume.
   // The flags describe what the running pipeline uses, kept through pause;
   // all false means nothing runs.
-  // Aurora-5ipy.2 adds "effect" (active graph id, "builtin.video" or
-  // "builtin.audio" today, null when idle or failed) and "source": {"video":
+  // Aurora-5ipy.2 adds "effect" (the running graph id: "builtin.video",
+  // "builtin.audio" or a custom effect's id, null when idle or failed),
+  // Aurora-52oz.1 adds "requestedEffect" (what Config asked for; it differs
+  // from "effect" while a custom effect that failed to load is replaced by
+  // the built-in, with an "effect_fallback" error held) and "source": {"video":
   // {"input", "monitor" (string or null)} or null, "audio": {"input", "sink"
   // (string or null), "auto" (follows the default sink)} or null}. A null side
   // is unused. Kept through pause; "sink" is the platform-resolved sink while

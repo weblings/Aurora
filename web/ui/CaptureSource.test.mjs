@@ -94,9 +94,9 @@ const ctx = {
   currentActiveInputName: '', currentActiveAudioInputName: '',
   monitors: [], selectedMonitorName: 'DP-1', sinkName: ' sink-a ',
 };
-assert.deepEqual(modeSwitchPatch('video', ctx), { activeInputName: 'linux' });
-assert.deepEqual(modeSwitchPatch('video', { ...ctx, monitors: [{ name: 'DP-1' }] }), { activeInputName: 'linux', activeMonitorName: 'DP-1' });
-assert.deepEqual(modeSwitchPatch('audio', ctx), { activeInputName: '', activeAudioInputName: 'linux-audio', audioTargetSinkName: 'sink-a' });
+assert.deepEqual(modeSwitchPatch('video', ctx), { activeEffectId: 'builtin.video', activeInputName: 'linux' });
+assert.deepEqual(modeSwitchPatch('video', { ...ctx, monitors: [{ name: 'DP-1' }] }), { activeEffectId: 'builtin.video', activeInputName: 'linux', activeMonitorName: 'DP-1' });
+assert.deepEqual(modeSwitchPatch('audio', ctx), { activeEffectId: 'builtin.audio', activeInputName: '', activeAudioInputName: 'linux-audio', audioTargetSinkName: 'sink-a' });
 
 // loadPipelineState: the parsed body, or null on any failure.
 {

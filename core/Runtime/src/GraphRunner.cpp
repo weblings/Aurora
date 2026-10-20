@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <stdexcept>
+#include <unordered_set>
 #include <utility>
 
 #include <Aurora/Runtime/Graph/BuiltInGraphs.hpp>
@@ -63,8 +64,27 @@ namespace Aurora::Runtime
 #endif
 
 
-  bool GraphRunner::_load(const Config& config, Graph::LoadResult& result) const
+  void GraphRunner::setCustomGraph(nlohmann::json doc)
   {
+    m_customDoc = std::move(doc);
+  }
+
+
+  bool GraphRunner::_load(
+    const Config& config, Graph::LoadResult& result, bool& custom, std::string& customError) const
+  {
+    custom = false;
+    customError.clear();
+    if(m_customDoc){
+      Graph::LoadOptions options;
+      options.knownOutputs = std::unordered_set<std::string>(m_outputNames.begin(), m_outputNames.end());
+      result = Graph::loadGraph(*m_customDoc, m_registry, options);
+      if(result.ok){
+        custom = true;
+        return true;
+      }
+      customError = result.error;
+    }
 #ifdef AURORA_RUNTIME_AUDIO_AVAILABLE
     if(m_isAudio){
       result = Graph::loadBuiltInAudioGraph(m_registry, m_outputNames, config.data());
@@ -78,6 +98,9 @@ namespace Aurora::Runtime
 
   nlohmann::json GraphRunner::graphJson() const
   {
+    if(m_runningCustom){
+      return *m_customDoc;
+    }
 #ifdef AURORA_RUNTIME_AUDIO_AVAILABLE
     if(m_isAudio){
       return Graph::builtInAudioGraph(m_outputNames, Graph::audioOverlayFromConfig(m_config.data(), m_outputNames));
@@ -132,7 +155,7 @@ namespace Aurora::Runtime
     }
 
     Graph::LoadResult loaded;
-    if(!_load(m_config, loaded)){
+    if(!_load(m_config, loaded, m_runningCustom, m_customError)){
       throw std::runtime_error("built-in graph failed to load: " + loaded.error);
     }
     m_graph = std::move(loaded.graph);
@@ -199,7 +222,9 @@ namespace Aurora::Runtime
   bool GraphRunner::setConfig(Config config, std::string& errorOut)
   {
     Graph::LoadResult loaded;
-    if(!_load(config, loaded)){
+    bool custom = false;
+    std::string customError;
+    if(!_load(config, loaded, custom, customError)){
       errorOut = loaded.error;
       return false;
     }
@@ -209,6 +234,8 @@ namespace Aurora::Runtime
     loaded.graph.adoptStateFrom(m_graph);
     m_graph = std::move(loaded.graph);
     m_config = std::move(config);
+    m_runningCustom = custom;
+    m_customError = std::move(customError);
     return true;
   }
 

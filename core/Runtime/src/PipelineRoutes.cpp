@@ -63,6 +63,7 @@ namespace Aurora::Runtime
       return nlohmann::json{
         {"state", hostStateName(status.state)},
         {"effect", summary.effect.empty() ? nlohmann::json(nullptr) : nlohmann::json(summary.effect)},
+        {"requestedEffect", summary.requestedEffect.empty() ? nlohmann::json(nullptr) : nlohmann::json(summary.requestedEffect)},
         {"source", {{"video", video}, {"audio", audio}}},
         // The saved setting, so it reads right while paused or idle too.
         {"brightness", ConfigStore(configRoot).load().brightness()},

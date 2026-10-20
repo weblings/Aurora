@@ -8,6 +8,7 @@
 #include <atomic>
 #include <chrono>
 #include <condition_variable>
+#include <fstream>
 #include <cstdlib>
 #include <functional>
 #include <future>
@@ -18,8 +19,12 @@
 #include <thread>
 
 #include <Aurora/Network/Http/Server/HttpServer.hpp>
+#include <Aurora/Network/Http/Server/Pairing.hpp>
 #include <Aurora/Runtime/ConfigApply.hpp>
 #include <Aurora/Runtime/ConfigStore.hpp>
+#include <Aurora/Runtime/EffectStore.hpp>
+#include <Aurora/Runtime/EffectsRoutes.hpp>
+#include <Aurora/Runtime/Graph/BuiltInGraphs.hpp>
 #include <Aurora/Runtime/Graph/AllNodes.hpp>
 #include <Aurora/Runtime/Graph/FrameNodes.hpp>
 #include <Aurora/Runtime/Graph/MathNodes.hpp>
@@ -957,6 +962,7 @@ TEST_CASE("GET /api/state reports paused and the running pipeline's capabilities
   CHECK(state() == nlohmann::json{
     {"state", "idle"},
     {"effect", nullptr},
+    {"requestedEffect", nullptr},
     {"source", {{"video", nullptr}, {"audio", nullptr}}},
     {"errors", nlohmann::json::array()},
     {"conditions", nlohmann::json::array()},
@@ -2585,4 +2591,259 @@ TEST_CASE("A tick loop at an extreme rate leaves other host calls inside a laten
   ticking.store(false);
   tickThread.join();
   host.shutdown();
+}
+
+
+TEST_CASE("EffectStore round-trips graph files and refuses ids that could leave effects/ (Aurora-52oz.1)", "[Effects]")
+{
+  ScopedTempDir dir("effect-store");
+  EffectStore store(dir.path);
+  CHECK(store.list().empty());
+
+  const nlohmann::json doc = Graph::builtInVideoGraph({"out-a"});
+  std::string error;
+  REQUIRE(store.write("calm-1", doc, error));
+  REQUIRE(store.write("alpha", doc, error));
+  CHECK(store.list() == std::vector<std::string>{"alpha", "calm-1"});
+  CHECK(store.exists("alpha"));
+
+  auto back = store.read("calm-1", error);
+  REQUIRE(back);
+  CHECK(*back == doc);
+
+  CHECK_FALSE(store.write("../escape", doc, error));
+  CHECK_FALSE(store.write("builtin.video", doc, error));
+  CHECK_FALSE(store.write("Upper", doc, error));
+  CHECK_FALSE(store.write("", doc, error));
+  CHECK_FALSE(store.read("missing", error));
+  CHECK(error.find("missing") != std::string::npos);
+
+  std::ofstream(dir.path / "effects" / "broken.json") << "{not json";
+  CHECK_FALSE(store.read("broken", error));
+  CHECK(error.find("not valid JSON") != std::string::npos);
+
+  CHECK(store.remove("alpha"));
+  CHECK_FALSE(store.remove("alpha"));
+  CHECK(store.list() == std::vector<std::string>{"broken", "calm-1"});
+}
+
+
+TEST_CASE("A custom effect runs, and a failed one falls back with a held effect_fallback error (Aurora-52oz.1)", "[Effects]")
+{
+  ScopedTempDir dir("effect-fallback");
+  auto events = std::make_shared<Events>();
+  auto registry = makeRegistry(events);
+  std::string error;
+  EffectStore store(dir.path);
+  REQUIRE(store.write("mine", Graph::builtInVideoGraph({"out-a", "out-b"}), error));
+  REQUIRE(store.write("gone-output", Graph::builtInVideoGraph({"removed-out"}), error));
+  std::ofstream(dir.path / "effects" / "broken.json") << "{not json";
+
+  PipelineHost host(nullptr, {});
+  auto effectsOf = [&](){
+    const PipelineSummary summary = host.summary();
+    return std::make_pair(summary.effect, summary.requestedEffect);
+  };
+  auto reloadWith = [&](const std::string& id){
+    Config config = videoConfig();
+    config.setActiveEffectId(id);
+    return host.reload(registry, config, dir.path, error);
+  };
+
+  REQUIRE(reloadWith("mine"));
+  CHECK(effectsOf() == std::make_pair(std::string("mine"), std::string("mine")));
+  CHECK(host.status().errors.empty());
+  CHECK(*host.graphJson() == Graph::builtInVideoGraph({"out-a", "out-b"}));
+
+  // A custom naming a removed output runs the built-in and holds the entry.
+  REQUIRE(reloadWith("gone-output"));
+  CHECK(effectsOf() == std::make_pair(std::string("builtin.video"), std::string("gone-output")));
+  HostStatus status = host.status();
+  CHECK(status.state == HostState::Running);
+  REQUIRE(status.errors.size() == 1);
+  CHECK(status.errors[0].source == "effect_fallback");
+  CHECK(status.errors[0].message.find("removed-out") != std::string::npos);
+
+  // A missing file and a corrupt one fall back the same way.
+  REQUIRE(reloadWith("not-there"));
+  CHECK(effectsOf().first == "builtin.video");
+  REQUIRE(host.status().errors.size() == 1);
+  CHECK(host.status().errors[0].message.find("missing") != std::string::npos);
+  REQUIRE(reloadWith("broken"));
+  REQUIRE(host.status().errors.size() == 1);
+  CHECK(host.status().errors[0].message.find("not valid JSON") != std::string::npos);
+
+  // The entry clears once the custom loads, and when the user switches away.
+  REQUIRE(reloadWith("mine"));
+  CHECK(host.status().errors.empty());
+  REQUIRE(reloadWith("gone-output"));
+  REQUIRE(host.status().errors.size() == 1);
+  REQUIRE(reloadWith("builtin.video"));
+  CHECK(host.status().errors.empty());
+  CHECK(effectsOf() == std::make_pair(std::string("builtin.video"), std::string("builtin.video")));
+
+  // Resuming from pause onto a failing custom holds the entry too.
+  REQUIRE(reloadWith("mine"));
+  REQUIRE(host.pause());
+  Config config = videoConfig();
+  config.setActiveEffectId("gone-output");
+  REQUIRE(host.resume(registry, config, dir.path, error));
+  REQUIRE(host.status().errors.size() == 1);
+  CHECK(host.status().errors[0].source == "effect_fallback");
+  host.shutdown();
+}
+
+
+TEST_CASE("A startup pipeline that fell back holds the effect_fallback error (Aurora-52oz.1)", "[Effects]")
+{
+  ScopedTempDir dir("effect-fallback-startup");
+  auto events = std::make_shared<Events>();
+  auto registry = makeRegistry(events);
+  Config config = videoConfig();
+  config.setActiveEffectId("nope");
+
+  PipelineHost host(Pipeline::build(registry, config, dir.path, {}), {});
+  REQUIRE(host.status().errors.size() == 1);
+  CHECK(host.status().errors[0].source == "effect_fallback");
+  CHECK(host.summary().requestedEffect == "nope");
+  host.shutdown();
+}
+
+
+TEST_CASE("Switching between built-in effect ids does not rebuild the pipeline (Aurora-52oz.1)", "[Effects][ConfigApply]")
+{
+  Config applied = videoConfig();
+  Config next = videoConfig();
+  next.setActiveEffectId("builtin.video");
+  CHECK(planConfigChange(applied, next, false) == ChangeAction::None);
+
+  next.setActiveEffectId("mine");
+  CHECK(planConfigChange(applied, next, false) == ChangeAction::Reload);
+  CHECK(planConfigChange(next, applied, false) == ChangeAction::Reload);
+}
+
+
+TEST_CASE("Effects routes list, read, switch and delete (Aurora-52oz.1)", "[Effects]")
+{
+  using namespace Aurora::Network::Http::Server;
+
+  ScopedTempDir dir("effects-routes");
+  auto events = std::make_shared<Events>();
+  auto registry = makeRegistry(events);
+  std::string error;
+  EffectStore store(dir.path);
+  const nlohmann::json mine = Graph::builtInVideoGraph({"out-a", "out-b"});
+  REQUIRE(store.write("mine", mine, error));
+  std::ofstream(dir.path / "effects" / "broken.json") << "{not json";
+  ConfigStore(dir.path).save(videoConfig());
+
+  PipelineHost host(Pipeline::build(registry, videoConfig(), dir.path, {}), {});
+  HttpServer server;
+  registerEffectsRoutes(server, host, registry, dir.path, [&]{
+    return applyConfigFromDisk(host, registry, dir.path);
+  });
+  const int port = server.bindToAnyPort("127.0.0.1");
+  REQUIRE(port > 0);
+  std::thread serverThread([&](){ server.listen(); });
+  httplib::Client client("127.0.0.1", port);
+
+  auto json = [](const httplib::Result& result){
+    REQUIRE(result);
+    return nlohmann::json::parse(result->body);
+  };
+
+  auto list = json(getWithRetry(client, "/api/effects"));
+  CHECK(list["effects"] == nlohmann::json::array({
+    {{"id", "builtin.video"}, {"builtin", true}},
+    {{"id", "builtin.audio"}, {"builtin", true}},
+    {{"id", "broken"}, {"builtin", false}},
+    {{"id", "mine"}, {"builtin", false}}
+  }));
+  CHECK(list["activeEffectId"] == "");
+  CHECK(list["effect"] == "builtin.video");
+
+  auto one = getWithRetry(client, "/api/effects/mine");
+  REQUIRE(one);
+  CHECK(nlohmann::json::parse(one->body) == nlohmann::json{{"id", "mine"}, {"builtin", false}, {"graph", mine}});
+  auto builtIn = json(getWithRetry(client, "/api/effects/builtin.video"));
+  CHECK(builtIn["builtin"] == true);
+  CHECK(builtIn["graph"]["nodes"].is_array());
+  CHECK(getWithRetry(client, "/api/effects/nope")->status == 404);
+  CHECK(getWithRetry(client, "/api/effects/broken")->status == 422);
+
+  // Switch to the custom and back.
+  auto put = [&](const std::string& body){ return client.Put("/api/effects", body, "application/json"); };
+  auto switched = put(R"({"activeEffectId": "mine"})");
+  REQUIRE(switched);
+  CHECK(switched->status == 200);
+  auto switchedBody = nlohmann::json::parse(switched->body);
+  CHECK(switchedBody["effect"] == "mine");
+  CHECK(switchedBody["requestedEffect"] == "mine");
+  CHECK(ConfigStore(dir.path).load().activeEffectId() == "mine");
+
+  CHECK(put(R"({"activeEffectId": "nope"})")->status == 404);
+  CHECK(put(R"({"other": 1})")->status == 400);
+  CHECK(ConfigStore(dir.path).load().activeEffectId() == "mine");
+
+  auto back = json(put(R"({"activeEffectId": "builtin.video"})"));
+  CHECK(back["effect"] == "builtin.video");
+  CHECK(back["requestedEffect"] == "builtin.video");
+
+  // Deleting the active custom falls back to the built-in.
+  REQUIRE(put(R"({"activeEffectId": "mine"})")->status == 200);
+  CHECK(client.Delete("/api/effects/builtin.video")->status == 400);
+  CHECK(client.Delete("/api/effects/nope")->status == 404);
+  auto deleted = client.Delete("/api/effects/mine");
+  REQUIRE(deleted);
+  CHECK(deleted->status == 200);
+  CHECK(nlohmann::json::parse(deleted->body) == nlohmann::json{{"succeeded", true}, {"deleted", "mine"}, {"fellBack", true}});
+  CHECK_FALSE(store.exists("mine"));
+  CHECK(ConfigStore(dir.path).load().activeEffectId() == "");
+  CHECK(host.summary().effect == "builtin.video");
+  CHECK(host.status().errors.empty());
+
+  // Deleting a custom that is not active leaves the running effect alone.
+  auto other = client.Delete("/api/effects/broken");
+  CHECK(nlohmann::json::parse(other->body)["fellBack"] == false);
+
+  server.stop();
+  serverThread.join();
+  host.shutdown();
+}
+
+
+TEST_CASE("Effects routes: reads need read scope, switch and delete need apply (Aurora-52oz.1)", "[Effects][Pairing]")
+{
+  using namespace Aurora::Network::Http::Server;
+  auto service = std::make_shared<PairingService>();
+  AccessGuard guard(service, [](const std::string& addr){ return addr == "127.0.0.1"; });
+  addEffectsAccessRules(guard);
+
+  const std::string read = service->mintForTest("viewer", Scope::Read);
+  const std::string draft = service->mintForTest("editor", Scope::Draft);
+  const std::string apply = service->mintForTest("adapter", Scope::Apply);
+
+  auto decide = [&](HttpMethod method, const std::string& path, const std::string& token){
+    AccessRequest request;
+    request.method = method;
+    request.path = path;
+    request.remoteAddr = "192.168.1.20";
+    if(!token.empty()){ request.authorization = "Bearer " + token; }
+    return guard.decide(request).result;
+  };
+  using Result = AccessDecision::Result;
+
+  for(const char* path : {"/api/effects", "/api/effects/mine"}){
+    CHECK(decide(HttpMethod::Get, path, read) == Result::Allow);
+    CHECK(decide(HttpMethod::Get, path, "") == Result::Unauthorized);
+  }
+  CHECK(decide(HttpMethod::Put, "/api/effects", read) == Result::Forbidden);
+  CHECK(decide(HttpMethod::Put, "/api/effects", draft) == Result::Forbidden);
+  CHECK(decide(HttpMethod::Put, "/api/effects", apply) == Result::Allow);
+  CHECK(decide(HttpMethod::Delete, "/api/effects/mine", read) == Result::Forbidden);
+  CHECK(decide(HttpMethod::Delete, "/api/effects/mine", apply) == Result::Allow);
+  CHECK(decide(HttpMethod::Put, "/api/effects", "") == Result::Unauthorized);
+
+  // Config writes stay admin: the apply scope switches through /api/effects.
+  CHECK(decide(HttpMethod::Put, "/api/config", apply) == Result::Forbidden);
 }

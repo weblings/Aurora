@@ -169,6 +169,10 @@ namespace Aurora::Network::Http::Server
     // under it.
     void addRule(const std::string& pathPrefix, Scope required);
 
+    // Like addRule, but only for methods other than GET, so reads under the
+    // prefix keep the default Read requirement (Aurora-52oz.1).
+    void addWriteRule(const std::string& pathPrefix, Scope required);
+
     AccessDecision decide(const AccessRequest& request) const;
 
     static bool isLoopback(const std::string& remoteAddr);
@@ -176,6 +180,12 @@ namespace Aurora::Network::Http::Server
   private:
     std::shared_ptr<PairingService> m_service;
     IsLocal m_isLocal;
-    std::vector<std::pair<std::string, Scope>> m_rules;
+    struct Rule
+    {
+      std::string prefix;
+      Scope scope;
+      bool writesOnly;
+    };
+    std::vector<Rule> m_rules;
   };
 }
