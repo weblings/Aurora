@@ -58,7 +58,23 @@ the app launched from the terminal, then Andrew's hand checks. No bead.
 
 - Sound-driven audio output was not read by the agent (Andrew confirmed it works).
 - Settings PUT coalescing reload counts (route tests cover it, as on Linux).
-- Release: no signed or notarized 1.1.2 zip exists yet.
+- Publishing: the zip is not tagged or attached to a GitHub Release.
+
+## Release zip
+
+- `cmake --preset mac-app -B build/mac-release -DCMAKE_OSX_DEPLOYMENT_TARGET=27`
+  (Info.plist 1.1.2, `LSMinimumSystemVersion` 27), then `tools/mac/sign-notarize.sh`
+  with the Developer ID and `aurora-notary` profile. Dry run first: verify-bundle
+  PASS (29 Mach-O, one identity, no Homebrew links, licenses present).
+- Submission `f694f210-5765-4416-b5e4-6f56aba47a7a` Accepted; stapled; `spctl`
+  Notarized Developer ID.
+- `build/notarize-out-1.1.2/Aurora_Mac_v1.1.2.zip` (renamed from the script's
+  `Aurora-1.1.2-notarized.zip`), 20,007,294 bytes, sha256
+  `f35022d84948b7f8d937a608d7037e3eb88b99ec7472dc58b03595b2ed2b7da5`.
+  Gitignored under `build/`; not published.
+- Smoke test of the extracted zip: Gatekeeper accepts, `open -n --args --fresh`
+  serves `/api/version` 1.1.2 and `/api/capabilities` platform `mac`, stops via
+  `POST /api/stop`.
 
 ## Surprises
 
