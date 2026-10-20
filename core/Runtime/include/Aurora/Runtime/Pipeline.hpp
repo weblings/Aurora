@@ -142,6 +142,16 @@ namespace Aurora::Runtime
     // lock that guards tick().
     bool swapEffect(const Config& next, const nlohmann::json& doc);
 
+    // Runs `doc` in place for a test on lights (Aurora-52oz.5), changing
+    // neither the Config nor the summary. False, changing nothing, when the
+    // graph would need other inputs than the ones running or fails to load.
+    bool testGraph(const nlohmann::json& doc);
+
+    // Puts the live effect back after testGraph(): `doc` is the custom graph
+    // `live` names, empty for a built-in. False, changing nothing, when the
+    // live Config differs from the running one, so the caller rebuilds.
+    bool restoreEffect(const Config& live, const std::optional<nlohmann::json>& doc);
+
     // The Config this pipeline was built from, as later changed by
     // applyConfig(). Video mode holds the post-derivation values
     // (refreshRate/subsampleWidth filled in from the display).
@@ -342,6 +352,15 @@ namespace Aurora::Runtime
     // Pipeline::swapEffect refuses; the caller then calls reload().
     bool applyEffect(const Config& next, const nlohmann::json& doc);
 
+    // In-place test and restore (Aurora-52oz.5), see Pipeline::testGraph and
+    // restoreEffect. False when there is no pipeline or the pipeline refuses.
+    bool testGraph(const nlohmann::json& doc);
+    bool restoreEffect(const Config& live, const std::optional<nlohmann::json>& doc);
+
+    // Moves on every rebuild (reload, resume). With isPaused() it tells a test
+    // on lights its pipeline is gone.
+    std::uint64_t buildEpoch() const { return m_buildEpoch.load(); }
+
     // Returns true on success. On failure, errorOut is set and the previous
     // pipeline keeps running untouched -- a bad reload (e.g. an
     // activeInputName a settings PUT just wrote that doesn't resolve to any
@@ -460,6 +479,11 @@ namespace Aurora::Runtime
     // the whole list. Caller holds m_mutex (and m_changeMutex when it also
     // changed m_pipeline). Entries must already carry their ids.
     void _publishStatusLocked(std::vector<HostError> errors);
+
+    // Runs `swap` on the pipeline under both locks and, when it succeeds and
+    // `clearFallback` is set, drops the held effect_fallback entry. False when
+    // there is no pipeline.
+    bool _swapInPlace(const std::function<bool(Pipeline&)>& swap, bool clearFallback, const char* logLine);
 
     // Publishes a freshly built pipeline's status: no errors, except the
     // effect_fallback entry when it fell back from a custom effect. Caller

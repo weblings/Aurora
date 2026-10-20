@@ -41,6 +41,7 @@
 #include <Aurora/Runtime/PendingRunRequest.hpp>
 #include <Aurora/Runtime/Pipeline.hpp>
 #include <Aurora/Runtime/ApplyRoutes.hpp>
+#include <Aurora/Runtime/TestRoutes.hpp>
 #include <Aurora/Runtime/DraftRoutes.hpp>
 #include <Aurora/Runtime/EffectsRoutes.hpp>
 #include <Aurora/Runtime/GraphRoutes.hpp>
@@ -549,10 +550,12 @@ try
     },
     accessGuard.get());
   auto draftStore = Aurora::Runtime::registerDraftRoutes(httpServer, registry, configRoot, accessGuard.get());
-  Aurora::Runtime::registerApplyRoutes(httpServer, pipelineHost, registry, configRoot, draftStore,
+  auto applyDraft = Aurora::Runtime::registerApplyRoutes(httpServer, pipelineHost, registry, configRoot, draftStore,
     [&pipelineHost, &registry, configRoot]() -> std::string {
       return Aurora::Runtime::applyEffectFromDisk(pipelineHost, registry, configRoot);
     },
+    accessGuard.get());
+  Aurora::Runtime::registerTestRoutes(httpServer, pipelineHost, registry, configRoot, draftStore, applyDraft,
     accessGuard.get());
   Aurora::Runtime::registerDevErrorsRoute(httpServer, pipelineHost);
   registerStopRoute(httpServer);

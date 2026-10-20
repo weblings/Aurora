@@ -276,6 +276,16 @@ namespace Aurora::Runtime
   }
 
 
+  bool GraphRunner::restoreGraph(std::optional<nlohmann::json> doc, std::string& errorOut)
+  {
+    if(doc){
+      return swapCustomGraph(std::move(*doc), errorOut);
+    }
+    m_customDoc.reset();
+    return setConfig(m_config, errorOut);
+  }
+
+
   Output::IOutput* GraphRunner::Host::output(std::string_view name)
   {
     auto it = m_runner.m_outputsByName.find(std::string(name));

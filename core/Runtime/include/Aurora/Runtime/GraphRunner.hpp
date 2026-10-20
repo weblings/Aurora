@@ -93,6 +93,10 @@ namespace Aurora::Runtime
     // False with errorOut set, running graph untouched, if `doc` fails to load.
     bool swapCustomGraph(nlohmann::json doc, std::string& errorOut);
 
+    // Puts back the live graph after a test (Aurora-52oz.5): `doc` as the
+    // custom graph, or the built-in one when empty. Node state moves across.
+    bool restoreGraph(std::optional<nlohmann::json> doc, std::string& errorOut);
+
     // Applies a live-tunable Config change (Aurora-c0g): rebuilds the graph
     // from the new Config and moves node state across by id. Capture-side
     // effects of a subsampleWidth change are the caller's, since they can

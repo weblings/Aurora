@@ -426,6 +426,40 @@ namespace Aurora::Runtime
   }
 
 
+  bool Pipeline::testGraph(const nlohmann::json& doc)
+  {
+    if(m_videoRunner && m_audioRunner){
+      return false;
+    }
+    const ModePlan plan = _planMode(m_appliedConfig, &doc);
+    if(!plan.missing.empty() || plan.audioMode != m_isAudioMode || plan.bothInputs != m_bothInputs){
+      return false;
+    }
+    std::string error;
+    return (m_isAudioMode ? *m_audioRunner : *m_videoRunner).restoreGraph(doc, error);
+  }
+
+
+  bool Pipeline::restoreEffect(const Config& live, const std::optional<nlohmann::json>& doc)
+  {
+    if(doc){
+      return swapEffect(live, *doc);
+    }
+    if(m_videoRunner && m_audioRunner){
+      return false;
+    }
+    // A built-in restore only undoes the graph swap: any Config change since
+    // goes through the usual apply or reload.
+    if(planConfigChange(m_appliedConfig, live, m_isAudioMode) != ChangeAction::None
+      || live.activeEffectId() != m_appliedConfig.activeEffectId()
+      || m_bothInputs){
+      return false;
+    }
+    std::string error;
+    return (m_isAudioMode ? *m_audioRunner : *m_videoRunner).restoreGraph(std::nullopt, error);
+  }
+
+
   void Pipeline::tick(float dt)
   {
     if(m_dualStats.log){
@@ -860,26 +894,48 @@ namespace Aurora::Runtime
   }
 
 
-  bool PipelineHost::applyEffect(const Config& next, const nlohmann::json& doc)
+  bool PipelineHost::_swapInPlace(const std::function<bool(Pipeline&)>& swap, bool clearFallback, const char* logLine)
   {
     std::lock_guard<std::mutex> change(m_changeMutex);
     {
       std::lock_guard<std::mutex> lock(m_mutex);
-      if(!m_pipeline || !m_pipeline->swapEffect(next, doc)){
+      if(!m_pipeline || !swap(*m_pipeline)){
         return false;
       }
       _storeCapabilities(m_pipeline.get());
 
-      // The effect now runs, so only its fallback entry goes.
-      std::vector<HostError> errors = m_status.errors;
-      errors.erase(
-        std::remove_if(errors.begin(), errors.end(), [](const HostError& e){ return e.source == "effect_fallback"; }),
-        errors.end()
-      );
-      _publishStatusLocked(std::move(errors));
+      if(clearFallback){
+        // The effect now runs, so only its fallback entry goes.
+        std::vector<HostError> errors = m_status.errors;
+        errors.erase(
+          std::remove_if(errors.begin(), errors.end(), [](const HostError& e){ return e.source == "effect_fallback"; }),
+          errors.end()
+        );
+        _publishStatusLocked(std::move(errors));
+      }
     }
-    _log(m_options, LogLevel::Info, "Effect applied live, no pipeline reload.");
+    _log(m_options, LogLevel::Info, logLine);
     return true;
+  }
+
+
+  bool PipelineHost::applyEffect(const Config& next, const nlohmann::json& doc)
+  {
+    return _swapInPlace(
+      [&](Pipeline& p){ return p.swapEffect(next, doc); }, true, "Effect applied live, no pipeline reload.");
+  }
+
+
+  bool PipelineHost::testGraph(const nlohmann::json& doc)
+  {
+    return _swapInPlace([&](Pipeline& p){ return p.testGraph(doc); }, false, "Test graph running on the lights.");
+  }
+
+
+  bool PipelineHost::restoreEffect(const Config& live, const std::optional<nlohmann::json>& doc)
+  {
+    return _swapInPlace(
+      [&](Pipeline& p){ return p.restoreEffect(live, doc); }, true, "Live effect restored after a test.");
   }
 
 

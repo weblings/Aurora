@@ -5,6 +5,8 @@
 #include <memory>
 #include <string>
 
+#include <nlohmann/json.hpp>
+
 namespace Aurora::Network::Http::Server { class AccessGuard; class HttpServer; }
 
 // Apply a draft as the live effect (Aurora-52oz.4).
@@ -33,7 +35,11 @@ namespace Aurora::Runtime
   // [a-z0-9][a-z0-9_-]{0,63}, so built-in ids never qualify), 404 "no_draft",
   // 422 "invalid_graph" with "valid": false and "errors" as the draft routes
   // report them, 500 "write_failed".
-  void registerApplyRoutes(
+  // The apply itself, shared with test-on-lights confirm: fills `body` and
+  // returns the HTTP status the route answers with.
+  using ApplyDraftFn = std::function<int(const std::string& session, const std::string& id, nlohmann::json& body)>;
+
+  ApplyDraftFn registerApplyRoutes(
     Aurora::Network::Http::Server::HttpServer& server,
     PipelineHost& pipelineHost,
     const Registry& registry,

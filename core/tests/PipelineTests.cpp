@@ -21,6 +21,7 @@
 #include <Aurora/Network/Http/Server/HttpServer.hpp>
 #include <Aurora/Network/Http/Server/Pairing.hpp>
 #include <Aurora/Runtime/ApplyRoutes.hpp>
+#include <Aurora/Runtime/TestRoutes.hpp>
 #include <Aurora/Runtime/ConfigApply.hpp>
 #include <Aurora/Runtime/ConfigStore.hpp>
 #include <Aurora/Runtime/DraftRoutes.hpp>
@@ -3319,4 +3320,320 @@ TEST_CASE("Apply: draft scope is refused, apply scope passes (Aurora-52oz.4)", "
   CHECK(decide(apply) == Result::Allow);
   CHECK(decide("") == Result::Unauthorized);
   CHECK(decide("", "127.0.0.1") == Result::Allow);
+}
+
+
+namespace
+{
+  // The apply harness plus test-on-lights routes on a fake clock.
+  struct LightTestHarness
+  {
+    explicit LightTestHarness(const std::string& name, Config config = tunedVideoConfig()):
+    dir(name),
+    events(std::make_shared<Events>()),
+    registry(makeRegistry(events))
+    {
+      ConfigStore(dir.path).save(config);
+      host = std::make_unique<PipelineHost>(Pipeline::build(registry, config, dir.path, {}), PipelineOptions{});
+      auto drafts = registerDraftRoutes(server, registry, dir.path);
+      auto applyDraft = registerApplyRoutes(server, *host, registry, dir.path, drafts,
+        [this]{ return applyEffectFromDisk(*host, registry, dir.path); });
+      test = registerTestRoutes(server, *host, registry, dir.path, drafts, applyDraft, nullptr, {},
+        [this]{ return nowMs.load(); }, false);
+      const int port = server.bindToAnyPort("127.0.0.1");
+      REQUIRE(port > 0);
+      serverThread = std::thread([this](){ server.listen(); });
+      client = std::make_unique<httplib::Client>("127.0.0.1", port);
+      live = *host->graphJson();
+    }
+
+    ~LightTestHarness()
+    {
+      server.stop();
+      serverThread.join();
+      host->shutdown();
+    }
+
+    void putDraft(const std::string& session, const nlohmann::json& graph)
+    {
+      auto result = client->Put("/api/graph/drafts/" + session, nlohmann::json{{"graph", graph}}.dump(), "application/json");
+      REQUIRE(result);
+    }
+
+    int post(const std::string& path, const nlohmann::json& body)
+    {
+      auto result = client->Post(path, body.dump(), "application/json");
+      REQUIRE(result);
+      return result->status;
+    }
+
+    int start(const std::string& session) { return post("/api/graph/test", {{"session", session}}); }
+    int beat(const std::string& session) { return post("/api/graph/test/heartbeat", {{"session", session}}); }
+
+    // Advances the fake clock and lets the server enforce deadlines.
+    void advance(std::int64_t ms)
+    {
+      nowMs += ms;
+      test->poll();
+    }
+
+    ScopedTempDir dir;
+    std::shared_ptr<Events> events;
+    Registry registry;
+    std::unique_ptr<PipelineHost> host;
+    Aurora::Network::Http::Server::HttpServer server;
+    std::shared_ptr<LightTest> test;
+    std::atomic<std::int64_t> nowMs{1000};
+    std::thread serverThread;
+    std::unique_ptr<httplib::Client> client;
+    nlohmann::json live;
+  };
+}
+
+
+TEST_CASE("Test on lights runs the draft in place and an explicit revert puts the live effect back (Aurora-52oz.5)", "[LightTest]")
+{
+  LightTestHarness h("lt-revert");
+  const nlohmann::json draft = Graph::builtInVideoGraph({"out-a"});
+  REQUIRE(draft != h.live);
+  h.putDraft("editor", draft);
+
+  CHECK(h.start("editor") == 200);
+  CHECK(*h.host->graphJson() == draft);
+  CHECK(initCount(*h.events) == 1);
+  CHECK(h.test->info().active);
+  // Nothing is written: the test lives only in the running pipeline.
+  CHECK(EffectStore(h.dir.path).list().empty());
+  CHECK(ConfigStore(h.dir.path).load().activeEffectId() == "");
+
+  CHECK(h.post("/api/graph/test/revert", {{"session", "editor"}}) == 200);
+  CHECK(*h.host->graphJson() == h.live);
+  CHECK_FALSE(h.test->info().active);
+  CHECK(h.test->info().lastEnd == "reverted");
+  CHECK(initCount(*h.events) == 1);
+  CHECK(h.beat("editor") == 404);
+  CHECK(h.post("/api/graph/test/revert", {{"session", "editor"}}) == 404);
+}
+
+
+TEST_CASE("Test on lights reverts at the confirm window and after missed heartbeats (Aurora-52oz.5)", "[LightTest]")
+{
+  LightTestHarness h("lt-timeouts");
+  const nlohmann::json draft = Graph::builtInVideoGraph({"out-a"});
+  h.putDraft("editor", draft);
+
+  // Heartbeats keep the test alive but the confirm window still ends it.
+  REQUIRE(h.start("editor") == 200);
+  for(int i = 0; i < 7; ++i){
+    h.advance(2000);
+    CHECK(h.beat("editor") == 200);
+  }
+  CHECK(*h.host->graphJson() == draft);
+  h.advance(2000);
+  CHECK(h.test->info().lastEnd == "confirm_timeout");
+  CHECK(*h.host->graphJson() == h.live);
+  CHECK(h.beat("editor") == 404);
+
+  // A client that stops heartbeating loses the lights after the lapse.
+  REQUIRE(h.start("editor") == 200);
+  h.advance(2000);
+  CHECK(h.beat("editor") == 200);
+  h.advance(5900);
+  CHECK(*h.host->graphJson() == draft);
+  h.advance(200);
+  CHECK(h.test->info().lastEnd == "heartbeat_lost");
+  CHECK(*h.host->graphJson() == h.live);
+  CHECK(initCount(*h.events) == 1);
+}
+
+
+TEST_CASE("A second test replaces the first and only the second's session can end it (Aurora-52oz.5)", "[LightTest]")
+{
+  LightTestHarness h("lt-replace");
+  const nlohmann::json first = Graph::builtInVideoGraph({"out-a"});
+  const nlohmann::json second = Graph::builtInVideoGraph({"out-a", "out-b"});
+  h.putDraft("one", first);
+  h.putDraft("two", second);
+
+  REQUIRE(h.start("one") == 200);
+  REQUIRE(h.start("two") == 200);
+  CHECK(*h.host->graphJson() == second);
+  CHECK(h.beat("one") == 404);
+  CHECK(h.beat("two") == 200);
+  CHECK(h.post("/api/graph/test/revert", {{"session", "one"}}) == 404);
+  CHECK(*h.host->graphJson() == second);
+
+  CHECK(h.post("/api/graph/test/revert", {{"session", "two"}}) == 200);
+  CHECK(*h.host->graphJson() == h.live);
+}
+
+
+TEST_CASE("Pausing during a test ends it and resume builds the live effect (Aurora-52oz.5)", "[LightTest]")
+{
+  LightTestHarness h("lt-pause");
+  h.putDraft("editor", Graph::builtInVideoGraph({"out-a"}));
+  REQUIRE(h.start("editor") == 200);
+
+  REQUIRE(h.host->pause());
+  CHECK_FALSE(h.test->info().active);
+  CHECK(h.test->info().lastEnd == "pipeline_gone");
+  CHECK(h.beat("editor") == 404);
+  // No pipeline to test on while paused.
+  CHECK(h.start("editor") == 409);
+
+  std::string error;
+  REQUIRE(h.host->resume(h.registry, ConfigStore(h.dir.path).load(), h.dir.path, error));
+  CHECK(*h.host->graphJson() == h.live);
+  CHECK_FALSE(h.test->info().active);
+}
+
+
+TEST_CASE("Confirm after a test persists like apply and ends the test without reverting (Aurora-52oz.5)", "[LightTest]")
+{
+  LightTestHarness h("lt-confirm");
+  const nlohmann::json draft = Graph::builtInVideoGraph({"out-a"});
+  h.putDraft("editor", draft);
+  REQUIRE(h.start("editor") == 200);
+
+  CHECK(h.post("/api/graph/test/confirm", {{"session", "other"}, {"id", "kept"}}) == 404);
+  CHECK(h.post("/api/graph/test/confirm", {{"session", "editor"}}) == 400);
+
+  // An edited draft is no longer the graph under test.
+  h.putDraft("editor", Graph::builtInVideoGraph({"out-b"}));
+  CHECK(h.post("/api/graph/test/confirm", {{"session", "editor"}, {"id", "kept"}}) == 409);
+  CHECK_FALSE(EffectStore(h.dir.path).exists("kept"));
+  h.putDraft("editor", draft);
+
+  CHECK(h.post("/api/graph/test/confirm", {{"session", "editor"}, {"id", "kept"}}) == 200);
+  CHECK(h.test->info().lastEnd == "confirmed");
+  CHECK(ConfigStore(h.dir.path).load().activeEffectId() == "kept");
+  CHECK(EffectStore(h.dir.path).exists("kept"));
+  CHECK(h.host->summary().effect == "kept");
+  CHECK(initCount(*h.events) == 1);
+
+  // The deadline passing later reverts nothing.
+  h.advance(60000);
+  CHECK(*h.host->graphJson() == draft);
+  CHECK(h.host->summary().effect == "kept");
+}
+
+
+TEST_CASE("A revert restores a live custom effect from disk, not the pre-test graph (Aurora-52oz.5)", "[LightTest]")
+{
+  LightTestHarness h("lt-custom-live");
+  const nlohmann::json mine = Graph::builtInVideoGraph({"out-a"});
+  h.putDraft("editor", mine);
+  REQUIRE(h.post("/api/graph/apply", {{"session", "editor"}, {"id", "mine"}}) == 200);
+
+  h.putDraft("editor", Graph::builtInVideoGraph({"out-a", "out-b"}));
+  REQUIRE(h.start("editor") == 200);
+  CHECK(h.host->summary().effect == "mine");
+  CHECK(*h.host->graphJson() != mine);
+
+  h.advance(20000);
+  CHECK(*h.host->graphJson() == mine);
+  CHECK(h.host->summary().effect == "mine");
+  CHECK(initCount(*h.events) == 1);
+}
+
+
+TEST_CASE("Test on lights refuses what apply refuses and changes nothing (Aurora-52oz.5)", "[LightTest]")
+{
+  LightTestHarness h("lt-refuse");
+  nlohmann::json broken = Graph::builtInVideoGraph({"out-a"});
+  broken["nodes"].push_back({{"id", "mystery"}, {"type", "nope.nope"}});
+  h.putDraft("agent", broken);
+
+  auto refused = h.client->Post("/api/graph/test", nlohmann::json{{"session", "agent"}}.dump(), "application/json");
+  REQUIRE(refused);
+  CHECK(refused->status == 422);
+  CHECK(nlohmann::json::parse(refused->body)["errors"][0]["node"] == "mystery");
+  CHECK(h.start("nobody") == 404);
+  CHECK(h.start("bad/session") == 400);
+  CHECK(h.post("/api/graph/test", {{"nope", 1}}) == 400);
+  CHECK_FALSE(h.test->info().active);
+  CHECK(*h.host->graphJson() == h.live);
+
+  // A refused start leaves a running test alone.
+  h.putDraft("good", Graph::builtInVideoGraph({"out-a"}));
+  REQUIRE(h.start("good") == 200);
+  CHECK(h.start("agent") == 422);
+  CHECK(h.beat("good") == 200);
+}
+
+
+TEST_CASE("GET /api/graph/test reports the running test (Aurora-52oz.5)", "[LightTest]")
+{
+  LightTestHarness h("lt-status");
+  auto idle = nlohmann::json::parse(h.client->Get("/api/graph/test")->body);
+  CHECK(idle["active"] == false);
+  CHECK(idle["lastEnd"].is_null());
+
+  h.putDraft("editor", Graph::builtInVideoGraph({"out-a"}));
+  auto started = h.client->Post("/api/graph/test", nlohmann::json{{"session", "editor"}}.dump(), "application/json");
+  auto startBody = nlohmann::json::parse(started->body);
+  CHECK(startBody["confirmWithinMs"] == 15000);
+  CHECK(startBody["heartbeatMs"] == 2000);
+  CHECK(startBody["revertAfterMs"] == 6000);
+
+  h.advance(3000);
+  auto running = nlohmann::json::parse(h.client->Get("/api/graph/test")->body);
+  CHECK(running["active"] == true);
+  CHECK(running["confirmRemainingMs"] == 12000);
+  CHECK(running["revertAfterMs"] == 3000);
+}
+
+
+TEST_CASE("Test on lights: draft scope is refused, apply scope passes (Aurora-52oz.5)", "[LightTest][Pairing]")
+{
+  using namespace Aurora::Network::Http::Server;
+  auto service = std::make_shared<PairingService>();
+  AccessGuard guard(service, [](const std::string& addr){ return addr == "127.0.0.1"; });
+  addDraftAccessRules(guard);
+  addTestAccessRules(guard);
+
+  const std::string read = service->mintForTest("viewer", Scope::Read);
+  const std::string draft = service->mintForTest("editor", Scope::Draft);
+  const std::string apply = service->mintForTest("adapter", Scope::Apply);
+
+  auto decide = [&](HttpMethod method, const std::string& path, const std::string& token,
+                    const std::string& addr = "192.168.1.20"){
+    AccessRequest request;
+    request.method = method;
+    request.path = path;
+    request.remoteAddr = addr;
+    if(!token.empty()){ request.authorization = "Bearer " + token; }
+    return guard.decide(request).result;
+  };
+  using Result = AccessDecision::Result;
+
+  CHECK(decide(HttpMethod::Get, "/api/graph/test", read) == Result::Allow);
+  for(const char* path : {"/api/graph/test", "/api/graph/test/heartbeat", "/api/graph/test/revert", "/api/graph/test/confirm"}){
+    CHECK(decide(HttpMethod::Post, path, read) == Result::Forbidden);
+    CHECK(decide(HttpMethod::Post, path, draft) == Result::Forbidden);
+    CHECK(decide(HttpMethod::Post, path, apply) == Result::Allow);
+    CHECK(decide(HttpMethod::Post, path, "") == Result::Unauthorized);
+    CHECK(decide(HttpMethod::Post, path, "", "127.0.0.1") == Result::Allow);
+  }
+}
+
+
+TEST_CASE("The watchdog thread reverts a test whose client went silent (Aurora-52oz.5)", "[LightTest]")
+{
+  std::atomic<int> reverts{0};
+  LightTestHooks hooks;
+  hooks.start = [](const nlohmann::json&){ return std::string{}; };
+  hooks.revert = [&reverts]{ ++reverts; return std::string{}; };
+  hooks.generation = []{ return std::uint64_t{1}; };
+  LightTestOptions options;
+  options.lapseMs = 100;
+  LightTest test(hooks, options);
+  test.startWatchdog(10);
+
+  REQUIRE(test.start("editor", nlohmann::json::object()).empty());
+  for(int i = 0; i < 200 && reverts == 0; ++i){
+    std::this_thread::sleep_for(10ms);
+  }
+  CHECK(reverts == 1);
+  CHECK_FALSE(test.heartbeat("editor"));
 }
