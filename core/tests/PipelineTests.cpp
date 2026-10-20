@@ -2847,3 +2847,49 @@ TEST_CASE("Effects routes: reads need read scope, switch and delete need apply (
   // Config writes stay admin: the apply scope switches through /api/effects.
   CHECK(decide(HttpMethod::Put, "/api/config", apply) == Result::Forbidden);
 }
+
+
+#ifdef AURORA_RUNTIME_AUDIO_AVAILABLE
+TEST_CASE("A custom graph with both capture nodes builds both inputs, and a missing source falls back (Aurora-52oz.2)", "[Effects][Audio]")
+{
+  ScopedTempDir dir("effect-both-inputs");
+  auto events = std::make_shared<Events>();
+  auto registry = makeRegistry(events);
+  std::string error;
+
+  nlohmann::json both = Graph::builtInVideoGraph({"out-a", "out-b"});
+  both["nodes"].push_back({{"id", "mic"}, {"type", "audio.capture"}, {"params", nlohmann::json::object()}});
+  nlohmann::json audioOnly = Graph::builtInAudioGraph({"out-a", "out-b"});
+  EffectStore store(dir.path);
+  REQUIRE(store.write("both", both, error));
+  REQUIRE(store.write("audio-only", audioOnly, error));
+
+  Config config = videoConfig();
+  config.setActiveAudioInputName("fake-audio");
+  config.setActiveEffectId("both");
+  auto pipeline = Pipeline::build(registry, config, dir.path, {});
+  REQUIRE(pipeline);
+  CHECK_FALSE(pipeline->isAudioMode());
+  CHECK(pipeline->summary().effect == "both");
+  CHECK(pipeline->capabilities().usesVideoInput);
+  CHECK(pipeline->capabilities().usesAudioInput);
+  REQUIRE(pipeline->audioInput() != nullptr);
+  pipeline->tick(static_cast<float>(pipeline->tickIntervalSeconds()));
+  CHECK(events->sendCount > 0);
+
+  // An audio-only graph runs in audio mode even with a video input named.
+  config.setActiveEffectId("audio-only");
+  auto audio = Pipeline::build(registry, config, dir.path, {});
+  REQUIRE(audio);
+  CHECK(audio->isAudioMode());
+  CHECK(audio->summary().effect == "audio-only");
+
+  // A graph needing audio with none configured runs the built-in.
+  Config noAudio = videoConfig();
+  noAudio.setActiveEffectId("both");
+  auto fallback = Pipeline::build(registry, noAudio, dir.path, {});
+  REQUIRE(fallback);
+  CHECK(fallback->summary().effect == "builtin.video");
+  CHECK(fallback->summary().fallbackReason.find("audio input") != std::string::npos);
+}
+#endif

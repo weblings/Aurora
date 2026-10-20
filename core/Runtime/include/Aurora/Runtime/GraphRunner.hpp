@@ -44,6 +44,15 @@ namespace Aurora::Runtime
       Config config,
       ZoneMapStore zoneMapStore
     );
+    // Both inputs for a custom graph that mixes video.capture and
+    // audio.capture. Video drives config, zones and the built-in fallback.
+    GraphRunner(
+      Input::IVideoInput& video,
+      Input::IAudioInput& audio,
+      std::vector<Output::IOutput*> outputs,
+      Config config,
+      ZoneMapStore zoneMapStore
+    );
 #endif
 
     // Not movable: the host adapter points back at this object.

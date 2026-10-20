@@ -62,6 +62,29 @@ namespace Aurora::Runtime
     };
 
 
+    struct SourceNeeds
+    {
+      bool video{false};
+      bool audio{false};
+    };
+
+    // Which capture sources a graph doc declares, by node type.
+    SourceNeeds _sourceNeeds(const nlohmann::json& doc)
+    {
+      SourceNeeds needs;
+      const auto nodes = doc.find("nodes");
+      if(nodes == doc.end() || !nodes->is_array()){
+        return needs;
+      }
+      for(const auto& node : *nodes){
+        const std::string type = node.is_object() ? node.value("type", std::string{}) : std::string{};
+        needs.video = needs.video || type == "video.capture";
+        needs.audio = needs.audio || type == "audio.capture";
+      }
+      return needs;
+    }
+
+
     constexpr std::uint8_t kUsesVideoInput = 1u << 0;
     constexpr std::uint8_t kUsesAudioInput = 1u << 1;
     constexpr std::uint8_t kSamplesZones = 1u << 2;
@@ -113,7 +136,8 @@ namespace Aurora::Runtime
 
     // Video wins if both could apply -- explicit opt-in to audio requires
     // leaving activeInputName unset. Past the early return above, an empty
-    // activeInputName therefore always means audio mode.
+    // activeInputName therefore always means audio mode. A custom graph's
+    // source nodes override this below.
     bool useAudioMode = config.activeInputName().empty();
 
     // Aurora-o13 spike: presence-only flag, same convention as
@@ -133,6 +157,29 @@ namespace Aurora::Runtime
     std::optional<nlohmann::json> customDoc;
     if(!customId.empty()){
       customDoc = EffectStore(configRoot).read(customId, customFailure);
+    }
+
+    // A custom graph picks its inputs from its source nodes. A source whose
+    // input is not configured sends the graph back to the built-in.
+    bool bothInputs = false;
+    if(customDoc){
+      const SourceNeeds needs = _sourceNeeds(*customDoc);
+      const bool haveVideo = !config.activeInputName().empty();
+      const bool haveAudio = !config.activeAudioInputName().empty();
+      if((needs.video && !haveVideo) || (needs.audio && !haveAudio)){
+        customFailure = std::string("graph needs a ") + (needs.video && !haveVideo ? "video" : "audio")
+          + " input but none is configured";
+        customDoc.reset();
+      }
+      else if(needs.video && needs.audio){
+        bothInputs = true;
+      }
+      else if(needs.audio){
+        useAudioMode = true;
+      }
+      else if(needs.video){
+        useAudioMode = false;
+      }
     }
 
     ScopedPhaseTimer captureTimer(options, "capture+graph init");
@@ -187,9 +234,26 @@ namespace Aurora::Runtime
       }
       input->init();
 
-      pipeline->m_videoRunner.emplace(
-        *input, pipeline->m_outputPtrs, config, ZoneMapStore(configRoot)
-      );
+      if(bothInputs){
+#ifdef AURORA_RUNTIME_AUDIO_AVAILABLE
+        auto audioInput = registry.createAudioInput(config.activeAudioInputName());
+        if(!audioInput){
+          throw std::runtime_error("Unknown audio input '" + config.activeAudioInputName() + "'");
+        }
+        pipeline->m_videoRunner.emplace(
+          *input, *audioInput, pipeline->m_outputPtrs, config, ZoneMapStore(configRoot)
+        );
+        pipeline->m_audioInput = std::move(audioInput);
+        pipeline->m_isDualCapture = true;
+#else
+        throw std::runtime_error(options.noAudioSupportMessage);
+#endif
+      }
+      else{
+        pipeline->m_videoRunner.emplace(
+          *input, pipeline->m_outputPtrs, config, ZoneMapStore(configRoot)
+        );
+      }
       if(customDoc){ pipeline->m_videoRunner->setCustomGraph(*customDoc); }
       pipeline->m_videoRunner->init();
       pipeline->m_videoInput = std::move(input);
@@ -220,7 +284,8 @@ namespace Aurora::Runtime
       });
 
       _log(options, LogLevel::Info,
-        "Aurora running: input='" + inputName + "', "
+        "Aurora running: input='" + inputName + "'"
+        + (bothInputs ? ", audio input='" + config.activeAudioInputName() + "'" : std::string{}) + ", "
         + std::to_string(pipeline->m_outputPtrs.size()) + " output(s).");
     }
 
@@ -243,7 +308,7 @@ namespace Aurora::Runtime
         config.activeInputName(), pipeline->m_videoInput->selectedMonitorName()
       };
     }
-    if(useAudioMode || dualCapture){
+    if(useAudioMode || dualCapture || bothInputs){
       pipeline->m_summary.audio = PipelineSummary::Audio{
         config.activeAudioInputName(),
         config.audioTargetSinkName(),

@@ -61,6 +61,23 @@ namespace Aurora::Runtime
   {
     Graph::registerAllNodes(m_registry, true);
   }
+
+
+  GraphRunner::GraphRunner(
+    Input::IVideoInput& video,
+    Input::IAudioInput& audio,
+    std::vector<Output::IOutput*> outputs,
+    Config config,
+    ZoneMapStore zoneMapStore
+  ):
+  m_videoInput(&video),
+  m_audioInput(&audio),
+  m_outputs(std::move(outputs)),
+  m_config(std::move(config)),
+  m_zoneMapStore(std::move(zoneMapStore))
+  {
+    Graph::registerAllNodes(m_registry, true);
+  }
 #endif
 
 
