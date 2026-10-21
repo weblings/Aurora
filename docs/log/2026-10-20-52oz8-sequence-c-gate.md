@@ -42,8 +42,16 @@ C7 of [[sequence-c-planning]]. Script: `tools/light-viz-relay/sequence_c_gate.py
   torn down afterwards, no listeners left on 8000/8215/18245/18443. This
   closes the Linux half of the 52oz.2 recheck alongside the Mac half above;
   the gate's acceptance criteria (script passes on all three OSes) are met.
-- The both-input step's result text says "test on lights refused (needs a
-  rebuild)". The refusal is intended (see Decisions), so the wording is stale.
+- The both-input step's wording was updated for D0a (4xqt.1): test on lights
+  now rebuilds the inputs, keeps the outputs, and the revert restores them.
+- Windows control (2026-10-21, `windows-app` rebuilt after 4xqt.1, tone start
+  patched to a no-op through a scratch wrapper): FAIL at the audio step ("lights
+  never followed the quiet down", level 0.75), as a control should. The same
+  build's unpatched gate passes 8/8 (tone 1.00, quiet 0.03, twice). Earlier
+  runs that day failed because music was playing: loopback capture hears any
+  other playback. A "must be quiet before the tone" precheck was tried and
+  dropped, since silence sends nothing and the lights hold the pre-apply frame
+  (0.95), so the level says nothing about the room.
 
 ## Decisions
 
@@ -56,8 +64,8 @@ C7 of [[sequence-c-planning]]. Script: `tools/light-viz-relay/sequence_c_gate.py
   (`PipelineHost::reload` keeps the old pipeline on a failed build, with a
   `reload` host error). The fallback covers a custom effect that fails to
   load, and a built-in would hit the same missing outputs.
-- Test on lights refuses the both-input graph (409 `cannot_test`), asserted as
-  intended, so apply is the only way in.
+- Test on lights refused the both-input graph (409 `cannot_test`) until D0a, asserted as
+  intended then. It now rebuilds the inputs instead.
 
 - With no audio buffers the audio path sends nothing, so lights hold their last
   frame in silence; a tone check must watch for a change, never for a level alone.
