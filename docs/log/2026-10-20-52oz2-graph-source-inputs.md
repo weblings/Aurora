@@ -1,9 +1,9 @@
-# Aurora-52oz.2: pipeline builds inputs from the graph's source nodes (open)
+# Aurora-52oz.2: pipeline builds inputs from the graph's source nodes (closed)
 
 Id: 52oz2-graph-source-inputs
 
-C1 of [[sequence-c-planning]]. Core suite 377/377 on Windows Debug. Open until the
-Mac and Linux capture recheck is noted here.
+C1 of [[sequence-c-planning]]. Core suite 377/377 on Windows Debug. Mac and Linux
+capture recheck done (see Recheck), bead closed.
 
 ## Built
 
@@ -26,7 +26,21 @@ Mac and Linux capture recheck is noted here.
 - Live audio tuning fields are skipped while both inputs run. A custom graph
   does not read them, and structural changes still reload.
 
-## Still owed
+## Recheck
 
-- Mac and Linux: confirm a both-input graph ticks with both captures.
-  Aurora-o13 already showed the captures coexist on all three OSes.
+- Windows: both-input graph applied and ticked with both captures via the
+  Sequence C gate (`windows-audio` loopback), 8/8 with the audio step; the
+  tone drove the lights (see [[52oz8-sequence-c-gate]]).
+- Mac: same via the gate (`mac-audio`), 8/8, tone 1.00 / quiet 0.03-0.04
+  twice — this closed the Mac half of the recheck.
+- Linux: same via the gate (`linux-audio`, default-sink monitor), 8/8 on two
+  consecutive runs, tone 1.00 / quiet 0.03 twice — this closed the Linux half.
+- No capture conflicts on any OS; built-in parity fixtures unchanged (core
+  suites green alongside); Dashboard sections still derive from capabilities
+  (untouched code path).
+
+## Lessons
+
+- none new: the recheck passed on all three OSes with no new gotchas; the
+  on/off/on stimulus method it relies on is filed under
+  [[52oz8-sequence-c-gate]].
