@@ -83,7 +83,13 @@ shown (see Resume).
 
 ## Lessons
 
-- none
+- The Sequence C gate runs `input="dummy"`; "gate passes on Mac" says nothing about
+  screen capture. Capture claims need a live-input run (see Resume).
+- A standalone `Aurora.app` has its own TCC grant, separate from the terminal's
+  (the devstack's app inherits the terminal's). A rebuild re-signs ad hoc, so the
+  grant can stop matching: `tccutil reset ScreenCapture com.aurora.app` (and
+  `Microphone`), relaunch with `open -n`, accept the prompt. A process launched
+  before the grant stays denied until relaunched.
 
 ## Resume
 
@@ -95,7 +101,20 @@ shown (see Resume).
   survived restart). Gotcha: the gate launches `build/linux-app/bin/Aurora`,
   a separate tree from top-level `build` — a stale binary 404s new routes,
   see [[lesson-build-toolchain]]'s gate-tree entry.
-- Still owed: rebuild the app on Mac and run the gate there.
+- Mac done 2026-10-21: `cmake --build build/mac-app` relinked, core suite 420/420
+  in `build/core-tests` (one parallel-load flake, `Concurrent settings PUTs
+  coalesce reloads`, passed alone and on the full rerun). Gate 9/9, but the gate
+  starts the stack with `input="dummy"`, so it shows the Hue stream counts held
+  and `mcpEffectId` surviving a restart, not Mac capture.
+- Mac capture recheck, standalone `Aurora.app` (`open -n`, own TCC identity, after
+  `tccutil reset ScreenCapture com.aurora.app` and `Microphone`, then Allow on the
+  prompt): with video live and `mac-audio` configured, a both-input test returned
+  200 with video and audio in use, the revert 200 back to video only, no errors,
+  Hue stream counts unchanged (6 starts / 5 stops). The unified log
+  (`log show --predicate 'process == "Aurora" AND eventMessage CONTAINS "SCStream"'`)
+  has no SCStream start/stop between test start and revert end, and no new Screen
+  Recording prompt appeared. The "Local Network" condition stayed up; the run was
+  all loopback, so it did not matter. Windows second-duplication recheck still owed.
 - Per-OS capture recheck when a preview adds video: Wayland portal prompt on
   Linux, macOS screen permission, Windows second duplication of the monitor.
   Still opens a new capture by design: a preview needing video while audio is
