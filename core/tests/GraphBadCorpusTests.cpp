@@ -703,3 +703,59 @@ TEST_CASE("Graph loader fuzz: random graphs never crash the loader", "[Graph][fu
     CHECK(!threw);
   }
 }
+
+TEST_CASE("Graph loader issues carry a code, the field and valid options (Aurora-4xqt.3)", "[Graph]")
+{
+  NodeRegistry registry = makeCorpusRegistry();
+  struct Expect
+  {
+    std::string doc;
+    std::string code;
+    std::string port;
+    std::string param;
+    std::vector<std::string> options; // first entries, in order
+  };
+  const std::vector<Expect> cases = {
+    {R"({ nope )", "json_invalid", "", "", {}},
+    {R"({"version": 1, "nodes": [{"id": "a", "type": "test.pasthrough"}]})",
+      "node_type_unknown", "", "", {"test.passthrough"}},
+    {R"({"version": 1, "nodes": [{"id": "c", "type": "test.const", "params": {"rr": 1}}]})",
+      "param_unknown", "", "rr", {"r", "g", "b"}},
+    {R"({"version": 1, "nodes": [{"id": "m", "type": "test.paramprobe", "params": {"mode": "c"}}]})",
+      "param_option_unknown", "", "mode", {"a", "b"}},
+    {R"({"version": 1, "nodes": [{"id": "c", "type": "test.const"}, {"id": "p", "type": "test.passthrough"}],
+        "edges": [["c.out", "p.inn"]]})",
+      "port_unknown_input", "inn", "", {"in"}},
+    {R"({"version": 1, "nodes": [{"id": "c", "type": "test.const"}, {"id": "p", "type": "test.passthrough"}],
+        "edges": [["c.ou", "p.in"]]})",
+      "port_unknown_output", "ou", "", {"out"}},
+    {R"({"version": 1, "nodes": [{"id": "p", "type": "test.passthrough"}]})",
+      "input_missing", "in", "", {}},
+    {R"({"version": 1, "nodes": [{"id": "c", "type": "test.const"}, {"id": "f", "type": "test.framepipe"}],
+        "edges": [["c.out", "f.in"]]})",
+      "port_type_mismatch", "in", "", {}},
+    {R"({"version": 1, "nodes": [{"id": "c", "type": "test.const"}], "controls": [{"node": "x", "param": "r"}]})",
+      "control_node_unknown", "", "", {"c"}},
+    {R"({"version": 1, "nodes": [{"id": "c", "type": "test.const"}], "controls": [{"node": "c", "param": "rr"}]})",
+      "control_param_unknown", "", "rr", {"r", "g", "b"}},
+  };
+  for(const Expect& expected : cases){
+    CAPTURE(expected.doc);
+    LoadResult result = loadGraphFromString(expected.doc, registry);
+    REQUIRE_FALSE(result.ok);
+    const LoadIssue* match = nullptr;
+    for(const LoadIssue& issue : result.issues){
+      CHECK_FALSE(issue.code.empty());
+      if(issue.code == expected.code){
+        match = &issue;
+      }
+    }
+    REQUIRE(match != nullptr);
+    CHECK(match->port == expected.port);
+    CHECK(match->param == expected.param);
+    REQUIRE(match->options.size() >= expected.options.size());
+    for(std::size_t i = 0; i < expected.options.size(); i++){
+      CHECK(match->options[i] == expected.options[i]);
+    }
+  }
+}
