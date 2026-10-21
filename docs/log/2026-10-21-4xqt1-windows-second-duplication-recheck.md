@@ -1,4 +1,4 @@
-# Aurora-4xqt.1: Windows second-duplication recheck
+# Aurora-4xqt.1: Windows second-duplication recheck (closed)
 
 Id: 4xqt1-windows-second-duplication-recheck
 
@@ -67,11 +67,17 @@ capture streams nothing on this box (`Aurora-8u3p`).
   (`m_parkedVideo`). Per the DXGI docs, a second duplication of the same output in
   one process fails with `E_INVALIDARG`.
 
+## Rerun on the merged tree
+
+- `feat/X11Followup` (`Aurora-8u3p`, PerMonitorV2 manifest) merged into
+  `feat/NodesExternal_D` as `4f10d92`. Conflicts were `.beads/issues.jsonl`, the
+  `PipelineTests.cpp` fake-input fields, the lessons README counts and the log index.
+  Core suite 422/422 on Windows Debug.
+- Unpatched Debug build, live `windows` capture: first frame at once. The same
+  recheck passed: audio-only `recheck-audio` live, two video previews with no errors
+  (brightness 0.06), live state unchanged, errors empty after.
+- The temporary DPI patch and HRESULT logging were discarded before the merge.
+
 ## Resume
 
-- The DPI patch and HRESULT logging are uncommitted debug edits in
-  `Aurora-d0a-wt/input/windows/src/WindowsGrabber.cpp`. Discard them, the real fix
-  belongs to `Aurora-8u3p`.
-- Close `Aurora-4xqt.1` on this result, or after `Aurora-8u3p` lands and a rerun
-  without the patch. Then `Aurora-4xqt.6`.
 - Remove the `Aurora-d0a-wt` worktree when done.
