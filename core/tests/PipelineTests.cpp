@@ -3775,6 +3775,9 @@ namespace
       drafts = registerDraftRoutes(server, registry, dir.path);
       PreviewOptions options;
       options.interval = interval;
+      // The summary route steps by ticking the pipeline, so time is virtual.
+      options.sleep = [this](std::chrono::milliseconds){ host->tick(); };
+      options.maxSummarySeconds = 5.0;
       registerPreviewRoutes(server, *host, registry, drafts, options);
       port = server.bindToAnyPort("127.0.0.1");
       REQUIRE(port > 0);
@@ -3950,6 +3953,101 @@ TEST_CASE("A second stream for a session replaces the first (Aurora-52oz.6)", "[
   CHECK(first.waitFor("\"reason\":\"replaced\""));
   CHECK(first.waitFinished());
   CHECK(h.tickUntil(second, [](const nlohmann::json& p){ return !p["outputs"].empty(); }));
+}
+
+
+namespace
+{
+  // gainGraph(1) with an lfo scaling the frame before the floor.
+  nlohmann::json lfoGraph(float rateHz)
+  {
+    nlohmann::json doc = gainGraph(1.f);
+    doc["nodes"].push_back({{"id", "wave"}, {"type", "lfo"}, {"params", {{"shape", "sine"}, {"rateHz", rateHz}, {"min", 0.f}, {"max", 1.f}}}});
+    doc["nodes"].push_back({{"id", "mod"}, {"type", "frame.brightnessScale"}, {"params", nlohmann::json::object()}});
+    for(auto& edge : doc["edges"]){
+      if(edge[0] == "gain_out_a.frame"){ edge[0] = "mod.frame"; }
+    }
+    doc["edges"].push_back(nlohmann::json::array({"gain_out_a.frame", "mod.frame"}));
+    doc["edges"].push_back(nlohmann::json::array({"wave.value", "mod.factor"}));
+    return doc;
+  }
+}
+
+
+TEST_CASE("GET /api/graph/preview/summary reports a frozen graph as still and an lfo graph as moving (Aurora-4xqt.5)", "[Preview]")
+{
+  PreviewHarness h("preview-summary");
+  h.putDraft("still", gainGraph(1.f));
+  h.putDraft("moving", lfoGraph(5.f));
+  const int sendsBefore = h.events->sendCount;
+
+  auto still = h.client->Get("/api/graph/preview/summary?session=still&seconds=2");
+  REQUIRE(still);
+  REQUIRE(still->status == 200);
+  const auto frozen = nlohmann::json::parse(still->body);
+  CHECK(frozen["session"] == "still");
+  CHECK(frozen["samples"].get<int>() > 2);
+  REQUIRE(frozen["outputs"].size() == 1);
+  CHECK(frozen["outputs"][0]["output"] == "out-a");
+  CHECK(frozen["outputs"][0]["change"].get<double>() < 0.01);
+  const auto& zone = frozen["outputs"][0]["zones"][0];
+  CHECK(zone["mean"]["r"].get<double>() > 0.5);
+  CHECK(zone["brightnessMax"].get<double>() - zone["brightnessMin"].get<double>() < 0.01);
+
+  auto moving = h.client->Get("/api/graph/preview/summary?session=moving&seconds=2");
+  REQUIRE(moving);
+  REQUIRE(moving->status == 200);
+  const auto reacting = nlohmann::json::parse(moving->body);
+  CHECK(reacting["outputs"][0]["change"].get<double>() > 0.02);
+  CHECK(reacting["outputs"][0]["change"].get<double>() <= 1.0);
+  const auto& wave = reacting["outputs"][0]["zones"][0];
+  CHECK(wave["brightnessMax"].get<double>() - wave["brightnessMin"].get<double>() > 0.2);
+
+  // The summary's ticks ran the live path, and nothing it drew reached an output.
+  const int ticks = h.events->sendCount - sendsBefore;
+  CHECK(ticks == (frozen["samples"].get<int>() + reacting["samples"].get<int>()) * 2);
+}
+
+
+TEST_CASE("The preview summary bounds its duration and refuses bad requests (Aurora-4xqt.5)", "[Preview]")
+{
+  PreviewHarness h("preview-summary-refusals", 100ms);
+  h.putDraft("editor", gainGraph(1.f));
+
+  auto capped = h.client->Get("/api/graph/preview/summary?session=editor&seconds=9999");
+  REQUIRE(capped);
+  REQUIRE(capped->status == 200);
+  const auto body = nlohmann::json::parse(capped->body);
+  CHECK(body["seconds"].get<double>() == 5.0);
+  CHECK(body["samples"].get<int>() == 50);
+
+  for(const char* seconds : {"abc", "-1", "0", "nan", "2x"}){
+    auto bad = h.client->Get(std::string("/api/graph/preview/summary?session=editor&seconds=") + seconds);
+    REQUIRE(bad);
+    CHECK(bad->status == 400);
+    CHECK(nlohmann::json::parse(bad->body)["error"] == "invalid_seconds");
+  }
+  auto badSession = h.client->Get("/api/graph/preview/summary?session=has%20space");
+  REQUIRE(badSession);
+  CHECK(badSession->status == 400);
+  auto missing = h.client->Get("/api/graph/preview/summary?session=nobody");
+  REQUIRE(missing);
+  CHECK(missing->status == 404);
+}
+
+
+TEST_CASE("The preview summary leaves an open stream for the session alone (Aurora-4xqt.5)", "[Preview]")
+{
+  PreviewHarness h("preview-summary-stream");
+  h.putDraft("editor", gainGraph(1.f));
+
+  SseReader reader(h.port, "/api/graph/preview?session=editor");
+  REQUIRE(reader.waitFor("event: preview\n"));
+  auto summary = h.client->Get("/api/graph/preview/summary?session=editor&seconds=1");
+  REQUIRE(summary);
+  CHECK(summary->status == 200);
+  CHECK(reader.data().find("\"reason\":\"replaced\"") == std::string::npos);
+  CHECK(h.tickUntil(reader, [](const nlohmann::json& p){ return !p["outputs"].empty(); }));
 }
 
 

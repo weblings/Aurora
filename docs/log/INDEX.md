@@ -239,3 +239,4 @@ Planning docs stay clean: decisions, status, and pointers here only.
 | 2026-10-21 | Aurora-4xqt.1 (D0a, paused): test on lights and preview accept graphs that need other inputs. Input-only rebuild keeps the live outputs (no Hue re-handshake), preview opens its own extra inputs; core 415/415 on Windows, gate audio step and per-OS capture recheck owed. [[4xqt1-input-rebuild-keeps-outputs]] | `bd show Aurora-4xqt.1` |
 
 | 2026-10-21 | Aurora-4xqt.2 (D0b): `mcpEffectId` in config, set by MCP-marked apply and switch (`X-Aurora-Client: mcp`), cleared on delete, reported in `/api/state`; Dashboard MCP toggle hidden until the first MCP graph. [[4xqt2-mcp-effect-toggle]] | `bd show Aurora-4xqt.2` |
+| 2026-10-21 | Aurora-4xqt.5 (D0e): `GET /api/graph/preview/summary` ticks a draft's preview for N seconds and returns per-zone mean, brightness range and change, so an agent can tell a reacting effect from a frozen one. [[4xqt5-preview-summary]] | `bd show Aurora-4xqt.5` |
