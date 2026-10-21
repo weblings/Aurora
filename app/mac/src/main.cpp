@@ -558,7 +558,7 @@ try
     accessGuard.get());
   Aurora::Runtime::registerTestRoutes(httpServer, pipelineHost, registry, configRoot, draftStore, applyDraft,
     accessGuard.get());
-  Aurora::Runtime::registerPreviewRoutes(httpServer, pipelineHost, draftStore);
+  Aurora::Runtime::registerPreviewRoutes(httpServer, pipelineHost, registry, draftStore);
   Aurora::Runtime::registerDevErrorsRoute(httpServer, pipelineHost);
   registerStopRoute(httpServer);
   Aurora::Runtime::registerZoneRoutes(

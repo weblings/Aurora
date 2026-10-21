@@ -108,6 +108,43 @@ namespace Aurora::Runtime
   };
 
 
+  class Pipeline;
+
+  // What one build does differently from a plain rebuild of the Config
+  // (Aurora-4xqt.1). Both fields are null for an ordinary build.
+  struct PipelineBuildOverrides
+  {
+    // Run this graph in place of the Config's effect (a test on lights). The
+    // summary still names the Config's effect, and a graph that cannot run
+    // throws instead of falling back to the built-in one.
+    const nlohmann::json* graph{nullptr};
+
+    // A running pipeline whose outputs the new one takes over, when its output
+    // list is the one this build asks for, so Hue is not re-handshaken. Until
+    // the host calls adoptOutputsFrom() the new pipeline only borrows them.
+    const Pipeline* outputsFrom{nullptr};
+  };
+
+
+  // Inputs a draft preview needs that the running pipeline does not have, with
+  // the Config they open under.
+  struct PreviewInputPlan
+  {
+    std::string video; // empty when the live pipeline already serves one
+    std::string audio;
+    Config config;
+
+    bool any() const { return !video.empty() || !audio.empty(); }
+  };
+
+
+  // Opens the inputs of `plan` for one preview. Nullopt with errorOut set when
+  // one cannot open. Can block on a capture API: never call it under the
+  // pipeline lock.
+  std::optional<GraphPreview::Inputs> openPreviewInputs(
+    const Registry& registry, const PreviewInputPlan& plan, std::string& errorOut);
+
+
   // The swappable unit a live reload tears down and reconstructs -- the
   // "reconstruction, not mutation" design fork from huenicorn recommended in
   // docs/HttpServerAnalysis.md. Inputs and outputs come from the app's
@@ -124,8 +161,17 @@ namespace Aurora::Runtime
       const Registry& registry,
       const Config& config,
       const std::filesystem::path& configRoot,
-      const PipelineOptions& options
+      const PipelineOptions& options,
+      const PipelineBuildOverrides& overrides = {}
     );
+
+    // True while this pipeline only borrows the outputs of `overrides.outputsFrom`.
+    bool borrowsOutputs() const { return m_borrowedOutputs; }
+
+    // Takes ownership of `previous`'s outputs, which this pipeline borrowed at
+    // build time, leaving it with none to shut down. The host calls it under
+    // its lock, at the swap, so the old pipeline ticks them until then.
+    void adoptOutputsFrom(Pipeline& previous);
 
     // Applies a Config change to this running pipeline without rebuilding it
     // (Aurora-c0g), when ConfigApply says only live-tunable fields moved. The
@@ -153,11 +199,17 @@ namespace Aurora::Runtime
     bool restoreEffect(const Config& live, const std::optional<nlohmann::json>& doc);
 
     // Draft previews beside the live graph (Aurora-52oz.6), see
-    // GraphRunner::openPreview. Null with errorOut set when the graph would
-    // need other inputs than the ones running, the dev dual-capture spike is
-    // on, or the graph fails to load. Under the lock that guards tick().
+    // GraphRunner::openPreview. Null with errorOut set when the dev
+    // dual-capture spike is on, `inputs` do not cover a source the graph needs
+    // that the pipeline lacks, or the graph fails to load. Under the lock that
+    // guards tick().
     std::shared_ptr<GraphPreview> openPreview(
-      const std::string& session, const nlohmann::json& doc, std::string& errorOut);
+      const std::string& session, const nlohmann::json& doc, GraphPreview::Inputs inputs, std::string& errorOut);
+
+    // The inputs `doc` needs beyond the running ones, to open before
+    // openPreview(). Nullopt with errorOut set when a needed source is not
+    // configured or the spike is on.
+    std::optional<PreviewInputPlan> previewInputsFor(const nlohmann::json& doc, std::string& errorOut) const;
     bool reloadPreview(GraphPreview& preview, const nlohmann::json& doc, std::string& errorOut);
     void closePreview(const std::string& session, const GraphPreview* preview);
 
@@ -235,8 +287,11 @@ namespace Aurora::Runtime
     // Aurora-Output-Hue.
     std::unique_ptr<Input::IVideoInput> m_videoInput;
     std::unique_ptr<Input::IAudioInput> m_audioInput;
+    // The names the outputs were created under, to match a later build's list.
+    std::vector<std::string> m_outputKeys;
     std::vector<std::unique_ptr<Output::IOutput>> m_outputs;
     std::vector<Output::IOutput*> m_outputPtrs;
+    bool m_borrowedOutputs{false};
     std::optional<GraphRunner> m_videoRunner;
     std::optional<GraphRunner> m_audioRunner;
   };
@@ -366,11 +421,27 @@ namespace Aurora::Runtime
     bool testGraph(const nlohmann::json& doc);
     bool restoreEffect(const Config& live, const std::optional<nlohmann::json>& doc);
 
-    // Draft previews under the pipeline lock, see Pipeline::openPreview. They
-    // die with the pipeline: a rebuild moves buildEpoch() and a stream that
-    // saw the old one ends.
+    // Rebuilds the inputs but keeps the live outputs (Aurora-4xqt.1), so a
+    // change of inputs does not re-handshake Hue. `graph` runs in place of the
+    // Config's effect (test on lights); null builds the Config's own effect
+    // (its revert). Falls back to fresh outputs when the output list differs.
+    // False with errorOut set, the old pipeline untouched, when there is no
+    // running pipeline (idle, failed or paused) or the build fails. Holds the
+    // change lock through the build, so apply, pause and reload wait for it.
+    bool reloadInputs(
+      const Registry& registry,
+      const Config& config,
+      const std::filesystem::path& configRoot,
+      const nlohmann::json* graph,
+      std::string& errorOut
+    );
+
+    // Draft previews under the pipeline lock, see Pipeline::openPreview. A
+    // source the live pipeline lacks opens for the preview alone, outside the
+    // lock, and closes with it. They die with the pipeline: a rebuild moves
+    // buildEpoch() and a stream that saw the old one ends.
     std::shared_ptr<GraphPreview> openPreview(
-      const std::string& session, const nlohmann::json& doc, std::string& errorOut);
+      const std::string& session, const nlohmann::json& doc, const Registry& registry, std::string& errorOut);
     bool reloadPreview(GraphPreview& preview, const nlohmann::json& doc, std::string& errorOut);
     void closePreview(const std::string& session, const GraphPreview* preview);
 

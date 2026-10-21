@@ -13,6 +13,8 @@
 #include <nlohmann/json.hpp>
 
 #include <Aurora/Contracts/Frame.hpp>
+#include <Aurora/Input/IAudioInput.hpp>
+#include <Aurora/Input/IVideoInput.hpp>
 #include <Aurora/Output/IOutput.hpp>
 #include <Aurora/Runtime/Graph/Graph.hpp>
 #include <Aurora/Runtime/Graph/GraphHost.hpp>
@@ -71,6 +73,17 @@ namespace Aurora::Runtime
       const std::unordered_set<std::string>& knownOutputs,
       std::string& errorOut);
 
+    // Inputs the live pipeline does not run, opened for this preview alone and
+    // closed with it (Aurora-4xqt.1). Each one serves in place of the live one.
+    struct Inputs
+    {
+      std::unique_ptr<Input::IVideoInput> video;
+      std::unique_ptr<Input::IAudioInput> audio;
+    };
+    void setInputs(Inputs inputs) { m_inputs = std::move(inputs); }
+    bool hasVideo() const { return m_inputs.video != nullptr; }
+    bool hasAudio() const { return m_inputs.audio != nullptr; }
+
     // Under the lock that guards the live tick. `live` serves inputs, zone
     // maps and the live outputs' zone ids.
     void tick(float dt, Graph::IGraphHost& live);
@@ -108,8 +121,14 @@ namespace Aurora::Runtime
     public:
       Host(GraphPreview& owner, Graph::IGraphHost& live): m_owner(owner), m_live(live) {}
 
-      Input::IVideoInput* videoInput() override { return m_live.videoInput(); }
-      Input::IAudioInput* audioInput() override { return m_live.audioInput(); }
+      Input::IVideoInput* videoInput() override
+      {
+        return m_owner.m_inputs.video ? m_owner.m_inputs.video.get() : m_live.videoInput();
+      }
+      Input::IAudioInput* audioInput() override
+      {
+        return m_owner.m_inputs.audio ? m_owner.m_inputs.audio.get() : m_live.audioInput();
+      }
       Output::IOutput* output(std::string_view name) override;
       const ZoneMap* zoneMap(std::string_view outputName) override { return m_live.zoneMap(outputName); }
 
@@ -133,6 +152,7 @@ namespace Aurora::Runtime
       bool adopt,
       std::string& errorOut);
 
+    Inputs m_inputs;
     Graph::Graph m_graph;
     std::vector<SendNode> m_sends;
     std::map<std::string, std::unique_ptr<Sink>, std::less<>> m_sinks;

@@ -10,6 +10,7 @@ namespace Aurora::Runtime
 {
   class DraftStore;
   class PipelineHost;
+  class Registry;
 
   struct PreviewOptions
   {
@@ -19,7 +20,8 @@ namespace Aurora::Runtime
 
   // GET /api/graph/preview?session=<id> (text/event-stream, read scope, counted
   // against the event-stream cap). Runs that session's draft beside the live
-  // graph, sharing the inputs, with every output.send swapped for a sink that
+  // graph, sharing the inputs (a source the live pipeline lacks opens for the
+  // preview alone and closes with it), with every output.send swapped for a sink that
   // never reaches an output. Edits to the draft show up in the stream without
   // reconnecting. A second stream for the same session replaces the first.
   //
@@ -37,6 +39,7 @@ namespace Aurora::Runtime
   void registerPreviewRoutes(
     Aurora::Network::Http::Server::HttpServer& server,
     PipelineHost& pipelineHost,
+    const Registry& registry,
     std::shared_ptr<DraftStore> drafts,
     PreviewOptions options = {});
 }

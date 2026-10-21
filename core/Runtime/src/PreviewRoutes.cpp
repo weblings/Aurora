@@ -50,12 +50,13 @@ namespace Aurora::Runtime
   void registerPreviewRoutes(
     HttpServer& server,
     PipelineHost& pipelineHost,
+    const Registry& registry,
     std::shared_ptr<DraftStore> drafts,
     PreviewOptions options)
   {
     server.addStreamRoute(
       "/api/graph/preview",
-      [&pipelineHost, drafts, options](const Request& req, EventStream& stream){
+      [&pipelineHost, &registry, drafts, options](const Request& req, EventStream& stream){
         const auto asked = req.queryParams.find("session");
         const std::string session = asked == req.queryParams.end() ? std::string() : asked->second;
         if(!DraftStore::validSession(session)){
@@ -70,7 +71,7 @@ namespace Aurora::Runtime
 
         const std::uint64_t epoch = pipelineHost.buildEpoch();
         std::string error;
-        std::shared_ptr<GraphPreview> preview = pipelineHost.openPreview(session, *draft, error);
+        std::shared_ptr<GraphPreview> preview = pipelineHost.openPreview(session, *draft, registry, error);
         if(!preview){
           _fail(stream, "cannot_preview", error);
           return;

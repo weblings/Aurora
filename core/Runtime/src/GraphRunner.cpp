@@ -241,13 +241,14 @@ namespace Aurora::Runtime
 
 
   std::shared_ptr<GraphPreview> GraphRunner::openPreview(
-    const std::string& session, const nlohmann::json& doc, std::string& errorOut)
+    const std::string& session, const nlohmann::json& doc, GraphPreview::Inputs inputs, std::string& errorOut)
   {
     auto preview = GraphPreview::create(
       doc, m_registry, std::unordered_set<std::string>(m_outputNames.begin(), m_outputNames.end()), errorOut);
     if(!preview){
       return nullptr;
     }
+    preview->setInputs(std::move(inputs));
     auto& slot = m_previews[session];
     if(slot){
       slot->close();

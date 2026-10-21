@@ -300,14 +300,21 @@ def both_input_apply(c):
                       ["base.value", "amp.factor"], ["gain_hue.frame", "amp.frame"],
                       ["amp.frame", "floor_hue.frame"]]
     assert call(b, "PUT", f"/api/graph/drafts/{SESSION}", {"graph": both})[1]["valid"]
+    # Test on lights rebuilds the inputs (outputs kept), then the revert puts them back.
     code, body = call(b, "POST", "/api/graph/test", {"session": SESSION})
-    assert code == 409 and body["error"] == "cannot_test", (code, body)
+    assert code == 200 and body["succeeded"], (code, body)
+    s = call(b, "GET", "/api/state")[1]
+    assert s["usesVideoInput"] and s["usesAudioInput"], s
+    code, body = call(b, "POST", "/api/graph/test/revert", {"session": SESSION})
+    assert code == 200 and body["succeeded"] and "revertError" not in body, (code, body)
+    s = call(b, "GET", "/api/state")[1]
+    assert s["usesVideoInput"] and not s["usesAudioInput"], s
     code, body = call(b, "POST", "/api/graph/apply", {"session": SESSION, "id": EFFECT})
     assert code == 200 and body["effect"] == EFFECT, (code, body)
     s = call(b, "GET", "/api/state")[1]
     assert s["usesVideoInput"] and s["usesAudioInput"] and s["effect"] == EFFECT, s
     c["frames"].wait(lit, "lit under the both-input graph")
-    return f"applied {EFFECT} on {audio[0]}, test on lights refused (needs a rebuild)"
+    return f"test on lights took the graph and reverted, applied {EFFECT} on {audio[0]}"
 
 
 @step("audio reaches the lights")
