@@ -20,6 +20,7 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `52oz5-test-on-lights` | [log/2026-10-20-52oz5-test-on-lights.md](log/2026-10-20-52oz5-test-on-lights.md) | Aurora-52oz.5: test on lights with server-side auto-revert (closed) |
 | `52oz6-draft-preview` | [log/2026-10-20-52oz6-draft-preview.md](log/2026-10-20-52oz6-draft-preview.md) | Aurora-52oz.6: draft preview stream of zone colors (closed) |
 | `52oz7-tuning-custom-effects` | [log/2026-10-20-52oz7-tuning-custom-effects.md](log/2026-10-20-52oz7-tuning-custom-effects.md) | Aurora-52oz.7: Tuning edits on custom effects (closed) |
+| `52oz8-linux-verification` | [log/2026-10-20-52oz8-linux-verification.md](log/2026-10-20-52oz8-linux-verification.md) | Sequence C Linux verification: core, gate 7/7, web tuning tests |
 | `52oz8-sequence-c-gate` | [log/2026-10-20-52oz8-sequence-c-gate.md](log/2026-10-20-52oz8-sequence-c-gate.md) | Aurora-52oz.8: Sequence C gate on the fake-Hue stack (Windows done, Mac and Linux open) |
 | `5i3-local-api-hardening` | [log/2026-10-02-5i3-local-api-hardening.md](log/2026-10-02-5i3-local-api-hardening.md) | Aurora-5i3: local API hardening before any HA credential exists |
 | `5ipy1-ec0-decisions` | [log/2026-10-16-5ipy1-ec0-decisions.md](log/2026-10-16-5ipy1-ec0-decisions.md) | EC 0: open questions and cross-references (Aurora-5ipy.1) |
