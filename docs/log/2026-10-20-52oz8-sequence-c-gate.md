@@ -26,7 +26,10 @@ C7 of [[sequence-c-planning]]. Script: `tools/light-viz-relay/sequence_c_gate.py
 - Hue is the only registered output, so "remove an output" edits the stored
   graph to name an output the app does not have. Removing hue through
   `activeOutputNames` does not reach the fallback: the reload fails ("No
-  outputs available") and the old pipeline keeps running.
+  outputs available") and the old pipeline keeps running. This is intended
+  (`PipelineHost::reload` keeps the old pipeline on a failed build, with a
+  `reload` host error). The fallback covers a custom effect that fails to
+  load, and a built-in would hit the same missing outputs.
 - Test on lights refuses the both-input graph (409 `cannot_test`), asserted as
   intended, so apply is the only way in.
 
