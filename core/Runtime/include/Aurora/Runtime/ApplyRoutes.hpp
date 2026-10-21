@@ -35,6 +35,16 @@ namespace Aurora::Runtime
   // [a-z0-9][a-z0-9_-]{0,63}, so built-in ids never qualify), 404 "no_draft",
   // 422 "invalid_graph" with "valid": false and "errors" as the draft routes
   // report them, 500 "write_failed".
+  // PUT /api/effects/<id>/params {"params": [{"node", "param", "value"}]}: Tuning
+  // edits on a custom effect. Sets each node param in effects/<id>.json, then,
+  // when <id> is the active effect, applies like POST /api/graph/apply (swap in
+  // place, else reload). Same `apply` scope as the other /api/effects writes.
+  // Answers {"succeeded": true, "id", "effect", "requestedEffect"} plus
+  // "reloadError". Refusals write nothing: 400 "invalid_body" /
+  // "invalid_effect_id", 404 "unknown_effect", 422 "unreadable_effect" /
+  // "unknown_node" / "invalid_graph" (the edited graph must still validate, so
+  // a wrong value type is refused here), 500 "write_failed".
+  //
   // The apply itself, shared with test-on-lights confirm: fills `body` and
   // returns the HTTP status the route answers with.
   using ApplyDraftFn = std::function<int(const std::string& session, const std::string& id, nlohmann::json& body)>;

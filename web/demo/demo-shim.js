@@ -336,6 +336,12 @@ export function createRouter(store, hooks = {}) {
     if (method === 'GET' && path === '/api/nodes') {
       return ok(demoNodes());
     }
+    // The demo only runs the built-in effects, so Tuning stays on /api/config.
+    if (method === 'GET' && path === '/api/effects') {
+      const config = store.getConfig();
+      const audio = !config.activeInputName && !!config.activeAudioInputName;
+      return ok({ effects: [], activeEffectId: '', effect: audio ? 'builtin.audio' : 'builtin.video' });
+    }
     // PUT-for-read with {} body (PairingRoutes convention -- do NOT "fix" to
     // GET; the Dashboard sends PUT and parity means matching it).
     if (method === 'PUT' && path === '/api/hue/entertainment-configurations') {

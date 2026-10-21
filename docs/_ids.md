@@ -14,10 +14,13 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `3qh-mac-capture-width-hint` | [log/2026-10-01-3qh-mac-capture-width-hint.md](log/2026-10-01-3qh-mac-capture-width-hint.md) | Aurora-3qh: Mac video mode resized full-Retina frames every tick |
 | `4zr11-floor-wiring` | [log/2026-10-16-4zr11-floor-wiring.md](log/2026-10-16-4zr11-floor-wiring.md) | Brightness floor wiring (Aurora-4zr.11) |
 | `52oz1-custom-effects-storage` | [log/2026-10-20-52oz1-custom-effects-storage.md](log/2026-10-20-52oz1-custom-effects-storage.md) | Aurora-52oz.1: custom effects under effects/, activeEffectId, fallback warning (closed) |
+| `52oz2-graph-source-inputs` | [log/2026-10-20-52oz2-graph-source-inputs.md](log/2026-10-20-52oz2-graph-source-inputs.md) | Aurora-52oz.2: pipeline builds inputs from the graph's source nodes (open) |
 | `52oz3-drafts-and-validate` | [log/2026-10-20-52oz3-drafts-and-validate.md](log/2026-10-20-52oz3-drafts-and-validate.md) | Aurora-52oz.3: per-session drafts and validate (closed) |
 | `52oz4-apply-draft` | [log/2026-10-20-52oz4-apply-draft.md](log/2026-10-20-52oz4-apply-draft.md) | Aurora-52oz.4: apply a draft as the live effect (closed) |
 | `52oz5-test-on-lights` | [log/2026-10-20-52oz5-test-on-lights.md](log/2026-10-20-52oz5-test-on-lights.md) | Aurora-52oz.5: test on lights with server-side auto-revert (closed) |
 | `52oz6-draft-preview` | [log/2026-10-20-52oz6-draft-preview.md](log/2026-10-20-52oz6-draft-preview.md) | Aurora-52oz.6: draft preview stream of zone colors (closed) |
+| `52oz7-tuning-custom-effects` | [log/2026-10-20-52oz7-tuning-custom-effects.md](log/2026-10-20-52oz7-tuning-custom-effects.md) | Aurora-52oz.7: Tuning edits on custom effects (closed) |
+| `52oz8-sequence-c-gate` | [log/2026-10-20-52oz8-sequence-c-gate.md](log/2026-10-20-52oz8-sequence-c-gate.md) | Aurora-52oz.8: Sequence C gate on the fake-Hue stack (Windows done, Mac and Linux open) |
 | `5i3-local-api-hardening` | [log/2026-10-02-5i3-local-api-hardening.md](log/2026-10-02-5i3-local-api-hardening.md) | Aurora-5i3: local API hardening before any HA credential exists |
 | `5ipy1-ec0-decisions` | [log/2026-10-16-5ipy1-ec0-decisions.md](log/2026-10-16-5ipy1-ec0-decisions.md) | EC 0: open questions and cross-references (Aurora-5ipy.1) |
 | `5ipy19-lan-reads-paired` | [log/2026-10-16-5ipy19-lan-reads-paired.md](log/2026-10-16-5ipy19-lan-reads-paired.md) | LAN GETs require the read scope (Aurora-5ipy.19) |

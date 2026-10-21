@@ -2846,6 +2846,8 @@ TEST_CASE("Effects routes: reads need read scope, switch and delete need apply (
   CHECK(decide(HttpMethod::Put, "/api/effects", apply) == Result::Allow);
   CHECK(decide(HttpMethod::Delete, "/api/effects/mine", read) == Result::Forbidden);
   CHECK(decide(HttpMethod::Delete, "/api/effects/mine", apply) == Result::Allow);
+  CHECK(decide(HttpMethod::Put, "/api/effects/mine/params", draft) == Result::Forbidden);
+  CHECK(decide(HttpMethod::Put, "/api/effects/mine/params", apply) == Result::Allow);
   CHECK(decide(HttpMethod::Put, "/api/effects", "") == Result::Unauthorized);
 
   // Config writes stay admin: the apply scope switches through /api/effects.
@@ -3225,6 +3227,68 @@ TEST_CASE("Apply refuses an invalid draft and leaves disk and the live effect un
   CHECK(h.client->Post("/api/graph/apply", "not json", "application/json")->status == 400);
   CHECK(EffectStore(h.dir.path).list().empty());
   CHECK(ConfigStore(h.dir.path).load().activeEffectId() == "");
+}
+
+
+TEST_CASE("Tuning edits on a custom effect write its file and swap in place (Aurora-52oz.7)", "[Apply]")
+{
+  ApplyHarness h("apply-params", tunedVideoConfig());
+  h.putDraft("editor", Graph::builtInVideoGraph({"out-a"}));
+  REQUIRE(h.apply({{"session", "editor"}, {"id", "calm"}})->status == 200);
+  REQUIRE(initCount(*h.events) == 1);
+
+  std::string easeId;
+  const nlohmann::json running = *h.host->graphJson();
+  for(const auto& node : running["nodes"]){
+    if(node["type"] == "frame.smooth"){ easeId = node["id"]; }
+  }
+  REQUIRE_FALSE(easeId.empty());
+  auto put = [&](const nlohmann::json& body){
+    return h.client->Put("/api/effects/calm/params", body.dump(), "application/json");
+  };
+  auto paramOf = [&](const nlohmann::json& graph){
+    for(const auto& node : graph["nodes"]){
+      if(node["id"] == easeId){ return node["params"]["smoothing"]; }
+    }
+    return nlohmann::json();
+  };
+
+  auto edited = put({{"params", {{{"node", easeId}, {"param", "smoothing"}, {"value", 0.25}}}}});
+  REQUIRE(edited);
+  CHECK(edited->status == 200);
+  auto body = nlohmann::json::parse(edited->body);
+  CHECK(body["succeeded"] == true);
+  CHECK(body["effect"] == "calm");
+  CHECK_FALSE(body.contains("reloadError"));
+  CHECK(paramOf(*h.host->graphJson()) == 0.25);
+  CHECK(initCount(*h.events) == 1);
+  CHECK_FALSE(h.events->has("shutdown out-a replacement"));
+
+  std::string error;
+  auto stored = EffectStore(h.dir.path).read("calm", error);
+  REQUIRE(stored);
+  CHECK(paramOf(*stored) == 0.25);
+
+  // A restart builds the edited value from disk.
+  auto restarted = Pipeline::build(h.registry, ConfigStore(h.dir.path).load(), h.dir.path, {});
+  REQUIRE(restarted);
+  CHECK(paramOf(restarted->graphJson()) == 0.25);
+  restarted->shutdown(false);
+
+  // Refusals change neither the file nor the live graph.
+  const nlohmann::json before = *stored;
+  CHECK(put({{"params", {{{"node", "nobody"}, {"param", "smoothing"}, {"value", 0.1}}}}})->status == 422);
+  CHECK(put({{"params", {{{"node", easeId}, {"param", "smoothing"}, {"value", "fast"}}}}})->status == 422);
+  CHECK(put({{"params", nlohmann::json::array()}})->status == 400);
+  CHECK(put({{"other", 1}})->status == 400);
+  CHECK(h.client->Put("/api/effects/missing/params", R"({"params": []})", "application/json")->status == 400);
+  CHECK(h.client->Put("/api/effects/missing/params",
+    nlohmann::json{{"params", {{{"node", easeId}, {"param", "smoothing"}, {"value", 0.1}}}}}.dump(),
+    "application/json")->status == 404);
+  CHECK(h.client->Put("/api/effects/..%2Fx/params", "{}", "application/json")->status != 200);
+  stored = EffectStore(h.dir.path).read("calm", error);
+  CHECK(*stored == before);
+  CHECK(paramOf(*h.host->graphJson()) == 0.25);
 }
 
 
