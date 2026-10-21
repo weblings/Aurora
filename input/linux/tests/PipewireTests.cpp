@@ -8,6 +8,7 @@
 #include <Aurora/Input/Linux/AudioSinkStatus.hpp>
 #include <Aurora/Input/Linux/GamescopeNodeMatch.hpp>
 #include <Aurora/Input/Linux/IRestoreTokenStore.hpp>
+#include <Aurora/Input/Linux/PipewireCopyGate.hpp>
 #include <Aurora/Input/Linux/PipewireDmabuf.hpp>
 #include <Aurora/Input/Linux/PipewireFrameBuffer.hpp>
 #include <Aurora/Input/Linux/PipewireFramerate.hpp>
@@ -519,4 +520,36 @@ TEST_CASE("toOwnedImage rejects a bytes-per-pixel that is neither 3 nor 4", "[Pi
   std::vector<uint8_t> buffer(4 * 4 * 4, 0x7F);
   CHECK_FALSE(toOwnedImage(buffer.data(), 4, 4, 0, PixelFormat::RGBA, 1, 2).hasData());
   CHECK_FALSE(toOwnedImage(buffer.data(), 4, 4, 0, PixelFormat::RGBA, 1, 1).hasData());
+}
+
+
+TEST_CASE("PipewireCopyGate allows the first copy, then makes early frames wait out the interval", "[PipewireGrabber][gate]")
+{
+  PipewireCopyGate gate(50);
+  CHECK(gate.waitMs(1000) == 0);
+  gate.onCopied(1000);
+  CHECK(gate.waitMs(1000) == 50);
+  CHECK(gate.waitMs(1016) == 34);
+  CHECK(gate.waitMs(1049) == 1);
+  CHECK(gate.waitMs(1050) == 0);
+  CHECK(gate.waitMs(5000) == 0);
+}
+
+
+TEST_CASE("PipewireCopyGate measures from the last copy, not the last offer", "[PipewireGrabber][gate]")
+{
+  PipewireCopyGate gate(50);
+  gate.onCopied(1000);
+  // Frames at 1010..1040 were held, never copied: the deadline stays 1050.
+  CHECK(gate.waitMs(1040) == 10);
+  gate.onCopied(1050);
+  CHECK(gate.waitMs(1060) == 40);
+}
+
+
+TEST_CASE("PipewireCopyGate survives a backwards clock by waiting one interval", "[PipewireGrabber][gate]")
+{
+  PipewireCopyGate gate(50);
+  gate.onCopied(1000);
+  CHECK(gate.waitMs(900) == 50);
 }
