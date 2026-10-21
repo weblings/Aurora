@@ -16,6 +16,7 @@
 #include <cstdlib>
 #include <filesystem>
 #include <iostream>
+#include <memory>
 #include <mutex>
 #include <optional>
 #include <thread>
@@ -58,6 +59,7 @@
 #include <Aurora/Input/Linux/X11Grabber.hpp>
 #endif
 #ifdef AURORA_INPUT_LINUX_PIPEWIRE_AVAILABLE
+#include <Aurora/Input/Linux/FileRestoreTokenStore.hpp>
 #include <Aurora/Input/Linux/PipewireGrabber.hpp>
 #endif
 #ifdef AURORA_INPUT_LINUX_AUDIO_AVAILABLE
@@ -86,7 +88,15 @@ namespace
   // "linux" auto-selects X11 vs. Wayland/Pipewire the way huenicorn's
   // GnuLinuxAdapter did; the concrete backend names are also registered
   // individually for manual override while testing.
-  void registerInputs(Aurora::Runtime::Registry& registry)
+  //
+  // The portal restore-token store is created once here and shared by every
+  // PipewireGrabber this process builds (first start, reload, pause/resume):
+  // the factory lambdas hold it by shared_ptr, so it outlives any grabber
+  // (Registry, which owns the factories, outlives every Pipeline), and every
+  // Start's rotated token lands in the same <configRoot>/portal-restore-token
+  // file the next capture replays (Aurora-w6no). Gamescope needs no portal,
+  // so it keeps the default (null) store.
+  void registerInputs(Aurora::Runtime::Registry& registry, const std::filesystem::path& configRoot)
   {
     registry.registerInput("dummy", []{
       return std::make_unique<Aurora::Input::Linux::DummyGrabber>();
@@ -104,12 +114,19 @@ namespace
 
 #ifdef AURORA_INPUT_LINUX_PIPEWIRE_AVAILABLE
     pipewireAvailable = true;
-    registry.registerInput("pipewire", []{
-      return std::make_unique<Aurora::Input::Linux::PipewireGrabber>();
+    auto restoreTokenStore = std::make_shared<Aurora::Input::Linux::FileRestoreTokenStore>(configRoot);
+    registry.registerInput("pipewire", [restoreTokenStore]{
+      return std::make_unique<Aurora::Input::Linux::PipewireGrabber>(
+        /*useGamescope*/ false, restoreTokenStore.get()
+      );
     });
 #endif
 
-    registry.registerInput("linux", [x11Available, pipewireAvailable]() -> std::unique_ptr<Aurora::Input::IVideoInput> {
+    registry.registerInput("linux", [x11Available, pipewireAvailable
+#ifdef AURORA_INPUT_LINUX_PIPEWIRE_AVAILABLE
+      , restoreTokenStore
+#endif
+    ]() -> std::unique_ptr<Aurora::Input::IVideoInput> {
       using namespace Aurora::Input::Linux;
 
       switch(selectBackendFromEnvironment(pipewireAvailable, x11Available)){
@@ -119,7 +136,7 @@ namespace
 #endif
 #ifdef AURORA_INPUT_LINUX_PIPEWIRE_AVAILABLE
         case Backend::WaylandPipewire:
-          return std::make_unique<PipewireGrabber>();
+          return std::make_unique<PipewireGrabber>(/*useGamescope*/ false, restoreTokenStore.get());
         case Backend::GamescopePipewire:
           return std::make_unique<PipewireGrabber>(/*useGamescope*/ true);
 #endif
@@ -558,7 +575,7 @@ if(!instanceLock.held()){
   // per build instead (see registerAudioInputs), since Registry's
   // factories are zero-arg closures that reload() never re-registers.
   Aurora::Runtime::Registry registry;
-  registerInputs(registry);
+  registerInputs(registry, configRoot);
   registerAudioInputs(registry, configRoot);
   registerOutputs(registry, configRoot);
 

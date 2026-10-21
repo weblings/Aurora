@@ -95,8 +95,10 @@ runtime (see [[linux-capture-analysis]]):
 2. **Wayland via `xdg-desktop-portal`'s ScreenCast interface**
    ([`XdgDesktopPortal.cpp`](../../input/linux/src/XdgDesktopPortal.cpp)) — used
    on a normal desktop compositor (e.g. Deck Desktop Mode's KDE Plasma).
-   Already persists a restore token so the user isn't re-prompted every
-   launch.
+   Persists a restore token (`<configRoot>/portal-restore-token`, user-only
+   permissions, via `FileRestoreTokenStore`, Aurora-w6no) so the user isn't
+   re-prompted every launch. Whether a given backend honors persistence
+   stays a per-desktop manual check.
 3. **Gamescope direct Pipewire node** — detected via the
    `GAMESCOPE_WAYLAND_DISPLAY` env var, bypasses the portal entirely and
    connects straight to Pipewire's `gamescope` node

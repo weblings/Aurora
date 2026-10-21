@@ -36,6 +36,10 @@ Distilled from [huenicorn](https://gitlab.com/openjowelsofts/huenicorn)
   `PipewireGrabber` for 60s. It cannot say whether a real backend honors
   persistence. Run it under ASan + LeakSanitizer
   (`-fsanitize=address,undefined`) after touching the callbacks; it is clean.
+  The shipped app persists the token in `<configRoot>/portal-restore-token`
+  (user-only permissions) via `FileRestoreTokenStore`, shared by every
+  `PipewireGrabber` the process builds — covered by the same test file, no
+  `dbus-daemon` needed for those cases.
 
 Grabber gotchas: `docs/lessons/input.md`.
 

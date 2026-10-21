@@ -39,6 +39,15 @@ already implements the portal's fix for it: it requests `persist_mode = 2`
 next request so the portal skips the dialog on subsequent launches — this
 is the direct analog to what a stable macOS code identity buys.
 
+> Correction (2026-10-21, Aurora-w6no): only half of that held in the
+> shipped app — the portal code requested `persist_mode = 2` and handled
+> the token in memory, but no `IRestoreTokenStore` existed outside tests,
+> so nothing was ever persisted and every capture re-asked. The lesson
+> about reruns skipping the picker came from huenicorn's Config-backed
+> store, not Aurora. `FileRestoreTokenStore`
+> (`<configRoot>/portal-restore-token`) closed the gap; archived here as
+> written, not rewritten.
+
 ### Recovery flow: denial is sticky, not re-askable
 
 Unlike the Wayland portal dialog (re-askable each session), macOS's Screen

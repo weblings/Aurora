@@ -819,9 +819,11 @@ Aurora-h457 live (macOS 27, `open`-launched `Aurora.app`, audio playing the whol
 Tags: input, linux, xdg-portal, testing, huenicorn
 Applies-when: re-running a scratch driver or before/after check against the real xdg-desktop-portal, where each run would otherwise need a human to pick a monitor
 
-huenicorn's `XdgDesktopPortal` (and Aurora's port) saves the portal's
-`restore_token` into `config.json` after a successful Start, and sends it on
-the next `SelectSources`. On `Aurora-h45.19`, the first real-portal run
+huenicorn's `XdgDesktopPortal` saves the portal's `restore_token` into
+`config.json` after a successful Start, and sends it on the next
+`SelectSources`. (Aurora's port does the same handshake but persists to
+`<configRoot>/portal-restore-token` via `FileRestoreTokenStore`, not
+`config.json` — Aurora-w6no.) On `Aurora-h45.19`, the first real-portal run
 needed the owner to pick a monitor. The before/after reruns
 (`Aurora-h45.20`, then again on the MR 3 branch) copied that `config.json`
 with only `refreshRate` reset to 0, and logged "Using saved restore token":
@@ -833,6 +835,25 @@ stays on the same monitor. Here both reruns copied the first run's token and
 both skipped the picker, so on GNOME 46 that token was not single-use. If a
 rerun prompts again, copy the newest token from the last run's config.
 Not checked on KDE or wlroots portals.
+
+---
+
+## A tested handshake can still be dead in the shipped app: persistence needs a constructed store, not just an interface
+Tags: input, linux, xdg-portal, persistence, wiring
+Applies-when: a capability is plumbed through an interface and covered by tests, yet the shipped app never persists anything
+
+Aurora's portal code requested `persist_mode = 2`, handled `restore_token`
+in both directions, and `PortalTokenTests` pinned the whole handshake — yet
+every capture re-asked, because no `IRestoreTokenStore` existed outside
+tests and both `PipewireGrabber` registrations used the default (null)
+constructor. Three planning docs claimed the token was stored; the passing
+suite proved only the mechanism, never the wiring.
+
+**Fix:** verify the registration site constructs the persistence half, not
+just that the mechanism is tested — `FileRestoreTokenStore`
+(`Aurora-w6no`), one instance shared by every portal-backed factory. When
+docs claim a behavior, trace the claim to a constructed object in the
+shipped binary, not to the interface or its tests.
 
 
 ---

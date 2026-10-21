@@ -80,7 +80,8 @@ Status: filed as Aurora-3ddb.
   `IOutput`/input interface change. Route lives in core
   (`PUT /api/state`), unlike today's per-app `/api/stop`.
 - Platform differences are tray menus and resume cost: Wayland re-enters
-  the portal (restore tokens should keep it silent), Mac clears the
+  the portal (the persisted restore token keeps it silent once stored,
+  Aurora-w6no; first run still shows the picker), Mac clears the
   screen-recording indicator, Windows is cheap, Hue needs a fresh DTLS
   handshake everywhere (Aurora-vf1.1 measures it).
 

@@ -12,11 +12,15 @@
 #include <fcntl.h>
 #include <unistd.h>
 
+#include <atomic>
 #include <chrono>
+#include <filesystem>
+#include <fstream>
 #include <future>
 #include <map>
 #include <mutex>
 #include <optional>
+#include <sstream>
 #include <stdexcept>
 #include <string>
 #include <thread>
@@ -25,6 +29,7 @@
 #include <gio/gio.h>
 #include <gio/gunixfdlist.h>
 
+#include <Aurora/Input/Linux/FileRestoreTokenStore.hpp>
 #include <Aurora/Input/Linux/IRestoreTokenStore.hpp>
 #include <Aurora/Input/Linux/XdgDesktopPortal.hpp>
 
@@ -759,4 +764,146 @@ TEST_CASE("A bus with no ScreenCast portal settles the handshake false", "[XdgDe
 
   REQUIRE(result.settled);
   CHECK_FALSE(result.ready);
+}
+
+
+// FileRestoreTokenStore (Aurora-w6no): the app-side store behind both
+// PipewireGrabber registrations. No portal involved -- these run even
+// without dbus-daemon.
+
+namespace
+{
+  struct TempConfigRoot
+  {
+    TempConfigRoot()
+    {
+      static std::atomic<unsigned> s_counter{0};
+      path = std::filesystem::temp_directory_path()
+        / ("aurora-restore-token-test-" + std::to_string(::getpid())
+          + "-" + std::to_string(s_counter.fetch_add(1)));
+      std::filesystem::create_directories(path);
+    }
+
+    ~TempConfigRoot()
+    {
+      std::error_code ec;
+      std::filesystem::remove_all(path, ec);
+    }
+
+    std::filesystem::path path;
+  };
+
+
+  std::string readRaw(const std::filesystem::path& file)
+  {
+    std::ifstream in(file, std::ios::binary);
+    std::ostringstream raw;
+    raw << in.rdbuf();
+    return raw.str();
+  }
+}
+
+
+TEST_CASE("A missing token file reads as no token", "[restore-token-store]")
+{
+  TempConfigRoot root;
+  FileRestoreTokenStore store(root.path);
+  CHECK_FALSE(store.restoreToken().has_value());
+}
+
+
+TEST_CASE("A written token survives a fresh store instance", "[restore-token-store]")
+{
+  TempConfigRoot root;
+  {
+    FileRestoreTokenStore store(root.path);
+    store.setRestoreToken("tok-persist-1");
+    REQUIRE(store.restoreToken() == "tok-persist-1");
+  }
+  FileRestoreTokenStore reopened(root.path);
+  CHECK(reopened.restoreToken() == "tok-persist-1");
+}
+
+
+TEST_CASE("The token file is user-only readable", "[restore-token-store]")
+{
+  TempConfigRoot root;
+  FileRestoreTokenStore store(root.path);
+  store.setRestoreToken("tok-secret");
+
+  const auto file = store.path();
+  REQUIRE(std::filesystem::exists(file));
+  using Perms = std::filesystem::perms;
+  const auto granted = std::filesystem::status(file).permissions() & Perms::mask;
+  CHECK(granted == (Perms::owner_read | Perms::owner_write));
+}
+
+
+TEST_CASE("Overwriting replaces the stored token", "[restore-token-store]")
+{
+  TempConfigRoot root;
+  FileRestoreTokenStore store(root.path);
+  store.setRestoreToken("tok-old");
+  store.setRestoreToken("tok-new");
+  CHECK(store.restoreToken() == "tok-new");
+
+  FileRestoreTokenStore reopened(root.path);
+  CHECK(reopened.restoreToken() == "tok-new");
+}
+
+
+TEST_CASE("An empty token clears the store", "[restore-token-store]")
+{
+  TempConfigRoot root;
+  FileRestoreTokenStore store(root.path);
+  store.setRestoreToken("tok-then-cleared");
+  REQUIRE(store.restoreToken().has_value());
+  store.setRestoreToken("");
+  CHECK_FALSE(store.restoreToken().has_value());
+  CHECK_FALSE(std::filesystem::exists(store.path()));
+}
+
+
+TEST_CASE("A token with surrounding whitespace round-trips trimmed", "[restore-token-store]")
+{
+  TempConfigRoot root;
+  FileRestoreTokenStore store(root.path);
+  store.setRestoreToken("  tok-trimmed \n");
+  CHECK(store.restoreToken() == "tok-trimmed");
+  CHECK(readRaw(store.path()) == "tok-trimmed\n");
+}
+
+
+// End to end through the fake portal with the real app-side store: the
+// first handshake persists the token to disk, and the next handshake
+// presents it on SelectSources (the picker-skipping path, Aurora-w6no).
+TEST_CASE("A portal handshake persists to disk and replays on the next run", "[XdgDesktopPortal][restore-token-store]")
+{
+  if(!haveDbusDaemon()){ SKIP("dbus-daemon is not installed"); }
+
+  TempConfigRoot root;
+  auto& portal = fakePortal();
+  portal.setNextStartToken("tok-file-1");
+
+  {
+    FileRestoreTokenStore store(root.path);
+    REQUIRE(runHandshake(store));
+    CHECK(store.restoreToken() == "tok-file-1");
+  }
+  REQUIRE(std::filesystem::exists(root.path / "portal-restore-token"));
+
+  FileRestoreTokenStore secondRun(root.path);
+  REQUIRE(secondRun.restoreToken() == "tok-file-1");
+
+  const size_t before = portal.selectSourcesCalls().size();
+  portal.setNextStartToken("tok-file-2");
+  REQUIRE(runHandshake(secondRun));
+
+  const auto calls = portal.selectSourcesCalls();
+  REQUIRE(calls.size() == before + 1);
+  CHECK(calls.back().restoreToken == "tok-file-1");
+  CHECK(secondRun.restoreToken() == "tok-file-2");
+
+  FileRestoreTokenStore thirdRun(root.path);
+  CHECK(thirdRun.restoreToken() == "tok-file-2");
 }
