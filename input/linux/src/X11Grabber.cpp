@@ -108,6 +108,97 @@ namespace Aurora::Input::Linux
   }
 
 
+  X11Grabber::ScaleChain::ScaleChain(
+    Display* display,
+    int screenId,
+    XRenderPictFormat* format,
+    Picture rootPicture,
+    const X11MonitorData& monitor,
+    int halvings
+  ):
+  m_display(display),
+  m_root(rootPicture),
+  m_xPos(monitor.xPos),
+  m_yPos(monitor.yPos),
+  m_halvings(halvings),
+  m_width(monitor.width >> halvings),
+  m_height(monitor.height >> halvings)
+  {
+    Window root = RootWindow(display, screenId);
+    unsigned w = monitor.width;
+    unsigned h = monitor.height;
+    for(int i = 0; i < halvings; ++i){
+      w >>= 1;
+      h >>= 1;
+      Pixmap pixmap = XCreatePixmap(display, root, w, h, DefaultDepth(display, screenId));
+      m_pixmaps.push_back(pixmap);
+      m_pictures.push_back(XRenderCreatePicture(display, pixmap, format, 0, nullptr));
+    }
+
+    m_shm = std::make_unique<XShmData>(display, screenId, m_width, m_height);
+  }
+
+
+  X11Grabber::ScaleChain::~ScaleChain()
+  {
+    m_shm.reset();
+    for(Picture picture : m_pictures){
+      XRenderFreePicture(m_display, picture);
+    }
+    for(Pixmap pixmap : m_pixmaps){
+      XFreePixmap(m_display, pixmap);
+    }
+  }
+
+
+  int X11Grabber::ScaleChain::halvings() const
+  {
+    return m_halvings;
+  }
+
+
+  unsigned X11Grabber::ScaleChain::width() const
+  {
+    return m_width;
+  }
+
+
+  unsigned X11Grabber::ScaleChain::height() const
+  {
+    return m_height;
+  }
+
+
+  XImage* X11Grabber::ScaleChain::grab()
+  {
+    unsigned w = m_width << m_halvings;
+    unsigned h = m_height << m_halvings;
+    Picture source = m_root;
+
+    for(int i = 0; i < m_halvings; ++i){
+      w >>= 1;
+      h >>= 1;
+      // Dest pixel (x, y) samples source (2x + off, 2y + off): the bilinear
+      // tap lands on the shared corner of a 2x2 block. Only the first
+      // stage reads the root, so only it carries the monitor offset.
+      const bool first = i == 0;
+      XTransform transform = {{
+        {XDoubleToFixed(2), 0, XDoubleToFixed(first ? m_xPos : 0)},
+        {0, XDoubleToFixed(2), XDoubleToFixed(first ? m_yPos : 0)},
+        {0, 0, XDoubleToFixed(1)}
+      }};
+      XRenderSetPictureTransform(m_display, source, &transform);
+      XRenderSetPictureFilter(m_display, source, FilterBilinear, nullptr, 0);
+      XRenderComposite(m_display, PictOpSrc, source, None, m_pictures[i], 0, 0, 0, 0, 0, 0, w, h);
+      source = m_pictures[i];
+    }
+
+    XImage* ximage = m_shm->ximage();
+    XShmGetImage(m_display, m_pixmaps.back(), ximage, 0, 0, AllPlanes);
+    return ximage;
+  }
+
+
   X11Grabber::X11Grabber():
   m_grabGate(kMinGrabIntervalMs, kMaxStaleMs)
   {
@@ -128,11 +219,37 @@ namespace Aurora::Input::Linux
       m_damage = XDamageCreate(
         m_display.get(), RootWindow(m_display.get(), m_screenId), XDamageReportRawRectangles);
     }
+
+    // Fail-soft likewise: picture transforms need Render >= 0.6; older or
+    // absent servers keep the full-frame read.
+    int renderEventBase = 0;
+    int renderErrorBase = 0;
+    int renderMajor = 0;
+    int renderMinor = 0;
+    if(XRenderQueryExtension(m_display.get(), &renderEventBase, &renderErrorBase) &&
+      XRenderQueryVersion(m_display.get(), &renderMajor, &renderMinor) &&
+      (renderMajor > 0 || renderMinor >= 6)
+    ){
+      m_renderFormat = XRenderFindVisualFormat(
+        m_display.get(), DefaultVisual(m_display.get(), m_screenId));
+      if(m_renderFormat){
+        // IncludeInferiors: composite what is on screen, child windows too.
+        XRenderPictureAttributes attributes;
+        attributes.subwindow_mode = IncludeInferiors;
+        m_rootPicture = XRenderCreatePicture(
+          m_display.get(), RootWindow(m_display.get(), m_screenId),
+          m_renderFormat, CPSubwindowMode, &attributes);
+      }
+    }
   }
 
 
   X11Grabber::~X11Grabber()
   {
+    m_scaleChain.reset();
+    if(m_rootPicture != None){
+      XRenderFreePicture(m_display.get(), m_rootPicture);
+    }
     if(m_damage != None){
       XDamageDestroy(m_display.get(), m_damage);
     }
@@ -171,6 +288,7 @@ namespace Aurora::Input::Linux
   )
   {
     m_xshmData.reset();
+    m_scaleChain.reset();
     m_monitorSelectionData.selectedMonitorId = monitorId;
     // The cached frame belongs to the old monitor; the next grab is full.
     m_grabGate.reset();
@@ -204,9 +322,22 @@ namespace Aurora::Input::Linux
 
     int width = static_cast<int>(selectedMonitor->width);
     int height = static_cast<int>(selectedMonitor->height);
-    auto ximage = m_xshmData->ximage();
 
-    XShmGetImage(m_display.get(), RootWindow(m_display.get(), m_screenId), ximage, selectedMonitor->xPos, selectedMonitor->yPos, AllPlanes);
+    // Server-side downscale (Aurora-fq5y): when the width hint calls for a
+    // reduction, the X server halves the root into a small pixmap and only
+    // that crosses to us (~0.4 ms vs 5.6 ms read + 11 ms decimate at 4K).
+    // Otherwise (no hint, small screen, no XRender) the full-frame read.
+    _ensureScaleChain(*selectedMonitor);
+    XImage* ximage;
+    if(m_scaleChain){
+      ximage = m_scaleChain->grab();
+      width = static_cast<int>(m_scaleChain->width());
+      height = static_cast<int>(m_scaleChain->height());
+    }
+    else{
+      ximage = m_xshmData->ximage();
+      XShmGetImage(m_display.get(), RootWindow(m_display.get(), m_screenId), ximage, selectedMonitor->xPos, selectedMonitor->yPos, AllPlanes);
+    }
 
     // Standard X11 TrueColor visuals store pixels red-mask-high on a
     // little-endian host, which lands in memory as B,G,R,X -- BGRA/BGR, not
@@ -224,15 +355,17 @@ namespace Aurora::Input::Linux
       bytesPerPixel = 3;
     }
 
-    // Same decimate-on-copy as PipewireGrabber (Aurora-u5k0): area-average
-    // straight out of the XShm buffer by an integer factor -- INTER_AREA is
+    // Same decimate-on-copy as PipewireGrabber (Aurora-u5k0), for whatever the
+    // server-side chain left over: area-average straight out of the XShm
+    // buffer by an integer factor -- INTER_AREA is
     // only fast at exact integer ratios, a fractional target made CPU worse
     // -- so a 4K frame never crosses the tick at full size. bytes_per_line
     // is the real stride; XImage rows can be padded past width * bytesPerPixel.
     const int decimation = captureDecimation(m_captureWidthHint.load(), width);
-    if(decimation <= 1){
+    if(decimation <= 1 && !m_scaleChain){
       // No hint (or a small screen): keep the historic zero-copy header over
-      // the persistent XShm buffer instead of cloning for nothing.
+      // the persistent XShm buffer instead of cloning for nothing. (A scale
+      // chain's buffer is small; clone it so the cached frame owns its pixels.)
       const int cvType = bytesPerPixel == 4 ? CV_8UC4 : CV_8UC3;
       m_lastFrame.format = format;
       m_lastFrame.imageMatrix = cv::Mat(
@@ -362,6 +495,25 @@ namespace Aurora::Input::Linux
     }
 
     return false;
+  }
+
+
+  void X11Grabber::_ensureScaleChain(const X11MonitorData& monitor)
+  {
+    const int halvings = m_rootPicture == None
+      ? 0
+      : serverHalvings(m_captureWidthHint.load(), static_cast<int>(monitor.width));
+
+    if(halvings == 0){
+      m_scaleChain.reset();
+      return;
+    }
+
+    if(!m_scaleChain || m_scaleChain->halvings() != halvings){
+      m_scaleChain.reset();
+      m_scaleChain = std::make_unique<ScaleChain>(
+        m_display.get(), m_screenId, m_renderFormat, m_rootPicture, monitor, halvings);
+    }
   }
 
 

@@ -29,6 +29,24 @@ namespace Aurora::Input::Linux
   }
 
 
+  // Number of 2x server-side halvings (X11 XRender) to apply before reading,
+  // keeping the result at least as wide as captureDecimation's floor
+  // (hint * 8, min 256 px). Each halving is an exact 2x2 box average, so it
+  // matches INTER_AREA at the same ratio. 0 = read the full frame (no hint,
+  // or a small screen). Capped so a tiny hint can't build a deep chain.
+  inline int serverHalvings(unsigned hint, int sourceWidth)
+  {
+    if(hint == 0 || sourceWidth <= 0){
+      return 0;
+    }
+    const int floorWidth = static_cast<int>((std::max)(hint * 8u, 256u));
+    int halvings = 0;
+    while(halvings < 4 && (sourceWidth >> (halvings + 1)) >= floorWidth){
+      ++halvings;
+    }
+    return halvings;
+  }
+
   // Clones a raw capture buffer into an owned ImageData -- the clone
   // matters, since the source buffer becomes invalid (Pipewire queue-back)
   // or is reused (XShm) right after. stride == 0 means tightly packed

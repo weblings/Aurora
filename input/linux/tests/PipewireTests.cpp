@@ -385,6 +385,19 @@ TEST_CASE("dmabufEnabledFrom is on unless the kill switch is \"0\"", "[PipewireD
 
 
 
+TEST_CASE("serverHalvings halves while the result stays at least 8x the hint and 256 px", "[PipewireGrabber][frame]")
+{
+  CHECK(serverHalvings(0, 3840) == 0);
+  CHECK(serverHalvings(48, 0) == 0);
+  CHECK(serverHalvings(48, 3840) == 3);    // 480 >= 384, 240 < 384
+  CHECK(serverHalvings(10, 3840) == 3);    // floor 256: 480 ok, 240 < 256
+  CHECK(serverHalvings(64, 3840) == 2);    // floor 512: 960 ok, 480 < 512
+  CHECK(serverHalvings(48, 1920) == 2);    // 480 ok
+  CHECK(serverHalvings(48, 512) == 0);     // 256 < 384
+  CHECK(serverHalvings(1, 100000) == 4);   // chain depth cap
+}
+
+
 TEST_CASE("captureDecimation keeps the result at least 8x the hint and 256 px", "[PipewireGrabber][frame]")
 {
   CHECK(captureDecimation(0, 1920) == 1);

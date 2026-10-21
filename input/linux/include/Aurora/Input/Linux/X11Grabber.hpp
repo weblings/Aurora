@@ -4,6 +4,7 @@
 #include <cstdint>
 #include <memory>
 #include <optional>
+#include <vector>
 
 #include <Aurora/Input/IVideoInput.hpp>
 #include <Aurora/Input/MonitorData.hpp>
@@ -12,9 +13,10 @@
 #include <X11/extensions/Xdamage.h>
 #include <X11/extensions/Xrandr.h>
 #include <X11/extensions/XShm.h>
+#include <X11/extensions/Xrender.h>
 
 // Mechanically ported from huenicorn's X11Grabber -- self-contained (only
-// needs libX11/libXext/libXrandr/libXdamage), so it ports now even though PipewireGrabber
+// needs libX11/libXext/libXrandr/libXdamage/libXrender), so it ports now even though PipewireGrabber
 // doesn't yet. Needs a real X11 session to manually verify capture -- not
 // unit-testable, same category as Hue's DTLS streaming.
 namespace Aurora::Input::Linux
@@ -85,6 +87,39 @@ namespace Aurora::Input::Linux
     };
 
 
+    // Server-side downscale (Aurora-fq5y): a chain of 2x XRender composites
+    // from the root picture through server-side pixmaps, so only the final
+    // small image is XShmGetImage'd. Each stage is an exact 2x2 bilinear
+    // box average.
+    class ScaleChain
+    {
+    public:
+      ScaleChain(
+        Display* display, int screenId, XRenderPictFormat* format,
+        Picture rootPicture, const X11MonitorData& monitor, int halvings
+      );
+      ~ScaleChain();
+
+      int halvings() const;
+      unsigned width() const;
+      unsigned height() const;
+      // Runs the composites and reads the result into the shm image.
+      XImage* grab();
+
+    private:
+      Display* m_display;
+      Picture m_root;
+      int m_xPos;
+      int m_yPos;
+      int m_halvings;
+      unsigned m_width;
+      unsigned m_height;
+      std::vector<Pixmap> m_pixmaps;
+      std::vector<Picture> m_pictures;
+      std::unique_ptr<XShmData> m_shm;
+    };
+
+
     X11Grabber();
     ~X11Grabber() override;
 
@@ -115,6 +150,10 @@ namespace Aurora::Input::Linux
     // touched the monitor. Always true without the Damage extension
     // (fail-soft: every grab is full, the pre-1pwk behavior).
     bool _pollDamage(X11MonitorData* monitor);
+    // (Re)builds m_scaleChain for the current monitor and capture width
+    // hint; leaves it null (full-frame XShm path) when XRender can't be
+    // used or no halving applies.
+    void _ensureScaleChain(const X11MonitorData& monitor);
 
     int m_screenId;
     UniqueDisplay m_display; // must be destroyed after m_xshmData
@@ -124,6 +163,13 @@ namespace Aurora::Input::Linux
     // Consumer's sampled width (IVideoInput::setCaptureWidthHint), set from
     // the config thread and read on the tick thread when grabbing.
     std::atomic<unsigned> m_captureWidthHint{0};
+
+    // XRender downscale (Aurora-fq5y); m_renderFormat null = no usable
+    // XRender, always the full-frame XShm path. Declared after m_display
+    // so the chain and root picture are freed while it is still open.
+    XRenderPictFormat* m_renderFormat{nullptr};
+    Picture m_rootPicture{None};
+    std::unique_ptr<ScaleChain> m_scaleChain;
 
     // Static-frame reuse (Aurora-1pwk): the X server reports damage, so a
     // tick with no damage re-serves m_lastFrame instead of paying for

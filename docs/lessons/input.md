@@ -948,3 +948,12 @@ Applies-when: root XDamage looks noisy or fullscreen on an "idle" desktop, or a 
 Aurora-i5hq: the root reported fullscreen damage on ~60% of idle ticks and the driver was blamed. Creating a Damage per viewable window (skip InputOnly, which gives BadMatch) showed one Electron window (VS Code) emitting ~6 whole-window events/s; the root just inherits the union. Chromium-style GPU-composited windows damage everything on any change, so any open Electron app defeats damage skipping.
 
 **Fix:** none in Aurora. To measure a quiet desktop, run `Xephyr :7 -screen 3840x2160 -ac` and point `perf.py` at it with `DISPLAY=:7` (3.4% static vs 31.9% on the live desktop). Software-rendered, so it validates pipeline cost, not NVIDIA server behavior. See [[i5hq-x11-idle-damage-source]].
+
+## Let the X server do the downscale: chained 2x XRender composites replace the full-frame read
+Tags: input, linux, x11, xrender, perf, downscale
+Applies-when: an X11 grab is dominated by reading and decimating a full-resolution frame, or a downscale must match INTER_AREA
+
+Aurora-fq5y: every 4K grab cost 5.6 ms to read 33 MB plus 11 ms to decimate it, and no client-side reorder helps ([[lesson-processing]] decimate-on-copy entry). Compositing the root picture (`IncludeInferiors`) through N chained pixmaps, each stage a scale-2 picture transform with the standard `bilinear` filter, moves the work to the server (0.4 ms on the GTX 1070, 4.5 ms on software Xephyr). Bilinear at exactly 2x samples the corner of each 2x2 block, so it is a box average: max 2 levels off INTER_AREA, bit-exact on Xephyr. A single big-ratio bilinear composite or `nearest`/`fast` aliases (max diff 151); stay at 2x per stage.
+
+**Fix:** `X11Grabber::ScaleChain` plus pure `serverHalvings()`. Transforms need Render >= 0.6, so fall back to the full read when absent. Put the monitor offset in the first stage's transform translation. The first timed run is a warm-up (1.9 ms vs 0.4 ms). See [[fq5y-x11-xrender-downscale]].
+
