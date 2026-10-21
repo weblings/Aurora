@@ -35,12 +35,13 @@ export function tooltipFor(key) {
   return cache?.[key] ?? null;
 }
 
-// Native title tooltip when a description exists; removes any stale
+// Native title tooltip: literal `override` text when given, else the key's
+// description when one exists; removes any stale
 // title otherwise, so re-rendered or persistent nodes (e.g. Dropdown's
 // trigger across setOptions) never show an outdated one.
-export function applyTooltip(element, key) {
+export function applyTooltip(element, key, override = null) {
   if (!element) return;
-  const text = key ? tooltipFor(key) : null;
+  const text = override ?? (key ? tooltipFor(key) : null);
   if (text) element.title = text;
   else element.removeAttribute('title');
 }

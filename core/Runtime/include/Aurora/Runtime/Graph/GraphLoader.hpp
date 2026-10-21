@@ -2,6 +2,7 @@
 
 #include <string>
 #include <unordered_set>
+#include <vector>
 
 #include <nlohmann/json.hpp>
 
@@ -28,7 +29,9 @@
 // node/port in an edge, unknown or mistyped param, malformed controls.
 // A control may carry extra keys ("config", "section") for Tuning; the loader
 // ignores them. `ui` is editor-only and ignored. Every error names the node, port and
-// expectation so an agent can retry from the message alone.
+// expectation so an agent can retry from the message alone. All node, edge and
+// controls problems are collected in `issues`; top-level shape problems
+// (not an object, version, nodes) stop at the first.
 namespace Aurora::Runtime::Graph
 {
   struct LoadOptions
@@ -40,11 +43,18 @@ namespace Aurora::Runtime::Graph
     std::unordered_set<std::string> knownOutputs{};
   };
 
+  struct LoadIssue
+  {
+    std::string node;    // offending node id, empty when not tied to one
+    std::string message;
+  };
+
   struct LoadResult
   {
     bool ok = false;
-    std::string error; // set when !ok
-    Graph graph;       // valid only when ok
+    std::string error;             // set when !ok: the first issue's message
+    std::vector<LoadIssue> issues; // every problem found, in document order
+    Graph graph;                   // valid only when ok
   };
 
   LoadResult loadGraph(
@@ -62,6 +72,7 @@ namespace Aurora::Runtime::Graph
     } catch(const std::exception& e){
       LoadResult result;
       result.error = std::string("invalid JSON: ") + e.what();
+      result.issues.push_back(LoadIssue{"", result.error});
       return result;
     }
   }

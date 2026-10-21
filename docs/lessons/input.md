@@ -957,3 +957,12 @@ Aurora-fq5y: every 4K grab cost 5.6 ms to read 33 MB plus 11 ms to decimate it, 
 
 **Fix:** `X11Grabber::ScaleChain` plus pure `serverHalvings()`. Transforms need Render >= 0.6, so fall back to the full read when absent. Put the monitor offset in the first stage's transform translation. The first timed run is a warm-up (1.9 ms vs 0.4 ms). See [[fq5y-x11-xrender-downscale]].
 
+---
+
+## With no audio buffers the audio path sends nothing, so the lights hold their last frame
+Tags: input, audio, silence, graph, test
+Applies-when: testing audio-driven output, or expecting lights to go dark in silence
+
+Aurora-52oz.8: `audio.capture` with an empty buffer means no fresh data, so the audio graph does not tick and nothing is sent. In true silence the lights keep the previous frame (Aurora-o13 saw 0 frames per 5 s in silence, about 250 with a tone). A test that waits for the lights to fall in the quiet only works if some buffer (room noise, a quiet tone) keeps arriving.
+
+**Fix:** drive a graph to dark with a stimulus that keeps buffers flowing, or assert on the change that follows a tone, never on a level read during silence. See `docs/log/2026-10-20-52oz8-sequence-c-gate.md`.

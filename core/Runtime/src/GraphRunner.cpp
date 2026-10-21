@@ -61,6 +61,23 @@ namespace Aurora::Runtime
   {
     Graph::registerAllNodes(m_registry, true);
   }
+
+
+  GraphRunner::GraphRunner(
+    Input::IVideoInput& video,
+    Input::IAudioInput& audio,
+    std::vector<Output::IOutput*> outputs,
+    Config config,
+    ZoneMapStore zoneMapStore
+  ):
+  m_videoInput(&video),
+  m_audioInput(&audio),
+  m_outputs(std::move(outputs)),
+  m_config(std::move(config)),
+  m_zoneMapStore(std::move(zoneMapStore))
+  {
+    Graph::registerAllNodes(m_registry, true);
+  }
 #endif
 
 
@@ -179,6 +196,10 @@ namespace Aurora::Runtime
         }
       }
     }
+
+    for(auto& entry : m_previews){
+      entry.second->tick(dt, m_host);
+    }
   }
 
 
@@ -219,6 +240,40 @@ namespace Aurora::Runtime
   }
 
 
+  std::shared_ptr<GraphPreview> GraphRunner::openPreview(
+    const std::string& session, const nlohmann::json& doc, std::string& errorOut)
+  {
+    auto preview = GraphPreview::create(
+      doc, m_registry, std::unordered_set<std::string>(m_outputNames.begin(), m_outputNames.end()), errorOut);
+    if(!preview){
+      return nullptr;
+    }
+    auto& slot = m_previews[session];
+    if(slot){
+      slot->close();
+    }
+    slot = preview;
+    return preview;
+  }
+
+
+  bool GraphRunner::reloadPreview(GraphPreview& preview, const nlohmann::json& doc, std::string& errorOut)
+  {
+    return preview.reload(
+      doc, m_registry, std::unordered_set<std::string>(m_outputNames.begin(), m_outputNames.end()), errorOut);
+  }
+
+
+  void GraphRunner::closePreview(const std::string& session, const GraphPreview* preview)
+  {
+    auto it = m_previews.find(session);
+    if(it != m_previews.end() && it->second.get() == preview){
+      it->second->close();
+      m_previews.erase(it);
+    }
+  }
+
+
   bool GraphRunner::setConfig(Config config, std::string& errorOut)
   {
     Graph::LoadResult loaded;
@@ -237,6 +292,35 @@ namespace Aurora::Runtime
     m_runningCustom = custom;
     m_customError = std::move(customError);
     return true;
+  }
+
+
+  bool GraphRunner::swapCustomGraph(nlohmann::json doc, std::string& errorOut)
+  {
+    Graph::LoadOptions options;
+    options.knownOutputs = std::unordered_set<std::string>(m_outputNames.begin(), m_outputNames.end());
+    Graph::LoadResult loaded = Graph::loadGraph(doc, m_registry, options);
+    if(!loaded.ok){
+      errorOut = loaded.error;
+      return false;
+    }
+
+    loaded.graph.adoptStateFrom(m_graph);
+    m_graph = std::move(loaded.graph);
+    m_customDoc = std::move(doc);
+    m_runningCustom = true;
+    m_customError.clear();
+    return true;
+  }
+
+
+  bool GraphRunner::restoreGraph(std::optional<nlohmann::json> doc, std::string& errorOut)
+  {
+    if(doc){
+      return swapCustomGraph(std::move(*doc), errorOut);
+    }
+    m_customDoc.reset();
+    return setConfig(m_config, errorOut);
   }
 
 

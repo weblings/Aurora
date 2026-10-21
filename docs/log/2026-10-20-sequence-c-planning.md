@@ -56,6 +56,12 @@ scoped and filed.
   `apply`-scoped token gets 403 on `PUT /api/config` until C adds rules.
 - `web/graph-editor` already holds the React Flow build spike (`Aurora-lzj`).
 
+## Lessons
+
+- One end-to-end gate can retire several beads' open verification items at
+  once: the C7 gate's per-OS runs closed the held-open tails of C1, C3, C4,
+  C5 and C7 itself — no per-bead e2e reruns needed.
+
 ## Carried forward
 
 - `Aurora-jpq2` (TuningFields from `controls`) looks covered by B4

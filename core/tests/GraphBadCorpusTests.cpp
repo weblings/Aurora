@@ -555,7 +555,72 @@ TEST_CASE("Graph loader rejects the bad-graph corpus with actionable errors", "[
     for(const std::string& fragment : bad.mustContain){
       CHECK(error.find(fragment) != std::string::npos);
     }
+
+    // The same rejection through issues, as validate reports it.
+    LoadOptions options;
+    for(const std::string& output : bad.knownOutputs){
+      options.knownOutputs.insert(output);
+    }
+    LoadResult result = loadGraphFromString(bad.doc, registry, options);
+    REQUIRE_FALSE(result.issues.empty());
+    CHECK(result.issues.front().message == error);
+    for(const LoadIssue& issue : result.issues){
+      CHECK(isReadableText(issue.message));
+    }
   }
+}
+
+TEST_CASE("Graph loader reports every problem with its node id (Aurora-52oz.3)", "[Graph]")
+{
+  NodeRegistry registry = makeCorpusRegistry();
+  const std::string doc = R"({
+    "version": 1,
+    "tickHz": -1,
+    "nodes": [
+      {"id": "a", "type": "nope.nope"},
+      {"id": "c", "type": "test.const", "params": {"r": "red", "nope": 1}},
+      {"id": "p", "type": "test.passthrough"},
+      {"id": "q", "type": "test.passthrough"},
+      {"id": "f", "type": "test.framepipe"}
+    ],
+    "edges": [["a.out", "p.in"], ["c.out", "f.in"], ["q.out", "ghost.in"], ["p.out", "q.in"], ["q.out", "p.in"]],
+    "controls": [{"node": "c", "param": "nope"}, {"node": "ghost", "param": "x"}]
+  })";
+  LoadResult result = loadGraphFromString(doc, registry);
+  REQUIRE_FALSE(result.ok);
+
+  auto count = [&](const std::string& node, const std::string& fragment){
+    int found = 0;
+    for(const LoadIssue& issue : result.issues){
+      if(issue.node == node && issue.message.find(fragment) != std::string::npos){
+        ++found;
+      }
+    }
+    return found;
+  };
+  CHECK(count("", "'tickHz'") == 1);
+  CHECK(count("a", "unknown type 'nope.nope'") == 1);
+  CHECK(count("c", "unknown param 'nope'") == 1);
+  CHECK(count("c", "param 'r'") == 1);
+  CHECK(count("f", "port-type mismatch") == 0); // c is a bad node: edge skipped
+  CHECK(count("q", "target node 'ghost'") == 1);
+  CHECK(count("f", "missing required input 'in'") == 1);
+  CHECK(count("", "names unknown node 'ghost'") == 1);
+  // Nothing piles up on the bad nodes a and c.
+  CHECK(count("a", "") == 1);
+  CHECK(count("c", "") == 2);
+}
+
+TEST_CASE("Graph loader names every node in a cycle (Aurora-52oz.3)", "[Graph]")
+{
+  NodeRegistry registry = makeCorpusRegistry();
+  LoadResult result = loadGraphFromString(
+    R"({"version": 1, "nodes": [{"id": "a", "type": "test.passthrough"}, {"id": "b", "type": "test.passthrough"}], "edges": [["a.out", "b.in"], ["b.out", "a.in"]]})",
+    registry);
+  REQUIRE_FALSE(result.ok);
+  REQUIRE(result.issues.size() == 2);
+  CHECK(result.issues[0].node == "a");
+  CHECK(result.issues[1].node == "b");
 }
 
 TEST_CASE("Graph loader fuzz: random graphs never crash the loader", "[Graph][fuzz]")
