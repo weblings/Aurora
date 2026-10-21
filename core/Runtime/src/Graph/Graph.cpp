@@ -51,7 +51,7 @@ namespace Aurora::Runtime::Graph
     }
   }
 
-  bool Graph::finalize(std::string& errorOut)
+  bool Graph::finalize(std::string& errorOut, std::vector<std::string>* cycleNodesOut)
   {
     m_edgeByInput.clear();
     for(const auto& edge : m_edges){
@@ -97,6 +97,9 @@ namespace Aurora::Runtime::Graph
         if(indegree[i] > 0){
           message << (first ? " " : ", ") << "node '" << m_declOrder[i] << "'";
           first = false;
+          if(cycleNodesOut){
+            cycleNodesOut->push_back(m_declOrder[i]);
+          }
         }
       }
       message << " (expected a directed acyclic graph; remove an edge so no node depends on its own output)";

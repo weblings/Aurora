@@ -133,6 +133,15 @@ package: committed lockfile, exact pins, no install scripts, plain `npm ci`
 - No Flatpak manifest exists yet — next concrete step if this is pursued is
   drafting one (`org.freedesktop.Platform` runtime + the three permissions
   above + the apt-equivalent lib list from `README.md`).
+- Reference for that manifest: lumux (github.com/enginkirmaci/lumux, MIT, a
+  Python/GTK4 Hue sync for Wayland) ships a Flathub-accepted
+  `flatpak/io.github.enginkirmaci.lumux.yml` and
+  `data/*.metainfo.xml`. Worth copying from: its `finish-args` (wayland,
+  fallback-x11, dri, ipc, network, and `--talk-name` for both
+  StatusNotifierWatcher names plus Notifications, which Aurora's SNI tray
+  needs in a sandbox) and the AppStream fields Discover and Flathub require.
+  Its pip-generated Python modules and `xdg-run/pipewire-0` filesystem grant
+  don't carry over (C++ build, `--socket=pipewire` planned here).
 - Not yet verified hands-on: whether Deck Game Mode's gamescope actually
   exposes the `gamescope` Pipewire node under a Flatpak sandbox with only
   `--socket=pipewire` granted (expected to work per Flatpak's permission

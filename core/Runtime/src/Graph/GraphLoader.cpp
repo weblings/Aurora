@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <cmath>
 #include <sstream>
+#include <unordered_map>
 
 namespace Aurora::Runtime::Graph
 {
@@ -202,27 +203,36 @@ namespace Aurora::Runtime::Graph
     const LoadOptions& options)
   {
     LoadResult result;
-    auto fail = [&](const std::string& message) -> LoadResult {
-      result.error = message;
+    // Collects every problem found. `node` is the offending node id, empty
+    // when the problem is not tied to one.
+    auto report = [&](const std::string& node, const std::string& message){
+      result.issues.push_back(LoadIssue{node, message});
+    };
+    auto finish = [&]() -> LoadResult {
+      result.error = result.issues.front().message;
       result.graph = Graph{};
       return std::move(result);
     };
+    auto fail = [&](const std::string& node, const std::string& message) -> LoadResult {
+      report(node, message);
+      return finish();
+    };
 
     if(!doc.is_object()){
-      return fail("graph must be a JSON object with 'version', 'nodes' and 'edges'");
+      return fail("", "graph must be a JSON object with 'version', 'nodes' and 'edges'");
     }
 
     auto versionIt = doc.find("version");
     if(versionIt == doc.end()){
-      return fail("top-level 'version' is required (expected 1)");
+      return fail("", "top-level 'version' is required (expected 1)");
     }
     if(!versionIt->is_number_integer() && !versionIt->is_number_unsigned()){
-      return fail("top-level 'version' must be the integer 1");
+      return fail("", "top-level 'version' must be the integer 1");
     }
     if(versionIt->get<int>() != 1){
       std::ostringstream message;
       message << "unsupported graph version " << versionIt->get<int>() << " (expected 1)";
-      return fail(message.str());
+      return fail("", message.str());
     }
 
     Graph graph;
@@ -231,15 +241,16 @@ namespace Aurora::Runtime::Graph
     if(tickIt != doc.end()){
       if(!tickIt->is_number() || !std::isfinite(tickIt->get<double>()) ||
          tickIt->get<double>() <= 0.0){
-        return fail("top-level 'tickHz' must be a positive number when present "
-                    "(absent means the app rate; the built-in Audio graph declares 60)");
+        report("", "top-level 'tickHz' must be a positive number when present "
+                   "(absent means the app rate; the built-in Audio graph declares 60)");
+      } else{
+        graph.setTickHz(tickIt->get<double>());
       }
-      graph.setTickHz(tickIt->get<double>());
     }
 
     auto nodesIt = doc.find("nodes");
     if(nodesIt == doc.end() || !nodesIt->is_array()){
-      return fail("top-level 'nodes' must be an array of {id, type, params}");
+      return fail("", "top-level 'nodes' must be an array of {id, type, params}");
     }
 
     struct PendingNode
@@ -251,25 +262,33 @@ namespace Aurora::Runtime::Graph
     };
     std::vector<PendingNode> pending;
     std::unordered_map<std::string, std::size_t> indexById;
+    // Ids whose own problems are already reported: later checks skip them
+    // instead of piling follow-on errors onto the same node.
+    std::unordered_set<std::string> badIds;
 
     for(std::size_t i = 0; i < nodesIt->size(); i++){
       const auto& raw = (*nodesIt)[i];
       std::ostringstream where;
       where << "nodes[" << i << "]";
       if(!raw.is_object()){
-        return fail(where.str() + " must be an object with 'id' and 'type'");
+        report("", where.str() + " must be an object with 'id' and 'type'");
+        continue;
       }
       auto idIt = raw.find("id");
       if(idIt == raw.end() || !idIt->is_string() || idIt->get<std::string>().empty()){
-        return fail(where.str() + " needs a non-empty string 'id' (stable: state survives edits by id)");
+        report("", where.str() + " needs a non-empty string 'id' (stable: state survives edits by id)");
+        continue;
       }
       std::string id = idIt->get<std::string>();
-      if(indexById.find(id) != indexById.end()){
-        return fail("duplicate node id '" + id + "' (node ids are stable and must be unique)");
+      if(indexById.find(id) != indexById.end() || badIds.find(id) != badIds.end()){
+        report(id, "duplicate node id '" + id + "' (node ids are stable and must be unique)");
+        continue;
       }
       auto typeIt = raw.find("type");
       if(typeIt == raw.end() || !typeIt->is_string()){
-        return fail("node '" + id + "': missing string 'type'");
+        report(id, "node '" + id + "': missing string 'type'");
+        badIds.insert(id);
+        continue;
       }
       std::string type = typeIt->get<std::string>();
       const NodeTypeInfo* info = registry.find(type);
@@ -282,20 +301,26 @@ namespace Aurora::Runtime::Graph
           first = false;
         }
         message << ")";
-        return fail(message.str());
+        report(id, message.str());
+        badIds.insert(id);
+        continue;
       }
 
+      bool nodeOk = true;
       auto paramsIt = raw.find("params");
       if(paramsIt != raw.end() && !paramsIt->is_object()){
-        return fail("node '" + id + "': 'params' must be an object when present");
+        report(id, "node '" + id + "': 'params' must be an object when present");
+        badIds.insert(id);
+        continue;
       }
       std::unordered_map<std::string, ParamValue> params;
       if(paramsIt != raw.end()){
         for(auto paramIt = paramsIt->begin(); paramIt != paramsIt->end(); ++paramIt){
           if(findParam(info->params, paramIt.key()) == nullptr){
-            return fail(
+            report(id,
               "node '" + id + "': unknown param '" + paramIt.key() +
               "' (expected a param declared by type '" + type + "')");
+            nodeOk = false;
           }
         }
       }
@@ -310,9 +335,15 @@ namespace Aurora::Runtime::Graph
         ParamValue value{0.f};
         std::string error;
         if(!parseParamValue(id, decl, rawValue, value, error)){
-          return fail(error);
+          report(id, error);
+          nodeOk = false;
+          continue;
         }
         params.emplace(decl.name, std::move(value));
+      }
+      if(!nodeOk){
+        badIds.insert(id);
+        continue;
       }
 
       // Per-output binding params named "output" name a live output: check
@@ -322,7 +353,7 @@ namespace Aurora::Runtime::Graph
           if(decl.name == "output" && decl.kind == ParamKind::Enum){
             const std::string& binding = std::get<std::string>(params.at("output"));
             if(!binding.empty() && options.knownOutputs.find(binding) == options.knownOutputs.end()){
-              return fail(
+              report(id,
                 "node '" + id + "': unregistered output '" + binding +
                 "' (expected an output the app registered)");
             }
@@ -338,67 +369,81 @@ namespace Aurora::Runtime::Graph
     std::vector<GraphEdge> edges;
     if(edgesIt != doc.end()){
       if(!edgesIt->is_array()){
-        return fail("top-level 'edges' must be an array of [\"node.port\", \"node.port\"] (output first)");
-      }
-      // toNode -> toPort -> edge index, for the one-edge-per-input rule.
-      std::unordered_map<std::string, std::unordered_map<std::string, std::size_t>> seenInput;
-      for(std::size_t i = 0; i < edgesIt->size(); i++){
-        const auto& raw = (*edgesIt)[i];
-        std::ostringstream where;
-        where << "edges[" << i << "]";
-        if(!raw.is_array() || raw.size() != 2 || !raw[0].is_string() || !raw[1].is_string()){
-          return fail(where.str() + " must be [\"node.port\", \"node.port\"] (output first)");
+        report("", "top-level 'edges' must be an array of [\"node.port\", \"node.port\"] (output first)");
+      } else{
+        // toNode -> toPort -> edge index, for the one-edge-per-input rule.
+        std::unordered_map<std::string, std::unordered_map<std::string, std::size_t>> seenInput;
+        for(std::size_t i = 0; i < edgesIt->size(); i++){
+          const auto& raw = (*edgesIt)[i];
+          std::ostringstream where;
+          where << "edges[" << i << "]";
+          if(!raw.is_array() || raw.size() != 2 || !raw[0].is_string() || !raw[1].is_string()){
+            report("", where.str() + " must be [\"node.port\", \"node.port\"] (output first)");
+            continue;
+          }
+          std::string fromNode, fromPort, toNode, toPort;
+          if(!splitEndpoint(raw[0].get<std::string>(), fromNode, fromPort)){
+            report("",
+              where.str() + " source '" + raw[0].get<std::string>() +
+              "' must be \"node.port\" naming a declared output port");
+            continue;
+          }
+          if(!splitEndpoint(raw[1].get<std::string>(), toNode, toPort)){
+            report("",
+              where.str() + " target '" + raw[1].get<std::string>() +
+              "' must be \"node.port\" naming a declared input port");
+            continue;
+          }
+          if(badIds.count(fromNode) > 0 || badIds.count(toNode) > 0){
+            continue;
+          }
+          auto fromIt = indexById.find(fromNode);
+          auto toIt = indexById.find(toNode);
+          if(fromIt == indexById.end()){
+            report(toIt != indexById.end() ? toNode : "",
+              where.str() + " source node '" + fromNode + "' does not exist");
+            continue;
+          }
+          if(toIt == indexById.end()){
+            report(fromNode, where.str() + " target node '" + toNode + "' does not exist");
+            continue;
+          }
+          const PendingNode& from = pending[fromIt->second];
+          const PendingNode& to = pending[toIt->second];
+          const PortDecl* out = findPort(from.info->outputs, fromPort);
+          if(out == nullptr){
+            report(fromNode,
+              where.str() + ": node '" + fromNode + "' (type '" + from.type +
+              "') has no output port '" + fromPort + "'");
+            continue;
+          }
+          const PortDecl* in = findPort(to.info->inputs, toPort);
+          if(in == nullptr){
+            report(toNode,
+              where.str() + ": node '" + toNode + "' (type '" + to.type +
+              "') has no input port '" + toPort + "'");
+            continue;
+          }
+          if(out->type != in->type){
+            std::ostringstream message;
+            message << where.str() << ": port-type mismatch: '" << fromNode << "." << fromPort
+                    << "' carries " << portTypeName(out->type) << " but '" << toNode << "." << toPort
+                    << "' expects " << portTypeName(in->type) << ")";
+            report(toNode, message.str());
+            continue;
+          }
+          if(seenInput[toNode].find(toPort) != seenInput[toNode].end()){
+            std::ostringstream message;
+            message << where.str() << ": more than one edge into '" << toNode << "." << toPort
+                    << "' (one edge per input; fan two sources through a pick-or-mix node first"
+                    << (to.info->sinkBindingParam.has_value() ? "; this input feeds one output's send" : "")
+                    << ")";
+            report(toNode, message.str());
+            continue;
+          }
+          seenInput[toNode][toPort] = i;
+          edges.push_back(GraphEdge{fromNode, fromPort, toNode, toPort});
         }
-        std::string fromNode, fromPort, toNode, toPort;
-        if(!splitEndpoint(raw[0].get<std::string>(), fromNode, fromPort)){
-          return fail(
-            where.str() + " source '" + raw[0].get<std::string>() +
-            "' must be \"node.port\" naming a declared output port");
-        }
-        if(!splitEndpoint(raw[1].get<std::string>(), toNode, toPort)){
-          return fail(
-            where.str() + " target '" + raw[1].get<std::string>() +
-            "' must be \"node.port\" naming a declared input port");
-        }
-        auto fromIt = indexById.find(fromNode);
-        if(fromIt == indexById.end()){
-          return fail(where.str() + " source node '" + fromNode + "' does not exist");
-        }
-        auto toIt = indexById.find(toNode);
-        if(toIt == indexById.end()){
-          return fail(where.str() + " target node '" + toNode + "' does not exist");
-        }
-        const PendingNode& from = pending[fromIt->second];
-        const PendingNode& to = pending[toIt->second];
-        const PortDecl* out = findPort(from.info->outputs, fromPort);
-        if(out == nullptr){
-          return fail(
-            where.str() + ": node '" + fromNode + "' (type '" + from.type +
-            "') has no output port '" + fromPort + "'");
-        }
-        const PortDecl* in = findPort(to.info->inputs, toPort);
-        if(in == nullptr){
-          return fail(
-            where.str() + ": node '" + toNode + "' (type '" + to.type +
-            "') has no input port '" + toPort + "'");
-        }
-        if(out->type != in->type){
-          std::ostringstream message;
-          message << where.str() << ": port-type mismatch: '" << fromNode << "." << fromPort
-                  << "' carries " << portTypeName(out->type) << " but '" << toNode << "." << toPort
-                  << "' expects " << portTypeName(in->type) << ")";
-          return fail(message.str());
-        }
-        if(seenInput[toNode].find(toPort) != seenInput[toNode].end()){
-          std::ostringstream message;
-          message << where.str() << ": more than one edge into '" << toNode << "." << toPort
-                  << "' (one edge per input; fan two sources through a pick-or-mix node first"
-                  << (to.info->sinkBindingParam.has_value() ? "; this input feeds one output's send" : "")
-                  << ")";
-          return fail(message.str());
-        }
-        seenInput[toNode][toPort] = i;
-        edges.push_back(GraphEdge{fromNode, fromPort, toNode, toPort});
       }
     }
 
@@ -417,7 +462,7 @@ namespace Aurora::Runtime::Graph
           std::ostringstream message;
           message << "node '" << node.id << "': missing required input '" << input.name << "' (expected "
                   << portTypeName(input.type) << " from some node's output; connect an edge to it)";
-          return fail(message.str());
+          report(node.id, message.str());
         }
       }
     }
@@ -440,10 +485,11 @@ namespace Aurora::Runtime::Graph
       }
       auto sinkIt = sinkByOutput.find(*binding);
       if(sinkIt != sinkByOutput.end()){
-        return fail(
+        report(node.id,
           "more than one edge into output '" + *binding + "'s send: nodes '" + sinkIt->second +
           "' and '" + node.id +
           "' both send to it (expected one sender per output; combine sources with a pick-or-mix node first)");
+        continue;
       }
       sinkByOutput.emplace(*binding, node.id);
     }
@@ -453,34 +499,46 @@ namespace Aurora::Runtime::Graph
     auto controlsIt = doc.find("controls");
     if(controlsIt != doc.end()){
       if(!controlsIt->is_array()){
-        return fail("top-level 'controls' must be an array of {node, param, ...} when present");
-      }
-      for(std::size_t i = 0; i < controlsIt->size(); i++){
-        const auto& raw = (*controlsIt)[i];
-        std::ostringstream where;
-        where << "controls[" << i << "]";
-        if(!raw.is_object()){
-          return fail(where.str() + " must be an object with 'node' and 'param'");
-        }
-        auto nodeIt = raw.find("node");
-        auto paramIt = raw.find("param");
-        if(nodeIt == raw.end() || !nodeIt->is_string() || paramIt == raw.end() ||
-           !paramIt->is_string()){
-          return fail(where.str() + " needs string 'node' and 'param'");
-        }
-        auto nodeIdx = indexById.find(nodeIt->get<std::string>());
-        if(nodeIdx == indexById.end()){
-          return fail(where.str() + " names unknown node '" + nodeIt->get<std::string>() + "'");
-        }
-        const PendingNode& node = pending[nodeIdx->second];
-        if(findParam(node.info->params, paramIt->get<std::string>()) == nullptr){
-          return fail(
-            where.str() + ": node '" + node.id + "' (type '" + node.type + "') has no param '" +
-            paramIt->get<std::string>() + "'");
+        report("", "top-level 'controls' must be an array of {node, param, ...} when present");
+      } else{
+        for(std::size_t i = 0; i < controlsIt->size(); i++){
+          const auto& raw = (*controlsIt)[i];
+          std::ostringstream where;
+          where << "controls[" << i << "]";
+          if(!raw.is_object()){
+            report("", where.str() + " must be an object with 'node' and 'param'");
+            continue;
+          }
+          auto nodeIt = raw.find("node");
+          auto paramIt = raw.find("param");
+          if(nodeIt == raw.end() || !nodeIt->is_string() || paramIt == raw.end() ||
+             !paramIt->is_string()){
+            report("", where.str() + " needs string 'node' and 'param'");
+            continue;
+          }
+          const std::string nodeId = nodeIt->get<std::string>();
+          if(badIds.count(nodeId) > 0){
+            continue;
+          }
+          auto nodeIdx = indexById.find(nodeId);
+          if(nodeIdx == indexById.end()){
+            report("", where.str() + " names unknown node '" + nodeId + "'");
+            continue;
+          }
+          const PendingNode& node = pending[nodeIdx->second];
+          if(findParam(node.info->params, paramIt->get<std::string>()) == nullptr){
+            report(node.id,
+              where.str() + ": node '" + node.id + "' (type '" + node.type + "') has no param '" +
+              paramIt->get<std::string>() + "'");
+          }
         }
       }
     }
     // `ui` is editor-only layout; core ignores it.
+
+    if(!result.issues.empty()){
+      return finish();
+    }
 
     // Instantiate. A node whose code disagrees with its registry entry is
     // a node bug: fail the load rather than evaluating blind.
@@ -489,20 +547,24 @@ namespace Aurora::Runtime::Graph
       try{
         instance = node.info->factory();
       } catch(const std::exception& e){
-        return fail(
+        report(node.id,
           "node '" + node.id + "': constructing type '" + node.type +
           "' threw: " + e.what());
+        continue;
       }
       if(instance == nullptr){
-        return fail(
+        report(node.id,
           "node '" + node.id + "': constructing type '" + node.type + "' returned null");
+        continue;
       }
       std::string mismatch;
       if(!portsMatch(node.info->inputs, instance->inputPorts(), mismatch)){
-        return fail("node '" + node.id + "': " + mismatch + " on an input of type '" + node.type + "'");
+        report(node.id, "node '" + node.id + "': " + mismatch + " on an input of type '" + node.type + "'");
+        continue;
       }
       if(!portsMatch(node.info->outputs, instance->outputPorts(), mismatch)){
-        return fail("node '" + node.id + "': " + mismatch + " on an output of type '" + node.type + "'");
+        report(node.id, "node '" + node.id + "': " + mismatch + " on an output of type '" + node.type + "'");
+        continue;
       }
       Graph::NodeInstance assembled;
       assembled.id = node.id;
@@ -513,6 +575,9 @@ namespace Aurora::Runtime::Graph
       assembled.params = std::move(node.params);
       graph.addNode(std::move(assembled));
     }
+    if(!result.issues.empty()){
+      return finish();
+    }
     for(auto& edge : edges){
       graph.addEdge(std::move(edge));
     }
@@ -520,8 +585,15 @@ namespace Aurora::Runtime::Graph
     // finalize() rejects cycles, naming the nodes so an agent can break the loop.
     {
       std::string error;
-      if(!graph.finalize(error)){
-        return fail(error);
+      std::vector<std::string> cycleNodes;
+      if(!graph.finalize(error, &cycleNodes)){
+        for(const std::string& node : cycleNodes){
+          report(node, error);
+        }
+        if(result.issues.empty()){
+          report("", error);
+        }
+        return finish();
       }
     }
 

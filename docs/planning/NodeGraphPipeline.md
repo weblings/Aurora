@@ -386,6 +386,9 @@ deletable.**
   confirms, then falls back to a built-in. "Hide built-in" deferred.
 - Data: config holds `activeEffectId` + `paramOverrides[effectId]
   ["node.param"]`; each custom is its own file under an `effects/` dir.
+  Decided 2026-10-20 for Sequence C ([[sequence-c-planning]]): stored graphs
+  name concrete outputs, and a custom that fails to load runs the built-in
+  with a banner warning.
 
 **Tuning is populated from exposed params, not every param.**
 

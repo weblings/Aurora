@@ -13,6 +13,15 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `3ono-stale-core-test-tree` | [log/2026-10-02-3ono-stale-core-test-tree.md](log/2026-10-02-3ono-stale-core-test-tree.md) | Aurora-3ono: PipelineTests segfault on Windows was a stale build tree |
 | `3qh-mac-capture-width-hint` | [log/2026-10-01-3qh-mac-capture-width-hint.md](log/2026-10-01-3qh-mac-capture-width-hint.md) | Aurora-3qh: Mac video mode resized full-Retina frames every tick |
 | `4zr11-floor-wiring` | [log/2026-10-16-4zr11-floor-wiring.md](log/2026-10-16-4zr11-floor-wiring.md) | Brightness floor wiring (Aurora-4zr.11) |
+| `52oz1-custom-effects-storage` | [log/2026-10-20-52oz1-custom-effects-storage.md](log/2026-10-20-52oz1-custom-effects-storage.md) | Aurora-52oz.1: custom effects under effects/, activeEffectId, fallback warning (closed) |
+| `52oz2-graph-source-inputs` | [log/2026-10-20-52oz2-graph-source-inputs.md](log/2026-10-20-52oz2-graph-source-inputs.md) | Aurora-52oz.2: pipeline builds inputs from the graph's source nodes (closed) |
+| `52oz3-drafts-and-validate` | [log/2026-10-20-52oz3-drafts-and-validate.md](log/2026-10-20-52oz3-drafts-and-validate.md) | Aurora-52oz.3: per-session drafts and validate (closed) |
+| `52oz4-apply-draft` | [log/2026-10-20-52oz4-apply-draft.md](log/2026-10-20-52oz4-apply-draft.md) | Aurora-52oz.4: apply a draft as the live effect (closed) |
+| `52oz5-test-on-lights` | [log/2026-10-20-52oz5-test-on-lights.md](log/2026-10-20-52oz5-test-on-lights.md) | Aurora-52oz.5: test on lights with server-side auto-revert (closed) |
+| `52oz6-draft-preview` | [log/2026-10-20-52oz6-draft-preview.md](log/2026-10-20-52oz6-draft-preview.md) | Aurora-52oz.6: draft preview stream of zone colors (closed) |
+| `52oz7-tuning-custom-effects` | [log/2026-10-20-52oz7-tuning-custom-effects.md](log/2026-10-20-52oz7-tuning-custom-effects.md) | Aurora-52oz.7: Tuning edits on custom effects (closed) |
+| `52oz8-linux-verification` | [log/2026-10-20-52oz8-linux-verification.md](log/2026-10-20-52oz8-linux-verification.md) | Sequence C Linux verification: core, gate 7/7, web tuning tests |
+| `52oz8-sequence-c-gate` | [log/2026-10-20-52oz8-sequence-c-gate.md](log/2026-10-20-52oz8-sequence-c-gate.md) | Aurora-52oz.8: Sequence C gate on the fake-Hue stack (8/8 with the audio step on Windows, Mac and Linux) |
 | `5i3-local-api-hardening` | [log/2026-10-02-5i3-local-api-hardening.md](log/2026-10-02-5i3-local-api-hardening.md) | Aurora-5i3: local API hardening before any HA credential exists |
 | `5ipy1-ec0-decisions` | [log/2026-10-16-5ipy1-ec0-decisions.md](log/2026-10-16-5ipy1-ec0-decisions.md) | EC 0: open questions and cross-references (Aurora-5ipy.1) |
 | `5ipy19-lan-reads-paired` | [log/2026-10-16-5ipy19-lan-reads-paired.md](log/2026-10-16-5ipy19-lan-reads-paired.md) | LAN GETs require the read scope (Aurora-5ipy.19) |
@@ -173,6 +182,7 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `runtime-analysis` | [archive/RuntimeAnalysis.md](archive/RuntimeAnalysis.md) | Runtime / Config — Conversion analysis |
 | `scig-capture-source-banner` | [log/2026-10-08-scig-capture-source-banner.md](log/2026-10-08-scig-capture-source-banner.md) | Aurora-scig: Capture Source (NUX) errors move to the shell banner (closed) |
 | `sequence-b-planning` | [log/2026-10-15-sequence-b-planning.md](log/2026-10-15-sequence-b-planning.md) | Sequence B planning: decisions recorded, epic filed |
+| `sequence-c-planning` | [log/2026-10-20-sequence-c-planning.md](log/2026-10-20-sequence-c-planning.md) | Sequence C planning: decisions recorded, epic filed |
 | `set-running-helper` | [log/2026-10-04-set-running-helper.md](log/2026-10-04-set-running-helper.md) | Aurora-5ipy.18: shared setRunning helper (closed) |
 | `skv-one-tick-clock` | [log/2026-10-01-skv-one-tick-clock.md](log/2026-10-01-skv-one-tick-clock.md) | Aurora-skv: explicit dt into both orchestrators, one tick clock |
 | `so1o-pairing-copy-fixes` | [log/2026-10-16-so1o-pairing-copy-fixes.md](log/2026-10-16-so1o-pairing-copy-fixes.md) | Pairing screen copy and centering fixes (Aurora-so1o) |

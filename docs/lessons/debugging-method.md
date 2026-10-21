@@ -1211,3 +1211,11 @@ Applies-when: writing a regression test for a lock-starvation or "never yields" 
 Aurora-cgr (tick loop holding the host mutex back to back) was proven on real hardware, but a loop of 1 ms ticks against `listMonitors()` on MSVC Debug stayed inside budget with the fix reverted, so a latency test alone cannot fail. The pure rule that decides the next wake time (`nextTickTime`) can: with the minimum yield set to 0, its unit test fails.
 
 **Fix:** pull the timing decision into a pure function and assert its output with literal bounds (not the same constant it uses). Keep the contention test as a smoke check, and verify on hardware.
+
+## A pass on "applied, restarted, lit" does not show a signal reaches the output
+Tags: verification, gate, e2e, control-run, stimulus, audio
+Applies-when: writing or trusting an end-to-end gate that claims an input (audio, video, sensor) feeds a graph or pipeline
+
+Aurora-52oz.8: the Sequence C gate went 7/7 on Windows, Mac and Linux with an `audio.capture` node that nothing read. It proved the graph applied, survived a restart and kept the lights on, and the Linux log then called the audio path "covered" on that evidence. Two attempts at a real check also passed with no tone: a single before/after level reading (the dummy video drifts, and the lights hold their last frame in silence, so the level moved anyway), and a settle wait that accepted a level that had not changed yet.
+
+**Fix:** wire the signal into the output (`audio.features` rms into `frame.brightnessScale`), drive a real stimulus on, off, on, and wait on thresholds from fresh frames, not on "stable". Then run it once with the stimulus never started and see it fail. A check you have not seen fail proves nothing. See `docs/log/2026-10-20-52oz8-sequence-c-gate.md`.

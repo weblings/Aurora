@@ -87,7 +87,8 @@ namespace Aurora::Runtime::Graph
       m_nodes.emplace(instance.id, std::move(instance));
     }
     void addEdge(GraphEdge edge) { m_edges.push_back(std::move(edge)); }
-    bool finalize(std::string& errorOut);
+    // cycleNodesOut, when given, lists the nodes a cycle blocks.
+    bool finalize(std::string& errorOut, std::vector<std::string>* cycleNodesOut = nullptr);
 
   private:
     NodeInstance* findNode(const std::string& id);

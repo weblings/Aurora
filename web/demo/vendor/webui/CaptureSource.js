@@ -133,18 +133,22 @@ export function devicePatch(flags, { selectedMonitorName, sinkName }) {
 
 // A Video/Audio toggle click: that mode's input plus the device shown for
 // it, so the switch lands on the device the user sees. Monitors are only
-// known while video runs; without them the saved monitor stays as is.
+// known while video runs; without them the saved monitor stays as is. It
+// also names the mode's built-in as the active effect (Aurora-52oz.1), which
+// drops a custom effect the user had selected.
 export function modeSwitchPatch(mode, {
   inputs, audioInputs, currentActiveInputName, currentActiveAudioInputName,
   monitors, selectedMonitorName, sinkName,
 }) {
   if (mode === 'video') {
     return {
+      activeEffectId: 'builtin.video',
       activeInputName: pickVideoInputName(inputs, currentActiveInputName),
       ...(monitors.length > 0 ? { activeMonitorName: selectedMonitorName } : {}),
     };
   }
   return {
+    activeEffectId: 'builtin.audio',
     activeInputName: '',
     activeAudioInputName: pickAudioInputName(audioInputs, currentActiveAudioInputName),
     audioTargetSinkName: sinkName.trim(),

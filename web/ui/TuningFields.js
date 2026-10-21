@@ -11,7 +11,7 @@
 import { Dropdown } from './Dropdown.js';
 import { applyTooltip } from './Tooltips.js';
 import { sliderGroupHtml, sliderTooltipKey, wireSliderGroup } from './TuningSliderGroup.js';
-import { fetchTuningGraph, groupBySection, resolveControls } from './TuningControls.js';
+import { fetchTuningGraph, groupBySection, isCustomEffect, resolveControls } from './TuningControls.js';
 import { AUTO_MONITOR_VALUE } from './DeviceField.js';
 import { subsampleCandidates } from './SubsampleCandidates.js';
 import { DAEMON_UNREACHABLE } from './messages.js';
@@ -62,6 +62,19 @@ export function buildPatch(controls, values, optionalOn, { includeRefreshRate })
   return patch;
 }
 
+// The PUT /api/effects/<id>/params edits for a custom effect: every control, an optional
+// one switched off as null (the graph's spelling of unset).
+export function buildEffectEdits(controls, values, optionalOn) {
+  return controls.filter((c) => c.writable).map((control) => {
+    const key = controlKey(control);
+    let value;
+    if (control.kind === 'enum') value = String(values[key]);
+    else if (control.allowsUnset && !optionalOn[key]) value = null;
+    else value = Number(values[key]);
+    return { node: control.node, param: control.param, value };
+  });
+}
+
 export class TuningFields {
   // values: the full /api/config response -- the caller (DashboardScreen)
   // already fetches this for its own mode toggle. The graph and node schema
@@ -98,7 +111,8 @@ export class TuningFields {
       this.controls = null;
       return;
     }
-    this.controls = resolveControls(loaded.graph, loaded.nodeTypes);
+    this.effectId = loaded.effectId ?? null;
+    this.controls = resolveControls(loaded.graph, loaded.nodeTypes, { effectId: this.effectId });
     // Video graphs follow the app refresh rate; audio graphs carry their own tickHz.
     this.showsRefreshRate = loaded.graph.tickHz === undefined;
     for (const control of this.controls) {
@@ -108,6 +122,7 @@ export class TuningFields {
       }
       if (control.allowsUnset) this.optionalOn[key] = Number(this.values[key] ?? -1) >= 0;
     }
+    this._sentEdits = JSON.stringify(buildEffectEdits(this.controls, this.values, this.optionalOn));
   }
 
   _render() {
@@ -196,10 +211,10 @@ export class TuningFields {
       slot,
       current,
       (picked) => { this.values[key] = parse(picked); this._autoSave(); },
-      { labelId: `tn-${control.id}-label`, fill: true, tooltipKey: control.configKey ? sliderTooltipKey(control.configKey) : null },
+      { labelId: `tn-${control.id}-label`, fill: true, tooltipKey: control.configKey ? sliderTooltipKey(control.configKey) : null, tooltip: control.tooltip },
     );
     dropdown.setOptions(options.map((o) => ({ ...o, selected: o.value === current })));
-    if (!control.configKey) dropdown.trigger.disabled = true;
+    if (!control.writable) dropdown.trigger.disabled = true;
     this.dropdowns.push(dropdown);
   }
 
@@ -235,8 +250,8 @@ export class TuningFields {
       `;
       grid.append(holder);
       const toggle = holder.querySelector('input[type="checkbox"]');
-      applyTooltip(holder.querySelector('label.toggle-row'), control.configKey === 'audioFixedAnchorHue' ? 'audio.fixedHueEnabled' : null);
-      toggle.disabled = !control.configKey;
+      applyTooltip(holder.querySelector('label.toggle-row'), control.toggleTooltipKey, control.tooltip);
+      toggle.disabled = !control.writable;
       toggle.addEventListener('change', () => {
         this.optionalOn[key] = toggle.checked;
         if (toggle.checked && !(Number(this.values[key]) >= 0)) this.values[key] = control.min;
@@ -249,8 +264,9 @@ export class TuningFields {
       grid.append(holder);
     }
 
-    wireSliderGroup(holder, sliders, this.values, control.configKey ? () => this._autoSave() : null);
-    if (!control.configKey) holder.querySelector(`#tn-${key}`).disabled = true;
+    if (control.tooltip) holder.querySelector('.field')?.setAttribute('title', control.tooltip);
+    wireSliderGroup(holder, sliders, this.values, control.writable ? () => this._autoSave() : null);
+    if (!control.writable) holder.querySelector(`#tn-${key}`).disabled = true;
   }
 
   // Every field auto-saves on its own commit -- there's no manual Save button.
@@ -271,16 +287,27 @@ export class TuningFields {
   async _commit() {
     this.error = null;
     const patch = buildPatch(this.controls ?? [], this.values, this.optionalOn, { includeRefreshRate: this.showsRefreshRate });
+    const edits = isCustomEffect(this.effectId) ? buildEffectEdits(this.controls ?? [], this.values, this.optionalOn) : [];
 
     try {
-      const result = await (await fetch('/api/config', {
-        method: 'PUT',
-        body: JSON.stringify(patch),
-      })).json();
+      const results = [];
+      if (Object.keys(patch).length > 0) {
+        results.push(await (await fetch('/api/config', { method: 'PUT', body: JSON.stringify(patch) })).json());
+      }
+      // Skip a re-send of unchanged params (a refresh-rate change must not swap the graph).
+      const sent = JSON.stringify(edits);
+      if (edits.length > 0 && sent !== this._sentEdits) {
+        const body = await (await fetch(`/api/effects/${encodeURIComponent(this.effectId)}/params`, {
+          method: 'PUT',
+          body: JSON.stringify({ params: edits }),
+        })).json();
+        if (body.succeeded) this._sentEdits = sent;
+        results.push(body);
+      }
 
-      if (!result.succeeded) {
+      if (results.some((result) => !result.succeeded)) {
         this.error = "Couldn't save settings.";
-      } else if (result.reloadError) {
+      } else if (results.some((result) => result.reloadError)) {
         // Saved, not applied: the daemon holds the error and the shell
         // banner shows it (Aurora-98pr). Poke the beat for an early redraw.
         this.onReloadError?.();

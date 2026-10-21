@@ -40,6 +40,11 @@
 #include <Aurora/Runtime/ControlDescriptors.hpp>
 #include <Aurora/Runtime/PendingRunRequest.hpp>
 #include <Aurora/Runtime/Pipeline.hpp>
+#include <Aurora/Runtime/ApplyRoutes.hpp>
+#include <Aurora/Runtime/TestRoutes.hpp>
+#include <Aurora/Runtime/PreviewRoutes.hpp>
+#include <Aurora/Runtime/DraftRoutes.hpp>
+#include <Aurora/Runtime/EffectsRoutes.hpp>
 #include <Aurora/Runtime/GraphRoutes.hpp>
 #include <Aurora/Runtime/PipelineRoutes.hpp>
 #include <Aurora/Runtime/SettingsRoutes.hpp>
@@ -640,6 +645,20 @@ if(!instanceLock.held()){
   Aurora::Runtime::registerEventsRoute(httpServer, pipelineHost, configRoot);
   Aurora::Runtime::registerNodesRoute(httpServer);
   Aurora::Runtime::registerGraphRoute(httpServer, pipelineHost);
+  Aurora::Runtime::registerEffectsRoutes(httpServer, pipelineHost, registry, configRoot,
+    [&pipelineHost, &registry, configRoot]() -> std::string {
+      return Aurora::Runtime::applyConfigFromDisk(pipelineHost, registry, configRoot);
+    },
+    accessGuard.get());
+  auto draftStore = Aurora::Runtime::registerDraftRoutes(httpServer, registry, configRoot, accessGuard.get());
+  auto applyDraft = Aurora::Runtime::registerApplyRoutes(httpServer, pipelineHost, registry, configRoot, draftStore,
+    [&pipelineHost, &registry, configRoot]() -> std::string {
+      return Aurora::Runtime::applyEffectFromDisk(pipelineHost, registry, configRoot);
+    },
+    accessGuard.get());
+  Aurora::Runtime::registerTestRoutes(httpServer, pipelineHost, registry, configRoot, draftStore, applyDraft,
+    accessGuard.get());
+  Aurora::Runtime::registerPreviewRoutes(httpServer, pipelineHost, draftStore);
   Aurora::Runtime::registerDevErrorsRoute(httpServer, pipelineHost);
   registerStopRoute(httpServer);
   Aurora::Runtime::registerZoneRoutes(

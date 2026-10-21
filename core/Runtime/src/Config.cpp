@@ -200,6 +200,25 @@ namespace Aurora::Runtime
   }
 
 
+  const std::string& Config::activeEffectId() const
+  {
+    return m_data.activeEffectId;
+  }
+
+
+  void Config::setActiveEffectId(std::string id)
+  {
+    m_data.activeEffectId = std::move(id);
+  }
+
+
+  std::string Config::customEffectId() const
+  {
+    const std::string& id = m_data.activeEffectId;
+    return id.rfind("builtin.", 0) == 0 ? std::string{} : id;
+  }
+
+
   float Config::audioFixedAnchorHue() const { return m_data.audioFixedAnchorHue; }
   void Config::setAudioFixedAnchorHue(float hue) { m_data.audioFixedAnchorHue = sanitizeParam("audio.fixedAnchorHue", hue); }
 

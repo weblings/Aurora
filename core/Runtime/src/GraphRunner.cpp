@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <stdexcept>
+#include <unordered_set>
 #include <utility>
 
 #include <Aurora/Runtime/Graph/BuiltInGraphs.hpp>
@@ -60,11 +61,47 @@ namespace Aurora::Runtime
   {
     Graph::registerAllNodes(m_registry, true);
   }
+
+
+  GraphRunner::GraphRunner(
+    Input::IVideoInput& video,
+    Input::IAudioInput& audio,
+    std::vector<Output::IOutput*> outputs,
+    Config config,
+    ZoneMapStore zoneMapStore
+  ):
+  m_videoInput(&video),
+  m_audioInput(&audio),
+  m_outputs(std::move(outputs)),
+  m_config(std::move(config)),
+  m_zoneMapStore(std::move(zoneMapStore))
+  {
+    Graph::registerAllNodes(m_registry, true);
+  }
 #endif
 
 
-  bool GraphRunner::_load(const Config& config, Graph::LoadResult& result) const
+  void GraphRunner::setCustomGraph(nlohmann::json doc)
   {
+    m_customDoc = std::move(doc);
+  }
+
+
+  bool GraphRunner::_load(
+    const Config& config, Graph::LoadResult& result, bool& custom, std::string& customError) const
+  {
+    custom = false;
+    customError.clear();
+    if(m_customDoc){
+      Graph::LoadOptions options;
+      options.knownOutputs = std::unordered_set<std::string>(m_outputNames.begin(), m_outputNames.end());
+      result = Graph::loadGraph(*m_customDoc, m_registry, options);
+      if(result.ok){
+        custom = true;
+        return true;
+      }
+      customError = result.error;
+    }
 #ifdef AURORA_RUNTIME_AUDIO_AVAILABLE
     if(m_isAudio){
       result = Graph::loadBuiltInAudioGraph(m_registry, m_outputNames, config.data());
@@ -78,6 +115,9 @@ namespace Aurora::Runtime
 
   nlohmann::json GraphRunner::graphJson() const
   {
+    if(m_runningCustom){
+      return *m_customDoc;
+    }
 #ifdef AURORA_RUNTIME_AUDIO_AVAILABLE
     if(m_isAudio){
       return Graph::builtInAudioGraph(m_outputNames, Graph::audioOverlayFromConfig(m_config.data(), m_outputNames));
@@ -132,7 +172,7 @@ namespace Aurora::Runtime
     }
 
     Graph::LoadResult loaded;
-    if(!_load(m_config, loaded)){
+    if(!_load(m_config, loaded, m_runningCustom, m_customError)){
       throw std::runtime_error("built-in graph failed to load: " + loaded.error);
     }
     m_graph = std::move(loaded.graph);
@@ -155,6 +195,10 @@ namespace Aurora::Runtime
           m_devFrameDump.publish(**image);
         }
       }
+    }
+
+    for(auto& entry : m_previews){
+      entry.second->tick(dt, m_host);
     }
   }
 
@@ -196,10 +240,46 @@ namespace Aurora::Runtime
   }
 
 
+  std::shared_ptr<GraphPreview> GraphRunner::openPreview(
+    const std::string& session, const nlohmann::json& doc, std::string& errorOut)
+  {
+    auto preview = GraphPreview::create(
+      doc, m_registry, std::unordered_set<std::string>(m_outputNames.begin(), m_outputNames.end()), errorOut);
+    if(!preview){
+      return nullptr;
+    }
+    auto& slot = m_previews[session];
+    if(slot){
+      slot->close();
+    }
+    slot = preview;
+    return preview;
+  }
+
+
+  bool GraphRunner::reloadPreview(GraphPreview& preview, const nlohmann::json& doc, std::string& errorOut)
+  {
+    return preview.reload(
+      doc, m_registry, std::unordered_set<std::string>(m_outputNames.begin(), m_outputNames.end()), errorOut);
+  }
+
+
+  void GraphRunner::closePreview(const std::string& session, const GraphPreview* preview)
+  {
+    auto it = m_previews.find(session);
+    if(it != m_previews.end() && it->second.get() == preview){
+      it->second->close();
+      m_previews.erase(it);
+    }
+  }
+
+
   bool GraphRunner::setConfig(Config config, std::string& errorOut)
   {
     Graph::LoadResult loaded;
-    if(!_load(config, loaded)){
+    bool custom = false;
+    std::string customError;
+    if(!_load(config, loaded, custom, customError)){
       errorOut = loaded.error;
       return false;
     }
@@ -209,7 +289,38 @@ namespace Aurora::Runtime
     loaded.graph.adoptStateFrom(m_graph);
     m_graph = std::move(loaded.graph);
     m_config = std::move(config);
+    m_runningCustom = custom;
+    m_customError = std::move(customError);
     return true;
+  }
+
+
+  bool GraphRunner::swapCustomGraph(nlohmann::json doc, std::string& errorOut)
+  {
+    Graph::LoadOptions options;
+    options.knownOutputs = std::unordered_set<std::string>(m_outputNames.begin(), m_outputNames.end());
+    Graph::LoadResult loaded = Graph::loadGraph(doc, m_registry, options);
+    if(!loaded.ok){
+      errorOut = loaded.error;
+      return false;
+    }
+
+    loaded.graph.adoptStateFrom(m_graph);
+    m_graph = std::move(loaded.graph);
+    m_customDoc = std::move(doc);
+    m_runningCustom = true;
+    m_customError.clear();
+    return true;
+  }
+
+
+  bool GraphRunner::restoreGraph(std::optional<nlohmann::json> doc, std::string& errorOut)
+  {
+    if(doc){
+      return swapCustomGraph(std::move(*doc), errorOut);
+    }
+    m_customDoc.reset();
+    return setConfig(m_config, errorOut);
   }
 
 

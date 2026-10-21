@@ -258,6 +258,8 @@ Status: state shipped (Aurora-5ipy.2), events stream shipped 2026-10-16 (Aurora-
 ### Phase 5 — public API contract
 - Hand-written OpenAPI for the public subset plus an `apiVersion`
   (generator trade-off under "Prior art").
+- Follows [[nodes-agent-ux]] Sequence C's write routes (apply, test on
+  lights, preview), so `/api/v1` covers them (decided 2026-10-20).
 - Test: walk registered routes, fail when a public route lacks a spec
   entry or the reverse; lint the spec with a standard OpenAPI validator.
 

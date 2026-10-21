@@ -75,7 +75,11 @@ namespace Aurora::Runtime
       bool followsDefault{true};
     };
 
+    // What runs, and what Config asked for. They differ after a fallback.
     std::string effect;
+    std::string requestedEffect;
+    // Why a requested custom effect is not the one running; empty otherwise.
+    std::string fallbackReason;
     std::optional<Video> video;
     std::optional<Audio> audio;
   };
@@ -131,6 +135,32 @@ namespace Aurora::Runtime
     // Under the lock that guards tick().
     ConfigApplyResult applyConfig(const Config& next);
 
+    // Swaps the running graph for `doc` without a rebuild (Aurora-52oz.4), as
+    // `next`'s activeEffectId names it. False, changing nothing, when anything
+    // else differs from the running Config, the graph needs other inputs than
+    // the ones open, or it fails to load: the caller then rebuilds. Under the
+    // lock that guards tick().
+    bool swapEffect(const Config& next, const nlohmann::json& doc);
+
+    // Runs `doc` in place for a test on lights (Aurora-52oz.5), changing
+    // neither the Config nor the summary. False, changing nothing, when the
+    // graph would need other inputs than the ones running or fails to load.
+    bool testGraph(const nlohmann::json& doc);
+
+    // Puts the live effect back after testGraph(): `doc` is the custom graph
+    // `live` names, empty for a built-in. False, changing nothing, when the
+    // live Config differs from the running one, so the caller rebuilds.
+    bool restoreEffect(const Config& live, const std::optional<nlohmann::json>& doc);
+
+    // Draft previews beside the live graph (Aurora-52oz.6), see
+    // GraphRunner::openPreview. Null with errorOut set when the graph would
+    // need other inputs than the ones running, the dev dual-capture spike is
+    // on, or the graph fails to load. Under the lock that guards tick().
+    std::shared_ptr<GraphPreview> openPreview(
+      const std::string& session, const nlohmann::json& doc, std::string& errorOut);
+    bool reloadPreview(GraphPreview& preview, const nlohmann::json& doc, std::string& errorOut);
+    void closePreview(const std::string& session, const GraphPreview* preview);
+
     // The Config this pipeline was built from, as later changed by
     // applyConfig(). Video mode holds the post-derivation values
     // (refreshRate/subsampleWidth filled in from the display).
@@ -178,6 +208,8 @@ namespace Aurora::Runtime
     Pipeline() = default;
 
     bool m_isAudioMode{false};
+    // A custom graph running with both captures on the video runner.
+    bool m_bothInputs{false};
     // Aurora-o13 spike: AURORA_DEV_DUAL_CAPTURE builds both runners
     // and ticks both. Video stays primary for config, zones and monitors.
     // The flag also logs per-runner tick timing in single modes.
@@ -323,6 +355,29 @@ namespace Aurora::Runtime
     // released, so a slow capture API cannot stall ticks or other API calls.
     bool applyConfig(const Config& next);
 
+    // Swaps a custom effect into the running pipeline in place (Aurora-52oz.4),
+    // keeping inputs, outputs and node state, so the Hue stream is not
+    // re-handshaken. False, changing nothing, when there is no pipeline or
+    // Pipeline::swapEffect refuses; the caller then calls reload().
+    bool applyEffect(const Config& next, const nlohmann::json& doc);
+
+    // In-place test and restore (Aurora-52oz.5), see Pipeline::testGraph and
+    // restoreEffect. False when there is no pipeline or the pipeline refuses.
+    bool testGraph(const nlohmann::json& doc);
+    bool restoreEffect(const Config& live, const std::optional<nlohmann::json>& doc);
+
+    // Draft previews under the pipeline lock, see Pipeline::openPreview. They
+    // die with the pipeline: a rebuild moves buildEpoch() and a stream that
+    // saw the old one ends.
+    std::shared_ptr<GraphPreview> openPreview(
+      const std::string& session, const nlohmann::json& doc, std::string& errorOut);
+    bool reloadPreview(GraphPreview& preview, const nlohmann::json& doc, std::string& errorOut);
+    void closePreview(const std::string& session, const GraphPreview* preview);
+
+    // Moves on every rebuild (reload, resume). With isPaused() it tells a test
+    // on lights its pipeline is gone.
+    std::uint64_t buildEpoch() const { return m_buildEpoch.load(); }
+
     // Returns true on success. On failure, errorOut is set and the previous
     // pipeline keeps running untouched -- a bad reload (e.g. an
     // activeInputName a settings PUT just wrote that doesn't resolve to any
@@ -442,6 +497,16 @@ namespace Aurora::Runtime
     // changed m_pipeline). Entries must already carry their ids.
     void _publishStatusLocked(std::vector<HostError> errors);
 
+    // Runs `swap` on the pipeline under both locks and, when it succeeds and
+    // `clearFallback` is set, drops the held effect_fallback entry. False when
+    // there is no pipeline.
+    bool _swapInPlace(const std::function<bool(Pipeline&)>& swap, bool clearFallback, const char* logLine);
+
+    // Publishes a freshly built pipeline's status: no errors, except the
+    // effect_fallback entry when it fell back from a custom effect. Caller
+    // holds m_mutex.
+    void _publishBuiltLocked();
+
     // Creates or replaces the entry for `source` (new id), keeping the rest.
     // Caller holds m_mutex.
     void _setErrorLocked(const std::string& source, const std::string& message);
@@ -500,6 +565,16 @@ namespace Aurora::Runtime
   // return shape as reloadPipelineFromDisk. Not for POST /api/reload or Hue
   // pairing, which must rebuild even though Config is unchanged.
   std::string applyConfigFromDisk(
+    PipelineHost& pipelineHost,
+    const Registry& registry,
+    const std::filesystem::path& configRoot
+  );
+
+
+  // What an effect apply calls (Aurora-52oz.4): loads Config and the active
+  // custom effect's file fresh from disk and swaps it in place, else reloads.
+  // Same return shape as reloadPipelineFromDisk.
+  std::string applyEffectFromDisk(
     PipelineHost& pipelineHost,
     const Registry& registry,
     const std::filesystem::path& configRoot

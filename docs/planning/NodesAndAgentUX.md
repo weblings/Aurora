@@ -30,8 +30,8 @@ path ([[external-control]]) and an adapter an assistant can call (EC 6a).
   active graph's `controls`; the editor is an advanced screen over the same
   `graph.json`. Detail in [[node-graph-pipeline]].
 - **External-control order** (decided 2026-10-15): EC 3 Host allowlist
-  before Sequence B's read routes, EC 2a beside B, EC 4a before C. Detail
-  in [[external-control]].
+  before Sequence B's read routes, EC 2a beside B, EC 4a before C, EC 5
+  after C's write routes (2026-10-20). Detail in [[external-control]].
 - **Not decided here:** whether HA output is a go (Aurora-4zr).
 
 ## Sequence A: foundations
@@ -92,12 +92,35 @@ time-based, Tier 2 adds gradients, blend modes, bands and LFO.
   settle-time checks at 30/60/240 Hz for B2b, bad-graph corpus extended for
   the new port types, generator render cost logged for B2e.
 
+## Sequence C: safe writes
+
+Status: filed 2026-10-20. Epic `Aurora-52oz`. Decisions in
+[[sequence-c-planning]]: custom effects in `effects/` with `activeEffectId`,
+concrete output names (D instantiates presets), a fallback warning when a
+custom graph cannot load, per-session drafts, zone-color preview in C.
+
+- **Goal:** a client can draft, check, preview, try on the lights and apply
+  a custom graph without risking stranded lights. No editor yet.
+- **Beads:** `Aurora-52oz.1` C0 effect storage and fallback warning, `.2` C1
+  inputs from the graph's source nodes, `.3` C2 drafts and validate, `.4` C3
+  apply, `.5` C4 test on lights with auto-revert, `.6` C5 draft preview,
+  `.7` C6 Tuning on custom effects, `.8` C7 gate.
+- **Prerequisite:** EC 4a/4b/4c (done). EC 5 follows C's write routes.
+- **Gate:** C7, a scripted client on the fake-Hue stack runs the whole flow
+  on three OSes, including revert on a dropped heartbeat and the fallback
+  warning.
+- **Parallel:** C0 and C1 first. C2 follows C0. C3 and C5 join C2 and C1.
+  C4 follows C3. C6 needs only C0.
+- **OS:** C1 needs a per-OS dual-capture recheck. Everything else is
+  platform-neutral core and route tests.
+- **Tests:** scope negatives per route, bad-graph corpus through validate,
+  fake-clock revert paths, preview never reaching an output, tick budget
+  with a preview running.
+
 ## Later sequences (stubs)
 
 Each gets a full section when it starts.
 
-- **C: safe writes.** Status: not started. Draft/validate routes, apply route
-  with scopes, draft vs. live with auto-revert, public API contract.
 - **D: agent path.** Status: not started. Annotated preset graphs, MCP tools
   (`list_nodes`, `get_graph`, `validate_graph`, `put_draft`, `preview`,
   `apply`), agent skill, and an eval corpus of plain-language prompts scored
