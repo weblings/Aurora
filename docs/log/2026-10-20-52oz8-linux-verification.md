@@ -34,7 +34,9 @@ Mac runs still owed.
   skipped and no `--allow-skip` needed. Stack torn down, ports free.
 - C1 covered by the same run: the both-input graph ticks with both
   captures (`usesVideoInput` + `usesAudioInput`, lights lit) and
-  survives a restart.
+  survives a restart. Correction (Mac, later): that shows the both-input graph
+  applies, not that audio data reaches it; the gate's audio step now checks that
+  and Linux has not run it. See [[52oz8-sequence-c-gate]].
 
 ## Web (C6)
 
@@ -43,4 +45,4 @@ Mac runs still owed.
 
 ## Lessons
 
-- none
+- See "A pass on applied, restarted, lit does not show a signal reaches the output" in debugging-method.

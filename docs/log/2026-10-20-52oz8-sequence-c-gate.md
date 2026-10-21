@@ -57,4 +57,5 @@ C7 of [[sequence-c-planning]]. Script: `tools/light-viz-relay/sequence_c_gate.py
 
 ## Lessons
 
-- none
+- A pass on "applied, restarted, lit" does not show a signal reaches the output: filed in debugging-method (control run, on/off/on stimulus).
+- Silent audio sends nothing, so lights hold their last frame: filed in input.
