@@ -10,7 +10,7 @@ fallback warning). Exits 0 when every step passes. A both-input step with no
 audio input on the box is reported SKIP, which fails the run unless --allow-skip.
 Stdlib only.
 """
-import argparse, json, os, sys, tempfile, threading, time, urllib.error, urllib.request
+import argparse, json, math, os, shutil, struct, subprocess, sys, tempfile, threading, time, urllib.error, urllib.request, wave
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -63,6 +63,47 @@ class Frames:
                 return self.level
             time.sleep(0.05)
         raise AssertionError(f"lights never {what} (last level {self.level})")
+
+
+class Tone:
+    """A looping 440 Hz tone on the default output, for the audio capture to hear."""
+
+    def __init__(self):
+        self.path = Path(tempfile.gettempdir()) / "aurora-gate-tone.wav"
+        with wave.open(str(self.path), "wb") as w:
+            w.setnchannels(1)
+            w.setsampwidth(2)
+            w.setframerate(44100)
+            w.writeframes(b"".join(
+                struct.pack("<h", int(12000 * math.sin(2 * math.pi * 440 * i / 44100))) for i in range(44100)))
+        self.proc = None
+        self.stop_flag = False
+
+    def _cmd(self):
+        if sys.platform == "darwin":
+            return ["afplay", str(self.path)]
+        if sys.platform == "win32":
+            return ["powershell", "-NoProfile", "-Command",
+                    f"(New-Object Media.SoundPlayer '{self.path}').PlaySync()"]
+        for tool in ("pw-play", "paplay", "aplay"):
+            if shutil.which(tool):
+                return [tool, str(self.path)]
+        return None
+
+    def start(self):
+        cmd = self._cmd()
+        if cmd is None:
+            raise Skip("no tone player on this box")
+        def loop():
+            while not self.stop_flag:
+                self.proc = subprocess.Popen(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                self.proc.wait()
+        threading.Thread(target=loop, daemon=True).start()
+
+    def stop(self):
+        self.stop_flag = True
+        if self.proc and self.proc.poll() is None:
+            self.proc.terminate()
 
 
 def lit(v):
@@ -177,6 +218,7 @@ def run(app):
         test_on_lights(ctx)
         heartbeat_lost(ctx)
         both_input_apply(ctx)
+        audio_reaches_lights(ctx)
         ctx["base"] = base = restart_and_check(ctx, app, port)
         fallback_warning(ctx, app)
     except Skip:
@@ -244,7 +286,19 @@ def both_input_apply(c):
     code, body = call(b, "PUT", "/api/config", {"activeAudioInputName": audio[0]})
     assert code == 200, body
     both = json.loads(json.dumps(c["live"]))
-    both["nodes"].append({"id": "mic", "type": "audio.capture", "params": {}})
+    # Audio loudness drives the video brightness: 0.05 + 20 * rms, so the zones follow the
+    # tone on and off.
+    both["nodes"] += [
+        {"id": "mic", "type": "audio.capture", "params": {}},
+        {"id": "feat", "type": "audio.features", "params": {}},
+        {"id": "loud", "type": "math.scale", "params": {"factor": 20}},
+        {"id": "base", "type": "math.add", "params": {"b": 0.05}},
+        {"id": "amp", "type": "frame.brightnessScale", "params": {}},
+    ]
+    both["edges"] = [e for e in both["edges"] if e != ["gain_hue.frame", "floor_hue.frame"]]
+    both["edges"] += [["mic.buffer", "feat.buffer"], ["feat.rms", "loud.value"], ["loud.value", "base.a"],
+                      ["base.value", "amp.factor"], ["gain_hue.frame", "amp.frame"],
+                      ["amp.frame", "floor_hue.frame"]]
     assert call(b, "PUT", f"/api/graph/drafts/{SESSION}", {"graph": both})[1]["valid"]
     code, body = call(b, "POST", "/api/graph/test", {"session": SESSION})
     assert code == 409 and body["error"] == "cannot_test", (code, body)
@@ -254,6 +308,27 @@ def both_input_apply(c):
     assert s["usesVideoInput"] and s["usesAudioInput"] and s["effect"] == EFFECT, s
     c["frames"].wait(lit, "lit under the both-input graph")
     return f"applied {EFFECT} on {audio[0]}, test on lights refused (needs a rebuild)"
+
+
+@step("audio reaches the lights")
+def audio_reaches_lights(c):
+    if not any(r[0] == "both-input custom graph applies" and r[1] == "PASS" for r in RESULTS):
+        raise Skip("needs the both-input step")
+    frames = c["frames"]
+
+    seen = []
+    tone = Tone()
+    try:
+        for cycle in range(2):
+            tone.start()
+            seen.append(("tone", frames.wait(lambda v: v > 0.6, "followed the tone up", 20)))
+            tone.stop()
+            seen.append(("quiet", frames.wait(lambda v: v < 0.2, "followed the quiet down", 20)))
+            tone = Tone()
+    finally:
+        tone.stop()
+    text = ", ".join(f"{k} {v:.2f}" for k, v in seen)
+    return text
 
 
 @step("restart keeps the custom graph")
