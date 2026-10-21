@@ -264,6 +264,10 @@ Status: state shipped (Aurora-5ipy.2), events stream shipped 2026-10-16 (Aurora-
   entry or the reverse; lint the spec with a standard OpenAPI validator.
 
 ### Phase 6 — adapters
+- MCP: decided 2026-10-21 ([[sequence-d-planning]]). [[nodes-agent-ux]]
+  Sequence D builds the adapter as a hand-rolled C++ stdio helper in
+  `adapters/mcp` with the graph tools, and does not wait on phase 5. EC 6a
+  adds the control tools to that binary.
 - MCP server, then MQTT bridge, then the Muse skill. The MQTT bridge
   re-publishes HA discovery when kea's flags change (mode switch), so the
   monitor/sink entity matches the running pipeline. After Aurora-kea
