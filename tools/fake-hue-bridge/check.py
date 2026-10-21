@@ -134,6 +134,9 @@ def main():
             port, "GET", f"/clip/v2/resource/entertainment_configuration/{conf_id}")
         check("stop flips status back", stopped["data"][0]["status"] == "inactive",
               repr(stopped))
+        status, counts = request(port, "GET", "/dev/stream-counts")
+        check("stream-counts tallies one start and one stop",
+              counts == {"start": 1, "stop": 1}, repr(counts))
 
         status, light = request(port, "GET", "/clip/v2/resource/light/light-1")
         snap = light["data"][0]

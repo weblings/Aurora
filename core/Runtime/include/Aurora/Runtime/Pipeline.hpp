@@ -123,6 +123,12 @@ namespace Aurora::Runtime
     // list is the one this build asks for, so Hue is not re-handshaken. Until
     // the host calls adoptOutputsFrom() the new pipeline only borrows them.
     const Pipeline* outputsFrom{nullptr};
+
+    // A running pipeline whose open inputs the new one takes over, each only
+    // when its name, monitor, width and sink match this build's Config, so a
+    // screen capture is not reopened (a Wayland picker, a Mac stream start).
+    // Same borrow-then-adopt handover as outputsFrom, via adoptInputsFrom().
+    const Pipeline* inputsFrom{nullptr};
   };
 
 
@@ -172,6 +178,16 @@ namespace Aurora::Runtime
     // build time, leaving it with none to shut down. The host calls it under
     // its lock, at the swap, so the old pipeline ticks them until then.
     void adoptOutputsFrom(Pipeline& previous);
+
+    // True while this pipeline only borrows an input of `overrides.inputsFrom`.
+    bool borrowsInputs() const { return m_borrowedVideo || m_borrowedAudio; }
+
+    // Takes ownership of the inputs this pipeline borrowed, same rules and
+    // timing as adoptOutputsFrom(). Inputs it did not borrow close with
+    // `previous`, except with `parkUnused` (a test on lights): an input this
+    // pipeline's graph does not use stays open, unused, so the revert can take
+    // it back instead of reopening the capture.
+    void adoptInputsFrom(Pipeline& previous, bool parkUnused);
 
     // Applies a Config change to this running pipeline without rebuilding it
     // (Aurora-c0g), when ConfigApply says only live-tunable fields moved. The
@@ -287,11 +303,18 @@ namespace Aurora::Runtime
     // Aurora-Output-Hue.
     std::unique_ptr<Input::IVideoInput> m_videoInput;
     std::unique_ptr<Input::IAudioInput> m_audioInput;
+    // Open but unused by this pipeline's graph, kept for the revert of a test.
+    std::unique_ptr<Input::IVideoInput> m_parkedVideo;
+    std::unique_ptr<Input::IAudioInput> m_parkedAudio;
     // The names the outputs were created under, to match a later build's list.
     std::vector<std::string> m_outputKeys;
     std::vector<std::unique_ptr<Output::IOutput>> m_outputs;
     std::vector<Output::IOutput*> m_outputPtrs;
     bool m_borrowedOutputs{false};
+    // The runners already point at these inputs, still owned by the pipeline
+    // they came from until adoptInputsFrom().
+    bool m_borrowedVideo{false};
+    bool m_borrowedAudio{false};
     std::optional<GraphRunner> m_videoRunner;
     std::optional<GraphRunner> m_audioRunner;
   };
@@ -425,6 +448,9 @@ namespace Aurora::Runtime
     // change of inputs does not re-handshake Hue. `graph` runs in place of the
     // Config's effect (test on lights); null builds the Config's own effect
     // (its revert). Falls back to fresh outputs when the output list differs.
+    // An input already open under the same name, monitor, width and sink is
+    // reused too, so only a source the new effect adds is opened. A test keeps
+    // the inputs its graph does not use open, so its revert reopens nothing.
     // False with errorOut set, the old pipeline untouched, when there is no
     // running pipeline (idle, failed or paused) or the build fails. Holds the
     // change lock through the build, so apply, pause and reload wait for it.

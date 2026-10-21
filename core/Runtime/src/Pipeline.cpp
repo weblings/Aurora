@@ -231,6 +231,33 @@ namespace Aurora::Runtime
       }
     }
 
+    // Inputs the running pipeline has open under what this build asks for are
+    // reused, not reopened. Any difference in name, monitor, width or sink, or
+    // the dev spike, opens a fresh one as before.
+    Input::IVideoInput* borrowedVideo = nullptr;
+    Input::IAudioInput* borrowedAudio = nullptr;
+    if(const Pipeline* from = overrides.inputsFrom; from && !dualFlag && !(from->m_videoRunner && from->m_audioRunner)){
+      const Config& live = from->m_appliedConfig;
+      Input::IVideoInput* fromVideo = from->m_videoInput ? from->m_videoInput.get() : from->m_parkedVideo.get();
+      Input::IAudioInput* fromAudio = from->m_audioInput ? from->m_audioInput.get() : from->m_parkedAudio.get();
+      if(fromVideo
+        && !config.activeInputName().empty()
+        && config.activeInputName() == live.activeInputName()
+        && config.activeMonitorName() == live.activeMonitorName()
+        && config.subsampleWidth() != 0
+        && config.subsampleWidth() == live.subsampleWidth()){
+        borrowedVideo = fromVideo;
+      }
+      if(fromAudio
+        && !config.activeAudioInputName().empty()
+        && config.activeAudioInputName() == live.activeAudioInputName()
+        && config.audioTargetSinkName() == live.audioTargetSinkName()){
+        borrowedAudio = fromAudio;
+      }
+    }
+    // What the summary and the runners use, owned here or borrowed.
+    Input::IVideoInput* videoInput = nullptr;
+
     ScopedPhaseTimer captureTimer(options, "capture+graph init");
     if(dualCapture){
 #ifdef AURORA_RUNTIME_AUDIO_AVAILABLE
@@ -253,17 +280,21 @@ namespace Aurora::Runtime
     }
     if(useAudioMode){
 #ifdef AURORA_RUNTIME_AUDIO_AVAILABLE
-      auto audioInput = registry.createAudioInput(config.activeAudioInputName());
-      if(!audioInput){
-        throw std::runtime_error("Unknown audio input '" + config.activeAudioInputName() + "'");
+      std::unique_ptr<Input::IAudioInput> audioInput;
+      if(!borrowedAudio){
+        audioInput = registry.createAudioInput(config.activeAudioInputName());
+        if(!audioInput){
+          throw std::runtime_error("Unknown audio input '" + config.activeAudioInputName() + "'");
+        }
       }
 
       pipeline->m_audioRunner.emplace(
-        *audioInput, pipeline->m_outputPtrs, config, ZoneMapStore(configRoot)
+        borrowedAudio ? *borrowedAudio : *audioInput, pipeline->m_outputPtrs, config, ZoneMapStore(configRoot)
       );
       if(customDoc){ pipeline->m_audioRunner->setCustomGraph(*customDoc); }
       pipeline->m_audioRunner->init();
       pipeline->m_audioInput = std::move(audioInput);
+      pipeline->m_borrowedAudio = borrowedAudio != nullptr;
       pipeline->m_isAudioMode = true;
       pipeline->m_appliedConfig = config;
       pipeline->m_tickIntervalSeconds = Runtime::tickIntervalSeconds(); // no display-derived rate for audio
@@ -277,22 +308,30 @@ namespace Aurora::Runtime
     }
     else{
       const std::string& inputName = config.activeInputName();
-      auto input = registry.createInput(inputName);
-      if(!input){
-        throw std::runtime_error("Unknown input '" + inputName + "'");
+      std::unique_ptr<Input::IVideoInput> input;
+      if(!borrowedVideo){
+        input = registry.createInput(inputName);
+        if(!input){
+          throw std::runtime_error("Unknown input '" + inputName + "'");
+        }
+        input->init();
       }
-      input->init();
+      videoInput = borrowedVideo ? borrowedVideo : input.get();
 
       if(bothInputs){
 #ifdef AURORA_RUNTIME_AUDIO_AVAILABLE
-        auto audioInput = registry.createAudioInput(config.activeAudioInputName());
-        if(!audioInput){
-          throw std::runtime_error("Unknown audio input '" + config.activeAudioInputName() + "'");
+        std::unique_ptr<Input::IAudioInput> audioInput;
+        if(!borrowedAudio){
+          audioInput = registry.createAudioInput(config.activeAudioInputName());
+          if(!audioInput){
+            throw std::runtime_error("Unknown audio input '" + config.activeAudioInputName() + "'");
+          }
         }
         pipeline->m_videoRunner.emplace(
-          *input, *audioInput, pipeline->m_outputPtrs, config, ZoneMapStore(configRoot)
+          *videoInput, borrowedAudio ? *borrowedAudio : *audioInput, pipeline->m_outputPtrs, config, ZoneMapStore(configRoot)
         );
         pipeline->m_audioInput = std::move(audioInput);
+        pipeline->m_borrowedAudio = borrowedAudio != nullptr;
         pipeline->m_isDualCapture = true;
         pipeline->m_bothInputs = true;
 #else
@@ -301,12 +340,13 @@ namespace Aurora::Runtime
       }
       else{
         pipeline->m_videoRunner.emplace(
-          *input, pipeline->m_outputPtrs, config, ZoneMapStore(configRoot)
+          *videoInput, pipeline->m_outputPtrs, config, ZoneMapStore(configRoot)
         );
       }
       if(customDoc){ pipeline->m_videoRunner->setCustomGraph(*customDoc); }
-      pipeline->m_videoRunner->init();
+      pipeline->m_videoRunner->init(/*videoReady*/ borrowedVideo != nullptr);
       pipeline->m_videoInput = std::move(input);
+      pipeline->m_borrowedVideo = borrowedVideo != nullptr;
       pipeline->m_isAudioMode = false;
       // Post-derivation: refreshRate/subsampleWidth are the display-derived
       // values, matching what the settings save now holds on disk.
@@ -367,7 +407,7 @@ namespace Aurora::Runtime
     }
     if(!useAudioMode){
       pipeline->m_summary.video = PipelineSummary::Video{
-        config.activeInputName(), pipeline->m_videoInput->selectedMonitorName()
+        config.activeInputName(), videoInput->selectedMonitorName()
       };
     }
     if(useAudioMode || dualCapture || bothInputs){
@@ -509,6 +549,31 @@ namespace Aurora::Runtime
     previous.m_outputs.clear();
     previous.m_outputPtrs.clear();
     m_borrowedOutputs = false;
+  }
+
+
+  void Pipeline::adoptInputsFrom(Pipeline& previous, bool parkUnused)
+  {
+    // An input is in one slot of `previous`: in use, or parked by an earlier test.
+    auto takeVideo = [&previous]{
+      return previous.m_videoInput ? std::move(previous.m_videoInput) : std::move(previous.m_parkedVideo);
+    };
+    auto takeAudio = [&previous]{
+      return previous.m_audioInput ? std::move(previous.m_audioInput) : std::move(previous.m_parkedAudio);
+    };
+
+    if(m_borrowedVideo){
+      m_videoInput = takeVideo();
+      m_borrowedVideo = false;
+    }
+    if(m_borrowedAudio){
+      m_audioInput = takeAudio();
+      m_borrowedAudio = false;
+    }
+    if(parkUnused){
+      if(!m_videoInput){ m_parkedVideo = takeVideo(); }
+      if(!m_audioInput){ m_parkedAudio = takeAudio(); }
+    }
   }
 
 
@@ -1211,6 +1276,7 @@ namespace Aurora::Runtime
       PipelineBuildOverrides overrides;
       overrides.graph = graph;
       overrides.outputsFrom = m_pipeline.get();
+      overrides.inputsFrom = m_pipeline.get();
       next = Pipeline::build(registry, config, configRoot, m_options, overrides);
     }
     catch(const std::exception& e){
@@ -1229,6 +1295,8 @@ namespace Aurora::Runtime
       if(next->borrowsOutputs()){
         next->adoptOutputsFrom(*previous);
       }
+      // A test keeps the inputs its graph skips open, for the revert.
+      next->adoptInputsFrom(*previous, /*parkUnused*/ graph != nullptr);
       m_pipeline = std::move(next);
       _storeCapabilities(m_pipeline.get());
       ++m_buildEpoch;

@@ -97,6 +97,10 @@ namespace
     // Runs inside every FakeVideoInput grab, i.e. on the tick, under the host lock.
     std::function<void()> onGrab;
 
+    // How many inputs the registry's factories opened and how many were
+    // destroyed since: a reused input shows as no new open.
+    int videoOpened{0}, videoClosed{0}, audioOpened{0}, audioClosed{0};
+
     bool has(const std::string& line) const
     {
       return std::find(lines.begin(), lines.end(), line) != lines.end();
@@ -109,7 +113,14 @@ namespace
   public:
     explicit FakeVideoInput(std::shared_ptr<Events> events = nullptr):
     m_events(std::move(events))
-    {}
+    {
+      if(m_events){ m_events->videoOpened++; }
+    }
+
+    ~FakeVideoInput() override
+    {
+      if(m_events){ m_events->videoClosed++; }
+    }
 
     void setCaptureWidthHint(unsigned width) override
     {
@@ -151,6 +162,17 @@ namespace
   class FakeAudioInput : public IAudioInput
   {
   public:
+    explicit FakeAudioInput(std::shared_ptr<Events> events = nullptr):
+    m_events(std::move(events))
+    {
+      if(m_events){ m_events->audioOpened++; }
+    }
+
+    ~FakeAudioInput() override
+    {
+      if(m_events){ m_events->audioClosed++; }
+    }
+
     const std::string& name() const override
     {
       static const std::string s_name = "fake-audio";
@@ -163,6 +185,9 @@ namespace
       buffer.channelCount = 1;
       buffer.samples = {0.5f, -0.5f, 0.5f, -0.5f};
     }
+
+  private:
+    std::shared_ptr<Events> m_events;
   };
 
 
@@ -203,7 +228,7 @@ namespace
   {
     Registry registry;
     registry.registerInput("fake-video", [events]{ return std::make_unique<FakeVideoInput>(events); });
-    registry.registerAudioInput("fake-audio", []{ return std::make_unique<FakeAudioInput>(); });
+    registry.registerAudioInput("fake-audio", [events]{ return std::make_unique<FakeAudioInput>(events); });
     registry.registerOutput("out-a", [events]{ return std::make_unique<FakeOutput>("out-a", events); });
     registry.registerOutput("out-b", [events]{ return std::make_unique<FakeOutput>("out-b", events); });
     return registry;
@@ -4136,6 +4161,8 @@ TEST_CASE("Test on lights takes a both-input graph from a video-live effect and 
 
   // A re-handshake would cost this per output; the input rebuild must not pay it.
   h.events->onOutputInit = []{ std::this_thread::sleep_for(300ms); };
+  REQUIRE(h.events->videoOpened == 1);
+  const std::size_t hints = h.events->widthHints.size();
   const auto started = std::chrono::steady_clock::now();
   REQUIRE(h.start("editor") == 200);
   CHECK(std::chrono::steady_clock::now() - started < 250ms);
@@ -4144,6 +4171,11 @@ TEST_CASE("Test on lights takes a both-input graph from a video-live effect and 
   CHECK(h.host->summary().effect == "builtin.video");
   CHECK(initCount(*h.events) == 1);
   CHECK(initCount(*h.events, "out-b") == 1);
+  // The screen capture stays open and untouched, only the audio input is new.
+  CHECK(h.events->videoOpened == 1);
+  CHECK(h.events->videoClosed == 0);
+  CHECK(h.events->audioOpened == 1);
+  CHECK(h.events->widthHints.size() == hints);
   CHECK(h.test->info().active);
   const int sends = h.events->sendCount;
   h.host->tick();
@@ -4163,6 +4195,12 @@ TEST_CASE("Test on lights takes a both-input graph from a video-live effect and 
   CHECK_FALSE(h.events->has("shutdown out-a replacement"));
   CHECK_FALSE(h.events->has("shutdown out-b replacement"));
   CHECK_FALSE(h.events->has("shutdown out-a final"));
+  // The revert reuses the same capture and lets the audio input go.
+  CHECK(h.events->videoOpened == 1);
+  CHECK(h.events->videoClosed == 0);
+  CHECK(h.events->audioOpened == 1);
+  CHECK(h.events->audioClosed == 1);
+  CHECK(h.events->widthHints.size() == hints);
 }
 
 
@@ -4180,13 +4218,68 @@ TEST_CASE("Test on lights reverts to a custom live effect from an audio-only dra
   CHECK(h.host->summary().effect == "mine");
   CHECK(h.host->capabilities().usesAudioInput);
   CHECK_FALSE(h.host->capabilities().usesVideoInput);
+  // The graph skips video, but the capture stays open for the revert.
+  CHECK(h.events->videoOpened == 1);
+  CHECK(h.events->videoClosed == 0);
+  CHECK(h.events->audioOpened == 1);
 
+  const std::size_t hints = h.events->widthHints.size();
   CHECK(h.post("/api/graph/test/revert", {{"session", "editor"}}) == 200);
   CHECK(*h.host->graphJson() == mine);
   CHECK(h.host->summary().effect == "mine");
   CHECK_FALSE(h.host->capabilities().usesAudioInput);
   CHECK(initCount(*h.events) == 1);
   CHECK_FALSE(h.events->has("shutdown out-a replacement"));
+  // The revert took the parked capture back and let the audio input go.
+  CHECK(h.events->videoOpened == 1);
+  CHECK(h.events->videoClosed == 0);
+  CHECK(h.events->audioClosed == 1);
+  CHECK(h.events->widthHints.size() == hints);
+}
+
+
+TEST_CASE("PipelineHost::reloadInputs reuses an open input only when the Config still matches (Aurora-4xqt.1)", "[PipelineHost][Audio]")
+{
+  ScopedTempDir dir("reload-inputs-reuse");
+  auto events = std::make_shared<Events>();
+  auto registry = makeRegistry(events);
+  const Config config = videoAndAudioConfig();
+  PipelineHost host(Pipeline::build(registry, config, dir.path, {}), {});
+  REQUIRE(events->videoOpened == 1);
+  REQUIRE(events->audioOpened == 0);
+
+  // Same Config: the capture is reused, no new open, no width hint.
+  std::string error;
+  const std::size_t hints = events->widthHints.size();
+  REQUIRE(host.reloadInputs(registry, config, dir.path, nullptr, error));
+  CHECK(events->videoOpened == 1);
+  CHECK(events->videoClosed == 0);
+  CHECK(events->widthHints.size() == hints);
+
+  // A graph that adds audio opens only the audio input.
+  nlohmann::json both = Graph::builtInVideoGraph({"out-a"});
+  both["nodes"].push_back({{"id", "mic"}, {"type", "audio.capture"}, {"params", nlohmann::json::object()}});
+  REQUIRE(host.reloadInputs(registry, config, dir.path, &both, error));
+  CHECK(events->videoOpened == 1);
+  CHECK(events->audioOpened == 1);
+
+  // A different capture width means the open one was set up for something
+  // else: a fresh input replaces it (and the unchanged audio one is reused).
+  Config wider = config;
+  wider.setSubsampleWidth(128);
+  REQUIRE(host.reloadInputs(registry, wider, dir.path, &both, error));
+  CHECK(events->videoOpened == 2);
+  CHECK(events->videoClosed == 1);
+  CHECK(events->audioOpened == 1);
+  CHECK(events->audioClosed == 0);
+
+  // An unset width (still to derive) never borrows.
+  Config unset = wider;
+  unset.setSubsampleWidth(0);
+  REQUIRE(host.reloadInputs(registry, unset, dir.path, &both, error));
+  CHECK(events->videoOpened == 3);
+  CHECK(events->videoClosed == 2);
+  host.shutdown();
 }
 
 

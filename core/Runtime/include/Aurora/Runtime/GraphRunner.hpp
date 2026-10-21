@@ -71,8 +71,10 @@ namespace Aurora::Runtime
     // subsampleWidth from the display, hints the capture width. Both kinds:
     // reconciles and persists each output's zone map against its live
     // zoneIds(), then loads the built-in graph. Throws std::runtime_error if
-    // the graph fails to load.
-    void init();
+    // the graph fails to load. `videoReady`: the video input is already open on
+    // the configured monitor and width (carried over from a running pipeline),
+    // so neither is set again (Aurora-4xqt.1).
+    void init(bool videoReady = false);
 
     // One tick of the graph with nominal dt seconds.
     void tick(float dt);

@@ -3,8 +3,9 @@
 Id: 4xqt1-input-rebuild-keeps-outputs
 
 D0a of [[sequence-d-planning]]. Code and core tests done, core suite 415/415 on
-Windows Debug. Bead stays open: per-OS capture recheck and the gate's audio
-step are not yet shown (see Resume).
+Windows Debug, then 420/420 on the WSL tree after the input carry-over below.
+Bead stays open: the Mac and Linux capture rechecks and gate runs are not yet
+shown (see Resume).
 
 ## Built
 
@@ -30,6 +31,18 @@ step are not yet shown (see Resume).
   argument, the three app `main.cpp` files updated (Mac and Linux not rebuilt).
 - Gate: the both-input step asserted `409 cannot_test`. It now starts the test,
   checks the state, reverts, then applies as before.
+- Input carry-over (second pass): `reloadInputs` also reuses an input the running
+  pipeline has open, so a test start or revert reopens no screen capture (a
+  Wayland picker, a Mac stream start). `PipelineBuildOverrides::inputsFrom`;
+  `build` borrows a video input only when input name, monitor, a non-zero
+  subsample width and the audio sink all match the running pipeline's applied
+  Config, else opens a fresh one. A borrowed video input skips `init`, monitor
+  selection and the width hint (`GraphRunner::init(videoReady)`). `adoptInputsFrom`
+  moves ownership at the swap, like outputs.
+- Parking: a test (`graph != nullptr`) keeps an input its graph does not use open
+  in `m_parkedVideo`/`m_parkedAudio`, so the revert takes it back. Without it an
+  audio-only test from a video-live state closed the capture and the revert
+  reopened it. A revert and a plain reload do not park.
 
 ## Decisions
 
@@ -45,13 +58,28 @@ step are not yet shown (see Resume).
 - Apply's fallback reload still re-inits outputs (existing test asserts it);
   moving it onto `reloadInputs` is a one-line change if wanted.
 
+- Gate (Sequence D additions, `sequence_c_gate.py`, 9 steps): the fake bridge
+  serves `GET /dev/stream-counts`, a start per Hue output init. The both-input
+  step previews the both-input draft from a video-live state, then asserts the
+  counts hold still across test start and revert (a plain `/api/reload` moves
+  them 1 to 2 starts and 0 to 1 stops, run as a control), applies with
+  `X-Aurora-Client: mcp` and checks `mcpEffectId`, and the restart step checks
+  it survives (D0b). A new step asserts the preview summary reads a dark draft
+  as still (change 0.000) and an LFO draft as reacting (change 0.214, spread 0.93)
+  (D0e).
+
 ## Findings
 
 - Zone edits landing between the build and the swap are lost to the new runner's
   copy of the zone map (it loaded at build). Window is the capture-init time.
-- Gate 5/8 steps run on Windows with the change. `audio reaches the lights`
-  fails identically on the unmodified code on this box today (last quiet level
-  1.0 and 0.42): the loopback capture hears whatever else is playing.
+- Gate 5/8 steps ran on Windows with the first pass. `audio reaches the lights`
+  failed identically on the unmodified code on this box (last quiet level 1.0 and
+  0.42): the loopback capture hears whatever else is playing. A rerun with the
+  box quiet passed 9/9 (tone 1.00, quiet 0.03 twice), so that was the box.
+- The fake-Hue stack cannot show a reopened screen capture, only outputs (stream
+  counts). Input reuse is shown by the core tests (open and close counts on the
+  fake inputs, no width hint). The Wayland picker needs a real portal, or
+  `tools/fake-xdg-portal` counting CreateSession calls.
 
 ## Lessons
 
@@ -59,8 +87,14 @@ step are not yet shown (see Resume).
 
 ## Resume
 
-- Gate on a quiet box (nothing else playing): expect 8/8 on Windows, then rerun
-  on Mac and Linux.
+- Rebuild the app on Mac and Linux (three app `main.cpp` files changed in the
+  first pass, never rebuilt there) and run the gate: expect 9/9 on a quiet box.
 - Per-OS capture recheck when a preview adds video: Wayland portal prompt on
   Linux, macOS screen permission, Windows second duplication of the monitor.
+  Still opens a new capture by design: a preview needing video while audio is
+  live, and a test needing video from an audio-live state (the revert then
+  closes it). On Wayland each shows the picker until `Aurora-w6no` stores the
+  restore token.
+- Mac: a both-input test from video-live should show no screen-recording
+  restart and no new TCC prompt, only the audio input opening.
 - Then `bd close Aurora-4xqt.1` with the INDEX row updated to closed.

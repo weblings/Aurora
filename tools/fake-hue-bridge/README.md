@@ -84,6 +84,11 @@ the NUX pairing wait-state without restarting the fake: start with
 `--link-button not-pressed`, reach the pairing screen, then press the
 button straight from devtools and hit Try again.
 
+`GET /dev/stream-counts` returns `{"start": n, "stop": n}`, how many
+stream start/stop actions the fake has seen. Aurora sends a start per
+output init, so a count that holds still across a pipeline change shows no
+Hue re-handshake (the Sequence D gate reads it).
+
 Same-origin convenience route on the app daemon (no CORS/cert friction):
 it forwards to the fake's `/dev/link-button`. Only registered when the
 daemon runs with `AURORA_DEV_FAKE_HUE` set -- production builds never

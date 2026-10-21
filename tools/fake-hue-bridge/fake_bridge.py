@@ -20,6 +20,7 @@ import json
 import ssl
 import subprocess
 import sys
+import threading
 import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -82,6 +83,11 @@ class Handler(BaseHTTPRequestHandler):
 
         if route == "/dev/link-button":
             self._send_json(self._link_button_state())
+        elif route == "/dev/stream-counts":
+            # How many start/stop actions arrived: a start per output init, so a
+            # count that holds still shows no Hue re-handshake.
+            with self.server.counts_lock:
+                self._send_json(dict(self.server.stream_counts))
         elif route == "/api/0/config":
             self._send_json(fixtures.config_response())
         elif route == "/clip/v2/resource/entertainment_configuration":
@@ -142,6 +148,9 @@ class Handler(BaseHTTPRequestHandler):
                                 status=404)
                 return
             action = body.get("action", "")
+            if action in ("start", "stop"):
+                with self.server.counts_lock:
+                    self.server.stream_counts[action] += 1
             if action == "start":
                 self.server.stream_status[conf_id] = "active"
             elif action == "stop":
@@ -181,6 +190,8 @@ def main():
                           "stall_lights": set(args.stall_light),
                           "stall_seconds": args.stall_seconds}
     server.stream_status = {c["id"]: "inactive" for c in fixtures.CONFIGS}
+    server.stream_counts = {"start": 0, "stop": 0}
+    server.counts_lock = threading.Lock()
 
     context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
     context.load_cert_chain(str(CERT_FILE), str(KEY_FILE))
