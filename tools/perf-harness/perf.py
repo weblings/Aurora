@@ -287,6 +287,37 @@ def stop(p):
 
 # ---- one measured case ----
 
+CPUFREQ = Path("/sys/devices/system/cpu")
+
+
+def read_cpufreq():
+    """(governor, [cur MHz per cpu]) from sysfs cpufreq (no root needed); (None, []) when unavailable."""
+    govs, mhz = set(), []
+    for d in CPUFREQ.glob("cpu[0-9]*/cpufreq"):
+        try:
+            mhz.append(int((d / "scaling_cur_freq").read_text()) / 1000)
+            govs.add((d / "scaling_governor").read_text().strip())
+        except (OSError, ValueError):
+            pass
+    return ("/".join(sorted(govs)) or None), mhz
+
+
+def sleep_sampling_freq(seconds, interval=1.0):
+    """Sleep `seconds`, sampling the CPU governor and mean frequency; returns (governor, mean MHz) or (None, None)."""
+    govs, samples = set(), []
+    end = time.monotonic() + seconds
+    while True:
+        gov, mhz = read_cpufreq()
+        if mhz:
+            govs.add(gov)
+            samples.append(statistics.mean(mhz))
+        left = end - time.monotonic()
+        if left <= 0:
+            break
+        time.sleep(min(interval, left))
+    return ("/".join(sorted(govs)) if govs else None), (statistics.mean(samples) if samples else None)
+
+
 def measure(pid, seconds, settle):
     time.sleep(settle)
     before = len(stats_lines(pid))
@@ -295,13 +326,14 @@ def measure(pid, seconds, settle):
     time.sleep(0.5)  # SSE connect
     counter.count = counter.changed = 0
     c0, t0 = cpu_seconds(pid), time.monotonic()
-    time.sleep(seconds)
+    governor, freq_mhz = sleep_sampling_freq(seconds)
     c1, t1 = cpu_seconds(pid), time.monotonic()
     counter.run_flag = False
     wall = t1 - t0
     rows = [tuple(map(float, g[1:])) for g in stats_lines(pid)[before:]]  # [ticks, s, hz, vavg, vmax, aavg, amax, budget]
     res = {"cpu_pct": 100 * (c1 - c0) / wall, "frames_per_s": counter.count / wall,
-           "changed_per_s": counter.changed / wall, "windows": len(rows)}
+           "changed_per_s": counter.changed / wall, "windows": len(rows),
+           "cpu_governor": governor, "cpu_freq_mhz": freq_mhz}
     if rows:
         res.update(hz=statistics.mean(r[2] for r in rows),
                    video_avg=statistics.mean(r[3] for r in rows), video_max=max(r[4] for r in rows),
@@ -401,7 +433,8 @@ def fmt_displays(displays):
 
 
 def fmt(r):
-    cells = [f"{r['cpu_pct']:5.1f}%", f"{r['frames_per_s']:6.1f}"]
+    f = r.get("cpu_freq_mhz")
+    cells = [f"{r['cpu_pct']:5.1f}%", f"{f / 1000:.2f} GHz {r['cpu_governor']}" if f else "n/a", f"{r['frames_per_s']:6.1f}"]
     if "hz" in r:
         cells += [f"{r['hz']:5.1f}", f"{r['video_avg']:6.2f}/{r['video_max']:7.2f}",
                   f"{r['audio_avg']:5.2f}/{r['audio_max']:6.2f}", f"{r['budget']:.2f}"]
@@ -488,7 +521,7 @@ def main():
     print(f"hardware: {hw['cpu']} ({hw['logical_cores']} logical) | GPU: {'; '.join(hw['gpu'])} | {hw['os']} | build: {build}")
     if hw.get("displays"):
         print(f"displays: {fmt_displays(hw['displays'])}")
-    head = ["mode", "content", "CPU", "frames/s", "Hz", "video avg/max ms", "audio avg/max ms", "budget"]
+    head = ["mode", "content", "CPU", "freq/governor", "frames/s", "Hz", "video avg/max ms", "audio avg/max ms", "budget"]
     rows = [[r["mode"], r["content"]] + fmt(r) for r in results]
     widths = [max(len(str(x)) for x in col) for col in zip(head, *rows)]
     for row in [head] + rows:

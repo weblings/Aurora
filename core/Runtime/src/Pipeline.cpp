@@ -845,6 +845,7 @@ namespace Aurora::Runtime
 
   void PipelineHost::_publishBuiltLocked()
   {
+    m_captureError.clear();
     std::vector<HostError> errors;
     if(m_pipeline && !m_pipeline->summary().fallbackReason.empty()){
       // After the build, not before: a successful build clears held errors,
@@ -1028,6 +1029,20 @@ namespace Aurora::Runtime
     if(!m_pipeline){ return Runtime::tickIntervalSeconds(); }
     const double interval = m_pipeline->tickIntervalSeconds();
     m_pipeline->tick(static_cast<float>(interval));
+
+    std::string captureError = m_pipeline->captureError();
+    if(captureError != m_captureError){
+      if(captureError.empty()){
+        std::vector<HostError> errors = m_status.errors;
+        errors.erase(std::remove_if(errors.begin(), errors.end(),
+          [](const HostError& e){ return e.source == "video_capture"; }), errors.end());
+        _publishStatusLocked(std::move(errors));
+      }
+      else{
+        _setErrorLocked("video_capture", captureError);
+      }
+      m_captureError = std::move(captureError);
+    }
     return interval;
   }
 

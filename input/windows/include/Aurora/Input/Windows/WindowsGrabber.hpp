@@ -6,6 +6,8 @@
 #include <cstdint>
 #include <exception>
 #include <mutex>
+#include <optional>
+#include <string>
 #include <thread>
 
 #include <d3d11.h>
@@ -58,6 +60,7 @@ namespace Aurora::Input::Windows
     void selectMonitor(unsigned monitorId) override;
     void setCaptureWidthHint(unsigned width) override;
     std::uint64_t frameSerial() const override;
+    std::string captureError() const override;
     void grabFrameSubsample(Contracts::ImageData& imageData) override;
 
   protected:
@@ -70,6 +73,7 @@ namespace Aurora::Input::Windows
     bool _captureOnce();
     void _stopCapture();
     bool _ensureDuplication();
+    void _noteDuplicationFailure(const char* call, HRESULT hr);
     void _releaseDuplication();
     void _refreshSdrWhiteScale();
     // Rotates, then hands the frame to the tick thread with a new serial.
@@ -110,6 +114,11 @@ namespace Aurora::Input::Windows
     // True once this duplication has produced an image (capture thread only).
     bool m_hasDesktopImage = false;
     std::exception_ptr m_captureError;
+    // Start of the current unbroken run of failed duplication attempts
+    // (capture thread only); the message is read by the tick thread.
+    std::optional<std::chrono::steady_clock::time_point> m_duplicationFailingSince;
+    mutable std::mutex m_failureMutex;
+    std::string m_duplicationFailure;
     // Serial of the frame last handed out (tick thread only).
     std::uint64_t m_grabbedSerial = 0;
   };

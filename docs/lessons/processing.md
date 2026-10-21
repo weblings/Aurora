@@ -291,3 +291,27 @@ omits it, and the G2d parity gate would catch it late.
 overlay source (`ConfigData` / `ControlDescriptorTables`, the values the
 built-in graph overlays), not the settings struct. Note the divergence in
 a comment so the next reader doesn't "simplify" it back.
+
+---
+
+## Moving an INTER_AREA downscale earlier in the pipeline saves nothing once every path reads the full buffer
+Tags: processing, opencv, interpolation, performance
+Applies-when: scoping a decimate-on-copy (or any ratio change) to cut capture CPU
+
+OpenCV's INTER_AREA fast path is about exact integer ratios, but the win
+only shows against a fractional *near-integer* target: Wayland's 1920->512
+(3.75x) took ~29 ms/frame while 1920->640 (3x) took ~3 ms
+([[wqzp4-linux-decimate-on-copy]]). At large ratios both shapes are
+memory-bound full-buffer reads: X11's old 3840->48 rescale (exact 80x,
+already on the fast path) cost ~12 ms/tick and the new k=10 decimate
+3840->384 cost 11.1 ms/tick on MediaServer (i5-7600K, 33 MB frames) --
+same-day perf-harness 62.8% -> 63.0% of one core, tick wall 17.5 -> 17.0 ms
+(Aurora-u5k0). Wayland's real win was tick latency (10.8 -> 1.1 ms) from
+doing the read on the PipeWire callback thread, which a synchronous grab
+API like X11's cannot replicate; its CPU only fell 64% -> 50%.
+
+**Fix:** when scoping a decimate-on-copy, compare the bytes each path
+reads, not the ratios: if the old rescale already hits the integer fast
+path, the saving is at most the difference between two memory-bound reads
+(~zero here). Budget the real fix differently (fewer grabs, static-frame
+reuse, smaller source frames) instead of a ratio change.

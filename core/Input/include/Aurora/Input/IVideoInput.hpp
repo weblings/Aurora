@@ -67,6 +67,13 @@ namespace Aurora::Input
       return true;
     }
 
+    // Non-empty while capture keeps failing past its own transient retries
+    // (Aurora-8u3p); the host shows it as a "video_capture" error. Thread-safe.
+    virtual std::string captureError() const
+    {
+      return {};
+    }
+
     virtual Resolution displayResolution() const = 0;
     virtual RefreshRate displayRefreshRate() const = 0;
 

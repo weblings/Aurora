@@ -101,6 +101,9 @@ namespace
     // destroyed since: a reused input shows as no new open.
     int videoOpened{0}, videoClosed{0}, audioOpened{0}, audioClosed{0};
 
+    // What FakeVideoInput::captureError() reports.
+    std::string captureError;
+
     bool has(const std::string& line) const
     {
       return std::find(lines.begin(), lines.end(), line) != lines.end();
@@ -138,6 +141,7 @@ namespace
     bool hasCustomScreenManagement() const override { return true; }
     Resolution displayResolution() const override { return {4, 2}; }
     RefreshRate displayRefreshRate() const override { return 30; }
+    std::string captureError() const override { return m_events ? m_events->captureError : std::string{}; }
 
     void grabFrameSubsample(ImageData& imageData) override
     {
@@ -2285,6 +2289,52 @@ TEST_CASE("PipelineHost conditions hold in every host state and survive builds a
   CHECK_FALSE(host.clearCondition("other"));
   REQUIRE(host.conditions().size() == 1);
   CHECK(host.conditions()[0].source == "local_network");
+  host.shutdown();
+}
+
+
+TEST_CASE("PipelineHost holds the video input's captureError as a video_capture error (Aurora-8u3p)", "[PipelineHost]")
+{
+  ScopedTempDir dir("host-capture-error");
+  auto events = std::make_shared<Events>();
+  auto registry = makeRegistry(events);
+  PipelineHost host(nullptr, {});
+  std::string error;
+  REQUIRE(host.reload(registry, videoConfig(), dir.path, error));
+
+  host.tick();
+  CHECK(host.status().errors.empty());
+
+  events->captureError = "Screen capture unavailable";
+  host.tick();
+  auto status = host.status();
+  CHECK(status.state == HostState::Running);
+  REQUIRE(status.errors.size() == 1);
+  CHECK(status.errors[0].source == "video_capture");
+  CHECK(status.errors[0].message == "Screen capture unavailable");
+
+  // Dismissed stays dismissed while the same failure persists.
+  CHECK(host.dismissError("video_capture", status.errors[0].id) == PipelineHost::DismissResult::Removed);
+  host.tick();
+  CHECK(host.status().errors.empty());
+
+  // Recovery and recurrence re-raise it; recovery alone clears it.
+  events->captureError.clear();
+  host.tick();
+  events->captureError = "Screen capture unavailable";
+  host.tick();
+  REQUIRE(host.status().errors.size() == 1);
+  events->captureError.clear();
+  host.tick();
+  CHECK(host.status().errors.empty());
+
+  // A rebuild forgets the held message, so a standing failure shows again.
+  events->captureError = "Screen capture unavailable";
+  host.tick();
+  REQUIRE(host.reload(registry, videoConfig(), dir.path, error));
+  CHECK(host.status().errors.empty());
+  host.tick();
+  CHECK(host.status().errors.size() == 1);
   host.shutdown();
 }
 

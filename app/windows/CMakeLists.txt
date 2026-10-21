@@ -107,10 +107,12 @@ endif()
 # Aurora-05r: app.rc embeds app.ico (generated from
 # assets/brand/Logo_Square_Light.png) as the exe icon. Side-by-side in
 # this dir, so rc.exe/windres resolve ICON "app.ico" with no extra
-# include path.
+# include path. app.manifest (Aurora-8u3p) declares per-monitor-v2 DPI
+# awareness; MSVC merges it into the linker-generated manifest.
 add_executable(aurora-app-windows
   src/main.cpp
   app.rc
+  app.manifest
   "${_AURORA_EMBEDDED_WEBROOT_HEADER}"
   ${_AURORA_GRAPH_EDITOR_HEADER}
 )
