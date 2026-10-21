@@ -4,6 +4,7 @@
 
 #include <Aurora/Network/Http/Server/HttpServer.hpp>
 #include <Aurora/Network/Http/Server/Pairing.hpp>
+#include <Aurora/Runtime/ApplyRoutes.hpp>
 #include <Aurora/Runtime/ConfigStore.hpp>
 #include <Aurora/Runtime/EffectStore.hpp>
 #include <Aurora/Runtime/Graph/BuiltInGraphs.hpp>
@@ -135,8 +136,12 @@ namespace Aurora::Runtime
           return;
         }
 
-        ConfigStore(configRoot).update([&id](Config& config){
+        const bool fromMcp = req.client == kMcpClient && !id.empty() && !isBuiltInEffectId(id);
+        ConfigStore(configRoot).update([&id, fromMcp](Config& config){
           config.setActiveEffectId(id);
+          if(fromMcp){
+            config.setMcpEffectId(id);
+          }
           return true;
         });
         const std::string reloadError = onConfigChanged ? onConfigChanged() : std::string{};
@@ -172,7 +177,11 @@ namespace Aurora::Runtime
           if(wasActive){
             config.setActiveEffectId("");
           }
-          return wasActive;
+          const bool wasMcp = config.mcpEffectId() == id;
+          if(wasMcp){
+            config.setMcpEffectId("");
+          }
+          return wasActive || wasMcp;
         });
         store.remove(id);
 

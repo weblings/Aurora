@@ -34,11 +34,12 @@ namespace Aurora::Runtime
   // onConfigChanged. A custom that exists but fails to load still answers
   // 200: the built-in runs and /api/state holds the effect_fallback error.
   // Answers {"succeeded": true, "activeEffectId", "effect", "requestedEffect"}
-  // plus "reloadError" if the reload failed.
+  // plus "reloadError" if the reload failed. With X-Aurora-Client: mcp and a
+  // custom id, the id also becomes Config's mcpEffectId.
   //
   // DELETE /api/effects/<id>: removes a custom effect. When it was the active
   // one, activeEffectId is cleared first and the pipeline reloads onto the
-  // built-in ("fellBack": true). 400 "builtin_effect" for a built-in, 404
+  // built-in ("fellBack": true); it also clears mcpEffectId when that named it. 400 "builtin_effect" for a built-in, 404
   // "unknown_effect". Answers {"succeeded": true, "deleted": id, "fellBack":
   // bool} plus "reloadError".
   //

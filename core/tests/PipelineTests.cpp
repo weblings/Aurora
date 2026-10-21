@@ -967,6 +967,7 @@ TEST_CASE("GET /api/state reports paused and the running pipeline's capabilities
     {"state", "idle"},
     {"effect", nullptr},
     {"requestedEffect", nullptr},
+    {"mcpEffectId", nullptr},
     {"source", {{"video", nullptr}, {"audio", nullptr}}},
     {"errors", nlohmann::json::array()},
     {"conditions", nlohmann::json::array()},
@@ -1090,6 +1091,7 @@ TEST_CASE("GET /api/state reports a null audioDevicesUrl when the build has none
   auto result = getWithRetry(client, "/api/state");
   REQUIRE(result);
   CHECK(nlohmann::json::parse(result->body)["audioDevicesUrl"].is_null());
+  CHECK(nlohmann::json::parse(result->body)["mcpEffectId"].is_null());
 
   server.stop();
   serverThread.join();
@@ -2793,6 +2795,16 @@ TEST_CASE("Effects routes list, read, switch and delete (Aurora-52oz.1)", "[Effe
   CHECK(back["effect"] == "builtin.video");
   CHECK(back["requestedEffect"] == "builtin.video");
 
+  // Only an MCP-marked switch to a custom effect records mcpEffectId (Aurora-4xqt.2).
+  CHECK(ConfigStore(dir.path).load().mcpEffectId().empty());
+  const httplib::Headers mcp{{"X-Aurora-Client", "MCP"}};
+  REQUIRE(client.Put("/api/effects", mcp, R"({"activeEffectId": "builtin.video"})", "application/json")->status == 200);
+  CHECK(ConfigStore(dir.path).load().mcpEffectId().empty());
+  REQUIRE(client.Put("/api/effects", mcp, R"({"activeEffectId": "mine"})", "application/json")->status == 200);
+  CHECK(ConfigStore(dir.path).load().mcpEffectId() == "mine");
+  REQUIRE(put(R"({"activeEffectId": "builtin.video"})")->status == 200);
+  CHECK(ConfigStore(dir.path).load().mcpEffectId() == "mine");
+
   // Deleting the active custom falls back to the built-in.
   REQUIRE(put(R"({"activeEffectId": "mine"})")->status == 200);
   CHECK(client.Delete("/api/effects/builtin.video")->status == 400);
@@ -2803,6 +2815,7 @@ TEST_CASE("Effects routes list, read, switch and delete (Aurora-52oz.1)", "[Effe
   CHECK(nlohmann::json::parse(deleted->body) == nlohmann::json{{"succeeded", true}, {"deleted", "mine"}, {"fellBack", true}});
   CHECK_FALSE(store.exists("mine"));
   CHECK(ConfigStore(dir.path).load().activeEffectId() == "");
+  CHECK(ConfigStore(dir.path).load().mcpEffectId().empty());
   CHECK(host.summary().effect == "builtin.video");
   CHECK(host.status().errors.empty());
 
@@ -3227,6 +3240,30 @@ TEST_CASE("Apply refuses an invalid draft and leaves disk and the live effect un
   CHECK(h.client->Post("/api/graph/apply", "not json", "application/json")->status == 400);
   CHECK(EffectStore(h.dir.path).list().empty());
   CHECK(ConfigStore(h.dir.path).load().activeEffectId() == "");
+}
+
+
+TEST_CASE("Only an MCP-marked apply records mcpEffectId, and it survives a config reload (Aurora-4xqt.2)", "[Apply]")
+{
+  ApplyHarness h("apply-mcp", tunedVideoConfig());
+  h.putDraft("editor", Graph::builtInVideoGraph({"out-a"}));
+
+  REQUIRE(h.apply({{"session", "editor"}, {"id", "plain"}})->status == 200);
+  CHECK(ConfigStore(h.dir.path).load().mcpEffectId().empty());
+
+  const httplib::Headers mcp{{"X-Aurora-Client", "mcp"}};
+  auto markedApply = [&](const std::string& id){
+    return h.client->Post("/api/graph/apply", mcp,
+      nlohmann::json{{"session", "editor"}, {"id", id}}.dump(), "application/json");
+  };
+  REQUIRE(markedApply("first")->status == 200);
+  CHECK(ConfigStore(h.dir.path).load().mcpEffectId() == "first");
+  REQUIRE(markedApply("second")->status == 200);
+  CHECK(ConfigStore(h.dir.path).load().mcpEffectId() == "second");
+
+  // A refused apply leaves the marker alone.
+  CHECK(h.client->Post("/api/graph/apply", mcp, R"({"session": "none", "id": "third"})", "application/json")->status == 404);
+  CHECK(ConfigStore(h.dir.path).load().mcpEffectId() == "second");
 }
 
 

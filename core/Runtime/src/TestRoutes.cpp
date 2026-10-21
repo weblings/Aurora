@@ -221,7 +221,7 @@ namespace Aurora::Runtime
           return;
         }
         nlohmann::json out;
-        const int status = applyDraft(session, id, out);
+        const int status = applyDraft(session, id, req.client, out);
         if(status == 200){
           test->confirm(session);
         }

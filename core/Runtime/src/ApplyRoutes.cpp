@@ -63,7 +63,7 @@ namespace Aurora::Runtime
     auto coalescer = std::make_shared<ReloadCoalescer>(std::move(applyLive));
 
     ApplyDraftFn apply = [&pipelineHost, &registry, configRoot, drafts, nodes, coalescer](
-      const std::string& session, const std::string& id, nlohmann::json& body){
+      const std::string& session, const std::string& id, const std::string& client, nlohmann::json& body){
       if(!DraftStore::validSession(session)){
         body = {{"succeeded", false}, {"error", "invalid_session"}};
         return 400;
@@ -91,8 +91,11 @@ namespace Aurora::Runtime
         body = {{"succeeded", false}, {"error", "write_failed"}, {"message", writeError}};
         return 500;
       }
-      ConfigStore(configRoot).update([&id](Config& config){
+      ConfigStore(configRoot).update([&id, &client](Config& config){
         config.setActiveEffectId(id);
+        if(client == kMcpClient){
+          config.setMcpEffectId(id);
+        }
         return true;
       });
 
@@ -127,7 +130,7 @@ namespace Aurora::Runtime
           return;
         }
         nlohmann::json body;
-        const int status = apply(session, id, body);
+        const int status = apply(session, id, req.client, body);
         _reply(res, status, body);
       }
     );

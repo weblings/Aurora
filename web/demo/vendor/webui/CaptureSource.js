@@ -80,7 +80,35 @@ export function flagsMatchMode(state, mode) {
 export function isSwitchConfirmed(putResult, stateAfter, mode) {
   return putResult?.succeeded === true
     && !putResult?.reloadError
+    && !mcpEffectRunning(stateAfter)
     && flagsMatchMode(stateAfter, mode);
+}
+
+// The custom effect an MCP client applied last (Aurora-4xqt.2), or null.
+// The Dashboard shows its third toggle only while this is set.
+export function mcpEffectIdFrom(state) {
+  const id = state?.mcpEffectId;
+  return typeof id === 'string' && id ? id : null;
+}
+
+// Whether that effect is the one running now, so its toggle takes the fill.
+export function mcpEffectRunning(state) {
+  const id = mcpEffectIdFrom(state);
+  return id !== null && state?.effect === id;
+}
+
+// Whether a switch to the MCP effect is confirmed: saved, no reload error,
+// and the pipeline runs it (not its built-in fallback).
+export function isMcpSwitchConfirmed(putResult, stateAfter) {
+  return putResult?.succeeded === true
+    && !putResult?.reloadError
+    && mcpEffectRunning(stateAfter);
+}
+
+// The save behind the MCP toggle: PUT /api/effects with the effect's id.
+// Resolves to the parsed result ({succeeded, reloadError?}).
+export async function putMcpSwitch(id) {
+  return (await fetch('/api/effects', { method: 'PUT', body: JSON.stringify({ activeEffectId: id }) })).json();
 }
 
 // Whether a lingering switch error is stale: the running pipeline is now
@@ -88,6 +116,7 @@ export function isSwitchConfirmed(putResult, stateAfter, mode) {
 // resume/relaunch starting the mode the failed switch saved to config). No
 // state probe or no remembered mode keeps the error. Aurora-tazx.
 export function isSwitchErrorStale(state, errorMode) {
+  if (errorMode === 'mcp') return mcpEffectRunning(state);
   return !!state && !!errorMode && flagsMatchMode(state, errorMode);
 }
 

@@ -12,6 +12,8 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `3ddb-pause-cli` | [log/2026-10-03-3ddb-pause-cli.md](log/2026-10-03-3ddb-pause-cli.md) | Aurora-3ddb: pause/resume, core and CLI only |
 | `3ono-stale-core-test-tree` | [log/2026-10-02-3ono-stale-core-test-tree.md](log/2026-10-02-3ono-stale-core-test-tree.md) | Aurora-3ono: PipelineTests segfault on Windows was a stale build tree |
 | `3qh-mac-capture-width-hint` | [log/2026-10-01-3qh-mac-capture-width-hint.md](log/2026-10-01-3qh-mac-capture-width-hint.md) | Aurora-3qh: Mac video mode resized full-Retina frames every tick |
+| `4xqt1-input-rebuild-keeps-outputs` | [log/2026-10-21-4xqt1-input-rebuild-keeps-outputs.md](log/2026-10-21-4xqt1-input-rebuild-keeps-outputs.md) | Aurora-4xqt.1 (D0a): input-only rebuild keeps outputs, preview owns its extra inputs (paused) |
+| `4xqt2-mcp-effect-toggle` | [log/2026-10-21-4xqt2-mcp-effect-toggle.md](log/2026-10-21-4xqt2-mcp-effect-toggle.md) | Aurora-4xqt.2 (D0b): MCP effect toggle on the Dashboard |
 | `4zr11-floor-wiring` | [log/2026-10-16-4zr11-floor-wiring.md](log/2026-10-16-4zr11-floor-wiring.md) | Brightness floor wiring (Aurora-4zr.11) |
 | `52oz1-custom-effects-storage` | [log/2026-10-20-52oz1-custom-effects-storage.md](log/2026-10-20-52oz1-custom-effects-storage.md) | Aurora-52oz.1: custom effects under effects/, activeEffectId, fallback warning (closed) |
 | `52oz2-graph-source-inputs` | [log/2026-10-20-52oz2-graph-source-inputs.md](log/2026-10-20-52oz2-graph-source-inputs.md) | Aurora-52oz.2: pipeline builds inputs from the graph's source nodes (closed) |
