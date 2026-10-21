@@ -22,8 +22,8 @@ namespace Aurora::Runtime
   // The draft of a session replaces the live effect on the real outputs, in
   // place. One slot: a new test ends the one running. The server puts the
   // live effect back (read fresh from disk) on an explicit revert, once the
-  // confirm window passes, or when heartbeats stop, so a closed tab cannot
-  // strand the lights. A pause, or any rebuild of the pipeline, also ends the
+  // 120 s cap passes (heartbeats keep it alive until then), or when heartbeats
+  // stop, so a closed tab cannot strand the lights. A pause, or any rebuild of the pipeline, also ends the
   // test: the new pipeline starts from disk. Nothing is written to disk.
   //
   // POST /api/graph/test {"session"}: starts a test of that session's draft.

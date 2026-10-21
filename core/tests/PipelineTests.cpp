@@ -3524,9 +3524,9 @@ TEST_CASE("Test on lights reverts at the confirm window and after missed heartbe
   const nlohmann::json draft = Graph::builtInVideoGraph({"out-a"});
   h.putDraft("editor", draft);
 
-  // Heartbeats keep the test alive but the confirm window still ends it.
+  // Heartbeats keep the test alive past 15 s but the cap still ends it.
   REQUIRE(h.start("editor") == 200);
-  for(int i = 0; i < 7; ++i){
+  for(int i = 0; i < 59; ++i){
     h.advance(2000);
     CHECK(h.beat("editor") == 200);
   }
@@ -3674,14 +3674,14 @@ TEST_CASE("GET /api/graph/test reports the running test (Aurora-52oz.5)", "[Ligh
   h.putDraft("editor", Graph::builtInVideoGraph({"out-a"}));
   auto started = h.client->Post("/api/graph/test", nlohmann::json{{"session", "editor"}}.dump(), "application/json");
   auto startBody = nlohmann::json::parse(started->body);
-  CHECK(startBody["confirmWithinMs"] == 15000);
+  CHECK(startBody["confirmWithinMs"] == 120000);
   CHECK(startBody["heartbeatMs"] == 2000);
   CHECK(startBody["revertAfterMs"] == 6000);
 
   h.advance(3000);
   auto running = nlohmann::json::parse(h.client->Get("/api/graph/test")->body);
   CHECK(running["active"] == true);
-  CHECK(running["confirmRemainingMs"] == 12000);
+  CHECK(running["confirmRemainingMs"] == 117000);
   CHECK(running["revertAfterMs"] == 3000);
 }
 
