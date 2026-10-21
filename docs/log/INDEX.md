@@ -240,3 +240,4 @@ Planning docs stay clean: decisions, status, and pointers here only.
 
 | 2026-10-21 | Aurora-4xqt.2 (D0b): `mcpEffectId` in config, set by MCP-marked apply and switch (`X-Aurora-Client: mcp`), cleared on delete, reported in `/api/state`; Dashboard MCP toggle hidden until the first MCP graph. [[4xqt2-mcp-effect-toggle]] | `bd show Aurora-4xqt.2` |
 | 2026-10-21 | Aurora-4xqt.5 (D0e): `GET /api/graph/preview/summary` ticks a draft's preview for N seconds and returns per-zone mean, brightness range and change, so an agent can tell a reacting effect from a frozen one. [[4xqt5-preview-summary]] | `bd show Aurora-4xqt.5` |
+| 2026-10-21 | Aurora-4xqt.3 (D0c): load issues carry `code`, `port`, `param` and `options` (real ports and params, nearest types, allowed enum values); validate, drafts, apply and test return them, `node` and `message` unchanged. [[4xqt3-actionable-validate-errors]] | `bd show Aurora-4xqt.3` |
