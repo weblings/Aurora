@@ -87,8 +87,15 @@ shown (see Resume).
 
 ## Resume
 
-- Rebuild the app on Mac and Linux (three app `main.cpp` files changed in the
-  first pass, never rebuilt there) and run the gate: expect 9/9 on a quiet box.
+- Linux done 2026-10-21 (native): `cmake --build build/linux-app` relinked
+  `bin/Aurora`, core suite 420/420 in `build/core-test`, top-level 143/143,
+  web tests green (`processing`, `audioFeatures`, `colorModel`,
+  `CaptureSource`), gate 9/9 on a quiet box (dark summary 0.000, LFO 0.219
+  spread 0.94, stream starts held at 2 across test/revert, `mcpEffectId`
+  survived restart). Gotcha: the gate launches `build/linux-app/bin/Aurora`,
+  a separate tree from top-level `build` — a stale binary 404s new routes,
+  see [[lesson-build-toolchain]]'s gate-tree entry.
+- Still owed: rebuild the app on Mac and run the gate there.
 - Per-OS capture recheck when a preview adds video: Wayland portal prompt on
   Linux, macOS screen permission, Windows second duplication of the monitor.
   Still opens a new capture by design: a preview needing video while audio is
