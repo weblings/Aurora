@@ -1,4 +1,4 @@
-# Aurora-52oz.8: Sequence C gate on the fake-Hue stack (Mac and Windows done with the audio step, Linux open)
+# Aurora-52oz.8: Sequence C gate on the fake-Hue stack (8/8 with the audio step on Windows, Mac and Linux)
 
 Id: 52oz8-sequence-c-gate
 
@@ -34,9 +34,14 @@ C7 of [[sequence-c-planning]]. Script: `tools/light-viz-relay/sequence_c_gate.py
   reaches a both-input graph and drives its output.
 - Windows rerun with the audio step (`windows-audio` input, loopback capture):
   8/8 PASS in about 25 s. Tone 1.00, quiet 0.03, tone 1.00, quiet 0.04. The
-  tone-never-started control was not run on Windows. Linux needs the default
-  sink monitor and a tone player and has not been run. The acceptance criteria
-  stay open until it is.
+  tone-never-started control was not run on Windows.
+- Linux run with the audio step (`linux-audio` input, default-sink monitor
+  via `pw-play`, 2026-10-21, rebuilt `build/linux-app`, `ctest` 136/136 and
+  core 407/407 green beforehand): 8/8 PASS in about 13 s on two consecutive
+  runs. Tone 1.00, quiet 0.03, tone 1.00, quiet 0.03, twice both times. Stack
+  torn down afterwards, no listeners left on 8000/8215/18245/18443. This
+  closes the Linux half of the 52oz.2 recheck alongside the Mac half above;
+  the gate's acceptance criteria (script passes on all three OSes) are met.
 - The both-input step's result text says "test on lights refused (needs a
   rebuild)". The refusal is intended (see Decisions), so the wording is stale.
 
