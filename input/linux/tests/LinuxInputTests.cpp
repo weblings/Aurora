@@ -4,6 +4,7 @@
 
 #include <Aurora/Input/Linux/DummyGrabber.hpp>
 #include <Aurora/Input/Linux/SessionDispatch.hpp>
+#include <Aurora/Input/Linux/X11Damage.hpp>
 
 using namespace Aurora::Input;
 using namespace Aurora::Input::Linux;
@@ -96,4 +97,104 @@ TEST_CASE("selectBackend respects which backends are actually compiled in", "[Se
 {
   CHECK(selectBackend("wayland", false, /*pipewire*/ false, true) == Backend::Unavailable);
   CHECK(selectBackend("x11", false, true, /*x11*/ false) == Backend::Unavailable);
+}
+
+
+// Pure half of X11Grabber's damage skip (Aurora-1pwk): the drain loop
+// needs a live X server, but the "does this damage touch my monitor?"
+// question is plain rect math.
+
+
+TEST_CASE("damageRectIntersectsMonitor hits overlap and containment", "[X11Damage]")
+{
+  // Partial overlap, containment both ways, identical rects.
+  CHECK(damageRectIntersectsMonitor(100, 100, 50, 50, 0, 0, 3840, 2160));
+  CHECK(damageRectIntersectsMonitor(0, 0, 3840, 2160, 100, 100, 50, 50));
+  CHECK(damageRectIntersectsMonitor(0, 0, 3840, 2160, 0, 0, 3840, 2160));
+  // Single-pixel overlap at the monitor's bottom-right corner.
+  CHECK(damageRectIntersectsMonitor(3839, 2159, 10, 10, 0, 0, 3840, 2160));
+}
+
+
+TEST_CASE("damageRectIntersectsMonitor misses disjoint rects", "[X11Damage]")
+{
+  CHECK_FALSE(damageRectIntersectsMonitor(0, 0, 100, 100, 200, 0, 3840, 2160));
+  CHECK_FALSE(damageRectIntersectsMonitor(0, 3000, 100, 100, 0, 0, 3840, 2160));
+  // Second monitor's damage doesn't touch the first (side-by-side 4K).
+  CHECK_FALSE(damageRectIntersectsMonitor(3900, 100, 50, 50, 0, 0, 3840, 2160));
+  CHECK(damageRectIntersectsMonitor(3900, 100, 50, 50, 3840, 0, 3840, 2160));
+}
+
+
+TEST_CASE("damageRectIntersectsMonitor treats touching edges as no area", "[X11Damage]")
+{
+  CHECK_FALSE(damageRectIntersectsMonitor(3840, 0, 50, 50, 0, 0, 3840, 2160));
+  CHECK_FALSE(damageRectIntersectsMonitor(0, 2160, 50, 50, 0, 0, 3840, 2160));
+}
+
+
+TEST_CASE("damageRectIntersectsMonitor rejects empty rects", "[X11Damage]")
+{
+  CHECK_FALSE(damageRectIntersectsMonitor(100, 100, 0, 50, 0, 0, 3840, 2160));
+  CHECK_FALSE(damageRectIntersectsMonitor(100, 100, 50, -1, 0, 0, 3840, 2160));
+  CHECK_FALSE(damageRectIntersectsMonitor(100, 100, 50, 50, 0, 0, 0, 2160));
+}
+
+
+TEST_CASE("shouldGrabFrame grabs first, caps busy screens, refreshes stale quiet ones", "[X11Damage]")
+{
+  // No frame yet: always grab, even with no damage (first tick skips the
+  // poll, so damaged=false must not veto it).
+  CHECK(shouldGrabFrame(false, false, 1000, 0, 50, 1000));
+  CHECK(shouldGrabFrame(false, true, 1000, 0, 50, 1000));
+  // Busy screen: grab once the interval elapsed (boundary inclusive)...
+  CHECK(shouldGrabFrame(true, true, 1050, 1000, 50, 1000));
+  CHECK(shouldGrabFrame(true, true, 1051, 1000, 50, 1000));
+  // ...and reuse inside it.
+  CHECK_FALSE(shouldGrabFrame(true, true, 1049, 1000, 50, 1000));
+  CHECK_FALSE(shouldGrabFrame(true, true, 1000, 1000, 50, 1000));
+  // Quiet screen: reuse until maxStaleMs, then grab anyway (drivers that
+  // under-report damage still refresh).
+  CHECK_FALSE(shouldGrabFrame(true, false, 1999, 1000, 50, 1000));
+  CHECK(shouldGrabFrame(true, false, 2000, 1000, 50, 1000));
+}
+
+
+TEST_CASE("X11GrabGate keeps damage from a capped tick pending until a grab", "[X11Damage]")
+{
+  // Aurora-es51: damage drained on a tick the cap blocks used to be
+  // dropped, so a static screen re-served the pre-change frame forever.
+  X11GrabGate gate(50, 1000);
+  REQUIRE(gate.shouldGrab(true, 1000));
+  gate.markGrabbed(1000);
+
+  // The last change of a burst lands inside the cap window: blocked...
+  CHECK_FALSE(gate.shouldGrab(true, 1020));
+  // ...and later ticks carry no new damage, but it is still pending.
+  CHECK_FALSE(gate.shouldGrab(false, 1040));
+  CHECK(gate.shouldGrab(false, 1050));
+  gate.markGrabbed(1050);
+
+  // Consumed: quiet ticks reuse again until the staleness refresh.
+  CHECK_FALSE(gate.shouldGrab(false, 1100));
+  CHECK_FALSE(gate.shouldGrab(false, 2049));
+  CHECK(gate.shouldGrab(false, 2050));
+}
+
+
+TEST_CASE("X11GrabGate reset forces the next grab and clears the latch", "[X11Damage]")
+{
+  X11GrabGate gate(50, 1000);
+  CHECK_FALSE(gate.hasFrame());
+  REQUIRE(gate.shouldGrab(false, 1000));
+  gate.markGrabbed(1000);
+  CHECK(gate.hasFrame());
+  CHECK_FALSE(gate.shouldGrab(true, 1010));
+
+  gate.reset();
+  CHECK_FALSE(gate.hasFrame());
+  CHECK(gate.shouldGrab(false, 1011));
+  gate.markGrabbed(1011);
+  // The pre-reset damage didn't survive into the new monitor's cache.
+  CHECK_FALSE(gate.shouldGrab(false, 1100));
 }

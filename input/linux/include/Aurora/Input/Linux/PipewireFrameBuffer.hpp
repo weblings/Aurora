@@ -8,7 +8,10 @@
 
 // Pure raw-buffer -> ImageData conversion, decoupled from spa_buffer/pw_buffer
 // so it's testable without libpipewire installed. See PipewireGrabber's
-// _onStreamProcess for the real mmap/pw_buffer plumbing around this.
+// _onStreamProcess for the real mmap/pw_buffer plumbing around this, and
+// X11Grabber::grabFrameSubsample for the XShm caller -- both copy out of a
+// capture buffer that is invalid (Pipewire queue-back) or reused (XShm)
+// right after the copy.
 namespace Aurora::Input::Linux
 {
   // Integer factor to shrink captured frames by for a consumer hint: the
@@ -26,27 +29,50 @@ namespace Aurora::Input::Linux
   }
 
 
-  // Clones a 4-byte-per-pixel buffer into an owned ImageData -- the clone
-  // matters, since Pipewire's buffer becomes invalid after it's queued back.
-  // stride == 0 means tightly packed (width * 4 bytes/row). format must match
-  // what was actually negotiated (RGBA/RGBx -> RGBA, BGRx -> BGRA) --
-  // hardcoding RGBA regardless of negotiation mistags whichever of those the
-  // compositor actually picked, same class of bug X11Grabber had.
+  // Number of 2x server-side halvings (X11 XRender) to apply before reading,
+  // keeping the result at least as wide as captureDecimation's floor
+  // (hint * 8, min 256 px). Each halving is an exact 2x2 box average, so it
+  // matches INTER_AREA at the same ratio. 0 = read the full frame (no hint,
+  // or a small screen). Capped so a tiny hint can't build a deep chain.
+  inline int serverHalvings(unsigned hint, int sourceWidth)
+  {
+    if(hint == 0 || sourceWidth <= 0){
+      return 0;
+    }
+    const int floorWidth = static_cast<int>((std::max)(hint * 8u, 256u));
+    int halvings = 0;
+    while(halvings < 4 && (sourceWidth >> (halvings + 1)) >= floorWidth){
+      ++halvings;
+    }
+    return halvings;
+  }
+
+  // Clones a raw capture buffer into an owned ImageData -- the clone
+  // matters, since the source buffer becomes invalid (Pipewire queue-back)
+  // or is reused (XShm) right after. stride == 0 means tightly packed
+  // (width * bytesPerPixel bytes/row). format must match the real memory
+  // layout -- Pipewire: whatever was actually negotiated (RGBA/RGBx ->
+  // RGBA, BGRx -> BGRA), X11: BGRA/BGR. Hardcoding RGBA regardless
+  // mistags whichever layout the source actually delivered, the same
+  // class of bug X11Grabber once had.
   // decimation > 1 area-averages straight from the buffer by that integer
   // factor instead of cloning full size (a < decimation px edge remainder is
   // cropped so INTER_AREA stays on its exact-ratio fast path).
+  // bytesPerPixel is 4 (Pipewire, X11 32bpp) or 3 (X11 24bpp).
   inline Contracts::ImageData toOwnedImage(
     const uint8_t* data, int width, int height, size_t stride,
     Contracts::PixelFormat format = Contracts::PixelFormat::RGBA,
-    int decimation = 1
+    int decimation = 1,
+    int bytesPerPixel = 4
   )
   {
-    if(data == nullptr || width <= 0 || height <= 0){
+    if(data == nullptr || width <= 0 || height <= 0 || (bytesPerPixel != 4 && bytesPerPixel != 3)){
       return {};
     }
 
-    size_t rowStride = stride > 0 ? stride : static_cast<size_t>(width) * 4;
-    cv::Mat view(height, width, CV_8UC4, const_cast<uint8_t*>(data), rowStride);
+    const int cvType = bytesPerPixel == 4 ? CV_8UC4 : CV_8UC3;
+    size_t rowStride = stride > 0 ? stride : static_cast<size_t>(width) * static_cast<size_t>(bytesPerPixel);
+    cv::Mat view(height, width, cvType, const_cast<uint8_t*>(data), rowStride);
 
     if(decimation > 1 && width >= decimation && height >= decimation){
       const cv::Rect exact(0, 0, width / decimation * decimation, height / decimation * decimation);

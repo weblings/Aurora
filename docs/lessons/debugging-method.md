@@ -1212,6 +1212,30 @@ Aurora-cgr (tick loop holding the host mutex back to back) was proven on real ha
 
 **Fix:** pull the timing decision into a pure function and assert its output with literal bounds (not the same constant it uses). Keep the contention test as a smoke check, and verify on hardware.
 
+---
+
+## CPU% comparisons need matched CPU frequency -- DVFS inflates light-load runs
+Tags: debugging, measurement, performance, dvfs, governors
+Applies-when: comparing CPU% across perf runs, or when an optimization's measured win looks too small (or inverted)
+
+Aurora-1pwk: X11 grabs capped to ~14/s on a static desktop measured 39.7%
+CPU at 25 ms per grab -- worse per grab than the uncapped 11.1 ms, and
+static (39.7%) cost more than moving (20.4%). The code was correct: with
+intel_pstate/powersave the light-load run sat near 1.7 GHz while the
+heavy-load runs sat near 3.8 GHz, and /proc CPU time counts wall-clock
+scheduler ticks, not cycles, so the same work billed ~2x more CPU%.
+Per-grab cost even drifted 18 -> 27 ms within one run as the governor
+settled downward. The frequency-independent metric -- grabs/s, 55 ->
+14-20 -- showed the real 3-4x work reduction underneath.
+
+**Fix:** compare CPU% only across runs under the same governor and load
+regime (every run here was powersave-unpinned, so the before/after
+headlines still compare fairly). When a result inverts or a per-unit cost
+drifts within a run, read scaling_cur_freq (readable without root) before
+doubting the code. Pinning to performance needs root.
+
+---
+
 ## A pass on "applied, restarted, lit" does not show a signal reaches the output
 Tags: verification, gate, e2e, control-run, stimulus, audio
 Applies-when: writing or trusting an end-to-end gate that claims an input (audio, video, sensor) feeds a graph or pipeline

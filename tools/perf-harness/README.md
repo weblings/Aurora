@@ -15,6 +15,10 @@ python3 tools/perf-harness/perf.py --modes video,both --content moving --seconds
 - Windows also prints `displays:` (HDR on/off, SDR white nits, which one is
   captured). HDR on means the FP16 capture path (Aurora-wqzp.12), which costs
   more CPU, so compare runs only with matching display state.
+- Each row records `cpu_governor` and `cpu_freq_mhz` (mean `scaling_cur_freq` sampled
+  every second during the run, from sysfs, no root; n/a off Linux). CPU% is only comparable
+  across rows at matched frequency (Aurora-1pwk: powersave parks light loads near 1.7 GHz
+  vs 3.8 GHz under load).
 - `--json` writes `{"hardware": ..., "results": [...]}` (`hardware.displays` on Windows).
 
 Brings the devstack up (`tools/light-viz-relay/devstack.py`) with

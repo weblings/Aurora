@@ -44,11 +44,11 @@ target_link_libraries(AuroraInputLinux PUBLIC
 target_compile_features(AuroraInputLinux PUBLIC cxx_std_20)
 
 if(AURORA_INPUT_LINUX_ENABLE_X11)
-  find_package(X11 REQUIRED COMPONENTS Xext Xrandr)
+  find_package(X11 REQUIRED COMPONENTS Xext Xrandr Xdamage Xrender)
 
   target_sources(AuroraInputLinux PRIVATE src/X11Grabber.cpp)
   target_compile_definitions(AuroraInputLinux PUBLIC AURORA_INPUT_LINUX_X11_AVAILABLE=1)
-  target_link_libraries(AuroraInputLinux PUBLIC X11::X11 X11::Xext X11::Xrandr)
+  target_link_libraries(AuroraInputLinux PUBLIC X11::X11 X11::Xext X11::Xrandr X11::Xdamage X11::Xrender)
 endif()
 
 if(AURORA_INPUT_LINUX_ENABLE_PIPEWIRE)
