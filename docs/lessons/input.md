@@ -966,3 +966,13 @@ Applies-when: testing audio-driven output, or expecting lights to go dark in sil
 Aurora-52oz.8: `audio.capture` with an empty buffer means no fresh data, so the audio graph does not tick and nothing is sent. In true silence the lights keep the previous frame (Aurora-o13 saw 0 frames per 5 s in silence, about 250 with a tone). A test that waits for the lights to fall in the quiet only works if some buffer (room noise, a quiet tone) keeps arriving.
 
 **Fix:** drive a graph to dark with a stimulus that keeps buffers flowing, or assert on the change that follows a tone, never on a level read during silence. See `docs/log/2026-10-20-52oz8-sequence-c-gate.md`.
+
+---
+
+## DuplicateOutput1 can fail with DXGI_ERROR_UNSUPPORTED until the process is per-monitor-v2 DPI aware
+Tags: input, windows, dxgi, dpi, manifest
+Applies-when: DuplicateOutput/DuplicateOutput1 fails on every retry on one machine, or adding a new exe that runs WindowsGrabber
+
+Aurora-8u3p: on a multi-GPU desktop (Intel UHD 770 + RTX 3080 Ti + Meta Virtual Monitor) `DuplicateOutput1` returned 0x887A0004 on every retry while `D3D11CreateDevice` on the output's adapter succeeded. The grabber treated it as transient, so `/api/state` showed running with no errors and nothing streamed.
+
+**Fix:** `app/windows/app.manifest` (and `input/windows/tests/tests.manifest`) declares PerMonitorV2. Any new host of `WindowsGrabber` needs the same manifest. A failure that persists past 3 s now surfaces as a `video_capture` state error via `IVideoInput::captureError()`.

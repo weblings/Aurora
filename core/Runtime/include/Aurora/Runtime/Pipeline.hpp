@@ -171,6 +171,9 @@ namespace Aurora::Runtime
 
     double tickIntervalSeconds() const { return m_tickIntervalSeconds; }
 
+    // The video input's captureError(); empty with no video input.
+    std::string captureError() const { return m_videoInput ? m_videoInput->captureError() : std::string{}; }
+
     bool isAudioMode() const { return m_isAudioMode; }
 
     PipelineCapabilities capabilities() const;
@@ -538,6 +541,9 @@ namespace Aurora::Runtime
 
     // Both under m_mutex.
     std::uint64_t m_nextErrorId{1};
+    // Last captureError() tick() saw, so a dismissed entry stays dismissed
+    // until the failure clears and recurs. Under m_mutex, reset per build.
+    std::string m_captureError;
     // Bumped on every successful swap (reload, resume); see _recordFailure.
     std::atomic<std::uint64_t> m_buildEpoch{0};
 

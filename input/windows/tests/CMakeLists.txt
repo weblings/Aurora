@@ -15,10 +15,13 @@ else()
   message(STATUS "Catch2 is installed")
 endif()
 
+# tests.manifest: same per-monitor-v2 DPI awareness as Aurora.exe, which the
+# manual DuplicateOutput1 tests need on some multi-GPU desktops (Aurora-8u3p).
 add_executable(AuroraInputWindowsTests
   WindowsInputTests.cpp
   InputControlDescriptorTests.cpp
   ScRgbConversionTests.cpp
+  tests.manifest
 )
 
 target_link_libraries(AuroraInputWindowsTests PRIVATE
