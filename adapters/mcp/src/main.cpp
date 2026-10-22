@@ -44,17 +44,24 @@ int main()
   httplib::Client client(url);
   client.set_connection_timeout(2, 0);
   client.set_read_timeout(5, 0);
-  httplib::Headers headers;
+  // Marks applies as MCP's, so Aurora points the Dashboard toggle at them.
+  httplib::Headers headers{{"X-Aurora-Client", "mcp"}};
   if(!token.empty()){
     headers.emplace("Authorization", "Bearer " + token);
   }
 
-  Aurora::Mcp::McpServer server(
-    [&client, &headers](const std::string& method, const std::string& path, const std::string& body){
+  // The heartbeat thread gets its own connection, so a slow call never stalls it.
+  httplib::Client beatClient(url);
+  beatClient.set_connection_timeout(2, 0);
+  beatClient.set_read_timeout(5, 0);
+
+  const auto fetchWith = [&headers](httplib::Client& http){
+    return [&http, &headers](const std::string& method, const std::string& path, const std::string& body){
       Aurora::Mcp::HttpReply reply;
-      const httplib::Result result = method == "PUT" ? client.Put(path, headers, body, "application/json")
-        : method == "DELETE" ? client.Delete(path, headers)
-        : client.Get(path, headers);
+      const httplib::Result result = method == "PUT" ? http.Put(path, headers, body, "application/json")
+        : method == "POST" ? http.Post(path, headers, body, "application/json")
+        : method == "DELETE" ? http.Delete(path, headers)
+        : http.Get(path, headers);
       if(result){
         reply.status = result->status;
         reply.body = result->body;
@@ -63,10 +70,15 @@ int main()
         reply.error = httplib::to_string(result.error());
       }
       return reply;
-    },
+    };
+  };
+
+  Aurora::Mcp::McpServer server(
+    fetchWith(client),
     AURORA_VERSION,
     // One draft per adapter process, named so concurrent clients do not collide.
-    "mcp-" + std::to_string(getpid())
+    "mcp-" + std::to_string(getpid()),
+    fetchWith(beatClient)
   );
 
   // stdout carries protocol only, so diagnostics go to stderr.

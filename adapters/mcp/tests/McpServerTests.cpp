@@ -2,8 +2,12 @@
 
 #include "McpServer.hpp"
 
+#include <chrono>
+#include <functional>
 #include <map>
+#include <mutex>
 #include <optional>
+#include <thread>
 #include <vector>
 
 using Aurora::Mcp::Fetch;
@@ -29,7 +33,8 @@ namespace
         "requestedEffect":"builtin-video","source":{"video":{"input":"windows","monitor":"DP-1"},"audio":null},
         "errors":[]})", {}}},
       {"/api/capabilities", {200, R"({"outputs":["hue"]})", {}}},
-      {"/api/graph/test", {200, R"({"active":false,"lastEnd":null})", {}}}
+      {"/api/graph/test", {200, R"({"active":false,"lastEnd":null})", {}}},
+      {"/api/config", {200, R"({"activeInputName":"windows","activeAudioInputName":""})", {}}}
     };
   }
 
@@ -125,10 +130,12 @@ TEST_CASE("tools/list advertises the tools, only the draft writers not read-only
     const std::string name = tool["name"];
     names.push_back(name);
     CHECK(tool["inputSchema"]["type"] == "object");
-    CHECK(tool["annotations"]["readOnlyHint"] == (name != "put_draft" && name != "set_control"));
+    const bool writes = name == "put_draft" || name == "set_control" || name == "try_on_lights" || name == "keep"
+      || name == "revert" || name == "apply" || name == "revert_effect";
+    CHECK(tool["annotations"]["readOnlyHint"] == !writes);
   }
   CHECK(names == std::vector<std::string>{"aurora_status", "list_nodes", "describe_node", "list_presets", "get_preset",
-    "put_draft", "set_control", "preview"});
+    "put_draft", "set_control", "preview", "try_on_lights", "keep", "revert", "apply", "revert_effect"});
 }
 
 TEST_CASE("aurora_status reports live state")
@@ -145,6 +152,7 @@ TEST_CASE("aurora_status reports live state")
   CHECK(status["inputs"]["video"]["monitor"] == "DP-1");
   CHECK(status["outputs"] == json::array({"hue"}));
   CHECK(status["activeTest"].is_null());
+  CHECK(status["configuredInputs"] == json::parse(R"({"video":"windows","audio":null})"));
 }
 
 TEST_CASE("aurora_status flags a fallback effect and an active test")
@@ -394,4 +402,191 @@ TEST_CASE("shutdown deletes the draft, and only when one was saved")
   server.shutdown();
   CHECK_FALSE(app.draft.has_value());
   CHECK(app.log.back() == "DELETE /api/graph/drafts/t");
+}
+
+
+namespace
+{
+  // The light-test and apply routes over one draft. The heartbeat thread calls it too.
+  struct FakeLights
+  {
+    std::mutex mutex;
+    std::vector<std::string> log;
+    bool testing{false};
+    int heartbeats{0};
+    int heartbeatStatus{200};
+    std::string active{"builtin-video"};
+    std::string running{"builtin-video"};
+    std::string previewDraftChanged;
+
+    Fetch fetch()
+    {
+      return [this](const std::string& method, const std::string& path, const std::string& body){
+        std::lock_guard<std::mutex> lock(mutex);
+        log.push_back(method + " " + path);
+        if(method == "GET" && path == "/api/effects"){
+          return HttpReply{200, json{{"activeEffectId", active}}.dump(), {}};
+        }
+        if(method == "POST" && path == "/api/graph/test"){
+          testing = true;
+          return HttpReply{200, R"({"succeeded":true,"confirmWithinMs":120000,"heartbeatMs":20,"revertAfterMs":6000})", {}};
+        }
+        if(method == "POST" && path == "/api/graph/test/heartbeat"){
+          ++heartbeats;
+          return HttpReply{heartbeatStatus, "{}", {}};
+        }
+        if(method == "POST" && path == "/api/graph/test/revert"){
+          const bool was = testing;
+          testing = false;
+          return was ? HttpReply{200, R"({"succeeded":true})", {}} : HttpReply{404, "{}", {}};
+        }
+        if(method == "POST" && (path == "/api/graph/test/confirm" || path == "/api/graph/apply")){
+          if(path.find("confirm") != std::string::npos && !testing){
+            return HttpReply{404, "{}", {}};
+          }
+          const std::string id = json::parse(body).at("id");
+          testing = false;
+          active = id;
+          return HttpReply{200, json{{"succeeded", true}, {"effect", running == "fallback" ? "builtin-video" : id},
+            {"requestedEffect", id}}.dump(), {}};
+        }
+        if(method == "PUT" && path == "/api/effects"){
+          active = json::parse(body).at("activeEffectId");
+          return HttpReply{200, json{{"succeeded", true}, {"effect", active}}.dump(), {}};
+        }
+        return HttpReply{404, "{}", {}};
+      };
+    }
+
+    int beats()
+    {
+      std::lock_guard<std::mutex> lock(mutex);
+      return heartbeats;
+    }
+  };
+
+  bool waitFor(const std::function<bool()>& done)
+  {
+    for(int i = 0; i < 200 && !done(); ++i){
+      std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    }
+    return done();
+  }
+}
+
+TEST_CASE("try_on_lights heartbeats until keep, which applies and stops the beat")
+{
+  FakeLights app;
+  McpServer server(app.fetch(), "1.0", "t");
+
+  const json started = callTool(server, "try_on_lights")["result"];
+  CHECK(started["isError"] == false);
+  CHECK(started["structuredContent"]["started"] == true);
+  CHECK(waitFor([&app]{ return app.beats() >= 3; }));
+
+  const json kept = callTool(server, "keep", R"({"id":"aurora-1"})")["result"];
+  CHECK(kept["isError"] == false);
+  CHECK(kept["structuredContent"]["applied"] == true);
+  CHECK(app.active == "aurora-1");
+
+  const int after = app.beats();
+  std::this_thread::sleep_for(std::chrono::milliseconds(80));
+  CHECK(app.beats() == after);
+}
+
+TEST_CASE("Closing the adapter mid-test reverts the lights")
+{
+  FakeLights app;
+  McpServer server(app.fetch(), "1.0", "t");
+  callTool(server, "try_on_lights");
+  REQUIRE(waitFor([&app]{ return app.beats() >= 1; }));
+
+  server.shutdown();
+  CHECK_FALSE(app.testing);
+  CHECK(app.log.back() == "POST /api/graph/test/revert");
+}
+
+TEST_CASE("revert ends the test, and reports one that already ended")
+{
+  FakeLights app;
+  McpServer server(app.fetch(), "1.0", "t");
+  callTool(server, "try_on_lights");
+
+  CHECK(callTool(server, "revert")["result"]["structuredContent"]["reverted"] == true);
+  CHECK_FALSE(app.testing);
+  const json again = callTool(server, "revert")["result"];
+  CHECK(again["isError"] == false);
+  CHECK(again["structuredContent"]["reverted"] == false);
+}
+
+TEST_CASE("keep after the test ended is an error that says the lights are back")
+{
+  FakeLights app;
+  McpServer server(app.fetch(), "1.0", "t");
+  const json result = callTool(server, "keep", R"({"id":"aurora-1"})")["result"];
+  CHECK(result["isError"] == true);
+  CHECK(result["content"][0]["text"].get<std::string>().find("try_on_lights") != std::string::npos);
+}
+
+TEST_CASE("apply names the effect, a fallback is a failure")
+{
+  FakeLights app;
+  McpServer server(app.fetch(), "1.0", "t");
+
+  const json ok = callTool(server, "apply", R"({"id":"aurora-1"})")["result"];
+  CHECK(ok["isError"] == false);
+  CHECK(ok["structuredContent"]["effect"] == "aurora-1");
+
+  app.running = "fallback";
+  const json failed = callTool(server, "apply", R"({"id":"aurora-2"})")["result"];
+  CHECK(failed["isError"] == true);
+  CHECK(failed["structuredContent"]["applied"] == false);
+  CHECK(failed["structuredContent"]["effect"] == "builtin-video");
+
+  CHECK(callTool(server, "apply", "{}")["result"]["isError"] == true);
+  CHECK(callTool(server, "apply", R"({"id":"../x"})")["result"]["isError"] == true);
+}
+
+TEST_CASE("revert_effect restores what ran before the first apply")
+{
+  FakeLights app;
+  McpServer server(app.fetch(), "1.0", "t");
+  CHECK(callTool(server, "revert_effect")["result"]["isError"] == true);
+
+  app.active = "builtin-audio";
+  callTool(server, "apply", R"({"id":"aurora-1"})");
+  callTool(server, "apply", R"({"id":"aurora-2"})");
+  REQUIRE(app.active == "aurora-2");
+
+  const json restored = callTool(server, "revert_effect")["result"];
+  CHECK(restored["isError"] == false);
+  CHECK(app.active == "builtin-audio");
+}
+
+TEST_CASE("A test that ended on Aurora's side stops the heartbeat thread")
+{
+  FakeLights app;
+  app.heartbeatStatus = 404;
+  McpServer server(app.fetch(), "1.0", "t");
+  callTool(server, "try_on_lights");
+
+  REQUIRE(waitFor([&app]{ return app.beats() >= 1; }));
+  std::this_thread::sleep_for(std::chrono::milliseconds(80));
+  CHECK(app.beats() == 1);
+}
+
+TEST_CASE("A graph that needs an unchosen input asks for the user, not a retry")
+{
+  const std::string missing = R"({"succeeded":false,"error":"cannot_test","message":"graph needs an audio input but none is configured"})";
+  McpServer test(scripted({{"POST /api/graph/test", {409, missing, {}}}}), "1.0", "t");
+  const json tried = callTool(test, "try_on_lights")["result"];
+  CHECK(tried["isError"] == true);
+  CHECK(tried["content"][0]["text"].get<std::string>().find("ask the user") != std::string::npos);
+
+  McpServer preview(scripted({{"/api/graph/preview/summary?session=t",
+    {422, R"({"error":"cannot_preview","message":"graph needs an audio input but none is configured"})", {}}}}), "1.0", "t");
+  CHECK(callTool(preview, "preview")["result"]["content"][0]["text"].get<std::string>().find("ask the user") != std::string::npos);
+
+  McpServer busy(scripted({{"POST /api/graph/test", {409, R"({"message":"pipeline is rebuilding"})", {}}}}), "1.0", "t");
+  CHECK(callTool(busy, "try_on_lights")["result"]["content"][0]["text"].get<std::string>().find("Try again") != std::string::npos);
 }

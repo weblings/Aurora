@@ -33,6 +33,11 @@ By default `up` captures the live screen (`--input live`: `windows` / `mac` /
 Live capture may raise a Screen Recording (Mac) or portal (Linux Wayland)
 prompt the user must accept.
 
+No audio input is chosen by default, so audio and both-input graphs cannot be
+previewed or tested ("graph needs an audio input but none is configured").
+That matches a video-only user. Add `--audio-input` (this platform's audio
+input, e.g. `windows-audio`) when the work needs one. On Mac it may prompt.
+
 `up` starts everything, drops in the 4-zone zone map, sets the fake
 connection and active output over REST, and waits for a frame on the SSE
 (`http://127.0.0.1:18245/events`). It prints the WebUI URL (port 8215+) and

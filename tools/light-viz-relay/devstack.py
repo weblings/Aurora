@@ -167,6 +167,8 @@ def _start(args, app, env, pids):
     http("POST", base + "/api/hue/connection", CONNECTION, timeout=30)
     cfg = {"activeOutputNames": ["hue"], "nuxCompleted": True}
     cfg["activeInputName"] = args.input if args.input != "live" else LIVE_INPUT
+    if args.audio_input:
+        cfg["activeAudioInputName"] = args.audio_input if args.audio_input != "live" else LIVE_INPUT + "-audio"
     # Live capture can block on a permission/portal dialog; allow time to accept it.
     live = args.input == "live"
     http("PUT", base + "/api/config", cfg, timeout=120 if live else 30)
@@ -214,6 +216,9 @@ if __name__ == "__main__":
                    help="inject 1 or 2 generic banner errors once up (dev-only /api/dev/errors, host keeps running)")
     u.add_argument("--input", default="live",
                    help='"live" (default): this platform\'s real capture; "dummy": synthetic signal')
+    # Off by default: Aurora only captures inputs the user chose, and the gate needs that state too.
+    u.add_argument("--audio-input", nargs="?", const="live",
+                   help='also choose an audio input, for audio or both-input graphs; bare flag: this platform\'s')
     sub.add_parser("status")
     sub.add_parser("down")
     a = ap.parse_args()

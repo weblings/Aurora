@@ -108,7 +108,7 @@ namespace Aurora::Runtime
       const bool haveVideo = !config.activeInputName().empty();
       const bool haveAudio = !config.activeAudioInputName().empty();
       if((needs.video && !haveVideo) || (needs.audio && !haveAudio)){
-        plan.missing = std::string("graph needs a ") + (needs.video && !haveVideo ? "video" : "audio")
+        plan.missing = std::string("graph needs ") + (needs.video && !haveVideo ? "a video" : "an audio")
           + " input but none is configured";
       }
       else if(needs.video && needs.audio){

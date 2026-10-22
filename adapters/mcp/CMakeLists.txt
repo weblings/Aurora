@@ -37,6 +37,8 @@ endif()
 add_library(AuroraMcpCore STATIC src/McpServer.cpp)
 target_include_directories(AuroraMcpCore PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/src)
 target_link_libraries(AuroraMcpCore PUBLIC nlohmann_json::nlohmann_json)
+find_package(Threads REQUIRED)
+target_link_libraries(AuroraMcpCore PUBLIC Threads::Threads)
 target_compile_features(AuroraMcpCore PUBLIC cxx_std_20)
 
 add_executable(aurora-mcp src/main.cpp)

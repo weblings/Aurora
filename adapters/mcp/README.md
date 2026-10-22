@@ -13,7 +13,8 @@ and scope: [[sequence-d-planning]], [[external-control]].
 - Read tools: `aurora_status`, `list_nodes`, `describe_node`,
   `list_presets`, `get_preset` (the last two pass through `/api/graph/presets`).
   Draft tools: `put_draft`, `set_control`, `preview` act on one draft per
-  adapter process, deleted when stdin closes. Later D beads add apply tools.
+  adapter process, deleted when stdin closes. `try_on_lights`, `keep`, `revert`, `apply`, `revert_effect` change the lights: a
+  background thread heartbeats a test until keep or revert.
 
 ## Config
 

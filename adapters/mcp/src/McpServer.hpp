@@ -2,9 +2,12 @@
 
 #include <nlohmann/json.hpp>
 
+#include <condition_variable>
 #include <functional>
+#include <mutex>
 #include <optional>
 #include <string>
+#include <thread>
 
 namespace Aurora::Mcp
 {
@@ -24,10 +27,16 @@ namespace Aurora::Mcp
   class McpServer
   {
   public:
-    // `session` names this adapter's one draft, stable for the process.
-    McpServer(Fetch fetch, std::string serverVersion, std::string session = "mcp");
+    // `session` names this adapter's one draft, stable for the process. The heartbeat
+    // thread uses `beatFetch` (its own connection) when given, else `fetch`.
+    McpServer(Fetch fetch, std::string serverVersion, std::string session = "mcp", Fetch beatFetch = {});
+    ~McpServer();
 
-    // Deletes the draft this adapter saved, if any. Called when stdin closes.
+    McpServer(const McpServer&) = delete;
+    McpServer& operator=(const McpServer&) = delete;
+
+    // Reverts a running light test and deletes the draft this adapter saved, if any.
+    // Called when stdin closes.
     void shutdown();
 
     // Empty for notifications and responses, which never get an answer.
@@ -47,6 +56,19 @@ namespace Aurora::Mcp
     nlohmann::json _putDraft(const nlohmann::json& arguments);
     nlohmann::json _setControl(const nlohmann::json& arguments);
     nlohmann::json _preview(const nlohmann::json& arguments);
+    nlohmann::json _tryOnLights();
+    nlohmann::json _keep(const nlohmann::json& arguments);
+    nlohmann::json _revert();
+    nlohmann::json _apply(const nlohmann::json& arguments);
+    nlohmann::json _revertEffect();
+
+    // Remembers the effect live before this session's first apply. Empty on success.
+    std::string _recordPrevious();
+    // Shared by apply and keep: a fallback effect or reload error is a failure.
+    nlohmann::json _appliedResult(const std::string& id, const nlohmann::json& reply);
+
+    void _startBeat(long long intervalMs);
+    void _stopBeat();
 
     // Saves the graph as this session's draft: its validation, or an error result.
     nlohmann::json _saveDraft(const nlohmann::json& graph);
@@ -58,8 +80,19 @@ namespace Aurora::Mcp
       nlohmann::json& out, int* status);
 
     Fetch m_fetch;
+    Fetch m_beatFetch;
     std::string m_serverVersion;
     std::string m_session;
     bool m_hasDraft{false};
+    bool m_testing{false};
+
+    // Effect id (empty is the default) active before this session's first apply.
+    bool m_hasPrevious{false};
+    std::string m_previousEffect;
+
+    std::thread m_beat;
+    std::mutex m_beatMutex;
+    std::condition_variable m_beatWake;
+    bool m_beatStop{false};
   };
 }
