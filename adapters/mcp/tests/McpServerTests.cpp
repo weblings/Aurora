@@ -282,6 +282,10 @@ namespace
   {
     std::vector<std::string> log;
     std::optional<json> draft;
+    // One node type with params the draft below leaves unset.
+    std::string nodeCatalog = R"({"nodes":[{"type":"test.kinds","params":[
+      {"name":"width","kind":"float"},{"name":"seed","kind":"optional-float"},
+      {"name":"clamp","kind":"bool"},{"name":"shape","kind":"enum","options":["saw","sine"]}]}]})";
     std::string previewBody = R"({"session":"t","seconds":1,"samples":4,"outputs":[{"output":"hue","change":0.0,"zones":[]}],"errors":[]})";
 
     Fetch fetch()
@@ -303,6 +307,9 @@ namespace
         }
         if(path.rfind("/api/graph/drafts/", 0) == 0){
           return draft ? HttpReply{200, json{{"graph", *draft}}.dump(), {}} : HttpReply{404, R"({"error":"no_draft"})", {}};
+        }
+        if(path == "/api/nodes"){
+          return HttpReply{200, nodeCatalog, {}};
         }
         if(path.rfind("/api/graph/preview/summary", 0) == 0){
           return draft ? HttpReply{200, previewBody, {}} : HttpReply{404, R"({"error":"no_draft"})", {}};
@@ -391,6 +398,41 @@ TEST_CASE("set_control reads a string as the param's kind and refuses a wrong ki
   const json trailing = callTool(server, "set_control", R"({"control":"Brightness","value":"2x"})")["result"];
   CHECK(trailing["isError"] == true);
   CHECK(app.draft->at("nodes")[0]["params"]["b"] == 1.0);
+}
+
+TEST_CASE("set_control takes the kind from the node type when the draft has not set the param")
+{
+  FakeDrafts app;
+  McpServer server(app.fetch(), "1.0", "t");
+  callTool(server, "put_draft", R"({"graph":{"version":1,"nodes":[{"id":"q","type":"test.kinds","params":{}}],"edges":[],
+    "controls":[{"node":"q","param":"width","label":"Width"},{"node":"q","param":"seed","label":"Seed"},
+                {"node":"q","param":"clamp","label":"Clamp"},{"node":"q","param":"shape","label":"Shape"}]}})");
+  const auto params = [&]() -> const json& { return app.draft->at("nodes")[0]["params"]; };
+
+  CHECK(callTool(server, "set_control", R"({"control":"Width","value":"64"})")["result"]["isError"] == false);
+  CHECK(params()["width"] == 64.0);
+  CHECK(params()["width"].is_number());
+  // A real number still works afterwards: the earlier string was never saved as a string.
+  CHECK(callTool(server, "set_control", R"({"control":"Width","value":32})")["result"]["isError"] == false);
+  CHECK(params()["width"] == 32.0);
+
+  CHECK(callTool(server, "set_control", R"({"control":"Width","value":"wide"})")["result"]["isError"] == true);
+  CHECK(params()["width"] == 32.0);
+
+  CHECK(callTool(server, "set_control", R"({"control":"Seed","value":"0.5"})")["result"]["isError"] == false);
+  CHECK(params()["seed"] == 0.5);
+  CHECK(callTool(server, "set_control", R"({"control":"Seed","value":null})")["result"]["isError"] == false);
+
+  CHECK(callTool(server, "set_control", R"({"control":"Clamp","value":"false"})")["result"]["isError"] == false);
+  CHECK(params()["clamp"] == false);
+  CHECK(params()["clamp"].is_boolean());
+  CHECK(callTool(server, "set_control", R"({"control":"Clamp","value":"yes"})")["result"]["isError"] == true);
+  CHECK(params()["clamp"] == false);
+
+  CHECK(callTool(server, "set_control", R"({"control":"Shape","value":"sine"})")["result"]["isError"] == false);
+  CHECK(params()["shape"] == "sine");
+  CHECK(callTool(server, "set_control", R"({"control":"Shape","value":3})")["result"]["isError"] == true);
+  CHECK(params()["shape"] == "sine");
 }
 
 TEST_CASE("preview tells a static graph from a reacting one")

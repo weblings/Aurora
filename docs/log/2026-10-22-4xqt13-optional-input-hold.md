@@ -44,8 +44,15 @@ both-input graphs, fixed here.
 - `set_control` value `1.0` reached the adapter as the string `"1.0"` (the
   `value` schema had no type) and was saved, so the draft stayed invalid.
 - Fix: `value` is typed number, string or boolean; a string is read as the
-  param's current kind (number, boolean); a wrong kind is refused with the
-  draft unchanged. Adapter test added, 185/185.
+  param's kind (number, boolean); a wrong kind is refused with the draft unchanged.
+- First version took the kind from the draft's current value. A param the draft
+  had not set (e.g. `image.rescale.width`) let a string through and saved it, and
+  then the real number was refused as "text". The kind now comes from the node
+  type's descriptor (`/api/nodes`: float, optional-float, bool, enum), with the
+  current value only as a fallback. Adapter tests 186/186; checked on the real
+  catalog for unset float, bool and enum.
+- `put_draft` needs no coercion: a string inside the graph gets a clear
+  `param_invalid` from the loader, and `preview.seconds` is typed number.
 - The preview of the `both` preset showed brightness 0.47 to 0.60, no 1.0 spikes.
 
 ## Verified: Muse client and the LAN token case (Linux, one machine)

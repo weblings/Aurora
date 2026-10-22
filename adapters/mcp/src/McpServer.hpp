@@ -75,6 +75,7 @@ namespace Aurora::Mcp
 
     // GETs a JSON body. Empty on success, else the message for an error result.
     // `status` receives the HTTP status when given.
+    std::string _paramKind(const std::string& nodeType, const std::string& param);
     std::string _getJson(const std::string& path, nlohmann::json& out, int* status = nullptr);
     std::string _requestJson(const std::string& method, const std::string& path, const std::string& body,
       nlohmann::json& out, int* status);

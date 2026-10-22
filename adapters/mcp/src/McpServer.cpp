@@ -105,6 +105,40 @@ namespace Aurora::Mcp
       return labels;
     }
 
+    // Reads `value` as a param of `kind` (float, optional-float, bool, enum, gradient; empty
+    // when unknown) and returns what the param takes when it cannot be.
+    std::string coerceControlValue(const std::string& kind, nlohmann::json& value)
+    {
+      if(kind == "float" || kind == "optional-float"){
+        if(value.is_string()){
+          const std::string text = value.get<std::string>();
+          std::size_t used = 0;
+          double parsed = 0.0;
+          try{ parsed = std::stod(text, &used); } catch(...){ used = 0; }
+          if(used != 0 && used == text.size() && std::isfinite(parsed)){
+            value = parsed;
+          }
+        }
+        if(!value.is_number() && !(kind == "optional-float" && value.is_null())){
+          return "a number";
+        }
+      }
+      else if(kind == "bool"){
+        if(value.is_string() && (value.get<std::string>() == "true" || value.get<std::string>() == "false")){
+          value = value.get<std::string>() == "true";
+        }
+        if(!value.is_boolean()){
+          return "true or false";
+        }
+      }
+      else if(kind == "enum"){
+        if(!value.is_string()){
+          return "text, one of the param's options";
+        }
+      }
+      return {};
+    }
+
     bool validPathSegment(const std::string& text)
     {
       return !text.empty() && std::all_of(text.begin(), text.end(), [](unsigned char c){
@@ -528,6 +562,26 @@ namespace Aurora::Mcp
   }
 
 
+  std::string McpServer::_paramKind(const std::string& nodeType, const std::string& param)
+  {
+    nlohmann::json catalog;
+    if(nodeType.empty() || !_getJson("/api/nodes", catalog).empty()){
+      return {};
+    }
+    for(const auto& node : catalog.value("nodes", nlohmann::json::array())){
+      if(node.value("type", "") != nodeType){
+        continue;
+      }
+      for(const auto& decl : node.value("params", nlohmann::json::array())){
+        if(decl.value("name", "") == param){
+          return decl.value("kind", "");
+        }
+      }
+    }
+    return {};
+  }
+
+
   nlohmann::json McpServer::_setControl(const nlohmann::json& arguments)
   {
     if(!arguments.contains("control") || !arguments.at("control").is_string() || !arguments.contains("value")){
@@ -559,33 +613,16 @@ namespace Aurora::Mcp
         for(auto& candidate : graph["nodes"]){
           if(candidate.value("id", "") == node){
             nlohmann::json value = arguments.at("value");
-            // Some clients send every value as a string; read it as the param's current kind.
-            if(const auto existing = candidate.contains("params") ? candidate["params"].find(param)
-                                                                  : candidate.end();
-               candidate.contains("params") && existing != candidate["params"].end()){
-              if(existing->is_number() && value.is_string()){
-                const std::string text = value.get<std::string>();
-                std::size_t used = 0;
-                double parsed = 0.0;
-                try{ parsed = std::stod(text, &used); } catch(...){ used = 0; }
-                if(used != 0 && used == text.size() && std::isfinite(parsed)){
-                  value = parsed;
-                }
-              }
-              else if(existing->is_boolean() && value.is_string()){
-                const std::string text = value.get<std::string>();
-                if(text == "true" || text == "false"){
-                  value = (text == "true");
-                }
-              }
-              const bool sameKind = (existing->is_number() && value.is_number())
-                || (existing->is_boolean() && value.is_boolean())
-                || (existing->is_string() && value.is_string())
-                || (!existing->is_number() && !existing->is_boolean() && !existing->is_string());
-              if(!sameKind){
-                return toolText("Control '" + wanted + "' takes a " + (existing->is_number() ? "number" : existing->is_boolean() ? "true or false" : "text value")
-                  + ", not " + value.dump() + ". The draft is unchanged.", true);
-              }
+            // Some clients send every value as a string. The node type's descriptor says what
+            // the param is, even when the draft has not set it yet; a set value is the fallback.
+            std::string kind = _paramKind(candidate.value("type", ""), param);
+            if(kind.empty() && candidate.contains("params") && candidate["params"].contains(param)){
+              const auto& existing = candidate["params"][param];
+              kind = existing.is_number() ? "float" : existing.is_boolean() ? "bool" : existing.is_string() ? "enum" : "";
+            }
+            if(const std::string refusal = coerceControlValue(kind, value); !refusal.empty()){
+              return toolText("Control '" + wanted + "' takes " + refusal + ", not " + value.dump()
+                + ". The draft is unchanged.", true);
             }
             candidate["params"][param] = value;
             return _saveDraft(graph);
