@@ -34,8 +34,17 @@ gate rerun that [[4xqt13-optional-input-hold]] left open.
   dark checks.
 - Mac (arm64, `mac-app`, `mac-audio`): `sequence_d_gate.py` 11/11, LAN phase on
   `192.168.0.198`. ctest 111/112 before the test rename below, 112/112 after.
+- Mac helper under Gatekeeper (Aurora-4xqt.16): the dev bundle is ad-hoc signed,
+  `codesign --verify --strict --deep` valid, `spctl --assess` rejects it (expected
+  for ad-hoc). A copy with `com.apple.quarantine` set on `aurora-mcp` still ran
+  from a shell and answered `initialize`. Claude Code in VS Code spawned the
+  unquarantined helper earlier. No TCC prompt seen; the helper only makes HTTP calls.
 
 ## Open
+
+- Not tested: a quarantined helper spawned by a GUI client, and a Developer ID
+  signed and notarized bundle that contains `aurora-mcp` (the notarized 1.0.4
+  bundle predates the helper). Aurora-4xqt.16 stays open for that.
 
 - Gate rerun on Linux with this adapter.
 - Gate pairs through the API, so `--pair` itself is covered by the Linux trial only.
