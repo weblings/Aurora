@@ -38,8 +38,14 @@ with the tightened dark step (brightness max 0.00, reacting False).
 The note does not check that the draft uses audio, so a video draft that sends
 nothing gets the same text; it is worded to cover that.
 
-The strict dark step (max brightness under 0.05 and `reacting` false, the check
-the gate started with) has run on Mac only. The Linux and Windows passes in
-[[4xqt13-optional-input-hold]] and [[4xqt15-scoped-agent-pairing]] used the
-looser min-brightness version. The Linux log already saw `reacting` false after
-the hold fix; neither platform has run the strict step since.
+## Strict dark step on Windows and Linux (Aurora-4xqt.18)
+
+The strict dark step (max brightness under 0.05 and `reacting` false) was rerun
+after the Mac pass:
+
+- Linux: Sequence D gate 11/11 (brightness max 0.00, `reacting` False),
+  `linux-audio` with tone, ctest 189/189 at e5c7528.
+- Windows: gate 11/11 (brightness max 0.00, `reacting` False), `windows-audio`
+  with tone, LAN phase on 192.168.0.224, at 05019b0.
+
+All three OSes now pass the strict step.
