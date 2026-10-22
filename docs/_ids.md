@@ -17,6 +17,7 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `4xqt1-windows-second-duplication-recheck` | [log/2026-10-21-4xqt1-windows-second-duplication-recheck.md](log/2026-10-21-4xqt1-windows-second-duplication-recheck.md) | Aurora-4xqt.1: Windows second-duplication recheck (closed) |
 | `4xqt10-try-apply-tools` | [log/2026-10-22-4xqt10-try-apply-tools.md](log/2026-10-22-4xqt10-try-apply-tools.md) | Aurora-4xqt.10: try and apply tools (D4) |
 | `4xqt11-agent-instructions-setup` | [log/2026-10-22-4xqt11-agent-instructions-setup.md](log/2026-10-22-4xqt11-agent-instructions-setup.md) | Aurora-4xqt.11: agent instructions and client setup (D5) |
+| `4xqt13-optional-input-hold` | [log/2026-10-22-4xqt13-optional-input-hold.md](log/2026-10-22-4xqt13-optional-input-hold.md) | Aurora-4xqt.13: wired optional inputs hold on Absent ticks, Linux gate 9/9 |
 | `4xqt2-mcp-effect-toggle` | [log/2026-10-21-4xqt2-mcp-effect-toggle.md](log/2026-10-21-4xqt2-mcp-effect-toggle.md) | Aurora-4xqt.2 (D0b): MCP effect toggle on the Dashboard |
 | `4xqt3-actionable-validate-errors` | [log/2026-10-21-4xqt3-actionable-validate-errors.md](log/2026-10-21-4xqt3-actionable-validate-errors.md) | Aurora-4xqt.3: validate errors an agent can act on (closed) |
 | `4xqt4-test-window-cap` | [log/2026-10-21-4xqt4-test-window-cap.md](log/2026-10-21-4xqt4-test-window-cap.md) | Aurora-4xqt.4: test-on-lights window that fits a chat loop (closed) |

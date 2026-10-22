@@ -89,6 +89,16 @@ def adapter_path(args):
     return app.parent / ("aurora-mcp.exe" if ds.WIN else "aurora-mcp")
 
 
+def stays(frames, pred, what, seconds=1.0):
+    """Every sampled frame meets pred for `seconds`. wait() alone passes on one frame,
+    which missed lights flickering between a dark test frame and a lit fallback."""
+    frames.wait(pred, what)
+    end = time.time() + seconds
+    while time.time() < end:
+        assert pred(frames.level), f"lights did not stay {what} (level {frames.level})"
+        time.sleep(0.02)
+
+
 def state(base):
     return call(base, "GET", "/api/state")[1]
 
@@ -232,12 +242,12 @@ def try_and_keep(c, client, ctx):
     before = sc.bridge_counts()
     started = client.ok("try_on_lights")
     assert started["started"], started
-    c["frames"].wait(sc.dark, "went dark under test")
+    stays(c["frames"], sc.dark, "dark under test")
     s = state(base)
     assert s["usesVideoInput"] and s["usesAudioInput"], s
     assert client.ok("aurora_status")["activeTest"]
     time.sleep(started["revertAfterMs"] / 1000 * 0.6)
-    c["frames"].wait(sc.dark, "stayed dark on the adapter's heartbeats")
+    stays(c["frames"], sc.dark, "dark on the adapter's heartbeats")
     kept = client.ok("keep", id=KEPT)
     assert kept["applied"] and kept["effect"] == KEPT, kept
     s = state(base)
@@ -296,7 +306,7 @@ def killed_client(c):
             n["params"]["outMin"] = n["params"]["outMax"] = 0
     assert victim.ok("put_draft", graph=graph)["valid"]
     started = victim.ok("try_on_lights")
-    c["frames"].wait(sc.dark, "went dark under test")
+    stays(c["frames"], sc.dark, "dark under test")
     victim.kill()
     t = time.time()
     c["frames"].wait(sc.lit, "reverted after the client was killed", started["revertAfterMs"] / 1000 + 20)
