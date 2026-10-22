@@ -619,6 +619,18 @@ const HELD = { source: 'reload', message: 'bridge unreachable', id: 7 };
   assert.ok(banner().includes('K7Q2X'), 'code shown');
   assert.ok(banner().includes('shell-pairing-approve-r1') && banner().includes('shell-pairing-deny-r1'), 'approve and deny');
   assert.ok(banner().includes('2 problems'), 'problems still collapse beside the request');
+  assert.ok(!banner().includes('access ('), 'a browser (admin) request reads as before');
+  uninstallDom();
+}
+
+// An agent token request (aurora-mcp --pair) names its access in the banner.
+{
+  const fetchPending = async () => [{ ref: 'r1', name: 'aurora-mcp on laptop', scope: 'apply', code: 'K7Q2X' }];
+  const { app, banner } = makeApp(ok(), { fetchPending });
+  app.canApprove = true;
+  await app._pollOnce();
+  await sleep(0);
+  assert.ok(banner().includes('with apply access (change effects and test on the lights, no settings)'));
   uninstallDom();
 }
 

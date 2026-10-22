@@ -53,8 +53,15 @@ Add to `.vscode/mcp.json` (or run `MCP: Add Server` and choose a stdio server):
 
 ## Aurora on another machine (LAN)
 
-- Loopback needs no token. A non-loopback Aurora refuses unpaired clients.
-- Pair a token in the Aurora WebUI, then set it in the client's `env`:
+- Loopback needs no token and always has full access. A non-loopback Aurora refuses unpaired clients.
+- On the agent's computer, pair a token (it asks for apply access, all the tools need):
+
+```sh
+AURORA_URL=http://192.168.1.20:8215 aurora-mcp --pair
+```
+
+- Approve it in the Aurora WebUI banner, on the computer running Aurora. Check the
+  code matches. The token prints once. Set it in the client's `env`:
 
 ```json
 { "mcpServers": { "aurora": { "command": "/path/to/aurora-mcp",
@@ -63,8 +70,10 @@ Add to `.vscode/mcp.json` (or run `MCP: Add Server` and choose a stdio server):
 
 - The token goes in the client config, never in chat. The agent cannot set it.
 - The link is plain HTTP, so a LAN sniffer can read the token.
-- A token paired in the WebUI has full admin access, not only what the agent needs.
-  Treat it like a password and revoke it under Paired devices when done.
+- An apply token can change effects and test on the lights, not settings or pairing.
+  `--scope draft` gives an agent that only edits drafts, and you try or apply them in Aurora.
+- Treat the token like a password. Revoke it under Paired devices when done.
+- PowerShell: `$env:AURORA_URL = "http://192.168.1.20:8215"; aurora-mcp --pair`.
 
 ## Check it works
 

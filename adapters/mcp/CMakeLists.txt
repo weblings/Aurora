@@ -34,7 +34,7 @@ if(NOT TARGET httplib::httplib)
 endif()
 
 # Protocol logic as a library so tests link it without main().
-add_library(AuroraMcpCore STATIC src/McpServer.cpp)
+add_library(AuroraMcpCore STATIC src/McpServer.cpp src/Pair.cpp)
 target_include_directories(AuroraMcpCore PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/src)
 target_link_libraries(AuroraMcpCore PUBLIC nlohmann_json::nlohmann_json)
 find_package(Threads REQUIRED)

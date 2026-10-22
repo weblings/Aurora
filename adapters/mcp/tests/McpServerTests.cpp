@@ -1,12 +1,14 @@
 #include <catch2/catch_test_macros.hpp>
 
 #include "McpServer.hpp"
+#include "Pair.hpp"
 
 #include <chrono>
 #include <functional>
 #include <map>
 #include <mutex>
 #include <optional>
+#include <sstream>
 #include <thread>
 #include <vector>
 
@@ -182,6 +184,7 @@ TEST_CASE("Tool failures are error results, protocol misuse is a JSON-RPC error"
     const json result = callStatus(server)["result"];
     CHECK(result["isError"] == true);
     CHECK(result["content"][0]["text"].get<std::string>().find("AURORA_TOKEN") != std::string::npos);
+    CHECK(result["content"][0]["text"].get<std::string>().find("--pair") != std::string::npos);
   }
 
   SECTION("Body is not JSON"){
@@ -351,6 +354,14 @@ TEST_CASE("put_draft: transport and refusal are tool errors")
   const json result = callTool(refused, "put_draft", R"({"graph":{}})")["result"];
   CHECK(result["isError"] == true);
   CHECK(result["content"][0]["text"].get<std::string>().find("AURORA_TOKEN") != std::string::npos);
+
+  // 403: a valid token below the scope this call needs, named so the user re-pairs.
+  McpServer readOnly(scripted({{"PUT /api/graph/drafts/t", {403, "{}", {}}}}), "1.0", "t");
+  const std::string draftText = callTool(readOnly, "put_draft", R"({"graph":{}})")["result"]["content"][0]["text"];
+  CHECK(draftText.find("(draft)") != std::string::npos);
+  CHECK(draftText.find("--pair") != std::string::npos);
+  McpServer draftOnly(scripted({{"POST /api/graph/test", {403, "{}", {}}}}), "1.0", "t");
+  CHECK(callTool(draftOnly, "try_on_lights")["result"]["content"][0]["text"].get<std::string>().find("(apply)") != std::string::npos);
 
   McpServer tooBig(scripted({{"PUT /api/graph/drafts/t", {413, R"({"error":"draft_too_large"})", {}}}}), "1.0", "t");
   CHECK(callTool(tooBig, "put_draft", R"({"graph":{}})")["result"]["isError"] == true);
@@ -654,4 +665,56 @@ TEST_CASE("A graph that needs an unchosen input asks for the user, not a retry")
 
   McpServer busy(scripted({{"POST /api/graph/test", {409, R"({"message":"pipeline is rebuilding"})", {}}}}), "1.0", "t");
   CHECK(callTool(busy, "try_on_lights")["result"]["content"][0]["text"].get<std::string>().find("Try again") != std::string::npos);
+}
+
+TEST_CASE("--pair requests the scope, prints only the token, and stops on deny or expiry")
+{
+  std::vector<std::string> log;
+  std::vector<HttpReply> polls;
+  std::string requestBody;
+  const Fetch fetch = [&](const std::string& method, const std::string& path, const std::string& body){
+    log.push_back(method + " " + path);
+    if(method == "POST"){
+      requestBody = body;
+      return HttpReply{202, R"({"pollKey":"pk","code":"K7Q2X"})", {}};
+    }
+    HttpReply next = polls.front();
+    polls.erase(polls.begin());
+    return next;
+  };
+
+  SECTION("Approved after a pending poll"){
+    polls = {{202, R"({"state":"pending"})", {}}, {200, R"({"state":"approved","token":"tok123","scope":"apply"})", {}}};
+    std::ostringstream out, err;
+    int waits = 0;
+    CHECK(Aurora::Mcp::pair(fetch, "laptop", "apply", out, err, [&]{ ++waits; }) == 0);
+    CHECK(out.str() == "tok123\n");
+    CHECK(err.str().find("K7Q2X") != std::string::npos);
+    CHECK(json::parse(requestBody) == json{{"name", "laptop"}, {"scope", "apply"}});
+    CHECK(log == std::vector<std::string>{"POST /api/pairing/request", "GET /api/pairing/request/pk", "GET /api/pairing/request/pk"});
+    CHECK(waits == 2);
+  }
+
+  SECTION("Denied or expired"){
+    polls = {{404, R"({"state":"unknown"})", {}}};
+    std::ostringstream out, err;
+    CHECK(Aurora::Mcp::pair(fetch, "laptop", "draft", out, err, []{}) == 1);
+    CHECK(out.str().empty());
+  }
+
+  SECTION("Admin is refused before any request"){
+    std::ostringstream out, err;
+    CHECK(Aurora::Mcp::pair(fetch, "laptop", "admin", out, err, []{}) == 2);
+    CHECK(log.empty());
+  }
+}
+
+TEST_CASE("isLoopbackUrl")
+{
+  using Aurora::Mcp::isLoopbackUrl;
+  CHECK(isLoopbackUrl("http://127.0.0.1:8215"));
+  CHECK(isLoopbackUrl("http://LOCALHOST:8215/"));
+  CHECK(isLoopbackUrl("http://[::1]:8215"));
+  CHECK_FALSE(isLoopbackUrl("http://192.168.1.20:8215"));
+  CHECK_FALSE(isLoopbackUrl("http://aurora.local"));
 }

@@ -417,10 +417,16 @@ namespace Aurora::Mcp
     if(reply.status == 0){
       return "Aurora is not reachable (" + reply.error + "). Start Aurora and check AURORA_URL.";
     }
-    if(reply.status == 401 || reply.status == 403){
-      return "Aurora refused the request (HTTP " + std::to_string(reply.status) + "). Set AURORA_TOKEN to a paired token. "
-        "A token that is already set may lack the access this needs: drafting needs a draft token, "
-        "light tests and apply need an apply token.";
+    if(reply.status == 401){
+      return "Aurora refused the request (HTTP 401): no paired token. Ask the user to run `aurora-mcp --pair` "
+        "and set AURORA_TOKEN in the client config to the token it prints.";
+    }
+    if(reply.status == 403){
+      // Only writes are gated above read, and only draft routes sit below apply.
+      const bool draftRoute = path.rfind("/api/graph/drafts", 0) == 0 || path.rfind("/api/graph/validate", 0) == 0;
+      return std::string("Aurora refused the request (HTTP 403): AURORA_TOKEN lacks the access this needs (")
+        + (draftRoute ? "draft" : "apply") + "). Ask the user to re-pair with `aurora-mcp --pair` (apply access) "
+        "and update AURORA_TOKEN.";
     }
     // An error body still tells the caller why, so it is kept in `out` when it parses.
     try{

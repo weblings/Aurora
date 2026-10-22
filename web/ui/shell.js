@@ -390,12 +390,23 @@ export class App {
   _renderPairingRow(request) {
     const ref = escapeHtml(request.ref);
     return `<div class="shell-banner-row"><div class="shell-banner-content">
-      <p class="status-text">Pair <strong>${escapeHtml(request.name ?? '')}</strong> with Aurora? Approve only if it shows code <strong class="shell-pairing-code">${escapeHtml(request.code ?? '')}</strong>.</p>
+      <p class="status-text">Pair <strong>${escapeHtml(request.name ?? '')}</strong> with Aurora${this._pairingAccess(request.scope)}? Approve only if it shows code <strong class="shell-pairing-code">${escapeHtml(request.code ?? '')}</strong>.</p>
       <div class="shell-banner-actions">
         <button type="button" class="btn btn-primary" id="shell-pairing-approve-${ref}">Approve</button>
         <button type="button" class="btn btn-secondary" id="shell-pairing-deny-${ref}">Deny</button>
       </div>
     </div></div>`;
+  }
+
+  // Browsers ask for admin and read as before. Below admin is an agent token
+  // (aurora-mcp --pair), so the approver sees what it can do.
+  _pairingAccess(scope) {
+    const access = {
+      read: 'view only',
+      draft: 'edit drafts, no light changes',
+      apply: 'change effects and test on the lights, no settings',
+    }[scope];
+    return access ? ` with ${scope} access (${access})` : '';
   }
 
   // No optimistic removal: the re-read shows what the daemon holds (an

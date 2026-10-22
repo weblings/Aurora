@@ -9,7 +9,8 @@ and scope: [[sequence-d-planning]], [[external-control]].
 
 - `src/McpServer.*`: protocol logic (framing, version negotiation, tools),
   transport-free so tests script the app through an injected fetch.
-- `src/main.cpp`: stdio loop and the httplib client.
+- `src/main.cpp`: stdio loop, the httplib client, and `--pair`.
+- `src/Pair.*`: the `--pair` token request and poll, transport-free like the server.
 - Read tools: `aurora_status`, `list_nodes`, `describe_node`,
   `list_presets`, `get_preset` (the last two pass through `/api/graph/presets`).
   Draft tools: `put_draft`, `set_control`, `preview` act on one draft per
@@ -43,12 +44,14 @@ Any client, as a config entry:
 - By hand: set `AURORA_URL` to the host's own LAN IP, not `127.0.0.1`. Aurora treats
   that address as remote and answers 401 until a token is paired. It does not
   exercise the firewall (the request still goes over loopback).
-- Pair like the WebUI: `POST /api/pairing/request` with `{"name", "scope"}`, approve
-  it from loopback (`GET /api/pairing/pending`, `POST .../pending/<ref>/approve`),
-  then poll `/api/pairing/request/<pollKey>` once for the token.
+- Pair: `AURORA_URL=http://<LAN IP>:8215 aurora-mcp --pair` requests an apply token,
+  waits for Approve in the WebUI banner, and prints only the token on stdout.
+  `--scope draft|read` asks for less, `--name` overrides the device name.
 - Scopes: `read`, `draft`, `apply`, `admin`. Draft covers `put_draft` and `set_control`;
-  apply adds `try_on_lights`, `keep`, `apply`, `revert_effect`. The WebUI asks for
-  `admin` and has no scope picker (see Aurora-4xqt.15).
+  apply adds `try_on_lights`, `keep`, `apply`, `revert_effect`. No tool needs admin.
+  The WebUI's own pairing still asks for `admin`, which the browser UI needs.
+- `PipelineTests` "Every route aurora-mcp calls" pins each call's scope. Add new
+  calls there, and give a new write route its own guard rule or it needs admin.
 
 ## Build and packaging
 

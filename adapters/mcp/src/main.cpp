@@ -1,10 +1,13 @@
 #include "McpServer.hpp"
+#include "Pair.hpp"
 
 #include <httplib.h>
 
+#include <chrono>
 #include <cstdlib>
 #include <iostream>
 #include <string>
+#include <thread>
 
 #ifdef _WIN32
 #include <fcntl.h>
@@ -26,18 +29,70 @@ namespace
     const char* value = std::getenv(name);
     return (value && *value) ? value : fallback;
   }
+
+  constexpr char kUsage[] =
+    "Usage: aurora-mcp                  stdio MCP server (the client starts this)\n"
+    "       aurora-mcp --pair [--scope apply|draft|read] [--name NAME]\n"
+    "                                   pair a token for a LAN Aurora at AURORA_URL\n";
+
+  int runPair(const std::string& url, const std::string& scope, const std::string& name)
+  {
+    if(Aurora::Mcp::isLoopbackUrl(url)){
+      std::cerr << "AURORA_URL (" << url << ") is this computer, which needs no token. "
+        "Set AURORA_URL to the other computer's address first.\n";
+      return 2;
+    }
+    httplib::Client client(url);
+    client.set_connection_timeout(2, 0);
+    client.set_read_timeout(5, 0);
+    const Aurora::Mcp::Fetch fetch = [&client](const std::string& method, const std::string& path, const std::string& body){
+      Aurora::Mcp::HttpReply reply;
+      const httplib::Result result = method == "POST" ? client.Post(path, body, "application/json") : client.Get(path);
+      if(result){
+        reply.status = result->status;
+        reply.body = result->body;
+      }
+      else{
+        reply.error = httplib::to_string(result.error());
+      }
+      return reply;
+    };
+    return Aurora::Mcp::pair(fetch, name, scope, std::cout, std::cerr,
+      []{ std::this_thread::sleep_for(std::chrono::seconds(1)); });
+  }
 }
 
 
-int main()
+int main(int argc, char** argv)
 {
+  const std::string url = envOr("AURORA_URL", "http://127.0.0.1:8215");
+
+  bool pairMode = false;
+  std::string scope = "apply";
+  std::string name = std::string("aurora-mcp on ") + envOr("COMPUTERNAME", envOr("HOSTNAME", "this computer").c_str());
+  for(int i = 1; i < argc; ++i){
+    const std::string arg = argv[i];
+    if(arg == "--pair"){
+      pairMode = true;
+    }
+    else if((arg == "--scope" || arg == "--name") && i + 1 < argc){
+      (arg == "--scope" ? scope : name) = argv[++i];
+    }
+    else{
+      std::cerr << kUsage;
+      return arg == "--help" || arg == "-h" ? 0 : 2;
+    }
+  }
+  if(pairMode){
+    return runPair(url, scope, name);
+  }
+
 #ifdef _WIN32
   // Text mode would turn each "\n" into "\r\n" on the wire.
   _setmode(_fileno(stdout), _O_BINARY);
   _setmode(_fileno(stdin), _O_BINARY);
 #endif
 
-  const std::string url = envOr("AURORA_URL", "http://127.0.0.1:8215");
   // Set by the user in the client's MCP config, never by the agent. Loopback needs none.
   const std::string token = envOr("AURORA_TOKEN", "");
 

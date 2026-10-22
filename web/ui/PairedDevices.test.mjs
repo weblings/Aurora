@@ -46,6 +46,7 @@ function stubFetch({ devices, deleteStatus = 200, deleteBody = { succeeded: true
   const devices = [
     { id: 'a1', name: '<Phone>', scope: 'admin', createdAt: 1760000000, lastSeen: 1760000000 + 3 * day },
     { id: 'b2', name: 'Tablet', scope: 'admin', createdAt: 1760000000, lastSeen: 1760000000 },
+    { id: 'c3', name: 'aurora-mcp on laptop', scope: 'apply', createdAt: 1760000000, lastSeen: 1760000000 },
   ];
   stubFetch({ devices });
   const container = makeContainer();
@@ -56,6 +57,8 @@ function stubFetch({ devices, deleteStatus = 200, deleteBody = { succeeded: true
   assert.ok(container.innerHTML.includes('&lt;Phone&gt;'), 'name escaped');
   assert.equal((container.innerHTML.match(/last used/g) ?? []).length, 1, 'last used only when it differs');
   assert.ok(container.revokeButton('a1') && container.revokeButton('b2'), 'one Revoke per device');
+  assert.equal((container.innerHTML.match(/access\./g) ?? []).length, 1, 'only the agent row names its access');
+  assert.ok(container.innerHTML.includes('Apply access.'));
 }
 
 // Revoke: DELETE, then the list reloads without the device.
