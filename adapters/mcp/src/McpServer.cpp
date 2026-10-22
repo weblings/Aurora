@@ -34,7 +34,9 @@ namespace Aurora::Mcp
       "Start from a preset: list_presets, then get_preset, and change as little as you can. "
       "Use list_nodes and describe_node for the node types, params and ports you edit. "
       "Keep the preset's controls so the user can still tune the result in Aurora. "
-      "In an audio graph, silence holds the last frame, so do not expect it to go dark. "
+      "An audio graph shows nothing until audio first arrives, so a preview on a quiet machine "
+      "comes back empty: play something and preview again. After that, silence holds the last "
+      "frame or settles at the quiet values, so do not expect it to go dark by itself. "
       "put_draft saves and validates the whole graph: fix every error before going on. "
       "set_control tunes one control. preview samples the draft off the lights, so use it before "
       "touching them. try_on_lights shows the draft on the real lights for the user to judge: "
@@ -674,6 +676,10 @@ namespace Aurora::Mcp
       reacting = reacting || moves;
     }
     summary["reacting"] = reacting;
+    if(summary["outputs"].empty()){
+      summary["note"] = "No colors arrived during the preview. If the draft uses audio, nothing has played "
+        "since the preview opened: play something, then preview again.";
+    }
     return toolJson(summary);
   }
 

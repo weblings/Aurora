@@ -315,12 +315,11 @@ def dark_preview(c, client, ctx):
         assert client.ok("set_control", control=label, value=0)["valid"]
     summary = client.ok("preview", seconds=3)
     zones = summary["outputs"][0]["zones"]
-    # A fresh preview starts bright until its audio chain delivers a buffer (Mac: ~1 s), so
-    # the window's max and 'reacting' include that transient; the dark end is what counts.
-    low = max(z["brightnessMin"] for z in zones)
-    assert low < 0.05, summary
+    # The tone keeps buffers arriving, so the pulse sits at its dark end for the whole window.
+    high = max(z["brightnessMax"] for z in zones)
+    assert high < 0.05 and not summary["reacting"], summary
     assert sc.lit(c["frames"].wait(sc.lit, "stayed lit")), "live lights changed during the preview"
-    return f"reached dark (brightness min {low:.2f}, reacting {summary['reacting']}), live lights untouched"
+    return f"stayed dark (brightness max {high:.2f}, reacting {summary['reacting']}), live lights untouched"
 
 
 @step("try on lights, keep")

@@ -463,6 +463,20 @@ TEST_CASE("preview tells a static graph from a reacting one")
   const json moving = callTool(server, "preview", R"({"seconds":2})")["result"];
   CHECK(moving["structuredContent"]["reacting"] == true);
   CHECK(app.log.back() == "GET /api/graph/preview/summary?session=t&seconds=2.000000");
+  CHECK_FALSE(moving["structuredContent"].contains("note"));
+}
+
+TEST_CASE("preview of a draft that sent no colors says to play audio and try again")
+{
+  FakeDrafts app;
+  McpServer server(app.fetch(), "1.0", "t");
+  callTool(server, "put_draft", std::string(R"({"graph":)") + kGoodGraph + "}");
+
+  app.previewBody = R"({"session":"t","seconds":3,"samples":46,"outputs":[],"errors":[]})";
+  const json quiet = callTool(server, "preview")["result"];
+  CHECK(quiet["isError"] == false);
+  CHECK(quiet["structuredContent"]["reacting"] == false);
+  CHECK(quiet["structuredContent"]["note"].get<std::string>().find("play something") != std::string::npos);
 }
 
 TEST_CASE("shutdown deletes the draft, and only when one was saved")
