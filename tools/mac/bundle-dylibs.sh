@@ -32,6 +32,8 @@ done
 APP_ABS="$(cd "$APP" && pwd)"   # absolute or relative APP both work (CMake passes an absolute path)
 EXE="$APP/Contents/MacOS/$(defaults read "$APP_ABS/Contents/Info" CFBundleExecutable 2>/dev/null || echo Aurora)"
 [ -f "$EXE" ] || EXE="$APP/Contents/MacOS/Aurora"
+MCP="$APP/Contents/MacOS/aurora-mcp"   # Aurora-4xqt.7: a second executable; it links the same Homebrew libs
+EXES=("$EXE"); [ ! -f "$MCP" ] || EXES+=("$MCP")
 FW="$APP/Contents/Frameworks"
 MANIFEST="$APP/Contents/Resources/bundled-dylibs.tsv"
 WORK="$(mktemp -d)"; trap 'rm -rf "$WORK"' EXIT
@@ -63,7 +65,7 @@ resolve() {
 
 # queue lines: <file in bundle>|<original file it was copied from (or itself)>
 : > "$WORK/queue"; : > "$WORK/seen"; : > "$WORK/map"
-echo "$EXE|$EXE" >> "$WORK/queue"
+for x in "${EXES[@]}"; do echo "$x|$x" >> "$WORK/queue"; done
 for f in "$FW"/*.dylib; do [ -e "$f" ] && echo "$f|$f" >> "$WORK/queue"; done
 
 while [ -s "$WORK/queue" ]; do
@@ -99,12 +101,12 @@ fix() {
     [ "$dep" = "$new" ] || int -change "$dep" "$new" "$f"
   done
 }
-fix "$EXE" exe
+for x in "${EXES[@]}"; do fix "$x" exe; done
 for f in "$FW"/*.dylib; do fix "$f" lib; done
 
 # verify: no Homebrew/absolute leftovers, every @rpath dep present in Frameworks
 bad=0
-for f in "$EXE" "$FW"/*.dylib; do
+for f in "${EXES[@]}" "$FW"/*.dylib; do
   for dep in $(deps_of "$f"); do
     is_system "$dep" && continue
     case "$dep" in
@@ -125,7 +127,7 @@ done
 if [ "$IDENTITY" = "-" ]; then TS=(--timestamp=none); else TS=(--timestamp); fi
 sign() { codesign "$@" >/dev/null 2>"$WORK/cs.err" || { echo "codesign failed:" >&2; cat "$WORK/cs.err" >&2; exit 1; }; }
 for f in "$FW"/*.dylib; do sign --force --options runtime "${TS[@]}" --sign "$IDENTITY" "$f"; done
-# aurora-mcp (Aurora-4xqt.7) is a second Mach-O in MacOS/, system libs only
+# aurora-mcp (Aurora-4xqt.7) is a second Mach-O in MacOS/
 [ ! -f "$APP/Contents/MacOS/aurora-mcp" ] || sign --force --options runtime "${TS[@]}" --sign "$IDENTITY" "$APP/Contents/MacOS/aurora-mcp"
 ARGS=(--force --options runtime "${TS[@]}" --sign "$IDENTITY"); [ -z "$ENTITLEMENTS" ] || ARGS+=(--entitlements "$ENTITLEMENTS")
 sign "${ARGS[@]}" "$APP"

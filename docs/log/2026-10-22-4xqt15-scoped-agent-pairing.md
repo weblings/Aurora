@@ -42,9 +42,15 @@ gate rerun that [[4xqt13-optional-input-hold]] left open.
 
 ## Open
 
-- Not tested: a quarantined helper spawned by a GUI client, and a Developer ID
-  signed and notarized bundle that contains `aurora-mcp` (the notarized 1.0.4
-  bundle predates the helper). Aurora-4xqt.16 stays open for that.
+- Signed and notarized `mac-app` bundle with `aurora-mcp`
+  (`sign-notarize.sh`, `build/notarize-mcp`): accepted, stapled, `spctl` Notarized
+  Developer ID. A quarantined copy extracted from the zip passes `spctl` and the
+  helper answered `initialize` with `env -i`. This found a bug: `bundle-dylibs.sh`
+  assumed the helper used system libs only, but it links Homebrew OpenSSL, brotli
+  and zstd, so `verify-bundle.sh` failed. The script now bundles and rewrites
+  `aurora-mcp` like the main binary.
+- Not tested: the helper spawned by a GUI client from a quarantined notarized
+  copy. Aurora-4xqt.16 stays open for that.
 
 - Gate rerun on Linux with this adapter.
 - Gate pairs through the API, so `--pair` itself is covered by the Linux trial only.
