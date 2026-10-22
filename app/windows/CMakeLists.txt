@@ -183,6 +183,18 @@ if(CMAKE_VERSION VERSION_GREATER_EQUAL "3.21")
   )
 endif()
 
+# Aurora-4xqt.7: the MCP helper ships beside the app. A superbuild adds
+# adapters/mcp before this slice; a standalone slice configure skips it.
+if(TARGET aurora-mcp)
+  add_dependencies(aurora-app-windows aurora-mcp)
+  add_custom_command(TARGET aurora-app-windows POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            $<TARGET_FILE:aurora-mcp> $<TARGET_FILE_DIR:aurora-app-windows>
+    COMMENT "Staging aurora-mcp beside Aurora"
+    VERBATIM
+  )
+endif()
+
 target_compile_features(aurora-app-windows PRIVATE cxx_std_20)
 
 # MSVC flags std::getenv as deprecated in favor of _dupenv_s -- keeping the

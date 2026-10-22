@@ -46,6 +46,7 @@ option(AURORA_ENABLE_APP_WINDOWS "Build app/windows" ${_AURORA_ON_WINDOWS})
 # Linux/Windows above.
 option(AURORA_ENABLE_INPUT_MAC "Build input/mac (ScreenCaptureKit)" ${_AURORA_ON_MAC})
 option(AURORA_ENABLE_APP_MAC "Build app/mac" ${_AURORA_ON_MAC})
+option(AURORA_ENABLE_MCP_ADAPTER "Build adapters/mcp (stdio MCP helper)" ON)
 
 include(CTest)
 
@@ -60,6 +61,9 @@ if(AURORA_ENABLE_INPUT_MAC)
 endif()
 if(AURORA_ENABLE_OUTPUT_HUE)
   add_subdirectory(output/hue)
+endif()
+if(AURORA_ENABLE_MCP_ADAPTER)
+  add_subdirectory(adapters/mcp)
 endif()
 if(AURORA_ENABLE_APP_LINUX)
   add_subdirectory(app/linux)

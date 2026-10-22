@@ -125,6 +125,8 @@ done
 if [ "$IDENTITY" = "-" ]; then TS=(--timestamp=none); else TS=(--timestamp); fi
 sign() { codesign "$@" >/dev/null 2>"$WORK/cs.err" || { echo "codesign failed:" >&2; cat "$WORK/cs.err" >&2; exit 1; }; }
 for f in "$FW"/*.dylib; do sign --force --options runtime "${TS[@]}" --sign "$IDENTITY" "$f"; done
+# aurora-mcp (Aurora-4xqt.7) is a second Mach-O in MacOS/, system libs only
+[ ! -f "$APP/Contents/MacOS/aurora-mcp" ] || sign --force --options runtime "${TS[@]}" --sign "$IDENTITY" "$APP/Contents/MacOS/aurora-mcp"
 ARGS=(--force --options runtime "${TS[@]}" --sign "$IDENTITY"); [ -z "$ENTITLEMENTS" ] || ARGS+=(--entitlements "$ENTITLEMENTS")
 sign "${ARGS[@]}" "$APP"
 codesign --verify --strict "$APP"
