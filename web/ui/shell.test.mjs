@@ -619,7 +619,8 @@ const HELD = { source: 'reload', message: 'bridge unreachable', id: 7 };
   assert.ok(banner().includes('K7Q2X'), 'code shown');
   assert.ok(banner().includes('shell-pairing-approve-r1') && banner().includes('shell-pairing-deny-r1'), 'approve and deny');
   assert.ok(banner().includes('2 problems'), 'problems still collapse beside the request');
-  assert.ok(!banner().includes('access ('), 'a browser (admin) request reads as before');
+  assert.ok(!banner().includes('Access:'), 'a browser (admin) request has no access line');
+  assert.ok(banner().includes('Device:</span> &lt;Phone&gt;') && !banner().includes('From:'), 'no From line without an address');
   uninstallDom();
 }
 
@@ -630,7 +631,10 @@ const HELD = { source: 'reload', message: 'bridge unreachable', id: 7 };
   app.canApprove = true;
   await app._pollOnce();
   await sleep(0);
-  assert.ok(banner().includes('with apply access (change effects and test on the lights, no settings) from 192.168.0.51'));
+  assert.ok(banner().includes('Device:</span> aurora-mcp on laptop</li>'));
+  assert.ok(banner().includes('From:</span> 192.168.0.51</li>'));
+  assert.ok(banner().includes('Access:</span> Apply. Change effects and test on the lights, not settings.</li>'));
+  assert.ok(banner().includes('Approve only if the device shows the same code.'));
   uninstallDom();
 }
 

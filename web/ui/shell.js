@@ -390,7 +390,13 @@ export class App {
   _renderPairingRow(request) {
     const ref = escapeHtml(request.ref);
     return `<div class="shell-banner-row"><div class="shell-banner-content">
-      <p class="status-text">Pair <strong>${escapeHtml(request.name ?? '')}</strong> with Aurora${this._pairingAccess(request.scope)}${request.from ? ` from ${escapeHtml(request.from)}` : ''}? Approve only if it shows code <strong class="shell-pairing-code">${escapeHtml(request.code ?? '')}</strong>.</p>
+      <p class="status-text shell-pairing-title">Pair a device with Aurora?</p>
+      <ul class="shell-pairing-details">
+        <li><span class="shell-pairing-label">Device:</span> ${escapeHtml(request.name ?? '')}</li>
+        ${request.from ? `<li><span class="shell-pairing-label">From:</span> ${escapeHtml(request.from)}</li>` : ''}
+        ${this._pairingAccess(request.scope)}
+        <li><span class="shell-pairing-label">Code:</span> <strong class="shell-pairing-code">${escapeHtml(request.code ?? '')}</strong>. Approve only if the device shows the same code.</li>
+      </ul>
       <div class="shell-banner-actions">
         <button type="button" class="btn btn-primary" id="shell-pairing-approve-${ref}">Approve</button>
         <button type="button" class="btn btn-secondary" id="shell-pairing-deny-${ref}">Deny</button>
@@ -402,11 +408,11 @@ export class App {
   // (aurora-mcp --pair), so the approver sees what it can do.
   _pairingAccess(scope) {
     const access = {
-      read: 'view only',
-      draft: 'edit drafts, no light changes',
-      apply: 'change effects and test on the lights, no settings',
+      read: 'View only.',
+      draft: 'Edit drafts, not the lights.',
+      apply: 'Change effects and test on the lights, not settings.',
     }[scope];
-    return access ? ` with ${scope} access (${access})` : '';
+    return access ? `<li><span class="shell-pairing-label">Access:</span> ${scope[0].toUpperCase()}${scope.slice(1)}. ${access}</li>` : '';
   }
 
   // No optimistic removal: the re-read shows what the daemon holds (an
