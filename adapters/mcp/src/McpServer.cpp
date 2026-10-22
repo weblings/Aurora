@@ -1,5 +1,6 @@
 #include "McpServer.hpp"
 
+#include <cmath>
 #include <algorithm>
 #include <array>
 #include <cctype>
@@ -283,7 +284,8 @@ namespace Aurora::Mcp
         "Change one control value on the draft without editing the graph. Name the control by its label or "
         "as node.param. Returns the draft's validation.",
         {{"control", {{"type", "string"}, {"description", "Control label or node.param."}}},
-         {"value", {{"description", "New value, in the param's own type."}}}},
+         {"value", {{"type", nlohmann::json::array({"number", "string", "boolean"})},
+                    {"description", "New value, in the param's own type."}}}},
         nlohmann::json::array({"control", "value"})),
       readOnlyTool("preview",
         "Run the draft off the lights for a few seconds and summarise each output: mean color, brightness range "
@@ -554,7 +556,36 @@ namespace Aurora::Mcp
       if(graph.contains("nodes") && graph.at("nodes").is_array()){
         for(auto& candidate : graph["nodes"]){
           if(candidate.value("id", "") == node){
-            candidate["params"][param] = arguments.at("value");
+            nlohmann::json value = arguments.at("value");
+            // Some clients send every value as a string; read it as the param's current kind.
+            if(const auto existing = candidate.contains("params") ? candidate["params"].find(param)
+                                                                  : candidate.end();
+               candidate.contains("params") && existing != candidate["params"].end()){
+              if(existing->is_number() && value.is_string()){
+                const std::string text = value.get<std::string>();
+                std::size_t used = 0;
+                double parsed = 0.0;
+                try{ parsed = std::stod(text, &used); } catch(...){ used = 0; }
+                if(used != 0 && used == text.size() && std::isfinite(parsed)){
+                  value = parsed;
+                }
+              }
+              else if(existing->is_boolean() && value.is_string()){
+                const std::string text = value.get<std::string>();
+                if(text == "true" || text == "false"){
+                  value = (text == "true");
+                }
+              }
+              const bool sameKind = (existing->is_number() && value.is_number())
+                || (existing->is_boolean() && value.is_boolean())
+                || (existing->is_string() && value.is_string())
+                || (!existing->is_number() && !existing->is_boolean() && !existing->is_string());
+              if(!sameKind){
+                return toolText("Control '" + wanted + "' takes a " + (existing->is_number() ? "number" : existing->is_boolean() ? "true or false" : "text value")
+                  + ", not " + value.dump() + ". The draft is unchanged.", true);
+              }
+            }
+            candidate["params"][param] = value;
             return _saveDraft(graph);
           }
         }

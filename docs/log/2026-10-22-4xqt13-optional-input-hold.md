@@ -39,6 +39,15 @@ both-input graphs, fixed here.
   `linux-audio` with the `pw-play` tone. The dark preview now reports
   `reacting` false; the flicker had made it true.
 
+## Found in the Claude Code trial (Aurora-4xqt.14)
+
+- `set_control` value `1.0` reached the adapter as the string `"1.0"` (the
+  `value` schema had no type) and was saved, so the draft stayed invalid.
+- Fix: `value` is typed number, string or boolean; a string is read as the
+  param's current kind (number, boolean); a wrong kind is refused with the
+  draft unchanged. Adapter test added, 185/185.
+- The preview of the `both` preset showed brightness 0.47 to 0.60, no 1.0 spikes.
+
 ## Not verified
 
 - Mac and Windows reruns with the tightened gate.

@@ -370,6 +370,29 @@ TEST_CASE("set_control changes one param by label or node.param")
   CHECK(miss["content"][0]["text"].get<std::string>().find("'Brightness'") != std::string::npos);
 }
 
+TEST_CASE("set_control reads a string as the param's kind and refuses a wrong kind without saving")
+{
+  FakeDrafts app;
+  McpServer server(app.fetch(), "1.0", "t");
+  callTool(server, "put_draft", std::string(R"({"graph":)") + kGoodGraph + "}");
+  callTool(server, "set_control", R"({"control":"Brightness","value":0.5})");
+
+  // Some clients send every value as text.
+  const json text = callTool(server, "set_control", R"({"control":"Brightness","value":"1.0"})")["result"];
+  CHECK(text["isError"] == false);
+  CHECK(app.draft->at("nodes")[0]["params"]["b"] == 1.0);
+  CHECK(app.draft->at("nodes")[0]["params"]["b"].is_number());
+
+  const json bad = callTool(server, "set_control", R"({"control":"Brightness","value":"loud"})")["result"];
+  CHECK(bad["isError"] == true);
+  CHECK(bad["content"][0]["text"].get<std::string>().find("number") != std::string::npos);
+  CHECK(app.draft->at("nodes")[0]["params"]["b"] == 1.0);
+
+  const json trailing = callTool(server, "set_control", R"({"control":"Brightness","value":"2x"})")["result"];
+  CHECK(trailing["isError"] == true);
+  CHECK(app.draft->at("nodes")[0]["params"]["b"] == 1.0);
+}
+
 TEST_CASE("preview tells a static graph from a reacting one")
 {
   FakeDrafts app;
