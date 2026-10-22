@@ -16,6 +16,10 @@ namespace Aurora::Runtime
   class PipelineHost;
   class Registry;
 
+  // Value of the X-Aurora-Client header the MCP adapter sends on apply and
+  // effect-switch requests. Such a request records the effect as mcpEffectId.
+  inline constexpr const char* kMcpClient = "mcp";
+
   // POST /api/graph/apply needs `apply` (LAN only, loopback is trusted).
   void addApplyAccessRules(Aurora::Network::Http::Server::AccessGuard& guard);
 
@@ -34,7 +38,8 @@ namespace Aurora::Runtime
   // 400 "invalid_body" / "invalid_session" / "invalid_effect_id" (ids are
   // [a-z0-9][a-z0-9_-]{0,63}, so built-in ids never qualify), 404 "no_draft",
   // 422 "invalid_graph" with "valid": false and "errors" as the draft routes
-  // report them, 500 "write_failed".
+  // report them, 500 "write_failed". With X-Aurora-Client: mcp the applied id
+  // also becomes Config's mcpEffectId (reported by GET /api/state).
   // PUT /api/effects/<id>/params {"params": [{"node", "param", "value"}]}: Tuning
   // edits on a custom effect. Sets each node param in effects/<id>.json, then,
   // when <id> is the active effect, applies like POST /api/graph/apply (swap in
@@ -47,7 +52,8 @@ namespace Aurora::Runtime
   //
   // The apply itself, shared with test-on-lights confirm: fills `body` and
   // returns the HTTP status the route answers with.
-  using ApplyDraftFn = std::function<int(const std::string& session, const std::string& id, nlohmann::json& body)>;
+  using ApplyDraftFn = std::function<int(
+    const std::string& session, const std::string& id, const std::string& client, nlohmann::json& body)>;
 
   ApplyDraftFn registerApplyRoutes(
     Aurora::Network::Http::Server::HttpServer& server,

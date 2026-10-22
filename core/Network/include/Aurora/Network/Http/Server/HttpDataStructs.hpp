@@ -47,6 +47,9 @@ namespace Aurora::Network::Http::Server
 
     std::string path;
 
+    // X-Aurora-Client header, lowercase ("mcp" from the MCP adapter), else empty.
+    std::string client;
+
     // Filled by the server from its AccessGuard; defaults stand in when none is set.
     std::string remoteAddr;
     bool local{true};

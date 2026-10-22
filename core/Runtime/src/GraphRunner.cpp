@@ -128,12 +128,14 @@ namespace Aurora::Runtime
   }
 
 
-  void GraphRunner::init()
+  void GraphRunner::init(bool videoReady)
   {
     if(m_videoInput){
       // Must run before refreshRate/subsampleWidth derivation: both read the
       // input's currently selected monitor.
-      selectConfiguredMonitor(*m_videoInput, m_config);
+      if(!videoReady){
+        selectConfiguredMonitor(*m_videoInput, m_config);
+      }
 
       if(m_config.refreshRate() == 0){
         m_config.setRefreshRate(
@@ -152,7 +154,9 @@ namespace Aurora::Runtime
 
       // Lets a GPU-scaling grabber (Mac) deliver a frame near the size the
       // rescale node targets, instead of full resolution (Aurora-3qh).
-      m_videoInput->setCaptureWidthHint(m_config.subsampleWidth());
+      if(!videoReady){
+        m_videoInput->setCaptureWidthHint(m_config.subsampleWidth());
+      }
     }
 
     // Re-runnable: a second init() re-reads the saved zone maps.
@@ -241,13 +245,14 @@ namespace Aurora::Runtime
 
 
   std::shared_ptr<GraphPreview> GraphRunner::openPreview(
-    const std::string& session, const nlohmann::json& doc, std::string& errorOut)
+    const std::string& session, const nlohmann::json& doc, GraphPreview::Inputs inputs, std::string& errorOut)
   {
     auto preview = GraphPreview::create(
       doc, m_registry, std::unordered_set<std::string>(m_outputNames.begin(), m_outputNames.end()), errorOut);
     if(!preview){
       return nullptr;
     }
+    preview->setInputs(std::move(inputs));
     auto& slot = m_previews[session];
     if(slot){
       slot->close();

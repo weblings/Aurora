@@ -30,6 +30,7 @@ add_library(AuroraInputLinux STATIC
   src/DummyGrabber.cpp
   src/SessionDispatch.cpp
   src/InputControlDescriptors.cpp
+  src/FileRestoreTokenStore.cpp
 )
 
 target_include_directories(AuroraInputLinux PUBLIC

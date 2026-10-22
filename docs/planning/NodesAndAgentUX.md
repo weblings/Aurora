@@ -31,7 +31,8 @@ path ([[external-control]]) and an adapter an assistant can call (EC 6a).
   `graph.json`. Detail in [[node-graph-pipeline]].
 - **External-control order** (decided 2026-10-15): EC 3 Host allowlist
   before Sequence B's read routes, EC 2a beside B, EC 4a before C, EC 5
-  after C's write routes (2026-10-20). Detail in [[external-control]].
+  after C's write routes (2026-10-20). D does not wait on EC 5 and owns EC
+  6a's adapter skeleton (2026-10-21). Detail in [[external-control]].
 - **Not decided here:** whether HA output is a go (Aurora-4zr).
 
 ## Sequence A: foundations
@@ -117,12 +118,48 @@ custom graph cannot load, per-session drafts, zone-color preview in C.
   fake-clock revert paths, preview never reaching an output, tick budget
   with a preview running.
 
+## Sequence D: MCP for graphs
+
+Status: filed 2026-10-21. Epic `Aurora-4xqt`. Decisions in
+[[sequence-d-planning]]: a working MCP setup for graphs is the razor, so D
+does not wait on EC 5 or `Aurora-m2c`. The adapter is hand-rolled C++ over
+stdio. C's accepted gaps close first (D0). A Dashboard toggle for MCP graphs
+stays hidden until the first one.
+
+- **Goal:** a local MCP client (Claude Code, Claude Desktop, VS Code) starts
+  Aurora's adapter and lists nodes and presets, drafts and validates,
+  previews, tries on the lights, applies and reverts a custom graph, on three
+  OSes, with no token on loopback.
+- **Beads:**
+  - Gaps: `Aurora-4xqt.1` D0a outputs survive an input-only rebuild
+    (preview and test accept graphs needing other inputs), `.2` D0b MCP
+    effect toggle, `.3` D0c actionable validate errors, `.4` D0d confirm
+    window for a chat loop, `.5` D0e preview summary route, `.6` D0f C
+    follow-ups.
+  - Adapter: `.7` D1 skeleton with `aurora_status`, `.8` D2 node and preset
+    read tools, `.9` D3 draft tools, `.10` D4 try and apply tools, `.11` D5
+    agent instructions and client setup, `.12` D6 gate.
+- **Prerequisite:** none outside D. EC 6a (`Aurora-5ipy.10`) narrows to
+  control tools on D1's binary.
+- **Gate:** D6, a scripted MCP client spawns the adapter on the fake-Hue
+  stack. It fixes a broken draft from the error options, previews, tries a
+  both-input graph from a video-live state, applies, survives a restart and
+  reverts, and the lights revert after a killed client. Three OSes.
+- **Parallel:** D0a to D0e and D1 are independent. D2 follows D1. D3 joins
+  D1, D0c and D0e. D4 joins D3, D0a, D0b and D0d. D5 follows D2 and D4. D6
+  joins D2, D4, D5 and D0f.
+- **OS:** D0a needs a per-OS capture recheck, because adding video can raise
+  the Wayland portal or the macOS screen permission. D1 is built, bundled
+  and signed per OS. Everything else is platform-neutral core and route tests.
+- **Tests:** fake-clock confirm and revert paths, bad-graph corpus asserting
+  error codes and options, preview summary on static and LFO graphs, stdio
+  framing and version negotiation, MCP Inspector smoke, and a manual eval of
+  about 10 prompts in D5. A scored eval corpus is after D.
+
 ## Later sequences (stubs)
 
 Each gets a full section when it starts.
 
-- **D: agent path.** Status: not started. Annotated preset graphs, MCP tools
-  (`list_nodes`, `get_graph`, `validate_graph`, `put_draft`, `preview`,
-  `apply`), agent skill, and an eval corpus of plain-language prompts scored
-  on first-try validity and simple rendered properties.
-- **E: editor.** Status: not started. React Flow editor, in parallel with D.
+- **E: editor.** Status: not started. React Flow editor, after or beside D.
+  Takes over the Effect picker (`Aurora-kep2`) and source-less graphs
+  (`Aurora-t9iq`) from the D0b toggle.

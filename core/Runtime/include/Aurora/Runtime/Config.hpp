@@ -58,6 +58,10 @@ namespace Aurora::Runtime
     // effects/. Empty means the built-in for the mode.
     std::string activeEffectId;
 
+    // The custom effect most recently applied by an MCP client, so the
+    // Dashboard can offer it as a toggle. Empty until the first one.
+    std::string mcpEffectId;
+
     // Mirrors Processing::AudioProcessing::AudioEffectSettings field-by-
     // field (flat here, not a nested struct, so Config stays free of any
     // Processing-module dependency). audioFixedAnchorHue < 0 means unset/
@@ -152,6 +156,9 @@ namespace Aurora::Runtime
     // activeEffectId when it names a custom graph, else empty (unset or a
     // built-in id).
     std::string customEffectId() const;
+
+    const std::string& mcpEffectId() const;
+    void setMcpEffectId(std::string id);
 
     float brightness() const;
     void setBrightness(float brightness);

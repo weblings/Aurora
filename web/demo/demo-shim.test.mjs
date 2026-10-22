@@ -49,6 +49,8 @@ function testRouter(seed) {
     paused: false,
     // No Stop button on the static page (Aurora-ifkn.3).
     canStop: false,
+    // No MCP clients on the static page: the MCP toggle stays hidden.
+    mcpEffectId: null,
     usesVideoInput: true,
     usesAudioInput: false,
     samplesZones: true,

@@ -69,11 +69,13 @@ namespace Aurora::Runtime
   {
     std::lock_guard<std::mutex> lock(m_mutex);
     _expireLocked();
-    const std::uint64_t generation = m_hooks.generation();
     std::string error = m_hooks.start(doc);
     if(!error.empty()){
       return error;
     }
+    // After the start: an input-only rebuild moves the generation, and the
+    // pipeline it built is the one this test must revert (Aurora-4xqt.1).
+    const std::uint64_t generation = m_hooks.generation();
     const std::int64_t now = m_clock();
     m_active = true;
     m_session = session;

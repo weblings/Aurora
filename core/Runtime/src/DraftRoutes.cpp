@@ -67,9 +67,16 @@ namespace Aurora::Runtime
     const Graph::LoadResult result = Graph::loadGraph(doc, nodes, options);
     nlohmann::json errors = nlohmann::json::array();
     for(const Graph::LoadIssue& issue : result.issues){
+      auto orNull = [](const std::string& text){
+        return text.empty() ? nlohmann::json(nullptr) : nlohmann::json(text);
+      };
       errors.push_back({
-        {"node", issue.node.empty() ? nlohmann::json(nullptr) : nlohmann::json(issue.node)},
-        {"message", issue.message}
+        {"node", orNull(issue.node)},
+        {"message", issue.message},
+        {"code", issue.code},
+        {"port", orNull(issue.port)},
+        {"param", orNull(issue.param)},
+        {"options", issue.options}
       });
     }
     return {{"valid", result.ok}, {"errors", errors}};

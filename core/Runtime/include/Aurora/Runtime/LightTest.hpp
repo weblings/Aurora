@@ -17,7 +17,7 @@ namespace Aurora::Runtime
 {
   struct LightTestOptions
   {
-    std::int64_t confirmMs = 15000;   // keep-changes window from the start
+    std::int64_t confirmMs = 120000;  // cap on a test kept alive by heartbeats
     std::int64_t heartbeatMs = 2000;  // what clients are told to send at
     std::int64_t lapseMs = 6000;      // revert after this long without one
   };

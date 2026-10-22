@@ -39,6 +39,8 @@ namespace Aurora::Runtime
   // state. A paused host holds only a failed resume.
   // The flags describe what the running pipeline uses, kept through pause;
   // all false means nothing runs.
+  // "mcpEffectId" (Aurora-4xqt.2) is the custom effect an MCP client applied
+  // last, null until one has.
   // Aurora-5ipy.2 adds "effect" (the running graph id: "builtin.video",
   // "builtin.audio" or a custom effect's id, null when idle or failed),
   // Aurora-52oz.1 adds "requestedEffect" (what Config asked for; it differs

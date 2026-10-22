@@ -228,6 +228,8 @@ export function createRouter(store, hooks = {}) {
         // No daemon behind this page to stop (Aurora-ifkn.3): the
         // Dashboard hides its Stop button on this flag (default true).
         canStop: false,
+        // The demo runs no MCP clients, so the Dashboard's MCP toggle stays hidden.
+        mcpEffectId: null,
         usesVideoInput: !audio,
         usesAudioInput: audio,
         samplesZones: !audio,

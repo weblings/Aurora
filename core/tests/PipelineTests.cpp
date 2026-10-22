@@ -97,6 +97,13 @@ namespace
     // Runs inside every FakeVideoInput grab, i.e. on the tick, under the host lock.
     std::function<void()> onGrab;
 
+    // How many inputs the registry's factories opened and how many were
+    // destroyed since: a reused input shows as no new open.
+    int videoOpened{0}, videoClosed{0}, audioOpened{0}, audioClosed{0};
+
+    // What FakeVideoInput::captureError() reports.
+    std::string captureError;
+
     bool has(const std::string& line) const
     {
       return std::find(lines.begin(), lines.end(), line) != lines.end();
@@ -109,7 +116,14 @@ namespace
   public:
     explicit FakeVideoInput(std::shared_ptr<Events> events = nullptr):
     m_events(std::move(events))
-    {}
+    {
+      if(m_events){ m_events->videoOpened++; }
+    }
+
+    ~FakeVideoInput() override
+    {
+      if(m_events){ m_events->videoClosed++; }
+    }
 
     void setCaptureWidthHint(unsigned width) override
     {
@@ -127,6 +141,7 @@ namespace
     bool hasCustomScreenManagement() const override { return true; }
     Resolution displayResolution() const override { return {4, 2}; }
     RefreshRate displayRefreshRate() const override { return 30; }
+    std::string captureError() const override { return m_events ? m_events->captureError : std::string{}; }
 
     void grabFrameSubsample(ImageData& imageData) override
     {
@@ -151,6 +166,17 @@ namespace
   class FakeAudioInput : public IAudioInput
   {
   public:
+    explicit FakeAudioInput(std::shared_ptr<Events> events = nullptr):
+    m_events(std::move(events))
+    {
+      if(m_events){ m_events->audioOpened++; }
+    }
+
+    ~FakeAudioInput() override
+    {
+      if(m_events){ m_events->audioClosed++; }
+    }
+
     const std::string& name() const override
     {
       static const std::string s_name = "fake-audio";
@@ -163,6 +189,9 @@ namespace
       buffer.channelCount = 1;
       buffer.samples = {0.5f, -0.5f, 0.5f, -0.5f};
     }
+
+  private:
+    std::shared_ptr<Events> m_events;
   };
 
 
@@ -203,7 +232,7 @@ namespace
   {
     Registry registry;
     registry.registerInput("fake-video", [events]{ return std::make_unique<FakeVideoInput>(events); });
-    registry.registerAudioInput("fake-audio", []{ return std::make_unique<FakeAudioInput>(); });
+    registry.registerAudioInput("fake-audio", [events]{ return std::make_unique<FakeAudioInput>(events); });
     registry.registerOutput("out-a", [events]{ return std::make_unique<FakeOutput>("out-a", events); });
     registry.registerOutput("out-b", [events]{ return std::make_unique<FakeOutput>("out-b", events); });
     return registry;
@@ -967,6 +996,7 @@ TEST_CASE("GET /api/state reports paused and the running pipeline's capabilities
     {"state", "idle"},
     {"effect", nullptr},
     {"requestedEffect", nullptr},
+    {"mcpEffectId", nullptr},
     {"source", {{"video", nullptr}, {"audio", nullptr}}},
     {"errors", nlohmann::json::array()},
     {"conditions", nlohmann::json::array()},
@@ -1090,6 +1120,7 @@ TEST_CASE("GET /api/state reports a null audioDevicesUrl when the build has none
   auto result = getWithRetry(client, "/api/state");
   REQUIRE(result);
   CHECK(nlohmann::json::parse(result->body)["audioDevicesUrl"].is_null());
+  CHECK(nlohmann::json::parse(result->body)["mcpEffectId"].is_null());
 
   server.stop();
   serverThread.join();
@@ -2262,6 +2293,52 @@ TEST_CASE("PipelineHost conditions hold in every host state and survive builds a
 }
 
 
+TEST_CASE("PipelineHost holds the video input's captureError as a video_capture error (Aurora-8u3p)", "[PipelineHost]")
+{
+  ScopedTempDir dir("host-capture-error");
+  auto events = std::make_shared<Events>();
+  auto registry = makeRegistry(events);
+  PipelineHost host(nullptr, {});
+  std::string error;
+  REQUIRE(host.reload(registry, videoConfig(), dir.path, error));
+
+  host.tick();
+  CHECK(host.status().errors.empty());
+
+  events->captureError = "Screen capture unavailable";
+  host.tick();
+  auto status = host.status();
+  CHECK(status.state == HostState::Running);
+  REQUIRE(status.errors.size() == 1);
+  CHECK(status.errors[0].source == "video_capture");
+  CHECK(status.errors[0].message == "Screen capture unavailable");
+
+  // Dismissed stays dismissed while the same failure persists.
+  CHECK(host.dismissError("video_capture", status.errors[0].id) == PipelineHost::DismissResult::Removed);
+  host.tick();
+  CHECK(host.status().errors.empty());
+
+  // Recovery and recurrence re-raise it; recovery alone clears it.
+  events->captureError.clear();
+  host.tick();
+  events->captureError = "Screen capture unavailable";
+  host.tick();
+  REQUIRE(host.status().errors.size() == 1);
+  events->captureError.clear();
+  host.tick();
+  CHECK(host.status().errors.empty());
+
+  // A rebuild forgets the held message, so a standing failure shows again.
+  events->captureError = "Screen capture unavailable";
+  host.tick();
+  REQUIRE(host.reload(registry, videoConfig(), dir.path, error));
+  CHECK(host.status().errors.empty());
+  host.tick();
+  CHECK(host.status().errors.size() == 1);
+  host.shutdown();
+}
+
+
 TEST_CASE("registerAllNodes gates audio nodes on includeAudio (Aurora-id8j.11)", "[GraphRoutes]")
 {
   Aurora::Runtime::Graph::NodeRegistry withAudio, withoutAudio;
@@ -2793,6 +2870,16 @@ TEST_CASE("Effects routes list, read, switch and delete (Aurora-52oz.1)", "[Effe
   CHECK(back["effect"] == "builtin.video");
   CHECK(back["requestedEffect"] == "builtin.video");
 
+  // Only an MCP-marked switch to a custom effect records mcpEffectId (Aurora-4xqt.2).
+  CHECK(ConfigStore(dir.path).load().mcpEffectId().empty());
+  const httplib::Headers mcp{{"X-Aurora-Client", "MCP"}};
+  REQUIRE(client.Put("/api/effects", mcp, R"({"activeEffectId": "builtin.video"})", "application/json")->status == 200);
+  CHECK(ConfigStore(dir.path).load().mcpEffectId().empty());
+  REQUIRE(client.Put("/api/effects", mcp, R"({"activeEffectId": "mine"})", "application/json")->status == 200);
+  CHECK(ConfigStore(dir.path).load().mcpEffectId() == "mine");
+  REQUIRE(put(R"({"activeEffectId": "builtin.video"})")->status == 200);
+  CHECK(ConfigStore(dir.path).load().mcpEffectId() == "mine");
+
   // Deleting the active custom falls back to the built-in.
   REQUIRE(put(R"({"activeEffectId": "mine"})")->status == 200);
   CHECK(client.Delete("/api/effects/builtin.video")->status == 400);
@@ -2803,6 +2890,7 @@ TEST_CASE("Effects routes list, read, switch and delete (Aurora-52oz.1)", "[Effe
   CHECK(nlohmann::json::parse(deleted->body) == nlohmann::json{{"succeeded", true}, {"deleted", "mine"}, {"fellBack", true}});
   CHECK_FALSE(store.exists("mine"));
   CHECK(ConfigStore(dir.path).load().activeEffectId() == "");
+  CHECK(ConfigStore(dir.path).load().mcpEffectId().empty());
   CHECK(host.summary().effect == "builtin.video");
   CHECK(host.status().errors.empty());
 
@@ -3230,6 +3318,30 @@ TEST_CASE("Apply refuses an invalid draft and leaves disk and the live effect un
 }
 
 
+TEST_CASE("Only an MCP-marked apply records mcpEffectId, and it survives a config reload (Aurora-4xqt.2)", "[Apply]")
+{
+  ApplyHarness h("apply-mcp", tunedVideoConfig());
+  h.putDraft("editor", Graph::builtInVideoGraph({"out-a"}));
+
+  REQUIRE(h.apply({{"session", "editor"}, {"id", "plain"}})->status == 200);
+  CHECK(ConfigStore(h.dir.path).load().mcpEffectId().empty());
+
+  const httplib::Headers mcp{{"X-Aurora-Client", "mcp"}};
+  auto markedApply = [&](const std::string& id){
+    return h.client->Post("/api/graph/apply", mcp,
+      nlohmann::json{{"session", "editor"}, {"id", id}}.dump(), "application/json");
+  };
+  REQUIRE(markedApply("first")->status == 200);
+  CHECK(ConfigStore(h.dir.path).load().mcpEffectId() == "first");
+  REQUIRE(markedApply("second")->status == 200);
+  CHECK(ConfigStore(h.dir.path).load().mcpEffectId() == "second");
+
+  // A refused apply leaves the marker alone.
+  CHECK(h.client->Post("/api/graph/apply", mcp, R"({"session": "none", "id": "third"})", "application/json")->status == 404);
+  CHECK(ConfigStore(h.dir.path).load().mcpEffectId() == "second");
+}
+
+
 TEST_CASE("Tuning edits on a custom effect write its file and swap in place (Aurora-52oz.7)", "[Apply]")
 {
   ApplyHarness h("apply-params", tunedVideoConfig());
@@ -3487,9 +3599,9 @@ TEST_CASE("Test on lights reverts at the confirm window and after missed heartbe
   const nlohmann::json draft = Graph::builtInVideoGraph({"out-a"});
   h.putDraft("editor", draft);
 
-  // Heartbeats keep the test alive but the confirm window still ends it.
+  // Heartbeats keep the test alive past 15 s but the cap still ends it.
   REQUIRE(h.start("editor") == 200);
-  for(int i = 0; i < 7; ++i){
+  for(int i = 0; i < 59; ++i){
     h.advance(2000);
     CHECK(h.beat("editor") == 200);
   }
@@ -3637,14 +3749,14 @@ TEST_CASE("GET /api/graph/test reports the running test (Aurora-52oz.5)", "[Ligh
   h.putDraft("editor", Graph::builtInVideoGraph({"out-a"}));
   auto started = h.client->Post("/api/graph/test", nlohmann::json{{"session", "editor"}}.dump(), "application/json");
   auto startBody = nlohmann::json::parse(started->body);
-  CHECK(startBody["confirmWithinMs"] == 15000);
+  CHECK(startBody["confirmWithinMs"] == 120000);
   CHECK(startBody["heartbeatMs"] == 2000);
   CHECK(startBody["revertAfterMs"] == 6000);
 
   h.advance(3000);
   auto running = nlohmann::json::parse(h.client->Get("/api/graph/test")->body);
   CHECK(running["active"] == true);
-  CHECK(running["confirmRemainingMs"] == 12000);
+  CHECK(running["confirmRemainingMs"] == 117000);
   CHECK(running["revertAfterMs"] == 3000);
 }
 
@@ -3722,17 +3834,26 @@ namespace
   // Draft routes plus the preview stream on a real server.
   struct PreviewHarness
   {
-    explicit PreviewHarness(const std::string& name, std::chrono::milliseconds interval = 20ms):
+    // `prepare` runs once the config dir exists, before the pipeline builds.
+    explicit PreviewHarness(
+      const std::string& name,
+      std::chrono::milliseconds interval = 20ms,
+      Config config = tunedVideoConfig(),
+      const std::function<void(const std::filesystem::path&)>& prepare = {}):
     dir(name),
     events(std::make_shared<Events>()),
     registry(makeRegistry(events))
     {
-      ConfigStore(dir.path).save(tunedVideoConfig());
-      host = std::make_unique<PipelineHost>(Pipeline::build(registry, tunedVideoConfig(), dir.path, {}), PipelineOptions{});
+      if(prepare){ prepare(dir.path); }
+      ConfigStore(dir.path).save(config);
+      host = std::make_unique<PipelineHost>(Pipeline::build(registry, config, dir.path, {}), PipelineOptions{});
       drafts = registerDraftRoutes(server, registry, dir.path);
       PreviewOptions options;
       options.interval = interval;
-      registerPreviewRoutes(server, *host, drafts, options);
+      // The summary route steps by ticking the pipeline, so time is virtual.
+      options.sleep = [this](std::chrono::milliseconds){ host->tick(); };
+      options.maxSummarySeconds = 5.0;
+      registerPreviewRoutes(server, *host, registry, drafts, options);
       port = server.bindToAnyPort("127.0.0.1");
       REQUIRE(port > 0);
       serverThread = std::thread([this](){ server.listen(); });
@@ -3862,7 +3983,7 @@ TEST_CASE("The preview stream flags bad sessions and missing drafts, then ends (
   REQUIRE(noDraft.waitFor("\"error\":\"no_draft\""));
   CHECK(noDraft.waitFinished());
 
-  // Needs an input the running pipeline does not have: refused, not reloaded.
+  // Needs an input that is not configured at all: refused, nothing reloaded.
   nlohmann::json both = Graph::builtInVideoGraph({"out-a"});
   both["nodes"].push_back({{"id", "mic"}, {"type", "audio.capture"}, {"params", nlohmann::json::object()}});
   h.putDraft("other", both);
@@ -3908,3 +4029,374 @@ TEST_CASE("A second stream for a session replaces the first (Aurora-52oz.6)", "[
   CHECK(first.waitFinished());
   CHECK(h.tickUntil(second, [](const nlohmann::json& p){ return !p["outputs"].empty(); }));
 }
+
+
+namespace
+{
+  // gainGraph(1) with an lfo scaling the frame before the floor.
+  nlohmann::json lfoGraph(float rateHz)
+  {
+    nlohmann::json doc = gainGraph(1.f);
+    doc["nodes"].push_back({{"id", "wave"}, {"type", "lfo"}, {"params", {{"shape", "sine"}, {"rateHz", rateHz}, {"min", 0.f}, {"max", 1.f}}}});
+    doc["nodes"].push_back({{"id", "mod"}, {"type", "frame.brightnessScale"}, {"params", nlohmann::json::object()}});
+    for(auto& edge : doc["edges"]){
+      if(edge[0] == "gain_out_a.frame"){ edge[0] = "mod.frame"; }
+    }
+    doc["edges"].push_back(nlohmann::json::array({"gain_out_a.frame", "mod.frame"}));
+    doc["edges"].push_back(nlohmann::json::array({"wave.value", "mod.factor"}));
+    return doc;
+  }
+}
+
+
+TEST_CASE("GET /api/graph/preview/summary reports a frozen graph as still and an lfo graph as moving (Aurora-4xqt.5)", "[Preview]")
+{
+  PreviewHarness h("preview-summary");
+  h.putDraft("still", gainGraph(1.f));
+  h.putDraft("moving", lfoGraph(5.f));
+  const int sendsBefore = h.events->sendCount;
+
+  auto still = h.client->Get("/api/graph/preview/summary?session=still&seconds=2");
+  REQUIRE(still);
+  REQUIRE(still->status == 200);
+  const auto frozen = nlohmann::json::parse(still->body);
+  CHECK(frozen["session"] == "still");
+  CHECK(frozen["samples"].get<int>() > 2);
+  REQUIRE(frozen["outputs"].size() == 1);
+  CHECK(frozen["outputs"][0]["output"] == "out-a");
+  CHECK(frozen["outputs"][0]["change"].get<double>() < 0.01);
+  const auto& zone = frozen["outputs"][0]["zones"][0];
+  CHECK(zone["mean"]["r"].get<double>() > 0.5);
+  CHECK(zone["brightnessMax"].get<double>() - zone["brightnessMin"].get<double>() < 0.01);
+
+  auto moving = h.client->Get("/api/graph/preview/summary?session=moving&seconds=2");
+  REQUIRE(moving);
+  REQUIRE(moving->status == 200);
+  const auto reacting = nlohmann::json::parse(moving->body);
+  CHECK(reacting["outputs"][0]["change"].get<double>() > 0.02);
+  CHECK(reacting["outputs"][0]["change"].get<double>() <= 1.0);
+  const auto& wave = reacting["outputs"][0]["zones"][0];
+  CHECK(wave["brightnessMax"].get<double>() - wave["brightnessMin"].get<double>() > 0.2);
+
+  // The summary's ticks ran the live path, and nothing it drew reached an output.
+  const int ticks = h.events->sendCount - sendsBefore;
+  CHECK(ticks == (frozen["samples"].get<int>() + reacting["samples"].get<int>()) * 2);
+}
+
+
+TEST_CASE("The preview summary bounds its duration and refuses bad requests (Aurora-4xqt.5)", "[Preview]")
+{
+  PreviewHarness h("preview-summary-refusals", 100ms);
+  h.putDraft("editor", gainGraph(1.f));
+
+  auto capped = h.client->Get("/api/graph/preview/summary?session=editor&seconds=9999");
+  REQUIRE(capped);
+  REQUIRE(capped->status == 200);
+  const auto body = nlohmann::json::parse(capped->body);
+  CHECK(body["seconds"].get<double>() == 5.0);
+  CHECK(body["samples"].get<int>() == 50);
+
+  for(const char* seconds : {"abc", "-1", "0", "nan", "2x"}){
+    auto bad = h.client->Get(std::string("/api/graph/preview/summary?session=editor&seconds=") + seconds);
+    REQUIRE(bad);
+    CHECK(bad->status == 400);
+    CHECK(nlohmann::json::parse(bad->body)["error"] == "invalid_seconds");
+  }
+  auto badSession = h.client->Get("/api/graph/preview/summary?session=has%20space");
+  REQUIRE(badSession);
+  CHECK(badSession->status == 400);
+  auto missing = h.client->Get("/api/graph/preview/summary?session=nobody");
+  REQUIRE(missing);
+  CHECK(missing->status == 404);
+}
+
+
+TEST_CASE("The preview summary leaves an open stream for the session alone (Aurora-4xqt.5)", "[Preview]")
+{
+  PreviewHarness h("preview-summary-stream");
+  h.putDraft("editor", gainGraph(1.f));
+
+  SseReader reader(h.port, "/api/graph/preview?session=editor");
+  REQUIRE(reader.waitFor("event: preview\n"));
+  auto summary = h.client->Get("/api/graph/preview/summary?session=editor&seconds=1");
+  REQUIRE(summary);
+  CHECK(summary->status == 200);
+  CHECK(reader.data().find("\"reason\":\"replaced\"") == std::string::npos);
+  CHECK(h.tickUntil(reader, [](const nlohmann::json& p){ return !p["outputs"].empty(); }));
+}
+
+
+TEST_CASE("PipelineHost::reloadInputs keeps outputs when the list is unchanged and replaces them otherwise (Aurora-4xqt.1)", "[PipelineHost]")
+{
+  ScopedTempDir dir("reload-inputs-outputs");
+  auto events = std::make_shared<Events>();
+  auto registry = makeRegistry(events);
+  Config config = tunedVideoConfig();
+  config.setActiveOutputNames({"out-a", "out-b"});
+  PipelineHost host(Pipeline::build(registry, config, dir.path, {}), {});
+  const std::uint64_t epoch = host.buildEpoch();
+  REQUIRE(initCount(*events) == 1);
+
+  std::string error;
+  REQUIRE(host.reloadInputs(registry, config, dir.path, nullptr, error));
+  CHECK(host.buildEpoch() > epoch);
+  CHECK(initCount(*events) == 1);
+  CHECK(initCount(*events, "out-b") == 1);
+  CHECK_FALSE(events->has("shutdown out-a replacement"));
+  host.tick();
+  CHECK(events->sendCount == 2);
+
+  // A different output list cannot reuse them: the old ones shut down.
+  Config fewer = config;
+  fewer.setActiveOutputNames({"out-a"});
+  REQUIRE(host.reloadInputs(registry, fewer, dir.path, nullptr, error));
+  CHECK(initCount(*events) == 2);
+  CHECK(events->has("shutdown out-a replacement"));
+  CHECK(events->has("shutdown out-b replacement"));
+  host.shutdown();
+}
+
+
+TEST_CASE("PipelineHost::reloadInputs refuses without a pipeline and leaves a running one alone on a failed build (Aurora-4xqt.1)", "[PipelineHost]")
+{
+  ScopedTempDir dir("reload-inputs-refuse");
+  auto events = std::make_shared<Events>();
+  auto registry = makeRegistry(events);
+  PipelineHost host(Pipeline::build(registry, tunedVideoConfig(), dir.path, {}), {});
+  const nlohmann::json before = *host.graphJson();
+
+  // The graph needs audio and none is configured: the build throws.
+  nlohmann::json needsAudio = Graph::builtInVideoGraph({"out-a"});
+  needsAudio["nodes"].push_back({{"id", "mic"}, {"type", "audio.capture"}, {"params", nlohmann::json::object()}});
+  std::string error;
+  CHECK_FALSE(host.reloadInputs(registry, tunedVideoConfig(), dir.path, &needsAudio, error));
+  CHECK(error.find("audio input") != std::string::npos);
+  CHECK(*host.graphJson() == before);
+  CHECK_FALSE(events->has("shutdown out-a replacement"));
+  CHECK_FALSE(events->has("shutdown out-a final"));
+  host.tick();
+  CHECK(events->sendCount == 2);
+
+  REQUIRE(host.pause());
+  CHECK_FALSE(host.reloadInputs(registry, tunedVideoConfig(), dir.path, nullptr, error));
+  CHECK(error == "no pipeline is running");
+}
+
+
+#ifdef AURORA_RUNTIME_AUDIO_AVAILABLE
+namespace
+{
+  Config videoAndAudioConfig()
+  {
+    Config config = tunedVideoConfig();
+    config.setActiveAudioInputName("fake-audio");
+    return config;
+  }
+
+  nlohmann::json videoPlusMicGraph()
+  {
+    nlohmann::json doc = Graph::builtInVideoGraph({"out-a"});
+    doc["nodes"].push_back({{"id", "mic"}, {"type", "audio.capture"}, {"params", nlohmann::json::object()}});
+    return doc;
+  }
+}
+
+
+TEST_CASE("Test on lights takes a both-input graph from a video-live effect and reverts it, with no output re-init (Aurora-4xqt.1)", "[LightTest][Audio]")
+{
+  LightTestHarness h("lt-inputs", videoAndAudioConfig());
+  REQUIRE_FALSE(h.host->capabilities().usesAudioInput);
+  const nlohmann::json both = videoPlusMicGraph();
+  h.putDraft("editor", both);
+
+  // A re-handshake would cost this per output; the input rebuild must not pay it.
+  h.events->onOutputInit = []{ std::this_thread::sleep_for(300ms); };
+  REQUIRE(h.events->videoOpened == 1);
+  const std::size_t hints = h.events->widthHints.size();
+  const auto started = std::chrono::steady_clock::now();
+  REQUIRE(h.start("editor") == 200);
+  CHECK(std::chrono::steady_clock::now() - started < 250ms);
+  CHECK(*h.host->graphJson() == both);
+  CHECK(h.host->capabilities().usesAudioInput);
+  CHECK(h.host->summary().effect == "builtin.video");
+  CHECK(initCount(*h.events) == 1);
+  CHECK(initCount(*h.events, "out-b") == 1);
+  // The screen capture stays open and untouched, only the audio input is new.
+  CHECK(h.events->videoOpened == 1);
+  CHECK(h.events->videoClosed == 0);
+  CHECK(h.events->audioOpened == 1);
+  CHECK(h.events->widthHints.size() == hints);
+  CHECK(h.test->info().active);
+  const int sends = h.events->sendCount;
+  h.host->tick();
+  CHECK(h.events->sendCount > sends);
+
+  // The client goes silent: the lapse reverts through the same rebuild.
+  h.advance(2000);
+  CHECK(h.beat("editor") == 200);
+  h.advance(5900);
+  CHECK(*h.host->graphJson() == both);
+  h.advance(200);
+  CHECK(h.test->info().lastEnd == "heartbeat_lost");
+  CHECK(*h.host->graphJson() == h.live);
+  CHECK_FALSE(h.host->capabilities().usesAudioInput);
+  CHECK(initCount(*h.events) == 1);
+  CHECK(initCount(*h.events, "out-b") == 1);
+  CHECK_FALSE(h.events->has("shutdown out-a replacement"));
+  CHECK_FALSE(h.events->has("shutdown out-b replacement"));
+  CHECK_FALSE(h.events->has("shutdown out-a final"));
+  // The revert reuses the same capture and lets the audio input go.
+  CHECK(h.events->videoOpened == 1);
+  CHECK(h.events->videoClosed == 0);
+  CHECK(h.events->audioOpened == 1);
+  CHECK(h.events->audioClosed == 1);
+  CHECK(h.events->widthHints.size() == hints);
+}
+
+
+TEST_CASE("Test on lights reverts to a custom live effect from an audio-only draft through the input rebuild (Aurora-4xqt.1)", "[LightTest][Audio]")
+{
+  LightTestHarness h("lt-inputs-custom", videoAndAudioConfig());
+  h.putDraft("editor", Graph::builtInVideoGraph({"out-a"}));
+  REQUIRE(h.post("/api/graph/apply", {{"session", "editor"}, {"id", "mine"}}) == 200);
+  const nlohmann::json mine = *h.host->graphJson();
+
+  const nlohmann::json sound = Graph::builtInAudioGraph({"out-a"});
+  h.putDraft("editor", sound);
+  REQUIRE(h.start("editor") == 200);
+  CHECK(*h.host->graphJson() == sound);
+  CHECK(h.host->summary().effect == "mine");
+  CHECK(h.host->capabilities().usesAudioInput);
+  CHECK_FALSE(h.host->capabilities().usesVideoInput);
+  // The graph skips video, but the capture stays open for the revert.
+  CHECK(h.events->videoOpened == 1);
+  CHECK(h.events->videoClosed == 0);
+  CHECK(h.events->audioOpened == 1);
+
+  const std::size_t hints = h.events->widthHints.size();
+  CHECK(h.post("/api/graph/test/revert", {{"session", "editor"}}) == 200);
+  CHECK(*h.host->graphJson() == mine);
+  CHECK(h.host->summary().effect == "mine");
+  CHECK_FALSE(h.host->capabilities().usesAudioInput);
+  CHECK(initCount(*h.events) == 1);
+  CHECK_FALSE(h.events->has("shutdown out-a replacement"));
+  // The revert took the parked capture back and let the audio input go.
+  CHECK(h.events->videoOpened == 1);
+  CHECK(h.events->videoClosed == 0);
+  CHECK(h.events->audioClosed == 1);
+  CHECK(h.events->widthHints.size() == hints);
+}
+
+
+TEST_CASE("PipelineHost::reloadInputs reuses an open input only when the Config still matches (Aurora-4xqt.1)", "[PipelineHost][Audio]")
+{
+  ScopedTempDir dir("reload-inputs-reuse");
+  auto events = std::make_shared<Events>();
+  auto registry = makeRegistry(events);
+  const Config config = videoAndAudioConfig();
+  PipelineHost host(Pipeline::build(registry, config, dir.path, {}), {});
+  REQUIRE(events->videoOpened == 1);
+  REQUIRE(events->audioOpened == 0);
+
+  // Same Config: the capture is reused, no new open, no width hint.
+  std::string error;
+  const std::size_t hints = events->widthHints.size();
+  REQUIRE(host.reloadInputs(registry, config, dir.path, nullptr, error));
+  CHECK(events->videoOpened == 1);
+  CHECK(events->videoClosed == 0);
+  CHECK(events->widthHints.size() == hints);
+
+  // A graph that adds audio opens only the audio input.
+  nlohmann::json both = Graph::builtInVideoGraph({"out-a"});
+  both["nodes"].push_back({{"id", "mic"}, {"type", "audio.capture"}, {"params", nlohmann::json::object()}});
+  REQUIRE(host.reloadInputs(registry, config, dir.path, &both, error));
+  CHECK(events->videoOpened == 1);
+  CHECK(events->audioOpened == 1);
+
+  // A different capture width means the open one was set up for something
+  // else: a fresh input replaces it (and the unchanged audio one is reused).
+  Config wider = config;
+  wider.setSubsampleWidth(128);
+  REQUIRE(host.reloadInputs(registry, wider, dir.path, &both, error));
+  CHECK(events->videoOpened == 2);
+  CHECK(events->videoClosed == 1);
+  CHECK(events->audioOpened == 1);
+  CHECK(events->audioClosed == 0);
+
+  // An unset width (still to derive) never borrows.
+  Config unset = wider;
+  unset.setSubsampleWidth(0);
+  REQUIRE(host.reloadInputs(registry, unset, dir.path, &both, error));
+  CHECK(events->videoOpened == 3);
+  CHECK(events->videoClosed == 2);
+  host.shutdown();
+}
+
+
+TEST_CASE("The preview streams audio-only and both-input drafts while video is live, without touching the live pipeline (Aurora-4xqt.1)", "[Preview][Audio]")
+{
+  PreviewHarness h("preview-extra-audio", 20ms, videoAndAudioConfig());
+  const std::uint64_t epoch = h.host->buildEpoch();
+
+  h.putDraft("sound", Graph::builtInAudioGraph({"out-a"}));
+  SseReader audio(h.port, "/api/graph/preview?session=sound");
+  REQUIRE(audio.status() == 200);
+  REQUIRE(audio.waitFor("event: preview\n"));
+  CHECK(h.tickUntil(audio, [](const nlohmann::json& p){ return !p["outputs"].empty(); }));
+  CHECK(eventsOf(audio.data(), "preview").back()["errors"].empty());
+
+  h.putDraft("both", videoPlusMicGraph());
+  SseReader both(h.port, "/api/graph/preview?session=both");
+  REQUIRE(both.waitFor("event: preview\n"));
+  CHECK(h.tickUntil(both, [](const nlohmann::json& p){ return !p["outputs"].empty(); }));
+  CHECK(eventsOf(both.data(), "preview").back()["errors"].empty());
+
+  // Live inputs, outputs and effect are as they were.
+  CHECK(h.host->buildEpoch() == epoch);
+  CHECK_FALSE(h.host->capabilities().usesAudioInput);
+  CHECK(h.host->summary().effect == "builtin.video");
+  CHECK(initCount(*h.events) == 1);
+  CHECK_FALSE(h.events->has("shutdown out-a replacement"));
+}
+
+
+TEST_CASE("The preview opens a video input of its own when the live effect is audio-only (Aurora-4xqt.1)", "[Preview][Audio]")
+{
+  Config config = videoAndAudioConfig();
+  config.setActiveEffectId("sound");
+  PreviewHarness h("preview-extra-video", 20ms, config, [](const std::filesystem::path& root){
+    std::string error;
+    REQUIRE(EffectStore(root).write("sound", Graph::builtInAudioGraph({"out-a", "out-b"}), error));
+  });
+  REQUIRE(h.host->capabilities().usesAudioInput);
+  REQUIRE_FALSE(h.host->capabilities().usesVideoInput);
+  REQUIRE(h.events->widthHints.empty());
+
+  h.putDraft("editor", gainGraph(1.f));
+  SseReader reader(h.port, "/api/graph/preview?session=editor");
+  REQUIRE(reader.status() == 200);
+  REQUIRE(reader.waitFor("event: preview\n"));
+  CHECK(h.tickUntil(reader, [](const nlohmann::json& p){ return !p["outputs"].empty() && firstRed(p) > 0.f; }));
+  // Only the preview captures video: the live pipeline stays audio-only.
+  CHECK_FALSE(h.events->widthHints.empty());
+  CHECK_FALSE(h.host->capabilities().usesVideoInput);
+  CHECK(initCount(*h.events) == 1);
+}
+
+
+TEST_CASE("A draft that grows a source the preview did not open gets draft_invalid, and a reconnect opens it (Aurora-4xqt.1)", "[Preview][Audio]")
+{
+  PreviewHarness h("preview-grows-source", 20ms, videoAndAudioConfig());
+  h.putDraft("editor", gainGraph(1.f));
+  SseReader reader(h.port, "/api/graph/preview?session=editor");
+  REQUIRE(reader.waitFor("event: preview\n"));
+
+  h.putDraft("editor", videoPlusMicGraph());
+  CHECK(reader.waitFor("\"error\":\"draft_invalid\""));
+  CHECK(reader.waitFor("reconnect the preview"));
+
+  SseReader again(h.port, "/api/graph/preview?session=editor");
+  REQUIRE(again.waitFor("event: preview\n"));
+  CHECK(h.tickUntil(again, [](const nlohmann::json& p){ return !p["outputs"].empty(); }));
+}
+#endif

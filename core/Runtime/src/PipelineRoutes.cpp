@@ -60,10 +60,13 @@ namespace Aurora::Runtime
         };
       }
 
+      const std::string mcpEffectId = ConfigStore(configRoot).load().mcpEffectId();
+
       return nlohmann::json{
         {"state", hostStateName(status.state)},
         {"effect", summary.effect.empty() ? nlohmann::json(nullptr) : nlohmann::json(summary.effect)},
         {"requestedEffect", summary.requestedEffect.empty() ? nlohmann::json(nullptr) : nlohmann::json(summary.requestedEffect)},
+        {"mcpEffectId", mcpEffectId.empty() ? nlohmann::json(nullptr) : nlohmann::json(mcpEffectId)},
         {"source", {{"video", video}, {"audio", audio}}},
         // The saved setting, so it reads right while paused or idle too.
         {"brightness", ConfigStore(configRoot).load().brightness()},

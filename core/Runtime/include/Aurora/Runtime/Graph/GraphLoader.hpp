@@ -47,6 +47,10 @@ namespace Aurora::Runtime::Graph
   {
     std::string node;    // offending node id, empty when not tied to one
     std::string message;
+    std::string code;    // stable machine-readable class, e.g. "port_unknown_input"
+    std::string port;    // port named by the problem, empty when none
+    std::string param;   // param named by the problem, empty when none
+    std::vector<std::string> options; // valid choices or nearest matches, empty when none
   };
 
   struct LoadResult
@@ -72,7 +76,7 @@ namespace Aurora::Runtime::Graph
     } catch(const std::exception& e){
       LoadResult result;
       result.error = std::string("invalid JSON: ") + e.what();
-      result.issues.push_back(LoadIssue{"", result.error});
+      result.issues.push_back(LoadIssue{"", result.error, "json_invalid", "", "", {}});
       return result;
     }
   }

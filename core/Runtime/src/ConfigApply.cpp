@@ -52,6 +52,7 @@ namespace Aurora::Runtime
       FieldApply{"audioCentroidRangeHz", Hot, Audio},
       FieldApply{"audioBrightnessSmoothTime", Hot, Audio},
 
+      FieldApply{"mcpEffectId", NoEffect, Video},
       FieldApply{"nuxCompleted", NoEffect, Video},
     };
   }

@@ -79,10 +79,16 @@ namespace Aurora::Runtime
     Graph::registerAllNodes(*nodes, true);
 
     LightTestHooks hooks;
-    hooks.start = [&pipelineHost](const nlohmann::json& doc) -> std::string {
-      return pipelineHost.testGraph(doc)
-        ? std::string{}
-        : std::string("the running pipeline cannot take this graph in place");
+    hooks.start = [&pipelineHost, &registry, configRoot](const nlohmann::json& doc) -> std::string {
+      if(pipelineHost.testGraph(doc)){
+        return {};
+      }
+      // Other inputs than the running ones: rebuild them, keep the outputs.
+      std::string error;
+      if(pipelineHost.reloadInputs(registry, ConfigStore(configRoot).load(), configRoot, &doc, error)){
+        return {};
+      }
+      return error;
     };
     hooks.revert = [&pipelineHost, &registry, configRoot]() -> std::string {
       const Config live = ConfigStore(configRoot).load();
@@ -92,10 +98,15 @@ namespace Aurora::Runtime
       if(!id.empty()){
         doc = EffectStore(configRoot).read(id, readError);
       }
-      // An unreadable custom effect goes through the reload's fallback.
+      // An unreadable custom effect goes through the rebuild's fallback.
       if((id.empty() || doc) && pipelineHost.restoreEffect(live, doc)){
         return {};
       }
+      std::string error;
+      if(pipelineHost.reloadInputs(registry, live, configRoot, nullptr, error)){
+        return {};
+      }
+      // Nothing running to rebuild (paused): the usual reload is a no-op then.
       return reloadPipelineFromDisk(pipelineHost, registry, configRoot);
     };
     hooks.generation = [&pipelineHost]() -> std::uint64_t {
@@ -210,7 +221,7 @@ namespace Aurora::Runtime
           return;
         }
         nlohmann::json out;
-        const int status = applyDraft(session, id, out);
+        const int status = applyDraft(session, id, req.client, out);
         if(status == 200){
           test->confirm(session);
         }

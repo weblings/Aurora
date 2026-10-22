@@ -13,6 +13,11 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `3ddb-pause-cli` | [log/2026-10-03-3ddb-pause-cli.md](log/2026-10-03-3ddb-pause-cli.md) | Aurora-3ddb: pause/resume, core and CLI only |
 | `3ono-stale-core-test-tree` | [log/2026-10-02-3ono-stale-core-test-tree.md](log/2026-10-02-3ono-stale-core-test-tree.md) | Aurora-3ono: PipelineTests segfault on Windows was a stale build tree |
 | `3qh-mac-capture-width-hint` | [log/2026-10-01-3qh-mac-capture-width-hint.md](log/2026-10-01-3qh-mac-capture-width-hint.md) | Aurora-3qh: Mac video mode resized full-Retina frames every tick |
+| `4xqt1-input-rebuild-keeps-outputs` | [log/2026-10-21-4xqt1-input-rebuild-keeps-outputs.md](log/2026-10-21-4xqt1-input-rebuild-keeps-outputs.md) | Aurora-4xqt.1 (D0a): input-only rebuild keeps outputs, preview owns its extra inputs (paused) |
+| `4xqt2-mcp-effect-toggle` | [log/2026-10-21-4xqt2-mcp-effect-toggle.md](log/2026-10-21-4xqt2-mcp-effect-toggle.md) | Aurora-4xqt.2 (D0b): MCP effect toggle on the Dashboard |
+| `4xqt3-actionable-validate-errors` | [log/2026-10-21-4xqt3-actionable-validate-errors.md](log/2026-10-21-4xqt3-actionable-validate-errors.md) | Aurora-4xqt.3: validate errors an agent can act on (closed) |
+| `4xqt4-test-window-cap` | [log/2026-10-21-4xqt4-test-window-cap.md](log/2026-10-21-4xqt4-test-window-cap.md) | Aurora-4xqt.4: test-on-lights window that fits a chat loop (closed) |
+| `4xqt5-preview-summary` | [log/2026-10-21-4xqt5-preview-summary.md](log/2026-10-21-4xqt5-preview-summary.md) | Aurora-4xqt.5: preview summary route for agents (closed) |
 | `4zr11-floor-wiring` | [log/2026-10-16-4zr11-floor-wiring.md](log/2026-10-16-4zr11-floor-wiring.md) | Brightness floor wiring (Aurora-4zr.11) |
 | `52oz1-custom-effects-storage` | [log/2026-10-20-52oz1-custom-effects-storage.md](log/2026-10-20-52oz1-custom-effects-storage.md) | Aurora-52oz.1: custom effects under effects/, activeEffectId, fallback warning (closed) |
 | `52oz2-graph-source-inputs` | [log/2026-10-20-52oz2-graph-source-inputs.md](log/2026-10-20-52oz2-graph-source-inputs.md) | Aurora-52oz.2: pipeline builds inputs from the graph's source nodes (closed) |
@@ -189,6 +194,7 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `scig-capture-source-banner` | [log/2026-10-08-scig-capture-source-banner.md](log/2026-10-08-scig-capture-source-banner.md) | Aurora-scig: Capture Source (NUX) errors move to the shell banner (closed) |
 | `sequence-b-planning` | [log/2026-10-15-sequence-b-planning.md](log/2026-10-15-sequence-b-planning.md) | Sequence B planning: decisions recorded, epic filed |
 | `sequence-c-planning` | [log/2026-10-20-sequence-c-planning.md](log/2026-10-20-sequence-c-planning.md) | Sequence C planning: decisions recorded, epic filed |
+| `sequence-d-planning` | [log/2026-10-21-sequence-d-planning.md](log/2026-10-21-sequence-d-planning.md) | Sequence D planning: MCP for graphs, gaps first, epic filed |
 | `set-running-helper` | [log/2026-10-04-set-running-helper.md](log/2026-10-04-set-running-helper.md) | Aurora-5ipy.18: shared setRunning helper (closed) |
 | `skv-one-tick-clock` | [log/2026-10-01-skv-one-tick-clock.md](log/2026-10-01-skv-one-tick-clock.md) | Aurora-skv: explicit dt into both orchestrators, one tick clock |
 | `so1o-pairing-copy-fixes` | [log/2026-10-16-so1o-pairing-copy-fixes.md](log/2026-10-16-so1o-pairing-copy-fixes.md) | Pairing screen copy and centering fixes (Aurora-so1o) |
@@ -199,6 +205,7 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `u5k0-x11-decimate-on-copy` | [log/2026-10-20-u5k0-x11-decimate-on-copy.md](log/2026-10-20-u5k0-x11-decimate-on-copy.md) | Aurora-u5k0: X11 decimate-on-copy (neutral on CPU, kept) |
 | `upstream-findings` | [planning/UpstreamFindings.md](planning/UpstreamFindings.md) | Findings worth upstreaming to huenicorn |
 | `vv46-route-test-port-collisions` | [log/2026-10-16-vv46-route-test-port-collisions.md](log/2026-10-16-vv46-route-test-port-collisions.md) | Route test flakes under parallel ctest (Aurora-vv46) |
+| `w6no-restore-token` | [log/2026-10-21-w6no-restore-token.md](log/2026-10-21-w6no-restore-token.md) | Aurora-w6no: portal restore token is actually stored now (closed) |
 | `web-demo-ui-update` | [archive/WebDemoUIUpdate.md](archive/WebDemoUIUpdate.md) | Web Demo Dashboard Port — Plan (WebDemoUIUpdate.md) |
 | `webui-design-1st-pass` | [archive/WebUI_Design_1stPass.md](archive/WebUI_Design_1stPass.md) | WebUI screens, jobs, and component research |
 | `webui-design-2-5-pass` | [planning/WebUI/WebUI_Design_2.5Pass.md](planning/WebUI/WebUI_Design_2.5Pass.md) | WebUI design, pass 2.5: visual polish diffs |

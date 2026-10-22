@@ -71,8 +71,10 @@ namespace Aurora::Runtime
     // subsampleWidth from the display, hints the capture width. Both kinds:
     // reconciles and persists each output's zone map against its live
     // zoneIds(), then loads the built-in graph. Throws std::runtime_error if
-    // the graph fails to load.
-    void init();
+    // the graph fails to load. `videoReady`: the video input is already open on
+    // the configured monitor and width (carried over from a running pipeline),
+    // so neither is set again (Aurora-4xqt.1).
+    void init(bool videoReady = false);
 
     // One tick of the graph with nominal dt seconds.
     void tick(float dt);
@@ -103,9 +105,10 @@ namespace Aurora::Runtime
     // Starts evaluating `doc` beside the live graph each tick for `session`,
     // replacing (and closing) that session's earlier preview. Its output.send
     // nodes reach preview sinks, never an output (Aurora-52oz.6). Null with
-    // errorOut set if `doc` fails to load.
+    // errorOut set if `doc` fails to load. `inputs` are the preview's own, for
+    // sources this runner lacks.
     std::shared_ptr<GraphPreview> openPreview(
-      const std::string& session, const nlohmann::json& doc, std::string& errorOut);
+      const std::string& session, const nlohmann::json& doc, GraphPreview::Inputs inputs, std::string& errorOut);
 
     // Swaps `doc` into a running preview, keeping node state. False with
     // errorOut set, preview untouched, if it fails to load.

@@ -6,11 +6,15 @@
 Brings the stack up on the dummy video input (devstack.py), then walks: draft,
 validate, preview, test on lights, heartbeat loss and the revert, apply of a
 both-input custom graph, app restart, and an output that is gone at load (the
-fallback warning). Exits 0 when every step passes. A both-input step with no
+fallback warning). Also covers Sequence D's D0 (Aurora-4xqt): the preview
+summary tells a static draft from a reacting one, a both-input draft previews and
+tests on lights from a video-live state with no Hue restart (the fake bridge's
+stream counts hold still), and an apply marked as MCP sets mcpEffectId, which
+survives the restart. Exits 0 when every step passes. A both-input step with no
 audio input on the box is reported SKIP, which fails the run unless --allow-skip.
 Stdlib only.
 """
-import argparse, json, math, os, shutil, struct, subprocess, sys, tempfile, threading, time, urllib.error, urllib.request, wave
+import argparse, json, math, os, shutil, ssl, struct, subprocess, sys, tempfile, threading, time, urllib.error, urllib.request, wave
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -26,14 +30,22 @@ class Skip(Exception):
     pass
 
 
-def call(base, method, path, body=None, timeout=60):
+def call(base, method, path, body=None, timeout=60, headers=None):
     data = json.dumps(body).encode() if body is not None else None
-    req = urllib.request.Request(base + path, data=data, method=method, headers={"Content-Type": "application/json"})
+    req = urllib.request.Request(base + path, data=data, method=method,
+                                 headers={"Content-Type": "application/json", **(headers or {})})
     try:
         with urllib.request.urlopen(req, timeout=timeout) as r:
             return r.status, json.loads(r.read() or b"{}")
     except urllib.error.HTTPError as e:
         return e.code, json.loads(e.read() or b"{}")
+
+
+def bridge_counts():
+    """Stream start/stop actions the fake Hue bridge has seen (a start per output init)."""
+    ctx = ssl._create_unverified_context()
+    with urllib.request.urlopen("https://127.0.0.1:18443/dev/stream-counts", context=ctx, timeout=5) as r:
+        return json.loads(r.read())
 
 
 class Frames:
@@ -139,6 +151,28 @@ def dark_graph(live):
     return g
 
 
+def wave_graph(live):
+    """The live graph with a 2 Hz LFO scaling its brightness, so the lights visibly react."""
+    g = json.loads(json.dumps(live))
+    g["nodes"] += [
+        {"id": "amp", "type": "frame.brightnessScale", "params": {}},
+        {"id": "wave", "type": "lfo", "params": {"shape": "sine", "rateHz": 2, "min": 0.05, "max": 1}},
+    ]
+    g["edges"] = [e for e in g["edges"] if e != ["gain_hue.frame", "floor_hue.frame"]]
+    g["edges"] += [["gain_hue.frame", "amp.frame"], ["wave.value", "amp.factor"], ["amp.frame", "floor_hue.frame"]]
+    return g
+
+
+def summary_of(base, seconds=2):
+    """The preview summary of the session's draft: change measure and brightness spread."""
+    code, body = call(base, "GET", f"/api/graph/preview/summary?session={SESSION}&seconds={seconds}", timeout=30)
+    assert code == 200, (code, body)
+    out = body["outputs"][0]
+    low = min(z["brightnessMin"] for z in out["zones"])
+    high = max(z["brightnessMax"] for z in out["zones"])
+    return out["change"], high - low
+
+
 def gain_of(base):
     nodes = call(base, "GET", "/api/graph")[1]["graph"]["nodes"]
     return next(n for n in nodes if n["id"] == "gain_hue")["params"]["gain"]
@@ -215,6 +249,7 @@ def run(app):
     try:
         draft_validate(ctx)
         preview(ctx)
+        preview_summary(ctx)
         test_on_lights(ctx)
         heartbeat_lost(ctx)
         both_input_apply(ctx)
@@ -248,6 +283,20 @@ def preview(c):
     assert dark(level) and not errors, (level, errors)
     assert lit(c["frames"].wait(lit, "stayed lit")), "live lights changed during preview"
     return f"preview {level:.2f}, live lit, nothing reached the lights"
+
+
+@step("preview summary tells static from reacting")
+def preview_summary(c):
+    b = c["base"]
+    still_change, still_spread = summary_of(b)
+    assert call(b, "PUT", f"/api/graph/drafts/{SESSION}", {"graph": wave_graph(c["live"])})[1]["valid"]
+    wave_change, wave_spread = summary_of(b)
+    # Later steps test the dark draft.
+    assert call(b, "PUT", f"/api/graph/drafts/{SESSION}", {"graph": c["dark"]})[1]["valid"]
+    assert still_change < 0.01 and still_spread < 0.01, (still_change, still_spread)
+    assert wave_change > 0.02 and wave_spread > 0.1, (wave_change, wave_spread)
+    assert lit(c["frames"].wait(lit, "stayed lit")), "live lights changed during the summary"
+    return f"dark draft change {still_change:.3f}, LFO draft change {wave_change:.3f} spread {wave_spread:.2f}"
 
 
 @step("test on lights")
@@ -300,14 +349,36 @@ def both_input_apply(c):
                       ["base.value", "amp.factor"], ["gain_hue.frame", "amp.frame"],
                       ["amp.frame", "floor_hue.frame"]]
     assert call(b, "PUT", f"/api/graph/drafts/{SESSION}", {"graph": both})[1]["valid"]
+    # The audio input change above reloaded the pipeline: wait it out so the Hue
+    # start count below is a baseline.
+    ds.wait_for(lambda: call(b, "GET", "/api/state")[1].get("state") == "running", "running after the audio input", 40)
+    # The preview opens its own audio input; the live pipeline stays video-only.
+    level, errors = preview_levels(b)
+    assert not errors, errors
+    assert not call(b, "GET", "/api/state")[1]["usesAudioInput"], "the preview changed the live inputs"
+    # Test on lights rebuilds the inputs (outputs kept), then the revert puts them back.
+    before = bridge_counts()
     code, body = call(b, "POST", "/api/graph/test", {"session": SESSION})
-    assert code == 409 and body["error"] == "cannot_test", (code, body)
-    code, body = call(b, "POST", "/api/graph/apply", {"session": SESSION, "id": EFFECT})
+    assert code == 200 and body["succeeded"], (code, body)
+    s = call(b, "GET", "/api/state")[1]
+    assert s["usesVideoInput"] and s["usesAudioInput"], s
+    code, body = call(b, "POST", "/api/graph/test/revert", {"session": SESSION})
+    assert code == 200 and body["succeeded"] and "revertError" not in body, (code, body)
+    s = call(b, "GET", "/api/state")[1]
+    assert s["usesVideoInput"] and not s["usesAudioInput"], s
+    after = bridge_counts()
+    assert after == before, f"test on lights restarted the Hue stream: {before} -> {after}"
+    # Applied the way the MCP adapter does, so the Dashboard's MCP toggle has an id.
+    assert call(b, "GET", "/api/state")[1].get("mcpEffectId") is None
+    code, body = call(b, "POST", "/api/graph/apply", {"session": SESSION, "id": EFFECT},
+                      headers={"X-Aurora-Client": "mcp"})
     assert code == 200 and body["effect"] == EFFECT, (code, body)
     s = call(b, "GET", "/api/state")[1]
     assert s["usesVideoInput"] and s["usesAudioInput"] and s["effect"] == EFFECT, s
+    assert s.get("mcpEffectId") == EFFECT, s
     c["frames"].wait(lit, "lit under the both-input graph")
-    return f"applied {EFFECT} on {audio[0]}, test on lights refused (needs a rebuild)"
+    return (f"both-input draft previewed ({level:.2f}) and tested from video with no Hue restart "
+            f"(starts held at {before['start']}), applied {EFFECT} on {audio[0]} as mcp")
 
 
 @step("audio reaches the lights")
@@ -341,7 +412,8 @@ def restart_and_check(c, app, port):
     c["frames"].wait(lit, "lit after restart", 60)
     s = call(base, "GET", "/api/state")[1]
     assert s["effect"] == EFFECT and s["usesAudioInput"] and not s["errors"], s
-    return f"{EFFECT} running again, audio input {s['source']['audio']['input']}"
+    assert s.get("mcpEffectId") == EFFECT, s
+    return f"{EFFECT} running again, still the MCP effect, audio input {s['source']['audio']['input']}"
 
 
 @step("gone output falls back with a warning")
