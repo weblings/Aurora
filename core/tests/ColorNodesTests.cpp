@@ -254,6 +254,21 @@ TEST_CASE("angle.add sums two Angles and wraps at 360", "[ColorNodes]")
   CHECK(outAngle(graph, "angle") == Approx(40.f));
 }
 
+TEST_CASE("color.constant emits a fixed color from its HSV params", "[ColorNodes]")
+{
+  Graph graph = load("color.constant", R"({"hue": 120, "saturation": 1, "value": 1})", {});
+  graph.tick(1.f / 60.f);
+  CHECK(outColor(graph) == Color(0, 255, 0));
+  CHECK(!tryLoad("color.constant", R"({"hue": 120, "bogus": 1})", {}).ok);
+}
+
+TEST_CASE("angle.constant emits its degrees param wrapped at 360", "[ColorNodes]")
+{
+  Graph graph = load("angle.constant", R"({"degrees": 200})", {});
+  graph.tick(1.f / 60.f);
+  CHECK(outAngle(graph, "angle") == Approx(200.f));
+}
+
 TEST_CASE("color.fromGradient samples stops, holds past the ends and clamps t", "[ColorNodes]")
 {
   const std::string gradient =

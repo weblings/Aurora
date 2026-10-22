@@ -146,7 +146,8 @@ on recorded features and checks outputs match within epsilon.
   (shortest-arc), `rollingAverage(α)`, `integrate(rate)` (Angle, wraps),
   `stepOnTrigger(amount)` (accumulate on each pulse).
 - **Color:** `color.fromHSV`, `color.toHSV`, `color.brightness`,
-  `color.mix`, `color.hueShift`, `color.complement` (+180°).
+  `color.mix`, `color.hueShift`, `color.complement` (+180°),
+  `color.constant` and `angle.constant` (fixed-value sources).
 - **Palette:** `palette.randomAnchor` (the six complementary pairs),
   `palette.pick`.
 - **Frame ops** (these enable video × audio mixing, the headline
