@@ -28,7 +28,8 @@ namespace Aurora::Mcp
       "Aurora drives ambient lights from the screen or audio. Call aurora_status first "
       "to see whether Aurora is running, which effect is live, and what is connected. "
       "To write a graph, find node types with list_nodes and describe_node, or start "
-      "from list_presets and get_preset.";
+      "from list_presets and get_preset. put_draft saves and validates a graph, set_control "
+      "tunes one control, preview shows what the draft would do to the lights.";
 
     nlohmann::json errorResponse(const nlohmann::json& id, int code, const std::string& message)
     {
@@ -59,6 +60,17 @@ namespace Aurora::Mcp
         {"annotations", {{"readOnlyHint", true}}}};
     }
 
+    nlohmann::json writeTool(const char* name, const char* description, nlohmann::json properties, nlohmann::json required)
+    {
+      nlohmann::json tool = readOnlyTool(name, description, std::move(properties), std::move(required));
+      // Only the adapter's own draft changes, and saving twice is the same as once.
+      tool["annotations"] = {{"readOnlyHint", false}, {"destructiveHint", false}, {"idempotentHint", true}};
+      return tool;
+    }
+
+    // Per-sample color step above which a graph counts as reacting.
+    constexpr double kReactingChange = 0.001;
+
     // "name:Type", with a trailing "?" on an input the node can run without.
     std::string portLabel(const nlohmann::json& port)
     {
@@ -88,9 +100,18 @@ namespace Aurora::Mcp
   }
 
 
-  McpServer::McpServer(Fetch fetch, std::string serverVersion)
-    : m_fetch(std::move(fetch)), m_serverVersion(std::move(serverVersion))
+  McpServer::McpServer(Fetch fetch, std::string serverVersion, std::string session)
+    : m_fetch(std::move(fetch)), m_serverVersion(std::move(serverVersion)), m_session(std::move(session))
   {}
+
+
+  void McpServer::shutdown()
+  {
+    if(m_hasDraft){
+      m_fetch("DELETE", "/api/graph/drafts/" + m_session, {});
+      m_hasDraft = false;
+    }
+  }
 
 
   const char* McpServer::latestProtocolVersion()
@@ -203,7 +224,23 @@ namespace Aurora::Mcp
       readOnlyTool("get_preset",
         "A starter graph already filled with this Aurora's outputs, validated, with Tuning controls. "
         "Edit it and save it as a draft.",
-        idProperty, nlohmann::json::array({"id"}))
+        idProperty, nlohmann::json::array({"id"})),
+      writeTool("put_draft",
+        "Save the whole graph as your draft and validate it. An invalid graph is a normal result: valid false "
+        "with errors, each with code, node, port or param, and the valid options. Fix and save again. "
+        "Nothing reaches the lights.",
+        {{"graph", {{"type", "object"}, {"description", "Graph document: version, nodes, edges, controls."}}}},
+        nlohmann::json::array({"graph"})),
+      writeTool("set_control",
+        "Change one control value on the draft without editing the graph. Name the control by its label or "
+        "as node.param. Returns the draft's validation.",
+        {{"control", {{"type", "string"}, {"description", "Control label or node.param."}}},
+         {"value", {{"description", "New value, in the param's own type."}}}},
+        nlohmann::json::array({"control", "value"})),
+      readOnlyTool("preview",
+        "Run the draft off the lights for a few seconds and summarise each output: mean color, brightness range "
+        "and change per zone. reacting is false for a graph that holds still, true when its colors move.",
+        {{"seconds", {{"type", "number"}, {"description", "Seconds to sample, default 3, capped by Aurora."}}}})
     })}};
   }
 
@@ -232,14 +269,30 @@ namespace Aurora::Mcp
     if(name == "get_preset"){
       return _getPreset(arguments);
     }
+    if(name == "put_draft"){
+      return _putDraft(arguments);
+    }
+    if(name == "set_control"){
+      return _setControl(arguments);
+    }
+    if(name == "preview"){
+      return _preview(arguments);
+    }
     throw RpcError(kInvalidParams, "unknown tool: " + name);
   }
 
 
   std::string McpServer::_getJson(const std::string& path, nlohmann::json& out, int* status)
   {
+    return _requestJson("GET", path, {}, out, status);
+  }
+
+
+  std::string McpServer::_requestJson(const std::string& method, const std::string& path, const std::string& body,
+    nlohmann::json& out, int* status)
+  {
     // Failures are tool results (isError), so the agent can read and act on them.
-    const HttpReply reply = m_fetch(path);
+    const HttpReply reply = m_fetch(method, path, body);
     if(status){
       *status = reply.status;
     }
@@ -249,14 +302,21 @@ namespace Aurora::Mcp
     if(reply.status == 401 || reply.status == 403){
       return "Aurora refused the request (HTTP " + std::to_string(reply.status) + "). Set AURORA_TOKEN to a paired token.";
     }
-    if(reply.status != 200){
-      return "GET " + path + " answered HTTP " + std::to_string(reply.status) + ".";
-    }
+    // An error body still tells the caller why, so it is kept in `out` when it parses.
     try{
       out = nlohmann::json::parse(reply.body);
     }
     catch(const nlohmann::json::exception&){
-      return "GET " + path + " answered something that is not JSON.";
+      out = nlohmann::json();
+    }
+    if(reply.status != 200){
+      if(!out.is_object()){
+        out = nlohmann::json::object();
+      }
+      return method + " " + path + " answered HTTP " + std::to_string(reply.status) + ".";
+    }
+    if(!out.is_object()){
+      return method + " " + path + " answered something that is not a JSON object.";
     }
     return {};
   }
@@ -351,6 +411,108 @@ namespace Aurora::Mcp
       return toolText(error, true);
     }
     return toolJson(preset);
+  }
+
+
+  nlohmann::json McpServer::_saveDraft(const nlohmann::json& graph)
+  {
+    nlohmann::json reply;
+    int status = 0;
+    const std::string body = nlohmann::json{{"graph", graph}}.dump();
+    if(const std::string error = _requestJson("PUT", "/api/graph/drafts/" + m_session, body, reply, &status); !error.empty()){
+      if(status == 413){
+        return toolText("The draft is too large for Aurora. Remove nodes or shorten params.", true);
+      }
+      if(status == 429){
+        return toolText("Aurora holds too many drafts right now. Try again shortly.", true);
+      }
+      return toolText(error, true);
+    }
+    m_hasDraft = true;
+    return toolJson({{"valid", reply.value("valid", false)}, {"errors", orNull(reply, "errors")}});
+  }
+
+
+  nlohmann::json McpServer::_putDraft(const nlohmann::json& arguments)
+  {
+    if(!arguments.contains("graph") || !arguments.at("graph").is_object()){
+      return toolText("put_draft needs a 'graph' object. Start from get_preset or list_nodes.", true);
+    }
+    return _saveDraft(arguments.at("graph"));
+  }
+
+
+  nlohmann::json McpServer::_setControl(const nlohmann::json& arguments)
+  {
+    if(!arguments.contains("control") || !arguments.at("control").is_string() || !arguments.contains("value")){
+      return toolText("set_control needs a string 'control' and a 'value'.", true);
+    }
+    const std::string wanted = arguments.at("control").get<std::string>();
+
+    nlohmann::json current;
+    int status = 0;
+    if(const std::string error = _getJson("/api/graph/drafts/" + m_session, current, &status); !error.empty()){
+      if(status == 404){
+        return toolText("There is no draft yet. Call put_draft first.", true);
+      }
+      return toolText(error, true);
+    }
+    nlohmann::json graph = current.value("graph", nlohmann::json::object());
+
+    std::string options;
+    for(const auto& control : graph.value("controls", nlohmann::json::array())){
+      const std::string node = control.value("node", "");
+      const std::string param = control.value("param", "");
+      const std::string key = node + "." + param;
+      const std::string label = control.value("label", "");
+      options += " '" + (label.empty() ? key : label) + "'";
+      if(wanted != key && (label.empty() || wanted != label)){
+        continue;
+      }
+      if(graph.contains("nodes") && graph.at("nodes").is_array()){
+        for(auto& candidate : graph["nodes"]){
+          if(candidate.value("id", "") == node){
+            candidate["params"][param] = arguments.at("value");
+            return _saveDraft(graph);
+          }
+        }
+      }
+      return toolText("Control '" + wanted + "' names node '" + node + "', which the draft does not have.", true);
+    }
+    return toolText("No control '" + wanted + "' on the draft. Controls:" + (options.empty() ? " none" : options), true);
+  }
+
+
+  nlohmann::json McpServer::_preview(const nlohmann::json& arguments)
+  {
+    std::string path = "/api/graph/preview/summary?session=" + m_session;
+    if(arguments.contains("seconds") && arguments.at("seconds").is_number()){
+      path += "&seconds=" + std::to_string(arguments.at("seconds").get<double>());
+    }
+
+    nlohmann::json summary;
+    int status = 0;
+    if(const std::string error = _getJson(path, summary, &status); !error.empty()){
+      if(status == 404){
+        return toolText("There is no draft yet. Call put_draft first.", true);
+      }
+      if(status == 422){
+        return toolText("The draft cannot be previewed: " + summary.value("message", "it does not build") + ". Check put_draft's errors.", true);
+      }
+      if(status == 409){
+        return toolText("Aurora is paused or rebuilding its pipeline, so there is nothing to preview. Try again.", true);
+      }
+      return toolText(error, true);
+    }
+
+    bool reacting = false;
+    for(auto& output : summary["outputs"]){
+      const bool moves = output.value("change", 0.0) > kReactingChange;
+      output["reacting"] = moves;
+      reacting = reacting || moves;
+    }
+    summary["reacting"] = reacting;
+    return toolJson(summary);
   }
 
 

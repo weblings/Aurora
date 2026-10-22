@@ -9,6 +9,10 @@
 #ifdef _WIN32
 #include <fcntl.h>
 #include <io.h>
+#include <process.h>
+#define getpid _getpid
+#else
+#include <unistd.h>
 #endif
 
 #ifndef AURORA_VERSION
@@ -46,9 +50,11 @@ int main()
   }
 
   Aurora::Mcp::McpServer server(
-    [&client, &headers](const std::string& path){
+    [&client, &headers](const std::string& method, const std::string& path, const std::string& body){
       Aurora::Mcp::HttpReply reply;
-      const httplib::Result result = client.Get(path, headers);
+      const httplib::Result result = method == "PUT" ? client.Put(path, headers, body, "application/json")
+        : method == "DELETE" ? client.Delete(path, headers)
+        : client.Get(path, headers);
       if(result){
         reply.status = result->status;
         reply.body = result->body;
@@ -58,7 +64,9 @@ int main()
       }
       return reply;
     },
-    AURORA_VERSION
+    AURORA_VERSION,
+    // One draft per adapter process, named so concurrent clients do not collide.
+    "mcp-" + std::to_string(getpid())
   );
 
   // stdout carries protocol only, so diagnostics go to stderr.
@@ -73,5 +81,6 @@ int main()
       std::cout << *reply << '\n' << std::flush;
     }
   }
+  server.shutdown();
   return 0;
 }

@@ -3,6 +3,8 @@
 #include "McpServer.hpp"
 
 #include <map>
+#include <optional>
+#include <vector>
 
 using Aurora::Mcp::Fetch;
 using Aurora::Mcp::HttpReply;
@@ -11,10 +13,11 @@ using nlohmann::json;
 
 namespace
 {
+  // Routes are keyed by path for GET and "METHOD path" otherwise.
   Fetch scripted(std::map<std::string, HttpReply> routes)
   {
-    return [routes = std::move(routes)](const std::string& path){
-      const auto found = routes.find(path);
+    return [routes = std::move(routes)](const std::string& method, const std::string& path, const std::string&){
+      const auto found = routes.find(method == "GET" ? path : method + " " + path);
       return found == routes.end() ? HttpReply{404, "{}", {}} : found->second;
     };
   }
@@ -113,17 +116,19 @@ TEST_CASE("Version negotiation echoes a supported version, else offers the lates
   CHECK(call(server, R"({"jsonrpc":"2.0","id":1,"method":"initialize","params":{}})")["error"]["code"] == -32602);
 }
 
-TEST_CASE("tools/list advertises the read tools, all read-only")
+TEST_CASE("tools/list advertises the tools, only the draft writers not read-only")
 {
   McpServer server(scripted({}), "1.0");
   const json tools = call(server, R"({"jsonrpc":"2.0","id":1,"method":"tools/list"})")["result"]["tools"];
   std::vector<std::string> names;
   for(const auto& tool : tools){
-    names.push_back(tool["name"]);
+    const std::string name = tool["name"];
+    names.push_back(name);
     CHECK(tool["inputSchema"]["type"] == "object");
-    CHECK(tool["annotations"]["readOnlyHint"] == true);
+    CHECK(tool["annotations"]["readOnlyHint"] == (name != "put_draft" && name != "set_control"));
   }
-  CHECK(names == std::vector<std::string>{"aurora_status", "list_nodes", "describe_node", "list_presets", "get_preset"});
+  CHECK(names == std::vector<std::string>{"aurora_status", "list_nodes", "describe_node", "list_presets", "get_preset",
+    "put_draft", "set_control", "preview"});
 }
 
 TEST_CASE("aurora_status reports live state")
@@ -259,4 +264,134 @@ TEST_CASE("Node and preset tools report an unreachable Aurora as an error result
     CHECK(result["isError"] == true);
     CHECK(result["content"][0]["text"].get<std::string>().find("not reachable") != std::string::npos);
   }
+}
+
+
+namespace
+{
+  // A draft store in a lambda: an invalid graph is one with "bad":true, and every request is logged.
+  struct FakeDrafts
+  {
+    std::vector<std::string> log;
+    std::optional<json> draft;
+    std::string previewBody = R"({"session":"t","seconds":1,"samples":4,"outputs":[{"output":"hue","change":0.0,"zones":[]}],"errors":[]})";
+
+    Fetch fetch()
+    {
+      return [this](const std::string& method, const std::string& path, const std::string& body){
+        log.push_back(method + " " + path);
+        if(method == "PUT"){
+          draft = json::parse(body).at("graph");
+          const bool bad = draft->value("bad", false);
+          json reply = {{"succeeded", true}, {"valid", !bad}, {"errors", json::array()}};
+          if(bad){
+            reply["errors"].push_back({{"code", "node_type_unknown"}, {"node", "a"}, {"options", json::array({"math.add"})}});
+          }
+          return HttpReply{200, reply.dump(), {}};
+        }
+        if(method == "DELETE"){
+          draft.reset();
+          return HttpReply{200, "{}", {}};
+        }
+        if(path.rfind("/api/graph/drafts/", 0) == 0){
+          return draft ? HttpReply{200, json{{"graph", *draft}}.dump(), {}} : HttpReply{404, R"({"error":"no_draft"})", {}};
+        }
+        if(path.rfind("/api/graph/preview/summary", 0) == 0){
+          return draft ? HttpReply{200, previewBody, {}} : HttpReply{404, R"({"error":"no_draft"})", {}};
+        }
+        return HttpReply{404, "{}", {}};
+      };
+    }
+  };
+
+  const char* kGoodGraph = R"({"version":1,"nodes":[{"id":"gain","type":"math.mul","params":{"b":1.0}}],"edges":[],
+    "controls":[{"node":"gain","param":"b","label":"Brightness"}]})";
+}
+
+
+TEST_CASE("put_draft: an invalid graph is a normal result with codes and options")
+{
+  FakeDrafts app;
+  McpServer server(app.fetch(), "1.0", "t");
+
+  const json bad = callTool(server, "put_draft", R"({"graph":{"version":1,"bad":true}})")["result"];
+  CHECK(bad["isError"] == false);
+  CHECK(bad["structuredContent"]["valid"] == false);
+  CHECK(bad["structuredContent"]["errors"][0]["code"] == "node_type_unknown");
+  CHECK(bad["structuredContent"]["errors"][0]["options"][0] == "math.add");
+
+  const json fixed = callTool(server, "put_draft", std::string(R"({"graph":)") + kGoodGraph + "}")["result"];
+  CHECK(fixed["structuredContent"]["valid"] == true);
+  CHECK(app.log.front() == "PUT /api/graph/drafts/t");
+
+  CHECK(callTool(server, "put_draft", "{}")["result"]["isError"] == true);
+}
+
+TEST_CASE("put_draft: transport and refusal are tool errors")
+{
+  McpServer down(scripted({{"PUT /api/graph/drafts/t", {0, {}, "Connection"}}}), "1.0", "t");
+  CHECK(callTool(down, "put_draft", R"({"graph":{}})")["result"]["isError"] == true);
+
+  McpServer refused(scripted({{"PUT /api/graph/drafts/t", {401, "{}", {}}}}), "1.0", "t");
+  const json result = callTool(refused, "put_draft", R"({"graph":{}})")["result"];
+  CHECK(result["isError"] == true);
+  CHECK(result["content"][0]["text"].get<std::string>().find("AURORA_TOKEN") != std::string::npos);
+
+  McpServer tooBig(scripted({{"PUT /api/graph/drafts/t", {413, R"({"error":"draft_too_large"})", {}}}}), "1.0", "t");
+  CHECK(callTool(tooBig, "put_draft", R"({"graph":{}})")["result"]["isError"] == true);
+}
+
+TEST_CASE("set_control changes one param by label or node.param")
+{
+  FakeDrafts app;
+  McpServer server(app.fetch(), "1.0", "t");
+
+  CHECK(callTool(server, "set_control", R"({"control":"Brightness","value":0.5})")["result"]["isError"] == true);
+
+  callTool(server, "put_draft", std::string(R"({"graph":)") + kGoodGraph + "}");
+  const json byLabel = callTool(server, "set_control", R"({"control":"Brightness","value":0.5})")["result"];
+  CHECK(byLabel["isError"] == false);
+  CHECK(byLabel["structuredContent"]["valid"] == true);
+  CHECK(app.draft->at("nodes")[0]["params"]["b"] == 0.5);
+
+  callTool(server, "set_control", R"({"control":"gain.b","value":0.25})");
+  CHECK(app.draft->at("nodes")[0]["params"]["b"] == 0.25);
+
+  const json miss = callTool(server, "set_control", R"({"control":"Nope","value":1})")["result"];
+  CHECK(miss["isError"] == true);
+  CHECK(miss["content"][0]["text"].get<std::string>().find("'Brightness'") != std::string::npos);
+}
+
+TEST_CASE("preview tells a static graph from a reacting one")
+{
+  FakeDrafts app;
+  McpServer server(app.fetch(), "1.0", "t");
+
+  CHECK(callTool(server, "preview")["result"]["isError"] == true);
+
+  callTool(server, "put_draft", std::string(R"({"graph":)") + kGoodGraph + "}");
+  const json still = callTool(server, "preview")["result"];
+  CHECK(still["isError"] == false);
+  CHECK(still["structuredContent"]["reacting"] == false);
+  CHECK(still["structuredContent"]["outputs"][0]["reacting"] == false);
+
+  app.previewBody = R"({"session":"t","seconds":1,"samples":4,"outputs":[{"output":"hue","change":0.08,"zones":[]}],"errors":[]})";
+  const json moving = callTool(server, "preview", R"({"seconds":2})")["result"];
+  CHECK(moving["structuredContent"]["reacting"] == true);
+  CHECK(app.log.back() == "GET /api/graph/preview/summary?session=t&seconds=2.000000");
+}
+
+TEST_CASE("shutdown deletes the draft, and only when one was saved")
+{
+  FakeDrafts app;
+  McpServer idle(app.fetch(), "1.0", "t");
+  idle.shutdown();
+  CHECK(app.log.empty());
+
+  McpServer server(app.fetch(), "1.0", "t");
+  callTool(server, "put_draft", R"({"graph":{"version":1}})");
+  REQUIRE(app.draft.has_value());
+  server.shutdown();
+  CHECK_FALSE(app.draft.has_value());
+  CHECK(app.log.back() == "DELETE /api/graph/drafts/t");
 }
