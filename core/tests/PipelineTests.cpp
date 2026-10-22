@@ -43,6 +43,7 @@
 #endif
 #include <Aurora/Runtime/Pipeline.hpp>
 #include <Aurora/Runtime/PipelineRoutes.hpp>
+#include <Aurora/Runtime/PresetRoutes.hpp>
 #include <Aurora/Runtime/PreviewRoutes.hpp>
 #include <Aurora/Runtime/SettingsRoutes.hpp>
 
@@ -2422,6 +2423,64 @@ TEST_CASE("GET /api/nodes serves every registered node and rejects a forged Host
   auto forged = client.Get("/api/nodes", {{"Host", "evil.com"}});
   REQUIRE(forged);
   CHECK(forged->status == 403);
+
+  server.stop();
+  serverThread.join();
+}
+
+
+TEST_CASE("Preset routes fill the user's outputs and every preset validates with Tuning controls (Aurora-4xqt.8)", "[Presets]")
+{
+  using namespace Aurora::Network::Http::Server;
+
+  ScopedTempDir dir("preset-routes");
+  auto events = std::make_shared<Events>();
+  auto registry = makeRegistry(events);
+  Config config = videoConfig();
+  config.setActiveOutputNames({"out-a", "out-b"});
+  ConfigStore(dir.path).save(config);
+
+  HttpServer server;
+  registerPresetRoutes(server, registry, dir.path);
+  const int port = server.bindToAnyPort("127.0.0.1");
+  REQUIRE(port > 0);
+  std::thread serverThread([&](){ server.listen(); });
+  httplib::Client client("127.0.0.1", port);
+
+  auto list = client.Get("/api/graph/presets");
+  REQUIRE(list);
+  CHECK(list->status == 200);
+  const auto presets = nlohmann::json::parse(list->body)["presets"];
+#ifdef AURORA_RUNTIME_AUDIO_AVAILABLE
+  REQUIRE(presets.size() == 4);
+#else
+  REQUIRE(presets.size() == 2);
+#endif
+  for(const auto& entry : presets){
+    CHECK_FALSE(entry["title"].get<std::string>().empty());
+    CHECK_FALSE(entry["description"].get<std::string>().empty());
+    CHECK_FALSE(entry["controls"].empty());
+
+    auto got = client.Get("/api/graph/presets/" + entry["id"].get<std::string>());
+    REQUIRE(got);
+    CHECK(got->status == 200);
+    const auto body = nlohmann::json::parse(got->body);
+    INFO(body["errors"].dump());
+    CHECK(body["valid"] == true);
+    CHECK(body["outputs"] == nlohmann::json::array({"out-a", "out-b"}));
+    CHECK_FALSE(body["graph"]["controls"].empty());
+
+    // Every output has a sender, so the user's outputs were filled in.
+    int sends = 0;
+    for(const auto& node : body["graph"]["nodes"]){
+      sends += node["type"] == "output.send" ? 1 : 0;
+    }
+    CHECK(sends == 2);
+  }
+
+  auto missing = client.Get("/api/graph/presets/nope");
+  REQUIRE(missing);
+  CHECK(missing->status == 404);
 
   server.stop();
   serverThread.join();

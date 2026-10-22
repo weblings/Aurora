@@ -50,17 +50,24 @@ namespace Aurora::Runtime
   }
 
 
-  nlohmann::json validateGraphDoc(
-    const Graph::NodeRegistry& nodes,
-    const Registry& registry,
-    const std::filesystem::path& configRoot,
-    const nlohmann::json& doc)
+  std::vector<std::string> graphOutputNames(const Registry& registry, const std::filesystem::path& configRoot)
   {
     const Config config = ConfigStore(configRoot).load();
     std::vector<std::string> names = config.activeOutputNames();
     if(names.empty()){
       names = registry.outputNames();
     }
+    return names;
+  }
+
+
+  nlohmann::json validateGraphDoc(
+    const Graph::NodeRegistry& nodes,
+    const Registry& registry,
+    const std::filesystem::path& configRoot,
+    const nlohmann::json& doc)
+  {
+    const std::vector<std::string> names = graphOutputNames(registry, configRoot);
     Graph::LoadOptions options;
     options.knownOutputs = std::unordered_set<std::string>(names.begin(), names.end());
 

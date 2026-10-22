@@ -2,6 +2,8 @@
 
 #include <filesystem>
 #include <memory>
+#include <string>
+#include <vector>
 
 #include <nlohmann/json.hpp>
 
@@ -15,6 +17,10 @@ namespace Aurora::Runtime::Graph { class NodeRegistry; }
 namespace Aurora::Runtime
 {
   class Registry;
+
+  // The output names a graph load uses: the saved Config's, else every
+  // registered one.
+  std::vector<std::string> graphOutputNames(const Registry& registry, const std::filesystem::path& configRoot);
 
   // {"valid", "errors"} for one graph doc, against the outputs a load would use
   // (the saved Config's, else every registered one). The shape every draft

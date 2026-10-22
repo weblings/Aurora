@@ -36,6 +36,14 @@ namespace Aurora::Mcp
     nlohmann::json _toolsList() const;
     nlohmann::json _toolsCall(const nlohmann::json& params);
     nlohmann::json _auroraStatus();
+    nlohmann::json _listNodes(const nlohmann::json& arguments);
+    nlohmann::json _describeNode(const nlohmann::json& arguments);
+    nlohmann::json _listPresets();
+    nlohmann::json _getPreset(const nlohmann::json& arguments);
+
+    // GETs a JSON body. Empty on success, else the message for an error result.
+    // `status` receives the HTTP status when given.
+    std::string _getJson(const std::string& path, nlohmann::json& out, int* status = nullptr);
 
     Fetch m_fetch;
     std::string m_serverVersion;

@@ -10,7 +10,9 @@ and scope: [[sequence-d-planning]], [[external-control]].
 - `src/McpServer.*`: protocol logic (framing, version negotiation, tools),
   transport-free so tests script the app through an injected fetch.
 - `src/main.cpp`: stdio loop and the httplib client.
-- Tools: `aurora_status` only. Later D beads add graph tools on this binary.
+- Tools, all read-only: `aurora_status`, `list_nodes`, `describe_node`,
+  `list_presets`, `get_preset` (the last two pass through `/api/graph/presets`).
+  Later D beads add draft and apply tools on this binary.
 
 ## Config
 
