@@ -37,6 +37,19 @@ Any client, as a config entry:
 { "mcpServers": { "aurora": { "command": "/path/to/aurora-mcp", "env": { "AURORA_URL": "http://127.0.0.1:8215" } } } }
 ```
 
+## Trying the token case on one machine
+
+- Run the gate: `python3 tools/light-viz-relay/sequence_d_gate.py` has a LAN phase.
+- By hand: set `AURORA_URL` to the host's own LAN IP, not `127.0.0.1`. Aurora treats
+  that address as remote and answers 401 until a token is paired. It does not
+  exercise the firewall (the request still goes over loopback).
+- Pair like the WebUI: `POST /api/pairing/request` with `{"name", "scope"}`, approve
+  it from loopback (`GET /api/pairing/pending`, `POST .../pending/<ref>/approve`),
+  then poll `/api/pairing/request/<pollKey>` once for the token.
+- Scopes: `read`, `draft`, `apply`, `admin`. Draft covers `put_draft` and `set_control`;
+  apply adds `try_on_lights`, `keep`, `apply`, `revert_effect`. The WebUI asks for
+  `admin` and has no scope picker (see Aurora-4xqt.15).
+
 ## Build and packaging
 
 - Superbuild option `AURORA_ENABLE_MCP_ADAPTER` (default ON). Standalone:

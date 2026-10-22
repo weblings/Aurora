@@ -48,11 +48,31 @@ both-input graphs, fixed here.
   draft unchanged. Adapter test added, 185/185.
 - The preview of the `both` preset showed brightness 0.47 to 0.60, no 1.0 spikes.
 
+## Verified: Muse client and the LAN token case (Linux, one machine)
+
+- Muse 1.4.11 loaded the project `.mcp.json` unprompted and listed all 13 tools; its
+  sandbox did not block loopback to 8215.
+- From this host, `127.0.0.1:8215` answers 200 and the host's own LAN IP answers 401,
+  so the token case is testable without a second device.
+- Adapter on the LAN URL: no token gives "Aurora refused the request (HTTP 401). Set
+  AURORA_TOKEN to a paired token."; wrong token gives the same; a token paired through
+  `/api/pairing/request` and approved from loopback gives `aurora_status`, `put_draft`
+  and `preview` over the LAN address, and Muse did the same with the token in env.
+- Throwaway devstack config root, so no real device was paired.
+- The gate gained a LAN phase (11/11 on Linux): refusals, then `draft` and `apply`
+  tokens paired the way the WebUI does it. A draft token reads and drafts but is
+  refused `try_on_lights`; an apply token starts and reverts a test.
+- The WebUI pairing screen requests `admin` and has no scope picker, so a token an
+  agent holds there is full admin. Filed Aurora-4xqt.15. The adapter's 401 message now
+  says a set token may lack the access (draft vs apply).
+- Not shown: the ufw path (a request to the host's own IP skips the firewall) and a
+  real second device.
+
 ## Not verified
 
 - Mac and Windows reruns with the tightened gate.
 - Linux client trials: Claude Code connected (tools listed); a full prompt run, VS Code Copilot chat and MCP Inspector not done.
-- LAN token case.
+- ufw path of the LAN case, and a second device.
 
 ## Lessons
 

@@ -384,7 +384,9 @@ namespace Aurora::Mcp
       return "Aurora is not reachable (" + reply.error + "). Start Aurora and check AURORA_URL.";
     }
     if(reply.status == 401 || reply.status == 403){
-      return "Aurora refused the request (HTTP " + std::to_string(reply.status) + "). Set AURORA_TOKEN to a paired token.";
+      return "Aurora refused the request (HTTP " + std::to_string(reply.status) + "). Set AURORA_TOKEN to a paired token. "
+        "A token that is already set may lack the access this needs: drafting needs a draft token, "
+        "light tests and apply need an apply token.";
     }
     // An error body still tells the caller why, so it is kept in `out` when it parses.
     try{
