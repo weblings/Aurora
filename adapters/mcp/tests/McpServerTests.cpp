@@ -667,7 +667,7 @@ TEST_CASE("A graph that needs an unchosen input asks for the user, not a retry")
   CHECK(callTool(busy, "try_on_lights")["result"]["content"][0]["text"].get<std::string>().find("Try again") != std::string::npos);
 }
 
-TEST_CASE("--pair requests the scope, prints only the token, and stops on deny or expiry")
+TEST_CASE("aurora-mcp --pair requests the scope, prints only the token, and stops on deny or expiry")
 {
   std::vector<std::string> log;
   std::vector<HttpReply> polls;

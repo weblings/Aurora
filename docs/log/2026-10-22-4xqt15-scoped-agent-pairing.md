@@ -32,15 +32,20 @@ gate rerun that [[4xqt13-optional-input-hold]] left open.
 - `sequence_d_gate.py` 11/11 on Windows, `windows-audio`, fake-Hue stack, LAN
   phase on `192.168.0.224`. Covers the 4xqt.13 Windows rerun with the tightened
   dark checks.
+- Mac (arm64, `mac-app`, `mac-audio`): `sequence_d_gate.py` 11/11, LAN phase on
+  `192.168.0.198`. ctest 111/112 before the test rename below, 112/112 after.
 
 ## Open
 
-- Mac gate rerun, and a gate rerun on Linux with this adapter.
+- Gate rerun on Linux with this adapter.
 - Gate pairs through the API, so `--pair` itself is covered by the Linux trial only.
 - Paired devices does not show where a device paired from. Needs a stored field.
 
 ## Lessons
 
+- A Catch test name that starts with `--` is parsed as an option when ctest passes
+  it as the argument (`Unrecognised token: --pair`). It failed on Mac only;
+  renamed to start with `aurora-mcp`.
 - A `.status-text` paragraph keeps its dimmer grey over a later single-class rule
   because `forms.css` loads after `shell.css`. Scope the override.
 - Dev error injection and `AURORA_WEBUI_SOURCE_DIR` make banner changes
