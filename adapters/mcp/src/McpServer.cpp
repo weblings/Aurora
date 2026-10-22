@@ -30,12 +30,16 @@ namespace Aurora::Mcp
       "to see whether Aurora is running, which effect is live, and what is connected. "
       "A graph can only use the inputs in configuredInputs: if it needs one that is null, "
       "ask the user to choose it in Aurora first. "
-      "To write a graph, find node types with list_nodes and describe_node, or start "
-      "from list_presets and get_preset. put_draft saves and validates a graph, set_control "
-      "tunes one control, preview shows what the draft would do to the lights. try_on_lights shows "
-      "it on the real lights for the user to judge: ask them, then call keep to save it or revert. "
-      "A test reverts by itself if this server stops. apply saves and activates a draft without a test, "
-      "and revert_effect goes back to what ran before your first apply.";
+      "Start from a preset: list_presets, then get_preset, and change as little as you can. "
+      "Use list_nodes and describe_node for the node types, params and ports you edit. "
+      "Keep the preset's controls so the user can still tune the result in Aurora. "
+      "In an audio graph, silence holds the last frame, so do not expect it to go dark. "
+      "put_draft saves and validates the whole graph: fix every error before going on. "
+      "set_control tunes one control. preview samples the draft off the lights, so use it before "
+      "touching them. try_on_lights shows the draft on the real lights for the user to judge: "
+      "ask them, then call keep to save it or revert. A test reverts by itself if this server stops. "
+      "apply saves and activates a draft without a test, so ask the user first. "
+      "revert_effect goes back to what ran before your first apply.";
 
     nlohmann::json errorResponse(const nlohmann::json& id, int code, const std::string& message)
     {

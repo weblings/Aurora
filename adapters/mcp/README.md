@@ -18,6 +18,9 @@ and scope: [[sequence-d-planning]], [[external-control]].
 
 ## Config
 
+Per-client setup (Claude Code, Claude Desktop, VS Code, LAN token): [SETUP.md](SETUP.md).
+Agent workflow text: `kInstructions` in `src/McpServer.cpp`, sent as `initialize` instructions.
+
 - `AURORA_URL`: default `http://127.0.0.1:8215`.
 - `AURORA_TOKEN`: optional bearer token for a non-loopback Aurora. Set by the
   user in the client config, never by the agent. Loopback needs none.
