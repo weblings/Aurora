@@ -10,9 +10,12 @@
 #include <thread>
 
 #ifdef _WIN32
+#define WIN32_LEAN_AND_MEAN
+#define NOMINMAX
 #include <fcntl.h>
 #include <io.h>
 #include <process.h>
+#include <windows.h>
 #define getpid _getpid
 #else
 #include <unistd.h>
@@ -34,6 +37,29 @@ namespace
     "Usage: aurora-mcp                  stdio MCP server (the client starts this)\n"
     "       aurora-mcp --pair [--scope apply|draft|read] [--name NAME]\n"
     "                                   pair a token for a LAN Aurora at AURORA_URL\n";
+
+  // "aurora-mcp on Studio-Mac (macOS)", so the approver can recognise the device.
+  std::string defaultDeviceName()
+  {
+    char host[256] = {};
+#ifdef _WIN32
+    DWORD size = sizeof(host);
+    if(!GetComputerNameA(host, &size)){
+      host[0] = 0;
+    }
+    const char* os = "Windows";
+#else
+    if(gethostname(host, sizeof(host) - 1) != 0){
+      host[0] = 0;
+    }
+#ifdef __APPLE__
+    const char* os = "macOS";
+#else
+    const char* os = "Linux";
+#endif
+#endif
+    return host[0] ? std::string("aurora-mcp on ") + host + " (" + os + ")" : std::string("aurora-mcp (") + os + ")";
+  }
 
   int runPair(const std::string& url, const std::string& scope, const std::string& name)
   {
@@ -69,7 +95,7 @@ int main(int argc, char** argv)
 
   bool pairMode = false;
   std::string scope = "apply";
-  std::string name = std::string("aurora-mcp on ") + envOr("COMPUTERNAME", envOr("HOSTNAME", "this computer").c_str());
+  std::string name = defaultDeviceName();
   for(int i = 1; i < argc; ++i){
     const std::string arg = argv[i];
     if(arg == "--pair"){

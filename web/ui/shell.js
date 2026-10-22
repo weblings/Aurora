@@ -390,7 +390,7 @@ export class App {
   _renderPairingRow(request) {
     const ref = escapeHtml(request.ref);
     return `<div class="shell-banner-row"><div class="shell-banner-content">
-      <p class="status-text">Pair <strong>${escapeHtml(request.name ?? '')}</strong> with Aurora${this._pairingAccess(request.scope)}? Approve only if it shows code <strong class="shell-pairing-code">${escapeHtml(request.code ?? '')}</strong>.</p>
+      <p class="status-text">Pair <strong>${escapeHtml(request.name ?? '')}</strong> with Aurora${this._pairingAccess(request.scope)}${request.from ? ` from ${escapeHtml(request.from)}` : ''}? Approve only if it shows code <strong class="shell-pairing-code">${escapeHtml(request.code ?? '')}</strong>.</p>
       <div class="shell-banner-actions">
         <button type="button" class="btn btn-primary" id="shell-pairing-approve-${ref}">Approve</button>
         <button type="button" class="btn btn-secondary" id="shell-pairing-deny-${ref}">Deny</button>

@@ -206,7 +206,7 @@ TEST_CASE("PairingService approval flow hands the token out once", "[Pairing]")
   std::int64_t now = 1000;
   PairingService service({}, [&](){ return now; });
 
-  auto ticket = service.requestPairing("Pixel 8", Scope::Admin);
+  auto ticket = service.requestPairing("Pixel 8", Scope::Admin, "::ffff:192.168.0.51");
   REQUIRE(ticket);
   CHECK(ticket->code.size() == 5);
   CHECK(service.poll(ticket->pollKey).state == PairingPoll::State::Pending);
@@ -215,6 +215,7 @@ TEST_CASE("PairingService approval flow hands the token out once", "[Pairing]")
   REQUIRE(pending.size() == 1);
   CHECK(pending[0].code == ticket->code);
   CHECK(pending[0].name == "Pixel 8");
+  CHECK(pending[0].from == "192.168.0.51");
 
   REQUIRE(service.approve(pending[0].ref, Scope::Apply));
   auto first = service.poll(ticket->pollKey);

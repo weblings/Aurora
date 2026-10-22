@@ -59,7 +59,7 @@ namespace Aurora::Network::Http::Server
         reply(res, 400, {{"succeeded", false}, {"error", "unknown_scope"}});
         return;
       }
-      auto ticket = service->requestPairing(body.value("name", ""), *scope);
+      auto ticket = service->requestPairing(body.value("name", ""), *scope, req.remoteAddr);
       if(!ticket){
         reply(res, 429, {{"succeeded", false}, {"error", "too_many_pending"}});
         return;
@@ -93,7 +93,8 @@ namespace Aurora::Network::Http::Server
           {"ref", item.ref},
           {"name", item.name},
           {"scope", scopeName(item.scope)},
-          {"code", item.code}
+          {"code", item.code},
+          {"from", item.from}
         });
       }
       reply(res, 200, {{"pending", list}});

@@ -296,7 +296,7 @@ namespace Aurora::Network::Http::Server
   }
 
 
-  std::optional<PairingTicket> PairingService::requestPairing(const std::string& name, Scope scope)
+  std::optional<PairingTicket> PairingService::requestPairing(const std::string& name, Scope scope, const std::string& remoteAddr)
   {
     std::lock_guard lock(m_mutex);
     expireLocked();
@@ -309,6 +309,8 @@ namespace Aurora::Network::Http::Server
     entry.name = cleanName(name);
     entry.scope = scope;
     entry.code = randomCode();
+    // A v4 client on a dual-stack socket reads ::ffff:a.b.c.d.
+    entry.from = remoteAddr.rfind("::ffff:", 0) == 0 ? remoteAddr.substr(7) : remoteAddr;
     entry.createdAt = m_clock();
 
     PairingTicket ticket{randomHex(16), entry.code};
@@ -324,7 +326,7 @@ namespace Aurora::Network::Http::Server
     std::vector<PendingPairing> out;
     for(const auto& [key, entry] : m_pending){
       if(!entry.decided){
-        out.push_back({entry.ref, entry.name, entry.scope, entry.code});
+        out.push_back({entry.ref, entry.name, entry.scope, entry.code, entry.from});
       }
     }
     std::sort(out.begin(), out.end(), [](const auto& a, const auto& b){ return a.ref < b.ref; });

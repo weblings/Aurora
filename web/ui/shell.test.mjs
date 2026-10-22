@@ -625,12 +625,12 @@ const HELD = { source: 'reload', message: 'bridge unreachable', id: 7 };
 
 // An agent token request (aurora-mcp --pair) names its access in the banner.
 {
-  const fetchPending = async () => [{ ref: 'r1', name: 'aurora-mcp on laptop', scope: 'apply', code: 'K7Q2X' }];
+  const fetchPending = async () => [{ ref: 'r1', name: 'aurora-mcp on laptop', scope: 'apply', code: 'K7Q2X', from: '192.168.0.51' }];
   const { app, banner } = makeApp(ok(), { fetchPending });
   app.canApprove = true;
   await app._pollOnce();
   await sleep(0);
-  assert.ok(banner().includes('with apply access (change effects and test on the lights, no settings)'));
+  assert.ok(banner().includes('with apply access (change effects and test on the lights, no settings) from 192.168.0.51'));
   uninstallDom();
 }
 
