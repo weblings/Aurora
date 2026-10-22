@@ -42,7 +42,7 @@ both-input graphs, fixed here.
 ## Not verified
 
 - Mac and Windows reruns with the tightened gate.
-- Linux client trials: Claude Code, VS Code Copilot chat, MCP Inspector.
+- Linux client trials: Claude Code connected (tools listed); a full prompt run, VS Code Copilot chat and MCP Inspector not done.
 - LAN token case.
 
 ## Lessons
@@ -50,3 +50,7 @@ both-input graphs, fixed here.
 - A gate's "went dark" wait that passes on one frame cannot see flicker.
   Assert the state holds over a window.
 - Absent on a wired input means "no new data", not "unconnected".
+- Two config files, two clients: Claude Code reads `.mcp.json` (new conversation
+  needed), VS Code's own chat reads `.vscode/mcp.json`. On Linux the Claude Code
+  extension was the only one installed, so `.vscode/mcp.json` alone showed nothing
+  in `/mcp`. `.vscode/` is gitignored; `.mcp.json` is not.

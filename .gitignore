@@ -82,3 +82,6 @@ local/
 .beads-credential-key
 .beads/proxieddb/
 *.gate.lock*
+
+# Local MCP client config (absolute paths to this machine's build)
+/.mcp.json

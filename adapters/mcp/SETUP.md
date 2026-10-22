@@ -15,6 +15,10 @@ client at it. Aurora must be running.
 claude mcp add aurora -- /path/to/aurora-mcp
 ```
 
+- Or a project `.mcp.json`: `{ "mcpServers": { "aurora": { "command": "/path/to/aurora-mcp" } } }`.
+- Claude Code reads it at session start, so open a new conversation, then approve the server.
+- The Claude Code VS Code extension is this client too. `/mcp` in its panel lists servers.
+
 Add `-e AURORA_URL=http://192.168.1.20:8215 -e AURORA_TOKEN=...` before the
 `--` for the LAN case.
 
@@ -24,10 +28,14 @@ Edit `claude_desktop_config.json` (Settings, Developer, Edit Config), then
 restart Claude Desktop:
 
 ```json
-{ "mcpServers": { "aurora": { "command": "C:\path\to\aurora-mcp.exe" } } }
+{ "mcpServers": { "aurora": { "command": "C:\\path\\to\\aurora-mcp.exe" } } }
 ```
 
-## VS Code
+## VS Code (Copilot chat)
+
+- This is VS Code's own chat, not the Claude Code extension. Claude Code ignores
+  `.vscode/mcp.json`, and VS Code ignores `.mcp.json`.
+- Servers show under `MCP: List Servers`; use Agent mode.
 
 Add to `.vscode/mcp.json` (or run `MCP: Add Server` and choose a stdio server):
 
