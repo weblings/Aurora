@@ -16,7 +16,8 @@ namespace Aurora::Runtime
   class Registry;
 
   // Every write under /api/graph/test needs `apply` (LAN only, loopback is
-  // trusted). GET /api/graph/test keeps the default `read` requirement.
+  // trusted), except /stop, which needs `admin`. GET /api/graph/test keeps the
+  // default `read` requirement.
   void addTestAccessRules(Aurora::Network::Http::Server::AccessGuard& guard);
 
   // The draft of a session replaces the live effect on the real outputs, in
@@ -24,7 +25,8 @@ namespace Aurora::Runtime
   // live effect back (read fresh from disk) on an explicit revert, once the
   // 120 s cap passes (heartbeats keep it alive until then), or when heartbeats
   // stop, so a closed tab cannot strand the lights. A pause, or any rebuild of the pipeline, also ends the
-  // test: the new pipeline starts from disk. Nothing is written to disk.
+  // test: the new pipeline starts from disk. Nothing is written to disk. The
+  // app mains also stop it on an effect choice the pipeline applied in place.
   //
   // POST /api/graph/test {"session"}: starts a test of that session's draft.
   // Answers {"succeeded": true, "confirmWithinMs", "heartbeatMs",
@@ -40,6 +42,10 @@ namespace Aurora::Runtime
   //
   // POST /api/graph/test/revert {"session"}: {"succeeded": true} once the live
   // effect is back, plus "revertError" if putting it back failed. 404 "no_test".
+  //
+  // POST /api/graph/test/stop (Aurora-zfre): the WebUI's Stop test. Reverts
+  // the running test whichever session started it, answering like /revert;
+  // that session's next heartbeat gets "no_test". lastEnd "stopped".
   //
   // POST /api/graph/test/confirm {"session", "id"}: the tested draft becomes
   // the live effect exactly like POST /api/graph/apply, and the test ends

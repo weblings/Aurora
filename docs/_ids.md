@@ -20,6 +20,7 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `4xqt12-mac-gate-and-vscode` | [log/2026-10-22-4xqt12-mac-gate-and-vscode.md](log/2026-10-22-4xqt12-mac-gate-and-vscode.md) | Aurora-4xqt.7 to .12: Mac verification of Sequence D, gate 9/9, Claude Code in VS Code |
 | `4xqt13-optional-input-hold` | [log/2026-10-22-4xqt13-optional-input-hold.md](log/2026-10-22-4xqt13-optional-input-hold.md) | Aurora-4xqt.13: wired optional inputs hold on Absent ticks, Linux Sequence D pass |
 | `4xqt15-scoped-agent-pairing` | [log/2026-10-22-4xqt15-scoped-agent-pairing.md](log/2026-10-22-4xqt15-scoped-agent-pairing.md) | Aurora-4xqt.15: scoped agent pairing, Windows Sequence D pass |
+| `4xqt17-quiet-mac-preview` | [log/2026-10-22-4xqt17-quiet-mac-preview.md](log/2026-10-22-4xqt17-quiet-mac-preview.md) | Aurora-4xqt.17: preview on a quiet Mac says why it is empty |
 | `4xqt2-mcp-effect-toggle` | [log/2026-10-21-4xqt2-mcp-effect-toggle.md](log/2026-10-21-4xqt2-mcp-effect-toggle.md) | Aurora-4xqt.2 (D0b): MCP effect toggle on the Dashboard |
 | `4xqt3-actionable-validate-errors` | [log/2026-10-21-4xqt3-actionable-validate-errors.md](log/2026-10-21-4xqt3-actionable-validate-errors.md) | Aurora-4xqt.3: validate errors an agent can act on (closed) |
 | `4xqt4-test-window-cap` | [log/2026-10-21-4xqt4-test-window-cap.md](log/2026-10-21-4xqt4-test-window-cap.md) | Aurora-4xqt.4: test-on-lights window that fits a chat loop (closed) |
@@ -186,6 +187,7 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `pmg5-generated-demo-graph` | [log/2026-10-16-pmg5-generated-demo-graph.md](log/2026-10-16-pmg5-generated-demo-graph.md) | Generated demo-graph.js and --check drift guards (Aurora-pmg5) |
 | `processing-analysis` | [archive/ProcessingAnalysis.md](archive/ProcessingAnalysis.md) | ImageProcessing / Color / Interpolation / ImageData / UV — Conversion analysis |
 | `q9l1-tray-target-live` | [log/2026-10-07-q9l1-tray-target-live.md](log/2026-10-07-q9l1-tray-target-live.md) | Aurora-q9l1: tray click-time target — Linux live green, Windows exercised, closed |
+| `r7ff-noise-nodes` | [log/2026-10-22-r7ff-noise-nodes.md](log/2026-10-22-r7ff-noise-nodes.md) | R7ff: noise source nodes (Aurora-r7ff) |
 | `ra4o10-g2e-pre-g3-fixes` | [log/2026-10-14-ra4o10-g2e-pre-g3-fixes.md](log/2026-10-14-ra4o10-g2e-pre-g3-fixes.md) | G2e pre-G3 review fixes (Aurora-ra4o.10) |
 | `ra4o11-g4a-loader-float-clamp` | [log/2026-10-15-ra4o11-g4a-loader-float-clamp.md](log/2026-10-15-ra4o11-g4a-loader-float-clamp.md) | G4a: loader clamps Float params (Aurora-ra4o.11) |
 | `ra4o12-g4b-descriptor-metadata` | [log/2026-10-15-ra4o12-g4b-descriptor-metadata.md](log/2026-10-15-ra4o12-g4b-descriptor-metadata.md) | G4b: descriptors emit useWhen, example and cost (Aurora-ra4o.12) |
@@ -241,3 +243,4 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `x1lh-error-shell-visual-polish` | [log/2026-10-07-error-shell-visual-polish.md](log/2026-10-07-error-shell-visual-polish.md) | Aurora-x1lh: error shell visual polish (closed) |
 | `xrl1-warning-icon` | [log/2026-10-07-xrl1-warning-icon.md](log/2026-10-07-xrl1-warning-icon.md) | Aurora-xrl1: vector warning icon replaces bold ⚠ (closed) |
 | `yzp4-takeover-unification` | [log/2026-10-06-yzp4-takeover-unification.md](log/2026-10-06-yzp4-takeover-unification.md) | Aurora-yzp4: takeover unified to heading-only "Aurora has stopped" (closed) |
+| `zfre-test-state-and-stop` | [log/2026-10-22-zfre-test-state-and-stop.md](log/2026-10-22-zfre-test-state-and-stop.md) | Zfre: /api/state reports the light test, the WebUI can stop it (Aurora-zfre) |

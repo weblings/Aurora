@@ -112,6 +112,19 @@ namespace Aurora::Runtime
   }
 
 
+  bool LightTest::stop(std::string& error, const char* reason)
+  {
+    std::lock_guard<std::mutex> lock(m_mutex);
+    _expireLocked();
+    if(!m_active){
+      return false;
+    }
+    error = m_hooks.revert();
+    _endLocked(reason);
+    return true;
+  }
+
+
   bool LightTest::confirm(const std::string& session)
   {
     std::lock_guard<std::mutex> lock(m_mutex);

@@ -133,7 +133,8 @@ namespace Aurora::Runtime
   void registerSettingsRoutes(
     HttpServer& server,
     const std::filesystem::path& configRoot,
-    std::function<std::string()> onConfigChanged
+    std::function<std::string()> onConfigChanged,
+    std::function<void()> onEffectChosen
   )
   {
     server.addRoute(HttpMethod::Get, "/api/config", [configRoot](const Request&, Response& res){
@@ -148,7 +149,7 @@ namespace Aurora::Runtime
       coalescer = std::make_shared<ReloadCoalescer>(onConfigChanged);
     }
 
-    server.addRoute(HttpMethod::Put, "/api/config", [configRoot, coalescer](const Request& req, Response& res){
+    server.addRoute(HttpMethod::Put, "/api/config", [configRoot, coalescer, onEffectChosen](const Request& req, Response& res){
       nlohmann::json body;
       try{
         body = nlohmann::json::parse(req.body);
@@ -182,6 +183,9 @@ namespace Aurora::Runtime
           // though the live pipeline couldn't pick it up.
           responseJson["reloadError"] = reloadError;
         }
+      }
+      if(onEffectChosen && body.contains("activeEffectId")){
+        onEffectChosen();
       }
       _writeJson(res, responseJson);
     });

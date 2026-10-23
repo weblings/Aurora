@@ -1007,6 +1007,7 @@ TEST_CASE("GET /api/state reports paused and the running pipeline's capabilities
     {"usesAudioInput", false},
     {"samplesZones", false},
     {"brightness", 1.0},
+    {"test", {{"active", false}, {"confirmRemainingMs", 0}}},
     {"audioDevicesUrl", "/api/test/audio-devices"}
   });
 
@@ -3576,6 +3577,16 @@ namespace
         [this]{ return applyEffectFromDisk(*host, registry, dir.path); });
       test = registerTestRoutes(server, *host, registry, dir.path, drafts, applyDraft, nullptr, {},
         [this]{ return nowMs.load(); }, false);
+      // Wired as the app mains wire them (Aurora-zfre).
+      auto onEffectChosen = [this]{ std::string error; test->stop(error, "effect_changed"); };
+      registerStateRoute(server, *host, registry, dir.path, test);
+      registerSettingsRoutes(server, dir.path, [this]{ return applyConfigFromDisk(*host, registry, dir.path); },
+        onEffectChosen);
+      registerEffectsRoutes(server, *host, registry, dir.path, [this, onEffectChosen]{
+        const std::string error = applyConfigFromDisk(*host, registry, dir.path);
+        onEffectChosen();
+        return error;
+      });
       const int port = server.bindToAnyPort("127.0.0.1");
       REQUIRE(port > 0);
       serverThread = std::thread([this](){ server.listen(); });
@@ -3820,6 +3831,68 @@ TEST_CASE("GET /api/graph/test reports the running test (Aurora-52oz.5)", "[Ligh
 }
 
 
+TEST_CASE("GET /api/state reports the test and /stop ends another session's test (Aurora-zfre)", "[LightTest]")
+{
+  LightTestHarness h("lt-stop");
+  auto state = [&]{ return nlohmann::json::parse(h.client->Get("/api/state")->body); };
+  CHECK(state()["test"] == nlohmann::json{{"active", false}, {"confirmRemainingMs", 0}});
+  CHECK(h.post("/api/graph/test/stop", nlohmann::json::object()) == 404);
+
+  h.putDraft("mcp-1", Graph::builtInVideoGraph({"out-a"}));
+  REQUIRE(h.start("mcp-1") == 200);
+  h.advance(3000);
+  const nlohmann::json running = state();
+  CHECK(running["test"] == nlohmann::json{{"active", true}, {"confirmRemainingMs", 117000}});
+  CHECK(running["effect"] == "builtin.video");
+
+  // The WebUI has no session of its own and needs none.
+  auto stopped = h.client->Post("/api/graph/test/stop", "", "application/json");
+  REQUIRE(stopped);
+  CHECK(stopped->status == 200);
+  CHECK(nlohmann::json::parse(stopped->body) == nlohmann::json{{"succeeded", true}});
+  CHECK(*h.host->graphJson() == h.live);
+  CHECK(h.test->info().lastEnd == "stopped");
+  CHECK(h.beat("mcp-1") == 404);
+  CHECK(state()["test"]["active"] == false);
+  CHECK(initCount(*h.events) == 1);
+}
+
+
+TEST_CASE("An effect choice the pipeline applies in place ends a running test (Aurora-zfre)", "[LightTest]")
+{
+  LightTestHarness h("lt-toggle");
+  const nlohmann::json draft = Graph::builtInVideoGraph({"out-a"});
+  h.putDraft("mcp-1", draft);
+  auto put = [&](const std::string& path, const nlohmann::json& body){
+    auto result = h.client->Put(path, body.dump(), "application/json");
+    REQUIRE(result);
+    return result->status;
+  };
+
+  // The Video toggle while video runs changes no reload field, so it applies
+  // in place; the test must not outlive the click and revert over it later.
+  REQUIRE(h.start("mcp-1") == 200);
+  CHECK(put("/api/config", {{"activeEffectId", "builtin.video"}}) == 200);
+  CHECK_FALSE(h.test->info().active);
+  CHECK(h.test->info().lastEnd == "effect_changed");
+  CHECK(*h.host->graphJson() == h.live);
+  CHECK(h.beat("mcp-1") == 404);
+
+  // The effects switch to the running built-in is the same case.
+  REQUIRE(h.start("mcp-1") == 200);
+  CHECK(put("/api/effects", {{"activeEffectId", ""}}) == 200);
+  CHECK(h.test->info().lastEnd == "effect_changed");
+  CHECK(*h.host->graphJson() == h.live);
+
+  // A tuning save is not a choice: the test keeps the lights.
+  REQUIRE(h.start("mcp-1") == 200);
+  CHECK(put("/api/config", {{"brightness", 0.5}}) == 200);
+  CHECK(h.test->info().active);
+  CHECK(*h.host->graphJson() == draft);
+  CHECK(initCount(*h.events) == 1);
+}
+
+
 TEST_CASE("Test on lights: draft scope is refused, apply scope passes (Aurora-52oz.5)", "[LightTest][Pairing]")
 {
   using namespace Aurora::Network::Http::Server;
@@ -3851,6 +3924,12 @@ TEST_CASE("Test on lights: draft scope is refused, apply scope passes (Aurora-52
     CHECK(decide(HttpMethod::Post, path, "") == Result::Unauthorized);
     CHECK(decide(HttpMethod::Post, path, "", "127.0.0.1") == Result::Allow);
   }
+
+  // Stop ends anyone's test, so it is the WebUI's (Aurora-zfre).
+  const std::string admin = service->mintForTest("desktop", Scope::Admin);
+  CHECK(decide(HttpMethod::Post, "/api/graph/test/stop", apply) == Result::Forbidden);
+  CHECK(decide(HttpMethod::Post, "/api/graph/test/stop", admin) == Result::Allow);
+  CHECK(decide(HttpMethod::Post, "/api/graph/test/stop", "", "127.0.0.1") == Result::Allow);
 }
 
 
