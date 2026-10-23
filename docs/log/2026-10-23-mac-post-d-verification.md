@@ -18,12 +18,18 @@ kgv7, r7ff, 4xqt.15 (version 1.1.3).
 - `aurora-mcp --pair` to the Mac Aurora over its LAN IP: pending entry `aurora-mcp on <host> (macOS)` with `from` and scope `apply`; token worked
   (`aurora_status`, `try_on_lights`). After killing and relaunching Aurora on the same config root the token still worked, the device stayed
   listed with `apply`, and no token got 401.
+- 4f6p permission-blocked repro (`Aurora.app` launched on its own via `open`, `tccutil reset ScreenCapture com.aurora.app`, fake-Hue):
+  Audio running, Audio to Video switch returned `permission_denied` (no shareable displays); config saved `mac` but `/api/state`
+  kept `effect` `builtin.audio`, `usesVideoInput` false, error listed. Owner-confirmed the Dashboard fill stayed on Audio with the error banner.
+  After granting Screen Recording the same switch ran `builtin.video`.
+- WebUI in a browser (owner-confirmed): 10 s light tests of the video, audio, both and source-less `spatial` presets showed the
+  Stop test banner, the filled MCP toggle and the pickers and hints matching each graph.
 
 ## Not verified
 
-- 4f6p permission-blocked repro (Screen Recording revoked, `Aurora.app` launched on its own).
-- WebUI in a browser: Stop test banner, MCP toggle fill, pickers and hints per graph shape.
 - Pair request came from the host's own LAN address; no second device.
+- Local Network was blocked for the relaunched ad-hoc app (stale grant for a rebuilt binary; macOS 27.0.1 has no reset), so
+  LAN checks ran only on the earlier stack run.
 
 ## Findings
 
