@@ -47,6 +47,7 @@
 #include <Aurora/Runtime/DraftRoutes.hpp>
 #include <Aurora/Runtime/EffectsRoutes.hpp>
 #include <Aurora/Runtime/GraphRoutes.hpp>
+#include <Aurora/Runtime/PresetRoutes.hpp>
 #include <Aurora/Runtime/PipelineRoutes.hpp>
 #include <Aurora/Runtime/SettingsRoutes.hpp>
 #include <Aurora/Runtime/ZoneRoutes.hpp>
@@ -667,6 +668,7 @@ if(!instanceLock.held()){
       return Aurora::Runtime::applyConfigFromDisk(pipelineHost, registry, configRoot);
     },
     accessGuard.get());
+  Aurora::Runtime::registerPresetRoutes(httpServer, registry, configRoot);
   auto draftStore = Aurora::Runtime::registerDraftRoutes(httpServer, registry, configRoot, accessGuard.get());
   auto applyDraft = Aurora::Runtime::registerApplyRoutes(httpServer, pipelineHost, registry, configRoot, draftStore,
     [&pipelineHost, &registry, configRoot]() -> std::string {

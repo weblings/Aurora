@@ -259,6 +259,18 @@ target_include_directories(aurora-app-mac PRIVATE
   ${CMAKE_CURRENT_BINARY_DIR}
 )
 
+# Aurora-4xqt.7: the MCP helper ships beside the app. A superbuild adds
+# adapters/mcp before this slice; a standalone slice configure skips it.
+if(TARGET aurora-mcp)
+  add_dependencies(aurora-app-mac aurora-mcp)
+  add_custom_command(TARGET aurora-app-mac POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            $<TARGET_FILE:aurora-mcp> "$<TARGET_BUNDLE_DIR:aurora-app-mac>/Contents/MacOS"
+    COMMENT "Staging aurora-mcp beside Aurora"
+    VERBATIM
+  )
+endif()
+
 # Code signing. Default is ad-hoc ("-": free, local, no Apple Developer
 # account) -- required for a bundle to run at all under Gatekeeper's
 # baseline check, and for its TCC identity to stay stable across rebuilds

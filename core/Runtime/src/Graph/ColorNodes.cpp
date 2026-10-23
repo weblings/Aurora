@@ -187,6 +187,38 @@ namespace Aurora::Runtime::Graph
         out.emplace("color", Color::fromHSV(hue, s, v));
       });
 
+    add(registry, "color.constant",
+      {.purpose = "A fixed Color from hue, saturation and value params, no inputs.",
+       .useWhen = "Supply a fixed color, e.g. a warm tint for frame.tint or a mix target.",
+       .example =
+         "{\"id\": \"warm\", \"type\": \"color.constant\", \"params\": {\"hue\": 30, \"saturation\": 0.8, "
+         "\"value\": 1}}"},
+      {},
+      {{"color", PortType::Color, false}},
+      {floatParam("hue", "Hue", 0.f, 360.f, 0.f, "deg", "Hue of the color in degrees."),
+       floatParam("saturation", "Saturation", 0.f, 1.f, 1.f, "", "Saturation of the color."),
+       floatParam("value", "Value", 0.f, 1.f, 1.f, "", "Brightness (HSV value) of the color.")},
+      [](const EvalContext& c, Outputs& out) {
+        float hue = c.param<float>("hue");
+        requireFinite(c, hue, "hue");
+        float s = std::clamp(c.param<float>("saturation"), 0.f, 1.f);
+        float v = std::clamp(c.param<float>("value"), 0.f, 1.f);
+        out.emplace("color", Color::fromHSV(hue, s, v));
+      });
+
+    add(registry, "angle.constant",
+      {.purpose = "A fixed Angle from a degrees param, no inputs.",
+       .useWhen = "Supply a fixed hue or offset, e.g. a color.fromHSV hue or an angle.add offset.",
+       .example = "{\"id\": \"teal\", \"type\": \"angle.constant\", \"params\": {\"degrees\": 180}}"},
+      {},
+      {{"angle", PortType::Angle, false}},
+      {floatParam("degrees", "Degrees", 0.f, 360.f, 0.f, "deg", "The angle in degrees, wrapped at 360.")},
+      [](const EvalContext& c, Outputs& out) {
+        float degrees = c.param<float>("degrees");
+        requireFinite(c, degrees, "degrees");
+        out.emplace("angle", Angle{wrapDegrees(degrees)});
+      });
+
     add(registry, "color.toHSV",
       {.purpose = "Split a Color into hue (Angle), saturation and value (Floats, 0..1).",
        .useWhen = "Read a video color's hue to drive another node.",

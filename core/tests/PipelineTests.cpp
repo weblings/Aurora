@@ -43,6 +43,7 @@
 #endif
 #include <Aurora/Runtime/Pipeline.hpp>
 #include <Aurora/Runtime/PipelineRoutes.hpp>
+#include <Aurora/Runtime/PresetRoutes.hpp>
 #include <Aurora/Runtime/PreviewRoutes.hpp>
 #include <Aurora/Runtime/SettingsRoutes.hpp>
 
@@ -2428,6 +2429,64 @@ TEST_CASE("GET /api/nodes serves every registered node and rejects a forged Host
 }
 
 
+TEST_CASE("Preset routes fill the user's outputs and every preset validates with Tuning controls (Aurora-4xqt.8)", "[Presets]")
+{
+  using namespace Aurora::Network::Http::Server;
+
+  ScopedTempDir dir("preset-routes");
+  auto events = std::make_shared<Events>();
+  auto registry = makeRegistry(events);
+  Config config = videoConfig();
+  config.setActiveOutputNames({"out-a", "out-b"});
+  ConfigStore(dir.path).save(config);
+
+  HttpServer server;
+  registerPresetRoutes(server, registry, dir.path);
+  const int port = server.bindToAnyPort("127.0.0.1");
+  REQUIRE(port > 0);
+  std::thread serverThread([&](){ server.listen(); });
+  httplib::Client client("127.0.0.1", port);
+
+  auto list = client.Get("/api/graph/presets");
+  REQUIRE(list);
+  CHECK(list->status == 200);
+  const auto presets = nlohmann::json::parse(list->body)["presets"];
+#ifdef AURORA_RUNTIME_AUDIO_AVAILABLE
+  REQUIRE(presets.size() == 4);
+#else
+  REQUIRE(presets.size() == 2);
+#endif
+  for(const auto& entry : presets){
+    CHECK_FALSE(entry["title"].get<std::string>().empty());
+    CHECK_FALSE(entry["description"].get<std::string>().empty());
+    CHECK_FALSE(entry["controls"].empty());
+
+    auto got = client.Get("/api/graph/presets/" + entry["id"].get<std::string>());
+    REQUIRE(got);
+    CHECK(got->status == 200);
+    const auto body = nlohmann::json::parse(got->body);
+    INFO(body["errors"].dump());
+    CHECK(body["valid"] == true);
+    CHECK(body["outputs"] == nlohmann::json::array({"out-a", "out-b"}));
+    CHECK_FALSE(body["graph"]["controls"].empty());
+
+    // Every output has a sender, so the user's outputs were filled in.
+    int sends = 0;
+    for(const auto& node : body["graph"]["nodes"]){
+      sends += node["type"] == "output.send" ? 1 : 0;
+    }
+    CHECK(sends == 2);
+  }
+
+  auto missing = client.Get("/api/graph/presets/nope");
+  REQUIRE(missing);
+  CHECK(missing->status == 404);
+
+  server.stop();
+  serverThread.join();
+}
+
+
 TEST_CASE("GET /api/graph serves the running graph, null when none runs (Aurora-id8j.2)", "[GraphRoutes]")
 {
   using namespace Aurora::Network::Http::Server;
@@ -4400,3 +4459,59 @@ TEST_CASE("A draft that grows a source the preview did not open gets draft_inval
   CHECK(h.tickUntil(again, [](const nlohmann::json& p){ return !p["outputs"].empty(); }));
 }
 #endif
+
+
+TEST_CASE("Every route aurora-mcp calls opens to an apply token, drafts to a draft token (Aurora-4xqt.15)", "[Pairing][Mcp]")
+{
+  using namespace Aurora::Network::Http::Server;
+  auto service = std::make_shared<PairingService>();
+  AccessGuard guard(service, [](const std::string& addr){ return addr == "127.0.0.1"; });
+  addDraftAccessRules(guard);
+  addApplyAccessRules(guard);
+  addTestAccessRules(guard);
+  addEffectsAccessRules(guard);
+
+  const std::string read = service->mintForTest("viewer", Scope::Read);
+  const std::string draft = service->mintForTest("editor", Scope::Draft);
+  const std::string apply = service->mintForTest("adapter", Scope::Apply);
+
+  auto decide = [&](HttpMethod method, const std::string& path, const std::string& token){
+    AccessRequest request;
+    request.method = method;
+    request.path = path;
+    request.remoteAddr = "192.168.1.20";
+    request.authorization = "Bearer " + token;
+    return guard.decide(request).result;
+  };
+  using Result = AccessDecision::Result;
+
+  // Keep in step with the calls in adapters/mcp/src/McpServer.cpp. A new write
+  // route without its own rule needs admin, which this catches.
+  struct Call { HttpMethod method; const char* path; Scope needs; };
+  const std::vector<Call> calls = {
+    {HttpMethod::Get, "/api/state", Scope::Read},
+    {HttpMethod::Get, "/api/capabilities", Scope::Read},
+    {HttpMethod::Get, "/api/config", Scope::Read},
+    {HttpMethod::Get, "/api/nodes", Scope::Read},
+    {HttpMethod::Get, "/api/graph/presets", Scope::Read},
+    {HttpMethod::Get, "/api/graph/presets/builtin-video", Scope::Read},
+    {HttpMethod::Get, "/api/graph/drafts/mcp-1", Scope::Read},
+    {HttpMethod::Get, "/api/graph/preview/summary", Scope::Read},
+    {HttpMethod::Get, "/api/graph/test", Scope::Read},
+    {HttpMethod::Get, "/api/effects", Scope::Read},
+    {HttpMethod::Put, "/api/graph/drafts/mcp-1", Scope::Draft},
+    {HttpMethod::Delete, "/api/graph/drafts/mcp-1", Scope::Draft},
+    {HttpMethod::Post, "/api/graph/test", Scope::Apply},
+    {HttpMethod::Post, "/api/graph/test/heartbeat", Scope::Apply},
+    {HttpMethod::Post, "/api/graph/test/confirm", Scope::Apply},
+    {HttpMethod::Post, "/api/graph/test/revert", Scope::Apply},
+    {HttpMethod::Post, "/api/graph/apply", Scope::Apply},
+    {HttpMethod::Put, "/api/effects", Scope::Apply},
+  };
+  for(const Call& call : calls){
+    INFO(call.path);
+    CHECK(decide(call.method, call.path, apply) == Result::Allow);
+    CHECK(decide(call.method, call.path, draft) == (call.needs <= Scope::Draft ? Result::Allow : Result::Forbidden));
+    CHECK(decide(call.method, call.path, read) == (call.needs <= Scope::Read ? Result::Allow : Result::Forbidden));
+  }
+}

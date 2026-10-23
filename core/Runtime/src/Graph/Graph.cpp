@@ -12,6 +12,13 @@ namespace Aurora::Runtime::Graph
     {
       return nodeId + "." + port;
     }
+
+    // Event-like ports are not held: a repeated buffer or onset would be
+    // counted twice.
+    bool holdsOnAbsent(PortType type)
+    {
+      return type != PortType::Trigger && type != PortType::AudioBuffer && type != PortType::AudioFeatures;
+    }
   }
 
   Graph::NodeInstance* Graph::findNode(const std::string& id)
@@ -47,6 +54,19 @@ namespace Aurora::Runtime::Graph
       if(it != prev.m_nodes.end() && it->second.type == instance.type && it->second.node &&
          instance.node){
         instance.node = std::move(it->second.node);
+      }
+    }
+    // Held inputs carry over where the same source still feeds the same
+    // input, so an in-place swap does not drop to Absent for a tick.
+    for(auto& [inputKey, held] : prev.m_heldInputs){
+      const auto dot = inputKey.rfind('.');
+      const auto edgeIt = m_edgeByInput.find(inputKey.substr(0, dot));
+      if(edgeIt == m_edgeByInput.end()){
+        continue;
+      }
+      const auto portIt = edgeIt->second.find(inputKey.substr(dot + 1));
+      if(portIt != edgeIt->second.end() && key(portIt->second->fromNode, portIt->second->fromPort) == held.source){
+        m_heldInputs[inputKey] = std::move(held);
       }
     }
   }
@@ -121,17 +141,20 @@ namespace Aurora::Runtime::Graph
       ctx.host = host;
 
       // Gather inputs. An error on any input, or Absent on a required
-      // input, propagates without calling evaluate. Absent on an
-      // optional input flows into the context and the node decides.
+      // input, propagates without calling evaluate. A wired optional
+      // input holds its last value (below); an unwired one reads Absent
+      // and the node decides.
       const GraphError* incomingError = nullptr;
-      bool requiredAbsent = false;
+      bool absentInput = false;
       const auto edgeIt = m_edgeByInput.find(id);
       for(const PortDecl& input : instance.inputs){
         const GraphValue* value = nullptr;
+        const GraphEdge* wired = nullptr;
         if(edgeIt != m_edgeByInput.end()){
           auto portIt = edgeIt->second.find(input.name);
           if(portIt != edgeIt->second.end()){
             const GraphEdge& edge = *portIt->second;
+            wired = &edge;
             auto valueIt = m_values.find(key(edge.fromNode, edge.fromPort));
             if(valueIt != m_values.end()){
               value = &valueIt->second;
@@ -143,12 +166,28 @@ namespace Aurora::Runtime::Graph
         // check reads the stored copy: checking the local before moving
         // it would leave incomingError dangling on moved-from state.
         GraphValue current = (value != nullptr) ? *value : GraphValue{Absent{}};
+        // A wired optional input holds its last value through Absent ticks
+        // (audio arriving slower than the tick); never valued, it is Absent
+        // like a required input, not the unconnected param default.
+        if(!input.required && wired != nullptr && holdsOnAbsent(input.type)){
+          const std::string inputKey = key(id, input.name);
+          if(isAbsent(current)){
+            auto heldIt = m_heldInputs.find(inputKey);
+            if(heldIt != m_heldInputs.end()){
+              current = heldIt->second.value;
+            } else {
+              absentInput = true;
+            }
+          } else if(asError(current) == nullptr){
+            m_heldInputs[inputKey] = HeldInput{key(wired->fromNode, wired->fromPort), current};
+          }
+        }
         ctx.inputs.emplace(input.name, std::move(current));
         const GraphValue& stored = ctx.inputs.at(input.name);
         if(const GraphError* err = asError(stored)){
           incomingError = err;
         } else if(isAbsent(stored) && input.required){
-          requiredAbsent = true;
+          absentInput = true;
         }
       }
 
@@ -158,7 +197,7 @@ namespace Aurora::Runtime::Graph
         for(const PortDecl& output : instance.outputs){
           produced.emplace(output.name, *incomingError);
         }
-      } else if(requiredAbsent){
+      } else if(absentInput){
         for(const PortDecl& output : instance.outputs){
           produced.emplace(output.name, Absent{});
         }

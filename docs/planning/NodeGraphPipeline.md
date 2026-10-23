@@ -146,7 +146,8 @@ on recorded features and checks outputs match within epsilon.
   (shortest-arc), `rollingAverage(α)`, `integrate(rate)` (Angle, wraps),
   `stepOnTrigger(amount)` (accumulate on each pulse).
 - **Color:** `color.fromHSV`, `color.toHSV`, `color.brightness`,
-  `color.mix`, `color.hueShift`, `color.complement` (+180°).
+  `color.mix`, `color.hueShift`, `color.complement` (+180°),
+  `color.constant` and `angle.constant` (fixed-value sources).
 - **Palette:** `palette.randomAnchor` (the six complementary pairs),
   `palette.pick`.
 - **Frame ops** (these enable video × audio mixing, the headline
@@ -300,6 +301,12 @@ section wins.
 replaces today's skipped ticks (`!isHealthy()` video, empty audio buffer).
 Absent propagates to every dependent node, and `output.send` sends nothing.
 This is what keeps byte parity with the orchestrators.
+- A wired optional input that reads Absent gets the last value its edge
+  carried. Never valued, it is Absent like a required input. Unwired, the
+  node decides (usually the param default). Trigger and audio ports are not
+  held, so an onset or buffer is never counted twice. Amended 2026-10-22
+  ([[4xqt13-optional-input-hold]]): audio arriving slower than the tick made
+  a pulse factor fall to its default of 1 between buffers.
 
 **Params.**
 - Kinds: `float`, `enum`, `bool`, `optional-float`, using

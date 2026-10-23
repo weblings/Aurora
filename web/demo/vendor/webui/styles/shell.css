@@ -241,8 +241,25 @@
 }
 
 
-/* Pairing request row (Aurora-5ipy.6): the code is what the user compares
-   with the phone, so it reads apart from the sentence. */
+/* Pairing request row (Aurora-5ipy.6): one labelled line per fact, and the
+   code is what the user compares with the device, so it reads apart. */
+.shell-pairing-details {
+  margin: var(--aurora-space-2) 0 0;
+  padding-left: var(--aurora-space-6);
+  font-size: 13px;
+  color: var(--aurora-text-secondary);
+}
+
+/* Scoped past .status-text (forms.css loads later and would dim it). */
+.shell-banner-content .shell-pairing-title {
+  font-weight: 700;
+  color: var(--aurora-text-primary);
+}
+
+.shell-pairing-label {
+  color: var(--aurora-text-primary);
+}
+
 .shell-pairing-code {
   letter-spacing: 0.15em;
   color: var(--aurora-text-primary);

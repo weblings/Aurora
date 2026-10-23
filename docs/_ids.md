@@ -14,10 +14,19 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `3ono-stale-core-test-tree` | [log/2026-10-02-3ono-stale-core-test-tree.md](log/2026-10-02-3ono-stale-core-test-tree.md) | Aurora-3ono: PipelineTests segfault on Windows was a stale build tree |
 | `3qh-mac-capture-width-hint` | [log/2026-10-01-3qh-mac-capture-width-hint.md](log/2026-10-01-3qh-mac-capture-width-hint.md) | Aurora-3qh: Mac video mode resized full-Retina frames every tick |
 | `4xqt1-input-rebuild-keeps-outputs` | [log/2026-10-21-4xqt1-input-rebuild-keeps-outputs.md](log/2026-10-21-4xqt1-input-rebuild-keeps-outputs.md) | Aurora-4xqt.1 (D0a): input-only rebuild keeps outputs, preview owns its extra inputs (paused) |
+| `4xqt1-windows-second-duplication-recheck` | [log/2026-10-21-4xqt1-windows-second-duplication-recheck.md](log/2026-10-21-4xqt1-windows-second-duplication-recheck.md) | Aurora-4xqt.1: Windows second-duplication recheck (closed) |
+| `4xqt10-try-apply-tools` | [log/2026-10-22-4xqt10-try-apply-tools.md](log/2026-10-22-4xqt10-try-apply-tools.md) | Aurora-4xqt.10: try and apply tools (D4) |
+| `4xqt11-agent-instructions-setup` | [log/2026-10-22-4xqt11-agent-instructions-setup.md](log/2026-10-22-4xqt11-agent-instructions-setup.md) | Aurora-4xqt.11: agent instructions and client setup (D5) |
+| `4xqt12-mac-gate-and-vscode` | [log/2026-10-22-4xqt12-mac-gate-and-vscode.md](log/2026-10-22-4xqt12-mac-gate-and-vscode.md) | Aurora-4xqt.7 to .12: Mac verification of Sequence D, gate 9/9, Claude Code in VS Code |
+| `4xqt13-optional-input-hold` | [log/2026-10-22-4xqt13-optional-input-hold.md](log/2026-10-22-4xqt13-optional-input-hold.md) | Aurora-4xqt.13: wired optional inputs hold on Absent ticks, Linux Sequence D pass |
+| `4xqt15-scoped-agent-pairing` | [log/2026-10-22-4xqt15-scoped-agent-pairing.md](log/2026-10-22-4xqt15-scoped-agent-pairing.md) | Aurora-4xqt.15: scoped agent pairing, Windows Sequence D pass |
 | `4xqt2-mcp-effect-toggle` | [log/2026-10-21-4xqt2-mcp-effect-toggle.md](log/2026-10-21-4xqt2-mcp-effect-toggle.md) | Aurora-4xqt.2 (D0b): MCP effect toggle on the Dashboard |
 | `4xqt3-actionable-validate-errors` | [log/2026-10-21-4xqt3-actionable-validate-errors.md](log/2026-10-21-4xqt3-actionable-validate-errors.md) | Aurora-4xqt.3: validate errors an agent can act on (closed) |
 | `4xqt4-test-window-cap` | [log/2026-10-21-4xqt4-test-window-cap.md](log/2026-10-21-4xqt4-test-window-cap.md) | Aurora-4xqt.4: test-on-lights window that fits a chat loop (closed) |
 | `4xqt5-preview-summary` | [log/2026-10-21-4xqt5-preview-summary.md](log/2026-10-21-4xqt5-preview-summary.md) | Aurora-4xqt.5: preview summary route for agents (closed) |
+| `4xqt7-mcp-adapter-skeleton` | [log/2026-10-22-4xqt7-mcp-adapter-skeleton.md](log/2026-10-22-4xqt7-mcp-adapter-skeleton.md) | Aurora-4xqt.7: MCP adapter skeleton (Windows verified, Mac and Linux open) |
+| `4xqt8-node-preset-read-tools` | [log/2026-10-22-4xqt8-node-preset-read-tools.md](log/2026-10-22-4xqt8-node-preset-read-tools.md) | Aurora-4xqt.8: node and preset read tools (D2) |
+| `4xqt9-draft-tools` | [log/2026-10-22-4xqt9-draft-tools.md](log/2026-10-22-4xqt9-draft-tools.md) | Aurora-4xqt.9: draft tools (D3) |
 | `4zr11-floor-wiring` | [log/2026-10-16-4zr11-floor-wiring.md](log/2026-10-16-4zr11-floor-wiring.md) | Brightness floor wiring (Aurora-4zr.11) |
 | `52oz1-custom-effects-storage` | [log/2026-10-20-52oz1-custom-effects-storage.md](log/2026-10-20-52oz1-custom-effects-storage.md) | Aurora-52oz.1: custom effects under effects/, activeEffectId, fallback warning (closed) |
 | `52oz2-graph-source-inputs` | [log/2026-10-20-52oz2-graph-source-inputs.md](log/2026-10-20-52oz2-graph-source-inputs.md) | Aurora-52oz.2: pipeline builds inputs from the graph's source nodes (closed) |
