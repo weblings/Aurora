@@ -29,11 +29,13 @@ kgv7, r7ff, 4xqt.15 (version 1.1.3).
 
 - Pair request came from the host's own LAN address; no second device.
 - Local Network was blocked for the relaunched ad-hoc app (stale grant for a rebuilt binary; macOS 27.0.1 has no reset), so
-  LAN checks ran only on the earlier stack run.
+  LAN checks ran only on the earlier stack run. Filed Aurora-lswm (1.1.4).
 
 ## Findings
 
 - Relaunching the app by hand without `AURORA_CONFIG_DIR=$TMPDIR/aurora-fresh` opens the real config root (it only touched `aurora.pid`).
+- A rebuilt ad-hoc `Aurora.app` launched alone shows the `local_network` condition and the Local Network list (macOS 27.0.1) offers no reset;
+  Aurora-lswm.
 
 ## Lessons
 
