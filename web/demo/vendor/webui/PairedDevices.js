@@ -56,7 +56,9 @@ export class PairedDevices {
   _meta(device) {
     const paired = formatDate(device.createdAt);
     const lastSeen = formatDate(device.lastSeen);
-    return lastSeen && lastSeen !== paired ? `Paired ${paired}, last used ${lastSeen}` : `Paired ${paired}`;
+    const dates = lastSeen && lastSeen !== paired ? `Paired ${paired}, last used ${lastSeen}` : `Paired ${paired}`;
+    // Admin rows (browsers) read as before, agent tokens name their access.
+    return device.scope && device.scope !== 'admin' ? `${device.scope[0].toUpperCase()}${device.scope.slice(1)} access. ${dates}` : dates;
   }
 
   async _revoke(id) {
