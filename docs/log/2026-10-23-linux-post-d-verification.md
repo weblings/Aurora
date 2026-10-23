@@ -22,11 +22,14 @@ r7ff, version 1.1.3). Related: [[4xqt15-scoped-agent-pairing]], [[zfre-test-stat
 - `aurora-mcp --pair` from a Linux client to the Linux Aurora over its LAN IP: pending entry named
   `aurora-mcp on <host> (Linux)` with `from` and scope `apply`; approval printed a token; `aurora_status` worked and
   `try_on_lights` passed the apply guard; Paired devices listed it as `apply`.
+- `--pair` token across an Aurora restart (app killed and relaunched on the same config root): the `apply` token
+  still worked over the LAN IP, the device stayed in Paired devices with `apply`, no token still got 401, and the
+  WebUI stayed on port 8215.
+- WebUI in a browser (owner-confirmed): light tests of the video, audio, both and source-less `spatial` presets
+  (10 s each) showed the Stop test banner, the filled MCP toggle and the pickers and hints matching each graph.
 
 ## Not verified
 
-- WebUI in a browser (Stop test banner, toggle fill, pickers): unit tests only on Linux.
-- A `--pair` token surviving an Aurora restart on Linux.
 - The pair request came from the host's own LAN address, so it went over loopback and skipped ufw; no second device.
 - `noise` / `image.noise` live preview, Mac for everything here, and the Mac permission-blocked repro for 4f6p.
 
