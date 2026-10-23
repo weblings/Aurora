@@ -400,7 +400,8 @@ export class DashboardScreen {
       sinkName: this.sinkName,
       // The hint ("once Video connects") reads wrong beside an error about
       // that same input -- Screen Recording denied is blocked, not connecting.
-      showHint: Object.keys(this.topTierErrors).length === 0 && !this.toggleError,
+      // An MCP graph names no input, so a default-device hint would mislead.
+      showHint: Object.keys(this.topTierErrors).length === 0 && !this.toggleError && this.mode !== 'mcp',
       onChange: (patch) => this._onDeviceFieldChange(patch),
     });
   }
