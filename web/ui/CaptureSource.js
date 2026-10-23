@@ -120,6 +120,22 @@ export function isSwitchErrorStale(state, errorMode) {
   return !!state && !!errorMode && flagsMatchMode(state, errorMode);
 }
 
+// Whether an MCP light test is driving the lights (Aurora-zfre). The toggle
+// treats it as the live MCP effect until it ends or is kept.
+export function lightTestActive(state) {
+  return state?.test?.active === true;
+}
+
+// Which toggle the running effect fills: 'mcp', 'video', 'audio', or null
+// (nothing running, or a custom effect not from MCP). Flags drive sections,
+// not this fill, so a failed switch's saved config never shows.
+export function runningToggle(state) {
+  if (lightTestActive(state) || mcpEffectRunning(state)) return 'mcp';
+  if (state?.effect === 'builtin.video') return 'video';
+  if (state?.effect === 'builtin.audio') return 'audio';
+  return null;
+}
+
 export function isIdle(flags) {
   return !flags.usesVideoInput && !flags.usesAudioInput && !flags.samplesZones;
 }

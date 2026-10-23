@@ -80,6 +80,13 @@ namespace Aurora::Runtime
     std::string requestedEffect;
     // Why a requested custom effect is not the one running; empty otherwise.
     std::string fallbackReason;
+    // Capture sources the running custom graph declares; nullopt for a built-in.
+    struct GraphInputs
+    {
+      bool video{false};
+      bool audio{false};
+    };
+    std::optional<GraphInputs> graphInputs;
     std::optional<Video> video;
     std::optional<Audio> audio;
   };
@@ -205,7 +212,7 @@ namespace Aurora::Runtime
     bool swapEffect(const Config& next, const nlohmann::json& doc);
 
     // Runs `doc` in place for a test on lights (Aurora-52oz.5), changing
-    // neither the Config nor the summary. False, changing nothing, when the
+    // not the Config, and only the summary's graphInputs. False, changing nothing, when the
     // graph would need other inputs than the ones running or fails to load.
     bool testGraph(const nlohmann::json& doc);
 

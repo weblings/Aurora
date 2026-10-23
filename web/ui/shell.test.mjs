@@ -684,4 +684,43 @@ const HELD = { source: 'reload', message: 'bridge unreachable', id: 7 };
   uninstallDom();
 }
 
+// Light test row (Aurora-exbp): from the poll's test field, above problems,
+// counts down locally, Stop test POSTs, no Keep.
+{
+  let test = { active: true, confirmRemainingMs: 100000 };
+  const { app, slots, banner } = makeApp(async () => ({ reachable: true, state: 'running', errors: [{ source: 'reload', message: 'a', id: 1 }], test }));
+  app.navigate(blankScreen(), 'dashboard');
+  await app._pollOnce();
+  assert.ok(banner().includes('An MCP client is testing an effect on the lights. Will revert in:'), 'row shown');
+  assert.ok(banner().includes('1:40'), 'clock from confirmRemainingMs');
+  assert.ok(banner().indexOf('shell-light-test-stop') < banner().indexOf('shell-banner-retry-reload'), 'above problems');
+  assert.ok(!banner().includes('1 problems') && !/Keep/.test(banner()), 'not a problem, no Keep');
+  app.lightTestEndsAt -= 61000;
+  assert.equal(app._lightTestClock(), '0:39', 'counts down between polls');
+  const posts = [];
+  globalThis.fetch = async (url, init) => { posts.push([url, init?.method]); test = { active: false, confirmRemainingMs: 0 }; return { ok: true, status: 200 }; };
+  slots.get('shell-banner-slot').querySelector('#shell-light-test-stop').click();
+  await sleep(0);
+  await sleep(0);
+  assert.deepEqual(posts, [['/api/graph/test/stop', 'POST']]);
+  assert.ok(!banner().includes('shell-light-test-stop'), 'row gone once the poll says inactive');
+  assert.equal(app._lightTestTimer, null, 'tick timer cleared');
+  globalThis.fetch = realFetchForPairing;
+  uninstallDom();
+}
+
+// A test alone shows the banner; the takeover drops it.
+{
+  let fail = false;
+  const { app, banner } = makeApp(async () => { if (fail) throw new Error('down'); return { reachable: true, test: { active: true, confirmRemainingMs: 5000 } }; });
+  await app._pollOnce();
+  assert.ok(banner().includes('shell-light-test-stop'));
+  fail = true;
+  await app._pollOnce();
+  await app._pollOnce();
+  assert.equal(banner(), '');
+  assert.equal(app.lightTestEndsAt, null);
+  uninstallDom();
+}
+
 console.log('shell checks passed.');

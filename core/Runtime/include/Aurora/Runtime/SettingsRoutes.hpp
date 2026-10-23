@@ -34,11 +34,15 @@ namespace Aurora::Network::Http::Server { class HttpServer; }
 // concurrent, at most one queued behind the one in flight, so it must load
 // config fresh from disk. A queued call covers every write before it starts and
 // its waiting PUTs all receive its result.
+//
+// onEffectChosen, if given, runs after that for a PUT naming activeEffectId
+// (the Dashboard's Video/Audio toggle), even when the value is unchanged.
 namespace Aurora::Runtime
 {
   void registerSettingsRoutes(
     Aurora::Network::Http::Server::HttpServer& server,
     const std::filesystem::path& configRoot,
-    std::function<std::string()> onConfigChanged = {}
+    std::function<std::string()> onConfigChanged = {},
+    std::function<void()> onEffectChosen = {}
   );
 }

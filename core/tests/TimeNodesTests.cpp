@@ -282,6 +282,42 @@ TEST_CASE("lfo square flips at half a cycle and honors min and max", "[TimeNodes
   CHECK(outFloat(square) == Approx(4.f));
 }
 
+TEST_CASE("noise stays in range, moves smoothly and repeats per seed", "[TimeNodes]")
+{
+  const char* params = R"({"rateHz": 4, "min": 2, "max": 4, "seed": 3})";
+  Graph a = loadAlone("noise", params);
+  Graph b = loadAlone("noise", params);
+  Graph other = loadAlone("noise", R"({"rateHz": 4, "min": 2, "max": 4, "seed": 4})");
+  float previous = 0.f;
+  float spread = 0.f;
+  bool differs = false;
+  for(int i = 0; i < 600; ++i){
+    a.tick(1.f / 60.f);
+    b.tick(1.f / 60.f);
+    other.tick(1.f / 60.f);
+    float value = outFloat(a);
+    CHECK(value >= 2.f);
+    CHECK(value <= 4.f);
+    CHECK(value == outFloat(b));
+    differs = differs || value != outFloat(other);
+    if(i > 0){
+      spread = std::max(spread, std::abs(value - previous));
+    }
+    previous = value;
+  }
+  CHECK(differs);
+  CHECK(spread < 0.2f); // no jumps at 60 Hz for a 4 Hz wander
+}
+
+TEST_CASE("noise rate 0 holds", "[TimeNodes]")
+{
+  Graph graph = loadAlone("noise", R"({"rateHz": 0})");
+  graph.tick(1.f / 60.f);
+  float held = outFloat(graph);
+  run(graph, 60.f, 1.f);
+  CHECK(outFloat(graph) == held);
+}
+
 TEST_CASE("frame.smoothTime settles in the same time at 30, 60 and 240 Hz", "[TimeNodes]")
 {
   const float expected = 255.f * (1.f - std::exp(-1.f));
@@ -372,7 +408,7 @@ TEST_CASE("time node descriptors carry full agent metadata", "[TimeNodes]")
 {
   NodeRegistry registry;
   registerTimeNodes(registry);
-  REQUIRE(registry.types().size() == 6);
+  REQUIRE(registry.types().size() == 7);
   for(const auto& descriptor : registry.toDescriptors()){
     if(registry.find(descriptor.key.substr(5)) == nullptr){
       continue; // param entry

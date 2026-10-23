@@ -54,6 +54,10 @@ namespace Aurora::Runtime
     // revert's own error.
     bool revert(const std::string& session, std::string& error);
 
+    // Reverts the running test whoever started it (Aurora-zfre), ending it
+    // with `reason`. False when none runs.
+    bool stop(std::string& error, const char* reason = "stopped");
+
     // Disarms without reverting, for a confirm that made the graph live.
     // False when `session` has no running test.
     bool confirm(const std::string& session);
@@ -67,7 +71,8 @@ namespace Aurora::Runtime
       std::int64_t confirmRemainingMs{0};
       std::int64_t lapseRemainingMs{0};
       // Why the last test ended: reverted, confirm_timeout, heartbeat_lost,
-      // pipeline_gone, confirmed. Empty before the first test ends.
+      // pipeline_gone, confirmed, stopped, superseded (an effect choice). Empty before the
+      // first test ends.
       std::string lastEnd;
     };
 

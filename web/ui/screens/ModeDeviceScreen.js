@@ -190,7 +190,8 @@ export class ModeDeviceScreen {
       monitors: this.monitors,
       selectedMonitorName: this.selectedMonitorName,
       sinkName: this.sinkName,
-      showHint: !this.error && !this.reloadFailed,
+      showVideoHint: !this.error && !this.reloadFailed,
+      showAudioHint: !this.error && !this.reloadFailed,
       onChange: (patch) => this._onDeviceFieldChange(patch),
     });
 

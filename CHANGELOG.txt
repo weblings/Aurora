@@ -1,3 +1,9 @@
+v1.1.3:
+- MCP server for effects - Claude and other MCP assistants can browse nodes and presets, draft and preview an effect, try it on your lights (it reverts on its own if not kept), and apply it. Control tools (pause, brightness, source) are not included yet. Setup in adapters/mcp/SETUP.md. Unstable while the API is not public yet
+- Linux - X11 - Video mode CPU use at 4K drops from ~63% to ~4% on a still screen and ~1% when moving
+- Linux - Wayland - Video mode CPU use while content moves drops from ~46% to ~20% (capture capped at 20 fps)
+- Linux - Wayland - Aurora remembers your screen-share permission choice now
+
 v1.1.2:
 - Other devices on your network must now be paired by approving them on the computer running Aurora, and can be revoked on the Dashboard. Custom hostnames and reverse proxies need AURORA_ALLOWED_HOSTS
 - New global brightness slider in Tuning, applied live to all lights
@@ -20,7 +26,7 @@ v1.1.0:
 - Linux - Wayland - Fix - Capture no longer freezes on browser fullscreen
 - Dev - Core Pipeline refactor: moved out of per-platform main.cpp files into a shared core module, reused by Windows, Linux, and Mac
 - Dev - CI and hook workflows up and running, lessons and logs added to docs links logic
-- Dev - In-progress refactoring to prepare for custom visualizations driven by nodes, a Home Assistant output module, and external API access
+- Dev - In-progress refactoring to prepare for custom effects driven by nodes, a Home Assistant output module, and external API access
 
 v1.0.4:
 - Mac - Full GUI launching and tray menu parity with Windows and Linux. Requires macOS 27, Apple silicon only, release zip is signed and notarized.

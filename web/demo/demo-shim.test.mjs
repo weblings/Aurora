@@ -51,6 +51,9 @@ function testRouter(seed) {
     canStop: false,
     // No MCP clients on the static page: the MCP toggle stays hidden.
     mcpEffectId: null,
+    graphInputs: null,
+    effect: 'builtin.video',
+    test: { active: false, confirmRemainingMs: 0 },
     usesVideoInput: true,
     usesAudioInput: false,
     samplesZones: true,
@@ -59,6 +62,7 @@ function testRouter(seed) {
 
   route('PUT', '/api/config', JSON.stringify({ activeInputName: '', activeAudioInputName: 'linux-audio' }));
   const audio = route('GET', '/api/state').json;
+  assert.equal(audio.effect, 'builtin.audio');
   assert.equal(audio.usesVideoInput, false);
   assert.equal(audio.usesAudioInput, true);
   assert.equal(audio.samplesZones, false);

@@ -609,7 +609,7 @@ TEST_CASE("revert ends the test, and reports one that already ended")
   CHECK(again["structuredContent"]["reverted"] == false);
 }
 
-TEST_CASE("keep after the test ended is an error that says the lights are back")
+TEST_CASE("keep after the test ended is an error that says it ended")
 {
   FakeLights app;
   McpServer server(app.fetch(), "1.0", "t");

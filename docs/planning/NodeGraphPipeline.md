@@ -187,8 +187,8 @@ geometry service is added.
   pixel mapping all render to a grid and sample it at each fixture's
   layout position. LedFx and Hyperion effects see only indices; Hue
   Entertainment (Q42 `LightSourceEffect`) gives lights x,y.
-- **Nodes:** `image.gradient`, `image.bar` (chase), `image.hueRamp`, plus
-  `image.mix` so video × generator mixing can happen before sampling.
+- **Nodes:** `image.gradient`, `image.bar` (chase), `image.hueRamp`,
+  `image.noise` (independent per-cell flicker), plus `image.mix` so video × generator mixing can happen before sampling.
   Generators cache by params and phase, like `image.dropAlpha` caches by
   input identity. Per-tick render cost at subsample width is unmeasured.
 - **Screen vs room space:** ZoneMap UVs are screen positions. Room

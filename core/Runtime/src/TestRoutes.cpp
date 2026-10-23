@@ -55,6 +55,7 @@ namespace Aurora::Runtime
   void addTestAccessRules(AccessGuard& guard)
   {
     guard.addWriteRule("/api/graph/test", Scope::Apply);
+    guard.addWriteRule("/api/graph/test/stop", Scope::Admin);
   }
 
 
@@ -182,6 +183,23 @@ namespace Aurora::Runtime
         }
         std::string error;
         if(!test->revert(session, error)){
+          _reply(res, 404, {{"succeeded", false}, {"error", "no_test"}});
+          return;
+        }
+        nlohmann::json out{{"succeeded", true}};
+        if(!error.empty()){
+          out["revertError"] = error;
+        }
+        _reply(res, 200, out);
+      }
+    );
+
+    server.addRoute(
+      HttpMethod::Post,
+      "/api/graph/test/stop",
+      [test](const Request&, Response& res){
+        std::string error;
+        if(!test->stop(error)){
           _reply(res, 404, {{"succeeded", false}, {"error", "no_test"}});
           return;
         }
