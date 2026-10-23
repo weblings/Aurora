@@ -212,7 +212,7 @@ namespace Aurora::Runtime
     bool swapEffect(const Config& next, const nlohmann::json& doc);
 
     // Runs `doc` in place for a test on lights (Aurora-52oz.5), changing
-    // neither the Config nor the summary. False, changing nothing, when the
+    // not the Config, and only the summary's graphInputs. False, changing nothing, when the
     // graph would need other inputs than the ones running or fails to load.
     bool testGraph(const nlohmann::json& doc);
 

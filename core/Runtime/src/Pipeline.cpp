@@ -545,7 +545,12 @@ namespace Aurora::Runtime
       return false;
     }
     std::string error;
-    return (m_isAudioMode ? *m_audioRunner : *m_videoRunner).restoreGraph(doc, error);
+    if(!(m_isAudioMode ? *m_audioRunner : *m_videoRunner).restoreGraph(doc, error)){
+      return false;
+    }
+    const SourceNeeds needs = _sourceNeeds(doc);
+    m_summary.graphInputs = PipelineSummary::GraphInputs{needs.video, needs.audio};
+    return true;
   }
 
 
@@ -665,7 +670,11 @@ namespace Aurora::Runtime
       return false;
     }
     std::string error;
-    return (m_isAudioMode ? *m_audioRunner : *m_videoRunner).restoreGraph(std::nullopt, error);
+    if(!(m_isAudioMode ? *m_audioRunner : *m_videoRunner).restoreGraph(std::nullopt, error)){
+      return false;
+    }
+    m_summary.graphInputs.reset();
+    return true;
   }
 
 

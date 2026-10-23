@@ -3707,6 +3707,9 @@ TEST_CASE("Test on lights runs the draft in place and an explicit revert puts th
   CHECK(*h.host->graphJson() == draft);
   CHECK(initCount(*h.events) == 1);
   CHECK(h.test->info().active);
+  // The test graph's declared inputs show in the summary, and go with the revert (Aurora-tc8w).
+  REQUIRE(h.host->summary().graphInputs);
+  CHECK(h.host->summary().graphInputs->video);
   // Nothing is written: the test lives only in the running pipeline.
   CHECK(EffectStore(h.dir.path).list().empty());
   CHECK(ConfigStore(h.dir.path).load().activeEffectId() == "");
@@ -3715,6 +3718,7 @@ TEST_CASE("Test on lights runs the draft in place and an explicit revert puts th
   CHECK(*h.host->graphJson() == h.live);
   CHECK_FALSE(h.test->info().active);
   CHECK(h.test->info().lastEnd == "reverted");
+  CHECK_FALSE(h.host->summary().graphInputs);
   CHECK(initCount(*h.events) == 1);
   CHECK(h.beat("editor") == 404);
   CHECK(h.post("/api/graph/test/revert", {{"session", "editor"}}) == 404);
