@@ -6,7 +6,7 @@
 // that zones.sample reads, so zone position comes from the ZoneMap and
 // Frame needs no position.
 //
-//   image.gradient, image.bar, image.hueRamp
+//   image.gradient, image.bar, image.hueRamp, image.noise
 namespace Aurora::Runtime::Graph
 {
   void registerSpatialNodes(NodeRegistry& registry);

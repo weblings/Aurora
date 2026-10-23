@@ -6,6 +6,8 @@
 #include <unordered_map>
 #include <vector>
 
+#include <Aurora/Runtime/Graph/ValueNoise.hpp>
+
 namespace Aurora::Runtime::Graph
 {
   namespace
@@ -204,6 +206,36 @@ namespace Aurora::Runtime::Graph
       float m_phase = 0.f;
     };
 
+    // Free-running: lattice position advances by rateHz * dt, so the output
+    // is smooth and varies at about rateHz new random targets per second.
+    class NoiseNode : public INode
+    {
+    public:
+      const std::vector<PortDecl>& inputPorts() const override { return m_in; }
+      const std::vector<PortDecl>& outputPorts() const override { return m_out; }
+
+      void evaluate(
+        const EvalContext& ctx,
+        float dt,
+        std::unordered_map<std::string, GraphValue>& outputs) override
+      {
+        m_time += static_cast<double>(ctx.param<float>("rateHz")) * dt;
+        float seed = ctx.param<float>("seed");
+        requireFinite(ctx, seed, "seed");
+        float unit = ValueNoise::sample(m_time, 0u, static_cast<uint32_t>(std::lround(seed)));
+        float lo = ctx.param<float>("min");
+        outputs.emplace("value", lo + (ctx.param<float>("max") - lo) * unit);
+      }
+
+      bool checkStateInvariants() const override { return std::isfinite(m_time); }
+      void resetState() override { m_time = 0.0; }
+
+    private:
+      std::vector<PortDecl> m_in{};
+      std::vector<PortDecl> m_out{{"value", PortType::Float, false}};
+      double m_time = 0.0;
+    };
+
     template<class In, class Out>
     void addState(
       NodeRegistry& registry,
@@ -300,6 +332,26 @@ namespace Aurora::Runtime::Graph
            floatParam("min", "Min", -1.0e6f, 1.0e6f, 0.f, "", "Output at the bottom of the wave."),
            floatParam("max", "Max", -1.0e6f, 1.0e6f, 1.f, "", "Output at the top of the wave.")},
         .factory = [] { return std::make_unique<LfoNode>(); },
+      });
+
+    registry.registerType(
+      "noise",
+      NodeTypeInfo{
+        .meta =
+          {.purpose = "Smooth random wander between min and max, drifting to a new random target about "
+                      "rateHz times per second. Irregular where lfo is periodic.",
+           .useWhen = "Flicker with no audio, e.g. a candle or fire brightness. Use image.noise for "
+                      "independent flicker per light.",
+           .example = "{\"id\": \"flicker\", \"type\": \"noise\", \"params\": {\"rateHz\": 6, \"min\": 0.6}}",
+           .cost = "cheap"},
+        .inputs = {},
+        .outputs = {{"value", PortType::Float, false}},
+        .params =
+          {floatParam("rateHz", "Rate", 0.f, 100.f, 1.f, "Hz", "New random targets per second."),
+           floatParam("min", "Min", -1.0e6f, 1.0e6f, 0.f, "", "Output at the bottom of the range."),
+           floatParam("max", "Max", -1.0e6f, 1.0e6f, 1.f, "", "Output at the top of the range."),
+           floatParam("seed", "Seed", 0.f, 65535.f, 0.f, "", "Different seeds give different sequences.")},
+        .factory = [] { return std::make_unique<NoiseNode>(); },
       });
   }
 } // namespace Aurora::Runtime::Graph
