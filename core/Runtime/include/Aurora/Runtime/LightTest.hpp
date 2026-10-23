@@ -71,7 +71,7 @@ namespace Aurora::Runtime
       std::int64_t confirmRemainingMs{0};
       std::int64_t lapseRemainingMs{0};
       // Why the last test ended: reverted, confirm_timeout, heartbeat_lost,
-      // pipeline_gone, confirmed, stopped, effect_changed. Empty before the
+      // pipeline_gone, confirmed, stopped, superseded (an effect choice). Empty before the
       // first test ends.
       std::string lastEnd;
     };

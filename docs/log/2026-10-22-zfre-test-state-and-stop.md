@@ -15,7 +15,7 @@ Closed 2026-10-22. Found during [[r7ff-noise-nodes]]. Unblocks Aurora-exbp (shel
 - `LightTest::stop(error, reason)`.
 - Effect choices end a test: `registerSettingsRoutes` takes `onEffectChosen`, run after the reload for a
   PUT naming `activeEffectId`; the app mains pass it and also run it after the `/api/effects` reload.
-  It stops the test with `lastEnd` `effect_changed`. The revert reads disk, so it lands on the new choice.
+  It stops the test with `lastEnd` `superseded`. The revert reads disk, so it lands on the new choice.
 - App mains register draft/apply/test routes before settings, state, events and effects, so those get the LightTest.
 
 ## Verification
@@ -30,7 +30,7 @@ Closed 2026-10-22. Found during [[r7ff-noise-nodes]]. Unblocks Aurora-exbp (shel
 - Live on the Windows app (fake-Hue stack, dummy input): a test from a separate session showed in
   `/api/state` (`active`, `confirmRemainingMs` 119984); `/stop` with no session ended it (200), the
   session's heartbeat got 404 `no_test`, `/stop` with none running gave 404; `PUT /api/config
-  {"activeEffectId":"builtin.video"}` mid-test ended it with `lastEnd` `effect_changed`; the
+  {"activeEffectId":"builtin.video"}` mid-test ended it with `lastEnd` `superseded`; the
   `/api/events` state event carries `test`.
 - Not verified live: the lights landing on the right graph after the toggle (the script read the wrong
   `/api/graph` fields; the unit test covers it). Mac and Linux mains got the same edit, not built.

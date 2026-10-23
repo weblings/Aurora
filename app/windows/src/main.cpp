@@ -854,7 +854,7 @@ if(!instanceLock.held()){
   // revert reads the new choice from disk (Aurora-zfre).
   auto onEffectChosen = [lightTest]{
     std::string error;
-    lightTest->stop(error, "effect_changed");
+    lightTest->stop(error, "superseded");
   };
   // Re-loads Config fresh (reflecting whatever the PUT that triggered this
   // just saved) rather than closing over the request's own already-stale

@@ -3578,7 +3578,7 @@ namespace
       test = registerTestRoutes(server, *host, registry, dir.path, drafts, applyDraft, nullptr, {},
         [this]{ return nowMs.load(); }, false);
       // Wired as the app mains wire them (Aurora-zfre).
-      auto onEffectChosen = [this]{ std::string error; test->stop(error, "effect_changed"); };
+      auto onEffectChosen = [this]{ std::string error; test->stop(error, "superseded"); };
       registerStateRoute(server, *host, registry, dir.path, test);
       registerSettingsRoutes(server, dir.path, [this]{ return applyConfigFromDisk(*host, registry, dir.path); },
         onEffectChosen);
@@ -3874,14 +3874,14 @@ TEST_CASE("An effect choice the pipeline applies in place ends a running test (A
   REQUIRE(h.start("mcp-1") == 200);
   CHECK(put("/api/config", {{"activeEffectId", "builtin.video"}}) == 200);
   CHECK_FALSE(h.test->info().active);
-  CHECK(h.test->info().lastEnd == "effect_changed");
+  CHECK(h.test->info().lastEnd == "superseded");
   CHECK(*h.host->graphJson() == h.live);
   CHECK(h.beat("mcp-1") == 404);
 
   // The effects switch to the running built-in is the same case.
   REQUIRE(h.start("mcp-1") == 200);
   CHECK(put("/api/effects", {{"activeEffectId", ""}}) == 200);
-  CHECK(h.test->info().lastEnd == "effect_changed");
+  CHECK(h.test->info().lastEnd == "superseded");
   CHECK(*h.host->graphJson() == h.live);
 
   // A tuning save is not a choice: the test keeps the lights.
