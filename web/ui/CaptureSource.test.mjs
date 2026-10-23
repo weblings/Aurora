@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import {
   audioDevicesUrlFrom, devicePatch, effectiveFlags, flagsForMode, flagsMatchMode, isIdle, isModeConfigValid,
   isMcpSwitchConfirmed, isSwitchConfirmed, isSwitchErrorStale, loadPipelineState, mcpEffectIdFrom, mcpEffectRunning,
-  modeFromConfig, modeFromFlags, modeSwitchPatch, putMcpSwitch, runningFlags, runningToggle,
+  lightTestActive, modeFromConfig, modeFromFlags, modeSwitchPatch, putMcpSwitch, runningFlags, runningToggle,
 } from './CaptureSource.js';
 
 const VIDEO = { usesVideoInput: true, usesAudioInput: false, samplesZones: true };
@@ -171,6 +171,11 @@ assert.deepEqual(modeSwitchPatch('audio', ctx), { activeEffectId: 'builtin.audio
   assert.equal(runningToggle({ ...VIDEO, effect: null }), null, 'nothing running: no fill');
   assert.equal(runningToggle({ ...VIDEO, effect: 'custom.other' }), null, 'custom non-MCP effect: no fill');
   assert.equal(runningToggle(null), null);
+  const testing = { ...VIDEO, effect: 'builtin.video', mcpEffectId: null, test: { active: true, confirmRemainingMs: 90000 } };
+  assert.equal(lightTestActive(testing), true);
+  assert.equal(runningToggle(testing), 'mcp', 'a light test fills MCP, even with no kept effect');
+  assert.equal(runningToggle({ ...testing, test: { active: false, confirmRemainingMs: 0 } }), 'video', 'test over: back to the built-in');
+  assert.equal(lightTestActive(null), false);
 
   const realFetch = globalThis.fetch;
   try {

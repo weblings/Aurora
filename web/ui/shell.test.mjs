@@ -691,7 +691,7 @@ const HELD = { source: 'reload', message: 'bridge unreachable', id: 7 };
   const { app, slots, banner } = makeApp(async () => ({ reachable: true, state: 'running', errors: [{ source: 'reload', message: 'a', id: 1 }], test }));
   app.navigate(blankScreen(), 'dashboard');
   await app._pollOnce();
-  assert.ok(banner().includes('An MCP client is testing an effect on the lights. Reverts by'), 'row shown');
+  assert.ok(banner().includes('An MCP client is testing an effect on the lights. Will revert in:'), 'row shown');
   assert.ok(banner().includes('1:40'), 'clock from confirmRemainingMs');
   assert.ok(banner().indexOf('shell-light-test-stop') < banner().indexOf('shell-banner-retry-reload'), 'above problems');
   assert.ok(!banner().includes('1 problems') && !/Keep/.test(banner()), 'not a problem, no Keep');

@@ -35,7 +35,7 @@ import { applyTooltip } from '../Tooltips.js';
 import { renderReloadError } from '../MacPermissionRecovery.js';
 import {
   audioDevicesUrlFrom, devicePatch, effectiveFlags, flagsForMode, isSwitchConfirmed, isSwitchErrorStale,
-  isIdle, isMcpSwitchConfirmed, loadPipelineState, mcpEffectIdFrom, modeSwitchPatch, runningToggle,
+  isIdle, isMcpSwitchConfirmed, lightTestActive, loadPipelineState, mcpEffectIdFrom, modeSwitchPatch, runningToggle,
   putMcpSwitch, putModeSwitch, runningFlags,
 } from '../CaptureSource.js';
 import { DAEMON_UNREACHABLE } from '../messages.js';
@@ -354,7 +354,7 @@ export class DashboardScreen {
         <div class="segmented" role="group" aria-label="Capture mode">
           <button type="button" class="${this._toggleClasses('video')}" id="db-mode-video"${disabled}>Video</button>
           <button type="button" class="${this._toggleClasses('audio')}" id="db-mode-audio"${disabled}>Audio</button>
-          ${this.mcpEffectId ? `<button type="button" class="${this._toggleClasses('mcp')}" id="db-mode-mcp"${disabled}>MCP</button>` : ''}
+          ${this.mcpEffectId || lightTestActive(this.pipelineState) ? `<button type="button" class="${this._toggleClasses('mcp')}" id="db-mode-mcp"${disabled}>MCP</button>` : ''}
         </div>
       </div>
       ${errorHtml}
@@ -849,14 +849,14 @@ export class DashboardScreen {
   // Shell heartbeat push (Aurora-cj11): applies whatever changed and
   // re-renders only the top bar -- never a full _loadAll(), which would
   // fight the beat's own 3s cadence with a second round of requests.
-  _onHeartbeatState({ state, paused, canStop, effect, mcpEffectId, ...flags }) {
+  _onHeartbeatState({ state, paused, canStop, effect, mcpEffectId, testActive, ...flags }) {
     // The running pipeline changed from outside the toggle (a banner Retry,
     // the tray, a relaunch): re-derive the toggle and sections from it, once
     // per change and never while a switch of our own is in flight.
-    const flagKey = (f, e, m) => `${f.usesVideoInput}|${f.usesAudioInput}|${f.samplesZones}|${e ?? ''}|${m ?? ''}`;
+    const flagKey = (f, e, m, t) => `${f.usesVideoInput}|${f.usesAudioInput}|${f.samplesZones}|${e ?? ''}|${m ?? ''}|${t === true}`;
     const running = runningFlags(flags);
-    const key = flagKey(running, effect, mcpEffectId);
-    const loadedKey = flagKey(runningFlags(this.pipelineState), this.pipelineState?.effect, this.pipelineState?.mcpEffectId);
+    const key = flagKey(running, effect, mcpEffectId, testActive);
+    const loadedKey = flagKey(runningFlags(this.pipelineState), this.pipelineState?.effect, this.pipelineState?.mcpEffectId, lightTestActive(this.pipelineState));
     if (!this.pendingMode && !isIdle(running) && key !== loadedKey && key !== this._requestedFlagKey) {
       this._requestedFlagKey = key;
       this._loadAll();

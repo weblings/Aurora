@@ -99,7 +99,7 @@ export class App {
     // daemon comes back. Set by app.js (bootstrap/recover); null in unit
     // tests that only assert the takeover itself.
     this.onRecovered = null;
-    // onStateUpdate({state, errors, paused, uses*Input, samplesZones, effect, mcpEffectId}): called after every reachable
+    // onStateUpdate({state, errors, paused, uses*Input, samplesZones, effect, mcpEffectId, testActive}): called after every reachable
     // poll with GET /api/state's own fields. Set by whichever screen cares
     // (Dashboard, so a tray pause/resume updates its top bar live); null
     // elsewhere, same single-slot shape as onRecovered.
@@ -262,7 +262,7 @@ export class App {
     const conditions = Array.isArray(result?.conditions) ? result.conditions : [];
     const paused = typeof result?.paused === 'boolean' ? result.paused : null;
     const flags = { usesVideoInput: result?.usesVideoInput, usesAudioInput: result?.usesAudioInput, samplesZones: result?.samplesZones,
-      effect: result?.effect, mcpEffectId: result?.mcpEffectId };
+      effect: result?.effect, mcpEffectId: result?.mcpEffectId, testActive: result?.test?.active === true };
     this.hostState = state;
     this.hostErrors = errors;
     this.hostConditions = conditions;
@@ -405,7 +405,7 @@ export class App {
   // user has not chosen). 'by' because a dead client reverts sooner.
   _renderLightTestRow() {
     return `<div class="shell-banner-row"><div class="shell-banner-content">
-      <p class="status-text shell-pairing-title">An MCP client is testing an effect on the lights. Reverts by <span id="shell-light-test-time">${this._lightTestClock()}</span></p>
+      <p class="status-text shell-pairing-title">An MCP client is testing an effect on the lights. Will revert in: <span id="shell-light-test-time">${this._lightTestClock()}</span></p>
       <div class="shell-banner-actions">
         <button type="button" class="btn btn-secondary" id="shell-light-test-stop">Stop test</button>
       </div>
