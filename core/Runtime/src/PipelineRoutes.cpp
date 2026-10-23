@@ -68,6 +68,12 @@ namespace Aurora::Runtime
         };
       }
 
+      // Null for a built-in: the client keeps the flags below.
+      nlohmann::json graphInputs(nullptr);
+      if(summary.graphInputs){
+        graphInputs = {{"video", summary.graphInputs->video}, {"audio", summary.graphInputs->audio}};
+      }
+
       const std::string mcpEffectId = ConfigStore(configRoot).load().mcpEffectId();
 
       return nlohmann::json{
@@ -76,6 +82,7 @@ namespace Aurora::Runtime
         {"requestedEffect", summary.requestedEffect.empty() ? nlohmann::json(nullptr) : nlohmann::json(summary.requestedEffect)},
         {"mcpEffectId", mcpEffectId.empty() ? nlohmann::json(nullptr) : nlohmann::json(mcpEffectId)},
         {"source", {{"video", video}, {"audio", audio}}},
+        {"graphInputs", graphInputs},
         // The saved setting, so it reads right while paused or idle too.
         {"brightness", ConfigStore(configRoot).load().brightness()},
         {"test", test},

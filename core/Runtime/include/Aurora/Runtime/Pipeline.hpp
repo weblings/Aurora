@@ -80,6 +80,13 @@ namespace Aurora::Runtime
     std::string requestedEffect;
     // Why a requested custom effect is not the one running; empty otherwise.
     std::string fallbackReason;
+    // Capture sources the running custom graph declares; nullopt for a built-in.
+    struct GraphInputs
+    {
+      bool video{false};
+      bool audio{false};
+    };
+    std::optional<GraphInputs> graphInputs;
     std::optional<Video> video;
     std::optional<Audio> audio;
   };

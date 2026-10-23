@@ -9,6 +9,7 @@ import { DashboardScreen } from './DashboardScreen.js';
 import { ensureTooltips } from '../Tooltips.js';
 import { isSwitchErrorStale } from '../CaptureSource.js';
 import { DAEMON_UNREACHABLE } from '../messages.js';
+import { VIDEO_HINT, AUDIO_HINT } from '../DeviceField.js';
 
 function makeEl() {
   return {
@@ -465,6 +466,29 @@ for (const reloadError of [PERMISSION_ERROR, 'bridge unreachable']) {
   inst._renderTopTier();
   inst.deviceField?.destroy();
   assert.ok(!topTier.innerHTML.includes("Aurora can't hear any audio."), 'no inline audio permission block');
+}
+
+// Under MCP the default-device hints follow the graph's declared inputs (Aurora-tc8w).
+{
+  const hintsFor = (mode, graphInputs, flags) => {
+    const slot = makeEl();
+    const topTier = { innerHTML: '', querySelector: () => slot };
+    const inst = Object.create(DashboardScreen.prototype);
+    Object.assign(inst, {
+      platform: 'windows', toggleError: null, topTierErrors: {}, deviceField: null, mode,
+      pipelineState: { graphInputs }, flags,
+      audioDevicesUrl: null, monitors: [], selectedMonitorName: '', sinkName: '',
+      container: { querySelector: (sel) => (sel === '.db-top-tier' ? topTier : makeEl()) },
+    });
+    inst._renderTopTier();
+    inst.deviceField?.destroy();
+    return { video: slot.innerHTML.includes(VIDEO_HINT), audio: slot.innerHTML.includes(AUDIO_HINT) };
+  };
+  const both = { usesVideoInput: true, usesAudioInput: true, samplesZones: true };
+  assert.deepEqual(hintsFor('mcp', { video: true, audio: true }, both), { video: true, audio: true });
+  assert.deepEqual(hintsFor('mcp', { video: false, audio: true }, { ...both, usesVideoInput: false }), { video: false, audio: true });
+  assert.deepEqual(hintsFor('mcp', { video: false, audio: false }, { ...both, usesVideoInput: false }), { video: false, audio: false });
+  assert.deepEqual(hintsFor('audio', null, { ...both, usesVideoInput: false }), { video: false, audio: true });
 }
 
 // No Mac audio-status fetch: the audio poll only asks Linux's sink route.

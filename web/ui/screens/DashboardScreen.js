@@ -391,6 +391,8 @@ export class DashboardScreen {
       ${errorHtml}
     `;
 
+    const hintsAllowed = Object.keys(this.topTierErrors).length === 0 && !this.toggleError;
+    const graphInputs = this.pipelineState?.graphInputs;
     this.deviceField = new DeviceField(topTier.querySelector('.db-device-slot'), {
       usesVideoInput: this.flags.usesVideoInput,
       usesAudioInput: this.flags.usesAudioInput,
@@ -400,8 +402,9 @@ export class DashboardScreen {
       sinkName: this.sinkName,
       // The hint ("once Video connects") reads wrong beside an error about
       // that same input -- Screen Recording denied is blocked, not connecting.
-      // An MCP graph names no input, so a default-device hint would mislead.
-      showHint: Object.keys(this.topTierErrors).length === 0 && !this.toggleError && this.mode !== 'mcp',
+      // Under MCP only an input the graph declares gets its default-device hint.
+      showVideoHint: hintsAllowed && (this.mode !== 'mcp' || graphInputs?.video === true),
+      showAudioHint: hintsAllowed && (this.mode !== 'mcp' || graphInputs?.audio === true),
       onChange: (patch) => this._onDeviceFieldChange(patch),
     });
   }

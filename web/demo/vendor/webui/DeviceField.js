@@ -54,7 +54,7 @@ export class DeviceField {
   constructor(container, {
     usesVideoInput = true, usesAudioInput = false, audioDevicesUrl = null,
     monitors = [], selectedMonitorName = AUTO_MONITOR_VALUE, sinkName = '',
-    showHint = true, loadAudioSinks, onChange,
+    showVideoHint = true, showAudioHint = true, loadAudioSinks, onChange,
   }) {
     this.container = container;
     this.onChange = onChange;
@@ -66,11 +66,12 @@ export class DeviceField {
     const showVideo = usesVideoInput || !usesAudioInput;
     const showSinkDropdown = usesAudioInput && !!audioDevicesUrl;
 
-    // showHint=false drops the explanatory line shown in place of a picker
-    // (no monitors yet / no audio device list): a caller showing an error
-    // for the same input passes it, since "once Video mode finishes
-    // connecting" contradicts a permission error (Aurora-36b7).
-    this.showHint = showHint;
+    // showVideoHint/showAudioHint=false drop the explanatory line shown in
+    // place of that input's picker (no monitors yet / no audio device list):
+    // a caller showing an error for the input passes it, since "once Video
+    // mode finishes connecting" contradicts a permission error (Aurora-36b7).
+    this.showVideoHint = showVideoHint;
+    this.showAudioHint = showAudioHint;
 
     // One container, no per-part wrappers, so a single picker's DOM is
     // unchanged from the mode-swapped field this replaced.
@@ -85,7 +86,7 @@ export class DeviceField {
 
   _videoHtml(monitors) {
     if (monitors.length === 0) {
-      return this.showHint
+      return this.showVideoHint
         ? `<p class="status-text ${HINT_CLASS}">${VIDEO_HINT}</p>`
         : '';
     }
@@ -99,7 +100,7 @@ export class DeviceField {
 
   _audioHtml(showSinkDropdown) {
     if (!showSinkDropdown) {
-      return this.showHint
+      return this.showAudioHint
         ? `<p class="status-text ${HINT_CLASS}">${AUDIO_HINT}</p>`
         : '';
     }

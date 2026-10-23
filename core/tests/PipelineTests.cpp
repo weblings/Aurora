@@ -999,6 +999,7 @@ TEST_CASE("GET /api/state reports paused and the running pipeline's capabilities
     {"requestedEffect", nullptr},
     {"mcpEffectId", nullptr},
     {"source", {{"video", nullptr}, {"audio", nullptr}}},
+    {"graphInputs", nullptr},
     {"errors", nlohmann::json::array()},
     {"conditions", nlohmann::json::array()},
     {"paused", false},
@@ -1018,6 +1019,15 @@ TEST_CASE("GET /api/state reports paused and the running pipeline's capabilities
   CHECK(running["usesVideoInput"] == true);
   CHECK(running["usesAudioInput"] == false);
   CHECK(running["samplesZones"] == true);
+  CHECK(running["graphInputs"].is_null());
+
+  // A custom graph reports the sources its nodes declare (Aurora-tc8w).
+  REQUIRE(EffectStore(dir.path).write("mine", Graph::builtInVideoGraph({"out-a", "out-b"}), error));
+  Config custom = videoConfig();
+  custom.setActiveEffectId("mine");
+  REQUIRE(host.reload(registry, custom, dir.path, error));
+  CHECK(state()["graphInputs"] == nlohmann::json({{"video", true}, {"audio", false}}));
+  REQUIRE(host.reload(registry, videoConfig(), dir.path, error));
 
   host.setCondition("local_network", "blocked");
   CHECK(state()["conditions"] == nlohmann::json::array({{{"source", "local_network"}, {"message", "blocked"}}}));
@@ -3003,6 +3013,30 @@ TEST_CASE("Effects routes: reads need read scope, switch and delete need apply (
 }
 
 
+TEST_CASE("The summary reports a custom graph's declared inputs, null for a built-in (Aurora-tc8w)", "[Effects]")
+{
+  ScopedTempDir dir("effect-graph-inputs");
+  auto events = std::make_shared<Events>();
+  auto registry = makeRegistry(events);
+  std::string error;
+
+  EffectStore store(dir.path);
+  REQUIRE(store.write("video-only", Graph::builtInVideoGraph({"out-a", "out-b"}), error));
+
+  Config config = videoConfig();
+  auto builtIn = Pipeline::build(registry, config, dir.path, {});
+  REQUIRE(builtIn);
+  CHECK_FALSE(builtIn->summary().graphInputs);
+
+  config.setActiveEffectId("video-only");
+  auto video = Pipeline::build(registry, config, dir.path, {});
+  REQUIRE(video);
+  REQUIRE(video->summary().graphInputs);
+  CHECK(video->summary().graphInputs->video);
+  CHECK_FALSE(video->summary().graphInputs->audio);
+}
+
+
 #ifdef AURORA_RUNTIME_AUDIO_AVAILABLE
 TEST_CASE("A custom graph with both capture nodes builds both inputs, and a missing source falls back (Aurora-52oz.2)", "[Effects][Audio]")
 {
@@ -3017,6 +3051,16 @@ TEST_CASE("A custom graph with both capture nodes builds both inputs, and a miss
   EffectStore store(dir.path);
   REQUIRE(store.write("both", both, error));
   REQUIRE(store.write("audio-only", audioOnly, error));
+  // No capture node: the config's mode stays, and the summary declares no input.
+  nlohmann::json sourceless = {
+    {"version", 1},
+    {"nodes", {
+      {{"id", "c"}, {"type", "color.constant"}, {"params", nlohmann::json::object()}},
+      {{"id", "all"}, {"type", "frame.broadcast"}, {"params", {{"output", "out-a"}}}},
+      {{"id", "send"}, {"type", "output.send"}, {"params", {{"output", "out-a"}}}}}},
+    {"edges", nlohmann::json::array({
+      nlohmann::json::array({"c.color", "all.color"}), nlohmann::json::array({"all.frame", "send.frame"})})}};
+  REQUIRE(store.write("sourceless", sourceless, error));
 
   Config config = videoConfig();
   config.setActiveAudioInputName("fake-audio");
@@ -3025,6 +3069,9 @@ TEST_CASE("A custom graph with both capture nodes builds both inputs, and a miss
   REQUIRE(pipeline);
   CHECK_FALSE(pipeline->isAudioMode());
   CHECK(pipeline->summary().effect == "both");
+  REQUIRE(pipeline->summary().graphInputs);
+  CHECK(pipeline->summary().graphInputs->video);
+  CHECK(pipeline->summary().graphInputs->audio);
   CHECK(pipeline->capabilities().usesVideoInput);
   CHECK(pipeline->capabilities().usesAudioInput);
   REQUIRE(pipeline->audioInput() != nullptr);
@@ -3037,6 +3084,17 @@ TEST_CASE("A custom graph with both capture nodes builds both inputs, and a miss
   REQUIRE(audio);
   CHECK(audio->isAudioMode());
   CHECK(audio->summary().effect == "audio-only");
+  REQUIRE(audio->summary().graphInputs);
+  CHECK_FALSE(audio->summary().graphInputs->video);
+  CHECK(audio->summary().graphInputs->audio);
+
+  config.setActiveEffectId("sourceless");
+  auto none = Pipeline::build(registry, config, dir.path, {});
+  REQUIRE(none);
+  CHECK(none->summary().effect == "sourceless");
+  REQUIRE(none->summary().graphInputs);
+  CHECK_FALSE(none->summary().graphInputs->video);
+  CHECK_FALSE(none->summary().graphInputs->audio);
 
   // A graph needing audio with none configured runs the built-in.
   Config noAudio = videoConfig();

@@ -391,6 +391,8 @@ namespace Aurora::Runtime
       const std::string liveBuiltIn = _planMode(config, nullptr).audioMode ? kBuiltInAudioEffectId : kBuiltInVideoEffectId;
       pipeline->m_summary.effect = customId.empty() ? liveBuiltIn : customId;
       pipeline->m_summary.requestedEffect = pipeline->m_summary.effect;
+      const SourceNeeds needs = _sourceNeeds(*customDoc);
+      pipeline->m_summary.graphInputs = PipelineSummary::GraphInputs{needs.video, needs.audio};
     }
     else{
       pipeline->m_summary.effect = builtInId;
@@ -400,6 +402,8 @@ namespace Aurora::Runtime
       const GraphRunner& primary = useAudioMode ? *pipeline->m_audioRunner : *pipeline->m_videoRunner;
       if(primary.runningCustom()){
         pipeline->m_summary.effect = customId;
+        const SourceNeeds needs = _sourceNeeds(*customDoc);
+        pipeline->m_summary.graphInputs = PipelineSummary::GraphInputs{needs.video, needs.audio};
       }
       else{
         pipeline->m_summary.fallbackReason = customFailure.empty() ? primary.customError() : customFailure;
@@ -524,6 +528,8 @@ namespace Aurora::Runtime
     m_summary.effect = id;
     m_summary.requestedEffect = id;
     m_summary.fallbackReason.clear();
+    const SourceNeeds needs = _sourceNeeds(doc);
+    m_summary.graphInputs = PipelineSummary::GraphInputs{needs.video, needs.audio};
     m_appliedConfig.setActiveEffectId(next.activeEffectId());
     return true;
   }
