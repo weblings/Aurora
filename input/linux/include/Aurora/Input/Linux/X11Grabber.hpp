@@ -1,16 +1,22 @@
 #pragma once
 
+#include <atomic>
+#include <cstdint>
 #include <memory>
 #include <optional>
+#include <vector>
 
 #include <Aurora/Input/IVideoInput.hpp>
 #include <Aurora/Input/MonitorData.hpp>
+#include <Aurora/Input/Linux/X11Damage.hpp>
 
+#include <X11/extensions/Xdamage.h>
 #include <X11/extensions/Xrandr.h>
 #include <X11/extensions/XShm.h>
+#include <X11/extensions/Xrender.h>
 
 // Mechanically ported from huenicorn's X11Grabber -- self-contained (only
-// needs libX11/libXext/libXrandr), so it ports now even though PipewireGrabber
+// needs libX11/libXext/libXrandr/libXdamage/libXrender), so it ports now even though PipewireGrabber
 // doesn't yet. Needs a real X11 session to manually verify capture -- not
 // unit-testable, same category as Hue's DTLS streaming.
 namespace Aurora::Input::Linux
@@ -81,8 +87,41 @@ namespace Aurora::Input::Linux
     };
 
 
+    // Server-side downscale (Aurora-fq5y): a chain of 2x XRender composites
+    // from the root picture through server-side pixmaps, so only the final
+    // small image is XShmGetImage'd. Each stage is an exact 2x2 bilinear
+    // box average.
+    class ScaleChain
+    {
+    public:
+      ScaleChain(
+        Display* display, int screenId, XRenderPictFormat* format,
+        Picture rootPicture, const X11MonitorData& monitor, int halvings
+      );
+      ~ScaleChain();
+
+      int halvings() const;
+      unsigned width() const;
+      unsigned height() const;
+      // Runs the composites and reads the result into the shm image.
+      XImage* grab();
+
+    private:
+      Display* m_display;
+      Picture m_root;
+      int m_xPos;
+      int m_yPos;
+      int m_halvings;
+      unsigned m_width;
+      unsigned m_height;
+      std::vector<Pixmap> m_pixmaps;
+      std::vector<Picture> m_pictures;
+      std::unique_ptr<XShmData> m_shm;
+    };
+
+
     X11Grabber();
-    virtual ~X11Grabber(){}
+    ~X11Grabber() override;
 
     const std::string& name() const override;
 
@@ -98,6 +137,8 @@ namespace Aurora::Input::Linux
 
     void selectMonitor(unsigned monitorId) override;
     void grabFrameSubsample(Contracts::ImageData& imageData) override;
+    void setCaptureWidthHint(unsigned width) override;
+    std::uint64_t frameSerial() const override;
 
   protected:
     void _initMonitorsList() override;
@@ -105,11 +146,41 @@ namespace Aurora::Input::Linux
   private:
     void _ensureXThreadsInit();
     bool _ensureXShmData();
+    // Drains pending root-window damage events and reports whether any
+    // touched the monitor. Always true without the Damage extension
+    // (fail-soft: every grab is full, the pre-1pwk behavior).
+    bool _pollDamage(X11MonitorData* monitor);
+    // (Re)builds m_scaleChain for the current monitor and capture width
+    // hint; leaves it null (full-frame XShm path) when XRender can't be
+    // used or no halving applies.
+    void _ensureScaleChain(const X11MonitorData& monitor);
 
     int m_screenId;
     UniqueDisplay m_display; // must be destroyed after m_xshmData
 
     std::unique_ptr<XShmData> m_xshmData;
-    Contracts::ImageData m_lastFullScreenFrame;
+    Contracts::ImageData m_lastFrame;
+    // Consumer's sampled width (IVideoInput::setCaptureWidthHint), set from
+    // the config thread and read on the tick thread when grabbing.
+    std::atomic<unsigned> m_captureWidthHint{0};
+
+    // XRender downscale (Aurora-fq5y); m_renderFormat null = no usable
+    // XRender, always the full-frame XShm path. Declared after m_display
+    // so the chain and root picture are freed while it is still open.
+    XRenderPictFormat* m_renderFormat{nullptr};
+    Picture m_rootPicture{None};
+    std::unique_ptr<ScaleChain> m_scaleChain;
+
+    // Static-frame reuse (Aurora-1pwk): the X server reports damage, so a
+    // tick with no damage re-serves m_lastFrame instead of paying for
+    // XShmGetImage plus the full-buffer decimate; on a busy screen grabs
+    // are also rate-capped (see kMinGrabIntervalMs) and quiet ones still
+    // refreshed every kMaxStaleMs. All tick-thread only, like
+    // PipewireGrabber's m_grabbedSerial.
+    Damage m_damage{None};
+    int m_damageEventBase{0};
+    X11GrabGate m_grabGate;
+    std::uint64_t m_frameSerial{0};
+    std::uint64_t m_grabbedSerial{0};
   };
 }

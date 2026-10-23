@@ -3,7 +3,8 @@
 import assert from 'node:assert/strict';
 import {
   audioDevicesUrlFrom, devicePatch, effectiveFlags, flagsForMode, flagsMatchMode, isIdle, isModeConfigValid,
-  isSwitchConfirmed, isSwitchErrorStale, loadPipelineState, modeFromConfig, modeFromFlags, modeSwitchPatch, runningFlags,
+  isMcpSwitchConfirmed, isSwitchConfirmed, isSwitchErrorStale, loadPipelineState, mcpEffectIdFrom, mcpEffectRunning,
+  lightTestActive, modeFromConfig, modeFromFlags, modeSwitchPatch, putMcpSwitch, runningFlags, runningToggle,
 } from './CaptureSource.js';
 
 const VIDEO = { usesVideoInput: true, usesAudioInput: false, samplesZones: true };
@@ -94,9 +95,9 @@ const ctx = {
   currentActiveInputName: '', currentActiveAudioInputName: '',
   monitors: [], selectedMonitorName: 'DP-1', sinkName: ' sink-a ',
 };
-assert.deepEqual(modeSwitchPatch('video', ctx), { activeInputName: 'linux' });
-assert.deepEqual(modeSwitchPatch('video', { ...ctx, monitors: [{ name: 'DP-1' }] }), { activeInputName: 'linux', activeMonitorName: 'DP-1' });
-assert.deepEqual(modeSwitchPatch('audio', ctx), { activeInputName: '', activeAudioInputName: 'linux-audio', audioTargetSinkName: 'sink-a' });
+assert.deepEqual(modeSwitchPatch('video', ctx), { activeEffectId: 'builtin.video', activeInputName: 'linux' });
+assert.deepEqual(modeSwitchPatch('video', { ...ctx, monitors: [{ name: 'DP-1' }] }), { activeEffectId: 'builtin.video', activeInputName: 'linux', activeMonitorName: 'DP-1' });
+assert.deepEqual(modeSwitchPatch('audio', ctx), { activeEffectId: 'builtin.audio', activeInputName: '', activeAudioInputName: 'linux-audio', audioTargetSinkName: 'sink-a' });
 
 // loadPipelineState: the parsed body, or null on any failure.
 {
@@ -131,6 +132,62 @@ assert.deepEqual(modeSwitchPatch('audio', ctx), { activeInputName: '', activeAud
   assert.equal(isSwitchErrorStale(null, 'video'), false, 'no state probe keeps the error');
   assert.equal(isSwitchErrorStale(videoState, null), false, 'no remembered mode keeps the error');
   assert.equal(isSwitchErrorStale({ paused: false, usesVideoInput: false, usesAudioInput: false, samplesZones: false }, 'video'), false, 'idle is not the target');
+}
+
+// MCP toggle (Aurora-4xqt.2): hidden until /api/state names an MCP effect
+// (fresh config, a non-MCP apply, or after the effect is deleted), shown
+// once it does, repointed by a second apply, filled only while it runs.
+{
+  const fresh = { effect: 'builtin.video', mcpEffectId: null, ...VIDEO };
+  assert.equal(mcpEffectIdFrom(fresh), null, 'fresh config: hidden');
+  assert.equal(mcpEffectIdFrom({ ...fresh, mcpEffectId: '' }), null, 'empty id: hidden');
+  assert.equal(mcpEffectIdFrom({ ...VIDEO }), null, 'old daemon without the field: hidden');
+  assert.equal(mcpEffectIdFrom(null), null, 'no state probe: hidden');
+
+  const applied = { effect: 'builtin.video', mcpEffectId: 'agent-one', ...VIDEO };
+  assert.equal(mcpEffectIdFrom(applied), 'agent-one', 'after an MCP apply: shown');
+  assert.equal(mcpEffectRunning(applied), false, 'saved but another effect runs: not filled');
+  assert.equal(mcpEffectIdFrom({ ...applied, mcpEffectId: 'agent-two' }), 'agent-two', 'second apply repoints');
+  assert.equal(mcpEffectRunning({ ...applied, effect: 'agent-one' }), true);
+  assert.equal(mcpEffectRunning({ ...applied, effect: null }), false, 'idle/failed: not filled');
+
+  // Video/Audio only confirm once the MCP effect has stopped running.
+  const onMcp = { ...applied, effect: 'agent-one' };
+  assert.equal(isSwitchConfirmed({ succeeded: true }, onMcp, 'video'), false);
+  assert.equal(isSwitchConfirmed({ succeeded: true }, applied, 'video'), true);
+
+  assert.equal(isMcpSwitchConfirmed({ succeeded: true }, onMcp), true);
+  assert.equal(isMcpSwitchConfirmed({ succeeded: true }, applied), false, 'fell back to the built-in');
+  assert.equal(isMcpSwitchConfirmed({ succeeded: true, reloadError: 'x' }, onMcp), false);
+  assert.equal(isMcpSwitchConfirmed({ succeeded: false }, onMcp), false);
+
+  assert.equal(isSwitchErrorStale(onMcp, 'mcp'), true);
+  assert.equal(isSwitchErrorStale(applied, 'mcp'), false);
+
+  // runningToggle: the running effect fills a toggle, never the saved config.
+  assert.equal(runningToggle(onMcp), 'mcp');
+  assert.equal(runningToggle(applied), 'video', 'MCP saved but built-in runs');
+  assert.equal(runningToggle({ ...VIDEO, effect: 'builtin.audio', mcpEffectId: null }), 'audio');
+  assert.equal(runningToggle({ ...VIDEO, effect: null }), null, 'nothing running: no fill');
+  assert.equal(runningToggle({ ...VIDEO, effect: 'custom.other' }), null, 'custom non-MCP effect: no fill');
+  assert.equal(runningToggle(null), null);
+  const testing = { ...VIDEO, effect: 'builtin.video', mcpEffectId: null, test: { active: true, confirmRemainingMs: 90000 } };
+  assert.equal(lightTestActive(testing), true);
+  assert.equal(runningToggle(testing), 'mcp', 'a light test fills MCP, even with no kept effect');
+  assert.equal(runningToggle({ ...testing, test: { active: false, confirmRemainingMs: 0 } }), 'video', 'test over: back to the built-in');
+  assert.equal(lightTestActive(null), false);
+
+  const realFetch = globalThis.fetch;
+  try {
+    let seen;
+    globalThis.fetch = async (url, init) => { seen = { url, init }; return { json: async () => ({ succeeded: true }) }; };
+    assert.deepEqual(await putMcpSwitch('agent-one'), { succeeded: true });
+    assert.equal(seen.url, '/api/effects');
+    assert.equal(seen.init.method, 'PUT');
+    assert.deepEqual(JSON.parse(seen.init.body), { activeEffectId: 'agent-one' });
+  } finally {
+    globalThis.fetch = realFetch;
+  }
 }
 
 console.log('CaptureSource.test.mjs: ok');

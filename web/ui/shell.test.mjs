@@ -619,6 +619,22 @@ const HELD = { source: 'reload', message: 'bridge unreachable', id: 7 };
   assert.ok(banner().includes('K7Q2X'), 'code shown');
   assert.ok(banner().includes('shell-pairing-approve-r1') && banner().includes('shell-pairing-deny-r1'), 'approve and deny');
   assert.ok(banner().includes('2 problems'), 'problems still collapse beside the request');
+  assert.ok(!banner().includes('Access:'), 'a browser (admin) request has no access line');
+  assert.ok(banner().includes('Device:</span> &lt;Phone&gt;') && !banner().includes('From:'), 'no From line without an address');
+  uninstallDom();
+}
+
+// An agent token request (aurora-mcp --pair) names its access in the banner.
+{
+  const fetchPending = async () => [{ ref: 'r1', name: 'aurora-mcp on laptop', scope: 'apply', code: 'K7Q2X', from: '192.168.0.51' }];
+  const { app, banner } = makeApp(ok(), { fetchPending });
+  app.canApprove = true;
+  await app._pollOnce();
+  await sleep(0);
+  assert.ok(banner().includes('Device:</span> aurora-mcp on laptop</li>'));
+  assert.ok(banner().includes('From:</span> 192.168.0.51</li>'));
+  assert.ok(banner().includes('Access:</span> Apply. Change effects and test on the lights, not settings.</li>'));
+  assert.ok(banner().includes('Approve only if the device shows the same code.'));
   uninstallDom();
 }
 
@@ -665,6 +681,45 @@ const HELD = { source: 'reload', message: 'bridge unreachable', id: 7 };
   await app._pollOnce();
   assert.equal(banner(), '');
   assert.deepEqual(app.pendingPairings, []);
+  uninstallDom();
+}
+
+// Light test row (Aurora-exbp): from the poll's test field, above problems,
+// counts down locally, Stop test POSTs, no Keep.
+{
+  let test = { active: true, confirmRemainingMs: 100000 };
+  const { app, slots, banner } = makeApp(async () => ({ reachable: true, state: 'running', errors: [{ source: 'reload', message: 'a', id: 1 }], test }));
+  app.navigate(blankScreen(), 'dashboard');
+  await app._pollOnce();
+  assert.ok(banner().includes('An MCP client is testing an effect on the lights. Will revert in:'), 'row shown');
+  assert.ok(banner().includes('1:40'), 'clock from confirmRemainingMs');
+  assert.ok(banner().indexOf('shell-light-test-stop') < banner().indexOf('shell-banner-retry-reload'), 'above problems');
+  assert.ok(!banner().includes('1 problems') && !/Keep/.test(banner()), 'not a problem, no Keep');
+  app.lightTestEndsAt -= 61000;
+  assert.equal(app._lightTestClock(), '0:39', 'counts down between polls');
+  const posts = [];
+  globalThis.fetch = async (url, init) => { posts.push([url, init?.method]); test = { active: false, confirmRemainingMs: 0 }; return { ok: true, status: 200 }; };
+  slots.get('shell-banner-slot').querySelector('#shell-light-test-stop').click();
+  await sleep(0);
+  await sleep(0);
+  assert.deepEqual(posts, [['/api/graph/test/stop', 'POST']]);
+  assert.ok(!banner().includes('shell-light-test-stop'), 'row gone once the poll says inactive');
+  assert.equal(app._lightTestTimer, null, 'tick timer cleared');
+  globalThis.fetch = realFetchForPairing;
+  uninstallDom();
+}
+
+// A test alone shows the banner; the takeover drops it.
+{
+  let fail = false;
+  const { app, banner } = makeApp(async () => { if (fail) throw new Error('down'); return { reachable: true, test: { active: true, confirmRemainingMs: 5000 } }; });
+  await app._pollOnce();
+  assert.ok(banner().includes('shell-light-test-stop'));
+  fail = true;
+  await app._pollOnce();
+  await app._pollOnce();
+  assert.equal(banner(), '');
+  assert.equal(app.lightTestEndsAt, null);
   uninstallDom();
 }
 

@@ -80,7 +80,8 @@ Status: filed as Aurora-3ddb.
   `IOutput`/input interface change. Route lives in core
   (`PUT /api/state`), unlike today's per-app `/api/stop`.
 - Platform differences are tray menus and resume cost: Wayland re-enters
-  the portal (restore tokens should keep it silent), Mac clears the
+  the portal (the persisted restore token keeps it silent once stored,
+  Aurora-w6no; first run still shows the picker), Mac clears the
   screen-recording indicator, Windows is cheap, Hue needs a fresh DTLS
   handshake everywhere (Aurora-vf1.1 measures it).
 
@@ -258,10 +259,16 @@ Status: state shipped (Aurora-5ipy.2), events stream shipped 2026-10-16 (Aurora-
 ### Phase 5 — public API contract
 - Hand-written OpenAPI for the public subset plus an `apiVersion`
   (generator trade-off under "Prior art").
+- Follows [[nodes-agent-ux]] Sequence C's write routes (apply, test on
+  lights, preview), so `/api/v1` covers them (decided 2026-10-20).
 - Test: walk registered routes, fail when a public route lacks a spec
   entry or the reverse; lint the spec with a standard OpenAPI validator.
 
 ### Phase 6 — adapters
+- MCP: decided 2026-10-21 ([[sequence-d-planning]]). [[nodes-agent-ux]]
+  Sequence D builds the adapter as a hand-rolled C++ stdio helper in
+  `adapters/mcp` with the graph tools, and does not wait on phase 5. EC 6a
+  adds the control tools to that binary.
 - MCP server, then MQTT bridge, then the Muse skill. The MQTT bridge
   re-publishes HA discovery when kea's flags change (mode switch), so the
   monitor/sink entity matches the running pipeline. After Aurora-kea

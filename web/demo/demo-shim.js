@@ -199,7 +199,7 @@ export function createRouter(store, hooks = {}) {
     // GET /api/version -- mirrors the native route: the CHANGELOG top entry
     // is the demo's version truth, pinned by demo-shim.test.mjs.
     if (method === 'GET' && path === '/api/version') {
-      return ok({ version: '1.1.2' });
+      return ok({ version: '1.1.3' });
     }
     if (method === 'GET' && path === '/api/config') {
       return ok(store.getConfig());
@@ -228,6 +228,13 @@ export function createRouter(store, hooks = {}) {
         // No daemon behind this page to stop (Aurora-ifkn.3): the
         // Dashboard hides its Stop button on this flag (default true).
         canStop: false,
+        // The demo runs no MCP clients, so the Dashboard's MCP toggle stays hidden.
+        mcpEffectId: null,
+        // Only built-ins run here, so no graph declares inputs.
+        graphInputs: null,
+        effect: audio ? 'builtin.audio' : 'builtin.video',
+        // No MCP client can test on a page with no lights (Aurora-exbp).
+        test: { active: false, confirmRemainingMs: 0 },
         usesVideoInput: !audio,
         usesAudioInput: audio,
         samplesZones: !audio,
@@ -335,6 +342,12 @@ export function createRouter(store, hooks = {}) {
     }
     if (method === 'GET' && path === '/api/nodes') {
       return ok(demoNodes());
+    }
+    // The demo only runs the built-in effects, so Tuning stays on /api/config.
+    if (method === 'GET' && path === '/api/effects') {
+      const config = store.getConfig();
+      const audio = !config.activeInputName && !!config.activeAudioInputName;
+      return ok({ effects: [], activeEffectId: '', effect: audio ? 'builtin.audio' : 'builtin.video' });
     }
     // PUT-for-read with {} body (PairingRoutes convention -- do NOT "fix" to
     // GET; the Dashboard sends PUT and parity means matching it).

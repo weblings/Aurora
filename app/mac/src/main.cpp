@@ -40,7 +40,13 @@
 #include <Aurora/Runtime/ControlDescriptors.hpp>
 #include <Aurora/Runtime/PendingRunRequest.hpp>
 #include <Aurora/Runtime/Pipeline.hpp>
+#include <Aurora/Runtime/ApplyRoutes.hpp>
+#include <Aurora/Runtime/TestRoutes.hpp>
+#include <Aurora/Runtime/PreviewRoutes.hpp>
+#include <Aurora/Runtime/DraftRoutes.hpp>
+#include <Aurora/Runtime/EffectsRoutes.hpp>
 #include <Aurora/Runtime/GraphRoutes.hpp>
+#include <Aurora/Runtime/PresetRoutes.hpp>
 #include <Aurora/Runtime/PipelineRoutes.hpp>
 #include <Aurora/Runtime/SettingsRoutes.hpp>
 #include <Aurora/Runtime/ZoneRoutes.hpp>
@@ -525,6 +531,20 @@ try
     }
   );
 #endif
+  auto draftStore = Aurora::Runtime::registerDraftRoutes(httpServer, registry, configRoot, accessGuard.get());
+  auto applyDraft = Aurora::Runtime::registerApplyRoutes(httpServer, pipelineHost, registry, configRoot, draftStore,
+    [&pipelineHost, &registry, configRoot]() -> std::string {
+      return Aurora::Runtime::applyEffectFromDisk(pipelineHost, registry, configRoot);
+    },
+    accessGuard.get());
+  auto lightTest = Aurora::Runtime::registerTestRoutes(httpServer, pipelineHost, registry, configRoot, draftStore,
+    applyDraft, accessGuard.get());
+  // An effect choice applied in place leaves a test running over it; the
+  // revert reads the new choice from disk (Aurora-zfre).
+  auto onEffectChosen = [lightTest]{
+    std::string error;
+    lightTest->stop(error, "superseded");
+  };
   // Re-loads Config fresh (reflecting whatever the PUT that triggered this
   // just saved) rather than closing over the request's own already-stale
   // copy, then applies it live if only tuning fields changed, else reloads
@@ -532,14 +552,24 @@ try
   Aurora::Runtime::registerSettingsRoutes(httpServer, configRoot,
     [&pipelineHost, &registry, configRoot]() -> std::string {
       return Aurora::Runtime::applyConfigFromDisk(pipelineHost, registry, configRoot);
-    }
+    },
+    onEffectChosen
   );
   Aurora::Runtime::registerMonitorsRoute(httpServer, pipelineHost);
   Aurora::Runtime::registerReloadRoute(httpServer, pipelineHost, registry, configRoot);
-  Aurora::Runtime::registerStateRoute(httpServer, pipelineHost, registry, configRoot);
-  Aurora::Runtime::registerEventsRoute(httpServer, pipelineHost, configRoot);
+  Aurora::Runtime::registerStateRoute(httpServer, pipelineHost, registry, configRoot, lightTest);
+  Aurora::Runtime::registerEventsRoute(httpServer, pipelineHost, configRoot, std::chrono::seconds(15), lightTest);
   Aurora::Runtime::registerNodesRoute(httpServer);
   Aurora::Runtime::registerGraphRoute(httpServer, pipelineHost);
+  Aurora::Runtime::registerEffectsRoutes(httpServer, pipelineHost, registry, configRoot,
+    [&pipelineHost, &registry, configRoot, onEffectChosen]() -> std::string {
+      const std::string error = Aurora::Runtime::applyConfigFromDisk(pipelineHost, registry, configRoot);
+      onEffectChosen();
+      return error;
+    },
+    accessGuard.get());
+  Aurora::Runtime::registerPresetRoutes(httpServer, registry, configRoot);
+  Aurora::Runtime::registerPreviewRoutes(httpServer, pipelineHost, registry, draftStore);
   Aurora::Runtime::registerDevErrorsRoute(httpServer, pipelineHost);
   registerStopRoute(httpServer);
   Aurora::Runtime::registerZoneRoutes(

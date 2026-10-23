@@ -68,6 +68,8 @@ namespace Aurora::Runtime
         {"activeOutputNames", data.activeOutputNames},
         {"activeMonitorName", data.activeMonitorName},
         {"activeAudioInputName", data.activeAudioInputName},
+        {"activeEffectId", data.activeEffectId},
+        {"mcpEffectId", data.mcpEffectId},
         {"audioFixedAnchorHue", data.audioFixedAnchorHue},
         {"audioBounceSmoothTime", data.audioBounceSmoothTime},
         {"audioDynamismFloor", data.audioDynamismFloor},
@@ -115,6 +117,8 @@ namespace Aurora::Runtime
       data.activeOutputNames = json.value("activeOutputNames", defaults.activeOutputNames);
       data.activeMonitorName = json.value("activeMonitorName", defaults.activeMonitorName);
       data.activeAudioInputName = json.value("activeAudioInputName", defaults.activeAudioInputName);
+      data.activeEffectId = json.value("activeEffectId", defaults.activeEffectId);
+      data.mcpEffectId = json.value("mcpEffectId", defaults.mcpEffectId);
       data.audioFixedAnchorHue = json.value("audioFixedAnchorHue", defaults.audioFixedAnchorHue);
       data.audioBounceSmoothTime = json.value("audioBounceSmoothTime", defaults.audioBounceSmoothTime);
       data.audioDynamismFloor = json.value("audioDynamismFloor", defaults.audioDynamismFloor);

@@ -49,6 +49,11 @@ function testRouter(seed) {
     paused: false,
     // No Stop button on the static page (Aurora-ifkn.3).
     canStop: false,
+    // No MCP clients on the static page: the MCP toggle stays hidden.
+    mcpEffectId: null,
+    graphInputs: null,
+    effect: 'builtin.video',
+    test: { active: false, confirmRemainingMs: 0 },
     usesVideoInput: true,
     usesAudioInput: false,
     samplesZones: true,
@@ -57,6 +62,7 @@ function testRouter(seed) {
 
   route('PUT', '/api/config', JSON.stringify({ activeInputName: '', activeAudioInputName: 'linux-audio' }));
   const audio = route('GET', '/api/state').json;
+  assert.equal(audio.effect, 'builtin.audio');
   assert.equal(audio.usesVideoInput, false);
   assert.equal(audio.usesAudioInput, true);
   assert.equal(audio.samplesZones, false);
@@ -285,6 +291,9 @@ function testRouter(seed) {
   for (const [, key] of text.matchAll(/['"]((?:audio|video|zones|input|output|app)\.[A-Za-z.]+)['"]/g)) {
     requested.add(key);
   }
+  // Node type names ('audio.drift') share the dotted shape but aren't lookups.
+  const { demoNodes } = await import('./demo-graph.js');
+  for (const { type } of demoNodes().nodes) requested.delete(type);
   // Slider configKeys (first element of each def array) map by the group rule.
   for (const [, configKey] of text.matchAll(/\['(audio[A-Za-z]+|transitionSmoothing|refreshRate|subsampleWidth)'/g)) {
     requested.add(configKey.startsWith('audio')
@@ -346,6 +355,9 @@ function testRouter(seed) {
   assert.equal(audio.length, 11);
   for (const c of [...video, ...audio]) assert.ok(c.configKey in DEMO_DEFAULT_CONFIG, c.configKey);
   assert.equal(audio.find((c) => c.configKey === 'audioFixedAnchorHue').allowsUnset, true);
+  // The demo runs built-ins only, so Tuning keeps committing through /api/config.
+  assert.equal(route('GET', '/api/effects').json.effect, 'builtin.video');
+  assert.equal(audioRoute('GET', '/api/effects').json.effect, 'builtin.audio');
 }
 
 console.log('demo-shim contract tests passed.');

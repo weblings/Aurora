@@ -25,6 +25,7 @@
 #pragma GCC diagnostic pop
 
 #include <Aurora/Input/Linux/IRestoreTokenStore.hpp>
+#include <Aurora/Input/Linux/PipewireCopyGate.hpp>
 #include <Aurora/Input/Linux/PipewireDmabuf.hpp>
 #include <Aurora/Input/Linux/PipewireTrace.hpp>
 #include <Aurora/Input/Linux/XdgDesktopPortal.hpp>
@@ -75,6 +76,14 @@ namespace Aurora::Input::Linux
       spa_source* renegotiateEvent{nullptr};
       StaleFrameWatch staleWatch;
 
+      // Aurora-8ydf: at most one frame copy per interval. The newest buffer
+      // that arrived too early is held (not requeued) and copied by
+      // holdTimer, so the last frame before a quiet screen is never lost.
+      // All Pipewire-loop-thread only.
+      PipewireCopyGate copyGate{kPipewireMinCopyIntervalMs};
+      pw_buffer* heldBuffer{nullptr};
+      spa_source* holdTimer{nullptr};
+
       // Gamescope direct-capture support: gamescope exposes its composited
       // output as a plain (non-portal-gated) Pipewire node named "gamescope".
       // xdg-desktop-portal's ScreenCast implementation isn't wired up inside
@@ -123,8 +132,25 @@ namespace Aurora::Input::Linux
       const char* message
     );
 
+    // Rate-caps (see PipewireCopyGate), then hands the buffer to _copyFrame.
     static void _onStreamProcess(
       void* userdata
+    );
+
+    // Copies a dequeued buffer into the double buffer and queues it back.
+    static void _copyFrame(
+      PipewireData* pw,
+      pw_buffer* pwBuffer
+    );
+
+    // Requeues the held early buffer (if any) and disarms the hold timer.
+    static void _releaseHeldBuffer(
+      PipewireData* pw
+    );
+
+    static void _onHoldTimer(
+      void* userdata,
+      uint64_t expirations
     );
 
     // Map DMA-BUFs once per buffer rather than once per frame.

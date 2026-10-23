@@ -47,6 +47,12 @@ namespace
   // DRM_FORMAT_MOD_LINEAR (drm_fourcc.h), spelled out to avoid the dependency.
   constexpr uint64_t kDrmFormatModLinear = 0;
 
+  long long steadyNowMs()
+  {
+    return std::chrono::duration_cast<std::chrono::milliseconds>(
+      std::chrono::steady_clock::now().time_since_epoch()).count();
+  }
+
   double traceNowSeconds()
   {
     return std::chrono::duration<double>(std::chrono::steady_clock::now().time_since_epoch()).count();
@@ -306,12 +312,74 @@ namespace Aurora::Input::Linux
   )
   {
     PipewireData* pw = static_cast<PipewireData*>(userdata);
-    pw_buffer* pwBuffer;
+    pw_buffer* pwBuffer = pw_stream_dequeue_buffer(pw->stream);
 
-    if((pwBuffer = pw_stream_dequeue_buffer(pw->stream)) == NULL){
+    if(pwBuffer == NULL){
       return;
     }
 
+    const long long wait = pw->copyGate.waitMs(steadyNowMs());
+    if(wait > 0){
+      // Too soon after the last copy. Keep only the newest early buffer; the
+      // timer copies it when the interval is up, so a screen that goes quiet
+      // right after this frame still ends on it (PipeWire sends no repeat).
+      if(pw->heldBuffer != nullptr){
+        pw_stream_queue_buffer(pw->stream, pw->heldBuffer);
+      }
+      pw->heldBuffer = pwBuffer;
+      if(pw->holdTimer != nullptr){
+        timespec due{static_cast<time_t>(wait / 1000), static_cast<long>((wait % 1000) * 1000000)};
+        pw_loop_update_timer(pw_main_loop_get_loop(pw->loop), pw->holdTimer, &due, nullptr, false);
+      }
+      else{
+        // No timer to flush it later; don't strand the buffer.
+        _releaseHeldBuffer(pw);
+      }
+      return;
+    }
+
+    // A newer frame supersedes a held one.
+    _releaseHeldBuffer(pw);
+    _copyFrame(pw, pwBuffer);
+  }
+
+
+  void PipewireGrabber::_releaseHeldBuffer(
+    PipewireData* pw
+  )
+  {
+    if(pw->heldBuffer == nullptr){
+      return;
+    }
+    pw_stream_queue_buffer(pw->stream, pw->heldBuffer);
+    pw->heldBuffer = nullptr;
+    if(pw->holdTimer != nullptr){
+      timespec off{0, 0};
+      pw_loop_update_timer(pw_main_loop_get_loop(pw->loop), pw->holdTimer, &off, nullptr, false);
+    }
+  }
+
+
+  void PipewireGrabber::_onHoldTimer(
+    void* userdata,
+    uint64_t /*expirations*/
+  )
+  {
+    PipewireData* pw = static_cast<PipewireData*>(userdata);
+    if(pw->heldBuffer == nullptr){
+      return;
+    }
+    pw_buffer* held = pw->heldBuffer;
+    pw->heldBuffer = nullptr;
+    _copyFrame(pw, held);
+  }
+
+
+  void PipewireGrabber::_copyFrame(
+    PipewireData* pw,
+    pw_buffer* pwBuffer
+  )
+  {
     spa_buffer* spaBuffer = pwBuffer->buffer;
     spa_data& data = spaBuffer->datas[0];
 
@@ -484,6 +552,7 @@ namespace Aurora::Input::Linux
       pw->frameDoubleBuffer.frame[0] = std::move(capturedFrame);
       ++pw->frameDoubleBuffer.serial;
     }
+    pw->copyGate.onCopied(steadyNowMs());
     pw_stream_queue_buffer(pw->stream, pwBuffer);
   }
 
@@ -517,10 +586,20 @@ namespace Aurora::Input::Linux
 
 
   void PipewireGrabber::_onStreamRemoveBuffer(
-    void* /*userdata*/,
+    void* userdata,
     pw_buffer* buffer
   )
   {
+    // A buffer going away (renegotiation) must not be copied or requeued later.
+    PipewireData* pw = static_cast<PipewireData*>(userdata);
+    if(pw->heldBuffer == buffer){
+      pw->heldBuffer = nullptr;
+      if(pw->holdTimer != nullptr){
+        timespec off{0, 0};
+        pw_loop_update_timer(pw_main_loop_get_loop(pw->loop), pw->holdTimer, &off, nullptr, false);
+      }
+    }
+
     auto* mapping = static_cast<DmabufMapping*>(buffer->user_data);
     if(mapping == nullptr){
       return;
@@ -791,6 +870,8 @@ namespace Aurora::Input::Linux
 
     pw_stream_connect(pw->stream, PW_DIRECTION_INPUT, targetNode, static_cast<pw_stream_flags>(PW_STREAM_FLAG_AUTOCONNECT | PW_STREAM_FLAG_MAP_BUFFERS), params, paramCount);
 
+    pw->holdTimer = pw_loop_add_timer(pw_main_loop_get_loop(pw->loop), _onHoldTimer, pw);
+
     if(pw->trace.enabled){
       pw->traceTimer = pw_loop_add_timer(pw_main_loop_get_loop(pw->loop), _onTraceTimer, pw);
       timespec first{1, 0};
@@ -805,6 +886,12 @@ namespace Aurora::Input::Linux
       pw_loop_destroy_source(pw_main_loop_get_loop(pw->loop), pw->traceTimer);
       pw->traceTimer = nullptr;
     }
+
+    if(pw->holdTimer){
+      pw_loop_destroy_source(pw_main_loop_get_loop(pw->loop), pw->holdTimer);
+      pw->holdTimer = nullptr;
+    }
+    pw->heldBuffer = nullptr;  // the stream owns it again once disconnected
 
     if(pw->renegotiateEvent){
       pw_loop_destroy_source(pw_main_loop_get_loop(pw->loop), pw->renegotiateEvent);

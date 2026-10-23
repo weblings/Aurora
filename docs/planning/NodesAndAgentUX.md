@@ -30,8 +30,9 @@ path ([[external-control]]) and an adapter an assistant can call (EC 6a).
   active graph's `controls`; the editor is an advanced screen over the same
   `graph.json`. Detail in [[node-graph-pipeline]].
 - **External-control order** (decided 2026-10-15): EC 3 Host allowlist
-  before Sequence B's read routes, EC 2a beside B, EC 4a before C. Detail
-  in [[external-control]].
+  before Sequence B's read routes, EC 2a beside B, EC 4a before C, EC 5
+  after C's write routes (2026-10-20). D does not wait on EC 5 and owns EC
+  6a's adapter skeleton (2026-10-21). Detail in [[external-control]].
 - **Not decided here:** whether HA output is a go (Aurora-4zr).
 
 ## Sequence A: foundations
@@ -92,14 +93,73 @@ time-based, Tier 2 adds gradients, blend modes, bands and LFO.
   settle-time checks at 30/60/240 Hz for B2b, bad-graph corpus extended for
   the new port types, generator render cost logged for B2e.
 
+## Sequence C: safe writes
+
+Status: filed 2026-10-20. Epic `Aurora-52oz`. Decisions in
+[[sequence-c-planning]]: custom effects in `effects/` with `activeEffectId`,
+concrete output names (D instantiates presets), a fallback warning when a
+custom graph cannot load, per-session drafts, zone-color preview in C.
+
+- **Goal:** a client can draft, check, preview, try on the lights and apply
+  a custom graph without risking stranded lights. No editor yet.
+- **Beads:** `Aurora-52oz.1` C0 effect storage and fallback warning, `.2` C1
+  inputs from the graph's source nodes, `.3` C2 drafts and validate, `.4` C3
+  apply, `.5` C4 test on lights with auto-revert, `.6` C5 draft preview,
+  `.7` C6 Tuning on custom effects, `.8` C7 gate.
+- **Prerequisite:** EC 4a/4b/4c (done). EC 5 follows C's write routes.
+- **Gate:** C7, a scripted client on the fake-Hue stack runs the whole flow
+  on three OSes, including revert on a dropped heartbeat and the fallback
+  warning.
+- **Parallel:** C0 and C1 first. C2 follows C0. C3 and C5 join C2 and C1.
+  C4 follows C3. C6 needs only C0.
+- **OS:** C1 needs a per-OS dual-capture recheck. Everything else is
+  platform-neutral core and route tests.
+- **Tests:** scope negatives per route, bad-graph corpus through validate,
+  fake-clock revert paths, preview never reaching an output, tick budget
+  with a preview running.
+
+## Sequence D: MCP for graphs
+
+Status: filed 2026-10-21. Epic `Aurora-4xqt`. Decisions in
+[[sequence-d-planning]]: a working MCP setup for graphs is the razor, so D
+does not wait on EC 5 or `Aurora-m2c`. The adapter is hand-rolled C++ over
+stdio. C's accepted gaps close first (D0). A Dashboard toggle for MCP graphs
+stays hidden until the first one.
+
+- **Goal:** a local MCP client (Claude Code, Claude Desktop, VS Code) starts
+  Aurora's adapter and lists nodes and presets, drafts and validates,
+  previews, tries on the lights, applies and reverts a custom graph, on three
+  OSes, with no token on loopback.
+- **Beads:**
+  - Gaps: `Aurora-4xqt.1` D0a outputs survive an input-only rebuild
+    (preview and test accept graphs needing other inputs), `.2` D0b MCP
+    effect toggle, `.3` D0c actionable validate errors, `.4` D0d confirm
+    window for a chat loop, `.5` D0e preview summary route, `.6` D0f C
+    follow-ups.
+  - Adapter: `.7` D1 skeleton with `aurora_status`, `.8` D2 node and preset
+    read tools, `.9` D3 draft tools, `.10` D4 try and apply tools, `.11` D5
+    agent instructions and client setup, `.12` D6 gate.
+- **Prerequisite:** none outside D. EC 6a (`Aurora-5ipy.10`) narrows to
+  control tools on D1's binary.
+- **Gate:** D6, a scripted MCP client spawns the adapter on the fake-Hue
+  stack. It fixes a broken draft from the error options, previews, tries a
+  both-input graph from a video-live state, applies, survives a restart and
+  reverts, and the lights revert after a killed client. Three OSes.
+- **Parallel:** D0a to D0e and D1 are independent. D2 follows D1. D3 joins
+  D1, D0c and D0e. D4 joins D3, D0a, D0b and D0d. D5 follows D2 and D4. D6
+  joins D2, D4, D5 and D0f.
+- **OS:** D0a needs a per-OS capture recheck, because adding video can raise
+  the Wayland portal or the macOS screen permission. D1 is built, bundled
+  and signed per OS. Everything else is platform-neutral core and route tests.
+- **Tests:** fake-clock confirm and revert paths, bad-graph corpus asserting
+  error codes and options, preview summary on static and LFO graphs, stdio
+  framing and version negotiation, MCP Inspector smoke, and a manual eval of
+  about 10 prompts in D5. A scored eval corpus is after D.
+
 ## Later sequences (stubs)
 
 Each gets a full section when it starts.
 
-- **C: safe writes.** Status: not started. Draft/validate routes, apply route
-  with scopes, draft vs. live with auto-revert, public API contract.
-- **D: agent path.** Status: not started. Annotated preset graphs, MCP tools
-  (`list_nodes`, `get_graph`, `validate_graph`, `put_draft`, `preview`,
-  `apply`), agent skill, and an eval corpus of plain-language prompts scored
-  on first-try validity and simple rendered properties.
-- **E: editor.** Status: not started. React Flow editor, in parallel with D.
+- **E: editor.** Status: not started. React Flow editor, after or beside D.
+  Takes over the Effect picker (`Aurora-kep2`) and source-less graphs
+  (`Aurora-t9iq`) from the D0b toggle.

@@ -80,7 +80,35 @@ export function flagsMatchMode(state, mode) {
 export function isSwitchConfirmed(putResult, stateAfter, mode) {
   return putResult?.succeeded === true
     && !putResult?.reloadError
+    && !mcpEffectRunning(stateAfter)
     && flagsMatchMode(stateAfter, mode);
+}
+
+// The custom effect an MCP client applied last (Aurora-4xqt.2), or null.
+// The Dashboard shows its third toggle only while this is set.
+export function mcpEffectIdFrom(state) {
+  const id = state?.mcpEffectId;
+  return typeof id === 'string' && id ? id : null;
+}
+
+// Whether that effect is the one running now, so its toggle takes the fill.
+export function mcpEffectRunning(state) {
+  const id = mcpEffectIdFrom(state);
+  return id !== null && state?.effect === id;
+}
+
+// Whether a switch to the MCP effect is confirmed: saved, no reload error,
+// and the pipeline runs it (not its built-in fallback).
+export function isMcpSwitchConfirmed(putResult, stateAfter) {
+  return putResult?.succeeded === true
+    && !putResult?.reloadError
+    && mcpEffectRunning(stateAfter);
+}
+
+// The save behind the MCP toggle: PUT /api/effects with the effect's id.
+// Resolves to the parsed result ({succeeded, reloadError?}).
+export async function putMcpSwitch(id) {
+  return (await fetch('/api/effects', { method: 'PUT', body: JSON.stringify({ activeEffectId: id }) })).json();
 }
 
 // Whether a lingering switch error is stale: the running pipeline is now
@@ -88,7 +116,24 @@ export function isSwitchConfirmed(putResult, stateAfter, mode) {
 // resume/relaunch starting the mode the failed switch saved to config). No
 // state probe or no remembered mode keeps the error. Aurora-tazx.
 export function isSwitchErrorStale(state, errorMode) {
+  if (errorMode === 'mcp') return mcpEffectRunning(state);
   return !!state && !!errorMode && flagsMatchMode(state, errorMode);
+}
+
+// Whether an MCP light test is driving the lights (Aurora-zfre). The toggle
+// treats it as the live MCP effect until it ends or is kept.
+export function lightTestActive(state) {
+  return state?.test?.active === true;
+}
+
+// Which toggle the running effect fills: 'mcp', 'video', 'audio', or null
+// (nothing running, or a custom effect not from MCP). Flags drive sections,
+// not this fill, so a failed switch's saved config never shows.
+export function runningToggle(state) {
+  if (lightTestActive(state) || mcpEffectRunning(state)) return 'mcp';
+  if (state?.effect === 'builtin.video') return 'video';
+  if (state?.effect === 'builtin.audio') return 'audio';
+  return null;
 }
 
 export function isIdle(flags) {
@@ -133,18 +178,22 @@ export function devicePatch(flags, { selectedMonitorName, sinkName }) {
 
 // A Video/Audio toggle click: that mode's input plus the device shown for
 // it, so the switch lands on the device the user sees. Monitors are only
-// known while video runs; without them the saved monitor stays as is.
+// known while video runs; without them the saved monitor stays as is. It
+// also names the mode's built-in as the active effect (Aurora-52oz.1), which
+// drops a custom effect the user had selected.
 export function modeSwitchPatch(mode, {
   inputs, audioInputs, currentActiveInputName, currentActiveAudioInputName,
   monitors, selectedMonitorName, sinkName,
 }) {
   if (mode === 'video') {
     return {
+      activeEffectId: 'builtin.video',
       activeInputName: pickVideoInputName(inputs, currentActiveInputName),
       ...(monitors.length > 0 ? { activeMonitorName: selectedMonitorName } : {}),
     };
   }
   return {
+    activeEffectId: 'builtin.audio',
     activeInputName: '',
     activeAudioInputName: pickAudioInputName(audioInputs, currentActiveAudioInputName),
     audioTargetSinkName: sinkName.trim(),

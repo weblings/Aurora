@@ -296,7 +296,7 @@ namespace Aurora::Network::Http::Server
   }
 
 
-  std::optional<PairingTicket> PairingService::requestPairing(const std::string& name, Scope scope)
+  std::optional<PairingTicket> PairingService::requestPairing(const std::string& name, Scope scope, const std::string& remoteAddr)
   {
     std::lock_guard lock(m_mutex);
     expireLocked();
@@ -309,6 +309,8 @@ namespace Aurora::Network::Http::Server
     entry.name = cleanName(name);
     entry.scope = scope;
     entry.code = randomCode();
+    // A v4 client on a dual-stack socket reads ::ffff:a.b.c.d.
+    entry.from = remoteAddr.rfind("::ffff:", 0) == 0 ? remoteAddr.substr(7) : remoteAddr;
     entry.createdAt = m_clock();
 
     PairingTicket ticket{randomHex(16), entry.code};
@@ -324,7 +326,7 @@ namespace Aurora::Network::Http::Server
     std::vector<PendingPairing> out;
     for(const auto& [key, entry] : m_pending){
       if(!entry.decided){
-        out.push_back({entry.ref, entry.name, entry.scope, entry.code});
+        out.push_back({entry.ref, entry.name, entry.scope, entry.code, entry.from});
       }
     }
     std::sort(out.begin(), out.end(), [](const auto& a, const auto& b){ return a.ref < b.ref; });
@@ -457,7 +459,13 @@ namespace Aurora::Network::Http::Server
 
   void AccessGuard::addRule(const std::string& pathPrefix, Scope required)
   {
-    m_rules.emplace_back(pathPrefix, required);
+    m_rules.push_back({pathPrefix, required, false});
+  }
+
+
+  void AccessGuard::addWriteRule(const std::string& pathPrefix, Scope required)
+  {
+    m_rules.push_back({pathPrefix, required, true});
   }
 
 
@@ -514,10 +522,13 @@ namespace Aurora::Network::Http::Server
       : underPrefix(request.path, "/api") ? Scope::Read : Scope::None;
     std::size_t best = 0;
     bool matched = false;
-    for(const auto& [prefix, scope] : m_rules){
-      if(underPrefix(request.path, prefix) && (!matched || prefix.size() > best)){
-        required = scope;
-        best = prefix.size();
+    for(const auto& rule : m_rules){
+      if(rule.writesOnly && request.method == HttpMethod::Get){
+        continue;
+      }
+      if(underPrefix(request.path, rule.prefix) && (!matched || rule.prefix.size() > best)){
+        required = rule.scope;
+        best = rule.prefix.size();
         matched = true;
       }
     }

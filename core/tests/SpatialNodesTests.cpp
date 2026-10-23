@@ -2,6 +2,7 @@
 // plus generator -> zones.sample against a known ZoneMap.
 #include <catch2/catch_test_macros.hpp>
 
+#include <algorithm>
 #include <chrono>
 #include <cstdlib>
 #include <iostream>
@@ -299,6 +300,52 @@ TEST_CASE("image.hueRamp phase input rotates the ramp", "[SpatialNodes]")
     R"(["p.value", "g.phase"])");
   graph.tick(1.f / 60.f);
   checkPixel(genImage(graph), 0, 0, 0, 255, 64); // hue 135
+}
+
+TEST_CASE("image.noise flickers each zone independently", "[SpatialNodes]")
+{
+  Graph graph = load(
+    R"({"id": "g", "type": "image.noise", "params": {"width": 40, "height": 4, "cells": 4, "rateHz": 5}},
+        {"id": "z", "type": "zones.sample", "params": {"output": "room"}})",
+    R"(["g.image", "z.image"])");
+  FakeHost host;
+  host.maps["room"] = quarterZones();
+  std::vector<std::vector<float>> series(4);
+  for(int i = 0; i < 240; ++i){
+    graph.tick(1.f / 60.f, &host);
+    const Frame& frame = std::get<Frame>(*graph.portValue("z", "frame"));
+    REQUIRE(frame.size() == 4);
+    for(size_t zone = 0; zone < 4; ++zone){
+      series[zone].push_back(frame[zone].color.toNormalized().r);
+    }
+  }
+  for(size_t zone = 0; zone < 4; ++zone){
+    auto [lo, hi] = std::minmax_element(series[zone].begin(), series[zone].end());
+    INFO("zone " << zone);
+    CHECK(*hi - *lo > 0.3f); // each zone really flickers
+    CHECK(series[zone] != series[(zone + 1) % 4]); // and not in lockstep
+  }
+}
+
+TEST_CASE("image.noise honors color and background and holds at rate 0", "[SpatialNodes]")
+{
+  g_color = Color(200, 100, 0);
+  Graph graph = load(
+    R"({"id": "g", "type": "image.noise", "params": {"width": 8, "height": 2, "cells": 8, "rateHz": 0}},
+        {"id": "c", "type": "test.color", "params": {}})",
+    R"(["c.value", "g.color"])");
+  graph.tick(1.f / 60.f);
+  ImagePtr first = genImage(graph);
+  for(int row = 0; row < 2; ++row){
+    for(int col = 0; col < 8; ++col){
+      cv::Vec3b px = pixel(first, row, col);
+      CHECK(px[2] == 0); // blue stays at the background's 0
+      CHECK(px[0] <= 201);
+      CHECK(std::abs(px[1] * 2 - px[0]) <= 2); // on the line from black to the color
+    }
+  }
+  graph.tick(1.f / 60.f);
+  CHECK(genImage(graph) == first);
 }
 
 TEST_CASE("generators keep the same ImagePtr until an input changes", "[SpatialNodes]")

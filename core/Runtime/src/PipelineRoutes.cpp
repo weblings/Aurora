@@ -9,6 +9,7 @@
 
 #include <Aurora/Network/Http/Server/HttpServer.hpp>
 #include <Aurora/Runtime/ConfigStore.hpp>
+#include <Aurora/Runtime/LightTest.hpp>
 #include <Aurora/Runtime/Pipeline.hpp>
 
 namespace Aurora::Runtime
@@ -24,8 +25,15 @@ namespace Aurora::Runtime
   {
     // Shared by GET /api/state and the events stream's state topic, so the
     // stream's first event is byte-for-byte what a poll would read.
-    nlohmann::json buildStateJson(PipelineHost& pipelineHost, const std::filesystem::path& configRoot)
+    nlohmann::json buildStateJson(PipelineHost& pipelineHost, const std::filesystem::path& configRoot,
+      const std::shared_ptr<LightTest>& lightTest)
     {
+      nlohmann::json test{{"active", false}, {"confirmRemainingMs", 0}};
+      if(lightTest){
+        const LightTest::Info info = lightTest->info();
+        test = {{"active", info.active}, {"confirmRemainingMs", info.confirmRemainingMs}};
+      }
+
       const PipelineCapabilities capabilities = pipelineHost.capabilities();
       const std::string& audioDevicesUrl = pipelineHost.audioDevicesUrl();
       const HostStatus status = pipelineHost.status();
@@ -60,12 +68,24 @@ namespace Aurora::Runtime
         };
       }
 
+      // Null for a built-in: the client keeps the flags below.
+      nlohmann::json graphInputs(nullptr);
+      if(summary.graphInputs){
+        graphInputs = {{"video", summary.graphInputs->video}, {"audio", summary.graphInputs->audio}};
+      }
+
+      const std::string mcpEffectId = ConfigStore(configRoot).load().mcpEffectId();
+
       return nlohmann::json{
         {"state", hostStateName(status.state)},
         {"effect", summary.effect.empty() ? nlohmann::json(nullptr) : nlohmann::json(summary.effect)},
+        {"requestedEffect", summary.requestedEffect.empty() ? nlohmann::json(nullptr) : nlohmann::json(summary.requestedEffect)},
+        {"mcpEffectId", mcpEffectId.empty() ? nlohmann::json(nullptr) : nlohmann::json(mcpEffectId)},
         {"source", {{"video", video}, {"audio", audio}}},
+        {"graphInputs", graphInputs},
         // The saved setting, so it reads right while paused or idle too.
         {"brightness", ConfigStore(configRoot).load().brightness()},
+        {"test", test},
         {"errors", errors},
         {"conditions", conditions},
         {"paused", status.state == HostState::Paused},
@@ -146,7 +166,8 @@ namespace Aurora::Runtime
     HttpServer& server,
     PipelineHost& pipelineHost,
     const Registry& registry,
-    const std::filesystem::path& configRoot
+    const std::filesystem::path& configRoot,
+    std::shared_ptr<LightTest> lightTest
   )
   {
     // Leaf-lock reads only, so polling never waits on a tick or a reload.
@@ -155,9 +176,9 @@ namespace Aurora::Runtime
     server.addRoute(
       HttpMethod::Get,
       "/api/state",
-      [&pipelineHost, configRoot](const Request&, Response& res){
+      [&pipelineHost, configRoot, lightTest](const Request&, Response& res){
         res.contentType = "application/json";
-        res.body = buildStateJson(pipelineHost, configRoot).dump();
+        res.body = buildStateJson(pipelineHost, configRoot, lightTest).dump();
       }
     );
 
@@ -235,12 +256,13 @@ namespace Aurora::Runtime
     HttpServer& server,
     PipelineHost& pipelineHost,
     const std::filesystem::path& configRoot,
-    std::chrono::milliseconds heartbeat
+    std::chrono::milliseconds heartbeat,
+    std::shared_ptr<LightTest> lightTest
   )
   {
     server.addStreamRoute(
       "/api/events",
-      [&pipelineHost, configRoot, heartbeat](const Request& req, EventStream& stream){
+      [&pipelineHost, configRoot, heartbeat, lightTest](const Request& req, EventStream& stream){
         // Unknown topics are ignored, as clients ignore unknown state values.
         std::set<std::string> topics;
         const auto asked = req.queryParams.find("topics");
@@ -272,7 +294,7 @@ namespace Aurora::Runtime
 
         const auto publish = [&]{
           lastCheck = Clock::now();
-          const nlohmann::json state = buildStateJson(pipelineHost, configRoot);
+          const nlohmann::json state = buildStateJson(pipelineHost, configRoot, lightTest);
           if(topics.count("state") && state != lastState){
             lastState = state;
             send("state", state);

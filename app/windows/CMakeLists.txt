@@ -107,10 +107,12 @@ endif()
 # Aurora-05r: app.rc embeds app.ico (generated from
 # assets/brand/Logo_Square_Light.png) as the exe icon. Side-by-side in
 # this dir, so rc.exe/windres resolve ICON "app.ico" with no extra
-# include path.
+# include path. app.manifest (Aurora-8u3p) declares per-monitor-v2 DPI
+# awareness; MSVC merges it into the linker-generated manifest.
 add_executable(aurora-app-windows
   src/main.cpp
   app.rc
+  app.manifest
   "${_AURORA_EMBEDDED_WEBROOT_HEADER}"
   ${_AURORA_GRAPH_EDITOR_HEADER}
 )
@@ -178,6 +180,18 @@ if(CMAKE_VERSION VERSION_GREATER_EQUAL "3.21")
       $<TARGET_RUNTIME_DLLS:aurora-app-windows>
       $<TARGET_FILE_DIR:aurora-app-windows>
     COMMAND_EXPAND_LISTS
+  )
+endif()
+
+# Aurora-4xqt.7: the MCP helper ships beside the app. A superbuild adds
+# adapters/mcp before this slice; a standalone slice configure skips it.
+if(TARGET aurora-mcp)
+  add_dependencies(aurora-app-windows aurora-mcp)
+  add_custom_command(TARGET aurora-app-windows POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            $<TARGET_FILE:aurora-mcp> $<TARGET_FILE_DIR:aurora-app-windows>
+    COMMENT "Staging aurora-mcp beside Aurora"
+    VERBATIM
   )
 endif()
 

@@ -863,3 +863,20 @@ test reuses a number.
 **Fix (Aurora-lby1):** `const int port = server.bindToAnyPort("127.0.0.1");`
 then build the client from `port`. Port literals left in `Host`/`Origin`
 header strings are fine: the allowlist and Origin check ignore the port.
+
+---
+
+## The e2e gate runs the app from its own build tree, not the top-level build
+Tags: cmake, build-trees, e2e-gate, linux
+Applies-when: rebuilding the app before running tools/light-viz-relay/sequence_c_gate.py (or devstack.py)
+
+`cmake --build build` refreshes only the top-level tree, but the gate
+defaults to `build/linux-app/bin/Aurora` (devstack.py), a separate configure
+of the repo root — and the core suite lives in `build/core-test` likewise.
+Aurora-4xqt.1: after D0e added `/api/graph/preview/summary`, the gate failed
+that step with a bare 404 because the linux-app binary was a day older than
+the route while everything else was green.
+
+**Fix:** `cmake --build build/linux-app` (and `build/core-test` for core)
+before the gate. When a new route 404s on an otherwise green tree, `ls -la`
+the binary the gate actually launched before suspecting the route.

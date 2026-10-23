@@ -8,11 +8,36 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `110-release-prep` | [log/2026-10-07-110-release-prep.md](log/2026-10-07-110-release-prep.md) | 1.1.0 release prep: audit, bump, docs, Aurora-07i, vendor sequencing |
 | `112-linux-verification` | [log/2026-10-18-112-linux-verification.md](log/2026-10-18-112-linux-verification.md) | v1.1.2 Linux verification |
 | `112-mac-verification` | [log/2026-10-19-112-mac-verification.md](log/2026-10-19-112-mac-verification.md) | v1.1.2 Mac verification |
+| `1pwk-x11-damage-ratecap` | [log/2026-10-20-1pwk-x11-damage-ratecap.md](log/2026-10-20-1pwk-x11-damage-ratecap.md) | Aurora-1pwk: X11 damage skip + 20 fps grab cap (63% -> 40/20%) |
 | `2dz-secret-store` | [log/2026-10-02-2dz-secret-store.md](log/2026-10-02-2dz-secret-store.md) | Aurora-2dz: OS secret store — verified on Linux, Mac and Windows |
 | `3ddb-pause-cli` | [log/2026-10-03-3ddb-pause-cli.md](log/2026-10-03-3ddb-pause-cli.md) | Aurora-3ddb: pause/resume, core and CLI only |
 | `3ono-stale-core-test-tree` | [log/2026-10-02-3ono-stale-core-test-tree.md](log/2026-10-02-3ono-stale-core-test-tree.md) | Aurora-3ono: PipelineTests segfault on Windows was a stale build tree |
 | `3qh-mac-capture-width-hint` | [log/2026-10-01-3qh-mac-capture-width-hint.md](log/2026-10-01-3qh-mac-capture-width-hint.md) | Aurora-3qh: Mac video mode resized full-Retina frames every tick |
+| `4xqt1-input-rebuild-keeps-outputs` | [log/2026-10-21-4xqt1-input-rebuild-keeps-outputs.md](log/2026-10-21-4xqt1-input-rebuild-keeps-outputs.md) | Aurora-4xqt.1 (D0a): input-only rebuild keeps outputs, preview owns its extra inputs (paused) |
+| `4xqt1-windows-second-duplication-recheck` | [log/2026-10-21-4xqt1-windows-second-duplication-recheck.md](log/2026-10-21-4xqt1-windows-second-duplication-recheck.md) | Aurora-4xqt.1: Windows second-duplication recheck (closed) |
+| `4xqt10-try-apply-tools` | [log/2026-10-22-4xqt10-try-apply-tools.md](log/2026-10-22-4xqt10-try-apply-tools.md) | Aurora-4xqt.10: try and apply tools (D4) |
+| `4xqt11-agent-instructions-setup` | [log/2026-10-22-4xqt11-agent-instructions-setup.md](log/2026-10-22-4xqt11-agent-instructions-setup.md) | Aurora-4xqt.11: agent instructions and client setup (D5) |
+| `4xqt12-mac-gate-and-vscode` | [log/2026-10-22-4xqt12-mac-gate-and-vscode.md](log/2026-10-22-4xqt12-mac-gate-and-vscode.md) | Aurora-4xqt.7 to .12: Mac verification of Sequence D, gate 9/9, Claude Code in VS Code |
+| `4xqt13-optional-input-hold` | [log/2026-10-22-4xqt13-optional-input-hold.md](log/2026-10-22-4xqt13-optional-input-hold.md) | Aurora-4xqt.13: wired optional inputs hold on Absent ticks, Linux Sequence D pass |
+| `4xqt15-scoped-agent-pairing` | [log/2026-10-22-4xqt15-scoped-agent-pairing.md](log/2026-10-22-4xqt15-scoped-agent-pairing.md) | Aurora-4xqt.15: scoped agent pairing, Windows Sequence D pass |
+| `4xqt17-quiet-mac-preview` | [log/2026-10-22-4xqt17-quiet-mac-preview.md](log/2026-10-22-4xqt17-quiet-mac-preview.md) | Aurora-4xqt.17: preview on a quiet Mac says why it is empty |
+| `4xqt2-mcp-effect-toggle` | [log/2026-10-21-4xqt2-mcp-effect-toggle.md](log/2026-10-21-4xqt2-mcp-effect-toggle.md) | Aurora-4xqt.2 (D0b): MCP effect toggle on the Dashboard |
+| `4xqt3-actionable-validate-errors` | [log/2026-10-21-4xqt3-actionable-validate-errors.md](log/2026-10-21-4xqt3-actionable-validate-errors.md) | Aurora-4xqt.3: validate errors an agent can act on (closed) |
+| `4xqt4-test-window-cap` | [log/2026-10-21-4xqt4-test-window-cap.md](log/2026-10-21-4xqt4-test-window-cap.md) | Aurora-4xqt.4: test-on-lights window that fits a chat loop (closed) |
+| `4xqt5-preview-summary` | [log/2026-10-21-4xqt5-preview-summary.md](log/2026-10-21-4xqt5-preview-summary.md) | Aurora-4xqt.5: preview summary route for agents (closed) |
+| `4xqt7-mcp-adapter-skeleton` | [log/2026-10-22-4xqt7-mcp-adapter-skeleton.md](log/2026-10-22-4xqt7-mcp-adapter-skeleton.md) | Aurora-4xqt.7: MCP adapter skeleton (Windows verified, Mac and Linux open) |
+| `4xqt8-node-preset-read-tools` | [log/2026-10-22-4xqt8-node-preset-read-tools.md](log/2026-10-22-4xqt8-node-preset-read-tools.md) | Aurora-4xqt.8: node and preset read tools (D2) |
+| `4xqt9-draft-tools` | [log/2026-10-22-4xqt9-draft-tools.md](log/2026-10-22-4xqt9-draft-tools.md) | Aurora-4xqt.9: draft tools (D3) |
 | `4zr11-floor-wiring` | [log/2026-10-16-4zr11-floor-wiring.md](log/2026-10-16-4zr11-floor-wiring.md) | Brightness floor wiring (Aurora-4zr.11) |
+| `52oz1-custom-effects-storage` | [log/2026-10-20-52oz1-custom-effects-storage.md](log/2026-10-20-52oz1-custom-effects-storage.md) | Aurora-52oz.1: custom effects under effects/, activeEffectId, fallback warning (closed) |
+| `52oz2-graph-source-inputs` | [log/2026-10-20-52oz2-graph-source-inputs.md](log/2026-10-20-52oz2-graph-source-inputs.md) | Aurora-52oz.2: pipeline builds inputs from the graph's source nodes (closed) |
+| `52oz3-drafts-and-validate` | [log/2026-10-20-52oz3-drafts-and-validate.md](log/2026-10-20-52oz3-drafts-and-validate.md) | Aurora-52oz.3: per-session drafts and validate (closed) |
+| `52oz4-apply-draft` | [log/2026-10-20-52oz4-apply-draft.md](log/2026-10-20-52oz4-apply-draft.md) | Aurora-52oz.4: apply a draft as the live effect (closed) |
+| `52oz5-test-on-lights` | [log/2026-10-20-52oz5-test-on-lights.md](log/2026-10-20-52oz5-test-on-lights.md) | Aurora-52oz.5: test on lights with server-side auto-revert (closed) |
+| `52oz6-draft-preview` | [log/2026-10-20-52oz6-draft-preview.md](log/2026-10-20-52oz6-draft-preview.md) | Aurora-52oz.6: draft preview stream of zone colors (closed) |
+| `52oz7-tuning-custom-effects` | [log/2026-10-20-52oz7-tuning-custom-effects.md](log/2026-10-20-52oz7-tuning-custom-effects.md) | Aurora-52oz.7: Tuning edits on custom effects (closed) |
+| `52oz8-linux-verification` | [log/2026-10-20-52oz8-linux-verification.md](log/2026-10-20-52oz8-linux-verification.md) | Sequence C Linux verification: core, gate 7/7, web tuning tests |
+| `52oz8-sequence-c-gate` | [log/2026-10-20-52oz8-sequence-c-gate.md](log/2026-10-20-52oz8-sequence-c-gate.md) | Aurora-52oz.8: Sequence C gate on the fake-Hue stack (8/8 with the audio step on Windows, Mac and Linux) |
 | `5i3-local-api-hardening` | [log/2026-10-02-5i3-local-api-hardening.md](log/2026-10-02-5i3-local-api-hardening.md) | Aurora-5i3: local API hardening before any HA credential exists |
 | `5ipy1-ec0-decisions` | [log/2026-10-16-5ipy1-ec0-decisions.md](log/2026-10-16-5ipy1-ec0-decisions.md) | EC 0: open questions and cross-references (Aurora-5ipy.1) |
 | `5ipy19-lan-reads-paired` | [log/2026-10-16-5ipy19-lan-reads-paired.md](log/2026-10-16-5ipy19-lan-reads-paired.md) | LAN GETs require the read scope (Aurora-5ipy.19) |
@@ -27,6 +52,8 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `6v36-brightness-floor` | [log/2026-10-16-6v36-brightness-floor.md](log/2026-10-16-6v36-brightness-floor.md) | Brightness floor stage (Aurora-6v36) |
 | `7r3-audio-drift-reaches-output` | [log/2026-10-14-7r3-audio-drift-reaches-output.md](log/2026-10-14-7r3-audio-drift-reaches-output.md) | Audio drift reaches output (Aurora-7r3) |
 | `7ybx-dev-banner-errors` | [log/2026-10-07-dev-banner-errors.md](log/2026-10-07-dev-banner-errors.md) | Aurora-7ybx: dev banner-error injection tooling (closed) |
+| `8ydf-step1-opt-measure` | [log/2026-10-21-8ydf-step1-opt-measure.md](log/2026-10-21-8ydf-step1-opt-measure.md) | 8ydf step 1 measured: rate cap at RelWithDebInfo on Framework |
+| `8ydf-wayland-rate-cap-review` | [log/2026-10-20-8ydf-wayland-rate-cap-review.md](log/2026-10-20-8ydf-wayland-rate-cap-review.md) | Aurora-8ydf step 1: Wayland rate-cap review + tests (motion run open) |
 | `98pr-webui-banner-x` | [log/2026-10-06-98pr-webui-banner-x.md](log/2026-10-06-98pr-webui-banner-x.md) | Aurora-98pr: saved-not-applied errors move to the banner; banner X (closed) |
 | `9ca-fromhsv-nan-guard` | [log/2026-10-01-9ca-fromhsv-nan-guard.md](log/2026-10-01-9ca-fromhsv-nan-guard.md) | Aurora-9ca: NaN/Inf into Color::fromHSV's uint8_t cast — fixed |
 | `9ig-pipeline-to-core` | [log/2026-10-01-9ig-pipeline-to-core.md](log/2026-10-01-9ig-pipeline-to-core.md) | Aurora-9ig: Pipeline, PipelineHost and Registry moved into core |
@@ -52,11 +79,13 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `error-overlay` | [planning/ErrorOverlay.md](planning/ErrorOverlay.md) | Error overlay |
 | `error-overlay-design` | [log/2026-10-05-error-overlay-design.md](log/2026-10-05-error-overlay-design.md) | Error overlay design pass |
 | `error-text-and-leak-beads` | [log/2026-10-05-error-text-and-leak-beads.md](log/2026-10-05-error-text-and-leak-beads.md) | Aurora-jm6s, tazx and kea closed; 2pe5, d3ec designed; 36b7, k73j and 9swq filed |
+| `es51-x11-damage-latch` | [log/2026-10-20-es51-x11-damage-latch.md](log/2026-10-20-es51-x11-damage-latch.md) | Aurora-es51: X11 damage latch + 1 s staleness grab |
 | `ewyz-connection-watcher` | [log/2026-10-06-ewyz-connection-watcher.md](log/2026-10-06-ewyz-connection-watcher.md) | Aurora-ewyz: shell-level connection watcher (implemented, verified) |
 | `external-control` | [planning/ExternalControl.md](planning/ExternalControl.md) | External control: assistants, hubs and Muse driving Aurora |
 | `external-control-beads` | [log/2026-10-03-external-control-beads.md](log/2026-10-03-external-control-beads.md) | External control: bead sequence, overlap with nodes and HA |
 | `external-control-planning` | [log/2026-10-02-external-control-planning.md](log/2026-10-02-external-control-planning.md) | External control planning, Muse and Hyperion survey |
 | `first-scan` | [archive/FirstScan.md](archive/FirstScan.md) | Huenicorn pipeline scan |
+| `fq5y-x11-xrender-downscale` | [log/2026-10-20-fq5y-x11-xrender-downscale.md](log/2026-10-20-fq5y-x11-xrender-downscale.md) | Aurora-fq5y: X11 XRender server-side downscale (39.7/20.4% -> 4.2/1.3%) |
 | `future-steamos-support` | [planning/FutureSteamOSSupport.md](planning/FutureSteamOSSupport.md) | SteamOS / Steam Deck support |
 | `gtkd-bare-bus-fix` | [log/2026-10-07-gtkd-bare-bus-fix.md](log/2026-10-07-gtkd-bare-bus-fix.md) | Aurora-gtkd closed: fake bare bus no longer activates the real xdg-desktop-portal |
 | `gui-launch-ux` | [archive/GUILaunchUX.md](archive/GUILaunchUX.md) | GUI Launch UX |
@@ -70,6 +99,7 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `home-assistant-output` | [planning/HomeAssistantOutput.md](planning/HomeAssistantOutput.md) | Home Assistant output module |
 | `http-server-analysis` | [archive/HttpServerAnalysis.md](archive/HttpServerAnalysis.md) | HTTP server analysis |
 | `hue-output-analysis` | [archive/HueOutputAnalysis.md](archive/HueOutputAnalysis.md) | Hue::Api / Auth / Stream — Conversion analysis |
+| `i5hq-x11-idle-damage-source` | [log/2026-10-20-i5hq-x11-idle-damage-source.md](log/2026-10-20-i5hq-x11-idle-damage-source.md) | Aurora-i5hq: idle fullscreen X11 damage source + quiet-desktop CPU |
 | `id8j1-b0-float-trigger-ports` | [log/2026-10-16-id8j1-b0-float-trigger-ports.md](log/2026-10-16-id8j1-b0-float-trigger-ports.md) | B0: Float and Trigger port types (Aurora-id8j.1) |
 | `id8j10-b4-tuning-renders-controls` | [log/2026-10-16-id8j10-b4-tuning-renders-controls.md](log/2026-10-16-id8j10-b4-tuning-renders-controls.md) | B4: Tuning renders the active graph's controls (Aurora-id8j.10) |
 | `id8j11-b5-register-all-nodes` | [log/2026-10-16-id8j11-b5-register-all-nodes.md](log/2026-10-16-id8j11-b5-register-all-nodes.md) | B5: one registerAllNodes for runner, /api/nodes and tests (Aurora-id8j.11) |
@@ -157,6 +187,7 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `pmg5-generated-demo-graph` | [log/2026-10-16-pmg5-generated-demo-graph.md](log/2026-10-16-pmg5-generated-demo-graph.md) | Generated demo-graph.js and --check drift guards (Aurora-pmg5) |
 | `processing-analysis` | [archive/ProcessingAnalysis.md](archive/ProcessingAnalysis.md) | ImageProcessing / Color / Interpolation / ImageData / UV — Conversion analysis |
 | `q9l1-tray-target-live` | [log/2026-10-07-q9l1-tray-target-live.md](log/2026-10-07-q9l1-tray-target-live.md) | Aurora-q9l1: tray click-time target — Linux live green, Windows exercised, closed |
+| `r7ff-noise-nodes` | [log/2026-10-22-r7ff-noise-nodes.md](log/2026-10-22-r7ff-noise-nodes.md) | R7ff: noise source nodes (Aurora-r7ff) |
 | `ra4o10-g2e-pre-g3-fixes` | [log/2026-10-14-ra4o10-g2e-pre-g3-fixes.md](log/2026-10-14-ra4o10-g2e-pre-g3-fixes.md) | G2e pre-G3 review fixes (Aurora-ra4o.10) |
 | `ra4o11-g4a-loader-float-clamp` | [log/2026-10-15-ra4o11-g4a-loader-float-clamp.md](log/2026-10-15-ra4o11-g4a-loader-float-clamp.md) | G4a: loader clamps Float params (Aurora-ra4o.11) |
 | `ra4o12-g4b-descriptor-metadata` | [log/2026-10-15-ra4o12-g4b-descriptor-metadata.md](log/2026-10-15-ra4o12-g4b-descriptor-metadata.md) | G4b: descriptors emit useWhen, example and cost (Aurora-ra4o.12) |
@@ -173,6 +204,8 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `runtime-analysis` | [archive/RuntimeAnalysis.md](archive/RuntimeAnalysis.md) | Runtime / Config — Conversion analysis |
 | `scig-capture-source-banner` | [log/2026-10-08-scig-capture-source-banner.md](log/2026-10-08-scig-capture-source-banner.md) | Aurora-scig: Capture Source (NUX) errors move to the shell banner (closed) |
 | `sequence-b-planning` | [log/2026-10-15-sequence-b-planning.md](log/2026-10-15-sequence-b-planning.md) | Sequence B planning: decisions recorded, epic filed |
+| `sequence-c-planning` | [log/2026-10-20-sequence-c-planning.md](log/2026-10-20-sequence-c-planning.md) | Sequence C planning: decisions recorded, epic filed |
+| `sequence-d-planning` | [log/2026-10-21-sequence-d-planning.md](log/2026-10-21-sequence-d-planning.md) | Sequence D planning: MCP for graphs, gaps first, epic filed |
 | `set-running-helper` | [log/2026-10-04-set-running-helper.md](log/2026-10-04-set-running-helper.md) | Aurora-5ipy.18: shared setRunning helper (closed) |
 | `skv-one-tick-clock` | [log/2026-10-01-skv-one-tick-clock.md](log/2026-10-01-skv-one-tick-clock.md) | Aurora-skv: explicit dt into both orchestrators, one tick clock |
 | `so1o-pairing-copy-fixes` | [log/2026-10-16-so1o-pairing-copy-fixes.md](log/2026-10-16-so1o-pairing-copy-fixes.md) | Pairing screen copy and centering fixes (Aurora-so1o) |
@@ -180,8 +213,10 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `ta5-param-schema` | [log/2026-10-01-ta5-param-schema.md](log/2026-10-01-ta5-param-schema.md) | Aurora-ta5: C++ param schema as single source for tuning ranges |
 | `tft-parity-harness` | [log/2026-10-01-tft-parity-harness.md](log/2026-10-01-tft-parity-harness.md) | Aurora-tft: golden parity harness for both orchestrators |
 | `tjoq-audio-grant-live` | [log/2026-10-06-tjoq-audio-grant-live.md](log/2026-10-06-tjoq-audio-grant-live.md) | Aurora-tjoq: audio permission block copy vs. live grant |
+| `u5k0-x11-decimate-on-copy` | [log/2026-10-20-u5k0-x11-decimate-on-copy.md](log/2026-10-20-u5k0-x11-decimate-on-copy.md) | Aurora-u5k0: X11 decimate-on-copy (neutral on CPU, kept) |
 | `upstream-findings` | [planning/UpstreamFindings.md](planning/UpstreamFindings.md) | Findings worth upstreaming to huenicorn |
 | `vv46-route-test-port-collisions` | [log/2026-10-16-vv46-route-test-port-collisions.md](log/2026-10-16-vv46-route-test-port-collisions.md) | Route test flakes under parallel ctest (Aurora-vv46) |
+| `w6no-restore-token` | [log/2026-10-21-w6no-restore-token.md](log/2026-10-21-w6no-restore-token.md) | Aurora-w6no: portal restore token is actually stored now (closed) |
 | `web-demo-ui-update` | [archive/WebDemoUIUpdate.md](archive/WebDemoUIUpdate.md) | Web Demo Dashboard Port — Plan (WebDemoUIUpdate.md) |
 | `webui-design-1st-pass` | [archive/WebUI_Design_1stPass.md](archive/WebUI_Design_1stPass.md) | WebUI screens, jobs, and component research |
 | `webui-design-2-5-pass` | [planning/WebUI/WebUI_Design_2.5Pass.md](planning/WebUI/WebUI_Design_2.5Pass.md) | WebUI design, pass 2.5: visual polish diffs |
@@ -198,6 +233,7 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `wqzp13-windows-display-rotation` | [log/2026-10-13-wqzp13-windows-display-rotation.md](log/2026-10-13-wqzp13-windows-display-rotation.md) | Aurora-wqzp.13: Windows capture honours display rotation |
 | `wqzp2-linux-frameserial` | [log/2026-10-13-wqzp2-linux-frameserial.md](log/2026-10-13-wqzp2-linux-frameserial.md) | Aurora-wqzp.2: Linux PipewireGrabber frameSerial() |
 | `wqzp3-mac-video-cpu` | [log/2026-10-12-wqzp3-mac-video-cpu.md](log/2026-10-12-wqzp3-mac-video-cpu.md) | Aurora-wqzp.3: Mac video CPU 19% vs 3qh's 5.5% |
+| `wqzp4-framework-rerun` | [log/2026-10-21-wqzp4-framework-rerun.md](log/2026-10-21-wqzp4-framework-rerun.md) | wqzp.4 Framework re-verify: hardware-tagged before/after |
 | `wqzp4-linux-decimate-on-copy` | [log/2026-10-13-wqzp4-linux-decimate-on-copy.md](log/2026-10-13-wqzp4-linux-decimate-on-copy.md) | Aurora-wqzp.4: Linux downscale while copying out of the PipeWire buffer |
 | `wqzp6-windows-grab-thread` | [log/2026-10-13-wqzp6-windows-grab-thread.md](log/2026-10-13-wqzp6-windows-grab-thread.md) | Aurora-wqzp.6: Windows capture thread, tick headroom |
 | `wqzp7-linux-audio-cost` | [log/2026-10-13-wqzp7-linux-audio-cost.md](log/2026-10-13-wqzp7-linux-audio-cost.md) | Aurora-wqzp.7 (Linux half): where Linux audio-only CPU goes |
@@ -207,3 +243,4 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `x1lh-error-shell-visual-polish` | [log/2026-10-07-error-shell-visual-polish.md](log/2026-10-07-error-shell-visual-polish.md) | Aurora-x1lh: error shell visual polish (closed) |
 | `xrl1-warning-icon` | [log/2026-10-07-xrl1-warning-icon.md](log/2026-10-07-xrl1-warning-icon.md) | Aurora-xrl1: vector warning icon replaces bold ⚠ (closed) |
 | `yzp4-takeover-unification` | [log/2026-10-06-yzp4-takeover-unification.md](log/2026-10-06-yzp4-takeover-unification.md) | Aurora-yzp4: takeover unified to heading-only "Aurora has stopped" (closed) |
+| `zfre-test-state-and-stop` | [log/2026-10-22-zfre-test-state-and-stop.md](log/2026-10-22-zfre-test-state-and-stop.md) | Zfre: /api/state reports the light test, the WebUI can stop it (Aurora-zfre) |

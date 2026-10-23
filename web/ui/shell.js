@@ -99,7 +99,7 @@ export class App {
     // daemon comes back. Set by app.js (bootstrap/recover); null in unit
     // tests that only assert the takeover itself.
     this.onRecovered = null;
-    // onStateUpdate({state, errors, paused, uses*Input, samplesZones}): called after every reachable
+    // onStateUpdate({state, errors, paused, uses*Input, samplesZones, effect, mcpEffectId, testActive}): called after every reachable
     // poll with GET /api/state's own fields. Set by whichever screen cares
     // (Dashboard, so a tray pause/resume updates its top bar live); null
     // elsewhere, same single-slot shape as onRecovered.
@@ -130,6 +130,8 @@ export class App {
     this.hostErrors = []; // [{source, message}], from the last reachable poll
     this.hostConditions = []; // [{source, message}], standing facts (Aurora-rbp3)
     this._bannerExpanded = false;
+    this.lightTestEndsAt = null; // ms epoch the running MCP light test must be confirmed by, else null
+    this._lightTestTimer = null;
   }
 
   navigate(screen, routeId = null) {
@@ -259,10 +261,13 @@ export class App {
     const errors = Array.isArray(result?.errors) ? result.errors : [];
     const conditions = Array.isArray(result?.conditions) ? result.conditions : [];
     const paused = typeof result?.paused === 'boolean' ? result.paused : null;
-    const flags = { usesVideoInput: result?.usesVideoInput, usesAudioInput: result?.usesAudioInput, samplesZones: result?.samplesZones };
+    const flags = { usesVideoInput: result?.usesVideoInput, usesAudioInput: result?.usesAudioInput, samplesZones: result?.samplesZones,
+      effect: result?.effect, mcpEffectId: result?.mcpEffectId, testActive: result?.test?.active === true };
     this.hostState = state;
     this.hostErrors = errors;
     this.hostConditions = conditions;
+    const remainingMs = result?.test?.active === true ? Number(result.test.confirmRemainingMs) : NaN;
+    this.lightTestEndsAt = Number.isFinite(remainingMs) ? Date.now() + remainingMs : null;
     this._renderBanner();
     if (this.onStateUpdate) this.onStateUpdate({ state, errors, paused, ...flags });
   }
@@ -294,6 +299,8 @@ export class App {
     this.hostErrors = [];
     this.hostConditions = [];
     this.pendingPairings = [];
+    this.lightTestEndsAt = null;
+    this._stopLightTestTimer();
     if (!this.overlaySlot) return;
     this._takeover = kind;
     this.overlaySlot.innerHTML = `
@@ -334,7 +341,9 @@ export class App {
     // Pairing requests sit above the problems and never collapse: each waits on a click.
     const pairings = this.pendingPairings;
     const rowCount = conditions.length + errors.length;
-    if (rowCount === 0 && pairings.length === 0) {
+    const testing = this.lightTestEndsAt !== null;
+    if (!testing) this._stopLightTestTimer();
+    if (rowCount === 0 && pairings.length === 0 && !testing) {
       this.bannerSlot.innerHTML = '';
       this._bannerExpanded = false;
       return;
@@ -346,6 +355,7 @@ export class App {
     // .accordion-chevron), not a one-off glyph -- rotated 180deg here for
     // "collapse" the same way .accordion-section.expanded already does.
     const pairingRows = pairings.map((request) => this._renderPairingRow(request)).join('');
+    const testRow = testing ? this._renderLightTestRow() : '';
     const problems = rowCount === 0 ? '' : collapsed
       ? `<button type="button" class="shell-banner-summary" id="shell-banner-expand"><span class="warn-glyph" aria-hidden="true"></span> ${rowCount} problems <span class="accordion-chevron" aria-hidden="true"></span></button>`
       : conditions.map((condition) => this._renderConditionRow(condition)).join('')
@@ -356,7 +366,7 @@ export class App {
 
     this.bannerSlot.innerHTML = `
       <div class="shell-banner">
-        <div class="shell-banner-inner">${pairingRows}${problems}</div>
+        <div class="shell-banner-inner">${pairingRows}${testRow}${problems}</div>
       </div>
     `;
 
@@ -364,6 +374,11 @@ export class App {
       const ref = escapeHtml(request.ref);
       this.bannerSlot.querySelector(`#shell-pairing-approve-${ref}`)?.addEventListener('click', () => this._decidePairing(request.ref, 'approve'));
       this.bannerSlot.querySelector(`#shell-pairing-deny-${ref}`)?.addEventListener('click', () => this._decidePairing(request.ref, 'deny'));
+    }
+
+    if (testing) {
+      this.bannerSlot.querySelector('#shell-light-test-stop')?.addEventListener('click', () => this._stopLightTest());
+      this._startLightTestTimer();
     }
 
     if (rowCount === 0) return;
@@ -386,16 +401,75 @@ export class App {
     }
   }
 
+  // No Keep here: that stays with the agent (confirm needs an effect id the
+  // user has not chosen). 'by' because a dead client reverts sooner.
+  _renderLightTestRow() {
+    return `<div class="shell-banner-row"><div class="shell-banner-content">
+      <p class="status-text shell-pairing-title">An MCP client is testing an effect on the lights. Will revert in: <span id="shell-light-test-time">${this._lightTestClock()}</span></p>
+      <div class="shell-banner-actions">
+        <button type="button" class="btn btn-secondary" id="shell-light-test-stop">Stop test</button>
+      </div>
+    </div></div>`;
+  }
+
+  _lightTestClock() {
+    const seconds = Math.max(0, Math.ceil((this.lightTestEndsAt - Date.now()) / 1000));
+    return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`;
+  }
+
+  // Ticks only the clock text so the Stop button keeps focus between polls.
+  _startLightTestTimer() {
+    if (this._lightTestTimer !== null) return;
+    this._lightTestTimer = setInterval(() => {
+      const time = this.bannerSlot?.querySelector('#shell-light-test-time');
+      if (time && this.lightTestEndsAt !== null) time.textContent = this._lightTestClock();
+    }, 1000);
+    this._lightTestTimer.unref?.();
+  }
+
+  _stopLightTestTimer() {
+    if (this._lightTestTimer === null) return;
+    clearInterval(this._lightTestTimer);
+    this._lightTestTimer = null;
+  }
+
+  // The re-poll shows what the daemon holds (a test that already ended just goes).
+  async _stopLightTest() {
+    try {
+      await fetch('/api/graph/test/stop', { method: 'POST' });
+    } catch {
+      // Unreachable is the beat's takeover.
+    }
+    await this.checkNow();
+  }
+
   // The code is the user's check that the request is their own device.
   _renderPairingRow(request) {
     const ref = escapeHtml(request.ref);
     return `<div class="shell-banner-row"><div class="shell-banner-content">
-      <p class="status-text">Pair <strong>${escapeHtml(request.name ?? '')}</strong> with Aurora? Approve only if it shows code <strong class="shell-pairing-code">${escapeHtml(request.code ?? '')}</strong>.</p>
+      <p class="status-text shell-pairing-title">Pair a device with Aurora?</p>
+      <ul class="shell-pairing-details">
+        <li><span class="shell-pairing-label">Device:</span> ${escapeHtml(request.name ?? '')}</li>
+        ${request.from ? `<li><span class="shell-pairing-label">From:</span> ${escapeHtml(request.from)}</li>` : ''}
+        ${this._pairingAccess(request.scope)}
+        <li><span class="shell-pairing-label">Code:</span> <strong class="shell-pairing-code">${escapeHtml(request.code ?? '')}</strong>. Approve only if the device shows the same code.</li>
+      </ul>
       <div class="shell-banner-actions">
         <button type="button" class="btn btn-primary" id="shell-pairing-approve-${ref}">Approve</button>
         <button type="button" class="btn btn-secondary" id="shell-pairing-deny-${ref}">Deny</button>
       </div>
     </div></div>`;
+  }
+
+  // Browsers ask for admin and read as before. Below admin is an agent token
+  // (aurora-mcp --pair), so the approver sees what it can do.
+  _pairingAccess(scope) {
+    const access = {
+      read: 'View only.',
+      draft: 'Edit drafts, not the lights.',
+      apply: 'Change effects and test on the lights, not settings.',
+    }[scope];
+    return access ? `<li><span class="shell-pairing-label">Access:</span> ${scope[0].toUpperCase()}${scope.slice(1)}. ${access}</li>` : '';
   }
 
   // No optimistic removal: the re-read shows what the daemon holds (an

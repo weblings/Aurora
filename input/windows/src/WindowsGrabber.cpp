@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <chrono>
+#include <cstdio>
 #include <cwchar>
 #include <iostream>
 #include <iterator>
@@ -246,6 +247,7 @@ namespace Aurora::Input::Windows
     );
 
     if(FAILED(hr)){
+      _noteDuplicationFailure("D3D11CreateDevice", hr);
       return false;
     }
 
@@ -265,6 +267,7 @@ namespace Aurora::Input::Windows
       // than treating this as fatal. See WindowsInputAnalysis.md.
       m_device.Reset();
       m_context.Reset();
+      _noteDuplicationFailure(output5 ? "DuplicateOutput1" : "DuplicateOutput", hr);
       return false;
     }
 
@@ -274,7 +277,37 @@ namespace Aurora::Input::Windows
     m_rotation = duplDesc.Rotation;
     _refreshSdrWhiteScale();
 
+    m_duplicationFailingSince.reset();
+    std::lock_guard lock(m_failureMutex);
+    m_duplicationFailure.clear();
     return true;
+  }
+
+
+  void WindowsGrabber::_noteDuplicationFailure(const char* call, HRESULT hr)
+  {
+    // Short failures (UAC secure desktop, mode switch) stay silent retries; a
+    // standing one (Aurora-8u3p: UNSUPPORTED without DPI awareness) is reported.
+    const auto now = std::chrono::steady_clock::now();
+    if(!m_duplicationFailingSince){
+      m_duplicationFailingSince = now;
+    }
+    if(now - *m_duplicationFailingSince < std::chrono::seconds(3)){
+      return;
+    }
+
+    char message[128];
+    std::snprintf(message, sizeof(message), "Screen capture unavailable: %s failed (HRESULT 0x%08lX)",
+      call, static_cast<unsigned long>(hr));
+    std::lock_guard lock(m_failureMutex);
+    m_duplicationFailure = message;
+  }
+
+
+  std::string WindowsGrabber::captureError() const
+  {
+    std::lock_guard lock(m_failureMutex);
+    return m_duplicationFailure;
   }
 
 
@@ -407,6 +440,12 @@ namespace Aurora::Input::Windows
       }
       m_wake.notify_all();
       m_captureThread.join();
+    }
+
+    m_duplicationFailingSince.reset();
+    {
+      std::lock_guard lock(m_failureMutex);
+      m_duplicationFailure.clear();
     }
 
     std::lock_guard lock(m_latestMutex);

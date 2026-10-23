@@ -9,6 +9,8 @@
 
 #include <Aurora/Runtime/ConfigApply.hpp>
 #include <Aurora/Runtime/ConfigStore.hpp>
+#include <Aurora/Runtime/EffectStore.hpp>
+#include <Aurora/Runtime/MonitorSelector.hpp>
 #include <Aurora/Runtime/ZoneMapStore.hpp>
 
 namespace Aurora::Runtime
@@ -61,6 +63,67 @@ namespace Aurora::Runtime
     };
 
 
+    struct SourceNeeds
+    {
+      bool video{false};
+      bool audio{false};
+    };
+
+    // Which capture sources a graph doc declares, by node type.
+    SourceNeeds _sourceNeeds(const nlohmann::json& doc)
+    {
+      SourceNeeds needs;
+      const auto nodes = doc.find("nodes");
+      if(nodes == doc.end() || !nodes->is_array()){
+        return needs;
+      }
+      for(const auto& node : *nodes){
+        const std::string type = node.is_object() ? node.value("type", std::string{}) : std::string{};
+        needs.video = needs.video || type == "video.capture";
+        needs.audio = needs.audio || type == "audio.capture";
+      }
+      return needs;
+    }
+
+
+    struct ModePlan
+    {
+      bool audioMode{false};
+      bool bothInputs{false};
+      // Set when the graph needs a source whose input is not configured.
+      std::string missing;
+    };
+
+    // Which inputs a pipeline runs: the config picks (video wins when both
+    // are named), then a custom graph's source nodes override.
+    ModePlan _planMode(const Config& config, const nlohmann::json* doc)
+    {
+      ModePlan plan;
+      plan.audioMode = config.activeInputName().empty();
+      if(!doc){
+        return plan;
+      }
+
+      const SourceNeeds needs = _sourceNeeds(*doc);
+      const bool haveVideo = !config.activeInputName().empty();
+      const bool haveAudio = !config.activeAudioInputName().empty();
+      if((needs.video && !haveVideo) || (needs.audio && !haveAudio)){
+        plan.missing = std::string("graph needs ") + (needs.video && !haveVideo ? "a video" : "an audio")
+          + " input but none is configured";
+      }
+      else if(needs.video && needs.audio){
+        plan.bothInputs = true;
+      }
+      else if(needs.audio){
+        plan.audioMode = true;
+      }
+      else if(needs.video){
+        plan.audioMode = false;
+      }
+      return plan;
+    }
+
+
     constexpr std::uint8_t kUsesVideoInput = 1u << 0;
     constexpr std::uint8_t kUsesAudioInput = 1u << 1;
     constexpr std::uint8_t kSamplesZones = 1u << 2;
@@ -71,7 +134,8 @@ namespace Aurora::Runtime
     const Registry& registry,
     const Config& config,
     const std::filesystem::path& configRoot,
-    const PipelineOptions& options
+    const PipelineOptions& options,
+    const PipelineBuildOverrides& overrides
   )
   {
     // Neither field ever set -- Mode+Device Select hasn't saved anything
@@ -95,15 +159,23 @@ namespace Aurora::Runtime
     }
 
     ScopedPhaseTimer outputsTimer(options, "outputs init");
-    for(const auto& name : outputNames){
-      auto output = registry.createOutput(name);
-      if(!output){
-        _log(options, LogLevel::Error, "Unknown output '" + name + "', skipping");
-        continue;
+    if(overrides.outputsFrom && overrides.outputsFrom->m_outputKeys == outputNames){
+      pipeline->m_outputKeys = outputNames;
+      pipeline->m_outputPtrs = overrides.outputsFrom->m_outputPtrs;
+      pipeline->m_borrowedOutputs = true;
+    }
+    else{
+      for(const auto& name : outputNames){
+        auto output = registry.createOutput(name);
+        if(!output){
+          _log(options, LogLevel::Error, "Unknown output '" + name + "', skipping");
+          continue;
+        }
+        output->init();
+        pipeline->m_outputKeys.push_back(name);
+        pipeline->m_outputPtrs.push_back(output.get());
+        pipeline->m_outputs.push_back(std::move(output));
       }
-      output->init();
-      pipeline->m_outputPtrs.push_back(output.get());
-      pipeline->m_outputs.push_back(std::move(output));
     }
 
     if(pipeline->m_outputPtrs.empty()){
@@ -112,7 +184,8 @@ namespace Aurora::Runtime
 
     // Video wins if both could apply -- explicit opt-in to audio requires
     // leaving activeInputName unset. Past the early return above, an empty
-    // activeInputName therefore always means audio mode.
+    // activeInputName therefore always means audio mode. A custom graph's
+    // source nodes override this below.
     bool useAudioMode = config.activeInputName().empty();
 
     // Aurora-o13 spike: presence-only flag, same convention as
@@ -124,6 +197,66 @@ namespace Aurora::Runtime
     if(dualFlag){
       pipeline->m_dualStats.log = [options](LogLevel level, const std::string& line){ _log(options, level, line); };
     }
+
+    // A custom effect runs on the primary runner only. An unreadable file
+    // becomes the fallback reason; the dev dual-capture spike ignores customs.
+    const std::string customId = dualCapture ? std::string{} : config.customEffectId();
+    std::string customFailure;
+    std::optional<nlohmann::json> customDoc;
+    if(overrides.graph){
+      if(dualCapture){
+        throw std::runtime_error("a graph cannot run in place while the dual-capture spike runs");
+      }
+      customDoc = *overrides.graph;
+    }
+    else if(!customId.empty()){
+      customDoc = EffectStore(configRoot).read(customId, customFailure);
+    }
+
+    // A custom graph picks its inputs from its source nodes. A source whose
+    // input is not configured sends the graph back to the built-in.
+    bool bothInputs = false;
+    if(customDoc){
+      const ModePlan plan = _planMode(config, &*customDoc);
+      if(!plan.missing.empty()){
+        if(overrides.graph){
+          throw std::runtime_error(plan.missing);
+        }
+        customFailure = plan.missing;
+        customDoc.reset();
+      }
+      else{
+        useAudioMode = plan.audioMode;
+        bothInputs = plan.bothInputs;
+      }
+    }
+
+    // Inputs the running pipeline has open under what this build asks for are
+    // reused, not reopened. Any difference in name, monitor, width or sink, or
+    // the dev spike, opens a fresh one as before.
+    Input::IVideoInput* borrowedVideo = nullptr;
+    Input::IAudioInput* borrowedAudio = nullptr;
+    if(const Pipeline* from = overrides.inputsFrom; from && !dualFlag && !(from->m_videoRunner && from->m_audioRunner)){
+      const Config& live = from->m_appliedConfig;
+      Input::IVideoInput* fromVideo = from->m_videoInput ? from->m_videoInput.get() : from->m_parkedVideo.get();
+      Input::IAudioInput* fromAudio = from->m_audioInput ? from->m_audioInput.get() : from->m_parkedAudio.get();
+      if(fromVideo
+        && !config.activeInputName().empty()
+        && config.activeInputName() == live.activeInputName()
+        && config.activeMonitorName() == live.activeMonitorName()
+        && config.subsampleWidth() != 0
+        && config.subsampleWidth() == live.subsampleWidth()){
+        borrowedVideo = fromVideo;
+      }
+      if(fromAudio
+        && !config.activeAudioInputName().empty()
+        && config.activeAudioInputName() == live.activeAudioInputName()
+        && config.audioTargetSinkName() == live.audioTargetSinkName()){
+        borrowedAudio = fromAudio;
+      }
+    }
+    // What the summary and the runners use, owned here or borrowed.
+    Input::IVideoInput* videoInput = nullptr;
 
     ScopedPhaseTimer captureTimer(options, "capture+graph init");
     if(dualCapture){
@@ -147,16 +280,21 @@ namespace Aurora::Runtime
     }
     if(useAudioMode){
 #ifdef AURORA_RUNTIME_AUDIO_AVAILABLE
-      auto audioInput = registry.createAudioInput(config.activeAudioInputName());
-      if(!audioInput){
-        throw std::runtime_error("Unknown audio input '" + config.activeAudioInputName() + "'");
+      std::unique_ptr<Input::IAudioInput> audioInput;
+      if(!borrowedAudio){
+        audioInput = registry.createAudioInput(config.activeAudioInputName());
+        if(!audioInput){
+          throw std::runtime_error("Unknown audio input '" + config.activeAudioInputName() + "'");
+        }
       }
 
       pipeline->m_audioRunner.emplace(
-        *audioInput, pipeline->m_outputPtrs, config, ZoneMapStore(configRoot)
+        borrowedAudio ? *borrowedAudio : *audioInput, pipeline->m_outputPtrs, config, ZoneMapStore(configRoot)
       );
+      if(customDoc){ pipeline->m_audioRunner->setCustomGraph(*customDoc); }
       pipeline->m_audioRunner->init();
       pipeline->m_audioInput = std::move(audioInput);
+      pipeline->m_borrowedAudio = borrowedAudio != nullptr;
       pipeline->m_isAudioMode = true;
       pipeline->m_appliedConfig = config;
       pipeline->m_tickIntervalSeconds = Runtime::tickIntervalSeconds(); // no display-derived rate for audio
@@ -170,17 +308,45 @@ namespace Aurora::Runtime
     }
     else{
       const std::string& inputName = config.activeInputName();
-      auto input = registry.createInput(inputName);
-      if(!input){
-        throw std::runtime_error("Unknown input '" + inputName + "'");
+      std::unique_ptr<Input::IVideoInput> input;
+      if(!borrowedVideo){
+        input = registry.createInput(inputName);
+        if(!input){
+          throw std::runtime_error("Unknown input '" + inputName + "'");
+        }
+        input->init();
       }
-      input->init();
+      videoInput = borrowedVideo ? borrowedVideo : input.get();
 
-      pipeline->m_videoRunner.emplace(
-        *input, pipeline->m_outputPtrs, config, ZoneMapStore(configRoot)
-      );
-      pipeline->m_videoRunner->init();
+      if(bothInputs){
+#ifdef AURORA_RUNTIME_AUDIO_AVAILABLE
+        std::unique_ptr<Input::IAudioInput> audioInput;
+        if(!borrowedAudio){
+          audioInput = registry.createAudioInput(config.activeAudioInputName());
+          if(!audioInput){
+            throw std::runtime_error("Unknown audio input '" + config.activeAudioInputName() + "'");
+          }
+        }
+        pipeline->m_videoRunner.emplace(
+          *videoInput, borrowedAudio ? *borrowedAudio : *audioInput, pipeline->m_outputPtrs, config, ZoneMapStore(configRoot)
+        );
+        pipeline->m_audioInput = std::move(audioInput);
+        pipeline->m_borrowedAudio = borrowedAudio != nullptr;
+        pipeline->m_isDualCapture = true;
+        pipeline->m_bothInputs = true;
+#else
+        throw std::runtime_error(options.noAudioSupportMessage);
+#endif
+      }
+      else{
+        pipeline->m_videoRunner.emplace(
+          *videoInput, pipeline->m_outputPtrs, config, ZoneMapStore(configRoot)
+        );
+      }
+      if(customDoc){ pipeline->m_videoRunner->setCustomGraph(*customDoc); }
+      pipeline->m_videoRunner->init(/*videoReady*/ borrowedVideo != nullptr);
       pipeline->m_videoInput = std::move(input);
+      pipeline->m_borrowedVideo = borrowedVideo != nullptr;
       pipeline->m_isAudioMode = false;
       // Post-derivation: refreshRate/subsampleWidth are the display-derived
       // values, matching what the settings save now holds on disk.
@@ -208,19 +374,47 @@ namespace Aurora::Runtime
       });
 
       _log(options, LogLevel::Info,
-        "Aurora running: input='" + inputName + "', "
+        "Aurora running: input='" + inputName + "'"
+        + (bothInputs ? ", audio input='" + config.activeAudioInputName() + "'" : std::string{}) + ", "
         + std::to_string(pipeline->m_outputPtrs.size()) + " output(s).");
     }
 
     // Audio-only is the audio graph; video (plain or dual-capture) is the
     // video graph, matching what the dev spike runs as primary.
-    pipeline->m_summary.effect = useAudioMode ? "builtin.audio" : "builtin.video";
+    const std::string builtInId = useAudioMode ? kBuiltInAudioEffectId : kBuiltInVideoEffectId;
+    if(overrides.graph){
+      // A test on lights: the graph runs, the summary keeps naming the live effect.
+      const GraphRunner& primary = useAudioMode ? *pipeline->m_audioRunner : *pipeline->m_videoRunner;
+      if(!primary.runningCustom()){
+        throw std::runtime_error("the graph failed to load: " + primary.customError());
+      }
+      const std::string liveBuiltIn = _planMode(config, nullptr).audioMode ? kBuiltInAudioEffectId : kBuiltInVideoEffectId;
+      pipeline->m_summary.effect = customId.empty() ? liveBuiltIn : customId;
+      pipeline->m_summary.requestedEffect = pipeline->m_summary.effect;
+      const SourceNeeds needs = _sourceNeeds(*customDoc);
+      pipeline->m_summary.graphInputs = PipelineSummary::GraphInputs{needs.video, needs.audio};
+    }
+    else{
+      pipeline->m_summary.effect = builtInId;
+      pipeline->m_summary.requestedEffect = customId.empty() ? builtInId : customId;
+    }
+    if(!customId.empty() && !overrides.graph){
+      const GraphRunner& primary = useAudioMode ? *pipeline->m_audioRunner : *pipeline->m_videoRunner;
+      if(primary.runningCustom()){
+        pipeline->m_summary.effect = customId;
+        const SourceNeeds needs = _sourceNeeds(*customDoc);
+        pipeline->m_summary.graphInputs = PipelineSummary::GraphInputs{needs.video, needs.audio};
+      }
+      else{
+        pipeline->m_summary.fallbackReason = customFailure.empty() ? primary.customError() : customFailure;
+      }
+    }
     if(!useAudioMode){
       pipeline->m_summary.video = PipelineSummary::Video{
-        config.activeInputName(), pipeline->m_videoInput->selectedMonitorName()
+        config.activeInputName(), videoInput->selectedMonitorName()
       };
     }
-    if(useAudioMode || dualCapture){
+    if(useAudioMode || dualCapture || bothInputs){
       pipeline->m_summary.audio = PipelineSummary::Audio{
         config.activeAudioInputName(),
         config.audioTargetSinkName(),
@@ -229,6 +423,38 @@ namespace Aurora::Runtime
     }
 
     return pipeline;
+  }
+
+
+  std::optional<GraphPreview::Inputs> openPreviewInputs(
+    const Registry& registry, const PreviewInputPlan& plan, std::string& errorOut)
+  {
+    GraphPreview::Inputs inputs;
+    if(!plan.video.empty()){
+      inputs.video = registry.createInput(plan.video);
+      if(!inputs.video){
+        errorOut = "Unknown input '" + plan.video + "'";
+        return std::nullopt;
+      }
+      inputs.video->init();
+      selectConfiguredMonitor(*inputs.video, plan.config);
+      if(plan.config.subsampleWidth() != 0){
+        inputs.video->setCaptureWidthHint(plan.config.subsampleWidth());
+      }
+    }
+    if(!plan.audio.empty()){
+#ifdef AURORA_RUNTIME_AUDIO_AVAILABLE
+      inputs.audio = registry.createAudioInput(plan.audio);
+      if(!inputs.audio){
+        errorOut = "Unknown audio input '" + plan.audio + "'";
+        return std::nullopt;
+      }
+#else
+      errorOut = "this build has no audio support";
+      return std::nullopt;
+#endif
+    }
+    return inputs;
   }
 
 
@@ -270,6 +496,185 @@ namespace Aurora::Runtime
     // so the next diff starts from what disk says now.
     m_appliedConfig = next;
     return result;
+  }
+
+
+  bool Pipeline::swapEffect(const Config& next, const nlohmann::json& doc)
+  {
+    // The dev dual-capture spike runs two graphs; a swap has no one to target.
+    if(m_videoRunner && m_audioRunner){
+      return false;
+    }
+
+    // Anything but the effect id moving, or a graph that wants other inputs
+    // than the ones running, needs the rebuild.
+    Config probe = next;
+    probe.setActiveEffectId(m_appliedConfig.activeEffectId());
+    if(planConfigChange(m_appliedConfig, probe, m_isAudioMode) != ChangeAction::None){
+      return false;
+    }
+    const ModePlan plan = _planMode(next, &doc);
+    if(!plan.missing.empty() || plan.audioMode != m_isAudioMode || plan.bothInputs != m_bothInputs){
+      return false;
+    }
+
+    std::string error;
+    GraphRunner& runner = m_isAudioMode ? *m_audioRunner : *m_videoRunner;
+    if(!runner.swapCustomGraph(doc, error)){
+      return false;
+    }
+
+    const std::string id = next.customEffectId();
+    m_summary.effect = id;
+    m_summary.requestedEffect = id;
+    m_summary.fallbackReason.clear();
+    const SourceNeeds needs = _sourceNeeds(doc);
+    m_summary.graphInputs = PipelineSummary::GraphInputs{needs.video, needs.audio};
+    m_appliedConfig.setActiveEffectId(next.activeEffectId());
+    return true;
+  }
+
+
+  bool Pipeline::testGraph(const nlohmann::json& doc)
+  {
+    if(m_videoRunner && m_audioRunner){
+      return false;
+    }
+    const ModePlan plan = _planMode(m_appliedConfig, &doc);
+    if(!plan.missing.empty() || plan.audioMode != m_isAudioMode || plan.bothInputs != m_bothInputs){
+      return false;
+    }
+    std::string error;
+    if(!(m_isAudioMode ? *m_audioRunner : *m_videoRunner).restoreGraph(doc, error)){
+      return false;
+    }
+    const SourceNeeds needs = _sourceNeeds(doc);
+    m_summary.graphInputs = PipelineSummary::GraphInputs{needs.video, needs.audio};
+    return true;
+  }
+
+
+  void Pipeline::adoptOutputsFrom(Pipeline& previous)
+  {
+    m_outputs = std::move(previous.m_outputs);
+    previous.m_outputs.clear();
+    previous.m_outputPtrs.clear();
+    m_borrowedOutputs = false;
+  }
+
+
+  void Pipeline::adoptInputsFrom(Pipeline& previous, bool parkUnused)
+  {
+    // An input is in one slot of `previous`: in use, or parked by an earlier test.
+    auto takeVideo = [&previous]{
+      return previous.m_videoInput ? std::move(previous.m_videoInput) : std::move(previous.m_parkedVideo);
+    };
+    auto takeAudio = [&previous]{
+      return previous.m_audioInput ? std::move(previous.m_audioInput) : std::move(previous.m_parkedAudio);
+    };
+
+    if(m_borrowedVideo){
+      m_videoInput = takeVideo();
+      m_borrowedVideo = false;
+    }
+    if(m_borrowedAudio){
+      m_audioInput = takeAudio();
+      m_borrowedAudio = false;
+    }
+    if(parkUnused){
+      if(!m_videoInput){ m_parkedVideo = takeVideo(); }
+      if(!m_audioInput){ m_parkedAudio = takeAudio(); }
+    }
+  }
+
+
+  std::optional<PreviewInputPlan> Pipeline::previewInputsFor(const nlohmann::json& doc, std::string& errorOut) const
+  {
+    if(m_videoRunner && m_audioRunner){
+      errorOut = "preview is off while the dual-capture spike runs";
+      return std::nullopt;
+    }
+    // What the live runner serves: video unless audio-only, audio when audio-only or both.
+    const SourceNeeds needs = _sourceNeeds(doc);
+    PreviewInputPlan plan;
+    plan.config = m_appliedConfig;
+    if(needs.video && m_isAudioMode){
+      plan.video = m_appliedConfig.activeInputName();
+      if(plan.video.empty()){
+        errorOut = "graph needs a video input but none is configured";
+        return std::nullopt;
+      }
+    }
+    if(needs.audio && !m_isAudioMode && !m_bothInputs){
+      plan.audio = m_appliedConfig.activeAudioInputName();
+      if(plan.audio.empty()){
+        errorOut = "graph needs an audio input but none is configured";
+        return std::nullopt;
+      }
+    }
+    return plan;
+  }
+
+
+  std::shared_ptr<GraphPreview> Pipeline::openPreview(
+    const std::string& session, const nlohmann::json& doc, GraphPreview::Inputs inputs, std::string& errorOut)
+  {
+    // Recheck against the inputs handed in: the pipeline may have changed since
+    // previewInputsFor(), and the plan itself is not trusted past the lock.
+    const auto plan = previewInputsFor(doc, errorOut);
+    if(!plan){
+      return nullptr;
+    }
+    if((!plan->video.empty() && !inputs.video) || (!plan->audio.empty() && !inputs.audio)){
+      errorOut = "the preview's inputs do not cover what the graph needs";
+      return nullptr;
+    }
+    return (m_isAudioMode ? *m_audioRunner : *m_videoRunner).openPreview(session, doc, std::move(inputs), errorOut);
+  }
+
+
+  bool Pipeline::reloadPreview(GraphPreview& preview, const nlohmann::json& doc, std::string& errorOut)
+  {
+    // An edit can add a source nobody opened; the stream has to restart to open it.
+    const SourceNeeds needs = _sourceNeeds(doc);
+    const bool haveVideo = !m_isAudioMode || preview.hasVideo();
+    const bool haveAudio = m_isAudioMode || m_bothInputs || preview.hasAudio();
+    if((needs.video && !haveVideo) || (needs.audio && !haveAudio)){
+      errorOut = std::string("the draft now needs a ") + (needs.video && !haveVideo ? "video" : "audio")
+        + " input the preview did not open; reconnect the preview";
+      return false;
+    }
+    return (m_isAudioMode ? *m_audioRunner : *m_videoRunner).reloadPreview(preview, doc, errorOut);
+  }
+
+
+  void Pipeline::closePreview(const std::string& session, const GraphPreview* preview)
+  {
+    (m_isAudioMode ? *m_audioRunner : *m_videoRunner).closePreview(session, preview);
+  }
+
+
+  bool Pipeline::restoreEffect(const Config& live, const std::optional<nlohmann::json>& doc)
+  {
+    if(doc){
+      return swapEffect(live, *doc);
+    }
+    if(m_videoRunner && m_audioRunner){
+      return false;
+    }
+    // A built-in restore only undoes the graph swap: any Config change since
+    // goes through the usual apply or reload.
+    if(planConfigChange(m_appliedConfig, live, m_isAudioMode) != ChangeAction::None
+      || live.activeEffectId() != m_appliedConfig.activeEffectId()
+      || m_bothInputs){
+      return false;
+    }
+    std::string error;
+    if(!(m_isAudioMode ? *m_audioRunner : *m_videoRunner).restoreGraph(std::nullopt, error)){
+      return false;
+    }
+    m_summary.graphInputs.reset();
+    return true;
   }
 
 
@@ -376,6 +781,10 @@ namespace Aurora::Runtime
 
   void Pipeline::shutdown(bool isReplacement)
   {
+    // Borrowed outputs belong to the pipeline they came from.
+    if(m_borrowedOutputs){
+      return;
+    }
     for(auto* output : m_outputPtrs){
       output->shutdown(isReplacement);
     }
@@ -412,7 +821,12 @@ namespace Aurora::Runtime
     }
     std::lock_guard<std::mutex> lock(m_mutex);
     for(HostError& error : errors){ error.id = m_nextErrorId++; }
-    _publishStatusLocked(std::move(errors));
+    if(errors.empty()){
+      _publishBuiltLocked();
+    }
+    else{
+      _publishStatusLocked(std::move(errors));
+    }
   }
 
 
@@ -441,6 +855,25 @@ namespace Aurora::Runtime
       m_status = HostStatus{state, std::move(errors)};
     }
     m_changes.bump();
+  }
+
+
+  void PipelineHost::_publishBuiltLocked()
+  {
+    m_captureError.clear();
+    std::vector<HostError> errors;
+    if(m_pipeline && !m_pipeline->summary().fallbackReason.empty()){
+      // After the build, not before: a successful build clears held errors,
+      // and this one describes the build that just succeeded.
+      const PipelineSummary summary = m_pipeline->summary();
+      errors.push_back({
+        "effect_fallback",
+        "Custom effect '" + summary.requestedEffect + "' did not load, so " + summary.effect
+          + " is running: " + summary.fallbackReason,
+        m_nextErrorId++
+      });
+    }
+    _publishStatusLocked(std::move(errors));
   }
 
 
@@ -611,6 +1044,20 @@ namespace Aurora::Runtime
     if(!m_pipeline){ return Runtime::tickIntervalSeconds(); }
     const double interval = m_pipeline->tickIntervalSeconds();
     m_pipeline->tick(static_cast<float>(interval));
+
+    std::string captureError = m_pipeline->captureError();
+    if(captureError != m_captureError){
+      if(captureError.empty()){
+        std::vector<HostError> errors = m_status.errors;
+        errors.erase(std::remove_if(errors.begin(), errors.end(),
+          [](const HostError& e){ return e.source == "video_capture"; }), errors.end());
+        _publishStatusLocked(std::move(errors));
+      }
+      else{
+        _setErrorLocked("video_capture", captureError);
+      }
+      m_captureError = std::move(captureError);
+    }
     return interval;
   }
 
@@ -684,6 +1131,109 @@ namespace Aurora::Runtime
   }
 
 
+  bool PipelineHost::_swapInPlace(const std::function<bool(Pipeline&)>& swap, bool clearFallback, const char* logLine)
+  {
+    std::lock_guard<std::mutex> change(m_changeMutex);
+    {
+      std::lock_guard<std::mutex> lock(m_mutex);
+      if(!m_pipeline || !swap(*m_pipeline)){
+        return false;
+      }
+      _storeCapabilities(m_pipeline.get());
+
+      if(clearFallback){
+        // The effect now runs, so only its fallback entry goes.
+        std::vector<HostError> errors = m_status.errors;
+        errors.erase(
+          std::remove_if(errors.begin(), errors.end(), [](const HostError& e){ return e.source == "effect_fallback"; }),
+          errors.end()
+        );
+        _publishStatusLocked(std::move(errors));
+      }
+    }
+    _log(m_options, LogLevel::Info, logLine);
+    return true;
+  }
+
+
+  bool PipelineHost::applyEffect(const Config& next, const nlohmann::json& doc)
+  {
+    return _swapInPlace(
+      [&](Pipeline& p){ return p.swapEffect(next, doc); }, true, "Effect applied live, no pipeline reload.");
+  }
+
+
+  bool PipelineHost::testGraph(const nlohmann::json& doc)
+  {
+    return _swapInPlace([&](Pipeline& p){ return p.testGraph(doc); }, false, "Test graph running on the lights.");
+  }
+
+
+  std::shared_ptr<GraphPreview> PipelineHost::openPreview(
+    const std::string& session, const nlohmann::json& doc, const Registry& registry, std::string& errorOut)
+  {
+    PreviewInputPlan plan;
+    std::uint64_t epoch = 0;
+    {
+      std::lock_guard<std::mutex> lock(m_mutex);
+      if(!m_pipeline){
+        errorOut = "no pipeline is running";
+        return nullptr;
+      }
+      auto needed = m_pipeline->previewInputsFor(doc, errorOut);
+      if(!needed){
+        return nullptr;
+      }
+      plan = std::move(*needed);
+      epoch = m_buildEpoch.load();
+    }
+
+    // A capture API can block for seconds, so the lock is not held across it.
+    GraphPreview::Inputs inputs;
+    if(plan.any()){
+      auto opened = openPreviewInputs(registry, plan, errorOut);
+      if(!opened){
+        return nullptr;
+      }
+      inputs = std::move(*opened);
+    }
+
+    std::lock_guard<std::mutex> lock(m_mutex);
+    if(!m_pipeline || m_buildEpoch.load() != epoch){
+      errorOut = "the pipeline changed while the preview opened its inputs";
+      return nullptr;
+    }
+    return m_pipeline->openPreview(session, doc, std::move(inputs), errorOut);
+  }
+
+
+  bool PipelineHost::reloadPreview(GraphPreview& preview, const nlohmann::json& doc, std::string& errorOut)
+  {
+    std::lock_guard<std::mutex> lock(m_mutex);
+    if(!m_pipeline){
+      errorOut = "no pipeline is running";
+      return false;
+    }
+    return m_pipeline->reloadPreview(preview, doc, errorOut);
+  }
+
+
+  void PipelineHost::closePreview(const std::string& session, const GraphPreview* preview)
+  {
+    std::lock_guard<std::mutex> lock(m_mutex);
+    if(m_pipeline){
+      m_pipeline->closePreview(session, preview);
+    }
+  }
+
+
+  bool PipelineHost::restoreEffect(const Config& live, const std::optional<nlohmann::json>& doc)
+  {
+    return _swapInPlace(
+      [&](Pipeline& p){ return p.restoreEffect(live, doc); }, true, "Live effect restored after a test.");
+  }
+
+
   bool PipelineHost::reload(
     const Registry& registry,
     const Config& config,
@@ -720,7 +1270,7 @@ namespace Aurora::Runtime
         m_pipeline = std::move(next);
         _storeCapabilities(m_pipeline.get());
         ++m_buildEpoch;
-        _publishStatusLocked({});
+        _publishBuiltLocked();
       }
     }
     if(discardNext){
@@ -730,6 +1280,60 @@ namespace Aurora::Runtime
     // previous is null on the first successful reload after a fresh
     // install started with no Pipeline at all.
     if(previous){ previous->shutdown(/*isReplacement*/ true); }
+    return true;
+  }
+
+
+  bool PipelineHost::reloadInputs(
+    const Registry& registry,
+    const Config& config,
+    const std::filesystem::path& configRoot,
+    const nlohmann::json* graph,
+    std::string& errorOut
+  )
+  {
+    // Held through the build so the pipeline whose outputs the new one borrows
+    // cannot be replaced, paused or destroyed meanwhile. Ticks are not blocked.
+    std::lock_guard<std::mutex> change(m_changeMutex);
+    if(m_paused || !m_pipeline){
+      errorOut = "no pipeline is running";
+      return false;
+    }
+
+    ScopedPhaseTimer timer(m_options, "input rebuild total");
+    std::unique_ptr<Pipeline> next;
+    try{
+      PipelineBuildOverrides overrides;
+      overrides.graph = graph;
+      overrides.outputsFrom = m_pipeline.get();
+      overrides.inputsFrom = m_pipeline.get();
+      next = Pipeline::build(registry, config, configRoot, m_options, overrides);
+    }
+    catch(const std::exception& e){
+      errorOut = _describeBuildError(e);
+      return false;
+    }
+    if(!next){
+      errorOut = "no input is configured";
+      return false;
+    }
+
+    std::unique_ptr<Pipeline> previous;
+    {
+      std::lock_guard<std::mutex> lock(m_mutex);
+      previous = std::move(m_pipeline);
+      if(next->borrowsOutputs()){
+        next->adoptOutputsFrom(*previous);
+      }
+      // A test keeps the inputs its graph skips open, for the revert.
+      next->adoptInputsFrom(*previous, /*parkUnused*/ graph != nullptr);
+      m_pipeline = std::move(next);
+      _storeCapabilities(m_pipeline.get());
+      ++m_buildEpoch;
+      _publishBuiltLocked();
+    }
+    // Shuts down nothing when the outputs moved on, else the replaced ones.
+    previous->shutdown(/*isReplacement*/ true);
     return true;
   }
 
@@ -815,7 +1419,7 @@ namespace Aurora::Runtime
     m_pausedZones = {};
     m_paused = false;
     ++m_buildEpoch;
-    _publishStatusLocked({});
+    _publishBuiltLocked();
     return true;
   }
 
@@ -837,6 +1441,29 @@ namespace Aurora::Runtime
     std::string error;
     pipelineHost.reload(registry, freshConfig, configRoot, error);
     return error;
+  }
+
+
+  std::string applyEffectFromDisk(
+    PipelineHost& pipelineHost,
+    const Registry& registry,
+    const std::filesystem::path& configRoot
+  )
+  {
+    const Config freshConfig = ConfigStore(configRoot).load();
+    const std::string id = freshConfig.customEffectId();
+    if(id.empty()){
+      return applyConfigFromDisk(pipelineHost, registry, configRoot);
+    }
+
+    std::string readError;
+    if(auto doc = EffectStore(configRoot).read(id, readError)){
+      if(pipelineHost.applyEffect(freshConfig, *doc)){
+        return {};
+      }
+    }
+    // Reload even when only the file changed: the config diff is empty then.
+    return reloadPipelineFromDisk(pipelineHost, registry, configRoot);
   }
 
 

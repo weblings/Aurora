@@ -11,6 +11,7 @@
 #include <glm/vec3.hpp>
 
 #include <Aurora/Runtime/Graph/ColorNodes.hpp>
+#include <Aurora/Runtime/Graph/ValueNoise.hpp>
 
 namespace Aurora::Runtime::Graph
 {
@@ -219,6 +220,81 @@ namespace Aurora::Runtime::Graph
       return std::clamp((half + softness - d) / softness, 0.f, 1.f);
     }
 
+    // Each cell of a square grid flickers on its own value noise, so
+    // neighbouring cells are uncorrelated. Time is internal: it advances by
+    // rateHz * dt and re-renders each tick it moves.
+    class NoiseImageNode : public INode
+    {
+    public:
+      const std::vector<PortDecl>& inputPorts() const override { return m_in; }
+      const std::vector<PortDecl>& outputPorts() const override { return m_out; }
+
+      void evaluate(const EvalContext& ctx, float dt, Outputs& outputs) override
+      {
+        int width = sideParam(ctx, "width");
+        int height = sideParam(ctx, "height");
+        float cells = ctx.param<float>("cells");
+        float rateHz = ctx.param<float>("rateHz");
+        float seed = ctx.param<float>("seed");
+        if(!std::isfinite(cells) || cells < 1.f || !std::isfinite(rateHz) || !std::isfinite(seed)){
+          ctx.fail("got a non-finite or out of range cells, rateHz or seed");
+        }
+        m_time += static_cast<double>(rateHz) * dt;
+        const Color* colorIn = ctx.optionalInput<Color>("color");
+        const Color* backgroundIn = ctx.optionalInput<Color>("background");
+        Color color = colorIn != nullptr ? *colorIn : Color(255, 255, 255);
+        Color background = backgroundIn != nullptr ? *backgroundIn : Color(0, 0, 0);
+
+        std::vector<float> key = {float(width), float(height), cells, float(m_time), seed};
+        appendColor(key, color);
+        appendColor(key, background);
+        if(!m_cached || key != m_key){
+          m_cached = renderNoise(width, height, cells, static_cast<uint32_t>(std::lround(seed)), color, background);
+          m_key = std::move(key);
+        }
+        outputs.emplace("image", m_cached);
+      }
+
+      bool checkStateInvariants() const override { return std::isfinite(m_time); }
+      void resetState() override
+      {
+        m_time = 0.0;
+        m_cached.reset();
+      }
+
+    private:
+      ImagePtr renderNoise(
+        int width, int height, float cells, uint32_t seed, const Color& color, const Color& background) const
+      {
+        auto image = std::make_shared<Contracts::ImageData>();
+        image->format = Contracts::PixelFormat::RGB;
+        image->imageMatrix = cv::Mat(height, width, CV_8UC3);
+        glm::vec3 fg = color.toNormalized();
+        glm::vec3 bg = background.toNormalized();
+        // Cells are square in image pixels: `cells` across the width.
+        float cellsPerPx = cells / static_cast<float>(width);
+        for(int y = 0; y < height; ++y){
+          uint8_t* row = image->imageMatrix.ptr<uint8_t>(y);
+          uint32_t cy = static_cast<uint32_t>((y + 0.5f) * cellsPerPx);
+          for(int x = 0; x < width; ++x){
+            uint32_t cx = static_cast<uint32_t>((x + 0.5f) * cellsPerPx);
+            float level = ValueNoise::sample(m_time, cx * 65536u + cy, seed);
+            glm::vec3 rgb = (bg + (fg - bg) * level) * Color::Max;
+            row[x * 3] = static_cast<uint8_t>(std::lround(rgb.r));
+            row[x * 3 + 1] = static_cast<uint8_t>(std::lround(rgb.g));
+            row[x * 3 + 2] = static_cast<uint8_t>(std::lround(rgb.b));
+          }
+        }
+        return image;
+      }
+
+      std::vector<PortDecl> m_in{{"color", PortType::Color, false}, {"background", PortType::Color, false}};
+      std::vector<PortDecl> m_out{{"image", PortType::Image, false}};
+      double m_time = 0.0;
+      std::vector<float> m_key{};
+      ImagePtr m_cached{};
+    };
+
     ParamDecl wrapParam()
     {
       ParamDecl wrap;
@@ -310,6 +386,41 @@ namespace Aurora::Runtime::Graph
         };
         return plan;
       });
+
+    {
+      ParamDecl width = floatParam("width", "Width", 1.f, kMaxSide, 64.f,
+        "Rendered width in px. Keep small: zones.sample only needs a coarse grid.");
+      width.schema.step = 1.f;
+      width.schema.unit = "px";
+      ParamDecl height = floatParam("height", "Height", 1.f, kMaxSide, 36.f, "Rendered height in px.");
+      height.schema.step = 1.f;
+      height.schema.unit = "px";
+      ParamDecl cells = floatParam("cells", "Cells", 1.f, kMaxSide, 8.f,
+        "Flicker cells across the image width, each independent. A zone averages the cells it covers, "
+        "so use enough cells that every zone sits mostly inside one.");
+      cells.schema.step = 1.f;
+      ParamDecl rate = floatParam("rateHz", "Rate", 0.f, 100.f, 1.f, "New random targets per second per cell.");
+      rate.schema.unit = "Hz";
+      ParamDecl seed = floatParam("seed", "Seed", 0.f, 65535.f, 0.f, "Different seeds give different patterns.");
+      seed.schema.step = 1.f;
+      registry.registerType(
+        "image.noise",
+        NodeTypeInfo{
+          .meta =
+            {.purpose =
+               "Render a grid of cells that each flicker on their own smooth random wander between "
+               "background and color. Neighbouring cells are uncorrelated, unlike scrolling gradients.",
+             .useWhen = "Independent per-light flicker, e.g. a bank of candles or a fire, sampled per zone "
+                        "by zones.sample.",
+             .example = "{\"id\": \"candles\", \"type\": \"image.noise\", \"params\": {\"cells\": 16, "
+                        "\"rateHz\": 6}}",
+             .cost = "cheap"},
+          .inputs = {{"color", PortType::Color, false}, {"background", PortType::Color, false}},
+          .outputs = {{"image", PortType::Image, false}},
+          .params = {width, height, cells, rate, seed},
+          .factory = [] { return std::make_unique<NoiseImageNode>(); },
+        });
+    }
 
     add(registry, "image.hueRamp",
       {.purpose =

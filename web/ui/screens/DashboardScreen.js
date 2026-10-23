@@ -35,7 +35,8 @@ import { applyTooltip } from '../Tooltips.js';
 import { renderReloadError } from '../MacPermissionRecovery.js';
 import {
   audioDevicesUrlFrom, devicePatch, effectiveFlags, flagsForMode, isSwitchConfirmed, isSwitchErrorStale,
-  isIdle, loadPipelineState, modeFromFlags, modeSwitchPatch, putModeSwitch, runningFlags,
+  isIdle, isMcpSwitchConfirmed, lightTestActive, loadPipelineState, mcpEffectIdFrom, modeSwitchPatch, runningToggle,
+  putMcpSwitch, putModeSwitch, runningFlags,
 } from '../CaptureSource.js';
 import { DAEMON_UNREACHABLE } from '../messages.js';
 // Brand/toggle artwork resolved against this module (screens/ -> ../icons)
@@ -87,7 +88,8 @@ const OUTPUT_SECTIONS = {
 export class DashboardScreen {
   constructor(app) {
     this.app = app;
-    this.mode = 'video';
+    this.mode = null; // video | audio | mcp, null when no toggle is running
+    this.mcpEffectId = null; // GET /api/state: the last MCP-applied effect, null hides its toggle
     this.hasAudio = false;
     this.inputs = [];
     this.audioInputs = [];
@@ -257,7 +259,8 @@ export class DashboardScreen {
     this.flags = effectiveFlags(state, config);
     // The toggle's fill follows the running pipeline, never the saved
     // config: after a failed switch config holds the failed mode.
-    this.mode = modeFromFlags(this.flags);
+    this.mcpEffectId = mcpEffectIdFrom(state);
+    this.mode = runningToggle(state);
     // A switch error lasts until the pipeline is running the mode it was
     // heading to (Aurora-tazx): a confirmed switch, or a resume/relaunch
     // that starts the saved mode the failed switch left in config.
@@ -351,6 +354,7 @@ export class DashboardScreen {
         <div class="segmented" role="group" aria-label="Capture mode">
           <button type="button" class="${this._toggleClasses('video')}" id="db-mode-video"${disabled}>Video</button>
           <button type="button" class="${this._toggleClasses('audio')}" id="db-mode-audio"${disabled}>Audio</button>
+          ${this.mcpEffectId || lightTestActive(this.pipelineState) ? `<button type="button" class="${this._toggleClasses('mcp')}" id="db-mode-mcp"${disabled}>MCP</button>` : ''}
         </div>
       </div>
       ${errorHtml}
@@ -360,13 +364,12 @@ export class DashboardScreen {
     applyTooltip(controls.querySelector('#db-mode-audio'), 'app.mode');
     controls.querySelector('#db-mode-video').addEventListener('click', () => this._switchMode('video'));
     controls.querySelector('#db-mode-audio').addEventListener('click', () => this._switchMode('audio'));
+    controls.querySelector('#db-mode-mcp')?.addEventListener('click', () => this._switchMode('mcp'));
   }
 
   _toggleClasses(mode) {
     const classes = ['segmented-btn'];
-    if (mode === 'video' ? this.flags.usesVideoInput : this.flags.usesAudioInput) {
-      classes.push('active');
-    }
+    if (this.mode === mode) classes.push('active');
     if (this.pendingMode === mode) classes.push('pending');
     return classes.join(' ');
   }
@@ -388,16 +391,22 @@ export class DashboardScreen {
       ${errorHtml}
     `;
 
+    const hintsAllowed = Object.keys(this.topTierErrors).length === 0 && !this.toggleError;
+    // Under MCP the graph's declared inputs pick the pickers, so a graph
+    // with none shows no field (DeviceField alone would fall back to Monitor).
+    const graphInputs = this.mode === 'mcp' ? this.pipelineState?.graphInputs : null;
+    if (graphInputs && !graphInputs.video && !graphInputs.audio) return;
     this.deviceField = new DeviceField(topTier.querySelector('.db-device-slot'), {
-      usesVideoInput: this.flags.usesVideoInput,
-      usesAudioInput: this.flags.usesAudioInput,
+      usesVideoInput: graphInputs ? graphInputs.video : this.flags.usesVideoInput,
+      usesAudioInput: graphInputs ? graphInputs.audio : this.flags.usesAudioInput,
       audioDevicesUrl: this.audioDevicesUrl,
       monitors: this.monitors,
       selectedMonitorName: this.selectedMonitorName,
       sinkName: this.sinkName,
       // The hint ("once Video connects") reads wrong beside an error about
       // that same input -- Screen Recording denied is blocked, not connecting.
-      showHint: Object.keys(this.topTierErrors).length === 0 && !this.toggleError,
+      showVideoHint: hintsAllowed,
+      showAudioHint: hintsAllowed,
       onChange: (patch) => this._onDeviceFieldChange(patch),
     });
   }
@@ -681,8 +690,8 @@ export class DashboardScreen {
   async _switchMode(mode) {
     if (this.pendingMode || mode === this.mode) return;
 
-    const patch = modeSwitchPatch(mode, this);
-    const modeLabel = mode === 'audio' ? 'Audio' : 'Video';
+    const patch = mode === 'mcp' ? null : modeSwitchPatch(mode, this);
+    const modeLabel = { audio: 'Audio', mcp: 'MCP' }[mode] ?? 'Video';
 
     // Outline the clicked option and disable both buttons while the rebuild
     // runs; the running option stays filled until the pipeline confirms.
@@ -694,7 +703,7 @@ export class DashboardScreen {
     let putResult = null;
     let unreachable = false;
     try {
-      putResult = await putModeSwitch(patch);
+      putResult = mode === 'mcp' ? await putMcpSwitch(this.mcpEffectId) : await putModeSwitch(patch);
 
       if (!putResult.succeeded) {
         this._setToggleError(`Couldn't switch to ${modeLabel}.`, mode);
@@ -730,7 +739,9 @@ export class DashboardScreen {
     // succeeded + no reloadError is not enough, since reload() while paused
     // succeeds without building (Pipeline.cpp). _loadAll already set the
     // fill from the flags, so this just records the confirmed running mode.
-    const confirmed = isSwitchConfirmed(putResult, this.pipelineState, mode);
+    const confirmed = mode === 'mcp'
+      ? isMcpSwitchConfirmed(putResult, this.pipelineState)
+      : isSwitchConfirmed(putResult, this.pipelineState, mode);
     if (confirmed) {
       this.mode = mode;
       this.toggleError = null;
@@ -844,14 +855,15 @@ export class DashboardScreen {
   // Shell heartbeat push (Aurora-cj11): applies whatever changed and
   // re-renders only the top bar -- never a full _loadAll(), which would
   // fight the beat's own 3s cadence with a second round of requests.
-  _onHeartbeatState({ state, paused, canStop, ...flags }) {
+  _onHeartbeatState({ state, paused, canStop, effect, mcpEffectId, testActive, ...flags }) {
     // The running pipeline changed from outside the toggle (a banner Retry,
     // the tray, a relaunch): re-derive the toggle and sections from it, once
     // per change and never while a switch of our own is in flight.
-    const flagKey = (f) => `${f.usesVideoInput}|${f.usesAudioInput}|${f.samplesZones}`;
+    const flagKey = (f, e, m, t) => `${f.usesVideoInput}|${f.usesAudioInput}|${f.samplesZones}|${e ?? ''}|${m ?? ''}|${t === true}`;
     const running = runningFlags(flags);
-    const key = flagKey(running);
-    if (!this.pendingMode && !isIdle(running) && key !== flagKey(runningFlags(this.pipelineState)) && key !== this._requestedFlagKey) {
+    const key = flagKey(running, effect, mcpEffectId, testActive);
+    const loadedKey = flagKey(runningFlags(this.pipelineState), this.pipelineState?.effect, this.pipelineState?.mcpEffectId, lightTestActive(this.pipelineState));
+    if (!this.pendingMode && !isIdle(running) && key !== loadedKey && key !== this._requestedFlagKey) {
       this._requestedFlagKey = key;
       this._loadAll();
     }

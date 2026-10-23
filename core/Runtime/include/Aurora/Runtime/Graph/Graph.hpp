@@ -87,7 +87,8 @@ namespace Aurora::Runtime::Graph
       m_nodes.emplace(instance.id, std::move(instance));
     }
     void addEdge(GraphEdge edge) { m_edges.push_back(std::move(edge)); }
-    bool finalize(std::string& errorOut);
+    // cycleNodesOut, when given, lists the nodes a cycle blocks.
+    bool finalize(std::string& errorOut, std::vector<std::string>* cycleNodesOut = nullptr);
 
   private:
     NodeInstance* findNode(const std::string& id);
@@ -102,6 +103,15 @@ namespace Aurora::Runtime::Graph
     std::optional<double> m_tickHz{};
     // "nodeId.port" -> last value.
     std::unordered_map<std::string, GraphValue> m_values;
+    // Wired optional inputs: "toNode.port" -> last real value and the
+    // "fromNode.port" it came from. An Absent tick reads this instead of
+    // falling to the param default (Aurora-4xqt.13).
+    struct HeldInput
+    {
+      std::string source;
+      GraphValue value;
+    };
+    std::unordered_map<std::string, HeldInput> m_heldInputs;
     std::uint64_t m_tickCount{0};
     std::uint64_t m_selfHeals{0};
   };

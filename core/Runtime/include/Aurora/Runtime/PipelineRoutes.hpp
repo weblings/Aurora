@@ -2,6 +2,7 @@
 
 #include <chrono>
 #include <filesystem>
+#include <memory>
 
 namespace Aurora::Network::Http::Server { class HttpServer; }
 
@@ -9,6 +10,7 @@ namespace Aurora::Network::Http::Server { class HttpServer; }
 // into every app's main.cpp (Aurora-9ig moved them here with Pipeline).
 namespace Aurora::Runtime
 {
+  class LightTest;
   class PipelineHost;
   class Registry;
 
@@ -39,12 +41,20 @@ namespace Aurora::Runtime
   // state. A paused host holds only a failed resume.
   // The flags describe what the running pipeline uses, kept through pause;
   // all false means nothing runs.
-  // Aurora-5ipy.2 adds "effect" (active graph id, "builtin.video" or
-  // "builtin.audio" today, null when idle or failed) and "source": {"video":
+  // "mcpEffectId" (Aurora-4xqt.2) is the custom effect an MCP client applied
+  // last, null until one has.
+  // Aurora-5ipy.2 adds "effect" (the running graph id: "builtin.video",
+  // "builtin.audio" or a custom effect's id, null when idle or failed),
+  // Aurora-52oz.1 adds "requestedEffect" (what Config asked for; it differs
+  // from "effect" while a custom effect that failed to load is replaced by
+  // the built-in, with an "effect_fallback" error held) and "source": {"video":
   // {"input", "monitor" (string or null)} or null, "audio": {"input", "sink"
   // (string or null), "auto" (follows the default sink)} or null}. A null side
   // is unused. Kept through pause; "sink" is the platform-resolved sink while
   // running where the build can tell (Linux), else the configured target.
+  // Aurora-zfre adds "test": {"active", "confirmRemainingMs"}, the test on
+  // lights from `lightTest` (inactive without one); "effect" keeps naming the
+  // live effect the test will revert to.
   //
   // PUT /api/state {"running": bool}: pause (false) or resume (true),
   // idempotent (Aurora-3ddb); on a failed host running:true is a retry
@@ -64,7 +74,8 @@ namespace Aurora::Runtime
     Aurora::Network::Http::Server::HttpServer& server,
     PipelineHost& pipelineHost,
     const Registry& registry,
-    const std::filesystem::path& configRoot
+    const std::filesystem::path& configRoot,
+    std::shared_ptr<LightTest> lightTest = nullptr
   );
 
   // GET /api/events?topics=state,health (Aurora-5ipy.3): one text/event-stream
@@ -77,12 +88,14 @@ namespace Aurora::Runtime
   // dead client's write fail so it frees its worker. Streams past the
   // server's cap answer 503 {"error": "too_many_streams"}. Changes are
   // pushed by PipelineHost::changes(), never from the tick loop; brightness
-  // is re-read from config.json about once a second.
+  // is re-read from config.json about once a second, as is the light test, so
+  // a running test sends its countdown about once a second.
   void registerEventsRoute(
     Aurora::Network::Http::Server::HttpServer& server,
     PipelineHost& pipelineHost,
     const std::filesystem::path& configRoot,
-    std::chrono::milliseconds heartbeat = std::chrono::seconds(15)
+    std::chrono::milliseconds heartbeat = std::chrono::seconds(15),
+    std::shared_ptr<LightTest> lightTest = nullptr
   );
 
   // POST /api/dev/errors {"source": string, "message": string} (dev-only):

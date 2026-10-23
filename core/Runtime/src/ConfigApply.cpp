@@ -37,6 +37,7 @@ namespace Aurora::Runtime
       FieldApply{"activeOutputNames", Reload, Video},
       FieldApply{"activeMonitorName", Reload, Video},
       FieldApply{"activeAudioInputName", Reload, Audio},
+      FieldApply{"activeEffectId", Reload, Both},
       FieldApply{"audioTargetSinkName", Reload, Audio},
 
       FieldApply{"audioFixedAnchorHue", Hot, Audio},
@@ -51,6 +52,7 @@ namespace Aurora::Runtime
       FieldApply{"audioCentroidRangeHz", Hot, Audio},
       FieldApply{"audioBrightnessSmoothTime", Hot, Audio},
 
+      FieldApply{"mcpEffectId", NoEffect, Video},
       FieldApply{"nuxCompleted", NoEffect, Video},
     };
   }
@@ -73,6 +75,12 @@ namespace Aurora::Runtime
 
     for(const auto& key : changedConfigKeys(applied, next)){
       const FieldApply* field = classifyConfigField(key);
+
+      // "" and the built-in ids all run the mode's built-in, so moving
+      // between them rebuilds nothing.
+      if(key == "activeEffectId" && applied.customEffectId() == next.customEffectId()){
+        continue;
+      }
 
       if(!field || field->kind == ApplyKind::Reload){
         return ChangeAction::Reload;

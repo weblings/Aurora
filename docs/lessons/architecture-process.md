@@ -1217,3 +1217,44 @@ switch is a warning at most and fails at runtime (`parseParamValue` ends in "unk
 
 **Fix:** grep `ParamKind::OptionalFloat` for the full site list, and add a load-time
 reject case per malformed shape to the node's tests.
+
+---
+
+## AccessGuard rules match by path only, so one path cannot split read from write
+Tags: pairing, AccessGuard, scopes, routes
+Applies-when: giving GET and PUT/DELETE on the same path prefix different scopes
+
+Aurora-52oz.1 needed `read` for `GET /api/effects/<id>` and `apply` for `DELETE` on it.
+`addRule` ignores the method, so one rule would raise the GETs too. A switch through
+`PUT /api/config` cannot take `apply` either, since that path is `admin`.
+
+**Fix:** `addWriteRule` applies only to non-GET methods, and the switch got its own path
+(`PUT /api/effects`). Check each new write route's path against the existing rules first.
+
+---
+
+## A failing node never reaches `output.send`, so a sink-based preview reads the error off the feeding edge
+Tags: graph, preview, errors, output.send, GraphError
+Applies-when: swapping `output.send` for a capturing sink to show what a graph would do, including when it fails
+
+Aurora-52oz.6: the evaluator turns an error into a `GraphError` that propagates NaN-style, and a node
+with an absent or error input is never evaluated. A sink's `send()` therefore sees nothing on a
+failing path, and "no frame" looks the same as "skipped tick".
+
+**Fix:** after the tick, find the edge into each `output.send` node and read `portValue(from)`. A
+`GraphError` there means flag the output's zones (the live output's `zoneIds()` supply them), and an
+`Absent` means keep the last colors. The error carries the originating node id, so report that.
+
+---
+
+## An SSE stream handler cannot set an HTTP status, so refusals are events
+Tags: http, sse, streams, routes, errors
+Applies-when: adding a `addStreamRoute` handler that must refuse a bad query, a missing resource or an unsupported state
+
+Aurora-52oz.6: `StreamHandler` gets only `(Request, EventStream&)`, and the 200 and `text/event-stream`
+headers go out before it runs. `invalid_session`, `no_draft` and `cannot_preview` are written as
+`event: error` and the handler returns, which ends the stream. Clients must read the first event, not
+the status. Tests use `SseReader::waitFor` plus `waitFinished`.
+
+**Fix:** document the error events beside the route. If a real status is needed, validate in a plain
+route first and hand the client a stream URL.

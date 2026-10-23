@@ -43,6 +43,8 @@ namespace Aurora::Network::Http::Server
     std::string name;
     Scope scope{Scope::None};
     std::string code;
+    // Where the request came from, seen by the server. Empty when unknown.
+    std::string from;
   };
 
 
@@ -78,7 +80,7 @@ namespace Aurora::Network::Http::Server
 
     // Display code is short and shown on both screens. nullopt when too many
     // requests are already pending.
-    std::optional<PairingTicket> requestPairing(const std::string& name, Scope scope);
+    std::optional<PairingTicket> requestPairing(const std::string& name, Scope scope, const std::string& remoteAddr = {});
 
     std::vector<PendingPairing> pending();
 
@@ -107,6 +109,7 @@ namespace Aurora::Network::Http::Server
       std::string name;
       Scope scope{Scope::None};
       std::string code;
+      std::string from;
       std::int64_t createdAt{0};
       bool decided{false};
       bool approved{false};
@@ -169,6 +172,10 @@ namespace Aurora::Network::Http::Server
     // under it.
     void addRule(const std::string& pathPrefix, Scope required);
 
+    // Like addRule, but only for methods other than GET, so reads under the
+    // prefix keep the default Read requirement (Aurora-52oz.1).
+    void addWriteRule(const std::string& pathPrefix, Scope required);
+
     AccessDecision decide(const AccessRequest& request) const;
 
     static bool isLoopback(const std::string& remoteAddr);
@@ -176,6 +183,12 @@ namespace Aurora::Network::Http::Server
   private:
     std::shared_ptr<PairingService> m_service;
     IsLocal m_isLocal;
-    std::vector<std::pair<std::string, Scope>> m_rules;
+    struct Rule
+    {
+      std::string prefix;
+      Scope scope;
+      bool writesOnly;
+    };
+    std::vector<Rule> m_rules;
   };
 }

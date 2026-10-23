@@ -8,6 +8,15 @@ add_library(AuroraRuntime STATIC
   src/Config.cpp
   src/ConfigApply.cpp
   src/ConfigStore.cpp
+  src/EffectStore.cpp
+  src/EffectsRoutes.cpp
+  src/DraftStore.cpp
+  src/DraftRoutes.cpp
+  src/ApplyRoutes.cpp
+  src/LightTest.cpp
+  src/TestRoutes.cpp
+  src/GraphPreview.cpp
+  src/PreviewRoutes.cpp
   src/ControlDescriptors.cpp
   src/ControlDescriptorTables.cpp
   src/ZoneMapStore.cpp
@@ -32,6 +41,7 @@ add_library(AuroraRuntime STATIC
   src/Graph/Graph.cpp
   src/Graph/GraphLoader.cpp
   src/GraphRoutes.cpp
+  src/PresetRoutes.cpp
   src/GraphRunner.cpp
   src/Pipeline.cpp
   src/PipelineRoutes.cpp

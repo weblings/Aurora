@@ -142,6 +142,32 @@ namespace
     std::vector<PortDecl> m_out{{"out", PortType::Color, false}};
   };
 
+  // Absent on odd ticks, its tick count as red on even ones: audio that
+  // arrives slower than the tick.
+  class BlinkerNode : public INode
+  {
+  public:
+    const std::vector<PortDecl>& inputPorts() const override { return m_in; }
+    const std::vector<PortDecl>& outputPorts() const override { return m_out; }
+    void evaluate(
+      const EvalContext&,
+      float,
+      std::unordered_map<std::string, GraphValue>& outputs) override
+    {
+      m_ticks++;
+      if(m_ticks % 2 == 1){
+        outputs.emplace("out", Absent{});
+      } else {
+        outputs.emplace("out", Color(static_cast<uint8_t>(m_ticks & 0xFF), 0, 0));
+      }
+    }
+
+  private:
+    std::vector<PortDecl> m_in{};
+    std::vector<PortDecl> m_out{{"out", PortType::Color, false}};
+    int m_ticks{0};
+  };
+
   class ErrorNode : public INode
   {
   public:
@@ -500,6 +526,12 @@ namespace
     info.outputs = {{"out", PortType::Color, false}};
     info.factory = []{ return std::make_unique<AbsentNode>(); };
     CHECK(registry.registerType("test.absent", std::move(info)));
+
+    info = {};
+    info.meta = meta("absent on odd ticks", R"({"id":"b","type":"test.blinker"})");
+    info.outputs = {{"out", PortType::Color, false}};
+    info.factory = []{ return std::make_unique<BlinkerNode>(); };
+    CHECK(registry.registerType("test.blinker", std::move(info)));
 
     info = {};
     info.meta = meta("always errors with its own id", R"({"id":"boom","type":"test.error"})");
@@ -863,6 +895,59 @@ TEST_CASE("Graph optional input without an edge still evaluates", "[Graph]")
   })");
   fed.tick(1.f / 60.f);
   CHECK(colorOf(fed, "o", "out") == Color(5, 6, 7));
+}
+
+TEST_CASE("Graph holds a wired optional input through Absent ticks", "[Graph]")
+{
+  auto probes = std::make_shared<Probes>();
+  NodeRegistry registry = makeTestRegistry(probes);
+  const char* doc = R"({
+    "version": 1,
+    "nodes": [
+      {"id": "b", "type": "test.blinker"},
+      {"id": "o", "type": "test.optin"}
+    ],
+    "edges": [["b.out", "o.in"]]
+  })";
+  Graph graph = mustLoad(registry, doc);
+
+  // Never valued: Absent like a required input, not the unwired default.
+  graph.tick(1.f / 60.f);
+  const GraphValue* first = graph.portValue("o", "out");
+  REQUIRE(first != nullptr);
+  CHECK(isAbsent(*first));
+
+  graph.tick(1.f / 60.f);
+  CHECK(colorOf(graph, "o", "out") == Color(2, 0, 0));
+  graph.tick(1.f / 60.f);
+  CHECK(colorOf(graph, "o", "out") == Color(2, 0, 0));
+  graph.tick(1.f / 60.f);
+  CHECK(colorOf(graph, "o", "out") == Color(4, 0, 0));
+
+  SECTION("a swap keeps the held value when the same source feeds the input")
+  {
+    Graph next = mustLoad(registry, doc);
+    next.adoptStateFrom(graph);
+    next.tick(1.f / 60.f); // blinker's 5th tick: Absent
+    CHECK(colorOf(next, "o", "out") == Color(4, 0, 0));
+  }
+
+  SECTION("a swap to a different source does not carry the held value")
+  {
+    Graph next = mustLoad(registry, R"({
+      "version": 1,
+      "nodes": [
+        {"id": "b2", "type": "test.blinker"},
+        {"id": "o", "type": "test.optin"}
+      ],
+      "edges": [["b2.out", "o.in"]]
+    })");
+    next.adoptStateFrom(graph);
+    next.tick(1.f / 60.f);
+    const GraphValue* value = next.portValue("o", "out");
+    REQUIRE(value != nullptr);
+    CHECK(isAbsent(*value));
+  }
 }
 
 TEST_CASE("Graph round-trips all six Sequence-A port types", "[Graph]")

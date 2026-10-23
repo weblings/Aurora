@@ -16,6 +16,7 @@
 #include <cstdlib>
 #include <filesystem>
 #include <iostream>
+#include <memory>
 #include <mutex>
 #include <optional>
 #include <thread>
@@ -40,7 +41,13 @@
 #include <Aurora/Runtime/ControlDescriptors.hpp>
 #include <Aurora/Runtime/PendingRunRequest.hpp>
 #include <Aurora/Runtime/Pipeline.hpp>
+#include <Aurora/Runtime/ApplyRoutes.hpp>
+#include <Aurora/Runtime/TestRoutes.hpp>
+#include <Aurora/Runtime/PreviewRoutes.hpp>
+#include <Aurora/Runtime/DraftRoutes.hpp>
+#include <Aurora/Runtime/EffectsRoutes.hpp>
 #include <Aurora/Runtime/GraphRoutes.hpp>
+#include <Aurora/Runtime/PresetRoutes.hpp>
 #include <Aurora/Runtime/PipelineRoutes.hpp>
 #include <Aurora/Runtime/SettingsRoutes.hpp>
 #include <Aurora/Runtime/ZoneRoutes.hpp>
@@ -53,6 +60,7 @@
 #include <Aurora/Input/Linux/X11Grabber.hpp>
 #endif
 #ifdef AURORA_INPUT_LINUX_PIPEWIRE_AVAILABLE
+#include <Aurora/Input/Linux/FileRestoreTokenStore.hpp>
 #include <Aurora/Input/Linux/PipewireGrabber.hpp>
 #endif
 #ifdef AURORA_INPUT_LINUX_AUDIO_AVAILABLE
@@ -81,7 +89,15 @@ namespace
   // "linux" auto-selects X11 vs. Wayland/Pipewire the way huenicorn's
   // GnuLinuxAdapter did; the concrete backend names are also registered
   // individually for manual override while testing.
-  void registerInputs(Aurora::Runtime::Registry& registry)
+  //
+  // The portal restore-token store is created once here and shared by every
+  // PipewireGrabber this process builds (first start, reload, pause/resume):
+  // the factory lambdas hold it by shared_ptr, so it outlives any grabber
+  // (Registry, which owns the factories, outlives every Pipeline), and every
+  // Start's rotated token lands in the same <configRoot>/portal-restore-token
+  // file the next capture replays (Aurora-w6no). Gamescope needs no portal,
+  // so it keeps the default (null) store.
+  void registerInputs(Aurora::Runtime::Registry& registry, const std::filesystem::path& configRoot)
   {
     registry.registerInput("dummy", []{
       return std::make_unique<Aurora::Input::Linux::DummyGrabber>();
@@ -99,12 +115,19 @@ namespace
 
 #ifdef AURORA_INPUT_LINUX_PIPEWIRE_AVAILABLE
     pipewireAvailable = true;
-    registry.registerInput("pipewire", []{
-      return std::make_unique<Aurora::Input::Linux::PipewireGrabber>();
+    auto restoreTokenStore = std::make_shared<Aurora::Input::Linux::FileRestoreTokenStore>(configRoot);
+    registry.registerInput("pipewire", [restoreTokenStore]{
+      return std::make_unique<Aurora::Input::Linux::PipewireGrabber>(
+        /*useGamescope*/ false, restoreTokenStore.get()
+      );
     });
 #endif
 
-    registry.registerInput("linux", [x11Available, pipewireAvailable]() -> std::unique_ptr<Aurora::Input::IVideoInput> {
+    registry.registerInput("linux", [x11Available, pipewireAvailable
+#ifdef AURORA_INPUT_LINUX_PIPEWIRE_AVAILABLE
+      , restoreTokenStore
+#endif
+    ]() -> std::unique_ptr<Aurora::Input::IVideoInput> {
       using namespace Aurora::Input::Linux;
 
       switch(selectBackendFromEnvironment(pipewireAvailable, x11Available)){
@@ -114,7 +137,7 @@ namespace
 #endif
 #ifdef AURORA_INPUT_LINUX_PIPEWIRE_AVAILABLE
         case Backend::WaylandPipewire:
-          return std::make_unique<PipewireGrabber>();
+          return std::make_unique<PipewireGrabber>(/*useGamescope*/ false, restoreTokenStore.get());
         case Backend::GamescopePipewire:
           return std::make_unique<PipewireGrabber>(/*useGamescope*/ true);
 #endif
@@ -553,7 +576,7 @@ if(!instanceLock.held()){
   // per build instead (see registerAudioInputs), since Registry's
   // factories are zero-arg closures that reload() never re-registers.
   Aurora::Runtime::Registry registry;
-  registerInputs(registry);
+  registerInputs(registry, configRoot);
   registerAudioInputs(registry, configRoot);
   registerOutputs(registry, configRoot);
 
@@ -623,6 +646,20 @@ if(!instanceLock.held()){
     }
   );
 #endif
+  auto draftStore = Aurora::Runtime::registerDraftRoutes(httpServer, registry, configRoot, accessGuard.get());
+  auto applyDraft = Aurora::Runtime::registerApplyRoutes(httpServer, pipelineHost, registry, configRoot, draftStore,
+    [&pipelineHost, &registry, configRoot]() -> std::string {
+      return Aurora::Runtime::applyEffectFromDisk(pipelineHost, registry, configRoot);
+    },
+    accessGuard.get());
+  auto lightTest = Aurora::Runtime::registerTestRoutes(httpServer, pipelineHost, registry, configRoot, draftStore,
+    applyDraft, accessGuard.get());
+  // An effect choice applied in place leaves a test running over it; the
+  // revert reads the new choice from disk (Aurora-zfre).
+  auto onEffectChosen = [lightTest]{
+    std::string error;
+    lightTest->stop(error, "superseded");
+  };
   // Re-loads Config fresh (reflecting whatever the PUT that triggered this
   // just saved) rather than closing over the request's own already-stale
   // copy, then applies it live if only tuning fields changed, else reloads
@@ -630,16 +667,26 @@ if(!instanceLock.held()){
   Aurora::Runtime::registerSettingsRoutes(httpServer, configRoot,
     [&pipelineHost, &registry, configRoot]() -> std::string {
       return Aurora::Runtime::applyConfigFromDisk(pipelineHost, registry, configRoot);
-    }
+    },
+    onEffectChosen
   );
   Aurora::Runtime::registerMonitorsRoute(httpServer, pipelineHost);
   registerAudioStatusRoute(httpServer, pipelineHost);
   registerAudioSinksRoute(httpServer);
   Aurora::Runtime::registerReloadRoute(httpServer, pipelineHost, registry, configRoot);
-  Aurora::Runtime::registerStateRoute(httpServer, pipelineHost, registry, configRoot);
-  Aurora::Runtime::registerEventsRoute(httpServer, pipelineHost, configRoot);
+  Aurora::Runtime::registerStateRoute(httpServer, pipelineHost, registry, configRoot, lightTest);
+  Aurora::Runtime::registerEventsRoute(httpServer, pipelineHost, configRoot, std::chrono::seconds(15), lightTest);
   Aurora::Runtime::registerNodesRoute(httpServer);
   Aurora::Runtime::registerGraphRoute(httpServer, pipelineHost);
+  Aurora::Runtime::registerEffectsRoutes(httpServer, pipelineHost, registry, configRoot,
+    [&pipelineHost, &registry, configRoot, onEffectChosen]() -> std::string {
+      const std::string error = Aurora::Runtime::applyConfigFromDisk(pipelineHost, registry, configRoot);
+      onEffectChosen();
+      return error;
+    },
+    accessGuard.get());
+  Aurora::Runtime::registerPresetRoutes(httpServer, registry, configRoot);
+  Aurora::Runtime::registerPreviewRoutes(httpServer, pipelineHost, registry, draftStore);
   Aurora::Runtime::registerDevErrorsRoute(httpServer, pipelineHost);
   registerStopRoute(httpServer);
   Aurora::Runtime::registerZoneRoutes(

@@ -95,8 +95,10 @@ runtime (see [[linux-capture-analysis]]):
 2. **Wayland via `xdg-desktop-portal`'s ScreenCast interface**
    ([`XdgDesktopPortal.cpp`](../../input/linux/src/XdgDesktopPortal.cpp)) — used
    on a normal desktop compositor (e.g. Deck Desktop Mode's KDE Plasma).
-   Already persists a restore token so the user isn't re-prompted every
-   launch.
+   Persists a restore token (`<configRoot>/portal-restore-token`, user-only
+   permissions, via `FileRestoreTokenStore`, Aurora-w6no) so the user isn't
+   re-prompted every launch. Whether a given backend honors persistence
+   stays a per-desktop manual check.
 3. **Gamescope direct Pipewire node** — detected via the
    `GAMESCOPE_WAYLAND_DISPLAY` env var, bypasses the portal entirely and
    connects straight to Pipewire's `gamescope` node
@@ -133,6 +135,15 @@ package: committed lockfile, exact pins, no install scripts, plain `npm ci`
 - No Flatpak manifest exists yet — next concrete step if this is pursued is
   drafting one (`org.freedesktop.Platform` runtime + the three permissions
   above + the apt-equivalent lib list from `README.md`).
+- Reference for that manifest: lumux (github.com/enginkirmaci/lumux, MIT, a
+  Python/GTK4 Hue sync for Wayland) ships a Flathub-accepted
+  `flatpak/io.github.enginkirmaci.lumux.yml` and
+  `data/*.metainfo.xml`. Worth copying from: its `finish-args` (wayland,
+  fallback-x11, dri, ipc, network, and `--talk-name` for both
+  StatusNotifierWatcher names plus Notifications, which Aurora's SNI tray
+  needs in a sandbox) and the AppStream fields Discover and Flathub require.
+  Its pip-generated Python modules and `xdg-run/pipewire-0` filesystem grant
+  don't carry over (C++ build, `--socket=pipewire` planned here).
 - Not yet verified hands-on: whether Deck Game Mode's gamescope actually
   exposes the `gamescope` Pipewire node under a Flatpak sandbox with only
   `--socket=pipewire` granted (expected to work per Flatpak's permission

@@ -81,8 +81,19 @@ function renderedHtml(props) {
   assert.ok(audio.includes(`class="status-text ${HINT_CLASS}"`));
 }
 
-// ...and showHint:false renders neither (an error is showing for that input).
-assert.equal(renderedHtml({ usesVideoInput: true, usesAudioInput: false, showHint: false }), '');
-assert.equal(renderedHtml({ usesVideoInput: false, usesAudioInput: true, showHint: false }), '');
+// ...and a false hint flag renders nothing for that input (an error is showing for it).
+assert.equal(renderedHtml({ usesVideoInput: true, usesAudioInput: false, showVideoHint: false }), '');
+assert.equal(renderedHtml({ usesVideoInput: false, usesAudioInput: true, showAudioHint: false }), '');
+
+// Each input's hint follows its own flag when both inputs are shown (Aurora-tc8w).
+{
+  const both = { usesVideoInput: true, usesAudioInput: true };
+  const bothHints = renderedHtml(both);
+  assert.ok(bothHints.includes(VIDEO_HINT) && bothHints.includes(AUDIO_HINT));
+  const audioOnly = renderedHtml({ ...both, showVideoHint: false });
+  assert.ok(!audioOnly.includes(VIDEO_HINT) && audioOnly.includes(AUDIO_HINT));
+  const videoOnly = renderedHtml({ ...both, showAudioHint: false });
+  assert.ok(videoOnly.includes(VIDEO_HINT) && !videoOnly.includes(AUDIO_HINT));
+}
 
 console.log('DeviceField.test.mjs: ok');

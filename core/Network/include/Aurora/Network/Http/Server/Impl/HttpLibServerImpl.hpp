@@ -299,6 +299,9 @@ namespace Aurora::Network::Http::Server
       r.method = method;
       r.body = req.body;
       r.path = req.path;
+      r.client = req.get_header_value("X-Aurora-Client");
+      std::transform(r.client.begin(), r.client.end(), r.client.begin(),
+        [](unsigned char c){ return static_cast<char>(std::tolower(c)); });
 
       if(guard){
         AccessDecision decision = _decide(*guard, req);
