@@ -482,13 +482,15 @@ for (const reloadError of [PERMISSION_ERROR, 'bridge unreachable']) {
     });
     inst._renderTopTier();
     inst.deviceField?.destroy();
-    return { video: slot.innerHTML.includes(VIDEO_HINT), audio: slot.innerHTML.includes(AUDIO_HINT) };
+    return { video: slot.innerHTML.includes(VIDEO_HINT), audio: slot.innerHTML.includes(AUDIO_HINT), field: !!inst.deviceField };
   };
   const both = { usesVideoInput: true, usesAudioInput: true, samplesZones: true };
-  assert.deepEqual(hintsFor('mcp', { video: true, audio: true }, both), { video: true, audio: true });
-  assert.deepEqual(hintsFor('mcp', { video: false, audio: true }, { ...both, usesVideoInput: false }), { video: false, audio: true });
-  assert.deepEqual(hintsFor('mcp', { video: false, audio: false }, { ...both, usesVideoInput: false }), { video: false, audio: false });
-  assert.deepEqual(hintsFor('audio', null, { ...both, usesVideoInput: false }), { video: false, audio: true });
+  // The flags still say video (config mode), as for a rainbow graph: the graph wins under MCP.
+  assert.deepEqual(hintsFor('mcp', { video: true, audio: true }, both), { video: true, audio: true, field: true });
+  assert.deepEqual(hintsFor('mcp', { video: false, audio: true }, both), { video: false, audio: true, field: true });
+  assert.deepEqual(hintsFor('mcp', { video: false, audio: false }, both), { video: false, audio: false, field: false });
+  assert.deepEqual(hintsFor('audio', null, { ...both, usesVideoInput: false }), { video: false, audio: true, field: true });
+  assert.deepEqual(hintsFor('mcp', null, both), { video: true, audio: true, field: true });
 }
 
 // No Mac audio-status fetch: the audio poll only asks Linux's sink route.

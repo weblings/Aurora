@@ -392,19 +392,21 @@ export class DashboardScreen {
     `;
 
     const hintsAllowed = Object.keys(this.topTierErrors).length === 0 && !this.toggleError;
-    const graphInputs = this.pipelineState?.graphInputs;
+    // Under MCP the graph's declared inputs pick the pickers, so a graph
+    // with none shows no field (DeviceField alone would fall back to Monitor).
+    const graphInputs = this.mode === 'mcp' ? this.pipelineState?.graphInputs : null;
+    if (graphInputs && !graphInputs.video && !graphInputs.audio) return;
     this.deviceField = new DeviceField(topTier.querySelector('.db-device-slot'), {
-      usesVideoInput: this.flags.usesVideoInput,
-      usesAudioInput: this.flags.usesAudioInput,
+      usesVideoInput: graphInputs ? graphInputs.video : this.flags.usesVideoInput,
+      usesAudioInput: graphInputs ? graphInputs.audio : this.flags.usesAudioInput,
       audioDevicesUrl: this.audioDevicesUrl,
       monitors: this.monitors,
       selectedMonitorName: this.selectedMonitorName,
       sinkName: this.sinkName,
       // The hint ("once Video connects") reads wrong beside an error about
       // that same input -- Screen Recording denied is blocked, not connecting.
-      // Under MCP only an input the graph declares gets its default-device hint.
-      showVideoHint: hintsAllowed && (this.mode !== 'mcp' || graphInputs?.video === true),
-      showAudioHint: hintsAllowed && (this.mode !== 'mcp' || graphInputs?.audio === true),
+      showVideoHint: hintsAllowed,
+      showAudioHint: hintsAllowed,
       onChange: (patch) => this._onDeviceFieldChange(patch),
     });
   }
