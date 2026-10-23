@@ -230,6 +230,8 @@ export function createRouter(store, hooks = {}) {
         canStop: false,
         // The demo runs no MCP clients, so the Dashboard's MCP toggle stays hidden.
         mcpEffectId: null,
+        // No MCP client can test on a page with no lights (Aurora-exbp).
+        test: { active: false, confirmRemainingMs: 0 },
         usesVideoInput: !audio,
         usesAudioInput: audio,
         samplesZones: !audio,

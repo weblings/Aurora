@@ -130,6 +130,8 @@ export class App {
     this.hostErrors = []; // [{source, message}], from the last reachable poll
     this.hostConditions = []; // [{source, message}], standing facts (Aurora-rbp3)
     this._bannerExpanded = false;
+    this.lightTestEndsAt = null; // ms epoch the running MCP light test must be confirmed by, else null
+    this._lightTestTimer = null;
   }
 
   navigate(screen, routeId = null) {
@@ -263,6 +265,8 @@ export class App {
     this.hostState = state;
     this.hostErrors = errors;
     this.hostConditions = conditions;
+    const remainingMs = result?.test?.active === true ? Number(result.test.confirmRemainingMs) : NaN;
+    this.lightTestEndsAt = Number.isFinite(remainingMs) ? Date.now() + remainingMs : null;
     this._renderBanner();
     if (this.onStateUpdate) this.onStateUpdate({ state, errors, paused, ...flags });
   }
@@ -294,6 +298,8 @@ export class App {
     this.hostErrors = [];
     this.hostConditions = [];
     this.pendingPairings = [];
+    this.lightTestEndsAt = null;
+    this._stopLightTestTimer();
     if (!this.overlaySlot) return;
     this._takeover = kind;
     this.overlaySlot.innerHTML = `
@@ -334,7 +340,9 @@ export class App {
     // Pairing requests sit above the problems and never collapse: each waits on a click.
     const pairings = this.pendingPairings;
     const rowCount = conditions.length + errors.length;
-    if (rowCount === 0 && pairings.length === 0) {
+    const testing = this.lightTestEndsAt !== null;
+    if (!testing) this._stopLightTestTimer();
+    if (rowCount === 0 && pairings.length === 0 && !testing) {
       this.bannerSlot.innerHTML = '';
       this._bannerExpanded = false;
       return;
@@ -346,6 +354,7 @@ export class App {
     // .accordion-chevron), not a one-off glyph -- rotated 180deg here for
     // "collapse" the same way .accordion-section.expanded already does.
     const pairingRows = pairings.map((request) => this._renderPairingRow(request)).join('');
+    const testRow = testing ? this._renderLightTestRow() : '';
     const problems = rowCount === 0 ? '' : collapsed
       ? `<button type="button" class="shell-banner-summary" id="shell-banner-expand"><span class="warn-glyph" aria-hidden="true"></span> ${rowCount} problems <span class="accordion-chevron" aria-hidden="true"></span></button>`
       : conditions.map((condition) => this._renderConditionRow(condition)).join('')
@@ -356,7 +365,7 @@ export class App {
 
     this.bannerSlot.innerHTML = `
       <div class="shell-banner">
-        <div class="shell-banner-inner">${pairingRows}${problems}</div>
+        <div class="shell-banner-inner">${pairingRows}${testRow}${problems}</div>
       </div>
     `;
 
@@ -364,6 +373,11 @@ export class App {
       const ref = escapeHtml(request.ref);
       this.bannerSlot.querySelector(`#shell-pairing-approve-${ref}`)?.addEventListener('click', () => this._decidePairing(request.ref, 'approve'));
       this.bannerSlot.querySelector(`#shell-pairing-deny-${ref}`)?.addEventListener('click', () => this._decidePairing(request.ref, 'deny'));
+    }
+
+    if (testing) {
+      this.bannerSlot.querySelector('#shell-light-test-stop')?.addEventListener('click', () => this._stopLightTest());
+      this._startLightTestTimer();
     }
 
     if (rowCount === 0) return;
@@ -384,6 +398,48 @@ export class App {
       this.bannerSlot.querySelector(`#shell-banner-retry-${error.source}`)?.addEventListener('click', () => this._retry(error.source));
       this.bannerSlot.querySelector(`#shell-banner-dismiss-${error.source}`)?.addEventListener('click', () => this._dismiss(error));
     }
+  }
+
+  // No Keep here: that stays with the agent (confirm needs an effect id the
+  // user has not chosen). 'by' because a dead client reverts sooner.
+  _renderLightTestRow() {
+    return `<div class="shell-banner-row"><div class="shell-banner-content">
+      <p class="status-text shell-pairing-title">An MCP client is testing an effect on the lights. Reverts by <span id="shell-light-test-time">${this._lightTestClock()}</span></p>
+      <div class="shell-banner-actions">
+        <button type="button" class="btn btn-secondary" id="shell-light-test-stop">Stop test</button>
+      </div>
+    </div></div>`;
+  }
+
+  _lightTestClock() {
+    const seconds = Math.max(0, Math.ceil((this.lightTestEndsAt - Date.now()) / 1000));
+    return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`;
+  }
+
+  // Ticks only the clock text so the Stop button keeps focus between polls.
+  _startLightTestTimer() {
+    if (this._lightTestTimer !== null) return;
+    this._lightTestTimer = setInterval(() => {
+      const time = this.bannerSlot?.querySelector('#shell-light-test-time');
+      if (time && this.lightTestEndsAt !== null) time.textContent = this._lightTestClock();
+    }, 1000);
+    this._lightTestTimer.unref?.();
+  }
+
+  _stopLightTestTimer() {
+    if (this._lightTestTimer === null) return;
+    clearInterval(this._lightTestTimer);
+    this._lightTestTimer = null;
+  }
+
+  // The re-poll shows what the daemon holds (a test that already ended just goes).
+  async _stopLightTest() {
+    try {
+      await fetch('/api/graph/test/stop', { method: 'POST' });
+    } catch {
+      // Unreachable is the beat's takeover.
+    }
+    await this.checkNow();
   }
 
   // The code is the user's check that the request is their own device.
