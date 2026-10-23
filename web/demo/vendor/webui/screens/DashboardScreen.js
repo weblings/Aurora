@@ -35,7 +35,7 @@ import { applyTooltip } from '../Tooltips.js';
 import { renderReloadError } from '../MacPermissionRecovery.js';
 import {
   audioDevicesUrlFrom, devicePatch, effectiveFlags, flagsForMode, isSwitchConfirmed, isSwitchErrorStale,
-  isIdle, isMcpSwitchConfirmed, loadPipelineState, mcpEffectIdFrom, mcpEffectRunning, modeFromFlags, modeSwitchPatch,
+  isIdle, isMcpSwitchConfirmed, loadPipelineState, mcpEffectIdFrom, modeSwitchPatch, runningToggle,
   putMcpSwitch, putModeSwitch, runningFlags,
 } from '../CaptureSource.js';
 import { DAEMON_UNREACHABLE } from '../messages.js';
@@ -88,7 +88,7 @@ const OUTPUT_SECTIONS = {
 export class DashboardScreen {
   constructor(app) {
     this.app = app;
-    this.mode = 'video'; // video | audio | mcp
+    this.mode = null; // video | audio | mcp, null when no toggle is running
     this.mcpEffectId = null; // GET /api/state: the last MCP-applied effect, null hides its toggle
     this.hasAudio = false;
     this.inputs = [];
@@ -260,7 +260,7 @@ export class DashboardScreen {
     // The toggle's fill follows the running pipeline, never the saved
     // config: after a failed switch config holds the failed mode.
     this.mcpEffectId = mcpEffectIdFrom(state);
-    this.mode = mcpEffectRunning(state) ? 'mcp' : modeFromFlags(this.flags);
+    this.mode = runningToggle(state);
     // A switch error lasts until the pipeline is running the mode it was
     // heading to (Aurora-tazx): a confirmed switch, or a resume/relaunch
     // that starts the saved mode the failed switch left in config.
@@ -369,10 +369,7 @@ export class DashboardScreen {
 
   _toggleClasses(mode) {
     const classes = ['segmented-btn'];
-    const filled = this.mode === 'mcp'
-      ? mode === 'mcp'
-      : mode === 'video' ? this.flags.usesVideoInput : mode === 'audio' && this.flags.usesAudioInput;
-    if (filled) classes.push('active');
+    if (this.mode === mode) classes.push('active');
     if (this.pendingMode === mode) classes.push('pending');
     return classes.join(' ');
   }
@@ -852,14 +849,15 @@ export class DashboardScreen {
   // Shell heartbeat push (Aurora-cj11): applies whatever changed and
   // re-renders only the top bar -- never a full _loadAll(), which would
   // fight the beat's own 3s cadence with a second round of requests.
-  _onHeartbeatState({ state, paused, canStop, ...flags }) {
+  _onHeartbeatState({ state, paused, canStop, effect, mcpEffectId, ...flags }) {
     // The running pipeline changed from outside the toggle (a banner Retry,
     // the tray, a relaunch): re-derive the toggle and sections from it, once
     // per change and never while a switch of our own is in flight.
-    const flagKey = (f) => `${f.usesVideoInput}|${f.usesAudioInput}|${f.samplesZones}`;
+    const flagKey = (f, e, m) => `${f.usesVideoInput}|${f.usesAudioInput}|${f.samplesZones}|${e ?? ''}|${m ?? ''}`;
     const running = runningFlags(flags);
-    const key = flagKey(running);
-    if (!this.pendingMode && !isIdle(running) && key !== flagKey(runningFlags(this.pipelineState)) && key !== this._requestedFlagKey) {
+    const key = flagKey(running, effect, mcpEffectId);
+    const loadedKey = flagKey(runningFlags(this.pipelineState), this.pipelineState?.effect, this.pipelineState?.mcpEffectId);
+    if (!this.pendingMode && !isIdle(running) && key !== loadedKey && key !== this._requestedFlagKey) {
       this._requestedFlagKey = key;
       this._loadAll();
     }

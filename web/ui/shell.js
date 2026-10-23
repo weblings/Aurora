@@ -99,7 +99,7 @@ export class App {
     // daemon comes back. Set by app.js (bootstrap/recover); null in unit
     // tests that only assert the takeover itself.
     this.onRecovered = null;
-    // onStateUpdate({state, errors, paused, uses*Input, samplesZones}): called after every reachable
+    // onStateUpdate({state, errors, paused, uses*Input, samplesZones, effect, mcpEffectId}): called after every reachable
     // poll with GET /api/state's own fields. Set by whichever screen cares
     // (Dashboard, so a tray pause/resume updates its top bar live); null
     // elsewhere, same single-slot shape as onRecovered.
@@ -261,7 +261,8 @@ export class App {
     const errors = Array.isArray(result?.errors) ? result.errors : [];
     const conditions = Array.isArray(result?.conditions) ? result.conditions : [];
     const paused = typeof result?.paused === 'boolean' ? result.paused : null;
-    const flags = { usesVideoInput: result?.usesVideoInput, usesAudioInput: result?.usesAudioInput, samplesZones: result?.samplesZones };
+    const flags = { usesVideoInput: result?.usesVideoInput, usesAudioInput: result?.usesAudioInput, samplesZones: result?.samplesZones,
+      effect: result?.effect, mcpEffectId: result?.mcpEffectId };
     this.hostState = state;
     this.hostErrors = errors;
     this.hostConditions = conditions;

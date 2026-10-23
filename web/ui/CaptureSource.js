@@ -120,6 +120,16 @@ export function isSwitchErrorStale(state, errorMode) {
   return !!state && !!errorMode && flagsMatchMode(state, errorMode);
 }
 
+// Which toggle the running effect fills: 'mcp', 'video', 'audio', or null
+// (nothing running, or a custom effect not from MCP). Flags drive sections,
+// not this fill, so a failed switch's saved config never shows.
+export function runningToggle(state) {
+  if (mcpEffectRunning(state)) return 'mcp';
+  if (state?.effect === 'builtin.video') return 'video';
+  if (state?.effect === 'builtin.audio') return 'audio';
+  return null;
+}
+
 export function isIdle(flags) {
   return !flags.usesVideoInput && !flags.usesAudioInput && !flags.samplesZones;
 }

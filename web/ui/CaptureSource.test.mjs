@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import {
   audioDevicesUrlFrom, devicePatch, effectiveFlags, flagsForMode, flagsMatchMode, isIdle, isModeConfigValid,
   isMcpSwitchConfirmed, isSwitchConfirmed, isSwitchErrorStale, loadPipelineState, mcpEffectIdFrom, mcpEffectRunning,
-  modeFromConfig, modeFromFlags, modeSwitchPatch, putMcpSwitch, runningFlags,
+  modeFromConfig, modeFromFlags, modeSwitchPatch, putMcpSwitch, runningFlags, runningToggle,
 } from './CaptureSource.js';
 
 const VIDEO = { usesVideoInput: true, usesAudioInput: false, samplesZones: true };
@@ -163,6 +163,14 @@ assert.deepEqual(modeSwitchPatch('audio', ctx), { activeEffectId: 'builtin.audio
 
   assert.equal(isSwitchErrorStale(onMcp, 'mcp'), true);
   assert.equal(isSwitchErrorStale(applied, 'mcp'), false);
+
+  // runningToggle: the running effect fills a toggle, never the saved config.
+  assert.equal(runningToggle(onMcp), 'mcp');
+  assert.equal(runningToggle(applied), 'video', 'MCP saved but built-in runs');
+  assert.equal(runningToggle({ ...VIDEO, effect: 'builtin.audio', mcpEffectId: null }), 'audio');
+  assert.equal(runningToggle({ ...VIDEO, effect: null }), null, 'nothing running: no fill');
+  assert.equal(runningToggle({ ...VIDEO, effect: 'custom.other' }), null, 'custom non-MCP effect: no fill');
+  assert.equal(runningToggle(null), null);
 
   const realFetch = globalThis.fetch;
   try {
