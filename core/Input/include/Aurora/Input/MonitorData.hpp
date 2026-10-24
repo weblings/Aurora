@@ -30,6 +30,9 @@ namespace Aurora::Input
     // Persistent id for saved selection, set by the grabber. Empty = none,
     // match by name only. Unlike name, it survives replug, reorder and reboot.
     std::string key{""};
+    // Earlier forms of key that still resolve a saved value. A match on one is
+    // rewritten to key (Aurora-5ipy.35).
+    std::vector<std::string> altKeys{};
     unsigned width{0};
     unsigned height{0};
     double refreshRate{0};

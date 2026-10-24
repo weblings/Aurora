@@ -39,7 +39,7 @@ if(AURORA_INPUT_WINDOWS_ENABLE_DXGI)
   # packages -- no vcpkg/find_package needed, unlike Aurora core's OpenCV.
   target_sources(AuroraInputWindows PRIVATE src/WindowsGrabber.cpp)
   target_compile_definitions(AuroraInputWindows PUBLIC AURORA_INPUT_WINDOWS_DXGI_AVAILABLE=1)
-  target_link_libraries(AuroraInputWindows PUBLIC d3d11 dxgi dxguid)
+  target_link_libraries(AuroraInputWindows PUBLIC d3d11 dxgi dxguid advapi32)
 endif()
 
 if(AURORA_INPUT_WINDOWS_ENABLE_AUDIO)

@@ -21,6 +21,7 @@ add_executable(AuroraInputWindowsTests
   WindowsInputTests.cpp
   InputControlDescriptorTests.cpp
   ScRgbConversionTests.cpp
+  MonitorKeyTests.cpp
   tests.manifest
 )
 
