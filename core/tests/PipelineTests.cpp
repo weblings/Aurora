@@ -106,6 +106,9 @@ namespace
     // What FakeVideoInput::captureError() reports.
     std::string captureError;
 
+    // Stable key on the fake monitor; empty = keyless, like a pre-key grabber.
+    std::string monitorKey;
+
     bool has(const std::string& line) const
     {
       return std::find(lines.begin(), lines.end(), line) != lines.end();
@@ -145,6 +148,11 @@ namespace
     RefreshRate displayRefreshRate() const override { return 30; }
     std::string captureError() const override { return m_events ? m_events->captureError : std::string{}; }
 
+    void selectMonitor(unsigned monitorId) override
+    {
+      m_monitorSelectionData.selectedMonitorId = monitorId;
+    }
+
     void grabFrameSubsample(ImageData& imageData) override
     {
       if(m_events && m_events->onGrab){ m_events->onGrab(); }
@@ -155,9 +163,9 @@ namespace
   protected:
     void _initMonitorsList() override
     {
-      m_monitorSelectionData.monitors.push_back(
-        std::make_shared<MonitorData>("Fake Monitor", 4, 2, 30.0, true)
-      );
+      auto monitor = std::make_shared<MonitorData>("Fake Monitor", 4, 2, 30.0, true);
+      if(m_events){ monitor->key = m_events->monitorKey; }
+      m_monitorSelectionData.monitors.push_back(std::move(monitor));
     }
 
   private:
@@ -359,6 +367,69 @@ TEST_CASE("Pipeline::build only fills derived fields that are still unset on dis
   REQUIRE(Pipeline::build(registry, config, dir.path, {}));
 
   CHECK(ConfigStore(dir.path).load().refreshRate() == 60);
+}
+
+
+TEST_CASE("Pipeline::build migrates a saved monitor name to its key on disk (Aurora-5ipy.30)", "[Pipeline]")
+{
+  ScopedTempDir dir("monitor-key-migrate");
+  Config saved = videoConfig();
+  saved.setActiveMonitorName("Fake Monitor");
+  ConfigStore(dir.path).save(saved);
+
+  auto events = std::make_shared<Events>();
+  events->monitorKey = "fake-key";
+  auto registry = makeRegistry(events);
+
+  REQUIRE(Pipeline::build(registry, ConfigStore(dir.path).load(), dir.path, {}));
+  CHECK(ConfigStore(dir.path).load().activeMonitorName() == "fake-key");
+
+  // The next build resolves the key directly and leaves disk as it is.
+  REQUIRE(Pipeline::build(registry, ConfigStore(dir.path).load(), dir.path, {}));
+  CHECK(ConfigStore(dir.path).load().activeMonitorName() == "fake-key");
+}
+
+
+TEST_CASE("Pipeline::build keeps a monitor pick that landed mid-build over the migration (Aurora-5ipy.30)", "[Pipeline]")
+{
+  ScopedTempDir dir("monitor-key-race");
+  Config saved = videoConfig();
+  saved.setActiveMonitorName("Fake Monitor");
+  ConfigStore(dir.path).save(saved);
+
+  auto events = std::make_shared<Events>();
+  events->monitorKey = "fake-key";
+  auto registry = makeRegistry(events);
+
+  // The user picks another monitor while the build is in flight.
+  bool putLanded = false;
+  events->onOutputInit = [&]{
+    if(putLanded){ return; }
+    putLanded = true;
+    ConfigStore store(dir.path);
+    Config onDisk = store.load();
+    onDisk.setActiveMonitorName("other-key");
+    store.save(onDisk);
+  };
+
+  REQUIRE(Pipeline::build(registry, ConfigStore(dir.path).load(), dir.path, {}));
+  REQUIRE(putLanded);
+  CHECK(ConfigStore(dir.path).load().activeMonitorName() == "other-key");
+}
+
+
+TEST_CASE("Pipeline::build leaves a name alone when the monitor has no key (Aurora-5ipy.30)", "[Pipeline]")
+{
+  ScopedTempDir dir("monitor-keyless");
+  Config saved = videoConfig();
+  saved.setActiveMonitorName("Fake Monitor");
+  ConfigStore(dir.path).save(saved);
+
+  auto events = std::make_shared<Events>();
+  auto registry = makeRegistry(events);
+
+  REQUIRE(Pipeline::build(registry, ConfigStore(dir.path).load(), dir.path, {}));
+  CHECK(ConfigStore(dir.path).load().activeMonitorName() == "Fake Monitor");
 }
 
 
