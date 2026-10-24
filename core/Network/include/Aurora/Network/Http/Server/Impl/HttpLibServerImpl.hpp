@@ -29,6 +29,7 @@
 
 #include <Aurora/Network/Http/Server/HttpDataStructs.hpp>
 #include <Aurora/Network/Http/Server/Pairing.hpp>
+#include <Aurora/Network/Http/Server/Problem.hpp>
 
 // The only file in this module that includes <httplib.h> -- keeps
 // cpp-httplib swappable behind HttpServer without touching any route
@@ -465,6 +466,21 @@ namespace Aurora::Network::Http::Server
                        : "{\"succeeded\":false,\"error\":\"insufficient_scope\"}",
           "application/json"
         );
+        return httplib::Server::HandlerResponse::Handled;
+      });
+
+      // Every non-2xx under /api/ leaves as problem+json, including routing
+      // misses that would otherwise fall through to the WebUI's HTML 404.
+      m_service->set_error_handler([](const httplib::Request& req, httplib::Response& res){
+        if(req.path.rfind("/api/", 0) != 0 && req.path != "/api"){
+          return httplib::Server::HandlerResponse::Unhandled;
+        }
+        Response problem;
+        problem.status = res.status;
+        problem.contentType = res.get_header_value("Content-Type");
+        problem.body = res.body;
+        normalizeProblem(problem);
+        res.set_content(problem.body, problem.contentType);
         return httplib::Server::HandlerResponse::Handled;
       });
 

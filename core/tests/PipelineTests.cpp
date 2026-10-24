@@ -1591,7 +1591,8 @@ TEST_CASE("PUT /api/state on a failed host: running:true retries, running:false 
   auto nothing = put(R"({"running":false})");
   REQUIRE(nothing);
   CHECK(nothing->status == 409);
-  CHECK(nlohmann::json::parse(nothing->body) == nlohmann::json{{"succeeded", false}, {"error", "nothing_to_pause"}});
+  CHECK(nlohmann::json::parse(nothing->body)["succeeded"] == false);
+  CHECK(nlohmann::json::parse(nothing->body)["error"] == "nothing_to_pause");
 
   // The config on disk still names a missing input: the retry fails again,
   // and the error is now the reload's.
@@ -1673,7 +1674,8 @@ TEST_CASE("POST /api/state/dismiss removes a running host's held error by source
   auto refused = dismiss(nlohmann::json{{"source", "resume"}, {"id", resumeId}}.dump());
   REQUIRE(refused);
   CHECK(refused->status == 409);
-  CHECK(nlohmann::json::parse(refused->body) == nlohmann::json{{"succeeded", false}, {"error", "not_running"}});
+  CHECK(nlohmann::json::parse(refused->body)["succeeded"] == false);
+  CHECK(nlohmann::json::parse(refused->body)["error"] == "not_running");
   CHECK(get()["errors"].size() == 1);
 
   server.stop();
@@ -2333,7 +2335,8 @@ TEST_CASE("POST /api/dev/errors injects and removes generic host errors only whe
     auto res = client.Post("/api/dev/errors", R"({"source":"dev-1","message":"boom"})", "application/json");
     REQUIRE(res);
     CHECK(res->status == 409);
-    CHECK(nlohmann::json::parse(res->body) == nlohmann::json{{"succeeded", false}, {"error", "not_running"}});
+    CHECK(nlohmann::json::parse(res->body)["succeeded"] == false);
+    CHECK(nlohmann::json::parse(res->body)["error"] == "not_running");
 
     server.stop();
     serverThread.join();

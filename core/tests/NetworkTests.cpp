@@ -10,6 +10,7 @@
 
 #include <catch2/catch_test_macros.hpp>
 #include <httplib.h>
+#include <nlohmann/json.hpp>
 
 #include <Aurora/Network/Http/Server/HttpServer.hpp>
 
@@ -222,6 +223,62 @@ TEST_CASE("HttpServer's serveStaticFiles serves a GIF as image/gif", "[HttpServe
   REQUIRE(result);
   CHECK(result->status == 200);
   CHECK(result->get_header_value("Content-Type") == "image/gif");
+
+  server.stop();
+  serverThread.join();
+}
+
+
+TEST_CASE("HttpServer answers every non-2xx under /api/ as problem+json", "[HttpServer]")
+{
+  HttpServer server;
+  server.serveEmbeddedFiles({{"index.html", "<html></html>"}, {"404.html", "missing"}});
+  server.addRoute(HttpMethod::Post, "/api/legacy", [](const Request&, Response& res){
+    res.status = 422;
+    res.contentType = "application/json";
+    res.body = R"({"succeeded":false,"error":"invalid_graph","valid":false,"errors":[{"node":"a"}],"message":"bad"})";
+  });
+  server.addRoute(HttpMethod::Get, "/api/bare", [](const Request&, Response& res){
+    res.status = 500;
+  });
+
+  const int port = server.bindToAnyPort("127.0.0.1");
+  REQUIRE(port > 0);
+  std::thread serverThread([&](){ server.listen(); });
+  httplib::Client client("127.0.0.1", port);
+
+  auto unknown = getWithRetry(client, "/api/nope");
+  REQUIRE(unknown);
+  CHECK(unknown->status == 404);
+  CHECK(unknown->get_header_value("Content-Type") == "application/problem+json");
+  auto unknownBody = nlohmann::json::parse(unknown->body);
+  CHECK(unknownBody["type"] == "about:blank");
+  CHECK(unknownBody["title"] == "Not Found");
+  CHECK(unknownBody["status"] == 404);
+  CHECK(unknownBody["code"] == "not_found");
+  CHECK(unknownBody["error"] == "not_found");
+  CHECK(unknownBody["succeeded"] == false);
+
+  auto legacy = client.Post("/api/legacy", "{}", "application/json");
+  REQUIRE(legacy);
+  CHECK(legacy->status == 422);
+  CHECK(legacy->get_header_value("Content-Type") == "application/problem+json");
+  auto legacyBody = nlohmann::json::parse(legacy->body);
+  CHECK(legacyBody["code"] == "invalid_graph");
+  CHECK(legacyBody["error"] == "invalid_graph");
+  CHECK(legacyBody["detail"] == "bad");
+  CHECK(legacyBody["valid"] == false);
+  CHECK(legacyBody["errors"].size() == 1);
+
+  auto bare = getWithRetry(client, "/api/bare");
+  REQUIRE(bare);
+  CHECK(nlohmann::json::parse(bare->body)["code"] == "internal_error");
+
+  // Outside /api/ the WebUI's own 404 page stays.
+  auto page = getWithRetry(client, "/nope.js");
+  REQUIRE(page);
+  CHECK(page->status == 404);
+  CHECK(page->body == "missing");
 
   server.stop();
   serverThread.join();

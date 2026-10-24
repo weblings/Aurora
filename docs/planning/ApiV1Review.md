@@ -471,7 +471,7 @@ can switch effects but cannot pause or dim. A new Control scope sits
 between Draft and Apply (recommendation 3).
 
 ## Error envelope
-Status: proposal.
+Status: implemented in 1.1.4 (Aurora-5ipy.25) for every route under /api/.
 
 Today there are three shapes:
 - writes: `{succeeded: false, error, message?}`
