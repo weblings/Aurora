@@ -9,6 +9,7 @@
 
 #include <Aurora/Input/Linux/PipewireFrameBuffer.hpp>
 #include <Aurora/Input/Linux/X11Damage.hpp>
+#include <Aurora/Input/Linux/X11MonitorKey.hpp>
 
 #include <X11/extensions/Xdamage.h>
 
@@ -34,9 +35,9 @@ namespace
   // without a compositor is the known case).
   constexpr long long kMaxStaleMs = 1000;
 
-  // EDID hash plus connector: identical monitors can share an EDID serial,
-  // so the connector keeps them apart. Empty when the output has no EDID.
-  std::string outputKey(Display* display, RROutput output, const char* connector)
+  // EDID hash of the output, empty when it has none. Duplicates are
+  // disambiguated later by assignMonitorKeys.
+  std::string outputEdidHash(Display* display, RROutput output)
   {
     Atom edidAtom = XInternAtom(display, "EDID", True);
     if(edidAtom == None){
@@ -53,18 +54,9 @@ namespace
       return {};
     }
 
-    std::uint64_t hash = 1469598103934665603ull;
-    for(unsigned long i = 0; i < count; ++i){
-      hash = (hash ^ data[i]) * 1099511628211ull;
-    }
+    std::string hash = edidHashKey(data, count);
     XFree(data);
-    if(count == 0){
-      return {};
-    }
-
-    char text[32];
-    std::snprintf(text, sizeof(text), "%016llx", static_cast<unsigned long long>(hash));
-    return std::string(text) + "@" + connector;
+    return hash;
   }
 
   long long steadyNowMs()
@@ -449,6 +441,8 @@ namespace Aurora::Input::Linux
     }
 
     RROutput primaryId = XRRGetOutputPrimary(m_display.get(), root);
+    std::vector<std::string> edidHashes;
+    std::vector<std::string> connectors;
 
     for(int i = 0; i < monitorsQuantity; i++){
       UniqueOutputInfo outputInfo(XRRGetOutputInfo(m_display.get(), screenResources.get(), screenResources->outputs[i]));
@@ -487,7 +481,8 @@ namespace Aurora::Input::Linux
         y,
         screenResources->outputs[i]
       );
-      monitor->key = outputKey(m_display.get(), screenResources->outputs[i], outputInfo->name);
+      edidHashes.push_back(outputEdidHash(m_display.get(), screenResources->outputs[i]));
+      connectors.push_back(outputInfo->name);
       monitorSelectionData.monitors.push_back(std::move(monitor));
 
       if(isPrimary){
@@ -497,6 +492,11 @@ namespace Aurora::Input::Linux
 
     if(monitorSelectionData.monitors.empty()){
       throw std::runtime_error("No monitor available");
+    }
+
+    auto keys = assignMonitorKeys(edidHashes, connectors);
+    for(std::size_t i = 0; i < keys.size(); ++i){
+      monitorSelectionData.monitors[i]->key = std::move(keys[i]);
     }
 
     if(!monitorSelectionData.selectedMonitorId.has_value()){
