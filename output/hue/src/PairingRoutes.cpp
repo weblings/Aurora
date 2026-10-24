@@ -369,7 +369,7 @@ namespace Aurora::Output::Hue
         _writeJson(res, {{"succeeded", true}});
       }
       catch(const std::exception& e){
-        _writeJson(res, {{"succeeded", false}, {"error", e.what()}}, 502);
+        _writeJson(res, {{"succeeded", false}, {"error", "test_pulse_failed"}, {"message", e.what()}}, 502);
       }
     });
 

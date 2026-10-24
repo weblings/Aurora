@@ -238,6 +238,11 @@ TEST_CASE("HttpServer answers every non-2xx under /api/ as problem+json", "[Http
     res.contentType = "application/json";
     res.body = R"({"succeeded":false,"error":"invalid_graph","valid":false,"errors":[{"node":"a"}],"message":"bad"})";
   });
+  server.addRoute(HttpMethod::Get, "/api/nonstring", [](const Request&, Response& res){
+    res.status = 500;
+    res.contentType = "application/json";
+    res.body = R"({"error":{"x":1},"message":7})";
+  });
   server.addRoute(HttpMethod::Get, "/api/bare", [](const Request&, Response& res){
     res.status = 500;
   });
@@ -269,6 +274,11 @@ TEST_CASE("HttpServer answers every non-2xx under /api/ as problem+json", "[Http
   CHECK(legacyBody["detail"] == "bad");
   CHECK(legacyBody["valid"] == false);
   CHECK(legacyBody["errors"].size() == 1);
+
+  auto nonString = getWithRetry(client, "/api/nonstring");
+  REQUIRE(nonString);
+  CHECK(nonString->status == 500);
+  CHECK(nlohmann::json::parse(nonString->body)["code"] == "internal_error");
 
   auto bare = getWithRetry(client, "/api/bare");
   REQUIRE(bare);

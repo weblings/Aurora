@@ -52,11 +52,16 @@ namespace Aurora::Network::Http::Server
   {
     void applyProblem(Response& res, nlohmann::json body, int status)
     {
-      std::string code = body.value("error", std::string{});
+      // value() throws on a non-string member, so read the type first.
+      std::string code = body.contains("error") && body["error"].is_string()
+        ? body["error"].get<std::string>()
+        : std::string{};
       if(code.empty()){
         code = defaultCode(status);
       }
-      std::string detail = body.value("message", std::string{});
+      std::string detail = body.contains("message") && body["message"].is_string()
+        ? body["message"].get<std::string>()
+        : std::string{};
 
       body["type"] = "about:blank";
       body["title"] = statusTitle(status);

@@ -167,7 +167,7 @@ namespace Aurora::Runtime
         }
         else{
           res.status = 500;
-          res.body = nlohmann::json{{"succeeded", false}, {"error", error}}.dump();
+          res.body = nlohmann::json{{"succeeded", false}, {"error", "reload_failed"}, {"message", error}}.dump();
         }
       }
     );
@@ -215,8 +215,11 @@ namespace Aurora::Runtime
           // Nothing to pause is not a server fault: the host is idle or
           // failed, so the request cannot apply (409, as the zone routes
           // answer while paused).
-          res.status = (error == PipelineHost::kNothingToPause) ? 409 : 500;
-          res.body = nlohmann::json{{"succeeded", false}, {"error", error}}.dump();
+          const bool nothingToPause = (error == PipelineHost::kNothingToPause);
+          res.status = nothingToPause ? 409 : 500;
+          res.body = nothingToPause
+            ? nlohmann::json{{"succeeded", false}, {"error", error}}.dump()
+            : nlohmann::json{{"succeeded", false}, {"error", "set_running_failed"}, {"message", error}}.dump();
           return;
         }
 

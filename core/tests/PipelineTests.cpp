@@ -787,7 +787,8 @@ TEST_CASE("Monitors and reload routes answer from PipelineHost", "[PipelineRoute
   CHECK(failed->status == 500);
   auto failedJson = nlohmann::json::parse(failed->body);
   CHECK(failedJson["succeeded"] == false);
-  CHECK(failedJson["error"] == "Unknown input 'nope'");
+  CHECK(failedJson["code"] == "reload_failed");
+  CHECK(failedJson["message"] == "Unknown input 'nope'");
 
   ConfigStore(dir.path).save(videoConfig());
   auto succeeded = client.Post("/api/reload");
@@ -954,7 +955,8 @@ TEST_CASE("PUT /api/state pauses and resumes, idempotently (Aurora-3ddb)", "[Pip
   auto failed = put(R"({"running":true})");
   REQUIRE(failed);
   CHECK(failed->status == 500);
-  CHECK(nlohmann::json::parse(failed->body)["error"] == "Unknown input 'nope'");
+  CHECK(nlohmann::json::parse(failed->body)["code"] == "set_running_failed");
+  CHECK(nlohmann::json::parse(failed->body)["message"] == "Unknown input 'nope'");
   CHECK(host.isPaused());
 
   ConfigStore(dir.path).save(videoConfig());
@@ -1608,7 +1610,8 @@ TEST_CASE("PUT /api/state on a failed host: running:true retries, running:false 
   auto failedRetry = put(R"({"running":true})");
   REQUIRE(failedRetry);
   CHECK(failedRetry->status == 500);
-  CHECK(nlohmann::json::parse(failedRetry->body)["error"] == "Unknown input 'nope'");
+  CHECK(nlohmann::json::parse(failedRetry->body)["code"] == "set_running_failed");
+  CHECK(nlohmann::json::parse(failedRetry->body)["message"] == "Unknown input 'nope'");
   CHECK(get()["state"] == "failed");
   CHECK(get()["errors"][0]["source"] == "reload");
 
