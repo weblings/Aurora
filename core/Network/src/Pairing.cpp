@@ -14,7 +14,7 @@ namespace Aurora::Network::Http::Server
 {
   namespace
   {
-    constexpr std::int64_t kRequestLifetimeSeconds = 300;
+    constexpr std::int64_t kTombstoneSeconds = 60;
     constexpr std::size_t kMaxPending = 8;
     constexpr std::size_t kMaxNameLength = 64;
     constexpr char kCookieName[] = "aurora_token";
@@ -265,8 +265,12 @@ namespace Aurora::Network::Http::Server
   void PairingService::expireLocked()
   {
     const std::int64_t now = m_clock();
+    for(auto it = m_tombstones.begin(); it != m_tombstones.end();){
+      it = now - it->second.at > kTombstoneSeconds ? m_tombstones.erase(it) : std::next(it);
+    }
     for(auto it = m_pending.begin(); it != m_pending.end();){
-      if(now - it->second.createdAt > kRequestLifetimeSeconds){
+      if(now - it->second.createdAt > kPairingLifetimeSeconds){
+        m_tombstones[it->first] = {PairingPoll::State::Expired, now};
         it = m_pending.erase(it);
       }
       else{
@@ -361,6 +365,7 @@ namespace Aurora::Network::Http::Server
     expireLocked();
     for(auto it = m_pending.begin(); it != m_pending.end(); ++it){
       if(it->second.ref == ref && !it->second.decided){
+        m_tombstones[it->first] = {PairingPoll::State::Denied, m_clock()};
         m_pending.erase(it);
         return true;
       }
@@ -376,10 +381,19 @@ namespace Aurora::Network::Http::Server
     PairingPoll result;
     auto it = m_pending.find(pollKey);
     if(it == m_pending.end()){
+      if(auto stone = m_tombstones.find(pollKey); stone != m_tombstones.end()){
+        result.state = stone->second.state;
+      }
       return result;
     }
     if(!it->second.decided){
-      result.state = PairingPoll::State::Pending;
+      // Whole-second clock, so only a same-second repeat counts as too fast.
+      const std::int64_t now = m_clock();
+      const bool tooFast = it->second.lastPoll != 0 && now - it->second.lastPoll < kPairingPollIntervalSeconds - 1;
+      if(!tooFast){
+        it->second.lastPoll = now;
+      }
+      result.state = tooFast ? PairingPoll::State::SlowDown : PairingPoll::State::Pending;
       return result;
     }
     result.state = PairingPoll::State::Approved;
