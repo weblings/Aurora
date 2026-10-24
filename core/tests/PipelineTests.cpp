@@ -38,6 +38,7 @@
 #include <Aurora/Runtime/Graph/NodeRegistry.hpp>
 #include <Aurora/Runtime/Graph/VideoNodes.hpp>
 #include <Aurora/Runtime/GraphRoutes.hpp>
+#include <Aurora/Runtime/HostRoutes.hpp>
 #ifdef AURORA_RUNTIME_AUDIO_AVAILABLE
 #include <Aurora/Runtime/Graph/AudioNodes.hpp>
 #endif
@@ -680,6 +681,75 @@ TEST_CASE("reloadPipelineFromDisk reads the saved Config, not a stale copy", "[P
   bad.setActiveInputName("nope");
   ConfigStore(dir.path).save(bad);
   CHECK(reloadPipelineFromDisk(host, registry, dir.path) == "Unknown input 'nope'");
+}
+
+
+TEST_CASE("Host routes answer capabilities, version and stop", "[HostRoutes]")
+{
+  using namespace Aurora::Network::Http::Server;
+
+  auto events = std::make_shared<Events>();
+  auto registry = makeRegistry(events);
+  PipelineHost host(nullptr, {});
+  std::atomic<int> stops{0};
+
+  // Two servers differ only in the platform string and the hue quirk.
+  auto serve = [&](bool hueCompiledIn, const char* platform){
+    auto server = std::make_unique<HttpServer>();
+    registerCapabilitiesRoute(*server, registry, host, platform, hueCompiledIn);
+    registerVersionRoute(*server, "9.8.7");
+    registerStopRoute(*server, [&stops]{ ++stops; });
+    return server;
+  };
+
+  auto plain = serve(false, "linux");
+  auto hue = serve(true, "mac");
+  const int plainPort = plain->bindToAnyPort("127.0.0.1");
+  const int huePort = hue->bindToAnyPort("127.0.0.1");
+  REQUIRE(plainPort > 0);
+  REQUIRE(huePort > 0);
+  std::thread plainThread([&](){ plain->listen(); });
+  std::thread hueThread([&](){ hue->listen(); });
+
+  httplib::Client plainClient("127.0.0.1", plainPort);
+  auto caps = getWithRetry(plainClient, "/api/capabilities");
+  REQUIRE(caps);
+  CHECK(caps->status == 200);
+  CHECK(caps->get_header_value("Content-Type").find("application/json") == 0);
+  auto capsJson = nlohmann::json::parse(caps->body);
+  CHECK(capsJson["platform"] == "linux");
+  CHECK(capsJson["paused"] == false);
+  CHECK(capsJson["inputs"] == nlohmann::json(registry.inputNames()));
+  CHECK(capsJson["audioInputs"] == nlohmann::json(registry.audioInputNames()));
+  CHECK(capsJson["outputs"] == nlohmann::json(registry.outputNames()));
+  CHECK(capsJson["zeroOffOutputs"] == nlohmann::json(registry.zeroOffOutputNames()));
+  CHECK(capsJson.size() == 6);
+
+  // "hue" is listed once even though it was never registered.
+  httplib::Client hueClient("127.0.0.1", huePort);
+  auto hueCaps = getWithRetry(hueClient, "/api/capabilities");
+  REQUIRE(hueCaps);
+  auto hueJson = nlohmann::json::parse(hueCaps->body);
+  CHECK(hueJson["platform"] == "mac");
+  auto outputs = hueJson["outputs"].get<std::vector<std::string>>();
+  CHECK(std::count(outputs.begin(), outputs.end(), "hue") == 1);
+
+  auto version = plainClient.Get("/api/version");
+  REQUIRE(version);
+  CHECK(version->status == 200);
+  CHECK(version->body == R"({"version":"9.8.7"})");
+
+  CHECK(stops == 0);
+  auto stop = plainClient.Post("/api/stop");
+  REQUIRE(stop);
+  CHECK(stop->status == 200);
+  CHECK(stop->body == R"({"succeeded":true})");
+  CHECK(stops == 1);
+
+  plain->stop();
+  hue->stop();
+  plainThread.join();
+  hueThread.join();
 }
 
 
