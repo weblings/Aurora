@@ -2,7 +2,8 @@
 
 Id: api-v1-plan
 
-Status: Lane A filed for 1.1.4 (2026-10-23). Lanes B and C are plans
+Status: Lane A filed for 1.1.4 (2026-10-23), A9 to A15 added from the
+Lane A review (2026-10-24). Lanes B and C are plans
 here, not beads yet. File Lane B when 1.1.4 is close. The reasoning for
 every item is in [[api-v1-review]]. This doc only orders the work. Sizes:
 S is under a day, M is one to three days.
@@ -39,6 +40,14 @@ Aurora-5ipy. All independent of each other.
 | A6 | Aurora-mfud, Aurora-5ipy.26 | Effect titles and descriptions plus graph `minorVersion` (mfud), `graphInputs` for built-ins (.26) | M |
 | A7 | Aurora-m2c | Root-cause the mode toggle not changing the lights | ? |
 | A8 | Aurora-5ipy.27 | Stable monitor keys, saved-name migration, `canSelectMonitor`, sink id check | M-L |
+| A9 | Aurora-5ipy.28 | WebUI tuning resolves the saved monitor by key, then name | S |
+| A10 | Aurora-5ipy.29 | X11 key is the EDID hash, connector only for duplicate EDIDs | S |
+| A11 | Aurora-5ipy.30 | A saved monitor name is rewritten to its key on build | S |
+| A12 | Aurora-5ipy.31 | `canSelectMonitor` is static per host, in `/api/capabilities` | S |
+| A13 | Aurora-5ipy.32 | Snake_case error codes for reload, state and test-pulse failures, text in `message` | S |
+| A14 | Aurora-5ipy.33 | CI path filters cover `adapters/**`, manual trigger for branch runs | S |
+| A15 | Aurora-5ipy.34 | `lane_a_gate.py`: Lane A contracts on a running app, the launch check per OS | S |
+| A16 | Aurora-5ipy.35 | Windows monitor key from the EDID, not the port-bound device path (found in the Windows A8 pass) | S |
 
 - **Start A8 first.** It needs multi-display hardware on each OS. It feeds
   only B8, so a late A8 moves source selection to v1.1 and delays nothing
@@ -48,7 +57,11 @@ Aurora-5ipy. All independent of each other.
   use the helper from the start.
 - **A4 changes all three app binaries:** green CI on Linux, Mac and
   Windows plus a launch check on each.
-- **A7 is open-ended.** It gates only B7.
+- **A7 is closed.** Aurora-m2c was closed as not reproducible
+  (2026-10-24), so B7 no longer waits on it.
+- **A9 to A16 came from the Lane A review and the Windows A8 pass.** A9 to A11 and A16 block A8
+  (Aurora-5ipy.27), and A14 and A15 block A4 (Aurora-5ipy.24), since
+  they carry those beads' CI and launch-check acceptance.
 
 Other 1.1.4 items, not part of this plan: Aurora-lswm, Aurora-kep2,
 Aurora-51nv.
