@@ -18,9 +18,11 @@ namespace Aurora::Runtime
   // is told apart by method.
   void addEffectsAccessRules(Aurora::Network::Http::Server::AccessGuard& guard);
 
-  // GET /api/effects: {"effects": [{"id", "builtin"}], "activeEffectId":
+  // GET /api/effects: {"effects": [{"id", "builtin", "title", "description"}], "activeEffectId":
   // string (the saved setting, "" when unset), "effect": running id or null,
   // "requestedEffect": id or null}. Built-ins come first, then customs by id.
+  // "title" is the graph's top-level title, else the id; "description" is the
+  // graph's, else null (Aurora-mfud).
   //
   // GET /api/effects/<id>: {"id", "builtin", "graph": <graph.json doc>}. A
   // built-in's doc is the one the running pipeline would build from the

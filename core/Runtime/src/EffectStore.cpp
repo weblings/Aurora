@@ -12,6 +12,32 @@ namespace Aurora::Runtime
   }
 
 
+  EffectInfo effectInfo(const std::filesystem::path& configRoot, const std::string& id)
+  {
+    if(id == kBuiltInVideoEffectId){
+      return {"Screen colors", "Follows the colors on your screen."};
+    }
+    if(id == kBuiltInAudioEffectId){
+      return {"Music pulse", "Moves with the sound your computer is playing."};
+    }
+    EffectInfo info{id, {}};
+    std::string error;
+    const auto doc = EffectStore(configRoot).read(id, error);
+    if(!doc || !doc->is_object()){
+      return info;
+    }
+    const auto text = [&doc](const char* key) -> std::string {
+      const auto it = doc->find(key);
+      return it != doc->end() && it->is_string() ? it->get<std::string>() : std::string{};
+    };
+    if(const std::string title = text("title"); !title.empty()){
+      info.title = title;
+    }
+    info.description = text("description");
+    return info;
+  }
+
+
   EffectStore::EffectStore(const std::filesystem::path& configRoot):
   m_dir(configRoot / "effects")
   {}

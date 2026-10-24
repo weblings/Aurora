@@ -15,6 +15,9 @@
 // ```json
 // {
 //   "version": 1,
+//   "minorVersion": 1,
+//   "title": "Rainbow sweep",
+//   "description": "Colors drift across the lights.",
 //   "tickHz": 60,
 //   "nodes": [{"id": "cap", "type": "video.capture", "params": {}}],
 //   "edges": [["cap.image", "zones.image"]],
@@ -34,6 +37,10 @@
 // (not an object, version, nodes) stop at the first.
 namespace Aurora::Runtime::Graph
 {
+  // Byte limits for the optional top-level title and description (Aurora-mfud).
+  constexpr std::size_t kMaxTitleLength = 60;
+  constexpr std::size_t kMaxDescriptionLength = 280;
+
   struct LoadOptions
   {
     // Known output names for the per-output binding params (zones.sample,

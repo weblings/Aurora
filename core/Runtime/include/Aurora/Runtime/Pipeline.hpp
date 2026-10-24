@@ -80,7 +80,7 @@ namespace Aurora::Runtime
     std::string requestedEffect;
     // Why a requested custom effect is not the one running; empty otherwise.
     std::string fallbackReason;
-    // Capture sources the running custom graph declares; nullopt for a built-in.
+    // Capture sources the running effect uses (a built-in's follow its pipeline mode).
     struct GraphInputs
     {
       bool video{false};

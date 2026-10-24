@@ -176,6 +176,12 @@ function prettyZoneName(zoneId) {
   return zoneId.split('-').map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
 }
 
+// The built-ins' fixed picker text, as the backend's effectInfo (Aurora-mfud).
+const BUILTIN_EFFECTS = [
+  { id: 'builtin.video', builtin: true, title: 'Screen colors', description: 'Follows the colors on your screen.' },
+  { id: 'builtin.audio', builtin: true, title: 'Music pulse', description: 'Moves with the sound your computer is playing.' },
+];
+
 const DEMO_MONITORS = [
   { id: 0, name: 'Demo Display', width: 1920, height: 1080, refreshRate: 60, isPrimary: true },
 ];
@@ -230,9 +236,11 @@ export function createRouter(store, hooks = {}) {
         canStop: false,
         // The demo runs no MCP clients, so the Dashboard's MCP toggle stays hidden.
         mcpEffectId: null,
-        // Only built-ins run here, so no graph declares inputs.
-        graphInputs: null,
+        // Only built-ins run here: video or audio, never both.
+        graphInputs: { video: !audio, audio },
         effect: audio ? 'builtin.audio' : 'builtin.video',
+        effectTitle: audio ? BUILTIN_EFFECTS[1].title : BUILTIN_EFFECTS[0].title,
+        effectDescription: audio ? BUILTIN_EFFECTS[1].description : BUILTIN_EFFECTS[0].description,
         // No MCP client can test on a page with no lights (Aurora-exbp).
         test: { active: false, confirmRemainingMs: 0 },
         usesVideoInput: !audio,
@@ -347,7 +355,7 @@ export function createRouter(store, hooks = {}) {
     if (method === 'GET' && path === '/api/effects') {
       const config = store.getConfig();
       const audio = !config.activeInputName && !!config.activeAudioInputName;
-      return ok({ effects: [], activeEffectId: '', effect: audio ? 'builtin.audio' : 'builtin.video' });
+      return ok({ effects: BUILTIN_EFFECTS, activeEffectId: '', effect: audio ? 'builtin.audio' : 'builtin.video' });
     }
     // PUT-for-read with {} body (PairingRoutes convention -- do NOT "fix" to
     // GET; the Dashboard sends PUT and parity means matching it).

@@ -69,6 +69,12 @@ namespace Aurora::Runtime
       bool audio{false};
     };
 
+    // A built-in effect uses the inputs its pipeline mode captures (Aurora-5ipy.26).
+    PipelineSummary::GraphInputs _builtInInputs(const PipelineCapabilities& capabilities)
+    {
+      return {capabilities.usesVideoInput, capabilities.usesAudioInput};
+    }
+
     // Which capture sources a graph doc declares, by node type.
     SourceNeeds _sourceNeeds(const nlohmann::json& doc)
     {
@@ -409,6 +415,9 @@ namespace Aurora::Runtime
         pipeline->m_summary.fallbackReason = customFailure.empty() ? primary.customError() : customFailure;
       }
     }
+    if(!pipeline->m_summary.graphInputs){
+      pipeline->m_summary.graphInputs = _builtInInputs(pipeline->capabilities());
+    }
     if(!useAudioMode){
       pipeline->m_summary.video = PipelineSummary::Video{
         config.activeInputName(), videoInput->selectedMonitorName()
@@ -673,7 +682,7 @@ namespace Aurora::Runtime
     if(!(m_isAudioMode ? *m_audioRunner : *m_videoRunner).restoreGraph(std::nullopt, error)){
       return false;
     }
-    m_summary.graphInputs.reset();
+    m_summary.graphInputs = _builtInInputs(capabilities());
     return true;
   }
 

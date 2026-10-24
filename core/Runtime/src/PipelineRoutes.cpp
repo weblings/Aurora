@@ -9,6 +9,7 @@
 
 #include <Aurora/Network/Http/Server/HttpServer.hpp>
 #include <Aurora/Runtime/ConfigStore.hpp>
+#include <Aurora/Runtime/EffectStore.hpp>
 #include <Aurora/Runtime/LightTest.hpp>
 #include <Aurora/Runtime/Pipeline.hpp>
 
@@ -68,17 +69,26 @@ namespace Aurora::Runtime
         };
       }
 
-      // Null for a built-in: the client keeps the flags below.
+      // Null only while no pipeline runs.
       nlohmann::json graphInputs(nullptr);
       if(summary.graphInputs){
         graphInputs = {{"video", summary.graphInputs->video}, {"audio", summary.graphInputs->audio}};
       }
 
       const std::string mcpEffectId = ConfigStore(configRoot).load().mcpEffectId();
+      nlohmann::json effectTitle(nullptr);
+      nlohmann::json effectDescription(nullptr);
+      if(!summary.effect.empty()){
+        const EffectInfo info = effectInfo(configRoot, summary.effect);
+        effectTitle = info.title;
+        if(!info.description.empty()){ effectDescription = info.description; }
+      }
 
       return nlohmann::json{
         {"state", hostStateName(status.state)},
         {"effect", summary.effect.empty() ? nlohmann::json(nullptr) : nlohmann::json(summary.effect)},
+        {"effectTitle", effectTitle},
+        {"effectDescription", effectDescription},
         {"requestedEffect", summary.requestedEffect.empty() ? nlohmann::json(nullptr) : nlohmann::json(summary.requestedEffect)},
         {"mcpEffectId", mcpEffectId.empty() ? nlohmann::json(nullptr) : nlohmann::json(mcpEffectId)},
         {"source", {{"video", video}, {"audio", audio}}},

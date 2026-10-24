@@ -1067,6 +1067,8 @@ TEST_CASE("GET /api/state reports paused and the running pipeline's capabilities
     {"state", "idle"},
     {"effect", nullptr},
     {"requestedEffect", nullptr},
+    {"effectTitle", nullptr},
+    {"effectDescription", nullptr},
     {"mcpEffectId", nullptr},
     {"source", {{"video", nullptr}, {"audio", nullptr}}},
     {"graphInputs", nullptr},
@@ -1089,7 +1091,9 @@ TEST_CASE("GET /api/state reports paused and the running pipeline's capabilities
   CHECK(running["usesVideoInput"] == true);
   CHECK(running["usesAudioInput"] == false);
   CHECK(running["samplesZones"] == true);
-  CHECK(running["graphInputs"].is_null());
+  CHECK(running["graphInputs"] == nlohmann::json({{"video", true}, {"audio", false}}));
+  CHECK(running["effectTitle"] == "Screen colors");
+  CHECK(running["effectDescription"].is_string());
 
   // A custom graph reports the sources its nodes declare (Aurora-tc8w).
   REQUIRE(EffectStore(dir.path).write("mine", Graph::builtInVideoGraph({"out-a", "out-b"}), error));
@@ -2553,6 +2557,8 @@ TEST_CASE("Preset routes fill the user's outputs and every preset validates with
     CHECK(body["valid"] == true);
     CHECK(body["outputs"] == nlohmann::json::array({"out-a", "out-b"}));
     CHECK_FALSE(body["graph"]["controls"].empty());
+    CHECK(body["graph"]["title"] == entry["title"]);
+    CHECK(body["graph"]["minorVersion"] == 1);
 
     // Every output has a sender, so the user's outputs were filled in.
     int sends = 0;
@@ -2956,7 +2962,9 @@ TEST_CASE("Effects routes list, read, switch and delete (Aurora-52oz.1)", "[Effe
   auto registry = makeRegistry(events);
   std::string error;
   EffectStore store(dir.path);
-  const nlohmann::json mine = Graph::builtInVideoGraph({"out-a", "out-b"});
+  nlohmann::json mine = Graph::builtInVideoGraph({"out-a", "out-b"});
+  mine["title"] = "Mine";
+  mine["description"] = "My own effect.";
   REQUIRE(store.write("mine", mine, error));
   std::ofstream(dir.path / "effects" / "broken.json") << "{not json";
   ConfigStore(dir.path).save(videoConfig());
@@ -2978,10 +2986,12 @@ TEST_CASE("Effects routes list, read, switch and delete (Aurora-52oz.1)", "[Effe
 
   auto list = json(getWithRetry(client, "/api/effects"));
   CHECK(list["effects"] == nlohmann::json::array({
-    {{"id", "builtin.video"}, {"builtin", true}},
-    {{"id", "builtin.audio"}, {"builtin", true}},
-    {{"id", "broken"}, {"builtin", false}},
-    {{"id", "mine"}, {"builtin", false}}
+    {{"id", "builtin.video"}, {"builtin", true}, {"title", "Screen colors"},
+      {"description", "Follows the colors on your screen."}},
+    {{"id", "builtin.audio"}, {"builtin", true}, {"title", "Music pulse"},
+      {"description", "Moves with the sound your computer is playing."}},
+    {{"id", "broken"}, {"builtin", false}, {"title", "broken"}, {"description", nullptr}},
+    {{"id", "mine"}, {"builtin", false}, {"title", "Mine"}, {"description", "My own effect."}}
   }));
   CHECK(list["activeEffectId"] == "");
   CHECK(list["effect"] == "builtin.video");
@@ -3102,7 +3112,9 @@ TEST_CASE("The summary reports a custom graph's declared inputs, null for a buil
   Config config = videoConfig();
   auto builtIn = Pipeline::build(registry, config, dir.path, {});
   REQUIRE(builtIn);
-  CHECK_FALSE(builtIn->summary().graphInputs);
+  REQUIRE(builtIn->summary().graphInputs);
+  CHECK(builtIn->summary().graphInputs->video);
+  CHECK_FALSE(builtIn->summary().graphInputs->audio);
 
   config.setActiveEffectId("video-only");
   auto video = Pipeline::build(registry, config, dir.path, {});
@@ -3794,7 +3806,9 @@ TEST_CASE("Test on lights runs the draft in place and an explicit revert puts th
   CHECK(*h.host->graphJson() == h.live);
   CHECK_FALSE(h.test->info().active);
   CHECK(h.test->info().lastEnd == "reverted");
-  CHECK_FALSE(h.host->summary().graphInputs);
+  REQUIRE(h.host->summary().graphInputs);
+  CHECK(h.host->summary().graphInputs->video);
+  CHECK_FALSE(h.host->summary().graphInputs->audio);
   CHECK(initCount(*h.events) == 1);
   CHECK(h.beat("editor") == 404);
   CHECK(h.post("/api/graph/test/revert", {{"session", "editor"}}) == 404);

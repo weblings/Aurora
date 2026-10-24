@@ -293,6 +293,23 @@ namespace Aurora::Runtime::Graph
       return fail("version_unsupported", message.str());
     }
 
+    // Additive metadata (minorVersion 1): readers accept any minor and ignore unknown ones.
+    auto minorIt = doc.find("minorVersion");
+    if(minorIt != doc.end() && (!minorIt->is_number_integer() || minorIt->get<long long>() < 0)){
+      report("", "minor_version_invalid", "top-level 'minorVersion' must be a non-negative integer when present");
+    }
+    for(const auto& [key, limit] : {std::pair<const char*, std::size_t>{"title", kMaxTitleLength},
+                                    std::pair<const char*, std::size_t>{"description", kMaxDescriptionLength}}){
+      auto textIt = doc.find(key);
+      if(textIt == doc.end()){
+        continue;
+      }
+      if(!textIt->is_string() || textIt->get<std::string>().empty() || textIt->get<std::string>().size() > limit){
+        report("", std::string(key) + "_invalid", "top-level '" + std::string(key) +
+          "' must be a non-empty string of at most " + std::to_string(limit) + " bytes when present");
+      }
+    }
+
     Graph graph;
 
     auto tickIt = doc.find("tickHz");

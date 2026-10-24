@@ -39,6 +39,8 @@ namespace Aurora::Runtime
   // host holds errors too (a reload that failed while the old pipeline kept
   // going, Aurora-ja76), so a non-empty list does not mean failed: read
   // state. A paused host holds only a failed resume.
+  // "effectTitle" and "effectDescription" (Aurora-mfud) are the running
+  // effect's picker text (title falls back to the id, description to null).
   // The flags describe what the running pipeline uses, kept through pause;
   // all false means nothing runs.
   // "mcpEffectId" (Aurora-4xqt.2) is the custom effect an MCP client applied
