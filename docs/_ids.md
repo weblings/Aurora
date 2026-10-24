@@ -57,6 +57,8 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `98pr-webui-banner-x` | [log/2026-10-06-98pr-webui-banner-x.md](log/2026-10-06-98pr-webui-banner-x.md) | Aurora-98pr: saved-not-applied errors move to the banner; banner X (closed) |
 | `9ca-fromhsv-nan-guard` | [log/2026-10-01-9ca-fromhsv-nan-guard.md](log/2026-10-01-9ca-fromhsv-nan-guard.md) | Aurora-9ca: NaN/Inf into Color::fromHSV's uint8_t cast — fixed |
 | `9ig-pipeline-to-core` | [log/2026-10-01-9ig-pipeline-to-core.md](log/2026-10-01-9ig-pipeline-to-core.md) | Aurora-9ig: Pipeline, PipelineHost and Registry moved into core |
+| `api-v1-plan` | [planning/ApiV1Plan.md](planning/ApiV1Plan.md) | API v1 plan: from today's routes to a frozen `/api/v1` |
+| `api-v1-review` | [planning/ApiV1Review.md](planning/ApiV1Review.md) | API v1 spec review: fields, scopes, public and internal split |
 | `audio-analysis` | [archive/AudioAnalysis.md](archive/AudioAnalysis.md) | Audio-reactive color — findings, not a decision |
 | `audio-sink-dropdown-fetch-rework` | [log/2026-09-30-sink-dropdown-fetch-rework.md](log/2026-09-30-sink-dropdown-fetch-rework.md) | Sink dropdown: fetch rework, chrome removal, 1.0.4 |
 | `axoz-pending-highlight` | [log/2026-10-04-axoz-pending-highlight.md](log/2026-10-04-axoz-pending-highlight.md) | Aurora-axoz: pending highlight on Video/Audio switch (implemented, tracker close refused) |
@@ -133,6 +135,7 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `kea-capability-flags` | [log/2026-10-03-kea-capability-flags.md](log/2026-10-03-kea-capability-flags.md) | Aurora-kea: running-pipeline flags drive the Dashboard (open: Mac/Windows unverified) |
 | `kea-dashboard-capabilities-scoping` | [log/2026-10-02-kea-dashboard-capabilities-scoping.md](log/2026-10-02-kea-dashboard-capabilities-scoping.md) | Aurora-kea: scoping pass on Dashboard capability-driven sections (paused, no code) |
 | `kea-route-and-shared-capture-source` | [log/2026-10-03-kea-route-and-shared-capture-source.md](log/2026-10-03-kea-route-and-shared-capture-source.md) | Aurora-kea: route decision, shared capture-source scope, pending-highlight follow-up (paused, no code) |
+| `kgv7-pickers-follow-graph` | [log/2026-10-23-kgv7-pickers-follow-graph.md](log/2026-10-23-kgv7-pickers-follow-graph.md) | Kgv7: Dashboard pickers follow the MCP graph's declared inputs (Aurora-kgv7) |
 | `lby1-os-assigned-test-ports` | [log/2026-10-16-lby1-os-assigned-test-ports.md](log/2026-10-16-lby1-os-assigned-test-ports.md) | Route tests bind OS-assigned ports (Aurora-lby1) |
 | `leak-fix-and-device-hint` | [log/2026-10-05-leak-fix-and-device-hint.md](log/2026-10-05-leak-fix-and-device-hint.md) | Aurora-2pe5 fixed, Aurora-36b7 and the 9swq copy done; d3ec still waits on its retry path |
 | `lesson-architecture-process` | [lessons/architecture-process.md](lessons/architecture-process.md) | Architecture process |
@@ -158,6 +161,7 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `linux-audio-sink-status` | [log/2026-09-29-linux-audio-sink-status.md](log/2026-09-29-linux-audio-sink-status.md) | Linux audio sink status: Using-hint replaces the no-list warning |
 | `linux-build-spa-headers` | [log/2026-10-07-linux-build-spa-headers.md](log/2026-10-07-linux-build-spa-headers.md) | Linux app preset built clean on a fresh checkout; one missing-header fix |
 | `linux-capture-analysis` | [archive/LinuxCaptureAnalysis.md](archive/LinuxCaptureAnalysis.md) | Grabber / GnuLinux capture — Conversion analysis |
+| `linux-post-d-verification` | [log/2026-10-23-linux-post-d-verification.md](log/2026-10-23-linux-post-d-verification.md) | Linux verification of the changes after Sequence D (0e73051 to e1834d0) |
 | `linux-tray-pause` | [log/2026-10-04-linux-tray-pause.md](log/2026-10-04-linux-tray-pause.md) | Aurora-5ipy.16: Linux SNI tray Pause/Resume (closed) |
 | `lmn5-doc-checkers-as-hook` | [log/2026-10-07-lmn5-doc-checkers-as-hook.md](log/2026-10-07-lmn5-doc-checkers-as-hook.md) | Aurora-lmn.5: check-links.sh/check-lessons.sh wired into the pre-commit hook |
 | `lzj-embed-and-serving` | [log/2026-10-01-lzj-embed-and-serving.md](log/2026-10-01-lzj-embed-and-serving.md) | Aurora-lzj: toolchain spike investigated, change A (embed + serving) done; HA prep filed |
@@ -169,6 +173,7 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `mac-notarization` | [planning/mac/Notarization.md](planning/mac/Notarization.md) | macOS Gatekeeper/notarization |
 | `mac-pause-verification-sck-crash` | [log/2026-10-05-mac-pause-verification-sck-crash.md](log/2026-10-05-mac-pause-verification-sck-crash.md) | Mac verification of pause/resume, kea and axoz; SCK teardown crash found and fixed (Aurora-eq7a) |
 | `mac-permissions` | [archive/mac/Permissions.md](archive/mac/Permissions.md) | macOS Screen Recording permission |
+| `mac-post-d-verification` | [log/2026-10-23-mac-post-d-verification.md](log/2026-10-23-mac-post-d-verification.md) | Mac verification of the changes after Sequence D (0e73051 to e1834d0) |
 | `mac-tray-parity` | [archive/mac/TrayParity.md](archive/mac/TrayParity.md) | macOS tray-parity: open work |
 | `mac-tray-parity-history` | [archive/mac/TrayParityHistory.md](archive/mac/TrayParityHistory.md) | macOS tray-parity: build history |
 | `mac-video-capture` | [archive/mac/VideoCapture.md](archive/mac/VideoCapture.md) | macOS video capture (tier 1) |
