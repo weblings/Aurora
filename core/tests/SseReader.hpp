@@ -28,6 +28,7 @@ namespace
           [this](const httplib::Response& response){
             std::lock_guard<std::mutex> lock(m_mutex);
             m_status = response.status;
+            m_retryAfter = response.get_header_value("Retry-After");
             m_cv.notify_all();
             return true;
           },
@@ -70,6 +71,13 @@ namespace
       return m_cv.wait_for(lock, timeout, [this]{ return m_finished; });
     }
 
+    // Valid once status() returned.
+    std::string retryAfter()
+    {
+      std::lock_guard<std::mutex> lock(m_mutex);
+      return m_retryAfter;
+    }
+
     std::string data()
     {
       std::lock_guard<std::mutex> lock(m_mutex);
@@ -80,6 +88,7 @@ namespace
     std::mutex m_mutex;
     std::condition_variable m_cv;
     std::string m_data;
+    std::string m_retryAfter;
     int m_status{0};
     bool m_finished{false};
     std::atomic<bool> m_abort{false};

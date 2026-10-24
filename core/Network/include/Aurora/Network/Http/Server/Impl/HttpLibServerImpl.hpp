@@ -382,6 +382,7 @@ namespace Aurora::Network::Http::Server
       if(previous >= m_maxStreams || m_stopping.load()){
         _releaseStream();
         res.status = 503;
+        res.set_header("Retry-After", "3");
         res.set_content("{\"succeeded\":false,\"error\":\"too_many_streams\"}", "application/json");
         return;
       }
@@ -391,6 +392,8 @@ namespace Aurora::Network::Http::Server
         "text/event-stream",
         [this, handler, request = _makeRequest(req, HttpMethod::Get, guard)](size_t, httplib::DataSink& sink){
           SinkStream stream(sink, m_stopping);
+          // Same as the browser default, stated so other SSE clients match it.
+          stream.write("retry: 3000\n\n");
           handler(request, stream);
           sink.done();
           return true;

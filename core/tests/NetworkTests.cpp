@@ -578,6 +578,7 @@ TEST_CASE("HttpServer stream route answers text/event-stream and delivers writes
     SseReader reader(port, "/events");
     CHECK(reader.status() == 200);
     CHECK(reader.waitFor("data: tick\n\n"));
+    CHECK(reader.data().rfind("retry: 3000\n\n", 0) == 0);
   }
 
   server.stop();
@@ -622,6 +623,7 @@ TEST_CASE("HttpServer rejects a stream past the cap and frees the slot on discon
 
     SseReader third(port, "/events");
     CHECK(third.status() == 503);
+    CHECK(third.retryAfter() == "3");
     CHECK(third.waitFinished());
     CHECK(third.data().find("too_many_streams") != std::string::npos);
 
