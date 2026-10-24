@@ -35,6 +35,45 @@ namespace
   }
 
 
+  // The monitor's device path (EDID id plus instance) for a GDI name, which
+  // unlike the \\.\DISPLAYn name survives replug and renumbering. Empty on failure.
+  std::string monitorKey(const wchar_t* gdiName)
+  {
+    UINT32 pathCount = 0;
+    UINT32 modeCount = 0;
+    if(GetDisplayConfigBufferSizes(QDC_ONLY_ACTIVE_PATHS, &pathCount, &modeCount) != ERROR_SUCCESS){
+      return {};
+    }
+    std::vector<DISPLAYCONFIG_PATH_INFO> paths(pathCount);
+    std::vector<DISPLAYCONFIG_MODE_INFO> modes(modeCount);
+    if(QueryDisplayConfig(QDC_ONLY_ACTIVE_PATHS, &pathCount, paths.data(), &modeCount, modes.data(), nullptr) != ERROR_SUCCESS){
+      return {};
+    }
+
+    for(UINT32 i = 0; i < pathCount; ++i){
+      DISPLAYCONFIG_SOURCE_DEVICE_NAME source{};
+      source.header.type = DISPLAYCONFIG_DEVICE_INFO_GET_SOURCE_NAME;
+      source.header.size = sizeof(source);
+      source.header.adapterId = paths[i].sourceInfo.adapterId;
+      source.header.id = paths[i].sourceInfo.id;
+      if(DisplayConfigGetDeviceInfo(&source.header) != ERROR_SUCCESS || std::wcscmp(source.viewGdiDeviceName, gdiName) != 0){
+        continue;
+      }
+
+      DISPLAYCONFIG_TARGET_DEVICE_NAME target{};
+      target.header.type = DISPLAYCONFIG_DEVICE_INFO_GET_TARGET_NAME;
+      target.header.size = sizeof(target);
+      target.header.adapterId = paths[i].targetInfo.adapterId;
+      target.header.id = paths[i].targetInfo.id;
+      if(DisplayConfigGetDeviceInfo(&target.header) != ERROR_SUCCESS){
+        return {};
+      }
+      return narrow(target.monitorDevicePath);
+    }
+    return {};
+  }
+
+
   // SDR white in scRGB units (1.0 = 80 nits): above 1.0 only on an HDR desktop.
   // Read via DisplayConfig, which is live, unlike IDXGIOutput6::GetDesc1.
   float sdrWhiteScale(const wchar_t* gdiName)
@@ -191,7 +230,7 @@ namespace Aurora::Input::Windows
         unsigned width = static_cast<unsigned>(desc.DesktopCoordinates.right - desc.DesktopCoordinates.left);
         unsigned height = static_cast<unsigned>(desc.DesktopCoordinates.bottom - desc.DesktopCoordinates.top);
 
-        monitorSelectionData.monitors.push_back(std::make_shared<WindowsMonitorData>(
+        auto monitor = std::make_shared<WindowsMonitorData>(
           narrow(desc.DeviceName),
           width,
           height,
@@ -199,7 +238,9 @@ namespace Aurora::Input::Windows
           isPrimary,
           adapter,
           output1
-        ));
+        );
+        monitor->key = monitorKey(desc.DeviceName);
+        monitorSelectionData.monitors.push_back(std::move(monitor));
 
         if(isPrimary){
           monitorSelectionData.selectedMonitorId = static_cast<unsigned>(monitorSelectionData.monitors.size() - 1);

@@ -130,6 +130,7 @@ namespace Aurora::Runtime
           list.push_back({
             {"id", i},
             {"name", monitor->name},
+            {"key", monitor->key},
             {"width", monitor->width},
             {"height", monitor->height},
             {"refreshRate", monitor->refreshRate},
@@ -138,7 +139,8 @@ namespace Aurora::Runtime
         }
 
         res.contentType = "application/json";
-        res.body = nlohmann::json{{"monitors", list}}.dump();
+        // No list means the portal picks the output (Wayland), so no remote select.
+        res.body = nlohmann::json{{"monitors", list}, {"canSelectMonitor", !monitors.empty()}}.dump();
       }
     );
   }

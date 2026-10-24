@@ -27,6 +27,9 @@ namespace Aurora::Input
     virtual ~MonitorData() = default;
 
     std::string name{""};
+    // Persistent id for saved selection, set by the grabber. Empty = none,
+    // match by name only. Unlike name, it survives replug, reorder and reboot.
+    std::string key{""};
     unsigned width{0};
     unsigned height{0};
     double refreshRate{0};

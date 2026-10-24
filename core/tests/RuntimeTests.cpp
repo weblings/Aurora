@@ -505,6 +505,8 @@ namespace
         std::make_shared<MonitorData>("Primary", 1920, 1080, 60.0, true),
         std::make_shared<MonitorData>("Secondary", 1280, 720, 60.0, false)
       };
+      m_monitorSelectionData.monitors[0]->key = "key-a";
+      m_monitorSelectionData.monitors[1]->key = "key-b";
       m_monitorSelectionData.selectedMonitorId = 0;
     }
   };
@@ -518,6 +520,20 @@ TEST_CASE("selectConfiguredMonitor resolves a saved name to the matching monitor
 
   Config config;
   config.setActiveMonitorName("Secondary");
+  selectConfiguredMonitor(input, config);
+
+  REQUIRE(input.lastSelectedMonitorId.has_value());
+  CHECK(input.lastSelectedMonitorId.value() == 1);
+}
+
+
+TEST_CASE("selectConfiguredMonitor resolves a saved key even after the name changes", "[MonitorSelector]")
+{
+  FakeMultiMonitorInput input;
+  input.init();
+
+  Config config;
+  config.setActiveMonitorName("key-b");
   selectConfiguredMonitor(input, config);
 
   REQUIRE(input.lastSelectedMonitorId.has_value());

@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <chrono>
 #include <cstdint>
+#include <cstdio>
 #include <limits>
 #include <stdexcept>
 
@@ -32,6 +33,39 @@ namespace
   // when a driver under-reports root damage (NVIDIA fullscreen flipping
   // without a compositor is the known case).
   constexpr long long kMaxStaleMs = 1000;
+
+  // EDID hash plus connector: identical monitors can share an EDID serial,
+  // so the connector keeps them apart. Empty when the output has no EDID.
+  std::string outputKey(Display* display, RROutput output, const char* connector)
+  {
+    Atom edidAtom = XInternAtom(display, "EDID", True);
+    if(edidAtom == None){
+      return {};
+    }
+
+    Atom type = None;
+    int format = 0;
+    unsigned long count = 0;
+    unsigned long remaining = 0;
+    unsigned char* data = nullptr;
+    if(XRRGetOutputProperty(display, output, edidAtom, 0, 128, False, False, AnyPropertyType,
+        &type, &format, &count, &remaining, &data) != Success || !data){
+      return {};
+    }
+
+    std::uint64_t hash = 1469598103934665603ull;
+    for(unsigned long i = 0; i < count; ++i){
+      hash = (hash ^ data[i]) * 1099511628211ull;
+    }
+    XFree(data);
+    if(count == 0){
+      return {};
+    }
+
+    char text[32];
+    std::snprintf(text, sizeof(text), "%016llx", static_cast<unsigned long long>(hash));
+    return std::string(text) + "@" + connector;
+  }
 
   long long steadyNowMs()
   {
@@ -443,7 +477,7 @@ namespace Aurora::Input::Linux
       int height = static_cast<int>(crtcInfo->height);
       bool isPrimary = (screenResources->outputs[i] == primaryId);
 
-      monitorSelectionData.monitors.push_back(std::make_shared<X11MonitorData>(
+      auto monitor = std::make_shared<X11MonitorData>(
         outputInfo->name,
         width,
         height,
@@ -452,7 +486,9 @@ namespace Aurora::Input::Linux
         x,
         y,
         screenResources->outputs[i]
-      ));
+      );
+      monitor->key = outputKey(m_display.get(), screenResources->outputs[i], outputInfo->name);
+      monitorSelectionData.monitors.push_back(std::move(monitor));
 
       if(isPrimary){
         monitorSelectionData.selectedMonitorId = monitorSelectionData.monitors.size() - 1;
