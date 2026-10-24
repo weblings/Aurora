@@ -139,8 +139,8 @@ namespace Aurora::Runtime
         }
 
         res.contentType = "application/json";
-        // No list means the portal picks the output (Wayland), so no remote select.
-        res.body = nlohmann::json{{"monitors", list}, {"canSelectMonitor", !monitors.empty()}}.dump();
+        // canSelectMonitor moved to /api/capabilities (static per host).
+        res.body = nlohmann::json{{"monitors", list}}.dump();
       }
     );
   }

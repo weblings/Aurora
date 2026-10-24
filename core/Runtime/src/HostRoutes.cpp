@@ -23,13 +23,14 @@ namespace Aurora::Runtime
     const Registry& registry,
     const PipelineHost& pipelineHost,
     std::string platform,
-    bool hueCompiledIn
+    bool hueCompiledIn,
+    bool canSelectMonitor
   )
   {
     server.addRoute(
       HttpMethod::Get,
       "/api/capabilities",
-      [&registry, &pipelineHost, platform = std::move(platform), hueCompiledIn](const Request&, Response& res){
+      [&registry, &pipelineHost, platform = std::move(platform), hueCompiledIn, canSelectMonitor](const Request&, Response& res){
         std::vector<std::string> outputs = registry.outputNames();
         if(hueCompiledIn && std::find(outputs.begin(), outputs.end(), "hue") == outputs.end()){
           outputs.push_back("hue");
@@ -41,6 +42,7 @@ namespace Aurora::Runtime
           // Outputs where brightness 0 means off; the Dashboard shows the floor control only for these.
           {"zeroOffOutputs", registry.zeroOffOutputNames()},
           {"platform", platform},
+          {"canSelectMonitor", canSelectMonitor},
           // In-memory pause (Aurora-3ddb); read lock-free like the rest.
           {"paused", pipelineHost.isPaused()}
         };

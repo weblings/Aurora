@@ -414,7 +414,7 @@ try
   auto accessGuard = std::make_shared<Aurora::Network::Http::Server::AccessGuard>(pairingService);
   Aurora::Network::Http::Server::registerPairingRoutes(httpServer, pairingService, *accessGuard);
   httpServer.setAccessGuard(accessGuard);
-  Aurora::Runtime::registerCapabilitiesRoute(httpServer, registry, pipelineHost, "mac", kHueCompiledIn);
+  Aurora::Runtime::registerCapabilitiesRoute(httpServer, registry, pipelineHost, "mac", kHueCompiledIn, true);
   Aurora::Runtime::registerVersionRoute(httpServer, AURORA_VERSION);
   // Raised at launch so the permission prompt appears before the user
   // reaches the Connect screen (Aurora-o1qt).

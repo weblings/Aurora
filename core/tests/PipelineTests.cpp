@@ -694,16 +694,16 @@ TEST_CASE("Host routes answer capabilities, version and stop", "[HostRoutes]")
   std::atomic<int> stops{0};
 
   // Two servers differ only in the platform string and the hue quirk.
-  auto serve = [&](bool hueCompiledIn, const char* platform){
+  auto serve = [&](bool hueCompiledIn, const char* platform, bool canSelectMonitor){
     auto server = std::make_unique<HttpServer>();
-    registerCapabilitiesRoute(*server, registry, host, platform, hueCompiledIn);
+    registerCapabilitiesRoute(*server, registry, host, platform, hueCompiledIn, canSelectMonitor);
     registerVersionRoute(*server, "9.8.7");
     registerStopRoute(*server, [&stops]{ ++stops; });
     return server;
   };
 
-  auto plain = serve(false, "linux");
-  auto hue = serve(true, "mac");
+  auto plain = serve(false, "linux", false);
+  auto hue = serve(true, "mac", true);
   const int plainPort = plain->bindToAnyPort("127.0.0.1");
   const int huePort = hue->bindToAnyPort("127.0.0.1");
   REQUIRE(plainPort > 0);
@@ -723,7 +723,8 @@ TEST_CASE("Host routes answer capabilities, version and stop", "[HostRoutes]")
   CHECK(capsJson["audioInputs"] == nlohmann::json(registry.audioInputNames()));
   CHECK(capsJson["outputs"] == nlohmann::json(registry.outputNames()));
   CHECK(capsJson["zeroOffOutputs"] == nlohmann::json(registry.zeroOffOutputNames()));
-  CHECK(capsJson.size() == 6);
+  CHECK(capsJson["canSelectMonitor"] == false);
+  CHECK(capsJson.size() == 7);
 
   // "hue" is listed once even though it was never registered.
   httplib::Client hueClient("127.0.0.1", huePort);
@@ -731,6 +732,7 @@ TEST_CASE("Host routes answer capabilities, version and stop", "[HostRoutes]")
   REQUIRE(hueCaps);
   auto hueJson = nlohmann::json::parse(hueCaps->body);
   CHECK(hueJson["platform"] == "mac");
+  CHECK(hueJson["canSelectMonitor"] == true);
   auto outputs = hueJson["outputs"].get<std::vector<std::string>>();
   CHECK(std::count(outputs.begin(), outputs.end(), "hue") == 1);
 

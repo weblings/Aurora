@@ -716,7 +716,7 @@ if(!instanceLock.held()){
   auto accessGuard = std::make_shared<Aurora::Network::Http::Server::AccessGuard>(pairingService);
   Aurora::Network::Http::Server::registerPairingRoutes(httpServer, pairingService, *accessGuard);
   httpServer.setAccessGuard(accessGuard);
-  Aurora::Runtime::registerCapabilitiesRoute(httpServer, registry, pipelineHost, "windows", kHueCompiledIn);
+  Aurora::Runtime::registerCapabilitiesRoute(httpServer, registry, pipelineHost, "windows", kHueCompiledIn, true);
   Aurora::Runtime::registerVersionRoute(httpServer, AURORA_VERSION);
 
   // Tooltip descriptors (docs/TooltipsAnalysis.md): every layer

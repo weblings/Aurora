@@ -13,16 +13,19 @@ namespace Aurora::Runtime
   class Registry;
 
   // GET /api/capabilities: {"inputs", "audioInputs", "outputs", "zeroOffOutputs",
-  // "platform", "paused"}. The contract is "compiled with", not "already
+  // "platform", "paused", "canSelectMonitor"}. The contract is "compiled with", not "already
   // paired": with `hueCompiledIn` "hue" is listed in outputs even before
   // credentials register it. `platform` is a literal per host binary.
+  // `canSelectMonitor` is static per host: false only where a portal picks the
+  // output (Wayland), regardless of run state or permissions.
   // Reads only lock-free state, so it can be registered before Config loads.
   void registerCapabilitiesRoute(
     Aurora::Network::Http::Server::HttpServer& server,
     const Registry& registry,
     const PipelineHost& pipelineHost,
     std::string platform,
-    bool hueCompiledIn
+    bool hueCompiledIn,
+    bool canSelectMonitor
   );
 
   // GET /api/version: {"version"}, the superbuild VERSION baked in as

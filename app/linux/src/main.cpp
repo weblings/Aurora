@@ -87,6 +87,22 @@ namespace
   }
 
 
+  // Only X11 lists monitors; the Wayland/Gamescope portal picks the output.
+  bool canSelectMonitorOnLinux()
+  {
+    bool x11Available = false;
+    bool pipewireAvailable = false;
+#ifdef AURORA_INPUT_LINUX_X11_AVAILABLE
+    x11Available = true;
+#endif
+#ifdef AURORA_INPUT_LINUX_PIPEWIRE_AVAILABLE
+    pipewireAvailable = true;
+#endif
+    return Aurora::Input::Linux::selectBackendFromEnvironment(pipewireAvailable, x11Available)
+      == Aurora::Input::Linux::Backend::X11;
+  }
+
+
   // "linux" auto-selects X11 vs. Wayland/Pipewire the way huenicorn's
   // GnuLinuxAdapter did; the concrete backend names are also registered
   // individually for manual override while testing.
@@ -519,7 +535,7 @@ if(!instanceLock.held()){
   auto accessGuard = std::make_shared<Aurora::Network::Http::Server::AccessGuard>(pairingService);
   Aurora::Network::Http::Server::registerPairingRoutes(httpServer, pairingService, *accessGuard);
   httpServer.setAccessGuard(accessGuard);
-  Aurora::Runtime::registerCapabilitiesRoute(httpServer, registry, pipelineHost, "linux", kHueCompiledIn);
+  Aurora::Runtime::registerCapabilitiesRoute(httpServer, registry, pipelineHost, "linux", kHueCompiledIn, canSelectMonitorOnLinux());
   Aurora::Runtime::registerVersionRoute(httpServer, AURORA_VERSION);
 
   // Tooltip descriptors (docs/TooltipsAnalysis.md): every layer
