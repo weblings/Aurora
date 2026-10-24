@@ -72,7 +72,12 @@ def pairing(base):
     poll = "/api/pairing/request/" + ticket["pollKey"]
     first = raw(base, "GET", poll)
     assert first[0] == 202 and json.loads(first[2])["error"] == "authorization_pending", first[::2]
-    fast = raw(base, "GET", poll)
+    # Slow-down counts whole seconds, so a repeat that straddles a second boundary
+    # is a plain 202. Keep repeating until one lands in the same second.
+    for _ in range(5):
+        fast = raw(base, "GET", poll)
+        if fast[0] != 202:
+            break
     assert fast[0] == 429 and json.loads(fast[2])["error"] == "slow_down", fast[::2]
     assert fast[1]["Retry-After"] == str(ticket["interval"]), fast[1]["Retry-After"]
     ref = next(p["ref"] for p in json.loads(raw(base, "GET", "/api/pairing/pending")[2])["pending"]
