@@ -26,7 +26,7 @@ const read = (p) => readFileSync(new URL(p, root), 'utf8');
   assert.ok(routes.includes('"/api/version"'), 'HostRoutes registers /api/version');
   assert.ok(routes.includes('{"version", version}'), 'HostRoutes serves the version it is given');
 }
-for (const app of ['app/linux', 'app/windows']) {
+for (const app of ['app/linux', 'app/mac', 'app/windows']) {
   const lists = read(`${app}/CMakeLists.txt`);
   assert.ok(lists.includes('AURORA_VERSION'), `${app} defines AURORA_VERSION`);
   const main = read(`${app}/src/main.cpp`);
