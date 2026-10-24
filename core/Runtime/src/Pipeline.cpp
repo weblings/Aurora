@@ -366,8 +366,16 @@ namespace Aurora::Runtime
       // built from the pre-init load would overwrite a settings PUT that
       // landed meanwhile (Aurora-d6i7).
       const Config& derived = pipeline->m_videoRunner->config();
-      ConfigStore(configRoot).update([&derived](Config& onDisk){
+      // A legacy monitor name is rewritten to its key, but only if disk still
+      // holds that name (no reload: update() never triggers one).
+      const std::string legacyMonitor = config.activeMonitorName();
+      ConfigStore(configRoot).update([&derived, &legacyMonitor](Config& onDisk){
         bool changed = false;
+        if(!legacyMonitor.empty() && derived.activeMonitorName() != legacyMonitor
+          && onDisk.activeMonitorName() == legacyMonitor){
+          onDisk.setActiveMonitorName(derived.activeMonitorName());
+          changed = true;
+        }
         if(onDisk.refreshRate() == 0 && derived.refreshRate() != 0){
           onDisk.setRefreshRate(derived.refreshRate());
           changed = true;

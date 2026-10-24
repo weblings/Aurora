@@ -2,11 +2,11 @@
 
 namespace Aurora::Runtime
 {
-  void selectConfiguredMonitor(Input::IVideoInput& input, const Config& config)
+  std::string selectConfiguredMonitor(Input::IVideoInput& input, const Config& config)
   {
     const auto& saved = config.activeMonitorName();
     if(saved.empty()){
-      return;
+      return {};
     }
 
     // Key first, then name, so a pre-key saved name still resolves.
@@ -14,14 +14,15 @@ namespace Aurora::Runtime
     for(unsigned i = 0; i < monitors.size(); ++i){
       if(!monitors[i]->key.empty() && monitors[i]->key == saved){
         input.selectMonitor(i);
-        return;
+        return {};
       }
     }
     for(unsigned i = 0; i < monitors.size(); ++i){
       if(monitors[i]->name == saved){
         input.selectMonitor(i);
-        return;
+        return monitors[i]->key;
       }
     }
+    return {};
   }
 }

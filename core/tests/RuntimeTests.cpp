@@ -520,7 +520,7 @@ TEST_CASE("selectConfiguredMonitor resolves a saved name to the matching monitor
 
   Config config;
   config.setActiveMonitorName("Secondary");
-  selectConfiguredMonitor(input, config);
+  CHECK(selectConfiguredMonitor(input, config) == "key-b"); // legacy name -> key to migrate to
 
   REQUIRE(input.lastSelectedMonitorId.has_value());
   CHECK(input.lastSelectedMonitorId.value() == 1);
@@ -534,7 +534,7 @@ TEST_CASE("selectConfiguredMonitor resolves a saved key even after the name chan
 
   Config config;
   config.setActiveMonitorName("key-b");
-  selectConfiguredMonitor(input, config);
+  CHECK(selectConfiguredMonitor(input, config).empty()); // already a key, nothing to migrate
 
   REQUIRE(input.lastSelectedMonitorId.has_value());
   CHECK(input.lastSelectedMonitorId.value() == 1);
