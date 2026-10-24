@@ -4,12 +4,14 @@
 name: windows
 
 on:
+  workflow_dispatch:
   push:
     branches: [main]
     paths:
       - core/**
       - input/windows/**
       - output/hue/**
+      - adapters/**
       - app/windows/**
       - web/graph-editor/**
       - CMakeLists.txt
@@ -20,6 +22,7 @@ on:
       - core/**
       - input/windows/**
       - output/hue/**
+      - adapters/**
       - app/windows/**
       - web/graph-editor/**
       - CMakeLists.txt
