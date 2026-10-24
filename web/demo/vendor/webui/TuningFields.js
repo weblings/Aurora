@@ -31,10 +31,14 @@ function _closestRefreshRate(value) {
   ));
 }
 
-function _resolveMonitor(monitors, selectedMonitorName) {
+// Key first, then name, like the backend's MonitorSelector, so a pre-key
+// saved name still resolves.
+export function resolveMonitor(monitors, selectedMonitorName) {
   if (!monitors.length) return null;
   if (selectedMonitorName === AUTO_MONITOR_VALUE) return monitors.find((m) => m.isPrimary) ?? monitors[0];
-  return monitors.find((m) => m.name === selectedMonitorName) ?? monitors[0];
+  return monitors.find((m) => m.key && m.key === selectedMonitorName)
+    ?? monitors.find((m) => m.name === selectedMonitorName)
+    ?? monitors[0];
 }
 
 // The key a control's value lives under: its PUT /api/config key, else its
@@ -194,7 +198,7 @@ export class TuningFields {
     if (control.configKey === 'subsampleWidth') {
       // Candidates depend on the selected monitor's real resolution; "Auto" (0)
       // leads the list, matching the backend's sentinel for "pick one at init".
-      const monitor = _resolveMonitor(this.monitors, this.selectedMonitorName);
+      const monitor = resolveMonitor(this.monitors, this.selectedMonitorName);
       const candidates = monitor ? subsampleCandidates(monitor.width, monitor.height) : [];
       options = [
         { label: 'Auto', value: '0' },
