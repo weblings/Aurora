@@ -465,7 +465,13 @@ namespace Aurora::Network::Http::Server
 
   void AccessGuard::addWriteRule(const std::string& pathPrefix, Scope required)
   {
-    m_rules.push_back({pathPrefix, required, true});
+    m_rules.push_back({pathPrefix, required, true, std::nullopt});
+  }
+
+
+  void AccessGuard::addMethodRule(HttpMethod method, const std::string& pathPrefix, Scope required)
+  {
+    m_rules.push_back({pathPrefix, required, false, method});
   }
 
 
@@ -523,7 +529,8 @@ namespace Aurora::Network::Http::Server
     std::size_t best = 0;
     bool matched = false;
     for(const auto& rule : m_rules){
-      if(rule.writesOnly && request.method == HttpMethod::Get){
+      if((rule.writesOnly && request.method == HttpMethod::Get)
+        || (rule.method && *rule.method != request.method)){
         continue;
       }
       if(underPrefix(request.path, rule.prefix) && (!matched || rule.prefix.size() > best)){

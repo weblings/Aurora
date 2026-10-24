@@ -13,9 +13,9 @@ namespace Aurora::Runtime
   class PipelineHost;
   class Registry;
 
-  // Reads need `read`; the switch and delete need `apply` (LAN only, loopback
-  // is trusted). The rule is by prefix, so the PUT shares /api/effects with
-  // the GETs and is told apart by method.
+  // Reads need `read`, the switch needs `apply`, delete needs `admin` (LAN
+  // only, loopback is trusted). The PUT shares /api/effects with the GETs and
+  // is told apart by method.
   void addEffectsAccessRules(Aurora::Network::Http::Server::AccessGuard& guard);
 
   // GET /api/effects: {"effects": [{"id", "builtin"}], "activeEffectId":

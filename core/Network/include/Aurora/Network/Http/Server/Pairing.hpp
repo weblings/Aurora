@@ -176,6 +176,10 @@ namespace Aurora::Network::Http::Server
     // prefix keep the default Read requirement (Aurora-52oz.1).
     void addWriteRule(const std::string& pathPrefix, Scope required);
 
+    // Like addRule, but only for one method, so a verb can need more than its
+    // siblings under the same prefix (DELETE /api/effects/ vs PUT .../params).
+    void addMethodRule(HttpMethod method, const std::string& pathPrefix, Scope required);
+
     AccessDecision decide(const AccessRequest& request) const;
 
     static bool isLoopback(const std::string& remoteAddr);
@@ -188,6 +192,7 @@ namespace Aurora::Network::Http::Server
       std::string prefix;
       Scope scope;
       bool writesOnly;
+      std::optional<HttpMethod> method;
     };
     std::vector<Rule> m_rules;
   };

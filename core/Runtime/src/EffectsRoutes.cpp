@@ -55,6 +55,8 @@ namespace Aurora::Runtime
   void addEffectsAccessRules(AccessGuard& guard)
   {
     guard.addWriteRule("/api/effects", Scope::Apply);
+    // Delete is the one write that loses saved work, so it needs more than apply.
+    guard.addMethodRule(HttpMethod::Delete, "/api/effects/", Scope::Admin);
   }
 
 

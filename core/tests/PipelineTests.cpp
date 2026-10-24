@@ -2974,7 +2974,7 @@ TEST_CASE("Effects routes list, read, switch and delete (Aurora-52oz.1)", "[Effe
 }
 
 
-TEST_CASE("Effects routes: reads need read scope, switch and delete need apply (Aurora-52oz.1)", "[Effects][Pairing]")
+TEST_CASE("Effects routes: reads need read scope, switch needs apply, delete needs admin (Aurora-52oz.1, Aurora-5ipy.21)", "[Effects][Pairing]")
 {
   using namespace Aurora::Network::Http::Server;
   auto service = std::make_shared<PairingService>();
@@ -2984,6 +2984,7 @@ TEST_CASE("Effects routes: reads need read scope, switch and delete need apply (
   const std::string read = service->mintForTest("viewer", Scope::Read);
   const std::string draft = service->mintForTest("editor", Scope::Draft);
   const std::string apply = service->mintForTest("adapter", Scope::Apply);
+  const std::string admin = service->mintForTest("owner", Scope::Admin);
 
   auto decide = [&](HttpMethod method, const std::string& path, const std::string& token){
     AccessRequest request;
@@ -3003,7 +3004,9 @@ TEST_CASE("Effects routes: reads need read scope, switch and delete need apply (
   CHECK(decide(HttpMethod::Put, "/api/effects", draft) == Result::Forbidden);
   CHECK(decide(HttpMethod::Put, "/api/effects", apply) == Result::Allow);
   CHECK(decide(HttpMethod::Delete, "/api/effects/mine", read) == Result::Forbidden);
-  CHECK(decide(HttpMethod::Delete, "/api/effects/mine", apply) == Result::Allow);
+  CHECK(decide(HttpMethod::Delete, "/api/effects/mine", draft) == Result::Forbidden);
+  CHECK(decide(HttpMethod::Delete, "/api/effects/mine", apply) == Result::Forbidden);
+  CHECK(decide(HttpMethod::Delete, "/api/effects/mine", admin) == Result::Allow);
   CHECK(decide(HttpMethod::Put, "/api/effects/mine/params", draft) == Result::Forbidden);
   CHECK(decide(HttpMethod::Put, "/api/effects/mine/params", apply) == Result::Allow);
   CHECK(decide(HttpMethod::Put, "/api/effects", "") == Result::Unauthorized);
