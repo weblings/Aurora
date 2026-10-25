@@ -54,7 +54,7 @@ namespace
       return {};
     }
 
-    std::string hash = edidHashKey(data, count);
+    std::string hash = Aurora::Input::edidHashKey(data, count);
     XFree(data);
     return hash;
   }

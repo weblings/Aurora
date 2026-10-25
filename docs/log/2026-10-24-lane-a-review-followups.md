@@ -35,3 +35,9 @@ A15 stay open until their Linux, Mac and CI runs are recorded. Monitor-key items
 - Web: `TuningFields.test.mjs` passes, demo vendor closure check passes. `lane_a_gate.py` compiles.
 - Not done: `lane_a_gate.py` run on any OS, Linux and Mac CI runs, Linux `X11MonitorKeyTests` run.
 - Mac (2026-10-25): core suite 443/443, `mac-app` builds, `lane_a_gate.py` 6/6. Mac CI run not checked (no `gh`), Linux still not run.
+- Linux (2026-10-25): core suite 443/443, `linux-app` builds, ctest 194/194 incl. `X11MonitorKey` 5/5, `lane_a_gate.py` 6/6
+  (`canSelectMonitor` false on this Wayland box, as designed). Linux CI run not checked (no `gh`); the local equivalent of
+  its steps (linux-app configure/build/ctest, standalone core configure/build/ctest) is green. Found and fixed a Lane A
+  build break: `X11Grabber.cpp` called `edidHashKey` unqualified from the anonymous namespace, where the forwarding
+  header's `using` (in `Aurora::Input::Linux`) does not reach; now qualified `Aurora::Input::edidHashKey`, matching
+  `WindowsGrabber.cpp`. A10's "Linux build green" and A15's Linux launch check are done; A14 still owes the green CI run.

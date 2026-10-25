@@ -58,7 +58,8 @@ against one config dir between steps. The saved choice was the Dell, not the pri
   Parameters\EDID`), so it no longer embeds the port. The old device path stays in `MonitorData.altKeys`, still resolves a
   saved value and is rewritten to the key. A monitor with no EDID keeps the device path as its key. Identical EDIDs get
   `hash@devicePath`, so only that rare case still depends on the port. The key helpers moved to core
-  (`Aurora/Input/MonitorKey.hpp`), X11 uses them through a forwarding header (not built on Linux yet).
+  (`Aurora/Input/MonitorKey.hpp`), X11 uses them through a forwarding header (Linux build fixed 2026-10-25: the
+  anonymous-namespace call needed a qualified `Aurora::Input::edidHashKey`, as on Windows).
 - The running app does not see an added or moved monitor until a rebuild. Filed per platform for 1.1.4:
   Aurora-ecl5 (Windows), Aurora-h06o (Mac), Aurora-9fn3 (X11).
 
@@ -75,3 +76,12 @@ One display (built-in), `mac` input, fake-Hue stack, `build/mac-app`.
 
 - Core suite 443/443 on Mac, `lane_a_gate.py` 6/6 on the Mac app (`canSelectMonitor` true).
 - Not done: primary change, replug, reboot and restart without `--fresh`, all needing a second display.
+
+## Linux pass (2026-10-25)
+
+Wayland box, `linux-app` preset, fake-Hue stack with `--input dummy`.
+
+- `linux-app` builds; ctest 194/194, incl. the five `X11MonitorKey` cases (bare hash when unique, connector-rename
+  survival, `hash@connector` only for shared EDIDs, keyless without EDID).
+- `lane_a_gate.py` 6/6; `canSelectMonitor` false, as designed for the Wayland/portal backend.
+- Not done: X11-session drift repro, primary change, replug and reboot survival, all needing X11 hardware.
