@@ -681,7 +681,7 @@ TEST_CASE("A graph that needs an unchosen input asks for the user, not a retry")
   CHECK(callTool(busy, "try_on_lights")["result"]["content"][0]["text"].get<std::string>().find("Try again") != std::string::npos);
 }
 
-TEST_CASE("aurora-mcp --pair requests the scope, prints only the token, and stops on deny or expiry")
+TEST_CASE("aurora-mcp --pair requests the scope, prints only the token, and tells deny from expiry")
 {
   std::vector<std::string> log;
   std::vector<HttpReply> polls;
@@ -709,11 +709,28 @@ TEST_CASE("aurora-mcp --pair requests the scope, prints only the token, and stop
     CHECK(waits == 2);
   }
 
-  SECTION("Denied or expired"){
-    polls = {{404, R"({"state":"unknown"})", {}}};
+  SECTION("Slow down keeps waiting"){
+    polls = {{429, R"({"error":"slow_down"})", {}}, {200, R"({"state":"approved","token":"tok123","scope":"apply"})", {}}};
+    std::ostringstream out, err;
+    CHECK(Aurora::Mcp::pair(fetch, "laptop", "apply", out, err, []{}) == 0);
+    CHECK(out.str() == "tok123\n");
+  }
+
+  SECTION("Denied says denied"){
+    polls = {{403, R"({"error":"access_denied"})", {}}};
     std::ostringstream out, err;
     CHECK(Aurora::Mcp::pair(fetch, "laptop", "draft", out, err, []{}) == 1);
     CHECK(out.str().empty());
+    CHECK(err.str().find("denied") != std::string::npos);
+  }
+
+  SECTION("Expired says expired"){
+    polls = {{410, R"({"error":"expired_token"})", {}}};
+    std::ostringstream out, err;
+    CHECK(Aurora::Mcp::pair(fetch, "laptop", "draft", out, err, []{}) == 1);
+    CHECK(out.str().empty());
+    CHECK(err.str().find("expired") != std::string::npos);
+    CHECK(err.str().find("denied") == std::string::npos);
   }
 
   SECTION("Admin is refused before any request"){

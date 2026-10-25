@@ -47,6 +47,7 @@
 #include <Aurora/Runtime/EffectsRoutes.hpp>
 #include <Aurora/Runtime/GraphRoutes.hpp>
 #include <Aurora/Runtime/PresetRoutes.hpp>
+#include <Aurora/Runtime/HostRoutes.hpp>
 #include <Aurora/Runtime/PipelineRoutes.hpp>
 #include <Aurora/Runtime/SettingsRoutes.hpp>
 #include <Aurora/Runtime/ZoneRoutes.hpp>
@@ -287,94 +288,6 @@ namespace
   }
 
 
-  // Sets the same flag SIGINT/SIGTERM already sets (the signal handler,
-  // above) -- the daemon exits through its normal shutdown path (the tick
-  // loop below sees g_stopRequested, calls pipelineHost.shutdown(), then
-  // main() returns and httpServerThread's own destructor stops this same
-  // server), not a special-cased one.
-  void registerStopRoute(Aurora::Network::Http::Server::HttpServer& httpServer)
-  {
-    httpServer.addRoute(
-      Aurora::Network::Http::Server::HttpMethod::Post,
-      "/api/stop",
-      [](const Aurora::Network::Http::Server::Request&, Aurora::Network::Http::Server::Response& res){
-        res.contentType = "application/json";
-        res.body = nlohmann::json{{"succeeded", true}}.dump();
-        g_stopRequested = true;
-      }
-    );
-  }
-
-
-  // First WebUI route: lets a frontend probe which Input/Output plugins this
-  // particular binary was actually compiled with, before rendering anything
-  // that assumes one exists. No Config dependency, so this can be
-  // registered before Config loads -- addRoute() just captures it for
-  // bind() to hand to Impl later.
-  void registerCapabilitiesRoute(
-    Aurora::Network::Http::Server::HttpServer& httpServer,
-    const Aurora::Runtime::Registry& registry,
-    const Aurora::Runtime::PipelineHost& pipelineHost
-  )
-  {
-    httpServer.addRoute(
-      Aurora::Network::Http::Server::HttpMethod::Get,
-      "/api/capabilities",
-      [&registry, &pipelineHost](const Aurora::Network::Http::Server::Request&, Aurora::Network::Http::Server::Response& res){
-        std::vector<std::string> outputs = registry.outputNames();
-#ifdef AURORA_OUTPUT_HUE_IO_AVAILABLE
-        // registerOutputs() only adds "hue" to registry once credentials
-        // are already configured, so the frontend's onboarding gate
-        // would never see it on a fresh install otherwise -- this route's
-        // contract is "compiled with," not "already paired" (OutputConnectScreen
-        // handles pairing itself).
-        if(std::find(outputs.begin(), outputs.end(), "hue") == outputs.end()){
-          outputs.push_back("hue");
-        }
-#endif
-        nlohmann::json json = {
-          {"inputs", registry.inputNames()},
-          {"audioInputs", registry.audioInputNames()},
-          {"outputs", outputs},
-          // Outputs where brightness 0 means off; the Dashboard shows the floor control only for these.
-          {"zeroOffOutputs", registry.zeroOffOutputNames()},
-          // Literal per app binary, not runtime-detected -- see
-          // app/linux/src/main.cpp's registerCapabilitiesRoute for why.
-          {"platform", "mac"},
-          // In-memory pause (Aurora-3ddb); read lock-free like the rest.
-          {"paused", pipelineHost.isPaused()}
-        };
-
-        res.contentType = "application/json";
-        res.body = json.dump();
-      }
-    );
-  }
-
-
-  // Version probe for the dashboard footer: the single truth is the
-  // superbuild project() VERSION, baked in as AURORA_VERSION at compile
-  // time (or "dev" for standalone slice configures). No Config dependency,
-  // registered alongside the capabilities route.
-  void registerVersionRoute(
-    Aurora::Network::Http::Server::HttpServer& httpServer
-  )
-  {
-    httpServer.addRoute(
-      Aurora::Network::Http::Server::HttpMethod::Get,
-      "/api/version",
-      [](const Aurora::Network::Http::Server::Request&, Aurora::Network::Http::Server::Response& res){
-        nlohmann::json json = {
-          {"version", AURORA_VERSION}
-        };
-
-        res.contentType = "application/json";
-        res.body = json.dump();
-      }
-    );
-  }
-
-
   // RAII wrapper so the server is stopped and its thread joined on every
   // exit path (early "no outputs"/"unknown input" returns included) --
   // std::thread::~thread() calls std::terminate() if it's still joinable,
@@ -398,6 +311,16 @@ namespace
     Aurora::Network::Http::Server::HttpServer& m_server;
     std::thread m_thread;
   };
+}
+
+
+namespace
+{
+#ifdef AURORA_OUTPUT_HUE_IO_AVAILABLE
+  constexpr bool kHueCompiledIn = true;
+#else
+  constexpr bool kHueCompiledIn = false;
+#endif
 }
 
 
@@ -491,8 +414,8 @@ try
   auto accessGuard = std::make_shared<Aurora::Network::Http::Server::AccessGuard>(pairingService);
   Aurora::Network::Http::Server::registerPairingRoutes(httpServer, pairingService, *accessGuard);
   httpServer.setAccessGuard(accessGuard);
-  registerCapabilitiesRoute(httpServer, registry, pipelineHost);
-  registerVersionRoute(httpServer);
+  Aurora::Runtime::registerCapabilitiesRoute(httpServer, registry, pipelineHost, "mac", kHueCompiledIn, true);
+  Aurora::Runtime::registerVersionRoute(httpServer, AURORA_VERSION);
   // Raised at launch so the permission prompt appears before the user
   // reaches the Connect screen (Aurora-o1qt).
   Aurora::App::requestLocalNetworkPrompt();
@@ -571,7 +494,7 @@ try
   Aurora::Runtime::registerPresetRoutes(httpServer, registry, configRoot);
   Aurora::Runtime::registerPreviewRoutes(httpServer, pipelineHost, registry, draftStore);
   Aurora::Runtime::registerDevErrorsRoute(httpServer, pipelineHost);
-  registerStopRoute(httpServer);
+  Aurora::Runtime::registerStopRoute(httpServer, []{ g_stopRequested = true; });
   Aurora::Runtime::registerZoneRoutes(
     httpServer,
     [&pipelineHost]{ return pipelineHost.listZones(); },

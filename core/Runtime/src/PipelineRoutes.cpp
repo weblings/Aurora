@@ -9,6 +9,7 @@
 
 #include <Aurora/Network/Http/Server/HttpServer.hpp>
 #include <Aurora/Runtime/ConfigStore.hpp>
+#include <Aurora/Runtime/EffectStore.hpp>
 #include <Aurora/Runtime/LightTest.hpp>
 #include <Aurora/Runtime/Pipeline.hpp>
 
@@ -68,17 +69,26 @@ namespace Aurora::Runtime
         };
       }
 
-      // Null for a built-in: the client keeps the flags below.
+      // Null only while no pipeline runs.
       nlohmann::json graphInputs(nullptr);
       if(summary.graphInputs){
         graphInputs = {{"video", summary.graphInputs->video}, {"audio", summary.graphInputs->audio}};
       }
 
       const std::string mcpEffectId = ConfigStore(configRoot).load().mcpEffectId();
+      nlohmann::json effectTitle(nullptr);
+      nlohmann::json effectDescription(nullptr);
+      if(!summary.effect.empty()){
+        const EffectInfo info = effectInfo(configRoot, summary.effect);
+        effectTitle = info.title;
+        if(!info.description.empty()){ effectDescription = info.description; }
+      }
 
       return nlohmann::json{
         {"state", hostStateName(status.state)},
         {"effect", summary.effect.empty() ? nlohmann::json(nullptr) : nlohmann::json(summary.effect)},
+        {"effectTitle", effectTitle},
+        {"effectDescription", effectDescription},
         {"requestedEffect", summary.requestedEffect.empty() ? nlohmann::json(nullptr) : nlohmann::json(summary.requestedEffect)},
         {"mcpEffectId", mcpEffectId.empty() ? nlohmann::json(nullptr) : nlohmann::json(mcpEffectId)},
         {"source", {{"video", video}, {"audio", audio}}},
@@ -120,6 +130,7 @@ namespace Aurora::Runtime
           list.push_back({
             {"id", i},
             {"name", monitor->name},
+            {"key", monitor->key},
             {"width", monitor->width},
             {"height", monitor->height},
             {"refreshRate", monitor->refreshRate},
@@ -128,6 +139,7 @@ namespace Aurora::Runtime
         }
 
         res.contentType = "application/json";
+        // canSelectMonitor moved to /api/capabilities (static per host).
         res.body = nlohmann::json{{"monitors", list}}.dump();
       }
     );
@@ -155,7 +167,7 @@ namespace Aurora::Runtime
         }
         else{
           res.status = 500;
-          res.body = nlohmann::json{{"succeeded", false}, {"error", error}}.dump();
+          res.body = nlohmann::json{{"succeeded", false}, {"error", "reload_failed"}, {"message", error}}.dump();
         }
       }
     );
@@ -203,8 +215,11 @@ namespace Aurora::Runtime
           // Nothing to pause is not a server fault: the host is idle or
           // failed, so the request cannot apply (409, as the zone routes
           // answer while paused).
-          res.status = (error == PipelineHost::kNothingToPause) ? 409 : 500;
-          res.body = nlohmann::json{{"succeeded", false}, {"error", error}}.dump();
+          const bool nothingToPause = (error == PipelineHost::kNothingToPause);
+          res.status = nothingToPause ? 409 : 500;
+          res.body = nothingToPause
+            ? nlohmann::json{{"succeeded", false}, {"error", error}}.dump()
+            : nlohmann::json{{"succeeded", false}, {"error", "set_running_failed"}, {"message", error}}.dump();
           return;
         }
 

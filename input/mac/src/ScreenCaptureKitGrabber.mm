@@ -22,6 +22,19 @@ namespace Aurora::Input::Mac
   {
     // SCDisplay carries no human-readable name -- "Display <id>" is stable
     // and matches X11Grabber's fallback shape when Xrandr has nothing better.
+    // The display UUID, unlike the CGDirectDisplayID, survives restarts.
+    // Empty if CoreGraphics has none.
+    std::string displayKey(CGDirectDisplayID displayID)
+    {
+      CFUUIDRef uuid = CGDisplayCreateUUIDFromDisplayID(displayID);
+      if(!uuid){
+        return {};
+      }
+      NSString* text = CFBridgingRelease(CFUUIDCreateString(kCFAllocatorDefault, uuid));
+      CFRelease(uuid);
+      return text ? std::string(text.UTF8String) : std::string{};
+    }
+
     std::string displayLabel(CGDirectDisplayID displayID, bool isPrimary)
     {
       std::string label = "Display " + std::to_string(displayID);
@@ -623,14 +636,16 @@ namespace Aurora::Input::Mac
       // contract) happens in configureAndStartStream(), once the chosen
       // display's scale factor is known; listing every display in points is
       // enough for identification.
-      monitors.push_back(std::make_shared<SCKMonitorData>(
+      auto monitor = std::make_shared<SCKMonitorData>(
         displayLabel(display.displayID, isPrimary),
         static_cast<unsigned>(display.width),
         static_cast<unsigned>(display.height),
         60.0,
         isPrimary,
         display.displayID
-      ));
+      );
+      monitor->key = displayKey(display.displayID);
+      monitors.push_back(std::move(monitor));
     }
 
     m_monitorSelectionData.monitors = std::move(monitors);

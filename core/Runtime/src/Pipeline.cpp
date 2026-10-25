@@ -69,6 +69,12 @@ namespace Aurora::Runtime
       bool audio{false};
     };
 
+    // A built-in effect uses the inputs its pipeline mode captures (Aurora-5ipy.26).
+    PipelineSummary::GraphInputs _builtInInputs(const PipelineCapabilities& capabilities)
+    {
+      return {capabilities.usesVideoInput, capabilities.usesAudioInput};
+    }
+
     // Which capture sources a graph doc declares, by node type.
     SourceNeeds _sourceNeeds(const nlohmann::json& doc)
     {
@@ -360,8 +366,16 @@ namespace Aurora::Runtime
       // built from the pre-init load would overwrite a settings PUT that
       // landed meanwhile (Aurora-d6i7).
       const Config& derived = pipeline->m_videoRunner->config();
-      ConfigStore(configRoot).update([&derived](Config& onDisk){
+      // A legacy monitor name is rewritten to its key, but only if disk still
+      // holds that name (no reload: update() never triggers one).
+      const std::string legacyMonitor = config.activeMonitorName();
+      ConfigStore(configRoot).update([&derived, &legacyMonitor](Config& onDisk){
         bool changed = false;
+        if(!legacyMonitor.empty() && derived.activeMonitorName() != legacyMonitor
+          && onDisk.activeMonitorName() == legacyMonitor){
+          onDisk.setActiveMonitorName(derived.activeMonitorName());
+          changed = true;
+        }
         if(onDisk.refreshRate() == 0 && derived.refreshRate() != 0){
           onDisk.setRefreshRate(derived.refreshRate());
           changed = true;
@@ -408,6 +422,9 @@ namespace Aurora::Runtime
       else{
         pipeline->m_summary.fallbackReason = customFailure.empty() ? primary.customError() : customFailure;
       }
+    }
+    if(!pipeline->m_summary.graphInputs){
+      pipeline->m_summary.graphInputs = _builtInInputs(pipeline->capabilities());
     }
     if(!useAudioMode){
       pipeline->m_summary.video = PipelineSummary::Video{
@@ -673,7 +690,7 @@ namespace Aurora::Runtime
     if(!(m_isAudioMode ? *m_audioRunner : *m_videoRunner).restoreGraph(std::nullopt, error)){
       return false;
     }
-    m_summary.graphInputs.reset();
+    m_summary.graphInputs = _builtInInputs(capabilities());
     return true;
   }
 

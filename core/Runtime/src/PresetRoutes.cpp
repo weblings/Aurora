@@ -210,6 +210,10 @@ namespace Aurora::Runtime
           return;
         }
         json graph = preset->build(outputs);
+        // The agent edits and saves this, so it starts with the picker text set (Aurora-mfud).
+        graph["minorVersion"] = 1;
+        graph["title"] = preset->title;
+        graph["description"] = preset->description;
         json body = validateGraphDoc(*nodes, registry, configRoot, graph);
         body["id"] = preset->id;
         body["title"] = preset->title;

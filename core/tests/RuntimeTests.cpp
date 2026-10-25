@@ -8,6 +8,7 @@
 #include <thread>
 #include <vector>
 
+#include <Aurora/Input/MonitorKey.hpp>
 #include <Aurora/Runtime/Config.hpp>
 #include <Aurora/Runtime/ConfigApply.hpp>
 #include <Aurora/Runtime/ConfigStore.hpp>
@@ -505,6 +506,9 @@ namespace
         std::make_shared<MonitorData>("Primary", 1920, 1080, 60.0, true),
         std::make_shared<MonitorData>("Secondary", 1280, 720, 60.0, false)
       };
+      m_monitorSelectionData.monitors[0]->key = "key-a";
+      m_monitorSelectionData.monitors[1]->key = "key-b";
+      m_monitorSelectionData.monitors[1]->altKeys = {"old-key-b"};
       m_monitorSelectionData.selectedMonitorId = 0;
     }
   };
@@ -518,10 +522,48 @@ TEST_CASE("selectConfiguredMonitor resolves a saved name to the matching monitor
 
   Config config;
   config.setActiveMonitorName("Secondary");
-  selectConfiguredMonitor(input, config);
+  CHECK(selectConfiguredMonitor(input, config) == "key-b"); // legacy name -> key to migrate to
 
   REQUIRE(input.lastSelectedMonitorId.has_value());
   CHECK(input.lastSelectedMonitorId.value() == 1);
+}
+
+
+TEST_CASE("selectConfiguredMonitor resolves a saved key even after the name changes", "[MonitorSelector]")
+{
+  FakeMultiMonitorInput input;
+  input.init();
+
+  Config config;
+  config.setActiveMonitorName("key-b");
+  CHECK(selectConfiguredMonitor(input, config).empty()); // already a key, nothing to migrate
+
+  REQUIRE(input.lastSelectedMonitorId.has_value());
+  CHECK(input.lastSelectedMonitorId.value() == 1);
+}
+
+
+TEST_CASE("selectConfiguredMonitor resolves an older form of the key and reports the key (Aurora-5ipy.35)", "[MonitorSelector]")
+{
+  FakeMultiMonitorInput input;
+  input.init();
+
+  Config config;
+  config.setActiveMonitorName("old-key-b");
+  CHECK(selectConfiguredMonitor(input, config) == "key-b"); // alias -> key to migrate to
+
+  REQUIRE(input.lastSelectedMonitorId.has_value());
+  CHECK(input.lastSelectedMonitorId.value() == 1);
+}
+
+
+TEST_CASE("assignMonitorKeys leaves a unique EDID key alone when the port changes (Aurora-5ipy.35)", "[MonitorKey]")
+{
+  using Aurora::Input::assignMonitorKeys;
+
+  CHECK(assignMonitorKeys({"aaaa", "bbbb"}, {"port-1", "port-2"}) == assignMonitorKeys({"aaaa", "bbbb"}, {"port-9", "port-2"}));
+  CHECK(assignMonitorKeys({"aaaa", "aaaa"}, {"port-1", "port-2"}) == std::vector<std::string>{"aaaa@port-1", "aaaa@port-2"});
+  CHECK(assignMonitorKeys({"", "aaaa"}, {"port-1", "port-2"}) == std::vector<std::string>{"", "aaaa"});
 }
 
 

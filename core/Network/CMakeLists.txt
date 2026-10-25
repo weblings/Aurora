@@ -5,6 +5,7 @@
 add_library(AuroraNetwork STATIC
   src/HttpServer.cpp
   src/Pairing.cpp
+  src/Problem.cpp
   src/PairingRoutes.cpp
 )
 

@@ -134,7 +134,10 @@ namespace Aurora::Runtime
       // Must run before refreshRate/subsampleWidth derivation: both read the
       // input's currently selected monitor.
       if(!videoReady){
-        selectConfiguredMonitor(*m_videoInput, m_config);
+        const std::string migratedKey = selectConfiguredMonitor(*m_videoInput, m_config);
+        if(!migratedKey.empty()){
+          m_config.setActiveMonitorName(migratedKey);
+        }
       }
 
       if(m_config.refreshRate() == 0){

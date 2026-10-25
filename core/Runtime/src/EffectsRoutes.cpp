@@ -55,6 +55,8 @@ namespace Aurora::Runtime
   void addEffectsAccessRules(AccessGuard& guard)
   {
     guard.addWriteRule("/api/effects", Scope::Apply);
+    // Delete is the one write that loses saved work, so it needs more than apply.
+    guard.addMethodRule(HttpMethod::Delete, "/api/effects/", Scope::Admin);
   }
 
 
@@ -76,10 +78,17 @@ namespace Aurora::Runtime
       "/api/effects",
       [&pipelineHost, configRoot](const Request&, Response& res){
         nlohmann::json effects = nlohmann::json::array();
-        effects.push_back({{"id", kBuiltInVideoEffectId}, {"builtin", true}});
-        effects.push_back({{"id", kBuiltInAudioEffectId}, {"builtin", true}});
+        const auto entry = [&configRoot](const std::string& id, bool builtin){
+          const EffectInfo info = effectInfo(configRoot, id);
+          return nlohmann::json{
+            {"id", id}, {"builtin", builtin}, {"title", info.title},
+            {"description", info.description.empty() ? nlohmann::json(nullptr) : nlohmann::json(info.description)}
+          };
+        };
+        effects.push_back(entry(kBuiltInVideoEffectId, true));
+        effects.push_back(entry(kBuiltInAudioEffectId, true));
         for(const std::string& id : EffectStore(configRoot).list()){
-          effects.push_back({{"id", id}, {"builtin", false}});
+          effects.push_back(entry(id, false));
         }
         _reply(res, 200, _effectState(pipelineHost, {
           {"effects", effects},

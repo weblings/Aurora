@@ -158,12 +158,17 @@ export class PairingScreen {
       this.onComplete();
       return;
     }
-    if (status === 202) {
+    // 429 is slow_down: keep waiting at our own pace.
+    if (status === 202 || status === 429) {
       this._schedulePoll();
       return;
     }
     this.phase = 'intro';
-    this.error = 'The request was declined or expired. Pair again to get a new code.';
+    this.error = status === 403
+      ? 'The request was declined in Aurora. Pair again if that was a mistake.'
+      : status === 410
+        ? 'The request expired before it was approved. Pair again to get a new code.'
+        : 'Aurora no longer knows this request. Pair again to get a new code.';
     this._render();
   }
 }

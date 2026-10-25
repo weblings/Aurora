@@ -3,11 +3,13 @@
 #include <algorithm>
 #include <chrono>
 #include <cstdint>
+#include <cstdio>
 #include <limits>
 #include <stdexcept>
 
 #include <Aurora/Input/Linux/PipewireFrameBuffer.hpp>
 #include <Aurora/Input/Linux/X11Damage.hpp>
+#include <Aurora/Input/Linux/X11MonitorKey.hpp>
 
 #include <X11/extensions/Xdamage.h>
 
@@ -32,6 +34,30 @@ namespace
   // when a driver under-reports root damage (NVIDIA fullscreen flipping
   // without a compositor is the known case).
   constexpr long long kMaxStaleMs = 1000;
+
+  // EDID hash of the output, empty when it has none. Duplicates are
+  // disambiguated later by assignMonitorKeys.
+  std::string outputEdidHash(Display* display, RROutput output)
+  {
+    Atom edidAtom = XInternAtom(display, "EDID", True);
+    if(edidAtom == None){
+      return {};
+    }
+
+    Atom type = None;
+    int format = 0;
+    unsigned long count = 0;
+    unsigned long remaining = 0;
+    unsigned char* data = nullptr;
+    if(XRRGetOutputProperty(display, output, edidAtom, 0, 128, False, False, AnyPropertyType,
+        &type, &format, &count, &remaining, &data) != Success || !data){
+      return {};
+    }
+
+    std::string hash = Aurora::Input::edidHashKey(data, count);
+    XFree(data);
+    return hash;
+  }
 
   long long steadyNowMs()
   {
@@ -415,6 +441,8 @@ namespace Aurora::Input::Linux
     }
 
     RROutput primaryId = XRRGetOutputPrimary(m_display.get(), root);
+    std::vector<std::string> edidHashes;
+    std::vector<std::string> connectors;
 
     for(int i = 0; i < monitorsQuantity; i++){
       UniqueOutputInfo outputInfo(XRRGetOutputInfo(m_display.get(), screenResources.get(), screenResources->outputs[i]));
@@ -443,7 +471,7 @@ namespace Aurora::Input::Linux
       int height = static_cast<int>(crtcInfo->height);
       bool isPrimary = (screenResources->outputs[i] == primaryId);
 
-      monitorSelectionData.monitors.push_back(std::make_shared<X11MonitorData>(
+      auto monitor = std::make_shared<X11MonitorData>(
         outputInfo->name,
         width,
         height,
@@ -452,7 +480,10 @@ namespace Aurora::Input::Linux
         x,
         y,
         screenResources->outputs[i]
-      ));
+      );
+      edidHashes.push_back(outputEdidHash(m_display.get(), screenResources->outputs[i]));
+      connectors.push_back(outputInfo->name);
+      monitorSelectionData.monitors.push_back(std::move(monitor));
 
       if(isPrimary){
         monitorSelectionData.selectedMonitorId = monitorSelectionData.monitors.size() - 1;
@@ -461,6 +492,11 @@ namespace Aurora::Input::Linux
 
     if(monitorSelectionData.monitors.empty()){
       throw std::runtime_error("No monitor available");
+    }
+
+    auto keys = assignMonitorKeys(edidHashes, connectors);
+    for(std::size_t i = 0; i < keys.size(); ++i){
+      monitorSelectionData.monitors[i]->key = std::move(keys[i]);
     }
 
     if(!monitorSelectionData.selectedMonitorId.has_value()){

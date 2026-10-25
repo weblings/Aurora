@@ -20,13 +20,17 @@ const read = (p) => readFileSync(new URL(p, root), 'utf8');
   assert.ok(declared, 'superbuild project() carries a VERSION');
 }
 
-// Both app shells bake the truth into a /api/version route.
-for (const app of ['app/linux', 'app/windows']) {
+// The shared core helper owns the route, and each app shell bakes the truth in.
+{
+  const routes = read('core/Runtime/src/HostRoutes.cpp');
+  assert.ok(routes.includes('"/api/version"'), 'HostRoutes registers /api/version');
+  assert.ok(routes.includes('{"version", version}'), 'HostRoutes serves the version it is given');
+}
+for (const app of ['app/linux', 'app/mac', 'app/windows']) {
   const lists = read(`${app}/CMakeLists.txt`);
   assert.ok(lists.includes('AURORA_VERSION'), `${app} defines AURORA_VERSION`);
   const main = read(`${app}/src/main.cpp`);
-  assert.ok(main.includes('"/api/version"'), `${app} registers /api/version`);
-  assert.ok(main.includes('{"version", AURORA_VERSION}'), `${app} serves the baked version`);
+  assert.ok(main.includes('registerVersionRoute(httpServer, AURORA_VERSION)'), `${app} serves the baked version`);
 }
 
 // Both dashboards probe the route and render into the footer slot.

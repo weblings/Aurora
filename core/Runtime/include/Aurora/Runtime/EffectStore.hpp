@@ -18,6 +18,18 @@ namespace Aurora::Runtime
 
   bool isBuiltInEffectId(const std::string& id);
 
+  // What the effect picker shows (Aurora-mfud). title falls back to the id;
+  // description is empty when the graph sets none.
+  struct EffectInfo
+  {
+    std::string title;
+    std::string description;
+  };
+
+  // Built-ins have fixed text. A custom effect reads its graph's top-level
+  // title and description; an unreadable file or a missing field falls back.
+  EffectInfo effectInfo(const std::filesystem::path& configRoot, const std::string& id);
+
   class EffectStore
   {
   public:

@@ -38,6 +38,7 @@
 #include <Aurora/Runtime/Graph/NodeRegistry.hpp>
 #include <Aurora/Runtime/Graph/VideoNodes.hpp>
 #include <Aurora/Runtime/GraphRoutes.hpp>
+#include <Aurora/Runtime/HostRoutes.hpp>
 #ifdef AURORA_RUNTIME_AUDIO_AVAILABLE
 #include <Aurora/Runtime/Graph/AudioNodes.hpp>
 #endif
@@ -105,6 +106,9 @@ namespace
     // What FakeVideoInput::captureError() reports.
     std::string captureError;
 
+    // Stable key on the fake monitor; empty = keyless, like a pre-key grabber.
+    std::string monitorKey;
+
     bool has(const std::string& line) const
     {
       return std::find(lines.begin(), lines.end(), line) != lines.end();
@@ -144,6 +148,11 @@ namespace
     RefreshRate displayRefreshRate() const override { return 30; }
     std::string captureError() const override { return m_events ? m_events->captureError : std::string{}; }
 
+    void selectMonitor(unsigned monitorId) override
+    {
+      m_monitorSelectionData.selectedMonitorId = monitorId;
+    }
+
     void grabFrameSubsample(ImageData& imageData) override
     {
       if(m_events && m_events->onGrab){ m_events->onGrab(); }
@@ -154,9 +163,9 @@ namespace
   protected:
     void _initMonitorsList() override
     {
-      m_monitorSelectionData.monitors.push_back(
-        std::make_shared<MonitorData>("Fake Monitor", 4, 2, 30.0, true)
-      );
+      auto monitor = std::make_shared<MonitorData>("Fake Monitor", 4, 2, 30.0, true);
+      if(m_events){ monitor->key = m_events->monitorKey; }
+      m_monitorSelectionData.monitors.push_back(std::move(monitor));
     }
 
   private:
@@ -358,6 +367,69 @@ TEST_CASE("Pipeline::build only fills derived fields that are still unset on dis
   REQUIRE(Pipeline::build(registry, config, dir.path, {}));
 
   CHECK(ConfigStore(dir.path).load().refreshRate() == 60);
+}
+
+
+TEST_CASE("Pipeline::build migrates a saved monitor name to its key on disk (Aurora-5ipy.30)", "[Pipeline]")
+{
+  ScopedTempDir dir("monitor-key-migrate");
+  Config saved = videoConfig();
+  saved.setActiveMonitorName("Fake Monitor");
+  ConfigStore(dir.path).save(saved);
+
+  auto events = std::make_shared<Events>();
+  events->monitorKey = "fake-key";
+  auto registry = makeRegistry(events);
+
+  REQUIRE(Pipeline::build(registry, ConfigStore(dir.path).load(), dir.path, {}));
+  CHECK(ConfigStore(dir.path).load().activeMonitorName() == "fake-key");
+
+  // The next build resolves the key directly and leaves disk as it is.
+  REQUIRE(Pipeline::build(registry, ConfigStore(dir.path).load(), dir.path, {}));
+  CHECK(ConfigStore(dir.path).load().activeMonitorName() == "fake-key");
+}
+
+
+TEST_CASE("Pipeline::build keeps a monitor pick that landed mid-build over the migration (Aurora-5ipy.30)", "[Pipeline]")
+{
+  ScopedTempDir dir("monitor-key-race");
+  Config saved = videoConfig();
+  saved.setActiveMonitorName("Fake Monitor");
+  ConfigStore(dir.path).save(saved);
+
+  auto events = std::make_shared<Events>();
+  events->monitorKey = "fake-key";
+  auto registry = makeRegistry(events);
+
+  // The user picks another monitor while the build is in flight.
+  bool putLanded = false;
+  events->onOutputInit = [&]{
+    if(putLanded){ return; }
+    putLanded = true;
+    ConfigStore store(dir.path);
+    Config onDisk = store.load();
+    onDisk.setActiveMonitorName("other-key");
+    store.save(onDisk);
+  };
+
+  REQUIRE(Pipeline::build(registry, ConfigStore(dir.path).load(), dir.path, {}));
+  REQUIRE(putLanded);
+  CHECK(ConfigStore(dir.path).load().activeMonitorName() == "other-key");
+}
+
+
+TEST_CASE("Pipeline::build leaves a name alone when the monitor has no key (Aurora-5ipy.30)", "[Pipeline]")
+{
+  ScopedTempDir dir("monitor-keyless");
+  Config saved = videoConfig();
+  saved.setActiveMonitorName("Fake Monitor");
+  ConfigStore(dir.path).save(saved);
+
+  auto events = std::make_shared<Events>();
+  auto registry = makeRegistry(events);
+
+  REQUIRE(Pipeline::build(registry, ConfigStore(dir.path).load(), dir.path, {}));
+  CHECK(ConfigStore(dir.path).load().activeMonitorName() == "Fake Monitor");
 }
 
 
@@ -683,6 +755,77 @@ TEST_CASE("reloadPipelineFromDisk reads the saved Config, not a stale copy", "[P
 }
 
 
+TEST_CASE("Host routes answer capabilities, version and stop", "[HostRoutes]")
+{
+  using namespace Aurora::Network::Http::Server;
+
+  auto events = std::make_shared<Events>();
+  auto registry = makeRegistry(events);
+  PipelineHost host(nullptr, {});
+  std::atomic<int> stops{0};
+
+  // Two servers differ only in the platform string and the hue quirk.
+  auto serve = [&](bool hueCompiledIn, const char* platform, bool canSelectMonitor){
+    auto server = std::make_unique<HttpServer>();
+    registerCapabilitiesRoute(*server, registry, host, platform, hueCompiledIn, canSelectMonitor);
+    registerVersionRoute(*server, "9.8.7");
+    registerStopRoute(*server, [&stops]{ ++stops; });
+    return server;
+  };
+
+  auto plain = serve(false, "linux", false);
+  auto hue = serve(true, "mac", true);
+  const int plainPort = plain->bindToAnyPort("127.0.0.1");
+  const int huePort = hue->bindToAnyPort("127.0.0.1");
+  REQUIRE(plainPort > 0);
+  REQUIRE(huePort > 0);
+  std::thread plainThread([&](){ plain->listen(); });
+  std::thread hueThread([&](){ hue->listen(); });
+
+  httplib::Client plainClient("127.0.0.1", plainPort);
+  auto caps = getWithRetry(plainClient, "/api/capabilities");
+  REQUIRE(caps);
+  CHECK(caps->status == 200);
+  CHECK(caps->get_header_value("Content-Type").find("application/json") == 0);
+  auto capsJson = nlohmann::json::parse(caps->body);
+  CHECK(capsJson["platform"] == "linux");
+  CHECK(capsJson["paused"] == false);
+  CHECK(capsJson["inputs"] == nlohmann::json(registry.inputNames()));
+  CHECK(capsJson["audioInputs"] == nlohmann::json(registry.audioInputNames()));
+  CHECK(capsJson["outputs"] == nlohmann::json(registry.outputNames()));
+  CHECK(capsJson["zeroOffOutputs"] == nlohmann::json(registry.zeroOffOutputNames()));
+  CHECK(capsJson["canSelectMonitor"] == false);
+  CHECK(capsJson.size() == 7);
+
+  // "hue" is listed once even though it was never registered.
+  httplib::Client hueClient("127.0.0.1", huePort);
+  auto hueCaps = getWithRetry(hueClient, "/api/capabilities");
+  REQUIRE(hueCaps);
+  auto hueJson = nlohmann::json::parse(hueCaps->body);
+  CHECK(hueJson["platform"] == "mac");
+  CHECK(hueJson["canSelectMonitor"] == true);
+  auto outputs = hueJson["outputs"].get<std::vector<std::string>>();
+  CHECK(std::count(outputs.begin(), outputs.end(), "hue") == 1);
+
+  auto version = plainClient.Get("/api/version");
+  REQUIRE(version);
+  CHECK(version->status == 200);
+  CHECK(version->body == R"({"version":"9.8.7"})");
+
+  CHECK(stops == 0);
+  auto stop = plainClient.Post("/api/stop");
+  REQUIRE(stop);
+  CHECK(stop->status == 200);
+  CHECK(stop->body == R"({"succeeded":true})");
+  CHECK(stops == 1);
+
+  plain->stop();
+  hue->stop();
+  plainThread.join();
+  hueThread.join();
+}
+
+
 TEST_CASE("Monitors and reload routes answer from PipelineHost", "[PipelineRoutes]")
 {
   using namespace Aurora::Network::Http::Server;
@@ -715,7 +858,8 @@ TEST_CASE("Monitors and reload routes answer from PipelineHost", "[PipelineRoute
   CHECK(failed->status == 500);
   auto failedJson = nlohmann::json::parse(failed->body);
   CHECK(failedJson["succeeded"] == false);
-  CHECK(failedJson["error"] == "Unknown input 'nope'");
+  CHECK(failedJson["code"] == "reload_failed");
+  CHECK(failedJson["message"] == "Unknown input 'nope'");
 
   ConfigStore(dir.path).save(videoConfig());
   auto succeeded = client.Post("/api/reload");
@@ -882,7 +1026,8 @@ TEST_CASE("PUT /api/state pauses and resumes, idempotently (Aurora-3ddb)", "[Pip
   auto failed = put(R"({"running":true})");
   REQUIRE(failed);
   CHECK(failed->status == 500);
-  CHECK(nlohmann::json::parse(failed->body)["error"] == "Unknown input 'nope'");
+  CHECK(nlohmann::json::parse(failed->body)["code"] == "set_running_failed");
+  CHECK(nlohmann::json::parse(failed->body)["message"] == "Unknown input 'nope'");
   CHECK(host.isPaused());
 
   ConfigStore(dir.path).save(videoConfig());
@@ -997,6 +1142,8 @@ TEST_CASE("GET /api/state reports paused and the running pipeline's capabilities
     {"state", "idle"},
     {"effect", nullptr},
     {"requestedEffect", nullptr},
+    {"effectTitle", nullptr},
+    {"effectDescription", nullptr},
     {"mcpEffectId", nullptr},
     {"source", {{"video", nullptr}, {"audio", nullptr}}},
     {"graphInputs", nullptr},
@@ -1019,7 +1166,9 @@ TEST_CASE("GET /api/state reports paused and the running pipeline's capabilities
   CHECK(running["usesVideoInput"] == true);
   CHECK(running["usesAudioInput"] == false);
   CHECK(running["samplesZones"] == true);
-  CHECK(running["graphInputs"].is_null());
+  CHECK(running["graphInputs"] == nlohmann::json({{"video", true}, {"audio", false}}));
+  CHECK(running["effectTitle"] == "Screen colors");
+  CHECK(running["effectDescription"].is_string());
 
   // A custom graph reports the sources its nodes declare (Aurora-tc8w).
   REQUIRE(EffectStore(dir.path).write("mine", Graph::builtInVideoGraph({"out-a", "out-b"}), error));
@@ -1521,7 +1670,8 @@ TEST_CASE("PUT /api/state on a failed host: running:true retries, running:false 
   auto nothing = put(R"({"running":false})");
   REQUIRE(nothing);
   CHECK(nothing->status == 409);
-  CHECK(nlohmann::json::parse(nothing->body) == nlohmann::json{{"succeeded", false}, {"error", "nothing_to_pause"}});
+  CHECK(nlohmann::json::parse(nothing->body)["succeeded"] == false);
+  CHECK(nlohmann::json::parse(nothing->body)["error"] == "nothing_to_pause");
 
   // The config on disk still names a missing input: the retry fails again,
   // and the error is now the reload's.
@@ -1531,7 +1681,8 @@ TEST_CASE("PUT /api/state on a failed host: running:true retries, running:false 
   auto failedRetry = put(R"({"running":true})");
   REQUIRE(failedRetry);
   CHECK(failedRetry->status == 500);
-  CHECK(nlohmann::json::parse(failedRetry->body)["error"] == "Unknown input 'nope'");
+  CHECK(nlohmann::json::parse(failedRetry->body)["code"] == "set_running_failed");
+  CHECK(nlohmann::json::parse(failedRetry->body)["message"] == "Unknown input 'nope'");
   CHECK(get()["state"] == "failed");
   CHECK(get()["errors"][0]["source"] == "reload");
 
@@ -1603,7 +1754,8 @@ TEST_CASE("POST /api/state/dismiss removes a running host's held error by source
   auto refused = dismiss(nlohmann::json{{"source", "resume"}, {"id", resumeId}}.dump());
   REQUIRE(refused);
   CHECK(refused->status == 409);
-  CHECK(nlohmann::json::parse(refused->body) == nlohmann::json{{"succeeded", false}, {"error", "not_running"}});
+  CHECK(nlohmann::json::parse(refused->body)["succeeded"] == false);
+  CHECK(nlohmann::json::parse(refused->body)["error"] == "not_running");
   CHECK(get()["errors"].size() == 1);
 
   server.stop();
@@ -2263,7 +2415,8 @@ TEST_CASE("POST /api/dev/errors injects and removes generic host errors only whe
     auto res = client.Post("/api/dev/errors", R"({"source":"dev-1","message":"boom"})", "application/json");
     REQUIRE(res);
     CHECK(res->status == 409);
-    CHECK(nlohmann::json::parse(res->body) == nlohmann::json{{"succeeded", false}, {"error", "not_running"}});
+    CHECK(nlohmann::json::parse(res->body)["succeeded"] == false);
+    CHECK(nlohmann::json::parse(res->body)["error"] == "not_running");
 
     server.stop();
     serverThread.join();
@@ -2480,6 +2633,8 @@ TEST_CASE("Preset routes fill the user's outputs and every preset validates with
     CHECK(body["valid"] == true);
     CHECK(body["outputs"] == nlohmann::json::array({"out-a", "out-b"}));
     CHECK_FALSE(body["graph"]["controls"].empty());
+    CHECK(body["graph"]["title"] == entry["title"]);
+    CHECK(body["graph"]["minorVersion"] == 1);
 
     // Every output has a sender, so the user's outputs were filled in.
     int sends = 0;
@@ -2883,7 +3038,9 @@ TEST_CASE("Effects routes list, read, switch and delete (Aurora-52oz.1)", "[Effe
   auto registry = makeRegistry(events);
   std::string error;
   EffectStore store(dir.path);
-  const nlohmann::json mine = Graph::builtInVideoGraph({"out-a", "out-b"});
+  nlohmann::json mine = Graph::builtInVideoGraph({"out-a", "out-b"});
+  mine["title"] = "Mine";
+  mine["description"] = "My own effect.";
   REQUIRE(store.write("mine", mine, error));
   std::ofstream(dir.path / "effects" / "broken.json") << "{not json";
   ConfigStore(dir.path).save(videoConfig());
@@ -2905,10 +3062,12 @@ TEST_CASE("Effects routes list, read, switch and delete (Aurora-52oz.1)", "[Effe
 
   auto list = json(getWithRetry(client, "/api/effects"));
   CHECK(list["effects"] == nlohmann::json::array({
-    {{"id", "builtin.video"}, {"builtin", true}},
-    {{"id", "builtin.audio"}, {"builtin", true}},
-    {{"id", "broken"}, {"builtin", false}},
-    {{"id", "mine"}, {"builtin", false}}
+    {{"id", "builtin.video"}, {"builtin", true}, {"title", "Screen colors"},
+      {"description", "Follows the colors on your screen."}},
+    {{"id", "builtin.audio"}, {"builtin", true}, {"title", "Music pulse"},
+      {"description", "Moves with the sound your computer is playing."}},
+    {{"id", "broken"}, {"builtin", false}, {"title", "broken"}, {"description", nullptr}},
+    {{"id", "mine"}, {"builtin", false}, {"title", "Mine"}, {"description", "My own effect."}}
   }));
   CHECK(list["activeEffectId"] == "");
   CHECK(list["effect"] == "builtin.video");
@@ -2974,7 +3133,7 @@ TEST_CASE("Effects routes list, read, switch and delete (Aurora-52oz.1)", "[Effe
 }
 
 
-TEST_CASE("Effects routes: reads need read scope, switch and delete need apply (Aurora-52oz.1)", "[Effects][Pairing]")
+TEST_CASE("Effects routes: reads need read scope, switch needs apply, delete needs admin (Aurora-52oz.1, Aurora-5ipy.21)", "[Effects][Pairing]")
 {
   using namespace Aurora::Network::Http::Server;
   auto service = std::make_shared<PairingService>();
@@ -2984,6 +3143,7 @@ TEST_CASE("Effects routes: reads need read scope, switch and delete need apply (
   const std::string read = service->mintForTest("viewer", Scope::Read);
   const std::string draft = service->mintForTest("editor", Scope::Draft);
   const std::string apply = service->mintForTest("adapter", Scope::Apply);
+  const std::string admin = service->mintForTest("owner", Scope::Admin);
 
   auto decide = [&](HttpMethod method, const std::string& path, const std::string& token){
     AccessRequest request;
@@ -3003,7 +3163,9 @@ TEST_CASE("Effects routes: reads need read scope, switch and delete need apply (
   CHECK(decide(HttpMethod::Put, "/api/effects", draft) == Result::Forbidden);
   CHECK(decide(HttpMethod::Put, "/api/effects", apply) == Result::Allow);
   CHECK(decide(HttpMethod::Delete, "/api/effects/mine", read) == Result::Forbidden);
-  CHECK(decide(HttpMethod::Delete, "/api/effects/mine", apply) == Result::Allow);
+  CHECK(decide(HttpMethod::Delete, "/api/effects/mine", draft) == Result::Forbidden);
+  CHECK(decide(HttpMethod::Delete, "/api/effects/mine", apply) == Result::Forbidden);
+  CHECK(decide(HttpMethod::Delete, "/api/effects/mine", admin) == Result::Allow);
   CHECK(decide(HttpMethod::Put, "/api/effects/mine/params", draft) == Result::Forbidden);
   CHECK(decide(HttpMethod::Put, "/api/effects/mine/params", apply) == Result::Allow);
   CHECK(decide(HttpMethod::Put, "/api/effects", "") == Result::Unauthorized);
@@ -3026,7 +3188,9 @@ TEST_CASE("The summary reports a custom graph's declared inputs, null for a buil
   Config config = videoConfig();
   auto builtIn = Pipeline::build(registry, config, dir.path, {});
   REQUIRE(builtIn);
-  CHECK_FALSE(builtIn->summary().graphInputs);
+  REQUIRE(builtIn->summary().graphInputs);
+  CHECK(builtIn->summary().graphInputs->video);
+  CHECK_FALSE(builtIn->summary().graphInputs->audio);
 
   config.setActiveEffectId("video-only");
   auto video = Pipeline::build(registry, config, dir.path, {});
@@ -3718,7 +3882,9 @@ TEST_CASE("Test on lights runs the draft in place and an explicit revert puts th
   CHECK(*h.host->graphJson() == h.live);
   CHECK_FALSE(h.test->info().active);
   CHECK(h.test->info().lastEnd == "reverted");
-  CHECK_FALSE(h.host->summary().graphInputs);
+  REQUIRE(h.host->summary().graphInputs);
+  CHECK(h.host->summary().graphInputs->video);
+  CHECK_FALSE(h.host->summary().graphInputs->audio);
   CHECK(initCount(*h.events) == 1);
   CHECK(h.beat("editor") == 404);
   CHECK(h.post("/api/graph/test/revert", {{"session", "editor"}}) == 404);

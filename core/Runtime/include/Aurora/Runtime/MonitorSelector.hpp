@@ -11,6 +11,9 @@ namespace Aurora::Runtime
 {
   // No-op if activeMonitorName() is empty (auto/primary) or doesn't match
   // any currently-enumerated monitor (e.g. unplugged since last saved) --
-  // never throws, falls back to whatever's already selected.
-  void selectConfiguredMonitor(Input::IVideoInput& input, const Config& config);
+  // never throws, falls back to whatever's already selected. Returns the
+  // monitor's key when the saved value matched its name or an older form of
+  // its key (altKeys) and the monitor has a key (to migrate the saved value
+  // to), else empty.
+  std::string selectConfiguredMonitor(Input::IVideoInput& input, const Config& config);
 }

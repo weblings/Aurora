@@ -64,7 +64,12 @@ namespace Aurora::Network::Http::Server
         reply(res, 429, {{"succeeded", false}, {"error", "too_many_pending"}});
         return;
       }
-      reply(res, 202, {{"pollKey", ticket->pollKey}, {"code", ticket->code}});
+      reply(res, 202, {
+        {"pollKey", ticket->pollKey},
+        {"code", ticket->code},
+        {"interval", kPairingPollIntervalSeconds},
+        {"expiresIn", kPairingLifetimeSeconds}
+      });
     });
 
     server.addRoute(HttpMethod::Get, "/api/pairing/request/:pollKey", [service](const Request& req, Response& res){
@@ -72,7 +77,20 @@ namespace Aurora::Network::Http::Server
       switch(poll.state)
       {
         case PairingPoll::State::Pending:
-          reply(res, 202, {{"state", "pending"}});
+          reply(res, 202, {{"state", "pending"}, {"error", "authorization_pending"}});
+          return;
+
+        case PairingPoll::State::SlowDown:
+          res.headers.emplace_back("Retry-After", std::to_string(kPairingPollIntervalSeconds));
+          reply(res, 429, {{"state", "pending"}, {"error", "slow_down"}});
+          return;
+
+        case PairingPoll::State::Denied:
+          reply(res, 403, {{"state", "denied"}, {"error", "access_denied"}});
+          return;
+
+        case PairingPoll::State::Expired:
+          reply(res, 410, {{"state", "expired"}, {"error", "expired_token"}});
           return;
 
         case PairingPoll::State::Approved:

@@ -44,19 +44,27 @@ namespace Aurora::Mcp
     log << "Approve \"" << name << "\" (" << scope << " access) in the Aurora WebUI, on the computer running Aurora.\n"
         << "Approve only if it shows code " << ticket.value("code", "") << ". Waiting...\n";
 
-    // Aurora drops an unanswered request after 5 minutes, which ends this loop with a 404.
+    // Aurora drops an unanswered request after 5 minutes, which ends this loop with a 410.
     while(true){
       wait();
       const HttpReply poll = fetch("GET", "/api/pairing/request/" + pollKey, {});
-      if(poll.status == 202){
+      if(poll.status == 202 || poll.status == 429){
         continue;
       }
       if(poll.status == 0){
         log << "Lost Aurora while waiting (" << poll.error << ").\n";
         return 1;
       }
+      if(poll.status == 403){
+        log << "The request was denied in Aurora. Run --pair again if that was a mistake.\n";
+        return 1;
+      }
+      if(poll.status == 410){
+        log << "The request expired before it was approved. Run --pair again for a new code.\n";
+        return 1;
+      }
       if(poll.status == 404){
-        log << "The request was denied or expired.\n";
+        log << "Aurora no longer knows this request (restarted or already collected). Run --pair again.\n";
         return 1;
       }
       const nlohmann::json approved = parseObject(poll.body);

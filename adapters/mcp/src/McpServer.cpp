@@ -38,6 +38,7 @@ namespace Aurora::Mcp
       "comes back empty: play something and preview again. After that, silence holds the last "
       "frame or settles at the quiet values, so do not expect it to go dark by itself. "
       "put_draft saves and validates the whole graph: fix every error before going on. "
+      "Give the graph a short title and a one-sentence description for the user's effect list. "
       "set_control tunes one control. preview samples the draft off the lights, so use it before "
       "touching them. try_on_lights shows the draft on the real lights for the user to judge: "
       "ask them, then call keep to save it or revert. A test reverts by itself if this server stops. "
@@ -314,7 +315,7 @@ namespace Aurora::Mcp
         "Save the whole graph as your draft and validate it. An invalid graph is a normal result: valid false "
         "with errors, each with code, node, port or param, and the valid options. Fix and save again. "
         "Nothing reaches the lights.",
-        {{"graph", {{"type", "object"}, {"description", "Graph document: version, nodes, edges, controls."}}}},
+        {{"graph", {{"type", "object"}, {"description", "Graph document: version, nodes, edges, controls, plus a title (up to 60 characters) and description (up to 280) the user sees in their effect list."}}}},
         nlohmann::json::array({"graph"})),
       writeTool("set_control",
         "Change one control value on the draft without editing the graph. Name the control by its label or "

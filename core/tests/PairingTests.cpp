@@ -227,7 +227,7 @@ TEST_CASE("PairingService approval flow hands the token out once", "[Pairing]")
 }
 
 
-TEST_CASE("PairingService denied and expired requests poll as unknown", "[Pairing]")
+TEST_CASE("PairingService tells a denied poll from an expired one, then forgets both", "[Pairing]")
 {
   std::int64_t now = 1000;
   PairingService service({}, [&](){ return now; });
@@ -235,13 +235,37 @@ TEST_CASE("PairingService denied and expired requests poll as unknown", "[Pairin
   auto denied = service.requestPairing("a", Scope::Admin);
   REQUIRE(denied);
   REQUIRE(service.deny(service.pending().front().ref));
-  CHECK(service.poll(denied->pollKey).state == PairingPoll::State::Unknown);
+  CHECK(service.poll(denied->pollKey).state == PairingPoll::State::Denied);
 
   auto expired = service.requestPairing("b", Scope::Admin);
   REQUIRE(expired);
   now += 301;
-  CHECK(service.poll(expired->pollKey).state == PairingPoll::State::Unknown);
+  CHECK(service.poll(expired->pollKey).state == PairingPoll::State::Expired);
+  CHECK(service.poll(expired->pollKey).state == PairingPoll::State::Expired);
   CHECK(service.devices().empty());
+
+  now += 61;
+  CHECK(service.poll(denied->pollKey).state == PairingPoll::State::Unknown);
+  CHECK(service.poll(expired->pollKey).state == PairingPoll::State::Unknown);
+  CHECK(service.poll("never-issued").state == PairingPoll::State::Unknown);
+}
+
+
+TEST_CASE("PairingService asks a same-second poller to slow down", "[Pairing]")
+{
+  std::int64_t now = 1000;
+  PairingService service({}, [&](){ return now; });
+  auto ticket = service.requestPairing("a", Scope::Admin);
+  REQUIRE(ticket);
+
+  CHECK(service.poll(ticket->pollKey).state == PairingPoll::State::Pending);
+  CHECK(service.poll(ticket->pollKey).state == PairingPoll::State::SlowDown);
+  now += 1;
+  CHECK(service.poll(ticket->pollKey).state == PairingPoll::State::Pending);
+
+  // A decision is never held back by the pacing.
+  REQUIRE(service.approve(service.pending().front().ref));
+  CHECK(service.poll(ticket->pollKey).state == PairingPoll::State::Approved);
 }
 
 
@@ -298,7 +322,17 @@ TEST_CASE("HttpServer with an AccessGuard enforces pairing end to end for a remo
   CHECK(asked->status == 202);
   auto ticket = nlohmann::json::parse(asked->body);
   std::string pollPath = "/api/pairing/request/" + ticket["pollKey"].get<std::string>();
-  CHECK(client.Get(pollPath)->status == 202);
+  CHECK(asked->body.find("\"interval\":2") != std::string::npos);
+  CHECK(asked->body.find("\"expiresIn\":300") != std::string::npos);
+  auto pending202 = client.Get(pollPath);
+  REQUIRE(pending202);
+  CHECK(pending202->status == 202);
+  CHECK(nlohmann::json::parse(pending202->body)["error"] == "authorization_pending");
+  auto tooFast = client.Get(pollPath);
+  REQUIRE(tooFast);
+  CHECK(tooFast->status == 429);
+  CHECK(tooFast->get_header_value("Retry-After") == "2");
+  CHECK(nlohmann::json::parse(tooFast->body)["error"] == "slow_down");
 
   // The trusted UI is stood in for by a minted admin token.
   std::string admin = service->mintForTest("Desktop", Scope::Admin);
@@ -320,6 +354,16 @@ TEST_CASE("HttpServer with an AccessGuard enforces pairing end to end for a remo
   CHECK(approved->get_header_value("Set-Cookie").find("aurora_token=" + token) == 0);
   CHECK(approved->get_header_value("Set-Cookie").find("HttpOnly") != std::string::npos);
   CHECK(client.Get(pollPath)->status == 404);
+
+  auto second = client.Post("/api/pairing/request", R"({"name":"Tablet"})", "application/json");
+  REQUIRE(second);
+  std::string secondPath = "/api/pairing/request/" + nlohmann::json::parse(second->body)["pollKey"].get<std::string>();
+  auto secondRef = nlohmann::json::parse(client.Get("/api/pairing/pending", adminAuth)->body)["pending"][0]["ref"].get<std::string>();
+  CHECK(client.Post("/api/pairing/pending/" + secondRef + "/deny", adminAuth, "{}", "application/json")->status == 200);
+  auto deniedPoll = client.Get(secondPath);
+  REQUIRE(deniedPoll);
+  CHECK(deniedPoll->status == 403);
+  CHECK(nlohmann::json::parse(deniedPoll->body)["error"] == "access_denied");
 
   // Paired: reads and writes pass, by bearer or cookie.
   auto pairedRead = client.Get("/api/state", httplib::Headers{{"Cookie", "aurora_token=" + token}});

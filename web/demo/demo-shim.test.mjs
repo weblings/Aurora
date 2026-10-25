@@ -51,8 +51,10 @@ function testRouter(seed) {
     canStop: false,
     // No MCP clients on the static page: the MCP toggle stays hidden.
     mcpEffectId: null,
-    graphInputs: null,
+    graphInputs: { video: true, audio: false },
     effect: 'builtin.video',
+    effectTitle: 'Screen colors',
+    effectDescription: 'Follows the colors on your screen.',
     test: { active: false, confirmRemainingMs: 0 },
     usesVideoInput: true,
     usesAudioInput: false,
@@ -63,9 +65,12 @@ function testRouter(seed) {
   route('PUT', '/api/config', JSON.stringify({ activeInputName: '', activeAudioInputName: 'linux-audio' }));
   const audio = route('GET', '/api/state').json;
   assert.equal(audio.effect, 'builtin.audio');
+  assert.equal(audio.effectTitle, 'Music pulse');
+  assert.deepEqual(route('GET', '/api/effects').json.effects.map((e) => e.id), ['builtin.video', 'builtin.audio']);
   assert.equal(audio.usesVideoInput, false);
   assert.equal(audio.usesAudioInput, true);
   assert.equal(audio.samplesZones, false);
+  assert.deepEqual(audio.graphInputs, { video: false, audio: true });
 
   // The advertised device route is one the shim answers.
   assert.equal(route('GET', audio.audioDevicesUrl).status, 200);

@@ -84,7 +84,7 @@ namespace
       return reply;
     };
     return Aurora::Mcp::pair(fetch, name, scope, std::cout, std::cerr,
-      []{ std::this_thread::sleep_for(std::chrono::seconds(1)); });
+      []{ std::this_thread::sleep_for(std::chrono::seconds(2)); });
   }
 }
 
