@@ -61,3 +61,17 @@ against one config dir between steps. The saved choice was the Dell, not the pri
   (`Aurora/Input/MonitorKey.hpp`), X11 uses them through a forwarding header (not built on Linux yet).
 - The running app does not see an added or moved monitor until a rebuild. Filed per platform for 1.1.4:
   Aurora-ecl5 (Windows), Aurora-h06o (Mac), Aurora-9fn3 (X11).
+
+## Mac pass (2026-10-25)
+
+One display (built-in), `mac` input, fake-Hue stack, `build/mac-app`.
+
+| Step | Result |
+|---|---|
+| `/api/monitors` key | Pass: display UUID (`37D8832A-...`), port-independent |
+| Saved legacy name `Display 1 (Primary)` | Pass: rewritten to the UUID key on disk, held after `/api/reload` |
+| Saved unknown key | Config left untouched. Fallback to the primary not confirmed |
+| Live capture | Pass: frames flow |
+
+- Core suite 443/443 on Mac, `lane_a_gate.py` 6/6 on the Mac app (`canSelectMonitor` true).
+- Not done: primary change, replug, reboot and restart without `--fresh`, all needing a second display.

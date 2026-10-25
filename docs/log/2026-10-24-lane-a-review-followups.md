@@ -34,3 +34,4 @@ A15 stay open until their Linux, Mac and CI runs are recorded. Monitor-key items
 - Windows standalone core suite 442/442 (fresh `build/core-test-win`, since `build/core-test` is a WSL configure).
 - Web: `TuningFields.test.mjs` passes, demo vendor closure check passes. `lane_a_gate.py` compiles.
 - Not done: `lane_a_gate.py` run on any OS, Linux and Mac CI runs, Linux `X11MonitorKeyTests` run.
+- Mac (2026-10-25): core suite 443/443, `mac-app` builds, `lane_a_gate.py` 6/6. Mac CI run not checked (no `gh`), Linux still not run.
