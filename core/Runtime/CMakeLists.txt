@@ -45,6 +45,7 @@ add_library(AuroraRuntime STATIC
   src/GraphRunner.cpp
   src/Pipeline.cpp
   src/PipelineRoutes.cpp
+  src/PublicApiRoutes.cpp
   src/HostRoutes.cpp
   src/SettingsRoutes.cpp
   src/ZoneRoutes.cpp

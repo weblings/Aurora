@@ -59,6 +59,8 @@
 #include <Aurora/Runtime/PresetRoutes.hpp>
 #include <Aurora/Runtime/HostRoutes.hpp>
 #include <Aurora/Runtime/PipelineRoutes.hpp>
+#include <Aurora/Runtime/PublicApiRoutes.hpp>
+#include <Aurora/Runtime/ReloadCoalescer.hpp>
 #include <Aurora/Runtime/SettingsRoutes.hpp>
 #include <Aurora/Runtime/ZoneRoutes.hpp>
 
@@ -778,12 +780,11 @@ if(!instanceLock.held()){
   // just saved) rather than closing over the request's own already-stale
   // copy, then applies it live if only tuning fields changed, else reloads
   // the pipeline (Aurora-c0g).
-  Aurora::Runtime::registerSettingsRoutes(httpServer, configRoot,
+  auto reloadCoalescer = std::make_shared<Aurora::Runtime::ReloadCoalescer>(
     [&pipelineHost, &registry, configRoot]() -> std::string {
       return Aurora::Runtime::applyConfigFromDisk(pipelineHost, registry, configRoot);
-    },
-    onEffectChosen
-  );
+    });
+  Aurora::Runtime::registerSettingsRoutes(httpServer, configRoot, reloadCoalescer, onEffectChosen);
   Aurora::Runtime::registerMonitorsRoute(httpServer, pipelineHost);
   Aurora::Runtime::registerReloadRoute(httpServer, pipelineHost, registry, configRoot);
   Aurora::Runtime::registerStateRoute(httpServer, pipelineHost, registry, configRoot, lightTest);
@@ -791,12 +792,9 @@ if(!instanceLock.held()){
   Aurora::Runtime::registerNodesRoute(httpServer);
   Aurora::Runtime::registerGraphRoute(httpServer, pipelineHost);
   Aurora::Runtime::registerEffectsRoutes(httpServer, pipelineHost, registry, configRoot,
-    [&pipelineHost, &registry, configRoot, onEffectChosen]() -> std::string {
-      const std::string error = Aurora::Runtime::applyConfigFromDisk(pipelineHost, registry, configRoot);
-      onEffectChosen();
-      return error;
-    },
-    accessGuard.get());
+    reloadCoalescer, onEffectChosen, accessGuard.get());
+  Aurora::Runtime::registerPublicApiRoutes(httpServer, pipelineHost, registry, configRoot, reloadCoalescer,
+    lightTest, accessGuard.get());
   Aurora::Runtime::registerPresetRoutes(httpServer, registry, configRoot);
   Aurora::Runtime::registerPreviewRoutes(httpServer, pipelineHost, registry, draftStore);
   Aurora::Runtime::registerDevErrorsRoute(httpServer, pipelineHost);

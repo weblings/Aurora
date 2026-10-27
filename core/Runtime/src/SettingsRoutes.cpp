@@ -133,7 +133,7 @@ namespace Aurora::Runtime
   void registerSettingsRoutes(
     HttpServer& server,
     const std::filesystem::path& configRoot,
-    std::function<std::string()> onConfigChanged,
+    std::shared_ptr<ReloadCoalescer> coalescer,
     std::function<void()> onEffectChosen
   )
   {
@@ -142,13 +142,8 @@ namespace Aurora::Runtime
       _writeJson(res, _toJson(config));
     });
 
-    // Writes are atomic via ConfigStore::update(); reloads are coalesced so
-    // concurrent PUTs cost at most one in-flight plus one pending reload.
-    std::shared_ptr<ReloadCoalescer> coalescer;
-    if(onConfigChanged){
-      coalescer = std::make_shared<ReloadCoalescer>(onConfigChanged);
-    }
-
+    // Writes are atomic via ConfigStore::update(); reloads go through the
+    // host's shared coalescer, so concurrent writers cost one in-flight plus one pending.
     server.addRoute(HttpMethod::Put, "/api/config", [configRoot, coalescer, onEffectChosen](const Request& req, Response& res){
       nlohmann::json body;
       try{

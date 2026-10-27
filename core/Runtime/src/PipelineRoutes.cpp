@@ -22,93 +22,184 @@ namespace Aurora::Runtime
   using Aurora::Network::Http::Server::Response;
 
 
-  namespace
+  StateSnapshot readStateSnapshot(PipelineHost& pipelineHost, const std::filesystem::path& configRoot,
+    const std::shared_ptr<LightTest>& lightTest)
   {
-    // Shared by GET /api/state and the events stream's state topic, so the
-    // stream's first event is byte-for-byte what a poll would read.
-    nlohmann::json buildStateJson(PipelineHost& pipelineHost, const std::filesystem::path& configRoot,
-      const std::shared_ptr<LightTest>& lightTest)
-    {
-      nlohmann::json test{{"active", false}, {"confirmRemainingMs", 0}};
-      if(lightTest){
-        const LightTest::Info info = lightTest->info();
-        test = {{"active", info.active}, {"confirmRemainingMs", info.confirmRemainingMs}};
-      }
+    StateSnapshot snap;
+    if(lightTest){
+      snap.test = lightTest->info();
+    }
+    snap.capabilities = pipelineHost.capabilities();
+    snap.audioDevicesUrl = pipelineHost.audioDevicesUrl();
+    snap.status = pipelineHost.status();
+    snap.conditions = pipelineHost.conditions();
+    snap.summary = pipelineHost.summary();
+    if(snap.summary.audio){
+      // A paused host has no live input to ask: it reports the configured target.
+      snap.audioSink = snap.status.state == HostState::Running ? pipelineHost.resolvedAudioSink() : std::string{};
+      if(snap.audioSink.empty()){ snap.audioSink = snap.summary.audio->sink; }
+    }
+    const Config config = ConfigStore(configRoot).load();
+    snap.mcpEffectId = config.mcpEffectId();
+    snap.brightness = config.brightness();
+    if(!snap.summary.effect.empty()){
+      snap.effect = effectInfo(configRoot, snap.summary.effect);
+    }
+    return snap;
+  }
 
-      const PipelineCapabilities capabilities = pipelineHost.capabilities();
-      const std::string& audioDevicesUrl = pipelineHost.audioDevicesUrl();
-      const HostStatus status = pipelineHost.status();
+  // Shared by GET /api/state and the events stream's state topic, so the
+  // stream's first event is byte-for-byte what a poll would read.
+  nlohmann::json stateToJson(const StateSnapshot& snap)
+  {
+    const PipelineSummary& summary = snap.summary;
 
-      nlohmann::json errors = nlohmann::json::array();
-      for(const HostError& error : status.errors){
-        errors.push_back({{"source", error.source}, {"message", error.message}, {"id", error.id}});
-      }
+    nlohmann::json errors = nlohmann::json::array();
+    for(const HostError& error : snap.status.errors){
+      errors.push_back({{"source", error.source}, {"message", error.message}, {"id", error.id}});
+    }
 
-      nlohmann::json conditions = nlohmann::json::array();
-      for(const HostCondition& condition : pipelineHost.conditions()){
-        conditions.push_back({{"source", condition.source}, {"message", condition.message}});
-      }
+    nlohmann::json conditions = nlohmann::json::array();
+    for(const HostCondition& condition : snap.conditions){
+      conditions.push_back({{"source", condition.source}, {"message", condition.message}});
+    }
 
-      const PipelineSummary summary = pipelineHost.summary();
-      nlohmann::json video(nullptr);
-      if(summary.video){
-        video = {
-          {"input", summary.video->input},
-          {"monitor", summary.video->monitor.empty() ? nlohmann::json(nullptr) : nlohmann::json(summary.video->monitor)}
-        };
-      }
-      nlohmann::json audio(nullptr);
-      if(summary.audio){
-        // A paused host has no live input to ask: it reports the configured target.
-        std::string sink = status.state == HostState::Running ? pipelineHost.resolvedAudioSink() : std::string{};
-        if(sink.empty()){ sink = summary.audio->sink; }
-        audio = {
-          {"input", summary.audio->input},
-          {"sink", sink.empty() ? nlohmann::json(nullptr) : nlohmann::json(sink)},
-          {"auto", summary.audio->followsDefault}
-        };
-      }
-
-      // Null only while no pipeline runs.
-      nlohmann::json graphInputs(nullptr);
-      if(summary.graphInputs){
-        graphInputs = {{"video", summary.graphInputs->video}, {"audio", summary.graphInputs->audio}};
-      }
-
-      const std::string mcpEffectId = ConfigStore(configRoot).load().mcpEffectId();
-      nlohmann::json effectTitle(nullptr);
-      nlohmann::json effectDescription(nullptr);
-      if(!summary.effect.empty()){
-        const EffectInfo info = effectInfo(configRoot, summary.effect);
-        effectTitle = info.title;
-        if(!info.description.empty()){ effectDescription = info.description; }
-      }
-
-      return nlohmann::json{
-        {"state", hostStateName(status.state)},
-        {"effect", summary.effect.empty() ? nlohmann::json(nullptr) : nlohmann::json(summary.effect)},
-        {"effectTitle", effectTitle},
-        {"effectDescription", effectDescription},
-        {"requestedEffect", summary.requestedEffect.empty() ? nlohmann::json(nullptr) : nlohmann::json(summary.requestedEffect)},
-        {"mcpEffectId", mcpEffectId.empty() ? nlohmann::json(nullptr) : nlohmann::json(mcpEffectId)},
-        {"source", {{"video", video}, {"audio", audio}}},
-        {"graphInputs", graphInputs},
-        // The saved setting, so it reads right while paused or idle too.
-        {"brightness", ConfigStore(configRoot).load().brightness()},
-        {"test", test},
-        {"errors", errors},
-        {"conditions", conditions},
-        {"paused", status.state == HostState::Paused},
-        // Every host ships a Stop path (tray/quit plus POST /api/stop),
-        // so this is unconditionally true here; hosts without one (the
-        // demo shim) answer false and the Dashboard hides Stop
-        // (Aurora-ifkn.3). Clients treat an absent flag as true.
-        {"canStop", true},
-        {"usesVideoInput", capabilities.usesVideoInput},
-        {"usesAudioInput", capabilities.usesAudioInput},
-        {"samplesZones", capabilities.samplesZones},
-        {"audioDevicesUrl", audioDevicesUrl.empty() ? nlohmann::json(nullptr) : nlohmann::json(audioDevicesUrl)}
+    nlohmann::json video(nullptr);
+    if(summary.video){
+      video = {
+        {"input", summary.video->input},
+        {"monitor", summary.video->monitor.empty() ? nlohmann::json(nullptr) : nlohmann::json(summary.video->monitor)}
       };
+    }
+    nlohmann::json audio(nullptr);
+    if(summary.audio){
+      audio = {
+        {"input", summary.audio->input},
+        {"sink", snap.audioSink.empty() ? nlohmann::json(nullptr) : nlohmann::json(snap.audioSink)},
+        {"auto", summary.audio->followsDefault}
+      };
+    }
+
+    // Null only while no pipeline runs.
+    nlohmann::json graphInputs(nullptr);
+    if(summary.graphInputs){
+      graphInputs = {{"video", summary.graphInputs->video}, {"audio", summary.graphInputs->audio}};
+    }
+
+    nlohmann::json effectTitle(nullptr);
+    nlohmann::json effectDescription(nullptr);
+    if(snap.effect){
+      effectTitle = snap.effect->title;
+      if(!snap.effect->description.empty()){ effectDescription = snap.effect->description; }
+    }
+
+    return nlohmann::json{
+      {"state", hostStateName(snap.status.state)},
+      {"effect", summary.effect.empty() ? nlohmann::json(nullptr) : nlohmann::json(summary.effect)},
+      {"effectTitle", effectTitle},
+      {"effectDescription", effectDescription},
+      {"requestedEffect", summary.requestedEffect.empty() ? nlohmann::json(nullptr) : nlohmann::json(summary.requestedEffect)},
+      {"mcpEffectId", snap.mcpEffectId.empty() ? nlohmann::json(nullptr) : nlohmann::json(snap.mcpEffectId)},
+      {"source", {{"video", video}, {"audio", audio}}},
+      {"graphInputs", graphInputs},
+      // The saved setting, so it reads right while paused or idle too.
+      {"brightness", snap.brightness},
+      {"test", {{"active", snap.test.active}, {"confirmRemainingMs", snap.test.confirmRemainingMs}}},
+      {"errors", errors},
+      {"conditions", conditions},
+      {"paused", snap.status.state == HostState::Paused},
+      // Every host ships a Stop path (tray/quit plus POST /api/stop),
+      // so this is unconditionally true here; hosts without one (the
+      // demo shim) answer false and the Dashboard hides Stop
+      // (Aurora-ifkn.3). Clients treat an absent flag as true.
+      {"canStop", true},
+      {"usesVideoInput", snap.capabilities.usesVideoInput},
+      {"usesAudioInput", snap.capabilities.usesAudioInput},
+      {"samplesZones", snap.capabilities.samplesZones},
+      {"audioDevicesUrl", snap.audioDevicesUrl.empty() ? nlohmann::json(nullptr) : nlohmann::json(snap.audioDevicesUrl)}
+    };
+  }
+
+  nlohmann::json healthToJson(const StateSnapshot& snap)
+  {
+    const nlohmann::json state = stateToJson(snap);
+    return {{"errors", state.at("errors")}, {"conditions", state.at("conditions")}};
+  }
+
+  void runEventsStream(
+    const Request& req,
+    EventStream& stream,
+    PipelineHost& pipelineHost,
+    const std::filesystem::path& configRoot,
+    std::chrono::milliseconds heartbeat,
+    const std::shared_ptr<LightTest>& lightTest,
+    const EventPayloadBuilders& builders
+  )
+  {
+    // Unknown topics are ignored, as clients ignore unknown state values.
+    std::set<std::string> topics;
+    const auto asked = req.queryParams.find("topics");
+    if(asked != req.queryParams.end()){
+      std::stringstream list(asked->second);
+      for(std::string item; std::getline(list, item, ',');){
+        topics.insert(item);
+      }
+    }
+    if(topics.empty()){
+      topics = {"state", "health"};
+    }
+
+    // Read before the first snapshot: a change landing in between wakes
+    // the loop instead of being lost.
+    ChangeSignal& changes = pipelineHost.changes();
+    std::uint64_t seen = changes.revision();
+
+    using Clock = std::chrono::steady_clock;
+    nlohmann::json lastState;
+    nlohmann::json lastHealth;
+    auto lastWrite = Clock::now();
+    auto lastCheck = lastWrite;
+
+    const auto send = [&](const char* topic, const nlohmann::json& data){
+      lastWrite = Clock::now();
+      return stream.write(std::string("event: ") + topic + "\ndata: " + data.dump() + "\n\n");
+    };
+
+    const auto publish = [&]{
+      lastCheck = Clock::now();
+      const StateSnapshot snap = readStateSnapshot(pipelineHost, configRoot, lightTest);
+      if(topics.count("state")){
+        const nlohmann::json state = builders.state(snap);
+        if(state != lastState){
+          lastState = state;
+          send("state", state);
+        }
+      }
+      if(topics.count("health")){
+        const nlohmann::json health = builders.health(snap);
+        if(health != lastHealth){
+          lastHealth = health;
+          send("health", health);
+        }
+      }
+    };
+
+    publish();
+    while(stream.open()){
+      // Short slices so a stop or a dead peer is noticed promptly.
+      const std::uint64_t now = changes.waitPast(seen, std::chrono::milliseconds(250));
+      const bool changed = now != seen;
+      seen = now;
+
+      // Brightness lives in config.json, which nothing signals, so
+      // re-read it about once a second even without a signal.
+      if(changed || Clock::now() - lastCheck >= std::chrono::seconds(1)){
+        publish();
+      }
+      if(Clock::now() - lastWrite >= heartbeat){
+        lastWrite = Clock::now();
+        stream.write(": ping\n\n");
+      }
     }
   }
 
@@ -190,7 +281,7 @@ namespace Aurora::Runtime
       "/api/state",
       [&pipelineHost, configRoot, lightTest](const Request&, Response& res){
         res.contentType = "application/json";
-        res.body = buildStateJson(pipelineHost, configRoot, lightTest).dump();
+        res.body = stateToJson(readStateSnapshot(pipelineHost, configRoot, lightTest)).dump();
       }
     );
 
@@ -278,68 +369,7 @@ namespace Aurora::Runtime
     server.addStreamRoute(
       "/api/events",
       [&pipelineHost, configRoot, heartbeat, lightTest](const Request& req, EventStream& stream){
-        // Unknown topics are ignored, as clients ignore unknown state values.
-        std::set<std::string> topics;
-        const auto asked = req.queryParams.find("topics");
-        if(asked != req.queryParams.end()){
-          std::stringstream list(asked->second);
-          for(std::string item; std::getline(list, item, ',');){
-            topics.insert(item);
-          }
-        }
-        if(topics.empty()){
-          topics = {"state", "health"};
-        }
-
-        // Read before the first snapshot: a change landing in between wakes
-        // the loop instead of being lost.
-        ChangeSignal& changes = pipelineHost.changes();
-        std::uint64_t seen = changes.revision();
-
-        using Clock = std::chrono::steady_clock;
-        nlohmann::json lastState;
-        nlohmann::json lastHealth;
-        auto lastWrite = Clock::now();
-        auto lastCheck = lastWrite;
-
-        const auto send = [&](const char* topic, const nlohmann::json& data){
-          lastWrite = Clock::now();
-          return stream.write(std::string("event: ") + topic + "\ndata: " + data.dump() + "\n\n");
-        };
-
-        const auto publish = [&]{
-          lastCheck = Clock::now();
-          const nlohmann::json state = buildStateJson(pipelineHost, configRoot, lightTest);
-          if(topics.count("state") && state != lastState){
-            lastState = state;
-            send("state", state);
-          }
-          if(topics.count("health")){
-            const nlohmann::json health = {{"errors", state.at("errors")}, {"conditions", state.at("conditions")}};
-            if(health != lastHealth){
-              lastHealth = health;
-              send("health", health);
-            }
-          }
-        };
-
-        publish();
-        while(stream.open()){
-          // Short slices so a stop or a dead peer is noticed promptly.
-          const std::uint64_t now = changes.waitPast(seen, std::chrono::milliseconds(250));
-          const bool changed = now != seen;
-          seen = now;
-
-          // Brightness lives in config.json, which nothing signals, so
-          // re-read it about once a second even without a signal.
-          if(changed || Clock::now() - lastCheck >= std::chrono::seconds(1)){
-            publish();
-          }
-          if(Clock::now() - lastWrite >= heartbeat){
-            lastWrite = Clock::now();
-            stream.write(": ping\n\n");
-          }
-        }
+        runEventsStream(req, stream, pipelineHost, configRoot, heartbeat, lightTest, EventPayloadBuilders{});
       }
     );
   }

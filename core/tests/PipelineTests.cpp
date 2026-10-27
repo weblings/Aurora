@@ -46,6 +46,7 @@
 #include <Aurora/Runtime/PipelineRoutes.hpp>
 #include <Aurora/Runtime/PresetRoutes.hpp>
 #include <Aurora/Runtime/PreviewRoutes.hpp>
+#include <Aurora/Runtime/ReloadCoalescer.hpp>
 #include <Aurora/Runtime/SettingsRoutes.hpp>
 
 #include "SseReader.hpp"
@@ -1852,7 +1853,7 @@ TEST_CASE("Concurrent settings PUTs coalesce reloads and none is lost (Aurora-d6
   std::vector<int> seenRefreshRates;
 
   HttpServer server;
-  registerSettingsRoutes(server, dir.path, [&]() -> std::string{
+  registerSettingsRoutes(server, dir.path, std::make_shared<ReloadCoalescer>([&]() -> std::string{
     int now = ++inFlight;
     int seen = maxInFlight.load();
     while(now > seen && !maxInFlight.compare_exchange_weak(seen, now)){}
@@ -1863,7 +1864,7 @@ TEST_CASE("Concurrent settings PUTs coalesce reloads and none is lost (Aurora-d6
     std::lock_guard<std::mutex> seenLock(seenMutex);
     seenRefreshRates.push_back(rate);
     return {};
-  });
+  }));
   const int port = server.bindToAnyPort("127.0.0.1");
   REQUIRE(port > 0);
   std::thread serverThread([&](){ server.listen(); });
@@ -1934,7 +1935,7 @@ TEST_CASE("Settings PUTs behind a slow reload coalesce into one pending reload w
   std::vector<int> seen;
 
   HttpServer server;
-  registerSettingsRoutes(server, dir.path, [&]() -> std::string{
+  registerSettingsRoutes(server, dir.path, std::make_shared<ReloadCoalescer>([&]() -> std::string{
     int rate = ConfigStore(dir.path).load().refreshRate();
     std::unique_lock<std::mutex> lock(mutex);
     seen.push_back(rate);
@@ -1944,7 +1945,7 @@ TEST_CASE("Settings PUTs behind a slow reload coalesce into one pending reload w
       cv.wait(lock, [&]{ return releaseFirst; });
     }
     return {};
-  });
+  }));
   const int port = server.bindToAnyPort("127.0.0.1");
   REQUIRE(port > 0);
   std::thread serverThread([&](){ server.listen(); });
@@ -1988,6 +1989,85 @@ TEST_CASE("Settings PUTs behind a slow reload coalesce into one pending reload w
   REQUIRE(seen.size() == 2);
   CHECK(seen[0] == 10);
   CHECK(seen[1] == ConfigStore(dir.path).load().refreshRate());
+}
+
+
+TEST_CASE("A settings PUT and an effect switch landing together share one reload (Aurora-5ipy.39)", "[SettingsRoutes][EffectsRoutes]")
+{
+  using namespace Aurora::Network::Http::Server;
+  ScopedTempDir dir("shared-reload");
+  auto events = std::make_shared<Events>();
+  auto registry = makeRegistry(events);
+  ConfigStore(dir.path).save(videoConfig());
+  PipelineHost host(Pipeline::build(registry, videoConfig(), dir.path, {}), {});
+
+  std::mutex mutex;
+  std::condition_variable cv;
+  bool firstStarted = false;
+  bool releaseFirst = false;
+  int runs = 0;
+
+  auto reload = std::make_shared<ReloadCoalescer>([&]() -> std::string{
+    std::unique_lock<std::mutex> lock(mutex);
+    if(++runs == 1){
+      firstStarted = true;
+      cv.notify_all();
+      cv.wait(lock, [&]{ return releaseFirst; });
+    }
+    return {};
+  });
+
+  HttpServer server;
+  registerSettingsRoutes(server, dir.path, reload);
+  registerEffectsRoutes(server, host, registry, dir.path, reload);
+  const int port = server.bindToAnyPort("127.0.0.1");
+  REQUIRE(port > 0);
+  std::thread serverThread([&](){ server.listen(); });
+  {
+    httplib::Client probe("127.0.0.1", port);
+    REQUIRE(getWithRetry(probe, "/api/config"));
+  }
+
+  std::atomic<int> ok{0};
+  auto putConfig = [&](int rate){
+    httplib::Client client("127.0.0.1", port);
+    auto response = client.Put("/api/config", nlohmann::json{{"refreshRate", rate}}.dump(), "application/json");
+    if(response && response->status == 200){ ++ok; }
+  };
+  auto putEffect = [&]{
+    httplib::Client client("127.0.0.1", port);
+    auto response = client.Put("/api/effects", nlohmann::json{{"activeEffectId", ""}}.dump(), "application/json");
+    if(response && response->status == 200){ ++ok; }
+  };
+
+  std::thread first(putConfig, 10);
+  {
+    std::unique_lock<std::mutex> lock(mutex);
+    REQUIRE(cv.wait_for(lock, 5s, [&]{ return firstStarted; }));
+  }
+
+  std::thread second(putConfig, 20);
+  std::thread third(putEffect);
+  // Both requests queue behind the blocked reload.
+  for(int i = 0; i < 200 && ConfigStore(dir.path).load().refreshRate() == 10; ++i){
+    std::this_thread::sleep_for(10ms);
+  }
+  std::this_thread::sleep_for(200ms);
+  {
+    std::lock_guard<std::mutex> lock(mutex);
+    releaseFirst = true;
+  }
+  cv.notify_all();
+
+  first.join();
+  second.join();
+  third.join();
+  server.stop();
+  serverThread.join();
+  host.shutdown();
+
+  CHECK(ok == 3);
+  CHECK(runs == 2);
 }
 
 
@@ -3047,9 +3127,9 @@ TEST_CASE("Effects routes list, read, switch and delete (Aurora-52oz.1)", "[Effe
 
   PipelineHost host(Pipeline::build(registry, videoConfig(), dir.path, {}), {});
   HttpServer server;
-  registerEffectsRoutes(server, host, registry, dir.path, [&]{
+  registerEffectsRoutes(server, host, registry, dir.path, std::make_shared<ReloadCoalescer>([&]{
     return applyConfigFromDisk(host, registry, dir.path);
-  });
+  }));
   const int port = server.bindToAnyPort("127.0.0.1");
   REQUIRE(port > 0);
   std::thread serverThread([&](){ server.listen(); });
@@ -3802,13 +3882,9 @@ namespace
       // Wired as the app mains wire them (Aurora-zfre).
       auto onEffectChosen = [this]{ std::string error; test->stop(error, "superseded"); };
       registerStateRoute(server, *host, registry, dir.path, test);
-      registerSettingsRoutes(server, dir.path, [this]{ return applyConfigFromDisk(*host, registry, dir.path); },
-        onEffectChosen);
-      registerEffectsRoutes(server, *host, registry, dir.path, [this, onEffectChosen]{
-        const std::string error = applyConfigFromDisk(*host, registry, dir.path);
-        onEffectChosen();
-        return error;
-      });
+      auto reload = std::make_shared<ReloadCoalescer>([this]{ return applyConfigFromDisk(*host, registry, dir.path); });
+      registerSettingsRoutes(server, dir.path, reload, onEffectChosen);
+      registerEffectsRoutes(server, *host, registry, dir.path, reload, onEffectChosen);
       const int port = server.bindToAnyPort("127.0.0.1");
       REQUIRE(port > 0);
       serverThread = std::thread([this](){ server.listen(); });

@@ -10,6 +10,7 @@
 #include <Aurora/Runtime/Graph/BuiltInGraphs.hpp>
 #include <Aurora/Runtime/Pipeline.hpp>
 #include <Aurora/Runtime/Registry.hpp>
+#include <Aurora/Runtime/ReloadCoalescer.hpp>
 
 namespace Aurora::Runtime
 {
@@ -65,7 +66,8 @@ namespace Aurora::Runtime
     PipelineHost& pipelineHost,
     const Registry& registry,
     const std::filesystem::path& configRoot,
-    std::function<std::string()> onConfigChanged,
+    std::shared_ptr<ReloadCoalescer> reload,
+    std::function<void()> onEffectChosen,
     AccessGuard* guard
   )
   {
@@ -131,7 +133,7 @@ namespace Aurora::Runtime
     server.addRoute(
       HttpMethod::Put,
       "/api/effects",
-      [&pipelineHost, configRoot, onConfigChanged](const Request& req, Response& res){
+      [&pipelineHost, configRoot, reload, onEffectChosen](const Request& req, Response& res){
         std::string id;
         try{
           id = nlohmann::json::parse(req.body).at("activeEffectId").get<std::string>();
@@ -153,7 +155,8 @@ namespace Aurora::Runtime
           }
           return true;
         });
-        const std::string reloadError = onConfigChanged ? onConfigChanged() : std::string{};
+        const std::string reloadError = reload ? reload->submit() : std::string{};
+        if(onEffectChosen){ onEffectChosen(); }
 
         nlohmann::json body = _effectState(pipelineHost, {{"succeeded", true}, {"activeEffectId", id}});
         if(!reloadError.empty()){
@@ -166,7 +169,7 @@ namespace Aurora::Runtime
     server.addRoute(
       HttpMethod::Delete,
       "/api/effects/:id",
-      [configRoot, onConfigChanged](const Request& req, Response& res){
+      [configRoot, reload, onEffectChosen](const Request& req, Response& res){
         const std::string& id = req.pathParams.at("id");
         if(isBuiltInEffectId(id)){
           _reply(res, 400, {{"succeeded", false}, {"error", "builtin_effect"}});
@@ -195,8 +198,9 @@ namespace Aurora::Runtime
         store.remove(id);
 
         nlohmann::json body{{"succeeded", true}, {"deleted", id}, {"fellBack", wasActive}};
-        if(wasActive && onConfigChanged){
-          const std::string reloadError = onConfigChanged();
+        if(wasActive && reload){
+          const std::string reloadError = reload->submit();
+          if(onEffectChosen){ onEffectChosen(); }
           if(!reloadError.empty()){
             body["reloadError"] = reloadError;
           }
