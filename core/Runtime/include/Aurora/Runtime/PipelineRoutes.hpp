@@ -39,6 +39,8 @@ namespace Aurora::Runtime
     std::string mcpEffectId;
     std::optional<EffectInfo> effect;
     float brightness{};
+    std::string activeInputName;
+    std::string activeAudioInputName;
   };
 
   StateSnapshot readStateSnapshot(

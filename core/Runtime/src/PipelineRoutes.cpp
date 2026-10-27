@@ -42,6 +42,8 @@ namespace Aurora::Runtime
     const Config config = ConfigStore(configRoot).load();
     snap.mcpEffectId = config.mcpEffectId();
     snap.brightness = config.brightness();
+    snap.activeInputName = config.activeInputName();
+    snap.activeAudioInputName = config.activeAudioInputName();
     if(!snap.summary.effect.empty()){
       snap.effect = effectInfo(configRoot, snap.summary.effect);
     }

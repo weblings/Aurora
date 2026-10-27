@@ -5,6 +5,8 @@
 #include <memory>
 #include <string>
 
+#include <nlohmann/json.hpp>
+
 namespace Aurora::Network::Http::Server { class AccessGuard; class HttpServer; }
 
 // Custom effect routes (Aurora-52oz.1). Effects are graph files under
@@ -14,6 +16,16 @@ namespace Aurora::Runtime
   class PipelineHost;
   class Registry;
   class ReloadCoalescer;
+
+  // The GET /api/effects and GET /api/effects/<id> answers, for the v1 routes
+  // that send the same documents. effectDocumentToJson returns the status.
+  nlohmann::json effectsListToJson(PipelineHost& pipelineHost, const std::filesystem::path& configRoot);
+  int effectDocumentToJson(
+    const Registry& registry,
+    const std::filesystem::path& configRoot,
+    const std::string& id,
+    nlohmann::json& body
+  );
 
   // Reads need `read`, the switch needs `apply`, delete needs `admin` (LAN
   // only, loopback is trusted). The PUT shares /api/effects with the GETs and

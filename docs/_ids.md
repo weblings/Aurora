@@ -224,6 +224,7 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `tjoq-audio-grant-live` | [log/2026-10-06-tjoq-audio-grant-live.md](log/2026-10-06-tjoq-audio-grant-live.md) | Aurora-tjoq: audio permission block copy vs. live grant |
 | `u5k0-x11-decimate-on-copy` | [log/2026-10-20-u5k0-x11-decimate-on-copy.md](log/2026-10-20-u5k0-x11-decimate-on-copy.md) | Aurora-u5k0: X11 decimate-on-copy (neutral on CPU, kept) |
 | `upstream-findings` | [planning/UpstreamFindings.md](planning/UpstreamFindings.md) | Findings worth upstreaming to huenicorn |
+| `v1-read-routes` | [log/2026-10-26-v1-read-routes.md](log/2026-10-26-v1-read-routes.md) | 5ipy.40: v1 read routes (Aurora-5ipy.40) |
 | `vv46-route-test-port-collisions` | [log/2026-10-16-vv46-route-test-port-collisions.md](log/2026-10-16-vv46-route-test-port-collisions.md) | Route test flakes under parallel ctest (Aurora-vv46) |
 | `w6no-restore-token` | [log/2026-10-21-w6no-restore-token.md](log/2026-10-21-w6no-restore-token.md) | Aurora-w6no: portal restore token is actually stored now (closed) |
 | `web-demo-ui-update` | [archive/WebDemoUIUpdate.md](archive/WebDemoUIUpdate.md) | Web Demo Dashboard Port — Plan (WebDemoUIUpdate.md) |

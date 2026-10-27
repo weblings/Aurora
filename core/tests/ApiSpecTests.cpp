@@ -10,6 +10,10 @@
 
 #include <Aurora/Network/Http/Server/HttpServer.hpp>
 #include <Aurora/Network/Http/Server/Pairing.hpp>
+#include <Aurora/Runtime/ControlDescriptors.hpp>
+#include <Aurora/Runtime/Pipeline.hpp>
+#include <Aurora/Runtime/PublicApiRoutes.hpp>
+#include <Aurora/Runtime/Registry.hpp>
 
 using namespace Aurora::Network::Http::Server;
 
@@ -122,7 +126,13 @@ TEST_CASE("every /api/v1 route has a spec operation and the reverse", "[api-spec
 {
   const nlohmann::json spec = loadSpec();
   HttpServer server;
-  // Each v1 bead registers its routes here as it lands.
+  // Each v1 bead registers its routes here as it lands. The handlers are
+  // never called, so an idle host and an empty registry are enough.
+  Aurora::Runtime::PipelineHost host(nullptr, {});
+  Aurora::Runtime::Registry registry;
+  Aurora::Runtime::DescriptorRegistry descriptors;
+  Aurora::Runtime::registerPublicApiRoutes(server, host, registry, std::filesystem::temp_directory_path(),
+    nullptr, nullptr, nullptr, {"test", "dev", false, true, &descriptors});
 
   const auto problems = compare(server.routeList(), makeGuard(), spec);
   for(const auto& problem : problems){

@@ -10,7 +10,152 @@ servers:
     description: Default local address.
 security:
   - bearerAuth: []
-paths: {}
+paths:
+  /api/v1/state:
+    get:
+      operationId: getState
+      summary: Host state
+      description: >-
+        What the host is doing now. `state` is `idle`, `running`, `paused` or
+        `failed`, and clients ignore values they do not know. `effect` is the
+        running graph and `requestedEffect` what the config asked for, which
+        differ while a custom effect that failed to load is replaced by the
+        built-in. `brightness` is the saved setting in percent, and 0 means
+        off only on outputs listed in `zeroOffOutputs`. `source.video.monitor`
+        is a label for people and may change, it is not a key.
+      responses:
+        '200':
+          description: The current state.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/State'
+  /api/v1/events:
+    get:
+      operationId: streamEvents
+      summary: Live state and health events
+      description: >-
+        One `text/event-stream` for every topic. Each event is `event: <topic>`
+        and `data: <json>`. `state` carries the `GET /api/v1/state` document
+        and `health` its `errors` and `conditions`. Both are sent first on
+        connect, then again only when they change, so a reconnect gets a
+        fresh snapshot and clients must not assume they saw every change.
+        Unknown topics are ignored. A `: ping` comment arrives every 15
+        seconds. Brightness changes arrive within about a second. Streams
+        beyond the server cap answer 503 `too_many_streams`. The cap is half
+        the worker pool, 4 up to 9 hardware threads, so hold one stream per
+        client.
+      parameters:
+        - name: topics
+          in: query
+          required: false
+          description: Comma-separated topics, `state` and `health`. Default all.
+          schema:
+            type: string
+            example: state,health
+      responses:
+        '200':
+          description: The event stream.
+          content:
+            text/event-stream:
+              itemSchema:
+                $ref: '#/components/schemas/Event'
+        '503':
+          description: Too many open streams.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /api/v1/capabilities:
+    get:
+      operationId: getCapabilities
+      summary: What this build can do
+      description: >-
+        Input, audio input and output names are plugin names that differ per
+        OS, so treat them as opaque strings. `hue` is listed in `outputs`
+        whenever Hue is compiled in, paired or not.
+      responses:
+        '200':
+          description: The capabilities.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Capabilities'
+  /api/v1/version:
+    get:
+      operationId: getVersion
+      summary: App version and contract version
+      description: >-
+        `apiVersion` is the contract version and equals `info.version` of this
+        document. Minor bumps are additive, a major bump is a new `/api/vN`.
+      responses:
+        '200':
+          description: The versions.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Version'
+  /api/v1/effects:
+    get:
+      operationId: listEffects
+      summary: Built-in and custom effects
+      description: >-
+        Built-ins come first (the reserved ids `builtin.video` and
+        `builtin.audio`), then custom effects by id. `activeEffectId` is the
+        saved setting, and an empty string means the default built-in.
+      responses:
+        '200':
+          description: The effect list.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EffectList'
+  /api/v1/effects/{id}:
+    get:
+      operationId: getEffect
+      summary: One effect's graph document
+      description: >-
+        A built-in's graph is the one the running pipeline would build from the
+        current config. The graph document has its own `version`.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: The effect and its graph.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EffectDocument'
+        '404':
+          description: No such effect (`unknown_effect`).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '422':
+          description: The effect file is not valid JSON (`unreadable_effect`).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /api/v1/descriptors:
+    get:
+      operationId: listDescriptors
+      summary: Control descriptions
+      description: >-
+        Static per build. Float bounds are the shortest decimal that
+        round-trips, which is a documented guarantee.
+      responses:
+        '200':
+          description: The descriptors.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Descriptors'
 components:
   securitySchemes:
     bearerAuth:
@@ -19,3 +164,251 @@ components:
       description: >-
         Paired-device token. Loopback callers need none. An operation with
         `security: []` is open to every caller.
+  schemas:
+    Error:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: string
+          description: Snake_case code. Clients handle unknown codes by HTTP status.
+        message:
+          type: string
+    HostError:
+      type: object
+      required: [source, message, id]
+      properties:
+        source:
+          type: string
+          description: An open set of origins.
+        message:
+          type: string
+        id:
+          type: integer
+          description: Stamped when the entry is created or replaced.
+    Condition:
+      type: object
+      required: [source, message]
+      properties:
+        source:
+          type: string
+        message:
+          type: string
+    State:
+      type: object
+      required: [state, effect, effectTitle, effectDescription, requestedEffect, source, graphInputs, brightness, configuredInputs, test, errors, conditions, samplesZones]
+      properties:
+        state:
+          type: string
+          description: Known values `idle`, `running`, `paused` and `failed`.
+        effect:
+          type: [string, 'null']
+          description: The running graph id, null when idle or failed.
+        effectTitle:
+          type: [string, 'null']
+        effectDescription:
+          type: [string, 'null']
+        requestedEffect:
+          type: [string, 'null']
+        source:
+          type: object
+          required: [video, audio]
+          properties:
+            video:
+              type: [object, 'null']
+              required: [input, monitor]
+              properties:
+                input:
+                  type: string
+                monitor:
+                  type: [string, 'null']
+                  description: A label for people, it may change.
+            audio:
+              type: [object, 'null']
+              required: [input, sink, auto]
+              properties:
+                input:
+                  type: string
+                sink:
+                  type: [string, 'null']
+                auto:
+                  type: boolean
+                  description: True when the sink follows the default.
+        graphInputs:
+          type: [object, 'null']
+          description: Which inputs the running graph reads, null while no pipeline runs.
+          required: [video, audio]
+          properties:
+            video:
+              type: boolean
+            audio:
+              type: boolean
+        brightness:
+          type: number
+          minimum: 0
+          maximum: 100
+          description: The saved setting in percent, decimals allowed.
+        configuredInputs:
+          type: object
+          description: The inputs a graph can use, null where none is chosen in Aurora.
+          required: [video, audio]
+          properties:
+            video:
+              type: [string, 'null']
+            audio:
+              type: [string, 'null']
+        test:
+          type: object
+          required: [active, confirmRemainingMs]
+          properties:
+            active:
+              type: boolean
+            confirmRemainingMs:
+              type: integer
+        errors:
+          type: array
+          items:
+            $ref: '#/components/schemas/HostError'
+        conditions:
+          type: array
+          items:
+            $ref: '#/components/schemas/Condition'
+        samplesZones:
+          type: boolean
+    Health:
+      type: object
+      required: [errors, conditions]
+      properties:
+        errors:
+          type: array
+          items:
+            $ref: '#/components/schemas/HostError'
+        conditions:
+          type: array
+          items:
+            $ref: '#/components/schemas/Condition'
+    Event:
+      type: object
+      description: One server-sent event, shown here as its parsed fields.
+      required: [event, data]
+      properties:
+        event:
+          type: string
+          enum: [state, health]
+        data:
+          oneOf:
+            - $ref: '#/components/schemas/State'
+            - $ref: '#/components/schemas/Health'
+    Capabilities:
+      type: object
+      required: [inputs, audioInputs, outputs, zeroOffOutputs, platform, canSelectMonitor]
+      properties:
+        inputs:
+          type: array
+          items:
+            type: string
+        audioInputs:
+          type: array
+          items:
+            type: string
+        outputs:
+          type: array
+          items:
+            type: string
+        zeroOffOutputs:
+          type: array
+          description: Outputs where brightness 0 means off.
+          items:
+            type: string
+        platform:
+          type: string
+        canSelectMonitor:
+          type: boolean
+          description: Static per host, false where a portal picks the output.
+    Version:
+      type: object
+      required: [version, apiVersion]
+      properties:
+        version:
+          type: string
+          description: The app version.
+        apiVersion:
+          type: string
+          description: The contract version, SemVer.
+    EffectEntry:
+      type: object
+      required: [id, builtin, title, description]
+      properties:
+        id:
+          type: string
+        builtin:
+          type: boolean
+        title:
+          type: string
+        description:
+          type: [string, 'null']
+    EffectList:
+      type: object
+      required: [effects, activeEffectId, effect, requestedEffect]
+      properties:
+        effects:
+          type: array
+          items:
+            $ref: '#/components/schemas/EffectEntry'
+        activeEffectId:
+          type: string
+        effect:
+          type: [string, 'null']
+        requestedEffect:
+          type: [string, 'null']
+    EffectDocument:
+      type: object
+      required: [id, builtin, graph]
+      properties:
+        id:
+          type: string
+        builtin:
+          type: boolean
+        graph:
+          type: object
+          description: The graph document, see its own `version`.
+    Descriptors:
+      type: object
+      required: [descriptors]
+      properties:
+        descriptors:
+          type: array
+          items:
+            type: object
+            required: [key, kind, description]
+            properties:
+              key:
+                type: string
+              kind:
+                type: string
+              description:
+                type: string
+              useWhen:
+                type: string
+              example:
+                type: string
+              cost:
+                type: string
+              param:
+                type: object
+                required: [label, min, max, step, unit, default, allowsUnset]
+                properties:
+                  label:
+                    type: string
+                  min:
+                    type: number
+                  max:
+                    type: number
+                  step:
+                    type: number
+                  unit:
+                    type: string
+                  default:
+                    type: number
+                  allowsUnset:
+                    type: boolean

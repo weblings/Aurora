@@ -488,7 +488,8 @@ try
   Aurora::Runtime::registerEffectsRoutes(httpServer, pipelineHost, registry, configRoot,
     reloadCoalescer, onEffectChosen, accessGuard.get());
   Aurora::Runtime::registerPublicApiRoutes(httpServer, pipelineHost, registry, configRoot, reloadCoalescer,
-    lightTest, accessGuard.get());
+    lightTest, accessGuard.get(),
+    {"mac", AURORA_VERSION, kHueCompiledIn, true, &descriptorRegistry});
   Aurora::Runtime::registerPresetRoutes(httpServer, registry, configRoot);
   Aurora::Runtime::registerPreviewRoutes(httpServer, pipelineHost, registry, draftStore);
   Aurora::Runtime::registerDevErrorsRoute(httpServer, pipelineHost);
