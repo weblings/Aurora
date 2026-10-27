@@ -48,6 +48,13 @@ target_compile_definitions(aurora-mcp PRIVATE _CRT_SECURE_NO_WARNINGS)
 if(DEFINED AuroraMonorepo_VERSION)
   target_compile_definitions(aurora-mcp PRIVATE AURORA_VERSION="${AuroraMonorepo_VERSION}")
 endif()
+# A running MCP client holds aurora-mcp.exe open, which fails the link (Aurora-2v8l).
+if(WIN32)
+  add_custom_command(TARGET aurora-mcp PRE_LINK
+    COMMAND ${CMAKE_COMMAND} -DEXE=$<TARGET_FILE:aurora-mcp> -P ${CMAKE_CURRENT_SOURCE_DIR}/cmake/MoveAsideExe.cmake
+    VERBATIM
+  )
+endif()
 # Beside Aurora in the build tree, where the apps stage it for bundling.
 set_target_properties(aurora-mcp PROPERTIES
   OUTPUT_NAME "aurora-mcp"

@@ -893,7 +893,6 @@ On Windows `AuroraApp` builds only a `.lib`, and the real exe comes from
 a chained build and `devstack up` launched the Oct 24 `Aurora.exe`, and the
 failure showed only in the build tail.
 
-**Fix:** build `aurora-app-windows`, and when the MCP lock blocks it add
-`-- -p:BuildProjectReferences=false` (single dash, since Git Bash rewrites
-`/p:`). Compare `bin/Release/Aurora.exe` mtime to the source edit before
-`devstack up`. The lock itself is tracked in its own bead.
+**Fix (Aurora-2v8l):** build `aurora-app-windows`. The `aurora-mcp` target now renames a running exe aside
+before the link (`adapters/mcp/cmake/MoveAsideExe.cmake`), leaving `aurora-mcp.old*.exe` copies in `bin/`.
+Still compare `bin/Release/Aurora.exe` mtime to the source edit before `devstack up`.

@@ -180,6 +180,7 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `mac-tray-parity-history` | [archive/mac/TrayParityHistory.md](archive/mac/TrayParityHistory.md) | macOS tray-parity: build history |
 | `mac-video-capture` | [archive/mac/VideoCapture.md](archive/mac/VideoCapture.md) | macOS video capture (tier 1) |
 | `mac-windows-tray-pause` | [log/2026-10-04-mac-windows-tray-pause.md](log/2026-10-04-mac-windows-tray-pause.md) | Aurora-5ipy.14 / .15: Mac and Windows tray Pause/Resume (written, unbuilt) |
+| `mcp-link-lock` | [log/2026-10-26-mcp-link-lock.md](log/2026-10-26-mcp-link-lock.md) | 2v8l: aurora-mcp link lock on Windows (Aurora-2v8l) |
 | `mfud-effect-titles-builtin-graphinputs` | [log/2026-10-23-mfud-effect-titles-builtin-graphinputs.md](log/2026-10-23-mfud-effect-titles-builtin-graphinputs.md) | Mfud + 5ipy.26: effect titles and descriptions, graphInputs for built-ins (Aurora-mfud, Aurora-5ipy.26) |
 | `module-split-plan` | [archive/ModuleSplitPlan.md](archive/ModuleSplitPlan.md) | Splitting huenicorn into Input / Processing / Output |
 | `monorepo-reorg` | [log/2026-09-21-monorepo-reorg.md](log/2026-09-21-monorepo-reorg.md) | Monorepo reorg (2026-09-21) |
