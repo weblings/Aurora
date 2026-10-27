@@ -3,11 +3,11 @@
   "info": {
     "title": "Aurora control API",
     "version": "1.0.0",
-    "description": "Public control API for a running Aurora. Every operation under /api/v1 has an entry here, and the route-walk test fails when the two drift."
+    "description": "Public control API for a running Aurora. Every operation under /api/v1 has an entry here, and the route-walk test fails when the two drift. Within 1.x responses only gain fields, values of `state`, `scope`, event topics and error codes, and clients ignore what they do not know. Routes, fields and values are never removed or renamed."
   },
   "servers": [
     {
-      "url": "http://localhost:8080",
+      "url": "http://localhost:8215",
       "description": "Default local address."
     }
   ],

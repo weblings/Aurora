@@ -57,6 +57,7 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `98pr-webui-banner-x` | [log/2026-10-06-98pr-webui-banner-x.md](log/2026-10-06-98pr-webui-banner-x.md) | Aurora-98pr: saved-not-applied errors move to the banner; banner X (closed) |
 | `9ca-fromhsv-nan-guard` | [log/2026-10-01-9ca-fromhsv-nan-guard.md](log/2026-10-01-9ca-fromhsv-nan-guard.md) | Aurora-9ca: NaN/Inf into Color::fromHSV's uint8_t cast — fixed |
 | `9ig-pipeline-to-core` | [log/2026-10-01-9ig-pipeline-to-core.md](log/2026-10-01-9ig-pipeline-to-core.md) | Aurora-9ig: Pipeline, PipelineHost and Registry moved into core |
+| `api-v1-adapters` | [api/README.md](api/README.md) | Aurora control API (`/api/v1`) |
 | `api-v1-plan` | [planning/ApiV1Plan.md](planning/ApiV1Plan.md) | API v1 plan: from today's routes to a frozen `/api/v1` |
 | `api-v1-review` | [planning/ApiV1Review.md](planning/ApiV1Review.md) | API v1 spec review: fields, scopes, public and internal split |
 | `audio-analysis` | [archive/AudioAnalysis.md](archive/AudioAnalysis.md) | Audio-reactive color — findings, not a decision |
@@ -225,6 +226,7 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `tjoq-audio-grant-live` | [log/2026-10-06-tjoq-audio-grant-live.md](log/2026-10-06-tjoq-audio-grant-live.md) | Aurora-tjoq: audio permission block copy vs. live grant |
 | `u5k0-x11-decimate-on-copy` | [log/2026-10-20-u5k0-x11-decimate-on-copy.md](log/2026-10-20-u5k0-x11-decimate-on-copy.md) | Aurora-u5k0: X11 decimate-on-copy (neutral on CPU, kept) |
 | `upstream-findings` | [planning/UpstreamFindings.md](planning/UpstreamFindings.md) | Findings worth upstreaming to huenicorn |
+| `v1-freeze` | [log/2026-10-26-v1-freeze.md](log/2026-10-26-v1-freeze.md) | Aurora-5ipy.9: /api/v1 frozen at 1.0.0 (plan B6) |
 | `v1-graph-pairing-routes` | [log/2026-10-26-v1-graph-pairing-routes.md](log/2026-10-26-v1-graph-pairing-routes.md) | 5ipy.41: v1 graph and pairing routes (Aurora-5ipy.41) |
 | `v1-lane-b-gate` | [log/2026-10-26-v1-lane-b-gate.md](log/2026-10-26-v1-lane-b-gate.md) | 5ipy.45: Lane B gate (Aurora-5ipy.45) |
 | `v1-mcp-adapter` | [log/2026-10-26-v1-mcp-adapter.md](log/2026-10-26-v1-mcp-adapter.md) | 5ipy.43: aurora-mcp on /api/v1 (Aurora-5ipy.43) |
