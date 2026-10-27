@@ -344,7 +344,7 @@ namespace Aurora::Mcp
         "Switch back to the effect that was live before your first apply in this session.",
         nlohmann::json::object(), nlohmann::json::array()),
       lightsTool("set_running",
-        "Pause the lights (false) or resume them (true). A pause holds nothing to resume if no effect is running.",
+        "Pause the lights (false) or resume them (true). Pausing fails when nothing is running.",
         {{"running", {{"type", "boolean"}, {"description", "false pauses, true resumes."}}}},
         nlohmann::json::array({"running"})),
       lightsTool("set_brightness",
@@ -442,10 +442,11 @@ namespace Aurora::Mcp
         "and set AURORA_TOKEN in the client config to the token it prints.";
     }
     if(reply.status == 403){
-      // Only writes are gated above read, and only draft routes sit below apply.
+      // Only writes are gated above read: draft routes need draft, PATCH state needs control.
       const bool draftRoute = path.rfind("/api/v1/graph/drafts", 0) == 0 || path.rfind("/api/v1/graph/validate", 0) == 0;
+      const char* scope = draftRoute ? "draft" : (method == "PATCH" ? "control" : "apply");
       return std::string("Aurora refused the request (HTTP 403): AURORA_TOKEN lacks the access this needs (")
-        + (draftRoute ? "draft" : "apply") + "). Ask the user to re-pair with `aurora-mcp --pair` (apply access) "
+        + scope + "). Ask the user to re-pair with `aurora-mcp --pair --scope " + scope + "` (or a wider scope) "
         "and update AURORA_TOKEN.";
     }
     // An error body still tells the caller why, so it is kept in `out` when it parses.

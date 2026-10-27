@@ -228,7 +228,7 @@ Gives capture something known to look at (`Aurora-d0hl`, built for `Aurora-1t1`)
 
 ## Lane B gate (`lane_b_gate.py`)
 
-`py tools/light-viz-relay/lane_b_gate.py [--app PATH] [--keep] [--skip-schemathesis]`
+`python3 tools/light-viz-relay/lane_b_gate.py [--app PATH] [--keep] [--skip-schemathesis]` (`py` on Windows)
 brings the stack up on the dummy input and checks `/api/v1` end to end: pause and
 resume against the fake bridge's stream counts, brightness and effect on the lights,
 a light test ending `superseded`, token scopes over the host's LAN address (Control

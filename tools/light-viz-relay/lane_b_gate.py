@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Lane B gate (Aurora-5ipy.45): PATCH /api/v1/state, scopes and the spec on a running app.
 
-    py tools/light-viz-relay/lane_b_gate.py [--app PATH] [--keep] [--allow-skip] [--skip-schemathesis]
+    python tools/light-viz-relay/lane_b_gate.py [--app PATH] [--keep] [--allow-skip] [--skip-schemathesis]
 
 Brings up the fake-Hue stack (devstack.py), then checks on the fake bridge that pause stops
 the stream and resume restarts it, that brightness and effect reach the lights, and that a

@@ -1,4 +1,5 @@
 #include <cmath>
+#include <iostream>
 #include <set>
 
 #include <Aurora/Runtime/PublicApiRoutes.hpp>
@@ -89,7 +90,10 @@ namespace Aurora::Runtime
         guard->addRule("/api/v1/pairing/request", Scope::None);
       }
       for(const Alias& alias : kAliases){
-        server.aliasRoute(alias.method, std::string("/api") + alias.path, std::string("/api/v1") + alias.path);
+        // False means the internal route is not registered yet: a main wired out of order.
+        if(!server.aliasRoute(alias.method, std::string("/api") + alias.path, std::string("/api/v1") + alias.path)){
+          std::cerr << "v1 alias skipped, no internal route: /api" << alias.path << '\n';
+        }
       }
     }
   }

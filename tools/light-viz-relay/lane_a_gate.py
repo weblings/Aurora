@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Lane A smoke gate (Aurora-5ipy.34): the external-control contracts on a running app.
 
-    py tools/light-viz-relay/lane_a_gate.py [--app PATH] [--keep]
+    python tools/light-viz-relay/lane_a_gate.py [--app PATH] [--keep]
 
 Brings up the fake-Hue stack (devstack.py), then checks problem+json bodies and the JSON 404
 under /api/, the pairing poll answers (202, 429, 403, 404) with interval and expiresIn,

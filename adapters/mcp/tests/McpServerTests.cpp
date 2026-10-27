@@ -375,6 +375,11 @@ TEST_CASE("put_draft: transport and refusal are tool errors")
   McpServer draftOnly(scripted({{"POST /api/v1/graph/test", {403, "{}", {}}}}), "1.0", "t");
   CHECK(callTool(draftOnly, "try_on_lights")["result"]["content"][0]["text"].get<std::string>().find("(apply)") != std::string::npos);
 
+  McpServer controlless(scripted({{"PATCH /api/v1/state", {403, "{}", {}}}}), "1.0", "t");
+  const std::string controlText = callTool(controlless, "set_brightness", R"({"brightness":50})")["result"]["content"][0]["text"];
+  CHECK(controlText.find("(control)") != std::string::npos);
+  CHECK(controlText.find("--scope control") != std::string::npos);
+
   McpServer tooBig(scripted({{"PUT /api/v1/graph/drafts/t", {413, R"({"error":"draft_too_large"})", {}}}}), "1.0", "t");
   CHECK(callTool(tooBig, "put_draft", R"({"graph":{}})")["result"]["isError"] == true);
 }
