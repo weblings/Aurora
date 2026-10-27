@@ -230,6 +230,7 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `v1-mcp-control` | [log/2026-10-26-v1-mcp-control.md](log/2026-10-26-v1-mcp-control.md) | 5ipy.10: aurora-mcp control tools (Aurora-5ipy.10) |
 | `v1-patch-state` | [log/2026-10-26-v1-patch-state.md](log/2026-10-26-v1-patch-state.md) | 5ipy.42: PATCH /api/v1/state (Aurora-5ipy.42) |
 | `v1-read-routes` | [log/2026-10-26-v1-read-routes.md](log/2026-10-26-v1-read-routes.md) | 5ipy.40: v1 read routes (Aurora-5ipy.40) |
+| `v1-source-selection-gate` | [log/2026-10-26-v1-source-selection-gate.md](log/2026-10-26-v1-source-selection-gate.md) | 5ipy.44: source selection gate missed, B8 moved to C1 (Aurora-5ipy.44) |
 | `vv46-route-test-port-collisions` | [log/2026-10-16-vv46-route-test-port-collisions.md](log/2026-10-16-vv46-route-test-port-collisions.md) | Route test flakes under parallel ctest (Aurora-vv46) |
 | `w6no-restore-token` | [log/2026-10-21-w6no-restore-token.md](log/2026-10-21-w6no-restore-token.md) | Aurora-w6no: portal restore token is actually stored now (closed) |
 | `web-demo-ui-update` | [archive/WebDemoUIUpdate.md](archive/WebDemoUIUpdate.md) | Web Demo Dashboard Port — Plan (WebDemoUIUpdate.md) |

@@ -17,9 +17,9 @@ The owner moved Lane B into 1.1.4.
   then `/api/v1` itself. The app version and `apiVersion` are separate
   numbers, and clients key on `apiVersion`, which starts at `1.0.0`. The
   project already ships features in patch releases (v1.1.2, v1.1.3), so
-  1.1.4 carries both lanes. B8 (source selection) goes in only if its gate
-  passes.
-- **After 1.1.4: additive v1.x.** Source selection if B8 missed, the MQTT
+  1.1.4 carries both lanes. B8 (source selection) missed its gate on
+  2026-10-26 and moved to C1.
+- **After 1.1.4: additive v1.x.** Source selection (C1), the MQTT
   bridge, the Muse skill. Each bumps `apiVersion` minor only.
 
 **Out of scope throughout:** moving the WebUI onto `/api/v1`. It stays on
@@ -81,8 +81,8 @@ Aurora-5ipy.
 | B5 | Aurora-5ipy.41 | Graph routes and pairing status/request under `/api/v1` from an explicit list, each with its access rule | S-M | B1, B3a |
 | B4 | Aurora-5ipy.42 | `PATCH /api/v1/state` (`running`, `effect`, `brightness`): merge-patch, strict fields, validate all then write, one reload, Control scope. A running light test ends with `superseded` | M | B2, B3 |
 | B7a | Aurora-5ipy.43 | `aurora-mcp` moved onto `/api/v1` | S-M | B3, B5 |
-| B7b | Aurora-5ipy.10 | MCP control tools: pause, brightness, effect, and source if B8 shipped | S-M | B4, B7a |
-| B8 | Aurora-5ipy.44 | Source selection, only if its gate passes when B4 lands: `GET monitors` on the stable id, `source.video.monitor` and `source.audio.sink` writable in `PATCH state` | M | A8, Aurora-ecl5, Aurora-h06o, Aurora-9fn3, B4 |
+| B7b | Aurora-5ipy.10 | MCP control tools: pause, brightness, effect | S-M | B4, B7a |
+| B8 | Aurora-5ipy.44 | Moved to C1 (gate missed 2026-10-26). Was: `GET monitors` on the stable id, `source.video.monitor` and `source.audio.sink` writable in `PATCH state` | M | A8, Aurora-ecl5, Aurora-h06o, Aurora-9fn3, B4 |
 | B9 | Aurora-5ipy.45 | `lane_b_gate.py` (stdlib only) plus a Schemathesis step, on each OS | S-M | B4, B5, B7b |
 | B6 | Aurora-5ipy.9 | Freeze `1.0.0`: field-durability review, adapter-facing API doc | S | B3, B4, B5, B7b, B9 |
 
@@ -104,10 +104,10 @@ Aurora-5ipy.
 - **B7a moves before the freeze** so a real client exercises the contract
   first. `aurora_status` reads `configuredInputs` from v1 state instead
   of `/api/config`.
-- **The B8 gate is checked once, when B4 lands.** A8 verified on all
-  three platforms and the monitor-rebuild beads closed: do B8, then B6.
-  Otherwise B8 becomes C1 and B6 proceeds. The freeze never waits on
-  hardware, so B6 does not depend on B8 in the beads.
+- **The B8 gate was checked when B4 landed (2026-10-26) and missed.** A8
+  was unverified on Mac and X11 and the monitor-rebuild beads were open,
+  so B8 became C1 and B6 proceeds. The freeze never waits on hardware, so
+  B6 does not depend on B8 in the beads.
 - **B4 is the riskiest bead.** All-or-nothing validation over
   `ConfigStore::update`, pause and resume, and coalesced reloads interact.
   It needs fake-output tests for the paused case and a devstack run with
@@ -118,12 +118,12 @@ Aurora-5ipy.
   the default.
 
 ## Lane C: after 1.1.4 (v1.x, plan)
-Status: plan, not filed. Aurora-5ipy.11 and .12 already exist and wait on
-the freeze (Aurora-5ipy.9, B6).
+Status: C1 is Aurora-5ipy.44 (the former B8 bead). Aurora-5ipy.11 and .12
+already exist. All three wait on the freeze (Aurora-5ipy.9, B6).
 
 | Plan id | Work | Depends on |
 |---|---|---|
-| C1 | Source selection in v1.1 (`apiVersion` 1.1), only if B8 missed v1.0. Same scope as B8 | A8, B6 |
+| C1 | Aurora-5ipy.44 Source selection in v1.1 (`apiVersion` 1.1), moved from B8 when its gate missed. Same scope | A8, Aurora-ecl5, Aurora-h06o, Aurora-9fn3, B6 |
 | C2 | Aurora-5ipy.11 MQTT bridge | B6 |
 | C3 | Aurora-5ipy.12 Muse skill | B6 |
 | C4 | Aurora-5ipy.17 zone edits while paused (internal routes, unchanged) | none |
@@ -132,5 +132,5 @@ the freeze (Aurora-5ipy.9, B6).
 Status: filed.
 
 B3a, then B3, B4, B7b, B9 and B6. B1, B2 and B3a run in parallel first, and
-B5 runs beside B3. B7a runs beside B4. B8 adds one M bead after B4 only
-when its gate passes. That is three M beads and three S or S-M beads.
+B5 runs beside B3. B7a runs beside B4. B8 missed its gate and moved to C1.
+That is two M beads and three S or S-M beads.
