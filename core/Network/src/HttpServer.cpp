@@ -79,6 +79,19 @@ namespace Aurora::Network::Http::Server
   }
 
 
+  std::vector<RouteInfo> HttpServer::routeList() const
+  {
+    std::vector<RouteInfo> routes;
+    for(const auto& route : m_routes){
+      routes.push_back({route.method, route.path, false});
+    }
+    for(const auto& route : m_streamRoutes){
+      routes.push_back({HttpMethod::Get, route.path, true});
+    }
+    return routes;
+  }
+
+
   void HttpServer::setStreamLimits(size_t workerThreads, size_t maxStreams)
   {
     m_workerThreads = workerThreads;

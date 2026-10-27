@@ -1,0 +1,29 @@
+{
+  "openapi": "3.2.0",
+  "info": {
+    "title": "Aurora control API",
+    "version": "1.0.0",
+    "description": "Public control API for a running Aurora. Every operation under /api/v1 has an entry here, and the route-walk test fails when the two drift."
+  },
+  "servers": [
+    {
+      "url": "http://localhost:8080",
+      "description": "Default local address."
+    }
+  ],
+  "security": [
+    {
+      "bearerAuth": []
+    }
+  ],
+  "paths": {},
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "description": "Paired-device token. Loopback callers need none. An operation with `security: []` is open to every caller."
+      }
+    }
+  }
+}
