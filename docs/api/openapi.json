@@ -2010,7 +2010,7 @@
       },
       "Event": {
         "type": "object",
-        "description": "One server-sent event, shown here as its parsed fields.",
+        "description": "One server-sent event, shown here as its fields.",
         "required": [
           "event",
           "data"
@@ -2024,14 +2024,19 @@
             ]
           },
           "data": {
-            "oneOf": [
-              {
-                "$ref": "#/components/schemas/State"
-              },
-              {
-                "$ref": "#/components/schemas/Health"
-              }
-            ]
+            "type": "string",
+            "contentMediaType": "application/json",
+            "description": "A JSON text, the `State` document for `state` and `Health` for `health`.",
+            "contentSchema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/State"
+                },
+                {
+                  "$ref": "#/components/schemas/Health"
+                }
+              ]
+            }
           }
         }
       },

@@ -481,3 +481,35 @@ TEST_CASE("HttpServer with an AccessGuard leaves loopback callers trusted", "[Pa
   server.stop();
   serverThread.join();
 }
+
+TEST_CASE("A pairing request with a non-string name or scope is a 400, not a throw", "[Pairing][HttpServer]")
+{
+  auto service = std::make_shared<PairingService>();
+  auto guard = std::make_shared<AccessGuard>(service);
+
+  HttpServer server;
+  registerPairingRoutes(server, service, *guard);
+  server.setAccessGuard(guard);
+
+  const int port = server.bindToAnyPort("127.0.0.1");
+  REQUIRE(port > 0);
+  std::thread serverThread([&](){ server.listen(); });
+
+  httplib::Client client("127.0.0.1", port);
+  httplib::Result result;
+  for(const char* body : {R"({"name":"","scope":{}})", R"({"name":5})", R"({"scope":["read"]})"}){
+    for(int attempt = 0; attempt < 50; ++attempt){
+      result = client.Post("/api/pairing/request", body, "application/json");
+      if(result && result->status != -1){
+        break;
+      }
+      std::this_thread::sleep_for(10ms);
+    }
+    REQUIRE(result);
+    CHECK(result->status == 400);
+    CHECK(nlohmann::json::parse(result->body)["error"] == "invalid_json");
+  }
+
+  server.stop();
+  serverThread.join();
+}

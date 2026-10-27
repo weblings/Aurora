@@ -1210,16 +1210,20 @@ components:
             $ref: '#/components/schemas/Condition'
     Event:
       type: object
-      description: One server-sent event, shown here as its parsed fields.
+      description: One server-sent event, shown here as its fields.
       required: [event, data]
       properties:
         event:
           type: string
           enum: [state, health]
         data:
-          oneOf:
-            - $ref: '#/components/schemas/State'
-            - $ref: '#/components/schemas/Health'
+          type: string
+          contentMediaType: application/json
+          description: A JSON text, the `State` document for `state` and `Health` for `health`.
+          contentSchema:
+            anyOf:
+              - $ref: '#/components/schemas/State'
+              - $ref: '#/components/schemas/Health'
     Capabilities:
       type: object
       required: [inputs, audioInputs, outputs, zeroOffOutputs, platform, canSelectMonitor]

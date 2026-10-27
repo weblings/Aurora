@@ -53,6 +53,12 @@ namespace Aurora::Network::Http::Server
         reply(res, 400, {{"succeeded", false}, {"error", "invalid_json"}});
         return;
       }
+      // value() throws on a wrong type, so a non-string scope or name is rejected first.
+      if((body.contains("name") && !body["name"].is_string())
+         || (body.contains("scope") && !body["scope"].is_string())){
+        reply(res, 400, {{"succeeded", false}, {"error", "invalid_json"}});
+        return;
+      }
       // A browser asks for admin (the full UI), an adapter for less.
       auto scope = scopeFromName(body.value("scope", "admin"));
       if(!scope){
