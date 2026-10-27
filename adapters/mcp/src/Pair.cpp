@@ -20,8 +20,8 @@ namespace Aurora::Mcp
   int pair(const Fetch& fetch, const std::string& name, const std::string& scope,
     std::ostream& out, std::ostream& log, const std::function<void()>& wait)
   {
-    if(scope != "read" && scope != "draft" && scope != "apply"){
-      log << "Unknown scope '" << scope << "'. Use read, draft or apply. Admin tokens are paired in the WebUI.\n";
+    if(scope != "read" && scope != "draft" && scope != "control" && scope != "apply"){
+      log << "Unknown scope '" << scope << "'. Use read, draft, control or apply. Admin tokens are paired in the WebUI.\n";
       return 2;
     }
 

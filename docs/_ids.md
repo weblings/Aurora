@@ -67,6 +67,7 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `cgr-tick-yield` | [log/2026-10-16-cgr-tick-yield.md](log/2026-10-16-cgr-tick-yield.md) | Tick loop yields the host mutex (Aurora-cgr) |
 | `cj11-shell-banner` | [log/2026-10-06-cj11-shell-banner.md](log/2026-10-06-cj11-shell-banner.md) | Aurora-cj11: sticky shell banner for system errors (closed) |
 | `cli-help-version` | [log/2026-10-06-cli-help-version.md](log/2026-10-06-cli-help-version.md) | CLI --help/--version closes Aurora-v3in and Aurora-0gd |
+| `control-scope` | [log/2026-10-26-control-scope.md](log/2026-10-26-control-scope.md) | 5ipy.38: Control scope (Aurora-5ipy.38) |
 | `cyee-rbp3-mdns-and-host-conditions` | [log/2026-10-08-cyee-rbp3-mdns-and-host-conditions.md](log/2026-10-08-cyee-rbp3-mdns-and-host-conditions.md) | Aurora-cyee + Aurora-rbp3: local bridge discovery and host conditions (closed) |
 | `d2r3-windows-sdr-alpha-guard` | [log/2026-10-13-d2r3-windows-sdr-alpha-guard.md](log/2026-10-13-d2r3-windows-sdr-alpha-guard.md) | Aurora-d2r3: Windows SDR capture dropped every frame |
 | `d3ec-host-build-errors` | [log/2026-10-06-d3ec-host-build-errors.md](log/2026-10-06-d3ec-host-build-errors.md) | Aurora-d3ec: host holds build errors, GET /api/state reports state |

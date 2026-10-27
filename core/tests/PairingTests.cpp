@@ -51,6 +51,50 @@ TEST_CASE("sha256Hex matches the FIPS test vectors", "[Pairing]")
 }
 
 
+TEST_CASE("Scopes order Read < Draft < Control < Apply < Admin and round-trip by name", "[Pairing]")
+{
+  CHECK(Scope::None < Scope::Read);
+  CHECK(Scope::Read < Scope::Draft);
+  CHECK(Scope::Draft < Scope::Control);
+  CHECK(Scope::Control < Scope::Apply);
+  CHECK(Scope::Apply < Scope::Admin);
+  for(Scope scope : {Scope::Read, Scope::Draft, Scope::Control, Scope::Apply, Scope::Admin}){
+    CHECK(scopeFromName(scopeName(scope)) == scope);
+  }
+  CHECK_FALSE(scopeFromName("bogus"));
+}
+
+
+TEST_CASE("PairingService reloads a token of every scope, and approves a control request as control", "[Pairing]")
+{
+  auto path = tempStore("scopes");
+  std::vector<std::pair<std::string, Scope>> minted;
+  {
+    PairingService service(path);
+    for(Scope scope : {Scope::Read, Scope::Draft, Scope::Control, Scope::Apply, Scope::Admin}){
+      minted.emplace_back(service.mintForTest(scopeName(scope), scope), scope);
+    }
+  }
+  PairingService reloaded(path);
+  for(const auto& [token, scope] : minted){
+    auto device = reloaded.authenticate(token);
+    REQUIRE(device);
+    CHECK(device->scope == scope);
+  }
+
+  auto ticket = reloaded.requestPairing("bridge", Scope::Control);
+  REQUIRE(ticket);
+  auto pending = reloaded.pending();
+  REQUIRE(pending.size() == 1);
+  REQUIRE(reloaded.approve(pending[0].ref, std::nullopt));
+  auto poll = reloaded.poll(ticket->pollKey);
+  REQUIRE(poll.state == PairingPoll::State::Approved);
+  CHECK(poll.scope == Scope::Control);
+
+  std::filesystem::remove_all(path.parent_path());
+}
+
+
 TEST_CASE("AccessGuard trusts loopback and gates remote writes on a valid token", "[Pairing]")
 {
   auto service = std::make_shared<PairingService>();

@@ -32,6 +32,7 @@ namespace Aurora::Network::Http::Server
     None,
     Read,
     Draft,
+    Control,
     Apply,
     Admin
   };

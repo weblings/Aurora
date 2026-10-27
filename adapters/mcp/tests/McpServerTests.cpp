@@ -709,6 +709,14 @@ TEST_CASE("aurora-mcp --pair requests the scope, prints only the token, and tell
     CHECK(waits == 2);
   }
 
+  SECTION("Control is an accepted scope"){
+    polls = {{200, R"({"state":"approved","token":"tok123","scope":"control"})", {}}};
+    std::ostringstream out, err;
+    CHECK(Aurora::Mcp::pair(fetch, "laptop", "control", out, err, []{}) == 0);
+    CHECK(out.str() == "tok123\n");
+    CHECK(json::parse(requestBody) == json{{"name", "laptop"}, {"scope", "control"}});
+  }
+
   SECTION("Slow down keeps waiting"){
     polls = {{429, R"({"error":"slow_down"})", {}}, {200, R"({"state":"approved","token":"tok123","scope":"apply"})", {}}};
     std::ostringstream out, err;
