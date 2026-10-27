@@ -5007,7 +5007,13 @@ TEST_CASE("GET /api/v1/capabilities and version are the core helpers' answers (A
   const nlohmann::json caps = h.get("/api/v1/capabilities");
   CHECK(caps["platform"] == "test");
   CHECK(caps["inputs"] == nlohmann::json::array({"fake-video"}));
-  CHECK(caps["outputs"] == nlohmann::json::array({"out-a", "out-b", "hue"}));
+  // Registry::outputNames() is unordered, so compare as a set; "hue" is appended last.
+  auto outputs = caps["outputs"].get<std::vector<std::string>>();
+  REQUIRE(outputs.size() == 3);
+  CHECK(outputs.back() == "hue");
+  outputs.pop_back();
+  std::sort(outputs.begin(), outputs.end());
+  CHECK(outputs == std::vector<std::string>{"out-a", "out-b"});
   CHECK(caps["canSelectMonitor"] == false);
   CHECK_FALSE(caps.contains("paused"));
 
