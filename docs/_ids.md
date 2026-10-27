@@ -227,6 +227,7 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `upstream-findings` | [planning/UpstreamFindings.md](planning/UpstreamFindings.md) | Findings worth upstreaming to huenicorn |
 | `v1-graph-pairing-routes` | [log/2026-10-26-v1-graph-pairing-routes.md](log/2026-10-26-v1-graph-pairing-routes.md) | 5ipy.41: v1 graph and pairing routes (Aurora-5ipy.41) |
 | `v1-mcp-adapter` | [log/2026-10-26-v1-mcp-adapter.md](log/2026-10-26-v1-mcp-adapter.md) | 5ipy.43: aurora-mcp on /api/v1 (Aurora-5ipy.43) |
+| `v1-mcp-control` | [log/2026-10-26-v1-mcp-control.md](log/2026-10-26-v1-mcp-control.md) | 5ipy.10: aurora-mcp control tools (Aurora-5ipy.10) |
 | `v1-patch-state` | [log/2026-10-26-v1-patch-state.md](log/2026-10-26-v1-patch-state.md) | 5ipy.42: PATCH /api/v1/state (Aurora-5ipy.42) |
 | `v1-read-routes` | [log/2026-10-26-v1-read-routes.md](log/2026-10-26-v1-read-routes.md) | 5ipy.40: v1 read routes (Aurora-5ipy.40) |
 | `vv46-route-test-port-collisions` | [log/2026-10-16-vv46-route-test-port-collisions.md](log/2026-10-16-vv46-route-test-port-collisions.md) | Route test flakes under parallel ctest (Aurora-vv46) |

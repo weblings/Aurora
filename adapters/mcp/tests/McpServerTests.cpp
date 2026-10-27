@@ -132,11 +132,13 @@ TEST_CASE("tools/list advertises the tools, only the draft writers not read-only
     names.push_back(name);
     CHECK(tool["inputSchema"]["type"] == "object");
     const bool writes = name == "put_draft" || name == "set_control" || name == "try_on_lights" || name == "keep"
-      || name == "revert" || name == "apply" || name == "revert_effect";
+      || name == "revert" || name == "apply" || name == "revert_effect" || name == "set_running"
+      || name == "set_brightness" || name == "set_effect";
     CHECK(tool["annotations"]["readOnlyHint"] == !writes);
   }
   CHECK(names == std::vector<std::string>{"aurora_status", "list_nodes", "describe_node", "list_presets", "get_preset",
-    "put_draft", "set_control", "preview", "try_on_lights", "keep", "revert", "apply", "revert_effect"});
+    "put_draft", "set_control", "preview", "try_on_lights", "keep", "revert", "apply", "revert_effect",
+    "set_running", "set_brightness", "set_effect"});
 }
 
 TEST_CASE("aurora_status reports live state")
@@ -518,6 +520,8 @@ namespace
     std::string active{"builtin-video"};
     std::string running{"builtin-video"};
     std::string previewDraftChanged;
+    bool paused = false;
+    json brightness = 100;
 
     Fetch fetch()
     {
@@ -551,8 +555,21 @@ namespace
             {"requestedEffect", id}}.dump(), {}};
         }
         if(method == "PATCH" && path == "/api/v1/state"){
-          active = json::parse(body).at("effect");
-          return HttpReply{200, json{{"state", "running"}, {"effect", active}, {"errors", json::array()}}.dump(), {}};
+          const json patch = json::parse(body);
+          if(patch.contains("brightness") && (patch.at("brightness") < 0 || patch.at("brightness") > 100)){
+            return HttpReply{400, R"({"error":"invalid_field","message":"brightness must be 0 to 100"})", {}};
+          }
+          if(patch.contains("effect")){
+            active = patch.at("effect");
+          }
+          if(patch.contains("running")){
+            paused = !patch.at("running").get<bool>();
+          }
+          if(patch.contains("brightness")){
+            brightness = patch.at("brightness");
+          }
+          return HttpReply{200, json{{"state", paused ? "paused" : "running"}, {"effect", active},
+            {"brightness", brightness}, {"errors", json::array()}}.dump(), {}};
         }
         return HttpReply{404, "{}", {}};
       };
@@ -661,6 +678,43 @@ TEST_CASE("revert_effect restores what ran before the first apply")
   const json restored = callTool(server, "revert_effect")["result"];
   CHECK(restored["isError"] == false);
   CHECK(app.active == "builtin-audio");
+}
+
+TEST_CASE("set_running, set_brightness and set_effect patch the state")
+{
+  FakeLights app;
+  McpServer server(app.fetch(), "1.0", "t");
+
+  const json paused = callTool(server, "set_running", R"({"running":false})")["result"];
+  CHECK(paused["isError"] == false);
+  CHECK(paused["structuredContent"]["state"] == "paused");
+  CHECK(app.paused);
+
+  const json resumed = callTool(server, "set_running", R"({"running":true})")["result"];
+  CHECK(resumed["structuredContent"]["state"] == "running");
+
+  const json dimmed = callTool(server, "set_brightness", R"({"brightness":40})")["result"];
+  CHECK(dimmed["structuredContent"]["brightness"] == 40);
+
+  const json switched = callTool(server, "set_effect", R"({"id":"mine"})")["result"];
+  CHECK(switched["structuredContent"]["effect"] == "mine");
+  CHECK(app.active == "mine");
+}
+
+TEST_CASE("The control tools reject bad arguments and surface Aurora's refusal")
+{
+  FakeLights app;
+  McpServer server(app.fetch(), "1.0", "t");
+
+  CHECK(callTool(server, "set_running", "{}")["result"]["isError"] == true);
+  CHECK(callTool(server, "set_running", R"({"running":"yes"})")["result"]["isError"] == true);
+  CHECK(callTool(server, "set_brightness", R"({"brightness":"high"})")["result"]["isError"] == true);
+  CHECK(callTool(server, "set_effect", "{}")["result"]["isError"] == true);
+
+  const json refused = callTool(server, "set_brightness", R"({"brightness":150})")["result"];
+  CHECK(refused["isError"] == true);
+  CHECK(refused["content"][0]["text"].get<std::string>().find("invalid_field") != std::string::npos);
+  CHECK(app.brightness == 100);
 }
 
 TEST_CASE("A test that ended on Aurora's side stops the heartbeat thread")

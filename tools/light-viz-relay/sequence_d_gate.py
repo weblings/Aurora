@@ -133,6 +133,10 @@ def state(base):
     return call(base, "GET", "/api/state")[1]
 
 
+def v1(base):
+    return call(base, "GET", "/api/v1/state")[1]
+
+
 def run_phase(label, adapter, args, audio, body, lan=False):
     ds.up(SimpleNamespace(app=args.app, viz_port=8000, banner_errors=0, input="dummy",
                           audio_input="live" if audio else None))
@@ -277,6 +281,7 @@ def audio_phase(c):
         apply_lit(c, client, ctx)
         restart_check(c, client)
         revert_effect(c, client)
+        control_tools(c, client)
         killed_client(c)
     finally:
         tone.stop()
@@ -381,6 +386,21 @@ def revert_effect(c, client):
     assert s["effect"] == "builtin.video" and s["mcpEffectId"] == APPLIED, s
     c["frames"].wait(sc.lit, "lit on the built-in")
     return f"back on {out['restored']}, toggle unfilled (mcpEffectId {s['mcpEffectId']})"
+
+
+@step("control tools")
+def control_tools(c, client):
+    before = v1(c["base"])["brightness"]
+    client.ok("set_brightness", brightness=35)
+    assert v1(c["base"])["brightness"] == 35, v1(c["base"])
+    client.ok("set_brightness", brightness=before)
+    assert client.ok("set_running", running=False)["state"] == "paused"
+    assert v1(c["base"])["state"] == "paused"
+    assert client.ok("set_running", running=True)["state"] == "running"
+    c["frames"].wait(sc.lit, "lit after resume")
+    err, bad = client.tool("set_brightness", brightness=150)
+    assert err, bad
+    return "brightness patched, pause and resume round-trip, bad brightness refused"
 
 
 @step("killed client reverts the test")

@@ -43,7 +43,9 @@ namespace Aurora::Mcp
       "touching them. try_on_lights shows the draft on the real lights for the user to judge: "
       "ask them, then call keep to save it or revert. A test reverts by itself if this server stops. "
       "apply saves and activates a draft without a test, so ask the user first. "
-      "revert_effect goes back to what ran before your first apply.";
+      "revert_effect goes back to what ran before your first apply. "
+      "set_running pauses or resumes the lights, set_brightness sets the master brightness and "
+      "set_effect switches to a saved effect. These act on the real lights at once, so ask the user first.";
 
     nlohmann::json errorResponse(const nlohmann::json& id, int code, const std::string& message)
     {
@@ -340,7 +342,19 @@ namespace Aurora::Mcp
         effectIdProperty, nlohmann::json::array({"id"})),
       lightsTool("revert_effect",
         "Switch back to the effect that was live before your first apply in this session.",
-        nlohmann::json::object(), nlohmann::json::array())
+        nlohmann::json::object(), nlohmann::json::array()),
+      lightsTool("set_running",
+        "Pause the lights (false) or resume them (true). A pause holds nothing to resume if no effect is running.",
+        {{"running", {{"type", "boolean"}, {"description", "false pauses, true resumes."}}}},
+        nlohmann::json::array({"running"})),
+      lightsTool("set_brightness",
+        "Set the master brightness. It applies live and does not end a light test.",
+        {{"brightness", {{"type", "number"}, {"minimum", 0}, {"maximum", 100}, {"description", "Percent, 0 to 100."}}}},
+        nlohmann::json::array({"brightness"})),
+      lightsTool("set_effect",
+        "Switch to a saved effect by id. An empty id selects the default built-in. This ends a light test.",
+        {{"id", {{"type", "string"}, {"description", "Saved effect id, or an empty string for the default."}}}},
+        nlohmann::json::array({"id"}))
     })}};
   }
 
@@ -392,6 +406,15 @@ namespace Aurora::Mcp
     }
     if(name == "revert_effect"){
       return _revertEffect();
+    }
+    if(name == "set_running"){
+      return _setRunning(arguments);
+    }
+    if(name == "set_brightness"){
+      return _setBrightness(arguments);
+    }
+    if(name == "set_effect"){
+      return _setEffect(arguments);
     }
     throw RpcError(kInvalidParams, "unknown tool: " + name);
   }
@@ -880,6 +903,52 @@ namespace Aurora::Mcp
     // A failed reload still answers 200 and shows in the state's errors.
     if(reply.contains("errors") && reply.at("errors").is_array() && !reply.at("errors").empty()){
       out["reloadError"] = reply.at("errors");
+    }
+    return toolJson(out);
+  }
+
+
+  nlohmann::json McpServer::_setRunning(const nlohmann::json& arguments)
+  {
+    if(!arguments.contains("running") || !arguments.at("running").is_boolean()){
+      return toolText("set_running needs a boolean 'running'.", true);
+    }
+    return _patchState({{"running", arguments.at("running")}});
+  }
+
+
+  nlohmann::json McpServer::_setBrightness(const nlohmann::json& arguments)
+  {
+    if(!arguments.contains("brightness") || !arguments.at("brightness").is_number()){
+      return toolText("set_brightness needs a number 'brightness' from 0 to 100.", true);
+    }
+    return _patchState({{"brightness", arguments.at("brightness")}});
+  }
+
+
+  nlohmann::json McpServer::_setEffect(const nlohmann::json& arguments)
+  {
+    if(!arguments.contains("id") || !arguments.at("id").is_string()){
+      return toolText("set_effect needs a string 'id', empty for the default.", true);
+    }
+    return _patchState({{"effect", arguments.at("id")}});
+  }
+
+
+  nlohmann::json McpServer::_patchState(const nlohmann::json& patch)
+  {
+    nlohmann::json reply;
+    int status = 0;
+    if(const std::string error = _requestJson("PATCH", "/api/v1/state", patch.dump(), reply, &status); !error.empty()){
+      // 400 and 409 carry the reason in the body, so the agent can fix the call.
+      const bool refused = status == 400 || status == 409;
+      return toolText(refused ? error + " " + reply.dump() : error, true);
+    }
+    nlohmann::json out = {{"state", orNull(reply, "state")}, {"effect", orNull(reply, "effect")},
+      {"requestedEffect", orNull(reply, "requestedEffect")}, {"brightness", orNull(reply, "brightness")}};
+    // A failed reload still answers 200 and shows in the state's errors.
+    if(reply.contains("errors") && reply.at("errors").is_array() && !reply.at("errors").empty()){
+      out["errors"] = reply.at("errors");
     }
     return toolJson(out);
   }
