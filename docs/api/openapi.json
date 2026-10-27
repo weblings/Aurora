@@ -34,6 +34,53 @@
             }
           }
         }
+      },
+      "patch": {
+        "operationId": "patchState",
+        "summary": "Pause, resume, switch effect or dim",
+        "description": "Needs the Control scope. A JSON merge patch (RFC 7396): absent fields stay, `null` is rejected, and the whole body is validated before anything is written. Unknown fields answer `unknown_field` and read-only ones `read_only_field`, with every problem listed in `errors`. `running` false pauses and true resumes. `effect` is the effect to run, an id from `GET /api/v1/effects`, and the running one reads back as `effect` and `requestedEffect`. A paused host saves the effect and applies it on resume. `brightness` is percent and applies without a rebuild. A changed effect, a pause or a resume ends a running light test with `superseded`, brightness does not. A failed reload still answers 200 and shows in `errors` of the state.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StatePatch"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Applied. The body is the new state.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/State"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad body or field (`invalid_body`, `unknown_field`, `read_only_field`, `null_not_allowed`, `invalid_field`, `unknown_effect`). Nothing was written.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Nothing is running to pause (`nothing_to_pause`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
       }
     },
     "/api/v1/events": {
@@ -1541,6 +1588,25 @@
           },
           "samplesZones": {
             "type": "boolean"
+          }
+        }
+      },
+      "StatePatch": {
+        "type": "object",
+        "description": "Any subset of these fields. No other field is accepted.",
+        "additionalProperties": false,
+        "properties": {
+          "running": {
+            "type": "boolean"
+          },
+          "effect": {
+            "type": "string",
+            "description": "An effect id, or an empty string for the default built-in."
+          },
+          "brightness": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 100
           }
         }
       },

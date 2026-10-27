@@ -3887,6 +3887,7 @@ namespace
       auto reload = std::make_shared<ReloadCoalescer>([this]{ return applyConfigFromDisk(*host, registry, dir.path); });
       registerSettingsRoutes(server, dir.path, reload, onEffectChosen);
       registerEffectsRoutes(server, *host, registry, dir.path, reload, onEffectChosen);
+      registerPublicApiRoutes(server, *host, registry, dir.path, reload, test, nullptr, {"test", "dev", false, false, nullptr});
       const int port = server.bindToAnyPort("127.0.0.1");
       REQUIRE(port > 0);
       serverThread = std::thread([this](){ server.listen(); });
@@ -5011,6 +5012,103 @@ TEST_CASE("GET /api/v1/capabilities and version are the core helpers' answers (A
   CHECK_FALSE(caps.contains("paused"));
 
   CHECK(h.get("/api/v1/version") == nlohmann::json{{"version", "1.2.3"}, {"apiVersion", kApiVersion}});
+}
+
+
+namespace
+{
+  nlohmann::json patchState(LightTestHarness& h, const nlohmann::json& body, int expectedStatus = 200)
+  {
+    auto result = h.client->Patch("/api/v1/state", body.dump(), "application/json");
+    REQUIRE(result);
+    CHECK(result->status == expectedStatus);
+    return nlohmann::json::parse(result->body);
+  }
+
+  // A saved custom effect that differs from the built-in, so a switch is visible.
+  void saveEffect(LightTestHarness& h, const std::string& id)
+  {
+    nlohmann::json graph = Graph::builtInVideoGraph({"out-a"});
+    graph["title"] = id;
+    std::string error;
+    REQUIRE(EffectStore(h.dir.path).write(id, graph, error));
+  }
+}
+
+
+TEST_CASE("PATCH /api/v1/state saves an effect while paused and applies it on resume (Aurora-5ipy.42)", "[PublicApi][v1]")
+{
+  LightTestHarness h("v1-patch-paused");
+  saveEffect(h, "mine");
+
+  CHECK(patchState(h, {{"running", false}})["state"] == "paused");
+  const nlohmann::json paused = patchState(h, {{"effect", "mine"}});
+  CHECK(paused["state"] == "paused");
+  CHECK(h.host->isPaused());
+  CHECK(ConfigStore(h.dir.path).load().activeEffectId() == "mine");
+
+  const nlohmann::json resumed = patchState(h, {{"running", true}});
+  CHECK(resumed["state"] == "running");
+  CHECK(resumed["effect"] == "mine");
+}
+
+
+TEST_CASE("PATCH /api/v1/state applies brightness hot and keeps a test running (Aurora-5ipy.42)", "[PublicApi][v1]")
+{
+  LightTestHarness h("v1-patch-brightness");
+  const nlohmann::json draft = Graph::builtInVideoGraph({"out-a"});
+  h.putDraft("s1", draft);
+  REQUIRE(h.start("s1") == 200);
+  const int inits = initCount(*h.events);
+
+  const nlohmann::json state = patchState(h, {{"brightness", 25}});
+  CHECK(state["state"] == "running");
+  CHECK(state["brightness"] == 25.0);
+  CHECK(state["test"]["active"] == true);
+  CHECK(ConfigStore(h.dir.path).load().brightness() == Catch::Approx(0.25f));
+  CHECK(h.test->info().active);
+  CHECK(*h.host->graphJson() == draft);
+  CHECK(initCount(*h.events) == inits);
+}
+
+
+TEST_CASE("PATCH /api/v1/state ends a running test as superseded on an effect or a pause (Aurora-5ipy.42)", "[PublicApi][v1]")
+{
+  LightTestHarness h("v1-patch-superseded");
+  saveEffect(h, "mine");
+  h.putDraft("s1", Graph::builtInVideoGraph({"out-a"}));
+
+  REQUIRE(h.start("s1") == 200);
+  CHECK(patchState(h, {{"effect", "mine"}})["effect"] == "mine");
+  CHECK_FALSE(h.test->info().active);
+  CHECK(h.test->info().lastEnd == "superseded");
+
+  REQUIRE(h.start("s1") == 200);
+  CHECK(patchState(h, {{"running", false}})["state"] == "paused");
+  CHECK(h.test->info().lastEnd == "superseded");
+}
+
+
+TEST_CASE("PATCH /api/v1/state validates every field first and writes nothing on a bad one (Aurora-5ipy.42)", "[PublicApi][v1]")
+{
+  LightTestHarness h("v1-patch-invalid");
+  const std::string before = ConfigStore(h.dir.path).load().activeEffectId();
+
+  const nlohmann::json bad = patchState(h, {{"brightness", 40}, {"effect", "nope"}, {"errors", nlohmann::json::array()}, {"bogus", 1}}, 400);
+  REQUIRE(bad["errors"].size() == 3);
+  CHECK(bad["code"] == bad["errors"][0]["code"]);
+  std::set<std::string> codes;
+  for(const auto& issue : bad["errors"]){ codes.insert(issue["code"]); }
+  CHECK(codes == std::set<std::string>{"read_only_field", "unknown_field", "unknown_effect"});
+  CHECK(ConfigStore(h.dir.path).load().brightness() == 1.f);
+  CHECK(ConfigStore(h.dir.path).load().activeEffectId() == before);
+
+  CHECK(patchState(h, {{"running", nullptr}}, 400)["code"] == "null_not_allowed");
+  CHECK(patchState(h, {{"running", "yes"}}, 400)["code"] == "invalid_field");
+  CHECK(patchState(h, {{"brightness", 101}}, 400)["code"] == "invalid_field");
+  CHECK(patchState(h, {{"brightness", -1}}, 400)["code"] == "invalid_field");
+  CHECK(patchState(h, nlohmann::json::array(), 400)["code"] == "invalid_body");
+  CHECK_FALSE(h.host->isPaused());
 }
 
 

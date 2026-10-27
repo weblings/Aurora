@@ -43,6 +43,12 @@ namespace Aurora::Runtime
   // internal documents bar the v1 state, so the spec in docs/api/openapi.yaml
   // is the contract and these are thin.
   //
+  // PATCH state (Aurora-5ipy.42), Control scope: a merge patch of running,
+  // effect and brightness (percent). Every field is validated before one
+  // config write, then a pause or resume, else one submit on `reload`. An
+  // effect, pause or resume ends a running light test as "superseded".
+  // Answers 200 with the v1 state, 400 with problem `errors` per bad field.
+  //
   // Graph and pairing routes (Aurora-5ipy.41): the draft, validate, test and
   // apply routes and the pairing status and request routes are also served
   // under /api/v1 from an explicit list, with their access rules copied onto

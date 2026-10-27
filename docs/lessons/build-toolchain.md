@@ -880,3 +880,20 @@ the route while everything else was green.
 **Fix:** `cmake --build build/linux-app` (and `build/core-test` for core)
 before the gate. When a new route 404s on an otherwise green tree, `ls -la`
 the binary the gate actually launched before suspecting the route.
+
+---
+
+## A green build is not a fresh binary: check the launched exe's mtime
+Tags: cmake, build-trees, windows, locked-exe, devstack
+Applies-when: rebuilding the Windows app before devstack.py up or any live run, especially inside an agent session
+
+On Windows `AuroraApp` builds only a `.lib`, and the real exe comes from
+`aurora-app-windows`, whose link fails with LNK1104 while any
+`aurora-mcp.exe` runs (every agent session has one). Aurora-5ipy.42:
+a chained build and `devstack up` launched the Oct 24 `Aurora.exe`, and the
+failure showed only in the build tail.
+
+**Fix:** build `aurora-app-windows`, and when the MCP lock blocks it add
+`-- -p:BuildProjectReferences=false` (single dash, since Git Bash rewrites
+`/p:`). Compare `bin/Release/Aurora.exe` mtime to the source edit before
+`devstack up`. The lock itself is tracked in its own bead.

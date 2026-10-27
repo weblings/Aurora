@@ -214,6 +214,23 @@ TEST_CASE("v1 draft and validate need Draft, test and apply need Apply, pairing 
   CHECK(decide(HttpMethod::Get, "/api/v1/pairing/devices", "") == Result::Unauthorized);
 }
 
+TEST_CASE("PATCH /api/v1/state needs Control, above Draft and below Apply (Aurora-5ipy.42)", "[api-spec][Pairing]")
+{
+  V1Routes routes;
+  auto allowed = [&](Scope scope){
+    AccessRequest request;
+    request.method = HttpMethod::Patch;
+    request.path = "/api/v1/state";
+    request.remoteAddr = "192.168.1.50";
+    request.authorization = "Bearer " + routes.service->mintForTest("adapter", scope);
+    return routes.guard->decide(request).result == AccessDecision::Result::Allow;
+  };
+  CHECK_FALSE(allowed(Scope::Read));
+  CHECK_FALSE(allowed(Scope::Draft));
+  CHECK(allowed(Scope::Control));
+  CHECK(allowed(Scope::Apply));
+}
+
 TEST_CASE("v1 serves no graph/test/stop and no other pairing route (Aurora-5ipy.41)", "[api-spec]")
 {
   V1Routes routes;
