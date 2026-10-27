@@ -3,17 +3,20 @@
 #include <Aurora/Runtime/PublicApiRoutes.hpp>
 
 #include <Aurora/Network/Http/Server/HttpServer.hpp>
+#include <Aurora/Network/Http/Server/Pairing.hpp>
 #include <Aurora/Runtime/ControlDescriptors.hpp>
 #include <Aurora/Runtime/EffectsRoutes.hpp>
 #include <Aurora/Runtime/HostRoutes.hpp>
 
 namespace Aurora::Runtime
 {
+  using Aurora::Network::Http::Server::AccessGuard;
   using Aurora::Network::Http::Server::EventStream;
   using Aurora::Network::Http::Server::HttpMethod;
   using Aurora::Network::Http::Server::HttpServer;
   using Aurora::Network::Http::Server::Request;
   using Aurora::Network::Http::Server::Response;
+  using Aurora::Network::Http::Server::Scope;
 
   namespace
   {
@@ -29,6 +32,52 @@ namespace Aurora::Runtime
     nlohmann::json _nameOrNull(const std::string& name)
     {
       return name.empty() ? nlohmann::json(nullptr) : nlohmann::json(name);
+    }
+  }
+
+
+  namespace
+  {
+    struct Alias
+    {
+      HttpMethod method;
+      const char* path;
+    };
+
+    // Paths below /api, an explicit list so internal siblings (graph/test/stop)
+    // stay unversioned.
+    constexpr Alias kAliases[] = {
+      {HttpMethod::Put, "/graph/drafts/:session"},
+      {HttpMethod::Get, "/graph/drafts/:session"},
+      {HttpMethod::Delete, "/graph/drafts/:session"},
+      {HttpMethod::Post, "/graph/validate"},
+      {HttpMethod::Post, "/graph/test"},
+      {HttpMethod::Get, "/graph/test"},
+      {HttpMethod::Post, "/graph/test/heartbeat"},
+      {HttpMethod::Post, "/graph/test/revert"},
+      {HttpMethod::Post, "/graph/test/confirm"},
+      {HttpMethod::Post, "/graph/apply"},
+      {HttpMethod::Get, "/pairing/status"},
+      {HttpMethod::Post, "/pairing/request"},
+      {HttpMethod::Get, "/pairing/request/:pollKey"}
+    };
+
+    // Guard rules match path prefixes, so each v1 rule is copied from the
+    // internal one by hand and a prefix copy of /api/graph is never made.
+    void registerV1AliasRoutes(HttpServer& server, AccessGuard* guard)
+    {
+      if(guard){
+        guard->addWriteRule("/api/v1/graph/drafts", Scope::Draft);
+        guard->addWriteRule("/api/v1/graph/validate", Scope::Draft);
+        guard->addWriteRule("/api/v1/graph/test", Scope::Apply);
+        guard->addWriteRule("/api/v1/graph/test/stop", Scope::Admin);
+        guard->addWriteRule("/api/v1/graph/apply", Scope::Apply);
+        guard->addRule("/api/v1/pairing/status", Scope::None);
+        guard->addRule("/api/v1/pairing/request", Scope::None);
+      }
+      for(const Alias& alias : kAliases){
+        server.aliasRoute(alias.method, std::string("/api") + alias.path, std::string("/api/v1") + alias.path);
+      }
     }
   }
 
@@ -55,10 +104,12 @@ namespace Aurora::Runtime
     const std::filesystem::path& configRoot,
     std::shared_ptr<ReloadCoalescer>,
     std::shared_ptr<LightTest> lightTest,
-    Aurora::Network::Http::Server::AccessGuard*,
+    Aurora::Network::Http::Server::AccessGuard* guard,
     PublicApiInfo info
   )
   {
+    registerV1AliasRoutes(server, guard);
+
     server.addRoute(
       HttpMethod::Get,
       "/api/v1/state",

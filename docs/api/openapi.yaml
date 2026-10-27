@@ -156,7 +156,439 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Descriptors'
+  /api/v1/graph/drafts/{session}:
+    parameters:
+      - $ref: '#/components/parameters/Session'
+    put:
+      operationId: putDraft
+      summary: Save a draft and validate it
+      description: >-
+        Needs the Draft scope. Stores the graph under the session and answers
+        with its validation. A draft that fails validation is still saved.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GraphBody'
+      responses:
+        '200':
+          description: Saved, with the validation result.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DraftSaved'
+        '400':
+          description: Bad session (`invalid_session`) or body (`invalid_body`).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '413':
+          description: Too large (`draft_too_large`).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '429':
+          description: Too many drafts (`too_many_drafts`).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    get:
+      operationId: getDraft
+      summary: Read a draft with its validation
+      responses:
+        '200':
+          description: The draft.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Draft'
+        '400':
+          description: Bad session (`invalid_session`).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: No such draft (`no_draft`).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    delete:
+      operationId: deleteDraft
+      summary: Drop a draft
+      description: Needs the Draft scope.
+      responses:
+        '200':
+          description: Deleted.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Deleted'
+        '404':
+          description: No such draft (`no_draft`).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /api/v1/graph/validate:
+    post:
+      operationId: validateGraph
+      summary: Validate a graph without saving it
+      description: Needs the Draft scope.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GraphBody'
+      responses:
+        '200':
+          description: The validation result.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Validation'
+        '400':
+          description: Bad body (`invalid_body`).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '413':
+          description: Too large (`draft_too_large`).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /api/v1/graph/test:
+    get:
+      operationId: getLightTest
+      summary: Light test status
+      responses:
+        '200':
+          description: The test status.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LightTest'
+    post:
+      operationId: startLightTest
+      summary: Show a draft on the lights
+      description: >-
+        Needs the Apply scope. The draft runs until it is confirmed, reverted,
+        or the heartbeat lapses, and then the previous effect returns.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SessionBody'
+      responses:
+        '200':
+          description: The test started.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LightTestStarted'
+        '400':
+          description: Bad body or session (`invalid_body`, `invalid_session`).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: No such draft (`no_draft`).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: The test could not start (`cannot_test`).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '422':
+          description: The draft is not valid (`invalid_graph`).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InvalidGraph'
+  /api/v1/graph/test/heartbeat:
+    post:
+      operationId: heartbeatLightTest
+      summary: Keep a light test alive
+      description: Needs the Apply scope.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SessionBody'
+      responses:
+        '200':
+          description: The test is still running.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Heartbeat'
+        '400':
+          description: Bad body or session (`invalid_body`, `invalid_session`).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: No test for this session (`no_test`).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /api/v1/graph/test/revert:
+    post:
+      operationId: revertLightTest
+      summary: End a light test and restore the previous effect
+      description: Needs the Apply scope.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SessionBody'
+      responses:
+        '200':
+          description: Reverted. `revertError` is set when the restore failed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Reverted'
+        '400':
+          description: Bad body or session (`invalid_body`, `invalid_session`).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: No test for this session (`no_test`).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /api/v1/graph/test/confirm:
+    post:
+      operationId: confirmLightTest
+      summary: Keep the tested draft as the live effect
+      description: >-
+        Needs the Apply scope. Saves the draft as effect `id` and makes it the
+        active effect, as `applyGraph` does, and ends the test with no revert.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ApplyBody'
+      responses:
+        '200':
+          description: Applied.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Applied'
+        '400':
+          description: Bad body, session or effect id (`invalid_body`, `invalid_session`, `invalid_effect_id`).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: No test or no draft (`no_test`, `no_draft`).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: The draft changed since the test started (`draft_changed`).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '422':
+          description: The draft is not valid (`invalid_graph`).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InvalidGraph'
+        '500':
+          description: The effect could not be saved (`write_failed`).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /api/v1/graph/apply:
+    post:
+      operationId: applyGraph
+      summary: Save a draft as an effect and run it
+      description: Needs the Apply scope.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ApplyBody'
+      responses:
+        '200':
+          description: Applied. `reloadError` is set when the swap failed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Applied'
+        '400':
+          description: Bad body, session or effect id (`invalid_body`, `invalid_session`, `invalid_effect_id`).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: No such draft (`no_draft`).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '422':
+          description: The draft is not valid (`invalid_graph`).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InvalidGraph'
+        '500':
+          description: The effect could not be saved (`write_failed`).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /api/v1/pairing/status:
+    get:
+      operationId: getPairingStatus
+      summary: Whether this caller must pair
+      description: >-
+        Open to every caller, and the first call an adapter makes. `required`
+        is false for loopback callers. `scope` is the caller's scope, `none`
+        when it has no token.
+      security: []
+      responses:
+        '200':
+          description: The pairing status.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PairingStatus'
+  /api/v1/pairing/request:
+    post:
+      operationId: requestPairing
+      summary: Ask to pair
+      description: >-
+        Open to every caller. The user approves the shown `code` in Aurora,
+        and the caller polls `pollKey` every `interval` seconds for up to
+        `expiresIn`. The flow follows the OAuth device grant (RFC 8628).
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PairingRequest'
+      responses:
+        '202':
+          description: Waiting for approval.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PairingTicket'
+        '400':
+          description: Bad body or scope (`invalid_json`, `unknown_scope`).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '429':
+          description: Too many requests are waiting (`too_many_pending`).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /api/v1/pairing/request/{pollKey}:
+    get:
+      operationId: pollPairing
+      summary: Poll a pairing request
+      description: >-
+        Open to every caller. Statuses are REST's and `error` uses RFC 8628's
+        vocabulary. 202 `authorization_pending` means keep polling, 429
+        `slow_down` means poll less often (see `Retry-After`), 403
+        `access_denied` means the user said no, 410 `expired_token` means start
+        over. 404 is a key that was never issued or has been forgotten.
+      security: []
+      parameters:
+        - name: pollKey
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Approved. The token is shown once.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PairingApproved'
+        '202':
+          description: Still waiting (`authorization_pending`).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PairingWaiting'
+        '403':
+          description: Denied (`access_denied`).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PairingWaiting'
+        '404':
+          description: Unknown key.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PairingWaiting'
+        '410':
+          description: Expired (`expired_token`).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PairingWaiting'
+        '429':
+          description: Polling too fast (`slow_down`).
+          headers:
+            Retry-After:
+              description: Seconds to wait.
+              schema:
+                type: integer
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PairingWaiting'
 components:
+  parameters:
+    Session:
+      name: session
+      in: path
+      required: true
+      description: A client-chosen draft session id.
+      schema:
+        type: string
   securitySchemes:
     bearerAuth:
       type: http
@@ -174,6 +606,210 @@ components:
           description: Snake_case code. Clients handle unknown codes by HTTP status.
         message:
           type: string
+    GraphBody:
+      type: object
+      required: [graph]
+      properties:
+        graph:
+          type: object
+          description: The graph document, see its own `version`.
+    SessionBody:
+      type: object
+      required: [session]
+      properties:
+        session:
+          type: string
+          description: 1 to 64 characters of letters, digits, `_` and `-`.
+    ApplyBody:
+      type: object
+      required: [session, id]
+      properties:
+        session:
+          type: string
+        id:
+          type: string
+          description: The custom effect id to save the draft as.
+    ValidationIssue:
+      type: object
+      required: [node, message, code, port, param, options]
+      properties:
+        node:
+          type: [string, 'null']
+        message:
+          type: string
+        code:
+          type: string
+        port:
+          type: [string, 'null']
+        param:
+          type: [string, 'null']
+        options:
+          description: Valid choices where the issue is a bad value, else empty.
+    Validation:
+      type: object
+      required: [valid, errors]
+      properties:
+        valid:
+          type: boolean
+        errors:
+          type: array
+          items:
+            $ref: '#/components/schemas/ValidationIssue'
+    DraftSaved:
+      allOf:
+        - $ref: '#/components/schemas/Validation'
+        - type: object
+          required: [succeeded, session]
+          properties:
+            succeeded:
+              type: boolean
+            session:
+              type: string
+    Draft:
+      allOf:
+        - $ref: '#/components/schemas/Validation'
+        - type: object
+          required: [session, graph]
+          properties:
+            session:
+              type: string
+            graph:
+              type: object
+    Deleted:
+      type: object
+      required: [succeeded, deleted]
+      properties:
+        succeeded:
+          type: boolean
+        deleted:
+          type: string
+          description: The session id.
+    InvalidGraph:
+      allOf:
+        - $ref: '#/components/schemas/Validation'
+        - type: object
+          required: [succeeded, error]
+          properties:
+            succeeded:
+              type: boolean
+            error:
+              type: string
+    LightTest:
+      type: object
+      required: [active, confirmRemainingMs, revertAfterMs, lastEnd]
+      properties:
+        active:
+          type: boolean
+        confirmRemainingMs:
+          type: integer
+        revertAfterMs:
+          type: integer
+        lastEnd:
+          type: [string, 'null']
+          description: Why the previous test ended, null if none has.
+    LightTestStarted:
+      type: object
+      required: [succeeded, confirmWithinMs, heartbeatMs, revertAfterMs]
+      properties:
+        succeeded:
+          type: boolean
+        confirmWithinMs:
+          type: integer
+        heartbeatMs:
+          type: integer
+          description: How often to call the heartbeat.
+        revertAfterMs:
+          type: integer
+          description: The test reverts this long after the last heartbeat.
+    Heartbeat:
+      type: object
+      required: [succeeded, confirmRemainingMs]
+      properties:
+        succeeded:
+          type: boolean
+        confirmRemainingMs:
+          type: integer
+    Reverted:
+      type: object
+      required: [succeeded]
+      properties:
+        succeeded:
+          type: boolean
+        revertError:
+          type: string
+    Applied:
+      type: object
+      required: [succeeded, id, activeEffectId, effect, requestedEffect]
+      properties:
+        succeeded:
+          type: boolean
+        id:
+          type: string
+        activeEffectId:
+          type: string
+        effect:
+          type: [string, 'null']
+        requestedEffect:
+          type: [string, 'null']
+        reloadError:
+          type: string
+    PairingStatus:
+      type: object
+      required: [required, scope]
+      properties:
+        required:
+          type: boolean
+        scope:
+          type: string
+          enum: [none, read, draft, control, apply, admin]
+    PairingRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          description: Shown to the user when they approve.
+        scope:
+          type: string
+          enum: [read, draft, control, apply, admin]
+          description: The scope asked for, `admin` when left out. The user may grant less.
+    PairingTicket:
+      type: object
+      required: [pollKey, code, interval, expiresIn]
+      properties:
+        pollKey:
+          type: string
+        code:
+          type: string
+          description: Shown to the user to match against Aurora's prompt.
+        interval:
+          type: integer
+          description: Seconds between polls.
+        expiresIn:
+          type: integer
+          description: Seconds the request lives.
+    PairingWaiting:
+      type: object
+      required: [state]
+      properties:
+        state:
+          type: string
+          enum: [pending, denied, expired, unknown]
+        error:
+          type: string
+          enum: [authorization_pending, slow_down, access_denied, expired_token]
+    PairingApproved:
+      type: object
+      required: [state, token, scope]
+      properties:
+        state:
+          type: string
+          enum: [approved]
+        token:
+          type: string
+          description: Sent as a bearer token.
+        scope:
+          type: string
+          enum: [read, draft, control, apply, admin]
     HostError:
       type: object
       required: [source, message, id]

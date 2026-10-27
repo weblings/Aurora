@@ -76,6 +76,14 @@ namespace Aurora::Network::Http::Server
     // Call before bind().
     void setStreamLimits(size_t workerThreads, size_t maxStreams);
 
+    // Serves the route already added at `fromPath` for `method` also at
+    // `toPath`, sharing its handler state. False when no such route exists.
+    bool aliasRoute(
+      HttpMethod method,
+      const std::string& fromPath,
+      const std::string& toPath
+    );
+
     // Every addRoute and addStreamRoute so far, in registration order. Static
     // file and embedded-webroot routes are not listed.
     std::vector<RouteInfo> routeList() const;

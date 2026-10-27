@@ -42,6 +42,12 @@ namespace Aurora::Runtime
   // "apiVersion"}), effects, effects/:id and descriptors. They answer the
   // internal documents bar the v1 state, so the spec in docs/api/openapi.yaml
   // is the contract and these are thin.
+  //
+  // Graph and pairing routes (Aurora-5ipy.41): the draft, validate, test and
+  // apply routes and the pairing status and request routes are also served
+  // under /api/v1 from an explicit list, with their access rules copied onto
+  // `guard`. Call after those routes are registered. graph/test/stop stays
+  // internal.
   void registerPublicApiRoutes(
     Aurora::Network::Http::Server::HttpServer& server,
     PipelineHost& pipelineHost,
