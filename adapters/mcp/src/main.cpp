@@ -140,6 +140,7 @@ int main(int argc, char** argv)
     return [&http, &headers](const std::string& method, const std::string& path, const std::string& body){
       Aurora::Mcp::HttpReply reply;
       const httplib::Result result = method == "PUT" ? http.Put(path, headers, body, "application/json")
+        : method == "PATCH" ? http.Patch(path, headers, body, "application/json")
         : method == "POST" ? http.Post(path, headers, body, "application/json")
         : method == "DELETE" ? http.Delete(path, headers)
         : http.Get(path, headers);

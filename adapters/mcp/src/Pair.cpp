@@ -25,7 +25,7 @@ namespace Aurora::Mcp
       return 2;
     }
 
-    const HttpReply request = fetch("POST", "/api/pairing/request", nlohmann::json{{"name", name}, {"scope", scope}}.dump());
+    const HttpReply request = fetch("POST", "/api/v1/pairing/request", nlohmann::json{{"name", name}, {"scope", scope}}.dump());
     if(request.status == 0){
       log << "Aurora is not reachable (" << request.error << "). Start Aurora and check AURORA_URL.\n";
       return 1;
@@ -47,7 +47,7 @@ namespace Aurora::Mcp
     // Aurora drops an unanswered request after 5 minutes, which ends this loop with a 410.
     while(true){
       wait();
-      const HttpReply poll = fetch("GET", "/api/pairing/request/" + pollKey, {});
+      const HttpReply poll = fetch("GET", "/api/v1/pairing/request/" + pollKey, {});
       if(poll.status == 202 || poll.status == 429){
         continue;
       }

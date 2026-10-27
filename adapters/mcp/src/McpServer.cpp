@@ -154,12 +154,6 @@ namespace Aurora::Mcp
       return object.contains(key) ? object.at(key) : nlohmann::json(nullptr);
     }
 
-    nlohmann::json nameOrNull(const nlohmann::json& object, const char* key)
-    {
-      const std::string name = object.value(key, "");
-      return name.empty() ? nlohmann::json(nullptr) : nlohmann::json(name);
-    }
-
     // Aurora only captures inputs the user chose, so retrying cannot help: the user must pick one.
     std::optional<std::string> missingInputMessage(const std::string& message)
     {
@@ -188,11 +182,11 @@ namespace Aurora::Mcp
   {
     _stopBeat();
     if(m_testing){
-      m_fetch("POST", "/api/graph/test/revert", nlohmann::json{{"session", m_session}}.dump());
+      m_fetch("POST", "/api/v1/graph/test/revert", nlohmann::json{{"session", m_session}}.dump());
       m_testing = false;
     }
     if(m_hasDraft){
-      m_fetch("DELETE", "/api/graph/drafts/" + m_session, {});
+      m_fetch("DELETE", "/api/v1/graph/drafts/" + m_session, {});
       m_hasDraft = false;
     }
   }
@@ -426,7 +420,7 @@ namespace Aurora::Mcp
     }
     if(reply.status == 403){
       // Only writes are gated above read, and only draft routes sit below apply.
-      const bool draftRoute = path.rfind("/api/graph/drafts", 0) == 0 || path.rfind("/api/graph/validate", 0) == 0;
+      const bool draftRoute = path.rfind("/api/v1/graph/drafts", 0) == 0 || path.rfind("/api/v1/graph/validate", 0) == 0;
       return std::string("Aurora refused the request (HTTP 403): AURORA_TOKEN lacks the access this needs (")
         + (draftRoute ? "draft" : "apply") + "). Ask the user to re-pair with `aurora-mcp --pair` (apply access) "
         "and update AURORA_TOKEN.";
@@ -454,7 +448,7 @@ namespace Aurora::Mcp
   nlohmann::json McpServer::_listNodes(const nlohmann::json& arguments)
   {
     nlohmann::json catalog;
-    if(const std::string error = _getJson("/api/nodes", catalog); !error.empty()){
+    if(const std::string error = _getJson("/api/v1/nodes", catalog); !error.empty()){
       return toolText(error, true);
     }
 
@@ -485,7 +479,7 @@ namespace Aurora::Mcp
     const std::string type = arguments.at("type").get<std::string>();
 
     nlohmann::json catalog;
-    if(const std::string error = _getJson("/api/nodes", catalog); !error.empty()){
+    if(const std::string error = _getJson("/api/v1/nodes", catalog); !error.empty()){
       return toolText(error, true);
     }
 
@@ -514,7 +508,7 @@ namespace Aurora::Mcp
   nlohmann::json McpServer::_listPresets()
   {
     nlohmann::json presets;
-    if(const std::string error = _getJson("/api/graph/presets", presets); !error.empty()){
+    if(const std::string error = _getJson("/api/v1/graph/presets", presets); !error.empty()){
       return toolText(error, true);
     }
     return toolJson(presets);
@@ -530,7 +524,7 @@ namespace Aurora::Mcp
 
     nlohmann::json preset;
     int status = 0;
-    if(const std::string error = _getJson("/api/graph/presets/" + id, preset, &status); !error.empty()){
+    if(const std::string error = _getJson("/api/v1/graph/presets/" + id, preset, &status); !error.empty()){
       if(status == 404){
         return toolText("No preset '" + id + "'. Call list_presets for the ids.", true);
       }
@@ -548,7 +542,7 @@ namespace Aurora::Mcp
     nlohmann::json reply;
     int status = 0;
     const std::string body = nlohmann::json{{"graph", graph}}.dump();
-    if(const std::string error = _requestJson("PUT", "/api/graph/drafts/" + m_session, body, reply, &status); !error.empty()){
+    if(const std::string error = _requestJson("PUT", "/api/v1/graph/drafts/" + m_session, body, reply, &status); !error.empty()){
       if(status == 413){
         return toolText("The draft is too large for Aurora. Remove nodes or shorten params.", true);
       }
@@ -574,7 +568,7 @@ namespace Aurora::Mcp
   std::string McpServer::_paramKind(const std::string& nodeType, const std::string& param)
   {
     nlohmann::json catalog;
-    if(nodeType.empty() || !_getJson("/api/nodes", catalog).empty()){
+    if(nodeType.empty() || !_getJson("/api/v1/nodes", catalog).empty()){
       return {};
     }
     for(const auto& node : catalog.value("nodes", nlohmann::json::array())){
@@ -600,7 +594,7 @@ namespace Aurora::Mcp
 
     nlohmann::json current;
     int status = 0;
-    if(const std::string error = _getJson("/api/graph/drafts/" + m_session, current, &status); !error.empty()){
+    if(const std::string error = _getJson("/api/v1/graph/drafts/" + m_session, current, &status); !error.empty()){
       if(status == 404){
         return toolText("There is no draft yet. Call put_draft first.", true);
       }
@@ -646,7 +640,7 @@ namespace Aurora::Mcp
 
   nlohmann::json McpServer::_preview(const nlohmann::json& arguments)
   {
-    std::string path = "/api/graph/preview/summary?session=" + m_session;
+    std::string path = "/api/v1/graph/preview/summary?session=" + m_session;
     if(arguments.contains("seconds") && arguments.at("seconds").is_number()){
       path += "&seconds=" + std::to_string(arguments.at("seconds").get<double>());
     }
@@ -698,7 +692,7 @@ namespace Aurora::Mcp
       std::unique_lock<std::mutex> lock(m_beatMutex);
       while(!m_beatWake.wait_for(lock, interval, [this]{ return m_beatStop; })){
         lock.unlock();
-        const HttpReply reply = m_beatFetch("POST", "/api/graph/test/heartbeat", body);
+        const HttpReply reply = m_beatFetch("POST", "/api/v1/graph/test/heartbeat", body);
         lock.lock();
         // The test ended on Aurora's side (cap, pause or revert): nothing left to keep alive.
         if(reply.status == 404){
@@ -727,7 +721,7 @@ namespace Aurora::Mcp
     nlohmann::json reply;
     int status = 0;
     const std::string body = nlohmann::json{{"session", m_session}}.dump();
-    if(const std::string error = _requestJson("POST", "/api/graph/test", body, reply, &status); !error.empty()){
+    if(const std::string error = _requestJson("POST", "/api/v1/graph/test", body, reply, &status); !error.empty()){
       if(status == 404){
         return toolText("There is no draft yet. Call put_draft first.", true);
       }
@@ -761,7 +755,7 @@ namespace Aurora::Mcp
     nlohmann::json reply;
     int status = 0;
     const std::string body = nlohmann::json{{"session", m_session}}.dump();
-    const std::string error = _requestJson("POST", "/api/graph/test/revert", body, reply, &status);
+    const std::string error = _requestJson("POST", "/api/v1/graph/test/revert", body, reply, &status);
     if(!error.empty() && status != 404){
       return toolText(error, true);
     }
@@ -783,7 +777,7 @@ namespace Aurora::Mcp
       return {};
     }
     nlohmann::json effects;
-    if(const std::string error = _getJson("/api/effects", effects); !error.empty()){
+    if(const std::string error = _getJson("/api/v1/effects", effects); !error.empty()){
       return error;
     }
     m_previousEffect = effects.value("activeEffectId", "");
@@ -825,7 +819,7 @@ namespace Aurora::Mcp
     nlohmann::json reply;
     int status = 0;
     const std::string body = nlohmann::json{{"session", m_session}, {"id", id}}.dump();
-    if(const std::string error = _requestJson("POST", "/api/graph/test/confirm", body, reply, &status); !error.empty()){
+    if(const std::string error = _requestJson("POST", "/api/v1/graph/test/confirm", body, reply, &status); !error.empty()){
       if(status == 404){
         _stopBeat();
         m_testing = false;
@@ -858,7 +852,7 @@ namespace Aurora::Mcp
     nlohmann::json reply;
     int status = 0;
     const std::string body = nlohmann::json{{"session", m_session}, {"id", id}}.dump();
-    if(const std::string error = _requestJson("POST", "/api/graph/apply", body, reply, &status); !error.empty()){
+    if(const std::string error = _requestJson("POST", "/api/v1/graph/apply", body, reply, &status); !error.empty()){
       if(status == 404){
         return toolText("There is no draft yet. Call put_draft first.", true);
       }
@@ -877,14 +871,15 @@ namespace Aurora::Mcp
       return toolText("Nothing to revert to: no graph was applied in this session.", true);
     }
     nlohmann::json reply;
-    const std::string body = nlohmann::json{{"activeEffectId", m_previousEffect}}.dump();
-    if(const std::string error = _requestJson("PUT", "/api/effects", body, reply, nullptr); !error.empty()){
+    const std::string body = nlohmann::json{{"effect", m_previousEffect}}.dump();
+    if(const std::string error = _requestJson("PATCH", "/api/v1/state", body, reply, nullptr); !error.empty()){
       return toolText(error, true);
     }
     nlohmann::json out = {{"restored", m_previousEffect.empty() ? nlohmann::json("default") : nlohmann::json(m_previousEffect)},
       {"effect", orNull(reply, "effect")}};
-    if(reply.contains("reloadError")){
-      out["reloadError"] = reply.at("reloadError");
+    // A failed reload still answers 200 and shows in the state's errors.
+    if(reply.contains("errors") && reply.at("errors").is_array() && !reply.at("errors").empty()){
+      out["reloadError"] = reply.at("errors");
     }
     return toolJson(out);
   }
@@ -895,9 +890,8 @@ namespace Aurora::Mcp
     nlohmann::json state;
     nlohmann::json capabilities;
     nlohmann::json test;
-    nlohmann::json config;
     const std::pair<const char*, nlohmann::json*> reads[] = {
-      {"/api/state", &state}, {"/api/capabilities", &capabilities}, {"/api/graph/test", &test}, {"/api/config", &config}
+      {"/api/v1/state", &state}, {"/api/v1/capabilities", &capabilities}, {"/api/v1/graph/test", &test}
     };
     for(const auto& [path, out] : reads){
       const std::string error = _getJson(path, *out);
@@ -914,13 +908,13 @@ namespace Aurora::Mcp
     const nlohmann::json status = {
       {"state", orNull(state, "state")},
       {"running", state.value("state", "") == "running"},
-      {"paused", state.value("paused", false)},
+      {"paused", state.value("state", "") == "paused"},
       {"effect", effect},
       {"requestedEffect", requested},
       {"fallback", fallback},
       {"inputs", orNull(state, "source")},
       // What the user chose, running or not. A graph can only use these.
-      {"configuredInputs", {{"video", nameOrNull(config, "activeInputName")}, {"audio", nameOrNull(config, "activeAudioInputName")}}},
+      {"configuredInputs", orNull(state, "configuredInputs")},
       {"outputs", orNull(capabilities, "outputs")},
       {"errors", orNull(state, "errors")},
       {"activeTest", test.value("active", false)

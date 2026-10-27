@@ -14,6 +14,9 @@
 #include <Aurora/Runtime/ApplyRoutes.hpp>
 #include <Aurora/Runtime/ControlDescriptors.hpp>
 #include <Aurora/Runtime/DraftRoutes.hpp>
+#include <Aurora/Runtime/GraphRoutes.hpp>
+#include <Aurora/Runtime/PresetRoutes.hpp>
+#include <Aurora/Runtime/PreviewRoutes.hpp>
 #include <Aurora/Runtime/TestRoutes.hpp>
 #include <Aurora/Runtime/Pipeline.hpp>
 #include <Aurora/Runtime/PublicApiRoutes.hpp>
@@ -139,6 +142,9 @@ namespace
       auto apply = Aurora::Runtime::registerApplyRoutes(server, host, registry, root, drafts,
         []{ return std::string(); }, guard.get());
       Aurora::Runtime::registerTestRoutes(server, host, registry, root, drafts, apply, guard.get(), {}, {}, false);
+      Aurora::Runtime::registerNodesRoute(server);
+      Aurora::Runtime::registerPresetRoutes(server, registry, root);
+      Aurora::Runtime::registerPreviewRoutes(server, host, registry, drafts);
       Aurora::Runtime::registerPublicApiRoutes(server, host, registry, root, nullptr, nullptr, guard.get(),
         {"test", "dev", false, true, &descriptors});
     }
@@ -198,6 +204,10 @@ TEST_CASE("v1 draft and validate need Draft, test and apply need Apply, pairing 
     {HttpMethod::Post, "/api/v1/graph/apply", Scope::Apply},
     {HttpMethod::Get, "/api/v1/graph/drafts/s1", Scope::Read},
     {HttpMethod::Get, "/api/v1/graph/test", Scope::Read},
+    {HttpMethod::Get, "/api/v1/nodes", Scope::Read},
+    {HttpMethod::Get, "/api/v1/graph/presets", Scope::Read},
+    {HttpMethod::Get, "/api/v1/graph/presets/spatial", Scope::Read},
+    {HttpMethod::Get, "/api/v1/graph/preview/summary", Scope::Read},
     // Absent under v1, and an Admin rule keeps it off the test prefix's Apply.
     {HttpMethod::Post, "/api/v1/graph/test/stop", Scope::Admin},
   };

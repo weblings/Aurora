@@ -249,6 +249,174 @@
         }
       }
     },
+    "/api/v1/nodes": {
+      "get": {
+        "operationId": "listNodes",
+        "summary": "Node catalog",
+        "description": "Every node type a graph can use, with its ports and params. Static per build.",
+        "responses": {
+          "200": {
+            "description": "The node types.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NodeCatalog"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/graph/presets": {
+      "get": {
+        "operationId": "listPresets",
+        "summary": "Starter graphs",
+        "description": "Only presets whose nodes this build has. `inputs` names the inputs a preset reads and `controls` the labels of its tunable controls.",
+        "responses": {
+          "200": {
+            "description": "The presets.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PresetList"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/graph/presets/{id}": {
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "description": "A preset id from `GET /api/v1/graph/presets`.",
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "get": {
+        "operationId": "getPreset",
+        "summary": "A preset as a graph, with its validation",
+        "description": "The graph is built for the outputs this host has, ready to edit and save as a draft.",
+        "responses": {
+          "200": {
+            "description": "The preset.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Preset"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such preset (`unknown_preset`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The host has no outputs to build for (`no_outputs`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/graph/preview/summary": {
+      "get": {
+        "operationId": "getPreviewSummary",
+        "summary": "Sample a draft off the lights",
+        "description": "Runs the draft for a few seconds without touching the lights and answers with per-zone color and motion statistics. An audio graph shows nothing until audio first arrives.",
+        "parameters": [
+          {
+            "name": "session",
+            "in": "query",
+            "required": true,
+            "description": "The draft session to sample.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "seconds",
+            "in": "query",
+            "required": false,
+            "description": "How long to sample. Capped by the host.",
+            "schema": {
+              "type": "number",
+              "exclusiveMinimum": 0
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The sampled statistics.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PreviewSummary"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad session or seconds (`invalid_session`, `invalid_seconds`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such draft (`no_draft`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The pipeline changed or paused while sampling (`pipeline_gone`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The draft cannot be previewed (`cannot_preview`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/graph/drafts/{session}": {
       "parameters": [
         {
@@ -1069,6 +1237,215 @@
             }
           }
         ]
+      },
+      "NodeCatalog": {
+        "type": "object",
+        "required": [
+          "nodes"
+        ],
+        "properties": {
+          "nodes": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "type",
+                "inputs",
+                "outputs",
+                "params"
+              ],
+              "properties": {
+                "type": {
+                  "type": "string"
+                },
+                "purpose": {
+                  "type": "string"
+                },
+                "useWhen": {
+                  "type": "string"
+                },
+                "example": {
+                  "type": "string"
+                },
+                "cost": {
+                  "type": "string"
+                },
+                "inputs": {
+                  "type": "array",
+                  "items": {
+                    "type": "object"
+                  }
+                },
+                "outputs": {
+                  "type": "array",
+                  "items": {
+                    "type": "object"
+                  }
+                },
+                "params": {
+                  "type": "array",
+                  "items": {
+                    "type": "object"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "PresetList": {
+        "type": "object",
+        "required": [
+          "presets"
+        ],
+        "properties": {
+          "presets": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "id",
+                "title",
+                "inputs",
+                "controls"
+              ],
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "title": {
+                  "type": "string"
+                },
+                "description": {
+                  "type": "string"
+                },
+                "inputs": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "controls": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "Preset": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/Validation"
+          },
+          {
+            "type": "object",
+            "required": [
+              "id",
+              "title",
+              "inputs",
+              "outputs",
+              "graph"
+            ],
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "title": {
+                "type": "string"
+              },
+              "description": {
+                "type": "string"
+              },
+              "inputs": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "outputs": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "graph": {
+                "type": "object"
+              }
+            }
+          }
+        ]
+      },
+      "PreviewSummary": {
+        "type": "object",
+        "required": [
+          "session",
+          "seconds",
+          "samples",
+          "outputs",
+          "errors"
+        ],
+        "properties": {
+          "session": {
+            "type": "string"
+          },
+          "seconds": {
+            "type": "number"
+          },
+          "samples": {
+            "type": "integer"
+          },
+          "outputs": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "output",
+                "change",
+                "zones"
+              ],
+              "properties": {
+                "output": {
+                  "type": "string"
+                },
+                "change": {
+                  "type": "number"
+                },
+                "zones": {
+                  "type": "array",
+                  "items": {
+                    "type": "object"
+                  }
+                }
+              }
+            }
+          },
+          "errors": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "output",
+                "node",
+                "message"
+              ],
+              "properties": {
+                "output": {
+                  "type": "string"
+                },
+                "node": {
+                  "type": "string"
+                },
+                "message": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
       },
       "Draft": {
         "allOf": [

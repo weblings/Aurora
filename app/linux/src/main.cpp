@@ -612,11 +612,12 @@ if(!instanceLock.held()){
   Aurora::Runtime::registerGraphRoute(httpServer, pipelineHost);
   Aurora::Runtime::registerEffectsRoutes(httpServer, pipelineHost, registry, configRoot,
     reloadCoalescer, onEffectChosen, accessGuard.get());
+  // Presets and preview come first, since the v1 aliases copy them.
+  Aurora::Runtime::registerPresetRoutes(httpServer, registry, configRoot);
+  Aurora::Runtime::registerPreviewRoutes(httpServer, pipelineHost, registry, draftStore);
   Aurora::Runtime::registerPublicApiRoutes(httpServer, pipelineHost, registry, configRoot, reloadCoalescer,
     lightTest, accessGuard.get(),
     {"linux", AURORA_VERSION, kHueCompiledIn, canSelectMonitorOnLinux(), &descriptorRegistry});
-  Aurora::Runtime::registerPresetRoutes(httpServer, registry, configRoot);
-  Aurora::Runtime::registerPreviewRoutes(httpServer, pipelineHost, registry, draftStore);
   Aurora::Runtime::registerDevErrorsRoute(httpServer, pipelineHost);
   Aurora::Runtime::registerStopRoute(httpServer, []{ g_stopRequested = 1; });
   Aurora::Runtime::registerZoneRoutes(

@@ -31,12 +31,11 @@ namespace
   std::map<std::string, HttpReply> liveRoutes()
   {
     return {
-      {"/api/state", {200, R"({"state":"running","paused":false,"effect":"builtin-video",
+      {"/api/v1/state", {200, R"({"state":"running","effect":"builtin-video",
         "requestedEffect":"builtin-video","source":{"video":{"input":"windows","monitor":"DP-1"},"audio":null},
-        "errors":[]})", {}}},
-      {"/api/capabilities", {200, R"({"outputs":["hue"]})", {}}},
-      {"/api/graph/test", {200, R"({"active":false,"lastEnd":null})", {}}},
-      {"/api/config", {200, R"({"activeInputName":"windows","activeAudioInputName":""})", {}}}
+        "configuredInputs":{"video":"windows","audio":null},"errors":[]})", {}}},
+      {"/api/v1/capabilities", {200, R"({"outputs":["hue"]})", {}}},
+      {"/api/v1/graph/test", {200, R"({"active":false,"lastEnd":null})", {}}}
     };
   }
 
@@ -71,10 +70,10 @@ namespace
   std::map<std::string, HttpReply> nodeRoutes()
   {
     return {
-      {"/api/nodes", {200, kNodesBody, {}}},
-      {"/api/graph/presets", {200, R"({"presets":[{"id":"spatial","title":"Rainbow sweep","inputs":[],"controls":["Sweep speed"]}]})", {}}},
-      {"/api/graph/presets/spatial", {200, R"({"id":"spatial","valid":true,"errors":[],"outputs":["hue"],"graph":{"version":1}})", {}}},
-      {"/api/graph/presets/both", {409, R"({"error":"no_outputs"})", {}}}
+      {"/api/v1/nodes", {200, kNodesBody, {}}},
+      {"/api/v1/graph/presets", {200, R"({"presets":[{"id":"spatial","title":"Rainbow sweep","inputs":[],"controls":["Sweep speed"]}]})", {}}},
+      {"/api/v1/graph/presets/spatial", {200, R"({"id":"spatial","valid":true,"errors":[],"outputs":["hue"],"graph":{"version":1}})", {}}},
+      {"/api/v1/graph/presets/both", {409, R"({"error":"no_outputs"})", {}}}
     };
   }
 }
@@ -160,8 +159,8 @@ TEST_CASE("aurora_status reports live state")
 TEST_CASE("aurora_status flags a fallback effect and an active test")
 {
   auto routes = liveRoutes();
-  routes["/api/state"].body = R"({"state":"running","paused":false,"effect":"builtin-video","requestedEffect":"mine"})";
-  routes["/api/graph/test"].body = R"({"active":true,"confirmRemainingMs":9000,"revertAfterMs":30000})";
+  routes["/api/v1/state"].body = R"({"state":"running","effect":"builtin-video","requestedEffect":"mine"})";
+  routes["/api/v1/graph/test"].body = R"({"active":true,"confirmRemainingMs":9000,"revertAfterMs":30000})";
   McpServer server(scripted(routes), "1.0");
 
   const json status = json::parse(callStatus(server)["result"]["content"][0]["text"].get<std::string>());
@@ -170,17 +169,28 @@ TEST_CASE("aurora_status flags a fallback effect and an active test")
   CHECK(status["activeTest"]["confirmRemainingMs"] == 9000);
 }
 
+TEST_CASE("aurora_status reads paused from the v1 state")
+{
+  auto routes = liveRoutes();
+  routes["/api/v1/state"].body = R"({"state":"paused","effect":"builtin-video","requestedEffect":"builtin-video"})";
+  McpServer server(scripted(routes), "1.0");
+
+  const json status = json::parse(callStatus(server)["result"]["content"][0]["text"].get<std::string>());
+  CHECK(status["paused"] == true);
+  CHECK(status["running"] == false);
+}
+
 TEST_CASE("Tool failures are error results, protocol misuse is a JSON-RPC error")
 {
   SECTION("Aurora unreachable"){
-    McpServer server(scripted({{"/api/state", {0, {}, "Connection"}}}), "1.0");
+    McpServer server(scripted({{"/api/v1/state", {0, {}, "Connection"}}}), "1.0");
     const json result = callStatus(server)["result"];
     CHECK(result["isError"] == true);
     CHECK(result["content"][0]["text"].get<std::string>().find("not reachable") != std::string::npos);
   }
 
   SECTION("Token refused"){
-    McpServer server(scripted({{"/api/state", {401, "{}", {}}}}), "1.0");
+    McpServer server(scripted({{"/api/v1/state", {401, "{}", {}}}}), "1.0");
     const json result = callStatus(server)["result"];
     CHECK(result["isError"] == true);
     CHECK(result["content"][0]["text"].get<std::string>().find("AURORA_TOKEN") != std::string::npos);
@@ -189,7 +199,7 @@ TEST_CASE("Tool failures are error results, protocol misuse is a JSON-RPC error"
 
   SECTION("Body is not JSON"){
     auto routes = liveRoutes();
-    routes["/api/capabilities"].body = "<html>";
+    routes["/api/v1/capabilities"].body = "<html>";
     McpServer server(scripted(routes), "1.0");
     CHECK(callStatus(server)["result"]["isError"] == true);
   }
@@ -269,7 +279,7 @@ TEST_CASE("Preset tools pass the core route through")
 
 TEST_CASE("Node and preset tools report an unreachable Aurora as an error result")
 {
-  McpServer server(scripted({{"/api/nodes", {0, {}, "Connection"}}, {"/api/graph/presets", {0, {}, "Connection"}}}), "1.0");
+  McpServer server(scripted({{"/api/v1/nodes", {0, {}, "Connection"}}, {"/api/v1/graph/presets", {0, {}, "Connection"}}}), "1.0");
   for(const char* tool : {"list_nodes", "list_presets"}){
     const json result = callTool(server, tool)["result"];
     CHECK(result["isError"] == true);
@@ -308,13 +318,13 @@ namespace
           draft.reset();
           return HttpReply{200, "{}", {}};
         }
-        if(path.rfind("/api/graph/drafts/", 0) == 0){
+        if(path.rfind("/api/v1/graph/drafts/", 0) == 0){
           return draft ? HttpReply{200, json{{"graph", *draft}}.dump(), {}} : HttpReply{404, R"({"error":"no_draft"})", {}};
         }
-        if(path == "/api/nodes"){
+        if(path == "/api/v1/nodes"){
           return HttpReply{200, nodeCatalog, {}};
         }
-        if(path.rfind("/api/graph/preview/summary", 0) == 0){
+        if(path.rfind("/api/v1/graph/preview/summary", 0) == 0){
           return draft ? HttpReply{200, previewBody, {}} : HttpReply{404, R"({"error":"no_draft"})", {}};
         }
         return HttpReply{404, "{}", {}};
@@ -340,30 +350,30 @@ TEST_CASE("put_draft: an invalid graph is a normal result with codes and options
 
   const json fixed = callTool(server, "put_draft", std::string(R"({"graph":)") + kGoodGraph + "}")["result"];
   CHECK(fixed["structuredContent"]["valid"] == true);
-  CHECK(app.log.front() == "PUT /api/graph/drafts/t");
+  CHECK(app.log.front() == "PUT /api/v1/graph/drafts/t");
 
   CHECK(callTool(server, "put_draft", "{}")["result"]["isError"] == true);
 }
 
 TEST_CASE("put_draft: transport and refusal are tool errors")
 {
-  McpServer down(scripted({{"PUT /api/graph/drafts/t", {0, {}, "Connection"}}}), "1.0", "t");
+  McpServer down(scripted({{"PUT /api/v1/graph/drafts/t", {0, {}, "Connection"}}}), "1.0", "t");
   CHECK(callTool(down, "put_draft", R"({"graph":{}})")["result"]["isError"] == true);
 
-  McpServer refused(scripted({{"PUT /api/graph/drafts/t", {401, "{}", {}}}}), "1.0", "t");
+  McpServer refused(scripted({{"PUT /api/v1/graph/drafts/t", {401, "{}", {}}}}), "1.0", "t");
   const json result = callTool(refused, "put_draft", R"({"graph":{}})")["result"];
   CHECK(result["isError"] == true);
   CHECK(result["content"][0]["text"].get<std::string>().find("AURORA_TOKEN") != std::string::npos);
 
   // 403: a valid token below the scope this call needs, named so the user re-pairs.
-  McpServer readOnly(scripted({{"PUT /api/graph/drafts/t", {403, "{}", {}}}}), "1.0", "t");
+  McpServer readOnly(scripted({{"PUT /api/v1/graph/drafts/t", {403, "{}", {}}}}), "1.0", "t");
   const std::string draftText = callTool(readOnly, "put_draft", R"({"graph":{}})")["result"]["content"][0]["text"];
   CHECK(draftText.find("(draft)") != std::string::npos);
   CHECK(draftText.find("--pair") != std::string::npos);
-  McpServer draftOnly(scripted({{"POST /api/graph/test", {403, "{}", {}}}}), "1.0", "t");
+  McpServer draftOnly(scripted({{"POST /api/v1/graph/test", {403, "{}", {}}}}), "1.0", "t");
   CHECK(callTool(draftOnly, "try_on_lights")["result"]["content"][0]["text"].get<std::string>().find("(apply)") != std::string::npos);
 
-  McpServer tooBig(scripted({{"PUT /api/graph/drafts/t", {413, R"({"error":"draft_too_large"})", {}}}}), "1.0", "t");
+  McpServer tooBig(scripted({{"PUT /api/v1/graph/drafts/t", {413, R"({"error":"draft_too_large"})", {}}}}), "1.0", "t");
   CHECK(callTool(tooBig, "put_draft", R"({"graph":{}})")["result"]["isError"] == true);
 }
 
@@ -462,7 +472,7 @@ TEST_CASE("preview tells a static graph from a reacting one")
   app.previewBody = R"({"session":"t","seconds":1,"samples":4,"outputs":[{"output":"hue","change":0.08,"zones":[]}],"errors":[]})";
   const json moving = callTool(server, "preview", R"({"seconds":2})")["result"];
   CHECK(moving["structuredContent"]["reacting"] == true);
-  CHECK(app.log.back() == "GET /api/graph/preview/summary?session=t&seconds=2.000000");
+  CHECK(app.log.back() == "GET /api/v1/graph/preview/summary?session=t&seconds=2.000000");
   CHECK_FALSE(moving["structuredContent"].contains("note"));
 }
 
@@ -491,7 +501,7 @@ TEST_CASE("shutdown deletes the draft, and only when one was saved")
   REQUIRE(app.draft.has_value());
   server.shutdown();
   CHECK_FALSE(app.draft.has_value());
-  CHECK(app.log.back() == "DELETE /api/graph/drafts/t");
+  CHECK(app.log.back() == "DELETE /api/v1/graph/drafts/t");
 }
 
 
@@ -514,23 +524,23 @@ namespace
       return [this](const std::string& method, const std::string& path, const std::string& body){
         std::lock_guard<std::mutex> lock(mutex);
         log.push_back(method + " " + path);
-        if(method == "GET" && path == "/api/effects"){
+        if(method == "GET" && path == "/api/v1/effects"){
           return HttpReply{200, json{{"activeEffectId", active}}.dump(), {}};
         }
-        if(method == "POST" && path == "/api/graph/test"){
+        if(method == "POST" && path == "/api/v1/graph/test"){
           testing = true;
           return HttpReply{200, R"({"succeeded":true,"confirmWithinMs":120000,"heartbeatMs":20,"revertAfterMs":6000})", {}};
         }
-        if(method == "POST" && path == "/api/graph/test/heartbeat"){
+        if(method == "POST" && path == "/api/v1/graph/test/heartbeat"){
           ++heartbeats;
           return HttpReply{heartbeatStatus, "{}", {}};
         }
-        if(method == "POST" && path == "/api/graph/test/revert"){
+        if(method == "POST" && path == "/api/v1/graph/test/revert"){
           const bool was = testing;
           testing = false;
           return was ? HttpReply{200, R"({"succeeded":true})", {}} : HttpReply{404, "{}", {}};
         }
-        if(method == "POST" && (path == "/api/graph/test/confirm" || path == "/api/graph/apply")){
+        if(method == "POST" && (path == "/api/v1/graph/test/confirm" || path == "/api/v1/graph/apply")){
           if(path.find("confirm") != std::string::npos && !testing){
             return HttpReply{404, "{}", {}};
           }
@@ -540,9 +550,9 @@ namespace
           return HttpReply{200, json{{"succeeded", true}, {"effect", running == "fallback" ? "builtin-video" : id},
             {"requestedEffect", id}}.dump(), {}};
         }
-        if(method == "PUT" && path == "/api/effects"){
-          active = json::parse(body).at("activeEffectId");
-          return HttpReply{200, json{{"succeeded", true}, {"effect", active}}.dump(), {}};
+        if(method == "PATCH" && path == "/api/v1/state"){
+          active = json::parse(body).at("effect");
+          return HttpReply{200, json{{"state", "running"}, {"effect", active}, {"errors", json::array()}}.dump(), {}};
         }
         return HttpReply{404, "{}", {}};
       };
@@ -593,7 +603,7 @@ TEST_CASE("Closing the adapter mid-test reverts the lights")
 
   server.shutdown();
   CHECK_FALSE(app.testing);
-  CHECK(app.log.back() == "POST /api/graph/test/revert");
+  CHECK(app.log.back() == "POST /api/v1/graph/test/revert");
 }
 
 TEST_CASE("revert ends the test, and reports one that already ended")
@@ -668,16 +678,16 @@ TEST_CASE("A test that ended on Aurora's side stops the heartbeat thread")
 TEST_CASE("A graph that needs an unchosen input asks for the user, not a retry")
 {
   const std::string missing = R"({"succeeded":false,"error":"cannot_test","message":"graph needs an audio input but none is configured"})";
-  McpServer test(scripted({{"POST /api/graph/test", {409, missing, {}}}}), "1.0", "t");
+  McpServer test(scripted({{"POST /api/v1/graph/test", {409, missing, {}}}}), "1.0", "t");
   const json tried = callTool(test, "try_on_lights")["result"];
   CHECK(tried["isError"] == true);
   CHECK(tried["content"][0]["text"].get<std::string>().find("ask the user") != std::string::npos);
 
-  McpServer preview(scripted({{"/api/graph/preview/summary?session=t",
+  McpServer preview(scripted({{"/api/v1/graph/preview/summary?session=t",
     {422, R"({"error":"cannot_preview","message":"graph needs an audio input but none is configured"})", {}}}}), "1.0", "t");
   CHECK(callTool(preview, "preview")["result"]["content"][0]["text"].get<std::string>().find("ask the user") != std::string::npos);
 
-  McpServer busy(scripted({{"POST /api/graph/test", {409, R"({"message":"pipeline is rebuilding"})", {}}}}), "1.0", "t");
+  McpServer busy(scripted({{"POST /api/v1/graph/test", {409, R"({"message":"pipeline is rebuilding"})", {}}}}), "1.0", "t");
   CHECK(callTool(busy, "try_on_lights")["result"]["content"][0]["text"].get<std::string>().find("Try again") != std::string::npos);
 }
 
@@ -705,7 +715,7 @@ TEST_CASE("aurora-mcp --pair requests the scope, prints only the token, and tell
     CHECK(out.str() == "tok123\n");
     CHECK(err.str().find("K7Q2X") != std::string::npos);
     CHECK(json::parse(requestBody) == json{{"name", "laptop"}, {"scope", "apply"}});
-    CHECK(log == std::vector<std::string>{"POST /api/pairing/request", "GET /api/pairing/request/pk", "GET /api/pairing/request/pk"});
+    CHECK(log == std::vector<std::string>{"POST /api/v1/pairing/request", "GET /api/v1/pairing/request/pk", "GET /api/v1/pairing/request/pk"});
     CHECK(waits == 2);
   }
 
