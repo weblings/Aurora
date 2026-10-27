@@ -136,6 +136,7 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `kea-dashboard-capabilities-scoping` | [log/2026-10-02-kea-dashboard-capabilities-scoping.md](log/2026-10-02-kea-dashboard-capabilities-scoping.md) | Aurora-kea: scoping pass on Dashboard capability-driven sections (paused, no code) |
 | `kea-route-and-shared-capture-source` | [log/2026-10-03-kea-route-and-shared-capture-source.md](log/2026-10-03-kea-route-and-shared-capture-source.md) | Aurora-kea: route decision, shared capture-source scope, pending-highlight follow-up (paused, no code) |
 | `kgv7-pickers-follow-graph` | [log/2026-10-23-kgv7-pickers-follow-graph.md](log/2026-10-23-kgv7-pickers-follow-graph.md) | Kgv7: Dashboard pickers follow the MCP graph's declared inputs (Aurora-kgv7) |
+| `lane-a-review-followups` | [log/2026-10-24-lane-a-review-followups.md](log/2026-10-24-lane-a-review-followups.md) | Lane A review follow-ups (Aurora-5ipy.28 to .34) |
 | `lby1-os-assigned-test-ports` | [log/2026-10-16-lby1-os-assigned-test-ports.md](log/2026-10-16-lby1-os-assigned-test-ports.md) | Route tests bind OS-assigned ports (Aurora-lby1) |
 | `leak-fix-and-device-hint` | [log/2026-10-05-leak-fix-and-device-hint.md](log/2026-10-05-leak-fix-and-device-hint.md) | Aurora-2pe5 fixed, Aurora-36b7 and the 9swq copy done; d3ec still waits on its retry path |
 | `lesson-architecture-process` | [lessons/architecture-process.md](lessons/architecture-process.md) | Architecture process |
@@ -216,7 +217,6 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `skv-one-tick-clock` | [log/2026-10-01-skv-one-tick-clock.md](log/2026-10-01-skv-one-tick-clock.md) | Aurora-skv: explicit dt into both orchestrators, one tick clock |
 | `so1o-pairing-copy-fixes` | [log/2026-10-16-so1o-pairing-copy-fixes.md](log/2026-10-16-so1o-pairing-copy-fixes.md) | Pairing screen copy and centering fixes (Aurora-so1o) |
 | `stable-monitor-keys` | [log/2026-10-24-stable-monitor-keys.md](log/2026-10-24-stable-monitor-keys.md) | 5ipy.27: stable monitor keys (Aurora-5ipy.27) |
-| `lane-a-review-followups` | [log/2026-10-24-lane-a-review-followups.md](log/2026-10-24-lane-a-review-followups.md) | Lane A review follow-ups (Aurora-5ipy.28 to .34) |
 | `stack-comparison` | [archive/StackComparison.md](archive/StackComparison.md) | Stack comparison — huenicorn vs. Aurora-App-Linux vs. Aurora-App-Windows |
 | `ta5-param-schema` | [log/2026-10-01-ta5-param-schema.md](log/2026-10-01-ta5-param-schema.md) | Aurora-ta5: C++ param schema as single source for tuning ranges |
 | `tft-parity-harness` | [log/2026-10-01-tft-parity-harness.md](log/2026-10-01-tft-parity-harness.md) | Aurora-tft: golden parity harness for both orchestrators |

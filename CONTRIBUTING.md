@@ -35,6 +35,10 @@ the changelog; nothing enforces the mirror.
 - Milestone detail (closed or paused) goes in a dated `docs/log/` file plus
   an `INDEX.md` row on close. Planning docs carry decisions, status, and
   pointers only — no task lists, no build play-by-play.
+- Hooks are tracked in `.beads/hooks/`. In each clone run
+  `git config core.hooksPath .beads/hooks` (a relative path, so it works
+  from Windows and WSL). The API spec hook also needs
+  `AURORA_API_PYTHON` set to a venv with `docs/api/requirements.txt`.
 
 ## Platform notes
 
