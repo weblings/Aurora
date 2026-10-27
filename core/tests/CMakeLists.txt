@@ -81,12 +81,16 @@ add_executable(AuroraRuntimeTests
   BlendNodesTests.cpp
   SpatialNodesTests.cpp
   BuiltInGraphsTests.cpp
+  ApiSpecTests.cpp
 )
 
 target_link_libraries(AuroraRuntimeTests PRIVATE
   AuroraRuntime
+  AuroraNetwork
+  nlohmann_json::nlohmann_json
   Catch2::Catch2WithMain
 )
+target_compile_definitions(AuroraRuntimeTests PRIVATE AURORA_OPENAPI_JSON="${CMAKE_CURRENT_SOURCE_DIR}/../../docs/api/openapi.json")
 
 target_compile_features(AuroraRuntimeTests PUBLIC cxx_std_20)
 

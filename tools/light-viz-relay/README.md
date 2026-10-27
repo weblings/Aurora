@@ -226,6 +226,17 @@ Gives capture something known to look at (`Aurora-d0hl`, built for `Aurora-1t1`)
 - App log empty when backgrounded (Linux): stdout block-buffers to file;
   prefix `stdbuf -o0 -e0`, or find the WebUI port via `ss -ltnp`.
 
+## Lane B gate (`lane_b_gate.py`)
+
+`python3 tools/light-viz-relay/lane_b_gate.py [--app PATH] [--keep] [--skip-schemathesis]` (`py` on Windows)
+brings the stack up on the dummy input and checks `/api/v1` end to end: pause and
+resume against the fake bridge's stream counts, brightness and effect on the lights,
+a light test ending `superseded`, token scopes over the host's LAN address (Control
+can PATCH not apply, Draft cannot PATCH), a JSON 404 on `/api/v2`, then Schemathesis
+from a venv built from `docs/api/requirements.txt` (kept in the devstack temp dir).
+Response shapes are checked by Schemathesis only. Exits 0 when every step passes.
+Needs a LAN address (else the scopes step is a SKIP, which fails the run unless `--allow-skip`) and PyPI access on the first run to build the venv. `--app` as for `devstack.py up`.
+
 ## Contents
 
 - `relay.py` -- the server: one UDP socket (background thread), one
@@ -237,6 +248,7 @@ Gives capture something known to look at (`Aurora-d0hl`, built for `Aurora-1t1`)
   fan-out, and the `frame` mode's crop/mean/gamma math against hand-
   computed values.
 - `validate.py` -- live-run validation (see above), stdlib only.
+- `lane_a_gate.py`, `lane_b_gate.py` -- external-control gates on the running app (Lane B above).
 - `pattern.html` -- full-screen color cycle + counter/clock for capture
   debugging (see above).
 - `fullscreen_repro.py` -- `Aurora-1t1` runner: brings the devstack up if

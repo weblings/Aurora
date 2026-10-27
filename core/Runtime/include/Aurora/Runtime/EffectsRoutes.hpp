@@ -2,7 +2,10 @@
 
 #include <filesystem>
 #include <functional>
+#include <memory>
 #include <string>
+
+#include <nlohmann/json.hpp>
 
 namespace Aurora::Network::Http::Server { class AccessGuard; class HttpServer; }
 
@@ -12,6 +15,17 @@ namespace Aurora::Runtime
 {
   class PipelineHost;
   class Registry;
+  class ReloadCoalescer;
+
+  // The GET /api/effects and GET /api/effects/<id> answers, for the v1 routes
+  // that send the same documents. effectDocumentToJson returns the status.
+  nlohmann::json effectsListToJson(PipelineHost& pipelineHost, const std::filesystem::path& configRoot);
+  int effectDocumentToJson(
+    const Registry& registry,
+    const std::filesystem::path& configRoot,
+    const std::string& id,
+    nlohmann::json& body
+  );
 
   // Reads need `read`, the switch needs `apply`, delete needs `admin` (LAN
   // only, loopback is trusted). The PUT shares /api/effects with the GETs and
@@ -33,7 +47,7 @@ namespace Aurora::Runtime
   // id runs the mode's built-in (the mode itself still follows the active
   // inputs), anything else must be an existing custom effect (404
   // "unknown_effect"; 400 "invalid_body"). Saves, then reloads through
-  // onConfigChanged. A custom that exists but fails to load still answers
+  // the shared `reload`, then runs onEffectChosen. A custom that exists but fails to load still answers
   // 200: the built-in runs and /api/state holds the effect_fallback error.
   // Answers {"succeeded": true, "activeEffectId", "effect", "requestedEffect"}
   // plus "reloadError" if the reload failed. With X-Aurora-Client: mcp and a
@@ -52,7 +66,8 @@ namespace Aurora::Runtime
     PipelineHost& pipelineHost,
     const Registry& registry,
     const std::filesystem::path& configRoot,
-    std::function<std::string()> onConfigChanged,
+    std::shared_ptr<ReloadCoalescer> reload,
+    std::function<void()> onEffectChosen = {},
     Aurora::Network::Http::Server::AccessGuard* guard = nullptr
   );
 }

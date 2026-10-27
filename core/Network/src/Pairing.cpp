@@ -84,6 +84,7 @@ namespace Aurora::Network::Http::Server
       case Scope::None: return "none";
       case Scope::Read: return "read";
       case Scope::Draft: return "draft";
+      case Scope::Control: return "control";
       case Scope::Apply: return "apply";
       case Scope::Admin: return "admin";
     }
@@ -93,7 +94,7 @@ namespace Aurora::Network::Http::Server
 
   std::optional<Scope> scopeFromName(const std::string& name)
   {
-    for(Scope scope : {Scope::Read, Scope::Draft, Scope::Apply, Scope::Admin}){
+    for(Scope scope : {Scope::Read, Scope::Draft, Scope::Control, Scope::Apply, Scope::Admin}){
       if(name == scopeName(scope)){
         return scope;
       }

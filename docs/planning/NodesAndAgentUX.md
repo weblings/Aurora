@@ -16,7 +16,7 @@ path ([[external-control]]) and an adapter an assistant can call (EC 6a).
 - **Write access split by action.** Reads and graph draft/validate are open on
   loopback and paired on LAN. Apply and test-on-lights need the WebUI session
   or an apply-scoped token. Host allowlist and Origin check are mandatory.
-  Scopes (read, draft, apply) belong in EC 4a from the start. Owner approved
+  Scopes (read, draft, control, apply) belong in EC 4a from the start. Owner approved
   this split on 2026-10-13, and on 2026-10-16 kept LAN reads paired after
   5ipy.5 had left them open. Detail lives in [[external-control]].
 - **Agent metadata ships in the node registry.** Each node carries purpose,

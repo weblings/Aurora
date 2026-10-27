@@ -35,7 +35,7 @@ namespace
 
   constexpr char kUsage[] =
     "Usage: aurora-mcp                  stdio MCP server (the client starts this)\n"
-    "       aurora-mcp --pair [--scope apply|draft|read] [--name NAME]\n"
+    "       aurora-mcp --pair [--scope apply|control|draft|read] [--name NAME]\n"
     "                                   pair a token for a LAN Aurora at AURORA_URL\n";
 
   // "aurora-mcp on Studio-Mac (macOS)", so the approver can recognise the device.
@@ -140,6 +140,7 @@ int main(int argc, char** argv)
     return [&http, &headers](const std::string& method, const std::string& path, const std::string& body){
       Aurora::Mcp::HttpReply reply;
       const httplib::Result result = method == "PUT" ? http.Put(path, headers, body, "application/json")
+        : method == "PATCH" ? http.Patch(path, headers, body, "application/json")
         : method == "POST" ? http.Post(path, headers, body, "application/json")
         : method == "DELETE" ? http.Delete(path, headers)
         : http.Get(path, headers);

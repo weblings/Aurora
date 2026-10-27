@@ -17,7 +17,7 @@ first sequence.
 - **`Aurora-6v36`:** output-neutral brightness floor stage. Depends on
   `Aurora-pngj`, blocks EC 5a (`Aurora-5ipy.7`).
 - **Notes added:** pngj (floor design), d7s (control lives in Output
-  section), `Aurora-5ipy.5` (scopes read, draft, apply).
+  section), `Aurora-5ipy.5` (scopes read, draft, apply; control added later in `Aurora-5ipy.38`).
 
 ## Decisions (owner)
 

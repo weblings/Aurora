@@ -2,7 +2,7 @@
 
 `aurora-mcp`: a stdio [MCP](https://modelcontextprotocol.io) server for
 Aurora. The client spawns it, it speaks newline-delimited JSON-RPC on
-stdin/stdout and calls Aurora's REST API. No listener, no service. Decisions
+stdin/stdout and calls Aurora's `/api/v1` REST API. No listener, no service. Decisions
 and scope: [[sequence-d-planning]], [[external-control]].
 
 ## What's here
@@ -12,9 +12,9 @@ and scope: [[sequence-d-planning]], [[external-control]].
 - `src/main.cpp`: stdio loop, the httplib client, and `--pair`.
 - `src/Pair.*`: the `--pair` token request and poll, transport-free like the server.
 - Read tools: `aurora_status`, `list_nodes`, `describe_node`,
-  `list_presets`, `get_preset` (the last two pass through `/api/graph/presets`).
+  `list_presets`, `get_preset` (the last two pass through `/api/v1/graph/presets`).
   Draft tools: `put_draft`, `set_control`, `preview` act on one draft per
-  adapter process, deleted when stdin closes. `try_on_lights`, `keep`, `revert`, `apply`, `revert_effect` change the lights: a
+  adapter process, deleted when stdin closes. `try_on_lights`, `keep`, `revert`, `apply`, `revert_effect` and the control tools `set_running`, `set_brightness`, `set_effect` (PATCH `/api/v1/state`) change the lights: a
   background thread heartbeats a test until keep or revert.
 
 ## Config

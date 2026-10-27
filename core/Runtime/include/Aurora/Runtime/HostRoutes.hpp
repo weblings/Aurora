@@ -3,6 +3,8 @@
 #include <functional>
 #include <string>
 
+#include <nlohmann/json.hpp>
+
 namespace Aurora::Network::Http::Server { class HttpServer; }
 
 // Routes every app host answers identically bar a few parameters (Aurora-5ipy.24).
@@ -11,6 +13,18 @@ namespace Aurora::Runtime
 {
   class PipelineHost;
   class Registry;
+
+  // The contract version of /api/v1 (docs/api/openapi.yaml info.version).
+  // Minor bumps for additive changes, major only with a new /api/vN.
+  inline constexpr const char* kApiVersion = "1.0.0";
+
+  // The capabilities every host reports, without the live "paused" flag.
+  nlohmann::json capabilitiesToJson(
+    const Registry& registry,
+    const std::string& platform,
+    bool hueCompiledIn,
+    bool canSelectMonitor
+  );
 
   // GET /api/capabilities: {"inputs", "audioInputs", "outputs", "zeroOffOutputs",
   // "platform", "paused", "canSelectMonitor"}. The contract is "compiled with", not "already
@@ -28,7 +42,7 @@ namespace Aurora::Runtime
     bool canSelectMonitor
   );
 
-  // GET /api/version: {"version"}, the superbuild VERSION baked in as
+  // GET /api/version: {"version", "apiVersion"}, the superbuild VERSION baked in as
   // AURORA_VERSION (or "dev" for standalone slice configures).
   void registerVersionRoute(
     Aurora::Network::Http::Server::HttpServer& server,

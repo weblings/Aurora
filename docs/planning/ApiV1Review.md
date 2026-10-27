@@ -170,6 +170,8 @@ says where it landed. Sources at the end.
   only binds once a public API is declared, so declaring it is the point
   where a minor bump belongs: 1.2.0. App version and `apiVersion` move
   separately from then on, as Docker's engine and API versions do.
+  (Revised 2026-10-25: the owner moved `/api/v1` into 1.1.4, see
+  [[api-v1-plan]].)
 - **Strict unknown-field rejection: keep.** Stripe rejects unknown
   parameters ("Received unknown parameter"). `kubectl` sends Strict.
   Kubernetes made it opt-in only to protect clients that already existed.
@@ -225,7 +227,7 @@ says where it landed. Sources at the end.
   source" as MCP control tools to come. Stable monitor keys moved to
   1.1.4 (A8), so source selection can join v1.0 (B8) if A8 lands and is
   verified on all three platforms by the time `PATCH state` is done.
-  Otherwise it ships in v1.1 (C1 in [[api-v1-plan]]), and the 1.2.0
+  Otherwise it ships in v1.1 (C1 in [[api-v1-plan]]), and the release
   notes say so. The freeze
   does not wait on it.
 - **Pairing statuses** stay a deliberate deviation: RFC 8628's codes,

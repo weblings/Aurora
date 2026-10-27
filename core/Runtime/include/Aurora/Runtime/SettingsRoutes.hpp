@@ -2,6 +2,7 @@
 
 #include <filesystem>
 #include <functional>
+#include <memory>
 #include <string>
 
 namespace Aurora::Network::Http::Server { class HttpServer; }
@@ -19,30 +20,30 @@ namespace Aurora::Network::Http::Server { class HttpServer; }
 // (e.g. transitionSmoothing to [0, 0.97]) applies with no duplicated
 // validation here.
 //
-// Persists via a fresh ConfigStore(configRoot). onConfigChanged, if given, is
-// called after every successful save -- "every settings PUT funnels into the
-// reload entrypoint" per this step's own build-order line. Deliberately a
-// callback rather than this module owning reload logic directly: the actual
-// pipeline being reloaded (Registry, Input/Output/GraphRunner) is an
-// app-layer concept core::Runtime has no business knowing about. Returns an
-// empty string on success or an error message on failure; a failure here
-// means the save succeeded but the live pipeline couldn't pick it up --
-// reported back distinctly, not conflated with a save failure.
+// Persists via a fresh ConfigStore(configRoot). `reload`, if given, runs after
+// every successful save ("every settings PUT funnels into the reload entrypoint"
+// per this step's own build-order line). Deliberately injected rather than this
+// module owning reload logic: the pipeline being reloaded is an app-layer
+// concept. Its reload returns "" on success or an error message, which is
+// reported distinctly from a save failure (the save itself succeeded).
 //
 // Writes are ConfigStore::update(), atomic against Pipeline::build's own
-// derived-rate save. onConfigChanged calls are coalesced (Aurora-5ipy.8): never
-// concurrent, at most one queued behind the one in flight, so it must load
-// config fresh from disk. A queued call covers every write before it starts and
-// its waiting PUTs all receive its result.
+// derived-rate save. `reload` is the host's one ReloadCoalescer (Aurora-5ipy.8),
+// shared with the effects and v1 routes: never concurrent, at most one queued
+// behind the one in flight, so its reload must load config fresh from disk. A
+// queued run covers every write before it starts and its waiting PUTs all
+// receive its result.
 //
 // onEffectChosen, if given, runs after that for a PUT naming activeEffectId
 // (the Dashboard's Video/Audio toggle), even when the value is unchanged.
 namespace Aurora::Runtime
 {
+  class ReloadCoalescer;
+
   void registerSettingsRoutes(
     Aurora::Network::Http::Server::HttpServer& server,
     const std::filesystem::path& configRoot,
-    std::function<std::string()> onConfigChanged = {},
+    std::shared_ptr<ReloadCoalescer> reload = {},
     std::function<void()> onEffectChosen = {}
   );
 }

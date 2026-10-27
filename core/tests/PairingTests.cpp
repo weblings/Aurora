@@ -51,6 +51,50 @@ TEST_CASE("sha256Hex matches the FIPS test vectors", "[Pairing]")
 }
 
 
+TEST_CASE("Scopes order Read < Draft < Control < Apply < Admin and round-trip by name", "[Pairing]")
+{
+  CHECK(Scope::None < Scope::Read);
+  CHECK(Scope::Read < Scope::Draft);
+  CHECK(Scope::Draft < Scope::Control);
+  CHECK(Scope::Control < Scope::Apply);
+  CHECK(Scope::Apply < Scope::Admin);
+  for(Scope scope : {Scope::Read, Scope::Draft, Scope::Control, Scope::Apply, Scope::Admin}){
+    CHECK(scopeFromName(scopeName(scope)) == scope);
+  }
+  CHECK_FALSE(scopeFromName("bogus"));
+}
+
+
+TEST_CASE("PairingService reloads a token of every scope, and approves a control request as control", "[Pairing]")
+{
+  auto path = tempStore("scopes");
+  std::vector<std::pair<std::string, Scope>> minted;
+  {
+    PairingService service(path);
+    for(Scope scope : {Scope::Read, Scope::Draft, Scope::Control, Scope::Apply, Scope::Admin}){
+      minted.emplace_back(service.mintForTest(scopeName(scope), scope), scope);
+    }
+  }
+  PairingService reloaded(path);
+  for(const auto& [token, scope] : minted){
+    auto device = reloaded.authenticate(token);
+    REQUIRE(device);
+    CHECK(device->scope == scope);
+  }
+
+  auto ticket = reloaded.requestPairing("bridge", Scope::Control);
+  REQUIRE(ticket);
+  auto pending = reloaded.pending();
+  REQUIRE(pending.size() == 1);
+  REQUIRE(reloaded.approve(pending[0].ref, std::nullopt));
+  auto poll = reloaded.poll(ticket->pollKey);
+  REQUIRE(poll.state == PairingPoll::State::Approved);
+  CHECK(poll.scope == Scope::Control);
+
+  std::filesystem::remove_all(path.parent_path());
+}
+
+
 TEST_CASE("AccessGuard trusts loopback and gates remote writes on a valid token", "[Pairing]")
 {
   auto service = std::make_shared<PairingService>();
@@ -433,6 +477,38 @@ TEST_CASE("HttpServer with an AccessGuard leaves loopback callers trusted", "[Pa
   REQUIRE(result);
   CHECK(result->status == 200);
   CHECK(result->body == "local");
+
+  server.stop();
+  serverThread.join();
+}
+
+TEST_CASE("A pairing request with a non-string name or scope is a 400, not a throw", "[Pairing][HttpServer]")
+{
+  auto service = std::make_shared<PairingService>();
+  auto guard = std::make_shared<AccessGuard>(service);
+
+  HttpServer server;
+  registerPairingRoutes(server, service, *guard);
+  server.setAccessGuard(guard);
+
+  const int port = server.bindToAnyPort("127.0.0.1");
+  REQUIRE(port > 0);
+  std::thread serverThread([&](){ server.listen(); });
+
+  httplib::Client client("127.0.0.1", port);
+  httplib::Result result;
+  for(const char* body : {R"({"name":"","scope":{}})", R"({"name":5})", R"({"scope":["read"]})"}){
+    for(int attempt = 0; attempt < 50; ++attempt){
+      result = client.Post("/api/pairing/request", body, "application/json");
+      if(result && result->status != -1){
+        break;
+      }
+      std::this_thread::sleep_for(10ms);
+    }
+    REQUIRE(result);
+    CHECK(result->status == 400);
+    CHECK(nlohmann::json::parse(result->body)["error"] == "invalid_json");
+  }
 
   server.stop();
   serverThread.join();

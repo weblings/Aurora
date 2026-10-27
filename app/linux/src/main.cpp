@@ -50,6 +50,8 @@
 #include <Aurora/Runtime/PresetRoutes.hpp>
 #include <Aurora/Runtime/HostRoutes.hpp>
 #include <Aurora/Runtime/PipelineRoutes.hpp>
+#include <Aurora/Runtime/PublicApiRoutes.hpp>
+#include <Aurora/Runtime/ReloadCoalescer.hpp>
 #include <Aurora/Runtime/SettingsRoutes.hpp>
 #include <Aurora/Runtime/ZoneRoutes.hpp>
 
@@ -595,12 +597,11 @@ if(!instanceLock.held()){
   // just saved) rather than closing over the request's own already-stale
   // copy, then applies it live if only tuning fields changed, else reloads
   // the pipeline (Aurora-c0g).
-  Aurora::Runtime::registerSettingsRoutes(httpServer, configRoot,
+  auto reloadCoalescer = std::make_shared<Aurora::Runtime::ReloadCoalescer>(
     [&pipelineHost, &registry, configRoot]() -> std::string {
       return Aurora::Runtime::applyConfigFromDisk(pipelineHost, registry, configRoot);
-    },
-    onEffectChosen
-  );
+    });
+  Aurora::Runtime::registerSettingsRoutes(httpServer, configRoot, reloadCoalescer, onEffectChosen);
   Aurora::Runtime::registerMonitorsRoute(httpServer, pipelineHost);
   registerAudioStatusRoute(httpServer, pipelineHost);
   registerAudioSinksRoute(httpServer);
@@ -610,14 +611,13 @@ if(!instanceLock.held()){
   Aurora::Runtime::registerNodesRoute(httpServer);
   Aurora::Runtime::registerGraphRoute(httpServer, pipelineHost);
   Aurora::Runtime::registerEffectsRoutes(httpServer, pipelineHost, registry, configRoot,
-    [&pipelineHost, &registry, configRoot, onEffectChosen]() -> std::string {
-      const std::string error = Aurora::Runtime::applyConfigFromDisk(pipelineHost, registry, configRoot);
-      onEffectChosen();
-      return error;
-    },
-    accessGuard.get());
+    reloadCoalescer, onEffectChosen, accessGuard.get());
+  // Presets and preview come first, since the v1 aliases copy them.
   Aurora::Runtime::registerPresetRoutes(httpServer, registry, configRoot);
   Aurora::Runtime::registerPreviewRoutes(httpServer, pipelineHost, registry, draftStore);
+  Aurora::Runtime::registerPublicApiRoutes(httpServer, pipelineHost, registry, configRoot, reloadCoalescer,
+    lightTest, accessGuard.get(),
+    {"linux", AURORA_VERSION, kHueCompiledIn, canSelectMonitorOnLinux(), &descriptorRegistry});
   Aurora::Runtime::registerDevErrorsRoute(httpServer, pipelineHost);
   Aurora::Runtime::registerStopRoute(httpServer, []{ g_stopRequested = 1; });
   Aurora::Runtime::registerZoneRoutes(

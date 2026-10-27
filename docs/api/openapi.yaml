@@ -1,0 +1,1342 @@
+openapi: 3.2.0
+info:
+  title: Aurora control API
+  version: 1.0.0
+  description: >-
+    Public control API for a running Aurora. Every operation under /api/v1
+    has an entry here, and the route-walk test fails when the two drift.
+    Within 1.x responses only gain fields, values of `state`, `scope`, event
+    topics and error codes, and clients ignore what they do not know. Routes,
+    fields and values are never removed or renamed.
+servers:
+  - url: http://localhost:8215
+    description: Default local address.
+security:
+  - bearerAuth: []
+paths:
+  /api/v1/state:
+    get:
+      operationId: getState
+      summary: Host state
+      description: >-
+        What the host is doing now. `state` is `idle`, `running`, `paused` or
+        `failed`, and clients ignore values they do not know. `effect` is the
+        running graph and `requestedEffect` what the config asked for, which
+        differ while a custom effect that failed to load is replaced by the
+        built-in. `brightness` is the saved setting in percent, and 0 means
+        off only on outputs listed in `zeroOffOutputs`. `source.video.monitor`
+        is a label for people and may change, it is not a key.
+      responses:
+        '200':
+          description: The current state.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/State'
+    patch:
+      operationId: patchState
+      summary: Pause, resume, switch effect or dim
+      description: >-
+        Needs the Control scope. A JSON merge patch (RFC 7396): absent fields
+        stay, `null` is rejected, and the whole body is validated before
+        anything is written. Unknown fields answer `unknown_field` and
+        read-only ones `read_only_field`, with every problem listed in
+        `errors`. `running` false pauses and true resumes. `effect` is the
+        effect to run, an id from `GET /api/v1/effects`, and the running one
+        reads back as `effect` and `requestedEffect`. A paused host saves the
+        effect and applies it on resume. `brightness` is percent and applies
+        without a rebuild. A changed effect, a pause or a resume ends a
+        running light test with `superseded`, brightness does not. A failed
+        reload still answers 200 and shows in `errors` of the state.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StatePatch'
+      responses:
+        '200':
+          description: Applied. The body is the new state.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/State'
+        '400':
+          description: >-
+            Bad body or field (`invalid_body`, `unknown_field`,
+            `read_only_field`, `null_not_allowed`, `invalid_field`,
+            `unknown_effect`). Nothing was written.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: Nothing is running to pause (`nothing_to_pause`).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /api/v1/events:
+    get:
+      operationId: streamEvents
+      summary: Live state and health events
+      description: >-
+        One `text/event-stream` for every topic. Each event is `event: <topic>`
+        and `data: <json>`. `state` carries the `GET /api/v1/state` document
+        and `health` its `errors` and `conditions`. Both are sent first on
+        connect, then again only when they change, so a reconnect gets a
+        fresh snapshot and clients must not assume they saw every change.
+        Unknown topics are ignored. A `: ping` comment arrives every 15
+        seconds. Brightness changes arrive within about a second. Streams
+        beyond the server cap answer 503 `too_many_streams`. The cap is half
+        the worker pool, 4 up to 9 hardware threads, so hold one stream per
+        client.
+      parameters:
+        - name: topics
+          in: query
+          required: false
+          description: Comma-separated topics, `state` and `health`. Default all.
+          schema:
+            type: string
+            example: state,health
+      responses:
+        '200':
+          description: The event stream.
+          content:
+            text/event-stream:
+              itemSchema:
+                $ref: '#/components/schemas/Event'
+        '503':
+          description: Too many open streams.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /api/v1/capabilities:
+    get:
+      operationId: getCapabilities
+      summary: What this build can do
+      description: >-
+        Input, audio input and output names are plugin names that differ per
+        OS, so treat them as opaque strings. `hue` is listed in `outputs`
+        whenever Hue is compiled in, paired or not.
+      responses:
+        '200':
+          description: The capabilities.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Capabilities'
+  /api/v1/version:
+    get:
+      operationId: getVersion
+      summary: App version and contract version
+      description: >-
+        `apiVersion` is the contract version and equals `info.version` of this
+        document. Minor bumps are additive, a major bump is a new `/api/vN`.
+      responses:
+        '200':
+          description: The versions.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Version'
+  /api/v1/effects:
+    get:
+      operationId: listEffects
+      summary: Built-in and custom effects
+      description: >-
+        Built-ins come first (the reserved ids `builtin.video` and
+        `builtin.audio`), then custom effects by id. `activeEffectId` is the
+        saved setting, and an empty string means the default built-in.
+      responses:
+        '200':
+          description: The effect list.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EffectList'
+  /api/v1/effects/{id}:
+    get:
+      operationId: getEffect
+      summary: One effect's graph document
+      description: >-
+        A built-in's graph is the one the running pipeline would build from the
+        current config. The graph document has its own `version`.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: The effect and its graph.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EffectDocument'
+        '404':
+          description: No such effect (`unknown_effect`).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '422':
+          description: The effect file is not valid JSON (`unreadable_effect`).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /api/v1/descriptors:
+    get:
+      operationId: listDescriptors
+      summary: Control descriptions
+      description: >-
+        Static per build. Float bounds are the shortest decimal that
+        round-trips, which is a documented guarantee.
+      responses:
+        '200':
+          description: The descriptors.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Descriptors'
+  /api/v1/nodes:
+    get:
+      operationId: listNodes
+      summary: Node catalog
+      description: >-
+        Every node type a graph can use, with its ports and params. Static
+        per build.
+      responses:
+        '200':
+          description: The node types.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NodeCatalog'
+  /api/v1/graph/presets:
+    get:
+      operationId: listPresets
+      summary: Starter graphs
+      description: >-
+        Only presets whose nodes this build has. `inputs` names the inputs a
+        preset reads and `controls` the labels of its tunable controls.
+      responses:
+        '200':
+          description: The presets.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PresetList'
+  /api/v1/graph/presets/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        description: A preset id from `GET /api/v1/graph/presets`.
+        schema:
+          type: string
+    get:
+      operationId: getPreset
+      summary: A preset as a graph, with its validation
+      description: >-
+        The graph is built for the outputs this host has, ready to edit and
+        save as a draft.
+      responses:
+        '200':
+          description: The preset.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Preset'
+        '404':
+          description: No such preset (`unknown_preset`).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: The host has no outputs to build for (`no_outputs`).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /api/v1/graph/preview/summary:
+    get:
+      operationId: getPreviewSummary
+      summary: Sample a draft off the lights
+      description: >-
+        Runs the draft for a few seconds without touching the lights and
+        answers with per-zone color and motion statistics. An audio graph
+        shows nothing until audio first arrives.
+      parameters:
+        - name: session
+          in: query
+          required: true
+          description: The draft session to sample.
+          schema:
+            type: string
+        - name: seconds
+          in: query
+          required: false
+          description: How long to sample. Capped by the host.
+          schema:
+            type: number
+            exclusiveMinimum: 0
+      responses:
+        '200':
+          description: The sampled statistics.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PreviewSummary'
+        '400':
+          description: Bad session or seconds (`invalid_session`, `invalid_seconds`).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: No such draft (`no_draft`).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: The pipeline changed or paused while sampling (`pipeline_gone`).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '422':
+          description: The draft cannot be previewed (`cannot_preview`).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /api/v1/graph/drafts/{session}:
+    parameters:
+      - $ref: '#/components/parameters/Session'
+    put:
+      operationId: putDraft
+      summary: Save a draft and validate it
+      description: >-
+        Needs the Draft scope. Stores the graph under the session and answers
+        with its validation. A draft that fails validation is still saved.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GraphBody'
+      responses:
+        '200':
+          description: Saved, with the validation result.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DraftSaved'
+        '400':
+          description: Bad session (`invalid_session`) or body (`invalid_body`).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '413':
+          description: Too large (`draft_too_large`).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '429':
+          description: Too many drafts (`too_many_drafts`).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    get:
+      operationId: getDraft
+      summary: Read a draft with its validation
+      responses:
+        '200':
+          description: The draft.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Draft'
+        '400':
+          description: Bad session (`invalid_session`).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: No such draft (`no_draft`).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    delete:
+      operationId: deleteDraft
+      summary: Drop a draft
+      description: Needs the Draft scope.
+      responses:
+        '200':
+          description: Deleted.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Deleted'
+        '404':
+          description: No such draft (`no_draft`).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /api/v1/graph/validate:
+    post:
+      operationId: validateGraph
+      summary: Validate a graph without saving it
+      description: Needs the Draft scope.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GraphBody'
+      responses:
+        '200':
+          description: The validation result.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Validation'
+        '400':
+          description: Bad body (`invalid_body`).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '413':
+          description: Too large (`draft_too_large`).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /api/v1/graph/test:
+    get:
+      operationId: getLightTest
+      summary: Light test status
+      responses:
+        '200':
+          description: The test status.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LightTest'
+    post:
+      operationId: startLightTest
+      summary: Show a draft on the lights
+      description: >-
+        Needs the Apply scope. The draft runs until it is confirmed, reverted,
+        or the heartbeat lapses, and then the previous effect returns.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SessionBody'
+      responses:
+        '200':
+          description: The test started.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LightTestStarted'
+        '400':
+          description: Bad body or session (`invalid_body`, `invalid_session`).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: No such draft (`no_draft`).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: The test could not start (`cannot_test`).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '422':
+          description: The draft is not valid (`invalid_graph`).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InvalidGraph'
+  /api/v1/graph/test/heartbeat:
+    post:
+      operationId: heartbeatLightTest
+      summary: Keep a light test alive
+      description: Needs the Apply scope.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SessionBody'
+      responses:
+        '200':
+          description: The test is still running.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Heartbeat'
+        '400':
+          description: Bad body or session (`invalid_body`, `invalid_session`).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: No test for this session (`no_test`).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /api/v1/graph/test/revert:
+    post:
+      operationId: revertLightTest
+      summary: End a light test and restore the previous effect
+      description: Needs the Apply scope.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SessionBody'
+      responses:
+        '200':
+          description: Reverted. `revertError` is set when the restore failed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Reverted'
+        '400':
+          description: Bad body or session (`invalid_body`, `invalid_session`).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: No test for this session (`no_test`).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /api/v1/graph/test/confirm:
+    post:
+      operationId: confirmLightTest
+      summary: Keep the tested draft as the live effect
+      description: >-
+        Needs the Apply scope. Saves the draft as effect `id` and makes it the
+        active effect, as `applyGraph` does, and ends the test with no revert.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ApplyBody'
+      responses:
+        '200':
+          description: Applied.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Applied'
+        '400':
+          description: Bad body, session or effect id (`invalid_body`, `invalid_session`, `invalid_effect_id`).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: No test or no draft (`no_test`, `no_draft`).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: The draft changed since the test started (`draft_changed`).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '422':
+          description: The draft is not valid (`invalid_graph`).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InvalidGraph'
+        '500':
+          description: The effect could not be saved (`write_failed`).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /api/v1/graph/apply:
+    post:
+      operationId: applyGraph
+      summary: Save a draft as an effect and run it
+      description: Needs the Apply scope.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ApplyBody'
+      responses:
+        '200':
+          description: Applied. `reloadError` is set when the swap failed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Applied'
+        '400':
+          description: Bad body, session or effect id (`invalid_body`, `invalid_session`, `invalid_effect_id`).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: No such draft (`no_draft`).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '422':
+          description: The draft is not valid (`invalid_graph`).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InvalidGraph'
+        '500':
+          description: The effect could not be saved (`write_failed`).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /api/v1/pairing/status:
+    get:
+      operationId: getPairingStatus
+      summary: Whether this caller must pair
+      description: >-
+        Open to every caller, and the first call an adapter makes. `required`
+        is false for loopback callers. `scope` is the caller's scope, `none`
+        when it has no token.
+      security: []
+      responses:
+        '200':
+          description: The pairing status.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PairingStatus'
+  /api/v1/pairing/request:
+    post:
+      operationId: requestPairing
+      summary: Ask to pair
+      description: >-
+        Open to every caller. The user approves the shown `code` in Aurora,
+        and the caller polls `pollKey` every `interval` seconds for up to
+        `expiresIn`. The flow follows the OAuth device grant (RFC 8628).
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PairingRequest'
+      responses:
+        '202':
+          description: Waiting for approval.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PairingTicket'
+        '400':
+          description: Bad body or scope (`invalid_json`, `unknown_scope`).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '429':
+          description: Too many requests are waiting (`too_many_pending`).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /api/v1/pairing/request/{pollKey}:
+    get:
+      operationId: pollPairing
+      summary: Poll a pairing request
+      description: >-
+        Open to every caller. Statuses are REST's and `error` uses RFC 8628's
+        vocabulary. 202 `authorization_pending` means keep polling, 429
+        `slow_down` means poll less often (see `Retry-After`), 403
+        `access_denied` means the user said no, 410 `expired_token` means start
+        over. 404 is a key that was never issued or has been forgotten.
+      security: []
+      parameters:
+        - name: pollKey
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Approved. The token is shown once.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PairingApproved'
+        '202':
+          description: Still waiting (`authorization_pending`).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PairingWaiting'
+        '403':
+          description: Denied (`access_denied`).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PairingWaiting'
+        '404':
+          description: Unknown key.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PairingWaiting'
+        '410':
+          description: Expired (`expired_token`).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PairingWaiting'
+        '429':
+          description: Polling too fast (`slow_down`).
+          headers:
+            Retry-After:
+              description: Seconds to wait.
+              schema:
+                type: integer
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PairingWaiting'
+components:
+  parameters:
+    Session:
+      name: session
+      in: path
+      required: true
+      description: A client-chosen draft session id.
+      schema:
+        type: string
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      description: >-
+        Paired-device token. Loopback callers need none. An operation with
+        `security: []` is open to every caller.
+  schemas:
+    Error:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: string
+          description: Snake_case code. Clients handle unknown codes by HTTP status.
+        message:
+          type: string
+    GraphBody:
+      type: object
+      required: [graph]
+      properties:
+        graph:
+          type: object
+          description: The graph document, see its own `version`.
+    SessionBody:
+      type: object
+      required: [session]
+      properties:
+        session:
+          type: string
+          description: 1 to 64 characters of letters, digits, `_` and `-`.
+    ApplyBody:
+      type: object
+      required: [session, id]
+      properties:
+        session:
+          type: string
+        id:
+          type: string
+          description: The custom effect id to save the draft as.
+    ValidationIssue:
+      type: object
+      required: [node, message, code, port, param, options]
+      properties:
+        node:
+          type: [string, 'null']
+        message:
+          type: string
+        code:
+          type: string
+        port:
+          type: [string, 'null']
+        param:
+          type: [string, 'null']
+        options:
+          description: Valid choices where the issue is a bad value, else empty.
+    Validation:
+      type: object
+      required: [valid, errors]
+      properties:
+        valid:
+          type: boolean
+        errors:
+          type: array
+          items:
+            $ref: '#/components/schemas/ValidationIssue'
+    DraftSaved:
+      allOf:
+        - $ref: '#/components/schemas/Validation'
+        - type: object
+          required: [succeeded, session]
+          properties:
+            succeeded:
+              type: boolean
+            session:
+              type: string
+    NodeCatalog:
+      type: object
+      required: [nodes]
+      properties:
+        nodes:
+          type: array
+          items:
+            type: object
+            required: [type, inputs, outputs, params]
+            properties:
+              type:
+                type: string
+              purpose:
+                type: string
+              useWhen:
+                type: string
+              example:
+                type: string
+              cost:
+                type: string
+              inputs:
+                type: array
+                items:
+                  type: object
+              outputs:
+                type: array
+                items:
+                  type: object
+              params:
+                type: array
+                items:
+                  type: object
+    PresetList:
+      type: object
+      required: [presets]
+      properties:
+        presets:
+          type: array
+          items:
+            type: object
+            required: [id, title, inputs, controls]
+            properties:
+              id:
+                type: string
+              title:
+                type: string
+              description:
+                type: string
+              inputs:
+                type: array
+                items:
+                  type: string
+              controls:
+                type: array
+                items:
+                  type: string
+    Preset:
+      allOf:
+        - $ref: '#/components/schemas/Validation'
+        - type: object
+          required: [id, title, inputs, outputs, graph]
+          properties:
+            id:
+              type: string
+            title:
+              type: string
+            description:
+              type: string
+            inputs:
+              type: array
+              items:
+                type: string
+            outputs:
+              type: array
+              items:
+                type: string
+            graph:
+              type: object
+    PreviewSummary:
+      type: object
+      required: [session, seconds, samples, outputs, errors]
+      properties:
+        session:
+          type: string
+        seconds:
+          type: number
+        samples:
+          type: integer
+        outputs:
+          type: array
+          items:
+            type: object
+            required: [output, change, zones]
+            properties:
+              output:
+                type: string
+              change:
+                type: number
+              zones:
+                type: array
+                items:
+                  type: object
+        errors:
+          type: array
+          items:
+            type: object
+            required: [output, node, message]
+            properties:
+              output:
+                type: string
+              node:
+                type: string
+              message:
+                type: string
+    Draft:
+      allOf:
+        - $ref: '#/components/schemas/Validation'
+        - type: object
+          required: [session, graph]
+          properties:
+            session:
+              type: string
+            graph:
+              type: object
+    Deleted:
+      type: object
+      required: [succeeded, deleted]
+      properties:
+        succeeded:
+          type: boolean
+        deleted:
+          type: string
+          description: The session id.
+    InvalidGraph:
+      allOf:
+        - $ref: '#/components/schemas/Validation'
+        - type: object
+          required: [succeeded, error]
+          properties:
+            succeeded:
+              type: boolean
+            error:
+              type: string
+    LightTest:
+      type: object
+      required: [active, confirmRemainingMs, revertAfterMs, lastEnd]
+      properties:
+        active:
+          type: boolean
+        confirmRemainingMs:
+          type: integer
+        revertAfterMs:
+          type: integer
+        lastEnd:
+          type: [string, 'null']
+          description: Why the previous test ended, null if none has.
+    LightTestStarted:
+      type: object
+      required: [succeeded, confirmWithinMs, heartbeatMs, revertAfterMs]
+      properties:
+        succeeded:
+          type: boolean
+        confirmWithinMs:
+          type: integer
+        heartbeatMs:
+          type: integer
+          description: How often to call the heartbeat.
+        revertAfterMs:
+          type: integer
+          description: The test reverts this long after the last heartbeat.
+    Heartbeat:
+      type: object
+      required: [succeeded, confirmRemainingMs]
+      properties:
+        succeeded:
+          type: boolean
+        confirmRemainingMs:
+          type: integer
+    Reverted:
+      type: object
+      required: [succeeded]
+      properties:
+        succeeded:
+          type: boolean
+        revertError:
+          type: string
+    Applied:
+      type: object
+      required: [succeeded, id, activeEffectId, effect, requestedEffect]
+      properties:
+        succeeded:
+          type: boolean
+        id:
+          type: string
+        activeEffectId:
+          type: string
+        effect:
+          type: [string, 'null']
+        requestedEffect:
+          type: [string, 'null']
+        reloadError:
+          type: string
+    PairingStatus:
+      type: object
+      required: [required, scope]
+      properties:
+        required:
+          type: boolean
+        scope:
+          type: string
+          enum: [none, read, draft, control, apply, admin]
+    PairingRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          description: Shown to the user when they approve.
+        scope:
+          type: string
+          enum: [read, draft, control, apply, admin]
+          description: The scope asked for, `admin` when left out. The user may grant less.
+    PairingTicket:
+      type: object
+      required: [pollKey, code, interval, expiresIn]
+      properties:
+        pollKey:
+          type: string
+        code:
+          type: string
+          description: Shown to the user to match against Aurora's prompt.
+        interval:
+          type: integer
+          description: Seconds between polls.
+        expiresIn:
+          type: integer
+          description: Seconds the request lives.
+    PairingWaiting:
+      type: object
+      required: [state]
+      properties:
+        state:
+          type: string
+          enum: [pending, denied, expired, unknown]
+        error:
+          type: string
+          enum: [authorization_pending, slow_down, access_denied, expired_token]
+    PairingApproved:
+      type: object
+      required: [state, token, scope]
+      properties:
+        state:
+          type: string
+          enum: [approved]
+        token:
+          type: string
+          description: Sent as a bearer token.
+        scope:
+          type: string
+          enum: [read, draft, control, apply, admin]
+    HostError:
+      type: object
+      required: [source, message, id]
+      properties:
+        source:
+          type: string
+          description: An open set of origins.
+        message:
+          type: string
+        id:
+          type: integer
+          description: Stamped when the entry is created or replaced.
+    Condition:
+      type: object
+      required: [source, message]
+      properties:
+        source:
+          type: string
+        message:
+          type: string
+    State:
+      type: object
+      required: [state, effect, effectTitle, effectDescription, requestedEffect, source, graphInputs, brightness, configuredInputs, test, errors, conditions, samplesZones]
+      properties:
+        state:
+          type: string
+          description: Known values `idle`, `running`, `paused` and `failed`.
+        effect:
+          type: [string, 'null']
+          description: The running graph id, null when idle or failed.
+        effectTitle:
+          type: [string, 'null']
+        effectDescription:
+          type: [string, 'null']
+        requestedEffect:
+          type: [string, 'null']
+        source:
+          type: object
+          required: [video, audio]
+          properties:
+            video:
+              type: [object, 'null']
+              required: [input, monitor]
+              properties:
+                input:
+                  type: string
+                monitor:
+                  type: [string, 'null']
+                  description: A label for people, it may change.
+            audio:
+              type: [object, 'null']
+              required: [input, sink, auto]
+              properties:
+                input:
+                  type: string
+                sink:
+                  type: [string, 'null']
+                auto:
+                  type: boolean
+                  description: True when the sink follows the default.
+        graphInputs:
+          type: [object, 'null']
+          description: Which inputs the running graph reads, null while no pipeline runs.
+          required: [video, audio]
+          properties:
+            video:
+              type: boolean
+            audio:
+              type: boolean
+        brightness:
+          type: number
+          minimum: 0
+          maximum: 100
+          description: The saved setting in percent, decimals allowed.
+        configuredInputs:
+          type: object
+          description: The inputs a graph can use, null where none is chosen in Aurora.
+          required: [video, audio]
+          properties:
+            video:
+              type: [string, 'null']
+            audio:
+              type: [string, 'null']
+        test:
+          type: object
+          required: [active, confirmRemainingMs]
+          properties:
+            active:
+              type: boolean
+            confirmRemainingMs:
+              type: integer
+        errors:
+          type: array
+          items:
+            $ref: '#/components/schemas/HostError'
+        conditions:
+          type: array
+          items:
+            $ref: '#/components/schemas/Condition'
+        samplesZones:
+          type: boolean
+    StatePatch:
+      type: object
+      description: Any subset of these fields. No other field is accepted.
+      additionalProperties: false
+      properties:
+        running:
+          type: boolean
+        effect:
+          type: string
+          description: An effect id, or an empty string for the default built-in.
+        brightness:
+          type: number
+          minimum: 0
+          maximum: 100
+    Health:
+      type: object
+      required: [errors, conditions]
+      properties:
+        errors:
+          type: array
+          items:
+            $ref: '#/components/schemas/HostError'
+        conditions:
+          type: array
+          items:
+            $ref: '#/components/schemas/Condition'
+    Event:
+      type: object
+      description: One server-sent event, shown here as its fields.
+      required: [event, data]
+      properties:
+        event:
+          type: string
+          enum: [state, health]
+        data:
+          type: string
+          contentMediaType: application/json
+          description: A JSON text, the `State` document for `state` and `Health` for `health`.
+          contentSchema:
+            anyOf:
+              - $ref: '#/components/schemas/State'
+              - $ref: '#/components/schemas/Health'
+    Capabilities:
+      type: object
+      required: [inputs, audioInputs, outputs, zeroOffOutputs, platform, canSelectMonitor]
+      properties:
+        inputs:
+          type: array
+          items:
+            type: string
+        audioInputs:
+          type: array
+          items:
+            type: string
+        outputs:
+          type: array
+          items:
+            type: string
+        zeroOffOutputs:
+          type: array
+          description: Outputs where brightness 0 means off.
+          items:
+            type: string
+        platform:
+          type: string
+        canSelectMonitor:
+          type: boolean
+          description: Static per host, false where a portal picks the output.
+    Version:
+      type: object
+      required: [version, apiVersion]
+      properties:
+        version:
+          type: string
+          description: The app version.
+        apiVersion:
+          type: string
+          description: The contract version, SemVer.
+    EffectEntry:
+      type: object
+      required: [id, builtin, title, description]
+      properties:
+        id:
+          type: string
+        builtin:
+          type: boolean
+        title:
+          type: string
+        description:
+          type: [string, 'null']
+    EffectList:
+      type: object
+      required: [effects, activeEffectId, effect, requestedEffect]
+      properties:
+        effects:
+          type: array
+          items:
+            $ref: '#/components/schemas/EffectEntry'
+        activeEffectId:
+          type: string
+        effect:
+          type: [string, 'null']
+        requestedEffect:
+          type: [string, 'null']
+    EffectDocument:
+      type: object
+      required: [id, builtin, graph]
+      properties:
+        id:
+          type: string
+        builtin:
+          type: boolean
+        graph:
+          type: object
+          description: The graph document, see its own `version`.
+    Descriptors:
+      type: object
+      required: [descriptors]
+      properties:
+        descriptors:
+          type: array
+          items:
+            type: object
+            required: [key, kind, description]
+            properties:
+              key:
+                type: string
+              kind:
+                type: string
+              description:
+                type: string
+              useWhen:
+                type: string
+              example:
+                type: string
+              cost:
+                type: string
+              param:
+                type: object
+                required: [label, min, max, step, unit, default, allowsUnset]
+                properties:
+                  label:
+                    type: string
+                  min:
+                    type: number
+                  max:
+                    type: number
+                  step:
+                    type: number
+                  unit:
+                    type: string
+                  default:
+                    type: number
+                  allowsUnset:
+                    type: boolean

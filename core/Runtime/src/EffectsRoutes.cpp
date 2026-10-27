@@ -10,6 +10,7 @@
 #include <Aurora/Runtime/Graph/BuiltInGraphs.hpp>
 #include <Aurora/Runtime/Pipeline.hpp>
 #include <Aurora/Runtime/Registry.hpp>
+#include <Aurora/Runtime/ReloadCoalescer.hpp>
 
 namespace Aurora::Runtime
 {
@@ -52,6 +53,62 @@ namespace Aurora::Runtime
   }
 
 
+  nlohmann::json effectsListToJson(PipelineHost& pipelineHost, const std::filesystem::path& configRoot)
+  {
+    nlohmann::json effects = nlohmann::json::array();
+    const auto entry = [&configRoot](const std::string& id, bool builtin){
+      const EffectInfo info = effectInfo(configRoot, id);
+      return nlohmann::json{
+        {"id", id}, {"builtin", builtin}, {"title", info.title},
+        {"description", info.description.empty() ? nlohmann::json(nullptr) : nlohmann::json(info.description)}
+      };
+    };
+    effects.push_back(entry(kBuiltInVideoEffectId, true));
+    effects.push_back(entry(kBuiltInAudioEffectId, true));
+    for(const std::string& id : EffectStore(configRoot).list()){
+      effects.push_back(entry(id, false));
+    }
+    return _effectState(pipelineHost, {
+      {"effects", effects},
+      {"activeEffectId", ConfigStore(configRoot).load().activeEffectId()}
+    });
+  }
+
+
+  int effectDocumentToJson(
+    const Registry& registry,
+    const std::filesystem::path& configRoot,
+    const std::string& id,
+    nlohmann::json& body
+  )
+  {
+    if(isBuiltInEffectId(id)){
+      const Config config = ConfigStore(configRoot).load();
+      const auto names = _outputNames(registry, config);
+      const bool audio = id == kBuiltInAudioEffectId;
+      const auto graph = audio
+        ? Graph::builtInAudioGraph(names, Graph::audioOverlayFromConfig(config.data(), names))
+        : Graph::builtInVideoGraph(names, Graph::videoOverlayFromConfig(config.data(), names));
+      body = {{"id", id}, {"builtin", true}, {"graph", graph}};
+      return 200;
+    }
+
+    const EffectStore store(configRoot);
+    if(!store.exists(id)){
+      body = {{"error", "unknown_effect"}};
+      return 404;
+    }
+    std::string error;
+    auto doc = store.read(id, error);
+    if(!doc){
+      body = {{"error", "unreadable_effect"}, {"message", error}};
+      return 422;
+    }
+    body = {{"id", id}, {"builtin", false}, {"graph", *doc}};
+    return 200;
+  }
+
+
   void addEffectsAccessRules(AccessGuard& guard)
   {
     guard.addWriteRule("/api/effects", Scope::Apply);
@@ -65,7 +122,8 @@ namespace Aurora::Runtime
     PipelineHost& pipelineHost,
     const Registry& registry,
     const std::filesystem::path& configRoot,
-    std::function<std::string()> onConfigChanged,
+    std::shared_ptr<ReloadCoalescer> reload,
+    std::function<void()> onEffectChosen,
     AccessGuard* guard
   )
   {
@@ -77,23 +135,7 @@ namespace Aurora::Runtime
       HttpMethod::Get,
       "/api/effects",
       [&pipelineHost, configRoot](const Request&, Response& res){
-        nlohmann::json effects = nlohmann::json::array();
-        const auto entry = [&configRoot](const std::string& id, bool builtin){
-          const EffectInfo info = effectInfo(configRoot, id);
-          return nlohmann::json{
-            {"id", id}, {"builtin", builtin}, {"title", info.title},
-            {"description", info.description.empty() ? nlohmann::json(nullptr) : nlohmann::json(info.description)}
-          };
-        };
-        effects.push_back(entry(kBuiltInVideoEffectId, true));
-        effects.push_back(entry(kBuiltInAudioEffectId, true));
-        for(const std::string& id : EffectStore(configRoot).list()){
-          effects.push_back(entry(id, false));
-        }
-        _reply(res, 200, _effectState(pipelineHost, {
-          {"effects", effects},
-          {"activeEffectId", ConfigStore(configRoot).load().activeEffectId()}
-        }));
+        _reply(res, 200, effectsListToJson(pipelineHost, configRoot));
       }
     );
 
@@ -101,37 +143,16 @@ namespace Aurora::Runtime
       HttpMethod::Get,
       "/api/effects/:id",
       [&registry, configRoot](const Request& req, Response& res){
-        const std::string& id = req.pathParams.at("id");
-        if(isBuiltInEffectId(id)){
-          const Config config = ConfigStore(configRoot).load();
-          const auto names = _outputNames(registry, config);
-          const bool audio = id == kBuiltInAudioEffectId;
-          const auto graph = audio
-            ? Graph::builtInAudioGraph(names, Graph::audioOverlayFromConfig(config.data(), names))
-            : Graph::builtInVideoGraph(names, Graph::videoOverlayFromConfig(config.data(), names));
-          _reply(res, 200, {{"id", id}, {"builtin", true}, {"graph", graph}});
-          return;
-        }
-
-        const EffectStore store(configRoot);
-        if(!store.exists(id)){
-          _reply(res, 404, {{"error", "unknown_effect"}});
-          return;
-        }
-        std::string error;
-        auto doc = store.read(id, error);
-        if(!doc){
-          _reply(res, 422, {{"error", "unreadable_effect"}, {"message", error}});
-          return;
-        }
-        _reply(res, 200, {{"id", id}, {"builtin", false}, {"graph", *doc}});
+        nlohmann::json body;
+        const int status = effectDocumentToJson(registry, configRoot, req.pathParams.at("id"), body);
+        _reply(res, status, body);
       }
     );
 
     server.addRoute(
       HttpMethod::Put,
       "/api/effects",
-      [&pipelineHost, configRoot, onConfigChanged](const Request& req, Response& res){
+      [&pipelineHost, configRoot, reload, onEffectChosen](const Request& req, Response& res){
         std::string id;
         try{
           id = nlohmann::json::parse(req.body).at("activeEffectId").get<std::string>();
@@ -153,7 +174,8 @@ namespace Aurora::Runtime
           }
           return true;
         });
-        const std::string reloadError = onConfigChanged ? onConfigChanged() : std::string{};
+        const std::string reloadError = reload ? reload->submit() : std::string{};
+        if(onEffectChosen){ onEffectChosen(); }
 
         nlohmann::json body = _effectState(pipelineHost, {{"succeeded", true}, {"activeEffectId", id}});
         if(!reloadError.empty()){
@@ -166,7 +188,7 @@ namespace Aurora::Runtime
     server.addRoute(
       HttpMethod::Delete,
       "/api/effects/:id",
-      [configRoot, onConfigChanged](const Request& req, Response& res){
+      [configRoot, reload, onEffectChosen](const Request& req, Response& res){
         const std::string& id = req.pathParams.at("id");
         if(isBuiltInEffectId(id)){
           _reply(res, 400, {{"succeeded", false}, {"error", "builtin_effect"}});
@@ -195,8 +217,9 @@ namespace Aurora::Runtime
         store.remove(id);
 
         nlohmann::json body{{"succeeded", true}, {"deleted", id}, {"fellBack", wasActive}};
-        if(wasActive && onConfigChanged){
-          const std::string reloadError = onConfigChanged();
+        if(wasActive && reload){
+          const std::string reloadError = reload->submit();
+          if(onEffectChosen){ onEffectChosen(); }
           if(!reloadError.empty()){
             body["reloadError"] = reloadError;
           }

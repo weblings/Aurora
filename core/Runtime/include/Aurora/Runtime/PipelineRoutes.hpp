@@ -2,7 +2,18 @@
 
 #include <chrono>
 #include <filesystem>
+#include <functional>
 #include <memory>
+#include <optional>
+#include <string>
+#include <vector>
+
+#include <nlohmann/json.hpp>
+
+#include <Aurora/Network/Http/Server/HttpDataStructs.hpp>
+#include <Aurora/Runtime/EffectStore.hpp>
+#include <Aurora/Runtime/LightTest.hpp>
+#include <Aurora/Runtime/Pipeline.hpp>
 
 namespace Aurora::Network::Http::Server { class HttpServer; }
 
@@ -13,6 +24,50 @@ namespace Aurora::Runtime
   class LightTest;
   class PipelineHost;
   class Registry;
+
+  // Everything GET /api/state reports, read once. stateToJson is the internal
+  // shape, so a v1 route can serialize the same snapshot its own way.
+  struct StateSnapshot
+  {
+    LightTest::Info test{};
+    PipelineCapabilities capabilities{};
+    std::string audioDevicesUrl;
+    HostStatus status{};
+    std::vector<HostCondition> conditions;
+    PipelineSummary summary{};
+    std::string audioSink;
+    std::string mcpEffectId;
+    std::optional<EffectInfo> effect;
+    float brightness{};
+    std::string activeInputName;
+    std::string activeAudioInputName;
+  };
+
+  StateSnapshot readStateSnapshot(
+    PipelineHost& pipelineHost,
+    const std::filesystem::path& configRoot,
+    const std::shared_ptr<LightTest>& lightTest
+  );
+  nlohmann::json stateToJson(const StateSnapshot& snapshot);
+  nlohmann::json healthToJson(const StateSnapshot& snapshot);
+
+  // What the events loop sends per topic. Defaults are the internal shape.
+  struct EventPayloadBuilders
+  {
+    std::function<nlohmann::json(const StateSnapshot&)> state = [](const StateSnapshot& s){ return stateToJson(s); };
+    std::function<nlohmann::json(const StateSnapshot&)> health = [](const StateSnapshot& s){ return healthToJson(s); };
+  };
+
+  // The loop behind GET /api/events, for routes that send another payload shape.
+  void runEventsStream(
+    const Aurora::Network::Http::Server::Request& req,
+    Aurora::Network::Http::Server::EventStream& stream,
+    PipelineHost& pipelineHost,
+    const std::filesystem::path& configRoot,
+    std::chrono::milliseconds heartbeat,
+    const std::shared_ptr<LightTest>& lightTest,
+    const EventPayloadBuilders& builders
+  );
 
   // GET /api/monitors: the live video input's monitor list. Empty in audio
   // mode or with no pipeline -- not an error.
