@@ -13,6 +13,13 @@ zone ids, so `ZoneThumbnail` drew a wrapped grid, not the zone map.
   refreshes them; zone edits during a live stream show on the next reconnect.
   A failed fetch leaves the grid.
 - Vitest: three cases in `loop.test.ts` (parse sample, placement, fallbacks).
-  Not checked in a browser.
+  Browser check below.
+- Browser check (`Aurora-9tp0`, mac fake-Hue stack, live input, embedded editor
+  at 1470 px): `builtin.video`'s `.zone-thumbnail` draws four separate blocks at
+  the 2x2 uv quadrants from `/api/zones`, not the wrapped grid. Preview frame ids
+  0-3 match `/api/zones` `zoneId` for hue; colours track position (id0 top-left
+  brightest). Zone Mapping not compared side by side (same endpoint). The 4-zone
+  map is a plain 2x2, so only the colour-to-position match tells it from the
+  grid; a non-grid map would be stronger. No gate assertion added.
 
 - Lessons: none.
