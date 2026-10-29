@@ -95,7 +95,8 @@ time-based, Tier 2 adds gradients, blend modes, bands and LFO.
 
 ## Sequence C: safe writes
 
-Status: filed 2026-10-20. Epic `Aurora-52oz`. Decisions in
+Status: done 2026-10-21 (epic closed, gate 8/8 on all three OSes). Filed
+2026-10-20. Epic `Aurora-52oz`. Decisions in
 [[sequence-c-planning]]: custom effects in `effects/` with `activeEffectId`,
 concrete output names (D instantiates presets), a fallback warning when a
 custom graph cannot load, per-session drafts, zone-color preview in C.
@@ -120,7 +121,8 @@ custom graph cannot load, per-session drafts, zone-color preview in C.
 
 ## Sequence D: MCP for graphs
 
-Status: filed 2026-10-21. Epic `Aurora-4xqt`. Decisions in
+Status: done 2026-10-28 (epic closed, gate 11/11 on all three OSes). Filed
+2026-10-21. Epic `Aurora-4xqt`. Decisions in
 [[sequence-d-planning]]: a working MCP setup for graphs is the razor, so D
 does not wait on EC 5 or `Aurora-m2c`. The adapter is hand-rolled C++ over
 stdio. C's accepted gaps close first (D0). A Dashboard toggle for MCP graphs
@@ -156,10 +158,44 @@ stays hidden until the first one.
   framing and version negotiation, MCP Inspector smoke, and a manual eval of
   about 10 prompts in D5. A scored eval corpus is after D.
 
+## Sequence E: graph editor
+
+Status: filed 2026-10-28. Epic `Aurora-pvxx`. Research in
+[[sequence-e-research]], decisions in [[sequence-e-planning]]: a working edit
+loop in the app is the razor. Per-node previews (`Aurora-h6yz`), the effect
+picker (`Aurora-kep2`), the web demo and WASM (`Aurora-51nv`), subgraphs and
+multi-editor sync are out. Graphs with no source are valid.
+
+- **Goal:** a user opens any effect (built-in or custom) at `/graph-editor/`,
+  rewires it and edits params, sees the zone-map preview, tries it on the
+  lights, and saves it as a custom effect, on three OSes.
+- **Beads:**
+  - Server gaps: `Aurora-0tqq` E0a test state names its holder, `.1` E0b
+    save without making live, plus duplicate, `.2` E0c output names for the
+    `output` param, `.3` E0d node titles and port descriptions.
+  - Editor: `.4` E1 foundation (adapter, generic node, param widgets, depth
+    layout, wiring checks, Vitest and typecheck in CI), `.5` E2 undo/redo and
+    browser autosave, `.6` E3 draft, validate and preview loop, `.7` E4 test,
+    Save, Save and apply, Dashboard controls, `.8` E5 Dashboard link and
+    shipping the editor in packaged builds, `.9` E6 gate.
+- **Prerequisite:** none outside E. `Aurora-que2` (preview without a live
+  pipeline) is in progress elsewhere; E3 handles `cannot_preview` as a state
+  and follows whatever que2 lands.
+- **Gate:** E6, Playwright on the fake-Hue stack: open Video, break a wire
+  (badge), fix it (preview), test on lights, a second session takes the test
+  (reported), Save as new, reload (layout kept), undo and redo, pause (state
+  shown). Three OSes.
+- **Parallel:** E0a to E0d and E1 are independent. E2 and E5 follow E1. E3
+  joins E1 and E0c. E4 joins E3, E2, E0a, E0b and E0d. E6 joins E4 and E5.
+- **OS:** E5 changes packaging per OS (Node prerequisite, Mac bundle notice
+  and signing order, Linux offline npm). Everything else is core routes and
+  browser code.
+- **Tests:** route tests for E0a to E0c, a registry test that every type
+  and port is described, Vitest for the adapter, wiring rules, undo
+  coalescing and autosave, and the E6 script.
+
 ## Later sequences (stubs)
 
 Each gets a full section when it starts.
 
-- **E: editor.** Status: not started. React Flow editor, after or beside D.
-  Takes over the Effect picker (`Aurora-kep2`) and source-less graphs
-  (`Aurora-t9iq`) from the D0b toggle.
+- **Per-node previews** (`Aurora-h6yz`), after E.
