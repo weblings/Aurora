@@ -298,5 +298,6 @@ Planning docs stay clean: decisions, status, and pointers here only.
 | 2026-10-29 | Graph editor embed no longer globs the vite output at configure time (`NO_GLOB`); a changed bundle hash rebuilds without rerunning cmake. [[pvxx12-embed-stale-glob]] | `bd show Aurora-pvxx.12` |
 | 2026-10-29 | Graph editor node palette: types grouped by prefix, click or drag to add, `addNode` with unique id, defaults and `ui` position; Vitest and browser check. [[pvxx13-node-palette]] | `bd show Aurora-pvxx.13` |
 | 2026-10-29 | Graph editor Save as new for custom effects: fresh id from the Name box, opens the copy, original and live effect untouched; browser check. [[pvxx14-save-as-new]] | `bd show Aurora-pvxx.14` |
+| 2026-10-29 | Graph editor Save as new gives the copy a distinct title (`<title> copy`, numbered on a clash); unit test and browser check. [[lut9-save-as-new-title]] | `bd show Aurora-lut9` |
 | 2026-10-29 | Graph editor thumbnail places the active output's zones at their `/api/zones` uv regions; grid kept for the rest; Vitest only. [[qv7a-thumbnail-regions]] | `bd show Aurora-qv7a` |
 | 2026-10-29 | Graph editor addNode: optional-floats left unset, output-bound nodes start on a registered output, enum select placeholder; Vitest and gate step. [[pvxx16-17-addnode-defaults]] | `bd show Aurora-pvxx.16`, `bd show Aurora-pvxx.17` |

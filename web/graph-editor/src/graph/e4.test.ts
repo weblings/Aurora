@@ -3,7 +3,7 @@ import { addControl, controlIndex, controlsOf, dropControlsOf, moveControl, remo
 import { removeNodes } from './doc'
 import { builtinLike, catalog, customLike } from './fixtures'
 import { describeTest, initialTest, testReducer, type TestEvent, type TestState } from './lightTest'
-import { freshEffectId, slugify } from './save'
+import { distinctTitle, freshEffectId, slugify } from './save'
 
 const run = (events: TestEvent[], from: TestState = initialTest) => events.reduce(testReducer, from)
 const running = run([{ type: 'starting' }, { type: 'started', remainingMs: 120000 }])
@@ -71,6 +71,12 @@ describe('new effect ids', () => {
     expect(freshEffectId('Mine', ['builtin.video'])).toBe('mine')
     expect(freshEffectId('Mine', ['mine'])).toBe('mine-2')
     expect(freshEffectId('Mine', ['mine', 'mine-2'])).toBe('mine-3')
+  })
+
+  it('suggests a title no other effect shows', () => {
+    expect(distinctTitle('Mine', ['Video'])).toBe('Mine')
+    expect(distinctTitle('Mine', ['mine'])).toBe('Mine copy')
+    expect(distinctTitle('Mine', ['Mine', 'Mine copy'])).toBe('Mine copy 2')
   })
 })
 

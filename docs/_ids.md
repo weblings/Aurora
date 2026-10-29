@@ -167,6 +167,7 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `linux-post-d-verification` | [log/2026-10-23-linux-post-d-verification.md](log/2026-10-23-linux-post-d-verification.md) | Linux verification of the changes after Sequence D (0e73051 to e1834d0) |
 | `linux-tray-pause` | [log/2026-10-04-linux-tray-pause.md](log/2026-10-04-linux-tray-pause.md) | Aurora-5ipy.16: Linux SNI tray Pause/Resume (closed) |
 | `lmn5-doc-checkers-as-hook` | [log/2026-10-07-lmn5-doc-checkers-as-hook.md](log/2026-10-07-lmn5-doc-checkers-as-hook.md) | Aurora-lmn.5: check-links.sh/check-lessons.sh wired into the pre-commit hook |
+| `lut9-save-as-new-title` | [log/2026-10-29-lut9-save-as-new-title.md](log/2026-10-29-lut9-save-as-new-title.md) | Graph editor: Save as new picks a distinct title |
 | `lzj-embed-and-serving` | [log/2026-10-01-lzj-embed-and-serving.md](log/2026-10-01-lzj-embed-and-serving.md) | Aurora-lzj: toolchain spike investigated, change A (embed + serving) done; HA prep filed |
 | `lzw-github-ci` | [log/2026-10-01-lzw-github-ci.md](log/2026-10-01-lzw-github-ci.md) | Aurora-lzw: GitHub CI unblocked for weblings/Aurora |
 | `m0fy-top-tier-error-owners` | [log/2026-10-07-m0fy-top-tier-error-owners.md](log/2026-10-07-m0fy-top-tier-error-owners.md) | Aurora-m0fy: Dashboard inline errors get one owner per control (closed) |

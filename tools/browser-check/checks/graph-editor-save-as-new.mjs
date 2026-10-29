@@ -46,11 +46,15 @@ await withEditorStack(async ({ editorUrl }) => {
     await page.mouse.move(b.x + b.width / 2, b.y + b.height / 2, { steps: 12 })
     await page.mouse.up()
     await page.waitForFunction(() => document.querySelector('.editor-status')?.textContent.includes('Live'), null, { timeout: 10_000 })
-    await page.locator('.editor-name input').fill('Browser check fork copy')
+    // The name is left alone: the copy still gets a title of its own.
     await page.getByRole('button', { name: 'Save as new' }).click()
-    await page.waitForFunction(() => document.querySelector('.editor-header select')?.value === 'browser-check-fork-copy')
-    created.push('browser-check-fork-copy')
+    await page.waitForFunction(() => document.querySelector('.editor-header select')?.value === 'browser-check-fork-source-copy')
+    created.push('browser-check-fork-source-copy')
     step('Save as new opens the new effect')
+    await page.waitForSelector('.aurora-node')
+    assert.equal(await page.locator('.editor-name input').inputValue(), 'Browser check fork source copy')
+    assert.equal((await api('GET', '/api/effects/browser-check-fork-source')).json.graph.title, 'Browser check fork source')
+    step('the copy has a distinct title; the original keeps its own')
 
     await page.waitForSelector('.aurora-node')
     assert.equal(await page.locator('.react-flow__node').count(), before + 1)

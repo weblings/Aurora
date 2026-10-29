@@ -28,7 +28,7 @@ import { refuseConnection } from './graph/connection'
 import { addEdge, addNode, joinEndpoint, moveNodes, removeEdge, removeNodes, setParam } from './graph/doc'
 import { editorReducer, emptyEditor, sameDoc } from './graph/history'
 import { describeTest } from './graph/lightTest'
-import { freshEffectId, setTitle, titleOf } from './graph/save'
+import { distinctTitle, freshEffectId, setTitle, titleOf } from './graph/save'
 import { NODE_KIND, carryViewState, edgeId, toFlowEdges, toFlowNodes, type AuroraNodeData } from './graph/flow'
 import { groupProblems, sameProblems, type Problems } from './graph/problems'
 import { summarize } from './graph/loop'
@@ -139,8 +139,11 @@ export function App() {
       setNotice('Name the new effect first')
       return
     }
-    const id = isBuiltin || asNew ? freshEffectId(titleOf(doc), effects.map((e) => e.id)) : baseline.id
-    const sent = doc
+    // A copy that kept its original's title would show as a second row of the
+    // same name in the picker, so it takes a distinct one.
+    const sent =
+      asNew && kind !== 'keep' ? setTitle(doc, distinctTitle(titleOf(doc), effects.map((e) => e.title || e.id))) : doc
+    const id = isBuiltin || asNew ? freshEffectId(titleOf(sent), effects.map((e) => e.id)) : baseline.id
     setWriting(true)
     setNotice(null)
     try {
