@@ -3,7 +3,7 @@ import { refuseConnection, type Connection } from './connection'
 import { addEdge, moveNodes, removeEdge, removeNodes, setParam, splitEndpoint } from './doc'
 import { carryViewState, toFlowEdges, toFlowNodes } from './flow'
 import { columnLayout, positionsFor } from './layout'
-import { addStop, effectiveValue } from '../ParamWidget'
+import { addStop, clampStopPos, effectiveValue } from '../ParamWidget'
 import { builtinLike, catalog, customLike } from './fixtures'
 
 const without = <T extends object>(obj: T, key: string) => {
@@ -206,6 +206,15 @@ describe('effectiveValue', () => {
 })
 
 describe('gradient stops', () => {
+  it('clamps a stop between its neighbours and 0..1', () => {
+    const stops = [{ pos: 0.1, color: '#000000' }, { pos: 0.5, color: '#111111' }, { pos: 0.9, color: '#222222' }]
+    expect(clampStopPos(stops, 1, 0.95)).toBe(0.9)
+    expect(clampStopPos(stops, 1, 0.05)).toBe(0.1)
+    expect(clampStopPos(stops, 1, 0.7)).toBe(0.7)
+    expect(clampStopPos(stops, 0, -1)).toBe(0)
+    expect(clampStopPos(stops, 2, 5)).toBe(1)
+  })
+
   it('inserts a stop in the widest gap with the earlier stop color', () => {
     const next = addStop([{ pos: 0, color: '#111111' }, { pos: 0.2, color: '#222222' }, { pos: 1, color: '#333333' }])
     expect(next.map((s) => s.pos)).toEqual([0, 0.2, 0.6, 1])

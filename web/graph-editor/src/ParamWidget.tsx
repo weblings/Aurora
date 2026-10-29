@@ -145,7 +145,7 @@ function GradientInput({ stops, onChange }: { stops: GradientStop[]; onChange: (
             step={0.05}
             value={stop.pos}
             onChange={(e) => {
-              if (Number.isFinite(e.target.valueAsNumber)) replace(i, { pos: e.target.valueAsNumber })
+              if (Number.isFinite(e.target.valueAsNumber)) replace(i, { pos: clampStopPos(stops, i, e.target.valueAsNumber) })
             }}
           />
           <button
@@ -167,6 +167,14 @@ function GradientInput({ stops, onChange }: { stops: GradientStop[]; onChange: (
       </button>
     </span>
   )
+}
+
+// The loader wants stops in ascending pos within 0..1, so a stop cannot be
+// dragged past its neighbours.
+export function clampStopPos(stops: GradientStop[], index: number, pos: number): number {
+  const low = index > 0 ? stops[index - 1].pos : 0
+  const high = index < stops.length - 1 ? stops[index + 1].pos : 1
+  return Math.min(high, Math.max(low, pos))
 }
 
 // New stop at the end of the widest gap, with the color of the stop before it.
