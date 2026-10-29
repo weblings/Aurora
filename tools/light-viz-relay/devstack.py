@@ -2,6 +2,7 @@
 """Bring the fake-Hue light viz stack up/down in one command (dev-only).
 
     py tools/light-viz-relay/devstack.py up [--app PATH] [--viz-port 8000]
+    py tools/light-viz-relay/devstack.py restart [--app PATH]
     py tools/light-viz-relay/devstack.py status
     py tools/light-viz-relay/devstack.py down
 
@@ -185,6 +186,32 @@ def _start(args, app, env, pids):
     print(f"logs: {STATE}")
 
 
+def restart(args):
+    """Relaunch the app on the config root `up` left behind (no --fresh wipe).
+
+    The config root is pinned with AURORA_CONFIG_DIR, so the real user config is
+    never read or written. Prints the WebUI origin; the port must not change.
+    """
+    if not STATE_FILE.exists():
+        sys.exit("not up -- run `up` first")
+    app = Path(args.app) if args.app else DEFAULT_APP
+    pids = json.loads(STATE_FILE.read_text())
+    before = find_webui()
+    kill(pids["app"])
+    wait_for(lambda: not port_open(before) if before else True, "the old app to stop")
+    root = Path(tempfile.gettempdir()) / "aurora-fresh"
+    env = dict(os.environ, AURORA_DEV_LIGHT_TAP="1", AURORA_CONFIG_DIR=str(root))
+    if WIN:
+        env["PATH"] += r";C:\Program Files\Git\usr\bin"
+    pids["app"] = spawn("app", [str(app), "--fake-hue"], env)
+    STATE_FILE.write_text(json.dumps(pids))
+    port = wait_for(find_webui, "the restarted app's WebUI port", 60)
+    if before and port != before:
+        sys.exit(f"WebUI moved from {before} to {port}; clients on the old port are lost")
+    wait_for(one_frame, "a frame on the relay SSE after restart", 40)
+    print(f"RESTARTED. WebUI http://127.0.0.1:{port}/")
+
+
 def status(_):
     if not STATE_FILE.exists():
         return print("down (no state file)")
@@ -219,7 +246,9 @@ if __name__ == "__main__":
     # Off by default: Aurora only captures inputs the user chose, and the gate needs that state too.
     u.add_argument("--audio-input", nargs="?", const="live",
                    help='also choose an audio input, for audio or both-input graphs; bare flag: this platform\'s')
+    r = sub.add_parser("restart")
+    r.add_argument("--app")
     sub.add_parser("status")
     sub.add_parser("down")
     a = ap.parse_args()
-    {"up": up, "status": status, "down": down}[a.cmd](a)
+    {"up": up, "restart": restart, "status": status, "down": down}[a.cmd](a)

@@ -52,6 +52,7 @@ await withEditorStack(async ({ editorUrl }) => {
     created.push('browser-check-fork-copy')
     step('Save as new opens the new effect')
 
+    await page.waitForSelector('.aurora-node')
     assert.equal(await page.locator('.react-flow__node').count(), before + 1)
     assert.equal(JSON.stringify((await api('GET', '/api/effects/browser-check-fork-source')).json), original)
     assert.equal((await api('GET', '/api/config')).json.activeEffectId, live)
