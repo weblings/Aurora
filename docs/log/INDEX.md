@@ -302,3 +302,4 @@ Planning docs stay clean: decisions, status, and pointers here only.
 | 2026-10-29 | Graph editor thumbnail places the active output's zones at their `/api/zones` uv regions; grid kept for the rest; Vitest, browser-checked on the 4-zone map. [[qv7a-thumbnail-regions]] | `bd show Aurora-qv7a`, `bd show Aurora-9tp0` |
 | 2026-10-29 | Graph editor addNode: optional-floats left unset, output-bound nodes start on a registered output, enum select placeholder; Vitest and gate step. [[pvxx16-17-addnode-defaults]] | `bd show Aurora-pvxx.16`, `bd show Aurora-pvxx.17` |
 | 2026-10-29 | Graph editor fit holds at laptop width: panels reserve width while loading, `minZoom` 0.2; E6 gate window 2200 → 1470 px. [[fzzr-laptop-width-fit]] | `bd show Aurora-fzzr` |
+| 2026-10-29 | Browser checks edit-loop, add-node, save-as-new moved to 1470 px and rerun on dev and embedded, all pass. [[4hhb-browser-check-1470]] | `bd show Aurora-4hhb` |

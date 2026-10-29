@@ -10,7 +10,7 @@ const created = []
 
 await withEditorStack(async ({ editorUrl, aurora }) => {
   const browser = await launch()
-  const page = await browser.newPage({ viewport: { width: 1500, height: 900 } })
+  const page = await browser.newPage({ viewport: { width: 1470, height: 900 } })
   page.on('pageerror', (e) => assert.fail(`page error: ${e.message}`))
 
   // Calls from inside the page go through the dev proxy, which sets Origin.
