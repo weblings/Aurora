@@ -165,6 +165,18 @@ await withEditorStack(async ({ editorUrl, restart }) => {
     assert.equal(await page.locator('.problem-badge').count(), 0)
     step('a palette node is added and wired in, preview Live')
 
+    // An output-bound node starts on a registered output, so it has no problem badge.
+    const beforeSend = await page.locator('.react-flow__node').count()
+    await page.locator('.palette-item', { hasText: 'Send to output' }).first().click()
+    await page.waitForFunction((n) => document.querySelectorAll('.react-flow__node').length === n + 1, beforeSend)
+    const sendNode = page.locator('.aurora-node', { hasText: 'Send to output' }).last()
+    assert.equal(await sendNode.locator('.problem-badge').count(), 0)
+    assert.equal(await sendNode.locator('select[aria-label=output]').inputValue(), 'hue')
+    await sendNode.locator('.aurora-node-header').click()
+    await page.keyboard.press('Backspace')
+    await page.waitForFunction((n) => document.querySelectorAll('.react-flow__node').length === n, beforeSend)
+    step('an output-bound palette node starts on a registered output with no problem')
+
     // Save as new from the custom effect: the original keeps its graph.
     const originalNodes = (await api('GET', '/api/effects/gate-check')).json.graph.nodes.length
     await page.locator('.editor-name input').fill('Gate copy')

@@ -1,5 +1,5 @@
 import { dropControlsOf } from './controls'
-import type { GraphDoc, GraphEdge, NodeTypeInfo, ParamValue, Position } from './types'
+import type { GraphDoc, GraphEdge, NodeTypeInfo, ParamInfo, ParamValue, Position } from './types'
 
 // Every edit returns a new document and leaves the old one untouched, so the
 // whole graph stays one JSON value that undo and autosave can snapshot.
@@ -59,12 +59,21 @@ export function freshNodeId(doc: GraphDoc, type: string): string {
   }
 }
 
+// An enum whose default is not one of its options (the output binding defaults
+// to "") would badge the new node; start it on the first option instead.
+function defaultFor(p: ParamInfo): ParamValue {
+  if (p.kind === 'enum' && p.options?.length && !p.options.includes(String(p.default))) return p.options[0]
+  return p.default
+}
+
 // Appends a node of `info`'s type with every param at its default, placed at
 // `at` (saved in `ui`, so it stays where it was dropped).
 export function addNode(doc: GraphDoc, info: NodeTypeInfo, at: Position): GraphDoc {
   const id = freshNodeId(doc, info.type)
   // An optional-float's catalog default is a display placeholder; omitted means unset.
-  const params = Object.fromEntries(info.params.filter((p) => p.kind !== 'optional-float').map((p) => [p.name, p.default]))
+  const params = Object.fromEntries(
+    info.params.filter((p) => p.kind !== 'optional-float').map((p) => [p.name, defaultFor(p)]),
+  )
   return {
     ...doc,
     nodes: [...doc.nodes, { id, type: info.type, params }],

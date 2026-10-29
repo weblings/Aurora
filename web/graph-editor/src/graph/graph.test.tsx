@@ -1,14 +1,15 @@
 import { describe, expect, it } from 'vitest'
+import { renderToStaticMarkup } from 'react-dom/server'
 import { refuseConnection, type Connection } from './connection'
 import { addEdge, addNode, moveNodes, removeEdge, removeNodes, setParam, splitEndpoint } from './doc'
 import { carryViewState, toFlowEdges, toFlowNodes } from './flow'
 import { paletteGroups } from './palette'
 import { editorReducer, emptyEditor } from './history'
 import { columnLayout, positionsFor } from './layout'
-import { addStop, clampStopPos, effectiveValue } from '../ParamWidget'
+import { ParamWidget, addStop, clampStopPos, effectiveValue } from '../ParamWidget'
 import { builtinLike, catalog, customLike } from './fixtures'
 import nodesSample from './server-samples/nodes.json'
-import type { Catalog, NodeTypeInfo } from './types'
+import type { Catalog, NodeTypeInfo, ParamInfo } from './types'
 
 const without = <T extends object>(obj: T, key: string) => {
   const { [key]: _drop, ...rest } = obj as Record<string, unknown>
@@ -254,6 +255,14 @@ describe('addNode', () => {
       expect(drift.params?.[p.name]).toEqual(p.default)
   })
 
+  it('starts an output-bound node on a registered output, not ""', () => {
+    const real: Catalog = new Map((nodesSample.nodes as unknown as NodeTypeInfo[]).map((n) => [n.type, n]))
+    for (const type of ['output.send', 'zones.sample', 'frame.smooth', 'frame.broadcast']) {
+      const added = addNode(builtinLike(), real.get(type)!, { x: 0, y: 0 }).nodes.at(-1)!
+      expect(added.params?.output).toBe('hue')
+    }
+  })
+
   it('is one history entry and round-trips through the adapter', () => {
     const doc = builtinLike()
     let state = editorReducer(emptyEditor, { type: 'open', doc })
@@ -272,5 +281,22 @@ describe('paletteGroups', () => {
     const groups = paletteGroups(catalog)
     expect(groups.map((g) => g.prefix)).toEqual(['audio', 'frame', 'image', 'output', 'video', 'zones'])
     expect(groups.flatMap((g) => g.types)).toHaveLength(catalog.size)
+  })
+})
+
+describe('enum widget', () => {
+  const output: ParamInfo = { name: 'output', label: '', description: '', kind: 'enum', default: '', options: ['hue'] }
+  const render = (value: string) =>
+    renderToStaticMarkup(<ParamWidget info={output} value={value} onChange={() => {}} onCommit={() => {}} />)
+
+  it('shows a placeholder for a value that is not an option, so picking an option fires a change', () => {
+    const html = render('')
+    expect(html).toContain('choose...')
+    expect(html).toMatch(/<option value="" disabled(="")?[^>]*>choose\.\.\.<\/option>/)
+    expect(html).toContain('<option value="hue"')
+  })
+
+  it('has no placeholder when the value is an option', () => {
+    expect(render('hue')).not.toContain('choose...')
   })
 })

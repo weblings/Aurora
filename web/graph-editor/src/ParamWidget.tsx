@@ -102,6 +102,11 @@ function renderInput(info: ParamInfo, current: ParamValue, onChange: (v: ParamVa
       }
       return (
         <select aria-label={info.name} value={String(current)} onChange={(e) => onDiscrete(e.target.value)}>
+          {options.includes(String(current)) ? null : (
+            <option value={String(current)} disabled>
+              choose...
+            </option>
+          )}
           {options.map((option) => (
             <option key={option} value={option}>
               {option}
