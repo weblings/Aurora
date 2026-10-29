@@ -13,16 +13,20 @@ import {
   type Node,
   type NodeChange,
 } from '@xyflow/react'
-import { fetchCatalog, fetchEffectGraph, fetchEffects } from './api'
+import { applyGraph, fetchCatalog, fetchEffectGraph, fetchEffects, putDraft, saveGraph, type WriteResult } from './api'
 import { EditorContext, type EditorActions } from './EditorContext'
 import { GenericNode } from './GenericNode'
+import { Inspector } from './Inspector'
 import { ProblemsContext } from './ProblemsContext'
 import { ZoneThumbnail } from './ZoneThumbnail'
-import { useDraftLoop } from './useDraftLoop'
+import { tabSession, useDraftLoop } from './useDraftLoop'
+import { useLightTest } from './useLightTest'
 import { restorable, clearUnsaved, syncUnsaved } from './graph/autosave'
 import { refuseConnection } from './graph/connection'
 import { addEdge, joinEndpoint, moveNodes, removeEdge, removeNodes, setParam } from './graph/doc'
-import { editorReducer, emptyEditor } from './graph/history'
+import { editorReducer, emptyEditor, sameDoc } from './graph/history'
+import { describeTest } from './graph/lightTest'
+import { freshEffectId, setTitle, titleOf } from './graph/save'
 import { NODE_KIND, carryViewState, edgeId, toFlowEdges, toFlowNodes, type AuroraNodeData } from './graph/flow'
 import { groupProblems, sameProblems, type Problems } from './graph/problems'
 import { summarize } from './graph/loop'
@@ -46,6 +50,11 @@ export function App() {
   // A browser-stored copy of unsaved edits from an earlier visit, awaiting a choice.
   const [offer, setOffer] = useState<GraphDoc | null>(null)
   const [error, setError] = useState<string | null>(null)
+  // The outcome of the last Save / Save and apply / Keep.
+  const [notice, setNotice] = useState<string | null>(null)
+  const [writing, setWriting] = useState(false)
+  // The document the running test was started from.
+  const [tested, setTested] = useState<GraphDoc | null>(null)
   const [refusal, setRefusal] = useState<string | null>(null)
   // What React Flow has told us (selection, measured sizes, a drag in progress).
   // The nodes it draws are derived from `doc` in the same render, so a param
@@ -90,6 +99,80 @@ export function App() {
   }, [doc, baseline, offer])
 
   const loop = useDraftLoop(doc)
+  const session = useMemo(tabSession, [])
+  const docRef = useRef(doc)
+  docRef.current = doc
+  const lights = useLightTest(session, () => putDraft(session, docRef.current!))
+  const testing = lights.state.phase === 'running'
+  const testNote = describeTest(lights.state)
+  const changedSinceTest = testing && tested !== null && doc !== null && !sameDoc(tested, doc)
+  const dirty = useMemo(() => (doc && baseline ? !sameDoc(baseline.doc, doc) : false), [doc, baseline])
+  const isBuiltin = effects.find((e) => e.id === effectId)?.builtin ?? effectId.startsWith('builtin.')
+  const needsName = isBuiltin && doc !== null && titleOf(doc).trim() === ''
+  const picked = nodeView.filter((n) => n.selected)
+  const selectedId = picked.length === 1 ? picked[0].id : null
+
+  useEffect(() => {
+    const url = new URL(window.location.href)
+    if (url.searchParams.get('effect') === effectId) return
+    url.searchParams.set('effect', effectId)
+    window.history.replaceState(null, '', url)
+  }, [effectId])
+
+  const startTest = () => {
+    setNotice(null)
+    setTested(docRef.current)
+    void lights.start()
+  }
+
+  // Save, Save and apply and Keep write the document under an id: the open
+  // custom effect's, or a fresh one named after the title when a built-in is
+  // open (a built-in is never overwritten).
+  const write = async (kind: 'save' | 'apply' | 'keep') => {
+    if (!doc || !baseline || writing) return
+    if (needsName) {
+      setNotice('Name the new effect first')
+      return
+    }
+    const id = isBuiltin ? freshEffectId(titleOf(doc), effects.map((e) => e.id)) : baseline.id
+    const sent = doc
+    setWriting(true)
+    setNotice(null)
+    try {
+      let result: WriteResult
+      if (kind === 'keep') {
+        result = await lights.keep(id)
+      } else {
+        const verdict = await putDraft(session, sent)
+        if (!verdict.valid) {
+          const n = verdict.errors.length
+          setNotice(`Fix the ${n} ${n === 1 ? 'problem' : 'problems'} before saving`)
+          return
+        }
+        result = kind === 'save' ? await saveGraph(session, id) : await applyGraph(session, id)
+      }
+      if (!result.ok) {
+        setNotice(result.reason)
+        return
+      }
+      const live = kind !== 'save'
+      setNotice(
+        `${live ? 'Saved and live' : 'Saved'} as ${titleOf(sent) || id}${result.reloadError ? `. Reload: ${result.reloadError}` : ''}`,
+      )
+      fetchEffects().then(setEffects).catch(() => {})
+      if (id !== baseline.id) {
+        // The built-in stays as it was; its edits now live in the new effect.
+        clearUnsaved(baseline.id)
+        setEffectId(id)
+      } else {
+        setBaseline({ id, doc: sent })
+      }
+    } catch (e) {
+      setNotice((e as Error).message)
+    } finally {
+      setWriting(false)
+    }
+  }
   const summary = summarize(loop.state)
   // Keep the previous object while the messages are unchanged, so a preview
   // event that repeats the same runtime error does not re-render every node.
@@ -207,7 +290,10 @@ export function App() {
       <header className="editor-header">
         <img src={`${import.meta.env.BASE_URL}icon.svg`} width={20} height={20} alt="" />
         <strong>Aurora graph editor</strong>
-        <select aria-label="Effect" value={effectId} onChange={(e) => setEffectId(e.target.value)}>
+        <select aria-label="Effect" value={effectId} onChange={(e) => {
+            setNotice(null)
+            setEffectId(e.target.value)
+          }}>
           {effects.some((e) => e.id === effectId) ? null : <option value={effectId}>{effectId}</option>}
           {effects.map((e) => (
             <option key={e.id} value={e.id}>
@@ -255,6 +341,49 @@ export function App() {
         {refusal ? <span className="editor-refusal">{refusal}</span> : null}
         {error ? <span className="editor-error">{error}</span> : null}
       </header>
+      <div className="editor-actions">
+        <label className="editor-name">
+          Name
+          <input
+            type="text"
+            value={doc ? titleOf(doc) : ''}
+            placeholder={isBuiltin ? 'Name the new effect' : 'Effect name'}
+            disabled={!doc}
+            onChange={(e) => edit((d) => setTitle(d, e.target.value))}
+          />
+        </label>
+        {testing ? (
+          <>
+            <button type="button" onClick={() => void write('keep')} disabled={writing || changedSinceTest} title={changedSinceTest ? 'The graph changed since the test started. Test again, or use Save and apply' : 'Make the tested graph the live effect'}>
+              Keep
+            </button>
+            <button type="button" onClick={() => void lights.revert()} disabled={writing}>
+              Revert
+            </button>
+          </>
+        ) : (
+          <button
+            type="button"
+            onClick={startTest}
+            disabled={!doc || loop.state.valid !== true || lights.state.phase !== 'idle'}
+            title={loop.state.valid === false ? 'Fix the problems before testing' : 'Show this graph on the real lights for a while, then put them back'}
+          >
+            {lights.state.other ? 'Take over the lights' : 'Test on lights'}
+          </button>
+        )}
+        <button type="button" onClick={() => void write('save')} disabled={!doc || writing} title="Save as a custom effect without changing the live effect">
+          Save
+        </button>
+        <button type="button" onClick={() => void write('apply')} disabled={!doc || writing} title="Save and make it the live effect">
+          Save and apply
+        </button>
+        {dirty ? <span className="editor-dirty">Unsaved changes</span> : null}
+        <span className="editor-test-note" role="status" aria-live="polite">
+          {testNote}
+        </span>
+        {notice ? <span className="editor-notice">{notice}</span> : null}
+      </div>
+      <div className="editor-body">
       <div className="editor-canvas">
         {problems.graph.length > 0 ? (
           <ul className="editor-graph-problems">
@@ -286,6 +415,8 @@ export function App() {
           </ReactFlow>
         </EditorContext.Provider>
         </ProblemsContext.Provider>
+      </div>
+      {doc && catalog ? <Inspector doc={doc} catalog={catalog} selected={selectedId} edit={edit} /> : null}
       </div>
     </div>
   )

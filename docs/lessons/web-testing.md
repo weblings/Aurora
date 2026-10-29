@@ -46,6 +46,8 @@ Playwright/Puppeteer-equivalent). Node itself also isn't on this machine's
 WSL2 `PATH` (only Windows' own install is), so the check runs from the
 Windows side.
 
+**Update (Aurora-pvxx.11):** a real browser is available now: `tools/browser-check` drives a cached Playwright Chromium with `playwright-core` (no browser download); use it for anything needing real layout or events, and keep jsdom for the no-browser case below.
+
 **Fix:** `npm install jsdom --no-save` in the session's scratchpad directory
 (never the repo -- it's a test-only dependency, same relationship Catch2 has
 to the C++ repos' shipped binaries) and load the real `index.html`/`.js`

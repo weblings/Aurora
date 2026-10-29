@@ -35,9 +35,17 @@ body {
   color: var(--aurora-text-primary);
 }
 
-.editor-canvas {
+.editor-body {
   flex: 1;
   min-height: 0;
+  display: flex;
+}
+
+.editor-canvas {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  position: relative;
 }
 
 .react-flow {
@@ -279,4 +287,119 @@ body {
 
 .problem-text {
   color: var(--aurora-text-primary);
+}
+
+.editor-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--aurora-space-3);
+  align-items: center;
+  padding: var(--aurora-space-2) var(--aurora-space-5);
+  background: var(--aurora-surface);
+  border-bottom: 1px solid var(--aurora-border);
+  color: var(--aurora-text-secondary);
+}
+
+.editor-actions button,
+.editor-actions input[type='text'],
+.inspector input[type='text'],
+.inspector button {
+  background: var(--aurora-bg);
+  color: var(--aurora-text-primary);
+  border: 1px solid var(--aurora-border);
+  border-radius: var(--aurora-radius-control);
+  padding: var(--aurora-space-1) var(--aurora-space-3);
+}
+
+.editor-actions button:disabled,
+.inspector button:disabled {
+  opacity: 0.5;
+}
+
+.editor-name {
+  display: inline-flex;
+  gap: var(--aurora-space-2);
+  align-items: center;
+}
+
+.editor-dirty,
+.editor-test-note,
+.editor-notice {
+  color: var(--aurora-text-primary);
+}
+
+.editor-notice {
+  margin-left: auto;
+  font-weight: 600;
+}
+
+.inspector {
+  width: 280px;
+  flex: none;
+  overflow-y: auto;
+  padding: var(--aurora-space-3) var(--aurora-space-5);
+  background: var(--aurora-surface);
+  border-left: 1px solid var(--aurora-border);
+  font-size: 12px;
+  color: var(--aurora-text-secondary);
+}
+
+.inspector h3,
+.inspector h4 {
+  margin: var(--aurora-space-3) 0;
+  color: var(--aurora-text-primary);
+}
+
+.inspector h3 small {
+  color: var(--aurora-text-secondary);
+  font-weight: 400;
+}
+
+.inspector-ports,
+.inspector-controls {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.inspector-ports li {
+  margin-bottom: var(--aurora-space-2);
+}
+
+.inspector-check,
+.inspector-field {
+  display: flex;
+  gap: var(--aurora-space-2);
+  align-items: center;
+  margin: var(--aurora-space-1) 0;
+}
+
+.inspector-field span {
+  width: 52px;
+  flex: none;
+}
+
+.inspector-field input {
+  flex: 1;
+  min-width: 0;
+}
+
+.inspector-controls li {
+  padding: var(--aurora-space-3) 0;
+  border-top: 1px solid var(--aurora-divider);
+}
+
+.inspector-control-head {
+  display: flex;
+  gap: var(--aurora-space-2);
+  align-items: center;
+  color: var(--aurora-text-primary);
+}
+
+.inspector-control-head span {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }

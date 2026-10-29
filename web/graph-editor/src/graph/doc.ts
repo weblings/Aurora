@@ -1,3 +1,4 @@
+import { dropControlsOf } from './controls'
 import type { GraphDoc, GraphEdge, ParamValue, Position } from './types'
 
 // Every edit returns a new document and leaves the old one untouched, so the
@@ -33,7 +34,7 @@ export function removeEdge(doc: GraphDoc, edge: GraphEdge): GraphDoc {
   return { ...doc, edges: doc.edges.filter((e) => e[0] !== edge[0] || e[1] !== edge[1]) }
 }
 
-// Removes nodes with their edges and layout entries.
+// Removes nodes with their edges, layout entries and Dashboard controls.
 export function removeNodes(doc: GraphDoc, ids: ReadonlySet<string>): GraphDoc {
   const next: GraphDoc = {
     ...doc,
@@ -45,5 +46,5 @@ export function removeNodes(doc: GraphDoc, ids: ReadonlySet<string>): GraphDoc {
   if (doc.ui) {
     next.ui = Object.fromEntries(Object.entries(doc.ui).filter(([id]) => !ids.has(id)))
   }
-  return next
+  return dropControlsOf(next, ids)
 }

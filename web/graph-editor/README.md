@@ -14,14 +14,17 @@ binary when `AURORA_ENABLE_GRAPH_EDITOR` is ON (needs Node >= 22.12; see
   `connection.ts` (the wiring rules), `history.ts` (undo reducer),
   `autosave.ts` (browser backup of unsaved edits), `problems.ts` (server errors
   regrouped per node/port/param), `loop.ts` (draft/preview states), `frame.ts`
-  (preview events). `fixtures.ts` + `graph.test.ts` are the
+  (preview events), `lightTest.ts` (test-on-lights states), `controls.ts`
+  (the Dashboard `controls` list), `save.ts` (new effect ids). `fixtures.ts` + `graph.test.ts` are the
   Vitest suite.
 - `src/GenericNode.tsx`, `src/ParamWidget.tsx` -- one node component draws any
   `/api/nodes` entry; one widget per param kind.
 - `src/useDraftLoop.ts` -- sends the draft and holds the preview stream;
   `ZoneThumbnail.tsx` draws its frames from a ref, not state.
+- `src/useLightTest.ts` -- heartbeat, countdown and holder polling for a test;
+  `Inspector.tsx` -- node details and the Dashboard controls list.
 - `src/api.ts` -- the only server calls (`/api/nodes`, `/api/effects`,
-  `/api/effects/:id`, drafts, preview URL). Paths are root-absolute on purpose (Aurora's API ignores
+  `/api/effects/:id`, drafts, preview URL, test, save, apply). Paths are root-absolute on purpose (Aurora's API ignores
   the editor's base); asset URLs are built from `import.meta.env.BASE_URL`.
 
 ## Invariants
@@ -41,3 +44,11 @@ binary when `AURORA_ENABLE_GRAPH_EDITOR` is ON (needs Node >= 22.12; see
 
 `npm run dev` (hot reload; `AURORA_PORT=<port>` points `/api` at a running
 Aurora), `npm run typecheck`, `npm test`.
+
+## Saving
+
+A built-in is never overwritten: Save, Save and apply and Keep write it under a
+new id slugged from the Name box (`save.ts`) and then open that effect. A
+custom effect is saved over its own id. Keep is `/api/graph/test/confirm`, so
+the server refuses it once the draft differs from the tested graph; the button
+is disabled by the same comparison.
