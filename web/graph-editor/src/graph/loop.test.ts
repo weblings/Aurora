@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { layoutCells, parseFrame } from './frame'
+import { layoutCells, layoutThumbnail, parseFrame, parseZoneRegions, SCREEN_ROWS } from './frame'
 import { initialLoop, loopReducer, reopenDelay, summarize, type LoopEvent, type LoopState } from './loop'
 import { groupProblems, sameProblems, unattributed, type ServerIssue } from './problems'
 
@@ -163,5 +163,51 @@ describe('preview frames', () => {
     expect(cells).toHaveLength(11)
     expect(cells[8]).toMatchObject({ x: 0, y: 1 })
     expect(cells[10]).toMatchObject({ x: 0, y: 2 })
+  })
+})
+
+describe('layoutThumbnail', () => {
+  const zones = {
+    outputName: 'hue',
+    zones: [
+      { zoneId: 0, uvs: { min: [0, 0], max: [0.5, 0.5] }, active: true },
+      { zoneId: 1, uvs: { min: [0.5, 0.5], max: [1, 1] }, active: true },
+      { zoneId: 2, uvs: { min: [0.4, 0.4], max: [0.4, 0.9] }, active: true },
+      { zoneId: 3, active: true },
+    ],
+  }
+  const frame = parseFrame(
+    JSON.stringify({
+      outputs: [
+        { output: 'hue', zones: [0, 1, 2, 3, 4].map((id) => ({ id, r: 1, g: 0, b: 0 })) },
+        { output: 'strip', zones: [{ id: 0, r: 0, g: 0, b: 0 }] },
+      ],
+      errors: [],
+    }),
+  )!
+
+  it('keeps only zones with a usable uv rect', () => {
+    expect(parseZoneRegions(zones)!.zones.map((z) => z.id)).toEqual([0, 1])
+    expect(parseZoneRegions({ outputName: 'x' })).toBeNull()
+    expect(parseZoneRegions(null)).toBeNull()
+  })
+
+  it('places the active output at its regions and grids the rest below', () => {
+    const { rects, rows, panelRows } = layoutThumbnail(frame, parseZoneRegions(zones), 8)
+    expect(panelRows).toBe(SCREEN_ROWS)
+    expect(rects[0]).toMatchObject({ x: 0, y: 0, w: 4, h: SCREEN_ROWS / 2 })
+    expect(rects[1]).toMatchObject({ x: 4, y: SCREEN_ROWS / 2, w: 4, h: SCREEN_ROWS / 2 })
+    // zones 2-4 of hue (no region) then the strip: one wrapped row of 3, one of 1 output row
+    expect(rects).toHaveLength(2 + 3 + 1)
+    expect(rects[2]).toMatchObject({ x: 0, y: SCREEN_ROWS + 0.25, w: 1, h: 1 })
+    expect(rows).toBe(SCREEN_ROWS + 0.25 + 2)
+  })
+
+  it('falls back to the plain grid without regions or for another output', () => {
+    const plain = layoutThumbnail(frame, null, 8)
+    expect(plain.panelRows).toBe(0)
+    expect(plain.rects).toHaveLength(6)
+    const other = layoutThumbnail(frame, { output: 'elsewhere', zones: [] }, 8)
+    expect(other.rows).toBe(2)
   })
 })

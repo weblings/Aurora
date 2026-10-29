@@ -1,3 +1,4 @@
+import { parseZoneRegions, type ZoneRegions } from './graph/frame'
 import type { Holder } from './graph/lightTest'
 import type { ServerIssue } from './graph/problems'
 import type { Catalog, EffectListEntry, GraphDoc, NodeTypeInfo } from './graph/types'
@@ -20,6 +21,11 @@ export async function fetchEffects(): Promise<EffectListEntry[]> {
 
 export async function fetchEffectGraph(id: string): Promise<GraphDoc> {
   return (await getJson<{ graph: GraphDoc }>(`/api/effects/${encodeURIComponent(id)}`)).graph
+}
+
+// Where the active output's zones sample the screen; null when unavailable.
+export async function fetchZoneRegions(): Promise<ZoneRegions | null> {
+  return parseZoneRegions(await getJson<unknown>('/api/zones'))
 }
 
 export type DraftVerdict = { valid: boolean; errors: ServerIssue[] }

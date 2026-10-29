@@ -23,7 +23,8 @@ link (`web/ui`, `graphEditorHref`) opens it with `?effect=<running effect>`. Pla
 - `src/Palette.tsx` -- the add-node list (`graph/palette.ts` groups catalog
   types by prefix); click adds at the view centre, a drop adds at the pointer.
 - `src/useDraftLoop.ts` -- sends the draft and holds the preview stream;
-  `ZoneThumbnail.tsx` draws its frames from a ref, not state.
+  `ZoneThumbnail.tsx` draws its frames from a ref, not state, placing the
+  active output's zones at their `/api/zones` uv regions (grid for the rest).
 - `src/useLightTest.ts` -- heartbeat, countdown and holder polling for a test;
   `Inspector.tsx` -- node details and the Dashboard controls list.
 - `src/api.ts` -- the only server calls (`/api/nodes`, `/api/effects`,
