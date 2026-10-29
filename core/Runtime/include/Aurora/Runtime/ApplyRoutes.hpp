@@ -40,6 +40,15 @@ namespace Aurora::Runtime
   // 422 "invalid_graph" with "valid": false and "errors" as the draft routes
   // report them, 500 "write_failed". With X-Aurora-Client: mcp the applied id
   // also becomes Config's mcpEffectId (reported by GET /api/state).
+  // POST /api/graph/save {"session": string, "id": string}: apply without
+  // going live. Same checks and refusals, same write to effects/<id>.json, but
+  // activeEffectId and mcpEffectId are left alone. When <id> is the active
+  // custom effect the pipeline reloads from the file (swap in place, else
+  // reload), so what runs matches what is saved. Needs `apply` like apply.
+  // Answers {"succeeded": true, "id", "activeEffectId" (unchanged), "effect",
+  // "requestedEffect"} plus "reloadError". Core route only; not mirrored in
+  // /api/v1 (Aurora-pvxx.1).
+  //
   // PUT /api/effects/<id>/params {"params": [{"node", "param", "value"}]}: Tuning
   // edits on a custom effect. Sets each node param in effects/<id>.json, then,
   // when <id> is the active effect, applies like POST /api/graph/apply (swap in

@@ -188,6 +188,64 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+  /api/v1/effects/{id}/duplicate:
+    post:
+      operationId: duplicateEffect
+      summary: Copy an effect to a new custom id
+      description: >-
+        Needs the Apply scope. The source is a built-in or a custom effect, and
+        the copy is a custom effect with the same graph, title and description.
+        A file is never replaced and the active effect does not change.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: The effect to copy.
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DuplicateBody'
+      responses:
+        '200':
+          description: Copied.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Duplicated'
+        '400':
+          description: Bad body or new id (`invalid_body`, `invalid_effect_id`).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: No such source effect (`unknown_effect`).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: The new id is taken (`effect_exists`).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '422':
+          description: The source file is not valid JSON (`unreadable_effect`).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: The copy could not be saved (`write_failed`).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
   /api/v1/descriptors:
     get:
       operationId: listDescriptors
@@ -642,6 +700,53 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+  /api/v1/graph/save:
+    post:
+      operationId: saveGraph
+      summary: Save a draft as an effect without running it
+      description: >-
+        Needs the Apply scope. The same checks and write as `POST
+        /api/v1/graph/apply`, but the active effect does not change. When `id`
+        is the active custom effect it is reloaded from the new file, so what
+        runs matches what is saved. `activeEffectId` in the answer is the
+        unchanged setting.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ApplyBody'
+      responses:
+        '200':
+          description: Saved. `reloadError` is set when reloading the active effect failed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Applied'
+        '400':
+          description: Bad body, session or effect id (`invalid_body`, `invalid_session`, `invalid_effect_id`).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: No such draft (`no_draft`).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '422':
+          description: The draft is not valid (`invalid_graph`).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InvalidGraph'
+        '500':
+          description: The effect could not be saved (`write_failed`).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
   /api/v1/pairing/status:
     get:
       operationId: getPairingStatus
@@ -800,6 +905,23 @@ components:
         id:
           type: string
           description: The custom effect id to save the draft as.
+    DuplicateBody:
+      type: object
+      required: [id]
+      properties:
+        id:
+          type: string
+          description: The custom effect id for the copy.
+    Duplicated:
+      type: object
+      required: [succeeded, id, source]
+      properties:
+        succeeded:
+          type: boolean
+        id:
+          type: string
+        source:
+          type: string
     ValidationIssue:
       type: object
       required: [node, message, code, port, param, options]

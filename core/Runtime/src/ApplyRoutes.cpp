@@ -41,6 +41,7 @@ namespace Aurora::Runtime
   void addApplyAccessRules(AccessGuard& guard)
   {
     guard.addWriteRule("/api/graph/apply", Scope::Apply);
+    guard.addWriteRule("/api/graph/save", Scope::Apply);
   }
 
 
@@ -62,8 +63,10 @@ namespace Aurora::Runtime
     Graph::registerAllNodes(*nodes, true);
     auto coalescer = std::make_shared<ReloadCoalescer>(std::move(applyLive));
 
-    ApplyDraftFn apply = [&pipelineHost, &registry, configRoot, drafts, nodes, coalescer](
-      const std::string& session, const std::string& id, const std::string& client, nlohmann::json& body){
+    // Validate the session's draft and write it under `id`: the part of apply
+    // that save shares. Fills `body` on a refusal and returns the status, or 0.
+    auto saveDraft = [&registry, configRoot, drafts, nodes](
+      const std::string& session, const std::string& id, nlohmann::json& body){
       if(!DraftStore::validSession(session)){
         body = {{"succeeded", false}, {"error", "invalid_session"}};
         return 400;
@@ -90,6 +93,14 @@ namespace Aurora::Runtime
       if(!EffectStore(configRoot).write(id, *draft, writeError)){
         body = {{"succeeded", false}, {"error", "write_failed"}, {"message", writeError}};
         return 500;
+      }
+      return 0;
+    };
+
+    ApplyDraftFn apply = [&pipelineHost, configRoot, coalescer, saveDraft](
+      const std::string& session, const std::string& id, const std::string& client, nlohmann::json& body){
+      if(const int refused = saveDraft(session, id, body)){
+        return refused;
       }
       ConfigStore(configRoot).update([&id, &client](Config& config){
         config.setActiveEffectId(id);
@@ -132,6 +143,44 @@ namespace Aurora::Runtime
         nlohmann::json body;
         const int status = apply(session, id, req.client, body);
         _reply(res, status, body);
+      }
+    );
+    // Save without going live: the same checks and write as apply, and
+    // activeEffectId stays put. Only when the saved id is the active effect does
+    // the pipeline reload, so the running graph never drifts from its file.
+    server.addRoute(
+      HttpMethod::Post,
+      "/api/graph/save",
+      [&pipelineHost, configRoot, coalescer, saveDraft](const Request& req, Response& res){
+        std::string session;
+        std::string id;
+        try{
+          const nlohmann::json parsed = nlohmann::json::parse(req.body);
+          session = parsed.at("session").get<std::string>();
+          id = parsed.at("id").get<std::string>();
+        }
+        catch(const nlohmann::json::exception&){
+          _reply(res, 400, {{"succeeded", false}, {"error", "invalid_body"}});
+          return;
+        }
+        nlohmann::json body;
+        if(const int refused = saveDraft(session, id, body)){
+          _reply(res, refused, body);
+          return;
+        }
+
+        const Config config = ConfigStore(configRoot).load();
+        body = {{"succeeded", true}, {"id", id}, {"activeEffectId", config.activeEffectId()}};
+        if(config.customEffectId() == id){
+          const std::string applyError = coalescer->submit();
+          if(!applyError.empty()){
+            body["reloadError"] = applyError;
+          }
+        }
+        const PipelineSummary summary = pipelineHost.summary();
+        body["effect"] = _idOrNull(summary.effect);
+        body["requestedEffect"] = _idOrNull(summary.requestedEffect);
+        _reply(res, 200, body);
       }
     );
     // Tuning on a custom effect: set node params in effects/<id>.json, then

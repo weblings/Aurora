@@ -3556,6 +3556,9 @@ namespace
       auto drafts = registerDraftRoutes(server, registry, dir.path);
       registerApplyRoutes(server, *host, registry, dir.path, drafts,
         [this]{ return applyEffectFromDisk(*host, registry, dir.path); });
+      registerEffectsRoutes(server, *host, registry, dir.path, std::make_shared<ReloadCoalescer>([this]{
+        return applyEffectFromDisk(*host, registry, dir.path);
+      }));
       const int port = server.bindToAnyPort("127.0.0.1");
       REQUIRE(port > 0);
       serverThread = std::thread([this](){ server.listen(); });
@@ -3579,6 +3582,16 @@ namespace
     httplib::Result apply(const nlohmann::json& body)
     {
       return client->Post("/api/graph/apply", body.dump(), "application/json");
+    }
+
+    httplib::Result save(const nlohmann::json& body)
+    {
+      return client->Post("/api/graph/save", body.dump(), "application/json");
+    }
+
+    httplib::Result duplicate(const std::string& source, const nlohmann::json& body)
+    {
+      return client->Post("/api/effects/" + source + "/duplicate", body.dump(), "application/json");
     }
 
     ScopedTempDir dir;
@@ -3679,6 +3692,150 @@ TEST_CASE("Apply refuses an invalid draft and leaves disk and the live effect un
   CHECK(h.client->Post("/api/graph/apply", "not json", "application/json")->status == 400);
   CHECK(EffectStore(h.dir.path).list().empty());
   CHECK(ConfigStore(h.dir.path).load().activeEffectId() == "");
+}
+
+
+TEST_CASE("Save writes the effect without making it live, and reloads only the active one (Aurora-pvxx.1)", "[Apply]")
+{
+  ApplyHarness h("save-inactive", tunedVideoConfig());
+  const nlohmann::json before = *h.host->graphJson();
+  const nlohmann::json first = Graph::builtInVideoGraph({"out-a"});
+  h.putDraft("editor", first);
+
+  auto saved = h.save({{"session", "editor"}, {"id", "calm"}});
+  REQUIRE(saved);
+  CHECK(saved->status == 200);
+  auto body = nlohmann::json::parse(saved->body);
+  CHECK(body["succeeded"] == true);
+  CHECK(body["id"] == "calm");
+  CHECK(body["activeEffectId"] == "");
+  CHECK(body["effect"] == "builtin.video");
+  CHECK_FALSE(body.contains("reloadError"));
+
+  std::string error;
+  auto stored = EffectStore(h.dir.path).read("calm", error);
+  REQUIRE(stored);
+  CHECK(*stored == first);
+  CHECK(ConfigStore(h.dir.path).load().activeEffectId() == "");
+  CHECK(*h.host->graphJson() == before);
+  CHECK(h.client->Get("/api/graph/drafts/editor")->status == 200);
+
+  // An MCP-marked save does not record mcpEffectId either.
+  const httplib::Headers mcp{{"X-Aurora-Client", "mcp"}};
+  REQUIRE(h.client->Post("/api/graph/save", mcp,
+    nlohmann::json{{"session", "editor"}, {"id", "calm"}}.dump(), "application/json")->status == 200);
+  CHECK(ConfigStore(h.dir.path).load().mcpEffectId().empty());
+
+  // Saving over the active effect reloads it from the new file.
+  REQUIRE(h.apply({{"session", "editor"}, {"id", "calm"}})->status == 200);
+  const nlohmann::json second = Graph::builtInVideoGraph({"out-a", "out-b"});
+  h.putDraft("editor", second);
+  auto over = h.save({{"session", "editor"}, {"id", "calm"}});
+  REQUIRE(over);
+  CHECK(over->status == 200);
+  CHECK(nlohmann::json::parse(over->body)["activeEffectId"] == "calm");
+  CHECK(*h.host->graphJson() == second);
+  CHECK(h.host->summary().effect == "calm");
+
+  // Saving a different id leaves the running effect alone.
+  h.putDraft("editor", first);
+  REQUIRE(h.save({{"session", "editor"}, {"id", "other"}})->status == 200);
+  CHECK(*h.host->graphJson() == second);
+  CHECK(ConfigStore(h.dir.path).load().activeEffectId() == "calm");
+}
+
+
+TEST_CASE("Save refuses what apply refuses and changes nothing (Aurora-pvxx.1)", "[Apply]")
+{
+  ApplyHarness h("save-refused", tunedVideoConfig());
+  const nlohmann::json before = *h.host->graphJson();
+
+  nlohmann::json broken = Graph::builtInVideoGraph({"out-a"});
+  broken["nodes"].push_back({{"id", "mystery"}, {"type", "nope.nope"}});
+  h.putDraft("agent", broken);
+  auto refused = h.save({{"session", "agent"}, {"id", "bad"}});
+  REQUIRE(refused);
+  CHECK(refused->status == 422);
+  auto body = nlohmann::json::parse(refused->body);
+  CHECK(body["error"] == "invalid_graph");
+  CHECK(body["errors"][0]["node"] == "mystery");
+  CHECK_FALSE(EffectStore(h.dir.path).exists("bad"));
+
+  CHECK(h.save({{"session", "nobody"}, {"id", "ok"}})->status == 404);
+  h.putDraft("good", Graph::builtInVideoGraph({"out-a"}));
+  CHECK(h.save({{"session", "good"}, {"id", "builtin.video"}})->status == 400);
+  CHECK(h.save({{"session", "good"}, {"id", "../escape"}})->status == 400);
+  CHECK(h.save({{"session", "bad/session"}, {"id", "ok"}})->status == 400);
+  CHECK(h.save({{"session", "good"}})->status == 400);
+  CHECK(h.client->Post("/api/graph/save", "not json", "application/json")->status == 400);
+  CHECK(EffectStore(h.dir.path).list().empty());
+  CHECK(*h.host->graphJson() == before);
+}
+
+
+TEST_CASE("Save: draft scope is refused, apply scope passes (Aurora-pvxx.1)", "[Apply][Pairing]")
+{
+  using namespace Aurora::Network::Http::Server;
+  auto service = std::make_shared<PairingService>();
+  AccessGuard guard(service, [](const std::string& addr){ return addr == "127.0.0.1"; });
+  addDraftAccessRules(guard);
+  addApplyAccessRules(guard);
+  addEffectsAccessRules(guard);
+
+  const std::string draft = service->mintForTest("editor", Scope::Draft);
+  const std::string apply = service->mintForTest("adapter", Scope::Apply);
+  auto decide = [&](const std::string& path, const std::string& token){
+    AccessRequest request;
+    request.method = HttpMethod::Post;
+    request.path = path;
+    request.remoteAddr = "192.168.1.20";
+    request.authorization = "Bearer " + token;
+    return guard.decide(request).result;
+  };
+  using Result = AccessDecision::Result;
+
+  for(const char* path : {"/api/graph/save", "/api/effects/builtin.video/duplicate"}){
+    CHECK(decide(path, draft) == Result::Forbidden);
+    CHECK(decide(path, apply) == Result::Allow);
+  }
+}
+
+
+TEST_CASE("Duplicate copies a built-in or custom effect to a new id without replacing or activating (Aurora-pvxx.1)", "[Apply]")
+{
+  ApplyHarness h("duplicate", tunedVideoConfig());
+  EffectStore store(h.dir.path);
+  std::string error;
+
+  auto copied = h.duplicate("builtin.video", {{"id", "my-screen"}});
+  REQUIRE(copied);
+  CHECK(copied->status == 200);
+  auto body = nlohmann::json::parse(copied->body);
+  CHECK(body["succeeded"] == true);
+  CHECK(body["id"] == "my-screen");
+  CHECK(body["source"] == "builtin.video");
+  nlohmann::json builtIn = nlohmann::json::parse(h.client->Get("/api/effects/builtin.video")->body);
+  auto stored = store.read("my-screen", error);
+  REQUIRE(stored);
+  CHECK(*stored == builtIn["graph"]);
+  CHECK(ConfigStore(h.dir.path).load().activeEffectId() == "");
+
+  // A custom copies byte for byte.
+  nlohmann::json mine = Graph::builtInVideoGraph({"out-a", "out-b"});
+  mine["title"] = "Mine";
+  REQUIRE(store.write("mine", mine, error));
+  REQUIRE(h.duplicate("mine", {{"id", "mine-2"}})->status == 200);
+  CHECK(*store.read("mine-2", error) == mine);
+
+  // Refusals write nothing.
+  CHECK(h.duplicate("mine", {{"id", "mine-2"}})->status == 409);
+  CHECK(h.duplicate("mine", {{"id", "builtin.audio"}})->status == 400);
+  CHECK(h.duplicate("mine", {{"id", "../x"}})->status == 400);
+  CHECK(h.duplicate("mine", nlohmann::json::object())->status == 400);
+  CHECK(h.duplicate("nope", {{"id", "fresh"}})->status == 404);
+  CHECK(h.duplicate("..", {{"id", "fresh"}})->status == 404);
+  CHECK_FALSE(store.exists("fresh"));
+  CHECK(store.list() == std::vector<std::string>{"mine", "mine-2", "my-screen"});
 }
 
 
@@ -5106,6 +5263,44 @@ TEST_CASE("PATCH /api/v1/state saves an effect while paused and applies it on re
   const nlohmann::json resumed = patchState(h, {{"running", true}});
   CHECK(resumed["state"] == "running");
   CHECK(resumed["effect"] == "mine");
+}
+
+
+TEST_CASE("POST /api/v1/graph/save and /effects/:id/duplicate answer like the core routes (Aurora-pvxx.10)", "[PublicApi][v1]")
+{
+  LightTestHarness h("v1-save-duplicate");
+  const nlohmann::json live = *h.host->graphJson();
+  const nlohmann::json graph = Graph::builtInVideoGraph({"out-a", "out-b"});
+  h.putDraft("s1", graph);
+
+  auto post = [&](const std::string& path, const nlohmann::json& body){
+    auto result = h.client->Post(path, body.dump(), "application/json");
+    REQUIRE(result);
+    return result;
+  };
+
+  auto saved = post("/api/v1/graph/save", {{"session", "s1"}, {"id", "kept"}});
+  CHECK(saved->status == 200);
+  const nlohmann::json savedBody = nlohmann::json::parse(saved->body);
+  CHECK(savedBody["succeeded"] == true);
+  CHECK(savedBody["id"] == "kept");
+  CHECK(savedBody["activeEffectId"] == "");
+  std::string error;
+  CHECK(*EffectStore(h.dir.path).read("kept", error) == graph);
+  CHECK(ConfigStore(h.dir.path).load().activeEffectId() == "");
+  CHECK(*h.host->graphJson() == live);
+
+  CHECK(post("/api/v1/graph/save", {{"session", "s1"}, {"id", "builtin.video"}})->status == 400);
+  CHECK(post("/api/v1/graph/save", {{"session", "none"}, {"id", "x"}})->status == 404);
+
+  auto copied = post("/api/v1/effects/builtin.video/duplicate", {{"id", "screen-copy"}});
+  CHECK(copied->status == 200);
+  CHECK(nlohmann::json::parse(copied->body)["source"] == "builtin.video");
+  const nlohmann::json builtIn = nlohmann::json::parse(h.client->Get("/api/v1/effects/builtin.video")->body);
+  CHECK(*EffectStore(h.dir.path).read("screen-copy", error) == builtIn["graph"]);
+  CHECK(post("/api/v1/effects/kept/duplicate", {{"id", "screen-copy"}})->status == 409);
+  CHECK(post("/api/v1/effects/nope/duplicate", {{"id", "fresh"}})->status == 404);
+  CHECK(ConfigStore(h.dir.path).load().activeEffectId() == "");
 }
 
 

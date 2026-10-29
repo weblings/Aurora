@@ -71,6 +71,8 @@ namespace Aurora::Runtime
       {HttpMethod::Post, "/graph/test/revert"},
       {HttpMethod::Post, "/graph/test/confirm"},
       {HttpMethod::Post, "/graph/apply"},
+      {HttpMethod::Post, "/graph/save"},
+      {HttpMethod::Post, "/effects/:id/duplicate"},
       {HttpMethod::Get, "/pairing/status"},
       {HttpMethod::Post, "/pairing/request"},
       {HttpMethod::Get, "/pairing/request/:pollKey"}
@@ -86,6 +88,8 @@ namespace Aurora::Runtime
         guard->addWriteRule("/api/v1/graph/test", Scope::Apply);
         guard->addWriteRule("/api/v1/graph/test/stop", Scope::Admin);
         guard->addWriteRule("/api/v1/graph/apply", Scope::Apply);
+        guard->addWriteRule("/api/v1/graph/save", Scope::Apply);
+        guard->addWriteRule("/api/v1/effects", Scope::Apply);
         guard->addRule("/api/v1/pairing/status", Scope::None);
         guard->addRule("/api/v1/pairing/request", Scope::None);
       }
