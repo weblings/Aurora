@@ -2623,8 +2623,14 @@ TEST_CASE("GET /api/nodes serves every registered node and rejects a forged Host
   for(size_t i = 0; i < types.size(); ++i){
     const auto& node = nodes[i];
     CHECK(node["type"] == types[i]);
-    for(const char* key : {"purpose", "useWhen", "example", "cost"}){
+    for(const char* key : {"title", "purpose", "useWhen", "example", "cost"}){
       CHECK_FALSE(node[key].get<std::string>().empty());
+    }
+    for(const char* side : {"inputs", "outputs"}){
+      for(const auto& port : node[side]){
+        INFO(types[i] << " " << side << " " << port["name"]);
+        CHECK_FALSE(port["description"].get<std::string>().empty());
+      }
     }
     CHECK(node["inputs"].is_array());
     CHECK(node["outputs"].is_array());

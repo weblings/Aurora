@@ -970,6 +970,8 @@ components:
             properties:
               type:
                 type: string
+              title:
+                type: string
               purpose:
                 type: string
               useWhen:
@@ -1469,6 +1471,8 @@ components:
               kind:
                 type: string
               description:
+                type: string
+              title:
                 type: string
               useWhen:
                 type: string

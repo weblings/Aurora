@@ -11,8 +11,9 @@ namespace Aurora::Runtime
   class PipelineHost;
   class Registry;
 
-  // GET /api/nodes: {"nodes": [{type, purpose, useWhen, example, cost,
-  // inputs: [{name, type, required}], outputs: [{name, type}], params:
+  // GET /api/nodes: {"nodes": [{type, title, purpose, useWhen, example, cost,
+  // inputs: [{name, type, required, description}], outputs: [{name, type,
+  // description}], params:
   // [{name, kind, description, label?, min?, max?, step?, unit?, default,
   // allowsUnset?, options?}], sink?: <binding param>}]} for every
   // registered node type, in registration order. Static per build: the

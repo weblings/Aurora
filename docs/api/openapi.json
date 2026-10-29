@@ -1473,6 +1473,9 @@
                 "type": {
                   "type": "string"
                 },
+                "title": {
+                  "type": "string"
+                },
                 "purpose": {
                   "type": "string"
                 },
@@ -2461,6 +2464,9 @@
                   "type": "string"
                 },
                 "description": {
+                  "type": "string"
+                },
+                "title": {
                   "type": "string"
                 },
                 "useWhen": {

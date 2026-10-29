@@ -33,7 +33,10 @@ namespace Aurora::Runtime
     {
       nlohmann::json list = nlohmann::json::array();
       for(const auto& port : ports){
-        nlohmann::json entry{{"name", port.name}, {"type", Graph::portTypeName(port.type)}};
+        nlohmann::json entry{
+          {"name", port.name},
+          {"type", Graph::portTypeName(port.type)},
+          {"description", port.description}};
         if(withRequired){
           entry["required"] = port.required;
         }
@@ -103,6 +106,7 @@ namespace Aurora::Runtime
         }
         nlohmann::json entry{
           {"type", type},
+          {"title", info.meta.title},
           {"purpose", info.meta.purpose},
           {"useWhen", info.meta.useWhen},
           {"example", info.meta.example},

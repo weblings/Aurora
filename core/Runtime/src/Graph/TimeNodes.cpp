@@ -261,34 +261,38 @@ namespace Aurora::Runtime::Graph
   void registerTimeNodes(NodeRegistry& registry)
   {
     addState<float, float>(registry, "smooth.exp",
-      {.purpose = "Ease a Float toward its input; tau seconds to cover ~63% of a step at any tick rate.",
+      {.title = "Smooth",
+       .purpose = "Ease a Float toward its input; tau seconds to cover ~63% of a step at any tick rate.",
        .useWhen = "Damp a jumpy signal, e.g. rms into a brightness envelope.",
        .example = "{\"id\": \"damp\", \"type\": \"smooth.exp\", \"params\": {\"tau\": 0.15}}"},
-      {"value", PortType::Float, true}, {"value", PortType::Float, false},
+      {"value", PortType::Float, true, "The Float to ease."}, {"value", PortType::Float, false, "The eased Float."},
       {tauParam(0.15f, "Smoothing time constant in seconds, 0 is instant.")},
       smoothExp);
 
     addState<Angle, Angle>(registry, "smooth.angle",
-      {.purpose = "Ease an Angle toward its input along the shortest arc, wrapping at 360.",
+      {.title = "Smooth angle",
+       .purpose = "Ease an Angle toward its input along the shortest arc, wrapping at 360.",
        .useWhen = "Damp a hue target, e.g. the beat swing in a bounce.",
        .example = "{\"id\": \"hue\", \"type\": \"smooth.angle\", \"params\": {\"tau\": 0.15}}"},
-      {"angle", PortType::Angle, true}, {"angle", PortType::Angle, false},
+      {"angle", PortType::Angle, true, "The Angle to ease."}, {"angle", PortType::Angle, false, "The eased Angle."},
       {tauParam(0.15f, "Smoothing time constant in seconds, 0 is instant.")},
       smoothAngle);
 
     addState<float, float>(registry, "rollingAverage",
-      {.purpose = "Running average of a Float over about tau seconds, independent of tick rate.",
+      {.title = "Rolling average",
+       .purpose = "Running average of a Float over about tau seconds, independent of tick rate.",
        .useWhen = "Get a slow baseline to compare a signal against, e.g. centroid deviation.",
        .example = "{\"id\": \"base\", \"type\": \"rollingAverage\", \"params\": {\"tau\": 0.8}}"},
-      {"value", PortType::Float, true}, {"value", PortType::Float, false},
+      {"value", PortType::Float, true, "The Float to average."}, {"value", PortType::Float, false, "The running average."},
       {tauParam(0.8f, "Averaging time constant in seconds, 0 passes the input through.")},
       smoothExp);
 
     addState<float, Angle>(registry, "integrate",
-      {.purpose = "Accumulate a rate in degrees per second into an Angle that wraps at 360.",
+      {.title = "Integrate",
+       .purpose = "Accumulate a rate in degrees per second into an Angle that wraps at 360.",
        .useWhen = "Turn a speed signal into a hue position, e.g. drift's rate into its anchor.",
        .example = "{\"id\": \"anchor\", \"type\": \"integrate\", \"params\": {\"initial\": 0}}"},
-      {"rate", PortType::Float, true}, {"angle", PortType::Angle, false},
+      {"rate", PortType::Float, true, "Rate in degrees per second."}, {"angle", PortType::Angle, false, "The accumulated Angle."},
       {floatParam("initial", "Initial", 0.f, 360.f, 0.f, "deg", "Angle on the first tick.")},
       integrate);
 
@@ -296,11 +300,13 @@ namespace Aurora::Runtime::Graph
       "stepOnTrigger",
       NodeTypeInfo{
         .meta =
-          {.purpose = "Add a step to an Angle on each Trigger pulse and hold it between pulses.",
+          {.title = "Step on trigger",
+           .purpose = "Add a step to an Angle on each Trigger pulse and hold it between pulses.",
            .useWhen = "Swing a hue on each beat, e.g. onset strength times 180 degrees per onset.",
            .example = "{\"id\": \"swing\", \"type\": \"stepOnTrigger\", \"params\": {\"scale\": 1}}"},
-        .inputs = {{"trigger", PortType::Trigger, true}, {"amount", PortType::Float, false}},
-        .outputs = {{"angle", PortType::Angle, false}},
+        .inputs = {{"trigger", PortType::Trigger, true, "Each pulse adds one step."},
+                   {"amount", PortType::Float, false, "Scales the step; param scale alone is the step when unwired."}},
+        .outputs = {{"angle", PortType::Angle, false, "The accumulated Angle, held between pulses."}},
         .params = {floatParam(
           "scale", "Scale", -1.0e6f, 1.0e6f, 1.f, "",
           "Degrees per pulse: multiplies 'amount', or is the whole step when 'amount' is unconnected.")},
@@ -320,12 +326,13 @@ namespace Aurora::Runtime::Graph
       "lfo",
       NodeTypeInfo{
         .meta =
-          {.purpose = "Free-running oscillator between min and max at rateHz.",
+          {.title = "LFO",
+           .purpose = "Free-running oscillator between min and max at rateHz.",
            .useWhen = "Slow modulation with no audio, e.g. a breathing brightness.",
            .example =
              "{\"id\": \"breathe\", \"type\": \"lfo\", \"params\": {\"shape\": \"sine\", \"rateHz\": 0.2}}"},
         .inputs = {},
-        .outputs = {{"value", PortType::Float, false}},
+        .outputs = {{"value", PortType::Float, false, "The oscillator value between min and max."}},
         .params =
           {shape,
            floatParam("rateHz", "Rate", 0.f, 100.f, 1.f, "Hz", "Cycles per second."),
@@ -338,14 +345,15 @@ namespace Aurora::Runtime::Graph
       "noise",
       NodeTypeInfo{
         .meta =
-          {.purpose = "Smooth random wander between min and max, drifting to a new random target about "
+          {.title = "Noise",
+           .purpose = "Smooth random wander between min and max, drifting to a new random target about "
                       "rateHz times per second. Irregular where lfo is periodic.",
            .useWhen = "Flicker with no audio, e.g. a candle or fire brightness. Use image.noise for "
                       "independent flicker per light.",
            .example = "{\"id\": \"flicker\", \"type\": \"noise\", \"params\": {\"rateHz\": 6, \"min\": 0.6}}",
            .cost = "cheap"},
         .inputs = {},
-        .outputs = {{"value", PortType::Float, false}},
+        .outputs = {{"value", PortType::Float, false, "The random value between min and max."}},
         .params =
           {floatParam("rateHz", "Rate", 0.f, 100.f, 1.f, "Hz", "New random targets per second."),
            floatParam("min", "Min", -1.0e6f, 1.0e6f, 0.f, "", "Output at the bottom of the range."),
