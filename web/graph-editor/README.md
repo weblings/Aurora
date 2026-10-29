@@ -2,8 +2,9 @@
 
 React Flow editor for node graphs, served by Aurora's HTTP server at
 `/graph-editor/`. Vite + React + TypeScript; built by CMake and embedded in the
-binary when `AURORA_ENABLE_GRAPH_EDITOR` is ON (needs Node >= 22.12; see
-`cmake/GraphEditor.cmake`). Plan and decisions: [[sequence-e-planning]],
+binary when `AURORA_ENABLE_GRAPH_EDITOR` is ON (the app presets set it; needs
+Node >= 22.12; see `cmake/GraphEditor.cmake`). The Dashboard's "Edit graph"
+link (`web/ui`, `graphEditorHref`) opens it with `?effect=<running effect>`. Plan and decisions: [[sequence-e-planning]],
 [[node-graph-pipeline]].
 
 ## Layout

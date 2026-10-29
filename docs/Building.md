@@ -73,15 +73,23 @@ imgproc)`).
   (packages, `mbedtls@3` pin, `mac-app` preset) lives in
   [CONTRIBUTING.md](../CONTRIBUTING.md#platform-notes).
 
+- **All app presets: Node >= 22.12 with npm.** The `linux-app`, `windows-app`
+  and `mac-app` presets embed the graph editor (`AURORA_ENABLE_GRAPH_EDITOR=ON`),
+  so they run `npm ci` and a Vite build. Install steps and the opt-outs are
+  under [Graph editor](#graph-editor-needs-node) below.
+
 Native dependencies stay system packages (no vendored `.so` set); see the
 `Aurora-b9q` bead for the decision.
 
-### Graph editor (optional, Node)
+### Graph editor (needs Node)
 
 The node-graph editor (`web/graph-editor/`, Vite + React + TypeScript) is
-opt-in: `-DAURORA_ENABLE_GRAPH_EDITOR=ON` on any app preset or slice
-configure. With it OFF (the default) no Node is needed and the embedded
-webroot is unchanged. With it ON the build runs `npm ci` and `npm run build`
+on in every app preset (`linux-app`, `windows-app`, `mac-app`), so packaged
+builds on all three OSes serve it. A bare slice configure
+(`cmake -S app/linux`) leaves it OFF; pass `-DAURORA_ENABLE_GRAPH_EDITOR=ON`
+there. For a build without Node, pass `-DAURORA_ENABLE_GRAPH_EDITOR=OFF` on a
+preset: the embedded webroot is then unchanged and the Dashboard shows no
+Edit graph link. With it ON the build runs `npm ci` and `npm run build`
 (Vite writes the bundle to the build dir, never under `web/ui/`), embeds the
 result, and the app serves it at `/graph-editor/`.
 
@@ -100,6 +108,18 @@ result, and the app serves it at `/graph-editor/`.
   cache, proxy).
 - **Editor dev loop:** with an Aurora running, `cd web/graph-editor &&
   AURORA_PORT=<port> npm run dev` gives hot reload and proxies `/api` to it.
+- **Dashboard link:** the Dashboard's "Edit graph" link opens
+  `/graph-editor/?effect=<running effect>`. It appears only once the Dashboard
+  has fetched `/graph-editor/` and got HTML back, so a build without the editor
+  shows no dead link.
+- **Linux packaging:** the notice is an `install(FILES)` rule, so `DESTDIR`
+  staging picks it up; the editor itself is inside the binary. A packager with
+  no network builds the bundle first and passes `AURORA_GRAPH_EDITOR_DIST`.
+- **macOS signing order:** the build stages the notice into the bundle;
+  `tools/mac/bundle-licenses.sh` keeps it while it regenerates the dylib
+  licenses, and `bundle-dylibs.sh` runs it before signing, so the seal covers
+  it. Checked 2026-10-29 with an ad-hoc identity: `verify-bundle.sh` PASS and
+  `codesign --verify --deep --strict` clean.
 - **Third-party notices:** Vite writes the THIRD-PARTY-NOTICES file for the
   bundled npm packages. It is served inside the editor's map, installed
   next to the Linux copyright file, and copied into

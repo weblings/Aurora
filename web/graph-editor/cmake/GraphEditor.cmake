@@ -2,8 +2,8 @@
 # embeds the bundle into the C++ binary as Aurora::GraphEditorWebRoot::files,
 # served by the apps under /graph-editor/.
 #
-# Opt-in: AURORA_ENABLE_GRAPH_EDITOR is OFF by default, so a default build
-# needs no Node and produces the same embedded webroot as before. This file
+# AURORA_ENABLE_GRAPH_EDITOR is OFF by default, so a bare slice configure needs
+# no Node; the three app presets (CMakePresets.json) turn it ON. This file
 # declares the option so every consumer (root superbuild, each app slice
 # configured standalone) sees one definition.
 #
