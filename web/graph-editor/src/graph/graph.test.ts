@@ -7,6 +7,8 @@ import { editorReducer, emptyEditor } from './history'
 import { columnLayout, positionsFor } from './layout'
 import { addStop, clampStopPos, effectiveValue } from '../ParamWidget'
 import { builtinLike, catalog, customLike } from './fixtures'
+import nodesSample from './server-samples/nodes.json'
+import type { Catalog, NodeTypeInfo } from './types'
 
 const without = <T extends object>(obj: T, key: string) => {
   const { [key]: _drop, ...rest } = obj as Record<string, unknown>
@@ -234,10 +236,22 @@ describe('addNode', () => {
     const added = once.nodes[once.nodes.length - 1]
     expect(added.type).toBe('frame.gain')
     expect(doc.nodes.some((n) => n.id === added.id)).toBe(false)
-    expect(added.params).toEqual({ gain: 1, cap: 0, invert: false, tint: gain.params[3].default })
+    expect(added.params).toEqual({ gain: 1, invert: false, tint: gain.params[3].default })
     expect(once.ui![added.id]).toEqual({ x: 10, y: 21 })
     expect(new Set(twice.nodes.map((n) => n.id)).size).toBe(twice.nodes.length)
     expect(doc.nodes).toHaveLength(builtinLike().nodes.length)
+  })
+
+  it('leaves optional-float params unset and keeps the other defaults', () => {
+    const real: Catalog = new Map((nodesSample.nodes as unknown as NodeTypeInfo[]).map((n) => [n.type, n]))
+    const anchor = addNode(builtinLike(), real.get('palette.randomAnchor')!, { x: 0, y: 0 }).nodes.at(-1)!
+    const drift = addNode(builtinLike(), real.get('audio.drift')!, { x: 0, y: 0 }).nodes.at(-1)!
+    expect(anchor.params).not.toHaveProperty('seed')
+    expect(drift.params).not.toHaveProperty('fixedAnchorHue')
+    const info = real.get('audio.drift')!.params.find((p) => p.name === 'fixedAnchorHue')!
+    expect(effectiveValue(info, drift.params?.fixedAnchorHue)).toBeNull()
+    for (const p of real.get('audio.drift')!.params.filter((q) => q.kind !== 'optional-float'))
+      expect(drift.params?.[p.name]).toEqual(p.default)
   })
 
   it('is one history entry and round-trips through the adapter', () => {

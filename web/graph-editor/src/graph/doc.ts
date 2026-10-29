@@ -63,7 +63,8 @@ export function freshNodeId(doc: GraphDoc, type: string): string {
 // `at` (saved in `ui`, so it stays where it was dropped).
 export function addNode(doc: GraphDoc, info: NodeTypeInfo, at: Position): GraphDoc {
   const id = freshNodeId(doc, info.type)
-  const params = Object.fromEntries(info.params.map((p) => [p.name, p.default]))
+  // An optional-float's catalog default is a display placeholder; omitted means unset.
+  const params = Object.fromEntries(info.params.filter((p) => p.kind !== 'optional-float').map((p) => [p.name, p.default]))
   return {
     ...doc,
     nodes: [...doc.nodes, { id, type: info.type, params }],
