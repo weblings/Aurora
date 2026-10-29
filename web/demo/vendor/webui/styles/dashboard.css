@@ -242,3 +242,12 @@
 .paired-device-revoke {
   flex-shrink: 0;
 }
+
+/* "Edit graph" link under the mode toggle (Aurora-pvxx.8); empty slot takes no room. */
+.db-edit-slot:not(:empty) {
+  margin-bottom: var(--aurora-space-5);
+}
+
+.db-edit-graph {
+  display: inline-block;
+}
