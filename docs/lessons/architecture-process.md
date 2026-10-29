@@ -1258,3 +1258,13 @@ the status. Tests use `SseReader::waitFor` plus `waitFinished`.
 
 **Fix:** document the error events beside the route. If a real status is needed, validate in a plain
 route first and hand the client a stream URL.
+
+---
+
+## Write client types from the live response, not from the bead or C++ enum names
+Tags: api, contract, catalog, param-kind, graph-editor
+Applies-when: typing a client (editor, MCP, demo) against `/api/nodes` or any catalog the server serializes
+
+Aurora-pvxx.4: the bead and `GraphLoader` call the param kinds `Float`, `OptionalFloat`, `Bool`, `Enum`, `Gradient`; the wire carries `float`, `optional-float`, `bool`, `enum`, `gradient` (`paramKindName`). Typecheck passed and the first unit tests used the same wrong spelling, so no widget rendered until the editor met a real catalog. A second trap in the same payload: an `optional-float` the graph omits is unset (null), but the catalog `default` is a number (-1), so showing the default invents a value the loader would not use.
+
+**Fix:** curl the route and type from that JSON; keep a real-response sample as a fixture (`web/graph-editor/src/graph/server-samples/`). For optional values, mirror the loader: absent means unset, the default is only what a user gets on turning it on.
