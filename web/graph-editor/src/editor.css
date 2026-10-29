@@ -403,3 +403,33 @@ body {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+
+/* Node palette (Aurora-pvxx.13). */
+.palette {
+  width: 180px;
+  flex: none;
+  overflow-y: auto;
+  padding: var(--aurora-space-3) var(--aurora-space-5);
+  background: var(--aurora-surface);
+  border-right: 1px solid var(--aurora-border);
+  font-size: 12px;
+  color: var(--aurora-text-secondary);
+}
+
+.palette h3,
+.palette h4 {
+  margin: var(--aurora-space-3) 0 var(--aurora-space-2);
+}
+
+.palette h4 {
+  text-transform: uppercase;
+  font-size: 11px;
+}
+
+.palette-item {
+  display: block;
+  width: 100%;
+  margin-bottom: 2px;
+  text-align: left;
+  cursor: grab;
+}

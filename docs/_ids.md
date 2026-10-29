@@ -199,6 +199,8 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `pvxx1-save-and-duplicate` | [log/2026-10-29-pvxx1-save-and-duplicate.md](log/2026-10-29-pvxx1-save-and-duplicate.md) | E0b: save without going live, and duplicate an effect |
 | `pvxx11-browser-check` | [log/2026-10-29-pvxx11-browser-check.md](log/2026-10-29-pvxx11-browser-check.md) | Browser-check tooling for the web screens |
 | `pvxx12-embed-stale-glob` | [log/2026-10-29-pvxx12-embed-stale-glob.md](log/2026-10-29-pvxx12-embed-stale-glob.md) | Graph editor embed: no stale configure-time glob |
+| `pvxx13-node-palette` | [log/2026-10-29-pvxx13-node-palette.md](log/2026-10-29-pvxx13-node-palette.md) | Graph editor: node palette |
+| `pvxx14-save-as-new` | [log/2026-10-29-pvxx14-save-as-new.md](log/2026-10-29-pvxx14-save-as-new.md) | Graph editor: Save as new for customs |
 | `pvxx2-output-options` | [log/2026-10-29-pvxx2-output-options.md](log/2026-10-29-pvxx2-output-options.md) | E0c: output params list the registered outputs |
 | `pvxx3-titles-port-descriptions` | [log/2026-10-29-pvxx3-titles-port-descriptions.md](log/2026-10-29-pvxx3-titles-port-descriptions.md) | E0d: node titles and port descriptions |
 | `pvxx4-editor-foundation` | [log/2026-10-29-pvxx4-editor-foundation.md](log/2026-10-29-pvxx4-editor-foundation.md) | E1: graph editor foundation |

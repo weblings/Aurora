@@ -20,6 +20,8 @@ link (`web/ui`, `graphEditorHref`) opens it with `?effect=<running effect>`. Pla
   Vitest suite.
 - `src/GenericNode.tsx`, `src/ParamWidget.tsx` -- one node component draws any
   `/api/nodes` entry; one widget per param kind.
+- `src/Palette.tsx` -- the add-node list (`graph/palette.ts` groups catalog
+  types by prefix); click adds at the view centre, a drop adds at the pointer.
 - `src/useDraftLoop.ts` -- sends the draft and holds the preview stream;
   `ZoneThumbnail.tsx` draws its frames from a ref, not state.
 - `src/useLightTest.ts` -- heartbeat, countdown and holder polling for a test;

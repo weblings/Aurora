@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import { refuseConnection, type Connection } from './connection'
-import { addEdge, moveNodes, removeEdge, removeNodes, setParam, splitEndpoint } from './doc'
+import { addEdge, addNode, moveNodes, removeEdge, removeNodes, setParam, splitEndpoint } from './doc'
 import { carryViewState, toFlowEdges, toFlowNodes } from './flow'
+import { paletteGroups } from './palette'
+import { editorReducer, emptyEditor } from './history'
 import { columnLayout, positionsFor } from './layout'
 import { addStop, clampStopPos, effectiveValue } from '../ParamWidget'
 import { builtinLike, catalog, customLike } from './fixtures'
@@ -219,5 +221,42 @@ describe('gradient stops', () => {
     const next = addStop([{ pos: 0, color: '#111111' }, { pos: 0.2, color: '#222222' }, { pos: 1, color: '#333333' }])
     expect(next.map((s) => s.pos)).toEqual([0, 0.2, 0.6, 1])
     expect(next[2].color).toBe('#222222')
+  })
+})
+
+describe('addNode', () => {
+  const gain = catalog.get('frame.gain')!
+
+  it('gives a unique id, default params and a ui position', () => {
+    const doc = builtinLike()
+    const once = addNode(doc, gain, { x: 10.4, y: 20.6 })
+    const twice = addNode(once, gain, { x: 0, y: 0 })
+    const added = once.nodes[once.nodes.length - 1]
+    expect(added.type).toBe('frame.gain')
+    expect(doc.nodes.some((n) => n.id === added.id)).toBe(false)
+    expect(added.params).toEqual({ gain: 1, cap: 0, invert: false, tint: gain.params[3].default })
+    expect(once.ui![added.id]).toEqual({ x: 10, y: 21 })
+    expect(new Set(twice.nodes.map((n) => n.id)).size).toBe(twice.nodes.length)
+    expect(doc.nodes).toHaveLength(builtinLike().nodes.length)
+  })
+
+  it('is one history entry and round-trips through the adapter', () => {
+    const doc = builtinLike()
+    let state = editorReducer(emptyEditor, { type: 'open', doc })
+    state = editorReducer(state, { type: 'edit', change: (d) => addNode(d, gain, { x: 5, y: 6 }) })
+    expect(state.past).toHaveLength(1)
+    const added = state.doc!.nodes[state.doc!.nodes.length - 1]
+    const flow = toFlowNodes(state.doc!, catalog).find((n) => n.id === added.id)!
+    expect(flow.position).toEqual({ x: 5, y: 6 })
+    expect(flow.data.params.gain).toBe(1)
+    expect(toFlowEdges(state.doc!)).toHaveLength(doc.edges.length)
+  })
+})
+
+describe('paletteGroups', () => {
+  it('groups types by prefix', () => {
+    const groups = paletteGroups(catalog)
+    expect(groups.map((g) => g.prefix)).toEqual(['audio', 'frame', 'image', 'output', 'video', 'zones'])
+    expect(groups.flatMap((g) => g.types)).toHaveLength(catalog.size)
   })
 })

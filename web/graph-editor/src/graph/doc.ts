@@ -1,5 +1,5 @@
 import { dropControlsOf } from './controls'
-import type { GraphDoc, GraphEdge, ParamValue, Position } from './types'
+import type { GraphDoc, GraphEdge, NodeTypeInfo, ParamValue, Position } from './types'
 
 // Every edit returns a new document and leaves the old one untouched, so the
 // whole graph stays one JSON value that undo and autosave can snapshot.
@@ -47,4 +47,26 @@ export function removeNodes(doc: GraphDoc, ids: ReadonlySet<string>): GraphDoc {
     next.ui = Object.fromEntries(Object.entries(doc.ui).filter(([id]) => !ids.has(id)))
   }
   return dropControlsOf(next, ids)
+}
+
+// An id no node uses: the type's last segment, then -2, -3, ...
+export function freshNodeId(doc: GraphDoc, type: string): string {
+  const used = new Set(doc.nodes.map((n) => n.id))
+  const base = type.slice(type.lastIndexOf('.') + 1) || 'node'
+  if (!used.has(base)) return base
+  for (let n = 2; ; n++) {
+    if (!used.has(`${base}-${n}`)) return `${base}-${n}`
+  }
+}
+
+// Appends a node of `info`'s type with every param at its default, placed at
+// `at` (saved in `ui`, so it stays where it was dropped).
+export function addNode(doc: GraphDoc, info: NodeTypeInfo, at: Position): GraphDoc {
+  const id = freshNodeId(doc, info.type)
+  const params = Object.fromEntries(info.params.map((p) => [p.name, p.default]))
+  return {
+    ...doc,
+    nodes: [...doc.nodes, { id, type: info.type, params }],
+    ui: { ...doc.ui, [id]: { x: Math.round(at.x), y: Math.round(at.y) } },
+  }
 }

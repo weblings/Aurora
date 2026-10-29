@@ -12,18 +12,20 @@ import {
   type EdgeChange,
   type Node,
   type NodeChange,
+  type ReactFlowInstance,
 } from '@xyflow/react'
 import { applyGraph, fetchCatalog, fetchEffectGraph, fetchEffects, putDraft, saveGraph, type WriteResult } from './api'
 import { EditorContext, type EditorActions } from './EditorContext'
 import { GenericNode } from './GenericNode'
 import { Inspector } from './Inspector'
+import { PALETTE_DRAG_TYPE, Palette } from './Palette'
 import { ProblemsContext } from './ProblemsContext'
 import { ZoneThumbnail } from './ZoneThumbnail'
 import { tabSession, useDraftLoop } from './useDraftLoop'
 import { useLightTest } from './useLightTest'
 import { restorable, clearUnsaved, syncUnsaved } from './graph/autosave'
 import { refuseConnection } from './graph/connection'
-import { addEdge, joinEndpoint, moveNodes, removeEdge, removeNodes, setParam } from './graph/doc'
+import { addEdge, addNode, joinEndpoint, moveNodes, removeEdge, removeNodes, setParam } from './graph/doc'
 import { editorReducer, emptyEditor, sameDoc } from './graph/history'
 import { describeTest } from './graph/lightTest'
 import { freshEffectId, setTitle, titleOf } from './graph/save'
@@ -61,6 +63,8 @@ export function App() {
   // edit never shows one frame of the old value.
   const [nodeView, setNodeView] = useState<Node<AuroraNodeData>[]>([])
   const [edgeView, setEdgeView] = useState<Edge[]>([])
+  const flow = useRef<ReactFlowInstance<Node<AuroraNodeData>, Edge> | null>(null)
+  const canvas = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     Promise.all([fetchCatalog(), fetchEffects()])
@@ -127,14 +131,15 @@ export function App() {
 
   // Save, Save and apply and Keep write the document under an id: the open
   // custom effect's, or a fresh one named after the title when a built-in is
-  // open (a built-in is never overwritten).
-  const write = async (kind: 'save' | 'apply' | 'keep') => {
+  // open (a built-in is never overwritten). Save as new forks a custom the
+  // same way, leaving the original file as it was.
+  const write = async (kind: 'save' | 'apply' | 'keep', asNew = false) => {
     if (!doc || !baseline || writing) return
     if (needsName) {
       setNotice('Name the new effect first')
       return
     }
-    const id = isBuiltin ? freshEffectId(titleOf(doc), effects.map((e) => e.id)) : baseline.id
+    const id = isBuiltin || asNew ? freshEffectId(titleOf(doc), effects.map((e) => e.id)) : baseline.id
     const sent = doc
     setWriting(true)
     setNotice(null)
@@ -240,6 +245,20 @@ export function App() {
   const onNodeDragStop = useCallback((_: unknown, __: Node, dragged: Node[]) => {
     edit((d) => moveNodes(d, Object.fromEntries(dragged.map((n) => [n.id, { x: n.position.x, y: n.position.y }]))))
   }, [edit])
+
+  // Adds a palette type at a screen point (a drop) or the canvas centre.
+  const addFromPalette = useCallback(
+    (type: string, screen?: { x: number; y: number }) => {
+      const info = catalog?.get(type)
+      const view = flow.current
+      if (!info || !view) return
+      const box = canvas.current?.getBoundingClientRect()
+      const point = screen ?? { x: (box?.left ?? 0) + (box?.width ?? 0) / 2, y: (box?.top ?? 0) + (box?.height ?? 0) / 2 }
+      const at = view.screenToFlowPosition(point)
+      edit((d) => addNode(d, info, at))
+    },
+    [catalog, edit],
+  )
 
   const wiring = useCallback(
     (c: Connection | Edge) => {
@@ -374,6 +393,11 @@ export function App() {
         <button type="button" onClick={() => void write('save')} disabled={!doc || writing} title="Save as a custom effect without changing the live effect">
           Save
         </button>
+        {isBuiltin ? null : (
+          <button type="button" onClick={() => void write('save', true)} disabled={!doc || writing} title="Save a copy under a new name, leaving this effect as it was">
+            Save as new
+          </button>
+        )}
         <button type="button" onClick={() => void write('apply')} disabled={!doc || writing} title="Save and make it the live effect">
           Save and apply
         </button>
@@ -384,7 +408,16 @@ export function App() {
         {notice ? <span className="editor-notice">{notice}</span> : null}
       </div>
       <div className="editor-body">
-      <div className="editor-canvas">
+      {catalog ? <Palette catalog={catalog} onAdd={(type) => addFromPalette(type)} /> : null}
+      <div className="editor-canvas" ref={canvas}
+        onDragOver={(e) => e.dataTransfer.types.includes(PALETTE_DRAG_TYPE) && e.preventDefault()}
+        onDrop={(e) => {
+          const type = e.dataTransfer.getData(PALETTE_DRAG_TYPE)
+          if (!type) return
+          e.preventDefault()
+          addFromPalette(type, { x: e.clientX, y: e.clientY })
+        }}
+      >
         {problems.graph.length > 0 ? (
           <ul className="editor-graph-problems">
             {problems.graph.map((m) => (
@@ -407,6 +440,9 @@ export function App() {
             isValidConnection={isValidConnection}
             colorMode="dark"
             fitView
+            onInit={(instance) => {
+              flow.current = instance
+            }}
             key={effectId}
           >
             <Background variant={BackgroundVariant.Dots} />
