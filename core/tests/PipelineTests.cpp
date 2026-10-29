@@ -2675,6 +2675,57 @@ TEST_CASE("GET /api/nodes serves every registered node and rejects a forged Host
 }
 
 
+TEST_CASE("GET /api/nodes lists the loadable outputs on every output param (Aurora-pvxx.2)", "[GraphRoutes]")
+{
+  using namespace Aurora::Network::Http::Server;
+
+  ScopedTempDir dir("nodes-outputs");
+  auto events = std::make_shared<Events>();
+  auto registry = makeRegistry(events);
+
+  HttpServer server;
+  registerNodesRoute(server, registry, dir.path);
+  const int port = server.bindToAnyPort("127.0.0.1");
+  REQUIRE(port > 0);
+  std::thread serverThread([&](){ server.listen(); });
+  httplib::Client client("127.0.0.1", port);
+
+  auto outputsOf = [&](const nlohmann::json& nodes){
+    std::vector<std::vector<std::string>> lists;
+    for(const auto& node : nodes){
+      for(const auto& param : node["params"]){
+        if(param["name"] == "output"){
+          lists.push_back(param["options"].get<std::vector<std::string>>());
+        }
+      }
+    }
+    return lists;
+  };
+
+  // No saved outputs: every registered one.
+  auto res = client.Get("/api/nodes");
+  REQUIRE(res);
+  auto lists = outputsOf(nlohmann::json::parse(res->body)["nodes"]);
+  REQUIRE_FALSE(lists.empty());
+  for(const auto& list : lists){
+    CHECK(list == registry.outputNames());
+  }
+
+  // Saved Config narrows it, and a later output registration shows without a restart.
+  Config config = videoConfig();
+  config.setActiveOutputNames({"out-b"});
+  ConfigStore(dir.path).save(config);
+  res = client.Get("/api/nodes");
+  REQUIRE(res);
+  for(const auto& list : outputsOf(nlohmann::json::parse(res->body)["nodes"])){
+    CHECK(list == std::vector<std::string>{"out-b"});
+  }
+
+  server.stop();
+  serverThread.join();
+}
+
+
 TEST_CASE("Preset routes fill the user's outputs and every preset validates with Tuning controls (Aurora-4xqt.8)", "[Presets]")
 {
   using namespace Aurora::Network::Http::Server;

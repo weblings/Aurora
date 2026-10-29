@@ -608,7 +608,7 @@ if(!instanceLock.held()){
   Aurora::Runtime::registerReloadRoute(httpServer, pipelineHost, registry, configRoot);
   Aurora::Runtime::registerStateRoute(httpServer, pipelineHost, registry, configRoot, lightTest);
   Aurora::Runtime::registerEventsRoute(httpServer, pipelineHost, configRoot, std::chrono::seconds(15), lightTest);
-  Aurora::Runtime::registerNodesRoute(httpServer);
+  Aurora::Runtime::registerNodesRoute(httpServer, registry, configRoot);
   Aurora::Runtime::registerGraphRoute(httpServer, pipelineHost);
   Aurora::Runtime::registerEffectsRoutes(httpServer, pipelineHost, registry, configRoot,
     reloadCoalescer, onEffectChosen, accessGuard.get());

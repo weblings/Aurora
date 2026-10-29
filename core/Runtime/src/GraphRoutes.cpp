@@ -4,6 +4,7 @@
 
 #include <Aurora/Network/Http/Server/HttpServer.hpp>
 #include <Aurora/Runtime/ControlDescriptors.hpp>
+#include <Aurora/Runtime/DraftRoutes.hpp>
 #include <Aurora/Runtime/Graph/AllNodes.hpp>
 #include <Aurora/Runtime/Graph/FrameNodes.hpp>
 #include <Aurora/Runtime/Graph/MathNodes.hpp>
@@ -82,7 +83,7 @@ namespace Aurora::Runtime
     }
 
 
-    nlohmann::json nodesPayload()
+    nlohmann::json nodesPayload(const std::vector<std::string>* outputNames)
     {
       Graph::NodeRegistry registry;
       Graph::registerAllNodes(registry, true);
@@ -92,7 +93,13 @@ namespace Aurora::Runtime
         const Graph::NodeTypeInfo& info = *registry.find(type);
         nlohmann::json params = nlohmann::json::array();
         for(const auto& param : info.params){
-          params.push_back(paramJson(param));
+          nlohmann::json entry = paramJson(param);
+          // The output param declares no options at registration (names are
+          // only known at runtime); fill in the registered outputs.
+          if(outputNames && param.kind == Graph::ParamKind::Enum && param.name == "output" && param.enumOptions.empty()){
+            entry["options"] = *outputNames;
+          }
+          params.push_back(std::move(entry));
         }
         nlohmann::json entry{
           {"type", type},
@@ -116,10 +123,20 @@ namespace Aurora::Runtime
 
   void registerNodesRoute(HttpServer& server)
   {
-    const nlohmann::json payload = nodesPayload();
+    const nlohmann::json payload = nodesPayload(nullptr);
     server.addRoute(HttpMethod::Get, "/api/nodes", [payload](const Request&, Response& res){
       res.contentType = "application/json";
       res.body = payload.dump();
+    });
+  }
+
+
+  void registerNodesRoute(HttpServer& server, const Registry& registry, const std::filesystem::path& configRoot)
+  {
+    server.addRoute(HttpMethod::Get, "/api/nodes", [&registry, configRoot](const Request&, Response& res){
+      const std::vector<std::string> outputs = graphOutputNames(registry, configRoot);
+      res.contentType = "application/json";
+      res.body = nodesPayload(&outputs).dump();
     });
   }
 
