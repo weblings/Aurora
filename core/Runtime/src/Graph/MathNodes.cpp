@@ -41,7 +41,7 @@ namespace Aurora::Runtime::Graph
 
     private:
       std::vector<PortDecl> m_in;
-      std::vector<PortDecl> m_out{{"value", PortType::Float, false}};
+      std::vector<PortDecl> m_out{{"value", PortType::Float, false, "The computed value."}};
       Compute m_compute;
     };
 
@@ -87,7 +87,7 @@ namespace Aurora::Runtime::Graph
         NodeTypeInfo{
           .meta = std::move(meta),
           .inputs = std::move(inputs),
-          .outputs = {{"value", PortType::Float, false}},
+          .outputs = {{"value", PortType::Float, false, "The computed value."}},
           .params = std::move(params),
           .factory =
             [declared, compute] { return std::make_unique<ScalarMathNode>(declared, compute); },
@@ -108,18 +108,20 @@ namespace Aurora::Runtime::Graph
   void registerMathNodes(NodeRegistry& registry)
   {
     add(registry, "math.scale",
-      {.purpose = "Multiply a Float by a constant factor.",
+      {.title = "Scale",
+       .purpose = "Multiply a Float by a constant factor.",
        .useWhen = "Convert units or set a gain, e.g. onset strength times 180 degrees.",
        .example = "{\"id\": \"gain\", \"type\": \"math.scale\", \"params\": {\"factor\": 180}}"},
-      {{"value", PortType::Float, true}},
+      {{"value", PortType::Float, true, "The Float to multiply."}},
       {floatParam("factor", "Factor", 1.f, "Constant the input is multiplied by.")},
       [](const EvalContext& c) { return in(c, "value") * param(c, "factor"); });
 
     add(registry, "math.divide",
-      {.purpose = "Divide a Float by a constant divisor. A zero divisor fails the node.",
+      {.title = "Divide",
+       .purpose = "Divide a Float by a constant divisor. A zero divisor fails the node.",
        .useWhen = "Normalize against a reference, e.g. rms divided by a reference loudness.",
        .example = "{\"id\": \"norm\", \"type\": \"math.divide\", \"params\": {\"divisor\": 0.3}}"},
-      {{"value", PortType::Float, true}},
+      {{"value", PortType::Float, true, "The Float to divide."}},
       {floatParam("divisor", "Divisor", 1.f, "Constant the input is divided by, must not be 0.")},
       [](const EvalContext& c) {
         float divisor = param(c, "divisor");
@@ -130,10 +132,11 @@ namespace Aurora::Runtime::Graph
       });
 
     add(registry, "math.clamp",
-      {.purpose = "Limit a Float to the range min..max.",
+      {.title = "Clamp",
+       .purpose = "Limit a Float to the range min..max.",
        .useWhen = "Keep a signal in a safe range before scaling or mixing.",
        .example = "{\"id\": \"cap\", \"type\": \"math.clamp\", \"params\": {\"min\": 0, \"max\": 1}}"},
-      {{"value", PortType::Float, true}},
+      {{"value", PortType::Float, true, "The Float to limit."}},
       {floatParam("min", "Min", 0.f, "Lower bound."),
        floatParam("max", "Max", 1.f, "Upper bound, must be at least min.")},
       [](const EvalContext& c) {
@@ -146,12 +149,13 @@ namespace Aurora::Runtime::Graph
       });
 
     add(registry, "math.mapRange",
-      {.purpose = "Linearly remap a Float from one range to another, optionally clamped to the output range.",
+      {.title = "Map range",
+       .purpose = "Linearly remap a Float from one range to another, optionally clamped to the output range.",
        .useWhen = "Turn a signal in known bounds into another range, e.g. 0..1 loudness into 0.2..1 brightness.",
        .example =
          "{\"id\": \"remap\", \"type\": \"math.mapRange\", \"params\": {\"inMin\": 0, \"inMax\": 1, "
          "\"outMin\": 0.2, \"outMax\": 1, \"clamp\": true}}"},
-      {{"value", PortType::Float, true}},
+      {{"value", PortType::Float, true, "The Float to remap."}},
       {floatParam("inMin", "In min", 0.f, "Input value that maps to outMin."),
        floatParam("inMax", "In max", 1.f, "Input value that maps to outMax, must differ from inMin."),
        floatParam("outMin", "Out min", 0.f, "Output at inMin."),
@@ -173,10 +177,11 @@ namespace Aurora::Runtime::Graph
       });
 
     add(registry, "math.lerp",
-      {.purpose = "Blend from 'from' to 'to' by a Float t (0 gives from, 1 gives to, not clamped).",
+      {.title = "Lerp",
+       .purpose = "Blend from 'from' to 'to' by a Float t (0 gives from, 1 gives to, not clamped).",
        .useWhen = "Interpolate between two constants with a signal, e.g. lerp(floor, 1) driven by onset strength.",
        .example = "{\"id\": \"swing\", \"type\": \"math.lerp\", \"params\": {\"from\": 0.3, \"to\": 1}}"},
-      {{"t", PortType::Float, true}},
+      {{"t", PortType::Float, true, "Blend amount: 0 gives from, 1 gives to."}},
       {floatParam("from", "From", 0.f, "Output when t is 0."),
        floatParam("to", "To", 1.f, "Output when t is 1.")},
       [](const EvalContext& c) {
@@ -185,34 +190,41 @@ namespace Aurora::Runtime::Graph
       });
 
     add(registry, "math.add",
-      {.purpose = "Add two Floats. Input b is optional and falls back to param b.",
+      {.title = "Add",
+       .purpose = "Add two Floats. Input b is optional and falls back to param b.",
        .useWhen = "Combine two signals, or offset one by a constant (leave b unwired, set param b).",
        .example = "{\"id\": \"sum\", \"type\": \"math.add\", \"params\": {\"b\": 0.5}}"},
-      {{"a", PortType::Float, true}, {"b", PortType::Float, false}},
+      {{"a", PortType::Float, true, "The first Float."},
+       {"b", PortType::Float, false, "The second Float; param b is used when unwired."}},
       {floatParam("b", "B", 0.f, "Used when input b is not wired.")},
       [](const EvalContext& c) { return in(c, "a") + inputOrParam(c, "b"); });
 
     add(registry, "math.multiply",
-      {.purpose = "Multiply two Floats. Input b is optional and falls back to param b.",
+      {.title = "Multiply",
+       .purpose = "Multiply two Floats. Input b is optional and falls back to param b.",
        .useWhen = "Modulate one signal by another, e.g. brightness times a loudness envelope, or by a constant via param b.",
        .example = "{\"id\": \"mod\", \"type\": \"math.multiply\", \"params\": {\"b\": 0.5}}"},
-      {{"a", PortType::Float, true}, {"b", PortType::Float, false}},
+      {{"a", PortType::Float, true, "The first Float."},
+       {"b", PortType::Float, false, "The second Float; param b is used when unwired."}},
       {floatParam("b", "B", 1.f, "Used when input b is not wired.")},
       [](const EvalContext& c) { return in(c, "a") * inputOrParam(c, "b"); });
 
     add(registry, "math.max",
-      {.purpose = "The larger of two Floats. Input b is optional and falls back to param b.",
+      {.title = "Max",
+       .purpose = "The larger of two Floats. Input b is optional and falls back to param b.",
        .useWhen = "Floor one signal with another or a constant, e.g. keep a rate from going negative (param b 0).",
        .example = "{\"id\": \"floor\", \"type\": \"math.max\", \"params\": {\"b\": 0}}"},
-      {{"a", PortType::Float, true}, {"b", PortType::Float, false}},
+      {{"a", PortType::Float, true, "The first Float."},
+       {"b", PortType::Float, false, "The second Float; param b is used when unwired."}},
       {floatParam("b", "B", 0.f, "Used when input b is not wired.")},
       [](const EvalContext& c) { return std::max(in(c, "a"), inputOrParam(c, "b")); });
 
     add(registry, "math.invert",
-      {.purpose = "Flip a 0..1 Float to 1 minus the value.",
+      {.title = "Invert",
+       .purpose = "Flip a 0..1 Float to 1 minus the value.",
        .useWhen = "Reverse a normalized signal, e.g. quiet becomes bright.",
        .example = "{\"id\": \"flip\", \"type\": \"math.invert\", \"params\": {}}"},
-      {{"value", PortType::Float, true}},
+      {{"value", PortType::Float, true, "A 0..1 Float to flip."}},
       {},
       [](const EvalContext& c) { return 1.f - in(c, "value"); });
   }

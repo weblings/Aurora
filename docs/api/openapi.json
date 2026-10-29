@@ -230,6 +230,96 @@
         }
       }
     },
+    "/api/v1/effects/{id}/duplicate": {
+      "post": {
+        "operationId": "duplicateEffect",
+        "summary": "Copy an effect to a new custom id",
+        "description": "Needs the Apply scope. The source is a built-in or a custom effect, and the copy is a custom effect with the same graph, title and description. A file is never replaced and the active effect does not change.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "The effect to copy.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DuplicateBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Copied.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Duplicated"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad body or new id (`invalid_body`, `invalid_effect_id`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such source effect (`unknown_effect`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The new id is taken (`effect_exists`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The source file is not valid JSON (`unreadable_effect`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "The copy could not be saved (`write_failed`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/descriptors": {
       "get": {
         "operationId": "listDescriptors",
@@ -715,11 +805,36 @@
             }
           },
           "404": {
-            "description": "No test for this session (`no_test`).",
+            "description": "No test for this session (`no_test`). The body adds `lastEnd` (for example `replaced`) and `holder`, who holds the lights now.",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Error"
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/Error"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "lastEnd": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "holder": {
+                          "oneOf": [
+                            {
+                              "$ref": "#/components/schemas/TestHolder"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        }
+                      }
+                    }
+                  ]
                 }
               }
             }
@@ -873,6 +988,75 @@
         "responses": {
           "200": {
             "description": "Applied. `reloadError` is set when the swap failed.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Applied"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad body, session or effect id (`invalid_body`, `invalid_session`, `invalid_effect_id`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such draft (`no_draft`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The draft is not valid (`invalid_graph`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InvalidGraph"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "The effect could not be saved (`write_failed`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/graph/save": {
+      "post": {
+        "operationId": "saveGraph",
+        "summary": "Save a draft as an effect without running it",
+        "description": "Needs the Apply scope. The same checks and write as `POST /api/v1/graph/apply`, but the active effect does not change. When `id` is the active custom effect it is reloaded from the new file, so what runs matches what is saved. `activeEffectId` in the answer is the unchanged setting.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApplyBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Saved. `reloadError` is set when reloading the active effect failed.",
             "content": {
               "application/json": {
                 "schema": {
@@ -1158,6 +1342,37 @@
           }
         }
       },
+      "DuplicateBody": {
+        "type": "object",
+        "required": [
+          "id"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "The custom effect id for the copy."
+          }
+        }
+      },
+      "Duplicated": {
+        "type": "object",
+        "required": [
+          "succeeded",
+          "id",
+          "source"
+        ],
+        "properties": {
+          "succeeded": {
+            "type": "boolean"
+          },
+          "id": {
+            "type": "string"
+          },
+          "source": {
+            "type": "string"
+          }
+        }
+      },
       "ValidationIssue": {
         "type": "object",
         "required": [
@@ -1256,6 +1471,9 @@
               ],
               "properties": {
                 "type": {
+                  "type": "string"
+                },
+                "title": {
                   "type": "string"
                 },
                 "purpose": {
@@ -1507,12 +1725,33 @@
           }
         ]
       },
+      "TestHolder": {
+        "type": "object",
+        "required": [
+          "session",
+          "client"
+        ],
+        "properties": {
+          "session": {
+            "type": "string",
+            "description": "The draft session that started the running test."
+          },
+          "client": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The caller's `X-Aurora-Client` (`mcp` for an agent), null for the WebUI."
+          }
+        }
+      },
       "LightTest": {
         "type": "object",
         "required": [
           "active",
           "confirmRemainingMs",
           "revertAfterMs",
+          "holder",
           "lastEnd"
         ],
         "properties": {
@@ -1530,7 +1769,18 @@
               "string",
               "null"
             ],
-            "description": "Why the previous test ended, null if none has."
+            "description": "Why the previous test ended, null if none has. `replaced` means another session started a test and took the lights."
+          },
+          "holder": {
+            "description": "Who holds the running test, null when none runs.",
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/TestHolder"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         }
       },
@@ -1940,7 +2190,8 @@
             "type": "object",
             "required": [
               "active",
-              "confirmRemainingMs"
+              "confirmRemainingMs",
+              "holder"
             ],
             "properties": {
               "active": {
@@ -1948,6 +2199,16 @@
               },
               "confirmRemainingMs": {
                 "type": "integer"
+              },
+              "holder": {
+                "oneOf": [
+                  {
+                    "$ref": "#/components/schemas/TestHolder"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
               }
             }
           },
@@ -2203,6 +2464,9 @@
                   "type": "string"
                 },
                 "description": {
+                  "type": "string"
+                },
+                "title": {
                   "type": "string"
                 },
                 "useWhen": {

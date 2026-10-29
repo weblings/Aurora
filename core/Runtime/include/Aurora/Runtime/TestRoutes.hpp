@@ -38,7 +38,9 @@ namespace Aurora::Runtime
   //
   // POST /api/graph/test/heartbeat {"session"}: {"succeeded": true,
   // "confirmRemainingMs"}. 404 "no_test" when that session has none running
-  // (it ended, was replaced or never started).
+  // (it ended, was replaced or never started); the body adds "lastEnd" and
+  // "holder" (Aurora-0tqq), so a replaced session sees lastEnd "replaced" and
+  // who holds the lights.
   //
   // POST /api/graph/test/revert {"session"}: {"succeeded": true} once the live
   // effect is back, plus "revertError" if putting it back failed. 404 "no_test".
@@ -53,7 +55,11 @@ namespace Aurora::Runtime
   // longer the graph under test, else apply's answers.
   //
   // GET /api/graph/test: {"active", "confirmRemainingMs", "revertAfterMs",
-  // "lastEnd"} (lastEnd names why the previous test ended, or null).
+  // "holder", "lastEnd"}. holder is {"session", "client"} of the running test
+  // (client is the X-Aurora-Client, "mcp" for an agent, null for the WebUI),
+  // null when none runs. lastEnd names why the previous test ended, or null;
+  // "replaced" when another session's POST /api/graph/test took the lights
+  // (Aurora-0tqq). The "test" block of /api/events carries "holder" too.
   //
   // `watchdog` false leaves deadlines to be enforced by poll() on the returned
   // LightTest (tests with a fake clock).

@@ -24,6 +24,7 @@ namespace Aurora::Runtime::Graph
   // and the editor read one source.
   struct NodeTypeMeta
   {
+    std::string title;    // short display name for the editor, e.g. "Hue shift"
     std::string purpose;  // == descriptor `details`
     std::string useWhen;
     std::string example;  // JSON snippet of the node as in graph.json

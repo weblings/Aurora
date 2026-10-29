@@ -1,0 +1,2563 @@
+{
+ "nodes": [
+  {
+   "cost": "heavy",
+   "example": "{\"id\": \"cap\", \"type\": \"video.capture\", \"params\": {}}",
+   "inputs": [],
+   "outputs": [
+    {
+     "description": "One video frame per tick; Absent while the source is unhealthy.",
+     "name": "image",
+     "type": "Image"
+    }
+   ],
+   "params": [],
+   "purpose": "Grab one video frame per tick; Absent while the source is unhealthy.",
+   "title": "Video capture",
+   "type": "video.capture",
+   "useWhen": "First node of any video path."
+  },
+  {
+   "cost": "moderate",
+   "example": "{\"id\": \"small\", \"type\": \"image.rescale\", \"params\": {\"width\": 96, \"interpolation\": \"Area\"}}",
+   "inputs": [
+    {
+     "description": "The Image to downscale.",
+     "name": "image",
+     "required": true,
+     "type": "Image"
+    }
+   ],
+   "outputs": [
+    {
+     "description": "The downscaled Image.",
+     "name": "image",
+     "type": "Image"
+    }
+   ],
+   "params": [
+    {
+     "allowsUnset": false,
+     "default": 0.0,
+     "description": "Target width in px; 0 passes the image through (today's unset subsampleWidth).",
+     "kind": "float",
+     "label": "Resample width",
+     "max": 7680.0,
+     "min": 0.0,
+     "name": "width",
+     "step": 1.0,
+     "unit": "px"
+    },
+    {
+     "default": "Area",
+     "description": "Downscale filter (today's video.interpolation; keep Area for thin detail).",
+     "kind": "enum",
+     "name": "interpolation",
+     "options": [
+      "Nearest",
+      "Cubic",
+      "Area"
+     ]
+    }
+   ],
+   "purpose": "Downscale an image to a target width (today's subsampleWidth).",
+   "title": "Rescale image",
+   "type": "image.rescale",
+   "useWhen": "After capture, before sampling; width 0 passes through."
+  },
+  {
+   "cost": "cheap",
+   "example": "{\"id\": \"opaque\", \"type\": \"image.dropAlpha\", \"params\": {}}",
+   "inputs": [
+    {
+     "description": "The Image to make opaque.",
+     "name": "image",
+     "required": true,
+     "type": "Image"
+    }
+   ],
+   "outputs": [
+    {
+     "description": "The Image without its alpha channel.",
+     "name": "image",
+     "type": "Image"
+    }
+   ],
+   "params": [],
+   "purpose": "Drop the alpha channel (no-op for already-opaque images).",
+   "title": "Drop alpha",
+   "type": "image.dropAlpha",
+   "useWhen": "After rescale, before zone sampling."
+  },
+  {
+   "cost": "moderate",
+   "example": "{\"id\": \"zones\", \"type\": \"zones.sample\", \"params\": {\"output\": \"hue\"}}",
+   "inputs": [
+    {
+     "description": "The Image to sample zone colors from.",
+     "name": "image",
+     "required": true,
+     "type": "Image"
+    }
+   ],
+   "outputs": [
+    {
+     "description": "One color per zone of the output.",
+     "name": "frame",
+     "type": "Frame"
+    }
+   ],
+   "params": [
+    {
+     "default": "",
+     "description": "Output whose live zone map is sampled (per-output binding, not a port).",
+     "kind": "enum",
+     "name": "output",
+     "options": [
+      "hue"
+     ]
+    }
+   ],
+   "purpose": "Sample zone colors from an image via one output's live zone map.",
+   "title": "Sample zones",
+   "type": "zones.sample",
+   "useWhen": "After the image path is prepared; outputs one Frame."
+  },
+  {
+   "cost": "cheap",
+   "example": "{\"id\": \"ease\", \"type\": \"frame.smooth\", \"params\": {\"output\": \"hue\", \"smoothing\": 0.5}}",
+   "inputs": [
+    {
+     "description": "The Frame to ease.",
+     "name": "frame",
+     "required": true,
+     "type": "Frame"
+    }
+   ],
+   "outputs": [
+    {
+     "description": "The eased Frame.",
+     "name": "frame",
+     "type": "Frame"
+    }
+   ],
+   "params": [
+    {
+     "default": "",
+     "description": "Output whose zones are smoothed (keys the smoother state).",
+     "kind": "enum",
+     "name": "output",
+     "options": [
+      "hue"
+     ]
+    },
+    {
+     "allowsUnset": false,
+     "default": 0.0,
+     "description": "Easing between color changes, 0 is instant (today's video.transitionSmoothing).",
+     "kind": "float",
+     "label": "Transition smoothing",
+     "max": 0.97,
+     "min": 0.0,
+     "name": "smoothing",
+     "step": 0.01,
+     "unit": ""
+    }
+   ],
+   "purpose": "Ease each zone's color toward its new value, per output.",
+   "title": "Smooth frames",
+   "type": "frame.smooth",
+   "useWhen": "Between zone sampling and output.send; one instance per output."
+  },
+  {
+   "cost": "cheap",
+   "example": "{\"id\": \"ease\", \"type\": \"frame.smoothTime\", \"params\": {\"tau\": 0.15}}",
+   "inputs": [
+    {
+     "description": "The Frame to ease.",
+     "name": "frame",
+     "required": true,
+     "type": "Frame"
+    }
+   ],
+   "outputs": [
+    {
+     "description": "The eased Frame.",
+     "name": "frame",
+     "type": "Frame"
+    }
+   ],
+   "params": [
+    {
+     "allowsUnset": false,
+     "default": 0.15,
+     "description": "Easing time constant in seconds, 0 is instant. Same settle time at any tick rate.",
+     "kind": "float",
+     "label": "Tau",
+     "max": 60.0,
+     "min": 0.0,
+     "name": "tau",
+     "step": 0.01,
+     "unit": "s"
+    }
+   ],
+   "purpose": "Ease each zone's color toward its new value over tau seconds, at any tick rate.",
+   "title": "Smooth frames (timed)",
+   "type": "frame.smoothTime",
+   "useWhen": "Instead of frame.smooth when easing must feel the same at every refresh rate."
+  },
+  {
+   "cost": "cheap",
+   "example": "{\"id\": \"dim\", \"type\": \"frame.gain\", \"params\": {\"gain\": 0.5}}",
+   "inputs": [
+    {
+     "description": "The Frame to scale.",
+     "name": "frame",
+     "required": true,
+     "type": "Frame"
+    }
+   ],
+   "outputs": [
+    {
+     "description": "The Frame with every zone scaled.",
+     "name": "frame",
+     "type": "Frame"
+    }
+   ],
+   "params": [
+    {
+     "allowsUnset": false,
+     "default": 1.0,
+     "description": "Brightness multiplier, 1 leaves colors unchanged (the global brightness setting).",
+     "kind": "float",
+     "label": "Brightness",
+     "max": 1.0,
+     "min": 0.0,
+     "name": "gain",
+     "step": 0.01,
+     "unit": ""
+    }
+   ],
+   "purpose": "Scale every zone's color by a brightness factor.",
+   "title": "Gain",
+   "type": "frame.gain",
+   "useWhen": "Last step before output.send; the built-in graphs run the global brightness here."
+  },
+  {
+   "cost": "cheap",
+   "example": "{\"id\": \"keep\", \"type\": \"frame.floor\", \"params\": {\"policy\": \"hold\", \"floor\": 0.05}}",
+   "inputs": [
+    {
+     "description": "The Frame to keep above the floor.",
+     "name": "frame",
+     "required": true,
+     "type": "Frame"
+    }
+   ],
+   "outputs": [
+    {
+     "description": "The Frame with dim zones raised to the floor.",
+     "name": "frame",
+     "type": "Frame"
+    }
+   ],
+   "params": [
+    {
+     "default": "off",
+     "description": "off passes frames through, hold raises dim colors to the floor keeping hue (black holds the last hue), switchOff is hold but goes to real black after holdSeconds of black.",
+     "kind": "enum",
+     "name": "policy",
+     "options": [
+      "off",
+      "hold",
+      "switchOff"
+     ]
+    },
+    {
+     "allowsUnset": false,
+     "default": 0.05,
+     "description": "Minimum largest-channel level (0-1) while the policy is not off.",
+     "kind": "float",
+     "label": "Floor",
+     "max": 1.0,
+     "min": 0.0,
+     "name": "floor",
+     "step": 0.01,
+     "unit": ""
+    },
+    {
+     "allowsUnset": false,
+     "default": 2.0,
+     "description": "switchOff only: seconds of exact black before the output goes to black.",
+     "kind": "float",
+     "label": "Hold time",
+     "max": 60.0,
+     "min": 0.0,
+     "name": "holdSeconds",
+     "step": 0.1,
+     "unit": "s"
+    }
+   ],
+   "purpose": "Keep zones above a minimum brightness for outputs where brightness 0 means off.",
+   "title": "Black floor",
+   "type": "frame.floor",
+   "useWhen": "After frame.gain, before output.send, per output; leave policy off for Hue."
+  },
+  {
+   "cost": "moderate",
+   "example": "{\"id\": \"send\", \"type\": \"output.send\", \"params\": {\"output\": \"hue\"}}",
+   "inputs": [
+    {
+     "description": "The Frame to send to the output.",
+     "name": "frame",
+     "required": true,
+     "type": "Frame"
+    }
+   ],
+   "outputs": [],
+   "params": [
+    {
+     "default": "",
+     "description": "Output that receives the frame (per-output binding, not a port).",
+     "kind": "enum",
+     "name": "output",
+     "options": [
+      "hue"
+     ]
+    }
+   ],
+   "purpose": "Send a Frame to one output; sends nothing on a skipped tick.",
+   "sink": "output",
+   "title": "Send to output",
+   "type": "output.send",
+   "useWhen": "Last node of every path, one per output."
+  },
+  {
+   "cost": "cheap",
+   "example": "{\"id\": \"gain\", \"type\": \"math.scale\", \"params\": {\"factor\": 180}}",
+   "inputs": [
+    {
+     "description": "The Float to multiply.",
+     "name": "value",
+     "required": true,
+     "type": "Float"
+    }
+   ],
+   "outputs": [
+    {
+     "description": "The computed value.",
+     "name": "value",
+     "type": "Float"
+    }
+   ],
+   "params": [
+    {
+     "allowsUnset": false,
+     "default": 1.0,
+     "description": "Constant the input is multiplied by.",
+     "kind": "float",
+     "label": "Factor",
+     "max": 1000000.0,
+     "min": -1000000.0,
+     "name": "factor",
+     "step": 0.01,
+     "unit": ""
+    }
+   ],
+   "purpose": "Multiply a Float by a constant factor.",
+   "title": "Scale",
+   "type": "math.scale",
+   "useWhen": "Convert units or set a gain, e.g. onset strength times 180 degrees."
+  },
+  {
+   "cost": "cheap",
+   "example": "{\"id\": \"norm\", \"type\": \"math.divide\", \"params\": {\"divisor\": 0.3}}",
+   "inputs": [
+    {
+     "description": "The Float to divide.",
+     "name": "value",
+     "required": true,
+     "type": "Float"
+    }
+   ],
+   "outputs": [
+    {
+     "description": "The computed value.",
+     "name": "value",
+     "type": "Float"
+    }
+   ],
+   "params": [
+    {
+     "allowsUnset": false,
+     "default": 1.0,
+     "description": "Constant the input is divided by, must not be 0.",
+     "kind": "float",
+     "label": "Divisor",
+     "max": 1000000.0,
+     "min": -1000000.0,
+     "name": "divisor",
+     "step": 0.01,
+     "unit": ""
+    }
+   ],
+   "purpose": "Divide a Float by a constant divisor. A zero divisor fails the node.",
+   "title": "Divide",
+   "type": "math.divide",
+   "useWhen": "Normalize against a reference, e.g. rms divided by a reference loudness."
+  },
+  {
+   "cost": "cheap",
+   "example": "{\"id\": \"cap\", \"type\": \"math.clamp\", \"params\": {\"min\": 0, \"max\": 1}}",
+   "inputs": [
+    {
+     "description": "The Float to limit.",
+     "name": "value",
+     "required": true,
+     "type": "Float"
+    }
+   ],
+   "outputs": [
+    {
+     "description": "The computed value.",
+     "name": "value",
+     "type": "Float"
+    }
+   ],
+   "params": [
+    {
+     "allowsUnset": false,
+     "default": 0.0,
+     "description": "Lower bound.",
+     "kind": "float",
+     "label": "Min",
+     "max": 1000000.0,
+     "min": -1000000.0,
+     "name": "min",
+     "step": 0.01,
+     "unit": ""
+    },
+    {
+     "allowsUnset": false,
+     "default": 1.0,
+     "description": "Upper bound, must be at least min.",
+     "kind": "float",
+     "label": "Max",
+     "max": 1000000.0,
+     "min": -1000000.0,
+     "name": "max",
+     "step": 0.01,
+     "unit": ""
+    }
+   ],
+   "purpose": "Limit a Float to the range min..max.",
+   "title": "Clamp",
+   "type": "math.clamp",
+   "useWhen": "Keep a signal in a safe range before scaling or mixing."
+  },
+  {
+   "cost": "cheap",
+   "example": "{\"id\": \"remap\", \"type\": \"math.mapRange\", \"params\": {\"inMin\": 0, \"inMax\": 1, \"outMin\": 0.2, \"outMax\": 1, \"clamp\": true}}",
+   "inputs": [
+    {
+     "description": "The Float to remap.",
+     "name": "value",
+     "required": true,
+     "type": "Float"
+    }
+   ],
+   "outputs": [
+    {
+     "description": "The computed value.",
+     "name": "value",
+     "type": "Float"
+    }
+   ],
+   "params": [
+    {
+     "allowsUnset": false,
+     "default": 0.0,
+     "description": "Input value that maps to outMin.",
+     "kind": "float",
+     "label": "In min",
+     "max": 1000000.0,
+     "min": -1000000.0,
+     "name": "inMin",
+     "step": 0.01,
+     "unit": ""
+    },
+    {
+     "allowsUnset": false,
+     "default": 1.0,
+     "description": "Input value that maps to outMax, must differ from inMin.",
+     "kind": "float",
+     "label": "In max",
+     "max": 1000000.0,
+     "min": -1000000.0,
+     "name": "inMax",
+     "step": 0.01,
+     "unit": ""
+    },
+    {
+     "allowsUnset": false,
+     "default": 0.0,
+     "description": "Output at inMin.",
+     "kind": "float",
+     "label": "Out min",
+     "max": 1000000.0,
+     "min": -1000000.0,
+     "name": "outMin",
+     "step": 0.01,
+     "unit": ""
+    },
+    {
+     "allowsUnset": false,
+     "default": 1.0,
+     "description": "Output at inMax.",
+     "kind": "float",
+     "label": "Out max",
+     "max": 1000000.0,
+     "min": -1000000.0,
+     "name": "outMax",
+     "step": 0.01,
+     "unit": ""
+    },
+    {
+     "default": true,
+     "description": "Hold the output inside outMin..outMax.",
+     "kind": "bool",
+     "name": "clamp"
+    }
+   ],
+   "purpose": "Linearly remap a Float from one range to another, optionally clamped to the output range.",
+   "title": "Map range",
+   "type": "math.mapRange",
+   "useWhen": "Turn a signal in known bounds into another range, e.g. 0..1 loudness into 0.2..1 brightness."
+  },
+  {
+   "cost": "cheap",
+   "example": "{\"id\": \"swing\", \"type\": \"math.lerp\", \"params\": {\"from\": 0.3, \"to\": 1}}",
+   "inputs": [
+    {
+     "description": "Blend amount: 0 gives from, 1 gives to.",
+     "name": "t",
+     "required": true,
+     "type": "Float"
+    }
+   ],
+   "outputs": [
+    {
+     "description": "The computed value.",
+     "name": "value",
+     "type": "Float"
+    }
+   ],
+   "params": [
+    {
+     "allowsUnset": false,
+     "default": 0.0,
+     "description": "Output when t is 0.",
+     "kind": "float",
+     "label": "From",
+     "max": 1000000.0,
+     "min": -1000000.0,
+     "name": "from",
+     "step": 0.01,
+     "unit": ""
+    },
+    {
+     "allowsUnset": false,
+     "default": 1.0,
+     "description": "Output when t is 1.",
+     "kind": "float",
+     "label": "To",
+     "max": 1000000.0,
+     "min": -1000000.0,
+     "name": "to",
+     "step": 0.01,
+     "unit": ""
+    }
+   ],
+   "purpose": "Blend from 'from' to 'to' by a Float t (0 gives from, 1 gives to, not clamped).",
+   "title": "Lerp",
+   "type": "math.lerp",
+   "useWhen": "Interpolate between two constants with a signal, e.g. lerp(floor, 1) driven by onset strength."
+  },
+  {
+   "cost": "cheap",
+   "example": "{\"id\": \"sum\", \"type\": \"math.add\", \"params\": {\"b\": 0.5}}",
+   "inputs": [
+    {
+     "description": "The first Float.",
+     "name": "a",
+     "required": true,
+     "type": "Float"
+    },
+    {
+     "description": "The second Float; param b is used when unwired.",
+     "name": "b",
+     "required": false,
+     "type": "Float"
+    }
+   ],
+   "outputs": [
+    {
+     "description": "The computed value.",
+     "name": "value",
+     "type": "Float"
+    }
+   ],
+   "params": [
+    {
+     "allowsUnset": false,
+     "default": 0.0,
+     "description": "Used when input b is not wired.",
+     "kind": "float",
+     "label": "B",
+     "max": 1000000.0,
+     "min": -1000000.0,
+     "name": "b",
+     "step": 0.01,
+     "unit": ""
+    }
+   ],
+   "purpose": "Add two Floats. Input b is optional and falls back to param b.",
+   "title": "Add",
+   "type": "math.add",
+   "useWhen": "Combine two signals, or offset one by a constant (leave b unwired, set param b)."
+  },
+  {
+   "cost": "cheap",
+   "example": "{\"id\": \"mod\", \"type\": \"math.multiply\", \"params\": {\"b\": 0.5}}",
+   "inputs": [
+    {
+     "description": "The first Float.",
+     "name": "a",
+     "required": true,
+     "type": "Float"
+    },
+    {
+     "description": "The second Float; param b is used when unwired.",
+     "name": "b",
+     "required": false,
+     "type": "Float"
+    }
+   ],
+   "outputs": [
+    {
+     "description": "The computed value.",
+     "name": "value",
+     "type": "Float"
+    }
+   ],
+   "params": [
+    {
+     "allowsUnset": false,
+     "default": 1.0,
+     "description": "Used when input b is not wired.",
+     "kind": "float",
+     "label": "B",
+     "max": 1000000.0,
+     "min": -1000000.0,
+     "name": "b",
+     "step": 0.01,
+     "unit": ""
+    }
+   ],
+   "purpose": "Multiply two Floats. Input b is optional and falls back to param b.",
+   "title": "Multiply",
+   "type": "math.multiply",
+   "useWhen": "Modulate one signal by another, e.g. brightness times a loudness envelope, or by a constant via param b."
+  },
+  {
+   "cost": "cheap",
+   "example": "{\"id\": \"floor\", \"type\": \"math.max\", \"params\": {\"b\": 0}}",
+   "inputs": [
+    {
+     "description": "The first Float.",
+     "name": "a",
+     "required": true,
+     "type": "Float"
+    },
+    {
+     "description": "The second Float; param b is used when unwired.",
+     "name": "b",
+     "required": false,
+     "type": "Float"
+    }
+   ],
+   "outputs": [
+    {
+     "description": "The computed value.",
+     "name": "value",
+     "type": "Float"
+    }
+   ],
+   "params": [
+    {
+     "allowsUnset": false,
+     "default": 0.0,
+     "description": "Used when input b is not wired.",
+     "kind": "float",
+     "label": "B",
+     "max": 1000000.0,
+     "min": -1000000.0,
+     "name": "b",
+     "step": 0.01,
+     "unit": ""
+    }
+   ],
+   "purpose": "The larger of two Floats. Input b is optional and falls back to param b.",
+   "title": "Max",
+   "type": "math.max",
+   "useWhen": "Floor one signal with another or a constant, e.g. keep a rate from going negative (param b 0)."
+  },
+  {
+   "cost": "cheap",
+   "example": "{\"id\": \"flip\", \"type\": \"math.invert\", \"params\": {}}",
+   "inputs": [
+    {
+     "description": "A 0..1 Float to flip.",
+     "name": "value",
+     "required": true,
+     "type": "Float"
+    }
+   ],
+   "outputs": [
+    {
+     "description": "The computed value.",
+     "name": "value",
+     "type": "Float"
+    }
+   ],
+   "params": [],
+   "purpose": "Flip a 0..1 Float to 1 minus the value.",
+   "title": "Invert",
+   "type": "math.invert",
+   "useWhen": "Reverse a normalized signal, e.g. quiet becomes bright."
+  },
+  {
+   "cost": "cheap",
+   "example": "{\"id\": \"damp\", \"type\": \"smooth.exp\", \"params\": {\"tau\": 0.15}}",
+   "inputs": [
+    {
+     "description": "The Float to ease.",
+     "name": "value",
+     "required": true,
+     "type": "Float"
+    }
+   ],
+   "outputs": [
+    {
+     "description": "The eased Float.",
+     "name": "value",
+     "type": "Float"
+    }
+   ],
+   "params": [
+    {
+     "allowsUnset": false,
+     "default": 0.15,
+     "description": "Smoothing time constant in seconds, 0 is instant.",
+     "kind": "float",
+     "label": "Tau",
+     "max": 60.0,
+     "min": 0.0,
+     "name": "tau",
+     "step": 0.01,
+     "unit": "s"
+    }
+   ],
+   "purpose": "Ease a Float toward its input; tau seconds to cover ~63% of a step at any tick rate.",
+   "title": "Smooth",
+   "type": "smooth.exp",
+   "useWhen": "Damp a jumpy signal, e.g. rms into a brightness envelope."
+  },
+  {
+   "cost": "cheap",
+   "example": "{\"id\": \"hue\", \"type\": \"smooth.angle\", \"params\": {\"tau\": 0.15}}",
+   "inputs": [
+    {
+     "description": "The Angle to ease.",
+     "name": "angle",
+     "required": true,
+     "type": "Angle"
+    }
+   ],
+   "outputs": [
+    {
+     "description": "The eased Angle.",
+     "name": "angle",
+     "type": "Angle"
+    }
+   ],
+   "params": [
+    {
+     "allowsUnset": false,
+     "default": 0.15,
+     "description": "Smoothing time constant in seconds, 0 is instant.",
+     "kind": "float",
+     "label": "Tau",
+     "max": 60.0,
+     "min": 0.0,
+     "name": "tau",
+     "step": 0.01,
+     "unit": "s"
+    }
+   ],
+   "purpose": "Ease an Angle toward its input along the shortest arc, wrapping at 360.",
+   "title": "Smooth angle",
+   "type": "smooth.angle",
+   "useWhen": "Damp a hue target, e.g. the beat swing in a bounce."
+  },
+  {
+   "cost": "cheap",
+   "example": "{\"id\": \"base\", \"type\": \"rollingAverage\", \"params\": {\"tau\": 0.8}}",
+   "inputs": [
+    {
+     "description": "The Float to average.",
+     "name": "value",
+     "required": true,
+     "type": "Float"
+    }
+   ],
+   "outputs": [
+    {
+     "description": "The running average.",
+     "name": "value",
+     "type": "Float"
+    }
+   ],
+   "params": [
+    {
+     "allowsUnset": false,
+     "default": 0.8,
+     "description": "Averaging time constant in seconds, 0 passes the input through.",
+     "kind": "float",
+     "label": "Tau",
+     "max": 60.0,
+     "min": 0.0,
+     "name": "tau",
+     "step": 0.01,
+     "unit": "s"
+    }
+   ],
+   "purpose": "Running average of a Float over about tau seconds, independent of tick rate.",
+   "title": "Rolling average",
+   "type": "rollingAverage",
+   "useWhen": "Get a slow baseline to compare a signal against, e.g. centroid deviation."
+  },
+  {
+   "cost": "cheap",
+   "example": "{\"id\": \"anchor\", \"type\": \"integrate\", \"params\": {\"initial\": 0}}",
+   "inputs": [
+    {
+     "description": "Rate in degrees per second.",
+     "name": "rate",
+     "required": true,
+     "type": "Float"
+    }
+   ],
+   "outputs": [
+    {
+     "description": "The accumulated Angle.",
+     "name": "angle",
+     "type": "Angle"
+    }
+   ],
+   "params": [
+    {
+     "allowsUnset": false,
+     "default": 0.0,
+     "description": "Angle on the first tick.",
+     "kind": "float",
+     "label": "Initial",
+     "max": 360.0,
+     "min": 0.0,
+     "name": "initial",
+     "step": 0.01,
+     "unit": "deg"
+    }
+   ],
+   "purpose": "Accumulate a rate in degrees per second into an Angle that wraps at 360.",
+   "title": "Integrate",
+   "type": "integrate",
+   "useWhen": "Turn a speed signal into a hue position, e.g. drift's rate into its anchor."
+  },
+  {
+   "cost": "cheap",
+   "example": "{\"id\": \"swing\", \"type\": \"stepOnTrigger\", \"params\": {\"scale\": 1}}",
+   "inputs": [
+    {
+     "description": "Each pulse adds one step.",
+     "name": "trigger",
+     "required": true,
+     "type": "Trigger"
+    },
+    {
+     "description": "Scales the step; param scale alone is the step when unwired.",
+     "name": "amount",
+     "required": false,
+     "type": "Float"
+    }
+   ],
+   "outputs": [
+    {
+     "description": "The accumulated Angle, held between pulses.",
+     "name": "angle",
+     "type": "Angle"
+    }
+   ],
+   "params": [
+    {
+     "allowsUnset": false,
+     "default": 1.0,
+     "description": "Degrees per pulse: multiplies 'amount', or is the whole step when 'amount' is unconnected.",
+     "kind": "float",
+     "label": "Scale",
+     "max": 1000000.0,
+     "min": -1000000.0,
+     "name": "scale",
+     "step": 0.01,
+     "unit": ""
+    }
+   ],
+   "purpose": "Add a step to an Angle on each Trigger pulse and hold it between pulses.",
+   "title": "Step on trigger",
+   "type": "stepOnTrigger",
+   "useWhen": "Swing a hue on each beat, e.g. onset strength times 180 degrees per onset."
+  },
+  {
+   "cost": "cheap",
+   "example": "{\"id\": \"breathe\", \"type\": \"lfo\", \"params\": {\"shape\": \"sine\", \"rateHz\": 0.2}}",
+   "inputs": [],
+   "outputs": [
+    {
+     "description": "The oscillator value between min and max.",
+     "name": "value",
+     "type": "Float"
+    }
+   ],
+   "params": [
+    {
+     "default": "sine",
+     "description": "Waveform: sine starts at min and rises, saw ramps min to max, square is half max then half min.",
+     "kind": "enum",
+     "name": "shape",
+     "options": [
+      "sine",
+      "saw",
+      "square"
+     ]
+    },
+    {
+     "allowsUnset": false,
+     "default": 1.0,
+     "description": "Cycles per second.",
+     "kind": "float",
+     "label": "Rate",
+     "max": 100.0,
+     "min": 0.0,
+     "name": "rateHz",
+     "step": 0.01,
+     "unit": "Hz"
+    },
+    {
+     "allowsUnset": false,
+     "default": 0.0,
+     "description": "Output at the bottom of the wave.",
+     "kind": "float",
+     "label": "Min",
+     "max": 1000000.0,
+     "min": -1000000.0,
+     "name": "min",
+     "step": 0.01,
+     "unit": ""
+    },
+    {
+     "allowsUnset": false,
+     "default": 1.0,
+     "description": "Output at the top of the wave.",
+     "kind": "float",
+     "label": "Max",
+     "max": 1000000.0,
+     "min": -1000000.0,
+     "name": "max",
+     "step": 0.01,
+     "unit": ""
+    }
+   ],
+   "purpose": "Free-running oscillator between min and max at rateHz.",
+   "title": "LFO",
+   "type": "lfo",
+   "useWhen": "Slow modulation with no audio, e.g. a breathing brightness."
+  },
+  {
+   "cost": "cheap",
+   "example": "{\"id\": \"flicker\", \"type\": \"noise\", \"params\": {\"rateHz\": 6, \"min\": 0.6}}",
+   "inputs": [],
+   "outputs": [
+    {
+     "description": "The random value between min and max.",
+     "name": "value",
+     "type": "Float"
+    }
+   ],
+   "params": [
+    {
+     "allowsUnset": false,
+     "default": 1.0,
+     "description": "New random targets per second.",
+     "kind": "float",
+     "label": "Rate",
+     "max": 100.0,
+     "min": 0.0,
+     "name": "rateHz",
+     "step": 0.01,
+     "unit": "Hz"
+    },
+    {
+     "allowsUnset": false,
+     "default": 0.0,
+     "description": "Output at the bottom of the range.",
+     "kind": "float",
+     "label": "Min",
+     "max": 1000000.0,
+     "min": -1000000.0,
+     "name": "min",
+     "step": 0.01,
+     "unit": ""
+    },
+    {
+     "allowsUnset": false,
+     "default": 1.0,
+     "description": "Output at the top of the range.",
+     "kind": "float",
+     "label": "Max",
+     "max": 1000000.0,
+     "min": -1000000.0,
+     "name": "max",
+     "step": 0.01,
+     "unit": ""
+    },
+    {
+     "allowsUnset": false,
+     "default": 0.0,
+     "description": "Different seeds give different sequences.",
+     "kind": "float",
+     "label": "Seed",
+     "max": 65535.0,
+     "min": 0.0,
+     "name": "seed",
+     "step": 0.01,
+     "unit": ""
+    }
+   ],
+   "purpose": "Smooth random wander between min and max, drifting to a new random target about rateHz times per second. Irregular where lfo is periodic.",
+   "title": "Noise",
+   "type": "noise",
+   "useWhen": "Flicker with no audio, e.g. a candle or fire brightness. Use image.noise for independent flicker per light."
+  },
+  {
+   "cost": "cheap",
+   "example": "{\"id\": \"col\", \"type\": \"color.fromHSV\", \"params\": {\"saturation\": 1, \"value\": 1}}",
+   "inputs": [
+    {
+     "description": "Hue of the color.",
+     "name": "hue",
+     "required": true,
+     "type": "Angle"
+    },
+    {
+     "description": "Saturation 0..1; param saturation is used when unwired.",
+     "name": "saturation",
+     "required": false,
+     "type": "Float"
+    },
+    {
+     "description": "Brightness (HSV value) 0..1; param value is used when unwired.",
+     "name": "value",
+     "required": false,
+     "type": "Float"
+    }
+   ],
+   "outputs": [
+    {
+     "description": "The built color.",
+     "name": "color",
+     "type": "Color"
+    }
+   ],
+   "params": [
+    {
+     "allowsUnset": false,
+     "default": 1.0,
+     "description": "Used when the 'saturation' input is unconnected.",
+     "kind": "float",
+     "label": "Saturation",
+     "max": 1.0,
+     "min": 0.0,
+     "name": "saturation",
+     "step": 0.01,
+     "unit": ""
+    },
+    {
+     "allowsUnset": false,
+     "default": 1.0,
+     "description": "Used when the 'value' input is unconnected.",
+     "kind": "float",
+     "label": "Value",
+     "max": 1.0,
+     "min": 0.0,
+     "name": "value",
+     "step": 0.01,
+     "unit": ""
+    }
+   ],
+   "purpose": "Build a Color from a hue Angle plus saturation and value (0..1).",
+   "title": "Color from HSV",
+   "type": "color.fromHSV",
+   "useWhen": "Turn a hue and a brightness signal into a color, e.g. bounce's hue with rms as value."
+  },
+  {
+   "cost": "cheap",
+   "example": "{\"id\": \"warm\", \"type\": \"color.constant\", \"params\": {\"hue\": 30, \"saturation\": 0.8, \"value\": 1}}",
+   "inputs": [],
+   "outputs": [
+    {
+     "description": "The fixed color.",
+     "name": "color",
+     "type": "Color"
+    }
+   ],
+   "params": [
+    {
+     "allowsUnset": false,
+     "default": 0.0,
+     "description": "Hue of the color in degrees.",
+     "kind": "float",
+     "label": "Hue",
+     "max": 360.0,
+     "min": 0.0,
+     "name": "hue",
+     "step": 0.01,
+     "unit": "deg"
+    },
+    {
+     "allowsUnset": false,
+     "default": 1.0,
+     "description": "Saturation of the color.",
+     "kind": "float",
+     "label": "Saturation",
+     "max": 1.0,
+     "min": 0.0,
+     "name": "saturation",
+     "step": 0.01,
+     "unit": ""
+    },
+    {
+     "allowsUnset": false,
+     "default": 1.0,
+     "description": "Brightness (HSV value) of the color.",
+     "kind": "float",
+     "label": "Value",
+     "max": 1.0,
+     "min": 0.0,
+     "name": "value",
+     "step": 0.01,
+     "unit": ""
+    }
+   ],
+   "purpose": "A fixed Color from hue, saturation and value params, no inputs.",
+   "title": "Color",
+   "type": "color.constant",
+   "useWhen": "Supply a fixed color, e.g. a warm tint for frame.tint or a mix target."
+  },
+  {
+   "cost": "cheap",
+   "example": "{\"id\": \"teal\", \"type\": \"angle.constant\", \"params\": {\"degrees\": 180}}",
+   "inputs": [],
+   "outputs": [
+    {
+     "description": "The fixed angle.",
+     "name": "angle",
+     "type": "Angle"
+    }
+   ],
+   "params": [
+    {
+     "allowsUnset": false,
+     "default": 0.0,
+     "description": "The angle in degrees, wrapped at 360.",
+     "kind": "float",
+     "label": "Degrees",
+     "max": 360.0,
+     "min": 0.0,
+     "name": "degrees",
+     "step": 0.01,
+     "unit": "deg"
+    }
+   ],
+   "purpose": "A fixed Angle from a degrees param, no inputs.",
+   "title": "Angle",
+   "type": "angle.constant",
+   "useWhen": "Supply a fixed hue or offset, e.g. a color.fromHSV hue or an angle.add offset."
+  },
+  {
+   "cost": "cheap",
+   "example": "{\"id\": \"split\", \"type\": \"color.toHSV\", \"params\": {}}",
+   "inputs": [
+    {
+     "description": "The color to split.",
+     "name": "color",
+     "required": true,
+     "type": "Color"
+    }
+   ],
+   "outputs": [
+    {
+     "description": "Hue of the color.",
+     "name": "hue",
+     "type": "Angle"
+    },
+    {
+     "description": "Saturation 0..1.",
+     "name": "saturation",
+     "type": "Float"
+    },
+    {
+     "description": "HSV value (brightness) 0..1.",
+     "name": "value",
+     "type": "Float"
+    }
+   ],
+   "params": [],
+   "purpose": "Split a Color into hue (Angle), saturation and value (Floats, 0..1).",
+   "title": "Color to HSV",
+   "type": "color.toHSV",
+   "useWhen": "Read a video color's hue to drive another node."
+  },
+  {
+   "cost": "cheap",
+   "example": "{\"id\": \"luma\", \"type\": \"color.brightness\", \"params\": {}}",
+   "inputs": [
+    {
+     "description": "The color to measure.",
+     "name": "color",
+     "required": true,
+     "type": "Color"
+    }
+   ],
+   "outputs": [
+    {
+     "description": "Perceived brightness 0..1.",
+     "name": "value",
+     "type": "Float"
+    }
+   ],
+   "params": [],
+   "purpose": "Perceived brightness of a Color as a Float 0..1 (weighted RGB, not HSV value).",
+   "title": "Color brightness",
+   "type": "color.brightness",
+   "useWhen": "Gate or scale something by how bright a color looks."
+  },
+  {
+   "cost": "cheap",
+   "example": "{\"id\": \"blend\", \"type\": \"color.mix\", \"params\": {\"t\": 0.5}}",
+   "inputs": [
+    {
+     "description": "Color at t = 0.",
+     "name": "a",
+     "required": true,
+     "type": "Color"
+    },
+    {
+     "description": "Color at t = 1.",
+     "name": "b",
+     "required": true,
+     "type": "Color"
+    },
+    {
+     "description": "Blend amount 0..1; param t is used when unwired.",
+     "name": "t",
+     "required": false,
+     "type": "Float"
+    }
+   ],
+   "outputs": [
+    {
+     "description": "The blended color.",
+     "name": "color",
+     "type": "Color"
+    }
+   ],
+   "params": [
+    {
+     "allowsUnset": false,
+     "default": 0.5,
+     "description": "Blend amount when the 't' input is unconnected.",
+     "kind": "float",
+     "label": "Mix",
+     "max": 1.0,
+     "min": 0.0,
+     "name": "t",
+     "step": 0.01,
+     "unit": ""
+    }
+   ],
+   "purpose": "Blend Color a toward Color b by t (0 gives a, 1 gives b, clamped), in RGB.",
+   "title": "Mix colors",
+   "type": "color.mix",
+   "useWhen": "Crossfade two colors, e.g. a video color with the audio color."
+  },
+  {
+   "cost": "cheap",
+   "example": "{\"id\": \"accent\", \"type\": \"color.hueShift\", \"params\": {\"degrees\": 30}}",
+   "inputs": [
+    {
+     "description": "The color to rotate.",
+     "name": "color",
+     "required": true,
+     "type": "Color"
+    },
+    {
+     "description": "Degrees to rotate the hue; param degrees is used when unwired.",
+     "name": "degrees",
+     "required": false,
+     "type": "Float"
+    }
+   ],
+   "outputs": [
+    {
+     "description": "The color with its hue rotated.",
+     "name": "color",
+     "type": "Color"
+    }
+   ],
+   "params": [
+    {
+     "allowsUnset": false,
+     "default": 0.0,
+     "description": "Hue rotation when the 'degrees' input is unconnected.",
+     "kind": "float",
+     "label": "Degrees",
+     "max": 360.0,
+     "min": -360.0,
+     "name": "degrees",
+     "step": 0.01,
+     "unit": "deg"
+    }
+   ],
+   "purpose": "Rotate a Color's hue by degrees, keeping saturation and value.",
+   "title": "Hue shift",
+   "type": "color.hueShift",
+   "useWhen": "Offset a color around the wheel, e.g. +30 for an analogous accent."
+  },
+  {
+   "cost": "cheap",
+   "example": "{\"id\": \"pair\", \"type\": \"color.complement\", \"params\": {}}",
+   "inputs": [
+    {
+     "description": "The color to flip.",
+     "name": "color",
+     "required": true,
+     "type": "Color"
+    }
+   ],
+   "outputs": [
+    {
+     "description": "The opposite color on the wheel.",
+     "name": "color",
+     "type": "Color"
+    }
+   ],
+   "params": [],
+   "purpose": "The opposite color on the wheel: hue plus 180 degrees.",
+   "title": "Complement",
+   "type": "color.complement",
+   "useWhen": "Get the second color of a complementary pair from the first."
+  },
+  {
+   "cost": "cheap",
+   "example": "{\"id\": \"ramp\", \"type\": \"color.fromGradient\", \"params\": {\"gradient\": [{\"pos\": 0, \"color\": \"#0000ff\"}, {\"pos\": 1, \"color\": \"#ff0000\"}]}}",
+   "inputs": [
+    {
+     "description": "Position on the gradient, 0..1.",
+     "name": "t",
+     "required": true,
+     "type": "Float"
+    }
+   ],
+   "outputs": [
+    {
+     "description": "The gradient color at t.",
+     "name": "color",
+     "type": "Color"
+    }
+   ],
+   "params": [
+    {
+     "default": [
+      {
+       "color": "#000000",
+       "pos": 0.0
+      },
+      {
+       "color": "#ffffff",
+       "pos": 1.0
+      }
+     ],
+     "description": "2 to 16 stops [{\"pos\": 0..1, \"color\": \"#rrggbb\"}] in ascending pos, blended in RGB.",
+     "kind": "gradient",
+     "name": "gradient"
+    }
+   ],
+   "purpose": "Look up a Color on a gradient param at position t (0..1, clamped).",
+   "title": "Gradient color",
+   "type": "color.fromGradient",
+   "useWhen": "Map a signal to a palette, e.g. loudness to a cool-to-hot ramp."
+  },
+  {
+   "cost": "cheap",
+   "example": "{\"id\": \"anchor\", \"type\": \"palette.randomAnchor\", \"params\": {\"seed\": null}}",
+   "inputs": [],
+   "outputs": [
+    {
+     "description": "The picked anchor hue, held after the first tick.",
+     "name": "anchor",
+     "type": "Angle"
+    }
+   ],
+   "params": [
+    {
+     "allowsUnset": true,
+     "default": -1.0,
+     "description": "Whole number that pins the pick; unset (null) picks differently each start.",
+     "kind": "optional-float",
+     "label": "Seed",
+     "max": 16777216.0,
+     "min": 0.0,
+     "name": "seed",
+     "step": 1.0,
+     "unit": ""
+    }
+   ],
+   "purpose": "Pick one of the six vibrant complementary pair anchors (0, 30, 60, 90, 120, 150 degrees) on the first tick and hold it.",
+   "title": "Random anchor",
+   "type": "palette.randomAnchor",
+   "useWhen": "Start a palette from a random but pleasant hue, e.g. feeding palette.pick."
+  },
+  {
+   "cost": "cheap",
+   "example": "{\"id\": \"target\", \"type\": \"angle.add\", \"params\": {}}",
+   "inputs": [
+    {
+     "description": "The first angle.",
+     "name": "a",
+     "required": true,
+     "type": "Angle"
+    },
+    {
+     "description": "The second angle.",
+     "name": "b",
+     "required": true,
+     "type": "Angle"
+    }
+   ],
+   "outputs": [
+    {
+     "description": "The sum, wrapped at 360.",
+     "name": "angle",
+     "type": "Angle"
+    }
+   ],
+   "params": [],
+   "purpose": "Add two Angles, wrapping at 360.",
+   "title": "Add angles",
+   "type": "angle.add",
+   "useWhen": "Offset a hue by another, e.g. a drifting anchor plus a beat swing."
+  },
+  {
+   "cost": "cheap",
+   "example": "{\"id\": \"second\", \"type\": \"palette.pick\", \"params\": {\"side\": \"complement\"}}",
+   "inputs": [
+    {
+     "description": "The anchor hue of the pair.",
+     "name": "anchor",
+     "required": true,
+     "type": "Angle"
+    }
+   ],
+   "outputs": [
+    {
+     "description": "The picked hue: the anchor or the anchor plus 180.",
+     "name": "hue",
+     "type": "Angle"
+    }
+   ],
+   "params": [
+    {
+     "default": "anchor",
+     "description": "Which end of the pair to output: the anchor itself or anchor plus 180.",
+     "kind": "enum",
+     "name": "side",
+     "options": [
+      "anchor",
+      "complement"
+     ]
+    }
+   ],
+   "purpose": "Pick one hue of a complementary pair: the anchor Angle or the anchor plus 180.",
+   "title": "Pick palette hue",
+   "type": "palette.pick",
+   "useWhen": "Split one anchor into the two colors of a pair, one pick node per color."
+  },
+  {
+   "cost": "cheap",
+   "example": "{\"id\": \"mixed\", \"type\": \"frame.mix\", \"params\": {\"mode\": \"add\", \"t\": 0.5}}",
+   "inputs": [
+    {
+     "description": "The base Frame; its zones are kept.",
+     "name": "a",
+     "required": true,
+     "type": "Frame"
+    },
+    {
+     "description": "The Frame blended into a.",
+     "name": "b",
+     "required": true,
+     "type": "Frame"
+    },
+    {
+     "description": "Blend amount 0..1; param t is used when unwired.",
+     "name": "t",
+     "required": false,
+     "type": "Float"
+    }
+   ],
+   "outputs": [
+    {
+     "description": "The blended Frame.",
+     "name": "frame",
+     "type": "Frame"
+    }
+   ],
+   "params": [
+    {
+     "default": "normal",
+     "description": "normal replaces a with b; add, multiply, screen and difference combine them per channel.",
+     "kind": "enum",
+     "name": "mode",
+     "options": [
+      "normal",
+      "add",
+      "multiply",
+      "screen",
+      "difference"
+     ]
+    },
+    {
+     "allowsUnset": false,
+     "default": 1.0,
+     "description": "Blend amount when the 't' input is unconnected.",
+     "kind": "float",
+     "label": "Mix",
+     "max": 1.0,
+     "min": 0.0,
+     "name": "t",
+     "step": 0.01,
+     "unit": ""
+    }
+   ],
+   "purpose": "Blend Frame b into Frame a by t (0 gives a, 1 gives the full blend mode result). Zones match by id: the output has a's zones, a zone missing from b passes through unchanged, and zones only in b are dropped. Gamma comes from a.",
+   "title": "Mix frames",
+   "type": "frame.mix",
+   "useWhen": "Combine a video frame with an audio frame, e.g. mode multiply to let audio gate video."
+  },
+  {
+   "cost": "moderate",
+   "example": "{\"id\": \"layer\", \"type\": \"image.mix\", \"params\": {\"mode\": \"screen\", \"t\": 0.5}}",
+   "inputs": [
+    {
+     "description": "The base Image; its format and alpha are kept.",
+     "name": "a",
+     "required": true,
+     "type": "Image"
+    },
+    {
+     "description": "The Image blended into a; must be the same size.",
+     "name": "b",
+     "required": true,
+     "type": "Image"
+    },
+    {
+     "description": "Blend amount 0..1; param t is used when unwired.",
+     "name": "t",
+     "required": false,
+     "type": "Float"
+    }
+   ],
+   "outputs": [
+    {
+     "description": "The blended Image.",
+     "name": "image",
+     "type": "Image"
+    }
+   ],
+   "params": [
+    {
+     "default": "normal",
+     "description": "normal replaces a with b; add, multiply, screen and difference combine them per channel.",
+     "kind": "enum",
+     "name": "mode",
+     "options": [
+      "normal",
+      "add",
+      "multiply",
+      "screen",
+      "difference"
+     ]
+    },
+    {
+     "allowsUnset": false,
+     "default": 1.0,
+     "description": "Blend amount when the 't' input is unconnected.",
+     "kind": "float",
+     "label": "Mix",
+     "max": 1.0,
+     "min": 0.0,
+     "name": "t",
+     "step": 0.01,
+     "unit": ""
+    }
+   ],
+   "purpose": "Blend Image b into Image a by t, per pixel in RGB. Both must be the same size or the node fails. b is converted to a's pixel format and the result keeps a's format and alpha.",
+   "title": "Mix images",
+   "type": "image.mix",
+   "useWhen": "Layer two video sources, e.g. difference of two captures to find motion."
+  },
+  {
+   "cost": "cheap",
+   "example": "{\"id\": \"dim\", \"type\": \"frame.brightnessScale\", \"params\": {\"factor\": 0.5}}",
+   "inputs": [
+    {
+     "description": "The Frame to adjust.",
+     "name": "frame",
+     "required": true,
+     "type": "Frame"
+    },
+    {
+     "description": "Brightness multiplier; param factor is used when unwired.",
+     "name": "factor",
+     "required": false,
+     "type": "Float"
+    }
+   ],
+   "outputs": [
+    {
+     "description": "The adjusted Frame, same zones.",
+     "name": "frame",
+     "type": "Frame"
+    }
+   ],
+   "params": [
+    {
+     "allowsUnset": false,
+     "default": 1.0,
+     "description": "Scale when the 'factor' input is unconnected.",
+     "kind": "float",
+     "label": "Factor",
+     "max": 4.0,
+     "min": 0.0,
+     "name": "factor",
+     "step": 0.01,
+     "unit": ""
+    }
+   ],
+   "purpose": "Multiply every zone's RGB by factor (1 unchanged, 0 black, above 1 brightens, clamped).",
+   "title": "Brightness",
+   "type": "frame.brightnessScale",
+   "useWhen": "Dim or boost a frame, e.g. fade with a Float from an lfo."
+  },
+  {
+   "cost": "cheap",
+   "example": "{\"id\": \"vivid\", \"type\": \"frame.saturation\", \"params\": {\"amount\": 1.5}}",
+   "inputs": [
+    {
+     "description": "The Frame to adjust.",
+     "name": "frame",
+     "required": true,
+     "type": "Frame"
+    },
+    {
+     "description": "Saturation multiplier; param amount is used when unwired.",
+     "name": "amount",
+     "required": false,
+     "type": "Float"
+    }
+   ],
+   "outputs": [
+    {
+     "description": "The adjusted Frame, same zones.",
+     "name": "frame",
+     "type": "Frame"
+    }
+   ],
+   "params": [
+    {
+     "allowsUnset": false,
+     "default": 1.0,
+     "description": "Saturation when the 'amount' input is unconnected.",
+     "kind": "float",
+     "label": "Amount",
+     "max": 4.0,
+     "min": 0.0,
+     "name": "amount",
+     "step": 0.01,
+     "unit": ""
+    }
+   ],
+   "purpose": "Scale color intensity about each zone's grey (1 unchanged, 0 grey, above 1 vivid).",
+   "title": "Saturation",
+   "type": "frame.saturation",
+   "useWhen": "Wash out or punch up a frame."
+  },
+  {
+   "cost": "cheap",
+   "example": "{\"id\": \"rotate\", \"type\": \"frame.hueShift\", \"params\": {\"degrees\": 60}}",
+   "inputs": [
+    {
+     "description": "The Frame to adjust.",
+     "name": "frame",
+     "required": true,
+     "type": "Frame"
+    },
+    {
+     "description": "Degrees to rotate the hue; param degrees is used when unwired.",
+     "name": "degrees",
+     "required": false,
+     "type": "Float"
+    }
+   ],
+   "outputs": [
+    {
+     "description": "The adjusted Frame, same zones.",
+     "name": "frame",
+     "type": "Frame"
+    }
+   ],
+   "params": [
+    {
+     "allowsUnset": false,
+     "default": 0.0,
+     "description": "Rotation when the 'degrees' input is unconnected.",
+     "kind": "float",
+     "label": "Degrees",
+     "max": 360.0,
+     "min": -360.0,
+     "name": "degrees",
+     "step": 0.01,
+     "unit": ""
+    }
+   ],
+   "purpose": "Rotate every zone's hue by degrees, keeping saturation and value.",
+   "title": "Hue shift",
+   "type": "frame.hueShift",
+   "useWhen": "Cycle a frame around the color wheel."
+  },
+  {
+   "cost": "cheap",
+   "example": "{\"id\": \"warm\", \"type\": \"frame.tint\", \"params\": {\"amount\": 1}}",
+   "inputs": [
+    {
+     "description": "The Frame to adjust.",
+     "name": "frame",
+     "required": true,
+     "type": "Frame"
+    },
+    {
+     "description": "The tint color.",
+     "name": "color",
+     "required": true,
+     "type": "Color"
+    },
+    {
+     "description": "Tint strength 0..1; param amount is used when unwired.",
+     "name": "amount",
+     "required": false,
+     "type": "Float"
+    }
+   ],
+   "outputs": [
+    {
+     "description": "The adjusted Frame, same zones.",
+     "name": "frame",
+     "type": "Frame"
+    }
+   ],
+   "params": [
+    {
+     "allowsUnset": false,
+     "default": 1.0,
+     "description": "Tint strength when the 'amount' input is unconnected.",
+     "kind": "float",
+     "label": "Amount",
+     "max": 1.0,
+     "min": 0.0,
+     "name": "amount",
+     "step": 0.01,
+     "unit": ""
+    }
+   ],
+   "purpose": "Multiply every zone by a tint Color, blended in by amount (0 unchanged, 1 full tint).",
+   "title": "Tint",
+   "type": "frame.tint",
+   "useWhen": "Warm or cool a frame with a color from the audio or a gradient."
+  },
+  {
+   "cost": "cheap",
+   "example": "{\"id\": \"ramp\", \"type\": \"image.gradient\", \"params\": {\"angle\": 0, \"gradient\": [{\"pos\": 0, \"color\": \"#ff0000\"}, {\"pos\": 1, \"color\": \"#0000ff\"}]}}",
+   "inputs": [
+    {
+     "description": "Scroll along the gradient (1 is a full loop); param phase is used when unwired.",
+     "name": "phase",
+     "required": false,
+     "type": "Float"
+    }
+   ],
+   "outputs": [
+    {
+     "description": "The generated Image.",
+     "name": "image",
+     "type": "Image"
+    }
+   ],
+   "params": [
+    {
+     "allowsUnset": false,
+     "default": 64.0,
+     "description": "Rendered width in px. Keep small: zones.sample only needs a coarse grid.",
+     "kind": "float",
+     "label": "Width",
+     "max": 1024.0,
+     "min": 1.0,
+     "name": "width",
+     "step": 1.0,
+     "unit": "px"
+    },
+    {
+     "allowsUnset": false,
+     "default": 36.0,
+     "description": "Rendered height in px.",
+     "kind": "float",
+     "label": "Height",
+     "max": 1024.0,
+     "min": 1.0,
+     "name": "height",
+     "step": 1.0,
+     "unit": "px"
+    },
+    {
+     "allowsUnset": false,
+     "default": 0.0,
+     "description": "Direction of travel in degrees: 0 left to right, 90 top to bottom.",
+     "kind": "float",
+     "label": "Angle",
+     "max": 360.0,
+     "min": -360.0,
+     "name": "angle",
+     "step": 0.01,
+     "unit": "deg"
+    },
+    {
+     "default": [
+      {
+       "color": "#000000",
+       "pos": 0.0
+      },
+      {
+       "color": "#ffffff",
+       "pos": 1.0
+      }
+     ],
+     "description": "2 to 16 stops [{\"pos\": 0..1, \"color\": \"#rrggbb\"}] in ascending pos, blended in RGB.",
+     "kind": "gradient",
+     "name": "gradient"
+    },
+    {
+     "allowsUnset": false,
+     "default": 0.0,
+     "description": "Scroll along the gradient (1 is a full loop) when the 'phase' input is unconnected.",
+     "kind": "float",
+     "label": "Phase",
+     "max": 1.0,
+     "min": -1.0,
+     "name": "phase",
+     "step": 0.01,
+     "unit": ""
+    }
+   ],
+   "purpose": "Render a gradient param across a small RGB image along an angle. phase scrolls it, wrapping past 1. Pair with zones.sample so zones read colors by their position in the ZoneMap.",
+   "title": "Gradient image",
+   "type": "image.gradient",
+   "useWhen": "Color zones by where they sit, e.g. a palette spread across a room."
+  },
+  {
+   "cost": "cheap",
+   "example": "{\"id\": \"chase\", \"type\": \"image.bar\", \"params\": {\"size\": 0.2, \"softness\": 0.1, \"wrap\": true}}",
+   "inputs": [
+    {
+     "description": "Bar center 0..1 across the image; param position is used when unwired.",
+     "name": "position",
+     "required": false,
+     "type": "Float"
+    },
+    {
+     "description": "Color of the bar.",
+     "name": "color",
+     "required": false,
+     "type": "Color"
+    },
+    {
+     "description": "Color behind the bar.",
+     "name": "background",
+     "required": false,
+     "type": "Color"
+    }
+   ],
+   "outputs": [
+    {
+     "description": "The generated Image.",
+     "name": "image",
+     "type": "Image"
+    }
+   ],
+   "params": [
+    {
+     "allowsUnset": false,
+     "default": 64.0,
+     "description": "Rendered width in px. Keep small: zones.sample only needs a coarse grid.",
+     "kind": "float",
+     "label": "Width",
+     "max": 1024.0,
+     "min": 1.0,
+     "name": "width",
+     "step": 1.0,
+     "unit": "px"
+    },
+    {
+     "allowsUnset": false,
+     "default": 36.0,
+     "description": "Rendered height in px.",
+     "kind": "float",
+     "label": "Height",
+     "max": 1024.0,
+     "min": 1.0,
+     "name": "height",
+     "step": 1.0,
+     "unit": "px"
+    },
+    {
+     "allowsUnset": false,
+     "default": 0.0,
+     "description": "Direction of travel in degrees: 0 left to right, 90 top to bottom.",
+     "kind": "float",
+     "label": "Angle",
+     "max": 360.0,
+     "min": -360.0,
+     "name": "angle",
+     "step": 0.01,
+     "unit": "deg"
+    },
+    {
+     "allowsUnset": false,
+     "default": 0.5,
+     "description": "Bar center when the 'position' input is unconnected.",
+     "kind": "float",
+     "label": "Position",
+     "max": 1.0,
+     "min": 0.0,
+     "name": "position",
+     "step": 0.01,
+     "unit": ""
+    },
+    {
+     "allowsUnset": false,
+     "default": 0.2,
+     "description": "Bar width as a fraction of the image.",
+     "kind": "float",
+     "label": "Size",
+     "max": 1.0,
+     "min": 0.0,
+     "name": "size",
+     "step": 0.01,
+     "unit": ""
+    },
+    {
+     "allowsUnset": false,
+     "default": 0.0,
+     "description": "Fade distance beyond the bar edge, as a fraction of the image. 0 is a hard edge.",
+     "kind": "float",
+     "label": "Softness",
+     "max": 1.0,
+     "min": 0.0,
+     "name": "softness",
+     "step": 0.01,
+     "unit": ""
+    },
+    {
+     "default": false,
+     "description": "A bar leaving one end re-enters at the other.",
+     "kind": "bool",
+     "name": "wrap"
+    }
+   ],
+   "purpose": "Render a bar of color on a background along an angle, for chase effects. position moves the bar center (0..1 across the image). Drive position with an lfo or integrate for motion.",
+   "title": "Bar image",
+   "type": "image.bar",
+   "useWhen": "A light that sweeps across the room, sampled per zone by zones.sample."
+  },
+  {
+   "cost": "cheap",
+   "example": "{\"id\": \"candles\", \"type\": \"image.noise\", \"params\": {\"cells\": 16, \"rateHz\": 6}}",
+   "inputs": [
+    {
+     "description": "Color of a fully lit cell.",
+     "name": "color",
+     "required": false,
+     "type": "Color"
+    },
+    {
+     "description": "Color of a dark cell.",
+     "name": "background",
+     "required": false,
+     "type": "Color"
+    }
+   ],
+   "outputs": [
+    {
+     "description": "The grid of flickering cells.",
+     "name": "image",
+     "type": "Image"
+    }
+   ],
+   "params": [
+    {
+     "allowsUnset": false,
+     "default": 64.0,
+     "description": "Rendered width in px. Keep small: zones.sample only needs a coarse grid.",
+     "kind": "float",
+     "label": "Width",
+     "max": 1024.0,
+     "min": 1.0,
+     "name": "width",
+     "step": 1.0,
+     "unit": "px"
+    },
+    {
+     "allowsUnset": false,
+     "default": 36.0,
+     "description": "Rendered height in px.",
+     "kind": "float",
+     "label": "Height",
+     "max": 1024.0,
+     "min": 1.0,
+     "name": "height",
+     "step": 1.0,
+     "unit": "px"
+    },
+    {
+     "allowsUnset": false,
+     "default": 8.0,
+     "description": "Flicker cells across the image width, each independent. A zone averages the cells it covers, so use enough cells that every zone sits mostly inside one.",
+     "kind": "float",
+     "label": "Cells",
+     "max": 1024.0,
+     "min": 1.0,
+     "name": "cells",
+     "step": 1.0,
+     "unit": ""
+    },
+    {
+     "allowsUnset": false,
+     "default": 1.0,
+     "description": "New random targets per second per cell.",
+     "kind": "float",
+     "label": "Rate",
+     "max": 100.0,
+     "min": 0.0,
+     "name": "rateHz",
+     "step": 0.01,
+     "unit": "Hz"
+    },
+    {
+     "allowsUnset": false,
+     "default": 0.0,
+     "description": "Different seeds give different patterns.",
+     "kind": "float",
+     "label": "Seed",
+     "max": 65535.0,
+     "min": 0.0,
+     "name": "seed",
+     "step": 1.0,
+     "unit": ""
+    }
+   ],
+   "purpose": "Render a grid of cells that each flicker on their own smooth random wander between background and color. Neighbouring cells are uncorrelated, unlike scrolling gradients.",
+   "title": "Noise image",
+   "type": "image.noise",
+   "useWhen": "Independent per-light flicker, e.g. a bank of candles or a fire, sampled per zone by zones.sample."
+  },
+  {
+   "cost": "cheap",
+   "example": "{\"id\": \"rainbow\", \"type\": \"image.hueRamp\", \"params\": {\"span\": 360}}",
+   "inputs": [
+    {
+     "description": "Hue in degrees at the start of the ramp; param phase is used when unwired.",
+     "name": "phase",
+     "required": false,
+     "type": "Float"
+    }
+   ],
+   "outputs": [
+    {
+     "description": "The generated Image.",
+     "name": "image",
+     "type": "Image"
+    }
+   ],
+   "params": [
+    {
+     "allowsUnset": false,
+     "default": 64.0,
+     "description": "Rendered width in px. Keep small: zones.sample only needs a coarse grid.",
+     "kind": "float",
+     "label": "Width",
+     "max": 1024.0,
+     "min": 1.0,
+     "name": "width",
+     "step": 1.0,
+     "unit": "px"
+    },
+    {
+     "allowsUnset": false,
+     "default": 36.0,
+     "description": "Rendered height in px.",
+     "kind": "float",
+     "label": "Height",
+     "max": 1024.0,
+     "min": 1.0,
+     "name": "height",
+     "step": 1.0,
+     "unit": "px"
+    },
+    {
+     "allowsUnset": false,
+     "default": 0.0,
+     "description": "Direction of travel in degrees: 0 left to right, 90 top to bottom.",
+     "kind": "float",
+     "label": "Angle",
+     "max": 360.0,
+     "min": -360.0,
+     "name": "angle",
+     "step": 0.01,
+     "unit": "deg"
+    },
+    {
+     "allowsUnset": false,
+     "default": 0.0,
+     "description": "Hue in degrees at the start of the ramp when the 'phase' input is unconnected.",
+     "kind": "float",
+     "label": "Phase",
+     "max": 360.0,
+     "min": -360.0,
+     "name": "phase",
+     "step": 0.01,
+     "unit": ""
+    },
+    {
+     "allowsUnset": false,
+     "default": 360.0,
+     "description": "Degrees of hue across the image.",
+     "kind": "float",
+     "label": "Span",
+     "max": 720.0,
+     "min": -720.0,
+     "name": "span",
+     "step": 0.01,
+     "unit": ""
+    },
+    {
+     "allowsUnset": false,
+     "default": 1.0,
+     "description": "HSV saturation.",
+     "kind": "float",
+     "label": "Saturation",
+     "max": 1.0,
+     "min": 0.0,
+     "name": "saturation",
+     "step": 0.01,
+     "unit": ""
+    },
+    {
+     "allowsUnset": false,
+     "default": 1.0,
+     "description": "HSV value.",
+     "kind": "float",
+     "label": "Value",
+     "max": 1.0,
+     "min": 0.0,
+     "name": "value",
+     "step": 0.01,
+     "unit": ""
+    }
+   ],
+   "purpose": "Render a rainbow along an angle: hue runs span degrees across the image starting at phase. Fixed saturation and value.",
+   "title": "Hue ramp image",
+   "type": "image.hueRamp",
+   "useWhen": "Quick rainbow across zones, cycling by driving phase with integrate."
+  },
+  {
+   "cost": "cheap",
+   "example": "{\"id\": \"all\", \"type\": \"frame.broadcast\", \"params\": {\"output\": \"hue\"}}",
+   "inputs": [
+    {
+     "description": "The Color applied to every active zone.",
+     "name": "color",
+     "required": true,
+     "type": "Color"
+    }
+   ],
+   "outputs": [
+    {
+     "description": "A Frame with that Color in every zone of the output.",
+     "name": "frame",
+     "type": "Frame"
+    }
+   ],
+   "params": [
+    {
+     "default": "",
+     "description": "Output whose live zone map receives the color (per-output binding, not a port).",
+     "kind": "enum",
+     "name": "output",
+     "options": [
+      "hue"
+     ]
+    }
+   ],
+   "purpose": "Apply one Color to every active zone of an output as a Frame.",
+   "title": "Broadcast color",
+   "type": "frame.broadcast",
+   "useWhen": "After audio.bounce; audio has no per-zone spatial concept."
+  },
+  {
+   "cost": "moderate",
+   "example": "{\"id\": \"mic\", \"type\": \"audio.capture\", \"params\": {}}",
+   "inputs": [],
+   "outputs": [
+    {
+     "description": "One audio buffer per tick; Absent while the source has no data.",
+     "name": "buffer",
+     "type": "AudioBuffer"
+    }
+   ],
+   "params": [],
+   "purpose": "Read one audio buffer per tick; Absent while the source has no data.",
+   "title": "Audio capture",
+   "type": "audio.capture",
+   "useWhen": "First node of any audio path."
+  },
+  {
+   "cost": "moderate",
+   "example": "{\"id\": \"feat\", \"type\": \"audio.features\", \"params\": {}}",
+   "inputs": [
+    {
+     "description": "The audio buffer to analyze.",
+     "name": "buffer",
+     "required": true,
+     "type": "AudioBuffer"
+    }
+   ],
+   "outputs": [
+    {
+     "description": "All extracted features as one struct, for audio.drift and audio.bounce.",
+     "name": "features",
+     "type": "AudioFeatures"
+    },
+    {
+     "description": "Overall loudness (RMS) 0..1.",
+     "name": "rms",
+     "type": "Float"
+    },
+    {
+     "description": "Pulses on each detected beat or onset.",
+     "name": "onset",
+     "type": "Trigger"
+    },
+    {
+     "description": "How strong the last onset was; only meaningful when onset fires.",
+     "name": "onsetStrength",
+     "type": "Float"
+    },
+    {
+     "description": "Spectral centroid in Hz, the brightness of the sound.",
+     "name": "centroid",
+     "type": "Float"
+    }
+   ],
+   "params": [],
+   "purpose": "Extract onset, loudness and centroid features from an audio buffer, as one struct and as scalar ports.",
+   "title": "Audio features",
+   "type": "audio.features",
+   "useWhen": "After capture; feeds drift and bounce."
+  },
+  {
+   "cost": "moderate",
+   "example": "{\"id\": \"bands\", \"type\": \"audio.bands\", \"params\": {\"bassMaxHz\": 250}}",
+   "inputs": [
+    {
+     "description": "The audio buffer to split into bands.",
+     "name": "buffer",
+     "required": true,
+     "type": "AudioBuffer"
+    }
+   ],
+   "outputs": [
+    {
+     "description": "Bass loudness 0..1.",
+     "name": "bass",
+     "type": "Float"
+    },
+    {
+     "description": "Mid-range loudness 0..1.",
+     "name": "mid",
+     "type": "Float"
+    },
+    {
+     "description": "Treble loudness 0..1.",
+     "name": "treble",
+     "type": "Float"
+    }
+   ],
+   "params": [
+    {
+     "allowsUnset": false,
+     "default": 250.0,
+     "description": "Upper edge of the bass band; mid starts here.",
+     "kind": "float",
+     "label": "Bass ceiling",
+     "max": 20000.0,
+     "min": 20.0,
+     "name": "bassMaxHz",
+     "step": 10.0,
+     "unit": "Hz"
+    },
+    {
+     "allowsUnset": false,
+     "default": 4000.0,
+     "description": "Lower edge of the treble band; mid ends here.",
+     "kind": "float",
+     "label": "Treble floor",
+     "max": 20000.0,
+     "min": 20.0,
+     "name": "trebleMinHz",
+     "step": 10.0,
+     "unit": "Hz"
+    }
+   ],
+   "purpose": "Bass, mid and treble loudness (band RMS, like audio.features rms) as Float outputs.",
+   "title": "Audio bands",
+   "type": "audio.bands",
+   "useWhen": "After capture, to drive brightness, color or motion from one frequency range."
+  },
+  {
+   "cost": "cheap",
+   "example": "{\"id\": \"drift\", \"type\": \"audio.drift\", \"params\": {\"fixedAnchorHue\": null}}",
+   "inputs": [
+    {
+     "description": "Audio features that speed the drift up on beats.",
+     "name": "features",
+     "required": true,
+     "type": "AudioFeatures"
+    }
+   ],
+   "outputs": [
+    {
+     "description": "The live anchor hue.",
+     "name": "anchor",
+     "type": "Angle"
+    }
+   ],
+   "params": [
+    {
+     "allowsUnset": true,
+     "default": -1.0,
+     "description": "Drift's starting hue in degrees; unset picks a random pair (null in graph.json).",
+     "kind": "optional-float",
+     "label": "Fixed hue",
+     "max": 360.0,
+     "min": 0.0,
+     "name": "fixedAnchorHue",
+     "step": 1.0,
+     "unit": "\u00b0"
+    },
+    {
+     "allowsUnset": false,
+     "default": 10.0,
+     "description": "Idle drift speed in degrees per second (today's audio.driftBaseRateDegPerSec).",
+     "kind": "float",
+     "label": "Drift base rate",
+     "max": 60.0,
+     "min": 0.0,
+     "name": "driftBaseRateDegPerSec",
+     "step": 1.0,
+     "unit": "\u00b0/s"
+    },
+    {
+     "allowsUnset": false,
+     "default": 0.3,
+     "description": "How much spectral centroid speeds or slows the drift (today's audio.centroidStrength).",
+     "kind": "float",
+     "label": "Centroid strength",
+     "max": 1.0,
+     "min": 0.0,
+     "name": "centroidStrength",
+     "step": 0.01,
+     "unit": ""
+    },
+    {
+     "allowsUnset": false,
+     "default": 2250.0,
+     "description": "Pitch spread normalizing the centroid nudge (today's audio.centroidRangeHz).",
+     "kind": "float",
+     "label": "Centroid range",
+     "max": 8000.0,
+     "min": 100.0,
+     "name": "centroidRangeHz",
+     "step": 10.0,
+     "unit": "Hz"
+    }
+   ],
+   "purpose": "Slow palette drift; outputs the live anchor hue as an Angle.",
+   "title": "Palette drift",
+   "type": "audio.drift",
+   "useWhen": "After features; wire the anchor into audio.bounce."
+  },
+  {
+   "cost": "cheap",
+   "example": "{\"id\": \"beat\", \"type\": \"audio.bounce\", \"params\": {\"bounceSmoothTime\": 0.285}}",
+   "inputs": [
+    {
+     "description": "Audio features whose onsets trigger the bounce.",
+     "name": "features",
+     "required": true,
+     "type": "AudioFeatures"
+    },
+    {
+     "description": "The anchor hue the bounce moves around.",
+     "name": "anchor",
+     "required": true,
+     "type": "Angle"
+    }
+   ],
+   "outputs": [
+    {
+     "description": "The bouncing color.",
+     "name": "color",
+     "type": "Color"
+    }
+   ],
+   "params": [
+    {
+     "allowsUnset": false,
+     "default": 0.285,
+     "description": "Beat hue damping time constant (today's audio.bounceSmoothTime).",
+     "kind": "float",
+     "label": "Bounce smooth time",
+     "max": 2.0,
+     "min": 0.05,
+     "name": "bounceSmoothTime",
+     "step": 0.01,
+     "unit": "s"
+    },
+    {
+     "allowsUnset": false,
+     "default": 0.26,
+     "description": "Minimum swing fraction even for the weakest onset (today's audio.dynamismFloor).",
+     "kind": "float",
+     "label": "Dynamism floor",
+     "max": 1.0,
+     "min": 0.0,
+     "name": "dynamismFloor",
+     "step": 0.01,
+     "unit": ""
+    },
+    {
+     "allowsUnset": false,
+     "default": 0.95,
+     "description": "HSV saturation of every generated color (today's audio.vibrancySaturation).",
+     "kind": "float",
+     "label": "Vibrancy saturation",
+     "max": 1.0,
+     "min": 0.0,
+     "name": "vibrancySaturation",
+     "step": 0.01,
+     "unit": ""
+    },
+    {
+     "allowsUnset": false,
+     "default": 0.95,
+     "description": "Brightness ceiling before loudness scaling (today's audio.vibrancyValue).",
+     "kind": "float",
+     "label": "Vibrancy value",
+     "max": 1.0,
+     "min": 0.0,
+     "name": "vibrancyValue",
+     "step": 0.01,
+     "unit": ""
+    },
+    {
+     "allowsUnset": false,
+     "default": 0.5,
+     "description": "Loudness mapped to full brightness (today's audio.referenceRms).",
+     "kind": "float",
+     "label": "Reference RMS",
+     "max": 1.0,
+     "min": 0.05,
+     "name": "referenceRms",
+     "step": 0.01,
+     "unit": ""
+    },
+    {
+     "allowsUnset": false,
+     "default": 0.4,
+     "description": "Darkest output when quiet (today's audio.brightnessFloor).",
+     "kind": "float",
+     "label": "Brightness floor",
+     "max": 1.0,
+     "min": 0.0,
+     "name": "brightnessFloor",
+     "step": 0.01,
+     "unit": ""
+    },
+    {
+     "allowsUnset": false,
+     "default": 0.265,
+     "description": "Loudness damping time constant (today's audio.brightnessSmoothTime).",
+     "kind": "float",
+     "label": "Brightness smooth time",
+     "max": 2.0,
+     "min": 0.05,
+     "name": "brightnessSmoothTime",
+     "step": 0.01,
+     "unit": "s"
+    }
+   ],
+   "purpose": "Beat-driven color bounce around the drift anchor; outputs a Color.",
+   "title": "Beat bounce",
+   "type": "audio.bounce",
+   "useWhen": "After features and the drift anchor; the audio path's color output. Re-seeds (snaps) when audio.drift re-seeds, so set the fixed hue on audio.drift only."
+  }
+ ]
+}

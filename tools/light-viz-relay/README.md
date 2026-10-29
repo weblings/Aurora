@@ -25,7 +25,7 @@ AURORA_DEV_LIGHT_TAP=1 ./Aurora
 
 ## End-to-end viz run (no Hue hardware needed)
 
-`python3 tools/light-viz-relay/devstack.py up` (`down` to stop) automates all
+`python3 tools/light-viz-relay/devstack.py up` (`restart` relaunches the app on the same config, no `--fresh` wipe; `down` to stop) automates all
 steps below; the manual steps document what it does.
 
 Three processes plus a browser tab, in order. This is the `Aurora-gj0.7`

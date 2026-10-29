@@ -105,11 +105,11 @@ namespace Aurora::Runtime::Graph
     // Scalar ports sit beside the whole-struct port so drift/bounce parity
     // is untouched. onsetStrength is only meaningful when onset fires.
     const std::vector<PortDecl> kFeatureOutputs{
-      {"features", PortType::AudioFeatures, false},
-      {"rms", PortType::Float, false},
-      {"onset", PortType::Trigger, false},
-      {"onsetStrength", PortType::Float, false},
-      {"centroid", PortType::Float, false},
+      {"features", PortType::AudioFeatures, false, "All extracted features as one struct, for audio.drift and audio.bounce."},
+      {"rms", PortType::Float, false, "Overall loudness (RMS) 0..1."},
+      {"onset", PortType::Trigger, false, "Pulses on each detected beat or onset."},
+      {"onsetStrength", PortType::Float, false, "How strong the last onset was; only meaningful when onset fires."},
+      {"centroid", PortType::Float, false, "Spectral centroid in Hz, the brightness of the sound."},
     };
 
     // audio.features: the stateful aubio extractor, built lazily from the
@@ -366,13 +366,14 @@ namespace Aurora::Runtime::Graph
       NodeTypeInfo{
         .meta =
           {
+            .title = "Broadcast color",
             .purpose = "Apply one Color to every active zone of an output as a Frame.",
             .useWhen = "After audio.bounce; audio has no per-zone spatial concept.",
             .example = "{\"id\": \"all\", \"type\": \"frame.broadcast\", \"params\": {\"output\": \"hue\"}}",
             .cost = "cheap",
           },
-        .inputs = {{"color", PortType::Color, true}},
-        .outputs = {{"frame", PortType::Frame, false}},
+        .inputs = {{"color", PortType::Color, true, "The Color applied to every active zone."}},
+        .outputs = {{"frame", PortType::Frame, false, "A Frame with that Color in every zone of the output."}},
         .params = {broadcastOutput},
         .factory = [] { return std::make_unique<FrameBroadcastNode>(); },
       });
@@ -382,13 +383,14 @@ namespace Aurora::Runtime::Graph
       NodeTypeInfo{
         .meta =
           {
+            .title = "Audio capture",
             .purpose = "Read one audio buffer per tick; Absent while the source has no data.",
             .useWhen = "First node of any audio path.",
             .example = "{\"id\": \"mic\", \"type\": \"audio.capture\", \"params\": {}}",
             .cost = "moderate",
           },
         .inputs = {},
-        .outputs = {{"buffer", PortType::AudioBuffer, false}},
+        .outputs = {{"buffer", PortType::AudioBuffer, false, "One audio buffer per tick; Absent while the source has no data."}},
         .params = {},
         .factory = [] { return std::make_unique<AudioCaptureNode>(); },
       });
@@ -398,12 +400,13 @@ namespace Aurora::Runtime::Graph
       NodeTypeInfo{
         .meta =
           {
+            .title = "Audio features",
             .purpose = "Extract onset, loudness and centroid features from an audio buffer, as one struct and as scalar ports.",
             .useWhen = "After capture; feeds drift and bounce.",
             .example = "{\"id\": \"feat\", \"type\": \"audio.features\", \"params\": {}}",
             .cost = "moderate",
           },
-        .inputs = {{"buffer", PortType::AudioBuffer, true}},
+        .inputs = {{"buffer", PortType::AudioBuffer, true, "The audio buffer to analyze."}},
         .outputs = kFeatureOutputs,
         .params = {},
         .factory = [] { return std::make_unique<AudioFeaturesNode>(); },
@@ -414,16 +417,16 @@ namespace Aurora::Runtime::Graph
       NodeTypeInfo{
         .meta =
           {
+            .title = "Audio bands",
             .purpose = "Bass, mid and treble loudness (band RMS, like audio.features rms) as Float outputs.",
             .useWhen = "After capture, to drive brightness, color or motion from one frequency range.",
             .example = "{\"id\": \"bands\", \"type\": \"audio.bands\", \"params\": {\"bassMaxHz\": 250}}",
             .cost = "moderate",
           },
-        .inputs = {{"buffer", PortType::AudioBuffer, true}},
-        .outputs =
-          {{"bass", PortType::Float, false},
-           {"mid", PortType::Float, false},
-           {"treble", PortType::Float, false}},
+        .inputs = {{"buffer", PortType::AudioBuffer, true, "The audio buffer to split into bands."}},
+        .outputs = {{"bass", PortType::Float, false, "Bass loudness 0..1."},
+           {"mid", PortType::Float, false, "Mid-range loudness 0..1."},
+           {"treble", PortType::Float, false, "Treble loudness 0..1."}},
         .params =
           {hzParam("bassMaxHz", "Bass ceiling", 250.f, "Upper edge of the bass band; mid starts here."),
            hzParam("trebleMinHz", "Treble floor", 4000.f, "Lower edge of the treble band; mid ends here.")},
@@ -435,14 +438,15 @@ namespace Aurora::Runtime::Graph
       NodeTypeInfo{
         .meta =
           {
+            .title = "Palette drift",
             .purpose = "Slow palette drift; outputs the live anchor hue as an Angle.",
             .useWhen = "After features; wire the anchor into audio.bounce.",
             .example =
               "{\"id\": \"drift\", \"type\": \"audio.drift\", \"params\": {\"fixedAnchorHue\": null}}",
             .cost = "cheap",
           },
-        .inputs = {{"features", PortType::AudioFeatures, true}},
-        .outputs = {{"anchor", PortType::Angle, false}},
+        .inputs = {{"features", PortType::AudioFeatures, true, "Audio features that speed the drift up on beats."}},
+        .outputs = {{"anchor", PortType::Angle, false, "The live anchor hue."}},
         .params =
           {fixedAnchorParam(),
            floatParam(
@@ -465,6 +469,7 @@ namespace Aurora::Runtime::Graph
       NodeTypeInfo{
         .meta =
           {
+            .title = "Beat bounce",
             .purpose = "Beat-driven color bounce around the drift anchor; outputs a Color.",
             .useWhen =
               "After features and the drift anchor; the audio path's color output. Re-seeds (snaps) when "
@@ -473,10 +478,9 @@ namespace Aurora::Runtime::Graph
               "{\"id\": \"beat\", \"type\": \"audio.bounce\", \"params\": {\"bounceSmoothTime\": 0.285}}",
             .cost = "cheap",
           },
-        .inputs =
-          {{"features", PortType::AudioFeatures, true},
-           {"anchor", PortType::Angle, true}},
-        .outputs = {{"color", PortType::Color, false}},
+        .inputs = {{"features", PortType::AudioFeatures, true, "Audio features whose onsets trigger the bounce."},
+           {"anchor", PortType::Angle, true, "The anchor hue the bounce moves around."}},
+        .outputs = {{"color", PortType::Color, false, "The bouncing color."}},
         .params =
           {floatParam(
              "bounceSmoothTime",

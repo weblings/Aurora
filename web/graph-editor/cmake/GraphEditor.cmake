@@ -2,8 +2,8 @@
 # embeds the bundle into the C++ binary as Aurora::GraphEditorWebRoot::files,
 # served by the apps under /graph-editor/.
 #
-# Opt-in: AURORA_ENABLE_GRAPH_EDITOR is OFF by default, so a default build
-# needs no Node and produces the same embedded webroot as before. This file
+# AURORA_ENABLE_GRAPH_EDITOR is OFF by default, so a bare slice configure needs
+# no Node; the three app presets (CMakePresets.json) turn it ON. This file
 # declares the option so every consumer (root superbuild, each app slice
 # configured standalone) sees one definition.
 #
@@ -72,15 +72,24 @@ function(aurora_graph_editor_embed OUTPUT_HEADER)
       DEPENDS "${_install_stamp}" ${_editor_sources}
         "${_editor_dir}/index.html" "${_editor_dir}/vite.config.ts"
         "${_editor_dir}/tsconfig.json"
+        "${_editor_dir}/../ui/styles/tokens.css"
       COMMENT "Graph editor: vite build"
       VERBATIM
     )
   endif()
 
-  # The dist dir doesn't exist at configure time, so the embed step depends on
-  # the build stamp rather than on a configure-time glob of the output.
+  # The dist dir doesn't exist at configure time, and the vite step replaces
+  # its hashed files, so the embed step depends on the build stamp rather than
+  # on a configure-time glob (which would go stale). A prebuilt bundle is
+  # static, so it keeps the glob.
+  if(_build_stamp)
+    set(_embed_mode NO_GLOB)
+  else()
+    set(_embed_mode "")
+  endif()
   aurora_embed_webroot("${OUTPUT_HEADER}" "${_dist}"
     NAMESPACE GraphEditorWebRoot
+    ${_embed_mode}
     DEPENDS ${_build_stamp})
 
   set(AURORA_GRAPH_EDITOR_NOTICE "${_dist}/THIRD-PARTY-NOTICES.md" PARENT_SCOPE)

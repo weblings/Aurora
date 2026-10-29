@@ -185,6 +185,47 @@ namespace Aurora::Runtime
       }
     );
 
+    // Copy any effect, built-in or custom, to a new custom id. Never replaces
+    // a file, and never changes which effect is active.
+    server.addRoute(
+      HttpMethod::Post,
+      "/api/effects/:id/duplicate",
+      [&registry, configRoot](const Request& req, Response& res){
+        std::string copyId;
+        try{
+          copyId = nlohmann::json::parse(req.body).at("id").get<std::string>();
+        }
+        catch(const nlohmann::json::exception&){
+          _reply(res, 400, {{"succeeded", false}, {"error", "invalid_body"}});
+          return;
+        }
+        if(!EffectStore::validId(copyId)){
+          _reply(res, 400, {{"succeeded", false}, {"error", "invalid_effect_id"}});
+          return;
+        }
+        const EffectStore store(configRoot);
+        if(store.exists(copyId)){
+          _reply(res, 409, {{"succeeded", false}, {"error", "effect_exists"}});
+          return;
+        }
+
+        const std::string& sourceId = req.pathParams.at("id");
+        nlohmann::json source;
+        const int status = effectDocumentToJson(registry, configRoot, sourceId, source);
+        if(status != 200){
+          source["succeeded"] = false;
+          _reply(res, status, source);
+          return;
+        }
+        std::string writeError;
+        if(!store.write(copyId, source.at("graph"), writeError)){
+          _reply(res, 500, {{"succeeded", false}, {"error", "write_failed"}, {"message", writeError}});
+          return;
+        }
+        _reply(res, 200, {{"succeeded", true}, {"id", copyId}, {"source", sourceId}});
+      }
+    );
+
     server.addRoute(
       HttpMethod::Delete,
       "/api/effects/:id",

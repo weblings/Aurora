@@ -791,4 +791,36 @@ function ownerScreen(extra = {}) {
   assert.ok(content.innerHTML.includes('Not available in this build.'));
 }
 
+// Edit graph link (Aurora-pvxx.8): shown only once the editor probe answered,
+// and only with a running effect; the href carries the effect id.
+{
+  const { inst } = fakeScreen();
+  const slot = makeEl();
+  inst.container = { querySelector: () => slot };
+  inst.pipelineState = { effect: 'custom.my fx' };
+  inst.graphEditorAvailable = false;
+  inst._renderEditLink();
+  assert.equal(slot.innerHTML, '');
+  inst.graphEditorAvailable = true;
+  inst._renderEditLink();
+  assert.ok(slot.innerHTML.includes('href="/graph-editor/?effect=custom.my%20fx"'));
+  inst.pipelineState = { effect: null };
+  inst._renderEditLink();
+  assert.equal(slot.innerHTML, '');
+
+  const html = { ok: true, headers: { get: () => 'text/html' } };
+  globalThis.fetch = async (url) => { assert.equal(url, '/graph-editor/'); return html; };
+  inst.pipelineState = { effect: 'builtin.video' };
+  await inst._probeGraphEditor();
+  assert.equal(inst.graphEditorAvailable, true);
+  assert.ok(slot.innerHTML.includes('Edit graph'));
+  globalThis.fetch = async () => ({ ok: false, headers: { get: () => null } });
+  await inst._probeGraphEditor();
+  assert.equal(inst.graphEditorAvailable, false);
+  globalThis.fetch = async () => { throw new Error('offline'); };
+  await inst._probeGraphEditor();
+  assert.equal(inst.graphEditorAvailable, false);
+  globalThis.fetch = realFetch;
+}
+
 console.log('DashboardScreen pause checks passed.');

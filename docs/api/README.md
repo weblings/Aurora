@@ -49,7 +49,9 @@ PATCH /api/v1/state
 - Merge patch semantics: absent fields stay, `null` is rejected.
 - Unknown fields answer `unknown_field`, read-only ones `read_only_field`, with every problem in `errors`.
 - A paused host saves the effect and applies it on resume.
+- `POST /graph/save` writes a validated draft as an effect without running it (same body as `/graph/apply`, the active effect stays). `POST /effects/{id}/duplicate` with `{id}` copies a built-in or custom effect to a new custom id. Both need `apply`.
 - A changed effect, a pause or a resume ends a running light test with `superseded`. Brightness does not.
+- There is one test slot. `GET /graph/test` and the `test` block of the state name the `holder` (`session`, and `client`, `mcp` for an agent). A test started by another session ends the first with `lastEnd: replaced`, and the first session's heartbeat answers `404 no_test` with `lastEnd` and `holder`.
 
 ## Errors
 

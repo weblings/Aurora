@@ -389,3 +389,13 @@ Applies-when: changing user-facing wording for an error or condition the daemon 
 Aurora-o1qt reworded the audio banner in `AudioPermissionPublisher.hpp` (`kMessage`). The screen never changed: the shell renders `audio_permission` through `renderAudioPermissionBanner` and ignores `error.message`, so the daemon string only appears in `/api/state`. The old text had also named the exact permission ("System Audio Recording Only"), which the reword dropped.
 
 **Fix:** before editing copy, grep the web for the old string and for the error's `source`; if a renderer table keys on the source (`shell.js`), the wording lives there. Change the renderer, update the tests that assert the old text (`MacPermissionRecovery`, `shell`, `DashboardScreen`), and keep the daemon string only if something else reads it. The reworded line keeps the permission name: "allow Aurora under "System Audio Recording Only" in System Settings".
+
+---
+
+## Deriving React Flow nodes in an effect makes controlled inputs revert for a render
+Tags: react, react-flow, controlled-input, derived-state, graph-editor
+Applies-when: a widget inside a React Flow node edits a document that the nodes are built from
+
+Aurora-pvxx.4: the editor kept `nodes` in state and rebuilt them from the graph document in a `useEffect`. An edit therefore rendered once with the old node data, then again with the new. A controlled checkbox snapped back (Playwright: "clicking the checkbox did not change its state"), and a number box read its old value right after `fill`. Typing would drop keystrokes the same way.
+
+**Fix:** keep only what React Flow owns (selection, measured size, a drag in progress) in state and derive the node list from the document in the same render (`useMemo`, merged by id with `carryViewState`). The document change and the redraw then land together.

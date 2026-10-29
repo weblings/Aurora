@@ -14,6 +14,7 @@
 #include <Aurora/Runtime/ApplyRoutes.hpp>
 #include <Aurora/Runtime/ControlDescriptors.hpp>
 #include <Aurora/Runtime/DraftRoutes.hpp>
+#include <Aurora/Runtime/EffectsRoutes.hpp>
 #include <Aurora/Runtime/GraphRoutes.hpp>
 #include <Aurora/Runtime/PresetRoutes.hpp>
 #include <Aurora/Runtime/PreviewRoutes.hpp>
@@ -139,6 +140,7 @@ namespace
       const auto root = std::filesystem::temp_directory_path();
       registerPairingRoutes(server, service, *guard);
       auto drafts = Aurora::Runtime::registerDraftRoutes(server, registry, root, guard.get());
+      Aurora::Runtime::registerEffectsRoutes(server, host, registry, root, nullptr, {}, guard.get());
       auto apply = Aurora::Runtime::registerApplyRoutes(server, host, registry, root, drafts,
         []{ return std::string(); }, guard.get());
       Aurora::Runtime::registerTestRoutes(server, host, registry, root, drafts, apply, guard.get(), {}, {}, false);
@@ -202,6 +204,9 @@ TEST_CASE("v1 draft and validate need Draft, test and apply need Apply, pairing 
     {HttpMethod::Post, "/api/v1/graph/test/revert", Scope::Apply},
     {HttpMethod::Post, "/api/v1/graph/test/confirm", Scope::Apply},
     {HttpMethod::Post, "/api/v1/graph/apply", Scope::Apply},
+    {HttpMethod::Post, "/api/v1/graph/save", Scope::Apply},
+    {HttpMethod::Post, "/api/v1/effects/builtin.video/duplicate", Scope::Apply},
+    {HttpMethod::Get, "/api/v1/effects", Scope::Read},
     {HttpMethod::Get, "/api/v1/graph/drafts/s1", Scope::Read},
     {HttpMethod::Get, "/api/v1/graph/test", Scope::Read},
     {HttpMethod::Get, "/api/v1/nodes", Scope::Read},

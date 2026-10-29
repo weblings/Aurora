@@ -13,6 +13,7 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `3ddb-pause-cli` | [log/2026-10-03-3ddb-pause-cli.md](log/2026-10-03-3ddb-pause-cli.md) | Aurora-3ddb: pause/resume, core and CLI only |
 | `3ono-stale-core-test-tree` | [log/2026-10-02-3ono-stale-core-test-tree.md](log/2026-10-02-3ono-stale-core-test-tree.md) | Aurora-3ono: PipelineTests segfault on Windows was a stale build tree |
 | `3qh-mac-capture-width-hint` | [log/2026-10-01-3qh-mac-capture-width-hint.md](log/2026-10-01-3qh-mac-capture-width-hint.md) | Aurora-3qh: Mac video mode resized full-Retina frames every tick |
+| `4hhb-browser-check-1470` | [log/2026-10-29-4hhb-browser-check-1470.md](log/2026-10-29-4hhb-browser-check-1470.md) | Browser checks rerun at laptop width |
 | `4xqt1-input-rebuild-keeps-outputs` | [log/2026-10-21-4xqt1-input-rebuild-keeps-outputs.md](log/2026-10-21-4xqt1-input-rebuild-keeps-outputs.md) | Aurora-4xqt.1 (D0a): input-only rebuild keeps outputs, preview owns its extra inputs (paused) |
 | `4xqt1-windows-second-duplication-recheck` | [log/2026-10-21-4xqt1-windows-second-duplication-recheck.md](log/2026-10-21-4xqt1-windows-second-duplication-recheck.md) | Aurora-4xqt.1: Windows second-duplication recheck (closed) |
 | `4xqt10-try-apply-tools` | [log/2026-10-22-4xqt10-try-apply-tools.md](log/2026-10-22-4xqt10-try-apply-tools.md) | Aurora-4xqt.10: try and apply tools (D4) |
@@ -65,6 +66,7 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `axoz-pending-highlight` | [log/2026-10-04-axoz-pending-highlight.md](log/2026-10-04-axoz-pending-highlight.md) | Aurora-axoz: pending highlight on Video/Audio switch (implemented, tracker close refused) |
 | `browser-analysis` | [archive/BrowserAnalysis.md](archive/BrowserAnalysis.md) | Browser video-upload input — findings, not a decision |
 | `c0g-live-tuning-apply` | [log/2026-10-02-c0g-live-tuning-apply.md](log/2026-10-02-c0g-live-tuning-apply.md) | Aurora-c0g: tuning edits apply to the running pipeline without a reload |
+| `c5gw-builtin-save-title` | [log/2026-10-29-c5gw-builtin-save-title.md](log/2026-10-29-c5gw-builtin-save-title.md) | Graph editor: saving a built-in picks a distinct title |
 | `cgr-tick-yield` | [log/2026-10-16-cgr-tick-yield.md](log/2026-10-16-cgr-tick-yield.md) | Tick loop yields the host mutex (Aurora-cgr) |
 | `cj11-shell-banner` | [log/2026-10-06-cj11-shell-banner.md](log/2026-10-06-cj11-shell-banner.md) | Aurora-cj11: sticky shell banner for system errors (closed) |
 | `cli-help-version` | [log/2026-10-06-cli-help-version.md](log/2026-10-06-cli-help-version.md) | CLI --help/--version closes Aurora-v3in and Aurora-0gd |
@@ -91,6 +93,7 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `first-scan` | [archive/FirstScan.md](archive/FirstScan.md) | Huenicorn pipeline scan |
 | `fq5y-x11-xrender-downscale` | [log/2026-10-20-fq5y-x11-xrender-downscale.md](log/2026-10-20-fq5y-x11-xrender-downscale.md) | Aurora-fq5y: X11 XRender server-side downscale (39.7/20.4% -> 4.2/1.3%) |
 | `future-steamos-support` | [planning/FutureSteamOSSupport.md](planning/FutureSteamOSSupport.md) | SteamOS / Steam Deck support |
+| `fzzr-laptop-width-fit` | [log/2026-10-29-fzzr-laptop-width-fit.md](log/2026-10-29-fzzr-laptop-width-fit.md) | Graph editor: fit holds at laptop width |
 | `gtkd-bare-bus-fix` | [log/2026-10-07-gtkd-bare-bus-fix.md](log/2026-10-07-gtkd-bare-bus-fix.md) | Aurora-gtkd closed: fake bare bus no longer activates the real xdg-desktop-portal |
 | `gui-launch-ux` | [archive/GUILaunchUX.md](archive/GUILaunchUX.md) | GUI Launch UX |
 | `h45-post-110-upstream-sweep` | [log/2026-10-08-h45-post-110-upstream-sweep.md](log/2026-10-08-h45-post-110-upstream-sweep.md) | Aurora-h45: post-1.1.0 sweep for more huenicorn upstream candidates |
@@ -167,6 +170,7 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `linux-post-d-verification` | [log/2026-10-23-linux-post-d-verification.md](log/2026-10-23-linux-post-d-verification.md) | Linux verification of the changes after Sequence D (0e73051 to e1834d0) |
 | `linux-tray-pause` | [log/2026-10-04-linux-tray-pause.md](log/2026-10-04-linux-tray-pause.md) | Aurora-5ipy.16: Linux SNI tray Pause/Resume (closed) |
 | `lmn5-doc-checkers-as-hook` | [log/2026-10-07-lmn5-doc-checkers-as-hook.md](log/2026-10-07-lmn5-doc-checkers-as-hook.md) | Aurora-lmn.5: check-links.sh/check-lessons.sh wired into the pre-commit hook |
+| `lut9-save-as-new-title` | [log/2026-10-29-lut9-save-as-new-title.md](log/2026-10-29-lut9-save-as-new-title.md) | Graph editor: Save as new picks a distinct title |
 | `lzj-embed-and-serving` | [log/2026-10-01-lzj-embed-and-serving.md](log/2026-10-01-lzj-embed-and-serving.md) | Aurora-lzj: toolchain spike investigated, change A (embed + serving) done; HA prep filed |
 | `lzw-github-ci` | [log/2026-10-01-lzw-github-ci.md](log/2026-10-01-lzw-github-ci.md) | Aurora-lzw: GitHub CI unblocked for weblings/Aurora |
 | `m0fy-top-tier-error-owners` | [log/2026-10-07-m0fy-top-tier-error-owners.md](log/2026-10-07-m0fy-top-tier-error-owners.md) | Aurora-m0fy: Dashboard inline errors get one owner per control (closed) |
@@ -196,7 +200,22 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `pause-tooltips` | [log/2026-10-04-pause-tooltips.md](log/2026-10-04-pause-tooltips.md) | Aurora-5ipy.13.1: Pause/Stop button tooltips (closed) |
 | `pmg5-generated-demo-graph` | [log/2026-10-16-pmg5-generated-demo-graph.md](log/2026-10-16-pmg5-generated-demo-graph.md) | Generated demo-graph.js and --check drift guards (Aurora-pmg5) |
 | `processing-analysis` | [archive/ProcessingAnalysis.md](archive/ProcessingAnalysis.md) | ImageProcessing / Color / Interpolation / ImageData / UV — Conversion analysis |
+| `pvxx1-save-and-duplicate` | [log/2026-10-29-pvxx1-save-and-duplicate.md](log/2026-10-29-pvxx1-save-and-duplicate.md) | E0b: save without going live, and duplicate an effect |
+| `pvxx11-browser-check` | [log/2026-10-29-pvxx11-browser-check.md](log/2026-10-29-pvxx11-browser-check.md) | Browser-check tooling for the web screens |
+| `pvxx12-embed-stale-glob` | [log/2026-10-29-pvxx12-embed-stale-glob.md](log/2026-10-29-pvxx12-embed-stale-glob.md) | Graph editor embed: no stale configure-time glob |
+| `pvxx13-node-palette` | [log/2026-10-29-pvxx13-node-palette.md](log/2026-10-29-pvxx13-node-palette.md) | Graph editor: node palette |
+| `pvxx14-save-as-new` | [log/2026-10-29-pvxx14-save-as-new.md](log/2026-10-29-pvxx14-save-as-new.md) | Graph editor: Save as new for customs |
+| `pvxx16-17-addnode-defaults` | [log/2026-10-29-pvxx16-17-addnode-defaults.md](log/2026-10-29-pvxx16-17-addnode-defaults.md) | Graph editor addNode defaults: optional-floats and output bindings |
+| `pvxx2-output-options` | [log/2026-10-29-pvxx2-output-options.md](log/2026-10-29-pvxx2-output-options.md) | E0c: output params list the registered outputs |
+| `pvxx3-titles-port-descriptions` | [log/2026-10-29-pvxx3-titles-port-descriptions.md](log/2026-10-29-pvxx3-titles-port-descriptions.md) | E0d: node titles and port descriptions |
+| `pvxx4-editor-foundation` | [log/2026-10-29-pvxx4-editor-foundation.md](log/2026-10-29-pvxx4-editor-foundation.md) | E1: graph editor foundation |
+| `pvxx5-undo-autosave` | [log/2026-10-29-pvxx5-undo-autosave.md](log/2026-10-29-pvxx5-undo-autosave.md) | E2: undo/redo and browser autosave |
+| `pvxx6-draft-preview-loop` | [log/2026-10-29-pvxx6-draft-validate-preview.md](log/2026-10-29-pvxx6-draft-validate-preview.md) | E3: draft, validate and preview loop |
+| `pvxx7-test-save-controls` | [log/2026-10-29-pvxx7-test-save-controls.md](log/2026-10-29-pvxx7-test-save-controls.md) | E4: test on lights, Save, Save and apply, Dashboard controls |
+| `pvxx8-dashboard-entry-shipping` | [log/2026-10-29-pvxx8-dashboard-entry-shipping.md](log/2026-10-29-pvxx8-dashboard-entry-shipping.md) | E5: Dashboard entry point and shipping the editor |
+| `pvxx9-sequence-e-gate` | [log/2026-10-29-pvxx9-sequence-e-gate.md](log/2026-10-29-pvxx9-sequence-e-gate.md) | E6: Sequence E gate on the fake-Hue stack |
 | `q9l1-tray-target-live` | [log/2026-10-07-q9l1-tray-target-live.md](log/2026-10-07-q9l1-tray-target-live.md) | Aurora-q9l1: tray click-time target — Linux live green, Windows exercised, closed |
+| `qv7a-thumbnail-regions` | [log/2026-10-29-qv7a-thumbnail-regions.md](log/2026-10-29-qv7a-thumbnail-regions.md) | Graph editor thumbnail: zones at their sampled regions |
 | `r7ff-noise-nodes` | [log/2026-10-22-r7ff-noise-nodes.md](log/2026-10-22-r7ff-noise-nodes.md) | R7ff: noise source nodes (Aurora-r7ff) |
 | `ra4o10-g2e-pre-g3-fixes` | [log/2026-10-14-ra4o10-g2e-pre-g3-fixes.md](log/2026-10-14-ra4o10-g2e-pre-g3-fixes.md) | G2e pre-G3 review fixes (Aurora-ra4o.10) |
 | `ra4o11-g4a-loader-float-clamp` | [log/2026-10-15-ra4o11-g4a-loader-float-clamp.md](log/2026-10-15-ra4o11-g4a-loader-float-clamp.md) | G4a: loader clamps Float params (Aurora-ra4o.11) |
@@ -216,6 +235,8 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `sequence-b-planning` | [log/2026-10-15-sequence-b-planning.md](log/2026-10-15-sequence-b-planning.md) | Sequence B planning: decisions recorded, epic filed |
 | `sequence-c-planning` | [log/2026-10-20-sequence-c-planning.md](log/2026-10-20-sequence-c-planning.md) | Sequence C planning: decisions recorded, epic filed |
 | `sequence-d-planning` | [log/2026-10-21-sequence-d-planning.md](log/2026-10-21-sequence-d-planning.md) | Sequence D planning: MCP for graphs, gaps first, epic filed |
+| `sequence-e-planning` | [log/2026-10-28-sequence-e-planning.md](log/2026-10-28-sequence-e-planning.md) | Sequence E planning: graph editor, edit loop first, epic filed |
+| `sequence-e-research` | [log/2026-10-28-sequence-e-research.md](log/2026-10-28-sequence-e-research.md) | Sequence E research: what the editor can reuse, and what it is missing |
 | `set-running-helper` | [log/2026-10-04-set-running-helper.md](log/2026-10-04-set-running-helper.md) | Aurora-5ipy.18: shared setRunning helper (closed) |
 | `skv-one-tick-clock` | [log/2026-10-01-skv-one-tick-clock.md](log/2026-10-01-skv-one-tick-clock.md) | Aurora-skv: explicit dt into both orchestrators, one tick clock |
 | `so1o-pairing-copy-fixes` | [log/2026-10-16-so1o-pairing-copy-fixes.md](log/2026-10-16-so1o-pairing-copy-fixes.md) | Pairing screen copy and centering fixes (Aurora-so1o) |

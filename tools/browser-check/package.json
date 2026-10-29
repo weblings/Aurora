@@ -1,0 +1,19 @@
+{
+  "name": "aurora-browser-check",
+  "private": true,
+  "type": "module",
+  "description": "Playwright checks that drive Aurora's web screens against the fake-Hue stack. Developer and gate tool, not part of any build.",
+  "scripts": {
+    "graph-editor": "node checks/graph-editor-edit-loop.mjs",
+    "graph-editor:add-node": "node checks/graph-editor-add-node.mjs",
+    "graph-editor:save-as-new": "node checks/graph-editor-save-as-new.mjs",
+    "graph-editor:gate": "node checks/graph-editor-gate.mjs",
+    "graph-editor:slow": "SLOW=1 node checks/graph-editor-edit-loop.mjs"
+  },
+  "dependencies": {
+    "playwright-core": "1.54.2"
+  },
+  "engines": {
+    "node": ">=22.12"
+  }
+}

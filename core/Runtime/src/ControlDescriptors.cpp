@@ -85,6 +85,9 @@ namespace Aurora::Runtime
         {"kind", descriptor.kind},
         {"description", descriptor.description},
       };
+      if(!descriptor.title.empty()){
+        entry["title"] = descriptor.title;
+      }
       if(!descriptor.useWhen.empty()){
         entry["useWhen"] = descriptor.useWhen;
       }

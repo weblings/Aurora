@@ -59,6 +59,14 @@ namespace Aurora::Runtime
   // "unknown_effect". Answers {"succeeded": true, "deleted": id, "fellBack":
   // bool} plus "reloadError".
   //
+  // POST /api/effects/<id>/duplicate {"id": string}: copies a built-in (the
+  // doc GET /api/effects/<id> returns) or custom effect to a new custom id.
+  // Never replaces a file and never changes the active effect. Answers
+  // {"succeeded": true, "id", "source"}. 400 "invalid_body" /
+  // "invalid_effect_id" (built-in ids never qualify), 404 "unknown_effect"
+  // (source), 409 "effect_exists", 422 "unreadable_effect", 500
+  // "write_failed". Core route only; not mirrored in /api/v1 (Aurora-pvxx.1).
+  //
   // Writing a graph file is not a route here: it is POST /api/graph/apply
   // (ApplyRoutes.hpp). When `guard` is set the access rules are added to it.
   void registerEffectsRoutes(

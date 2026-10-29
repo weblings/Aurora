@@ -38,6 +38,7 @@ namespace Aurora::Contracts
     std::optional<ParamSchema> param{}; // numeric settings only
 
     // Node-type entries only (empty elsewhere); shared with agent prompts.
+    std::string title;   // short display name, e.g. "Hue shift"
     std::string useWhen;
     std::string example; // JSON snippet of the node as in graph.json
     std::string cost;    // "cheap" | "moderate" | "heavy"

@@ -91,6 +91,13 @@ export function mcpEffectIdFrom(state) {
   return typeof id === 'string' && id ? id : null;
 }
 
+// The graph editor's address for the running effect (Aurora-pvxx.8), or null
+// when nothing is running. The editor reads `effect` from its query string.
+export function graphEditorHref(state) {
+  const id = state?.effect;
+  return typeof id === 'string' && id ? `/graph-editor/?effect=${encodeURIComponent(id)}` : null;
+}
+
 // Whether that effect is the one running now, so its toggle takes the fill.
 export function mcpEffectRunning(state) {
   const id = mcpEffectIdFrom(state);

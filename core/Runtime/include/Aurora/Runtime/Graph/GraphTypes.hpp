@@ -39,6 +39,9 @@ namespace Aurora::Runtime::Graph
     // Inputs only: an unconnected required input fails the load. Outputs
     // ignore this flag.
     bool required = true;
+    // One sentence on what the port carries, shown in the editor inspector
+    // and describe_node.
+    std::string description{};
   };
 
   // Param kinds use Contracts::ParamSchema (Aurora-ta5): float and

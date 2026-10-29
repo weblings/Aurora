@@ -36,6 +36,7 @@ namespace Aurora::Runtime
   {
     m_active = false;
     m_session.clear();
+    m_client.clear();
     m_doc = nullptr;
     m_lastEnd = reason;
   }
@@ -65,7 +66,7 @@ namespace Aurora::Runtime
   }
 
 
-  std::string LightTest::start(const std::string& session, const nlohmann::json& doc)
+  std::string LightTest::start(const std::string& session, const nlohmann::json& doc, const std::string& client)
   {
     std::lock_guard<std::mutex> lock(m_mutex);
     _expireLocked();
@@ -77,8 +78,12 @@ namespace Aurora::Runtime
     // pipeline it built is the one this test must revert (Aurora-4xqt.1).
     const std::uint64_t generation = m_hooks.generation();
     const std::int64_t now = m_clock();
+    if(m_active && m_session != session){
+      m_lastEnd = "replaced";
+    }
     m_active = true;
     m_session = session;
+    m_client = client;
     m_doc = doc;
     m_startedAt = now;
     m_lastBeat = now;
@@ -157,6 +162,8 @@ namespace Aurora::Runtime
     if(m_active){
       const std::int64_t now = m_clock();
       info.active = true;
+      info.session = m_session;
+      info.client = m_client;
       info.confirmRemainingMs = std::max<std::int64_t>(0, m_options.confirmMs - (now - m_startedAt));
       info.lapseRemainingMs = std::max<std::int64_t>(0, m_options.lapseMs - (now - m_lastBeat));
     }

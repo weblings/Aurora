@@ -1,0 +1,435 @@
+/* Graph editor theme (Aurora-p1qj): maps React Flow's --xy-* variables onto the
+   WebUI design tokens. Imported after @xyflow/react's stylesheet so these win.
+   tokens.css is dark-only today, so the editor is dark-only too. */
+
+html,
+body,
+#root {
+  margin: 0;
+  height: 100%;
+}
+
+body {
+  background: var(--aurora-bg);
+  color: var(--aurora-text-primary);
+  font-family: var(--aurora-font);
+}
+
+.editor {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.editor-header {
+  display: flex;
+  gap: var(--aurora-space-3);
+  align-items: center;
+  padding: var(--aurora-space-3) var(--aurora-space-5);
+  background: var(--aurora-surface);
+  border-bottom: 1px solid var(--aurora-border);
+  color: var(--aurora-text-secondary);
+}
+
+.editor-header strong {
+  color: var(--aurora-text-primary);
+}
+
+.editor-body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+}
+
+.editor-canvas {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  position: relative;
+}
+
+.react-flow {
+  --xy-background-color: var(--aurora-bg);
+  --xy-background-pattern-dots-color: var(--aurora-border);
+
+  --xy-node-background-color: var(--aurora-surface);
+  --xy-node-color: var(--aurora-text-primary);
+  --xy-node-border: 1px solid var(--aurora-border);
+  --xy-node-border-radius: var(--aurora-radius-control);
+  --xy-node-boxshadow-hover: 0 0 0 1px var(--aurora-accent);
+  --xy-node-boxshadow-selected: 0 0 0 1px var(--aurora-text-secondary);
+
+  --xy-handle-background-color: var(--aurora-accent);
+  --xy-handle-border-color: var(--aurora-surface);
+
+  --xy-edge-stroke: var(--aurora-accent);
+  --xy-edge-stroke-selected: var(--aurora-text-secondary);
+  --xy-connectionline-stroke: var(--aurora-accent);
+  --xy-edge-label-background-color: var(--aurora-surface);
+  --xy-edge-label-color: var(--aurora-text-secondary);
+
+  --xy-selection-background-color: var(--aurora-scrim);
+  --xy-selection-border: 1px dotted var(--aurora-accent);
+
+  --xy-controls-button-background-color: var(--aurora-surface);
+  --xy-controls-button-background-color-hover: var(--aurora-surface-hover);
+  --xy-controls-button-color: var(--aurora-text-secondary);
+  --xy-controls-button-color-hover: var(--aurora-text-primary);
+  --xy-controls-button-border-color: var(--aurora-border);
+  --xy-controls-box-shadow: none;
+
+  --xy-minimap-background-color: var(--aurora-surface);
+  --xy-minimap-mask-background-color: var(--aurora-scrim);
+  --xy-minimap-mask-stroke-color: var(--aurora-accent);
+  --xy-minimap-node-background-color: var(--aurora-surface-hover);
+  --xy-minimap-node-stroke-color: var(--aurora-border);
+
+  --xy-attribution-background-color: var(--aurora-surface);
+}
+
+.react-flow__attribution a {
+  color: var(--aurora-text-secondary);
+}
+
+.editor-header select,
+.editor-header button {
+  background: var(--aurora-bg);
+  color: var(--aurora-text-primary);
+  border: 1px solid var(--aurora-border);
+  border-radius: var(--aurora-radius-control);
+  padding: var(--aurora-space-1) var(--aurora-space-3);
+}
+
+.editor-restore {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--aurora-space-2);
+  color: var(--aurora-text-primary);
+}
+
+.editor-refusal {
+  color: var(--aurora-text-primary);
+}
+
+.editor-error {
+  color: var(--aurora-text-primary);
+  font-weight: 600;
+}
+
+.aurora-node {
+  min-width: 240px;
+  background: var(--aurora-surface);
+  color: var(--aurora-text-primary);
+  border: 1px solid var(--aurora-border);
+  border-radius: var(--aurora-radius-control);
+  padding: var(--aurora-space-3) 0;
+  font-size: 12px;
+}
+
+.aurora-node-header {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--aurora-space-5);
+  padding: 0 var(--aurora-space-5) var(--aurora-space-3);
+  border-bottom: 1px solid var(--aurora-divider);
+}
+
+.aurora-node small,
+.param small {
+  color: var(--aurora-text-secondary);
+  opacity: 0.8;
+}
+
+.aurora-node-note {
+  margin: var(--aurora-space-3) var(--aurora-space-5) 0;
+  color: var(--aurora-text-secondary);
+}
+
+.aurora-ports {
+  display: flex;
+  justify-content: space-between;
+  padding-top: var(--aurora-space-3);
+}
+
+.aurora-port {
+  position: relative;
+  display: flex;
+  gap: var(--aurora-space-2);
+  align-items: baseline;
+  padding: 2px var(--aurora-space-5);
+}
+
+.aurora-port-out {
+  justify-content: flex-end;
+}
+
+.aurora-port-open {
+  font-weight: 600;
+}
+
+.param {
+  display: flex;
+  flex-direction: column;
+  gap: var(--aurora-space-1);
+  padding: var(--aurora-space-2) var(--aurora-space-5);
+  border-top: 1px solid var(--aurora-divider);
+}
+
+.param input[type='number'],
+.param input[type='text'],
+.param select {
+  width: 70px;
+  background: var(--aurora-bg);
+  color: var(--aurora-text-primary);
+  border: 1px solid var(--aurora-border);
+  border-radius: var(--aurora-radius-badge);
+}
+
+.param select,
+.param input[type='text'] {
+  width: 100%;
+}
+
+.param-float,
+.param-optional,
+.gradient-stop {
+  display: flex;
+  gap: var(--aurora-space-3);
+  align-items: center;
+}
+
+.param-float input[type='range'] {
+  flex: 1;
+  min-width: 0;
+}
+
+.param-gradient {
+  display: flex;
+  flex-direction: column;
+  gap: var(--aurora-space-2);
+}
+
+.gradient-bar {
+  height: 10px;
+  border-radius: var(--aurora-radius-badge);
+}
+
+.react-flow__node.selected .aurora-node {
+  border-color: var(--aurora-text-secondary);
+}
+
+.param input[type='range'] {
+  accent-color: var(--aurora-accent);
+}
+
+/* Draft loop (Aurora-pvxx.6). The palette is monochrome, so problems read by
+   glyph, dashed outline and text, not by colour. */
+.editor-canvas {
+  position: relative;
+}
+
+.editor-status {
+  margin-left: auto;
+  color: var(--aurora-text-primary);
+}
+
+.zone-thumbnail {
+  position: absolute;
+  right: var(--aurora-space-5);
+  top: var(--aurora-space-5);
+  z-index: 5;
+  padding: var(--aurora-space-2);
+  background: var(--aurora-surface);
+  border: 1px solid var(--aurora-border);
+  border-radius: var(--aurora-radius-control);
+  pointer-events: none;
+}
+
+.zone-thumbnail-stale {
+  opacity: 0.4;
+}
+
+.editor-graph-problems {
+  position: absolute;
+  left: var(--aurora-space-5);
+  top: var(--aurora-space-5);
+  z-index: 5;
+  margin: 0;
+  padding: var(--aurora-space-3) var(--aurora-space-5);
+  list-style: none;
+  background: var(--aurora-surface);
+  border: 1px dashed var(--aurora-text-primary);
+  border-radius: var(--aurora-radius-control);
+  max-width: 420px;
+}
+
+.aurora-node-problem {
+  border: 1px dashed var(--aurora-text-primary);
+}
+
+.problem-badge,
+.problem-mark {
+  font-weight: 600;
+  color: var(--aurora-text-primary);
+}
+
+.problem-list {
+  margin: var(--aurora-space-3) var(--aurora-space-5) 0;
+  padding: 0;
+  list-style: none;
+  color: var(--aurora-text-primary);
+}
+
+.param-problem {
+  outline: 1px dashed var(--aurora-text-primary);
+  outline-offset: -2px;
+}
+
+.problem-text {
+  color: var(--aurora-text-primary);
+}
+
+.editor-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--aurora-space-3);
+  align-items: center;
+  padding: var(--aurora-space-2) var(--aurora-space-5);
+  background: var(--aurora-surface);
+  border-bottom: 1px solid var(--aurora-border);
+  color: var(--aurora-text-secondary);
+}
+
+.editor-actions button,
+.editor-actions input[type='text'],
+.inspector input[type='text'],
+.inspector button {
+  background: var(--aurora-bg);
+  color: var(--aurora-text-primary);
+  border: 1px solid var(--aurora-border);
+  border-radius: var(--aurora-radius-control);
+  padding: var(--aurora-space-1) var(--aurora-space-3);
+}
+
+.editor-actions button:disabled,
+.inspector button:disabled {
+  opacity: 0.5;
+}
+
+.editor-name {
+  display: inline-flex;
+  gap: var(--aurora-space-2);
+  align-items: center;
+}
+
+.editor-dirty,
+.editor-test-note,
+.editor-notice {
+  color: var(--aurora-text-primary);
+}
+
+.editor-notice {
+  margin-left: auto;
+  font-weight: 600;
+}
+
+.inspector {
+  width: 280px;
+  flex: none;
+  overflow-y: auto;
+  padding: var(--aurora-space-3) var(--aurora-space-5);
+  background: var(--aurora-surface);
+  border-left: 1px solid var(--aurora-border);
+  font-size: 12px;
+  color: var(--aurora-text-secondary);
+}
+
+.inspector h3,
+.inspector h4 {
+  margin: var(--aurora-space-3) 0;
+  color: var(--aurora-text-primary);
+}
+
+.inspector h3 small {
+  color: var(--aurora-text-secondary);
+  font-weight: 400;
+}
+
+.inspector-ports,
+.inspector-controls {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.inspector-ports li {
+  margin-bottom: var(--aurora-space-2);
+}
+
+.inspector-check,
+.inspector-field {
+  display: flex;
+  gap: var(--aurora-space-2);
+  align-items: center;
+  margin: var(--aurora-space-1) 0;
+}
+
+.inspector-field span {
+  width: 52px;
+  flex: none;
+}
+
+.inspector-field input {
+  flex: 1;
+  min-width: 0;
+}
+
+.inspector-controls li {
+  padding: var(--aurora-space-3) 0;
+  border-top: 1px solid var(--aurora-divider);
+}
+
+.inspector-control-head {
+  display: flex;
+  gap: var(--aurora-space-2);
+  align-items: center;
+  color: var(--aurora-text-primary);
+}
+
+.inspector-control-head span {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Node palette (Aurora-pvxx.13). */
+.palette {
+  width: 180px;
+  flex: none;
+  overflow-y: auto;
+  padding: var(--aurora-space-3) var(--aurora-space-5);
+  background: var(--aurora-surface);
+  border-right: 1px solid var(--aurora-border);
+  font-size: 12px;
+  color: var(--aurora-text-secondary);
+}
+
+.palette h3,
+.palette h4 {
+  margin: var(--aurora-space-3) 0 var(--aurora-space-2);
+}
+
+.palette h4 {
+  text-transform: uppercase;
+  font-size: 11px;
+}
+
+.palette-item {
+  display: block;
+  width: 100%;
+  margin-bottom: 2px;
+  text-align: left;
+  cursor: grab;
+}

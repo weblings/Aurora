@@ -35,7 +35,7 @@ import { applyTooltip } from '../Tooltips.js';
 import { renderReloadError } from '../MacPermissionRecovery.js';
 import {
   audioDevicesUrlFrom, devicePatch, effectiveFlags, flagsForMode, isSwitchConfirmed, isSwitchErrorStale,
-  isIdle, isMcpSwitchConfirmed, lightTestActive, loadPipelineState, mcpEffectIdFrom, modeSwitchPatch, runningToggle,
+  graphEditorHref, isIdle, isMcpSwitchConfirmed, lightTestActive, loadPipelineState, mcpEffectIdFrom, modeSwitchPatch, runningToggle,
   putMcpSwitch, putModeSwitch, runningFlags,
 } from '../CaptureSource.js';
 import { DAEMON_UNREACHABLE } from '../messages.js';
@@ -155,6 +155,7 @@ export class DashboardScreen {
     container.innerHTML = `
       <div class="top-bar-slot db-top-bar-slot"></div>
       <div class="db-controls"></div>
+      <div class="db-edit-slot"></div>
       <div class="db-top-tier"></div>
       <div class="db-accordions"></div>
       <div id="db-overlay-slot"></div>
@@ -174,6 +175,7 @@ export class DashboardScreen {
     this.app.onPairedDevicesChanged = this._onPairedDevicesChanged;
 
     await this._loadAll();
+    this._probeGraphEditor();
     this._startAudioStatusPoll();
   }
 
@@ -326,8 +328,30 @@ export class DashboardScreen {
 
   _render() {
     this._renderControls();
+    this._renderEditLink();
     this._renderTopTier();
     this._renderAccordions();
+  }
+
+  // "Edit graph" opens /graph-editor/ on the running effect (Aurora-pvxx.8).
+  // The editor is an opt-in build (AURORA_ENABLE_GRAPH_EDITOR), so the link
+  // shows only once a probe of that path has answered; the demo shim and
+  // editor-less builds show nothing rather than a dead link.
+  _renderEditLink() {
+    const slot = this.container.querySelector('.db-edit-slot');
+    const href = this.graphEditorAvailable ? graphEditorHref(this.pipelineState) : null;
+    slot.innerHTML = href ? `<a class="btn-link db-edit-graph" href="${escapeHtml(href)}">Edit graph</a>` : '';
+  }
+
+  async _probeGraphEditor() {
+    try {
+      const response = await fetch('/graph-editor/', { method: 'GET' });
+      this.graphEditorAvailable = response.ok
+        && (response.headers.get('content-type') ?? '').includes('text/html');
+    } catch {
+      this.graphEditorAvailable = false;
+    }
+    if (this.graphEditorAvailable) this._renderEditLink();
   }
 
   // Stop moved into the top bar itself (2.5 pass, see _loadAll()'s

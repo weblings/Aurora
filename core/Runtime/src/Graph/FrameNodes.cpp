@@ -210,14 +210,15 @@ namespace Aurora::Runtime::Graph
       NodeTypeInfo{
         .meta =
           {
+            .title = "Smooth frames",
             .purpose = "Ease each zone's color toward its new value, per output.",
             .useWhen = "Between zone sampling and output.send; one instance per output.",
             .example =
               "{\"id\": \"ease\", \"type\": \"frame.smooth\", \"params\": {\"output\": \"hue\", \"smoothing\": 0.5}}",
             .cost = "cheap",
           },
-        .inputs = {{"frame", PortType::Frame, true}},
-        .outputs = {{"frame", PortType::Frame, false}},
+        .inputs = {{"frame", PortType::Frame, true, "The Frame to ease."}},
+        .outputs = {{"frame", PortType::Frame, false, "The eased Frame."}},
         .params = {outputParam("Output whose zones are smoothed (keys the smoother state)."), smoothing},
         .factory = [] { return std::make_unique<FrameSmoothNode>(); },
       });
@@ -238,13 +239,14 @@ namespace Aurora::Runtime::Graph
       NodeTypeInfo{
         .meta =
           {
+            .title = "Smooth frames (timed)",
             .purpose = "Ease each zone's color toward its new value over tau seconds, at any tick rate.",
             .useWhen = "Instead of frame.smooth when easing must feel the same at every refresh rate.",
             .example = "{\"id\": \"ease\", \"type\": \"frame.smoothTime\", \"params\": {\"tau\": 0.15}}",
             .cost = "cheap",
           },
-        .inputs = {{"frame", PortType::Frame, true}},
-        .outputs = {{"frame", PortType::Frame, false}},
+        .inputs = {{"frame", PortType::Frame, true, "The Frame to ease."}},
+        .outputs = {{"frame", PortType::Frame, false, "The eased Frame."}},
         .params = {tau},
         .factory = [] { return std::make_unique<FrameSmoothTimeNode>(); },
       });
@@ -260,13 +262,14 @@ namespace Aurora::Runtime::Graph
       NodeTypeInfo{
         .meta =
           {
+            .title = "Gain",
             .purpose = "Scale every zone's color by a brightness factor.",
             .useWhen = "Last step before output.send; the built-in graphs run the global brightness here.",
             .example = "{\"id\": \"dim\", \"type\": \"frame.gain\", \"params\": {\"gain\": 0.5}}",
             .cost = "cheap",
           },
-        .inputs = {{"frame", PortType::Frame, true}},
-        .outputs = {{"frame", PortType::Frame, false}},
+        .inputs = {{"frame", PortType::Frame, true, "The Frame to scale."}},
+        .outputs = {{"frame", PortType::Frame, false, "The Frame with every zone scaled."}},
         .params = {gain},
         .factory = [] { return std::make_unique<FrameGainNode>(); },
       });
@@ -307,14 +310,15 @@ namespace Aurora::Runtime::Graph
       NodeTypeInfo{
         .meta =
           {
+            .title = "Black floor",
             .purpose = "Keep zones above a minimum brightness for outputs where brightness 0 means off.",
             .useWhen = "After frame.gain, before output.send, per output; leave policy off for Hue.",
             .example =
               "{\"id\": \"keep\", \"type\": \"frame.floor\", \"params\": {\"policy\": \"hold\", \"floor\": 0.05}}",
             .cost = "cheap",
           },
-        .inputs = {{"frame", PortType::Frame, true}},
-        .outputs = {{"frame", PortType::Frame, false}},
+        .inputs = {{"frame", PortType::Frame, true, "The Frame to keep above the floor."}},
+        .outputs = {{"frame", PortType::Frame, false, "The Frame with dim zones raised to the floor."}},
         .params = {floorPolicy, floorLevel, floorHold},
         .factory = [] { return std::make_unique<FrameFloorNode>(); },
       });
@@ -324,12 +328,13 @@ namespace Aurora::Runtime::Graph
       NodeTypeInfo{
         .meta =
           {
+            .title = "Send to output",
             .purpose = "Send a Frame to one output; sends nothing on a skipped tick.",
             .useWhen = "Last node of every path, one per output.",
             .example = "{\"id\": \"send\", \"type\": \"output.send\", \"params\": {\"output\": \"hue\"}}",
             .cost = "moderate",
           },
-        .inputs = {{"frame", PortType::Frame, true}},
+        .inputs = {{"frame", PortType::Frame, true, "The Frame to send to the output."}},
         .outputs = {},
         .params = {outputParam("Output that receives the frame (per-output binding, not a port).")},
         .factory = [] { return std::make_unique<OutputSendNode>(); },
