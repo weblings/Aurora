@@ -83,12 +83,20 @@ body {
   color: var(--aurora-text-secondary);
 }
 
-.editor-header select {
+.editor-header select,
+.editor-header button {
   background: var(--aurora-bg);
   color: var(--aurora-text-primary);
   border: 1px solid var(--aurora-border);
   border-radius: var(--aurora-radius-control);
   padding: var(--aurora-space-1) var(--aurora-space-3);
+}
+
+.editor-restore {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--aurora-space-2);
+  color: var(--aurora-text-primary);
 }
 
 .editor-refusal {

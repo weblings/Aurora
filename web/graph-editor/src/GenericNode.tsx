@@ -7,7 +7,7 @@ import { ParamWidget } from './ParamWidget'
 // One component draws every node type from its /api/nodes entry: ports become
 // handles, params become widgets.
 function GenericNodeView({ id, data }: NodeProps<Node<AuroraNodeData>>) {
-  const { setParam } = useEditorActions()
+  const { setParam, commit } = useEditorActions()
   const { info, params, connectedInputs } = data
 
   if (!info) {
@@ -58,6 +58,7 @@ function GenericNodeView({ id, data }: NodeProps<Node<AuroraNodeData>>) {
           info={param}
           value={params[param.name]}
           onChange={(value) => setParam(id, param.name, value)}
+          onCommit={commit}
         />
       ))}
     </div>

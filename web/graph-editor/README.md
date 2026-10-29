@@ -11,7 +11,8 @@ binary when `AURORA_ENABLE_GRAPH_EDITOR` is ON (needs Node >= 22.12; see
 - `src/graph/` -- pure, React-free: `types.ts` (catalog and graph shapes),
   `doc.ts` (edits: each returns a new document), `flow.ts` (graph.json <-> React
   Flow), `layout.ts` (saved `ui` positions, else columns by topological depth),
-  `connection.ts` (the wiring rules). `fixtures.ts` + `graph.test.ts` are the
+  `connection.ts` (the wiring rules), `history.ts` (undo reducer),
+  `autosave.ts` (browser backup of unsaved edits). `fixtures.ts` + `graph.test.ts` are the
   Vitest suite.
 - `src/GenericNode.tsx`, `src/ParamWidget.tsx` -- one node component draws any
   `/api/nodes` entry; one widget per param kind.
@@ -21,7 +22,9 @@ binary when `AURORA_ENABLE_GRAPH_EDITOR` is ON (needs Node >= 22.12; see
 
 ## Invariants
 
-- The graph is one JSON document held in `App` state; every edit replaces it.
+- The graph is one JSON document held in `App` state (with its undo history,
+  `history.ts`); every edit replaces it. Param widgets edit "live" and call
+  `commit` when the gesture ends, so a slider drag is one undo step.
   Keys the editor does not edit (`version`, `tickHz`, `controls`, node extras,
   `ui` entries that are not node ids) must survive. Positions reach the
   document only when a drag ends.

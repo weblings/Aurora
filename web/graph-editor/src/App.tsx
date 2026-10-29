@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useReducer, useState } from 'react'
 import {
   ReactFlow,
   Background,
@@ -16,8 +16,10 @@ import {
 import { fetchCatalog, fetchEffectGraph, fetchEffects } from './api'
 import { EditorContext, type EditorActions } from './EditorContext'
 import { GenericNode } from './GenericNode'
+import { restorable, clearUnsaved, syncUnsaved } from './graph/autosave'
 import { refuseConnection } from './graph/connection'
 import { addEdge, joinEndpoint, moveNodes, removeEdge, removeNodes, setParam } from './graph/doc'
+import { editorReducer, emptyEditor } from './graph/history'
 import { NODE_KIND, carryViewState, edgeId, toFlowEdges, toFlowNodes, type AuroraNodeData } from './graph/flow'
 import type { Catalog, EffectListEntry, GraphDoc, ParamValue } from './graph/types'
 
@@ -32,8 +34,12 @@ export function App() {
   const [catalog, setCatalog] = useState<Catalog | null>(null)
   const [effects, setEffects] = useState<EffectListEntry[]>([])
   const [effectId, setEffectId] = useState(initialEffectId)
-  // The whole graph, replaced by every edit.
-  const [doc, setDoc] = useState<GraphDoc | null>(null)
+  // The whole graph, replaced by every edit, with its undo history.
+  const [{ doc, past, future }, dispatch] = useReducer(editorReducer, emptyEditor)
+  // What the server last gave us or accepted; unsaved edits are measured from it.
+  const [baseline, setBaseline] = useState<{ id: string; doc: GraphDoc } | null>(null)
+  // A browser-stored copy of unsaved edits from an earlier visit, awaiting a choice.
+  const [offer, setOffer] = useState<GraphDoc | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [refusal, setRefusal] = useState<string | null>(null)
   // What React Flow has told us (selection, measured sizes, a drag in progress).
@@ -53,13 +59,17 @@ export function App() {
 
   useEffect(() => {
     let stale = false
-    setDoc(null)
+    dispatch({ type: 'open', doc: null })
+    setBaseline(null)
+    setOffer(null)
     setNodeView([])
     setEdgeView([])
     fetchEffectGraph(effectId)
       .then((graph) => {
         if (stale) return
-        setDoc(graph)
+        dispatch({ type: 'open', doc: graph })
+        setBaseline({ id: effectId, doc: graph })
+        setOffer(restorable(effectId, graph))
         setError(null)
       })
       .catch((e: Error) => !stale && setError(`Cannot open '${effectId}': ${e.message}`))
@@ -67,6 +77,30 @@ export function App() {
       stale = true
     }
   }, [effectId])
+
+  // Back up unsaved edits per effect. Held back while a stored copy awaits
+  // its Restore/Discard answer, or it would be overwritten unseen.
+  useEffect(() => {
+    if (doc && baseline && !offer) syncUnsaved(baseline.id, baseline.doc, doc)
+  }, [doc, baseline, offer])
+
+  const edit = useCallback((change: (d: GraphDoc) => GraphDoc) => dispatch({ type: 'edit', change }), [])
+  const undo = useCallback(() => dispatch({ type: 'undo' }), [])
+  const redo = useCallback(() => dispatch({ type: 'redo' }), [])
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (!(e.metaKey || e.ctrlKey) || e.altKey || e.key.toLowerCase() !== 'z') return
+      // Text boxes keep their own undo.
+      const target = e.target as HTMLElement | null
+      if (target?.isContentEditable || target?.tagName === 'TEXTAREA') return
+      if (target instanceof HTMLInputElement && ['text', 'number'].includes(target.type)) return
+      e.preventDefault()
+      dispatch({ type: e.shiftKey ? 'redo' : 'undo' })
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [])
 
   const nodes = useMemo(
     () => (doc && catalog ? carryViewState(nodeView, toFlowNodes(doc, catalog)) : []),
@@ -77,7 +111,8 @@ export function App() {
   const actions = useMemo<EditorActions>(
     () => ({
       setParam: (nodeId: string, name: string, value: ParamValue) =>
-        setDoc((d) => (d ? setParam(d, nodeId, name, value) : d)),
+        dispatch({ type: 'edit', change: (d) => setParam(d, nodeId, name, value), live: true }),
+      commit: () => dispatch({ type: 'commit' }),
     }),
     [],
   )
@@ -86,9 +121,9 @@ export function App() {
     (changes: NodeChange<Node<AuroraNodeData>>[]) => {
       setNodeView(applyNodeChanges(changes, nodes))
       const removed = new Set(changes.flatMap((c) => (c.type === 'remove' ? [c.id] : [])))
-      if (removed.size > 0) setDoc((d) => (d ? removeNodes(d, removed) : d))
+      if (removed.size > 0) edit((d) => removeNodes(d, removed))
     },
-    [nodes],
+    [nodes, edit],
   )
 
   const onEdgesChange = useCallback(
@@ -96,19 +131,15 @@ export function App() {
       setEdgeView(applyEdgeChanges(changes, edges))
       const removed = new Set(changes.flatMap((c) => (c.type === 'remove' ? [c.id] : [])))
       if (removed.size === 0) return
-      setDoc((d) =>
-        d ? d.edges.filter((e) => removed.has(edgeId(e))).reduce(removeEdge, d) : d,
-      )
+      edit((d) => d.edges.filter((e) => removed.has(edgeId(e))).reduce(removeEdge, d))
     },
-    [edges],
+    [edges, edit],
   )
 
   // Position lands in the document once, when the drag ends.
   const onNodeDragStop = useCallback((_: unknown, __: Node, dragged: Node[]) => {
-    setDoc((d) =>
-      d ? moveNodes(d, Object.fromEntries(dragged.map((n) => [n.id, { x: n.position.x, y: n.position.y }]))) : d,
-    )
-  }, [])
+    edit((d) => moveNodes(d, Object.fromEntries(dragged.map((n) => [n.id, { x: n.position.x, y: n.position.y }]))))
+  }, [edit])
 
   const wiring = useCallback(
     (c: Connection | Edge) => {
@@ -130,11 +161,9 @@ export function App() {
       const reason = wiring(c)
       setRefusal(reason)
       if (reason || !c.sourceHandle || !c.targetHandle) return
-      setDoc((d) =>
-        d ? addEdge(d, [joinEndpoint(c.source, c.sourceHandle!), joinEndpoint(c.target, c.targetHandle!)]) : d,
-      )
+      edit((d) => addEdge(d, [joinEndpoint(c.source, c.sourceHandle!), joinEndpoint(c.target, c.targetHandle!)]))
     },
-    [wiring],
+    [wiring, edit],
   )
 
   const onConnectEnd = useCallback(
@@ -169,6 +198,35 @@ export function App() {
             </option>
           ))}
         </select>
+        <button type="button" onClick={undo} disabled={past.length === 0} title="Undo (Ctrl/Cmd+Z)">
+          Undo
+        </button>
+        <button type="button" onClick={redo} disabled={future.length === 0} title="Redo (Shift+Ctrl/Cmd+Z)">
+          Redo
+        </button>
+        {offer && baseline ? (
+          <span className="editor-restore">
+            Unsaved changes from an earlier visit.
+            <button
+              type="button"
+              onClick={() => {
+                dispatch({ type: 'edit', change: () => offer })
+                setOffer(null)
+              }}
+            >
+              Restore
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                clearUnsaved(baseline.id)
+                setOffer(null)
+              }}
+            >
+              Discard
+            </button>
+          </span>
+        ) : null}
         {refusal ? <span className="editor-refusal">{refusal}</span> : null}
         {error ? <span className="editor-error">{error}</span> : null}
       </header>

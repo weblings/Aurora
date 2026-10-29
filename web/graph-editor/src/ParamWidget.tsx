@@ -7,21 +7,29 @@ type Props = {
   info: ParamInfo
   // The node's own value, or undefined when the graph leaves it at the default.
   value: ParamValue | undefined
+  // Every change; `onCommit` marks the end of a gesture (one undo step).
   onChange: (value: ParamValue) => void
+  onCommit: () => void
 }
 
 // One widget per param kind. `nodrag nowheel` keep a drag or scroll on a
 // widget from moving the node or zooming the canvas.
-export function ParamWidget({ info, value, onChange }: Props) {
+export function ParamWidget({ info, value, onChange, onCommit }: Props) {
   const current = effectiveValue(info, value)
   const label = info.label || info.name
   return (
-    <div className="param nodrag nowheel" title={info.description}>
+    <div
+      className="param nodrag nowheel"
+      title={info.description}
+      onPointerUp={onCommit}
+      onKeyUp={onCommit}
+      onBlur={onCommit}
+    >
       <span className="param-label">
         {label}
         {info.unit ? <small> {info.unit}</small> : null}
       </span>
-      {renderInput(info, current, onChange)}
+      {renderInput(info, current, onChange, () => onCommit())}
     </div>
   )
 }
@@ -33,7 +41,13 @@ export function effectiveValue(info: ParamInfo, value: ParamValue | undefined): 
   return info.kind === 'optional-float' ? null : info.default
 }
 
-function renderInput(info: ParamInfo, current: ParamValue, onChange: (v: ParamValue) => void) {
+// `onChange` is for continuous inputs; a click, toggle or pick is a whole
+// gesture, so `onDiscrete` also commits it.
+function renderInput(info: ParamInfo, current: ParamValue, onChange: (v: ParamValue) => void, commit: () => void) {
+  const onDiscrete = (v: ParamValue) => {
+    onChange(v)
+    commit()
+  }
   switch (info.kind) {
     case 'float':
       return <FloatInput info={info} value={current as number} onChange={onChange} />
@@ -45,7 +59,7 @@ function renderInput(info: ParamInfo, current: ParamValue, onChange: (v: ParamVa
             type="checkbox"
             aria-label={`${info.name} set`}
             checked={!unset}
-            onChange={(e) => onChange(e.target.checked ? Math.max(numberOr(info.default, 0), info.min ?? 0) : null)}
+            onChange={(e) => onDiscrete(e.target.checked ? Math.max(numberOr(info.default, 0), info.min ?? 0) : null)}
           />
           {unset ? <em>unset</em> : <FloatInput info={info} value={current as number} onChange={onChange} />}
         </span>
@@ -57,7 +71,7 @@ function renderInput(info: ParamInfo, current: ParamValue, onChange: (v: ParamVa
           type="checkbox"
           aria-label={info.name}
           checked={current === true}
-          onChange={(e) => onChange(e.target.checked)}
+          onChange={(e) => onDiscrete(e.target.checked)}
         />
       )
     case 'enum': {
@@ -74,7 +88,7 @@ function renderInput(info: ParamInfo, current: ParamValue, onChange: (v: ParamVa
         )
       }
       return (
-        <select aria-label={info.name} value={String(current)} onChange={(e) => onChange(e.target.value)}>
+        <select aria-label={info.name} value={String(current)} onChange={(e) => onDiscrete(e.target.value)}>
           {options.map((option) => (
             <option key={option} value={option}>
               {option}
@@ -84,7 +98,7 @@ function renderInput(info: ParamInfo, current: ParamValue, onChange: (v: ParamVa
       )
     }
     case 'gradient':
-      return <GradientInput stops={current as GradientStop[]} onChange={onChange} />
+      return <GradientInput stops={current as GradientStop[]} onChange={onChange} onDiscrete={onDiscrete} />
   }
 }
 
@@ -120,7 +134,15 @@ function FloatInput({ info, value, onChange }: { info: ParamInfo; value: number;
   )
 }
 
-function GradientInput({ stops, onChange }: { stops: GradientStop[]; onChange: (v: ParamValue) => void }) {
+function GradientInput({
+  stops,
+  onChange,
+  onDiscrete,
+}: {
+  stops: GradientStop[]
+  onChange: (v: ParamValue) => void
+  onDiscrete: (v: ParamValue) => void
+}) {
   const replace = (index: number, patch: Partial<GradientStop>) =>
     onChange(stops.map((stop, i) => (i === index ? { ...stop, ...patch } : stop)))
   return (
@@ -152,7 +174,7 @@ function GradientInput({ stops, onChange }: { stops: GradientStop[]; onChange: (
             type="button"
             aria-label={`remove stop ${i + 1}`}
             disabled={stops.length <= MIN_STOPS}
-            onClick={() => onChange(stops.filter((_, j) => j !== i))}
+            onClick={() => onDiscrete(stops.filter((_, j) => j !== i))}
           >
             −
           </button>
@@ -161,7 +183,7 @@ function GradientInput({ stops, onChange }: { stops: GradientStop[]; onChange: (
       <button
         type="button"
         disabled={stops.length >= MAX_STOPS}
-        onClick={() => onChange(addStop(stops))}
+        onClick={() => onDiscrete(addStop(stops))}
       >
         + stop
       </button>
