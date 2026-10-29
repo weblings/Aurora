@@ -504,11 +504,22 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
         '404':
-          description: No test for this session (`no_test`).
+          description: >-
+            No test for this session (`no_test`). The body adds `lastEnd` (for
+            example `replaced`) and `holder`, who holds the lights now.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                allOf:
+                  - $ref: '#/components/schemas/Error'
+                  - type: object
+                    properties:
+                      lastEnd:
+                        type: [string, 'null']
+                      holder:
+                        oneOf:
+                          - $ref: '#/components/schemas/TestHolder'
+                          - type: 'null'
   /api/v1/graph/test/revert:
     post:
       operationId: revertLightTest
@@ -968,9 +979,19 @@ components:
               type: boolean
             error:
               type: string
+    TestHolder:
+      type: object
+      required: [session, client]
+      properties:
+        session:
+          type: string
+          description: The draft session that started the running test.
+        client:
+          type: [string, 'null']
+          description: The caller's `X-Aurora-Client` (`mcp` for an agent), null for the WebUI.
     LightTest:
       type: object
-      required: [active, confirmRemainingMs, revertAfterMs, lastEnd]
+      required: [active, confirmRemainingMs, revertAfterMs, holder, lastEnd]
       properties:
         active:
           type: boolean
@@ -980,7 +1001,14 @@ components:
           type: integer
         lastEnd:
           type: [string, 'null']
-          description: Why the previous test ended, null if none has.
+          description: >-
+            Why the previous test ended, null if none has. `replaced` means
+            another session started a test and took the lights.
+        holder:
+          description: Who holds the running test, null when none runs.
+          oneOf:
+            - $ref: '#/components/schemas/TestHolder'
+            - type: 'null'
     LightTestStarted:
       type: object
       required: [succeeded, confirmWithinMs, heartbeatMs, revertAfterMs]
@@ -1169,12 +1197,16 @@ components:
               type: [string, 'null']
         test:
           type: object
-          required: [active, confirmRemainingMs]
+          required: [active, confirmRemainingMs, holder]
           properties:
             active:
               type: boolean
             confirmRemainingMs:
               type: integer
+            holder:
+              oneOf:
+                - $ref: '#/components/schemas/TestHolder'
+                - type: 'null'
         errors:
           type: array
           items:

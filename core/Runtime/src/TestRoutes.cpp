@@ -32,6 +32,18 @@ namespace Aurora::Runtime
       res.body = body.dump();
     }
 
+    // "holder" for the running test, null when none runs.
+    nlohmann::json _holder(const LightTest::Info& info)
+    {
+      if(!info.active){
+        return nullptr;
+      }
+      return {
+        {"session", info.session},
+        {"client", info.client.empty() ? nlohmann::json(nullptr) : nlohmann::json(info.client)}
+      };
+    }
+
     // Parses the body and its session; false with the 400 already sent.
     bool _parseSession(const Request& req, Response& res, nlohmann::json& body, std::string& session)
     {
@@ -140,7 +152,7 @@ namespace Aurora::Runtime
           _reply(res, 422, validation);
           return;
         }
-        const std::string error = test->start(session, *draft);
+        const std::string error = test->start(session, *draft, req.client);
         if(!error.empty()){
           _reply(res, 409, {{"succeeded", false}, {"error", "cannot_test"}, {"message", error}});
           return;
@@ -165,7 +177,14 @@ namespace Aurora::Runtime
           return;
         }
         if(!test->heartbeat(session)){
-          _reply(res, 404, {{"succeeded", false}, {"error", "no_test"}});
+          // Says why, and who holds the lights now (Aurora-0tqq).
+          const LightTest::Info info = test->info();
+          _reply(res, 404, {
+            {"succeeded", false},
+            {"error", "no_test"},
+            {"lastEnd", info.lastEnd.empty() ? nlohmann::json(nullptr) : nlohmann::json(info.lastEnd)},
+            {"holder", _holder(info)}
+          });
           return;
         }
         _reply(res, 200, {{"succeeded", true}, {"confirmRemainingMs", test->info().confirmRemainingMs}});
@@ -256,6 +275,7 @@ namespace Aurora::Runtime
           {"active", info.active},
           {"confirmRemainingMs", info.confirmRemainingMs},
           {"revertAfterMs", info.lapseRemainingMs},
+          {"holder", _holder(info)},
           {"lastEnd", info.lastEnd.empty() ? nlohmann::json(nullptr) : nlohmann::json(info.lastEnd)}
         });
       }

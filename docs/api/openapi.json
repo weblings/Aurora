@@ -715,11 +715,36 @@
             }
           },
           "404": {
-            "description": "No test for this session (`no_test`).",
+            "description": "No test for this session (`no_test`). The body adds `lastEnd` (for example `replaced`) and `holder`, who holds the lights now.",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Error"
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/Error"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "lastEnd": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "holder": {
+                          "oneOf": [
+                            {
+                              "$ref": "#/components/schemas/TestHolder"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        }
+                      }
+                    }
+                  ]
                 }
               }
             }
@@ -1507,12 +1532,33 @@
           }
         ]
       },
+      "TestHolder": {
+        "type": "object",
+        "required": [
+          "session",
+          "client"
+        ],
+        "properties": {
+          "session": {
+            "type": "string",
+            "description": "The draft session that started the running test."
+          },
+          "client": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The caller's `X-Aurora-Client` (`mcp` for an agent), null for the WebUI."
+          }
+        }
+      },
       "LightTest": {
         "type": "object",
         "required": [
           "active",
           "confirmRemainingMs",
           "revertAfterMs",
+          "holder",
           "lastEnd"
         ],
         "properties": {
@@ -1530,7 +1576,18 @@
               "string",
               "null"
             ],
-            "description": "Why the previous test ended, null if none has."
+            "description": "Why the previous test ended, null if none has. `replaced` means another session started a test and took the lights."
+          },
+          "holder": {
+            "description": "Who holds the running test, null when none runs.",
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/TestHolder"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         }
       },
@@ -1940,7 +1997,8 @@
             "type": "object",
             "required": [
               "active",
-              "confirmRemainingMs"
+              "confirmRemainingMs",
+              "holder"
             ],
             "properties": {
               "active": {
@@ -1948,6 +2006,16 @@
               },
               "confirmRemainingMs": {
                 "type": "integer"
+              },
+              "holder": {
+                "oneOf": [
+                  {
+                    "$ref": "#/components/schemas/TestHolder"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
               }
             }
           },

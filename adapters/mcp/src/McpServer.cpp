@@ -847,7 +847,7 @@ namespace Aurora::Mcp
       if(status == 404){
         _stopBeat();
         m_testing = false;
-        return toolText("No light test is running. It ended, for example because the user switched effects, so the lights show what Aurora runs now. Call try_on_lights again.", true);
+        return toolText("No light test is running. It ended, for example because the user switched effects or another session started its own test (aurora_status names the holder and lastEnd), so the lights show what Aurora runs now. Call try_on_lights again.", true);
       }
       if(status == 409){
         return toolText("The draft changed since the test started. Call revert, then try_on_lights again.", true);

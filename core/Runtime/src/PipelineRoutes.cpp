@@ -106,7 +106,16 @@ namespace Aurora::Runtime
       {"graphInputs", graphInputs},
       // The saved setting, so it reads right while paused or idle too.
       {"brightness", snap.brightness},
-      {"test", {{"active", snap.test.active}, {"confirmRemainingMs", snap.test.confirmRemainingMs}}},
+      {"test", {
+        {"active", snap.test.active},
+        {"confirmRemainingMs", snap.test.confirmRemainingMs},
+        {"holder", snap.test.active
+          ? nlohmann::json{
+              {"session", snap.test.session},
+              {"client", snap.test.client.empty() ? nlohmann::json(nullptr) : nlohmann::json(snap.test.client)}
+            }
+          : nlohmann::json(nullptr)}
+      }},
       {"errors", errors},
       {"conditions", conditions},
       {"paused", snap.status.state == HostState::Paused},

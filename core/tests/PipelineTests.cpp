@@ -1158,7 +1158,7 @@ TEST_CASE("GET /api/state reports paused and the running pipeline's capabilities
     {"usesAudioInput", false},
     {"samplesZones", false},
     {"brightness", 1.0},
-    {"test", {{"active", false}, {"confirmRemainingMs", 0}}},
+    {"test", {{"active", false}, {"confirmRemainingMs", 0}, {"holder", nullptr}}},
     {"audioDevicesUrl", "/api/test/audio-devices"}
   });
 
@@ -4142,14 +4142,18 @@ TEST_CASE("GET /api/state reports the test and /stop ends another session's test
 {
   LightTestHarness h("lt-stop");
   auto state = [&]{ return nlohmann::json::parse(h.client->Get("/api/state")->body); };
-  CHECK(state()["test"] == nlohmann::json{{"active", false}, {"confirmRemainingMs", 0}});
+  CHECK(state()["test"] == nlohmann::json{{"active", false}, {"confirmRemainingMs", 0}, {"holder", nullptr}});
   CHECK(h.post("/api/graph/test/stop", nlohmann::json::object()) == 404);
 
   h.putDraft("mcp-1", Graph::builtInVideoGraph({"out-a"}));
   REQUIRE(h.start("mcp-1") == 200);
   h.advance(3000);
   const nlohmann::json running = state();
-  CHECK(running["test"] == nlohmann::json{{"active", true}, {"confirmRemainingMs", 117000}});
+  CHECK(running["test"] == nlohmann::json{
+    {"active", true},
+    {"confirmRemainingMs", 117000},
+    {"holder", {{"session", "mcp-1"}, {"client", nullptr}}}
+  });
   CHECK(running["effect"] == "builtin.video");
 
   // The WebUI has no session of its own and needs none.
@@ -4162,6 +4166,52 @@ TEST_CASE("GET /api/state reports the test and /stop ends another session's test
   CHECK(h.beat("mcp-1") == 404);
   CHECK(state()["test"]["active"] == false);
   CHECK(initCount(*h.events) == 1);
+}
+
+
+TEST_CASE("A second session's test names its holder and reports the takeover (Aurora-0tqq)", "[LightTest]")
+{
+  LightTestHarness h("lt-replace");
+  h.putDraft("editor", Graph::builtInVideoGraph({"out-a"}));
+  h.putDraft("agent", Graph::builtInVideoGraph({"out-a"}));
+  auto get = [&](const std::string& path){ return nlohmann::json::parse(h.client->Get(path)->body); };
+  CHECK(get("/api/graph/test")["holder"].is_null());
+
+  REQUIRE(h.start("editor") == 200);
+  CHECK(get("/api/graph/test")["holder"] == nlohmann::json{{"session", "editor"}, {"client", nullptr}});
+
+  // The agent identifies itself by X-Aurora-Client and takes the lights.
+  auto taken = h.client->Post(
+    "/api/graph/test",
+    {{"X-Aurora-Client", "mcp"}},
+    nlohmann::json{{"session", "agent"}}.dump(),
+    "application/json"
+  );
+  REQUIRE(taken);
+  CHECK(taken->status == 200);
+  CHECK(h.test->info().lastEnd == "replaced");
+  const nlohmann::json expected{{"session", "agent"}, {"client", "mcp"}};
+  CHECK(get("/api/graph/test")["holder"] == expected);
+  CHECK(get("/api/graph/test")["lastEnd"] == "replaced");
+  CHECK(get("/api/state")["test"]["holder"] == expected);
+
+  // The editor learns why, and from whom, on its next heartbeat.
+  auto lost = h.client->Post(
+    "/api/graph/test/heartbeat", nlohmann::json{{"session", "editor"}}.dump(), "application/json");
+  REQUIRE(lost);
+  CHECK(lost->status == 404);
+  const nlohmann::json body = nlohmann::json::parse(lost->body);
+  CHECK(body["error"] == "no_test");
+  CHECK(body["lastEnd"] == "replaced");
+  CHECK(body["holder"] == expected);
+  CHECK(h.beat("agent") == 200);
+
+  // The same session testing again is a restart, not a takeover.
+  std::string revertError;
+  CHECK(h.test->stop(revertError));
+  REQUIRE(h.start("agent") == 200);
+  REQUIRE(h.start("agent") == 200);
+  CHECK(h.test->info().lastEnd == "stopped");
 }
 
 

@@ -44,8 +44,11 @@ namespace Aurora::Runtime
     ~LightTest();
 
     // Starts a test, ending the one running (its lights are not reverted in
-    // between). "" or the reason it was refused, the running test then stays.
-    std::string start(const std::string& session, const nlohmann::json& doc);
+    // between). A running test of another session ends with lastEnd
+    // "replaced". `client` is the caller's X-Aurora-Client ("mcp" for an agent,
+    // empty for the WebUI). "" or the reason it was refused, the running test
+    // then stays.
+    std::string start(const std::string& session, const nlohmann::json& doc, const std::string& client = {});
 
     // False when `session` has no running test.
     bool heartbeat(const std::string& session);
@@ -70,8 +73,12 @@ namespace Aurora::Runtime
       bool active{false};
       std::int64_t confirmRemainingMs{0};
       std::int64_t lapseRemainingMs{0};
+      // Who holds the running test (Aurora-0tqq); empty when none runs.
+      std::string session;
+      std::string client;
       // Why the last test ended: reverted, confirm_timeout, heartbeat_lost,
-      // pipeline_gone, confirmed, stopped, superseded (an effect choice). Empty before the
+      // pipeline_gone, confirmed, stopped, superseded (an effect choice),
+      // replaced (another session started a test). Empty before the
       // first test ends.
       std::string lastEnd;
     };
@@ -97,6 +104,7 @@ namespace Aurora::Runtime
     std::mutex m_mutex;
     bool m_active{false};
     std::string m_session;
+    std::string m_client;
     nlohmann::json m_doc;
     std::int64_t m_startedAt{0};
     std::int64_t m_lastBeat{0};
