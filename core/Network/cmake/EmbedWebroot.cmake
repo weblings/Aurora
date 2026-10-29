@@ -1,5 +1,6 @@
 # aurora_embed_webroot(<output-header> <input-dir>
-#                      [NAMESPACE <ns>] [DEPENDS <file-or-target-output>...])
+#                      [NAMESPACE <ns>] [NO_GLOB]
+#                      [DEPENDS <file-or-target-output>...])
 #
 # Generates a C++ header defining Aurora::EmbeddedWebRoot::files from every
 # file under <input-dir> (keys are webroot-relative forward-slash paths),
@@ -17,12 +18,19 @@
 # so one target can embed several maps. DEPENDS adds extra build-time inputs:
 # an input dir produced by another build step (the graph editor's vite
 # output, Aurora-lzj) doesn't exist at configure time, so the glob can't
-# track it and the caller passes that step's stamp file instead.
+# track it and the caller passes that step's stamp file instead. NO_GLOB skips
+# the configure-time glob entirely: use it when a build step regenerates
+# <input-dir> (a stale glob would list files the step deletes, e.g. old hashed
+# bundles, and fail with "No rule to make target"). The embed script reads the
+# dir itself when the command runs, so DEPENDS alone drives regeneration.
 function(aurora_embed_webroot OUTPUT_HEADER INPUT_DIR)
-  cmake_parse_arguments(PARSE_ARGV 2 _AEW "" "NAMESPACE" "DEPENDS")
+  cmake_parse_arguments(PARSE_ARGV 2 _AEW "NO_GLOB" "NAMESPACE" "DEPENDS")
   find_package(Python3 REQUIRED COMPONENTS Interpreter)
 
-  file(GLOB_RECURSE _AURORA_WEBROOT_FILES CONFIGURE_DEPENDS "${INPUT_DIR}/*")
+  set(_AURORA_WEBROOT_FILES "")
+  if(NOT _AEW_NO_GLOB)
+    file(GLOB_RECURSE _AURORA_WEBROOT_FILES CONFIGURE_DEPENDS "${INPUT_DIR}/*")
+  endif()
 
   add_custom_command(
     OUTPUT "${OUTPUT_HEADER}"

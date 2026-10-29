@@ -198,6 +198,7 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `processing-analysis` | [archive/ProcessingAnalysis.md](archive/ProcessingAnalysis.md) | ImageProcessing / Color / Interpolation / ImageData / UV — Conversion analysis |
 | `pvxx1-save-and-duplicate` | [log/2026-10-29-pvxx1-save-and-duplicate.md](log/2026-10-29-pvxx1-save-and-duplicate.md) | E0b: save without going live, and duplicate an effect |
 | `pvxx11-browser-check` | [log/2026-10-29-pvxx11-browser-check.md](log/2026-10-29-pvxx11-browser-check.md) | Browser-check tooling for the web screens |
+| `pvxx12-embed-stale-glob` | [log/2026-10-29-pvxx12-embed-stale-glob.md](log/2026-10-29-pvxx12-embed-stale-glob.md) | Graph editor embed: no stale configure-time glob |
 | `pvxx2-output-options` | [log/2026-10-29-pvxx2-output-options.md](log/2026-10-29-pvxx2-output-options.md) | E0c: output params list the registered outputs |
 | `pvxx3-titles-port-descriptions` | [log/2026-10-29-pvxx3-titles-port-descriptions.md](log/2026-10-29-pvxx3-titles-port-descriptions.md) | E0d: node titles and port descriptions |
 | `pvxx4-editor-foundation` | [log/2026-10-29-pvxx4-editor-foundation.md](log/2026-10-29-pvxx4-editor-foundation.md) | E1: graph editor foundation |

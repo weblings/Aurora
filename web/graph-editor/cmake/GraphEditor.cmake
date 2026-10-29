@@ -78,10 +78,18 @@ function(aurora_graph_editor_embed OUTPUT_HEADER)
     )
   endif()
 
-  # The dist dir doesn't exist at configure time, so the embed step depends on
-  # the build stamp rather than on a configure-time glob of the output.
+  # The dist dir doesn't exist at configure time, and the vite step replaces
+  # its hashed files, so the embed step depends on the build stamp rather than
+  # on a configure-time glob (which would go stale). A prebuilt bundle is
+  # static, so it keeps the glob.
+  if(_build_stamp)
+    set(_embed_mode NO_GLOB)
+  else()
+    set(_embed_mode "")
+  endif()
   aurora_embed_webroot("${OUTPUT_HEADER}" "${_dist}"
     NAMESPACE GraphEditorWebRoot
+    ${_embed_mode}
     DEPENDS ${_build_stamp})
 
   set(AURORA_GRAPH_EDITOR_NOTICE "${_dist}/THIRD-PARTY-NOTICES.md" PARENT_SCOPE)
