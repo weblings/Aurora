@@ -13,7 +13,7 @@ const created = []
 
 await withEditorStack(async ({ editorUrl, restart }) => {
   const browser = await launch()
-  const page = await browser.newPage({ viewport: { width: 2200, height: 1000 } })
+  const page = await browser.newPage({ viewport: { width: 1470, height: 1000 } })
   page.on('pageerror', (e) => assert.fail(`page error: ${e.message}`))
 
   const api = (method, path, body, headers = {}) =>

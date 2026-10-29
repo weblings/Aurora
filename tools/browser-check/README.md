@@ -23,4 +23,4 @@ npm run graph-editor   # brings the stack and the editor dev server up, runs, te
   effects they create and restore the active effect.
 - `checks/graph-editor-edit-loop.mjs`: E4's test, Keep, Revert, takeover, lost
   heartbeat, Save, Save and apply, Dashboard controls and their rendering in Tuning. The E6 gate extends it.
-- `checks/graph-editor-gate.mjs` (`npm run graph-editor:gate`): the Sequence E gate, Aurora-pvxx.9 and .15: thumbnail change after a rewire, an Aurora restart (`devstack.py restart`), palette add, Save as new from a custom, and the replaced, draft_invalid and too_many_drafts preview states. It needs a 2200 px window so no node sits under the inspector. An embedded run needs the app rebuilt after editor changes.
+- `checks/graph-editor-gate.mjs` (`npm run graph-editor:gate`): the Sequence E gate, Aurora-pvxx.9 and .15: thumbnail change after a rewire, an Aurora restart (`devstack.py restart`), palette add, Save as new from a custom, and the replaced, draft_invalid and too_many_drafts preview states. It runs in a 1470 px window (laptop width). An embedded run needs the app rebuilt after editor changes.

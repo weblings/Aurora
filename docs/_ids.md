@@ -91,6 +91,7 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `first-scan` | [archive/FirstScan.md](archive/FirstScan.md) | Huenicorn pipeline scan |
 | `fq5y-x11-xrender-downscale` | [log/2026-10-20-fq5y-x11-xrender-downscale.md](log/2026-10-20-fq5y-x11-xrender-downscale.md) | Aurora-fq5y: X11 XRender server-side downscale (39.7/20.4% -> 4.2/1.3%) |
 | `future-steamos-support` | [planning/FutureSteamOSSupport.md](planning/FutureSteamOSSupport.md) | SteamOS / Steam Deck support |
+| `fzzr-laptop-width-fit` | [log/2026-10-29-fzzr-laptop-width-fit.md](log/2026-10-29-fzzr-laptop-width-fit.md) | Graph editor: fit holds at laptop width |
 | `gtkd-bare-bus-fix` | [log/2026-10-07-gtkd-bare-bus-fix.md](log/2026-10-07-gtkd-bare-bus-fix.md) | Aurora-gtkd closed: fake bare bus no longer activates the real xdg-desktop-portal |
 | `gui-launch-ux` | [archive/GUILaunchUX.md](archive/GUILaunchUX.md) | GUI Launch UX |
 | `h45-post-110-upstream-sweep` | [log/2026-10-08-h45-post-110-upstream-sweep.md](log/2026-10-08-h45-post-110-upstream-sweep.md) | Aurora-h45: post-1.1.0 sweep for more huenicorn upstream candidates |

@@ -411,7 +411,8 @@ export function App() {
         {notice ? <span className="editor-notice">{notice}</span> : null}
       </div>
       <div className="editor-body">
-      {catalog ? <Palette catalog={catalog} onAdd={(type) => addFromPalette(type)} /> : null}
+      {/* The panels keep their width while loading: the canvas fits the graph once, and a late panel would shrink it under the nodes. */}
+      {catalog ? <Palette catalog={catalog} onAdd={(type) => addFromPalette(type)} /> : <div className="palette" />}
       <div className="editor-canvas" ref={canvas}
         onDragOver={(e) => e.dataTransfer.types.includes(PALETTE_DRAG_TYPE) && e.preventDefault()}
         onDrop={(e) => {
@@ -443,6 +444,7 @@ export function App() {
             isValidConnection={isValidConnection}
             colorMode="dark"
             fitView
+            minZoom={0.2}
             onInit={(instance) => {
               flow.current = instance
             }}
@@ -455,7 +457,7 @@ export function App() {
         </EditorContext.Provider>
         </ProblemsContext.Provider>
       </div>
-      {doc && catalog ? <Inspector doc={doc} catalog={catalog} selected={selectedId} edit={edit} /> : null}
+      {doc && catalog ? <Inspector doc={doc} catalog={catalog} selected={selectedId} edit={edit} /> : <div className="inspector" />}
       </div>
     </div>
   )
