@@ -25,7 +25,7 @@ function GenericNodeView({ id, data }: NodeProps<Node<AuroraNodeData>>) {
   return (
     <div className="aurora-node" title={info.purpose}>
       <div className="aurora-node-header">
-        <strong>{info.title}</strong>
+        <strong>{info.title || data.type}</strong>
         <small>{id}</small>
       </div>
       <div className="aurora-ports">

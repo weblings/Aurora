@@ -14,24 +14,24 @@ const types: NodeTypeInfo[] = [
     type: 'image.rescale', title: 'Rescale', purpose: '', useWhen: '', example: '', cost: '',
     inputs: [port('image', 'Image')], outputs: [port('image', 'Image')],
     params: [
-      { name: 'width', kind: 'Float', description: '', label: 'Width', min: 1, max: 512, step: 1, unit: 'px', default: 64 },
-      { name: 'interpolation', kind: 'Enum', description: '', options: ['area', 'linear'], default: 'area' },
+      { name: 'width', kind: 'float', description: '', label: 'Width', min: 1, max: 512, step: 1, unit: 'px', default: 64 },
+      { name: 'interpolation', kind: 'enum', description: '', options: ['area', 'linear'], default: 'area' },
     ],
   },
   {
     type: 'zones.sample', title: 'Sample zones', purpose: '', useWhen: '', example: '', cost: '',
     inputs: [port('image', 'Image')], outputs: [port('frame', 'Frame')],
-    params: [{ name: 'output', kind: 'Enum', description: '', options: ['hue', 'strip'], default: 'hue' }],
+    params: [{ name: 'output', kind: 'enum', description: '', options: ['hue', 'strip'], default: 'hue' }],
   },
   {
     type: 'frame.gain', title: 'Gain', purpose: '', useWhen: '', example: '', cost: '',
     inputs: [port('frame', 'Frame')], outputs: [port('frame', 'Frame')],
     params: [
-      { name: 'gain', kind: 'Float', description: '', min: 0, max: 2, step: 0.05, default: 1 },
-      { name: 'cap', kind: 'OptionalFloat', description: '', min: 0, max: 1, step: 0.05, default: 0, allowsUnset: true },
-      { name: 'invert', kind: 'Bool', description: '', default: false },
+      { name: 'gain', kind: 'float', description: '', min: 0, max: 2, step: 0.05, default: 1 },
+      { name: 'cap', kind: 'optional-float', description: '', min: 0, max: 1, step: 0.05, default: 0, allowsUnset: true },
+      { name: 'invert', kind: 'bool', description: '', default: false },
       {
-        name: 'tint', kind: 'Gradient', description: '',
+        name: 'tint', kind: 'gradient', description: '',
         default: [{ pos: 0, color: '#000000' }, { pos: 1, color: '#ffffff' }],
       },
     ],
@@ -43,7 +43,7 @@ const types: NodeTypeInfo[] = [
   {
     type: 'output.send', title: 'Send to output', purpose: '', useWhen: '', example: '', cost: '',
     inputs: [port('frame', 'Frame')], outputs: [],
-    params: [{ name: 'output', kind: 'Enum', description: '', options: ['hue', 'strip'], default: 'hue' }],
+    params: [{ name: 'output', kind: 'enum', description: '', options: ['hue', 'strip'], default: 'hue' }],
     sink: 'output',
   },
 ]

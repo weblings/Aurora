@@ -13,7 +13,7 @@ type Props = {
 // One widget per param kind. `nodrag nowheel` keep a drag or scroll on a
 // widget from moving the node or zooming the canvas.
 export function ParamWidget({ info, value, onChange }: Props) {
-  const current = value === undefined ? info.default : value
+  const current = effectiveValue(info, value)
   const label = info.label || info.name
   return (
     <div className="param nodrag nowheel" title={info.description}>
@@ -26,11 +26,18 @@ export function ParamWidget({ info, value, onChange }: Props) {
   )
 }
 
+// What the loader would use. An omitted optional-float is unset (null), not the
+// catalog default, which is only the value shown once the user sets it.
+export function effectiveValue(info: ParamInfo, value: ParamValue | undefined): ParamValue {
+  if (value !== undefined) return value
+  return info.kind === 'optional-float' ? null : info.default
+}
+
 function renderInput(info: ParamInfo, current: ParamValue, onChange: (v: ParamValue) => void) {
   switch (info.kind) {
-    case 'Float':
+    case 'float':
       return <FloatInput info={info} value={current as number} onChange={onChange} />
-    case 'OptionalFloat': {
+    case 'optional-float': {
       const unset = current === null
       return (
         <span className="param-optional">
@@ -38,13 +45,13 @@ function renderInput(info: ParamInfo, current: ParamValue, onChange: (v: ParamVa
             type="checkbox"
             aria-label={`${info.name} set`}
             checked={!unset}
-            onChange={(e) => onChange(e.target.checked ? numberOr(info.default, info.min ?? 0) : null)}
+            onChange={(e) => onChange(e.target.checked ? Math.max(numberOr(info.default, 0), info.min ?? 0) : null)}
           />
           {unset ? <em>unset</em> : <FloatInput info={info} value={current as number} onChange={onChange} />}
         </span>
       )
     }
-    case 'Bool':
+    case 'bool':
       return (
         <input
           type="checkbox"
@@ -53,7 +60,7 @@ function renderInput(info: ParamInfo, current: ParamValue, onChange: (v: ParamVa
           onChange={(e) => onChange(e.target.checked)}
         />
       )
-    case 'Enum': {
+    case 'enum': {
       const options = info.options ?? []
       // The output binding has no fixed options when no outputs are registered.
       if (options.length === 0) {
@@ -76,7 +83,7 @@ function renderInput(info: ParamInfo, current: ParamValue, onChange: (v: ParamVa
         </select>
       )
     }
-    case 'Gradient':
+    case 'gradient':
       return <GradientInput stops={current as GradientStop[]} onChange={onChange} />
   }
 }

@@ -3,7 +3,7 @@ import { refuseConnection, type Connection } from './connection'
 import { addEdge, moveNodes, removeEdge, removeNodes, setParam, splitEndpoint } from './doc'
 import { carryViewState, toFlowEdges, toFlowNodes } from './flow'
 import { columnLayout, positionsFor } from './layout'
-import { addStop } from '../ParamWidget'
+import { addStop, effectiveValue } from '../ParamWidget'
 import { builtinLike, catalog, customLike } from './fixtures'
 
 const without = <T extends object>(obj: T, key: string) => {
@@ -40,6 +40,16 @@ describe('flow adapter', () => {
     expect(gain.selected).toBe(true)
     expect(gain.measured).toEqual({ width: 9, height: 9 })
     expect(gain.data.params.gain).toBe(2)
+  })
+})
+
+describe('carryViewState', () => {
+  it('keeps the dragged position only while a drag is in progress', () => {
+    const derived = toFlowNodes(builtinLike(), catalog)
+    const view = derived.map((n) => ({ ...n, position: { x: 7, y: 8 }, dragging: n.id === 'gain' }))
+    const merged = carryViewState(view, derived)
+    expect(merged.find((n) => n.id === 'gain')!.position).toEqual({ x: 7, y: 8 })
+    expect(merged.find((n) => n.id === 'cap')!.position).toEqual(derived.find((n) => n.id === 'cap')!.position)
   })
 })
 
@@ -178,6 +188,20 @@ describe('refuseConnection', () => {
   it('refuses unknown nodes and ports', () => {
     expect(refuseConnection(customLike(), catalog, conn('nope', 'image', 'zones', 'image'))).toBe('unknown node')
     expect(refuseConnection(customLike(), catalog, conn('cap', 'nope', 'zones', 'image'))).toBe('unknown port')
+  })
+})
+
+describe('effectiveValue', () => {
+  const param = (name: string) => catalog.get('frame.gain')!.params.find((p) => p.name === name)!
+
+  it('treats an omitted optional-float as unset', () => {
+    expect(effectiveValue(param('cap'), undefined)).toBeNull()
+  })
+
+  it('uses the default for other omitted kinds and the value when present', () => {
+    expect(effectiveValue(param('gain'), undefined)).toBe(1)
+    expect(effectiveValue(param('gain'), 0.5)).toBe(0.5)
+    expect(effectiveValue(param('cap'), 0.25)).toBe(0.25)
   })
 })
 

@@ -102,6 +102,10 @@ body {
 
 .aurora-node {
   min-width: 240px;
+  background: var(--aurora-surface);
+  color: var(--aurora-text-primary);
+  border: 1px solid var(--aurora-border);
+  border-radius: var(--aurora-radius-control);
   padding: var(--aurora-space-3) 0;
   font-size: 12px;
 }
@@ -192,4 +196,12 @@ body {
 .gradient-bar {
   height: 10px;
   border-radius: var(--aurora-radius-badge);
+}
+
+.react-flow__node.selected .aurora-node {
+  border-color: var(--aurora-text-secondary);
+}
+
+.param input[type='range'] {
+  accent-color: var(--aurora-accent);
 }

@@ -8,7 +8,7 @@ export type PortInfo = {
   required?: boolean
 }
 
-export type ParamKind = 'Float' | 'OptionalFloat' | 'Bool' | 'Enum' | 'Gradient'
+export type ParamKind = 'float' | 'optional-float' | 'bool' | 'enum' | 'gradient'
 
 export type GradientStop = { pos: number; color: string }
 

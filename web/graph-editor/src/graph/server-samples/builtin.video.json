@@ -1,0 +1,112 @@
+{
+ "builtin": true,
+ "graph": {
+  "controls": [
+   {
+    "config": "subsampleWidth",
+    "node": "rescale",
+    "param": "width"
+   },
+   {
+    "config": "interpolation",
+    "node": "rescale",
+    "param": "interpolation"
+   },
+   {
+    "config": "transitionSmoothing",
+    "node": "ease_hue",
+    "param": "smoothing"
+   }
+  ],
+  "edges": [
+   [
+    "cap.image",
+    "rescale.image"
+   ],
+   [
+    "rescale.image",
+    "opaque.image"
+   ],
+   [
+    "opaque.image",
+    "zones_hue.image"
+   ],
+   [
+    "zones_hue.frame",
+    "ease_hue.frame"
+   ],
+   [
+    "ease_hue.frame",
+    "gain_hue.frame"
+   ],
+   [
+    "gain_hue.frame",
+    "floor_hue.frame"
+   ],
+   [
+    "floor_hue.frame",
+    "send_hue.frame"
+   ]
+  ],
+  "nodes": [
+   {
+    "id": "cap",
+    "params": {},
+    "type": "video.capture"
+   },
+   {
+    "id": "rescale",
+    "params": {
+     "interpolation": "Area",
+     "width": 16.0
+    },
+    "type": "image.rescale"
+   },
+   {
+    "id": "opaque",
+    "params": {},
+    "type": "image.dropAlpha"
+   },
+   {
+    "id": "zones_hue",
+    "params": {
+     "output": "hue"
+    },
+    "type": "zones.sample"
+   },
+   {
+    "id": "ease_hue",
+    "params": {
+     "output": "hue",
+     "smoothing": 0.0
+    },
+    "type": "frame.smooth"
+   },
+   {
+    "id": "gain_hue",
+    "params": {
+     "gain": 1.0
+    },
+    "type": "frame.gain"
+   },
+   {
+    "id": "floor_hue",
+    "params": {
+     "floor": 0.05000000074505806,
+     "holdSeconds": 2.0,
+     "policy": "off"
+    },
+    "type": "frame.floor"
+   },
+   {
+    "id": "send_hue",
+    "params": {
+     "output": "hue"
+    },
+    "type": "output.send"
+   }
+  ],
+  "version": 1
+ },
+ "id": "builtin.video"
+}

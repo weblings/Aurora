@@ -54,15 +54,22 @@ export function toFlowEdges(doc: GraphDoc): Edge[] {
   })
 }
 
-// React Flow owns selection and measured size; the document owns the rest.
-// When the document changes, carry those two over by id.
-export function carryViewState<T extends { id: string; selected?: boolean; measured?: unknown }>(
-  previous: readonly T[],
-  next: T[],
-): T[] {
-  const byId = new Map(previous.map((item) => [item.id, item]))
-  return next.map((item) => {
+// React Flow owns selection and measured size, and the position of a node
+// mid-drag; the document owns the rest. Merge the two by id.
+type ViewState = {
+  id: string
+  selected?: boolean
+  measured?: unknown
+  dragging?: boolean
+  position?: unknown
+}
+
+export function carryViewState<T extends ViewState>(view: readonly T[], derived: T[]): T[] {
+  const byId = new Map(view.map((item) => [item.id, item]))
+  return derived.map((item) => {
     const old = byId.get(item.id)
-    return old ? { ...item, selected: old.selected, measured: old.measured } : item
+    if (!old) return item
+    const carried = { ...item, selected: old.selected, measured: old.measured }
+    return old.dragging ? { ...carried, dragging: true, position: old.position } : carried
   })
 }

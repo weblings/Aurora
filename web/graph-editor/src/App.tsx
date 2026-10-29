@@ -18,7 +18,7 @@ import { EditorContext, type EditorActions } from './EditorContext'
 import { GenericNode } from './GenericNode'
 import { refuseConnection } from './graph/connection'
 import { addEdge, joinEndpoint, moveNodes, removeEdge, removeNodes, setParam } from './graph/doc'
-import { NODE_KIND, carryViewState, toFlowEdges, toFlowNodes, type AuroraNodeData } from './graph/flow'
+import { NODE_KIND, carryViewState, edgeId, toFlowEdges, toFlowNodes, type AuroraNodeData } from './graph/flow'
 import type { Catalog, EffectListEntry, GraphDoc, ParamValue } from './graph/types'
 
 const nodeTypes = { [NODE_KIND]: GenericNode }
@@ -36,8 +36,11 @@ export function App() {
   const [doc, setDoc] = useState<GraphDoc | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [refusal, setRefusal] = useState<string | null>(null)
-  const [nodes, setNodes] = useState<Node<AuroraNodeData>[]>([])
-  const [edges, setEdges] = useState<Edge[]>([])
+  // What React Flow has told us (selection, measured sizes, a drag in progress).
+  // The nodes it draws are derived from `doc` in the same render, so a param
+  // edit never shows one frame of the old value.
+  const [nodeView, setNodeView] = useState<Node<AuroraNodeData>[]>([])
+  const [edgeView, setEdgeView] = useState<Edge[]>([])
 
   useEffect(() => {
     Promise.all([fetchCatalog(), fetchEffects()])
@@ -51,8 +54,8 @@ export function App() {
   useEffect(() => {
     let stale = false
     setDoc(null)
-    setNodes([])
-    setEdges([])
+    setNodeView([])
+    setEdgeView([])
     fetchEffectGraph(effectId)
       .then((graph) => {
         if (stale) return
@@ -65,11 +68,11 @@ export function App() {
     }
   }, [effectId])
 
-  useEffect(() => {
-    if (!doc || !catalog) return
-    setNodes((prev) => carryViewState(prev, toFlowNodes(doc, catalog)))
-    setEdges((prev) => carryViewState(prev, toFlowEdges(doc)))
-  }, [doc, catalog])
+  const nodes = useMemo(
+    () => (doc && catalog ? carryViewState(nodeView, toFlowNodes(doc, catalog)) : []),
+    [doc, catalog, nodeView],
+  )
+  const edges = useMemo(() => (doc ? carryViewState(edgeView, toFlowEdges(doc)) : []), [doc, edgeView])
 
   const actions = useMemo<EditorActions>(
     () => ({
@@ -79,21 +82,26 @@ export function App() {
     [],
   )
 
-  const onNodesChange = useCallback((changes: NodeChange<Node<AuroraNodeData>>[]) => {
-    setNodes((ns) => applyNodeChanges(changes, ns))
-    const removed = new Set(changes.flatMap((c) => (c.type === 'remove' ? [c.id] : [])))
-    if (removed.size > 0) setDoc((d) => (d ? removeNodes(d, removed) : d))
-  }, [])
+  const onNodesChange = useCallback(
+    (changes: NodeChange<Node<AuroraNodeData>>[]) => {
+      setNodeView(applyNodeChanges(changes, nodes))
+      const removed = new Set(changes.flatMap((c) => (c.type === 'remove' ? [c.id] : [])))
+      if (removed.size > 0) setDoc((d) => (d ? removeNodes(d, removed) : d))
+    },
+    [nodes],
+  )
 
-  const onEdgesChange = useCallback((changes: EdgeChange[]) => {
-    setEdges((es) => applyEdgeChanges(changes, es))
-    const removed = new Set(changes.flatMap((c) => (c.type === 'remove' ? [c.id] : [])))
-    if (removed.size === 0) return
-    setDoc((d) => {
-      if (!d) return d
-      return d.edges.filter((e) => removed.has(`${e[0]}->${e[1]}`)).reduce(removeEdge, d)
-    })
-  }, [])
+  const onEdgesChange = useCallback(
+    (changes: EdgeChange[]) => {
+      setEdgeView(applyEdgeChanges(changes, edges))
+      const removed = new Set(changes.flatMap((c) => (c.type === 'remove' ? [c.id] : [])))
+      if (removed.size === 0) return
+      setDoc((d) =>
+        d ? d.edges.filter((e) => removed.has(edgeId(e))).reduce(removeEdge, d) : d,
+      )
+    },
+    [edges],
+  )
 
   // Position lands in the document once, when the drag ends.
   const onNodeDragStop = useCallback((_: unknown, __: Node, dragged: Node[]) => {
