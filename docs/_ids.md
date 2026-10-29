@@ -66,6 +66,7 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `axoz-pending-highlight` | [log/2026-10-04-axoz-pending-highlight.md](log/2026-10-04-axoz-pending-highlight.md) | Aurora-axoz: pending highlight on Video/Audio switch (implemented, tracker close refused) |
 | `browser-analysis` | [archive/BrowserAnalysis.md](archive/BrowserAnalysis.md) | Browser video-upload input — findings, not a decision |
 | `c0g-live-tuning-apply` | [log/2026-10-02-c0g-live-tuning-apply.md](log/2026-10-02-c0g-live-tuning-apply.md) | Aurora-c0g: tuning edits apply to the running pipeline without a reload |
+| `c5gw-builtin-save-title` | [log/2026-10-29-c5gw-builtin-save-title.md](log/2026-10-29-c5gw-builtin-save-title.md) | Graph editor: saving a built-in picks a distinct title |
 | `cgr-tick-yield` | [log/2026-10-16-cgr-tick-yield.md](log/2026-10-16-cgr-tick-yield.md) | Tick loop yields the host mutex (Aurora-cgr) |
 | `cj11-shell-banner` | [log/2026-10-06-cj11-shell-banner.md](log/2026-10-06-cj11-shell-banner.md) | Aurora-cj11: sticky shell banner for system errors (closed) |
 | `cli-help-version` | [log/2026-10-06-cli-help-version.md](log/2026-10-06-cli-help-version.md) | CLI --help/--version closes Aurora-v3in and Aurora-0gd |

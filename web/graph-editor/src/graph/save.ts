@@ -44,3 +44,11 @@ export function distinctTitle(title: string, taken: Iterable<string>): string {
     if (!used.has(norm(candidate))) return candidate
   }
 }
+
+// The document a write sends. A write that makes a new effect (a fork, or a
+// built-in saved under a name) takes a title no other effect shows; one that
+// overwrites a custom effect, and Keep (the tested draft is already put), send
+// the document as it is.
+export function forWrite(doc: GraphDoc, makesNew: boolean, keep: boolean, taken: Iterable<string>): GraphDoc {
+  return makesNew && !keep ? setTitle(doc, distinctTitle(titleOf(doc), taken)) : doc
+}
