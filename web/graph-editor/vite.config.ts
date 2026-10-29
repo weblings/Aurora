@@ -17,6 +17,9 @@ export default defineConfig({
     license: { fileName: 'THIRD-PARTY-NOTICES.md' },
   },
   server: {
+    // Theme tokens are imported from the WebUI (../ui/styles/tokens.css),
+    // outside this project root.
+    fs: { allow: ['..'] },
     // `npm run dev` gives hot reload without rebuilding C++; /api goes to a
     // running Aurora (AURORA_PORT=<port> npm run dev).
     proxy: { '/api': `http://127.0.0.1:${AURORA_PORT}` },

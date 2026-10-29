@@ -72,6 +72,7 @@ function(aurora_graph_editor_embed OUTPUT_HEADER)
       DEPENDS "${_install_stamp}" ${_editor_sources}
         "${_editor_dir}/index.html" "${_editor_dir}/vite.config.ts"
         "${_editor_dir}/tsconfig.json"
+        "${_editor_dir}/../ui/styles/tokens.css"
       COMMENT "Graph editor: vite build"
       VERBATIM
     )

@@ -1,5 +1,13 @@
 import { useEffect, useState } from 'react'
-import { ReactFlow, Background, Controls, type Edge, type Node } from '@xyflow/react'
+import {
+  ReactFlow,
+  Background,
+  BackgroundVariant,
+  Controls,
+  MiniMap,
+  type Edge,
+  type Node,
+} from '@xyflow/react'
 
 // Toolchain spike (Aurora-lzj): proves Vite+React+@xyflow/react build through
 // CMake, embed into the C++ binary, and load at /graph-editor/. No real
@@ -22,17 +30,18 @@ export function App() {
   }, [])
 
   return (
-    <div style={{ height: '100vh', display: 'flex', flexDirection: 'column' }}>
-      <header style={{ padding: '8px 12px', display: 'flex', gap: 8, alignItems: 'center' }}>
+    <div className="editor">
+      <header className="editor-header">
         {/* Asset URLs are built from BASE_URL: a bare '/icon.svg' would 404. */}
         <img src={`${import.meta.env.BASE_URL}icon.svg`} width={20} height={20} alt="" />
         <strong>Aurora graph editor</strong>
         <span>server: {version}</span>
       </header>
-      <div style={{ flex: 1 }}>
-        <ReactFlow nodes={nodes} edges={edges} fitView>
-          <Background />
+      <div className="editor-canvas">
+        <ReactFlow nodes={nodes} edges={edges} colorMode="dark" fitView>
+          <Background variant={BackgroundVariant.Dots} />
           <Controls />
+          <MiniMap pannable zoomable />
         </ReactFlow>
       </div>
     </div>
