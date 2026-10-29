@@ -1,0 +1,36 @@
+# Aurora graph editor
+
+React Flow editor for node graphs, served by Aurora's HTTP server at
+`/graph-editor/`. Vite + React + TypeScript; built by CMake and embedded in the
+binary when `AURORA_ENABLE_GRAPH_EDITOR` is ON (needs Node >= 22.12; see
+`cmake/GraphEditor.cmake`). Plan and decisions: [[sequence-e-planning]],
+[[node-graph-pipeline]].
+
+## Layout
+
+- `src/graph/` -- pure, React-free: `types.ts` (catalog and graph shapes),
+  `doc.ts` (edits: each returns a new document), `flow.ts` (graph.json <-> React
+  Flow), `layout.ts` (saved `ui` positions, else columns by topological depth),
+  `connection.ts` (the wiring rules). `fixtures.ts` + `graph.test.ts` are the
+  Vitest suite.
+- `src/GenericNode.tsx`, `src/ParamWidget.tsx` -- one node component draws any
+  `/api/nodes` entry; one widget per param kind.
+- `src/api.ts` -- the only server calls (`/api/nodes`, `/api/effects`,
+  `/api/effects/:id`). Paths are root-absolute on purpose (Aurora's API ignores
+  the editor's base); asset URLs are built from `import.meta.env.BASE_URL`.
+
+## Invariants
+
+- The graph is one JSON document held in `App` state; every edit replaces it.
+  Keys the editor does not edit (`version`, `tickHz`, `controls`, node extras,
+  `ui` entries that are not node ids) must survive. Positions reach the
+  document only when a drag ends.
+- `refuseConnection` copies the loader's rules in
+  `core/Runtime/src/Graph/GraphLoader.cpp` (exact port type, one edge per
+  input, no cycles, one sender per output). Change them together.
+- Theme comes from `web/ui/styles/tokens.css`; dark only, like the WebUI.
+
+## Commands
+
+`npm run dev` (hot reload; `AURORA_PORT=<port>` points `/api` at a running
+Aurora), `npm run typecheck`, `npm test`.

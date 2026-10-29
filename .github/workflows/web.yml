@@ -49,3 +49,19 @@ jobs:
           python3 -m venv "$RUNNER_TEMP/apispec"
           "$RUNNER_TEMP/apispec/bin/pip" install -q -r docs/api/requirements.txt
           "$RUNNER_TEMP/apispec/bin/python" docs/api/gen-openapi.py --check
+
+  graph-editor:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web/graph-editor
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm ci
+      - name: Typecheck
+        run: npm run typecheck
+      - name: Vitest
+        run: npm test

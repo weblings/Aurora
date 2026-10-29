@@ -82,3 +82,114 @@ body {
 .react-flow__attribution a {
   color: var(--aurora-text-secondary);
 }
+
+.editor-header select {
+  background: var(--aurora-bg);
+  color: var(--aurora-text-primary);
+  border: 1px solid var(--aurora-border);
+  border-radius: var(--aurora-radius-control);
+  padding: var(--aurora-space-1) var(--aurora-space-3);
+}
+
+.editor-refusal {
+  color: var(--aurora-text-primary);
+}
+
+.editor-error {
+  color: var(--aurora-text-primary);
+  font-weight: 600;
+}
+
+.aurora-node {
+  min-width: 240px;
+  padding: var(--aurora-space-3) 0;
+  font-size: 12px;
+}
+
+.aurora-node-header {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--aurora-space-5);
+  padding: 0 var(--aurora-space-5) var(--aurora-space-3);
+  border-bottom: 1px solid var(--aurora-divider);
+}
+
+.aurora-node small,
+.param small {
+  color: var(--aurora-text-secondary);
+  opacity: 0.8;
+}
+
+.aurora-node-note {
+  margin: var(--aurora-space-3) var(--aurora-space-5) 0;
+  color: var(--aurora-text-secondary);
+}
+
+.aurora-ports {
+  display: flex;
+  justify-content: space-between;
+  padding-top: var(--aurora-space-3);
+}
+
+.aurora-port {
+  position: relative;
+  display: flex;
+  gap: var(--aurora-space-2);
+  align-items: baseline;
+  padding: 2px var(--aurora-space-5);
+}
+
+.aurora-port-out {
+  justify-content: flex-end;
+}
+
+.aurora-port-open {
+  font-weight: 600;
+}
+
+.param {
+  display: flex;
+  flex-direction: column;
+  gap: var(--aurora-space-1);
+  padding: var(--aurora-space-2) var(--aurora-space-5);
+  border-top: 1px solid var(--aurora-divider);
+}
+
+.param input[type='number'],
+.param input[type='text'],
+.param select {
+  width: 70px;
+  background: var(--aurora-bg);
+  color: var(--aurora-text-primary);
+  border: 1px solid var(--aurora-border);
+  border-radius: var(--aurora-radius-badge);
+}
+
+.param select,
+.param input[type='text'] {
+  width: 100%;
+}
+
+.param-float,
+.param-optional,
+.gradient-stop {
+  display: flex;
+  gap: var(--aurora-space-3);
+  align-items: center;
+}
+
+.param-float input[type='range'] {
+  flex: 1;
+  min-width: 0;
+}
+
+.param-gradient {
+  display: flex;
+  flex-direction: column;
+  gap: var(--aurora-space-2);
+}
+
+.gradient-bar {
+  height: 10px;
+  border-radius: var(--aurora-radius-badge);
+}
