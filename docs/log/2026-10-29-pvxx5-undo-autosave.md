@@ -36,9 +36,17 @@ backup over E1's single document ([[pvxx4-editor-foundation]]).
 Vitest (48 total): gesture coalescing, cap, redo cleared on edit, reset on
 open, empty-edit and no-op-gesture cases, restore offered after unsaved edits
 and not after a save, per-effect keys, junk values, blocked and absent
-storage. `npm run typecheck` and `npm run build` pass. Not run in a browser
-and not on Windows or Linux (E6 gate); the Restore banner, key handling and
-widget commit events are covered only by reading, not exercised.
+storage. `npm run typecheck` and `npm run build` pass.
+
+Browser (headless Chromium, Vite dev server proxied to the fake-Hue stack,
+dummy input): slider drag is one step; Cmd/Ctrl+Z and Shift+Cmd/Ctrl+Z;
+Restore/Discard flow across reloads; blocked `localStorage`; native undo in a
+number box leaves graph history alone; typed digits are one step on blur; a
+colour change sequence is one step on blur. Caught and fixed one bug: key-up
+committed every keystroke in a number box, so typing "167" was three steps;
+key-up now ends a gesture only for non-text inputs. Colour was driven with
+Playwright `fill`, not the OS picker popup. Not run on Windows or Linux (E6
+gate).
 
 ## Lessons
 

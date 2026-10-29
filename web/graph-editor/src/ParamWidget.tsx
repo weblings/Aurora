@@ -22,7 +22,13 @@ export function ParamWidget({ info, value, onChange, onCommit }: Props) {
       className="param nodrag nowheel"
       title={info.description}
       onPointerUp={onCommit}
-      onKeyUp={onCommit}
+      // A typed value is one gesture until the box loses focus; a slider
+      // moved by arrow keys has no pointer-up, so key-up ends its step.
+      onKeyUp={(e) => {
+        const t = e.target
+        if (t instanceof HTMLInputElement && (t.type === 'number' || t.type === 'text')) return
+        onCommit()
+      }}
       onBlur={onCommit}
     >
       <span className="param-label">
