@@ -213,3 +213,70 @@ body {
 .param input[type='range'] {
   accent-color: var(--aurora-accent);
 }
+
+/* Draft loop (Aurora-pvxx.6). The palette is monochrome, so problems read by
+   glyph, dashed outline and text, not by colour. */
+.editor-canvas {
+  position: relative;
+}
+
+.editor-status {
+  margin-left: auto;
+  color: var(--aurora-text-primary);
+}
+
+.zone-thumbnail {
+  position: absolute;
+  right: var(--aurora-space-5);
+  top: var(--aurora-space-5);
+  z-index: 5;
+  padding: var(--aurora-space-2);
+  background: var(--aurora-surface);
+  border: 1px solid var(--aurora-border);
+  border-radius: var(--aurora-radius-control);
+  pointer-events: none;
+}
+
+.zone-thumbnail-stale {
+  opacity: 0.4;
+}
+
+.editor-graph-problems {
+  position: absolute;
+  left: var(--aurora-space-5);
+  top: var(--aurora-space-5);
+  z-index: 5;
+  margin: 0;
+  padding: var(--aurora-space-3) var(--aurora-space-5);
+  list-style: none;
+  background: var(--aurora-surface);
+  border: 1px dashed var(--aurora-text-primary);
+  border-radius: var(--aurora-radius-control);
+  max-width: 420px;
+}
+
+.aurora-node-problem {
+  border: 1px dashed var(--aurora-text-primary);
+}
+
+.problem-badge,
+.problem-mark {
+  font-weight: 600;
+  color: var(--aurora-text-primary);
+}
+
+.problem-list {
+  margin: var(--aurora-space-3) var(--aurora-space-5) 0;
+  padding: 0;
+  list-style: none;
+  color: var(--aurora-text-primary);
+}
+
+.param-problem {
+  outline: 1px dashed var(--aurora-text-primary);
+  outline-offset: -2px;
+}
+
+.problem-text {
+  color: var(--aurora-text-primary);
+}

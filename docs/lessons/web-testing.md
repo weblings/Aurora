@@ -309,6 +309,15 @@ route.
 **Fix:** leave `changeOrigin` off, or open the dev page at the same host
 the proxy targets.
 
+Aurora-pvxx.6 hit it again with `changeOrigin` off: with Vite 8.3.2 a draft
+`PUT` through the proxy got 403 even from `localhost:5199`, while the same
+request direct to Aurora with `Origin: http://localhost:8215` passed and
+`Origin: http://127.0.0.1:8215` failed (the gate compares host names, so
+`localhost` and `127.0.0.1` differ). Not isolated why the proxied request
+mismatched. `web/graph-editor/vite.config.ts` now sets `Origin` to
+`http://localhost:<aurora port>` in a `proxyReq` hook; the first thing to
+test when a proxied write 403s is `curl -X PUT` with each origin.
+
 ## Driving the banner live: API calls lag a beat, and a UI switch overwrites a bogus saved input
 Tags: live-test, playwright, banner, heartbeat, mode-switch, fake-bridge
 Applies-when: live-checking shell-banner behavior with Playwright against a running daemon, or trying to make a Dashboard mode switch fail on purpose

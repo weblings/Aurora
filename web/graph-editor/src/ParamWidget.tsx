@@ -10,16 +10,18 @@ type Props = {
   // Every change; `onCommit` marks the end of a gesture (one undo step).
   onChange: (value: ParamValue) => void
   onCommit: () => void
+  // What the server said about this param, shown under it.
+  problems?: readonly string[]
 }
 
 // One widget per param kind. `nodrag nowheel` keep a drag or scroll on a
 // widget from moving the node or zooming the canvas.
-export function ParamWidget({ info, value, onChange, onCommit }: Props) {
+export function ParamWidget({ info, value, onChange, onCommit, problems }: Props) {
   const current = effectiveValue(info, value)
   const label = info.label || info.name
   return (
     <div
-      className="param nodrag nowheel"
+      className={`param nodrag nowheel${problems ? ' param-problem' : ''}`}
       title={info.description}
       onPointerUp={onCommit}
       // A typed value is one gesture until the box loses focus; a slider
@@ -36,6 +38,11 @@ export function ParamWidget({ info, value, onChange, onCommit }: Props) {
         {info.unit ? <small> {info.unit}</small> : null}
       </span>
       {renderInput(info, current, onChange, () => onCommit())}
+      {problems?.map((m) => (
+        <span className="problem-text" key={m}>
+          ⚠ {m}
+        </span>
+      ))}
     </div>
   )
 }

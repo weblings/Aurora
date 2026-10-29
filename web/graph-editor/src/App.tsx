@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useReducer, useState } from 'react'
+import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react'
 import {
   ReactFlow,
   Background,
@@ -16,11 +16,16 @@ import {
 import { fetchCatalog, fetchEffectGraph, fetchEffects } from './api'
 import { EditorContext, type EditorActions } from './EditorContext'
 import { GenericNode } from './GenericNode'
+import { ProblemsContext } from './ProblemsContext'
+import { ZoneThumbnail } from './ZoneThumbnail'
+import { useDraftLoop } from './useDraftLoop'
 import { restorable, clearUnsaved, syncUnsaved } from './graph/autosave'
 import { refuseConnection } from './graph/connection'
 import { addEdge, joinEndpoint, moveNodes, removeEdge, removeNodes, setParam } from './graph/doc'
 import { editorReducer, emptyEditor } from './graph/history'
 import { NODE_KIND, carryViewState, edgeId, toFlowEdges, toFlowNodes, type AuroraNodeData } from './graph/flow'
+import { groupProblems, sameProblems, type Problems } from './graph/problems'
+import { summarize } from './graph/loop'
 import type { Catalog, EffectListEntry, GraphDoc, ParamValue } from './graph/types'
 
 const nodeTypes = { [NODE_KIND]: GenericNode }
@@ -83,6 +88,18 @@ export function App() {
   useEffect(() => {
     if (doc && baseline && !offer) syncUnsaved(baseline.id, baseline.doc, doc)
   }, [doc, baseline, offer])
+
+  const loop = useDraftLoop(doc)
+  const summary = summarize(loop.state)
+  // Keep the previous object while the messages are unchanged, so a preview
+  // event that repeats the same runtime error does not re-render every node.
+  const lastProblems = useRef<Problems | null>(null)
+  const problems = useMemo(() => {
+    const next = groupProblems(loop.state.valid === false ? loop.state.issues : [], loop.state.runtime, new Set(doc?.nodes.map((n) => n.id)))
+    if (lastProblems.current && sameProblems(lastProblems.current, next)) return lastProblems.current
+    lastProblems.current = next
+    return next
+  }, [loop.state.valid, loop.state.issues, loop.state.runtime, doc])
 
   const edit = useCallback((change: (d: GraphDoc) => GraphDoc) => dispatch({ type: 'edit', change }), [])
   const undo = useCallback(() => dispatch({ type: 'undo' }), [])
@@ -227,10 +244,27 @@ export function App() {
             </button>
           </span>
         ) : null}
+        <span className="editor-status" role="status" title={summary.detail ?? undefined}>
+          {summary.label}
+        </span>
+        {loop.state.stream === 'replaced' ? (
+          <button type="button" onClick={loop.reconnect}>
+            Reconnect
+          </button>
+        ) : null}
         {refusal ? <span className="editor-refusal">{refusal}</span> : null}
         {error ? <span className="editor-error">{error}</span> : null}
       </header>
       <div className="editor-canvas">
+        {problems.graph.length > 0 ? (
+          <ul className="editor-graph-problems">
+            {problems.graph.map((m) => (
+              <li key={m}>⚠ {m}</li>
+            ))}
+          </ul>
+        ) : null}
+        <ZoneThumbnail frame={loop.frame} live={loop.state.stream === 'live'} />
+        <ProblemsContext.Provider value={problems}>
         <EditorContext.Provider value={actions}>
           <ReactFlow
             nodes={nodes}
@@ -251,6 +285,7 @@ export function App() {
             <MiniMap pannable zoomable />
           </ReactFlow>
         </EditorContext.Provider>
+        </ProblemsContext.Provider>
       </div>
     </div>
   )

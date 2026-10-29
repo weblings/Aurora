@@ -12,12 +12,16 @@ binary when `AURORA_ENABLE_GRAPH_EDITOR` is ON (needs Node >= 22.12; see
   `doc.ts` (edits: each returns a new document), `flow.ts` (graph.json <-> React
   Flow), `layout.ts` (saved `ui` positions, else columns by topological depth),
   `connection.ts` (the wiring rules), `history.ts` (undo reducer),
-  `autosave.ts` (browser backup of unsaved edits). `fixtures.ts` + `graph.test.ts` are the
+  `autosave.ts` (browser backup of unsaved edits), `problems.ts` (server errors
+  regrouped per node/port/param), `loop.ts` (draft/preview states), `frame.ts`
+  (preview events). `fixtures.ts` + `graph.test.ts` are the
   Vitest suite.
 - `src/GenericNode.tsx`, `src/ParamWidget.tsx` -- one node component draws any
   `/api/nodes` entry; one widget per param kind.
+- `src/useDraftLoop.ts` -- sends the draft and holds the preview stream;
+  `ZoneThumbnail.tsx` draws its frames from a ref, not state.
 - `src/api.ts` -- the only server calls (`/api/nodes`, `/api/effects`,
-  `/api/effects/:id`). Paths are root-absolute on purpose (Aurora's API ignores
+  `/api/effects/:id`, drafts, preview URL). Paths are root-absolute on purpose (Aurora's API ignores
   the editor's base); asset URLs are built from `import.meta.env.BASE_URL`.
 
 ## Invariants

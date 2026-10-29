@@ -201,6 +201,7 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `pvxx3-titles-port-descriptions` | [log/2026-10-29-pvxx3-titles-port-descriptions.md](log/2026-10-29-pvxx3-titles-port-descriptions.md) | E0d: node titles and port descriptions |
 | `pvxx4-editor-foundation` | [log/2026-10-29-pvxx4-editor-foundation.md](log/2026-10-29-pvxx4-editor-foundation.md) | E1: graph editor foundation |
 | `pvxx5-undo-autosave` | [log/2026-10-29-pvxx5-undo-autosave.md](log/2026-10-29-pvxx5-undo-autosave.md) | E2: undo/redo and browser autosave |
+| `pvxx6-draft-preview-loop` | [log/2026-10-29-pvxx6-draft-validate-preview.md](log/2026-10-29-pvxx6-draft-validate-preview.md) | E3: draft, validate and preview loop |
 | `q9l1-tray-target-live` | [log/2026-10-07-q9l1-tray-target-live.md](log/2026-10-07-q9l1-tray-target-live.md) | Aurora-q9l1: tray click-time target — Linux live green, Windows exercised, closed |
 | `r7ff-noise-nodes` | [log/2026-10-22-r7ff-noise-nodes.md](log/2026-10-22-r7ff-noise-nodes.md) | R7ff: noise source nodes (Aurora-r7ff) |
 | `ra4o10-g2e-pre-g3-fixes` | [log/2026-10-14-ra4o10-g2e-pre-g3-fixes.md](log/2026-10-14-ra4o10-g2e-pre-g3-fixes.md) | G2e pre-G3 review fixes (Aurora-ra4o.10) |

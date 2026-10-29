@@ -22,6 +22,15 @@ export default defineConfig({
     fs: { allow: ['..'] },
     // `npm run dev` gives hot reload without rebuilding C++; /api goes to a
     // running Aurora (AURORA_PORT=<port> npm run dev).
-    proxy: { '/api': `http://127.0.0.1:${AURORA_PORT}` },
+    // Aurora refuses cross-origin writes, so the proxy presents the request
+    // as same-origin, as it is when the app serves the editor itself.
+    proxy: {
+      '/api': {
+        target: `http://127.0.0.1:${AURORA_PORT}`,
+        configure: (proxy) => {
+          proxy.on('proxyReq', (req) => req.setHeader('origin', `http://localhost:${AURORA_PORT}`))
+        },
+      },
+    },
   },
 })
