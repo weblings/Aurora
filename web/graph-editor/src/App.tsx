@@ -29,6 +29,7 @@ import { addEdge, addNode, joinEndpoint, moveNodes, removeEdge, removeNodes, set
 import { editorReducer, emptyEditor, sameDoc } from './graph/history'
 import { describeTest } from './graph/lightTest'
 import { forWrite, freshEffectId, setTitle, titleOf } from './graph/save'
+import { portStyle } from './graph/portStyle'
 import { NODE_KIND, carryViewState, edgeId, toFlowEdges, toFlowNodes, type AuroraNodeData } from './graph/flow'
 import { groupProblems, sameProblems, type Problems } from './graph/problems'
 import { summarize } from './graph/loop'
@@ -213,7 +214,7 @@ export function App() {
     () => (doc && catalog ? carryViewState(nodeView, toFlowNodes(doc, catalog)) : []),
     [doc, catalog, nodeView],
   )
-  const edges = useMemo(() => (doc ? carryViewState(edgeView, toFlowEdges(doc)) : []), [doc, edgeView])
+  const edges = useMemo(() => (doc ? carryViewState(edgeView, toFlowEdges(doc, catalog ?? undefined)) : []), [doc, catalog, edgeView])
 
   const actions = useMemo<EditorActions>(
     () => ({
@@ -287,8 +288,22 @@ export function App() {
     [wiring, edit],
   )
 
+  // Type of the port a connection drag started from: its colour tints the drag
+  // line and handles of other types dim.
+  const [dragType, setDragType] = useState<string | null>(null)
+  const onConnectStart = useCallback(
+    (_: unknown, p: { nodeId: string | null; handleId: string | null; handleType: string | null }) => {
+      const node = doc?.nodes.find((n) => n.id === p.nodeId)
+      const info = node && catalog?.get(node.type)
+      const ports = p.handleType === 'source' ? info?.outputs : info?.inputs
+      setDragType(ports?.find((x) => x.name === p.handleId)?.type ?? null)
+    },
+    [doc, catalog],
+  )
+
   const onConnectEnd = useCallback(
     (_: unknown, state: { isValid: boolean | null; fromNode: Node | null; toHandle: { nodeId: string; id?: string | null } | null; fromHandle: { id?: string | null; type: string } | null }) => {
+      setDragType(null)
       // A drop on a handle that isValidConnection refused: say why.
       if (state.isValid === false && state.fromNode && state.toHandle && state.fromHandle) {
         const from = state.fromHandle.type === 'source'
@@ -439,7 +454,11 @@ export function App() {
             onEdgesChange={onEdgesChange}
             onNodeDragStop={onNodeDragStop}
             onConnect={onConnect}
+            onConnectStart={onConnectStart}
             onConnectEnd={onConnectEnd}
+            connectionLineStyle={dragType ? { stroke: portStyle(dragType).color, strokeWidth: 2 } : undefined}
+            className={dragType ? 'is-connecting' : undefined}
+            data-drag-type={dragType ?? undefined}
             isValidConnection={isValidConnection}
             colorMode="dark"
             fitView

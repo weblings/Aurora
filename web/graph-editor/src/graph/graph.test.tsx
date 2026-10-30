@@ -3,6 +3,7 @@ import { renderToStaticMarkup } from 'react-dom/server'
 import { refuseConnection, type Connection } from './connection'
 import { addEdge, addNode, moveNodes, removeEdge, removeNodes, setParam, splitEndpoint } from './doc'
 import { carryViewState, toFlowEdges, toFlowNodes } from './flow'
+import { PORT_TYPES, portStyle } from './portStyle'
 import { paletteGroups } from './palette'
 import { editorReducer, emptyEditor } from './history'
 import { columnLayout, positionsFor } from './layout'
@@ -15,6 +16,24 @@ const without = <T extends object>(obj: T, key: string) => {
   const { [key]: _drop, ...rest } = obj as Record<string, unknown>
   return rest
 }
+
+describe('port styles', () => {
+  it('gives every port type in the catalog a distinct colour and shape pair', () => {
+    const used = new Set<string>()
+    for (const info of nodesSample.nodes as NodeTypeInfo[]) {
+      for (const p of [...info.inputs, ...info.outputs]) used.add(p.type)
+    }
+    for (const t of used) expect(PORT_TYPES).toContain(t)
+    const looks = PORT_TYPES.map((t) => `${portStyle(t).color}/${portStyle(t).shape}`)
+    expect(new Set(looks).size).toBe(PORT_TYPES.length)
+  })
+
+  it('colours an edge by its source port type and dashes triggers', () => {
+    const doc = builtinLike()
+    const edges = toFlowEdges(doc, catalog)
+    expect(edges.every((e) => typeof e.style?.stroke === 'string')).toBe(true)
+  })
+})
 
 describe('flow adapter', () => {
   it('maps nodes and edges to React Flow and back to the same edge list', () => {

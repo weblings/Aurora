@@ -5,6 +5,12 @@ import type { AuroraNodeData } from './graph/flow'
 import { ParamWidget } from './ParamWidget'
 import { useNodeProblems } from './ProblemsContext'
 import { unattributed } from './graph/problems'
+import { portStyle } from './graph/portStyle'
+
+function handleLook(type: string) {
+  const { color, shape } = portStyle(type)
+  return { className: `aurora-handle aurora-handle-${shape}`, 'data-port-type': type, style: { '--port-color': color } as React.CSSProperties }
+}
 
 // One component draws every node type from its /api/nodes entry: ports become
 // handles, params become widgets.
@@ -53,7 +59,7 @@ function GenericNodeView({ id, data }: NodeProps<Node<AuroraNodeData>>) {
               key={port.name}
               title={problems?.ports.get(port.name)?.join('\n') ?? port.description}
             >
-              <Handle type="target" position={Position.Left} id={port.name} />
+              <Handle type="target" position={Position.Left} id={port.name} {...handleLook(port.type)} />
               {port.name}
               <small>{port.type}</small>
               {problems?.ports.has(port.name) ? <span className="problem-mark">⚠</span> : null}
@@ -65,7 +71,7 @@ function GenericNodeView({ id, data }: NodeProps<Node<AuroraNodeData>>) {
             <div className="aurora-port aurora-port-out" key={port.name} title={port.description}>
               <small>{port.type}</small>
               {port.name}
-              <Handle type="source" position={Position.Right} id={port.name} />
+              <Handle type="source" position={Position.Right} id={port.name} {...handleLook(port.type)} />
             </div>
           ))}
         </div>

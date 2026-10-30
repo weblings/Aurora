@@ -433,3 +433,46 @@ body {
   text-align: left;
   cursor: grab;
 }
+
+/* Port types (Aurora-ex8z): hue and shape per type from graph/portStyle.ts.
+   Fill vs outline stays free for connection state. */
+.react-flow .aurora-handle {
+  --size: 10px;
+  width: var(--size);
+  height: var(--size);
+  background: var(--port-color);
+  border: 1px solid var(--aurora-surface);
+  border-radius: 0;
+}
+
+.react-flow .aurora-handle-circle {
+  border-radius: 50%;
+}
+
+.react-flow .aurora-handle-diamond {
+  width: 8px;
+  height: 8px;
+  rotate: 45deg;
+}
+
+.react-flow .aurora-handle-triangle {
+  width: 12px;
+  height: 12px;
+  border: 0;
+  clip-path: polygon(0 0, 100% 50%, 0 100%);
+}
+
+.react-flow.is-connecting .aurora-handle {
+  opacity: 0.25;
+}
+
+.react-flow[data-drag-type='Image'] .aurora-handle[data-port-type='Image'],
+.react-flow[data-drag-type='AudioBuffer'] .aurora-handle[data-port-type='AudioBuffer'],
+.react-flow[data-drag-type='AudioFeatures'] .aurora-handle[data-port-type='AudioFeatures'],
+.react-flow[data-drag-type='Frame'] .aurora-handle[data-port-type='Frame'],
+.react-flow[data-drag-type='Color'] .aurora-handle[data-port-type='Color'],
+.react-flow[data-drag-type='Float'] .aurora-handle[data-port-type='Float'],
+.react-flow[data-drag-type='Angle'] .aurora-handle[data-port-type='Angle'],
+.react-flow[data-drag-type='Trigger'] .aurora-handle[data-port-type='Trigger'] {
+  opacity: 1;
+}

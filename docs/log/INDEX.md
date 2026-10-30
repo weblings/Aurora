@@ -304,3 +304,4 @@ Planning docs stay clean: decisions, status, and pointers here only.
 | 2026-10-29 | Graph editor fit holds at laptop width: panels reserve width while loading, `minZoom` 0.2; E6 gate window 2200 → 1470 px. [[fzzr-laptop-width-fit]] | `bd show Aurora-fzzr` |
 | 2026-10-29 | Browser checks edit-loop, add-node, save-as-new moved to 1470 px and rerun on dev and embedded, all pass. [[4hhb-browser-check-1470]] | `bd show Aurora-4hhb` |
 | 2026-10-29 | Graph editor: saving a built-in under a taken name gets a distinct title (`forWrite`). [[c5gw-builtin-save-title]] | `bd show Aurora-c5gw` |
+| 2026-10-30 | Graph editor: sockets and wires colored and shaped by port type, drag tint and dimming; port-types browser check, Windows stack fixes. [[ex8z-port-type-sockets]] | `bd show Aurora-ex8z` |

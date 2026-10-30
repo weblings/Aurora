@@ -1,6 +1,7 @@
 import type { Edge, Node } from '@xyflow/react'
 import { splitEndpoint } from './doc'
 import { positionsFor } from './layout'
+import { portStyle } from './portStyle'
 import type { Catalog, GraphDoc, GraphEdge, NodeTypeInfo, ParamValue } from './types'
 
 export type AuroraNodeData = {
@@ -40,16 +41,21 @@ export function toFlowNodes(doc: GraphDoc, catalog: Catalog): Node<AuroraNodeDat
   }))
 }
 
-export function toFlowEdges(doc: GraphDoc): Edge[] {
+export function toFlowEdges(doc: GraphDoc, catalog?: Catalog): Edge[] {
   return doc.edges.map((edge) => {
     const from = splitEndpoint(edge[0])
     const to = splitEndpoint(edge[1])
+    const sourceType = catalog?.get(doc.nodes.find((n) => n.id === from.node)?.type ?? '')?.outputs.find((p) => p.name === from.port)?.type
+    const look = sourceType ? portStyle(sourceType) : null
     return {
       id: edgeId(edge),
       source: from.node,
       sourceHandle: from.port,
       target: to.node,
       targetHandle: to.port,
+      ...(look && {
+        style: { stroke: look.color, strokeWidth: look.bulk ? 3 : 2, ...(look.dashed && { strokeDasharray: '6 4' }) },
+      }),
     }
   })
 }

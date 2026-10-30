@@ -87,6 +87,7 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `error-text-and-leak-beads` | [log/2026-10-05-error-text-and-leak-beads.md](log/2026-10-05-error-text-and-leak-beads.md) | Aurora-jm6s, tazx and kea closed; 2pe5, d3ec designed; 36b7, k73j and 9swq filed |
 | `es51-x11-damage-latch` | [log/2026-10-20-es51-x11-damage-latch.md](log/2026-10-20-es51-x11-damage-latch.md) | Aurora-es51: X11 damage latch + 1 s staleness grab |
 | `ewyz-connection-watcher` | [log/2026-10-06-ewyz-connection-watcher.md](log/2026-10-06-ewyz-connection-watcher.md) | Aurora-ewyz: shell-level connection watcher (implemented, verified) |
+| `ex8z-port-type-sockets` | [log/2026-10-30-ex8z-port-type-sockets.md](log/2026-10-30-ex8z-port-type-sockets.md) | Graph editor: sockets and wires by port type |
 | `external-control` | [planning/ExternalControl.md](planning/ExternalControl.md) | External control: assistants, hubs and Muse driving Aurora |
 | `external-control-beads` | [log/2026-10-03-external-control-beads.md](log/2026-10-03-external-control-beads.md) | External control: bead sequence, overlap with nodes and HA |
 | `external-control-planning` | [log/2026-10-02-external-control-planning.md](log/2026-10-02-external-control-planning.md) | External control planning, Muse and Hyperion survey |

@@ -43,7 +43,7 @@ function restart() {
 }
 
 export async function withEditorStack(body, { input = 'dummy' } = {}) {
-  const up = spawnSync(python, [devstack, 'up', '--input', input], { encoding: 'utf8', timeout: 170_000 })
+  const up = spawnSync(python, [devstack, 'up', '--input', input, ...(process.env.AURORA_VIZ_PORT ? ['--viz-port', process.env.AURORA_VIZ_PORT] : [])], { encoding: 'utf8', timeout: 170_000 })
   const port = /WebUI http:\/\/127\.0\.0\.1:(\d+)/.exec(up.stdout ?? '')?.[1]
   let vite = null
   try {
@@ -59,12 +59,17 @@ export async function withEditorStack(body, { input = 'dummy' } = {}) {
       cwd: editorDir,
       env: { ...process.env, AURORA_PORT: port },
       stdio: 'ignore',
+      // Node 24 refuses to spawn a .cmd without a shell.
+      shell: process.platform === 'win32',
     })
     const editorUrl = `http://localhost:${vitePort}/graph-editor/`
     await waitFor(editorUrl)
     await body({ editorUrl, aurora: `http://127.0.0.1:${port}`, restart })
   } finally {
-    vite?.kill()
+    if (vite) {
+      if (process.platform === 'win32') spawnSync('taskkill', ['/pid', String(vite.pid), '/T', '/F'])
+      else vite.kill()
+    }
     spawnSync(python, [devstack, 'down'], { encoding: 'utf8' })
   }
 }
