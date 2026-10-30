@@ -3,8 +3,9 @@
 import assert from 'node:assert/strict';
 import {
   audioDevicesUrlFrom, devicePatch, effectiveFlags, flagsForMode, flagsMatchMode, isIdle, isModeConfigValid,
-  isMcpSwitchConfirmed, isSwitchConfirmed, isSwitchErrorStale, loadPipelineState, mcpEffectIdFrom, mcpEffectRunning,
-  lightTestActive, modeFromConfig, modeFromFlags, modeSwitchPatch, putMcpSwitch, runningFlags, runningToggle,
+  customEffectRunning, effectPickerLabel, effectPickerOptions, effectPickerVisible, isEffectSwitchConfirmed,
+  isSwitchConfirmed, isSwitchErrorStale, loadEffects, loadPipelineState,
+  lightTestActive, modeFromConfig, modeFromFlags, modeSwitchPatch, putEffectSwitch, runningFlags, runningToggle,
 } from './CaptureSource.js';
 
 const VIDEO = { usesVideoInput: true, usesAudioInput: false, samplesZones: true };
@@ -134,46 +135,43 @@ assert.deepEqual(modeSwitchPatch('audio', ctx), { activeEffectId: 'builtin.audio
   assert.equal(isSwitchErrorStale({ paused: false, usesVideoInput: false, usesAudioInput: false, samplesZones: false }, 'video'), false, 'idle is not the target');
 }
 
-// MCP toggle (Aurora-4xqt.2): hidden until /api/state names an MCP effect
-// (fresh config, a non-MCP apply, or after the effect is deleted), shown
-// once it does, repointed by a second apply, filled only while it runs.
+// Effect picker (Aurora-kep2.1, replacing the MCP toggle of Aurora-4xqt.2):
+// a custom effect fills the picker only while it runs, a switch confirms
+// only once the pipeline runs that id, and a failed one clears when it does.
 {
-  const fresh = { effect: 'builtin.video', mcpEffectId: null, ...VIDEO };
-  assert.equal(mcpEffectIdFrom(fresh), null, 'fresh config: hidden');
-  assert.equal(mcpEffectIdFrom({ ...fresh, mcpEffectId: '' }), null, 'empty id: hidden');
-  assert.equal(mcpEffectIdFrom({ ...VIDEO }), null, 'old daemon without the field: hidden');
-  assert.equal(mcpEffectIdFrom(null), null, 'no state probe: hidden');
+  const onVideo = { effect: 'builtin.video', mcpEffectId: 'agent-one', ...VIDEO };
+  const onCustom = { ...onVideo, effect: 'agent-one' };
+  assert.equal(customEffectRunning(onVideo), false, 'built-in runs');
+  assert.equal(customEffectRunning(onCustom), true);
+  assert.equal(customEffectRunning({ ...onVideo, effect: null }), false, 'idle/failed: not filled');
+  assert.equal(customEffectRunning({ ...onVideo, effect: '' }), false);
+  assert.equal(customEffectRunning(null), false);
 
-  const applied = { effect: 'builtin.video', mcpEffectId: 'agent-one', ...VIDEO };
-  assert.equal(mcpEffectIdFrom(applied), 'agent-one', 'after an MCP apply: shown');
-  assert.equal(mcpEffectRunning(applied), false, 'saved but another effect runs: not filled');
-  assert.equal(mcpEffectIdFrom({ ...applied, mcpEffectId: 'agent-two' }), 'agent-two', 'second apply repoints');
-  assert.equal(mcpEffectRunning({ ...applied, effect: 'agent-one' }), true);
-  assert.equal(mcpEffectRunning({ ...applied, effect: null }), false, 'idle/failed: not filled');
+  // Video/Audio only confirm once the custom effect has stopped running.
+  assert.equal(isSwitchConfirmed({ succeeded: true }, onCustom, 'video'), false);
+  assert.equal(isSwitchConfirmed({ succeeded: true }, onVideo, 'video'), true);
 
-  // Video/Audio only confirm once the MCP effect has stopped running.
-  const onMcp = { ...applied, effect: 'agent-one' };
-  assert.equal(isSwitchConfirmed({ succeeded: true }, onMcp, 'video'), false);
-  assert.equal(isSwitchConfirmed({ succeeded: true }, applied, 'video'), true);
+  assert.equal(isEffectSwitchConfirmed({ succeeded: true }, onCustom, 'agent-one'), true);
+  assert.equal(isEffectSwitchConfirmed({ succeeded: true }, onVideo, 'agent-one'), false, 'fell back to the built-in');
+  assert.equal(isEffectSwitchConfirmed({ succeeded: true }, onCustom, 'agent-two'), false, 'another custom runs');
+  assert.equal(isEffectSwitchConfirmed({ succeeded: true, reloadError: 'x' }, onCustom, 'agent-one'), false);
+  assert.equal(isEffectSwitchConfirmed({ succeeded: false }, onCustom, 'agent-one'), false);
 
-  assert.equal(isMcpSwitchConfirmed({ succeeded: true }, onMcp), true);
-  assert.equal(isMcpSwitchConfirmed({ succeeded: true }, applied), false, 'fell back to the built-in');
-  assert.equal(isMcpSwitchConfirmed({ succeeded: true, reloadError: 'x' }, onMcp), false);
-  assert.equal(isMcpSwitchConfirmed({ succeeded: false }, onMcp), false);
+  assert.equal(isSwitchErrorStale(onCustom, 'custom', 'agent-one'), true);
+  assert.equal(isSwitchErrorStale(onVideo, 'custom', 'agent-one'), false);
+  assert.equal(isSwitchErrorStale(onCustom, 'custom', 'agent-two'), false, 'a different custom runs');
+  assert.equal(isSwitchErrorStale(onCustom, 'custom', null), false, 'no remembered id keeps the error');
 
-  assert.equal(isSwitchErrorStale(onMcp, 'mcp'), true);
-  assert.equal(isSwitchErrorStale(applied, 'mcp'), false);
-
-  // runningToggle: the running effect fills a toggle, never the saved config.
-  assert.equal(runningToggle(onMcp), 'mcp');
-  assert.equal(runningToggle(applied), 'video', 'MCP saved but built-in runs');
+  // runningToggle: the running effect fills, never the saved config.
+  assert.equal(runningToggle(onCustom), 'custom');
+  assert.equal(runningToggle(onVideo), 'video', 'MCP saved but built-in runs');
   assert.equal(runningToggle({ ...VIDEO, effect: 'builtin.audio', mcpEffectId: null }), 'audio');
   assert.equal(runningToggle({ ...VIDEO, effect: null }), null, 'nothing running: no fill');
-  assert.equal(runningToggle({ ...VIDEO, effect: 'custom.other' }), null, 'custom non-MCP effect: no fill');
+  assert.equal(runningToggle({ ...VIDEO, effect: 'custom.other' }), 'custom', 'any custom fills the picker, MCP or not');
   assert.equal(runningToggle(null), null);
   const testing = { ...VIDEO, effect: 'builtin.video', mcpEffectId: null, test: { active: true, confirmRemainingMs: 90000 } };
   assert.equal(lightTestActive(testing), true);
-  assert.equal(runningToggle(testing), 'mcp', 'a light test fills MCP, even with no kept effect');
+  assert.equal(runningToggle(testing), 'custom', 'a light test fills the picker, even with no kept effect');
   assert.equal(runningToggle({ ...testing, test: { active: false, confirmRemainingMs: 0 } }), 'video', 'test over: back to the built-in');
   assert.equal(lightTestActive(null), false);
 
@@ -181,10 +179,58 @@ assert.deepEqual(modeSwitchPatch('audio', ctx), { activeEffectId: 'builtin.audio
   try {
     let seen;
     globalThis.fetch = async (url, init) => { seen = { url, init }; return { json: async () => ({ succeeded: true }) }; };
-    assert.deepEqual(await putMcpSwitch('agent-one'), { succeeded: true });
+    assert.deepEqual(await putEffectSwitch('agent-one'), { succeeded: true });
     assert.equal(seen.url, '/api/effects');
     assert.equal(seen.init.method, 'PUT');
     assert.deepEqual(JSON.parse(seen.init.body), { activeEffectId: 'agent-one' });
+  } finally {
+    globalThis.fetch = realFetch;
+  }
+}
+
+// Picker rows and trigger text: built-ins, a divider, then customs; the
+// selected row and the label follow what runs, never the pick.
+{
+  const EFFECTS = [
+    { id: 'builtin.video', builtin: true, title: 'Screen colors', description: 'Matches the screen' },
+    { id: 'builtin.audio', builtin: true, title: 'Music', description: null },
+    { id: 'rainbow', builtin: false, title: 'Rainbow', description: 'Cycles hues' },
+    { id: 'untitled', builtin: false, title: '', description: null },
+  ];
+  const custom = EFFECTS.filter((e) => !e.builtin);
+  const state = { ...VIDEO, effect: 'rainbow' };
+
+  const rows = effectPickerOptions([...custom, ...EFFECTS.filter((e) => e.builtin)], state);
+  assert.deepEqual(rows.map((r) => r.value), ['builtin.video', 'builtin.audio', 'rainbow', 'untitled'], 'built-ins first');
+  assert.deepEqual(rows.map((r) => r.dividerBefore), [false, false, true, false], 'divider before the first custom');
+  assert.deepEqual(rows.map((r) => r.selected), [false, false, true, false], 'the running effect is selected');
+  assert.equal(rows[3].label, 'untitled', 'no title falls back to the id');
+  assert.equal(rows[0].tooltip, 'Matches the screen');
+  assert.equal(rows[1].tooltip, null);
+  assert.deepEqual(effectPickerOptions(custom, state).map((r) => r.dividerBefore), [false, false], 'no built-ins: no divider');
+  const testing = { ...state, test: { active: true } };
+  assert.equal(effectPickerOptions(EFFECTS, testing).some((r) => r.selected), false, 'a light test selects no saved row');
+
+  assert.equal(effectPickerVisible(EFFECTS, state), true);
+  assert.equal(effectPickerVisible(EFFECTS.filter((e) => e.builtin), state), false, 'only Video/Audio: hidden');
+  assert.equal(effectPickerVisible([], testing), true, 'a light test shows it');
+  assert.equal(effectPickerVisible([], null), false);
+
+  assert.equal(effectPickerLabel(EFFECTS, state), 'Rainbow');
+  assert.equal(effectPickerLabel(EFFECTS, { ...state, effect: 'builtin.video' }), 'All effects', 'built-in runs');
+  assert.equal(effectPickerLabel(EFFECTS, { ...state, effect: null }), 'All effects', 'nothing runs');
+  assert.equal(effectPickerLabel(EFFECTS, testing), 'Light test');
+  assert.equal(effectPickerLabel([], { ...state, effectTitle: 'Rainbow (state)' }), 'Rainbow (state)', 'list not loaded: state title');
+  assert.equal(effectPickerLabel([], state), 'rainbow', 'then the id');
+
+  const realFetch = globalThis.fetch;
+  try {
+    globalThis.fetch = async () => ({ json: async () => ({ effects: [...EFFECTS, { id: '' }, null] }) });
+    assert.deepEqual(await loadEffects(), EFFECTS, 'malformed rows dropped');
+    globalThis.fetch = async () => ({ json: async () => ({}) });
+    assert.deepEqual(await loadEffects(), []);
+    globalThis.fetch = async () => { throw new Error('down'); };
+    assert.deepEqual(await loadEffects(), [], 'unreachable: picker hides');
   } finally {
     globalThis.fetch = realFetch;
   }

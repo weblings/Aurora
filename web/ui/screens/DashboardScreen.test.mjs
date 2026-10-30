@@ -337,9 +337,10 @@ function switchScreen({ state, platform = 'mac', toggleError = null, toggleError
     async _loadAll() {
       this.pipelineState = this.nextState ?? this.pipelineState;
       // the same stale-error rule the real _loadAll applies
-      if (this.toggleError && isSwitchErrorStale(this.pipelineState, this.toggleErrorMode)) {
+      if (this.toggleError && isSwitchErrorStale(this.pipelineState, this.toggleErrorMode, this.toggleErrorEffectId)) {
         this.toggleError = null;
         this.toggleErrorMode = null;
+        this.toggleErrorEffectId = null;
       }
       return !this.daemonDown;
     },
@@ -468,7 +469,7 @@ for (const reloadError of [PERMISSION_ERROR, 'bridge unreachable']) {
   assert.ok(!topTier.innerHTML.includes("Aurora can't hear any audio."), 'no inline audio permission block');
 }
 
-// Under MCP the default-device hints follow the graph's declared inputs (Aurora-tc8w).
+// Under a custom effect the default-device hints follow the graph's declared inputs (Aurora-tc8w).
 {
   const hintsFor = (mode, graphInputs, flags) => {
     const slot = makeEl();
@@ -485,12 +486,12 @@ for (const reloadError of [PERMISSION_ERROR, 'bridge unreachable']) {
     return { video: slot.innerHTML.includes(VIDEO_HINT), audio: slot.innerHTML.includes(AUDIO_HINT), field: !!inst.deviceField };
   };
   const both = { usesVideoInput: true, usesAudioInput: true, samplesZones: true };
-  // The flags still say video (config mode), as for a rainbow graph: the graph wins under MCP.
-  assert.deepEqual(hintsFor('mcp', { video: true, audio: true }, both), { video: true, audio: true, field: true });
-  assert.deepEqual(hintsFor('mcp', { video: false, audio: true }, both), { video: false, audio: true, field: true });
-  assert.deepEqual(hintsFor('mcp', { video: false, audio: false }, both), { video: false, audio: false, field: false });
+  // The flags still say video (config mode), as for a rainbow graph: the graph wins under a custom effect.
+  assert.deepEqual(hintsFor('custom', { video: true, audio: true }, both), { video: true, audio: true, field: true });
+  assert.deepEqual(hintsFor('custom', { video: false, audio: true }, both), { video: false, audio: true, field: true });
+  assert.deepEqual(hintsFor('custom', { video: false, audio: false }, both), { video: false, audio: false, field: false });
   assert.deepEqual(hintsFor('audio', null, { ...both, usesVideoInput: false }), { video: false, audio: true, field: true });
-  assert.deepEqual(hintsFor('mcp', null, both), { video: true, audio: true, field: true });
+  assert.deepEqual(hintsFor('custom', null, both), { video: true, audio: true, field: true });
 }
 
 // No Mac audio-status fetch: the audio poll only asks Linux's sink route.
@@ -821,6 +822,155 @@ function ownerScreen(extra = {}) {
   await inst._probeGraphEditor();
   assert.equal(inst.graphEditorAvailable, false);
   globalThis.fetch = realFetch;
+}
+
+// ---- Effect picker switches (Aurora-kep2.1) ----
+
+const RAINBOW = { id: 'rainbow', builtin: false, title: 'Rainbow', description: null };
+const ON_VIDEO = { ...VIDEO_STATE, effect: 'builtin.video' };
+const ON_RAINBOW = { ...VIDEO_STATE, effect: 'rainbow' };
+
+// A picker switch PUTs /api/effects, holds the pending target while the
+// rebuild runs, and fills only once the pipeline runs that id.
+{
+  let during = null;
+  const { inst } = switchScreen({ state: ON_VIDEO });
+  Object.assign(inst, { mode: 'video', effects: [RAINBOW], nextState: ON_RAINBOW });
+  const calls = stubFetch(() => {
+    during = { mode: inst.pendingMode, id: inst.pendingEffectId };
+    return { succeeded: true };
+  });
+  try { await inst._switchMode('custom', 'rainbow'); } finally { globalThis.fetch = realFetch; }
+  assert.equal(calls[0].url, '/api/effects');
+  assert.equal(calls[0].options.method, 'PUT');
+  assert.deepEqual(JSON.parse(calls[0].options.body), { activeEffectId: 'rainbow' });
+  assert.deepEqual(during, { mode: 'custom', id: 'rainbow' }, 'pending names the target while in flight');
+  assert.equal(inst.mode, 'custom');
+  assert.equal(inst.pendingMode, null);
+  assert.equal(inst.pendingEffectId, null);
+}
+
+// Saved but the pipeline fell back to the built-in: the fill stays put.
+{
+  stubFetch(() => ({ succeeded: true }));
+  const { inst } = switchScreen({ state: ON_VIDEO });
+  Object.assign(inst, { mode: 'video', effects: [RAINBOW], nextState: ON_VIDEO });
+  try { await inst._switchMode('custom', 'rainbow'); } finally { globalThis.fetch = realFetch; }
+  assert.equal(inst.mode, 'video', 'not confirmed: no fill');
+  assert.equal(inst.pendingMode, null);
+}
+
+// A rejection names the effect by title, remembers its id, and clears once
+// that effect runs (a retry or an outside apply).
+{
+  stubFetch(() => ({ succeeded: false }));
+  const { inst } = switchScreen({ state: ON_VIDEO });
+  Object.assign(inst, { mode: 'video', effects: [RAINBOW] });
+  try { await inst._switchMode('custom', 'rainbow'); } finally { globalThis.fetch = realFetch; }
+  assert.equal(inst.toggleError, "Couldn't switch to Rainbow.");
+  assert.equal(inst.toggleErrorMode, 'custom');
+  assert.equal(inst.toggleErrorEffectId, 'rainbow');
+
+  stubFetch(() => ({ succeeded: true }));
+  inst.nextState = ON_RAINBOW;
+  try { await inst._switchMode('custom', 'rainbow'); } finally { globalThis.fetch = realFetch; }
+  assert.equal(inst.toggleError, null, 'confirmed retry clears it');
+  assert.equal(inst.toggleErrorEffectId, null);
+}
+
+// Picking what already runs is a no-op; during a light test it is a real switch.
+{
+  const calls = stubFetch(() => ({ succeeded: true }));
+  const { inst } = switchScreen({ state: ON_RAINBOW });
+  Object.assign(inst, { mode: 'custom', effects: [RAINBOW] });
+  try {
+    await inst._switchMode('custom', 'rainbow');
+    assert.equal(calls.length, 0, 'already running');
+    inst.pipelineState = { ...ON_RAINBOW, test: { active: true } };
+    inst.nextState = ON_RAINBOW;
+    await inst._switchMode('custom', 'rainbow');
+    assert.equal(calls.length, 1, 'a light test is not the saved effect');
+  } finally { globalThis.fetch = realFetch; }
+}
+
+// Built-in rows route through the toggle's own switch (device-aware patch).
+{
+  const seen = [];
+  const inst = Object.create(DashboardScreen.prototype);
+  inst._switchMode = (...args) => { seen.push(args); };
+  inst._onEffectPicked('builtin.video');
+  inst._onEffectPicked('builtin.audio');
+  inst._onEffectPicked('rainbow');
+  assert.deepEqual(seen, [['video'], ['audio'], ['custom', 'rainbow']]);
+}
+
+// Audio is offered only where the build has an audio input.
+{
+  const inst = Object.create(DashboardScreen.prototype);
+  inst.effects = [{ id: 'builtin.video', builtin: true }, { id: 'builtin.audio', builtin: true }, RAINBOW];
+  inst.hasAudio = false;
+  assert.deepEqual(inst._pickerEffects().map((e) => e.id), ['builtin.video', 'rainbow']);
+  inst.hasAudio = true;
+  assert.equal(inst._pickerEffects().length, 3);
+}
+
+// An open menu defers the controls rebuild until it closes.
+{
+  const controls = makeEl();
+  controls.innerHTML = 'untouched';
+  const inst = Object.create(DashboardScreen.prototype);
+  Object.assign(inst, {
+    effectPicker: { isOpen: true },
+    container: { querySelector: () => controls },
+  });
+  inst._renderControls();
+  assert.equal(controls.innerHTML, 'untouched', 'no rebuild under an open menu');
+  assert.equal(inst._controlsStale, true);
+  let renders = 0;
+  inst._renderControls = () => { renders++; };
+  inst._onEffectPickerClose();
+  assert.equal(renders, 1, 'close applies the deferred render');
+  inst._controlsStale = false;
+  inst._onEffectPickerClose();
+  assert.equal(renders, 1, 'nothing deferred: no render');
+}
+
+// No audio input and nothing beyond the built-ins: no row, no picker.
+{
+  const controls = makeEl();
+  controls.innerHTML = 'old';
+  let destroyed = 0;
+  const inst = Object.create(DashboardScreen.prototype);
+  Object.assign(inst, {
+    hasAudio: false, effects: [{ id: 'builtin.video', builtin: true }], pipelineState: ON_VIDEO,
+    effectPicker: { isOpen: false, destroy() { destroyed++; } },
+    container: { querySelector: () => controls },
+  });
+  inst._renderControls();
+  assert.equal(controls.innerHTML, '');
+  assert.equal(destroyed, 1);
+  assert.equal(inst.effectPicker, null);
+}
+
+// The pending line names the picker's target, only for picker switches.
+{
+  const controls = makeEl();
+  const inst = Object.create(DashboardScreen.prototype);
+  Object.assign(inst, {
+    hasAudio: true, effects: [], pipelineState: ON_VIDEO, platform: 'windows',
+    toggleError: null, mode: 'video', pendingMode: 'custom', pendingEffectId: 'rainbow',
+    effectPicker: null,
+    container: { querySelector: () => controls },
+  });
+  inst.effects = [RAINBOW];
+  inst._renderEffectPicker = () => {};
+  inst._renderControls();
+  assert.match(controls.innerHTML, /db-effect-switching[^>]*>Switching to Rainbow…/);
+  assert.match(controls.innerHTML, /id="db-mode-video" disabled/, 'row disabled during a picker switch');
+  inst.pendingMode = 'audio';
+  inst.pendingEffectId = null;
+  inst._renderControls();
+  assert.doesNotMatch(controls.innerHTML, /db-effect-switching/, 'Video/Audio keep their own outline only');
 }
 
 console.log('DashboardScreen pause checks passed.');

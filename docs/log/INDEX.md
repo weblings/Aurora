@@ -305,3 +305,4 @@ Planning docs stay clean: decisions, status, and pointers here only.
 | 2026-10-29 | Browser checks edit-loop, add-node, save-as-new moved to 1470 px and rerun on dev and embedded, all pass. [[4hhb-browser-check-1470]] | `bd show Aurora-4hhb` |
 | 2026-10-29 | Graph editor: saving a built-in under a taken name gets a distinct title (`forWrite`). [[c5gw-builtin-save-title]] | `bd show Aurora-c5gw` |
 | 2026-10-30 | Graph editor: sockets and wires colored and shaped by port type, drag tint and dimming; port-types browser check, Windows stack fixes. [[ex8z-port-type-sockets]] | `bd show Aurora-ex8z` |
+| 2026-10-30 | Dashboard effect picker beside Video/Audio replaces the MCP toggle, with the toggle's loading states; parent bead set to needs-design. [[kep21-effect-picker]] | `bd show Aurora-kep2.1` |

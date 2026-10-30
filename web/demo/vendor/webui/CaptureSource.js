@@ -7,8 +7,8 @@
 // them for the running pipeline. The flags are independent, so both true
 // is valid (a later mixed effect shows both pickers).
 //
-// The Video/Audio toggle is still a mode, so mode helpers live here too,
-// until Aurora-kep2's Effect picker replaces the toggle.
+// The Video/Audio toggle is still a mode, so mode helpers live here too.
+// The effect picker beside it (Aurora-kep2.1) switches by effect id.
 
 // Plugin registry names ("linux", "windows", "pipewire", ...) are never shown
 // as choices; these resolve one on the user's behalf.
@@ -80,15 +80,8 @@ export function flagsMatchMode(state, mode) {
 export function isSwitchConfirmed(putResult, stateAfter, mode) {
   return putResult?.succeeded === true
     && !putResult?.reloadError
-    && !mcpEffectRunning(stateAfter)
+    && !customEffectRunning(stateAfter)
     && flagsMatchMode(stateAfter, mode);
-}
-
-// The custom effect an MCP client applied last (Aurora-4xqt.2), or null.
-// The Dashboard shows its third toggle only while this is set.
-export function mcpEffectIdFrom(state) {
-  const id = state?.mcpEffectId;
-  return typeof id === 'string' && id ? id : null;
 }
 
 // The graph editor's address for the running effect (Aurora-pvxx.8), or null
@@ -98,46 +91,92 @@ export function graphEditorHref(state) {
   return typeof id === 'string' && id ? `/graph-editor/?effect=${encodeURIComponent(id)}` : null;
 }
 
-// Whether that effect is the one running now, so its toggle takes the fill.
-export function mcpEffectRunning(state) {
-  const id = mcpEffectIdFrom(state);
-  return id !== null && state?.effect === id;
+// Whether a custom (non-built-in) effect is the one running now. The
+// effect picker's trigger takes the fill then, not Video or Audio.
+export function customEffectRunning(state) {
+  const id = state?.effect;
+  return typeof id === 'string' && id !== '' && !id.startsWith('builtin.');
 }
 
-// Whether a switch to the MCP effect is confirmed: saved, no reload error,
+// Whether a switch to effect `id` is confirmed: saved, no reload error,
 // and the pipeline runs it (not its built-in fallback).
-export function isMcpSwitchConfirmed(putResult, stateAfter) {
+export function isEffectSwitchConfirmed(putResult, stateAfter, id) {
   return putResult?.succeeded === true
     && !putResult?.reloadError
-    && mcpEffectRunning(stateAfter);
+    && stateAfter?.effect === id;
 }
 
-// The save behind the MCP toggle: PUT /api/effects with the effect's id.
+// The save behind an effect-picker choice: PUT /api/effects with its id.
 // Resolves to the parsed result ({succeeded, reloadError?}).
-export async function putMcpSwitch(id) {
+export async function putEffectSwitch(id) {
   return (await fetch('/api/effects', { method: 'PUT', body: JSON.stringify({ activeEffectId: id }) })).json();
+}
+
+// GET /api/effects' list ({id, builtin, title, description}), or [] when
+// unreachable or malformed: the picker then hides.
+export async function loadEffects() {
+  try {
+    const effects = (await (await fetch('/api/effects')).json()).effects;
+    return Array.isArray(effects) ? effects.filter((e) => typeof e?.id === 'string' && e.id) : [];
+  } catch {
+    return [];
+  }
+}
+
+export function effectTitle(effect) {
+  return effect.title || effect.id;
+}
+
+// Picker rows: built-ins, then customs under a divider. The selected row is
+// the running effect (never the pick), so a failed switch never looks chosen.
+export function effectPickerOptions(effects, state) {
+  const builtins = effects.filter((e) => e.builtin);
+  const customs = effects.filter((e) => !e.builtin);
+  return [...builtins, ...customs].map((e, i) => ({
+    value: e.id,
+    label: effectTitle(e),
+    tooltip: e.description || null,
+    selected: !lightTestActive(state) && state?.effect === e.id,
+    dividerBefore: i === builtins.length && i > 0,
+  }));
+}
+
+// The picker shows only with something beyond Video/Audio to pick, or while
+// a light test runs (the old MCP toggle's rule).
+export function effectPickerVisible(effects, state) {
+  return effects.some((e) => !e.builtin) || lightTestActive(state);
+}
+
+// Trigger text: the running custom effect (or a light test) by name, else
+// the menu's own name, since Video/Audio already carry the fill.
+export function effectPickerLabel(effects, state) {
+  if (lightTestActive(state)) return 'Light test';
+  if (!customEffectRunning(state)) return 'All effects';
+  const running = effects.find((e) => e.id === state.effect);
+  return running ? effectTitle(running) : (state.effectTitle || state.effect);
 }
 
 // Whether a lingering switch error is stale: the running pipeline is now
 // the mode the failed switch was heading to (a confirmed retry, or a
 // resume/relaunch starting the mode the failed switch saved to config). No
-// state probe or no remembered mode keeps the error. Aurora-tazx.
-export function isSwitchErrorStale(state, errorMode) {
-  if (errorMode === 'mcp') return mcpEffectRunning(state);
+// state probe or no remembered mode keeps the error. Aurora-tazx. A failed
+// picker switch ('custom') is stale once its effect id runs.
+export function isSwitchErrorStale(state, errorMode, errorEffectId = null) {
+  if (errorMode === 'custom') return !!errorEffectId && state?.effect === errorEffectId;
   return !!state && !!errorMode && flagsMatchMode(state, errorMode);
 }
 
-// Whether an MCP light test is driving the lights (Aurora-zfre). The toggle
-// treats it as the live MCP effect until it ends or is kept.
+// Whether an MCP light test is driving the lights (Aurora-zfre). The effect
+// picker shows it as the running effect until it ends or is kept.
 export function lightTestActive(state) {
   return state?.test?.active === true;
 }
 
-// Which toggle the running effect fills: 'mcp', 'video', 'audio', or null
-// (nothing running, or a custom effect not from MCP). Flags drive sections,
-// not this fill, so a failed switch's saved config never shows.
+// What the running effect fills: 'video', 'audio', 'custom' (the effect
+// picker's trigger), or null when nothing runs. Flags drive sections, not
+// this fill, so a failed switch's saved config never shows.
 export function runningToggle(state) {
-  if (lightTestActive(state) || mcpEffectRunning(state)) return 'mcp';
+  if (lightTestActive(state) || customEffectRunning(state)) return 'custom';
   if (state?.effect === 'builtin.video') return 'video';
   if (state?.effect === 'builtin.audio') return 'audio';
   return null;

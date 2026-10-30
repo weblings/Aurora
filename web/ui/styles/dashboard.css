@@ -17,6 +17,47 @@
   flex: 1;
 }
 
+/* Effect picker (Aurora-kep2.1): a pill beside Video/Audio that takes the
+   segmented fill and pending outline while a custom effect runs or loads. */
+.db-effect-picker .dropdown-trigger {
+  padding: var(--aurora-space-3) var(--aurora-space-6);
+  border-radius: var(--aurora-radius-pill);
+  font-size: 14px;
+}
+
+.db-effect-picker .dropdown-trigger.active {
+  background: var(--aurora-button-light);
+  color: var(--aurora-text-on-light);
+}
+
+.db-effect-picker .dropdown-trigger.active:hover { background: var(--aurora-button-light-hover); }
+/* The chevron SVG bakes in a white fill: invert it on the light pill. */
+.db-effect-picker .dropdown-trigger.active .dropdown-chevron { filter: invert(1); }
+.db-effect-picker .dropdown-trigger.pending { outline: 2px solid var(--aurora-button-light); outline-offset: -2px; }
+
+/* The menu stays a plain list under the pill, never stretched by it. */
+.db-effect-picker .dropdown-menu {
+  left: auto;
+  min-width: max(100%, 200px);
+}
+
+.db-effect-switching {
+  margin-top: var(--aurora-space-3);
+}
+
+/* Stacked row (see the 480px rule above): the picker spans it and its menu
+   opens under its left edge. After the picker rules so it wins. */
+@media (max-width: 480px) {
+  .db-effect-picker {
+    display: flex;
+    width: 100%;
+  }
+
+  .db-effect-picker .dropdown-menu {
+    left: 0;
+  }
+}
+
 @media (max-width: 480px) {
   .db-controls-row {
     flex-direction: column;

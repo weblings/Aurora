@@ -32,11 +32,13 @@ import { PairedDevices } from '../PairedDevices.js';
 import { TuningFields } from '../TuningFields.js';
 import { sliderGroupHtml, wireSliderGroup } from '../TuningSliderGroup.js';
 import { applyTooltip } from '../Tooltips.js';
+import { Dropdown } from '../Dropdown.js';
 import { renderReloadError } from '../MacPermissionRecovery.js';
 import {
-  audioDevicesUrlFrom, devicePatch, effectiveFlags, flagsForMode, isSwitchConfirmed, isSwitchErrorStale,
-  graphEditorHref, isIdle, isMcpSwitchConfirmed, lightTestActive, loadPipelineState, mcpEffectIdFrom, modeSwitchPatch, runningToggle,
-  putMcpSwitch, putModeSwitch, runningFlags,
+  audioDevicesUrlFrom, devicePatch, effectiveFlags, effectPickerLabel, effectPickerOptions, effectPickerVisible, effectTitle,
+  flagsForMode, isEffectSwitchConfirmed, isSwitchConfirmed, isSwitchErrorStale,
+  graphEditorHref, isIdle, lightTestActive, loadEffects, loadPipelineState, modeSwitchPatch, runningToggle,
+  putEffectSwitch, putModeSwitch, runningFlags,
 } from '../CaptureSource.js';
 import { DAEMON_UNREACHABLE } from '../messages.js';
 // Brand/toggle artwork resolved against this module (screens/ -> ../icons)
@@ -88,8 +90,9 @@ const OUTPUT_SECTIONS = {
 export class DashboardScreen {
   constructor(app) {
     this.app = app;
-    this.mode = null; // video | audio | mcp, null when no toggle is running
-    this.mcpEffectId = null; // GET /api/state: the last MCP-applied effect, null hides its toggle
+    this.mode = null; // video | audio | custom (the effect picker), null when nothing runs
+    this.effects = []; // GET /api/effects, the effect picker's rows
+    this.effectPicker = null; // persistent Dropdown, re-attached on each controls render
     this.hasAudio = false;
     this.inputs = [];
     this.audioInputs = [];
@@ -101,6 +104,7 @@ export class DashboardScreen {
     this.flags = flagsForMode('video');
     this.pipelineState = null;
     this.pendingMode = null; // toggle choice with a switch in flight: outlined, not filled
+    this.pendingEffectId = null; // the picker's target while pendingMode is 'custom'
     this.audioDevicesUrl = null;
     this.sinkName = '';
     this.zeroOffOutputs = []; // outputs where brightness 0 means off: they get the floor control
@@ -114,6 +118,7 @@ export class DashboardScreen {
     this.tuningValues = {};
     this.toggleError = null;
     this.toggleErrorMode = null; // the mode the failed switch was heading to (Aurora-tazx)
+    this.toggleErrorEffectId = null; // its effect id when that mode is 'custom'
     // Inline rejected-request errors under the device field, keyed by the
     // control that raised them (Aurora-m0fy): each clears only on its own
     // confirmed result, and every current one renders as its own row.
@@ -192,6 +197,8 @@ export class DashboardScreen {
     this.zoneCanvas = null;
     this.tuningFields?.destroy();
     this.tuningFields = null;
+    this.effectPicker?.destroy();
+    this.effectPicker = null;
   }
 
   // Full fetch + full rebuild -- initial mount and mode switch both need
@@ -261,14 +268,15 @@ export class DashboardScreen {
     this.flags = effectiveFlags(state, config);
     // The toggle's fill follows the running pipeline, never the saved
     // config: after a failed switch config holds the failed mode.
-    this.mcpEffectId = mcpEffectIdFrom(state);
+    this.effects = await loadEffects();
     this.mode = runningToggle(state);
     // A switch error lasts until the pipeline is running the mode it was
     // heading to (Aurora-tazx): a confirmed switch, or a resume/relaunch
     // that starts the saved mode the failed switch left in config.
-    if (this.toggleError && isSwitchErrorStale(state, this.toggleErrorMode)) {
+    if (this.toggleError && isSwitchErrorStale(state, this.toggleErrorMode, this.toggleErrorEffectId)) {
       this.toggleError = null;
       this.toggleErrorMode = null;
+      this.toggleErrorEffectId = null;
     }
     this.audioDevicesUrl = audioDevicesUrlFrom(state);
 
@@ -355,40 +363,100 @@ export class DashboardScreen {
   }
 
   // Stop moved into the top bar itself (2.5 pass, see _loadAll()'s
-  // renderTopBar call) -- this row is now just the mode toggle, so it
-  // renders nothing at all for a single-input build with no toggle to show,
-  // rather than leaving an empty placeholder row in the DOM.
-  // The toggle's fill follows the running pipeline (this.flags), never the
-  // saved config. While a switch is in flight the clicked option gets an
-  // outline only (pending), the running option stays filled, and both
-  // buttons are disabled -- a ~4.5s rebuild with no busy state reads as a
-  // dead button.
+  // renderTopBar call) -- this row is now the mode toggle plus the effect
+  // picker, and renders nothing when neither has anything to offer.
+  // The fill follows the running pipeline (this.flags), never the saved
+  // config. While a switch is in flight the clicked option gets an outline
+  // only (pending), the running option stays filled, and every option is
+  // disabled -- a ~4.5s rebuild with no busy state reads as a dead button.
+  // The picker's trigger follows the same rules for custom effects (Aurora-kep2.1).
   _renderControls() {
+    // A rebuild under an open menu would yank it: wait for it to close.
+    if (this.effectPicker?.isOpen) {
+      this._controlsStale = true;
+      return;
+    }
+    this._controlsStale = false;
     const controls = this.container.querySelector('.db-controls');
-    if (!this.hasAudio) {
+    const showPicker = effectPickerVisible(this.effects, this.pipelineState);
+    if (!this.hasAudio && !showPicker) {
+      this.effectPicker?.destroy();
+      this.effectPicker = null;
       controls.innerHTML = '';
       return;
     }
 
     const errorHtml = renderReloadError(this.toggleError, this.platform);
     const disabled = this.pendingMode ? ' disabled' : '';
+    const switching = this.pendingMode === 'custom'
+      ? `<p class="status-text db-effect-switching" role="status">Switching to ${escapeHtml(this._effectLabel(this.pendingEffectId))}…</p>`
+      : '';
 
     controls.innerHTML = `
       <div class="db-controls-row">
-        <div class="segmented" role="group" aria-label="Capture mode">
+        ${this.hasAudio ? `<div class="segmented" role="group" aria-label="Capture mode">
           <button type="button" class="${this._toggleClasses('video')}" id="db-mode-video"${disabled}>Video</button>
           <button type="button" class="${this._toggleClasses('audio')}" id="db-mode-audio"${disabled}>Audio</button>
-          ${this.mcpEffectId || lightTestActive(this.pipelineState) ? `<button type="button" class="${this._toggleClasses('mcp')}" id="db-mode-mcp"${disabled}>MCP</button>` : ''}
-        </div>
+        </div>` : ''}
+        ${showPicker ? '<div class="db-effect-picker-slot"></div>' : ''}
       </div>
+      ${switching}
       ${errorHtml}
     `;
 
-    applyTooltip(controls.querySelector('#db-mode-video'), 'app.mode');
-    applyTooltip(controls.querySelector('#db-mode-audio'), 'app.mode');
-    controls.querySelector('#db-mode-video').addEventListener('click', () => this._switchMode('video'));
-    controls.querySelector('#db-mode-audio').addEventListener('click', () => this._switchMode('audio'));
-    controls.querySelector('#db-mode-mcp')?.addEventListener('click', () => this._switchMode('mcp'));
+    if (this.hasAudio) {
+      applyTooltip(controls.querySelector('#db-mode-video'), 'app.mode');
+      applyTooltip(controls.querySelector('#db-mode-audio'), 'app.mode');
+      controls.querySelector('#db-mode-video').addEventListener('click', () => this._switchMode('video'));
+      controls.querySelector('#db-mode-audio').addEventListener('click', () => this._switchMode('audio'));
+    }
+    if (showPicker) {
+      this._renderEffectPicker(controls.querySelector('.db-effect-picker-slot'));
+    } else {
+      this.effectPicker?.destroy();
+      this.effectPicker = null;
+    }
+  }
+
+  // One persistent controlled Dropdown: label and selected row come from the
+  // running pipeline, never the pick, so a failed switch never shows as chosen.
+  _renderEffectPicker(slot) {
+    if (!this.effectPicker) {
+      this.effectPicker = new Dropdown(slot, '', (id) => this._onEffectPicked(id), {
+        controlled: true,
+        onClose: () => this._onEffectPickerClose(),
+      });
+      this.effectPicker.root.classList.add('db-effect-picker');
+    } else {
+      slot.appendChild(this.effectPicker.root);
+    }
+    const picker = this.effectPicker;
+    picker.setTriggerLabel(effectPickerLabel(this.effects, this.pipelineState));
+    picker.setOptions(effectPickerOptions(this._pickerEffects(), this.pipelineState));
+    picker.setBusy(!!this.pendingMode);
+    picker.trigger.classList.toggle('active', this.mode === 'custom');
+    picker.trigger.classList.toggle('pending', this.pendingMode === 'custom');
+  }
+
+  // Audio is listed only where the build has an audio input, as the toggle is.
+  _pickerEffects() {
+    return this.effects.filter((e) => this.hasAudio || e.id !== 'builtin.audio');
+  }
+
+  _effectLabel(id) {
+    const effect = this.effects.find((e) => e.id === id);
+    return effect ? effectTitle(effect) : id;
+  }
+
+  // Built-ins go through the toggle's own switch so they land on the device shown.
+  _onEffectPicked(id) {
+    if (id === 'builtin.video') return this._switchMode('video');
+    if (id === 'builtin.audio') return this._switchMode('audio');
+    return this._switchMode('custom', id);
+  }
+
+  _onEffectPickerClose() {
+    if (this._controlsStale) this._renderControls();
   }
 
   _toggleClasses(mode) {
@@ -416,9 +484,9 @@ export class DashboardScreen {
     `;
 
     const hintsAllowed = Object.keys(this.topTierErrors).length === 0 && !this.toggleError;
-    // Under MCP the graph's declared inputs pick the pickers, so a graph
+    // Under a custom effect the graph's declared inputs pick the pickers, so a graph
     // with none shows no field (DeviceField alone would fall back to Monitor).
-    const graphInputs = this.mode === 'mcp' ? this.pipelineState?.graphInputs : null;
+    const graphInputs = this.mode === 'custom' ? this.pipelineState?.graphInputs : null;
     if (graphInputs && !graphInputs.video && !graphInputs.audio) return;
     this.deviceField = new DeviceField(topTier.querySelector('.db-device-slot'), {
       usesVideoInput: graphInputs ? graphInputs.video : this.flags.usesVideoInput,
@@ -711,26 +779,31 @@ export class DashboardScreen {
     }
   }
 
-  async _switchMode(mode) {
-    if (this.pendingMode || mode === this.mode) return;
+  // mode: 'video' | 'audio', or 'custom' with the picker's effectId.
+  async _switchMode(mode, effectId = null) {
+    if (this.pendingMode) return;
+    if (mode === 'custom'
+      ? (this.pipelineState?.effect === effectId && !lightTestActive(this.pipelineState))
+      : mode === this.mode) return;
 
-    const patch = mode === 'mcp' ? null : modeSwitchPatch(mode, this);
-    const modeLabel = { audio: 'Audio', mcp: 'MCP' }[mode] ?? 'Video';
+    const patch = mode === 'custom' ? null : modeSwitchPatch(mode, this);
+    const modeLabel = mode === 'custom' ? this._effectLabel(effectId) : (mode === 'audio' ? 'Audio' : 'Video');
 
     // Outline the clicked option and disable both buttons while the rebuild
     // runs; the running option stays filled until the pipeline confirms.
     // An earlier switch error stays up while the retry runs and clears only
     // when a switch is confirmed (Aurora-tazx); the outline is the busy cue.
     this.pendingMode = mode;
+    this.pendingEffectId = effectId;
     this._renderControls();
 
     let putResult = null;
     let unreachable = false;
     try {
-      putResult = mode === 'mcp' ? await putMcpSwitch(this.mcpEffectId) : await putModeSwitch(patch);
+      putResult = mode === 'custom' ? await putEffectSwitch(effectId) : await putModeSwitch(patch);
 
       if (!putResult.succeeded) {
-        this._setToggleError(`Couldn't switch to ${modeLabel}.`, mode);
+        this._setToggleError(`Couldn't switch to ${modeLabel}.`, mode, effectId);
       } else if (putResult.reloadError) {
         // Saved, not applied: the shell banner owns it (Aurora-98pr); the
         // fill below is re-derived from the still-running pipeline.
@@ -755,7 +828,7 @@ export class DashboardScreen {
     // and then it is the action's error, never the unreachable wording
     // (components.md:308).
     if (unreachable && loaded) {
-      this._setToggleError(`Couldn't switch to ${modeLabel}.`, mode);
+      this._setToggleError(`Couldn't switch to ${modeLabel}.`, mode, effectId);
       this._renderTopTier();
     }
 
@@ -763,15 +836,17 @@ export class DashboardScreen {
     // succeeded + no reloadError is not enough, since reload() while paused
     // succeeds without building (Pipeline.cpp). _loadAll already set the
     // fill from the flags, so this just records the confirmed running mode.
-    const confirmed = mode === 'mcp'
-      ? isMcpSwitchConfirmed(putResult, this.pipelineState)
+    const confirmed = mode === 'custom'
+      ? isEffectSwitchConfirmed(putResult, this.pipelineState, effectId)
       : isSwitchConfirmed(putResult, this.pipelineState, mode);
     if (confirmed) {
       this.mode = mode;
       this.toggleError = null;
       this.toggleErrorMode = null;
+      this.toggleErrorEffectId = null;
     }
     this.pendingMode = null;
+    this.pendingEffectId = null;
     this._renderControls();
     // The audio banner is gated on toggleError, so it re-renders when one clears.
     if (confirmed) this._renderTopTier();
@@ -790,9 +865,10 @@ export class DashboardScreen {
     this._renderTopTier();
   }
 
-  _setToggleError(message, mode) {
+  _setToggleError(message, mode, effectId = null) {
     this.toggleError = message;
     this.toggleErrorMode = mode;
+    this.toggleErrorEffectId = effectId;
   }
 
   // Top bar with the Pause/Resume + Stop pair (Aurora-5ipy.13). Pause sits
