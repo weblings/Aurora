@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>kep2 static mocks (Aurora-kep2.2)</title>
+  <style>
+    body { margin: 0; padding: 24px; background: #111; color: #eee; font: 14px/1.4 system-ui, sans-serif; }
+    h1 { font-size: 20px; margin: 0 0 4px; }
+    h2 { font-size: 16px; margin: 32px 0 4px; }
+    p { margin: 0 0 8px; color: #bbb; max-width: 760px; }
+    .row { display: flex; gap: 24px; align-items: flex-start; flex-wrap: wrap; }
+    figure { margin: 0; }
+    figcaption { font-size: 12px; color: #999; margin-bottom: 6px; }
+    iframe { border: 1px solid #444; background: #0a0a0a; display: block; }
+    .w { width: 760px; } .n { width: 390px; }
+  </style>
+</head>
+<body>
+  <h1>Effect dropdown with an attached panel (Aurora-kep2.2)</h1>
+  <p>No Video/Audio toggle. The trigger looks like today's dropdown. The panel drops from the trigger and is non-modal (no scrim, closes on outside click or Esc). It is a labeled dialog in ARIA terms: rows are visually hidden radios (a check mark shows the selection) with a separate ellipsis button. Input icons: monitor = video, speaker = audio. Sample effects: Screen colors (video), Music pulse (audio), Fire (audio, selected), Candle (video, gated), Rainbow drift (both).</p>
+
+  <h2>Frame 1: dropdown panel</h2>
+  <p>Open panel with grouped rows and a row action menu open on Rainbow drift. The last frame is closed on a both-inputs effect, where the device section derives both fields.</p>
+  <div class="row">
+    <figure><figcaption>~760px, open</figcaption><iframe class="w" style="height:640px" src="frame1.html"></iframe></figure>
+    <figure><figcaption>390px, open</figcaption><iframe class="n" style="height:640px" src="frame1.html"></iframe></figure>
+    <figure><figcaption>390px, closed, both effect</figcaption><iframe class="n" style="height:640px" src="frame1-both.html"></iframe></figure>
+  </div>
+
+</body>
+</html>
