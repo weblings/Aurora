@@ -18,13 +18,54 @@
 </head>
 <body>
   <h1>Effect dropdown with an attached panel (Aurora-kep2.2)</h1>
-  <p>No Video/Audio toggle. The trigger looks like today's dropdown. The panel drops from the trigger and is non-modal (no scrim, closes on outside click or Esc). It is a labeled dialog in ARIA terms: rows are visually hidden radios (a check mark shows the selection) with a separate ellipsis button. Input icons: monitor = video, speaker = audio. Sample effects: Screen colors (video), Music pulse (audio), Fire (audio, selected), Candle (video, gated), Rainbow drift (both).</p>
+  <p>No Video/Audio toggle. An "Effects" label sits above the trigger like Monitor below it. The panel is non-modal (no scrim, closes on outside click or Esc), a labeled dialog holding radios and buttons. Built-in rows can only be duplicated or hidden. Hidden is a collapsed-by-default group with no count and only renders when non-empty. Every group header collapses. A gated effect stays clickable (aria-disabled), dimmed, with no reason line: the shell banner explains after the click. The per-row reason line stays in the markup, dormant.</p>
 
-  <h2>Frame 1: dropdown panel</h2>
-  <p>Open panel with grouped rows and a row action menu open on Rainbow drift. The last frame is closed on a both-inputs effect, where the device section derives both fields.</p>
+  <h2>Frame 1: built-in row menu</h2>
+  <p>Fire selected. Built-in rows offer Duplicate and Hide. Hidden is collapsed at the bottom. In the real panel the row menu must render outside the scroll region so it is not clipped.</p>
   <div class="row">
     <figure><figcaption>~760px, open</figcaption><iframe class="w" style="height:640px" src="frame1.html"></iframe></figure>
     <figure><figcaption>390px, open</figcaption><iframe class="n" style="height:640px" src="frame1.html"></iframe></figure>
+  </div>
+
+  <h2>Frame 2: custom row menu, Hidden expanded</h2>
+  <p>Unhide and Duplicate on a hidden row. The Hidden header is a disclosure button (aria-expanded).</p>
+  <div class="row">
+    <figure><figcaption>390px, Hidden open, row menu on a hidden effect</figcaption><iframe class="n" style="height:640px" src="frame2.html"></iframe></figure>
+  </div>
+
+  <h2>Frame 3: long list</h2>
+  <p>The list scrolls inside the panel. Group headers stick within their section and the New effect footer stays pinned.</p>
+  <div class="row">
+    <figure><figcaption>390px, scrolled</figcaption><iframe class="n" style="height:640px" src="frame3.html"></iframe></figure>
+  </div>
+
+  <h2>Frame 4: groups collapsed</h2>
+  <p>Every group header is a disclosure button with the chevron on the left edge, lined up with New effect. A collapsed group that holds the selected effect shows a check on the header (the trigger already names the effect). Two placements to compare.</p>
+  <div class="row">
+    <figure><figcaption>4a: check on the right of the header</figcaption><iframe class="n" style="height:640px" src="frame4.html"></iframe></figure>
+    <figure><figcaption>4b: check left of the word, after the chevron</figcaption><iframe class="n" style="height:640px" src="frame4b.html"></iframe></figure>
+  </div>
+
+  <h2>Frame 5: description tooltip</h2>
+  <p>Hovering or focusing a row shows its description (role=tooltip, linked by aria-describedby on the radio). Touch has no hover, so the description is a supplement and nothing essential lives only in it. Like the row menu, it must render outside the scroll region.</p>
+  <div class="row">
+    <figure><figcaption>390px, hover on Rainbow drift</figcaption><iframe class="n" style="height:640px" src="frame5.html"></iframe></figure>
+  </div>
+
+  <h2>Frame 6: both built-ins hidden</h2>
+  <p>A group renders only when it holds a visible effect. With both built-ins hidden the Built-in header is gone and they sit under Hidden. Custom and Hidden follow the same rule.</p>
+  <div class="row">
+    <figure><figcaption>390px, built-ins hidden</figcaption><iframe class="n" style="height:640px" src="frame6.html"></iframe></figure>
+  </div>
+
+  <h2>Frame 6b: built-ins hidden and no custom effects</h2>
+  <p>Only Hidden renders. Nothing is visible to select, which conflicts with the rule that the selected effect cannot be hidden. See the open question.</p>
+  <div class="row">
+    <figure><figcaption>390px, only Hidden (Screen colors hovered, Music pulse at rest)</figcaption><iframe class="n" style="height:640px" src="frame7.html"></iframe></figure>
+  </div>
+
+  <h2>Frame 7: closed</h2>
+  <div class="row">
     <figure><figcaption>390px, closed, both effect</figcaption><iframe class="n" style="height:640px" src="frame1-both.html"></iframe></figure>
   </div>
 

@@ -1,5 +1,8 @@
 /* kep2 static mocks: mock-local rules only, built on the real web/ui styles. */
 
+/* Stand-in for a real muted text token (not in tokens.css yet). */
+:root { --mk-text-muted: #949494; }
+
 .mk-chev { width: 10px; height: 10px; display: block; flex-shrink: 0; }
 
 .mk-picker { margin-bottom: var(--aurora-space-5); }
@@ -23,9 +26,16 @@
   border: 1px solid var(--aurora-border);
   border-radius: var(--aurora-radius-control);
   z-index: 10;
+  max-height: calc(100vh - 150px);
 }
-fieldset { border: none; min-width: 0; padding: 0; }
-legend { padding: 0; }
+/* The list scrolls and the footer stays pinned. Menu frames leave it unclipped. */
+.mk-scroll { flex: 1; min-height: 0; overscroll-behavior: contain; }
+.mk-scroll.mk-scrolling { overflow-y: auto; scroll-padding-top: 32px; }
+.mk-section + .mk-section { border-top: 1px solid var(--aurora-border); margin-top: var(--aurora-space-1); }
+h3.mk-group { margin: 0; position: sticky; top: 0; z-index: 2; background: var(--aurora-surface); }
+h3.mk-group-toggle { padding: 0; }
+.mk-group-toggle button { display: flex; text-align: left; align-items: center; gap: var(--aurora-space-3); width: 100%; height: 32px; padding: 0 var(--aurora-space-5); background: none; border: none; color: inherit; font: inherit; letter-spacing: inherit; text-transform: inherit; cursor: pointer; }
+.mk-group-toggle button[aria-expanded="false"] .mk-twisty { transform: rotate(-90deg); }
 .mk-group {
   padding: var(--aurora-space-3) var(--aurora-space-5) var(--aurora-space-1);
   font-size: 11px;
@@ -34,7 +44,6 @@ legend { padding: 0; }
   letter-spacing: 0.04em;
   text-transform: uppercase;
 }
-fieldset + fieldset { border-top: 1px solid var(--aurora-border); margin-top: var(--aurora-space-1); }
 
 /* A row: radio label (select) + a separate ellipsis button, both real controls. */
 .mk-opt {
@@ -45,7 +54,7 @@ fieldset + fieldset { border-top: 1px solid var(--aurora-border); margin-top: va
   color: var(--aurora-text-secondary);
   font-size: 13px;
 }
-.mk-opt:hover { background: var(--aurora-surface-hover); color: var(--aurora-text-primary); }
+.mk-opt:hover, .mk-opt.tip-on, .mk-opt.hov { background: var(--aurora-surface-hover); color: var(--aurora-text-primary); }
 .mk-opt.selected { background: var(--aurora-surface-selected); color: var(--aurora-text-primary); }
 .mk-opt label {
   flex: 1;
@@ -64,12 +73,10 @@ fieldset + fieldset { border-top: 1px solid var(--aurora-border); margin-top: va
 .mk-opt-text { flex: 1; min-width: 0; padding: var(--aurora-space-2) 0; }
 .mk-opt-name { display: flex; align-items: center; gap: var(--aurora-space-3); }
 .mk-opt-reason { display: block; }
-.mk-new { background: none; border: none; padding: 0; color: var(--aurora-text-primary); font: inherit; font-size: 13px; cursor: pointer; }
-.mk-new:hover { color: var(--aurora-text-secondary); }
-.mk-opt-reason { font-size: 11px; margin-top: 1px; }
-.mk-opt.gated { opacity: 0.5; }
-.mk-opt.gated label { cursor: not-allowed; }
-.mk-opt.gated:hover { background: none; color: var(--aurora-text-secondary); }
+.mk-new { display: flex; align-items: center; width: 100%; min-height: 40px; padding: 0 var(--aurora-space-5); background: none; border: none; color: var(--aurora-text-secondary); font: inherit; font-size: 13px; font-weight: 400; text-align: left; cursor: pointer; }
+.mk-new:hover { background: var(--aurora-surface-hover); color: var(--aurora-text-primary); }
+.mk-opt-reason { font-size: 11px; margin-top: 1px; color: var(--mk-text-muted); }
+.mk-opt.gated { opacity: 0.65; }
 .mk-more {
   flex-shrink: 0;
   width: 32px;
@@ -83,7 +90,7 @@ fieldset + fieldset { border-top: 1px solid var(--aurora-border); margin-top: va
 }
 .mk-more:hover { background: var(--aurora-button-dark-hover); }
 .mk-more.open { background: var(--aurora-button-dark-hover); }
-.mk-foot { border-top: 1px solid var(--aurora-border); padding: var(--aurora-space-3) var(--aurora-space-5); }
+.mk-foot { flex-shrink: 0; border-top: 1px solid var(--aurora-border); }
 
 /* Row action menu: opens beside the row without closing the panel. */
 .mk-rowmenu {
@@ -101,3 +108,27 @@ fieldset + fieldset { border-top: 1px solid var(--aurora-border); margin-top: va
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
 }
 
+
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.mk-cue { font-size: 11px; font-weight: 400; letter-spacing: 0; text-transform: none; color: var(--aurora-text-primary); }
+
+/* Description tooltip: shown on hover or keyboard focus, below the row. */
+.mk-tip {
+  display: none;
+  position: absolute;
+  top: calc(100% - 4px);
+  left: var(--aurora-space-5);
+  max-width: 260px;
+  padding: var(--aurora-space-2) var(--aurora-space-3);
+  background: var(--aurora-surface);
+  border: 1px solid var(--aurora-border);
+  border-radius: var(--aurora-radius-control);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
+  color: var(--aurora-text-primary);
+  font-size: 12px;
+  z-index: 15;
+}
+.mk-opt:hover .mk-tip, .mk-opt:has(.mk-radio:focus-visible) .mk-tip, .mk-opt.tip-on .mk-tip { display: block; }
+.mk-opt:has(.mk-rowmenu) .mk-tip { display: none; }
+
+button .mk-cue:last-child { margin-left: auto; }
