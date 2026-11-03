@@ -60,15 +60,48 @@ repeated here.
 - The row's second text line is `secondary` (`.mk-opt-secondary`), was
   `reason`. Today it only says "Built-in" on hidden built-ins.
 
+## Frame 9 adopted as the spec (2026-11-03, later)
+
+- The tree replaces radios. `gen.py` builds frames 1-7 as static states of
+  the frame 9 tree, frame 8 stays as the rejected button-row record, and the
+  radio path and its CSS are gone.
+- 4a wins: the tree header always puts the check on the right. 4b removed.
+- Tooltips and row menus render in the panel, outside the tree and its
+  scroll region. `layers.js` places both under their row, flips above when
+  the viewport runs out, and frame 9 uses it for its live menu. Scrolling
+  closes an open menu.
+- Menus may extend past the panel's bottom edge (frame 2) as long as they
+  stay in the viewport. Treated as normal floating-menu behavior.
+- Verified in headless Chromium: frame 3's menu flips above Lava lamp
+  without clipping, frame 4 shows the header check, and in frame 9 hover and
+  keyboard focus show tooltips outside the tree (a mouse click does not),
+  the menu hides the tooltip, and Esc returns focus to the row without it
+  passing through the body.
+
+- 6b resolved: hidden rows stay selectable, so a hidden effect may run. The
+  rule narrows to "the running effect's menu has no Hide". This also covers
+  the tray or MCP starting a hidden effect. Auto-unhide on pick was rejected
+  as a surprising side effect.
+- Touch descriptions: long-press opens the row menu (platform convention on
+  iOS and Android is long-press for actions, not tooltips), and the menu
+  leads with the description as a non-interactive line. Not yet mocked.
+
+- Trigger wording, switch states and outside-change rules decided (details
+  in the bead's design field). "Running", not "active", to match the app's
+  host states and banner copy. Paused keeps the effect name because Pause is
+  app-wide and already shown by the top bar. Pending reuses kep2.1's shipped
+  controlled `Dropdown`, `.pending` outline and "Switching to X..." line.
+  Outside changes patch rows by id, per the APG rule of not moving focus or
+  reordering under the user.
+- Frames 10-12 (switching, rejected, paused) added. Frame 7 doubles as the
+  success state. The warning glyph and accordion chevrons are CSS masks,
+  which Chromium drops over `file://`, so check them served over HTTP.
+
 ## Open (owner)
 
-- 4a vs 4b check placement on a collapsed group header.
-- 6b: built-ins hidden and no customs leaves nothing visible to select, which
-  conflicts with "the selected effect cannot be hidden".
-- Where touch users read descriptions (tooltip is hover/focus only).
-- Whether the shell banner fires on selecting an effect whose input is missing today.
-- Nothing-running trigger text: "No effect selected" (frame 6b), "All
-  effects" (shipped in kep2.1) or "No effect running" (kep2 note).
+- None of the owner questions remain. Build-time check: whether a missing
+  input comes back as a rejected switch (inline error) or saved-not-applied
+  (banner). Either one surfaces it.
 
 ## ARIA and design review gaps (2026-11-03)
 

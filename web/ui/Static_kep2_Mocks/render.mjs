@@ -16,7 +16,7 @@ const p = await b.newPage({ viewport: { width: 1800, height: 3200 } })
 await p.goto(url('index.html'))
 await p.waitForTimeout(800)
 await p.screenshot({ path: join(out, 'index.png'), fullPage: true })
-for (const f of ['frame1', 'frame2', 'frame3', 'frame4', 'frame4b', 'frame5', 'frame6', 'frame7', 'frame8', 'frame9', 'frame1-both']) {
+for (const f of ['frame1', 'frame2', 'frame3', 'frame4','frame5', 'frame6', 'frame7', 'frame8', 'frame9', 'frame1-both', 'frame10', 'frame11', 'frame12']) {
   const q = await b.newPage({ viewport: { width: 390, height: 640 } })
   await q.goto(url(f + '.html')); await q.waitForTimeout(500)
   await q.screenshot({ path: join(out, f + '.png') }); await q.close()

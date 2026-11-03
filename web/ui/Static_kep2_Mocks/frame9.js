@@ -25,9 +25,9 @@ function log(msg, announce = true) {
 const items = () => [...tree.querySelectorAll('[role="treeitem"]')].filter((el) => !el.closest('[hidden]'))
 
 // One tab stop for the whole tree, following focus.
-function rove(to) {
+function rove(to, focusOpts) {
   for (const el of tree.querySelectorAll('[role="treeitem"]')) el.tabIndex = el === to ? 0 : -1
-  to.focus()
+  to.focus(focusOpts)
 }
 
 // A collapsed group holding the running effect shows a check on its header.
@@ -84,13 +84,14 @@ let openMenu = null
 function closeMenu(refocus = true) {
   if (!openMenu) return
   const { menu, row } = openMenu
-  menu.remove()
+  openMenu = null
   row.closest('.mk-opt').classList.remove('menu-open')
   const more = row.parentElement.querySelector('.mk-more')
   more.classList.remove('open')
   more.setAttribute('aria-expanded', 'false')
-  openMenu = null
+  // Refocus before removing the menu so focus never drops to the body.
   if (refocus) rove(row)
+  menu.remove()
 }
 
 function showMenu(row) {
@@ -111,14 +112,11 @@ function showMenu(row) {
     b.textContent = label
     menu.appendChild(b)
   }
-  // Rendered outside the tree (a treeitem cannot own it), positioned under the row.
-  const opt = row.closest('.mk-opt'), pr = panel.getBoundingClientRect()
-  const rr = opt.getBoundingClientRect()
-  menu.style.top = `${rr.bottom - pr.top}px`
+  // Rendered outside the tree (a treeitem cannot own it) and placed by layers.js.
+  const opt = row.closest('.mk-opt')
   panel.appendChild(menu)
-  // Flip above the row when it would run off the bottom and there is room above.
-  const mh = menu.offsetHeight
-  if (rr.bottom + mh > window.innerHeight && rr.top - mh >= 0) menu.style.top = `${rr.top - pr.top - mh}px`
+  mkLayers.hideTip()
+  mkLayers.place(menu, opt)
   opt.classList.add('menu-open')
   const more = row.parentElement.querySelector('.mk-more')
   more.classList.add('open')
@@ -216,6 +214,21 @@ panel.addEventListener('click', (e) => {
 
 document.addEventListener('click', (e) => {
   if (openMenu && !panel.contains(e.target)) closeMenu(false)
+})
+
+// Keyboard focus on a row shows its description, as hover does (layers.js).
+panel.addEventListener('focusin', (e) => {
+  const pick = e.target.closest('.mk-pick')
+  if (pick && pick.matches(':focus-visible') && !openMenu) mkLayers.showTip(pick.closest('.mk-opt'))
+  else mkLayers.hideTip()
+})
+
+// A placed menu would drift from its row as the list scrolls, so scrolling closes it.
+panel.querySelector('.mk-scroll').addEventListener('scroll', () => {
+  if (!openMenu) return
+  const { menu, row } = openMenu, hadFocus = menu.contains(document.activeElement)
+  closeMenu(false)
+  if (hadFocus) rove(row, { preventScroll: true })
 })
 
 // The panel is non-modal, so Tab out of it is where it would close.
