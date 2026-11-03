@@ -52,10 +52,6 @@ function syncSections() {
 
 function commit(row) {
   const name = nameOf(row)
-  if (row.getAttribute('aria-disabled') === 'true') {
-    log(`${name} needs a video input. In the app the shell banner explains and offers the fix.`)
-    return
-  }
   for (const p of tree.querySelectorAll('.mk-pick')) {
     p.setAttribute('aria-selected', 'false')
     p.closest('.mk-opt').classList.remove('selected')
@@ -104,14 +100,15 @@ function showMenu(row) {
   menu.className = 'mk-rowmenu'
   menu.setAttribute('role', 'menu')
   menu.setAttribute('aria-label', `Actions for ${nameOf(row)}`)
-  for (const label of MENUS[kind]) {
+  // The running effect has no Hide item.
+  const running = row.getAttribute('aria-selected') === 'true'
+  for (const label of MENUS[kind].filter((l) => !(running && l === 'Hide'))) {
     const b = document.createElement('button')
     b.type = 'button'
     b.className = 'dropdown-option' + (label === 'Delete' ? ' dropdown-option-divided' : '')
     b.setAttribute('role', 'menuitem')
     b.tabIndex = -1
     b.textContent = label
-    if (label === 'Hide' && row.getAttribute('aria-selected') === 'true') b.setAttribute('aria-disabled', 'true')
     menu.appendChild(b)
   }
   // Rendered outside the tree (a treeitem cannot own it), positioned under the row.
@@ -132,10 +129,6 @@ function showMenu(row) {
 
 function runAction(label, item) {
   const { row } = openMenu
-  if (item.getAttribute('aria-disabled') === 'true') {
-    log(`The running effect cannot be hidden.`)
-    return
-  }
   closeMenu(false)
   if (label === 'Hide') return moveRow(row, document.getElementById('g-hidden-list').closest('.mk-section'), 'moved to')
   if (label === 'Unhide') return moveRow(row, document.getElementById(row.closest('.mk-opt').dataset.origin + '-list').closest('.mk-section'), 'moved back to')

@@ -7,14 +7,6 @@ CSS = ["tokens", "page", "shell", "forms", "dropdown", "dashboard", "tuning"]
 LINKS = "\n".join(f'  <link rel="stylesheet" href="../styles/{c}.css" />' for c in CSS) + '\n  <link rel="stylesheet" href="mock.css" />'
 CHEV = '<img src="../icons/chevron-down.svg" alt="" class="mk-chev" />'
 
-SVG_MON = '<svg class="mk-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="1.5" y="2.5" width="13" height="8.5" rx="1"/><path d="M5.5 14h5M8 11v3"/></svg>'
-SVG_SPK = '<svg class="mk-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2 6h2.5L8 3v10L4.5 10H2z"/><path d="M10.5 5.5a3.5 3.5 0 0 1 0 5M12.5 3.5a6 6 0 0 1 0 9"/></svg>'
-
-
-def icons(bs):
-    m = {"video": ("Video", SVG_MON), "audio": ("Audio", SVG_SPK)}
-    return '<span class="mk-icons">' + "".join(f'<span role="img" aria-label="{m[b][0]}" title="{m[b][0]}">{m[b][1]}</span>' for b in bs) + '</span>'
-
 
 def page(title, body):
     return f'''<!doctype html>
@@ -77,30 +69,28 @@ DESC = {
 }
 
 
-def opt(name, bs, sel=False, gated=False, reason=None, menu=None, tip=False, hov=False):
-    cls = "mk-opt" + (" selected" if sel else "") + (" gated" if gated else "") + (" tip-on" if tip else "") + (" hov" if hov else "")
+def opt(name, sel=False, secondary=None, menu=None, tip=False, hov=False):
+    cls = "mk-opt" + (" selected" if sel else "") + (" tip-on" if tip else "") + (" hov" if hov else "")
     rid = name.lower().replace(" ", "-")
     chk = "&#10003;" if sel else ""
-    rtxt = f'<div class="mk-opt-reason" id="{rid}-why">{reason}</div>' if reason else ""
+    stxt = f'<div class="mk-opt-secondary">{secondary}</div>' if secondary else ""
     desc = DESC.get(name, "A custom effect.")
     tab_more = {"button": ' tabindex="-1"', "tree": ' tabindex="-1" aria-hidden="true"'}.get(ROWS, "")
-    attrs = (' aria-disabled="true"' if gated else "") + f' aria-describedby="{rid}-tip"' + (" checked" if sel else "")
+    attrs = f' aria-describedby="{rid}-tip"' + (" checked" if sel else "")
     more = f'<button type="button" class="mk-more{" open" if menu else ""}" aria-label="Actions for {name}" aria-haspopup="menu" aria-expanded="{str(bool(menu)).lower()}"{tab_more}>&#8943;</button>'
-    inner = f'<span class="mk-check" aria-hidden="true">{chk}</span><span class="mk-opt-text"><span class="mk-opt-name">{name}{icons(bs)}</span>{rtxt}</span>'
+    inner = f'<span class="mk-check" aria-hidden="true">{chk}</span><span class="mk-opt-text"><span class="mk-opt-name">{name}</span>{stxt}</span>'
     if ROWS == "tree":
         # A treeitem cannot hold a button, so the ellipsis is mouse-only and Right opens the row menu.
-        pick = f'<div role="treeitem" class="mk-pick" tabindex="{0 if sel else -1}" aria-selected="{str(sel).lower()}"' + (' aria-disabled="true"' if gated else "") + f' aria-describedby="{rid}-tip" aria-haspopup="menu" aria-keyshortcuts="ArrowRight Shift+F10">{inner}</div>'
+        pick = f'<div role="treeitem" class="mk-pick" tabindex="{0 if sel else -1}" aria-selected="{str(sel).lower()}"' + f' aria-describedby="{rid}-tip" aria-haspopup="menu" aria-keyshortcuts="ArrowRight Shift+F10">{inner}</div>'
     elif ROWS == "button":
         # Row buttons: one tab stop for the list (roving tabindex), arrows move focus without committing.
-        pick = f'<button type="button" class="mk-pick" tabindex="{0 if sel else -1}"' + (' aria-current="true"' if sel else "") + (' aria-disabled="true"' if gated else "") + f' aria-describedby="{rid}-tip">{inner}</button>'
+        pick = f'<button type="button" class="mk-pick" tabindex="{0 if sel else -1}"' + (' aria-current="true"' if sel else "") + f' aria-describedby="{rid}-tip">{inner}</button>'
     else:
         pick = f'<label><input type="radio" class="mk-radio" name="effect"{attrs} />{inner}</label>'
     return f'''            <div class="{cls}">{pick}{more}<div class="mk-tip" role="tooltip" id="{rid}-tip">{desc}</div>{menu or ""}</div>'''
 
 
-MANY = [("Aurora borealis", ["video"]), ("Ember glow", ["audio"]), ("Ocean swell", ["audio"]), ("Neon pulse", ["audio"]),
-        ("Sunset fade", ["video"]), ("Strobe party", ["audio"]), ("Forest canopy", ["video"]), ("Lava lamp", ["video", "audio"]),
-        ("Night drive", ["video"]), ("Heartbeat", ["audio"])]
+MANY = ["Aurora borealis", "Ember glow", "Ocean swell", "Neon pulse", "Sunset fade", "Strobe party", "Forest canopy", "Lava lamp", "Night drive", "Heartbeat"]
 
 
 CUE_POS = "right"
@@ -130,13 +120,13 @@ def groups(menu_for=None, hidden=None, many=False, collapsed=(), tip=None, hide_
     def cm(n): return rowmenu(ROWMENU_CUSTOM) if menu_for == n else None
     def hm(n): return rowmenu(ROWMENU_HIDDEN) if menu_for == n else None
     t = lambda n: n == tip
-    builtin = [] if hide_builtin else [opt("Screen colors", ["video"], menu=bm("Screen colors"), tip=t("Screen colors")), opt("Music pulse", ["audio"], menu=bm("Music pulse"), tip=t("Music pulse"))]
-    custom = [opt("Fire", ["audio"], sel=True, tip=t("Fire")), opt("Rainbow drift", ["video", "audio"], menu=cm("Rainbow drift"), tip=t("Rainbow drift")), opt("Candle", ["video"], gated=True, tip=t("Candle"))]
+    builtin = [] if hide_builtin else [opt("Screen colors", menu=bm("Screen colors"), tip=t("Screen colors")), opt("Music pulse", menu=bm("Music pulse"), tip=t("Music pulse"))]
+    custom = [opt("Fire", sel=True, tip=t("Fire")), opt("Rainbow drift", menu=cm("Rainbow drift"), tip=t("Rainbow drift")), opt("Candle", tip=t("Candle"))]
     if many:
-        custom += [opt(n, b) for n, b in MANY]
+        custom += [opt(n) for n in MANY]
     if NO_CUSTOM:
         custom = []
-    hid = ([opt("Screen colors", ["video"], reason="Built-in", menu=hm("Screen colors"), hov=NO_CUSTOM), opt("Music pulse", ["audio"], reason="Built-in")] if hide_builtin else []) + ([] if NO_CUSTOM else [opt("Strobe", ["audio"]), opt("Plasma", ["video"], menu=hm("Plasma"))]) if hidden else []
+    hid = ([opt("Screen colors", secondary="Built-in", menu=hm("Screen colors"), hov=NO_CUSTOM), opt("Music pulse", secondary="Built-in")] if hide_builtin else []) + ([] if NO_CUSTOM else [opt("Strobe"), opt("Plasma", menu=hm("Plasma"))]) if hidden else []
     parts = []
     if builtin:
         parts.append(section("g-builtin", "Built-in", "\n".join(builtin), "builtin" in collapsed))
@@ -246,7 +236,7 @@ idx = f'''<!doctype html>
 </head>
 <body>
   <h1>Effect dropdown with an attached panel (Aurora-kep2.2)</h1>
-  <p>No Video/Audio toggle. An "Effects" label sits above the trigger like Monitor below it. The panel is non-modal (no scrim, closes on outside click or Esc), a labeled dialog holding radios and buttons. Built-in rows can only be duplicated or hidden. Hidden is a collapsed-by-default group with no count and only renders when non-empty. Every group header collapses. A gated effect stays clickable (aria-disabled), dimmed, with no reason line: the shell banner explains after the click. The per-row reason line stays in the markup, dormant.</p>
+  <p>No Video/Audio toggle. An "Effects" label sits above the trigger like Monitor below it. The panel is non-modal (no scrim, closes on outside click or Esc), a labeled dialog holding radios and buttons. Built-in rows can only be duplicated or hidden. Hidden is a collapsed-by-default group with no count and only renders when non-empty. Every group header collapses. No row is dimmed: failures such as a missing input surface only through the shell banner after the click. The running effect has no Hide item. Rows carry no input badges. A secondary text line under the name is used only for "Built-in" on hidden built-ins.</p>
 
   <h2>Frame 1: built-in row menu</h2>
   <p>Fire selected. Built-in rows offer Duplicate and Hide. Hidden is collapsed at the bottom. In the real panel the row menu must render outside the scroll region so it is not clipped.</p>
@@ -293,7 +283,7 @@ idx = f'''<!doctype html>
   </div>
 
   <h2>Frame 8: button rows instead of radios (interactive)</h2>
-  <p>Same look as frame 1 with rows built as buttons (aria-current on the running effect) inside role=group. This frame works: Up/Down/Home/End move focus without switching, Enter, Space or click switches, Right and Left hop between a row and its ellipsis, Esc returns to the trigger, group headers collapse. The list is one tab stop. The trigger is named "Effects, Fire". The gated Candle row explains instead of switching. The last action prints under the page and is announced through a live region.</p>
+  <p>Same look as frame 1 with rows built as buttons (aria-current on the running effect) inside role=group. This frame works: Up/Down/Home/End move focus without switching, Enter, Space or click switches, Right and Left hop between a row and its ellipsis, Esc returns to the trigger, group headers collapse. The list is one tab stop. The trigger is named "Effects, Fire". The last action prints under the page and is announced through a live region.</p>
   <div class="row">
     {fig("390px, click a row then use the keyboard", "frame8.html", "n", 640)}
   </div>

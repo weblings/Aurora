@@ -21,10 +21,6 @@ function rove(to) {
 
 function commit(pick) {
   const name = nameOf(pick)
-  if (pick.getAttribute('aria-disabled') === 'true') {
-    log(`${name} needs a video input. In the app the shell banner explains and offers the fix.`)
-    return
-  }
   for (const p of panel.querySelectorAll('.mk-pick')) {
     p.removeAttribute('aria-current')
     p.closest('.mk-opt').classList.remove('selected')

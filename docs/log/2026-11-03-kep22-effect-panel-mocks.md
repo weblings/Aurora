@@ -17,8 +17,7 @@ repeated here.
   both-inputs (`frame1-both.html`), 8 button rows instead of radios, working
   keyboard model (`frame8.js`).
 - Frame 8 trial, driven in headless Chromium: Up/Down/Home/End moved focus
-  with no switch, Enter and Space switched, the gated Candle row explained
-  instead of switching, Right/Left hopped to the ⋯ and back, the list stayed
+  with no switch, Enter and Space switched, Right/Left hopped to the ⋯ and back, the list stayed
   one tab stop, the trigger was named "Effects, Fire". Same look as frame 1.
   Gap found: headers and New effect were reachable only by Tab, in an order
   that depends on which group holds the running effect.
@@ -27,7 +26,7 @@ repeated here.
   Right expanded or stepped in, Left collapsed or stepped out, Enter toggled a
   header and switched on a row, type-ahead jumped to a match, and a collapsed
   group with the running effect showed its check. Shift+F10 opened the row
-  menu (Esc closed only the menu). Hide on the running effect was refused.
+  menu (Esc closed only the menu). The running effect's menu has no Hide item.
   Hide and Unhide moved rows, with focus going to the next row, then the
   previous, then the group. Hiding both built-ins removed the Built-in group.
   The panel came out as two tab stops (tree, New effect), which was changed
@@ -51,13 +50,23 @@ repeated here.
   `gen.py`–`gen3.py`, `gen4.bak` and `patch5`–`patch7.py` were folded into
   `gen.py` and not kept.
 
+## Decisions (2026-11-03, later)
+
+- Input badges removed from rows. Their value only showed when an input was
+  missing, and that is signalled elsewhere.
+- Gating removed: failures are only known reactively, so no row is dimmed or
+  `aria-disabled`. A missing input surfaces through the shell banner.
+- The running effect's menu omits Hide instead of showing it disabled.
+- The row's second text line is `secondary` (`.mk-opt-secondary`), was
+  `reason`. Today it only says "Built-in" on hidden built-ins.
+
 ## Open (owner)
 
 - 4a vs 4b check placement on a collapsed group header.
 - 6b: built-ins hidden and no customs leaves nothing visible to select, which
   conflicts with "the selected effect cannot be hidden".
 - Where touch users read descriptions (tooltip is hover/focus only).
-- Whether the shell banner fires on selecting a gated effect today.
+- Whether the shell banner fires on selecting an effect whose input is missing today.
 - Nothing-running trigger text: "No effect selected" (frame 6b), "All
   effects" (shipped in kep2.1) or "No effect running" (kep2 note).
 
@@ -80,9 +89,8 @@ repeated here.
   The delete confirm is out of scope here, so it must gate the build.
   Gating from 2026-11-02 (Admin-only Delete, no-editor build, light test) is
   not yet carried into the row menus.
-- Gated rows: 5.11:1 at rest (passes). A reason line inside a gated row
-  would be ~3.17:1 (fails). Gated rows give screen readers no reason.
-- Frame 6b reuses the "dormant" reason line to say "Built-in".
+- Superseded by the decisions below: gated rows were 5.11:1 at rest and a
+  reason line inside one was ~3.17:1 (fails), which is now moot.
 - `max-height: calc(100vh - 150px)` should use `dvh` and not assume the
   trigger's offset. 32 px ⋯ targets pass WCAG 2.5.8 but are small at 390 px.
 

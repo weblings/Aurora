@@ -18,7 +18,7 @@
 </head>
 <body>
   <h1>Effect dropdown with an attached panel (Aurora-kep2.2)</h1>
-  <p>No Video/Audio toggle. An "Effects" label sits above the trigger like Monitor below it. The panel is non-modal (no scrim, closes on outside click or Esc), a labeled dialog holding radios and buttons. Built-in rows can only be duplicated or hidden. Hidden is a collapsed-by-default group with no count and only renders when non-empty. Every group header collapses. A gated effect stays clickable (aria-disabled), dimmed, with no reason line: the shell banner explains after the click. The per-row reason line stays in the markup, dormant.</p>
+  <p>No Video/Audio toggle. An "Effects" label sits above the trigger like Monitor below it. The panel is non-modal (no scrim, closes on outside click or Esc), a labeled dialog holding radios and buttons. Built-in rows can only be duplicated or hidden. Hidden is a collapsed-by-default group with no count and only renders when non-empty. Every group header collapses. No row is dimmed: failures such as a missing input surface only through the shell banner after the click. The running effect has no Hide item. Rows carry no input badges. A secondary text line under the name is used only for "Built-in" on hidden built-ins.</p>
 
   <h2>Frame 1: built-in row menu</h2>
   <p>Fire selected. Built-in rows offer Duplicate and Hide. Hidden is collapsed at the bottom. In the real panel the row menu must render outside the scroll region so it is not clipped.</p>
@@ -65,7 +65,7 @@
   </div>
 
   <h2>Frame 8: button rows instead of radios (interactive)</h2>
-  <p>Same look as frame 1 with rows built as buttons (aria-current on the running effect) inside role=group. This frame works: Up/Down/Home/End move focus without switching, Enter, Space or click switches, Right and Left hop between a row and its ellipsis, Esc returns to the trigger, group headers collapse. The list is one tab stop. The trigger is named "Effects, Fire". The gated Candle row explains instead of switching. The last action prints under the page and is announced through a live region.</p>
+  <p>Same look as frame 1 with rows built as buttons (aria-current on the running effect) inside role=group. This frame works: Up/Down/Home/End move focus without switching, Enter, Space or click switches, Right and Left hop between a row and its ellipsis, Esc returns to the trigger, group headers collapse. The list is one tab stop. The trigger is named "Effects, Fire". The last action prints under the page and is announced through a live region.</p>
   <div class="row">
     <figure><figcaption>390px, click a row then use the keyboard</figcaption><iframe class="n" style="height:640px" src="frame8.html"></iframe></figure>
   </div>
