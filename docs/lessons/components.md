@@ -399,3 +399,13 @@ Applies-when: a widget inside a React Flow node edits a document that the nodes 
 Aurora-pvxx.4: the editor kept `nodes` in state and rebuilt them from the graph document in a `useEffect`. An edit therefore rendered once with the old node data, then again with the new. A controlled checkbox snapped back (Playwright: "clicking the checkbox did not change its state"), and a number box read its old value right after `fill`. Typing would drop keystrokes the same way.
 
 **Fix:** keep only what React Flow owns (selection, measured size, a drag in progress) in state and derive the node list from the document in the same render (`useMemo`, merged by id with `carryViewState`). The document change and the redraw then land together.
+
+---
+
+## Native radios commit on every arrow key, and one shared `name` groups them across every radiogroup wrapper
+Tags: webui, aria, radio, keyboard, side-effects
+Applies-when: building a picker from native radios whose change handler does real work
+
+Aurora-kep2.2's effect panel used visually hidden radios, one `name="effect"`, split into Built-in, Custom and Hidden `role=radiogroup` blocks. In headless Chromium, four ArrowDown presses from Music pulse fired three `change` events: into Custom, onto the `aria-disabled` Candle row, then a wrap back to Screen colors. Collapsed (`hidden`) rows were skipped. Each change would start a ~4.5s switch on the real lights, the same trap as this file's select-follows-focus entry. `aria-disabled` does not stop a radio being checked, and a click checks it before the switch is confirmed, which breaks a controlled picker.
+
+**Fix:** for side-effecting picks use row buttons with `aria-current` and your own Up/Down focus handling, committing on Enter, Space or click. If radios stay, intercept arrows and reset `checked` from the running state after every change.

@@ -578,3 +578,23 @@ Applies-when: starting a bead whose description names another project as the ref
 Aurora-wqzp.12 cited Hyperion's DDAGrabber for FP16-to-8-bit conversion. Reading its source showed it calls plain `DuplicateOutput` and has no HDR handling at all. The real references (OBS, RustDesk, GStreamer) only turned up by searching, and they showed the bug was bigger than the bead assumed.
 
 **Fix:** open the cited file and confirm it does the thing before building on it. Record what the reference does and does not do in the bead, so the next reader does not repeat the trust.
+
+---
+
+## Static mocks agree on layout and content, not on the keyboard and focus model
+Tags: webui, design, prototyping, aria, keyboard
+Applies-when: signing off a static HTML mock as the shape to build
+
+Aurora-kep2.2's frames faked every interaction with state classes (`.hov`, `.tip-on`, `.open`, `.mk-scrolling`) and passed two design reviews. A later ARIA pass found the open gaps were all behavioural: radios committing on arrow keys, Esc order across tooltip, row menu and panel, Tab-out, focus after Hide, and the pending state during a switch. None can show in a still frame. This is the same limit as this file's ASCII-mock entry, one fidelity level up.
+
+**Fix:** pair static frames with a short keyboard and focus table (key, focus target, what commits, what closes), or a tiny working prototype of the one interaction that commits, before the build bead starts.
+
+---
+
+## Reviving a rejected option: say which rejection reasons the new shape answers and which still stand
+Tags: planning, design-process, beads
+Applies-when: a design direction brings back something a bead's notes rejected
+
+Aurora-kep2's 2026-10-30 notes rejected a per-row ⋯ inside the picker for three reasons: a listbox cannot hold buttons, fly-outs fail on touch, and per-row Delete invites mis-taps. Aurora-kep2.2 brought per-row menus back inside a dialog panel. That answers the listbox reason, but the mis-tap reason was left unaddressed while the delete confirm stayed out of scope.
+
+**Fix:** when reviving an option, list each original rejection reason with "answered by X" or "still open" in the new design note, and make any still-open one a prerequisite of the build bead.

@@ -64,6 +64,18 @@
     <figure><figcaption>390px, only Hidden (Screen colors hovered, Music pulse at rest)</figcaption><iframe class="n" style="height:640px" src="frame7.html"></iframe></figure>
   </div>
 
+  <h2>Frame 8: button rows instead of radios (interactive)</h2>
+  <p>Same look as frame 1 with rows built as buttons (aria-current on the running effect) inside role=group. This frame works: Up/Down/Home/End move focus without switching, Enter, Space or click switches, Right and Left hop between a row and its ellipsis, Esc returns to the trigger, group headers collapse. The list is one tab stop. The trigger is named "Effects, Fire". The gated Candle row explains instead of switching. The last action prints under the page and is announced through a live region.</p>
+  <div class="row">
+    <figure><figcaption>390px, click a row then use the keyboard</figcaption><iframe class="n" style="height:640px" src="frame8.html"></iframe></figure>
+  </div>
+
+  <h2>Frame 9: tree (interactive)</h2>
+  <p>The list is an ARIA tree: group headers are expandable nodes and effects are their children, all in one arrow sequence. Up/Down walk headers and rows. Right expands a group or steps into it, Left collapses it or steps out to its header. Enter or Space switches on a row and toggles on a header. Typing a letter jumps to a match. A treeitem cannot hold a button, so the ellipsis is mouse-only. On a row, Right opens its actions menu (like stepping into a group) and Left or Esc closes it. Shift+F10 and the Menu key do the same. The row announces that it has a menu. Hide and Unhide work and show where focus lands. The panel is two tab stops: the tree, then New effect.</p>
+  <div class="row">
+    <figure><figcaption>390px, click a row then use the keyboard</figcaption><iframe class="n" style="height:640px" src="frame9.html"></iframe></figure>
+  </div>
+
   <h2>Frame 7: closed</h2>
   <div class="row">
     <figure><figcaption>390px, closed, both effect</figcaption><iframe class="n" style="height:640px" src="frame1-both.html"></iframe></figure>

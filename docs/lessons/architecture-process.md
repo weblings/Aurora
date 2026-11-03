@@ -1268,3 +1268,13 @@ Applies-when: typing a client (editor, MCP, demo) against `/api/nodes` or any ca
 Aurora-pvxx.4: the bead and `GraphLoader` call the param kinds `Float`, `OptionalFloat`, `Bool`, `Enum`, `Gradient`; the wire carries `float`, `optional-float`, `bool`, `enum`, `gradient` (`paramKindName`). Typecheck passed and the first unit tests used the same wrong spelling, so no widget rendered until the editor met a real catalog. A second trap in the same payload: an `optional-float` the graph omits is unset (null), but the catalog `default` is a number (-1), so showing the default invents a value the loader would not use.
 
 **Fix:** curl the route and type from that JSON; keep a real-response sample as a fixture (`web/graph-editor/src/graph/server-samples/`). For optional values, mirror the loader: absent means unset, the default is only what a user gets on turning it on.
+
+---
+
+## A generator for checked-in output belongs beside that output, not in a session scratchpad
+Tags: process, codegen, mocks, webui
+Applies-when: generating checked-in files (mocks, fixtures, tables) from a script
+
+Aurora-kep2.2's nine mock frames and index.html were written by `gen4.py` in one agent session's temp scratchpad, alongside superseded `gen.py`–`gen3.py`, a `.bak` and three patch scripts. Only the output was committed. Each frame repeats ~70 lines of shell markup, so once the temp folder was cleared, any design change would have meant editing nine files by hand.
+
+**Fix:** commit the generator next to its output with a usage line, and confirm a regen is byte-identical before committing. Now at `web/ui/Static_kep2_Mocks/gen.py`.
