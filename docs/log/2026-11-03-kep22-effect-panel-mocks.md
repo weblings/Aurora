@@ -183,6 +183,16 @@ confirm and menu gating are still open, as `Aurora-kep2.6`.
   rule to `tokens.css` touches every screen and is out of scope for this bead.
   Open: bead for it, and whether `.text-input`'s accent ring should move too.
 
+## Frames finished (2026-11-03)
+
+- Built-in row menu is now Edit graph, Duplicate, Hide. Hidden row menu is
+  Edit graph, Unhide, Duplicate.
+- Frame 11 is a failed build: trigger reads "No effect running" and a shell
+  banner row names the pick with Retry and no X.
+- Frame 13 is a rejected request: the old effect keeps running and
+  "Couldn't switch to X." shows under the trigger.
+- `render.mjs` now screenshots frame 13.
+
 ## Method
 
 - Frames were generated from one Python script with state flags per frame,
@@ -192,9 +202,9 @@ confirm and menu gating are still open, as `Aurora-kep2.6`.
 
 ## Resume
 
-Finish the `Aurora-kep2.2` frames in `gen.py`, regen, and have the owner
-review them. Build beads are cut under `Aurora-kep2`, starting with
-`Aurora-kep2.3`.
+Owner review of the `Aurora-kep2.2` frames, then sync the bead design field
+(frame 11 and 13 wording) and close it. Build beads are cut under
+`Aurora-kep2`, starting with `Aurora-kep2.3`.
 
 - Lessons:
   - "Native radios commit on every arrow key, and one shared `name` groups

@@ -8,7 +8,7 @@ LINKS = "\n".join(f'  <link rel="stylesheet" href="../styles/{c}.css" />' for c 
 CHEV = '<img src="../icons/chevron-down.svg" alt="" class="mk-chev" />'
 
 
-def page(title, body):
+def page(title, body, banner=""):
     return f'''<!doctype html>
 <html lang="en">
 <head>
@@ -17,7 +17,7 @@ def page(title, body):
   <title>{title}</title>
 {LINKS}
 </head>
-<body>
+<body>{banner}
   <div id="screen-container">
 {body}
   </div>
@@ -40,6 +40,15 @@ def top(paused=False):
     </div>'''
 
 
+def banner(effect):
+    # Failed build: the shell banner names the effect, Retry only (no X, the old effect is gone).
+    return f'''
+  <div id="shell-banner-slot"><div class="shell-banner"><div class="shell-banner-inner"><div class="shell-banner-row"><div class="shell-banner-content">
+    <p class="status-text status-text-error"><span class="warn-glyph" aria-hidden="true"></span> Couldn&rsquo;t switch to {effect}.</p>
+    <button type="button" class="btn btn-secondary" style="margin-top: var(--aurora-space-3);">Retry</button>
+  </div></div></div></div></div>'''
+
+
 def acc(t):
     return f'      <div><div class="accordion-section"><button type="button" class="accordion-header" aria-expanded="false"><span class="accordion-title">{t}</span><span class="accordion-chevron" aria-hidden="true"></span></button><div class="accordion-content" hidden></div></div></div>'
 
@@ -48,8 +57,8 @@ ACCS = "\n".join(acc(t) for t in ["Zone Mapping", "Tuning", "Output", "Paired de
 VERSION = '    <div class="db-version"><p>v1.1.4</p></div>'
 
 ROWMENU_CUSTOM = ["Edit graph", "Rename", "Duplicate", "Move up", "Move down", "Hide", "Delete"]
-ROWMENU_BUILTIN = ["Duplicate", "Hide"]
-ROWMENU_HIDDEN = ["Unhide", "Duplicate"]
+ROWMENU_BUILTIN = ["Edit graph", "Duplicate", "Hide"]
+ROWMENU_HIDDEN = ["Edit graph", "Unhide", "Duplicate"]
 
 
 def rowmenu(items):
@@ -206,7 +215,7 @@ LIVE_JS = '''
     <p class="sr-only" role="status" id="mk-live"></p>
     <p class="status-text mk-log" aria-hidden="true">Last action: <span id="mk-log">none</span></p>
     <script src="frame8.js"></script>'''
-w = lambda name, title, body: open(f"{out}/{name}", "w", encoding="utf-8").write(page(title, body))
+w = lambda name, title, body, bn="": open(f"{out}/{name}", "w", encoding="utf-8").write(page(title, body, bn))
 w("frame1.html", "kep2 frame 1: built-in row menu", skeleton(picker("Fire", True, "Screen colors", hidden="collapsed"), device("audio")))
 w("frame2.html", "kep2 frame 2: hidden group open", skeleton(picker("Fire", True, "Plasma", hidden="expanded"), device("audio")))
 w("frame3.html", "kep2 frame 3: long list scrolls", skeleton(picker("Fire", True, "Lava lamp", hidden="collapsed", many=True, scroll=True), device("audio"), SCROLL_JS))
@@ -222,7 +231,8 @@ ROWS = "tree"
 w("frame9.html", "kep2 frame 9: tree, keyboard live", skeleton(picker("Fire", True, None, hidden="collapsed"), device("audio"), LIVE_JS.replace("frame8.js", "frame9.js")))
 w("frame1-both.html", "kep2 frame 4: both effect closed", skeleton(picker("Rainbow drift"), device("both")))
 w("frame10.html", "kep2 frame 10: switching", skeleton(picker("Fire", switching="Rainbow drift"), device("audio")))
-w("frame11.html", "kep2 frame 11: switch rejected", skeleton(picker("Fire", failed="Rainbow drift"), device("audio")))
+w("frame11.html", "kep2 frame 11: build failed", skeleton(picker("No effect running"), device("audio")), banner("Rainbow drift"))
+w("frame13.html", "kep2 frame 13: request rejected", skeleton(picker("Fire", failed="Rainbow drift"), device("audio")))
 w("frame12.html", "kep2 frame 12: paused", skeleton(picker("Fire"), device("audio"), paused=True))
 
 
@@ -250,17 +260,17 @@ idx = f'''<!doctype html>
 </head>
 <body>
   <h1>Effect dropdown with an attached panel (Aurora-kep2.2)</h1>
-  <p>No Video/Audio toggle. An "Effects" label sits above the trigger like Monitor below it. The panel is non-modal (no scrim, closes on outside click or Esc), a labeled dialog holding an ARIA tree. Frame 9 is the working spec, frames 1-7 are static states of the same tree, and frame 8 is the rejected button-row alternative. Tooltips and row menus render in the panel outside the tree and its scroll region, under their row, flipped above it when they would leave the viewport. Built-in rows can only be duplicated or hidden. Hidden is a collapsed-by-default group with no count and only renders when non-empty. Every group header collapses. No row is dimmed: failures such as a missing input surface only after the click, through the inline switch error or the shell banner. The running effect has no Hide item. Rows carry no input badges. A secondary text line under the name is used only for "Built-in" on hidden built-ins.</p>
+  <p>No Video/Audio toggle. An "Effects" label sits above the trigger like Monitor below it. The panel is non-modal (no scrim, closes on outside click or Esc), a labeled dialog holding an ARIA tree. Frame 9 is the working spec, frames 1-7 are static states of the same tree, and frame 8 is the rejected button-row alternative. Tooltips and row menus render in the panel outside the tree and its scroll region, under their row, flipped above it when they would leave the viewport. Built-in rows offer Edit graph, Duplicate and Hide. Hidden is a collapsed-by-default group with no count and only renders when non-empty. Every group header collapses. No row is dimmed: failures such as a missing input surface only after the click, through the shell banner (failed build) or an inline line (rejected request). The running effect has no Hide item. Rows carry no input badges. A secondary text line under the name is used only for "Built-in" on hidden built-ins.</p>
 
   <h2>Frame 1: built-in row menu</h2>
-  <p>Fire selected. Built-in rows offer Duplicate and Hide. Hidden is collapsed at the bottom. The row menu sits in the panel outside the tree, under its row.</p>
+  <p>Fire selected. Built-in rows offer Edit graph, Duplicate and Hide. Hidden is collapsed at the bottom. The row menu sits in the panel outside the tree, under its row.</p>
   <div class="row">
     {fig("~760px, open", "frame1.html", "w", 640)}
     {fig("390px, open", "frame1.html", "n", 640)}
   </div>
 
   <h2>Frame 2: custom row menu, Hidden expanded</h2>
-  <p>Unhide and Duplicate on a hidden row. The Hidden header is an expandable tree node (aria-expanded).</p>
+  <p>Edit graph, Unhide and Duplicate on a hidden row. The Hidden header is an expandable tree node (aria-expanded).</p>
   <div class="row">
     {fig("390px, Hidden open, row menu on a hidden effect", "frame2.html", "n", 640)}
   </div>
@@ -317,8 +327,9 @@ idx = f'''<!doctype html>
   <p>A pick closes the panel and focus returns to the trigger. The trigger text is always what is on the lights, never the pick. The pick shows only as the pending outline and a status line under the trigger.</p>
   <div class="row">
     {fig("10: switching. Outline, disabled, aria-busy, Fire still named", "frame10.html", "n", 300)}
-    {fig("11: rejected. Fire still runs, error stays until a switch is confirmed", "frame11.html", "n", 300)}
+    {fig("11: build failed. The old effect stopped, banner names the pick with Retry", "frame11.html", "n", 380)}
     {fig("12: paused. The effect keeps its name, the top bar shows Resume", "frame12.html", "n", 300)}
+    {fig("13: request rejected. Nothing ran, Fire keeps running, line under the trigger", "frame13.html", "n", 300)}
   </div>
   <p>Saved but not applied shows the frame 7 look with the shell banner above. An unreachable daemon is the shell takeover. Neither adds a line here. With nothing set to run the trigger reads "No effect running" (frame 6b).</p>
 
