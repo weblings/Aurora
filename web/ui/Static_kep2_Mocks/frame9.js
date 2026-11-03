@@ -1,4 +1,4 @@
-// Frame 9 only: the panel as an ARIA tree. Group headers and rows are one arrow sequence,
+// Frame 9 only: the panel as an ARIA tree. Group headers, rows and New effect are one arrow sequence,
 // rows commit on Enter/Space/click, and Right (or Shift+F10/Menu key) opens a row's actions.
 const panel = document.getElementById('effects-panel')
 const tree = panel.querySelector('[role="tree"]')
@@ -14,7 +14,8 @@ const MENUS = {
 const isGroup = (el) => el.classList.contains('mk-section')
 const sectionOf = (row) => row.closest('.mk-section')
 const listOf = (section) => section.querySelector('[role="group"]')
-const nameOf = (el) => isGroup(el) ? el.querySelector('.mk-head > span').textContent : el.querySelector('.mk-opt-name').firstChild.textContent
+const isNew = (el) => el.classList.contains('mk-new')
+const nameOf = (el) => isNew(el) ? 'New effect' : isGroup(el) ? el.querySelector('.mk-head > span').textContent : el.querySelector('.mk-opt-name').firstChild.textContent
 
 function log(msg, announce = true) {
   logEl.textContent = msg
@@ -179,20 +180,21 @@ panel.addEventListener('keydown', (e) => {
     case 'ArrowRight':
       if (group && !open) setExpanded(node, true)
       else if (group) to = listOf(node).querySelector('.mk-pick')
-      else showMenu(node)
+      else if (!isNew(node)) showMenu(node)
       break
     case 'ArrowLeft':
       if (group && open) setExpanded(node, false)
-      else if (!group) to = sectionOf(node)
+      else if (!group && !isNew(node)) to = sectionOf(node)
       break
     case 'Enter': case ' ':
       if (group) setExpanded(node, !open)
+      else if (isNew(node)) log('New effect would open the editor.')
       else commit(node)
       break
     case 'F10': if (!e.shiftKey) return
     // falls through
     case 'ContextMenu':
-      if (!group) showMenu(node)
+      if (!group && !isNew(node)) showMenu(node)
       break
     default:
       // Type-ahead: jump to the next item starting with the typed letters.
@@ -215,7 +217,8 @@ panel.addEventListener('click', (e) => {
   if (head) { const s = head.closest('.mk-section'); setExpanded(s, s.getAttribute('aria-expanded') !== 'true'); rove(s); return }
   const row = e.target.closest('.mk-pick')
   if (row) { rove(row); commit(row); return }
-  if (e.target.closest('.mk-new')) log('New effect would open the editor.', false)
+  const add = e.target.closest('.mk-new')
+  if (add) { rove(add); log('New effect would open the editor.') }
 })
 
 document.addEventListener('click', (e) => {

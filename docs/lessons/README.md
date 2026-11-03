@@ -35,7 +35,7 @@ Aurora's own module boundaries instead of RockyRoad's. `rendering-apis.md` vs.
 | [components.md](components.md) | behavior, callbacks, data shapes | 20 | WebUI component finding |
 | [webui-testing.md](webui-testing.md) | jsdom limits, mocks, fixtures | 10 | WebUI testing finding |
 | [navigation-flow.md](navigation-flow.md) | Back/Continue, gating, NUX | 12 | WebUI flow finding |
-| [layout-css.md](layout-css.md) | responsive, pseudo-elements, flex | 16 | WebUI layout/CSS finding |
+| [layout-css.md](layout-css.md) | responsive, pseudo-elements, flex | 17 | WebUI layout/CSS finding |
 
 Counts as of 2026-10-15 — bump the count when adding entries
 (`grep -c '^## '` per file).

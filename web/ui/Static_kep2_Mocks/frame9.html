@@ -30,8 +30,8 @@
       <div class="dropdown dropdown-fill open">
         <button type="button" class="dropdown-trigger" id="effects-trigger" aria-labelledby="effects-label effects-trigger" aria-controls="effects-panel" aria-haspopup="dialog" aria-expanded="true"><span class="mk-trigger-main"><span class="dropdown-label">Fire</span></span><img src="../icons/chevron-down.svg" alt="" class="mk-chev" /></button>
         <div class="mk-panel-pop" role="dialog" id="effects-panel" aria-labelledby="effects-label">
+        <div role="tree" class="mk-tree" aria-labelledby="effects-label">
         <div class="mk-scroll">
-          <div role="tree" class="mk-tree" aria-labelledby="effects-label">
           <div class="mk-section" role="treeitem" tabindex="-1" aria-expanded="true" aria-labelledby="g-builtin"><div class="mk-group mk-group-toggle"><span class="mk-head" id="g-builtin"><img src="../icons/chevron-down.svg" alt="" class="mk-chev mk-twisty" /><span>Built-in</span><span class="mk-cue" aria-hidden="true" hidden>&#10003;</span><span class="sr-only" hidden>, contains the selected effect</span></span></div>
           <div role="group" id="g-builtin-list">
             <div class="mk-opt"><div role="treeitem" class="mk-pick" tabindex="-1" aria-selected="false" aria-describedby="screen-colors-tip" aria-haspopup="menu" aria-keyshortcuts="ArrowRight Shift+F10"><span class="mk-check" aria-hidden="true"></span><span class="mk-opt-text"><span class="mk-opt-name">Screen colors<span class="mk-icons"><span role="img" aria-label="Video" title="Video"><svg class="mk-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="1.5" y="2.5" width="13" height="8.5" rx="1"/><path d="M5.5 14h5M8 11v3"/></svg></span></span></span></span></div><button type="button" class="mk-more" aria-label="Actions for Screen colors" aria-haspopup="menu" aria-expanded="false" tabindex="-1" aria-hidden="true">&#8943;</button><div class="mk-tip" role="tooltip" id="screen-colors-tip">Matches the lights to the colors at the edges of your screen.</div></div>
@@ -48,9 +48,9 @@
             <div class="mk-opt"><div role="treeitem" class="mk-pick" tabindex="-1" aria-selected="false" aria-describedby="strobe-tip" aria-haspopup="menu" aria-keyshortcuts="ArrowRight Shift+F10"><span class="mk-check" aria-hidden="true"></span><span class="mk-opt-text"><span class="mk-opt-name">Strobe<span class="mk-icons"><span role="img" aria-label="Audio" title="Audio"><svg class="mk-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2 6h2.5L8 3v10L4.5 10H2z"/><path d="M10.5 5.5a3.5 3.5 0 0 1 0 5M12.5 3.5a6 6 0 0 1 0 9"/></svg></span></span></span></span></div><button type="button" class="mk-more" aria-label="Actions for Strobe" aria-haspopup="menu" aria-expanded="false" tabindex="-1" aria-hidden="true">&#8943;</button><div class="mk-tip" role="tooltip" id="strobe-tip">Hard white flashes on every beat.</div></div>
             <div class="mk-opt"><div role="treeitem" class="mk-pick" tabindex="-1" aria-selected="false" aria-describedby="plasma-tip" aria-haspopup="menu" aria-keyshortcuts="ArrowRight Shift+F10"><span class="mk-check" aria-hidden="true"></span><span class="mk-opt-text"><span class="mk-opt-name">Plasma<span class="mk-icons"><span role="img" aria-label="Video" title="Video"><svg class="mk-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="1.5" y="2.5" width="13" height="8.5" rx="1"/><path d="M5.5 14h5M8 11v3"/></svg></span></span></span></span></div><button type="button" class="mk-more" aria-label="Actions for Plasma" aria-haspopup="menu" aria-expanded="false" tabindex="-1" aria-hidden="true">&#8943;</button><div class="mk-tip" role="tooltip" id="plasma-tip">Swirling colors sampled from the screen.</div></div>
           </div></div>
-          </div>
         </div>
-          <div class="mk-foot"><button type="button" class="mk-new">+ New effect</button></div>
+          <div class="mk-foot"><div role="treeitem" class="mk-new" tabindex="-1">+ New effect</div></div>
+        </div>
         </div>
       </div>
     </div>

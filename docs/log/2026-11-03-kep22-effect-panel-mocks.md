@@ -30,7 +30,8 @@ repeated here.
   menu (Esc closed only the menu). Hide on the running effect was refused.
   Hide and Unhide moved rows, with focus going to the next row, then the
   previous, then the group. Hiding both built-ins removed the Built-in group.
-  The panel came out as two tab stops (tree, New effect).
+  The panel came out as two tab stops (tree, New effect), which was changed
+  below.
 - A treeitem cannot contain a button, so the ⋯ is `aria-hidden` and
   mouse-only. Right on a row (a no-op for a tree leaf) opens its menu instead,
   matching "Right steps in" on a header. Left or Esc closes it back to the row,
@@ -85,6 +86,28 @@ repeated here.
 - `max-height: calc(100vh - 150px)` should use `dvh` and not assume the
   trigger's offset. 32 px ⋯ targets pass WCAG 2.5.8 but are small at 390 px.
 
+- New effect is now the last item in the frame 9 arrow sequence: `role=tree`
+  wraps the scrolling list and the pinned footer, and New effect is a
+  top-level treeitem. Down from the last row and End land on it, Up and Home
+  leave it, Right, Left and Shift+F10 do nothing, Enter, Space and click
+  activate. The panel is one tab stop. Verified in Chromium, including that
+  the footer stays pinned and its ring is inset.
+
+## Focus ring (2026-11-03)
+
+- Measured in Chromium: the trigger, New effect and accordion headers showed
+  the browser's default `auto` ring, while rows and tree headers used a
+  mock-local 2px grey inset ring. `tokens.css` has no focus tokens (only
+  `.text-input` and a `.dropdown-menu` `outline: none`).
+- Adopted RockyRoadImport's shape in `mock.css`: `--aurora-focus-ring-width`
+  2px, `--aurora-focus-ring-offset` 2px, `--aurora-focus-ring` aliased to
+  `--aurora-button-light` (#dadada), one `:focus-visible` rule. Inset inside
+  clipping containers (rows, headers, New effect, menu items). Verified every
+  focus target in frames 1, 8 and 9 reports the same width and color.
+- Not done: the real app still uses the browser default. Adding the tokens and
+  rule to `tokens.css` touches every screen and is out of scope for this bead.
+  Open: bead for it, and whether `.text-input`'s accent ring should move too.
+
 ## Method
 
 - Frames were generated from one Python script with state flags per frame,
@@ -108,3 +131,6 @@ regen, then have the owner re-review before a build bead is cut.
     session scratchpad" (architecture-process)
   - "A string-replace patch to a script must assert each anchor, or a
     drifted anchor is a silent no-op" (build-toolchain)
+  - "Aurora's stylesheets define no focus ring, so new controls need shared
+    ring tokens or they look inconsistent beside the browser default"
+    (layout-css)

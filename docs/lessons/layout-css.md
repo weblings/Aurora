@@ -282,3 +282,13 @@ Applies-when: a short message wraps with one word alone on its last line
 Cutting a word fixed the Local Network banner at one width and not another: the break point moves with the window. `text-wrap: pretty` on `.shell-banner-content` makes supporting browsers rebalance the last lines at any width; browsers without it ignore the rule, so the specific line also joins its last two words with `&nbsp;` ("allow&nbsp;Aurora").
 
 **Fix:** put `text-wrap: pretty` on the container, not on one message, so every banner row benefits; use `&nbsp;` only where an orphan must never happen.
+
+---
+
+## Aurora's stylesheets define no focus ring, so new controls need shared ring tokens or they look inconsistent beside the browser default
+Tags: webui, css, focus, a11y, tokens
+Applies-when: styling keyboard focus on a new control inside a page that links the real `web/ui/styles`
+
+`tokens.css` has no focus tokens and the stylesheets set none apart from `.text-input` (2px `--aurora-accent`, 1px offset) and `.dropdown-menu` (`outline: none`). Every other button therefore shows the browser's `auto` ring: white with a dark inner edge, drawn outside the control. In Aurora-kep2.2's frames a mock-local 2px grey inset ring on rows and headers sat next to that default on the trigger, New effect and accordion headers, and the three looked unrelated. RockyRoadImport avoids this with `--size-focus-ring-width`, `--size-focus-ring-offset` and `--color-focus-ring` (its light button color), applied to every control. Its own migration notes record that `outline: none` on focus fails WCAG 2.4.7.
+
+**Fix:** define the three tokens and one `:focus-visible` rule for all controls. Inset the ring (`outline-offset: calc(-1 * width)`) on anything inside a clipping container: list rows, group headers, a panel footer, menu items. Put the ring on the row wrapper via `:has()` when the focusable control is the row's inner element. Mock-local today (`web/ui/Static_kep2_Mocks/mock.css`), proposed for `tokens.css` as its own change.

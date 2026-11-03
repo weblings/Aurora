@@ -154,15 +154,21 @@ def picker(label, popup=False, menu_for=None, hidden=None, many=False, scroll=Fa
     trig = ' id="effects-trigger" aria-labelledby="effects-label effects-trigger" aria-controls="effects-panel"' if live else ""
     plabel = 'id="effects-panel" aria-labelledby="effects-label"' if live else 'aria-label="Choose effect"'
     body = groups(menu_for, hidden, many, collapsed, tip, hide_builtin)
+    # Tree frame: one tree spans the scrolling list and the pinned footer, and New effect is its last item.
+    new = '<div role="treeitem" class="mk-new" tabindex="-1">+ New effect</div>' if ROWS == "tree" else '<button type="button" class="mk-new">+ New effect</button>'
+    scroll_cls = " mk-scrolling" if scroll else ""
+    inner = f'''        <div class="mk-scroll{scroll_cls}">
+{body}
+        </div>
+          <div class="mk-foot">{new}</div>'''
     if ROWS == "tree":
-        body = f'          <div role="tree" class="mk-tree" aria-labelledby="effects-label">\n{body}\n          </div>'
+        inner = f'''        <div role="tree" class="mk-tree" aria-labelledby="effects-label">
+{inner}
+        </div>'''
     if popup:
         panel = f'''
         <div class="mk-panel-pop" role="dialog" {plabel}>
-        <div class="mk-scroll{" mk-scrolling" if scroll else ""}">
-{body}
-        </div>
-          <div class="mk-foot"><button type="button" class="mk-new">+ New effect</button></div>
+{inner}
         </div>'''
     return f'''    <div class="db-controls mk-picker field">
       <label class="field-label" id="effects-label">Effects</label>
@@ -293,7 +299,7 @@ idx = f'''<!doctype html>
   </div>
 
   <h2>Frame 9: tree (interactive)</h2>
-  <p>The list is an ARIA tree: group headers are expandable nodes and effects are their children, all in one arrow sequence. Up/Down walk headers and rows. Right expands a group or steps into it, Left collapses it or steps out to its header. Enter or Space switches on a row and toggles on a header. Typing a letter jumps to a match. A treeitem cannot hold a button, so the ellipsis is mouse-only. On a row, Right opens its actions menu (like stepping into a group) and Left or Esc closes it. Shift+F10 and the Menu key do the same. The row announces that it has a menu. Hide and Unhide work and show where focus lands. The panel is two tab stops: the tree, then New effect.</p>
+  <p>The list is an ARIA tree: group headers are expandable nodes and effects are their children, all in one arrow sequence. Up/Down walk headers and rows. Right expands a group or steps into it, Left collapses it or steps out to its header. Enter or Space switches on a row and toggles on a header. Typing a letter jumps to a match. A treeitem cannot hold a button, so the ellipsis is mouse-only. On a row, Right opens its actions menu (like stepping into a group) and Left or Esc closes it. Shift+F10 and the Menu key do the same. The row announces that it has a menu. Hide and Unhide work and show where focus lands. The panel is one tab stop. New effect is the last item in the arrow sequence, so Down from the last row (or End) lands on it and Up returns.</p>
   <div class="row">
     {fig("390px, click a row then use the keyboard", "frame9.html", "n", 640)}
   </div>
