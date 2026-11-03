@@ -372,13 +372,17 @@ re-handshake); since Aurora-c0g only structural fields still do (see
 
 - A custom graph can use both inputs (screen hue × beat brightness), so
   it can't live under either tab.
-- The segmented control becomes an Effect dropdown (existing
-  `Dropdown`): built-ins first, divider, customs. Small badges
-  (video / audio / both) replace hierarchy.
+- The segmented control becomes one Effects trigger with an attached
+  panel: a tree of Built-in, Custom and Hidden groups with per-row menus
+  and no input badges. Spec in `Aurora-kep2.2`, record in
+  [[kep22-effect-panel-mocks]].
 - Dashboard sections derive from the active graph, not `mode`: monitor
   picker iff a capture source node, sink picker + permission banner iff
   an audio source, Zone Mapping iff a `SampleZones` node. A mixed effect
   shows both device pickers.
+- Both input names stay saved across switches, the effect id chooses the
+  mode, and a missing input is auto-picked (decided 2026-11-03, not built,
+  `Aurora-kep2.3`).
 - Onboarding (`ModeDeviceScreen`) still offers only the two built-ins.
 
 **Built-ins: read-only, tunable, resettable, duplicable — not
@@ -390,12 +394,15 @@ deletable.**
   today's `audio*` config values migrate into the built-in Audio overlay.
 - *Rewiring* a built-in forces "Duplicate → custom"; never in place.
 - Customs are fully editable and deletable; deleting the active one
-  confirms, then falls back to a built-in. "Hide built-in" deferred.
+  confirms, then falls back to a built-in. Any effect can be hidden from
+  the list, and a hidden effect can still run.
 - Data: config holds `activeEffectId` + `paramOverrides[effectId]
   ["node.param"]`; each custom is its own file under an `effects/` dir.
   Decided 2026-10-20 for Sequence C ([[sequence-c-planning]]): stored graphs
   name concrete outputs, and a custom that fails to load runs the built-in
-  with a banner warning.
+  with a banner warning. Revised 2026-11-03, not built (`Aurora-kep2.4`): a
+  custom that fails to load leaves no effect running, with a banner row and
+  Retry ([[error-overlay]]).
 
 **Tuning is populated from exposed params, not every param.**
 
@@ -448,8 +455,8 @@ visible color output.
   [[webui-tooltips-analysis]].
 - **Effect picker:** built-in effects carry authored descriptions
   (replacing `app.mode`'s "Video or audio reactive mode"); customs get
-  a user-entered description in their effect metadata; badges get fixed
-  tooltips ("Uses screen capture" / "Uses audio").
+  a user-entered description in their effect metadata. `app.mode` stays
+  on onboarding only.
 - **User-authored text is data:** rendered via `title`/text nodes only,
   never HTML. The editor shows a soft "≤ 6 words" hint for Dashboard
   tooltips; not enforced.

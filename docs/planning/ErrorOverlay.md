@@ -531,6 +531,23 @@ this split the shell is fed only by daemon state. GOV.UK's error summary
 needs a page-fed banner, and it targets long forms with errors found on
 submit, not a control the user just touched.
 
+### Failed effect switch
+
+Decided 2026-11-03, not built (`Aurora-kep2.4`), record in
+[[kep22-effect-panel-mocks]]. This narrows rule 2 above for effect switches.
+
+- A failed effect build stops the old effect instead of keeping it. The host
+  is `failed`, the trigger reads "No effect running", and the row names the
+  effect, with Retry and no X. The pick stays saved, so Retry and a restart try
+  it again. Startup fails the same way, replacing the `effect_fallback` built-in.
+- Saved-not-applied now only covers device and settings changes, which keep
+  the effect running.
+- A request that never ran (`unknown_effect`, invalid body, a PUT that never
+  arrived) stays inline at the trigger, and the old effect keeps running.
+- A dead or unreachable bridge is a host condition, not `failed`
+  (`Aurora-lt66`): the pipeline runs and the fault is downstream, so the row
+  clears itself on reconnect and has no Retry.
+
 ### Config PUT outcomes
 
 `PUT /api/config` already returns three different things, today handled by

@@ -10,12 +10,8 @@ repeated here.
 
 ## State
 
-- Frames in `web/ui/Static_kep2_Mocks/`, viewed through `index.html`:
-  1 built-in row menu (760 and 390 px), 2 Hidden open, 3 long list,
-  4a/4b collapsed groups (check right vs left of the header), 5 description
-  tooltip, 6 built-ins hidden, 6b only Hidden (`frame7.html`), 7 closed
-  both-inputs (`frame1-both.html`), 8 button rows instead of radios, working
-  keyboard model (`frame8.js`).
+- Frames in `web/ui/Static_kep2_Mocks/`, viewed through `index.html`. The
+  current list is in the bead's design field.
 - Frame 8 trial, driven in headless Chromium: Up/Down/Home/End moved focus
   with no switch, Enter and Space switched, Right/Left hopped to the ⋯ and back, the list stayed
   one tab stop, the trigger was named "Effects, Fire". Same look as frame 1.
@@ -97,13 +93,51 @@ repeated here.
   success state. The warning glyph and accordion chevrons are CSS masks,
   which Chromium drops over `file://`, so check them served over HTTP.
 
+## Failure, inputs and scope (2026-11-03, later)
+
+- The earlier build-time check was wrong: a missing input is neither a
+  rejected switch nor saved-not-applied. `Pipeline::build` falls back to a
+  built-in and the PUT succeeds, so the trigger can move to an effect the user
+  never picked, with no inline error. Read from the code and
+  `PipelineTests.cpp`, not run live.
+- Picking Music pulse blanks `activeInputName`, so a video or mixed custom
+  effect fails after it, and a mixed effect depends on the order the built-ins
+  were visited. Both input names now stay saved, the effect id chooses the
+  mode, and the server auto-picks a missing input but never `dummy`
+  (`Aurora-kep2.3`). Auto-pick is mainly for a normal build whose user never
+  chose audio. A build with no such input still fails.
+- A failed effect switch no longer keeps the old effect running, which the
+  owner found confusing with the old chips. It stops, the trigger reads "No
+  effect running", the pick stays saved, and Retry or a restart tries it
+  again. Startup fails the same way, so the built-in fallback goes
+  (`Aurora-kep2.4`). Deleting the running effect still moves to a built-in.
+- Scope: effect switches only. Failed device or settings changes keep the
+  effect running (saved-not-applied), and light tests keep their revert.
+- A failed build shows in the banner only, under the 2026-10-06 split by cause
+  in [[error-overlay]]. Inline stays for requests that never ran, where the
+  old effect keeps running. The banner has no live region, so the panel
+  announces the failure.
+- Edit graph joins the built-in and hidden row menus, editing a built-in saves
+  as a new custom effect, and the Dashboard's link goes at cut over.
+- Pins and recents are dropped in favor of the panel.
+- A dim steady magenta failure light, like a shader's missing material, was
+  accepted as later work (`Aurora-dh1p`). It needs a pipeline with no capture
+  input, and it cannot show when the outputs are down.
+- A dead or unreachable bridge shows nothing today: the app reports running,
+  nothing reads `isConnected()`, and nothing reconnects. `Aurora-lt66` adds a
+  daemon-side check, a self-clearing banner row and automatic reconnect, with
+  no Retry button. So the trigger means what Aurora is running, not strictly
+  what is on the lights.
+
 ## Open (owner)
 
-- None of the owner questions remain. Build-time check: whether a missing
-  input comes back as a rejected switch (inline error) or saved-not-applied
-  (banner). Either one surfaces it.
+- Frame 11 and the Edit graph menu items are not redrawn yet (remaining
+  `Aurora-kep2.2` work). The row follow-on flows are `Aurora-kep2.6`.
 
 ## ARIA and design review gaps (2026-11-03)
+
+Review record. Later sections and the bead's design field override it. Delete
+confirm and menu gating are still open, as `Aurora-kep2.6`.
 
 - Native radios commit on every arrow key and cross all three groups (shared
   `name`). Verified in headless Chromium: four ArrowDown presses from Music
@@ -158,8 +192,9 @@ repeated here.
 
 ## Resume
 
-Decide the open items and the radio-vs-button row model, update `gen.py`,
-regen, then have the owner re-review before a build bead is cut.
+Finish the `Aurora-kep2.2` frames in `gen.py`, regen, and have the owner
+review them. Build beads are cut under `Aurora-kep2`, starting with
+`Aurora-kep2.3`.
 
 - Lessons:
   - "Native radios commit on every arrow key, and one shared `name` groups
