@@ -7,9 +7,9 @@ const live = document.getElementById('mk-live')
 const logEl = document.getElementById('mk-log')
 
 const MENUS = {
-  'g-builtin': ['Duplicate', 'Hide'],
+  'g-builtin': ['Edit graph', 'Duplicate', 'Hide'],
   'g-custom': ['Edit graph', 'Rename', 'Duplicate', 'Move up', 'Move down', 'Hide', 'Delete'],
-  'g-hidden': ['Unhide', 'Duplicate'],
+  'g-hidden': ['Edit graph', 'Unhide', 'Duplicate'],
 }
 const isGroup = (el) => el.classList.contains('mk-section')
 const sectionOf = (row) => row.closest('.mk-section')
