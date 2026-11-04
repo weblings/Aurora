@@ -792,35 +792,23 @@ function ownerScreen(extra = {}) {
   assert.ok(content.innerHTML.includes('Not available in this build.'));
 }
 
-// Edit graph link (Aurora-pvxx.8): shown only once the editor probe answered,
-// and only with a running effect; the href carries the effect id.
+// The editor probe (Aurora-pvxx.8) only gates the row menus' Edit graph item.
 {
   const { inst } = fakeScreen();
-  const slot = makeEl();
-  inst.container = { querySelector: () => slot };
-  inst.pipelineState = { effect: 'custom.my fx' };
-  inst.graphEditorAvailable = false;
-  inst._renderEditLink();
-  assert.equal(slot.innerHTML, '');
-  inst.graphEditorAvailable = true;
-  inst._renderEditLink();
-  assert.ok(slot.innerHTML.includes('href="/graph-editor/?effect=custom.my%20fx"'));
-  inst.pipelineState = { effect: null };
-  inst._renderEditLink();
-  assert.equal(slot.innerHTML, '');
-
+  const updates = [];
+  inst.effectPanel = { update: (a) => updates.push(a) };
   const html = { ok: true, headers: { get: () => 'text/html' } };
   globalThis.fetch = async (url) => { assert.equal(url, '/graph-editor/'); return html; };
-  inst.pipelineState = { effect: 'builtin.video' };
   await inst._probeGraphEditor();
   assert.equal(inst.graphEditorAvailable, true);
-  assert.ok(slot.innerHTML.includes('Edit graph'));
+  assert.deepEqual(updates, [{ canEdit: true }]);
   globalThis.fetch = async () => ({ ok: false, headers: { get: () => null } });
   await inst._probeGraphEditor();
   assert.equal(inst.graphEditorAvailable, false);
   globalThis.fetch = async () => { throw new Error('offline'); };
   await inst._probeGraphEditor();
   assert.equal(inst.graphEditorAvailable, false);
+  assert.equal(updates.length, 1);
   globalThis.fetch = realFetch;
 }
 
@@ -941,35 +929,22 @@ const ON_RAINBOW = { ...VIDEO_STATE, effect: 'rainbow' };
   assert.equal(calls[2].rejected, null, 'a Video/Audio error stays on the toggle row');
 }
 
-// Nothing to list and no light test: the panel goes away.
-{
-  let destroyed = 0;
-  const inst = Object.create(DashboardScreen.prototype);
-  Object.assign(inst, {
-    effects: [], pipelineState: ON_VIDEO,
-    effectPanel: { destroy() { destroyed++; } },
-  });
-  inst._renderEffectPanel();
-  assert.equal(destroyed, 1);
-  assert.equal(inst.effectPanel, null);
-}
-
-// The toggle row follows the audio build and disables during any switch.
+// The panel shows even with nothing to list, and the controls row has no toggle.
 {
   const controls = makeEl();
   const inst = Object.create(DashboardScreen.prototype);
   Object.assign(inst, {
     hasAudio: true, effects: [], pipelineState: ON_VIDEO, platform: 'windows',
-    toggleError: null, mode: 'video', pendingMode: 'custom', pendingEffectId: 'rainbow',
+    toggleError: null, toggleErrorMode: null, mode: 'video', pendingMode: null,
     effectPanel: null,
     container: { querySelector: () => controls },
   });
-  inst._renderEffectPanel = () => {};
+  let rendered = 0;
+  inst._renderEffectPanel = () => { rendered++; };
   inst._renderControls();
-  assert.match(controls.innerHTML, /id="db-mode-video" disabled/, 'row disabled during a picker switch');
-  inst.hasAudio = false;
-  inst._renderControls();
-  assert.equal(controls.innerHTML, '', 'no audio build: no toggle row');
+  assert.equal(rendered, 1);
+  assert.equal(controls.innerHTML, '', 'no toggle, no error: the row is empty');
+  assert.ok(!('_renderEditLink' in inst), 'the Dashboard Edit graph link is gone');
 }
 
 // A failed host reads its banner sentence through the panel's live region.

@@ -375,7 +375,9 @@ re-handshake); since Aurora-c0g only structural fields still do (see
 - The segmented control becomes one Effect trigger with an attached
   panel: a tree of Built-in, Custom and Hidden groups with per-row menus
   and no input badges. Spec in `Aurora-kep2.2`, record in
-  [[kep22-effect-panel-mocks]].
+  [[kep22-effect-panel-mocks]]. Cut over in `Aurora-kep2.10`: the toggle
+  and the Dashboard Edit graph link are gone (Edit graph lives in the row
+  menus), the panel always shows, and its trigger tooltip is `app.effect`.
 - Dashboard sections derive from the active graph, not `mode`: monitor
   picker iff a capture source node, sink picker + permission banner iff
   an audio source, Zone Mapping iff a `SampleZones` node. A mixed effect
@@ -456,7 +458,7 @@ visible color output.
 - **Effect picker:** built-in effects carry authored descriptions
   (replacing `app.mode`'s "Video or audio reactive mode"); customs get
   a user-entered description in their effect metadata. `app.mode` stays
-  on onboarding only.
+  on onboarding only, and the Dashboard trigger uses `app.effect`.
 - **User-authored text is data:** rendered via `title`/text nodes only,
   never HTML. The editor shows a soft "≤ 6 words" hint for Dashboard
   tooltips; not enforced.

@@ -38,7 +38,7 @@ import { renderReloadError } from '../MacPermissionRecovery.js';
 import {
   audioDevicesUrlFrom, devicePatch, effectiveFlags, effectTitle,
   flagsForMode, isEffectSwitchConfirmed, isSwitchConfirmed, isSwitchErrorStale,
-  graphEditorHref, isIdle, lightTestActive, loadEffects, loadPipelineState, modeSwitchPatch, runningToggle,
+  isIdle, lightTestActive, loadEffects, loadPipelineState, modeSwitchPatch, runningToggle,
   putEffectSwitch, putModeSwitch, runningFlags,
 } from '../CaptureSource.js';
 import { DAEMON_UNREACHABLE } from '../messages.js';
@@ -162,7 +162,6 @@ export class DashboardScreen {
       <div class="top-bar-slot db-top-bar-slot"></div>
       <div class="db-controls"></div>
       <div class="db-effect-slot"></div>
-      <div class="db-edit-slot"></div>
       <div class="db-top-tier"></div>
       <div class="db-accordions"></div>
       <div id="db-overlay-slot"></div>
@@ -345,21 +344,12 @@ export class DashboardScreen {
 
   _render() {
     this._renderControls();
-    this._renderEditLink();
     this._renderTopTier();
     this._renderAccordions();
   }
 
-  // "Edit graph" opens /graph-editor/ on the running effect (Aurora-pvxx.8).
-  // The editor is an opt-in build (AURORA_ENABLE_GRAPH_EDITOR), so the link
-  // shows only once a probe of that path has answered; the demo shim and
-  // editor-less builds show nothing rather than a dead link.
-  _renderEditLink() {
-    const slot = this.container.querySelector('.db-edit-slot');
-    const href = this.graphEditorAvailable ? graphEditorHref(this.pipelineState) : null;
-    slot.innerHTML = href ? `<a class="btn-link db-edit-graph" href="${escapeHtml(href)}">Edit graph</a>` : '';
-  }
-
+  // The editor is an opt-in build (AURORA_ENABLE_GRAPH_EDITOR), so the row menus offer
+  // Edit graph only once a probe of that path has answered.
   async _probeGraphEditor() {
     try {
       const response = await fetch('/graph-editor/', { method: 'GET' });
@@ -368,54 +358,23 @@ export class DashboardScreen {
     } catch {
       this.graphEditorAvailable = false;
     }
-    if (this.graphEditorAvailable) {
-      this._renderEditLink();
-      this.effectPanel?.update({ canEdit: true });
-    }
+    if (this.graphEditorAvailable) this.effectPanel?.update({ canEdit: true });
   }
 
-  // Stop moved into the top bar itself (2.5 pass, see _loadAll()'s
-  // renderTopBar call) -- this row is the mode toggle, and renders nothing
-  // without an audio build. The effect panel has its own slot below it.
-  // The fill follows the running pipeline (this.flags), never the saved
-  // config. While a switch is in flight the clicked option gets an outline
-  // only (pending), the running option stays filled, and every option is
-  // disabled -- a ~4.5s rebuild with no busy state reads as a dead button.
+  // The effect panel has its own slot; this row holds only the error of a failed Video/Audio
+  // switch (onboarding and the tray still switch them).
   _renderControls() {
     const controls = this.container.querySelector('.db-controls');
     // A custom switch's failure is the panel's own line, not this row's error.
     const errorHtml = this.toggleErrorMode === 'custom' ? '' : renderReloadError(this.toggleError, this.platform);
     this._renderEffectPanel();
-    if (!this.hasAudio) {
-      controls.innerHTML = '';
-      return;
-    }
-
-    const disabled = this.pendingMode ? ' disabled' : '';
-    controls.innerHTML = `
-      <div class="db-controls-row">
-        <div class="segmented" role="group" aria-label="Capture mode">
-          <button type="button" class="${this._toggleClasses('video')}" id="db-mode-video"${disabled}>Video</button>
-          <button type="button" class="${this._toggleClasses('audio')}" id="db-mode-audio"${disabled}>Audio</button>
-        </div>
-      </div>
-      ${errorHtml}
-    `;
-    applyTooltip(controls.querySelector('#db-mode-video'), 'app.mode');
-    applyTooltip(controls.querySelector('#db-mode-audio'), 'app.mode');
-    controls.querySelector('#db-mode-video').addEventListener('click', () => this._switchMode('video'));
-    controls.querySelector('#db-mode-audio').addEventListener('click', () => this._switchMode('audio'));
+    controls.innerHTML = errorHtml;
   }
 
   // One persistent EffectPanel: trigger text and the checked row come from the running
   // pipeline, never the pick, so a failed switch never shows as chosen. Outside changes
   // patch it in place, so it is never rebuilt under an open panel.
   _renderEffectPanel() {
-    if (this.effects.length === 0 && !lightTestActive(this.pipelineState)) {
-      this.effectPanel?.destroy();
-      this.effectPanel = null;
-      return;
-    }
     if (!this.effectPanel) {
       this.effectPanel = new EffectPanel(this.container.querySelector('.db-effect-slot'), {
         onSelect: (id) => this._onEffectPicked(id),
@@ -539,13 +498,6 @@ export class DashboardScreen {
     if (id === 'builtin.video') return this._switchMode('video');
     if (id === 'builtin.audio') return this._switchMode('audio');
     return this._switchMode('custom', id);
-  }
-
-  _toggleClasses(mode) {
-    const classes = ['segmented-btn'];
-    if (this.mode === mode) classes.push('active');
-    if (this.pendingMode === mode) classes.push('pending');
-    return classes.join(' ');
   }
 
   // Top tier: just DeviceField (Monitor/device picker) + its own error now --

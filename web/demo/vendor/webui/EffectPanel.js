@@ -5,6 +5,7 @@
 // menus live in the panel outside the scroll region, placed under their row.
 // Outside changes patch rows in place by effect id (update), never close or rebuild the panel.
 import { effectTitle } from './CaptureSource.js';
+import { applyTooltip } from './Tooltips.js';
 import {
   actionAnnouncement, buildGroups, diffEffects, flatItems, focusAfterRemoval, menuItems, positionIn,
   rowItems, rowKey, runningId, startPoints, switchAnnouncement, titleClash, triggerLabel, typeAhead,
@@ -83,6 +84,7 @@ export class EffectPanel {
     chevron.alt = '';
     chevron.src = CHEVRON_URL;
     this.trigger.append(this.labelText, chevron);
+    applyTooltip(this.trigger, 'app.effect');
 
     this.panel = el('div', 'ef-panel');
     this.panel.id = `${uid}-panel`;

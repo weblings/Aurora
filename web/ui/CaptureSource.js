@@ -87,13 +87,6 @@ export function isSwitchConfirmed(putResult, stateAfter, mode) {
     && flagsMatchMode(stateAfter, mode);
 }
 
-// The graph editor's address for the running effect (Aurora-pvxx.8), or null
-// when nothing is running. The editor reads `effect` from its query string.
-export function graphEditorHref(state) {
-  const id = state?.effect;
-  return typeof id === 'string' && id ? `/graph-editor/?effect=${encodeURIComponent(id)}` : null;
-}
-
 // Whether a custom (non-built-in) effect is the one running now. The
 // effect picker's trigger takes the fill then, not Video or Audio.
 export function customEffectRunning(state) {

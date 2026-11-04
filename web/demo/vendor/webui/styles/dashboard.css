@@ -1,31 +1,6 @@
-/* Quick mode toggle + Stop, above the top tier -- step 17. Wraps to a
-   stacked layout under 480px the same way ModeDeviceScreen's own toggle
-   row does, rather than shrinking the segmented control to fit one line. */
-.db-controls {
+/* Holds only a failed Video/Audio switch's error; empty takes no room. */
+.db-controls:not(:empty) {
   margin-bottom: var(--aurora-space-5);
-}
-
-.db-controls-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--aurora-space-4);
-  flex-wrap: wrap;
-}
-
-.db-controls-row .segmented {
-  flex: 1;
-}
-
-@media (max-width: 480px) {
-  .db-controls-row {
-    flex-direction: column;
-    align-items: stretch;
-  }
-
-  .db-controls-row .btn {
-    width: 100%;
-  }
 }
 
 /* Top tier -- step 20: device field, video's canvas + entertainment config
@@ -241,13 +216,4 @@
 
 .paired-device-revoke {
   flex-shrink: 0;
-}
-
-/* "Edit graph" link under the mode toggle (Aurora-pvxx.8); empty slot takes no room. */
-.db-edit-slot:not(:empty) {
-  margin-bottom: var(--aurora-space-5);
-}
-
-.db-edit-graph {
-  display: inline-block;
 }
