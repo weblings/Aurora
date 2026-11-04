@@ -298,8 +298,7 @@ export class ModeDeviceScreen {
         if (stateAfter) this.audioDevicesUrl = audioDevicesUrlFrom(stateAfter);
         if (isSwitchConfirmed(result, stateAfter, applying)) {
           this.mode = applying;
-          // An audio switch clears activeInputName but keeps the remembered
-          // video input, so switching back picks the same one.
+          // Both names stay saved across switches, so switching back keeps the input.
           if (patch.activeInputName) this.currentActiveInputName = patch.activeInputName;
           if (patch.activeAudioInputName) this.currentActiveAudioInputName = patch.activeAudioInputName;
           if (flagsForMode(this.mode).usesVideoInput) {

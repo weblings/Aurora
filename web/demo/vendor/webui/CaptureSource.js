@@ -26,9 +26,12 @@ export function pickAudioInputName(audioInputs, current) {
   return audioInputs[0] ?? '';
 }
 
-// Pipeline::build's rule: audio only when no video input is named and an
-// audio one is. Nothing named and both named read as video.
+// The effect id picks the mode (runsAudioMode in core). An id that doesn't
+// say (unset, a custom graph) keeps the older rule: audio only when no video
+// input is named and an audio one is.
 export function modeFromConfig(config) {
+  if (config?.activeEffectId === 'builtin.audio') return 'audio';
+  if (config?.activeEffectId === 'builtin.video') return 'video';
   return (!config?.activeInputName && config?.activeAudioInputName) ? 'audio' : 'video';
 }
 
@@ -223,7 +226,8 @@ export function devicePatch(flags, { selectedMonitorName, sinkName }) {
 }
 
 // A Video/Audio toggle click: that mode's input plus the device shown for
-// it, so the switch lands on the device the user sees. Monitors are only
+// it, so the switch lands on the device the user sees. Neither name is
+// blanked: the other mode's input stays saved for a later mixed effect. Monitors are only
 // known while video runs; without them the saved monitor stays as is. It
 // also names the mode's built-in as the active effect (Aurora-52oz.1), which
 // drops a custom effect the user had selected.
@@ -240,7 +244,6 @@ export function modeSwitchPatch(mode, {
   }
   return {
     activeEffectId: 'builtin.audio',
-    activeInputName: '',
     activeAudioInputName: pickAudioInputName(audioInputs, currentActiveAudioInputName),
     audioTargetSinkName: sinkName.trim(),
   };

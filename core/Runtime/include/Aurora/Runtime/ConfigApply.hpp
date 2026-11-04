@@ -50,4 +50,9 @@ namespace Aurora::Runtime
   // `next` requires. Any Reload field, unclassified field, or derived-field
   // change touching 0 makes the whole change a Reload.
   ChangeAction planConfigChange(const Config& applied, const Config& next, bool audioMode);
+
+  // Whether the config's effect id picks the audio pipeline mode. Only ids
+  // that don't say (unset, or a custom graph with no source nodes) fall back
+  // to the older rule: audio when no video input is named.
+  bool runsAudioMode(const Config& config);
 }

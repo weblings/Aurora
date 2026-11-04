@@ -241,11 +241,13 @@ namespace
   };
 
 
-  Registry makeRegistry(const std::shared_ptr<Events>& events)
+  Registry makeRegistry(const std::shared_ptr<Events>& events, bool withAudio = true)
   {
     Registry registry;
     registry.registerInput("fake-video", [events]{ return std::make_unique<FakeVideoInput>(events); });
-    registry.registerAudioInput("fake-audio", [events]{ return std::make_unique<FakeAudioInput>(events); });
+    if(withAudio){
+      registry.registerAudioInput("fake-audio", [events]{ return std::make_unique<FakeAudioInput>(events); });
+    }
     registry.registerOutput("out-a", [events]{ return std::make_unique<FakeOutput>("out-a", events); });
     registry.registerOutput("out-b", [events]{ return std::make_unique<FakeOutput>("out-b", events); });
     return registry;
@@ -3399,13 +3401,62 @@ TEST_CASE("A custom graph with both capture nodes builds both inputs, and a miss
   CHECK_FALSE(none->summary().graphInputs->video);
   CHECK_FALSE(none->summary().graphInputs->audio);
 
-  // A graph needing audio with none configured runs the built-in.
+  // A graph needing audio when the build has no audio backend runs the built-in.
+  auto noAudioRegistry = makeRegistry(events, /*withAudio*/ false);
   Config noAudio = videoConfig();
   noAudio.setActiveEffectId("both");
-  auto fallback = Pipeline::build(registry, noAudio, dir.path, {});
+  auto fallback = Pipeline::build(noAudioRegistry, noAudio, dir.path, {});
   REQUIRE(fallback);
   CHECK(fallback->summary().effect == "builtin.video");
   CHECK(fallback->summary().fallbackReason.find("audio input") != std::string::npos);
+}
+
+TEST_CASE("The effect id picks the mode and a missing input is auto-picked and saved (Aurora-kep2.3)", "[Effects][Audio]")
+{
+  ScopedTempDir dir("effect-picks-mode");
+  auto events = std::make_shared<Events>();
+  auto registry = makeRegistry(events);
+
+  // A video-only user picks Music pulse: audio runs and the pick is saved.
+  Config videoOnly = videoConfig();
+  videoOnly.setActiveEffectId("builtin.audio");
+  auto audio = Pipeline::build(registry, videoOnly, dir.path, {});
+  REQUIRE(audio);
+  CHECK(audio->isAudioMode());
+  CHECK(ConfigStore(dir.path).load().activeAudioInputName() == "fake-audio");
+
+  // Both names saved: the effect id alone chooses the mode, either way.
+  Config both = videoConfig();
+  both.setActiveAudioInputName("fake-audio");
+  both.setActiveEffectId("builtin.video");
+  CHECK_FALSE(Pipeline::build(registry, both, dir.path, {})->isAudioMode());
+  both.setActiveEffectId("builtin.audio");
+  CHECK(Pipeline::build(registry, both, dir.path, {})->isAudioMode());
+
+  // An audio-only user picks Screen colors: video is picked.
+  ScopedTempDir audioDir("effect-picks-video");
+  Config audioOnly = audioConfig();
+  audioOnly.setActiveEffectId("builtin.video");
+  auto video = Pipeline::build(registry, audioOnly, audioDir.path, {});
+  REQUIRE(video);
+  CHECK_FALSE(video->isAudioMode());
+  CHECK(ConfigStore(audioDir.path).load().activeInputName() == "fake-video");
+}
+
+
+TEST_CASE("Auto-pick never takes dummy and fails the build when nothing real is registered (Aurora-kep2.3)", "[Effects]")
+{
+  ScopedTempDir dir("effect-no-dummy");
+  auto events = std::make_shared<Events>();
+  Registry registry;
+  registry.registerInput("dummy", [events]{ return std::make_unique<FakeVideoInput>(events); });
+  registry.registerOutput("out-a", [events]{ return std::make_unique<FakeOutput>("out-a", events); });
+
+  Config audioOnly;
+  audioOnly.setActiveAudioInputName("gone-audio");
+  audioOnly.setActiveEffectId("builtin.video");
+  CHECK_THROWS(Pipeline::build(registry, audioOnly, dir.path, {}));
+  CHECK(ConfigStore(dir.path).load().activeInputName().empty());
 }
 #endif
 
@@ -4874,11 +4925,12 @@ TEST_CASE("PipelineHost::reloadInputs refuses without a pipeline and leaves a ru
   PipelineHost host(Pipeline::build(registry, tunedVideoConfig(), dir.path, {}), {});
   const nlohmann::json before = *host.graphJson();
 
-  // The graph needs audio and none is configured: the build throws.
+  // The graph needs audio and the build has no audio backend: the build throws.
+  auto noAudioRegistry = makeRegistry(events, /*withAudio*/ false);
   nlohmann::json needsAudio = Graph::builtInVideoGraph({"out-a"});
   needsAudio["nodes"].push_back({{"id", "mic"}, {"type", "audio.capture"}, {"params", nlohmann::json::object()}});
   std::string error;
-  CHECK_FALSE(host.reloadInputs(registry, tunedVideoConfig(), dir.path, &needsAudio, error));
+  CHECK_FALSE(host.reloadInputs(noAudioRegistry, tunedVideoConfig(), dir.path, &needsAudio, error));
   CHECK(error.find("audio input") != std::string::npos);
   CHECK(*host.graphJson() == before);
   CHECK_FALSE(events->has("shutdown out-a replacement"));

@@ -13,6 +13,8 @@
 // not the storage ints -- same as SettingsRoutes::_interpolationName.
 
 import { demoGraph, demoNodes } from './demo-graph.js';
+import { modeFromConfig } from './vendor/webui/CaptureSource.js';
+
 
 // Live Config.hpp persisted values (see Aurora/core/Runtime/.../Config.hpp).
 export const DEMO_DEFAULT_CONFIG = {
@@ -222,13 +224,13 @@ export function createRouter(store, hooks = {}) {
       return ok({ succeeded: true });
     }
     // GET /api/state (Aurora-kea) -- the demo "runs" whatever its config
-    // names, by Pipeline::build's rule (audio only with no video input), so
-    // a mode switch reads back at once. Paused flips only through
+    // names, by the effect id (core's runsAudioMode), so a mode
+    // switch reads back at once. Paused flips only through
     // PUT /api/state (Aurora-5ipy.13). The audio device list is the sink
     // route below, as on Linux.
     if (method === 'GET' && path === '/api/state') {
       const config = store.getConfig();
-      const audio = !config.activeInputName && !!config.activeAudioInputName;
+      const audio = modeFromConfig(config) === 'audio';
       return ok({
         paused: store.isPaused(),
         // No daemon behind this page to stop (Aurora-ifkn.3): the
@@ -354,7 +356,7 @@ export function createRouter(store, hooks = {}) {
     // The demo only runs the built-in effects, so Tuning stays on /api/config.
     if (method === 'GET' && path === '/api/effects') {
       const config = store.getConfig();
-      const audio = !config.activeInputName && !!config.activeAudioInputName;
+      const audio = modeFromConfig(config) === 'audio';
       return ok({ effects: BUILTIN_EFFECTS, activeEffectId: '', effect: audio ? 'builtin.audio' : 'builtin.video' });
     }
     // PUT-for-read with {} body (PairingRoutes convention -- do NOT "fix" to

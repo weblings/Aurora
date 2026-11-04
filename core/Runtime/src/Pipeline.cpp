@@ -92,6 +92,38 @@ namespace Aurora::Runtime
     }
 
 
+    // A registered backend name for an input the config leaves unnamed.
+    // dummy is never picked: it is a test double, not a capture source.
+    std::string _pickVideoBackend(const Registry& registry)
+    {
+      std::vector<std::string> names = registry.inputNames();
+      std::sort(names.begin(), names.end());
+      for(const char* preferred : {"linux", "windows", "mac"}){
+        if(std::find(names.begin(), names.end(), preferred) != names.end()){
+          return preferred;
+        }
+      }
+      for(const auto& name : names){
+        if(name != "dummy"){
+          return name;
+        }
+      }
+      return {};
+    }
+
+    std::string _pickAudioBackend(const Registry& registry)
+    {
+      std::vector<std::string> names = registry.audioInputNames();
+      std::sort(names.begin(), names.end());
+      for(const auto& name : names){
+        if(name != "dummy"){
+          return name;
+        }
+      }
+      return {};
+    }
+
+
     struct ModePlan
     {
       bool audioMode{false};
@@ -105,7 +137,7 @@ namespace Aurora::Runtime
     ModePlan _planMode(const Config& config, const nlohmann::json* doc)
     {
       ModePlan plan;
-      plan.audioMode = config.activeInputName().empty();
+      plan.audioMode = runsAudioMode(config);
       if(!doc){
         return plan;
       }
@@ -138,7 +170,7 @@ namespace Aurora::Runtime
 
   std::unique_ptr<Pipeline> Pipeline::build(
     const Registry& registry,
-    const Config& config,
+    const Config& savedConfig,
     const std::filesystem::path& configRoot,
     const PipelineOptions& options,
     const PipelineBuildOverrides& overrides
@@ -153,9 +185,10 @@ namespace Aurora::Runtime
     // confirmed a capture source. Returning null here (not throwing) is
     // what PipelineHost::reload() already treats as an idle, non-error
     // state -- see its own constructor comment.
-    if(config.activeInputName().empty() && config.activeAudioInputName().empty()){
+    if(savedConfig.activeInputName().empty() && savedConfig.activeAudioInputName().empty()){
       return nullptr;
     }
+    Config config = savedConfig;
 
     auto pipeline = std::unique_ptr<Pipeline>(new Pipeline());
 
@@ -188,12 +221,6 @@ namespace Aurora::Runtime
       throw std::runtime_error("No outputs available -- nothing to drive");
     }
 
-    // Video wins if both could apply -- explicit opt-in to audio requires
-    // leaving activeInputName unset. Past the early return above, an empty
-    // activeInputName therefore always means audio mode. A custom graph's
-    // source nodes override this below.
-    bool useAudioMode = config.activeInputName().empty();
-
     // Aurora-o13 spike: presence-only flag, same convention as
     // AURORA_DEV_LIGHT_TAP. Builds both inputs when both names are set;
     // logs per-runner tick timing in every mode, for comparison.
@@ -219,8 +246,36 @@ namespace Aurora::Runtime
       customDoc = EffectStore(configRoot).read(customId, customFailure);
     }
 
+    // A missing input of a kind the effect needs is picked here, so every
+    // caller gets it (MCP set_effect too). The pick is saved, not a device.
+    {
+      const SourceNeeds sources = customDoc ? _sourceNeeds(*customDoc) : SourceNeeds{};
+      const bool anySource = sources.video || sources.audio;
+      const bool needVideo = anySource ? sources.video : !runsAudioMode(config);
+      const bool needAudio = anySource ? sources.audio : runsAudioMode(config);
+      const std::string video = needVideo && config.activeInputName().empty() ? _pickVideoBackend(registry) : std::string{};
+      const std::string audio = needAudio && config.activeAudioInputName().empty() ? _pickAudioBackend(registry) : std::string{};
+      if(!video.empty()){ config.setActiveInputName(video); }
+      if(!audio.empty()){ config.setActiveAudioInputName(audio); }
+      if((!video.empty() || !audio.empty()) && !overrides.graph){
+        ConfigStore(configRoot).update([&video, &audio](Config& onDisk){
+          bool changed = false;
+          if(!video.empty() && onDisk.activeInputName().empty()){
+            onDisk.setActiveInputName(video);
+            changed = true;
+          }
+          if(!audio.empty() && onDisk.activeAudioInputName().empty()){
+            onDisk.setActiveAudioInputName(audio);
+            changed = true;
+          }
+          return changed;
+        });
+      }
+    }
+
     // A custom graph picks its inputs from its source nodes. A source whose
     // input is not configured sends the graph back to the built-in.
+    bool useAudioMode = runsAudioMode(config);
     bool bothInputs = false;
     if(customDoc){
       const ModePlan plan = _planMode(config, &*customDoc);

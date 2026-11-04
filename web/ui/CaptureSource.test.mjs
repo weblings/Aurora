@@ -16,6 +16,9 @@ const NONE = { usesVideoInput: false, usesAudioInput: false, samplesZones: false
 // modeFromConfig: Pipeline::build's rule -- audio only with no video input.
 assert.equal(modeFromConfig({ activeInputName: '', activeAudioInputName: 'linux-audio' }), 'audio');
 assert.equal(modeFromConfig({ activeInputName: 'linux', activeAudioInputName: 'linux-audio' }), 'video');
+// The effect id decides when it names a built-in, even with both inputs saved.
+assert.equal(modeFromConfig({ activeEffectId: 'builtin.audio', activeInputName: 'linux', activeAudioInputName: 'linux-audio' }), 'audio');
+assert.equal(modeFromConfig({ activeEffectId: 'builtin.video', activeInputName: '', activeAudioInputName: 'linux-audio' }), 'video');
 assert.equal(modeFromConfig({}), 'video');
 assert.equal(modeFromConfig(undefined), 'video');
 
@@ -98,7 +101,7 @@ const ctx = {
 };
 assert.deepEqual(modeSwitchPatch('video', ctx), { activeEffectId: 'builtin.video', activeInputName: 'linux' });
 assert.deepEqual(modeSwitchPatch('video', { ...ctx, monitors: [{ name: 'DP-1' }] }), { activeEffectId: 'builtin.video', activeInputName: 'linux', activeMonitorName: 'DP-1' });
-assert.deepEqual(modeSwitchPatch('audio', ctx), { activeEffectId: 'builtin.audio', activeInputName: '', activeAudioInputName: 'linux-audio', audioTargetSinkName: 'sink-a' });
+assert.deepEqual(modeSwitchPatch('audio', ctx), { activeEffectId: 'builtin.audio', activeAudioInputName: 'linux-audio', audioTargetSinkName: 'sink-a' });
 
 // loadPipelineState: the parsed body, or null on any failure.
 {

@@ -143,6 +143,7 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `kea-route-and-shared-capture-source` | [log/2026-10-03-kea-route-and-shared-capture-source.md](log/2026-10-03-kea-route-and-shared-capture-source.md) | Aurora-kea: route decision, shared capture-source scope, pending-highlight follow-up (paused, no code) |
 | `kep21-effect-picker` | [log/2026-10-30-kep21-effect-picker.md](log/2026-10-30-kep21-effect-picker.md) | Dashboard effect picker beside Video/Audio |
 | `kep22-effect-panel-mocks` | [log/2026-11-03-kep22-effect-panel-mocks.md](log/2026-11-03-kep22-effect-panel-mocks.md) | Effect panel static mocks |
+| `kep23-effect-id-picks-mode` | [log/2026-11-03-kep23-effect-id-picks-mode.md](log/2026-11-03-kep23-effect-id-picks-mode.md) | Effect id picks the mode, both inputs kept, missing ones auto-picked |
 | `kgv7-pickers-follow-graph` | [log/2026-10-23-kgv7-pickers-follow-graph.md](log/2026-10-23-kgv7-pickers-follow-graph.md) | Kgv7: Dashboard pickers follow the MCP graph's declared inputs (Aurora-kgv7) |
 | `lane-a-review-followups` | [log/2026-10-24-lane-a-review-followups.md](log/2026-10-24-lane-a-review-followups.md) | Lane A review follow-ups (Aurora-5ipy.28 to .34) |
 | `lby1-os-assigned-test-ports` | [log/2026-10-16-lby1-os-assigned-test-ports.md](log/2026-10-16-lby1-os-assigned-test-ports.md) | Route tests bind OS-assigned ports (Aurora-lby1) |

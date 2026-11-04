@@ -307,3 +307,4 @@ Planning docs stay clean: decisions, status, and pointers here only.
 | 2026-10-30 | Graph editor: sockets and wires colored and shaped by port type, drag tint and dimming; port-types browser check, Windows stack fixes. [[ex8z-port-type-sockets]] | `bd show Aurora-ex8z` |
 | 2026-10-30 | Dashboard effect picker beside Video/Audio replaces the MCP toggle, with the toggle's loading states; parent bead set to needs-design. [[kep21-effect-picker]] | `bd show Aurora-kep2.1` |
 | 2026-11-03 | Effect panel static mocks closed after two design reviews and owner review: generator moved beside the frames, ARIA gaps (radios commit on arrow keys) logged. [[kep22-effect-panel-mocks]] | `bd show Aurora-kep2.2` |
+| 2026-11-03 | Effect id now picks the pipeline mode, both input names stay saved, and a missing input is auto-picked on the server (never dummy). [[kep23-effect-id-picks-mode]] | `bd show Aurora-kep2.3` |
