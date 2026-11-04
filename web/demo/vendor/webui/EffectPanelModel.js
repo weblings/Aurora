@@ -55,7 +55,7 @@ export function menuItems(effect, { running = false, canEdit = true, canDelete =
   return items;
 }
 
-// Flat arrow sequence: headers, the rows of expanded groups, then New effect last.
+// Focus order of the panel: headers, the rows of expanded groups, then New effect last.
 export function flatItems(groups, expanded, { canEdit = true } = {}) {
   const out = [];
   for (const g of groups) {
@@ -66,31 +66,25 @@ export function flatItems(groups, expanded, { canEdit = true } = {}) {
   return out;
 }
 
-// A key on tree item `at` (index into `items`). Returns what the view should do:
-// { focus: index } | { expand|collapse: groupId } | { toggle: groupId } | { commit: id }
-// | { menu: id } | { newEffect: true } | null for keys the tree ignores.
-export function treeKey(items, at, key, { shift = false, expanded = new Set(), typed = '' } = {}) {
-  const item = items[at];
-  if (!item) return null;
-  const isOpen = item.type === 'group' && expanded.has(item.id);
+// Rows in arrow order. Group headers and New effect are plain buttons reached by Tab.
+export function rowItems(items) {
+  return items.filter((i) => i.type === 'row');
+}
+
+// A key on the row button at `at` (index into rowItems). Returns what the view should do:
+// { focus: index } | { actions: id } | { menu: id } | null for keys left to the browser (Enter and
+// Space click the button) or to type-ahead. Arrows only move focus and never commit.
+export function rowKey(rows, at, key, { shift = false } = {}) {
+  const row = rows[at];
+  if (!row) return null;
   switch (key) {
-    case 'ArrowDown': return at + 1 < items.length ? { focus: at + 1 } : {};
+    case 'ArrowDown': return at + 1 < rows.length ? { focus: at + 1 } : {};
     case 'ArrowUp': return at > 0 ? { focus: at - 1 } : {};
     case 'Home': return { focus: 0 };
-    case 'End': return { focus: items.length - 1 };
-    case 'ArrowRight':
-      if (item.type === 'group') return isOpen ? (items[at + 1]?.type === 'row' ? { focus: at + 1 } : {}) : { expand: item.id };
-      return item.type === 'row' ? { menu: item.id } : {};
-    case 'ArrowLeft':
-      if (item.type === 'group') return isOpen ? { collapse: item.id } : {};
-      if (item.type === 'row') return { focus: items.findIndex((i) => i.type === 'group' && i.id === item.group) };
-      return {};
-    case 'Enter':
-    case ' ':
-      if (item.type === 'group') return { toggle: item.id };
-      return item.type === 'new' ? { newEffect: true } : { commit: item.id };
-    case 'ContextMenu': return item.type === 'row' ? { menu: item.id } : {};
-    case 'F10': return shift && item.type === 'row' ? { menu: item.id } : null;
+    case 'End': return { focus: rows.length - 1 };
+    case 'ArrowRight': return { actions: row.id };
+    case 'ContextMenu': return { menu: row.id };
+    case 'F10': return shift ? { menu: row.id } : null;
     default: return null;
   }
 }

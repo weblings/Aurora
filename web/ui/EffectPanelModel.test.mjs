@@ -1,10 +1,10 @@
-// EffectPanelModel (Aurora-kep2.8): groups, trigger text, menus, the tree keyboard model, focus
+// EffectPanelModel (Aurora-kep2.8): groups, trigger text, menus, the row keyboard model, focus
 // moves and outside changes. DOM-free. Run with `node EffectPanelModel.test.mjs`.
 import assert from 'node:assert/strict';
 import {
   actionAnnouncement, buildGroups, diffEffects, duplicateTitle, editorHref, fallbackBuiltinId, flatItems,
   focusAfterRemoval, freshEffectId, menuItems, positionIn, runningId, slugify, startPoints, switchAnnouncement,
-  titleClash, treeKey, triggerLabel, typeAhead,
+  titleClash, rowItems, rowKey, triggerLabel, typeAhead,
 } from './EffectPanelModel.js';
 
 const EFFECTS = [
@@ -67,29 +67,27 @@ const keys = (items) => items.map((i) => (i.type === 'row' ? i.id : i.type === '
 assert.deepEqual(keys(flat), ['g:builtin', 'builtin.video', 'builtin.audio', 'g:custom', 'fire', 'candle', 'g:hidden', 'new']);
 assert.deepEqual(keys(flatItems(groups, open, { canEdit: false })).at(-1), 'g:hidden', 'no editor: no New effect');
 
-// Tree keys: arrows only move focus, rows commit on Enter or Space, Right opens the menu.
+// Row keys: arrows only move focus among rows, Right hops to Actions, Enter and Space are native.
 {
-  const at = (k) => keys(flat).indexOf(k);
-  assert.deepEqual(treeKey(flat, at('fire'), 'ArrowDown'), { focus: at('candle') });
-  assert.deepEqual(treeKey(flat, at('g:builtin'), 'ArrowUp'), {}, 'no wrap at the top');
-  assert.deepEqual(treeKey(flat, at('new'), 'ArrowDown'), {}, 'no wrap at the bottom');
-  assert.deepEqual(treeKey(flat, 3, 'Home'), { focus: 0 });
-  assert.deepEqual(treeKey(flat, 0, 'End'), { focus: flat.length - 1 });
-  assert.deepEqual(treeKey(flat, at('fire'), 'Enter'), { commit: 'fire' });
-  assert.deepEqual(treeKey(flat, at('fire'), ' '), { commit: 'fire' });
-  assert.equal(treeKey(flat, at('fire'), 'ArrowDown').commit, undefined, 'arrows never commit');
-  assert.deepEqual(treeKey(flat, at('fire'), 'ArrowRight'), { menu: 'fire' });
-  assert.deepEqual(treeKey(flat, at('fire'), 'ContextMenu'), { menu: 'fire' });
-  assert.deepEqual(treeKey(flat, at('fire'), 'F10', { shift: true }), { menu: 'fire' });
-  assert.equal(treeKey(flat, at('fire'), 'F10'), null, 'plain F10 is not ours');
-  assert.deepEqual(treeKey(flat, at('fire'), 'ArrowLeft'), { focus: at('g:custom') }, 'Left goes to the group');
-  assert.deepEqual(treeKey(flat, at('g:custom'), 'ArrowLeft', { expanded: open }), { collapse: 'custom' });
-  assert.deepEqual(treeKey(flat, at('g:custom'), 'ArrowRight', { expanded: open }), { focus: at('fire') }, 'open group: Right enters');
-  assert.deepEqual(treeKey(flat, at('g:hidden'), 'ArrowRight', { expanded: open }), { expand: 'hidden' });
-  assert.deepEqual(treeKey(flat, at('g:custom'), 'Enter', { expanded: open }), { toggle: 'custom' });
-  assert.deepEqual(treeKey(flat, at('new'), 'Enter'), { newEffect: true });
-  assert.deepEqual(treeKey(flat, at('new'), 'ArrowRight'), {}, 'New effect has no menu');
-  assert.equal(treeKey(flat, at('fire'), 'q'), null, 'letters fall through to type-ahead');
+  const rows = rowItems(flat);
+  assert.deepEqual(rows.map((r) => r.id), ['builtin.video', 'builtin.audio', 'fire', 'candle'], 'headers and New effect are not rows');
+  const at = (id) => rows.findIndex((r) => r.id === id);
+  assert.deepEqual(rowKey(rows, at('fire'), 'ArrowDown'), { focus: at('candle') });
+  assert.deepEqual(rowKey(rows, at('builtin.audio'), 'ArrowDown'), { focus: at('fire') }, 'arrows cross groups');
+  assert.deepEqual(rowKey(rows, 0, 'ArrowUp'), {}, 'no wrap at the top');
+  assert.deepEqual(rowKey(rows, rows.length - 1, 'ArrowDown'), {}, 'no wrap at the bottom');
+  assert.deepEqual(rowKey(rows, 2, 'Home'), { focus: 0 });
+  assert.deepEqual(rowKey(rows, 0, 'End'), { focus: rows.length - 1 });
+  assert.equal(rowKey(rows, at('fire'), 'Enter'), null, 'Enter is the native click');
+  assert.equal(rowKey(rows, at('fire'), ' '), null, 'Space is the native click');
+  assert.equal(rowKey(rows, at('fire'), 'ArrowDown').commit, undefined, 'arrows never commit');
+  assert.deepEqual(rowKey(rows, at('fire'), 'ArrowRight'), { actions: 'fire' });
+  assert.deepEqual(rowKey(rows, at('fire'), 'ContextMenu'), { menu: 'fire' });
+  assert.deepEqual(rowKey(rows, at('fire'), 'F10', { shift: true }), { menu: 'fire' });
+  assert.equal(rowKey(rows, at('fire'), 'F10'), null, 'plain F10 is not ours');
+  assert.equal(rowKey(rows, at('fire'), 'ArrowLeft'), null, 'Left is only used on Actions');
+  assert.equal(rowKey(rows, at('fire'), 'q'), null, 'letters fall through to type-ahead');
+  assert.equal(rowKey(rows, 99, 'ArrowDown'), null);
 
   const labels = ['Built-in', 'Screen colors', 'Music pulse', 'Custom', 'Fire', 'Candle', 'Hidden', 'New effect'];
   assert.equal(typeAhead(labels, 0, 'ca'), 5);

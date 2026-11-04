@@ -1,5 +1,6 @@
 // Drives web/ui's EffectPanel in Chromium with no Aurora stack: a static server over web/ui and a
-// stub page. Covers the keyboard model, focus moves, outside changes and layout at 760 and 390.
+// stub page. Covers the button row markup, keyboard model, focus moves, outside changes and layout
+// at 760 and 390.
 // Usage: node checks/effect-panel.mjs   (SHOTS=<dir> also saves a screenshot per width)
 import assert from 'node:assert/strict'
 import { createServer } from 'node:http'
@@ -82,45 +83,84 @@ try {
     assert.equal(await page.getAttribute('.dropdown-trigger', 'aria-haspopup'), 'dialog')
     assert.equal(await page.isVisible('.ef-panel'), false)
 
-    // Open: focus lands on the running row, the tree has one tab stop, Hidden starts collapsed.
+    // Open: focus lands on the running row, the rows have one tab stop, Hidden starts collapsed.
     await page.focus('.dropdown-trigger')
     await key('Enter')
     assert.equal(await page.isVisible('.ef-panel'), true)
     assert.equal(await focused(), 'r:fire')
-    assert.equal(await page.locator('[role=treeitem][tabindex="0"]').count(), 1)
+    assert.equal(await page.locator('.ef-pick[tabindex="0"]').count(), 1)
     assert.equal(await page.getAttribute('[data-key="g:hidden"]', 'aria-expanded'), 'false')
     assert.equal(await page.isVisible('[data-key="r:strobe"]'), false)
 
-    // Arrows move focus only: nothing commits.
+    // Markup: no tree roles. Headers are buttons in headings, rows are buttons, each row has a
+    // visible Actions button that VoiceOver can reach, and New effect is a button.
+    assert.equal(await page.locator('[role=tree], [role=treeitem]').count(), 0, 'no tree roles')
+    assert.equal(await page.locator('h3.ef-group > button.ef-head[aria-expanded][aria-controls]').count(), 3)
+    assert.equal(await page.evaluate(() => {
+      const head = document.querySelector('[data-key="g:custom"]'); const list = document.getElementById(head.getAttribute('aria-controls'))
+      return list.getAttribute('role') + ':' + (list.getAttribute('aria-labelledby') === head.id)
+    }), 'group:true', 'a header labels its list')
+    assert.equal(await page.evaluate(() => document.querySelector('[data-key="r:fire"]').tagName), 'BUTTON')
+    assert.equal(await page.getAttribute('[data-key="r:fire"]', 'aria-current'), 'true', 'the running row is current')
+    assert.equal(await page.getAttribute('[data-key="r:candle"]', 'aria-current'), null)
+    assert.equal(await page.locator('[aria-selected]').count(), 0)
+    assert.equal(await page.evaluate(() => document.querySelector('[data-key="new"]').tagName), 'BUTTON')
+    assert.equal(await page.locator('.ef-more[aria-hidden]').count(), 0, 'Actions is not hidden')
+    assert.equal(await page.getAttribute('[data-key="m:fire"]', 'aria-label'), 'Actions for Fire')
+    assert.equal(await page.getAttribute('[data-key="m:fire"]', 'aria-haspopup'), 'menu')
+    assert.equal(await page.getAttribute('[data-key="m:fire"]', 'aria-expanded'), 'false')
+    assert.equal(await page.isVisible('[data-key="m:fire"]'), true)
+
+    // Arrows move focus between rows only, across groups, and nothing commits.
     await key('ArrowDown'); assert.equal(await focused(), 'r:candle')
-    await key('ArrowDown'); assert.equal(await focused(), 'g:hidden')
-    await key('ArrowDown'); assert.equal(await focused(), 'new')
-    await key('ArrowDown'); assert.equal(await focused(), 'new', 'no wrap')
-    await key('Home'); assert.equal(await focused(), 'g:builtin')
-    await key('End'); assert.equal(await focused(), 'new')
+    await key('ArrowDown'); assert.equal(await focused(), 'r:candle', 'no wrap, collapsed Hidden has no rows')
+    await key('Home'); assert.equal(await focused(), 'r:builtin.video')
+    await key('ArrowDown'); await key('ArrowDown'); assert.equal(await focused(), 'r:fire', 'arrows cross groups')
+    await key('End'); assert.equal(await focused(), 'r:candle')
     assert.deepEqual(await page.evaluate(() => window.picked), [])
 
-    // Groups: Right expands, Right again enters, Left on a row goes to the group, Left collapses.
+    // Headers and New effect are Tab stops in page order, the rows keep their one stop.
+    await page.focus('[data-key="r:fire"]')
+    await key('Tab'); assert.equal(await focused(), 'g:hidden')
+    await key('Tab'); assert.equal(await focused(), 'new')
+    await key('Shift+Tab'); await key('Shift+Tab'); assert.equal(await focused(), 'r:fire')
+    await key('Shift+Tab'); assert.equal(await focused(), 'g:custom')
+    await key('Shift+Tab'); assert.equal(await focused(), 'g:builtin')
+
+    // Groups: Enter and Space toggle the header and focus stays on it.
     await page.focus('[data-key="g:hidden"]')
-    await key('ArrowRight'); assert.equal(await page.getAttribute('[data-key="g:hidden"]', 'aria-expanded'), 'true')
-    await key('ArrowRight'); assert.equal(await focused(), 'r:strobe')
-    await key('ArrowLeft'); assert.equal(await focused(), 'g:hidden')
-    await key('ArrowLeft'); assert.equal(await page.getAttribute('[data-key="g:hidden"]', 'aria-expanded'), 'false')
+    await key('Enter'); assert.equal(await page.getAttribute('[data-key="g:hidden"]', 'aria-expanded'), 'true')
+    assert.equal(await focused(), 'g:hidden')
+    assert.equal(await page.isVisible('[data-key="r:strobe"]'), true)
+    await key('Space'); assert.equal(await page.getAttribute('[data-key="g:hidden"]', 'aria-expanded'), 'false')
+    assert.equal(await page.isVisible('[data-key="r:strobe"]'), false)
     // Collapsing the group that holds the running effect puts the check on its header.
     await page.focus('[data-key="g:custom"]')
-    await key('ArrowLeft')
+    await key('Enter')
     assert.equal(await page.isVisible('[data-key="g:custom"] .ef-cue'), true)
+    assert.equal(await page.textContent('[data-key="g:custom"] .sr-only'), ', contains the current effect')
     await key('Enter')
     assert.equal(await page.isVisible('[data-key="g:custom"] .ef-cue'), false)
 
     // Type-ahead and the description tooltip on keyboard focus.
-    await page.focus('[data-key="g:builtin"]')
+    await page.focus('[data-key="r:builtin.video"]')
     await page.keyboard.type('fi'); assert.equal(await focused(), 'r:fire')
     assert.equal(await page.isVisible('.ef-tip:not([hidden])'), true, 'keyboard focus shows the description')
     assert.notEqual(await page.getAttribute('[data-key="r:fire"]', 'aria-describedby'), null)
 
-    // Row menu: Right opens, items follow the row, Esc returns focus to the row, panel stays open.
-    await key('ArrowRight')
+    // Actions: Right hops to the button, Left hops back, Enter opens the menu and Esc returns to the button.
+    await key('ArrowRight'); assert.equal(await focused(), 'm:fire')
+    await key('ArrowLeft'); assert.equal(await focused(), 'r:fire')
+    await key('ArrowRight'); await key('Enter')
+    assert.equal(await page.getAttribute('[data-key="m:fire"]', 'aria-expanded'), 'true')
+    await key('Escape')
+    assert.equal(await focused(), 'm:fire', 'Esc returns to the control that opened the menu')
+    assert.equal(await page.getAttribute('[data-key="m:fire"]', 'aria-expanded'), 'false')
+    assert.equal(await page.locator('.ef-menu').count(), 0)
+    await key('ArrowLeft')
+
+    // Row menu: items follow the row, Esc returns focus, the panel stays open.
+    await key('ArrowRight'); await key('Enter')
     assert.equal(await page.isVisible('.ef-menu'), true)
     assert.deepEqual(await page.locator('.ef-menu [role=menuitem]').allTextContents(),
       ['Edit graph', 'Rename', 'Duplicate', 'Move down', 'Delete'], 'running row: no Hide, first row: no Move up')
@@ -150,8 +190,8 @@ try {
     // Esc closes and Tab out closes without pulling focus back.
     await key('Enter'); await key('Escape')
     assert.equal(await page.isVisible('.ef-panel'), false)
-    await key('Enter'); await key('Tab')
-    assert.equal(await page.isVisible('.ef-panel'), false, 'Tab out closes')
+    await key('Enter'); await key('Tab'); await key('Tab'); await key('Tab')
+    assert.equal(await page.isVisible('.ef-panel'), false, 'Tab past New effect closes')
     await page.focus('.dropdown-trigger')
     await key('Enter')
     await page.mouse.click(width - 2, 690)
@@ -170,8 +210,8 @@ try {
     assert.equal(await page.evaluate(() => window.mark === document.querySelector('[data-key="r:candle"]')), true, 'same element')
     assert.equal(await page.textContent('[data-key="r:candle"] .ef-opt-name'), 'Candle 2')
     assert.equal(await label(), 'Candle 2', 'trigger follows the running effect')
-    assert.equal(await page.getAttribute('[data-key="r:candle"]', 'aria-selected'), 'true')
-    assert.equal(await page.getAttribute('[data-key="r:fire"]', 'aria-selected'), 'false')
+    assert.equal(await page.getAttribute('[data-key="r:candle"]', 'aria-current'), 'true')
+    assert.equal(await page.getAttribute('[data-key="r:fire"]', 'aria-current'), null)
     assert.equal(await live(), '', 'check moves without an announcement')
 
     // A removed focused row hands focus on (next, then previous, then group) and says so.
@@ -212,12 +252,14 @@ try {
       window.panel.update({ effects: window.EFFECTS, state: { effect: 'fire', state: 'running' }, hasAudio: true, rejected: null, fallbackTitle: 'Music pulse' })
       window.actions.length = 0
     })
+    // Keyboard route to a row's menu: Right to its Actions button, then Enter.
+    const actions = async () => { await key('ArrowRight'); await key('Enter') }
     const choose = (text) => page.locator('.ef-menu [role=menuitem]', { hasText: new RegExp(`^${text}$`) }).click()
-    const names = (group) => page.locator(`[data-key="g:${group}"] .ef-opt-name`).allTextContents()
+    const names = (group) => page.locator(`.ef-section:has([data-key="g:${group}"]) .ef-opt-name`).allTextContents()
     await page.focus('.dropdown-trigger'); await key('Enter')
     await key('ArrowDown')
     assert.equal(await focused(), 'r:candle')
-    await key('ArrowRight')
+    await actions()
     assert.deepEqual(await page.locator('.ef-menu [role=menuitem]').allTextContents(),
       ['Edit graph', 'Rename', 'Duplicate', 'Move up', 'Hide', 'Delete'], 'last custom row: no Move down')
     await choose('Move up')
@@ -226,24 +268,24 @@ try {
     assert.deepEqual(await names('custom'), ['Candle', 'Fire'])
     assert.equal(await focused(), 'r:candle', 'Move keeps focus on the row')
 
-    await key('ArrowRight'); await choose('Hide')
+    await actions(); await choose('Hide')
     await page.waitForFunction(() => document.querySelector('[aria-live=polite]').textContent === 'Candle hidden.')
     assert.equal(await focused(), 'r:fire', 'Hide moves focus to the next row')
     assert.equal(await page.locator('[data-key="g:hidden"]').count(), 1)
 
-    await page.focus('[data-key="g:hidden"]'); await key('ArrowRight')
-    await page.focus('[data-key="r:strobe"]'); await key('ArrowRight'); await choose('Unhide')
+    await page.focus('[data-key="g:hidden"]'); await key('Enter')
+    await page.focus('[data-key="r:strobe"]'); await actions(); await choose('Unhide')
     await page.waitForFunction(() => document.querySelector('[aria-live=polite]').textContent === 'Strobe unhidden.')
     assert.equal(await focused(), 'r:candle', 'Unhide moves focus within Hidden (previous row)')
 
-    await page.focus('[data-key="r:fire"]'); await key('ArrowRight'); await choose('Duplicate')
+    await page.focus('[data-key="r:fire"]'); await actions(); await choose('Duplicate')
     await page.waitForFunction(() => document.querySelector('[aria-live=polite]').textContent.startsWith('Duplicated'))
     assert.equal(await live(), 'Duplicated as Fire (Copy).')
     assert.equal(await focused(), 'r:fire-copy', 'focus follows the copy')
     assert.equal(await page.isVisible('.ef-panel'), true, 'panel stays open')
 
     // Rename: a clash keeps the field open with the message, then a free name saves.
-    await key('ArrowRight'); await choose('Rename')
+    await actions(); await choose('Rename')
     assert.equal(await page.inputValue('.ef-rename'), 'Fire (Copy)')
     await page.fill('.ef-rename', ' candle '); await key('Enter')
     assert.equal(await page.textContent('.ef-rename-error'), 'Another effect is named Candle.')
@@ -255,15 +297,15 @@ try {
     assert.equal(await focused(), 'r:fire-copy')
 
     // Delete confirm: focus on Cancel, Esc returns to the row, a fresh quick press does nothing.
-    await key('ArrowRight'); await choose('Delete')
+    await actions(); await choose('Delete')
     assert.equal(await page.getAttribute('.ef-confirm', 'role'), 'alertdialog')
     assert.equal(await page.textContent('.ef-confirm-title'), 'Delete Blaze?')
     assert.equal(await page.textContent('.ef-confirm-body'), "This can't be undone.")
     assert.equal(await page.evaluate(() => document.activeElement.textContent), 'Cancel')
     await key('Escape')
     assert.equal(await page.locator('.ef-confirm').count(), 0)
-    assert.equal(await focused(), 'r:fire-copy')
-    await key('ArrowRight'); await choose('Delete')
+    assert.equal(await focused(), 'm:fire-copy', 'Esc returns to the Actions button that opened it')
+    await key('Enter'); await choose('Delete')
     await page.click('.ef-confirm-yes')
     assert.equal(await page.locator('.ef-confirm').count(), 1, 'a press right after the confirm opens cannot delete')
     await page.waitForTimeout(450)
@@ -273,7 +315,7 @@ try {
     assert.notEqual(await focused(), 'r:fire-copy')
 
     // The running effect's confirm names the fallback, and confirming closes the panel to the trigger.
-    await page.focus('[data-key="r:fire"]'); await key('ArrowRight'); await choose('Delete')
+    await page.focus('[data-key="r:fire"]'); await actions(); await choose('Delete')
     assert.equal(await page.textContent('.ef-confirm-body'), "This can't be undone. It's running now, so Music pulse starts instead.")
     await key('Tab'); await key('Enter')
     assert.equal(await page.isVisible('.ef-panel'), false)
@@ -283,9 +325,9 @@ try {
     // A failed action announces and leaves the row.
     await key('Enter')
     await page.evaluate(() => { window.failNext = true })
-    await page.focus('[data-key="r:strobe"]'); await key('ArrowRight'); await choose('Hide')
+    await page.focus('[data-key="r:strobe"]'); await actions(); await choose('Hide')
     await page.waitForFunction(() => document.querySelector('[aria-live=polite]').textContent === "Couldn't hide Strobe.")
-    assert.equal(await page.locator('[data-key="g:custom"] [data-key="r:strobe"]').count(), 1)
+    assert.equal(await page.locator('.ef-section:has([data-key="g:custom"]) [data-key="r:strobe"]').count(), 1)
 
     // New effect: Start from lists the built-ins, Esc returns, a pick closes the panel.
     await page.focus('[data-key="new"]'); await key('Enter')

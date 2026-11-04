@@ -1,4 +1,4 @@
-/* Effect panel (Aurora-kep2.8): trigger + non-modal tree panel. Moved from the kep2 mocks'
+/* Effect panel (Aurora-kep2.8): trigger + non-modal panel of button rows (kep2.15). Moved from the kep2 mocks'
    mock.css (Static_kep2_Mocks), see EffectPanel.js. Builds on dropdown.css's trigger. */
 
 .ef-field {
@@ -26,8 +26,6 @@
 
 /* Until Aurora-oecx lands shared focus tokens the panel keeps the trigger's 2px light ring. */
 .ef-dropdown .dropdown-trigger:focus-visible,
-.ef-dropdown .ef-pick:focus-visible,
-.ef-dropdown .ef-section:focus-visible,
 .ef-dropdown .ef-new:focus-visible,
 .ef-dropdown .ef-menu [role="menuitem"]:focus-visible {
   outline: 2px solid var(--aurora-button-light);
@@ -36,7 +34,8 @@
 
 /* The row (or its wrapper) draws the ring inside its own box, since the list clips. */
 .ef-opt:has(.ef-pick:focus-visible),
-.ef-section:focus-visible > .ef-group,
+.ef-group:has(.ef-head:focus-visible),
+.ef-more:focus-visible,
 .ef-new:focus-visible,
 .ef-menu [role="menuitem"]:focus-visible {
   outline: 2px solid var(--aurora-button-light);
@@ -44,7 +43,7 @@
 }
 
 .ef-pick:focus-visible,
-.ef-section:focus-visible {
+.ef-head:focus-visible {
   outline: none;
 }
 
@@ -67,7 +66,7 @@
   display: none;
 }
 
-.ef-tree {
+.ef-body {
   display: flex;
   flex-direction: column;
   flex: 1;
@@ -90,6 +89,7 @@
 }
 
 .ef-group {
+  margin: 0;
   position: sticky;
   top: 0;
   z-index: 2;
@@ -105,12 +105,21 @@
   display: flex;
   align-items: center;
   gap: var(--aurora-space-3);
+  box-sizing: border-box;
+  width: 100%;
   height: 32px;
   padding: 0 var(--aurora-space-5);
+  background: none;
+  border: none;
+  color: inherit;
+  font: inherit;
+  letter-spacing: inherit;
+  text-align: left;
+  text-transform: inherit;
   cursor: pointer;
 }
 
-.ef-section[aria-expanded="false"] > .ef-group .ef-twisty {
+.ef-head[aria-expanded="false"] .ef-twisty {
   transform: rotate(-90deg);
 }
 
@@ -148,7 +157,11 @@
   gap: var(--aurora-space-3);
   min-height: 40px;
   padding: 0 0 0 var(--aurora-space-5);
+  background: none;
+  border: none;
   color: inherit;
+  font: inherit;
+  text-align: left;
   cursor: pointer;
   /* Long-press opens the row menu, so no text selection or iOS callout on rows. */
   -webkit-touch-callout: none;
@@ -180,17 +193,23 @@
 .ef-new {
   display: flex;
   align-items: center;
+  box-sizing: border-box;
+  width: 100%;
   min-height: 40px;
   padding: 0 var(--aurora-space-5);
+  background: none;
+  border: none;
   color: var(--aurora-text-secondary);
+  font: inherit;
   font-size: 13px;
+  text-align: left;
   cursor: pointer;
 }
 
 .ef-new:hover { background: var(--aurora-surface-hover); color: var(--aurora-text-primary); }
 .ef-foot[hidden] { display: none; }
 
-/* Tooltip and row menu sit in the panel outside the tree. EffectPanel.js sets their top. */
+/* Tooltip and row menu sit in the panel outside the scroll region. EffectPanel.js sets their top. */
 .ef-tip,
 .ef-menu {
   position: absolute;

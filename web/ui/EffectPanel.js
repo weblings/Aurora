@@ -1,13 +1,13 @@
 // The Dashboard's effect control (Aurora-kep2.8): one full-width trigger and a non-modal panel
-// holding an ARIA tree of Built-in, Custom and Hidden groups. Spec: Aurora-kep2.2 design field,
-// frame 9 of Static_kep2_Mocks as the keyboard reference, kep2.6 for row menus.
-// Rows commit on Enter, Space or click and arrows only move focus. Tooltips and row menus live in
-// the panel outside the tree and its scroll region, placed under their row.
+// holding Built-in, Custom and Hidden groups as buttons (Aurora-kep2.15: VoiceOver on iOS drops
+// role=tree). Spec: kep2.2 design field, frame 8 of Static_kep2_Mocks, kep2.6 for row menus.
+// Rows commit on Enter, Space or click and arrows only move focus between rows. Tooltips and row
+// menus live in the panel outside the scroll region, placed under their row.
 // Outside changes patch rows in place by effect id (update), never close or rebuild the panel.
 import { effectTitle } from './CaptureSource.js';
 import {
   actionAnnouncement, buildGroups, diffEffects, flatItems, focusAfterRemoval, menuItems, positionIn,
-  runningId, startPoints, switchAnnouncement, titleClash, treeKey, triggerLabel, typeAhead,
+  rowItems, rowKey, runningId, startPoints, switchAnnouncement, titleClash, triggerLabel, typeAhead,
 } from './EffectPanelModel.js';
 
 const CHEVRON_URL = new URL('./icons/chevron-down.svg', import.meta.url).href;
@@ -60,7 +60,7 @@ export class EffectPanel {
     this._open = false;
     this._rows = new Map(); // effect id -> { opt, pick, name, secondary, check, tip, more }
     this._sections = new Map(); // group id -> { section, head, list, cue, cueText }
-    this._menu = null; // { menu, id }
+    this._menu = null; // { menu, id, opener }
     this._tip = null;
     this._typed = '';
     this._typedAt = 0;
@@ -91,18 +91,15 @@ export class EffectPanel {
     this.panel.setAttribute('aria-labelledby', this.labelEl.id);
     this.panel.hidden = true;
 
-    this.tree = el('div', 'ef-tree');
-    this.tree.setAttribute('role', 'tree');
-    this.tree.setAttribute('aria-labelledby', this.labelEl.id);
+    this.body = el('div', 'ef-body');
     this.scroll = el('div', 'ef-scroll');
     this.foot = el('div', 'ef-foot');
-    this.newItem = el('div', 'ef-new', '+ New effect');
-    this.newItem.setAttribute('role', 'treeitem');
+    this.newItem = el('button', 'ef-new', '+ New effect');
+    this.newItem.type = 'button';
     this.newItem.dataset.key = 'new';
-    this.newItem.tabIndex = -1;
     this.foot.append(this.newItem);
-    this.tree.append(this.scroll, this.foot);
-    this.panel.append(this.tree);
+    this.body.append(this.scroll, this.foot);
+    this.panel.append(this.body);
     this.dropdown.append(this.trigger, this.panel);
 
     this.status = el('p', 'status-text ef-status');
@@ -226,7 +223,8 @@ export class EffectPanel {
 
   _elOf(key) {
     if (key === 'new') return this.newItem;
-    if (key.startsWith('g:')) return this._sections.get(key.slice(2))?.section ?? null;
+    if (key.startsWith('g:')) return this._sections.get(key.slice(2))?.head ?? null;
+    if (key.startsWith('m:')) return this._rows.get(key.slice(2))?.more ?? null;
     return this._rows.get(key.slice(2))?.pick ?? null;
   }
 
@@ -237,13 +235,19 @@ export class EffectPanel {
 
   _focusedKey() {
     const node = document.activeElement?.closest?.('[data-key]');
-    return node && this.tree.contains(node) ? node.dataset.key : null;
+    return node && this.body.contains(node) ? node.dataset.key : null;
+  }
+
+  // The rows share one tab stop that follows focus. Headers and New effect are always tab stops.
+  _setStop(key) {
+    this._tabKey = key;
+    for (const node of this.body.querySelectorAll('.ef-pick')) node.tabIndex = node.dataset.key === key ? 0 : -1;
   }
 
   _rove(key, opts) {
     const target = key && this._elOf(key);
     if (!target) return;
-    for (const node of this.tree.querySelectorAll('[role="treeitem"][data-key]')) node.tabIndex = node === target ? 0 : -1;
+    if (key.startsWith('r:')) this._setStop(key);
     target.focus(opts);
   }
 
@@ -255,7 +259,7 @@ export class EffectPanel {
 
     // A removed row that holds focus hands it on by the Hide rule before it leaves.
     let refocus = null;
-    if (this._open && focusedKey?.startsWith('r:') && !nextIds.has(focusedKey.slice(2))) {
+    if (this._open && /^[rm]:/.test(focusedKey ?? '') && !nextIds.has(focusedKey.slice(2))) {
       const id = focusedKey.slice(2);
       const stillThere = this._rows.get(id);
       refocus = focusAfterRemoval(this._flat(), id);
@@ -305,40 +309,45 @@ export class EffectPanel {
     this.foot.hidden = !this._opts.canEdit;
     for (const g of nextGroups) this._syncSection(g, running);
 
-    // One tab stop for the tree. A removed focus holder passes it on.
-    const flat = this._flat();
-    const keys = flat.map((i) => this._keyOf(i));
-    let tabKey = focusedKey && keys.includes(focusedKey) ? focusedKey : (this._tabKey && keys.includes(this._tabKey) ? this._tabKey : null);
-    if (refocus) tabKey = keys.includes(`r:${refocus}`) ? `r:${refocus}` : keys.includes(`g:${refocus}`) ? `g:${refocus}` : keys[0];
-    if (!tabKey) tabKey = (running && keys.includes(`r:${running}`)) ? `r:${running}` : keys[0];
-    this._tabKey = tabKey;
-    for (const node of this.tree.querySelectorAll('[role="treeitem"][data-key]')) node.tabIndex = node.dataset.key === tabKey ? 0 : -1;
-    if (refocus) this._elOf(tabKey)?.focus({ preventScroll: false });
+    // One tab stop for the rows. A removed focus holder passes it on.
+    const keys = this._flat().map((i) => this._keyOf(i));
+    const rowKeys = keys.filter((k) => k.startsWith('r:'));
+    const heldRow = /^[rm]:/.test(focusedKey ?? '') ? `r:${focusedKey.slice(2)}` : null;
+    let stop = rowKeys.includes(heldRow) ? heldRow : (rowKeys.includes(this._tabKey) ? this._tabKey : null);
+    if (refocus && rowKeys.includes(`r:${refocus}`)) stop = `r:${refocus}`;
+    if (!stop) stop = running && rowKeys.includes(`r:${running}`) ? `r:${running}` : (rowKeys[0] ?? null);
+    this._setStop(stop);
+    if (refocus) {
+      const to = keys.includes(`r:${refocus}`) ? `r:${refocus}` : keys.includes(`g:${refocus}`) ? `g:${refocus}` : keys[0];
+      this._elOf(to)?.focus({ preventScroll: false });
+    }
   }
 
   _ensureSection(group) {
     let sec = this._sections.get(group.id);
     if (sec) return sec;
     const section = el('div', 'ef-section');
-    section.setAttribute('role', 'treeitem');
-    section.dataset.key = `g:${group.id}`;
-    section.tabIndex = -1;
     const headId = `${this._uid}-g-${group.id}`;
-    section.setAttribute('aria-labelledby', headId);
-    const bar = el('div', 'ef-group');
-    const head = el('span', 'ef-head');
+    const listId = `${headId}-list`;
+    const heading = el('h3', 'ef-group');
+    const head = el('button', 'ef-head');
+    head.type = 'button';
     head.id = headId;
+    head.dataset.key = `g:${group.id}`;
+    head.setAttribute('aria-controls', listId);
     const twisty = el('img', 'ef-chev ef-twisty');
     twisty.alt = '';
     twisty.src = CHEVRON_URL;
     const cue = el('span', 'ef-cue', '✓');
     cue.setAttribute('aria-hidden', 'true');
-    const cueText = el('span', 'sr-only', ', contains the selected effect');
+    const cueText = el('span', 'sr-only', ', contains the current effect');
     head.append(twisty, el('span', '', group.name), cue, cueText);
-    bar.append(head);
+    heading.append(head);
     const list = el('div', 'ef-list');
+    list.id = listId;
     list.setAttribute('role', 'group');
-    section.append(bar, list);
+    list.setAttribute('aria-labelledby', headId);
+    section.append(heading, list);
     sec = { section, head, list, cue, cueText };
     this._sections.set(group.id, sec);
     return sec;
@@ -347,7 +356,7 @@ export class EffectPanel {
   _syncSection(group, running) {
     const sec = this._sections.get(group.id);
     const open = this._expanded.has(group.id);
-    sec.section.setAttribute('aria-expanded', String(open));
+    sec.head.setAttribute('aria-expanded', String(open));
     sec.list.hidden = !open;
     // A collapsed group holding the running effect shows it on its header.
     const show = !open && running !== null && group.effects.some((e) => e.id === running);
@@ -360,12 +369,11 @@ export class EffectPanel {
     if (row) return row;
     const opt = el('div', 'ef-opt');
     opt.dataset.id = effect.id;
-    const pick = el('div', 'ef-pick');
-    pick.setAttribute('role', 'treeitem');
+    const pick = el('button', 'ef-pick');
+    pick.type = 'button';
     pick.dataset.key = `r:${effect.id}`;
     pick.tabIndex = -1;
-    pick.setAttribute('aria-haspopup', 'menu');
-    pick.setAttribute('aria-keyshortcuts', 'ArrowRight Shift+F10');
+    pick.setAttribute('aria-keyshortcuts', 'Shift+F10');
     const check = el('span', 'ef-check');
     check.setAttribute('aria-hidden', 'true');
     const text = el('span', 'ef-opt-text');
@@ -373,12 +381,14 @@ export class EffectPanel {
     const secondary = el('span', 'ef-opt-secondary');
     text.append(name, secondary);
     pick.append(check, text);
-    // The ellipsis is a pointer affordance. The tree reaches the menu by key, and a treeitem
-    // cannot own a button, so it stays out of the tab order and the accessibility tree.
+    // Actions is a real button for touch and screen readers. Keyboard users reach it with Right
+    // from the row, so it stays out of the tab order.
     const more = el('button', 'ef-more', '⋯');
     more.type = 'button';
     more.tabIndex = -1;
-    more.setAttribute('aria-hidden', 'true');
+    more.dataset.key = `m:${effect.id}`;
+    more.setAttribute('aria-haspopup', 'menu');
+    more.setAttribute('aria-expanded', 'false');
     opt.append(pick, more);
     const tip = el('div', 'ef-tip');
     tip.setAttribute('role', 'tooltip');
@@ -401,7 +411,8 @@ export class EffectPanel {
     if (row.tip.textContent !== description) row.tip.textContent = description;
     if (description) row.pick.setAttribute('aria-describedby', row.tip.id);
     else row.pick.removeAttribute('aria-describedby');
-    row.pick.setAttribute('aria-selected', String(isRunning));
+    if (isRunning) row.pick.setAttribute('aria-current', 'true');
+    else row.pick.removeAttribute('aria-current');
     row.check.textContent = isRunning ? '✓' : '';
     row.opt.classList.toggle('selected', isRunning);
     row.more.setAttribute('aria-label', `Actions for ${title}`);
@@ -445,7 +456,7 @@ export class EffectPanel {
     if (pick && pick.matches(':focus-visible') && !this._menu) this._showTip(pick.closest('.ef-opt'));
     else if (!e.target.closest('.ef-menu')) this._hideTip();
     const keyed = e.target.closest('[data-key]');
-    if (keyed && this.tree.contains(keyed)) this._tabKey = keyed.dataset.key;
+    if (keyed && this.body.contains(keyed) && /^[rm]:/.test(keyed.dataset.key)) this._setStop(`r:${keyed.dataset.key.slice(2)}`);
   }
 
   // Non-modal: Tab out of the panel closes it, without pulling focus back.
@@ -460,15 +471,14 @@ export class EffectPanel {
   _onScroll() {
     this._hideTip();
     if (!this._menu) return;
-    const { id } = this._menu;
     const hadFocus = this._menu.menu.contains(document.activeElement);
-    this._closeMenu(false);
-    if (hadFocus) this._rove(`r:${id}`, { preventScroll: true });
+    this._closeMenu(hadFocus, { preventScroll: true });
   }
 
   // --- row menus -------------------------------------------------------------------------
 
-  _openMenu(id, { pointer = false } = {}) {
+  // opener: the control that had focus, which gets it back when the menu closes (default the row).
+  _openMenu(id, { pointer = false, opener = null } = {}) {
     const row = this._rows.get(id);
     const effect = this._effects.find((e) => e.id === id);
     if (!row || !effect) return;
@@ -502,7 +512,8 @@ export class EffectPanel {
     this._place(menu, row.opt);
     row.opt.classList.add('menu-open');
     row.more.classList.add('open');
-    this._menu = { menu, id };
+    row.more.setAttribute('aria-expanded', 'true');
+    this._menu = { menu, id, opener: opener ?? row.pick };
     menu.querySelector('[role="menuitem"]').focus();
   }
 
@@ -515,18 +526,19 @@ export class EffectPanel {
     return b;
   }
 
-  _closeMenu(refocus = true) {
+  _closeMenu(refocus = true, opts) {
     if (!this._menu) return;
-    const { menu, id } = this._menu;
+    const { menu, id, opener } = this._menu;
     this._menu = null;
     const row = this._rows.get(id);
     if (id === 'new') {
-      if (refocus) this._rove('new');
+      if (refocus) this._rove('new', opts);
     } else if (row) {
       row.opt.classList.remove('menu-open');
       row.more.classList.remove('open');
+      row.more.setAttribute('aria-expanded', 'false');
       // Refocus before removing the menu so focus never drops to the body.
-      if (refocus) this._rove(`r:${id}`);
+      if (refocus) (opener?.isConnected ? opener : row.pick).focus(opts);
     }
     menu.remove();
   }
@@ -542,7 +554,7 @@ export class EffectPanel {
     const effect = this._effects.find((e) => e.id === id);
     if (!effect) return;
     if (label === 'Rename') { this._closeMenu(false); this._startRename(id); return; }
-    if (label === 'Delete') { this._openConfirm(effect); return; }
+    if (label === 'Delete') { this._openConfirm(effect, this._menu.opener); return; }
     this._closeMenu(true);
     if (label === 'Edit graph') { this._onAction(label, effect); return; }
     await this._perform(label, effect);
@@ -585,7 +597,7 @@ export class EffectPanel {
 
   // --- delete confirm --------------------------------------------------------------------
 
-  _openConfirm(effect) {
+  _openConfirm(effect, opener = null) {
     const { id } = effect;
     const row = this._rows.get(id);
     this._closeMenu(false);
@@ -613,7 +625,8 @@ export class EffectPanel {
     this._place(box, row.opt);
     row.opt.classList.add('menu-open');
     row.more.classList.add('open');
-    this._menu = { menu: box, id, confirm: true };
+    row.more.setAttribute('aria-expanded', 'true');
+    this._menu = { menu: box, id, confirm: true, opener: opener ?? row.pick };
     this._confirmAt = Date.now();
     cancel.focus();
   }
@@ -765,15 +778,17 @@ export class EffectPanel {
     if (e.target.closest('.ef-menu')) return;
     const more = e.target.closest('.ef-more');
     if (more) {
-      this._openMenu(more.closest('.ef-opt').dataset.id, { pointer: this._pointerType === 'touch' });
+      const id = more.closest('.ef-opt').dataset.id;
+      // A second press on the same Actions button closes its menu.
+      if (this._menu?.id === id) { this._closeMenu(true); return; }
+      this._openMenu(id, { pointer: this._pointerType === 'touch' && e.detail !== 0, opener: more });
       return;
     }
     this._closeMenu(false);
-    const head = e.target.closest('.ef-group');
+    const head = e.target.closest('.ef-head');
     if (head) {
-      const section = head.closest('.ef-section');
-      this._toggleGroup(section.dataset.key.slice(2));
-      this._rove(section.dataset.key);
+      this._toggleGroup(head.dataset.key.slice(2));
+      head.focus();
       return;
     }
     const pick = e.target.closest('.ef-pick');
@@ -815,35 +830,36 @@ export class EffectPanel {
       this.close();
       return;
     }
+    // Headers and New effect are plain buttons. Only rows and their Actions button take arrows.
     const key = this._focusedKey();
-    if (!key) return;
-    const items = this._flat();
-    const at = items.findIndex((i) => this._keyOf(i) === key);
+    if (!/^[rm]:/.test(key ?? '')) return;
+    const id = key.slice(2);
+    if (key.startsWith('m:')) {
+      if (e.key === 'ArrowLeft') { e.preventDefault(); this._rove(`r:${id}`); }
+      return;
+    }
+    const rows = rowItems(this._flat());
+    const at = rows.findIndex((r) => r.id === id);
     if (at === -1) return;
-    const act = treeKey(items, at, e.key, { shift: e.shiftKey, expanded: this._expanded });
+    const act = rowKey(rows, at, e.key, { shift: e.shiftKey });
     if (act === null) {
-      this._typeAhead(e, items, at);
+      this._typeAhead(e, rows, at);
       return;
     }
     e.preventDefault();
-    if (act.focus !== undefined) this._rove(this._keyOf(items[act.focus]));
-    else if (act.expand) this._toggleGroup(act.expand, true);
-    else if (act.collapse) this._toggleGroup(act.collapse, false);
-    else if (act.toggle) this._toggleGroup(act.toggle);
-    else if (act.commit) this._commit(act.commit);
+    if (act.focus !== undefined) this._rove(`r:${rows[act.focus].id}`);
+    else if (act.actions) this._rove(`m:${act.actions}`);
     else if (act.menu) this._openMenu(act.menu);
-    else if (act.newEffect) this._newEffect();
   }
 
   _typeAhead(e, items, at) {
     if (e.key.length !== 1 || e.ctrlKey || e.metaKey || e.altKey) return;
-    this._typed = (e.timeStamp - this._typedAt < 600 ? this._typed : '') + e.key.toLowerCase();
+    const typing = this._typed !== '' && e.timeStamp - this._typedAt < 600;
+    // A lone Space is the native click that commits the row.
+    if (e.key === ' ' && !typing) return;
+    this._typed = (typing ? this._typed : '') + e.key.toLowerCase();
     this._typedAt = e.timeStamp;
-    const labels = items.map((i) => {
-      if (i.type === 'new') return 'New effect';
-      if (i.type === 'group') return this._groups.find((g) => g.id === i.id)?.name ?? '';
-      return this._rows.get(i.id)?.name.textContent ?? '';
-    });
+    const labels = items.map((i) => this._rows.get(i.id)?.name.textContent ?? '');
     const hit = typeAhead(labels, at, this._typed);
     e.preventDefault();
     if (hit !== null) this._rove(this._keyOf(items[hit]));

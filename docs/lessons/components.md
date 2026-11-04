@@ -427,3 +427,19 @@ Applies-when: choosing an ARIA widget role for a list that mobile screen-reader 
 On a real iPhone (VoiceOver, iOS 27.2, Safari) the effect panel as `role="tree"` read a header as only "Built-in" and a row as only its name and description. There was no tree item role, no expanded or selected state, and no has-popup hint. An `aria-hidden` Actions button was unreachable. This matches WebKit ignoring `treeitem` on iOS since 2016 (bugs.webkit.org 164936). Headless Chromium and desktop keyboard checks cannot show it.
 
 **Fix:** use `<button aria-expanded>` inside a heading for groups, `<button aria-current>` rows and a visible, non-hidden Actions button per row (frame 8). VoiceOver read all of these correctly. Group names are not announced when swiping into a `role="group"`, so structure comes from headings.
+
+## Re-inserting a focused element drops its focus, so refocus after the row moves
+Tags: webui, focus, dom, tree, live-region
+Applies-when: a list patches rows in place and an action moves the focused row to another list (Hide, Unhide, Move)
+
+In Aurora-kep2.9, `insertBefore` of the focused effect row into the Hidden group blurred it with no `relatedTarget`, so focus fell to `body` and a screen-reader user lost their place. The panel's patch code only avoids this for rows that stay put.
+
+**Fix:** work out the destination before the call (`focusAfterRemoval` for Hide, Unhide and Delete, the row itself for Move), await the action and the list refresh, then focus the destination. Let the panel's focusout handler ignore a null `relatedTarget`, or the blur closes the panel.
+
+## A "press must start on the confirm" guard does not stop a double tap
+Tags: webui, touch, confirm, delete, pointer
+Applies-when: a destructive confirm opens in the same spot as the control that opened it
+
+The design for the Delete confirm (Aurora-kep2.6) acted only on a press whose `pointerdown` landed on the confirm. A real double tap defeats that, since the second tap's `pointerdown` lands on the freshly opened confirm and deletes. Keyboard activation has `click.detail === 0` and no pointer press.
+
+**Fix:** also ignore pointer presses for 400 ms after the confirm opens. The browser check clicks Delete at once (nothing happens), waits 450 ms and clicks again (deletes).
