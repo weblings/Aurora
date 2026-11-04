@@ -146,6 +146,7 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `kep23-effect-id-picks-mode` | [log/2026-11-03-kep23-effect-id-picks-mode.md](log/2026-11-03-kep23-effect-id-picks-mode.md) | Effect id picks the mode, both inputs kept, missing ones auto-picked |
 | `kep25-effect-list-layout` | [log/2026-11-03-kep25-effect-list-layout.md](log/2026-11-03-kep25-effect-list-layout.md) | Effect list data: hidden flag, custom order and a Rename route |
 | `kep26-row-menu-flows` | [log/2026-11-03-kep26-row-menu-flows.md](log/2026-11-03-kep26-row-menu-flows.md) | Row menu follow-on flows |
+| `kep27-voiceover-tree-check` | [log/2026-11-03-kep27-voiceover-tree-check.md](log/2026-11-03-kep27-voiceover-tree-check.md) | VoiceOver check of the effect panel tree |
 | `kgv7-pickers-follow-graph` | [log/2026-10-23-kgv7-pickers-follow-graph.md](log/2026-10-23-kgv7-pickers-follow-graph.md) | Kgv7: Dashboard pickers follow the MCP graph's declared inputs (Aurora-kgv7) |
 | `lane-a-review-followups` | [log/2026-10-24-lane-a-review-followups.md](log/2026-10-24-lane-a-review-followups.md) | Lane A review follow-ups (Aurora-5ipy.28 to .34) |
 | `lby1-os-assigned-test-ports` | [log/2026-10-16-lby1-os-assigned-test-ports.md](log/2026-10-16-lby1-os-assigned-test-ports.md) | Route tests bind OS-assigned ports (Aurora-lby1) |

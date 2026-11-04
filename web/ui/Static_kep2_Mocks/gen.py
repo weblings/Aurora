@@ -85,7 +85,7 @@ def startmenu(items):
 
 
 DESC = {
-    "Screen colors": "Matches the lights to the colors at the edges of your screen.",
+    "Screen colors": "Matches the lights to the colors on your screen.",
     "Music pulse": "Pulses the lights with the beat of whatever is playing.",
     "Fire": "Warm flicker that flares with bass and loud moments.",
     "Rainbow drift": "Slow color wheel that speeds up with audio energy and screen motion.",

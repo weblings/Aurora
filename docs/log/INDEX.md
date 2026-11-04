@@ -310,3 +310,4 @@ Planning docs stay clean: decisions, status, and pointers here only.
 | 2026-11-03 | Effect id now picks the pipeline mode, both input names stay saved, and a missing input is auto-picked on the server (never dummy). [[kep23-effect-id-picks-mode]] | `bd show Aurora-kep2.3` |
 | 2026-11-03 | Effect list gains hidden flag, custom order (both in config.json) and routes for hide, move and rename; /api/effects reports hidden and order. [[kep25-effect-list-layout]] | `bd show Aurora-kep2.5` |
 | 2026-11-03 | Row menu follow-on flows designed and owner reviewed: Rename in place, two-step Delete confirm, Start from menu, "(Copy)" duplicates, gated menus, light test and long-press; frames 14-20. [[kep26-row-menu-flows]] | `bd show Aurora-kep2.6` |
+| 2026-11-03 | VoiceOver on iOS drops role=tree semantics, so the effect panel uses the button row model (frame 8). TalkBack split to optional. [[kep27-voiceover-tree-check]] | `bd show Aurora-kep2.7` |

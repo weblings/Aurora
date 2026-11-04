@@ -33,7 +33,47 @@ function commit(pick) {
   log(`Switched to ${name}.`)
 }
 
+const MENUS = {
+  'g-builtin-list': ['Edit graph', 'Duplicate', 'Hide'],
+  'g-custom-list': ['Edit graph', 'Rename', 'Duplicate', 'Move up', 'Move down', 'Hide', 'Delete'],
+  'g-hidden-list': ['Edit graph', 'Unhide', 'Duplicate'],
+}
+
+function closeMenu(refocus = true) {
+  const menu = panel.querySelector('.mk-rowmenu')
+  if (!menu) return
+  const more = menu.parentElement.querySelector('.mk-more')
+  more.setAttribute('aria-expanded', 'false')
+  menu.remove()
+  if (refocus) more.focus()
+}
+
+// Inline menu so touch screen readers can reach it (frame 9's menu is placed by layers.js).
+function showMenu(more) {
+  const opt = more.parentElement
+  const reopen = more.getAttribute('aria-expanded') !== 'true'
+  closeMenu(false)
+  if (!reopen) return
+  const menu = document.createElement('div')
+  menu.className = 'mk-rowmenu'
+  menu.setAttribute('role', 'menu')
+  menu.setAttribute('aria-label', more.getAttribute('aria-label'))
+  const running = opt.querySelector('.mk-pick').hasAttribute('aria-current')
+  for (const label of MENUS[opt.parentElement.id].filter((l) => !(running && l === 'Hide'))) {
+    const b = document.createElement('button')
+    b.type = 'button'
+    b.className = 'dropdown-option' + (label === 'Delete' ? ' dropdown-option-divided' : '')
+    b.setAttribute('role', 'menuitem')
+    b.textContent = label
+    menu.appendChild(b)
+  }
+  opt.appendChild(menu)
+  more.setAttribute('aria-expanded', 'true')
+  menu.firstChild.focus()
+}
+
 panel.addEventListener('keydown', (e) => {
+  if (e.target.closest('.mk-rowmenu') && e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); closeMenu(); return }
   const pick = e.target.closest('.mk-pick')
   const more = e.target.closest('.mk-more')
   if (e.key === 'Escape') {
@@ -54,10 +94,18 @@ panel.addEventListener('keydown', (e) => {
 })
 
 panel.addEventListener('click', (e) => {
+  const item = e.target.closest('.mk-rowmenu [role="menuitem"]')
+  if (item) {
+    const pick = item.closest('.mk-opt').querySelector('.mk-pick')
+    closeMenu()
+    log(`${item.textContent} ${nameOf(pick)} (not built in this frame).`)
+    return
+  }
+  const more = e.target.closest('.mk-more')
+  if (more) { showMenu(more); return }
+  closeMenu(false)
   const pick = e.target.closest('.mk-pick')
   if (pick) { rove(pick); commit(pick); return }
-  const more = e.target.closest('.mk-more')
-  if (more) { log(`Row menu for ${nameOf(more.parentElement.querySelector('.mk-pick'))} (menus are shown in frames 1 and 2).`, false); return }
   const head = e.target.closest('.mk-group-toggle button')
   if (head) {
     const open = head.getAttribute('aria-expanded') !== 'true'

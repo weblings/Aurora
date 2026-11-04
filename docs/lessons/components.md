@@ -419,3 +419,11 @@ Applies-when: a control is disabled while busy and the design also returns focus
 Aurora-kep2.2's effect panel returns focus to the trigger after a pick, and `Dropdown.setBusy` disables that trigger during the switch. In Chromium on the frame 10 mock, disabling the focused trigger moved `activeElement` to `body`, and calling `focus()` on the disabled trigger left focus where it was. Keyboard and screen-reader users lose their place until they Tab back in. Focus does not return by itself when the control is enabled again.
 
 **Fix:** accept the loss for short waits, or use `aria-disabled="true"` and ignore clicks and keys in the handlers. That keeps focus, but the control stays in the tab order and every input path must be blocked by hand. Kept `disabled` for kep2, since a switch is short.
+
+## VoiceOver on iOS drops role=tree and treeitem semantics, so use buttons with aria-expanded
+Tags: webui, aria, tree, voiceover, ios, mobile
+Applies-when: choosing an ARIA widget role for a list that mobile screen-reader users must operate
+
+On a real iPhone (VoiceOver, iOS 27.2, Safari) the effect panel as `role="tree"` read a header as only "Built-in" and a row as only its name and description. There was no tree item role, no expanded or selected state, and no has-popup hint. An `aria-hidden` Actions button was unreachable. This matches WebKit ignoring `treeitem` on iOS since 2016 (bugs.webkit.org 164936). Headless Chromium and desktop keyboard checks cannot show it.
+
+**Fix:** use `<button aria-expanded>` inside a heading for groups, `<button aria-current>` rows and a visible, non-hidden Actions button per row (frame 8). VoiceOver read all of these correctly. Group names are not announced when swiping into a `role="group"`, so structure comes from headings.
