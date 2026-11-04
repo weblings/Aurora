@@ -28,7 +28,7 @@
   </div>
 
   <h2>Frame 2: custom row menu, Hidden expanded</h2>
-  <p>Edit graph, Unhide and Duplicate on a hidden row. The Hidden header is an expandable tree node (aria-expanded).</p>
+  <p>Edit graph, Unhide and Duplicate on a hidden built-in. A hidden custom row (Plasma here) also has Rename and Delete. The Hidden header is an expandable tree node (aria-expanded).</p>
   <div class="row">
     <figure><figcaption>390px, Hidden open, row menu on a hidden effect</figcaption><iframe class="n" style="height:640px" src="frame2.html"></iframe></figure>
   </div>
@@ -100,6 +100,54 @@
     <figure><figcaption>13b: any other cause, such as a PUT that never arrived</figcaption><iframe class="n" style="height:300px" src="frame13b.html"></iframe></figure>
   </div>
   <p>Saved but not applied shows the frame 7 look with the shell banner above. An unreachable daemon is the shell takeover. Neither adds a line here. With nothing set to run the trigger reads "No effect running" (frame 6b).</p>
+
+  <h1 style="margin-top:48px">Row menu follow-on flows (Aurora-kep2.6)</h1>
+  <p>What happens after each row menu item, and the menus in each gated state. Decisions are in the bead's design field.</p>
+
+  <h2>Rename</h2>
+  <p>The row's name becomes a text field holding the title, all selected, and the ellipsis goes until it closes. Enter or leaving the field saves. Esc cancels. An empty or unchanged name closes without a request. A name another effect already shows keeps the field open with a line under it. Focus returns to the row and the live region says "Renamed to X." Built-ins have no Rename.</p>
+  <div class="row">
+    <figure><figcaption>14: editing</figcaption><iframe class="n" style="height:640px" src="frame14.html"></iframe></figure>
+    <figure><figcaption>14b: the name is taken</figcaption><iframe class="n" style="height:640px" src="frame14b.html"></iframe></figure>
+  </div>
+
+  <h2>Delete confirm</h2>
+  <p>Delete replaces the row menu with a confirm in the same spot. Focus starts on Cancel, and Esc or Cancel goes back to the row. A Delete press counts only if it started on the confirm, so a double tap on the menu item cannot delete. For the running effect the confirm names the built-in that starts instead, and the delete then runs the switch states (panel closes, "Switching to Screen colors&hellip;"). Any other delete keeps the panel open, moves focus like Hide and says "X deleted."</p>
+  <div class="row">
+    <figure><figcaption>15: not running</figcaption><iframe class="n" style="height:640px" src="frame15.html"></iframe></figure>
+    <figure><figcaption>15b: running, names the built-in</figcaption><iframe class="n" style="height:640px" src="frame15b.html"></iframe></figure>
+  </div>
+
+  <h2>New effect</h2>
+  <p>New effect opens a Start from menu with the built-ins. Each opens the graph editor on that built-in, which already saves a built-in as a new effect. A build with only one built-in skips the menu. Starting from a custom effect is Duplicate then Edit graph, so the editor needs no new parameter.</p>
+  <div class="row">
+    <figure><figcaption>16: start point</figcaption><iframe class="n" style="height:640px" src="frame16.html"></iframe></figure>
+  </div>
+
+  <h2>Duplicate</h2>
+  <p>The copy is titled "X (Copy)" ("X (Copy 2)", "X (Copy 3)" when taken), goes last in Custom, and never runs. The panel stays open, focus moves to the copy and it scrolls into view. It does not start a rename.</p>
+  <div class="row">
+    <figure><figcaption>17: Fire duplicated as Fire (Copy)</figcaption><iframe class="n" style="height:640px" src="frame17.html"></iframe></figure>
+  </div>
+
+  <h2>Gated menus</h2>
+  <p>Gated items are left out, never shown disabled, like Hide on the running effect. Hidden custom rows carry Rename and Delete too, so Not Admin drops Delete there as well. Move up is left out on the first row of a group and Move down on the last.</p>
+  <div class="row">
+    <figure><figcaption>18: no graph editor, custom row. No New effect footer</figcaption><iframe class="n" style="height:640px" src="frame18.html"></iframe></figure>
+    <figure><figcaption>18b: no graph editor, built-in row</figcaption><iframe class="n" style="height:640px" src="frame18b.html"></iframe></figure>
+    <figure><figcaption>18c: not Admin, no Delete</figcaption><iframe class="n" style="height:640px" src="frame18c.html"></iframe></figure>
+  </div>
+  <p>Light test: the test is not a row, so no row is checked and every menu is unchanged. Menu items that never touch the running pipeline (Hide, Unhide, Move, Rename, Duplicate, Edit graph, New effect, Delete of another effect) leave the test alone. Picking a row ends it. Deleting the saved active effect underneath the test would also end it, so that row's menu leaves out Delete (frame 19b), and the shell banner's Stop test button is the way out. Keep and Revert stay with the client that started it.</p>
+  <div class="row">
+    <figure><figcaption>19: light test running</figcaption><iframe class="n" style="height:640px" src="frame19.html"></iframe></figure>
+    <figure><figcaption>19b: the saved active effect (Fire), no Delete</figcaption><iframe class="n" style="height:640px" src="frame19b.html"></iframe></figure>
+  </div>
+
+  <h2>Long-press</h2>
+  <p>A menu opened by touch (long-press on the row or a tap on the ellipsis) starts with the description as a plain line. Mouse and keyboard keep the tooltip instead. An effect with no description has no line.</p>
+  <div class="row">
+    <figure><figcaption>20: long-press on Rainbow drift</figcaption><iframe class="n" style="height:640px" src="frame20.html"></iframe></figure>
+  </div>
 
 </body>
 </html>

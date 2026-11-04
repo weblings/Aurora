@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>kep2 frame 14b: rename, name taken</title>
+  <link rel="stylesheet" href="../styles/tokens.css" />
+  <link rel="stylesheet" href="../styles/page.css" />
+  <link rel="stylesheet" href="../styles/shell.css" />
+  <link rel="stylesheet" href="../styles/forms.css" />
+  <link rel="stylesheet" href="../styles/dropdown.css" />
+  <link rel="stylesheet" href="../styles/dashboard.css" />
+  <link rel="stylesheet" href="../styles/tuning.css" />
+  <link rel="stylesheet" href="mock.css" />
+</head>
+<body>
+  <div id="screen-container">
+    <div class="top-bar-slot db-top-bar-slot">
+      <div class="top-bar top-bar-with-logo">
+        <span></span>
+        <h1 class="top-bar-title"><img src="../icons/aurora-logo.png" alt="Aurora" class="top-bar-logo" /></h1>
+        <div class="top-bar-trailing">
+          <button type="button" class="btn btn-secondary btn-icon" aria-label="Pause"><img src="../icons/pause-rockyroad.svg" alt="" class="top-bar-trailing-icon" /></button>
+          <button type="button" class="btn btn-secondary btn-icon top-bar-power-btn" aria-label="Stop"><img src="../icons/power-svgrepo-com.svg" alt="" class="top-bar-trailing-icon" /></button>
+        </div>
+      </div>
+    </div>
+    <div class="db-controls mk-picker field">
+      <label class="field-label" id="effects-label">Effect</label>
+      <div class="dropdown dropdown-fill open">
+        <button type="button" class="dropdown-trigger" id="effects-trigger" aria-labelledby="effects-label effects-trigger" aria-controls="effects-panel" aria-haspopup="dialog" aria-expanded="true"><span class="mk-trigger-main"><span class="dropdown-label">Fire</span></span><img src="../icons/chevron-down.svg" alt="" class="mk-chev" /></button>
+        <div class="mk-panel-pop" role="dialog" id="effects-panel" aria-labelledby="effects-label">
+        <div role="tree" class="mk-tree" aria-labelledby="effects-label">
+        <div class="mk-scroll">
+          <div class="mk-section" role="treeitem" tabindex="-1" aria-expanded="true" aria-labelledby="g-builtin"><div class="mk-group mk-group-toggle"><span class="mk-head" id="g-builtin"><img src="../icons/chevron-down.svg" alt="" class="mk-chev mk-twisty" /><span>Built-in</span><span class="mk-cue" aria-hidden="true" hidden>&#10003;</span><span class="sr-only" hidden>, contains the selected effect</span></span></div>
+          <div role="group" id="g-builtin-list">
+            <div class="mk-opt" data-id="screen-colors"><div role="treeitem" class="mk-pick" tabindex="-1" aria-selected="false" aria-describedby="screen-colors-tip" aria-haspopup="menu" aria-keyshortcuts="ArrowRight Shift+F10"><span class="mk-check" aria-hidden="true"></span><span class="mk-opt-text"><span class="mk-opt-name">Screen colors</span></span></div><button type="button" class="mk-more" aria-label="Actions for Screen colors" aria-haspopup="menu" aria-expanded="false" tabindex="-1" aria-hidden="true">&#8943;</button></div>
+            <div class="mk-opt" data-id="music-pulse"><div role="treeitem" class="mk-pick" tabindex="-1" aria-selected="false" aria-describedby="music-pulse-tip" aria-haspopup="menu" aria-keyshortcuts="ArrowRight Shift+F10"><span class="mk-check" aria-hidden="true"></span><span class="mk-opt-text"><span class="mk-opt-name">Music pulse</span></span></div><button type="button" class="mk-more" aria-label="Actions for Music pulse" aria-haspopup="menu" aria-expanded="false" tabindex="-1" aria-hidden="true">&#8943;</button></div>
+          </div></div>
+          <div class="mk-section" role="treeitem" tabindex="-1" aria-expanded="true" aria-labelledby="g-custom"><div class="mk-group mk-group-toggle"><span class="mk-head" id="g-custom"><img src="../icons/chevron-down.svg" alt="" class="mk-chev mk-twisty" /><span>Custom</span><span class="mk-cue" aria-hidden="true" hidden>&#10003;</span><span class="sr-only" hidden>, contains the selected effect</span></span></div>
+          <div role="group" id="g-custom-list">
+            <div class="mk-opt selected" data-id="fire"><div role="treeitem" class="mk-pick" tabindex="0" aria-selected="true" aria-describedby="fire-tip" aria-haspopup="menu" aria-keyshortcuts="ArrowRight Shift+F10"><span class="mk-check" aria-hidden="true">&#10003;</span><span class="mk-opt-text"><span class="mk-opt-name">Fire</span></span></div><button type="button" class="mk-more" aria-label="Actions for Fire" aria-haspopup="menu" aria-expanded="false" tabindex="-1" aria-hidden="true">&#8943;</button></div>
+            <div class="mk-opt mk-renaming" data-id="rainbow-drift"><span class="mk-check" aria-hidden="true"></span><span class="mk-opt-text"><input type="text" class="text-input mk-rename" value="Candle" maxlength="80" aria-label="Rename Rainbow drift" aria-describedby="rainbow-drift-rename-err" aria-invalid="true" /><span class="mk-rename-err" id="rainbow-drift-rename-err"><span class="warn-glyph" aria-hidden="true"></span> Another effect is named Candle.</span></span></div>
+            <div class="mk-opt" data-id="candle"><div role="treeitem" class="mk-pick" tabindex="-1" aria-selected="false" aria-describedby="candle-tip" aria-haspopup="menu" aria-keyshortcuts="ArrowRight Shift+F10"><span class="mk-check" aria-hidden="true"></span><span class="mk-opt-text"><span class="mk-opt-name">Candle</span></span></div><button type="button" class="mk-more" aria-label="Actions for Candle" aria-haspopup="menu" aria-expanded="false" tabindex="-1" aria-hidden="true">&#8943;</button></div>
+          </div></div>
+          <div class="mk-section" role="treeitem" tabindex="-1" aria-expanded="false" aria-labelledby="g-hidden"><div class="mk-group mk-group-toggle"><span class="mk-head" id="g-hidden"><img src="../icons/chevron-down.svg" alt="" class="mk-chev mk-twisty" /><span>Hidden</span><span class="mk-cue" aria-hidden="true" hidden>&#10003;</span><span class="sr-only" hidden>, contains the selected effect</span></span></div>
+          <div role="group" id="g-hidden-list" hidden>
+            <div class="mk-opt" data-id="strobe"><div role="treeitem" class="mk-pick" tabindex="-1" aria-selected="false" aria-describedby="strobe-tip" aria-haspopup="menu" aria-keyshortcuts="ArrowRight Shift+F10"><span class="mk-check" aria-hidden="true"></span><span class="mk-opt-text"><span class="mk-opt-name">Strobe</span></span></div><button type="button" class="mk-more" aria-label="Actions for Strobe" aria-haspopup="menu" aria-expanded="false" tabindex="-1" aria-hidden="true">&#8943;</button></div>
+            <div class="mk-opt" data-id="plasma"><div role="treeitem" class="mk-pick" tabindex="-1" aria-selected="false" aria-describedby="plasma-tip" aria-haspopup="menu" aria-keyshortcuts="ArrowRight Shift+F10"><span class="mk-check" aria-hidden="true"></span><span class="mk-opt-text"><span class="mk-opt-name">Plasma</span></span></div><button type="button" class="mk-more" aria-label="Actions for Plasma" aria-haspopup="menu" aria-expanded="false" tabindex="-1" aria-hidden="true">&#8943;</button></div>
+          </div></div>
+        </div>
+          <div class="mk-foot"><div role="treeitem" class="mk-new" tabindex="-1">+ New effect</div></div>
+        </div>
+          <div class="mk-tip" role="tooltip" id="screen-colors-tip" data-row="screen-colors" hidden>Matches the lights to the colors at the edges of your screen.</div>
+          <div class="mk-tip" role="tooltip" id="music-pulse-tip" data-row="music-pulse" hidden>Pulses the lights with the beat of whatever is playing.</div>
+          <div class="mk-tip" role="tooltip" id="fire-tip" data-row="fire" hidden>Warm flicker that flares with bass and loud moments.</div>
+          <div class="mk-tip" role="tooltip" id="candle-tip" data-row="candle" hidden>Soft, steady glow that follows the dominant screen color.</div>
+          <div class="mk-tip" role="tooltip" id="strobe-tip" data-row="strobe" hidden>Hard white flashes on every beat.</div>
+          <div class="mk-tip" role="tooltip" id="plasma-tip" data-row="plasma" hidden>Swirling colors sampled from the screen.</div>
+        </div>
+      </div>
+    </div>
+    <div class="db-top-tier">
+      <div class="db-device-slot"><p class="status-text device-field-hint">Uses your system's default audio device.</p></div>
+    </div>
+    <div class="db-accordions">
+      <div><div class="accordion-section"><button type="button" class="accordion-header" aria-expanded="false"><span class="accordion-title">Zone Mapping</span><span class="accordion-chevron" aria-hidden="true"></span></button><div class="accordion-content" hidden></div></div></div>
+      <div><div class="accordion-section"><button type="button" class="accordion-header" aria-expanded="false"><span class="accordion-title">Tuning</span><span class="accordion-chevron" aria-hidden="true"></span></button><div class="accordion-content" hidden></div></div></div>
+      <div><div class="accordion-section"><button type="button" class="accordion-header" aria-expanded="false"><span class="accordion-title">Output</span><span class="accordion-chevron" aria-hidden="true"></span></button><div class="accordion-content" hidden></div></div></div>
+      <div><div class="accordion-section"><button type="button" class="accordion-header" aria-expanded="false"><span class="accordion-title">Paired devices</span><span class="accordion-chevron" aria-hidden="true"></span></button><div class="accordion-content" hidden></div></div></div>
+    </div>
+    <div class="db-version"><p>v1.1.4</p></div>
+    <script src="layers.js"></script>
+  </div>
+</body>
+</html>

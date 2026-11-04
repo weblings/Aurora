@@ -153,3 +153,20 @@ button .mk-cue:last-child { margin-left: auto; }
 /* Tree tooltips sit in the panel (layers.js sets top). They never take the pointer, so hovering
    a row's bottom edge does not flicker them. */
 .mk-panel-pop > .mk-tip:not([hidden]) { display: block; pointer-events: none; }
+
+/* kep2.6 follow-on flows. Static frames mark the focused control with .mk-focus. */
+.mk-new.hov { background: var(--aurora-surface-hover); color: var(--aurora-text-primary); }
+.mk-opt.mk-focus, .mk-confirm .mk-focus { outline: var(--aurora-focus-ring-width) solid var(--aurora-focus-ring); outline-offset: calc(-1 * var(--aurora-focus-ring-width)); }
+.mk-confirm .mk-focus { outline-offset: var(--aurora-focus-ring-offset); }
+.mk-renaming { padding: 0 var(--aurora-space-2) 0 var(--aurora-space-5); gap: var(--aurora-space-3); background: var(--aurora-surface-hover); }
+.mk-renaming .mk-opt-text { display: flex; flex-direction: column; gap: var(--aurora-space-1); padding: var(--aurora-space-1) 0; }
+.mk-rename { padding: var(--aurora-space-2) var(--aurora-space-3); }
+.mk-rename-err { font-size: 12px; color: var(--aurora-text-primary); }
+.mk-menu-desc { margin: 0; padding: var(--aurora-space-3) var(--aurora-space-5); font-size: 12px; color: var(--mk-text-muted); border-bottom: 1px solid var(--aurora-border); max-width: 220px; }
+/* Start from sits directly under the New effect text, not at the right edge like a row menu. */
+.mk-startmenu { left: var(--aurora-space-5); right: auto; }
+.mk-confirm { padding: var(--aurora-space-4) var(--aurora-space-5); gap: var(--aurora-space-2); max-width: 260px; }
+.mk-confirm p { margin: 0; font-size: 13px; }
+.mk-confirm-t { color: var(--aurora-text-primary); font-weight: 700; }
+.mk-confirm-b { color: var(--aurora-text-secondary); }
+.mk-confirm-actions { display: flex; justify-content: flex-end; gap: var(--aurora-space-3); margin-top: var(--aurora-space-3); }

@@ -10,7 +10,8 @@ function place(el, opt, overlap = 0) {
   el.style.top = `${top - pr.top}px`
 }
 
-const rowOf = (el) => layerPanel.querySelector(`.mk-opt[data-id="${el.dataset.row}"]`)
+// A row, or the New effect footer for its Start from menu.
+const rowOf = (el) => layerPanel.querySelector(`.mk-opt[data-id="${el.dataset.row}"], .mk-new[data-id="${el.dataset.row}"]`)
 let shownTip = null
 
 function showTip(opt) {

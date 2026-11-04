@@ -60,14 +60,28 @@ VERSION = '    <div class="db-version"><p>v1.1.4</p></div>'
 ROWMENU_CUSTOM = ["Edit graph", "Rename", "Duplicate", "Move up", "Move down", "Hide", "Delete"]
 ROWMENU_BUILTIN = ["Edit graph", "Duplicate", "Hide"]
 ROWMENU_HIDDEN = ["Edit graph", "Unhide", "Duplicate"]
+ROWMENU_HIDDEN_CUSTOM = ["Edit graph", "Rename", "Unhide", "Duplicate", "Delete"]
 
 
-def rowmenu(items):
-    h = '<div class="mk-rowmenu" role="menu">'
+def rowmenu(items, desc=None):
+    # A touch-opened menu leads with the description, which is not a menuitem, so the menu points at it.
+    h = '<div class="mk-rowmenu" role="menu"' + (' aria-describedby="mk-menu-desc"><p class="mk-menu-desc" id="mk-menu-desc">' + desc + '</p>' if desc else '>')
     for it in items:
         d = " dropdown-option-divided" if it == "Delete" else ""
         h += f'<button type="button" class="dropdown-option{d}" role="menuitem">{it}</button>'
     return h + '</div>'
+
+
+def confirm(name, fallback=None):
+    # Delete's second step replaces the row menu in the same spot. Focus starts on Cancel.
+    run = f" It&rsquo;s running now, so {fallback} starts instead." if fallback else ""
+    return f'''<div class="mk-rowmenu mk-confirm" role="alertdialog" aria-labelledby="mk-confirm-t" aria-describedby="mk-confirm-b"><p class="mk-confirm-t" id="mk-confirm-t">Delete {name}?</p><p class="mk-confirm-b" id="mk-confirm-b">{run.strip()} This can&rsquo;t be undone.</p><div class="mk-confirm-actions"><button type="button" class="btn btn-secondary mk-focus">Cancel</button><button type="button" class="btn btn-primary">Delete</button></div></div>'''
+
+
+def startmenu(items):
+    # New effect asks for a start point. The label is the menu's name, not an item.
+    h = '<div class="mk-rowmenu mk-startmenu" role="menu" aria-label="Start from" data-row="new"><p class="mk-menu-desc" aria-hidden="true">Start from</p>'
+    return h + "".join(f'<button type="button" class="dropdown-option" role="menuitem">{it}</button>' for it in items) + '</div>'
 
 
 DESC = {
@@ -84,9 +98,9 @@ DESC = {
 LAYERS = []  # tree frames: tooltips and row menus, rendered in the panel outside the tree
 
 
-def opt(name, sel=False, secondary=None, menu=None, tip=False, hov=False):
+def opt(name, sel=False, secondary=None, menu=None, tip=False, hov=False, rename=None, rename_err=None, focus=False):
     tree = ROWS == "tree"
-    cls = "mk-opt" + (" selected" if sel else "") + (" tip-on" if tip and not tree else "") + (" hov" if hov else "") + (" menu-open" if menu and tree else "")
+    cls = "mk-opt" + (" selected" if sel else "") + (" tip-on" if tip and not tree else "") + (" hov" if hov else "") + (" menu-open" if menu and tree else "") + (" mk-focus" if focus else "")
     rid = name.lower().replace(" ", "-")
     chk = "&#10003;" if sel else ""
     stxt = f'<div class="mk-opt-secondary">{secondary}</div>' if secondary else ""
@@ -94,12 +108,20 @@ def opt(name, sel=False, secondary=None, menu=None, tip=False, hov=False):
     tab_more = ' tabindex="-1" aria-hidden="true"' if tree else ' tabindex="-1"'
     more = f'<button type="button" class="mk-more{" open" if menu else ""}" aria-label="Actions for {name}" aria-haspopup="menu" aria-expanded="{str(bool(menu)).lower()}"{tab_more}>&#8943;</button>'
     inner = f'<span class="mk-check" aria-hidden="true">{chk}</span><span class="mk-opt-text"><span class="mk-opt-name">{name}</span>{stxt}</span>'
+    if rename is not None:
+        # Rename edits in place: the field takes the row's name and the ellipsis goes until it closes.
+        err = f'<span class="mk-rename-err" id="{rid}-rename-err"><span class="warn-glyph" aria-hidden="true"></span> {rename_err}</span>' if rename_err else ""
+        described = f' aria-describedby="{rid}-rename-err" aria-invalid="true"' if rename_err else ""
+        field = f'<input type="text" class="text-input mk-rename" value="{rename}" maxlength="80" aria-label="Rename {name}"{described} />'
+        return f'''            <div class="mk-opt mk-renaming{" selected" if sel else ""}" data-id="{rid}"><span class="mk-check" aria-hidden="true">{chk}</span><span class="mk-opt-text">{field}{err}</span></div>'''
     if tree:
         # A treeitem cannot hold a button, so the ellipsis is mouse-only and Right opens the row menu.
         pick = f'<div role="treeitem" class="mk-pick" tabindex="{0 if sel else -1}" aria-selected="{str(sel).lower()}"' + f' aria-describedby="{rid}-tip" aria-haspopup="menu" aria-keyshortcuts="ArrowRight Shift+F10">{inner}</div>'
         # Tooltip and menu leave the tree and its scroll region; layers.js places them under the row.
         LAYERS.append(f'<div class="mk-tip" role="tooltip" id="{rid}-tip" data-row="{rid}"{"" if tip else " hidden"}>{desc}</div>')
-        if menu:
+        if menu and "mk-confirm" in menu:
+            LAYERS.append(menu.replace('class="mk-rowmenu mk-confirm"', f'class="mk-rowmenu mk-confirm" data-row="{rid}"', 1))
+        elif menu:
             LAYERS.append(menu.replace('class="mk-rowmenu"', f'class="mk-rowmenu" data-row="{rid}" aria-label="Actions for {name}"', 1))
         return f'''            <div class="{cls}" data-id="{rid}">{pick}{more}</div>'''
     # Row buttons: one tab stop for the list (roving tabindex), arrows move focus without committing.
@@ -129,14 +151,17 @@ def section(gid, title, rows, collapsed=False, cue=None):
           </div></div>'''
 
 
-def groups(menu_for=None, hidden=None, many=False, collapsed=(), tip=None, hide_builtin=False):
-    # A group renders only when it holds a visible effect.
+def groups(menu_for=None, hidden=None, many=False, collapsed=(), tip=None, hide_builtin=False, over=None, sel="Fire", extra=()):
+    # A group renders only when it holds a visible effect. `over` gives one row's opt() arguments.
+    over = over or {}
     def bm(n): return rowmenu(ROWMENU_BUILTIN) if menu_for == n else None
     def cm(n): return rowmenu(ROWMENU_CUSTOM) if menu_for == n else None
-    def hm(n): return rowmenu(ROWMENU_HIDDEN) if menu_for == n else None
+    def hm(n): return rowmenu(ROWMENU_HIDDEN if n in ("Screen colors", "Music pulse") else ROWMENU_HIDDEN_CUSTOM) if menu_for == n else None
     t = lambda n: n == tip
-    builtin = [] if hide_builtin else [opt("Screen colors", menu=bm("Screen colors"), tip=t("Screen colors")), opt("Music pulse", menu=bm("Music pulse"), tip=t("Music pulse"))]
-    custom = [opt("Fire", sel=True, tip=t("Fire")), opt("Rainbow drift", menu=cm("Rainbow drift"), tip=t("Rainbow drift")), opt("Candle", tip=t("Candle"))]
+    def o(n, **kw): return opt(n, **{**kw, **over.get(n, {})})
+    builtin = [] if hide_builtin else [o("Screen colors", menu=bm("Screen colors"), tip=t("Screen colors")), o("Music pulse", menu=bm("Music pulse"), tip=t("Music pulse"))]
+    custom = [o("Fire", sel=sel == "Fire", tip=t("Fire")), o("Rainbow drift", menu=cm("Rainbow drift"), tip=t("Rainbow drift")), o("Candle", tip=t("Candle"))]
+    custom += [o(n) for n in extra]
     if many:
         custom += [opt(n, menu=cm(n)) for n in MANY]
     if NO_CUSTOM:
@@ -152,7 +177,7 @@ def groups(menu_for=None, hidden=None, many=False, collapsed=(), tip=None, hide_
     return "\n".join(parts)
 
 
-def picker(label, popup=False, menu_for=None, hidden=None, many=False, scroll=False, collapsed=(), tip=None, hide_builtin=False, switching=None, failed=None):
+def picker(label, popup=False, menu_for=None, hidden=None, many=False, scroll=False, collapsed=(), tip=None, hide_builtin=False, switching=None, failed=None, over=None, sel="Fire", extra=(), editor=True, new_menu=None):
     panel = ""
     # The trigger is named by the field label, and aria-controls points at the panel.
     trig = ' id="effects-trigger" aria-labelledby="effects-label effects-trigger" aria-controls="effects-panel"'
@@ -166,16 +191,20 @@ def picker(label, popup=False, menu_for=None, hidden=None, many=False, scroll=Fa
     if failed:
         status = f'\n      <p class="status-text status-text-error"><span class="warn-glyph" aria-hidden="true"></span> {failed}</p>'
     plabel = 'id="effects-panel" aria-labelledby="effects-label"'
-    body = groups(menu_for, hidden, many, collapsed, tip, hide_builtin)
+    body = groups(menu_for, hidden, many, collapsed, tip, hide_builtin, over, sel, extra)
+    if new_menu:
+        LAYERS.append(new_menu)
     layers = "".join(f"\n          {l}" for l in LAYERS)
     LAYERS.clear()
     # Tree frame: one tree spans the scrolling list and the pinned footer, and New effect is its last item.
-    new = '<div role="treeitem" class="mk-new" tabindex="-1">+ New effect</div>' if ROWS == "tree" else '<button type="button" class="mk-new">+ New effect</button>'
+    nid = ' data-id="new" aria-haspopup="menu" aria-expanded="true"' if new_menu else ""
+    new = f'<div role="treeitem" class="mk-new{" hov" if new_menu else ""}" tabindex="-1"{nid}>+ New effect</div>' if ROWS == "tree" else '<button type="button" class="mk-new">+ New effect</button>'
     scroll_cls = " mk-scrolling" if scroll else ""
+    # A build with no graph editor has no New effect, so the footer goes with it.
+    foot = f'\n          <div class="mk-foot">{new}</div>' if editor else ""
     inner = f'''        <div class="mk-scroll{scroll_cls}">
 {body}
-        </div>
-          <div class="mk-foot">{new}</div>'''
+        </div>{foot}'''
     if ROWS == "tree":
         inner = f'''        <div role="tree" class="mk-tree" aria-labelledby="effects-label">
 {inner}
@@ -240,6 +269,25 @@ w("frame13.html", "kep2 frame 13: request rejected, effect gone", skeleton(picke
 w("frame13b.html", "kep2 frame 13b: request rejected, other causes", skeleton(picker("Fire", failed="Rainbow drift didn&rsquo;t start."), device("audio")))
 w("frame12.html", "kep2 frame 12: paused", skeleton(picker("Fire"), device("audio"), paused=True))
 
+# Aurora-kep2.6: what each row menu item leads to, and the menus in each gated state.
+ROWMENU_CUSTOM_NO_EDITOR = [i for i in ROWMENU_CUSTOM if i != "Edit graph"]
+ROWMENU_CUSTOM_NO_ADMIN = [i for i in ROWMENU_CUSTOM if i != "Delete"]
+ANNOUNCE = lambda t: f'\n    <p class="sr-only" role="status">{t}</p>\n    <p class="status-text mk-log" aria-hidden="true">Announced: {t}</p>'
+pick = lambda **kw: skeleton(picker(kw.pop("label", "Fire"), True, None, hidden="collapsed", **kw), device("audio"))
+w("frame14.html", "kep2 frame 14: rename in place", pick(over={"Rainbow drift": {"rename": "Rainbow drift"}}))
+w("frame14b.html", "kep2 frame 14b: rename, name taken", pick(over={"Rainbow drift": {"rename": "Candle", "rename_err": "Another effect is named Candle."}}))
+w("frame15.html", "kep2 frame 15: delete confirm", pick(over={"Rainbow drift": {"menu": confirm("Rainbow drift")}}))
+w("frame15b.html", "kep2 frame 15b: delete confirm, running effect", pick(over={"Fire": {"menu": confirm("Fire", "Screen colors")}}))
+w("frame16.html", "kep2 frame 16: new effect start point", pick(new_menu=startmenu(["Screen colors", "Music pulse"])))
+w("frame17.html", "kep2 frame 17: duplicated", skeleton(picker("Fire", True, None, hidden="collapsed", extra=("Fire (Copy)",), over={"Fire (Copy)": {"focus": True}}), device("audio"), ANNOUNCE("Duplicated as Fire (Copy).")))
+w("frame18.html", "kep2 frame 18: no graph editor, custom row", pick(editor=False, over={"Rainbow drift": {"menu": rowmenu(ROWMENU_CUSTOM_NO_EDITOR)}}))
+w("frame18b.html", "kep2 frame 18b: no graph editor, built-in row", pick(editor=False, over={"Screen colors": {"menu": rowmenu(["Duplicate", "Hide"])}}))
+w("frame18c.html", "kep2 frame 18c: not Admin", pick(over={"Rainbow drift": {"menu": rowmenu(ROWMENU_CUSTOM_NO_ADMIN)}}))
+w("frame19.html", "kep2 frame 19: light test", pick(label="Light test", sel=None, over={"Rainbow drift": {"menu": rowmenu(ROWMENU_CUSTOM)}}))
+# The saved active effect underneath a test has no check, and its menu leaves out Delete (a delete would end the test).
+w("frame19b.html", "kep2 frame 19b: light test, saved active row", pick(label="Light test", sel=None, over={"Fire": {"menu": rowmenu(["Edit graph", "Rename", "Duplicate", "Move down", "Hide"])}}))
+w("frame20.html", "kep2 frame 20: long-press menu", pick(over={"Rainbow drift": {"menu": rowmenu(ROWMENU_CUSTOM, desc=DESC["Rainbow drift"])}}))
+
 
 def fig(cap, src, cls, h):
     return f'<figure><figcaption>{cap}</figcaption><iframe class="{cls}" style="height:{h}px" src="{src}"></iframe></figure>'
@@ -275,7 +323,7 @@ idx = f'''<!doctype html>
   </div>
 
   <h2>Frame 2: custom row menu, Hidden expanded</h2>
-  <p>Edit graph, Unhide and Duplicate on a hidden row. The Hidden header is an expandable tree node (aria-expanded).</p>
+  <p>Edit graph, Unhide and Duplicate on a hidden built-in. A hidden custom row (Plasma here) also has Rename and Delete. The Hidden header is an expandable tree node (aria-expanded).</p>
   <div class="row">
     {fig("390px, Hidden open, row menu on a hidden effect", "frame2.html", "n", 640)}
   </div>
@@ -347,6 +395,54 @@ idx = f'''<!doctype html>
     {fig("13b: any other cause, such as a PUT that never arrived", "frame13b.html", "n", 300)}
   </div>
   <p>Saved but not applied shows the frame 7 look with the shell banner above. An unreachable daemon is the shell takeover. Neither adds a line here. With nothing set to run the trigger reads "No effect running" (frame 6b).</p>
+
+  <h1 style="margin-top:48px">Row menu follow-on flows (Aurora-kep2.6)</h1>
+  <p>What happens after each row menu item, and the menus in each gated state. Decisions are in the bead's design field.</p>
+
+  <h2>Rename</h2>
+  <p>The row's name becomes a text field holding the title, all selected, and the ellipsis goes until it closes. Enter or leaving the field saves. Esc cancels. An empty or unchanged name closes without a request. A name another effect already shows keeps the field open with a line under it. Focus returns to the row and the live region says "Renamed to X." Built-ins have no Rename.</p>
+  <div class="row">
+    {fig("14: editing", "frame14.html", "n", 640)}
+    {fig("14b: the name is taken", "frame14b.html", "n", 640)}
+  </div>
+
+  <h2>Delete confirm</h2>
+  <p>Delete replaces the row menu with a confirm in the same spot. Focus starts on Cancel, and Esc or Cancel goes back to the row. A Delete press counts only if it started on the confirm, so a double tap on the menu item cannot delete. For the running effect the confirm names the built-in that starts instead, and the delete then runs the switch states (panel closes, "Switching to Screen colors&hellip;"). Any other delete keeps the panel open, moves focus like Hide and says "X deleted."</p>
+  <div class="row">
+    {fig("15: not running", "frame15.html", "n", 640)}
+    {fig("15b: running, names the built-in", "frame15b.html", "n", 640)}
+  </div>
+
+  <h2>New effect</h2>
+  <p>New effect opens a Start from menu with the built-ins. Each opens the graph editor on that built-in, which already saves a built-in as a new effect. A build with only one built-in skips the menu. Starting from a custom effect is Duplicate then Edit graph, so the editor needs no new parameter.</p>
+  <div class="row">
+    {fig("16: start point", "frame16.html", "n", 640)}
+  </div>
+
+  <h2>Duplicate</h2>
+  <p>The copy is titled "X (Copy)" ("X (Copy 2)", "X (Copy 3)" when taken), goes last in Custom, and never runs. The panel stays open, focus moves to the copy and it scrolls into view. It does not start a rename.</p>
+  <div class="row">
+    {fig("17: Fire duplicated as Fire (Copy)", "frame17.html", "n", 640)}
+  </div>
+
+  <h2>Gated menus</h2>
+  <p>Gated items are left out, never shown disabled, like Hide on the running effect. Hidden custom rows carry Rename and Delete too, so Not Admin drops Delete there as well. Move up is left out on the first row of a group and Move down on the last.</p>
+  <div class="row">
+    {fig("18: no graph editor, custom row. No New effect footer", "frame18.html", "n", 640)}
+    {fig("18b: no graph editor, built-in row", "frame18b.html", "n", 640)}
+    {fig("18c: not Admin, no Delete", "frame18c.html", "n", 640)}
+  </div>
+  <p>Light test: the test is not a row, so no row is checked and every menu is unchanged. Menu items that never touch the running pipeline (Hide, Unhide, Move, Rename, Duplicate, Edit graph, New effect, Delete of another effect) leave the test alone. Picking a row ends it. Deleting the saved active effect underneath the test would also end it, so that row's menu leaves out Delete (frame 19b), and the shell banner's Stop test button is the way out. Keep and Revert stay with the client that started it.</p>
+  <div class="row">
+    {fig("19: light test running", "frame19.html", "n", 640)}
+    {fig("19b: the saved active effect (Fire), no Delete", "frame19b.html", "n", 640)}
+  </div>
+
+  <h2>Long-press</h2>
+  <p>A menu opened by touch (long-press on the row or a tap on the ellipsis) starts with the description as a plain line. Mouse and keyboard keep the tooltip instead. An effect with no description has no line.</p>
+  <div class="row">
+    {fig("20: long-press on Rainbow drift", "frame20.html", "n", 640)}
+  </div>
 
 </body>
 </html>
