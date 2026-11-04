@@ -32,9 +32,11 @@ namespace Aurora::Runtime
   // is told apart by method.
   void addEffectsAccessRules(Aurora::Network::Http::Server::AccessGuard& guard);
 
-  // GET /api/effects: {"effects": [{"id", "builtin", "title", "description"}], "activeEffectId":
+  // GET /api/effects: {"effects": [{"id", "builtin", "title", "description", "hidden", "order"}], "activeEffectId":
   // string (the saved setting, "" when unset), "effect": running id or null,
-  // "requestedEffect": id or null}. Built-ins come first, then customs by id.
+  // "requestedEffect": id or null}. Built-ins come first, then customs, each group in the
+  // saved order (Config effectOrder), unlisted ids last by id. "order" is the list index and
+  // "hidden" a flag only: a hidden effect still runs (Aurora-kep2.5).
   // "title" is the graph's top-level title, else the id; "description" is the
   // graph's, else null (Aurora-mfud).
   //
@@ -66,6 +68,13 @@ namespace Aurora::Runtime
   // "invalid_effect_id" (built-in ids never qualify), 404 "unknown_effect"
   // (source), 409 "effect_exists", 422 "unreadable_effect", 500
   // "write_failed". Core route only; not mirrored in /api/v1 (Aurora-pvxx.1).
+  //
+  // PUT /api/effects/<id>/hidden {"hidden": bool}: Hide / Unhide. POST /api/effects/<id>/move
+  // {"direction": "up"|"down"}: one step among the visible effects of the same group, "moved":
+  // false at the edge. PUT /api/effects/<id>/title {"title": string}: Rename a custom effect (graph
+  // title, trimmed, 1-80 chars; 400 "invalid_title" / "builtin_effect"). All answer {"succeeded":
+  // true, "id", ...}; 400 "invalid_body", 404 "unknown_effect". Core routes only, not in /api/v1.
+  // Delete forgets the id's hidden and order entries.
   //
   // Writing a graph file is not a route here: it is POST /api/graph/apply
   // (ApplyRoutes.hpp). When `guard` is set the access rules are added to it.

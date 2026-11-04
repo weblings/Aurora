@@ -70,6 +70,8 @@ namespace Aurora::Runtime
         {"activeAudioInputName", data.activeAudioInputName},
         {"activeEffectId", data.activeEffectId},
         {"mcpEffectId", data.mcpEffectId},
+        {"hiddenEffectIds", data.hiddenEffectIds},
+        {"effectOrder", data.effectOrder},
         {"audioFixedAnchorHue", data.audioFixedAnchorHue},
         {"audioBounceSmoothTime", data.audioBounceSmoothTime},
         {"audioDynamismFloor", data.audioDynamismFloor},
@@ -124,6 +126,8 @@ namespace Aurora::Runtime
         data.activeEffectId = "builtin.audio";
       }
       data.mcpEffectId = json.value("mcpEffectId", defaults.mcpEffectId);
+      data.hiddenEffectIds = json.value("hiddenEffectIds", defaults.hiddenEffectIds);
+      data.effectOrder = json.value("effectOrder", defaults.effectOrder);
       data.audioFixedAnchorHue = json.value("audioFixedAnchorHue", defaults.audioFixedAnchorHue);
       data.audioBounceSmoothTime = json.value("audioBounceSmoothTime", defaults.audioBounceSmoothTime);
       data.audioDynamismFloor = json.value("audioDynamismFloor", defaults.audioDynamismFloor);

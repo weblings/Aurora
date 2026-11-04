@@ -62,6 +62,11 @@ namespace Aurora::Runtime
     // Dashboard can offer it as a toggle. Empty until the first one.
     std::string mcpEffectId;
 
+    // Effect picker layout (Aurora-kep2.5). Hidden ids stay runnable. Order
+    // lists ids in display order within a group; unlisted ids sort after.
+    std::vector<std::string> hiddenEffectIds;
+    std::vector<std::string> effectOrder;
+
     // Mirrors Processing::AudioProcessing::AudioEffectSettings field-by-
     // field (flat here, not a nested struct, so Config stays free of any
     // Processing-module dependency). audioFixedAnchorHue < 0 means unset/
@@ -159,6 +164,12 @@ namespace Aurora::Runtime
 
     const std::string& mcpEffectId() const;
     void setMcpEffectId(std::string id);
+
+    const std::vector<std::string>& hiddenEffectIds() const;
+    void setHiddenEffectIds(std::vector<std::string> ids);
+
+    const std::vector<std::string>& effectOrder() const;
+    void setEffectOrder(std::vector<std::string> ids);
 
     float brightness() const;
     void setBrightness(float brightness);

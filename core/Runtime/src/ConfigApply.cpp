@@ -54,6 +54,8 @@ namespace Aurora::Runtime
       FieldApply{"audioBrightnessSmoothTime", Hot, Audio},
 
       FieldApply{"mcpEffectId", NoEffect, Video},
+      FieldApply{"hiddenEffectIds", NoEffect, Video},
+      FieldApply{"effectOrder", NoEffect, Video},
       FieldApply{"nuxCompleted", NoEffect, Video},
     };
   }

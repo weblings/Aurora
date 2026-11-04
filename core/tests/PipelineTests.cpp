@@ -3255,11 +3255,11 @@ TEST_CASE("Effects routes list, read, switch and delete (Aurora-52oz.1)", "[Effe
   auto list = json(getWithRetry(client, "/api/effects"));
   CHECK(list["effects"] == nlohmann::json::array({
     {{"id", "builtin.video"}, {"builtin", true}, {"title", "Screen colors"},
-      {"description", "Follows the colors on your screen."}},
+      {"description", "Follows the colors on your screen."}, {"hidden", false}, {"order", 0}},
     {{"id", "builtin.audio"}, {"builtin", true}, {"title", "Music pulse"},
-      {"description", "Moves with the sound your computer is playing."}},
-    {{"id", "broken"}, {"builtin", false}, {"title", "broken"}, {"description", nullptr}},
-    {{"id", "mine"}, {"builtin", false}, {"title", "Mine"}, {"description", "My own effect."}}
+      {"description", "Moves with the sound your computer is playing."}, {"hidden", false}, {"order", 1}},
+    {{"id", "broken"}, {"builtin", false}, {"title", "broken"}, {"description", nullptr}, {"hidden", false}, {"order", 2}},
+    {{"id", "mine"}, {"builtin", false}, {"title", "Mine"}, {"description", "My own effect."}, {"hidden", false}, {"order", 3}}
   }));
   CHECK(list["activeEffectId"] == "");
   CHECK(list["effect"] == "builtin.video");
@@ -3318,6 +3318,112 @@ TEST_CASE("Effects routes list, read, switch and delete (Aurora-52oz.1)", "[Effe
   // Deleting a custom that is not active leaves the running effect alone.
   auto other = client.Delete("/api/effects/broken");
   CHECK(nlohmann::json::parse(other->body)["fellBack"] == false);
+
+  server.stop();
+  serverThread.join();
+  host.shutdown();
+}
+
+
+TEST_CASE("Effects routes: hide, move and rename persist and a hidden effect still runs (Aurora-kep2.5)", "[Effects]")
+{
+  using namespace Aurora::Network::Http::Server;
+
+  ScopedTempDir dir("effects-layout");
+  auto events = std::make_shared<Events>();
+  auto registry = makeRegistry(events);
+  std::string error;
+  EffectStore store(dir.path);
+  for(const char* id : {"a", "b", "c"}){
+    nlohmann::json graph = Graph::builtInVideoGraph({"out-a", "out-b"});
+    graph["title"] = std::string("Effect ") + id;
+    REQUIRE(store.write(id, graph, error));
+  }
+  ConfigStore(dir.path).save(videoConfig());
+
+  PipelineHost host(Pipeline::build(registry, videoConfig(), dir.path, {}), {});
+  HttpServer server;
+  registerEffectsRoutes(server, host, registry, dir.path, std::make_shared<ReloadCoalescer>([&]{
+    return applyConfigFromDisk(host, registry, dir.path);
+  }));
+  const int port = server.bindToAnyPort("127.0.0.1");
+  REQUIRE(port > 0);
+  std::thread serverThread([&](){ server.listen(); });
+  httplib::Client client("127.0.0.1", port);
+
+  auto json = [](const httplib::Result& result){
+    REQUIRE(result);
+    return nlohmann::json::parse(result->body);
+  };
+  auto ids = [&]{
+    std::vector<std::string> out;
+    const auto body = json(getWithRetry(client, "/api/effects"));
+    for(const auto& e : body["effects"]){
+      out.push_back(e["id"].get<std::string>());
+    }
+    return out;
+  };
+  auto move = [&](const std::string& id, const std::string& direction){
+    return client.Post("/api/effects/" + id + "/move", nlohmann::json{{"direction", direction}}.dump(), "application/json");
+  };
+  const std::vector<std::string> start{"builtin.video", "builtin.audio", "a", "b", "c"};
+  CHECK(ids() == start);
+
+  // Move steps within the custom group, stops at its edges, and survives a reload of Config.
+  CHECK(json(move("c", "up"))["moved"] == true);
+  CHECK(ids() == std::vector<std::string>{"builtin.video", "builtin.audio", "a", "c", "b"});
+  CHECK(json(move("a", "up"))["moved"] == false);
+  CHECK(json(move("builtin.video", "up"))["moved"] == false);
+  CHECK(json(move("builtin.audio", "up"))["moved"] == true);
+  CHECK(ids() == std::vector<std::string>{"builtin.audio", "builtin.video", "a", "c", "b"});
+  CHECK(json(move("builtin.video", "down"))["moved"] == false);
+  CHECK(move("a", "sideways")->status == 400);
+  CHECK(move("nope", "up")->status == 404);
+
+  // Move skips a hidden neighbour.
+  auto hide = [&](const std::string& id, bool hidden){
+    return client.Put("/api/effects/" + id + "/hidden", nlohmann::json{{"hidden", hidden}}.dump(), "application/json");
+  };
+  REQUIRE(hide("c", true)->status == 200);
+  CHECK(json(move("b", "up"))["moved"] == true);
+  CHECK(ids() == std::vector<std::string>{"builtin.audio", "builtin.video", "b", "a", "c"});
+  auto listed = json(getWithRetry(client, "/api/effects"))["effects"];
+  CHECK(listed[4]["hidden"] == true);
+  CHECK(listed[4]["order"] == 4);
+  CHECK(listed[2]["hidden"] == false);
+  CHECK(ConfigStore(dir.path).load().hiddenEffectIds() == std::vector<std::string>{"c"});
+  CHECK(hide("nope", true)->status == 404);
+  CHECK(client.Put("/api/effects/a/hidden", "{}", "application/json")->status == 400);
+
+  // A hidden effect still runs, and unhiding returns it to its place.
+  auto chosen = client.Put("/api/effects", R"({"activeEffectId": "c"})", "application/json");
+  REQUIRE(chosen);
+  CHECK(chosen->status == 200);
+  CHECK(host.summary().effect == "c");
+  REQUIRE(hide("c", false)->status == 200);
+  CHECK(json(getWithRetry(client, "/api/effects"))["effects"][4]["hidden"] == false);
+
+  // Rename rewrites the graph title and leaves the id.
+  auto rename = [&](const std::string& id, const std::string& title){
+    return client.Put("/api/effects/" + id + "/title", nlohmann::json{{"title", title}}.dump(), "application/json");
+  };
+  auto renamed = rename("a", "  Warm glow ");
+  REQUIRE(renamed);
+  CHECK(renamed->status == 200);
+  CHECK(json(renamed)["title"] == "Warm glow");
+  CHECK(json(getWithRetry(client, "/api/effects"))["effects"][3]["title"] == "Warm glow");
+  CHECK(rename("a", "   ")->status == 400);
+  CHECK(rename("a", std::string(81, 'x'))->status == 400);
+  CHECK(rename("builtin.video", "Nope")->status == 400);
+  CHECK(rename("nope", "Nope")->status == 404);
+  CHECK(client.Put("/api/effects/a/title", "{}", "application/json")->status == 400);
+
+  // Delete forgets the id's layout entries.
+  REQUIRE(hide("b", true)->status == 200);
+  REQUIRE(client.Delete("/api/effects/b")->status == 200);
+  const Config after = ConfigStore(dir.path).load();
+  CHECK(after.hiddenEffectIds().empty());
+  CHECK(std::find(after.effectOrder().begin(), after.effectOrder().end(), "b") == after.effectOrder().end());
 
   server.stop();
   serverThread.join();
@@ -5542,7 +5648,7 @@ TEST_CASE("GET /api/v1/effects and effects/:id answer the effect documents (Auro
 
   const nlohmann::json list = h.get("/api/v1/effects");
   REQUIRE(list["effects"].size() == 3);
-  CHECK(list["effects"][2] == nlohmann::json{{"id", "mine"}, {"builtin", false}, {"title", "Mine"}, {"description", nullptr}});
+  CHECK(list["effects"][2] == nlohmann::json{{"id", "mine"}, {"builtin", false}, {"title", "Mine"}, {"description", nullptr}, {"hidden", false}, {"order", 2}});
   CHECK(list["activeEffectId"] == "");
   CHECK(list["effect"] == "builtin.video");
 

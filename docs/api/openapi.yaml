@@ -147,7 +147,7 @@ paths:
       summary: Built-in and custom effects
       description: >-
         Built-ins come first (the reserved ids `builtin.video` and
-        `builtin.audio`), then custom effects by id. `activeEffectId` is the
+        `builtin.audio`), then custom effects, each group in the saved order. `activeEffectId` is the
         saved setting, and an empty string means the default built-in.
       responses:
         '200':
@@ -1431,6 +1431,12 @@ components:
           type: string
         description:
           type: [string, 'null']
+        hidden:
+          type: boolean
+          description: Folded away in the picker. A hidden effect still runs.
+        order:
+          type: integer
+          description: Position in this list, built-ins first.
     EffectList:
       type: object
       required: [effects, activeEffectId, effect, requestedEffect]
