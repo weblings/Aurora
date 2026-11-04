@@ -75,13 +75,13 @@ describe('new effect ids', () => {
 
   it('suggests a title no other effect shows', () => {
     expect(distinctTitle('Mine', ['Video'])).toBe('Mine')
-    expect(distinctTitle('Mine', ['mine'])).toBe('Mine copy')
-    expect(distinctTitle('Mine', ['Mine', 'Mine copy'])).toBe('Mine copy 2')
+    expect(distinctTitle('Mine', ['mine'])).toBe('Mine (Copy)')
+    expect(distinctTitle('Mine', ['Mine', 'Mine (Copy)'])).toBe('Mine (Copy 2)')
   })
 
   it('retitles a write that makes a new effect, not one that overwrites or keeps', () => {
     const doc = { ...builtinLike(), title: 'Video' }
-    expect(forWrite(doc, true, false, ['Video']).title).toBe('Video copy')
+    expect(forWrite(doc, true, false, ['Video']).title).toBe('Video (Copy)')
     expect(forWrite(doc, true, false, ['Other']).title).toBe('Video')
     expect(forWrite(doc, false, false, ['Video']).title).toBe('Video')
     expect(forWrite(doc, true, true, ['Video']).title).toBe('Video')

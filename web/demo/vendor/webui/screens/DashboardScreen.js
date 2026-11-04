@@ -32,10 +32,11 @@ import { PairedDevices } from '../PairedDevices.js';
 import { TuningFields } from '../TuningFields.js';
 import { sliderGroupHtml, wireSliderGroup } from '../TuningSliderGroup.js';
 import { applyTooltip } from '../Tooltips.js';
-import { Dropdown } from '../Dropdown.js';
+import { EffectPanel } from '../EffectPanel.js';
+import { duplicateTitle, editorHref, fallbackBuiltinId, freshEffectId } from '../EffectPanelModel.js';
 import { renderReloadError } from '../MacPermissionRecovery.js';
 import {
-  audioDevicesUrlFrom, devicePatch, effectiveFlags, effectPickerLabel, effectPickerOptions, effectPickerVisible, effectTitle,
+  audioDevicesUrlFrom, devicePatch, effectiveFlags, effectTitle,
   flagsForMode, isEffectSwitchConfirmed, isSwitchConfirmed, isSwitchErrorStale,
   graphEditorHref, isIdle, lightTestActive, loadEffects, loadPipelineState, modeSwitchPatch, runningToggle,
   putEffectSwitch, putModeSwitch, runningFlags,
@@ -92,7 +93,7 @@ export class DashboardScreen {
     this.app = app;
     this.mode = null; // video | audio | custom (the effect picker), null when nothing runs
     this.effects = []; // GET /api/effects, the effect picker's rows
-    this.effectPicker = null; // persistent Dropdown, re-attached on each controls render
+    this.effectPanel = null; // persistent EffectPanel in .db-effect-slot, patched in place
     this.hasAudio = false;
     this.inputs = [];
     this.audioInputs = [];
@@ -160,6 +161,7 @@ export class DashboardScreen {
     container.innerHTML = `
       <div class="top-bar-slot db-top-bar-slot"></div>
       <div class="db-controls"></div>
+      <div class="db-effect-slot"></div>
       <div class="db-edit-slot"></div>
       <div class="db-top-tier"></div>
       <div class="db-accordions"></div>
@@ -179,12 +181,19 @@ export class DashboardScreen {
     this._onPairedDevicesChanged = () => this.pairedDevices?.load();
     this.app.onPairedDevicesChanged = this._onPairedDevicesChanged;
 
+    // A second tab's effect changes show up when this one regains focus.
+    this._onWake = () => { if (!document.hidden) this._refreshEffects(); };
+    window.addEventListener('focus', this._onWake);
+    document.addEventListener('visibilitychange', this._onWake);
+
     await this._loadAll();
     this._probeGraphEditor();
     this._startAudioStatusPoll();
   }
 
   unmount() {
+    window.removeEventListener('focus', this._onWake);
+    document.removeEventListener('visibilitychange', this._onWake);
     if (this.app.onStateUpdate === this._onHeartbeatState) this.app.onStateUpdate = null;
     if (this.app.onPairedDevicesChanged === this._onPairedDevicesChanged) this.app.onPairedDevicesChanged = null;
     this.pairedDevices?.destroy();
@@ -197,8 +206,8 @@ export class DashboardScreen {
     this.zoneCanvas = null;
     this.tuningFields?.destroy();
     this.tuningFields = null;
-    this.effectPicker?.destroy();
-    this.effectPicker = null;
+    this.effectPanel?.destroy();
+    this.effectPanel = null;
   }
 
   // Full fetch + full rebuild -- initial mount and mode switch both need
@@ -359,88 +368,165 @@ export class DashboardScreen {
     } catch {
       this.graphEditorAvailable = false;
     }
-    if (this.graphEditorAvailable) this._renderEditLink();
+    if (this.graphEditorAvailable) {
+      this._renderEditLink();
+      this.effectPanel?.update({ canEdit: true });
+    }
   }
 
   // Stop moved into the top bar itself (2.5 pass, see _loadAll()'s
-  // renderTopBar call) -- this row is now the mode toggle plus the effect
-  // picker, and renders nothing when neither has anything to offer.
+  // renderTopBar call) -- this row is the mode toggle, and renders nothing
+  // without an audio build. The effect panel has its own slot below it.
   // The fill follows the running pipeline (this.flags), never the saved
   // config. While a switch is in flight the clicked option gets an outline
   // only (pending), the running option stays filled, and every option is
   // disabled -- a ~4.5s rebuild with no busy state reads as a dead button.
-  // The picker's trigger follows the same rules for custom effects (Aurora-kep2.1).
   _renderControls() {
-    // A rebuild under an open menu would yank it: wait for it to close.
-    if (this.effectPicker?.isOpen) {
-      this._controlsStale = true;
-      return;
-    }
-    this._controlsStale = false;
     const controls = this.container.querySelector('.db-controls');
-    const showPicker = effectPickerVisible(this.effects, this.pipelineState);
-    if (!this.hasAudio && !showPicker) {
-      this.effectPicker?.destroy();
-      this.effectPicker = null;
+    // A custom switch's failure is the panel's own line, not this row's error.
+    const errorHtml = this.toggleErrorMode === 'custom' ? '' : renderReloadError(this.toggleError, this.platform);
+    this._renderEffectPanel();
+    if (!this.hasAudio) {
       controls.innerHTML = '';
       return;
     }
 
-    const errorHtml = renderReloadError(this.toggleError, this.platform);
     const disabled = this.pendingMode ? ' disabled' : '';
-    const switching = this.pendingMode === 'custom'
-      ? `<p class="status-text db-effect-switching" role="status">Switching to ${escapeHtml(this._effectLabel(this.pendingEffectId))}…</p>`
-      : '';
-
     controls.innerHTML = `
       <div class="db-controls-row">
-        ${this.hasAudio ? `<div class="segmented" role="group" aria-label="Capture mode">
+        <div class="segmented" role="group" aria-label="Capture mode">
           <button type="button" class="${this._toggleClasses('video')}" id="db-mode-video"${disabled}>Video</button>
           <button type="button" class="${this._toggleClasses('audio')}" id="db-mode-audio"${disabled}>Audio</button>
-        </div>` : ''}
-        ${showPicker ? '<div class="db-effect-picker-slot"></div>' : ''}
+        </div>
       </div>
-      ${switching}
       ${errorHtml}
     `;
-
-    if (this.hasAudio) {
-      applyTooltip(controls.querySelector('#db-mode-video'), 'app.mode');
-      applyTooltip(controls.querySelector('#db-mode-audio'), 'app.mode');
-      controls.querySelector('#db-mode-video').addEventListener('click', () => this._switchMode('video'));
-      controls.querySelector('#db-mode-audio').addEventListener('click', () => this._switchMode('audio'));
-    }
-    if (showPicker) {
-      this._renderEffectPicker(controls.querySelector('.db-effect-picker-slot'));
-    } else {
-      this.effectPicker?.destroy();
-      this.effectPicker = null;
-    }
+    applyTooltip(controls.querySelector('#db-mode-video'), 'app.mode');
+    applyTooltip(controls.querySelector('#db-mode-audio'), 'app.mode');
+    controls.querySelector('#db-mode-video').addEventListener('click', () => this._switchMode('video'));
+    controls.querySelector('#db-mode-audio').addEventListener('click', () => this._switchMode('audio'));
   }
 
-  // One persistent controlled Dropdown: label and selected row come from the
-  // running pipeline, never the pick, so a failed switch never shows as chosen.
-  _renderEffectPicker(slot) {
-    if (!this.effectPicker) {
-      this.effectPicker = new Dropdown(slot, '', (id) => this._onEffectPicked(id), {
-        controlled: true,
-        onClose: () => this._onEffectPickerClose(),
+  // One persistent EffectPanel: trigger text and the checked row come from the running
+  // pipeline, never the pick, so a failed switch never shows as chosen. Outside changes
+  // patch it in place, so it is never rebuilt under an open panel.
+  _renderEffectPanel() {
+    if (this.effects.length === 0 && !lightTestActive(this.pipelineState)) {
+      this.effectPanel?.destroy();
+      this.effectPanel = null;
+      return;
+    }
+    if (!this.effectPanel) {
+      this.effectPanel = new EffectPanel(this.container.querySelector('.db-effect-slot'), {
+        onSelect: (id) => this._onEffectPicked(id),
+        onAction: (action, effect, extra) => this._onPanelAction(action, effect, extra),
+        onNewEffect: (id) => { window.location.assign(editorHref(id ?? 'builtin.video')); },
       });
-      this.effectPicker.root.classList.add('db-effect-picker');
-    } else {
-      slot.appendChild(this.effectPicker.root);
     }
-    const picker = this.effectPicker;
-    picker.setTriggerLabel(effectPickerLabel(this.effects, this.pipelineState));
-    picker.setOptions(effectPickerOptions(this._pickerEffects(), this.pipelineState));
-    picker.setBusy(!!this.pendingMode);
-    picker.trigger.classList.toggle('active', this.mode === 'custom');
-    picker.trigger.classList.toggle('pending', this.pendingMode === 'custom');
+    const rejected = this.toggleErrorMode === 'custom' && !this.pendingMode ? this.toggleError : null;
+    this.effectPanel.update({
+      effects: this.effects,
+      state: this.pipelineState,
+      hasAudio: this.hasAudio,
+      canEdit: this.graphEditorAvailable,
+      canDelete: this.app.canApprove === true,
+      fallbackTitle: this._effectLabel(this._fallbackId()),
+      busy: !!this.pendingMode,
+      pendingTitle: this.pendingMode === 'custom' ? this._effectLabel(this.pendingEffectId) : null,
+      rejected,
+    });
   }
 
-  // Audio is listed only where the build has an audio input, as the toggle is.
-  _pickerEffects() {
-    return this.effects.filter((e) => this.hasAudio || e.id !== 'builtin.audio');
+  // The built-in the server runs once no effect is set (runsAudioMode).
+  _fallbackId() {
+    return fallbackBuiltinId({ activeInputName: this.currentActiveInputName, hasAudio: this.hasAudio });
+  }
+
+  // Pulls the effect list (and what runs) again, keeping what shows when the daemon is unreachable.
+  async _refreshEffects() {
+    if (this.pendingMode) return;
+    const [effects, state] = await Promise.all([loadEffects(), loadPipelineState()]);
+    if (effects.length > 0) this.effects = effects;
+    if (state && !this.pendingMode) this.pipelineState = state;
+    this._renderEffectPanel();
+  }
+
+  // The panel's row menu items. Resolves { ok, id?, title?, message? } after the list refreshed.
+  async _onPanelAction(action, effect, extra = {}) {
+    if (action === 'Edit graph') {
+      window.location.assign(editorHref(effect.id));
+      return { ok: true };
+    }
+    if (action === 'Delete' && extra.running) return this._deleteRunning(effect);
+    const path = `/api/effects/${encodeURIComponent(effect.id)}`;
+    const title = effectTitle(effect);
+    const send = async (method, url, body) => (await fetch(url, {
+      method, body: body === undefined ? undefined : JSON.stringify(body),
+    })).json();
+    let res;
+    let made = {};
+    try {
+      if (action === 'Hide' || action === 'Unhide') res = await send('PUT', `${path}/hidden`, { hidden: action === 'Hide' });
+      else if (action === 'Move up' || action === 'Move down') res = await send('POST', `${path}/move`, { direction: action === 'Move up' ? 'up' : 'down' });
+      else if (action === 'Rename') res = await send('PUT', `${path}/title`, { title: extra.title });
+      else if (action === 'Delete') res = await send('DELETE', path);
+      else if (action === 'Duplicate') {
+        const copy = duplicateTitle(title, this.effects.map(effectTitle));
+        made = { id: freshEffectId(copy, this.effects.map((e) => e.id)), title: copy };
+        res = await send('POST', `${path}/duplicate`, { id: made.id, title: copy });
+      } else return { ok: false };
+    } catch {
+      this.app.checkNow();
+      return { ok: false };
+    }
+    await this._refreshEffects();
+    if (!res?.succeeded) return { ok: false, message: this._actionError(action, title, res) };
+    if (res.moved === false) {
+      return { ok: false, message: `${title} is already ${action === 'Move up' ? 'first' : 'last'}.` };
+    }
+    return { ok: true, ...made };
+  }
+
+  _actionError(action, title, res) {
+    if (res?.error === 'unknown_effect') return `${title} no longer exists.`;
+    if (action === 'Rename') return res?.error === 'invalid_title' ? 'Titles can be 1 to 80 characters.' : `Couldn't rename ${title}.`;
+    return null;
+  }
+
+  // Deleting the running effect is a switch to the built-in the server falls back to: the
+  // trigger shows Switching, then the success or the host-failed banner (kep2.4).
+  async _deleteRunning(effect) {
+    if (this.pendingMode) return { ok: false };
+    const fallbackId = this._fallbackId();
+    const fallbackTitle = this._effectLabel(fallbackId);
+    this.pendingMode = 'custom';
+    this.pendingEffectId = fallbackId;
+    this._renderControls();
+    let res = null;
+    try {
+      res = await (await fetch(`/api/effects/${encodeURIComponent(effect.id)}`, { method: 'DELETE' })).json();
+      if (res?.reloadError) this.app.checkNow();
+    } catch {
+      this.app.checkNow();
+    }
+    await this._loadAll();
+    const confirmed = res?.succeeded === true && !res.reloadError && this.pipelineState?.effect === fallbackId;
+    this.pendingMode = null;
+    this.pendingEffectId = null;
+    if (confirmed) {
+      this.mode = runningToggle(this.pipelineState);
+      this.toggleError = null;
+      this.toggleErrorMode = null;
+      this.toggleErrorEffectId = null;
+    }
+    this._renderControls();
+    if (confirmed) {
+      this._renderTopTier();
+      this.effectPanel?.announceSwitch({ title: fallbackTitle, outcome: 'success' });
+    } else if (res && !res.succeeded) {
+      this.effectPanel?.announce(res.error === 'unknown_effect' ? `${effectTitle(effect)} no longer exists.` : `Couldn't delete ${effectTitle(effect)}.`);
+    }
+    return { ok: res?.succeeded === true };
   }
 
   _effectLabel(id) {
@@ -453,10 +539,6 @@ export class DashboardScreen {
     if (id === 'builtin.video') return this._switchMode('video');
     if (id === 'builtin.audio') return this._switchMode('audio');
     return this._switchMode('custom', id);
-  }
-
-  _onEffectPickerClose() {
-    if (this._controlsStale) this._renderControls();
   }
 
   _toggleClasses(mode) {
@@ -805,7 +887,7 @@ export class DashboardScreen {
       putResult = mode === 'custom' ? await putEffectSwitch(effectId) : await putModeSwitch(patch);
 
       if (!putResult.succeeded) {
-        this._setToggleError(`Couldn't switch to ${modeLabel}.`, mode, effectId);
+        this._setToggleError(this._switchFailedText(mode, modeLabel, putResult), mode, effectId);
       } else if (putResult.reloadError) {
         // The shell banner owns it (Aurora-98pr), refreshed now so the row
         // does not lag the poll. The fill is re-derived from what runs.
@@ -830,7 +912,7 @@ export class DashboardScreen {
     // and then it is the action's error, never the unreachable wording
     // (components.md:308).
     if (unreachable && loaded) {
-      this._setToggleError(`Couldn't switch to ${modeLabel}.`, mode, effectId);
+      this._setToggleError(this._switchFailedText(mode, modeLabel, null), mode, effectId);
       this._renderTopTier();
     }
 
@@ -851,7 +933,16 @@ export class DashboardScreen {
     this.pendingEffectId = null;
     this._renderControls();
     // The audio banner is gated on toggleError, so it re-renders when one clears.
-    if (confirmed) this._renderTopTier();
+    if (confirmed) {
+      this._renderTopTier();
+      this.effectPanel?.announceSwitch({ title: modeLabel, outcome: 'success' });
+    }
+  }
+
+  // The panel's line for a request that never ran: the effect is gone, or it just didn't start.
+  _switchFailedText(mode, label, putResult) {
+    if (mode !== 'custom') return `Couldn't switch to ${label}.`;
+    return putResult?.error === 'unknown_effect' ? `${label} no longer exists.` : `${label} didn't start.`;
   }
 
   // topTierErrors owners (Aurora-m0fy): both always repaint the top tier,
@@ -957,7 +1048,7 @@ export class DashboardScreen {
   // Shell heartbeat push (Aurora-cj11): applies whatever changed and
   // re-renders only the top bar -- never a full _loadAll(), which would
   // fight the beat's own 3s cadence with a second round of requests.
-  _onHeartbeatState({ state, paused, canStop, effect, mcpEffectId, testActive, ...flags }) {
+  _onHeartbeatState({ state, errors, paused, canStop, effect, mcpEffectId, testActive, ...flags }) {
     // The running pipeline changed from outside the toggle (a banner Retry,
     // the tray, a relaunch): re-derive the toggle and sections from it, once
     // per change and never while a switch of our own is in flight.
@@ -971,7 +1062,12 @@ export class DashboardScreen {
     }
     let changed = false;
     if (typeof paused === 'boolean' && paused !== this.paused) { this.paused = paused; changed = true; }
-    if (state !== undefined && state !== this.hostState) { this.hostState = state; changed = true; }
+    if (state !== undefined && state !== this.hostState) {
+      // The shell banner has no live region, so a switch that fails to start is read here.
+      if (state === 'failed' && errors?.[0]?.message) this.effectPanel?.announce(errors[0].message);
+      this.hostState = state;
+      changed = true;
+    }
     if (canStop !== undefined && (canStop !== false) !== this.canStop) { this.canStop = canStop !== false; changed = true; }
     if (changed) this._renderTopBar();
   }

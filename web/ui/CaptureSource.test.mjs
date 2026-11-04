@@ -3,7 +3,7 @@
 import assert from 'node:assert/strict';
 import {
   audioDevicesUrlFrom, devicePatch, effectiveFlags, flagsForMode, flagsMatchMode, isIdle, isModeConfigValid,
-  customEffectRunning, effectPickerLabel, effectPickerOptions, effectPickerVisible, isEffectSwitchConfirmed,
+  customEffectRunning, isEffectSwitchConfirmed,
   isSwitchConfirmed, isSwitchErrorStale, loadEffects, loadPipelineState,
   lightTestActive, modeFromConfig, modeFromFlags, modeSwitchPatch, putEffectSwitch, runningFlags, runningToggle,
 } from './CaptureSource.js';
@@ -198,8 +198,7 @@ assert.deepEqual(modeSwitchPatch('audio', ctx), { activeEffectId: 'builtin.audio
   }
 }
 
-// Picker rows and trigger text: built-ins, a divider, then customs; the
-// selected row and the label follow what runs, never the pick.
+// The effect list loader.
 {
   const EFFECTS = [
     { id: 'builtin.video', builtin: true, title: 'Screen colors', description: 'Matches the screen' },
@@ -207,32 +206,6 @@ assert.deepEqual(modeSwitchPatch('audio', ctx), { activeEffectId: 'builtin.audio
     { id: 'rainbow', builtin: false, title: 'Rainbow', description: 'Cycles hues' },
     { id: 'untitled', builtin: false, title: '', description: null },
   ];
-  const custom = EFFECTS.filter((e) => !e.builtin);
-  const state = { ...VIDEO, effect: 'rainbow' };
-
-  const rows = effectPickerOptions([...custom, ...EFFECTS.filter((e) => e.builtin)], state);
-  assert.deepEqual(rows.map((r) => r.value), ['builtin.video', 'builtin.audio', 'rainbow', 'untitled'], 'built-ins first');
-  assert.deepEqual(rows.map((r) => r.dividerBefore), [false, false, true, false], 'divider before the first custom');
-  assert.deepEqual(rows.map((r) => r.selected), [false, false, true, false], 'the running effect is selected');
-  assert.equal(rows[3].label, 'untitled', 'no title falls back to the id');
-  assert.equal(rows[0].tooltip, 'Matches the screen');
-  assert.equal(rows[1].tooltip, null);
-  assert.deepEqual(effectPickerOptions(custom, state).map((r) => r.dividerBefore), [false, false], 'no built-ins: no divider');
-  const testing = { ...state, test: { active: true } };
-  assert.equal(effectPickerOptions(EFFECTS, testing).some((r) => r.selected), false, 'a light test selects no saved row');
-
-  assert.equal(effectPickerVisible(EFFECTS, state), true);
-  assert.equal(effectPickerVisible(EFFECTS.filter((e) => e.builtin), state), false, 'only Video/Audio: hidden');
-  assert.equal(effectPickerVisible([], testing), true, 'a light test shows it');
-  assert.equal(effectPickerVisible([], null), false);
-
-  assert.equal(effectPickerLabel(EFFECTS, state), 'Rainbow');
-  assert.equal(effectPickerLabel(EFFECTS, { ...state, effect: 'builtin.video' }), 'All effects', 'built-in runs');
-  assert.equal(effectPickerLabel(EFFECTS, { ...state, effect: null }), 'All effects', 'nothing runs');
-  assert.equal(effectPickerLabel(EFFECTS, testing), 'Light test');
-  assert.equal(effectPickerLabel([], { ...state, effectTitle: 'Rainbow (state)' }), 'Rainbow (state)', 'list not loaded: state title');
-  assert.equal(effectPickerLabel([], state), 'rainbow', 'then the id');
-
   const realFetch = globalThis.fetch;
   try {
     globalThis.fetch = async () => ({ json: async () => ({ effects: [...EFFECTS, { id: '' }, null] }) });

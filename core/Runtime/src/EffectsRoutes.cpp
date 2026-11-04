@@ -234,11 +234,20 @@ namespace Aurora::Runtime
       "/api/effects/:id/duplicate",
       [&registry, configRoot](const Request& req, Response& res){
         std::string copyId;
+        std::string copyTitle;
         try{
-          copyId = nlohmann::json::parse(req.body).at("id").get<std::string>();
+          const nlohmann::json request = nlohmann::json::parse(req.body);
+          copyId = request.at("id").get<std::string>();
+          if(request.contains("title")){
+            copyTitle = request.at("title").get<std::string>();
+          }
         }
         catch(const nlohmann::json::exception&){
           _reply(res, 400, {{"succeeded", false}, {"error", "invalid_body"}});
+          return;
+        }
+        if(copyTitle.size() > 80){
+          _reply(res, 400, {{"succeeded", false}, {"error", "invalid_title"}});
           return;
         }
         if(!EffectStore::validId(copyId)){
@@ -259,8 +268,13 @@ namespace Aurora::Runtime
           _reply(res, status, source);
           return;
         }
+        // An optional title names the copy, else the graph is written unchanged.
+        nlohmann::json graph = source.at("graph");
+        if(!copyTitle.empty()){
+          graph["title"] = copyTitle;
+        }
         std::string writeError;
-        if(!store.write(copyId, source.at("graph"), writeError)){
+        if(!store.write(copyId, graph, writeError)){
           _reply(res, 500, {{"succeeded", false}, {"error", "write_failed"}, {"message", writeError}});
           return;
         }

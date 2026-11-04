@@ -1,0 +1,290 @@
+/* Effect panel (Aurora-kep2.8): trigger + non-modal tree panel. Moved from the kep2 mocks'
+   mock.css (Static_kep2_Mocks), see EffectPanel.js. Builds on dropdown.css's trigger. */
+
+.ef-field {
+  margin-bottom: var(--aurora-space-5);
+}
+
+.ef-dropdown {
+  position: relative;
+}
+
+.ef-dropdown .dropdown-trigger:disabled {
+  cursor: default;
+}
+
+.ef-status {
+  margin: var(--aurora-space-3) 0 0;
+}
+
+.ef-chev {
+  width: 10px;
+  height: 10px;
+  display: block;
+  flex-shrink: 0;
+}
+
+/* Until Aurora-oecx lands shared focus tokens the panel keeps the trigger's 2px light ring. */
+.ef-dropdown .dropdown-trigger:focus-visible,
+.ef-dropdown .ef-pick:focus-visible,
+.ef-dropdown .ef-section:focus-visible,
+.ef-dropdown .ef-new:focus-visible,
+.ef-dropdown .ef-menu [role="menuitem"]:focus-visible {
+  outline: 2px solid var(--aurora-button-light);
+  outline-offset: 2px;
+}
+
+/* The row (or its wrapper) draws the ring inside its own box, since the list clips. */
+.ef-opt:has(.ef-pick:focus-visible),
+.ef-section:focus-visible > .ef-group,
+.ef-new:focus-visible,
+.ef-menu [role="menuitem"]:focus-visible {
+  outline: 2px solid var(--aurora-button-light);
+  outline-offset: -2px;
+}
+
+.ef-pick:focus-visible,
+.ef-section:focus-visible {
+  outline: none;
+}
+
+.ef-panel {
+  display: flex;
+  flex-direction: column;
+  position: absolute;
+  top: calc(100% + var(--aurora-space-1));
+  left: 0;
+  right: 0;
+  max-height: min(480px, calc(100vh - 150px));
+  background: var(--aurora-surface);
+  border: 1px solid var(--aurora-border);
+  border-radius: var(--aurora-radius-control);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
+  z-index: 10;
+}
+
+.ef-panel[hidden] {
+  display: none;
+}
+
+.ef-tree {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+
+/* The list scrolls and the footer stays pinned. */
+.ef-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  overflow-anchor: auto;
+  scroll-padding-top: 32px;
+}
+
+.ef-section + .ef-section {
+  border-top: 1px solid var(--aurora-border);
+  margin-top: var(--aurora-space-1);
+}
+
+.ef-group {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: var(--aurora-surface);
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--aurora-text-secondary);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.ef-head {
+  display: flex;
+  align-items: center;
+  gap: var(--aurora-space-3);
+  height: 32px;
+  padding: 0 var(--aurora-space-5);
+  cursor: pointer;
+}
+
+.ef-section[aria-expanded="false"] > .ef-group .ef-twisty {
+  transform: rotate(-90deg);
+}
+
+.ef-cue {
+  margin-left: auto;
+  font-size: 11px;
+  font-weight: 400;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--aurora-text-primary);
+}
+
+.ef-cue[hidden],
+.ef-opt-secondary[hidden] {
+  display: none;
+}
+
+.ef-opt {
+  position: relative;
+  display: flex;
+  align-items: center;
+  padding-right: var(--aurora-space-2);
+  color: var(--aurora-text-secondary);
+  font-size: 13px;
+}
+
+.ef-opt:hover { background: var(--aurora-surface-hover); color: var(--aurora-text-primary); }
+.ef-opt.selected { background: var(--aurora-surface-selected); color: var(--aurora-text-primary); }
+
+.ef-pick {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--aurora-space-3);
+  min-height: 40px;
+  padding: 0 0 0 var(--aurora-space-5);
+  color: inherit;
+  cursor: pointer;
+  /* Long-press opens the row menu, so no text selection or iOS callout on rows. */
+  -webkit-touch-callout: none;
+  user-select: none;
+}
+
+.ef-check { width: 12px; flex-shrink: 0; font-size: 12px; text-align: center; }
+.ef-opt-text { flex: 1; min-width: 0; padding: var(--aurora-space-2) 0; }
+.ef-opt-name { display: block; }
+.ef-opt-secondary { display: block; font-size: 11px; margin-top: 1px; color: #949494; }
+
+.ef-more {
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  background: none;
+  border: none;
+  border-radius: var(--aurora-radius-control);
+  color: inherit;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.ef-more:hover,
+.ef-more.open { background: var(--aurora-button-dark-hover); }
+
+.ef-foot { flex-shrink: 0; border-top: 1px solid var(--aurora-border); }
+
+.ef-new {
+  display: flex;
+  align-items: center;
+  min-height: 40px;
+  padding: 0 var(--aurora-space-5);
+  color: var(--aurora-text-secondary);
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.ef-new:hover { background: var(--aurora-surface-hover); color: var(--aurora-text-primary); }
+.ef-foot[hidden] { display: none; }
+
+/* Tooltip and row menu sit in the panel outside the tree. EffectPanel.js sets their top. */
+.ef-tip,
+.ef-menu {
+  position: absolute;
+  background: var(--aurora-surface);
+  border: 1px solid var(--aurora-border);
+  border-radius: var(--aurora-radius-control);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
+}
+
+.ef-tip {
+  left: var(--aurora-space-5);
+  max-width: 260px;
+  padding: var(--aurora-space-2) var(--aurora-space-3);
+  color: var(--aurora-text-primary);
+  font-size: 12px;
+  z-index: 15;
+  /* Never takes the pointer, so hovering a row's bottom edge does not flicker it. */
+  pointer-events: none;
+}
+
+.ef-tip[hidden] { display: none; }
+
+.ef-menu {
+  right: var(--aurora-space-2);
+  min-width: 170px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  z-index: 20;
+}
+
+.ef-menu-desc {
+  margin: 0;
+  padding: var(--aurora-space-3) var(--aurora-space-5);
+  max-width: 220px;
+  font-size: 12px;
+  color: #949494;
+  border-bottom: 1px solid var(--aurora-border);
+}
+
+.ef-field .sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+/* Row actions (Aurora-kep2.9): inline rename, delete confirm, Start from menu. */
+.ef-opt.renaming { flex-wrap: wrap; }
+.ef-opt.renaming .ef-pick,
+.ef-opt.renaming .ef-more { display: none; }
+
+.ef-rename {
+  flex: 1;
+  min-width: 0;
+  box-sizing: border-box;
+  margin: var(--aurora-space-2) 0 var(--aurora-space-2) var(--aurora-space-5);
+  padding: var(--aurora-space-2) var(--aurora-space-3);
+  background: var(--aurora-surface);
+  color: var(--aurora-text-primary);
+  border: 1px solid var(--aurora-border);
+  border-radius: var(--aurora-radius-control);
+  font: inherit;
+}
+
+.ef-rename:focus-visible { outline: 2px solid var(--aurora-text-primary); outline-offset: 1px; }
+.ef-rename[aria-invalid="true"] { border-color: #e5484d; }
+
+.ef-rename-error {
+  flex-basis: 100%;
+  margin: 0 0 var(--aurora-space-2) var(--aurora-space-5);
+  font-size: 12px;
+  color: #ff8a8e;
+}
+
+.ef-menu-start { right: auto; left: var(--aurora-space-5); }
+
+.ef-confirm { padding: var(--aurora-space-3) var(--aurora-space-5); max-width: 240px; }
+.ef-confirm-title { margin: 0; color: var(--aurora-text-primary); font-size: 13px; font-weight: 600; }
+.ef-confirm-body { margin: var(--aurora-space-2) 0 var(--aurora-space-3); font-size: 12px; color: #949494; }
+.ef-confirm-actions { display: flex; gap: var(--aurora-space-3); justify-content: flex-end; }
+
+.ef-confirm-btn {
+  padding: var(--aurora-space-2) var(--aurora-space-4);
+  background: none;
+  color: var(--aurora-text-primary);
+  border: 1px solid var(--aurora-border);
+  border-radius: var(--aurora-radius-control);
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.ef-confirm-yes { border-color: #e5484d; color: #ff8a8e; }
+.ef-confirm-btn:focus-visible { outline: 2px solid var(--aurora-text-primary); outline-offset: 1px; }

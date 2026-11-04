@@ -860,6 +860,15 @@ const ON_RAINBOW = { ...VIDEO_STATE, effect: 'rainbow' };
   assert.equal(inst.pendingMode, null);
 }
 
+// A rejected pick of an effect that is gone says so.
+{
+  stubFetch(() => ({ succeeded: false, error: 'unknown_effect' }));
+  const { inst } = switchScreen({ state: ON_VIDEO });
+  Object.assign(inst, { mode: 'video', effects: [RAINBOW] });
+  try { await inst._switchMode('custom', 'rainbow'); } finally { globalThis.fetch = realFetch; }
+  assert.equal(inst.toggleError, 'Rainbow no longer exists.');
+}
+
 // A rejection names the effect by title, remembers its id, and clears once
 // that effect runs (a retry or an outside apply).
 {
@@ -867,7 +876,7 @@ const ON_RAINBOW = { ...VIDEO_STATE, effect: 'rainbow' };
   const { inst } = switchScreen({ state: ON_VIDEO });
   Object.assign(inst, { mode: 'video', effects: [RAINBOW] });
   try { await inst._switchMode('custom', 'rainbow'); } finally { globalThis.fetch = realFetch; }
-  assert.equal(inst.toggleError, "Couldn't switch to Rainbow.");
+  assert.equal(inst.toggleError, "Rainbow didn't start.", 'the panel line for a request that never ran');
   assert.equal(inst.toggleErrorMode, 'custom');
   assert.equal(inst.toggleErrorEffectId, 'rainbow');
 
@@ -904,73 +913,78 @@ const ON_RAINBOW = { ...VIDEO_STATE, effect: 'rainbow' };
   assert.deepEqual(seen, [['video'], ['audio'], ['custom', 'rainbow']]);
 }
 
-// Audio is offered only where the build has an audio input.
+// The effect panel is patched in place with what runs, never the pick, and with the switch
+// state: busy and the target's title while pending, the rejected line once settled.
 {
-  const inst = Object.create(DashboardScreen.prototype);
-  inst.effects = [{ id: 'builtin.video', builtin: true }, { id: 'builtin.audio', builtin: true }, RAINBOW];
-  inst.hasAudio = false;
-  assert.deepEqual(inst._pickerEffects().map((e) => e.id), ['builtin.video', 'rainbow']);
-  inst.hasAudio = true;
-  assert.equal(inst._pickerEffects().length, 3);
-}
-
-// An open menu defers the controls rebuild until it closes.
-{
-  const controls = makeEl();
-  controls.innerHTML = 'untouched';
+  const calls = [];
   const inst = Object.create(DashboardScreen.prototype);
   Object.assign(inst, {
-    effectPicker: { isOpen: true },
-    container: { querySelector: () => controls },
+    hasAudio: true, effects: [RAINBOW], pipelineState: ON_RAINBOW, graphEditorAvailable: true,
+    app: { canApprove: false }, toggleError: null, toggleErrorMode: null,
+    pendingMode: 'custom', pendingEffectId: 'rainbow',
+    effectPanel: { update: (args) => calls.push(args), destroy() {} },
   });
-  inst._renderControls();
-  assert.equal(controls.innerHTML, 'untouched', 'no rebuild under an open menu');
-  assert.equal(inst._controlsStale, true);
-  let renders = 0;
-  inst._renderControls = () => { renders++; };
-  inst._onEffectPickerClose();
-  assert.equal(renders, 1, 'close applies the deferred render');
-  inst._controlsStale = false;
-  inst._onEffectPickerClose();
-  assert.equal(renders, 1, 'nothing deferred: no render');
+  inst._renderEffectPanel();
+  assert.equal(calls[0].busy, true);
+  assert.equal(calls[0].pendingTitle, 'Rainbow');
+  assert.equal(calls[0].state, ON_RAINBOW);
+  assert.equal(calls[0].canEdit, true);
+  assert.equal(calls[0].canDelete, false, 'Delete is Admin only');
+  inst.pendingMode = null;
+  inst.pendingEffectId = null;
+  Object.assign(inst, { toggleError: "Rainbow didn't start.", toggleErrorMode: 'custom' });
+  inst._renderEffectPanel();
+  assert.equal(calls[1].busy, false);
+  assert.equal(calls[1].rejected, "Rainbow didn't start.");
+  inst.toggleErrorMode = 'video';
+  inst._renderEffectPanel();
+  assert.equal(calls[2].rejected, null, 'a Video/Audio error stays on the toggle row');
 }
 
-// No audio input and nothing beyond the built-ins: no row, no picker.
+// Nothing to list and no light test: the panel goes away.
 {
-  const controls = makeEl();
-  controls.innerHTML = 'old';
   let destroyed = 0;
   const inst = Object.create(DashboardScreen.prototype);
   Object.assign(inst, {
-    hasAudio: false, effects: [{ id: 'builtin.video', builtin: true }], pipelineState: ON_VIDEO,
-    effectPicker: { isOpen: false, destroy() { destroyed++; } },
-    container: { querySelector: () => controls },
+    effects: [], pipelineState: ON_VIDEO,
+    effectPanel: { destroy() { destroyed++; } },
   });
-  inst._renderControls();
-  assert.equal(controls.innerHTML, '');
+  inst._renderEffectPanel();
   assert.equal(destroyed, 1);
-  assert.equal(inst.effectPicker, null);
+  assert.equal(inst.effectPanel, null);
 }
 
-// The pending line names the picker's target, only for picker switches.
+// The toggle row follows the audio build and disables during any switch.
 {
   const controls = makeEl();
   const inst = Object.create(DashboardScreen.prototype);
   Object.assign(inst, {
     hasAudio: true, effects: [], pipelineState: ON_VIDEO, platform: 'windows',
     toggleError: null, mode: 'video', pendingMode: 'custom', pendingEffectId: 'rainbow',
-    effectPicker: null,
+    effectPanel: null,
     container: { querySelector: () => controls },
   });
-  inst.effects = [RAINBOW];
-  inst._renderEffectPicker = () => {};
+  inst._renderEffectPanel = () => {};
   inst._renderControls();
-  assert.match(controls.innerHTML, /db-effect-switching[^>]*>Switching to Rainbow…/);
   assert.match(controls.innerHTML, /id="db-mode-video" disabled/, 'row disabled during a picker switch');
-  inst.pendingMode = 'audio';
-  inst.pendingEffectId = null;
+  inst.hasAudio = false;
   inst._renderControls();
-  assert.doesNotMatch(controls.innerHTML, /db-effect-switching/, 'Video/Audio keep their own outline only');
+  assert.equal(controls.innerHTML, '', 'no audio build: no toggle row');
+}
+
+// A failed host reads its banner sentence through the panel's live region.
+{
+  const said = [];
+  const inst = Object.create(DashboardScreen.prototype);
+  Object.assign(inst, {
+    hostState: 'running', paused: false, canStop: true, pendingMode: null, pipelineState: ON_VIDEO,
+    effectPanel: { announce: (m) => said.push(m) },
+    _renderTopBar() {},
+  });
+  inst._onHeartbeatState({ state: 'failed', errors: [{ message: "Couldn't start Fire: no audio input is set up." }], effect: null });
+  assert.deepEqual(said, ["Couldn't start Fire: no audio input is set up."]);
+  inst._onHeartbeatState({ state: 'failed', errors: [{ message: 'again' }], effect: null });
+  assert.equal(said.length, 1, 'announced once per failure');
 }
 
 console.log('DashboardScreen pause checks passed.');

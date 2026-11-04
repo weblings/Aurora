@@ -130,35 +130,6 @@ export function effectTitle(effect) {
   return effect.title || effect.id;
 }
 
-// Picker rows: built-ins, then customs under a divider. The selected row is
-// the running effect (never the pick), so a failed switch never looks chosen.
-export function effectPickerOptions(effects, state) {
-  const builtins = effects.filter((e) => e.builtin);
-  const customs = effects.filter((e) => !e.builtin);
-  return [...builtins, ...customs].map((e, i) => ({
-    value: e.id,
-    label: effectTitle(e),
-    tooltip: e.description || null,
-    selected: !lightTestActive(state) && state?.effect === e.id,
-    dividerBefore: i === builtins.length && i > 0,
-  }));
-}
-
-// The picker shows only with something beyond Video/Audio to pick, or while
-// a light test runs (the old MCP toggle's rule).
-export function effectPickerVisible(effects, state) {
-  return effects.some((e) => !e.builtin) || lightTestActive(state);
-}
-
-// Trigger text: the running custom effect (or a light test) by name, else
-// the menu's own name, since Video/Audio already carry the fill.
-export function effectPickerLabel(effects, state) {
-  if (lightTestActive(state)) return 'Light test';
-  if (!customEffectRunning(state)) return 'All effects';
-  const running = effects.find((e) => e.id === state.effect);
-  return running ? effectTitle(running) : (state.effectTitle || state.effect);
-}
-
 // Whether a lingering switch error is stale: the running pipeline is now
 // the mode the failed switch was heading to (a confirmed retry, or a
 // resume/relaunch starting the mode the failed switch saved to config). No

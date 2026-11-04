@@ -31,16 +31,17 @@ export function setTitle(doc: GraphDoc, title: string): GraphDoc {
   return { ...doc, title }
 }
 
-// A title no existing effect shows: the title itself, else "title copy",
-// "title copy 2", ... so the picker never lists two effects with one name.
+// A title no existing effect shows: the title itself, else "title (Copy)",
+// "title (Copy 2)", ... so the picker never lists two effects with one name.
 export function distinctTitle(title: string, taken: Iterable<string>): string {
   const norm = (t: string) => t.trim().toLowerCase()
   const used = new Set([...taken].map(norm))
   if (!used.has(norm(title))) return title
-  const base = `${title.trim()} copy`
-  if (!used.has(norm(base))) return base
+  const base = title.trim()
+  const first = `${base} (Copy)`
+  if (!used.has(norm(first))) return first
   for (let n = 2; ; n++) {
-    const candidate = `${base} ${n}`
+    const candidate = `${base} (Copy ${n})`
     if (!used.has(norm(candidate))) return candidate
   }
 }

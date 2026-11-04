@@ -4101,6 +4101,16 @@ TEST_CASE("Duplicate copies a built-in or custom effect to a new id without repl
   REQUIRE(h.duplicate("mine", {{"id", "mine-2"}})->status == 200);
   CHECK(*store.read("mine-2", error) == mine);
 
+  // An optional title names the copy (Aurora-kep2.9).
+  REQUIRE(h.duplicate("mine", {{"id", "mine-copy"}, {"title", "Mine (Copy)"}})->status == 200);
+  auto titled = *store.read("mine-copy", error);
+  CHECK(titled["title"] == "Mine (Copy)");
+  titled["title"] = "Mine";
+  CHECK(titled == mine);
+  CHECK(h.duplicate("mine", {{"id", "long"}, {"title", std::string(81, 'x')}})->status == 400);
+  CHECK(h.duplicate("mine", {{"id", "long"}, {"title", 5}})->status == 400);
+  CHECK_FALSE(store.exists("long"));
+
   // Refusals write nothing.
   CHECK(h.duplicate("mine", {{"id", "mine-2"}})->status == 409);
   CHECK(h.duplicate("mine", {{"id", "builtin.audio"}})->status == 400);
@@ -4109,7 +4119,7 @@ TEST_CASE("Duplicate copies a built-in or custom effect to a new id without repl
   CHECK(h.duplicate("nope", {{"id", "fresh"}})->status == 404);
   CHECK(h.duplicate("..", {{"id", "fresh"}})->status == 404);
   CHECK_FALSE(store.exists("fresh"));
-  CHECK(store.list() == std::vector<std::string>{"mine", "mine-2", "my-screen"});
+  CHECK(store.list() == std::vector<std::string>{"mine", "mine-2", "mine-copy", "my-screen"});
 }
 
 
