@@ -138,8 +138,8 @@ says where it landed. Sources at the end.
   every voice adapter write `{desired: {...}}`. v1 shape:
   - `effect` (writable): the id asked for. Reads back as written, so
     merge-patch semantics hold.
-  - `activeEffect` (output-only): what runs. Differs when the asked-for
-    effect fell back, and the reason is in `errors` (source `reload`).
+  - `activeEffect` (output-only): what runs. Null when the asked-for
+    effect failed to start, and the reason is in `errors` (source `effect`).
   - No `reconciling` flag. AIP-128 asks for one only when changes take
     more than a few seconds.
   - Same split later for anything else that can fall back.

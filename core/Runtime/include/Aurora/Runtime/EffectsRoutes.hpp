@@ -48,7 +48,7 @@ namespace Aurora::Runtime
   // inputs), anything else must be an existing custom effect (404
   // "unknown_effect"; 400 "invalid_body"). Saves, then reloads through
   // the shared `reload`, then runs onEffectChosen. A custom that exists but fails to load still answers
-  // 200: the built-in runs and /api/state holds the effect_fallback error.
+  // 200: nothing runs and /api/state holds the "effect" error.
   // Answers {"succeeded": true, "activeEffectId", "effect", "requestedEffect"}
   // plus "reloadError" if the reload failed. With X-Aurora-Client: mcp and a
   // custom id, the id also becomes Config's mcpEffectId.

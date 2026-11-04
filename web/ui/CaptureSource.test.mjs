@@ -80,6 +80,13 @@ assert.deepEqual(effectiveFlags(BOTH, {}), BOTH);
 // Nothing running falls back to the saved mode; a fresh install is video.
 assert.deepEqual(effectiveFlags(NONE, { activeAudioInputName: 'a' }), AUDIO);
 assert.deepEqual(effectiveFlags(NONE, {}), VIDEO);
+// A failed effect switch shows the pick's inputs, even none (Aurora-kep2.4).
+assert.deepEqual(
+  effectiveFlags({ ...NONE, state: 'failed', graphInputs: { video: false, audio: true } }, { activeInputName: 'v' }),
+  { usesVideoInput: false, usesAudioInput: true, samplesZones: false });
+assert.deepEqual(
+  effectiveFlags({ ...NONE, state: 'failed', graphInputs: { video: false, audio: false } }, {}),
+  { usesVideoInput: false, usesAudioInput: false, samplesZones: false });
 assert.deepEqual(effectiveFlags(null, {}), VIDEO);
 
 assert.equal(audioDevicesUrlFrom({ audioDevicesUrl: '/api/linux/audio-sinks' }), '/api/linux/audio-sinks');

@@ -194,6 +194,14 @@ export function isIdle(flags) {
 // saved mode, as before kea; a fresh install gets the monitor picker.
 // Aurora-t9iq owns a real design for that state.
 export function effectiveFlags(state, config) {
+  // A failed effect switch shows the inputs of the pick, which can fix it.
+  if (state?.state === 'failed' && state.graphInputs) {
+    return {
+      usesVideoInput: state.graphInputs.video === true,
+      usesAudioInput: state.graphInputs.audio === true,
+      samplesZones: false,
+    };
+  }
   const running = runningFlags(state);
   return isIdle(running) ? flagsForMode(modeFromConfig(config)) : running;
 }

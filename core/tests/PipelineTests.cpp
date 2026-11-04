@@ -3075,9 +3075,9 @@ TEST_CASE("EffectStore round-trips graph files and refuses ids that could leave 
 }
 
 
-TEST_CASE("A custom effect runs, and a failed one falls back with a held effect_fallback error (Aurora-52oz.1)", "[Effects]")
+TEST_CASE("A custom effect runs, and a failed switch stops the old effect with a held effect error (Aurora-kep2.4)", "[Effects]")
 {
-  ScopedTempDir dir("effect-fallback");
+  ScopedTempDir dir("effect-failure");
   auto events = std::make_shared<Events>();
   auto registry = makeRegistry(events);
   std::string error;
@@ -3096,63 +3096,114 @@ TEST_CASE("A custom effect runs, and a failed one falls back with a held effect_
     config.setActiveEffectId(id);
     return host.reload(registry, config, dir.path, error);
   };
+  auto checkFailed = [&](const std::string& id, const std::string& reason){
+    CHECK(effectsOf() == std::make_pair(std::string{}, id));
+    const HostStatus status = host.status();
+    CHECK(status.state == HostState::Failed);
+    REQUIRE(status.errors.size() == 1);
+    CHECK(status.errors[0].source == "effect");
+    CHECK(status.errors[0].message.find("Couldn't start") != std::string::npos);
+    CHECK(status.errors[0].message.find(reason) != std::string::npos);
+    CHECK_FALSE(status.errors[0].retry);
+    CHECK_FALSE(host.graphJson());
+  };
 
   REQUIRE(reloadWith("mine"));
   CHECK(effectsOf() == std::make_pair(std::string("mine"), std::string("mine")));
   CHECK(host.status().errors.empty());
   CHECK(*host.graphJson() == Graph::builtInVideoGraph({"out-a", "out-b"}));
 
-  // A custom naming a removed output runs the built-in and holds the entry.
-  REQUIRE(reloadWith("gone-output"));
-  CHECK(effectsOf() == std::make_pair(std::string("builtin.video"), std::string("gone-output")));
-  HostStatus status = host.status();
-  CHECK(status.state == HostState::Running);
-  REQUIRE(status.errors.size() == 1);
-  CHECK(status.errors[0].source == "effect_fallback");
-  CHECK(status.errors[0].message.find("removed-out") != std::string::npos);
+  // A custom naming a removed output stops the old effect and fails the host.
+  CHECK_FALSE(reloadWith("gone-output"));
+  checkFailed("gone-output", "removed-out");
+  CHECK(error.find("removed-out") != std::string::npos);
+  REQUIRE(host.summary().graphInputs);
+  CHECK(host.summary().graphInputs->video);
 
-  // A missing file and a corrupt one fall back the same way.
-  REQUIRE(reloadWith("not-there"));
-  CHECK(effectsOf().first == "builtin.video");
-  REQUIRE(host.status().errors.size() == 1);
-  CHECK(host.status().errors[0].message.find("missing") != std::string::npos);
-  REQUIRE(reloadWith("broken"));
-  REQUIRE(host.status().errors.size() == 1);
-  CHECK(host.status().errors[0].message.find("not valid JSON") != std::string::npos);
+  // A missing file and a corrupt one fail the same way, one row each time.
+  CHECK_FALSE(reloadWith("not-there"));
+  checkFailed("not-there", "missing");
+  CHECK_FALSE(reloadWith("broken"));
+  checkFailed("broken", "not valid JSON");
 
-  // The entry clears once the custom loads, and when the user switches away.
+  // The entry clears once an effect loads, custom or built-in.
   REQUIRE(reloadWith("mine"));
   CHECK(host.status().errors.empty());
-  REQUIRE(reloadWith("gone-output"));
-  REQUIRE(host.status().errors.size() == 1);
+  CHECK(host.status().state == HostState::Running);
+  CHECK_FALSE(reloadWith("gone-output"));
   REQUIRE(reloadWith("builtin.video"));
   CHECK(host.status().errors.empty());
   CHECK(effectsOf() == std::make_pair(std::string("builtin.video"), std::string("builtin.video")));
 
-  // Resuming from pause onto a failing custom holds the entry too.
+  // Resuming from pause onto a failing custom holds a resume error.
   REQUIRE(reloadWith("mine"));
   REQUIRE(host.pause());
   Config config = videoConfig();
   config.setActiveEffectId("gone-output");
-  REQUIRE(host.resume(registry, config, dir.path, error));
+  CHECK_FALSE(host.resume(registry, config, dir.path, error));
   REQUIRE(host.status().errors.size() == 1);
-  CHECK(host.status().errors[0].source == "effect_fallback");
+  CHECK(host.status().errors[0].message.find("Couldn't start") != std::string::npos);
   host.shutdown();
 }
 
 
-TEST_CASE("A startup pipeline that fell back holds the effect_fallback error (Aurora-52oz.1)", "[Effects]")
+TEST_CASE("A failed built-in switch stops the old effect, a failed device change keeps it (Aurora-kep2.4)", "[Effects]")
 {
-  ScopedTempDir dir("effect-fallback-startup");
+  ScopedTempDir dir("effect-failure-builtin");
+  auto events = std::make_shared<Events>();
+  auto noAudioRegistry = makeRegistry(events, /*withAudio*/ false);
+
+  PipelineHost host(nullptr, {});
+  std::string error;
+  REQUIRE(host.reload(noAudioRegistry, videoConfig(), dir.path, error));
+
+  // Same effect, bad device: saved-not-applied, the old pipeline keeps running.
+  Config badDevice = videoConfig();
+  badDevice.setActiveInputName("no-such-input");
+  CHECK_FALSE(host.reload(noAudioRegistry, badDevice, dir.path, error));
+  CHECK(host.status().state == HostState::Running);
+  REQUIRE(host.status().errors.size() == 1);
+  CHECK(host.status().errors[0].source == "reload");
+  CHECK(host.summary().effect == "builtin.video");
+
+  // A different effect that cannot start: nothing runs, Retry is offered.
+  Config audio = videoConfig();
+  audio.setActiveEffectId("builtin.audio");
+  CHECK_FALSE(host.reload(noAudioRegistry, audio, dir.path, error));
+  const HostStatus status = host.status();
+  CHECK(status.state == HostState::Failed);
+  REQUIRE(status.errors.size() == 1);
+  CHECK(status.errors[0].source == "effect");
+  CHECK(status.errors[0].retry);
+  CHECK(host.summary().effect.empty());
+  CHECK(host.summary().requestedEffect == "builtin.audio");
+  REQUIRE(host.summary().graphInputs);
+  CHECK(host.summary().graphInputs->audio);
+  host.shutdown();
+}
+
+
+TEST_CASE("A startup that cannot run the saved effect fails with an effect error (Aurora-kep2.4)", "[Effects]")
+{
+  ScopedTempDir dir("effect-failure-startup");
   auto events = std::make_shared<Events>();
   auto registry = makeRegistry(events);
   Config config = videoConfig();
   config.setActiveEffectId("nope");
 
-  PipelineHost host(Pipeline::build(registry, config, dir.path, {}), {});
-  REQUIRE(host.status().errors.size() == 1);
-  CHECK(host.status().errors[0].source == "effect_fallback");
+  std::exception_ptr failure;
+  std::unique_ptr<Pipeline> initial;
+  try{ initial = Pipeline::build(registry, config, dir.path, {}); }
+  catch(...){ failure = std::current_exception(); }
+  REQUIRE_FALSE(initial);
+
+  PipelineHost host(nullptr, {}, failure);
+  const HostStatus status = host.status();
+  CHECK(status.state == HostState::Failed);
+  REQUIRE(status.errors.size() == 1);
+  CHECK(status.errors[0].source == "effect");
   CHECK(host.summary().requestedEffect == "nope");
+  CHECK(host.summary().effect.empty());
   host.shutdown();
 }
 
@@ -3401,14 +3452,19 @@ TEST_CASE("A custom graph with both capture nodes builds both inputs, and a miss
   CHECK_FALSE(none->summary().graphInputs->video);
   CHECK_FALSE(none->summary().graphInputs->audio);
 
-  // A graph needing audio when the build has no audio backend runs the built-in.
+  // A graph needing audio when the build has no audio backend fails the build.
   auto noAudioRegistry = makeRegistry(events, /*withAudio*/ false);
   Config noAudio = videoConfig();
   noAudio.setActiveEffectId("both");
-  auto fallback = Pipeline::build(noAudioRegistry, noAudio, dir.path, {});
-  REQUIRE(fallback);
-  CHECK(fallback->summary().effect == "builtin.video");
-  CHECK(fallback->summary().fallbackReason.find("audio input") != std::string::npos);
+  try{
+    Pipeline::build(noAudioRegistry, noAudio, dir.path, {});
+    FAIL("the build should have thrown");
+  }
+  catch(const EffectBuildError& e){
+    CHECK(e.effectId == "both");
+    CHECK_FALSE(e.retryable);
+    CHECK(std::string(e.what()).find("audio input") != std::string::npos);
+  }
 }
 
 TEST_CASE("The effect id picks the mode and a missing input is auto-picked and saved (Aurora-kep2.3)", "[Effects][Audio]")
@@ -3660,7 +3716,11 @@ namespace
     {
       config.setActiveEffectId(activeEffect);
       ConfigStore(dir.path).save(config);
-      host = std::make_unique<PipelineHost>(Pipeline::build(registry, config, dir.path, {}), PipelineOptions{});
+      std::unique_ptr<Pipeline> initial;
+      std::exception_ptr failure;
+      try{ initial = Pipeline::build(registry, config, dir.path, {}); }
+      catch(...){ failure = std::current_exception(); }
+      host = std::make_unique<PipelineHost>(std::move(initial), PipelineOptions{}, failure);
       auto drafts = registerDraftRoutes(server, registry, dir.path);
       registerApplyRoutes(server, *host, registry, dir.path, drafts,
         [this]{ return applyEffectFromDisk(*host, registry, dir.path); });
@@ -4033,11 +4093,12 @@ TEST_CASE("Tuning edits on a custom effect write its file and swap in place (Aur
 }
 
 
-TEST_CASE("Apply clears a held effect_fallback once the new effect runs (Aurora-52oz.4)", "[Apply]")
+TEST_CASE("Apply clears a held effect error once the new effect runs (Aurora-52oz.4)", "[Apply]")
 {
   ApplyHarness h("apply-fallback", tunedVideoConfig(), "nope");
   REQUIRE(h.host->status().errors.size() == 1);
-  CHECK(h.host->summary().effect == "builtin.video");
+  CHECK(h.host->status().errors[0].source == "effect");
+  CHECK(h.host->summary().effect.empty());
 
   h.putDraft("editor", Graph::builtInVideoGraph({"out-a"}));
   auto applied = h.apply({{"session", "editor"}, {"id", "fixed"}});
@@ -4045,7 +4106,6 @@ TEST_CASE("Apply clears a held effect_fallback once the new effect runs (Aurora-
   CHECK(applied->status == 200);
   CHECK(h.host->status().errors.empty());
   CHECK(h.host->summary().effect == "fixed");
-  CHECK(h.host->summary().fallbackReason.empty());
   CHECK(initCount(*h.events) == 1);
 }
 
@@ -4140,7 +4200,11 @@ namespace
     registry(makeRegistry(events))
     {
       ConfigStore(dir.path).save(config);
-      host = std::make_unique<PipelineHost>(Pipeline::build(registry, config, dir.path, {}), PipelineOptions{});
+      std::unique_ptr<Pipeline> initial;
+      std::exception_ptr failure;
+      try{ initial = Pipeline::build(registry, config, dir.path, {}); }
+      catch(...){ failure = std::current_exception(); }
+      host = std::make_unique<PipelineHost>(std::move(initial), PipelineOptions{}, failure);
       auto drafts = registerDraftRoutes(server, registry, dir.path);
       auto applyDraft = registerApplyRoutes(server, *host, registry, dir.path, drafts,
         [this]{ return applyEffectFromDisk(*host, registry, dir.path); });

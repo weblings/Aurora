@@ -483,10 +483,12 @@ export class DashboardScreen {
       ${errorHtml}
     `;
 
-    const hintsAllowed = Object.keys(this.topTierErrors).length === 0 && !this.toggleError;
+    const hintsAllowed = Object.keys(this.topTierErrors).length === 0 && !this.toggleError
+      && this.hostState !== 'failed';
     // Under a custom effect the graph's declared inputs pick the pickers, so a graph
     // with none shows no field (DeviceField alone would fall back to Monitor).
-    const graphInputs = this.mode === 'custom' ? this.pipelineState?.graphInputs : null;
+    const graphInputs = this.mode === 'custom' || this.hostState === 'failed'
+      ? this.pipelineState?.graphInputs : null;
     if (graphInputs && !graphInputs.video && !graphInputs.audio) return;
     this.deviceField = new DeviceField(topTier.querySelector('.db-device-slot'), {
       usesVideoInput: graphInputs ? graphInputs.video : this.flags.usesVideoInput,
@@ -805,8 +807,8 @@ export class DashboardScreen {
       if (!putResult.succeeded) {
         this._setToggleError(`Couldn't switch to ${modeLabel}.`, mode, effectId);
       } else if (putResult.reloadError) {
-        // Saved, not applied: the shell banner owns it (Aurora-98pr); the
-        // fill below is re-derived from the still-running pipeline.
+        // The shell banner owns it (Aurora-98pr), refreshed now so the row
+        // does not lag the poll. The fill is re-derived from what runs.
         this.app.checkNow();
       }
     } catch {

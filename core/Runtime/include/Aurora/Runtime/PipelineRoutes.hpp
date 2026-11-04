@@ -102,9 +102,10 @@ namespace Aurora::Runtime
   // last, null until one has.
   // Aurora-5ipy.2 adds "effect" (the running graph id: "builtin.video",
   // "builtin.audio" or a custom effect's id, null when idle or failed),
+  // Aurora-kep2.4 adds "retry" to each error (false: Retry cannot fix it),
   // Aurora-52oz.1 adds "requestedEffect" (what Config asked for; it differs
-  // from "effect" while a custom effect that failed to load is replaced by
-  // the built-in, with an "effect_fallback" error held) and "source": {"video":
+  // from "effect" (null) after a failed effect switch, which also holds an
+  // "effect" error and reports the pick's "graphInputs") and "source": {"video":
   // {"input", "monitor" (string or null)} or null, "audio": {"input", "sink"
   // (string or null), "auto" (follows the default sink)} or null}. A null side
   // is unused. Kept through pause; "sink" is the platform-resolved sink while

@@ -533,7 +533,7 @@ submit, not a control the user just touched.
 
 ### Failed effect switch
 
-Decided 2026-11-03, not built (`Aurora-kep2.4`), record in
+Decided 2026-11-03, host side built in `Aurora-kep2.4` (source `effect`, a `retry` flag on the error), record in
 [[kep22-effect-panel-mocks]]. This narrows rule 2 above for effect switches.
 
 - A failed effect build stops the old effect instead of keeping it. The host
@@ -542,7 +542,7 @@ Decided 2026-11-03, not built (`Aurora-kep2.4`), record in
   again, and so does Retry when the row has one. Retry follows the resolve-action
   rule above: it resends the saved config, so a reason that cannot change outside
   Aurora, like no audio input on this build, gets no button. Startup fails the
-  same way, replacing the `effect_fallback` built-in.
+  same way. The `effect_fallback` built-in is gone.
 - Saved-not-applied now only covers device and settings changes, which keep
   the effect running.
 - A request that never ran (`unknown_effect`, invalid body, a PUT that never

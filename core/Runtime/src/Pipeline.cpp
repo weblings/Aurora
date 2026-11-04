@@ -162,6 +162,29 @@ namespace Aurora::Runtime
     }
 
 
+    // What the effect needs, for a failed state. Nullopt when its file is unreadable.
+    std::optional<PipelineSummary::GraphInputs> _effectInputs(const std::filesystem::path& configRoot, const std::string& id)
+    {
+      if(id == kBuiltInVideoEffectId){ return PipelineSummary::GraphInputs{true, false}; }
+      if(id == kBuiltInAudioEffectId){ return PipelineSummary::GraphInputs{false, true}; }
+      std::string ignored;
+      const auto doc = EffectStore(configRoot).read(id, ignored);
+      if(!doc){ return std::nullopt; }
+      const SourceNeeds needs = _sourceNeeds(*doc);
+      return PipelineSummary::GraphInputs{needs.video, needs.audio};
+    }
+
+    std::string _effectFailureMessage(const std::filesystem::path& configRoot, const std::string& id, const std::string& reason)
+    {
+      return "Couldn't start " + effectInfo(configRoot, id).title + ": " + reason;
+    }
+
+    EffectBuildError _effectError(
+      const std::filesystem::path& configRoot, const std::string& id, const std::string& reason, bool retryable)
+    {
+      return EffectBuildError(id, _effectFailureMessage(configRoot, id, reason), retryable, _effectInputs(configRoot, id));
+    }
+
     constexpr std::uint8_t kUsesVideoInput = 1u << 0;
     constexpr std::uint8_t kUsesAudioInput = 1u << 1;
     constexpr std::uint8_t kSamplesZones = 1u << 2;
@@ -192,6 +215,34 @@ namespace Aurora::Runtime
 
     auto pipeline = std::unique_ptr<Pipeline>(new Pipeline());
 
+    // Aurora-o13 spike: presence-only flag, same convention as
+    // AURORA_DEV_LIGHT_TAP. Builds both inputs when both names are set;
+    // logs per-runner tick timing in every mode, for comparison.
+    const bool dualFlag = std::getenv("AURORA_DEV_DUAL_CAPTURE") != nullptr;
+    const bool dualCapture = dualFlag
+      && !config.activeInputName().empty() && !config.activeAudioInputName().empty();
+    if(dualFlag){
+      pipeline->m_dualStats.log = [options](LogLevel level, const std::string& line){ _log(options, level, line); };
+    }
+
+    // A custom effect runs on the primary runner only. An effect that cannot
+    // run fails the build; the dev dual-capture spike ignores customs.
+    const std::string customId = dualCapture ? std::string{} : config.customEffectId();
+    std::string customFailure;
+    std::optional<nlohmann::json> customDoc;
+    if(overrides.graph){
+      if(dualCapture){
+        throw std::runtime_error("a graph cannot run in place while the dual-capture spike runs");
+      }
+      customDoc = *overrides.graph;
+    }
+    else if(!customId.empty()){
+      customDoc = EffectStore(configRoot).read(customId, customFailure);
+      if(!customDoc){
+        throw _effectError(configRoot, customId, customFailure, /*retryable*/ false);
+      }
+    }
+
     std::vector<std::string> outputNames = config.activeOutputNames();
     if(outputNames.empty()){
       outputNames = registry.outputNames(); // no explicit selection -- run everything available
@@ -219,31 +270,6 @@ namespace Aurora::Runtime
 
     if(pipeline->m_outputPtrs.empty()){
       throw std::runtime_error("No outputs available -- nothing to drive");
-    }
-
-    // Aurora-o13 spike: presence-only flag, same convention as
-    // AURORA_DEV_LIGHT_TAP. Builds both inputs when both names are set;
-    // logs per-runner tick timing in every mode, for comparison.
-    const bool dualFlag = std::getenv("AURORA_DEV_DUAL_CAPTURE") != nullptr;
-    const bool dualCapture = dualFlag
-      && !config.activeInputName().empty() && !config.activeAudioInputName().empty();
-    if(dualFlag){
-      pipeline->m_dualStats.log = [options](LogLevel level, const std::string& line){ _log(options, level, line); };
-    }
-
-    // A custom effect runs on the primary runner only. An unreadable file
-    // becomes the fallback reason; the dev dual-capture spike ignores customs.
-    const std::string customId = dualCapture ? std::string{} : config.customEffectId();
-    std::string customFailure;
-    std::optional<nlohmann::json> customDoc;
-    if(overrides.graph){
-      if(dualCapture){
-        throw std::runtime_error("a graph cannot run in place while the dual-capture spike runs");
-      }
-      customDoc = *overrides.graph;
-    }
-    else if(!customId.empty()){
-      customDoc = EffectStore(configRoot).read(customId, customFailure);
     }
 
     // A missing input of a kind the effect needs is picked here, so every
@@ -274,7 +300,7 @@ namespace Aurora::Runtime
     }
 
     // A custom graph picks its inputs from its source nodes. A source whose
-    // input is not configured sends the graph back to the built-in.
+    // input is not configured fails the effect.
     bool useAudioMode = runsAudioMode(config);
     bool bothInputs = false;
     if(customDoc){
@@ -283,8 +309,8 @@ namespace Aurora::Runtime
         if(overrides.graph){
           throw std::runtime_error(plan.missing);
         }
-        customFailure = plan.missing;
-        customDoc.reset();
+        pipeline->shutdown(/*isReplacement*/ false);
+        throw _effectError(configRoot, customId, plan.missing, /*retryable*/ false);
       }
       else{
         useAudioMode = plan.audioMode;
@@ -475,7 +501,8 @@ namespace Aurora::Runtime
         pipeline->m_summary.graphInputs = PipelineSummary::GraphInputs{needs.video, needs.audio};
       }
       else{
-        pipeline->m_summary.fallbackReason = customFailure.empty() ? primary.customError() : customFailure;
+        pipeline->shutdown(/*isReplacement*/ false);
+        throw _effectError(configRoot, customId, primary.customError(), /*retryable*/ false);
       }
     }
     if(!pipeline->m_summary.graphInputs){
@@ -599,7 +626,6 @@ namespace Aurora::Runtime
     const std::string id = next.customEffectId();
     m_summary.effect = id;
     m_summary.requestedEffect = id;
-    m_summary.fallbackReason.clear();
     const SourceNeeds needs = _sourceNeeds(doc);
     m_summary.graphInputs = PipelineSummary::GraphInputs{needs.video, needs.audio};
     m_appliedConfig.setActiveEffectId(next.activeEffectId());
@@ -888,6 +914,11 @@ namespace Aurora::Runtime
     std::vector<HostError> errors;
     if(!m_pipeline && startupFailure){
       try{ std::rethrow_exception(startupFailure); }
+      catch(const EffectBuildError& e){
+        errors.push_back({"effect", e.what(), 0, e.retryable});
+        m_summary.requestedEffect = e.effectId;
+        m_summary.graphInputs = e.inputs;
+      }
       catch(const std::exception& e){ errors.push_back({"startup", _describeBuildError(e)}); }
       catch(...){ errors.push_back({"startup", "unknown error"}); }
     }
@@ -933,19 +964,7 @@ namespace Aurora::Runtime
   void PipelineHost::_publishBuiltLocked()
   {
     m_captureError.clear();
-    std::vector<HostError> errors;
-    if(m_pipeline && !m_pipeline->summary().fallbackReason.empty()){
-      // After the build, not before: a successful build clears held errors,
-      // and this one describes the build that just succeeded.
-      const PipelineSummary summary = m_pipeline->summary();
-      errors.push_back({
-        "effect_fallback",
-        "Custom effect '" + summary.requestedEffect + "' did not load, so " + summary.effect
-          + " is running: " + summary.fallbackReason,
-        m_nextErrorId++
-      });
-    }
-    _publishStatusLocked(std::move(errors));
+    _publishStatusLocked({});
   }
 
 
@@ -962,18 +981,47 @@ namespace Aurora::Runtime
   }
 
 
-  void PipelineHost::_setBuildErrorLocked(const std::string& source, const std::string& message)
+  void PipelineHost::_setBuildErrorLocked(const std::string& source, const std::string& message, bool retry)
   {
     const auto isBuildSource = [](const std::string& name){
-      return name == "startup" || name == "resume" || name == "reload";
+      return name == "startup" || name == "resume" || name == "reload" || name == "effect";
     };
     std::vector<HostError> errors = m_status.errors;
     errors.erase(
       std::remove_if(errors.begin(), errors.end(), [&](const HostError& e){ return isBuildSource(e.source); }),
       errors.end()
     );
-    errors.push_back({source, message, m_nextErrorId++});
+    errors.push_back({source, message, m_nextErrorId++, retry});
     _publishStatusLocked(std::move(errors));
+  }
+
+
+  void PipelineHost::_failEffect(
+    const std::string& effectId,
+    const std::string& message,
+    bool retryable,
+    const std::optional<PipelineSummary::GraphInputs>& inputs,
+    std::uint64_t epoch
+  )
+  {
+    std::unique_ptr<Pipeline> previous;
+    {
+      std::lock_guard<std::mutex> change(m_changeMutex);
+      std::lock_guard<std::mutex> lock(m_mutex);
+      if(m_paused.load() || m_buildEpoch.load() != epoch){ return; }
+      previous = std::move(m_pipeline);
+      ++m_buildEpoch;
+      _storeCapabilities(nullptr);
+      {
+        // Kept so /api/state still names the pick and the inputs that can fix it.
+        std::lock_guard<std::mutex> summaryLock(m_summaryMutex);
+        m_summary.requestedEffect = effectId;
+        m_summary.graphInputs = inputs;
+      }
+      _setBuildErrorLocked("effect", message, retryable);
+    }
+    // Outside the lock, like pause(): Hue's disableStreaming blocks.
+    if(previous){ previous->shutdown(/*isReplacement*/ false); }
   }
 
 
@@ -1203,7 +1251,7 @@ namespace Aurora::Runtime
   }
 
 
-  bool PipelineHost::_swapInPlace(const std::function<bool(Pipeline&)>& swap, bool clearFallback, const char* logLine)
+  bool PipelineHost::_swapInPlace(const std::function<bool(Pipeline&)>& swap, bool clearEffectError, const char* logLine)
   {
     std::lock_guard<std::mutex> change(m_changeMutex);
     {
@@ -1213,11 +1261,11 @@ namespace Aurora::Runtime
       }
       _storeCapabilities(m_pipeline.get());
 
-      if(clearFallback){
-        // The effect now runs, so only its fallback entry goes.
+      if(clearEffectError){
+        // The effect now runs, so only its failure entry goes.
         std::vector<HostError> errors = m_status.errors;
         errors.erase(
-          std::remove_if(errors.begin(), errors.end(), [](const HostError& e){ return e.source == "effect_fallback"; }),
+          std::remove_if(errors.begin(), errors.end(), [](const HostError& e){ return e.source == "effect"; }),
           errors.end()
         );
         _publishStatusLocked(std::move(errors));
@@ -1322,9 +1370,27 @@ namespace Aurora::Runtime
     try{
       next = Pipeline::build(registry, config, configRoot, m_options);
     }
+    catch(const EffectBuildError& e){
+      errorOut = e.what();
+      _failEffect(e.effectId, errorOut, e.retryable, e.inputs, epoch);
+      return false;
+    }
     catch(const std::exception& e){
       errorOut = _describeBuildError(e);
-      _recordFailure("reload", errorOut, epoch);
+      // A build that fails while the requested effect is not the running one
+      // is a failed switch. The same effect failing (a device change) keeps
+      // the old pipeline, saved-not-applied.
+      const std::string requested = config.customEffectId().empty()
+        ? (runsAudioMode(config) ? kBuiltInAudioEffectId : kBuiltInVideoEffectId)
+        : config.customEffectId();
+      const PipelineSummary running = summary();
+      if(!running.requestedEffect.empty() && (running.requestedEffect != requested || running.effect.empty())){
+        errorOut = _effectFailureMessage(configRoot, requested, errorOut);
+        _failEffect(requested, errorOut, /*retryable*/ true, _effectInputs(configRoot, requested), epoch);
+      }
+      else{
+        _recordFailure("reload", errorOut, epoch);
+      }
       return false;
     }
 

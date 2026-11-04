@@ -34,7 +34,7 @@ namespace Aurora::Runtime
   // Answers {"succeeded": true, "id", "activeEffectId", "effect",
   // "requestedEffect"} plus "reloadError" if applying failed after the save.
   // "effect" differs from "id" when the graph could not run (a held
-  // effect_fallback error says why). Refusals change nothing on disk or live:
+  // "effect" error says why). Refusals change nothing on disk or live:
   // 400 "invalid_body" / "invalid_session" / "invalid_effect_id" (ids are
   // [a-z0-9][a-z0-9_-]{0,63}, so built-in ids never qualify), 404 "no_draft",
   // 422 "invalid_graph" with "valid": false and "errors" as the draft routes

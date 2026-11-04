@@ -58,7 +58,7 @@ namespace Aurora::Runtime
 
     nlohmann::json errors = nlohmann::json::array();
     for(const HostError& error : snap.status.errors){
-      errors.push_back({{"source", error.source}, {"message", error.message}, {"id", error.id}});
+      errors.push_back({{"source", error.source}, {"message", error.message}, {"id", error.id}, {"retry", error.retry}});
     }
 
     nlohmann::json conditions = nlohmann::json::array();
