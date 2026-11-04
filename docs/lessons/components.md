@@ -409,3 +409,13 @@ Applies-when: building a picker from native radios whose change handler does rea
 Aurora-kep2.2's effect panel used visually hidden radios, one `name="effect"`, split into Built-in, Custom and Hidden `role=radiogroup` blocks. In headless Chromium, four ArrowDown presses from Music pulse fired three `change` events: into Custom, onto the `aria-disabled` Candle row, then a wrap back to Screen colors. Collapsed (`hidden`) rows were skipped. Each change would start a ~4.5s switch on the real lights, the same trap as this file's select-follows-focus entry. `aria-disabled` does not stop a radio being checked, and a click checks it before the switch is confirmed, which breaks a controlled picker.
 
 **Fix:** for side-effecting picks use row buttons with `aria-current` and your own Up/Down focus handling, committing on Enter, Space or click. If radios stay, intercept arrows and reset `checked` from the running state after every change.
+
+---
+
+## Disabling the focused control drops focus to body, and focus() on a disabled control does nothing
+Tags: webui, focus, disabled, aria, keyboard, dropdown
+Applies-when: a control is disabled while busy and the design also returns focus to it
+
+Aurora-kep2.2's effect panel returns focus to the trigger after a pick, and `Dropdown.setBusy` disables that trigger during the switch. In Chromium on the frame 10 mock, disabling the focused trigger moved `activeElement` to `body`, and calling `focus()` on the disabled trigger left focus where it was. Keyboard and screen-reader users lose their place until they Tab back in. Focus does not return by itself when the control is enabled again.
+
+**Fix:** accept the loss for short waits, or use `aria-disabled="true"` and ignore clicks and keys in the handlers. That keeps focus, but the control stays in the tab order and every input path must be blocked by hand. Kept `disabled` for kep2, since a switch is short.

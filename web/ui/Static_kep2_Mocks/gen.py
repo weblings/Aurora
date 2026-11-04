@@ -26,8 +26,10 @@ def page(title, body, banner=""):
 '''
 
 
-def top(paused=False):
+def top(paused=False, failed=False):
     pause = '<button type="button" class="btn btn-secondary btn-icon" aria-label="Resume"><img src="../icons/play-rockyroad.svg" alt="" class="top-bar-trailing-icon" /></button>' if paused else '<button type="button" class="btn btn-secondary btn-icon" aria-label="Pause"><img src="../icons/pause-rockyroad.svg" alt="" class="top-bar-trailing-icon" /></button>'
+    if failed:
+        pause = ""  # A failed host has nothing to pause, so the button is hidden, not disabled.
     return f'''    <div class="top-bar-slot db-top-bar-slot">
       <div class="top-bar top-bar-with-logo">
         <span></span>
@@ -40,12 +42,11 @@ def top(paused=False):
     </div>'''
 
 
-def banner(effect):
-    # Failed build: the shell banner names the effect, Retry only (no X, the old effect is gone).
+def banner(text, actions=""):
+    # Failed build: no X, and a button only when one click can resolve the error (ErrorOverlay.md).
     return f'''
   <div id="shell-banner-slot"><div class="shell-banner"><div class="shell-banner-inner"><div class="shell-banner-row"><div class="shell-banner-content">
-    <p class="status-text status-text-error"><span class="warn-glyph" aria-hidden="true"></span> Couldn&rsquo;t switch to {effect}.</p>
-    <button type="button" class="btn btn-secondary" style="margin-top: var(--aurora-space-3);">Retry</button>
+    <p class="status-text status-text-error"><span class="warn-glyph" aria-hidden="true"></span> {text}</p>{actions}
   </div></div></div></div></div>'''
 
 
@@ -155,15 +156,15 @@ def picker(label, popup=False, menu_for=None, hidden=None, many=False, scroll=Fa
     panel = ""
     # The trigger is named by the field label, and aria-controls points at the panel.
     trig = ' id="effects-trigger" aria-labelledby="effects-label effects-trigger" aria-controls="effects-panel"'
-    # Switch states: the label stays on what is running, the pick only shows as outline and status line.
+    # Switch states: the label stays on what is running, the pick only shows in the status line.
     status = ""
     if switching:
-        trig = ' class="dropdown-trigger pending" disabled aria-busy="true"' + trig
+        trig = ' class="dropdown-trigger" disabled aria-busy="true"' + trig
         status = f'\n      <p class="status-text db-effect-switching" role="status">Switching to {switching}&hellip;</p>'
     else:
         trig = ' class="dropdown-trigger"' + trig
     if failed:
-        status = f'\n      <p class="status-text status-text-error"><span class="warn-glyph" aria-hidden="true"></span> Couldn&rsquo;t switch to {failed}.</p>'
+        status = f'\n      <p class="status-text status-text-error"><span class="warn-glyph" aria-hidden="true"></span> {failed}</p>'
     plabel = 'id="effects-panel" aria-labelledby="effects-label"'
     body = groups(menu_for, hidden, many, collapsed, tip, hide_builtin)
     layers = "".join(f"\n          {l}" for l in LAYERS)
@@ -185,7 +186,7 @@ def picker(label, popup=False, menu_for=None, hidden=None, many=False, scroll=Fa
 {inner}
         </div>'''
     return f'''    <div class="db-controls mk-picker field">
-      <label class="field-label" id="effects-label">Effects</label>
+      <label class="field-label" id="effects-label">Effect</label>
       <div class="dropdown dropdown-fill{" open" if popup else ""}">
         <button type="button"{trig} aria-haspopup="dialog" aria-expanded="{str(popup).lower()}"><span class="mk-trigger-main"><span class="dropdown-label">{label}</span></span>{CHEV}</button>{panel}
       </div>{status}
@@ -195,11 +196,11 @@ def picker(label, popup=False, menu_for=None, hidden=None, many=False, scroll=Fa
 def device(kind):
     v = '<div class="field"><label class="field-label">Monitor</label><div class="dropdown dropdown-fill"><button type="button" class="dropdown-trigger"><span class="dropdown-label">Auto (primary)</span>' + CHEV + '</button></div></div>'
     a = '<p class="status-text device-field-hint">Uses your system\'s default audio device.</p>'
-    return {"audio": a, "both": v + "\n      " + a}[kind]
+    return {"audio": a, "video": v, "both": v + "\n      " + a}[kind]
 
 
-def skeleton(picker_html, dev, extra="", paused=False):
-    return top(paused) + "\n" + picker_html + f'''
+def skeleton(picker_html, dev, extra="", paused=False, failed=False):
+    return top(paused, failed) + "\n" + picker_html + f'''
     <div class="db-top-tier">
       <div class="db-device-slot">{dev}</div>
     </div>
@@ -231,8 +232,12 @@ ROWS = "tree"
 w("frame9.html", "kep2 frame 9: tree, keyboard live", skeleton(picker("Fire", True, None, hidden="collapsed"), device("audio"), LIVE_JS.replace("frame8.js", "frame9.js")))
 w("frame1-both.html", "kep2 frame 4: both effect closed", skeleton(picker("Rainbow drift"), device("both")))
 w("frame10.html", "kep2 frame 10: switching", skeleton(picker("Fire", switching="Rainbow drift"), device("audio")))
-w("frame11.html", "kep2 frame 11: build failed", skeleton(picker("No effect running"), device("audio")), banner("Rainbow drift"))
-w("frame13.html", "kep2 frame 13: request rejected", skeleton(picker("Fire", failed="Rainbow drift"), device("audio")))
+w("frame11.html", "kep2 frame 11: build failed, no action", skeleton(picker("No effect running"), device("video"), failed=True), banner("Couldn&rsquo;t start Rainbow drift: no audio input is set up."))
+RETRY_ROW = '''
+    <div class="shell-banner-actions"><button type="button" class="btn btn-secondary">Retry</button><a class="btn btn-secondary" style="text-decoration: none;" href="#">Open Settings</a></div>'''
+w("frame11b.html", "kep2 frame 11b: build failed, Retry", skeleton(picker("No effect running"), device("video"), failed=True), banner("Couldn&rsquo;t start Rainbow drift: <strong>Screen Recording is off.</strong> Allow it in the macOS prompt if one appears, or turn it on in System Settings, then Retry.", RETRY_ROW))
+w("frame13.html", "kep2 frame 13: request rejected, effect gone", skeleton(picker("Fire", failed="Rainbow drift no longer exists."), device("audio")))
+w("frame13b.html", "kep2 frame 13b: request rejected, other causes", skeleton(picker("Fire", failed="Rainbow drift didn&rsquo;t start."), device("audio")))
 w("frame12.html", "kep2 frame 12: paused", skeleton(picker("Fire"), device("audio"), paused=True))
 
 
@@ -260,7 +265,7 @@ idx = f'''<!doctype html>
 </head>
 <body>
   <h1>Effect dropdown with an attached panel (Aurora-kep2.2)</h1>
-  <p>No Video/Audio toggle. An "Effects" label sits above the trigger like Monitor below it. The panel is non-modal (no scrim, closes on outside click or Esc), a labeled dialog holding an ARIA tree. Frame 9 is the working spec, frames 1-7 are static states of the same tree, and frame 8 is the rejected button-row alternative. Tooltips and row menus render in the panel outside the tree and its scroll region, under their row, flipped above it when they would leave the viewport. Built-in rows offer Edit graph, Duplicate and Hide. Hidden is a collapsed-by-default group with no count and only renders when non-empty. Every group header collapses. No row is dimmed: failures such as a missing input surface only after the click, through the shell banner (failed build) or an inline line (rejected request). The running effect has no Hide item. Rows carry no input badges. A secondary text line under the name is used only for "Built-in" on hidden built-ins.</p>
+  <p>No Video/Audio toggle. An "Effect" label sits above the trigger like Monitor below it. The panel is non-modal (no scrim, closes on outside click or Esc), a labeled dialog holding an ARIA tree. Frame 9 is the working spec, frames 1-7 are static states of the same tree, and frame 8 is the rejected button-row alternative. Tooltips and row menus render in the panel outside the tree and its scroll region, under their row, flipped above it when they would leave the viewport. Built-in rows offer Edit graph, Duplicate and Hide. Hidden is a collapsed-by-default group with no count and only renders when non-empty. Every group header collapses. No row is dimmed: failures such as a missing input surface only after the click, through the shell banner (failed build) or an inline line (rejected request). The running effect has no Hide item. Rows carry no input badges. A secondary text line under the name is used only for "Built-in" on hidden built-ins.</p>
 
   <h2>Frame 1: built-in row menu</h2>
   <p>Fire selected. Built-in rows offer Edit graph, Duplicate and Hide. Hidden is collapsed at the bottom. The row menu sits in the panel outside the tree, under its row.</p>
@@ -306,7 +311,7 @@ idx = f'''<!doctype html>
   </div>
 
   <h2>Frame 8: button rows (rejected, interactive)</h2>
-  <p>Kept for the record: the tree in frame 9 was chosen. Same look as frame 1 with rows built as buttons (aria-current on the running effect) inside role=group. This frame works: Up/Down/Home/End move focus without switching, Enter, Space or click switches, Right and Left hop between a row and its ellipsis, Esc returns to the trigger, group headers collapse. The list is one tab stop. The trigger is named "Effects, Fire". The last action prints under the page and is announced through a live region.</p>
+  <p>Kept for the record: the tree in frame 9 was chosen. Same look as frame 1 with rows built as buttons (aria-current on the running effect) inside role=group. This frame works: Up/Down/Home/End move focus without switching, Enter, Space or click switches, Right and Left hop between a row and its ellipsis, Esc returns to the trigger, group headers collapse. The list is one tab stop. The trigger is named "Effect, Fire". The last action prints under the page and is announced through a live region.</p>
   <div class="row">
     {fig("390px, click a row then use the keyboard", "frame8.html", "n", 640)}
   </div>
@@ -324,12 +329,22 @@ idx = f'''<!doctype html>
   </div>
 
   <h2>Switch states</h2>
-  <p>A pick closes the panel and focus returns to the trigger. The trigger text is always what is on the lights, never the pick. The pick shows only as the pending outline and a status line under the trigger.</p>
+  <p>A pick closes the panel and focus returns to the trigger. The trigger text is always what is on the lights, never the pick. The pick shows only as a status line under the trigger.</p>
   <div class="row">
-    {fig("10: switching. Outline, disabled, aria-busy, Fire still named", "frame10.html", "n", 300)}
-    {fig("11: build failed. The old effect stopped, banner names the pick with Retry", "frame11.html", "n", 380)}
+    {fig("10: switching. Disabled, aria-busy, Fire still named", "frame10.html", "n", 300)}
     {fig("12: paused. The effect keeps its name, the top bar shows Resume", "frame12.html", "n", 300)}
-    {fig("13: request rejected. Nothing ran, Fire keeps running, line under the trigger", "frame13.html", "n", 300)}
+  </div>
+  <h2>Failed build</h2>
+  <p>The old effect stopped, the pick stays saved and the host is failed, so Pause is hidden. The banner names the effect and the reason, with no X. A button shows only when one click can resolve the error. Retry resends the saved config, so it helps when something can change outside Aurora, like a permission, and not when the input does not exist. The pickers follow the requested effect, as real controls only, so the default audio device sentence does not show here.</p>
+  <div class="row">
+    {fig("11: no audio input. Retry cannot fix it, so no button", "frame11.html", "n", 420)}
+    {fig("11b: permission. Retry and Open Settings", "frame11b.html", "n", 520)}
+  </div>
+  <h2>Request rejected</h2>
+  <p>Nothing ran, so the old effect keeps running and the trigger already says which. An inline line gives the cause and clears once the running effect changes.</p>
+  <div class="row">
+    {fig("13: unknown_effect. The effect was deleted elsewhere", "frame13.html", "n", 300)}
+    {fig("13b: any other cause, such as a PUT that never arrived", "frame13b.html", "n", 300)}
   </div>
   <p>Saved but not applied shows the frame 7 look with the shell banner above. An unreachable daemon is the shell takeover. Neither adds a line here. With nothing set to run the trigger reads "No effect running" (frame 6b).</p>
 

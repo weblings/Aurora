@@ -538,8 +538,11 @@ Decided 2026-11-03, not built (`Aurora-kep2.4`), record in
 
 - A failed effect build stops the old effect instead of keeping it. The host
   is `failed`, the trigger reads "No effect running", and the row names the
-  effect, with Retry and no X. The pick stays saved, so Retry and a restart try
-  it again. Startup fails the same way, replacing the `effect_fallback` built-in.
+  effect and the reason, with no X. The pick stays saved, so a restart tries it
+  again, and so does Retry when the row has one. Retry follows the resolve-action
+  rule above: it resends the saved config, so a reason that cannot change outside
+  Aurora, like no audio input on this build, gets no button. Startup fails the
+  same way, replacing the `effect_fallback` built-in.
 - Saved-not-applied now only covers device and settings changes, which keep
   the effect running.
 - A request that never ran (`unknown_effect`, invalid body, a PUT that never
@@ -607,8 +610,8 @@ toast). Offered only while the old setup is still working:
 - `paused` host with a failed resume: not dismissible. No lights are on and
   the user asked for running; the row is the accurate reason it is paused,
   as Accepted gaps already records.
-- `failed` host: not dismissible, Retry is the action and the row is the
-  only explanation for no lights.
+- `failed` host: not dismissible, the row is the only explanation for no
+  lights, and its action is Retry when one click can resolve the error.
 
 The daemon owns the dismissal. A client-only dismiss would reappear on the
 next poll, in the tray and in a second tab. The dismiss carries

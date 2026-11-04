@@ -29,7 +29,6 @@
 .mk-trigger-main { display: flex; align-items: center; gap: var(--aurora-space-3); min-width: 0; flex: 1; }
 .mk-trigger-main .dropdown-label { flex: 0 1 auto; }
 /* Switch states: same outline as dashboard.css's .db-effect-picker rule, without its pill styling. */
-.mk-picker .dropdown-trigger.pending { outline: 2px solid var(--aurora-button-light); outline-offset: -2px; }
 .mk-picker > .status-text { margin: var(--aurora-space-3) 0 0; }
 
 /* Popup panel: the .dropdown-menu surface, but a labeled dialog holding the effect tree. */

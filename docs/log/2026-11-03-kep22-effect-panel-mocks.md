@@ -1,11 +1,11 @@
-# Effect panel static mocks (paused)
+# Effect panel static mocks
 
 Id: kep22-effect-panel-mocks
 
 `Aurora-kep2.2`, under `Aurora-kep2`: static mocks of one full-width Effects
 dropdown with an attached non-modal panel, replacing the Video/Audio toggle.
-Paused 2026-11-03 after two design-review passes. The owner considers the
-shape close to final. Decisions live in the bead's design field and are not
+Closed 2026-11-03 after two design-review passes and owner review. Decisions
+live in the bead's design field and are not
 repeated here.
 
 ## State
@@ -187,11 +187,30 @@ confirm and menu gating are still open, as `Aurora-kep2.6`.
 
 - Built-in row menu is now Edit graph, Duplicate, Hide. Hidden row menu is
   Edit graph, Unhide, Duplicate.
-- Frame 11 is a failed build: trigger reads "No effect running" and a shell
-  banner row names the pick with Retry and no X.
-- Frame 13 is a rejected request: the old effect keeps running and
-  "Couldn't switch to X." shows under the trigger.
-- `render.mjs` now screenshots frame 13.
+- Frame 11 is a failed build: trigger reads "No effect running", Pause is
+  hidden as on any failed host, and a shell banner row names the effect and
+  the reason with no X. It uses the `Aurora-kep2.4` copy, "Couldn't start X:
+  reason", because the same row appears after a restart, when nothing switched.
+- Retry shows only when it can resolve the error, per the resolve-action rule
+  in [[error-overlay]]. It resends the saved config, so frame 11 (no audio
+  input) has no button and frame 11b (Screen Recording off) has Retry and Open
+  Settings. A failed state shows real controls for the requested effect's
+  inputs and no read-only hints, so neither frame has the default audio device
+  sentence. It has no control and nothing is running to use that device.
+- Frames 11 and 13 are not merged: 11 is daemon state that also comes from the
+  tray, MCP and restart, 13 is page state for a request that never ran. They
+  used the same sentence, so they now differ by cause.
+- Frame 13 is a rejected request with the old effect still running, "X no
+  longer exists." for `unknown_effect`, and frame 13b is "X didn't start." for
+  other causes. Neither names the running effect, since the trigger does and
+  the line could go stale.
+- Frame 10 drops the `.pending` outline. It came from the chips and matches the
+  focus ring's color and width, so it read as keyboard focus. The status line
+  is the cue. The shipped rule and class go in `Aurora-kep2.8`.
+- The field label is "Effect", singular like Monitor. One effect runs at a time.
+- Filed from that review: `Aurora-kep2.11` (inline error can double the banner
+  or never clear, read from code, not reproduced) and `Aurora-kep2.12` (a
+  rejected switch leaves no log).
 
 ## Method
 
@@ -202,11 +221,12 @@ confirm and menu gating are still open, as `Aurora-kep2.6`.
 
 ## Resume
 
-Owner review of the `Aurora-kep2.2` frames, then sync the bead design field
-(frame 11 and 13 wording) and close it. Build beads are cut under
+`Aurora-kep2.2` is closed after owner review. Build beads are cut under
 `Aurora-kep2`, starting with `Aurora-kep2.3`.
 
 - Lessons:
+  - "Disabling the focused control drops focus to body, and focus() on a
+    disabled control does nothing" (components)
   - "Native radios commit on every arrow key, and one shared `name` groups
     them across every radiogroup wrapper" (components)
   - "Static mocks agree on layout and content, not on the keyboard and focus

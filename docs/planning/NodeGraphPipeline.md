@@ -372,7 +372,7 @@ re-handshake); since Aurora-c0g only structural fields still do (see
 
 - A custom graph can use both inputs (screen hue × beat brightness), so
   it can't live under either tab.
-- The segmented control becomes one Effects trigger with an attached
+- The segmented control becomes one Effect trigger with an attached
   panel: a tree of Built-in, Custom and Hidden groups with per-row menus
   and no input badges. Spec in `Aurora-kep2.2`, record in
   [[kep22-effect-panel-mocks]].
