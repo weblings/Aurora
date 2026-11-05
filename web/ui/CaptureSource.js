@@ -147,8 +147,12 @@ export function effectTitle(effect) {
 // the mode the failed switch was heading to (a confirmed retry, or a
 // resume/relaunch starting the mode the failed switch saved to config). No
 // state probe or no remembered mode keeps the error. Aurora-tazx. A failed
-// picker switch ('custom') is stale once its effect id runs.
-export function isSwitchErrorStale(state, errorMode, errorEffectId = null) {
+// picker switch ('custom') is stale once its effect id runs. A failed host is
+// the banner's, and a different running effect than at error time means
+// another client switched (kep2.11). `errorRunning` undefined skips that.
+export function isSwitchErrorStale(state, errorMode, errorEffectId = null, errorRunning = undefined) {
+  if (state?.state === 'failed') return true;
+  if (state && errorRunning !== undefined && (state.effect ?? null) !== errorRunning) return true;
   if (errorMode === 'custom') return !!errorEffectId && state?.effect === errorEffectId;
   return !!state && !!errorMode && flagsMatchMode(state, errorMode);
 }

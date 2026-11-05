@@ -332,15 +332,14 @@ function switchScreen({ state, platform = 'mac', toggleError = null, toggleError
     monitors: [], selectedMonitorName: '', sinkName: '',
     toggleError, toggleErrorMode, topTierErrors: {},
     pipelineState: state,
+    _clearToggleError: DashboardScreen.prototype._clearToggleError,
     _renderControls() { calls.controls++; },
     _renderTopTier() { calls.topTier++; },
     async _loadAll() {
       this.pipelineState = this.nextState ?? this.pipelineState;
       // the same stale-error rule the real _loadAll applies
-      if (this.toggleError && isSwitchErrorStale(this.pipelineState, this.toggleErrorMode, this.toggleErrorEffectId)) {
-        this.toggleError = null;
-        this.toggleErrorMode = null;
-        this.toggleErrorEffectId = null;
+      if (this.toggleError && isSwitchErrorStale(this.pipelineState, this.toggleErrorMode, this.toggleErrorEffectId, this.toggleErrorRunning)) {
+        this._clearToggleError();
       }
       return !this.daemonDown;
     },
@@ -963,3 +962,25 @@ const ON_RAINBOW = { ...VIDEO_STATE, effect: 'rainbow' };
 }
 
 console.log('DashboardScreen pause checks passed.');
+
+// kep2.11: a lost PUT answer whose build failed leaves a failed host: no inline copy beside the banner.
+{
+  const { inst } = switchScreen({ state: AUDIO_STATE });
+  inst.daemonDown = false; inst.effects = [];
+  inst.nextState = { state: 'failed', errors: [], paused: false, effect: null };
+  globalThis.fetch = async () => { throw new Error('lost'); };
+  try { await inst._switchMode('custom', 'agent-one'); } finally { globalThis.fetch = realFetch; }
+  assert.equal(inst.toggleError, null, 'failed host shows only the banner');
+}
+
+// kep2.11: an unknown_effect error clears once another client switches the running effect.
+{
+  const { inst } = switchScreen({ state: { ...VIDEO_STATE, effect: 'builtin.video' } });
+  inst.effects = [];
+  stubFetch(() => ({ succeeded: false, error: 'unknown_effect' }));
+  try { await inst._switchMode('custom', 'gone'); } finally { globalThis.fetch = realFetch; }
+  assert.match(inst.toggleError, /no longer exists/);
+  inst.nextState = { ...AUDIO_STATE, effect: 'builtin.audio' };
+  await inst._loadAll();
+  assert.equal(inst.toggleError, null, 'a switch from elsewhere clears it');
+}

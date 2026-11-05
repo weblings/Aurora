@@ -120,6 +120,7 @@ export class DashboardScreen {
     this.toggleError = null;
     this.toggleErrorMode = null; // the mode the failed switch was heading to (Aurora-tazx)
     this.toggleErrorEffectId = null; // its effect id when that mode is 'custom'
+    this.toggleErrorRunning = undefined; // the effect running when it was set (kep2.11)
     // Inline rejected-request errors under the device field, keyed by the
     // control that raised them (Aurora-m0fy): each clears only on its own
     // confirmed result, and every current one renders as its own row.
@@ -281,10 +282,8 @@ export class DashboardScreen {
     // A switch error lasts until the pipeline is running the mode it was
     // heading to (Aurora-tazx): a confirmed switch, or a resume/relaunch
     // that starts the saved mode the failed switch left in config.
-    if (this.toggleError && isSwitchErrorStale(state, this.toggleErrorMode, this.toggleErrorEffectId)) {
-      this.toggleError = null;
-      this.toggleErrorMode = null;
-      this.toggleErrorEffectId = null;
+    if (this.toggleError && isSwitchErrorStale(state, this.toggleErrorMode, this.toggleErrorEffectId, this.toggleErrorRunning)) {
+      this._clearToggleError();
     }
     this.audioDevicesUrl = audioDevicesUrlFrom(state);
 
@@ -474,9 +473,7 @@ export class DashboardScreen {
     this.pendingEffectId = null;
     if (confirmed) {
       this.mode = runningToggle(this.pipelineState);
-      this.toggleError = null;
-      this.toggleErrorMode = null;
-      this.toggleErrorEffectId = null;
+      this._clearToggleError();
     }
     this._renderControls();
     if (confirmed) {
@@ -863,7 +860,8 @@ export class DashboardScreen {
     // daemon answers again does the failed switch still need its own error --
     // and then it is the action's error, never the unreachable wording
     // (components.md:308).
-    if (unreachable && loaded) {
+    // A failed host is the banner's, never doubled inline (kep2.11).
+    if (unreachable && loaded && this.pipelineState?.state !== 'failed') {
       this._setToggleError(this._switchFailedText(mode, modeLabel, null), mode, effectId);
       this._renderTopTier();
     }
@@ -877,9 +875,7 @@ export class DashboardScreen {
       : isSwitchConfirmed(putResult, this.pipelineState, mode);
     if (confirmed) {
       this.mode = mode;
-      this.toggleError = null;
-      this.toggleErrorMode = null;
-      this.toggleErrorEffectId = null;
+      this._clearToggleError();
     }
     this.pendingMode = null;
     this.pendingEffectId = null;
@@ -914,6 +910,14 @@ export class DashboardScreen {
     this.toggleError = message;
     this.toggleErrorMode = mode;
     this.toggleErrorEffectId = effectId;
+    this.toggleErrorRunning = this.pipelineState?.effect ?? null;
+  }
+
+  _clearToggleError() {
+    this.toggleError = null;
+    this.toggleErrorMode = null;
+    this.toggleErrorEffectId = null;
+    this.toggleErrorRunning = undefined;
   }
 
   // Top bar with the Pause/Resume + Stop pair (Aurora-5ipy.13). Pause sits

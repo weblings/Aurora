@@ -261,3 +261,16 @@ assert.deepEqual(modeSwitchPatch('audio', ctx), { activeEffectId: 'builtin.audio
 }
 
 console.log('CaptureSource.test.mjs: ok');
+
+// kep2.11: a failed host belongs to the banner, and another client's switch
+// clears an error whose effect can never run (unknown_effect).
+{
+  const failed = { state: 'failed', effect: null };
+  assert.equal(isSwitchErrorStale(failed, 'custom', 'agent-one', null), true, 'failed host: banner owns it');
+  assert.equal(isSwitchErrorStale(failed, 'video'), true, 'failed host, built-in mode');
+  const same = { state: 'running', effect: 'builtin.video' };
+  const other = { state: 'running', effect: 'agent-two' };
+  assert.equal(isSwitchErrorStale(same, 'custom', 'gone', 'builtin.video'), false, 'same effect still running');
+  assert.equal(isSwitchErrorStale(other, 'custom', 'gone', 'builtin.video'), true, 'another client switched');
+  assert.equal(isSwitchErrorStale(null, 'custom', 'gone', 'builtin.video'), false, 'no probe keeps the error');
+}
