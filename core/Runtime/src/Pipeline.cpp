@@ -243,6 +243,10 @@ namespace Aurora::Runtime
       }
     }
 
+    // A graph with no source nodes needs no capture input, so a denied or
+    // missing one cannot fail it (Aurora-que2).
+    const bool inputFree = customDoc && !_sourceNeeds(*customDoc).video && !_sourceNeeds(*customDoc).audio;
+
     std::vector<std::string> outputNames = config.activeOutputNames();
     if(outputNames.empty()){
       outputNames = registry.outputNames(); // no explicit selection -- run everything available
@@ -277,8 +281,8 @@ namespace Aurora::Runtime
     {
       const SourceNeeds sources = customDoc ? _sourceNeeds(*customDoc) : SourceNeeds{};
       const bool anySource = sources.video || sources.audio;
-      const bool needVideo = anySource ? sources.video : !runsAudioMode(config);
-      const bool needAudio = anySource ? sources.audio : runsAudioMode(config);
+      const bool needVideo = anySource ? sources.video : (!inputFree && !runsAudioMode(config));
+      const bool needAudio = anySource ? sources.audio : (!inputFree && runsAudioMode(config));
       const std::string video = needVideo && config.activeInputName().empty() ? _pickVideoBackend(registry) : std::string{};
       const std::string audio = needAudio && config.activeAudioInputName().empty() ? _pickAudioBackend(registry) : std::string{};
       if(!video.empty()){ config.setActiveInputName(video); }
@@ -317,13 +321,16 @@ namespace Aurora::Runtime
         bothInputs = plan.bothInputs;
       }
     }
+    if(inputFree){
+      useAudioMode = false;
+    }
 
     // Inputs the running pipeline has open under what this build asks for are
     // reused, not reopened. Any difference in name, monitor, width or sink, or
     // the dev spike, opens a fresh one as before.
     Input::IVideoInput* borrowedVideo = nullptr;
     Input::IAudioInput* borrowedAudio = nullptr;
-    if(const Pipeline* from = overrides.inputsFrom; from && !dualFlag && !(from->m_videoRunner && from->m_audioRunner)){
+    if(const Pipeline* from = overrides.inputsFrom; from && !dualFlag && !inputFree && !(from->m_videoRunner && from->m_audioRunner)){
       const Config& live = from->m_appliedConfig;
       Input::IVideoInput* fromVideo = from->m_videoInput ? from->m_videoInput.get() : from->m_parkedVideo.get();
       Input::IAudioInput* fromAudio = from->m_audioInput ? from->m_audioInput.get() : from->m_parkedAudio.get();
@@ -396,7 +403,7 @@ namespace Aurora::Runtime
     else{
       const std::string& inputName = config.activeInputName();
       std::unique_ptr<Input::IVideoInput> input;
-      if(!borrowedVideo){
+      if(!borrowedVideo && !inputFree){
         input = registry.createInput(inputName);
         if(!input){
           throw std::runtime_error("Unknown input '" + inputName + "'");
@@ -424,6 +431,9 @@ namespace Aurora::Runtime
 #else
         throw std::runtime_error(options.noAudioSupportMessage);
 #endif
+      }
+      else if(inputFree){
+        pipeline->m_videoRunner.emplace(pipeline->m_outputPtrs, config, ZoneMapStore(configRoot));
       }
       else{
         pipeline->m_videoRunner.emplace(
@@ -508,7 +518,7 @@ namespace Aurora::Runtime
     if(!pipeline->m_summary.graphInputs){
       pipeline->m_summary.graphInputs = _builtInInputs(pipeline->capabilities());
     }
-    if(!useAudioMode){
+    if(!useAudioMode && videoInput){
       pipeline->m_summary.video = PipelineSummary::Video{
         config.activeInputName(), videoInput->selectedMonitorName()
       };
@@ -581,7 +591,7 @@ namespace Aurora::Runtime
         }
         m_tickIntervalSeconds = Runtime::tickIntervalSeconds(next.refreshRate());
 
-        if(widthChanged){
+        if(widthChanged && m_videoInput){
           // Can block on the capture API (Mac SCK waits up to 5s), so the
           // host runs it after releasing its lock. m_videoInput outlives the
           // call: reload() cannot swap this pipeline out meanwhile.

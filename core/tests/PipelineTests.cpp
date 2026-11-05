@@ -3573,6 +3573,38 @@ TEST_CASE("A custom graph with both capture nodes builds both inputs, and a miss
   }
 }
 
+TEST_CASE("A source-less graph builds and runs without opening any input (Aurora-que2)", "[Effects]")
+{
+  ScopedTempDir dir("sourceless-no-input");
+  auto events = std::make_shared<Events>();
+  auto registry = makeRegistry(events);
+  // The configured input is denied, like Mac Screen Recording not granted.
+  registry.registerInput("fake-video", []() -> std::unique_ptr<IVideoInput>{
+    throw std::runtime_error("permission_denied");
+  });
+  std::string error;
+  nlohmann::json sourceless = {
+    {"version", 1},
+    {"nodes", {
+      {{"id", "c"}, {"type", "color.constant"}, {"params", nlohmann::json::object()}},
+      {{"id", "all"}, {"type", "frame.broadcast"}, {"params", {{"output", "out-a"}}}},
+      {{"id", "send"}, {"type", "output.send"}, {"params", {{"output", "out-a"}}}}}},
+    {"edges", nlohmann::json::array({
+      nlohmann::json::array({"c.color", "all.color"}), nlohmann::json::array({"all.frame", "send.frame"})})}};
+  REQUIRE(EffectStore(dir.path).write("sourceless", sourceless, error));
+
+  Config config = videoConfig();
+  config.setActiveEffectId("sourceless");
+  auto pipeline = Pipeline::build(registry, config, dir.path, {});
+  REQUIRE(pipeline);
+  CHECK(pipeline->summary().effect == "sourceless");
+  pipeline->tick(static_cast<float>(pipeline->tickIntervalSeconds()));
+  CHECK(events->sendCount > 0);
+  CHECK(events->videoOpened == 0);
+  CHECK(events->audioOpened == 0);
+}
+
+
 TEST_CASE("The effect id picks the mode and a missing input is auto-picked and saved (Aurora-kep2.3)", "[Effects][Audio]")
 {
   ScopedTempDir dir("effect-picks-mode");

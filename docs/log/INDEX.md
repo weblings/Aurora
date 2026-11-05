@@ -314,3 +314,4 @@ Planning docs stay clean: decisions, status, and pointers here only.
 | 2026-11-04 | Effect panel row actions wired (Rename in place, Delete confirm, Start from, Duplicate, Hide, Move) with live region and focus moves; duplicate route takes a title; editor says "(Copy)"; 2 lessons. [[kep29-wire-row-actions]] | `bd show Aurora-kep2.9` |
 
 | 2026-11-04 | Effect panel rebuilt on the button row model: headings with button headers, `aria-current` rows, a visible Actions button, row-only arrows, no tree roles. [[kep215-button-row-panel]] | `bd show Aurora-kep2.15` |
+| 2026-11-04 | Source-less custom graphs build with no capture input, so a denied input cannot fail them; preview with no pipeline split to Aurora-wq6i. [[que2-input-free-build]] | `bd show Aurora-que2` |

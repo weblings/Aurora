@@ -40,6 +40,13 @@ namespace Aurora::Runtime
       Config config,
       ZoneMapStore zoneMapStore
     );
+    // Video mode with no capture input, for a custom graph with no source
+    // nodes. Display-derived config fields stay as given.
+    GraphRunner(
+      std::vector<Output::IOutput*> outputs,
+      Config config,
+      ZoneMapStore zoneMapStore
+    );
 #ifdef AURORA_RUNTIME_AUDIO_AVAILABLE
     GraphRunner(
       Input::IAudioInput& input,
