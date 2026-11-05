@@ -402,7 +402,7 @@ deletable.**
   ["node.param"]`; each custom is its own file under an `effects/` dir.
   Decided 2026-10-20 for Sequence C ([[sequence-c-planning]]): stored graphs
   name concrete outputs, and a custom that fails to load runs the built-in
-  with a banner warning. Revised 2026-11-03, not built (`Aurora-kep2.4`): a
+  with a banner warning. Revised 2026-11-03, built (`Aurora-kep2.4`): a
   custom that fails to load leaves no effect running, with a banner row and
   Retry ([[error-overlay]]).
 

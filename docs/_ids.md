@@ -152,6 +152,7 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `kep220-failed-switch-announce` | [log/2026-11-05-kep220-failed-switch-announce.md](log/2026-11-05-kep220-failed-switch-announce.md) | Failed effect switches announce through the live region |
 | `kep221-long-press-first-tap` | [log/2026-11-05-kep221-long-press-first-tap.md](log/2026-11-05-kep221-long-press-first-tap.md) | The first tap after a touch long-press runs |
 | `kep23-effect-id-picks-mode` | [log/2026-11-03-kep23-effect-id-picks-mode.md](log/2026-11-03-kep23-effect-id-picks-mode.md) | Effect id picks the mode, both inputs kept, missing ones auto-picked |
+| `kep24-failed-effect-no-fallback` | [log/2026-11-05-kep24-failed-effect-no-fallback.md](log/2026-11-05-kep24-failed-effect-no-fallback.md) | A failed effect leaves no effect running |
 | `kep25-effect-list-layout` | [log/2026-11-03-kep25-effect-list-layout.md](log/2026-11-03-kep25-effect-list-layout.md) | Effect list data: hidden flag, custom order and a Rename route |
 | `kep26-row-menu-flows` | [log/2026-11-03-kep26-row-menu-flows.md](log/2026-11-03-kep26-row-menu-flows.md) | Row menu follow-on flows |
 | `kep27-voiceover-tree-check` | [log/2026-11-03-kep27-voiceover-tree-check.md](log/2026-11-03-kep27-voiceover-tree-check.md) | VoiceOver check of the effect panel tree |

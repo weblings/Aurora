@@ -31,8 +31,13 @@ on the lights, so it no longer looks like the old effect still runs.
 - Fake-Hue stack on Windows: switching to a corrupt effect gave `failed` and a
   steady 0.2/0/0.2 on all 4 zones over the SSE tap. Switching to
   `builtin.video` brought back Running with screen colors.
-- Not checked on real Hue lights. A failed startup was not checked live,
-  because `devstack --fresh` wipes the config.
+- Failed startup on the fake-Hue stack with `devstack.py restart`, which keeps
+  the config: `failed`, a banner naming the effect, steady 0.2/0/0.2, and a
+  working pick recovered.
+- Real Hue lights, Windows Release build of `7cd27b9`, owner watching: a failed
+  switch showed the failure light, a working pick replaced it, and a relaunch
+  with the broken effect saved came up on the failure light. Owner accepted the
+  brightness for a bedroom at night.
 
 ## Open
 
