@@ -408,6 +408,7 @@ try
     std::cerr << "Pipeline not started (" << e.what() << ") -- WebUI still available for setup\n";
   }
   Aurora::Runtime::PipelineHost pipelineHost(std::move(initialPipeline), pipelineOptions(), startupFailure);
+  if(startupFailure){ pipelineHost.showFailureLight(registry, configRoot); } // Aurora-dh1p
 
   Aurora::Network::Http::Server::HttpServer httpServer;
 

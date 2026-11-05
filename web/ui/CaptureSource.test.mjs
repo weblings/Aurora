@@ -2,7 +2,8 @@
 // the saves both screens send. No DOM -- run with `node CaptureSource.test.mjs`.
 import assert from 'node:assert/strict';
 import {
-  audioDevicesUrlFrom, devicePatch, effectiveFlags, flagsForMode, flagsMatchMode, isIdle, isModeConfigValid,
+  audioDevicesUrlFrom, devicePatch, effectiveFlags, flagsForMode, flagsMatchMode, isIdle, isInputFreeEffect,
+  isApplyConfirmed, isModeConfigValid, keepCustomEffect,
   customEffectRunning, isEffectSwitchConfirmed,
   isSwitchConfirmed, isSwitchErrorStale, loadEffects, loadPipelineState,
   lightTestActive, modeFromConfig, modeFromFlags, modeSwitchPatch, putEffectSwitch, runningFlags, runningToggle,
@@ -27,6 +28,25 @@ assert.equal(isModeConfigValid({ activeInputName: 'linux' }, ['linux'], []), tru
 assert.equal(isModeConfigValid({ activeInputName: 'gone' }, ['linux'], []), false);
 assert.equal(isModeConfigValid({ activeAudioInputName: 'a' }, ['linux'], ['a']), true);
 assert.equal(isModeConfigValid({}, ['linux'], ['a']), false);
+
+// A source-less active effect needs no input, in any host state.
+{
+  const effects = [
+    { id: 'glow', inputs: { video: false, audio: false } },
+    { id: 'capture', inputs: { video: true, audio: false } },
+    { id: 'broken', inputs: null },
+  ];
+  assert.equal(isInputFreeEffect({ activeEffectId: 'glow' }, effects), true);
+  assert.equal(isInputFreeEffect({ activeEffectId: 'capture' }, effects), false);
+  assert.equal(isInputFreeEffect({ activeEffectId: 'broken' }, effects), false);
+  assert.equal(isInputFreeEffect({ activeEffectId: 'gone' }, effects), false);
+  assert.equal(isInputFreeEffect({}, effects), false);
+  assert.equal(isModeConfigValid({ activeEffectId: 'glow' }, ['linux'], [], effects), true);
+  assert.equal(isModeConfigValid({ activeEffectId: 'capture' }, ['linux'], [], effects), false);
+  assert.equal(isModeConfigValid({ activeEffectId: 'broken' }, ['linux'], [], effects), false);
+  // A failed effect list falls back to needing an input.
+  assert.equal(isModeConfigValid({ activeEffectId: 'glow' }, ['linux'], []), false);
+}
 
 assert.deepEqual(flagsForMode('video'), VIDEO);
 assert.deepEqual(flagsForMode('audio'), AUDIO);
@@ -109,6 +129,27 @@ const ctx = {
 assert.deepEqual(modeSwitchPatch('video', ctx), { activeEffectId: 'builtin.video', activeInputName: 'linux' });
 assert.deepEqual(modeSwitchPatch('video', { ...ctx, monitors: [{ name: 'DP-1' }] }), { activeEffectId: 'builtin.video', activeInputName: 'linux', activeMonitorName: 'DP-1' });
 assert.deepEqual(modeSwitchPatch('audio', ctx), { activeEffectId: 'builtin.audio', activeAudioInputName: 'linux-audio', audioTargetSinkName: 'sink-a' });
+
+// keepCustomEffect: a custom effect survives, a built-in or unset one is replaced.
+{
+  const patch = modeSwitchPatch('video', ctx);
+  assert.deepEqual(keepCustomEffect(patch, 'glow'), { activeInputName: 'linux' });
+  assert.deepEqual(keepCustomEffect(patch, 'builtin.audio'), patch);
+  assert.deepEqual(keepCustomEffect(patch, ''), patch);
+}
+
+// isApplyConfirmed: a kept custom effect counts once it runs, a built-in switch
+// still needs the built-in running.
+{
+  const saved = { succeeded: true };
+  const kept = { activeInputName: 'linux' };
+  const switched = { activeEffectId: 'builtin.video', activeInputName: 'linux' };
+  assert.equal(isApplyConfirmed(saved, { effect: 'glow', ...VIDEO }, 'video', kept, 'glow'), true);
+  assert.equal(isApplyConfirmed(saved, { effect: null, ...NONE }, 'video', kept, 'glow'), false);
+  assert.equal(isApplyConfirmed({ succeeded: true, reloadError: 'x' }, { effect: 'glow', ...VIDEO }, 'video', kept, 'glow'), false);
+  assert.equal(isApplyConfirmed(saved, { effect: 'builtin.video', ...VIDEO }, 'video', switched, ''), true);
+  assert.equal(isApplyConfirmed(saved, { effect: 'glow', ...VIDEO }, 'video', switched, 'glow'), false);
+}
 
 // loadPipelineState: the parsed body, or null on any failure.
 {

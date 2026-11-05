@@ -92,6 +92,9 @@ namespace Aurora::Runtime
     std::optional<Audio> audio;
   };
 
+  // The capture sources a saved effect needs. Nullopt when its file is unreadable.
+  std::optional<PipelineSummary::GraphInputs> effectInputs(const std::filesystem::path& configRoot, const std::string& id);
+
 
   // A build that failed because the requested effect cannot run (Aurora-kep2.4).
   // what() is the banner copy, naming the effect. retryable is false when the
@@ -523,6 +526,14 @@ namespace Aurora::Runtime
 
     void shutdown();
 
+    // The failure light (Aurora-dh1p): a dim magenta on the configured outputs
+    // while the host is Failed. Apps call this once after a failed startup build;
+    // a failed effect switch shows it itself. False when not Failed or it cannot build.
+    bool showFailureLight(const Registry& registry, const std::filesystem::path& configRoot);
+
+    // True while the failure light runs. Same lock as tick().
+    bool failureLightOn();
+
     // Pause (Aurora-3ddb): tears the pipeline down (outputs shutdown(false),
     // capture closed) but keeps the host and its HTTP server alive. No-op,
     // returning false, when already paused or when there is no pipeline.
@@ -651,8 +662,19 @@ namespace Aurora::Runtime
       const std::string& message,
       bool retryable,
       const std::optional<PipelineSummary::GraphInputs>& inputs,
-      std::uint64_t epoch
+      std::uint64_t epoch,
+      const Registry& registry,
+      const Config& config,
+      const std::filesystem::path& configRoot
     );
+
+    // Builds the failure light, borrowing `outputsFrom`'s outputs when given.
+    // Null when it cannot build (no outputs). Caller holds m_changeMutex only.
+    std::unique_ptr<Pipeline> _buildFailureLight(
+      const Registry& registry, const Config& config, const std::filesystem::path& configRoot, const Pipeline* outputsFrom);
+
+    // Builds and installs the light when the host is Failed with none. Takes the locks itself.
+    bool _ensureFailureLight(const Registry& registry, const Config& config, const std::filesystem::path& configRoot);
 
     // A build failure ("startup", "resume", "reload", "effect"): a newer attempt at the
     // same build, so it supersedes the earlier build entries instead of
@@ -703,6 +725,8 @@ namespace Aurora::Runtime
     // (slow) build, is all that waits on it.
     std::mutex m_changeMutex;
     std::unique_ptr<Pipeline> m_pipeline;
+    // Set only while m_pipeline is null and the host Failed; state never reads it.
+    std::unique_ptr<Pipeline> m_failureLight;
   };
 
 

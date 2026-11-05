@@ -35,8 +35,17 @@ export function modeFromConfig(config) {
   return (!config?.activeInputName && config?.activeAudioInputName) ? 'audio' : 'video';
 }
 
-// Whether the saved config names an input this build actually has.
-export function isModeConfigValid(config, inputs, audioInputs) {
+// Whether the saved effect needs no capture input. Read from the effect list,
+// not /api/state, which has no graphInputs while no pipeline runs.
+export function isInputFreeEffect(config, effects) {
+  const needs = effects.find((e) => e.id === config?.activeEffectId)?.inputs;
+  return needs?.video === false && needs?.audio === false;
+}
+
+// Whether the saved config can run: a source-less effect, or an input this
+// build actually has. No effect list reads as needing an input.
+export function isModeConfigValid(config, inputs, audioInputs, effects = []) {
+  if (isInputFreeEffect(config, effects)) return true;
   return modeFromConfig(config) === 'video'
     ? inputs.includes(config?.activeInputName)
     : audioInputs.includes(config?.activeAudioInputName);
@@ -90,7 +99,10 @@ export function isSwitchConfirmed(putResult, stateAfter, mode) {
 // Whether a custom (non-built-in) effect is the one running now. The
 // effect picker's trigger takes the fill then, not Video or Audio.
 export function customEffectRunning(state) {
-  const id = state?.effect;
+  return isCustomEffectId(state?.effect);
+}
+
+function isCustomEffectId(id) {
   return typeof id === 'string' && id !== '' && !id.startsWith('builtin.');
 }
 
@@ -100,6 +112,14 @@ export function isEffectSwitchConfirmed(putResult, stateAfter, id) {
   return putResult?.succeeded === true
     && !putResult?.reloadError
     && stateAfter?.effect === id;
+}
+
+// Whether a Capture source save took. A patch that kept a custom effect names
+// no effect, so that effect running confirms it, not the Video/Audio flags.
+export function isApplyConfirmed(putResult, stateAfter, mode, patch, activeEffectId) {
+  return patch.activeEffectId
+    ? isSwitchConfirmed(putResult, stateAfter, mode)
+    : isEffectSwitchConfirmed(putResult, stateAfter, activeEffectId);
 }
 
 // The save behind an effect-picker choice: PUT /api/effects with its id.
@@ -219,6 +239,14 @@ export function modeSwitchPatch(mode, {
     activeAudioInputName: pickAudioInputName(audioInputs, currentActiveAudioInputName),
     audioTargetSinkName: sinkName.trim(),
   };
+}
+
+// A save the user did not make by clicking Video or Audio (landing, a device
+// edit) must not replace their custom effect, so it saves the input only.
+export function keepCustomEffect(patch, activeEffectId) {
+  if (!isCustomEffectId(activeEffectId)) return patch;
+  const { activeEffectId: _builtin, ...inputOnly } = patch;
+  return inputOnly;
 }
 
 // The save behind every Video/Audio switch: PUT the patch, which also

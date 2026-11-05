@@ -2394,6 +2394,25 @@
           "order": {
             "type": "integer",
             "description": "Position in this list, built-ins first."
+          },
+          "inputs": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "description": "Capture sources this effect needs. Null when its file is unreadable.",
+            "required": [
+              "video",
+              "audio"
+            ],
+            "properties": {
+              "video": {
+                "type": "boolean"
+              },
+              "audio": {
+                "type": "boolean"
+              }
+            }
           }
         }
       },

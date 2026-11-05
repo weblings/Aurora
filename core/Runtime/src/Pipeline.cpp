@@ -10,6 +10,7 @@
 #include <Aurora/Runtime/ConfigApply.hpp>
 #include <Aurora/Runtime/ConfigStore.hpp>
 #include <Aurora/Runtime/EffectStore.hpp>
+#include <Aurora/Runtime/Graph/BuiltInGraphs.hpp>
 #include <Aurora/Runtime/MonitorSelector.hpp>
 #include <Aurora/Runtime/ZoneMapStore.hpp>
 
@@ -162,18 +163,6 @@ namespace Aurora::Runtime
     }
 
 
-    // What the effect needs, for a failed state. Nullopt when its file is unreadable.
-    std::optional<PipelineSummary::GraphInputs> _effectInputs(const std::filesystem::path& configRoot, const std::string& id)
-    {
-      if(id == kBuiltInVideoEffectId){ return PipelineSummary::GraphInputs{true, false}; }
-      if(id == kBuiltInAudioEffectId){ return PipelineSummary::GraphInputs{false, true}; }
-      std::string ignored;
-      const auto doc = EffectStore(configRoot).read(id, ignored);
-      if(!doc){ return std::nullopt; }
-      const SourceNeeds needs = _sourceNeeds(*doc);
-      return PipelineSummary::GraphInputs{needs.video, needs.audio};
-    }
-
     std::string _effectFailureMessage(const std::filesystem::path& configRoot, const std::string& id, const std::string& reason)
     {
       return "Couldn't start " + effectInfo(configRoot, id).title + ": " + reason;
@@ -182,12 +171,24 @@ namespace Aurora::Runtime
     EffectBuildError _effectError(
       const std::filesystem::path& configRoot, const std::string& id, const std::string& reason, bool retryable)
     {
-      return EffectBuildError(id, _effectFailureMessage(configRoot, id, reason), retryable, _effectInputs(configRoot, id));
+      return EffectBuildError(id, _effectFailureMessage(configRoot, id, reason), retryable, effectInputs(configRoot, id));
     }
 
     constexpr std::uint8_t kUsesVideoInput = 1u << 0;
     constexpr std::uint8_t kUsesAudioInput = 1u << 1;
     constexpr std::uint8_t kSamplesZones = 1u << 2;
+  }
+
+
+  std::optional<PipelineSummary::GraphInputs> effectInputs(const std::filesystem::path& configRoot, const std::string& id)
+  {
+    if(id == kBuiltInVideoEffectId){ return PipelineSummary::GraphInputs{true, false}; }
+    if(id == kBuiltInAudioEffectId){ return PipelineSummary::GraphInputs{false, true}; }
+    std::string ignored;
+    const auto doc = EffectStore(configRoot).read(id, ignored);
+    if(!doc){ return std::nullopt; }
+    const SourceNeeds needs = _sourceNeeds(*doc);
+    return PipelineSummary::GraphInputs{needs.video, needs.audio};
   }
 
 
@@ -208,7 +209,9 @@ namespace Aurora::Runtime
     // confirmed a capture source. Returning null here (not throwing) is
     // what PipelineHost::reload() already treats as an idle, non-error
     // state -- see its own constructor comment.
-    if(savedConfig.activeInputName().empty() && savedConfig.activeAudioInputName().empty()){
+    // Only an applied source-less graph may run with no inputs (Aurora-zl32).
+    const bool noInputs = savedConfig.activeInputName().empty() && savedConfig.activeAudioInputName().empty();
+    if(noInputs && !overrides.graph && savedConfig.customEffectId().empty()){
       return nullptr;
     }
     Config config = savedConfig;
@@ -246,6 +249,9 @@ namespace Aurora::Runtime
     // A graph with no source nodes needs no capture input, so a denied or
     // missing one cannot fail it (Aurora-que2).
     const bool inputFree = customDoc && !_sourceNeeds(*customDoc).video && !_sourceNeeds(*customDoc).audio;
+    if(noInputs && !inputFree){
+      return nullptr; // still unconfigured: reads as Idle
+    }
 
     std::vector<std::string> outputNames = config.activeOutputNames();
     if(outputNames.empty()){
@@ -1011,15 +1017,32 @@ namespace Aurora::Runtime
     const std::string& message,
     bool retryable,
     const std::optional<PipelineSummary::GraphInputs>& inputs,
-    std::uint64_t epoch
+    std::uint64_t epoch,
+    const Registry& registry,
+    const Config& config,
+    const std::filesystem::path& configRoot
   )
   {
     std::unique_ptr<Pipeline> previous;
+    bool lightReplaces = false;
     {
+      // Pause, swaps and the epoch all take m_changeMutex, so they hold still
+      // while the light builds against the running pipeline's outputs.
       std::lock_guard<std::mutex> change(m_changeMutex);
-      std::lock_guard<std::mutex> lock(m_mutex);
       if(m_paused.load() || m_buildEpoch.load() != epoch){ return; }
+      std::unique_ptr<Pipeline> light;
+      if(m_pipeline || !m_failureLight){
+        light = _buildFailureLight(registry, config, configRoot, m_pipeline.get());
+      }
+
+      std::lock_guard<std::mutex> lock(m_mutex);
       previous = std::move(m_pipeline);
+      if(light){
+        // Taking the outputs over means no Hue stop and re-handshake between the two.
+        if(light->borrowsOutputs()){ light->adoptOutputsFrom(*previous); }
+        m_failureLight = std::move(light);
+      }
+      lightReplaces = m_failureLight != nullptr;
       ++m_buildEpoch;
       _storeCapabilities(nullptr);
       {
@@ -1030,8 +1053,69 @@ namespace Aurora::Runtime
       }
       _setBuildErrorLocked("effect", message, retryable);
     }
-    // Outside the lock, like pause(): Hue's disableStreaming blocks.
-    if(previous){ previous->shutdown(/*isReplacement*/ false); }
+    // Outside the lock, like pause(): Hue's disableStreaming blocks. A light on
+    // fresh outputs is a replacement, so the bridge is not told to stop.
+    if(previous){ previous->shutdown(/*isReplacement*/ lightReplaces); }
+  }
+
+
+  std::unique_ptr<Pipeline> PipelineHost::_buildFailureLight(
+    const Registry& registry, const Config& config, const std::filesystem::path& configRoot, const Pipeline* outputsFrom)
+  {
+    // The outputs build() would open, minus unknown names it skips, so the graph loads.
+    std::vector<std::string> names = config.activeOutputNames();
+    const std::vector<std::string> known = registry.outputNames();
+    if(names.empty()){ names = known; }
+    names.erase(std::remove_if(names.begin(), names.end(), [&](const std::string& name){
+      return std::find(known.begin(), known.end(), name) == known.end();
+    }), names.end());
+    if(names.empty()){ return nullptr; }
+
+    const nlohmann::json graph = Graph::failureLightGraph(names, config.brightness());
+    PipelineBuildOverrides overrides;
+    overrides.graph = &graph;
+    overrides.outputsFrom = outputsFrom;
+    try{
+      auto light = Pipeline::build(registry, config, configRoot, m_options, overrides);
+      if(light){ _log(m_options, LogLevel::Info, "Failure light on."); }
+      return light;
+    }
+    catch(const std::exception& e){
+      _log(m_options, LogLevel::Error, std::string("Failure light not shown: ") + e.what());
+      return nullptr;
+    }
+  }
+
+
+  bool PipelineHost::_ensureFailureLight(
+    const Registry& registry, const Config& config, const std::filesystem::path& configRoot)
+  {
+    std::lock_guard<std::mutex> change(m_changeMutex);
+    {
+      std::lock_guard<std::mutex> lock(m_mutex);
+      if(m_failureLight){ return true; }
+      // Every writer of m_status holds m_mutex, and the ones that could leave
+      // Failed also hold m_changeMutex, so this stays true through the build.
+      if(m_paused.load() || m_pipeline || m_status.state != HostState::Failed){ return false; }
+    }
+    auto light = _buildFailureLight(registry, config, configRoot, nullptr);
+    if(!light){ return false; }
+    std::lock_guard<std::mutex> lock(m_mutex);
+    m_failureLight = std::move(light);
+    return true;
+  }
+
+
+  bool PipelineHost::showFailureLight(const Registry& registry, const std::filesystem::path& configRoot)
+  {
+    return _ensureFailureLight(registry, ConfigStore(configRoot).load(), configRoot);
+  }
+
+
+  bool PipelineHost::failureLightOn()
+  {
+    std::lock_guard<std::mutex> lock(m_mutex);
+    return m_failureLight != nullptr;
   }
 
 
@@ -1095,13 +1179,19 @@ namespace Aurora::Runtime
 
   bool PipelineHost::removeError(const std::string& source)
   {
-    std::lock_guard<std::mutex> change(m_changeMutex);
-    std::lock_guard<std::mutex> lock(m_mutex);
-    std::vector<HostError> errors = m_status.errors;
-    const auto removed = std::remove_if(errors.begin(), errors.end(), [&](const HostError& e){ return e.source == source; });
-    if(removed == errors.end()){ return false; }
-    errors.erase(removed, errors.end());
-    _publishStatusLocked(std::move(errors));
+    std::unique_ptr<Pipeline> light;
+    {
+      std::lock_guard<std::mutex> change(m_changeMutex);
+      std::lock_guard<std::mutex> lock(m_mutex);
+      std::vector<HostError> errors = m_status.errors;
+      const auto removed = std::remove_if(errors.begin(), errors.end(), [&](const HostError& e){ return e.source == source; });
+      if(removed == errors.end()){ return false; }
+      errors.erase(removed, errors.end());
+      _publishStatusLocked(std::move(errors));
+      // The light means Failed; removing the last build error ends that.
+      if(m_status.state != HostState::Failed){ light = std::move(m_failureLight); }
+    }
+    if(light){ light->shutdown(/*isReplacement*/ false); }
     return true;
   }
 
@@ -1171,7 +1261,12 @@ namespace Aurora::Runtime
     std::lock_guard<std::mutex> lock(m_mutex);
     // Interval read under the same lock as the tick, so a concurrent
     // pipeline swap can't pair one pipeline's dt with another's tick.
-    if(!m_pipeline){ return Runtime::tickIntervalSeconds(); }
+    if(!m_pipeline){
+      if(!m_failureLight){ return Runtime::tickIntervalSeconds(); }
+      const double interval = m_failureLight->tickIntervalSeconds();
+      m_failureLight->tick(static_cast<float>(interval));
+      return interval;
+    }
     const double interval = m_pipeline->tickIntervalSeconds();
     m_pipeline->tick(static_cast<float>(interval));
 
@@ -1195,7 +1290,8 @@ namespace Aurora::Runtime
   double PipelineHost::tickIntervalSeconds()
   {
     std::lock_guard<std::mutex> lock(m_mutex);
-    return m_pipeline ? m_pipeline->tickIntervalSeconds() : Runtime::tickIntervalSeconds();
+    if(m_pipeline){ return m_pipeline->tickIntervalSeconds(); }
+    return m_failureLight ? m_failureLight->tickIntervalSeconds() : Runtime::tickIntervalSeconds();
   }
 
 
@@ -1382,7 +1478,7 @@ namespace Aurora::Runtime
     }
     catch(const EffectBuildError& e){
       errorOut = e.what();
-      _failEffect(e.effectId, errorOut, e.retryable, e.inputs, epoch);
+      _failEffect(e.effectId, errorOut, e.retryable, e.inputs, epoch, registry, config, configRoot);
       return false;
     }
     catch(const std::exception& e){
@@ -1396,15 +1492,19 @@ namespace Aurora::Runtime
       const PipelineSummary running = summary();
       if(!running.requestedEffect.empty() && (running.requestedEffect != requested || running.effect.empty())){
         errorOut = _effectFailureMessage(configRoot, requested, errorOut);
-        _failEffect(requested, errorOut, /*retryable*/ true, _effectInputs(configRoot, requested), epoch);
+        _failEffect(
+          requested, errorOut, /*retryable*/ true, effectInputs(configRoot, requested), epoch, registry, config, configRoot);
       }
       else{
         _recordFailure("reload", errorOut, epoch);
+        // A failed retry of a failed host whose light could not show before.
+        _ensureFailureLight(registry, config, configRoot);
       }
       return false;
     }
 
     std::unique_ptr<Pipeline> previous;
+    std::unique_ptr<Pipeline> light;
     bool discardNext = false;
     {
       std::lock_guard<std::mutex> change(m_changeMutex);
@@ -1415,6 +1515,7 @@ namespace Aurora::Runtime
       }
       else{
         previous = std::move(m_pipeline);
+        light = std::move(m_failureLight);
         m_pipeline = std::move(next);
         _storeCapabilities(m_pipeline.get());
         ++m_buildEpoch;
@@ -1428,6 +1529,7 @@ namespace Aurora::Runtime
     // previous is null on the first successful reload after a fresh
     // install started with no Pipeline at all.
     if(previous){ previous->shutdown(/*isReplacement*/ true); }
+    if(light){ light->shutdown(/*isReplacement*/ true); }
     return true;
   }
 
@@ -1576,6 +1678,7 @@ namespace Aurora::Runtime
   {
     std::lock_guard<std::mutex> lock(m_mutex);
     if(m_pipeline){ m_pipeline->shutdown(/*isReplacement*/ false); }
+    if(m_failureLight){ m_failureLight->shutdown(/*isReplacement*/ false); }
   }
 
 

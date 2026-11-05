@@ -14,7 +14,7 @@ import { ZoneMappingScreen } from './screens/ZoneMappingScreen.js';
 import { PairingScreen } from './screens/PairingScreen.js';
 import { fetchPairingStatus, needsPairing, canManagePairing, installPairingFetchHook } from './Pairing.js';
 import { ensureTooltips } from './Tooltips.js';
-import { isModeConfigValid, loadPipelineState } from './CaptureSource.js';
+import { isModeConfigValid, loadEffects, loadPipelineState } from './CaptureSource.js';
 
 const app = new App();
 
@@ -168,7 +168,7 @@ async function probeState() {
   } catch {
     // No config yet -- falls through as an invalid video config below, same as a genuinely unset one.
   }
-  const modeConfigValid = isModeConfigValid(config, inputs, audioInputs);
+  const modeConfigValid = isModeConfigValid(config, inputs, audioInputs, await loadEffects());
 
   // Zones only need onboarding when no live zone has ever actually been
   // written (everConfigured) -- unlike the old `active` check, this stays a

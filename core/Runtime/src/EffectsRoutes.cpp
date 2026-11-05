@@ -104,10 +104,12 @@ namespace Aurora::Runtime
     for(const std::string& id : _displayOrder(configRoot, config)){
       const bool builtin = isBuiltInEffectId(id);
       const EffectInfo info = effectInfo(configRoot, id);
+      const auto needs = effectInputs(configRoot, id);
       effects.push_back({
         {"id", id}, {"builtin", builtin}, {"title", info.title},
         {"description", info.description.empty() ? nlohmann::json(nullptr) : nlohmann::json(info.description)},
-        {"hidden", _contains(config.hiddenEffectIds(), id)}, {"order", order++}
+        {"hidden", _contains(config.hiddenEffectIds(), id)}, {"order", order++},
+        {"inputs", needs ? nlohmann::json{{"video", needs->video}, {"audio", needs->audio}} : nlohmann::json(nullptr)}
       });
     }
     return _effectState(pipelineHost, {

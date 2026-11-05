@@ -89,6 +89,7 @@ namespace
   {
     std::vector<std::string> lines;
     int sendCount{0};
+    Frame lastFrame;
 
     // Runs inside every FakeOutput::init(), i.e. in the window Pipeline::build
     // spends on output init -- where a settings PUT can land on real hardware.
@@ -232,7 +233,11 @@ namespace
     }
 
     std::vector<uint8_t> zoneIds() const override { return {1, 2}; }
-    void send(const Frame&) override { m_events->sendCount++; }
+    void send(const Frame& frame) override
+    {
+      m_events->sendCount++;
+      m_events->lastFrame = frame;
+    }
 
   private:
     std::string m_name;
@@ -3208,6 +3213,94 @@ TEST_CASE("A startup that cannot run the saved effect fails with an effect error
 }
 
 
+TEST_CASE("A failed switch shows the failure light on the same outputs until an effect runs (Aurora-dh1p)", "[Effects]")
+{
+  ScopedTempDir dir("failure-light-switch");
+  auto events = std::make_shared<Events>();
+  auto registry = makeRegistry(events);
+  std::string error;
+  PipelineHost host(nullptr, {});
+  REQUIRE(host.reload(registry, videoConfig(), dir.path, error));
+  CHECK_FALSE(host.failureLightOn());
+  events->lines.clear();
+
+  Config broken = videoConfig();
+  broken.setActiveEffectId("nope");
+  CHECK_FALSE(host.reload(registry, broken, dir.path, error));
+  CHECK(host.status().state == HostState::Failed);
+  CHECK(host.summary().effect.empty());
+  REQUIRE(host.failureLightOn());
+  // The light took the outputs over: no stop, no new handshake.
+  CHECK(events->lines.empty());
+
+  host.tick();
+  REQUIRE(events->lastFrame.size() == 2);
+  for(const Zone& zone : events->lastFrame){ CHECK(zone.color == Color(0x33, 0, 0x33)); }
+
+  // A failed retry keeps the same light.
+  CHECK_FALSE(host.reload(registry, broken, dir.path, error));
+  CHECK(host.failureLightOn());
+  CHECK(events->lines.empty());
+
+  // A working effect replaces it; the bridge is not told to stop.
+  REQUIRE(host.reload(registry, videoConfig(), dir.path, error));
+  CHECK_FALSE(host.failureLightOn());
+  CHECK(host.status().state == HostState::Running);
+  CHECK(events->has("shutdown out-a replacement"));
+  CHECK_FALSE(events->has("shutdown out-a final"));
+
+  // Master brightness scales it.
+  Config dim = broken;
+  dim.setBrightness(0.5f);
+  CHECK_FALSE(host.reload(registry, dim, dir.path, error));
+  host.tick();
+  REQUIRE_FALSE(events->lastFrame.empty());
+  CHECK(events->lastFrame[0].color.toNormalized().r < 0.2f / 1.5f);
+  CHECK(events->lastFrame[0].color.toNormalized().g == 0.f);
+  host.shutdown();
+  CHECK(events->has("shutdown out-a final"));
+}
+
+
+TEST_CASE("A failed startup shows the failure light, an idle or running host does not (Aurora-dh1p)", "[Effects]")
+{
+  ScopedTempDir dir("failure-light-startup");
+  auto events = std::make_shared<Events>();
+  auto registry = makeRegistry(events);
+  Config config = videoConfig();
+  config.setActiveEffectId("nope");
+  ConfigStore(dir.path).save(config);
+
+  std::exception_ptr failure;
+  try{ Pipeline::build(registry, config, dir.path, {}); }
+  catch(...){ failure = std::current_exception(); }
+  REQUIRE(failure);
+
+  PipelineHost host(nullptr, {}, failure);
+  CHECK_FALSE(host.failureLightOn());
+  REQUIRE(host.showFailureLight(registry, dir.path));
+  CHECK(host.status().state == HostState::Failed);
+  const int before = events->sendCount;
+  host.tick();
+  CHECK(events->sendCount > before);
+
+  PipelineHost idle(nullptr, {});
+  CHECK_FALSE(idle.showFailureLight(registry, dir.path));
+  PipelineHost running(Pipeline::build(registry, videoConfig(), dir.path, {}), {});
+  CHECK_FALSE(running.showFailureLight(registry, dir.path));
+  CHECK_FALSE(running.failureLightOn());
+
+  // No outputs to drive: Failed stays, with no light.
+  Registry noOutputs;
+  noOutputs.registerInput("fake-video", [events]{ return std::make_unique<FakeVideoInput>(events); });
+  PipelineHost dark(nullptr, {}, failure);
+  CHECK_FALSE(dark.showFailureLight(noOutputs, dir.path));
+  CHECK(dark.status().state == HostState::Failed);
+  host.shutdown();
+  running.shutdown();
+}
+
+
 TEST_CASE("Switching between built-in effect ids does not rebuild the pipeline (Aurora-52oz.1)", "[Effects][ConfigApply]")
 {
   Config applied = videoConfig();
@@ -3255,11 +3348,15 @@ TEST_CASE("Effects routes list, read, switch and delete (Aurora-52oz.1)", "[Effe
   auto list = json(getWithRetry(client, "/api/effects"));
   CHECK(list["effects"] == nlohmann::json::array({
     {{"id", "builtin.video"}, {"builtin", true}, {"title", "Screen colors"},
-      {"description", "Follows the colors on your screen."}, {"hidden", false}, {"order", 0}},
+      {"description", "Follows the colors on your screen."}, {"hidden", false}, {"order", 0},
+      {"inputs", {{"video", true}, {"audio", false}}}},
     {{"id", "builtin.audio"}, {"builtin", true}, {"title", "Music pulse"},
-      {"description", "Moves with the sound your computer is playing."}, {"hidden", false}, {"order", 1}},
-    {{"id", "broken"}, {"builtin", false}, {"title", "broken"}, {"description", nullptr}, {"hidden", false}, {"order", 2}},
-    {{"id", "mine"}, {"builtin", false}, {"title", "Mine"}, {"description", "My own effect."}, {"hidden", false}, {"order", 3}}
+      {"description", "Moves with the sound your computer is playing."}, {"hidden", false}, {"order", 1},
+      {"inputs", {{"video", false}, {"audio", true}}}},
+    {{"id", "broken"}, {"builtin", false}, {"title", "broken"}, {"description", nullptr}, {"hidden", false}, {"order", 2},
+      {"inputs", nullptr}},
+    {{"id", "mine"}, {"builtin", false}, {"title", "Mine"}, {"description", "My own effect."}, {"hidden", false}, {"order", 3},
+      {"inputs", {{"video", true}, {"audio", false}}}}
   }));
   CHECK(list["activeEffectId"] == "");
   CHECK(list["effect"] == "builtin.video");
@@ -3602,6 +3699,46 @@ TEST_CASE("A source-less graph builds and runs without opening any input (Aurora
   CHECK(events->sendCount > 0);
   CHECK(events->videoOpened == 0);
   CHECK(events->audioOpened == 0);
+}
+
+TEST_CASE("A source-less graph runs with no inputs configured, other configs stay Idle (Aurora-zl32)", "[Effects]")
+{
+  ScopedTempDir dir("sourceless-no-config");
+  auto events = std::make_shared<Events>();
+  auto registry = makeRegistry(events);
+  std::string error;
+  nlohmann::json sourceless = {
+    {"version", 1},
+    {"nodes", {
+      {{"id", "c"}, {"type", "color.constant"}, {"params", nlohmann::json::object()}},
+      {{"id", "all"}, {"type", "frame.broadcast"}, {"params", {{"output", "out-a"}}}},
+      {{"id", "send"}, {"type", "output.send"}, {"params", {{"output", "out-a"}}}}}},
+    {"edges", nlohmann::json::array({
+      nlohmann::json::array({"c.color", "all.color"}), nlohmann::json::array({"all.frame", "send.frame"})})}};
+  REQUIRE(EffectStore(dir.path).write("sourceless", sourceless, error));
+
+  Config config;
+  config.setActiveEffectId("sourceless");
+  auto pipeline = Pipeline::build(registry, config, dir.path, {});
+  REQUIRE(pipeline);
+  pipeline->tick(static_cast<float>(pipeline->tickIntervalSeconds()));
+  CHECK(events->sendCount > 0);
+  CHECK(events->videoOpened == 0);
+  CHECK(events->audioOpened == 0);
+
+  // No graph applied, or a graph that needs a source: still unconfigured.
+  CHECK_FALSE(Pipeline::build(registry, Config{}, dir.path, {}));
+  nlohmann::json sourced = sourceless;
+  sourced["nodes"].push_back({{"id", "s"}, {"type", "video.capture"}, {"params", nlohmann::json::object()}});
+  REQUIRE(EffectStore(dir.path).write("sourced", sourced, error));
+  Config needsSource;
+  needsSource.setActiveEffectId("sourced");
+  CHECK_FALSE(Pipeline::build(registry, needsSource, dir.path, {}));
+
+  // An unreadable effect is a real failure, not onboarding.
+  Config unreadable;
+  unreadable.setActiveEffectId("gone");
+  CHECK_THROWS_AS(Pipeline::build(registry, unreadable, dir.path, {}), EffectBuildError);
 }
 
 
@@ -5690,7 +5827,8 @@ TEST_CASE("GET /api/v1/effects and effects/:id answer the effect documents (Auro
 
   const nlohmann::json list = h.get("/api/v1/effects");
   REQUIRE(list["effects"].size() == 3);
-  CHECK(list["effects"][2] == nlohmann::json{{"id", "mine"}, {"builtin", false}, {"title", "Mine"}, {"description", nullptr}, {"hidden", false}, {"order", 2}});
+  CHECK(list["effects"][2] == nlohmann::json{{"id", "mine"}, {"builtin", false}, {"title", "Mine"}, {"description", nullptr}, {"hidden", false}, {"order", 2},
+    {"inputs", {{"video", true}, {"audio", false}}}});
   CHECK(list["activeEffectId"] == "");
   CHECK(list["effect"] == "builtin.video");
 

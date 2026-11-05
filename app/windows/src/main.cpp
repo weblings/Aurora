@@ -710,6 +710,7 @@ if(!instanceLock.held()){
     logLine(std::string("Pipeline not started (") + e.what() + ") -- WebUI still available for setup");
   }
   Aurora::Runtime::PipelineHost pipelineHost(std::move(initialPipeline), pipelineOptions(), startupFailure);
+  if(startupFailure){ pipelineHost.showFailureLight(registry, configRoot); } // Aurora-dh1p
 
   Aurora::Network::Http::Server::HttpServer httpServer;
 

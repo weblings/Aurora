@@ -78,6 +78,7 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `d3ec-windows-verification` | [log/2026-10-06-d3ec-windows-verification.md](log/2026-10-06-d3ec-windows-verification.md) | Aurora-d3ec Windows verification (compile, Catch2, live failed-state cycle) |
 | `d6i7-config-writer-race` | [log/2026-10-02-d6i7-config-writer-race.md](log/2026-10-02-d6i7-config-writer-race.md) | Aurora-d6i7: config.json writer race (Pipeline::build vs the settings PUT) |
 | `d7s-dashboard-output-section` | [log/2026-10-16-d7s-dashboard-output-section.md](log/2026-10-16-d7s-dashboard-output-section.md) | Dashboard Output section (Aurora-d7s) |
+| `dh1p-failure-light` | [log/2026-11-05-dh1p-failure-light.md](log/2026-11-05-dh1p-failure-light.md) | Failure light: dim magenta while no effect can run |
 | `distributed-architecture-plan` | [archive/DistributedArchitecturePlan.md](archive/DistributedArchitecturePlan.md) | Distributed architecture — how far to decompose Input/Processing/Output over a network |
 | `docs-lessons-pain-points` | [archive/DocsAndLessonsPainPoints.md](archive/DocsAndLessonsPainPoints.md) | Docs & lessons: scaling pain points |
 | `dwvu-double-local-network-prompt` | [log/2026-10-08-dwvu-double-local-network-prompt.md](log/2026-10-08-dwvu-double-local-network-prompt.md) | Aurora-dwvu: two Local Network prompts on first Mac launch (closed) |
@@ -297,3 +298,4 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `xrl1-warning-icon` | [log/2026-10-07-xrl1-warning-icon.md](log/2026-10-07-xrl1-warning-icon.md) | Aurora-xrl1: vector warning icon replaces bold ⚠ (closed) |
 | `yzp4-takeover-unification` | [log/2026-10-06-yzp4-takeover-unification.md](log/2026-10-06-yzp4-takeover-unification.md) | Aurora-yzp4: takeover unified to heading-only "Aurora has stopped" (closed) |
 | `zfre-test-state-and-stop` | [log/2026-10-22-zfre-test-state-and-stop.md](log/2026-10-22-zfre-test-state-and-stop.md) | Zfre: /api/state reports the light test, the WebUI can stop it (Aurora-zfre) |
+| `zl32-no-input-running` | [log/2026-11-05-zl32-no-input-running.md](log/2026-11-05-zl32-no-input-running.md) | Source-less effects run with no inputs configured |
