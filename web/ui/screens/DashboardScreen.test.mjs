@@ -993,8 +993,37 @@ for (const [id, mode, title, from] of [
   });
   inst._onHeartbeatState({ state: 'failed', errors: [{ message: "Couldn't start Fire: no audio input is set up." }], effect: null });
   assert.deepEqual(said, ["Couldn't start Fire: no audio input is set up."]);
+  inst._onHeartbeatState({ state: 'failed', errors: [{ message: "Couldn't start Fire: no audio input is set up." }], effect: null });
+  assert.equal(said.length, 1, 'the same failure is announced once');
   inst._onHeartbeatState({ state: 'failed', errors: [{ message: 'again' }], effect: null });
-  assert.equal(said.length, 1, 'announced once per failure');
+  assert.equal(said.length, 2, 'a new failure on a failed host is announced');
+}
+
+// kep2.20: the Dashboard switch path announces the failed host's sentence, once.
+{
+  const FAILED = { state: 'failed', paused: false, effect: null, errors: [{ source: 'resume', message: 'other' }, { source: 'reload', message: "Couldn't start Candle: no audio input is set up." }] };
+  const run = async ({ heartbeatFirst = false, second = false } = {}) => {
+    const said = [];
+    const { inst } = switchScreen({ state: AUDIO_STATE });
+    Object.assign(inst, {
+      mode: 'audio', nextState: FAILED, hostState: 'running', paused: false, canStop: true,
+      effectPanel: { announce: (m) => said.push(m), announceSwitch: (a) => said.push(a) },
+      _renderTopBar() {},
+    });
+    const origLoad = inst._loadAll;
+    if (heartbeatFirst) inst._loadAll = async function () { inst._onHeartbeatState(FAILED); return origLoad.call(this); };
+    stubFetch(() => ({ succeeded: true, reloadError: 'boom' }));
+    try {
+      await inst._switchMode('video', 'builtin.video');
+      if (second) await inst._switchMode('video', 'builtin.video');
+    } finally { globalThis.fetch = realFetch; }
+    inst._onHeartbeatState(FAILED);
+    return said;
+  };
+  const sentence = "Couldn't start Candle: no audio input is set up.";
+  assert.deepEqual(await run(), [sentence], 'flow announces the effect row once, heartbeat adds nothing');
+  assert.deepEqual(await run({ heartbeatFirst: true }), [sentence], 'heartbeat landing first is not doubled');
+  assert.deepEqual(await run({ second: true }), [sentence, sentence], 'a second failure on a failed host is announced');
 }
 
 console.log('DashboardScreen pause checks passed.');

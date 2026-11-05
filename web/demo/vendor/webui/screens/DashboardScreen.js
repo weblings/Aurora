@@ -88,6 +88,12 @@ const OUTPUT_SECTIONS = {
   },
 };
 
+// The reload row is the failed switch's sentence, else the first row with one.
+function failureMessage(errors) {
+  const rows = Array.isArray(errors) ? errors.filter((e) => typeof e?.message === 'string' && e.message) : [];
+  return (rows.find((e) => e.source === 'reload') ?? rows[0])?.message ?? null;
+}
+
 export class DashboardScreen {
   constructor(app) {
     this.app = app;
@@ -454,6 +460,7 @@ export class DashboardScreen {
     this.pendingMode = 'custom';
     this.pendingEffectId = fallbackId;
     this._renderControls();
+    const announcedBefore = this._failureAnnounces;
     let res = null;
     try {
       res = await (await fetch(`/api/effects/${encodeURIComponent(effect.id)}`, { method: 'DELETE' })).json();
@@ -473,6 +480,8 @@ export class DashboardScreen {
     if (confirmed) {
       this._renderTopTier();
       this.effectPanel?.announceSwitch({ title: fallbackTitle, outcome: 'success' });
+    } else if (this._announceSwitchFailure(fallbackTitle, announcedBefore)) {
+      // The failed host was read through the live region.
     } else if (res && !res.succeeded) {
       this.effectPanel?.announce(res.error === 'unknown_effect' ? `${effectTitle(effect)} no longer exists.` : `Couldn't delete ${effectTitle(effect)}.`);
     }
@@ -823,6 +832,7 @@ export class DashboardScreen {
     this.pendingMode = mode;
     this.pendingEffectId = effectId;
     this._renderControls();
+    const announcedBefore = this._failureAnnounces;
 
     let putResult = null;
     let unreachable = false;
@@ -878,7 +888,30 @@ export class DashboardScreen {
     if (confirmed) {
       this._renderTopTier();
       this.effectPanel?.announceSwitch({ title: modeLabel, outcome: 'success' });
+    } else {
+      this._announceSwitchFailure(modeLabel, announcedBefore);
     }
+  }
+
+  // The shell banner has no live region, so a failed host is read here: once from the switch
+  // flow, or from the heartbeat when it got there first. Returns whether the host is failed.
+  _announceSwitchFailure(title, announcedBefore) {
+    if (this.pipelineState?.state !== 'failed') {
+      this._failureMessage = null;
+      return false;
+    }
+    if (this._failureAnnounces === announcedBefore) {
+      const message = failureMessage(this.pipelineState.errors);
+      if (message) this._speakFailure(message);
+      else this.effectPanel?.announceSwitch({ title, outcome: 'failed' });
+    }
+    return true;
+  }
+
+  _speakFailure(message) {
+    this._failureMessage = message;
+    this._failureAnnounces = (this._failureAnnounces ?? 0) + 1;
+    this.effectPanel?.announce(message);
   }
 
   // The panel's line for a request that never ran: the effect is gone, or it just didn't start.
@@ -1011,9 +1044,14 @@ export class DashboardScreen {
     }
     let changed = false;
     if (typeof paused === 'boolean' && paused !== this.paused) { this.paused = paused; changed = true; }
+    // A failure from outside the switch flow, or one whose state _loadAll already stored.
+    if (state === 'failed') {
+      const message = failureMessage(errors);
+      if (message && message !== this._failureMessage) this._speakFailure(message);
+    } else if (state !== undefined) {
+      this._failureMessage = null;
+    }
     if (state !== undefined && state !== this.hostState) {
-      // The shell banner has no live region, so a switch that fails to start is read here.
-      if (state === 'failed' && errors?.[0]?.message) this.effectPanel?.announce(errors[0].message);
       this.hostState = state;
       changed = true;
     }
