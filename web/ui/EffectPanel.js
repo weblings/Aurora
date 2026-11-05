@@ -811,7 +811,7 @@ export class EffectPanel {
     this._onSelect?.(id);
   }
 
-  // One built-in skips the menu. Otherwise the panel stays open on a Start from menu.
+  // The panel stays open on a Start from menu (Empty is always offered).
   _newEffect() {
     const starts = startPoints(this._effects, { hasAudio: this._opts.hasAudio });
     if (starts.length > 1) { this._openStartMenu(starts); return; }

@@ -53,3 +53,11 @@ export function distinctTitle(title: string, taken: Iterable<string>): string {
 export function forWrite(doc: GraphDoc, makesNew: boolean, keep: boolean, taken: Iterable<string>): GraphDoc {
   return makesNew && !keep ? setTitle(doc, distinctTitle(titleOf(doc), taken)) : doc
 }
+
+// The editor id for an unsaved empty graph. '@' is not a valid effect id, so it
+// never names a stored effect. Opened via ?new=empty, saved under a fresh id.
+export const BLANK_ID = '@empty'
+
+export function blankDoc(): GraphDoc {
+  return { version: 1, title: '', nodes: [], edges: [] }
+}

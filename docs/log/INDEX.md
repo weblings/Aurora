@@ -317,3 +317,4 @@ Planning docs stay clean: decisions, status, and pointers here only.
 | 2026-11-04 | Source-less custom graphs build with no capture input, so a denied input cannot fail them; preview with no pipeline split to Aurora-wq6i. [[que2-input-free-build]] | `bd show Aurora-que2` |
 | 2026-11-05 | Source-less effects run with no inputs configured; `/api/effects` reports each effect's inputs; Capture source no longer replaces a custom effect. [[zl32-no-input-running]] | `bd show Aurora-zl32` |
 | 2026-11-05 | A failed effect switch or startup shows a dim steady magenta failure light on the same outputs while the host stays Failed; a working effect replaces it; pause during failure split to Aurora-b6yx. [[dh1p-failure-light]] | `bd show Aurora-dh1p` |
+| 2026-11-05 | Start from lists Empty first and opens the graph editor on a blank graph that saves as a new effect. [[kep216-empty-start]] | `bd show Aurora-kep2.16` |

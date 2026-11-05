@@ -2,7 +2,7 @@
 // moves and outside changes. DOM-free. Run with `node EffectPanelModel.test.mjs`.
 import assert from 'node:assert/strict';
 import {
-  actionAnnouncement, buildGroups, diffEffects, duplicateTitle, editorHref, fallbackBuiltinId, flatItems,
+  EMPTY_START, actionAnnouncement, buildGroups, diffEffects, duplicateTitle, editorHref, fallbackBuiltinId, flatItems,
   focusAfterRemoval, freshEffectId, menuItems, positionIn, runningId, slugify, startPoints, switchAnnouncement,
   titleClash, rowItems, rowKey, triggerLabel, typeAhead,
 } from './EffectPanelModel.js';
@@ -141,8 +141,10 @@ assert.deepEqual(keys(flatItems(groups, open, { canEdit: false })).at(-1), 'g:hi
   assert.equal(fallbackBuiltinId({ activeInputName: 'Monitor 1' }), 'builtin.video');
   assert.equal(fallbackBuiltinId({ activeInputName: '', hasAudio: false }), 'builtin.video');
   const hiddenVideo = EFFECTS.map((e) => (e.id === 'builtin.video' ? { ...e, hidden: true } : e));
-  assert.deepEqual(startPoints(hiddenVideo).map((e) => e.id), ['builtin.video', 'builtin.audio'], 'hidden ones included');
-  assert.deepEqual(startPoints(EFFECTS, { hasAudio: false }).map((e) => e.id), ['builtin.video']);
+  assert.deepEqual(startPoints(hiddenVideo).map((e) => e.id), [EMPTY_START, 'builtin.video', 'builtin.audio'], 'Empty first, hidden ones included');
+  assert.deepEqual(startPoints(EFFECTS, { hasAudio: false }).map((e) => e.id), [EMPTY_START, 'builtin.video']);
+  assert.equal(startPoints([])[0].title, 'Empty', 'offered even with no effects loaded');
+  assert.equal(editorHref(EMPTY_START), '/graph-editor/?new=empty');
   assert.equal(editorHref('a b'), '/graph-editor/?effect=a%20b');
 }
 

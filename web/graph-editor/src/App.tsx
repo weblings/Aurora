@@ -28,7 +28,7 @@ import { refuseConnection } from './graph/connection'
 import { addEdge, addNode, joinEndpoint, moveNodes, removeEdge, removeNodes, setParam } from './graph/doc'
 import { editorReducer, emptyEditor, sameDoc } from './graph/history'
 import { describeTest } from './graph/lightTest'
-import { forWrite, freshEffectId, setTitle, titleOf } from './graph/save'
+import { BLANK_ID, blankDoc, forWrite, freshEffectId, setTitle, titleOf } from './graph/save'
 import { portStyle } from './graph/portStyle'
 import { NODE_KIND, carryViewState, edgeId, toFlowEdges, toFlowNodes, type AuroraNodeData } from './graph/flow'
 import { groupProblems, sameProblems, type Problems } from './graph/problems'
@@ -39,7 +39,9 @@ const nodeTypes = { [NODE_KIND]: GenericNode }
 const DEFAULT_EFFECT = 'builtin.video'
 
 function initialEffectId(): string {
-  return new URLSearchParams(window.location.search).get('effect') ?? DEFAULT_EFFECT
+  const params = new URLSearchParams(window.location.search)
+  if (params.get('new') === 'empty') return BLANK_ID
+  return params.get('effect') ?? DEFAULT_EFFECT
 }
 
 export function App() {
@@ -83,7 +85,8 @@ export function App() {
     setOffer(null)
     setNodeView([])
     setEdgeView([])
-    fetchEffectGraph(effectId)
+    const opening = effectId === BLANK_ID ? Promise.resolve(blankDoc()) : fetchEffectGraph(effectId)
+    opening
       .then((graph) => {
         if (stale) return
         dispatch({ type: 'open', doc: graph })
@@ -112,14 +115,16 @@ export function App() {
   const testNote = describeTest(lights.state)
   const changedSinceTest = testing && tested !== null && doc !== null && !sameDoc(tested, doc)
   const dirty = useMemo(() => (doc && baseline ? !sameDoc(baseline.doc, doc) : false), [doc, baseline])
-  const isBuiltin = effects.find((e) => e.id === effectId)?.builtin ?? effectId.startsWith('builtin.')
+  const isBuiltin = effects.find((e) => e.id === effectId)?.builtin ?? (effectId === BLANK_ID || effectId.startsWith('builtin.'))
   const needsName = isBuiltin && doc !== null && titleOf(doc).trim() === ''
   const picked = nodeView.filter((n) => n.selected)
   const selectedId = picked.length === 1 ? picked[0].id : null
 
   useEffect(() => {
+    if (effectId === BLANK_ID) return
     const url = new URL(window.location.href)
-    if (url.searchParams.get('effect') === effectId) return
+    if (url.searchParams.get('effect') === effectId && !url.searchParams.has('new')) return
+    url.searchParams.delete('new')
     url.searchParams.set('effect', effectId)
     window.history.replaceState(null, '', url)
   }, [effectId])
@@ -330,7 +335,7 @@ export function App() {
             setNotice(null)
             setEffectId(e.target.value)
           }}>
-          {effects.some((e) => e.id === effectId) ? null : <option value={effectId}>{effectId}</option>}
+          {effects.some((e) => e.id === effectId) ? null : <option value={effectId}>{effectId === BLANK_ID ? 'New empty effect' : effectId}</option>}
           {effects.map((e) => (
             <option key={e.id} value={e.id}>
               {e.title || e.id}
