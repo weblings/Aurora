@@ -750,6 +750,8 @@ export class EffectPanel {
   // Long-press on touch is an alias for the ellipsis, Right and Shift+F10.
   _onPointerDown(e) {
     this._pointerType = e.pointerType;
+    // A long-press only swallows the click from its own release, not a later tap.
+    this._longPressed = false;
     this._confirmArmed = !!e.target.closest('.ef-confirm-yes');
     const opt = e.target.closest('.ef-pick');
     if (e.pointerType !== 'touch' || !opt) return;

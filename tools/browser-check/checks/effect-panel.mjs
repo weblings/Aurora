@@ -350,6 +350,20 @@ try {
     assert.equal(await page.evaluate(() => window.newFrom), 'empty')
     await page.focus('.dropdown-trigger'); await key('Enter')
 
+    // Touch long-press opens the row menu. With no click on release, the next tap still runs an item.
+    await page.evaluate(() => {
+      const row = document.querySelector('[data-key="r:candle"]')
+      const r = row.getBoundingClientRect()
+      const init = { pointerType: 'touch', pointerId: 7, isPrimary: true, bubbles: true, clientX: r.x + 10, clientY: r.y + 10 }
+      row.dispatchEvent(new PointerEvent('pointerdown', init))
+      window.pressUp = () => row.dispatchEvent(new PointerEvent('pointerup', init))
+    })
+    await page.waitForSelector('.ef-menu [role=menuitem]')
+    await page.evaluate(() => window.pressUp())
+    const before = (await page.evaluate(() => window.actions)).length
+    await page.locator('.ef-menu [role=menuitem]', { hasText: 'Duplicate' }).click()
+    assert.deepEqual((await page.evaluate(() => window.actions)).slice(before), ['Duplicate:candle'], 'first tap after a long-press runs')
+
     // Layout: the panel stays inside the viewport and the page does not scroll sideways.
     const box = await page.locator('.ef-panel').boundingBox()
     assert.ok(box.x >= 0 && box.x + box.width <= width, `${width}px: panel inside the viewport`)

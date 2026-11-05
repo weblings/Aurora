@@ -322,3 +322,4 @@ Planning docs stay clean: decisions, status, and pointers here only.
 | 2026-11-05 | Built-in effect picks show Switching to, Switched to and the rejected line with the effect title on the panel; the `.db-controls` row is gone. [[kep218-builtin-switch-states]] | `bd show Aurora-kep2.18` |
 | 2026-11-05 | The effect trigger is aria-disabled, not disabled, while a switch is pending, so keyboard focus stays on it. [[kep219-trigger-focus]] | `bd show Aurora-kep2.19` |
 | 2026-11-05 | A failed effect switch is announced once through the live region, including a repeat failure and either poll order. [[kep220-failed-switch-announce]] | `bd show Aurora-kep2.20` |
+| 2026-11-05 | The first tap after a touch long-press runs, with or without a click on release. [[kep221-long-press-first-tap]] | `bd show Aurora-kep2.21` |

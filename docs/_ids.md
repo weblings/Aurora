@@ -150,6 +150,7 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `kep219-trigger-focus` | [log/2026-11-05-kep219-trigger-focus.md](log/2026-11-05-kep219-trigger-focus.md) | Effect trigger keeps focus through a switch |
 | `kep22-effect-panel-mocks` | [log/2026-11-03-kep22-effect-panel-mocks.md](log/2026-11-03-kep22-effect-panel-mocks.md) | Effect panel static mocks |
 | `kep220-failed-switch-announce` | [log/2026-11-05-kep220-failed-switch-announce.md](log/2026-11-05-kep220-failed-switch-announce.md) | Failed effect switches announce through the live region |
+| `kep221-long-press-first-tap` | [log/2026-11-05-kep221-long-press-first-tap.md](log/2026-11-05-kep221-long-press-first-tap.md) | The first tap after a touch long-press runs |
 | `kep23-effect-id-picks-mode` | [log/2026-11-03-kep23-effect-id-picks-mode.md](log/2026-11-03-kep23-effect-id-picks-mode.md) | Effect id picks the mode, both inputs kept, missing ones auto-picked |
 | `kep25-effect-list-layout` | [log/2026-11-03-kep25-effect-list-layout.md](log/2026-11-03-kep25-effect-list-layout.md) | Effect list data: hidden flag, custom order and a Rename route |
 | `kep26-row-menu-flows` | [log/2026-11-03-kep26-row-menu-flows.md](log/2026-11-03-kep26-row-menu-flows.md) | Row menu follow-on flows |
