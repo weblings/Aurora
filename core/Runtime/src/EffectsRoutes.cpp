@@ -202,10 +202,13 @@ namespace Aurora::Runtime
           id = nlohmann::json::parse(req.body).at("activeEffectId").get<std::string>();
         }
         catch(const nlohmann::json::exception&){
+          pipelineHost.log(LogLevel::Error, "Effect switch rejected: invalid_body");
           _reply(res, 400, {{"succeeded", false}, {"error", "invalid_body"}});
           return;
         }
         if(!id.empty() && !isBuiltInEffectId(id) && !EffectStore(configRoot).exists(id)){
+          // Dumped as JSON so a client's newline or escape cannot forge a log line.
+          pipelineHost.log(LogLevel::Error, "Effect switch rejected: unknown_effect " + nlohmann::json(id).dump());
           _reply(res, 404, {{"succeeded", false}, {"error", "unknown_effect"}});
           return;
         }

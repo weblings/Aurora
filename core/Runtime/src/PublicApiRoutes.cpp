@@ -182,6 +182,17 @@ namespace Aurora::Runtime
       body["errors"] = issues;
       res.body = body.dump();
     }
+
+    // Any issue rejects the whole patch, so the switch fails on another field's code too.
+    void _logRejectedSwitch(PipelineHost& pipelineHost, const nlohmann::json& body, const nlohmann::json& issues)
+    {
+      if(!body.contains("effect")){ return; }
+      std::string code = issues.at(0).at("code").get<std::string>();
+      for(const auto& issue : issues){
+        if(issue.at("field") == "effect"){ code = issue.at("code").get<std::string>(); }
+      }
+      pipelineHost.log(LogLevel::Error, "Effect switch rejected: " + code + " " + body.at("effect").dump());
+    }
   }
 
 
@@ -221,6 +232,7 @@ namespace Aurora::Runtime
         StatePatch patch;
         const nlohmann::json issues = _validatePatch(body, configRoot, patch);
         if(!issues.empty()){
+          _logRejectedSwitch(pipelineHost, body, issues);
           _reject(res, 400, issues);
           return;
         }

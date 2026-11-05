@@ -625,6 +625,9 @@ namespace Aurora::Runtime
 
     const std::string& audioDevicesUrl() const { return m_options.audioDevicesUrl; }
 
+    // Writes through PipelineOptions::log, else stdout/stderr like the pipeline's own lines.
+    void log(LogLevel level, const std::string& line) const;
+
   private:
     mutable std::mutex m_summaryMutex;
     PipelineSummary m_summary;

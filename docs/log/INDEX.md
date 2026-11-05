@@ -318,3 +318,4 @@ Planning docs stay clean: decisions, status, and pointers here only.
 | 2026-11-05 | Source-less effects run with no inputs configured; `/api/effects` reports each effect's inputs; Capture source no longer replaces a custom effect. [[zl32-no-input-running]] | `bd show Aurora-zl32` |
 | 2026-11-05 | A failed effect switch or startup shows a dim steady magenta failure light on the same outputs while the host stays Failed; a working effect replaces it; pause during failure split to Aurora-b6yx. [[dh1p-failure-light]] | `bd show Aurora-dh1p` |
 | 2026-11-05 | Start from lists Empty first and opens the graph editor on a blank graph that saves as a new effect. [[kep216-empty-start]] | `bd show Aurora-kep2.16` |
+| 2026-11-05 | Rejected effect switches on `PUT /api/effects` and `PATCH /api/v1/state` log their code and requested id on every platform; other effect routes split to a follow-up; 2 lessons. [[kep212-effect-switch-log]] | `bd show Aurora-kep2.12` |

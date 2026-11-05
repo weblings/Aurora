@@ -1357,6 +1357,12 @@ namespace Aurora::Runtime
   }
 
 
+  void PipelineHost::log(LogLevel level, const std::string& line) const
+  {
+    _log(m_options, level, line);
+  }
+
+
   bool PipelineHost::_swapInPlace(const std::function<bool(Pipeline&)>& swap, bool clearEffectError, const char* logLine)
   {
     std::lock_guard<std::mutex> change(m_changeMutex);

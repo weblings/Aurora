@@ -1278,3 +1278,23 @@ Applies-when: generating checked-in files (mocks, fixtures, tables) from a scrip
 Aurora-kep2.2's nine mock frames and index.html were written by `gen4.py` in one agent session's temp scratchpad, alongside superseded `gen.py`–`gen3.py`, a `.bak` and three patch scripts. Only the output was committed. Each frame repeats ~70 lines of shell markup, so once the temp folder was cleared, any design change would have meant editing nine files by hand.
 
 **Fix:** commit the generator next to its output with a usage line, and confirm a regen is byte-identical before committing. Now at `web/ui/Static_kep2_Mocks/gen.py`.
+
+---
+
+## An unset log hook means the default stream, not silence
+Tags: logging, pipeline, platform, options, tests
+Applies-when: adding a new way to reach an optional callback such as PipelineOptions::log
+
+Aurora-kep2.12 added `PipelineHost::log` as `if(m_options.log){ m_options.log(...); }`. Only the Windows main sets that hook. Linux and Mac leave it unset on purpose and rely on `_log` in `Pipeline.cpp` falling back to stdout/stderr, so the new line was dropped on two of three platforms. The test passed because `LogCapture` always sets the hook, and a Windows run could not show the gap.
+
+**Fix:** route through the existing `_log` rather than re-checking the hook, and test the unset case as well as the captured one.
+
+---
+
+## A public API write may be a separate handler, not an alias of the internal route
+Tags: api, routes, v1, mcp, effects
+Applies-when: changing behavior on an internal /api route that has a public /api/v1 counterpart
+
+`kAliases` in `PublicApiRoutes.cpp` shares one handler between `/api` and `/api/v1`, which suggests a change to the internal route reaches v1 too. Effect switching is not aliased: the WebUI uses `PUT /api/effects`, while MCP `set_effect` uses `PATCH /api/v1/state`, a handler with its own validation and its own config write. Aurora-kep2.12 first added logging to the PUT alone, and the MCP path stayed silent until a review of v1.
+
+**Fix:** before calling a route behavior done, grep for the config write (here `setActiveEffectId`) to find every path, not just the route the bead names.

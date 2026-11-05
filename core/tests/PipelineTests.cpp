@@ -3330,7 +3330,8 @@ TEST_CASE("Effects routes list, read, switch and delete (Aurora-52oz.1)", "[Effe
   std::ofstream(dir.path / "effects" / "broken.json") << "{not json";
   ConfigStore(dir.path).save(videoConfig());
 
-  PipelineHost host(Pipeline::build(registry, videoConfig(), dir.path, {}), {});
+  LogCapture log;
+  PipelineHost host(Pipeline::build(registry, videoConfig(), dir.path, {}), log.options());
   HttpServer server;
   registerEffectsRoutes(server, host, registry, dir.path, std::make_shared<ReloadCoalescer>([&]{
     return applyConfigFromDisk(host, registry, dir.path);
@@ -3383,6 +3384,11 @@ TEST_CASE("Effects routes list, read, switch and delete (Aurora-52oz.1)", "[Effe
   CHECK(put(R"({"activeEffectId": "nope"})")->status == 404);
   CHECK(put(R"({"other": 1})")->status == 400);
   CHECK(ConfigStore(dir.path).load().activeEffectId() == "mine");
+  // A rejected switch leaves its code and requested id in the log.
+  CHECK(log.has(LogLevel::Error, R"(Effect switch rejected: unknown_effect "nope")"));
+  CHECK(log.has(LogLevel::Error, "Effect switch rejected: invalid_body"));
+  CHECK(put(R"({"activeEffectId": "a\nb"})")->status == 404);
+  CHECK(log.has(LogLevel::Error, R"(Effect switch rejected: unknown_effect "a\nb")"));
 
   auto back = json(put(R"({"activeEffectId": "builtin.video"})"));
   CHECK(back["effect"] == "builtin.video");
@@ -3419,6 +3425,17 @@ TEST_CASE("Effects routes list, read, switch and delete (Aurora-52oz.1)", "[Effe
   server.stop();
   serverThread.join();
   host.shutdown();
+}
+
+
+TEST_CASE("PipelineHost::log falls back to stderr with no log hook, as Linux and Mac run (Aurora-kep2.12)", "[Pipeline]")
+{
+  PipelineHost host(nullptr, PipelineOptions{});
+  std::ostringstream captured;
+  std::streambuf* previous = std::cerr.rdbuf(captured.rdbuf());
+  host.log(LogLevel::Error, "rejected");
+  std::cerr.rdbuf(previous);
+  CHECK(captured.str() == "rejected\n");
 }
 
 
@@ -4479,7 +4496,7 @@ namespace
   // The apply harness plus test-on-lights routes on a fake clock.
   struct LightTestHarness
   {
-    explicit LightTestHarness(const std::string& name, Config config = tunedVideoConfig()):
+    explicit LightTestHarness(const std::string& name, Config config = tunedVideoConfig(), PipelineOptions options = {}):
     dir(name),
     events(std::make_shared<Events>()),
     registry(makeRegistry(events))
@@ -4489,7 +4506,7 @@ namespace
       std::exception_ptr failure;
       try{ initial = Pipeline::build(registry, config, dir.path, {}); }
       catch(...){ failure = std::current_exception(); }
-      host = std::make_unique<PipelineHost>(std::move(initial), PipelineOptions{}, failure);
+      host = std::make_unique<PipelineHost>(std::move(initial), std::move(options), failure);
       auto drafts = registerDraftRoutes(server, registry, dir.path);
       auto applyDraft = registerApplyRoutes(server, *host, registry, dir.path, drafts,
         [this]{ return applyEffectFromDisk(*host, registry, dir.path); });
@@ -5795,6 +5812,25 @@ TEST_CASE("PATCH /api/v1/state ends a running test as superseded on an effect or
   REQUIRE(h.start("s1") == 200);
   CHECK(patchState(h, {{"running", false}})["state"] == "paused");
   CHECK(h.test->info().lastEnd == "superseded");
+}
+
+
+TEST_CASE("PATCH /api/v1/state logs a rejected effect switch and nothing else (Aurora-kep2.12)", "[PublicApi][v1]")
+{
+  LogCapture log;
+  LightTestHarness h("v1-patch-log", tunedVideoConfig(), log.options());
+
+  patchState(h, {{"effect", "nope"}}, 400);
+  CHECK(log.has(LogLevel::Error, R"(Effect switch rejected: unknown_effect "nope")"));
+  patchState(h, {{"effect", 5}}, 400);
+  CHECK(log.has(LogLevel::Error, "Effect switch rejected: invalid_field 5"));
+  // A good effect still fails with the patch when another field is bad.
+  patchState(h, {{"effect", "builtin.video"}, {"bogus", 1}}, 400);
+  CHECK(log.has(LogLevel::Error, R"(Effect switch rejected: unknown_field "builtin.video")"));
+
+  const std::size_t lines = log.lines.size();
+  patchState(h, {{"brightness", 101}}, 400);
+  CHECK(log.lines.size() == lines);
 }
 
 

@@ -143,6 +143,7 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `kea-dashboard-capabilities-scoping` | [log/2026-10-02-kea-dashboard-capabilities-scoping.md](log/2026-10-02-kea-dashboard-capabilities-scoping.md) | Aurora-kea: scoping pass on Dashboard capability-driven sections (paused, no code) |
 | `kea-route-and-shared-capture-source` | [log/2026-10-03-kea-route-and-shared-capture-source.md](log/2026-10-03-kea-route-and-shared-capture-source.md) | Aurora-kea: route decision, shared capture-source scope, pending-highlight follow-up (paused, no code) |
 | `kep21-effect-picker` | [log/2026-10-30-kep21-effect-picker.md](log/2026-10-30-kep21-effect-picker.md) | Dashboard effect picker beside Video/Audio |
+| `kep212-effect-switch-log` | [log/2026-11-05-kep212-effect-switch-log.md](log/2026-11-05-kep212-effect-switch-log.md) | Rejected effect switch logging |
 | `kep215-button-row-panel` | [log/2026-11-04-kep215-button-row-panel.md](log/2026-11-04-kep215-button-row-panel.md) | Effect panel moves to the button row model |
 | `kep216-empty-start` | [log/2026-11-05-kep216-empty-start.md](log/2026-11-05-kep216-empty-start.md) | Empty graph as a Start from option |
 | `kep22-effect-panel-mocks` | [log/2026-11-03-kep22-effect-panel-mocks.md](log/2026-11-03-kep22-effect-panel-mocks.md) | Effect panel static mocks |
