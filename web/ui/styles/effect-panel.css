@@ -9,7 +9,8 @@
   position: relative;
 }
 
-.ef-dropdown .dropdown-trigger:disabled {
+.ef-dropdown .dropdown-trigger:disabled,
+.ef-dropdown .dropdown-trigger[aria-disabled='true'] {
   cursor: default;
 }
 

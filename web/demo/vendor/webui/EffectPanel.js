@@ -66,6 +66,7 @@ export class EffectPanel {
     this._typed = '';
     this._typedAt = 0;
     this._label = 'No effect running';
+    this._busy = false;
 
     this.root = el('div', 'field ef-field');
     this.labelEl = el('label', 'field-label', 'Effect');
@@ -152,9 +153,10 @@ export class EffectPanel {
 
     this._label = triggerLabel(effects, state, this._label);
     this.labelText.textContent = this._label;
-    this.trigger.disabled = busy;
-    if (busy) this.trigger.setAttribute('aria-busy', 'true');
-    else this.trigger.removeAttribute('aria-busy');
+    // aria-disabled, not disabled: a disabled trigger would drop focus to body mid-switch.
+    this._busy = busy;
+    if (busy) { this.trigger.setAttribute('aria-disabled', 'true'); this.trigger.setAttribute('aria-busy', 'true'); }
+    else { this.trigger.removeAttribute('aria-disabled'); this.trigger.removeAttribute('aria-busy'); }
     if (busy) this.close({ refocus: false });
 
     const text = busy && pendingTitle ? `Switching to ${pendingTitle}…` : (rejected || '');
@@ -183,7 +185,7 @@ export class EffectPanel {
   }
 
   open() {
-    if (this._open || this.trigger.disabled) return;
+    if (this._open || this._busy) return;
     this._open = true;
     this.panel.hidden = false;
     this.dropdown.classList.add('open');
@@ -811,7 +813,7 @@ export class EffectPanel {
     this._onSelect?.(id);
   }
 
-  // One built-in skips the menu. Otherwise the panel stays open on a Start from menu.
+  // The panel stays open on a Start from menu (Empty is always offered).
   _newEffect() {
     const starts = startPoints(this._effects, { hasAudio: this._opts.hasAudio });
     if (starts.length > 1) { this._openStartMenu(starts); return; }

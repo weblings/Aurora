@@ -166,13 +166,18 @@ export function fallbackBuiltinId({ activeInputName = '', hasAudio = true } = {}
   return activeInputName || !hasAudio ? 'builtin.video' : 'builtin.audio';
 }
 
-// Built-ins the "Start from" menu offers, hidden ones included.
+// The "Start from" entry for an empty graph. Not an effect id.
+export const EMPTY_START = 'empty';
+
+// What the "Start from" menu offers: Empty, then the built-ins (hidden ones included).
 export function startPoints(effects, { hasAudio = true } = {}) {
-  return effects.filter((e) => e.builtin && (hasAudio || e.id !== 'builtin.audio'));
+  const builtins = effects.filter((e) => e.builtin && (hasAudio || e.id !== 'builtin.audio'));
+  return [{ id: EMPTY_START, title: 'Empty' }, ...builtins];
 }
 
-// The editor address for an effect id.
+// The editor address for an effect id, or for a new empty graph.
 export function editorHref(id) {
+  if (id === EMPTY_START) return '/graph-editor/?new=empty';
   return `/graph-editor/?effect=${encodeURIComponent(id)}`;
 }
 

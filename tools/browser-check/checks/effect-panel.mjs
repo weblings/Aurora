@@ -222,9 +222,13 @@ try {
     assert.equal(await page.isVisible('[data-key="g:custom"]'), false, 'empty group leaves')
     await key('Escape')
 
-    // Switch states: pending is disabled and busy with the line, a failure reads No effect running.
+    // Switch states: pending is aria-disabled (keeps focus) and busy with the line, a failure reads No effect running.
+    await page.focus('.dropdown-trigger')
     await page.evaluate(() => window.panel.update({ effects: window.EFFECTS, state: { effect: 'fire' }, busy: true, pendingTitle: 'Candle' }))
-    assert.equal(await page.isDisabled('.dropdown-trigger'), true)
+    assert.equal(await page.getAttribute('.dropdown-trigger', 'aria-disabled'), 'true')
+    assert.equal(await focused(), 'effects-0-trigger', 'trigger keeps focus while pending')
+    await key('Enter'); await key('ArrowDown')
+    assert.equal(await page.isVisible('.ef-panel'), false, 'pending trigger cannot open the panel')
     assert.equal(await page.getAttribute('.dropdown-trigger', 'aria-busy'), 'true')
     assert.equal(await page.textContent('.ef-status'), 'Switching to Candle…')
     assert.equal(await label(), 'Fire', 'keeps the running name while pending')
@@ -233,6 +237,7 @@ try {
       window.panel.announceSwitch({ title: 'Candle', outcome: 'failed', reason: 'no audio input is set up' })
     })
     assert.equal(await label(), 'No effect running')
+    assert.equal(await focused(), 'effects-0-trigger', 'trigger keeps focus after the switch settles')
     assert.equal(await live(), "Couldn't start Candle: no audio input is set up")
     await page.evaluate(() => window.panel.update({ state: { effect: 'fire', state: 'paused' } }))
     assert.equal(await label(), 'Fire', 'paused keeps the name')
@@ -331,16 +336,18 @@ try {
 
     // New effect: Start from lists the built-ins, Esc returns, a pick closes the panel.
     await page.focus('[data-key="new"]'); await key('Enter')
-    assert.deepEqual(await page.locator('.ef-menu-start [role=menuitem]').allTextContents(), ['Screen colors', 'Music pulse'])
+    assert.deepEqual(await page.locator('.ef-menu-start [role=menuitem]').allTextContents(), ['Empty', 'Screen colors', 'Music pulse'])
     await key('Escape')
     assert.equal(await focused(), 'new')
-    await key('Enter'); await key('Enter')
+    await key('Enter'); await key('ArrowDown'); await key('Enter')
     assert.equal(await page.evaluate(() => window.newFrom), 'builtin.video')
     assert.equal(await page.isVisible('.ef-panel'), false)
     await page.evaluate(() => { window.newFrom = null; window.panel.update({ hasAudio: false }) })
     await page.focus('.dropdown-trigger'); await key('Enter')
     await page.focus('[data-key="new"]'); await key('Enter')
-    assert.equal(await page.evaluate(() => window.newFrom), 'builtin.video', 'one built-in skips the menu')
+    assert.deepEqual(await page.locator('.ef-menu-start [role=menuitem]').allTextContents(), ['Empty', 'Screen colors'], 'no Music pulse without audio')
+    await key('Enter')
+    assert.equal(await page.evaluate(() => window.newFrom), 'empty')
     await page.focus('.dropdown-trigger'); await key('Enter')
 
     // Layout: the panel stays inside the viewport and the page does not scroll sideways.
