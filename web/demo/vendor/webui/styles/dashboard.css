@@ -1,8 +1,3 @@
-/* Holds only a failed Video/Audio switch's error; empty takes no room. */
-.db-controls:not(:empty) {
-  margin-bottom: var(--aurora-space-5);
-}
-
 /* Top tier -- step 20: device field, video's canvas + entertainment config
    + single zone toggle, or audio's entertainment config alone. Reuses
    ZoneCanvas's/EntertainmentConfigSelect's own classes (zone-mapping.css)

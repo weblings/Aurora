@@ -105,7 +105,7 @@ export class DashboardScreen {
     this.flags = flagsForMode('video');
     this.pipelineState = null;
     this.pendingMode = null; // toggle choice with a switch in flight: outlined, not filled
-    this.pendingEffectId = null; // the picker's target while pendingMode is 'custom'
+    this.pendingEffectId = null; // the picked effect while a switch is in flight
     this.audioDevicesUrl = null;
     this.sinkName = '';
     this.zeroOffOutputs = []; // outputs where brightness 0 means off: they get the floor control
@@ -119,7 +119,7 @@ export class DashboardScreen {
     this.tuningValues = {};
     this.toggleError = null;
     this.toggleErrorMode = null; // the mode the failed switch was heading to (Aurora-tazx)
-    this.toggleErrorEffectId = null; // its effect id when that mode is 'custom'
+    this.toggleErrorEffectId = null; // the effect id the failed switch was heading to
     this.toggleErrorRunning = undefined; // the effect running when it was set (kep2.11)
     // Inline rejected-request errors under the device field, keyed by the
     // control that raised them (Aurora-m0fy): each clears only on its own
@@ -161,7 +161,6 @@ export class DashboardScreen {
     this.container = container;
     container.innerHTML = `
       <div class="top-bar-slot db-top-bar-slot"></div>
-      <div class="db-controls"></div>
       <div class="db-effect-slot"></div>
       <div class="db-top-tier"></div>
       <div class="db-accordions"></div>
@@ -360,14 +359,9 @@ export class DashboardScreen {
     if (this.graphEditorAvailable) this.effectPanel?.update({ canEdit: true });
   }
 
-  // The effect panel has its own slot; this row holds only the error of a failed Video/Audio
-  // switch (onboarding and the tray still switch them).
+  // Every switch, built-in or custom, shows its state and failure on the effect panel.
   _renderControls() {
-    const controls = this.container.querySelector('.db-controls');
-    // A custom switch's failure is the panel's own line, not this row's error.
-    const errorHtml = this.toggleErrorMode === 'custom' ? '' : renderReloadError(this.toggleError, this.platform);
     this._renderEffectPanel();
-    controls.innerHTML = errorHtml;
   }
 
   // One persistent EffectPanel: trigger text and the checked row come from the running
@@ -381,7 +375,7 @@ export class DashboardScreen {
         onNewEffect: (id) => { window.location.assign(editorHref(id ?? 'builtin.video')); },
       });
     }
-    const rejected = this.toggleErrorMode === 'custom' && !this.pendingMode ? this.toggleError : null;
+    const rejected = this.pendingMode ? null : this.toggleError;
     this.effectPanel.update({
       effects: this.effects,
       state: this.pipelineState,
@@ -390,7 +384,7 @@ export class DashboardScreen {
       canDelete: this.app.canApprove === true,
       fallbackTitle: this._effectLabel(this._fallbackId()),
       busy: !!this.pendingMode,
-      pendingTitle: this.pendingMode === 'custom' ? this._effectLabel(this.pendingEffectId) : null,
+      pendingTitle: this.pendingMode ? this._effectLabel(this.pendingEffectId) : null,
       rejected,
     });
   }
@@ -490,10 +484,10 @@ export class DashboardScreen {
     return effect ? effectTitle(effect) : id;
   }
 
-  // Built-ins go through the toggle's own switch so they land on the device shown.
+  // Built-ins keep the mode patch so they land on the device shown; text comes from the effect.
   _onEffectPicked(id) {
-    if (id === 'builtin.video') return this._switchMode('video');
-    if (id === 'builtin.audio') return this._switchMode('audio');
+    if (id === 'builtin.video') return this._switchMode('video', id);
+    if (id === 'builtin.audio') return this._switchMode('audio', id);
     return this._switchMode('custom', id);
   }
 
@@ -812,15 +806,15 @@ export class DashboardScreen {
     }
   }
 
-  // mode: 'video' | 'audio', or 'custom' with the picker's effectId.
-  async _switchMode(mode, effectId = null) {
+  // mode: 'video' | 'audio' (a built-in, sent as the mode patch) or 'custom'; effectId is the pick.
+  async _switchMode(mode, effectId) {
     if (this.pendingMode) return;
     if (mode === 'custom'
       ? (this.pipelineState?.effect === effectId && !lightTestActive(this.pipelineState))
       : mode === this.mode) return;
 
     const patch = mode === 'custom' ? null : modeSwitchPatch(mode, this);
-    const modeLabel = mode === 'custom' ? this._effectLabel(effectId) : (mode === 'audio' ? 'Audio' : 'Video');
+    const modeLabel = this._effectLabel(effectId);
 
     // Outline the clicked option and disable both buttons while the rebuild
     // runs; the running option stays filled until the pipeline confirms.
@@ -836,7 +830,7 @@ export class DashboardScreen {
       putResult = mode === 'custom' ? await putEffectSwitch(effectId) : await putModeSwitch(patch);
 
       if (!putResult.succeeded) {
-        this._setToggleError(this._switchFailedText(mode, modeLabel, putResult), mode, effectId);
+        this._setToggleError(this._switchFailedText(modeLabel, putResult), mode, effectId);
       } else if (putResult.reloadError) {
         // The shell banner owns it (Aurora-98pr), refreshed now so the row
         // does not lag the poll. The fill is re-derived from what runs.
@@ -862,7 +856,7 @@ export class DashboardScreen {
     // (components.md:308).
     // A failed host is the banner's, never doubled inline (kep2.11).
     if (unreachable && loaded && this.pipelineState?.state !== 'failed') {
-      this._setToggleError(this._switchFailedText(mode, modeLabel, null), mode, effectId);
+      this._setToggleError(this._switchFailedText(modeLabel, null), mode, effectId);
       this._renderTopTier();
     }
 
@@ -888,8 +882,7 @@ export class DashboardScreen {
   }
 
   // The panel's line for a request that never ran: the effect is gone, or it just didn't start.
-  _switchFailedText(mode, label, putResult) {
-    if (mode !== 'custom') return `Couldn't switch to ${label}.`;
+  _switchFailedText(label, putResult) {
     return putResult?.error === 'unknown_effect' ? `${label} no longer exists.` : `${label} didn't start.`;
   }
 
