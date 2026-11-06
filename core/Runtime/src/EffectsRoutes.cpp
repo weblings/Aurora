@@ -284,6 +284,14 @@ namespace Aurora::Runtime
           _reply(res, 500, {{"succeeded", false}, {"error", "write_failed"}, {"message", writeError}});
           return;
         }
+        // Pin the saved order with the copy last, so it leads no unordered effect.
+        ConfigStore(configRoot).update([&](Config& config){
+          std::vector<std::string> ids = _displayOrder(configRoot, config);
+          ids.erase(std::remove(ids.begin(), ids.end(), copyId), ids.end());
+          ids.push_back(copyId);
+          config.setEffectOrder(std::move(ids));
+          return true;
+        });
         _reply(res, 200, {{"succeeded", true}, {"id", copyId}, {"source", sourceId}});
       }
     );

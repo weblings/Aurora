@@ -154,6 +154,7 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `kep220-failed-switch-announce` | [log/2026-11-05-kep220-failed-switch-announce.md](log/2026-11-05-kep220-failed-switch-announce.md) | Failed effect switches announce through the live region |
 | `kep221-long-press-first-tap` | [log/2026-11-05-kep221-long-press-first-tap.md](log/2026-11-05-kep221-long-press-first-tap.md) | The first tap after a touch long-press runs |
 | `kep224-cut-long-press` | [log/2026-11-05-kep224-cut-long-press.md](log/2026-11-05-kep224-cut-long-press.md) | Touch long-press cut from the effect panel |
+| `kep226-duplicate-order` | [log/2026-11-05-kep226-duplicate-order.md](log/2026-11-05-kep226-duplicate-order.md) | A duplicated effect is last in Custom straight away |
 | `kep228-title-limit` | [log/2026-11-05-kep228-title-limit.md](log/2026-11-05-kep228-title-limit.md) | One effect title limit |
 | `kep23-effect-id-picks-mode` | [log/2026-11-03-kep23-effect-id-picks-mode.md](log/2026-11-03-kep23-effect-id-picks-mode.md) | Effect id picks the mode, both inputs kept, missing ones auto-picked |
 | `kep24-failed-effect-no-fallback` | [log/2026-11-05-kep24-failed-effect-no-fallback.md](log/2026-11-05-kep24-failed-effect-no-fallback.md) | A failed effect leaves no effect running |

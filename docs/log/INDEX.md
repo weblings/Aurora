@@ -331,3 +331,4 @@ Planning docs stay clean: decisions, status, and pointers here only.
 | 2026-11-05 | Effect panel with button rows, layers and switch states replaces the kep2.1 picker. [[kep28-effect-panel]] | `bd show Aurora-kep2.8` |
 | 2026-11-05 | Cut over: the Dashboard loses the Video/Audio toggle and Edit graph link, the panel is always shown, onboarding keeps its choice. [[kep210-cut-over]] | `bd show Aurora-kep2.10` |
 | 2026-11-05 | One 80 character effect title limit for the loader, rename, duplicate and client, so a long rename no longer stops an effect loading. [[kep228-title-limit]] | `bd show Aurora-kep2.28`, `bd show Aurora-kep2.25` |
+| 2026-11-05 | A duplicated effect is last in Custom straight away, not only after the order is saved. [[kep226-duplicate-order]] | `bd show Aurora-kep2.26` |

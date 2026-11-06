@@ -4319,6 +4319,12 @@ TEST_CASE("Duplicate copies a built-in or custom effect to a new id without repl
   CHECK(h.duplicate("..", {{"id", "fresh"}})->status == 404);
   CHECK_FALSE(store.exists("fresh"));
   CHECK(store.list() == std::vector<std::string>{"mine", "mine-2", "mine-copy", "my-screen"});
+
+  // Each copy is last in the saved order straight away (Aurora-kep2.26).
+  const std::vector<std::string> order = ConfigStore(h.dir.path).load().effectOrder();
+  REQUIRE(order.size() >= 3);
+  CHECK(order.back() == "mine-copy");
+  CHECK(order[order.size() - 2] == "mine-2");
 }
 
 
