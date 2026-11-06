@@ -304,9 +304,9 @@ namespace Aurora::Runtime::Graph
       if(textIt == doc.end()){
         continue;
       }
-      if(!textIt->is_string() || textIt->get<std::string>().empty() || textIt->get<std::string>().size() > limit){
+      if(!textIt->is_string() || textIt->get<std::string>().empty() || textLength(textIt->get<std::string>()) > limit){
         report("", std::string(key) + "_invalid", "top-level '" + std::string(key) +
-          "' must be a non-empty string of at most " + std::to_string(limit) + " bytes when present");
+          "' must be a non-empty string of at most " + std::to_string(limit) + " characters when present");
       }
     }
 

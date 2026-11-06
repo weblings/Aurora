@@ -10,6 +10,7 @@
 #include <Aurora/Runtime/ConfigStore.hpp>
 #include <Aurora/Runtime/EffectStore.hpp>
 #include <Aurora/Runtime/Graph/BuiltInGraphs.hpp>
+#include <Aurora/Runtime/Graph/GraphLoader.hpp>
 #include <Aurora/Runtime/Pipeline.hpp>
 #include <Aurora/Runtime/Registry.hpp>
 #include <Aurora/Runtime/ReloadCoalescer.hpp>
@@ -251,7 +252,7 @@ namespace Aurora::Runtime
           _reply(res, 400, {{"succeeded", false}, {"error", "invalid_body"}});
           return;
         }
-        if(copyTitle.size() > 80){
+        if(Graph::textLength(copyTitle) > Graph::kMaxTitleLength){
           _reply(res, 400, {{"succeeded", false}, {"error", "invalid_title"}});
           return;
         }
@@ -378,7 +379,7 @@ namespace Aurora::Runtime
         const auto first = title.find_first_not_of(" \t");
         const auto last = title.find_last_not_of(" \t");
         title = first == std::string::npos ? std::string{} : title.substr(first, last - first + 1);
-        if(title.empty() || title.size() > 80){
+        if(title.empty() || Graph::textLength(title) > Graph::kMaxTitleLength){
           _reply(res, 400, {{"succeeded", false}, {"error", "invalid_title"}});
           return;
         }

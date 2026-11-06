@@ -143,6 +143,7 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `kea-dashboard-capabilities-scoping` | [log/2026-10-02-kea-dashboard-capabilities-scoping.md](log/2026-10-02-kea-dashboard-capabilities-scoping.md) | Aurora-kea: scoping pass on Dashboard capability-driven sections (paused, no code) |
 | `kea-route-and-shared-capture-source` | [log/2026-10-03-kea-route-and-shared-capture-source.md](log/2026-10-03-kea-route-and-shared-capture-source.md) | Aurora-kea: route decision, shared capture-source scope, pending-highlight follow-up (paused, no code) |
 | `kep21-effect-picker` | [log/2026-10-30-kep21-effect-picker.md](log/2026-10-30-kep21-effect-picker.md) | Dashboard effect picker beside Video/Audio |
+| `kep210-cut-over` | [log/2026-11-05-kep210-cut-over.md](log/2026-11-05-kep210-cut-over.md) | Effect panel replaces the Video/Audio toggle on the Dashboard |
 | `kep211-inline-switch-error` | [log/2026-11-05-kep211-inline-switch-error.md](log/2026-11-05-kep211-inline-switch-error.md) | Inline effect switch errors no longer double the banner or stick |
 | `kep212-effect-switch-log` | [log/2026-11-05-kep212-effect-switch-log.md](log/2026-11-05-kep212-effect-switch-log.md) | Rejected effect switch logging |
 | `kep215-button-row-panel` | [log/2026-11-04-kep215-button-row-panel.md](log/2026-11-04-kep215-button-row-panel.md) | Effect panel moves to the button row model |
@@ -153,11 +154,13 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `kep220-failed-switch-announce` | [log/2026-11-05-kep220-failed-switch-announce.md](log/2026-11-05-kep220-failed-switch-announce.md) | Failed effect switches announce through the live region |
 | `kep221-long-press-first-tap` | [log/2026-11-05-kep221-long-press-first-tap.md](log/2026-11-05-kep221-long-press-first-tap.md) | The first tap after a touch long-press runs |
 | `kep224-cut-long-press` | [log/2026-11-05-kep224-cut-long-press.md](log/2026-11-05-kep224-cut-long-press.md) | Touch long-press cut from the effect panel |
+| `kep228-title-limit` | [log/2026-11-05-kep228-title-limit.md](log/2026-11-05-kep228-title-limit.md) | One effect title limit |
 | `kep23-effect-id-picks-mode` | [log/2026-11-03-kep23-effect-id-picks-mode.md](log/2026-11-03-kep23-effect-id-picks-mode.md) | Effect id picks the mode, both inputs kept, missing ones auto-picked |
 | `kep24-failed-effect-no-fallback` | [log/2026-11-05-kep24-failed-effect-no-fallback.md](log/2026-11-05-kep24-failed-effect-no-fallback.md) | A failed effect leaves no effect running |
 | `kep25-effect-list-layout` | [log/2026-11-03-kep25-effect-list-layout.md](log/2026-11-03-kep25-effect-list-layout.md) | Effect list data: hidden flag, custom order and a Rename route |
 | `kep26-row-menu-flows` | [log/2026-11-03-kep26-row-menu-flows.md](log/2026-11-03-kep26-row-menu-flows.md) | Row menu follow-on flows |
 | `kep27-voiceover-tree-check` | [log/2026-11-03-kep27-voiceover-tree-check.md](log/2026-11-03-kep27-voiceover-tree-check.md) | VoiceOver check of the effect panel tree |
+| `kep28-effect-panel` | [log/2026-11-05-kep28-effect-panel.md](log/2026-11-05-kep28-effect-panel.md) | Effect panel: rows, layers and switch states |
 | `kep29-wire-row-actions` | [log/2026-11-04-kep29-wire-row-actions.md](log/2026-11-04-kep29-wire-row-actions.md) | Wire the effect panel's row actions |
 | `kgv7-pickers-follow-graph` | [log/2026-10-23-kgv7-pickers-follow-graph.md](log/2026-10-23-kgv7-pickers-follow-graph.md) | Kgv7: Dashboard pickers follow the MCP graph's declared inputs (Aurora-kgv7) |
 | `lane-a-review-followups` | [log/2026-10-24-lane-a-review-followups.md](log/2026-10-24-lane-a-review-followups.md) | Lane A review follow-ups (Aurora-5ipy.28 to .34) |

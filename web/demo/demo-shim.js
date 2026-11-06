@@ -382,7 +382,7 @@ export function createRouter(store, hooks = {}) {
       if (action === 'title') {
         if (typeof body.title !== 'string') return fail('invalid_body', 400);
         const title = body.title.trim();
-        if (!title || title.length > 80) return fail('invalid_title', 400);
+        if (!title || [...title].length > 80) return fail('invalid_title', 400);
         return known ? fail('builtin_effect', 400) : fail('unknown_effect', 404);
       }
       if (action === 'hidden') {

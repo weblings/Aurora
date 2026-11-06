@@ -7,7 +7,7 @@
 import { effectTitle } from './CaptureSource.js';
 import { applyTooltip } from './Tooltips.js';
 import {
-  actionAnnouncement, buildGroups, diffEffects, flatItems, focusAfterRemoval, menuItems, positionIn,
+  actionAnnouncement, buildGroups, clipTitle, diffEffects, flatItems, focusAfterRemoval, menuItems, positionIn,
   rowItems, rowKey, runningId, startPoints, switchAnnouncement, titleClash, triggerLabel, typeAhead,
 } from './EffectPanelModel.js';
 
@@ -663,13 +663,17 @@ export class EffectPanel {
     if (!row || !effect || this._renaming) return;
     const input = el('input', 'ef-rename');
     input.type = 'text';
-    input.maxLength = 80;
     input.value = effectTitle(effect);
     input.setAttribute('aria-label', `Rename ${effectTitle(effect)}`);
     row.opt.classList.add('renaming');
     row.opt.insertBefore(input, row.more);
     this._renaming = { id, input, error: null, busy: false, ending: false };
     input.addEventListener('blur', () => this._commitRename(false));
+    // Not maxLength: it counts UTF-16 units, and the server counts characters.
+    input.addEventListener('input', (e) => {
+      const clipped = clipTitle(input.value);
+      if (!e.isComposing && clipped !== input.value) input.value = clipped;
+    });
     this._hideTip();
     input.focus();
     input.select();

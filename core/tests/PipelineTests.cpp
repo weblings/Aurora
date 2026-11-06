@@ -3528,6 +3528,19 @@ TEST_CASE("Effects routes: hide, move and rename persist and a hidden effect sti
   CHECK(json(getWithRetry(client, "/api/effects"))["effects"][3]["title"] == "Warm glow");
   CHECK(rename("a", "   ")->status == 400);
   CHECK(rename("a", std::string(81, 'x'))->status == 400);
+
+  // Any title rename accepts must still load (Aurora-kep2.28).
+  std::string longest;
+  for(int i = 0; i < 80; i++){
+    longest += "\xC3\xA9";
+  }
+  REQUIRE(rename("a", longest)->status == 200);
+  CHECK(rename("a", longest + "x")->status == 400);
+  auto reloaded = client.Put("/api/effects", R"({"activeEffectId": "a"})", "application/json");
+  REQUIRE(reloaded);
+  CHECK(reloaded->status == 200);
+  CHECK(host.summary().effect == "a");
+
   CHECK(rename("builtin.video", "Nope")->status == 400);
   CHECK(rename("nope", "Nope")->status == 404);
   CHECK(client.Put("/api/effects/a/title", "{}", "application/json")->status == 400);

@@ -2,7 +2,7 @@
 // moves and outside changes. DOM-free. Run with `node EffectPanelModel.test.mjs`.
 import assert from 'node:assert/strict';
 import {
-  EMPTY_START, actionAnnouncement, buildGroups, diffEffects, duplicateTitle, editorHref, fallbackBuiltinId, flatItems,
+  EMPTY_START, actionAnnouncement, buildGroups, clipTitle, diffEffects, duplicateTitle, editorHref, fallbackBuiltinId, flatItems,
   focusAfterRemoval, freshEffectId, menuItems, positionIn, runningId, slugify, startPoints, switchAnnouncement,
   titleClash, rowItems, rowKey, triggerLabel, typeAhead,
 } from './EffectPanelModel.js';
@@ -131,6 +131,12 @@ assert.deepEqual(keys(flatItems(groups, open, { canEdit: false })).at(-1), 'g:hi
   assert.equal(duplicateTitle('Fire', ['Fire']), 'Fire (Copy)');
   assert.equal(duplicateTitle('Fire', ['Fire', 'Fire (Copy)']), 'Fire (Copy 2)');
   assert.equal(duplicateTitle('Fire', ['fire', 'FIRE (copy)', 'Fire (Copy 2)']), 'Fire (Copy 3)', 'case-insensitive');
+  const long = 'a'.repeat(80);
+  const cut = duplicateTitle(long, [long]);
+  assert.ok(cut.length <= 80 && cut.endsWith(' (Copy)'), 'copy of an 80 char title fits');
+  assert.ok(duplicateTitle(long, [long, cut]).endsWith(' (Copy 2)') && duplicateTitle(long, [long, cut]).length <= 80);
+  assert.equal(duplicateTitle('é'.repeat(80), []), `${'é'.repeat(73)} (Copy)`, 'counts characters, not bytes');
+  assert.equal(clipTitle('😀'.repeat(81)), '😀'.repeat(80), 'a surrogate pair is one character');
   assert.equal(slugify('Fire (Copy 2)'), 'fire-copy-2');
   assert.equal(slugify('!!!'), 'effect');
   assert.equal(freshEffectId('Fire (Copy)', ['fire-copy']), 'fire-copy-2');

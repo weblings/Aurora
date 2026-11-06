@@ -2,8 +2,8 @@
 
 Id: kep29-wire-row-actions
 
-`Aurora-kep2.9`, under `Aurora-kep2`, built on the uncommitted `Aurora-kep2.8`
-panel and committed with it. Awaiting owner review, so both beads stay open.
+`Aurora-kep2.9`, under `Aurora-kep2`, built on the `Aurora-kep2.8` panel and
+committed with it in `dc66b3f`. Closed 2026-11-05 with [[kep28-effect-panel]].
 
 ## State
 
@@ -21,19 +21,20 @@ panel and committed with it. Awaiting owner review, so both beads stay open.
   760 and 390 px, the `Duplicate*` core test, editor vitest. Owner checked a
   Windows build on desktop and mobile: Duplicate and Delete work.
 
+## Close, 2026-11-05
+
+- Fake-Hue pass at 1280 and 390 covered every row action, see [[kep210-cut-over]].
+- Owner iPhone pass covered the Actions menu and Delete's guard and confirm. The
+  touch long-press was cut, see [[kep224-cut-long-press]].
+- The `role=tree` question was settled by [[kep215-button-row-panel]].
+
 ## Open
 
-- Not run on the fake-Hue stack. Touch long-press not checked on a device.
-- The demo shim has no duplicate route, so Duplicate there shows the generic
-  failure line.
-- `Aurora-kep2.7` found VoiceOver on iOS drops `role=tree` and chose the button
-  row model, but `Aurora-kep2.8` built the tree. Needs an owner decision before
-  `Aurora-kep2.10`.
+- `Aurora-kep2.23`: the demo shim has no duplicate route, so Duplicate there shows
+  the generic failure line.
+- `Aurora-kep2.25`: Duplicate fails on a title over 73 characters.
+- `Aurora-kep2.26`: a copy is not last in Custom until the order is saved.
 - A custom effect file with no `title` shows its id and has no description.
   Nothing in the panel edits a description.
-
-## Resume
-
-Owner review of kep2.8 and kep2.9, then `Aurora-kep2.10` (cut over).
 
 - Lessons: 2, in `docs/lessons/components.md`.

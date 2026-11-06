@@ -328,3 +328,6 @@ Planning docs stay clean: decisions, status, and pointers here only.
 | 2026-11-05 | Touch long-press is cut from the effect panel, the Actions button opens the row menu on touch, and holding a row selects nothing on iOS. [[kep224-cut-long-press]] | `bd show Aurora-kep2.24` |
 | 2026-11-05 | Shared focus-ring tokens and one :focus-visible rule for web/ui, `.text-input` moved onto them. [[oecx-focus-ring-tokens]] | `bd show Aurora-oecx` |
 | 2026-11-05 | A dead or dropped Hue bridge raises a banner row and reconnects by itself, never over another app's stream on a different area. Real bridge check waived. [[lt66-output-link-monitor]] | `bd show Aurora-lt66` |
+| 2026-11-05 | Effect panel with button rows, layers and switch states replaces the kep2.1 picker. [[kep28-effect-panel]] | `bd show Aurora-kep2.8` |
+| 2026-11-05 | Cut over: the Dashboard loses the Video/Audio toggle and Edit graph link, the panel is always shown, onboarding keeps its choice. [[kep210-cut-over]] | `bd show Aurora-kep2.10` |
+| 2026-11-05 | One 80 character effect title limit for the loader, rename, duplicate and client, so a long rename no longer stops an effect loading. [[kep228-title-limit]] | `bd show Aurora-kep2.28`, `bd show Aurora-kep2.25` |

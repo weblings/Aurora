@@ -1093,6 +1093,15 @@ TEST_CASE("Graph accepts optional title, description and minorVersion", "[Graph]
   CHECK(load(R"("title": ")" + std::string(kMaxTitleLength, 'x') + R"(", )").ok);
   CHECK_FALSE(load(R"("description": ")" + std::string(kMaxDescriptionLength + 1, 'x') + R"(", )").ok);
   CHECK(load(R"("title": 5, )").issues.front().code == "title_invalid");
+
+  // Limits count characters, so a multibyte title gets the same room (Aurora-kep2.28).
+  std::string accented;
+  for(std::size_t i = 0; i < kMaxTitleLength; i++){
+    accented += "\xC3\xA9";
+  }
+  CHECK(textLength(accented) == kMaxTitleLength);
+  CHECK(load(R"("title": ")" + accented + R"(", )").ok);
+  CHECK_FALSE(load(R"("title": ")" + accented + R"(x", )").ok);
 }
 
 TEST_CASE("Graph sink receives values and binds its output param", "[Graph]")
