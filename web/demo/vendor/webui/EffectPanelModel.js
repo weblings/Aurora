@@ -144,13 +144,21 @@ export function freshEffectId(title, taken) {
   for (let n = 2; ; n++) if (!used.has(`${base}-${n}`)) return `${base}-${n}`;
 }
 
-// "X (Copy)", then "X (Copy 2)", "X (Copy 3)". Compared trimmed and case-insensitive.
+// The server's title limit in code points (kMaxTitleLength). The copy suffix counts toward it.
+export const TITLE_MAX_CHARS = 80;
+
+// Cut to the limit by code point, so a surrogate pair stays whole.
+export function clipTitle(title, max = TITLE_MAX_CHARS) {
+  return [...title].slice(0, max).join('');
+}
+
+// "X (Copy)", then "X (Copy 2)". Trimmed, case-insensitive. X is cut so the whole copy fits.
 export function duplicateTitle(title, takenTitles) {
   const norm = (t) => t.trim().toLowerCase();
   const used = new Set([...takenTitles].map(norm));
-  const base = title.trim();
-  if (!used.has(norm(`${base} (Copy)`))) return `${base} (Copy)`;
-  for (let n = 2; ; n++) if (!used.has(norm(`${base} (Copy ${n})`))) return `${base} (Copy ${n})`;
+  const fit = (suffix) => clipTitle(title.trim(), TITLE_MAX_CHARS - suffix.length).trimEnd() + suffix;
+  if (!used.has(norm(fit(' (Copy)')))) return fit(' (Copy)');
+  for (let n = 2; ; n++) if (!used.has(norm(fit(` (Copy ${n})`)))) return fit(` (Copy ${n})`);
 }
 
 // The title of another effect that already shows `title` (trimmed, case-insensitive), else null.
