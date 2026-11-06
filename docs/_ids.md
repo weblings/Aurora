@@ -244,6 +244,7 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `pvxx8-dashboard-entry-shipping` | [log/2026-10-29-pvxx8-dashboard-entry-shipping.md](log/2026-10-29-pvxx8-dashboard-entry-shipping.md) | E5: Dashboard entry point and shipping the editor |
 | `pvxx9-sequence-e-gate` | [log/2026-10-29-pvxx9-sequence-e-gate.md](log/2026-10-29-pvxx9-sequence-e-gate.md) | E6: Sequence E gate on the fake-Hue stack |
 | `q9l1-tray-target-live` | [log/2026-10-07-q9l1-tray-target-live.md](log/2026-10-07-q9l1-tray-target-live.md) | Aurora-q9l1: tray click-time target — Linux live green, Windows exercised, closed |
+| `qqcn-link-monitor-real-bridge` | [log/2026-11-05-qqcn-link-monitor-real-bridge.md](log/2026-11-05-qqcn-link-monitor-real-bridge.md) | The link monitor was checked on a real bridge and its banner copy reworded |
 | `que2-input-free-build` | [log/2026-11-04-que2-input-free-build.md](log/2026-11-04-que2-input-free-build.md) | Source-less custom graphs build with no capture input |
 | `qv7a-thumbnail-regions` | [log/2026-10-29-qv7a-thumbnail-regions.md](log/2026-10-29-qv7a-thumbnail-regions.md) | Graph editor thumbnail: zones at their sampled regions |
 | `r7ff-noise-nodes` | [log/2026-10-22-r7ff-noise-nodes.md](log/2026-10-22-r7ff-noise-nodes.md) | R7ff: noise source nodes (Aurora-r7ff) |

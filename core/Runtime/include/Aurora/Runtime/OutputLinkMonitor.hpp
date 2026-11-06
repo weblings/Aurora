@@ -29,9 +29,9 @@ namespace Aurora::Runtime
   {
   public:
     static constexpr const char* kSource = "output_link";
-    static constexpr const char* kUnreachableMessage = "Can't reach your lights";
-    static constexpr const char* kStoppedMessage = "Your lights stopped streaming, reconnecting";
-    static constexpr const char* kBusyMessage = "Another app is streaming to your lights";
+    static constexpr const char* kUnreachableMessage = "Aurora can't reach your lights. Check that the Hue bridge is powered on and on your network.";
+    static constexpr const char* kStoppedMessage = "Your lights stopped streaming. Aurora is reconnecting.";
+    static constexpr const char* kBusyMessage = "Another app is streaming to your lights. Aurora will reconnect when it stops.";
     static constexpr std::chrono::seconds kMaxBackoff{60};
 
     using Clock = std::chrono::steady_clock;
