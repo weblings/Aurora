@@ -5798,6 +5798,58 @@ TEST_CASE("POST /api/v1/graph/save and /effects/:id/duplicate answer like the co
 }
 
 
+TEST_CASE("v1 effect hide, move and rename answer like the core routes (Aurora-kep2.13)", "[PublicApi][v1]")
+{
+  LightTestHarness h("v1-effect-manage");
+  const nlohmann::json graph = Graph::builtInVideoGraph({"out-a"});
+  h.putDraft("s1", graph);
+  REQUIRE(h.client->Post("/api/v1/graph/save", nlohmann::json{{"session", "s1"}, {"id", "one"}}.dump(), "application/json")->status == 200);
+  REQUIRE(h.client->Post("/api/v1/graph/save", nlohmann::json{{"session", "s1"}, {"id", "two"}}.dump(), "application/json")->status == 200);
+
+  auto put = [&](const std::string& path, const nlohmann::json& body){
+    auto result = h.client->Put(path, body.dump(), "application/json");
+    REQUIRE(result);
+    return result;
+  };
+  auto post = [&](const std::string& path, const nlohmann::json& body){
+    auto result = h.client->Post(path, body.dump(), "application/json");
+    REQUIRE(result);
+    return result;
+  };
+  auto find = [&](const std::string& id){
+    const nlohmann::json list = nlohmann::json::parse(h.client->Get("/api/v1/effects")->body);
+    for(const auto& entry : list.at("effects")){
+      if(entry.at("id") == id){ return entry; }
+    }
+    return nlohmann::json{};
+  };
+
+  auto hidden = put("/api/v1/effects/one/hidden", {{"hidden", true}});
+  CHECK(hidden->status == 200);
+  CHECK(nlohmann::json::parse(hidden->body)["hidden"] == true);
+  CHECK(find("one")["hidden"] == true);
+  CHECK(put("/api/v1/effects/one/hidden", {{"hidden", "yes"}})->status == 400);
+  CHECK(put("/api/v1/effects/nope/hidden", {{"hidden", true}})->status == 404);
+  CHECK(put("/api/v1/effects/one/hidden", {{"hidden", false}})->status == 200);
+
+  const int before = find("two")["order"].get<int>();
+  auto moved = post("/api/v1/effects/two/move", {{"direction", "up"}});
+  CHECK(moved->status == 200);
+  CHECK(nlohmann::json::parse(moved->body)["moved"] == true);
+  CHECK(find("two")["order"].get<int>() == before - 1);
+  CHECK(post("/api/v1/effects/two/move", {{"direction", "sideways"}})->status == 400);
+  CHECK(post("/api/v1/effects/nope/move", {{"direction", "up"}})->status == 404);
+
+  auto renamed = put("/api/v1/effects/one/title", {{"title", "  Calm  "}});
+  CHECK(renamed->status == 200);
+  CHECK(nlohmann::json::parse(renamed->body)["title"] == "Calm");
+  CHECK(find("one")["title"] == "Calm");
+  CHECK(put("/api/v1/effects/one/title", {{"title", ""}})->status == 400);
+  CHECK(put("/api/v1/effects/builtin.video/title", {{"title", "x"}})->status == 400);
+  CHECK(put("/api/v1/effects/nope/title", {{"title", "x"}})->status == 404);
+}
+
+
 TEST_CASE("PATCH /api/v1/state applies brightness hot and keeps a test running (Aurora-5ipy.42)", "[PublicApi][v1]")
 {
   LightTestHarness h("v1-patch-brightness");

@@ -73,6 +73,9 @@ namespace Aurora::Runtime
       {HttpMethod::Post, "/graph/apply"},
       {HttpMethod::Post, "/graph/save"},
       {HttpMethod::Post, "/effects/:id/duplicate"},
+      {HttpMethod::Put, "/effects/:id/hidden"},
+      {HttpMethod::Post, "/effects/:id/move"},
+      {HttpMethod::Put, "/effects/:id/title"},
       {HttpMethod::Get, "/pairing/status"},
       {HttpMethod::Post, "/pairing/request"},
       {HttpMethod::Get, "/pairing/request/:pollKey"}

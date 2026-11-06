@@ -333,3 +333,4 @@ Planning docs stay clean: decisions, status, and pointers here only.
 | 2026-11-05 | One 80 character effect title limit for the loader, rename, duplicate and client, so a long rename no longer stops an effect loading. [[kep228-title-limit]] | `bd show Aurora-kep2.28`, `bd show Aurora-kep2.25` |
 | 2026-11-05 | A duplicated effect is last in Custom straight away, not only after the order is saved. [[kep226-duplicate-order]] | `bd show Aurora-kep2.26` |
 | 2026-11-05 | A pick while paused shows and announces that it starts on resume. [[kep227-paused-pick]] | `bd show Aurora-kep2.27` |
+| 2026-11-05 | Hide, move and rename an effect are in /api/v1 with Apply scope, spec 1.0.0 unchanged. [[kep213-v1-effect-manage]] | `bd show Aurora-kep2.13` |

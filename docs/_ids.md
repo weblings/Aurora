@@ -146,6 +146,7 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `kep210-cut-over` | [log/2026-11-05-kep210-cut-over.md](log/2026-11-05-kep210-cut-over.md) | Effect panel replaces the Video/Audio toggle on the Dashboard |
 | `kep211-inline-switch-error` | [log/2026-11-05-kep211-inline-switch-error.md](log/2026-11-05-kep211-inline-switch-error.md) | Inline effect switch errors no longer double the banner or stick |
 | `kep212-effect-switch-log` | [log/2026-11-05-kep212-effect-switch-log.md](log/2026-11-05-kep212-effect-switch-log.md) | Rejected effect switch logging |
+| `kep213-v1-effect-manage` | [log/2026-11-05-kep213-v1-effect-manage.md](log/2026-11-05-kep213-v1-effect-manage.md) | Hide, move and rename mirrored in /api/v1 |
 | `kep215-button-row-panel` | [log/2026-11-04-kep215-button-row-panel.md](log/2026-11-04-kep215-button-row-panel.md) | Effect panel moves to the button row model |
 | `kep216-empty-start` | [log/2026-11-05-kep216-empty-start.md](log/2026-11-05-kep216-empty-start.md) | Empty graph as a Start from option |
 | `kep218-builtin-switch-states` | [log/2026-11-05-kep218-builtin-switch-states.md](log/2026-11-05-kep218-builtin-switch-states.md) | Built-in picks use the panel's switch states |
