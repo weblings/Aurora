@@ -40,6 +40,7 @@
 #include <Aurora/Runtime/ControlDescriptorTables.hpp>
 #include <Aurora/Runtime/ControlDescriptors.hpp>
 #include <Aurora/Runtime/PendingRunRequest.hpp>
+#include <Aurora/Runtime/OutputLinkMonitor.hpp>
 #include <Aurora/Runtime/Pipeline.hpp>
 #include <Aurora/Runtime/ApplyRoutes.hpp>
 #include <Aurora/Runtime/TestRoutes.hpp>
@@ -696,6 +697,11 @@ if(!instanceLock.held()){
     [&]{ return pipelineHost.status(); });
   Aurora::Runtime::HostStatus trayShown = pipelineHost.status();
 
+  // Bridge down or stream dropped (Aurora-lt66): banner row, and a rebuild
+  // by itself once the device answers again.
+  auto outputLinkMonitor = Aurora::Runtime::makeHostLinkMonitor(pipelineHost, registry, configRoot);
+  outputLinkMonitor->start();
+
   // Drives whichever Pipeline is current at the top of each iteration -- a
   // reload swapping it mid-loop is exactly what PipelineHost's own lock is
   // for; this loop never needs to know a swap happened.
@@ -720,6 +726,7 @@ if(!instanceLock.held()){
   }
 
   std::cout << "Stopping...\n";
+  outputLinkMonitor->stop();
   pipelineHost.shutdown();
 
   // httpServerThread stops and joins the WebUI in its destructor as this

@@ -290,6 +290,41 @@ namespace Aurora::Output::Hue
     }
 
 
+    StreamState streamState(
+      const std::string& entertainmentConfigurationId,
+      const std::string& username,
+      const std::string& bridgeAddress
+    )
+    {
+      HttpHeaders headers = {{"hue-application-key", username}};
+      std::string url = HttpProtocol + bridgeAddress + "/clip/v2/resource/entertainment_configuration/" + entertainmentConfigurationId;
+      auto response = sendHttpRequest(url, "GET", "", headers);
+
+      if(!response.has_value()){
+        return StreamState::Unreachable;
+      }
+
+      try{
+        const auto json = response->asJson();
+        return json.at("data").front().at("status").get<std::string>() == "active"
+          ? StreamState::Active : StreamState::Stopped;
+      }
+      catch(const nlohmann::json::exception&){
+        return StreamState::Stopped;
+      }
+    }
+
+
+    bool bridgeReachable(
+      const std::string& username,
+      const std::string& bridgeAddress
+    )
+    {
+      HttpHeaders headers = {{"hue-application-key", username}};
+      return sendHttpRequest(HttpProtocol + bridgeAddress + "/clip/v2/resource/entertainment_configuration", "GET", "", headers).has_value();
+    }
+
+
     void testPulse(
       const MembersIds& lightIds,
       const std::string& username,

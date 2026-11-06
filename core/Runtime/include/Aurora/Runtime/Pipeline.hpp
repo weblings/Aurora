@@ -276,6 +276,15 @@ namespace Aurora::Runtime
 
     bool isAudioMode() const { return m_isAudioMode; }
 
+    std::vector<Output::LinkProbe> linkProbes() const
+    {
+      std::vector<Output::LinkProbe> probes;
+      for(auto* output : m_outputPtrs){
+        if(auto probe = output->linkProbe()){ probes.push_back(std::move(probe)); }
+      }
+      return probes;
+    }
+
     PipelineCapabilities capabilities() const;
 
     PipelineSummary summary() const { return m_summary; }
@@ -464,6 +473,11 @@ namespace Aurora::Runtime
       return fn(m_pipeline ? m_pipeline->audioInput() : nullptr);
     }
 
+    // The running pipeline's output link probes (Aurora-lt66), copied under the
+    // pipeline lock so they can run after it is released. Empty when paused,
+    // failed or idle.
+    std::vector<Output::LinkProbe> linkProbes();
+
     // Applies `next` to the live pipeline when only live-tunable fields
     // changed (Aurora-c0g). Returns false -- changing nothing -- when the
     // change needs a reload or there is no pipeline yet; the caller then
@@ -560,6 +574,15 @@ namespace Aurora::Runtime
     // kNothingToPause, since the host is idle or failed, not running).
     bool setRunning(
       bool running,
+      const Registry& registry,
+      const std::filesystem::path& configRoot,
+      std::string& errorOut
+    );
+
+    // Rebuilds from the saved config to bring a dropped output back
+    // (Aurora-lt66). No-op success while paused. Blocks like reload(): call
+    // from a task, never a UI or tick thread.
+    bool reconnect(
       const Registry& registry,
       const std::filesystem::path& configRoot,
       std::string& errorOut

@@ -97,6 +97,7 @@ target_compile_features(AuroraRuntimeTests PUBLIC cxx_std_20)
 add_executable(AuroraPipelineTests
   PipelineTests.cpp
   TrayLabelTests.cpp
+  OutputLinkMonitorTests.cpp
 )
 
 target_link_libraries(AuroraPipelineTests PRIVATE

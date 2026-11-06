@@ -1617,6 +1617,25 @@ namespace Aurora::Runtime
   }
 
 
+  bool PipelineHost::reconnect(
+    const Registry& registry,
+    const std::filesystem::path& configRoot,
+    std::string& errorOut
+  )
+  {
+    if(isPaused()){ return true; }
+    return reload(registry, ConfigStore(configRoot).load(), configRoot, errorOut);
+  }
+
+
+  std::vector<Output::LinkProbe> PipelineHost::linkProbes()
+  {
+    std::lock_guard<std::mutex> lock(m_mutex);
+    if(m_paused || !m_pipeline){ return {}; }
+    return m_pipeline->linkProbes();
+  }
+
+
   bool PipelineHost::setRunning(
     bool running,
     const Registry& registry,

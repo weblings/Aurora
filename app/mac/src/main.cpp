@@ -39,6 +39,7 @@
 #include <Aurora/Runtime/ControlDescriptorTables.hpp>
 #include <Aurora/Runtime/ControlDescriptors.hpp>
 #include <Aurora/Runtime/PendingRunRequest.hpp>
+#include <Aurora/Runtime/OutputLinkMonitor.hpp>
 #include <Aurora/Runtime/Pipeline.hpp>
 #include <Aurora/Runtime/ApplyRoutes.hpp>
 #include <Aurora/Runtime/TestRoutes.hpp>
@@ -598,6 +599,11 @@ try
     [&](const std::string& source){ pipelineHost.clearCondition(source); }
   );
 
+  // Bridge down or stream dropped (Aurora-lt66): banner row, and a rebuild
+  // by itself once the device answers again.
+  auto outputLinkMonitor = Aurora::Runtime::makeHostLinkMonitor(pipelineHost, registry, configRoot);
+  outputLinkMonitor->start();
+
   std::exception_ptr tickError;
   std::thread tickThread([&]{
     try{
@@ -639,6 +645,7 @@ try
   std::cout << "Stopping...\n";
   tickThread.join();
   if(tickError){ std::rethrow_exception(tickError); }
+  outputLinkMonitor->stop();
   pipelineHost.shutdown();
 
   // httpServerThread stops and joins the WebUI in its destructor as this

@@ -89,6 +89,22 @@ namespace Aurora::Output::Hue
       const std::string& bridgeAddress
     );
 
+    // Unreachable is no HTTP answer at all (streamingActive folds it into
+    // false); Stopped is an answer saying the configuration is not active.
+    enum class StreamState { Unreachable, Stopped, Active };
+
+    StreamState streamState(
+      const std::string& entertainmentConfigurationId,
+      const std::string& username,
+      const std::string& bridgeAddress
+    );
+
+    // True when the bridge answers a REST GET, whatever it says.
+    bool bridgeReachable(
+      const std::string& username,
+      const std::string& bridgeAddress
+    );
+
     // One-shot REST visual check, not the entertainment/DTLS streaming path
     // HueOutput/Streamer use: GETs each light's current state, PUTs it to
     // magenta briefly, then PUTs it back -- lets a user see which physical
