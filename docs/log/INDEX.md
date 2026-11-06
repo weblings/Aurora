@@ -325,3 +325,5 @@ Planning docs stay clean: decisions, status, and pointers here only.
 | 2026-11-05 | The first tap after a touch long-press runs, with or without a click on release. [[kep221-long-press-first-tap]] | `bd show Aurora-kep2.21` |
 | 2026-11-05 | A failed effect switch or startup leaves no effect running, with a banner row naming the effect; the built-in fallback is gone. [[kep24-failed-effect-no-fallback]] | `bd show Aurora-kep2.4` |
 | 2026-11-05 | The inline effect switch error clears on a failed host or another client's switch, so it never doubles the banner or sticks. [[kep211-inline-switch-error]] | `bd show Aurora-kep2.11` |
+| 2026-11-05 | Touch long-press is cut from the effect panel, the Actions button opens the row menu on touch, and holding a row selects nothing on iOS. [[kep224-cut-long-press]] | `bd show Aurora-kep2.24` |
+| 2026-11-05 | Shared focus-ring tokens and one :focus-visible rule for web/ui, `.text-input` moved onto them. [[oecx-focus-ring-tokens]] | `bd show Aurora-oecx` |

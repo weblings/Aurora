@@ -443,3 +443,11 @@ Applies-when: a destructive confirm opens in the same spot as the control that o
 The design for the Delete confirm (Aurora-kep2.6) acted only on a press whose `pointerdown` landed on the confirm. A real double tap defeats that, since the second tap's `pointerdown` lands on the freshly opened confirm and deletes. Keyboard activation has `click.detail === 0` and no pointer press.
 
 **Fix:** also ignore pointer presses for 400 ms after the confirm opens. The browser check clicks Delete at once (nothing happens), waits 450 ms and clicks again (deletes).
+
+## iOS Safari ignores unprefixed `user-select`
+Tags: webui, touch, ios, css
+Applies-when: text in a control must not be selectable on an iPhone
+
+In Aurora-kep2.24, rows set `user-select: none` and `-webkit-touch-callout: none`, and passed in headless Chromium, but holding a row on an iPhone still selected its text.
+
+**Fix:** add `-webkit-user-select: none` beside the unprefixed property. Chromium cannot show this, so check it on a device.

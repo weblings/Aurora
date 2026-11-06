@@ -85,6 +85,10 @@ try {
 
     // Open: focus lands on the running row, the rows have one tab stop, Hidden starts collapsed.
     await page.focus('.dropdown-trigger')
+    await key('Tab'); await key('Shift+Tab') // keyboard modality, so :focus-visible matches
+    // The shared ring (Aurora-oecx): the trigger shows the token ring, outside its box.
+    const ring = await page.evaluate(() => { const c = getComputedStyle(document.activeElement); return [c.outlineWidth, c.outlineStyle, c.outlineColor, c.outlineOffset] })
+    assert.deepEqual(ring, ['2px', 'solid', 'rgb(218, 218, 218)', '2px'], 'trigger focus ring')
     await key('Enter')
     assert.equal(await page.isVisible('.ef-panel'), true)
     assert.equal(await focused(), 'r:fire')
@@ -350,19 +354,15 @@ try {
     assert.equal(await page.evaluate(() => window.newFrom), 'empty')
     await page.focus('.dropdown-trigger'); await key('Enter')
 
-    // Touch long-press opens the row menu. With no click on release, the next tap still runs an item.
+    // A touch tap on Actions opens the menu with the description, and rows never select text.
+    assert.equal(await page.evaluate(() => getComputedStyle(document.querySelector('.ef-pick')).webkitUserSelect), 'none')
     await page.evaluate(() => {
-      const row = document.querySelector('[data-key="r:candle"]')
-      const r = row.getBoundingClientRect()
-      const init = { pointerType: 'touch', pointerId: 7, isPrimary: true, bubbles: true, clientX: r.x + 10, clientY: r.y + 10 }
-      row.dispatchEvent(new PointerEvent('pointerdown', init))
-      window.pressUp = () => row.dispatchEvent(new PointerEvent('pointerup', init))
+      const more = document.querySelector('[data-key="m:builtin.video"]')
+      more.dispatchEvent(new PointerEvent('pointerdown', { pointerType: 'touch', bubbles: true }))
+      more.dispatchEvent(new MouseEvent('click', { bubbles: true, detail: 1 }))
     })
-    await page.waitForSelector('.ef-menu [role=menuitem]')
-    await page.evaluate(() => window.pressUp())
-    const before = (await page.evaluate(() => window.actions)).length
-    await page.locator('.ef-menu [role=menuitem]', { hasText: 'Duplicate' }).click()
-    assert.deepEqual((await page.evaluate(() => window.actions)).slice(before), ['Duplicate:candle'], 'first tap after a long-press runs')
+    await page.waitForSelector('.ef-menu .ef-menu-desc')
+    await key('Escape')
 
     // Layout: the panel stays inside the viewport and the page does not scroll sideways.
     const box = await page.locator('.ef-panel').boundingBox()

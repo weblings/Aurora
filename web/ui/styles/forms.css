@@ -39,11 +39,6 @@
   background: var(--aurora-button-dark-hover);
 }
 
-.text-input:focus {
-  outline: 2px solid var(--aurora-accent);
-  outline-offset: 1px;
-}
-
 .btn {
   display: inline-flex;
   align-items: center;
@@ -159,7 +154,7 @@
    fill -- the running option stays filled until the pipeline confirms the
    switch. Inset (not outer) so the stroke never shifts layout or bleeds
    into the gap between the two buttons. */
-.segmented-btn.pending { outline: 2px solid var(--aurora-button-light); outline-offset: -2px; }
+.segmented-btn.pending { outline: var(--aurora-focus-ring-width) solid var(--aurora-focus-ring); outline-offset: calc(-1 * var(--aurora-focus-ring-width)); }
 .segmented-btn:disabled { cursor: wait; }
 
 /* Section heading + divider -- ported from RockyRoadImport/SongConverter's

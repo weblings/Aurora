@@ -152,6 +152,7 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `kep22-effect-panel-mocks` | [log/2026-11-03-kep22-effect-panel-mocks.md](log/2026-11-03-kep22-effect-panel-mocks.md) | Effect panel static mocks |
 | `kep220-failed-switch-announce` | [log/2026-11-05-kep220-failed-switch-announce.md](log/2026-11-05-kep220-failed-switch-announce.md) | Failed effect switches announce through the live region |
 | `kep221-long-press-first-tap` | [log/2026-11-05-kep221-long-press-first-tap.md](log/2026-11-05-kep221-long-press-first-tap.md) | The first tap after a touch long-press runs |
+| `kep224-cut-long-press` | [log/2026-11-05-kep224-cut-long-press.md](log/2026-11-05-kep224-cut-long-press.md) | Touch long-press cut from the effect panel |
 | `kep23-effect-id-picks-mode` | [log/2026-11-03-kep23-effect-id-picks-mode.md](log/2026-11-03-kep23-effect-id-picks-mode.md) | Effect id picks the mode, both inputs kept, missing ones auto-picked |
 | `kep24-failed-effect-no-fallback` | [log/2026-11-05-kep24-failed-effect-no-fallback.md](log/2026-11-05-kep24-failed-effect-no-fallback.md) | A failed effect leaves no effect running |
 | `kep25-effect-list-layout` | [log/2026-11-03-kep25-effect-list-layout.md](log/2026-11-03-kep25-effect-list-layout.md) | Effect list data: hidden flag, custom order and a Rename route |
@@ -213,6 +214,7 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `nodes-agent-ux-planning` | [log/2026-10-13-nodes-agent-ux-planning.md](log/2026-10-13-nodes-agent-ux-planning.md) | Nodes and agent UX: planning session, Sequence A filed |
 | `o13-dual-capture` | [log/2026-10-11-o13-dual-capture.md](log/2026-10-11-o13-dual-capture.md) | Aurora-o13: video and audio capture at the same time (Linux, Mac, Windows capture run) |
 | `o1qt-local-network-probe` | [log/2026-10-08-o1qt-local-network-probe.md](log/2026-10-08-o1qt-local-network-probe.md) | Aurora-o1qt: Mac Local Network permission detection (closed) |
+| `oecx-focus-ring-tokens` | [log/2026-11-05-oecx-focus-ring-tokens.md](log/2026-11-05-oecx-focus-ring-tokens.md) | Shared focus-ring tokens |
 | `open-formats-research` | [archive/OpenFormatsResearch.md](archive/OpenFormatsResearch.md) | Existing open formats for video/audio-reactive lighting |
 | `p91-portal-settle` | [log/2026-10-03-p91-portal-settle.md](log/2026-10-03-p91-portal-settle.md) | Aurora-p91: portal denial and call errors settle the fd promise |
 | `pause-tooltips` | [log/2026-10-04-pause-tooltips.md](log/2026-10-04-pause-tooltips.md) | Aurora-5ipy.13.1: Pause/Stop button tooltips (closed) |

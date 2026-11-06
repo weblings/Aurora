@@ -14,8 +14,6 @@ import {
 const CHEVRON_URL = new URL('./icons/chevron-down.svg', import.meta.url).href;
 const STORE_KEY = 'aurora.effectPanel.expanded';
 const DEFAULT_EXPANDED = ['builtin', 'custom'];
-const LONG_PRESS_MS = 500;
-const LONG_PRESS_SLOP = 10;
 const CONFIRM_ARM_MS = 400;
 
 let _nextId = 0;
@@ -125,9 +123,6 @@ export class EffectPanel {
     this.panel.addEventListener('focusin', (e) => this._onFocusIn(e));
     this.panel.addEventListener('focusout', (e) => this._onFocusOut(e));
     this.panel.addEventListener('pointerdown', (e) => this._onPointerDown(e));
-    this.panel.addEventListener('pointermove', (e) => this._onPointerMove(e));
-    this.panel.addEventListener('pointerup', () => this._cancelPress());
-    this.panel.addEventListener('pointercancel', () => this._cancelPress());
     this.panel.addEventListener('contextmenu', (e) => { if (e.target.closest('.ef-opt')) e.preventDefault(); });
     this.scroll.addEventListener('scroll', () => this._onScroll());
     this._onDocClick = (e) => {
@@ -747,36 +742,14 @@ export class EffectPanel {
     menu.querySelector('[role="menuitem"]').focus();
   }
 
-  // Long-press on touch is an alias for the ellipsis, Right and Shift+F10.
   _onPointerDown(e) {
     this._pointerType = e.pointerType;
-    // A long-press only swallows the click from its own release, not a later tap.
-    this._longPressed = false;
     this._confirmArmed = !!e.target.closest('.ef-confirm-yes');
-    const opt = e.target.closest('.ef-pick');
-    if (e.pointerType !== 'touch' || !opt) return;
-    this._press = { x: e.clientX, y: e.clientY, id: opt.closest('.ef-opt').dataset.id };
-    this._pressTimer = setTimeout(() => {
-      const { id } = this._press ?? {};
-      this._press = null;
-      this._longPressed = true;
-      if (id) this._openMenu(id, { pointer: true });
-    }, LONG_PRESS_MS);
-  }
-
-  _onPointerMove(e) {
-    if (this._press && Math.hypot(e.clientX - this._press.x, e.clientY - this._press.y) > LONG_PRESS_SLOP) this._cancelPress();
-  }
-
-  _cancelPress() {
-    clearTimeout(this._pressTimer);
-    this._press = null;
   }
 
   // --- input -----------------------------------------------------------------------------
 
   _onClick(e) {
-    if (this._longPressed) { this._longPressed = false; return; }
     const confirmButton = e.target.closest('.ef-confirm button');
     if (confirmButton) { this._onConfirmClick(confirmButton, e); return; }
     const item = e.target.closest('.ef-menu [role="menuitem"]');

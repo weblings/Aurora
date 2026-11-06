@@ -73,4 +73,27 @@
 
   /* --- Type --- */
   --aurora-font: 'Inter', system-ui, sans-serif;
+
+  /* --- Focus ring (one ring for every control) --- */
+  --aurora-focus-ring-width: 2px;
+  --aurora-focus-ring-offset: 2px;
+  --aurora-focus-ring: var(--aurora-button-light);
+
+  /* --- Elevation: floating surfaces (effect panel, row menu, tooltip) --- */
+  --aurora-shadow-popup: 0 4px 16px rgba(0, 0, 0, 0.5);
+}
+
+/* The one keyboard focus rule. Rows, headers and menu items inside a clipping container
+   switch to the inset ring below, since an outer ring would be cut off. */
+:focus-visible {
+  outline: var(--aurora-focus-ring-width) solid var(--aurora-focus-ring);
+  outline-offset: var(--aurora-focus-ring-offset);
+}
+.segmented-btn:focus-visible,
+.dropdown-option:focus-visible {
+  outline-offset: calc(-1 * var(--aurora-focus-ring-width));
+}
+/* The listbox is never the focus target's visible state: the active option is (dropdown.css). */
+.dropdown-menu:focus-visible {
+  outline: none;
 }

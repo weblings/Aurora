@@ -285,10 +285,10 @@ Cutting a word fixed the Local Network banner at one width and not another: the 
 
 ---
 
-## Aurora's stylesheets define no focus ring, so new controls need shared ring tokens or they look inconsistent beside the browser default
+## Focus rings come from shared tokens and one :focus-visible rule in tokens.css, so new controls need no ring CSS of their own
 Tags: webui, css, focus, a11y, tokens
 Applies-when: styling keyboard focus on a new control inside a page that links the real `web/ui/styles`
 
-`tokens.css` has no focus tokens and the stylesheets set none apart from `.text-input` (2px `--aurora-accent`, 1px offset) and `.dropdown-menu` (`outline: none`). Every other button therefore shows the browser's `auto` ring: white with a dark inner edge, drawn outside the control. In Aurora-kep2.2's frames a mock-local 2px grey inset ring on rows and headers sat next to that default on the trigger, New effect and accordion headers, and the three looked unrelated. RockyRoadImport avoids this with `--size-focus-ring-width`, `--size-focus-ring-offset` and `--color-focus-ring` (its light button color), applied to every control. Its own migration notes record that `outline: none` on focus fails WCAG 2.4.7.
+`tokens.css` (Aurora-oecx) defines `--aurora-focus-ring-width`, `-offset` and `--aurora-focus-ring` (the light button color) and one `:focus-visible` rule, an outer ring. Before it, only `.text-input` had a ring and everything else showed the browser `auto` ring, so new controls looked unrelated beside it. RockyRoadImport's own notes record that `outline: none` on focus fails WCAG 2.4.7.
 
-**Fix:** define the three tokens and one `:focus-visible` rule for all controls. Inset the ring (`outline-offset: calc(-1 * width)`) on anything inside a clipping container: list rows, group headers, a panel footer, menu items. Put the ring on the row wrapper via `:has()` when the focusable control is the row's inner element. Mock-local today (`web/ui/Static_kep2_Mocks/mock.css`), proposed for `tokens.css` as its own change.
+**Fix:** add no per-control ring. Inset it (`outline-offset: calc(-1 * width)`) on anything inside a clipping container (list rows, group headers, menu items, `.segmented-btn`, `.dropdown-option`), and put it on the row wrapper via `:has()` when the focusable control is the row's inner element. `.dropdown-menu` keeps `outline: none` because its active option is the indicator. `.text-input` moved from the accent ring to the shared one.
