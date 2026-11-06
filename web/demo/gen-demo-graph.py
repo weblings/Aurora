@@ -189,7 +189,7 @@ def main():
 // rerun `python3 web/demo/gen-demo-graph.py` after a controls or node-param
 // change in C++. Serves the demo's GET /api/graph and GET /api/nodes.
 
-import { modeFromConfig } from './vendor/webui/CaptureSource.js';
+import {{ modeFromConfig }} from './vendor/webui/CaptureSource.js';
 
 const GRAPHS = {dump(graphs)};
 
