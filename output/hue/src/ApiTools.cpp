@@ -285,8 +285,22 @@ namespace Aurora::Output::Hue
         return false;
       }
 
-      std::string status = response->asJson().at("data").front().at("status").get<std::string>();
-      return status == "active";
+      // A 404 for a deleted area can answer with an empty data array.
+      const auto json = response->asJson();
+      const auto& data = json.at("data");
+      return !data.empty() && data.front().at("status").get<std::string>() == "active";
+    }
+
+
+    StreamState parseStreamState(const nlohmann::json& jsonEntConfs, const std::string& entertainmentConfigurationId)
+    {
+      bool otherActive = false;
+      for(const auto& jsonEntConf : jsonEntConfs.at("data")){
+        if(jsonEntConf.value("status", "") != "active"){ continue; }
+        if(jsonEntConf.value("id", "") == entertainmentConfigurationId){ return StreamState::Active; }
+        otherActive = true;
+      }
+      return otherActive ? StreamState::OtherActive : StreamState::Stopped;
     }
 
 
@@ -297,7 +311,7 @@ namespace Aurora::Output::Hue
     )
     {
       HttpHeaders headers = {{"hue-application-key", username}};
-      std::string url = HttpProtocol + bridgeAddress + "/clip/v2/resource/entertainment_configuration/" + entertainmentConfigurationId;
+      std::string url = HttpProtocol + bridgeAddress + "/clip/v2/resource/entertainment_configuration";
       auto response = sendHttpRequest(url, "GET", "", headers);
 
       if(!response.has_value()){
@@ -305,23 +319,11 @@ namespace Aurora::Output::Hue
       }
 
       try{
-        const auto json = response->asJson();
-        return json.at("data").front().at("status").get<std::string>() == "active"
-          ? StreamState::Active : StreamState::Stopped;
+        return parseStreamState(response->asJson(), entertainmentConfigurationId);
       }
       catch(const nlohmann::json::exception&){
         return StreamState::Stopped;
       }
-    }
-
-
-    bool bridgeReachable(
-      const std::string& username,
-      const std::string& bridgeAddress
-    )
-    {
-      HttpHeaders headers = {{"hue-application-key", username}};
-      return sendHttpRequest(HttpProtocol + bridgeAddress + "/clip/v2/resource/entertainment_configuration", "GET", "", headers).has_value();
     }
 
 

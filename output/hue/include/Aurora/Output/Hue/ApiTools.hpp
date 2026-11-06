@@ -90,17 +90,16 @@ namespace Aurora::Output::Hue
     );
 
     // Unreachable is no HTTP answer at all (streamingActive folds it into
-    // false); Stopped is an answer saying the configuration is not active.
-    enum class StreamState { Unreachable, Stopped, Active };
+    // false). Stopped is an answer with nothing active. OtherActive is a
+    // different configuration streaming: a bridge streams one at a time.
+    enum class StreamState { Unreachable, Stopped, Active, OtherActive };
+
+    // Reads an entertainment_configuration list. An id that is empty or not
+    // listed (never selected, or deleted) is simply not Active.
+    StreamState parseStreamState(const nlohmann::json& jsonEntConfs, const std::string& entertainmentConfigurationId);
 
     StreamState streamState(
       const std::string& entertainmentConfigurationId,
-      const std::string& username,
-      const std::string& bridgeAddress
-    );
-
-    // True when the bridge answers a REST GET, whatever it says.
-    bool bridgeReachable(
       const std::string& username,
       const std::string& bridgeAddress
     );

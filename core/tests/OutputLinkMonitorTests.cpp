@@ -93,6 +93,50 @@ TEST_CASE("a paused host or no probes never reconnects and clears the row", "[ou
   CHECK(rig.calls.size() == 2);
 }
 
+TEST_CASE("another app streaming raises a row and never reconnects", "[outputlink]")
+{
+  Rig rig;
+  rig.state = LinkState::Busy;
+  rig.tick();
+  rig.tick();
+  rig.tick();
+  CHECK(rig.calls == std::vector<std::string>{std::string("set ") + OutputLinkMonitor::kBusyMessage});
+
+  // The other app let go: come back at once.
+  rig.state = LinkState::Stopped;
+  rig.tick();
+  CHECK(rig.calls.back() == "reconnect");
+}
+
+TEST_CASE("a stream that stays stopped retries with a growing wait, capped", "[outputlink]")
+{
+  Rig rig;
+  rig.state = LinkState::Unreachable;
+  rig.tick();
+  rig.state = LinkState::Stopped;
+
+  std::vector<int> attemptTicks;
+  for(int i = 0; i < 100; ++i){
+    const size_t before = rig.calls.size();
+    rig.tick();
+    if(rig.calls.size() > before && rig.calls.back() == "reconnect"){ attemptTicks.push_back(i); }
+  }
+  // 2s ticks, waits of 1, 2, 4, 8, 16, 32, then 60s.
+  CHECK(attemptTicks == std::vector<int>{0, 1, 2, 4, 8, 16, 32, 62, 92});
+
+  // Streaming again resets the wait: two attempts on back-to-back ticks.
+  rig.state = LinkState::Ok;
+  rig.tick();
+  rig.state = LinkState::Unreachable;
+  rig.tick();
+  rig.state = LinkState::Stopped;
+  rig.tick();
+  const size_t count = rig.calls.size();
+  CHECK(rig.calls.back() == "reconnect");
+  rig.tick();
+  CHECK(rig.calls.size() == count + 1);
+}
+
 TEST_CASE("polls inside the interval are skipped", "[outputlink]")
 {
   Rig rig;

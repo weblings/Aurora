@@ -19,17 +19,20 @@
 namespace Aurora::Runtime
 {
   // Watches the device behind each output (Aurora-lt66) and keeps one host
-  // condition in step: set while a probe says Unreachable or Stopped, cleared
-  // when all are Ok or there is nothing to probe (paused, idle). A Stopped
-  // output that was not Ok on the previous poll is reconnected by itself, so
-  // a first Stopped only raises the row. Probes block, so poll() belongs on
-  // its own thread (see start()), never the tick loop.
+  // condition in step: set while a probe says Busy, Unreachable or Stopped,
+  // cleared when all are Ok or there is nothing to probe (paused, idle). A
+  // Stopped output that was not Ok on the previous poll is reconnected by
+  // itself, so a first Stopped only raises the row. Repeat attempts back off.
+  // Probes block, so poll() belongs on its own thread (see start()), never the
+  // tick loop.
   class OutputLinkMonitor
   {
   public:
     static constexpr const char* kSource = "output_link";
     static constexpr const char* kUnreachableMessage = "Can't reach your lights";
     static constexpr const char* kStoppedMessage = "Your lights stopped streaming, reconnecting";
+    static constexpr const char* kBusyMessage = "Another app is streaming to your lights";
+    static constexpr std::chrono::seconds kMaxBackoff{60};
 
     using Clock = std::chrono::steady_clock;
     using Probes = std::function<std::vector<Output::LinkProbe>()>;
@@ -64,15 +67,22 @@ namespace Aurora::Runtime
 
       const Output::LinkState previous = m_last;
       m_last = worst;
+      if(worst != Output::LinkState::Stopped){ m_attempts = 0; m_nextReconnect = {}; }
 
       if(worst == Output::LinkState::Ok){
         if(m_message != nullptr){ m_clear(kSource); m_message = nullptr; }
         return;
       }
-      const char* message = worst == Output::LinkState::Unreachable ? kUnreachableMessage : kStoppedMessage;
+      const char* message = worst == Output::LinkState::Busy ? kBusyMessage
+        : worst == Output::LinkState::Unreachable ? kUnreachableMessage : kStoppedMessage;
       if(message != m_message){ m_set(kSource, message); m_message = message; }
 
-      if(worst == Output::LinkState::Stopped && previous != Output::LinkState::Ok){ m_reconnect(); }
+      if(worst == Output::LinkState::Stopped && previous != Output::LinkState::Ok && now >= m_nextReconnect){
+        m_reconnect();
+        // A deleted area or a refused start stays Stopped, so each retry waits twice as long.
+        m_nextReconnect = now + std::min<Clock::duration>(m_interval * (1 << m_attempts), kMaxBackoff);
+        m_attempts = std::min(m_attempts + 1, 16);
+      }
     }
 
     void start()
@@ -110,6 +120,8 @@ namespace Aurora::Runtime
     Clock::time_point m_lastCheck{};
     bool m_checked{false};
     Output::LinkState m_last{Output::LinkState::Ok};
+    Clock::time_point m_nextReconnect{};
+    int m_attempts{0};
     const char* m_message{nullptr};
 
     std::mutex m_threadMutex;

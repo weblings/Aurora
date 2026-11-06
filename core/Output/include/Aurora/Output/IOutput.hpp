@@ -13,8 +13,9 @@
 namespace Aurora::Output
 {
   // Whether the device behind an output answers and still streams (Aurora-lt66).
-  // Stopped means reachable but not streaming, so a reconnect makes sense.
-  enum class LinkState { Ok, Unreachable, Stopped };
+  // Stopped means reachable but not streaming, so a reconnect makes sense. Busy
+  // means another app holds the device, so it must not. Ordered least to most urgent.
+  enum class LinkState { Ok, Busy, Unreachable, Stopped };
 
   // Self-contained and thread-safe: owns copies of what it needs, so a monitor
   // thread can call it (blocking) after the output itself is gone. Empty when

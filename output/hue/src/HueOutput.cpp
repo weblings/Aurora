@@ -77,16 +77,14 @@ namespace Aurora::Output::Hue
 
   Output::LinkProbe HueOutput::linkProbe() const
   {
-    // Active also covers another app (Hue Sync) owning the stream: never reconnect over it.
+    // Active also covers another app (Hue Sync) on our own area: the status does not say whose it is.
+    // With no selection (built while the bridge was down) configId is empty, which matches no area.
     const std::string configId = m_selector ? m_selector->currentEntertainmentConfigurationId().value_or("") : "";
     return [username = m_credentials.username(), address = m_bridgeAddress, configId]{
-      if(configId.empty()){
-        // Built while the bridge was down: no selection was made.
-        return ApiTools::bridgeReachable(username, address) ? Output::LinkState::Stopped : Output::LinkState::Unreachable;
-      }
       switch(ApiTools::streamState(configId, username, address)){
         case ApiTools::StreamState::Unreachable: return Output::LinkState::Unreachable;
         case ApiTools::StreamState::Stopped: return Output::LinkState::Stopped;
+        case ApiTools::StreamState::OtherActive: return Output::LinkState::Busy;
         case ApiTools::StreamState::Active: break;
       }
       return Output::LinkState::Ok;
