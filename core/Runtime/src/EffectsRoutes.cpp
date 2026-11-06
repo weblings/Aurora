@@ -154,6 +154,20 @@ namespace Aurora::Runtime
   }
 
 
+  void logEffectFault(PipelineHost& pipelineHost, const char* route, int status, const nlohmann::json& body, const std::string& id)
+  {
+    const std::string code = body.is_object() ? body.value("error", std::string()) : std::string();
+    if(status < 500 && code != "unreadable_effect"){ return; }
+    // Dumped as JSON so a client's newline or escape cannot forge a log line.
+    std::string line = std::string("Effect route fault: ") + route + " " + std::to_string(status) + " " + code
+      + " " + nlohmann::json(id).dump();
+    if(body.is_object() && body.contains("message") && body.at("message").is_string()){
+      line += " " + body.at("message").dump();
+    }
+    pipelineHost.log(LogLevel::Error, line);
+  }
+
+
   void addEffectsAccessRules(AccessGuard& guard)
   {
     guard.addWriteRule("/api/effects", Scope::Apply);
@@ -187,9 +201,11 @@ namespace Aurora::Runtime
     server.addRoute(
       HttpMethod::Get,
       "/api/effects/:id",
-      [&registry, configRoot](const Request& req, Response& res){
+      [&pipelineHost, &registry, configRoot](const Request& req, Response& res){
         nlohmann::json body;
-        const int status = effectDocumentToJson(registry, configRoot, req.pathParams.at("id"), body);
+        const std::string& id = req.pathParams.at("id");
+        const int status = effectDocumentToJson(registry, configRoot, id, body);
+        logEffectFault(pipelineHost, "GET /api/effects/:id", status, body, id);
         _reply(res, status, body);
       }
     );
@@ -238,7 +254,7 @@ namespace Aurora::Runtime
     server.addRoute(
       HttpMethod::Post,
       "/api/effects/:id/duplicate",
-      [&registry, configRoot](const Request& req, Response& res){
+      [&pipelineHost, &registry, configRoot](const Request& req, Response& res){
         std::string copyId;
         std::string copyTitle;
         try{
@@ -270,6 +286,7 @@ namespace Aurora::Runtime
         nlohmann::json source;
         const int status = effectDocumentToJson(registry, configRoot, sourceId, source);
         if(status != 200){
+          logEffectFault(pipelineHost, "POST /api/effects/:id/duplicate", status, source, sourceId);
           source["succeeded"] = false;
           _reply(res, status, source);
           return;
@@ -281,6 +298,8 @@ namespace Aurora::Runtime
         }
         std::string writeError;
         if(!store.write(copyId, graph, writeError)){
+          const nlohmann::json fault{{"error", "write_failed"}, {"message", writeError}};
+          logEffectFault(pipelineHost, "POST /api/effects/:id/duplicate", 500, fault, copyId);
           _reply(res, 500, {{"succeeded", false}, {"error", "write_failed"}, {"message", writeError}});
           return;
         }
@@ -375,7 +394,7 @@ namespace Aurora::Runtime
     server.addRoute(
       HttpMethod::Put,
       "/api/effects/:id/title",
-      [configRoot](const Request& req, Response& res){
+      [&pipelineHost, configRoot](const Request& req, Response& res){
         std::string title;
         try{
           title = nlohmann::json::parse(req.body).at("title").get<std::string>();
@@ -404,11 +423,13 @@ namespace Aurora::Runtime
         std::string error;
         auto doc = store.read(id, error);
         if(!doc || !doc->is_object()){
+          logEffectFault(pipelineHost, "PUT /api/effects/:id/title", 422, {{"error", "unreadable_effect"}, {"message", error}}, id);
           _reply(res, 422, {{"succeeded", false}, {"error", "unreadable_effect"}, {"message", error}});
           return;
         }
         (*doc)["title"] = title;
         if(!store.write(id, *doc, error)){
+          logEffectFault(pipelineHost, "PUT /api/effects/:id/title", 500, {{"error", "write_failed"}, {"message", error}}, id);
           _reply(res, 500, {{"succeeded", false}, {"error", "write_failed"}, {"message", error}});
           return;
         }

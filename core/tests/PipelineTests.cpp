@@ -3370,6 +3370,16 @@ TEST_CASE("Effects routes list, read, switch and delete (Aurora-52oz.1)", "[Effe
   CHECK(builtIn["graph"]["nodes"].is_array());
   CHECK(getWithRetry(client, "/api/effects/nope")->status == 404);
   CHECK(getWithRetry(client, "/api/effects/broken")->status == 422);
+  // A server fault reaches the log, a client-mistake 404 does not.
+  const auto faultLines = [&log](const std::string& needle){
+    int count = 0;
+    for(const auto& [level, text] : log.lines){
+      if(level == LogLevel::Error && text.rfind("Effect route fault: " + needle, 0) == 0){ ++count; }
+    }
+    return count;
+  };
+  CHECK(faultLines(R"(GET /api/effects/:id 422 unreadable_effect "broken")") == 1);
+  CHECK(faultLines("GET /api/effects/:id 404") == 0);
 
   // Switch to the custom and back.
   auto put = [&](const std::string& body){ return client.Put("/api/effects", body, "application/json"); };

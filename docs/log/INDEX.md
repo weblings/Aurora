@@ -334,3 +334,4 @@ Planning docs stay clean: decisions, status, and pointers here only.
 | 2026-11-05 | A duplicated effect is last in Custom straight away, not only after the order is saved. [[kep226-duplicate-order]] | `bd show Aurora-kep2.26` |
 | 2026-11-05 | A pick while paused shows and announces that it starts on resume. [[kep227-paused-pick]] | `bd show Aurora-kep2.27` |
 | 2026-11-05 | Hide, move and rename an effect are in /api/v1 with Apply scope, spec 1.0.0 unchanged. [[kep213-v1-effect-manage]] | `bd show Aurora-kep2.13` |
+| 2026-11-05 | 5xx and 422 unreadable_effect from the effect, params, apply and save routes log on every platform; PUT /api/config reviewed, no log. [[kep217-effect-fault-log]] | `bd show Aurora-kep2.17` |

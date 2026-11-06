@@ -142,6 +142,7 @@ namespace Aurora::Runtime
       _writeJson(res, _toJson(config));
     });
 
+    // Its 400s are client mistakes and activeEffectId is not checked here, so no fault log (Aurora-kep2.17).
     // Writes are atomic via ConfigStore::update(); reloads go through the
     // host's shared coalescer, so concurrent writers cost one in-flight plus one pending.
     server.addRoute(HttpMethod::Put, "/api/config", [configRoot, coalescer, onEffectChosen](const Request& req, Response& res){

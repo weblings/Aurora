@@ -318,9 +318,11 @@ namespace Aurora::Runtime
     server.addRoute(
       HttpMethod::Get,
       "/api/v1/effects/:id",
-      [&registry, configRoot](const Request& req, Response& res){
+      [&pipelineHost, &registry, configRoot](const Request& req, Response& res){
         nlohmann::json body;
-        const int status = effectDocumentToJson(registry, configRoot, req.pathParams.at("id"), body);
+        const std::string& id = req.pathParams.at("id");
+        const int status = effectDocumentToJson(registry, configRoot, id, body);
+        logEffectFault(pipelineHost, "GET /api/v1/effects/:id", status, body, id);
         _reply(res, status, body);
       }
     );

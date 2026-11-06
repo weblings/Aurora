@@ -27,6 +27,10 @@ namespace Aurora::Runtime
     nlohmann::json& body
   );
 
+  // Logs a server fault (any 5xx, or 422 unreadable_effect) from an effect route through
+  // PipelineHost::log. Client-mistake 4xx stay unlogged. `id` is escaped before it is logged.
+  void logEffectFault(PipelineHost& pipelineHost, const char* route, int status, const nlohmann::json& body, const std::string& id);
+
   // Reads need `read`, the switch needs `apply`, delete needs `admin` (LAN
   // only, loopback is trusted). The PUT shares /api/effects with the GETs and
   // is told apart by method.

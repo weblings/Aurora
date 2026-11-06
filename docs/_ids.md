@@ -149,6 +149,7 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `kep213-v1-effect-manage` | [log/2026-11-05-kep213-v1-effect-manage.md](log/2026-11-05-kep213-v1-effect-manage.md) | Hide, move and rename mirrored in /api/v1 |
 | `kep215-button-row-panel` | [log/2026-11-04-kep215-button-row-panel.md](log/2026-11-04-kep215-button-row-panel.md) | Effect panel moves to the button row model |
 | `kep216-empty-start` | [log/2026-11-05-kep216-empty-start.md](log/2026-11-05-kep216-empty-start.md) | Empty graph as a Start from option |
+| `kep217-effect-fault-log` | [log/2026-11-05-kep217-effect-fault-log.md](log/2026-11-05-kep217-effect-fault-log.md) | Effect route server faults reach the log |
 | `kep218-builtin-switch-states` | [log/2026-11-05-kep218-builtin-switch-states.md](log/2026-11-05-kep218-builtin-switch-states.md) | Built-in picks use the panel's switch states |
 | `kep219-trigger-focus` | [log/2026-11-05-kep219-trigger-focus.md](log/2026-11-05-kep219-trigger-focus.md) | Effect trigger keeps focus through a switch |
 | `kep22-effect-panel-mocks` | [log/2026-11-03-kep22-effect-panel-mocks.md](log/2026-11-03-kep22-effect-panel-mocks.md) | Effect panel static mocks |

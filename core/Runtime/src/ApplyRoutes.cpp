@@ -8,6 +8,7 @@
 #include <Aurora/Runtime/DraftRoutes.hpp>
 #include <Aurora/Runtime/DraftStore.hpp>
 #include <Aurora/Runtime/EffectStore.hpp>
+#include <Aurora/Runtime/EffectsRoutes.hpp>
 #include <Aurora/Runtime/Graph/AllNodes.hpp>
 #include <Aurora/Runtime/Pipeline.hpp>
 #include <Aurora/Runtime/ReloadCoalescer.hpp>
@@ -65,7 +66,7 @@ namespace Aurora::Runtime
 
     // Validate the session's draft and write it under `id`: the part of apply
     // that save shares. Fills `body` on a refusal and returns the status, or 0.
-    auto saveDraft = [&registry, configRoot, drafts, nodes](
+    auto saveDraft = [&pipelineHost, &registry, configRoot, drafts, nodes](
       const std::string& session, const std::string& id, nlohmann::json& body){
       if(!DraftStore::validSession(session)){
         body = {{"succeeded", false}, {"error", "invalid_session"}};
@@ -92,6 +93,7 @@ namespace Aurora::Runtime
       std::string writeError;
       if(!EffectStore(configRoot).write(id, *draft, writeError)){
         body = {{"succeeded", false}, {"error", "write_failed"}, {"message", writeError}};
+        logEffectFault(pipelineHost, "POST /api/graph/apply|save", 500, body, id);
         return 500;
       }
       return 0;
@@ -211,8 +213,10 @@ namespace Aurora::Runtime
         std::string readError;
         auto doc = store.read(id, readError);
         if(!doc){
-          _reply(res, store.exists(id) ? 422 : 404,
-            {{"succeeded", false}, {"error", store.exists(id) ? "unreadable_effect" : "unknown_effect"}});
+          const bool unreadable = store.exists(id);
+          const nlohmann::json fault{{"succeeded", false}, {"error", unreadable ? "unreadable_effect" : "unknown_effect"}};
+          logEffectFault(pipelineHost, "PUT /api/effects/:id/params", unreadable ? 422 : 404, fault, id);
+          _reply(res, unreadable ? 422 : 404, fault);
           return;
         }
 
@@ -248,7 +252,9 @@ namespace Aurora::Runtime
 
         std::string writeError;
         if(!store.write(id, *doc, writeError)){
-          _reply(res, 500, {{"succeeded", false}, {"error", "write_failed"}, {"message", writeError}});
+          const nlohmann::json fault{{"succeeded", false}, {"error", "write_failed"}, {"message", writeError}};
+          logEffectFault(pipelineHost, "PUT /api/effects/:id/params", 500, fault, id);
+          _reply(res, 500, fault);
           return;
         }
 
