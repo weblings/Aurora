@@ -142,6 +142,7 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `kea-capability-flags` | [log/2026-10-03-kea-capability-flags.md](log/2026-10-03-kea-capability-flags.md) | Aurora-kea: running-pipeline flags drive the Dashboard (open: Mac/Windows unverified) |
 | `kea-dashboard-capabilities-scoping` | [log/2026-10-02-kea-dashboard-capabilities-scoping.md](log/2026-10-02-kea-dashboard-capabilities-scoping.md) | Aurora-kea: scoping pass on Dashboard capability-driven sections (paused, no code) |
 | `kea-route-and-shared-capture-source` | [log/2026-10-03-kea-route-and-shared-capture-source.md](log/2026-10-03-kea-route-and-shared-capture-source.md) | Aurora-kea: route decision, shared capture-source scope, pending-highlight follow-up (paused, no code) |
+| `kep2-epic-close` | [log/2026-11-05-kep2-epic-close.md](log/2026-11-05-kep2-epic-close.md) | Effect picker epic closed |
 | `kep21-effect-picker` | [log/2026-10-30-kep21-effect-picker.md](log/2026-10-30-kep21-effect-picker.md) | Dashboard effect picker beside Video/Audio |
 | `kep210-cut-over` | [log/2026-11-05-kep210-cut-over.md](log/2026-11-05-kep210-cut-over.md) | Effect panel replaces the Video/Audio toggle on the Dashboard |
 | `kep211-inline-switch-error` | [log/2026-11-05-kep211-inline-switch-error.md](log/2026-11-05-kep211-inline-switch-error.md) | Inline effect switch errors no longer double the banner or stick |
