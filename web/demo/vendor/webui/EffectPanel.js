@@ -8,7 +8,7 @@ import { effectTitle } from './CaptureSource.js';
 import { applyTooltip } from './Tooltips.js';
 import {
   actionAnnouncement, buildGroups, clipTitle, diffEffects, flatItems, focusAfterRemoval, menuItems, positionIn,
-  rowItems, rowKey, runningId, startPoints, switchAnnouncement, titleClash, triggerLabel, typeAhead,
+  rowItems, rowKey, resumeLine, runningId, startPoints, switchAnnouncement, titleClash, triggerLabel, typeAhead,
 } from './EffectPanelModel.js';
 
 const CHEVRON_URL = new URL('./icons/chevron-down.svg', import.meta.url).href;
@@ -136,8 +136,8 @@ export class EffectPanel {
   }
 
   // state: GET /api/state. busy/pendingTitle: a switch in flight. rejected: a line for a request
-  // that never ran. opts: hasAudio, canEdit (graph editor build), canDelete (Admin).
-  update({ effects = this._effects, state = this._state, hasAudio, canEdit, canDelete, fallbackTitle, busy = false, pendingTitle = null, rejected = null } = {}) {
+  // that never ran. resumeTitle: a pick saved while paused. opts: hasAudio, canEdit (graph editor build), canDelete (Admin).
+  update({ effects = this._effects, state = this._state, hasAudio, canEdit, canDelete, fallbackTitle, busy = false, pendingTitle = null, rejected = null, resumeTitle = null } = {}) {
     const before = this._effects;
     this._effects = effects;
     this._state = state;
@@ -154,7 +154,7 @@ export class EffectPanel {
     else { this.trigger.removeAttribute('aria-disabled'); this.trigger.removeAttribute('aria-busy'); }
     if (busy) this.close({ refocus: false });
 
-    const text = busy && pendingTitle ? `Switching to ${pendingTitle}…` : (rejected || '');
+    const text = busy && pendingTitle ? `Switching to ${pendingTitle}…` : (rejected || (resumeTitle ? resumeLine(resumeTitle) : ''));
     this.status.textContent = text;
     this.status.hidden = text === '';
 

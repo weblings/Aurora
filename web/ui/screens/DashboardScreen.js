@@ -33,7 +33,7 @@ import { TuningFields } from '../TuningFields.js';
 import { sliderGroupHtml, wireSliderGroup } from '../TuningSliderGroup.js';
 import { applyTooltip } from '../Tooltips.js';
 import { EffectPanel } from '../EffectPanel.js';
-import { duplicateTitle, editorHref, fallbackBuiltinId, freshEffectId } from '../EffectPanelModel.js';
+import { duplicateTitle, editorHref, fallbackBuiltinId, freshEffectId, resumeLine } from '../EffectPanelModel.js';
 import { renderReloadError } from '../MacPermissionRecovery.js';
 import {
   audioDevicesUrlFrom, devicePatch, effectiveFlags, effectTitle,
@@ -382,6 +382,7 @@ export class DashboardScreen {
       });
     }
     const rejected = this.pendingMode ? null : this.toggleError;
+    if (!this.paused) this.startsOnResume = null;
     this.effectPanel.update({
       effects: this.effects,
       state: this.pipelineState,
@@ -392,6 +393,7 @@ export class DashboardScreen {
       busy: !!this.pendingMode,
       pendingTitle: this.pendingMode ? this._effectLabel(this.pendingEffectId) : null,
       rejected,
+      resumeTitle: this.startsOnResume ?? null,
     });
   }
 
@@ -831,6 +833,7 @@ export class DashboardScreen {
     // when a switch is confirmed (Aurora-tazx); the outline is the busy cue.
     this.pendingMode = mode;
     this.pendingEffectId = effectId;
+    this.startsOnResume = null;
     this._renderControls();
     const announcedBefore = this._failureAnnounces;
 
@@ -883,11 +886,16 @@ export class DashboardScreen {
     }
     this.pendingMode = null;
     this.pendingEffectId = null;
+    // Saved but not built: a paused pick starts on resume, so say so.
+    const savedPaused = !confirmed && this.paused && putResult?.succeeded === true && !putResult.reloadError;
+    if (savedPaused) this.startsOnResume = modeLabel;
     this._renderControls();
     // The audio banner is gated on toggleError, so it re-renders when one clears.
     if (confirmed) {
       this._renderTopTier();
       this.effectPanel?.announceSwitch({ title: modeLabel, outcome: 'success' });
+    } else if (savedPaused) {
+      this.effectPanel?.announce(resumeLine(modeLabel));
     } else {
       this._announceSwitchFailure(modeLabel, announcedBefore);
     }
@@ -1043,7 +1051,11 @@ export class DashboardScreen {
       this._loadAll();
     }
     let changed = false;
-    if (typeof paused === 'boolean' && paused !== this.paused) { this.paused = paused; changed = true; }
+    if (typeof paused === 'boolean' && paused !== this.paused) {
+      this.paused = paused;
+      changed = true;
+      if (!paused && this.startsOnResume) this._renderControls();
+    }
     // A failure from outside the switch flow, or one whose state _loadAll already stored.
     if (state === 'failed') {
       const message = failureMessage(errors);

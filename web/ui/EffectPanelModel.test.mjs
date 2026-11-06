@@ -3,7 +3,7 @@
 import assert from 'node:assert/strict';
 import {
   EMPTY_START, actionAnnouncement, buildGroups, clipTitle, diffEffects, duplicateTitle, editorHref, fallbackBuiltinId, flatItems,
-  focusAfterRemoval, freshEffectId, menuItems, positionIn, runningId, slugify, startPoints, switchAnnouncement,
+  focusAfterRemoval, freshEffectId, menuItems, positionIn, runningId, slugify, resumeLine, startPoints, switchAnnouncement,
   titleClash, rowItems, rowKey, triggerLabel, typeAhead,
 } from './EffectPanelModel.js';
 
@@ -125,6 +125,7 @@ assert.deepEqual(keys(flatItems(groups, open, { canEdit: false })).at(-1), 'g:hi
   assert.equal(switchAnnouncement({ title: 'Fire', outcome: 'pending' }), null);
 }
 
+assert.equal(resumeLine('Fire'), 'Fire starts when you resume');
 
 // Row actions (Aurora-kep2.9): duplicate naming, rename clashes, delete fallback, start points.
 {

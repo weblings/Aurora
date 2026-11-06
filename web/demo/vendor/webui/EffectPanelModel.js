@@ -129,6 +129,11 @@ export function switchAnnouncement({ title, outcome, reason = '' }) {
   return null;
 }
 
+// The line and announcement for a pick saved while paused: it starts on resume.
+export function resumeLine(title) {
+  return `${title} starts when you resume`;
+}
+
 // --- row actions (Aurora-kep2.9) ------------------------------------------------------------
 
 // The id slug the server accepts, as the graph editor's slugify/freshEffectId.
