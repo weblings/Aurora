@@ -1,0 +1,242 @@
+# Graph editor cleanup
+
+Id: graph-editor-cleanup
+
+Status: proposed, not built. Written 2026-11-06 under `Aurora-bova`. The owner has
+reviewed the working mock and likes the direction, but none of the open directions
+below are chosen yet. Treat everything here as a proposal until this line changes.
+
+Reference mock: `web/ui/Static_GraphEditor_Mocks/` (open `index.html`). Layout, menus
+and states in this doc refer to its frames. Background: [[sequence-e-planning]],
+[[nodes-agent-ux]].
+
+## Problem
+
+The editor works, but it shows everything at once and does not look like Aurora.
+Measured on the fake-Hue stack at 1470x900:
+
+| Measure | Today | Mock |
+|---|---|---|
+| Chrome controls always visible, Screen colors | 82 | 11 |
+| Chrome controls always visible, `builtin.audio` | 130 | Not mocked |
+| Fitted graph zoom at 1470x900 | 37% | 70% |
+| Fitted graph zoom at 1280x720 | 30% | 60% |
+| Route back to Aurora on the page | None | `← Aurora` |
+| Mouse route to delete a node or wire | None | Right-click menu |
+
+- The two largest sources are the Add node list (53 buttons) and the Dashboard
+  controls (18 inputs for video, 66 for audio).
+- The canvas gets 59% of the window, and nine status slots are spread across the
+  header, action row and canvas.
+- The editor imports Aurora's color tokens but no component styles. Controls fall
+  back to Arial, Add node buttons are unstyled light browser defaults, and the brand
+  mark is a purple dot in an otherwise grayscale product.
+- Only Backspace deletes today. The Delete key is not bound.
+
+## Proposal
+
+**Layout.** A full-width canvas under one top bar. Always visible: `← Aurora`, the
+effect title, status, undo and redo, Test on lights and Save. Four small canvas
+controls stay on screen: Add node, zone preview, Dashboard controls and the view menu.
+
+**Moved behind menus.**
+
+- The effect selector and Name box merge into one title menu.
+- Save as new and Save and apply move under a `▾` on Save.
+- Zoom, fit and the minimap move to a view menu, with the minimap off by default.
+- Node details and the Dashboard controls move into drawers that close.
+- Status messages become one status spot, short toasts and a problems chip.
+
+**Add node menu.** One searchable menu for the `+` button, a keyboard shortcut and
+canvas right-click. Three forms are mocked (see open direction 1). Shared content:
+
+- Seven signal-based groups in place of code prefixes: Sources, Audio, Image, Color,
+  Numbers, Motion and Lights.
+- Rows show input and output sockets, which separates the two `Hue shift` nodes.
+- Name matches rank first, and description matches sit under their own heading.
+- The catalog's `useWhen` text is shown for the first time.
+
+**Right-click menus.** Canvas: Add node, Undo, Redo, Fit view. Node: Details, Show on
+the Dashboard, Delete. Wire: Delete connection. A selected node also shows a visible
+`⋯`, and Shift+F10 opens the same menu. Touch long-press failed on iPhone and was cut
+from the effect panel ([[kep224-cut-long-press]]), so right-click is never the only route.
+
+**Styling.** Import `forms.css` and `dropdown.css` from `web/ui`, and reuse the row
+menu's popup recipe. `forms.css` and `dropdown.css` have no page-wide element rules, so
+importing them should be safe. `page.css` stays out. Port colors stay, since they carry meaning.
+
+## Prior art
+
+| Editor | Pattern | Relevance |
+|---|---|---|
+| Unity Shader Graph | Searchable category tree, wire-drop list filtered by type, toolbar-toggled panels | Closest model for the menu and for hideable panels |
+| ComfyUI | Search with type filters and a node preview, link release opens a menu | Preview pane. Filter before capping results ([issue 20696](https://github.com/Comfy-Org/ComfyUI_frontend/issues/20696)) |
+| Blender | A picked node follows the pointer, main sockets rank first | Model for ghost placement |
+| Unreal Blueprint | Context Sensitive toggle, wire drops filter by pin type | A way out of filtering, for wire-drop search |
+| Houdini, TouchDesigner | One key opens the menu, few stable families | Fast keyboard path, small set of groups |
+| n8n | `+` on the canvas or a node, list changes with graph state | Possible sources-first empty graph |
+
+## Open directions
+
+These change the shape of the work and need an owner decision.
+
+### 1. Add node menu form
+
+| Form | Strength | Cost |
+|---|---|---|
+| A: Browser | Group rail, list and preview, so a node can be learned before adding it | Largest popup, 760x460 |
+| B: Cascade | Compact, reads like a context menu | Little room to explain a node, fiddly flyouts |
+| C: Side sheet | Stays open for adding several, uses the accordion look | A panel again, which works against the goal |
+
+Recommendation: A, optionally with a pin to keep it open.
+
+### 2. Who owns the node groups
+
+The catalog has no category field, so the mock's groups are a hand-written map.
+
+- **Editor map:** small and fast, but it lives apart from the node definitions. A new
+  node needs an `Other` fallback and a test that flags it.
+- **Catalog field:** one source of truth that agents also get through `list_nodes`, but
+  it touches every node registration, `/api/nodes`, `/api/v1`, MCP and the server samples.
+
+Recommendation: start with the editor map, and promote it only if agents or other
+consumers need the groups.
+
+### 3. One text for people and agents, or two
+
+The menu puts `purpose` and `useWhen` in front of users for the first time, and some
+of it reads like developer notes ("today's subsampleWidth", `Absent`, `output.send`).
+The MCP server sends that same `purpose` text to agents, where precise wording helps.
+Some params also have no label.
+
+Either rewrite shared text so it works for both audiences, or add user-facing text
+beside it. Rewriting is smaller, but it changes what agents read and needs a check that
+agent results hold up. This also settles vocabulary, such as `Lights` as the group name
+while the port type stays `Frame`.
+
+### 4. How far the node itself changes
+
+The mock restyles nodes and keeps params on them, as Unity, Blender and ComfyUI do.
+Nodes with many params get tall: Hue ramp image has seven. Options are to keep all
+params on the node, collapse secondary ones, or move them to the drawer. The choice also
+sets how much room is left for per-node previews (`Aurora-h6yz`).
+
+Recommendation: keep params on nodes for now, add a collapse later if real graphs need it.
+
+### 5. Is touch or narrow width a target
+
+The effect panel was tested on an iPhone. The editor never has been, and the mock is
+desktop-first. Declaring it desktop-only keeps the work smaller. Supporting touch adds
+real work on wiring, pan and selection, well beyond menu access. The visible `⋯` keeps
+the door open either way.
+
+Recommendation: desktop-only for this pass, stated plainly in the editor README.
+
+### 6. Effect switching and leaving
+
+- **Effect switcher:** keep it in the title menu, or make the Dashboard the only place
+  to pick an effect. Recommendation: keep it for now, since comparing effects while
+  editing is useful. Removing it later is easy, and it must not switch on arrow keys.
+- **Leaving with unsaved edits:** the browser backup already keeps them and offers
+  Restore on return. A warning on `← Aurora` adds safety and a little friction. The backup
+  is per browser, so edits made in one browser are not offered in another.
+  Recommendation: no warning, but say in the toast or title that edits are kept here.
+
+## Scoping concerns
+
+**The mock does not cover every real state.** These exist today and need a design before
+the top bar is built:
+
+- Restore or Discard for an unsaved copy from an earlier visit
+- Take over the lights when another session holds the test
+- Keep disabled because the graph changed since the test started
+- Reconnect after the preview stream is replaced
+- Naming a built-in before Save. The mock's Save skips this, and Save will probably
+  need to open the title menu with the Name box focused.
+- Cannot reach Aurora, and a graph-wide problem with no node to point at
+
+**The mock has been proven on one graph.** Screen colors is a straight chain of eight
+nodes. The audio built-in has twice the node controls and 66 Dashboard inputs, and a
+larger custom graph may not fit at a readable zoom. Check both before calling the layout
+done. Default layout may become its own piece of work.
+
+**Consolidating status is more than a layout change.** Nine slots become one spot, which
+needs a priority rule. Toasts disappear, so errors and test outcomes that need action must
+stay on screen. This is the most likely place to lose information without noticing.
+
+**Removing panels removes some behavior.**
+
+- Palette drag-to-place goes away in form A. A menu opened from `+` has no pointer
+  position, so the node lands at the view center, possibly on top of another. No browser
+  check covers palette drag, so a regression there would pass silently.
+- Selecting a node no longer shows its details. Details becomes a deliberate action,
+  and right-click is less discoverable than a panel that is always there.
+- The Dashboard controls are no longer visible while wiring.
+
+**Popups are new shared infrastructure.** The title, save, view, add and context menus
+all need the same positioning, Escape, outside click, focus return and keyboard handling.
+Existing lessons apply, including that disabling a focused control drops focus, and that
+controls with side effects must not commit on arrow keys. React Flow's pan and selection
+keys also need checking against the menus. Space is already its pan key, which is why the
+mock proposes `A` and not Unity's Space.
+
+**Not in scope.**
+
+- Ghost placement and wire-drop search, though see the note below
+- Recent or favorite nodes, and a sources-first empty graph
+- Copy, paste and duplicate
+- Per-node live previews (`Aurora-h6yz`)
+- Editor support in the web demo (`Aurora-51nv`)
+- Bundling the Inter font. No `@font-face` exists in `web/ui`, so Dashboard and editor
+  both depend on what the system has installed.
+
+Two stretch items affect today's design. Wire-drop search needs a row to mean a node and a
+port, as Unity's does, so the row component should not assume one row per node forever.
+Ghost placement answers the lost drag-to-place above, so it may be worth pulling in if
+landing at the view center feels bad in use.
+
+**The mock folder may ship.** The web root embed globs all of `web/ui`, and no exclusion
+for `Static_` folders was found, so this folder and `Static_kep2_Mocks` likely end up in
+app builds. Exclude them or remove this one before release.
+
+## Sequencing
+
+**The main constraint is the open Sequence E gate.** `Aurora-pvxx.9` is in progress, needs
+a pass on all three OSes, and blocks `Aurora-pvxx.18`, the epic's close and `Aurora-h6yz`.
+Its Playwright checks drive the editor by current class names and labels, including
+`.palette-item`, `.editor-name input`, `.editor-header select` and the `.inspector-*`
+classes, across five check files. Structural changes break those checks.
+
+| Option | Upside | Downside |
+|---|---|---|
+| Finish the gate first, then clean up | Sequence E closes on evidence, and checks migrate once with a known good baseline | Cleanup waits on three-OS passes |
+| Clean up first, gate once on the final UI | One gate run, on the UI that ships | Sequence E stays open longer, and a failure could be either the cleanup or the original work |
+| Run both, migrating checks as each stage lands | No waiting | Most churn, and the gate result stays muddy |
+
+Recommendation: finish the gate first if Mac and Linux passes are cheap. The first stage
+below can proceed either way, since it keeps the class names the checks use.
+
+**Proposed order.** Each stage leaves the editor shippable.
+
+1. **Back link and styling.** Fixes the most visible problems and changes no structure.
+2. **Popup foundation and top bar.** The title and Save menus are the first real users
+   of the shared popup behavior. The status priority rule is settled here, and most
+   header and action row selectors change.
+3. **Add node menu.** Replaces the palette, so direction 1 and 2 must be decided first.
+4. **Right-click, drawers and Delete.** Must land together. The Inspector can only go once
+   the node menu and drawers can reach everything it did.
+
+Stages 3 and 4 are independent of each other, but both depend on stage 2. Check migration
+belongs in each stage rather than a cleanup at the end, and those checks should also add
+coverage for right-click and the new menus.
+
+**Against other work.** `Aurora-h6yz` should follow direction 4, so previews are designed
+into the new node. A copy pass from direction 3 can run at any time, and it does not block
+the menu.
+
+## Decisions needed before filing build beads
+
+- Directions 1 and 2 block stage 3.
+- Direction 3 decides whether the copy pass touches core.
+- Direction 5 sets how much the popup foundation must handle.
+- The gate order decides when stage 2 can start.
