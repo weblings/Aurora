@@ -27,14 +27,20 @@ namespace Aurora::Runtime
     nlohmann::json& body
   );
 
+  // Logs a server fault (any 5xx, or 422 unreadable_effect) from an effect route through
+  // PipelineHost::log. Client-mistake 4xx stay unlogged. `id` is escaped before it is logged.
+  void logEffectFault(PipelineHost& pipelineHost, const char* route, int status, const nlohmann::json& body, const std::string& id);
+
   // Reads need `read`, the switch needs `apply`, delete needs `admin` (LAN
   // only, loopback is trusted). The PUT shares /api/effects with the GETs and
   // is told apart by method.
   void addEffectsAccessRules(Aurora::Network::Http::Server::AccessGuard& guard);
 
-  // GET /api/effects: {"effects": [{"id", "builtin", "title", "description"}], "activeEffectId":
+  // GET /api/effects: {"effects": [{"id", "builtin", "title", "description", "hidden", "order"}], "activeEffectId":
   // string (the saved setting, "" when unset), "effect": running id or null,
-  // "requestedEffect": id or null}. Built-ins come first, then customs by id.
+  // "requestedEffect": id or null}. Built-ins come first, then customs, each group in the
+  // saved order (Config effectOrder), unlisted ids last by id. "order" is the list index and
+  // "hidden" a flag only: a hidden effect still runs (Aurora-kep2.5).
   // "title" is the graph's top-level title, else the id; "description" is the
   // graph's, else null (Aurora-mfud).
   //
@@ -48,7 +54,7 @@ namespace Aurora::Runtime
   // inputs), anything else must be an existing custom effect (404
   // "unknown_effect"; 400 "invalid_body"). Saves, then reloads through
   // the shared `reload`, then runs onEffectChosen. A custom that exists but fails to load still answers
-  // 200: the built-in runs and /api/state holds the effect_fallback error.
+  // 200: nothing runs and /api/state holds the "effect" error.
   // Answers {"succeeded": true, "activeEffectId", "effect", "requestedEffect"}
   // plus "reloadError" if the reload failed. With X-Aurora-Client: mcp and a
   // custom id, the id also becomes Config's mcpEffectId.
@@ -66,6 +72,13 @@ namespace Aurora::Runtime
   // "invalid_effect_id" (built-in ids never qualify), 404 "unknown_effect"
   // (source), 409 "effect_exists", 422 "unreadable_effect", 500
   // "write_failed". Core route only; not mirrored in /api/v1 (Aurora-pvxx.1).
+  //
+  // PUT /api/effects/<id>/hidden {"hidden": bool}: Hide / Unhide. POST /api/effects/<id>/move
+  // {"direction": "up"|"down"}: one step among the visible effects of the same group, "moved":
+  // false at the edge. PUT /api/effects/<id>/title {"title": string}: Rename a custom effect (graph
+  // title, trimmed, 1-80 chars; 400 "invalid_title" / "builtin_effect"). All answer {"succeeded":
+  // true, "id", ...}; 400 "invalid_body", 404 "unknown_effect". Core routes only, not in /api/v1.
+  // Delete forgets the id's hidden and order entries.
   //
   // Writing a graph file is not a route here: it is POST /api/graph/apply
   // (ApplyRoutes.hpp). When `guard` is set the access rules are added to it.

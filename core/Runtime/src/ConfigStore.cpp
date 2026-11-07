@@ -70,6 +70,8 @@ namespace Aurora::Runtime
         {"activeAudioInputName", data.activeAudioInputName},
         {"activeEffectId", data.activeEffectId},
         {"mcpEffectId", data.mcpEffectId},
+        {"hiddenEffectIds", data.hiddenEffectIds},
+        {"effectOrder", data.effectOrder},
         {"audioFixedAnchorHue", data.audioFixedAnchorHue},
         {"audioBounceSmoothTime", data.audioBounceSmoothTime},
         {"audioDynamismFloor", data.audioDynamismFloor},
@@ -118,7 +120,14 @@ namespace Aurora::Runtime
       data.activeMonitorName = json.value("activeMonitorName", defaults.activeMonitorName);
       data.activeAudioInputName = json.value("activeAudioInputName", defaults.activeAudioInputName);
       data.activeEffectId = json.value("activeEffectId", defaults.activeEffectId);
+      // Before the effect id chose the mode, an audio config was a blank video
+      // name beside an audio one. Name the mode so the blank can be filled.
+      if(data.activeEffectId.empty() && data.activeInputName.empty() && !data.activeAudioInputName.empty()){
+        data.activeEffectId = "builtin.audio";
+      }
       data.mcpEffectId = json.value("mcpEffectId", defaults.mcpEffectId);
+      data.hiddenEffectIds = json.value("hiddenEffectIds", defaults.hiddenEffectIds);
+      data.effectOrder = json.value("effectOrder", defaults.effectOrder);
       data.audioFixedAnchorHue = json.value("audioFixedAnchorHue", defaults.audioFixedAnchorHue);
       data.audioBounceSmoothTime = json.value("audioBounceSmoothTime", defaults.audioBounceSmoothTime);
       data.audioDynamismFloor = json.value("audioDynamismFloor", defaults.audioDynamismFloor);

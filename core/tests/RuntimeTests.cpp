@@ -408,6 +408,42 @@ TEST_CASE("planConfigChange sorts a change into None, Hot or Reload (Aurora-c0g)
 }
 
 
+TEST_CASE("ConfigStore names the audio mode on a legacy audio config (Aurora-kep2.3)", "[ConfigStore]")
+{
+  ScopedTempDir dir("config-legacy-audio");
+  ConfigStore store(dir.path);
+
+  Config legacy;
+  legacy.setActiveAudioInputName("linux-audio");
+  store.save(legacy);
+  CHECK(store.load().activeEffectId() == "builtin.audio");
+
+  Config video;
+  video.setActiveInputName("linux");
+  video.setActiveAudioInputName("linux-audio");
+  store.save(video);
+  CHECK(store.load().activeEffectId().empty());
+}
+
+
+TEST_CASE("planConfigChange reloads when the effect id moves between modes (Aurora-kep2.3)", "[ConfigApply]")
+{
+  Config video;
+  video.setActiveInputName("v");
+  video.setActiveAudioInputName("a");
+  video.setActiveEffectId("builtin.video");
+  Config audio = video;
+  audio.setActiveEffectId("builtin.audio");
+  CHECK(planConfigChange(video, audio, false) == ChangeAction::Reload);
+  CHECK(planConfigChange(audio, video, true) == ChangeAction::Reload);
+  Config unset = video;
+  unset.setActiveEffectId("");
+  CHECK(planConfigChange(video, unset, false) == ChangeAction::None);
+  CHECK(runsAudioMode(audio));
+  CHECK_FALSE(runsAudioMode(video));
+}
+
+
 TEST_CASE("planConfigChange reloads when a derived-at-zero field moves to or from 0 (Aurora-c0g)", "[ConfigApply]")
 {
   Config derived;

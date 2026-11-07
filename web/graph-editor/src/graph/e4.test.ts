@@ -3,7 +3,7 @@ import { addControl, controlIndex, controlsOf, dropControlsOf, moveControl, remo
 import { removeNodes } from './doc'
 import { builtinLike, catalog, customLike } from './fixtures'
 import { describeTest, initialTest, testReducer, type TestEvent, type TestState } from './lightTest'
-import { distinctTitle, forWrite, freshEffectId, slugify } from './save'
+import { BLANK_ID, blankDoc, distinctTitle, forWrite, freshEffectId, slugify } from './save'
 
 const run = (events: TestEvent[], from: TestState = initialTest) => events.reduce(testReducer, from)
 const running = run([{ type: 'starting' }, { type: 'started', remainingMs: 120000 }])
@@ -75,13 +75,13 @@ describe('new effect ids', () => {
 
   it('suggests a title no other effect shows', () => {
     expect(distinctTitle('Mine', ['Video'])).toBe('Mine')
-    expect(distinctTitle('Mine', ['mine'])).toBe('Mine copy')
-    expect(distinctTitle('Mine', ['Mine', 'Mine copy'])).toBe('Mine copy 2')
+    expect(distinctTitle('Mine', ['mine'])).toBe('Mine (Copy)')
+    expect(distinctTitle('Mine', ['Mine', 'Mine (Copy)'])).toBe('Mine (Copy 2)')
   })
 
   it('retitles a write that makes a new effect, not one that overwrites or keeps', () => {
     const doc = { ...builtinLike(), title: 'Video' }
-    expect(forWrite(doc, true, false, ['Video']).title).toBe('Video copy')
+    expect(forWrite(doc, true, false, ['Video']).title).toBe('Video (Copy)')
     expect(forWrite(doc, true, false, ['Other']).title).toBe('Video')
     expect(forWrite(doc, false, false, ['Video']).title).toBe('Video')
     expect(forWrite(doc, true, true, ['Video']).title).toBe('Video')
@@ -150,5 +150,17 @@ describe('light test states', () => {
 
   it('has nothing to say before any test', () => {
     expect(describeTest(initialTest)).toBeNull()
+  })
+})
+
+describe('blank effect', () => {
+  it('opens as a node-less version 1 document with no title', () => {
+    expect(blankDoc()).toEqual({ version: 1, title: '', nodes: [], edges: [] })
+  })
+
+  it('has an id the server never stores, so a save always makes a fresh effect', () => {
+    expect(BLANK_ID).toBe('@empty')
+    expect(slugify(BLANK_ID)).toBe('empty')
+    expect(freshEffectId('', [])).toBe('effect')
   })
 })

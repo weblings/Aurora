@@ -37,9 +37,20 @@
 // (not an object, version, nodes) stop at the first.
 namespace Aurora::Runtime::Graph
 {
-  // Byte limits for the optional top-level title and description (Aurora-mfud).
-  constexpr std::size_t kMaxTitleLength = 60;
+  // Character limits for the optional top-level title and description (Aurora-mfud). Every title
+  // writer checks the same limit, or a saved title stops the effect loading (Aurora-kep2.28).
+  constexpr std::size_t kMaxTitleLength = 80;
   constexpr std::size_t kMaxDescriptionLength = 280;
+
+  // Length of UTF-8 text in code points: every byte that isn't a continuation byte.
+  inline std::size_t textLength(const std::string& text)
+  {
+    std::size_t length = 0;
+    for(const char byte : text){
+      length += (static_cast<unsigned char>(byte) & 0xC0u) != 0x80u ? 1 : 0;
+    }
+    return length;
+  }
 
   struct LoadOptions
   {

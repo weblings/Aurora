@@ -7,6 +7,8 @@
 // struct). fixedAnchorHue follows the native rule: < 0 means unset/random
 // (Config.hpp), which the ported model spells `undefined`.
 
+import { modeFromConfig } from './vendor/webui/CaptureSource.js';
+
 export const AUDIO_KEYS = [
   'audioFixedAnchorHue',
   'audioBounceSmoothTime',
@@ -66,6 +68,6 @@ export function configToPipeline(config) {
     // have no Dashboard-driven UI).
     sampleWidth: config.subsampleWidth > 0 ? config.subsampleWidth : null,
     // probeState's own rule (app.js): empty input + audio input = audio.
-    mode: (!config.activeInputName && config.activeAudioInputName) ? 'audio' : 'video',
+    mode: modeFromConfig(config),
   };
 }

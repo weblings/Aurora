@@ -12,6 +12,8 @@
 #include <string>
 #include <vector>
 
+#include <stdexcept>
+
 #include <nlohmann/json.hpp>
 
 #include <Aurora/Contracts/UV.hpp>
@@ -75,11 +77,10 @@ namespace Aurora::Runtime
       bool followsDefault{true};
     };
 
-    // What runs, and what Config asked for. They differ after a fallback.
+    // What runs, and what Config asked for. A failed effect switch leaves
+    // effect empty and keeps the requested effect and its inputs.
     std::string effect;
     std::string requestedEffect;
-    // Why a requested custom effect is not the one running; empty otherwise.
-    std::string fallbackReason;
     // Capture sources the running effect uses (a built-in's follow its pipeline mode).
     struct GraphInputs
     {
@@ -89,6 +90,30 @@ namespace Aurora::Runtime
     std::optional<GraphInputs> graphInputs;
     std::optional<Video> video;
     std::optional<Audio> audio;
+  };
+
+  // The capture sources a saved effect needs. Nullopt when its file is unreadable.
+  std::optional<PipelineSummary::GraphInputs> effectInputs(const std::filesystem::path& configRoot, const std::string& id);
+
+
+  // A build that failed because the requested effect cannot run (Aurora-kep2.4).
+  // what() is the banner copy, naming the effect. retryable is false when the
+  // cause cannot change outside Aurora (a bad graph file, no input of that kind).
+  class EffectBuildError : public std::runtime_error
+  {
+  public:
+    EffectBuildError(
+      std::string effectId,
+      const std::string& message,
+      bool retryable,
+      std::optional<PipelineSummary::GraphInputs> inputs
+    ):
+    std::runtime_error(message), effectId(std::move(effectId)), retryable(retryable), inputs(inputs){}
+
+    std::string effectId;
+    bool retryable;
+    // What the effect needs, so the Dashboard shows the pickers that can fix it.
+    std::optional<PipelineSummary::GraphInputs> inputs;
   };
 
 
@@ -251,6 +276,15 @@ namespace Aurora::Runtime
 
     bool isAudioMode() const { return m_isAudioMode; }
 
+    std::vector<Output::LinkProbe> linkProbes() const
+    {
+      std::vector<Output::LinkProbe> probes;
+      for(auto* output : m_outputPtrs){
+        if(auto probe = output->linkProbe()){ probes.push_back(std::move(probe)); }
+      }
+      return probes;
+    }
+
     PipelineCapabilities capabilities() const;
 
     PipelineSummary summary() const { return m_summary; }
@@ -354,6 +388,9 @@ namespace Aurora::Runtime
     // never when a publish leaves it alone. dismissError matches on it, so a
     // click racing a new failure cannot clear the new one.
     std::uint64_t id{0};
+    // Whether resending the saved config could fix it. False for a failed
+    // effect switch whose cause is inside Aurora, so the banner omits Retry.
+    bool retry{true};
   };
 
   // State and errors always read together, so a poll never sees Failed with
@@ -436,6 +473,11 @@ namespace Aurora::Runtime
       return fn(m_pipeline ? m_pipeline->audioInput() : nullptr);
     }
 
+    // The running pipeline's output link probes (Aurora-lt66), copied under the
+    // pipeline lock so they can run after it is released. Empty when paused,
+    // failed or idle.
+    std::vector<Output::LinkProbe> linkProbes();
+
     // Applies `next` to the live pipeline when only live-tunable fields
     // changed (Aurora-c0g). Returns false -- changing nothing -- when the
     // change needs a reload or there is no pipeline yet; the caller then
@@ -498,6 +540,14 @@ namespace Aurora::Runtime
 
     void shutdown();
 
+    // The failure light (Aurora-dh1p): a dim magenta on the configured outputs
+    // while the host is Failed. Apps call this once after a failed startup build;
+    // a failed effect switch shows it itself. False when not Failed or it cannot build.
+    bool showFailureLight(const Registry& registry, const std::filesystem::path& configRoot);
+
+    // True while the failure light runs. Same lock as tick().
+    bool failureLightOn();
+
     // Pause (Aurora-3ddb): tears the pipeline down (outputs shutdown(false),
     // capture closed) but keeps the host and its HTTP server alive. No-op,
     // returning false, when already paused or when there is no pipeline.
@@ -524,6 +574,15 @@ namespace Aurora::Runtime
     // kNothingToPause, since the host is idle or failed, not running).
     bool setRunning(
       bool running,
+      const Registry& registry,
+      const std::filesystem::path& configRoot,
+      std::string& errorOut
+    );
+
+    // Rebuilds from the saved config to bring a dropped output back
+    // (Aurora-lt66). No-op success while paused. Blocks like reload(): call
+    // from a task, never a UI or tick thread.
+    bool reconnect(
       const Registry& registry,
       const std::filesystem::path& configRoot,
       std::string& errorOut
@@ -589,6 +648,9 @@ namespace Aurora::Runtime
 
     const std::string& audioDevicesUrl() const { return m_options.audioDevicesUrl; }
 
+    // Writes through PipelineOptions::log, else stdout/stderr like the pipeline's own lines.
+    void log(LogLevel level, const std::string& line) const;
+
   private:
     mutable std::mutex m_summaryMutex;
     PipelineSummary m_summary;
@@ -605,24 +667,46 @@ namespace Aurora::Runtime
     void _publishStatusLocked(std::vector<HostError> errors);
 
     // Runs `swap` on the pipeline under both locks and, when it succeeds and
-    // `clearFallback` is set, drops the held effect_fallback entry. False when
+    // `clearEffectError` is set, drops the held "effect" entry. False when
     // there is no pipeline.
-    bool _swapInPlace(const std::function<bool(Pipeline&)>& swap, bool clearFallback, const char* logLine);
+    bool _swapInPlace(const std::function<bool(Pipeline&)>& swap, bool clearEffectError, const char* logLine);
 
-    // Publishes a freshly built pipeline's status: no errors, except the
-    // effect_fallback entry when it fell back from a custom effect. Caller
-    // holds m_mutex.
+    // Publishes a freshly built pipeline's status: no errors. Caller holds
+    // m_mutex.
     void _publishBuiltLocked();
 
     // Creates or replaces the entry for `source` (new id), keeping the rest.
     // Caller holds m_mutex.
     void _setErrorLocked(const std::string& source, const std::string& message);
 
-    // A build failure ("startup", "resume", "reload"): a newer attempt at the
+    // A failed effect switch: stops the running pipeline the way pause does
+    // and holds the "effect" error, so state reads failed with the pick still
+    // saved. Stores nothing when a pause or a newer successful build landed
+    // since `epoch`. `inputs` is what the requested effect needs, for /api/state.
+    void _failEffect(
+      const std::string& effectId,
+      const std::string& message,
+      bool retryable,
+      const std::optional<PipelineSummary::GraphInputs>& inputs,
+      std::uint64_t epoch,
+      const Registry& registry,
+      const Config& config,
+      const std::filesystem::path& configRoot
+    );
+
+    // Builds the failure light, borrowing `outputsFrom`'s outputs when given.
+    // Null when it cannot build (no outputs). Caller holds m_changeMutex only.
+    std::unique_ptr<Pipeline> _buildFailureLight(
+      const Registry& registry, const Config& config, const std::filesystem::path& configRoot, const Pipeline* outputsFrom);
+
+    // Builds and installs the light when the host is Failed with none. Takes the locks itself.
+    bool _ensureFailureLight(const Registry& registry, const Config& config, const std::filesystem::path& configRoot);
+
+    // A build failure ("startup", "resume", "reload", "effect"): a newer attempt at the
     // same build, so it supersedes the earlier build entries instead of
     // sitting beside them (a failed retry of a failed startup shows one row,
     // not two). Entries other components hold are kept. Caller holds m_mutex.
-    void _setBuildErrorLocked(const std::string& source, const std::string& message);
+    void _setBuildErrorLocked(const std::string& source, const std::string& message, bool retry = true);
 
     // A failed build. Takes the locks itself and stores nothing when a pause
     // landed during the build or when a successful build landed since it
@@ -667,6 +751,8 @@ namespace Aurora::Runtime
     // (slow) build, is all that waits on it.
     std::mutex m_changeMutex;
     std::unique_ptr<Pipeline> m_pipeline;
+    // Set only while m_pipeline is null and the host Failed; state never reads it.
+    std::unique_ptr<Pipeline> m_failureLight;
   };
 
 

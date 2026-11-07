@@ -282,3 +282,13 @@ Applies-when: a short message wraps with one word alone on its last line
 Cutting a word fixed the Local Network banner at one width and not another: the break point moves with the window. `text-wrap: pretty` on `.shell-banner-content` makes supporting browsers rebalance the last lines at any width; browsers without it ignore the rule, so the specific line also joins its last two words with `&nbsp;` ("allow&nbsp;Aurora").
 
 **Fix:** put `text-wrap: pretty` on the container, not on one message, so every banner row benefits; use `&nbsp;` only where an orphan must never happen.
+
+---
+
+## Focus rings come from shared tokens and one :focus-visible rule in tokens.css, so new controls need no ring CSS of their own
+Tags: webui, css, focus, a11y, tokens
+Applies-when: styling keyboard focus on a new control inside a page that links the real `web/ui/styles`
+
+`tokens.css` (Aurora-oecx) defines `--aurora-focus-ring-width`, `-offset` and `--aurora-focus-ring` (the light button color) and one `:focus-visible` rule, an outer ring. Before it, only `.text-input` had a ring and everything else showed the browser `auto` ring, so new controls looked unrelated beside it. RockyRoadImport's own notes record that `outline: none` on focus fails WCAG 2.4.7.
+
+**Fix:** add no per-control ring. Inset it (`outline-offset: calc(-1 * width)`) on anything inside a clipping container (list rows, group headers, menu items, `.segmented-btn`, `.dropdown-option`), and put it on the row wrapper via `:has()` when the focusable control is the row's inner element. `.dropdown-menu` keeps `outline: none` because its active option is the indicator. `.text-input` moved from the accent ring to the shared one.

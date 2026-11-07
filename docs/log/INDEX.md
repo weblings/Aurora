@@ -305,3 +305,36 @@ Planning docs stay clean: decisions, status, and pointers here only.
 | 2026-10-29 | Browser checks edit-loop, add-node, save-as-new moved to 1470 px and rerun on dev and embedded, all pass. [[4hhb-browser-check-1470]] | `bd show Aurora-4hhb` |
 | 2026-10-29 | Graph editor: saving a built-in under a taken name gets a distinct title (`forWrite`). [[c5gw-builtin-save-title]] | `bd show Aurora-c5gw` |
 | 2026-10-30 | Graph editor: sockets and wires colored and shaped by port type, drag tint and dimming; port-types browser check, Windows stack fixes. [[ex8z-port-type-sockets]] | `bd show Aurora-ex8z` |
+| 2026-10-30 | Dashboard effect picker beside Video/Audio replaces the MCP toggle, with the toggle's loading states; parent bead set to needs-design. [[kep21-effect-picker]] | `bd show Aurora-kep2.1` |
+| 2026-11-03 | Effect panel static mocks closed after two design reviews and owner review: generator moved beside the frames, ARIA gaps (radios commit on arrow keys) logged. [[kep22-effect-panel-mocks]] | `bd show Aurora-kep2.2` |
+| 2026-11-03 | Effect id now picks the pipeline mode, both input names stay saved, and a missing input is auto-picked on the server (never dummy). [[kep23-effect-id-picks-mode]] | `bd show Aurora-kep2.3` |
+| 2026-11-03 | Effect list gains hidden flag, custom order (both in config.json) and routes for hide, move and rename; /api/effects reports hidden and order. [[kep25-effect-list-layout]] | `bd show Aurora-kep2.5` |
+| 2026-11-03 | Row menu follow-on flows designed and owner reviewed: Rename in place, two-step Delete confirm, Start from menu, "(Copy)" duplicates, gated menus, light test and long-press; frames 14-20. [[kep26-row-menu-flows]] | `bd show Aurora-kep2.6` |
+| 2026-11-03 | VoiceOver on iOS drops role=tree semantics, so the effect panel uses the button row model (frame 8). TalkBack split to optional. [[kep27-voiceover-tree-check]] | `bd show Aurora-kep2.7` |
+| 2026-11-04 | Effect panel row actions wired (Rename in place, Delete confirm, Start from, Duplicate, Hide, Move) with live region and focus moves; duplicate route takes a title; editor says "(Copy)"; 2 lessons. [[kep29-wire-row-actions]] | `bd show Aurora-kep2.9` |
+
+| 2026-11-04 | Effect panel rebuilt on the button row model: headings with button headers, `aria-current` rows, a visible Actions button, row-only arrows, no tree roles. [[kep215-button-row-panel]] | `bd show Aurora-kep2.15` |
+| 2026-11-04 | Source-less custom graphs build with no capture input, so a denied input cannot fail them; preview with no pipeline split to Aurora-wq6i. [[que2-input-free-build]] | `bd show Aurora-que2` |
+| 2026-11-05 | Source-less effects run with no inputs configured; `/api/effects` reports each effect's inputs; Capture source no longer replaces a custom effect. [[zl32-no-input-running]] | `bd show Aurora-zl32` |
+| 2026-11-05 | A failed effect switch or startup shows a dim steady magenta failure light on the same outputs while the host stays Failed; a working effect replaces it; pause during failure split to Aurora-b6yx. [[dh1p-failure-light]] | `bd show Aurora-dh1p` |
+| 2026-11-05 | Start from lists Empty first and opens the graph editor on a blank graph that saves as a new effect. [[kep216-empty-start]] | `bd show Aurora-kep2.16` |
+| 2026-11-05 | Rejected effect switches on `PUT /api/effects` and `PATCH /api/v1/state` log their code and requested id on every platform; other effect routes split to a follow-up; 2 lessons. [[kep212-effect-switch-log]] | `bd show Aurora-kep2.12` |
+| 2026-11-05 | Built-in effect picks show Switching to, Switched to and the rejected line with the effect title on the panel; the `.db-controls` row is gone. [[kep218-builtin-switch-states]] | `bd show Aurora-kep2.18` |
+| 2026-11-05 | The effect trigger is aria-disabled, not disabled, while a switch is pending, so keyboard focus stays on it. [[kep219-trigger-focus]] | `bd show Aurora-kep2.19` |
+| 2026-11-05 | A failed effect switch is announced once through the live region, including a repeat failure and either poll order. [[kep220-failed-switch-announce]] | `bd show Aurora-kep2.20` |
+| 2026-11-05 | The first tap after a touch long-press runs, with or without a click on release. [[kep221-long-press-first-tap]] | `bd show Aurora-kep2.21` |
+| 2026-11-05 | A failed effect switch or startup leaves no effect running, with a banner row naming the effect; the built-in fallback is gone. [[kep24-failed-effect-no-fallback]] | `bd show Aurora-kep2.4` |
+| 2026-11-05 | The inline effect switch error clears on a failed host or another client's switch, so it never doubles the banner or sticks. [[kep211-inline-switch-error]] | `bd show Aurora-kep2.11` |
+| 2026-11-05 | Touch long-press is cut from the effect panel, the Actions button opens the row menu on touch, and holding a row selects nothing on iOS. [[kep224-cut-long-press]] | `bd show Aurora-kep2.24` |
+| 2026-11-05 | Shared focus-ring tokens and one :focus-visible rule for web/ui, `.text-input` moved onto them. [[oecx-focus-ring-tokens]] | `bd show Aurora-oecx` |
+| 2026-11-05 | A dead or dropped Hue bridge raises a banner row and reconnects by itself, never over another app's stream on a different area. Real bridge check waived. [[lt66-output-link-monitor]] | `bd show Aurora-lt66` |
+| 2026-11-05 | Effect panel with button rows, layers and switch states replaces the kep2.1 picker. [[kep28-effect-panel]] | `bd show Aurora-kep2.8` |
+| 2026-11-05 | Cut over: the Dashboard loses the Video/Audio toggle and Edit graph link, the panel is always shown, onboarding keeps its choice. [[kep210-cut-over]] | `bd show Aurora-kep2.10` |
+| 2026-11-05 | One 80 character effect title limit for the loader, rename, duplicate and client, so a long rename no longer stops an effect loading. [[kep228-title-limit]] | `bd show Aurora-kep2.28`, `bd show Aurora-kep2.25` |
+| 2026-11-05 | A duplicated effect is last in Custom straight away, not only after the order is saved. [[kep226-duplicate-order]] | `bd show Aurora-kep2.26` |
+| 2026-11-05 | A pick while paused shows and announces that it starts on resume. [[kep227-paused-pick]] | `bd show Aurora-kep2.27` |
+| 2026-11-05 | Hide, move and rename an effect are in /api/v1 with Apply scope, spec 1.0.0 unchanged. [[kep213-v1-effect-manage]] | `bd show Aurora-kep2.13` |
+| 2026-11-05 | 5xx and 422 unreadable_effect from the effect, params, apply and save routes log on every platform; PUT /api/config reviewed, no log. [[kep217-effect-fault-log]] | `bd show Aurora-kep2.17` |
+| 2026-11-05 | Effect picker epic closed: the effect panel replaced the Video/Audio toggle, with VoiceOver, demo Duplicate and TalkBack beads left open outside it. [[kep2-epic-close]] | `bd show Aurora-kep2` |
+| 2026-11-05 | Closed without building: Pause turning off the failure light (`Aurora-b6yx`) and preview while Failed (`Aurora-wq6i`). [[kep2-epic-close]] | `bd show Aurora-b6yx` |
+| 2026-11-05 | Hue link monitor checked on a real bridge, banner copy reworded to the banner conventions, Busy row and power cut not exercised. [[qqcn-link-monitor-real-bridge]] | `bd show Aurora-qqcn` |

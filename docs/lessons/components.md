@@ -399,3 +399,55 @@ Applies-when: a widget inside a React Flow node edits a document that the nodes 
 Aurora-pvxx.4: the editor kept `nodes` in state and rebuilt them from the graph document in a `useEffect`. An edit therefore rendered once with the old node data, then again with the new. A controlled checkbox snapped back (Playwright: "clicking the checkbox did not change its state"), and a number box read its old value right after `fill`. Typing would drop keystrokes the same way.
 
 **Fix:** keep only what React Flow owns (selection, measured size, a drag in progress) in state and derive the node list from the document in the same render (`useMemo`, merged by id with `carryViewState`). The document change and the redraw then land together.
+
+---
+
+## Native radios commit on every arrow key, and one shared `name` groups them across every radiogroup wrapper
+Tags: webui, aria, radio, keyboard, side-effects
+Applies-when: building a picker from native radios whose change handler does real work
+
+Aurora-kep2.2's effect panel used visually hidden radios, one `name="effect"`, split into Built-in, Custom and Hidden `role=radiogroup` blocks. In headless Chromium, four ArrowDown presses from Music pulse fired three `change` events: into Custom, onto the `aria-disabled` Candle row, then a wrap back to Screen colors. Collapsed (`hidden`) rows were skipped. Each change would start a ~4.5s switch on the real lights, the same trap as this file's select-follows-focus entry. `aria-disabled` does not stop a radio being checked, and a click checks it before the switch is confirmed, which breaks a controlled picker.
+
+**Fix:** for side-effecting picks use row buttons with `aria-current` and your own Up/Down focus handling, committing on Enter, Space or click. If radios stay, intercept arrows and reset `checked` from the running state after every change.
+
+---
+
+## Disabling the focused control drops focus to body, and focus() on a disabled control does nothing
+Tags: webui, focus, disabled, aria, keyboard, dropdown
+Applies-when: a control is disabled while busy and the design also returns focus to it
+
+Aurora-kep2.2's effect panel returns focus to the trigger after a pick, and `Dropdown.setBusy` disables that trigger during the switch. In Chromium on the frame 10 mock, disabling the focused trigger moved `activeElement` to `body`, and calling `focus()` on the disabled trigger left focus where it was. Keyboard and screen-reader users lose their place until they Tab back in. Focus does not return by itself when the control is enabled again.
+
+**Fix:** accept the loss for short waits, or use `aria-disabled="true"` and ignore clicks and keys in the handlers. That keeps focus, but the control stays in the tab order and every input path must be blocked by hand. Kept `disabled` for kep2, since a switch is short.
+
+## VoiceOver on iOS drops role=tree and treeitem semantics, so use buttons with aria-expanded
+Tags: webui, aria, tree, voiceover, ios, mobile
+Applies-when: choosing an ARIA widget role for a list that mobile screen-reader users must operate
+
+On a real iPhone (VoiceOver, iOS 27.2, Safari) the effect panel as `role="tree"` read a header as only "Built-in" and a row as only its name and description. There was no tree item role, no expanded or selected state, and no has-popup hint. An `aria-hidden` Actions button was unreachable. This matches WebKit ignoring `treeitem` on iOS since 2016 (bugs.webkit.org 164936). Headless Chromium and desktop keyboard checks cannot show it.
+
+**Fix:** use `<button aria-expanded>` inside a heading for groups, `<button aria-current>` rows and a visible, non-hidden Actions button per row (frame 8). VoiceOver read all of these correctly. Group names are not announced when swiping into a `role="group"`, so structure comes from headings.
+
+## Re-inserting a focused element drops its focus, so refocus after the row moves
+Tags: webui, focus, dom, tree, live-region
+Applies-when: a list patches rows in place and an action moves the focused row to another list (Hide, Unhide, Move)
+
+In Aurora-kep2.9, `insertBefore` of the focused effect row into the Hidden group blurred it with no `relatedTarget`, so focus fell to `body` and a screen-reader user lost their place. The panel's patch code only avoids this for rows that stay put.
+
+**Fix:** work out the destination before the call (`focusAfterRemoval` for Hide, Unhide and Delete, the row itself for Move), await the action and the list refresh, then focus the destination. Let the panel's focusout handler ignore a null `relatedTarget`, or the blur closes the panel.
+
+## A "press must start on the confirm" guard does not stop a double tap
+Tags: webui, touch, confirm, delete, pointer
+Applies-when: a destructive confirm opens in the same spot as the control that opened it
+
+The design for the Delete confirm (Aurora-kep2.6) acted only on a press whose `pointerdown` landed on the confirm. A real double tap defeats that, since the second tap's `pointerdown` lands on the freshly opened confirm and deletes. Keyboard activation has `click.detail === 0` and no pointer press.
+
+**Fix:** also ignore pointer presses for 400 ms after the confirm opens. The browser check clicks Delete at once (nothing happens), waits 450 ms and clicks again (deletes).
+
+## iOS Safari ignores unprefixed `user-select`
+Tags: webui, touch, ios, css
+Applies-when: text in a control must not be selectable on an iPhone
+
+In Aurora-kep2.24, rows set `user-select: none` and `-webkit-touch-callout: none`, and passed in headless Chromium, but holding a row on an iPhone still selected its text.
+
+**Fix:** add `-webkit-user-select: none` beside the unprefixed property. Chromium cannot show this, so check it on a device.

@@ -1,6 +1,6 @@
 {
   "sourceRepo": "web/ui",
-  "sourceCommit": "9965570",
+  "sourceCommit": "aa0ab95",
   "layout": "Mirror of web/ui relative paths: vendor/webui/<path> is a byte-identical copy of web/ui/<path> (sync-webui.py). The seams below are demo-side behavior, not edits to the copies. Relative imports resolve unchanged.",
   "entry": "screens/DashboardScreen.js",
   "modules": [
@@ -10,6 +10,8 @@
     "CaptureSource.js",
     "DeviceField.js",
     "Dropdown.js",
+    "EffectPanel.js",
+    "EffectPanelModel.js",
     "EntertainmentConfigSelect.js",
     "MacPermissionRecovery.js",
     "NavFooter.js",
@@ -34,6 +36,7 @@
     "styles/tokens.css",
     "styles/shell.css",
     "styles/dashboard.css",
+    "styles/effect-panel.css",
     "styles/tuning.css",
     "styles/dropdown.css",
     "styles/forms.css",

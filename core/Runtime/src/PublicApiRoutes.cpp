@@ -73,6 +73,9 @@ namespace Aurora::Runtime
       {HttpMethod::Post, "/graph/apply"},
       {HttpMethod::Post, "/graph/save"},
       {HttpMethod::Post, "/effects/:id/duplicate"},
+      {HttpMethod::Put, "/effects/:id/hidden"},
+      {HttpMethod::Post, "/effects/:id/move"},
+      {HttpMethod::Put, "/effects/:id/title"},
       {HttpMethod::Get, "/pairing/status"},
       {HttpMethod::Post, "/pairing/request"},
       {HttpMethod::Get, "/pairing/request/:pollKey"}
@@ -182,6 +185,17 @@ namespace Aurora::Runtime
       body["errors"] = issues;
       res.body = body.dump();
     }
+
+    // Any issue rejects the whole patch, so the switch fails on another field's code too.
+    void _logRejectedSwitch(PipelineHost& pipelineHost, const nlohmann::json& body, const nlohmann::json& issues)
+    {
+      if(!body.contains("effect")){ return; }
+      std::string code = issues.at(0).at("code").get<std::string>();
+      for(const auto& issue : issues){
+        if(issue.at("field") == "effect"){ code = issue.at("code").get<std::string>(); }
+      }
+      pipelineHost.log(LogLevel::Error, "Effect switch rejected: " + code + " " + body.at("effect").dump());
+    }
   }
 
 
@@ -221,6 +235,7 @@ namespace Aurora::Runtime
         StatePatch patch;
         const nlohmann::json issues = _validatePatch(body, configRoot, patch);
         if(!issues.empty()){
+          _logRejectedSwitch(pipelineHost, body, issues);
           _reject(res, 400, issues);
           return;
         }
@@ -303,9 +318,11 @@ namespace Aurora::Runtime
     server.addRoute(
       HttpMethod::Get,
       "/api/v1/effects/:id",
-      [&registry, configRoot](const Request& req, Response& res){
+      [&pipelineHost, &registry, configRoot](const Request& req, Response& res){
         nlohmann::json body;
-        const int status = effectDocumentToJson(registry, configRoot, req.pathParams.at("id"), body);
+        const std::string& id = req.pathParams.at("id");
+        const int status = effectDocumentToJson(registry, configRoot, id, body);
+        logEffectFault(pipelineHost, "GET /api/v1/effects/:id", status, body, id);
         _reply(res, status, body);
       }
     );

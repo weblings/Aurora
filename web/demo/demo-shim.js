@@ -13,6 +13,8 @@
 // not the storage ints -- same as SettingsRoutes::_interpolationName.
 
 import { demoGraph, demoNodes } from './demo-graph.js';
+import { modeFromConfig } from './vendor/webui/CaptureSource.js';
+
 
 // Live Config.hpp persisted values (see Aurora/core/Runtime/.../Config.hpp).
 export const DEMO_DEFAULT_CONFIG = {
@@ -195,6 +197,16 @@ const DEMO_AUDIO_SINKS = [
 
 export function createRouter(store, hooks = {}) {
   const ok = (json, status = 200) => ({ status, json });
+  // Picker layout (Aurora-kep2.5): session-only, like the paused flag.
+  const hiddenEffects = new Set();
+  let effectOrder = BUILTIN_EFFECTS.map((e) => e.id);
+  const parseBody = (rawBody) => {
+    try {
+      return rawBody ? JSON.parse(rawBody) : {};
+    } catch {
+      return null;
+    }
+  };
 
   return function route(method, path, rawBody) {
     // GET /api/capabilities -- "compiled with" contract: the demo compiles
@@ -222,13 +234,13 @@ export function createRouter(store, hooks = {}) {
       return ok({ succeeded: true });
     }
     // GET /api/state (Aurora-kea) -- the demo "runs" whatever its config
-    // names, by Pipeline::build's rule (audio only with no video input), so
-    // a mode switch reads back at once. Paused flips only through
+    // names, by the effect id (core's runsAudioMode), so a mode
+    // switch reads back at once. Paused flips only through
     // PUT /api/state (Aurora-5ipy.13). The audio device list is the sink
     // route below, as on Linux.
     if (method === 'GET' && path === '/api/state') {
       const config = store.getConfig();
-      const audio = !config.activeInputName && !!config.activeAudioInputName;
+      const audio = modeFromConfig(config) === 'audio';
       return ok({
         paused: store.isPaused(),
         // No daemon behind this page to stop (Aurora-ifkn.3): the
@@ -354,8 +366,40 @@ export function createRouter(store, hooks = {}) {
     // The demo only runs the built-in effects, so Tuning stays on /api/config.
     if (method === 'GET' && path === '/api/effects') {
       const config = store.getConfig();
-      const audio = !config.activeInputName && !!config.activeAudioInputName;
-      return ok({ effects: BUILTIN_EFFECTS, activeEffectId: '', effect: audio ? 'builtin.audio' : 'builtin.video' });
+      const audio = modeFromConfig(config) === 'audio';
+      const effects = effectOrder.map((id, order) => ({
+        ...BUILTIN_EFFECTS.find((e) => e.id === id), hidden: hiddenEffects.has(id), order,
+      }));
+      return ok({ effects, activeEffectId: '', effect: audio ? 'builtin.audio' : 'builtin.video' });
+    }
+    const layoutRoute = /^\/api\/effects\/([^/]+)\/(hidden|move|title)$/.exec(path);
+    if (layoutRoute) {
+      const [, id, action] = layoutRoute;
+      const body = parseBody(rawBody);
+      const fail = (error, status) => ok({ succeeded: false, error }, status);
+      if (!body) return fail('invalid_body', 400);
+      const known = effectOrder.includes(id);
+      if (action === 'title') {
+        if (typeof body.title !== 'string') return fail('invalid_body', 400);
+        const title = body.title.trim();
+        if (!title || [...title].length > 80) return fail('invalid_title', 400);
+        return known ? fail('builtin_effect', 400) : fail('unknown_effect', 404);
+      }
+      if (action === 'hidden') {
+        if (typeof body.hidden !== 'boolean') return fail('invalid_body', 400);
+        if (!known) return fail('unknown_effect', 404);
+        if (body.hidden) hiddenEffects.add(id); else hiddenEffects.delete(id);
+        return ok({ succeeded: true, id, hidden: body.hidden });
+      }
+      const step = { up: -1, down: 1 }[body.direction];
+      if (!step) return fail('invalid_body', 400);
+      if (!known) return fail('unknown_effect', 404);
+      let to = effectOrder.indexOf(id) + step;
+      while (hiddenEffects.has(effectOrder[to])) to += step;
+      if (to < 0 || to >= effectOrder.length) return ok({ succeeded: true, id, moved: false });
+      effectOrder = effectOrder.filter((e) => e !== id);
+      effectOrder.splice(to, 0, id);
+      return ok({ succeeded: true, id, moved: true });
     }
     // PUT-for-read with {} body (PairingRoutes convention -- do NOT "fix" to
     // GET; the Dashboard sends PUT and parity means matching it).

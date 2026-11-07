@@ -31,16 +31,17 @@ export function setTitle(doc: GraphDoc, title: string): GraphDoc {
   return { ...doc, title }
 }
 
-// A title no existing effect shows: the title itself, else "title copy",
-// "title copy 2", ... so the picker never lists two effects with one name.
+// A title no existing effect shows: the title itself, else "title (Copy)",
+// "title (Copy 2)", ... so the picker never lists two effects with one name.
 export function distinctTitle(title: string, taken: Iterable<string>): string {
   const norm = (t: string) => t.trim().toLowerCase()
   const used = new Set([...taken].map(norm))
   if (!used.has(norm(title))) return title
-  const base = `${title.trim()} copy`
-  if (!used.has(norm(base))) return base
+  const base = title.trim()
+  const first = `${base} (Copy)`
+  if (!used.has(norm(first))) return first
   for (let n = 2; ; n++) {
-    const candidate = `${base} ${n}`
+    const candidate = `${base} (Copy ${n})`
     if (!used.has(norm(candidate))) return candidate
   }
 }
@@ -51,4 +52,12 @@ export function distinctTitle(title: string, taken: Iterable<string>): string {
 // the document as it is.
 export function forWrite(doc: GraphDoc, makesNew: boolean, keep: boolean, taken: Iterable<string>): GraphDoc {
   return makesNew && !keep ? setTitle(doc, distinctTitle(titleOf(doc), taken)) : doc
+}
+
+// The editor id for an unsaved empty graph. '@' is not a valid effect id, so it
+// never names a stored effect. Opened via ?new=empty, saved under a fresh id.
+export const BLANK_ID = '@empty'
+
+export function blankDoc(): GraphDoc {
+  return { version: 1, title: '', nodes: [], edges: [] }
 }

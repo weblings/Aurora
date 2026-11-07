@@ -286,6 +286,24 @@ const stateOk = (extra = {}) => async () => ({ reachable: true, state: 'running'
   uninstallDom();
 }
 
+// A failed effect switch: the message already names the effect, and Retry
+// shows only when the error says a retry can help (Aurora-kep2.4).
+{
+  const message = "Couldn't start Fire: graph needs an audio input but none is configured";
+  const { app, banner } = makeApp(stateOk({ state: 'failed', errors: [{ source: 'effect', message, retry: false }] }));
+  await app._pollOnce();
+  assert.ok(banner().includes(message), 'no prefix on an effect row');
+  assert.ok(!banner().includes("Couldn't start: "));
+  assert.ok(!banner().includes('shell-banner-retry-effect'), 'no Retry when it cannot help');
+  uninstallDom();
+}
+{
+  const { app, banner } = makeApp(stateOk({ state: 'failed', errors: [{ source: 'effect', message: "Couldn't start Fire: busy", retry: true }] }));
+  await app._pollOnce();
+  assert.ok(banner().includes('id="shell-banner-retry-effect"'));
+  uninstallDom();
+}
+
 // Two or more collapse to a summary line; expanding shows every row, each
 // with its own source-keyed Retry button.
 {

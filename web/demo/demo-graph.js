@@ -2,6 +2,8 @@
 // rerun `python3 web/demo/gen-demo-graph.py` after a controls or node-param
 // change in C++. Serves the demo's GET /api/graph and GET /api/nodes.
 
+import { modeFromConfig } from './vendor/webui/CaptureSource.js';
+
 const GRAPHS = {
   "video": {
     "nodes": [
@@ -354,7 +356,7 @@ const NODE_TYPES = [
 const paramValue = (kind, value) => (kind === 'optional-float' && value < 0 ? null : value);
 
 export function demoGraph(config) {
-  const audio = !config.activeInputName && !!config.activeAudioInputName;
+  const audio = modeFromConfig(config) === 'audio';
   const { nodes, controls, tickHz } = GRAPHS[audio ? 'audio' : 'video'];
   return {
     version: 1,

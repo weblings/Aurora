@@ -231,6 +231,30 @@ namespace Aurora::Runtime
   }
 
 
+  const std::vector<std::string>& Config::hiddenEffectIds() const
+  {
+    return m_data.hiddenEffectIds;
+  }
+
+
+  void Config::setHiddenEffectIds(std::vector<std::string> ids)
+  {
+    m_data.hiddenEffectIds = std::move(ids);
+  }
+
+
+  const std::vector<std::string>& Config::effectOrder() const
+  {
+    return m_data.effectOrder;
+  }
+
+
+  void Config::setEffectOrder(std::vector<std::string> ids)
+  {
+    m_data.effectOrder = std::move(ids);
+  }
+
+
   float Config::audioFixedAnchorHue() const { return m_data.audioFixedAnchorHue; }
   void Config::setAudioFixedAnchorHue(float hue) { m_data.audioFixedAnchorHue = sanitizeParam("audio.fixedAnchorHue", hue); }
 

@@ -44,6 +44,7 @@ namespace Aurora::Output::Hue
     const std::string& name() const override;
     void init() override;
     bool isConnected() const override;
+    Output::LinkProbe linkProbe() const override;
     void shutdown(bool isReplacement) override;
     std::vector<uint8_t> zoneIds() const override;
     std::map<uint8_t, std::vector<std::string>> zoneLabels() const override;

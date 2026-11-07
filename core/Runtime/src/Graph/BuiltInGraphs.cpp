@@ -245,6 +245,29 @@ namespace Aurora::Runtime::Graph
       {"controls", std::move(controls)}};
   }
 
+  json failureLightGraph(const std::vector<std::string>& outputNames, float brightness)
+  {
+    json nodes = json::array();
+    json edges = json::array();
+    // A flat gradient, not frame.broadcast, which only audio builds register.
+    const json stop = {{"pos", 0}, {"color", "#330033"}};
+    json stops = json::array({stop, stop});
+    stops[1]["pos"] = 1;
+    nodes.push_back(json{{"id", "magenta"}, {"type", "image.gradient"}, {"params", {{"gradient", std::move(stops)}}}});
+    for(const auto& output : outputNames){
+      const std::string zones = perOutputNodeId("zones", output);
+      const std::string gain = perOutputNodeId("gain", output);
+      const std::string send = perOutputNodeId("send", output);
+      nodes.push_back(json{{"id", zones}, {"type", "zones.sample"}, {"params", {{"output", output}}}});
+      nodes.push_back(json{{"id", gain}, {"type", "frame.gain"}, {"params", {{"gain", brightness}}}});
+      nodes.push_back(json{{"id", send}, {"type", "output.send"}, {"params", {{"output", output}}}});
+      edges.push_back(edge("magenta.image", zones + ".image"));
+      edges.push_back(edge(zones + ".frame", gain + ".frame"));
+      edges.push_back(edge(gain + ".frame", send + ".frame"));
+    }
+    return json{{"version", 1}, {"nodes", std::move(nodes)}, {"edges", std::move(edges)}};
+  }
+
   LoadResult loadBuiltInVideoGraph(
     const NodeRegistry& registry,
     const std::vector<std::string>& outputNames,

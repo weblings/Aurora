@@ -7,7 +7,7 @@
 import assert from 'node:assert/strict';
 import { DashboardScreen } from './DashboardScreen.js';
 import { ensureTooltips } from '../Tooltips.js';
-import { isSwitchErrorStale } from '../CaptureSource.js';
+import { isSwitchErrorStale, runningToggle } from '../CaptureSource.js';
 import { DAEMON_UNREACHABLE } from '../messages.js';
 import { VIDEO_HINT, AUDIO_HINT } from '../DeviceField.js';
 
@@ -321,6 +321,11 @@ const AUDIO_STATE = { state: 'running', errors: [], paused: false, usesVideoInpu
 // A switch screen double: _loadAll applies `loaded()` the way the real one
 // does (flags/state from the running pipeline, then the stale-error rule);
 // renders are counted instead of touching a DOM.
+const BUILTINS = [
+  { id: 'builtin.video', builtin: true, title: 'Screen colors' },
+  { id: 'builtin.audio', builtin: true, title: 'Music pulse' },
+];
+
 function switchScreen({ state, platform = 'mac', toggleError = null, toggleErrorMode = null }) {
   const calls = { controls: 0, topTier: 0, checkNow: 0 };
   const inst = Object.create(DashboardScreen.prototype);
@@ -331,15 +336,15 @@ function switchScreen({ state, platform = 'mac', toggleError = null, toggleError
     currentActiveInputName: '', currentActiveAudioInputName: 'mac-audio',
     monitors: [], selectedMonitorName: '', sinkName: '',
     toggleError, toggleErrorMode, topTierErrors: {},
-    pipelineState: state,
+    pipelineState: state, effects: BUILTINS,
+    _clearToggleError: DashboardScreen.prototype._clearToggleError,
     _renderControls() { calls.controls++; },
     _renderTopTier() { calls.topTier++; },
     async _loadAll() {
       this.pipelineState = this.nextState ?? this.pipelineState;
       // the same stale-error rule the real _loadAll applies
-      if (this.toggleError && isSwitchErrorStale(this.pipelineState, this.toggleErrorMode)) {
-        this.toggleError = null;
-        this.toggleErrorMode = null;
+      if (this.toggleError && isSwitchErrorStale(this.pipelineState, this.toggleErrorMode, this.toggleErrorEffectId, this.toggleErrorRunning)) {
+        this._clearToggleError();
       }
       return !this.daemonDown;
     },
@@ -356,7 +361,7 @@ const PERMISSION_ERROR = 'permission_denied: ScreenCaptureKitGrabber: no shareab
 for (const reloadError of [PERMISSION_ERROR, 'bridge unreachable']) {
   stubFetch(() => ({ succeeded: true, reloadError }));
   const { inst, calls } = switchScreen({ state: AUDIO_STATE });
-  try { await inst._switchMode('video'); } finally { globalThis.fetch = realFetch; }
+  try { await inst._switchMode('video', 'builtin.video'); } finally { globalThis.fetch = realFetch; }
   assert.equal(inst.toggleError, null, 'banner owns the failure');
   assert.equal(inst.toggleErrorMode, null);
   assert.equal(inst.mode, 'audio', 'fill stays on the running mode');
@@ -381,8 +386,8 @@ for (const reloadError of [PERMISSION_ERROR, 'bridge unreachable']) {
   stubFetch(() => ({ succeeded: false }));
   const { inst } = switchScreen({ state: AUDIO_STATE });
   inst.app.hostErrors = [{ source: 'reload', message: PERMISSION_ERROR, id: 1 }];
-  try { await inst._switchMode('video'); } finally { globalThis.fetch = realFetch; }
-  assert.equal(inst.toggleError, "Couldn't switch to Video.");
+  try { await inst._switchMode('video', 'builtin.video'); } finally { globalThis.fetch = realFetch; }
+  assert.equal(inst.toggleError, "Screen colors didn't start.");
   assert.equal(inst.mode, 'audio');
 }
 
@@ -391,8 +396,8 @@ for (const reloadError of [PERMISSION_ERROR, 'bridge unreachable']) {
   stubFetch(() => ({ succeeded: false }));
   const { inst } = switchScreen({ state: VIDEO_STATE });
   inst.mode = 'video';
-  try { await inst._switchMode('audio'); } finally { globalThis.fetch = realFetch; }
-  assert.equal(inst.toggleError, "Couldn't switch to Audio.");
+  try { await inst._switchMode('audio', 'builtin.audio'); } finally { globalThis.fetch = realFetch; }
+  assert.equal(inst.toggleError, "Music pulse didn't start.");
   assert.equal(inst.toggleErrorMode, 'audio');
 }
 
@@ -405,9 +410,9 @@ for (const reloadError of [PERMISSION_ERROR, 'bridge unreachable']) {
     errorDuringFlight = inst.toggleError;
     return { json: async () => ({ succeeded: false }) };
   };
-  try { await inst._switchMode('video'); } finally { globalThis.fetch = realFetch; }
+  try { await inst._switchMode('video', 'builtin.video'); } finally { globalThis.fetch = realFetch; }
   assert.equal(errorDuringFlight, PERMISSION_ERROR, 'error stays up while the retry is pending');
-  assert.equal(inst.toggleError, "Couldn't switch to Video.", 'a retry that fails again leaves one message');
+  assert.equal(inst.toggleError, "Screen colors didn't start.", 'a retry that fails again leaves one message');
 }
 
 // A confirmed switch clears the error and re-renders the top tier so the
@@ -416,7 +421,7 @@ for (const reloadError of [PERMISSION_ERROR, 'bridge unreachable']) {
   stubFetch(() => ({ succeeded: true }));
   const { inst, calls } = switchScreen({ state: AUDIO_STATE, toggleError: PERMISSION_ERROR, toggleErrorMode: 'video' });
   inst.nextState = VIDEO_STATE;
-  try { await inst._switchMode('video'); } finally { globalThis.fetch = realFetch; }
+  try { await inst._switchMode('video', 'builtin.video'); } finally { globalThis.fetch = realFetch; }
   assert.equal(inst.toggleError, null);
   assert.equal(inst.toggleErrorMode, null);
   assert.equal(inst.mode, 'video');
@@ -427,9 +432,9 @@ for (const reloadError of [PERMISSION_ERROR, 'bridge unreachable']) {
 // flag-match rule alone would keep it: the pipeline is not that mode).
 {
   stubFetch(() => ({ succeeded: true }));
-  const { inst } = switchScreen({ state: AUDIO_STATE, toggleError: "Couldn't switch to Audio.", toggleErrorMode: 'audio' });
+  const { inst } = switchScreen({ state: AUDIO_STATE, toggleError: "Music pulse didn't start.", toggleErrorMode: 'audio' });
   inst.nextState = VIDEO_STATE;
-  try { await inst._switchMode('video'); } finally { globalThis.fetch = realFetch; }
+  try { await inst._switchMode('video', 'builtin.video'); } finally { globalThis.fetch = realFetch; }
   assert.equal(inst.toggleError, null, 'confirmed switch clears an error about the other mode');
   assert.equal(inst.mode, 'video');
 }
@@ -440,7 +445,7 @@ for (const reloadError of [PERMISSION_ERROR, 'bridge unreachable']) {
   stubFetch(() => ({ succeeded: true }));
   const paused = { ...AUDIO_STATE, paused: true };
   const { inst } = switchScreen({ state: paused, toggleError: PERMISSION_ERROR, toggleErrorMode: 'video' });
-  try { await inst._switchMode('video'); } finally { globalThis.fetch = realFetch; }
+  try { await inst._switchMode('video', 'builtin.video'); } finally { globalThis.fetch = realFetch; }
   assert.equal(inst.toggleError, PERMISSION_ERROR, 'paused no-op switch keeps the error');
   assert.equal(inst.mode, 'audio', 'no false confirm while paused');
 }
@@ -448,7 +453,7 @@ for (const reloadError of [PERMISSION_ERROR, 'bridge unreachable']) {
   stubFetch(() => ({ succeeded: true }));
   const paused = { ...AUDIO_STATE, paused: true };
   const { inst } = switchScreen({ state: paused });
-  try { await inst._switchMode('video'); } finally { globalThis.fetch = realFetch; }
+  try { await inst._switchMode('video', 'builtin.video'); } finally { globalThis.fetch = realFetch; }
   assert.equal(inst.toggleError, null, 'paused no-op switch adds no error');
 }
 
@@ -468,7 +473,7 @@ for (const reloadError of [PERMISSION_ERROR, 'bridge unreachable']) {
   assert.ok(!topTier.innerHTML.includes("Aurora can't hear any audio."), 'no inline audio permission block');
 }
 
-// Under MCP the default-device hints follow the graph's declared inputs (Aurora-tc8w).
+// Under a custom effect the default-device hints follow the graph's declared inputs (Aurora-tc8w).
 {
   const hintsFor = (mode, graphInputs, flags) => {
     const slot = makeEl();
@@ -485,12 +490,12 @@ for (const reloadError of [PERMISSION_ERROR, 'bridge unreachable']) {
     return { video: slot.innerHTML.includes(VIDEO_HINT), audio: slot.innerHTML.includes(AUDIO_HINT), field: !!inst.deviceField };
   };
   const both = { usesVideoInput: true, usesAudioInput: true, samplesZones: true };
-  // The flags still say video (config mode), as for a rainbow graph: the graph wins under MCP.
-  assert.deepEqual(hintsFor('mcp', { video: true, audio: true }, both), { video: true, audio: true, field: true });
-  assert.deepEqual(hintsFor('mcp', { video: false, audio: true }, both), { video: false, audio: true, field: true });
-  assert.deepEqual(hintsFor('mcp', { video: false, audio: false }, both), { video: false, audio: false, field: false });
+  // The flags still say video (config mode), as for a rainbow graph: the graph wins under a custom effect.
+  assert.deepEqual(hintsFor('custom', { video: true, audio: true }, both), { video: true, audio: true, field: true });
+  assert.deepEqual(hintsFor('custom', { video: false, audio: true }, both), { video: false, audio: true, field: true });
+  assert.deepEqual(hintsFor('custom', { video: false, audio: false }, both), { video: false, audio: false, field: false });
   assert.deepEqual(hintsFor('audio', null, { ...both, usesVideoInput: false }), { video: false, audio: true, field: true });
-  assert.deepEqual(hintsFor('mcp', null, both), { video: true, audio: true, field: true });
+  assert.deepEqual(hintsFor('custom', null, both), { video: true, audio: true, field: true });
 }
 
 // No Mac audio-status fetch: the audio poll only asks Linux's sink route.
@@ -547,7 +552,7 @@ assert.equal(DAEMON_UNREACHABLE, "Couldn't reach the daemon.", 'the shared wordi
   globalThis.fetch = async () => { throw new Error('down'); };
   const { inst, calls } = switchScreen({ state: AUDIO_STATE });
   inst.daemonDown = true;
-  try { await inst._switchMode('video'); } finally { globalThis.fetch = realFetch; }
+  try { await inst._switchMode('video', 'builtin.video'); } finally { globalThis.fetch = realFetch; }
   assert.equal(inst.toggleError, null, 'no toggle error for an unreachable daemon');
   assert.equal(inst.toggleErrorMode, null);
   assert.equal(calls.topTier, 0, 'top tier left to _loadAll');
@@ -562,8 +567,8 @@ assert.equal(DAEMON_UNREACHABLE, "Couldn't reach the daemon.", 'the shared wordi
 {
   globalThis.fetch = async () => { throw new Error('blip'); };
   const { inst, calls } = switchScreen({ state: AUDIO_STATE });
-  try { await inst._switchMode('video'); } finally { globalThis.fetch = realFetch; }
-  assert.equal(inst.toggleError, "Couldn't switch to Video.");
+  try { await inst._switchMode('video', 'builtin.video'); } finally { globalThis.fetch = realFetch; }
+  assert.equal(inst.toggleError, "Screen colors didn't start.");
   assert.equal(inst.toggleErrorMode, 'video');
   assert.equal(calls.topTier, 1, 'top tier re-rendered so the audio banner yields');
   assert.equal(calls.checkNow, 1, 'the beat gets one immediate re-check');
@@ -791,36 +796,256 @@ function ownerScreen(extra = {}) {
   assert.ok(content.innerHTML.includes('Not available in this build.'));
 }
 
-// Edit graph link (Aurora-pvxx.8): shown only once the editor probe answered,
-// and only with a running effect; the href carries the effect id.
+// The editor probe (Aurora-pvxx.8) only gates the row menus' Edit graph item.
 {
   const { inst } = fakeScreen();
-  const slot = makeEl();
-  inst.container = { querySelector: () => slot };
-  inst.pipelineState = { effect: 'custom.my fx' };
-  inst.graphEditorAvailable = false;
-  inst._renderEditLink();
-  assert.equal(slot.innerHTML, '');
-  inst.graphEditorAvailable = true;
-  inst._renderEditLink();
-  assert.ok(slot.innerHTML.includes('href="/graph-editor/?effect=custom.my%20fx"'));
-  inst.pipelineState = { effect: null };
-  inst._renderEditLink();
-  assert.equal(slot.innerHTML, '');
-
+  const updates = [];
+  inst.effectPanel = { update: (a) => updates.push(a) };
   const html = { ok: true, headers: { get: () => 'text/html' } };
   globalThis.fetch = async (url) => { assert.equal(url, '/graph-editor/'); return html; };
-  inst.pipelineState = { effect: 'builtin.video' };
   await inst._probeGraphEditor();
   assert.equal(inst.graphEditorAvailable, true);
-  assert.ok(slot.innerHTML.includes('Edit graph'));
+  assert.deepEqual(updates, [{ canEdit: true }]);
   globalThis.fetch = async () => ({ ok: false, headers: { get: () => null } });
   await inst._probeGraphEditor();
   assert.equal(inst.graphEditorAvailable, false);
   globalThis.fetch = async () => { throw new Error('offline'); };
   await inst._probeGraphEditor();
   assert.equal(inst.graphEditorAvailable, false);
+  assert.equal(updates.length, 1);
   globalThis.fetch = realFetch;
 }
 
+// ---- Effect picker switches (Aurora-kep2.1) ----
+
+const RAINBOW = { id: 'rainbow', builtin: false, title: 'Rainbow', description: null };
+const ON_VIDEO = { ...VIDEO_STATE, effect: 'builtin.video' };
+const ON_RAINBOW = { ...VIDEO_STATE, effect: 'rainbow' };
+
+// A picker switch PUTs /api/effects, holds the pending target while the
+// rebuild runs, and fills only once the pipeline runs that id.
+{
+  let during = null;
+  const { inst } = switchScreen({ state: ON_VIDEO });
+  Object.assign(inst, { mode: 'video', effects: [RAINBOW], nextState: ON_RAINBOW });
+  const calls = stubFetch(() => {
+    during = { mode: inst.pendingMode, id: inst.pendingEffectId };
+    return { succeeded: true };
+  });
+  try { await inst._switchMode('custom', 'rainbow'); } finally { globalThis.fetch = realFetch; }
+  assert.equal(calls[0].url, '/api/effects');
+  assert.equal(calls[0].options.method, 'PUT');
+  assert.deepEqual(JSON.parse(calls[0].options.body), { activeEffectId: 'rainbow' });
+  assert.deepEqual(during, { mode: 'custom', id: 'rainbow' }, 'pending names the target while in flight');
+  assert.equal(inst.mode, 'custom');
+  assert.equal(inst.pendingMode, null);
+  assert.equal(inst.pendingEffectId, null);
+}
+
+// Saved but the pipeline fell back to the built-in: the fill stays put.
+{
+  stubFetch(() => ({ succeeded: true }));
+  const { inst } = switchScreen({ state: ON_VIDEO });
+  Object.assign(inst, { mode: 'video', effects: [RAINBOW], nextState: ON_VIDEO });
+  try { await inst._switchMode('custom', 'rainbow'); } finally { globalThis.fetch = realFetch; }
+  assert.equal(inst.mode, 'video', 'not confirmed: no fill');
+  assert.equal(inst.pendingMode, null);
+}
+
+// A rejected pick of an effect that is gone says so.
+{
+  stubFetch(() => ({ succeeded: false, error: 'unknown_effect' }));
+  const { inst } = switchScreen({ state: ON_VIDEO });
+  Object.assign(inst, { mode: 'video', effects: [RAINBOW] });
+  try { await inst._switchMode('custom', 'rainbow'); } finally { globalThis.fetch = realFetch; }
+  assert.equal(inst.toggleError, 'Rainbow no longer exists.');
+}
+
+// A rejection names the effect by title, remembers its id, and clears once
+// that effect runs (a retry or an outside apply).
+{
+  stubFetch(() => ({ succeeded: false }));
+  const { inst } = switchScreen({ state: ON_VIDEO });
+  Object.assign(inst, { mode: 'video', effects: [RAINBOW] });
+  try { await inst._switchMode('custom', 'rainbow'); } finally { globalThis.fetch = realFetch; }
+  assert.equal(inst.toggleError, "Rainbow didn't start.", 'the panel line for a request that never ran');
+  assert.equal(inst.toggleErrorMode, 'custom');
+  assert.equal(inst.toggleErrorEffectId, 'rainbow');
+
+  stubFetch(() => ({ succeeded: true }));
+  inst.nextState = ON_RAINBOW;
+  try { await inst._switchMode('custom', 'rainbow'); } finally { globalThis.fetch = realFetch; }
+  assert.equal(inst.toggleError, null, 'confirmed retry clears it');
+  assert.equal(inst.toggleErrorEffectId, null);
+}
+
+// Picking what already runs is a no-op; during a light test it is a real switch.
+{
+  const calls = stubFetch(() => ({ succeeded: true }));
+  const { inst } = switchScreen({ state: ON_RAINBOW });
+  Object.assign(inst, { mode: 'custom', effects: [RAINBOW] });
+  try {
+    await inst._switchMode('custom', 'rainbow');
+    assert.equal(calls.length, 0, 'already running');
+    inst.pipelineState = { ...ON_RAINBOW, test: { active: true } };
+    inst.nextState = ON_RAINBOW;
+    await inst._switchMode('custom', 'rainbow');
+    assert.equal(calls.length, 1, 'a light test is not the saved effect');
+  } finally { globalThis.fetch = realFetch; }
+}
+
+// Built-in rows keep the mode switch (device-aware patch) and carry their effect id.
+{
+  const seen = [];
+  const inst = Object.create(DashboardScreen.prototype);
+  inst._switchMode = (...args) => { seen.push(args); };
+  inst._onEffectPicked('builtin.video');
+  inst._onEffectPicked('builtin.audio');
+  inst._onEffectPicked('rainbow');
+  assert.deepEqual(seen, [['video', 'builtin.video'], ['audio', 'builtin.audio'], ['custom', 'rainbow']]);
+}
+
+// The effect panel is patched in place with what runs, never the pick, and with the switch
+// state: busy and the target's title while pending, the rejected line once settled.
+{
+  const calls = [];
+  const inst = Object.create(DashboardScreen.prototype);
+  Object.assign(inst, {
+    hasAudio: true, effects: [RAINBOW], pipelineState: ON_RAINBOW, graphEditorAvailable: true,
+    app: { canApprove: false }, toggleError: null, toggleErrorMode: null,
+    pendingMode: 'custom', pendingEffectId: 'rainbow',
+    effectPanel: { update: (args) => calls.push(args), destroy() {} },
+  });
+  inst._renderEffectPanel();
+  assert.equal(calls[0].busy, true);
+  assert.equal(calls[0].pendingTitle, 'Rainbow');
+  assert.equal(calls[0].state, ON_RAINBOW);
+  assert.equal(calls[0].canEdit, true);
+  assert.equal(calls[0].canDelete, false, 'Delete is Admin only');
+  inst.pendingMode = null;
+  inst.pendingEffectId = null;
+  Object.assign(inst, { toggleError: "Rainbow didn't start.", toggleErrorMode: 'custom' });
+  inst._renderEffectPanel();
+  assert.equal(calls[1].busy, false);
+  assert.equal(calls[1].rejected, "Rainbow didn't start.");
+  Object.assign(inst, { effects: [...BUILTINS, RAINBOW], pendingMode: 'audio', pendingEffectId: 'builtin.audio' });
+  inst._renderEffectPanel();
+  assert.equal(calls[2].pendingTitle, 'Music pulse', 'a built-in pick names its effect too');
+  assert.equal(calls[2].rejected, null, 'no rejected line while a retry runs');
+  Object.assign(inst, { pendingMode: null, pendingEffectId: null, toggleError: "Screen colors didn't start.", toggleErrorMode: 'video' });
+  inst._renderEffectPanel();
+  assert.equal(calls[3].rejected, "Screen colors didn't start.", 'a built-in rejection is the panel line too');
+}
+
+// kep2.18: built-in picks show Switching to <title> while in flight and announce the title.
+for (const [id, mode, title, from] of [
+  ['builtin.video', 'video', 'Screen colors', { ...AUDIO_STATE, effect: 'builtin.audio' }],
+  ['builtin.audio', 'audio', 'Music pulse', ON_VIDEO],
+]) {
+  const announced = [];
+  let during = null;
+  const { inst } = switchScreen({ state: from });
+  Object.assign(inst, {
+    mode: runningToggle(from), nextState: { ...(mode === 'video' ? VIDEO_STATE : AUDIO_STATE), effect: id },
+    effectPanel: { announceSwitch: (a) => announced.push(a) },
+  });
+  stubFetch(() => {
+    during = inst.pendingMode && inst._effectLabel(inst.pendingEffectId);
+    return { succeeded: true };
+  });
+  try { await inst._onEffectPicked(id); } finally { globalThis.fetch = realFetch; }
+  assert.equal(during, title, 'pending names the effect');
+  assert.deepEqual(announced, [{ title, outcome: 'success' }]);
+  assert.equal(inst.mode, mode);
+
+  stubFetch(() => ({ succeeded: false }));
+  const rejected = switchScreen({ state: from }).inst;
+  rejected.mode = runningToggle(from);
+  try { await rejected._onEffectPicked(id); } finally { globalThis.fetch = realFetch; }
+  assert.equal(rejected.toggleError, `${title} didn't start.`);
+  assert.equal(rejected.toggleErrorEffectId, id);
+}
+
+// The panel shows even with nothing to list, and there is no separate controls row (kep2.18).
+{
+  const inst = Object.create(DashboardScreen.prototype);
+  Object.assign(inst, {
+    hasAudio: true, effects: [], pipelineState: ON_VIDEO, platform: 'windows',
+    toggleError: "Screen colors didn't start.", toggleErrorMode: 'video', mode: 'video', pendingMode: null,
+    effectPanel: null,
+    container: { querySelector: () => { throw new Error('no controls row to render into'); } },
+  });
+  let rendered = 0;
+  inst._renderEffectPanel = () => { rendered++; };
+  inst._renderControls();
+  assert.equal(rendered, 1);
+  assert.ok(!('_renderEditLink' in inst), 'the Dashboard Edit graph link is gone');
+}
+
+// A failed host reads its banner sentence through the panel's live region.
+{
+  const said = [];
+  const inst = Object.create(DashboardScreen.prototype);
+  Object.assign(inst, {
+    hostState: 'running', paused: false, canStop: true, pendingMode: null, pipelineState: ON_VIDEO,
+    effectPanel: { announce: (m) => said.push(m) },
+    _renderTopBar() {},
+  });
+  inst._onHeartbeatState({ state: 'failed', errors: [{ message: "Couldn't start Fire: no audio input is set up." }], effect: null });
+  assert.deepEqual(said, ["Couldn't start Fire: no audio input is set up."]);
+  inst._onHeartbeatState({ state: 'failed', errors: [{ message: "Couldn't start Fire: no audio input is set up." }], effect: null });
+  assert.equal(said.length, 1, 'the same failure is announced once');
+  inst._onHeartbeatState({ state: 'failed', errors: [{ message: 'again' }], effect: null });
+  assert.equal(said.length, 2, 'a new failure on a failed host is announced');
+}
+
+// kep2.20: the Dashboard switch path announces the failed host's sentence, once.
+{
+  const FAILED = { state: 'failed', paused: false, effect: null, errors: [{ source: 'resume', message: 'other' }, { source: 'reload', message: "Couldn't start Candle: no audio input is set up." }] };
+  const run = async ({ heartbeatFirst = false, second = false } = {}) => {
+    const said = [];
+    const { inst } = switchScreen({ state: AUDIO_STATE });
+    Object.assign(inst, {
+      mode: 'audio', nextState: FAILED, hostState: 'running', paused: false, canStop: true,
+      effectPanel: { announce: (m) => said.push(m), announceSwitch: (a) => said.push(a) },
+      _renderTopBar() {},
+    });
+    const origLoad = inst._loadAll;
+    if (heartbeatFirst) inst._loadAll = async function () { inst._onHeartbeatState(FAILED); return origLoad.call(this); };
+    stubFetch(() => ({ succeeded: true, reloadError: 'boom' }));
+    try {
+      await inst._switchMode('video', 'builtin.video');
+      if (second) await inst._switchMode('video', 'builtin.video');
+    } finally { globalThis.fetch = realFetch; }
+    inst._onHeartbeatState(FAILED);
+    return said;
+  };
+  const sentence = "Couldn't start Candle: no audio input is set up.";
+  assert.deepEqual(await run(), [sentence], 'flow announces the effect row once, heartbeat adds nothing');
+  assert.deepEqual(await run({ heartbeatFirst: true }), [sentence], 'heartbeat landing first is not doubled');
+  assert.deepEqual(await run({ second: true }), [sentence, sentence], 'a second failure on a failed host is announced');
+}
+
 console.log('DashboardScreen pause checks passed.');
+
+// kep2.11: a lost PUT answer whose build failed leaves a failed host: no inline copy beside the banner.
+{
+  const { inst } = switchScreen({ state: AUDIO_STATE });
+  inst.daemonDown = false; inst.effects = [];
+  inst.nextState = { state: 'failed', errors: [], paused: false, effect: null };
+  globalThis.fetch = async () => { throw new Error('lost'); };
+  try { await inst._switchMode('custom', 'agent-one'); } finally { globalThis.fetch = realFetch; }
+  assert.equal(inst.toggleError, null, 'failed host shows only the banner');
+}
+
+// kep2.11: an unknown_effect error clears once another client switches the running effect.
+{
+  const { inst } = switchScreen({ state: { ...VIDEO_STATE, effect: 'builtin.video' } });
+  inst.effects = [];
+  stubFetch(() => ({ succeeded: false, error: 'unknown_effect' }));
+  try { await inst._switchMode('custom', 'gone'); } finally { globalThis.fetch = realFetch; }
+  assert.match(inst.toggleError, /no longer exists/);
+  inst.nextState = { ...AUDIO_STATE, effect: 'builtin.audio' };
+  await inst._loadAll();
+  assert.equal(inst.toggleError, null, 'a switch from elsewhere clears it');
+}

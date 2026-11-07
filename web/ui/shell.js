@@ -80,6 +80,7 @@ const SOURCE_PREFIX = {
   startup: "Couldn't start: ",
   resume: "Couldn't resume: ",
   reload: "Couldn't apply settings: ",
+  effect: '', // the message already names the effect (Aurora-kep2.4)
 };
 
 export class App {
@@ -521,7 +522,7 @@ export class App {
       : parsed
       ? renderReloadError(error.message, this.platform, { retryId })
       : `<p class="status-text status-text-error"><span class="warn-glyph" aria-hidden="true"></span> ${escapeHtml(text)}</p>
-         <button type="button" class="btn btn-secondary" id="${retryId}" style="margin-top: var(--aurora-space-3);">Retry</button>`;
+         ${error.retry === false ? '' : `<button type="button" class="btn btn-secondary" id="${retryId}" style="margin-top: var(--aurora-space-3);">Retry</button>`}`;
     // X only while the old setup still works (ErrorOverlay.md, 'Dismiss'):
     // a paused or failed host's row is the reason there are no lights.
     const dismiss = this.hostState === 'running' && Number.isInteger(error.id)

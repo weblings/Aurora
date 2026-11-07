@@ -311,7 +311,7 @@ namespace Aurora::Mcp
         "Save the whole graph as your draft and validate it. An invalid graph is a normal result: valid false "
         "with errors, each with code, node, port or param, and the valid options. Fix and save again. "
         "Nothing reaches the lights.",
-        {{"graph", {{"type", "object"}, {"description", "Graph document: version, nodes, edges, controls, plus a title (up to 60 characters) and description (up to 280) the user sees in their effect list."}}}},
+        {{"graph", {{"type", "object"}, {"description", "Graph document: version, nodes, edges, controls, plus a title (up to 80 characters) and description (up to 280) the user sees in their effect list."}}}},
         nlohmann::json::array({"graph"})),
       writeTool("set_control",
         "Change one control value on the draft without editing the graph. Name the control by its label or "

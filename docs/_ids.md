@@ -78,6 +78,7 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `d3ec-windows-verification` | [log/2026-10-06-d3ec-windows-verification.md](log/2026-10-06-d3ec-windows-verification.md) | Aurora-d3ec Windows verification (compile, Catch2, live failed-state cycle) |
 | `d6i7-config-writer-race` | [log/2026-10-02-d6i7-config-writer-race.md](log/2026-10-02-d6i7-config-writer-race.md) | Aurora-d6i7: config.json writer race (Pipeline::build vs the settings PUT) |
 | `d7s-dashboard-output-section` | [log/2026-10-16-d7s-dashboard-output-section.md](log/2026-10-16-d7s-dashboard-output-section.md) | Dashboard Output section (Aurora-d7s) |
+| `dh1p-failure-light` | [log/2026-11-05-dh1p-failure-light.md](log/2026-11-05-dh1p-failure-light.md) | Failure light: dim magenta while no effect can run |
 | `distributed-architecture-plan` | [archive/DistributedArchitecturePlan.md](archive/DistributedArchitecturePlan.md) | Distributed architecture — how far to decompose Input/Processing/Output over a network |
 | `docs-lessons-pain-points` | [archive/DocsAndLessonsPainPoints.md](archive/DocsAndLessonsPainPoints.md) | Docs & lessons: scaling pain points |
 | `dwvu-double-local-network-prompt` | [log/2026-10-08-dwvu-double-local-network-prompt.md](log/2026-10-08-dwvu-double-local-network-prompt.md) | Aurora-dwvu: two Local Network prompts on first Mac launch (closed) |
@@ -141,6 +142,31 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `kea-capability-flags` | [log/2026-10-03-kea-capability-flags.md](log/2026-10-03-kea-capability-flags.md) | Aurora-kea: running-pipeline flags drive the Dashboard (open: Mac/Windows unverified) |
 | `kea-dashboard-capabilities-scoping` | [log/2026-10-02-kea-dashboard-capabilities-scoping.md](log/2026-10-02-kea-dashboard-capabilities-scoping.md) | Aurora-kea: scoping pass on Dashboard capability-driven sections (paused, no code) |
 | `kea-route-and-shared-capture-source` | [log/2026-10-03-kea-route-and-shared-capture-source.md](log/2026-10-03-kea-route-and-shared-capture-source.md) | Aurora-kea: route decision, shared capture-source scope, pending-highlight follow-up (paused, no code) |
+| `kep2-epic-close` | [log/2026-11-05-kep2-epic-close.md](log/2026-11-05-kep2-epic-close.md) | Effect picker epic closed |
+| `kep21-effect-picker` | [log/2026-10-30-kep21-effect-picker.md](log/2026-10-30-kep21-effect-picker.md) | Dashboard effect picker beside Video/Audio |
+| `kep210-cut-over` | [log/2026-11-05-kep210-cut-over.md](log/2026-11-05-kep210-cut-over.md) | Effect panel replaces the Video/Audio toggle on the Dashboard |
+| `kep211-inline-switch-error` | [log/2026-11-05-kep211-inline-switch-error.md](log/2026-11-05-kep211-inline-switch-error.md) | Inline effect switch errors no longer double the banner or stick |
+| `kep212-effect-switch-log` | [log/2026-11-05-kep212-effect-switch-log.md](log/2026-11-05-kep212-effect-switch-log.md) | Rejected effect switch logging |
+| `kep213-v1-effect-manage` | [log/2026-11-05-kep213-v1-effect-manage.md](log/2026-11-05-kep213-v1-effect-manage.md) | Hide, move and rename mirrored in /api/v1 |
+| `kep215-button-row-panel` | [log/2026-11-04-kep215-button-row-panel.md](log/2026-11-04-kep215-button-row-panel.md) | Effect panel moves to the button row model |
+| `kep216-empty-start` | [log/2026-11-05-kep216-empty-start.md](log/2026-11-05-kep216-empty-start.md) | Empty graph as a Start from option |
+| `kep217-effect-fault-log` | [log/2026-11-05-kep217-effect-fault-log.md](log/2026-11-05-kep217-effect-fault-log.md) | Effect route server faults reach the log |
+| `kep218-builtin-switch-states` | [log/2026-11-05-kep218-builtin-switch-states.md](log/2026-11-05-kep218-builtin-switch-states.md) | Built-in picks use the panel's switch states |
+| `kep219-trigger-focus` | [log/2026-11-05-kep219-trigger-focus.md](log/2026-11-05-kep219-trigger-focus.md) | Effect trigger keeps focus through a switch |
+| `kep22-effect-panel-mocks` | [log/2026-11-03-kep22-effect-panel-mocks.md](log/2026-11-03-kep22-effect-panel-mocks.md) | Effect panel static mocks |
+| `kep220-failed-switch-announce` | [log/2026-11-05-kep220-failed-switch-announce.md](log/2026-11-05-kep220-failed-switch-announce.md) | Failed effect switches announce through the live region |
+| `kep221-long-press-first-tap` | [log/2026-11-05-kep221-long-press-first-tap.md](log/2026-11-05-kep221-long-press-first-tap.md) | The first tap after a touch long-press runs |
+| `kep224-cut-long-press` | [log/2026-11-05-kep224-cut-long-press.md](log/2026-11-05-kep224-cut-long-press.md) | Touch long-press cut from the effect panel |
+| `kep226-duplicate-order` | [log/2026-11-05-kep226-duplicate-order.md](log/2026-11-05-kep226-duplicate-order.md) | A duplicated effect is last in Custom straight away |
+| `kep227-paused-pick` | [log/2026-11-05-kep227-paused-pick.md](log/2026-11-05-kep227-paused-pick.md) | A pick while paused says it starts on resume |
+| `kep228-title-limit` | [log/2026-11-05-kep228-title-limit.md](log/2026-11-05-kep228-title-limit.md) | One effect title limit |
+| `kep23-effect-id-picks-mode` | [log/2026-11-03-kep23-effect-id-picks-mode.md](log/2026-11-03-kep23-effect-id-picks-mode.md) | Effect id picks the mode, both inputs kept, missing ones auto-picked |
+| `kep24-failed-effect-no-fallback` | [log/2026-11-05-kep24-failed-effect-no-fallback.md](log/2026-11-05-kep24-failed-effect-no-fallback.md) | A failed effect leaves no effect running |
+| `kep25-effect-list-layout` | [log/2026-11-03-kep25-effect-list-layout.md](log/2026-11-03-kep25-effect-list-layout.md) | Effect list data: hidden flag, custom order and a Rename route |
+| `kep26-row-menu-flows` | [log/2026-11-03-kep26-row-menu-flows.md](log/2026-11-03-kep26-row-menu-flows.md) | Row menu follow-on flows |
+| `kep27-voiceover-tree-check` | [log/2026-11-03-kep27-voiceover-tree-check.md](log/2026-11-03-kep27-voiceover-tree-check.md) | VoiceOver check of the effect panel tree |
+| `kep28-effect-panel` | [log/2026-11-05-kep28-effect-panel.md](log/2026-11-05-kep28-effect-panel.md) | Effect panel: rows, layers and switch states |
+| `kep29-wire-row-actions` | [log/2026-11-04-kep29-wire-row-actions.md](log/2026-11-04-kep29-wire-row-actions.md) | Wire the effect panel's row actions |
 | `kgv7-pickers-follow-graph` | [log/2026-10-23-kgv7-pickers-follow-graph.md](log/2026-10-23-kgv7-pickers-follow-graph.md) | Kgv7: Dashboard pickers follow the MCP graph's declared inputs (Aurora-kgv7) |
 | `lane-a-review-followups` | [log/2026-10-24-lane-a-review-followups.md](log/2026-10-24-lane-a-review-followups.md) | Lane A review follow-ups (Aurora-5ipy.28 to .34) |
 | `lby1-os-assigned-test-ports` | [log/2026-10-16-lby1-os-assigned-test-ports.md](log/2026-10-16-lby1-os-assigned-test-ports.md) | Route tests bind OS-assigned ports (Aurora-lby1) |
@@ -171,6 +197,7 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `linux-post-d-verification` | [log/2026-10-23-linux-post-d-verification.md](log/2026-10-23-linux-post-d-verification.md) | Linux verification of the changes after Sequence D (0e73051 to e1834d0) |
 | `linux-tray-pause` | [log/2026-10-04-linux-tray-pause.md](log/2026-10-04-linux-tray-pause.md) | Aurora-5ipy.16: Linux SNI tray Pause/Resume (closed) |
 | `lmn5-doc-checkers-as-hook` | [log/2026-10-07-lmn5-doc-checkers-as-hook.md](log/2026-10-07-lmn5-doc-checkers-as-hook.md) | Aurora-lmn.5: check-links.sh/check-lessons.sh wired into the pre-commit hook |
+| `lt66-output-link-monitor` | [log/2026-11-05-lt66-output-link-monitor.md](log/2026-11-05-lt66-output-link-monitor.md) | A dead or dropped Hue bridge raises a banner row and reconnects by itself |
 | `lut9-save-as-new-title` | [log/2026-10-29-lut9-save-as-new-title.md](log/2026-10-29-lut9-save-as-new-title.md) | Graph editor: Save as new picks a distinct title |
 | `lzj-embed-and-serving` | [log/2026-10-01-lzj-embed-and-serving.md](log/2026-10-01-lzj-embed-and-serving.md) | Aurora-lzj: toolchain spike investigated, change A (embed + serving) done; HA prep filed |
 | `lzw-github-ci` | [log/2026-10-01-lzw-github-ci.md](log/2026-10-01-lzw-github-ci.md) | Aurora-lzw: GitHub CI unblocked for weblings/Aurora |
@@ -196,6 +223,7 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `nodes-agent-ux-planning` | [log/2026-10-13-nodes-agent-ux-planning.md](log/2026-10-13-nodes-agent-ux-planning.md) | Nodes and agent UX: planning session, Sequence A filed |
 | `o13-dual-capture` | [log/2026-10-11-o13-dual-capture.md](log/2026-10-11-o13-dual-capture.md) | Aurora-o13: video and audio capture at the same time (Linux, Mac, Windows capture run) |
 | `o1qt-local-network-probe` | [log/2026-10-08-o1qt-local-network-probe.md](log/2026-10-08-o1qt-local-network-probe.md) | Aurora-o1qt: Mac Local Network permission detection (closed) |
+| `oecx-focus-ring-tokens` | [log/2026-11-05-oecx-focus-ring-tokens.md](log/2026-11-05-oecx-focus-ring-tokens.md) | Shared focus-ring tokens |
 | `open-formats-research` | [archive/OpenFormatsResearch.md](archive/OpenFormatsResearch.md) | Existing open formats for video/audio-reactive lighting |
 | `p91-portal-settle` | [log/2026-10-03-p91-portal-settle.md](log/2026-10-03-p91-portal-settle.md) | Aurora-p91: portal denial and call errors settle the fd promise |
 | `pause-tooltips` | [log/2026-10-04-pause-tooltips.md](log/2026-10-04-pause-tooltips.md) | Aurora-5ipy.13.1: Pause/Stop button tooltips (closed) |
@@ -216,6 +244,8 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `pvxx8-dashboard-entry-shipping` | [log/2026-10-29-pvxx8-dashboard-entry-shipping.md](log/2026-10-29-pvxx8-dashboard-entry-shipping.md) | E5: Dashboard entry point and shipping the editor |
 | `pvxx9-sequence-e-gate` | [log/2026-10-29-pvxx9-sequence-e-gate.md](log/2026-10-29-pvxx9-sequence-e-gate.md) | E6: Sequence E gate on the fake-Hue stack |
 | `q9l1-tray-target-live` | [log/2026-10-07-q9l1-tray-target-live.md](log/2026-10-07-q9l1-tray-target-live.md) | Aurora-q9l1: tray click-time target — Linux live green, Windows exercised, closed |
+| `qqcn-link-monitor-real-bridge` | [log/2026-11-05-qqcn-link-monitor-real-bridge.md](log/2026-11-05-qqcn-link-monitor-real-bridge.md) | The link monitor was checked on a real bridge and its banner copy reworded |
+| `que2-input-free-build` | [log/2026-11-04-que2-input-free-build.md](log/2026-11-04-que2-input-free-build.md) | Source-less custom graphs build with no capture input |
 | `qv7a-thumbnail-regions` | [log/2026-10-29-qv7a-thumbnail-regions.md](log/2026-10-29-qv7a-thumbnail-regions.md) | Graph editor thumbnail: zones at their sampled regions |
 | `r7ff-noise-nodes` | [log/2026-10-22-r7ff-noise-nodes.md](log/2026-10-22-r7ff-noise-nodes.md) | R7ff: noise source nodes (Aurora-r7ff) |
 | `ra4o10-g2e-pre-g3-fixes` | [log/2026-10-14-ra4o10-g2e-pre-g3-fixes.md](log/2026-10-14-ra4o10-g2e-pre-g3-fixes.md) | G2e pre-G3 review fixes (Aurora-ra4o.10) |
@@ -288,3 +318,4 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `xrl1-warning-icon` | [log/2026-10-07-xrl1-warning-icon.md](log/2026-10-07-xrl1-warning-icon.md) | Aurora-xrl1: vector warning icon replaces bold ⚠ (closed) |
 | `yzp4-takeover-unification` | [log/2026-10-06-yzp4-takeover-unification.md](log/2026-10-06-yzp4-takeover-unification.md) | Aurora-yzp4: takeover unified to heading-only "Aurora has stopped" (closed) |
 | `zfre-test-state-and-stop` | [log/2026-10-22-zfre-test-state-and-stop.md](log/2026-10-22-zfre-test-state-and-stop.md) | Zfre: /api/state reports the light test, the WebUI can stop it (Aurora-zfre) |
+| `zl32-no-input-running` | [log/2026-11-05-zl32-no-input-running.md](log/2026-11-05-zl32-no-input-running.md) | Source-less effects run with no inputs configured |

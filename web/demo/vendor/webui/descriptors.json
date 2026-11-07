@@ -15,6 +15,11 @@
       }
     },
     {
+      "key": "app.effect",
+      "kind": "button",
+      "description": "Choose the light effect"
+    },
+    {
       "key": "app.mode",
       "kind": "button",
       "description": "Video or audio reactive mode"

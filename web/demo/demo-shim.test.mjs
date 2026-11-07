@@ -365,6 +365,24 @@ function testRouter(seed) {
   assert.equal(audioRoute('GET', '/api/effects').json.effect, 'builtin.audio');
 }
 
+// Picker layout routes (Aurora-kep2.5): hide, move and rename answer like the backend.
+{
+  const route = testRouter({});
+  const ids = () => route('GET', '/api/effects').json.effects.map((e) => e.id);
+  assert.deepEqual(route('GET', '/api/effects').json.effects.map((e) => [e.hidden, e.order]), [[false, 0], [false, 1]]);
+  assert.equal(route('POST', '/api/effects/builtin.audio/move', JSON.stringify({ direction: 'up' })).json.moved, true);
+  assert.deepEqual(ids(), ['builtin.audio', 'builtin.video']);
+  assert.equal(route('POST', '/api/effects/builtin.audio/move', JSON.stringify({ direction: 'up' })).json.moved, false);
+  assert.equal(route('POST', '/api/effects/builtin.audio/move', JSON.stringify({ direction: 'left' })).status, 400);
+  assert.equal(route('PUT', '/api/effects/builtin.video/hidden', JSON.stringify({ hidden: true })).json.hidden, true);
+  assert.equal(route('GET', '/api/effects').json.effects[1].hidden, true);
+  assert.equal(route('PUT', '/api/effects/builtin.video/hidden', JSON.stringify({ hidden: false })).status, 200);
+  assert.equal(route('PUT', '/api/effects/nope/hidden', JSON.stringify({ hidden: true })).status, 404);
+  assert.equal(route('PUT', '/api/effects/builtin.video/title', JSON.stringify({ title: 'X' })).json.error, 'builtin_effect');
+  assert.equal(route('PUT', '/api/effects/nope/title', JSON.stringify({ title: 'X' })).status, 404);
+  assert.equal(route('PUT', '/api/effects/nope/title', JSON.stringify({ title: ' ' })).json.error, 'invalid_title');
+}
+
 console.log('demo-shim contract tests passed.');
 
 // Pause hook (Aurora-calt): PUT /api/state tells the scene, so lamps freeze

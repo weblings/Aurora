@@ -35,8 +35,8 @@ import { DeviceField, AUTO_MONITOR_VALUE } from '../DeviceField.js';
 import { applyTooltip } from '../Tooltips.js';
 import { renderReloadError } from '../MacPermissionRecovery.js';
 import {
-  audioDevicesUrlFrom, effectiveFlags, flagsForMode, isModeConfigValid, isSwitchConfirmed, loadPipelineState,
-  modeFromFlags, modeSwitchPatch,
+  audioDevicesUrlFrom, effectiveFlags, flagsForMode, isApplyConfirmed, isModeConfigValid, keepCustomEffect,
+  loadEffects, loadPipelineState, modeFromFlags, modeSwitchPatch,
 } from '../CaptureSource.js';
 
 export { pickVideoInputName, pickAudioInputName } from '../CaptureSource.js';
@@ -58,6 +58,7 @@ export class ModeDeviceScreen {
     this.sinkName = '';
     this.audioDevicesUrl = null;
     this.platform = '';
+    this.activeEffectId = '';
     this.pendingMode = null; // toggle choice with a switch in flight: outlined, not filled
     this.error = null;
     this.reloadFailed = false; // saved but not applied: the shell banner shows it, not this screen
@@ -83,11 +84,13 @@ export class ModeDeviceScreen {
     let capabilities;
     let config;
     let state;
+    let effects;
     try {
-      [capabilities, config, state] = await Promise.all([
+      [capabilities, config, state, effects] = await Promise.all([
         fetch('/api/capabilities').then((r) => r.json()),
         fetch('/api/config').then((r) => r.json()),
         loadPipelineState(),
+        loadEffects(),
       ]);
     } catch {
       // Unreachable owns this (shell takeover, Aurora-ewyz): poke the beat,
@@ -105,6 +108,7 @@ export class ModeDeviceScreen {
     this.hasAudio = this.audioInputs.length > 0;
     this.audioDevicesUrl = audioDevicesUrlFrom(state);
 
+    this.activeEffectId = config.activeEffectId ?? '';
     this.currentActiveInputName = config.activeInputName ?? '';
     this.currentActiveAudioInputName = config.activeAudioInputName ?? '';
     // Fill follows the running pipeline, never the saved config: after a
@@ -128,7 +132,7 @@ export class ModeDeviceScreen {
     // click, so nothing ever actually reacted until the *next* screen loaded
     // (see WebUI_Fixes.md Pass 2). Skipped if a valid mode is already
     // applied (e.g. navigating back here) to avoid an unnecessary reconnect.
-    if (!isModeConfigValid(config, this.inputs, this.audioInputs)) {
+    if (!isModeConfigValid(config, this.inputs, this.audioInputs, effects)) {
       await this._applyMode();
     }
   }
@@ -272,7 +276,8 @@ export class ModeDeviceScreen {
     this.reloadFailed = false;
 
     const applying = this.pendingMode ?? this.mode;
-    const patch = modeSwitchPatch(applying, this);
+    const switched = modeSwitchPatch(applying, this);
+    const patch = this.pendingMode ? switched : keepCustomEffect(switched, this.activeEffectId);
 
     try {
       const result = await (await fetch('/api/config', {
@@ -296,10 +301,10 @@ export class ModeDeviceScreen {
         // so there is no failure to report.
         const stateAfter = await loadPipelineState();
         if (stateAfter) this.audioDevicesUrl = audioDevicesUrlFrom(stateAfter);
-        if (isSwitchConfirmed(result, stateAfter, applying)) {
-          this.mode = applying;
-          // An audio switch clears activeInputName but keeps the remembered
-          // video input, so switching back picks the same one.
+        if (isApplyConfirmed(result, stateAfter, applying, patch, this.activeEffectId)) {
+          // A kept custom effect's graph picks the mode, not the toggle.
+          this.mode = patch.activeEffectId ? applying : modeFromFlags(stateAfter);
+          // Both names stay saved across switches, so switching back keeps the input.
           if (patch.activeInputName) this.currentActiveInputName = patch.activeInputName;
           if (patch.activeAudioInputName) this.currentActiveAudioInputName = patch.activeAudioInputName;
           if (flagsForMode(this.mode).usesVideoInput) {

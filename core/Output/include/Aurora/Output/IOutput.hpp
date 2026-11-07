@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstdint>
+#include <functional>
 #include <map>
 #include <string>
 #include <vector>
@@ -11,10 +12,22 @@
 // Push model: send() is called once per tick, mirroring Streamer::streamChannels() today.
 namespace Aurora::Output
 {
+  // Whether the device behind an output answers and still streams (Aurora-lt66).
+  // Stopped means reachable but not streaming, so a reconnect makes sense. Busy
+  // means another app holds the device, so it must not. Ordered least to most urgent.
+  enum class LinkState { Ok, Busy, Unreachable, Stopped };
+
+  // Self-contained and thread-safe: owns copies of what it needs, so a monitor
+  // thread can call it (blocking) after the output itself is gone. Empty when
+  // the output has nothing to probe.
+  using LinkProbe = std::function<LinkState()>;
+
   class IOutput
   {
   public:
     virtual ~IOutput() = default;
+
+    virtual LinkProbe linkProbe() const { return {}; }
 
     virtual const std::string& name() const = 0;
 

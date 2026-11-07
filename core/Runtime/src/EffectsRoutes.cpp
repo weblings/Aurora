@@ -1,5 +1,7 @@
 #include <Aurora/Runtime/EffectsRoutes.hpp>
 
+#include <algorithm>
+
 #include <nlohmann/json.hpp>
 
 #include <Aurora/Network/Http/Server/HttpServer.hpp>
@@ -8,6 +10,7 @@
 #include <Aurora/Runtime/ConfigStore.hpp>
 #include <Aurora/Runtime/EffectStore.hpp>
 #include <Aurora/Runtime/Graph/BuiltInGraphs.hpp>
+#include <Aurora/Runtime/Graph/GraphLoader.hpp>
 #include <Aurora/Runtime/Pipeline.hpp>
 #include <Aurora/Runtime/Registry.hpp>
 #include <Aurora/Runtime/ReloadCoalescer.hpp>
@@ -50,27 +53,69 @@ namespace Aurora::Runtime
       std::vector<std::string> names = config.activeOutputNames();
       return names.empty() ? registry.outputNames() : names;
     }
+
+    bool _contains(const std::vector<std::string>& ids, const std::string& id)
+    {
+      return std::find(ids.begin(), ids.end(), id) != ids.end();
+    }
+
+    // Ids in saved order first, the rest after in their given order.
+    std::vector<std::string> _ordered(const std::vector<std::string>& ids, const std::vector<std::string>& saved)
+    {
+      std::vector<std::string> out;
+      for(const std::string& id : saved){
+        if(_contains(ids, id) && !_contains(out, id)){
+          out.push_back(id);
+        }
+      }
+      for(const std::string& id : ids){
+        if(!_contains(out, id)){
+          out.push_back(id);
+        }
+      }
+      return out;
+    }
+
+    // Built-ins always lead, each group ordered by the saved order.
+    std::vector<std::string> _displayOrder(const std::filesystem::path& configRoot, const Config& config)
+    {
+      std::vector<std::string> ids = _ordered({kBuiltInVideoEffectId, kBuiltInAudioEffectId}, config.effectOrder());
+      const std::vector<std::string> customs = _ordered(EffectStore(configRoot).list(), config.effectOrder());
+      ids.insert(ids.end(), customs.begin(), customs.end());
+      return ids;
+    }
+
+    void _forget(Config& config, const std::string& id)
+    {
+      const auto drop = [&id](std::vector<std::string> ids){
+        ids.erase(std::remove(ids.begin(), ids.end(), id), ids.end());
+        return ids;
+      };
+      config.setHiddenEffectIds(drop(config.hiddenEffectIds()));
+      config.setEffectOrder(drop(config.effectOrder()));
+    }
   }
 
 
   nlohmann::json effectsListToJson(PipelineHost& pipelineHost, const std::filesystem::path& configRoot)
   {
+    const Config config = ConfigStore(configRoot).load();
     nlohmann::json effects = nlohmann::json::array();
-    const auto entry = [&configRoot](const std::string& id, bool builtin){
+    int order = 0;
+    for(const std::string& id : _displayOrder(configRoot, config)){
+      const bool builtin = isBuiltInEffectId(id);
       const EffectInfo info = effectInfo(configRoot, id);
-      return nlohmann::json{
+      const auto needs = effectInputs(configRoot, id);
+      effects.push_back({
         {"id", id}, {"builtin", builtin}, {"title", info.title},
-        {"description", info.description.empty() ? nlohmann::json(nullptr) : nlohmann::json(info.description)}
-      };
-    };
-    effects.push_back(entry(kBuiltInVideoEffectId, true));
-    effects.push_back(entry(kBuiltInAudioEffectId, true));
-    for(const std::string& id : EffectStore(configRoot).list()){
-      effects.push_back(entry(id, false));
+        {"description", info.description.empty() ? nlohmann::json(nullptr) : nlohmann::json(info.description)},
+        {"hidden", _contains(config.hiddenEffectIds(), id)}, {"order", order++},
+        {"inputs", needs ? nlohmann::json{{"video", needs->video}, {"audio", needs->audio}} : nlohmann::json(nullptr)}
+      });
     }
     return _effectState(pipelineHost, {
       {"effects", effects},
-      {"activeEffectId", ConfigStore(configRoot).load().activeEffectId()}
+      {"activeEffectId", config.activeEffectId()}
     });
   }
 
@@ -109,6 +154,20 @@ namespace Aurora::Runtime
   }
 
 
+  void logEffectFault(PipelineHost& pipelineHost, const char* route, int status, const nlohmann::json& body, const std::string& id)
+  {
+    const std::string code = body.is_object() ? body.value("error", std::string()) : std::string();
+    if(status < 500 && code != "unreadable_effect"){ return; }
+    // Dumped as JSON so a client's newline or escape cannot forge a log line.
+    std::string line = std::string("Effect route fault: ") + route + " " + std::to_string(status) + " " + code
+      + " " + nlohmann::json(id).dump();
+    if(body.is_object() && body.contains("message") && body.at("message").is_string()){
+      line += " " + body.at("message").dump();
+    }
+    pipelineHost.log(LogLevel::Error, line);
+  }
+
+
   void addEffectsAccessRules(AccessGuard& guard)
   {
     guard.addWriteRule("/api/effects", Scope::Apply);
@@ -142,9 +201,11 @@ namespace Aurora::Runtime
     server.addRoute(
       HttpMethod::Get,
       "/api/effects/:id",
-      [&registry, configRoot](const Request& req, Response& res){
+      [&pipelineHost, &registry, configRoot](const Request& req, Response& res){
         nlohmann::json body;
-        const int status = effectDocumentToJson(registry, configRoot, req.pathParams.at("id"), body);
+        const std::string& id = req.pathParams.at("id");
+        const int status = effectDocumentToJson(registry, configRoot, id, body);
+        logEffectFault(pipelineHost, "GET /api/effects/:id", status, body, id);
         _reply(res, status, body);
       }
     );
@@ -158,10 +219,13 @@ namespace Aurora::Runtime
           id = nlohmann::json::parse(req.body).at("activeEffectId").get<std::string>();
         }
         catch(const nlohmann::json::exception&){
+          pipelineHost.log(LogLevel::Error, "Effect switch rejected: invalid_body");
           _reply(res, 400, {{"succeeded", false}, {"error", "invalid_body"}});
           return;
         }
         if(!id.empty() && !isBuiltInEffectId(id) && !EffectStore(configRoot).exists(id)){
+          // Dumped as JSON so a client's newline or escape cannot forge a log line.
+          pipelineHost.log(LogLevel::Error, "Effect switch rejected: unknown_effect " + nlohmann::json(id).dump());
           _reply(res, 404, {{"succeeded", false}, {"error", "unknown_effect"}});
           return;
         }
@@ -190,13 +254,22 @@ namespace Aurora::Runtime
     server.addRoute(
       HttpMethod::Post,
       "/api/effects/:id/duplicate",
-      [&registry, configRoot](const Request& req, Response& res){
+      [&pipelineHost, &registry, configRoot](const Request& req, Response& res){
         std::string copyId;
+        std::string copyTitle;
         try{
-          copyId = nlohmann::json::parse(req.body).at("id").get<std::string>();
+          const nlohmann::json request = nlohmann::json::parse(req.body);
+          copyId = request.at("id").get<std::string>();
+          if(request.contains("title")){
+            copyTitle = request.at("title").get<std::string>();
+          }
         }
         catch(const nlohmann::json::exception&){
           _reply(res, 400, {{"succeeded", false}, {"error", "invalid_body"}});
+          return;
+        }
+        if(Graph::textLength(copyTitle) > Graph::kMaxTitleLength){
+          _reply(res, 400, {{"succeeded", false}, {"error", "invalid_title"}});
           return;
         }
         if(!EffectStore::validId(copyId)){
@@ -213,16 +286,154 @@ namespace Aurora::Runtime
         nlohmann::json source;
         const int status = effectDocumentToJson(registry, configRoot, sourceId, source);
         if(status != 200){
+          logEffectFault(pipelineHost, "POST /api/effects/:id/duplicate", status, source, sourceId);
           source["succeeded"] = false;
           _reply(res, status, source);
           return;
         }
+        // An optional title names the copy, else the graph is written unchanged.
+        nlohmann::json graph = source.at("graph");
+        if(!copyTitle.empty()){
+          graph["title"] = copyTitle;
+        }
         std::string writeError;
-        if(!store.write(copyId, source.at("graph"), writeError)){
+        if(!store.write(copyId, graph, writeError)){
+          const nlohmann::json fault{{"error", "write_failed"}, {"message", writeError}};
+          logEffectFault(pipelineHost, "POST /api/effects/:id/duplicate", 500, fault, copyId);
           _reply(res, 500, {{"succeeded", false}, {"error", "write_failed"}, {"message", writeError}});
           return;
         }
+        // Pin the saved order with the copy last, so it leads no unordered effect.
+        ConfigStore(configRoot).update([&](Config& config){
+          std::vector<std::string> ids = _displayOrder(configRoot, config);
+          ids.erase(std::remove(ids.begin(), ids.end(), copyId), ids.end());
+          ids.push_back(copyId);
+          config.setEffectOrder(std::move(ids));
+          return true;
+        });
         _reply(res, 200, {{"succeeded", true}, {"id", copyId}, {"source", sourceId}});
+      }
+    );
+
+    // Hidden effects stay runnable, the picker just folds them away.
+    server.addRoute(
+      HttpMethod::Put,
+      "/api/effects/:id/hidden",
+      [configRoot](const Request& req, Response& res){
+        bool hidden = false;
+        try{
+          hidden = nlohmann::json::parse(req.body).at("hidden").get<bool>();
+        }
+        catch(const nlohmann::json::exception&){
+          _reply(res, 400, {{"succeeded", false}, {"error", "invalid_body"}});
+          return;
+        }
+        const std::string& id = req.pathParams.at("id");
+        if(!isBuiltInEffectId(id) && !EffectStore(configRoot).exists(id)){
+          _reply(res, 404, {{"succeeded", false}, {"error", "unknown_effect"}});
+          return;
+        }
+        ConfigStore(configRoot).update([&](Config& config){
+          std::vector<std::string> ids = config.hiddenEffectIds();
+          ids.erase(std::remove(ids.begin(), ids.end(), id), ids.end());
+          if(hidden){
+            ids.push_back(id);
+          }
+          config.setHiddenEffectIds(std::move(ids));
+          return true;
+        });
+        _reply(res, 200, {{"succeeded", true}, {"id", id}, {"hidden", hidden}});
+      }
+    );
+
+    // One step among the visible effects of the same group; hidden ones are skipped.
+    server.addRoute(
+      HttpMethod::Post,
+      "/api/effects/:id/move",
+      [configRoot](const Request& req, Response& res){
+        int step = 0;
+        try{
+          const std::string direction = nlohmann::json::parse(req.body).at("direction").get<std::string>();
+          step = direction == "up" ? -1 : direction == "down" ? 1 : 0;
+        }
+        catch(const nlohmann::json::exception&){}
+        if(step == 0){
+          _reply(res, 400, {{"succeeded", false}, {"error", "invalid_body"}});
+          return;
+        }
+        const std::string& id = req.pathParams.at("id");
+        if(!isBuiltInEffectId(id) && !EffectStore(configRoot).exists(id)){
+          _reply(res, 404, {{"succeeded", false}, {"error", "unknown_effect"}});
+          return;
+        }
+
+        bool moved = false;
+        ConfigStore(configRoot).update([&](Config& config){
+          std::vector<std::string> ids = _displayOrder(configRoot, config);
+          const bool builtin = isBuiltInEffectId(id);
+          const int from = static_cast<int>(std::find(ids.begin(), ids.end(), id) - ids.begin());
+          int to = from + step;
+          while(to >= 0 && to < static_cast<int>(ids.size())
+            && isBuiltInEffectId(ids[to]) == builtin && _contains(config.hiddenEffectIds(), ids[to])){
+            to += step;
+          }
+          if(to < 0 || to >= static_cast<int>(ids.size()) || isBuiltInEffectId(ids[to]) != builtin){
+            return false;
+          }
+          ids.erase(ids.begin() + from);
+          ids.insert(ids.begin() + to, id);
+          config.setEffectOrder(std::move(ids));
+          moved = true;
+          return true;
+        });
+        _reply(res, 200, {{"succeeded", true}, {"id", id}, {"moved", moved}});
+      }
+    );
+
+    // The title lives in the graph file; the id stays as first slugged.
+    server.addRoute(
+      HttpMethod::Put,
+      "/api/effects/:id/title",
+      [&pipelineHost, configRoot](const Request& req, Response& res){
+        std::string title;
+        try{
+          title = nlohmann::json::parse(req.body).at("title").get<std::string>();
+        }
+        catch(const nlohmann::json::exception&){
+          _reply(res, 400, {{"succeeded", false}, {"error", "invalid_body"}});
+          return;
+        }
+        const auto first = title.find_first_not_of(" \t");
+        const auto last = title.find_last_not_of(" \t");
+        title = first == std::string::npos ? std::string{} : title.substr(first, last - first + 1);
+        if(title.empty() || Graph::textLength(title) > Graph::kMaxTitleLength){
+          _reply(res, 400, {{"succeeded", false}, {"error", "invalid_title"}});
+          return;
+        }
+        const std::string& id = req.pathParams.at("id");
+        if(isBuiltInEffectId(id)){
+          _reply(res, 400, {{"succeeded", false}, {"error", "builtin_effect"}});
+          return;
+        }
+        const EffectStore store(configRoot);
+        if(!store.exists(id)){
+          _reply(res, 404, {{"succeeded", false}, {"error", "unknown_effect"}});
+          return;
+        }
+        std::string error;
+        auto doc = store.read(id, error);
+        if(!doc || !doc->is_object()){
+          logEffectFault(pipelineHost, "PUT /api/effects/:id/title", 422, {{"error", "unreadable_effect"}, {"message", error}}, id);
+          _reply(res, 422, {{"succeeded", false}, {"error", "unreadable_effect"}, {"message", error}});
+          return;
+        }
+        (*doc)["title"] = title;
+        if(!store.write(id, *doc, error)){
+          logEffectFault(pipelineHost, "PUT /api/effects/:id/title", 500, {{"error", "write_failed"}, {"message", error}}, id);
+          _reply(res, 500, {{"succeeded", false}, {"error", "write_failed"}, {"message", error}});
+          return;
+        }
+        _reply(res, 200, {{"succeeded", true}, {"id", id}, {"title", title}});
       }
     );
 
@@ -253,7 +464,8 @@ namespace Aurora::Runtime
           if(wasMcp){
             config.setMcpEffectId("");
           }
-          return wasActive || wasMcp;
+          _forget(config, id);
+          return true;
         });
         store.remove(id);
 

@@ -7,8 +7,8 @@
 // them for the running pipeline. The flags are independent, so both true
 // is valid (a later mixed effect shows both pickers).
 //
-// The Video/Audio toggle is still a mode, so mode helpers live here too,
-// until Aurora-kep2's Effect picker replaces the toggle.
+// The Video/Audio toggle is still a mode, so mode helpers live here too.
+// The effect picker beside it (Aurora-kep2.1) switches by effect id.
 
 // Plugin registry names ("linux", "windows", "pipewire", ...) are never shown
 // as choices; these resolve one on the user's behalf.
@@ -26,14 +26,26 @@ export function pickAudioInputName(audioInputs, current) {
   return audioInputs[0] ?? '';
 }
 
-// Pipeline::build's rule: audio only when no video input is named and an
-// audio one is. Nothing named and both named read as video.
+// The effect id picks the mode (runsAudioMode in core). An id that doesn't
+// say (unset, a custom graph) keeps the older rule: audio only when no video
+// input is named and an audio one is.
 export function modeFromConfig(config) {
+  if (config?.activeEffectId === 'builtin.audio') return 'audio';
+  if (config?.activeEffectId === 'builtin.video') return 'video';
   return (!config?.activeInputName && config?.activeAudioInputName) ? 'audio' : 'video';
 }
 
-// Whether the saved config names an input this build actually has.
-export function isModeConfigValid(config, inputs, audioInputs) {
+// Whether the saved effect needs no capture input. Read from the effect list,
+// not /api/state, which has no graphInputs while no pipeline runs.
+export function isInputFreeEffect(config, effects) {
+  const needs = effects.find((e) => e.id === config?.activeEffectId)?.inputs;
+  return needs?.video === false && needs?.audio === false;
+}
+
+// Whether the saved config can run: a source-less effect, or an input this
+// build actually has. No effect list reads as needing an input.
+export function isModeConfigValid(config, inputs, audioInputs, effects = []) {
+  if (isInputFreeEffect(config, effects)) return true;
   return modeFromConfig(config) === 'video'
     ? inputs.includes(config?.activeInputName)
     : audioInputs.includes(config?.activeAudioInputName);
@@ -80,64 +92,82 @@ export function flagsMatchMode(state, mode) {
 export function isSwitchConfirmed(putResult, stateAfter, mode) {
   return putResult?.succeeded === true
     && !putResult?.reloadError
-    && !mcpEffectRunning(stateAfter)
+    && !customEffectRunning(stateAfter)
     && flagsMatchMode(stateAfter, mode);
 }
 
-// The custom effect an MCP client applied last (Aurora-4xqt.2), or null.
-// The Dashboard shows its third toggle only while this is set.
-export function mcpEffectIdFrom(state) {
-  const id = state?.mcpEffectId;
-  return typeof id === 'string' && id ? id : null;
+// Whether a custom (non-built-in) effect is the one running now. The
+// effect picker's trigger takes the fill then, not Video or Audio.
+export function customEffectRunning(state) {
+  return isCustomEffectId(state?.effect);
 }
 
-// The graph editor's address for the running effect (Aurora-pvxx.8), or null
-// when nothing is running. The editor reads `effect` from its query string.
-export function graphEditorHref(state) {
-  const id = state?.effect;
-  return typeof id === 'string' && id ? `/graph-editor/?effect=${encodeURIComponent(id)}` : null;
+function isCustomEffectId(id) {
+  return typeof id === 'string' && id !== '' && !id.startsWith('builtin.');
 }
 
-// Whether that effect is the one running now, so its toggle takes the fill.
-export function mcpEffectRunning(state) {
-  const id = mcpEffectIdFrom(state);
-  return id !== null && state?.effect === id;
-}
-
-// Whether a switch to the MCP effect is confirmed: saved, no reload error,
+// Whether a switch to effect `id` is confirmed: saved, no reload error,
 // and the pipeline runs it (not its built-in fallback).
-export function isMcpSwitchConfirmed(putResult, stateAfter) {
+export function isEffectSwitchConfirmed(putResult, stateAfter, id) {
   return putResult?.succeeded === true
     && !putResult?.reloadError
-    && mcpEffectRunning(stateAfter);
+    && stateAfter?.effect === id;
 }
 
-// The save behind the MCP toggle: PUT /api/effects with the effect's id.
+// Whether a Capture source save took. A patch that kept a custom effect names
+// no effect, so that effect running confirms it, not the Video/Audio flags.
+export function isApplyConfirmed(putResult, stateAfter, mode, patch, activeEffectId) {
+  return patch.activeEffectId
+    ? isSwitchConfirmed(putResult, stateAfter, mode)
+    : isEffectSwitchConfirmed(putResult, stateAfter, activeEffectId);
+}
+
+// The save behind an effect-picker choice: PUT /api/effects with its id.
 // Resolves to the parsed result ({succeeded, reloadError?}).
-export async function putMcpSwitch(id) {
+export async function putEffectSwitch(id) {
   return (await fetch('/api/effects', { method: 'PUT', body: JSON.stringify({ activeEffectId: id }) })).json();
+}
+
+// GET /api/effects' list ({id, builtin, title, description}), or [] when
+// unreachable or malformed: the picker then hides.
+export async function loadEffects() {
+  try {
+    const effects = (await (await fetch('/api/effects')).json()).effects;
+    return Array.isArray(effects) ? effects.filter((e) => typeof e?.id === 'string' && e.id) : [];
+  } catch {
+    return [];
+  }
+}
+
+export function effectTitle(effect) {
+  return effect.title || effect.id;
 }
 
 // Whether a lingering switch error is stale: the running pipeline is now
 // the mode the failed switch was heading to (a confirmed retry, or a
 // resume/relaunch starting the mode the failed switch saved to config). No
-// state probe or no remembered mode keeps the error. Aurora-tazx.
-export function isSwitchErrorStale(state, errorMode) {
-  if (errorMode === 'mcp') return mcpEffectRunning(state);
+// state probe or no remembered mode keeps the error. Aurora-tazx. A failed
+// picker switch ('custom') is stale once its effect id runs. A failed host is
+// the banner's, and a different running effect than at error time means
+// another client switched (kep2.11). `errorRunning` undefined skips that.
+export function isSwitchErrorStale(state, errorMode, errorEffectId = null, errorRunning = undefined) {
+  if (state?.state === 'failed') return true;
+  if (state && errorRunning !== undefined && (state.effect ?? null) !== errorRunning) return true;
+  if (errorMode === 'custom') return !!errorEffectId && state?.effect === errorEffectId;
   return !!state && !!errorMode && flagsMatchMode(state, errorMode);
 }
 
-// Whether an MCP light test is driving the lights (Aurora-zfre). The toggle
-// treats it as the live MCP effect until it ends or is kept.
+// Whether an MCP light test is driving the lights (Aurora-zfre). The effect
+// picker shows it as the running effect until it ends or is kept.
 export function lightTestActive(state) {
   return state?.test?.active === true;
 }
 
-// Which toggle the running effect fills: 'mcp', 'video', 'audio', or null
-// (nothing running, or a custom effect not from MCP). Flags drive sections,
-// not this fill, so a failed switch's saved config never shows.
+// What the running effect fills: 'video', 'audio', 'custom' (the effect
+// picker's trigger), or null when nothing runs. Flags drive sections, not
+// this fill, so a failed switch's saved config never shows.
 export function runningToggle(state) {
-  if (lightTestActive(state) || mcpEffectRunning(state)) return 'mcp';
+  if (lightTestActive(state) || customEffectRunning(state)) return 'custom';
   if (state?.effect === 'builtin.video') return 'video';
   if (state?.effect === 'builtin.audio') return 'audio';
   return null;
@@ -152,6 +182,14 @@ export function isIdle(flags) {
 // saved mode, as before kea; a fresh install gets the monitor picker.
 // Aurora-t9iq owns a real design for that state.
 export function effectiveFlags(state, config) {
+  // A failed effect switch shows the inputs of the pick, which can fix it.
+  if (state?.state === 'failed' && state.graphInputs) {
+    return {
+      usesVideoInput: state.graphInputs.video === true,
+      usesAudioInput: state.graphInputs.audio === true,
+      samplesZones: false,
+    };
+  }
   const running = runningFlags(state);
   return isIdle(running) ? flagsForMode(modeFromConfig(config)) : running;
 }
@@ -184,7 +222,8 @@ export function devicePatch(flags, { selectedMonitorName, sinkName }) {
 }
 
 // A Video/Audio toggle click: that mode's input plus the device shown for
-// it, so the switch lands on the device the user sees. Monitors are only
+// it, so the switch lands on the device the user sees. Neither name is
+// blanked: the other mode's input stays saved for a later mixed effect. Monitors are only
 // known while video runs; without them the saved monitor stays as is. It
 // also names the mode's built-in as the active effect (Aurora-52oz.1), which
 // drops a custom effect the user had selected.
@@ -201,10 +240,17 @@ export function modeSwitchPatch(mode, {
   }
   return {
     activeEffectId: 'builtin.audio',
-    activeInputName: '',
     activeAudioInputName: pickAudioInputName(audioInputs, currentActiveAudioInputName),
     audioTargetSinkName: sinkName.trim(),
   };
+}
+
+// A save the user did not make by clicking Video or Audio (landing, a device
+// edit) must not replace their custom effect, so it saves the input only.
+export function keepCustomEffect(patch, activeEffectId) {
+  if (!isCustomEffectId(activeEffectId)) return patch;
+  const { activeEffectId: _builtin, ...inputOnly } = patch;
+  return inputOnly;
 }
 
 // The save behind every Video/Audio switch: PUT the patch, which also

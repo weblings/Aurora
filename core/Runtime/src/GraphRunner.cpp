@@ -46,6 +46,19 @@ namespace Aurora::Runtime
   }
 
 
+  GraphRunner::GraphRunner(
+    std::vector<Output::IOutput*> outputs,
+    Config config,
+    ZoneMapStore zoneMapStore
+  ):
+  m_outputs(std::move(outputs)),
+  m_config(std::move(config)),
+  m_zoneMapStore(std::move(zoneMapStore))
+  {
+    Graph::registerAllNodes(m_registry, true);
+  }
+
+
 #ifdef AURORA_RUNTIME_AUDIO_AVAILABLE
   GraphRunner::GraphRunner(
     Input::IAudioInput& input,

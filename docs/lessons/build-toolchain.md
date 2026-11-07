@@ -896,3 +896,13 @@ failure showed only in the build tail.
 **Fix (Aurora-2v8l):** build `aurora-app-windows`. The `aurora-mcp` target now renames a running exe aside
 before the link (`adapters/mcp/cmake/MoveAsideExe.cmake`), leaving `aurora-mcp.old*.exe` copies in `bin/`.
 Still compare `bin/Release/Aurora.exe` mtime to the source edit before `devstack up`.
+
+---
+
+## A string-replace patch to a script must assert each anchor, or a drifted anchor is a silent no-op
+Tags: build, codegen, scripting, patch
+Applies-when: editing a generator or config through `str.replace` patch scripts instead of an editor
+
+Aurora-kep2.2 evolved its mock generator through `patch5`–`patch7.py`, each a run of `s.replace(old, new, 1)`. `patch6.py` asserted none of its anchors and `patch7.py` asserted only the first. Python's `replace` returns the string unchanged when `old` is missing, so a drifted anchor would write a "patched" file that is missing the change. The later regen came out byte-identical to the committed frames, so no change was lost this time.
+
+**Fix:** guard every replace with `assert old in s` (or check the count), or edit the generator directly and diff its output, per this file's codegen-regen entry.

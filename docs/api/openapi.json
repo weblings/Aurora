@@ -166,7 +166,7 @@
       "get": {
         "operationId": "listEffects",
         "summary": "Built-in and custom effects",
-        "description": "Built-ins come first (the reserved ids `builtin.video` and `builtin.audio`), then custom effects by id. `activeEffectId` is the saved setting, and an empty string means the default built-in.",
+        "description": "Built-ins come first (the reserved ids `builtin.video` and `builtin.audio`), then custom effects, each group in the saved order. `activeEffectId` is the saved setting, and an empty string means the default built-in.",
         "responses": {
           "200": {
             "description": "The effect list.",
@@ -309,6 +309,206 @@
           },
           "500": {
             "description": "The copy could not be saved (`write_failed`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/effects/{id}/hidden": {
+      "put": {
+        "operationId": "setEffectHidden",
+        "summary": "Hide or show an effect in the picker",
+        "description": "Needs the Apply scope. A hidden effect still runs and still appears in `GET /api/v1/effects` with `hidden: true`.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "A built-in or custom effect.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/HiddenBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Saved.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HiddenSet"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad body (`invalid_body`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such effect (`unknown_effect`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/effects/{id}/move": {
+      "post": {
+        "operationId": "moveEffect",
+        "summary": "Move an effect one step up or down",
+        "description": "Needs the Apply scope. The step is among the visible effects of the same group (built-in or custom), so hidden ones are skipped. At the end of the group nothing moves and `moved` is false.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "A built-in or custom effect.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MoveBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Done. `moved` is false when the effect was already at the end.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Moved"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad body or direction (`invalid_body`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such effect (`unknown_effect`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/effects/{id}/title": {
+      "put": {
+        "operationId": "renameEffect",
+        "summary": "Rename a custom effect",
+        "description": "Needs the Apply scope. Only the title changes, the id stays. The title is trimmed and at most 80 characters.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "A custom effect.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TitleBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Renamed.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Renamed"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad body, empty or long title, or a built-in (`invalid_body`, `invalid_title`, `builtin_effect`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such effect (`unknown_effect`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The effect file is not valid JSON (`unreadable_effect`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "The file could not be saved (`write_failed`).",
             "content": {
               "application/json": {
                 "schema": {
@@ -1373,6 +1573,101 @@
           }
         }
       },
+      "HiddenBody": {
+        "type": "object",
+        "required": [
+          "hidden"
+        ],
+        "properties": {
+          "hidden": {
+            "type": "boolean"
+          }
+        }
+      },
+      "HiddenSet": {
+        "type": "object",
+        "required": [
+          "succeeded",
+          "id",
+          "hidden"
+        ],
+        "properties": {
+          "succeeded": {
+            "type": "boolean"
+          },
+          "id": {
+            "type": "string"
+          },
+          "hidden": {
+            "type": "boolean"
+          }
+        }
+      },
+      "MoveBody": {
+        "type": "object",
+        "required": [
+          "direction"
+        ],
+        "properties": {
+          "direction": {
+            "type": "string",
+            "enum": [
+              "up",
+              "down"
+            ]
+          }
+        }
+      },
+      "Moved": {
+        "type": "object",
+        "required": [
+          "succeeded",
+          "id",
+          "moved"
+        ],
+        "properties": {
+          "succeeded": {
+            "type": "boolean"
+          },
+          "id": {
+            "type": "string"
+          },
+          "moved": {
+            "type": "boolean"
+          }
+        }
+      },
+      "TitleBody": {
+        "type": "object",
+        "required": [
+          "title"
+        ],
+        "properties": {
+          "title": {
+            "type": "string",
+            "description": "The new title, 1 to 80 characters after trimming."
+          }
+        }
+      },
+      "Renamed": {
+        "type": "object",
+        "required": [
+          "succeeded",
+          "id",
+          "title"
+        ],
+        "properties": {
+          "succeeded": {
+            "type": "boolean"
+          },
+          "id": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          }
+        }
+      },
       "ValidationIssue": {
         "type": "object",
         "required": [
@@ -2386,6 +2681,33 @@
               "string",
               "null"
             ]
+          },
+          "hidden": {
+            "type": "boolean",
+            "description": "Folded away in the picker. A hidden effect still runs."
+          },
+          "order": {
+            "type": "integer",
+            "description": "Position in this list, built-ins first."
+          },
+          "inputs": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "description": "Capture sources this effect needs. Null when its file is unreadable.",
+            "required": [
+              "video",
+              "audio"
+            ],
+            "properties": {
+              "video": {
+                "type": "boolean"
+              },
+              "audio": {
+                "type": "boolean"
+              }
+            }
           }
         }
       },
