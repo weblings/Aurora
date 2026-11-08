@@ -52,7 +52,7 @@ await withEditorStack(async ({ editorUrl }) => {
     created.push('browser-check-fork-source-copy')
     step('Save as new opens the new effect')
     await page.waitForSelector('.aurora-node')
-    assert.equal(await page.locator('.editor-name input').inputValue(), 'Browser check fork source copy')
+    assert.equal(await page.locator('.editor-name input').inputValue(), 'Browser check fork source (Copy)')
     assert.equal((await api('GET', '/api/effects/browser-check-fork-source')).json.graph.title, 'Browser check fork source')
     step('the copy has a distinct title; the original keeps its own')
 

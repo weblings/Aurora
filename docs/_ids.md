@@ -319,6 +319,7 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `wqzp8-windows-skip-cursor-frames` | [log/2026-10-13-wqzp8-windows-skip-cursor-frames.md](log/2026-10-13-wqzp8-windows-skip-cursor-frames.md) | Aurora-wqzp.8: Windows skips cursor-only DXGI frames |
 | `wqzp9-mac-mover-proof` | [log/2026-10-13-wqzp9-mac-mover-proof.md](log/2026-10-13-wqzp9-mac-mover-proof.md) | Aurora-wqzp.9: perf-harness proves the mover from the relay SSE |
 | `x1lh-error-shell-visual-polish` | [log/2026-10-07-error-shell-visual-polish.md](log/2026-10-07-error-shell-visual-polish.md) | Aurora-x1lh: error shell visual polish (closed) |
+| `xr4c-save-as-new-check-title` | [log/2026-11-08-xr4c-save-as-new-check-title.md](log/2026-11-08-xr4c-save-as-new-check-title.md) | Save-as-new check expected the wrong copy title |
 | `xrl1-warning-icon` | [log/2026-10-07-xrl1-warning-icon.md](log/2026-10-07-xrl1-warning-icon.md) | Aurora-xrl1: vector warning icon replaces bold ⚠ (closed) |
 | `yzp4-takeover-unification` | [log/2026-10-06-yzp4-takeover-unification.md](log/2026-10-06-yzp4-takeover-unification.md) | Aurora-yzp4: takeover unified to heading-only "Aurora has stopped" (closed) |
 | `zfre-test-state-and-stop` | [log/2026-10-22-zfre-test-state-and-stop.md](log/2026-10-22-zfre-test-state-and-stop.md) | Zfre: /api/state reports the light test, the WebUI can stop it (Aurora-zfre) |
