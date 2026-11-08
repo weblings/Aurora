@@ -274,6 +274,7 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `so1o-pairing-copy-fixes` | [log/2026-10-16-so1o-pairing-copy-fixes.md](log/2026-10-16-so1o-pairing-copy-fixes.md) | Pairing screen copy and centering fixes (Aurora-so1o) |
 | `stable-monitor-keys` | [log/2026-10-24-stable-monitor-keys.md](log/2026-10-24-stable-monitor-keys.md) | 5ipy.27: stable monitor keys (Aurora-5ipy.27) |
 | `stack-comparison` | [archive/StackComparison.md](archive/StackComparison.md) | Stack comparison — huenicorn vs. Aurora-App-Linux vs. Aurora-App-Windows |
+| `t2hz-react-aria-popup-spike` | [log/2026-11-08-t2hz-react-aria-popup-spike.md](log/2026-11-08-t2hz-react-aria-popup-spike.md) | React Aria popup spike for the graph editor |
 | `ta5-param-schema` | [log/2026-10-01-ta5-param-schema.md](log/2026-10-01-ta5-param-schema.md) | Aurora-ta5: C++ param schema as single source for tuning ranges |
 | `tft-parity-harness` | [log/2026-10-01-tft-parity-harness.md](log/2026-10-01-tft-parity-harness.md) | Aurora-tft: golden parity harness for both orchestrators |
 | `tjoq-audio-grant-live` | [log/2026-10-06-tjoq-audio-grant-live.md](log/2026-10-06-tjoq-audio-grant-live.md) | Aurora-tjoq: audio permission block copy vs. live grant |

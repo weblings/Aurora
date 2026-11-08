@@ -338,3 +338,4 @@ Planning docs stay clean: decisions, status, and pointers here only.
 | 2026-11-05 | Effect picker epic closed: the effect panel replaced the Video/Audio toggle, with VoiceOver, demo Duplicate and TalkBack beads left open outside it. [[kep2-epic-close]] | `bd show Aurora-kep2` |
 | 2026-11-05 | Closed without building: Pause turning off the failure light (`Aurora-b6yx`) and preview while Failed (`Aurora-wq6i`). [[kep2-epic-close]] | `bd show Aurora-b6yx` |
 | 2026-11-05 | Hue link monitor checked on a real bridge, banner copy reworded to the banner conventions, Busy row and power cut not exercised. [[qqcn-link-monitor-real-bridge]] | `bd show Aurora-qqcn` |
+| 2026-11-08 | React Aria popups spiked on the graph editor canvas: go, with workarounds for key leaks, focus return and modality. [[t2hz-react-aria-popup-spike]] | `bd show Aurora-t2hz` |

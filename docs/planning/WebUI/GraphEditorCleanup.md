@@ -180,6 +180,40 @@ controls with side effects must not commit on arrow keys. React Flow's pan and s
 keys also need checking against the menus. Space is already its pan key, which is why the
 mock proposes `A` and not Unity's Space.
 
+*Spike result (`Aurora-t2hz`, 2026-11-08): go on React Aria for these popups.* A throwaway
+build of `react-aria-components` 1.22.1 on the canvas was driven in headless Chromium on the
+fake-Hue stack. GrilleDS itself was not installed, so gaps in its wrapper are untested.
+It works with these workarounds, which stage 2 should build in:
+
+- **Pointer anchor.** Canvas, node and wire right-click all open at the pointer, using a
+  0x0 fixed element as the Popover's `triggerRef`. The Popover must be keyed on the pointer
+  coordinates, or a second right-click leaves the menu where it was.
+- **Non-modal menus.** The default modal popover needs two clicks to select a node, blocks
+  wheel zoom and ignores right-click elsewhere. With `isNonModal` all three behave. Then
+  the editor owns two cases: a pane drag does not dismiss the menu, and Esc only works while
+  focus is inside it.
+- **Delete and Backspace.** React Flow listens at the document, so both still delete the
+  selected node while a menu is open. Stop propagation for those two keys only in the menu.
+  Stopping every key also swallows Esc.
+- **Focus return.** Focus ends on `body` after close, since the pointer anchor is not
+  focusable. Remember the active element on open and refocus it on close.
+- **Focus ring.** The unlayered `:focus-visible` ring is 4px outward and the popover clips it
+  by 3px a side at zero padding. Give popup containers 4px of padding or use the inset ring
+  that `.dropdown-option` already uses.
+- **Add node browser.** Autocomplete, SearchField and a sectioned list build form A, and
+  empty sections drop out while filtering. Results keep list order, so ranking name matches
+  first needs our own sort. The `A` shortcut must call `preventDefault`, or the keypress is
+  typed into the search field it opens.
+- **Space.** Space activates the focused menu item, so Space-pan is unavailable while a menu
+  has focus. This is standard menu behavior and acceptable.
+
+Grille needs for the title, Save and context menus and the add browser: a Popover that
+takes a `triggerRef` or a point with keyed repositioning, an `isNonModal` pass-through,
+Menu and MenuItem with `onAction` and `onKeyDown` pass-through, a focus-restore callback on
+close, Autocomplete with SearchField and ListBox plus Section and Header exports, and a
+ring that fits the popover padding. If Grille cannot supply these, fall back to
+`dropdown.css`. Full evidence is in the `Aurora-t2hz` notes.
+
 **Not in scope.**
 
 - Ghost placement and wire-drop search, though see the note below
@@ -239,4 +273,6 @@ the menu.
 - Directions 1 and 2 block stage 3.
 - Direction 3 decides whether the copy pass touches core.
 - Direction 5 sets how much the popup foundation must handle.
+- The popup library question is answered by the `Aurora-t2hz` spike (see Scoping concerns).
+  What remains is confirming Grille can expose the API listed there.
 - The gate order decides when stage 2 can start.
