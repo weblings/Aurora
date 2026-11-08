@@ -12,6 +12,10 @@ npm run graph-editor   # brings the stack and the editor dev server up, runs, te
 
 - `lib/browser.mjs` reuses a Chromium already in Playwright's cache
   (`PLAYWRIGHT_BROWSERS_PATH`, else the per-OS default) or `AURORA_BROWSER`.
+  It takes the highest cached `chromium_headless_shell-<revision>` whatever
+  its layout (older `chrome-mac/headless_shell`, newer
+  `chrome-headless-shell-mac-arm64/chrome-headless-shell`), so the revision
+  need not match this package's Playwright version.
   With none, it says to run `npx playwright-core install chromium-headless-shell`.
 - `lib/stack.mjs` `withEditorStack(body)` runs `devstack.py up --input dummy`
   (needs a built app, see the relay README), starts the graph editor's Vite
