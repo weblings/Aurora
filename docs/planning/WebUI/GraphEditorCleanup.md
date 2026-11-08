@@ -214,6 +214,27 @@ close, Autocomplete with SearchField and ListBox plus Section and Header exports
 ring that fits the popover padding. If Grille cannot supply these, fall back to
 `dropdown.css`. Full evidence is in the `Aurora-t2hz` notes.
 
+*Spike result (`Aurora-m5kl`, 2026-11-08): a built tarball installs under `ignore-scripts`.*
+Grille commits no `dist` and builds it in `prepare`, so the git install left no `dist`. An
+`npm pack` tarball with `dist` installed with the real `.npmrc`, recorded an integrity hash,
+and passed `npm ci` with SSH disabled on Windows. Only a `file:` spec was run, so the https
+release URL and the Mac and Linux builds are unverified.
+
+- **Distribution (Grille G1).** Add a tag-triggered release workflow that runs `npm pack`
+  and uploads the tarball as a release asset. Aurora depends on the release URL. Never
+  re-upload an asset, since a changed hash fails `npm ci`. The repo is public and
+  `web.yml` and the CMake step run a plain `npm ci`, so no CI change is expected.
+  Committing `dist` or a sync script is not needed.
+- **Bundle cost.** The baseline is 439 kB JS (139 gzip) and 25.8 kB CSS (4.4 gzip). Adding
+  `ui.css`, Grille's `Select` and React Aria `Menu` and `Popover` gives about +186 kB JS and
+  +6.6 kB CSS, roughly +60 kB gzip. Grille has no Menu yet, so `Select` stood in. A Menu
+  alone should cost less.
+- **Notices.** React Aria, React Stately, `clsx` and Grille appear in
+  the generated third-party notices file automatically. Importing `fonts.css` would bundle 6 Inter files
+  (about 165 kB) with no OFL entry, so it needs a hand-added notice. It stays out of scope.
+- **Grille work.** Add a Menu, and trim `fonts.css` to woff2 only. Full numbers are in the
+  `Aurora-m5kl` notes.
+
 **Not in scope.**
 
 - Ghost placement and wire-drop search, though see the note below
@@ -274,5 +295,6 @@ the menu.
 - Direction 3 decides whether the copy pass touches core.
 - Direction 5 sets how much the popup foundation must handle.
 - The popup library question is answered by the `Aurora-t2hz` spike (see Scoping concerns).
-  What remains is confirming Grille can expose the API listed there.
+  The `Aurora-m5kl` spike settles distribution. What remains is Grille exposing the API
+  listed there and cutting a release.
 - The gate order decides when stage 2 can start.

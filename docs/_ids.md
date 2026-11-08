@@ -204,6 +204,7 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `lzw-github-ci` | [log/2026-10-01-lzw-github-ci.md](log/2026-10-01-lzw-github-ci.md) | Aurora-lzw: GitHub CI unblocked for weblings/Aurora |
 | `m0fy-top-tier-error-owners` | [log/2026-10-07-m0fy-top-tier-error-owners.md](log/2026-10-07-m0fy-top-tier-error-owners.md) | Aurora-m0fy: Dashboard inline errors get one owner per control (closed) |
 | `m4wp-pairing-revoke-persist` | [log/2026-10-16-m4wp-pairing-revoke-persist.md](log/2026-10-16-m4wp-pairing-revoke-persist.md) | Pairing revoke may not persist on Windows (Aurora-m4wp) |
+| `m5kl-grille-install-spike` | [log/2026-11-08-m5kl-grille-install-spike.md](log/2026-11-08-m5kl-grille-install-spike.md) | Grille install spike for the graph editor |
 | `m6pd-close-gate` | [log/2026-10-16-m6pd-close-gate.md](log/2026-10-16-m6pd-close-gate.md) | Pre-commit close gate (Aurora-m6pd) |
 | `mac-audio` | [archive/mac/Audio.md](archive/mac/Audio.md) | macOS audio capture |
 | `mac-notarization` | [planning/mac/Notarization.md](planning/mac/Notarization.md) | macOS Gatekeeper/notarization |

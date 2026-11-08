@@ -906,3 +906,12 @@ Applies-when: editing a generator or config through `str.replace` patch scripts 
 Aurora-kep2.2 evolved its mock generator through `patch5`–`patch7.py`, each a run of `s.replace(old, new, 1)`. `patch6.py` asserted none of its anchors and `patch7.py` asserted only the first. Python's `replace` returns the string unchanged when `old` is missing, so a drifted anchor would write a "patched" file that is missing the change. The later regen came out byte-identical to the committed frames, so no change was lost this time.
 
 **Fix:** guard every replace with `assert old in s` (or check the count), or edit the generator directly and diff its output, per this file's codegen-regen entry.
+
+## Vite's license output lists JS modules only, so CSS-referenced fonts ship without their license
+Tags: vite, licenses, fonts, notices
+Applies-when: importing a stylesheet whose `@font-face` rules pull in font files
+
+`build.license` in Vite 8 builds the generated third-party notices file from the JS module graph. Importing Grille's `fonts.css` added 6 Inter woff/woff2 files (~165 kB) to the bundle but no Inter or OFL entry, and the package's `LICENSE-Inter.txt` was not copied.
+
+**Fix:** add the OFL text to the embedded notices by hand when a font stylesheet is imported, and ship woff2 only.
+
