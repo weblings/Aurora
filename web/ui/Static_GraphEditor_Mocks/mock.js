@@ -173,12 +173,9 @@ const toFlow = (sx, sy) => {
 
 function drawBar() {
   const bar = $('bar')
-  // Keep is the one primary action while a test runs.
-  const saveLook = state.testing ? 'btn-secondary' : 'btn-primary'
   const problems = state.problems ? el('button', { type: 'button', class: 'ge-problems', 'data-act': 'problems' }, el('img', { src: '../icons/warning.svg', alt: '' }), '2 problems') : null
   const test = state.testing
     ? [el('span', { class: 'ge-countdown' }, 'On the lights, reverts in 0:24'),
-       el('button', { type: 'button', class: 'btn btn-primary', 'data-act': 'keep' }, 'Keep'),
        el('button', { type: 'button', class: 'btn btn-secondary', 'data-act': 'revert' }, 'Revert')]
     : [el('button', { type: 'button', class: 'btn btn-secondary', 'data-act': 'test', disabled: state.problems, title: 'Show this graph on the real lights for a while, then put them back' }, 'Test on lights')]
   fill(bar, [
@@ -192,10 +189,7 @@ function drawBar() {
     el('button', { type: 'button', class: 'btn btn-secondary btn-icon', 'aria-label': 'Undo', title: 'Undo (Ctrl+Z)', 'data-act': 'toast-undo' }, icon(ICON.undo)),
     el('button', { type: 'button', class: 'btn btn-secondary btn-icon', 'aria-label': 'Redo', title: 'Redo (Ctrl+Shift+Z)', disabled: true }, icon(ICON.redo)),
     el('span', { class: 'ge-sep' }),
-    test,
-    el('span', { class: 'ge-split' },
-      el('button', { type: 'button', class: `btn ${saveLook}`, 'data-act': 'save-now' }, 'Save'),
-      el('button', { type: 'button', class: `btn ${saveLook}`, 'aria-label': 'More save options', 'data-act': 'save' }, el('img', { src: '../icons/chevron-down.svg', alt: '', class: 'ge-chev' })))])
+    test])
 }
 
 function drawIslands() {
@@ -319,25 +313,20 @@ function openTitle() {
   closePopups()
   const anchor = document.querySelector('.ge-title').getBoundingClientRect()
   const effect = (label, on) => el('button', { type: 'button', class: 'ge-item', role: 'menuitemradio', 'aria-checked': String(on), onclick: closePopups }, el('span', { class: 'ge-item-main' }, el('span', { class: 'tick' }, on ? '✓' : ''), label))
+  const action = (label, key, run) => el('button', { type: 'button', class: 'ge-item', onclick: () => { closePopups(); run() } }, el('span', { class: 'ge-item-main' }, el('span', { class: 'tick' }), label), key ? el('kbd', {}, key) : null)
   place(el('div', { class: 'ge-pop ge-titlepop', role: 'dialog', 'aria-label': 'Effect' },
     el('label', { class: 'field' }, el('span', { class: 'field-label' }, 'Name'), el('input', { class: 'text-input', type: 'text', placeholder: 'Name the new effect' })),
     el('p', { class: 'ge-note' }, 'A built-in stays as it is. Saving makes a copy under this name.'),
+    el('div', { class: 'ge-rule' }),
+    action('Save', 'Ctrl+S', () => { state.unsaved = false; drawBar(); toast('Saved as Screen colors copy') }),
+    action('Save as new', null, () => { state.unsaved = false; drawBar(); toast('Saved as Screen colors copy') }),
+    action('Save and apply', null, () => { state.unsaved = false; state.testing = false; drawBar(); toast('Saved and live') }),
     el('div', { class: 'ge-rule' }),
     el('div', { class: 'ge-menu-head' }, 'Open another effect'),
     effect('Screen colors', true), effect('Music pulse', false), effect('Candle', false),
     el('div', { class: 'ge-rule' }),
     el('button', { type: 'button', class: 'ge-item', onclick: closePopups }, el('span', { class: 'ge-item-main' }, el('span', { class: 'tick' }), 'New empty effect'))),
     anchor.left, anchor.bottom + 6)
-}
-
-function openSave() {
-  closePopups()
-  const r = document.querySelector('.ge-split').getBoundingClientRect()
-  menu([
-    { label: 'Save', key: 'Ctrl+S', run: () => toast('Saved as Screen colors copy') },
-    { label: 'Save as new…', run: () => toast('Saved as Screen colors copy') },
-    { label: 'Save and apply', run: () => toast('Saved and live') },
-  ], r.right - 220, r.bottom + 6)
 }
 
 function openView() {
@@ -622,7 +611,7 @@ const point = (id) => {
   return [r.left + r.width / 2, r.top + 20]
 }
 const FRAMES = [
-  ['Layout', [['rest', 'At rest', () => {}], ['title', 'Title menu', openTitle], ['save', 'Save menu', openSave], ['view', 'View menu', openView]]],
+  ['Layout', [['rest', 'At rest', () => {}], ['title', 'Title menu', openTitle], ['view', 'View menu', openView]]],
   ['Add node', [
     ['browser', 'A: Browser', () => openAdd('browser')],
     ['browser-search', 'A: Search', () => openAdd('browser', undefined, undefined, { query: 'hue' })],
@@ -652,12 +641,10 @@ function showFrame() {
 }
 
 const ACTS = {
-  add: () => openAdd('browser'), controls: () => openControls(0), view: openView, title: openTitle, save: openSave, problems: openProblems,
+  add: () => openAdd('browser'), controls: () => openControls(0), view: openView, title: openTitle, problems: openProblems,
   back: () => toast('Goes to the Dashboard. Unsaved edits stay in the browser backup.'),
-  'save-now': () => { state.unsaved = false; drawBar(); toast('Saved as Screen colors copy') },
   'toast-undo': () => toast('Undo'),
   test: () => { state.testing = true; drawBar() },
-  keep: () => { state.testing = false; drawBar(); toast('Saved and live') },
   revert: () => { state.testing = false; drawBar(); toast('Lights put back') },
   zones: () => { state.zonesOpen = !state.zonesOpen; drawIslands() },
 }

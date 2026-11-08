@@ -343,3 +343,4 @@ Planning docs stay clean: decisions, status, and pointers here only.
 | 2026-11-08 | Graph editor stage 1: Dashboard back link replaces the placeholder dot, Aurora component styles on the existing controls. [[daaa-graph-editor-stage1]] | `bd show Aurora-daaa.1`, `bd show Aurora-daaa.2` |
 | 2026-11-08 | Save-as-new browser check now expects the "(Copy)" title the editor already gives. [[xr4c-save-as-new-check-title]] | `bd show Aurora-xr4c` |
 | 2026-11-08 | Graph editor control-count check (84 / 132 baseline) and the CMake forms.css rebuild verified. [[daaa4-control-count-baseline]] | `bd show Aurora-daaa.3`, `bd show Aurora-daaa.4` |
+| 2026-11-08 | Graph editor cleanup owner decisions: cleanup first, Save moves into the title menu, Keep dropped, Grille tracked in GrilleDS beads. [[daaa5-graph-editor-owner-decisions]] | `bd show Aurora-daaa.5` |

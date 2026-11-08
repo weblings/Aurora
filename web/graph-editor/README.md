@@ -7,6 +7,12 @@ Node >= 22.12; see `cmake/GraphEditor.cmake`). The Dashboard's "Edit graph"
 link (`web/ui`, `graphEditorHref`) opens it with `?effect=<running effect>`. Plan and decisions: [[sequence-e-planning]],
 [[node-graph-pipeline]].
 
+## Scope
+
+Desktop only for the cleanup pass (`Aurora-daaa`, decision 5): the top bar, menus
+and right-click menus are designed for a pointer and keyboard. The editor has never been
+tested on a phone, and touch is not a goal of this pass.
+
 ## Layout
 
 - `src/graph/` -- pure, React-free: `types.ts` (catalog and graph shapes),

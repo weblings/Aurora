@@ -50,7 +50,7 @@ controls stay on screen: Add node, zone preview, Dashboard controls and the view
 **Moved behind menus.**
 
 - The effect selector and Name box merge into one title menu.
-- Save as new and Save and apply move under a `▾` on Save.
+- Save, Save as new and Rename move into the title menu (no split button on Save). Save and apply joins them. Keep after a test goes away: see Decisions.
 - Zoom, fit and the minimap move to a view menu, with the minimap off by default.
 - Node details and the Dashboard controls move into drawers that close.
 - Status messages become one status spot, short toasts and a problems chip.
@@ -314,9 +314,8 @@ classes, across five check files. Structural changes break those checks.
 | Clean up first, gate once on the final UI | One gate run, on the UI that ships | Sequence E stays open longer, and a failure could be either the cleanup or the original work |
 | Run both, migrating checks as each stage lands | No waiting | Most churn, and the gate result stays muddy |
 
-Recommendation: finish the gate first if Windows and Linux passes are cheap. Stage 1 and
-the Grille prerequisites can proceed either way, since neither touches the editor's checks
-or lockfile.
+Decision: clean up first (see Decisions). Stage 1 and the Grille prerequisites do not touch
+the editor's checks or lockfile.
 
 **Grille prerequisites** (in `weblings/GrilleDS`):
 
@@ -353,16 +352,44 @@ coverage for right-click and the new menus.
 into the new node. A copy pass from direction 3 can run at any time, and it does not block
 the menu.
 
-## Decisions needed before filing build beads
+## Decisions (owner, 2026-11-08, `Aurora-daaa.5`)
 
-- Directions 1 and 2 block stage 3.
-- Direction 3 decides whether the copy pass touches core.
-- Direction 5 sets how much the popup foundation must handle.
-- The popup library question is answered by the `Aurora-t2hz` spike (see Scoping concerns).
-  The `Aurora-m5kl` spike settles distribution. Three choices remain:
-  - **G2 skin:** whether RockyRoadImport's `Select` takes the darker menu surface, or
-    Grille gets a second popover look
-  - **Bundle budget:** accept about +60 kB gzip for the editor
-  - **Title menu:** confirm it as a Dialog in a Popover
-- Where the Grille work is tracked, since GrilleDS has no beads.
-- The gate order decides when stage 2 can start.
+- **Gate order:** clean up first. Mac stays the working check during the cleanup, and the
+  Sequence E gate (`Aurora-pvxx.9`) runs once on Windows and Linux against the final UI.
+  A failure then could come from the cleanup or the original work, which is accepted.
+- **G2 skin:** Grille takes Aurora's popup surface and shadow, and RockyRoadImport's `Select`
+  picks it up. A no-shadow variant for WebXR is untested and deferred; a popup shadow token
+  that can be set to `none` keeps the door open.
+- **Light popups rejected:** a white Dashboard effect dropdown with a light panel was tried
+  with tokens only. A large light popup is jarring when everything else is dark, so the
+  Dashboard stays dark.
+- **Bundle budget:** about +60 kB gzip (+42% JS) is accepted.
+- **Title menu:** a Dialog in a Popover. It also holds the file actions: Save (Ctrl+S),
+  Save as new, Rename (the Name box), Open another effect and New empty effect. The Save
+  split button is dropped. Menu
+  items inside a Dialog need their own arrow-key and focus handling, and "Save opens the
+  menu with Name focused" is untested, so `Aurora-daaa.8` covers both.
+- **Save and apply:** a title menu item beside Save and Save as new, with no toast. The
+  title menu's file actions are Save, Save as new, Save and apply, Rename, Open another
+  effect and New empty effect.
+- **Keep goes away.** After Test on lights the bar shows only Revert, and a user who likes
+  the test uses the title menu's Save or Save and apply. Keep today commits the tested graph
+  and is disabled once the graph changes; Save and apply commits the current graph and has
+  no such limit. Checked 2026-11-08 on the fake-Hue stack (dummy input): Save and Save and
+  apply during a running test do not end it. The test stays active (`GET /api/graph/test`
+  still `active: true`), while apply makes the new effect the active one. So the title menu's
+  Save and apply should end the test itself, by calling `/api/graph/test/revert` after the
+  write (the revert reads the live effect fresh from disk, so it lands on the effect just
+  applied) or by using `/api/graph/test/confirm` when the graph is unchanged since the test.
+  Not checked: what the lights show between the apply and the test ending, for an edited graph.
+- **Save on the running effect already goes live.** The server reloads the pipeline when Save
+  writes the active custom effect, so Save and apply only differs for an effect that is not
+  the running one.
+- **Direction 5:** desktop only for this pass.
+- **Direction 6:** keep the effect switcher in the title menu, and no warning when leaving
+  with unsaved edits. Revisit if needed.
+- **Grille tracking:** Grille work is tracked by beads in `weblings/GrilleDS` (prefix
+  `Grille`): G1 is `Grille-251` (Aurora `daaa.7`), G2 and G3a are `Grille-48x` (Aurora
+  `daaa.8`), and G3b is `Grille-h7g`. The Aurora beads stay as the consumer-side blockers
+  and close when the matching Grille release installs here.
+

@@ -50,10 +50,6 @@ button { font-family: inherit; }
 }
 .ge-problems img { width: 14px; height: 14px; filter: invert(1); }
 .ge-icon { width: 16px; height: 16px; display: block; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
-.ge-split { display: inline-flex; gap: 1px; }
-.ge-split .btn:first-child { border-radius: var(--aurora-radius-control) 0 0 var(--aurora-radius-control); }
-.ge-split .btn:last-child { border-radius: 0 var(--aurora-radius-control) var(--aurora-radius-control) 0; padding: var(--aurora-space-3) var(--aurora-space-2); }
-.ge-split .btn-primary .ge-chev { filter: invert(1); }
 .ge-countdown { color: var(--aurora-text-primary); font-size: 12px; font-variant-numeric: tabular-nums; white-space: nowrap; margin-right: var(--aurora-space-2); }
 
 /* Canvas */
@@ -280,3 +276,4 @@ button { font-family: inherit; }
   .ge-bar { gap: var(--aurora-space-1); padding: 0 var(--aurora-space-3); }
   .ge-status, .ge-sep { display: none; }
 }
+.ge-titlepop .ge-item { justify-content: space-between; }
