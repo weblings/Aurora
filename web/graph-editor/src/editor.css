@@ -91,13 +91,42 @@ body {
   color: var(--aurora-text-secondary);
 }
 
-.editor-header select,
-.editor-header button {
-  background: var(--aurora-bg);
-  color: var(--aurora-text-primary);
-  border: 1px solid var(--aurora-border);
-  border-radius: var(--aurora-radius-control);
+/* Aurora component styles (Aurora-daaa.2): forms.css supplies .btn, .text-input
+   and .slider-input; these rules only size them for the editor's dense panels. */
+button,
+input,
+select {
+  font-family: inherit;
+}
+
+.editor .btn {
   padding: var(--aurora-space-1) var(--aurora-space-3);
+  font-size: 12px;
+}
+
+.editor .text-input {
+  padding: var(--aurora-space-1) var(--aurora-space-3);
+  font-size: 12px;
+}
+
+/* forms.css has nothing for native selects (the checks read them by value, so
+   they stay native): the same dark field as .text-input. */
+.editor select {
+  padding: var(--aurora-space-1) var(--aurora-space-3);
+  background: var(--aurora-button-dark);
+  border: none;
+  border-radius: var(--aurora-radius-control);
+  color: var(--aurora-text-primary);
+  font-size: 12px;
+}
+
+.editor select:hover {
+  background: var(--aurora-button-dark-hover);
+}
+
+.editor input[type='checkbox'],
+.editor input[type='color'] {
+  accent-color: var(--aurora-accent);
 }
 
 .editor-restore {
@@ -179,10 +208,6 @@ body {
 .param input[type='text'],
 .param select {
   width: 70px;
-  background: var(--aurora-bg);
-  color: var(--aurora-text-primary);
-  border: 1px solid var(--aurora-border);
-  border-radius: var(--aurora-radius-badge);
 }
 
 .param select,
@@ -300,22 +325,6 @@ body {
   color: var(--aurora-text-secondary);
 }
 
-.editor-actions button,
-.editor-actions input[type='text'],
-.inspector input[type='text'],
-.inspector button {
-  background: var(--aurora-bg);
-  color: var(--aurora-text-primary);
-  border: 1px solid var(--aurora-border);
-  border-radius: var(--aurora-radius-control);
-  padding: var(--aurora-space-1) var(--aurora-space-3);
-}
-
-.editor-actions button:disabled,
-.inspector button:disabled {
-  opacity: 0.5;
-}
-
 .editor-name {
   display: inline-flex;
   gap: var(--aurora-space-2);
@@ -427,7 +436,8 @@ body {
 }
 
 .palette-item {
-  display: block;
+  display: flex;
+  justify-content: flex-start;
   width: 100%;
   margin-bottom: 2px;
   text-align: left;
@@ -475,4 +485,16 @@ body {
 .react-flow[data-drag-type='Angle'] .aurora-handle[data-port-type='Angle'],
 .react-flow[data-drag-type='Trigger'] .aurora-handle[data-port-type='Trigger'] {
   opacity: 1;
+}
+
+/* Dashboard back link (Aurora-daaa.1): btn btn-secondary look, arrow as
+   .nav-footer-back-icon draws it. */
+.editor-back {
+  text-decoration: none;
+}
+
+.editor-back-icon {
+  width: 14px;
+  height: 14px;
+  display: block;
 }

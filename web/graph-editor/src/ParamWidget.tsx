@@ -1,3 +1,4 @@
+import type { CSSProperties } from 'react'
 import type { GradientStop, ParamInfo, ParamValue } from './graph/types'
 
 const MAX_STOPS = 16
@@ -94,6 +95,7 @@ function renderInput(info: ParamInfo, current: ParamValue, onChange: (v: ParamVa
         return (
           <input
             type="text"
+            className="text-input"
             aria-label={info.name}
             value={String(current ?? '')}
             onChange={(e) => onChange(e.target.value)}
@@ -124,11 +126,20 @@ function numberOr(value: ParamValue, fallback: number): number {
   return typeof value === 'number' ? value : fallback
 }
 
+// forms.css paints a slider's filled part from --slider-percent.
+function sliderFill(info: ParamInfo, value: number): CSSProperties | undefined {
+  if (info.min === undefined || info.max === undefined || info.max <= info.min) return undefined
+  const percent = Math.min(100, Math.max(0, ((value - info.min) / (info.max - info.min)) * 100))
+  return { '--slider-percent': `${percent}%` } as CSSProperties
+}
+
 function FloatInput({ info, value, onChange }: { info: ParamInfo; value: number; onChange: (v: number) => void }) {
   return (
     <span className="param-float">
       <input
         type="range"
+        className="slider-input"
+        style={sliderFill(info, value)}
         aria-label={info.name}
         min={info.min}
         max={info.max}
@@ -138,6 +149,7 @@ function FloatInput({ info, value, onChange }: { info: ParamInfo; value: number;
       />
       <input
         type="number"
+        className="text-input"
         aria-label={`${info.name} value`}
         min={info.min}
         max={info.max}
@@ -179,6 +191,7 @@ function GradientInput({
           />
           <input
             type="number"
+            className="text-input"
             aria-label={`stop ${i + 1} position`}
             min={0}
             max={1}
@@ -189,7 +202,7 @@ function GradientInput({
             }}
           />
           <button
-            type="button"
+            type="button" className="btn btn-secondary"
             aria-label={`remove stop ${i + 1}`}
             disabled={stops.length <= MIN_STOPS}
             onClick={() => onDiscrete(stops.filter((_, j) => j !== i))}
@@ -199,7 +212,7 @@ function GradientInput({
         </span>
       ))}
       <button
-        type="button"
+        type="button" className="btn btn-secondary"
         disabled={stops.length >= MAX_STOPS}
         onClick={() => onDiscrete(addStop(stops))}
       >

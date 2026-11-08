@@ -14,6 +14,7 @@ import {
   type NodeChange,
   type ReactFlowInstance,
 } from '@xyflow/react'
+import backArrow from '../../ui/icons/back-arrow.svg'
 import { applyGraph, fetchCatalog, fetchEffectGraph, fetchEffects, putDraft, saveGraph, type WriteResult } from './api'
 import { EditorContext, type EditorActions } from './EditorContext'
 import { GenericNode } from './GenericNode'
@@ -329,7 +330,10 @@ export function App() {
   return (
     <div className="editor">
       <header className="editor-header">
-        <img src={`${import.meta.env.BASE_URL}icon.svg`} width={20} height={20} alt="" />
+        <a className="btn btn-secondary editor-back" href="/">
+          <img className="editor-back-icon" src={backArrow} alt="" />
+          Dashboard
+        </a>
         <strong>Aurora graph editor</strong>
         <select aria-label="Effect" value={effectId} onChange={(e) => {
             setNotice(null)
@@ -342,17 +346,17 @@ export function App() {
             </option>
           ))}
         </select>
-        <button type="button" onClick={undo} disabled={past.length === 0} title="Undo (Ctrl/Cmd+Z)">
+        <button type="button" className="btn btn-secondary" onClick={undo} disabled={past.length === 0} title="Undo (Ctrl/Cmd+Z)">
           Undo
         </button>
-        <button type="button" onClick={redo} disabled={future.length === 0} title="Redo (Shift+Ctrl/Cmd+Z)">
+        <button type="button" className="btn btn-secondary" onClick={redo} disabled={future.length === 0} title="Redo (Shift+Ctrl/Cmd+Z)">
           Redo
         </button>
         {offer && baseline ? (
           <span className="editor-restore">
             Unsaved changes from an earlier visit.
             <button
-              type="button"
+              type="button" className="btn btn-secondary"
               onClick={() => {
                 dispatch({ type: 'edit', change: () => offer })
                 setOffer(null)
@@ -361,7 +365,7 @@ export function App() {
               Restore
             </button>
             <button
-              type="button"
+              type="button" className="btn btn-secondary"
               onClick={() => {
                 clearUnsaved(baseline.id)
                 setOffer(null)
@@ -375,7 +379,7 @@ export function App() {
           {summary.label}
         </span>
         {loop.state.stream === 'replaced' ? (
-          <button type="button" onClick={loop.reconnect}>
+          <button type="button" className="btn btn-secondary" onClick={loop.reconnect}>
             Reconnect
           </button>
         ) : null}
@@ -387,6 +391,7 @@ export function App() {
           Name
           <input
             type="text"
+            className="text-input"
             value={doc ? titleOf(doc) : ''}
             placeholder={isBuiltin ? 'Name the new effect' : 'Effect name'}
             disabled={!doc}
@@ -395,16 +400,16 @@ export function App() {
         </label>
         {testing ? (
           <>
-            <button type="button" onClick={() => void write('keep')} disabled={writing || changedSinceTest} title={changedSinceTest ? 'The graph changed since the test started. Test again, or use Save and apply' : 'Make the tested graph the live effect'}>
+            <button type="button" className="btn btn-secondary" onClick={() => void write('keep')} disabled={writing || changedSinceTest} title={changedSinceTest ? 'The graph changed since the test started. Test again, or use Save and apply' : 'Make the tested graph the live effect'}>
               Keep
             </button>
-            <button type="button" onClick={() => void lights.revert()} disabled={writing}>
+            <button type="button" className="btn btn-secondary" onClick={() => void lights.revert()} disabled={writing}>
               Revert
             </button>
           </>
         ) : (
           <button
-            type="button"
+            type="button" className="btn btn-secondary"
             onClick={startTest}
             disabled={!doc || loop.state.valid !== true || lights.state.phase !== 'idle'}
             title={loop.state.valid === false ? 'Fix the problems before testing' : 'Show this graph on the real lights for a while, then put them back'}
@@ -412,15 +417,15 @@ export function App() {
             {lights.state.other ? 'Take over the lights' : 'Test on lights'}
           </button>
         )}
-        <button type="button" onClick={() => void write('save')} disabled={!doc || writing} title="Save as a custom effect without changing the live effect">
+        <button type="button" className="btn btn-secondary" onClick={() => void write('save')} disabled={!doc || writing} title="Save as a custom effect without changing the live effect">
           Save
         </button>
         {isBuiltin ? null : (
-          <button type="button" onClick={() => void write('save', true)} disabled={!doc || writing} title="Save a copy under a new name, leaving this effect as it was">
+          <button type="button" className="btn btn-secondary" onClick={() => void write('save', true)} disabled={!doc || writing} title="Save a copy under a new name, leaving this effect as it was">
             Save as new
           </button>
         )}
-        <button type="button" onClick={() => void write('apply')} disabled={!doc || writing} title="Save and make it the live effect">
+        <button type="button" className="btn btn-primary" onClick={() => void write('apply')} disabled={!doc || writing} title="Save and make it the live effect">
           Save and apply
         </button>
         {dirty ? <span className="editor-dirty">Unsaved changes</span> : null}

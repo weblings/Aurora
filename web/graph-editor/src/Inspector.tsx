@@ -21,6 +21,7 @@ function CommitInput({ value, label, onCommit }: { value: string; label: string;
       <span>{label}</span>
       <input
         type="text"
+        className="text-input"
         value={text}
         onChange={(e) => setText(e.target.value)}
         onBlur={apply}
@@ -102,18 +103,18 @@ export function Inspector({ doc, catalog, selected, edit }: Props) {
                 <span title={`${c.node}.${c.param}`}>
                   {titleOf(c.node)} · {c.param}
                 </span>
-                <button type="button" aria-label="Move up" disabled={i === 0} onClick={() => edit((d) => moveControl(d, i, -1))}>
+                <button type="button" className="btn btn-secondary" aria-label="Move up" disabled={i === 0} onClick={() => edit((d) => moveControl(d, i, -1))}>
                   ↑
                 </button>
                 <button
-                  type="button"
+                  type="button" className="btn btn-secondary"
                   aria-label="Move down"
                   disabled={i === controls.length - 1}
                   onClick={() => edit((d) => moveControl(d, i, 1))}
                 >
                   ↓
                 </button>
-                <button type="button" aria-label="Remove from the Dashboard" onClick={() => edit((d) => removeControl(d, i))}>
+                <button type="button" className="btn btn-secondary" aria-label="Remove from the Dashboard" onClick={() => edit((d) => removeControl(d, i))}>
                   ✕
                 </button>
               </div>

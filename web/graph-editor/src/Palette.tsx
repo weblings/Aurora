@@ -21,7 +21,7 @@ export function Palette({ catalog, onAdd }: Props) {
             <button
               type="button"
               key={info.type}
-              className="palette-item"
+              className="palette-item btn btn-secondary"
               title={info.purpose || info.type}
               draggable
               onDragStart={(e) => {

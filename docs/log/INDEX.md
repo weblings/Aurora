@@ -340,3 +340,4 @@ Planning docs stay clean: decisions, status, and pointers here only.
 | 2026-11-05 | Hue link monitor checked on a real bridge, banner copy reworded to the banner conventions, Busy row and power cut not exercised. [[qqcn-link-monitor-real-bridge]] | `bd show Aurora-qqcn` |
 | 2026-11-08 | React Aria popups spiked on the graph editor canvas: go, with workarounds for key leaks, focus return and modality. [[t2hz-react-aria-popup-spike]] | `bd show Aurora-t2hz` |
 | 2026-11-08 | Grille install spiked under ignore-scripts: a built release tarball works, about +60 kB gzip with Select and Menu. [[m5kl-grille-install-spike]] | `bd show Aurora-m5kl` |
+| 2026-11-08 | Graph editor stage 1: Dashboard back link replaces the placeholder dot, Aurora component styles on the existing controls. [[daaa-graph-editor-stage1]] | `bd show Aurora-daaa.1`, `bd show Aurora-daaa.2` |
