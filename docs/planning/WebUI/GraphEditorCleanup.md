@@ -2,9 +2,10 @@
 
 Id: graph-editor-cleanup
 
-Status: proposed, not built. Written 2026-11-06 under `Aurora-bova`. The owner has
-reviewed the working mock and likes the direction, but none of the open directions
-below are chosen yet. Treat everything here as a proposal until this line changes.
+Status: stage 1 built (back link, Aurora component styles); stages 2-4 proposed.
+Written 2026-11-06 under `Aurora-bova`. The owner has reviewed the working mock and
+likes the direction, but none of the open directions below are chosen yet. Treat
+stages 2-4 as a proposal until this line changes.
 The 2026-11-08 spikes (`Aurora-t2hz`, `Aurora-m5kl`) support building the popups on
 Grille (`weblings/GrilleDS`), which adds prerequisite work in that repo before stage 2.
 
@@ -19,13 +20,17 @@ Measured on the fake-Hue stack at 1470x900:
 
 | Measure | Today | Mock |
 |---|---|---|
-| Chrome controls always visible, Screen colors | 82 | 11 |
-| Chrome controls always visible, `builtin.audio` | 130 | Not mocked |
+| Chrome controls always visible, Screen colors | 84 | 11 |
+| Chrome controls always visible, `builtin.audio` | 132 | Not mocked |
 | Fitted graph zoom at 1470x900 | 37% | 70% |
 | Fitted graph zoom at 1280x720 | 30% | 60% |
 | Route back to the Dashboard on the page | None | `← Dashboard` |
 | Mouse route to delete a node or wire | None | Right-click menu |
 
+- Control counts come from `npm run graph-editor:control-count` (rule in the
+  check's header): rendered buttons, inputs, selects, textareas and links outside
+  canvas nodes, 1470x900. It supersedes the earlier hand counts (82 / 130, and
+  97 / 160 in the stage 1 log); each stage lowers the check's ceiling.
 - The two largest sources are the Add node list (53 buttons) and the Dashboard
   controls (18 inputs for video, 66 for audio).
 - The canvas gets 59% of the window, and nine status slots are spread across the

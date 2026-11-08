@@ -79,6 +79,7 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `d6i7-config-writer-race` | [log/2026-10-02-d6i7-config-writer-race.md](log/2026-10-02-d6i7-config-writer-race.md) | Aurora-d6i7: config.json writer race (Pipeline::build vs the settings PUT) |
 | `d7s-dashboard-output-section` | [log/2026-10-16-d7s-dashboard-output-section.md](log/2026-10-16-d7s-dashboard-output-section.md) | Dashboard Output section (Aurora-d7s) |
 | `daaa-graph-editor-stage1` | [log/2026-11-08-daaa-graph-editor-stage1.md](log/2026-11-08-daaa-graph-editor-stage1.md) | Graph editor cleanup stage 1: back link and Aurora styles |
+| `daaa4-control-count-baseline` | [log/2026-11-08-daaa4-control-count-baseline.md](log/2026-11-08-daaa4-control-count-baseline.md) | Graph editor control-count baseline and CMake rebuild check |
 | `dh1p-failure-light` | [log/2026-11-05-dh1p-failure-light.md](log/2026-11-05-dh1p-failure-light.md) | Failure light: dim magenta while no effect can run |
 | `distributed-architecture-plan` | [archive/DistributedArchitecturePlan.md](archive/DistributedArchitecturePlan.md) | Distributed architecture — how far to decompose Input/Processing/Output over a network |
 | `docs-lessons-pain-points` | [archive/DocsAndLessonsPainPoints.md](archive/DocsAndLessonsPainPoints.md) | Docs & lessons: scaling pain points |
