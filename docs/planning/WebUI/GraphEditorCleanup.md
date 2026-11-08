@@ -5,6 +5,8 @@ Id: graph-editor-cleanup
 Status: proposed, not built. Written 2026-11-06 under `Aurora-bova`. The owner has
 reviewed the working mock and likes the direction, but none of the open directions
 below are chosen yet. Treat everything here as a proposal until this line changes.
+The 2026-11-08 spikes (`Aurora-t2hz`, `Aurora-m5kl`) support building the popups on
+Grille (`weblings/GrilleDS`), which adds prerequisite work in that repo before stage 2.
 
 Reference mock: `web/ui/Static_GraphEditor_Mocks/` (open `index.html`). Layout, menus
 and states in this doc refer to its frames. Background: [[sequence-e-planning]],
@@ -21,7 +23,7 @@ Measured on the fake-Hue stack at 1470x900:
 | Chrome controls always visible, `builtin.audio` | 130 | Not mocked |
 | Fitted graph zoom at 1470x900 | 37% | 70% |
 | Fitted graph zoom at 1280x720 | 30% | 60% |
-| Route back to Aurora on the page | None | `← Aurora` |
+| Route back to the Dashboard on the page | None | `← Dashboard` |
 | Mouse route to delete a node or wire | None | Right-click menu |
 
 - The two largest sources are the Add node list (53 buttons) and the Dashboard
@@ -30,12 +32,13 @@ Measured on the fake-Hue stack at 1470x900:
   header, action row and canvas.
 - The editor imports Aurora's color tokens but no component styles. Controls fall
   back to Arial, Add node buttons are unstyled light browser defaults, and the brand
-  mark is a purple dot in an otherwise grayscale product.
+  mark is a purple dot, a placeholder from the initial editor build, in an otherwise
+  grayscale product.
 - Only Backspace deletes today. The Delete key is not bound.
 
 ## Proposal
 
-**Layout.** A full-width canvas under one top bar. Always visible: `← Aurora`, the
+**Layout.** A full-width canvas under one top bar. Always visible: `← Dashboard`, the
 effect title, status, undo and redo, Test on lights and Save. Four small canvas
 controls stay on screen: Add node, zone preview, Dashboard controls and the view menu.
 
@@ -61,9 +64,17 @@ the Dashboard, Delete. Wire: Delete connection. A selected node also shows a vis
 `⋯`, and Shift+F10 opens the same menu. Touch long-press failed on iPhone and was cut
 from the effect panel ([[kep224-cut-long-press]]), so right-click is never the only route.
 
-**Styling.** Import `forms.css` and `dropdown.css` from `web/ui`, and reuse the row
-menu's popup recipe. `forms.css` and `dropdown.css` have no page-wide element rules, so
-importing them should be safe. `page.css` stays out. Port colors stay, since they carry meaning.
+**Styling.** Stage 1 imports `forms.css` from `web/ui`. It has no page-wide element rules,
+so importing it should be safe. `dropdown.css` styles `Dropdown.js`'s custom menu, so it
+comes in only for the hand-built fallback, or if its trigger style suits the native
+selects. `page.css` stays out. From
+stage 2, popups come from Grille's React Aria wrappers (see Scoping concerns). Node params
+stay native on `forms.css`, since Grille has no number, color or checkbox control.
+
+- The editor keeps its `--aurora-*` names. Grille's `--ui-*` tokens load beside them, and
+  the shared values match.
+- Grille's warning and error tones add color, so the status spot and toasts don't use them.
+- Port colors stay, since they carry meaning.
 
 ## Prior art
 
@@ -138,7 +149,7 @@ Recommendation: desktop-only for this pass, stated plainly in the editor README.
   to pick an effect. Recommendation: keep it for now, since comparing effects while
   editing is useful. Removing it later is easy, and it must not switch on arrow keys.
 - **Leaving with unsaved edits:** the browser backup already keeps them and offers
-  Restore on return. A warning on `← Aurora` adds safety and a little friction. The backup
+  Restore on return. A warning on `← Dashboard` adds safety and a little friction. The backup
   is per browser, so edits made in one browser are not offered in another.
   Recommendation: no warning, but say in the toast or title that edits are kept here.
 
@@ -175,10 +186,8 @@ stay on screen. This is the most likely place to lose information without notici
 
 **Popups are new shared infrastructure.** The title, save, view, add and context menus
 all need the same positioning, Escape, outside click, focus return and keyboard handling.
-Existing lessons apply, including that disabling a focused control drops focus, and that
-controls with side effects must not commit on arrow keys. React Flow's pan and selection
-keys also need checking against the menus. Space is already its pan key, which is why the
-mock proposes `A` and not Unity's Space.
+Existing lessons still apply: disabling a focused control drops focus, and controls with
+side effects must not commit on arrow keys.
 
 *Spike result (`Aurora-t2hz`, 2026-11-08): go on React Aria for these popups.* A throwaway
 build of `react-aria-components` 1.22.1 on the canvas was driven in headless Chromium on the
@@ -207,12 +216,38 @@ It works with these workarounds, which stage 2 should build in:
 - **Space.** Space activates the focused menu item, so Space-pan is unavailable while a menu
   has focus. This is standard menu behavior and acceptable.
 
-Grille needs for the title, Save and context menus and the add browser: a Popover that
-takes a `triggerRef` or a point with keyed repositioning, an `isNonModal` pass-through,
-Menu and MenuItem with `onAction` and `onKeyDown` pass-through, a focus-restore callback on
-close, Autocomplete with SearchField and ListBox plus Section and Header exports, and a
-ring that fits the popover padding. If Grille cannot supply these, fall back to
-`dropdown.css`. Full evidence is in the `Aurora-t2hz` notes.
+**Who owns which workaround.** Grille gets the general pieces: the point anchor, the
+`isNonModal` and `onKeyDown` pass-throughs, and focus restore on close. The editor owns
+everything specific to React Flow: blocking Delete and Backspace in menus, closing on pane
+drag, Esc while focus is outside the menu, `preventDefault` on `A`, and the name-first sort.
+Grille stays free of React Flow, and its modal `Select` keeps its current default.
+
+Grille needs for the title, Save and context menus and the add browser:
+
+- A Popover that takes a `triggerRef` or a point, with keyed repositioning and `isNonModal`
+- Menu and MenuItem with `onAction` and `onKeyDown` pass-through, and a focus-restore
+  callback on close
+- A Dialog inside a Popover, for the title menu (below)
+- Autocomplete with SearchField and ListBox, plus Section and Header exports
+- A popup skin that matches Aurora. Grille's `.ui-popover` uses `#333` with `#515151`
+  hover and no shadow, where Aurora's menus use `--aurora-surface` with
+  `--aurora-surface-hover` and `--aurora-shadow-popup`, which Grille has no tokens for.
+- A ring that fits. `.ui-listbox` has `padding: 4px 0` with `overflow: auto`, so the outer
+  ring should clip on the left and right. Read from the CSS, not tested.
+
+If Grille cannot supply these, fall back to `dropdown.css`. Full evidence is in the
+`Aurora-t2hz` notes.
+
+**The spike did not cover:**
+
+- **The title menu.** It holds the Name box and the effect list, so it is a Dialog in a
+  Popover with a TextField and a ListBox, not a Menu. Save opening it with Name focused
+  is untested.
+- **Keyboard-opened context menus.** Shift+F10 and `⋯` anchor to the node, not the
+  pointer, and focus returns differently.
+- **Grille's wrappers.** The spike imported React Aria directly, so the first Grille-based
+  build is also the first test of the wrappers.
+- **Toasts.** These stay local to the editor for now.
 
 *Spike result (`Aurora-m5kl`, 2026-11-08): a built tarball installs under `ignore-scripts`.*
 Grille commits no `dist` and builds it in `prepare`, so the git install left no `dist`. An
@@ -225,10 +260,15 @@ release URL and the Mac and Linux builds are unverified.
   re-upload an asset, since a changed hash fails `npm ci`. The repo is public and
   `web.yml` and the CMake step run a plain `npm ci`, so no CI change is expected.
   Committing `dist` or a sync script is not needed.
+- **Version cleanup.** Grille has a local-only `v0.2.0` tag on an older commit, while
+  `package.json` says 0.1.0. Delete it before the first release so tags and the release
+  URL agree.
 - **Bundle cost.** The baseline is 439 kB JS (139 gzip) and 25.8 kB CSS (4.4 gzip). Adding
   `ui.css`, Grille's `Select` and React Aria `Menu` and `Popover` gives about +186 kB JS and
-  +6.6 kB CSS, roughly +60 kB gzip. Grille has no Menu yet, so `Select` stood in. A Menu
-  alone should cost less.
+  +6.6 kB CSS, roughly +60 kB gzip, or +42% JS. Grille has no Menu yet, so `Select` stood
+  in. Stage 3 needs Autocomplete and ListBox, which pull in the same shared code, so this
+  is the realistic end state. No compression was found in the embed step, so the raw
+  bytes land in the binary.
 - **Notices.** React Aria, React Stately, `clsx` and Grille appear in
   the generated third-party notices file automatically. Importing `fonts.css` would bundle 6 Inter files
   (about 165 kB) with no OFL entry, so it needs a hand-added notice. It stays out of scope.
@@ -243,7 +283,8 @@ release URL and the Mac and Linux builds are unverified.
 - Per-node live previews (`Aurora-h6yz`)
 - Editor support in the web demo (`Aurora-51nv`)
 - Bundling the Inter font. No `@font-face` exists in `web/ui`, so Dashboard and editor
-  both depend on what the system has installed.
+  both depend on what the system has installed. Grille's `fonts.css` would fix this, but
+  it needs a hand-added OFL notice and should land app-wide, so the two don't differ.
 
 Two stretch items affect today's design. Wire-drop search needs a row to mean a node and a
 port, as Unity's does, so the row component should not assume one row per node forever.
@@ -256,8 +297,8 @@ app builds. Exclude them or remove this one before release.
 
 ## Sequencing
 
-**The main constraint is the open Sequence E gate.** `Aurora-pvxx.9` is in progress, needs
-a pass on all three OSes, and blocks `Aurora-pvxx.18`, the epic's close and `Aurora-h6yz`.
+**The main constraint is the open Sequence E gate.** `Aurora-pvxx.9` is in progress. It has
+passed on Mac, Windows and Linux are outstanding, and it blocks `Aurora-pvxx.18`, the epic's close and `Aurora-h6yz`.
 Its Playwright checks drive the editor by current class names and labels, including
 `.palette-item`, `.editor-name input`, `.editor-header select` and the `.inspector-*`
 classes, across five check files. Structural changes break those checks.
@@ -268,16 +309,34 @@ classes, across five check files. Structural changes break those checks.
 | Clean up first, gate once on the final UI | One gate run, on the UI that ships | Sequence E stays open longer, and a failure could be either the cleanup or the original work |
 | Run both, migrating checks as each stage lands | No waiting | Most churn, and the gate result stays muddy |
 
-Recommendation: finish the gate first if Mac and Linux passes are cheap. The first stage
-below can proceed either way, since it keeps the class names the checks use.
+Recommendation: finish the gate first if Windows and Linux passes are cheap. Stage 1 and
+the Grille prerequisites can proceed either way, since neither touches the editor's checks
+or lockfile.
+
+**Grille prerequisites** (in `weblings/GrilleDS`):
+
+- **G1 Distribution:** the release workflow and the tag cleanup from the `Aurora-m5kl` result.
+- **G2 Popup skin:** tokens for Aurora's menu surface, hover and shadow, and the ring fit.
+  This may change how RockyRoadImport's `Select` looks (see Decisions).
+- **G3a Menus:** Popover with the point anchor, Menu, Dialog and `Button` size and icon.
+  The context menu needs nothing beyond this. Needed by stage 2.
+- **G3b Add browser:** Autocomplete, SearchField and a sectioned ListBox. Needed by stage 3.
 
 **Proposed order.** Each stage leaves the editor shippable.
 
 1. **Back link and styling.** Fixes the most visible problems and changes no structure.
-2. **Popup foundation and top bar.** The title and Save menus are the first real users
-   of the shared popup behavior. The status priority rule is settled here, and most
-   header and action row selectors change.
-3. **Add node menu.** Replaces the palette, so direction 1 and 2 must be decided first.
+   The back link reads Dashboard, since the editor is part of Aurora and the Dashboard is
+   where it lands. It uses the NUX back arrow (`web/ui/icons/back-arrow.svg`) and links
+   to `/`, so it works however the editor was opened. The mock still shows `← Aurora`.
+   CSS only: Grille's `Button` and `TextField` take no `className`, so swapping them in
+   here would remove the class names the checks use.
+2. **Grille in the build, then popup foundation and top bar.** First, add the release
+   dependency and confirm `web.yml` and all three OS builds pass with the release URL,
+   with no visible change. This needs G1 and the gate. Then the title and Save menus become
+   the first real users of the shared popup behavior on G3a. The status priority rule is
+   settled here, and most header and action row selectors change.
+3. **Add node menu.** Replaces the palette, so directions 1 and 2 must be decided first.
+   Needs G3b.
 4. **Right-click, drawers and Delete.** Must land together. The Inspector can only go once
    the node menu and drawers can reach everything it did.
 
@@ -295,6 +354,10 @@ the menu.
 - Direction 3 decides whether the copy pass touches core.
 - Direction 5 sets how much the popup foundation must handle.
 - The popup library question is answered by the `Aurora-t2hz` spike (see Scoping concerns).
-  The `Aurora-m5kl` spike settles distribution. What remains is Grille exposing the API
-  listed there and cutting a release.
+  The `Aurora-m5kl` spike settles distribution. Three choices remain:
+  - **G2 skin:** whether RockyRoadImport's `Select` takes the darker menu surface, or
+    Grille gets a second popover look
+  - **Bundle budget:** accept about +60 kB gzip for the editor
+  - **Title menu:** confirm it as a Dialog in a Popover
+- Where the Grille work is tracked, since GrilleDS has no beads.
 - The gate order decides when stage 2 can start.
