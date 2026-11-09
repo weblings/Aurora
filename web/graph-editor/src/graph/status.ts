@@ -1,6 +1,6 @@
 // The editor's single status spot: which state it shows. The rule is the
-// status priority table in docs/planning/WebUI/GraphEditorCleanup.md. Pure, so
-// every rank is testable without a server.
+// status priority table in [[graph-editor-cleanup]]. Pure, so every rank
+// is testable without a server.
 
 import { summarize, type LoopState } from './loop'
 import { describeTest, type TestState } from './lightTest'
