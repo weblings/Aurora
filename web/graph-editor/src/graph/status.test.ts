@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { initialLoop, type LoopState } from './loop'
 import { initialTest, type TestState } from './lightTest'
-import { pickBanner, pickStatus, testProgress, type StatusInput } from './status'
+import { changeIsEdit, pickBanner, pickStatus, testProgress, type StatusInput } from './status'
 
 const base: StatusInput = { openError: null, loop: { ...initialLoop, valid: true, stream: 'live' }, test: initialTest, writeTrouble: null, testOutcomeCleared: false }
 const withLoop = (l: Partial<LoopState>): StatusInput => ({ ...base, loop: { ...base.loop, ...l } })
@@ -65,5 +65,19 @@ describe('test progress and banner', () => {
     expect(pickBanner('Cannot reach Aurora', true)).toMatchObject({ kind: 'unreachable' })
     expect(pickBanner(null, true)).toEqual({ kind: 'restore' })
     expect(pickBanner(null, false)).toBeNull()
+  })
+})
+
+describe('changeIsEdit', () => {
+  const a = {}, b = {}
+  it('is not an edit when an effect opens', () => {
+    expect(changeIsEdit(null, a)).toBe(false)
+    expect(changeIsEdit(a, null)).toBe(false)
+  })
+  it('is an edit for any later change, even one back to the saved graph', () => {
+    expect(changeIsEdit(a, b)).toBe(true)
+  })
+  it('is not an edit when nothing changed', () => {
+    expect(changeIsEdit(a, a)).toBe(false)
   })
 })

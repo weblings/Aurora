@@ -61,6 +61,12 @@ export function testProgress(test: TestState): string | null {
   }
 }
 
+/** A document change that dismisses a test outcome and a write trouble: any
+ *  change after an effect is open, but not the open itself (from no document). */
+export function changeIsEdit(before: unknown, after: unknown): boolean {
+  return before !== null && after !== null && before !== after
+}
+
 export function pickStatus({ openError, loop, test, writeTrouble, testOutcomeCleared }: StatusInput): Status {
   if (openError || loop.stream === 'unreachable') {
     return { rank: 1, label: 'Aurora unreachable', detail: openError ?? 'Retrying.', action: null }

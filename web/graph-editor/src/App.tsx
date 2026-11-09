@@ -31,7 +31,7 @@ import { restorable, clearUnsaved, syncUnsaved } from './graph/autosave'
 import { refuseConnection } from './graph/connection'
 import { addEdge, addNode, joinEndpoint, moveNodes, removeEdge, removeNodes, setParam } from './graph/doc'
 import { editorReducer, emptyEditor, sameDoc } from './graph/history'
-import { pickBanner, pickStatus, testProgress } from './graph/status'
+import { changeIsEdit, pickBanner, pickStatus, testProgress } from './graph/status'
 import { BLANK_ID, blankDoc, forWrite, freshEffectId, setTitle, titleOf } from './graph/save'
 import { portStyle } from './graph/portStyle'
 import { NODE_KIND, carryViewState, edgeId, toFlowEdges, toFlowNodes, type AuroraNodeData } from './graph/flow'
@@ -180,6 +180,7 @@ export function App() {
       // live effect, which is now this one, read from the file just written.
       if (kind === 'apply' && testing) await lights.finishAfterApply()
       const live = kind !== 'save'
+      dismissTest()
       // A reload error needs a look, so it stays in the status spot.
       if (result.reloadError) setWriteTrouble(`Reload: ${result.reloadError}`)
       showToast(`${live ? 'Saved and live' : 'Saved'} as ${titleOf(sent) || id}`)
@@ -210,10 +211,16 @@ export function App() {
   // A test outcome shows until the next test, Save or edit.
   const [clearedTest, setClearedTest] = useState<{ ended: unknown; failure: string | null } | null>(null)
   const testOutcomeCleared = clearedTest !== null && clearedTest.ended === lights.state.ended && clearedTest.failure === lights.state.failure
+  const dismissTest = () => setClearedTest({ ended: lights.state.ended, failure: lights.state.failure })
+  const prevDoc = useRef<GraphDoc | null>(null)
   useEffect(() => {
-    if (!dirty) return
+    const before = prevDoc.current
+    prevDoc.current = doc
+    // Opening an effect (null then the graph) is not an edit; every later
+    // change is, including an undo back to the saved graph.
+    if (!changeIsEdit(before, doc)) return
     setWriteTrouble(null)
-    setClearedTest({ ended: lights.state.ended, failure: lights.state.failure })
+    dismissTest()
     // Only a change of the document counts as an edit.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [doc])
