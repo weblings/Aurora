@@ -463,3 +463,18 @@ the menu.
   `daaa.8`), and G3b is `Grille-h7g`. The Aurora beads stay as the consumer-side blockers
   and close when the matching Grille release installs here.
 
+
+## Known follow-ups (filed under `Aurora-daaa`)
+
+Small items found during stage 2 that are not part of any stage's scope yet. None is assigned
+to a stage; whoever next touches the area picks it up.
+
+- `Aurora-daaa.14` (fixed): a test outcome in the status spot now clears on Save and on undo
+  back to the saved graph.
+- `Aurora-daaa.15`: drop dead status CSS and settle the Vite chunk-size warning.
+- `Aurora-daaa.16`: move to Grille v0.1.0 at the end of the cleanup epic.
+- `Aurora-daaa.17`: problems popover rows are cramped.
+- `Aurora-daaa.18`: `builtin.audio` opens at 37% with unreadable nodes and an empty thumbnail
+  box while the preview is paused.
+- `Aurora-daaa.19`: the Name field on a built-in reads as a hovered menu row, and the status
+  spot says `No draft yet` before the preview connects.
