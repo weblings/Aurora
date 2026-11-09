@@ -86,7 +86,8 @@ await withEditorStack(async ({ editorUrl, aurora }) => {
     // Save on a built-in with no name opens the title menu on the Name field.
     await page.getByLabel('Name', { exact: true }).waitFor()
     assert.equal(await nameNote(), 'Name the new effect first')
-    assert.equal(await page.evaluate(() => document.activeElement?.closest('.editor-title-dialog') !== null && document.activeElement?.tagName), 'INPUT')
+    // The editor takes focus a few frames after the field mounts: wait for it.
+    await page.waitForFunction(() => document.activeElement?.closest('.editor-title-dialog') && document.activeElement.tagName === 'INPUT', null, { timeout: 3000 })
     await page.keyboard.press('Escape')
     await page.locator('.aurora-node', { hasText: 'Gain' }).first().locator('.aurora-node-header').click()
     await page.locator('.inspector-check input').first().check()

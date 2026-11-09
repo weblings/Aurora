@@ -83,6 +83,7 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `daaa10-title-menu` | [log/2026-11-08-daaa10-title-menu.md](log/2026-11-08-daaa10-title-menu.md) | Graph editor title menu: Save, Save as new and Save and apply |
 | `daaa11-top-bar` | [log/2026-11-08-daaa11-top-bar.md](log/2026-11-08-daaa11-top-bar.md) | Graph editor top bar, title and view menus, status spot |
 | `daaa12-doc-cleanup` | [log/2026-11-08-daaa12-doc-cleanup.md](log/2026-11-08-daaa12-doc-cleanup.md) | Graph editor cleanup doc: status, final bundle, daaa.11 acceptance |
+| `daaa13-embedded-run` | [log/2026-11-09-daaa13-embedded-run.md](log/2026-11-09-daaa13-embedded-run.md) | Graph editor stage 2 in the embedded build |
 | `daaa4-control-count-baseline` | [log/2026-11-08-daaa4-control-count-baseline.md](log/2026-11-08-daaa4-control-count-baseline.md) | Graph editor control-count baseline and CMake rebuild check |
 | `daaa5-graph-editor-owner-decisions` | [log/2026-11-08-daaa5-graph-editor-owner-decisions.md](log/2026-11-08-daaa5-graph-editor-owner-decisions.md) | Graph editor cleanup: owner decisions before stage 2 |
 | `daaa6-graph-editor-gap-states` | [log/2026-11-08-daaa6-graph-editor-gap-states.md](log/2026-11-08-daaa6-graph-editor-gap-states.md) | Graph editor cleanup: gap states and the status priority rule |

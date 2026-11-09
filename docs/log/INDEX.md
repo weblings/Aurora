@@ -350,3 +350,4 @@ Planning docs stay clean: decisions, status, and pointers here only.
 | 2026-11-08 | Graph editor top bar: one bar, title menu with Name and effect list, view menu, banner, toast and one status spot. [[daaa11-top-bar]] | `bd show Aurora-daaa.11` |
 | 2026-11-08 | Graph editor title menu: Save, Save as new and Save and apply move into the first shared popup; Keep removed, Save and apply ends a running test. [[daaa10-title-menu]] | `bd show Aurora-daaa.10` |
 | 2026-11-08 | Graph editor cleanup doc: status line, final stage 2 bundle numbers (+49 kB gzip) and daaa.11 control-count acceptance. [[daaa12-doc-cleanup]] | `bd show Aurora-daaa.12` |
+| 2026-11-09 | Graph editor stage 2 checks pass against the embedded Mac build; edit-loop focus race fixed; popup and audio screenshots reviewed, two layout issues filed. [[daaa13-embedded-run]] | `bd show Aurora-daaa.13` |
