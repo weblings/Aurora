@@ -3,6 +3,7 @@
 import assert from 'node:assert/strict'
 import { launch } from '../lib/browser.mjs'
 import { withEditorStack } from '../lib/stack.mjs'
+import { fileAction, openTitleMenu } from '../lib/editorMenu.mjs'
 
 const created = []
 
@@ -22,11 +23,13 @@ await withEditorStack(async ({ editorUrl }) => {
   try {
     await page.goto(`${editorUrl}?effect=builtin.video`)
     await page.waitForSelector('.aurora-node')
-    assert.equal(await page.getByRole('button', { name: 'Save as new' }).count(), 0)
+    await openTitleMenu(page)
+    assert.equal(await page.getByRole('menuitem', { name: 'Save as new' }).count(), 0)
+    await page.keyboard.press('Escape')
     step('no Save as new on a built-in')
 
     await page.locator('.editor-name input').fill('Browser check fork source')
-    await page.getByRole('button', { name: 'Save', exact: true }).click()
+    await fileAction(page, 'Save')
     await page.waitForFunction(() => document.querySelector('.editor-header select')?.value === 'browser-check-fork-source')
     created.push('browser-check-fork-source')
 
@@ -47,7 +50,7 @@ await withEditorStack(async ({ editorUrl }) => {
     await page.mouse.up()
     await page.waitForFunction(() => document.querySelector('.editor-status')?.textContent.includes('Live'), null, { timeout: 10_000 })
     // The name is left alone: the copy still gets a title of its own.
-    await page.getByRole('button', { name: 'Save as new' }).click()
+    await fileAction(page, 'Save as new')
     await page.waitForFunction(() => document.querySelector('.editor-header select')?.value === 'browser-check-fork-source-copy')
     created.push('browser-check-fork-source-copy')
     step('Save as new opens the new effect')

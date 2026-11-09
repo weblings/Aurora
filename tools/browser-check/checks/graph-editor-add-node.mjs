@@ -3,6 +3,7 @@
 import assert from 'node:assert/strict'
 import { launch } from '../lib/browser.mjs'
 import { withEditorStack } from '../lib/stack.mjs'
+import { fileAction } from '../lib/editorMenu.mjs'
 
 const created = []
 
@@ -47,7 +48,7 @@ await withEditorStack(async ({ editorUrl }) => {
     step('wired in, the preview is Live with no problems')
 
     await page.locator('.editor-name input').fill('Browser check add node')
-    await page.getByRole('button', { name: 'Save', exact: true }).click()
+    await fileAction(page, 'Save')
     await page.waitForFunction(() => document.querySelector('.editor-header select')?.value === 'browser-check-add-node')
     created.push('browser-check-add-node')
 

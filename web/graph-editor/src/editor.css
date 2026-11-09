@@ -325,6 +325,18 @@ select {
   color: var(--aurora-text-secondary);
 }
 
+.editor-title-menu {
+  max-width: 24ch;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Room for the focus ring, which the popover would clip at zero padding. */
+.editor-popup {
+  padding: 4px;
+}
+
 .editor-name {
   display: inline-flex;
   gap: var(--aurora-space-2);

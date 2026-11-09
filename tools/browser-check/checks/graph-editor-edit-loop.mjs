@@ -1,10 +1,11 @@
-// Aurora-pvxx.7 (E4) through the browser: test on lights, Keep, Revert, a
+// Aurora-pvxx.7 (E4) through the browser: test on lights, Revert, a
 // takeover, a lost heartbeat, Save, Save and apply, and Dashboard controls.
 // Needs a built app (see tools/light-viz-relay/README.md); runs on the
 // dummy input, so it works without a screen or Hue hardware.
 import assert from 'node:assert/strict'
 import { launch } from '../lib/browser.mjs'
 import { withEditorStack } from '../lib/stack.mjs'
+import { fileAction } from '../lib/editorMenu.mjs'
 
 const created = []
 
@@ -41,7 +42,7 @@ await withEditorStack(async ({ editorUrl, aurora }) => {
 
     // Revert.
     await button('Test on lights').click()
-    await button('Keep').waitFor()
+    await button('Revert').waitFor()
     assert.match(await testNote(), /Testing on the lights, \d+ s left/)
     await page.waitForTimeout(2500)
     assert.match(await testNote(), /Testing on the lights, 11\d s left/)
@@ -52,7 +53,7 @@ await withEditorStack(async ({ editorUrl, aurora }) => {
 
     // Another session takes the lights.
     await button('Test on lights').click()
-    await button('Keep').waitFor()
+    await button('Revert').waitFor()
     const graph = (await api('GET', '/api/effects/builtin.video')).json.graph
     await api('PUT', '/api/graph/drafts/agent-1', { graph })
     assert.equal((await api('POST', '/api/graph/test', { session: 'agent-1' }, { 'X-Aurora-Client': 'mcp' })).status, 200)
@@ -64,7 +65,7 @@ await withEditorStack(async ({ editorUrl, aurora }) => {
 
     // Lost heartbeats: the editor says so, the server puts the lights back.
     await button('Take over the lights').or(button('Test on lights')).click()
-    await button('Keep').waitFor()
+    await button('Revert').waitFor()
     await page.route('**/api/graph/test/heartbeat', (route) => route.abort())
     await page.waitForFunction(() => document.querySelector('.editor-test-note')?.textContent.includes('Lost contact'), null, { timeout: 15_000 })
     await page.unroute('**/api/graph/test/heartbeat')
@@ -72,36 +73,47 @@ await withEditorStack(async ({ editorUrl, aurora }) => {
     assert.equal((await api('GET', '/api/graph/test')).json.active, false)
     step('lost heartbeats are reported and the server reverts by itself')
 
-    // Keep is refused for a graph edited since the test began.
+    // A test shows Revert only: Keep is gone, the title menu commits.
     await button('Test on lights').click()
-    await button('Keep').waitFor()
-    await page.locator('.editor-name input').fill('Edited during test')
-    assert.equal(await button('Keep').isDisabled(), true)
+    await button('Revert').waitFor()
+    assert.equal(await button('Keep').count(), 0)
     await button('Revert').click()
-    await page.locator('.editor-name input').fill('')
-    step('Keep is disabled once the graph changes during a test')
+    step('a test offers Revert only')
 
     // Save as a new custom effect; the live effect stays.
-    await button('Save').click()
+    await fileAction(page, 'Save')
     assert.equal(await notice(), 'Name the new effect first')
     await page.locator('.aurora-node', { hasText: 'Gain' }).first().locator('.aurora-node-header').click()
     await page.locator('.inspector-check input').first().check()
     await page.locator('.inspector h3', { hasText: 'Dashboard controls (4)' }).waitFor()
     await page.locator('.editor-name input').fill('Browser check')
-    await button('Save').click()
+    await fileAction(page, 'Save')
     await page.waitForFunction(() => document.querySelector('.editor-header select')?.value === 'browser-check')
     created.push('browser-check')
     assert.match(await notice(), /^Saved as Browser check/)
     assert.equal(await active(), original)
     step('Save on a built-in makes a new custom effect and leaves the live one alone')
 
-    // Test then Keep on the custom effect.
+    // Save and apply during a test ends it (apply alone leaves it running).
     await button('Test on lights').click()
-    await button('Keep').waitFor()
-    await button('Keep').click()
+    await button('Revert').waitFor()
+    await fileAction(page, 'Save and apply')
     await page.waitForFunction(() => document.querySelector('.editor-test-note')?.textContent.startsWith('Kept'))
+    assert.equal((await api('GET', '/api/graph/test')).json.active, false)
     assert.equal(await active(), 'browser-check')
-    step('Keep makes the tested graph the live effect')
+    step('Save and apply with the graph as tested makes it live and ends the test')
+
+    // Edited since the test began: the edited graph is what ends up live.
+    await api('PUT', '/api/config', { activeEffectId: original })
+    await button('Test on lights').click()
+    await button('Revert').waitFor()
+    await page.locator('.editor-name input').fill('Browser check edited')
+    await fileAction(page, 'Save and apply')
+    await page.waitForFunction(() => document.querySelector('.editor-test-note')?.textContent.startsWith('Kept'))
+    assert.equal((await api('GET', '/api/graph/test')).json.active, false)
+    assert.equal(await active(), 'browser-check')
+    assert.equal((await api('GET', '/api/effects/browser-check')).json.graph.title, 'Browser check edited')
+    step('Save and apply with an edited graph makes the edit live and ends the test')
 
     // Save and apply from a built-in.
     await api('PUT', '/api/config', { activeEffectId: 'builtin.video' })
@@ -115,7 +127,7 @@ await withEditorStack(async ({ editorUrl, aurora }) => {
     await fields.nth(2).fill('How bright the lights get')
     await fields.nth(2).press('Enter')
     await page.locator('.editor-name input').fill('Browser check apply')
-    await button('Save and apply').click()
+    await fileAction(page, 'Save and apply')
     await page.waitForFunction(() => document.querySelector('.editor-header select')?.value === 'browser-check-apply')
     created.push('browser-check-apply')
     assert.equal(await active(), 'browser-check-apply')
@@ -139,7 +151,7 @@ await withEditorStack(async ({ editorUrl, aurora }) => {
     if (process.env.SLOW) {
       // Heartbeats keep a test alive until the server's cap, then it reverts.
       await button('Test on lights').click()
-      await button('Keep').waitFor()
+      await button('Revert').waitFor()
       await page.waitForFunction(() => document.querySelector('.editor-test-note')?.textContent.includes('time limit'), null, { timeout: 140_000 })
       assert.equal((await api('GET', '/api/graph/test')).json.active, false)
       step('the 120 s cap ends the test and the lights come back')

@@ -15,7 +15,9 @@ import {
   type ReactFlowInstance,
 } from '@xyflow/react'
 import backArrow from '../../ui/icons/back-arrow.svg'
+import { Dialog, Menu, MenuItem } from '@weblings/grille'
 import { applyGraph, fetchCatalog, fetchEffectGraph, fetchEffects, putDraft, saveGraph, type WriteResult } from './api'
+import { EditorPopup } from './EditorPopup'
 import { EditorContext, type EditorActions } from './EditorContext'
 import { GenericNode } from './GenericNode'
 import { Inspector } from './Inspector'
@@ -56,11 +58,11 @@ export function App() {
   // A browser-stored copy of unsaved edits from an earlier visit, awaiting a choice.
   const [offer, setOffer] = useState<GraphDoc | null>(null)
   const [error, setError] = useState<string | null>(null)
-  // The outcome of the last Save / Save and apply / Keep.
+  // The outcome of the last Save / Save and apply.
   const [notice, setNotice] = useState<string | null>(null)
   const [writing, setWriting] = useState(false)
-  // The document the running test was started from.
-  const [tested, setTested] = useState<GraphDoc | null>(null)
+  const [titleMenuOpen, setTitleMenuOpen] = useState(false)
+  const titleMenuTrigger = useRef<HTMLButtonElement>(null)
   const [refusal, setRefusal] = useState<string | null>(null)
   // What React Flow has told us (selection, measured sizes, a drag in progress).
   // The nodes it draws are derived from `doc` in the same render, so a param
@@ -114,7 +116,6 @@ export function App() {
   const lights = useLightTest(session, () => putDraft(session, docRef.current!))
   const testing = lights.state.phase === 'running'
   const testNote = describeTest(lights.state)
-  const changedSinceTest = testing && tested !== null && doc !== null && !sameDoc(tested, doc)
   const dirty = useMemo(() => (doc && baseline ? !sameDoc(baseline.doc, doc) : false), [doc, baseline])
   const isBuiltin = effects.find((e) => e.id === effectId)?.builtin ?? (effectId === BLANK_ID || effectId.startsWith('builtin.'))
   const needsName = isBuiltin && doc !== null && titleOf(doc).trim() === ''
@@ -132,15 +133,14 @@ export function App() {
 
   const startTest = () => {
     setNotice(null)
-    setTested(docRef.current)
     void lights.start()
   }
 
-  // Save, Save and apply and Keep write the document under an id: the open
+  // Save, Save and apply and Save as new write the document under an id: the open
   // custom effect's, or a fresh one named after the title when a built-in is
   // open (a built-in is never overwritten). Save as new forks a custom the
   // same way, leaving the original file as it was.
-  const write = async (kind: 'save' | 'apply' | 'keep', asNew = false) => {
+  const write = async (kind: 'save' | 'apply', asNew = false) => {
     if (!doc || !baseline || writing) return
     if (needsName) {
       setNotice('Name the new effect first')
@@ -148,27 +148,25 @@ export function App() {
     }
     // A new effect that kept a taken title would show as a second row of the
     // same name in the picker, so it takes a distinct one.
-    const sent = forWrite(doc, isBuiltin || asNew, kind === 'keep', effects.map((e) => e.title || e.id))
+    const sent = forWrite(doc, isBuiltin || asNew, effects.map((e) => e.title || e.id))
     const id = isBuiltin || asNew ? freshEffectId(titleOf(sent), effects.map((e) => e.id)) : baseline.id
     setWriting(true)
     setNotice(null)
     try {
-      let result: WriteResult
-      if (kind === 'keep') {
-        result = await lights.keep(id)
-      } else {
-        const verdict = await putDraft(session, sent)
-        if (!verdict.valid) {
-          const n = verdict.errors.length
-          setNotice(`Fix the ${n} ${n === 1 ? 'problem' : 'problems'} before saving`)
-          return
-        }
-        result = kind === 'save' ? await saveGraph(session, id) : await applyGraph(session, id)
+      const verdict = await putDraft(session, sent)
+      if (!verdict.valid) {
+        const n = verdict.errors.length
+        setNotice(`Fix the ${n} ${n === 1 ? 'problem' : 'problems'} before saving`)
+        return
       }
+      const result: WriteResult = kind === 'save' ? await saveGraph(session, id) : await applyGraph(session, id)
       if (!result.ok) {
         setNotice(result.reason)
         return
       }
+      // Apply does not end a running test. The lights then go back to the
+      // live effect, which is now this one, read from the file just written.
+      if (kind === 'apply' && testing) await lights.finishAfterApply()
       const live = kind !== 'save'
       setNotice(
         `${live ? 'Saved and live' : 'Saved'} as ${titleOf(sent) || id}${result.reloadError ? `. Reload: ${result.reloadError}` : ''}`,
@@ -398,15 +396,40 @@ export function App() {
             onChange={(e) => edit((d) => setTitle(d, e.target.value))}
           />
         </label>
+        <button
+          ref={titleMenuTrigger}
+          type="button"
+          className="btn btn-secondary editor-title-menu"
+          aria-label="Effect menu"
+          aria-haspopup="menu"
+          aria-expanded={titleMenuOpen}
+          disabled={!doc}
+          onClick={() => setTitleMenuOpen((open) => !open)}
+        >
+          {doc ? titleOf(doc) || effectId : ''}
+        </button>
+        <EditorPopup isOpen={titleMenuOpen} onClose={() => setTitleMenuOpen(false)} label="Effect menu" triggerRef={titleMenuTrigger}>
+          <Dialog aria-label="Effect menu">
+            <Menu
+              aria-label="Effect actions"
+              onClose={() => setTitleMenuOpen(false)}
+              onAction={(id) => {
+                setTitleMenuOpen(false)
+                if (id === 'save') void write('save')
+                else if (id === 'save-as-new') void write('save', true)
+                else if (id === 'save-and-apply') void write('apply')
+              }}
+            >
+              <MenuItem id="save" isDisabled={writing}>Save</MenuItem>
+              {isBuiltin ? null : <MenuItem id="save-as-new" isDisabled={writing}>Save as new</MenuItem>}
+              <MenuItem id="save-and-apply" isDisabled={writing}>Save and apply</MenuItem>
+            </Menu>
+          </Dialog>
+        </EditorPopup>
         {testing ? (
-          <>
-            <button type="button" className="btn btn-secondary" onClick={() => void write('keep')} disabled={writing || changedSinceTest} title={changedSinceTest ? 'The graph changed since the test started. Test again, or use Save and apply' : 'Make the tested graph the live effect'}>
-              Keep
-            </button>
-            <button type="button" className="btn btn-secondary" onClick={() => void lights.revert()} disabled={writing}>
-              Revert
-            </button>
-          </>
+          <button type="button" className="btn btn-secondary" onClick={() => void lights.revert()} disabled={writing}>
+            Revert
+          </button>
         ) : (
           <button
             type="button" className="btn btn-secondary"
@@ -417,17 +440,6 @@ export function App() {
             {lights.state.other ? 'Take over the lights' : 'Test on lights'}
           </button>
         )}
-        <button type="button" className="btn btn-secondary" onClick={() => void write('save')} disabled={!doc || writing} title="Save as a custom effect without changing the live effect">
-          Save
-        </button>
-        {isBuiltin ? null : (
-          <button type="button" className="btn btn-secondary" onClick={() => void write('save', true)} disabled={!doc || writing} title="Save a copy under a new name, leaving this effect as it was">
-            Save as new
-          </button>
-        )}
-        <button type="button" className="btn btn-primary" onClick={() => void write('apply')} disabled={!doc || writing} title="Save and make it the live effect">
-          Save and apply
-        </button>
         {dirty ? <span className="editor-dirty">Unsaved changes</span> : null}
         <span className="editor-test-note" role="status" aria-live="polite">
           {testNote}

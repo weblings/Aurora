@@ -31,6 +31,7 @@ tested on a phone, and touch is not a goal of this pass.
 - `src/useDraftLoop.ts` -- sends the draft and holds the preview stream;
   `ZoneThumbnail.tsx` draws its frames from a ref, not state, placing the
   active output's zones at their `/api/zones` uv regions (grid for the rest).
+- `src/EditorPopup.tsx` -- the shared popup layer over Grille's `Popover`.
 - `src/useLightTest.ts` -- heartbeat, countdown and holder polling for a test;
   `Inspector.tsx` -- node details and the Dashboard controls list.
 - `src/api.ts` -- the only server calls (`/api/nodes`, `/api/effects`,
@@ -57,8 +58,12 @@ Aurora), `npm run typecheck`, `npm test`.
 
 ## Saving
 
-A built-in is never overwritten: Save, Save and apply and Keep write it under a
-new id slugged from the Name box (`save.ts`) and then open that effect. A
-custom effect is saved over its own id. Keep is `/api/graph/test/confirm`, so
-the server refuses it once the draft differs from the tested graph; the button
-is disabled by the same comparison.
+Save, Save as new and Save and apply are in the title menu ("Effect menu"
+button). A built-in is never overwritten: Save and Save and apply write it under
+a new id slugged from the Name box (`save.ts`) and then open that effect. A
+custom effect is saved over its own id. A test shows Revert only; Save and apply
+during one applies, then reverts, because apply alone leaves the test running
+(the revert rebuilds the just-applied effect from disk).
+
+Menus go through `EditorPopup.tsx`, which holds the React Flow workarounds (keys,
+pane drag, Esc, focus return). Use it for any new menu.

@@ -26,7 +26,8 @@ npm run graph-editor   # brings the stack and the editor dev server up, runs, te
   `npm run graph-editor:slow` adds the 120 s test cap (about 2 minutes more).
 - Checks assert and exit non-zero on the first failure; they remove the
   effects they create and restore the active effect.
-- `checks/graph-editor-edit-loop.mjs`: E4's test, Keep, Revert, takeover, lost
+- `checks/graph-editor-title-menu.mjs` (`npm run graph-editor:title-menu`): the title menu's open, Esc, outside click, pane drag, focus return and Delete/Backspace handling. `lib/editorMenu.mjs` has the helpers the other checks use to pick Save, Save as new and Save and apply.
+- `checks/graph-editor-edit-loop.mjs`: E4's test, Revert, takeover, lost
   heartbeat, Save, Save and apply, Dashboard controls and their rendering in Tuning. The E6 gate extends it.
 - `checks/graph-editor-back-link.mjs` (`npm run graph-editor:back-link`): the header's Dashboard link (href `/`, back arrow, no placeholder dot) and that `/` is the Dashboard.
 - `checks/graph-editor-control-count.mjs` (`npm run graph-editor:control-count`): counts the editor's chrome controls (rendered buttons, inputs, selects, textareas, links outside canvas nodes) at 1470 px for `builtin.video` and `builtin.audio`, and fails above a stored ceiling that each cleanup stage lowers.

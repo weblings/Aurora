@@ -11,8 +11,8 @@ import assert from 'node:assert/strict'
 import { launch } from '../lib/browser.mjs'
 import { withEditorStack } from '../lib/stack.mjs'
 
-// Stage 1 baseline (Aurora-daaa.4), measured on the fake-Hue stack.
-const CEILING = { 'builtin.video': 84, 'builtin.audio': 132 }
+// Stage 1 baseline (Aurora-daaa.4: 84 and 132), lowered by Aurora-daaa.10 (title menu), measured on the fake-Hue stack.
+const CEILING = { 'builtin.video': 83, 'builtin.audio': 131 }
 
 await withEditorStack(async ({ editorUrl }) => {
   const browser = await launch()

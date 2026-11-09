@@ -81,10 +81,9 @@ describe('new effect ids', () => {
 
   it('retitles a write that makes a new effect, not one that overwrites or keeps', () => {
     const doc = { ...builtinLike(), title: 'Video' }
-    expect(forWrite(doc, true, false, ['Video']).title).toBe('Video (Copy)')
-    expect(forWrite(doc, true, false, ['Other']).title).toBe('Video')
-    expect(forWrite(doc, false, false, ['Video']).title).toBe('Video')
-    expect(forWrite(doc, true, true, ['Video']).title).toBe('Video')
+    expect(forWrite(doc, true, ['Video']).title).toBe('Video (Copy)')
+    expect(forWrite(doc, true, ['Other']).title).toBe('Video')
+    expect(forWrite(doc, false, ['Video']).title).toBe('Video')
   })
 })
 

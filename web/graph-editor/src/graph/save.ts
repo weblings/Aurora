@@ -48,10 +48,9 @@ export function distinctTitle(title: string, taken: Iterable<string>): string {
 
 // The document a write sends. A write that makes a new effect (a fork, or a
 // built-in saved under a name) takes a title no other effect shows; one that
-// overwrites a custom effect, and Keep (the tested draft is already put), send
-// the document as it is.
-export function forWrite(doc: GraphDoc, makesNew: boolean, keep: boolean, taken: Iterable<string>): GraphDoc {
-  return makesNew && !keep ? setTitle(doc, distinctTitle(titleOf(doc), taken)) : doc
+// overwrites a custom effect, sends the document as it is.
+export function forWrite(doc: GraphDoc, makesNew: boolean, taken: Iterable<string>): GraphDoc {
+  return makesNew ? setTitle(doc, distinctTitle(titleOf(doc), taken)) : doc
 }
 
 // The editor id for an unsaved empty graph. '@' is not a valid effect id, so it
