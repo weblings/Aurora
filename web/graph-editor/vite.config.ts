@@ -12,6 +12,10 @@ export default defineConfig({
   base: '/graph-editor/',
   plugins: [react()],
   build: {
+    // The editor chunk is about 601 kB raw by design (React Aria Components and
+    // React Flow); the accepted bundle budget is in
+    // [[graph-editor-cleanup]] ("Bundle cost").
+    chunkSizeWarningLimit: 650,
     // Emits THIRD-PARTY-NOTICES.md for every bundled npm package; the CMake
     // embed ships it inside the editor's map.
     license: { fileName: 'THIRD-PARTY-NOTICES.md' },

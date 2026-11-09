@@ -352,3 +352,4 @@ Planning docs stay clean: decisions, status, and pointers here only.
 | 2026-11-08 | Graph editor cleanup doc: status line, final stage 2 bundle numbers (+49 kB gzip) and daaa.11 control-count acceptance. [[daaa12-doc-cleanup]] | `bd show Aurora-daaa.12` |
 | 2026-11-09 | Graph editor stage 2 checks pass against the embedded Mac build; edit-loop focus race fixed; popup and audio screenshots reviewed, two layout issues filed. [[daaa13-embedded-run]] | `bd show Aurora-daaa.13` |
 | 2026-11-09 | Graph editor: a test outcome in the status spot clears on Save and on undo back to the saved graph; browser check added. [[daaa14-test-outcome-clears]] | `bd show Aurora-daaa.14` |
+| 2026-11-09 | Graph editor: dead status CSS removed; Vite chunk-size warning limit set to the accepted 650 kB budget. [[daaa15-dead-css-chunk-limit]] | `bd show Aurora-daaa.15` |

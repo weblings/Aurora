@@ -129,22 +129,6 @@ select {
   accent-color: var(--aurora-accent);
 }
 
-.editor-restore {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--aurora-space-2);
-  color: var(--aurora-text-primary);
-}
-
-.editor-refusal {
-  color: var(--aurora-text-primary);
-}
-
-.editor-error {
-  color: var(--aurora-text-primary);
-  font-weight: 600;
-}
-
 .aurora-node {
   min-width: 240px;
   background: var(--aurora-surface);
