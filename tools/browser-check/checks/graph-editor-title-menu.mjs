@@ -27,8 +27,8 @@ await withEditorStack(async ({ editorUrl }) => {
 
     // A built-in: Save and Save and apply, no Save as new.
     await openTitleMenu(page)
-    assert.deepEqual(await page.getByRole('menuitem').allInnerTexts(), ['Save', 'Save and apply'])
-    step('the menu opens on a click and lists Save and Save and apply for a built-in')
+    assert.deepEqual(await titleMenu(page).getByRole('menuitem').allInnerTexts(), ['Save', 'Save and apply', 'New empty effect'])
+    step('the menu opens on a click and lists Save, Save and apply and New empty effect for a built-in')
 
     // Esc with focus inside the menu.
     await page.keyboard.press('Escape')
@@ -51,7 +51,7 @@ await withEditorStack(async ({ editorUrl }) => {
 
     // Esc while focus is outside the menu.
     await openTitleMenu(page)
-    await page.locator('.editor-name input').focus()
+    await page.locator('.palette-item').first().focus()
     await page.keyboard.press('Escape')
     await closed()
     step('Esc closes it while focus is outside the menu')

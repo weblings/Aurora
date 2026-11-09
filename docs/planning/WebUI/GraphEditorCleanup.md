@@ -2,7 +2,7 @@
 
 Id: graph-editor-cleanup
 
-Status: stage 1 built (back link, Aurora component styles); stages 2-4 proposed.
+Status: stage 1 built (back link, Aurora component styles); stage 2 built (top bar, title and view menus, status spot, `Aurora-daaa.11`); stages 3-4 proposed.
 Written 2026-11-06 under `Aurora-bova`. The owner has reviewed the working mock and
 likes the direction, but none of the open directions below are chosen yet. Treat
 stages 2-4 as a proposal until this line changes.

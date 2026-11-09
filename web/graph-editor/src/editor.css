@@ -254,8 +254,112 @@ select {
 }
 
 .editor-status {
-  margin-left: auto;
   color: var(--aurora-text-primary);
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.editor-bar-end {
+  flex: 1;
+}
+
+.editor-dirty,
+.editor-edited,
+.editor-countdown {
+  color: var(--aurora-text-primary);
+  white-space: nowrap;
+}
+
+.editor-title-dialog {
+  display: flex;
+  flex-direction: column;
+  gap: var(--aurora-space-2);
+  width: 280px;
+}
+
+.editor-title-dialog input {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.editor-title-heading {
+  margin: var(--aurora-space-3) 0 0;
+  font-size: 11px;
+  text-transform: uppercase;
+  color: var(--aurora-text-secondary);
+}
+
+.editor-effect-list {
+  max-height: 240px;
+  overflow-y: auto;
+}
+
+.editor-name-note {
+  margin: 0;
+  font-size: 12px;
+  color: var(--aurora-text-primary);
+}
+
+.editor-banner {
+  display: flex;
+  gap: var(--aurora-space-3);
+  align-items: center;
+  padding: var(--aurora-space-2) var(--aurora-space-5);
+  background: var(--aurora-surface);
+  border-bottom: 1px solid var(--aurora-border);
+  color: var(--aurora-text-primary);
+}
+
+.editor-problem-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  width: 320px;
+  max-height: 280px;
+  overflow-y: auto;
+}
+
+.editor-problem-row {
+  display: flex;
+  gap: var(--aurora-space-3);
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: var(--aurora-space-2) var(--aurora-space-3);
+  text-align: left;
+  background: none;
+  border: 0;
+  color: var(--aurora-text-primary);
+  font: inherit;
+}
+
+button.editor-problem-row {
+  cursor: pointer;
+}
+
+button.editor-problem-row:hover {
+  background: var(--aurora-surface-hover);
+}
+
+.editor-toast {
+  position: fixed;
+  bottom: var(--aurora-space-5);
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 20;
+  padding: var(--aurora-space-3) var(--aurora-space-5);
+  background: var(--aurora-surface);
+  border: 1px solid var(--aurora-border);
+  border-radius: var(--aurora-radius-control);
+  box-shadow: var(--aurora-shadow-popup);
+  color: var(--aurora-text-primary);
+  pointer-events: none;
+}
+
+.editor-toast[data-shown='false'] {
+  display: none;
 }
 
 .zone-thumbnail {
@@ -272,20 +376,6 @@ select {
 
 .zone-thumbnail-stale {
   opacity: 0.4;
-}
-
-.editor-graph-problems {
-  position: absolute;
-  left: var(--aurora-space-5);
-  top: var(--aurora-space-5);
-  z-index: 5;
-  margin: 0;
-  padding: var(--aurora-space-3) var(--aurora-space-5);
-  list-style: none;
-  background: var(--aurora-surface);
-  border: 1px dashed var(--aurora-text-primary);
-  border-radius: var(--aurora-radius-control);
-  max-width: 420px;
 }
 
 .aurora-node-problem {
@@ -314,17 +404,6 @@ select {
   color: var(--aurora-text-primary);
 }
 
-.editor-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--aurora-space-3);
-  align-items: center;
-  padding: var(--aurora-space-2) var(--aurora-space-5);
-  background: var(--aurora-surface);
-  border-bottom: 1px solid var(--aurora-border);
-  color: var(--aurora-text-secondary);
-}
-
 .editor-title-menu {
   max-width: 24ch;
   overflow: hidden;
@@ -335,23 +414,6 @@ select {
 /* Room for the focus ring, which the popover would clip at zero padding. */
 .editor-popup {
   padding: 4px;
-}
-
-.editor-name {
-  display: inline-flex;
-  gap: var(--aurora-space-2);
-  align-items: center;
-}
-
-.editor-dirty,
-.editor-test-note,
-.editor-notice {
-  color: var(--aurora-text-primary);
-}
-
-.editor-notice {
-  margin-left: auto;
-  font-weight: 600;
 }
 
 .inspector {

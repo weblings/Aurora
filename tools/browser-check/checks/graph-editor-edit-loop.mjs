@@ -5,7 +5,7 @@
 import assert from 'node:assert/strict'
 import { launch } from '../lib/browser.mjs'
 import { withEditorStack } from '../lib/stack.mjs'
-import { fileAction } from '../lib/editorMenu.mjs'
+import { fileAction, setName, waitToast } from '../lib/editorMenu.mjs'
 
 const created = []
 
@@ -28,8 +28,9 @@ await withEditorStack(async ({ editorUrl, aurora }) => {
       [method, path, body, headers],
     )
   const active = async () => (await api('GET', '/api/config')).json.activeEffectId
-  const testNote = () => page.locator('.editor-test-note').innerText()
-  const notice = () => page.locator('.editor-notice').innerText()
+  const testNote = () => page.locator('.editor-status').innerText()
+  const countdown = () => page.locator('.editor-countdown').innerText()
+  const nameNote = () => page.locator('.editor-name-note').innerText()
   const button = (name) => page.getByRole('button', { name, exact: true })
   const step = (label) => console.log(`ok  ${label}`)
 
@@ -43,11 +44,11 @@ await withEditorStack(async ({ editorUrl, aurora }) => {
     // Revert.
     await button('Test on lights').click()
     await button('Revert').waitFor()
-    assert.match(await testNote(), /Testing on the lights, \d+ s left/)
+    assert.match(await countdown(), /Testing, \d+ s left/)
     await page.waitForTimeout(2500)
-    assert.match(await testNote(), /Testing on the lights, 11\d s left/)
+    assert.match(await countdown(), /Testing, 11\d s left/)
     await button('Revert').click()
-    await page.waitForFunction(() => document.querySelector('.editor-test-note')?.textContent.startsWith('Reverted'))
+    await page.waitForFunction(() => document.querySelector('.editor-toast')?.textContent.startsWith('Reverted'))
     assert.equal((await api('GET', '/api/graph/test')).json.active, false)
     step('test counts down; Revert puts the lights back')
 
@@ -57,7 +58,7 @@ await withEditorStack(async ({ editorUrl, aurora }) => {
     const graph = (await api('GET', '/api/effects/builtin.video')).json.graph
     await api('PUT', '/api/graph/drafts/agent-1', { graph })
     assert.equal((await api('POST', '/api/graph/test', { session: 'agent-1' }, { 'X-Aurora-Client': 'mcp' })).status, 200)
-    await page.waitForFunction(() => document.querySelector('.editor-test-note')?.textContent.includes('took the lights'), null, { timeout: 8000 })
+    await page.waitForFunction(() => document.querySelector('.editor-status')?.textContent.includes('took the lights'), null, { timeout: 8000 })
     assert.match(await testNote(), /an agent took the lights/)
     assert.match(await button('Take over the lights').innerText(), /Take over/)
     await api('POST', '/api/graph/test/revert', { session: 'agent-1' })
@@ -67,7 +68,7 @@ await withEditorStack(async ({ editorUrl, aurora }) => {
     await button('Take over the lights').or(button('Test on lights')).click()
     await button('Revert').waitFor()
     await page.route('**/api/graph/test/heartbeat', (route) => route.abort())
-    await page.waitForFunction(() => document.querySelector('.editor-test-note')?.textContent.includes('Lost contact'), null, { timeout: 15_000 })
+    await page.waitForFunction(() => document.querySelector('.editor-status')?.textContent.includes('Lost contact'), null, { timeout: 15_000 })
     await page.unroute('**/api/graph/test/heartbeat')
     await page.waitForTimeout(7000)
     assert.equal((await api('GET', '/api/graph/test')).json.active, false)
@@ -82,15 +83,19 @@ await withEditorStack(async ({ editorUrl, aurora }) => {
 
     // Save as a new custom effect; the live effect stays.
     await fileAction(page, 'Save')
-    assert.equal(await notice(), 'Name the new effect first')
+    // Save on a built-in with no name opens the title menu on the Name field.
+    await page.getByLabel('Name', { exact: true }).waitFor()
+    assert.equal(await nameNote(), 'Name the new effect first')
+    assert.equal(await page.evaluate(() => document.activeElement?.closest('.editor-title-dialog') !== null && document.activeElement?.tagName), 'INPUT')
+    await page.keyboard.press('Escape')
     await page.locator('.aurora-node', { hasText: 'Gain' }).first().locator('.aurora-node-header').click()
     await page.locator('.inspector-check input').first().check()
     await page.locator('.inspector h3', { hasText: 'Dashboard controls (4)' }).waitFor()
-    await page.locator('.editor-name input').fill('Browser check')
+    await setName(page, 'Browser check')
     await fileAction(page, 'Save')
-    await page.waitForFunction(() => document.querySelector('.editor-header select')?.value === 'browser-check')
+    await page.waitForFunction(() => document.querySelector('[data-effect]')?.dataset.effect === 'browser-check')
     created.push('browser-check')
-    assert.match(await notice(), /^Saved as Browser check/)
+    await waitToast(page, 'Saved as Browser check')
     assert.equal(await active(), original)
     step('Save on a built-in makes a new custom effect and leaves the live one alone')
 
@@ -98,7 +103,7 @@ await withEditorStack(async ({ editorUrl, aurora }) => {
     await button('Test on lights').click()
     await button('Revert').waitFor()
     await fileAction(page, 'Save and apply')
-    await page.waitForFunction(() => document.querySelector('.editor-test-note')?.textContent.startsWith('Kept'))
+    await page.waitForFunction(() => document.querySelector('.editor-toast')?.textContent.startsWith('Saved and live'))
     assert.equal((await api('GET', '/api/graph/test')).json.active, false)
     assert.equal(await active(), 'browser-check')
     step('Save and apply with the graph as tested makes it live and ends the test')
@@ -107,9 +112,11 @@ await withEditorStack(async ({ editorUrl, aurora }) => {
     await api('PUT', '/api/config', { activeEffectId: original })
     await button('Test on lights').click()
     await button('Revert').waitFor()
-    await page.locator('.editor-name input').fill('Browser check edited')
+    await setName(page, 'Browser check edited')
+    // The earlier toast must be gone, or the wait below passes on it.
+    await page.locator('.editor-toast[data-shown="false"]').waitFor({ state: 'attached' })
     await fileAction(page, 'Save and apply')
-    await page.waitForFunction(() => document.querySelector('.editor-test-note')?.textContent.startsWith('Kept'))
+    await page.waitForFunction(() => document.querySelector('.editor-toast')?.textContent.startsWith('Saved and live'))
     assert.equal((await api('GET', '/api/graph/test')).json.active, false)
     assert.equal(await active(), 'browser-check')
     assert.equal((await api('GET', '/api/effects/browser-check')).json.graph.title, 'Browser check edited')
@@ -126,9 +133,9 @@ await withEditorStack(async ({ editorUrl, aurora }) => {
     await fields.nth(0).press('Enter')
     await fields.nth(2).fill('How bright the lights get')
     await fields.nth(2).press('Enter')
-    await page.locator('.editor-name input').fill('Browser check apply')
+    await setName(page, 'Browser check apply')
     await fileAction(page, 'Save and apply')
-    await page.waitForFunction(() => document.querySelector('.editor-header select')?.value === 'browser-check-apply')
+    await page.waitForFunction(() => document.querySelector('[data-effect]')?.dataset.effect === 'browser-check-apply')
     created.push('browser-check-apply')
     assert.equal(await active(), 'browser-check-apply')
     step('Save and apply switches the live effect')
@@ -152,7 +159,7 @@ await withEditorStack(async ({ editorUrl, aurora }) => {
       // Heartbeats keep a test alive until the server's cap, then it reverts.
       await button('Test on lights').click()
       await button('Revert').waitFor()
-      await page.waitForFunction(() => document.querySelector('.editor-test-note')?.textContent.includes('time limit'), null, { timeout: 140_000 })
+      await page.waitForFunction(() => document.querySelector('.editor-status')?.textContent.includes('time limit'), null, { timeout: 140_000 })
       assert.equal((await api('GET', '/api/graph/test')).json.active, false)
       step('the 120 s cap ends the test and the lights come back')
     }

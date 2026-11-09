@@ -11,8 +11,9 @@ import assert from 'node:assert/strict'
 import { launch } from '../lib/browser.mjs'
 import { withEditorStack } from '../lib/stack.mjs'
 
-// Stage 1 baseline (Aurora-daaa.4: 84 and 132), lowered by Aurora-daaa.10 (title menu), measured on the fake-Hue stack.
-const CEILING = { 'builtin.video': 83, 'builtin.audio': 131 }
+// Stage 1 baseline (Aurora-daaa.4: 84 and 132), lowered by Aurora-daaa.11 (top bar, title and view menus), measured on the fake-Hue stack.
+// What is left is the Add node list (53) and the Dashboard controls in the inspector: stages 3 and 4.
+const CEILING = { 'builtin.video': 78, 'builtin.audio': 126 }
 
 await withEditorStack(async ({ editorUrl }) => {
   const browser = await launch()

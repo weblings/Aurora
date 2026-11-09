@@ -8,7 +8,7 @@
 import assert from 'node:assert/strict'
 import { launch } from '../lib/browser.mjs'
 import { withEditorStack } from '../lib/stack.mjs'
-import { fileAction, openTitleMenu } from '../lib/editorMenu.mjs'
+import { fileAction, openTitleMenu, setName } from '../lib/editorMenu.mjs'
 
 const created = []
 
@@ -96,9 +96,10 @@ await withEditorStack(async ({ editorUrl, restart }) => {
     })
     await page.mouse.click(mid.x, mid.y)
     await page.keyboard.press('Backspace')
-    await waitStatus(/problem/)
+    await page.locator('.editor-problems-chip', { hasText: /\d+ problems?/ }).waitFor()
+    await waitStatus(/Preview paused/)
     await page.locator('.problem-badge').first().waitFor()
-    step('a broken connection shows a problem badge and count')
+    step('a broken connection shows a problem badge, the chip count and Preview paused')
 
     // Fix it by dragging from ease_hue's output to gain_hue's input. The
     // thumbnail must show a new frame, not just the status flip back.
@@ -128,13 +129,13 @@ await withEditorStack(async ({ editorUrl, restart }) => {
     const graph = (await api('GET', '/api/effects/builtin.video')).json.graph
     await api('PUT', '/api/graph/drafts/agent-1', { graph })
     assert.equal((await api('POST', '/api/graph/test', { session: 'agent-1' }, { 'X-Aurora-Client': 'mcp' })).status, 200)
-    await page.waitForFunction(() => document.querySelector('.editor-test-note')?.textContent.includes('took the lights'), null, { timeout: 8000 })
+    await page.waitForFunction(() => document.querySelector('.editor-status')?.textContent.includes('took the lights'), null, { timeout: 8000 })
     await api('POST', '/api/graph/test/revert', { session: 'agent-1' })
     step('test on lights, then a second session takes it and the editor says so')
 
-    await page.locator('.editor-name input').fill('Gate check')
+    await setName(page, 'Gate check')
     await fileAction(page, 'Save')
-    await page.waitForFunction(() => document.querySelector('.editor-header select')?.value === 'gate-check')
+    await page.waitForFunction(() => document.querySelector('[data-effect]')?.dataset.effect === 'gate-check')
     created.push('gate-check')
     step('Save as new makes a custom effect')
 
@@ -180,9 +181,9 @@ await withEditorStack(async ({ editorUrl, restart }) => {
 
     // Save as new from the custom effect: the original keeps its graph.
     const originalNodes = (await api('GET', '/api/effects/gate-check')).json.graph.nodes.length
-    await page.locator('.editor-name input').fill('Gate copy')
+    await setName(page, 'Gate copy')
     await fileAction(page, 'Save as new')
-    await page.waitForFunction(() => document.querySelector('.editor-header select')?.value === 'gate-copy')
+    await page.waitForFunction(() => document.querySelector('[data-effect]')?.dataset.effect === 'gate-copy')
     created.push('gate-copy')
     assert.equal((await api('GET', '/api/effects/gate-check')).json.graph.nodes.length, originalNodes)
     assert.equal((await api('GET', '/api/effects/gate-copy')).json.graph.nodes.length, originalNodes + 1)
