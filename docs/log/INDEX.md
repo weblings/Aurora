@@ -345,3 +345,4 @@ Planning docs stay clean: decisions, status, and pointers here only.
 | 2026-11-08 | Graph editor control-count check (84 / 132 baseline) and the CMake forms.css rebuild verified. [[daaa4-control-count-baseline]] | `bd show Aurora-daaa.3`, `bd show Aurora-daaa.4` |
 | 2026-11-08 | Graph editor cleanup owner decisions: cleanup first, Save moves into the title menu, Keep dropped, Grille tracked in GrilleDS beads. [[daaa5-graph-editor-owner-decisions]] | `bd show Aurora-daaa.5` |
 | 2026-11-08 | Graph editor gap states: seven mock frames and the status priority rule with the nine-slot map. [[daaa6-graph-editor-gap-states]] | `bd show Aurora-daaa.6` |
+| 2026-11-08 | Web root embed skips `Static_*` mock folders (53 paths to 0 on macOS). [[3z1x-embed-skips-static-mocks]] | `bd show Aurora-3z1x` |
