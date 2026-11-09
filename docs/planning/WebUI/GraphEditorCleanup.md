@@ -3,9 +3,9 @@
 Id: graph-editor-cleanup
 
 Status: stage 1 built (back link, Aurora component styles); stage 2 built (top bar, title and view menus, status spot, `Aurora-daaa.11`); stages 3-4 proposed.
-Written 2026-11-06 under `Aurora-bova`. The owner has reviewed the working mock and
-likes the direction, but none of the open directions below are chosen yet. Treat
-stages 2-4 as a proposal until this line changes.
+Written 2026-11-06 under `Aurora-bova`. The owner reviewed the working mock and likes
+the direction. Decisions 1-7 are recorded under Decisions (2026-11-08). Stages 1-2 are
+built; stages 3-4 are still a proposal and follow those decisions.
 The 2026-11-08 spikes (`Aurora-t2hz`, `Aurora-m5kl`) support building the popups on
 Grille (`weblings/GrilleDS`), which adds prerequisite work in that repo before stage 2.
 
@@ -334,10 +334,10 @@ release URL and the Mac and Linux builds are unverified.
 - **Version cleanup.** Grille has a local-only `v0.2.0` tag on an older commit, while
   `package.json` says 0.1.0. Delete it before the first release so tags and the release
   URL agree.
-- **Bundle cost.** The baseline is 439 kB JS (139 gzip) and 25.8 kB CSS (4.4 gzip). Adding
-  `ui.css`, Grille's `Select` and React Aria `Menu` and `Popover` gives about +186 kB JS and
-  +6.6 kB CSS, roughly +60 kB gzip, or +42% JS. Grille has no Menu yet, so `Select` stood
-  in. Stage 3 needs Autocomplete and ListBox, which pull in the same shared code, so this
+- **Bundle cost.** Measured at the end of stage 2 (raw / gzip): JS 441.18 / 139.49 kB to
+  600.98 / 188.66 kB (about +49 kB gzip), CSS 34.41 / 6.11 kB to 44.78 / 7.87 kB. That is
+  inside the accepted +60 kB gzip. The pre-build estimate was +186 kB JS and +6.6 kB CSS
+  over a 25.8 kB CSS baseline. Stage 3 needs Autocomplete and ListBox, which pull in the same shared code, so this
   is the realistic end state. No compression was found in the embed step, so the raw
   bytes land in the binary.
 - **Notices.** React Aria, React Stately, `clsx` and Grille appear in
@@ -409,6 +409,10 @@ the editor's checks or lockfile.
    Needs G3b.
 4. **Right-click, drawers and Delete.** Must land together. The Inspector can only go once
    the node menu and drawers can reach everything it did.
+
+Control count: stage 2 brought Screen colors to 78 (video) / 126 (audio). The mock's 11
+is the stage 4 target, since it needs the Add node list (53 buttons) and the inspector
+controls gone.
 
 Stages 3 and 4 are independent of each other, but both depend on stage 2. Check migration
 belongs in each stage rather than a cleanup at the end, and those checks should also add
