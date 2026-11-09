@@ -83,6 +83,7 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `daaa4-control-count-baseline` | [log/2026-11-08-daaa4-control-count-baseline.md](log/2026-11-08-daaa4-control-count-baseline.md) | Graph editor control-count baseline and CMake rebuild check |
 | `daaa5-graph-editor-owner-decisions` | [log/2026-11-08-daaa5-graph-editor-owner-decisions.md](log/2026-11-08-daaa5-graph-editor-owner-decisions.md) | Graph editor cleanup: owner decisions before stage 2 |
 | `daaa6-graph-editor-gap-states` | [log/2026-11-08-daaa6-graph-editor-gap-states.md](log/2026-11-08-daaa6-graph-editor-gap-states.md) | Graph editor cleanup: gap states and the status priority rule |
+| `daaa7-grille-release-and-build-dependency` | [log/2026-11-08-daaa7-grille-release-and-build-dependency.md](log/2026-11-08-daaa7-grille-release-and-build-dependency.md) | Grille releases and the editor's first Grille dependency |
 | `dh1p-failure-light` | [log/2026-11-05-dh1p-failure-light.md](log/2026-11-05-dh1p-failure-light.md) | Failure light: dim magenta while no effect can run |
 | `distributed-architecture-plan` | [archive/DistributedArchitecturePlan.md](archive/DistributedArchitecturePlan.md) | Distributed architecture — how far to decompose Input/Processing/Output over a network |
 | `docs-lessons-pain-points` | [archive/DocsAndLessonsPainPoints.md](archive/DocsAndLessonsPainPoints.md) | Docs & lessons: scaling pain points |

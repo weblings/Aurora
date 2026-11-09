@@ -346,3 +346,4 @@ Planning docs stay clean: decisions, status, and pointers here only.
 | 2026-11-08 | Graph editor cleanup owner decisions: cleanup first, Save moves into the title menu, Keep dropped, Grille tracked in GrilleDS beads. [[daaa5-graph-editor-owner-decisions]] | `bd show Aurora-daaa.5` |
 | 2026-11-08 | Graph editor gap states: seven mock frames and the status priority rule with the nine-slot map. [[daaa6-graph-editor-gap-states]] | `bd show Aurora-daaa.6` |
 | 2026-11-08 | Web root embed skips `Static_*` mock folders (53 paths to 0 on macOS). [[3z1x-embed-skips-static-mocks]] | `bd show Aurora-3z1x` |
+| 2026-11-08 | Grille G1 release workflow and G2/G3a popup skin shipped as v0.1.0-dev.2; graph editor depends on the release URL with ui.css imported, no visible change. CI pending. [[daaa7-grille-release-and-build-dependency]] | `bd show Aurora-daaa.7`, `bd show Aurora-daaa.8`, `bd show Aurora-daaa.9` |

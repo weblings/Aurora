@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client'
 import { App } from './App'
 import '@xyflow/react/dist/style.css'
 import '../../ui/styles/tokens.css'
+import '@weblings/grille/ui.css'
 import '../../ui/styles/forms.css'
 import './editor.css'
 
