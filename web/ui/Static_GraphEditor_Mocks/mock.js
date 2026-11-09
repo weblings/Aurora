@@ -24,6 +24,8 @@ for (const n of CATALOG) if (!categoryOf.has(n.type)) console.error(`no category
 const state = {
   nodes: [], edges: GRAPH.edges.map(([from, to]) => ({ from, to })), controls: GRAPH.controls.map((c) => ({ ...c })),
   view: { x: 0, y: 0, k: 1 }, selected: null, wire: null, testing: false, problems: false, unsaved: false, zonesOpen: true, popup: null,
+  // States the first mock skipped (Aurora-daaa.6).
+  banner: null, status: null, other: false, changed: false, nameError: false, wholeGraph: false,
 }
 
 const $ = (id) => document.getElementById(id)
@@ -173,23 +175,36 @@ const toFlow = (sx, sy) => {
 
 function drawBar() {
   const bar = $('bar')
-  const problems = state.problems ? el('button', { type: 'button', class: 'ge-problems', 'data-act': 'problems' }, el('img', { src: '../icons/warning.svg', alt: '' }), '2 problems') : null
+  const problems = state.problems ? el('button', { type: 'button', class: 'ge-problems', 'data-act': 'problems' }, el('img', { src: '../icons/warning.svg', alt: '' }), `${state.wholeGraph ? 3 : 2} problems`) : null
   const test = state.testing
     ? [el('span', { class: 'ge-countdown' }, 'On the lights, reverts in 0:24'),
        el('button', { type: 'button', class: 'btn btn-secondary', 'data-act': 'revert' }, 'Revert')]
-    : [el('button', { type: 'button', class: 'btn btn-secondary', 'data-act': 'test', disabled: state.problems, title: 'Show this graph on the real lights for a while, then put them back' }, 'Test on lights')]
+    : [el('button', { type: 'button', class: 'btn btn-secondary', 'data-act': 'test', disabled: state.problems || Boolean(state.banner?.blocking), title: 'Show this graph on the real lights for a while, then put them back' }, state.other ? 'Take over the lights' : 'Test on lights')]
   fill(bar, [
     el('button', { type: 'button', class: 'ge-back', 'data-act': 'back' }, '← Aurora'),
     el('span', { class: 'ge-sep' }),
     el('button', { type: 'button', class: 'ge-title', 'data-act': 'title', 'aria-haspopup': 'dialog' }, 'Screen colors', el('img', { src: '../icons/chevron-down.svg', alt: '', class: 'ge-chev cc-chev' })),
     state.unsaved ? el('span', { class: 'ge-unsaved' }, 'Unsaved') : null,
     el('span', { class: 'ge-spacer' }),
+    state.changed ? el('span', { class: 'ge-unsaved' }, 'Edited since the test') : null,
     problems,
-    el('span', { class: 'ge-status', role: 'status' }, el('span', { class: 'ge-dot' }), state.problems ? 'Preview paused' : 'Live preview'),
+    el('span', { class: `ge-status${state.status?.strong ? ' strong' : ''}`, role: 'status' },
+      el('span', { class: 'ge-dot' }), state.status?.text ?? (state.problems ? 'Preview paused' : 'Live preview'),
+      state.status?.action ? el('button', { type: 'button', class: 'btn btn-secondary', 'data-act': state.status.action.act }, state.status.action.label) : null),
     el('button', { type: 'button', class: 'btn btn-secondary btn-icon', 'aria-label': 'Undo', title: 'Undo (Ctrl+Z)', 'data-act': 'toast-undo' }, icon(ICON.undo)),
     el('button', { type: 'button', class: 'btn btn-secondary btn-icon', 'aria-label': 'Redo', title: 'Redo (Ctrl+Shift+Z)', disabled: true }, icon(ICON.redo)),
     el('span', { class: 'ge-sep' }),
     test])
+}
+
+// One persistent line under the bar, for what must be answered or cannot be missed.
+function drawBanner() {
+  document.querySelector('.ge-banner')?.remove()
+  const b = state.banner
+  if (!b) return
+  $('bar').after(el('div', { class: 'ge-banner', role: 'alert' },
+    el('span', {}, b.text, b.detail ? el('small', {}, b.detail) : null),
+    b.actions.map(([label, act, primary]) => el('button', { type: 'button', class: `btn ${primary ? 'btn-primary' : 'btn-secondary'}`, 'data-act': act }, label))))
 }
 
 function drawIslands() {
@@ -309,14 +324,15 @@ function wireMenu(index, sx, sy) {
   menu([{ label: 'Delete connection', key: 'Del', run: () => { state.edges.splice(index, 1); state.wire = null; state.unsaved = true; drawWires(); drawBar() } }], sx, sy)
 }
 
-function openTitle() {
+function openTitle({ nameError = false, changed = false } = {}) {
   closePopups()
   const anchor = document.querySelector('.ge-title').getBoundingClientRect()
   const effect = (label, on) => el('button', { type: 'button', class: 'ge-item', role: 'menuitemradio', 'aria-checked': String(on), onclick: closePopups }, el('span', { class: 'ge-item-main' }, el('span', { class: 'tick' }, on ? '✓' : ''), label))
   const action = (label, key, run) => el('button', { type: 'button', class: 'ge-item', onclick: () => { closePopups(); run() } }, el('span', { class: 'ge-item-main' }, el('span', { class: 'tick' }), label), key ? el('kbd', {}, key) : null)
   place(el('div', { class: 'ge-pop ge-titlepop', role: 'dialog', 'aria-label': 'Effect' },
-    el('label', { class: 'field' }, el('span', { class: 'field-label' }, 'Name'), el('input', { class: 'text-input', type: 'text', placeholder: 'Name the new effect' })),
-    el('p', { class: 'ge-note' }, 'A built-in stays as it is. Saving makes a copy under this name.'),
+    el('label', { class: 'field' }, el('span', { class: 'field-label' }, 'Name'), el('input', { class: 'text-input', type: 'text', placeholder: 'Name the new effect', 'aria-invalid': nameError, 'aria-describedby': 'name-note' })),
+    el('p', { class: `ge-note${nameError ? ' ge-note-need' : ''}`, id: 'name-note' }, nameError ? 'Name the new effect first. A built-in stays as it is, and Save makes a copy under this name.' : 'A built-in stays as it is. Saving makes a copy under this name.'),
+    changed ? el('p', { class: 'ge-note ge-note-need' }, 'This graph changed since the test started. Save and apply puts the edited graph live, and ends the test.') : null,
     el('div', { class: 'ge-rule' }),
     action('Save', 'Ctrl+S', () => { state.unsaved = false; drawBar(); toast('Saved as Screen colors copy') }),
     action('Save as new', null, () => { state.unsaved = false; drawBar(); toast('Saved as Screen colors copy') }),
@@ -327,6 +343,7 @@ function openTitle() {
     el('div', { class: 'ge-rule' }),
     el('button', { type: 'button', class: 'ge-item', onclick: closePopups }, el('span', { class: 'ge-item-main' }, el('span', { class: 'tick' }), 'New empty effect'))),
     anchor.left, anchor.bottom + 6)
+  if (nameError) layer.querySelector('input').focus()
 }
 
 function openView() {
@@ -348,6 +365,7 @@ function openProblems() {
   const r = document.querySelector('.ge-problems').getBoundingClientRect()
   const row = (title, text) => el('button', { type: 'button', class: 'ge-prob', onclick: () => { closePopups(); state.selected = 'zones_hue'; drawNodes() } }, el('b', {}, title), text)
   place(el('div', { class: 'ge-pop ge-probpop', role: 'dialog', 'aria-label': 'Problems' },
+    state.wholeGraph ? el('div', { class: 'ge-prob whole' }, el('b', {}, 'Whole graph'), 'Nothing sends to the lights yet. Add an Output node and connect a Frame to it.', el('span', { class: 'ge-prob-act' }, el('button', { type: 'button', class: 'btn btn-secondary', 'data-act': 'add' }, 'Add node…'))) : null,
     row('Sample zones', 'The image input is not connected.'),
     row('Sample zones', 'Choose an output for this node.')), r.left, r.bottom + 6)
 }
@@ -625,6 +643,15 @@ const FRAMES = [
     ['ctx-wire', 'Wire', () => wireMenu(3, 720, 400)],
   ]],
   ['Panels', [['controls', 'Dashboard controls', () => openControls(0)], ['details', 'Details', () => { const n = state.nodes.find((x) => x.id === 'ease_hue'); state.selected = n.id; drawNodes(); openDetails(n) }]]],
+  ['Gaps', [
+    ['restore', 'Restore or Discard', () => { state.unsaved = false; state.banner = { text: 'Unsaved changes from an earlier visit.', detail: 'Kept in this browser, 2 hours ago. Nothing is backed up until you choose.', actions: [['Restore', 'toast-restore', true], ['Discard', 'toast-discard']] }; drawBar(); drawBanner() }],
+    ['takeover', 'Take over', () => { state.other = true; state.status = { text: 'Lights in use: another session is testing', strong: true }; drawBar() }],
+    ['changed', 'Edited during test', () => { state.testing = true; state.unsaved = true; state.changed = true; drawBar(); openTitle({ changed: true }) }],
+    ['reconnect', 'Reconnect', () => { state.status = { text: 'Preview taken over', strong: true, action: { act: 'reconnect', label: 'Reconnect' } }; drawBar() }],
+    ['name', 'Name a built-in', () => { state.unsaved = true; drawBar(); openTitle({ nameError: true }) }],
+    ['offline', 'Cannot reach Aurora', () => { state.status = { text: 'Aurora unreachable', strong: true }; state.banner = { blocking: true, text: 'Cannot reach Aurora.', detail: 'Retrying every few seconds. Edits stay in this browser.', actions: [['Retry now', 'retry']] }; drawBar(); drawBanner() }],
+    ['wholegraph', 'Graph-wide problem', () => { state.problems = true; state.wholeGraph = true; drawBar(); drawIslands(); openProblems() }],
+  ]],
   ['States', [['testing', 'Testing', () => { state.testing = true; state.unsaved = true; drawBar() }], ['problems', 'Problems', () => { state.problems = true; drawBar(); drawIslands(); drawNodes(); openProblems() }], ['refused', 'Refused wire', () => toast('Those ports do not match: an Image cannot connect to a Frame')]]],
 ]
 
@@ -635,8 +662,8 @@ function drawFrames(current) {
 function showFrame() {
   const id = location.hash.slice(1) || 'rest'
   closePopups()
-  Object.assign(state, { testing: false, problems: false, unsaved: false, selected: null, wire: null })
-  drawNodes(); drawBar(); drawIslands(); fit(); drawFrames(id)
+  Object.assign(state, { testing: false, problems: false, unsaved: false, selected: null, wire: null, banner: null, status: null, other: false, changed: false, wholeGraph: false })
+  drawNodes(); drawBar(); drawBanner(); drawIslands(); fit(); drawFrames(id)
   FRAMES.flatMap(([, frames]) => frames).find(([key]) => key === id)?.[2]()
 }
 
@@ -646,6 +673,10 @@ const ACTS = {
   'toast-undo': () => toast('Undo'),
   test: () => { state.testing = true; drawBar() },
   revert: () => { state.testing = false; drawBar(); toast('Lights put back') },
+  'toast-restore': () => { state.banner = null; state.unsaved = true; drawBar(); drawBanner(); toast('Restored your earlier changes') },
+  'toast-discard': () => { state.banner = null; drawBar(); drawBanner(); toast('Discarded the earlier copy') },
+  reconnect: () => { state.status = null; drawBar(); toast('Preview reconnected') },
+  retry: () => toast('Still cannot reach Aurora'),
   zones: () => { state.zonesOpen = !state.zonesOpen; drawIslands() },
 }
 

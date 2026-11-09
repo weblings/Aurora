@@ -257,6 +257,21 @@ button { font-family: inherit; }
 .dt-toggles { display: flex; flex-direction: column; gap: var(--aurora-space-3); }
 .dt-toggles .toggle-row-label { font-size: 13px; }
 
+/* States the first mock skipped (Aurora-daaa.6) */
+.ge-status.strong { color: var(--aurora-text-primary); font-weight: 600; }
+.ge-status .btn { margin-left: var(--aurora-space-3); }
+.ge-banner {
+  flex: none; display: flex; align-items: center; justify-content: flex-end; gap: var(--aurora-space-3);
+  padding: var(--aurora-space-3) var(--aurora-space-6); background: var(--aurora-surface);
+  border-bottom: 1px solid var(--aurora-divider); color: var(--aurora-text-primary); font-size: 13px;
+}
+.ge-banner > span { flex: 1; }
+.ge-banner small { display: block; margin-top: 2px; color: var(--aurora-text-secondary); font-size: 12px; }
+.ge-note-need { color: var(--aurora-text-primary); font-weight: 600; }
+.ge-prob.whole { cursor: default; border-bottom: 1px solid var(--aurora-divider); }
+.ge-prob.whole:hover { background: none; }
+.ge-prob-act { display: block; margin-top: var(--aurora-space-3); }
+
 /* Problems popover, toast */
 .ge-probpop { width: 320px; padding: var(--aurora-space-2) 0; }
 .ge-prob { display: block; width: 100%; padding: var(--aurora-space-3) var(--aurora-space-5); background: none; border: none; color: var(--aurora-text-secondary); font-size: 12px; line-height: 1.4; text-align: left; cursor: pointer; }

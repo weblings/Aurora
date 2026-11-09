@@ -160,8 +160,8 @@ Recommendation: desktop-only for this pass, stated plainly in the editor README.
 
 ## Scoping concerns
 
-**The mock does not cover every real state.** These exist today and need a design before
-the top bar is built:
+**The mock did not cover every real state.** These exist today. Each now has a frame in the
+`Gaps` group (`Aurora-daaa.6`), listed here as the original gaps:
 
 - Restore or Discard for an unsaved copy from an earlier visit
 - Take over the lights when another session holds the test
@@ -179,6 +179,72 @@ done. Default layout may become its own piece of work.
 **Consolidating status is more than a layout change.** Nine slots become one spot, which
 needs a priority rule. Toasts disappear, so errors and test outcomes that need action must
 stay on screen. This is the most likely place to lose information without noticing.
+
+Frames for the states above are in the mock's `Gaps` group (`Aurora-daaa.6`): `#restore`,
+`#takeover`, `#changed`, `#reconnect`, `#name`, `#offline`, `#wholegraph`. The rule is next.
+
+### Status priority rule
+
+**Three places, so nothing shares a spot it cannot afford to lose.**
+
+- **Status spot** (in the bar): one line, the highest-ranked item below. Anything that
+  needs an answer or action sits here or in the banner until resolved, never in a toast.
+- **Banner** (one line under the bar): only for what blocks work or waits for an answer.
+  At most one at a time, in rank order.
+- **Toast** (3 s, bottom center): only for a success or a minor refusal that the user caused
+  a moment ago and that needs nothing further. A toast never carries the only copy of an error.
+
+Fixed spots keep state out of the contest: `Unsaved` beside the title, the problems chip, the
+test countdown with Revert, and the zone preview's stale tint. They show alongside whatever
+the status spot says.
+
+Rank, highest first. The status spot shows the first active row, the banner the first active
+banner row.
+
+| Rank | State | Where | Persists until |
+|---|---|---|---|
+| 1 | Cannot reach Aurora, or cannot open the effect | Banner with Retry, and status `Aurora unreachable`. Test, Save disabled | Aurora answers |
+| 2 | Restore or Discard an earlier copy | Banner with both buttons. Backup is held until answered | The user picks one |
+| 3 | Draft not sent, draft would not load | Status spot, detail in its tooltip | The next draft goes through |
+| 4 | Preview taken over | Status spot with Reconnect | Reconnect, or the stream returns |
+| 5 | Lights in use by another session | Status spot, and Test on lights reads `Take over the lights` | The holder finishes, or the user takes over |
+| 6 | A test or write that failed or ended unexpectedly (heartbeat lost, time limit, another effect chosen, lights paused, start or Save failure, reload error) | Status spot, plain words, latest wins | The next test, Save, or edit |
+| 7 | Preview state: connecting, paused, closed, live | Status spot, `Live preview` is the quiet default | It changes |
+| - | Wire refused (`Those ports do not match`) | Toast | 3 s. It names its own cause, and the wire simply did not land |
+| - | Saved, Saved and live, Reverted, Restored, Discarded, Added node | Toast | 3 s. The bar's `Unsaved` and the title already show the new state |
+
+Rules that follow:
+
+1. **Errors and outcomes that need action never go to a toast.** Ranks 1-6 persist.
+2. **A new item of equal rank replaces the old one**, since both are the same kind of news.
+   A higher rank shown over a lower one does not erase it: the lower returns when the higher resolves.
+3. **Problems with the graph are a chip, not a status.** The chip counts every problem,
+   node-level and graph-wide. Its popover lists them; a node-level row selects the node, and a
+   graph-wide row (`Whole graph`) has no node to point at, so it carries its own action instead
+   (`Add node…`). While problems exist, the status reads `Preview paused`, since the preview is stale.
+4. **Naming a built-in is inline, not a message.** Save on a built-in with no name opens the
+   title menu, focuses Name, and the note under the field says what is needed (`#name`).
+5. **Keep disappears, and so does its disabled state.** While a test runs and the graph has
+   changed, the bar says `Edited since the test`, and the title menu warns that Save and apply
+   puts the edited graph live and ends the test (`#changed`).
+6. **Revert and the countdown never hide.** A test outcome shown at rank 6 replaces the
+   countdown only after the test has ended.
+
+How today's nine slots map:
+
+| # | Today | Becomes |
+|---|---|---|
+| 1 | `editor-restore` (Restore, Discard) | Rank 2 banner |
+| 2 | `editor-status` (`summarize`) | Ranks 3, 4, 7 in the status spot, and the problems chip when it reports problems |
+| 3 | Reconnect button | Rank 4, inside the status spot |
+| 4 | `editor-refusal` | Toast |
+| 5 | `editor-error` (`Cannot reach Aurora`, `Cannot open`) | Rank 1 banner, with Retry |
+| 6 | `editor-dirty` (`Unsaved changes`) | `Unsaved` beside the title |
+| 7 | `editor-test-note` (`describeTest`) | Countdown beside Revert while running. Rank 5 and 6 in the status spot otherwise. `Kept` no longer exists. `Reverted` is a toast |
+| 8 | `editor-notice` (`write` results) | Success: toast. Failure, `Fix the n problems before saving`, `Reload: ...`: rank 6. `Name the new effect first`: inline in the title menu |
+| 9 | `editor-graph-problems` list over the canvas | The problems chip, with `Whole graph` rows in its popover |
+
+Not covered by the nine: the per-node problem marks on node bodies stay where they are.
 
 **Removing panels removes some behavior.**
 
