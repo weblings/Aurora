@@ -405,10 +405,29 @@ button.editor-problem-row:hover {
 }
 
 .editor-title-menu {
-  max-width: 24ch;
+  max-width: 28ch;
+  white-space: nowrap;
+}
+
+.editor-title-menu,
+.editor-view-menu {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--aurora-space-2);
+}
+
+.editor-title-label {
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
-  white-space: nowrap;
+}
+
+/* The WebUI dropdown's chevron: fill is baked into the SVG. */
+.editor-chevron {
+  flex: none;
+  width: 10px;
+  height: 10px;
+  display: block;
 }
 
 /* Room for the focus ring, which the popover would clip at zero padding. */

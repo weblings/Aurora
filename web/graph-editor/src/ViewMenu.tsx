@@ -1,3 +1,5 @@
+import chevronDown from '../../ui/icons/chevron-down.svg'
+import chevronUp from '../../ui/icons/chevron-up.svg'
 import { useRef, useState } from 'react'
 import { Panel, useReactFlow, useStore } from '@xyflow/react'
 import { Dialog, Menu, MenuItem } from '@weblings/grille'
@@ -23,6 +25,7 @@ export function ViewMenu({ minimap, onMinimap }: { minimap: boolean; onMinimap: 
         onClick={() => setOpen((o) => !o)}
       >
         View {Math.round(zoom * 100)}%
+        <img className="editor-chevron" src={open ? chevronUp : chevronDown} alt="" />
       </button>
       <EditorPopup isOpen={open} onClose={close} label="View menu" triggerRef={trigger}>
         <Dialog aria-label="View menu">

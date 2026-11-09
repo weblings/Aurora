@@ -75,6 +75,8 @@ function(aurora_graph_editor_embed OUTPUT_HEADER)
         "${_editor_dir}/../ui/styles/tokens.css"
         "${_editor_dir}/../ui/styles/forms.css"
         "${_editor_dir}/../ui/icons/back-arrow.svg"
+        "${_editor_dir}/../ui/icons/chevron-down.svg"
+        "${_editor_dir}/../ui/icons/chevron-up.svg"
       COMMENT "Graph editor: vite build"
       VERBATIM
     )

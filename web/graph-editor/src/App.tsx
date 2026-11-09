@@ -14,6 +14,8 @@ import {
   type ReactFlowInstance,
 } from '@xyflow/react'
 import backArrow from '../../ui/icons/back-arrow.svg'
+import chevronDown from '../../ui/icons/chevron-down.svg'
+import chevronUp from '../../ui/icons/chevron-up.svg'
 import { applyGraph, fetchCatalog, fetchEffectGraph, fetchEffects, putDraft, saveGraph, type WriteResult } from './api'
 import { EditorContext, type EditorActions } from './EditorContext'
 import { GenericNode } from './GenericNode'
@@ -407,7 +409,8 @@ export function App() {
           disabled={!doc}
           onClick={() => setTitleMenuOpen((open) => !open)}
         >
-          {shownTitle || (effectId === BLANK_ID ? 'New empty effect' : effectId)}
+          <span className="editor-title-label">{shownTitle || (effectId === BLANK_ID ? 'New empty effect' : effectId)}</span>
+          <img className="editor-chevron" src={titleMenuOpen ? chevronUp : chevronDown} alt="" />
         </button>
         {dirty ? <span className="editor-dirty">Unsaved</span> : null}
         <TitleMenu
