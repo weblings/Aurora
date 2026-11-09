@@ -10,6 +10,7 @@
     "graph-editor:port-types": "node checks/graph-editor-port-types.mjs",
     "graph-editor:title-menu": "node checks/graph-editor-title-menu.mjs",
     "graph-editor:top-bar": "node checks/graph-editor-top-bar.mjs",
+    "graph-editor:test-outcome": "node checks/graph-editor-test-outcome.mjs",
     "graph-editor:back-link": "node checks/graph-editor-back-link.mjs",
     "graph-editor:control-count": "node checks/graph-editor-control-count.mjs",
     "graph-editor:gate": "node checks/graph-editor-gate.mjs",
