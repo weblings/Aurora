@@ -338,3 +338,14 @@ Applies-when: manually testing LAN pairing from a phone or private window, or wo
 Aurora-so1o: the same phone opened `192.168.0.224:8215` and `BeefyBoy.local:8215`, and a private window opened the same addresses. Each one went through the pairing screen and each was approved separately. The token is an HttpOnly cookie, and browsers scope cookies to the host, so another IP or hostname for the same machine is a new site with no token. This is by design, it is not a lost pairing.
 
 **Fix:** test from one address per device, or expect one approval and one Devices-list row per address. Use a private window as a stand-in phone, approve from `localhost` on the Aurora computer, and count the extra rows as separate devices. If cross-address re-use is ever wanted, it needs a design decision (a bearer token in storage, not a cookie), not a bug fix.
+
+
+---
+
+## A browser check that reads `document.activeElement` right after an element appears races any focus set in a later frame
+Tags: playwright, focus, race, graph-editor
+Applies-when: asserting focus after a menu, popover or dialog opens
+
+Aurora-daaa.13: the graph editor's edit-loop asserted the Name field had focus as soon as its label was visible. The editor focuses the field a few animation frames after the popover mounts, so the check failed on both the dev server and the embedded build, and an earlier run had passed by luck.
+
+**Fix:** wait for the focus with `page.waitForFunction(...)` and a short timeout instead of reading it once. A failure that reproduces on the dev server too is the check's timing, not the embedded build.

@@ -139,11 +139,3 @@ export async function revertTest(session: string): Promise<CloseResult> {
   }
   return { ok: false, reason: refusal(reply), over: reply.body.error === 'no_test' }
 }
-
-// Makes the tested graph the live effect under `id` (apply's own write).
-export async function keepTest(session: string, id: string): Promise<CloseResult> {
-  const reply = await postJson('/api/graph/test/confirm', { session, id })
-  const result = written(reply)
-  if (result.ok) return result
-  return { ok: false, reason: result.reason, over: reply.body.error === 'no_test' }
-}

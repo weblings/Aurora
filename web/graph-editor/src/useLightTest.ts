@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useReducer, useRef } from 'react'
-import { fetchTestInfo, heartbeat, keepTest, revertTest, startTest, type CloseResult } from './api'
+import { fetchTestInfo, heartbeat, revertTest, startTest } from './api'
 import { initialTest, testReducer, type TestState } from './graph/lightTest'
 import type { DraftVerdict } from './api'
 
@@ -13,8 +13,9 @@ export type LightTest = {
   state: TestState
   // Sends the draft, then starts a test of it.
   start: () => Promise<void>
-  // Makes the tested graph the live effect under `id`.
-  keep: (id: string) => Promise<CloseResult>
+  // Ends the test after the graph was applied (apply leaves it running): the
+  // server rebuilds the live effect, which is now the tested graph, from disk.
+  finishAfterApply: () => Promise<void>
   revert: () => Promise<void>
 }
 
@@ -112,22 +113,17 @@ export function useLightTest(session: string, sendDraft: () => Promise<DraftVerd
     }
   }, [session])
 
-  const keep = useCallback(
-    async (id: string): Promise<CloseResult> => {
-      dispatch({ type: 'closing' })
-      let result: CloseResult
-      try {
-        result = await keepTest(session, id)
-      } catch (e) {
-        result = { ok: false, reason: (e as Error).message, over: false }
-      }
+  const finishAfterApply = useCallback(async () => {
+    dispatch({ type: 'closing' })
+    try {
+      const result = await revertTest(session)
       if (result.ok) dispatch({ type: 'closed', kind: 'kept' })
       else if (result.over) dispatch({ type: 'ended', end: { reason: null, holder: null } })
       else dispatch({ type: 'close-failed', message: result.reason })
-      return result
-    },
-    [session],
-  )
+    } catch (e) {
+      dispatch({ type: 'close-failed', message: (e as Error).message })
+    }
+  }, [session])
 
   const revert = useCallback(async () => {
     dispatch({ type: 'closing' })
@@ -141,5 +137,5 @@ export function useLightTest(session: string, sendDraft: () => Promise<DraftVerd
     }
   }, [session])
 
-  return { state, start, keep, revert }
+  return { state, start, finishAfterApply, revert }
 }

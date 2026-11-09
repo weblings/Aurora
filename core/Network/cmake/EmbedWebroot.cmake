@@ -30,6 +30,8 @@ function(aurora_embed_webroot OUTPUT_HEADER INPUT_DIR)
   set(_AURORA_WEBROOT_FILES "")
   if(NOT _AEW_NO_GLOB)
     file(GLOB_RECURSE _AURORA_WEBROOT_FILES CONFIGURE_DEPENDS "${INPUT_DIR}/*")
+    # embed_webroot.py skips Static_* mock folders; keep them out of DEPENDS too.
+    list(FILTER _AURORA_WEBROOT_FILES EXCLUDE REGEX "/Static_[^/]*/")
   endif()
 
   add_custom_command(

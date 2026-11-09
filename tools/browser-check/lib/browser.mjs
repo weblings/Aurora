@@ -19,6 +19,8 @@ function cacheDirs() {
 // Executables a Playwright download leaves, relative to a build's folder.
 const EXECUTABLES = [
   ['chrome-mac', 'headless_shell'],
+  ['chrome-headless-shell-mac-arm64', 'chrome-headless-shell'],
+  ['chrome-headless-shell-mac-x64', 'chrome-headless-shell'],
   ['chrome-linux', 'headless_shell'],
   ['chrome-win', 'headless_shell.exe'],
   ['chrome-headless-shell-linux64', 'chrome-headless-shell'],
@@ -30,7 +32,10 @@ export function findChromium() {
   if (process.env.AURORA_BROWSER) return process.env.AURORA_BROWSER
   for (const dir of cacheDirs()) {
     if (!existsSync(dir)) continue
-    const builds = readdirSync(dir).filter((d) => d.startsWith('chromium_headless_shell-')).sort().reverse()
+    const revision = (d) => Number(d.slice('chromium_headless_shell-'.length)) || 0
+    const builds = readdirSync(dir)
+      .filter((d) => d.startsWith('chromium_headless_shell-'))
+      .sort((a, b) => revision(b) - revision(a))
     for (const build of builds) {
       for (const [folder, exe] of EXECUTABLES) {
         const path = join(dir, build, folder, exe)

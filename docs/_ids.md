@@ -13,6 +13,7 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `3ddb-pause-cli` | [log/2026-10-03-3ddb-pause-cli.md](log/2026-10-03-3ddb-pause-cli.md) | Aurora-3ddb: pause/resume, core and CLI only |
 | `3ono-stale-core-test-tree` | [log/2026-10-02-3ono-stale-core-test-tree.md](log/2026-10-02-3ono-stale-core-test-tree.md) | Aurora-3ono: PipelineTests segfault on Windows was a stale build tree |
 | `3qh-mac-capture-width-hint` | [log/2026-10-01-3qh-mac-capture-width-hint.md](log/2026-10-01-3qh-mac-capture-width-hint.md) | Aurora-3qh: Mac video mode resized full-Retina frames every tick |
+| `3z1x-embed-skips-static-mocks` | [log/2026-11-08-3z1x-embed-skips-static-mocks.md](log/2026-11-08-3z1x-embed-skips-static-mocks.md) | Web root embed skips Static_* mock folders |
 | `4hhb-browser-check-1470` | [log/2026-10-29-4hhb-browser-check-1470.md](log/2026-10-29-4hhb-browser-check-1470.md) | Browser checks rerun at laptop width |
 | `4xqt1-input-rebuild-keeps-outputs` | [log/2026-10-21-4xqt1-input-rebuild-keeps-outputs.md](log/2026-10-21-4xqt1-input-rebuild-keeps-outputs.md) | Aurora-4xqt.1 (D0a): input-only rebuild keeps outputs, preview owns its extra inputs (paused) |
 | `4xqt1-windows-second-duplication-recheck` | [log/2026-10-21-4xqt1-windows-second-duplication-recheck.md](log/2026-10-21-4xqt1-windows-second-duplication-recheck.md) | Aurora-4xqt.1: Windows second-duplication recheck (closed) |
@@ -78,6 +79,17 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `d3ec-windows-verification` | [log/2026-10-06-d3ec-windows-verification.md](log/2026-10-06-d3ec-windows-verification.md) | Aurora-d3ec Windows verification (compile, Catch2, live failed-state cycle) |
 | `d6i7-config-writer-race` | [log/2026-10-02-d6i7-config-writer-race.md](log/2026-10-02-d6i7-config-writer-race.md) | Aurora-d6i7: config.json writer race (Pipeline::build vs the settings PUT) |
 | `d7s-dashboard-output-section` | [log/2026-10-16-d7s-dashboard-output-section.md](log/2026-10-16-d7s-dashboard-output-section.md) | Dashboard Output section (Aurora-d7s) |
+| `daaa-graph-editor-stage1` | [log/2026-11-08-daaa-graph-editor-stage1.md](log/2026-11-08-daaa-graph-editor-stage1.md) | Graph editor cleanup stage 1: back link and Aurora styles |
+| `daaa10-title-menu` | [log/2026-11-08-daaa10-title-menu.md](log/2026-11-08-daaa10-title-menu.md) | Graph editor title menu: Save, Save as new and Save and apply |
+| `daaa11-top-bar` | [log/2026-11-08-daaa11-top-bar.md](log/2026-11-08-daaa11-top-bar.md) | Graph editor top bar, title and view menus, status spot |
+| `daaa12-doc-cleanup` | [log/2026-11-08-daaa12-doc-cleanup.md](log/2026-11-08-daaa12-doc-cleanup.md) | Graph editor cleanup doc: status, final bundle, daaa.11 acceptance |
+| `daaa13-embedded-run` | [log/2026-11-09-daaa13-embedded-run.md](log/2026-11-09-daaa13-embedded-run.md) | Graph editor stage 2 in the embedded build |
+| `daaa14-test-outcome-clears` | [log/2026-11-09-daaa14-test-outcome-clears.md](log/2026-11-09-daaa14-test-outcome-clears.md) | Graph editor: a test outcome clears on Save and on undo to the saved graph |
+| `daaa15-dead-css-chunk-limit` | [log/2026-11-09-daaa15-dead-css-chunk-limit.md](log/2026-11-09-daaa15-dead-css-chunk-limit.md) | Graph editor: dead status CSS removed, chunk-size warning settled |
+| `daaa4-control-count-baseline` | [log/2026-11-08-daaa4-control-count-baseline.md](log/2026-11-08-daaa4-control-count-baseline.md) | Graph editor control-count baseline and CMake rebuild check |
+| `daaa5-graph-editor-owner-decisions` | [log/2026-11-08-daaa5-graph-editor-owner-decisions.md](log/2026-11-08-daaa5-graph-editor-owner-decisions.md) | Graph editor cleanup: owner decisions before stage 2 |
+| `daaa6-graph-editor-gap-states` | [log/2026-11-08-daaa6-graph-editor-gap-states.md](log/2026-11-08-daaa6-graph-editor-gap-states.md) | Graph editor cleanup: gap states and the status priority rule |
+| `daaa7-grille-release-and-build-dependency` | [log/2026-11-08-daaa7-grille-release-and-build-dependency.md](log/2026-11-08-daaa7-grille-release-and-build-dependency.md) | Grille releases and the editor's first Grille dependency |
 | `dh1p-failure-light` | [log/2026-11-05-dh1p-failure-light.md](log/2026-11-05-dh1p-failure-light.md) | Failure light: dim magenta while no effect can run |
 | `distributed-architecture-plan` | [archive/DistributedArchitecturePlan.md](archive/DistributedArchitecturePlan.md) | Distributed architecture — how far to decompose Input/Processing/Output over a network |
 | `docs-lessons-pain-points` | [archive/DocsAndLessonsPainPoints.md](archive/DocsAndLessonsPainPoints.md) | Docs & lessons: scaling pain points |
@@ -96,6 +108,7 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `fq5y-x11-xrender-downscale` | [log/2026-10-20-fq5y-x11-xrender-downscale.md](log/2026-10-20-fq5y-x11-xrender-downscale.md) | Aurora-fq5y: X11 XRender server-side downscale (39.7/20.4% -> 4.2/1.3%) |
 | `future-steamos-support` | [planning/FutureSteamOSSupport.md](planning/FutureSteamOSSupport.md) | SteamOS / Steam Deck support |
 | `fzzr-laptop-width-fit` | [log/2026-10-29-fzzr-laptop-width-fit.md](log/2026-10-29-fzzr-laptop-width-fit.md) | Graph editor: fit holds at laptop width |
+| `graph-editor-cleanup` | [planning/WebUI/GraphEditorCleanup.md](planning/WebUI/GraphEditorCleanup.md) | Graph editor cleanup |
 | `gtkd-bare-bus-fix` | [log/2026-10-07-gtkd-bare-bus-fix.md](log/2026-10-07-gtkd-bare-bus-fix.md) | Aurora-gtkd closed: fake bare bus no longer activates the real xdg-desktop-portal |
 | `gui-launch-ux` | [archive/GUILaunchUX.md](archive/GUILaunchUX.md) | GUI Launch UX |
 | `h45-post-110-upstream-sweep` | [log/2026-10-08-h45-post-110-upstream-sweep.md](log/2026-10-08-h45-post-110-upstream-sweep.md) | Aurora-h45: post-1.1.0 sweep for more huenicorn upstream candidates |
@@ -203,6 +216,7 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `lzw-github-ci` | [log/2026-10-01-lzw-github-ci.md](log/2026-10-01-lzw-github-ci.md) | Aurora-lzw: GitHub CI unblocked for weblings/Aurora |
 | `m0fy-top-tier-error-owners` | [log/2026-10-07-m0fy-top-tier-error-owners.md](log/2026-10-07-m0fy-top-tier-error-owners.md) | Aurora-m0fy: Dashboard inline errors get one owner per control (closed) |
 | `m4wp-pairing-revoke-persist` | [log/2026-10-16-m4wp-pairing-revoke-persist.md](log/2026-10-16-m4wp-pairing-revoke-persist.md) | Pairing revoke may not persist on Windows (Aurora-m4wp) |
+| `m5kl-grille-install-spike` | [log/2026-11-08-m5kl-grille-install-spike.md](log/2026-11-08-m5kl-grille-install-spike.md) | Grille install spike for the graph editor |
 | `m6pd-close-gate` | [log/2026-10-16-m6pd-close-gate.md](log/2026-10-16-m6pd-close-gate.md) | Pre-commit close gate (Aurora-m6pd) |
 | `mac-audio` | [archive/mac/Audio.md](archive/mac/Audio.md) | macOS audio capture |
 | `mac-notarization` | [planning/mac/Notarization.md](planning/mac/Notarization.md) | macOS Gatekeeper/notarization |
@@ -273,6 +287,7 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `so1o-pairing-copy-fixes` | [log/2026-10-16-so1o-pairing-copy-fixes.md](log/2026-10-16-so1o-pairing-copy-fixes.md) | Pairing screen copy and centering fixes (Aurora-so1o) |
 | `stable-monitor-keys` | [log/2026-10-24-stable-monitor-keys.md](log/2026-10-24-stable-monitor-keys.md) | 5ipy.27: stable monitor keys (Aurora-5ipy.27) |
 | `stack-comparison` | [archive/StackComparison.md](archive/StackComparison.md) | Stack comparison — huenicorn vs. Aurora-App-Linux vs. Aurora-App-Windows |
+| `t2hz-react-aria-popup-spike` | [log/2026-11-08-t2hz-react-aria-popup-spike.md](log/2026-11-08-t2hz-react-aria-popup-spike.md) | React Aria popup spike for the graph editor |
 | `ta5-param-schema` | [log/2026-10-01-ta5-param-schema.md](log/2026-10-01-ta5-param-schema.md) | Aurora-ta5: C++ param schema as single source for tuning ranges |
 | `tft-parity-harness` | [log/2026-10-01-tft-parity-harness.md](log/2026-10-01-tft-parity-harness.md) | Aurora-tft: golden parity harness for both orchestrators |
 | `tjoq-audio-grant-live` | [log/2026-10-06-tjoq-audio-grant-live.md](log/2026-10-06-tjoq-audio-grant-live.md) | Aurora-tjoq: audio permission block copy vs. live grant |
@@ -315,6 +330,7 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `wqzp8-windows-skip-cursor-frames` | [log/2026-10-13-wqzp8-windows-skip-cursor-frames.md](log/2026-10-13-wqzp8-windows-skip-cursor-frames.md) | Aurora-wqzp.8: Windows skips cursor-only DXGI frames |
 | `wqzp9-mac-mover-proof` | [log/2026-10-13-wqzp9-mac-mover-proof.md](log/2026-10-13-wqzp9-mac-mover-proof.md) | Aurora-wqzp.9: perf-harness proves the mover from the relay SSE |
 | `x1lh-error-shell-visual-polish` | [log/2026-10-07-error-shell-visual-polish.md](log/2026-10-07-error-shell-visual-polish.md) | Aurora-x1lh: error shell visual polish (closed) |
+| `xr4c-save-as-new-check-title` | [log/2026-11-08-xr4c-save-as-new-check-title.md](log/2026-11-08-xr4c-save-as-new-check-title.md) | Save-as-new check expected the wrong copy title |
 | `xrl1-warning-icon` | [log/2026-10-07-xrl1-warning-icon.md](log/2026-10-07-xrl1-warning-icon.md) | Aurora-xrl1: vector warning icon replaces bold ⚠ (closed) |
 | `yzp4-takeover-unification` | [log/2026-10-06-yzp4-takeover-unification.md](log/2026-10-06-yzp4-takeover-unification.md) | Aurora-yzp4: takeover unified to heading-only "Aurora has stopped" (closed) |
 | `zfre-test-state-and-stop` | [log/2026-10-22-zfre-test-state-and-stop.md](log/2026-10-22-zfre-test-state-and-stop.md) | Zfre: /api/state reports the light test, the WebUI can stop it (Aurora-zfre) |

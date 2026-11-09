@@ -451,3 +451,17 @@ Applies-when: text in a control must not be selectable on an iPhone
 In Aurora-kep2.24, rows set `user-select: none` and `-webkit-touch-callout: none`, and passed in headless Chromium, but holding a row on an iPhone still selected its text.
 
 **Fix:** add `-webkit-user-select: none` beside the unprefixed property. Chromium cannot show this, so check it on a device.
+
+## React Aria popups on the React Flow canvas need five workarounds
+Tags: webui, graph-editor, react-aria, react-flow, focus, keyboard
+Applies-when: a Menu, Popover or Autocomplete opens over the graph editor canvas (Aurora-t2hz)
+
+A pointer-anchored Popover (a 0x0 fixed div as `triggerRef`) works on canvas, node and wire right-click, with these gaps:
+
+- React Flow reads Delete and Backspace at the document, so they delete the selected node under an open menu. Stop propagation for those two keys only, since stopping all keys also swallows Esc.
+- The anchor is not focusable, so focus ends on `body` after close. Refocus the element that was active on open.
+- The Popover does not follow a moved anchor, so key it on the pointer coordinates.
+- Modal popovers (the default) need two clicks to select a node and block wheel zoom. Use `isNonModal`, which then leaves a pane drag not dismissing the menu.
+- An `A` shortcut that opens a search field must call `preventDefault`, or the keypress is typed into the field.
+
+**Fix:** see the Aurora-t2hz notes and [[graph-editor-cleanup]]. Grille itself was not tested.

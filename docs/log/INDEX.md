@@ -338,3 +338,18 @@ Planning docs stay clean: decisions, status, and pointers here only.
 | 2026-11-05 | Effect picker epic closed: the effect panel replaced the Video/Audio toggle, with VoiceOver, demo Duplicate and TalkBack beads left open outside it. [[kep2-epic-close]] | `bd show Aurora-kep2` |
 | 2026-11-05 | Closed without building: Pause turning off the failure light (`Aurora-b6yx`) and preview while Failed (`Aurora-wq6i`). [[kep2-epic-close]] | `bd show Aurora-b6yx` |
 | 2026-11-05 | Hue link monitor checked on a real bridge, banner copy reworded to the banner conventions, Busy row and power cut not exercised. [[qqcn-link-monitor-real-bridge]] | `bd show Aurora-qqcn` |
+| 2026-11-08 | React Aria popups spiked on the graph editor canvas: go, with workarounds for key leaks, focus return and modality. [[t2hz-react-aria-popup-spike]] | `bd show Aurora-t2hz` |
+| 2026-11-08 | Grille install spiked under ignore-scripts: a built release tarball works, about +60 kB gzip with Select and Menu. [[m5kl-grille-install-spike]] | `bd show Aurora-m5kl` |
+| 2026-11-08 | Graph editor stage 1: Dashboard back link replaces the placeholder dot, Aurora component styles on the existing controls. [[daaa-graph-editor-stage1]] | `bd show Aurora-daaa.1`, `bd show Aurora-daaa.2` |
+| 2026-11-08 | Save-as-new browser check now expects the "(Copy)" title the editor already gives. [[xr4c-save-as-new-check-title]] | `bd show Aurora-xr4c` |
+| 2026-11-08 | Graph editor control-count check (84 / 132 baseline) and the CMake forms.css rebuild verified. [[daaa4-control-count-baseline]] | `bd show Aurora-daaa.3`, `bd show Aurora-daaa.4` |
+| 2026-11-08 | Graph editor cleanup owner decisions: cleanup first, Save moves into the title menu, Keep dropped, Grille tracked in GrilleDS beads. [[daaa5-graph-editor-owner-decisions]] | `bd show Aurora-daaa.5` |
+| 2026-11-08 | Graph editor gap states: seven mock frames and the status priority rule with the nine-slot map. [[daaa6-graph-editor-gap-states]] | `bd show Aurora-daaa.6` |
+| 2026-11-08 | Web root embed skips `Static_*` mock folders (53 paths to 0 on macOS). [[3z1x-embed-skips-static-mocks]] | `bd show Aurora-3z1x` |
+| 2026-11-08 | Grille G1 release workflow and G2/G3a popup skin shipped as v0.1.0-dev.2; graph editor depends on the release URL with ui.css imported, no visible change. CI pending. [[daaa7-grille-release-and-build-dependency]] | `bd show Aurora-daaa.7`, `bd show Aurora-daaa.8`, `bd show Aurora-daaa.9` |
+| 2026-11-08 | Graph editor top bar: one bar, title menu with Name and effect list, view menu, banner, toast and one status spot. [[daaa11-top-bar]] | `bd show Aurora-daaa.11` |
+| 2026-11-08 | Graph editor title menu: Save, Save as new and Save and apply move into the first shared popup; Keep removed, Save and apply ends a running test. [[daaa10-title-menu]] | `bd show Aurora-daaa.10` |
+| 2026-11-08 | Graph editor cleanup doc: status line, final stage 2 bundle numbers (+49 kB gzip) and daaa.11 control-count acceptance. [[daaa12-doc-cleanup]] | `bd show Aurora-daaa.12` |
+| 2026-11-09 | Graph editor stage 2 checks pass against the embedded Mac build; edit-loop focus race fixed; popup and audio screenshots reviewed, two layout issues filed. [[daaa13-embedded-run]] | `bd show Aurora-daaa.13` |
+| 2026-11-09 | Graph editor: a test outcome in the status spot clears on Save and on undo back to the saved graph; browser check added. [[daaa14-test-outcome-clears]] | `bd show Aurora-daaa.14` |
+| 2026-11-09 | Graph editor: dead status CSS removed; Vite chunk-size warning limit set to the accepted 650 kB budget. [[daaa15-dead-css-chunk-limit]] | `bd show Aurora-daaa.15` |

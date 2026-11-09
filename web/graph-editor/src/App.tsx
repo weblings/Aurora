@@ -3,7 +3,6 @@ import {
   ReactFlow,
   Background,
   BackgroundVariant,
-  Controls,
   MiniMap,
   applyEdgeChanges,
   applyNodeChanges,
@@ -14,12 +13,19 @@ import {
   type NodeChange,
   type ReactFlowInstance,
 } from '@xyflow/react'
+import backArrow from '../../ui/icons/back-arrow.svg'
+import chevronDown from '../../ui/icons/chevron-down.svg'
+import chevronUp from '../../ui/icons/chevron-up.svg'
 import { applyGraph, fetchCatalog, fetchEffectGraph, fetchEffects, putDraft, saveGraph, type WriteResult } from './api'
 import { EditorContext, type EditorActions } from './EditorContext'
 import { GenericNode } from './GenericNode'
 import { Inspector } from './Inspector'
 import { PALETTE_DRAG_TYPE, Palette } from './Palette'
 import { ProblemsContext } from './ProblemsContext'
+import { ProblemsChip } from './ProblemsChip'
+import { Toast, useToast } from './Toast'
+import { TitleMenu, type TitleMenuAction } from './TitleMenu'
+import { ViewMenu } from './ViewMenu'
 import { ZoneThumbnail } from './ZoneThumbnail'
 import { tabSession, useDraftLoop } from './useDraftLoop'
 import { useLightTest } from './useLightTest'
@@ -27,12 +33,11 @@ import { restorable, clearUnsaved, syncUnsaved } from './graph/autosave'
 import { refuseConnection } from './graph/connection'
 import { addEdge, addNode, joinEndpoint, moveNodes, removeEdge, removeNodes, setParam } from './graph/doc'
 import { editorReducer, emptyEditor, sameDoc } from './graph/history'
-import { describeTest } from './graph/lightTest'
+import { changeIsEdit, pickBanner, pickStatus, testProgress } from './graph/status'
 import { BLANK_ID, blankDoc, forWrite, freshEffectId, setTitle, titleOf } from './graph/save'
 import { portStyle } from './graph/portStyle'
 import { NODE_KIND, carryViewState, edgeId, toFlowEdges, toFlowNodes, type AuroraNodeData } from './graph/flow'
 import { groupProblems, sameProblems, type Problems } from './graph/problems'
-import { summarize } from './graph/loop'
 import type { Catalog, EffectListEntry, GraphDoc, ParamValue } from './graph/types'
 
 const nodeTypes = { [NODE_KIND]: GenericNode }
@@ -54,13 +59,20 @@ export function App() {
   const [baseline, setBaseline] = useState<{ id: string; doc: GraphDoc } | null>(null)
   // A browser-stored copy of unsaved edits from an earlier visit, awaiting a choice.
   const [offer, setOffer] = useState<GraphDoc | null>(null)
-  const [error, setError] = useState<string | null>(null)
-  // The outcome of the last Save / Save and apply / Keep.
-  const [notice, setNotice] = useState<string | null>(null)
+  // Cannot reach Aurora, or cannot open the effect: a banner with Retry.
+  const [openError, setOpenError] = useState<string | null>(null)
+  const [attempt, setAttempt] = useState(0)
+  // A Save or Save and apply that failed; cleared by the next edit or write.
+  const [writeTrouble, setWriteTrouble] = useState<string | null>(null)
+  const { text: toastText, show: showToast } = useToast()
   const [writing, setWriting] = useState(false)
-  // The document the running test was started from.
-  const [tested, setTested] = useState<GraphDoc | null>(null)
-  const [refusal, setRefusal] = useState<string | null>(null)
+  const [titleMenuOpen, setTitleMenuOpen] = useState(false)
+  // Save on a built-in with no name opens the menu on the Name field.
+  const [nameNote, setNameNote] = useState<string | null>(null)
+  const titleMenuTrigger = useRef<HTMLButtonElement>(null)
+  const [minimap, setMinimap] = useState(false)
+  // The graph as the running test was started with it.
+  const [testedDoc, setTestedDoc] = useState<GraphDoc | null>(null)
   // What React Flow has told us (selection, measured sizes, a drag in progress).
   // The nodes it draws are derived from `doc` in the same render, so a param
   // edit never shows one frame of the old value.
@@ -75,8 +87,8 @@ export function App() {
         setCatalog(c)
         setEffects(e)
       })
-      .catch((e: Error) => setError(`Cannot reach Aurora: ${e.message}`))
-  }, [])
+      .catch((e: Error) => setOpenError(`Cannot reach Aurora: ${e.message}`))
+  }, [attempt])
 
   useEffect(() => {
     let stale = false
@@ -92,13 +104,13 @@ export function App() {
         dispatch({ type: 'open', doc: graph })
         setBaseline({ id: effectId, doc: graph })
         setOffer(restorable(effectId, graph))
-        setError(null)
+        setOpenError(null)
       })
-      .catch((e: Error) => !stale && setError(`Cannot open '${effectId}': ${e.message}`))
+      .catch((e: Error) => !stale && setOpenError(`Cannot open '${effectId}': ${e.message}`))
     return () => {
       stale = true
     }
-  }, [effectId])
+  }, [effectId, attempt])
 
   // Back up unsaved edits per effect. Held back while a stored copy awaits
   // its Restore/Discard answer, or it would be overwritten unseen.
@@ -112,8 +124,7 @@ export function App() {
   docRef.current = doc
   const lights = useLightTest(session, () => putDraft(session, docRef.current!))
   const testing = lights.state.phase === 'running'
-  const testNote = describeTest(lights.state)
-  const changedSinceTest = testing && tested !== null && doc !== null && !sameDoc(tested, doc)
+  const progress = testProgress(lights.state)
   const dirty = useMemo(() => (doc && baseline ? !sameDoc(baseline.doc, doc) : false), [doc, baseline])
   const isBuiltin = effects.find((e) => e.id === effectId)?.builtin ?? (effectId === BLANK_ID || effectId.startsWith('builtin.'))
   const needsName = isBuiltin && doc !== null && titleOf(doc).trim() === ''
@@ -130,48 +141,51 @@ export function App() {
   }, [effectId])
 
   const startTest = () => {
-    setNotice(null)
-    setTested(docRef.current)
+    setWriteTrouble(null)
+    setTestedDoc(docRef.current)
     void lights.start()
   }
 
-  // Save, Save and apply and Keep write the document under an id: the open
+  // Save, Save and apply and Save as new write the document under an id: the open
   // custom effect's, or a fresh one named after the title when a built-in is
   // open (a built-in is never overwritten). Save as new forks a custom the
   // same way, leaving the original file as it was.
-  const write = async (kind: 'save' | 'apply' | 'keep', asNew = false) => {
+  const write = async (kind: 'save' | 'apply', asNew = false) => {
     if (!doc || !baseline || writing) return
     if (needsName) {
-      setNotice('Name the new effect first')
+      // After the menu item's own close, or that close would win.
+      window.setTimeout(() => {
+        setNameNote('Name the new effect first')
+        setTitleMenuOpen(true)
+      }, 0)
       return
     }
     // A new effect that kept a taken title would show as a second row of the
     // same name in the picker, so it takes a distinct one.
-    const sent = forWrite(doc, isBuiltin || asNew, kind === 'keep', effects.map((e) => e.title || e.id))
+    const sent = forWrite(doc, isBuiltin || asNew, effects.map((e) => e.title || e.id))
     const id = isBuiltin || asNew ? freshEffectId(titleOf(sent), effects.map((e) => e.id)) : baseline.id
     setWriting(true)
-    setNotice(null)
+    setWriteTrouble(null)
     try {
-      let result: WriteResult
-      if (kind === 'keep') {
-        result = await lights.keep(id)
-      } else {
-        const verdict = await putDraft(session, sent)
-        if (!verdict.valid) {
-          const n = verdict.errors.length
-          setNotice(`Fix the ${n} ${n === 1 ? 'problem' : 'problems'} before saving`)
-          return
-        }
-        result = kind === 'save' ? await saveGraph(session, id) : await applyGraph(session, id)
-      }
-      if (!result.ok) {
-        setNotice(result.reason)
+      const verdict = await putDraft(session, sent)
+      if (!verdict.valid) {
+        const n = verdict.errors.length
+        setWriteTrouble(`Fix the ${n} ${n === 1 ? 'problem' : 'problems'} before saving`)
         return
       }
+      const result: WriteResult = kind === 'save' ? await saveGraph(session, id) : await applyGraph(session, id)
+      if (!result.ok) {
+        setWriteTrouble(result.reason)
+        return
+      }
+      // Apply does not end a running test. The lights then go back to the
+      // live effect, which is now this one, read from the file just written.
+      if (kind === 'apply' && testing) await lights.finishAfterApply()
       const live = kind !== 'save'
-      setNotice(
-        `${live ? 'Saved and live' : 'Saved'} as ${titleOf(sent) || id}${result.reloadError ? `. Reload: ${result.reloadError}` : ''}`,
-      )
+      dismissTest()
+      // A reload error needs a look, so it stays in the status spot.
+      if (result.reloadError) setWriteTrouble(`Reload: ${result.reloadError}`)
+      showToast(`${live ? 'Saved and live' : 'Saved'} as ${titleOf(sent) || id}`)
       fetchEffects().then(setEffects).catch(() => {})
       if (id !== baseline.id) {
         // The built-in stays as it was; its edits now live in the new effect.
@@ -181,12 +195,11 @@ export function App() {
         setBaseline({ id, doc: sent })
       }
     } catch (e) {
-      setNotice((e as Error).message)
+      setWriteTrouble((e as Error).message)
     } finally {
       setWriting(false)
     }
   }
-  const summary = summarize(loop.state)
   // Keep the previous object while the messages are unchanged, so a preview
   // event that repeats the same runtime error does not re-render every node.
   const lastProblems = useRef<Problems | null>(null)
@@ -196,6 +209,32 @@ export function App() {
     lastProblems.current = next
     return next
   }, [loop.state.valid, loop.state.issues, loop.state.runtime, doc])
+
+  // A test outcome shows until the next test, Save or edit.
+  const [clearedTest, setClearedTest] = useState<{ ended: unknown; failure: string | null } | null>(null)
+  const testOutcomeCleared = clearedTest !== null && clearedTest.ended === lights.state.ended && clearedTest.failure === lights.state.failure
+  const dismissTest = () => setClearedTest({ ended: lights.state.ended, failure: lights.state.failure })
+  const prevDoc = useRef<GraphDoc | null>(null)
+  useEffect(() => {
+    const before = prevDoc.current
+    prevDoc.current = doc
+    // Opening an effect (null then the graph) is not an edit; every later
+    // change is, including an undo back to the saved graph.
+    if (!changeIsEdit(before, doc)) return
+    setWriteTrouble(null)
+    dismissTest()
+    // Only a change of the document counts as an edit.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [doc])
+  const ended = lights.state.ended
+  useEffect(() => {
+    if (ended?.reason === 'reverted') showToast('Reverted')
+  }, [ended, showToast])
+  const editedSinceTest = testing && testedDoc !== null && doc !== null && !sameDoc(testedDoc, doc)
+  const status = pickStatus({ openError, loop: loop.state, test: lights.state, writeTrouble, testOutcomeCleared })
+  const banner = pickBanner(openError, offer !== null && baseline !== null)
+  // Without Aurora nothing can be tested or saved.
+  const blocked = status.rank === 1
 
   const edit = useCallback((change: (d: GraphDoc) => GraphDoc) => dispatch({ type: 'edit', change }), [])
   const undo = useCallback(() => dispatch({ type: 'undo' }), [])
@@ -215,11 +254,33 @@ export function App() {
     return () => window.removeEventListener('keydown', onKey)
   }, [])
 
+  // Ctrl/Cmd+S saves, wherever focus is (the browser would save the page).
+  const saveKey = useRef<() => void>(() => {})
+  saveKey.current = () => void write('save')
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (!(e.metaKey || e.ctrlKey) || e.altKey || e.shiftKey || e.key.toLowerCase() !== 's') return
+      e.preventDefault()
+      saveKey.current()
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [])
+
   const nodes = useMemo(
     () => (doc && catalog ? carryViewState(nodeView, toFlowNodes(doc, catalog)) : []),
     [doc, catalog, nodeView],
   )
   const edges = useMemo(() => (doc ? carryViewState(edgeView, toFlowEdges(doc, catalog ?? undefined)) : []), [doc, catalog, edgeView])
+
+  // A problems row points at its node: select it and bring it into view.
+  const selectNode = useCallback(
+    (id: string) => {
+      setNodeView(nodes.map((n) => ({ ...n, selected: n.id === id })))
+      void flow.current?.fitView({ nodes: [{ id }], maxZoom: 1, duration: 200 })
+    },
+    [nodes],
+  )
 
   const actions = useMemo<EditorActions>(
     () => ({
@@ -264,8 +325,9 @@ export function App() {
       const point = screen ?? { x: (box?.left ?? 0) + (box?.width ?? 0) / 2, y: (box?.top ?? 0) + (box?.height ?? 0) / 2 }
       const at = view.screenToFlowPosition(point)
       edit((d) => addNode(d, info, at))
+      showToast(`Added ${info.type}`)
     },
-    [catalog, edit],
+    [catalog, edit, showToast],
   )
 
   const wiring = useCallback(
@@ -286,11 +348,11 @@ export function App() {
   const onConnect = useCallback(
     (c: Connection) => {
       const reason = wiring(c)
-      setRefusal(reason)
+      if (reason) showToast(reason)
       if (reason || !c.sourceHandle || !c.targetHandle) return
       edit((d) => addEdge(d, [joinEndpoint(c.source, c.sourceHandle!), joinEndpoint(c.target, c.targetHandle!)]))
     },
-    [wiring, edit],
+    [wiring, edit, showToast],
   )
 
   // Type of the port a connection drag started from: its colour tints the drag
@@ -318,117 +380,140 @@ export function App() {
           target: from ? state.toHandle.nodeId : state.fromNode.id,
           targetHandle: from ? state.toHandle.id ?? null : state.fromHandle.id ?? null,
         })
-        setRefusal(reason)
-      } else {
-        setRefusal(null)
+        if (reason) showToast(reason)
       }
     },
-    [wiring],
+    [wiring, showToast],
   )
+
+  const title = doc ? titleOf(doc) : ''
+  // A built-in has no title of its own in the graph; the effect list names it.
+  const shownTitle = title || effects.find((e) => e.id === effectId)?.title || ''
+  const otherEffects = effects.filter((e) => e.id !== effectId)
 
   return (
     <div className="editor">
       <header className="editor-header">
-        <img src={`${import.meta.env.BASE_URL}icon.svg`} width={20} height={20} alt="" />
-        <strong>Aurora graph editor</strong>
-        <select aria-label="Effect" value={effectId} onChange={(e) => {
-            setNotice(null)
-            setEffectId(e.target.value)
-          }}>
-          {effects.some((e) => e.id === effectId) ? null : <option value={effectId}>{effectId === BLANK_ID ? 'New empty effect' : effectId}</option>}
-          {effects.map((e) => (
-            <option key={e.id} value={e.id}>
-              {e.title || e.id}
-            </option>
-          ))}
-        </select>
-        <button type="button" onClick={undo} disabled={past.length === 0} title="Undo (Ctrl/Cmd+Z)">
-          Undo
+        <a className="btn btn-secondary editor-back" href="/">
+          <img className="editor-back-icon" src={backArrow} alt="" />
+          Dashboard
+        </a>
+        <button
+          ref={titleMenuTrigger}
+          type="button"
+          className="btn btn-secondary editor-title-menu"
+          aria-label="Effect menu"
+          aria-haspopup="dialog"
+          aria-expanded={titleMenuOpen}
+          data-effect={effectId}
+          disabled={!doc}
+          onClick={() => setTitleMenuOpen((open) => !open)}
+        >
+          <span className="editor-title-label">{shownTitle || (effectId === BLANK_ID ? 'New empty effect' : effectId)}</span>
+          <img className="editor-chevron" src={titleMenuOpen ? chevronUp : chevronDown} alt="" />
         </button>
-        <button type="button" onClick={redo} disabled={future.length === 0} title="Redo (Shift+Ctrl/Cmd+Z)">
-          Redo
-        </button>
-        {offer && baseline ? (
-          <span className="editor-restore">
-            Unsaved changes from an earlier visit.
-            <button
-              type="button"
-              onClick={() => {
-                dispatch({ type: 'edit', change: () => offer })
-                setOffer(null)
-              }}
-            >
-              Restore
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                clearUnsaved(baseline.id)
-                setOffer(null)
-              }}
-            >
-              Discard
-            </button>
-          </span>
-        ) : null}
-        <span className="editor-status" role="status" title={summary.detail ?? undefined}>
-          {summary.label}
+        {dirty ? <span className="editor-dirty">Unsaved</span> : null}
+        <TitleMenu
+          isOpen={titleMenuOpen}
+          onClose={() => {
+            setTitleMenuOpen(false)
+            setNameNote(null)
+          }}
+          triggerRef={titleMenuTrigger}
+          name={title}
+          onName={(value) => {
+            setNameNote(null)
+            edit((d) => setTitle(d, value))
+          }}
+          nameNote={nameNote}
+          focusName={nameNote !== null}
+          isBuiltin={isBuiltin}
+          busy={writing}
+          blocked={blocked}
+          editedSinceTest={editedSinceTest}
+          otherEffects={otherEffects}
+          onAction={(action: TitleMenuAction) => {
+            if (action === 'save') void write('save')
+            else if (action === 'save-as-new') void write('save', true)
+            else if (action === 'save-and-apply') void write('apply')
+            else setEffectId(BLANK_ID)
+          }}
+          onOpenEffect={setEffectId}
+        />
+        <span className="editor-status" role="status" data-rank={status.rank} title={status.detail ?? undefined}>
+          {status.label}
         </span>
-        {loop.state.stream === 'replaced' ? (
-          <button type="button" onClick={loop.reconnect}>
+        {status.action === 'reconnect' ? (
+          <button type="button" className="btn btn-secondary" onClick={loop.reconnect}>
             Reconnect
           </button>
         ) : null}
-        {refusal ? <span className="editor-refusal">{refusal}</span> : null}
-        {error ? <span className="editor-error">{error}</span> : null}
-      </header>
-      <div className="editor-actions">
-        <label className="editor-name">
-          Name
-          <input
-            type="text"
-            value={doc ? titleOf(doc) : ''}
-            placeholder={isBuiltin ? 'Name the new effect' : 'Effect name'}
-            disabled={!doc}
-            onChange={(e) => edit((d) => setTitle(d, e.target.value))}
-          />
-        </label>
+        <ProblemsChip
+          problems={problems}
+          onSelectNode={selectNode}
+          onAddNode={() => document.querySelector<HTMLElement>('.palette-item')?.focus()}
+        />
+        <span className="editor-bar-end" />
+        <button type="button" className="btn btn-secondary" onClick={undo} disabled={past.length === 0} title="Undo (Ctrl/Cmd+Z)">
+          Undo
+        </button>
+        <button type="button" className="btn btn-secondary" onClick={redo} disabled={future.length === 0} title="Redo (Shift+Ctrl/Cmd+Z)">
+          Redo
+        </button>
+        {progress ? (
+          <span className="editor-countdown" role="timer">
+            {progress}
+          </span>
+        ) : null}
+        {editedSinceTest ? <span className="editor-edited">Edited since the test</span> : null}
         {testing ? (
-          <>
-            <button type="button" onClick={() => void write('keep')} disabled={writing || changedSinceTest} title={changedSinceTest ? 'The graph changed since the test started. Test again, or use Save and apply' : 'Make the tested graph the live effect'}>
-              Keep
-            </button>
-            <button type="button" onClick={() => void lights.revert()} disabled={writing}>
-              Revert
-            </button>
-          </>
+          <button type="button" className="btn btn-secondary" onClick={() => void lights.revert()} disabled={writing}>
+            Revert
+          </button>
         ) : (
           <button
-            type="button"
+            type="button" className="btn btn-secondary"
             onClick={startTest}
-            disabled={!doc || loop.state.valid !== true || lights.state.phase !== 'idle'}
+            disabled={!doc || blocked || loop.state.valid !== true || lights.state.phase !== 'idle'}
             title={loop.state.valid === false ? 'Fix the problems before testing' : 'Show this graph on the real lights for a while, then put them back'}
           >
             {lights.state.other ? 'Take over the lights' : 'Test on lights'}
           </button>
         )}
-        <button type="button" onClick={() => void write('save')} disabled={!doc || writing} title="Save as a custom effect without changing the live effect">
-          Save
-        </button>
-        {isBuiltin ? null : (
-          <button type="button" onClick={() => void write('save', true)} disabled={!doc || writing} title="Save a copy under a new name, leaving this effect as it was">
-            Save as new
+      </header>
+      {banner?.kind === 'unreachable' ? (
+        <div className="editor-banner" role="alert">
+          <span>{banner.message}</span>
+          <button type="button" className="btn btn-secondary" onClick={() => setAttempt((n) => n + 1)}>
+            Retry
           </button>
-        )}
-        <button type="button" onClick={() => void write('apply')} disabled={!doc || writing} title="Save and make it the live effect">
-          Save and apply
-        </button>
-        {dirty ? <span className="editor-dirty">Unsaved changes</span> : null}
-        <span className="editor-test-note" role="status" aria-live="polite">
-          {testNote}
-        </span>
-        {notice ? <span className="editor-notice">{notice}</span> : null}
-      </div>
+        </div>
+      ) : null}
+      {banner?.kind === 'restore' && baseline && offer ? (
+        <div className="editor-banner" role="group" aria-label="Unsaved changes from an earlier visit">
+          <span>Unsaved changes from an earlier visit.</span>
+          <button
+            type="button" className="btn btn-secondary"
+            onClick={() => {
+              dispatch({ type: 'edit', change: () => offer })
+              setOffer(null)
+              showToast('Restored')
+            }}
+          >
+            Restore
+          </button>
+          <button
+            type="button" className="btn btn-secondary"
+            onClick={() => {
+              clearUnsaved(baseline.id)
+              setOffer(null)
+              showToast('Discarded')
+            }}
+          >
+            Discard
+          </button>
+        </div>
+      ) : null}
       <div className="editor-body">
       {/* The panels keep their width while loading: the canvas fits the graph once, and a late panel would shrink it under the nodes. */}
       {catalog ? <Palette catalog={catalog} onAdd={(type) => addFromPalette(type)} /> : <div className="palette" />}
@@ -441,13 +526,6 @@ export function App() {
           addFromPalette(type, { x: e.clientX, y: e.clientY })
         }}
       >
-        {problems.graph.length > 0 ? (
-          <ul className="editor-graph-problems">
-            {problems.graph.map((m) => (
-              <li key={m}>⚠ {m}</li>
-            ))}
-          </ul>
-        ) : null}
         <ZoneThumbnail frame={loop.frame} live={loop.state.stream === 'live'} />
         <ProblemsContext.Provider value={problems}>
         <EditorContext.Provider value={actions}>
@@ -474,14 +552,15 @@ export function App() {
             key={effectId}
           >
             <Background variant={BackgroundVariant.Dots} />
-            <Controls />
-            <MiniMap pannable zoomable />
+            <ViewMenu minimap={minimap} onMinimap={setMinimap} />
+            {minimap ? <MiniMap pannable zoomable /> : null}
           </ReactFlow>
         </EditorContext.Provider>
         </ProblemsContext.Provider>
       </div>
       {doc && catalog ? <Inspector doc={doc} catalog={catalog} selected={selectedId} edit={edit} /> : <div className="inspector" />}
       </div>
+      <Toast text={toastText} />
     </div>
   )
 }
