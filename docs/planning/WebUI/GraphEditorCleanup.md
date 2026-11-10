@@ -443,7 +443,8 @@ the menu.
 - **Light popups rejected:** a white Dashboard effect dropdown with a light panel was tried
   with tokens only. A large light popup is jarring when everything else is dark, so the
   Dashboard stays dark.
-- **Bundle budget:** about +60 kB gzip (+42% JS) is accepted.
+- **Bundle budget:** about +60 kB gzip (+42% JS) is accepted. Superseded 2026-11-09: no bundle
+  budget (see the Decisions entry of that date).
 - **Title menu:** a Dialog in a Popover. It also holds the file actions: Save (Ctrl+S),
   Save as new, Rename, Open another effect and New empty effect. The Save
   split button is dropped. *Revised 2026-11-09 (`Aurora-daaa.19`):* the Name box leaves the
@@ -506,6 +507,10 @@ the menu.
   Examples: Mix frames: "Blends two sets of light colors into one." / "Combine a screen
   effect with a music effect." Bar image: "A band of color that sweeps across the room." /
   "Chases and sweeps. Drive Position with an LFO to move it."
+- **No bundle budget.** Grille is the shared design system, so its code is expected in the
+  bundle. The editor is served from the local app, so size does not affect a network load.
+  Size is reported in each stage's log, not held to a number. Vite's chunk warning sits at
+  1000 kB as a tripwire for an accidental large import, not as a target.
 - **Shortcut:** Shift+A opens the Add node menu while the canvas has focus, as in Blender.
   Tab stays browser focus movement, and Space stays pan. Double-click on empty canvas
   (ComfyUI's route) is a possible later mouse route; it needs React Flow's
