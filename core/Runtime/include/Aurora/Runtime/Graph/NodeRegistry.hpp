@@ -32,6 +32,9 @@ namespace Aurora::Runtime::Graph
     std::string title;    // short display name for the editor, e.g. "Hue shift"
     // Add-node menu group; one of kNodeGroups. Required (tests fail otherwise).
     std::string group;
+    // User-facing copy (not agent text): menu row (<= 10 words) and hover tip (one sentence, <= 12 words).
+    std::string summary;
+    std::string tip;
     std::string purpose;  // == descriptor `details`
     std::string useWhen;
     std::string example;  // JSON snippet of the node as in graph.json

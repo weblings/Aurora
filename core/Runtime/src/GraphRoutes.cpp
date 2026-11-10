@@ -108,6 +108,8 @@ namespace Aurora::Runtime
           {"type", type},
           {"title", info.meta.title},
           {"group", info.meta.group},
+          {"summary", info.meta.summary},
+          {"tip", info.meta.tip},
           {"purpose", info.meta.purpose},
           {"useWhen", info.meta.useWhen},
           {"example", info.meta.example},

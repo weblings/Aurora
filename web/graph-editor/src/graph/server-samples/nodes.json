@@ -14,6 +14,8 @@
    ],
    "params": [],
    "purpose": "Grab one video frame per tick; Absent while the source is unhealthy.",
+   "summary": "Live picture from the screen or camera.",
+   "tip": "Start every effect that reacts to what is on screen.",
    "title": "Video capture",
    "type": "video.capture",
    "useWhen": "First node of any video path."
@@ -63,6 +65,8 @@
     }
    ],
    "purpose": "Downscale an image to a target width (today's subsampleWidth).",
+   "summary": "Shrinks a picture so later steps run faster.",
+   "tip": "Use after capture if the effect runs slowly.",
    "title": "Rescale image",
    "type": "image.rescale",
    "useWhen": "After capture, before sampling; width 0 passes through."
@@ -88,6 +92,8 @@
    ],
    "params": [],
    "purpose": "Drop the alpha channel (no-op for already-opaque images).",
+   "summary": "Removes transparency from a picture.",
+   "tip": "Use if see-through areas make a picture look wrong.",
    "title": "Drop alpha",
    "type": "image.dropAlpha",
    "useWhen": "After rescale, before zone sampling."
@@ -123,6 +129,8 @@
     }
    ],
    "purpose": "Sample zone colors from an image via one output's live zone map.",
+   "summary": "Reads the picture's colors at each light's position.",
+   "tip": "Use to turn a picture into colors for the lights.",
    "title": "Sample zones",
    "type": "zones.sample",
    "useWhen": "After the image path is prepared; outputs one Frame."
@@ -170,6 +178,8 @@
     }
    ],
    "purpose": "Ease each zone's color toward its new value, per output.",
+   "summary": "Softens sudden color changes on the lights.",
+   "tip": "Use when lights flicker or jump between frames.",
    "title": "Smooth frames",
    "type": "frame.smooth",
    "useWhen": "Between zone sampling and output.send; one instance per output."
@@ -208,6 +218,8 @@
     }
    ],
    "purpose": "Ease each zone's color toward its new value over tau seconds, at any tick rate.",
+   "summary": "Softens color changes over a set time.",
+   "tip": "Use when softening must feel identical at any refresh rate.",
    "title": "Smooth frames (timed)",
    "type": "frame.smoothTime",
    "useWhen": "Instead of frame.smooth when easing must feel the same at every refresh rate."
@@ -246,6 +258,8 @@
     }
    ],
    "purpose": "Scale every zone's color by a brightness factor.",
+   "summary": "The master dimmer for all the lights.",
+   "tip": "Use as the final dimmer, just before sending.",
    "title": "Gain",
    "type": "frame.gain",
    "useWhen": "Last step before output.send; the built-in graphs run the global brightness here."
@@ -307,6 +321,8 @@
     }
    ],
    "purpose": "Keep zones above a minimum brightness for outputs where brightness 0 means off.",
+   "summary": "Stops lights from dimming below a minimum.",
+   "tip": "Use for lights that switch off at zero brightness.",
    "title": "Black floor",
    "type": "frame.floor",
    "useWhen": "After frame.gain, before output.send, per output; leave policy off for Hue."
@@ -337,6 +353,8 @@
    ],
    "purpose": "Send a Frame to one output; sends nothing on a skipped tick.",
    "sink": "output",
+   "summary": "Sends the colors to a light output.",
+   "tip": "Every effect needs one for each set of lights.",
    "title": "Send to output",
    "type": "output.send",
    "useWhen": "Last node of every path, one per output."
@@ -375,6 +393,8 @@
     }
    ],
    "purpose": "Multiply a Float by a constant factor.",
+   "summary": "Multiplies a number by a fixed amount.",
+   "tip": "Use to convert units or strengthen a signal.",
    "title": "Scale",
    "type": "math.scale",
    "useWhen": "Convert units or set a gain, e.g. onset strength times 180 degrees."
@@ -413,6 +433,8 @@
     }
    ],
    "purpose": "Divide a Float by a constant divisor. A zero divisor fails the node.",
+   "summary": "Divides a number by a fixed amount.",
+   "tip": "Use to compare a signal against a reference value.",
    "title": "Divide",
    "type": "math.divide",
    "useWhen": "Normalize against a reference, e.g. rms divided by a reference loudness."
@@ -463,6 +485,8 @@
     }
    ],
    "purpose": "Limit a Float to the range min..max.",
+   "summary": "Keeps a number between a lowest and highest value.",
+   "tip": "Use to stop a signal going out of range.",
    "title": "Clamp",
    "type": "math.clamp",
    "useWhen": "Keep a signal in a safe range before scaling or mixing."
@@ -543,6 +567,8 @@
     }
    ],
    "purpose": "Linearly remap a Float from one range to another, optionally clamped to the output range.",
+   "summary": "Converts a number from one range to another.",
+   "tip": "Use to fit a signal into the range you need.",
    "title": "Map range",
    "type": "math.mapRange",
    "useWhen": "Turn a signal in known bounds into another range, e.g. 0..1 loudness into 0.2..1 brightness."
@@ -593,6 +619,8 @@
     }
    ],
    "purpose": "Blend from 'from' to 'to' by a Float t (0 gives from, 1 gives to, not clamped).",
+   "summary": "Slides between two values using a signal.",
+   "tip": "Use to move smoothly between a low and high setting.",
    "title": "Lerp",
    "type": "math.lerp",
    "useWhen": "Interpolate between two constants with a signal, e.g. lerp(floor, 1) driven by onset strength."
@@ -637,6 +665,8 @@
     }
    ],
    "purpose": "Add two Floats. Input b is optional and falls back to param b.",
+   "summary": "Adds two numbers together.",
+   "tip": "Combine two signals, or shift one by a fixed amount.",
    "title": "Add",
    "type": "math.add",
    "useWhen": "Combine two signals, or offset one by a constant (leave b unwired, set param b)."
@@ -681,6 +711,8 @@
     }
    ],
    "purpose": "Multiply two Floats. Input b is optional and falls back to param b.",
+   "summary": "Multiplies two numbers together.",
+   "tip": "Use to make one signal control the strength of another.",
    "title": "Multiply",
    "type": "math.multiply",
    "useWhen": "Modulate one signal by another, e.g. brightness times a loudness envelope, or by a constant via param b."
@@ -725,6 +757,8 @@
     }
    ],
    "purpose": "The larger of two Floats. Input b is optional and falls back to param b.",
+   "summary": "Picks the larger of two numbers.",
+   "tip": "Use to stop a signal falling below a floor.",
    "title": "Max",
    "type": "math.max",
    "useWhen": "Floor one signal with another or a constant, e.g. keep a rate from going negative (param b 0)."
@@ -750,6 +784,8 @@
    ],
    "params": [],
    "purpose": "Flip a 0..1 Float to 1 minus the value.",
+   "summary": "Flips a number so high becomes low.",
+   "tip": "Use to make quiet moments bright instead of loud ones.",
    "title": "Invert",
    "type": "math.invert",
    "useWhen": "Reverse a normalized signal, e.g. quiet becomes bright."
@@ -788,6 +824,8 @@
     }
    ],
    "purpose": "Ease a Float toward its input; tau seconds to cover ~63% of a step at any tick rate.",
+   "summary": "Eases a number gently toward its new value.",
+   "tip": "Use to calm a jumpy signal before it drives something.",
    "title": "Smooth",
    "type": "smooth.exp",
    "useWhen": "Damp a jumpy signal, e.g. rms into a brightness envelope."
@@ -826,6 +864,8 @@
     }
    ],
    "purpose": "Ease an Angle toward its input along the shortest arc, wrapping at 360.",
+   "summary": "Eases an angle toward its target the short way.",
+   "tip": "Use to calm a jumpy hue before it drives a color.",
    "title": "Smooth angle",
    "type": "smooth.angle",
    "useWhen": "Damp a hue target, e.g. the beat swing in a bounce."
@@ -864,6 +904,8 @@
     }
    ],
    "purpose": "Running average of a Float over about tau seconds, independent of tick rate.",
+   "summary": "The recent average of a number over time.",
+   "tip": "Use to get a slow baseline to compare a signal against.",
    "title": "Rolling average",
    "type": "rollingAverage",
    "useWhen": "Get a slow baseline to compare a signal against, e.g. centroid deviation."
@@ -902,6 +944,8 @@
     }
    ],
    "purpose": "Accumulate a rate in degrees per second into an Angle that wraps at 360.",
+   "summary": "Turns a speed into an angle that keeps turning.",
+   "tip": "Use to make a hue drift faster or slower with a signal.",
    "title": "Integrate",
    "type": "integrate",
    "useWhen": "Turn a speed signal into a hue position, e.g. drift's rate into its anchor."
@@ -946,6 +990,8 @@
     }
    ],
    "purpose": "Add a step to an Angle on each Trigger pulse and hold it between pulses.",
+   "summary": "Jumps an angle by a fixed step on each trigger.",
+   "tip": "Use to jump the hue on each beat.",
    "title": "Step on trigger",
    "type": "stepOnTrigger",
    "useWhen": "Swing a hue on each beat, e.g. onset strength times 180 degrees per onset."
@@ -1012,6 +1058,8 @@
     }
    ],
    "purpose": "Free-running oscillator between min and max at rateHz.",
+   "summary": "A number that rises and falls steadily on its own.",
+   "tip": "Use for slow breathing movement when there is no music.",
    "title": "LFO",
    "type": "lfo",
    "useWhen": "Slow modulation with no audio, e.g. a breathing brightness."
@@ -1079,6 +1127,8 @@
     }
    ],
    "purpose": "Smooth random wander between min and max, drifting to a new random target about rateHz times per second. Irregular where lfo is periodic.",
+   "summary": "A number that wanders randomly but smoothly.",
+   "tip": "Use for natural, unpredictable drift in color or brightness.",
    "title": "Noise",
    "type": "noise",
    "useWhen": "Flicker with no audio, e.g. a candle or fire brightness. Use image.noise for independent flicker per light."
@@ -1141,6 +1191,8 @@
     }
    ],
    "purpose": "Build a Color from a hue Angle plus saturation and value (0..1).",
+   "summary": "Builds a color from hue, saturation and brightness.",
+   "tip": "Use to turn signals into a color you can steer.",
    "title": "Color from HSV",
    "type": "color.fromHSV",
    "useWhen": "Turn a hue and a brightness signal into a color, e.g. bounce's hue with rms as value."
@@ -1196,6 +1248,8 @@
     }
    ],
    "purpose": "A fixed Color from hue, saturation and value params, no inputs.",
+   "summary": "One fixed color you choose.",
+   "tip": "Use for a steady color, like a warm tint.",
    "title": "Color",
    "type": "color.constant",
    "useWhen": "Supply a fixed color, e.g. a warm tint for frame.tint or a mix target."
@@ -1227,6 +1281,8 @@
     }
    ],
    "purpose": "A fixed Angle from a degrees param, no inputs.",
+   "summary": "One fixed angle you choose.",
+   "tip": "Use for a steady hue or offset on the color wheel.",
    "title": "Angle",
    "type": "angle.constant",
    "useWhen": "Supply a fixed hue or offset, e.g. a color.fromHSV hue or an angle.add offset."
@@ -1262,6 +1318,8 @@
    ],
    "params": [],
    "purpose": "Split a Color into hue (Angle), saturation and value (Floats, 0..1).",
+   "summary": "Splits a color into hue, saturation and brightness.",
+   "tip": "Use to read part of a color and drive something else.",
    "title": "Color to HSV",
    "type": "color.toHSV",
    "useWhen": "Read a video color's hue to drive another node."
@@ -1287,6 +1345,8 @@
    ],
    "params": [],
    "purpose": "Perceived brightness of a Color as a Float 0..1 (weighted RGB, not HSV value).",
+   "summary": "How bright a color looks, as a number.",
+   "tip": "Use to react to how bright a color appears.",
    "title": "Color brightness",
    "type": "color.brightness",
    "useWhen": "Gate or scale something by how bright a color looks."
@@ -1337,6 +1397,8 @@
     }
    ],
    "purpose": "Blend Color a toward Color b by t (0 gives a, 1 gives b, clamped), in RGB.",
+   "summary": "Blends two colors into one.",
+   "tip": "Use to crossfade between two colors.",
    "title": "Mix colors",
    "type": "color.mix",
    "useWhen": "Crossfade two colors, e.g. a video color with the audio color."
@@ -1381,6 +1443,8 @@
     }
    ],
    "purpose": "Rotate a Color's hue by degrees, keeping saturation and value.",
+   "summary": "Turns a color around the color wheel.",
+   "tip": "Use to get a nearby color from one you have.",
    "title": "Hue shift",
    "type": "color.hueShift",
    "useWhen": "Offset a color around the wheel, e.g. +30 for an analogous accent."
@@ -1406,6 +1470,8 @@
    ],
    "params": [],
    "purpose": "The opposite color on the wheel: hue plus 180 degrees.",
+   "summary": "The color opposite on the color wheel.",
+   "tip": "Use to get a matching second color from the first.",
    "title": "Complement",
    "type": "color.complement",
    "useWhen": "Get the second color of a complementary pair from the first."
@@ -1447,6 +1513,8 @@
     }
    ],
    "purpose": "Look up a Color on a gradient param at position t (0..1, clamped).",
+   "summary": "Picks a color along a gradient you design.",
+   "tip": "Use to map a signal onto a palette, like quiet to loud.",
    "title": "Gradient color",
    "type": "color.fromGradient",
    "useWhen": "Map a signal to a palette, e.g. loudness to a cool-to-hot ramp."
@@ -1478,6 +1546,8 @@
     }
    ],
    "purpose": "Pick one of the six vibrant complementary pair anchors (0, 30, 60, 90, 120, 150 degrees) on the first tick and hold it.",
+   "summary": "Picks a random starting color for the palette.",
+   "tip": "Use for a fresh look each time the effect starts.",
    "title": "Random anchor",
    "type": "palette.randomAnchor",
    "useWhen": "Start a palette from a random but pleasant hue, e.g. feeding palette.pick."
@@ -1509,6 +1579,8 @@
    ],
    "params": [],
    "purpose": "Add two Angles, wrapping at 360.",
+   "summary": "Adds two angles, wrapping around the color wheel.",
+   "tip": "Use to offset one hue by another.",
    "title": "Add angles",
    "type": "angle.add",
    "useWhen": "Offset a hue by another, e.g. a drifting anchor plus a beat swing."
@@ -1545,6 +1617,8 @@
     }
    ],
    "purpose": "Pick one hue of a complementary pair: the anchor Angle or the anchor plus 180.",
+   "summary": "Chooses one color from a matching pair.",
+   "tip": "Use to split one starting color into two.",
    "title": "Pick palette hue",
    "type": "palette.pick",
    "useWhen": "Split one anchor into the two colors of a pair, one pick node per color."
@@ -1608,6 +1682,8 @@
     }
    ],
    "purpose": "Blend Frame b into Frame a by t (0 gives a, 1 gives the full blend mode result). Zones match by id: the output has a's zones, a zone missing from b passes through unchanged, and zones only in b are dropped. Gamma comes from a.",
+   "summary": "Blends two sets of light colors into one.",
+   "tip": "Combine a screen effect with a music effect.",
    "title": "Mix frames",
    "type": "frame.mix",
    "useWhen": "Combine a video frame with an audio frame, e.g. mode multiply to let audio gate video."
@@ -1671,6 +1747,8 @@
     }
    ],
    "purpose": "Blend Image b into Image a by t, per pixel in RGB. Both must be the same size or the node fails. b is converted to a's pixel format and the result keeps a's format and alpha.",
+   "summary": "Blends two pictures into one.",
+   "tip": "Use to fade or layer two generated pictures.",
    "title": "Mix images",
    "type": "image.mix",
    "useWhen": "Layer two video sources, e.g. difference of two captures to find motion."
@@ -1715,6 +1793,8 @@
     }
    ],
    "purpose": "Multiply every zone's RGB by factor (1 unchanged, 0 black, above 1 brightens, clamped).",
+   "summary": "Dims or brightens the lights partway through an effect.",
+   "tip": "Use for a dimmer you can drive with a signal.",
    "title": "Brightness",
    "type": "frame.brightnessScale",
    "useWhen": "Dim or boost a frame, e.g. fade with a Float from an lfo."
@@ -1759,6 +1839,8 @@
     }
    ],
    "purpose": "Scale color intensity about each zone's grey (1 unchanged, 0 grey, above 1 vivid).",
+   "summary": "Makes the colors paler or more vivid.",
+   "tip": "Use to wash colors out or make them punch.",
    "title": "Saturation",
    "type": "frame.saturation",
    "useWhen": "Wash out or punch up a frame."
@@ -1803,6 +1885,8 @@
     }
    ],
    "purpose": "Rotate every zone's hue by degrees, keeping saturation and value.",
+   "summary": "Turns every light's color around the color wheel.",
+   "tip": "Use to cycle the whole room through colors.",
    "title": "Hue shift",
    "type": "frame.hueShift",
    "useWhen": "Cycle a frame around the color wheel."
@@ -1853,6 +1937,8 @@
     }
    ],
    "purpose": "Multiply every zone by a tint Color, blended in by amount (0 unchanged, 1 full tint).",
+   "summary": "Colors the whole scene toward one color.",
+   "tip": "Use to warm or cool the look of the lights.",
    "title": "Tint",
    "type": "frame.tint",
    "useWhen": "Warm or cool a frame with a color from the audio or a gradient."
@@ -1942,6 +2028,8 @@
     }
    ],
    "purpose": "Render a gradient param across a small RGB image along an angle. phase scrolls it, wrapping past 1. Pair with zones.sample so zones read colors by their position in the ZoneMap.",
+   "summary": "A smooth blend of colors across the room.",
+   "tip": "Use as a colorful backdrop that can slowly scroll.",
    "title": "Gradient image",
    "type": "image.gradient",
    "useWhen": "Color zones by where they sit, e.g. a palette spread across a room."
@@ -2058,6 +2146,8 @@
     }
    ],
    "purpose": "Render a bar of color on a background along an angle, for chase effects. position moves the bar center (0..1 across the image). Drive position with an lfo or integrate for motion.",
+   "summary": "A band of color that sweeps across the room.",
+   "tip": "Chases and sweeps. Drive Position with an LFO to move it.",
    "title": "Bar image",
    "type": "image.bar",
    "useWhen": "A light that sweeps across the room, sampled per zone by zones.sample."
@@ -2150,6 +2240,8 @@
     }
    ],
    "purpose": "Render a grid of cells that each flicker on their own smooth random wander between background and color. Neighbouring cells are uncorrelated, unlike scrolling gradients.",
+   "summary": "Patches of color that flicker softly and independently.",
+   "tip": "Use for a shimmering, organic, starry look.",
    "title": "Noise image",
    "type": "image.noise",
    "useWhen": "Independent per-light flicker, e.g. a bank of candles or a fire, sampled per zone by zones.sample."
@@ -2260,6 +2352,8 @@
     }
    ],
    "purpose": "Render a rainbow along an angle: hue runs span degrees across the image starting at phase. Fixed saturation and value.",
+   "summary": "A rainbow spread across the room.",
+   "tip": "Use for a rainbow that can shift or scroll.",
    "title": "Hue ramp image",
    "type": "image.hueRamp",
    "useWhen": "Quick rainbow across zones, cycling by driving phase with integrate."
@@ -2295,6 +2389,8 @@
     }
    ],
    "purpose": "Apply one Color to every active zone of an output as a Frame.",
+   "summary": "Paints every light with one color.",
+   "tip": "Use to turn a single color into a light effect.",
    "title": "Broadcast color",
    "type": "frame.broadcast",
    "useWhen": "After audio.bounce; audio has no per-zone spatial concept."
@@ -2313,6 +2409,8 @@
    ],
    "params": [],
    "purpose": "Read one audio buffer per tick; Absent while the source has no data.",
+   "summary": "Live sound from your chosen audio source.",
+   "tip": "Start every effect that reacts to music.",
    "title": "Audio capture",
    "type": "audio.capture",
    "useWhen": "First node of any audio path."
@@ -2358,6 +2456,8 @@
    ],
    "params": [],
    "purpose": "Extract onset, loudness and centroid features from an audio buffer, as one struct and as scalar ports.",
+   "summary": "Measures beats, loudness and brightness of the sound.",
+   "tip": "Use to get beat and loudness signals from the music.",
    "title": "Audio features",
    "type": "audio.features",
    "useWhen": "After capture; feeds drift and bounce."
@@ -2418,6 +2518,8 @@
     }
    ],
    "purpose": "Bass, mid and treble loudness (band RMS, like audio.features rms) as Float outputs.",
+   "summary": "Measures bass, mid and treble loudness separately.",
+   "tip": "Use to react to one part of the sound.",
    "title": "Audio bands",
    "type": "audio.bands",
    "useWhen": "After capture, to drive brightness, color or motion from one frequency range."
@@ -2492,6 +2594,8 @@
     }
    ],
    "purpose": "Slow palette drift; outputs the live anchor hue as an Angle.",
+   "summary": "A color that slowly wanders over time.",
+   "tip": "Use to give a music effect a gently changing base color.",
    "title": "Palette drift",
    "type": "audio.drift",
    "useWhen": "After features; wire the anchor into audio.bounce."
@@ -2608,6 +2712,8 @@
     }
    ],
    "purpose": "Beat-driven color bounce around the drift anchor; outputs a Color.",
+   "summary": "Beat-driven color that jumps around a base color.",
+   "tip": "Use for color that pulses with the music's beat.",
    "title": "Beat bounce",
    "type": "audio.bounce",
    "useWhen": "After features and the drift anchor; the audio path's color output. Re-seeds (snaps) when audio.drift re-seeds, so set the fixed hue on audio.drift only."

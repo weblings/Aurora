@@ -91,6 +91,7 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `daaa19-name-dialog` | [log/2026-11-09-daaa19-name-dialog.md](log/2026-11-09-daaa19-name-dialog.md) | Naming a new effect in a modal dialog |
 | `daaa21-connecting-status` | [log/2026-11-10-daaa21-connecting-status.md](log/2026-11-10-daaa21-connecting-status.md) | Graph editor: status spot reads Connecting before the first draft |
 | `daaa24-1-catalog-group` | [log/2026-11-10-daaa24-1-catalog-group.md](log/2026-11-10-daaa24-1-catalog-group.md) | Graph editor: catalog group field |
+| `daaa24-2-node-copy` | [log/2026-11-10-daaa24-2-node-copy.md](log/2026-11-10-daaa24-2-node-copy.md) | Graph editor: user-facing node copy |
 | `daaa4-control-count-baseline` | [log/2026-11-08-daaa4-control-count-baseline.md](log/2026-11-08-daaa4-control-count-baseline.md) | Graph editor control-count baseline and CMake rebuild check |
 | `daaa5-graph-editor-owner-decisions` | [log/2026-11-08-daaa5-graph-editor-owner-decisions.md](log/2026-11-08-daaa5-graph-editor-owner-decisions.md) | Graph editor cleanup: owner decisions before stage 2 |
 | `daaa6-graph-editor-gap-states` | [log/2026-11-08-daaa6-graph-editor-gap-states.md](log/2026-11-08-daaa6-graph-editor-gap-states.md) | Graph editor cleanup: gap states and the status priority rule |

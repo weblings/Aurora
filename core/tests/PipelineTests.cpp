@@ -2633,6 +2633,23 @@ TEST_CASE("GET /api/nodes serves every registered node and rejects a forged Host
     for(const char* key : {"title", "group", "purpose", "useWhen", "example", "cost"}){
       CHECK_FALSE(node[key].get<std::string>().empty());
     }
+    for(const char* key : {"summary", "tip"}){
+      const std::string text = node[key].get<std::string>();
+      INFO(types[i] << " " << key << ": " << text);
+      CHECK_FALSE(text.empty());
+      // Word limits from the cleanup doc: summary <= 10 words, tip <= 12 words, one sentence.
+      size_t words = 0;
+      for(size_t c = 0; c < text.size(); ++c){
+        if(text[c] != ' ' && (c == 0 || text[c - 1] == ' ')){
+          ++words;
+        }
+      }
+      CHECK(words <= (std::string(key) == "summary" ? 10u : 12u));
+      // Display titles only: no type id appears in user text.
+      for(const auto& other : types){
+        CHECK(text.find(other) == std::string::npos);
+      }
+    }
     {
       const auto& groups = Aurora::Runtime::Graph::kNodeGroups;
       INFO(types[i] << " group " << node["group"]);

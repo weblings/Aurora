@@ -212,6 +212,8 @@ namespace Aurora::Runtime::Graph
           {
             .title = "Smooth frames",
             .group = "Lights",
+            .summary = "Softens sudden color changes on the lights.",
+            .tip = "Use when lights flicker or jump between frames.",
             .purpose = "Ease each zone's color toward its new value, per output.",
             .useWhen = "Between zone sampling and output.send; one instance per output.",
             .example =
@@ -242,6 +244,8 @@ namespace Aurora::Runtime::Graph
           {
             .title = "Smooth frames (timed)",
             .group = "Lights",
+            .summary = "Softens color changes over a set time.",
+            .tip = "Use when softening must feel identical at any refresh rate.",
             .purpose = "Ease each zone's color toward its new value over tau seconds, at any tick rate.",
             .useWhen = "Instead of frame.smooth when easing must feel the same at every refresh rate.",
             .example = "{\"id\": \"ease\", \"type\": \"frame.smoothTime\", \"params\": {\"tau\": 0.15}}",
@@ -266,6 +270,8 @@ namespace Aurora::Runtime::Graph
           {
             .title = "Gain",
             .group = "Lights",
+            .summary = "The master dimmer for all the lights.",
+            .tip = "Use as the final dimmer, just before sending.",
             .purpose = "Scale every zone's color by a brightness factor.",
             .useWhen = "Last step before output.send; the built-in graphs run the global brightness here.",
             .example = "{\"id\": \"dim\", \"type\": \"frame.gain\", \"params\": {\"gain\": 0.5}}",
@@ -315,6 +321,8 @@ namespace Aurora::Runtime::Graph
           {
             .title = "Black floor",
             .group = "Lights",
+            .summary = "Stops lights from dimming below a minimum.",
+            .tip = "Use for lights that switch off at zero brightness.",
             .purpose = "Keep zones above a minimum brightness for outputs where brightness 0 means off.",
             .useWhen = "After frame.gain, before output.send, per output; leave policy off for Hue.",
             .example =
@@ -334,6 +342,8 @@ namespace Aurora::Runtime::Graph
           {
             .title = "Send to output",
             .group = "Lights",
+            .summary = "Sends the colors to a light output.",
+            .tip = "Every effect needs one for each set of lights.",
             .purpose = "Send a Frame to one output; sends nothing on a skipped tick.",
             .useWhen = "Last node of every path, one per output.",
             .example = "{\"id\": \"send\", \"type\": \"output.send\", \"params\": {\"output\": \"hue\"}}",
