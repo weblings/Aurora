@@ -2,7 +2,7 @@
 
 Id: graph-editor-cleanup
 
-Status: stage 1 built (back link, Aurora component styles); stage 2 built (top bar, title and view menus, status spot, `Aurora-daaa.11`); stages 3-4 proposed.
+Status: stage 1 built (back link, Aurora component styles); stage 2 built (top bar, title and view menus, status spot, `Aurora-daaa.11`); stage 3 directions decided (cascade, catalog `group`); stage 4 proposed.
 Written 2026-11-06 under `Aurora-bova`. The owner reviewed the working mock and likes
 the direction. Decisions 1-7 are recorded under Decisions (2026-11-08). Stages 1-2 are
 built; stages 3-4 are still a proposal and follow those decisions.
@@ -101,10 +101,12 @@ These change the shape of the work and need an owner decision.
 | Form | Strength | Cost |
 |---|---|---|
 | A: Browser | Group rail, list and preview, so a node can be learned before adding it | Largest popup, 760x460 |
-| B: Cascade | Compact, reads like a context menu | Little room to explain a node, fiddly flyouts |
+| B: Cascade | Compact, reads like a context menu. Search sits on top, so it is search-first too | No port preview beside the list (the purpose line and a tooltip carry the text, as in C), and flyouts need Grille submenus |
 | C: Side sheet | Stays open for adding several, uses the accordion look | A panel again, which works against the goal |
 
 Recommendation: A, optionally with a pin to keep it open.
+
+Decided: B (see Decisions, 2026-11-09).
 
 ### 2. Who owns the node groups
 
@@ -117,6 +119,10 @@ The catalog has no category field, so the mock's groups are a hand-written map.
 
 Recommendation: start with the editor map, and promote it only if agents or other
 consumers need the groups.
+
+Decided: a catalog field named `group` (see Decisions, 2026-11-09). The cost was
+smaller than estimated above: `NodeTypeMeta` already carries per-node metadata, so it is
+one line per registration plus the places that copy the meta out.
 
 ### 3. One text for people and agents, or two
 
@@ -407,8 +413,8 @@ the editor's checks or lockfile.
    with no visible change. This needs G1 and the gate. Then the title and Save menus become
    the first real users of the shared popup behavior on G3a. The status priority rule is
    settled here, and most header and action row selectors change.
-3. **Add node menu.** Replaces the palette, so directions 1 and 2 must be decided first.
-   Needs G3b.
+3. **Add node menu.** Replaces the palette. Directions 1 and 2 are decided (cascade,
+   catalog `group`). Needs G3b (`Aurora-daaa.20`) and Grille submenus (`Aurora-daaa.23`).
 4. **Right-click, drawers and Delete.** Must land together. The Inspector can only go once
    the node menu and drawers can reach everything it did.
 
@@ -465,10 +471,29 @@ the menu.
   with unsaved edits. Revisit if needed.
 - **Grille tracking:** Grille work is tracked by beads in `weblings/GrilleDS` (prefix
   `Grille`): G1 is `Grille-251` (Aurora `daaa.7`), G2 and G3a are `Grille-48x` (Aurora
-  `daaa.8`), and G3b is `Grille-h7g` (Aurora `daaa.20`, installed as the `v0.1.0-dev.4`
-  prerelease cut from Grille's dev branch). The Aurora beads stay as the consumer-side blockers
+  `daaa.8`), G3b is `Grille-h7g` (Aurora `daaa.20`, installed as the `v0.1.0-dev.4`
+  prerelease cut from Grille's dev branch), and Menu submenus for the cascade are
+  `Grille-ofj` (Aurora `daaa.23`, the next dev prerelease). The Aurora beads stay as the consumer-side blockers
   and close when the matching Grille release installs here.
 
+
+## Decisions (owner, 2026-11-09)
+
+- **Direction 1, Add node menu form:** B, the cascade. Search sits at the top and switches
+  the menu to a flat ranked list while there is a query. Without a query, one row per group
+  opens a flyout of that group's nodes. Each node row shows its `purpose`; `useWhen` goes in
+  a hover tooltip. B gives up only A's port preview beside the list. Flyouts need Grille
+  submenus (`Grille-ofj`, Aurora `daaa.23`).
+- **Direction 2, node groups:** a catalog field, `NodeTypeMeta::group`, carried through
+  `/api/nodes`, `/api/v1/nodes`, the descriptors and the server samples. It is additive, so
+  `/api/v1` stays compatible.
+- **Group names:** the mock's seven, in signal-flow order: Sources (7), Audio (4), Image (7),
+  Color (8), Numbers (10), Motion (5), Lights (12). They cover all 53 registered types, one
+  group each. Flat, with no nesting. Lights is the name to watch if people look for "Frame".
+- **MCP:** `list_nodes` returns `group` on each entry and takes an optional `group` filter.
+  Its existing `category` argument stays a type-prefix filter (e.g. `frame.`), and its
+  description says so, since reusing `category` for groups would return an empty list for
+  agents that pass a prefix.
 
 ## Known follow-ups (filed under `Aurora-daaa`)
 
