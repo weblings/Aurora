@@ -96,6 +96,7 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `daaa24-4-palette-removed` | [log/2026-11-10-daaa24-4-palette-removed.md](log/2026-11-10-daaa24-4-palette-removed.md) | Graph editor: palette removed |
 | `daaa25-browser-check-timeouts` | [log/2026-11-10-daaa25-browser-check-timeouts.md](log/2026-11-10-daaa25-browser-check-timeouts.md) | Graph editor: top-bar and title-menu checks fixed |
 | `daaa26-gate-status` | [log/2026-11-10-daaa26-gate-status.md](log/2026-11-10-daaa26-gate-status.md) | Graph editor: gate check fixed |
+| `daaa27-1-context-menus` | [log/2026-11-10-daaa27-1-context-menus.md](log/2026-11-10-daaa27-1-context-menus.md) | Graph editor: right-click and ⋯ menus |
 | `daaa4-control-count-baseline` | [log/2026-11-08-daaa4-control-count-baseline.md](log/2026-11-08-daaa4-control-count-baseline.md) | Graph editor control-count baseline and CMake rebuild check |
 | `daaa5-graph-editor-owner-decisions` | [log/2026-11-08-daaa5-graph-editor-owner-decisions.md](log/2026-11-08-daaa5-graph-editor-owner-decisions.md) | Graph editor cleanup: owner decisions before stage 2 |
 | `daaa6-graph-editor-gap-states` | [log/2026-11-08-daaa6-graph-editor-gap-states.md](log/2026-11-08-daaa6-graph-editor-gap-states.md) | Graph editor cleanup: gap states and the status priority rule |

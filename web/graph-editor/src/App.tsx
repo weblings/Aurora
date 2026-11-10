@@ -21,6 +21,7 @@ import { EditorContext, type EditorActions } from './EditorContext'
 import { GenericNode } from './GenericNode'
 import { Inspector } from './Inspector'
 import { AddNodeMenu } from './AddNodeMenu'
+import { ContextMenu, type MenuAction, type MenuTarget } from './ContextMenu'
 import { ProblemsContext } from './ProblemsContext'
 import { ProblemsChip } from './ProblemsChip'
 import { Toast, useToast } from './Toast'
@@ -301,11 +302,47 @@ export function App() {
     [nodes],
   )
 
+  // Right-click and ⋯ menus (Aurora-daaa.27.1).
+  const [menu, setMenu] = useState<MenuTarget | null>(null)
+  // A node menu on an unselected node selects it alone first, so Delete and the
+  // count act on what the menu was opened on.
+  const openMenu = useCallback(
+    (target: MenuTarget) => {
+      if (target.kind === 'node') {
+        setNodeView((view) => {
+          const base = view.length > 0 ? view : nodes
+          if (base.find((n) => n.id === target.id)?.selected) return view
+          return base.map((n) => ({ ...n, selected: n.id === target.id }))
+        })
+      }
+      setMenu(target)
+    },
+    [nodes],
+  )
+  const openMenuRef = useRef(openMenu)
+  openMenuRef.current = openMenu
+
+  // Shift+F10 (or the Menu key) on a focused node opens its menu.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (!((e.key === 'F10' && e.shiftKey) || e.key === 'ContextMenu')) return
+      const node = (e.target as HTMLElement | null)?.closest<HTMLElement>('.react-flow__node')
+      const id = node?.dataset.id
+      if (!node || !id) return
+      e.preventDefault()
+      const box = node.getBoundingClientRect()
+      openMenuRef.current({ kind: 'node', id, x: box.left, y: box.top + 24 })
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [])
+
   const actions = useMemo<EditorActions>(
     () => ({
       setParam: (nodeId: string, name: string, value: ParamValue) =>
         dispatch({ type: 'edit', change: (d) => setParam(d, nodeId, name, value), live: true }),
       commit: () => dispatch({ type: 'commit' }),
+      openNodeMenu: (nodeId: string, at: { x: number; y: number }) => openMenuRef.current({ kind: 'node', id: nodeId, ...at }),
     }),
     [],
   )
@@ -334,20 +371,35 @@ export function App() {
     edit((d) => moveNodes(d, Object.fromEntries(dragged.map((n) => [n.id, { x: n.position.x, y: n.position.y }]))))
   }, [edit])
 
-  // Adds a node of a catalog type at the canvas centre.
+  // Adds a node of a catalog type at the pointer, else the canvas centre.
   const addFromMenu = useCallback(
-    (type: string) => {
+    (type: string, pointer?: { x: number; y: number }) => {
       const info = catalog?.get(type)
       const view = flow.current
       if (!info || !view) return
       const box = canvas.current?.getBoundingClientRect()
-      const point = { x: (box?.left ?? 0) + (box?.width ?? 0) / 2, y: (box?.top ?? 0) + (box?.height ?? 0) / 2 }
+      const point = pointer ?? { x: (box?.left ?? 0) + (box?.width ?? 0) / 2, y: (box?.top ?? 0) + (box?.height ?? 0) / 2 }
       const at = view.screenToFlowPosition(point)
       edit((d) => addNode(d, info, at))
       showToast(`Added ${info.type}`)
     },
     [catalog, edit, showToast],
   )
+
+  const onMenuAction = (a: MenuAction) => {
+    const at = menu
+    if (a.type === 'add') addFromMenu(a.nodeType, at ? { x: at.x, y: at.y } : undefined)
+    else if (a.type === 'undo') undo()
+    else if (a.type === 'redo') redo()
+    else if (a.type === 'fit') void flow.current?.fitView({ ...FIT_OPTIONS, duration: 200 })
+    else if (a.type === 'delete-nodes') edit((d) => removeNodes(d, new Set(picked.map((n) => n.id))))
+    else if (a.type === 'delete-edge' && at?.kind === 'edge') edit((d) => d.edges.filter((e) => edgeId(e) === at.id).reduce(removeEdge, d))
+    // Details and the Dashboard checkboxes need the drawer (Aurora-daaa.27.3);
+    // until then both select the node, which the Inspector shows.
+    else if (a.type === 'details' || a.type === 'dashboard') {
+      if (at?.kind === 'node') selectNode(at.id)
+    }
+  }
 
   const wiring = useCallback(
     (c: Connection | Edge) => {
@@ -580,6 +632,18 @@ export function App() {
             onNodesChange={onNodesChange}
             onEdgesChange={onEdgesChange}
             onNodeDragStop={onNodeDragStop}
+            onPaneContextMenu={(e) => {
+              e.preventDefault()
+              openMenu({ kind: 'canvas', x: (e as React.MouseEvent).clientX, y: (e as React.MouseEvent).clientY })
+            }}
+            onNodeContextMenu={(e, node) => {
+              e.preventDefault()
+              openMenu({ kind: 'node', id: node.id, x: e.clientX, y: e.clientY })
+            }}
+            onEdgeContextMenu={(e, edge) => {
+              e.preventDefault()
+              openMenu({ kind: 'edge', id: edge.id, x: e.clientX, y: e.clientY })
+            }}
             onConnect={onConnect}
             onConnectStart={onConnectStart}
             onConnectEnd={onConnectEnd}
@@ -605,6 +669,17 @@ export function App() {
       </div>
       {doc && catalog ? <Inspector doc={doc} catalog={catalog} selected={selectedId} edit={edit} /> : <div className="inspector" />}
       </div>
+      {catalog ? (
+        <ContextMenu
+          target={menu}
+          catalog={catalog}
+          canUndo={past.length > 0}
+          canRedo={future.length > 0}
+          selectedCount={picked.length}
+          onClose={() => setMenu(null)}
+          onAction={onMenuAction}
+        />
+      ) : null}
       <Toast text={toastText} />
     </div>
   )

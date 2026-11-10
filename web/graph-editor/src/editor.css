@@ -647,3 +647,21 @@ button.editor-problem-row:hover {
 .add-socket[data-shape='triangle'] {
   clip-path: polygon(0 0, 100% 50%, 0 100%);
 }
+
+/* The node's ⋯ button: faded until hover or selection, but always rendered and
+   never aria-hidden, so VoiceOver finds it (kep27-voiceover-tree-check). */
+.aurora-node-more {
+  background: none;
+  border: 0;
+  color: inherit;
+  cursor: pointer;
+  font: inherit;
+  line-height: 1;
+  padding: 0 var(--aurora-space-2, 4px);
+  opacity: 0;
+}
+.aurora-node:hover .aurora-node-more,
+.react-flow__node.selected .aurora-node-more,
+.aurora-node-more:focus-visible {
+  opacity: 1;
+}

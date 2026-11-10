@@ -8,9 +8,11 @@ export type EditorActions = {
   // `commit` ends the gesture.
   setParam: (nodeId: string, name: string, value: ParamValue) => void
   commit: () => void
+  // Opens the node menu at a point (the ⋯ button, Shift+F10).
+  openNodeMenu: (nodeId: string, at: { x: number; y: number }) => void
 }
 
-export const EditorContext = createContext<EditorActions>({ setParam: () => {}, commit: () => {} })
+export const EditorContext = createContext<EditorActions>({ setParam: () => {}, commit: () => {}, openNodeMenu: () => {} })
 
 export function useEditorActions(): EditorActions {
   return useContext(EditorContext)

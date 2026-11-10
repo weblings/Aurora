@@ -31,6 +31,7 @@ export function toFlowNodes(doc: GraphDoc, catalog: Catalog): Node<AuroraNodeDat
   return doc.nodes.map((node) => ({
     id: node.id,
     type: NODE_KIND,
+    ariaLabel: catalog.get(node.type)?.title || node.type,
     position: positions[node.id],
     data: {
       type: node.type,
@@ -49,6 +50,7 @@ export function toFlowEdges(doc: GraphDoc, catalog?: Catalog): Edge[] {
     const look = sourceType ? portStyle(sourceType) : null
     return {
       id: edgeId(edge),
+      interactionWidth: 24,
       source: from.node,
       sourceHandle: from.port,
       target: to.node,

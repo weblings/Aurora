@@ -31,6 +31,7 @@ tested on a phone, and touch is not a goal of this pass.
   `ZoneThumbnail.tsx` draws its frames from a ref, not state, placing the
   active output's zones at their `/api/zones` uv regions (grid for the rest).
 - `src/TitleMenu.tsx`, `ViewMenu.tsx`, `ProblemsChip.tsx`, `Toast.tsx` -- the top bar's popups and the toast, all on `EditorPopup`. `graph/status.ts` picks the one status line and the banner from the priority rule in `docs/planning/WebUI/GraphEditorCleanup.md`.
+- `src/ContextMenu.tsx` -- right-click menus for the canvas, a node and a wire, anchored at a point; the node menu also opens from each node's `⋯` button and Shift+F10 (`Aurora-daaa.27.1`).
 - `src/EditorPopup.tsx` -- the shared popup layer over Grille's `Popover`.
 - `src/useLightTest.ts` -- heartbeat, countdown and holder polling for a test;
   `Inspector.tsx` -- node details and the Dashboard controls list.
