@@ -6,7 +6,7 @@
 import assert from 'node:assert/strict'
 import { launch } from '../lib/browser.mjs'
 import { withEditorStack } from '../lib/stack.mjs'
-import { controlCount, controlsButton, detailsChecks, openDetails, tickFirst, waitControlCount } from '../lib/editorMenu.mjs'
+import { openTitleMenu, titleMenu, controlCount,controlsButton, detailsChecks, openDetails, tickFirst, waitControlCount } from '../lib/editorMenu.mjs'
 
 await withEditorStack(async ({ editorUrl }) => {
   const browser = await launch()
@@ -71,7 +71,15 @@ await withEditorStack(async ({ editorUrl }) => {
     await waitControlCount(page, total)
     step('controls drawer: one drawer at a time, stays open on a canvas click, reorder and remove')
 
+    // A menu opened over the drawer takes the first Esc; the drawer takes the second.
+    await openTitleMenu(page)
+    await page.keyboard.press('Escape')
+    await titleMenu(page).waitFor({ state: 'detached' })
+    assert.equal(await list.count(), total, 'first Esc closes only the menu')
+    step('Esc with a menu open closes the menu, not the drawer')
+
     // Esc closes it, also after a canvas click.
+    await page.locator('.react-flow__pane').click({ position: { x: 5, y: 300 } })
     await page.keyboard.press('Escape')
     await list.first().waitFor({ state: 'detached' })
     step('Esc closes the drawer from the canvas')

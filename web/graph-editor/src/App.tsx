@@ -296,20 +296,6 @@ export function App() {
     return () => window.removeEventListener('keydown', onKey)
   }, [])
 
-  // The Drawer closes itself on Esc only while focus is inside it, and a click
-  // on the canvas moves focus out. Esc anywhere else closes it too, unless a
-  // menu or popup already took the key.
-  useEffect(() => {
-    if (!drawer) return
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key !== 'Escape' || e.defaultPrevented) return
-      if (document.querySelector('.react-aria-Popover, [role="menu"], [role="dialog"]')) return
-      setDrawer(null)
-    }
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-  }, [drawer])
-
   // Keep the selected node clear of the Details drawer: pan, never zoom, and
   // only when it sits under the drawer. Runs when Details opens, follows a new
   // selection, or the canvas (so the drawer width) changes size.
