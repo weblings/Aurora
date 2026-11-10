@@ -13,7 +13,8 @@ import { withEditorStack } from '../lib/stack.mjs'
 
 // Stage 1 baseline (Aurora-daaa.4: 84 and 132), lowered by Aurora-daaa.11 (top bar, title and view menus), measured on the fake-Hue stack.
 // What is left is the Add node list (53) and the Dashboard controls in the inspector: stages 3 and 4.
-const CEILING = { 'builtin.video': 78, 'builtin.audio': 126 }
+// Aurora-daaa.24.3 added the + button (video 79); the palette goes in Aurora-daaa.24.4, which lowers this.
+const CEILING = { 'builtin.video': 79, 'builtin.audio': 126 }
 
 await withEditorStack(async ({ editorUrl }) => {
   const browser = await launch()

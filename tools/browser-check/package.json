@@ -6,6 +6,7 @@
   "scripts": {
     "graph-editor": "node checks/graph-editor-edit-loop.mjs",
     "graph-editor:add-node": "node checks/graph-editor-add-node.mjs",
+    "graph-editor:add-menu": "node checks/graph-editor-add-menu.mjs",
     "graph-editor:save-as-new": "node checks/graph-editor-save-as-new.mjs",
     "graph-editor:port-types": "node checks/graph-editor-port-types.mjs",
     "graph-editor:title-menu": "node checks/graph-editor-title-menu.mjs",

@@ -266,3 +266,13 @@ Applies-when: a screen passes callbacks into a component whose construction need
 `DashboardScreen` wires `ZoneCanvas`'s `onActiveChange` and `ZoneActiveToggleList`'s `onChange` so the two zone views refresh each other (Aurora-ifkn.5). `ZoneCanvas` construction needs `document` (SVG shapes, dropdown, sliders), so no node test can build the pair and fire a flip end to end -- and ES module imports can't be stubbed, so the options object the screen passes is unreachable from a test. Inline arrow closures would leave the contract covered only by inspection.
 
 **Fix:** route each callback through a one-line screen method (`_onZoneCanvasActiveChange()` re-renders the Bridge list, `_onBridgeZoneToggle()` calls `zoneCanvas?.refreshActive()`), pass `() => this._onX()` in the options, and prototype-call the methods against doubles in `DashboardScreen.test.mjs` (fake canvas counting `refreshActive`, stubbed `_renderBridgeZoneList`, null-canvas no-throw). The remaining one-line arrows are review-visible; the behavior contract is asserted.
+
+---
+
+## A browser check against the built app needs a rebuilt binary, and `getByRole` misses react-aria submenus
+Tags: webui, playwright, browser-check, grille
+Applies-when: a browser check reads a new `/api/nodes` field or drives a Grille `SubmenuItem`
+
+`devstack` runs `build/mac-app` as it stands, so the Add node menu check saw every node under "Other": the binary predated the catalog `group` field (Aurora-daaa.24.1), and the editor dev server happily proxied to it. Rebuild (`cmake --build build/mac-app`) before a check that depends on a core API change. Separately, the open submenu's `role=menu` is not reachable by `getByRole('menu', { name })` (the check timed out although the DOM had it); select it with `[role=menu][aria-label="..."]`.
+
+**Fix:** rebuild first; locate flyouts by attribute selector.

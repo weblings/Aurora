@@ -613,3 +613,68 @@ button.editor-problem-row:hover {
   justify-content: flex-end;
   gap: var(--aurora-space-2);
 }
+
+/* Add node menu (Aurora-daaa.24.3): cascade of groups, flat ranked list while searching. */
+.editor-add-node {
+  min-width: 32px;
+  font-weight: 600;
+}
+
+.add-menu {
+  width: 340px;
+}
+
+.add-row {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.add-row-head {
+  display: flex;
+  align-items: center;
+  gap: var(--aurora-space-2, 8px);
+}
+
+.add-row-name {
+  font-weight: 600;
+}
+
+.add-row-summary {
+  color: var(--ui-color-text-secondary, #aaa);
+  font-size: 12px;
+  white-space: normal;
+}
+
+.add-sockets {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 11px;
+  color: var(--ui-color-text-secondary, #aaa);
+}
+
+.add-sockets-side {
+  margin-right: 1px;
+}
+
+.add-socket {
+  width: 8px;
+  height: 8px;
+  background: var(--port-color);
+}
+
+.add-socket[data-shape='circle'] {
+  border-radius: 50%;
+}
+
+.add-socket[data-shape='diamond'] {
+  rotate: 45deg;
+  width: 6px;
+  height: 6px;
+}
+
+.add-socket[data-shape='triangle'] {
+  clip-path: polygon(0 0, 100% 50%, 0 100%);
+}

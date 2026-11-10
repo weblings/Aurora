@@ -20,6 +20,7 @@ import { applyGraph, fetchCatalog, fetchEffectGraph, fetchEffects, putDraft, sav
 import { EditorContext, type EditorActions } from './EditorContext'
 import { GenericNode } from './GenericNode'
 import { Inspector } from './Inspector'
+import { AddNodeMenu } from './AddNodeMenu'
 import { PALETTE_DRAG_TYPE, Palette } from './Palette'
 import { ProblemsContext } from './ProblemsContext'
 import { ProblemsChip } from './ProblemsChip'
@@ -268,6 +269,24 @@ export function App() {
     return () => window.removeEventListener('keydown', onKey)
   }, [])
 
+  // Shift+A opens the Add node menu while the canvas has focus (not in a text box).
+  const [addMenuOpen, setAddMenuOpen] = useState(false)
+  const addMenuTrigger = useRef<HTMLButtonElement>(null)
+  const canAdd = doc !== null && catalog !== null
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (!canAdd || e.key !== 'A' || !e.shiftKey || e.metaKey || e.ctrlKey || e.altKey) return
+      const target = e.target as HTMLElement | null
+      // A click on the pane leaves focus on <body>, which counts as the canvas.
+      if (!target || (target !== document.body && !target.closest('.editor-canvas'))) return
+      if (target.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName)) return
+      e.preventDefault()
+      setAddMenuOpen(true)
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [canAdd])
+
   const nodes = useMemo(
     () => (doc && catalog ? carryViewState(nodeView, toFlowNodes(doc, catalog)) : []),
     [doc, catalog, nodeView],
@@ -419,6 +438,28 @@ export function App() {
           <img className="editor-chevron" src={titleMenuOpen ? chevronUp : chevronDown} alt="" />
         </button>
         {dirty ? <span className="editor-dirty">Unsaved</span> : null}
+        <button
+          ref={addMenuTrigger}
+          type="button"
+          className="btn btn-secondary editor-add-node"
+          aria-label="Add node"
+          aria-haspopup="dialog"
+          aria-expanded={addMenuOpen}
+          title="Add node (Shift+A)"
+          disabled={!doc || !catalog}
+          onClick={() => setAddMenuOpen((open) => !open)}
+        >
+          +
+        </button>
+        {catalog ? (
+          <AddNodeMenu
+            isOpen={addMenuOpen}
+            onClose={() => setAddMenuOpen(false)}
+            triggerRef={addMenuTrigger}
+            catalog={catalog}
+            onAdd={(type) => addFromPalette(type)}
+          />
+        ) : null}
         <TitleMenu
           isOpen={titleMenuOpen}
           onClose={() => setTitleMenuOpen(false)}
