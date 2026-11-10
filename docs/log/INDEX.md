@@ -360,3 +360,4 @@ Planning docs stay clean: decisions, status, and pointers here only.
 | 2026-11-10 | Graph editor: catalog group field on all 53 nodes, through the API and MCP list_nodes. [[daaa24-1-catalog-group]] | `bd show Aurora-daaa.24.1` |
 | 2026-11-10 | Graph editor: user-facing summary and tip copy on all 53 nodes. [[daaa24-2-node-copy]] | `bd show Aurora-daaa.24.2` |
 | 2026-11-10 | Graph editor: cascade Add node menu (+ button, Shift+A, search, group flyouts); Grille dev.6 installed. [[daaa24-3-add-node-menu]] | `bd show Aurora-daaa.24.3`, `Aurora-daaa.23`, `Aurora-daaa.20` |
+| 2026-11-10 | Graph editor: palette removed, checks migrated; chrome controls 79 -> 26 (video), 126 -> 74 (audio); bundle 646.84 kB. [[daaa24-4-palette-removed]] | `bd show Aurora-daaa.24.4`, `Aurora-daaa.24` |

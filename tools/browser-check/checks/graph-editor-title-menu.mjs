@@ -51,14 +51,14 @@ await withEditorStack(async ({ editorUrl }) => {
 
     // Esc while focus is outside the menu.
     await openTitleMenu(page)
-    await page.locator('.palette-item').first().focus()
+    await page.locator('.react-flow__pane').focus()
     await page.keyboard.press('Escape')
     await closed()
     step('Esc closes it while focus is outside the menu')
 
     // Outside click.
     await openTitleMenu(page)
-    await page.locator('.palette').click({ position: { x: 5, y: 5 } })
+    await page.locator('.react-flow__pane').click({ position: { x: 5, y: 300 } })
     await closed()
     step('a click outside closes it')
 

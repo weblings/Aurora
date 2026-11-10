@@ -26,9 +26,7 @@ tested on a phone, and touch is not a goal of this pass.
   Vitest suite.
 - `src/GenericNode.tsx`, `src/ParamWidget.tsx` -- one node component draws any
   `/api/nodes` entry; one widget per param kind.
-- `src/Palette.tsx` -- the add-node list (`graph/palette.ts` groups catalog
-  types by prefix); click adds at the view centre, a drop adds at the pointer.
-- `src/AddNodeMenu.tsx` -- the cascade Add node menu (`+` button, Shift+A): group flyouts, or a ranked search list; `graph/addMenu.ts` has the grouping and ranking. It sits beside the palette until `Aurora-daaa.24.4`.
+- `src/AddNodeMenu.tsx` -- the cascade Add node menu (`+` button, Shift+A): group flyouts, or a ranked search list; `graph/addMenu.ts` has the grouping and ranking. A pick adds at the view centre.
 - `src/useDraftLoop.ts` -- sends the draft and holds the preview stream;
   `ZoneThumbnail.tsx` draws its frames from a ref, not state, placing the
   active output's zones at their `/api/zones` uv regions (grid for the rest).

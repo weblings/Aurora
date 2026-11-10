@@ -21,7 +21,6 @@ import { EditorContext, type EditorActions } from './EditorContext'
 import { GenericNode } from './GenericNode'
 import { Inspector } from './Inspector'
 import { AddNodeMenu } from './AddNodeMenu'
-import { PALETTE_DRAG_TYPE, Palette } from './Palette'
 import { ProblemsContext } from './ProblemsContext'
 import { ProblemsChip } from './ProblemsChip'
 import { Toast, useToast } from './Toast'
@@ -335,14 +334,14 @@ export function App() {
     edit((d) => moveNodes(d, Object.fromEntries(dragged.map((n) => [n.id, { x: n.position.x, y: n.position.y }]))))
   }, [edit])
 
-  // Adds a palette type at a screen point (a drop) or the canvas centre.
-  const addFromPalette = useCallback(
-    (type: string, screen?: { x: number; y: number }) => {
+  // Adds a node of a catalog type at the canvas centre.
+  const addFromMenu = useCallback(
+    (type: string) => {
       const info = catalog?.get(type)
       const view = flow.current
       if (!info || !view) return
       const box = canvas.current?.getBoundingClientRect()
-      const point = screen ?? { x: (box?.left ?? 0) + (box?.width ?? 0) / 2, y: (box?.top ?? 0) + (box?.height ?? 0) / 2 }
+      const point = { x: (box?.left ?? 0) + (box?.width ?? 0) / 2, y: (box?.top ?? 0) + (box?.height ?? 0) / 2 }
       const at = view.screenToFlowPosition(point)
       edit((d) => addNode(d, info, at))
       showToast(`Added ${info.type}`)
@@ -457,7 +456,7 @@ export function App() {
             onClose={() => setAddMenuOpen(false)}
             triggerRef={addMenuTrigger}
             catalog={catalog}
-            onAdd={(type) => addFromPalette(type)}
+            onAdd={(type) => addFromMenu(type)}
           />
         ) : null}
         <TitleMenu
@@ -506,7 +505,7 @@ export function App() {
         <ProblemsChip
           problems={problems}
           onSelectNode={selectNode}
-          onAddNode={() => document.querySelector<HTMLElement>('.palette-item')?.focus()}
+          onAddNode={() => setAddMenuOpen(true)}
         />
         <span className="editor-bar-end" />
         <button type="button" className="btn btn-secondary" onClick={undo} disabled={past.length === 0} title="Undo (Ctrl/Cmd+Z)">
@@ -570,17 +569,7 @@ export function App() {
         </div>
       ) : null}
       <div className="editor-body">
-      {/* The panels keep their width while loading: the canvas fits the graph once, and a late panel would shrink it under the nodes. */}
-      {catalog ? <Palette catalog={catalog} onAdd={(type) => addFromPalette(type)} /> : <div className="palette" />}
-      <div className="editor-canvas" ref={canvas}
-        onDragOver={(e) => e.dataTransfer.types.includes(PALETTE_DRAG_TYPE) && e.preventDefault()}
-        onDrop={(e) => {
-          const type = e.dataTransfer.getData(PALETTE_DRAG_TYPE)
-          if (!type) return
-          e.preventDefault()
-          addFromPalette(type, { x: e.clientX, y: e.clientY })
-        }}
-      >
+            <div className="editor-canvas" ref={canvas}>
         <ZoneThumbnail frame={loop.frame} live={loop.state.stream === 'live'} />
         <ProblemsContext.Provider value={problems}>
         <EditorContext.Provider value={actions}>

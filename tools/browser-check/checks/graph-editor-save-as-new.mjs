@@ -3,7 +3,7 @@
 import assert from 'node:assert/strict'
 import { launch } from '../lib/browser.mjs'
 import { withEditorStack } from '../lib/stack.mjs'
-import { currentEffect, fileAction, openTitleMenu, readName, setName } from '../lib/editorMenu.mjs'
+import { addNodeByName, currentEffect, fileAction, openTitleMenu, readName, setName } from '../lib/editorMenu.mjs'
 
 const created = []
 
@@ -37,7 +37,7 @@ await withEditorStack(async ({ editorUrl }) => {
     const live = (await api('GET', '/api/config')).json.activeEffectId
     const before = await page.locator('.react-flow__node').count()
 
-    await page.locator('.palette-item', { hasText: 'Gain' }).first().click()
+    await addNodeByName(page, 'Gain')
     await page.waitForFunction((n) => document.querySelectorAll('.react-flow__node').length === n + 1, before)
     const ids = await page.locator('.react-flow__node').evaluateAll((els) => els.map((e) => e.dataset.id))
     const added = ids.find((id) => /^gain(-\d+)?$/.test(id))

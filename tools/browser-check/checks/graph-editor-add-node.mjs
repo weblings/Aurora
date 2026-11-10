@@ -1,9 +1,9 @@
-// Aurora-pvxx.13: add a node from the palette, wire it in, the preview stays
+// Aurora-pvxx.13: add a node from the menu, wire it in, the preview stays
 // Live, Save, and the reopened effect has the node. Runs on the dummy input.
 import assert from 'node:assert/strict'
 import { launch } from '../lib/browser.mjs'
 import { withEditorStack } from '../lib/stack.mjs'
-import { fileAction, setName } from '../lib/editorMenu.mjs'
+import { addNodeByName, fileAction, setName } from '../lib/editorMenu.mjs'
 
 const created = []
 
@@ -27,9 +27,9 @@ await withEditorStack(async ({ editorUrl }) => {
     await waitLive()
     const before = await page.locator('.react-flow__node').count()
 
-    await page.locator('.palette-item', { hasText: 'Gain' }).first().click()
+    await addNodeByName(page, 'Gain')
     await page.waitForFunction((n) => document.querySelectorAll('.react-flow__node').length === n + 1, before)
-    step('a palette click adds a node')
+    step('an Add node menu pick adds a node')
 
     // The new node is the one whose id is not in the built-in graph.
     const ids = await page.locator('.react-flow__node').evaluateAll((els) => els.map((e) => e.dataset.id))

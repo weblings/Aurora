@@ -4,7 +4,6 @@ import { refuseConnection, type Connection } from './connection'
 import { addEdge, addNode, moveNodes, removeEdge, removeNodes, setParam, splitEndpoint } from './doc'
 import { carryViewState, toFlowEdges, toFlowNodes } from './flow'
 import { PORT_TYPES, portStyle } from './portStyle'
-import { paletteGroups } from './palette'
 import { editorReducer, emptyEditor } from './history'
 import { columnLayout, positionsFor } from './layout'
 import { ParamWidget, addStop, clampStopPos, effectiveValue } from '../ParamWidget'
@@ -292,14 +291,6 @@ describe('addNode', () => {
     expect(flow.position).toEqual({ x: 5, y: 6 })
     expect(flow.data.params.gain).toBe(1)
     expect(toFlowEdges(state.doc!)).toHaveLength(doc.edges.length)
-  })
-})
-
-describe('paletteGroups', () => {
-  it('groups types by prefix', () => {
-    const groups = paletteGroups(catalog)
-    expect(groups.map((g) => g.prefix)).toEqual(['audio', 'frame', 'image', 'output', 'video', 'zones'])
-    expect(groups.flatMap((g) => g.types)).toHaveLength(catalog.size)
   })
 })
 

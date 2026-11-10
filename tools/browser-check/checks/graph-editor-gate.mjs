@@ -1,14 +1,14 @@
 // Aurora-pvxx.9 / .15 (E6): the Sequence E gate. One pass through the editor
 // against the fake-Hue stack: open builtin.video, break a connection (badge),
 // fix it (preview changes), test on lights, have a second session take the
-// test, Save, reload, restart Aurora and reopen (layout kept), add a palette
+// test, Save, reload, restart Aurora and reopen (layout kept), add from the Add node menu
 // node and wire it in, Save as new from a custom, undo and redo (the preview
 // follows the edit), the replaced / draft_invalid / too-many-drafts preview
 // states, pause. Runs on the dummy input, so it needs no screen or Hue hardware.
 import assert from 'node:assert/strict'
 import { launch } from '../lib/browser.mjs'
 import { withEditorStack } from '../lib/stack.mjs'
-import { fileAction, openTitleMenu, setName } from '../lib/editorMenu.mjs'
+import { addNodeByName, fileAction, openTitleMenu, setName } from '../lib/editorMenu.mjs'
 
 const created = []
 
@@ -155,9 +155,9 @@ await withEditorStack(async ({ editorUrl, restart }) => {
     await checkLayout('gate-check')
     step('restarting Aurora and reopening the effect keeps the saved layout, preview Live')
 
-    // Add a node from the palette and wire it in.
+    // Add a node from the menu and wire it in.
     const nodeCount = await page.locator('.react-flow__node').count()
-    await page.locator('.palette-item', { hasText: 'Gain' }).first().click()
+    await addNodeByName(page, 'Gain')
     await page.waitForFunction((n) => document.querySelectorAll('.react-flow__node').length === n + 1, nodeCount)
     const ids = await page.locator('.react-flow__node').evaluateAll((els) => els.map((e) => e.dataset.id))
     const added = ids.find((id) => /^gain(-\d+)?$/.test(id))
@@ -165,11 +165,11 @@ await withEditorStack(async ({ editorUrl, restart }) => {
     await drag(handle('ease_hue', 'source'), handle(added, 'target'))
     await waitStatus(/Live/)
     assert.equal(await page.locator('.problem-badge').count(), 0)
-    step('a palette node is added and wired in, preview Live')
+    step('a menu-added node is added and wired in, preview Live')
 
     // An output-bound node starts on a registered output, so it has no problem badge.
     const beforeSend = await page.locator('.react-flow__node').count()
-    await page.locator('.palette-item', { hasText: 'Send to output' }).first().click()
+    await addNodeByName(page, 'Send to output')
     await page.waitForFunction((n) => document.querySelectorAll('.react-flow__node').length === n + 1, beforeSend)
     const sendNode = page.locator('.aurora-node', { hasText: 'Send to output' }).last()
     assert.equal(await sendNode.locator('.problem-badge').count(), 0)
@@ -177,7 +177,7 @@ await withEditorStack(async ({ editorUrl, restart }) => {
     await sendNode.locator('.aurora-node-header').click()
     await page.keyboard.press('Backspace')
     await page.waitForFunction((n) => document.querySelectorAll('.react-flow__node').length === n, beforeSend)
-    step('an output-bound palette node starts on a registered output with no problem')
+    step('an output-bound menu-added node starts on a registered output with no problem')
 
     // Save as new from the custom effect: the original keeps its graph.
     const originalNodes = (await api('GET', '/api/effects/gate-check')).json.graph.nodes.length
