@@ -11,6 +11,14 @@ Id: daaa29-5-narrow-leftovers
 
 - `npm run graph-editor:narrow` passes.
 
+## Doc-citation enforcement
+
+This entry first cited a planning doc by relative path. `check-links.py` accepts path citations, so nothing stopped it; only the `[[id]]` convention in `AGENTS.md` and `docs/README.md` did. Added advisory nudges, not enforcement:
+
+- `check-links.py`: a dead path now says to cite by id; a staged file citing an `Id:`-bearing doc by path prints `PATH CITATION ... use [[id]]` (warning only).
+- `check-close.py`: the close-gate message states the citing rule and prints a log-entry skeleton.
+- Not done, not filed: make new path citations to `Id:` docs fail. It needs scoping to added lines (`git diff --cached` in pre-commit; CI has no staged diff) or a grandfather list of the 25+ existing path citations in `docs/log/` alone, which would go stale. Revisit if agents keep skirting the warning.
+
 ## Lessons
 
 - none
