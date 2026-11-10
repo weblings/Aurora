@@ -465,7 +465,7 @@ the menu.
   with unsaved edits. Revisit if needed.
 - **Grille tracking:** Grille work is tracked by beads in `weblings/GrilleDS` (prefix
   `Grille`): G1 is `Grille-251` (Aurora `daaa.7`), G2 and G3a are `Grille-48x` (Aurora
-  `daaa.8`), and G3b is `Grille-h7g` (Aurora `daaa.20`, installed as the `v0.1.0-dev.3`
+  `daaa.8`), and G3b is `Grille-h7g` (Aurora `daaa.20`, installed as the `v0.1.0-dev.4`
   prerelease cut from Grille's dev branch). The Aurora beads stay as the consumer-side blockers
   and close when the matching Grille release installs here.
 
@@ -477,12 +477,12 @@ to a stage; whoever next touches the area picks it up.
 
 - `Aurora-daaa.14` (fixed): a test outcome in the status spot now clears on Save and on undo
   back to the saved graph.
-- `Aurora-daaa.15`: drop dead status CSS and settle the Vite chunk-size warning.
+- `Aurora-daaa.15` (fixed): drop dead status CSS and settle the Vite chunk-size warning.
 - `Aurora-daaa.16`: move to Grille v0.1.0 at the end of the cleanup epic.
-- `Aurora-daaa.17`: problems popover rows are cramped.
-- `Aurora-daaa.18`: `builtin.audio` opens at 37% with unreadable nodes and an empty thumbnail
-  box while the preview is paused.
-- `Aurora-daaa.19`: the Name field on a built-in reads as a hovered menu row. Reframed: naming
+- `Aurora-daaa.17` (fixed): problems popover rows are cramped; the node id now stacks above the message.
+- `Aurora-daaa.18` (fixed): `builtin.audio` opens at 37% with unreadable nodes and an empty thumbnail
+  box while the preview is paused; fit view now stops at 60%, and the thumbnail hides until the first frame.
+- `Aurora-daaa.19` (fixed): the Name field on a built-in reads as a hovered menu row. Reframed: naming
   moves to a modal dialog (direction 4), using Grille's `Modal` (`Aurora-daaa.22`, installed
   as `v0.1.0-dev.4`).
-- `Aurora-daaa.21`: the status spot said `No draft yet` before the preview connected; it now reads `Connecting`.
+- `Aurora-daaa.21` (fixed): the status spot said `No draft yet` before the preview connected; it now reads `Connecting`.
