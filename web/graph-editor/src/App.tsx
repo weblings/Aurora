@@ -20,7 +20,6 @@ import chevronUp from '../../ui/icons/chevron-up.svg'
 import { applyGraph, fetchCatalog, fetchEffectGraph, fetchEffects, putDraft, saveGraph, type WriteResult } from './api'
 import { EditorContext, type EditorActions } from './EditorContext'
 import { GenericNode } from './GenericNode'
-import { Inspector } from './Inspector'
 import { DetailsDrawer } from './DetailsDrawer'
 import { ControlsDrawer } from './ControlsDrawer'
 import { AddNodeMenu } from './AddNodeMenu'
@@ -737,7 +736,6 @@ export function App() {
         </EditorContext.Provider>
         </ProblemsContext.Provider>
       </div>
-      {doc && catalog ? <Inspector doc={doc} catalog={catalog} selected={selectedId} edit={edit} /> : <div className="inspector" />}
       </div>
       {doc && catalog ? (
         <div onFocus={() => setInDrawer(true)} onBlur={() => setInDrawer(false)}>

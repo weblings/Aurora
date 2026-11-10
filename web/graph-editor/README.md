@@ -34,7 +34,7 @@ tested on a phone, and touch is not a goal of this pass.
 - `src/ContextMenu.tsx` -- right-click menus for the canvas, a node and a wire, anchored at a point; the node menu also opens from each node's `⋯` button and Shift+F10 (`Aurora-daaa.27.1`).
 - `src/EditorPopup.tsx` -- the shared popup layer over Grille's `Popover`.
 - `src/useLightTest.ts` -- heartbeat, countdown and holder polling for a test;
-  `Inspector.tsx` -- node details and the Dashboard controls list.
+  `DetailsDrawer.tsx` and `ControlsDrawer.tsx` -- the node details and the Dashboard controls list, in Grille drawers (the Inspector is gone, `Aurora-daaa.27.4`).
 - `src/api.ts` -- the only server calls (`/api/nodes`, `/api/effects`,
   `/api/effects/:id`, drafts, preview URL, test, save, apply). Paths are root-absolute on purpose (Aurora's API ignores
   the editor's base); asset URLs are built from `import.meta.env.BASE_URL`.

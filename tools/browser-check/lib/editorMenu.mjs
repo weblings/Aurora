@@ -67,11 +67,40 @@ export async function readName(page) {
 export const waitToast = (page, text, timeout = 5000) =>
   page.waitForFunction((t) => document.querySelector('.editor-toast')?.textContent.includes(t), text, { timeout })
 
+// The Dashboard controls button on the canvas, and the count it shows.
+export const controlsButton = (page) => page.getByRole('button', { name: /^Dashboard controls \(\d+\)$/ })
+export async function controlCount(page) {
+  return Number(/\((\d+)\)/.exec(await controlsButton(page).innerText())[1])
+}
+export const waitControlCount = (page, n) =>
+  controlsButton(page).filter({ hasText: `(${n})` }).waitFor()
+
+// The Details drawer's "Show on the Dashboard" ticks, for the node it follows.
+export const detailsChecks = (page) => page.locator('.drawer-details input[type="checkbox"]')
+
+// Opens Details for a node by its right-click menu. The drawer then follows the selection.
+export async function openDetails(page, node) {
+  await node.locator('.aurora-node-header').click({ button: 'right' })
+  await page.getByRole('menu', { name: 'Node actions' }).waitFor()
+  await page.getByRole('menuitem', { name: 'Details', exact: true }).click()
+  await page.locator('.drawer-details').waitFor()
+}
+
+// Ticks the first param of `node` onto the Dashboard through "Show on the Dashboard".
+export async function tickFirst(page, node, want = true) {
+  await node.locator('.aurora-node-header').click({ button: 'right' })
+  await page.getByRole('menu', { name: 'Node actions' }).waitFor()
+  await page.getByRole('menuitem', { name: 'Show on the Dashboard', exact: true }).click()
+  const box = detailsChecks(page).first()
+  await box.waitFor()
+  if (want) await box.check()
+  else await box.uncheck()
+}
+
 // An unsaved edit that works on a built-in (which cannot be renamed): tick a
 // Dashboard control on the first Gain node.
 export async function makeEdit(page) {
-  await page.locator('.aurora-node', { hasText: 'Gain' }).first().locator('.aurora-node-header').click()
-  await page.locator('.inspector-check input').first().check()
+  await tickFirst(page, page.locator('.aurora-node', { hasText: 'Gain' }).first())
 }
 
 // Adds a node through the cascade Add node menu: + button, search, first match.

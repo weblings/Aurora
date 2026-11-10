@@ -38,7 +38,7 @@ export function DetailsDrawer({ isOpen, onClose, top, doc, catalog, selected, fo
         <div className="drawer-details">
           <p>{info.purpose}</p>
           {info.inputs.length + info.outputs.length > 0 ? (
-            <ul className="inspector-ports">
+            <ul className="drawer-ports">
               {info.inputs.map((p) => (
                 <li key={`in-${p.name}`}>
                   <strong>{p.name}</strong> in, {p.type}
@@ -61,7 +61,7 @@ export function DetailsDrawer({ isOpen, onClose, top, doc, catalog, selected, fo
                 const control = at >= 0 ? controls[at] : undefined
                 return (
                   <div key={param.name}>
-                    <label className="inspector-check" title={param.description}>
+                    <label className="drawer-check" title={param.description}>
                       <input
                         type="checkbox"
                         checked={at >= 0}
@@ -98,7 +98,7 @@ export function DetailsDrawer({ isOpen, onClose, top, doc, catalog, selected, fo
           ) : null}
         </div>
       ) : (
-        <p className="inspector-hint">Pick a node to see what it does and choose which of its params the Dashboard shows.</p>
+        <p className="drawer-hint">Pick a node to see what it does and choose which of its params the Dashboard shows.</p>
       )}
     </Drawer>
   )

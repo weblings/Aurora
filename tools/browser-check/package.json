@@ -10,6 +10,7 @@
     "graph-editor:context-menus": "node checks/graph-editor-context-menus.mjs",
     "graph-editor:save-as-new": "node checks/graph-editor-save-as-new.mjs",
     "graph-editor:port-types": "node checks/graph-editor-port-types.mjs",
+    "graph-editor:drawers": "node checks/graph-editor-drawers.mjs",
     "graph-editor:delete": "node checks/graph-editor-delete.mjs",
     "graph-editor:title-menu": "node checks/graph-editor-title-menu.mjs",
     "graph-editor:top-bar": "node checks/graph-editor-top-bar.mjs",

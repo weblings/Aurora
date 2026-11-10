@@ -99,6 +99,7 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `daaa27-1-context-menus` | [log/2026-11-10-daaa27-1-context-menus.md](log/2026-11-10-daaa27-1-context-menus.md) | Graph editor: right-click and ⋯ menus |
 | `daaa27-2-delete-key` | [log/2026-11-10-daaa27-2-delete-key.md](log/2026-11-10-daaa27-2-delete-key.md) | Graph editor: Delete key and the dropped-controls toast |
 | `daaa27-3-drawers` | [log/2026-11-10-daaa27-3-drawers.md](log/2026-11-10-daaa27-3-drawers.md) | Graph editor: Details and Dashboard controls drawers, on-node mark |
+| `daaa27-4-inspector-removed` | [log/2026-11-10-daaa27-4-inspector-removed.md](log/2026-11-10-daaa27-4-inspector-removed.md) | Graph editor: Inspector removed, checks migrated |
 | `daaa28-grille-drawer` | [log/2026-11-10-daaa28-grille-drawer.md](log/2026-11-10-daaa28-grille-drawer.md) | Graph editor: Grille dev.7 (Drawer) |
 | `daaa4-control-count-baseline` | [log/2026-11-08-daaa4-control-count-baseline.md](log/2026-11-08-daaa4-control-count-baseline.md) | Graph editor control-count baseline and CMake rebuild check |
 | `daaa5-graph-editor-owner-decisions` | [log/2026-11-08-daaa5-graph-editor-owner-decisions.md](log/2026-11-08-daaa5-graph-editor-owner-decisions.md) | Graph editor cleanup: owner decisions before stage 2 |

@@ -4,6 +4,7 @@
 import assert from 'node:assert/strict'
 import { launch } from '../lib/browser.mjs'
 import { withEditorStack } from '../lib/stack.mjs'
+import { controlCount, tickFirst, waitControlCount } from '../lib/editorMenu.mjs'
 
 await withEditorStack(async ({ editorUrl }) => {
   const browser = await launch()
@@ -24,9 +25,8 @@ await withEditorStack(async ({ editorUrl }) => {
     const edges = await edgeCount()
 
     // A node with a Dashboard control: Delete removes it and the toast says so.
-    await selectGain()
-    await page.locator('.inspector-check input').first().check()
-    const total = Number(/\((\d+)\)/.exec(await page.locator('.inspector h3', { hasText: 'Dashboard controls' }).innerText())[1])
+    await tickFirst(page, gain())
+    const total = await controlCount(page)
     await selectGain()
     await page.keyboard.press('Delete')
     await gone(count - 1)
@@ -40,7 +40,7 @@ await withEditorStack(async ({ editorUrl }) => {
     await gone(count)
     await page.waitForFunction((k) => document.querySelectorAll('.react-flow__edge').length === k, edges, { timeout: 5000 })
     await selectGain()
-    await page.locator('.inspector h3', { hasText: `Dashboard controls (${total})` }).waitFor()
+    await waitControlCount(page, total)
     step('undo restores the node, its edges and its controls')
 
     // Redo deletes it again in one step: node, wires and controls together.
@@ -56,7 +56,7 @@ await withEditorStack(async ({ editorUrl }) => {
     assert.ok(afterRedo < edges)
     step('redo removes the node and its wires again, and one undo restores them')
     await selectGain()
-    await page.locator('.inspector h3', { hasText: `Dashboard controls (${total})` }).waitFor()
+    await waitControlCount(page, total)
 
     // Backspace still deletes, and the same toast shows.
     await page.waitForFunction(() => document.querySelector('.editor-toast')?.getAttribute('data-shown') === 'false', null, { timeout: 6000 })
@@ -72,8 +72,7 @@ await withEditorStack(async ({ editorUrl }) => {
     await gone(count)
     await page.waitForFunction(() => document.querySelector('.editor-toast')?.getAttribute('data-shown') === 'false', null, { timeout: 6000 })
     const plain = page.locator('.aurora-node', { hasText: 'Gain' }).first()
-    await plain.locator('.aurora-node-header').click()
-    await page.locator('.inspector-check input').first().uncheck()
+    await tickFirst(page, plain, false)
     await plain.locator('.aurora-node-header').click()
     await page.keyboard.press('Delete')
     await gone(count - 1)
@@ -89,14 +88,12 @@ await withEditorStack(async ({ editorUrl }) => {
     const modifier = process.platform === 'darwin' ? 'Meta' : 'Control'
     // Give a second node a control, so the selection owns at least two.
     const second = page.locator('.aurora-node', { hasText: 'Rescale' }).first()
-    await second.locator('.aurora-node-header').click()
-    await page.locator('.inspector-check input').first().check()
-    await selectGain()
-    await page.locator('.inspector-check input').first().uncheck()
-    await page.locator('.inspector-check input').first().check()
+    await tickFirst(page, second)
+    await tickFirst(page, gain(), false)
+    await tickFirst(page, gain())
     const before = await nodes()
     const beforeEdges = await edgeCount()
-    const owned = Number(/\((\d+)\)/.exec(await page.locator('.inspector h3', { hasText: 'Dashboard controls' }).innerText())[1])
+    const owned = await controlCount(page)
     await second.locator('.aurora-node-header').click()
     await page.keyboard.down(modifier)
     await gain().locator('.aurora-node-header').click()
@@ -115,7 +112,7 @@ await withEditorStack(async ({ editorUrl }) => {
     await gone(before)
     await page.waitForFunction((k) => document.querySelectorAll('.react-flow__edge').length === k, beforeEdges, { timeout: 5000 })
     await selectGain()
-    await page.locator('.inspector h3', { hasText: `Dashboard controls (${owned})` }).waitFor()
+    await waitControlCount(page, owned)
     step('one undo restores both nodes, their wires and their controls')
   } finally {
     await browser.close()

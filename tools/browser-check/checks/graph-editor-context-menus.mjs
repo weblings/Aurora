@@ -66,7 +66,12 @@ await withEditorStack(async ({ editorUrl }) => {
     await flyout.waitFor()
     await flyout.getByRole('menuitem').first().click()
     await page.waitForFunction((n) => document.querySelectorAll('.react-flow__node').length === n + 1, nodes0)
-    step('canvas menu Add node adds a node')
+    const pane = await page.locator('.react-flow__pane').boundingBox()
+    const added = await page.locator('.react-flow__node').last().boundingBox()
+    const at = { x: pane.x + 600, y: pane.y + 700 }
+    assert.ok(Math.abs(added.x - at.x) < 200 && Math.abs(added.y - at.y) < 200,
+      `new node at (${Math.round(added.x)}, ${Math.round(added.y)}), right-click at (${Math.round(at.x)}, ${Math.round(at.y)})`)
+    step('canvas menu Add node adds a node at the right-click position')
 
     // Wire menu.
     const edges0 = await edgeCount()

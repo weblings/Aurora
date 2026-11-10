@@ -21,11 +21,11 @@ export function ControlsDrawer({ isOpen, onClose, top, doc, catalog, edit }: Pro
   }
   return (
     <Drawer isOpen={isOpen} onOpenChange={(open) => !open && onClose()} title={`Dashboard controls (${controls.length})`} subtitle="The order Tuning shows them in." top={top}>
-      {controls.length === 0 ? <p className="inspector-hint">None: Tuning shows nothing for this effect.</p> : null}
-      <ol className="inspector-controls">
+      {controls.length === 0 ? <p className="drawer-hint">None: Tuning shows nothing for this effect.</p> : null}
+      <ol className="drawer-controls">
         {controls.map((c, i) => (
           <li key={`${c.node}.${c.param}`}>
-            <div className="inspector-control-head">
+            <div className="drawer-control-head">
               <span title={`${c.node}.${c.param}`}>
                 {titleOf(c.node)} · {c.param}
               </span>

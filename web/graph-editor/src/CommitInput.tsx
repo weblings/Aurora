@@ -7,7 +7,7 @@ export function CommitInput({ value, label, onCommit }: { value: string; label: 
   useEffect(() => setText(value), [value])
   const apply = () => text !== value && onCommit(text)
   return (
-    <label className="inspector-field">
+    <label className="drawer-field">
       <span>{label}</span>
       <input
         type="text"
