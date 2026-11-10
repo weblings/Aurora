@@ -2,7 +2,7 @@
 
 Id: graph-editor-cleanup
 
-Status: stage 1 built (back link, Aurora component styles); stage 2 built (top bar, title and view menus, status spot, `Aurora-daaa.11`); stage 3 built (catalog `group`, node copy, cascade Add node menu, palette removed; `Aurora-daaa.24.1`-`.24.4`, Grille `v0.1.0-dev.6`); stage 4 proposed.
+Status: stage 1 built (back link, Aurora component styles); stage 2 built (top bar, title and view menus, status spot, `Aurora-daaa.11`); stage 3 built (catalog `group`, node copy, cascade Add node menu, palette removed; `Aurora-daaa.24.1`-`.24.4`, Grille `v0.1.0-dev.6`); stage 4 decided and filed (`Aurora-daaa.27`), waiting on a Grille drawer.
 Written 2026-11-06 under `Aurora-bova`. The owner reviewed the working mock and likes
 the direction. Decisions 1-7 are recorded under Decisions (2026-11-08). Stages 1-2 are
 built; stages 3-4 are still a proposal and follow those decisions.
@@ -146,6 +146,8 @@ params on the node, collapse secondary ones, or move them to the drawer. The cho
 sets how much room is left for per-node previews (`Aurora-h6yz`).
 
 Recommendation: keep params on nodes for now, add a collapse later if real graphs need it.
+
+Decided: params stay on nodes (see Decisions, stage 4).
 
 ### 5. Is touch or narrow width a target
 
@@ -515,6 +517,36 @@ the menu.
   Tab stays browser focus movement, and Space stays pan. Double-click on empty canvas
   (ComfyUI's route) is a possible later mouse route; it needs React Flow's
   `zoomOnDoubleClick` off.
+
+## Decisions (owner, stage 4)
+
+- **Direction 4:** params stay on the node. The Details drawer holds the purpose, ports and
+  the Show on the Dashboard checkboxes, not the params. A collapse waits until a real graph
+  needs it.
+- **Details follows the selection.** Once open, the Details drawer shows whichever node is
+  selected, as Blender's sidebar does. Selecting a node does not open it.
+- **Drawer comes from Grille.** Non-modal, one open at a time, closed by Esc or its close
+  button but not by a canvas click, and it sits over the canvas rather than pushing it. It
+  is a Grille prerequisite for stage 4, like G3a and G3b were for stages 2 and 3.
+- **`⋯` on every node, never hidden from assistive tech.** It is a real button, "Actions
+  for <node title>" with `aria-haspopup="menu"`, faded until hover or selection but always
+  rendered. Each node also gets an `aria-label` with its title, since React Flow gives nodes
+  none. This follows the frame 8 result (`kep27-voiceover-tree-check`): the row menu failed
+  on VoiceOver only because its `⋯` was `aria-hidden`. Shift+F10 opens the same menu.
+- **Dashboard controls while the drawer is closed.** A param that is on the Dashboard shows
+  a mark on the node. Under each ticked checkbox, Details shows that control's Label,
+  Section and Tooltip, so tick and label happen in one place. The Dashboard controls drawer
+  is for order, removal and review. The node menu's Show on the Dashboard opens Details at
+  the checkboxes.
+- **Deleting a node that has controls says so.** The toast reads, for example, `Removed 1
+  Dashboard control with Hue shift`. Undo brings it back, so there is no confirm and no
+  Undo button in a toast that lasts 3 s. Prior art (Unity's unused properties, Houdini's bad
+  reference warnings, TouchDesigner's broken binds) never drops an exposed param silently.
+- **Delete:** the Delete key joins Backspace. Menu Delete acts on the whole selection and
+  says how many (`Delete 3 nodes`). Right-click Add node places the node at the pointer.
+- **Controls model unchanged in stage 4.** A control stays a pointer to one node param. A
+  graph-level model (Unity Blackboard, or Houdini-style promotion where the control owns the
+  value) is undecided and tracked outside this epic.
 
 ## Known follow-ups (filed under `Aurora-daaa`)
 
