@@ -5,7 +5,7 @@
 import assert from 'node:assert/strict'
 import { launch } from '../lib/browser.mjs'
 import { withEditorStack } from '../lib/stack.mjs'
-import { fileAction, setName, waitToast } from '../lib/editorMenu.mjs'
+import { fileAction, pickAction, setName, waitToast } from '../lib/editorMenu.mjs'
 
 const created = []
 
@@ -30,7 +30,6 @@ await withEditorStack(async ({ editorUrl, aurora }) => {
   const active = async () => (await api('GET', '/api/config')).json.activeEffectId
   const testNote = () => page.locator('.editor-status').innerText()
   const countdown = () => page.locator('.editor-countdown').innerText()
-  const nameNote = () => page.locator('.editor-name-note').innerText()
   const button = (name) => page.getByRole('button', { name, exact: true })
   const step = (label) => console.log(`ok  ${label}`)
 
@@ -82,13 +81,11 @@ await withEditorStack(async ({ editorUrl, aurora }) => {
     step('a test offers Revert only')
 
     // Save as a new custom effect; the live effect stays.
-    await fileAction(page, 'Save')
-    // Save on a built-in with no name opens the title menu on the Name field.
-    await page.getByLabel('Name', { exact: true }).waitFor()
-    assert.equal(await nameNote(), 'Name the new effect first')
-    // The editor takes focus a few frames after the field mounts: wait for it.
-    await page.waitForFunction(() => document.activeElement?.closest('.editor-title-dialog') && document.activeElement.tagName === 'INPUT', null, { timeout: 3000 })
+    await pickAction(page, 'Save')
+    // Save on a built-in opens the naming dialog; Escape writes nothing.
+    await page.getByRole('dialog', { name: 'Name the new effect' }).waitFor()
     await page.keyboard.press('Escape')
+    await page.getByRole('dialog', { name: 'Name the new effect' }).waitFor({ state: 'detached' })
     await page.locator('.aurora-node', { hasText: 'Gain' }).first().locator('.aurora-node-header').click()
     await page.locator('.inspector-check input').first().check()
     await page.locator('.inspector h3', { hasText: 'Dashboard controls (4)' }).waitFor()

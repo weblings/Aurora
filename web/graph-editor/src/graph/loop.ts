@@ -100,7 +100,7 @@ export function summarize(state: LoopState): Summary {
     case 'unreachable':
       return { label: 'Aurora unreachable', detail: 'Retrying.' }
     case 'closed':
-      return { label: state.valid === null ? 'No draft yet' : 'Preview off', detail: state.streamNote }
+      return { label: state.valid === null ? 'Connecting' : 'Preview off', detail: state.streamNote }
   }
 }
 

@@ -5,7 +5,7 @@
 import assert from 'node:assert/strict'
 import { launch } from '../lib/browser.mjs'
 import { withEditorStack } from '../lib/stack.mjs'
-import { currentEffect, fileAction, setName, waitToast } from '../lib/editorMenu.mjs'
+import { currentEffect, fileAction, makeEdit, setName, waitToast } from '../lib/editorMenu.mjs'
 
 const created = []
 
@@ -54,7 +54,7 @@ await withEditorStack(async ({ editorUrl }) => {
 
     // An edit clears it; a test that fails while edited, then an undo back to
     // the saved graph, clears it too.
-    await setName(page, 'Browser check outcome undo')
+    await makeEdit(page)
     await statusLacks('Lost contact')
     await failATest()
     assert.match(await statusText(), /Lost contact/)

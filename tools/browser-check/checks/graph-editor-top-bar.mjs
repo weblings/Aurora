@@ -14,7 +14,7 @@
 import assert from 'node:assert/strict'
 import { launch } from '../lib/browser.mjs'
 import { withEditorStack } from '../lib/stack.mjs'
-import { currentEffect, openTitleMenu, setName, titleMenu, waitEffect, waitToast } from '../lib/editorMenu.mjs'
+import { currentEffect, makeEdit, nameDialog, openTitleMenu, titleMenu, waitEffect, waitToast } from '../lib/editorMenu.mjs'
 
 await withEditorStack(async ({ editorUrl }) => {
   const browser = await launch()
@@ -38,10 +38,9 @@ await withEditorStack(async ({ editorUrl }) => {
     for (const name of ['Effect menu', 'Undo', 'Redo', 'Test on lights']) assert.equal(await page.locator('.editor-header').getByRole('button', { name }).count(), 1, name)
     step('one bar: Dashboard, title menu, status, Undo, Redo, Test on lights; no controls, minimap off')
 
-    // Title menu: Name and the effect list.
+    // Title menu: file actions and the effect list; no Name field.
     await openTitleMenu(page)
-    const name = page.getByLabel('Name', { exact: true })
-    assert.equal(await name.count(), 1)
+    assert.equal(await page.getByLabel('Name', { exact: true }).count(), 0)
     const list = page.getByRole('menu', { name: 'Open another effect' })
     assert.ok((await list.getByRole('menuitem').count()) > 0, 'other effects listed')
     assert.equal(await list.getByRole('menuitem', { name: 'Screen colors', exact: true }).count(), 0, 'the open effect is not listed')
@@ -94,8 +93,32 @@ await withEditorStack(async ({ editorUrl }) => {
     await page.locator('.react-flow__minimap').waitFor({ state: 'detached' })
     step('the view menu zooms, fits, and toggles the minimap (off by default)')
 
+    // Naming (Aurora-daaa.19): Save on a built-in opens a modal dialog; Cancel,
+    // Escape and a scrim click write nothing and return focus to the title button.
+    const effectCount = async () => (await page.evaluate(() => fetch('/api/effects').then((r) => r.json()))).effects.length
+    const before = await effectCount()
+    const dialog = nameDialog(page)
+    for (const how of ['Cancel', 'Escape', 'scrim']) {
+      await openTitleMenu(page)
+      await page.getByRole('menuitem', { name: 'Save', exact: true }).click()
+      await dialog.waitFor()
+      const confirm = dialog.getByRole('button', { name: 'Save', exact: true })
+      assert.equal(await confirm.isDisabled(), true, 'confirm is off while the name is empty')
+      await dialog.getByText('Name the new effect first').waitFor()
+      if (how === 'Cancel') await dialog.getByRole('button', { name: 'Cancel', exact: true }).click()
+      else if (how === 'Escape') await page.keyboard.press('Escape')
+      else await page.mouse.click(5, 5)
+      await dialog.waitFor({ state: 'detached' })
+      await page.waitForFunction(() => document.activeElement?.classList.contains('editor-title-menu'), null, { timeout: 3000 })
+    }
+    assert.equal(await effectCount(), before, 'a cancelled dialog writes nothing')
+    await openTitleMenu(page)
+    assert.equal(await page.getByRole('menuitem', { name: 'Rename…' }).count(), 0, 'no Rename on a built-in')
+    await page.keyboard.press('Escape')
+    step('Save on a built-in opens a naming dialog; Cancel, Escape and a scrim click write nothing')
+
     // Rank 2: an unsaved copy from an earlier visit asks Restore or Discard.
-    await setName(page, 'Browser check restore')
+    await makeEdit(page)
     await page.getByText('Unsaved', { exact: true }).waitFor()
     await page.reload()
     await page.waitForSelector('.aurora-node')
@@ -104,7 +127,7 @@ await withEditorStack(async ({ editorUrl }) => {
     await button('Restore').click()
     await waitToast(page, 'Restored')
     await banner.waitFor({ state: 'detached' })
-    assert.equal(await page.locator('.editor-header').getByText('Browser check restore').count(), 1)
+    await page.getByText('Unsaved', { exact: true }).waitFor()
     await page.reload()
     await banner.waitFor()
     await button('Discard').click()
@@ -119,7 +142,7 @@ await withEditorStack(async ({ editorUrl }) => {
     await button('Test on lights').click()
     await button('Revert').waitFor()
     assert.equal(await page.locator('.editor-edited').count(), 0)
-    await setName(page, 'Browser check edited during test')
+    await makeEdit(page)
     await page.locator('.editor-edited', { hasText: 'Edited since the test' }).waitFor()
     await openTitleMenu(page)
     await page.getByText('Save and apply puts the edited graph live and ends the test').waitFor()

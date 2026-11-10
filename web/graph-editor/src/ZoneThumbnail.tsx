@@ -50,6 +50,8 @@ export function ZoneThumbnail({ frame, live }: Props) {
       const current = frame.current
       if (!el || current === drawn) return
       drawn = current
+      // Nothing to show before the first frame (preview paused): no empty box.
+      el.hidden = !current
       const ctx = el.getContext('2d')
       if (!ctx) return
       const { rects, rows } = current ? layoutThumbnail(current, regions.current, COLUMNS) : { rects: [], rows: 0 }
@@ -96,6 +98,7 @@ export function ZoneThumbnail({ frame, live }: Props) {
       ref={canvas}
       className={`zone-thumbnail${live ? '' : ' zone-thumbnail-stale'}`}
       aria-label="Preview of the lights"
+      hidden
       role="img"
     />
   )

@@ -300,7 +300,7 @@ select {
   margin: 0;
   padding: 0;
   list-style: none;
-  width: 320px;
+  width: 360px;
   max-height: 280px;
   overflow-y: auto;
 }
@@ -317,6 +317,24 @@ select {
   border: 0;
   color: var(--aurora-text-primary);
   font: inherit;
+}
+
+/* Node id above the message, so the message gets the whole row width
+   (Aurora-daaa.17). */
+.editor-problem-text {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--aurora-space-1);
+  min-width: 0;
+}
+
+.editor-problem-row.editor-problem-text {
+  justify-content: flex-start;
+}
+
+li.editor-problem-row > .editor-problem-text {
+  flex: 1;
 }
 
 button.editor-problem-row {
@@ -574,4 +592,24 @@ button.editor-problem-row:hover {
   width: 14px;
   height: 14px;
   display: block;
+}
+
+.editor-name-dialog {
+  display: flex;
+  flex-direction: column;
+  gap: var(--aurora-space-3);
+  width: 320px;
+  max-width: 100%;
+}
+
+.editor-name-dialog-title {
+  margin: 0;
+  font-size: 14px;
+  color: var(--aurora-text-primary);
+}
+
+.editor-name-dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--aurora-space-2);
 }

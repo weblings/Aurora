@@ -2,7 +2,7 @@
 
 Id: graph-editor-cleanup
 
-Status: stage 1 built (back link, Aurora component styles); stage 2 built (top bar, title and view menus, status spot, `Aurora-daaa.11`); stages 3-4 proposed.
+Status: stage 1 built (back link, Aurora component styles); stage 2 built (top bar, title and view menus, status spot, `Aurora-daaa.11`); stage 3 directions decided (cascade, catalog `group`); stage 4 proposed.
 Written 2026-11-06 under `Aurora-bova`. The owner reviewed the working mock and likes
 the direction. Decisions 1-7 are recorded under Decisions (2026-11-08). Stages 1-2 are
 built; stages 3-4 are still a proposal and follow those decisions.
@@ -101,10 +101,12 @@ These change the shape of the work and need an owner decision.
 | Form | Strength | Cost |
 |---|---|---|
 | A: Browser | Group rail, list and preview, so a node can be learned before adding it | Largest popup, 760x460 |
-| B: Cascade | Compact, reads like a context menu | Little room to explain a node, fiddly flyouts |
+| B: Cascade | Compact, reads like a context menu. Search sits on top, so it is search-first too | No port preview beside the list (the purpose line and a tooltip carry the text, as in C), and flyouts need Grille submenus |
 | C: Side sheet | Stays open for adding several, uses the accordion look | A panel again, which works against the goal |
 
 Recommendation: A, optionally with a pin to keep it open.
+
+Decided: B (see Decisions, 2026-11-09).
 
 ### 2. Who owns the node groups
 
@@ -118,6 +120,10 @@ The catalog has no category field, so the mock's groups are a hand-written map.
 Recommendation: start with the editor map, and promote it only if agents or other
 consumers need the groups.
 
+Decided: a catalog field named `group` (see Decisions, 2026-11-09). The cost was
+smaller than estimated above: `NodeTypeMeta` already carries per-node metadata, so it is
+one line per registration plus the places that copy the meta out.
+
 ### 3. One text for people and agents, or two
 
 The menu puts `purpose` and `useWhen` in front of users for the first time, and some
@@ -129,6 +135,8 @@ Either rewrite shared text so it works for both audiences, or add user-facing te
 beside it. Rewriting is smaller, but it changes what agents read and needs a check that
 agent results hold up. This also settles vocabulary, such as `Lights` as the group name
 while the port type stays `Frame`.
+
+Decided: two texts, written in stage 3 (see Decisions, 2026-11-09).
 
 ### 4. How far the node itself changes
 
@@ -222,8 +230,10 @@ Rules that follow:
    node-level and graph-wide. Its popover lists them; a node-level row selects the node, and a
    graph-wide row (`Whole graph`) has no node to point at, so it carries its own action instead
    (`Add node…`). While problems exist, the status reads `Preview paused`, since the preview is stale.
-4. **Naming a built-in is inline, not a message.** Save on a built-in with no name opens the
-   title menu, focuses Name, and the note under the field says what is needed (`#name`).
+4. **Naming a new effect is a modal dialog, not a message.** Save as new, and Save or Save and
+   apply on a built-in, open a Dialog over a scrim with a Name field; confirm writes, Cancel,
+   Escape or a scrim click writes nothing. An empty name is explained inside the dialog (`#name`).
+   *Revised 2026-11-09 (`Aurora-daaa.19`); was: Save opens the title menu with Name focused.*
 5. **Keep disappears, and so does its disabled state.** While a test runs and the graph has
    changed, the bar says `Edited since the test`, and the title menu warns that Save and apply
    puts the edited graph live and ends the test (`#changed`).
@@ -241,7 +251,7 @@ How today's nine slots map:
 | 5 | `editor-error` (`Cannot reach Aurora`, `Cannot open`) | Rank 1 banner, with Retry |
 | 6 | `editor-dirty` (`Unsaved changes`) | `Unsaved` beside the title |
 | 7 | `editor-test-note` (`describeTest`) | Countdown beside Revert while running. Rank 5 and 6 in the status spot otherwise. `Kept` no longer exists. `Reverted` is a toast |
-| 8 | `editor-notice` (`write` results) | Success: toast. Failure, `Fix the n problems before saving`, `Reload: ...`: rank 6. `Name the new effect first`: inline in the title menu |
+| 8 | `editor-notice` (`write` results) | Success: toast. Failure, `Fix the n problems before saving`, `Reload: ...`: rank 6. `Name the new effect first`: inside the naming dialog |
 | 9 | `editor-graph-problems` list over the canvas | The problems chip, with `Whole graph` rows in its popover |
 
 Not covered by the nine: the per-node problem marks on node bodies stay where they are.
@@ -405,8 +415,8 @@ the editor's checks or lockfile.
    with no visible change. This needs G1 and the gate. Then the title and Save menus become
    the first real users of the shared popup behavior on G3a. The status priority rule is
    settled here, and most header and action row selectors change.
-3. **Add node menu.** Replaces the palette, so directions 1 and 2 must be decided first.
-   Needs G3b.
+3. **Add node menu** (`Aurora-daaa.24`). Replaces the palette. Directions 1-3 are decided (cascade,
+   catalog `group`, two texts). Needs G3b (`Aurora-daaa.20`) and Grille submenus (`Aurora-daaa.23`).
 4. **Right-click, drawers and Delete.** Must land together. The Inspector can only go once
    the node menu and drawers can reach everything it did.
 
@@ -435,8 +445,11 @@ the menu.
   Dashboard stays dark.
 - **Bundle budget:** about +60 kB gzip (+42% JS) is accepted.
 - **Title menu:** a Dialog in a Popover. It also holds the file actions: Save (Ctrl+S),
-  Save as new, Rename (the Name box), Open another effect and New empty effect. The Save
-  split button is dropped. Menu
+  Save as new, Rename, Open another effect and New empty effect. The Save
+  split button is dropped. *Revised 2026-11-09 (`Aurora-daaa.19`):* the Name box leaves the
+  menu. Rename… (custom effects) and any write that creates a new effect open a modal naming
+  dialog over a scrim instead. The modal is Grille's `Modal`, added in `v0.1.0-dev.4`
+  (`Aurora-daaa.22`). Menu
   items inside a Dialog need their own arrow-key and focus handling, and "Save opens the
   menu with Name focused" is untested, so `Aurora-daaa.8` covers both.
 - **Save and apply:** a title menu item beside Save and Save as new, with no toast. The
@@ -460,9 +473,43 @@ the menu.
   with unsaved edits. Revisit if needed.
 - **Grille tracking:** Grille work is tracked by beads in `weblings/GrilleDS` (prefix
   `Grille`): G1 is `Grille-251` (Aurora `daaa.7`), G2 and G3a are `Grille-48x` (Aurora
-  `daaa.8`), and G3b is `Grille-h7g`. The Aurora beads stay as the consumer-side blockers
+  `daaa.8`), G3b is `Grille-h7g` (Aurora `daaa.20`, installed as the `v0.1.0-dev.4`
+  prerelease cut from Grille's dev branch), and Menu submenus for the cascade are
+  `Grille-ofj` (Aurora `daaa.23`, the next dev prerelease). The Aurora beads stay as the consumer-side blockers
   and close when the matching Grille release installs here.
 
+
+## Decisions (owner, 2026-11-09)
+
+- **Direction 1, Add node menu form:** B, the cascade. Search sits at the top and switches
+  the menu to a flat ranked list while there is a query. Without a query, one row per group
+  opens a flyout of that group's nodes. Each node row shows its `purpose`; `useWhen` goes in
+  a hover tooltip. B gives up only A's port preview beside the list. Flyouts need Grille
+  submenus (`Grille-ofj`, Aurora `daaa.23`).
+- **Direction 2, node groups:** a catalog field, `NodeTypeMeta::group`, carried through
+  `/api/nodes`, `/api/v1/nodes`, the descriptors and the server samples. It is additive, so
+  `/api/v1` stays compatible.
+- **Group names:** the mock's seven, in signal-flow order: Sources (7), Audio (4), Image (7),
+  Color (8), Numbers (10), Motion (5), Lights (12). They cover all 53 registered types, one
+  group each. Flat, with no nesting. Lights is the name to watch if people look for "Frame".
+- **MCP:** `list_nodes` returns `group` on each entry and takes an optional `group` filter.
+  Its existing `category` argument stays a type-prefix filter (e.g. `frame.`), and its
+  description says so, since reusing `category` for groups would return an empty list for
+  agents that pass a prefix.
+- **Direction 3, copy:** two texts. `purpose` and `useWhen` stay as the agent text and keep
+  their mechanics (zone matching, ranges, re-seeding). New user-facing fields
+  `NodeTypeMeta::summary` (the menu row) and `NodeTypeMeta::tip` (the hover tooltip) are
+  written for all 53 nodes in stage 3. Rules: summary at most 10 words; tip one sentence of at
+  most 12 words, saying when to reach for the node; name another node (by display title, never
+  type id) only when this one does nothing without it; param advice belongs in the param's
+  help, not the tip. Until a node has them, the menu falls back to `purpose` and `useWhen`.
+  Examples: Mix frames: "Blends two sets of light colors into one." / "Combine a screen
+  effect with a music effect." Bar image: "A band of color that sweeps across the room." /
+  "Chases and sweeps. Drive Position with an LFO to move it."
+- **Shortcut:** Shift+A opens the Add node menu while the canvas has focus, as in Blender.
+  Tab stays browser focus movement, and Space stays pan. Double-click on empty canvas
+  (ComfyUI's route) is a possible later mouse route; it needs React Flow's
+  `zoomOnDoubleClick` off.
 
 ## Known follow-ups (filed under `Aurora-daaa`)
 
@@ -471,10 +518,12 @@ to a stage; whoever next touches the area picks it up.
 
 - `Aurora-daaa.14` (fixed): a test outcome in the status spot now clears on Save and on undo
   back to the saved graph.
-- `Aurora-daaa.15`: drop dead status CSS and settle the Vite chunk-size warning.
+- `Aurora-daaa.15` (fixed): drop dead status CSS and settle the Vite chunk-size warning.
 - `Aurora-daaa.16`: move to Grille v0.1.0 at the end of the cleanup epic.
-- `Aurora-daaa.17`: problems popover rows are cramped.
-- `Aurora-daaa.18`: `builtin.audio` opens at 37% with unreadable nodes and an empty thumbnail
-  box while the preview is paused.
-- `Aurora-daaa.19`: the Name field on a built-in reads as a hovered menu row, and the status
-  spot says `No draft yet` before the preview connects.
+- `Aurora-daaa.17` (fixed): problems popover rows are cramped; the node id now stacks above the message.
+- `Aurora-daaa.18` (fixed): `builtin.audio` opens at 37% with unreadable nodes and an empty thumbnail
+  box while the preview is paused; fit view now stops at 60%, and the thumbnail hides until the first frame.
+- `Aurora-daaa.19` (fixed): the Name field on a built-in reads as a hovered menu row. Reframed: naming
+  moves to a modal dialog (direction 4), using Grille's `Modal` (`Aurora-daaa.22`, installed
+  as `v0.1.0-dev.4`).
+- `Aurora-daaa.21` (fixed): the status spot said `No draft yet` before the preview connected; it now reads `Connecting`.

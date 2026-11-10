@@ -353,3 +353,7 @@ Planning docs stay clean: decisions, status, and pointers here only.
 | 2026-11-09 | Graph editor stage 2 checks pass against the embedded Mac build; edit-loop focus race fixed; popup and audio screenshots reviewed, two layout issues filed. [[daaa13-embedded-run]] | `bd show Aurora-daaa.13` |
 | 2026-11-09 | Graph editor: a test outcome in the status spot clears on Save and on undo back to the saved graph; browser check added. [[daaa14-test-outcome-clears]] | `bd show Aurora-daaa.14` |
 | 2026-11-09 | Graph editor: dead status CSS removed; Vite chunk-size warning limit set to the accepted 650 kB budget. [[daaa15-dead-css-chunk-limit]] | `bd show Aurora-daaa.15` |
+| 2026-11-09 | Graph editor: problems popover rows stack the node id above the message. [[daaa17-problems-popover-rows]] | `bd show Aurora-daaa.17` |
+| 2026-11-09 | Graph editor: Fit view stops at 60% zoom; zone thumbnail hidden until the first preview frame. [[daaa18-fit-zoom-thumbnail]] | `bd show Aurora-daaa.18` |
+| 2026-11-09 | Graph editor: naming a new effect in a modal dialog. [[daaa19-name-dialog]] | `Aurora-daaa.19`, `Aurora-daaa.22` |
+| 2026-11-10 | Graph editor: status spot reads Connecting, not No draft yet, before the first draft. [[daaa21-connecting-status]] | `bd show Aurora-daaa.21` |
