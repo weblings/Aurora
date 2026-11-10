@@ -527,7 +527,7 @@ the menu.
   selected, as Blender's sidebar does. Selecting a node does not open it.
 - **Drawer comes from Grille.** Non-modal, one open at a time, closed by Esc or its close
   button but not by a canvas click, and it sits over the canvas rather than pushing it. It
-  is a Grille prerequisite for stage 4, like G3a and G3b were for stages 2 and 3.
+  is a Grille prerequisite for stage 4 (`Grille-vxt`, Aurora `daaa.28`), like G3a and G3b were for stages 2 and 3.
 - **`⋯` on every node, never hidden from assistive tech.** It is a real button, "Actions
   for <node title>" with `aria-haspopup="menu"`, faded until hover or selection but always
   rendered. Each node also gets an `aria-label` with its title, since React Flow gives nodes

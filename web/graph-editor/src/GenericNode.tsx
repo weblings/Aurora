@@ -16,7 +16,7 @@ function handleLook(type: string) {
 // handles, params become widgets.
 function GenericNodeView({ id, data }: NodeProps<Node<AuroraNodeData>>) {
   const { setParam, commit, openNodeMenu } = useEditorActions()
-  const { info, params, connectedInputs } = data
+  const { info, params, connectedInputs, dashboardParams } = data
   const problems = useNodeProblems(id)
   // Messages that named no port or param show under the header.
   const loose = problems ? unattributed(problems) : []
@@ -96,6 +96,7 @@ function GenericNodeView({ id, data }: NodeProps<Node<AuroraNodeData>>) {
           onChange={(value) => setParam(id, param.name, value)}
           onCommit={commit}
           problems={problems?.params.get(param.name)}
+          onDashboard={dashboardParams.has(param.name)}
         />
       ))}
     </div>

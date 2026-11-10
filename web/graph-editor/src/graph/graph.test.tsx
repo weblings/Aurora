@@ -6,7 +6,9 @@ import { carryViewState, toFlowEdges, toFlowNodes } from './flow'
 import { PORT_TYPES, portStyle } from './portStyle'
 import { editorReducer, emptyEditor } from './history'
 import { columnLayout, positionsFor } from './layout'
-import { ParamWidget, addStop, clampStopPos, effectiveValue } from '../ParamWidget'
+import { DetailsDrawer } from '../DetailsDrawer'
+import { ControlsDrawer } from '../ControlsDrawer'
+import { ParamWidget,addStop, clampStopPos, effectiveValue } from '../ParamWidget'
 import { builtinLike, catalog, customLike } from './fixtures'
 import nodesSample from './server-samples/nodes.json'
 import type { Catalog, NodeTypeInfo, ParamInfo } from './types'
@@ -308,5 +310,42 @@ describe('enum widget', () => {
 
   it('has no placeholder when the value is an option', () => {
     expect(render('hue')).not.toContain('choose...')
+  })
+})
+
+describe('Dashboard marks and drawers (Aurora-daaa.27.3)', () => {
+  it('lists each node\'s Dashboard params, matching the controls list', () => {
+    const doc = builtinLike()
+    const nodes = toFlowNodes(doc, catalog)
+    const listed = (doc.controls as { node: string; param: string }[]).map((c) => `${c.node}.${c.param}`).sort()
+    const marked = nodes.flatMap((n) => [...n.data.dashboardParams].map((p) => `${n.id}.${p}`)).sort()
+    expect(marked).toEqual(listed)
+  })
+
+  it('marks a Dashboard param with a shape and text for assistive tech, not a tab stop', () => {
+    const info = catalog.get(builtinLike().nodes.find((n) => n.id === 'gain')!.type)!.params[0]
+    const html = renderToStaticMarkup(<ParamWidget info={info} value={undefined} onChange={() => {}} onCommit={() => {}} onDashboard />)
+    expect(html).toContain('On the Dashboard')
+    expect(html).toContain('aria-hidden="true"')
+    expect(html).not.toContain('tabindex')
+    const plain = renderToStaticMarkup(<ParamWidget info={info} value={undefined} onChange={() => {}} onCommit={() => {}} />)
+    expect(plain).not.toContain('On the Dashboard')
+  })
+
+  it('Details shows the ticked control\'s text fields and the controls drawer lists order', () => {
+    const doc = builtinLike()
+    const node = doc.nodes.find((n) => n.id === 'gain')!
+    const details = renderToStaticMarkup(
+      <DetailsDrawer isOpen onClose={() => {}} top={0} doc={doc} catalog={catalog} selected={node.id} focusChecks={0} edit={() => {}} />,
+    )
+    expect(details).toContain('Show on the Dashboard')
+    for (const f of ['Label', 'Section', 'Tooltip']) expect(details).toContain(f)
+    const none = renderToStaticMarkup(
+      <DetailsDrawer isOpen onClose={() => {}} top={0} doc={doc} catalog={catalog} selected={null} focusChecks={0} edit={() => {}} />,
+    )
+    expect(none).toContain('Pick a node')
+    const list = renderToStaticMarkup(<ControlsDrawer isOpen onClose={() => {}} top={0} doc={doc} catalog={catalog} edit={() => {}} />)
+    expect(list).toContain('Dashboard controls (1)')
+    expect(list).toContain('Remove gain from the Dashboard')
   })
 })

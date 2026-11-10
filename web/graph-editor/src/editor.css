@@ -665,3 +665,37 @@ button.editor-problem-row:hover {
 .aurora-node-more:focus-visible {
   opacity: 1;
 }
+
+/* Drawers (Aurora-daaa.27.3). */
+.drawer-details h3 {
+  margin: var(--ui-size-space-lg, 12px) 0 var(--ui-size-space-sm, 6px);
+}
+
+.drawer-details p {
+  margin: 0 0 var(--ui-size-space-lg, 12px);
+}
+
+.drawer-control-text {
+  margin: 0 0 var(--ui-size-space-md, 8px) var(--ui-size-space-2xl, 20px);
+}
+
+.drawer-control-summary {
+  margin-top: var(--aurora-space-1);
+  color: var(--aurora-text-secondary);
+}
+
+/* The on-node mark for a param on the Dashboard: a shape plus hidden text. */
+.dashboard-mark {
+  margin-left: var(--aurora-space-2);
+  color: var(--aurora-accent);
+  font-size: 9px;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}

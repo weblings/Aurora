@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { CommitInput } from './CommitInput'
 import { addControl, controlIndex, controlsOf, moveControl, removeControl, updateControl, type ControlText } from './graph/controls'
 import type { Catalog, GraphDoc } from './graph/types'
 
@@ -8,27 +8,6 @@ type Props = {
   // The node picked on the canvas, if exactly one.
   selected: string | null
   edit: (change: (d: GraphDoc) => GraphDoc) => void
-}
-
-// A text box that applies its value when it loses focus or Enter is pressed,
-// so typing a label is one undo step, not one per key.
-function CommitInput({ value, label, onCommit }: { value: string; label: string; onCommit: (v: string) => void }) {
-  const [text, setText] = useState(value)
-  useEffect(() => setText(value), [value])
-  const apply = () => text !== value && onCommit(text)
-  return (
-    <label className="inspector-field">
-      <span>{label}</span>
-      <input
-        type="text"
-        className="text-input"
-        value={text}
-        onChange={(e) => setText(e.target.value)}
-        onBlur={apply}
-        onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
-      />
-    </label>
-  )
 }
 
 // Right-hand panel: what the picked node is, which of its params the Dashboard

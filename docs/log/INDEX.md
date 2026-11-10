@@ -366,3 +366,4 @@ Planning docs stay clean: decisions, status, and pointers here only.
 | 2026-11-10 | Graph editor right-click and ⋯ menus on canvas, node and wire, Shift+F10, node accessible names. [[daaa27-1-context-menus]] | `bd show Aurora-daaa.27.1` |
 | 2026-11-10 | Graph editor Delete key, toast when a deletion removes Dashboard controls, key delete is one undo step. [[daaa27-2-delete-key]] | `bd show Aurora-daaa.27.2` |
 | 2026-11-10 | Graph editor: Grille dev.7 installed, adds Drawer for stage 4. [[daaa28-grille-drawer]] | `bd show Aurora-daaa.28`, `Grille-vxt` |
+| 2026-11-10 | Graph editor Details and Dashboard controls drawers, on-node Dashboard mark, Esc from the canvas. [[daaa27-3-drawers]] | `bd show Aurora-daaa.27.3`, `bd show Aurora-daaa.27.5` |

@@ -476,3 +476,15 @@ Applies-when: turning React Flow's `onNodesChange` / `onEdgesChange` `remove` ch
 - Use `onDelete({ nodes, edges })` for the document edit (one entry) and keep the change handlers for view state only. A menu delete that calls the same edit function stays one step.
 
 **Fix:** Aurora-daaa.27.2; `graph-editor:delete` checks undo and redo.
+
+---
+
+## React Flow's Delete and Backspace fire from a drawer, and Grille's Drawer hears Esc only with focus inside
+Tags: webui, react-flow, grille, drawer, keyboard
+Applies-when: putting a non-modal panel (Grille Drawer) beside a React Flow canvas that has `deleteKeyCode`
+
+- React Flow's delete key listens on `document` and skips only inputs and contenteditable. Grille's Drawer takes focus on its own non-input container when it opens, so Backspace there deleted the selected node.
+- Set `deleteKeyCode` to `null` while focus is inside the drawer (React `onFocus`/`onBlur` on a wrapper around it).
+- Drawer closes on Esc only through its own `onKeyDown`. After a canvas click focus is outside, so Esc does nothing; Aurora adds a window Esc handler that yields to open menus and popups. Upstream question: `Aurora-daaa.27.5`.
+
+**Fix:** Aurora-daaa.27.3; browser-checked on the fake-hue stack.

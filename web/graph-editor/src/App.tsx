@@ -4,6 +4,7 @@ import {
   Background,
   BackgroundVariant,
   MiniMap,
+  Panel,
   applyEdgeChanges,
   applyNodeChanges,
   type Connection,
@@ -20,6 +21,8 @@ import { applyGraph, fetchCatalog, fetchEffectGraph, fetchEffects, putDraft, sav
 import { EditorContext, type EditorActions } from './EditorContext'
 import { GenericNode } from './GenericNode'
 import { Inspector } from './Inspector'
+import { DetailsDrawer } from './DetailsDrawer'
+import { ControlsDrawer } from './ControlsDrawer'
 import { AddNodeMenu } from './AddNodeMenu'
 import { ContextMenu, type MenuAction, type MenuTarget } from './ContextMenu'
 import { ProblemsContext } from './ProblemsContext'
@@ -76,6 +79,11 @@ export function App() {
   >(null)
   const titleMenuTrigger = useRef<HTMLButtonElement>(null)
   const [minimap, setMinimap] = useState(false)
+  // One drawer at a time, non-modal: canvas clicks leave it open (Aurora-daaa.27.3).
+  const [drawer, setDrawer] = useState<'details' | 'controls' | null>(null)
+  const [focusChecks, setFocusChecks] = useState(0)
+  // Focus inside a drawer: Delete and Backspace there must not delete nodes.
+  const [inDrawer, setInDrawer] = useState(false)
   // The graph as the running test was started with it.
   const [testedDoc, setTestedDoc] = useState<GraphDoc | null>(null)
   // What React Flow has told us (selection, measured sizes, a drag in progress).
@@ -282,6 +290,20 @@ export function App() {
     return () => window.removeEventListener('keydown', onKey)
   }, [])
 
+  // The Drawer closes itself on Esc only while focus is inside it, and a click
+  // on the canvas moves focus out. Esc anywhere else closes it too, unless a
+  // menu or popup already took the key.
+  useEffect(() => {
+    if (!drawer) return
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape' || e.defaultPrevented) return
+      if (document.querySelector('.react-aria-Popover, [role="menu"], [role="dialog"]')) return
+      setDrawer(null)
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [drawer])
+
   // Ctrl/Cmd+S saves, wherever focus is (the browser would save the page).
   const saveKey = useRef<() => void>(() => {})
   saveKey.current = () => void write('save')
@@ -428,10 +450,10 @@ export function App() {
     else if (a.type === 'fit') void flow.current?.fitView({ ...FIT_OPTIONS, duration: 200 })
     else if (a.type === 'delete-nodes') deleteNodes(new Set(picked.map((n) => n.id)))
     else if (a.type === 'delete-edge' && at?.kind === 'edge') edit((d) => d.edges.filter((e) => edgeId(e) === at.id).reduce(removeEdge, d))
-    // Details and the Dashboard checkboxes need the drawer (Aurora-daaa.27.3);
-    // until then both select the node, which the Inspector shows.
     else if (a.type === 'details' || a.type === 'dashboard') {
-      if (at?.kind === 'node') selectNode(at.id)
+      // The node menu already selected this node alone, which Details follows.
+      setDrawer('details')
+      if (a.type === 'dashboard') setFocusChecks((n) => n + 1)
     }
   }
 
@@ -665,7 +687,7 @@ export function App() {
             nodeTypes={nodeTypes}
             onNodesChange={onNodesChange}
             onDelete={onDelete}
-            deleteKeyCode={['Backspace', 'Delete']}
+            deleteKeyCode={inDrawer ? null : ['Backspace', 'Delete']}
             onEdgesChange={onEdgesChange}
             onNodeDragStop={onNodeDragStop}
             onPaneContextMenu={(e) => {
@@ -697,6 +719,18 @@ export function App() {
             key={effectId}
           >
             <Background variant={BackgroundVariant.Dots} />
+            <Panel position="top-left">
+              <button
+                type="button"
+                className="btn btn-secondary"
+                aria-haspopup="dialog"
+                aria-expanded={drawer === 'controls'}
+                disabled={!doc}
+                onClick={() => setDrawer((d) => (d === 'controls' ? null : 'controls'))}
+              >
+                Dashboard controls ({doc ? controlsOf(doc).length : 0})
+              </button>
+            </Panel>
             <ViewMenu minimap={minimap} onMinimap={setMinimap} />
             {minimap ? <MiniMap pannable zoomable /> : null}
           </ReactFlow>
@@ -705,6 +739,28 @@ export function App() {
       </div>
       {doc && catalog ? <Inspector doc={doc} catalog={catalog} selected={selectedId} edit={edit} /> : <div className="inspector" />}
       </div>
+      {doc && catalog ? (
+        <div onFocus={() => setInDrawer(true)} onBlur={() => setInDrawer(false)}>
+          <DetailsDrawer
+            isOpen={drawer === 'details'}
+            onClose={() => setDrawer(null)}
+            top={canvas.current?.getBoundingClientRect().top ?? 0}
+            doc={doc}
+            catalog={catalog}
+            selected={selectedId}
+            focusChecks={focusChecks}
+            edit={edit}
+          />
+          <ControlsDrawer
+            isOpen={drawer === 'controls'}
+            onClose={() => setDrawer(null)}
+            top={canvas.current?.getBoundingClientRect().top ?? 0}
+            doc={doc}
+            catalog={catalog}
+            edit={edit}
+          />
+        </div>
+      ) : null}
       {catalog ? (
         <ContextMenu
           target={menu}
