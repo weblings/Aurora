@@ -46,21 +46,23 @@ export function ProblemsChip({
                 <li key={`${id}:${m}`}>
                   <button
                     type="button"
-                    className="editor-problem-row"
+                    className="editor-problem-row editor-problem-text"
                     onClick={() => {
                       close()
                       onSelectNode(id)
                     }}
                   >
-                    <strong>{id}</strong> {m}
+                    <strong>{id}</strong>
+                    <span>{m}</span>
                   </button>
                 </li>
               )),
             )}
             {problems.graph.map((m) => (
               <li key={`graph:${m}`} className="editor-problem-row">
-                <span>
-                  <strong>Whole graph</strong> {m}
+                <span className="editor-problem-text">
+                  <strong>Whole graph</strong>
+                  <span>{m}</span>
                 </span>
                 <button
                   type="button"
