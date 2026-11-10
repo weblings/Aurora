@@ -368,3 +368,4 @@ Planning docs stay clean: decisions, status, and pointers here only.
 | 2026-11-10 | Graph editor: Grille dev.7 installed, adds Drawer for stage 4. [[daaa28-grille-drawer]] | `bd show Aurora-daaa.28`, `Grille-vxt` |
 | 2026-11-10 | Graph editor Details and Dashboard controls drawers, on-node Dashboard mark, Esc from the canvas. [[daaa27-3-drawers]] | `bd show Aurora-daaa.27.3`, `bd show Aurora-daaa.27.5` |
 | 2026-11-10 | Graph editor Inspector removed, checks migrated, drawer coverage, control count 9. [[daaa27-4-inspector-removed]] | `bd show Aurora-daaa.27.4` |
+| 2026-11-10 | Graph editor: Grille dev.8 installed, adds bottom Drawer and Esc from anywhere. [[daaa29-3-grille-dev8]] | `bd show Aurora-daaa.29.3`, `Grille-b6b`, `Grille-g25` |

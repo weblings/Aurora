@@ -14,7 +14,7 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@weblings/grille": "https://github.com/weblings/GrilleDS/releases/download/v0.1.0-dev.7/weblings-grille-0.1.0-dev.7.tgz",
+    "@weblings/grille": "https://github.com/weblings/GrilleDS/releases/download/v0.1.0-dev.8/weblings-grille-0.1.0-dev.8.tgz",
     "@xyflow/react": "12.12.0",
     "react": "19.3.0",
     "react-dom": "19.3.0"
