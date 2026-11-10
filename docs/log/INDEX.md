@@ -373,3 +373,4 @@ Planning docs stay clean: decisions, status, and pointers here only.
 | 2026-11-10 | Graph editor: side drawer narrows to clamp(280px, 40vw, 350px), view pans the selected node clear. [[daaa29-2-drawer-clear]] | `bd show Aurora-daaa.29.2` |
 | 2026-11-10 | Graph editor: bottom dock for drawers below 650 px or portrait, half/full toggle. [[daaa29-4-bottom-dock]] | `bd show Aurora-daaa.29.4` |
 | 2026-11-10 | Graph editor: full browser-check suite on the narrow-window head; port-types check moved to the Add node menu. [[daaa30-full-browser-check]] | `bd show Aurora-daaa.30` |
+| 2026-11-10 | Graph editor: 1100 px no-pan assertion; drawer-body container queries skipped and recorded. [[daaa29-5-narrow-leftovers]] | `bd show Aurora-daaa.29.5` |

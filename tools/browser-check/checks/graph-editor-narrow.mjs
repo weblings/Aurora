@@ -89,6 +89,16 @@ await withEditorStack(async ({ editorUrl }) => {
       if (geo.side === 'right' && width >= 520) assert.ok(geo.nodeRight <= geo.drawerLeft + 1, `${width} px: Rescale right ${geo.nodeRight} under drawer at ${geo.drawerLeft}`)
       if (SHOTS) await page.screenshot({ path: `${SHOTS}/${width}-details.png` })
       await page.keyboard.press('Escape')
+      if (width === 1100) {
+        // Aurora-daaa.29.5: the node is now clear of the drawer, so opening Details again must not pan.
+        await page.waitForTimeout(300)
+        const transform = () => page.evaluate(() => document.querySelector('.react-flow__viewport').style.transform)
+        const before = await transform()
+        await openDetails(page, page.locator('.aurora-node', { hasText: 'Rescale' }).first())
+        await page.waitForTimeout(700)
+        assert.equal(await transform(), before, `${width} px: view moved although Rescale was already clear of the drawer`)
+        await page.keyboard.press('Escape')
+      }
     }
     // Aurora-daaa.29.4: bottom dock below 650 px wide or portrait (aspect < 0.75), else the side.
     for (const [w, h, side] of [[400, 800, 'bottom'], [700, 900, 'right'], [1470, 700, 'right']]) {

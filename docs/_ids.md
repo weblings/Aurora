@@ -105,6 +105,7 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `daaa29-2-drawer-clear` | [log/2026-11-10-daaa29-2-drawer-clear.md](log/2026-11-10-daaa29-2-drawer-clear.md) | Graph editor: side drawer narrows and the view keeps the node clear |
 | `daaa29-3-grille-dev8` | [log/2026-11-10-daaa29-3-grille-dev8.md](log/2026-11-10-daaa29-3-grille-dev8.md) | Graph editor: Grille dev.8 (bottom Drawer, Esc) |
 | `daaa29-4-bottom-dock` | [log/2026-11-10-daaa29-4-bottom-dock.md](log/2026-11-10-daaa29-4-bottom-dock.md) | Graph editor: bottom dock for drawers in narrow or portrait windows |
+| `daaa29-5-narrow-leftovers` | [log/2026-11-10-daaa29-5-narrow-leftovers.md](log/2026-11-10-daaa29-5-narrow-leftovers.md) | Graph editor: 1100 px no-pan assertion, drawer-body container queries skipped |
 | `daaa30-full-browser-check` | [log/2026-11-10-daaa30-full-browser-check.md](log/2026-11-10-daaa30-full-browser-check.md) | Graph editor: full browser-check suite on the narrow-window head |
 | `daaa4-control-count-baseline` | [log/2026-11-08-daaa4-control-count-baseline.md](log/2026-11-08-daaa4-control-count-baseline.md) | Graph editor control-count baseline and CMake rebuild check |
 | `daaa5-graph-editor-owner-decisions` | [log/2026-11-08-daaa5-graph-editor-owner-decisions.md](log/2026-11-08-daaa5-graph-editor-owner-decisions.md) | Graph editor cleanup: owner decisions before stage 2 |

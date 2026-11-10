@@ -584,6 +584,11 @@ Decided:
   height is the scarce dimension. Prior art: SwiftUI's inspector is a trailing column at
   regular width and a sheet with detents at compact width; Material-aligned libraries
   switch at 600dp. This needs `side: 'bottom'` and the half/full state in Grille's Drawer.
+- **No container queries in the drawer bodies (`Aurora-daaa.29.5`).** The Details and
+  Dashboard controls bodies are a single column of full-width rows, and the screenshots at
+  400x800 (half and full height) and 1100 px show them fitting with no overflow, so one
+  layout serves both the side drawer and the bottom sheet. Add container queries when a
+  drawer body gets a multi-column layout.
 - **No drag to resize, no maximize, no user layout yet.** A drag edge is found only by
   hovering it, and needs its own keyboard support (WAI-ARIA window splitter). Fewer than
   5% of users change defaults (Spool's Word study; Mackay 1991), so defaults carry the
