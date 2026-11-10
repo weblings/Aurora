@@ -11,7 +11,9 @@ link (`web/ui`, `graphEditorHref`) opens it with `?effect=<running effect>`. Pla
 
 Desktop only for the cleanup pass (`Aurora-daaa`, decision 5): the top bar, menus
 and right-click menus are designed for a pointer and keyboard. The editor has never been
-tested on a phone, and touch is not a goal of this pass.
+tested on a phone, and touch is not a goal of this pass. Narrow desktop windows
+(~700 px) and a phone fallback that does not break are in scope (`Aurora-daaa.29`;
+Decisions, narrow windows, in `docs/planning/WebUI/GraphEditorCleanup.md`).
 
 ## Layout
 

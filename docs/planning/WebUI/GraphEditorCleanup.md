@@ -2,7 +2,7 @@
 
 Id: graph-editor-cleanup
 
-Status: stage 1 built (back link, Aurora component styles); stage 2 built (top bar, title and view menus, status spot, `Aurora-daaa.11`); stage 3 built (catalog `group`, node copy, cascade Add node menu, palette removed; `Aurora-daaa.24.1`-`.24.4`, Grille `v0.1.0-dev.6`); stage 4 built (right-click and ⋯ menus, Delete key, Details and Dashboard controls drawers, Inspector removed; `Aurora-daaa.27.1`-`.27.4`, Grille `v0.1.0-dev.7`). Control count 9 on Screen colors and `builtin.audio`, under the mock's 11.
+Status: stage 1 built (back link, Aurora component styles); stage 2 built (top bar, title and view menus, status spot, `Aurora-daaa.11`); stage 3 built (catalog `group`, node copy, cascade Add node menu, palette removed; `Aurora-daaa.24.1`-`.24.4`, Grille `v0.1.0-dev.6`); stage 4 built (right-click and ⋯ menus, Delete key, Details and Dashboard controls drawers, Inspector removed; `Aurora-daaa.27.1`-`.27.4`, Grille `v0.1.0-dev.7`). Control count 9 on Screen colors and `builtin.audio`, under the mock's 11. Narrow windows decided, not built (`Aurora-daaa.29`).
 Written 2026-11-06 under `Aurora-bova`. The owner reviewed the working mock and likes
 the direction. Decisions 1-7 are recorded under Decisions (2026-11-08). Stages 1-2 are
 built; stages 3-4 are still a proposal and follow those decisions.
@@ -157,6 +157,9 @@ real work on wiring, pan and selection, well beyond menu access. The visible `�
 the door open either way.
 
 Recommendation: desktop-only for this pass, stated plainly in the editor README.
+
+Decided: touch stays out, but narrow desktop windows and a usable phone fallback are in
+(see Decisions, narrow windows).
 
 ### 6. Effect switching and leaving
 
@@ -547,6 +550,54 @@ the menu.
 - **Controls model unchanged in stage 4.** A control stays a pointer to one node param. A
   graph-level model (Unity Blackboard, or Houdini-style promotion where the control owns the
   value) is undecided and tracked outside this epic.
+
+## Decisions (owner, narrow windows, 2026-11-10)
+
+`Aurora-daaa.29` found that at 400 px the top bar runs 92 px off the window and at 700 px
+a 350 px drawer covers half the canvas and the node it describes. Two different cases:
+
+- **~700 px is a desktop window.** Tuning an effect beside the video it reacts to (half of
+  a 1440-1512 px laptop screen is 720-756 px) is a likely way to work. In scope.
+- **~400 px is a phone.** The server listens on all interfaces and the Dashboard links to
+  the editor, so a phone can land here. Touch editing stays out of scope: wiring and
+  selection on a canvas are the hard part on touch (Node-RED's users report it), and the
+  phone node editors that work are native touch apps or drop the canvas for a list
+  (ComfyUI's community mobile frontend). The page must not break, nothing more.
+
+Decided:
+
+- **Top bar shrinks by priority, never wraps.** Test on lights, the title and the back
+  link always stay. Below about 650 px, Undo and Redo become icon buttons and `Unsaved`
+  becomes a mark on the title. Below about 520 px, the back link shows only its arrow and
+  Undo and Redo move into a More (`⋯`) menu on `EditorPopup`. At the floor, Test on lights
+  reads `Test`, keeping the full name as its tooltip and accessible name. Below 600 px a
+  dismissible line says the editor is built for a desktop window. A finer pass on what each
+  menu holds is expected later.
+- **The side drawer narrows, the canvas keeps the node in view.** Width is
+  `clamp(280px, 40vw, 350px)`, set by overriding Grille's `--ui-size-drawer-width`
+  token in the editor (no Grille change). When Details opens, follows a new selection or
+  the drawer changes size, the canvas pans so the selected node sits clear of the drawer.
+  The demo refits its camera the same way on pane resize (`web/demo/main.js`).
+- **Narrow or portrait windows get a bottom drawer.** Below about 650 px wide, or clearly
+  portrait (aspect under about 0.75), the drawer docks at the bottom at half height, with a
+  visible half/full toggle button. A short laptop window stays on the right side: there
+  height is the scarce dimension. Prior art: SwiftUI's inspector is a trailing column at
+  regular width and a sheet with detents at compact width; Material-aligned libraries
+  switch at 600dp. This needs `side: 'bottom'` and the half/full state in Grille's Drawer.
+- **No drag to resize, no maximize, no user layout yet.** A drag edge is found only by
+  hovering it, and needs its own keyboard support (WAI-ARIA window splitter). Fewer than
+  5% of users change defaults (Spool's Word study; Mackay 1991), so defaults carry the
+  design. Figma's UI3 tried floating panels and settled on fixed, resizable ones; Blender,
+  Unity, VS Code, Houdini and TouchDesigner offer full docking because they have dozens of
+  editor types used all day, which this editor does not. Drag to resize, a user dock
+  choice and saved layouts wait until someone asks.
+- **Thresholds are values, not a shared library.** The demo switches its split at 1:1
+  aspect in plain CSS (`web/demo/demo-layout.css`); `web/ui` breaks at 649 and 480 px.
+  The editor is the only Grille consumer, so a shared package would add a sync path for
+  three numbers. Prefer `web/ui`'s values where they fit. If a third place needs them,
+  they become Grille breakpoint tokens (JS constants, since media queries cannot read
+  CSS variables). The demo's layout fixes still apply: `min-width: 0; min-height: 0` on
+  flex panes, and `box-sizing` on a pane outside a scoped reset.
 
 ## Known follow-ups (filed under `Aurora-daaa`)
 
