@@ -1,4 +1,5 @@
 import type { Edge, Node } from '@xyflow/react'
+import { controlsOf } from './controls'
 import { splitEndpoint } from './doc'
 import { positionsFor } from './layout'
 import { portStyle } from './portStyle'
@@ -11,6 +12,8 @@ export type AuroraNodeData = {
   params: Record<string, ParamValue>
   // Input ports with an edge, so the node can dim the ones still open.
   connectedInputs: ReadonlySet<string>
+  // Params of this node that are on the Dashboard, for the on-node mark.
+  dashboardParams: ReadonlySet<string>
   [key: string]: unknown
 }
 
@@ -28,15 +31,22 @@ export function toFlowNodes(doc: GraphDoc, catalog: Catalog): Node<AuroraNodeDat
     if (!fed.has(node)) fed.set(node, new Set())
     fed.get(node)!.add(port)
   }
+  const shown = new Map<string, Set<string>>()
+  for (const c of controlsOf(doc)) {
+    if (!shown.has(c.node)) shown.set(c.node, new Set())
+    shown.get(c.node)!.add(c.param)
+  }
   return doc.nodes.map((node) => ({
     id: node.id,
     type: NODE_KIND,
+    ariaLabel: catalog.get(node.type)?.title || node.type,
     position: positions[node.id],
     data: {
       type: node.type,
       info: catalog.get(node.type),
       params: node.params ?? {},
       connectedInputs: fed.get(node.id) ?? new Set(),
+      dashboardParams: shown.get(node.id) ?? new Set(),
     },
   }))
 }
@@ -49,6 +59,7 @@ export function toFlowEdges(doc: GraphDoc, catalog?: Catalog): Edge[] {
     const look = sourceType ? portStyle(sourceType) : null
     return {
       id: edgeId(edge),
+      interactionWidth: 24,
       source: from.node,
       sourceHandle: from.port,
       target: to.node,

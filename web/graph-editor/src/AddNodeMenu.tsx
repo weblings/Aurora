@@ -18,7 +18,7 @@ function Sockets({ ports, side }: { ports: PortInfo[]; side: 'in' | 'out' }) {
 }
 
 // A node row: name, sockets, summary. The tip rides as the hover title.
-function Row({ info }: { info: NodeTypeInfo }) {
+export function Row({ info }: { info: NodeTypeInfo }) {
   return (
     <span className="add-row" title={tipOf(info) || undefined}>
       <span className="add-row-head">

@@ -3,6 +3,7 @@
 import assert from 'node:assert/strict'
 import { launch } from '../lib/browser.mjs'
 import { withEditorStack } from '../lib/stack.mjs'
+import { addNodeByName } from '../lib/editorMenu.mjs'
 
 const rgb = (hex) => {
   const n = parseInt(hex.slice(1), 16)
@@ -40,7 +41,7 @@ await withEditorStack(async ({ editorUrl }) => {
       if ((await have()).has(type)) continue
       const info = catalog.find((n) => [...n.inputs, ...n.outputs].some((p) => p.type === type))
       assert.ok(info, `no node type has a ${type} port`)
-      await page.getByRole('button', { name: info.title || info.type, exact: true }).first().click()
+      await addNodeByName(page, info.title || info.type)
       await page.waitForFunction((t) => document.querySelector(`.aurora-handle[data-port-type="${t}"]`), type)
     }
     assert.deepEqual([...(await have())].sort(), Object.keys(EXPECT).sort())

@@ -15,8 +15,8 @@ function handleLook(type: string) {
 // One component draws every node type from its /api/nodes entry: ports become
 // handles, params become widgets.
 function GenericNodeView({ id, data }: NodeProps<Node<AuroraNodeData>>) {
-  const { setParam, commit } = useEditorActions()
-  const { info, params, connectedInputs } = data
+  const { setParam, commit, openNodeMenu } = useEditorActions()
+  const { info, params, connectedInputs, dashboardParams } = data
   const problems = useNodeProblems(id)
   // Messages that named no port or param show under the header.
   const loose = problems ? unattributed(problems) : []
@@ -43,6 +43,18 @@ function GenericNodeView({ id, data }: NodeProps<Node<AuroraNodeData>>) {
           </span>
         ) : null}
         <small>{id}</small>
+        <button
+          type="button"
+          className="aurora-node-more nodrag"
+          aria-label={`Actions for ${info.title || data.type}`}
+          aria-haspopup="menu"
+          onClick={(e) => {
+            const box = e.currentTarget.getBoundingClientRect()
+            openNodeMenu(id, { x: box.left, y: box.bottom })
+          }}
+        >
+          ⋯
+        </button>
       </div>
       {loose.length > 0 ? (
         <ul className="problem-list">
@@ -84,6 +96,7 @@ function GenericNodeView({ id, data }: NodeProps<Node<AuroraNodeData>>) {
           onChange={(value) => setParam(id, param.name, value)}
           onCommit={commit}
           problems={problems?.params.get(param.name)}
+          onDashboard={dashboardParams.has(param.name)}
         />
       ))}
     </div>

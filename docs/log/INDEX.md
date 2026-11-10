@@ -363,3 +363,15 @@ Planning docs stay clean: decisions, status, and pointers here only.
 | 2026-11-10 | Graph editor: palette removed, checks migrated; chrome controls 79 -> 26 (video), 126 -> 74 (audio); bundle 646.84 kB. [[daaa24-4-palette-removed]] | `bd show Aurora-daaa.24.4`, `Aurora-daaa.24` |
 | 2026-11-10 | Graph editor: top-bar and title-menu checks timed out since Aurora-daaa.18 (fit view 60% floor); both were check bugs, fixed. [[daaa25-browser-check-timeouts]] | `bd show Aurora-daaa.25` |
 | 2026-11-10 | Graph editor: gate check timed out since Aurora-daaa.18; status ranked a reload error above problems, and the check clicked handles outside the window; both fixed. [[daaa26-gate-status]] | `bd show Aurora-daaa.26` |
+| 2026-11-10 | Graph editor right-click and ⋯ menus on canvas, node and wire, Shift+F10, node accessible names. [[daaa27-1-context-menus]] | `bd show Aurora-daaa.27.1` |
+| 2026-11-10 | Graph editor Delete key, toast when a deletion removes Dashboard controls, key delete is one undo step. [[daaa27-2-delete-key]] | `bd show Aurora-daaa.27.2` |
+| 2026-11-10 | Graph editor: Grille dev.7 installed, adds Drawer for stage 4. [[daaa28-grille-drawer]] | `bd show Aurora-daaa.28`, `Grille-vxt` |
+| 2026-11-10 | Graph editor Details and Dashboard controls drawers, on-node Dashboard mark, Esc from the canvas. [[daaa27-3-drawers]] | `bd show Aurora-daaa.27.3`, `bd show Aurora-daaa.27.5` |
+| 2026-11-10 | Graph editor Inspector removed, checks migrated, drawer coverage, control count 9. [[daaa27-4-inspector-removed]] | `bd show Aurora-daaa.27.4` |
+| 2026-11-10 | Graph editor: Grille dev.8 installed, adds bottom Drawer and Esc from anywhere. [[daaa29-3-grille-dev8]] | `bd show Aurora-daaa.29.3`, `Grille-b6b`, `Grille-g25` |
+| 2026-11-10 | Graph editor: top bar shrinks by priority to 400 px, More menu, desktop-window note. [[daaa29-1-narrow-top-bar]] | `bd show Aurora-daaa.29.1` |
+| 2026-11-10 | Graph editor: side drawer narrows to clamp(280px, 40vw, 350px), view pans the selected node clear. [[daaa29-2-drawer-clear]] | `bd show Aurora-daaa.29.2` |
+| 2026-11-10 | Graph editor: bottom dock for drawers below 650 px or portrait, half/full toggle. [[daaa29-4-bottom-dock]] | `bd show Aurora-daaa.29.4` |
+| 2026-11-10 | Graph editor: full browser-check suite on the narrow-window head; port-types check moved to the Add node menu. [[daaa30-full-browser-check]] | `bd show Aurora-daaa.30` |
+| 2026-11-10 | Graph editor: 1100 px no-pan assertion; drawer-body container queries skipped and recorded. [[daaa29-5-narrow-leftovers]] | `bd show Aurora-daaa.29.5` |
+| 2026-11-10 | Graph editor stage 4 and narrow-window parents closed, cleanup doc status updated. [[daaa27-29-stage4-closed]] | `bd show Aurora-daaa.27`, `bd show Aurora-daaa.29` |

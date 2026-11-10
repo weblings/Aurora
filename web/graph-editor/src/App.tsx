@@ -4,6 +4,7 @@ import {
   Background,
   BackgroundVariant,
   MiniMap,
+  Panel,
   applyEdgeChanges,
   applyNodeChanges,
   type Connection,
@@ -19,12 +20,18 @@ import chevronUp from '../../ui/icons/chevron-up.svg'
 import { applyGraph, fetchCatalog, fetchEffectGraph, fetchEffects, putDraft, saveGraph, type WriteResult } from './api'
 import { EditorContext, type EditorActions } from './EditorContext'
 import { GenericNode } from './GenericNode'
-import { Inspector } from './Inspector'
+import { DetailsDrawer } from './DetailsDrawer'
+import { clearShift } from './graph/clear'
+import { ControlsDrawer } from './ControlsDrawer'
 import { AddNodeMenu } from './AddNodeMenu'
+import { ContextMenu, type MenuAction, type MenuTarget } from './ContextMenu'
 import { ProblemsContext } from './ProblemsContext'
 import { ProblemsChip } from './ProblemsChip'
 import { Toast, useToast } from './Toast'
 import { NameDialog } from './NameDialog'
+import { BarMoreMenu } from './BarMoreMenu'
+import { DesktopNote } from './DesktopNote'
+import { COMPACT_BAR, DOCK_BOTTOM, TIGHT_BAR, useMedia } from './useMedia'
 import { TitleMenu, type TitleMenuAction } from './TitleMenu'
 import { FIT_OPTIONS, ViewMenu } from './ViewMenu'
 import { ZoneThumbnail } from './ZoneThumbnail'
@@ -32,6 +39,7 @@ import { tabSession, useDraftLoop } from './useDraftLoop'
 import { useLightTest } from './useLightTest'
 import { restorable, clearUnsaved, syncUnsaved } from './graph/autosave'
 import { refuseConnection } from './graph/connection'
+import { controlsOf } from './graph/controls'
 import { addEdge, addNode, joinEndpoint, moveNodes, removeEdge, removeNodes, setParam } from './graph/doc'
 import { editorReducer, emptyEditor, sameDoc } from './graph/history'
 import { changeIsEdit, pickBanner, pickStatus, testProgress } from './graph/status'
@@ -68,12 +76,20 @@ export function App() {
   const { text: toastText, show: showToast } = useToast()
   const [writing, setWriting] = useState(false)
   const [titleMenuOpen, setTitleMenuOpen] = useState(false)
+  const compactBar = useMedia(COMPACT_BAR)
+  const tightBar = useMedia(TIGHT_BAR)
+  const drawerSide = useMedia(DOCK_BOTTOM) ? 'bottom' : 'right'
   // The naming dialog (Aurora-daaa.19): a write that creates a new effect, or Rename.
   const [naming, setNaming] = useState<
     { kind: 'save' | 'apply'; asNew: boolean; initial: string } | { kind: 'rename'; initial: string } | null
   >(null)
   const titleMenuTrigger = useRef<HTMLButtonElement>(null)
   const [minimap, setMinimap] = useState(false)
+  // One drawer at a time, non-modal: canvas clicks leave it open (Aurora-daaa.27.3).
+  const [drawer, setDrawer] = useState<'details' | 'controls' | null>(null)
+  const [focusChecks, setFocusChecks] = useState(0)
+  // Focus inside a drawer: Delete and Backspace there must not delete nodes.
+  const [inDrawer, setInDrawer] = useState(false)
   // The graph as the running test was started with it.
   const [testedDoc, setTestedDoc] = useState<GraphDoc | null>(null)
   // What React Flow has told us (selection, measured sizes, a drag in progress).
@@ -238,6 +254,31 @@ export function App() {
   const blocked = status.rank === 1
 
   const edit = useCallback((change: (d: GraphDoc) => GraphDoc) => dispatch({ type: 'edit', change }), [])
+
+  // One path for key Delete, Backspace and the menu: deleting a node drops its
+  // Dashboard controls, so say so (global undo brings them back).
+  const deleteNodes = useCallback(
+    (ids: ReadonlySet<string>) => {
+      const current = docRef.current
+      const dropped = current ? controlsOf(current).filter((c) => ids.has(c.node)) : []
+      edit((d) => removeNodes(d, ids))
+      if (dropped.length > 0) {
+        const n = dropped.length
+        // A control without a label reads as '<node title> <param>'.
+        const nameOf = (c: (typeof dropped)[number]) => {
+          if (c.label) return c.label
+          const type = current?.nodes.find((x) => x.id === c.node)?.type
+          const title = type ? catalog?.get(type)?.title : undefined
+          return title ? `${title} ${c.param}` : c.param
+        }
+        const names = [...new Set(dropped.map(nameOf))]
+        const shown = names.length > 3 ? [...names.slice(0, 3), `${names.length - 3} more`] : names
+        const list = shown.length > 1 ? `${shown.slice(0, -1).join(', ')} and ${shown[shown.length - 1]}` : shown[0]
+        showToast(`Removed ${n} Dashboard control${n === 1 ? '' : 's'} with ${list}`)
+      }
+    },
+    [edit, showToast, catalog],
+  )
   const undo = useCallback(() => dispatch({ type: 'undo' }), [])
   const redo = useCallback(() => dispatch({ type: 'redo' }), [])
 
@@ -254,6 +295,49 @@ export function App() {
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
   }, [])
+
+  // Keep the selected node clear of the Details drawer: pan, never zoom, and
+  // only when it sits under the drawer. Runs when Details opens, follows a new
+  // selection, or the canvas (so the drawer width) changes size.
+  const clearNode = useRef<() => void>(() => {})
+  clearNode.current = () => {
+    const inst = flow.current
+    const pane = canvas.current
+    if (drawer !== 'details' || !selectedId || !inst || !pane) return
+    const node = inst.getInternalNode(selectedId)
+    const drawerEl = document.querySelector<HTMLElement>('.ui-drawer')
+    if (!node || !drawerEl || !node.measured.width) return
+    const box = pane.getBoundingClientRect()
+    const vp = inst.getViewport()
+    const pos = node.internals.positionAbsolute
+    const bottom = drawerEl.dataset.side === 'bottom'
+    // A full-height sheet covers the whole canvas: nothing to clear, so leave the view alone.
+    if (bottom && drawerEl.hasAttribute('data-expanded')) return
+    const start = (bottom ? pos.y : pos.x) * vp.zoom + (bottom ? vp.y : vp.x)
+    const size = (bottom ? (node.measured.height ?? 0) : node.measured.width) * vp.zoom
+    const end = start + size
+    const limit = bottom ? drawerEl.getBoundingClientRect().top - box.top : window.innerWidth - drawerEl.offsetWidth - box.left
+    const dx = clearShift(start, end, limit)
+    if (dx !== 0) void inst.setViewport(bottom ? { ...vp, y: vp.y + dx } : { ...vp, x: vp.x + dx }, { duration: 150 })
+  }
+  useEffect(() => {
+    clearNode.current()
+  }, [drawer, selectedId])
+  useEffect(() => {
+    const pane = canvas.current
+    if (!pane || typeof ResizeObserver === 'undefined') return
+    const watch = new ResizeObserver(() => clearNode.current())
+    watch.observe(pane)
+    return () => watch.disconnect()
+  }, [])
+  // The dock's half/full toggle resizes the drawer, not the canvas.
+  useEffect(() => {
+    const el = drawer ? document.querySelector('.ui-drawer') : null
+    if (!el || typeof ResizeObserver === 'undefined') return
+    const watch = new ResizeObserver(() => clearNode.current())
+    watch.observe(el)
+    return () => watch.disconnect()
+  }, [drawer, drawerSide])
 
   // Ctrl/Cmd+S saves, wherever focus is (the browser would save the page).
   const saveKey = useRef<() => void>(() => {})
@@ -301,11 +385,47 @@ export function App() {
     [nodes],
   )
 
+  // Right-click and ⋯ menus (Aurora-daaa.27.1).
+  const [menu, setMenu] = useState<MenuTarget | null>(null)
+  // A node menu on an unselected node selects it alone first, so Delete and the
+  // count act on what the menu was opened on.
+  const openMenu = useCallback(
+    (target: MenuTarget) => {
+      if (target.kind === 'node') {
+        setNodeView((view) => {
+          const base = view.length > 0 ? view : nodes
+          if (base.find((n) => n.id === target.id)?.selected) return view
+          return base.map((n) => ({ ...n, selected: n.id === target.id }))
+        })
+      }
+      setMenu(target)
+    },
+    [nodes],
+  )
+  const openMenuRef = useRef(openMenu)
+  openMenuRef.current = openMenu
+
+  // Shift+F10 (or the Menu key) on a focused node opens its menu.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (!((e.key === 'F10' && e.shiftKey) || e.key === 'ContextMenu')) return
+      const node = (e.target as HTMLElement | null)?.closest<HTMLElement>('.react-flow__node')
+      const id = node?.dataset.id
+      if (!node || !id) return
+      e.preventDefault()
+      const box = node.getBoundingClientRect()
+      openMenuRef.current({ kind: 'node', id, x: box.left, y: box.top + 24 })
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [])
+
   const actions = useMemo<EditorActions>(
     () => ({
       setParam: (nodeId: string, name: string, value: ParamValue) =>
         dispatch({ type: 'edit', change: (d) => setParam(d, nodeId, name, value), live: true }),
       commit: () => dispatch({ type: 'commit' }),
+      openNodeMenu: (nodeId: string, at: { x: number; y: number }) => openMenuRef.current({ kind: 'node', id: nodeId, ...at }),
     }),
     [],
   )
@@ -313,20 +433,28 @@ export function App() {
   const onNodesChange = useCallback(
     (changes: NodeChange<Node<AuroraNodeData>>[]) => {
       setNodeView(applyNodeChanges(changes, nodes))
-      const removed = new Set(changes.flatMap((c) => (c.type === 'remove' ? [c.id] : [])))
-      if (removed.size > 0) edit((d) => removeNodes(d, removed))
     },
-    [nodes, edit],
+    [nodes],
   )
 
   const onEdgesChange = useCallback(
     (changes: EdgeChange[]) => {
       setEdgeView(applyEdgeChanges(changes, edges))
-      const removed = new Set(changes.flatMap((c) => (c.type === 'remove' ? [c.id] : [])))
-      if (removed.size === 0) return
-      edit((d) => d.edges.filter((e) => removed.has(edgeId(e))).reduce(removeEdge, d))
     },
-    [edges, edit],
+    [edges],
+  )
+
+  // A key delete reports its nodes and their wires together: one edit, so one
+  // undo brings all of it back (the per-change handlers made two history steps).
+  const onDelete = useCallback(
+    ({ nodes: gone, edges: wires }: { nodes: Node[]; edges: Edge[] }) => {
+      const ids = new Set(gone.map((n) => n.id))
+      // Wires on a deleted node leave with it; only the others need their own edit.
+      const wireIds = new Set(wires.filter((w) => !ids.has(w.source) && !ids.has(w.target)).map((w) => w.id))
+      if (ids.size > 0) deleteNodes(ids)
+      else if (wireIds.size > 0) edit((d) => d.edges.filter((e) => wireIds.has(edgeId(e))).reduce(removeEdge, d))
+    },
+    [deleteNodes, edit],
   )
 
   // Position lands in the document once, when the drag ends.
@@ -334,20 +462,35 @@ export function App() {
     edit((d) => moveNodes(d, Object.fromEntries(dragged.map((n) => [n.id, { x: n.position.x, y: n.position.y }]))))
   }, [edit])
 
-  // Adds a node of a catalog type at the canvas centre.
+  // Adds a node of a catalog type at the pointer, else the canvas centre.
   const addFromMenu = useCallback(
-    (type: string) => {
+    (type: string, pointer?: { x: number; y: number }) => {
       const info = catalog?.get(type)
       const view = flow.current
       if (!info || !view) return
       const box = canvas.current?.getBoundingClientRect()
-      const point = { x: (box?.left ?? 0) + (box?.width ?? 0) / 2, y: (box?.top ?? 0) + (box?.height ?? 0) / 2 }
+      const point = pointer ?? { x: (box?.left ?? 0) + (box?.width ?? 0) / 2, y: (box?.top ?? 0) + (box?.height ?? 0) / 2 }
       const at = view.screenToFlowPosition(point)
       edit((d) => addNode(d, info, at))
       showToast(`Added ${info.type}`)
     },
     [catalog, edit, showToast],
   )
+
+  const onMenuAction = (a: MenuAction) => {
+    const at = menu
+    if (a.type === 'add') addFromMenu(a.nodeType, at ? { x: at.x, y: at.y } : undefined)
+    else if (a.type === 'undo') undo()
+    else if (a.type === 'redo') redo()
+    else if (a.type === 'fit') void flow.current?.fitView({ ...FIT_OPTIONS, duration: 200 })
+    else if (a.type === 'delete-nodes') deleteNodes(new Set(picked.map((n) => n.id)))
+    else if (a.type === 'delete-edge' && at?.kind === 'edge') edit((d) => d.edges.filter((e) => edgeId(e) === at.id).reduce(removeEdge, d))
+    else if (a.type === 'details' || a.type === 'dashboard') {
+      // The node menu already selected this node alone, which Details follows.
+      setDrawer('details')
+      if (a.type === 'dashboard') setFocusChecks((n) => n + 1)
+    }
+  }
 
   const wiring = useCallback(
     (c: Connection | Edge) => {
@@ -418,25 +561,26 @@ export function App() {
   return (
     <div className="editor">
       <header className="editor-header">
-        <a className="btn btn-secondary editor-back" href="/">
+        <a className="btn btn-secondary editor-back" href="/" aria-label={tightBar ? 'Dashboard' : undefined}>
           <img className="editor-back-icon" src={backArrow} alt="" />
-          Dashboard
+          {tightBar ? null : 'Dashboard'}
         </a>
         <button
           ref={titleMenuTrigger}
           type="button"
           className="btn btn-secondary editor-title-menu"
-          aria-label="Effect menu"
+          aria-label={dirty && compactBar ? 'Effect menu, unsaved changes' : 'Effect menu'}
           aria-haspopup="dialog"
           aria-expanded={titleMenuOpen}
           data-effect={effectId}
           disabled={!doc}
           onClick={() => setTitleMenuOpen((open) => !open)}
         >
+          {dirty && compactBar ? <span className="editor-dirty-mark" aria-hidden="true">●</span> : null}
           <span className="editor-title-label">{shownTitle || (effectId === BLANK_ID ? 'New empty effect' : effectId)}</span>
           <img className="editor-chevron" src={titleMenuOpen ? chevronUp : chevronDown} alt="" />
         </button>
-        {dirty ? <span className="editor-dirty">Unsaved</span> : null}
+        {dirty && !compactBar ? <span className="editor-dirty">Unsaved</span> : null}
         <button
           ref={addMenuTrigger}
           type="button"
@@ -508,12 +652,30 @@ export function App() {
           onAddNode={() => setAddMenuOpen(true)}
         />
         <span className="editor-bar-end" />
-        <button type="button" className="btn btn-secondary" onClick={undo} disabled={past.length === 0} title="Undo (Ctrl/Cmd+Z)">
-          Undo
-        </button>
-        <button type="button" className="btn btn-secondary" onClick={redo} disabled={future.length === 0} title="Redo (Shift+Ctrl/Cmd+Z)">
-          Redo
-        </button>
+        {tightBar ? (
+          <BarMoreMenu canUndo={past.length > 0} canRedo={future.length > 0} onUndo={undo} onRedo={redo} />
+        ) : (
+          <>
+            <button
+              type="button" className="btn btn-secondary"
+              onClick={undo}
+              disabled={past.length === 0}
+              aria-label={compactBar ? 'Undo' : undefined}
+              title="Undo (Ctrl/Cmd+Z)"
+            >
+              {compactBar ? '↶' : 'Undo'}
+            </button>
+            <button
+              type="button" className="btn btn-secondary"
+              onClick={redo}
+              disabled={future.length === 0}
+              aria-label={compactBar ? 'Redo' : undefined}
+              title="Redo (Shift+Ctrl/Cmd+Z)"
+            >
+              {compactBar ? '↷' : 'Redo'}
+            </button>
+          </>
+        )}
         {progress ? (
           <span className="editor-countdown" role="timer">
             {progress}
@@ -529,12 +691,20 @@ export function App() {
             type="button" className="btn btn-secondary"
             onClick={startTest}
             disabled={!doc || blocked || loop.state.valid !== true || lights.state.phase !== 'idle'}
-            title={loop.state.valid === false ? 'Fix the problems before testing' : 'Show this graph on the real lights for a while, then put them back'}
+            aria-label={tightBar ? (lights.state.other ? 'Take over the lights' : 'Test on lights') : undefined}
+            title={
+              loop.state.valid === false
+                ? 'Fix the problems before testing'
+                : tightBar
+                  ? `${lights.state.other ? 'Take over the lights' : 'Test on lights'}: show this graph on the real lights for a while, then put them back`
+                  : 'Show this graph on the real lights for a while, then put them back'
+            }
           >
-            {lights.state.other ? 'Take over the lights' : 'Test on lights'}
+            {tightBar ? (lights.state.other ? 'Take over' : 'Test') : lights.state.other ? 'Take over the lights' : 'Test on lights'}
           </button>
         )}
       </header>
+      <DesktopNote />
       {banner?.kind === 'unreachable' ? (
         <div className="editor-banner" role="alert">
           <span>{banner.message}</span>
@@ -578,8 +748,22 @@ export function App() {
             edges={edges}
             nodeTypes={nodeTypes}
             onNodesChange={onNodesChange}
+            onDelete={onDelete}
+            deleteKeyCode={inDrawer ? null : ['Backspace', 'Delete']}
             onEdgesChange={onEdgesChange}
             onNodeDragStop={onNodeDragStop}
+            onPaneContextMenu={(e) => {
+              e.preventDefault()
+              openMenu({ kind: 'canvas', x: (e as React.MouseEvent).clientX, y: (e as React.MouseEvent).clientY })
+            }}
+            onNodeContextMenu={(e, node) => {
+              e.preventDefault()
+              openMenu({ kind: 'node', id: node.id, x: e.clientX, y: e.clientY })
+            }}
+            onEdgeContextMenu={(e, edge) => {
+              e.preventDefault()
+              openMenu({ kind: 'edge', id: edge.id, x: e.clientX, y: e.clientY })
+            }}
             onConnect={onConnect}
             onConnectStart={onConnectStart}
             onConnectEnd={onConnectEnd}
@@ -597,14 +781,60 @@ export function App() {
             key={effectId}
           >
             <Background variant={BackgroundVariant.Dots} />
+            <Panel position="top-left">
+              <button
+                type="button"
+                className="btn btn-secondary"
+                aria-haspopup="dialog"
+                aria-expanded={drawer === 'controls'}
+                disabled={!doc}
+                onClick={() => setDrawer((d) => (d === 'controls' ? null : 'controls'))}
+              >
+                Dashboard controls ({doc ? controlsOf(doc).length : 0})
+              </button>
+            </Panel>
             <ViewMenu minimap={minimap} onMinimap={setMinimap} />
             {minimap ? <MiniMap pannable zoomable /> : null}
           </ReactFlow>
         </EditorContext.Provider>
         </ProblemsContext.Provider>
       </div>
-      {doc && catalog ? <Inspector doc={doc} catalog={catalog} selected={selectedId} edit={edit} /> : <div className="inspector" />}
       </div>
+      {doc && catalog ? (
+        <div onFocus={() => setInDrawer(true)} onBlur={() => setInDrawer(false)}>
+          <DetailsDrawer
+            isOpen={drawer === 'details'}
+            onClose={() => setDrawer(null)}
+            top={canvas.current?.getBoundingClientRect().top ?? 0}
+            side={drawerSide}
+            doc={doc}
+            catalog={catalog}
+            selected={selectedId}
+            focusChecks={focusChecks}
+            edit={edit}
+          />
+          <ControlsDrawer
+            isOpen={drawer === 'controls'}
+            onClose={() => setDrawer(null)}
+            top={canvas.current?.getBoundingClientRect().top ?? 0}
+            side={drawerSide}
+            doc={doc}
+            catalog={catalog}
+            edit={edit}
+          />
+        </div>
+      ) : null}
+      {catalog ? (
+        <ContextMenu
+          target={menu}
+          catalog={catalog}
+          canUndo={past.length > 0}
+          canRedo={future.length > 0}
+          selectedCount={picked.length}
+          onClose={() => setMenu(null)}
+          onAction={onMenuAction}
+        />
+      ) : null}
       <Toast text={toastText} />
     </div>
   )

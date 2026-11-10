@@ -96,6 +96,18 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `daaa24-4-palette-removed` | [log/2026-11-10-daaa24-4-palette-removed.md](log/2026-11-10-daaa24-4-palette-removed.md) | Graph editor: palette removed |
 | `daaa25-browser-check-timeouts` | [log/2026-11-10-daaa25-browser-check-timeouts.md](log/2026-11-10-daaa25-browser-check-timeouts.md) | Graph editor: top-bar and title-menu checks fixed |
 | `daaa26-gate-status` | [log/2026-11-10-daaa26-gate-status.md](log/2026-11-10-daaa26-gate-status.md) | Graph editor: gate check fixed |
+| `daaa27-1-context-menus` | [log/2026-11-10-daaa27-1-context-menus.md](log/2026-11-10-daaa27-1-context-menus.md) | Graph editor: right-click and ⋯ menus |
+| `daaa27-2-delete-key` | [log/2026-11-10-daaa27-2-delete-key.md](log/2026-11-10-daaa27-2-delete-key.md) | Graph editor: Delete key and the dropped-controls toast |
+| `daaa27-29-stage4-closed` | [log/2026-11-10-daaa27-29-stage4-closed.md](log/2026-11-10-daaa27-29-stage4-closed.md) | Graph editor: stage 4 and narrow windows closed |
+| `daaa27-3-drawers` | [log/2026-11-10-daaa27-3-drawers.md](log/2026-11-10-daaa27-3-drawers.md) | Graph editor: Details and Dashboard controls drawers, on-node mark |
+| `daaa27-4-inspector-removed` | [log/2026-11-10-daaa27-4-inspector-removed.md](log/2026-11-10-daaa27-4-inspector-removed.md) | Graph editor: Inspector removed, checks migrated |
+| `daaa28-grille-drawer` | [log/2026-11-10-daaa28-grille-drawer.md](log/2026-11-10-daaa28-grille-drawer.md) | Graph editor: Grille dev.7 (Drawer) |
+| `daaa29-1-narrow-top-bar` | [log/2026-11-10-daaa29-1-narrow-top-bar.md](log/2026-11-10-daaa29-1-narrow-top-bar.md) | Graph editor: top bar shrinks to 400 px |
+| `daaa29-2-drawer-clear` | [log/2026-11-10-daaa29-2-drawer-clear.md](log/2026-11-10-daaa29-2-drawer-clear.md) | Graph editor: side drawer narrows and the view keeps the node clear |
+| `daaa29-3-grille-dev8` | [log/2026-11-10-daaa29-3-grille-dev8.md](log/2026-11-10-daaa29-3-grille-dev8.md) | Graph editor: Grille dev.8 (bottom Drawer, Esc) |
+| `daaa29-4-bottom-dock` | [log/2026-11-10-daaa29-4-bottom-dock.md](log/2026-11-10-daaa29-4-bottom-dock.md) | Graph editor: bottom dock for drawers in narrow or portrait windows |
+| `daaa29-5-narrow-leftovers` | [log/2026-11-10-daaa29-5-narrow-leftovers.md](log/2026-11-10-daaa29-5-narrow-leftovers.md) | Graph editor: 1100 px no-pan assertion, drawer-body container queries skipped |
+| `daaa30-full-browser-check` | [log/2026-11-10-daaa30-full-browser-check.md](log/2026-11-10-daaa30-full-browser-check.md) | Graph editor: full browser-check suite on the narrow-window head |
 | `daaa4-control-count-baseline` | [log/2026-11-08-daaa4-control-count-baseline.md](log/2026-11-08-daaa4-control-count-baseline.md) | Graph editor control-count baseline and CMake rebuild check |
 | `daaa5-graph-editor-owner-decisions` | [log/2026-11-08-daaa5-graph-editor-owner-decisions.md](log/2026-11-08-daaa5-graph-editor-owner-decisions.md) | Graph editor cleanup: owner decisions before stage 2 |
 | `daaa6-graph-editor-gap-states` | [log/2026-11-08-daaa6-graph-editor-gap-states.md](log/2026-11-08-daaa6-graph-editor-gap-states.md) | Graph editor cleanup: gap states and the status priority rule |

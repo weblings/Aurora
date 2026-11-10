@@ -99,12 +99,26 @@ def main():
     print(f"""
 Before committing (AGENTS.md "Before any commit that closes a bead"):
   1. Update the work log: write or update the docs/log/ entry for each bead
-     (name the bead id) and add its INDEX.md row.
+     (name the bead id) and add its INDEX.md row. In the log, cite other docs
+     by id as [[id]] (docs/README.md "Citing other docs"), never by path or
+     filename -- check-links.py accepts paths but they are not the convention.
   2. Capture lessons learned: file any per docs/lessons/README.md (bump the
      README count) and list them in the log under "## Lessons" or a
      "- Lessons:" line, or record "none".
   3. bd export -o {EXPORT}, then stage the export, log, INDEX and lessons.
   4. Rerun the commit. The doc checkers (check-lessons.sh, check-links.py) run next.
+Log entry skeleton (docs/log/YYYY-MM-DD-<id>.md, row in INDEX.md):
+  # <title>
+  <blank>
+  Id: <kebab-case-id>
+  <blank>
+  `<bead id>`. What changed and what was found; cite docs as [[doc-id]].
+  <blank>
+  ## Verification
+  - what was run and its result
+  <blank>
+  ## Lessons
+  - none (or the lesson headlines)
 Bypass for a close that needs no log: AURORA_SKIP_CLOSE_GATE=1 git commit ...""", file=sys.stderr)
     return 1
 

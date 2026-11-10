@@ -5,7 +5,7 @@
 import assert from 'node:assert/strict'
 import { launch } from '../lib/browser.mjs'
 import { withEditorStack } from '../lib/stack.mjs'
-import { fileAction, pickAction, setName, waitToast } from '../lib/editorMenu.mjs'
+import { detailsChecks, fileAction, pickAction, setName, tickFirst, waitControlCount, waitToast } from '../lib/editorMenu.mjs'
 
 const created = []
 
@@ -86,9 +86,8 @@ await withEditorStack(async ({ editorUrl, aurora }) => {
     await page.getByRole('dialog', { name: 'Name the new effect' }).waitFor()
     await page.keyboard.press('Escape')
     await page.getByRole('dialog', { name: 'Name the new effect' }).waitFor({ state: 'detached' })
-    await page.locator('.aurora-node', { hasText: 'Gain' }).first().locator('.aurora-node-header').click()
-    await page.locator('.inspector-check input').first().check()
-    await page.locator('.inspector h3', { hasText: 'Dashboard controls (4)' }).waitFor()
+    await tickFirst(page, page.locator('.aurora-node', { hasText: 'Gain' }).first())
+    await waitControlCount(page, 4)
     await setName(page, 'Browser check')
     await fileAction(page, 'Save')
     await page.waitForFunction(() => document.querySelector('[data-effect]')?.dataset.effect === 'browser-check')
@@ -124,9 +123,8 @@ await withEditorStack(async ({ editorUrl, aurora }) => {
     await api('PUT', '/api/config', { activeEffectId: 'builtin.video' })
     await page.goto(`${editorUrl}?effect=builtin.video`)
     await page.waitForSelector('.aurora-node')
-    await page.locator('.aurora-node', { hasText: 'Gain' }).first().locator('.aurora-node-header').click()
-    await page.locator('.inspector-check input').first().check()
-    const fields = page.locator('.inspector-controls li').last().locator('.inspector-field input')
+    await tickFirst(page, page.locator('.aurora-node', { hasText: 'Gain' }).first())
+    const fields = detailsChecks(page).first().locator('xpath=ancestor::div[1]').locator('.drawer-field input')
     await fields.nth(0).fill('Strength')
     await fields.nth(0).press('Enter')
     await fields.nth(2).fill('How bright the lights get')
