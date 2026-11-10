@@ -336,15 +336,15 @@ describe('Dashboard marks and drawers (Aurora-daaa.27.3)', () => {
     const doc = builtinLike()
     const node = doc.nodes.find((n) => n.id === 'gain')!
     const details = renderToStaticMarkup(
-      <DetailsDrawer isOpen onClose={() => {}} top={0} doc={doc} catalog={catalog} selected={node.id} focusChecks={0} edit={() => {}} />,
+      <DetailsDrawer isOpen onClose={() => {}} top={0} side="right" doc={doc} catalog={catalog} selected={node.id} focusChecks={0} edit={() => {}} />,
     )
     expect(details).toContain('Show on the Dashboard')
     for (const f of ['Label', 'Section', 'Tooltip']) expect(details).toContain(f)
     const none = renderToStaticMarkup(
-      <DetailsDrawer isOpen onClose={() => {}} top={0} doc={doc} catalog={catalog} selected={null} focusChecks={0} edit={() => {}} />,
+      <DetailsDrawer isOpen onClose={() => {}} top={0} side="right" doc={doc} catalog={catalog} selected={null} focusChecks={0} edit={() => {}} />,
     )
     expect(none).toContain('Pick a node')
-    const list = renderToStaticMarkup(<ControlsDrawer isOpen onClose={() => {}} top={0} doc={doc} catalog={catalog} edit={() => {}} />)
+    const list = renderToStaticMarkup(<ControlsDrawer isOpen onClose={() => {}} top={0} side="right" doc={doc} catalog={catalog} edit={() => {}} />)
     expect(list).toContain('Dashboard controls (1)')
     expect(list).toContain('Remove gain from the Dashboard')
   })

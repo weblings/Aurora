@@ -18,3 +18,4 @@ export function useMedia(query: string): boolean {
 export const COMPACT_BAR = '(max-width: 649px)' // Undo and Redo as icons, Unsaved as a mark
 export const TIGHT_BAR = '(max-width: 519px)' // arrow-only back link, Undo and Redo in More
 export const DESKTOP_NOTE = '(max-width: 599px)' // "built for a desktop window" line
+export const DOCK_BOTTOM = '(max-width: 649px), (max-aspect-ratio: 3/4)' // drawers dock at the bottom (Aurora-daaa.29.4)

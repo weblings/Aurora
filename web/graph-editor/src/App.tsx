@@ -31,7 +31,7 @@ import { Toast, useToast } from './Toast'
 import { NameDialog } from './NameDialog'
 import { BarMoreMenu } from './BarMoreMenu'
 import { DesktopNote } from './DesktopNote'
-import { COMPACT_BAR, TIGHT_BAR, useMedia } from './useMedia'
+import { COMPACT_BAR, DOCK_BOTTOM, TIGHT_BAR, useMedia } from './useMedia'
 import { TitleMenu, type TitleMenuAction } from './TitleMenu'
 import { FIT_OPTIONS, ViewMenu } from './ViewMenu'
 import { ZoneThumbnail } from './ZoneThumbnail'
@@ -78,6 +78,7 @@ export function App() {
   const [titleMenuOpen, setTitleMenuOpen] = useState(false)
   const compactBar = useMedia(COMPACT_BAR)
   const tightBar = useMedia(TIGHT_BAR)
+  const drawerSide = useMedia(DOCK_BOTTOM) ? 'bottom' : 'right'
   // The naming dialog (Aurora-daaa.19): a write that creates a new effect, or Rename.
   const [naming, setNaming] = useState<
     { kind: 'save' | 'apply'; asNew: boolean; initial: string } | { kind: 'rename'; initial: string } | null
@@ -322,11 +323,16 @@ export function App() {
     if (!node || !drawerEl || !node.measured.width) return
     const box = pane.getBoundingClientRect()
     const vp = inst.getViewport()
-    const start = node.internals.positionAbsolute.x * vp.zoom + vp.x
-    const end = start + node.measured.width * vp.zoom
-    const limit = window.innerWidth - drawerEl.offsetWidth - box.left
+    const pos = node.internals.positionAbsolute
+    const bottom = drawerEl.dataset.side === 'bottom'
+    // A full-height sheet covers the whole canvas: nothing to clear, so leave the view alone.
+    if (bottom && drawerEl.hasAttribute('data-expanded')) return
+    const start = (bottom ? pos.y : pos.x) * vp.zoom + (bottom ? vp.y : vp.x)
+    const size = (bottom ? (node.measured.height ?? 0) : node.measured.width) * vp.zoom
+    const end = start + size
+    const limit = bottom ? drawerEl.getBoundingClientRect().top - box.top : window.innerWidth - drawerEl.offsetWidth - box.left
     const dx = clearShift(start, end, limit)
-    if (dx !== 0) void inst.setViewport({ ...vp, x: vp.x + dx }, { duration: 150 })
+    if (dx !== 0) void inst.setViewport(bottom ? { ...vp, y: vp.y + dx } : { ...vp, x: vp.x + dx }, { duration: 150 })
   }
   useEffect(() => {
     clearNode.current()
@@ -338,6 +344,14 @@ export function App() {
     watch.observe(pane)
     return () => watch.disconnect()
   }, [])
+  // The dock's half/full toggle resizes the drawer, not the canvas.
+  useEffect(() => {
+    const el = drawer ? document.querySelector('.ui-drawer') : null
+    if (!el || typeof ResizeObserver === 'undefined') return
+    const watch = new ResizeObserver(() => clearNode.current())
+    watch.observe(el)
+    return () => watch.disconnect()
+  }, [drawer, drawerSide])
 
   // Ctrl/Cmd+S saves, wherever focus is (the browser would save the page).
   const saveKey = useRef<() => void>(() => {})
@@ -806,6 +820,7 @@ export function App() {
             isOpen={drawer === 'details'}
             onClose={() => setDrawer(null)}
             top={canvas.current?.getBoundingClientRect().top ?? 0}
+            side={drawerSide}
             doc={doc}
             catalog={catalog}
             selected={selectedId}
@@ -816,6 +831,7 @@ export function App() {
             isOpen={drawer === 'controls'}
             onClose={() => setDrawer(null)}
             top={canvas.current?.getBoundingClientRect().top ?? 0}
+            side={drawerSide}
             doc={doc}
             catalog={catalog}
             edit={edit}

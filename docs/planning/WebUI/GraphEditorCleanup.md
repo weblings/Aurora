@@ -2,7 +2,7 @@
 
 Id: graph-editor-cleanup
 
-Status: stage 1 built (back link, Aurora component styles); stage 2 built (top bar, title and view menus, status spot, `Aurora-daaa.11`); stage 3 built (catalog `group`, node copy, cascade Add node menu, palette removed; `Aurora-daaa.24.1`-`.24.4`, Grille `v0.1.0-dev.6`); stage 4 built (right-click and ⋯ menus, Delete key, Details and Dashboard controls drawers, Inspector removed; `Aurora-daaa.27.1`-`.27.4`, Grille `v0.1.0-dev.7`). Control count 9 on Screen colors and `builtin.audio`, under the mock's 11. Narrow windows decided; top bar shrink built (`Aurora-daaa.29.1`), drawer width and node-clear pan built (`Aurora-daaa.29.2`), bottom dock pending (`Aurora-daaa.29.4`).
+Status: stage 1 built (back link, Aurora component styles); stage 2 built (top bar, title and view menus, status spot, `Aurora-daaa.11`); stage 3 built (catalog `group`, node copy, cascade Add node menu, palette removed; `Aurora-daaa.24.1`-`.24.4`, Grille `v0.1.0-dev.6`); stage 4 built (right-click and ⋯ menus, Delete key, Details and Dashboard controls drawers, Inspector removed; `Aurora-daaa.27.1`-`.27.4`, Grille `v0.1.0-dev.7`). Control count 9 on Screen colors and `builtin.audio`, under the mock's 11. Narrow windows decided; top bar shrink built (`Aurora-daaa.29.1`), drawer width and node-clear pan built (`Aurora-daaa.29.2`), bottom dock built (`Aurora-daaa.29.4`).
 Written 2026-11-06 under `Aurora-bova`. The owner reviewed the working mock and likes
 the direction. Decisions 1-7 are recorded under Decisions (2026-11-08). Stages 1-2 are
 built; stages 3-4 are still a proposal and follow those decisions.

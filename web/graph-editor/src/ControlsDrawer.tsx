@@ -6,6 +6,7 @@ type Props = {
   isOpen: boolean
   onClose: () => void
   top: number
+  side: 'right' | 'bottom'
   doc: GraphDoc
   catalog: Catalog
   edit: (change: (d: GraphDoc) => GraphDoc) => void
@@ -13,14 +14,14 @@ type Props = {
 
 // The Dashboard's controls in order: reorder, remove, review. Label, section
 // and tooltip are edited in Details, beside the tick (Aurora-daaa.27.3).
-export function ControlsDrawer({ isOpen, onClose, top, doc, catalog, edit }: Props) {
+export function ControlsDrawer({ isOpen, onClose, top, side, doc, catalog, edit }: Props) {
   const controls = controlsOf(doc)
   const titleOf = (nodeId: string) => {
     const n = doc.nodes.find((x) => x.id === nodeId)
     return (n && catalog.get(n.type)?.title) || n?.type || nodeId
   }
   return (
-    <Drawer isOpen={isOpen} onOpenChange={(open) => !open && onClose()} title={`Dashboard controls (${controls.length})`} subtitle="The order Tuning shows them in." top={top}>
+    <Drawer isOpen={isOpen} onOpenChange={(open) => !open && onClose()} title={`Dashboard controls (${controls.length})`} subtitle="The order Tuning shows them in." top={top} side={side}>
       {controls.length === 0 ? <p className="drawer-hint">None: Tuning shows nothing for this effect.</p> : null}
       <ol className="drawer-controls">
         {controls.map((c, i) => (

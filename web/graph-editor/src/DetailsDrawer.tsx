@@ -8,6 +8,7 @@ type Props = {
   isOpen: boolean
   onClose: () => void
   top: number
+  side: 'right' | 'bottom'
   doc: GraphDoc
   catalog: Catalog
   // The node picked on the canvas, if exactly one. The drawer follows it.
@@ -19,7 +20,7 @@ type Props = {
 
 // What the picked node is, and which of its params the Dashboard shows, with
 // each shown control's text beside its tick (Aurora-daaa.27.3).
-export function DetailsDrawer({ isOpen, onClose, top, doc, catalog, selected, focusChecks, edit }: Props) {
+export function DetailsDrawer({ isOpen, onClose, top, side, doc, catalog, selected, focusChecks, edit }: Props) {
   const node = selected ? doc.nodes.find((n) => n.id === selected) : undefined
   const info = node ? catalog.get(node.type) : undefined
   const checks = useRef<HTMLDivElement>(null)
@@ -33,7 +34,7 @@ export function DetailsDrawer({ isOpen, onClose, top, doc, catalog, selected, fo
 
   const controls = controlsOf(doc)
   return (
-    <Drawer isOpen={isOpen} onOpenChange={(open) => !open && onClose()} title={node && info ? info.title || node.type : 'Details'} subtitle={node ? node.id : undefined} top={top}>
+    <Drawer isOpen={isOpen} onOpenChange={(open) => !open && onClose()} title={node && info ? info.title || node.type : 'Details'} subtitle={node ? node.id : undefined} top={top} side={side}>
       {node && info ? (
         <div className="drawer-details">
           <p>{info.purpose}</p>
