@@ -7,6 +7,10 @@ import { EditorPopup } from './EditorPopup'
 
 // Zoom, fit and the minimap, in one menu in place of React Flow's controls.
 // Rendered inside <ReactFlow>, so it can reach the view.
+// Fit view never zooms out below readable node text: a long chain overflows the
+// canvas and is panned, not shrunk to a thin strip (Aurora-daaa.18).
+export const FIT_OPTIONS = { minZoom: 0.6, maxZoom: 1 }
+
 export function ViewMenu({ minimap, onMinimap }: { minimap: boolean; onMinimap: (on: boolean) => void }) {
   const [open, setOpen] = useState(false)
   const trigger = useRef<HTMLButtonElement>(null)
@@ -36,7 +40,7 @@ export function ViewMenu({ minimap, onMinimap }: { minimap: boolean; onMinimap: 
               close()
               if (id === 'in') void zoomIn({ duration: 120 })
               else if (id === 'out') void zoomOut({ duration: 120 })
-              else if (id === 'fit') void fitView({ duration: 200 })
+              else if (id === 'fit') void fitView({ ...FIT_OPTIONS, duration: 200 })
               else if (id === 'minimap') onMinimap(!minimap)
             }}
           >

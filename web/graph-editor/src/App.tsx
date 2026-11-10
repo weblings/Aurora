@@ -25,7 +25,7 @@ import { ProblemsContext } from './ProblemsContext'
 import { ProblemsChip } from './ProblemsChip'
 import { Toast, useToast } from './Toast'
 import { TitleMenu, type TitleMenuAction } from './TitleMenu'
-import { ViewMenu } from './ViewMenu'
+import { FIT_OPTIONS, ViewMenu } from './ViewMenu'
 import { ZoneThumbnail } from './ZoneThumbnail'
 import { tabSession, useDraftLoop } from './useDraftLoop'
 import { useLightTest } from './useLightTest'
@@ -545,6 +545,7 @@ export function App() {
             isValidConnection={isValidConnection}
             colorMode="dark"
             fitView
+            fitViewOptions={FIT_OPTIONS}
             minZoom={0.2}
             onInit={(instance) => {
               flow.current = instance
