@@ -28,6 +28,9 @@ import { ProblemsContext } from './ProblemsContext'
 import { ProblemsChip } from './ProblemsChip'
 import { Toast, useToast } from './Toast'
 import { NameDialog } from './NameDialog'
+import { BarMoreMenu } from './BarMoreMenu'
+import { DesktopNote } from './DesktopNote'
+import { COMPACT_BAR, TIGHT_BAR, useMedia } from './useMedia'
 import { TitleMenu, type TitleMenuAction } from './TitleMenu'
 import { FIT_OPTIONS, ViewMenu } from './ViewMenu'
 import { ZoneThumbnail } from './ZoneThumbnail'
@@ -72,6 +75,8 @@ export function App() {
   const { text: toastText, show: showToast } = useToast()
   const [writing, setWriting] = useState(false)
   const [titleMenuOpen, setTitleMenuOpen] = useState(false)
+  const compactBar = useMedia(COMPACT_BAR)
+  const tightBar = useMedia(TIGHT_BAR)
   // The naming dialog (Aurora-daaa.19): a write that creates a new effect, or Rename.
   const [naming, setNaming] = useState<
     { kind: 'save' | 'apply'; asNew: boolean; initial: string } | { kind: 'rename'; initial: string } | null
@@ -525,25 +530,26 @@ export function App() {
   return (
     <div className="editor">
       <header className="editor-header">
-        <a className="btn btn-secondary editor-back" href="/">
+        <a className="btn btn-secondary editor-back" href="/" aria-label={tightBar ? 'Dashboard' : undefined}>
           <img className="editor-back-icon" src={backArrow} alt="" />
-          Dashboard
+          {tightBar ? null : 'Dashboard'}
         </a>
         <button
           ref={titleMenuTrigger}
           type="button"
           className="btn btn-secondary editor-title-menu"
-          aria-label="Effect menu"
+          aria-label={dirty && compactBar ? 'Effect menu, unsaved changes' : 'Effect menu'}
           aria-haspopup="dialog"
           aria-expanded={titleMenuOpen}
           data-effect={effectId}
           disabled={!doc}
           onClick={() => setTitleMenuOpen((open) => !open)}
         >
+          {dirty && compactBar ? <span className="editor-dirty-mark" aria-hidden="true">●</span> : null}
           <span className="editor-title-label">{shownTitle || (effectId === BLANK_ID ? 'New empty effect' : effectId)}</span>
           <img className="editor-chevron" src={titleMenuOpen ? chevronUp : chevronDown} alt="" />
         </button>
-        {dirty ? <span className="editor-dirty">Unsaved</span> : null}
+        {dirty && !compactBar ? <span className="editor-dirty">Unsaved</span> : null}
         <button
           ref={addMenuTrigger}
           type="button"
@@ -615,12 +621,30 @@ export function App() {
           onAddNode={() => setAddMenuOpen(true)}
         />
         <span className="editor-bar-end" />
-        <button type="button" className="btn btn-secondary" onClick={undo} disabled={past.length === 0} title="Undo (Ctrl/Cmd+Z)">
-          Undo
-        </button>
-        <button type="button" className="btn btn-secondary" onClick={redo} disabled={future.length === 0} title="Redo (Shift+Ctrl/Cmd+Z)">
-          Redo
-        </button>
+        {tightBar ? (
+          <BarMoreMenu canUndo={past.length > 0} canRedo={future.length > 0} onUndo={undo} onRedo={redo} />
+        ) : (
+          <>
+            <button
+              type="button" className="btn btn-secondary"
+              onClick={undo}
+              disabled={past.length === 0}
+              aria-label={compactBar ? 'Undo' : undefined}
+              title="Undo (Ctrl/Cmd+Z)"
+            >
+              {compactBar ? '↶' : 'Undo'}
+            </button>
+            <button
+              type="button" className="btn btn-secondary"
+              onClick={redo}
+              disabled={future.length === 0}
+              aria-label={compactBar ? 'Redo' : undefined}
+              title="Redo (Shift+Ctrl/Cmd+Z)"
+            >
+              {compactBar ? '↷' : 'Redo'}
+            </button>
+          </>
+        )}
         {progress ? (
           <span className="editor-countdown" role="timer">
             {progress}
@@ -636,12 +660,20 @@ export function App() {
             type="button" className="btn btn-secondary"
             onClick={startTest}
             disabled={!doc || blocked || loop.state.valid !== true || lights.state.phase !== 'idle'}
-            title={loop.state.valid === false ? 'Fix the problems before testing' : 'Show this graph on the real lights for a while, then put them back'}
+            aria-label={tightBar ? (lights.state.other ? 'Take over the lights' : 'Test on lights') : undefined}
+            title={
+              loop.state.valid === false
+                ? 'Fix the problems before testing'
+                : tightBar
+                  ? `${lights.state.other ? 'Take over the lights' : 'Test on lights'}: show this graph on the real lights for a while, then put them back`
+                  : 'Show this graph on the real lights for a while, then put them back'
+            }
           >
-            {lights.state.other ? 'Take over the lights' : 'Test on lights'}
+            {tightBar ? (lights.state.other ? 'Take over' : 'Test') : lights.state.other ? 'Take over the lights' : 'Test on lights'}
           </button>
         )}
       </header>
+      <DesktopNote />
       {banner?.kind === 'unreachable' ? (
         <div className="editor-banner" role="alert">
           <span>{banner.message}</span>

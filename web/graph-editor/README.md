@@ -37,6 +37,7 @@ Decisions, narrow windows, in `docs/planning/WebUI/GraphEditorCleanup.md`).
 - `src/EditorPopup.tsx` -- the shared popup layer over Grille's `Popover`.
 - `src/useLightTest.ts` -- heartbeat, countdown and holder polling for a test;
   `DetailsDrawer.tsx` and `ControlsDrawer.tsx` -- the node details and the Dashboard controls list, in Grille drawers (the Inspector is gone, `Aurora-daaa.27.4`).
+- `src/useMedia.ts`, `src/BarMoreMenu.tsx`, `src/DesktopNote.tsx` -- the top bar shrinks by priority, never wraps (`Aurora-daaa.29.1`). Below 650 px Undo and Redo are icon buttons and Unsaved is a dot on the title; below 520 px the back link is its arrow, Undo and Redo move into a More (`⋯`) menu, and Test on lights reads Test (full name as tooltip and accessible name); below 600 px a dismissible desktop-window line shows (dismissal in `localStorage`). `tools/browser-check`'s `graph-editor:narrow` asserts it at 1100, 900, 700, 520 and 400 px.
 - `src/api.ts` -- the only server calls (`/api/nodes`, `/api/effects`,
   `/api/effects/:id`, drafts, preview URL, test, save, apply). Paths are root-absolute on purpose (Aurora's API ignores
   the editor's base); asset URLs are built from `import.meta.env.BASE_URL`.

@@ -677,3 +677,41 @@ button.editor-problem-row:hover {
   clip-path: inset(50%);
   white-space: nowrap;
 }
+
+/* Narrow top bar (Aurora-daaa.29.1): shrinks by priority, never wraps. The title gives up
+   width first; the status and chips follow; the buttons keep their size. */
+.editor-header {
+  min-width: 0;
+}
+
+.editor-header > .btn,
+.editor-header > .editor-countdown,
+.editor-header > .editor-edited {
+  flex: none;
+}
+
+.editor-title-menu {
+  flex: 0 1 auto;
+  min-width: 0;
+}
+
+.editor-dirty-mark {
+  flex: none;
+  font-size: 8px;
+}
+
+@media (max-width: 649px) {
+  .editor-header {
+    padding-inline: var(--aurora-space-3);
+    gap: var(--aurora-space-2);
+  }
+
+  .editor-title-menu {
+    max-width: 18ch;
+  }
+
+  .editor-status {
+    flex: 0 1 auto;
+    min-width: 0;
+  }
+}
