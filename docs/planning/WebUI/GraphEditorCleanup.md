@@ -485,4 +485,4 @@ to a stage; whoever next touches the area picks it up.
 - `Aurora-daaa.19`: the Name field on a built-in reads as a hovered menu row. Reframed: naming
   moves to a modal dialog (direction 4), using Grille's `Modal` (`Aurora-daaa.22`, installed
   as `v0.1.0-dev.4`).
-- `Aurora-daaa.21`: the status spot says `No draft yet` before the preview connects.
+- `Aurora-daaa.21`: the status spot said `No draft yet` before the preview connected; it now reads `Connecting`.

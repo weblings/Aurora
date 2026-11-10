@@ -51,7 +51,7 @@ describe('status priority', () => {
   it('other rank 7 states', () => {
     expect(pickStatus(withLoop({ stream: 'connecting' })).label).toBe('Connecting')
     expect(pickStatus(withLoop({ stream: 'paused' })).label).toBe('Preview paused')
-    expect(pickStatus(withLoop({ stream: 'closed', valid: null })).label).toBe('No draft yet')
+    expect(pickStatus(withLoop({ stream: 'closed', valid: null })).label).toBe('Connecting')
   })
 })
 

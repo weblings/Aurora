@@ -63,8 +63,8 @@ describe('groupProblems', () => {
 describe('draft loop states', () => {
   const issue: ServerIssue = { node: 'gain', message: 'bad' }
 
-  it('goes from no draft through connecting to live', () => {
-    expect(summarize(initialLoop).label).toBe('No draft yet')
+  it('goes from no draft (reads Connecting) through connecting to live', () => {
+    expect(summarize(initialLoop).label).toBe('Connecting')
     const s = run([{ type: 'put', valid: true, issues: [] }, { type: 'opening' }])
     expect(summarize(s).label).toBe('Connecting')
     expect(summarize(loopReducer(s, { type: 'frame', errors: [] })).label).toBe('Live preview')
