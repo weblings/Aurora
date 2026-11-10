@@ -250,11 +250,20 @@ export function App() {
       edit((d) => removeNodes(d, ids))
       if (dropped.length > 0) {
         const n = dropped.length
-        const names = [...new Set(dropped.map((c) => c.label || c.param))]
-        showToast(`Removed ${n} Dashboard control${n === 1 ? '' : 's'} with ${names.join(', ')}`)
+        // A control without a label reads as '<node title> <param>'.
+        const nameOf = (c: (typeof dropped)[number]) => {
+          if (c.label) return c.label
+          const type = current?.nodes.find((x) => x.id === c.node)?.type
+          const title = type ? catalog?.get(type)?.title : undefined
+          return title ? `${title} ${c.param}` : c.param
+        }
+        const names = [...new Set(dropped.map(nameOf))]
+        const shown = names.length > 3 ? [...names.slice(0, 3), `${names.length - 3} more`] : names
+        const list = shown.length > 1 ? `${shown.slice(0, -1).join(', ')} and ${shown[shown.length - 1]}` : shown[0]
+        showToast(`Removed ${n} Dashboard control${n === 1 ? '' : 's'} with ${list}`)
       }
     },
-    [edit, showToast],
+    [edit, showToast, catalog],
   )
   const undo = useCallback(() => dispatch({ type: 'undo' }), [])
   const redo = useCallback(() => dispatch({ type: 'redo' }), [])
