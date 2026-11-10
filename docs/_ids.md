@@ -98,6 +98,7 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `daaa26-gate-status` | [log/2026-11-10-daaa26-gate-status.md](log/2026-11-10-daaa26-gate-status.md) | Graph editor: gate check fixed |
 | `daaa27-1-context-menus` | [log/2026-11-10-daaa27-1-context-menus.md](log/2026-11-10-daaa27-1-context-menus.md) | Graph editor: right-click and ⋯ menus |
 | `daaa27-2-delete-key` | [log/2026-11-10-daaa27-2-delete-key.md](log/2026-11-10-daaa27-2-delete-key.md) | Graph editor: Delete key and the dropped-controls toast |
+| `daaa27-29-stage4-closed` | [log/2026-11-10-daaa27-29-stage4-closed.md](log/2026-11-10-daaa27-29-stage4-closed.md) | Graph editor: stage 4 and narrow windows closed |
 | `daaa27-3-drawers` | [log/2026-11-10-daaa27-3-drawers.md](log/2026-11-10-daaa27-3-drawers.md) | Graph editor: Details and Dashboard controls drawers, on-node mark |
 | `daaa27-4-inspector-removed` | [log/2026-11-10-daaa27-4-inspector-removed.md](log/2026-11-10-daaa27-4-inspector-removed.md) | Graph editor: Inspector removed, checks migrated |
 | `daaa28-grille-drawer` | [log/2026-11-10-daaa28-grille-drawer.md](log/2026-11-10-daaa28-grille-drawer.md) | Graph editor: Grille dev.7 (Drawer) |
