@@ -65,6 +65,19 @@ await withEditorStack(async ({ editorUrl, restart }) => {
     await page.mouse.move(b.x + b.width / 2, b.y + b.height / 2, { steps: 12 })
     await page.mouse.up()
   }
+  // Fit view stops at 60% zoom (Aurora-daaa.18), so a wide graph reaches past the
+  // window. Pan the empty top of the pane until the node's handle is in view.
+  const panTo = async (loc) => {
+    const box = await loc.boundingBox()
+    const width = (await page.locator('.react-flow__renderer').boundingBox()).width
+    const dx = box.x < 40 ? 80 - box.x : box.x > width - 40 ? width - 80 - box.x : 0
+    if (!dx) return
+    await settle()
+    await page.mouse.move(600, 120)
+    await page.mouse.down()
+    await page.mouse.move(600 + dx, 120, { steps: 10 })
+    await page.mouse.up()
+  }
   const handle = (id, kind) => page.locator(`.react-flow__node[data-id="${id}"] .react-flow__handle.${kind}`).first()
   const session = () => page.evaluate(() => sessionStorage.getItem('aurora.graphEditor.session'))
   const checkLayout = async (id) => {
@@ -104,6 +117,7 @@ await withEditorStack(async ({ editorUrl, restart }) => {
     // Fix it by dragging from ease_hue's output to gain_hue's input. The
     // thumbnail must show a new frame, not just the status flip back.
     const held = await thumb()
+    await panTo(handle('gain_hue', 'target'))
     await drag(handle('ease_hue', 'source'), handle('gain_hue', 'target'))
     await waitStatus(/Live/)
     assert.equal(await page.locator('.problem-badge').count(), 0)
@@ -114,6 +128,7 @@ await withEditorStack(async ({ editorUrl, restart }) => {
     step('rewiring clears the badge and the thumbnail shows a new frame')
 
     // Move a node, then Save as a new effect.
+    await panTo(page.locator('.react-flow__node[data-id="floor_hue"]'))
     await settle()
     const before = await nodeBox('floor_hue')
     await page.mouse.move(before.x + 40, before.y + 8)

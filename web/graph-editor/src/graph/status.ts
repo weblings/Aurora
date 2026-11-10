@@ -72,7 +72,9 @@ export function pickStatus({ openError, loop, test, writeTrouble, testOutcomeCle
     return { rank: 1, label: 'Aurora unreachable', detail: openError ?? 'Retrying.', action: null }
   }
   if (loop.putError) return { rank: 3, label: 'Draft not sent', detail: loop.putError, action: null }
-  if (loop.reloadError) return { rank: 3, label: 'Draft would not load', detail: loop.reloadError, action: null }
+  // A draft with problems is also refused by the server; the problems (the chip)
+  // already explain that, so the reload error only shows for a valid draft.
+  if (loop.reloadError && loop.valid !== false) return { rank: 3, label: 'Draft would not load', detail: loop.reloadError, action: null }
   if (loop.stream === 'replaced') {
     return { rank: 4, label: 'Preview taken over', detail: 'Another view of this session opened the preview.', action: 'reconnect' }
   }
