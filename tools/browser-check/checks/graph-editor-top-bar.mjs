@@ -79,12 +79,23 @@ await withEditorStack(async ({ editorUrl }) => {
     const view = page.getByRole('button', { name: 'View menu' })
     const zoom = async () => Number(/(\d+)%/.exec(await view.innerText())[1])
     const z0 = await zoom()
+    // A zoom animates; a menu opened mid-animation is closed by the moving view.
+    const settled = async () => {
+      for (let last = -1, same = 0; same < 3; ) {
+        const z = await zoom()
+        same = z === last ? same + 1 : 0
+        last = z
+        await page.waitForTimeout(100)
+      }
+    }
     await view.click()
     await page.getByRole('menuitem', { name: 'Zoom in', exact: true }).click()
     await page.waitForFunction((z) => Number(/(\d+)%/.exec(document.querySelector('[aria-label="View menu"]').textContent)[1]) > z, z0)
+    await settled()
     await view.click()
     await page.getByRole('menuitem', { name: 'Fit view', exact: true }).click()
     await page.waitForFunction((z) => Number(/(\d+)%/.exec(document.querySelector('[aria-label="View menu"]').textContent)[1]) === z, z0)
+    await settled()
     await view.click()
     await page.getByRole('menuitem', { name: 'Show minimap', exact: true }).click()
     await page.locator('.react-flow__minimap').waitFor()
