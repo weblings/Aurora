@@ -24,6 +24,7 @@ import { PALETTE_DRAG_TYPE, Palette } from './Palette'
 import { ProblemsContext } from './ProblemsContext'
 import { ProblemsChip } from './ProblemsChip'
 import { Toast, useToast } from './Toast'
+import { NameDialog } from './NameDialog'
 import { TitleMenu, type TitleMenuAction } from './TitleMenu'
 import { FIT_OPTIONS, ViewMenu } from './ViewMenu'
 import { ZoneThumbnail } from './ZoneThumbnail'
@@ -67,8 +68,10 @@ export function App() {
   const { text: toastText, show: showToast } = useToast()
   const [writing, setWriting] = useState(false)
   const [titleMenuOpen, setTitleMenuOpen] = useState(false)
-  // Save on a built-in with no name opens the menu on the Name field.
-  const [nameNote, setNameNote] = useState<string | null>(null)
+  // The naming dialog (Aurora-daaa.19): a write that creates a new effect, or Rename.
+  const [naming, setNaming] = useState<
+    { kind: 'save' | 'apply'; asNew: boolean; initial: string } | { kind: 'rename'; initial: string } | null
+  >(null)
   const titleMenuTrigger = useRef<HTMLButtonElement>(null)
   const [minimap, setMinimap] = useState(false)
   // The graph as the running test was started with it.
@@ -127,7 +130,6 @@ export function App() {
   const progress = testProgress(lights.state)
   const dirty = useMemo(() => (doc && baseline ? !sameDoc(baseline.doc, doc) : false), [doc, baseline])
   const isBuiltin = effects.find((e) => e.id === effectId)?.builtin ?? (effectId === BLANK_ID || effectId.startsWith('builtin.'))
-  const needsName = isBuiltin && doc !== null && titleOf(doc).trim() === ''
   const picked = nodeView.filter((n) => n.selected)
   const selectedId = picked.length === 1 ? picked[0].id : null
 
@@ -150,19 +152,18 @@ export function App() {
   // custom effect's, or a fresh one named after the title when a built-in is
   // open (a built-in is never overwritten). Save as new forks a custom the
   // same way, leaving the original file as it was.
-  const write = async (kind: 'save' | 'apply', asNew = false) => {
+  // A write that creates a new effect asks for its name first; `named` is the answer.
+  const write = async (kind: 'save' | 'apply', asNew = false, named?: string) => {
     if (!doc || !baseline || writing) return
-    if (needsName) {
-      // After the menu item's own close, or that close would win.
-      window.setTimeout(() => {
-        setNameNote('Name the new effect first')
-        setTitleMenuOpen(true)
-      }, 0)
+    if ((isBuiltin || asNew) && named === undefined) {
+      setNaming({ kind, asNew, initial: titleOf(doc) })
       return
     }
+    const source = named === undefined ? doc : setTitle(doc, named)
+    if (named !== undefined) dispatch({ type: 'edit', change: (d) => setTitle(d, named) })
     // A new effect that kept a taken title would show as a second row of the
     // same name in the picker, so it takes a distinct one.
-    const sent = forWrite(doc, isBuiltin || asNew, effects.map((e) => e.title || e.id))
+    const sent = forWrite(source, isBuiltin || asNew, effects.map((e) => e.title || e.id))
     const id = isBuiltin || asNew ? freshEffectId(titleOf(sent), effects.map((e) => e.id)) : baseline.id
     setWriting(true)
     setWriteTrouble(null)
@@ -387,6 +388,11 @@ export function App() {
   )
 
   const title = doc ? titleOf(doc) : ''
+  // The dialog's own focus restore lands on whatever had focus; the title
+  // button is where the action began, so it takes focus after the dialog goes.
+  const focusTitleButton = () => {
+    requestAnimationFrame(() => requestAnimationFrame(() => titleMenuTrigger.current?.focus()))
+  }
   // A built-in has no title of its own in the graph; the effect list names it.
   const shownTitle = title || effects.find((e) => e.id === effectId)?.title || ''
   const otherEffects = effects.filter((e) => e.id !== effectId)
@@ -415,18 +421,8 @@ export function App() {
         {dirty ? <span className="editor-dirty">Unsaved</span> : null}
         <TitleMenu
           isOpen={titleMenuOpen}
-          onClose={() => {
-            setTitleMenuOpen(false)
-            setNameNote(null)
-          }}
+          onClose={() => setTitleMenuOpen(false)}
           triggerRef={titleMenuTrigger}
-          name={title}
-          onName={(value) => {
-            setNameNote(null)
-            edit((d) => setTitle(d, value))
-          }}
-          nameNote={nameNote}
-          focusName={nameNote !== null}
           isBuiltin={isBuiltin}
           busy={writing}
           blocked={blocked}
@@ -436,10 +432,28 @@ export function App() {
             if (action === 'save') void write('save')
             else if (action === 'save-as-new') void write('save', true)
             else if (action === 'save-and-apply') void write('apply')
+            else if (action === 'rename') setNaming({ kind: 'rename', initial: title })
             else setEffectId(BLANK_ID)
           }}
           onOpenEffect={setEffectId}
         />
+        {naming ? (
+          <NameDialog
+            title={naming.kind === 'rename' ? 'Rename effect' : 'Name the new effect'}
+            confirm={naming.kind === 'rename' ? 'Rename' : naming.kind === 'apply' ? 'Save and apply' : 'Save'}
+            initial={naming.initial}
+            onCancel={() => {
+              setNaming(null)
+              focusTitleButton()
+            }}
+            onConfirm={(name) => {
+              setNaming(null)
+              focusTitleButton()
+              if (naming.kind === 'rename') edit((d) => setTitle(d, name))
+              else void write(naming.kind, naming.asNew, name)
+            }}
+          />
+        ) : null}
         <span className="editor-status" role="status" data-rank={status.rank} title={status.detail ?? undefined}>
           {status.label}
         </span>

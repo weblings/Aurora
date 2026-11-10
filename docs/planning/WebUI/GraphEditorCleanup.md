@@ -222,8 +222,10 @@ Rules that follow:
    node-level and graph-wide. Its popover lists them; a node-level row selects the node, and a
    graph-wide row (`Whole graph`) has no node to point at, so it carries its own action instead
    (`Add node…`). While problems exist, the status reads `Preview paused`, since the preview is stale.
-4. **Naming a built-in is inline, not a message.** Save on a built-in with no name opens the
-   title menu, focuses Name, and the note under the field says what is needed (`#name`).
+4. **Naming a new effect is a modal dialog, not a message.** Save as new, and Save or Save and
+   apply on a built-in, open a Dialog over a scrim with a Name field; confirm writes, Cancel,
+   Escape or a scrim click writes nothing. An empty name is explained inside the dialog (`#name`).
+   *Revised 2026-11-09 (`Aurora-daaa.19`); was: Save opens the title menu with Name focused.*
 5. **Keep disappears, and so does its disabled state.** While a test runs and the graph has
    changed, the bar says `Edited since the test`, and the title menu warns that Save and apply
    puts the edited graph live and ends the test (`#changed`).
@@ -241,7 +243,7 @@ How today's nine slots map:
 | 5 | `editor-error` (`Cannot reach Aurora`, `Cannot open`) | Rank 1 banner, with Retry |
 | 6 | `editor-dirty` (`Unsaved changes`) | `Unsaved` beside the title |
 | 7 | `editor-test-note` (`describeTest`) | Countdown beside Revert while running. Rank 5 and 6 in the status spot otherwise. `Kept` no longer exists. `Reverted` is a toast |
-| 8 | `editor-notice` (`write` results) | Success: toast. Failure, `Fix the n problems before saving`, `Reload: ...`: rank 6. `Name the new effect first`: inline in the title menu |
+| 8 | `editor-notice` (`write` results) | Success: toast. Failure, `Fix the n problems before saving`, `Reload: ...`: rank 6. `Name the new effect first`: inside the naming dialog |
 | 9 | `editor-graph-problems` list over the canvas | The problems chip, with `Whole graph` rows in its popover |
 
 Not covered by the nine: the per-node problem marks on node bodies stay where they are.
@@ -435,8 +437,11 @@ the menu.
   Dashboard stays dark.
 - **Bundle budget:** about +60 kB gzip (+42% JS) is accepted.
 - **Title menu:** a Dialog in a Popover. It also holds the file actions: Save (Ctrl+S),
-  Save as new, Rename (the Name box), Open another effect and New empty effect. The Save
-  split button is dropped. Menu
+  Save as new, Rename, Open another effect and New empty effect. The Save
+  split button is dropped. *Revised 2026-11-09 (`Aurora-daaa.19`):* the Name box leaves the
+  menu. Rename… (custom effects) and any write that creates a new effect open a modal naming
+  dialog over a scrim instead. The modal is Grille's `Modal`, added in `v0.1.0-dev.4`
+  (`Aurora-daaa.22`). Menu
   items inside a Dialog need their own arrow-key and focus handling, and "Save opens the
   menu with Name focused" is untested, so `Aurora-daaa.8` covers both.
 - **Save and apply:** a title menu item beside Save and Save as new, with no toast. The
@@ -460,7 +465,8 @@ the menu.
   with unsaved edits. Revisit if needed.
 - **Grille tracking:** Grille work is tracked by beads in `weblings/GrilleDS` (prefix
   `Grille`): G1 is `Grille-251` (Aurora `daaa.7`), G2 and G3a are `Grille-48x` (Aurora
-  `daaa.8`), and G3b is `Grille-h7g`. The Aurora beads stay as the consumer-side blockers
+  `daaa.8`), and G3b is `Grille-h7g` (Aurora `daaa.20`, installed as the `v0.1.0-dev.3`
+  prerelease cut from Grille's dev branch). The Aurora beads stay as the consumer-side blockers
   and close when the matching Grille release installs here.
 
 
@@ -476,5 +482,7 @@ to a stage; whoever next touches the area picks it up.
 - `Aurora-daaa.17`: problems popover rows are cramped.
 - `Aurora-daaa.18`: `builtin.audio` opens at 37% with unreadable nodes and an empty thumbnail
   box while the preview is paused.
-- `Aurora-daaa.19`: the Name field on a built-in reads as a hovered menu row, and the status
-  spot says `No draft yet` before the preview connects.
+- `Aurora-daaa.19`: the Name field on a built-in reads as a hovered menu row. Reframed: naming
+  moves to a modal dialog (direction 4), using Grille's `Modal` (`Aurora-daaa.22`, installed
+  as `v0.1.0-dev.4`).
+- `Aurora-daaa.21`: the status spot says `No draft yet` before the preview connects.
