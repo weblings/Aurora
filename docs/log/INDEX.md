@@ -370,3 +370,4 @@ Planning docs stay clean: decisions, status, and pointers here only.
 | 2026-11-10 | Graph editor Inspector removed, checks migrated, drawer coverage, control count 9. [[daaa27-4-inspector-removed]] | `bd show Aurora-daaa.27.4` |
 | 2026-11-10 | Graph editor: Grille dev.8 installed, adds bottom Drawer and Esc from anywhere. [[daaa29-3-grille-dev8]] | `bd show Aurora-daaa.29.3`, `Grille-b6b`, `Grille-g25` |
 | 2026-11-10 | Graph editor: top bar shrinks by priority to 400 px, More menu, desktop-window note. [[daaa29-1-narrow-top-bar]] | `bd show Aurora-daaa.29.1` |
+| 2026-11-10 | Graph editor: side drawer narrows to clamp(280px, 40vw, 350px), view pans the selected node clear. [[daaa29-2-drawer-clear]] | `bd show Aurora-daaa.29.2` |

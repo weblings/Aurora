@@ -715,3 +715,9 @@ button.editor-problem-row:hover {
     min-width: 0;
   }
 }
+
+/* Side drawers narrow with the window so they leave the canvas room
+   (Aurora-daaa.29.2). Grille sizes the drawer from this token. */
+:root {
+  --ui-size-drawer-width: clamp(280px, 40vw, 350px);
+}

@@ -77,6 +77,16 @@ await withEditorStack(async ({ editorUrl }) => {
       p = await probe()
       console.log(width, 'details drawer:', JSON.stringify(p))
       check(width, 'details drawer', p)
+      // Aurora-daaa.29.2: drawer is clamp(280, 40vw, 350) wide and Rescale's box is clear of it.
+      const geo = await page.evaluate(() => {
+        const d = document.querySelector('.ui-drawer').getBoundingClientRect()
+        const n = [...document.querySelectorAll('.aurora-node')].find((el) => el.textContent.includes('Rescale')).getBoundingClientRect()
+        return { drawerW: Math.round(d.width), drawerLeft: d.left, nodeRight: n.right }
+      })
+      const want = Math.min(350, Math.max(280, Math.round(width * 0.4)))
+      assert.ok(Math.abs(geo.drawerW - want) <= 1, `${width} px: drawer ${geo.drawerW} px, want ${want}`)
+      // At 400 px a node is wider than the room left; the bottom dock (Aurora-daaa.29.4) covers that.
+      if (width >= 520) assert.ok(geo.nodeRight <= geo.drawerLeft + 1, `${width} px: Rescale right ${geo.nodeRight} under drawer at ${geo.drawerLeft}`)
       if (SHOTS) await page.screenshot({ path: `${SHOTS}/${width}-details.png` })
       await page.keyboard.press('Escape')
     }

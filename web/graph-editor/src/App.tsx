@@ -21,6 +21,7 @@ import { applyGraph, fetchCatalog, fetchEffectGraph, fetchEffects, putDraft, sav
 import { EditorContext, type EditorActions } from './EditorContext'
 import { GenericNode } from './GenericNode'
 import { DetailsDrawer } from './DetailsDrawer'
+import { clearShift } from './graph/clear'
 import { ControlsDrawer } from './ControlsDrawer'
 import { AddNodeMenu } from './AddNodeMenu'
 import { ContextMenu, type MenuAction, type MenuTarget } from './ContextMenu'
@@ -307,6 +308,36 @@ export function App() {
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
   }, [drawer])
+
+  // Keep the selected node clear of the Details drawer: pan, never zoom, and
+  // only when it sits under the drawer. Runs when Details opens, follows a new
+  // selection, or the canvas (so the drawer width) changes size.
+  const clearNode = useRef<() => void>(() => {})
+  clearNode.current = () => {
+    const inst = flow.current
+    const pane = canvas.current
+    if (drawer !== 'details' || !selectedId || !inst || !pane) return
+    const node = inst.getInternalNode(selectedId)
+    const drawerEl = document.querySelector<HTMLElement>('.ui-drawer')
+    if (!node || !drawerEl || !node.measured.width) return
+    const box = pane.getBoundingClientRect()
+    const vp = inst.getViewport()
+    const start = node.internals.positionAbsolute.x * vp.zoom + vp.x
+    const end = start + node.measured.width * vp.zoom
+    const limit = window.innerWidth - drawerEl.offsetWidth - box.left
+    const dx = clearShift(start, end, limit)
+    if (dx !== 0) void inst.setViewport({ ...vp, x: vp.x + dx }, { duration: 150 })
+  }
+  useEffect(() => {
+    clearNode.current()
+  }, [drawer, selectedId])
+  useEffect(() => {
+    const pane = canvas.current
+    if (!pane || typeof ResizeObserver === 'undefined') return
+    const watch = new ResizeObserver(() => clearNode.current())
+    watch.observe(pane)
+    return () => watch.disconnect()
+  }, [])
 
   // Ctrl/Cmd+S saves, wherever focus is (the browser would save the page).
   const saveKey = useRef<() => void>(() => {})
