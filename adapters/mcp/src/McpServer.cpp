@@ -295,8 +295,9 @@ namespace Aurora::Mcp
         "(configuredInputs, which graphs can use), the outputs, and any active light test."),
       readOnlyTool("list_nodes",
         "List the node types a graph can use: type, purpose, and ports as name:Type. A trailing ? marks "
-        "an input that may stay unconnected. Use describe_node for params and usage.",
-        {{"category", {{"type", "string"}, {"description", "Only types starting with this prefix, e.g. audio or math."}}}}),
+        "an input that may stay unconnected, and group (the Add-node menu group). Use describe_node for params and usage.",
+        {{"category", {{"type", "string"}, {"description", "A type-name prefix filter, not a group: only types starting with this, e.g. audio or math."}}},
+         {"group", {{"type", "string"}, {"description", "Only nodes in this group: Sources, Audio, Image, Color, Numbers, Motion or Lights."}}}}),
       readOnlyTool("describe_node",
         "Full descriptor for one node type: purpose, when to use it, an example, cost, ports and every "
         "param with its range, unit, default and options.",
@@ -478,14 +479,20 @@ namespace Aurora::Mcp
 
     const std::string category = arguments.contains("category") && arguments.at("category").is_string()
       ? arguments.at("category").get<std::string>() : std::string();
+    const std::string group = arguments.contains("group") && arguments.at("group").is_string()
+      ? arguments.at("group").get<std::string>() : std::string();
     nlohmann::json nodes = nlohmann::json::array();
     for(const auto& node : catalog.value("nodes", nlohmann::json::array())){
       const std::string type = node.value("type", "");
       if(!category.empty() && type.rfind(category, 0) != 0){
         continue;
       }
+      if(!group.empty() && node.value("group", "") != group){
+        continue;
+      }
       nodes.push_back({
         {"type", type},
+        {"group", node.value("group", "")},
         {"purpose", node.value("purpose", "")},
         {"inputs", portLabels(node.value("inputs", nlohmann::json::array()))},
         {"outputs", portLabels(node.value("outputs", nlohmann::json::array()))}

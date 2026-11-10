@@ -367,6 +367,7 @@ namespace Aurora::Runtime::Graph
         .meta =
           {
             .title = "Broadcast color",
+            .group = "Lights",
             .purpose = "Apply one Color to every active zone of an output as a Frame.",
             .useWhen = "After audio.bounce; audio has no per-zone spatial concept.",
             .example = "{\"id\": \"all\", \"type\": \"frame.broadcast\", \"params\": {\"output\": \"hue\"}}",
@@ -384,6 +385,7 @@ namespace Aurora::Runtime::Graph
         .meta =
           {
             .title = "Audio capture",
+            .group = "Sources",
             .purpose = "Read one audio buffer per tick; Absent while the source has no data.",
             .useWhen = "First node of any audio path.",
             .example = "{\"id\": \"mic\", \"type\": \"audio.capture\", \"params\": {}}",
@@ -401,6 +403,7 @@ namespace Aurora::Runtime::Graph
         .meta =
           {
             .title = "Audio features",
+            .group = "Audio",
             .purpose = "Extract onset, loudness and centroid features from an audio buffer, as one struct and as scalar ports.",
             .useWhen = "After capture; feeds drift and bounce.",
             .example = "{\"id\": \"feat\", \"type\": \"audio.features\", \"params\": {}}",
@@ -418,6 +421,7 @@ namespace Aurora::Runtime::Graph
         .meta =
           {
             .title = "Audio bands",
+            .group = "Audio",
             .purpose = "Bass, mid and treble loudness (band RMS, like audio.features rms) as Float outputs.",
             .useWhen = "After capture, to drive brightness, color or motion from one frequency range.",
             .example = "{\"id\": \"bands\", \"type\": \"audio.bands\", \"params\": {\"bassMaxHz\": 250}}",
@@ -439,6 +443,7 @@ namespace Aurora::Runtime::Graph
         .meta =
           {
             .title = "Palette drift",
+            .group = "Audio",
             .purpose = "Slow palette drift; outputs the live anchor hue as an Angle.",
             .useWhen = "After features; wire the anchor into audio.bounce.",
             .example =
@@ -470,6 +475,7 @@ namespace Aurora::Runtime::Graph
         .meta =
           {
             .title = "Beat bounce",
+            .group = "Audio",
             .purpose = "Beat-driven color bounce around the drift anchor; outputs a Color.",
             .useWhen =
               "After features and the drift anchor; the audio path's color output. Re-seeds (snaps) when "

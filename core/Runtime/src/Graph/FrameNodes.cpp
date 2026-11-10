@@ -211,6 +211,7 @@ namespace Aurora::Runtime::Graph
         .meta =
           {
             .title = "Smooth frames",
+            .group = "Lights",
             .purpose = "Ease each zone's color toward its new value, per output.",
             .useWhen = "Between zone sampling and output.send; one instance per output.",
             .example =
@@ -240,6 +241,7 @@ namespace Aurora::Runtime::Graph
         .meta =
           {
             .title = "Smooth frames (timed)",
+            .group = "Lights",
             .purpose = "Ease each zone's color toward its new value over tau seconds, at any tick rate.",
             .useWhen = "Instead of frame.smooth when easing must feel the same at every refresh rate.",
             .example = "{\"id\": \"ease\", \"type\": \"frame.smoothTime\", \"params\": {\"tau\": 0.15}}",
@@ -263,6 +265,7 @@ namespace Aurora::Runtime::Graph
         .meta =
           {
             .title = "Gain",
+            .group = "Lights",
             .purpose = "Scale every zone's color by a brightness factor.",
             .useWhen = "Last step before output.send; the built-in graphs run the global brightness here.",
             .example = "{\"id\": \"dim\", \"type\": \"frame.gain\", \"params\": {\"gain\": 0.5}}",
@@ -311,6 +314,7 @@ namespace Aurora::Runtime::Graph
         .meta =
           {
             .title = "Black floor",
+            .group = "Lights",
             .purpose = "Keep zones above a minimum brightness for outputs where brightness 0 means off.",
             .useWhen = "After frame.gain, before output.send, per output; leave policy off for Hue.",
             .example =
@@ -329,6 +333,7 @@ namespace Aurora::Runtime::Graph
         .meta =
           {
             .title = "Send to output",
+            .group = "Lights",
             .purpose = "Send a Frame to one output; sends nothing on a skipped tick.",
             .useWhen = "Last node of every path, one per output.",
             .example = "{\"id\": \"send\", \"type\": \"output.send\", \"params\": {\"output\": \"hue\"}}",

@@ -109,6 +109,7 @@ namespace Aurora::Runtime::Graph
   {
     add(registry, "math.scale",
       {.title = "Scale",
+       .group = "Numbers",
        .purpose = "Multiply a Float by a constant factor.",
        .useWhen = "Convert units or set a gain, e.g. onset strength times 180 degrees.",
        .example = "{\"id\": \"gain\", \"type\": \"math.scale\", \"params\": {\"factor\": 180}}"},
@@ -118,6 +119,7 @@ namespace Aurora::Runtime::Graph
 
     add(registry, "math.divide",
       {.title = "Divide",
+       .group = "Numbers",
        .purpose = "Divide a Float by a constant divisor. A zero divisor fails the node.",
        .useWhen = "Normalize against a reference, e.g. rms divided by a reference loudness.",
        .example = "{\"id\": \"norm\", \"type\": \"math.divide\", \"params\": {\"divisor\": 0.3}}"},
@@ -133,6 +135,7 @@ namespace Aurora::Runtime::Graph
 
     add(registry, "math.clamp",
       {.title = "Clamp",
+       .group = "Numbers",
        .purpose = "Limit a Float to the range min..max.",
        .useWhen = "Keep a signal in a safe range before scaling or mixing.",
        .example = "{\"id\": \"cap\", \"type\": \"math.clamp\", \"params\": {\"min\": 0, \"max\": 1}}"},
@@ -150,6 +153,7 @@ namespace Aurora::Runtime::Graph
 
     add(registry, "math.mapRange",
       {.title = "Map range",
+       .group = "Numbers",
        .purpose = "Linearly remap a Float from one range to another, optionally clamped to the output range.",
        .useWhen = "Turn a signal in known bounds into another range, e.g. 0..1 loudness into 0.2..1 brightness.",
        .example =
@@ -178,6 +182,7 @@ namespace Aurora::Runtime::Graph
 
     add(registry, "math.lerp",
       {.title = "Lerp",
+       .group = "Numbers",
        .purpose = "Blend from 'from' to 'to' by a Float t (0 gives from, 1 gives to, not clamped).",
        .useWhen = "Interpolate between two constants with a signal, e.g. lerp(floor, 1) driven by onset strength.",
        .example = "{\"id\": \"swing\", \"type\": \"math.lerp\", \"params\": {\"from\": 0.3, \"to\": 1}}"},
@@ -191,6 +196,7 @@ namespace Aurora::Runtime::Graph
 
     add(registry, "math.add",
       {.title = "Add",
+       .group = "Numbers",
        .purpose = "Add two Floats. Input b is optional and falls back to param b.",
        .useWhen = "Combine two signals, or offset one by a constant (leave b unwired, set param b).",
        .example = "{\"id\": \"sum\", \"type\": \"math.add\", \"params\": {\"b\": 0.5}}"},
@@ -201,6 +207,7 @@ namespace Aurora::Runtime::Graph
 
     add(registry, "math.multiply",
       {.title = "Multiply",
+       .group = "Numbers",
        .purpose = "Multiply two Floats. Input b is optional and falls back to param b.",
        .useWhen = "Modulate one signal by another, e.g. brightness times a loudness envelope, or by a constant via param b.",
        .example = "{\"id\": \"mod\", \"type\": \"math.multiply\", \"params\": {\"b\": 0.5}}"},
@@ -211,6 +218,7 @@ namespace Aurora::Runtime::Graph
 
     add(registry, "math.max",
       {.title = "Max",
+       .group = "Numbers",
        .purpose = "The larger of two Floats. Input b is optional and falls back to param b.",
        .useWhen = "Floor one signal with another or a constant, e.g. keep a rate from going negative (param b 0).",
        .example = "{\"id\": \"floor\", \"type\": \"math.max\", \"params\": {\"b\": 0}}"},
@@ -221,6 +229,7 @@ namespace Aurora::Runtime::Graph
 
     add(registry, "math.invert",
       {.title = "Invert",
+       .group = "Numbers",
        .purpose = "Flip a 0..1 Float to 1 minus the value.",
        .useWhen = "Reverse a normalized signal, e.g. quiet becomes bright.",
        .example = "{\"id\": \"flip\", \"type\": \"math.invert\", \"params\": {}}"},

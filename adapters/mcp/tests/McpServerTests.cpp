@@ -58,11 +58,11 @@ namespace
   }
 
   const char* kNodesBody = R"({"nodes":[
-    {"type":"audio.bands","purpose":"Bass, mid and treble loudness.","useWhen":"x","example":"y","cost":"low",
+    {"type":"audio.bands","group":"Audio","purpose":"Bass, mid and treble loudness.","useWhen":"x","example":"y","cost":"low",
      "inputs":[{"name":"buffer","type":"AudioBuffer","required":true}],
      "outputs":[{"name":"bass","type":"Float"},{"name":"mid","type":"Float"}],
      "params":[{"name":"bassMaxHz","kind":"float","min":20,"max":20000,"default":250}]},
-    {"type":"math.add","purpose":"Add two floats.","useWhen":"x","example":"y","cost":"low",
+    {"type":"math.add","group":"Numbers","purpose":"Add two floats.","useWhen":"x","example":"y","cost":"low",
      "inputs":[{"name":"a","type":"Float","required":true},{"name":"b","type":"Float","required":false}],
      "outputs":[{"name":"value","type":"Float"}],"params":[]}
   ]})";
@@ -232,6 +232,15 @@ TEST_CASE("list_nodes returns a compact list with the structured copy")
   const json audioOnly = callTool(server, "list_nodes", R"({"category":"audio"})")["result"]["structuredContent"]["nodes"];
   REQUIRE(audioOnly.size() == 1);
   CHECK(audioOnly[0]["type"] == "audio.bands");
+  CHECK(nodes[0]["group"] == "Audio");
+  CHECK(nodes[1]["group"] == "Numbers");
+
+  const json numbers = callTool(server, "list_nodes", R"({"group":"Numbers"})")["result"]["structuredContent"]["nodes"];
+  REQUIRE(numbers.size() == 1);
+  CHECK(numbers[0]["type"] == "math.add");
+  CHECK(callTool(server, "list_nodes", R"({"group":"Motion"})")["result"]["structuredContent"]["nodes"].empty());
+  // category stays a type prefix, independent of group.
+  CHECK(callTool(server, "list_nodes", R"({"category":"Numbers"})")["result"]["structuredContent"]["nodes"].empty());
 }
 
 TEST_CASE("describe_node returns the full descriptor, a miss lists candidates")

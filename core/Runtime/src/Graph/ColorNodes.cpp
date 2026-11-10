@@ -169,6 +169,7 @@ namespace Aurora::Runtime::Graph
   {
     add(registry, "color.fromHSV",
       {.title = "Color from HSV",
+       .group = "Color",
        .purpose = "Build a Color from a hue Angle plus saturation and value (0..1).",
        .useWhen = "Turn a hue and a brightness signal into a color, e.g. bounce's hue with rms as value.",
        .example =
@@ -190,6 +191,7 @@ namespace Aurora::Runtime::Graph
 
     add(registry, "color.constant",
       {.title = "Color",
+       .group = "Sources",
        .purpose = "A fixed Color from hue, saturation and value params, no inputs.",
        .useWhen = "Supply a fixed color, e.g. a warm tint for frame.tint or a mix target.",
        .example =
@@ -210,6 +212,7 @@ namespace Aurora::Runtime::Graph
 
     add(registry, "angle.constant",
       {.title = "Angle",
+       .group = "Sources",
        .purpose = "A fixed Angle from a degrees param, no inputs.",
        .useWhen = "Supply a fixed hue or offset, e.g. a color.fromHSV hue or an angle.add offset.",
        .example = "{\"id\": \"teal\", \"type\": \"angle.constant\", \"params\": {\"degrees\": 180}}"},
@@ -224,6 +227,7 @@ namespace Aurora::Runtime::Graph
 
     add(registry, "color.toHSV",
       {.title = "Color to HSV",
+       .group = "Color",
        .purpose = "Split a Color into hue (Angle), saturation and value (Floats, 0..1).",
        .useWhen = "Read a video color's hue to drive another node.",
        .example = "{\"id\": \"split\", \"type\": \"color.toHSV\", \"params\": {}}"},
@@ -241,6 +245,7 @@ namespace Aurora::Runtime::Graph
 
     add(registry, "color.brightness",
       {.title = "Color brightness",
+       .group = "Color",
        .purpose = "Perceived brightness of a Color as a Float 0..1 (weighted RGB, not HSV value).",
        .useWhen = "Gate or scale something by how bright a color looks.",
        .example = "{\"id\": \"luma\", \"type\": \"color.brightness\", \"params\": {}}"},
@@ -253,6 +258,7 @@ namespace Aurora::Runtime::Graph
 
     add(registry, "color.mix",
       {.title = "Mix colors",
+       .group = "Color",
        .purpose = "Blend Color a toward Color b by t (0 gives a, 1 gives b, clamped), in RGB.",
        .useWhen = "Crossfade two colors, e.g. a video color with the audio color.",
        .example = "{\"id\": \"blend\", \"type\": \"color.mix\", \"params\": {\"t\": 0.5}}"},
@@ -270,6 +276,7 @@ namespace Aurora::Runtime::Graph
 
     add(registry, "color.hueShift",
       {.title = "Hue shift",
+       .group = "Color",
        .purpose = "Rotate a Color's hue by degrees, keeping saturation and value.",
        .useWhen = "Offset a color around the wheel, e.g. +30 for an analogous accent.",
        .example = "{\"id\": \"accent\", \"type\": \"color.hueShift\", \"params\": {\"degrees\": 30}}"},
@@ -284,6 +291,7 @@ namespace Aurora::Runtime::Graph
 
     add(registry, "color.complement",
       {.title = "Complement",
+       .group = "Color",
        .purpose = "The opposite color on the wheel: hue plus 180 degrees.",
        .useWhen = "Get the second color of a complementary pair from the first.",
        .example = "{\"id\": \"pair\", \"type\": \"color.complement\", \"params\": {}}"},
@@ -303,6 +311,7 @@ namespace Aurora::Runtime::Graph
       "2 to 16 stops [{\"pos\": 0..1, \"color\": \"#rrggbb\"}] in ascending pos, blended in RGB.";
     add(registry, "color.fromGradient",
       {.title = "Gradient color",
+       .group = "Color",
        .purpose = "Look up a Color on a gradient param at position t (0..1, clamped).",
        .useWhen = "Map a signal to a palette, e.g. loudness to a cool-to-hot ramp.",
        .example =
@@ -332,6 +341,7 @@ namespace Aurora::Runtime::Graph
       NodeTypeInfo{
         .meta =
           {.title = "Random anchor",
+           .group = "Sources",
            .purpose =
              "Pick one of the six vibrant complementary pair anchors (0, 30, 60, 90, 120, 150 degrees) "
              "on the first tick and hold it.",
@@ -346,6 +356,7 @@ namespace Aurora::Runtime::Graph
 
     add(registry, "angle.add",
       {.title = "Add angles",
+       .group = "Numbers",
        .purpose = "Add two Angles, wrapping at 360.",
        .useWhen = "Offset a hue by another, e.g. a drifting anchor plus a beat swing.",
        .example = "{\"id\": \"target\", \"type\": \"angle.add\", \"params\": {}}"},
@@ -368,6 +379,7 @@ namespace Aurora::Runtime::Graph
     side.description = "Which end of the pair to output: the anchor itself or anchor plus 180.";
     add(registry, "palette.pick",
       {.title = "Pick palette hue",
+       .group = "Color",
        .purpose = "Pick one hue of a complementary pair: the anchor Angle or the anchor plus 180.",
        .useWhen = "Split one anchor into the two colors of a pair, one pick node per color.",
        .example = "{\"id\": \"second\", \"type\": \"palette.pick\", \"params\": {\"side\": \"complement\"}}"},

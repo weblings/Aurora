@@ -357,3 +357,4 @@ Planning docs stay clean: decisions, status, and pointers here only.
 | 2026-11-09 | Graph editor: Fit view stops at 60% zoom; zone thumbnail hidden until the first preview frame. [[daaa18-fit-zoom-thumbnail]] | `bd show Aurora-daaa.18` |
 | 2026-11-09 | Graph editor: naming a new effect in a modal dialog. [[daaa19-name-dialog]] | `Aurora-daaa.19`, `Aurora-daaa.22` |
 | 2026-11-10 | Graph editor: status spot reads Connecting, not No draft yet, before the first draft. [[daaa21-connecting-status]] | `bd show Aurora-daaa.21` |
+| 2026-11-10 | Graph editor: catalog group field on all 53 nodes, through the API and MCP list_nodes. [[daaa24-1-catalog-group]] | `bd show Aurora-daaa.24.1` |

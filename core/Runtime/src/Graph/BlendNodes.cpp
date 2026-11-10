@@ -247,6 +247,7 @@ namespace Aurora::Runtime::Graph
   {
     add(registry, "frame.mix",
       {.title = "Mix frames",
+       .group = "Lights",
        .purpose =
          "Blend Frame b into Frame a by t (0 gives a, 1 gives the full blend mode result). Zones match "
          "by id: the output has a's zones, a zone missing from b passes through unchanged, and zones "
@@ -266,6 +267,7 @@ namespace Aurora::Runtime::Graph
 
     add(registry, "image.mix",
       {.title = "Mix images",
+       .group = "Image",
        .purpose =
          "Blend Image b into Image a by t, per pixel in RGB. Both must be the same size or the node "
          "fails. b is converted to a's pixel format and the result keeps a's format and alpha.",
@@ -284,6 +286,7 @@ namespace Aurora::Runtime::Graph
 
     addFrameOp(registry, "frame.brightnessScale",
       {.title = "Brightness",
+       .group = "Lights",
        .purpose = "Multiply every zone's RGB by factor (1 unchanged, 0 black, above 1 brightens, clamped).",
        .useWhen = "Dim or boost a frame, e.g. fade with a Float from an lfo.",
        .example = "{\"id\": \"dim\", \"type\": \"frame.brightnessScale\", \"params\": {\"factor\": 0.5}}"},
@@ -296,6 +299,7 @@ namespace Aurora::Runtime::Graph
 
     addFrameOp(registry, "frame.saturation",
       {.title = "Saturation",
+       .group = "Lights",
        .purpose = "Scale color intensity about each zone's grey (1 unchanged, 0 grey, above 1 vivid).",
        .useWhen = "Wash out or punch up a frame.",
        .example = "{\"id\": \"vivid\", \"type\": \"frame.saturation\", \"params\": {\"amount\": 1.5}}"},
@@ -311,6 +315,7 @@ namespace Aurora::Runtime::Graph
 
     addFrameOp(registry, "frame.hueShift",
       {.title = "Hue shift",
+       .group = "Lights",
        .purpose = "Rotate every zone's hue by degrees, keeping saturation and value.",
        .useWhen = "Cycle a frame around the color wheel.",
        .example = "{\"id\": \"rotate\", \"type\": \"frame.hueShift\", \"params\": {\"degrees\": 60}}"},
@@ -327,6 +332,7 @@ namespace Aurora::Runtime::Graph
 
     addFrameOp(registry, "frame.tint",
       {.title = "Tint",
+       .group = "Lights",
        .purpose = "Multiply every zone by a tint Color, blended in by amount (0 unchanged, 1 full tint).",
        .useWhen = "Warm or cool a frame with a color from the audio or a gradient.",
        .example = "{\"id\": \"warm\", \"type\": \"frame.tint\", \"params\": {\"amount\": 1}}"},

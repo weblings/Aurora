@@ -107,6 +107,7 @@ namespace Aurora::Runtime
         nlohmann::json entry{
           {"type", type},
           {"title", info.meta.title},
+          {"group", info.meta.group},
           {"purpose", info.meta.purpose},
           {"useWhen", info.meta.useWhen},
           {"example", info.meta.example},

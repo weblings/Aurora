@@ -52,6 +52,7 @@ namespace Aurora::Runtime::Graph
       nodeEntry.kind = "text";
       nodeEntry.description = info.meta.purpose;
       nodeEntry.title = info.meta.title;
+      nodeEntry.group = info.meta.group;
       nodeEntry.useWhen = info.meta.useWhen;
       nodeEntry.example = info.meta.example;
       nodeEntry.cost = info.meta.cost;

@@ -3,6 +3,7 @@
   {
    "cost": "heavy",
    "example": "{\"id\": \"cap\", \"type\": \"video.capture\", \"params\": {}}",
+   "group": "Sources",
    "inputs": [],
    "outputs": [
     {
@@ -20,6 +21,7 @@
   {
    "cost": "moderate",
    "example": "{\"id\": \"small\", \"type\": \"image.rescale\", \"params\": {\"width\": 96, \"interpolation\": \"Area\"}}",
+   "group": "Image",
    "inputs": [
     {
      "description": "The Image to downscale.",
@@ -68,6 +70,7 @@
   {
    "cost": "cheap",
    "example": "{\"id\": \"opaque\", \"type\": \"image.dropAlpha\", \"params\": {}}",
+   "group": "Image",
    "inputs": [
     {
      "description": "The Image to make opaque.",
@@ -92,6 +95,7 @@
   {
    "cost": "moderate",
    "example": "{\"id\": \"zones\", \"type\": \"zones.sample\", \"params\": {\"output\": \"hue\"}}",
+   "group": "Lights",
    "inputs": [
     {
      "description": "The Image to sample zone colors from.",
@@ -126,6 +130,7 @@
   {
    "cost": "cheap",
    "example": "{\"id\": \"ease\", \"type\": \"frame.smooth\", \"params\": {\"output\": \"hue\", \"smoothing\": 0.5}}",
+   "group": "Lights",
    "inputs": [
     {
      "description": "The Frame to ease.",
@@ -172,6 +177,7 @@
   {
    "cost": "cheap",
    "example": "{\"id\": \"ease\", \"type\": \"frame.smoothTime\", \"params\": {\"tau\": 0.15}}",
+   "group": "Lights",
    "inputs": [
     {
      "description": "The Frame to ease.",
@@ -209,6 +215,7 @@
   {
    "cost": "cheap",
    "example": "{\"id\": \"dim\", \"type\": \"frame.gain\", \"params\": {\"gain\": 0.5}}",
+   "group": "Lights",
    "inputs": [
     {
      "description": "The Frame to scale.",
@@ -246,6 +253,7 @@
   {
    "cost": "cheap",
    "example": "{\"id\": \"keep\", \"type\": \"frame.floor\", \"params\": {\"policy\": \"hold\", \"floor\": 0.05}}",
+   "group": "Lights",
    "inputs": [
     {
      "description": "The Frame to keep above the floor.",
@@ -306,6 +314,7 @@
   {
    "cost": "moderate",
    "example": "{\"id\": \"send\", \"type\": \"output.send\", \"params\": {\"output\": \"hue\"}}",
+   "group": "Lights",
    "inputs": [
     {
      "description": "The Frame to send to the output.",
@@ -335,6 +344,7 @@
   {
    "cost": "cheap",
    "example": "{\"id\": \"gain\", \"type\": \"math.scale\", \"params\": {\"factor\": 180}}",
+   "group": "Numbers",
    "inputs": [
     {
      "description": "The Float to multiply.",
@@ -372,6 +382,7 @@
   {
    "cost": "cheap",
    "example": "{\"id\": \"norm\", \"type\": \"math.divide\", \"params\": {\"divisor\": 0.3}}",
+   "group": "Numbers",
    "inputs": [
     {
      "description": "The Float to divide.",
@@ -409,6 +420,7 @@
   {
    "cost": "cheap",
    "example": "{\"id\": \"cap\", \"type\": \"math.clamp\", \"params\": {\"min\": 0, \"max\": 1}}",
+   "group": "Numbers",
    "inputs": [
     {
      "description": "The Float to limit.",
@@ -458,6 +470,7 @@
   {
    "cost": "cheap",
    "example": "{\"id\": \"remap\", \"type\": \"math.mapRange\", \"params\": {\"inMin\": 0, \"inMax\": 1, \"outMin\": 0.2, \"outMax\": 1, \"clamp\": true}}",
+   "group": "Numbers",
    "inputs": [
     {
      "description": "The Float to remap.",
@@ -537,6 +550,7 @@
   {
    "cost": "cheap",
    "example": "{\"id\": \"swing\", \"type\": \"math.lerp\", \"params\": {\"from\": 0.3, \"to\": 1}}",
+   "group": "Numbers",
    "inputs": [
     {
      "description": "Blend amount: 0 gives from, 1 gives to.",
@@ -586,6 +600,7 @@
   {
    "cost": "cheap",
    "example": "{\"id\": \"sum\", \"type\": \"math.add\", \"params\": {\"b\": 0.5}}",
+   "group": "Numbers",
    "inputs": [
     {
      "description": "The first Float.",
@@ -629,6 +644,7 @@
   {
    "cost": "cheap",
    "example": "{\"id\": \"mod\", \"type\": \"math.multiply\", \"params\": {\"b\": 0.5}}",
+   "group": "Numbers",
    "inputs": [
     {
      "description": "The first Float.",
@@ -672,6 +688,7 @@
   {
    "cost": "cheap",
    "example": "{\"id\": \"floor\", \"type\": \"math.max\", \"params\": {\"b\": 0}}",
+   "group": "Numbers",
    "inputs": [
     {
      "description": "The first Float.",
@@ -715,6 +732,7 @@
   {
    "cost": "cheap",
    "example": "{\"id\": \"flip\", \"type\": \"math.invert\", \"params\": {}}",
+   "group": "Numbers",
    "inputs": [
     {
      "description": "A 0..1 Float to flip.",
@@ -739,6 +757,7 @@
   {
    "cost": "cheap",
    "example": "{\"id\": \"damp\", \"type\": \"smooth.exp\", \"params\": {\"tau\": 0.15}}",
+   "group": "Motion",
    "inputs": [
     {
      "description": "The Float to ease.",
@@ -776,6 +795,7 @@
   {
    "cost": "cheap",
    "example": "{\"id\": \"hue\", \"type\": \"smooth.angle\", \"params\": {\"tau\": 0.15}}",
+   "group": "Motion",
    "inputs": [
     {
      "description": "The Angle to ease.",
@@ -813,6 +833,7 @@
   {
    "cost": "cheap",
    "example": "{\"id\": \"base\", \"type\": \"rollingAverage\", \"params\": {\"tau\": 0.8}}",
+   "group": "Motion",
    "inputs": [
     {
      "description": "The Float to average.",
@@ -850,6 +871,7 @@
   {
    "cost": "cheap",
    "example": "{\"id\": \"anchor\", \"type\": \"integrate\", \"params\": {\"initial\": 0}}",
+   "group": "Motion",
    "inputs": [
     {
      "description": "Rate in degrees per second.",
@@ -887,6 +909,7 @@
   {
    "cost": "cheap",
    "example": "{\"id\": \"swing\", \"type\": \"stepOnTrigger\", \"params\": {\"scale\": 1}}",
+   "group": "Motion",
    "inputs": [
     {
      "description": "Each pulse adds one step.",
@@ -930,6 +953,7 @@
   {
    "cost": "cheap",
    "example": "{\"id\": \"breathe\", \"type\": \"lfo\", \"params\": {\"shape\": \"sine\", \"rateHz\": 0.2}}",
+   "group": "Sources",
    "inputs": [],
    "outputs": [
     {
@@ -995,6 +1019,7 @@
   {
    "cost": "cheap",
    "example": "{\"id\": \"flicker\", \"type\": \"noise\", \"params\": {\"rateHz\": 6, \"min\": 0.6}}",
+   "group": "Sources",
    "inputs": [],
    "outputs": [
     {
@@ -1061,6 +1086,7 @@
   {
    "cost": "cheap",
    "example": "{\"id\": \"col\", \"type\": \"color.fromHSV\", \"params\": {\"saturation\": 1, \"value\": 1}}",
+   "group": "Color",
    "inputs": [
     {
      "description": "Hue of the color.",
@@ -1122,6 +1148,7 @@
   {
    "cost": "cheap",
    "example": "{\"id\": \"warm\", \"type\": \"color.constant\", \"params\": {\"hue\": 30, \"saturation\": 0.8, \"value\": 1}}",
+   "group": "Sources",
    "inputs": [],
    "outputs": [
     {
@@ -1176,6 +1203,7 @@
   {
    "cost": "cheap",
    "example": "{\"id\": \"teal\", \"type\": \"angle.constant\", \"params\": {\"degrees\": 180}}",
+   "group": "Sources",
    "inputs": [],
    "outputs": [
     {
@@ -1206,6 +1234,7 @@
   {
    "cost": "cheap",
    "example": "{\"id\": \"split\", \"type\": \"color.toHSV\", \"params\": {}}",
+   "group": "Color",
    "inputs": [
     {
      "description": "The color to split.",
@@ -1240,6 +1269,7 @@
   {
    "cost": "cheap",
    "example": "{\"id\": \"luma\", \"type\": \"color.brightness\", \"params\": {}}",
+   "group": "Color",
    "inputs": [
     {
      "description": "The color to measure.",
@@ -1264,6 +1294,7 @@
   {
    "cost": "cheap",
    "example": "{\"id\": \"blend\", \"type\": \"color.mix\", \"params\": {\"t\": 0.5}}",
+   "group": "Color",
    "inputs": [
     {
      "description": "Color at t = 0.",
@@ -1313,6 +1344,7 @@
   {
    "cost": "cheap",
    "example": "{\"id\": \"accent\", \"type\": \"color.hueShift\", \"params\": {\"degrees\": 30}}",
+   "group": "Color",
    "inputs": [
     {
      "description": "The color to rotate.",
@@ -1356,6 +1388,7 @@
   {
    "cost": "cheap",
    "example": "{\"id\": \"pair\", \"type\": \"color.complement\", \"params\": {}}",
+   "group": "Color",
    "inputs": [
     {
      "description": "The color to flip.",
@@ -1380,6 +1413,7 @@
   {
    "cost": "cheap",
    "example": "{\"id\": \"ramp\", \"type\": \"color.fromGradient\", \"params\": {\"gradient\": [{\"pos\": 0, \"color\": \"#0000ff\"}, {\"pos\": 1, \"color\": \"#ff0000\"}]}}",
+   "group": "Color",
    "inputs": [
     {
      "description": "Position on the gradient, 0..1.",
@@ -1420,6 +1454,7 @@
   {
    "cost": "cheap",
    "example": "{\"id\": \"anchor\", \"type\": \"palette.randomAnchor\", \"params\": {\"seed\": null}}",
+   "group": "Sources",
    "inputs": [],
    "outputs": [
     {
@@ -1450,6 +1485,7 @@
   {
    "cost": "cheap",
    "example": "{\"id\": \"target\", \"type\": \"angle.add\", \"params\": {}}",
+   "group": "Numbers",
    "inputs": [
     {
      "description": "The first angle.",
@@ -1480,6 +1516,7 @@
   {
    "cost": "cheap",
    "example": "{\"id\": \"second\", \"type\": \"palette.pick\", \"params\": {\"side\": \"complement\"}}",
+   "group": "Color",
    "inputs": [
     {
      "description": "The anchor hue of the pair.",
@@ -1515,6 +1552,7 @@
   {
    "cost": "cheap",
    "example": "{\"id\": \"mixed\", \"type\": \"frame.mix\", \"params\": {\"mode\": \"add\", \"t\": 0.5}}",
+   "group": "Lights",
    "inputs": [
     {
      "description": "The base Frame; its zones are kept.",
@@ -1577,6 +1615,7 @@
   {
    "cost": "moderate",
    "example": "{\"id\": \"layer\", \"type\": \"image.mix\", \"params\": {\"mode\": \"screen\", \"t\": 0.5}}",
+   "group": "Image",
    "inputs": [
     {
      "description": "The base Image; its format and alpha are kept.",
@@ -1639,6 +1678,7 @@
   {
    "cost": "cheap",
    "example": "{\"id\": \"dim\", \"type\": \"frame.brightnessScale\", \"params\": {\"factor\": 0.5}}",
+   "group": "Lights",
    "inputs": [
     {
      "description": "The Frame to adjust.",
@@ -1682,6 +1722,7 @@
   {
    "cost": "cheap",
    "example": "{\"id\": \"vivid\", \"type\": \"frame.saturation\", \"params\": {\"amount\": 1.5}}",
+   "group": "Lights",
    "inputs": [
     {
      "description": "The Frame to adjust.",
@@ -1725,6 +1766,7 @@
   {
    "cost": "cheap",
    "example": "{\"id\": \"rotate\", \"type\": \"frame.hueShift\", \"params\": {\"degrees\": 60}}",
+   "group": "Lights",
    "inputs": [
     {
      "description": "The Frame to adjust.",
@@ -1768,6 +1810,7 @@
   {
    "cost": "cheap",
    "example": "{\"id\": \"warm\", \"type\": \"frame.tint\", \"params\": {\"amount\": 1}}",
+   "group": "Lights",
    "inputs": [
     {
      "description": "The Frame to adjust.",
@@ -1817,6 +1860,7 @@
   {
    "cost": "cheap",
    "example": "{\"id\": \"ramp\", \"type\": \"image.gradient\", \"params\": {\"angle\": 0, \"gradient\": [{\"pos\": 0, \"color\": \"#ff0000\"}, {\"pos\": 1, \"color\": \"#0000ff\"}]}}",
+   "group": "Image",
    "inputs": [
     {
      "description": "Scroll along the gradient (1 is a full loop); param phase is used when unwired.",
@@ -1905,6 +1949,7 @@
   {
    "cost": "cheap",
    "example": "{\"id\": \"chase\", \"type\": \"image.bar\", \"params\": {\"size\": 0.2, \"softness\": 0.1, \"wrap\": true}}",
+   "group": "Image",
    "inputs": [
     {
      "description": "Bar center 0..1 across the image; param position is used when unwired.",
@@ -2020,6 +2065,7 @@
   {
    "cost": "cheap",
    "example": "{\"id\": \"candles\", \"type\": \"image.noise\", \"params\": {\"cells\": 16, \"rateHz\": 6}}",
+   "group": "Image",
    "inputs": [
     {
      "description": "Color of a fully lit cell.",
@@ -2111,6 +2157,7 @@
   {
    "cost": "cheap",
    "example": "{\"id\": \"rainbow\", \"type\": \"image.hueRamp\", \"params\": {\"span\": 360}}",
+   "group": "Image",
    "inputs": [
     {
      "description": "Hue in degrees at the start of the ramp; param phase is used when unwired.",
@@ -2220,6 +2267,7 @@
   {
    "cost": "cheap",
    "example": "{\"id\": \"all\", \"type\": \"frame.broadcast\", \"params\": {\"output\": \"hue\"}}",
+   "group": "Lights",
    "inputs": [
     {
      "description": "The Color applied to every active zone.",
@@ -2254,6 +2302,7 @@
   {
    "cost": "moderate",
    "example": "{\"id\": \"mic\", \"type\": \"audio.capture\", \"params\": {}}",
+   "group": "Sources",
    "inputs": [],
    "outputs": [
     {
@@ -2271,6 +2320,7 @@
   {
    "cost": "moderate",
    "example": "{\"id\": \"feat\", \"type\": \"audio.features\", \"params\": {}}",
+   "group": "Audio",
    "inputs": [
     {
      "description": "The audio buffer to analyze.",
@@ -2315,6 +2365,7 @@
   {
    "cost": "moderate",
    "example": "{\"id\": \"bands\", \"type\": \"audio.bands\", \"params\": {\"bassMaxHz\": 250}}",
+   "group": "Audio",
    "inputs": [
     {
      "description": "The audio buffer to split into bands.",
@@ -2374,6 +2425,7 @@
   {
    "cost": "cheap",
    "example": "{\"id\": \"drift\", \"type\": \"audio.drift\", \"params\": {\"fixedAnchorHue\": null}}",
+   "group": "Audio",
    "inputs": [
     {
      "description": "Audio features that speed the drift up on beats.",
@@ -2447,6 +2499,7 @@
   {
    "cost": "cheap",
    "example": "{\"id\": \"beat\", \"type\": \"audio.bounce\", \"params\": {\"bounceSmoothTime\": 0.285}}",
+   "group": "Audio",
    "inputs": [
     {
      "description": "Audio features whose onsets trigger the bounce.",

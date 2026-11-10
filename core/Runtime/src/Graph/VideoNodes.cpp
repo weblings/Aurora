@@ -240,6 +240,7 @@ namespace Aurora::Runtime::Graph
         .meta =
           {
             .title = "Video capture",
+            .group = "Sources",
             .purpose = "Grab one video frame per tick; Absent while the source is unhealthy.",
             .useWhen = "First node of any video path.",
             .example = "{\"id\": \"cap\", \"type\": \"video.capture\", \"params\": {}}",
@@ -257,6 +258,7 @@ namespace Aurora::Runtime::Graph
         .meta =
           {
             .title = "Rescale image",
+            .group = "Image",
             .purpose = "Downscale an image to a target width (today's subsampleWidth).",
             .useWhen = "After capture, before sampling; width 0 passes through.",
             .example =
@@ -276,6 +278,7 @@ namespace Aurora::Runtime::Graph
         .meta =
           {
             .title = "Drop alpha",
+            .group = "Image",
             .purpose = "Drop the alpha channel (no-op for already-opaque images).",
             .useWhen = "After rescale, before zone sampling.",
             .example = "{\"id\": \"opaque\", \"type\": \"image.dropAlpha\", \"params\": {}}",
@@ -293,6 +296,7 @@ namespace Aurora::Runtime::Graph
         .meta =
           {
             .title = "Sample zones",
+            .group = "Lights",
             .purpose = "Sample zone colors from an image via one output's live zone map.",
             .useWhen = "After the image path is prepared; outputs one Frame.",
             .example = "{\"id\": \"zones\", \"type\": \"zones.sample\", \"params\": {\"output\": \"hue\"}}",

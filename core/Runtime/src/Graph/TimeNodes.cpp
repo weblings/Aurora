@@ -262,6 +262,7 @@ namespace Aurora::Runtime::Graph
   {
     addState<float, float>(registry, "smooth.exp",
       {.title = "Smooth",
+       .group = "Motion",
        .purpose = "Ease a Float toward its input; tau seconds to cover ~63% of a step at any tick rate.",
        .useWhen = "Damp a jumpy signal, e.g. rms into a brightness envelope.",
        .example = "{\"id\": \"damp\", \"type\": \"smooth.exp\", \"params\": {\"tau\": 0.15}}"},
@@ -271,6 +272,7 @@ namespace Aurora::Runtime::Graph
 
     addState<Angle, Angle>(registry, "smooth.angle",
       {.title = "Smooth angle",
+       .group = "Motion",
        .purpose = "Ease an Angle toward its input along the shortest arc, wrapping at 360.",
        .useWhen = "Damp a hue target, e.g. the beat swing in a bounce.",
        .example = "{\"id\": \"hue\", \"type\": \"smooth.angle\", \"params\": {\"tau\": 0.15}}"},
@@ -280,6 +282,7 @@ namespace Aurora::Runtime::Graph
 
     addState<float, float>(registry, "rollingAverage",
       {.title = "Rolling average",
+       .group = "Motion",
        .purpose = "Running average of a Float over about tau seconds, independent of tick rate.",
        .useWhen = "Get a slow baseline to compare a signal against, e.g. centroid deviation.",
        .example = "{\"id\": \"base\", \"type\": \"rollingAverage\", \"params\": {\"tau\": 0.8}}"},
@@ -289,6 +292,7 @@ namespace Aurora::Runtime::Graph
 
     addState<float, Angle>(registry, "integrate",
       {.title = "Integrate",
+       .group = "Motion",
        .purpose = "Accumulate a rate in degrees per second into an Angle that wraps at 360.",
        .useWhen = "Turn a speed signal into a hue position, e.g. drift's rate into its anchor.",
        .example = "{\"id\": \"anchor\", \"type\": \"integrate\", \"params\": {\"initial\": 0}}"},
@@ -301,6 +305,7 @@ namespace Aurora::Runtime::Graph
       NodeTypeInfo{
         .meta =
           {.title = "Step on trigger",
+           .group = "Motion",
            .purpose = "Add a step to an Angle on each Trigger pulse and hold it between pulses.",
            .useWhen = "Swing a hue on each beat, e.g. onset strength times 180 degrees per onset.",
            .example = "{\"id\": \"swing\", \"type\": \"stepOnTrigger\", \"params\": {\"scale\": 1}}"},
@@ -327,6 +332,7 @@ namespace Aurora::Runtime::Graph
       NodeTypeInfo{
         .meta =
           {.title = "LFO",
+           .group = "Sources",
            .purpose = "Free-running oscillator between min and max at rateHz.",
            .useWhen = "Slow modulation with no audio, e.g. a breathing brightness.",
            .example =
@@ -346,6 +352,7 @@ namespace Aurora::Runtime::Graph
       NodeTypeInfo{
         .meta =
           {.title = "Noise",
+           .group = "Sources",
            .purpose = "Smooth random wander between min and max, drifting to a new random target about "
                       "rateHz times per second. Irregular where lfo is periodic.",
            .useWhen = "Flicker with no audio, e.g. a candle or fire brightness. Use image.noise for "

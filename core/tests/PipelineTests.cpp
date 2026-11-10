@@ -2630,8 +2630,13 @@ TEST_CASE("GET /api/nodes serves every registered node and rejects a forged Host
   for(size_t i = 0; i < types.size(); ++i){
     const auto& node = nodes[i];
     CHECK(node["type"] == types[i]);
-    for(const char* key : {"title", "purpose", "useWhen", "example", "cost"}){
+    for(const char* key : {"title", "group", "purpose", "useWhen", "example", "cost"}){
       CHECK_FALSE(node[key].get<std::string>().empty());
+    }
+    {
+      const auto& groups = Aurora::Runtime::Graph::kNodeGroups;
+      INFO(types[i] << " group " << node["group"]);
+      CHECK(std::find(groups.begin(), groups.end(), node["group"].get<std::string>()) != groups.end());
     }
     for(const char* side : {"inputs", "outputs"}){
       for(const auto& port : node[side]){
