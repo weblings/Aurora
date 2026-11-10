@@ -364,3 +364,4 @@ Planning docs stay clean: decisions, status, and pointers here only.
 | 2026-11-10 | Graph editor: top-bar and title-menu checks timed out since Aurora-daaa.18 (fit view 60% floor); both were check bugs, fixed. [[daaa25-browser-check-timeouts]] | `bd show Aurora-daaa.25` |
 | 2026-11-10 | Graph editor: gate check timed out since Aurora-daaa.18; status ranked a reload error above problems, and the check clicked handles outside the window; both fixed. [[daaa26-gate-status]] | `bd show Aurora-daaa.26` |
 | 2026-11-10 | Graph editor right-click and ⋯ menus on canvas, node and wire, Shift+F10, node accessible names. [[daaa27-1-context-menus]] | `bd show Aurora-daaa.27.1` |
+| 2026-11-10 | Graph editor Delete key, toast when a deletion removes Dashboard controls, key delete is one undo step. [[daaa27-2-delete-key]] | `bd show Aurora-daaa.27.2` |

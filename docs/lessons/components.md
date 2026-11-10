@@ -465,3 +465,14 @@ A pointer-anchored Popover (a 0x0 fixed div as `triggerRef`) works on canvas, no
 - An `A` shortcut that opens a search field must call `preventDefault`, or the keypress is typed into the field.
 
 **Fix:** see the Aurora-t2hz notes and [[graph-editor-cleanup]]. Grille itself was not tested.
+
+---
+
+## React Flow reports a node delete as separate node and edge removals, so per-change handlers make two undo steps
+Tags: webui, react-flow, undo
+Applies-when: turning React Flow's `onNodesChange` / `onEdgesChange` `remove` changes into document edits with undo history
+
+- A key delete emits `remove` for the node and for each wire on it. Editing the document from each handler pushes two history entries, so one undo brings back the node but not its wires.
+- Use `onDelete({ nodes, edges })` for the document edit (one entry) and keep the change handlers for view state only. A menu delete that calls the same edit function stays one step.
+
+**Fix:** Aurora-daaa.27.2; `graph-editor:delete` checks undo and redo.

@@ -33,6 +33,7 @@ import { tabSession, useDraftLoop } from './useDraftLoop'
 import { useLightTest } from './useLightTest'
 import { restorable, clearUnsaved, syncUnsaved } from './graph/autosave'
 import { refuseConnection } from './graph/connection'
+import { controlsOf } from './graph/controls'
 import { addEdge, addNode, joinEndpoint, moveNodes, removeEdge, removeNodes, setParam } from './graph/doc'
 import { editorReducer, emptyEditor, sameDoc } from './graph/history'
 import { changeIsEdit, pickBanner, pickStatus, testProgress } from './graph/status'
@@ -239,6 +240,22 @@ export function App() {
   const blocked = status.rank === 1
 
   const edit = useCallback((change: (d: GraphDoc) => GraphDoc) => dispatch({ type: 'edit', change }), [])
+
+  // One path for key Delete, Backspace and the menu: deleting a node drops its
+  // Dashboard controls, so say so (global undo brings them back).
+  const deleteNodes = useCallback(
+    (ids: ReadonlySet<string>) => {
+      const current = docRef.current
+      const dropped = current ? controlsOf(current).filter((c) => ids.has(c.node)) : []
+      edit((d) => removeNodes(d, ids))
+      if (dropped.length > 0) {
+        const n = dropped.length
+        const names = [...new Set(dropped.map((c) => c.label || c.param))]
+        showToast(`Removed ${n} Dashboard control${n === 1 ? '' : 's'} with ${names.join(', ')}`)
+      }
+    },
+    [edit, showToast],
+  )
   const undo = useCallback(() => dispatch({ type: 'undo' }), [])
   const redo = useCallback(() => dispatch({ type: 'redo' }), [])
 
@@ -350,20 +367,28 @@ export function App() {
   const onNodesChange = useCallback(
     (changes: NodeChange<Node<AuroraNodeData>>[]) => {
       setNodeView(applyNodeChanges(changes, nodes))
-      const removed = new Set(changes.flatMap((c) => (c.type === 'remove' ? [c.id] : [])))
-      if (removed.size > 0) edit((d) => removeNodes(d, removed))
     },
-    [nodes, edit],
+    [nodes],
   )
 
   const onEdgesChange = useCallback(
     (changes: EdgeChange[]) => {
       setEdgeView(applyEdgeChanges(changes, edges))
-      const removed = new Set(changes.flatMap((c) => (c.type === 'remove' ? [c.id] : [])))
-      if (removed.size === 0) return
-      edit((d) => d.edges.filter((e) => removed.has(edgeId(e))).reduce(removeEdge, d))
     },
-    [edges, edit],
+    [edges],
+  )
+
+  // A key delete reports its nodes and their wires together: one edit, so one
+  // undo brings all of it back (the per-change handlers made two history steps).
+  const onDelete = useCallback(
+    ({ nodes: gone, edges: wires }: { nodes: Node[]; edges: Edge[] }) => {
+      const ids = new Set(gone.map((n) => n.id))
+      // Wires on a deleted node leave with it; only the others need their own edit.
+      const wireIds = new Set(wires.filter((w) => !ids.has(w.source) && !ids.has(w.target)).map((w) => w.id))
+      if (ids.size > 0) deleteNodes(ids)
+      else if (wireIds.size > 0) edit((d) => d.edges.filter((e) => wireIds.has(edgeId(e))).reduce(removeEdge, d))
+    },
+    [deleteNodes, edit],
   )
 
   // Position lands in the document once, when the drag ends.
@@ -392,7 +417,7 @@ export function App() {
     else if (a.type === 'undo') undo()
     else if (a.type === 'redo') redo()
     else if (a.type === 'fit') void flow.current?.fitView({ ...FIT_OPTIONS, duration: 200 })
-    else if (a.type === 'delete-nodes') edit((d) => removeNodes(d, new Set(picked.map((n) => n.id))))
+    else if (a.type === 'delete-nodes') deleteNodes(new Set(picked.map((n) => n.id)))
     else if (a.type === 'delete-edge' && at?.kind === 'edge') edit((d) => d.edges.filter((e) => edgeId(e) === at.id).reduce(removeEdge, d))
     // Details and the Dashboard checkboxes need the drawer (Aurora-daaa.27.3);
     // until then both select the node, which the Inspector shows.
@@ -630,6 +655,8 @@ export function App() {
             edges={edges}
             nodeTypes={nodeTypes}
             onNodesChange={onNodesChange}
+            onDelete={onDelete}
+            deleteKeyCode={['Backspace', 'Delete']}
             onEdgesChange={onEdgesChange}
             onNodeDragStop={onNodeDragStop}
             onPaneContextMenu={(e) => {
