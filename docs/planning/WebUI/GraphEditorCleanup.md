@@ -136,6 +136,8 @@ beside it. Rewriting is smaller, but it changes what agents read and needs a che
 agent results hold up. This also settles vocabulary, such as `Lights` as the group name
 while the port type stays `Frame`.
 
+Decided: two texts, written in stage 3 (see Decisions, 2026-11-09).
+
 ### 4. How far the node itself changes
 
 The mock restyles nodes and keeps params on them, as Unity, Blender and ComfyUI do.
@@ -413,8 +415,8 @@ the editor's checks or lockfile.
    with no visible change. This needs G1 and the gate. Then the title and Save menus become
    the first real users of the shared popup behavior on G3a. The status priority rule is
    settled here, and most header and action row selectors change.
-3. **Add node menu.** Replaces the palette. Directions 1 and 2 are decided (cascade,
-   catalog `group`). Needs G3b (`Aurora-daaa.20`) and Grille submenus (`Aurora-daaa.23`).
+3. **Add node menu** (`Aurora-daaa.24`). Replaces the palette. Directions 1-3 are decided (cascade,
+   catalog `group`, two texts). Needs G3b (`Aurora-daaa.20`) and Grille submenus (`Aurora-daaa.23`).
 4. **Right-click, drawers and Delete.** Must land together. The Inspector can only go once
    the node menu and drawers can reach everything it did.
 
@@ -494,6 +496,20 @@ the menu.
   Its existing `category` argument stays a type-prefix filter (e.g. `frame.`), and its
   description says so, since reusing `category` for groups would return an empty list for
   agents that pass a prefix.
+- **Direction 3, copy:** two texts. `purpose` and `useWhen` stay as the agent text and keep
+  their mechanics (zone matching, ranges, re-seeding). New user-facing fields
+  `NodeTypeMeta::summary` (the menu row) and `NodeTypeMeta::tip` (the hover tooltip) are
+  written for all 53 nodes in stage 3. Rules: summary at most 10 words; tip one sentence of at
+  most 12 words, saying when to reach for the node; name another node (by display title, never
+  type id) only when this one does nothing without it; param advice belongs in the param's
+  help, not the tip. Until a node has them, the menu falls back to `purpose` and `useWhen`.
+  Examples: Mix frames: "Blends two sets of light colors into one." / "Combine a screen
+  effect with a music effect." Bar image: "A band of color that sweeps across the room." /
+  "Chases and sweeps. Drive Position with an LFO to move it."
+- **Shortcut:** Shift+A opens the Add node menu while the canvas has focus, as in Blender.
+  Tab stays browser focus movement, and Space stays pan. Double-click on empty canvas
+  (ComfyUI's route) is a possible later mouse route; it needs React Flow's
+  `zoomOnDoubleClick` off.
 
 ## Known follow-ups (filed under `Aurora-daaa`)
 
