@@ -18,7 +18,19 @@ await withEditorStack(async ({ editorUrl }) => {
   const closed = () => titleMenu(page).waitFor({ state: 'detached' })
   const focusInTrigger = () => page.evaluate(() => document.activeElement?.getAttribute('aria-label') === 'Effect menu')
   const nodes = () => page.locator('.react-flow__node').count()
-  const header = () => page.locator('.aurora-node').first().locator('.aurora-node-header')
+  // Fit view stops at 60% zoom (Aurora-daaa.18) and the pane drag pans further, so
+  // the first node can sit outside the window: click the first header in view.
+  const header = async () => {
+    const headers = page.locator('.aurora-node .aurora-node-header')
+    const inView = await headers.evaluateAll((els) =>
+      els.findIndex((el) => {
+        const r = el.getBoundingClientRect()
+        return r.left >= 0 && r.top >= 0 && r.right <= innerWidth && r.bottom <= innerHeight
+      }),
+    )
+    assert.notEqual(inView, -1, 'no node header is fully in view')
+    return headers.nth(inView)
+  }
 
   try {
     await page.goto(`${editorUrl}?effect=builtin.video`)
@@ -51,14 +63,14 @@ await withEditorStack(async ({ editorUrl }) => {
 
     // Esc while focus is outside the menu.
     await openTitleMenu(page)
-    await page.locator('.palette-item').first().focus()
+    await page.locator('.react-flow__pane').focus()
     await page.keyboard.press('Escape')
     await closed()
     step('Esc closes it while focus is outside the menu')
 
     // Outside click.
     await openTitleMenu(page)
-    await page.locator('.palette').click({ position: { x: 5, y: 5 } })
+    await page.locator('.react-flow__pane').click({ position: { x: 5, y: 300 } })
     await closed()
     step('a click outside closes it')
 
@@ -73,7 +85,7 @@ await withEditorStack(async ({ editorUrl }) => {
     step('dragging the pane closes it')
 
     // Delete and Backspace do not delete the selected node while it is open.
-    await header().click()
+    await (await header()).click()
     await openTitleMenu(page)
     await page.keyboard.press('Delete')
     await page.keyboard.press('Backspace')
@@ -85,7 +97,7 @@ await withEditorStack(async ({ editorUrl }) => {
     step('Delete and Backspace leave the selected node alone while it is open')
 
     // With the menu closed, the same key deletes again.
-    await header().click()
+    await (await header()).click()
     await page.keyboard.press('Backspace')
     await page.waitForFunction((n) => document.querySelectorAll('.react-flow__node').length === n - 1, count)
     step('with the menu closed Backspace deletes the selected node again')

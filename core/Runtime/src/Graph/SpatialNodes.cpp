@@ -319,6 +319,9 @@ namespace Aurora::Runtime::Graph
 
     add(registry, "image.gradient",
       {.title = "Gradient image",
+       .group = "Image",
+       .summary = "A smooth blend of colors across the room.",
+       .tip = "Use as a colorful backdrop that can slowly scroll.",
        .purpose =
          "Render a gradient param across a small RGB image along an angle. phase scrolls it, wrapping "
          "past 1. Pair with zones.sample so zones read colors by their position in the ZoneMap.",
@@ -348,6 +351,9 @@ namespace Aurora::Runtime::Graph
 
     add(registry, "image.bar",
       {.title = "Bar image",
+       .group = "Image",
+       .summary = "A band of color that sweeps across the room.",
+       .tip = "Chases and sweeps. Drive Position with an LFO to move it.",
        .purpose =
          "Render a bar of color on a background along an angle, for chase effects. position moves the "
          "bar center (0..1 across the image). Drive position with an lfo or integrate for motion.",
@@ -411,6 +417,9 @@ namespace Aurora::Runtime::Graph
         NodeTypeInfo{
           .meta =
             {.title = "Noise image",
+             .group = "Image",
+             .summary = "Patches of color that flicker softly and independently.",
+             .tip = "Use for a shimmering, organic, starry look.",
              .purpose =
                "Render a grid of cells that each flicker on their own smooth random wander between "
                "background and color. Neighbouring cells are uncorrelated, unlike scrolling gradients.",
@@ -429,6 +438,9 @@ namespace Aurora::Runtime::Graph
 
     add(registry, "image.hueRamp",
       {.title = "Hue ramp image",
+       .group = "Image",
+       .summary = "A rainbow spread across the room.",
+       .tip = "Use for a rainbow that can shift or scroll.",
        .purpose =
          "Render a rainbow along an angle: hue runs span degrees across the image starting at phase. "
          "Fixed saturation and value.",

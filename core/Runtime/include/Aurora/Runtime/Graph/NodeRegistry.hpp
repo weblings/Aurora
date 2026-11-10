@@ -1,5 +1,6 @@
 #pragma once
 
+#include <array>
 #include <functional>
 #include <memory>
 #include <optional>
@@ -22,9 +23,18 @@ namespace Aurora::Runtime::Graph
   // Agent-facing per-type fields, frozen in G0. Shared with tooltips: the
   // registry exports these as ControlDescriptor entries so agent prompts
   // and the editor read one source.
+  // The fixed set of Add-node menu groups, in menu order (signal flow).
+  inline constexpr std::array<std::string_view, 7> kNodeGroups{
+    "Sources", "Audio", "Image", "Color", "Numbers", "Motion", "Lights"};
+
   struct NodeTypeMeta
   {
     std::string title;    // short display name for the editor, e.g. "Hue shift"
+    // Add-node menu group; one of kNodeGroups. Required (tests fail otherwise).
+    std::string group;
+    // User-facing copy (not agent text): menu row (<= 10 words) and hover tip (one sentence, <= 12 words).
+    std::string summary;
+    std::string tip;
     std::string purpose;  // == descriptor `details`
     std::string useWhen;
     std::string example;  // JSON snippet of the node as in graph.json

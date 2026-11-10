@@ -20,6 +20,9 @@ describe('status priority', () => {
     expect(pickStatus(withLoop({ putError: 'too_many_drafts' }))).toMatchObject({ rank: 3, label: 'Draft not sent', detail: 'too_many_drafts' })
     expect(pickStatus(withLoop({ reloadError: 'bad' }))).toMatchObject({ rank: 3, label: 'Draft would not load' })
   })
+  it('a reload error alongside problems reads Preview paused, not Draft would not load', () => {
+    expect(pickStatus(withLoop({ valid: false, reloadError: 'bad', issues: [{ node: null, message: 'm' }] }))).toMatchObject({ rank: 7, label: 'Preview paused' })
+  })
   it('rank 4: preview taken over carries Reconnect', () => {
     expect(pickStatus(withLoop({ stream: 'replaced' }))).toMatchObject({ rank: 4, action: 'reconnect' })
   })

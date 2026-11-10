@@ -240,6 +240,9 @@ namespace Aurora::Runtime::Graph
         .meta =
           {
             .title = "Video capture",
+            .group = "Sources",
+            .summary = "Live picture from the screen or camera.",
+            .tip = "Start every effect that reacts to what is on screen.",
             .purpose = "Grab one video frame per tick; Absent while the source is unhealthy.",
             .useWhen = "First node of any video path.",
             .example = "{\"id\": \"cap\", \"type\": \"video.capture\", \"params\": {}}",
@@ -257,6 +260,9 @@ namespace Aurora::Runtime::Graph
         .meta =
           {
             .title = "Rescale image",
+            .group = "Image",
+            .summary = "Shrinks a picture so later steps run faster.",
+            .tip = "Use after capture if the effect runs slowly.",
             .purpose = "Downscale an image to a target width (today's subsampleWidth).",
             .useWhen = "After capture, before sampling; width 0 passes through.",
             .example =
@@ -276,6 +282,9 @@ namespace Aurora::Runtime::Graph
         .meta =
           {
             .title = "Drop alpha",
+            .group = "Image",
+            .summary = "Removes transparency from a picture.",
+            .tip = "Use if see-through areas make a picture look wrong.",
             .purpose = "Drop the alpha channel (no-op for already-opaque images).",
             .useWhen = "After rescale, before zone sampling.",
             .example = "{\"id\": \"opaque\", \"type\": \"image.dropAlpha\", \"params\": {}}",
@@ -293,6 +302,9 @@ namespace Aurora::Runtime::Graph
         .meta =
           {
             .title = "Sample zones",
+            .group = "Lights",
+            .summary = "Reads the picture's colors at each light's position.",
+            .tip = "Use to turn a picture into colors for the lights.",
             .purpose = "Sample zone colors from an image via one output's live zone map.",
             .useWhen = "After the image path is prepared; outputs one Frame.",
             .example = "{\"id\": \"zones\", \"type\": \"zones.sample\", \"params\": {\"output\": \"hue\"}}",

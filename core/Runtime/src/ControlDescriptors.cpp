@@ -88,6 +88,15 @@ namespace Aurora::Runtime
       if(!descriptor.title.empty()){
         entry["title"] = descriptor.title;
       }
+      if(!descriptor.group.empty()){
+        entry["group"] = descriptor.group;
+      }
+      if(!descriptor.summary.empty()){
+        entry["summary"] = descriptor.summary;
+      }
+      if(!descriptor.tip.empty()){
+        entry["tip"] = descriptor.tip;
+      }
       if(!descriptor.useWhen.empty()){
         entry["useWhen"] = descriptor.useWhen;
       }

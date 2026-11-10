@@ -231,7 +231,7 @@ select {
   accent-color: var(--aurora-accent);
 }
 
-/* Draft loop (Aurora-pvxx.6). The palette is monochrome, so problems read by
+/* Draft loop (Aurora-pvxx.6). The editor chrome is monochrome, so problems read by
    glyph, dashed outline and text, not by colour. */
 .editor-canvas {
   position: relative;
@@ -508,37 +508,6 @@ button.editor-problem-row:hover {
   white-space: nowrap;
 }
 
-/* Node palette (Aurora-pvxx.13). */
-.palette {
-  width: 180px;
-  flex: none;
-  overflow-y: auto;
-  padding: var(--aurora-space-3) var(--aurora-space-5);
-  background: var(--aurora-surface);
-  border-right: 1px solid var(--aurora-border);
-  font-size: 12px;
-  color: var(--aurora-text-secondary);
-}
-
-.palette h3,
-.palette h4 {
-  margin: var(--aurora-space-3) 0 var(--aurora-space-2);
-}
-
-.palette h4 {
-  text-transform: uppercase;
-  font-size: 11px;
-}
-
-.palette-item {
-  display: flex;
-  justify-content: flex-start;
-  width: 100%;
-  margin-bottom: 2px;
-  text-align: left;
-  cursor: grab;
-}
-
 /* Port types (Aurora-ex8z): hue and shape per type from graph/portStyle.ts.
    Fill vs outline stays free for connection state. */
 .react-flow .aurora-handle {
@@ -612,4 +581,69 @@ button.editor-problem-row:hover {
   display: flex;
   justify-content: flex-end;
   gap: var(--aurora-space-2);
+}
+
+/* Add node menu (Aurora-daaa.24.3): cascade of groups, flat ranked list while searching. */
+.editor-add-node {
+  min-width: 32px;
+  font-weight: 600;
+}
+
+.add-menu {
+  width: 340px;
+}
+
+.add-row {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.add-row-head {
+  display: flex;
+  align-items: center;
+  gap: var(--aurora-space-2, 8px);
+}
+
+.add-row-name {
+  font-weight: 600;
+}
+
+.add-row-summary {
+  color: var(--ui-color-text-secondary, #aaa);
+  font-size: 12px;
+  white-space: normal;
+}
+
+.add-sockets {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 11px;
+  color: var(--ui-color-text-secondary, #aaa);
+}
+
+.add-sockets-side {
+  margin-right: 1px;
+}
+
+.add-socket {
+  width: 8px;
+  height: 8px;
+  background: var(--port-color);
+}
+
+.add-socket[data-shape='circle'] {
+  border-radius: 50%;
+}
+
+.add-socket[data-shape='diamond'] {
+  rotate: 45deg;
+  width: 6px;
+  height: 6px;
+}
+
+.add-socket[data-shape='triangle'] {
+  clip-path: polygon(0 0, 100% 50%, 0 100%);
 }

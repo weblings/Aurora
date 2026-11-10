@@ -262,6 +262,9 @@ namespace Aurora::Runtime::Graph
   {
     addState<float, float>(registry, "smooth.exp",
       {.title = "Smooth",
+       .group = "Motion",
+       .summary = "Eases a number gently toward its new value.",
+       .tip = "Use to calm a jumpy signal before it drives something.",
        .purpose = "Ease a Float toward its input; tau seconds to cover ~63% of a step at any tick rate.",
        .useWhen = "Damp a jumpy signal, e.g. rms into a brightness envelope.",
        .example = "{\"id\": \"damp\", \"type\": \"smooth.exp\", \"params\": {\"tau\": 0.15}}"},
@@ -271,6 +274,9 @@ namespace Aurora::Runtime::Graph
 
     addState<Angle, Angle>(registry, "smooth.angle",
       {.title = "Smooth angle",
+       .group = "Motion",
+       .summary = "Eases an angle toward its target the short way.",
+       .tip = "Use to calm a jumpy hue before it drives a color.",
        .purpose = "Ease an Angle toward its input along the shortest arc, wrapping at 360.",
        .useWhen = "Damp a hue target, e.g. the beat swing in a bounce.",
        .example = "{\"id\": \"hue\", \"type\": \"smooth.angle\", \"params\": {\"tau\": 0.15}}"},
@@ -280,6 +286,9 @@ namespace Aurora::Runtime::Graph
 
     addState<float, float>(registry, "rollingAverage",
       {.title = "Rolling average",
+       .group = "Motion",
+       .summary = "The recent average of a number over time.",
+       .tip = "Use to get a slow baseline to compare a signal against.",
        .purpose = "Running average of a Float over about tau seconds, independent of tick rate.",
        .useWhen = "Get a slow baseline to compare a signal against, e.g. centroid deviation.",
        .example = "{\"id\": \"base\", \"type\": \"rollingAverage\", \"params\": {\"tau\": 0.8}}"},
@@ -289,6 +298,9 @@ namespace Aurora::Runtime::Graph
 
     addState<float, Angle>(registry, "integrate",
       {.title = "Integrate",
+       .group = "Motion",
+       .summary = "Turns a speed into an angle that keeps turning.",
+       .tip = "Use to make a hue drift faster or slower with a signal.",
        .purpose = "Accumulate a rate in degrees per second into an Angle that wraps at 360.",
        .useWhen = "Turn a speed signal into a hue position, e.g. drift's rate into its anchor.",
        .example = "{\"id\": \"anchor\", \"type\": \"integrate\", \"params\": {\"initial\": 0}}"},
@@ -301,6 +313,9 @@ namespace Aurora::Runtime::Graph
       NodeTypeInfo{
         .meta =
           {.title = "Step on trigger",
+           .group = "Motion",
+           .summary = "Jumps an angle by a fixed step on each trigger.",
+           .tip = "Use to jump the hue on each beat.",
            .purpose = "Add a step to an Angle on each Trigger pulse and hold it between pulses.",
            .useWhen = "Swing a hue on each beat, e.g. onset strength times 180 degrees per onset.",
            .example = "{\"id\": \"swing\", \"type\": \"stepOnTrigger\", \"params\": {\"scale\": 1}}"},
@@ -327,6 +342,9 @@ namespace Aurora::Runtime::Graph
       NodeTypeInfo{
         .meta =
           {.title = "LFO",
+           .group = "Sources",
+           .summary = "A number that rises and falls steadily on its own.",
+           .tip = "Use for slow breathing movement when there is no music.",
            .purpose = "Free-running oscillator between min and max at rateHz.",
            .useWhen = "Slow modulation with no audio, e.g. a breathing brightness.",
            .example =
@@ -346,6 +364,9 @@ namespace Aurora::Runtime::Graph
       NodeTypeInfo{
         .meta =
           {.title = "Noise",
+           .group = "Sources",
+           .summary = "A number that wanders randomly but smoothly.",
+           .tip = "Use for natural, unpredictable drift in color or brightness.",
            .purpose = "Smooth random wander between min and max, drifting to a new random target about "
                       "rateHz times per second. Irregular where lfo is periodic.",
            .useWhen = "Flicker with no audio, e.g. a candle or fire brightness. Use image.noise for "

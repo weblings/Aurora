@@ -349,3 +349,14 @@ Applies-when: asserting focus after a menu, popover or dialog opens
 Aurora-daaa.13: the graph editor's edit-loop asserted the Name field had focus as soon as its label was visible. The editor focuses the field a few animation frames after the popover mounts, so the check failed on both the dev server and the embedded build, and an earlier run had passed by luck.
 
 **Fix:** wait for the focus with `page.waitForFunction(...)` and a short timeout instead of reading it once. A failure that reproduces on the dev server too is the check's timing, not the embedded build.
+
+
+---
+
+## A browser check that clicks a fixed canvas element breaks when a view change moves it off-screen, and one that waits for "zoom changed" races the animation
+Tags: playwright, react-flow, viewport, race, graph-editor
+Applies-when: a canvas check clicks `.first()` node or opens a menu right after a zoom or fit
+
+Aurora-daaa.25: Aurora-daaa.18 capped fit view at 60% zoom, so `builtin.video` overflowed 1470x900 and `.first()` node header sat outside the window (Playwright waits 30 s on "element is outside of the viewport"). In the view-menu step, waiting for zoom `> z0` resolved on the first animation frame, and the menu opened mid-animation was gone before the next click. Both checks passed unchanged with `minZoom` put back, so the editor was right.
+
+**Fix:** pick a node whose box is inside the window instead of `.first()`, and wait for the zoom to read the same for a few polls before opening a menu. When two checks time out together after an editor change, bisect by reverting that one option before touching either check.

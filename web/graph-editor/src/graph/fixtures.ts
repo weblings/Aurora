@@ -7,11 +7,11 @@ const port = (name: string, type: string, required = true) => ({ name, type, des
 
 const types: NodeTypeInfo[] = [
   {
-    type: 'video.capture', title: 'Screen capture', purpose: '', useWhen: '', example: '', cost: '',
+    type: 'video.capture', title: 'Screen capture', group: 'Sources', summary: '', tip: '', purpose: '', useWhen: '', example: '', cost: '',
     inputs: [], outputs: [port('image', 'Image')], params: [],
   },
   {
-    type: 'image.rescale', title: 'Rescale', purpose: '', useWhen: '', example: '', cost: '',
+    type: 'image.rescale', title: 'Rescale', group: 'Image', summary: '', tip: '', purpose: '', useWhen: '', example: '', cost: '',
     inputs: [port('image', 'Image')], outputs: [port('image', 'Image')],
     params: [
       { name: 'width', kind: 'float', description: '', label: 'Width', min: 1, max: 512, step: 1, unit: 'px', default: 64 },
@@ -19,12 +19,12 @@ const types: NodeTypeInfo[] = [
     ],
   },
   {
-    type: 'zones.sample', title: 'Sample zones', purpose: '', useWhen: '', example: '', cost: '',
+    type: 'zones.sample', title: 'Sample zones', group: 'Lights', summary: '', tip: '', purpose: '', useWhen: '', example: '', cost: '',
     inputs: [port('image', 'Image')], outputs: [port('frame', 'Frame')],
     params: [{ name: 'output', kind: 'enum', description: '', options: ['hue', 'strip'], default: 'hue' }],
   },
   {
-    type: 'frame.gain', title: 'Gain', purpose: '', useWhen: '', example: '', cost: '',
+    type: 'frame.gain', title: 'Gain', group: 'Lights', summary: '', tip: '', purpose: '', useWhen: '', example: '', cost: '',
     inputs: [port('frame', 'Frame')], outputs: [port('frame', 'Frame')],
     params: [
       { name: 'gain', kind: 'float', description: '', min: 0, max: 2, step: 0.05, default: 1 },
@@ -37,11 +37,11 @@ const types: NodeTypeInfo[] = [
     ],
   },
   {
-    type: 'audio.bounce', title: 'Bounce', purpose: '', useWhen: '', example: '', cost: '',
+    type: 'audio.bounce', title: 'Bounce', group: 'Audio', summary: '', tip: '', purpose: '', useWhen: '', example: '', cost: '',
     inputs: [], outputs: [port('color', 'Color')], params: [],
   },
   {
-    type: 'output.send', title: 'Send to output', purpose: '', useWhen: '', example: '', cost: '',
+    type: 'output.send', title: 'Send to output', group: 'Lights', summary: '', tip: '', purpose: '', useWhen: '', example: '', cost: '',
     inputs: [port('frame', 'Frame')], outputs: [],
     params: [{ name: 'output', kind: 'enum', description: '', options: ['hue', 'strip'], default: 'hue' }],
     sink: 'output',

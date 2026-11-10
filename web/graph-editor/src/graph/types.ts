@@ -33,6 +33,9 @@ export type ParamInfo = {
 export type NodeTypeInfo = {
   type: string
   title: string
+  group: string
+  summary: string
+  tip: string
   purpose: string
   useWhen: string
   example: string

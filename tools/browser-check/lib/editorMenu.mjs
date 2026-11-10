@@ -73,3 +73,11 @@ export async function makeEdit(page) {
   await page.locator('.aurora-node', { hasText: 'Gain' }).first().locator('.aurora-node-header').click()
   await page.locator('.inspector-check input').first().check()
 }
+
+// Adds a node through the cascade Add node menu: + button, search, first match.
+export async function addNodeByName(page, name) {
+  await page.getByRole('button', { name: 'Add node' }).click()
+  await page.getByRole('searchbox', { name: 'Search nodes' }).fill(name)
+  await page.getByRole('dialog', { name: 'Add node' }).getByRole('option', { name }).first().click()
+  await page.getByRole('dialog', { name: 'Add node' }).waitFor({ state: 'detached' })
+}

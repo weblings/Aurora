@@ -4,7 +4,7 @@
 // is rendered (non-empty box, not display:none or visibility:hidden), enabled
 // or disabled, anywhere in the page EXCEPT inside a canvas node
 // (.react-flow__node). That is the "chrome" the cleanup sets out to shrink:
-// header, action row, Add node palette and inspector (Dashboard controls).
+// header, action row, inspector (Dashboard controls).
 // The viewport is 1470x900. Each stage lowers CEILING to the new measurement;
 // a count above it fails, a count below it prints a reminder to lower it.
 import assert from 'node:assert/strict'
@@ -12,8 +12,9 @@ import { launch } from '../lib/browser.mjs'
 import { withEditorStack } from '../lib/stack.mjs'
 
 // Stage 1 baseline (Aurora-daaa.4: 84 and 132), lowered by Aurora-daaa.11 (top bar, title and view menus), measured on the fake-Hue stack.
-// What is left is the Add node list (53) and the Dashboard controls in the inspector: stages 3 and 4.
-const CEILING = { 'builtin.video': 78, 'builtin.audio': 126 }
+// Aurora-daaa.24 replaced the 53-button Add node list with the + button and cascade menu (video 79 -> 26, audio 126 -> 74).
+// What is left is mostly the Dashboard controls in the inspector: stage 4.
+const CEILING = { 'builtin.video': 26, 'builtin.audio': 74 }
 
 await withEditorStack(async ({ editorUrl }) => {
   const browser = await launch()

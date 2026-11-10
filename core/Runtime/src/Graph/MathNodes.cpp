@@ -109,6 +109,9 @@ namespace Aurora::Runtime::Graph
   {
     add(registry, "math.scale",
       {.title = "Scale",
+       .group = "Numbers",
+       .summary = "Multiplies a number by a fixed amount.",
+       .tip = "Use to convert units or strengthen a signal.",
        .purpose = "Multiply a Float by a constant factor.",
        .useWhen = "Convert units or set a gain, e.g. onset strength times 180 degrees.",
        .example = "{\"id\": \"gain\", \"type\": \"math.scale\", \"params\": {\"factor\": 180}}"},
@@ -118,6 +121,9 @@ namespace Aurora::Runtime::Graph
 
     add(registry, "math.divide",
       {.title = "Divide",
+       .group = "Numbers",
+       .summary = "Divides a number by a fixed amount.",
+       .tip = "Use to compare a signal against a reference value.",
        .purpose = "Divide a Float by a constant divisor. A zero divisor fails the node.",
        .useWhen = "Normalize against a reference, e.g. rms divided by a reference loudness.",
        .example = "{\"id\": \"norm\", \"type\": \"math.divide\", \"params\": {\"divisor\": 0.3}}"},
@@ -133,6 +139,9 @@ namespace Aurora::Runtime::Graph
 
     add(registry, "math.clamp",
       {.title = "Clamp",
+       .group = "Numbers",
+       .summary = "Keeps a number between a lowest and highest value.",
+       .tip = "Use to stop a signal going out of range.",
        .purpose = "Limit a Float to the range min..max.",
        .useWhen = "Keep a signal in a safe range before scaling or mixing.",
        .example = "{\"id\": \"cap\", \"type\": \"math.clamp\", \"params\": {\"min\": 0, \"max\": 1}}"},
@@ -150,6 +159,9 @@ namespace Aurora::Runtime::Graph
 
     add(registry, "math.mapRange",
       {.title = "Map range",
+       .group = "Numbers",
+       .summary = "Converts a number from one range to another.",
+       .tip = "Use to fit a signal into the range you need.",
        .purpose = "Linearly remap a Float from one range to another, optionally clamped to the output range.",
        .useWhen = "Turn a signal in known bounds into another range, e.g. 0..1 loudness into 0.2..1 brightness.",
        .example =
@@ -178,6 +190,9 @@ namespace Aurora::Runtime::Graph
 
     add(registry, "math.lerp",
       {.title = "Lerp",
+       .group = "Numbers",
+       .summary = "Slides between two values using a signal.",
+       .tip = "Use to move smoothly between a low and high setting.",
        .purpose = "Blend from 'from' to 'to' by a Float t (0 gives from, 1 gives to, not clamped).",
        .useWhen = "Interpolate between two constants with a signal, e.g. lerp(floor, 1) driven by onset strength.",
        .example = "{\"id\": \"swing\", \"type\": \"math.lerp\", \"params\": {\"from\": 0.3, \"to\": 1}}"},
@@ -191,6 +206,9 @@ namespace Aurora::Runtime::Graph
 
     add(registry, "math.add",
       {.title = "Add",
+       .group = "Numbers",
+       .summary = "Adds two numbers together.",
+       .tip = "Combine two signals, or shift one by a fixed amount.",
        .purpose = "Add two Floats. Input b is optional and falls back to param b.",
        .useWhen = "Combine two signals, or offset one by a constant (leave b unwired, set param b).",
        .example = "{\"id\": \"sum\", \"type\": \"math.add\", \"params\": {\"b\": 0.5}}"},
@@ -201,6 +219,9 @@ namespace Aurora::Runtime::Graph
 
     add(registry, "math.multiply",
       {.title = "Multiply",
+       .group = "Numbers",
+       .summary = "Multiplies two numbers together.",
+       .tip = "Use to make one signal control the strength of another.",
        .purpose = "Multiply two Floats. Input b is optional and falls back to param b.",
        .useWhen = "Modulate one signal by another, e.g. brightness times a loudness envelope, or by a constant via param b.",
        .example = "{\"id\": \"mod\", \"type\": \"math.multiply\", \"params\": {\"b\": 0.5}}"},
@@ -211,6 +232,9 @@ namespace Aurora::Runtime::Graph
 
     add(registry, "math.max",
       {.title = "Max",
+       .group = "Numbers",
+       .summary = "Picks the larger of two numbers.",
+       .tip = "Use to stop a signal falling below a floor.",
        .purpose = "The larger of two Floats. Input b is optional and falls back to param b.",
        .useWhen = "Floor one signal with another or a constant, e.g. keep a rate from going negative (param b 0).",
        .example = "{\"id\": \"floor\", \"type\": \"math.max\", \"params\": {\"b\": 0}}"},
@@ -221,6 +245,9 @@ namespace Aurora::Runtime::Graph
 
     add(registry, "math.invert",
       {.title = "Invert",
+       .group = "Numbers",
+       .summary = "Flips a number so high becomes low.",
+       .tip = "Use to make quiet moments bright instead of loud ones.",
        .purpose = "Flip a 0..1 Float to 1 minus the value.",
        .useWhen = "Reverse a normalized signal, e.g. quiet becomes bright.",
        .example = "{\"id\": \"flip\", \"type\": \"math.invert\", \"params\": {}}"},

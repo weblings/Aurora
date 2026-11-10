@@ -2,7 +2,7 @@
 
 Id: graph-editor-cleanup
 
-Status: stage 1 built (back link, Aurora component styles); stage 2 built (top bar, title and view menus, status spot, `Aurora-daaa.11`); stage 3 directions decided (cascade, catalog `group`); stage 4 proposed.
+Status: stage 1 built (back link, Aurora component styles); stage 2 built (top bar, title and view menus, status spot, `Aurora-daaa.11`); stage 3 built (catalog `group`, node copy, cascade Add node menu, palette removed; `Aurora-daaa.24.1`-`.24.4`, Grille `v0.1.0-dev.6`); stage 4 proposed.
 Written 2026-11-06 under `Aurora-bova`. The owner reviewed the working mock and likes
 the direction. Decisions 1-7 are recorded under Decisions (2026-11-08). Stages 1-2 are
 built; stages 3-4 are still a proposal and follow those decisions.
@@ -348,7 +348,7 @@ release URL and the Mac and Linux builds are unverified.
   600.98 / 188.66 kB (about +49 kB gzip), CSS 34.41 / 6.11 kB to 44.78 / 7.87 kB. That is
   inside the accepted +60 kB gzip. The pre-build estimate was +186 kB JS and +6.6 kB CSS
   over a 25.8 kB CSS baseline. Stage 3 needs Autocomplete and ListBox, which pull in the same shared code, so this
-  is the realistic end state. No compression was found in the embed step, so the raw
+  is the realistic end state. Measured at the end of stage 3: JS 646.84 / 202.19 kB (about +63 kB gzip over the stage 1 baseline, 3.2 kB under the 650 kB chunk limit). No compression was found in the embed step, so the raw
   bytes land in the binary.
 - **Notices.** React Aria, React Stately, `clsx` and Grille appear in
   the generated third-party notices file automatically. Importing `fonts.css` would bundle 6 Inter files
@@ -420,9 +420,9 @@ the editor's checks or lockfile.
 4. **Right-click, drawers and Delete.** Must land together. The Inspector can only go once
    the node menu and drawers can reach everything it did.
 
-Control count: stage 2 brought Screen colors to 78 (video) / 126 (audio). The mock's 11
-is the stage 4 target, since it needs the Add node list (53 buttons) and the inspector
-controls gone.
+Control count: stage 2 brought Screen colors to 78 (video) / 126 (audio); stage 3 (palette
+removed, `+` button added) brought it to 26 / 74. The mock's 11 is the stage 4 target, since
+it needs the inspector controls gone.
 
 Stages 3 and 4 are independent of each other, but both depend on stage 2. Check migration
 belongs in each stage rather than a cleanup at the end, and those checks should also add
@@ -443,7 +443,8 @@ the menu.
 - **Light popups rejected:** a white Dashboard effect dropdown with a light panel was tried
   with tokens only. A large light popup is jarring when everything else is dark, so the
   Dashboard stays dark.
-- **Bundle budget:** about +60 kB gzip (+42% JS) is accepted.
+- **Bundle budget:** about +60 kB gzip (+42% JS) is accepted. Superseded 2026-11-09: no bundle
+  budget (see the Decisions entry of that date).
 - **Title menu:** a Dialog in a Popover. It also holds the file actions: Save (Ctrl+S),
   Save as new, Rename, Open another effect and New empty effect. The Save
   split button is dropped. *Revised 2026-11-09 (`Aurora-daaa.19`):* the Name box leaves the
@@ -506,6 +507,10 @@ the menu.
   Examples: Mix frames: "Blends two sets of light colors into one." / "Combine a screen
   effect with a music effect." Bar image: "A band of color that sweeps across the room." /
   "Chases and sweeps. Drive Position with an LFO to move it."
+- **No bundle budget.** Grille is the shared design system, so its code is expected in the
+  bundle. The editor is served from the local app, so size does not affect a network load.
+  Size is reported in each stage's log, not held to a number. Vite's chunk warning sits at
+  1000 kB as a tripwire for an accidental large import, not as a target.
 - **Shortcut:** Shift+A opens the Add node menu while the canvas has focus, as in Blender.
   Tab stays browser focus movement, and Space stays pan. Double-click on empty canvas
   (ComfyUI's route) is a possible later mouse route; it needs React Flow's
