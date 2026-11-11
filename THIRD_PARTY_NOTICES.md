@@ -49,7 +49,7 @@ SOFTWARE.
 
 ## Zest Free icons (MIT-style "Zest Free License") -- incorporated
 
-Source: <https://github.com/32pixelsCo/zest-icons> via SVG Repo. Used for `web/ui/icons/power-svgrepo-com.svg`.
+Source: <https://github.com/32pixelsCo/zest-icons> via SVG Repo. Used for `web/ui/icons/power-svgrepo-com.svg`, `Undo.svg` and `Redo.svg`.
 
 ```
 Zest Free License

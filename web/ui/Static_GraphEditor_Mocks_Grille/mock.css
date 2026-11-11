@@ -409,7 +409,6 @@ button { font-family: inherit; }
 /* Vidstack icons: filled paths on a 32 grid with built-in padding. Drawn larger than the layout box (negative margin) so a button holding one is the same size as one holding a 16px stroke icon.
    These rules come last and are specific enough to beat the older stroke-icon rules above. */
 .ge-icon.ge-vs { width: 24px; height: 24px; margin: -4px; fill: currentColor; stroke: none; }
-.ge-icon.ge-vs.ge-vs-line { fill: none; stroke: currentColor; stroke-width: 3.4; stroke-linecap: round; stroke-linejoin: round; }
 .ge-chev .ge-icon.ge-vs, .ge-split .ge-chev .ge-icon.ge-vs { width: 20px; height: 20px; margin: -4px; fill: currentColor; stroke: none; }
 .ge-split .ge-icon.ge-vs { width: 20px; height: 20px; margin: -4px; fill: currentColor; stroke: none; }
 .ge-zsize .ge-icon.ge-vs { width: 22px; height: 22px; margin: 0; }
