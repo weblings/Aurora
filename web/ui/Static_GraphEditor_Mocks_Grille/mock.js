@@ -1,12 +1,25 @@
 // Graph editor mock (Aurora-bova): plain JS over the real catalog, so a pick is easy to try.
 const { nodes: CATALOG, graph: GRAPH } = window.AURORA_MOCK
-const byType = new Map(CATALOG.map((n) => [n.type, n]))
+const byType = new Map()
 
 const VIDEO = '#38c9a8', AUDIO = '#c58cf0', LIGHT = '#e5ad3c', NUMBER = '#9a9a9a'
 const PORTS = {
-  Image: [VIDEO, 'square'], AudioBuffer: [AUDIO, 'square'], AudioFeatures: [AUDIO, 'circle'], Frame: [LIGHT, 'square'],
-  Color: [LIGHT, 'circle'], Float: [NUMBER, 'circle'], Angle: [NUMBER, 'diamond'], Trigger: [NUMBER, 'triangle'],
+  Image: [VIDEO, 'circle'], AudioBuffer: [AUDIO, 'circle'], AudioFeatures: [AUDIO, 'circle'], Frame: [LIGHT, 'circle'],
+  Color: [LIGHT, 'circle'], Float: [NUMBER, 'circle'], Angle: [NUMBER, 'circle'], Trigger: [NUMBER, 'circle'],
 }
+// Every socket is a circle (Aurora-d0hv); the wire carries the difference: bulk types are thicker, Trigger is dashed.
+const BULK = new Set(['Image', 'AudioBuffer', 'Frame'])
+const wireClass = (type) => (BULK.has(type) ? 'bulk' : type === 'Trigger' ? 'trigger' : '')
+
+// Mock-only converters (Aurora-jsjj). The catalog comes from server-samples/nodes.json, which does not have them yet;
+// drop these when gen.py is next run after jsjj lands.
+const scaleParam = (description) => ({ allowsUnset: false, default: 360, description, kind: 'float', label: 'Scale', max: 1000000, min: -1000000, name: 'scale', step: 0.01, unit: '' })
+CATALOG.push(
+  { type: 'angle.fromFloat', title: 'Float to Angle', cost: 'cheap', purpose: 'Turn a Float into an Angle: value times scale, wrapped at 360.', useWhen: 'Feed a Float (an LFO, a band level) into an Angle input such as a hue.',
+    inputs: [{ name: 'value', type: 'Float', required: true, description: 'The Float to convert.' }], outputs: [{ name: 'angle', type: 'Angle', description: 'The Angle.' }], params: [scaleParam('Degrees per 1.0 of input.')] },
+  { type: 'angle.toFloat', title: 'Angle to Float', cost: 'cheap', purpose: 'Turn an Angle into a Float: degrees divided by scale.', useWhen: 'Use a hue or other Angle as a plain number, e.g. in math nodes.',
+    inputs: [{ name: 'angle', type: 'Angle', required: true, description: 'The Angle to convert.' }], outputs: [{ name: 'value', type: 'Float', description: 'The Float.' }], params: [scaleParam('Degrees per 1.0 of output.')] },
+)
 
 // Ordered like a signal: where it starts, what shapes it, where it lands.
 const CATEGORIES = [
@@ -14,10 +27,11 @@ const CATEGORIES = [
   ['Audio', ['audio.features', 'audio.bands', 'audio.drift', 'audio.bounce']],
   ['Image', ['image.rescale', 'image.dropAlpha', 'image.mix', 'image.gradient', 'image.bar', 'image.noise', 'image.hueRamp']],
   ['Color', ['color.fromHSV', 'color.toHSV', 'color.brightness', 'color.mix', 'color.hueShift', 'color.complement', 'color.fromGradient', 'palette.pick']],
-  ['Numbers', ['math.scale', 'math.divide', 'math.clamp', 'math.mapRange', 'math.lerp', 'math.add', 'math.multiply', 'math.max', 'math.invert', 'angle.add']],
+  ['Numbers', ['math.scale', 'math.divide', 'math.clamp', 'math.mapRange', 'math.lerp', 'math.add', 'math.multiply', 'math.max', 'math.invert', 'angle.add', 'angle.fromFloat', 'angle.toFloat']],
   ['Motion', ['smooth.exp', 'smooth.angle', 'rollingAverage', 'integrate', 'stepOnTrigger']],
   ['Lights', ['zones.sample', 'frame.smooth', 'frame.smoothTime', 'frame.gain', 'frame.floor', 'frame.mix', 'frame.brightnessScale', 'frame.saturation', 'frame.hueShift', 'frame.tint', 'frame.broadcast', 'output.send']],
 ]
+for (const n of CATALOG) byType.set(n.type, n)
 const categoryOf = new Map(CATEGORIES.flatMap(([name, types]) => types.map((t) => [t, name])))
 for (const n of CATALOG) if (!categoryOf.has(n.type)) console.error(`no category for ${n.type}`)
 
@@ -119,7 +133,7 @@ function drawNodes() {
     const info = byType.get(n.type)
     const bad = state.problems && n.id === 'zones_hue'
     return el('div', {
-      class: `gn${n.id === state.selected ? ' sel' : ''}${bad ? ' bad' : ''}`, 'data-node': n.id, style: `left:${n.x}px;top:${n.y}px`,
+      class: `gn${n.id === state.selected ? ' sel' : ''}${bad ? ' bad' : ''}${n.fresh ? ' fresh' : ''}`, 'data-node': n.id, style: `left:${n.x}px;top:${n.y}px`,
       title: info.purpose,
     },
       el('div', { class: 'gn-head' }, titleOf(info),
@@ -149,7 +163,8 @@ function drawWires() {
     const bend = Math.max(40, Math.abs(b.x - a.x) / 2)
     const d = `M${a.x} ${a.y}C${a.x + bend} ${a.y} ${b.x - bend} ${b.y} ${b.x} ${b.y}`
     const color = (PORTS[a.type] ?? PORTS.Float)[0]
-    return `<path d="${d}" stroke="${color}"${state.wire === i ? ' class="sel"' : ''}/><path d="${d}" class="hit" data-wire="${i}"/>`
+    const cls = [wireClass(a.type), state.wire === i ? 'sel' : ''].filter(Boolean).join(' ')
+    return `<path d="${d}" stroke="${color}"${cls ? ` class="${cls}"` : ''}/><path d="${d}" class="hit" data-wire="${i}"/>`
   })
   $('wires').innerHTML = paths.join('')
 }
@@ -718,6 +733,20 @@ const point = (id) => {
   const r = document.querySelector(`[data-node="${id}"]`).getBoundingClientRect()
   return [r.left + r.width / 2, r.top + 20]
 }
+// Aurora-0veq: a Float wire dropped on an Angle input gets a Float to Angle node, wired both sides, clear of both nodes.
+// Undo would treat the drop as one step: the wire and the node it brought go together, the Float wire is back as it was.
+function autoInsert() {
+  state.nodes = [
+    { id: 'wobble', type: 'lfo', params: {}, x: 0, y: 40 },
+    { id: 'to_angle', type: 'angle.fromFloat', params: {}, x: 280, y: 40, fresh: true },
+    { id: 'hue_color', type: 'color.fromHSV', params: {}, x: 560, y: 40 },
+  ]
+  state.edges = [{ from: 'wobble.value', to: 'to_angle.value' }, { from: 'to_angle.angle', to: 'hue_color.hue' }]
+  state.selected = 'to_angle'
+  state.unsaved = true
+  drawNodes(); drawBar(); fit()
+  toast('Dropped a Float on an Angle input: Float to Angle inserted. Undo removes both the node and its wire in one step.')
+}
 const FRAMES = [
   ['Layout', [['rest', 'At rest', () => {}], ['title', 'Title menu', openTitle], ['view', 'View menu', openView]]],
   ['Add node', [
@@ -742,7 +771,7 @@ const FRAMES = [
     ['offline', 'Cannot reach Aurora', () => { state.status = { text: 'Aurora unreachable', strong: true }; state.banner = { blocking: true, text: 'Cannot reach Aurora.', detail: 'Retrying every few seconds. Edits stay in this browser.', actions: [['Retry now', 'retry']] }; drawBar(); drawBanner() }],
     ['wholegraph', 'Graph-wide problem', () => { state.problems = true; state.wholeGraph = true; drawBar(); drawIslands(); openProblems() }],
   ]],
-  ['States', [['testing', 'Testing', () => { state.unsaved = true; startTest('once', 12, false) }], ['testing-live', 'Testing live', () => { state.unsaved = true; startTest('live') }], ['problems', 'Problems', () => { state.problems = true; drawBar(); drawIslands(); drawNodes(); openProblems() }], ['refused', 'Refused wire', () => toast('Those ports do not match: an Image cannot connect to a Frame')]]],
+  ['States', [['testing', 'Testing', () => { state.unsaved = true; startTest('once', 12, false) }], ['testing-live', 'Testing live', () => { state.unsaved = true; startTest('live') }], ['problems', 'Problems', () => { state.problems = true; drawBar(); drawIslands(); drawNodes(); openProblems() }], ['refused', 'Refused wire', () => toast('Those ports do not match: an Image cannot connect to a Frame')], ['refused-float', 'Refused: Float to Angle', () => toast('A Float cannot connect to an Angle. Add a Float to Angle node between them.')], ['autoinsert', 'Auto-insert converter', autoInsert]]],
 ]
 
 function drawFrames(current) {
@@ -763,6 +792,7 @@ function showFrame() {
   stopTimer()
   Object.assign(test, { mode: 'once', left: 12 })
   Object.assign(state, { zonesLarge: false, testing: false, problems: false, unsaved: false, selected: null, wire: null, banner: null, status: null, other: false, changed: false, wholeGraph: false })
+  layoutGraph(); state.edges = GRAPH.edges.map(([from, to]) => ({ from, to }))
   drawNodes(); drawBar(); drawBanner(); drawIslands(); fit(); drawFrames(id)
   FRAMES.flatMap(([, frames]) => frames).find(([key]) => key === id)?.[2]()
 }

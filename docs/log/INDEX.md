@@ -380,3 +380,4 @@ Planning docs stay clean: decisions, status, and pointers here only.
 | 2026-11-11 | Grille mock: narrow-window drawers (clamped side width, bottom dock, preview and corner buttons clear). [[daaa34-mock-narrow-drawers]] | `bd show Aurora-daaa.34` |
 | 2026-11-11 | Grille mock: fixed 32 px top bar, Zones no-resize variant, drawer icon buttons, one icon set (Vidstack, Zest) sized as Aurora renders them; icon audit updated. [[daaa33-mock-icons]] | `bd show Aurora-daaa.33` |
 | 2026-11-10 | Icon audit, third-party notices (Huenicorn, Vidstack, Zest, reference-only entries) and what the build ships. [[daaa33-notices-audit]] | `bd show Aurora-daaa.33`, `bd show Aurora-b7ai` |
+| 2026-11-11 | Grille mock: circle sockets, thicker bulk and dashed Trigger wires, mock-only Float/Angle converters, Float to Angle refusal and auto-insert frames. [[1cmx-mock-circle-sockets-converters]] | `bd show Aurora-1cmx` |

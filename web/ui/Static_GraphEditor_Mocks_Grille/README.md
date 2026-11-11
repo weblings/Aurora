@@ -36,3 +36,12 @@ The drawers follow the editor (`daaa.29.2`, `daaa.29.4`), so those layouts can b
 - Below 650 px wide, or aspect under 0.75 (`max-aspect-ratio: 3/4`), the drawer docks at the bottom at half the canvas height. An expand / collapse icon button (the Zones resize icons; tooltip Full height / Half height) sits in its header, and the close button is the Vidstack x mark. The editor's node-clear pan is not mocked.
 - Zone preview: with a side drawer open it steps left of the drawer; with the dock open it stays top-right above it. In both it stays visible, large map included (check at 400x800).
 - Bottom corner buttons: with a side drawer open, Dashboard controls steps left of it (so it can still close the drawer) and zoom stays bottom-left. With the dock at half height both lift above the sheet. At full height they are deliberately hidden, as is the React Flow credit; the toggle or close brings them back. In the editor the cells would be DOM elements, not the thumbnail's canvas (zone counts are small until LED strips are supported).
+
+## Node-shape changes (`Aurora-1cmx`)
+
+Tried here before the editor builds them (`Aurora-d0hv`, `Aurora-jsjj`, `Aurora-0veq`).
+
+- **Circle sockets**: every socket is a circle in its domain colour (video teal, audio violet, light amber, numbers gray). The `diamond`/`triangle` classes are gone. The wire now carries the difference: Image, AudioBuffer and Frame wires are thicker (3.5 px), Trigger wires are dashed.
+- **Converters**: `angle.fromFloat` and `angle.toFloat` (param `scale`, default 360) are mock-only entries pushed onto the catalog in `mock.js`; `catalog.js` is not edited. They sit in the **Numbers** group next to `angle.add`: they are pure number-to-number maths like the rest of that group, while Motion holds nodes that keep state over time. Drop the mock-only entries when `gen.py` is next run after `Aurora-jsjj` lands.
+- **Refused wire**: the existing Image to Frame frame is unchanged; a new **Refused: Float to Angle** frame names the converter in its toast.
+- **Auto-insert** (**Auto-insert converter** frame): a Float wire dropped on an Angle input leaves `angle.fromFloat` as a visible node (outlined as new), wired on both sides and placed between the two nodes, clear of both. Undo would treat the drop as one step: the node and both wires go together and the original Float wire is not needed back, since it was never made.

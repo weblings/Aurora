@@ -50,7 +50,10 @@ button { font-family: inherit; }
 .ge-wires { position: absolute; left: 0; top: 0; overflow: visible; width: 1px; height: 1px; }
 .ge-wires path { fill: none; stroke-width: 2; }
 .ge-wires .hit { stroke: transparent; stroke-width: 14; pointer-events: stroke; cursor: pointer; }
+.ge-wires .bulk { stroke-width: 3.5; }
+.ge-wires .trigger { stroke-dasharray: 6 4; }
 .ge-wires .sel { stroke-width: 3; }
+.ge-wires .bulk.sel { stroke-width: 5; }
 .ge-island { position: absolute; z-index: 5; }
 .ge-tl { left: var(--ui-size-space-xl); top: var(--ui-size-space-xl); }
 .ge-tr { right: var(--ui-size-space-xl); top: var(--ui-size-space-xl); }
@@ -99,6 +102,7 @@ button { font-family: inherit; }
 }
 .gn:hover { border-color: var(--ui-color-text-muted); }
 .gn.sel { border-color: var(--ui-color-text-default); }
+.gn.fresh { box-shadow: 0 0 0 2px var(--ui-color-text-default); }
 .gn.bad { border: 1px dashed var(--ui-color-text-default); }
 .gn.card { position: relative; width: auto; cursor: default; }
 .gn.card:hover { border-color: var(--ui-color-border-default); }
@@ -133,11 +137,7 @@ button { font-family: inherit; }
 /* Port sockets: colour and shape from graph/portStyle.ts. */
 .sk { display: inline-block; flex: none; width: 10px; height: 10px; background: var(--c); }
 .sk.circle { border-radius: 50%; }
-.sk.diamond { width: 8px; height: 8px; rotate: 45deg; }
-.sk.triangle { clip-path: polygon(0 0, 100% 50%, 0 100%); }
 .gn-port .sk { outline: 2px solid var(--ui-color-surface-raised); }
-.gn-port .sk.triangle { outline: none; }
-.gn-port .sk.diamond { translate: 0 -50%; }
 
 /* Shared floating surface: the same recipe as the effect panel's row menu. */
 .ge-pop {
