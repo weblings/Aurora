@@ -23,7 +23,7 @@ for (const n of CATALOG) if (!categoryOf.has(n.type)) console.error(`no category
 
 const state = {
   nodes: [], edges: GRAPH.edges.map(([from, to]) => ({ from, to })), controls: GRAPH.controls.map((c) => ({ ...c })),
-  view: { x: 0, y: 0, k: 1 }, selected: null, wire: null, testing: false, problems: false, unsaved: false, zonesOpen: true, popup: null,
+  view: { x: 0, y: 0, k: 1 }, selected: null, wire: null, testing: false, problems: false, unsaved: false, zonesOpen: true, zonesLarge: false, popup: null,
   // States the first mock skipped (Aurora-daaa.6).
   banner: null, status: null, other: false, changed: false, nameError: false, wholeGraph: false,
 }
@@ -52,6 +52,10 @@ function fill(node, kids, keep = false) {
 
 const icon = (path) => el('span', { html: `<svg class="ge-icon" viewBox="0 0 24 24" aria-hidden="true">${path}</svg>`, style: 'display:contents' })
 const ICON = {
+  play: '<path d="M7 5v14l11-7z"/>',
+  stop: '<rect x="6" y="6" width="12" height="12" rx="1.5"/>',
+  expand: '<path d="M4 9V4h5"/><path d="M20 9V4h-5"/><path d="M4 15v5h5"/><path d="M20 15v5h-5"/>',
+  collapse: '<path d="M9 4v5H4"/><path d="M15 4v5h5"/><path d="M9 20v-5H4"/><path d="M15 20v-5h5"/>',
   undo: '<path d="M9 7 4 12l5 5"/><path d="M4 12h11a5 5 0 0 1 5 5v1"/>',
   redo: '<path d="m15 7 5 5-5 5"/><path d="M20 12H9a5 5 0 0 0-5 5v1"/>',
   search: '<circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/>',
@@ -62,7 +66,11 @@ const warnIcon = () => el('span', { class: 'ge-warn', 'aria-hidden': 'true', htm
 function btn(label, { variant, size = 'sm', icon: isIcon, ...attrs } = {}) {
   return el('button', { type: 'button', class: 'ui-button', 'data-variant': variant, 'data-size': size === 'md' ? undefined : size, 'data-icon': isIcon, ...attrs }, label)
 }
-const opts = { backBoxed: true, testPrimary: false }
+const opts = { backBoxed: true, testPrimary: false, split: false }
+// Variant (Aurora-daaa.32): testMode is what the Test button runs next; testLeft counts a Once test down.
+const test = { mode: 'once', left: 12, timer: null }
+const stopTimer = () => { clearInterval(test.timer); test.timer = null }
+const clock = (s) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`
 const socket = (type) => {
   const [color, shape] = PORTS[type] ?? PORTS.Float
   return el('span', { class: `sk ${shape}`, style: `--c:${color}`, title: type })
@@ -184,7 +192,7 @@ function drawBar() {
   const count = state.wholeGraph ? 3 : 2
   const problems = state.problems ? btn([warnIcon(), `${count} problems`], { class: 'ui-button ge-problems', 'data-act': 'problems', 'aria-haspopup': 'dialog' }) : null
   const blocked = state.problems || Boolean(state.banner?.blocking)
-  const test = state.testing
+  const testPart = opts.split ? splitTest(blocked) : state.testing
     ? [el('span', { class: 'ge-countdown' }, 'On the lights, reverts in 0:24'), btn('Revert', { 'data-act': 'revert' })]
     : [btn(state.other ? 'Take over the lights' : 'Test on lights', { variant: opts.testPrimary ? 'primary' : undefined, class: `ui-button${opts.testPrimary ? ' ge-primary' : ''}`, 'data-act': 'test', disabled: blocked, title: 'Show this graph on the real lights for a while, then put them back' })]
   const ghost = opts.backBoxed ? '' : ' ge-ghost'
@@ -196,13 +204,48 @@ function drawBar() {
     el('span', { class: 'ge-spacer' }),
     state.changed ? el('span', { class: 'ge-unsaved' }, 'Edited since the test') : null,
     problems,
-    el('span', { class: `ge-status${state.status?.strong ? ' strong' : ''}`, role: 'status' },
+    opts.split ? null : el('span', { class: `ge-status${state.status?.strong ? ' strong' : ''}`, role: 'status' },
       el('span', { class: 'ge-dot' }), state.status?.text ?? (state.problems ? 'Preview paused' : 'Live preview'),
       state.status?.action ? btn(state.status.action.label, { 'data-act': state.status.action.act }) : null),
     btn(icon(ICON.undo), { icon: true, 'aria-label': 'Undo', title: 'Undo (Ctrl+Z)', 'data-act': 'toast-undo' }),
     btn(icon(ICON.redo), { icon: true, 'aria-label': 'Redo', title: 'Redo (Ctrl+Shift+Z)', disabled: true }),
     el('span', { class: 'ge-sep' }),
-    test])
+    testPart])
+}
+
+// Split button [▷ Test ⌄]: the label is the state, Stop is the revert, no status text.
+function splitTest(blocked) {
+  const primary = opts.testPrimary
+  const cls = `ui-button ge-split-part${primary ? ' ge-primary' : ''}`
+  const v = primary ? 'primary' : undefined
+  const reason = state.problems ? 'Fix the problems first' : state.banner?.blocking ? 'Cannot reach Aurora' : undefined
+  if (state.status?.action) return btn(state.status.action.label, { variant: v, class: `ui-button${primary ? ' ge-primary' : ''}`, 'data-act': state.status.action.act, title: 'Another session took over the preview' })
+  if (state.testing) {
+    const label = test.mode === 'once' ? `Stop ${clock(test.left)}` : 'Stop'
+    return el('span', { class: 'ge-split' }, btn([icon(ICON.stop), el('span', { class: 'ge-countdown-in' }, label)], { variant: v, class: cls, 'data-act': 'revert', title: 'Stop and put the lights back' }),
+      btn(chevron('cc-chev'), { variant: v, class: `${cls} ge-split-caret`, icon: true, 'aria-label': 'Test mode', 'aria-haspopup': 'menu', 'data-act': 'test-menu' }))
+  }
+  const label = state.other ? 'Take over' : 'Test'
+  return el('span', { class: 'ge-split', title: reason }, btn([icon(ICON.play), label], { variant: v, class: cls, 'data-act': 'test', disabled: blocked, title: reason ?? (test.mode === 'once' ? 'Show this graph on the real lights for 15 seconds' : 'Show this graph on the real lights until you stop') }),
+    btn(chevron('cc-chev'), { variant: v, class: `${cls} ge-split-caret`, icon: true, 'aria-label': 'Test mode', 'aria-haspopup': 'menu', 'data-act': 'test-menu', disabled: blocked }))
+}
+
+function testMenu() {
+  closePopups()
+  const r = document.querySelector('.ge-split').getBoundingClientRect()
+  const pick = (mode) => () => startTest(mode)
+  menu([
+    { label: 'Once (15 s)', checked: test.mode === 'once', run: pick('once') },
+    { label: 'Live (until stopped)', checked: test.mode === 'live', run: pick('live') },
+  ], r.right - 200, r.bottom + 6)
+}
+
+function startTest(mode, left = 15, tick = true) {
+  stopTimer()
+  Object.assign(test, { mode, left })
+  state.testing = true
+  if (mode === 'once' && tick) test.timer = setInterval(() => { if (--test.left <= 0) { stopTimer(); state.testing = false; toast('Lights put back') } drawBar() }, 1000)
+  drawBar()
 }
 
 // One persistent line under the bar, for what must be answered or cannot be missed.
@@ -215,8 +258,49 @@ function drawBanner() {
     b.actions.map(([label, act, primary]) => btn(label, { variant: primary ? 'primary' : undefined, class: `ui-button${primary ? ' ge-primary' : ''}`, 'data-act': act }))))
 }
 
+// Mock region list in the shape of the editor's ZoneRegions: normalised screen boxes for the active output.
+const OUTPUTS = [
+  { name: 'Desk strip', active: true, zones: [
+    ['#d4714f', 0, 0, 0.2, 1], ['#c85f6d', 0.2, 0, 0.8, 0.25], ['#8e5fb0', 0.8, 0, 1, 1], ['#4d6bc9', 0.2, 0.75, 0.5, 1], ['#3f9a8a', 0.5, 0.75, 0.8, 1], ['#e5ad3c', null]] },
+  { name: 'Shelf', zones: ['#4d6bc9', '#5b7fd6', '#8e5fb0', '#c85f6d', '#d4714f'].map((c) => [c, null]) },
+  { name: 'Bar', zones: ['#3f9a8a', '#38c9a8', '#4d6bc9', '#8e5fb0', '#c85f6d', '#d4714f', '#e5ad3c', '#d4714f', '#c85f6d', '#8e5fb0', '#4d6bc9'].map((c) => [c, null]) },
+]
+const COLS = 8, SCREEN_ROWS = 4.5
+
+// Same layout as the editor's layoutThumbnail: placed zones at their regions, then one block of cells per output.
+function zoneRects() {
+  const placed = [], blocks = []
+  for (const out of OUTPUTS) {
+    const loose = []
+    for (const [color, x0, y0, x1, y1] of out.zones) {
+      if (out.active && x0 !== null && x0 !== undefined) placed.push({ x: x0 * COLS, y: y0 * SCREEN_ROWS, w: (x1 - x0) * COLS, h: (y1 - y0) * SCREEN_ROWS, color })
+      else loose.push(color)
+    }
+    if (loose.length) blocks.push(loose)
+  }
+  const panelRows = placed.length ? SCREEN_ROWS : 0
+  let row = 0
+  const cells = []
+  for (const loose of blocks) {
+    loose.forEach((color, i) => cells.push({ x: i % COLS, y: row + Math.floor(i / COLS) + (panelRows ? panelRows + 0.25 : 0), w: 1, h: 1, color }))
+    row += Math.max(1, Math.ceil(loose.length / COLS))
+  }
+  return { rects: [...placed, ...cells], rows: row + (panelRows ? panelRows + (row ? 0.25 : 0) : 0) }
+}
+
+function zonesIsland() {
+  const { rects, rows } = zoneRects()
+  const body = state.zonesOpen ? el('div', { class: 'ge-zmap', style: `--rows:${rows}` },
+    rects.map((r) => el('i', { style: `--x:${r.x};--y:${r.y};--w:${r.w};--h:${r.h};background:${r.color}` })),
+    el('button', { type: 'button', class: 'ge-zsize', 'data-act': 'zsize', 'aria-label': state.zonesLarge ? 'Smaller zone map' : 'Larger zone map', title: state.zonesLarge ? 'Smaller' : 'Larger' }, icon(state.zonesLarge ? ICON.collapse : ICON.expand))) : null
+  return el('div', { class: `ge-zones ge-zones-v${state.zonesLarge ? ' large' : ''}${state.problems ? ' stale' : ''}` },
+    el('button', { type: 'button', class: 'ge-zones-head', 'data-act': 'zones', 'aria-expanded': state.zonesOpen, 'aria-label': state.zonesOpen ? 'Hide zones' : 'Show zones' }, 'Zones', chevron('cc-chev', state.zonesOpen)),
+    body)
+}
+
 function drawIslands() {
   $('controls-btn').replaceChildren('Dashboard controls ', el('span', { class: 'ge-count' }, String(state.controls.length)))
+  if (opts.split) { $('preview').replaceChildren(zonesIsland()); return }
   $('preview').replaceChildren(el('div', { class: `ge-zones${state.problems ? ' stale' : ''}` },
     el('button', { type: 'button', class: 'ge-zones-head', 'data-act': 'zones', 'aria-expanded': state.zonesOpen }, 'Zone preview', chevron('cc-chev', state.zonesOpen ? 'up' : 'down' === 'up')),
     state.zonesOpen ? el('div', { class: 'ge-zones-grid' }, el('i'), el('i'), el('i'), el('i')) : null))
@@ -660,7 +744,7 @@ const FRAMES = [
     ['offline', 'Cannot reach Aurora', () => { state.status = { text: 'Aurora unreachable', strong: true }; state.banner = { blocking: true, text: 'Cannot reach Aurora.', detail: 'Retrying every few seconds. Edits stay in this browser.', actions: [['Retry now', 'retry']] }; drawBar(); drawBanner() }],
     ['wholegraph', 'Graph-wide problem', () => { state.problems = true; state.wholeGraph = true; drawBar(); drawIslands(); openProblems() }],
   ]],
-  ['States', [['testing', 'Testing', () => { state.testing = true; state.unsaved = true; drawBar() }], ['problems', 'Problems', () => { state.problems = true; drawBar(); drawIslands(); drawNodes(); openProblems() }], ['refused', 'Refused wire', () => toast('Those ports do not match: an Image cannot connect to a Frame')]]],
+  ['States', [['testing', 'Testing', () => { state.unsaved = true; startTest('once', 12, false) }], ['testing-live', 'Testing live', () => { state.unsaved = true; startTest('live') }], ['problems', 'Problems', () => { state.problems = true; drawBar(); drawIslands(); drawNodes(); openProblems() }], ['refused', 'Refused wire', () => toast('Those ports do not match: an Image cannot connect to a Frame')]]],
 ]
 
 function drawFrames(current) {
@@ -668,13 +752,16 @@ function drawFrames(current) {
   $('frames').replaceChildren(...FRAMES.flatMap(([group, frames]) => [el('b', {}, group), ...frames.map(([id, label]) => el('a', { href: `#${id}`, class: id === current ? 'on' : undefined }, label))]),
     el('b', {}, 'Decisions'),
     toggle('Back link and title boxed', opts.backBoxed, 'backBoxed'),
-    toggle('Test on lights primary', opts.testPrimary, 'testPrimary'))
+    toggle('Test on lights primary', opts.testPrimary, 'testPrimary'),
+    toggle('Test split button + Zones island', opts.split, 'split'))
 }
 
 function showFrame() {
   const id = location.hash.slice(1) || 'rest'
   closePopups()
-  Object.assign(state, { testing: false, problems: false, unsaved: false, selected: null, wire: null, banner: null, status: null, other: false, changed: false, wholeGraph: false })
+  stopTimer()
+  Object.assign(test, { mode: 'once', left: 12 })
+  Object.assign(state, { zonesLarge: false, testing: false, problems: false, unsaved: false, selected: null, wire: null, banner: null, status: null, other: false, changed: false, wholeGraph: false })
   drawNodes(); drawBar(); drawBanner(); drawIslands(); fit(); drawFrames(id)
   FRAMES.flatMap(([, frames]) => frames).find(([key]) => key === id)?.[2]()
 }
@@ -683,12 +770,14 @@ const ACTS = {
   add: () => openAdd('browser'), controls: () => openControls(0), view: openView, title: openTitle, problems: openProblems,
   back: () => toast('Goes to the Dashboard. Unsaved edits stay in the browser backup.'),
   'toast-undo': () => toast('Undo'),
-  test: () => { state.testing = true; drawBar() },
-  revert: () => { state.testing = false; drawBar(); toast('Lights put back') },
+  test: () => { if (opts.split) startTest(test.mode); else { state.testing = true; drawBar() } },
+  'test-menu': testMenu,
+  revert: () => { stopTimer(); state.testing = false; drawBar(); toast('Lights put back') },
   'toast-restore': () => { state.banner = null; state.unsaved = true; drawBar(); drawBanner(); toast('Restored your earlier changes') },
   'toast-discard': () => { state.banner = null; drawBar(); drawBanner(); toast('Discarded the earlier copy') },
-  reconnect: () => { state.status = null; drawBar(); toast('Preview reconnected') },
+  reconnect: () => { state.status = null; state.other = false; drawBar(); toast('Preview reconnected') },
   retry: () => toast('Still cannot reach Aurora'),
+  zsize: () => { state.zonesLarge = !state.zonesLarge; drawIslands() },
   zones: () => { state.zonesOpen = !state.zonesOpen; drawIslands() },
 }
 

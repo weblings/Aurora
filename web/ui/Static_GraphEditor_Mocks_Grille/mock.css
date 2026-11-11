@@ -339,3 +339,28 @@ button { font-family: inherit; }
 /* React Flow's credit, bottom centre of the canvas (attributionPosition="bottom-center"). */
 .ge-credit { position: absolute; z-index: 5; left: 50%; bottom: var(--ui-size-space-md); translate: -50% 0; font-size: 10px; color: var(--ui-color-text-muted); text-decoration: none; }
 .ge-credit:hover { color: var(--ui-color-text-secondary); }
+
+/* ---- Test split button + Zones island variant (Aurora-daaa.32) ---- */
+.ge-split { display: inline-flex; }
+.ge-split .ge-split-part:first-child { border-top-right-radius: 0; border-bottom-right-radius: 0; }
+.ge-split .ge-split-caret { border-top-left-radius: 0; border-bottom-left-radius: 0; margin-left: 1px; }
+.ge-split .ge-icon { width: 12px; height: 12px; fill: currentColor; stroke: none; }
+.ge-split .ge-chev .ge-icon { fill: none; stroke: currentColor; }
+.ge-countdown-in { font-variant-numeric: tabular-nums; }
+.ge-bar .ge-split .ge-split-caret.ge-primary { padding: var(--ui-size-space-sm); }
+/* Zone map: a 16:9 screen box (8 columns x 4.5 rows) with zones at their regions, then the leftover cells. */
+.ge-zones-v { --step: 16px; --pad: var(--ui-size-space-md); width: calc(8 * var(--step) - 2px + 2 * var(--pad)); }
+.ge-zones-v.large { --step: calc((348px - 2 * var(--pad) + 2px) / 8); }
+.ge-zones-v .ge-zones-head { gap: var(--ui-size-space-lg); }
+.ge-zmap { position: relative; margin: 0 var(--pad) var(--pad); height: calc(var(--rows) * var(--step) - 2px); }
+.ge-zmap i { position: absolute; left: calc(var(--x) * var(--step)); top: calc(var(--y) * var(--step)); width: calc(var(--w) * var(--step) - 2px); height: calc(var(--h) * var(--step) - 2px); border-radius: 2px; }
+.ge-zones-v.stale .ge-zmap { opacity: 0.4; }
+.ge-zsize {
+  position: absolute; left: 0; bottom: 0; display: grid; place-items: center; width: 24px; height: 24px; padding: 0;
+  background: var(--ui-color-surface-raised); color: var(--ui-color-text-default); border: 1px solid var(--ui-color-border-default); border-radius: var(--ui-size-radius-sm);
+  cursor: pointer; opacity: 0; transition: opacity 0.12s;
+}
+.ge-zsize .ge-icon { width: 14px; height: 14px; }
+.ge-zones-v:hover .ge-zsize, .ge-zsize:focus-visible, .ge-zones-v:focus-within .ge-zsize { opacity: 1; }
+.ge-zsize:focus-visible { outline: var(--ui-size-focus-ring-width) solid var(--ui-color-focus-ring); outline-offset: var(--ui-size-focus-ring-offset); }
+@media (hover: none) { .ge-zsize { opacity: 1; } }
