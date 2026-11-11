@@ -242,6 +242,8 @@ button { font-family: inherit; }
 /* Drawers */
 .ge-drawer { display: flex; flex-direction: column; border-width: 0 0 0 1px; border-radius: 0; width: var(--drawer-w); top: var(--drawer-top, 0); right: 0; bottom: 0; }
 .ge-drawer-toggle { display: none; margin-left: auto; margin-right: var(--ui-size-space-md); }
+/* Both icons are rendered and CSS shows one, so a click never detaches its own target (the outside-click handler would close the drawer). */
+.ge-drawer-toggle[aria-pressed="false"] > span:last-child, .ge-drawer-toggle[aria-pressed="true"] > span:first-child { display: none !important; }
 @media (max-width: 649px), (max-aspect-ratio: 3/4) {
   .ge-drawer { top: auto; left: 0; width: auto; border-width: 1px 0 0 0; height: calc((100dvh - var(--drawer-top, 0px)) / 2); }
   .ge-drawer[data-expanded] { top: var(--drawer-top, 0); height: auto; }
@@ -398,7 +400,18 @@ button { font-family: inherit; }
 }
 .ge-zsize { opacity: 0; transition: opacity 0.12s; }
 .ge-zsize .ge-icon { width: 14px; height: 14px; }
+.ge-zsize .ge-icon.ge-vs { width: 22px; height: 22px; margin: 0; }
 .ge-zsize:hover { background: var(--ui-color-control-bg-hover); color: var(--ui-color-text-default); }
 .ge-zones-v:hover .ge-zsize, .ge-zsize:focus-visible, .ge-zones-v:focus-within .ge-zsize { opacity: 1; }
 .ge-zsize:focus-visible { outline: var(--ui-size-focus-ring-width) solid var(--ui-color-focus-ring); outline-offset: var(--ui-size-focus-ring-offset); }
 @media (hover: none) { .ge-zsize { opacity: 1; } }
+
+/* Vidstack icons: filled paths on a 32 grid with built-in padding. Drawn larger than the layout box (negative margin) so a button holding one is the same size as one holding a 16px stroke icon.
+   These rules come last and are specific enough to beat the older stroke-icon rules above. */
+.ge-icon.ge-vs { width: 24px; height: 24px; margin: -4px; fill: currentColor; stroke: none; }
+.ge-icon.ge-vs.ge-vs-line { fill: none; stroke: currentColor; stroke-width: 3.4; stroke-linecap: round; stroke-linejoin: round; }
+.ge-chev .ge-icon.ge-vs, .ge-split .ge-chev .ge-icon.ge-vs { width: 20px; height: 20px; margin: -4px; fill: currentColor; stroke: none; }
+.ge-split .ge-icon.ge-vs { width: 20px; height: 20px; margin: -4px; fill: currentColor; stroke: none; }
+.ge-zsize .ge-icon.ge-vs { width: 22px; height: 22px; margin: 0; }
+.ae-search .ge-icon.ge-vs { width: 22px; height: 22px; margin: 0; }
+.ge-warn .ge-icon.ge-warnsvg { width: 16px; height: auto; }

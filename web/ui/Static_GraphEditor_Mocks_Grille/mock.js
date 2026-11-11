@@ -50,18 +50,27 @@ function fill(node, kids, keep = false) {
   else node.replaceChildren(...flat)
 }
 
-const icon = (path) => el('span', { html: `<svg class="ge-icon" viewBox="0 0 24 24" aria-hidden="true">${path}</svg>`, style: 'display:contents' })
-const ICON = {
-  play: '<path d="M7 5v14l11-7z"/>',
-  stop: '<rect x="6" y="6" width="12" height="12" rx="1.5"/>',
-  expand: '<path d="M4 9V4h5"/><path d="M20 9V4h-5"/><path d="M4 15v5h5"/><path d="M20 15v5h-5"/>',
-  collapse: '<path d="M9 4v5H4"/><path d="M15 4v5h5"/><path d="M9 20v-5H4"/><path d="M15 20v-5h5"/>',
-  undo: '<path d="M9 7 4 12l5 5"/><path d="M4 12h11a5 5 0 0 1 5 5v1"/>',
-  redo: '<path d="m15 7 5 5-5 5"/><path d="M20 12H9a5 5 0 0 0-5 5v1"/>',
-  search: '<circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/>',
+// Vidstack media-icons (MIT, see THIRD_PARTY_NOTICES.md): 32 grid, filled. Path data is copied from web/ui/icons.
+const vsicon = (paths) => el('span', { html: `<svg class="ge-icon ge-vs" viewBox="0 0 32 32" aria-hidden="true">${paths}</svg>`, style: 'display:contents' })
+const VS = {
+  expand: '<path d="M17.3183 12.4856L21.2231 8.58073C21.3071 8.49674 21.2476 8.35312 21.1288 8.35312H18.0189C17.6507 8.35312 17.3522 8.05464 17.3522 7.68645V5.95312C17.3522 5.58493 17.6507 5.28645 18.0189 5.28645H26.0189C26.387 5.28645 26.6862 5.58493 26.6862 5.95312V13.9531C26.6862 14.3213 26.3877 14.6198 26.0196 14.6198H24.2862C23.918 14.6198 23.6196 14.3213 23.6196 13.9531V10.8431C23.6196 10.7243 23.4759 10.6648 23.3919 10.7488L19.4867 14.6541C19.2264 14.9144 18.8043 14.9144 18.5439 14.6541L17.3183 13.4284C17.0579 13.1681 17.0579 12.7459 17.3183 12.4856Z"/><path d="M6.1153 26.7135H14.1153C14.4835 26.7135 14.782 26.4151 14.782 26.0469V24.3135C14.782 23.9453 14.4835 23.6469 14.1153 23.6469H11.0053C10.8865 23.6469 10.827 23.5033 10.911 23.4193L14.8159 19.5144C15.0763 19.254 15.0763 18.8319 14.8159 18.5716L13.5903 17.3459C13.3299 17.0856 12.9078 17.0856 12.6474 17.3459L8.74222 21.2512C8.65822 21.3351 8.5146 21.2757 8.5146 21.1569L8.51461 18.0469C8.51461 17.6787 8.21613 17.3802 7.84794 17.3802H6.11461C5.74642 17.3802 5.44794 17.6787 5.44794 18.0469V26.0469C5.44794 26.4151 5.74711 26.7135 6.1153 26.7135Z"/>',
+  collapse: '<path d="M19.913 6.45826V9.56817C19.913 9.68695 20.0566 9.74644 20.1406 9.66245L24.0458 5.75727C24.3061 5.49692 24.7283 5.49692 24.9886 5.75727L26.2143 6.98293C26.4746 7.24328 26.4746 7.66539 26.2143 7.92573L22.3093 11.8306C22.2253 11.9146 22.2848 12.0583 22.4036 12.0583H25.5137C25.8819 12.0583 26.1804 12.3567 26.1804 12.7249V14.4583C26.1804 14.8265 25.8819 15.1249 25.5137 15.1249L19.2468 15.1249C19.2466 15.1249 19.2469 15.1249 19.2468 15.1249H17.5137C17.1455 15.1249 16.8463 14.8265 16.8463 14.4583V6.45826C16.8463 6.09007 17.1448 5.7916 17.513 5.7916H19.2463C19.6145 5.7916 19.913 6.09007 19.913 6.45826Z"/><path d="M9.73054 19.9416C9.84933 19.9416 9.90882 20.0852 9.82482 20.1692L5.91991 24.0741C5.65956 24.3345 5.65956 24.7566 5.91991 25.0169L7.14556 26.2426C7.40591 26.5029 7.82802 26.5029 8.08837 26.2426L11.9935 22.3374C12.0775 22.2534 12.2212 22.3129 12.2212 22.4317V25.5416C12.2212 25.9098 12.5196 26.2083 12.8878 26.2083H14.6212C14.9893 26.2083 15.2878 25.9098 15.2878 25.5416L15.2878 17.5416C15.2878 17.1734 14.9893 16.8749 14.6212 16.8749H6.62046C6.25227 16.8749 5.9538 17.1734 5.9538 17.5416V19.2749C5.9538 19.6431 6.25227 19.9416 6.62046 19.9416H9.73054Z"/>',
+  play: '<path d="M10.6667 6.6548C10.6667 6.10764 11.2894 5.79346 11.7295 6.11862L24.377 15.4634C24.7377 15.7298 24.7377 16.2692 24.3771 16.5357L11.7295 25.8813C11.2895 26.2065 10.6667 25.8923 10.6667 25.3451L10.6667 6.6548Z"/>',
+  stop: '<path d="M8.66667 8C8.29848 8 8 8.29848 8 8.66667V23.3333C8 23.7015 8.29848 24 8.66667 24H23.3333C23.7015 24 24 23.7015 24 23.3333V8.66667C24 8.29848 23.7015 8 23.3333 8H8.66667Z"/>',
+  search: '<path fill-rule="evenodd" clip-rule="evenodd" d="M20.1724 22.3417C20.1263 22.2956 20.0536 22.2897 20.0001 22.327C18.4883 23.3815 16.6497 24 14.6666 24C9.51199 24 5.33331 19.8213 5.33331 14.6667C5.33331 9.51202 9.51199 5.33334 14.6666 5.33334C19.8213 5.33334 24 9.51202 24 14.6667C24 16.6502 23.3813 18.4891 22.3263 20.0011C22.289 20.0546 22.2949 20.1273 22.341 20.1734L26.195 24.0274C26.4554 24.2878 26.4554 24.7099 26.195 24.9702L24.9694 26.1959C24.709 26.4562 24.2869 26.4562 24.0266 26.1959L20.1724 22.3417ZM20.9336 14.6667C20.9336 18.1278 18.1278 20.9336 14.6666 20.9336C11.2055 20.9336 8.39972 18.1278 8.39972 14.6667C8.39972 11.2055 11.2055 8.39975 14.6666 8.39975C18.1278 8.39975 20.9336 11.2055 20.9336 14.6667Z"/>',
+  chevDown: '<path d="M15.905 17.4809C15.9571 17.533 16.0415 17.533 16.0936 17.4809L22.4111 11.1635C22.6714 10.9031 23.0935 10.9031 23.3539 11.1635L24.9567 12.7662C25.217 13.0266 25.217 13.4487 24.9567 13.709L18.1028 20.5629C18.0937 20.5732 18.0842 20.5833 18.0744 20.5931L16.4716 22.1959C16.2113 22.4562 15.7892 22.4562 15.5288 22.1959L7.04353 13.7106C6.78318 13.4503 6.78318 13.0281 7.04353 12.7678L8.6463 11.165C8.90665 10.9047 9.32876 10.9047 9.58911 11.165L15.905 17.4809Z"/>',
+  chevUp: '<path d="M15.905 14.8206C15.9571 14.7685 16.0415 14.7685 16.0936 14.8206L22.4111 21.1381C22.6714 21.3984 23.0935 21.3984 23.3539 21.1381L24.9567 19.5353C25.217 19.2749 25.217 18.8528 24.9567 18.5925L18.1028 11.7386C18.0937 11.7283 18.0842 11.7182 18.0744 11.7084L16.4716 10.1056C16.2113 9.84528 15.7892 9.84528 15.5288 10.1056L7.04353 18.5909C6.78318 18.8513 6.78318 19.2734 7.04353 19.5337L8.6463 21.1365C8.90665 21.3968 9.32876 21.3968 9.58911 21.1365L15.905 14.8206Z"/>',
+  close: '<path d="M10.2017 23.401C10.462 23.6613 10.8841 23.6613 11.1445 23.401L15.9057 18.6398C15.9577 18.5877 16.0422 18.5877 16.0942 18.6398L20.8555 23.401C21.1158 23.6613 21.5379 23.6613 21.7983 23.401L23.401 21.7982C23.6614 21.5378 23.6614 21.1157 23.401 20.8554L18.6398 16.0942C18.5878 16.0421 18.5878 15.9577 18.6398 15.9056L23.401 11.1444C23.6613 10.8841 23.6613 10.462 23.401 10.2016L21.7982 8.59886C21.5379 8.33851 21.1158 8.33851 20.8554 8.59886L16.0942 13.36C16.0422 13.4121 15.9577 13.4121 15.9057 13.36L11.1445 8.59887C10.8842 8.33852 10.4621 8.33852 10.2017 8.59887L8.59894 10.2016C8.33859 10.462 8.33859 10.8841 8.59894 11.1445L13.3601 15.9056C13.4122 15.9577 13.4122 16.0421 13.3601 16.0942L8.59889 20.8554C8.33854 21.1157 8.33854 21.5378 8.59889 21.7982L10.2017 23.401Z"/>',
 }
-const chevron = (cls = '', up = false) => el('span', { class: `ge-chev ${cls}`, 'aria-hidden': 'true', html: `<svg viewBox="0 0 24 24" class="ge-icon"><path d="${up ? 'm6 15 6-6 6 6' : 'm6 9 6 6 6-6'}"/></svg>` })
-const warnIcon = () => el('span', { class: 'ge-warn', 'aria-hidden': 'true', html: '<svg viewBox="0 0 24 24" class="ge-icon"><path d="M12 3 2.5 20h19z"/><path d="M12 10v4"/><path d="M12 17.2v.1"/></svg>' })
+// Vidstack has no undo or redo, so these are drawn new on the same grid, a 3.4 unit round stroke to match the fills' arm width.
+const vsstroke = (paths) => el('span', { html: `<svg class="ge-icon ge-vs ge-vs-line" viewBox="0 0 32 32" aria-hidden="true">${paths}</svg>`, style: 'display:contents' })
+const LINE = {
+  undo: '<path d="M12 9.3 5.3 16 12 22.7"/><path d="M5.3 16h14.7a6.7 6.7 0 0 1 6.7 6.7V24"/>',
+  redo: '<path d="M20 9.3 26.7 16 20 22.7"/><path d="M26.7 16H12a6.7 6.7 0 0 0-6.7 6.7V24"/>',
+}
+const chevron = (cls = '', up = false) => el('span', { class: `ge-chev ${cls}`, 'aria-hidden': 'true', html: `<svg viewBox="0 0 32 32" class="ge-icon ge-vs">${up ? VS.chevUp : VS.chevDown}</svg>` })
+// Aurora's own warning mark (web/ui/icons/warning.svg): currentColor outline triangle plus filled bar and dot, 34x29.
+const warnIcon = () => el('span', { class: 'ge-warn', 'aria-hidden': 'true', html: '<svg viewBox="0 0 34 29" class="ge-icon ge-warnsvg"><path d="m 33.395447,28.443676 -31.9406328,0 L 17.425131,0.78227615 Z" fill="none" stroke="currentColor" stroke-width="1.8897638" stroke-linecap="round" stroke-linejoin="round" /><path d="m 15.936049,19.839662 c 0,0.401714 0.325669,0.727275 0.727383,0.727275 h 1.454659 c 0.401714,0 0.727384,-0.325561 0.727384,-0.727275 v -8.728168 c 0,-0.401714 -0.32567,-0.727384 -0.727384,-0.727384 h -1.454659 c -0.401714,0 -0.727383,0.32567 -0.727383,0.727384 z" fill="currentColor" /><path d="m 19.063133,23.694348 c 0,-0.923985 -0.748986,-1.672971 -1.672971,-1.672971 -0.923877,0 -1.672863,0.748986 -1.672863,1.672971 0,0.923866 0.748986,1.672852 1.672863,1.672852 0.923985,0 1.672971,-0.748986 1.672971,-1.672852 z" fill="currentColor" /></svg>' })
 // Grille button as plain markup: its hover styles key off react-aria data attributes, so mock.css adds :hover fallbacks.
 function btn(label, { variant, size = 'sm', icon: isIcon, ...attrs } = {}) {
   return el('button', { type: 'button', class: 'ui-button', 'data-variant': variant, 'data-size': size === 'md' ? undefined : size, 'data-icon': isIcon, ...attrs }, label)
@@ -207,8 +216,8 @@ function drawBar() {
     opts.split ? null : el('span', { class: `ge-status${state.status?.strong ? ' strong' : ''}`, role: 'status' },
       el('span', { class: 'ge-dot' }), state.status?.text ?? (state.problems ? 'Preview paused' : 'Live preview'),
       state.status?.action ? btn(state.status.action.label, { 'data-act': state.status.action.act }) : null),
-    btn(icon(ICON.undo), { icon: true, 'aria-label': 'Undo', title: 'Undo (Ctrl+Z)', 'data-act': 'toast-undo' }),
-    btn(icon(ICON.redo), { icon: true, 'aria-label': 'Redo', title: 'Redo (Ctrl+Shift+Z)', disabled: true }),
+    btn(vsstroke(LINE.undo), { icon: true, 'aria-label': 'Undo', title: 'Undo (Ctrl+Z)', 'data-act': 'toast-undo' }),
+    btn(vsstroke(LINE.redo), { icon: true, 'aria-label': 'Redo', title: 'Redo (Ctrl+Shift+Z)', disabled: true }),
     el('span', { class: 'ge-sep' }),
     testPart])
 }
@@ -222,11 +231,11 @@ function splitTest(blocked) {
   if (state.status?.action) return btn(state.status.action.label, { variant: v, class: `ui-button${primary ? ' ge-primary' : ''}`, 'data-act': state.status.action.act, title: 'Another session took over the preview' })
   if (state.testing) {
     const label = test.mode === 'once' ? `Stop ${clock(test.left)}` : 'Stop'
-    return el('span', { class: 'ge-split' }, btn([icon(ICON.stop), el('span', { class: 'ge-countdown-in' }, label)], { variant: v, class: cls, 'data-act': 'revert', title: 'Stop and put the lights back' }),
+    return el('span', { class: 'ge-split' }, btn([vsicon(VS.stop), el('span', { class: 'ge-countdown-in' }, label)], { variant: v, class: cls, 'data-act': 'revert', title: 'Stop and put the lights back' }),
       btn(chevron('cc-chev'), { variant: v, class: `${cls} ge-split-caret`, icon: true, 'aria-label': 'Test mode', 'aria-haspopup': 'menu', 'data-act': 'test-menu' }))
   }
   const label = state.other ? 'Take over' : 'Test'
-  return el('span', { class: 'ge-split', title: reason }, btn([icon(ICON.play), label], { variant: v, class: cls, 'data-act': 'test', disabled: blocked, title: reason ?? (test.mode === 'once' ? 'Show this graph on the real lights for 15 seconds' : 'Show this graph on the real lights until you stop') }),
+  return el('span', { class: 'ge-split', title: reason }, btn([vsicon(VS.play), label], { variant: v, class: cls, 'data-act': 'test', disabled: blocked, title: reason ?? (test.mode === 'once' ? 'Show this graph on the real lights for 15 seconds' : 'Show this graph on the real lights until you stop') }),
     btn(chevron('cc-chev'), { variant: v, class: `${cls} ge-split-caret`, icon: true, 'aria-label': 'Test mode', 'aria-haspopup': 'menu', 'data-act': 'test-menu', disabled: blocked }))
 }
 
@@ -273,7 +282,7 @@ function zonesIsland() {
   return el('div', { class: `ge-zones ge-zones-v${state.zonesOpen ? ' open' : ''}${state.zonesLarge && !opts.zonesPlain ? ' large' : ''}${state.problems ? ' stale' : ''}` },
     el('div', { class: 'ge-zbar' },
       el('button', { type: 'button', class: 'ge-zones-head', 'data-act': 'zones', 'aria-expanded': state.zonesOpen, 'aria-label': state.zonesOpen ? 'Hide zones' : 'Show zones' }, 'Zones', chevron('cc-chev', state.zonesOpen)),
-      state.zonesOpen && !opts.zonesPlain ? el('button', { type: 'button', class: 'ge-zsize', 'data-act': 'zsize', 'aria-label': state.zonesLarge ? 'Smaller zone map' : 'Larger zone map', title: state.zonesLarge ? 'Smaller' : 'Larger' }, icon(state.zonesLarge ? ICON.collapse : ICON.expand)) : null),
+      state.zonesOpen && !opts.zonesPlain ? el('button', { type: 'button', class: 'ge-zsize', 'data-act': 'zsize', 'aria-label': state.zonesLarge ? 'Smaller zone map' : 'Larger zone map', title: state.zonesLarge ? 'Smaller' : 'Larger' }, vsicon(state.zonesLarge ? VS.collapse : VS.expand)) : null),
     body)
 }
 
@@ -447,13 +456,14 @@ function drawer(title, sub, body) {
   const r = $('canvas').getBoundingClientRect()
   const pop = el('aside', { class: 'ge-pop ge-drawer', 'aria-label': title, style: `--drawer-top:${r.top}px` },
     el('div', { class: 'ge-drawer-head' }, title,
-      btn('Full height', { class: 'ui-button ge-drawer-toggle', 'aria-pressed': 'false', onclick: (e) => {
+      btn([vsicon(VS.expand), vsicon(VS.collapse)], { icon: true, class: 'ui-button ge-drawer-toggle', 'aria-label': 'Full height', title: 'Full height', 'aria-pressed': 'false', onclick: (e) => {
         const full = pop.toggleAttribute('data-expanded')
         $('canvas').classList.toggle('drawer-full', full)
-        e.currentTarget.textContent = full ? 'Half height' : 'Full height'
+        e.currentTarget.setAttribute('aria-label', full ? 'Half height' : 'Full height')
+        e.currentTarget.title = full ? 'Half height' : 'Full height'
         e.currentTarget.setAttribute('aria-pressed', String(full))
       } }),
-      btn('×', { icon: true, 'aria-label': 'Close', onclick: closePopups })),
+      btn(vsicon(VS.close), { icon: true, 'aria-label': 'Close', onclick: closePopups })),
     sub ? el('p', { class: 'ge-drawer-sub' }, sub) : null,
     el('div', { class: 'ge-drawer-body ae-scroll' }, body))
   layer.append(pop)
@@ -548,7 +558,7 @@ function searchBox() {
     oninput: (e) => { add.query = e.target.value; add.active = 0; if (add.query.trim()) add.category = 'All'; paintAdd() },
     onkeydown: addKeys,
   })
-  return el('label', { class: 'ae-search' }, icon(ICON.search), input)
+  return el('label', { class: 'ae-search' }, vsicon(VS.search), input)
 }
 
 function addKeys(e) {
@@ -682,7 +692,7 @@ function openAdd(variant, sx, sy, { query = '', category } = {}) {
   } else {
     const top = $('canvas').getBoundingClientRect().top
     pop = el('aside', { class: 'ge-pop ae-sheet', 'aria-label': 'Add node', 'data-add': true, style: `left:0;top:${top}px;bottom:0` },
-      el('div', { class: 'ae-sheet-head' }, 'Add node', btn('×', { icon: true, 'aria-label': 'Close', onclick: closePopups })),
+      el('div', { class: 'ae-sheet-head' }, 'Add node', btn(vsicon(VS.close), { icon: true, 'aria-label': 'Close', onclick: closePopups })),
       searchBox(), el('div', { class: 'ae-rows ae-scroll', id: 'ae-rows', role: 'listbox' }), el('div', { class: 'ae-sheet-note' }))
     layer.append(pop)
   }

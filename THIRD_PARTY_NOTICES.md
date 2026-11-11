@@ -21,7 +21,7 @@ If a reference-only project later becomes a source of ported code, move it to In
 
 ## Vidstack media-icons (MIT) -- incorporated
 
-Source: <https://github.com/vidstack/media-icons> (npm `media-icons`). Used in `web/ui/icons` (back arrow, chevrons, play, pause) and, where the graph editor or Grille reuse them, the same paths.
+Source: <https://github.com/vidstack/media-icons> (npm `media-icons`). Used in `web/ui/icons` (back arrow, chevrons, play, pause, fullscreen enter and exit, x mark) and, where the graph editor or Grille reuse them, the same paths.
 
 ```
 MIT License
