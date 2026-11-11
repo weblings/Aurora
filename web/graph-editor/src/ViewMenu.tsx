@@ -1,8 +1,6 @@
-import chevronDown from '../../ui/icons/chevron-down.svg'
-import chevronUp from '../../ui/icons/chevron-up.svg'
 import { useRef, useState } from 'react'
-import { Panel, useReactFlow, useStore } from '@xyflow/react'
-import { Dialog, Menu, MenuItem } from '@weblings/grille'
+import { MiniMap, Panel, useReactFlow, useStore } from '@xyflow/react'
+import { Dialog, Icon, Menu, MenuItem, chevronDownIcon, chevronUpIcon } from '@weblings/grille'
 import { EditorPopup } from './EditorPopup'
 
 // Zoom, fit and the minimap, in one menu in place of React Flow's controls.
@@ -14,11 +12,13 @@ export const FIT_OPTIONS = { minZoom: 0.6, maxZoom: 1 }
 export function ViewMenu({ minimap, onMinimap }: { minimap: boolean; onMinimap: (on: boolean) => void }) {
   const [open, setOpen] = useState(false)
   const trigger = useRef<HTMLButtonElement>(null)
+  const island = useRef<HTMLDivElement>(null)
   const { zoomIn, zoomOut, fitView } = useReactFlow()
   const zoom = useStore((s) => s.transform[2])
   const close = () => setOpen(false)
   return (
-    <Panel position="bottom-left">
+    <Panel position="bottom-left" ref={island} className="editor-view-island">
+      {minimap ? <MiniMap className="editor-minimap" pannable zoomable /> : null}
       <button
         ref={trigger}
         type="button"
@@ -29,9 +29,9 @@ export function ViewMenu({ minimap, onMinimap }: { minimap: boolean; onMinimap: 
         onClick={() => setOpen((o) => !o)}
       >
         View {Math.round(zoom * 100)}%
-        <img className="editor-chevron" src={open ? chevronUp : chevronDown} alt="" />
+        <Icon icon={open ? chevronUpIcon : chevronDownIcon} size="sm" />
       </button>
-      <EditorPopup isOpen={open} onClose={close} label="View menu" triggerRef={trigger}>
+      <EditorPopup isOpen={open} onClose={close} label="View menu" triggerRef={island} placement="top start">
         <Dialog aria-label="View menu">
           <Menu
             aria-label="View actions"

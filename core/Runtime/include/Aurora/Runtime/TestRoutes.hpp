@@ -22,14 +22,15 @@ namespace Aurora::Runtime
 
   // The draft of a session replaces the live effect on the real outputs, in
   // place. One slot: a new test ends the one running. The server puts the
-  // live effect back (read fresh from disk) on an explicit revert, once the
-  // 120 s cap passes (heartbeats keep it alive until then), or when heartbeats
-  // stop, so a closed tab cannot strand the lights. A pause, or any rebuild of the pipeline, also ends the
+  // live effect back (read fresh from disk) on an explicit revert, when a
+  // Once test's 15 s passes (a Live test has no cap), or when heartbeats stop, so a closed tab cannot strand the lights. A pause, or any rebuild of the pipeline, also ends the
   // test: the new pipeline starts from disk. Nothing is written to disk. The
   // app mains also stop it on an effect choice the pipeline applied in place.
   //
-  // POST /api/graph/test {"session"}: starts a test of that session's draft.
-  // Answers {"succeeded": true, "confirmWithinMs", "heartbeatMs",
+  // POST /api/graph/test {"session", "mode"?}: starts a test of that session's
+  // draft. mode is "once" (default, ends after 15 s) or "live" (untimed, ends
+  // on revert, keep, replace or lost heartbeats); else 400 "invalid_mode".
+  // Answers {"succeeded": true, "mode", "confirmWithinMs" (null for live), "heartbeatMs",
   // "revertAfterMs"}. 400 "invalid_body" / "invalid_session", 404 "no_draft",
   // 422 "invalid_graph" (as the draft routes report it), 409 "cannot_test"
   // when the running pipeline cannot take the graph in place (paused, other
@@ -51,7 +52,9 @@ namespace Aurora::Runtime
   //
   // POST /api/graph/test/confirm {"session", "id"}: the tested draft becomes
   // the live effect exactly like POST /api/graph/apply, and the test ends
-  // without a revert. 404 "no_test", 409 "draft_changed" when the draft is no
+  // without a revert. Also answers for a Once test that ended by
+  // confirm_timeout when nothing has happened since (no start, revert, stop or
+  // takeover): an agent rarely answers inside 15 s (Aurora-qjqy.2). 404 "no_test", 409 "draft_changed" when the draft is no
   // longer the graph under test, else apply's answers.
   //
   // GET /api/graph/test: {"active", "confirmRemainingMs", "revertAfterMs",

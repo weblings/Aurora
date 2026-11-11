@@ -48,7 +48,7 @@ await withEditorStack(async ({ editorUrl }) => {
     await page.mouse.down()
     await page.mouse.move(b.x + b.width / 2, b.y + b.height / 2, { steps: 12 })
     await page.mouse.up()
-    await page.waitForFunction(() => document.querySelector('.editor-status')?.textContent.includes('Live'), null, { timeout: 10_000 })
+    await page.waitForFunction(() => document.querySelector('.editor-header')?.dataset.preview.includes('Live'), null, { timeout: 10_000 })
     // The name is left alone: the copy still gets a title of its own.
     await fileAction(page, 'Save as new')
     await page.waitForFunction(() => document.querySelector('[data-effect]')?.dataset.effect === 'browser-check-fork-source-copy')

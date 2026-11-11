@@ -424,7 +424,7 @@ button { font-family: inherit; }
 .ge-icon.ge-vs.ge-vs-back { width: 14px; height: 14px; }
 .ge-zsize .ge-icon.ge-vs { width: 16px; height: 16px; }
 .ae-search .ge-icon.ge-vs { width: 16px; height: 16px; }
-.ge-warn .ge-icon.ge-warnsvg { width: 16px; height: auto; }
+.ge-warn .ge-icon.ge-vs { width: 16px; height: 16px; }
 
 /* Minimap (Aurora-daaa.36): stacked above the zoom button in the bottom-left island. */
 .ge-bl { display: flex; flex-direction: column; align-items: flex-start; gap: var(--ui-size-space-md); }

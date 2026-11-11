@@ -2,7 +2,7 @@
 
 Id: graph-editor-cleanup
 
-Status: stage 1 built (back link, Aurora component styles); stage 2 built (top bar, title and view menus, status spot, `Aurora-daaa.11`); stage 3 built (catalog `group`, node copy, cascade Add node menu, palette removed; `Aurora-daaa.24.1`-`.24.4`, Grille `v0.1.0-dev.6`); stage 4 built (right-click and ⋯ menus, Delete key, Details and Dashboard controls drawers, Inspector removed, Esc closes a drawer from anywhere; `Aurora-daaa.27.1`-`.27.5`, Grille `v0.1.0-dev.8`). Control count 9 on Screen colors and `builtin.audio`, under the mock's 11. Narrow windows built: top bar shrink (`Aurora-daaa.29.1`), drawer width and node-clear pan (`Aurora-daaa.29.2`), bottom dock (`Aurora-daaa.29.4`), 1100 px no-pan check and drawer-body container queries skipped (`Aurora-daaa.29.5`). Full graph-editor browser-check suite passes on the stage 4 head (`Aurora-daaa.30`). Stage 5 (`Aurora-s1t7`, editor to the Grille mock) and stage 6 (`Aurora-u68h`, banners on the Dashboard error shell) are filed, with Grille's icon epic (`Grille-ky2`) and the light test modes epic (`Aurora-qjqy`): see Stages 5 and 6. Grille `v0.1.0` (`Aurora-daaa.16`) is now the last step of stage 5.
+Status: stage 1 built (back link, Aurora component styles); stage 2 built (top bar, title and view menus, status spot, `Aurora-daaa.11`); stage 3 built (catalog `group`, node copy, cascade Add node menu, palette removed; `Aurora-daaa.24.1`-`.24.4`, Grille `v0.1.0-dev.6`); stage 4 built (right-click and ⋯ menus, Delete key, Details and Dashboard controls drawers, Inspector removed, Esc closes a drawer from anywhere; `Aurora-daaa.27.1`-`.27.5`, Grille `v0.1.0-dev.8`). Control count 9 on Screen colors and `builtin.audio`, under the mock's 11. Narrow windows built: top bar shrink (`Aurora-daaa.29.1`), drawer width and node-clear pan (`Aurora-daaa.29.2`), bottom dock (`Aurora-daaa.29.4`), 1100 px no-pan check and drawer-body container queries skipped (`Aurora-daaa.29.5`). Full graph-editor browser-check suite passes on the stage 4 head (`Aurora-daaa.30`). Stage 5 built (`Aurora-s1t7`, editor to the Grille mock: Grille buttons and 32 px bar `.1`, problems chip before Undo `.2`, canvas corners and minimap `.3`, Zones island `.4`, side-drawer fix `Aurora-daaa.35`, Grille icons `.5`, Decisions `.6`/`.7`). Light test modes built (`Aurora-qjqy`: Once (15 s) and Live in core `.1`, MCP `try_on_lights` defaults to Once `.2`, Test split button `.3`). Stage 6 (`Aurora-u68h`, banners on the Dashboard error shell) is filed: see Stages 5 and 6. Grille `v0.1.0` (`Aurora-daaa.16`, `Grille-0up`) stays the end of the whole process, after the UX refinement, outside stages 5 and 6.
 Written 2026-11-06 under `Aurora-bova`. The owner reviewed the working mock and likes
 the direction. Decisions 1-7 are recorded under Decisions (2026-11-08). Stages 1-2 are
 built; stages 3-4 are still a proposal and follow those decisions.
@@ -198,33 +198,36 @@ Frames for the states above are in the mock's `Gaps` group (`Aurora-daaa.6`): `#
 
 ### Status priority rule
 
+*Rewritten 2026-11-11 (`Aurora-qjqy.3`); was: one status line in the bar. The bar has no status text now: the
+Test split button, the banner and the toast carry what the pill said.*
+
 **Three places, so nothing shares a spot it cannot afford to lose.**
 
-- **Status spot** (in the bar): one line, the highest-ranked item below. Anything that
-  needs an answer or action sits here or in the banner until resolved, never in a toast.
-- **Banner** (one line under the bar): only for what blocks work or waits for an answer.
+- **Test split button** (in the bar): its label and tooltip are the state of the lights and the preview connection.
+  `Test` at rest, `Stop 0:12` during Once, `Stop` during Live, `Take over` when another session holds the lights,
+  `Reconnect` when another view took the preview. Problems and Cannot reach Aurora disable it, with the reason as the tooltip.
+- **Banner** (one line under the bar): what blocks work, waits for an answer, or failed and needs a look.
   At most one at a time, in rank order.
 - **Toast** (3 s, bottom center): only for a success or a minor refusal that the user caused
   a moment ago and that needs nothing further. A toast never carries the only copy of an error.
 
-Fixed spots keep state out of the contest: `Unsaved` beside the title, the problems chip, the
-test countdown with Revert, and the zone preview's stale tint. They show alongside whatever
-the status spot says.
+Fixed spots keep state out of the contest: `Unsaved` beside the title, the problems chip, `Edited since the test`,
+and the Zones island's stale tint. They show alongside everything else.
 
-Rank, highest first. The status spot shows the first active row, the banner the first active
-banner row.
+Rank, highest first. `graph/status.ts` `pickStatus` returns the first active row and where it shows.
 
 | Rank | State | Where | Persists until |
 |---|---|---|---|
-| 1 | Cannot reach Aurora, or cannot open the effect | Banner with Retry, and status `Aurora unreachable`. Test, Save disabled | Aurora answers |
+| 1 | Cannot reach Aurora, or cannot open the effect | Banner with Retry. Test button disabled, tooltip `Cannot reach Aurora` | Aurora answers |
 | 2 | Restore or Discard an earlier copy | Banner with both buttons. Backup is held until answered | The user picks one |
-| 3 | Draft not sent, draft would not load | Status spot, detail in its tooltip | The next draft goes through |
-| 4 | Preview taken over | Status spot with Reconnect | Reconnect, or the stream returns |
-| 5 | Lights in use by another session | Status spot, and Test on lights reads `Take over the lights` | The holder finishes, or the user takes over |
-| 6 | A test or write that failed or ended unexpectedly (heartbeat lost, time limit, another effect chosen, lights paused, start or Save failure, reload error) | Status spot, plain words, latest wins | The next test, Save, or edit |
-| 7 | Preview state: connecting, paused, closed, live | Status spot, `Live preview` is the quiet default | It changes |
+| 3 | Draft not sent, draft would not load | Banner, reason after the colon | The next draft goes through |
+| 4 | Preview taken over | The button reads `Reconnect` | Reconnect, or the stream returns |
+| 5 | Lights in use by another session | The button reads `Take over`, tooltip names the holder | The holder finishes, or the user takes over |
+| 6 | A test or write that failed or ended unexpectedly (heartbeat lost, another effect chosen, lights paused, a taker, start or Save failure, reload error) | Banner, plain words, latest wins | The next test, Save, or edit |
+| 7 | Preview state: connecting, paused, closed, live | Nowhere. The chip says problems, the Zones island tints when stale | It changes |
+| - | A Once test reached 15 s, Stop, Reverted | Toast (`Test finished: the lights are back`, `Reverted`) | 3 s |
 | - | Wire refused (`Those ports do not match`) | Toast | 3 s. It names its own cause, and the wire simply did not land |
-| - | Saved, Saved and live, Reverted, Restored, Discarded, Added node | Toast | 3 s. The bar's `Unsaved` and the title already show the new state |
+| - | Saved, Saved and live, Restored, Discarded, Added node | Toast | 3 s. The bar's `Unsaved` and the title already show the new state |
 
 Rules that follow:
 
@@ -242,8 +245,7 @@ Rules that follow:
 5. **Keep disappears, and so does its disabled state.** While a test runs and the graph has
    changed, the bar says `Edited since the test`, and the title menu warns that Save and apply
    puts the edited graph live and ends the test (`#changed`).
-6. **Revert and the countdown never hide.** A test outcome shown at rank 6 replaces the
-   countdown only after the test has ended.
+6. **Stop never hides.** While a test runs the button is Stop (with the Once countdown); an outcome at rank 6 shows only after the test has ended.
 
 How today's nine slots map:
 
@@ -647,9 +649,11 @@ Owner decisions at the mock review (2026-11-11), beyond the four switches above:
 | Epic | Covers | Order |
 |---|---|---|
 | `Grille-ky2` (GrilleDS) | Icon source and notices, a React `Icon`, a plain-SVG export, Drawer and Select glyphs, a dev prerelease | Starts now. `Aurora-s1t7.5` waits on its release |
-| `Aurora-s1t7` stage 5 | Grille buttons and the 32 px bar (`.1`), problems chip before Undo (`.2`), canvas corners and minimap (`.3`), Zones island with the side-drawer fix (`.4`, `Aurora-daaa.35`), icons (`.5`), Grille `v0.1.0` (`Aurora-daaa.16`), close-out (`.8`) | `.1` to `.4` can start now |
+| `Aurora-s1t7` stage 5 | Grille buttons and the 32 px bar (`.1`), problems chip before Undo (`.2`), canvas corners and minimap (`.3`), Zones island with the side-drawer fix (`.4`, `Aurora-daaa.35`), icons (`.5`), close-out (`.8`) | `.1` to `.4` can start now |
 | `Aurora-qjqy` | Light test modes in core and MCP, then the Test split button | Core and MCP do not touch the editor. The editor bead (`.3`) changes the bar |
 | `Aurora-u68h` stage 6 | Editor banners on the Dashboard error shell (`Aurora-s1t7.9`) | After stage 5 |
+
+Grille `v0.1.0` (`Aurora-daaa.16` here, `Grille-0up` in GrilleDS) is the end of the whole process, not part of stage 5 or 6: there is more UX refinement to do before either side locks.
 
 **Problems UI in stage 6 (to explore, not decided).** The problems chip and its popover (rule 3 above) may belong in the error shell with the banners. The shell ([[error-overlay]]) already has a collapsed `N problems` summary that expands, which is a similar shape. Stage 5 still moves the chip before Undo (`Aurora-s1t7.2`), so the bar is right if stage 6 keeps it. When stage 6 starts, try the shell version in the Grille mock first: a frame with problems as shell rows beside the chip and popover, so the two can be judged side by side before the editor changes. Questions for that frame: how a node row's select-the-node action and the graph-wide row's `Add node…` action read as shell rows; how problems stack with the banners; and what the bar shows once the chip is gone (the status still reads `Preview paused` while problems exist).
 

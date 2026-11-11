@@ -56,7 +56,7 @@ namespace Aurora::Mcp
     nlohmann::json _putDraft(const nlohmann::json& arguments);
     nlohmann::json _setControl(const nlohmann::json& arguments);
     nlohmann::json _preview(const nlohmann::json& arguments);
-    nlohmann::json _tryOnLights();
+    nlohmann::json _tryOnLights(const nlohmann::json& arguments);
     nlohmann::json _keep(const nlohmann::json& arguments);
     nlohmann::json _revert();
     nlohmann::json _apply(const nlohmann::json& arguments);

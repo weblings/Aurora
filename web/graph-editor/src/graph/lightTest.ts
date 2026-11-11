@@ -12,7 +12,11 @@ export type TestEnd = {
   holder: Holder | null
 }
 
+export type TestMode = 'once' | 'live'
+
 export type TestState = {
+  // The mode of the running (or last started) test.
+  mode: TestMode
   phase: 'idle' | 'starting' | 'running' | 'closing'
   remainingMs: number
   // Someone else's test, seen while idle.
@@ -23,11 +27,11 @@ export type TestState = {
   failure: string | null
 }
 
-export const initialTest: TestState = { phase: 'idle', remainingMs: 0, other: null, ended: null, failure: null }
+export const initialTest: TestState = { mode: 'once', phase: 'idle', remainingMs: 0, other: null, ended: null, failure: null }
 
 export type TestEvent =
   | { type: 'seen'; holder: Holder | null }
-  | { type: 'starting' }
+  | { type: 'starting'; mode: TestMode }
   | { type: 'started'; remainingMs: number }
   | { type: 'start-failed'; message: string }
   | { type: 'beat'; remainingMs: number }
@@ -43,7 +47,7 @@ export function testReducer(state: TestState, event: TestEvent): TestState {
     case 'seen':
       return state.phase === 'idle' ? { ...state, other: event.holder } : state
     case 'starting':
-      return { ...state, phase: 'starting', failure: null, ended: null, other: null }
+      return { ...state, mode: event.mode, phase: 'starting', failure: null, ended: null, other: null }
     case 'started':
       return { ...state, phase: 'running', remainingMs: event.remainingMs }
     case 'start-failed':

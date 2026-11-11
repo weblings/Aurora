@@ -109,8 +109,8 @@ export async function fetchTestInfo(): Promise<TestInfo> {
 
 export type TestStart = { ok: true; remainingMs: number; heartbeatMs: number } | { ok: false; reason: string }
 
-export async function startTest(session: string): Promise<TestStart> {
-  const reply = await postJson('/api/graph/test', { session })
+export async function startTest(session: string, mode: 'once' | 'live' = 'once'): Promise<TestStart> {
+  const reply = await postJson('/api/graph/test', { session, mode })
   if (!reply.ok) return { ok: false, reason: refusal(reply) }
   const b = reply.body as { confirmWithinMs?: number; heartbeatMs?: number }
   return { ok: true, remainingMs: b.confirmWithinMs ?? 0, heartbeatMs: b.heartbeatMs ?? 2000 }

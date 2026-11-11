@@ -237,12 +237,26 @@ select {
   position: relative;
 }
 
-.editor-status {
-  color: var(--aurora-text-primary);
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+/* The Test split button (Aurora-qjqy.3): main part plus a caret, one 32 px control. */
+.editor-split {
+  display: inline-flex;
+  flex: none;
+}
+
+.editor-split .editor-split-main:not(:last-child) {
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+}
+
+.editor-split .editor-split-caret {
+  border-top-left-radius: 0;
+  border-bottom-left-radius: 0;
+  margin-left: 1px;
+  padding-inline: var(--aurora-space-2);
+}
+
+.editor-split-label {
+  font-variant-numeric: tabular-nums;
 }
 
 .editor-bar-end {
@@ -364,19 +378,61 @@ button.editor-problem-row:hover {
   display: none;
 }
 
-.zone-thumbnail {
+/* The Zones island (Aurora-s1t7.4): header with the hide chevron, then 14 px
+   cells, 8 per row. Collapsed, it fits its header. */
+.zones-island {
   position: absolute;
   right: var(--aurora-space-5);
   top: var(--aurora-space-5);
   z-index: 5;
-  padding: var(--aurora-space-2);
   background: var(--aurora-surface);
   border: 1px solid var(--aurora-border);
   border-radius: var(--aurora-radius-control);
-  pointer-events: none;
+  overflow: hidden;
 }
 
-.zone-thumbnail-stale {
+.zones-head {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--aurora-space-4);
+  padding: var(--aurora-space-2) var(--aurora-space-3);
+  background: none;
+  border: none;
+  color: var(--aurora-text-primary);
+  font: inherit;
+  cursor: pointer;
+}
+
+.zones-head:hover {
+  background: var(--aurora-surface-hover, rgb(128 128 128 / 0.15));
+}
+
+.zones-head:focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: -2px;
+}
+
+.zones-cells {
+  display: grid;
+  grid-template-columns: repeat(8, 14px);
+  grid-auto-rows: 14px;
+  gap: 2px;
+  padding: 0 var(--aurora-space-3) var(--aurora-space-3);
+}
+
+.zones-cell {
+  border-radius: 2px;
+  background-color: transparent;
+}
+
+.zones-cell-error {
+  background-image: repeating-linear-gradient(135deg, #000 0 2px, transparent 2px 5px);
+  box-shadow: inset 0 0 0 1px #fff;
+}
+
+.zones-island-stale .zones-cells {
   opacity: 0.4;
 }
 
@@ -422,14 +478,6 @@ button.editor-problem-row:hover {
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
-}
-
-/* The WebUI dropdown's chevron: fill is baked into the SVG. */
-.editor-chevron {
-  flex: none;
-  width: 10px;
-  height: 10px;
-  display: block;
 }
 
 /* Room for the focus ring, which the popover would clip at zero padding. */
@@ -518,12 +566,6 @@ button.editor-problem-row:hover {
   text-decoration: none;
 }
 
-.editor-back-icon {
-  width: 14px;
-  height: 14px;
-  display: block;
-}
-
 .editor-name-dialog {
   display: flex;
   flex-direction: column;
@@ -546,8 +588,7 @@ button.editor-problem-row:hover {
 
 /* Add node menu (Aurora-daaa.24.3): cascade of groups, flat ranked list while searching. */
 .editor-add-node {
-  min-width: 32px;
-  font-weight: 600;
+  gap: var(--aurora-space-2);
 }
 
 .add-menu {
@@ -596,7 +637,7 @@ button.editor-problem-row:hover {
   border-radius: 50%;
 }
 
-/* The node's ⋯ button: faded until hover or selection, but always rendered and
+/* The node's menu button: faded until hover or selection, but always rendered and
    never aria-hidden, so VoiceOver finds it (kep27-voiceover-tree-check). */
 .aurora-node-more {
   background: none;
@@ -632,13 +673,6 @@ button.editor-problem-row:hover {
   color: var(--aurora-text-secondary);
 }
 
-/* The on-node mark for a param on the Dashboard: a shape plus hidden text. */
-.dashboard-mark {
-  margin-left: var(--aurora-space-2);
-  color: var(--aurora-accent);
-  font-size: 9px;
-}
-
 .visually-hidden {
   position: absolute;
   width: 1px;
@@ -654,20 +688,40 @@ button.editor-problem-row:hover {
   min-width: 0;
 }
 
-.editor-header > .btn,
-.editor-header > .editor-countdown,
+.editor-header > .ui-button,
+.editor-header > .editor-sep,
 .editor-header > .editor-edited {
   flex: none;
 }
 
-.editor-title-menu {
+/* Every bar control is one fixed 32 px (the Grille mock), whatever its padding or icon. */
+.editor-header .ui-button {
+  box-sizing: border-box;
+  height: 32px;
+  padding-block: 0;
+  gap: var(--aurora-space-2);
+  white-space: nowrap;
+}
+
+.editor-sep {
+  align-self: stretch;
+  width: 1px;
+  margin-block: calc(-1 * var(--aurora-space-1));
+  background: var(--aurora-border);
+}
+
+.editor-header > .editor-title-menu {
   flex: 0 1 auto;
   min-width: 0;
 }
 
+/* Unsaved dot on the title below 650 px. */
 .editor-dirty-mark {
   flex: none;
-  font-size: 8px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: currentColor;
 }
 
 @media (max-width: 649px) {
@@ -679,15 +733,72 @@ button.editor-problem-row:hover {
   .editor-title-menu {
     max-width: 18ch;
   }
-
-  .editor-status {
-    flex: 0 1 auto;
-    min-width: 0;
-  }
 }
 
 /* Side drawers narrow with the window so they leave the canvas room
    (Aurora-daaa.29.2). Grille sizes the drawer from this token. */
 :root {
   --ui-size-drawer-width: clamp(280px, 40vw, 350px);
+}
+
+/* Canvas corners (Aurora-s1t7.3), as in the Grille mock: Add node top-left, the
+   View menu with the minimap stacked above it bottom-left, Dashboard controls
+   bottom-right, React Flow's credit bottom-centre. */
+.editor-count {
+  color: var(--ui-color-text-muted);
+}
+
+.react-flow__panel.editor-view-island {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--aurora-space-2);
+}
+
+/* Inside the island the map is a normal flex child, not its own corner panel. */
+.react-flow__panel.editor-view-island .react-flow__minimap {
+  position: static;
+  margin: 0;
+  width: 180px;
+  height: 120px;
+  border-radius: var(--aurora-radius-control);
+  overflow: hidden;
+}
+
+.react-flow__attribution {
+  font-size: 10px;
+}
+
+/* A side drawer covers the canvas's right edge: Dashboard controls steps left of
+   it so it can still close the drawer. */
+body:has(.ui-drawer[data-side='right']) .react-flow__panel.bottom.right {
+  margin-right: calc(var(--ui-size-drawer-width) + 15px);
+}
+
+/* The Zones island (top-right of the canvas) steps left of a side drawer by the
+   same token, so it stays visible while a control is slid (Aurora-daaa.35). The
+   bottom dock leaves the top edge clear. */
+.zones-island {
+  transition: right 0.15s;
+}
+
+body:has(.ui-drawer[data-side='right']) .zones-island {
+  right: calc(var(--ui-size-drawer-width) + var(--aurora-space-5));
+}
+
+/* Bottom dock at half height: both bottom corners, the minimap (in the left
+   island) and the credit lift above it. At full height they hide. */
+body:has(.ui-drawer[data-side='bottom']) .react-flow__panel.bottom {
+  bottom: max(var(--ui-size-drawer-height-min), 50%);
+}
+
+body:has(.ui-drawer[data-side='bottom'][data-expanded]) .react-flow__panel.bottom,
+body:has(.ui-drawer[data-side='bottom'][data-expanded]) .react-flow__attribution {
+  visibility: hidden;
+}
+
+/* React Flow offsets a centred panel by its 15px margin; the credit has none. */
+.react-flow__panel.bottom.center {
+  margin: 0 0 var(--aurora-space-2);
+  transform: translateX(-50%);
 }

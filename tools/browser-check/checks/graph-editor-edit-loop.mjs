@@ -28,8 +28,8 @@ await withEditorStack(async ({ editorUrl, aurora }) => {
       [method, path, body, headers],
     )
   const active = async () => (await api('GET', '/api/config')).json.activeEffectId
-  const testNote = () => page.locator('.editor-status').innerText()
-  const countdown = () => page.locator('.editor-countdown').innerText()
+  const testNote = () => page.locator('.editor-header').getAttribute('data-preview')
+  const countdown = () => button('Stop the test').innerText()
   const button = (name) => page.getByRole('button', { name, exact: true })
   const step = (label) => console.log(`ok  ${label}`)
 
@@ -37,27 +37,27 @@ await withEditorStack(async ({ editorUrl, aurora }) => {
   await page.waitForSelector('.aurora-node')
   const original = await active()
   try {
-    await page.waitForFunction(() => document.querySelector('.editor-status')?.textContent.includes('Live'), null, { timeout: 10_000 })
+    await page.waitForFunction(() => document.querySelector('.editor-header')?.dataset.preview.includes('Live'), null, { timeout: 10_000 })
     step('built-in opens with a live preview')
 
-    // Revert.
+    // Stop.
     await button('Test on lights').click()
-    await button('Revert').waitFor()
-    assert.match(await countdown(), /Testing, \d+ s left/)
+    await button('Stop the test').waitFor()
+    assert.match(await countdown(), /Stop 0:1\d/)
     await page.waitForTimeout(2500)
-    assert.match(await countdown(), /Testing, 11\d s left/)
-    await button('Revert').click()
+    assert.match(await countdown(), /Stop 0:1[0-3]/)
+    await button('Stop the test').click()
     await page.waitForFunction(() => document.querySelector('.editor-toast')?.textContent.startsWith('Reverted'))
     assert.equal((await api('GET', '/api/graph/test')).json.active, false)
-    step('test counts down; Revert puts the lights back')
+    step('test counts down on Stop; Stop puts the lights back')
 
     // Another session takes the lights.
     await button('Test on lights').click()
-    await button('Revert').waitFor()
+    await button('Stop the test').waitFor()
     const graph = (await api('GET', '/api/effects/builtin.video')).json.graph
     await api('PUT', '/api/graph/drafts/agent-1', { graph })
     assert.equal((await api('POST', '/api/graph/test', { session: 'agent-1' }, { 'X-Aurora-Client': 'mcp' })).status, 200)
-    await page.waitForFunction(() => document.querySelector('.editor-status')?.textContent.includes('took the lights'), null, { timeout: 8000 })
+    await page.waitForFunction(() => document.querySelector('.editor-header')?.dataset.preview.includes('took the lights'), null, { timeout: 8000 })
     assert.match(await testNote(), /an agent took the lights/)
     assert.match(await button('Take over the lights').innerText(), /Take over/)
     await api('POST', '/api/graph/test/revert', { session: 'agent-1' })
@@ -65,20 +65,20 @@ await withEditorStack(async ({ editorUrl, aurora }) => {
 
     // Lost heartbeats: the editor says so, the server puts the lights back.
     await button('Take over the lights').or(button('Test on lights')).click()
-    await button('Revert').waitFor()
+    await button('Stop the test').waitFor()
     await page.route('**/api/graph/test/heartbeat', (route) => route.abort())
-    await page.waitForFunction(() => document.querySelector('.editor-status')?.textContent.includes('Lost contact'), null, { timeout: 15_000 })
+    await page.waitForFunction(() => document.querySelector('.editor-header')?.dataset.preview.includes('Lost contact'), null, { timeout: 15_000 })
     await page.unroute('**/api/graph/test/heartbeat')
     await page.waitForTimeout(7000)
     assert.equal((await api('GET', '/api/graph/test')).json.active, false)
     step('lost heartbeats are reported and the server reverts by itself')
 
-    // A test shows Revert only: Keep is gone, the title menu commits.
+    // A test shows Stop only: Keep is gone, the title menu commits.
     await button('Test on lights').click()
-    await button('Revert').waitFor()
+    await button('Stop the test').waitFor()
     assert.equal(await button('Keep').count(), 0)
-    await button('Revert').click()
-    step('a test offers Revert only')
+    await button('Stop the test').click()
+    step('a test offers Stop only')
 
     // Save as a new custom effect; the live effect stays.
     await pickAction(page, 'Save')
@@ -98,7 +98,7 @@ await withEditorStack(async ({ editorUrl, aurora }) => {
 
     // Save and apply during a test ends it (apply alone leaves it running).
     await button('Test on lights').click()
-    await button('Revert').waitFor()
+    await button('Stop the test').waitFor()
     await fileAction(page, 'Save and apply')
     await page.waitForFunction(() => document.querySelector('.editor-toast')?.textContent.startsWith('Saved and live'))
     assert.equal((await api('GET', '/api/graph/test')).json.active, false)
@@ -108,7 +108,7 @@ await withEditorStack(async ({ editorUrl, aurora }) => {
     // Edited since the test began: the edited graph is what ends up live.
     await api('PUT', '/api/config', { activeEffectId: original })
     await button('Test on lights').click()
-    await button('Revert').waitFor()
+    await button('Stop the test').waitFor()
     await setName(page, 'Browser check edited')
     // The earlier toast must be gone, or the wait below passes on it.
     await page.locator('.editor-toast[data-shown="false"]').waitFor({ state: 'attached' })
@@ -152,12 +152,12 @@ await withEditorStack(async ({ editorUrl, aurora }) => {
     step('Dashboard Tuning shows the control with its label and tooltip')
 
     if (process.env.SLOW) {
-      // Heartbeats keep a test alive until the server's cap, then it reverts.
+      // A Once test ends by itself after 15 s: the lights come back and a toast says so.
       await button('Test on lights').click()
-      await button('Revert').waitFor()
-      await page.waitForFunction(() => document.querySelector('.editor-status')?.textContent.includes('time limit'), null, { timeout: 140_000 })
+      await button('Stop the test').waitFor()
+      await page.waitForFunction(() => document.querySelector('.editor-toast')?.textContent.includes('lights are back'), null, { timeout: 30_000 })
       assert.equal((await api('GET', '/api/graph/test')).json.active, false)
-      step('the 120 s cap ends the test and the lights come back')
+      step('a Once test ends after 15 s and the lights come back')
     }
   } finally {
     await api('PUT', '/api/config', { activeEffectId: original }).catch(() => {})

@@ -388,3 +388,15 @@ Planning docs stay clean: decisions, status, and pointers here only.
 | 2026-11-11 | Grille mock: minimap above the zoom menu (View menu opens above it), gradient stop rows with Zest minus. [[daaa36-mock-minimap]] | `bd show Aurora-daaa.36` |
 | 2026-11-11 | Graph editor stages 5 and 6 planned: epics filed (Grille icons, stage 5, stage 6), problems UI to explore in the error shell. [[s1t7-stage5-6-planning]] | `bd show Aurora-s1t7`, `bd show Aurora-u68h` |
 | 2026-11-10 | Graph editor stage 5: Grille mock switches decided (boxed, secondary, Test split button + Zones island, no resize); light test modes epic filed. [[s1t76-mock-switches-decided]] | `bd show Aurora-s1t7.6`, `bd show Aurora-s1t7.7` |
+| 2026-11-11 | Graph editor: problems chip moves before Undo in the right group; compact `⚠ N` below 650 px; narrow check asserts it at six widths. [[s1t72-problems-chip-regroup]] | `bd show Aurora-s1t7.2` |
+| 2026-11-11 | Graph editor: Grille dev.9 installed (icons), mock grille/ refreshed, browser checks pass. [[s1t710-grille-dev9]] | `bd show Aurora-s1t7.10`, `Grille-ky2` |
+| 2026-11-11 | Graph editor: top bar on Grille ui-buttons (32 px, dividers); forms.css import kept for banners, drawers and params. [[s1t71-bar-grille-buttons]] | `bd show Aurora-s1t7.1` |
+| 2026-11-11 | Graph editor canvas corners match the Grille mock (Add node top-left, minimap above zoom, drawer and dock rules). [[s1t73-canvas-corners]] | `bd show Aurora-s1t7.3` |
+| 2026-11-11 | Graph editor zone preview clears a side drawer. [[daaa35-zone-preview-drawer]] | `bd show Aurora-daaa.35` |
+| 2026-11-11 | Graph editor Zones island: plain DOM cells, collapsible header, no resize. [[s1t74-zones-island]] | `bd show Aurora-s1t7.4` |
+| 2026-11-11 | Graph editor icons are Grille's; Undo and Redo icon buttons at every width, More menu and Dashboard mark removed. [[s1t75-grille-icons]] | `bd show Aurora-s1t7.5` |
+| 2026-11-11 | Graph editor stage 5 close-out: plan doc status line, epic closed. [[s1t78-stage5-close-out]] | `bd show Aurora-s1t7.8`, `bd show Aurora-s1t7` |
+| 2026-11-11 | Light test modes: Once (15 s) and Live (untimed) in core, mode in the test API. [[qjqy1-light-test-modes]] | `bd show Aurora-qjqy.1` |
+| 2026-11-11 | MCP try_on_lights: Once (15 s) default, optional mode, keep after a timed-out test. [[qjqy2-mcp-light-test-modes]] | `bd show Aurora-qjqy.2` |
+| 2026-11-11 | Graph editor: Test split button replaces the status pill, Test on lights, countdown and Revert; status rule rewritten. [[qjqy3-test-split-button]] | `bd show Aurora-qjqy.3` |
+| 2026-11-11 | Light test modes close-out: control-count ceiling for the split button caret, plan status line, epic closed. [[qjqy-light-test-modes-close-out]] | `bd show Aurora-qjqy` |

@@ -1165,7 +1165,7 @@ TEST_CASE("GET /api/state reports paused and the running pipeline's capabilities
     {"usesAudioInput", false},
     {"samplesZones", false},
     {"brightness", 1.0},
-    {"test", {{"active", false}, {"confirmRemainingMs", 0}, {"holder", nullptr}}},
+    {"test", {{"active", false}, {"mode", nullptr}, {"confirmRemainingMs", 0}, {"holder", nullptr}}},
     {"audioDevicesUrl", "/api/test/audio-devices"}
   });
 
@@ -4668,9 +4668,9 @@ TEST_CASE("Test on lights reverts at the confirm window and after missed heartbe
   const nlohmann::json draft = Graph::builtInVideoGraph({"out-a"});
   h.putDraft("editor", draft);
 
-  // Heartbeats keep the test alive past 15 s but the cap still ends it.
+  // Once: heartbeats do not extend it, it ends at 15 s.
   REQUIRE(h.start("editor") == 200);
-  for(int i = 0; i < 59; ++i){
+  for(int i = 0; i < 7; ++i){
     h.advance(2000);
     CHECK(h.beat("editor") == 200);
   }
@@ -4679,6 +4679,19 @@ TEST_CASE("Test on lights reverts at the confirm window and after missed heartbe
   CHECK(h.test->info().lastEnd == "confirm_timeout");
   CHECK(*h.host->graphJson() == h.live);
   CHECK(h.beat("editor") == 404);
+
+  // Live: no cap, it outlives the old 120 s with heartbeats (Aurora-qjqy.1).
+  REQUIRE(h.post("/api/graph/test", {{"session", "editor"}, {"mode", "live"}}) == 200);
+  for(int i = 0; i < 75; ++i){
+    h.advance(2000);
+    CHECK(h.beat("editor") == 200);
+  }
+  CHECK(h.test->info().active);
+  CHECK(*h.host->graphJson() == draft);
+  // ... and still ends when the heartbeats stop.
+  h.advance(6000);
+  CHECK(h.test->info().lastEnd == "heartbeat_lost");
+  CHECK(*h.host->graphJson() == h.live);
 
   // A client that stops heartbeating loses the lights after the lapse.
   REQUIRE(h.start("editor") == 200);
@@ -4764,6 +4777,51 @@ TEST_CASE("Confirm after a test persists like apply and ends the test without re
 }
 
 
+TEST_CASE("Confirm still lands after a Once test timed out, until something else happens (Aurora-qjqy.2)", "[LightTest]")
+{
+  LightTestHarness h("lt-confirm-late");
+  const nlohmann::json draft = Graph::builtInVideoGraph({"out-a"});
+  h.putDraft("editor", draft);
+
+  // Timed out, draft unchanged: confirm saves and applies it.
+  REQUIRE(h.start("editor") == 200);
+  h.advance(16000);
+  CHECK(h.test->info().lastEnd == "confirm_timeout");
+  CHECK(*h.host->graphJson() == h.live);
+  CHECK(h.post("/api/graph/test/confirm", {{"session", "other"}, {"id", "late"}}) == 404);
+  CHECK(h.post("/api/graph/test/confirm", {{"session", "editor"}, {"id", "late"}}) == 200);
+  CHECK(h.test->info().lastEnd == "confirmed");
+  CHECK(EffectStore(h.dir.path).exists("late"));
+  CHECK(h.host->summary().effect == "late");
+  // Once only: a second confirm has nothing to land.
+  CHECK(h.post("/api/graph/test/confirm", {{"session", "editor"}, {"id", "again"}}) == 404);
+
+  // A draft edited after the timeout is refused.
+  REQUIRE(h.start("editor") == 200);
+  h.advance(16000);
+  h.putDraft("editor", Graph::builtInVideoGraph({"out-b"}));
+  CHECK(h.post("/api/graph/test/confirm", {{"session", "editor"}, {"id", "edited"}}) == 409);
+  CHECK_FALSE(EffectStore(h.dir.path).exists("edited"));
+  h.putDraft("editor", draft);
+
+  // Another session's test takes over: the chance is gone.
+  h.putDraft("rival", draft);
+  REQUIRE(h.start("rival") == 200);
+  CHECK(h.post("/api/graph/test/confirm", {{"session", "editor"}, {"id", "stolen"}}) == 404);
+  CHECK_FALSE(EffectStore(h.dir.path).exists("stolen"));
+
+  // So is an explicit revert, and a lost heartbeat never offers one.
+  h.advance(16000);
+  CHECK(h.beat("rival") == 404);
+  CHECK(h.post("/api/graph/test/revert", {{"session", "rival"}}) == 404);
+  CHECK(h.post("/api/graph/test/confirm", {{"session", "rival"}, {"id", "reverted"}}) == 404);
+  REQUIRE(h.post("/api/graph/test", {{"session", "editor"}, {"mode", "live"}}) == 200);
+  h.advance(7000);
+  CHECK(h.test->info().lastEnd == "heartbeat_lost");
+  CHECK(h.post("/api/graph/test/confirm", {{"session", "editor"}, {"id", "lost"}}) == 404);
+}
+
+
 TEST_CASE("A revert restores a live custom effect from disk, not the pre-test graph (Aurora-52oz.5)", "[LightTest]")
 {
   LightTestHarness h("lt-custom-live");
@@ -4818,15 +4876,39 @@ TEST_CASE("GET /api/graph/test reports the running test (Aurora-52oz.5)", "[Ligh
   h.putDraft("editor", Graph::builtInVideoGraph({"out-a"}));
   auto started = h.client->Post("/api/graph/test", nlohmann::json{{"session", "editor"}}.dump(), "application/json");
   auto startBody = nlohmann::json::parse(started->body);
-  CHECK(startBody["confirmWithinMs"] == 120000);
+  CHECK(startBody["mode"] == "once");
+  CHECK(startBody["confirmWithinMs"] == 15000);
   CHECK(startBody["heartbeatMs"] == 2000);
   CHECK(startBody["revertAfterMs"] == 6000);
 
   h.advance(3000);
   auto running = nlohmann::json::parse(h.client->Get("/api/graph/test")->body);
   CHECK(running["active"] == true);
-  CHECK(running["confirmRemainingMs"] == 117000);
+  CHECK(running["mode"] == "once");
+  CHECK(running["confirmRemainingMs"] == 12000);
   CHECK(running["revertAfterMs"] == 3000);
+
+  // Live reports its mode and no remaining time anywhere (Aurora-qjqy.1).
+  auto live = nlohmann::json::parse(h.client->Post("/api/graph/test",
+    nlohmann::json{{"session", "editor"}, {"mode", "live"}}.dump(), "application/json")->body);
+  CHECK(live["mode"] == "live");
+  CHECK(live["confirmWithinMs"].is_null());
+  h.advance(3000);
+  auto liveStatus = nlohmann::json::parse(h.client->Get("/api/graph/test")->body);
+  CHECK(liveStatus["mode"] == "live");
+  CHECK(liveStatus["confirmRemainingMs"].is_null());
+  auto liveBeat = nlohmann::json::parse(h.client->Post("/api/graph/test/heartbeat",
+    nlohmann::json{{"session", "editor"}}.dump(), "application/json")->body);
+  CHECK(liveBeat["confirmRemainingMs"].is_null());
+  auto liveState = nlohmann::json::parse(h.client->Get("/api/state")->body);
+  CHECK(liveState["test"]["mode"] == "live");
+  CHECK(liveState["test"]["confirmRemainingMs"].is_null());
+
+  // The v1 route takes it too, and an unknown mode is refused.
+  CHECK(h.post("/api/v1/graph/test", {{"session", "editor"}, {"mode", "forever"}}) == 400);
+  auto v1 = nlohmann::json::parse(h.client->Post("/api/v1/graph/test",
+    nlohmann::json{{"session", "editor"}, {"mode", "live"}}.dump(), "application/json")->body);
+  CHECK(v1["mode"] == "live");
 }
 
 
@@ -4834,7 +4916,7 @@ TEST_CASE("GET /api/state reports the test and /stop ends another session's test
 {
   LightTestHarness h("lt-stop");
   auto state = [&]{ return nlohmann::json::parse(h.client->Get("/api/state")->body); };
-  CHECK(state()["test"] == nlohmann::json{{"active", false}, {"confirmRemainingMs", 0}, {"holder", nullptr}});
+  CHECK(state()["test"] == nlohmann::json{{"active", false}, {"mode", nullptr}, {"confirmRemainingMs", 0}, {"holder", nullptr}});
   CHECK(h.post("/api/graph/test/stop", nlohmann::json::object()) == 404);
 
   h.putDraft("mcp-1", Graph::builtInVideoGraph({"out-a"}));
@@ -4843,7 +4925,8 @@ TEST_CASE("GET /api/state reports the test and /stop ends another session's test
   const nlohmann::json running = state();
   CHECK(running["test"] == nlohmann::json{
     {"active", true},
-    {"confirmRemainingMs", 117000},
+    {"mode", "once"},
+    {"confirmRemainingMs", 12000},
     {"holder", {{"session", "mcp-1"}, {"client", nullptr}}}
   });
   CHECK(running["effect"] == "builtin.video");

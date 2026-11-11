@@ -1,6 +1,6 @@
 // Narrow windows (Aurora-daaa.27.4): no horizontal page scroll and every bar control inside the
 // viewport, with each drawer open, at 1100, 900, 700, 520 and 400 px (Aurora-daaa.29.1). Undo and
-// Redo must stay reachable by keyboard at every width (buttons, or the More menu below 520 px).
+// Redo must stay reachable by keyboard at every width (icon buttons at every width, Aurora-s1t7.5).
 // SHOTS=<dir> saves screenshots.
 import assert from 'node:assert/strict'
 import { launch } from '../lib/browser.mjs'
@@ -11,8 +11,8 @@ const SHOTS = process.env.SHOTS
 const check = (width, what, p) => {
   assert.ok(p.scroll <= 0 && p.out.length === 0, `${width} px, ${what}: ${JSON.stringify(p)}`)
 }
-// Tab from the Dashboard link until focus is on Undo (enabled: the check dragged a node first), or on
-// More (then open it and find both items).
+// Tab from the Dashboard link until focus is on Undo (enabled: the check dragged a node first); Redo is
+// an icon button beside it at every width.
 async function keyboardReachesUndoRedo(page, width) {
   await page.locator('.editor-back').focus()
   const seen = []
@@ -20,15 +20,9 @@ async function keyboardReachesUndoRedo(page, width) {
     await page.keyboard.press('Tab')
     const name = await page.evaluate(() => document.activeElement?.getAttribute('aria-label') || document.activeElement?.textContent?.trim() || '')
     seen.push(name)
-    if (name === 'More') {
-      await page.keyboard.press('Enter')
-      await page.getByRole('menuitem', { name: 'Undo' }).waitFor({ timeout: 3000 })
-      await page.getByRole('menuitem', { name: 'Redo' }).waitFor({ timeout: 3000 })
-      await page.keyboard.press('Escape')
-      return
-    }
     if (name === 'Undo') {
       assert.equal(await page.getByRole('button', { name: 'Redo' }).count(), 1, `${width} px: no Redo button`)
+      assert.equal(await page.locator('.editor-header [aria-label="Undo"] svg').count(), 1, `${width} px: Undo is not an icon button`)
       return
     }
   }
@@ -37,7 +31,7 @@ async function keyboardReachesUndoRedo(page, width) {
 
 await withEditorStack(async ({ editorUrl }) => {
   const browser = await launch()
-  const page = await browser.newPage({ viewport: { width: 1470, height: 900 } })
+  let page = await browser.newPage({ viewport: { width: 1470, height: 900 } })
   page.on('pageerror', (e) => assert.fail(`page error: ${e.message}`))
   try {
     await page.goto(`${editorUrl}?effect=builtin.video`)
@@ -101,7 +95,7 @@ await withEditorStack(async ({ editorUrl }) => {
       }
     }
     // Aurora-daaa.29.4: bottom dock below 650 px wide or portrait (aspect < 0.75), else the side.
-    for (const [w, h, side] of [[400, 800, 'bottom'], [700, 900, 'right'], [1470, 700, 'right']]) {
+    for (const [w, h, side] of [[400, 800, 'bottom'], [700, 900, 'right'], [1000, 600, 'right'], [1470, 700, 'right']]) {
       await page.setViewportSize({ width: w, height: h })
       await page.waitForTimeout(400)
       await openDetails(page, page.locator('.aurora-node', { hasText: 'Rescale' }).first())
@@ -116,6 +110,15 @@ await withEditorStack(async ({ editorUrl }) => {
       console.log(`${w}x${h} dock:`, JSON.stringify(g))
       assert.equal(g.side, side, `${w}x${h}: drawer side ${g.side}`)
       assert.ok(g.scroll[0] <= 0 && g.scroll[1] <= 0, `${w}x${h}: page scrolls ${g.scroll}`)
+      // Aurora-daaa.35: the zone preview stays visible, left of a side drawer.
+      const thumb = await page.evaluate(() => {
+        const t = document.querySelector('.zones-island')?.getBoundingClientRect()
+        const d = document.querySelector('.ui-drawer').getBoundingClientRect()
+        return t ? { right: t.right, left: t.left, top: t.top, bottom: t.bottom, drawerLeft: d.left, drawerTop: d.top } : null
+      })
+      assert.ok(thumb, `${w}x${h}: no zone preview`)
+      if (side === 'right') assert.ok(thumb.right <= thumb.drawerLeft + 1 && thumb.left >= 0, `${w}x${h}: zone preview under the drawer: ${JSON.stringify(thumb)}`)
+      else assert.ok(thumb.bottom <= thumb.drawerTop + 1, `${w}x${h}: zone preview under the dock: ${JSON.stringify(thumb)}`)
       if (side === 'bottom') {
         assert.ok(!g.expanded && Math.abs(g.h - h / 2) < h * 0.15, `${w}x${h}: not half height: ${JSON.stringify(g)}`)
         assert.ok(g.nodeBottom <= g.top + 1, `${w}x${h}: Rescale bottom ${g.nodeBottom} under sheet at ${g.top}`)
@@ -135,6 +138,47 @@ await withEditorStack(async ({ editorUrl }) => {
       await page.keyboard.press('Escape')
       await page.waitForTimeout(300)
       assert.equal(await page.locator('.ui-drawer').count(), 0, `${w}x${h}: Esc left the drawer open`)
+    }
+    // Aurora-s1t7.2: with a problem showing, the chip sits in the right group just before Undo, and the bar still never wraps or overflows at every width.
+    const fresh = await browser.newContext({ viewport: { width: 1470, height: 900 } })
+    await page.close()
+    page = await fresh.newPage()
+    page.on('pageerror', (e) => assert.fail(`page error: ${e.message}`))
+    await page.goto(`${editorUrl}?effect=builtin.video`)
+    await page.waitForSelector('.aurora-node')
+    await page.waitForTimeout(1500)
+    const barHeight = await page.evaluate(() => document.querySelector('.editor-header').getBoundingClientRect().height)
+    const mid = await page.locator('.react-flow__edge[data-id*="ease_hue.frame"][data-id*="gain_hue.frame"] path.react-flow__edge-path').first().evaluate((p) => {
+      const m = p.getPointAtLength(p.getTotalLength() / 2)
+      const pt = new DOMPoint(m.x, m.y).matrixTransform(p.getScreenCTM())
+      return { x: pt.x, y: pt.y }
+    })
+    await page.mouse.click(mid.x, mid.y)
+    await page.keyboard.press('Backspace')
+    await page.locator('.editor-problems-chip', { hasText: /\d+ problems?/ }).waitFor()
+    for (const width of [1470, 1100, 900, 700, 520, 400]) {
+      await page.setViewportSize({ width, height: 800 })
+      await page.waitForTimeout(400)
+      const g = await page.evaluate(() => {
+        const bar = document.querySelector('.editor-header').getBoundingClientRect()
+        const chip = document.querySelector('.editor-problems-chip').getBoundingClientRect()
+        const next = document.querySelector('.editor-header [aria-label="Undo"]')?.getBoundingClientRect()
+        const split = document.querySelector('.editor-split')?.getBoundingClientRect()
+        return { barH: bar.height, chipLeft: chip.left, chipRight: chip.right, chipTop: chip.top, nextLeft: next?.left, nextTop: next?.top, splitLeft: split?.left, splitRight: split?.right, vw: innerWidth }
+      })
+      console.log(width, 'problems chip:', JSON.stringify(g))
+      assert.ok(g.nextLeft !== undefined, `${width} px: no Undo button`)
+      assert.ok(Math.abs(g.barH - barHeight) < 1, `${width} px: bar wrapped (${g.barH} px, was ${barHeight})`)
+      assert.ok(g.chipLeft >= -1 && g.chipRight <= g.vw + 1, `${width} px: chip outside the window: ${JSON.stringify(g)}`)
+      assert.ok(g.chipRight <= g.nextLeft + 1 && Math.abs(g.chipTop - g.nextTop) < 20, `${width} px: chip is not just before Undo: ${JSON.stringify(g)}`)
+      assert.ok(g.splitLeft >= g.nextLeft && g.splitRight <= g.vw + 1, `${width} px: Test split button is not after Undo and inside the window: ${JSON.stringify(g)}`)
+      const test = await page.locator('.editor-split-main').innerText()
+      assert.equal(test, 'Test', `${width} px: the split button reads ${test}, not Test`)
+      assert.equal(await page.locator('.editor-split-main').isDisabled(), true, `${width} px: Test is not disabled with problems`)
+      assert.match(await page.locator('.editor-split-main').getAttribute('title'), /Fix the problems/)
+      const o = await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)
+      assert.ok(o <= 0, `${width} px: page scrolls sideways by ${o}`)
+      if (SHOTS) await page.screenshot({ path: `${SHOTS}/${width}-problems.png` })
     }
   } finally {
     await browser.close()

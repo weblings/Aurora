@@ -68,12 +68,12 @@ export const waitToast = (page, text, timeout = 5000) =>
   page.waitForFunction((t) => document.querySelector('.editor-toast')?.textContent.includes(t), text, { timeout })
 
 // The Dashboard controls button on the canvas, and the count it shows.
-export const controlsButton = (page) => page.getByRole('button', { name: /^Dashboard controls \(\d+\)$/ })
+export const controlsButton = (page) => page.getByRole('button', { name: /^Dashboard controls \d+$/ })
 export async function controlCount(page) {
-  return Number(/\((\d+)\)/.exec(await controlsButton(page).innerText())[1])
+  return Number(/(\d+)$/.exec(await controlsButton(page).innerText())[1])
 }
 export const waitControlCount = (page, n) =>
-  controlsButton(page).filter({ hasText: `(${n})` }).waitFor()
+  controlsButton(page).filter({ hasText: new RegExp(`${n}$`) }).waitFor()
 
 // The Details drawer's "Show on the Dashboard" ticks, for the node it follows.
 export const detailsChecks = (page) => page.locator('.drawer-details input[type="checkbox"]')

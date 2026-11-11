@@ -30,22 +30,22 @@ await withEditorStack(async ({ editorUrl, restart }) => {
       [method, path, body, headers],
     )
   const button = (name) => page.getByRole('button', { name, exact: true })
-  const status = () => page.locator('.editor-status').innerText()
+  const status = () => page.locator('.editor-header').getAttribute('data-preview')
   const waitStatus = (re, timeout = 10_000) =>
-    page.waitForFunction((src) => new RegExp(src).test(document.querySelector('.editor-status')?.textContent ?? ''), re.source, { timeout })
+    page.waitForFunction((src) => new RegExp(src).test(document.querySelector('.editor-header')?.dataset.preview ?? ''), re.source, { timeout })
   const step = (label) => console.log(`ok  ${label}`)
   const nodeBox = async (id) => {
     const box = await page.locator(`.react-flow__node[data-id="${id}"]`).boundingBox()
     assert.ok(box, `node ${id} not on screen`)
     return box
   }
-  const thumb = () => page.locator('.zone-thumbnail').evaluate((c) => c.toDataURL())
-  // Summed red+green+blue of the zone thumbnail, 0 when it is blank.
+  // The Zones island's cell colours, one string; blank when no zone has a colour yet.
+  const thumb = () => page.locator('.zones-cell').evaluateAll((cs) => cs.map((c) => c.style.backgroundColor).join('|'))
+  // Summed red+green+blue over the Zones island's cells, 0 when it is blank.
   const brightness = () =>
-    page.locator('.zone-thumbnail').evaluate((c) => {
-      const d = c.getContext('2d').getImageData(0, 0, c.width, c.height).data
+    page.locator('.zones-cell').evaluateAll((cs) => {
       let sum = 0
-      for (let i = 0; i < d.length; i += 4) sum += (d[i] + d[i + 1] + d[i + 2]) * (d[i + 3] / 255)
+      for (const c of cs) for (const n of c.style.backgroundColor.match(/\d+/g) ?? []) sum += Number(n)
       return sum
     })
   const until = async (test, what, ms = 10_000) => {
@@ -122,8 +122,8 @@ await withEditorStack(async ({ editorUrl, restart }) => {
     await waitStatus(/Live/)
     assert.equal(await page.locator('.problem-badge').count(), 0)
     await page.waitForFunction((was) => {
-      const c = document.querySelector('.zone-thumbnail')
-      return c && !c.classList.contains('zone-thumbnail-stale') && c.toDataURL() !== was
+      const c = document.querySelector('.zones-island')
+      return c && !c.classList.contains('zones-island-stale') && [...c.querySelectorAll('.zones-cell')].map((x) => x.style.backgroundColor).join('|') !== was
     }, held, { timeout: 10_000 })
     step('rewiring clears the badge and the thumbnail shows a new frame')
 
@@ -140,11 +140,11 @@ await withEditorStack(async ({ editorUrl, restart }) => {
 
     // Test on lights, then another session takes them.
     await button('Test on lights').click()
-    await button('Revert').waitFor()
+    await button('Stop the test').waitFor()
     const graph = (await api('GET', '/api/effects/builtin.video')).json.graph
     await api('PUT', '/api/graph/drafts/agent-1', { graph })
     assert.equal((await api('POST', '/api/graph/test', { session: 'agent-1' }, { 'X-Aurora-Client': 'mcp' })).status, 200)
-    await page.waitForFunction(() => document.querySelector('.editor-status')?.textContent.includes('took the lights'), null, { timeout: 8000 })
+    await page.waitForFunction(() => document.querySelector('.editor-header')?.dataset.preview.includes('took the lights'), null, { timeout: 8000 })
     await api('POST', '/api/graph/test/revert', { session: 'agent-1' })
     step('test on lights, then a second session takes it and the editor says so')
 
@@ -228,7 +228,7 @@ await withEditorStack(async ({ editorUrl, restart }) => {
     await page.evaluate((s) => {
       window.__thief = new EventSource(`/api/graph/preview?session=${encodeURIComponent(s)}`)
     }, mine)
-    await waitStatus(/taken over/)
+    await button('Reconnect').waitFor()
     await page.evaluate(() => window.__thief.close())
     await button('Reconnect').click()
     await waitStatus(/Live/)
@@ -257,7 +257,10 @@ await withEditorStack(async ({ editorUrl, restart }) => {
     await page.goto(`${editorUrl}?effect=gate-copy`)
     await page.waitForSelector('.aurora-node')
     await waitStatus(/Draft not sent/)
-    assert.match(await page.locator('.editor-status').getAttribute('title'), /too_many_drafts/)
+    // One banner at a time, in rank order: an earlier visit's Restore/Discard comes first.
+    const discard = page.getByRole('button', { name: 'Discard', exact: true })
+    if (await discard.count()) await discard.click()
+    assert.match(await page.getByRole('alert').filter({ hasText: 'Draft not sent' }).innerText(), /too_many_drafts/)
     step('a full draft store shows draft not sent (too_many_drafts)')
     for (const id of [...filled, mine]) await api('DELETE', `/api/graph/drafts/${id}`).catch(() => {})
     await page.reload()

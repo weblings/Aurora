@@ -17,6 +17,8 @@
     padding: var(--ui-size-space-md) var(--ui-size-button-pad-x); border: none; border-radius: var(--ui-size-radius-sm);
     background: var(--ui-color-control-bg); color: var(--ui-color-text-default);
     font-size: var(--ui-size-font-sm); font-family: inherit; cursor: pointer;
+    /* Flex so an Icon (display: block) sits beside the label instead of under it. */
+    display: inline-flex; align-items: center; justify-content: center; gap: var(--ui-size-space-md);
   }
   .ui-button[data-hovered] { background: var(--ui-color-control-bg-hover); }
   .ui-button[data-pressed] { background: var(--ui-color-control-bg-active); }
@@ -29,10 +31,30 @@
   .ui-button[data-variant="primary"][data-hovered] { background: var(--ui-color-primary-bg-hover); }
   .ui-button[data-variant="primary"][data-pressed] { background: var(--ui-color-primary-bg-active); }
   .ui-button[data-size="sm"] { padding: var(--ui-size-space-sm) var(--ui-size-space-lg); font-size: var(--ui-size-font-xs); }
-  .ui-button[data-icon] { padding: var(--ui-size-space-md); line-height: 1; display: inline-flex; align-items: center; justify-content: center; }
+  .ui-button[data-icon] { padding: var(--ui-size-space-md); line-height: 1; }
   .ui-button[data-icon][data-size="sm"] { padding: var(--ui-size-space-sm); }
   .ui-button[data-variant="primary"][data-icon] { padding: var(--ui-size-space-lg); }
   .ui-button[data-disabled] { background: var(--ui-color-control-bg); color: var(--ui-color-text-disabled); cursor: not-allowed; }
+
+  /* The glyph is drawn larger than its layout box: the margin pulls the overhang back in, so Vidstack's 32 grid
+     and Zest's 24 grid (both padded) read at the same weight as text. Layout size is --ui-size-icon; glyph is that plus 2x overhang. */
+  .ui-icon {
+    --ui-icon-box: var(--ui-size-icon);
+    flex: none; display: block; color: inherit;
+    width: calc(var(--ui-icon-box) + 2 * var(--ui-size-icon-overhang)); height: calc(var(--ui-icon-box) + 2 * var(--ui-size-icon-overhang));
+    margin: calc(-1 * var(--ui-size-icon-overhang));
+  }
+  .ui-icon[data-size="sm"] { --ui-icon-box: var(--ui-size-icon-sm); }
+  /* Artwork drawn edge to edge has no padding to overhang, so it takes the layout box exactly. */
+  .ui-icon[data-tight] { width: var(--ui-icon-box); height: var(--ui-icon-box); margin: 0; }
+  /* Inline with text the overhang makes an icon taller than the line, so icons there take the layout box too, sitting on the
+     first line's baseline with their centre at the middle of the capitals (about 0.36em above the baseline). */
+  .ui-callout-title > .ui-icon, .ui-status-message > .ui-icon {
+    width: var(--ui-icon-box); height: var(--ui-icon-box);
+    margin: 0;
+    /* Flex puts the icon's bottom edge on the baseline; move it down so its centre is 0.36em up. */
+    translate: 0 calc(var(--ui-icon-box) / 2 - 0.36em);
+  }
 
   .ui-field-list { display: grid; grid-template-columns: max-content 1fr; }
   .ui-field {
@@ -156,6 +178,10 @@
     content: ''; position: absolute; top: 8px; left: 0; right: 0; height: 4px;
     border-radius: 2px; background: var(--ui-color-control-bg-active);
   }
+  .ui-slider-fill {
+    position: absolute; top: 8px; left: 0; height: 4px;
+    border-radius: 2px; background: var(--ui-color-control-accent);
+  }
   .ui-slider-thumb {
     top: 10px; width: 16px; height: 16px; border-radius: 50%; cursor: pointer;
     background: var(--ui-color-control-accent);
@@ -167,23 +193,24 @@
   .ui-disclosure-trigger {
     padding: 0; border: none; background: none; cursor: pointer; font-family: inherit;
     font-size: var(--ui-size-font-sm); color: var(--ui-color-text-muted);
+    display: inline-flex; align-items: center; gap: var(--ui-size-space-md);
   }
-  .ui-disclosure-trigger::before { content: '\25B8'; display: inline-block; width: 1.2em; }
-  .ui-disclosure-trigger[aria-expanded="true"]::before { content: '\25BE'; }
+  .ui-disclosure-trigger .ui-icon { transition: rotate 0.1s; }
+  .ui-disclosure-trigger[aria-expanded="true"] .ui-icon { rotate: 90deg; }
 
   .ui-callout {
     background: var(--ui-color-surface-raised); border: 1px solid var(--ui-color-border-default);
     border-radius: var(--ui-size-radius-md); padding: var(--ui-size-callout-pad-y) var(--ui-size-callout-pad-x);
     margin: var(--ui-size-space-xl) 0; font-size: var(--ui-size-font-sm);
   }
-  .ui-callout-title { display: block; margin-bottom: var(--ui-size-space-sm); }
+  .ui-callout-title { display: flex; align-items: baseline; gap: var(--ui-size-space-md); margin-bottom: var(--ui-size-space-sm); }
   .ui-callout[data-tone="warning"] .ui-callout-title { color: var(--ui-color-text-warning); }
   .ui-callout-body { color: var(--ui-color-text-secondary); }
   .ui-callout-body ul { padding-left: 20px; }
   .ui-callout-body li { margin-bottom: var(--ui-size-space-xs); }
   .ui-callout-body li strong { color: var(--ui-color-text-emphasis); }
 
-  .ui-status-message { margin-top: var(--ui-size-space-xs); }
+  .ui-status-message { margin-top: var(--ui-size-space-xs); display: flex; align-items: baseline; gap: var(--ui-size-space-md); }
   .ui-status-message[data-tone="warning"] { color: var(--ui-color-text-warning); }
   .ui-status-message[data-tone="error"] { color: var(--ui-color-text-error); }
 

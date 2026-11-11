@@ -116,6 +116,7 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `daaa33-mock-icons` | [log/2026-11-11-daaa33-mock-icons.md](log/2026-11-11-daaa33-mock-icons.md) | Grille mock: one icon set, fixed-height bar, drawer icon buttons |
 | `daaa33-notices-audit` | [log/2026-11-10-daaa33-notices-audit.md](log/2026-11-10-daaa33-notices-audit.md) | Icon audit, third-party notices, and what the build ships |
 | `daaa34-mock-narrow-drawers` | [log/2026-11-11-daaa34-mock-narrow-drawers.md](log/2026-11-11-daaa34-mock-narrow-drawers.md) | Grille mock: narrow-window drawers |
+| `daaa35-zone-preview-drawer` | [log/2026-11-11-daaa35-zone-preview-drawer.md](log/2026-11-11-daaa35-zone-preview-drawer.md) | Graph editor zone preview clears a side drawer |
 | `daaa36-mock-minimap` | [log/2026-11-11-daaa36-mock-minimap.md](log/2026-11-11-daaa36-mock-minimap.md) | Grille mock: minimap above the zoom menu |
 | `daaa4-control-count-baseline` | [log/2026-11-08-daaa4-control-count-baseline.md](log/2026-11-08-daaa4-control-count-baseline.md) | Graph editor control-count baseline and CMake rebuild check |
 | `daaa5-graph-editor-owner-decisions` | [log/2026-11-08-daaa5-graph-editor-owner-decisions.md](log/2026-11-08-daaa5-graph-editor-owner-decisions.md) | Graph editor cleanup: owner decisions before stage 2 |
@@ -290,6 +291,10 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `pvxx8-dashboard-entry-shipping` | [log/2026-10-29-pvxx8-dashboard-entry-shipping.md](log/2026-10-29-pvxx8-dashboard-entry-shipping.md) | E5: Dashboard entry point and shipping the editor |
 | `pvxx9-sequence-e-gate` | [log/2026-10-29-pvxx9-sequence-e-gate.md](log/2026-10-29-pvxx9-sequence-e-gate.md) | E6: Sequence E gate on the fake-Hue stack |
 | `q9l1-tray-target-live` | [log/2026-10-07-q9l1-tray-target-live.md](log/2026-10-07-q9l1-tray-target-live.md) | Aurora-q9l1: tray click-time target — Linux live green, Windows exercised, closed |
+| `qjqy-light-test-modes-close-out` | [log/2026-11-11-qjqy-light-test-modes-close-out.md](log/2026-11-11-qjqy-light-test-modes-close-out.md) | Light test modes close-out |
+| `qjqy1-light-test-modes` | [log/2026-11-11-qjqy1-light-test-modes.md](log/2026-11-11-qjqy1-light-test-modes.md) | Light test modes: Once (15 s) and Live |
+| `qjqy2-mcp-light-test-modes` | [log/2026-11-11-qjqy2-mcp-light-test-modes.md](log/2026-11-11-qjqy2-mcp-light-test-modes.md) | MCP try_on_lights: Once by default, keep after a timeout |
+| `qjqy3-test-split-button` | [log/2026-11-11-qjqy3-test-split-button.md](log/2026-11-11-qjqy3-test-split-button.md) | Test split button in the graph editor |
 | `qqcn-link-monitor-real-bridge` | [log/2026-11-05-qqcn-link-monitor-real-bridge.md](log/2026-11-05-qqcn-link-monitor-real-bridge.md) | The link monitor was checked on a real bridge and its banner copy reworded |
 | `que2-input-free-build` | [log/2026-11-04-que2-input-free-build.md](log/2026-11-04-que2-input-free-build.md) | Source-less custom graphs build with no capture input |
 | `qv7a-thumbnail-regions` | [log/2026-10-29-qv7a-thumbnail-regions.md](log/2026-10-29-qv7a-thumbnail-regions.md) | Graph editor thumbnail: zones at their sampled regions |
@@ -309,7 +314,14 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `ra4o9-g1c-pre-g2-adjustments` | [log/2026-10-14-ra4o9-g1c-pre-g2-adjustments.md](log/2026-10-14-ra4o9-g1c-pre-g2-adjustments.md) | G1c pre-G2 runtime adjustments (Aurora-ra4o.9) |
 | `runtime-analysis` | [archive/RuntimeAnalysis.md](archive/RuntimeAnalysis.md) | Runtime / Config — Conversion analysis |
 | `s1t7-stage5-6-planning` | [log/2026-11-11-s1t7-stage5-6-planning.md](log/2026-11-11-s1t7-stage5-6-planning.md) | Graph editor stages 5 and 6: epics filed and noted in the plan |
+| `s1t71-bar-grille-buttons` | [log/2026-11-11-s1t71-bar-grille-buttons.md](log/2026-11-11-s1t71-bar-grille-buttons.md) | Graph editor: top bar on Grille buttons |
+| `s1t710-grille-dev9` | [log/2026-11-11-s1t710-grille-dev9.md](log/2026-11-11-s1t710-grille-dev9.md) | Graph editor: Grille dev.9 (icons) |
+| `s1t72-problems-chip-regroup` | [log/2026-11-11-s1t72-problems-chip-regroup.md](log/2026-11-11-s1t72-problems-chip-regroup.md) | Graph editor problems chip moves before Undo |
+| `s1t73-canvas-corners` | [log/2026-11-11-s1t73-canvas-corners.md](log/2026-11-11-s1t73-canvas-corners.md) | Graph editor canvas corners match the Grille mock |
+| `s1t74-zones-island` | [log/2026-11-11-s1t74-zones-island.md](log/2026-11-11-s1t74-zones-island.md) | Graph editor Zones island |
+| `s1t75-grille-icons` | [log/2026-11-11-s1t75-grille-icons.md](log/2026-11-11-s1t75-grille-icons.md) | Graph editor adopts Grille icons |
 | `s1t76-mock-switches-decided` | [log/2026-11-10-s1t76-mock-switches-decided.md](log/2026-11-10-s1t76-mock-switches-decided.md) | Graph editor stage 5: Grille mock switches decided |
+| `s1t78-stage5-close-out` | [log/2026-11-11-s1t78-stage5-close-out.md](log/2026-11-11-s1t78-stage5-close-out.md) | Stage 5 close-out |
 | `scig-capture-source-banner` | [log/2026-10-08-scig-capture-source-banner.md](log/2026-10-08-scig-capture-source-banner.md) | Aurora-scig: Capture Source (NUX) errors move to the shell banner (closed) |
 | `sequence-b-planning` | [log/2026-10-15-sequence-b-planning.md](log/2026-10-15-sequence-b-planning.md) | Sequence B planning: decisions recorded, epic filed |
 | `sequence-c-planning` | [log/2026-10-20-sequence-c-planning.md](log/2026-10-20-sequence-c-planning.md) | Sequence C planning: decisions recorded, epic filed |

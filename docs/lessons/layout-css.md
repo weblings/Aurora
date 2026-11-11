@@ -292,3 +292,13 @@ Applies-when: styling keyboard focus on a new control inside a page that links t
 `tokens.css` (Aurora-oecx) defines `--aurora-focus-ring-width`, `-offset` and `--aurora-focus-ring` (the light button color) and one `:focus-visible` rule, an outer ring. Before it, only `.text-input` had a ring and everything else showed the browser `auto` ring, so new controls looked unrelated beside it. RockyRoadImport's own notes record that `outline: none` on focus fails WCAG 2.4.7.
 
 **Fix:** add no per-control ring. Inset it (`outline-offset: calc(-1 * width)`) on anything inside a clipping container (list rows, group headers, menu items, `.segmented-btn`, `.dropdown-option`), and put it on the row wrapper via `:has()` when the focusable control is the row's inner element. `.dropdown-menu` keeps `outline: none` because its active option is the indicator. `.text-input` moved from the accent ring to the shared one.
+
+---
+
+## React Flow's centred panels carry a built-in translateX(-15px) tied to the 15px panel margin
+Tags: webui, css, react-flow, graph-editor
+Applies-when: placing a React Flow panel or the attribution credit at top-centre or bottom-centre
+
+`.react-flow__panel.bottom.center` is `left: 50%` with `transform: translateX(-15px) translateX(-50%)` to offset its default margin. Setting only `margin` leaves the panel 15 px left of centre (found by a position check, `Aurora-s1t7.3`).
+
+**Fix:** zero the margin and set `transform: translateX(-50%)` together.

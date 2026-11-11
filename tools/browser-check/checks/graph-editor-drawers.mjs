@@ -14,16 +14,15 @@ await withEditorStack(async ({ editorUrl }) => {
   page.on('pageerror', (e) => assert.fail(`page error: ${e.message}`))
   const step = (label) => console.log(`ok  ${label}`)
   const nodes = () => page.locator('.react-flow__node').count()
-  const marks = () => page.locator('.react-flow__node .dashboard-mark').count()
   const gain = () => page.locator('.aurora-node', { hasText: 'Gain' }).first()
   try {
     await page.goto(`${editorUrl}?effect=builtin.video`)
     await page.waitForSelector('.aurora-node')
     const count = await nodes()
     const total = await controlCount(page)
-    assert.equal(await marks(), total, 'one on-node mark per Dashboard control')
+    assert.equal(await page.locator('.react-flow__node .dashboard-mark').count(), 0, 'no on-node Dashboard mark (dropped, Aurora-s1t7.5)')
     assert.equal(await page.locator('.inspector').count(), 0, 'no Inspector in the editor')
-    step(`${total} controls, ${total} on-node marks, no Inspector`)
+    step(`${total} controls, no on-node marks, no Inspector`)
 
     // Selecting does not open Details; the node menu does.
     await gain().locator('.aurora-node-header').click()
@@ -38,15 +37,14 @@ await withEditorStack(async ({ editorUrl }) => {
     await page.waitForFunction((t) => document.querySelector('.drawer-details p')?.textContent !== t, purpose)
     step('Details follows the selection')
 
-    // Ticking adds the mark, the count and the three fields.
+    // Ticking adds the count and the three fields.
     await tickFirst(page, gain())
     await waitControlCount(page, total + 1)
-    assert.equal(await marks(), total + 1)
     const fields = detailsChecks(page).first().locator('xpath=ancestor::div[1]').locator('.drawer-field input')
     assert.equal(await fields.count(), 3, 'Label, Section, Tooltip')
     await fields.nth(0).fill('Check label')
     await fields.nth(0).press('Enter')
-    step('ticking adds a mark, a count and Label/Section/Tooltip fields')
+    step('ticking adds a count and Label/Section/Tooltip fields')
 
     // Backspace with focus in the drawer does not delete the node.
     await fields.nth(0).blur()

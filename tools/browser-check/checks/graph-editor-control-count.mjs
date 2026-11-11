@@ -14,7 +14,9 @@ import { withEditorStack } from '../lib/stack.mjs'
 // Stage 1 baseline (Aurora-daaa.4: 84 and 132), lowered by Aurora-daaa.11 (top bar, title and view menus), measured on the fake-Hue stack.
 // Aurora-daaa.24 replaced the 53-button Add node list with the + button and cascade menu (video 79 -> 26, audio 126 -> 74).
 // Aurora-daaa.27.4 removed the inspector (menus and drawers replace it); mock target 11.
-const CEILING = { 'builtin.video': 9, 'builtin.audio': 9 }
+// Aurora-s1t7.4 raised both to 10: the Zones island header is a button (the mock's hide chevron); the old thumbnail was a canvas.
+// Aurora-qjqy.3 raised video to 11, the mock's target: the Test split button's caret (Test mode) is its own button. Audio measures 10.
+const CEILING = { 'builtin.video': 11, 'builtin.audio': 10 }
 
 await withEditorStack(async ({ editorUrl }) => {
   const browser = await launch()

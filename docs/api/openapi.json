@@ -903,13 +903,13 @@
       "post": {
         "operationId": "startLightTest",
         "summary": "Show a draft on the lights",
-        "description": "Needs the Apply scope. The draft runs until it is confirmed, reverted, or the heartbeat lapses, and then the previous effect returns.",
+        "description": "Needs the Apply scope. The draft runs until it is confirmed, reverted, or the heartbeat lapses, and then the previous effect returns. A `once` test (the default) also ends 15 s after it starts. A `live` test has no time limit.",
         "requestBody": {
           "required": true,
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/SessionBody"
+                "$ref": "#/components/schemas/LightTestBody"
               }
             }
           }
@@ -926,7 +926,7 @@
             }
           },
           "400": {
-            "description": "Bad body or session (`invalid_body`, `invalid_session`).",
+            "description": "Bad body, session or mode (`invalid_body`, `invalid_session`, `invalid_mode`).",
             "content": {
               "application/json": {
                 "schema": {
@@ -2060,10 +2060,34 @@
           }
         }
       },
+      "LightTestBody": {
+        "type": "object",
+        "required": [
+          "session"
+        ],
+        "properties": {
+          "session": {
+            "type": "string"
+          },
+          "mode": {
+            "$ref": "#/components/schemas/LightTestMode"
+          }
+        }
+      },
+      "LightTestMode": {
+        "type": "string",
+        "enum": [
+          "once",
+          "live"
+        ],
+        "default": "once",
+        "description": "`once` ends after 15 s. `live` has no time limit and ends on revert, keep, another session's test or lost heartbeats."
+      },
       "LightTest": {
         "type": "object",
         "required": [
           "active",
+          "mode",
           "confirmRemainingMs",
           "revertAfterMs",
           "holder",
@@ -2073,8 +2097,23 @@
           "active": {
             "type": "boolean"
           },
+          "mode": {
+            "description": "The running test's mode, null when none runs.",
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/LightTestMode"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "confirmRemainingMs": {
-            "type": "integer"
+            "type": [
+              "integer",
+              "null"
+            ],
+            "description": "Time left on a `once` test, null for `live`."
           },
           "revertAfterMs": {
             "type": "integer"
@@ -2103,6 +2142,7 @@
         "type": "object",
         "required": [
           "succeeded",
+          "mode",
           "confirmWithinMs",
           "heartbeatMs",
           "revertAfterMs"
@@ -2111,8 +2151,15 @@
           "succeeded": {
             "type": "boolean"
           },
+          "mode": {
+            "$ref": "#/components/schemas/LightTestMode"
+          },
           "confirmWithinMs": {
-            "type": "integer"
+            "type": [
+              "integer",
+              "null"
+            ],
+            "description": "The time limit of a `once` test, null for `live`."
           },
           "heartbeatMs": {
             "type": "integer",
@@ -2128,14 +2175,22 @@
         "type": "object",
         "required": [
           "succeeded",
+          "mode",
           "confirmRemainingMs"
         ],
         "properties": {
           "succeeded": {
             "type": "boolean"
           },
+          "mode": {
+            "$ref": "#/components/schemas/LightTestMode"
+          },
           "confirmRemainingMs": {
-            "type": "integer"
+            "type": [
+              "integer",
+              "null"
+            ],
+            "description": "Time left on a `once` test, null for `live`."
           }
         }
       },
@@ -2505,6 +2560,7 @@
             "type": "object",
             "required": [
               "active",
+              "mode",
               "confirmRemainingMs",
               "holder"
             ],
@@ -2512,8 +2568,22 @@
               "active": {
                 "type": "boolean"
               },
+              "mode": {
+                "oneOf": [
+                  {
+                    "$ref": "#/components/schemas/LightTestMode"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
               "confirmRemainingMs": {
-                "type": "integer"
+                "type": [
+                  "integer",
+                  "null"
+                ],
+                "description": "Null for a `live` test."
               },
               "holder": {
                 "oneOf": [

@@ -16,6 +16,10 @@ and scope: [[sequence-d-planning]], [[external-control]].
   Draft tools: `put_draft`, `set_control`, `preview` act on one draft per
   adapter process, deleted when stdin closes. `try_on_lights`, `keep`, `revert`, `apply`, `revert_effect` and the control tools `set_running`, `set_brightness`, `set_effect` (PATCH `/api/v1/state`) change the lights: a
   background thread heartbeats a test until keep or revert.
+  `try_on_lights` takes `mode`: `once` (default) shows the draft for 15 s, then
+  Aurora puts the previous lights back; `live` holds it until keep or revert.
+  `keep` after a `once` test timed out still saves and applies the draft if it
+  is unchanged and no other test took over (core's confirm route allows this).
 
 ## Config
 

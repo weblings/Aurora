@@ -52,6 +52,9 @@
   --ui-size-callout-pad-y: 12px;
   --ui-size-tab-pad-x: 20px;
   --ui-size-button-pad-x: 14px;
+  --ui-size-icon: 16px;
+  --ui-size-icon-sm: 12px;
+  --ui-size-icon-overhang: 4px;
   --ui-size-slider-track-width: 120px;
   --ui-size-popup-pad: 4px;
   --ui-size-modal-pad: 16px;

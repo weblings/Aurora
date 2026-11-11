@@ -15,7 +15,7 @@ export function useMedia(query: string): boolean {
 }
 
 // Thresholds (web/ui breaks at 649 px; the others are the cleanup plan's "narrow windows").
-export const COMPACT_BAR = '(max-width: 649px)' // Undo and Redo as icons, Unsaved as a mark
-export const TIGHT_BAR = '(max-width: 519px)' // arrow-only back link, Undo and Redo in More
+export const COMPACT_BAR = '(max-width: 649px)' // Unsaved as a mark on the title
+export const TIGHT_BAR = '(max-width: 519px)' // arrow-only back link, Test
 export const DESKTOP_NOTE = '(max-width: 599px)' // "built for a desktop window" line
 export const DOCK_BOTTOM = '(max-width: 649px), (max-aspect-ratio: 3/4)' // drawers dock at the bottom (Aurora-daaa.29.4)

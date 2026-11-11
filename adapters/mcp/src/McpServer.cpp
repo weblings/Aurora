@@ -42,7 +42,9 @@ namespace Aurora::Mcp
       "Give the graph a short title and a one-sentence description for the user's effect list. "
       "set_control tunes one control. preview samples the draft off the lights, so use it before "
       "touching them. try_on_lights shows the draft on the real lights for the user to judge: "
-      "ask them, then call keep to save it or revert. A test reverts by itself if this server stops. "
+      "ask them, then call keep to save it or revert. A test lasts 15 seconds by default and then puts the "
+      "previous lights back; keep still saves it afterwards if the draft has not changed and no other test "
+      "began. Pass mode live to hold the test until keep or revert, and revert when done. A test reverts by itself if this server stops. "
       "apply saves and activates a draft without a test, so ask the user first. "
       "revert_effect goes back to what ran before your first apply. "
       "set_running pauses or resumes the lights, set_brightness sets the master brightness and "
@@ -327,13 +329,17 @@ namespace Aurora::Mcp
         "and change per zone. reacting is false for a graph that holds still, true when its colors move.",
         {{"seconds", {{"type", "number"}, {"description", "Seconds to sample, default 3, capped by Aurora."}}}}),
       lightsTool("try_on_lights",
-        "Show the draft on the real lights so the user can judge it. It keeps running while this server "
-        "lives, up to about two minutes, and reverts by itself if the client dies. Then ask the user and "
-        "call keep or revert.",
-        nlohmann::json::object(), nlohmann::json::array()),
+        "Show the draft on the real lights so the user can judge it. The default mode once shows it for 15 "
+        "seconds, then the previous lights return by themselves; keep still saves the draft after that if it "
+        "has not changed since and no other test took over. Mode live holds the test until keep or revert, "
+        "and it reverts by itself if the client dies. Then ask the user and call keep or revert.",
+        {{"mode", {{"type", "string"}, {"enum", nlohmann::json::array({"once", "live"})},
+                   {"description", "once (default): 15 seconds. live: until keep or revert."}}}},
+        nlohmann::json::array()),
       lightsTool("keep",
         "Save the tested draft under this effect id and make it the live effect. Call after the user approves "
-        "a try_on_lights test. Fails if the draft changed since the test started.",
+        "a try_on_lights test, also after a once test timed out. Fails if the draft changed since the test "
+        "started or another test took over.",
         effectIdProperty, nlohmann::json::array({"id"})),
       lightsTool("revert",
         "End the light test now and restore the previous lights.",
@@ -395,7 +401,7 @@ namespace Aurora::Mcp
       return _preview(arguments);
     }
     if(name == "try_on_lights"){
-      return _tryOnLights();
+      return _tryOnLights(arguments);
     }
     if(name == "keep"){
       return _keep(arguments);
@@ -764,11 +770,18 @@ namespace Aurora::Mcp
   }
 
 
-  nlohmann::json McpServer::_tryOnLights()
+  nlohmann::json McpServer::_tryOnLights(const nlohmann::json& arguments)
   {
+    std::string mode = "once";
+    if(arguments.is_object() && arguments.contains("mode")){
+      if(!arguments.at("mode").is_string() || (arguments.at("mode") != "once" && arguments.at("mode") != "live")){
+        return toolText("mode must be \"once\" (15 seconds) or \"live\" (until keep or revert).", true);
+      }
+      mode = arguments.at("mode").get<std::string>();
+    }
     nlohmann::json reply;
     int status = 0;
-    const std::string body = nlohmann::json{{"session", m_session}}.dump();
+    const std::string body = nlohmann::json{{"session", m_session}, {"mode", mode}}.dump();
     if(const std::string error = _requestJson("POST", "/api/v1/graph/test", body, reply, &status); !error.empty()){
       if(status == 404){
         return toolText("There is no draft yet. Call put_draft first.", true);
@@ -790,9 +803,12 @@ namespace Aurora::Mcp
     _startBeat(reply.value("heartbeatMs", 2000LL));
     return toolJson({
       {"started", true},
+      {"mode", mode},
       {"confirmWithinMs", orNull(reply, "confirmWithinMs")},
       {"revertAfterMs", orNull(reply, "revertAfterMs")},
-      {"next", "Ask the user how it looks, then call keep with an id or revert."}
+      {"next", mode == "live"
+        ? "Ask the user how it looks, then call keep with an id or revert. The test holds until you do."
+        : "Ask the user how it looks within 15 seconds. When the lights go back, keep with an id still saves this draft if it has not changed; call try_on_lights again to show it longer."}
     });
   }
 

@@ -131,6 +131,7 @@ export class App {
     this.hostErrors = []; // [{source, message}], from the last reachable poll
     this.hostConditions = []; // [{source, message}], standing facts (Aurora-rbp3)
     this._bannerExpanded = false;
+    this.lightTestLive = false; // a running light test with no deadline
     this.lightTestEndsAt = null; // ms epoch the running MCP light test must be confirmed by, else null
     this._lightTestTimer = null;
   }
@@ -267,7 +268,10 @@ export class App {
     this.hostState = state;
     this.hostErrors = errors;
     this.hostConditions = conditions;
-    const remainingMs = result?.test?.active === true ? Number(result.test.confirmRemainingMs) : NaN;
+    // A live test has no deadline (confirmRemainingMs null): it is still a test.
+    const testing = result?.test?.active === true;
+    this.lightTestLive = testing && result.test.confirmRemainingMs === null;
+    const remainingMs = testing && !this.lightTestLive ? Number(result.test.confirmRemainingMs) : NaN;
     this.lightTestEndsAt = Number.isFinite(remainingMs) ? Date.now() + remainingMs : null;
     this._renderBanner();
     if (this.onStateUpdate) this.onStateUpdate({ state, errors, paused, ...flags });
@@ -301,6 +305,7 @@ export class App {
     this.hostConditions = [];
     this.pendingPairings = [];
     this.lightTestEndsAt = null;
+    this.lightTestLive = false;
     this._stopLightTestTimer();
     if (!this.overlaySlot) return;
     this._takeover = kind;
@@ -342,7 +347,7 @@ export class App {
     // Pairing requests sit above the problems and never collapse: each waits on a click.
     const pairings = this.pendingPairings;
     const rowCount = conditions.length + errors.length;
-    const testing = this.lightTestEndsAt !== null;
+    const testing = this.lightTestEndsAt !== null || this.lightTestLive;
     if (!testing) this._stopLightTestTimer();
     if (rowCount === 0 && pairings.length === 0 && !testing) {
       this.bannerSlot.innerHTML = '';
@@ -406,7 +411,7 @@ export class App {
   // user has not chosen). 'by' because a dead client reverts sooner.
   _renderLightTestRow() {
     return `<div class="shell-banner-row"><div class="shell-banner-content">
-      <p class="status-text shell-pairing-title">An MCP client is testing an effect on the lights. Will revert in: <span id="shell-light-test-time">${this._lightTestClock()}</span></p>
+      <p class="status-text shell-pairing-title">An MCP client is testing an effect on the lights.${this.lightTestLive ? '' : ` Will revert in: <span id="shell-light-test-time">${this._lightTestClock()}</span>`}</p>
       <div class="shell-banner-actions">
         <button type="button" class="btn btn-secondary" id="shell-light-test-stop">Stop test</button>
       </div>

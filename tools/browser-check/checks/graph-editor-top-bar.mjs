@@ -1,9 +1,9 @@
 // Aurora-daaa.11: the top bar, the title menu's Name and effect list, the view
-// menu, and the single status spot with its banner and toast.
+// menu, and the status rule's places (the Test button, the banner and the toast; the bar has no status text).
 //
 // Status cases (docs/planning/WebUI/GraphEditorCleanup.md, Status priority rule):
 //   checked here:       rank 1 + Retry banner, rank 2 Restore/Discard banner,
-//                       rank 7 default, Edited since the test, Revert-only bar
+//                       rank 7 default, Edited since the test, Stop-only bar
 //   checked elsewhere:  rank 3 too_many_drafts (gate), rank 4 Reconnect (gate),
 //                       rank 5/6 test outcomes (graph-editor edit loop), problems
 //                       chip and Preview paused (gate), draft would not load
@@ -22,8 +22,8 @@ await withEditorStack(async ({ editorUrl }) => {
   page.on('pageerror', (e) => assert.fail(`page error: ${e.message}`))
   const step = (label) => console.log(`ok  ${label}`)
   const button = (name) => page.getByRole('button', { name, exact: true })
-  const status = () => page.locator('.editor-status')
-  const live = () => page.waitForFunction(() => document.querySelector('.editor-status')?.textContent.includes('Live'), null, { timeout: 10_000 })
+  const status = () => page.locator('.editor-header')
+  const live = () => page.waitForFunction(() => document.querySelector('.editor-header')?.dataset.preview.includes('Live'), null, { timeout: 10_000 })
   const closed = () => titleMenu(page).waitFor({ state: 'detached' })
 
   try {
@@ -37,6 +37,14 @@ await withEditorStack(async ({ editorUrl }) => {
     assert.equal(await page.locator('.editor-header').getByRole('link', { name: 'Dashboard' }).count(), 1)
     for (const name of ['Effect menu', 'Undo', 'Redo', 'Test on lights']) assert.equal(await page.locator('.editor-header').getByRole('button', { name }).count(), 1, name)
     step('one bar: Dashboard, title menu, status, Undo, Redo, Test on lights; no controls, minimap off')
+
+    // Grille bar (Aurora-s1t7.1): every bar control is a ui-button, 32 px tall, two dividers.
+    const bar = await page.locator('.editor-header > .ui-button, .editor-header > .editor-split > .ui-button').evaluateAll((els) => els.map((e) => ({ h: e.getBoundingClientRect().height, size: e.dataset.size, legacy: e.classList.contains('btn') })))
+    assert.ok(bar.length >= 5, `bar buttons: ${bar.length}`)
+    for (const b of bar) assert.deepEqual(b, { h: 32, size: 'sm', legacy: false })
+    assert.equal(await page.locator('.editor-header > .btn').count(), 0)
+    assert.equal(await page.locator('.editor-header > .editor-sep').count(), 2)
+    step('bar controls are Grille ui-buttons, 32 px tall, with two dividers')
 
     // Title menu: file actions and the effect list; no Name field.
     await openTitleMenu(page)
@@ -151,7 +159,7 @@ await withEditorStack(async ({ editorUrl }) => {
     // Edited since the test: the bar says so and the title menu warns.
     await live()
     await button('Test on lights').click()
-    await button('Revert').waitFor()
+    await button('Stop the test').waitFor()
     assert.equal(await page.locator('.editor-edited').count(), 0)
     await makeEdit(page)
     await page.locator('.editor-edited', { hasText: 'Edited since the test' }).waitFor()
@@ -159,10 +167,29 @@ await withEditorStack(async ({ editorUrl }) => {
     await page.getByText('Save and apply puts the edited graph live and ends the test').waitFor()
     await page.keyboard.press('Escape')
     await closed()
-    await button('Revert').click()
+    await button('Stop the test').click()
     await waitToast(page, 'Reverted')
     await page.locator('.editor-edited').waitFor({ state: 'detached' })
-    step('Edited since the test shows in the bar and the title menu; Revert is the only way out')
+    step('Edited since the test shows in the bar and the title menu; Stop is the only way out')
+
+    // The Test split button (Aurora-qjqy.3): Test at rest, the caret picks Once or Live
+    // and starts it, Stop (no countdown) is the Live label, and the last pick is the default.
+    await live()
+    assert.equal(await page.locator('.editor-split-main').innerText(), 'Test')
+    await button('Test mode').click()
+    await page.getByRole('menuitem', { name: 'Live (until stopped)' }).click()
+    await button('Stop the test').waitFor()
+    assert.equal(await button('Stop the test').innerText(), 'Stop')
+    assert.equal(await button('Test mode').isDisabled(), true, 'the mode menu is shut while a test runs')
+    await page.waitForTimeout(3000)
+    assert.equal(await button('Stop the test').innerText(), 'Stop', 'Live has no countdown')
+    await button('Stop the test').click()
+    await waitToast(page, 'Reverted')
+    assert.equal(await page.locator('.editor-split-main').innerText(), 'Test')
+    await button('Test mode').click()
+    await page.getByRole('menuitem', { name: 'Live (until stopped), default' }).waitFor()
+    await page.keyboard.press('Escape')
+    step('the split button: Live from the menu runs untimed under a bare Stop; the last pick is the default')
 
     // Rank 1: the effect cannot be opened. Banner with Retry, status says so, Test is off.
     await page.route('**/api/effects/builtin.audio', (route) => route.abort())
@@ -170,13 +197,14 @@ await withEditorStack(async ({ editorUrl }) => {
     const alert = page.getByRole('alert')
     await alert.waitFor()
     assert.match(await alert.innerText(), /Cannot open 'builtin.audio'/)
-    assert.equal(await status().innerText(), 'Aurora unreachable')
+    assert.equal(await status().getAttribute('data-preview'), 'Cannot reach Aurora')
     assert.equal(await button('Test on lights').isDisabled(), true)
+    assert.equal(await page.locator('.editor-split').getAttribute('title'), 'Cannot reach Aurora')
     await page.unroute('**/api/effects/builtin.audio')
     await alert.getByRole('button', { name: 'Retry' }).click()
     await page.waitForSelector('.aurora-node')
     await alert.waitFor({ state: 'detached' })
-    await page.waitForFunction(() => document.querySelector('.editor-status')?.textContent !== 'Aurora unreachable')
+    await page.waitForFunction(() => document.querySelector('.editor-header')?.dataset.preview !== 'Cannot reach Aurora')
     step('an effect that will not open: banner with Retry, status Aurora unreachable, Test off; Retry recovers')
   } finally {
     await page.evaluate(() => localStorage.clear()).catch(() => {})

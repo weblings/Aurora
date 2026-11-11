@@ -21,7 +21,7 @@ If a reference-only project later becomes a source of ported code, move it to In
 
 ## Vidstack media-icons (MIT) -- incorporated
 
-Source: <https://github.com/vidstack/media-icons> (npm `media-icons`). Used in `web/ui/icons` (back arrow, add, chevrons, play, pause, stop, search, fullscreen enter and exit, x mark) and, where the graph editor or Grille reuse them, the same paths.
+Source: <https://github.com/vidstack/media-icons> (npm `media-icons`). Used in `web/ui/icons` (back arrow, add, chevrons, play, pause, stop, search, fullscreen enter and exit, x mark) and, since `Aurora-s1t7.5`, through Grille (`@weblings/grille` `0.1.0-dev.9`), whose icons the graph editor and its mock use; the paths ship in the built editor.
 
 ```
 MIT License
@@ -49,7 +49,7 @@ SOFTWARE.
 
 ## Zest Free icons (MIT-style "Zest Free License") -- incorporated
 
-Source: <https://github.com/32pixelsCo/zest-icons> via SVG Repo. Used for `web/ui/icons/power-svgrepo-com.svg`, `Undo.svg`, `Redo.svg` and `minus.svg`.
+Source: <https://github.com/32pixelsCo/zest-icons> via SVG Repo. Used for `web/ui/icons/power-svgrepo-com.svg`, `Undo.svg`, `Redo.svg` and `minus.svg`, and, through Grille, the graph editor's undo, redo, minus and warning icons (Aurora's own `web/ui/icons/warning.svg` is no longer used by the editor).
 
 ```
 Zest Free License

@@ -3,7 +3,6 @@ import {
   ReactFlow,
   Background,
   BackgroundVariant,
-  MiniMap,
   Panel,
   applyEdgeChanges,
   applyNodeChanges,
@@ -14,9 +13,6 @@ import {
   type NodeChange,
   type ReactFlowInstance,
 } from '@xyflow/react'
-import backArrow from '../../ui/icons/back-arrow.svg'
-import chevronDown from '../../ui/icons/chevron-down.svg'
-import chevronUp from '../../ui/icons/chevron-up.svg'
 import { applyGraph, fetchCatalog, fetchEffectGraph, fetchEffects, putDraft, saveGraph, type WriteResult } from './api'
 import { EditorContext, type EditorActions } from './EditorContext'
 import { GenericNode } from './GenericNode'
@@ -29,12 +25,12 @@ import { ProblemsContext } from './ProblemsContext'
 import { ProblemsChip } from './ProblemsChip'
 import { Toast, useToast } from './Toast'
 import { NameDialog } from './NameDialog'
-import { BarMoreMenu } from './BarMoreMenu'
+import { Icon, addIcon, arrowLeftIcon, chevronDownIcon, chevronUpIcon, redoIcon, undoIcon } from '@weblings/grille'
 import { DesktopNote } from './DesktopNote'
 import { COMPACT_BAR, DOCK_BOTTOM, TIGHT_BAR, useMedia } from './useMedia'
 import { TitleMenu, type TitleMenuAction } from './TitleMenu'
 import { FIT_OPTIONS, ViewMenu } from './ViewMenu'
-import { ZoneThumbnail } from './ZoneThumbnail'
+import { ZonesIsland } from './ZonesIsland'
 import { tabSession, useDraftLoop } from './useDraftLoop'
 import { useLightTest } from './useLightTest'
 import { restorable, clearUnsaved, syncUnsaved } from './graph/autosave'
@@ -42,7 +38,9 @@ import { converterFor, insertConverter, refuseConnection } from './graph/connect
 import { controlsOf } from './graph/controls'
 import { addEdge, addNode, joinEndpoint, moveNodes, removeEdge, removeNodes, setParam } from './graph/doc'
 import { editorReducer, emptyEditor, sameDoc } from './graph/history'
-import { changeIsEdit, pickBanner, pickStatus, testProgress } from './graph/status'
+import { changeIsEdit, pickBanner, pickStatus, quietEndToast, stopLabel } from './graph/status'
+import { SplitTestButton } from './SplitTestButton'
+import { initialTest, type TestMode } from './graph/lightTest'
 import { BLANK_ID, blankDoc, forWrite, freshEffectId, setTitle, titleOf } from './graph/save'
 import { portStyle } from './graph/portStyle'
 import { NODE_KIND, carryViewState, edgeId, toFlowEdges, toFlowNodes, type AuroraNodeData } from './graph/flow'
@@ -143,7 +141,7 @@ export function App() {
   docRef.current = doc
   const lights = useLightTest(session, () => putDraft(session, docRef.current!))
   const testing = lights.state.phase === 'running'
-  const progress = testProgress(lights.state)
+  const [testMode, setTestMode] = useState<TestMode>('once')
   const dirty = useMemo(() => (doc && baseline ? !sameDoc(baseline.doc, doc) : false), [doc, baseline])
   const isBuiltin = effects.find((e) => e.id === effectId)?.builtin ?? (effectId === BLANK_ID || effectId.startsWith('builtin.'))
   const picked = nodeView.filter((n) => n.selected)
@@ -158,10 +156,11 @@ export function App() {
     window.history.replaceState(null, '', url)
   }, [effectId])
 
-  const startTest = () => {
+  const startTest = (mode: TestMode) => {
+    setTestMode(mode)
     setWriteTrouble(null)
     setTestedDoc(docRef.current)
-    void lights.start()
+    void lights.start(mode)
   }
 
   // Save, Save and apply and Save as new write the document under an id: the open
@@ -245,11 +244,12 @@ export function App() {
   }, [doc])
   const ended = lights.state.ended
   useEffect(() => {
-    if (ended?.reason === 'reverted') showToast('Reverted')
+    const text = quietEndToast({ ...initialTest, ended })
+    if (text) showToast(text)
   }, [ended, showToast])
   const editedSinceTest = testing && testedDoc !== null && doc !== null && !sameDoc(testedDoc, doc)
   const status = pickStatus({ openError, loop: loop.state, test: lights.state, writeTrouble, testOutcomeCleared })
-  const banner = pickBanner(openError, offer !== null && baseline !== null)
+  const banner = pickBanner(openError, offer !== null && baseline !== null, status)
   // Without Aurora nothing can be tested or saved.
   const blocked = status.rank === 1
 
@@ -385,7 +385,7 @@ export function App() {
     [nodes],
   )
 
-  // Right-click and ⋯ menus (Aurora-daaa.27.1).
+  // Right-click and node-button menus (Aurora-daaa.27.1).
   const [menu, setMenu] = useState<MenuTarget | null>(null)
   // A node menu on an unselected node selects it alone first, so Delete and the
   // count act on what the menu was opened on.
@@ -581,15 +581,16 @@ export function App() {
 
   return (
     <div className="editor">
-      <header className="editor-header">
-        <a className="btn btn-secondary editor-back" href="/" aria-label={tightBar ? 'Dashboard' : undefined}>
-          <img className="editor-back-icon" src={backArrow} alt="" />
+      <header className="editor-header" data-preview={status.label} data-status-rank={status.rank}>
+        <a className="ui-button editor-back" data-size="sm" href="/" aria-label={tightBar ? 'Dashboard' : undefined}>
+          <Icon icon={arrowLeftIcon} size="sm" />
           {tightBar ? null : 'Dashboard'}
         </a>
+        <span className="editor-sep" aria-hidden="true" />
         <button
           ref={titleMenuTrigger}
           type="button"
-          className="btn btn-secondary editor-title-menu"
+          className="ui-button editor-title-menu" data-size="sm"
           aria-label={dirty && compactBar ? 'Effect menu, unsaved changes' : 'Effect menu'}
           aria-haspopup="dialog"
           aria-expanded={titleMenuOpen}
@@ -597,24 +598,11 @@ export function App() {
           disabled={!doc}
           onClick={() => setTitleMenuOpen((open) => !open)}
         >
-          {dirty && compactBar ? <span className="editor-dirty-mark" aria-hidden="true">●</span> : null}
+          {dirty && compactBar ? <span className="editor-dirty-mark" aria-hidden="true" /> : null}
           <span className="editor-title-label">{shownTitle || (effectId === BLANK_ID ? 'New empty effect' : effectId)}</span>
-          <img className="editor-chevron" src={titleMenuOpen ? chevronUp : chevronDown} alt="" />
+          <Icon icon={titleMenuOpen ? chevronUpIcon : chevronDownIcon} size="sm" />
         </button>
         {dirty && !compactBar ? <span className="editor-dirty">Unsaved</span> : null}
-        <button
-          ref={addMenuTrigger}
-          type="button"
-          className="btn btn-secondary editor-add-node"
-          aria-label="Add node"
-          aria-haspopup="dialog"
-          aria-expanded={addMenuOpen}
-          title="Add node (Shift+A)"
-          disabled={!doc || !catalog}
-          onClick={() => setAddMenuOpen((open) => !open)}
-        >
-          +
-        </button>
         {catalog ? (
           <AddNodeMenu
             isOpen={addMenuOpen}
@@ -659,71 +647,45 @@ export function App() {
             }}
           />
         ) : null}
-        <span className="editor-status" role="status" data-rank={status.rank} title={status.detail ?? undefined}>
-          {status.label}
-        </span>
-        {status.action === 'reconnect' ? (
-          <button type="button" className="btn btn-secondary" onClick={loop.reconnect}>
-            Reconnect
-          </button>
-        ) : null}
+        <span className="editor-bar-end" />
         <ProblemsChip
           problems={problems}
           onSelectNode={selectNode}
           onAddNode={() => setAddMenuOpen(true)}
         />
-        <span className="editor-bar-end" />
-        {tightBar ? (
-          <BarMoreMenu canUndo={past.length > 0} canRedo={future.length > 0} onUndo={undo} onRedo={redo} />
-        ) : (
-          <>
-            <button
-              type="button" className="btn btn-secondary"
-              onClick={undo}
-              disabled={past.length === 0}
-              aria-label={compactBar ? 'Undo' : undefined}
-              title="Undo (Ctrl/Cmd+Z)"
-            >
-              {compactBar ? '↶' : 'Undo'}
-            </button>
-            <button
-              type="button" className="btn btn-secondary"
-              onClick={redo}
-              disabled={future.length === 0}
-              aria-label={compactBar ? 'Redo' : undefined}
-              title="Redo (Shift+Ctrl/Cmd+Z)"
-            >
-              {compactBar ? '↷' : 'Redo'}
-            </button>
-          </>
-        )}
-        {progress ? (
-          <span className="editor-countdown" role="timer">
-            {progress}
-          </span>
-        ) : null}
+        <button
+          type="button" className="ui-button" data-size="sm"
+          onClick={undo}
+          disabled={past.length === 0}
+          aria-label="Undo"
+          title="Undo (Ctrl/Cmd+Z)"
+        >
+          <Icon icon={undoIcon} size="sm" />
+        </button>
+        <button
+          type="button" className="ui-button" data-size="sm"
+          onClick={redo}
+          disabled={future.length === 0}
+          aria-label="Redo"
+          title="Redo (Shift+Ctrl/Cmd+Z)"
+        >
+          <Icon icon={redoIcon} size="sm" />
+        </button>
         {editedSinceTest ? <span className="editor-edited">Edited since the test</span> : null}
-        {testing ? (
-          <button type="button" className="btn btn-secondary" onClick={() => void lights.revert()} disabled={writing}>
-            Revert
-          </button>
-        ) : (
-          <button
-            type="button" className="btn btn-secondary"
-            onClick={startTest}
-            disabled={!doc || blocked || loop.state.valid !== true || lights.state.phase !== 'idle'}
-            aria-label={tightBar ? (lights.state.other ? 'Take over the lights' : 'Test on lights') : undefined}
-            title={
-              loop.state.valid === false
-                ? 'Fix the problems before testing'
-                : tightBar
-                  ? `${lights.state.other ? 'Take over the lights' : 'Test on lights'}: show this graph on the real lights for a while, then put them back`
-                  : 'Show this graph on the real lights for a while, then put them back'
-            }
-          >
-            {tightBar ? (lights.state.other ? 'Take over' : 'Test') : lights.state.other ? 'Take over the lights' : 'Test on lights'}
-          </button>
-        )}
+        <span className="editor-sep" aria-hidden="true" />
+        <SplitTestButton
+          mode={testMode}
+          running={testing}
+          stopText={stopLabel(lights.state)}
+          action={status.action ?? (lights.state.other && lights.state.phase === 'idle' ? 'take-over' : null)}
+          disabledReason={
+            blocked ? 'Cannot reach Aurora' : loop.state.valid === false ? 'Fix the problems before testing' : null
+          }
+          busy={!doc || writing || (lights.state.phase !== 'idle' && lights.state.phase !== 'running')}
+          onStart={startTest}
+          onStop={() => void lights.revert()}
+          onReconnect={loop.reconnect}
+        />
       </header>
       <DesktopNote />
       {banner?.kind === 'unreachable' ? (
@@ -732,6 +694,14 @@ export function App() {
           <button type="button" className="btn btn-secondary" onClick={() => setAttempt((n) => n + 1)}>
             Retry
           </button>
+        </div>
+      ) : null}
+      {banner?.kind === 'notice' ? (
+        <div className="editor-banner" role="alert" data-rank={status.rank}>
+          <span>
+            {banner.message}
+            {banner.detail ? `: ${banner.detail}` : ''}
+          </span>
         </div>
       ) : null}
       {banner?.kind === 'restore' && baseline && offer ? (
@@ -761,7 +731,7 @@ export function App() {
       ) : null}
       <div className="editor-body">
             <div className="editor-canvas" ref={canvas}>
-        <ZoneThumbnail frame={loop.frame} live={loop.state.stream === 'live'} />
+        <ZonesIsland frame={loop.frame} live={loop.state.stream === 'live'} />
         <ProblemsContext.Provider value={problems}>
         <EditorContext.Provider value={actions}>
           <ReactFlow
@@ -794,6 +764,7 @@ export function App() {
             isValidConnection={isValidConnection}
             colorMode="dark"
             fitView
+            attributionPosition="bottom-center"
             fitViewOptions={FIT_OPTIONS}
             minZoom={0.2}
             onInit={(instance) => {
@@ -804,18 +775,32 @@ export function App() {
             <Background variant={BackgroundVariant.Dots} />
             <Panel position="top-left">
               <button
+                ref={addMenuTrigger}
                 type="button"
-                className="btn btn-secondary"
+                className="ui-button editor-add-node" data-size="sm"
+                aria-label="Add node"
+                aria-haspopup="dialog"
+                aria-expanded={addMenuOpen}
+                title="Add node (Shift+A)"
+                disabled={!doc || !catalog}
+                onClick={() => setAddMenuOpen((open) => !open)}
+              >
+                <Icon icon={addIcon} size="sm" /> Add node
+              </button>
+            </Panel>
+            <Panel position="bottom-right">
+              <button
+                type="button"
+                className="ui-button" data-size="sm"
                 aria-haspopup="dialog"
                 aria-expanded={drawer === 'controls'}
                 disabled={!doc}
                 onClick={() => setDrawer((d) => (d === 'controls' ? null : 'controls'))}
               >
-                Dashboard controls ({doc ? controlsOf(doc).length : 0})
+                Dashboard controls <span className="editor-count">{doc ? controlsOf(doc).length : 0}</span>
               </button>
             </Panel>
             <ViewMenu minimap={minimap} onMinimap={setMinimap} />
-            {minimap ? <MiniMap pannable zoomable /> : null}
           </ReactFlow>
         </EditorContext.Provider>
         </ProblemsContext.Provider>

@@ -70,61 +70,10 @@ export function parseZoneRegions(raw: unknown): ZoneRegions | null {
   }
 }
 
-// A zone drawn as a rectangle, in cell units relative to the thumbnail's top-left.
-export type Rect = { x: number; y: number; w: number; h: number; zone: PreviewZone }
-
-// The screen-region panel is this many cells wide and `SCREEN_ROWS` tall (16:9-ish).
-export const SCREEN_ROWS = 4.5
-
-// The output named by `regions` is drawn at its zones' sampled regions in a
-// panel at the top; zones of it without a region, and every other output, keep
-// the wrapped grid below.
-export function layoutThumbnail(
-  frame: PreviewFrame,
-  regions: ZoneRegions | null,
-  columns: number,
-): { rects: Rect[]; rows: number; panelRows: number } {
-  const byId = new Map(regions?.zones.map((r) => [r.id, r]))
-  const placed: Rect[] = []
-  const rest: PreviewOutput[] = []
-  for (const out of frame.outputs) {
-    if (!regions || out.output !== regions.output) {
-      rest.push(out)
-      continue
-    }
-    const loose: PreviewZone[] = []
-    for (const zone of out.zones) {
-      const r = byId.get(zone.id)
-      if (!r) loose.push(zone)
-      else
-        placed.push({
-          x: Math.max(0, r.x0) * columns,
-          y: Math.max(0, r.y0) * SCREEN_ROWS,
-          w: (Math.min(1, r.x1) - Math.max(0, r.x0)) * columns,
-          h: (Math.min(1, r.y1) - Math.max(0, r.y0)) * SCREEN_ROWS,
-          zone,
-        })
-    }
-    if (loose.length) rest.push({ output: out.output, zones: loose })
-  }
-  const panelRows = placed.length ? SCREEN_ROWS : 0
-  const grid = layoutCells({ outputs: rest, errors: [] }, columns)
-  const rects = [
-    ...placed,
-    ...grid.cells.map((c): Rect => ({ x: c.x, y: c.y + (panelRows ? panelRows + 0.25 : 0), w: 1, h: 1, zone: c.zone })),
-  ]
-  return { rects, rows: grid.rows + (panelRows ? panelRows + (grid.rows ? 0.25 : 0) : 0), panelRows }
-}
-
-// Rows of cells: one row per output, wrapped to `columns` cells.
-export type Cell = { x: number; y: number; zone: PreviewZone }
-
-export function layoutCells(frame: PreviewFrame, columns: number): { cells: Cell[]; rows: number } {
-  const cells: Cell[] = []
-  let row = 0
-  for (const out of frame.outputs) {
-    out.zones.forEach((zone, i) => cells.push({ x: i % columns, y: row + Math.floor(i / columns), zone }))
-    row += Math.max(1, Math.ceil(out.zones.length / columns))
-  }
-  return { cells, rows: row }
+// The single active output's zones, in order, for the Zones island. One output
+// is taken as canonical: the one GET /api/zones names, else the frame's first.
+// No screen mapping: zone regions overlap, so a mapped box would hide zones.
+export function activeZones(frame: PreviewFrame, activeOutput: string | null | undefined): PreviewZone[] {
+  const out = frame.outputs.find((o) => o.output === activeOutput) ?? frame.outputs[0]
+  return out ? out.zones : []
 }

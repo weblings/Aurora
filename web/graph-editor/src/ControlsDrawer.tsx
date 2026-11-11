@@ -1,4 +1,4 @@
-import { Drawer } from '@weblings/grille'
+import { Drawer, Icon, arrowDownIcon, arrowUpIcon, xMarkIcon } from '@weblings/grille'
 import { controlsOf, moveControl, removeControl } from './graph/controls'
 import type { Catalog, GraphDoc } from './graph/types'
 
@@ -31,7 +31,7 @@ export function ControlsDrawer({ isOpen, onClose, top, side, doc, catalog, edit 
                 {titleOf(c.node)} · {c.param}
               </span>
               <button type="button" className="btn btn-secondary" aria-label={`Move ${c.param} up`} disabled={i === 0} onClick={() => edit((d) => moveControl(d, i, -1))}>
-                ↑
+                <Icon icon={arrowUpIcon} size="sm" />
               </button>
               <button
                 type="button"
@@ -40,10 +40,10 @@ export function ControlsDrawer({ isOpen, onClose, top, side, doc, catalog, edit 
                 disabled={i === controls.length - 1}
                 onClick={() => edit((d) => moveControl(d, i, 1))}
               >
-                ↓
+                <Icon icon={arrowDownIcon} size="sm" />
               </button>
               <button type="button" className="btn btn-secondary" aria-label={`Remove ${c.param} from the Dashboard`} onClick={() => edit((d) => removeControl(d, i))}>
-                ✕
+                <Icon icon={xMarkIcon} size="sm" />
               </button>
             </div>
             <div className="drawer-control-summary">
