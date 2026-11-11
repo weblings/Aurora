@@ -13,9 +13,6 @@ import {
   type NodeChange,
   type ReactFlowInstance,
 } from '@xyflow/react'
-import backArrow from '../../ui/icons/back-arrow.svg'
-import chevronDown from '../../ui/icons/chevron-down.svg'
-import chevronUp from '../../ui/icons/chevron-up.svg'
 import { applyGraph, fetchCatalog, fetchEffectGraph, fetchEffects, putDraft, saveGraph, type WriteResult } from './api'
 import { EditorContext, type EditorActions } from './EditorContext'
 import { GenericNode } from './GenericNode'
@@ -28,7 +25,7 @@ import { ProblemsContext } from './ProblemsContext'
 import { ProblemsChip } from './ProblemsChip'
 import { Toast, useToast } from './Toast'
 import { NameDialog } from './NameDialog'
-import { BarMoreMenu } from './BarMoreMenu'
+import { Icon, addIcon, arrowLeftIcon, chevronDownIcon, chevronUpIcon, redoIcon, undoIcon } from '@weblings/grille'
 import { DesktopNote } from './DesktopNote'
 import { COMPACT_BAR, DOCK_BOTTOM, TIGHT_BAR, useMedia } from './useMedia'
 import { TitleMenu, type TitleMenuAction } from './TitleMenu'
@@ -384,7 +381,7 @@ export function App() {
     [nodes],
   )
 
-  // Right-click and ⋯ menus (Aurora-daaa.27.1).
+  // Right-click and node-button menus (Aurora-daaa.27.1).
   const [menu, setMenu] = useState<MenuTarget | null>(null)
   // A node menu on an unselected node selects it alone first, so Delete and the
   // count act on what the menu was opened on.
@@ -582,7 +579,7 @@ export function App() {
     <div className="editor">
       <header className="editor-header">
         <a className="ui-button editor-back" data-size="sm" href="/" aria-label={tightBar ? 'Dashboard' : undefined}>
-          <img className="editor-back-icon" src={backArrow} alt="" />
+          <Icon icon={arrowLeftIcon} size="sm" />
           {tightBar ? null : 'Dashboard'}
         </a>
         <span className="editor-sep" aria-hidden="true" />
@@ -597,9 +594,9 @@ export function App() {
           disabled={!doc}
           onClick={() => setTitleMenuOpen((open) => !open)}
         >
-          {dirty && compactBar ? <span className="editor-dirty-mark" aria-hidden="true">●</span> : null}
+          {dirty && compactBar ? <span className="editor-dirty-mark" aria-hidden="true" /> : null}
           <span className="editor-title-label">{shownTitle || (effectId === BLANK_ID ? 'New empty effect' : effectId)}</span>
-          <img className="editor-chevron" src={titleMenuOpen ? chevronUp : chevronDown} alt="" />
+          <Icon icon={titleMenuOpen ? chevronUpIcon : chevronDownIcon} size="sm" />
         </button>
         {dirty && !compactBar ? <span className="editor-dirty">Unsaved</span> : null}
         {catalog ? (
@@ -660,30 +657,24 @@ export function App() {
           onSelectNode={selectNode}
           onAddNode={() => setAddMenuOpen(true)}
         />
-        {tightBar ? (
-          <BarMoreMenu canUndo={past.length > 0} canRedo={future.length > 0} onUndo={undo} onRedo={redo} />
-        ) : (
-          <>
-            <button
-              type="button" className="ui-button" data-size="sm"
-              onClick={undo}
-              disabled={past.length === 0}
-              aria-label={compactBar ? 'Undo' : undefined}
-              title="Undo (Ctrl/Cmd+Z)"
-            >
-              {compactBar ? '↶' : 'Undo'}
-            </button>
-            <button
-              type="button" className="ui-button" data-size="sm"
-              onClick={redo}
-              disabled={future.length === 0}
-              aria-label={compactBar ? 'Redo' : undefined}
-              title="Redo (Shift+Ctrl/Cmd+Z)"
-            >
-              {compactBar ? '↷' : 'Redo'}
-            </button>
-          </>
-        )}
+        <button
+          type="button" className="ui-button" data-size="sm"
+          onClick={undo}
+          disabled={past.length === 0}
+          aria-label="Undo"
+          title="Undo (Ctrl/Cmd+Z)"
+        >
+          <Icon icon={undoIcon} size="sm" />
+        </button>
+        <button
+          type="button" className="ui-button" data-size="sm"
+          onClick={redo}
+          disabled={future.length === 0}
+          aria-label="Redo"
+          title="Redo (Shift+Ctrl/Cmd+Z)"
+        >
+          <Icon icon={redoIcon} size="sm" />
+        </button>
         {progress ? (
           <span className="editor-countdown" role="timer">
             {progress}
@@ -803,7 +794,7 @@ export function App() {
                 disabled={!doc || !catalog}
                 onClick={() => setAddMenuOpen((open) => !open)}
               >
-                <span aria-hidden="true">+</span> Add node
+                <Icon icon={addIcon} size="sm" /> Add node
               </button>
             </Panel>
             <Panel position="bottom-right">

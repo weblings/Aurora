@@ -1,6 +1,6 @@
 // Narrow windows (Aurora-daaa.27.4): no horizontal page scroll and every bar control inside the
 // viewport, with each drawer open, at 1100, 900, 700, 520 and 400 px (Aurora-daaa.29.1). Undo and
-// Redo must stay reachable by keyboard at every width (buttons, or the More menu below 520 px).
+// Redo must stay reachable by keyboard at every width (icon buttons at every width, Aurora-s1t7.5).
 // SHOTS=<dir> saves screenshots.
 import assert from 'node:assert/strict'
 import { launch } from '../lib/browser.mjs'
@@ -11,8 +11,8 @@ const SHOTS = process.env.SHOTS
 const check = (width, what, p) => {
   assert.ok(p.scroll <= 0 && p.out.length === 0, `${width} px, ${what}: ${JSON.stringify(p)}`)
 }
-// Tab from the Dashboard link until focus is on Undo (enabled: the check dragged a node first), or on
-// More (then open it and find both items).
+// Tab from the Dashboard link until focus is on Undo (enabled: the check dragged a node first); Redo is
+// an icon button beside it at every width.
 async function keyboardReachesUndoRedo(page, width) {
   await page.locator('.editor-back').focus()
   const seen = []
@@ -20,15 +20,9 @@ async function keyboardReachesUndoRedo(page, width) {
     await page.keyboard.press('Tab')
     const name = await page.evaluate(() => document.activeElement?.getAttribute('aria-label') || document.activeElement?.textContent?.trim() || '')
     seen.push(name)
-    if (name === 'More') {
-      await page.keyboard.press('Enter')
-      await page.getByRole('menuitem', { name: 'Undo' }).waitFor({ timeout: 3000 })
-      await page.getByRole('menuitem', { name: 'Redo' }).waitFor({ timeout: 3000 })
-      await page.keyboard.press('Escape')
-      return
-    }
     if (name === 'Undo') {
       assert.equal(await page.getByRole('button', { name: 'Redo' }).count(), 1, `${width} px: no Redo button`)
+      assert.equal(await page.locator('.editor-header [aria-label="Undo"] svg').count(), 1, `${width} px: Undo is not an icon button`)
       return
     }
   }
@@ -145,8 +139,7 @@ await withEditorStack(async ({ editorUrl }) => {
       await page.waitForTimeout(300)
       assert.equal(await page.locator('.ui-drawer').count(), 0, `${w}x${h}: Esc left the drawer open`)
     }
-    // Aurora-s1t7.2: with a problem showing, the chip sits in the right group just before Undo (or
-    // More), and the bar still never wraps or overflows at every width.
+    // Aurora-s1t7.2: with a problem showing, the chip sits in the right group just before Undo, and the bar still never wraps or overflows at every width.
     const fresh = await browser.newContext({ viewport: { width: 1470, height: 900 } })
     await page.close()
     page = await fresh.newPage()
@@ -169,12 +162,12 @@ await withEditorStack(async ({ editorUrl }) => {
       const g = await page.evaluate(() => {
         const bar = document.querySelector('.editor-header').getBoundingClientRect()
         const chip = document.querySelector('.editor-problems-chip').getBoundingClientRect()
-        const next = document.querySelector('.editor-header [aria-label="Undo"], .editor-header [aria-label="More"], .editor-header button[title^="Undo"]')?.getBoundingClientRect()
+        const next = document.querySelector('.editor-header [aria-label="Undo"]')?.getBoundingClientRect()
         const status = document.querySelector('.editor-status')?.getBoundingClientRect()
         return { barH: bar.height, chipLeft: chip.left, chipRight: chip.right, chipTop: chip.top, nextLeft: next?.left, nextTop: next?.top, statusRight: status?.right, vw: innerWidth }
       })
       console.log(width, 'problems chip:', JSON.stringify(g))
-      assert.ok(g.nextLeft !== undefined, `${width} px: no Undo or More button`)
+      assert.ok(g.nextLeft !== undefined, `${width} px: no Undo button`)
       assert.ok(Math.abs(g.barH - barHeight) < 1, `${width} px: bar wrapped (${g.barH} px, was ${barHeight})`)
       assert.ok(g.chipLeft >= -1 && g.chipRight <= g.vw + 1, `${width} px: chip outside the window: ${JSON.stringify(g)}`)
       assert.ok(g.chipRight <= g.nextLeft + 1 && Math.abs(g.chipTop - g.nextTop) < 20, `${width} px: chip is not just before Undo: ${JSON.stringify(g)}`)

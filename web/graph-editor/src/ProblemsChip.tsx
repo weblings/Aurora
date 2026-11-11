@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react'
-import { Dialog } from '@weblings/grille'
+import { Dialog, Icon, warningIcon } from '@weblings/grille'
 import { EditorPopup } from './EditorPopup'
 import { COMPACT_BAR, useMedia } from './useMedia'
 import type { Problems } from './graph/problems'
@@ -40,7 +40,8 @@ export function ProblemsChip({
         aria-label={compact ? `${count} ${count === 1 ? 'problem' : 'problems'}` : undefined}
         onClick={() => setOpen((o) => !o)}
       >
-        {compact ? `⚠ ${count}` : `⚠ ${count} ${count === 1 ? 'problem' : 'problems'}`}
+        <Icon icon={warningIcon} size="sm" />
+        {compact ? count : `${count} ${count === 1 ? 'problem' : 'problems'}`}
       </button>
       <EditorPopup isOpen={open} onClose={close} label="Problems" triggerRef={trigger}>
         <Dialog aria-label="Problems">

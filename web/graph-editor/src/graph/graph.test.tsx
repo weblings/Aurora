@@ -314,22 +314,10 @@ describe('enum widget', () => {
 })
 
 describe('Dashboard marks and drawers (Aurora-daaa.27.3)', () => {
-  it('lists each node\'s Dashboard params, matching the controls list', () => {
-    const doc = builtinLike()
-    const nodes = toFlowNodes(doc, catalog)
-    const listed = (doc.controls as { node: string; param: string }[]).map((c) => `${c.node}.${c.param}`).sort()
-    const marked = nodes.flatMap((n) => [...n.data.dashboardParams].map((p) => `${n.id}.${p}`)).sort()
-    expect(marked).toEqual(listed)
-  })
-
-  it('marks a Dashboard param with a shape and text for assistive tech, not a tab stop', () => {
+  it('drops the on-node Dashboard mark (owner, Aurora-s1t7.5)', () => {
     const info = catalog.get(builtinLike().nodes.find((n) => n.id === 'gain')!.type)!.params[0]
-    const html = renderToStaticMarkup(<ParamWidget info={info} value={undefined} onChange={() => {}} onCommit={() => {}} onDashboard />)
-    expect(html).toContain('On the Dashboard')
-    expect(html).toContain('aria-hidden="true"')
-    expect(html).not.toContain('tabindex')
-    const plain = renderToStaticMarkup(<ParamWidget info={info} value={undefined} onChange={() => {}} onCommit={() => {}} />)
-    expect(plain).not.toContain('On the Dashboard')
+    const html = renderToStaticMarkup(<ParamWidget info={info} value={undefined} onChange={() => {}} onCommit={() => {}} />)
+    expect(html).not.toContain('On the Dashboard')
   })
 
   it('Details shows the ticked control\'s text fields and the controls drawer lists order', () => {

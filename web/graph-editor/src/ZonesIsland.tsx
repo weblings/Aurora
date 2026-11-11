@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState, type MutableRefObject } from 'react'
-import chevronDown from '../../ui/icons/chevron-down.svg'
-import chevronUp from '../../ui/icons/chevron-up.svg'
+import { Icon, chevronDownIcon, chevronUpIcon } from '@weblings/grille'
 import { fetchZoneRegions } from './api'
 import { activeZones, byte, type PreviewFrame } from './graph/frame'
 
@@ -94,7 +93,7 @@ export function ZonesIsland({ frame, live }: Props) {
     <div className={`zones-island${live ? '' : ' zones-island-stale'}${open ? ' open' : ''}`} role="group" aria-label="Zones">
       <button type="button" className="zones-head" aria-expanded={open} aria-label={open ? 'Hide zones' : 'Show zones'} onClick={toggle}>
         Zones
-        <img className="editor-chevron" src={open ? chevronUp : chevronDown} alt="" />
+        <Icon icon={open ? chevronUpIcon : chevronDownIcon} size="sm" />
       </button>
       {open ? (
         <div className="zones-cells" ref={cells} role="img" aria-label="Preview of the lights">

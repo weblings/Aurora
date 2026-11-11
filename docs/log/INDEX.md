@@ -394,3 +394,4 @@ Planning docs stay clean: decisions, status, and pointers here only.
 | 2026-11-11 | Graph editor canvas corners match the Grille mock (Add node top-left, minimap above zoom, drawer and dock rules). [[s1t73-canvas-corners]] | `bd show Aurora-s1t7.3` |
 | 2026-11-11 | Graph editor zone preview clears a side drawer. [[daaa35-zone-preview-drawer]] | `bd show Aurora-daaa.35` |
 | 2026-11-11 | Graph editor Zones island: plain DOM cells, collapsible header, no resize. [[s1t74-zones-island]] | `bd show Aurora-s1t7.4` |
+| 2026-11-11 | Graph editor icons are Grille's; Undo and Redo icon buttons at every width, More menu and Dashboard mark removed. [[s1t75-grille-icons]] | `bd show Aurora-s1t7.5` |

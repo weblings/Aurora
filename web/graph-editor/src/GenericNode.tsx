@@ -1,4 +1,5 @@
 import { memo } from 'react'
+import { Icon, menuHorizontalIcon, warningIcon } from '@weblings/grille'
 import { Handle, Position, type NodeProps, type Node } from '@xyflow/react'
 import { useEditorActions } from './EditorContext'
 import type { AuroraNodeData } from './graph/flow'
@@ -16,7 +17,7 @@ function handleLook(type: string) {
 // handles, params become widgets.
 function GenericNodeView({ id, data }: NodeProps<Node<AuroraNodeData>>) {
   const { setParam, commit, openNodeMenu } = useEditorActions()
-  const { info, params, connectedInputs, dashboardParams } = data
+  const { info, params, connectedInputs } = data
   const problems = useNodeProblems(id)
   // Messages that named no port or param show under the header.
   const loose = problems ? unattributed(problems) : []
@@ -39,7 +40,7 @@ function GenericNodeView({ id, data }: NodeProps<Node<AuroraNodeData>>) {
         <strong>{info.title || data.type}</strong>
         {problems ? (
           <span className="problem-badge" title={problems.messages.join('\n')} role="img" aria-label={`${problems.messages.length} problems`}>
-            ⚠ {problems.messages.length}
+            <Icon icon={warningIcon} size="sm" /> {problems.messages.length}
           </span>
         ) : null}
         <small>{id}</small>
@@ -53,13 +54,13 @@ function GenericNodeView({ id, data }: NodeProps<Node<AuroraNodeData>>) {
             openNodeMenu(id, { x: box.left, y: box.bottom })
           }}
         >
-          ⋯
+          <Icon icon={menuHorizontalIcon} size="sm" />
         </button>
       </div>
       {loose.length > 0 ? (
         <ul className="problem-list">
           {loose.map((m) => (
-            <li key={m}>⚠ {m}</li>
+            <li key={m}><Icon icon={warningIcon} size="sm" /> {m}</li>
           ))}
         </ul>
       ) : null}
@@ -74,7 +75,7 @@ function GenericNodeView({ id, data }: NodeProps<Node<AuroraNodeData>>) {
               <Handle type="target" position={Position.Left} id={port.name} {...handleLook(port.type)} />
               {port.name}
               <small title={portMeaning(port.type)}>{port.type}</small>
-              {problems?.ports.has(port.name) ? <span className="problem-mark">⚠</span> : null}
+              {problems?.ports.has(port.name) ? <span className="problem-mark"><Icon icon={warningIcon} size="sm" /></span> : null}
             </div>
           ))}
         </div>
@@ -96,7 +97,6 @@ function GenericNodeView({ id, data }: NodeProps<Node<AuroraNodeData>>) {
           onChange={(value) => setParam(id, param.name, value)}
           onCommit={commit}
           problems={problems?.params.get(param.name)}
-          onDashboard={dashboardParams.has(param.name)}
         />
       ))}
     </div>

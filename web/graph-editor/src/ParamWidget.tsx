@@ -1,4 +1,5 @@
 import type { CSSProperties } from 'react'
+import { Icon, minusIcon, warningIcon } from '@weblings/grille'
 import type { GradientStop, ParamInfo, ParamValue } from './graph/types'
 
 const MAX_STOPS = 16
@@ -13,13 +14,11 @@ type Props = {
   onCommit: () => void
   // What the server said about this param, shown under it.
   problems?: readonly string[]
-  // This param is one of the Dashboard's controls.
-  onDashboard?: boolean
 }
 
 // One widget per param kind. `nodrag nowheel` keep a drag or scroll on a
 // widget from moving the node or zooming the canvas.
-export function ParamWidget({ info, value, onChange, onCommit, problems, onDashboard }: Props) {
+export function ParamWidget({ info, value, onChange, onCommit, problems }: Props) {
   const current = effectiveValue(info, value)
   const label = info.label || info.name
   return (
@@ -39,17 +38,11 @@ export function ParamWidget({ info, value, onChange, onCommit, problems, onDashb
       <span className="param-label">
         {label}
         {info.unit ? <small> {info.unit}</small> : null}
-        {onDashboard ? (
-          <span className="dashboard-mark" title="On the Dashboard">
-            <span aria-hidden="true">◆</span>
-            <span className="visually-hidden"> On the Dashboard</span>
-          </span>
-        ) : null}
       </span>
       {renderInput(info, current, onChange, () => onCommit())}
       {problems?.map((m) => (
         <span className="problem-text" key={m}>
-          ⚠ {m}
+          <Icon icon={warningIcon} size="sm" /> {m}
         </span>
       ))}
     </div>
@@ -215,7 +208,7 @@ function GradientInput({
             disabled={stops.length <= MIN_STOPS}
             onClick={() => onDiscrete(stops.filter((_, j) => j !== i))}
           >
-            −
+            <Icon icon={minusIcon} size="sm" />
           </button>
         </span>
       ))}

@@ -466,14 +466,6 @@ button.editor-problem-row:hover {
   text-overflow: ellipsis;
 }
 
-/* The WebUI dropdown's chevron: fill is baked into the SVG. */
-.editor-chevron {
-  flex: none;
-  width: 10px;
-  height: 10px;
-  display: block;
-}
-
 /* Room for the focus ring, which the popover would clip at zero padding. */
 .editor-popup {
   padding: 4px;
@@ -560,12 +552,6 @@ button.editor-problem-row:hover {
   text-decoration: none;
 }
 
-.editor-back-icon {
-  width: 14px;
-  height: 14px;
-  display: block;
-}
-
 .editor-name-dialog {
   display: flex;
   flex-direction: column;
@@ -637,7 +623,7 @@ button.editor-problem-row:hover {
   border-radius: 50%;
 }
 
-/* The node's ⋯ button: faded until hover or selection, but always rendered and
+/* The node's menu button: faded until hover or selection, but always rendered and
    never aria-hidden, so VoiceOver finds it (kep27-voiceover-tree-check). */
 .aurora-node-more {
   background: none;
@@ -671,13 +657,6 @@ button.editor-problem-row:hover {
 .drawer-control-summary {
   margin-top: var(--aurora-space-1);
   color: var(--aurora-text-secondary);
-}
-
-/* The on-node mark for a param on the Dashboard: a shape plus hidden text. */
-.dashboard-mark {
-  margin-left: var(--aurora-space-2);
-  color: var(--aurora-accent);
-  font-size: 9px;
 }
 
 .visually-hidden {
@@ -723,9 +702,13 @@ button.editor-problem-row:hover {
   min-width: 0;
 }
 
+/* Unsaved dot on the title below 650 px. */
 .editor-dirty-mark {
   flex: none;
-  font-size: 8px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: currentColor;
 }
 
 @media (max-width: 649px) {

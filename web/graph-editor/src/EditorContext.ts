@@ -8,7 +8,7 @@ export type EditorActions = {
   // `commit` ends the gesture.
   setParam: (nodeId: string, name: string, value: ParamValue) => void
   commit: () => void
-  // Opens the node menu at a point (the ⋯ button, Shift+F10).
+  // Opens the node menu at a point (the node menu button, Shift+F10).
   openNodeMenu: (nodeId: string, at: { x: number; y: number }) => void
 }
 

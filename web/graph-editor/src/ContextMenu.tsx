@@ -15,7 +15,7 @@ export type MenuAction =
   | { type: 'add'; nodeType: string }
   | { type: 'undo' | 'redo' | 'fit' | 'details' | 'dashboard' | 'delete-nodes' | 'delete-edge' }
 
-// Right-click and ⋯ menus (Aurora-daaa.27.1): canvas, node and wire. One popup
+// Right-click and node-button menus (Aurora-daaa.27.1): canvas, node and wire. One popup
 // anchored at a point; keyed on it so a second right-click moves the menu.
 export function ContextMenu({
   target,
