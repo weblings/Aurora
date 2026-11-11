@@ -78,7 +78,19 @@ await withEditorStack(async ({ editorUrl }) => {
       if (side === 'right') {
         assert.ok(d3.right <= dr.left, `${tag}: Dashboard controls ${d3.right} left of the drawer ${dr.left}`)
         assert.ok(v3.left < mid, `${tag}: zoom stays bottom-left`)
-        step(`${tag}: side drawer, Dashboard controls steps left of it`)
+        // Aurora-w6zq.1: where the button and the credit overlap, the button is what a click hits.
+        const hit = await page.evaluate(() => {
+          const b = document.querySelector('.react-flow__panel.bottom.right button').getBoundingClientRect()
+          const k = document.querySelector('.react-flow__attribution').getBoundingClientRect()
+          const ox = [Math.max(b.left, k.left), Math.min(b.right, k.right)]
+          const oy = [Math.max(b.top, k.top), Math.min(b.bottom, k.bottom)]
+          const overlaps = ox[0] < ox[1] && oy[0] < oy[1]
+          const pts = overlaps ? [[(ox[0] + ox[1]) / 2, (oy[0] + oy[1]) / 2]] : []
+          pts.push([(b.left + b.right) / 2, (b.top + b.bottom) / 2])
+          return { overlaps, ok: pts.every(([x, y]) => document.elementFromPoint(x, y)?.closest('.react-flow__panel.bottom.right button')) }
+        })
+        assert.ok(hit.ok, `${tag}: Dashboard controls is under another element (overlaps the credit: ${hit.overlaps})`)
+        step(`${tag}: side drawer, Dashboard controls steps left of it${hit.overlaps ? ' and draws over the credit' : ''}`)
       } else {
         for (const [name, r] of [['Dashboard controls', d3], ['View menu', v3], ['minimap', m3]]) assert.ok(r.bottom <= dr.top + 1, `${tag}: ${name} bottom ${r.bottom} above the dock ${dr.top}`)
         const kc = await credit()

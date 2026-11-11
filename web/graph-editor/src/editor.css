@@ -775,6 +775,13 @@ body:has(.ui-drawer[data-side='right']) .react-flow__panel.bottom.right {
   margin-right: calc(var(--ui-size-drawer-width) + 15px);
 }
 
+/* At the narrowest width that step lands on the bottom-centre credit. Both are
+   z-index 5 panels and the credit is later in the DOM, so it would draw over the
+   button; the button's panel sits one above (Aurora-w6zq.1). */
+.react-flow__panel.bottom.right {
+  z-index: 6;
+}
+
 /* The Zones island (top-right of the canvas) steps left of a side drawer by the
    same token, so it stays visible while a control is slid (Aurora-daaa.35). The
    bottom dock leaves the top edge clear. */
