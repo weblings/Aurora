@@ -5,6 +5,7 @@ import audio from './server-samples/builtin.audio.json'
 import { refuseConnection } from './connection'
 import { removeEdge, splitEndpoint } from './doc'
 import { toFlowNodes } from './flow'
+import { PORT_TYPES, portMeaning, setPortMeanings } from './portStyle'
 import type { Catalog, GraphDoc, NodeTypeInfo } from './types'
 
 // Snapshots of GET /api/nodes and GET /api/effects/builtin.{video,audio} from a
@@ -60,5 +61,45 @@ describe('catalog from the server', () => {
       expect(typeof info.title === 'string' && info.title !== '', `${info.type} title`).toBe(true)
       for (const p of [...info.inputs, ...info.outputs]) expect(typeof p.description === 'string' && p.description !== '', `${info.type}.${p.name} description`).toBe(true)
     }
+  })
+})
+
+describe('port type glossary (Aurora-z6kw)', () => {
+  it('the catalog explains every port type the editor styles, and tooltips read it', () => {
+    expect(nodesSample.portTypes.map((t) => t.name).sort()).toEqual([...PORT_TYPES].sort())
+    setPortMeanings(nodesSample.portTypes)
+    for (const type of PORT_TYPES) expect(portMeaning(type), type).toBeTruthy()
+    expect(portMeaning('Trigger')).toContain('one tick')
+    expect(portMeaning('Angle')).toContain('degrees')
+  })
+})
+
+describe('Float and Angle wiring', () => {
+  const conn = (source: string, sourceHandle: string, target: string, targetHandle: string) => ({
+    source, sourceHandle, target, targetHandle,
+  })
+  const doc: GraphDoc = {
+    version: 1,
+    nodes: [
+      { id: 'wave', type: 'lfo' },
+      { id: 'pick', type: 'palette.pick' },
+      { id: 'swing', type: 'integrate' },
+      { id: 'level', type: 'smooth.exp' },
+      { id: 'up', type: 'angle.fromFloat' },
+      { id: 'down', type: 'angle.toFloat' },
+    ],
+    edges: [],
+  }
+
+  it('names the converter in the refusal', () => {
+    expect(refuseConnection(doc, catalog, conn('wave', 'value', 'pick', 'anchor'))).toMatch(/angle\.fromFloat/)
+    expect(refuseConnection(doc, catalog, conn('swing', 'angle', 'level', 'value'))).toMatch(/angle\.toFloat/)
+  })
+
+  it('allows the converters to bridge the two types', () => {
+    expect(refuseConnection(doc, catalog, conn('wave', 'value', 'up', 'value'))).toBeNull()
+    expect(refuseConnection(doc, catalog, conn('up', 'angle', 'pick', 'anchor'))).toBeNull()
+    expect(refuseConnection(doc, catalog, conn('swing', 'angle', 'down', 'angle'))).toBeNull()
+    expect(refuseConnection(doc, catalog, conn('down', 'value', 'level', 'value'))).toBeNull()
   })
 })

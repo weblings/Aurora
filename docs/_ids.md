@@ -5,9 +5,11 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 
 | Id | Path | Title |
 |---|---|---|
+| `0veq-converter-auto-insert` | [log/2026-11-11-0veq-converter-auto-insert.md](log/2026-11-11-0veq-converter-auto-insert.md) | Auto-insert Float/Angle converter on drop |
 | `110-release-prep` | [log/2026-10-07-110-release-prep.md](log/2026-10-07-110-release-prep.md) | 1.1.0 release prep: audit, bump, docs, Aurora-07i, vendor sequencing |
 | `112-linux-verification` | [log/2026-10-18-112-linux-verification.md](log/2026-10-18-112-linux-verification.md) | v1.1.2 Linux verification |
 | `112-mac-verification` | [log/2026-10-19-112-mac-verification.md](log/2026-10-19-112-mac-verification.md) | v1.1.2 Mac verification |
+| `1cmx-mock-circle-sockets-converters` | [log/2026-11-11-1cmx-mock-circle-sockets-converters.md](log/2026-11-11-1cmx-mock-circle-sockets-converters.md) | Grille mock: circle sockets and Float/Angle converters |
 | `1pwk-x11-damage-ratecap` | [log/2026-10-20-1pwk-x11-damage-ratecap.md](log/2026-10-20-1pwk-x11-damage-ratecap.md) | Aurora-1pwk: X11 damage skip + 20 fps grab cap (63% -> 40/20%) |
 | `2dz-secret-store` | [log/2026-10-02-2dz-secret-store.md](log/2026-10-02-2dz-secret-store.md) | Aurora-2dz: OS secret store — verified on Linux, Mac and Windows |
 | `3ddb-pause-cli` | [log/2026-10-03-3ddb-pause-cli.md](log/2026-10-03-3ddb-pause-cli.md) | Aurora-3ddb: pause/resume, core and CLI only |
@@ -73,6 +75,7 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `cli-help-version` | [log/2026-10-06-cli-help-version.md](log/2026-10-06-cli-help-version.md) | CLI --help/--version closes Aurora-v3in and Aurora-0gd |
 | `control-scope` | [log/2026-10-26-control-scope.md](log/2026-10-26-control-scope.md) | 5ipy.38: Control scope (Aurora-5ipy.38) |
 | `cyee-rbp3-mdns-and-host-conditions` | [log/2026-10-08-cyee-rbp3-mdns-and-host-conditions.md](log/2026-10-08-cyee-rbp3-mdns-and-host-conditions.md) | Aurora-cyee + Aurora-rbp3: local bridge discovery and host conditions (closed) |
+| `d0hv-circle-sockets` | [log/2026-11-11-d0hv-circle-sockets.md](log/2026-11-11-d0hv-circle-sockets.md) | Graph editor: circle sockets in four domain colours |
 | `d2r3-windows-sdr-alpha-guard` | [log/2026-10-13-d2r3-windows-sdr-alpha-guard.md](log/2026-10-13-d2r3-windows-sdr-alpha-guard.md) | Aurora-d2r3: Windows SDR capture dropped every frame |
 | `d3ec-host-build-errors` | [log/2026-10-06-d3ec-host-build-errors.md](log/2026-10-06-d3ec-host-build-errors.md) | Aurora-d3ec: host holds build errors, GET /api/state reports state |
 | `d3ec-linux-verification` | [log/2026-10-06-d3ec-linux-verification.md](log/2026-10-06-d3ec-linux-verification.md) | Aurora-d3ec Linux verification (compile, Catch2, live failed-state cycle) |
@@ -108,6 +111,12 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `daaa29-4-bottom-dock` | [log/2026-11-10-daaa29-4-bottom-dock.md](log/2026-11-10-daaa29-4-bottom-dock.md) | Graph editor: bottom dock for drawers in narrow or portrait windows |
 | `daaa29-5-narrow-leftovers` | [log/2026-11-10-daaa29-5-narrow-leftovers.md](log/2026-11-10-daaa29-5-narrow-leftovers.md) | Graph editor: 1100 px no-pan assertion, drawer-body container queries skipped |
 | `daaa30-full-browser-check` | [log/2026-11-10-daaa30-full-browser-check.md](log/2026-11-10-daaa30-full-browser-check.md) | Graph editor: full browser-check suite on the narrow-window head |
+| `daaa31-grille-mock` | [log/2026-11-10-daaa31-grille-mock.md](log/2026-11-10-daaa31-grille-mock.md) | Graph editor mock rebuilt on Grille |
+| `daaa32-test-split-zones-island` | [log/2026-11-11-daaa32-test-split-zones-island.md](log/2026-11-11-daaa32-test-split-zones-island.md) | Test split button and Zones island variant in the Grille mock |
+| `daaa33-mock-icons` | [log/2026-11-11-daaa33-mock-icons.md](log/2026-11-11-daaa33-mock-icons.md) | Grille mock: one icon set, fixed-height bar, drawer icon buttons |
+| `daaa33-notices-audit` | [log/2026-11-10-daaa33-notices-audit.md](log/2026-11-10-daaa33-notices-audit.md) | Icon audit, third-party notices, and what the build ships |
+| `daaa34-mock-narrow-drawers` | [log/2026-11-11-daaa34-mock-narrow-drawers.md](log/2026-11-11-daaa34-mock-narrow-drawers.md) | Grille mock: narrow-window drawers |
+| `daaa36-mock-minimap` | [log/2026-11-11-daaa36-mock-minimap.md](log/2026-11-11-daaa36-mock-minimap.md) | Grille mock: minimap above the zoom menu |
 | `daaa4-control-count-baseline` | [log/2026-11-08-daaa4-control-count-baseline.md](log/2026-11-08-daaa4-control-count-baseline.md) | Graph editor control-count baseline and CMake rebuild check |
 | `daaa5-graph-editor-owner-decisions` | [log/2026-11-08-daaa5-graph-editor-owner-decisions.md](log/2026-11-08-daaa5-graph-editor-owner-decisions.md) | Graph editor cleanup: owner decisions before stage 2 |
 | `daaa6-graph-editor-gap-states` | [log/2026-11-08-daaa6-graph-editor-gap-states.md](log/2026-11-08-daaa6-graph-editor-gap-states.md) | Graph editor cleanup: gap states and the status priority rule |
@@ -171,6 +180,7 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `implementation-plan-phase-3` | [archive/ImplementationPlan_Phase3.md](archive/ImplementationPlan_Phase3.md) | Implementation plan: Phase 3 — Three.js browser demo, then the native WebUI milestone |
 | `ja76-hold-running-reload-error` | [log/2026-10-06-ja76-hold-running-reload-error.md](log/2026-10-06-ja76-hold-running-reload-error.md) | Aurora-ja76: hold a failed reload on a running host (closed) |
 | `jk4p-mac-tray-tip-gif-copy` | [log/2026-10-08-jk4p-mac-tray-tip-gif-copy.md](log/2026-10-08-jk4p-mac-tray-tip-gif-copy.md) | Aurora-jk4p: Mac menu-bar tip gets a new GIF and Pause / Resume copy (closed) |
+| `jsjj-angle-converters` | [log/2026-11-11-jsjj-angle-converters.md](log/2026-11-11-jsjj-angle-converters.md) | angle.fromFloat and angle.toFloat |
 | `jwcd-real-bridge-pause-resume` | [log/2026-10-06-jwcd-real-bridge-pause-resume.md](log/2026-10-06-jwcd-real-bridge-pause-resume.md) | Real-bridge pause/resume closes Aurora-jwcd |
 | `jwt7-demo-reset-specificity` | [log/2026-10-08-jwt7-demo-reset-specificity.md](log/2026-10-08-jwt7-demo-reset-specificity.md) | Aurora-jwt7: demo Dashboard lost component padding after ifkn.2 (closed) |
 | `k73j-tray-see-error` | [log/2026-10-07-k73j-tray-see-error.md](log/2026-10-07-k73j-tray-see-error.md) | Aurora-k73j: tray "See Error" — built, Linux-, Windows- and Mac-verified |
@@ -298,6 +308,8 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `ra4o8-g3-cutover` | [log/2026-10-15-ra4o8-g3-cutover.md](log/2026-10-15-ra4o8-g3-cutover.md) | G3 cutover: the app runs on the Graph (Aurora-ra4o.8) |
 | `ra4o9-g1c-pre-g2-adjustments` | [log/2026-10-14-ra4o9-g1c-pre-g2-adjustments.md](log/2026-10-14-ra4o9-g1c-pre-g2-adjustments.md) | G1c pre-G2 runtime adjustments (Aurora-ra4o.9) |
 | `runtime-analysis` | [archive/RuntimeAnalysis.md](archive/RuntimeAnalysis.md) | Runtime / Config — Conversion analysis |
+| `s1t7-stage5-6-planning` | [log/2026-11-11-s1t7-stage5-6-planning.md](log/2026-11-11-s1t7-stage5-6-planning.md) | Graph editor stages 5 and 6: epics filed and noted in the plan |
+| `s1t76-mock-switches-decided` | [log/2026-11-10-s1t76-mock-switches-decided.md](log/2026-11-10-s1t76-mock-switches-decided.md) | Graph editor stage 5: Grille mock switches decided |
 | `scig-capture-source-banner` | [log/2026-10-08-scig-capture-source-banner.md](log/2026-10-08-scig-capture-source-banner.md) | Aurora-scig: Capture Source (NUX) errors move to the shell banner (closed) |
 | `sequence-b-planning` | [log/2026-10-15-sequence-b-planning.md](log/2026-10-15-sequence-b-planning.md) | Sequence B planning: decisions recorded, epic filed |
 | `sequence-c-planning` | [log/2026-10-20-sequence-c-planning.md](log/2026-10-20-sequence-c-planning.md) | Sequence C planning: decisions recorded, epic filed |
@@ -355,5 +367,6 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `xr4c-save-as-new-check-title` | [log/2026-11-08-xr4c-save-as-new-check-title.md](log/2026-11-08-xr4c-save-as-new-check-title.md) | Save-as-new check expected the wrong copy title |
 | `xrl1-warning-icon` | [log/2026-10-07-xrl1-warning-icon.md](log/2026-10-07-xrl1-warning-icon.md) | Aurora-xrl1: vector warning icon replaces bold ⚠ (closed) |
 | `yzp4-takeover-unification` | [log/2026-10-06-yzp4-takeover-unification.md](log/2026-10-06-yzp4-takeover-unification.md) | Aurora-yzp4: takeover unified to heading-only "Aurora has stopped" (closed) |
+| `z6kw-port-type-glossary` | [log/2026-11-11-z6kw-port-type-glossary.md](log/2026-11-11-z6kw-port-type-glossary.md) | Port type glossary |
 | `zfre-test-state-and-stop` | [log/2026-10-22-zfre-test-state-and-stop.md](log/2026-10-22-zfre-test-state-and-stop.md) | Zfre: /api/state reports the light test, the WebUI can stop it (Aurora-zfre) |
 | `zl32-no-input-running` | [log/2026-11-05-zl32-no-input-running.md](log/2026-11-05-zl32-no-input-running.md) | Source-less effects run with no inputs configured |

@@ -32,7 +32,8 @@ namespace Aurora::Mcp
       "A graph can only use the inputs in configuredInputs: if it needs one that is null, "
       "ask the user to choose it in Aurora first. "
       "Start from a preset: list_presets, then get_preset, and change as little as you can. "
-      "Use list_nodes and describe_node for the node types, params and ports you edit. "
+      "Use list_nodes and describe_node for the node types, params and ports you edit; both explain what each port type means, "
+      "including that a Trigger is true for one tick and an Angle is in degrees. "
       "Keep the preset's controls so the user can still tune the result in Aurora. "
       "An audio graph shows nothing until audio first arrives, so a preview on a quiet machine "
       "comes back empty: play something and preview again. After that, silence holds the last "
@@ -294,12 +295,12 @@ namespace Aurora::Mcp
         "whether a fallback effect is running, the running inputs, the inputs the user chose "
         "(configuredInputs, which graphs can use), the outputs, and any active light test."),
       readOnlyTool("list_nodes",
-        "List the node types a graph can use: type, purpose, and ports as name:Type. A trailing ? marks "
+        "List the node types a graph can use: type, purpose, and ports as name:Type, plus portTypes, what each type means. A trailing ? marks "
         "an input that may stay unconnected, and group (the Add-node menu group). Use describe_node for params and usage.",
         {{"category", {{"type", "string"}, {"description", "A type-name prefix filter, not a group: only types starting with this, e.g. audio or math."}}},
          {"group", {{"type", "string"}, {"description", "Only nodes in this group: Sources, Audio, Image, Color, Numbers, Motion or Lights."}}}}),
       readOnlyTool("describe_node",
-        "Full descriptor for one node type: purpose, when to use it, an example, cost, ports and every "
+        "Full descriptor for one node type: purpose, when to use it, an example, cost, ports, the meaning of each port type it uses, and every "
         "param with its range, unit, default and options.",
         typeProperty, nlohmann::json::array({"type"})),
       readOnlyTool("list_presets",
@@ -498,7 +499,8 @@ namespace Aurora::Mcp
         {"outputs", portLabels(node.value("outputs", nlohmann::json::array()))}
       });
     }
-    return toolJson({{"nodes", std::move(nodes)}});
+    // The glossary of port types rides along so an agent learns Trigger and Angle at once.
+    return toolJson({{"nodes", std::move(nodes)}, {"portTypes", catalog.value("portTypes", nlohmann::json::array())}});
   }
 
 
@@ -520,7 +522,22 @@ namespace Aurora::Mcp
     for(const auto& node : catalog.value("nodes", nlohmann::json::array())){
       const std::string candidate = node.value("type", "");
       if(candidate == type){
-        return toolJson(node);
+        // Add the meaning of each port type this node uses.
+        nlohmann::json result = node;
+        nlohmann::json meanings = nlohmann::json::array();
+        for(const auto& entry : catalog.value("portTypes", nlohmann::json::array())){
+          bool used = false;
+          for(const char* side : {"inputs", "outputs"}){
+            for(const auto& port : node.value(side, nlohmann::json::array())){
+              used = used || port.value("type", "") == entry.value("name", "?");
+            }
+          }
+          if(used){
+            meanings.push_back(entry);
+          }
+        }
+        result["portTypes"] = std::move(meanings);
+        return toolJson(result);
       }
       all.push_back(candidate);
       if(!type.empty() && candidate.find(type) != std::string::npos){

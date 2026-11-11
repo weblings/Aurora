@@ -19,6 +19,8 @@
 // needs libX11/libXext/libXrandr/libXdamage/libXrender), so it ports now even though PipewireGrabber
 // doesn't yet. Needs a real X11 session to manually verify capture -- not
 // unit-testable, same category as Hue's DTLS streaming.
+//
+// Upstream huenicorn is GPL-3.0-only; see THIRD_PARTY_NOTICES.md.
 namespace Aurora::Input::Linux
 {
   class X11Grabber : public IVideoInput

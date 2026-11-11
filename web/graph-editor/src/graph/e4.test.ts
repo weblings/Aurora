@@ -154,7 +154,7 @@ describe('light test states', () => {
 
 describe('blank effect', () => {
   it('opens as a node-less version 1 document with no title', () => {
-    expect(blankDoc()).toEqual({ version: 1, title: '', nodes: [], edges: [] })
+    expect(blankDoc()).toEqual({ version: 1, nodes: [], edges: [] })
   })
 
   it('has an id the server never stores, so a save always makes a fresh effect', () => {

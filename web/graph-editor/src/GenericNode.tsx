@@ -5,11 +5,11 @@ import type { AuroraNodeData } from './graph/flow'
 import { ParamWidget } from './ParamWidget'
 import { useNodeProblems } from './ProblemsContext'
 import { unattributed } from './graph/problems'
-import { portStyle } from './graph/portStyle'
+import { portMeaning, portStyle } from './graph/portStyle'
 
 function handleLook(type: string) {
-  const { color, shape } = portStyle(type)
-  return { className: `aurora-handle aurora-handle-${shape}`, 'data-port-type': type, style: { '--port-color': color } as React.CSSProperties }
+  const { color } = portStyle(type)
+  return { className: `aurora-handle`, 'data-port-type': type, style: { '--port-color': color } as React.CSSProperties }
 }
 
 // One component draws every node type from its /api/nodes entry: ports become
@@ -73,7 +73,7 @@ function GenericNodeView({ id, data }: NodeProps<Node<AuroraNodeData>>) {
             >
               <Handle type="target" position={Position.Left} id={port.name} {...handleLook(port.type)} />
               {port.name}
-              <small>{port.type}</small>
+              <small title={portMeaning(port.type)}>{port.type}</small>
               {problems?.ports.has(port.name) ? <span className="problem-mark">⚠</span> : null}
             </div>
           ))}
@@ -81,7 +81,7 @@ function GenericNodeView({ id, data }: NodeProps<Node<AuroraNodeData>>) {
         <div className="aurora-ports-out">
           {info.outputs.map((port) => (
             <div className="aurora-port aurora-port-out" key={port.name} title={port.description}>
-              <small>{port.type}</small>
+              <small title={portMeaning(port.type)}>{port.type}</small>
               {port.name}
               <Handle type="source" position={Position.Right} id={port.name} {...handleLook(port.type)} />
             </div>

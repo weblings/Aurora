@@ -78,16 +78,17 @@ Processing (source to effects handling), or Output (color / effects) module
 - The aurora SVG in the logo is modified from <a href="https://www.vecteezy.com/vector-art/88906-free-northern-lights-vector-series"> Kaitlyn Parker's Northern Lights Series</a> on <a href="https://www.vecteezy.com/free-vector/nature">Nature Vectors by Vecteezy</a>
 - Power icon from <a href="https://github.com/32pixelsCo/zest-icons/blob/master/packages/zest-free/LICENSE.md?ref=svgrepo.com" target="_blank">Zest</a> in MIT License via <a href="https://www.svgrepo.com/" target="_blank">SVG Repo</a>
 - Other icon svgs are from <a href="https://vidstack.io/icons/?lib=react">Vidstack</a>
+- Full copyright and licence text for Vidstack, Zest and the other third-party material: [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)
 - For demo assets see: <a href="./web/demo/README.md">its README</a>
 
 ## License
 
-Aurora is licensed under the [GNU General Public License v3.0 or later](LICENSE) — same as Huenicorn, which its logic is distilled from.
+Aurora is licensed under the [GNU General Public License v3.0](LICENSE) — same as Huenicorn, which its logic is distilled from. Huenicorn is GPL-3.0-only, so files ported from it stay under that licence; the list is in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
 
 - [Huenicorn](https://gitlab.com/openjowelsofts/huenicorn) by OpenJowel is a free Philips Hue screen
 synchronizer for GNU/Linux. Huenicorn was the reason I started exploring Linux again years ago, thank you OpenJowel!
 - [RockyRoad](https://github.com/weblings/RockyRoad) by me is a web browser note-highway music app for guitar and piano with full support for WebXR-capable headsets. I repurposed a lot of the design tokens and components I built out there for this project.
-- [Hyperion](https://github.com/hyperion-project/hyperion.ng) is an MIT-licensed open-source ambient lighting project with broad LED-device support. Aurora consults it as a design reference (Hue TLS handling, Home Assistant output, API and auth shape); any code ported from it keeps its MIT notice.
+- Hyperion, OBS, RustDesk and other projects consulted as references, and every project whose code or assets are in Aurora, are recorded in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
 
 ## Intent and AI Disclaimer
 

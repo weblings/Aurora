@@ -20,7 +20,7 @@ Decisions, narrow windows, in `docs/planning/WebUI/GraphEditorCleanup.md`).
 - `src/graph/` -- pure, React-free: `types.ts` (catalog and graph shapes),
   `doc.ts` (edits: each returns a new document), `flow.ts` (graph.json <-> React
   Flow), `layout.ts` (saved `ui` positions, else columns by topological depth),
-  `connection.ts` (the wiring rules), `history.ts` (undo reducer),
+  `connection.ts` (the wiring rules, and `insertConverter`: a Float/Angle drop gets an `angle.fromFloat`/`angle.toFloat` node, `Aurora-0veq`), `history.ts` (undo reducer),
   `autosave.ts` (browser backup of unsaved edits), `problems.ts` (server errors
   regrouped per node/port/param), `loop.ts` (draft/preview states), `frame.ts`
   (preview events), `lightTest.ts` (test-on-lights states), `controls.ts`
@@ -72,3 +72,82 @@ during one applies, then reverts, because apply alone leaves the test running
 
 Menus go through `EditorPopup.tsx`, which holds the React Flow workarounds (keys,
 pane drag, Esc, focus return). Use it for any new menu.
+
+## Icon audit (`Aurora-daaa.33`)
+
+Audit only, no code changed. Checked 2026-11-10 against `src/`, the files it imports, Grille `0.1.0-dev.8` `dist/index.js` and the Grille mock.
+
+Verified 2026-11-10 by diffing path data against `media-icons@0.10.0` (npm, MIT, "Copyright (c) 2023 Rahim Alwer"; the package's `raw/` folder has the SVGs). Exact path matches: `play`, `pause`, `chevron-down`, `chevron-up` and `back-arrow` (= Vidstack `arrow-left`). Added 2026-11-11 and checked the same way: `fullscreen-arrow`, `fullscreen-arrow-exit` and `x-mark` (path data identical to `raw/`; only the `role`/`aria-hidden` attributes differ). `add`, `search` and `stop` (mock only until then, inline in `mock.js`) copied unchanged from `raw/` into `web/ui/icons` on 2026-11-11. Redistribution needs that copyright notice and licence text kept in the repo (one `THIRD_PARTY` entry covers all of them). Names in verdicts are real `raw/` file names unless marked otherwise.
+
+### SVG files the editor imports (from `web/ui/icons`)
+
+| Icon | Where | Origin | Licence | Grid / style | Verdict |
+| --- | --- | --- | --- | --- | --- |
+| `back-arrow.svg` | `App.tsx` back link | No origin comment; added with the `web/ui` import (42cd39f1). **Confirmed Vidstack `arrow-left`** (identical path) | MIT (Vidstack), notice in `THIRD_PARTY_NOTICES.md` | 32x32, fill `#ffffff` hard-coded | Keep the shape; inline as a component on `currentColor` |
+| `chevron-down.svg` | `App.tsx`, `ViewMenu.tsx` | **Confirmed Vidstack `chevron-down`** | MIT (Vidstack), notice in `THIRD_PARTY_NOTICES.md` | 32x32, fill `#ffffff` hard-coded | Keep the shape; inline on `currentColor` |
+| `chevron-up.svg` | `App.tsx`, `ViewMenu.tsx` | **Confirmed Vidstack `chevron-up`** | MIT (Vidstack), notice in `THIRD_PARTY_NOTICES.md` | 32x32, fill `#ffffff` hard-coded | Keep the shape; inline on `currentColor` |
+
+All three hard-code white fill, so they only work on a dark surface and need an `<img>` (cannot follow `currentColor` or Grille theme tokens).
+
+### Unicode glyphs standing in for icons
+
+Render per OS font, so size, weight and baseline differ on Mac, Windows and Linux.
+
+| Glyph | Where | Verdict |
+| --- | --- | --- |
+| `↶` `↷` | `App.tsx` Undo/Redo when `compactBar` | Vidstack has no undo/redo (`replay` and `rotate` are other shapes). **Zest Free** `Undo.svg` / `Redo.svg`, now in `web/ui/icons` (24 grid, one filled path each, `currentColor`; mixed with the Vidstack 32-grid fills, so the editor module needs both grids). Zest Free Licence, notice in `THIRD_PARTY_NOTICES.md`. The files carry no origin comment, so add one |
+| `⋯` | `GenericNode.tsx` node menu, `BarMoreMenu.tsx` | Vidstack `menu-horizontal` (three dots) |
+| `⚠` | `ProblemsChip.tsx`, `GenericNode.tsx` (header, list, port mark), `ParamWidget.tsx` | Vidstack has no warning icon (`info`, `question-mark` only). Use `web/ui/icons/warning.svg` as an inline component |
+| `●` | `App.tsx` unsaved dot on the title (compact) | Keep: a plain dot; or a CSS circle so it does not depend on the font |
+| `◆` | `ParamWidget.tsx` "On the Dashboard" mark | **Cut** (owner, 2026-11-11): no icon; the editor drops the mark |
+| `+` | `App.tsx` Add node button, and the mock's `index.html` | Vidstack `add` (`add.svg`). `App.tsx` (the Add node button, ~line 596) renders a `+` character, so it has the same font-dependent weight. The mock now draws the Vidstack shape |
+| `↑` `↓` | `ControlsDrawer.tsx` move up/down | Vidstack `arrow-up` / `arrow-down` |
+| `✕` | `ControlsDrawer.tsx` remove | Vidstack `x-mark`, now in `web/ui/icons/x-mark.svg` (same one as the Drawer close) |
+| `−` | `ParamWidget.tsx` remove stop | **Zest Free `minus`**, now in `web/ui/icons/minus.svg` (owner, 2026-11-11; Grille will ship this one). 24 grid, one filled path like Undo/Redo, but the file has no `viewBox` and hard-codes `fill="#000"`: add `viewBox="0 0 24 24"` and use `currentColor` when copying it. Drawn in the mock's **Gradient stops** frame |
+
+### Icons inside Grille (`dev.8`)
+
+| Glyph | Where | Verdict |
+| --- | --- | --- |
+| `×` | `Drawer` close button, `index.js` | Grille's to fix; ask for an icon slot or module. Until then it is the font's `×` (about 20x24 px in the mock, not square). The mock draws Vidstack `x-mark` instead, 28x28 px like the other icon buttons |
+| `▾` | `Select` trigger, `index.js` | Same: font-dependent triangle, not the chevron used elsewhere |
+
+### Not used by the editor (in `web/ui/icons`, for reference)
+
+| File | Used by | Origin | Licence | Note |
+| --- | --- | --- | --- | --- |
+| `play-rockyroad.svg`, `pause-rockyroad.svg` | Dashboard (`DashboardScreen.js`), kep2 mocks | File comments say "adapted from RockyRoad v2/public/…" | **Confirmed Vidstack `play` / `pause`** (identical paths) | **Fix the comments**: credit Vidstack, drop or qualify the RockyRoad line |
+| `power-svgrepo-com.svg` | Dashboard, kep2 mocks | SVG Repo ("Uploaded to" comment) | MIT-style Zest Free License (32pixels, LLC), now in `THIRD_PARTY_NOTICES.md` | Stroke icon (24 grid, 2px, `#ffffff`), a different style from the Vidstack fills. Keep, or replace for style |
+| `warning.svg` | Not imported anywhere in the editor today | Redrawn in `Aurora-xrl1` (5da5bd79); no source recorded | Unrecorded, presumed Aurora's own | 34x29, `currentColor`, stroke plus fill. The only one that follows text colour |
+
+### Needed by `Aurora-daaa.32` (mock only)
+
+| Icon | Where | Proposed |
+| --- | --- | --- |
+| Play `▷` | Test split button at rest | Vidstack `play` (a filled triangle, not the outline `▷`) |
+| Stop `■` | Test split button while testing | Vidstack `stop` |
+| Chevron | Split button menu, Zones hide | Vidstack `chevron-down` / `chevron-up` |
+| Fullscreen / exit | Zones resize button, Controls drawer Full height / Half height toggle | Vidstack `fullscreen-arrow` / `fullscreen-arrow-exit`. **Done in the mock**; the files are in `web/ui/icons` |
+| Close `×` | Controls drawer and Add node sheet headers | Vidstack `x-mark`. **Done in the mock**; the file is in `web/ui/icons` |
+
+The mock now draws all its icons in one style (2026-11-11). Vidstack paths (`VS` in `mock.js`: 32 grid, filled, drawn 20-24 px inside a 12-16 px layout box): fullscreen enter/exit, close, back arrow (`arrow-left`), add, chevron down/up, play, stop and search. Every mock icon path is an inline copy of a file in `web/ui/icons` (checked 2026-11-11; the `mock.js` comment maps each key to its file), since a static page cannot load them. Aurora's own `warning.svg` is the warning mark. Undo, redo and minus have no Vidstack shape, so they use the Zest Free `Undo.svg` / `Redo.svg` / `minus.svg` (24 grid, filled; `ZEST` in `mock.js`), drawn at 24 px inside 16 px of layout like the Vidstack icons. The back arrow was a `←` character and the Add node plus a `+` character, both font-dependent and lighter than the icons beside them; they are now the Vidstack shapes. Before this the mock used 1.8 px outline icons that were not Vidstack and looked about half the weight of the real ones.
+
+RockyRoad (`~/Documents/Coding/RockyRoad/public`) holds the same Vidstack back-arrow, chevrons, play and pause, plus `check.svg`, `replay.svg` and app-specific icons; nothing there covers the glyphs above. RockyRoadImport has no SVGs.
+
+### Crediting (not legal advice)
+
+MIT requires the copyright notice and permission text to travel with every copy or substantial portion. So:
+
+- **Grille ships Vidstack icons:** Grille's package must carry the Vidstack notice (Copyright (c) 2023 Rahim Alwer, MIT text). That covers Grille's own distribution.
+- **Aurora should credit as well.** Aurora's built editor contains the icon paths, and Aurora also holds its own copies today in `web/ui/icons`. A Grille credit in `node_modules` does not reach someone who gets only the built app. Normal practice is one third-party notices file listing every bundled MIT component, including those that arrive through dependencies.
+- **RockyRoad does not cover Aurora.** Its `src/shared/assets/MediaSVGSource.txt` is one line ("In-lined svg's from: https://vidstack.io/icons/?lib=react"): a source link, no copyright line or MIT text. It has the same gap.
+- **Aurora today:** the root `README.md` Art section links to Vidstack and Zest. A link is a credit, not the licence text.
+- **Done (2026-11-10):** `THIRD_PARTY_NOTICES.md` at the repo root now holds the full Vidstack and Zest notices (Zest: "Copyright 2019-2021 32pixels, LLC", from `zest-icons`) and the Huenicorn entry, linked from the root README. Still to do: Grille keeps the same notice in its own package, and Aurora's file notes icons that arrive through Grille.
+
+### Findings
+
+1. Three sources, no module: files in `web/ui/icons`, Unicode glyphs, and Grille's own glyphs.
+2. Licences are known (Vidstack MIT, Zest MIT-style) and the full notices are now in the root `THIRD_PARTY_NOTICES.md`.
+3. Wrong credit: `play-rockyroad.svg` and `pause-rockyroad.svg` comments.
+4. The editor imports from `../../ui/icons` (the Dashboard's folder), so a rename or cleanup there breaks the editor.
+5. Suggested next step: one `icons` module for the editor with inline SVG components on `currentColor` (24 or 32 grid, one fill style), Vidstack where it has the shape, Zest for undo, redo and minus, plus the Aurora warning mark (the dashboard diamond is cut); add a `THIRD_PARTY` licence entry. Ask Grille for an icon slot on `Drawer` close and `Select`.

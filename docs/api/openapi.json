@@ -1751,7 +1751,8 @@
       "NodeCatalog": {
         "type": "object",
         "required": [
-          "nodes"
+          "nodes",
+          "portTypes"
         ],
         "properties": {
           "nodes": {
@@ -1800,6 +1801,25 @@
                   "items": {
                     "type": "object"
                   }
+                }
+              }
+            }
+          },
+          "portTypes": {
+            "type": "array",
+            "description": "What each port type means, one entry per type.",
+            "items": {
+              "type": "object",
+              "required": [
+                "name",
+                "meaning"
+              ],
+              "properties": {
+                "name": {
+                  "type": "string"
+                },
+                "meaning": {
+                  "type": "string"
                 }
               }
             }

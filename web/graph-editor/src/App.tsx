@@ -38,7 +38,7 @@ import { ZoneThumbnail } from './ZoneThumbnail'
 import { tabSession, useDraftLoop } from './useDraftLoop'
 import { useLightTest } from './useLightTest'
 import { restorable, clearUnsaved, syncUnsaved } from './graph/autosave'
-import { refuseConnection } from './graph/connection'
+import { converterFor, insertConverter, refuseConnection } from './graph/connection'
 import { controlsOf } from './graph/controls'
 import { addEdge, addNode, joinEndpoint, moveNodes, removeEdge, removeNodes, setParam } from './graph/doc'
 import { editorReducer, emptyEditor, sameDoc } from './graph/history'
@@ -505,16 +505,37 @@ export function App() {
     [doc, catalog],
   )
 
-  const isValidConnection = useCallback((c: Connection | Edge) => wiring(c) === null, [wiring])
+  // Float <-> Angle is accepted by the canvas and gets a converter node.
+  const convertible = useCallback(
+    (c: Connection | Edge) =>
+      !!doc && !!catalog && !!c.sourceHandle && !!c.targetHandle &&
+      converterFor(doc, catalog, { source: c.source, sourceHandle: c.sourceHandle, target: c.target, targetHandle: c.targetHandle }) !== null,
+    [doc, catalog],
+  )
+
+  const isValidConnection = useCallback((c: Connection | Edge) => wiring(c) === null || convertible(c), [wiring, convertible])
 
   const onConnect = useCallback(
     (c: Connection) => {
+      if (doc && catalog && c.sourceHandle && c.targetHandle && convertible(c)) {
+        const conn = { source: c.source, sourceHandle: c.sourceHandle, target: c.target, targetHandle: c.targetHandle }
+        const result = insertConverter(doc, catalog, conn)
+        if ('reason' in result) showToast(result.reason)
+        else {
+          edit((d) => {
+            const r = insertConverter(d, catalog, conn)
+            return 'doc' in r ? r.doc : d
+          })
+          showToast(`Inserted ${result.id} to convert ${catalog.get(doc.nodes.find((n) => n.id === c.source)!.type)?.outputs.find((p) => p.name === c.sourceHandle)?.type} to ${catalog.get(doc.nodes.find((n) => n.id === c.target)!.type)?.inputs.find((p) => p.name === c.targetHandle)?.type}`)
+        }
+        return
+      }
       const reason = wiring(c)
       if (reason) showToast(reason)
       if (reason || !c.sourceHandle || !c.targetHandle) return
       edit((d) => addEdge(d, [joinEndpoint(c.source, c.sourceHandle!), joinEndpoint(c.target, c.targetHandle!)]))
     },
-    [wiring, edit, showToast],
+    [doc, catalog, convertible, wiring, edit, showToast],
   )
 
   // Type of the port a connection drag started from: its colour tints the drag

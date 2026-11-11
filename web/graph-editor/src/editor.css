@@ -486,7 +486,7 @@ button.editor-problem-row:hover {
   white-space: nowrap;
 }
 
-/* Port types (Aurora-ex8z): hue and shape per type from graph/portStyle.ts.
+/* Port types (Aurora-ex8z): hue per domain, always a circle from graph/portStyle.ts.
    Fill vs outline stays free for connection state. */
 .react-flow .aurora-handle {
   --size: 10px;
@@ -494,24 +494,7 @@ button.editor-problem-row:hover {
   height: var(--size);
   background: var(--port-color);
   border: 1px solid var(--aurora-surface);
-  border-radius: 0;
-}
-
-.react-flow .aurora-handle-circle {
   border-radius: 50%;
-}
-
-.react-flow .aurora-handle-diamond {
-  width: 8px;
-  height: 8px;
-  rotate: 45deg;
-}
-
-.react-flow .aurora-handle-triangle {
-  width: 12px;
-  height: 12px;
-  border: 0;
-  clip-path: polygon(0 0, 100% 50%, 0 100%);
 }
 
 .react-flow.is-connecting .aurora-handle {
@@ -610,20 +593,7 @@ button.editor-problem-row:hover {
   width: 8px;
   height: 8px;
   background: var(--port-color);
-}
-
-.add-socket[data-shape='circle'] {
   border-radius: 50%;
-}
-
-.add-socket[data-shape='diamond'] {
-  rotate: 45deg;
-  width: 6px;
-  height: 6px;
-}
-
-.add-socket[data-shape='triangle'] {
-  clip-path: polygon(0 0, 100% 50%, 0 100%);
 }
 
 /* The node's ⋯ button: faded until hover or selection, but always rendered and

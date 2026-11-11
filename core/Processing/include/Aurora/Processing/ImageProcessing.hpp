@@ -16,6 +16,8 @@
 //   2. rgbaToRgb() is generalized to dropAlpha(), handling BGRA as well as
 //      RGBA (DXGI Desktop Duplication and many Linux compositors produce
 //      BGRA natively -- relevant from phase 2 onward).
+//
+// Upstream huenicorn is GPL-3.0-only; see THIRD_PARTY_NOTICES.md.
 namespace Aurora::Processing
 {
   using Colors = std::vector<Contracts::Color>;

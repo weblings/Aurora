@@ -148,6 +148,8 @@ on recorded features and checks outputs match within epsilon.
 - **Color:** `color.fromHSV`, `color.toHSV`, `color.brightness`,
   `color.mix`, `color.hueShift`, `color.complement` (+180°),
   `color.constant` and `angle.constant` (fixed-value sources).
+- **Angle/Float:** `angle.add`, `angle.fromFloat(scale)` (degrees = value × scale,
+  wraps), `angle.toFloat(scale)` (degrees ÷ scale).
 - **Palette:** `palette.randomAnchor` (the six complementary pairs),
   `palette.pick`.
 - **Frame ops** (these enable video × audio mixing, the headline
@@ -289,6 +291,23 @@ section wins.
   `onset` (Trigger). The `features` port is unchanged, so parity holds.
 - The runtime error value is outside the type system. The runtime carries it
   with the originating node id, and it propagates downstream.
+
+**Port type glossary.** One line per type. The text lives in
+`portTypeMeaning` (`GraphTypes.cpp`) and is served as `portTypes` by
+`GET /api/nodes`, in `list_nodes` and `describe_node` for agents, and as the
+hover tooltip on a port's type label in the editor. Change it there and here
+together (Aurora-z6kw).
+- `Image`: One video frame (pixels), or Absent while the source is unhealthy. Every node runs every tick.
+- `AudioBuffer`: The latest block of raw audio samples.
+- `AudioFeatures`: All audio features extracted this tick (loudness, bands, onset and so on) as one bundle for audio.drift and audio.bounce.
+- `Color`: One RGB color.
+- `Frame`: One color per light zone: what an output node sends to the lights.
+- `Float`: A plain number, usually 0..1. Not interchangeable with Angle: nothing converts one to the other implicitly, so use an angle.fromFloat node.
+- `Angle`: A direction in degrees, not 0..1. Not interchangeable with Float: nothing converts one to the other implicitly, so use an angle.toFloat node.
+- `Trigger`: An event as a value: true for exactly one tick when it happens, false on every other tick. It is sent every tick, so it is not a callback or a gate.
+- Every node runs every tick, and a value is either present or Absent for that
+  tick. Wires carry values, not events: a `Trigger` is just a value that is
+  true for one tick.
 
 **Edges and bindings.**
 - Edge: `["node.port", "node.port"]`, output first.

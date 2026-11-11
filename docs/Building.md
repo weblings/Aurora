@@ -120,6 +120,10 @@ result, and the app serves it at `/graph-editor/`.
   licenses, and `bundle-dylibs.sh` runs it before signing, so the seal covers
   it. Checked 2026-10-29 with an ad-hoc identity: `verify-bundle.sh` PASS and
   `codesign --verify --deep --strict` clean.
+- **Root third-party notices:** `THIRD_PARTY_NOTICES.md` (Huenicorn, Vidstack,
+  Zest) ships in every app build: `Contents/Resources/Licenses/` on macOS
+  (`bundle-licenses.sh` re-copies it), beside the copyright file on Linux, and
+  `Licenses/` on Windows. Configure fails if the file is missing.
 - **Third-party notices:** Vite writes the THIRD-PARTY-NOTICES file for the
   bundled npm packages. It is served inside the editor's map, installed
   next to the Linux copyright file, and copied into

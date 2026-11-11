@@ -6,6 +6,8 @@
 
 // The generic half of huenicorn's per-tick Runtime::_update() loop -- crops
 // and averages each active zone, independent of any specific IOutput.
+//
+// Upstream huenicorn is GPL-3.0-only; see THIRD_PARTY_NOTICES.md.
 namespace Aurora::Runtime
 {
   // Crops `source` per each active zone's UVs and takes its dominant color.

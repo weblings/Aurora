@@ -31,6 +31,8 @@ KEEP=""
 if [ -f "$EDITOR_NOTICE" ]; then KEEP="$(mktemp)"; cp "$EDITOR_NOTICE" "$KEEP"; fi
 rm -rf "$LIC"; mkdir -p "$LIC/Aurora"
 cp "$ROOT/LICENSE" "$LIC/Aurora/LICENSE"
+[ -f "$ROOT/THIRD_PARTY_NOTICES.md" ] || { echo "no $ROOT/THIRD_PARTY_NOTICES.md" >&2; exit 1; }
+cp "$ROOT/THIRD_PARTY_NOTICES.md" "$LIC/THIRD_PARTY_NOTICES.md"
 if [ -n "$KEEP" ]; then mkdir -p "$LIC/graph-editor"; cp "$KEEP" "$EDITOR_NOTICE"; rm -f "$KEEP"; fi
 
 export APP ROOT MANIFEST LIC

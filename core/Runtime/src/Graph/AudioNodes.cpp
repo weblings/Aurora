@@ -107,7 +107,7 @@ namespace Aurora::Runtime::Graph
     const std::vector<PortDecl> kFeatureOutputs{
       {"features", PortType::AudioFeatures, false, "All extracted features as one struct, for audio.drift and audio.bounce."},
       {"rms", PortType::Float, false, "Overall loudness (RMS) 0..1."},
-      {"onset", PortType::Trigger, false, "Pulses on each detected beat or onset."},
+      {"onset", PortType::Trigger, false, "True for one tick on each detected beat or onset."},
       {"onsetStrength", PortType::Float, false, "How strong the last onset was; only meaningful when onset fires."},
       {"centroid", PortType::Float, false, "Spectral centroid in Hz, the brightness of the sound."},
     };
