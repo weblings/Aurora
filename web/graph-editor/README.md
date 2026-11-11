@@ -100,6 +100,7 @@ Render per OS font, so size, weight and baseline differ on Mac, Windows and Linu
 | `⚠` | `ProblemsChip.tsx`, `GenericNode.tsx` (header, list, port mark), `ParamWidget.tsx` | Vidstack has no warning icon (`info`, `question-mark` only). Use `web/ui/icons/warning.svg` as an inline component |
 | `●` | `App.tsx` unsaved dot on the title (compact) | Keep: a plain dot; or a CSS circle so it does not depend on the font |
 | `◆` | `ParamWidget.tsx` "On the Dashboard" mark | Vidstack has no diamond. Draw new, or a CSS shape |
+| `+` | `App.tsx` Add node button, and the mock's `index.html` | Vidstack `add` (`add.svg`). `App.tsx` (the Add node button, ~line 596) renders a `+` character, so it has the same font-dependent weight. The mock now draws the Vidstack shape |
 | `↑` `↓` | `ControlsDrawer.tsx` move up/down | Vidstack `arrow-up` / `arrow-down` |
 | `✕` | `ControlsDrawer.tsx` remove | Vidstack `x-mark`, now in `web/ui/icons/x-mark.svg` (same one as the Drawer close) |
 | `−` | `ParamWidget.tsx` remove stop | Vidstack has no minus (`add` only). Draw new, matching `add` |
@@ -129,7 +130,7 @@ Render per OS font, so size, weight and baseline differ on Mac, Windows and Linu
 | Fullscreen / exit | Zones resize button, Controls drawer Full height / Half height toggle | Vidstack `fullscreen-arrow` / `fullscreen-arrow-exit`. **Done in the mock**; the files are in `web/ui/icons` |
 | Close `×` | Controls drawer and Add node sheet headers | Vidstack `x-mark`. **Done in the mock**; the file is in `web/ui/icons` |
 
-The mock now draws all its icons in one style (2026-11-11). Vidstack paths (`VS` in `mock.js`: 32 grid, filled, drawn 20-24 px inside a 12-16 px layout box): fullscreen enter/exit, close, chevron down/up, play, stop (`stop.svg`) and search (`search.svg`). Aurora's own `warning.svg` is the warning mark. Undo and redo have no Vidstack shape, so they use the Zest Free `Undo.svg` / `Redo.svg` (24 grid, filled; `ZEST` in `mock.js`), drawn at 24 px inside 16 px of layout like the Vidstack icons. Before this the mock used 1.8 px outline icons that were not Vidstack and looked about half the weight of the real ones.
+The mock now draws all its icons in one style (2026-11-11). Vidstack paths (`VS` in `mock.js`: 32 grid, filled, drawn 20-24 px inside a 12-16 px layout box): fullscreen enter/exit, close, back arrow (`arrow-left`), add (`add.svg`), chevron down/up, play, stop (`stop.svg`) and search (`search.svg`). Aurora's own `warning.svg` is the warning mark. Undo and redo have no Vidstack shape, so they use the Zest Free `Undo.svg` / `Redo.svg` (24 grid, filled; `ZEST` in `mock.js`), drawn at 24 px inside 16 px of layout like the Vidstack icons. The back arrow was a `←` character and the Add node plus a `+` character, both font-dependent and lighter than the icons beside them; they are now the Vidstack shapes. Before this the mock used 1.8 px outline icons that were not Vidstack and looked about half the weight of the real ones.
 
 RockyRoad (`~/Documents/Coding/RockyRoad/public`) holds the same Vidstack back-arrow, chevrons, play and pause, plus `check.svg`, `replay.svg` and app-specific icons; nothing there covers the glyphs above. RockyRoadImport has no SVGs.
 

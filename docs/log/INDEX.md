@@ -378,3 +378,4 @@ Planning docs stay clean: decisions, status, and pointers here only.
 | 2026-11-10 | Graph editor mock rebuilt on Grille with back link, bar and credit decisions as toggles. [[daaa31-grille-mock]] | `bd show Aurora-daaa.31` |
 | 2026-11-11 | Grille mock: Test split button and Zones island variant behind a Decisions switch. [[daaa32-test-split-zones-island]] | `bd show Aurora-daaa.32` |
 | 2026-11-11 | Grille mock: narrow-window drawers (clamped side width, bottom dock, preview and corner buttons clear). [[daaa34-mock-narrow-drawers]] | `bd show Aurora-daaa.34` |
+| 2026-11-11 | Grille mock: fixed 32 px top bar, Zones no-resize variant, drawer icon buttons, one icon set (Vidstack, Zest) sized as Aurora renders them; icon audit updated. [[daaa33-mock-icons]] | `bd show Aurora-daaa.33` |

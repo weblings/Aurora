@@ -68,7 +68,6 @@ button { font-family: inherit; }
   .ge-canvas.drawer-open.drawer-full .ge-br, .ge-canvas.drawer-open.drawer-full .ge-bl, .ge-canvas.drawer-open.drawer-full .ge-credit { visibility: hidden; }
 }
 
-.ge-plus { font-size: 16px; line-height: 16px; }
 .ge-count { color: var(--ui-color-text-secondary); }
 
 .ge-zones {
@@ -406,11 +405,13 @@ button { font-family: inherit; }
 .ge-zsize:focus-visible { outline: var(--ui-size-focus-ring-width) solid var(--ui-color-focus-ring); outline-offset: var(--ui-size-focus-ring-offset); }
 @media (hover: none) { .ge-zsize { opacity: 1; } }
 
-/* Vidstack icons: filled paths on a 32 grid with built-in padding. Drawn larger than the layout box (negative margin) so a button holding one is the same size as one holding a 16px stroke icon.
+/* Vidstack and Zest icons: filled paths with built-in padding in their grid, so the box is small. Sizes follow how Aurora and RockyRoad render the same files:
+   10px chevron (dropdown.css, editor.css), 14px back arrow (forms.css, editor.css), 16px for the rest (shell.css's .top-bar-trailing-icon). No negative margins.
    These rules come last and are specific enough to beat the older stroke-icon rules above. */
-.ge-icon.ge-vs { width: 24px; height: 24px; margin: -4px; fill: currentColor; stroke: none; }
-.ge-chev .ge-icon.ge-vs, .ge-split .ge-chev .ge-icon.ge-vs { width: 20px; height: 20px; margin: -4px; fill: currentColor; stroke: none; }
-.ge-split .ge-icon.ge-vs { width: 20px; height: 20px; margin: -4px; fill: currentColor; stroke: none; }
-.ge-zsize .ge-icon.ge-vs { width: 22px; height: 22px; margin: 0; }
-.ae-search .ge-icon.ge-vs { width: 22px; height: 22px; margin: 0; }
+.ge-icon.ge-vs { width: 16px; height: 16px; margin: 0; fill: currentColor; stroke: none; }
+.ge-chev .ge-icon.ge-vs, .ge-split .ge-chev .ge-icon.ge-vs { width: 10px; height: 10px; margin: 0; fill: currentColor; stroke: none; }
+.ge-split .ge-icon.ge-vs { width: 16px; height: 16px; margin: 0; fill: currentColor; stroke: none; }
+.ge-icon.ge-vs.ge-vs-back { width: 14px; height: 14px; }
+.ge-zsize .ge-icon.ge-vs { width: 16px; height: 16px; }
+.ae-search .ge-icon.ge-vs { width: 16px; height: 16px; }
 .ge-warn .ge-icon.ge-warnsvg { width: 16px; height: auto; }
