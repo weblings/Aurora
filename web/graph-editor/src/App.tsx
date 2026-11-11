@@ -654,12 +654,12 @@ export function App() {
             Reconnect
           </button>
         ) : null}
+        <span className="editor-bar-end" />
         <ProblemsChip
           problems={problems}
           onSelectNode={selectNode}
           onAddNode={() => setAddMenuOpen(true)}
         />
-        <span className="editor-bar-end" />
         {tightBar ? (
           <BarMoreMenu canUndo={past.length > 0} canRedo={future.length > 0} onUndo={undo} onRedo={redo} />
         ) : (

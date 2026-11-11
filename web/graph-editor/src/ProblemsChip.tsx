@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react'
 import { Dialog } from '@weblings/grille'
 import { EditorPopup } from './EditorPopup'
+import { COMPACT_BAR, useMedia } from './useMedia'
 import type { Problems } from './graph/problems'
 
 export function problemCount(problems: Problems): number {
@@ -23,6 +24,7 @@ export function ProblemsChip({
 }) {
   const [open, setOpen] = useState(false)
   const trigger = useRef<HTMLButtonElement>(null)
+  const compact = useMedia(COMPACT_BAR)
   const count = problemCount(problems)
   if (count === 0) return null
   const close = () => setOpen(false)
@@ -35,9 +37,10 @@ export function ProblemsChip({
         data-size="sm"
         aria-haspopup="dialog"
         aria-expanded={open}
+        aria-label={compact ? `${count} ${count === 1 ? 'problem' : 'problems'}` : undefined}
         onClick={() => setOpen((o) => !o)}
       >
-        ⚠ {count} {count === 1 ? 'problem' : 'problems'}
+        {compact ? `⚠ ${count}` : `⚠ ${count} ${count === 1 ? 'problem' : 'problems'}`}
       </button>
       <EditorPopup isOpen={open} onClose={close} label="Problems" triggerRef={trigger}>
         <Dialog aria-label="Problems">

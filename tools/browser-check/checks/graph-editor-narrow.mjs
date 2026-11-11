@@ -37,7 +37,7 @@ async function keyboardReachesUndoRedo(page, width) {
 
 await withEditorStack(async ({ editorUrl }) => {
   const browser = await launch()
-  const page = await browser.newPage({ viewport: { width: 1470, height: 900 } })
+  let page = await browser.newPage({ viewport: { width: 1470, height: 900 } })
   page.on('pageerror', (e) => assert.fail(`page error: ${e.message}`))
   try {
     await page.goto(`${editorUrl}?effect=builtin.video`)
@@ -144,6 +144,44 @@ await withEditorStack(async ({ editorUrl }) => {
       await page.keyboard.press('Escape')
       await page.waitForTimeout(300)
       assert.equal(await page.locator('.ui-drawer').count(), 0, `${w}x${h}: Esc left the drawer open`)
+    }
+    // Aurora-s1t7.2: with a problem showing, the chip sits in the right group just before Undo (or
+    // More), and the bar still never wraps or overflows at every width.
+    const fresh = await browser.newContext({ viewport: { width: 1470, height: 900 } })
+    await page.close()
+    page = await fresh.newPage()
+    page.on('pageerror', (e) => assert.fail(`page error: ${e.message}`))
+    await page.goto(`${editorUrl}?effect=builtin.video`)
+    await page.waitForSelector('.aurora-node')
+    await page.waitForTimeout(1500)
+    const barHeight = await page.evaluate(() => document.querySelector('.editor-header').getBoundingClientRect().height)
+    const mid = await page.locator('.react-flow__edge[data-id*="ease_hue.frame"][data-id*="gain_hue.frame"] path.react-flow__edge-path').first().evaluate((p) => {
+      const m = p.getPointAtLength(p.getTotalLength() / 2)
+      const pt = new DOMPoint(m.x, m.y).matrixTransform(p.getScreenCTM())
+      return { x: pt.x, y: pt.y }
+    })
+    await page.mouse.click(mid.x, mid.y)
+    await page.keyboard.press('Backspace')
+    await page.locator('.editor-problems-chip', { hasText: /\d+ problems?/ }).waitFor()
+    for (const width of [1470, 1100, 900, 700, 520, 400]) {
+      await page.setViewportSize({ width, height: 800 })
+      await page.waitForTimeout(400)
+      const g = await page.evaluate(() => {
+        const bar = document.querySelector('.editor-header').getBoundingClientRect()
+        const chip = document.querySelector('.editor-problems-chip').getBoundingClientRect()
+        const next = document.querySelector('.editor-header [aria-label="Undo"], .editor-header [aria-label="More"], .editor-header button[title^="Undo"]')?.getBoundingClientRect()
+        const status = document.querySelector('.editor-status')?.getBoundingClientRect()
+        return { barH: bar.height, chipLeft: chip.left, chipRight: chip.right, chipTop: chip.top, nextLeft: next?.left, nextTop: next?.top, statusRight: status?.right, vw: innerWidth }
+      })
+      console.log(width, 'problems chip:', JSON.stringify(g))
+      assert.ok(g.nextLeft !== undefined, `${width} px: no Undo or More button`)
+      assert.ok(Math.abs(g.barH - barHeight) < 1, `${width} px: bar wrapped (${g.barH} px, was ${barHeight})`)
+      assert.ok(g.chipLeft >= -1 && g.chipRight <= g.vw + 1, `${width} px: chip outside the window: ${JSON.stringify(g)}`)
+      assert.ok(g.chipRight <= g.nextLeft + 1 && Math.abs(g.chipTop - g.nextTop) < 20, `${width} px: chip is not just before Undo: ${JSON.stringify(g)}`)
+      assert.ok(g.statusRight === undefined || g.statusRight <= g.chipLeft + 1, `${width} px: chip is left of the status: ${JSON.stringify(g)}`)
+      const o = await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)
+      assert.ok(o <= 0, `${width} px: page scrolls sideways by ${o}`)
+      if (SHOTS) await page.screenshot({ path: `${SHOTS}/${width}-problems.png` })
     }
   } finally {
     await browser.close()
