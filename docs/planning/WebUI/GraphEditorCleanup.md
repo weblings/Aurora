@@ -604,6 +604,36 @@ Decided:
   CSS variables). The demo's layout fixes still apply: `min-width: 0; min-height: 0` on
   flex panes, and `box-sizing` on a pane outside a scoped reset.
 
+## Decisions (owner, Grille mock switches, 2026-11-10, `Aurora-s1t7.6`)
+
+Stage 5 (`Aurora-s1t7`) brings the editor to the Grille mock
+(`web/ui/Static_GraphEditor_Mocks_Grille/`). Its frame strip has four Decisions switches
+(the mock README describes each). Chosen:
+
+1. **Back link and title boxed: on.** Both are Grille secondary buttons, so no borderless
+   Grille variant is needed. With choice 2 this is Grille's default `ui-button`, which
+   `Aurora-s1t7.1` already applies; the separate styling bead (`Aurora-s1t7.7`) was folded
+   into it.
+2. **Test on lights primary: off.** Grille secondary, so no bar-size override for primary.
+3. **Test split button + Zones island: on.** Filed as the epic `Aurora-qjqy`:
+   - Light tests get a mode (`Aurora-qjqy.1`). Once reverts after 15 s; Live runs until
+     stopped, and losing the heartbeat still reverts it. Today every test has the same
+     120 s cap.
+   - MCP `try_on_lights` defaults to Once and takes an optional mode (`Aurora-qjqy.2`).
+     An agent rarely gets the user's answer inside 15 s, so `keep` also accepts the tested
+     draft after a test timed out, as long as the draft has not changed.
+   - The editor's status pill, Test on lights, countdown and Revert become one split button
+     `[▷ Test ⌄]` (`Aurora-qjqy.3`), and the status priority rule above is rewritten there.
+     For that reason the bar regroup (`Aurora-s1t7.2`) only moves the problems chip.
+   - The Zones island needs no engine change, so it stays in stage 5 (`Aurora-s1t7.4`).
+4. **Zones island without the resize button: on.** One small size only. The resize code
+   stays in the mock in case a larger map earns its place later.
+
+Not a mock switch, raised at the same review: the mock shows Cannot reach Aurora as a
+banner under the bar. The editor's three under-bar banners (unreachable, Restore or
+Discard, the window-size note) move to the Dashboard's error shell in a follow-up stage 6
+(`Aurora-u68h`, `Aurora-s1t7.9`), kept out of stage 5.
+
 ## Known follow-ups (filed under `Aurora-daaa`)
 
 Small items found during stage 2 that are not part of any stage's scope yet. None is assigned
