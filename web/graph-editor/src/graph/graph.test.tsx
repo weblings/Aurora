@@ -19,14 +19,14 @@ const without = <T extends object>(obj: T, key: string) => {
 }
 
 describe('port styles', () => {
-  it('gives every port type in the catalog a distinct colour and shape pair', () => {
+  it('gives every port type in the catalog one of four domain colours, all circles', () => {
     const used = new Set<string>()
     for (const info of nodesSample.nodes as NodeTypeInfo[]) {
       for (const p of [...info.inputs, ...info.outputs]) used.add(p.type)
     }
     for (const t of used) expect(PORT_TYPES).toContain(t)
-    const looks = PORT_TYPES.map((t) => `${portStyle(t).color}/${portStyle(t).shape}`)
-    expect(new Set(looks).size).toBe(PORT_TYPES.length)
+    expect(new Set(PORT_TYPES.map((t) => portStyle(t).color)).size).toBe(4)
+    expect(PORT_TYPES.every((t) => !('shape' in portStyle(t)))).toBe(true)
   })
 
   it('colours an edge by its source port type and dashes triggers', () => {

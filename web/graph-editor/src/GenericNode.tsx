@@ -8,8 +8,8 @@ import { unattributed } from './graph/problems'
 import { portStyle } from './graph/portStyle'
 
 function handleLook(type: string) {
-  const { color, shape } = portStyle(type)
-  return { className: `aurora-handle aurora-handle-${shape}`, 'data-port-type': type, style: { '--port-color': color } as React.CSSProperties }
+  const { color } = portStyle(type)
+  return { className: `aurora-handle`, 'data-port-type': type, style: { '--port-color': color } as React.CSSProperties }
 }
 
 // One component draws every node type from its /api/nodes entry: ports become

@@ -1,4 +1,4 @@
-// Aurora-ex8z: every port type draws its own colour and shape, edges take the
+// Aurora-ex8z: every port type draws its domain colour as a circle, edges take the
 // source colour, and a drag tints the line and dims handles of other types.
 import assert from 'node:assert/strict'
 import { launch } from '../lib/browser.mjs'
@@ -14,14 +14,14 @@ const AUDIO = '#c58cf0'
 const LIGHT = '#e5ad3c'
 const NUMBER = '#9a9a9a'
 const EXPECT = {
-  Image: [VIDEO, 'square'],
-  AudioBuffer: [AUDIO, 'square'],
-  AudioFeatures: [AUDIO, 'circle'],
-  Frame: [LIGHT, 'square'],
-  Color: [LIGHT, 'circle'],
-  Float: [NUMBER, 'circle'],
-  Angle: [NUMBER, 'diamond'],
-  Trigger: [NUMBER, 'triangle'],
+  Image: VIDEO,
+  AudioBuffer: AUDIO,
+  AudioFeatures: AUDIO,
+  Frame: LIGHT,
+  Color: LIGHT,
+  Float: NUMBER,
+  Angle: NUMBER,
+  Trigger: NUMBER,
 }
 
 await withEditorStack(async ({ editorUrl }) => {
@@ -47,25 +47,23 @@ await withEditorStack(async ({ editorUrl }) => {
     assert.deepEqual([...(await have())].sort(), Object.keys(EXPECT).sort())
     step('a graph with all 8 port types is on the canvas')
 
-    for (const [type, [color, shape]] of Object.entries(EXPECT)) {
+    for (const [type, color] of Object.entries(EXPECT)) {
       const look = await page.locator(`.aurora-handle[data-port-type="${type}"]`).first().evaluate((el) => {
         const s = getComputedStyle(el)
         return { bg: s.backgroundColor, radius: s.borderRadius, rotate: s.rotate, clip: s.clipPath }
       })
       assert.equal(look.bg, rgb(color), `${type} colour`)
-      if (shape === 'circle') assert.equal(look.radius, '50%', `${type} shape`)
-      if (shape === 'square') assert.ok(look.radius === '0px' && look.rotate === 'none', `${type} shape ${JSON.stringify(look)}`)
-      if (shape === 'diamond') assert.equal(look.rotate, '45deg', `${type} shape`)
-      if (shape === 'triangle') assert.ok(look.clip.startsWith('polygon'), `${type} shape`)
+      assert.equal(look.radius, '50%', `${type} is a circle`)
+      assert.ok(look.rotate === 'none' && look.clip === 'none', `${type} has no shape transform`)
     }
-    step('each type draws its spec colour and shape')
+    step('each type draws its domain colour and a circle')
 
     // Edges of the built-in take their source handle's colour.
     const strokes = await page
       .locator('.react-flow__edge path.react-flow__edge-path')
       .evaluateAll((els) => els.map((e) => getComputedStyle(e).stroke))
     assert.ok(strokes.length > 0)
-    const allowed = Object.values(EXPECT).map(([c]) => rgb(c))
+    const allowed = Object.values(EXPECT).map(rgb)
     for (const s of strokes) assert.ok(allowed.includes(s), `edge stroke ${s} is not a port colour`)
     step('edges are drawn in port colours')
 

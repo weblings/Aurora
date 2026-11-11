@@ -11,7 +11,7 @@ function Sockets({ ports, side }: { ports: PortInfo[]; side: 'in' | 'out' }) {
     <span className="add-sockets" data-side={side} title={ports.map((p) => `${p.name}: ${p.type}`).join(', ')}>
       <span className="add-sockets-side">{side === 'in' ? 'In' : 'Out'}</span>
       {ports.map((p) => (
-        <span key={p.name} className="add-socket" data-shape={portStyle(p.type).shape} style={{ ['--port-color' as string]: portStyle(p.type).color }} />
+        <span key={p.name} className="add-socket" style={{ ['--port-color' as string]: portStyle(p.type).color }} />
       ))}
     </span>
   )
