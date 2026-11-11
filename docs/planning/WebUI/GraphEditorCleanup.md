@@ -2,7 +2,7 @@
 
 Id: graph-editor-cleanup
 
-Status: stage 1 built (back link, Aurora component styles); stage 2 built (top bar, title and view menus, status spot, `Aurora-daaa.11`); stage 3 built (catalog `group`, node copy, cascade Add node menu, palette removed; `Aurora-daaa.24.1`-`.24.4`, Grille `v0.1.0-dev.6`); stage 4 built (right-click and ⋯ menus, Delete key, Details and Dashboard controls drawers, Inspector removed, Esc closes a drawer from anywhere; `Aurora-daaa.27.1`-`.27.5`, Grille `v0.1.0-dev.8`). Control count 9 on Screen colors and `builtin.audio`, under the mock's 11. Narrow windows built: top bar shrink (`Aurora-daaa.29.1`), drawer width and node-clear pan (`Aurora-daaa.29.2`), bottom dock (`Aurora-daaa.29.4`), 1100 px no-pan check and drawer-body container queries skipped (`Aurora-daaa.29.5`). Full graph-editor browser-check suite passes on the stage 4 head (`Aurora-daaa.30`). Left in the epic: Grille `v0.1.0` (`Aurora-daaa.16`).
+Status: stage 1 built (back link, Aurora component styles); stage 2 built (top bar, title and view menus, status spot, `Aurora-daaa.11`); stage 3 built (catalog `group`, node copy, cascade Add node menu, palette removed; `Aurora-daaa.24.1`-`.24.4`, Grille `v0.1.0-dev.6`); stage 4 built (right-click and ⋯ menus, Delete key, Details and Dashboard controls drawers, Inspector removed, Esc closes a drawer from anywhere; `Aurora-daaa.27.1`-`.27.5`, Grille `v0.1.0-dev.8`). Control count 9 on Screen colors and `builtin.audio`, under the mock's 11. Narrow windows built: top bar shrink (`Aurora-daaa.29.1`), drawer width and node-clear pan (`Aurora-daaa.29.2`), bottom dock (`Aurora-daaa.29.4`), 1100 px no-pan check and drawer-body container queries skipped (`Aurora-daaa.29.5`). Full graph-editor browser-check suite passes on the stage 4 head (`Aurora-daaa.30`). Stage 5 (`Aurora-s1t7`, editor to the Grille mock) and stage 6 (`Aurora-u68h`, banners on the Dashboard error shell) are filed, with Grille's icon epic (`Grille-ky2`) and the light test modes epic (`Aurora-qjqy`): see Stages 5 and 6. Grille `v0.1.0` (`Aurora-daaa.16`) is now the last step of stage 5.
 Written 2026-11-06 under `Aurora-bova`. The owner reviewed the working mock and likes
 the direction. Decisions 1-7 are recorded under Decisions (2026-11-08). Stages 1-2 are
 built; stages 3-4 are still a proposal and follow those decisions.
@@ -633,6 +633,25 @@ Not a mock switch, raised at the same review: the mock shows Cannot reach Aurora
 banner under the bar. The editor's three under-bar banners (unreachable, Restore or
 Discard, the window-size note) move to the Dashboard's error shell in a follow-up stage 6
 (`Aurora-u68h`, `Aurora-s1t7.9`), kept out of stage 5.
+
+## Stages 5 and 6 (filed 2026-11-11)
+
+The Grille mock (`web/ui/Static_GraphEditor_Mocks_Grille/`) has moved past the shipped editor, so two stages follow stage 4. Each leaves the editor shippable and changes its browser checks in the same stage.
+
+Owner decisions at the mock review (2026-11-11), beyond the four switches above:
+
+- Dashboard controls sit bottom-right. Zoom stays bottom-left with the minimap stacked directly above it, and the View menu opens above the minimap, so the map never covers the Minimap item that turns it off.
+- The "On the Dashboard" diamond is cut (no icon).
+- One icon set: Vidstack where it has the shape, Zest Free for undo, redo and minus, Aurora's warning mark. Grille owns it (`Grille-ky2`) and the editor adopts it (`Aurora-s1t7.5`). The audit is in the graph editor README (Icon audit).
+
+| Epic | Covers | Order |
+|---|---|---|
+| `Grille-ky2` (GrilleDS) | Icon source and notices, a React `Icon`, a plain-SVG export, Drawer and Select glyphs, a dev prerelease | Starts now. `Aurora-s1t7.5` waits on its release |
+| `Aurora-s1t7` stage 5 | Grille buttons and the 32 px bar (`.1`), problems chip before Undo (`.2`), canvas corners and minimap (`.3`), Zones island with the side-drawer fix (`.4`, `Aurora-daaa.35`), icons (`.5`), Grille `v0.1.0` (`Aurora-daaa.16`), close-out (`.8`) | `.1` to `.4` can start now |
+| `Aurora-qjqy` | Light test modes in core and MCP, then the Test split button | Core and MCP do not touch the editor. The editor bead (`.3`) changes the bar |
+| `Aurora-u68h` stage 6 | Editor banners on the Dashboard error shell (`Aurora-s1t7.9`) | After stage 5 |
+
+**Problems UI in stage 6 (to explore, not decided).** The problems chip and its popover (rule 3 above) may belong in the error shell with the banners. The shell ([[error-overlay]]) already has a collapsed `N problems` summary that expands, which is a similar shape. Stage 5 still moves the chip before Undo (`Aurora-s1t7.2`), so the bar is right if stage 6 keeps it. When stage 6 starts, try the shell version in the Grille mock first: a frame with problems as shell rows beside the chip and popover, so the two can be judged side by side before the editor changes. Questions for that frame: how a node row's select-the-node action and the graph-wide row's `Add node…` action read as shell rows; how problems stack with the banners; and what the bar shows once the chip is gone (the status still reads `Preview paused` while problems exist).
 
 ## Known follow-ups (filed under `Aurora-daaa`)
 

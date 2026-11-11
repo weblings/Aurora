@@ -386,4 +386,5 @@ Planning docs stay clean: decisions, status, and pointers here only.
 | 2026-11-11 | Port type glossary: one meaning per port type in the catalog, MCP list_nodes/describe_node and editor tooltips. [[z6kw-port-type-glossary]] | `bd show Aurora-z6kw` |
 | 2026-11-11 | Editor inserts the Float/Angle converter when a wire is dropped on the mismatched port. [[0veq-converter-auto-insert]] | `bd show Aurora-0veq` |
 | 2026-11-11 | Grille mock: minimap above the zoom menu (View menu opens above it), gradient stop rows with Zest minus. [[daaa36-mock-minimap]] | `bd show Aurora-daaa.36` |
+| 2026-11-11 | Graph editor stages 5 and 6 planned: epics filed (Grille icons, stage 5, stage 6), problems UI to explore in the error shell. [[s1t7-stage5-6-planning]] | `bd show Aurora-s1t7`, `bd show Aurora-u68h` |
 | 2026-11-10 | Graph editor stage 5: Grille mock switches decided (boxed, secondary, Test split button + Zones island, no resize); light test modes epic filed. [[s1t76-mock-switches-decided]] | `bd show Aurora-s1t7.6`, `bd show Aurora-s1t7.7` |
