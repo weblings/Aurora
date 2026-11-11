@@ -237,12 +237,26 @@ select {
   position: relative;
 }
 
-.editor-status {
-  color: var(--aurora-text-primary);
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+/* The Test split button (Aurora-qjqy.3): main part plus a caret, one 32 px control. */
+.editor-split {
+  display: inline-flex;
+  flex: none;
+}
+
+.editor-split .editor-split-main:not(:last-child) {
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+}
+
+.editor-split .editor-split-caret {
+  border-top-left-radius: 0;
+  border-bottom-left-radius: 0;
+  margin-left: 1px;
+  padding-inline: var(--aurora-space-2);
+}
+
+.editor-split-label {
+  font-variant-numeric: tabular-nums;
 }
 
 .editor-bar-end {
@@ -676,7 +690,6 @@ button.editor-problem-row:hover {
 
 .editor-header > .ui-button,
 .editor-header > .editor-sep,
-.editor-header > .editor-countdown,
 .editor-header > .editor-edited {
   flex: none;
 }
@@ -697,7 +710,7 @@ button.editor-problem-row:hover {
   background: var(--aurora-border);
 }
 
-.editor-title-menu {
+.editor-header > .editor-title-menu {
   flex: 0 1 auto;
   min-width: 0;
 }
@@ -719,11 +732,6 @@ button.editor-problem-row:hover {
 
   .editor-title-menu {
     max-width: 18ch;
-  }
-
-  .editor-status {
-    flex: 0 1 auto;
-    min-width: 0;
   }
 }
 

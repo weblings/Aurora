@@ -18,7 +18,7 @@ await withEditorStack(async ({ editorUrl }) => {
       return { status: res.status, json: await res.json().catch(() => ({})) }
     }, [method, path])
   const waitLive = () =>
-    page.waitForFunction(() => document.querySelector('.editor-status')?.textContent.includes('Live'), null, { timeout: 10_000 })
+    page.waitForFunction(() => document.querySelector('.editor-header')?.dataset.preview.includes('Live'), null, { timeout: 10_000 })
   const step = (label) => console.log(`ok  ${label}`)
 
   try {

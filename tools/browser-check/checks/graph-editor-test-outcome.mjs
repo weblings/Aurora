@@ -22,18 +22,18 @@ await withEditorStack(async ({ editorUrl }) => {
       [method, path, body],
     )
   const button = (name) => page.getByRole('button', { name, exact: true })
-  const statusText = () => page.locator('.editor-status').innerText()
+  const statusText = () => page.locator('.editor-header').getAttribute('data-preview')
   const step = (label) => console.log(`ok  ${label}`)
   const statusHas = (text, timeout = 15_000) =>
-    page.waitForFunction((t) => document.querySelector('.editor-status')?.textContent.includes(t), text, { timeout })
+    page.waitForFunction((t) => document.querySelector('.editor-header')?.dataset.preview.includes(t), text, { timeout })
   const statusLacks = (text) =>
-    page.waitForFunction((t) => !document.querySelector('.editor-status')?.textContent.includes(t), text, { timeout: 5000 })
+    page.waitForFunction((t) => !document.querySelector('.editor-header')?.dataset.preview.includes(t), text, { timeout: 5000 })
 
   // A failed test: heartbeats stop, the editor reports lost contact, and the
   // server puts the lights back by itself.
   const failATest = async () => {
     await button('Test on lights').click()
-    await button('Revert').waitFor()
+    await button('Stop the test').waitFor()
     await page.route('**/api/graph/test/heartbeat', (route) => route.abort())
     await statusHas('Lost contact')
     await page.unroute('**/api/graph/test/heartbeat')

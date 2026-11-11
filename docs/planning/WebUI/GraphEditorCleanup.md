@@ -198,33 +198,36 @@ Frames for the states above are in the mock's `Gaps` group (`Aurora-daaa.6`): `#
 
 ### Status priority rule
 
+*Rewritten 2026-11-11 (`Aurora-qjqy.3`); was: one status line in the bar. The bar has no status text now: the
+Test split button, the banner and the toast carry what the pill said.*
+
 **Three places, so nothing shares a spot it cannot afford to lose.**
 
-- **Status spot** (in the bar): one line, the highest-ranked item below. Anything that
-  needs an answer or action sits here or in the banner until resolved, never in a toast.
-- **Banner** (one line under the bar): only for what blocks work or waits for an answer.
+- **Test split button** (in the bar): its label and tooltip are the state of the lights and the preview connection.
+  `Test` at rest, `Stop 0:12` during Once, `Stop` during Live, `Take over` when another session holds the lights,
+  `Reconnect` when another view took the preview. Problems and Cannot reach Aurora disable it, with the reason as the tooltip.
+- **Banner** (one line under the bar): what blocks work, waits for an answer, or failed and needs a look.
   At most one at a time, in rank order.
 - **Toast** (3 s, bottom center): only for a success or a minor refusal that the user caused
   a moment ago and that needs nothing further. A toast never carries the only copy of an error.
 
-Fixed spots keep state out of the contest: `Unsaved` beside the title, the problems chip, the
-test countdown with Revert, and the zone preview's stale tint. They show alongside whatever
-the status spot says.
+Fixed spots keep state out of the contest: `Unsaved` beside the title, the problems chip, `Edited since the test`,
+and the Zones island's stale tint. They show alongside everything else.
 
-Rank, highest first. The status spot shows the first active row, the banner the first active
-banner row.
+Rank, highest first. `graph/status.ts` `pickStatus` returns the first active row and where it shows.
 
 | Rank | State | Where | Persists until |
 |---|---|---|---|
-| 1 | Cannot reach Aurora, or cannot open the effect | Banner with Retry, and status `Aurora unreachable`. Test, Save disabled | Aurora answers |
+| 1 | Cannot reach Aurora, or cannot open the effect | Banner with Retry. Test button disabled, tooltip `Cannot reach Aurora` | Aurora answers |
 | 2 | Restore or Discard an earlier copy | Banner with both buttons. Backup is held until answered | The user picks one |
-| 3 | Draft not sent, draft would not load | Status spot, detail in its tooltip | The next draft goes through |
-| 4 | Preview taken over | Status spot with Reconnect | Reconnect, or the stream returns |
-| 5 | Lights in use by another session | Status spot, and Test on lights reads `Take over the lights` | The holder finishes, or the user takes over |
-| 6 | A test or write that failed or ended unexpectedly (heartbeat lost, time limit, another effect chosen, lights paused, start or Save failure, reload error) | Status spot, plain words, latest wins | The next test, Save, or edit |
-| 7 | Preview state: connecting, paused, closed, live | Status spot, `Live preview` is the quiet default | It changes |
+| 3 | Draft not sent, draft would not load | Banner, reason after the colon | The next draft goes through |
+| 4 | Preview taken over | The button reads `Reconnect` | Reconnect, or the stream returns |
+| 5 | Lights in use by another session | The button reads `Take over`, tooltip names the holder | The holder finishes, or the user takes over |
+| 6 | A test or write that failed or ended unexpectedly (heartbeat lost, another effect chosen, lights paused, a taker, start or Save failure, reload error) | Banner, plain words, latest wins | The next test, Save, or edit |
+| 7 | Preview state: connecting, paused, closed, live | Nowhere. The chip says problems, the Zones island tints when stale | It changes |
+| - | A Once test reached 15 s, Stop, Reverted | Toast (`Test finished: the lights are back`, `Reverted`) | 3 s |
 | - | Wire refused (`Those ports do not match`) | Toast | 3 s. It names its own cause, and the wire simply did not land |
-| - | Saved, Saved and live, Reverted, Restored, Discarded, Added node | Toast | 3 s. The bar's `Unsaved` and the title already show the new state |
+| - | Saved, Saved and live, Restored, Discarded, Added node | Toast | 3 s. The bar's `Unsaved` and the title already show the new state |
 
 Rules that follow:
 
@@ -242,8 +245,7 @@ Rules that follow:
 5. **Keep disappears, and so does its disabled state.** While a test runs and the graph has
    changed, the bar says `Edited since the test`, and the title menu warns that Save and apply
    puts the edited graph live and ends the test (`#changed`).
-6. **Revert and the countdown never hide.** A test outcome shown at rank 6 replaces the
-   countdown only after the test has ended.
+6. **Stop never hides.** While a test runs the button is Stop (with the Once countdown); an outcome at rank 6 shows only after the test has ended.
 
 How today's nine slots map:
 

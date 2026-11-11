@@ -30,9 +30,9 @@ await withEditorStack(async ({ editorUrl, restart }) => {
       [method, path, body, headers],
     )
   const button = (name) => page.getByRole('button', { name, exact: true })
-  const status = () => page.locator('.editor-status').innerText()
+  const status = () => page.locator('.editor-header').getAttribute('data-preview')
   const waitStatus = (re, timeout = 10_000) =>
-    page.waitForFunction((src) => new RegExp(src).test(document.querySelector('.editor-status')?.textContent ?? ''), re.source, { timeout })
+    page.waitForFunction((src) => new RegExp(src).test(document.querySelector('.editor-header')?.dataset.preview ?? ''), re.source, { timeout })
   const step = (label) => console.log(`ok  ${label}`)
   const nodeBox = async (id) => {
     const box = await page.locator(`.react-flow__node[data-id="${id}"]`).boundingBox()
@@ -140,11 +140,11 @@ await withEditorStack(async ({ editorUrl, restart }) => {
 
     // Test on lights, then another session takes them.
     await button('Test on lights').click()
-    await button('Revert').waitFor()
+    await button('Stop the test').waitFor()
     const graph = (await api('GET', '/api/effects/builtin.video')).json.graph
     await api('PUT', '/api/graph/drafts/agent-1', { graph })
     assert.equal((await api('POST', '/api/graph/test', { session: 'agent-1' }, { 'X-Aurora-Client': 'mcp' })).status, 200)
-    await page.waitForFunction(() => document.querySelector('.editor-status')?.textContent.includes('took the lights'), null, { timeout: 8000 })
+    await page.waitForFunction(() => document.querySelector('.editor-header')?.dataset.preview.includes('took the lights'), null, { timeout: 8000 })
     await api('POST', '/api/graph/test/revert', { session: 'agent-1' })
     step('test on lights, then a second session takes it and the editor says so')
 
@@ -228,7 +228,7 @@ await withEditorStack(async ({ editorUrl, restart }) => {
     await page.evaluate((s) => {
       window.__thief = new EventSource(`/api/graph/preview?session=${encodeURIComponent(s)}`)
     }, mine)
-    await waitStatus(/taken over/)
+    await button('Reconnect').waitFor()
     await page.evaluate(() => window.__thief.close())
     await button('Reconnect').click()
     await waitStatus(/Live/)
@@ -257,7 +257,10 @@ await withEditorStack(async ({ editorUrl, restart }) => {
     await page.goto(`${editorUrl}?effect=gate-copy`)
     await page.waitForSelector('.aurora-node')
     await waitStatus(/Draft not sent/)
-    assert.match(await page.locator('.editor-status').getAttribute('title'), /too_many_drafts/)
+    // One banner at a time, in rank order: an earlier visit's Restore/Discard comes first.
+    const discard = page.getByRole('button', { name: 'Discard', exact: true })
+    if (await discard.count()) await discard.click()
+    assert.match(await page.getByRole('alert').filter({ hasText: 'Draft not sent' }).innerText(), /too_many_drafts/)
     step('a full draft store shows draft not sent (too_many_drafts)')
     for (const id of [...filled, mine]) await api('DELETE', `/api/graph/drafts/${id}`).catch(() => {})
     await page.reload()

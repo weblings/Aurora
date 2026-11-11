@@ -12,8 +12,12 @@ export type Status = {
   label: string
   // The tooltip.
   detail: string | null
-  // A button the status spot carries.
-  action: 'reconnect' | null
+  // Where it shows now that the bar has no status text: the Test button's
+  // label or tooltip, the banner under the bar, or nowhere (the problems chip
+  // and the zones' stale tint already say it).
+  where: 'button' | 'banner' | 'none'
+  // The Test button's own label for this state.
+  action: 'reconnect' | 'take-over' | null
 }
 
 export type StatusInput = {
@@ -29,7 +33,21 @@ export type StatusInput = {
 
 // Test outcomes that are a toast, not a status.
 function isQuietEnd(state: TestState): boolean {
-  return state.ended?.reason === 'kept' || state.ended?.reason === 'reverted'
+  const r = state.ended?.reason
+  // confirm_timeout is how a Once test ends on its own: a toast.
+  return r === 'kept' || r === 'reverted' || r === 'confirm_timeout'
+}
+
+/** The toast for a test that ended by itself or by Stop, else null. */
+export function quietEndToast(test: TestState): string | null {
+  switch (test.ended?.reason) {
+    case 'reverted':
+      return 'Reverted'
+    case 'confirm_timeout':
+      return 'Test finished: the lights are back'
+    default:
+      return null
+  }
 }
 
 // Rank 5: someone else is testing on the lights.
@@ -47,52 +65,48 @@ export function testTrouble(test: TestState): string | null {
   return describeTest(test)
 }
 
-// What a running test says beside Revert: the countdown, or what it is doing.
-export function testProgress(test: TestState): string | null {
-  switch (test.phase) {
-    case 'starting':
-      return 'Starting the test'
-    case 'closing':
-      return 'Working'
-    case 'running':
-      return `Testing, ${Math.ceil(test.remainingMs / 1000)} s left`
-    case 'idle':
-      return null
-  }
-}
-
 /** A document change that dismisses a test outcome and a write trouble: any
  *  change after an effect is open, but not the open itself (from no document). */
 export function changeIsEdit(before: unknown, after: unknown): boolean {
   return before !== null && after !== null && before !== after
 }
 
+/** The Test split button's label while a test runs: Stop, with the Once countdown. */
+export function stopLabel(test: TestState): string {
+  if (test.mode === 'live') return 'Stop'
+  const s = Math.max(0, Math.ceil(test.remainingMs / 1000))
+  return `Stop ${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`
+}
+
+const at = (rank: StatusRank, where: Status['where'], label: string, detail: string | null = null, action: Status['action'] = null): Status => ({ rank, where, label, detail, action })
+
 export function pickStatus({ openError, loop, test, writeTrouble, testOutcomeCleared }: StatusInput): Status {
-  if (openError || loop.stream === 'unreachable') {
-    return { rank: 1, label: 'Aurora unreachable', detail: openError ?? 'Retrying.', action: null }
-  }
-  if (loop.putError) return { rank: 3, label: 'Draft not sent', detail: loop.putError, action: null }
+  // Rank 1: the banner says it; the button is disabled with this as its tooltip.
+  if (openError || loop.stream === 'unreachable') return at(1, 'button', 'Cannot reach Aurora', openError ?? 'Retrying.')
+  // Ranks 3 and 6 persist and need a look: the banner.
+  if (loop.putError) return at(3, 'banner', 'Draft not sent', loop.putError)
   // A draft with problems is also refused by the server; the problems (the chip)
   // already explain that, so the reload error only shows for a valid draft.
-  if (loop.reloadError && loop.valid !== false) return { rank: 3, label: 'Draft would not load', detail: loop.reloadError, action: null }
-  if (loop.stream === 'replaced') {
-    return { rank: 4, label: 'Preview taken over', detail: 'Another view of this session opened the preview.', action: 'reconnect' }
-  }
+  if (loop.reloadError && loop.valid !== false) return at(3, 'banner', 'Draft would not load', loop.reloadError)
+  // Rank 4 and 5 are the button's own labels.
+  if (loop.stream === 'replaced') return at(4, 'button', 'Reconnect', 'Another view of this session opened the preview.', 'reconnect')
   const use = lightsInUse(test)
-  if (use) return { rank: 5, label: use, detail: null, action: null }
+  if (use) return at(5, 'button', 'Take over', use, 'take-over')
   const trouble = writeTrouble ?? (testOutcomeCleared ? null : testTrouble(test))
-  if (trouble) return { rank: 6, label: trouble, detail: null, action: null }
-  // Problems with the graph are the chip's job; the preview is stale meanwhile.
-  if (loop.valid === false) return { rank: 7, label: 'Preview paused', detail: 'Fix the problems to update the preview.', action: null }
+  if (trouble) return at(6, 'banner', trouble)
+  // Preview state (Preview paused, Connecting, Live) is no longer text: problems
+  // are the chip's job and the zones island tints when stale.
+  if (loop.valid === false) return at(7, 'none', 'Preview paused', 'Fix the problems to update the preview.')
   const line = summarize(loop)
-  return { rank: 7, label: line.label, detail: line.detail, action: null }
+  return at(7, 'none', line.label, line.detail)
 }
 
 // The banner under the bar: only what blocks work or waits for an answer.
-export type Banner = { kind: 'unreachable'; message: string } | { kind: 'restore' }
+export type Banner = { kind: 'unreachable'; message: string } | { kind: 'restore' } | { kind: 'notice'; message: string; detail: string | null }
 
-export function pickBanner(openError: string | null, hasOffer: boolean): Banner | null {
+export function pickBanner(openError: string | null, hasOffer: boolean, status?: Status): Banner | null {
   if (openError) return { kind: 'unreachable', message: openError }
   if (hasOffer) return { kind: 'restore' }
+  if (status?.where === 'banner') return { kind: 'notice', message: status.label, detail: status.detail }
   return null
 }

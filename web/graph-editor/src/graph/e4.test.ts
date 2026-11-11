@@ -6,7 +6,7 @@ import { describeTest, initialTest, testReducer, type TestEvent, type TestState 
 import { BLANK_ID, blankDoc, distinctTitle, forWrite, freshEffectId, slugify } from './save'
 
 const run = (events: TestEvent[], from: TestState = initialTest) => events.reduce(testReducer, from)
-const running = run([{ type: 'starting' }, { type: 'started', remainingMs: 120000 }])
+const running = run([{ type: 'starting', mode: 'once' }, { type: 'started', remainingMs: 120000 }])
 
 describe('dashboard controls', () => {
   it('adds a param with the catalog label and the node title as section', () => {
@@ -89,7 +89,7 @@ describe('new effect ids', () => {
 
 describe('light test states', () => {
   it('runs: starting, running with a countdown, a heartbeat sets the exact time', () => {
-    expect(run([{ type: 'starting' }]).phase).toBe('starting')
+    expect(run([{ type: 'starting', mode: 'once' }]).phase).toBe('starting')
     expect(running.phase).toBe('running')
     const later = run([{ type: 'tick', ms: 1000 }, { type: 'tick', ms: 1000 }], running)
     expect(later.remainingMs).toBe(118000)
@@ -98,10 +98,10 @@ describe('light test states', () => {
   })
 
   it('a start the server refuses goes back to idle with the reason', () => {
-    const state = run([{ type: 'starting' }, { type: 'start-failed', message: 'paused' }])
+    const state = run([{ type: 'starting', mode: 'once' }, { type: 'start-failed', message: 'paused' }])
     expect(state).toMatchObject({ phase: 'idle', failure: 'paused' })
     expect(describeTest(state)).toBe('paused')
-    expect(run([{ type: 'starting' }], state).failure).toBeNull()
+    expect(run([{ type: 'starting', mode: 'once' }], state).failure).toBeNull()
   })
 
   it('reports an agent taking the lights, and keeps showing who holds them', () => {

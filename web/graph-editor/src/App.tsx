@@ -38,7 +38,9 @@ import { converterFor, insertConverter, refuseConnection } from './graph/connect
 import { controlsOf } from './graph/controls'
 import { addEdge, addNode, joinEndpoint, moveNodes, removeEdge, removeNodes, setParam } from './graph/doc'
 import { editorReducer, emptyEditor, sameDoc } from './graph/history'
-import { changeIsEdit, pickBanner, pickStatus, testProgress } from './graph/status'
+import { changeIsEdit, pickBanner, pickStatus, quietEndToast, stopLabel } from './graph/status'
+import { SplitTestButton } from './SplitTestButton'
+import { initialTest, type TestMode } from './graph/lightTest'
 import { BLANK_ID, blankDoc, forWrite, freshEffectId, setTitle, titleOf } from './graph/save'
 import { portStyle } from './graph/portStyle'
 import { NODE_KIND, carryViewState, edgeId, toFlowEdges, toFlowNodes, type AuroraNodeData } from './graph/flow'
@@ -139,7 +141,7 @@ export function App() {
   docRef.current = doc
   const lights = useLightTest(session, () => putDraft(session, docRef.current!))
   const testing = lights.state.phase === 'running'
-  const progress = testProgress(lights.state)
+  const [testMode, setTestMode] = useState<TestMode>('once')
   const dirty = useMemo(() => (doc && baseline ? !sameDoc(baseline.doc, doc) : false), [doc, baseline])
   const isBuiltin = effects.find((e) => e.id === effectId)?.builtin ?? (effectId === BLANK_ID || effectId.startsWith('builtin.'))
   const picked = nodeView.filter((n) => n.selected)
@@ -154,10 +156,11 @@ export function App() {
     window.history.replaceState(null, '', url)
   }, [effectId])
 
-  const startTest = () => {
+  const startTest = (mode: TestMode) => {
+    setTestMode(mode)
     setWriteTrouble(null)
     setTestedDoc(docRef.current)
-    void lights.start()
+    void lights.start(mode)
   }
 
   // Save, Save and apply and Save as new write the document under an id: the open
@@ -241,11 +244,12 @@ export function App() {
   }, [doc])
   const ended = lights.state.ended
   useEffect(() => {
-    if (ended?.reason === 'reverted') showToast('Reverted')
+    const text = quietEndToast({ ...initialTest, ended })
+    if (text) showToast(text)
   }, [ended, showToast])
   const editedSinceTest = testing && testedDoc !== null && doc !== null && !sameDoc(testedDoc, doc)
   const status = pickStatus({ openError, loop: loop.state, test: lights.state, writeTrouble, testOutcomeCleared })
-  const banner = pickBanner(openError, offer !== null && baseline !== null)
+  const banner = pickBanner(openError, offer !== null && baseline !== null, status)
   // Without Aurora nothing can be tested or saved.
   const blocked = status.rank === 1
 
@@ -577,7 +581,7 @@ export function App() {
 
   return (
     <div className="editor">
-      <header className="editor-header">
+      <header className="editor-header" data-preview={status.label} data-status-rank={status.rank}>
         <a className="ui-button editor-back" data-size="sm" href="/" aria-label={tightBar ? 'Dashboard' : undefined}>
           <Icon icon={arrowLeftIcon} size="sm" />
           {tightBar ? null : 'Dashboard'}
@@ -643,14 +647,6 @@ export function App() {
             }}
           />
         ) : null}
-        <span className="editor-status" role="status" data-rank={status.rank} title={status.detail ?? undefined}>
-          {status.label}
-        </span>
-        {status.action === 'reconnect' ? (
-          <button type="button" className="ui-button" data-size="sm" onClick={loop.reconnect}>
-            Reconnect
-          </button>
-        ) : null}
         <span className="editor-bar-end" />
         <ProblemsChip
           problems={problems}
@@ -675,34 +671,21 @@ export function App() {
         >
           <Icon icon={redoIcon} size="sm" />
         </button>
-        {progress ? (
-          <span className="editor-countdown" role="timer">
-            {progress}
-          </span>
-        ) : null}
         {editedSinceTest ? <span className="editor-edited">Edited since the test</span> : null}
         <span className="editor-sep" aria-hidden="true" />
-        {testing ? (
-          <button type="button" className="ui-button" data-size="sm" onClick={() => void lights.revert()} disabled={writing}>
-            Revert
-          </button>
-        ) : (
-          <button
-            type="button" className="ui-button" data-size="sm"
-            onClick={startTest}
-            disabled={!doc || blocked || loop.state.valid !== true || lights.state.phase !== 'idle'}
-            aria-label={tightBar ? (lights.state.other ? 'Take over the lights' : 'Test on lights') : undefined}
-            title={
-              loop.state.valid === false
-                ? 'Fix the problems before testing'
-                : tightBar
-                  ? `${lights.state.other ? 'Take over the lights' : 'Test on lights'}: show this graph on the real lights for a while, then put them back`
-                  : 'Show this graph on the real lights for a while, then put them back'
-            }
-          >
-            {tightBar ? (lights.state.other ? 'Take over' : 'Test') : lights.state.other ? 'Take over the lights' : 'Test on lights'}
-          </button>
-        )}
+        <SplitTestButton
+          mode={testMode}
+          running={testing}
+          stopText={stopLabel(lights.state)}
+          action={status.action ?? (lights.state.other && lights.state.phase === 'idle' ? 'take-over' : null)}
+          disabledReason={
+            blocked ? 'Cannot reach Aurora' : loop.state.valid === false ? 'Fix the problems before testing' : null
+          }
+          busy={!doc || writing || (lights.state.phase !== 'idle' && lights.state.phase !== 'running')}
+          onStart={startTest}
+          onStop={() => void lights.revert()}
+          onReconnect={loop.reconnect}
+        />
       </header>
       <DesktopNote />
       {banner?.kind === 'unreachable' ? (
@@ -711,6 +694,14 @@ export function App() {
           <button type="button" className="btn btn-secondary" onClick={() => setAttempt((n) => n + 1)}>
             Retry
           </button>
+        </div>
+      ) : null}
+      {banner?.kind === 'notice' ? (
+        <div className="editor-banner" role="alert" data-rank={status.rank}>
+          <span>
+            {banner.message}
+            {banner.detail ? `: ${banner.detail}` : ''}
+          </span>
         </div>
       ) : null}
       {banner?.kind === 'restore' && baseline && offer ? (

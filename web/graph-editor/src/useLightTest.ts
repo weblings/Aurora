@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useReducer, useRef } from 'react'
 import { fetchTestInfo, heartbeat, revertTest, startTest } from './api'
-import { initialTest, testReducer, type TestState } from './graph/lightTest'
+import { initialTest, testReducer, type TestMode, type TestState } from './graph/lightTest'
 import type { DraftVerdict } from './api'
 
 const IDLE_POLL_MS = 3000
@@ -12,7 +12,7 @@ const LOST_AFTER = 3
 export type LightTest = {
   state: TestState
   // Sends the draft, then starts a test of it.
-  start: () => Promise<void>
+  start: (mode: TestMode) => Promise<void>
   // Ends the test after the graph was applied (apply leaves it running): the
   // server rebuilds the live effect, which is now the tested graph, from disk.
   finishAfterApply: () => Promise<void>
@@ -93,15 +93,15 @@ export function useLightTest(session: string, sendDraft: () => Promise<DraftVerd
     return () => window.removeEventListener('pagehide', leave)
   }, [session])
 
-  const start = useCallback(async () => {
-    dispatch({ type: 'starting' })
+  const start = useCallback(async (mode: TestMode) => {
+    dispatch({ type: 'starting', mode })
     try {
       const verdict = await send.current()
       if (!verdict.valid) {
         dispatch({ type: 'start-failed', message: 'Fix the problems before testing' })
         return
       }
-      const started = await startTest(session)
+      const started = await startTest(session, mode)
       if (!started.ok) {
         dispatch({ type: 'start-failed', message: started.reason })
         return
