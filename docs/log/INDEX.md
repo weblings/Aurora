@@ -384,3 +384,4 @@ Planning docs stay clean: decisions, status, and pointers here only.
 | 2026-11-11 | Graph editor: every socket a circle in its domain colour, shapes removed. [[d0hv-circle-sockets]] | `bd show Aurora-d0hv` |
 | 2026-11-11 | angle.fromFloat and angle.toFloat converter nodes; loader and editor refusals name them. [[jsjj-angle-converters]] | `bd show Aurora-jsjj` |
 | 2026-11-11 | Port type glossary: one meaning per port type in the catalog, MCP list_nodes/describe_node and editor tooltips. [[z6kw-port-type-glossary]] | `bd show Aurora-z6kw` |
+| 2026-11-11 | Editor inserts the Float/Angle converter when a wire is dropped on the mismatched port. [[0veq-converter-auto-insert]] | `bd show Aurora-0veq` |

@@ -33,21 +33,28 @@ await withEditorStack(async ({ editorUrl }) => {
     const handle = (kind, type, nth = 0) => page.locator(`.react-flow__handle.${kind}[data-port-type="${type}"]`).nth(nth)
 
     // Float output -> Angle input.
-    await addNodeByName(page, title('angle.constant') ? 'LFO' : 'LFO')
+    await addNodeByName(page, 'LFO')
     await addNodeByName(page, 'Color from HSV')
     await page.waitForFunction(() => document.querySelector('.react-flow__handle.target[data-port-type="Angle"]'))
+    // Both nodes arrive at the view centre; move the HSV node (the last added) clear.
+    const hsv = page.locator('.react-flow__node').last()
+    const hb = await hsv.boundingBox()
+    await page.mouse.move(hb.x + hb.width / 2, hb.y + 12)
+    await page.mouse.down()
+    await page.mouse.move(hb.x + hb.width / 2 + 330, hb.y - 150, { steps: 10 })
+    await page.mouse.up()
     const n0 = await nodes()
     const e0 = await edges()
     await page.locator('.react-flow__pane').click({ position: { x: 5, y: 5 } })
     await drag(handle('source', 'Float', 0), handle('target', 'Angle', 0))
     await page.waitForFunction((n) => document.querySelectorAll('.react-flow__node').length === n, n0 + 1)
-    assert.equal(await edges(), e0 + 2)
+    await page.waitForFunction((n) => document.querySelectorAll('.react-flow__edge').length === n, e0 + 2)
     assert.ok(await page.getByText(title('angle.fromFloat'), { exact: true }).count())
     step('Float to Angle drop inserts the converter with two wires')
 
     await page.keyboard.press(undo)
     await page.waitForFunction((n) => document.querySelectorAll('.react-flow__node').length === n, n0)
-    assert.equal(await edges(), e0)
+    await page.waitForFunction((n) => document.querySelectorAll('.react-flow__edge').length === n, e0)
     step('one undo removes the node and both wires')
 
     // Angle output -> Float input.
@@ -57,7 +64,7 @@ await withEditorStack(async ({ editorUrl }) => {
     const floatIn = page.locator('.react-flow__handle.target[data-port-type="Float"]').first()
     await drag(handle('source', 'Angle', 0), floatIn)
     await page.waitForFunction((n) => document.querySelectorAll('.react-flow__node').length === n, n1 + 1)
-    assert.equal(await edges(), e1 + 2)
+    await page.waitForFunction((n) => document.querySelectorAll('.react-flow__edge').length === n, e1 + 2)
     step('Angle to Float drop inserts the converter')
 
     // Other mismatch still refused.

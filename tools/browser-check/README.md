@@ -27,6 +27,7 @@ npm run graph-editor   # brings the stack and the editor dev server up, runs, te
 - Checks assert and exit non-zero on the first failure; they remove the
   effects they create and restore the active effect.
 - `checks/graph-editor-title-menu.mjs` (`npm run graph-editor:title-menu`): the title menu's open, Esc, outside click, pane drag, focus return and Delete/Backspace handling. `lib/editorMenu.mjs` has the helpers the other checks use to pick Save, Save as new and Save and apply.
+- `checks/graph-editor-converter.mjs` (`npm run graph-editor:converter`): a Float to Angle and an Angle to Float drop each insert the converter with two wires, one undo removes it, an Image on an Angle input is still refused. The app binary must be rebuilt after core catalog changes.
 - `checks/graph-editor-add-menu.mjs` (`npm run graph-editor:add-menu`): the cascade Add node menu: open by `+` and Shift+A, search ranking, flyout keys, add a node, Esc and outside click. The app binary must be rebuilt after core catalog changes.
 - `checks/graph-editor-top-bar.mjs` (`npm run graph-editor:top-bar`): the single top bar, the title menu's Name and effect list (arrow keys do not switch effects), the view menu and its minimap, the Restore/Discard banner, `Edited since the test`, and the cannot-open banner with Retry. Its header lists which status cases are checked here, elsewhere or manual.
 - `checks/graph-editor-edit-loop.mjs`: E4's test, Revert, takeover, lost

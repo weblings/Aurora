@@ -20,7 +20,7 @@ Decisions, narrow windows, in `docs/planning/WebUI/GraphEditorCleanup.md`).
 - `src/graph/` -- pure, React-free: `types.ts` (catalog and graph shapes),
   `doc.ts` (edits: each returns a new document), `flow.ts` (graph.json <-> React
   Flow), `layout.ts` (saved `ui` positions, else columns by topological depth),
-  `connection.ts` (the wiring rules), `history.ts` (undo reducer),
+  `connection.ts` (the wiring rules, and `insertConverter`: a Float/Angle drop gets an `angle.fromFloat`/`angle.toFloat` node, `Aurora-0veq`), `history.ts` (undo reducer),
   `autosave.ts` (browser backup of unsaved edits), `problems.ts` (server errors
   regrouped per node/port/param), `loop.ts` (draft/preview states), `frame.ts`
   (preview events), `lightTest.ts` (test-on-lights states), `controls.ts`
