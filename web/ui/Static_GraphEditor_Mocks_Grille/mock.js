@@ -270,11 +270,10 @@ function zoneRects() {
 function zonesIsland() {
   const { rects, rows } = zoneRects()
   const body = state.zonesOpen ? el('div', { class: 'ge-zmap', style: `--rows:${rows}` }, rects.map((r) => el('i', { style: `--x:${r.x};--y:${r.y};--w:${r.w};--h:${r.h};background:${r.color}` }))) : null
-  return el('div', { class: `ge-zones ge-zones-v${state.zonesLarge ? ' large' : ''}${state.problems ? ' stale' : ''}` },
+  return el('div', { class: `ge-zones ge-zones-v${state.zonesOpen ? ' open' : ''}${state.zonesLarge ? ' large' : ''}${state.problems ? ' stale' : ''}` },
     el('div', { class: 'ge-zbar' },
-      el('button', { type: 'button', class: 'ge-zones-head', 'data-act': 'zones', 'aria-expanded': state.zonesOpen, 'aria-label': state.zonesOpen ? 'Hide zones' : 'Show zones' }, 'Zones'),
-      state.zonesOpen ? el('button', { type: 'button', class: 'ge-zsize', 'data-act': 'zsize', 'aria-label': state.zonesLarge ? 'Smaller zone map' : 'Larger zone map', title: state.zonesLarge ? 'Smaller' : 'Larger' }, icon(state.zonesLarge ? ICON.collapse : ICON.expand)) : null,
-      el('button', { type: 'button', class: 'ge-zchev', 'data-act': 'zones', 'aria-label': state.zonesOpen ? 'Hide zones' : 'Show zones', tabindex: -1 }, chevron('cc-chev', state.zonesOpen))),
+      el('button', { type: 'button', class: 'ge-zones-head', 'data-act': 'zones', 'aria-expanded': state.zonesOpen, 'aria-label': state.zonesOpen ? 'Hide zones' : 'Show zones' }, 'Zones', chevron('cc-chev', state.zonesOpen)),
+      state.zonesOpen ? el('button', { type: 'button', class: 'ge-zsize', 'data-act': 'zsize', 'aria-label': state.zonesLarge ? 'Smaller zone map' : 'Larger zone map', title: state.zonesLarge ? 'Smaller' : 'Larger' }, icon(state.zonesLarge ? ICON.collapse : ICON.expand)) : null),
     body)
 }
 

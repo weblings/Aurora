@@ -72,15 +72,19 @@ button { font-family: inherit; }
 .ge-count { color: var(--ui-color-text-secondary); }
 
 .ge-zones {
-  width: 168px; background: var(--ui-color-surface-raised); border: 1px solid var(--ui-color-border-default);
+  width: 168px; background: var(--ui-color-control-bg); border: none;
   border-radius: var(--ui-size-radius-sm); box-shadow: var(--ui-shadow-popup); overflow: hidden;
 }
 .ge-zones.stale .ge-zones-grid { opacity: 0.4; }
 .ge-zones-head {
   display: flex; width: 100%; align-items: center; justify-content: space-between;
-  padding: var(--ui-size-space-sm) var(--ui-size-space-md); background: none; border: none;
-  color: var(--ui-color-text-secondary); font-size: 12px; cursor: pointer;
+  padding: var(--ui-size-space-md) var(--ui-size-button-pad-x); background: none; border: none; border-radius: var(--ui-size-radius-sm);
+  color: var(--ui-color-text-default); font-family: inherit; font-size: var(--ui-size-font-sm); cursor: pointer;
 }
+/* Same hover and focus states as the neighbouring Grille buttons. */
+.ge-zones-head:hover { background: var(--ui-color-control-bg-hover); }
+.ge-zones-head:active { background: var(--ui-color-control-bg-active); }
+.ge-zones-head:focus-visible { outline: var(--ui-size-focus-ring-width) solid var(--ui-color-focus-ring); outline-offset: var(--ui-size-focus-ring-offset); }
 .ge-zones-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 2px; padding: 0 var(--ui-size-space-md) var(--ui-size-space-md); }
 .ge-zones-grid i { height: 34px; border-radius: 2px; }
 .ge-zones-grid i:nth-child(1) { background: #d4714f; }
@@ -366,21 +370,30 @@ button { font-family: inherit; }
 .ge-countdown-in { font-variant-numeric: tabular-nums; }
 .ge-bar .ge-split .ge-split-caret.ge-primary { padding: var(--ui-size-space-sm); }
 /* Zone map: a 16:9 screen box (8 columns x 4.5 rows) with zones at their regions, then the leftover cells. */
-.ge-zones-v { --step: 16px; --pad: var(--ui-size-space-md); width: calc(8 * var(--step) - 2px + 2 * var(--pad)); }
+/* Collapsed, the island is the button: it fits its label and the whole island takes the hover fill.
+   Open, it takes the map's width and the header is a flush full-width row with the same padding, so nothing moves on toggle. */
+.ge-zones-v { --step: 16px; --pad: var(--ui-size-space-md); width: auto; }
+.ge-zones-v.open { width: calc(8 * var(--step) - 2px + 2 * var(--pad)); }
 .ge-zones-v.large { --step: calc((var(--drawer-w) - 2 * var(--pad) + 2px) / 8); }
-.ge-zones-v .ge-zones-head { gap: var(--ui-size-space-lg); }
-.ge-zmap { position: relative; margin: 0 var(--pad) var(--pad); height: calc(var(--rows) * var(--step) - 2px); }
+.ge-zones-v .ge-zones-head { gap: var(--ui-size-space-md); }
+.ge-zmap { position: relative; margin: var(--ui-size-space-sm) var(--pad) var(--pad); height: calc(var(--rows) * var(--step) - 2px); }
 .ge-zmap i { position: absolute; left: calc(var(--x) * var(--step)); top: calc(var(--y) * var(--step)); width: calc(var(--w) * var(--step) - 2px); height: calc(var(--h) * var(--step) - 2px); border-radius: 2px; }
 .ge-zones-v.stale .ge-zmap { opacity: 0.4; }
-.ge-zbar { display: flex; align-items: center; gap: var(--ui-size-space-xs); padding-right: var(--ui-size-space-sm); }
-.ge-zbar .ge-zones-head { flex: 1; width: auto; justify-content: flex-start; }
-.ge-zsize, .ge-zchev {
+.ge-zbar { display: flex; align-items: center; }
+.ge-zbar .ge-zones-head { flex: 1; width: auto; justify-content: flex-start; border-radius: 0; }
+.ge-zbar .ge-zones-head:hover, .ge-zbar .ge-zones-head:active { background: none; }
+.ge-zbar:has(.ge-zones-head:hover) { background: var(--ui-color-control-bg-hover); }
+.ge-zbar:has(.ge-zones-head:active) { background: var(--ui-color-control-bg-active); }
+/* The island clips an outward ring, so the header's ring sits inside. */
+.ge-zbar .ge-zones-head:focus-visible { outline-offset: calc(-1 * var(--ui-size-focus-ring-width)); }
+.ge-zbar .ge-zsize { margin: 0 var(--ui-size-space-sm) 0 0; }
+.ge-zsize {
   display: grid; place-items: center; width: 24px; height: 24px; padding: 0; background: none; color: var(--ui-color-text-secondary);
   border: none; border-radius: var(--ui-size-radius-sm); cursor: pointer;
 }
 .ge-zsize { opacity: 0; transition: opacity 0.12s; }
 .ge-zsize .ge-icon { width: 14px; height: 14px; }
-.ge-zsize:hover, .ge-zchev:hover { background: var(--ui-color-control-bg-hover); color: var(--ui-color-text-default); }
+.ge-zsize:hover { background: var(--ui-color-control-bg-hover); color: var(--ui-color-text-default); }
 .ge-zones-v:hover .ge-zsize, .ge-zsize:focus-visible, .ge-zones-v:focus-within .ge-zsize { opacity: 1; }
 .ge-zsize:focus-visible { outline: var(--ui-size-focus-ring-width) solid var(--ui-color-focus-ring); outline-offset: var(--ui-size-focus-ring-offset); }
 @media (hover: none) { .ge-zsize { opacity: 1; } }
