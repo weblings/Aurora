@@ -66,7 +66,7 @@ const warnIcon = () => el('span', { class: 'ge-warn', 'aria-hidden': 'true', htm
 function btn(label, { variant, size = 'sm', icon: isIcon, ...attrs } = {}) {
   return el('button', { type: 'button', class: 'ui-button', 'data-variant': variant, 'data-size': size === 'md' ? undefined : size, 'data-icon': isIcon, ...attrs }, label)
 }
-const opts = { backBoxed: true, testPrimary: false, split: false }
+const opts = { backBoxed: true, testPrimary: false, split: false, zonesPlain: false }
 // Variant (Aurora-daaa.32): testMode is what the Test button runs next; testLeft counts a Once test down.
 const test = { mode: 'once', left: 12, timer: null }
 const stopTimer = () => { clearInterval(test.timer); test.timer = null }
@@ -270,10 +270,10 @@ function zoneRects() {
 function zonesIsland() {
   const { rects, rows } = zoneRects()
   const body = state.zonesOpen ? el('div', { class: 'ge-zmap', style: `--rows:${rows}` }, rects.map((r) => el('i', { style: `--x:${r.x};--y:${r.y};--w:${r.w};--h:${r.h};background:${r.color}` }))) : null
-  return el('div', { class: `ge-zones ge-zones-v${state.zonesOpen ? ' open' : ''}${state.zonesLarge ? ' large' : ''}${state.problems ? ' stale' : ''}` },
+  return el('div', { class: `ge-zones ge-zones-v${state.zonesOpen ? ' open' : ''}${state.zonesLarge && !opts.zonesPlain ? ' large' : ''}${state.problems ? ' stale' : ''}` },
     el('div', { class: 'ge-zbar' },
       el('button', { type: 'button', class: 'ge-zones-head', 'data-act': 'zones', 'aria-expanded': state.zonesOpen, 'aria-label': state.zonesOpen ? 'Hide zones' : 'Show zones' }, 'Zones', chevron('cc-chev', state.zonesOpen)),
-      state.zonesOpen ? el('button', { type: 'button', class: 'ge-zsize', 'data-act': 'zsize', 'aria-label': state.zonesLarge ? 'Smaller zone map' : 'Larger zone map', title: state.zonesLarge ? 'Smaller' : 'Larger' }, icon(state.zonesLarge ? ICON.collapse : ICON.expand)) : null),
+      state.zonesOpen && !opts.zonesPlain ? el('button', { type: 'button', class: 'ge-zsize', 'data-act': 'zsize', 'aria-label': state.zonesLarge ? 'Smaller zone map' : 'Larger zone map', title: state.zonesLarge ? 'Smaller' : 'Larger' }, icon(state.zonesLarge ? ICON.collapse : ICON.expand)) : null),
     body)
 }
 
@@ -742,6 +742,7 @@ function drawFrames(current) {
     toggle('Back link and title boxed', opts.backBoxed, 'backBoxed'),
     toggle('Test on lights primary', opts.testPrimary, 'testPrimary'),
     toggle('Test split button + Zones island', opts.split, 'split'),
+    toggle('Zones island: no resize', opts.zonesPlain, 'zonesPlain'),
     el('b', {}, 'Narrow (new window)'),
     ...[['Dock 400x800', 400, 800], ['Side 700x900', 700, 900], ['Side 1000x600', 1000, 600]].map(([label, w, h]) => el('a', { href: '#controls', onclick: (e) => { e.preventDefault(); open(`${location.pathname}${location.search}#controls`, '_blank', `popup,width=${w},height=${h}`) } }, label)))
 }

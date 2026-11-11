@@ -313,6 +313,9 @@ button { font-family: inherit; }
 }
 .ui-button { display: inline-flex; align-items: center; gap: var(--ui-size-space-sm); white-space: nowrap; }
 .ge-bar .ui-button[data-icon] { padding: var(--ui-size-space-sm); }
+/* Every bar control is one fixed height, whatever its padding or icon. */
+.ge-bar .ui-button { box-sizing: border-box; height: 32px; padding-block: 0; display: inline-flex; align-items: center; justify-content: center; gap: var(--ui-size-space-sm); }
+.ge-bar .ui-button[data-icon] { padding-inline: var(--ui-size-space-md); }
 /* The bar's primary stays at the bar's small size; Grille's primary is the large form-button size. */
 .ge-bar .ge-primary, .ge-banner .ge-primary { padding: var(--ui-size-space-sm) var(--ui-size-space-lg); border-radius: var(--ui-size-radius-sm); font-size: var(--ui-size-font-xs); }
 .ge-banner .ui-button { padding: var(--ui-size-space-sm) var(--ui-size-space-lg); font-size: var(--ui-size-font-xs); }
@@ -320,7 +323,7 @@ button { font-family: inherit; }
 /* Borderless variant, a local stand-in for a possible Grille one: no fill until hover. */
 .ui-button.ge-ghost { background: none; }
 .ui-button.ge-ghost:hover:not(:disabled) { background: var(--ui-color-control-bg); }
-.ge-title { font-weight: var(--ui-font-weight-semibold); font-size: var(--ui-size-font-md); }
+.ge-title { font-size: var(--ui-size-font-md); }
 .ge-bar .ui-button.ge-title, .ge-bar .ui-button.ge-ghost { font-size: var(--ui-size-font-sm); }
 .ge-chev { display: inline-flex; width: 12px; height: 12px; }
 .ge-chev .ge-icon { width: 12px; height: 12px; }
@@ -380,13 +383,15 @@ button { font-family: inherit; }
 .ge-zmap i { position: absolute; left: calc(var(--x) * var(--step)); top: calc(var(--y) * var(--step)); width: calc(var(--w) * var(--step) - 2px); height: calc(var(--h) * var(--step) - 2px); border-radius: 2px; }
 .ge-zones-v.stale .ge-zmap { opacity: 0.4; }
 .ge-zbar { display: flex; align-items: center; }
-.ge-zbar .ge-zones-head { flex: 1; width: auto; justify-content: flex-start; border-radius: 0; }
+.ge-zbar { position: relative; }
+.ge-zbar .ge-zones-head { flex: 1; width: auto; justify-content: space-between; border-radius: 0; }
 .ge-zbar .ge-zones-head:hover, .ge-zbar .ge-zones-head:active { background: none; }
 .ge-zbar:has(.ge-zones-head:hover) { background: var(--ui-color-control-bg-hover); }
 .ge-zbar:has(.ge-zones-head:active) { background: var(--ui-color-control-bg-active); }
 /* The island clips an outward ring, so the header's ring sits inside. */
 .ge-zbar .ge-zones-head:focus-visible { outline-offset: calc(-1 * var(--ui-size-focus-ring-width)); }
-.ge-zbar .ge-zsize { margin: 0 var(--ui-size-space-sm) 0 0; }
+/* The resize button sits left of the chevron, which stays at the right edge like the other dropdowns. */
+.ge-zbar .ge-zsize { position: absolute; top: 50%; translate: 0 -50%; right: calc(var(--ui-size-button-pad-x) + 12px + var(--ui-size-space-md)); }
 .ge-zsize {
   display: grid; place-items: center; width: 24px; height: 24px; padding: 0; background: none; color: var(--ui-color-text-secondary);
   border: none; border-radius: var(--ui-size-radius-sm); cursor: pointer;

@@ -21,11 +21,12 @@ Open `index.html` directly. Frames work as in the original (`#rest`, `#problems`
 
 ## Decisions the frame strip toggles cover
 
-The dashed strip's **Decisions** group has three switches. They apply to every frame.
+The dashed strip's **Decisions** group has four switches. They apply to every frame.
 
 1. **Back link and title boxed**. On: both are Grille secondary buttons. Off: a borderless variant (local `.ge-ghost`, fill only on hover). RockyRoad has no borderless button, its lightest is the outline `lib-btn-secondary`. Grille has none yet either, so off means a new variant.
 2. **Test on lights primary**. Off (default, as in the mock): Grille secondary, dark. On: Grille primary, light. Primary keeps the bar's small size through a local override, because Grille's primary is the large form-button size.
 3. **Test split button + Zones island** (`Aurora-daaa.32`, default off). On: the status pill, Test on lights, countdown text and Revert collapse into one split button `[▷ Test ⌄]`. The menu picks Once (15 s) or Live (until stopped) and starts that test. The label is the state: `▷ Test` at rest, `■ Stop 0:12` during Once (a real countdown only when started by click; the Testing frame holds 0:12), `■ Stop` during Live, which is the revert. Take over and Reconnect are the button's own labels. Problems and Cannot reach Aurora disable it with a tooltip. No status text. The Zone preview becomes a **Zones** island of plain cells: one 14 px cell per zone, 8 per row, for the single active output (one output is taken as canonical; the preview frame can carry several, and a second block would just follow below), with no screen mapping (the first cut mapped the active output's zones to their regions as `ZoneThumbnail.tsx` does, in commit d643ce57; dropped because zone regions can overlap, and fresh zones all start full-screen, so a mapped box hides zones). Header has the hide chevron. A fullscreen icon in the bottom-left corner toggles small and large (348 px, drawer width), shown on hover and focus and always under `@media (hover: none)`. Off keeps the original layout unchanged. The **Testing live** frame matches Testing with the switch off. Both are local mock components on Grille tokens, not proposed for Grille.
+4. **Zones island: no resize** (default off, only visible with switch 3 on). The same collapsible `Zones ⌄` island, without the small/large resize button. The resize experiment stays in the code behind this switch being off, in case a larger map earns its place later (for example with zone names on hover or click-to-select).
 
 ## Narrow windows (`Aurora-daaa.34`)
 
