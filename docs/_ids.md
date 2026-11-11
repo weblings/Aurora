@@ -309,6 +309,7 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `ra4o9-g1c-pre-g2-adjustments` | [log/2026-10-14-ra4o9-g1c-pre-g2-adjustments.md](log/2026-10-14-ra4o9-g1c-pre-g2-adjustments.md) | G1c pre-G2 runtime adjustments (Aurora-ra4o.9) |
 | `runtime-analysis` | [archive/RuntimeAnalysis.md](archive/RuntimeAnalysis.md) | Runtime / Config — Conversion analysis |
 | `s1t7-stage5-6-planning` | [log/2026-11-11-s1t7-stage5-6-planning.md](log/2026-11-11-s1t7-stage5-6-planning.md) | Graph editor stages 5 and 6: epics filed and noted in the plan |
+| `s1t710-grille-dev9` | [log/2026-11-11-s1t710-grille-dev9.md](log/2026-11-11-s1t710-grille-dev9.md) | Graph editor: Grille dev.9 (icons) |
 | `s1t76-mock-switches-decided` | [log/2026-11-10-s1t76-mock-switches-decided.md](log/2026-11-10-s1t76-mock-switches-decided.md) | Graph editor stage 5: Grille mock switches decided |
 | `scig-capture-source-banner` | [log/2026-10-08-scig-capture-source-banner.md](log/2026-10-08-scig-capture-source-banner.md) | Aurora-scig: Capture Source (NUX) errors move to the shell banner (closed) |
 | `sequence-b-planning` | [log/2026-10-15-sequence-b-planning.md](log/2026-10-15-sequence-b-planning.md) | Sequence B planning: decisions recorded, epic filed |

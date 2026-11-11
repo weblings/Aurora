@@ -1,6 +1,6 @@
 # Graph editor mock on Grille
 
-Copy of `../Static_GraphEditor_Mocks` (`Aurora-bova`) built on Grille `0.1.0-dev.8` for `Aurora-daaa.31`,
+Copy of `../Static_GraphEditor_Mocks` (`Aurora-bova`) built on Grille `0.1.0-dev.9` for `Aurora-daaa.31`,
 so the layout can be judged with real Grille styling before the editor changes. The original mock is untouched.
 Open `index.html` directly. Frames work as in the original (`#rest`, `#problems`, `#testing`, `#changed`, `#reconnect`, ...).
 
