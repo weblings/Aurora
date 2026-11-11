@@ -240,6 +240,18 @@ if(EXISTS "${CMAKE_SOURCE_DIR}/LICENSE")
   )
 endif()
 
+# Aurora-b7ai: the repo-root third-party notices (Huenicorn, Vidstack, Zest,
+# ...) ship in every build; MIT needs the copyright and permission text to
+# travel with copies. Missing file fails configure.
+set(AURORA_ROOT_NOTICE "${CMAKE_CURRENT_SOURCE_DIR}/../../THIRD_PARTY_NOTICES.md")
+if(NOT EXISTS "${AURORA_ROOT_NOTICE}")
+  message(FATAL_ERROR "Aurora: ${AURORA_ROOT_NOTICE} is missing; it ships in the built app")
+endif()
+
+install(FILES "${AURORA_ROOT_NOTICE}"
+  DESTINATION ${CMAKE_INSTALL_DOCDIR}/aurora-app-linux
+)
+
 # Graph editor's npm notice (Aurora-lzj). It is also embedded in the editor's
 # map; this puts a plain file next to the copyright file.
 if(AURORA_ENABLE_GRAPH_EDITOR)

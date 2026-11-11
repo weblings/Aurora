@@ -240,6 +240,23 @@ target_compile_definitions(aurora-app-mac PRIVATE
   AURORA_VERSION="${_AURORA_VERSION}"
 )
 
+# Aurora-b7ai: the repo-root third-party notices (Huenicorn, Vidstack, Zest,
+# ...) ship in every build; MIT needs the copyright and permission text to
+# travel with copies. Missing file fails configure.
+set(AURORA_ROOT_NOTICE "${CMAKE_CURRENT_SOURCE_DIR}/../../THIRD_PARTY_NOTICES.md")
+if(NOT EXISTS "${AURORA_ROOT_NOTICE}")
+  message(FATAL_ERROR "Aurora: ${AURORA_ROOT_NOTICE} is missing; it ships in the built app")
+endif()
+
+add_custom_command(TARGET aurora-app-mac POST_BUILD
+  COMMAND ${CMAKE_COMMAND} -E make_directory
+          "$<TARGET_BUNDLE_DIR:aurora-app-mac>/Contents/Resources/Licenses"
+  COMMAND ${CMAKE_COMMAND} -E copy_if_different "${AURORA_ROOT_NOTICE}"
+          "$<TARGET_BUNDLE_DIR:aurora-app-mac>/Contents/Resources/Licenses/THIRD_PARTY_NOTICES.md"
+  COMMENT "Staging third-party notices into Aurora.app"
+  VERBATIM
+)
+
 if(AURORA_ENABLE_GRAPH_EDITOR)
   target_compile_definitions(aurora-app-mac PRIVATE AURORA_GRAPH_EDITOR=1)
   # The editor's npm notice ships in Contents/Resources/Licenses, ahead of
