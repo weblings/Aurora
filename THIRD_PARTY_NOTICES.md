@@ -21,7 +21,7 @@ If a reference-only project later becomes a source of ported code, move it to In
 
 ## Vidstack media-icons (MIT) -- incorporated
 
-Source: <https://github.com/vidstack/media-icons> (npm `media-icons`). Used in `web/ui/icons` (back arrow, chevrons, play, pause, fullscreen enter and exit, x mark) and, where the graph editor or Grille reuse them, the same paths.
+Source: <https://github.com/vidstack/media-icons> (npm `media-icons`). Used in `web/ui/icons` (back arrow, add, chevrons, play, pause, stop, search, fullscreen enter and exit, x mark) and, where the graph editor or Grille reuse them, the same paths.
 
 ```
 MIT License
@@ -49,7 +49,7 @@ SOFTWARE.
 
 ## Zest Free icons (MIT-style "Zest Free License") -- incorporated
 
-Source: <https://github.com/32pixelsCo/zest-icons> via SVG Repo. Used for `web/ui/icons/power-svgrepo-com.svg`, `Undo.svg` and `Redo.svg`.
+Source: <https://github.com/32pixelsCo/zest-icons> via SVG Repo. Used for `web/ui/icons/power-svgrepo-com.svg`, `Undo.svg`, `Redo.svg` and `minus.svg`.
 
 ```
 Zest Free License

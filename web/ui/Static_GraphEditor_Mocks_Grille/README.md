@@ -15,9 +15,11 @@ Open `index.html` directly. Frames work as in the original (`#rest`, `#problems`
 - The problems chip is a plain Grille button with a warning mark, not a dashed-border chip. The focus ring is Grille's.
 - Local styles on Grille tokens: dividers, the status dot, the muted count, the borderless variant, the bar-size primary, field/slider/toggle rows.
 - A static page has no react-aria, so Grille's `[data-hovered]`, `[data-pressed]` and `[data-focus-visible]` never set. `mock.css` adds `:hover`, `:active` and `:focus-visible` fallbacks. The real editor needs none.
-- Placement carried over from the mock: `+ Add node` labelled on the canvas top-left, problems chip and preview status in the right group before Undo, dividers after the back link and before Test on lights, Dashboard controls bottom-left with a muted count, zoom menu bottom-right, collapsible Zone preview top-right, problems popover dropping from the chip.
-- Zoom menu bottom-right. React Flow's credit sits bottom-centre in small muted text (`attributionPosition="bottom-center"`). The credit is kept: React Flow's docs ask that only Pro subscribers hide it (`proOptions.hideAttribution`), with no stated exception for personal or open-source use.
+- Placement carried over from the mock: `+ Add node` labelled on the canvas top-left, problems chip and preview status in the right group before Undo, dividers after the back link and before Test on lights, Dashboard controls bottom-right with a muted count, zoom menu bottom-left, collapsible Zone preview top-right, problems popover dropping from the chip.
+- Zoom menu bottom-left. Minimap (`Aurora-daaa.36`, owner 2026-11-11): the View menu's Minimap item toggles a small map stacked directly above the zoom button, and the View menu then opens above the map, so the map never covers the item that turns it off. It lifts with the bottom dock and hides at full height like the corner buttons. Frame **Minimap on** shows it with the menu open. React Flow's credit sits bottom-centre in small muted text (`attributionPosition="bottom-center"`). The credit is kept: React Flow's docs ask that only Pro subscribers hide it (`proOptions.hideAttribution`), with no stated exception for personal or open-source use.
 - Menus, drawers and the add node menus keep the original mock's own markup, recoloured with Grille tokens. They are not Grille components.
+
+- Gradient stops (frame **Gradient stops**): one row per stop with a Zest `minus` icon button to remove it (off at the 2-stop minimum) and `+ Add stop` with the Vidstack `add`. The editor's `ParamWidget` draws the remove button as a `−` character today.
 
 ## Decisions the frame strip toggles cover
 

@@ -385,3 +385,4 @@ Planning docs stay clean: decisions, status, and pointers here only.
 | 2026-11-11 | angle.fromFloat and angle.toFloat converter nodes; loader and editor refusals name them. [[jsjj-angle-converters]] | `bd show Aurora-jsjj` |
 | 2026-11-11 | Port type glossary: one meaning per port type in the catalog, MCP list_nodes/describe_node and editor tooltips. [[z6kw-port-type-glossary]] | `bd show Aurora-z6kw` |
 | 2026-11-11 | Editor inserts the Float/Angle converter when a wire is dropped on the mismatched port. [[0veq-converter-auto-insert]] | `bd show Aurora-0veq` |
+| 2026-11-11 | Grille mock: minimap above the zoom menu (View menu opens above it), gradient stop rows with Zest minus. [[daaa36-mock-minimap]] | `bd show Aurora-daaa.36` |

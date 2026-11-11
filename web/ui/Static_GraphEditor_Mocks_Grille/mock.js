@@ -37,7 +37,7 @@ for (const n of CATALOG) if (!categoryOf.has(n.type)) console.error(`no category
 
 const state = {
   nodes: [], edges: GRAPH.edges.map(([from, to]) => ({ from, to })), controls: GRAPH.controls.map((c) => ({ ...c })),
-  view: { x: 0, y: 0, k: 1 }, selected: null, wire: null, testing: false, problems: false, unsaved: false, zonesOpen: true, zonesLarge: false, popup: null,
+  view: { x: 0, y: 0, k: 1 }, selected: null, wire: null, testing: false, problems: false, unsaved: false, zonesOpen: true, zonesLarge: false, popup: null, minimap: false,
   // States the first mock skipped (Aurora-daaa.6).
   banner: null, status: null, other: false, changed: false, nameError: false, wholeGraph: false,
 }
@@ -64,7 +64,9 @@ function fill(node, kids, keep = false) {
   else node.replaceChildren(...flat)
 }
 
-// Vidstack media-icons (MIT, see THIRD_PARTY_NOTICES.md): 32 grid, filled. Path data is copied from web/ui/icons.
+// Vidstack media-icons (MIT, see THIRD_PARTY_NOTICES.md): 32 grid, filled. Path data is copied from web/ui/icons (a static page
+// cannot load them): expand fullscreen-arrow, collapse fullscreen-arrow-exit, play play-rockyroad, stop, search, chevDown/chevUp
+// chevron-down/-up, back back-arrow, add, close x-mark (.svg). index.html's Add node button inlines add.svg too.
 const vsicon = (paths, grid = 32, cls = '') => el('span', { html: `<svg class="ge-icon ge-vs ${cls}" viewBox="0 0 ${grid} ${grid}" aria-hidden="true">${paths}</svg>`, style: 'display:contents' })
 const VS = {
   expand: '<path d="M17.3183 12.4856L21.2231 8.58073C21.3071 8.49674 21.2476 8.35312 21.1288 8.35312H18.0189C17.6507 8.35312 17.3522 8.05464 17.3522 7.68645V5.95312C17.3522 5.58493 17.6507 5.28645 18.0189 5.28645H26.0189C26.387 5.28645 26.6862 5.58493 26.6862 5.95312V13.9531C26.6862 14.3213 26.3877 14.6198 26.0196 14.6198H24.2862C23.918 14.6198 23.6196 14.3213 23.6196 13.9531V10.8431C23.6196 10.7243 23.4759 10.6648 23.3919 10.7488L19.4867 14.6541C19.2264 14.9144 18.8043 14.9144 18.5439 14.6541L17.3183 13.4284C17.0579 13.1681 17.0579 12.7459 17.3183 12.4856Z"/><path d="M6.1153 26.7135H14.1153C14.4835 26.7135 14.782 26.4151 14.782 26.0469V24.3135C14.782 23.9453 14.4835 23.6469 14.1153 23.6469H11.0053C10.8865 23.6469 10.827 23.5033 10.911 23.4193L14.8159 19.5144C15.0763 19.254 15.0763 18.8319 14.8159 18.5716L13.5903 17.3459C13.3299 17.0856 12.9078 17.0856 12.6474 17.3459L8.74222 21.2512C8.65822 21.3351 8.5146 21.2757 8.5146 21.1569L8.51461 18.0469C8.51461 17.6787 8.21613 17.3802 7.84794 17.3802H6.11461C5.74642 17.3802 5.44794 17.6787 5.44794 18.0469V26.0469C5.44794 26.4151 5.74711 26.7135 6.1153 26.7135Z"/>',
@@ -75,11 +77,14 @@ const VS = {
   chevDown: '<path d="M15.905 17.4809C15.9571 17.533 16.0415 17.533 16.0936 17.4809L22.4111 11.1635C22.6714 10.9031 23.0935 10.9031 23.3539 11.1635L24.9567 12.7662C25.217 13.0266 25.217 13.4487 24.9567 13.709L18.1028 20.5629C18.0937 20.5732 18.0842 20.5833 18.0744 20.5931L16.4716 22.1959C16.2113 22.4562 15.7892 22.4562 15.5288 22.1959L7.04353 13.7106C6.78318 13.4503 6.78318 13.0281 7.04353 12.7678L8.6463 11.165C8.90665 10.9047 9.32876 10.9047 9.58911 11.165L15.905 17.4809Z"/>',
   chevUp: '<path d="M15.905 14.8206C15.9571 14.7685 16.0415 14.7685 16.0936 14.8206L22.4111 21.1381C22.6714 21.3984 23.0935 21.3984 23.3539 21.1381L24.9567 19.5353C25.217 19.2749 25.217 18.8528 24.9567 18.5925L18.1028 11.7386C18.0937 11.7283 18.0842 11.7182 18.0744 11.7084L16.4716 10.1056C16.2113 9.84528 15.7892 9.84528 15.5288 10.1056L7.04353 18.5909C6.78318 18.8513 6.78318 19.2734 7.04353 19.5337L8.6463 21.1365C8.90665 21.3968 9.32876 21.3968 9.58911 21.1365L15.905 14.8206Z"/>',
   back: '<path d="M13.0908 14.3334C12.972 14.3334 12.9125 14.1898 12.9965 14.1058L17.7021 9.40022C17.9625 9.13987 17.9625 8.71776 17.7021 8.45741L16.2879 7.04319C16.0275 6.78284 15.6054 6.78284 15.3451 7.04319L6.8598 15.5285C6.59945 15.7888 6.59945 16.2109 6.8598 16.4713L8.27401 17.8855L8.27536 17.8868L15.3453 24.9568C15.6057 25.2172 16.0278 25.2172 16.2881 24.9568L17.7024 23.5426C17.9627 23.2822 17.9627 22.8601 17.7024 22.5998L12.9969 17.8944C12.9129 17.8104 12.9724 17.6668 13.0912 17.6668L26 17.6668C26.3682 17.6668 26.6667 17.3683 26.6667 17.0001V15.0001C26.6667 14.6319 26.3682 14.3334 26 14.3334L13.0908 14.3334Z"/>',
+  add: '<path d="M17.1336 24.6659C17.5018 24.6659 17.8003 24.3675 17.8003 23.9993V17.9324C17.8003 17.8588 17.86 17.7991 17.9336 17.7991H23.9999C24.3681 17.7991 24.6666 17.5006 24.6666 17.1324V14.8657C24.6666 14.4976 24.3681 14.1991 23.9999 14.1991L17.9336 14.1991C17.86 14.1991 17.8003 14.1394 17.8003 14.0657V7.99928C17.8003 7.63109 17.5018 7.33261 17.1336 7.33261H14.867C14.4988 7.33261 14.2003 7.63109 14.2003 7.99928V14.0657C14.2003 14.1394 14.1406 14.1991 14.067 14.1991L7.99992 14.1991C7.63173 14.1991 7.33325 14.4976 7.33325 14.8658V17.1324C7.33325 17.5006 7.63173 17.7991 7.99992 17.7991L14.067 17.7991C14.1406 17.7991 14.2003 17.8588 14.2003 17.9324V23.9993C14.2003 24.3675 14.4988 24.6659 14.867 24.6659H17.1336Z"/>',
   close: '<path d="M10.2017 23.401C10.462 23.6613 10.8841 23.6613 11.1445 23.401L15.9057 18.6398C15.9577 18.5877 16.0422 18.5877 16.0942 18.6398L20.8555 23.401C21.1158 23.6613 21.5379 23.6613 21.7983 23.401L23.401 21.7982C23.6614 21.5378 23.6614 21.1157 23.401 20.8554L18.6398 16.0942C18.5878 16.0421 18.5878 15.9577 18.6398 15.9056L23.401 11.1444C23.6613 10.8841 23.6613 10.462 23.401 10.2016L21.7982 8.59886C21.5379 8.33851 21.1158 8.33851 20.8554 8.59886L16.0942 13.36C16.0422 13.4121 15.9577 13.4121 15.9057 13.36L11.1445 8.59887C10.8842 8.33852 10.4621 8.33852 10.2017 8.59887L8.59894 10.2016C8.33859 10.462 8.33859 10.8841 8.59894 11.1445L13.3601 15.9056C13.4122 15.9577 13.4122 16.0421 13.3601 16.0942L8.59889 20.8554C8.33854 21.1157 8.33854 21.5378 8.59889 21.7982L10.2017 23.401Z"/>',
 }
-// Vidstack has no undo or redo: these are Zest Free icons (web/ui/icons/Undo.svg, Redo.svg; 24 grid, filled; licence in THIRD_PARTY_NOTICES.md).
+// Vidstack has no undo, redo or minus: these are Zest Free icons (web/ui/icons/Undo.svg, Redo.svg, minus.svg; 24 grid, filled; licence in THIRD_PARTY_NOTICES.md).
 const ZEST = {
   undo: '<path fill-rule="evenodd" clip-rule="evenodd" d="M10.707 4.293a1 1 0 0 1 0 1.414L8.414 8H13.5a5.5 5.5 0 1 1 0 11H11a1 1 0 1 1 0-2h2.5a3.5 3.5 0 1 0 0-7H8.414l2.293 2.293a1 1 0 0 1-1.414 1.414l-4-4a1 1 0 0 1 0-1.414l4-4a1 1 0 0 1 1.414 0z"/>',
+  // web/ui/icons/minus.svg ships with fill="#000" and no viewBox; here on currentColor in a 24 grid.
+  minus: '<path fill-rule="evenodd" clip-rule="evenodd" d="M4 12a1 1 0 0 1 1-1h14a1 1 0 1 1 0 2H5a1 1 0 0 1-1-1z"/>',
   redo: '<path fill-rule="evenodd" clip-rule="evenodd" d="M13.293 4.293a1 1 0 0 1 1.414 0l4 4a1 1 0 0 1 0 1.414l-4 4a1 1 0 0 1-1.414-1.414L15.586 10H10.5a3.5 3.5 0 1 0 0 7H13a1 1 0 1 1 0 2h-2.5a5.5 5.5 0 1 1 0-11h5.086l-2.293-2.293a1 1 0 0 1 0-1.414z"/>',
 }
 const chevron = (cls = '', up = false) => el('span', { class: `ge-chev ${cls}`, 'aria-hidden': 'true', html: `<svg viewBox="0 0 32 32" class="ge-icon ge-vs">${up ? VS.chevUp : VS.chevDown}</svg>` })
@@ -110,7 +115,11 @@ function paramView(p, value) {
   if (p.kind === 'bool') return el('div', { class: 'gn-param' }, el('div', { class: 'gn-param-row' }, paramLabel(p), el('b', {}, current ? 'On' : 'Off')))
   if (p.kind === 'gradient') {
     const stops = (current ?? []).map((s) => `${s.color} ${s.pos * 100}%`).join(',')
-    return el('div', { class: 'gn-param' }, el('div', { class: 'gn-param-row' }, paramLabel(p)), el('div', { class: 'gn-gradient', style: `background:linear-gradient(to right,${stops})` }))
+    const rows = (current ?? []).map((s, i, all) => el('div', { class: 'gn-stop' },
+      el('i', { class: 'gn-swatch', style: `background:${s.color}` }), el('span', {}, s.color), el('b', {}, s.pos.toFixed(2)),
+      btn(vsicon(ZEST.minus, 24), { icon: true, 'aria-label': `Remove stop ${i + 1}`, title: all.length <= 2 ? 'A gradient needs at least 2 stops' : 'Remove stop', disabled: all.length <= 2 })))
+    return el('div', { class: 'gn-param' }, el('div', { class: 'gn-param-row' }, paramLabel(p)), el('div', { class: 'gn-gradient', style: `background:linear-gradient(to right,${stops})` }),
+      rows, btn([vsicon(VS.add), 'Add stop'], { variant: 'secondary', class: 'gn-addstop' }))
   }
   const min = p.min ?? 0, max = p.max ?? 1, number = current === null || current === undefined || current < min ? min : current
   const percent = max > min ? ((number - min) / (max - min)) * 100 : 0
@@ -191,6 +200,22 @@ function applyView() {
   $('canvas').style.backgroundPosition = `${x}px ${y}px`
   $('canvas').style.backgroundSize = `${24 * k}px ${24 * k}px`
   $('view-btn').replaceChildren(`${Math.round(k * 100)}%`, chevron('cc-chev'))
+  drawMinimap()
+}
+
+// Minimap (Aurora-daaa.36): bottom-left, directly above the zoom button, so the View menu opens above both.
+function drawMinimap() {
+  const map = $('minimap')
+  map.hidden = !state.minimap
+  if (!state.minimap) return
+  const boxes = state.nodes.map((n) => { const b = document.querySelector(`[data-node="${CSS.escape(n.id)}"]`); return { x: n.x, y: n.y, w: b?.offsetWidth ?? 200, h: b?.offsetHeight ?? 80 } })
+  const { x, y, k } = state.view, r = $('canvas').getBoundingClientRect()
+  const view = { x: -x / k, y: -y / k, w: r.width / k, h: r.height / k }
+  const all = [...boxes, view]
+  const left = Math.min(...all.map((b) => b.x)), top = Math.min(...all.map((b) => b.y))
+  const w = Math.max(...all.map((b) => b.x + b.w)) - left, h = Math.max(...all.map((b) => b.y + b.h)) - top
+  const rect = (b, cls) => `<rect class="${cls}" x="${b.x}" y="${b.y}" width="${b.w}" height="${b.h}" rx="6"/>`
+  map.innerHTML = `<svg viewBox="${left - 20} ${top - 20} ${w + 40} ${h + 40}" preserveAspectRatio="xMidYMid meet" aria-hidden="true">${boxes.map((b) => rect(b, 'mm-node')).join('')}${rect(view, 'mm-view')}</svg>`
 }
 
 function fit() {
@@ -444,16 +469,16 @@ function openTitle({ nameError = false, changed = false } = {}) {
 
 function openView() {
   closePopups()
-  const r = $('view-btn').getBoundingClientRect()
+  const r = $('view-btn').getBoundingClientRect(), top = $('view-btn').closest('.ge-island').getBoundingClientRect().top
   const zoom = (factor) => { state.view.k = Math.min(2, Math.max(0.2, state.view.k * factor)); applyView() }
   const pop = menu([
     { label: 'Fit view', key: 'F', run: fit },
     { label: 'Zoom in', key: 'Ctrl++', run: () => zoom(1.2) },
     { label: 'Zoom out', key: 'Ctrl+-', run: () => zoom(1 / 1.2) },
     '-',
-    { label: 'Minimap', checked: false, run: () => toast('The minimap stays off in this mock') },
-  ], r.left, r.top)
-  pop.style.top = `${r.top - pop.offsetHeight - 6}px`
+    { label: 'Minimap', checked: state.minimap, run: () => { state.minimap = !state.minimap; drawMinimap() } },
+  ], r.left, top)
+  pop.style.top = `${top - pop.offsetHeight - 6}px`
 }
 
 function openProblems() {
@@ -735,6 +760,16 @@ const point = (id) => {
 }
 // Aurora-0veq: a Float wire dropped on an Angle input gets a Float to Angle node, wired both sides, clear of both nodes.
 // Undo would treat the drop as one step: the wire and the node it brought go together, the Float wire is back as it was.
+// Gradient stop rows: the Zest minus removes a stop (web/ui/icons/minus.svg), off at the 2-stop minimum.
+function gradientStops() {
+  state.nodes = [
+    { id: 'wobble', type: 'lfo', params: {}, x: 0, y: 40 },
+    { id: 'ramp', type: 'color.fromGradient', params: { gradient: [{ color: '#1b3cff', pos: 0 }, { color: '#ff3cac', pos: 0.5 }, { color: '#ffd23f', pos: 1 }] }, x: 280, y: 40 },
+  ]
+  state.edges = [{ from: 'wobble.value', to: 'ramp.t' }]
+  state.selected = 'ramp'
+  drawNodes(); fit()
+}
 function autoInsert() {
   state.nodes = [
     { id: 'wobble', type: 'lfo', params: {}, x: 0, y: 40 },
@@ -748,7 +783,7 @@ function autoInsert() {
   toast('Dropped a Float on an Angle input: Float to Angle inserted. Undo removes both the node and its wire in one step.')
 }
 const FRAMES = [
-  ['Layout', [['rest', 'At rest', () => {}], ['title', 'Title menu', openTitle], ['view', 'View menu', openView]]],
+  ['Layout', [['rest', 'At rest', () => {}], ['title', 'Title menu', openTitle], ['view', 'View menu', openView], ['minimap', 'Minimap on', () => { state.minimap = true; drawMinimap(); openView() }], ['gradient', 'Gradient stops', gradientStops]]],
   ['Add node', [
     ['browser', 'A: Browser', () => openAdd('browser')],
     ['browser-search', 'A: Search', () => openAdd('browser', undefined, undefined, { query: 'hue' })],
@@ -791,7 +826,7 @@ function showFrame() {
   closePopups()
   stopTimer()
   Object.assign(test, { mode: 'once', left: 12 })
-  Object.assign(state, { zonesLarge: false, testing: false, problems: false, unsaved: false, selected: null, wire: null, banner: null, status: null, other: false, changed: false, wholeGraph: false })
+  Object.assign(state, { minimap: false, zonesLarge: false, testing: false, problems: false, unsaved: false, selected: null, wire: null, banner: null, status: null, other: false, changed: false, wholeGraph: false })
   layoutGraph(); state.edges = GRAPH.edges.map(([from, to]) => ({ from, to }))
   drawNodes(); drawBar(); drawBanner(); drawIslands(); fit(); drawFrames(id)
   FRAMES.flatMap(([, frames]) => frames).find(([key]) => key === id)?.[2]()
