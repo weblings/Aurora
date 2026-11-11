@@ -382,3 +382,5 @@ Planning docs stay clean: decisions, status, and pointers here only.
 | 2026-11-10 | Icon audit, third-party notices (Huenicorn, Vidstack, Zest, reference-only entries) and what the build ships. [[daaa33-notices-audit]] | `bd show Aurora-daaa.33`, `bd show Aurora-b7ai` |
 | 2026-11-11 | Grille mock: circle sockets, thicker bulk and dashed Trigger wires, mock-only Float/Angle converters, Float to Angle refusal and auto-insert frames. [[1cmx-mock-circle-sockets-converters]] | `bd show Aurora-1cmx` |
 | 2026-11-11 | Graph editor: every socket a circle in its domain colour, shapes removed. [[d0hv-circle-sockets]] | `bd show Aurora-d0hv` |
+| 2026-11-11 | angle.fromFloat and angle.toFloat converter nodes; loader and editor refusals name them. [[jsjj-angle-converters]] | `bd show Aurora-jsjj` |
+| 2026-11-11 | Port type glossary: one meaning per port type in the catalog, MCP list_nodes/describe_node and editor tooltips. [[z6kw-port-type-glossary]] | `bd show Aurora-z6kw` |

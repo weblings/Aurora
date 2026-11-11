@@ -123,7 +123,12 @@ namespace Aurora::Runtime
         }
         nodes.push_back(std::move(entry));
       }
-      return {{"nodes", std::move(nodes)}};
+      // The one glossary of what each port type means (Aurora-z6kw).
+      nlohmann::json portTypes = nlohmann::json::array();
+      for(const Graph::PortType type : Graph::allPortTypes()){
+        portTypes.push_back({{"name", Graph::portTypeName(type)}, {"meaning", Graph::portTypeMeaning(type)}});
+      }
+      return {{"nodes", std::move(nodes)}, {"portTypes", std::move(portTypes)}};
     }
   }
 

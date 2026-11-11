@@ -1,4 +1,5 @@
 import { parseZoneRegions, type ZoneRegions } from './graph/frame'
+import { setPortMeanings } from './graph/portStyle'
 import type { Holder } from './graph/lightTest'
 import type { ServerIssue } from './graph/problems'
 import type { Catalog, EffectListEntry, GraphDoc, NodeTypeInfo } from './graph/types'
@@ -11,7 +12,8 @@ async function getJson<T>(path: string): Promise<T> {
 }
 
 export async function fetchCatalog(): Promise<Catalog> {
-  const { nodes } = await getJson<{ nodes: NodeTypeInfo[] }>('/api/nodes')
+  const { nodes, portTypes } = await getJson<{ nodes: NodeTypeInfo[]; portTypes?: { name: string; meaning: string }[] }>('/api/nodes')
+  setPortMeanings(portTypes ?? [])
   return new Map(nodes.map((n) => [n.type, n]))
 }
 

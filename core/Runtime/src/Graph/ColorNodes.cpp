@@ -392,6 +392,56 @@ namespace Aurora::Runtime::Graph
         out.emplace("angle", Angle{wrapDegrees(sum)});
       });
 
+    add(registry, "angle.fromFloat",
+      {.title = "Number to angle",
+       .group = "Numbers",
+       .summary = "Turns a number into an angle on the color wheel.",
+       .tip = "Use to let a wave or audio level set a hue directly.",
+       .purpose =
+         "Convert a Float to an Angle: degrees = value * scale, wrapped at 360. Default scale 360 makes 0..1 one "
+         "full turn.",
+       .useWhen =
+         "Drive a hue from a Float, e.g. an lfo or the audio centroid into palette.pick or color.fromHSV.",
+       .example = "{\"id\": \"hue\", \"type\": \"angle.fromFloat\", \"params\": {\"scale\": 360}}"},
+      {{"value", PortType::Float, true, "The number to convert; 0..1 is one turn at the default scale."}},
+      {{"angle", PortType::Angle, false, "The value times scale in degrees, wrapped at 360."}},
+      {floatParam("scale", "Scale", -3600.f, 3600.f, 360.f, "deg",
+         "Degrees per 1.0 of input. 360 makes 0..1 one full turn; negative reverses direction.")},
+      [](const EvalContext& c, Outputs& out) {
+        float scale = c.param<float>("scale");
+        requireFinite(c, scale, "scale");
+        float value = c.input<float>("value");
+        requireFinite(c, value, "value");
+        float degrees = value * scale;
+        requireFinite(c, degrees, "angle");
+        out.emplace("angle", Angle{wrapDegrees(degrees)});
+      });
+
+    add(registry, "angle.toFloat",
+      {.title = "Angle to number",
+       .group = "Numbers",
+       .summary = "Turns an angle into a plain number.",
+       .tip = "Use to let a hue drive brightness, speed or another number.",
+       .purpose =
+         "Convert an Angle to a Float: degrees / scale, in 0..1 at the default scale 360 (the Angle is already "
+         "wrapped to 0..360).",
+       .useWhen = "Use a hue or rotation as a number, e.g. an integrate angle into frame.mix or a gradient position.",
+       .example = "{\"id\": \"turn\", \"type\": \"angle.toFloat\", \"params\": {\"scale\": 360}}"},
+      {{"angle", PortType::Angle, true, "The angle to convert."}},
+      {{"value", PortType::Float, false, "The angle in degrees divided by scale."}},
+      {floatParam("scale", "Scale", -3600.f, 3600.f, 360.f, "deg",
+         "Degrees per 1.0 of output. 360 maps a full turn to 1; must not be 0.")},
+      [](const EvalContext& c, Outputs& out) {
+        float scale = c.param<float>("scale");
+        requireFinite(c, scale, "scale");
+        if(scale == 0.f){
+          c.fail("scale must not be 0");
+        }
+        float degrees = c.input<Angle>("angle").degrees;
+        requireFinite(c, degrees, "angle");
+        out.emplace("value", degrees / scale);
+      });
+
     ParamDecl side;
     side.name = "side";
     side.kind = ParamKind::Enum;

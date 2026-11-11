@@ -2701,6 +2701,16 @@ TEST_CASE("GET /api/nodes serves every registered node and rejects a forged Host
   CHECK(sawFloat);
   CHECK(sawEnum);
 
+  // One meaning per port type, served beside the nodes (Aurora-z6kw).
+  const auto portTypes = nlohmann::json::parse(res->body)["portTypes"];
+  REQUIRE(portTypes.size() == Aurora::Runtime::Graph::allPortTypes().size());
+  for(size_t i = 0; i < portTypes.size(); ++i){
+    const auto type = Aurora::Runtime::Graph::allPortTypes()[i];
+    CHECK(portTypes[i]["name"] == Aurora::Runtime::Graph::portTypeName(type));
+    CHECK(portTypes[i]["meaning"] == Aurora::Runtime::Graph::portTypeMeaning(type));
+    CHECK_FALSE(portTypes[i]["meaning"].get<std::string>().empty());
+  }
+
   auto forged = client.Get("/api/nodes", {{"Host", "evil.com"}});
   REQUIRE(forged);
   CHECK(forged->status == 403);

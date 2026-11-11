@@ -116,7 +116,7 @@ function paramView(p, value) {
   const percent = max > min ? ((number - min) / (max - min)) * 100 : 0
   return el('div', { class: 'gn-param' },
     el('div', { class: 'gn-param-row' }, paramLabel(p), el('b', {}, `${+Number(number).toFixed(2)}${p.unit ? ` ${p.unit}` : ''}`)),
-    el('input', { class: 'ge-slider', type: 'range', min, max, step: p.step || 'any', value: number, tabindex: -1, 'aria-label': paramLabel(p), style: `--slider-percent:${percent}%` }))
+    el('div', { class: 'ge-slider', role: 'slider', 'aria-label': paramLabel(p), 'aria-valuemin': String(min), 'aria-valuemax': String(max), 'aria-valuenow': String(number), style: `--slider-frac:${percent / 100}` }, el('i', {})))
 }
 
 function nodeBody(info, params = {}, limit = Infinity) {

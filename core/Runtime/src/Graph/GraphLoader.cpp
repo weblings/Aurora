@@ -510,6 +510,11 @@ namespace Aurora::Runtime::Graph
             message << where.str() << ": port-type mismatch: '" << fromNode << "." << fromPort
                     << "' carries " << portTypeName(out->type) << " but '" << toNode << "." << toPort
                     << "' expects " << portTypeName(in->type) << ")";
+            if(out->type == PortType::Float && in->type == PortType::Angle){
+              message << "; convert it with an angle.fromFloat node";
+            } else if(out->type == PortType::Angle && in->type == PortType::Float){
+              message << "; convert it with an angle.toFloat node";
+            }
             report(toNode, "port_type_mismatch", message.str(), toPort);
             continue;
           }

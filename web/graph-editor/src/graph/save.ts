@@ -58,5 +58,6 @@ export function forWrite(doc: GraphDoc, makesNew: boolean, taken: Iterable<strin
 export const BLANK_ID = '@empty'
 
 export function blankDoc(): GraphDoc {
-  return { version: 1, title: '', nodes: [], edges: [] }
+  // No title key: the server rejects an empty one (title_invalid), and a save adds it.
+  return { version: 1, nodes: [], edges: [] }
 }

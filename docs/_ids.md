@@ -178,6 +178,7 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `implementation-plan-phase-3` | [archive/ImplementationPlan_Phase3.md](archive/ImplementationPlan_Phase3.md) | Implementation plan: Phase 3 — Three.js browser demo, then the native WebUI milestone |
 | `ja76-hold-running-reload-error` | [log/2026-10-06-ja76-hold-running-reload-error.md](log/2026-10-06-ja76-hold-running-reload-error.md) | Aurora-ja76: hold a failed reload on a running host (closed) |
 | `jk4p-mac-tray-tip-gif-copy` | [log/2026-10-08-jk4p-mac-tray-tip-gif-copy.md](log/2026-10-08-jk4p-mac-tray-tip-gif-copy.md) | Aurora-jk4p: Mac menu-bar tip gets a new GIF and Pause / Resume copy (closed) |
+| `jsjj-angle-converters` | [log/2026-11-11-jsjj-angle-converters.md](log/2026-11-11-jsjj-angle-converters.md) | angle.fromFloat and angle.toFloat |
 | `jwcd-real-bridge-pause-resume` | [log/2026-10-06-jwcd-real-bridge-pause-resume.md](log/2026-10-06-jwcd-real-bridge-pause-resume.md) | Real-bridge pause/resume closes Aurora-jwcd |
 | `jwt7-demo-reset-specificity` | [log/2026-10-08-jwt7-demo-reset-specificity.md](log/2026-10-08-jwt7-demo-reset-specificity.md) | Aurora-jwt7: demo Dashboard lost component padding after ifkn.2 (closed) |
 | `k73j-tray-see-error` | [log/2026-10-07-k73j-tray-see-error.md](log/2026-10-07-k73j-tray-see-error.md) | Aurora-k73j: tray "See Error" — built, Linux-, Windows- and Mac-verified |
@@ -362,5 +363,6 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `xr4c-save-as-new-check-title` | [log/2026-11-08-xr4c-save-as-new-check-title.md](log/2026-11-08-xr4c-save-as-new-check-title.md) | Save-as-new check expected the wrong copy title |
 | `xrl1-warning-icon` | [log/2026-10-07-xrl1-warning-icon.md](log/2026-10-07-xrl1-warning-icon.md) | Aurora-xrl1: vector warning icon replaces bold ⚠ (closed) |
 | `yzp4-takeover-unification` | [log/2026-10-06-yzp4-takeover-unification.md](log/2026-10-06-yzp4-takeover-unification.md) | Aurora-yzp4: takeover unified to heading-only "Aurora has stopped" (closed) |
+| `z6kw-port-type-glossary` | [log/2026-11-11-z6kw-port-type-glossary.md](log/2026-11-11-z6kw-port-type-glossary.md) | Port type glossary |
 | `zfre-test-state-and-stop` | [log/2026-10-22-zfre-test-state-and-stop.md](log/2026-10-22-zfre-test-state-and-stop.md) | Zfre: /api/state reports the light test, the WebUI can stop it (Aurora-zfre) |
 | `zl32-no-input-running` | [log/2026-11-05-zl32-no-input-running.md](log/2026-11-05-zl32-no-input-running.md) | Source-less effects run with no inputs configured |

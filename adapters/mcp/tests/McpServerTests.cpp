@@ -65,7 +65,8 @@ namespace
     {"type":"math.add","group":"Numbers","purpose":"Add two floats.","useWhen":"x","example":"y","cost":"low",
      "inputs":[{"name":"a","type":"Float","required":true},{"name":"b","type":"Float","required":false}],
      "outputs":[{"name":"value","type":"Float"}],"params":[]}
-  ]})";
+  ],"portTypes":[{"name":"AudioBuffer","meaning":"Raw audio."},{"name":"Float","meaning":"A number."},
+    {"name":"Trigger","meaning":"True for one tick."}]})";
 
   std::map<std::string, HttpReply> nodeRoutes()
   {
@@ -227,6 +228,7 @@ TEST_CASE("list_nodes returns a compact list with the structured copy")
   CHECK(nodes[0]["outputs"] == json::array({"bass:Float", "mid:Float"}));
   CHECK(nodes[1]["inputs"] == json::array({"a:Float", "b:Float?"}));
   CHECK_FALSE(nodes[0].contains("params"));
+  CHECK(result["structuredContent"]["portTypes"].size() == 3);
   CHECK_FALSE(nodes[0].contains("useWhen"));
 
   const json audioOnly = callTool(server, "list_nodes", R"({"category":"audio"})")["result"]["structuredContent"]["nodes"];
@@ -251,6 +253,8 @@ TEST_CASE("describe_node returns the full descriptor, a miss lists candidates")
   CHECK(found["isError"] == false);
   CHECK(found["structuredContent"]["params"][0]["name"] == "bassMaxHz");
   CHECK(found["structuredContent"]["useWhen"] == "x");
+  // Only the port types this node uses are explained.
+  CHECK(found["structuredContent"]["portTypes"] == json::parse(R"([{"name":"AudioBuffer","meaning":"Raw audio."},{"name":"Float","meaning":"A number."}])"));
 
   const json miss = callTool(server, "describe_node", R"({"type":"bands"})")["result"];
   CHECK(miss["isError"] == true);

@@ -224,14 +224,17 @@ namespace
     info.factory = []{ return std::make_unique<FramePipeNode>(); };
     CHECK(registry.registerType("test.framepipe", std::move(info)));
 
-    for(PortType type : {PortType::Float, PortType::Trigger}){
+    for(PortType type : {PortType::Float, PortType::Trigger, PortType::Angle}){
       info = {};
       info.meta = meta(std::string(portTypeName(type)) + " passthrough");
       info.inputs = {{"in", type, true}};
       info.outputs = {{"out", type, false}};
       info.factory = [type]{ return std::make_unique<TypedPipeNode>(type); };
       CHECK(registry.registerType(
-        type == PortType::Float ? "test.floatpipe" : "test.triggerpipe", std::move(info)));
+        type == PortType::Float     ? "test.floatpipe"
+        : type == PortType::Trigger ? "test.triggerpipe"
+                                    : "test.anglepipe",
+        std::move(info)));
     }
 
     info = {};
@@ -392,6 +395,12 @@ namespace
       {"float-into-color",
        R"({"version": 1, "nodes": [{"id": "a", "type": "test.floatpipe"}, {"id": "p", "type": "test.passthrough"}], "edges": [["a.out", "p.in"]]})",
        {"port-type mismatch", "a.out", "Float", "p.in", "Color"}},
+      {"float-into-angle-names-converter",
+       R"({"version": 1, "nodes": [{"id": "a", "type": "test.floatpipe"}, {"id": "b", "type": "test.anglepipe"}], "edges": [["a.out", "b.in"]]})",
+       {"port-type mismatch", "a.out", "Float", "b.in", "Angle", "angle.fromFloat"}},
+      {"angle-into-float-names-converter",
+       R"({"version": 1, "nodes": [{"id": "a", "type": "test.anglepipe"}, {"id": "b", "type": "test.floatpipe"}], "edges": [["a.out", "b.in"]]})",
+       {"port-type mismatch", "a.out", "Angle", "b.in", "Float", "angle.toFloat"}},
       {"missing-required-float-input", R"({"version": 1, "nodes": [{"id": "f", "type": "test.floatpipe"}]})",
        {"'f'", "missing required input 'in'", "Float"}},
       {"two-edges-one-input",

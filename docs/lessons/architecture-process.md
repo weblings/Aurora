@@ -1298,3 +1298,15 @@ Applies-when: changing behavior on an internal /api route that has a public /api
 `kAliases` in `PublicApiRoutes.cpp` shares one handler between `/api` and `/api/v1`, which suggests a change to the internal route reaches v1 too. Effect switching is not aliased: the WebUI uses `PUT /api/effects`, while MCP `set_effect` uses `PATCH /api/v1/state`, a handler with its own validation and its own config write. Aurora-kep2.12 first added logging to the PUT alone, and the MCP path stayed silent until a review of v1.
 
 **Fix:** before calling a route behavior done, grep for the config write (here `setActiveEffectId`) to find every path, not just the route the bead names.
+
+---
+
+## A Grille change request is filed as a bead in the GrilleDS repo, with an Aurora bead for the consumer side
+Tags: grille, beads, process, upstream
+Applies-when: finding that Grille (`@weblings/grille`) lacks or gets a component, style or behavior wrong, and deciding where to record the request
+
+- Grille is its own repo (`weblings/GrilleDS`, a sibling checkout at `../GrilleDS`) with its own beads, prefix `Grille`. A bead in Aurora's `.beads` is not a Grille bead: nothing in GrilleDS sees it.
+- File the Grille bead first: `cd` to the GrilleDS checkout and run `bd create` there. Then file or update the Aurora bead for the consumer work (bump, copy CSS into the mock's `grille/`, adopt the change) and cross-reference both IDs in notes. The GrilleDS beads files are not committed, so the cross-reference in the Aurora bead is the only trail.
+- Aurora-fhal / Grille-7o0 (slider fill) was first filed in Aurora's beads alone and reported as the Grille request. The rule was already in `docs/planning/WebUI/GraphEditorCleanup.md` and a dated log, but neither is where an agent looks while filing.
+
+**Fix:** state the repo in the report ("Grille-xxx in GrilleDS") so a missing Grille bead is visible.

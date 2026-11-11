@@ -1140,7 +1140,7 @@ components:
               type: string
     NodeCatalog:
       type: object
-      required: [nodes]
+      required: [nodes, portTypes]
       properties:
         nodes:
           type: array
@@ -1172,6 +1172,17 @@ components:
                 type: array
                 items:
                   type: object
+        portTypes:
+          type: array
+          description: What each port type means, one entry per type.
+          items:
+            type: object
+            required: [name, meaning]
+            properties:
+              name:
+                type: string
+              meaning:
+                type: string
     PresetList:
       type: object
       required: [presets]

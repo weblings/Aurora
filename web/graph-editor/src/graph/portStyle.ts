@@ -25,4 +25,16 @@ export function portStyle(type: string): PortStyle {
   return STYLES[type] ?? FALLBACK
 }
 
+// What each port type means, from the catalog's portTypes (the server owns the
+// text, Aurora-z6kw). Empty until the catalog loads.
+let meanings: Record<string, string> = {}
+
+export function setPortMeanings(list: { name: string; meaning: string }[]): void {
+  meanings = Object.fromEntries(list.map((t) => [t.name, t.meaning]))
+}
+
+export function portMeaning(type: string): string | undefined {
+  return meanings[type]
+}
+
 export const PORT_TYPES = Object.keys(STYLES)

@@ -127,7 +127,7 @@ button { font-family: inherit; }
 .gn-param-row b { color: var(--ui-color-text-default); font-weight: 500; font-variant-numeric: tabular-nums; }
 
 .gn-enum {
-  display: flex; align-items: center; justify-content: space-between; width: 100%;
+  display: flex; align-items: center; justify-content: space-between; width: 100%; box-sizing: border-box;
   padding: var(--ui-size-space-xs) var(--ui-size-space-md); background: var(--ui-color-control-bg);
   border: none; border-radius: var(--ui-size-radius-sm); color: var(--ui-color-text-default); font-size: 12px;
 }
@@ -353,7 +353,10 @@ button { font-family: inherit; }
 .ae-search .ui-text-input::placeholder { color: var(--ui-color-text-secondary); }
 /* This box always holds focus while the menu is open, so a ring would only add noise. */
 .ae-search .ui-text-input:focus-visible { outline: none; }
-.ge-slider { display: block; width: 100%; height: 12px; margin: 0; accent-color: var(--ui-color-control-accent); }
+.ge-slider { position: relative; height: 20px; margin: 0; }
+/* Grille's .ui-slider-track and thumb geometry: 4px track at top 8px, 16px round thumb. The static mock has no react-aria, so the thumb is placed by --slider-frac. */
+.ge-slider::before { content: ''; position: absolute; top: 8px; left: 0; right: 0; height: 4px; border-radius: 2px; background: var(--ui-color-control-bg-active); }
+.ge-slider i { position: absolute; top: 2px; left: calc((100% - 16px) * var(--slider-frac)); width: 16px; height: 16px; border-radius: 50%; background: var(--ui-color-control-accent); }
 .ge-toggle { display: flex; align-items: center; justify-content: space-between; gap: var(--ui-size-space-md); font-size: var(--ui-size-font-sm); }
 .ge-toggle input { accent-color: var(--ui-color-control-accent); width: 16px; height: 16px; margin: 0; }
 .gn.bad { border: 1px solid var(--ui-color-text-warning); }

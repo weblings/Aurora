@@ -254,6 +254,70 @@ TEST_CASE("angle.add sums two Angles and wraps at 360", "[ColorNodes]")
   CHECK(outAngle(graph, "angle") == Approx(40.f));
 }
 
+TEST_CASE("angle.fromFloat scales a Float to degrees and wraps", "[ColorNodes]")
+{
+  const Feed kValue{"test.float", "f", "value"};
+  g_float = 0.25f;
+  Graph graph = load("angle.fromFloat", "{}", {kValue});
+  graph.tick(1.f / 60.f);
+  CHECK(outAngle(graph, "angle") == Approx(90.f)); // default scale 360
+  g_float = 1.25f;
+  graph.tick(1.f / 60.f);
+  CHECK(outAngle(graph, "angle") == Approx(90.f)); // wraps
+  g_float = -0.25f;
+  graph.tick(1.f / 60.f);
+  CHECK(outAngle(graph, "angle") == Approx(270.f)); // negative wraps up
+
+  Graph custom = load("angle.fromFloat", R"({"scale": 180})", {kValue});
+  g_float = 0.5f;
+  custom.tick(1.f / 60.f);
+  CHECK(outAngle(custom, "angle") == Approx(90.f));
+}
+
+TEST_CASE("angle.fromFloat fails the node on non-finite input or scale", "[ColorNodes]")
+{
+  const Feed kValue{"test.float", "f", "value"};
+  g_float = std::numeric_limits<float>::infinity();
+  Graph graph = load("angle.fromFloat", "{}", {kValue});
+  graph.tick(1.f / 60.f);
+  CHECK(asError(out(graph, "angle")) != nullptr);
+  g_float = std::numeric_limits<float>::quiet_NaN();
+  graph.tick(1.f / 60.f);
+  CHECK(asError(out(graph, "angle")) != nullptr);
+  g_float = 1e37f; // finite input, but value * scale overflows
+  Graph huge = load("angle.fromFloat", R"({"scale": 3600})", {kValue});
+  huge.tick(1.f / 60.f);
+  CHECK(asError(out(huge, "angle")) != nullptr);
+}
+
+TEST_CASE("angle.toFloat divides degrees by scale", "[ColorNodes]")
+{
+  g_angle = Angle{90.f};
+  Graph graph = load("angle.toFloat", "{}", {{"test.angle", "a", "angle"}});
+  graph.tick(1.f / 60.f);
+  CHECK(outFloat(graph, "value") == Approx(0.25f)); // default scale 360
+  g_angle = Angle{359.f};
+  graph.tick(1.f / 60.f);
+  CHECK(outFloat(graph, "value") == Approx(359.f / 360.f));
+
+  Graph custom = load("angle.toFloat", R"({"scale": 180})", {{"test.angle", "a", "angle"}});
+  g_angle = Angle{90.f};
+  custom.tick(1.f / 60.f);
+  CHECK(outFloat(custom, "value") == Approx(0.5f));
+}
+
+TEST_CASE("angle.toFloat fails the node on non-finite input or zero scale", "[ColorNodes]")
+{
+  g_angle = Angle{std::numeric_limits<float>::quiet_NaN()};
+  Graph graph = load("angle.toFloat", "{}", {{"test.angle", "a", "angle"}});
+  graph.tick(1.f / 60.f);
+  CHECK(asError(out(graph, "value")) != nullptr);
+  g_angle = Angle{10.f};
+  Graph zero = load("angle.toFloat", R"({"scale": 0})", {{"test.angle", "a", "angle"}});
+  zero.tick(1.f / 60.f);
+  CHECK(asError(out(zero, "value")) != nullptr);
+}
+
 TEST_CASE("color.constant emits a fixed color from its HSV params", "[ColorNodes]")
 {
   Graph graph = load("color.constant", R"({"hue": 120, "saturation": 1, "value": 1})", {});

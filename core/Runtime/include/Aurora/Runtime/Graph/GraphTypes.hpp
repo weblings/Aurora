@@ -1,5 +1,6 @@
 #pragma once
 
+#include <array>
 #include <cstddef>
 #include <optional>
 #include <string>
@@ -30,6 +31,12 @@ namespace Aurora::Runtime::Graph
   };
 
   const char* portTypeName(PortType type);
+  // One line on what a port type means, the single source for the catalog's
+  // portTypes, describe_node and the editor's tooltips (Aurora-z6kw). Keep
+  // docs/planning/NodeGraphPipeline.md "Port types" in step.
+  const char* portTypeMeaning(PortType type);
+  // Every port type, in glossary order.
+  const std::array<PortType, 8>& allPortTypes();
   std::optional<PortType> parsePortType(std::string_view name);
 
   struct PortDecl

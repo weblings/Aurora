@@ -1587,6 +1587,86 @@
   },
   {
    "cost": "cheap",
+   "example": "{\"id\": \"hue\", \"type\": \"angle.fromFloat\", \"params\": {\"scale\": 360}}",
+   "group": "Numbers",
+   "inputs": [
+    {
+     "description": "The number to convert; 0..1 is one turn at the default scale.",
+     "name": "value",
+     "required": true,
+     "type": "Float"
+    }
+   ],
+   "outputs": [
+    {
+     "description": "The value times scale in degrees, wrapped at 360.",
+     "name": "angle",
+     "type": "Angle"
+    }
+   ],
+   "params": [
+    {
+     "allowsUnset": false,
+     "default": 360.0,
+     "description": "Degrees per 1.0 of input. 360 makes 0..1 one full turn; negative reverses direction.",
+     "kind": "float",
+     "label": "Scale",
+     "max": 3600.0,
+     "min": -3600.0,
+     "name": "scale",
+     "step": 0.01,
+     "unit": "deg"
+    }
+   ],
+   "purpose": "Convert a Float to an Angle: degrees = value * scale, wrapped at 360. Default scale 360 makes 0..1 one full turn.",
+   "summary": "Turns a number into an angle on the color wheel.",
+   "tip": "Use to let a wave or audio level set a hue directly.",
+   "title": "Number to angle",
+   "type": "angle.fromFloat",
+   "useWhen": "Drive a hue from a Float, e.g. an lfo or the audio centroid into palette.pick or color.fromHSV."
+  },
+  {
+   "cost": "cheap",
+   "example": "{\"id\": \"turn\", \"type\": \"angle.toFloat\", \"params\": {\"scale\": 360}}",
+   "group": "Numbers",
+   "inputs": [
+    {
+     "description": "The angle to convert.",
+     "name": "angle",
+     "required": true,
+     "type": "Angle"
+    }
+   ],
+   "outputs": [
+    {
+     "description": "The angle in degrees divided by scale.",
+     "name": "value",
+     "type": "Float"
+    }
+   ],
+   "params": [
+    {
+     "allowsUnset": false,
+     "default": 360.0,
+     "description": "Degrees per 1.0 of output. 360 maps a full turn to 1; must not be 0.",
+     "kind": "float",
+     "label": "Scale",
+     "max": 3600.0,
+     "min": -3600.0,
+     "name": "scale",
+     "step": 0.01,
+     "unit": "deg"
+    }
+   ],
+   "purpose": "Convert an Angle to a Float: degrees / scale, in 0..1 at the default scale 360 (the Angle is already wrapped to 0..360).",
+   "summary": "Turns an angle into a plain number.",
+   "tip": "Use to let a hue drive brightness, speed or another number.",
+   "title": "Angle to number",
+   "type": "angle.toFloat",
+   "useWhen": "Use a hue or rotation as a number, e.g. an integrate angle into frame.mix or a gradient position."
+  },
+  {
+   "cost": "cheap",
    "example": "{\"id\": \"second\", \"type\": \"palette.pick\", \"params\": {\"side\": \"complement\"}}",
    "group": "Color",
    "inputs": [
@@ -2439,7 +2519,7 @@
      "type": "Float"
     },
     {
-     "description": "Pulses on each detected beat or onset.",
+     "description": "True for one tick on each detected beat or onset.",
      "name": "onset",
      "type": "Trigger"
     },
@@ -2554,7 +2634,7 @@
      "min": 0.0,
      "name": "fixedAnchorHue",
      "step": 1.0,
-     "unit": "\u00b0"
+     "unit": "°"
     },
     {
      "allowsUnset": false,
@@ -2566,7 +2646,7 @@
      "min": 0.0,
      "name": "driftBaseRateDegPerSec",
      "step": 1.0,
-     "unit": "\u00b0/s"
+     "unit": "°/s"
     },
     {
      "allowsUnset": false,
@@ -2717,6 +2797,40 @@
    "title": "Beat bounce",
    "type": "audio.bounce",
    "useWhen": "After features and the drift anchor; the audio path's color output. Re-seeds (snaps) when audio.drift re-seeds, so set the fixed hue on audio.drift only."
+  }
+ ],
+ "portTypes": [
+  {
+   "meaning": "One video frame (pixels), or Absent while the source is unhealthy. Every node runs every tick.",
+   "name": "Image"
+  },
+  {
+   "meaning": "The latest block of raw audio samples.",
+   "name": "AudioBuffer"
+  },
+  {
+   "meaning": "All audio features extracted this tick (loudness, bands, onset and so on) as one bundle for audio.drift and audio.bounce.",
+   "name": "AudioFeatures"
+  },
+  {
+   "meaning": "One RGB color.",
+   "name": "Color"
+  },
+  {
+   "meaning": "One color per light zone: what an output node sends to the lights.",
+   "name": "Frame"
+  },
+  {
+   "meaning": "A plain number, usually 0..1. Not interchangeable with Angle: nothing converts one to the other implicitly, so use an angle.fromFloat node.",
+   "name": "Float"
+  },
+  {
+   "meaning": "A direction in degrees, not 0..1. Not interchangeable with Float: nothing converts one to the other implicitly, so use an angle.toFloat node.",
+   "name": "Angle"
+  },
+  {
+   "meaning": "An event as a value: true for exactly one tick when it happens, false on every other tick. It is sent every tick, so it is not a callback or a gate.",
+   "name": "Trigger"
   }
  ]
 }
