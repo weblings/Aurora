@@ -21,8 +21,8 @@ export function ControlsDrawer({ isOpen, onClose, top, side, doc, catalog, edit 
     return (n && catalog.get(n.type)?.title) || n?.type || nodeId
   }
   return (
-    <Drawer isOpen={isOpen} onOpenChange={(open) => !open && onClose()} title={`Dashboard controls (${controls.length})`} subtitle="The order Tuning shows them in." top={top} side={side}>
-      {controls.length === 0 ? <p className="drawer-hint">None: Tuning shows nothing for this effect.</p> : null}
+    <Drawer isOpen={isOpen} onOpenChange={(open) => !open && onClose()} title={controls.length > 0 ? `Dashboard controls (${controls.length})` : 'Dashboard controls'} subtitle="Shown in this order." top={top} side={side}>
+      {controls.length === 0 ? <p className="drawer-hint">None yet.</p> : null}
       <ol className="drawer-controls">
         {controls.map((c, i) => (
           <li key={`${c.node}.${c.param}`}>

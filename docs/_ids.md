@@ -352,6 +352,7 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `v1-spec-hook` | [log/2026-10-27-v1-spec-hook.md](log/2026-10-27-v1-spec-hook.md) | 5ipy.37: pre-commit hook for the API spec (Aurora-5ipy.37, Aurora-pa6c) |
 | `vv46-route-test-port-collisions` | [log/2026-10-16-vv46-route-test-port-collisions.md](log/2026-10-16-vv46-route-test-port-collisions.md) | Route test flakes under parallel ctest (Aurora-vv46) |
 | `w6no-restore-token` | [log/2026-10-21-w6no-restore-token.md](log/2026-10-21-w6no-restore-token.md) | Aurora-w6no: portal restore token is actually stored now (closed) |
+| `w6zq-ux-notes-first-fixes` | [log/2026-11-11-w6zq-ux-notes-first-fixes.md](log/2026-11-11-w6zq-ux-notes-first-fixes.md) | Graph editor UX notes: credit overlap and controls drawer copy |
 | `web-demo-ui-update` | [archive/WebDemoUIUpdate.md](archive/WebDemoUIUpdate.md) | Web Demo Dashboard Port — Plan (WebDemoUIUpdate.md) |
 | `webui-design-1st-pass` | [archive/WebUI_Design_1stPass.md](archive/WebUI_Design_1stPass.md) | WebUI screens, jobs, and component research |
 | `webui-design-2-5-pass` | [planning/WebUI/WebUI_Design_2.5Pass.md](planning/WebUI/WebUI_Design_2.5Pass.md) | WebUI design, pass 2.5: visual polish diffs |
