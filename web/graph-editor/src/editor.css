@@ -618,25 +618,6 @@ button.editor-problem-row:hover {
   white-space: normal;
 }
 
-.add-sockets {
-  display: inline-flex;
-  align-items: center;
-  gap: 3px;
-  font-size: 11px;
-  color: var(--ui-color-text-secondary, #aaa);
-}
-
-.add-sockets-side {
-  margin-right: 1px;
-}
-
-.add-socket {
-  width: 8px;
-  height: 8px;
-  background: var(--port-color);
-  border-radius: 50%;
-}
-
 /* The node's menu button: faded until hover or selection, but always rendered and
    never aria-hidden, so VoiceOver finds it (kep27-voiceover-tree-check). */
 .aurora-node-more {

@@ -7,9 +7,10 @@ export type AddGroup = { name: string; types: NodeTypeInfo[] }
 
 const label = (i: NodeTypeInfo) => i.title || i.type
 
-// The row text: the user-facing summary, else the agent text.
-export const summaryOf = (i: NodeTypeInfo) => i.summary || i.purpose
-export const tipOf = (i: NodeTypeInfo) => i.tip || i.useWhen
+// Row text and hover: the user-facing summary and tip only, never the agent text
+// (purpose, useWhen), which stays in the details drawer and in search matching.
+export const summaryOf = (i: NodeTypeInfo) => i.summary
+export const tipOf = (i: NodeTypeInfo) => i.tip
 
 // One entry per group, known groups first in GROUP_ORDER, any other after them
 // by name; a type with no group lands in "Other". Members sort by name.

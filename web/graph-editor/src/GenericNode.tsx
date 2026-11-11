@@ -35,7 +35,7 @@ function GenericNodeView({ id, data }: NodeProps<Node<AuroraNodeData>>) {
   }
 
   return (
-    <div className={`aurora-node${problems ? ' aurora-node-problem' : ''}`} title={info.purpose}>
+    <div className={`aurora-node${problems ? ' aurora-node-problem' : ''}`} title={info.tip || undefined}>
       <div className="aurora-node-header">
         <strong>{info.title || data.type}</strong>
         {problems ? (

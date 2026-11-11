@@ -400,4 +400,4 @@ Planning docs stay clean: decisions, status, and pointers here only.
 | 2026-11-11 | MCP try_on_lights: Once (15 s) default, optional mode, keep after a timed-out test. [[qjqy2-mcp-light-test-modes]] | `bd show Aurora-qjqy.2` |
 | 2026-11-11 | Graph editor: Test split button replaces the status pill, Test on lights, countdown and Revert; status rule rewritten. [[qjqy3-test-split-button]] | `bd show Aurora-qjqy.3` |
 | 2026-11-11 | Light test modes close-out: control-count ceiling for the split button caret, plan status line, epic closed. [[qjqy-light-test-modes-close-out]] | `bd show Aurora-qjqy` |
-| 2026-11-11 | Graph editor UX notes: credit no longer covers the Dashboard controls button; controls drawer copy. [[w6zq-ux-notes-first-fixes]] | `bd show Aurora-w6zq.1`, `bd show Aurora-w6zq.2` |
+| 2026-11-11 | Graph editor UX notes: credit no longer covers the Dashboard controls button; controls drawer copy; View menu over the minimap; no agent text in hovers, Add rows drop socket dots. [[w6zq-ux-notes-first-fixes]] | `bd show Aurora-w6zq.1`, `bd show Aurora-w6zq.2`, `bd show Aurora-w6zq.3`, `bd show Aurora-w6zq.5` |
