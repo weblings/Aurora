@@ -101,7 +101,7 @@ await withEditorStack(async ({ editorUrl }) => {
       }
     }
     // Aurora-daaa.29.4: bottom dock below 650 px wide or portrait (aspect < 0.75), else the side.
-    for (const [w, h, side] of [[400, 800, 'bottom'], [700, 900, 'right'], [1470, 700, 'right']]) {
+    for (const [w, h, side] of [[400, 800, 'bottom'], [700, 900, 'right'], [1000, 600, 'right'], [1470, 700, 'right']]) {
       await page.setViewportSize({ width: w, height: h })
       await page.waitForTimeout(400)
       await openDetails(page, page.locator('.aurora-node', { hasText: 'Rescale' }).first())
@@ -116,6 +116,15 @@ await withEditorStack(async ({ editorUrl }) => {
       console.log(`${w}x${h} dock:`, JSON.stringify(g))
       assert.equal(g.side, side, `${w}x${h}: drawer side ${g.side}`)
       assert.ok(g.scroll[0] <= 0 && g.scroll[1] <= 0, `${w}x${h}: page scrolls ${g.scroll}`)
+      // Aurora-daaa.35: the zone preview stays visible, left of a side drawer.
+      const thumb = await page.evaluate(() => {
+        const t = document.querySelector('.zone-thumbnail')?.getBoundingClientRect()
+        const d = document.querySelector('.ui-drawer').getBoundingClientRect()
+        return t ? { right: t.right, left: t.left, top: t.top, bottom: t.bottom, drawerLeft: d.left, drawerTop: d.top } : null
+      })
+      assert.ok(thumb, `${w}x${h}: no zone preview`)
+      if (side === 'right') assert.ok(thumb.right <= thumb.drawerLeft + 1 && thumb.left >= 0, `${w}x${h}: zone preview under the drawer: ${JSON.stringify(thumb)}`)
+      else assert.ok(thumb.bottom <= thumb.drawerTop + 1, `${w}x${h}: zone preview under the dock: ${JSON.stringify(thumb)}`)
       if (side === 'bottom') {
         assert.ok(!g.expanded && Math.abs(g.h - h / 2) < h * 0.15, `${w}x${h}: not half height: ${JSON.stringify(g)}`)
         assert.ok(g.nodeBottom <= g.top + 1, `${w}x${h}: Rescale bottom ${g.nodeBottom} under sheet at ${g.top}`)

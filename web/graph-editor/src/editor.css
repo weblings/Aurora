@@ -742,6 +742,17 @@ body:has(.ui-drawer[data-side='right']) .react-flow__panel.bottom.right {
   margin-right: calc(var(--ui-size-drawer-width) + 15px);
 }
 
+/* The zone preview (top-right of the canvas) steps left of a side drawer by the
+   same token, so it stays visible while a control is slid (Aurora-daaa.35). The
+   bottom dock leaves the top edge clear. */
+.zone-thumbnail {
+  transition: right 0.15s;
+}
+
+body:has(.ui-drawer[data-side='right']) .zone-thumbnail {
+  right: calc(var(--ui-size-drawer-width) + var(--aurora-space-5));
+}
+
 /* Bottom dock at half height: both bottom corners, the minimap (in the left
    island) and the credit lift above it. At full height they hide. */
 body:has(.ui-drawer[data-side='bottom']) .react-flow__panel.bottom {
