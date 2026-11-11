@@ -582,14 +582,15 @@ export function App() {
   return (
     <div className="editor">
       <header className="editor-header">
-        <a className="btn btn-secondary editor-back" href="/" aria-label={tightBar ? 'Dashboard' : undefined}>
+        <a className="ui-button editor-back" data-size="sm" href="/" aria-label={tightBar ? 'Dashboard' : undefined}>
           <img className="editor-back-icon" src={backArrow} alt="" />
           {tightBar ? null : 'Dashboard'}
         </a>
+        <span className="editor-sep" aria-hidden="true" />
         <button
           ref={titleMenuTrigger}
           type="button"
-          className="btn btn-secondary editor-title-menu"
+          className="ui-button editor-title-menu" data-size="sm"
           aria-label={dirty && compactBar ? 'Effect menu, unsaved changes' : 'Effect menu'}
           aria-haspopup="dialog"
           aria-expanded={titleMenuOpen}
@@ -605,7 +606,7 @@ export function App() {
         <button
           ref={addMenuTrigger}
           type="button"
-          className="btn btn-secondary editor-add-node"
+          className="ui-button editor-add-node" data-size="sm"
           aria-label="Add node"
           aria-haspopup="dialog"
           aria-expanded={addMenuOpen}
@@ -663,7 +664,7 @@ export function App() {
           {status.label}
         </span>
         {status.action === 'reconnect' ? (
-          <button type="button" className="btn btn-secondary" onClick={loop.reconnect}>
+          <button type="button" className="ui-button" data-size="sm" onClick={loop.reconnect}>
             Reconnect
           </button>
         ) : null}
@@ -678,7 +679,7 @@ export function App() {
         ) : (
           <>
             <button
-              type="button" className="btn btn-secondary"
+              type="button" className="ui-button" data-size="sm"
               onClick={undo}
               disabled={past.length === 0}
               aria-label={compactBar ? 'Undo' : undefined}
@@ -687,7 +688,7 @@ export function App() {
               {compactBar ? '↶' : 'Undo'}
             </button>
             <button
-              type="button" className="btn btn-secondary"
+              type="button" className="ui-button" data-size="sm"
               onClick={redo}
               disabled={future.length === 0}
               aria-label={compactBar ? 'Redo' : undefined}
@@ -703,13 +704,14 @@ export function App() {
           </span>
         ) : null}
         {editedSinceTest ? <span className="editor-edited">Edited since the test</span> : null}
+        <span className="editor-sep" aria-hidden="true" />
         {testing ? (
-          <button type="button" className="btn btn-secondary" onClick={() => void lights.revert()} disabled={writing}>
+          <button type="button" className="ui-button" data-size="sm" onClick={() => void lights.revert()} disabled={writing}>
             Revert
           </button>
         ) : (
           <button
-            type="button" className="btn btn-secondary"
+            type="button" className="ui-button" data-size="sm"
             onClick={startTest}
             disabled={!doc || blocked || loop.state.valid !== true || lights.state.phase !== 'idle'}
             aria-label={tightBar ? (lights.state.other ? 'Take over the lights' : 'Test on lights') : undefined}

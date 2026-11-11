@@ -654,10 +654,27 @@ button.editor-problem-row:hover {
   min-width: 0;
 }
 
-.editor-header > .btn,
+.editor-header > .ui-button,
+.editor-header > .editor-sep,
 .editor-header > .editor-countdown,
 .editor-header > .editor-edited {
   flex: none;
+}
+
+/* Every bar control is one fixed 32 px (the Grille mock), whatever its padding or icon. */
+.editor-header .ui-button {
+  box-sizing: border-box;
+  height: 32px;
+  padding-block: 0;
+  gap: var(--aurora-space-2);
+  white-space: nowrap;
+}
+
+.editor-sep {
+  align-self: stretch;
+  width: 1px;
+  margin-block: calc(-1 * var(--aurora-space-1));
+  background: var(--aurora-border);
 }
 
 .editor-title-menu {

@@ -22,7 +22,8 @@ export function BarMoreMenu({
       <button
         ref={trigger}
         type="button"
-        className="btn btn-secondary"
+        className="ui-button"
+        data-size="sm"
         aria-label="More"
         aria-haspopup="dialog"
         aria-expanded={open}

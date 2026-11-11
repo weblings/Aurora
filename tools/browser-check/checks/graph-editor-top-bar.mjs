@@ -38,6 +38,14 @@ await withEditorStack(async ({ editorUrl }) => {
     for (const name of ['Effect menu', 'Undo', 'Redo', 'Test on lights']) assert.equal(await page.locator('.editor-header').getByRole('button', { name }).count(), 1, name)
     step('one bar: Dashboard, title menu, status, Undo, Redo, Test on lights; no controls, minimap off')
 
+    // Grille bar (Aurora-s1t7.1): every bar control is a ui-button, 32 px tall, two dividers.
+    const bar = await page.locator('.editor-header > .ui-button').evaluateAll((els) => els.map((e) => ({ h: e.getBoundingClientRect().height, size: e.dataset.size, legacy: e.classList.contains('btn') })))
+    assert.ok(bar.length >= 5, `bar buttons: ${bar.length}`)
+    for (const b of bar) assert.deepEqual(b, { h: 32, size: 'sm', legacy: false })
+    assert.equal(await page.locator('.editor-header > .btn').count(), 0)
+    assert.equal(await page.locator('.editor-header > .editor-sep').count(), 2)
+    step('bar controls are Grille ui-buttons, 32 px tall, with two dividers')
+
     // Title menu: file actions and the effect list; no Name field.
     await openTitleMenu(page)
     assert.equal(await page.getByLabel('Name', { exact: true }).count(), 0)

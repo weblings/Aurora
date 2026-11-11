@@ -31,7 +31,8 @@ export function ProblemsChip({
       <button
         ref={trigger}
         type="button"
-        className="btn btn-secondary editor-problems-chip"
+        className="ui-button editor-problems-chip"
+        data-size="sm"
         aria-haspopup="dialog"
         aria-expanded={open}
         onClick={() => setOpen((o) => !o)}
