@@ -293,6 +293,7 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `q9l1-tray-target-live` | [log/2026-10-07-q9l1-tray-target-live.md](log/2026-10-07-q9l1-tray-target-live.md) | Aurora-q9l1: tray click-time target — Linux live green, Windows exercised, closed |
 | `qjqy1-light-test-modes` | [log/2026-11-11-qjqy1-light-test-modes.md](log/2026-11-11-qjqy1-light-test-modes.md) | Light test modes: Once (15 s) and Live |
 | `qjqy2-mcp-light-test-modes` | [log/2026-11-11-qjqy2-mcp-light-test-modes.md](log/2026-11-11-qjqy2-mcp-light-test-modes.md) | MCP try_on_lights: Once by default, keep after a timeout |
+| `qjqy3-test-split-button` | [log/2026-11-11-qjqy3-test-split-button.md](log/2026-11-11-qjqy3-test-split-button.md) | Test split button in the graph editor |
 | `qqcn-link-monitor-real-bridge` | [log/2026-11-05-qqcn-link-monitor-real-bridge.md](log/2026-11-05-qqcn-link-monitor-real-bridge.md) | The link monitor was checked on a real bridge and its banner copy reworded |
 | `que2-input-free-build` | [log/2026-11-04-que2-input-free-build.md](log/2026-11-04-que2-input-free-build.md) | Source-less custom graphs build with no capture input |
 | `qv7a-thumbnail-regions` | [log/2026-10-29-qv7a-thumbnail-regions.md](log/2026-10-29-qv7a-thumbnail-regions.md) | Graph editor thumbnail: zones at their sampled regions |
