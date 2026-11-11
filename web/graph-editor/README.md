@@ -29,7 +29,7 @@ Decisions, narrow windows, in `docs/planning/WebUI/GraphEditorCleanup.md`).
 - `src/GenericNode.tsx`, `src/ParamWidget.tsx` -- one node component draws any
   `/api/nodes` entry; one widget per param kind.
 - `src/AddNodeMenu.tsx` -- the cascade Add node menu (the `+ Add node` canvas button top-left, Shift+A): group flyouts, or a ranked search list; `graph/addMenu.ts` has the grouping and ranking. A pick adds at the view centre.
-- Canvas corners (`Aurora-s1t7.3`): Add node top-left, Dashboard controls bottom-right, the View menu bottom-left with the minimap stacked above it (the menu opens above the map), React Flow's credit bottom-centre. A side drawer moves Dashboard controls left of it; a half-height dock lifts the bottom corners, a full-height one hides them (CSS in `editor.css`, `tools/browser-check`'s `graph-editor:corners`).
+- Canvas corners (`Aurora-s1t7.3`): Add node top-left, Dashboard controls bottom-right, the View menu bottom-left with the minimap stacked above it (the menu anchors to the View button and opens over the map, sharing its left edge and width), React Flow's credit bottom-centre. A side drawer moves Dashboard controls left of it; a half-height dock lifts the bottom corners, a full-height one hides them (CSS in `editor.css`, `tools/browser-check`'s `graph-editor:corners`).
 - `src/useDraftLoop.ts` -- sends the draft and holds the preview stream;
   `ZonesIsland.tsx` is the top-right Zones island (`Aurora-s1t7.4`): a header
   with a hide chevron (kept for the session), then one 14 px DOM cell per zone

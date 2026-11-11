@@ -51,7 +51,7 @@ await withEditorStack(async ({ editorUrl }) => {
       await shot(`${tag}-rest`)
       step(`${tag}: corners at rest`)
 
-      // Minimap on: stacked directly above the zoom button; the menu opens above it.
+      // Minimap on: stacked directly above the zoom button; the menu opens over it (Aurora-w6zq.3).
       await page.getByRole('button', { name: 'View menu' }).click()
       await page.getByRole('menuitem', { name: 'Show minimap', exact: true }).click()
       await page.locator('.react-flow__minimap').waitFor()
@@ -60,11 +60,11 @@ await withEditorStack(async ({ editorUrl }) => {
       assert.ok(m.bottom <= v2.top && v2.top - m.bottom < 16, `${tag}: minimap ${m.bottom} directly above zoom button ${v2.top}`)
       assert.ok(Math.abs(m.left - v2.left) < 2, `${tag}: minimap left-aligned with the zoom button`)
       await page.getByRole('button', { name: 'View menu' }).click()
-      const menu = await rect('.ui-popover [role=menu]')
-      assert.ok(menu.bottom <= m.top + 1, `${tag}: View menu bottom ${menu.bottom} above the minimap top ${m.top}`)
+      const menu = await rect('.ui-popover:has([role=menu])')
+      assert.ok(menu.top <= m.top + 1 && menu.bottom >= m.bottom - 1 && Math.abs(menu.left - m.left) < 2, `${tag}: View menu ${JSON.stringify(menu)} covers the minimap ${JSON.stringify(m)}`)
       await shot(`${tag}-minimap`)
       await page.keyboard.press('Escape')
-      step(`${tag}: minimap above zoom, View menu above the minimap`)
+      step(`${tag}: minimap above zoom, View menu over the minimap`)
 
       // Drawer open.
       await controlsButton(page).click()

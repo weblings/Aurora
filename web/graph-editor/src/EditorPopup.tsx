@@ -21,6 +21,7 @@ export function EditorPopup({
   triggerRef,
   point,
   placement,
+  className,
   children,
 }: {
   isOpen: boolean
@@ -29,6 +30,7 @@ export function EditorPopup({
   triggerRef?: RefObject<HTMLElement | null>
   point?: PopoverPoint
   placement?: PopoverProps['placement']
+  className?: string
   children: ReactNode
 }) {
   const close = useRef(onClose)
@@ -69,7 +71,7 @@ export function EditorPopup({
     >
       <div
         ref={box}
-        className="editor-popup"
+        className={className ? `editor-popup ${className}` : 'editor-popup'}
         onKeyDown={(e) => {
           if (e.key === 'Delete' || e.key === 'Backspace') e.stopPropagation()
         }}
