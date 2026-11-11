@@ -111,6 +111,7 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `daaa31-grille-mock` | [log/2026-11-10-daaa31-grille-mock.md](log/2026-11-10-daaa31-grille-mock.md) | Graph editor mock rebuilt on Grille |
 | `daaa32-test-split-zones-island` | [log/2026-11-11-daaa32-test-split-zones-island.md](log/2026-11-11-daaa32-test-split-zones-island.md) | Test split button and Zones island variant in the Grille mock |
 | `daaa33-mock-icons` | [log/2026-11-11-daaa33-mock-icons.md](log/2026-11-11-daaa33-mock-icons.md) | Grille mock: one icon set, fixed-height bar, drawer icon buttons |
+| `daaa33-notices-audit` | [log/2026-11-10-daaa33-notices-audit.md](log/2026-11-10-daaa33-notices-audit.md) | Icon audit, third-party notices, and what the build ships |
 | `daaa34-mock-narrow-drawers` | [log/2026-11-11-daaa34-mock-narrow-drawers.md](log/2026-11-11-daaa34-mock-narrow-drawers.md) | Grille mock: narrow-window drawers |
 | `daaa4-control-count-baseline` | [log/2026-11-08-daaa4-control-count-baseline.md](log/2026-11-08-daaa4-control-count-baseline.md) | Graph editor control-count baseline and CMake rebuild check |
 | `daaa5-graph-editor-owner-decisions` | [log/2026-11-08-daaa5-graph-editor-owner-decisions.md](log/2026-11-08-daaa5-graph-editor-owner-decisions.md) | Graph editor cleanup: owner decisions before stage 2 |
