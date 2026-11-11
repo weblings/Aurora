@@ -6,6 +6,8 @@
 
 // Ported as-is from huenicorn's MonitorData -- Input-side vocabulary, not a
 // Contracts type, since Processing/Output never touch monitor identity.
+//
+// Upstream huenicorn is GPL-3.0-only; see THIRD_PARTY_NOTICES.md.
 namespace Aurora::Input
 {
   struct MonitorData

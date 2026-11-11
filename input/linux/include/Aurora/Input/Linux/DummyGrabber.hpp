@@ -6,6 +6,8 @@
 
 // Ported as-is from huenicorn's DummyGrabber -- animated solid color, zero
 // OS dependency. Useful as a no-display-needed fallback/dev target.
+//
+// Upstream huenicorn is GPL-3.0-only; see THIRD_PARTY_NOTICES.md.
 namespace Aurora::Input::Linux
 {
   class DummyGrabber : public IVideoInput
