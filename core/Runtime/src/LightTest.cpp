@@ -53,7 +53,7 @@ namespace Aurora::Runtime
     }
     const std::int64_t now = m_clock();
     const char* reason = nullptr;
-    if(now - m_startedAt >= m_options.confirmMs){
+    if(m_mode == LightTestMode::Once && now - m_startedAt >= m_options.confirmMs){
       reason = "confirm_timeout";
     }
     else if(now - m_lastBeat >= m_options.lapseMs){
@@ -66,7 +66,7 @@ namespace Aurora::Runtime
   }
 
 
-  std::string LightTest::start(const std::string& session, const nlohmann::json& doc, const std::string& client)
+  std::string LightTest::start(const std::string& session, const nlohmann::json& doc, const std::string& client, LightTestMode mode)
   {
     std::lock_guard<std::mutex> lock(m_mutex);
     _expireLocked();
@@ -84,6 +84,7 @@ namespace Aurora::Runtime
     m_active = true;
     m_session = session;
     m_client = client;
+    m_mode = mode;
     m_doc = doc;
     m_startedAt = now;
     m_lastBeat = now;
@@ -164,6 +165,7 @@ namespace Aurora::Runtime
       info.active = true;
       info.session = m_session;
       info.client = m_client;
+      info.mode = m_mode;
       info.confirmRemainingMs = std::max<std::int64_t>(0, m_options.confirmMs - (now - m_startedAt));
       info.lapseRemainingMs = std::max<std::int64_t>(0, m_options.lapseMs - (now - m_lastBeat));
     }

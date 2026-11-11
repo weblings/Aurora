@@ -108,7 +108,9 @@ namespace Aurora::Runtime
       {"brightness", snap.brightness},
       {"test", {
         {"active", snap.test.active},
-        {"confirmRemainingMs", snap.test.confirmRemainingMs},
+        {"mode", snap.test.active ? nlohmann::json(lightTestModeName(snap.test.mode)) : nlohmann::json(nullptr)},
+        {"confirmRemainingMs", snap.test.active && snap.test.mode == LightTestMode::Live
+          ? nlohmann::json(nullptr) : nlohmann::json(snap.test.confirmRemainingMs)},
         {"holder", snap.test.active
           ? nlohmann::json{
               {"session", snap.test.session},

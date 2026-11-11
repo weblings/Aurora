@@ -15,9 +15,18 @@
 // effect, and the server puts the live effect back by itself.
 namespace Aurora::Runtime
 {
+  // Once ends with confirm_timeout after confirmMs. Live has no cap and ends
+  // on revert, keep/confirm, supersede, replace or heartbeat_lost.
+  enum class LightTestMode { Once, Live };
+
+  inline const char* lightTestModeName(LightTestMode mode)
+  {
+    return mode == LightTestMode::Live ? "live" : "once";
+  }
+
   struct LightTestOptions
   {
-    std::int64_t confirmMs = 120000;  // cap on a test kept alive by heartbeats
+    std::int64_t confirmMs = 15000;   // a Once test ends after this long (Aurora-qjqy.1)
     std::int64_t heartbeatMs = 2000;  // what clients are told to send at
     std::int64_t lapseMs = 6000;      // revert after this long without one
   };
@@ -48,7 +57,8 @@ namespace Aurora::Runtime
     // "replaced". `client` is the caller's X-Aurora-Client ("mcp" for an agent,
     // empty for the WebUI). "" or the reason it was refused, the running test
     // then stays.
-    std::string start(const std::string& session, const nlohmann::json& doc, const std::string& client = {});
+    std::string start(const std::string& session, const nlohmann::json& doc, const std::string& client = {},
+      LightTestMode mode = LightTestMode::Once);
 
     // False when `session` has no running test.
     bool heartbeat(const std::string& session);
@@ -71,6 +81,10 @@ namespace Aurora::Runtime
     struct Info
     {
       bool active{false};
+      // Which kind of test runs; Once when none does.
+      LightTestMode mode{LightTestMode::Once};
+      // Time left under the Once cap; 0 when none runs, meaningless for Live
+      // (the routes report null).
       std::int64_t confirmRemainingMs{0};
       std::int64_t lapseRemainingMs{0};
       // Who holds the running test (Aurora-0tqq); empty when none runs.
@@ -105,6 +119,7 @@ namespace Aurora::Runtime
     bool m_active{false};
     std::string m_session;
     std::string m_client;
+    LightTestMode m_mode{LightTestMode::Once};
     nlohmann::json m_doc;
     std::int64_t m_startedAt{0};
     std::int64_t m_lastBeat{0};

@@ -44,6 +44,15 @@ namespace Aurora::Runtime
       };
     }
 
+    // Time left under the Once cap, null for a Live test (no cap).
+    nlohmann::json _confirmRemaining(const LightTest::Info& info)
+    {
+      if(info.active && info.mode == LightTestMode::Live){
+        return nullptr;
+      }
+      return info.confirmRemainingMs;
+    }
+
     // Parses the body and its session; false with the 400 already sent.
     bool _parseSession(const Request& req, Response& res, nlohmann::json& body, std::string& session)
     {
@@ -152,7 +161,18 @@ namespace Aurora::Runtime
           _reply(res, 422, validation);
           return;
         }
-        const std::string error = test->start(session, *draft, req.client);
+        LightTestMode mode = LightTestMode::Once;
+        if(body.contains("mode")){
+          const nlohmann::json& asked = body["mode"];
+          if(asked == "live"){
+            mode = LightTestMode::Live;
+          }
+          else if(asked != "once"){
+            _reply(res, 400, {{"succeeded", false}, {"error", "invalid_mode"}});
+            return;
+          }
+        }
+        const std::string error = test->start(session, *draft, req.client, mode);
         if(!error.empty()){
           _reply(res, 409, {{"succeeded", false}, {"error", "cannot_test"}, {"message", error}});
           return;
@@ -160,7 +180,8 @@ namespace Aurora::Runtime
         const LightTestOptions& o = test->options();
         _reply(res, 200, {
           {"succeeded", true},
-          {"confirmWithinMs", o.confirmMs},
+          {"mode", lightTestModeName(mode)},
+          {"confirmWithinMs", mode == LightTestMode::Live ? nlohmann::json(nullptr) : nlohmann::json(o.confirmMs)},
           {"heartbeatMs", o.heartbeatMs},
           {"revertAfterMs", o.lapseMs}
         });
@@ -187,7 +208,12 @@ namespace Aurora::Runtime
           });
           return;
         }
-        _reply(res, 200, {{"succeeded", true}, {"confirmRemainingMs", test->info().confirmRemainingMs}});
+        const LightTest::Info info = test->info();
+        _reply(res, 200, {
+          {"succeeded", true},
+          {"mode", lightTestModeName(info.mode)},
+          {"confirmRemainingMs", _confirmRemaining(info)}
+        });
       }
     );
 
@@ -273,7 +299,8 @@ namespace Aurora::Runtime
         const LightTest::Info info = test->info();
         _reply(res, 200, {
           {"active", info.active},
-          {"confirmRemainingMs", info.confirmRemainingMs},
+          {"mode", info.active ? nlohmann::json(lightTestModeName(info.mode)) : nlohmann::json(nullptr)},
+          {"confirmRemainingMs", _confirmRemaining(info)},
           {"revertAfterMs", info.lapseRemainingMs},
           {"holder", _holder(info)},
           {"lastEnd", info.lastEnd.empty() ? nlohmann::json(nullptr) : nlohmann::json(info.lastEnd)}

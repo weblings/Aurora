@@ -727,6 +727,17 @@ const HELD = { source: 'reload', message: 'bridge unreachable', id: 7 };
   uninstallDom();
 }
 
+// A live test (confirmRemainingMs null) shows the row without a countdown.
+{
+  const { app, banner } = makeApp(async () => ({ reachable: true, test: { active: true, mode: 'live', confirmRemainingMs: null } }));
+  await app._pollOnce();
+  assert.ok(banner().includes('An MCP client is testing an effect on the lights.'), 'row shown');
+  assert.ok(banner().includes('shell-light-test-stop'), 'Stop test offered');
+  assert.ok(!banner().includes('Will revert in') && !banner().includes('shell-light-test-time'), 'no countdown');
+  assert.equal(app.lightTestEndsAt, null);
+  uninstallDom();
+}
+
 // A test alone shows the banner; the takeover drops it.
 {
   let fail = false;

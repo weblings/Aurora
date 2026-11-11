@@ -629,13 +629,15 @@ paths:
       summary: Show a draft on the lights
       description: >-
         Needs the Apply scope. The draft runs until it is confirmed, reverted,
-        or the heartbeat lapses, and then the previous effect returns.
+        or the heartbeat lapses, and then the previous effect returns. A
+        `once` test (the default) also ends 15 s after it starts. A `live`
+        test has no time limit.
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/SessionBody'
+              $ref: '#/components/schemas/LightTestBody'
       responses:
         '200':
           description: The test started.
@@ -644,7 +646,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/LightTestStarted'
         '400':
-          description: Bad body or session (`invalid_body`, `invalid_session`).
+          description: Bad body, session or mode (`invalid_body`, `invalid_session`, `invalid_mode`).
           content:
             application/json:
               schema:
@@ -1304,14 +1306,35 @@ components:
         client:
           type: [string, 'null']
           description: The caller's `X-Aurora-Client` (`mcp` for an agent), null for the WebUI.
+    LightTestBody:
+      type: object
+      required: [session]
+      properties:
+        session:
+          type: string
+        mode:
+          $ref: '#/components/schemas/LightTestMode'
+    LightTestMode:
+      type: string
+      enum: [once, live]
+      default: once
+      description: >-
+        `once` ends after 15 s. `live` has no time limit and ends on revert,
+        keep, another session's test or lost heartbeats.
     LightTest:
       type: object
-      required: [active, confirmRemainingMs, revertAfterMs, holder, lastEnd]
+      required: [active, mode, confirmRemainingMs, revertAfterMs, holder, lastEnd]
       properties:
         active:
           type: boolean
+        mode:
+          description: The running test's mode, null when none runs.
+          oneOf:
+            - $ref: '#/components/schemas/LightTestMode'
+            - type: 'null'
         confirmRemainingMs:
-          type: integer
+          type: [integer, 'null']
+          description: Time left on a `once` test, null for `live`.
         revertAfterMs:
           type: integer
         lastEnd:
@@ -1326,12 +1349,15 @@ components:
             - type: 'null'
     LightTestStarted:
       type: object
-      required: [succeeded, confirmWithinMs, heartbeatMs, revertAfterMs]
+      required: [succeeded, mode, confirmWithinMs, heartbeatMs, revertAfterMs]
       properties:
         succeeded:
           type: boolean
+        mode:
+          $ref: '#/components/schemas/LightTestMode'
         confirmWithinMs:
-          type: integer
+          type: [integer, 'null']
+          description: The time limit of a `once` test, null for `live`.
         heartbeatMs:
           type: integer
           description: How often to call the heartbeat.
@@ -1340,12 +1366,15 @@ components:
           description: The test reverts this long after the last heartbeat.
     Heartbeat:
       type: object
-      required: [succeeded, confirmRemainingMs]
+      required: [succeeded, mode, confirmRemainingMs]
       properties:
         succeeded:
           type: boolean
+        mode:
+          $ref: '#/components/schemas/LightTestMode'
         confirmRemainingMs:
-          type: integer
+          type: [integer, 'null']
+          description: Time left on a `once` test, null for `live`.
     Reverted:
       type: object
       required: [succeeded]
@@ -1512,12 +1541,17 @@ components:
               type: [string, 'null']
         test:
           type: object
-          required: [active, confirmRemainingMs, holder]
+          required: [active, mode, confirmRemainingMs, holder]
           properties:
             active:
               type: boolean
+            mode:
+              oneOf:
+                - $ref: '#/components/schemas/LightTestMode'
+                - type: 'null'
             confirmRemainingMs:
-              type: integer
+              type: [integer, 'null']
+              description: Null for a `live` test.
             holder:
               oneOf:
                 - $ref: '#/components/schemas/TestHolder'
