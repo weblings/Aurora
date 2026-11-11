@@ -258,43 +258,23 @@ function drawBanner() {
     b.actions.map(([label, act, primary]) => btn(label, { variant: primary ? 'primary' : undefined, class: `ui-button${primary ? ' ge-primary' : ''}`, 'data-act': act }))))
 }
 
-// Mock region list in the shape of the editor's ZoneRegions: normalised screen boxes for the active output.
-const OUTPUTS = [
-  { name: 'Desk strip', active: true, zones: [
-    ['#d4714f', 0, 0, 0.2, 1], ['#c85f6d', 0.2, 0, 0.8, 0.25], ['#8e5fb0', 0.8, 0, 1, 1], ['#4d6bc9', 0.2, 0.75, 0.5, 1], ['#3f9a8a', 0.5, 0.75, 0.8, 1], ['#e5ad3c', null]] },
-  { name: 'Shelf', zones: ['#4d6bc9', '#5b7fd6', '#8e5fb0', '#c85f6d', '#d4714f'].map((c) => [c, null]) },
-  { name: 'Bar', zones: ['#3f9a8a', '#38c9a8', '#4d6bc9', '#8e5fb0', '#c85f6d', '#d4714f', '#e5ad3c', '#d4714f', '#c85f6d', '#8e5fb0', '#4d6bc9'].map((c) => [c, null]) },
-]
-const COLS = 8, SCREEN_ROWS = 4.5
+// Zones as plain cells, 8 per row: one output is canonical, so one block. No screen mapping, so overlapping
+// regions (every zone starts full-screen) hide nothing.
+const ZONES = ['#d4714f', '#c85f6d', '#8e5fb0', '#4d6bc9', '#3f9a8a', '#38c9a8', '#e5ad3c', '#d4714f', '#c85f6d', '#8e5fb0']
+const COLS = 8
 
-// Same layout as the editor's layoutThumbnail: placed zones at their regions, then one block of cells per output.
 function zoneRects() {
-  const placed = [], blocks = []
-  for (const out of OUTPUTS) {
-    const loose = []
-    for (const [color, x0, y0, x1, y1] of out.zones) {
-      if (out.active && x0 !== null && x0 !== undefined) placed.push({ x: x0 * COLS, y: y0 * SCREEN_ROWS, w: (x1 - x0) * COLS, h: (y1 - y0) * SCREEN_ROWS, color })
-      else loose.push(color)
-    }
-    if (loose.length) blocks.push(loose)
-  }
-  const panelRows = placed.length ? SCREEN_ROWS : 0
-  let row = 0
-  const cells = []
-  for (const loose of blocks) {
-    loose.forEach((color, i) => cells.push({ x: i % COLS, y: row + Math.floor(i / COLS) + (panelRows ? panelRows + 0.25 : 0), w: 1, h: 1, color }))
-    row += Math.max(1, Math.ceil(loose.length / COLS))
-  }
-  return { rects: [...placed, ...cells], rows: row + (panelRows ? panelRows + (row ? 0.25 : 0) : 0) }
+  return { rects: ZONES.map((color, i) => ({ x: i % COLS, y: Math.floor(i / COLS), w: 1, h: 1, color })), rows: Math.ceil(ZONES.length / COLS) }
 }
 
 function zonesIsland() {
   const { rects, rows } = zoneRects()
-  const body = state.zonesOpen ? el('div', { class: 'ge-zmap', style: `--rows:${rows}` },
-    rects.map((r) => el('i', { style: `--x:${r.x};--y:${r.y};--w:${r.w};--h:${r.h};background:${r.color}` })),
-    el('button', { type: 'button', class: 'ge-zsize', 'data-act': 'zsize', 'aria-label': state.zonesLarge ? 'Smaller zone map' : 'Larger zone map', title: state.zonesLarge ? 'Smaller' : 'Larger' }, icon(state.zonesLarge ? ICON.collapse : ICON.expand))) : null
+  const body = state.zonesOpen ? el('div', { class: 'ge-zmap', style: `--rows:${rows}` }, rects.map((r) => el('i', { style: `--x:${r.x};--y:${r.y};--w:${r.w};--h:${r.h};background:${r.color}` }))) : null
   return el('div', { class: `ge-zones ge-zones-v${state.zonesLarge ? ' large' : ''}${state.problems ? ' stale' : ''}` },
-    el('button', { type: 'button', class: 'ge-zones-head', 'data-act': 'zones', 'aria-expanded': state.zonesOpen, 'aria-label': state.zonesOpen ? 'Hide zones' : 'Show zones' }, 'Zones', chevron('cc-chev', state.zonesOpen)),
+    el('div', { class: 'ge-zbar' },
+      el('button', { type: 'button', class: 'ge-zones-head', 'data-act': 'zones', 'aria-expanded': state.zonesOpen, 'aria-label': state.zonesOpen ? 'Hide zones' : 'Show zones' }, 'Zones'),
+      state.zonesOpen ? el('button', { type: 'button', class: 'ge-zsize', 'data-act': 'zsize', 'aria-label': state.zonesLarge ? 'Smaller zone map' : 'Larger zone map', title: state.zonesLarge ? 'Smaller' : 'Larger' }, icon(state.zonesLarge ? ICON.collapse : ICON.expand)) : null,
+      el('button', { type: 'button', class: 'ge-zchev', 'data-act': 'zones', 'aria-label': state.zonesOpen ? 'Hide zones' : 'Show zones', tabindex: -1 }, chevron('cc-chev', state.zonesOpen))),
     body)
 }
 
@@ -320,6 +300,7 @@ function toast(text) {
 function closePopups() {
   state.popup = null
   layer.replaceChildren()
+  $('canvas').classList.remove('drawer-open', 'drawer-full')
 }
 
 function place(pop, x, y) {
@@ -448,7 +429,7 @@ function openView() {
     { label: 'Zoom out', key: 'Ctrl+-', run: () => zoom(1 / 1.2) },
     '-',
     { label: 'Minimap', checked: false, run: () => toast('The minimap stays off in this mock') },
-  ], r.right - 216, r.top)
+  ], r.left, r.top)
   pop.style.top = `${r.top - pop.offsetHeight - 6}px`
 }
 
@@ -465,11 +446,19 @@ function openProblems() {
 function drawer(title, sub, body) {
   closePopups()
   const r = $('canvas').getBoundingClientRect()
-  const pop = el('aside', { class: 'ge-pop ge-drawer', 'aria-label': title, style: `top:${r.top}px;right:0;bottom:0` },
-    el('div', { class: 'ge-drawer-head' }, title, btn('×', { icon: true, 'aria-label': 'Close', onclick: closePopups })),
+  const pop = el('aside', { class: 'ge-pop ge-drawer', 'aria-label': title, style: `--drawer-top:${r.top}px` },
+    el('div', { class: 'ge-drawer-head' }, title,
+      btn('Full height', { class: 'ui-button ge-drawer-toggle', 'aria-pressed': 'false', onclick: (e) => {
+        const full = pop.toggleAttribute('data-expanded')
+        $('canvas').classList.toggle('drawer-full', full)
+        e.currentTarget.textContent = full ? 'Half height' : 'Full height'
+        e.currentTarget.setAttribute('aria-pressed', String(full))
+      } }),
+      btn('×', { icon: true, 'aria-label': 'Close', onclick: closePopups })),
     sub ? el('p', { class: 'ge-drawer-sub' }, sub) : null,
     el('div', { class: 'ge-drawer-body ae-scroll' }, body))
   layer.append(pop)
+  $('canvas').classList.add('drawer-open')
 }
 
 function openControls(expanded = 0) {
@@ -753,7 +742,9 @@ function drawFrames(current) {
     el('b', {}, 'Decisions'),
     toggle('Back link and title boxed', opts.backBoxed, 'backBoxed'),
     toggle('Test on lights primary', opts.testPrimary, 'testPrimary'),
-    toggle('Test split button + Zones island', opts.split, 'split'))
+    toggle('Test split button + Zones island', opts.split, 'split'),
+    el('b', {}, 'Narrow (new window)'),
+    ...[['Dock 400x800', 400, 800], ['Side 700x900', 700, 900], ['Side 1000x600', 1000, 600]].map(([label, w, h]) => el('a', { href: '#controls', onclick: (e) => { e.preventDefault(); open(`${location.pathname}${location.search}#controls`, '_blank', `popup,width=${w},height=${h}`) } }, label)))
 }
 
 function showFrame() {

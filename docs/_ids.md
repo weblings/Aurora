@@ -110,6 +110,7 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `daaa30-full-browser-check` | [log/2026-11-10-daaa30-full-browser-check.md](log/2026-11-10-daaa30-full-browser-check.md) | Graph editor: full browser-check suite on the narrow-window head |
 | `daaa31-grille-mock` | [log/2026-11-10-daaa31-grille-mock.md](log/2026-11-10-daaa31-grille-mock.md) | Graph editor mock rebuilt on Grille |
 | `daaa32-test-split-zones-island` | [log/2026-11-11-daaa32-test-split-zones-island.md](log/2026-11-11-daaa32-test-split-zones-island.md) | Test split button and Zones island variant in the Grille mock |
+| `daaa34-mock-narrow-drawers` | [log/2026-11-11-daaa34-mock-narrow-drawers.md](log/2026-11-11-daaa34-mock-narrow-drawers.md) | Grille mock: narrow-window drawers |
 | `daaa4-control-count-baseline` | [log/2026-11-08-daaa4-control-count-baseline.md](log/2026-11-08-daaa4-control-count-baseline.md) | Graph editor control-count baseline and CMake rebuild check |
 | `daaa5-graph-editor-owner-decisions` | [log/2026-11-08-daaa5-graph-editor-owner-decisions.md](log/2026-11-08-daaa5-graph-editor-owner-decisions.md) | Graph editor cleanup: owner decisions before stage 2 |
 | `daaa6-graph-editor-gap-states` | [log/2026-11-08-daaa6-graph-editor-gap-states.md](log/2026-11-08-daaa6-graph-editor-gap-states.md) | Graph editor cleanup: gap states and the status priority rule |

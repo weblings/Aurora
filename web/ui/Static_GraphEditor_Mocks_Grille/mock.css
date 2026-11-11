@@ -56,6 +56,17 @@ button { font-family: inherit; }
 .ge-tr { right: var(--ui-size-space-xl); top: var(--ui-size-space-xl); }
 .ge-bl { left: var(--ui-size-space-xl); bottom: var(--ui-size-space-xl); }
 .ge-br { right: var(--ui-size-space-xl); bottom: var(--ui-size-space-xl); }
+/* Drawer sizing as in the editor (Aurora-daaa.29.2, .29.4): side width clamp(280px, 40vw, 350px); below 650px wide or aspect under 0.75 the drawer docks at the bottom, half height, with a half/full toggle. */
+:root { --drawer-w: clamp(280px, 40vw, 350px); }
+/* Side drawer: the zone preview and the Dashboard controls button step left of it, so the preview stays visible while a control is dragged and the button can close the drawer. */
+.ge-tr, .ge-br, .ge-bl { transition: right 0.12s, bottom 0.12s; }
+.ge-canvas.drawer-open .ge-tr, .ge-canvas.drawer-open .ge-br { right: calc(var(--drawer-w) + var(--ui-size-space-xl)); }
+@media (max-width: 649px), (max-aspect-ratio: 3/4) {
+  /* Bottom dock: the preview stays top-right above it; both bottom corner buttons lift above the half-height sheet. Full height covers the canvas, so the buttons hide (the toggle or Close brings them back). */
+  .ge-canvas.drawer-open .ge-tr, .ge-canvas.drawer-open .ge-br { right: var(--ui-size-space-xl); }
+  .ge-canvas.drawer-open .ge-br, .ge-canvas.drawer-open .ge-bl { bottom: calc(50% + var(--ui-size-space-xl)); }
+  .ge-canvas.drawer-open.drawer-full .ge-br, .ge-canvas.drawer-open.drawer-full .ge-bl, .ge-canvas.drawer-open.drawer-full .ge-credit { visibility: hidden; }
+}
 
 .ge-plus { font-size: 16px; line-height: 16px; }
 .ge-count { color: var(--ui-color-text-secondary); }
@@ -225,7 +236,13 @@ button { font-family: inherit; }
 .ge-note { padding: 0 var(--ui-size-control-pad-x) var(--ui-size-space-md); font-size: 12px; line-height: 1.4; color: var(--ui-color-text-secondary); }
 
 /* Drawers */
-.ge-drawer { display: flex; flex-direction: column; border-width: 0 0 0 1px; border-radius: 0; width: 348px; }
+.ge-drawer { display: flex; flex-direction: column; border-width: 0 0 0 1px; border-radius: 0; width: var(--drawer-w); top: var(--drawer-top, 0); right: 0; bottom: 0; }
+.ge-drawer-toggle { display: none; margin-left: auto; margin-right: var(--ui-size-space-md); }
+@media (max-width: 649px), (max-aspect-ratio: 3/4) {
+  .ge-drawer { top: auto; left: 0; width: auto; border-width: 1px 0 0 0; height: calc((100dvh - var(--drawer-top, 0px)) / 2); }
+  .ge-drawer[data-expanded] { top: var(--drawer-top, 0); height: auto; }
+  .ge-drawer-toggle { display: inline-flex; }
+}
 .ge-drawer-head { flex: none; display: flex; align-items: center; justify-content: space-between; padding: var(--ui-size-control-pad-x) var(--ui-size-control-pad-x) var(--ui-size-space-sm) var(--ui-size-space-xl); font-size: 15px; font-weight: 600; }
 .ge-drawer-sub { flex: none; padding: 0 var(--ui-size-space-xl) var(--ui-size-control-pad-x); font-size: 12px; line-height: 1.45; color: var(--ui-color-text-secondary); }
 .ge-drawer-body { flex: 1; min-height: 0; padding: 0 var(--ui-size-space-xl) var(--ui-size-control-pad-x); }
@@ -350,17 +367,20 @@ button { font-family: inherit; }
 .ge-bar .ge-split .ge-split-caret.ge-primary { padding: var(--ui-size-space-sm); }
 /* Zone map: a 16:9 screen box (8 columns x 4.5 rows) with zones at their regions, then the leftover cells. */
 .ge-zones-v { --step: 16px; --pad: var(--ui-size-space-md); width: calc(8 * var(--step) - 2px + 2 * var(--pad)); }
-.ge-zones-v.large { --step: calc((348px - 2 * var(--pad) + 2px) / 8); }
+.ge-zones-v.large { --step: calc((var(--drawer-w) - 2 * var(--pad) + 2px) / 8); }
 .ge-zones-v .ge-zones-head { gap: var(--ui-size-space-lg); }
 .ge-zmap { position: relative; margin: 0 var(--pad) var(--pad); height: calc(var(--rows) * var(--step) - 2px); }
 .ge-zmap i { position: absolute; left: calc(var(--x) * var(--step)); top: calc(var(--y) * var(--step)); width: calc(var(--w) * var(--step) - 2px); height: calc(var(--h) * var(--step) - 2px); border-radius: 2px; }
 .ge-zones-v.stale .ge-zmap { opacity: 0.4; }
-.ge-zsize {
-  position: absolute; left: 0; bottom: 0; display: grid; place-items: center; width: 24px; height: 24px; padding: 0;
-  background: var(--ui-color-surface-raised); color: var(--ui-color-text-default); border: 1px solid var(--ui-color-border-default); border-radius: var(--ui-size-radius-sm);
-  cursor: pointer; opacity: 0; transition: opacity 0.12s;
+.ge-zbar { display: flex; align-items: center; gap: var(--ui-size-space-xs); padding-right: var(--ui-size-space-sm); }
+.ge-zbar .ge-zones-head { flex: 1; width: auto; justify-content: flex-start; }
+.ge-zsize, .ge-zchev {
+  display: grid; place-items: center; width: 24px; height: 24px; padding: 0; background: none; color: var(--ui-color-text-secondary);
+  border: none; border-radius: var(--ui-size-radius-sm); cursor: pointer;
 }
+.ge-zsize { opacity: 0; transition: opacity 0.12s; }
 .ge-zsize .ge-icon { width: 14px; height: 14px; }
+.ge-zsize:hover, .ge-zchev:hover { background: var(--ui-color-control-bg-hover); color: var(--ui-color-text-default); }
 .ge-zones-v:hover .ge-zsize, .ge-zsize:focus-visible, .ge-zones-v:focus-within .ge-zsize { opacity: 1; }
 .ge-zsize:focus-visible { outline: var(--ui-size-focus-ring-width) solid var(--ui-color-focus-ring); outline-offset: var(--ui-size-focus-ring-offset); }
 @media (hover: none) { .ge-zsize { opacity: 1; } }
