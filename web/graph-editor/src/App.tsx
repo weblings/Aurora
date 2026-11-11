@@ -33,7 +33,7 @@ import { DesktopNote } from './DesktopNote'
 import { COMPACT_BAR, DOCK_BOTTOM, TIGHT_BAR, useMedia } from './useMedia'
 import { TitleMenu, type TitleMenuAction } from './TitleMenu'
 import { FIT_OPTIONS, ViewMenu } from './ViewMenu'
-import { ZoneThumbnail } from './ZoneThumbnail'
+import { ZonesIsland } from './ZonesIsland'
 import { tabSession, useDraftLoop } from './useDraftLoop'
 import { useLightTest } from './useLightTest'
 import { restorable, clearUnsaved, syncUnsaved } from './graph/autosave'
@@ -749,7 +749,7 @@ export function App() {
       ) : null}
       <div className="editor-body">
             <div className="editor-canvas" ref={canvas}>
-        <ZoneThumbnail frame={loop.frame} live={loop.state.stream === 'live'} />
+        <ZonesIsland frame={loop.frame} live={loop.state.stream === 'live'} />
         <ProblemsContext.Provider value={problems}>
         <EditorContext.Provider value={actions}>
           <ReactFlow

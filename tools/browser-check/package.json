@@ -13,6 +13,7 @@
     "graph-editor:port-types": "node checks/graph-editor-port-types.mjs",
     "graph-editor:drawers": "node checks/graph-editor-drawers.mjs",
     "graph-editor:narrow": "node checks/graph-editor-narrow.mjs",
+    "graph-editor:zones": "node checks/graph-editor-zones.mjs",
     "graph-editor:corners": "node checks/graph-editor-corners.mjs",
     "graph-editor:delete": "node checks/graph-editor-delete.mjs",
     "graph-editor:title-menu": "node checks/graph-editor-title-menu.mjs",

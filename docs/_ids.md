@@ -314,6 +314,7 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `s1t710-grille-dev9` | [log/2026-11-11-s1t710-grille-dev9.md](log/2026-11-11-s1t710-grille-dev9.md) | Graph editor: Grille dev.9 (icons) |
 | `s1t72-problems-chip-regroup` | [log/2026-11-11-s1t72-problems-chip-regroup.md](log/2026-11-11-s1t72-problems-chip-regroup.md) | Graph editor problems chip moves before Undo |
 | `s1t73-canvas-corners` | [log/2026-11-11-s1t73-canvas-corners.md](log/2026-11-11-s1t73-canvas-corners.md) | Graph editor canvas corners match the Grille mock |
+| `s1t74-zones-island` | [log/2026-11-11-s1t74-zones-island.md](log/2026-11-11-s1t74-zones-island.md) | Graph editor Zones island |
 | `s1t76-mock-switches-decided` | [log/2026-11-10-s1t76-mock-switches-decided.md](log/2026-11-10-s1t76-mock-switches-decided.md) | Graph editor stage 5: Grille mock switches decided |
 | `scig-capture-source-banner` | [log/2026-10-08-scig-capture-source-banner.md](log/2026-10-08-scig-capture-source-banner.md) | Aurora-scig: Capture Source (NUX) errors move to the shell banner (closed) |
 | `sequence-b-planning` | [log/2026-10-15-sequence-b-planning.md](log/2026-10-15-sequence-b-planning.md) | Sequence B planning: decisions recorded, epic filed |

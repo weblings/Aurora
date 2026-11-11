@@ -364,19 +364,61 @@ button.editor-problem-row:hover {
   display: none;
 }
 
-.zone-thumbnail {
+/* The Zones island (Aurora-s1t7.4): header with the hide chevron, then 14 px
+   cells, 8 per row. Collapsed, it fits its header. */
+.zones-island {
   position: absolute;
   right: var(--aurora-space-5);
   top: var(--aurora-space-5);
   z-index: 5;
-  padding: var(--aurora-space-2);
   background: var(--aurora-surface);
   border: 1px solid var(--aurora-border);
   border-radius: var(--aurora-radius-control);
-  pointer-events: none;
+  overflow: hidden;
 }
 
-.zone-thumbnail-stale {
+.zones-head {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--aurora-space-4);
+  padding: var(--aurora-space-2) var(--aurora-space-3);
+  background: none;
+  border: none;
+  color: var(--aurora-text-primary);
+  font: inherit;
+  cursor: pointer;
+}
+
+.zones-head:hover {
+  background: var(--aurora-surface-hover, rgb(128 128 128 / 0.15));
+}
+
+.zones-head:focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: -2px;
+}
+
+.zones-cells {
+  display: grid;
+  grid-template-columns: repeat(8, 14px);
+  grid-auto-rows: 14px;
+  gap: 2px;
+  padding: 0 var(--aurora-space-3) var(--aurora-space-3);
+}
+
+.zones-cell {
+  border-radius: 2px;
+  background-color: transparent;
+}
+
+.zones-cell-error {
+  background-image: repeating-linear-gradient(135deg, #000 0 2px, transparent 2px 5px);
+  box-shadow: inset 0 0 0 1px #fff;
+}
+
+.zones-island-stale .zones-cells {
   opacity: 0.4;
 }
 
@@ -742,14 +784,14 @@ body:has(.ui-drawer[data-side='right']) .react-flow__panel.bottom.right {
   margin-right: calc(var(--ui-size-drawer-width) + 15px);
 }
 
-/* The zone preview (top-right of the canvas) steps left of a side drawer by the
+/* The Zones island (top-right of the canvas) steps left of a side drawer by the
    same token, so it stays visible while a control is slid (Aurora-daaa.35). The
    bottom dock leaves the top edge clear. */
-.zone-thumbnail {
+.zones-island {
   transition: right 0.15s;
 }
 
-body:has(.ui-drawer[data-side='right']) .zone-thumbnail {
+body:has(.ui-drawer[data-side='right']) .zones-island {
   right: calc(var(--ui-size-drawer-width) + var(--aurora-space-5));
 }
 

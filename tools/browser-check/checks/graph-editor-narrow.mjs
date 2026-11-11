@@ -118,7 +118,7 @@ await withEditorStack(async ({ editorUrl }) => {
       assert.ok(g.scroll[0] <= 0 && g.scroll[1] <= 0, `${w}x${h}: page scrolls ${g.scroll}`)
       // Aurora-daaa.35: the zone preview stays visible, left of a side drawer.
       const thumb = await page.evaluate(() => {
-        const t = document.querySelector('.zone-thumbnail')?.getBoundingClientRect()
+        const t = document.querySelector('.zones-island')?.getBoundingClientRect()
         const d = document.querySelector('.ui-drawer').getBoundingClientRect()
         return t ? { right: t.right, left: t.left, top: t.top, bottom: t.bottom, drawerLeft: d.left, drawerTop: d.top } : null
       })

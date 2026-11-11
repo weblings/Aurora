@@ -31,8 +31,11 @@ Decisions, narrow windows, in `docs/planning/WebUI/GraphEditorCleanup.md`).
 - `src/AddNodeMenu.tsx` -- the cascade Add node menu (the `+ Add node` canvas button top-left, Shift+A): group flyouts, or a ranked search list; `graph/addMenu.ts` has the grouping and ranking. A pick adds at the view centre.
 - Canvas corners (`Aurora-s1t7.3`): Add node top-left, Dashboard controls bottom-right, the View menu bottom-left with the minimap stacked above it (the menu opens above the map), React Flow's credit bottom-centre. A side drawer moves Dashboard controls left of it; a half-height dock lifts the bottom corners, a full-height one hides them (CSS in `editor.css`, `tools/browser-check`'s `graph-editor:corners`).
 - `src/useDraftLoop.ts` -- sends the draft and holds the preview stream;
-  `ZoneThumbnail.tsx` draws its frames from a ref, not state, placing the
-  active output's zones at their `/api/zones` uv regions (grid for the rest).
+  `ZonesIsland.tsx` is the top-right Zones island (`Aurora-s1t7.4`): a header
+  with a hide chevron (kept for the session), then one 14 px DOM cell per zone
+  of the single active output (the one `/api/zones` names), 8 per row, no screen
+  mapping and no resize. Colours are written to the cells from a ref on
+  animation frames, not through state.
 - `src/TitleMenu.tsx`, `ViewMenu.tsx`, `ProblemsChip.tsx`, `Toast.tsx` -- the top bar's popups and the toast, all on `EditorPopup`. `graph/status.ts` picks the one status line and the banner from the priority rule in `docs/planning/WebUI/GraphEditorCleanup.md`.
 - `src/ContextMenu.tsx` -- right-click menus for the canvas, a node and a wire, anchored at a point; the node menu also opens from each node's `⋯` button and Shift+F10 (`Aurora-daaa.27.1`).
 - `src/EditorPopup.tsx` -- the shared popup layer over Grille's `Popover`.

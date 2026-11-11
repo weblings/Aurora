@@ -39,13 +39,13 @@ await withEditorStack(async ({ editorUrl, restart }) => {
     assert.ok(box, `node ${id} not on screen`)
     return box
   }
-  const thumb = () => page.locator('.zone-thumbnail').evaluate((c) => c.toDataURL())
-  // Summed red+green+blue of the zone thumbnail, 0 when it is blank.
+  // The Zones island's cell colours, one string; blank when no zone has a colour yet.
+  const thumb = () => page.locator('.zones-cell').evaluateAll((cs) => cs.map((c) => c.style.backgroundColor).join('|'))
+  // Summed red+green+blue over the Zones island's cells, 0 when it is blank.
   const brightness = () =>
-    page.locator('.zone-thumbnail').evaluate((c) => {
-      const d = c.getContext('2d').getImageData(0, 0, c.width, c.height).data
+    page.locator('.zones-cell').evaluateAll((cs) => {
       let sum = 0
-      for (let i = 0; i < d.length; i += 4) sum += (d[i] + d[i + 1] + d[i + 2]) * (d[i + 3] / 255)
+      for (const c of cs) for (const n of c.style.backgroundColor.match(/\d+/g) ?? []) sum += Number(n)
       return sum
     })
   const until = async (test, what, ms = 10_000) => {
@@ -122,8 +122,8 @@ await withEditorStack(async ({ editorUrl, restart }) => {
     await waitStatus(/Live/)
     assert.equal(await page.locator('.problem-badge').count(), 0)
     await page.waitForFunction((was) => {
-      const c = document.querySelector('.zone-thumbnail')
-      return c && !c.classList.contains('zone-thumbnail-stale') && c.toDataURL() !== was
+      const c = document.querySelector('.zones-island')
+      return c && !c.classList.contains('zones-island-stale') && [...c.querySelectorAll('.zones-cell')].map((x) => x.style.backgroundColor).join('|') !== was
     }, held, { timeout: 10_000 })
     step('rewiring clears the badge and the thumbnail shows a new frame')
 
