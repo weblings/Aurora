@@ -15,7 +15,8 @@ import { withEditorStack } from '../lib/stack.mjs'
 // Aurora-daaa.24 replaced the 53-button Add node list with the + button and cascade menu (video 79 -> 26, audio 126 -> 74).
 // Aurora-daaa.27.4 removed the inspector (menus and drawers replace it); mock target 11.
 // Aurora-s1t7.4 raised both to 10: the Zones island header is a button (the mock's hide chevron); the old thumbnail was a canvas.
-const CEILING = { 'builtin.video': 10, 'builtin.audio': 10 }
+// Aurora-qjqy.3 raised video to 11, the mock's target: the Test split button's caret (Test mode) is its own button. Audio measures 10.
+const CEILING = { 'builtin.video': 11, 'builtin.audio': 10 }
 
 await withEditorStack(async ({ editorUrl }) => {
   const browser = await launch()

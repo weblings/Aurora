@@ -399,3 +399,4 @@ Planning docs stay clean: decisions, status, and pointers here only.
 | 2026-11-11 | Light test modes: Once (15 s) and Live (untimed) in core, mode in the test API. [[qjqy1-light-test-modes]] | `bd show Aurora-qjqy.1` |
 | 2026-11-11 | MCP try_on_lights: Once (15 s) default, optional mode, keep after a timed-out test. [[qjqy2-mcp-light-test-modes]] | `bd show Aurora-qjqy.2` |
 | 2026-11-11 | Graph editor: Test split button replaces the status pill, Test on lights, countdown and Revert; status rule rewritten. [[qjqy3-test-split-button]] | `bd show Aurora-qjqy.3` |
+| 2026-11-11 | Light test modes close-out: control-count ceiling for the split button caret, plan status line, epic closed. [[qjqy-light-test-modes-close-out]] | `bd show Aurora-qjqy` |

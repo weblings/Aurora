@@ -291,6 +291,7 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `pvxx8-dashboard-entry-shipping` | [log/2026-10-29-pvxx8-dashboard-entry-shipping.md](log/2026-10-29-pvxx8-dashboard-entry-shipping.md) | E5: Dashboard entry point and shipping the editor |
 | `pvxx9-sequence-e-gate` | [log/2026-10-29-pvxx9-sequence-e-gate.md](log/2026-10-29-pvxx9-sequence-e-gate.md) | E6: Sequence E gate on the fake-Hue stack |
 | `q9l1-tray-target-live` | [log/2026-10-07-q9l1-tray-target-live.md](log/2026-10-07-q9l1-tray-target-live.md) | Aurora-q9l1: tray click-time target — Linux live green, Windows exercised, closed |
+| `qjqy-light-test-modes-close-out` | [log/2026-11-11-qjqy-light-test-modes-close-out.md](log/2026-11-11-qjqy-light-test-modes-close-out.md) | Light test modes close-out |
 | `qjqy1-light-test-modes` | [log/2026-11-11-qjqy1-light-test-modes.md](log/2026-11-11-qjqy1-light-test-modes.md) | Light test modes: Once (15 s) and Live |
 | `qjqy2-mcp-light-test-modes` | [log/2026-11-11-qjqy2-mcp-light-test-modes.md](log/2026-11-11-qjqy2-mcp-light-test-modes.md) | MCP try_on_lights: Once by default, keep after a timeout |
 | `qjqy3-test-split-button` | [log/2026-11-11-qjqy3-test-split-button.md](log/2026-11-11-qjqy3-test-split-button.md) | Test split button in the graph editor |
