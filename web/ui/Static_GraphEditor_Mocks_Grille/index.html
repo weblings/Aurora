@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Graph editor mock on Grille</title>
+  <link rel="stylesheet" href="grille/fonts.css" />
+  <link rel="stylesheet" href="grille/tokens.css" />
+  <link rel="stylesheet" href="grille/ui.css" />
+  <link rel="stylesheet" href="mock.css" />
+</head>
+<body>
+  <nav class="mk-frames" id="frames" aria-label="Mock frames"></nav>
+  <div class="ge">
+    <header class="ge-bar" id="bar"></header>
+    <main class="ge-canvas" id="canvas" tabindex="0" aria-label="Graph canvas">
+      <div class="ge-world" id="world">
+        <svg class="ge-wires" id="wires" aria-hidden="true"></svg>
+        <div id="nodes"></div>
+      </div>
+      <div class="ge-island ge-tl"><button type="button" class="ui-button" data-act="add"><span class="ge-plus" aria-hidden="true">+</span>Add node</button></div>
+      <div class="ge-island ge-tr" id="preview"></div>
+      <div class="ge-island ge-bl"><button type="button" class="ui-button" data-act="controls" id="controls-btn"></button></div>
+      <div class="ge-island ge-br"><button type="button" class="ui-button" data-act="view" id="view-btn"></button></div>
+      <a class="ge-credit" href="https://reactflow.dev" target="_blank" rel="noopener noreferrer" aria-label="React Flow attribution">React Flow</a>
+    </main>
+  </div>
+  <div id="layer"></div>
+  <div class="ge-toast" id="toast" role="status" hidden></div>
+  <script src="catalog.js"></script>
+  <script src="mock.js"></script>
+</body>
+</html>

@@ -375,3 +375,4 @@ Planning docs stay clean: decisions, status, and pointers here only.
 | 2026-11-10 | Graph editor: full browser-check suite on the narrow-window head; port-types check moved to the Add node menu. [[daaa30-full-browser-check]] | `bd show Aurora-daaa.30` |
 | 2026-11-10 | Graph editor: 1100 px no-pan assertion; drawer-body container queries skipped and recorded. [[daaa29-5-narrow-leftovers]] | `bd show Aurora-daaa.29.5` |
 | 2026-11-10 | Graph editor stage 4 and narrow-window parents closed, cleanup doc status updated. [[daaa27-29-stage4-closed]] | `bd show Aurora-daaa.27`, `bd show Aurora-daaa.29` |
+| 2026-11-10 | Graph editor mock rebuilt on Grille with back link, bar and credit decisions as toggles. [[daaa31-grille-mock]] | `bd show Aurora-daaa.31` |

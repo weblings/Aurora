@@ -1,0 +1,341 @@
+/* Graph editor mock on Grille (Aurora-daaa.31). Grille tokens.css and ui.css supply the controls; this file is layout, nodes and menus, all on --ui-* tokens. */
+html { overflow: hidden; font-family: var(--ui-font-family-sans); scrollbar-gutter: auto; height: 100%; }
+body { margin: 0; background: var(--ui-color-surface-page); color: var(--ui-color-text-default); height: 100%; display: flex; flex-direction: column; overflow: hidden; font-size: 13px; }
+button { font-family: inherit; }
+
+/* Mock-only frame switcher: not part of the design. */
+.mk-frames {
+  display: flex; flex: none; flex-wrap: wrap; align-items: center; gap: 2px;
+  padding: 3px var(--ui-size-space-md);
+  border-bottom: 1px dashed var(--ui-color-text-muted);
+  background: #000; font-size: 11px; color: var(--ui-color-text-muted);
+}
+.mk-frames b { margin: 0 var(--ui-size-space-sm) 0 var(--ui-size-space-md); font-weight: 600; }
+.mk-frames b:first-child { margin-left: 0; }
+.mk-frames a { padding: 2px var(--ui-size-space-sm); border-radius: var(--ui-size-radius-sm); color: var(--ui-color-text-secondary); text-decoration: none; }
+.mk-frames a:hover { background: var(--ui-color-popup-bg-hover); }
+.mk-frames a.on { background: var(--ui-color-primary-bg); color: var(--ui-color-text-on-primary); }
+
+.ge { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+
+/* Top bar */
+.ge-bar {
+  flex: none; display: flex; align-items: center; gap: var(--ui-size-space-md);
+  height: 52px; padding: 0 var(--ui-size-space-xl);
+  background: var(--ui-color-surface-page); border-bottom: 1px solid var(--ui-color-border-subtle);
+}
+
+
+.ge-sep { width: 1px; height: 20px; margin: 0 var(--ui-size-space-md); background: var(--ui-color-border-default); }
+
+
+.ge-chev { width: 12px; height: 12px; display: block; }
+.ge-unsaved { color: var(--ui-color-text-secondary); font-size: 12px; white-space: nowrap; }
+.ge-spacer { flex: 1; }
+.ge-status { display: inline-flex; align-items: center; gap: var(--ui-size-space-sm); margin-right: var(--ui-size-space-md); color: var(--ui-color-text-secondary); font-size: 12px; white-space: nowrap; }
+.ge-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--ui-color-text-secondary); }
+
+
+.ge-icon { width: 16px; height: 16px; display: block; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.ge-countdown { color: var(--ui-color-text-default); font-size: 12px; font-variant-numeric: tabular-nums; white-space: nowrap; margin-right: var(--ui-size-space-sm); }
+
+/* Canvas */
+.ge-canvas {
+  position: relative; flex: 1; min-height: 0; overflow: hidden; outline: none; cursor: default;
+  background-color: var(--ui-color-surface-page);
+  background-image: radial-gradient(var(--ui-color-border-default) 1px, transparent 1px);
+  background-size: 24px 24px;
+}
+.ge-world { position: absolute; left: 0; top: 0; transform-origin: 0 0; }
+.ge-wires { position: absolute; left: 0; top: 0; overflow: visible; width: 1px; height: 1px; }
+.ge-wires path { fill: none; stroke-width: 2; }
+.ge-wires .hit { stroke: transparent; stroke-width: 14; pointer-events: stroke; cursor: pointer; }
+.ge-wires .sel { stroke-width: 3; }
+.ge-island { position: absolute; z-index: 5; }
+.ge-tl { left: var(--ui-size-space-xl); top: var(--ui-size-space-xl); }
+.ge-tr { right: var(--ui-size-space-xl); top: var(--ui-size-space-xl); }
+.ge-bl { left: var(--ui-size-space-xl); bottom: var(--ui-size-space-xl); }
+.ge-br { right: var(--ui-size-space-xl); bottom: var(--ui-size-space-xl); }
+
+.ge-plus { font-size: 16px; line-height: 16px; }
+.ge-count { color: var(--ui-color-text-secondary); }
+
+.ge-zones {
+  width: 168px; background: var(--ui-color-surface-raised); border: 1px solid var(--ui-color-border-default);
+  border-radius: var(--ui-size-radius-sm); box-shadow: var(--ui-shadow-popup); overflow: hidden;
+}
+.ge-zones.stale .ge-zones-grid { opacity: 0.4; }
+.ge-zones-head {
+  display: flex; width: 100%; align-items: center; justify-content: space-between;
+  padding: var(--ui-size-space-sm) var(--ui-size-space-md); background: none; border: none;
+  color: var(--ui-color-text-secondary); font-size: 12px; cursor: pointer;
+}
+.ge-zones-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 2px; padding: 0 var(--ui-size-space-md) var(--ui-size-space-md); }
+.ge-zones-grid i { height: 34px; border-radius: 2px; }
+.ge-zones-grid i:nth-child(1) { background: #d4714f; }
+.ge-zones-grid i:nth-child(2) { background: #c85f6d; }
+.ge-zones-grid i:nth-child(3) { background: #8e5fb0; }
+.ge-zones-grid i:nth-child(4) { background: #4d6bc9; }
+
+/* Node. Also the card in the add menu's preview. */
+.gn {
+  position: absolute; width: 208px; padding-bottom: var(--ui-size-space-sm);
+  background: var(--ui-color-surface-raised); border: 1px solid var(--ui-color-border-default);
+  border-radius: var(--ui-size-radius-md); font-size: 12px; cursor: grab;
+}
+.gn:hover { border-color: var(--ui-color-text-muted); }
+.gn.sel { border-color: var(--ui-color-text-default); }
+.gn.bad { border: 1px dashed var(--ui-color-text-default); }
+.gn.card { position: relative; width: auto; cursor: default; }
+.gn.card:hover { border-color: var(--ui-color-border-default); }
+.gn-head {
+  display: flex; align-items: center; justify-content: space-between; gap: var(--ui-size-space-md);
+  min-height: 34px; padding: var(--ui-size-space-sm) var(--ui-size-space-lg);
+  color: var(--ui-color-text-default); font-size: 13px; font-weight: 600;
+}
+.gn-more {
+  width: 22px; height: 22px; padding: 0; background: var(--ui-color-control-bg); border: none;
+  border-radius: var(--ui-size-radius-sm); color: var(--ui-color-text-default); line-height: 1; cursor: pointer;
+}
+.gn-more:hover { background: var(--ui-color-control-bg-hover); }
+.gn-ports { display: flex; justify-content: space-between; gap: var(--ui-size-control-pad-x); padding: 0 0 var(--ui-size-space-xs); }
+.gn-port { position: relative; padding: 2px var(--ui-size-space-lg); color: var(--ui-color-text-secondary); white-space: nowrap; }
+.gn-port.out { text-align: right; }
+.gn-port .sk { position: absolute; top: 50%; translate: 0 -50%; }
+.gn-port.in .sk { left: -6px; }
+.gn-port.out .sk { right: -6px; }
+.gn-param { padding: var(--ui-size-space-sm) var(--ui-size-space-lg) var(--ui-size-space-xs); }
+.gn-param-row { display: flex; justify-content: space-between; gap: var(--ui-size-space-md); margin-bottom: var(--ui-size-space-sm); color: var(--ui-color-text-secondary); }
+.gn-param-row b { color: var(--ui-color-text-default); font-weight: 500; font-variant-numeric: tabular-nums; }
+
+.gn-enum {
+  display: flex; align-items: center; justify-content: space-between; width: 100%;
+  padding: var(--ui-size-space-xs) var(--ui-size-space-md); background: var(--ui-color-control-bg);
+  border: none; border-radius: var(--ui-size-radius-sm); color: var(--ui-color-text-default); font-size: 12px;
+}
+.gn-gradient { height: 10px; border-radius: var(--ui-size-radius-sm); }
+.gn-more-params { padding: var(--ui-size-space-sm) var(--ui-size-space-lg) var(--ui-size-space-xs); color: var(--ui-color-text-muted); }
+
+/* Port sockets: colour and shape from graph/portStyle.ts. */
+.sk { display: inline-block; flex: none; width: 10px; height: 10px; background: var(--c); }
+.sk.circle { border-radius: 50%; }
+.sk.diamond { width: 8px; height: 8px; rotate: 45deg; }
+.sk.triangle { clip-path: polygon(0 0, 100% 50%, 0 100%); }
+.gn-port .sk { outline: 2px solid var(--ui-color-surface-raised); }
+.gn-port .sk.triangle { outline: none; }
+.gn-port .sk.diamond { translate: 0 -50%; }
+
+/* Shared floating surface: the same recipe as the effect panel's row menu. */
+.ge-pop {
+  position: fixed; z-index: 30; background: var(--ui-color-surface-raised);
+  border: 1px solid var(--ui-color-border-default); border-radius: var(--ui-size-radius-sm);
+  box-shadow: var(--ui-shadow-popup); color: var(--ui-color-text-default);
+}
+.ge-menu { display: flex; flex-direction: column; min-width: 208px; padding: var(--ui-size-space-xs) 0; }
+.ge-item {
+  display: flex; align-items: center; justify-content: space-between; gap: var(--ui-size-space-xl);
+  padding: 7px var(--ui-size-control-pad-x); background: none; border: none; color: var(--ui-color-text-default);
+  font-size: 13px; text-align: left; white-space: nowrap; cursor: pointer;
+}
+.ge-item:hover:not(:disabled), .ge-item.open { background: var(--ui-color-popup-bg-hover); }
+.ge-item:disabled { color: var(--ui-color-text-muted); cursor: default; }
+.ge-item kbd { font: inherit; font-size: 12px; color: var(--ui-color-text-muted); }
+.ge-item .tick { display: inline-block; width: 14px; }
+.ge-item-main { display: inline-flex; align-items: center; gap: var(--ui-size-space-sm); }
+.ge-rule { height: 1px; margin: var(--ui-size-space-xs) 0; background: var(--ui-color-border-default); }
+.ge-menu-head { padding: var(--ui-size-space-sm) var(--ui-size-control-pad-x); font-size: 12px; color: var(--ui-color-text-muted); }
+.ge-arrow { width: 10px; height: 10px; rotate: -90deg; }
+
+/* Add node: shared parts */
+.ae-search { position: relative; display: block; }
+.ae-search .ge-icon { position: absolute; left: var(--ui-size-space-lg); top: 50%; translate: 0 -50%; color: var(--ui-color-text-secondary); pointer-events: none; }
+
+
+/* This box always holds focus while the menu is open, so a ring would only add noise. */
+
+.ae-row {
+  display: flex; align-items: center; gap: var(--ui-size-space-md); min-height: 32px;
+  padding: var(--ui-size-space-xs) var(--ui-size-space-lg); border-radius: var(--ui-size-radius-sm);
+  color: var(--ui-color-text-default); cursor: pointer;
+}
+.ae-row.active { background: var(--ui-color-popup-bg-hover); }
+.ae-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--ui-color-text-secondary); }
+.ae-row.active .ae-name { color: var(--ui-color-text-default); }
+.ae-name mark { background: none; color: var(--ui-color-text-default); font-weight: 700; }
+.ae-where { color: var(--ui-color-text-muted); font-size: 12px; }
+.ae-sig { display: inline-flex; flex: none; align-items: center; gap: 3px; }
+.ae-sig .ln { width: 8px; height: 1px; margin: 0 1px; background: var(--ui-color-text-muted); }
+.ae-group { padding: var(--ui-size-space-md) var(--ui-size-space-lg) var(--ui-size-space-xs); font-size: 12px; font-weight: 600; color: var(--ui-color-text-muted); }
+.ae-none { padding: var(--ui-size-space-xl); color: var(--ui-color-text-secondary); }
+.ae-scroll { overflow-y: auto; scrollbar-width: thin; scrollbar-color: var(--ui-color-border-default) transparent; }
+
+/* Add node: browser */
+.ae-browser { display: flex; flex-direction: column; width: min(760px, calc(100vw - 32px)); height: min(460px, calc(100vh - 110px)); border-radius: var(--ui-size-radius-md); overflow: hidden; }
+.ae-top { flex: none; padding: var(--ui-size-control-pad-x); border-bottom: 1px solid var(--ui-color-border-default); }
+.ae-body { flex: 1; min-height: 0; display: grid; grid-template-columns: 136px minmax(0, 1fr) 248px; }
+.ae-rail { padding: var(--ui-size-space-md); border-right: 1px solid var(--ui-color-border-default); }
+.ae-cat {
+  display: flex; width: 100%; align-items: center; justify-content: space-between; gap: var(--ui-size-space-md);
+  padding: var(--ui-size-space-sm) var(--ui-size-space-md); background: none; border: none;
+  border-radius: var(--ui-size-radius-sm); color: var(--ui-color-text-secondary); font-size: 13px; text-align: left; cursor: pointer;
+}
+.ae-cat:hover { background: var(--ui-color-popup-bg-hover); }
+.ae-cat.on { background: var(--ui-color-control-bg); color: var(--ui-color-text-default); }
+.ae-cat small { font-size: 12px; color: var(--ui-color-text-muted); }
+.ae-cat:disabled { opacity: 0.45; cursor: default; }
+.ae-list { padding: var(--ui-size-space-sm) var(--ui-size-space-md); }
+.ae-detail { display: flex; flex-direction: column; gap: var(--ui-size-space-lg); padding: var(--ui-size-control-pad-x); border-left: 1px solid var(--ui-color-border-default); background: var(--ui-color-surface-page); }
+.ae-detail p { font-size: 12px; line-height: 1.45; color: var(--ui-color-text-secondary); }
+.ae-detail h4 { margin-bottom: 2px; font-size: 12px; font-weight: 600; color: var(--ui-color-text-default); }
+.ae-foot {
+  flex: none; display: flex; gap: var(--ui-size-space-xl); padding: var(--ui-size-space-sm) var(--ui-size-control-pad-x);
+  border-top: 1px solid var(--ui-color-border-default); font-size: 12px; color: var(--ui-color-text-muted);
+}
+.ae-foot kbd { font: inherit; color: var(--ui-color-text-secondary); }
+
+/* Add node: cascade */
+.ae-cascade { width: 236px; padding: var(--ui-size-space-md); }
+.ae-cascade .ae-rows { margin-top: var(--ui-size-space-sm); max-height: 340px; }
+.ae-fly { width: 268px; padding: var(--ui-size-space-sm); }
+.ae-fly .ae-rows { max-height: 300px; }
+.ae-fly p { margin-top: var(--ui-size-space-sm); padding: var(--ui-size-space-md) var(--ui-size-space-md) var(--ui-size-space-sm); border-top: 1px solid var(--ui-color-border-default); font-size: 12px; line-height: 1.4; color: var(--ui-color-text-secondary); }
+.ae-cascade .ae-cat.on { background: var(--ui-color-popup-bg-hover); }
+
+/* Add node: side sheet */
+.ae-sheet { display: flex; flex-direction: column; border-width: 0 1px 0 0; border-radius: 0; width: 304px; }
+.ae-sheet-head { display: flex; align-items: center; justify-content: space-between; padding: var(--ui-size-control-pad-x) var(--ui-size-control-pad-x) var(--ui-size-space-md); font-size: 14px; font-weight: 600; }
+.ae-sheet .ae-search { margin: 0 var(--ui-size-control-pad-x) var(--ui-size-space-md); }
+.ae-sheet .ae-rows { flex: 1; min-height: 0; padding: 0 var(--ui-size-space-md); }
+.ae-acc {
+  display: flex; width: 100%; align-items: center; justify-content: space-between;
+  margin-top: var(--ui-size-space-sm); padding: var(--ui-size-space-md) var(--ui-size-space-lg);
+  background: var(--ui-color-control-bg); border: none; border-radius: var(--ui-size-radius-md);
+  color: var(--ui-color-text-default); font-size: 13px; cursor: pointer;
+}
+.ae-acc:hover { background: var(--ui-color-control-bg-hover); }
+.ae-acc small { margin-left: var(--ui-size-space-sm); color: var(--ui-color-text-secondary); }
+.ae-acc-title { display: inline-flex; align-items: baseline; }
+.ae-sheet-note { flex: none; min-height: 66px; padding: var(--ui-size-space-md) var(--ui-size-control-pad-x); border-top: 1px solid var(--ui-color-border-default); font-size: 12px; line-height: 1.4; color: var(--ui-color-text-secondary); }
+
+
+
+/* Title menu */
+.ge-titlepop { width: 288px; padding: var(--ui-size-control-pad-x) 0 var(--ui-size-space-xs); }
+
+.ge-note { padding: 0 var(--ui-size-control-pad-x) var(--ui-size-space-md); font-size: 12px; line-height: 1.4; color: var(--ui-color-text-secondary); }
+
+/* Drawers */
+.ge-drawer { display: flex; flex-direction: column; border-width: 0 0 0 1px; border-radius: 0; width: 348px; }
+.ge-drawer-head { flex: none; display: flex; align-items: center; justify-content: space-between; padding: var(--ui-size-control-pad-x) var(--ui-size-control-pad-x) var(--ui-size-space-sm) var(--ui-size-space-xl); font-size: 15px; font-weight: 600; }
+.ge-drawer-sub { flex: none; padding: 0 var(--ui-size-space-xl) var(--ui-size-control-pad-x); font-size: 12px; line-height: 1.45; color: var(--ui-color-text-secondary); }
+.ge-drawer-body { flex: 1; min-height: 0; padding: 0 var(--ui-size-space-xl) var(--ui-size-control-pad-x); }
+.cc { margin-bottom: var(--ui-size-space-sm); background: var(--ui-color-control-bg); border-radius: var(--ui-size-radius-md); }
+.cc-head { display: flex; align-items: center; justify-content: space-between; gap: var(--ui-size-space-md); width: 100%; padding: var(--ui-size-space-md) var(--ui-size-space-lg); background: none; border: none; border-radius: var(--ui-size-radius-md); color: var(--ui-color-text-default); font-size: 13px; text-align: left; cursor: pointer; }
+.cc-head:hover { background: var(--ui-color-control-bg-hover); }
+.cc-head small { display: block; color: var(--ui-color-text-secondary); font-size: 12px; }
+.cc-body { display: flex; flex-direction: column; gap: var(--ui-size-space-md); padding: var(--ui-size-space-sm) var(--ui-size-space-lg) var(--ui-size-space-lg); }
+
+.cc-actions { display: flex; gap: var(--ui-size-space-md); justify-content: flex-end; }
+
+.dt-h { margin: var(--ui-size-space-xl) 0 var(--ui-size-space-md); font-size: 13px; font-weight: 700; color: var(--ui-color-text-secondary); }
+.dt-p { font-size: 13px; line-height: 1.5; color: var(--ui-color-text-secondary); margin-bottom: var(--ui-size-space-md); }
+.dt-port { display: grid; grid-template-columns: 14px 1fr; gap: var(--ui-size-space-sm) var(--ui-size-space-md); align-items: baseline; margin-bottom: var(--ui-size-space-md); font-size: 12px; color: var(--ui-color-text-secondary); }
+.dt-port b { color: var(--ui-color-text-default); font-weight: 600; }
+.dt-toggles { display: flex; flex-direction: column; gap: var(--ui-size-space-md); }
+
+
+/* States the first mock skipped (Aurora-daaa.6) */
+.ge-status.strong { color: var(--ui-color-text-default); font-weight: 600; }
+
+.ge-banner {
+  flex: none; display: flex; align-items: center; justify-content: flex-end; gap: var(--ui-size-space-md);
+  padding: var(--ui-size-space-md) var(--ui-size-space-xl); background: var(--ui-color-surface-raised);
+  border-bottom: 1px solid var(--ui-color-border-subtle); color: var(--ui-color-text-default); font-size: 13px;
+}
+.ge-banner > span { flex: 1; }
+.ge-banner small { display: block; margin-top: 2px; color: var(--ui-color-text-secondary); font-size: 12px; }
+.ge-note-need { color: var(--ui-color-text-default); font-weight: 600; }
+.ge-prob.whole { cursor: default; border-bottom: 1px solid var(--ui-color-border-subtle); }
+.ge-prob.whole:hover { background: none; }
+.ge-prob-act { display: block; margin-top: var(--ui-size-space-md); }
+
+/* Problems popover, toast */
+.ge-probpop { width: 320px; padding: var(--ui-size-space-sm) 0; }
+.ge-prob { display: block; width: 100%; padding: var(--ui-size-space-md) var(--ui-size-control-pad-x); background: none; border: none; color: var(--ui-color-text-secondary); font-size: 12px; line-height: 1.4; text-align: left; cursor: pointer; }
+.ge-prob:hover { background: var(--ui-color-popup-bg-hover); }
+.ge-prob b { display: block; color: var(--ui-color-text-default); font-size: 13px; font-weight: 600; }
+.ge-toast {
+  position: fixed; left: 50%; bottom: var(--ui-size-space-2xl); translate: -50% 0; z-index: 40;
+  padding: var(--ui-size-space-md) var(--ui-size-space-xl); background: var(--ui-color-surface-raised);
+  border: 1px solid var(--ui-color-border-default); border-radius: var(--ui-size-radius-sm);
+  box-shadow: var(--ui-shadow-popup); color: var(--ui-color-text-default); font-size: 13px;
+}
+.ge-toast[hidden] { display: none; }
+
+@media (max-width: 720px) {
+  .ae-body { grid-template-columns: minmax(0, 1fr); }
+  .ae-rail, .ae-detail { display: none; }
+  .ge-bar { gap: var(--ui-size-space-xs); padding: 0 var(--ui-size-space-md); }
+  .ge-status, .ge-sep { display: none; }
+}
+.ge-titlepop .ge-item { justify-content: space-between; }
+
+/* ---- Grille additions ---- */
+/* Static markup has no react-aria, so Grille's [data-hovered] / [data-pressed] / [data-focus-visible] never set. These mirror them. */
+@layer ui {
+  .ui-button:hover:not(:disabled):not([data-hovered]) { background: var(--ui-color-control-bg-hover); }
+  .ui-button:active:not(:disabled) { background: var(--ui-color-control-bg-active); }
+  .ui-button[data-variant="primary"]:hover:not(:disabled) { background: var(--ui-color-primary-bg-hover); }
+  .ui-button[data-variant="primary"]:active:not(:disabled) { background: var(--ui-color-primary-bg-active); }
+  .ui-button:focus-visible, .ui-text-input:focus-visible { outline: var(--ui-size-focus-ring-width) solid var(--ui-color-focus-ring); outline-offset: var(--ui-size-focus-ring-offset); }
+  .ui-button:disabled { color: var(--ui-color-text-disabled); cursor: default; }
+}
+.ui-button { display: inline-flex; align-items: center; gap: var(--ui-size-space-sm); white-space: nowrap; }
+.ge-bar .ui-button[data-icon] { padding: var(--ui-size-space-sm); }
+/* The bar's primary stays at the bar's small size; Grille's primary is the large form-button size. */
+.ge-bar .ge-primary, .ge-banner .ge-primary { padding: var(--ui-size-space-sm) var(--ui-size-space-lg); border-radius: var(--ui-size-radius-sm); font-size: var(--ui-size-font-xs); }
+.ge-banner .ui-button { padding: var(--ui-size-space-sm) var(--ui-size-space-lg); font-size: var(--ui-size-font-xs); }
+.ui-button:disabled:hover { background: var(--ui-color-control-bg); }
+/* Borderless variant, a local stand-in for a possible Grille one: no fill until hover. */
+.ui-button.ge-ghost { background: none; }
+.ui-button.ge-ghost:hover:not(:disabled) { background: var(--ui-color-control-bg); }
+.ge-title { font-weight: var(--ui-font-weight-semibold); font-size: var(--ui-size-font-md); }
+.ge-bar .ui-button.ge-title, .ge-bar .ui-button.ge-ghost { font-size: var(--ui-size-font-sm); }
+.ge-chev { display: inline-flex; width: 12px; height: 12px; }
+.ge-chev .ge-icon { width: 12px; height: 12px; }
+.ge-warn { display: inline-flex; }
+.ge-warn .ge-icon { width: 14px; height: 14px; }
+/* Problems chip: a plain Grille button, the focus ring is the only ring. Weight marks it. */
+.ge-problems { font-weight: var(--ui-font-weight-semibold); color: var(--ui-color-text-warning); }
+.ge-island .ui-button { box-shadow: var(--ui-shadow-popup); font-size: var(--ui-size-font-sm); }
+.ge-sep { background: var(--ui-color-border-default); }
+.ge-dot { background: var(--ui-color-text-muted); }
+.ge-status { margin-right: var(--ui-size-space-md); }
+.ge-status .ui-button { margin-left: var(--ui-size-space-md); }
+.mk-frames a[role="switch"] { border: 1px solid var(--ui-color-text-muted); }
+.mk-frames a[role="switch"]::before { content: "off  "; opacity: 0.7; }
+.mk-frames a[role="switch"].on::before { content: "on  "; opacity: 1; }
+.cc-actions .ui-button { background: var(--ui-color-surface-raised); }
+.cc-actions .ui-button:hover:not(:disabled) { background: var(--ui-color-control-bg-hover); }
+
+/* Fields, search box, slider, toggle on Grille's text input. */
+.ge-field { display: flex; flex-direction: column; gap: var(--ui-size-space-xs); }
+.ge-field-label { font-size: var(--ui-size-font-xs); color: var(--ui-color-text-secondary); }
+.ge-field .ui-text-input, .ae-search .ui-text-input { width: 100%; box-sizing: border-box; }
+.ge-titlepop .ge-field { padding: 0 var(--ui-size-control-pad-x) var(--ui-size-space-md); }
+.cc-body .ui-text-input { background: var(--ui-color-surface-raised); }
+.ae-search .ui-text-input { padding-left: 34px; }
+.ae-search .ui-text-input::placeholder { color: var(--ui-color-text-secondary); }
+/* This box always holds focus while the menu is open, so a ring would only add noise. */
+.ae-search .ui-text-input:focus-visible { outline: none; }
+.ge-slider { display: block; width: 100%; height: 12px; margin: 0; accent-color: var(--ui-color-control-accent); }
+.ge-toggle { display: flex; align-items: center; justify-content: space-between; gap: var(--ui-size-space-md); font-size: var(--ui-size-font-sm); }
+.ge-toggle input { accent-color: var(--ui-color-control-accent); width: 16px; height: 16px; margin: 0; }
+.gn.bad { border: 1px solid var(--ui-color-text-warning); }
+.ge-count { color: var(--ui-color-text-muted); }
+.ge-icon { fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.ge-arrow { rotate: -90deg; }
+
+/* React Flow's credit, bottom centre of the canvas (attributionPosition="bottom-center"). */
+.ge-credit { position: absolute; z-index: 5; left: 50%; bottom: var(--ui-size-space-md); translate: -50% 0; font-size: 10px; color: var(--ui-color-text-muted); text-decoration: none; }
+.ge-credit:hover { color: var(--ui-color-text-secondary); }

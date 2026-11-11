@@ -1,0 +1,67 @@
+/**
+ * Do not edit directly, this file was auto-generated.
+ */
+
+:root {
+  --ui-color-surface-page: #0a0a0a;
+  --ui-color-surface-raised: #1a1a1a;
+  --ui-color-border-subtle: #1e1e1e;
+  --ui-color-border-default: #333333;
+  --ui-color-text-default: #ffffff;
+  --ui-color-text-emphasis: #e8e8e8;
+  --ui-color-text-secondary: #c8c8c8;
+  --ui-color-text-muted: #8c8c8c;
+  --ui-color-text-disabled: #666666;
+  --ui-color-text-on-primary: #111111;
+  --ui-color-text-link: #4d9fff;
+  --ui-color-text-link-hover: #7db8ff;
+  --ui-color-text-warning: #f0a824;
+  --ui-color-text-error: #ff6b6b;
+  --ui-color-control-bg: #333333;
+  --ui-color-control-bg-hover: #515151;
+  --ui-color-control-bg-active: #7c7c7c;
+  --ui-color-control-accent: #ffffff;
+  --ui-color-primary-bg: #dadada;
+  --ui-color-primary-bg-hover: #bebebe;
+  --ui-color-primary-bg-active: #9c9c9c;
+  --ui-color-popup-bg: #1a1a1a;
+  --ui-color-popup-bg-hover: #2a2a2a;
+  --ui-color-popup-border: #333333;
+  --ui-color-scrim-bg: rgba(0, 0, 0, 0.6);
+  --ui-shadow-popup: 0 4px 16px rgba(0, 0, 0, 0.5);
+  --ui-size-focus-ring-width: 2px;
+  --ui-size-focus-ring-offset: 2px;
+  --ui-size-radius-sm: 6px;
+  --ui-size-radius-md: 8px;
+  --ui-size-radius-pill: 20px;
+  --ui-size-font-xs: 12px;
+  --ui-size-font-sm: 13px;
+  --ui-size-font-md: 14px;
+  --ui-size-font-lg: 15px;
+  --ui-size-font-xl: 20px;
+  --ui-size-space-xs: 4px;
+  --ui-size-space-sm: 6px;
+  --ui-size-space-md: 8px;
+  --ui-size-space-lg: 10px;
+  --ui-size-space-xl: 16px;
+  --ui-size-space-2xl: 24px;
+  --ui-size-control-pad-x: 12px;
+  --ui-size-control-pad-y: 9px;
+  --ui-size-disclosure-margin-top: 12px;
+  --ui-size-callout-pad-x: 16px;
+  --ui-size-callout-pad-y: 12px;
+  --ui-size-tab-pad-x: 20px;
+  --ui-size-button-pad-x: 14px;
+  --ui-size-slider-track-width: 120px;
+  --ui-size-popup-pad: 4px;
+  --ui-size-modal-pad: 16px;
+  --ui-size-modal-width: 360px;
+  --ui-size-modal-gutter: 16px;
+  --ui-size-drawer-width: 348px;
+  --ui-size-drawer-height-min: 200px;
+  --ui-font-family-sans: Inter, system-ui, sans-serif;
+  --ui-font-weight-regular: 400;
+  --ui-font-weight-semibold: 600;
+  --ui-font-weight-bold: 700;
+  --ui-color-focus-ring: var(--ui-color-primary-bg);
+}
