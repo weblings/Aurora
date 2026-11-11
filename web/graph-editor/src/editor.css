@@ -546,8 +546,7 @@ button.editor-problem-row:hover {
 
 /* Add node menu (Aurora-daaa.24.3): cascade of groups, flat ranked list while searching. */
 .editor-add-node {
-  min-width: 32px;
-  font-weight: 600;
+  gap: var(--aurora-space-2);
 }
 
 .add-menu {
@@ -707,4 +706,55 @@ button.editor-problem-row:hover {
    (Aurora-daaa.29.2). Grille sizes the drawer from this token. */
 :root {
   --ui-size-drawer-width: clamp(280px, 40vw, 350px);
+}
+
+/* Canvas corners (Aurora-s1t7.3), as in the Grille mock: Add node top-left, the
+   View menu with the minimap stacked above it bottom-left, Dashboard controls
+   bottom-right, React Flow's credit bottom-centre. */
+.editor-count {
+  color: var(--ui-color-text-muted);
+}
+
+.react-flow__panel.editor-view-island {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--aurora-space-2);
+}
+
+/* Inside the island the map is a normal flex child, not its own corner panel. */
+.react-flow__panel.editor-view-island .react-flow__minimap {
+  position: static;
+  margin: 0;
+  width: 180px;
+  height: 120px;
+  border-radius: var(--aurora-radius-control);
+  overflow: hidden;
+}
+
+.react-flow__attribution {
+  font-size: 10px;
+}
+
+/* A side drawer covers the canvas's right edge: Dashboard controls steps left of
+   it so it can still close the drawer. */
+body:has(.ui-drawer[data-side='right']) .react-flow__panel.bottom.right {
+  margin-right: calc(var(--ui-size-drawer-width) + 15px);
+}
+
+/* Bottom dock at half height: both bottom corners, the minimap (in the left
+   island) and the credit lift above it. At full height they hide. */
+body:has(.ui-drawer[data-side='bottom']) .react-flow__panel.bottom {
+  bottom: max(var(--ui-size-drawer-height-min), 50%);
+}
+
+body:has(.ui-drawer[data-side='bottom'][data-expanded]) .react-flow__panel.bottom,
+body:has(.ui-drawer[data-side='bottom'][data-expanded]) .react-flow__attribution {
+  visibility: hidden;
+}
+
+/* React Flow offsets a centred panel by its 15px margin; the credit has none. */
+.react-flow__panel.bottom.center {
+  margin: 0 0 var(--aurora-space-2);
+  transform: translateX(-50%);
 }

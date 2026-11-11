@@ -3,7 +3,6 @@ import {
   ReactFlow,
   Background,
   BackgroundVariant,
-  MiniMap,
   Panel,
   applyEdgeChanges,
   applyNodeChanges,
@@ -603,19 +602,6 @@ export function App() {
           <img className="editor-chevron" src={titleMenuOpen ? chevronUp : chevronDown} alt="" />
         </button>
         {dirty && !compactBar ? <span className="editor-dirty">Unsaved</span> : null}
-        <button
-          ref={addMenuTrigger}
-          type="button"
-          className="ui-button editor-add-node" data-size="sm"
-          aria-label="Add node"
-          aria-haspopup="dialog"
-          aria-expanded={addMenuOpen}
-          title="Add node (Shift+A)"
-          disabled={!doc || !catalog}
-          onClick={() => setAddMenuOpen((open) => !open)}
-        >
-          +
-        </button>
         {catalog ? (
           <AddNodeMenu
             isOpen={addMenuOpen}
@@ -796,6 +782,7 @@ export function App() {
             isValidConnection={isValidConnection}
             colorMode="dark"
             fitView
+            attributionPosition="bottom-center"
             fitViewOptions={FIT_OPTIONS}
             minZoom={0.2}
             onInit={(instance) => {
@@ -806,18 +793,32 @@ export function App() {
             <Background variant={BackgroundVariant.Dots} />
             <Panel position="top-left">
               <button
+                ref={addMenuTrigger}
                 type="button"
-                className="btn btn-secondary"
+                className="ui-button editor-add-node" data-size="sm"
+                aria-label="Add node"
+                aria-haspopup="dialog"
+                aria-expanded={addMenuOpen}
+                title="Add node (Shift+A)"
+                disabled={!doc || !catalog}
+                onClick={() => setAddMenuOpen((open) => !open)}
+              >
+                <span aria-hidden="true">+</span> Add node
+              </button>
+            </Panel>
+            <Panel position="bottom-right">
+              <button
+                type="button"
+                className="ui-button" data-size="sm"
                 aria-haspopup="dialog"
                 aria-expanded={drawer === 'controls'}
                 disabled={!doc}
                 onClick={() => setDrawer((d) => (d === 'controls' ? null : 'controls'))}
               >
-                Dashboard controls ({doc ? controlsOf(doc).length : 0})
+                Dashboard controls <span className="editor-count">{doc ? controlsOf(doc).length : 0}</span>
               </button>
             </Panel>
             <ViewMenu minimap={minimap} onMinimap={setMinimap} />
-            {minimap ? <MiniMap pannable zoomable /> : null}
           </ReactFlow>
         </EditorContext.Provider>
         </ProblemsContext.Provider>

@@ -1,5 +1,5 @@
 import { useEffect, useRef, type ReactNode, type RefObject } from 'react'
-import { Popover, type PopoverPoint } from '@weblings/grille'
+import { Popover, type PopoverPoint, type PopoverProps } from '@weblings/grille'
 
 // The editor's popup layer, over Grille's Popover. Every editor menu (title,
 // view, context) goes through it, so the React Flow cases live in one place
@@ -20,6 +20,7 @@ export function EditorPopup({
   label,
   triggerRef,
   point,
+  placement,
   children,
 }: {
   isOpen: boolean
@@ -27,6 +28,7 @@ export function EditorPopup({
   label: string
   triggerRef?: RefObject<HTMLElement | null>
   point?: PopoverPoint
+  placement?: PopoverProps['placement']
   children: ReactNode
 }) {
   const close = useRef(onClose)
@@ -60,6 +62,7 @@ export function EditorPopup({
       onOpenChange={(open) => !open && onClose()}
       triggerRef={triggerRef}
       point={point}
+      placement={placement}
       isNonModal
       aria-label={label}
       onRestoreFocus={(previous) => (previous ?? triggerRef?.current)?.focus()}
