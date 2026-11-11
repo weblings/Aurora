@@ -39,6 +39,8 @@ namespace Aurora::Runtime
     m_client.clear();
     m_doc = nullptr;
     m_lastEnd = reason;
+    m_expiredSession.clear();
+    m_expiredDoc = nullptr;
   }
 
 
@@ -61,7 +63,14 @@ namespace Aurora::Runtime
     }
     if(reason){
       m_hooks.revert();
+      const bool timedOut = m_mode == LightTestMode::Once && std::string(reason) == "confirm_timeout";
+      std::string session = m_session;
+      nlohmann::json doc = std::move(m_doc);
       _endLocked(reason);
+      if(timedOut){
+        m_expiredSession = std::move(session);
+        m_expiredDoc = std::move(doc);
+      }
     }
   }
 
@@ -81,6 +90,8 @@ namespace Aurora::Runtime
     if(m_active && m_session != session){
       m_lastEnd = "replaced";
     }
+    m_expiredSession.clear();
+    m_expiredDoc = nullptr;
     m_active = true;
     m_session = session;
     m_client = client;
@@ -110,6 +121,12 @@ namespace Aurora::Runtime
     std::lock_guard<std::mutex> lock(m_mutex);
     _expireLocked();
     if(!m_active || m_session != session){
+      // Reverting after a timeout: the lights are back already, the chance
+      // to keep is given up.
+      if(!m_active && m_expiredSession == session){
+        m_expiredSession.clear();
+        m_expiredDoc = nullptr;
+      }
       return false;
     }
     error = m_hooks.revert();
@@ -135,6 +152,10 @@ namespace Aurora::Runtime
   {
     std::lock_guard<std::mutex> lock(m_mutex);
     _expireLocked();
+    if(!m_active && !m_expiredSession.empty() && m_expiredSession == session){
+      _endLocked("confirmed");
+      return true;
+    }
     if(!m_active || m_session != session){
       return false;
     }
@@ -147,6 +168,9 @@ namespace Aurora::Runtime
   {
     std::lock_guard<std::mutex> lock(m_mutex);
     _expireLocked();
+    if(!m_active && !m_expiredSession.empty() && m_expiredSession == session){
+      return m_expiredDoc;
+    }
     if(!m_active || m_session != session){
       return std::nullopt;
     }

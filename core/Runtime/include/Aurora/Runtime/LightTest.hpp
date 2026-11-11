@@ -72,10 +72,14 @@ namespace Aurora::Runtime
     bool stop(std::string& error, const char* reason = "stopped");
 
     // Disarms without reverting, for a confirm that made the graph live.
-    // False when `session` has no running test.
+    // False when `session` has neither a running test nor a Once test that
+    // just ended by confirm_timeout (Aurora-qjqy.2).
     bool confirm(const std::string& session);
 
-    // The graph under test, when `session` owns the running test.
+    // The graph under test, when `session` owns the running test, or owned the
+    // Once test that ended by confirm_timeout and nothing has happened since:
+    // an agent rarely answers inside 15 s, so its keep still lands. Any start,
+    // revert, stop or other end drops that chance.
     std::optional<nlohmann::json> testedGraph(const std::string& session);
 
     struct Info
@@ -125,6 +129,9 @@ namespace Aurora::Runtime
     std::int64_t m_lastBeat{0};
     std::uint64_t m_generation{0};
     std::string m_lastEnd;
+    // The last test, kept while it ended by confirm_timeout and nothing since.
+    std::string m_expiredSession;
+    nlohmann::json m_expiredDoc;
 
     std::thread m_watchdog;
     std::mutex m_wakeMutex;

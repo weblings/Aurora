@@ -52,7 +52,9 @@ namespace Aurora::Runtime
   //
   // POST /api/graph/test/confirm {"session", "id"}: the tested draft becomes
   // the live effect exactly like POST /api/graph/apply, and the test ends
-  // without a revert. 404 "no_test", 409 "draft_changed" when the draft is no
+  // without a revert. Also answers for a Once test that ended by
+  // confirm_timeout when nothing has happened since (no start, revert, stop or
+  // takeover): an agent rarely answers inside 15 s (Aurora-qjqy.2). 404 "no_test", 409 "draft_changed" when the draft is no
   // longer the graph under test, else apply's answers.
   //
   // GET /api/graph/test: {"active", "confirmRemainingMs", "revertAfterMs",

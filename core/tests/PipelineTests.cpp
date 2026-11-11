@@ -4777,6 +4777,51 @@ TEST_CASE("Confirm after a test persists like apply and ends the test without re
 }
 
 
+TEST_CASE("Confirm still lands after a Once test timed out, until something else happens (Aurora-qjqy.2)", "[LightTest]")
+{
+  LightTestHarness h("lt-confirm-late");
+  const nlohmann::json draft = Graph::builtInVideoGraph({"out-a"});
+  h.putDraft("editor", draft);
+
+  // Timed out, draft unchanged: confirm saves and applies it.
+  REQUIRE(h.start("editor") == 200);
+  h.advance(16000);
+  CHECK(h.test->info().lastEnd == "confirm_timeout");
+  CHECK(*h.host->graphJson() == h.live);
+  CHECK(h.post("/api/graph/test/confirm", {{"session", "other"}, {"id", "late"}}) == 404);
+  CHECK(h.post("/api/graph/test/confirm", {{"session", "editor"}, {"id", "late"}}) == 200);
+  CHECK(h.test->info().lastEnd == "confirmed");
+  CHECK(EffectStore(h.dir.path).exists("late"));
+  CHECK(h.host->summary().effect == "late");
+  // Once only: a second confirm has nothing to land.
+  CHECK(h.post("/api/graph/test/confirm", {{"session", "editor"}, {"id", "again"}}) == 404);
+
+  // A draft edited after the timeout is refused.
+  REQUIRE(h.start("editor") == 200);
+  h.advance(16000);
+  h.putDraft("editor", Graph::builtInVideoGraph({"out-b"}));
+  CHECK(h.post("/api/graph/test/confirm", {{"session", "editor"}, {"id", "edited"}}) == 409);
+  CHECK_FALSE(EffectStore(h.dir.path).exists("edited"));
+  h.putDraft("editor", draft);
+
+  // Another session's test takes over: the chance is gone.
+  h.putDraft("rival", draft);
+  REQUIRE(h.start("rival") == 200);
+  CHECK(h.post("/api/graph/test/confirm", {{"session", "editor"}, {"id", "stolen"}}) == 404);
+  CHECK_FALSE(EffectStore(h.dir.path).exists("stolen"));
+
+  // So is an explicit revert, and a lost heartbeat never offers one.
+  h.advance(16000);
+  CHECK(h.beat("rival") == 404);
+  CHECK(h.post("/api/graph/test/revert", {{"session", "rival"}}) == 404);
+  CHECK(h.post("/api/graph/test/confirm", {{"session", "rival"}, {"id", "reverted"}}) == 404);
+  REQUIRE(h.post("/api/graph/test", {{"session", "editor"}, {"mode", "live"}}) == 200);
+  h.advance(7000);
+  CHECK(h.test->info().lastEnd == "heartbeat_lost");
+  CHECK(h.post("/api/graph/test/confirm", {{"session", "editor"}, {"id", "lost"}}) == 404);
+}
+
+
 TEST_CASE("A revert restores a live custom effect from disk, not the pre-test graph (Aurora-52oz.5)", "[LightTest]")
 {
   LightTestHarness h("lt-custom-live");

@@ -533,6 +533,9 @@ namespace
     std::mutex mutex;
     std::vector<std::string> log;
     bool testing{false};
+    // A once test that ended by confirm_timeout; core still lets keep land.
+    bool timedOut{false};
+    json lastTestBody;
     int heartbeats{0};
     int heartbeatStatus{200};
     std::string active{"builtin-video"};
@@ -551,7 +554,12 @@ namespace
         }
         if(method == "POST" && path == "/api/v1/graph/test"){
           testing = true;
-          return HttpReply{200, R"({"succeeded":true,"confirmWithinMs":120000,"heartbeatMs":20,"revertAfterMs":6000})", {}};
+          timedOut = false;
+          lastTestBody = json::parse(body);
+          if(lastTestBody.value("mode", "once") == "live"){
+            return HttpReply{200, R"({"succeeded":true,"mode":"live","confirmWithinMs":null,"heartbeatMs":20,"revertAfterMs":6000})", {}};
+          }
+          return HttpReply{200, R"({"succeeded":true,"mode":"once","confirmWithinMs":15000,"heartbeatMs":20,"revertAfterMs":6000})", {}};
         }
         if(method == "POST" && path == "/api/v1/graph/test/heartbeat"){
           ++heartbeats;
@@ -563,11 +571,12 @@ namespace
           return was ? HttpReply{200, R"({"succeeded":true})", {}} : HttpReply{404, "{}", {}};
         }
         if(method == "POST" && (path == "/api/v1/graph/test/confirm" || path == "/api/v1/graph/apply")){
-          if(path.find("confirm") != std::string::npos && !testing){
+          if(path.find("confirm") != std::string::npos && !testing && !timedOut){
             return HttpReply{404, "{}", {}};
           }
           const std::string id = json::parse(body).at("id");
           testing = false;
+          timedOut = false;
           active = id;
           return HttpReply{200, json{{"succeeded", true}, {"effect", running == "fallback" ? "builtin-video" : id},
             {"requestedEffect", id}}.dump(), {}};
@@ -627,6 +636,68 @@ TEST_CASE("try_on_lights heartbeats until keep, which applies and stops the beat
   const int after = app.beats();
   std::this_thread::sleep_for(std::chrono::milliseconds(80));
   CHECK(app.beats() == after);
+}
+
+TEST_CASE("try_on_lights starts a once test by default and a live one on request")
+{
+  FakeLights app;
+  McpServer server(app.fetch(), "1.0", "t");
+
+  const json once = callTool(server, "try_on_lights")["result"];
+  CHECK(once["isError"] == false);
+  CHECK(app.lastTestBody["mode"] == "once");
+  CHECK(once["structuredContent"]["mode"] == "once");
+  CHECK(once["structuredContent"]["confirmWithinMs"] == 15000);
+
+  const json live = callTool(server, "try_on_lights", R"({"mode":"live"})")["result"];
+  CHECK(live["isError"] == false);
+  CHECK(app.lastTestBody["mode"] == "live");
+  CHECK(live["structuredContent"]["mode"] == "live");
+  CHECK(live["structuredContent"]["confirmWithinMs"].is_null());
+
+  const size_t before = app.log.size();
+  const json bad = callTool(server, "try_on_lights", R"({"mode":"forever"})")["result"];
+  CHECK(bad["isError"] == true);
+  CHECK(app.log.size() == before);
+}
+
+TEST_CASE("keep lands after a once test timed out, and is refused after a takeover or a changed draft")
+{
+  // Timed out: Aurora's heartbeat answer is 404, confirm still accepts the unchanged draft.
+  FakeLights app;
+  McpServer server(app.fetch(), "1.0", "t");
+  callTool(server, "try_on_lights");
+  REQUIRE(waitFor([&app]{ return app.beats() >= 1; }));
+  {
+    std::lock_guard<std::mutex> lock(app.mutex);
+    app.heartbeatStatus = 404;
+    app.testing = false;
+    app.timedOut = true;
+  }
+  const json kept = callTool(server, "keep", R"({"id":"late"})")["result"];
+  CHECK(kept["isError"] == false);
+  CHECK(kept["structuredContent"]["applied"] == true);
+  CHECK(app.active == "late");
+
+  // Another session took over: Aurora answers 404, keep says the test ended.
+  FakeLights taken;
+  McpServer other(taken.fetch(), "1.0", "t");
+  callTool(other, "try_on_lights");
+  {
+    std::lock_guard<std::mutex> lock(taken.mutex);
+    taken.testing = false;
+  }
+  const json refused = callTool(other, "keep", R"({"id":"late"})")["result"];
+  CHECK(refused["isError"] == true);
+  CHECK(taken.active == "builtin-video");
+
+  // The draft changed since the test: Aurora answers 409.
+  McpServer changed(scripted({
+    {"/api/v1/effects", {200, R"({"activeEffectId":"builtin-video"})", {}}},
+    {"POST /api/v1/graph/test/confirm", {409, R"({"error":"draft_changed"})", {}}}}), "1.0", "t");
+  const json stale = callTool(changed, "keep", R"({"id":"late"})")["result"];
+  CHECK(stale["isError"] == true);
+  CHECK(stale["content"][0]["text"].get<std::string>().find("changed") != std::string::npos);
 }
 
 TEST_CASE("Closing the adapter mid-test reverts the lights")
