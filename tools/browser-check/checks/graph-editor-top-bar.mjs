@@ -185,11 +185,14 @@ await withEditorStack(async ({ editorUrl }) => {
     step('Edited since the test shows in the bar and the title menu; Stop is the only way out')
 
     // The Test split button (Aurora-qjqy.3): Test at rest, the caret picks Once or Live
-    // and starts it, Stop (no countdown) is the Live label, and the last pick is the default.
+    // and starts it, Stop (no countdown) is the Live label, and the current mode is the checked item.
     await live()
     assert.equal(await page.locator('.editor-split-main').innerText(), 'Test')
     await button('Test mode').click()
-    await page.getByRole('menuitem', { name: 'Live (until stopped)' }).click()
+    // At rest the current mode is the checked item, not a ', default' suffix (Aurora-w6zq.7).
+    await page.getByRole('menuitemradio', { name: 'Once (15 s)', checked: true }).waitFor()
+    assert.equal(await page.getByRole('menuitemradio', { name: 'Live (until stopped)' }).getAttribute('aria-checked'), 'false')
+    await page.getByRole('menuitemradio', { name: 'Live (until stopped)' }).click()
     await button('Stop the test').waitFor()
     assert.equal(await button('Stop the test').innerText(), 'Stop')
     assert.equal(await button('Test mode').isDisabled(), true, 'the mode menu is shut while a test runs')
@@ -199,9 +202,9 @@ await withEditorStack(async ({ editorUrl }) => {
     await waitToast(page, 'Reverted')
     assert.equal(await page.locator('.editor-split-main').innerText(), 'Test')
     await button('Test mode').click()
-    await page.getByRole('menuitem', { name: 'Live (until stopped), default' }).waitFor()
+    await page.getByRole('menuitemradio', { name: 'Live (until stopped)', checked: true }).waitFor()
     await page.keyboard.press('Escape')
-    step('the split button: Live from the menu runs untimed under a bare Stop; the last pick is the default')
+    step('the split button: Live from the menu runs untimed under a bare Stop; the current mode is the checked item')
 
     // Rank 1: the effect cannot be opened. Banner with Retry, status says so, Test is off.
     await page.route('**/api/effects/builtin.audio', (route) => route.abort())

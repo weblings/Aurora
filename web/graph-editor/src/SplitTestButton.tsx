@@ -81,14 +81,16 @@ export function SplitTestButton({
         <Dialog aria-label="Test mode">
           <Menu
             aria-label="Test mode"
+            selectionMode="single"
+            selectedKey={mode}
             onClose={close}
             onAction={(id) => {
               close()
               onStart(id === 'live' ? 'live' : 'once')
             }}
           >
-            <MenuItem id="once">Once (15 s){mode === 'once' ? ', default' : ''}</MenuItem>
-            <MenuItem id="live">Live (until stopped){mode === 'live' ? ', default' : ''}</MenuItem>
+            <MenuItem id="once">Once (15 s)</MenuItem>
+            <MenuItem id="live">Live (until stopped)</MenuItem>
           </Menu>
         </Dialog>
       </EditorPopup>
