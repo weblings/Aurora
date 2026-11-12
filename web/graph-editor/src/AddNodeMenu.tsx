@@ -1,13 +1,14 @@
 import { useState, type RefObject } from 'react'
 import { Autocomplete, Dialog, ListBox, ListBoxItem, Menu, MenuItem, Section, SubmenuItem } from '@weblings/grille'
 import { EditorPopup } from './EditorPopup'
-import { addGroups, searchNodes, summaryOf, tipOf } from './graph/addMenu'
+import { addGroups, searchNodes, summaryOf } from './graph/addMenu'
 import type { Catalog, NodeTypeInfo } from './graph/types'
 
-// A node row: name and summary. The tip rides as the hover title.
+// A node row: name and summary. Menu rows cannot host a tooltip (React Aria needs
+// a focusable trigger), so the summary is the row's help; the tip shows on the node.
 export function Row({ info }: { info: NodeTypeInfo }) {
   return (
-    <span className="add-row" title={tipOf(info) || undefined}>
+    <span className="add-row">
       <span className="add-row-head">
         <span className="add-row-name">{info.title || info.type}</span>
       </span>

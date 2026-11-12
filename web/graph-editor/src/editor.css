@@ -805,3 +805,10 @@ body:has(.ui-drawer[data-side='bottom'][data-expanded]) .react-flow__attribution
   margin: 0 0 var(--aurora-space-2);
   transform: translateX(-50%);
 }
+
+/* Tooltip lists (Hint.tsx): several lines become a short list. */
+.hint-list { margin: 0; padding-left: 1.1em; }
+
+/* A disabled button sends no pointer events, so the group takes them and its
+   tooltip (the reason Test is off) still shows. */
+.editor-split[data-off] button { pointer-events: none; }

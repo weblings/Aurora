@@ -27,7 +27,7 @@ export function ControlsDrawer({ isOpen, onClose, top, side, doc, catalog, edit 
         {controls.map((c, i) => (
           <li key={`${c.node}.${c.param}`}>
             <div className="drawer-control-head">
-              <span title={`${c.node}.${c.param}`}>
+              <span>
                 {titleOf(c.node)} · {c.param}
               </span>
               <button type="button" className="btn btn-secondary" aria-label={`Move ${c.param} up`} disabled={i === 0} onClick={() => edit((d) => moveControl(d, i, -1))}>

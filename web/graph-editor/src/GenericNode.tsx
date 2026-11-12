@@ -1,6 +1,7 @@
 import { memo } from 'react'
 import { Icon, menuHorizontalIcon, warningIcon } from '@weblings/grille'
 import { Handle, Position, type NodeProps, type Node } from '@xyflow/react'
+import { Hint } from './Hint'
 import { useEditorActions } from './EditorContext'
 import type { AuroraNodeData } from './graph/flow'
 import { ParamWidget } from './ParamWidget'
@@ -35,13 +36,15 @@ function GenericNodeView({ id, data }: NodeProps<Node<AuroraNodeData>>) {
   }
 
   return (
-    <div className={`aurora-node${problems ? ' aurora-node-problem' : ''}`} title={info.tip || undefined}>
+    <div className={`aurora-node${problems ? ' aurora-node-problem' : ''}`}>
       <div className="aurora-node-header">
-        <strong>{info.title || data.type}</strong>
+        <Hint text={info.tip}><strong>{info.title || data.type}</strong></Hint>
         {problems ? (
-          <span className="problem-badge" title={problems.messages.join('\n')} role="img" aria-label={`${problems.messages.length} problems`}>
-            <Icon icon={warningIcon} size="sm" /> {problems.messages.length}
-          </span>
+          <Hint text={problems.messages}>
+            <span className="problem-badge" role="img" aria-label={`${problems.messages.length} problems`}>
+              <Icon icon={warningIcon} size="sm" /> {problems.messages.length}
+            </span>
+          </Hint>
         ) : null}
         <small>{id}</small>
         <button
@@ -70,20 +73,19 @@ function GenericNodeView({ id, data }: NodeProps<Node<AuroraNodeData>>) {
             <div
               className={`aurora-port${port.required && !connectedInputs.has(port.name) ? ' aurora-port-open' : ''}`}
               key={port.name}
-              title={problems?.ports.get(port.name)?.join('\n') ?? port.description}
             >
               <Handle type="target" position={Position.Left} id={port.name} {...handleLook(port.type)} />
-              {port.name}
-              <small title={portMeaning(port.type)}>{port.type}</small>
+              <Hint text={problems?.ports.get(port.name) ?? port.description}><span className="aurora-port-name">{port.name}</span></Hint>
+              <Hint text={portMeaning(port.type)}><small>{port.type}</small></Hint>
               {problems?.ports.has(port.name) ? <span className="problem-mark"><Icon icon={warningIcon} size="sm" /></span> : null}
             </div>
           ))}
         </div>
         <div className="aurora-ports-out">
           {info.outputs.map((port) => (
-            <div className="aurora-port aurora-port-out" key={port.name} title={port.description}>
-              <small title={portMeaning(port.type)}>{port.type}</small>
-              {port.name}
+            <div className="aurora-port aurora-port-out" key={port.name}>
+              <Hint text={portMeaning(port.type)}><small>{port.type}</small></Hint>
+              <Hint text={port.description}><span className="aurora-port-name">{port.name}</span></Hint>
               <Handle type="source" position={Position.Right} id={port.name} {...handleLook(port.type)} />
             </div>
           ))}

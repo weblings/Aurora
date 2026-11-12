@@ -2801,7 +2801,7 @@
  ],
  "portTypes": [
   {
-   "meaning": "One video frame (pixels), or Absent while the source is unhealthy. Every node runs every tick.",
+   "meaning": "One video frame, or Absent while the source is unhealthy.",
    "name": "Image"
   },
   {
@@ -2809,7 +2809,7 @@
    "name": "AudioBuffer"
   },
   {
-   "meaning": "All audio features extracted this tick (loudness, bands, onset and so on) as one bundle for audio.drift and audio.bounce.",
+   "meaning": "All audio features for this tick, bundled.",
    "name": "AudioFeatures"
   },
   {
@@ -2817,19 +2817,19 @@
    "name": "Color"
   },
   {
-   "meaning": "One color per light zone: what an output node sends to the lights.",
+   "meaning": "One color per light zone, sent to the lights by an output node.",
    "name": "Frame"
   },
   {
-   "meaning": "A plain number, usually 0..1. Not interchangeable with Angle: nothing converts one to the other implicitly, so use an angle.fromFloat node.",
+   "meaning": "A plain number, usually 0..1. Not an Angle.",
    "name": "Float"
   },
   {
-   "meaning": "A direction in degrees, not 0..1. Not interchangeable with Float: nothing converts one to the other implicitly, so use an angle.toFloat node.",
+   "meaning": "A direction in degrees. Not a Float.",
    "name": "Angle"
   },
   {
-   "meaning": "An event as a value: true for exactly one tick when it happens, false on every other tick. It is sent every tick, so it is not a callback or a gate.",
+   "meaning": "True for one tick when an event happens, false otherwise.",
    "name": "Trigger"
   }
  ]

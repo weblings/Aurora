@@ -8,6 +8,7 @@
     "graph-editor:add-node": "node checks/graph-editor-add-node.mjs",
     "graph-editor:add-menu": "node checks/graph-editor-add-menu.mjs",
     "graph-editor:popover-toggle": "node checks/graph-editor-popover-toggle.mjs",
+    "graph-editor:tooltips": "node checks/graph-editor-tooltips.mjs",
     "graph-editor:context-menus": "node checks/graph-editor-context-menus.mjs",
     "graph-editor:save-as-new": "node checks/graph-editor-save-as-new.mjs",
     "graph-editor:converter": "node checks/graph-editor-converter.mjs",

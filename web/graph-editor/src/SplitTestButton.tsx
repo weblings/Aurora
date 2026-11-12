@@ -1,5 +1,6 @@
 import { useRef, useState } from 'react'
 import { Dialog, Icon, Menu, MenuItem, chevronDownIcon, playIcon, stopIcon } from '@weblings/grille'
+import { Hint } from './Hint'
 import { EditorPopup } from './EditorPopup'
 import type { TestMode } from './graph/lightTest'
 
@@ -50,7 +51,9 @@ export function SplitTestButton({
   // Reconnect is not a test: it has no mode menu.
   const menuOff = off || busy || running || action === 'reconnect'
   return (
-    <span className="editor-split" ref={group} title={disabledReason ?? undefined}>
+    <Hint text={disabledReason} placement="bottom">
+    <span className="editor-split" ref={group} data-off={off || undefined}>
+      <Hint text={off ? null : main.title} placement="bottom">
       <button
         type="button"
         className="ui-button editor-split-main"
@@ -58,11 +61,11 @@ export function SplitTestButton({
         onClick={main.onPress}
         disabled={main.off}
         aria-label={main.name}
-        title={main.title}
       >
         {main.icon ? <Icon icon={main.icon} size="sm" /> : null}
         <span className="editor-split-label">{main.label}</span>
       </button>
+      </Hint>
       {action === 'reconnect' ? null : (
         <button
           type="button"
@@ -95,5 +98,6 @@ export function SplitTestButton({
         </Dialog>
       </EditorPopup>
     </span>
+    </Hint>
   )
 }

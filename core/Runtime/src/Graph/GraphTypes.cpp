@@ -20,14 +20,14 @@ namespace Aurora::Runtime::Graph
   const char* portTypeMeaning(PortType type)
   {
     switch(type){
-      case PortType::Image: return "One video frame (pixels), or Absent while the source is unhealthy. Every node runs every tick.";
+      case PortType::Image: return "One video frame, or Absent while the source is unhealthy.";
       case PortType::AudioBuffer: return "The latest block of raw audio samples.";
-      case PortType::AudioFeatures: return "All audio features extracted this tick (loudness, bands, onset and so on) as one bundle for audio.drift and audio.bounce.";
+      case PortType::AudioFeatures: return "All audio features for this tick, bundled.";
       case PortType::Color: return "One RGB color.";
-      case PortType::Frame: return "One color per light zone: what an output node sends to the lights.";
-      case PortType::Float: return "A plain number, usually 0..1. Not interchangeable with Angle: nothing converts one to the other implicitly, so use an angle.fromFloat node.";
-      case PortType::Angle: return "A direction in degrees, not 0..1. Not interchangeable with Float: nothing converts one to the other implicitly, so use an angle.toFloat node.";
-      case PortType::Trigger: return "An event as a value: true for exactly one tick when it happens, false on every other tick. It is sent every tick, so it is not a callback or a gate.";
+      case PortType::Frame: return "One color per light zone, sent to the lights by an output node.";
+      case PortType::Float: return "A plain number, usually 0..1. Not an Angle.";
+      case PortType::Angle: return "A direction in degrees. Not a Float.";
+      case PortType::Trigger: return "True for one tick when an event happens, false otherwise.";
     }
     return "?";
   }

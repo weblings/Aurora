@@ -297,14 +297,14 @@ section wins.
 `GET /api/nodes`, in `list_nodes` and `describe_node` for agents, and as the
 hover tooltip on a port's type label in the editor. Change it there and here
 together (Aurora-z6kw).
-- `Image`: One video frame (pixels), or Absent while the source is unhealthy. Every node runs every tick.
+- `Image`: One video frame, or Absent while the source is unhealthy.
 - `AudioBuffer`: The latest block of raw audio samples.
-- `AudioFeatures`: All audio features extracted this tick (loudness, bands, onset and so on) as one bundle for audio.drift and audio.bounce.
+- `AudioFeatures`: All audio features for this tick, bundled.
 - `Color`: One RGB color.
-- `Frame`: One color per light zone: what an output node sends to the lights.
-- `Float`: A plain number, usually 0..1. Not interchangeable with Angle: nothing converts one to the other implicitly, so use an angle.fromFloat node.
-- `Angle`: A direction in degrees, not 0..1. Not interchangeable with Float: nothing converts one to the other implicitly, so use an angle.toFloat node.
-- `Trigger`: An event as a value: true for exactly one tick when it happens, false on every other tick. It is sent every tick, so it is not a callback or a gate.
+- `Frame`: One color per light zone, sent to the lights by an output node.
+- `Float`: A plain number, usually 0..1. Not an Angle.
+- `Angle`: A direction in degrees. Not a Float.
+- `Trigger`: True for one tick when an event happens, false otherwise.
 - Every node runs every tick, and a value is either present or Absent for that
   tick. Wires carry values, not events: a `Trigger` is just a value that is
   true for one tick.
