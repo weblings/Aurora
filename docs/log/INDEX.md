@@ -403,4 +403,5 @@ Planning docs stay clean: decisions, status, and pointers here only.
 | 2026-11-11 | Graph editor UX notes: credit no longer covers the Dashboard controls button; controls drawer copy; View menu over the minimap; no agent text in hovers, Add rows drop socket dots. [[w6zq-ux-notes-first-fixes]] | `bd show Aurora-w6zq.1`, `bd show Aurora-w6zq.2`, `bd show Aurora-w6zq.3`, `bd show Aurora-w6zq.5` |
 | 2026-11-11 | Graph editor: Test split button shows the mode in its label, Test (15s) / Test (Live). [[w6zq4-test-button-mode-label]] | `bd show Aurora-w6zq.4` |
 | 2026-11-11 | Graph editor: Grille dev.10, popover trigger toggle and chevron flip checked. [[w6zq6-grille-dev10-popover-toggle]] | `bd show Aurora-w6zq.6` |
+| 2026-11-11 | Graph editor: Test mode menu marks the current mode with Grille's single-selection look, no default suffix. [[w6zq7-test-menu-selected-mode]] | `bd show Aurora-w6zq.7` |
 | 2026-11-11 | Graph editor: hover help moved to Grille Tooltip (Hint), no title= left. [[w6zq8-grille-tooltips]] | `bd show Aurora-w6zq.8` |
