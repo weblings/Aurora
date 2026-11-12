@@ -2,7 +2,7 @@
 
 Id: graph-editor-cleanup
 
-Status: stage 1 built (back link, Aurora component styles); stage 2 built (top bar, title and view menus, status spot, `Aurora-daaa.11`); stage 3 built (catalog `group`, node copy, cascade Add node menu, palette removed; `Aurora-daaa.24.1`-`.24.4`, Grille `v0.1.0-dev.6`); stage 4 built (right-click and ⋯ menus, Delete key, Details and Dashboard controls drawers, Inspector removed, Esc closes a drawer from anywhere; `Aurora-daaa.27.1`-`.27.5`, Grille `v0.1.0-dev.8`). Control count 9 on Screen colors and `builtin.audio`, under the mock's 11. Narrow windows built: top bar shrink (`Aurora-daaa.29.1`), drawer width and node-clear pan (`Aurora-daaa.29.2`), bottom dock (`Aurora-daaa.29.4`), 1100 px no-pan check and drawer-body container queries skipped (`Aurora-daaa.29.5`). Full graph-editor browser-check suite passes on the stage 4 head (`Aurora-daaa.30`). Stage 5 built (`Aurora-s1t7`, editor to the Grille mock: Grille buttons and 32 px bar `.1`, problems chip before Undo `.2`, canvas corners and minimap `.3`, Zones island `.4`, side-drawer fix `Aurora-daaa.35`, Grille icons `.5`, Decisions `.6`/`.7`). Light test modes built (`Aurora-qjqy`: Once (15 s) and Live in core `.1`, MCP `try_on_lights` defaults to Once `.2`, Test split button `.3`). Stage 6 (`Aurora-u68h`, banners on the Dashboard error shell) is filed: see Stages 5 and 6. Grille `v0.1.0` (`Aurora-daaa.16`, `Grille-0up`) stays the end of the whole process, after the UX refinement, outside stages 5 and 6.
+Status: stage 1 built (back link, Aurora component styles); stage 2 built (top bar, title and view menus, status spot, `Aurora-daaa.11`); stage 3 built (catalog `group`, node copy, cascade Add node menu, palette removed; `Aurora-daaa.24.1`-`.24.4`, Grille `v0.1.0-dev.6`); stage 4 built (right-click and ⋯ menus, Delete key, Details and Dashboard controls drawers, Inspector removed, Esc closes a drawer from anywhere; `Aurora-daaa.27.1`-`.27.5`, Grille `v0.1.0-dev.8`). Control count 9 on Screen colors and `builtin.audio`, under the mock's 11. Narrow windows built: top bar shrink (`Aurora-daaa.29.1`), drawer width and node-clear pan (`Aurora-daaa.29.2`), bottom dock (`Aurora-daaa.29.4`), 1100 px no-pan check and drawer-body container queries skipped (`Aurora-daaa.29.5`). Full graph-editor browser-check suite passes on the stage 4 head (`Aurora-daaa.30`). Stage 5 built (`Aurora-s1t7`, editor to the Grille mock: Grille buttons and 32 px bar `.1`, problems chip before Undo `.2`, canvas corners and minimap `.3`, Zones island `.4`, side-drawer fix `Aurora-daaa.35`, Grille icons `.5`, Decisions `.6`/`.7`). Light test modes built (`Aurora-qjqy`: Once (15 s) and Live in core `.1`, MCP `try_on_lights` defaults to Once `.2`, Test split button `.3`). Stage 6 (`Aurora-u68h`, each message in its own place) and stage 7 (`Aurora-u8jx`, problems in people's words) are filed: see Stages 5 and 6, and Decisions (owner, stage 6 scope, 2026-11-12). Grille `v0.1.0` (`Aurora-daaa.16`, `Grille-0up`) stays the end of the whole process, after the UX refinement, outside stages 5 and 6.
 Written 2026-11-06 under `Aurora-bova`. The owner reviewed the working mock and likes
 the direction. Decisions 1-7 are recorded under Decisions (2026-11-08). Stages 1-2 are
 built; stages 3-4 are still a proposal and follow those decisions.
@@ -170,6 +170,8 @@ Decided: touch stays out, but narrow desktop windows and a usable phone fallback
   Restore on return. A warning on `← Dashboard` adds safety and a little friction. The backup
   is per browser, so edits made in one browser are not offered in another.
   Recommendation: no warning, but say in the toast or title that edits are kept here.
+  *Revised 2026-11-12:* the kept copy now restores without asking, with Revert to saved
+  in the title menu; see Decisions (owner, stage 6 scope, 2026-11-12).
 
 ## Scoping concerns
 
@@ -200,6 +202,8 @@ Frames for the states above are in the mock's `Gaps` group (`Aurora-daaa.6`): `#
 
 *Rewritten 2026-11-11 (`Aurora-qjqy.3`); was: one status line in the bar. The bar has no status text now: the
 Test split button, the banner and the toast carry what the pill said.*
+
+*Stage 6 (2026-11-12) retires the banner and moves its rows elsewhere; see Decisions (owner, stage 6 scope, 2026-11-12). This table is rewritten when stage 6 closes (`Aurora-u68h.7`).*
 
 **Three places, so nothing shares a spot it cannot afford to lose.**
 
@@ -634,7 +638,8 @@ Stage 5 (`Aurora-s1t7`) brings the editor to the Grille mock
 Not a mock switch, raised at the same review: the mock shows Cannot reach Aurora as a
 banner under the bar. The editor's three under-bar banners (unreachable, Restore or
 Discard, the window-size note) move to the Dashboard's error shell in a follow-up stage 6
-(`Aurora-u68h`, `Aurora-s1t7.9`), kept out of stage 5.
+(`Aurora-u68h`, `Aurora-s1t7.9`), kept out of stage 5. *Revised 2026-11-12:* only the
+unreachable banner goes to the shell; see Decisions (owner, stage 6 scope, 2026-11-12).
 
 ## Stages 5 and 6 (filed 2026-11-11)
 
@@ -651,13 +656,28 @@ Owner decisions at the mock review (2026-11-11), beyond the four switches above:
 | `Grille-ky2` (GrilleDS) | Icon source and notices, a React `Icon`, a plain-SVG export, Drawer and Select glyphs, a dev prerelease | Starts now. `Aurora-s1t7.5` waits on its release |
 | `Aurora-s1t7` stage 5 | Grille buttons and the 32 px bar (`.1`), problems chip before Undo (`.2`), canvas corners and minimap (`.3`), Zones island with the side-drawer fix (`.4`, `Aurora-daaa.35`), icons (`.5`), close-out (`.8`) | `.1` to `.4` can start now |
 | `Aurora-qjqy` | Light test modes in core and MCP, then the Test split button | Core and MCP do not touch the editor. The editor bead (`.3`) changes the bar |
-| `Aurora-u68h` stage 6 | Editor banners on the Dashboard error shell (`Aurora-s1t7.9`) | After stage 5 |
+| `Aurora-u68h` stage 6 | Each editor message in its own place; the banner under the bar is retired (rescoped 2026-11-12, see below) | After stage 5. Its mock frame (`.1`) and `Aurora-iryq` start first |
+| `Aurora-u8jx` stage 7 | Problems in people's words: copy per issue code, Whole graph row actions, runtime error wording | After the stage 6 mock review; runs alongside stage 6 |
 
-Grille `v0.1.0` (`Aurora-daaa.16` here, `Grille-0up` in GrilleDS) is the end of the whole process, not part of stage 5 or 6: there is more UX refinement to do before either side locks.
+Grille `v0.1.0` (`Aurora-daaa.16` here, `Grille-0up` in GrilleDS) is the end of the whole process, not part of stages 5 to 7: there is more UX refinement to do before either side locks.
 
-**Problems UI in stage 6 (to explore, not decided).** The problems chip and its popover (rule 3 above) may belong in the error shell with the banners. The shell ([[error-overlay]]) already has a collapsed `N problems` summary that expands, which is a similar shape. Stage 5 still moves the chip before Undo (`Aurora-s1t7.2`), so the bar is right if stage 6 keeps it. When stage 6 starts, try the shell version in the Grille mock first: a frame with problems as shell rows beside the chip and popover, so the two can be judged side by side before the editor changes. Questions for that frame: how a node row's select-the-node action and the graph-wide row's `Add node…` action read as shell rows; how problems stack with the banners; and what the bar shows once the chip is gone (the status still reads `Preview paused` while problems exist).
+## Decisions (owner, stage 6 scope, 2026-11-12)
 
-**The toast in stage 6 (owner, 2026-11-12).** The bottom toast (`web/graph-editor/src/Toast.tsx`) is part of the same error shell design consideration, so put it in the same mock frame. It carries only successes and minor refusals the user just caused (status priority rule), while the Dashboard shell rejects toasts for errors because an error is state, not an event ([[error-overlay]], Rejected alternatives); the two do not conflict, but the look and the placement should read as one family. Questions: does it stay editor-local (the Toasts line under the Grille risks says so for now), take the shell's bordered-card look, or become a transient shell row; how it stacks with a banner under the bar and the Dashboard controls button bottom-right; and whether Grille's `ui-status-message` or `ui-callout` styling fits it (dev.10 has no Toast). Tracked on `Aurora-u68h` and `Aurora-s1t7.9`.
+Status: decided, not built. Replaces the stage 6 notes of 2026-11-11 and 2026-11-12, which asked whether the problems UI and the toast belong in the error shell.
+
+The editor's banner under the bar held five kinds of message: Aurora unreachable, a question (Restore or Discard), refused Save clicks, test outcomes the user did not cause, and advice (the window-size note). It was a catch-all, not a pattern, so stage 6 retires it and gives each kind its own home.
+
+- **The error shell carries only connection and host-state errors** (Cannot reach Aurora, Draft not sent, Lost contact, Reload: …). That matches [[error-overlay]]'s by-cause rule: the shell shows what Aurora is not doing, and refused clicks stay at their control.
+- **The problems chip stays separate from the shell.** The shell is app-level; problems belong to one document and point into the canvas. Mixing them would make one `N problems` count mean both "Aurora is down" and "an input is unwired", and make ordinary editing look like an alarm.
+- **The toast stays editor-local** and keeps its job (status priority rule). Messages the screen already shows become screen-reader announcements only, and toasts that report a loss get Undo (`Aurora-u68h.6`).
+- **No error/warning severity tiers**, in the problems popover or the shell. Today every validation issue blocks; only runtime preview errors do not, and they are rare. Tone would mean "does this block you" (as in RockyRoadImport's status tones) if tiers are ever added, for example with checks that do not block such as "nothing reaches the lights".
+- **The React shell is the one we keep.** Stage 6 builds it in the editor (`Aurora-s1t7.9`), with rows fed in from outside and `shell.css` markup. The Dashboard keeps `web/ui/shell.js` until it moves to React (`Aurora-4nqt`), then adopts the component and Grille styling. Mounting a React island in the vanilla Dashboard now was rejected: it adds a build step to `web/ui` and the demo mirror for one component.
+- **A saved effect is always runnable.** A graph with problems is never written to the effect file. Save with problems keeps the work as the kept copy and says so; Save and apply stays off with its reason.
+- **Two effect states: Saved, and Unsaved changes.** A kept copy restores silently when the effect opens, marked `Unsaved`, with Revert to saved in the title menu (as VS Code's hot exit does). The editor only asks when the saved effect changed since the copy was made. Revises Open direction 6 (Restore offered on return). Each new effect gets its own id when created. Open ▸ marks effects with unsaved changes.
+- **Graph problems get user-facing copy** keyed by issue code; the server's messages stay as they are for agents and MCP. This follows Open direction 3 (two texts).
+- **Room for editor tabs** (`Aurora-yrhp`, not committed): unique ids, one kept copy per effect, and one `openEffect(id, where)` route keep tabs possible later. The draft, preview and light test are per browser tab today, so tabs would need a rule for the inactive ones.
+
+Outside the stages: kept copies stored in Aurora instead of the browser (`Aurora-n0jm`), and two browser tabs on one effect overwriting each other's copy (`Aurora-ofzv`).
 
 ## Known follow-ups (filed under `Aurora-daaa`)
 
