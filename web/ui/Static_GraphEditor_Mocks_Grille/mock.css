@@ -502,3 +502,31 @@ body.board-on .ge, body.board-on .ge-toast { display: none; }
 .s6-modal-body { margin: 0; font-size: var(--ui-size-font-sm); color: var(--ui-color-text-secondary); }
 .s6-modal-actions { display: flex; justify-content: flex-end; gap: var(--ui-size-space-md); }
 .s6-focus { outline: 2px solid var(--ui-color-focus-ring, #5b9dff); outline-offset: 2px; }
+
+/* Stage 6 proposal, live frames (#s6-apply, #s6-menu): Save and apply stays enabled and opens the problems popover. */
+.ge-item:focus-visible { outline: none; background: var(--ui-color-popup-bg-hover); }
+.s6-titlemenu .ge-item-main .s6-dot { margin-left: var(--ui-size-space-xs); }
+.s6-probhead { padding: var(--ui-size-space-md) var(--ui-size-control-pad-x) var(--ui-size-space-lg); border-bottom: 1px solid var(--ui-color-border-subtle); color: var(--ui-color-text-secondary); font-size: 12px; line-height: 1.4; }
+.s6-probhead b { display: block; color: var(--ui-color-text-default); font-size: 13px; font-weight: 600; }
+.ge-prob:focus-visible { outline: none; background: var(--ui-color-popup-bg-hover); }
+/* Ping (owner, 2026-11-12): a refused Save and apply gives the chip the problem node's border (.gn.bad) and pulses it twice,
+   alone (one ping, one target). Reduced motion keeps the border for the same time without the pulse. */
+.ge-problems.s6-ping { animation: s6-ping var(--s6-pulse, 0.95s) ease-out 2; }
+.ge-problems.s6-ping { box-shadow: inset 0 0 0 1px var(--ui-color-text-warning); }
+@keyframes s6-ping {
+  0% { box-shadow: inset 0 0 0 1px var(--ui-color-text-warning), 0 0 0 0 color-mix(in srgb, var(--ui-color-text-warning) 60%, transparent); }
+  100% { box-shadow: inset 0 0 0 1px var(--ui-color-text-warning), 0 0 0 8px transparent; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ge-problems.s6-ping { animation: s6-hold calc(var(--s6-pulse, 0.95s) * 2) step-end 1; }
+  @keyframes s6-hold { 0%, 99% { box-shadow: inset 0 0 0 1px var(--ui-color-text-warning); } }
+}
+/* Refused-save callout (owner, 2026-11-12): Grille's tooltip on the chip's left, with the problem node's warning border
+   and a pointer to the chip. */
+.ui-tooltip.s6-refused { position: fixed; z-index: 35; white-space: nowrap; max-width: none; border-color: var(--ui-color-text-warning); }
+.ui-tooltip.s6-refused::before {
+  content: ''; position: absolute; right: -5px; top: 50%; width: 8px; height: 8px; translate: 0 -50%; rotate: 45deg;
+  background: var(--ui-color-popup-bg); border-right: 1px solid var(--ui-color-text-warning); border-top: 1px solid var(--ui-color-text-warning);
+}
+/* Focus moved to the chip after a mouse or touch choice: no ring, as React Aria would not set data-focus-visible. */
+.ui-button.s6-quiet:focus-visible { outline: none; }

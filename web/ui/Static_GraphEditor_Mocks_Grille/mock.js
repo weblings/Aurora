@@ -94,7 +94,7 @@ const warnIcon = () => el('span', { class: 'ge-warn', 'aria-hidden': 'true', htm
 function btn(label, { variant, size = 'sm', icon: isIcon, ...attrs } = {}) {
   return el('button', { type: 'button', class: 'ui-button', 'data-variant': variant, 'data-size': size === 'md' ? undefined : size, 'data-icon': isIcon, ...attrs }, label)
 }
-const opts = { backBoxed: true, testPrimary: false, split: false, zonesPlain: false }
+const opts = { backBoxed: true, testPrimary: false, split: false, zonesPlain: false, refused: 'tip' }
 // Variant (Aurora-daaa.32): testMode is what the Test button runs next; testLeft counts a Once test down.
 const test = { mode: 'once', left: 12, timer: null }
 const stopTimer = () => { clearInterval(test.timer); test.timer = null }
@@ -248,8 +248,9 @@ function drawBar() {
   fill(bar, [
     btn([vsicon(VS.back, 32, 'ge-vs-back'), 'Dashboard'], { class: `ui-button${ghost}`, 'data-act': 'back' }),
     el('span', { class: 'ge-sep' }),
-    btn(['Screen colors', chevron('cc-chev')], { class: `ui-button ge-title${ghost}`, 'data-act': 'title', 'aria-haspopup': 'dialog' }),
-    state.unsaved ? el('span', { class: 'ge-unsaved' }, 'Unsaved') : null,
+    // Stage 6 frames: the unsaved mark is the Open ▸ dot, next to the name inside the title button, instead of the word.
+    btn(['Screen colors', state.s6 && state.unsaved ? [el('i', { class: 's6-dot', 'aria-hidden': 'true' }), el('span', { class: 'ui-visually-hidden' }, ', unsaved changes')] : null, chevron('cc-chev')], { class: `ui-button ge-title${ghost}`, 'data-act': 'title', 'aria-haspopup': 'dialog' }),
+    state.unsaved && !state.s6 ? el('span', { class: 'ge-unsaved' }, 'Unsaved') : null,
     el('span', { class: 'ge-spacer' }),
     state.changed ? el('span', { class: 'ge-unsaved' }, 'Edited since the test') : null,
     problems,
@@ -377,7 +378,9 @@ function menu(items, x, y, { sub = false } = {}) {
         flyout = menu(item.sub(), r.right + 2, r.top - 5, { sub: true })
       },
     },
-      el('span', { class: 'ge-item-main' }, item.checked === undefined ? null : el('span', { class: 'tick' }, item.checked ? '✓' : ''), item.label),
+      el('span', { class: 'ge-item-main' }, item.checked === undefined ? null : el('span', { class: 'tick' }, item.checked ? '✓' : ''), item.label,
+        // Stage 6 (Aurora-u68h.4): an effect with a kept copy. The dot is the only visible mark; the reason is screen-reader text.
+        item.dot ? [el('i', { class: 's6-dot', 'aria-hidden': 'true' }), el('span', { class: 'ui-visually-hidden' }, ', unsaved changes')] : null),
       item.sub ? chevron('ge-arrow cc-chev') : item.key ? el('kbd', {}, item.key) : null)
     pop.append(row)
   }
@@ -481,14 +484,104 @@ function openView() {
   pop.style.top = `${top - pop.offsetHeight - 6}px`
 }
 
-function openProblems() {
+// `forAction` (stage 6 proposal): Save and apply or Save as new was chosen with problems, so the popover leads with why
+// nothing was written and takes focus, so a keyboard or screen-reader user lands on the list.
+function openProblems({ forAction = null } = {}) {
+  const forApply = Boolean(forAction)
   closePopups()
   const r = document.querySelector('.ge-problems').getBoundingClientRect()
+  const n = state.wholeGraph ? 3 : 2
   const row = (title, text) => el('button', { type: 'button', class: 'ge-prob', onclick: () => { closePopups(); state.selected = 'zones_hue'; drawNodes() } }, el('b', {}, title), text)
-  place(el('div', { class: 'ge-pop ge-probpop', role: 'dialog', 'aria-label': 'Problems' },
+  const pop = place(el('div', { class: 'ge-pop ge-probpop', role: 'dialog', 'aria-label': forApply ? undefined : 'Problems', 'aria-labelledby': forApply ? 'prob-why' : undefined },
+    forApply ? el('div', { class: 's6-probhead' }, el('b', { id: 'prob-why' }, `Fix ${n} problems to ${forAction}`), 'Nothing was saved. Your changes are kept in this browser.') : null,
     state.wholeGraph ? el('div', { class: 'ge-prob whole' }, el('b', {}, 'Whole graph'), 'Nothing sends to the lights yet. Add an Output node and connect a Frame to it.', el('span', { class: 'ge-prob-act' }, btn('Add node…', { 'data-act': 'add' }))) : null,
     row('Sample zones', 'The image input is not connected.'),
     row('Sample zones', 'Choose an output for this node.')), r.left, r.bottom + 6)
+  if (forApply) pop.querySelector('.ge-prob:not(.whole)')?.focus()
+}
+
+// A write refused for problems (owner, 2026-11-12): one ping, on the problems chip only, with the popover left closed. The
+// message comes first, a beat, then the ping, so the ping reads as the answer to it. Default: the message is a callout on
+// the chip's left (the toast was too far from the chip). Focus moves to the chip so Enter opens the list. The Decisions
+// switch cycles tooltip / toast / ping only.
+const PING_BEAT_MS = 1450
+const REFUSED_TIP_MS = 4200
+// Input modality, as React Aria's useFocusVisible tracks it: the ring shows on a moved focus only after keyboard use.
+let keyboardMode = false
+document.addEventListener('keydown', (e) => { if (!e.metaKey && !e.ctrlKey && !e.altKey) keyboardMode = true }, true)
+document.addEventListener('pointerdown', () => { keyboardMode = false }, true)
+let pingTimer
+function blockedWrite() {
+  const n = state.wholeGraph ? 3 : 2
+  const chip = document.querySelector('.ge-problems')
+  chip?.focus()
+  if (chip && !keyboardMode) {
+    chip.classList.add('s6-quiet')
+    chip.addEventListener('blur', () => chip.classList.remove('s6-quiet'), { once: true })
+  }
+  clearTimeout(pingTimer)
+  const ping = () => {
+    if (!chip) return
+    chip.classList.remove('s6-ping')
+    // Two pulses that end as the callout closes.
+    chip.style.setProperty('--s6-pulse', `${(REFUSED_TIP_MS - PING_BEAT_MS) / 2}ms`)
+    void chip.offsetWidth
+    chip.classList.add('s6-ping')
+    chip.addEventListener('animationend', () => chip.classList.remove('s6-ping'), { once: true })
+  }
+  const text = `Couldn't save. Fix ${n} problems first.`
+  if (opts.refused === 'none') { ping(); return }
+  if (opts.refused === 'toast') toast(text)
+  else refusedTip(chip, text)
+  pingTimer = setTimeout(ping, PING_BEAT_MS)
+}
+
+// The message as a callout on the chip's left, tooltip-sized, with the problem node's warning border. It closes by itself
+// with the toast's timing, or with any click or Escape (closePopups). role=status so a screen reader hears it.
+let tipTimer
+function refusedTip(chip, text) {
+  layer.querySelector('.s6-refused')?.remove()
+  if (!chip) return
+  const r = chip.getBoundingClientRect()
+  const tip = el('div', { class: 'ui-tooltip s6-refused', role: 'status' }, text)
+  layer.append(tip)
+  tip.style.left = `${r.left - 10 - tip.offsetWidth}px`
+  tip.style.top = `${r.top + r.height / 2 - tip.offsetHeight / 2}px`
+  clearTimeout(tipTimer)
+  tipTimer = setTimeout(() => tip.remove(), REFUSED_TIP_MS)
+}
+
+// Stage 6 proposal (owner, 2026-11-12): the title menu as the editor has it (TitleMenu.tsx after Aurora-iryq), with Save and
+// apply always enabled. With problems it opens the problems popover instead of being a disabled row with a reason under it:
+// React Aria's Menu skips disabled items on arrow keys, so a disabled row's reason never reaches a keyboard user.
+function openTitleS6({ focus = null } = {}) {
+  closePopups()
+  const anchor = document.querySelector('.ge-title').getBoundingClientRect()
+  const n = state.wholeGraph ? 3 : 2
+  const effects = () => [
+    { head: 'Not saved yet' }, { label: 'Slow rainbow', dot: true, run: () => toast('Opens Slow rainbow') }, { label: 'New effect', dot: true, run: () => toast('Opens New effect') },
+    { head: 'Custom' }, { label: 'Sunset', dot: true, run: () => toast('Opens Sunset') }, { label: 'Candle corner', run: () => toast('Opens Candle corner') }, { label: 'Warm desk lamp', dot: true, run: () => toast('Opens Warm desk lamp') },
+    { head: 'Built-in' }, { label: 'Music pulse', run: () => toast('Opens Music pulse') }, { label: 'Candle', run: () => toast('Opens Candle') },
+  ]
+  const starts = () => [{ head: 'Start from' }, ...['Empty', 'Screen colors', 'Music pulse', 'Candle'].map((label) => ({ label, run: () => toast(`New effect from ${label}`) }))]
+  const pop = menu([
+    { label: 'Save', key: 'Ctrl+S', run: () => {
+      if (state.problems) { toast(`Changes kept in this browser. Fix ${n} problems to save them to Screen colors.`); return }
+      state.unsaved = false; drawBar(); toast('Saved as Screen colors')
+    } },
+    { label: 'Save as new', run: () => { if (state.problems) blockedWrite(); else { state.unsaved = false; drawBar(); toast('Saved as Screen colors copy') } } },
+    { label: 'Save and apply', run: () => {
+      if (state.problems) { blockedWrite(); return }
+      state.unsaved = false; drawBar(); toast('Saved and live as Screen colors')
+    } },
+    { label: 'Rename', run: () => toast('Opens the Rename dialog') },
+    '-',
+    { label: 'New', sub: starts },
+    { label: 'Open', sub: effects },
+  ], anchor.left, anchor.bottom + 6)
+  pop.classList.add('s6-titlemenu')
+  const rows = [...pop.querySelectorAll('.ge-item')]
+  ;(rows.find((r) => r.textContent.startsWith(focus ?? 'Save')) ?? rows[0]).focus()
 }
 
 function drawer(title, sub, body) {
@@ -877,20 +970,20 @@ const mi = (label, { desc, dot, disabled, check, sub, focused } = {}) => s6('div
 const group = (name, ...items) => s6('div', 'ui-menu-section', s6('div', 'ui-menu-section-header', name), ...items)
 
 function openSection() {
+  // Proposal (2026-11-12, replaces the description-line version): no visible second line anywhere in the menu. Save and
+  // apply is enabled and opens the problems popover when there are problems (live frame #s6-apply). Open marks a kept copy
+  // with a dot only; its screen-reader description says "unsaved changes". No problem count in Open.
   const main = s6('div', 'ui-popover s6-static s6-mainmenu', s6('div', 'ui-menu',
-    mi('Save'), mi('Save as new'), mi('Save and apply', { disabled: true, desc: 'Fix 2 problems first' }), mi('Rename'),
+    mi('Save'), mi('Save as new'), mi('Save and apply'), mi('Rename'),
     s6('div', 'ui-menu-separator'), mi('New', { sub: true }), mi('Open', { sub: true, focused: true })))
   const open = s6('div', 'ui-popover s6-static s6-openmenu', { 'data-submenu': '' }, s6('div', 'ui-menu',
-    group('Not saved yet', mi('Slow rainbow', { dot: true, desc: 'Unsaved changes' }), mi('New effect', { dot: true, desc: 'Unsaved changes, 2 problems' })),
-    group('Custom', mi('Sunset', { dot: true, desc: 'Unsaved changes' }), mi('Candle corner'), mi('Warm desk lamp', { dot: true, desc: 'Unsaved changes, 1 problem' })),
+    group('Not saved yet', mi('Slow rainbow', { dot: true }), mi('New effect', { dot: true })),
+    group('Custom', mi('Sunset', { dot: true }), mi('Candle corner'), mi('Warm desk lamp', { dot: true })),
     group('Built-in', mi('Screen colors', { check: false }), mi('Music pulse'), mi('Candle'))))
-  const mark = s6('span', 's6-pending', 'Visible description line: pending Grille-cou. Dev.11 hides it, so this frame draws it in mock CSS.')
-  const noDesc = s6('div', 'ui-popover s6-static s6-mainmenu', s6('div', 'ui-menu', mi('Save'), mi('Save and apply', { disabled: true }), s6('div', 's6-menu-note', 'Today: disabled with no reason shown.')))
   return s6section('s6-open', 'Aurora-u68h.4 (6d), Aurora-u68h.2 (6b)', 'Title menu and Open submenu',
-    'Open groups effects: Not saved yet (new effects only kept in this browser), Custom, Built-in. Group headings stay at the top while the list scrolls. An effect with a kept copy has a dot and a description line under its name. Save and apply says why it is off in the same place.',
-    s6('div', 's6-menus', s6panel('Title menu, Open focused', main), s6panel('Open submenu', open), s6panel('Before, for size', noDesc)),
-    mark,
-    s6note('Drafted: the group names are as built in f11999b6 (Not saved yet is new), "Unsaved changes", "Unsaved changes, N problems" and "Fix N problems first" come from the beads. The names Slow rainbow, Sunset, Candle corner, Warm desk lamp and New effect are sample data. The dot is neutral here; it could turn amber when there are problems, say so if you want that.'))
+    'Open groups effects: Not saved yet (new effects only kept in this browser), Custom, Built-in. Group headings stay at the top while the list scrolls. An effect with a kept copy has a dot; screen readers hear "unsaved changes". Save and apply is never disabled for problems: chosen with problems, it opens the problems popover (try #s6-apply).',
+    s6('div', 's6-menus', s6panel('Title menu, Open focused', main), s6panel('Open submenu', open)),
+    s6note('Changed from the first version of this frame: no "Fix N problems first" line and no "Unsaved changes, N problems" lines. Problems show only in the chip and its popover. Sample names are placeholders. The dot is neutral.'))
 }
 
 // ---- 6b: changed-saved-effect prompt ---------------------------------------------------------------------------
@@ -941,7 +1034,9 @@ const FRAMES = [
     ['offline', 'Cannot reach Aurora', () => { state.status = { text: 'Aurora unreachable', strong: true }; state.banner = { blocking: true, text: 'Cannot reach Aurora.', detail: 'Retrying every few seconds. Edits stay in this browser.', actions: [['Retry now', 'retry']] }; drawBar(); drawBanner() }],
     ['wholegraph', 'Graph-wide problem', () => { state.problems = true; state.wholeGraph = true; drawBar(); drawIslands(); openProblems() }],
   ]],
-  ['Stage 6', [['s6', 'All four', () => drawBoard('all')], ['s6-shell', 'Shell rows', () => drawBoard('shell')], ['s6-test', 'Test mark', () => drawBoard('test')], ['s6-open', 'Open menu', () => drawBoard('open')], ['s6-prompt', 'Newer saved version', () => drawBoard('prompt')]]],
+  ['Stage 6', [['s6', 'All four', () => drawBoard('all')], ['s6-shell', 'Shell rows', () => drawBoard('shell')], ['s6-test', 'Test mark', () => drawBoard('test')], ['s6-open', 'Open menu', () => drawBoard('open')], ['s6-prompt', 'Newer saved version', () => drawBoard('prompt')],
+    ['s6-apply', 'Save and apply, problems', () => { Object.assign(state, { s6: true, problems: true, unsaved: true }); drawBar(); drawIslands(); drawNodes(); openTitleS6({ focus: 'Save and apply' }) }],
+    ['s6-menu', 'Title menu, no problems', () => { Object.assign(state, { s6: true, unsaved: true }); drawBar(); openTitleS6() }]]],
   ['States', [['testing', 'Testing', () => { state.unsaved = true; startTest('once', 12, false) }], ['testing-live', 'Testing live', () => { state.unsaved = true; startTest('live') }], ['problems', 'Problems', () => { state.problems = true; drawBar(); drawIslands(); drawNodes(); openProblems() }], ['refused', 'Refused wire', () => toast('Those ports do not match: an Image cannot connect to a Frame')], ['refused-float', 'Refused: Float to Angle', () => toast('A Float cannot connect to an Angle. Add a Float to Angle node between them.')], ['autoinsert', 'Auto-insert converter', autoInsert]]],
 ]
 
@@ -953,6 +1048,8 @@ function drawFrames(current) {
     toggle('Test on lights primary', opts.testPrimary, 'testPrimary'),
     toggle('Test split button + Zones island', opts.split, 'split'),
     toggle('Zones island: no resize', opts.zonesPlain, 'zonesPlain'),
+    el('a', { href: '#', role: 'button', class: 'on', onclick: (e) => { e.preventDefault(); e.stopPropagation(); const modes = ['tip', 'toast', 'none']; opts.refused = modes[(modes.indexOf(opts.refused) + 1) % modes.length]; showFrame() } },
+      `Refused save: ${{ tip: 'tooltip, then ping', toast: 'toast, then ping', none: 'ping only' }[opts.refused]}`),
     el('b', {}, 'Narrow (new window)'),
     ...[['Dock 400x800', 400, 800], ['Side 700x900', 700, 900], ['Side 1000x600', 1000, 600]].map(([label, w, h]) => el('a', { href: '#controls', onclick: (e) => { e.preventDefault(); open(`${location.pathname}${location.search}#controls`, '_blank', `popup,width=${w},height=${h}`) } }, label)))
 }
@@ -961,18 +1058,19 @@ function showFrame() {
   const id = location.hash.slice(1) || 'rest'
   closePopups()
   stopTimer()
+  $('toast').hidden = true
   Object.assign(test, { mode: 'once', left: 12 })
-  Object.assign(state, { minimap: false, zonesLarge: false, testing: false, problems: false, unsaved: false, selected: null, wire: null, banner: null, status: null, other: false, changed: false, wholeGraph: false })
+  Object.assign(state, { minimap: false, zonesLarge: false, testing: false, problems: false, unsaved: false, selected: null, wire: null, banner: null, status: null, other: false, changed: false, wholeGraph: false, s6: false })
   layoutGraph(); state.edges = GRAPH.edges.map(([from, to]) => ({ from, to }))
   drawNodes(); drawBar(); drawBanner(); drawIslands(); fit(); drawFrames(id)
-  const board = id === 's6' || id.startsWith('s6-')
+  const board = ['s6', 's6-shell', 's6-test', 's6-open', 's6-prompt'].includes(id)
   document.body.classList.toggle('board-on', board)
   $('board').hidden = !board
   FRAMES.flatMap(([, frames]) => frames).find(([key]) => key === id)?.[2]()
 }
 
 const ACTS = {
-  add: () => openAdd('browser'), controls: () => openControls(0), view: openView, title: openTitle, problems: openProblems,
+  add: () => openAdd('browser'), controls: () => openControls(0), view: openView, title: () => (state.s6 ? openTitleS6() : openTitle()), problems: () => openProblems(),
   back: () => toast('Goes to the Dashboard. Unsaved edits stay in the browser backup.'),
   'toast-undo': () => toast('Undo'),
   test: () => { if (opts.split) startTest(test.mode); else { state.testing = true; drawBar() } },
@@ -1010,6 +1108,27 @@ document.addEventListener('contextmenu', (e) => {
 
 document.addEventListener('keydown', (e) => {
   if (e.key === 'Escape') { closePopups(); return }
+  // Arrow keys move through a menu's enabled rows, as React Aria's Menu does (it skips disabled ones).
+  const inMenu = e.target.closest?.('.ge-menu')
+  if (inMenu && (e.key === 'ArrowDown' || e.key === 'ArrowUp')) {
+    e.preventDefault()
+    const rows = [...inMenu.querySelectorAll('.ge-item:not(:disabled)')]
+    const at = rows.indexOf(e.target)
+    rows[(at + (e.key === 'ArrowDown' ? 1 : -1) + rows.length) % rows.length]?.focus()
+    return
+  }
+  if (inMenu && e.key === 'ArrowRight' && e.target.querySelector('.ge-arrow')) {
+    e.preventDefault()
+    e.target.dispatchEvent(new MouseEvent('mouseenter'))
+    layer.querySelector('.ge-menu[data-sub] .ge-item')?.focus()
+    return
+  }
+  if (inMenu && e.key === 'ArrowLeft' && inMenu.hasAttribute('data-sub')) {
+    e.preventDefault()
+    const parent = layer.querySelector('.ge-menu:not([data-sub]) .ge-item.open')
+    inMenu.remove(); parent?.classList.remove('open'); parent?.focus()
+    return
+  }
   if (e.target.matches('input')) return
   if (e.key.toLowerCase() === 'a') { e.preventDefault(); openAdd('browser') }
   if (e.key.toLowerCase() === 'f') fit()
