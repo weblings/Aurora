@@ -409,3 +409,4 @@ Planning docs stay clean: decisions, status, and pointers here only.
 | 2026-11-12 | Graph editor stage 6 rescoped (each message in its own place, banner retired) and stage 7 filed (problems in people's words). [[u68h-stage6-7-rescope]] | `bd show Aurora-u68h`, `bd show Aurora-u8jx` |
 | 2026-11-12 | Graph editor title menu: New and Open submenus, Grille dev.11, Rename without ellipsis. [[iryq-title-menu-new-open]] | `bd show Aurora-iryq` |
 | 2026-11-12 | Graph editor: Draft would not load is a Whole graph problem, DesktopNote dropped. [[u68h5-draft-load-problem]] | `bd show Aurora-u68h.5` |
+| 2026-11-12 | devstack stops opening a browser tab on Mac (stub `open` on the app PATH); Linux and Windows filed. [[my6z-devstack-no-browser-tab]] | `bd show Aurora-my6z`, `bd show Aurora-5m0p`, `bd show Aurora-q5eb` |

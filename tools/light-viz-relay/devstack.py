@@ -20,6 +20,7 @@ REPO = Path(__file__).resolve().parents[2]
 WIN = sys.platform == "win32"
 STATE = Path(tempfile.gettempdir()) / "aurora-devstack"
 STATE_FILE = STATE / "state.json"
+STUBS = STATE / "stubs"
 SSE = "http://127.0.0.1:18245/events"
 CONNECTION = {
     "bridgeAddress": "127.0.0.1:18443",
@@ -39,6 +40,23 @@ LIVE_INPUT = {"win32": "windows", "darwin": "mac"}.get(sys.platform, "linux")
 
 def py():
     return ["py"] if WIN and shutil.which("py") else [sys.executable]
+
+
+def no_browser_env(env):
+    """Copy of env whose PATH starts with a no-op `open` (Mac only).
+
+    The app opens the WebUI in the default browser on a first setup, which
+    `up` triggers via --fresh; every automated run stole focus. The app calls
+    `open` through sh, so a stub first on PATH silences it. Only the app gets
+    this env, so the bridge, relay and viz are unaffected. Aurora-my6z.
+    """
+    if sys.platform != "darwin":
+        return env
+    STUBS.mkdir(parents=True, exist_ok=True)
+    stub = STUBS / "open"
+    stub.write_text("#!/bin/sh\nexit 0\n")
+    stub.chmod(0o755)
+    return dict(env, PATH=f"{STUBS}{os.pathsep}{env.get('PATH', '')}")
 
 
 def spawn(name, cmd, env=None, cwd=None):
@@ -150,7 +168,7 @@ def _start(args, app, env, pids):
     STATE_FILE.write_text(json.dumps(pids))
     wait_for(lambda: port_open(18443) and port_open(18245), "bridge + relay")
     pids["viz"] = spawn("viz", py() + [str(Path(__file__).resolve()), "_serve", str(args.viz_port)], env)
-    aenv = dict(env, AURORA_DEV_LIGHT_TAP="1")
+    aenv = no_browser_env(dict(env, AURORA_DEV_LIGHT_TAP="1"))
     if args.banner_errors:
         # Presence-only, same convention as AURORA_DEV_LIGHT_TAP: enables
         # the dev-only /api/dev/errors routes in the app.
@@ -203,7 +221,7 @@ def restart(args):
     env = dict(os.environ, AURORA_DEV_LIGHT_TAP="1", AURORA_CONFIG_DIR=str(root))
     if WIN:
         env["PATH"] += r";C:\Program Files\Git\usr\bin"
-    pids["app"] = spawn("app", [str(app), "--fake-hue"], env)
+    pids["app"] = spawn("app", [str(app), "--fake-hue"], no_browser_env(env))
     STATE_FILE.write_text(json.dumps(pids))
     port = wait_for(find_webui, "the restarted app's WebUI port", 60)
     if before and port != before:
@@ -228,6 +246,7 @@ def down(_):
     if WIN:  # the app may have re-exec'd; belt and braces
         subprocess.run(["taskkill", "/F", "/IM", "Aurora.exe"], capture_output=True)
     STATE_FILE.unlink(missing_ok=True)
+    shutil.rmtree(STUBS, ignore_errors=True)
     print("down:", ", ".join(pids) or "nothing recorded")
 
 

@@ -24,7 +24,7 @@ Aurora's own module boundaries instead of RockyRoad's. `rendering-apis.md` vs.
 | [macos-gui.md](macos-gui.md) | AppKit, tray/status-item, run-loop pumping, ObjC++ interop | 32 | macOS GUI/AppKit specific |
 | [debugging-method.md](debugging-method.md) | evidence, verification, oracles, timing | 92 | debugging/verification method |
 | [architecture-process.md](architecture-process.md) | splits, duplication, reload, presence | 83 | architecture or process decision |
-| [web-testing.md](web-testing.md) | jsdom, live tests, routes, settings | 18 | web testing specific |
+| [web-testing.md](web-testing.md) | jsdom, live tests, routes, settings | 19 | web testing specific |
 | [language-cpp.md](language-cpp.md) | namespace, threads, C-portability | 26 | C++ language gotcha |
 | [input.md](input.md) | capture/grabber/platform-adapter | 59 | capture/grabber specific |
 | [processing.md](processing.md) | color/effect transform, zone-mapping | 14 | color/effect/zone-mapping specific |
