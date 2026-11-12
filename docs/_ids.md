@@ -340,6 +340,7 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `tjoq-audio-grant-live` | [log/2026-10-06-tjoq-audio-grant-live.md](log/2026-10-06-tjoq-audio-grant-live.md) | Aurora-tjoq: audio permission block copy vs. live grant |
 | `u5k0-x11-decimate-on-copy` | [log/2026-10-20-u5k0-x11-decimate-on-copy.md](log/2026-10-20-u5k0-x11-decimate-on-copy.md) | Aurora-u5k0: X11 decimate-on-copy (neutral on CPU, kept) |
 | `u68h-stage6-7-rescope` | [log/2026-11-12-u68h-stage6-7-rescope.md](log/2026-11-12-u68h-stage6-7-rescope.md) | Graph editor stage 6 rescoped, stage 7 filed |
+| `u68h5-draft-load-problem` | [log/2026-11-12-u68h5-draft-load-problem.md](log/2026-11-12-u68h5-draft-load-problem.md) | Draft would not load is a Whole graph problem; DesktopNote dropped |
 | `upstream-findings` | [planning/UpstreamFindings.md](planning/UpstreamFindings.md) | Findings worth upstreaming to huenicorn |
 | `v1-core-refactor` | [log/2026-10-26-v1-core-refactor.md](log/2026-10-26-v1-core-refactor.md) | 5ipy.39: core refactor for v1 (Aurora-5ipy.39) |
 | `v1-freeze` | [log/2026-10-26-v1-freeze.md](log/2026-10-26-v1-freeze.md) | Aurora-5ipy.9: /api/v1 frozen at 1.0.0 (plan B6) |

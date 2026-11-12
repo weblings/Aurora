@@ -83,11 +83,10 @@ const at = (rank: StatusRank, where: Status['where'], label: string, detail: str
 export function pickStatus({ openError, loop, test, writeTrouble, testOutcomeCleared }: StatusInput): Status {
   // Rank 1: the banner says it; the button is disabled with this as its tooltip.
   if (openError || loop.stream === 'unreachable') return at(1, 'button', 'Cannot reach Aurora', openError ?? 'Retrying.')
-  // Ranks 3 and 6 persist and need a look: the banner.
+  // Ranks 3 (Draft not sent) and 6 persist and need a look: the banner.
   if (loop.putError) return at(3, 'banner', 'Draft not sent', loop.putError)
-  // A draft with problems is also refused by the server; the problems (the chip)
-  // already explain that, so the reload error only shows for a valid draft.
-  if (loop.reloadError && loop.valid !== false) return at(3, 'banner', 'Draft would not load', loop.reloadError)
+  // Draft would not load is a problem with the graph: it is a Whole graph row in
+  // the problems popover (graph/problems.ts draftIssues), not a banner.
   // Rank 4 and 5 are the button's own labels.
   if (loop.stream === 'replaced') return at(4, 'button', 'Reconnect', 'Another view of this session opened the preview.', 'reconnect')
   const use = lightsInUse(test)

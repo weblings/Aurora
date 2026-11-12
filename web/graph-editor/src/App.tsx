@@ -27,7 +27,6 @@ import { ProblemsChip } from './ProblemsChip'
 import { Toast, useToast } from './Toast'
 import { NameDialog } from './NameDialog'
 import { Icon, addIcon, arrowLeftIcon, chevronDownIcon, redoIcon, undoIcon } from '@weblings/grille'
-import { DesktopNote } from './DesktopNote'
 import { COMPACT_BAR, DOCK_BOTTOM, TIGHT_BAR, useMedia } from './useMedia'
 import { TitleMenu, type TitleMenuAction } from './TitleMenu'
 import { FIT_OPTIONS, ViewMenu } from './ViewMenu'
@@ -45,7 +44,7 @@ import { initialTest, type TestMode } from './graph/lightTest'
 import { BLANK_ID, blankDoc, forWrite, freshEffectId, setTitle, titleOf } from './graph/save'
 import { portStyle } from './graph/portStyle'
 import { NODE_KIND, carryViewState, edgeId, toFlowEdges, toFlowNodes, type AuroraNodeData } from './graph/flow'
-import { groupProblems, sameProblems, type Problems } from './graph/problems'
+import { draftIssues, groupProblems, sameProblems, type Problems } from './graph/problems'
 import type { Catalog, EffectListEntry, GraphDoc, ParamValue } from './graph/types'
 
 const nodeTypes = { [NODE_KIND]: GenericNode }
@@ -224,11 +223,11 @@ export function App() {
   // event that repeats the same runtime error does not re-render every node.
   const lastProblems = useRef<Problems | null>(null)
   const problems = useMemo(() => {
-    const next = groupProblems(loop.state.valid === false ? loop.state.issues : [], loop.state.runtime, new Set(doc?.nodes.map((n) => n.id)))
+    const next = groupProblems(draftIssues(loop.state), loop.state.runtime, new Set(doc?.nodes.map((n) => n.id)))
     if (lastProblems.current && sameProblems(lastProblems.current, next)) return lastProblems.current
     lastProblems.current = next
     return next
-  }, [loop.state.valid, loop.state.issues, loop.state.runtime, doc])
+  }, [loop.state.valid, loop.state.issues, loop.state.reloadError, loop.state.runtime, doc])
 
   // A test outcome shows until the next test, Save or edit.
   const [clearedTest, setClearedTest] = useState<{ ended: unknown; failure: string | null } | null>(null)
@@ -697,7 +696,6 @@ export function App() {
           onReconnect={loop.reconnect}
         />
       </header>
-      <DesktopNote />
       {banner?.kind === 'unreachable' ? (
         <div className="editor-banner" role="alert">
           <span>{banner.message}</span>

@@ -7,7 +7,7 @@
 //   checked elsewhere:  rank 3 too_many_drafts (gate), rank 4 Reconnect (gate),
 //                       rank 5/6 test outcomes (graph-editor edit loop), problems
 //                       chip and Preview paused (gate), draft would not load
-//                       (gate), Saved toast (edit loop)
+//                       as a Whole graph row (gate), Saved toast (edit loop)
 //   unit tests:         every rank and the priority order (graph/status.test.ts)
 //   manual:             `Whole graph` row in the problems popover, rank 6
 //                       `Reload:` after a Save, the Wire refused toast

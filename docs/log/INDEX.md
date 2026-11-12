@@ -408,3 +408,4 @@ Planning docs stay clean: decisions, status, and pointers here only.
 | 2026-11-11 | Graph editor UX notes epic closed: all 8 children done, browser checks pass on Grille dev.10. [[w6zq-ux-notes-first-fixes]] | `bd show Aurora-w6zq` |
 | 2026-11-12 | Graph editor stage 6 rescoped (each message in its own place, banner retired) and stage 7 filed (problems in people's words). [[u68h-stage6-7-rescope]] | `bd show Aurora-u68h`, `bd show Aurora-u8jx` |
 | 2026-11-12 | Graph editor title menu: New and Open submenus, Grille dev.11, Rename without ellipsis. [[iryq-title-menu-new-open]] | `bd show Aurora-iryq` |
+| 2026-11-12 | Graph editor: Draft would not load is a Whole graph problem, DesktopNote dropped. [[u68h5-draft-load-problem]] | `bd show Aurora-u68h.5` |

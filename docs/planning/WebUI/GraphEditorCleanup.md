@@ -576,8 +576,8 @@ Decided:
   link always stay. Below about 650 px, Undo and Redo become icon buttons and `Unsaved`
   becomes a mark on the title. Below about 520 px, the back link shows only its arrow and
   Undo and Redo move into a More (`⋯`) menu on `EditorPopup`. At the floor, Test on lights
-  reads `Test`, keeping the full name as its tooltip and accessible name. Below 600 px a
-  dismissible line says the editor is built for a desktop window. A finer pass on what each
+  reads `Test`, keeping the full name as its tooltip and accessible name. (The below-600 px
+  desktop-window line was dropped, `Aurora-u68h.5`.) A finer pass on what each
   menu holds is expected later.
 - **The side drawer narrows, the canvas keeps the node in view.** Width is
   `clamp(280px, 40vw, 350px)`, set by overriding Grille's `--ui-size-drawer-width`

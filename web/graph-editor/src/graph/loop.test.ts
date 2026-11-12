@@ -1,10 +1,29 @@
 import { describe, expect, it } from 'vitest'
 import { activeZones, parseFrame, parseZoneRegions } from './frame'
 import { initialLoop, loopReducer, reopenDelay, summarize, type LoopEvent, type LoopState } from './loop'
-import { groupProblems, sameProblems, unattributed, type ServerIssue } from './problems'
+import { problemCount } from '../ProblemsChip'
+import { draftIssues, groupProblems, sameProblems, unattributed, type ServerIssue } from './problems'
 
 const run = (events: LoopEvent[], from: LoopState = initialLoop) => events.reduce(loopReducer, from)
 const ids = new Set(['gain', 'send'])
+
+describe('draftIssues', () => {
+  it('a valid draft the server cannot build is one Whole graph problem with the server text, and counts', () => {
+    const state = run([{ type: 'put', valid: true, issues: [] }, { type: 'draft-invalid', message: 'needs input "audio"' }])
+    const p = groupProblems(draftIssues(state), [], ids)
+    expect(p.graph).toEqual(['needs input "audio"'])
+    expect(problemCount(p)).toBe(1)
+  })
+  it('the next valid put clears it', () => {
+    const state = run([{ type: 'draft-invalid', message: 'x' }, { type: 'put', valid: true, issues: [] }])
+    expect(draftIssues(state)).toEqual([])
+  })
+  it('with problems the issues explain the refusal, so the reload text is not added', () => {
+    const issues = [{ node: 'gain', message: 'm' }]
+    const state = { ...run([{ type: 'put', valid: false, issues }]), reloadError: 'bad' }
+    expect(draftIssues(state)).toEqual(issues)
+  })
+})
 
 describe('groupProblems', () => {
   it('badges the node, and the port or param an issue names', () => {

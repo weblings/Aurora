@@ -238,6 +238,13 @@ await withEditorStack(async ({ editorUrl, restart }) => {
     const audio = (await api('GET', '/api/effects/builtin.audio')).json.graph
     assert.equal((await api('PUT', `/api/graph/drafts/${mine}`, { graph: audio })).status, 200)
     await waitStatus(/would not load/)
+    // Aurora-u68h.5: it is a Whole graph problem in the chip's popover, not a banner.
+    await page.locator('.editor-problems-chip', { hasText: /1 problem/ }).click()
+    const wholeRow = page.locator('.editor-problem-list li', { hasText: 'Whole graph' })
+    await wholeRow.waitFor()
+    assert.ok((await wholeRow.innerText()).replace(/\s+/g, ' ').length > 'Whole graph Add node…'.length, 'Whole graph row has no server text')
+    assert.equal(await page.locator('.editor-banner').count(), 0, 'Draft would not load still shows a banner')
+    await page.keyboard.press('Escape')
     await button('Redo').click()
     await waitStatus(/Live/)
     step('a draft needing an unopened input shows draft would not load, and the next edit recovers')

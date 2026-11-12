@@ -16,11 +16,15 @@ describe('status priority', () => {
     expect(pickStatus(all)).toMatchObject({ rank: 1, where: 'button', label: 'Cannot reach Aurora', detail: "Cannot open 'x'" })
     expect(pickStatus(withLoop({ stream: 'unreachable' })).rank).toBe(1)
   })
-  it('rank 3: draft not sent, draft would not load', () => {
+  it('rank 3: draft not sent is a banner', () => {
     expect(pickStatus(withLoop({ putError: 'too_many_drafts' }))).toMatchObject({ rank: 3, where: 'banner', label: 'Draft not sent', detail: 'too_many_drafts' })
-    expect(pickStatus(withLoop({ reloadError: 'bad' }))).toMatchObject({ rank: 3, label: 'Draft would not load' })
   })
-  it('a reload error alongside problems reads Preview paused, not Draft would not load', () => {
+  it('draft would not load is a Whole graph problem, not a banner', () => {
+    const loop = { reloadError: 'bad' }
+    expect(pickStatus(withLoop(loop))).toMatchObject({ rank: 7, where: 'none' })
+    expect(pickBanner(null, false, pickStatus(withLoop(loop)))).toBeNull()
+  })
+  it('a reload error alongside problems reads Preview paused', () => {
     expect(pickStatus(withLoop({ valid: false, reloadError: 'bad', issues: [{ node: null, message: 'm' }] }))).toMatchObject({ rank: 7, label: 'Preview paused' })
   })
   it('rank 4: preview taken over carries Reconnect', () => {
