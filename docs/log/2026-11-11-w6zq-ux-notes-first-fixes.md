@@ -18,6 +18,10 @@ Id: w6zq-ux-notes-first-fixes
 - `.5`: vitest 132/132, `tsc --noEmit` clean; `graph-editor:add-menu` browser check passes with new assertions (no `.add-sockets`, no `purpose`/`useWhen` text in any `[title]`).
 - Not run: the browser checks against `.2`, and none of them match the old strings.
 
+## Epic close
+
+- Epic `Aurora-w6zq` closed: all 8 children done (`.4` [[w6zq4-test-button-mode-label]], `.6` [[w6zq6-grille-dev10-popover-toggle]], `.7` [[w6zq7-test-menu-selected-mode]], `.8` [[w6zq8-grille-tooltips]]); all 20 `graph-editor:*` browser checks pass on Grille `0.1.0-dev.10`.
+
 ## Lessons
 
 - none

@@ -405,3 +405,4 @@ Planning docs stay clean: decisions, status, and pointers here only.
 | 2026-11-11 | Graph editor: Grille dev.10, popover trigger toggle and chevron flip checked. [[w6zq6-grille-dev10-popover-toggle]] | `bd show Aurora-w6zq.6` |
 | 2026-11-11 | Graph editor: Test mode menu marks the current mode with Grille's single-selection look, no default suffix. [[w6zq7-test-menu-selected-mode]] | `bd show Aurora-w6zq.7` |
 | 2026-11-11 | Graph editor: hover help moved to Grille Tooltip (Hint), no title= left. [[w6zq8-grille-tooltips]] | `bd show Aurora-w6zq.8` |
+| 2026-11-11 | Graph editor UX notes epic closed: all 8 children done, browser checks pass on Grille dev.10. [[w6zq-ux-notes-first-fixes]] | `bd show Aurora-w6zq` |
