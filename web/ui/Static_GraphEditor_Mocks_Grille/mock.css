@@ -506,8 +506,6 @@ body.board-on .ge, body.board-on .ge-toast { display: none; }
 /* Stage 6 proposal, live frames (#s6-apply, #s6-menu): Save and apply stays enabled and opens the problems popover. */
 .ge-item:focus-visible { outline: none; background: var(--ui-color-popup-bg-hover); }
 .s6-titlemenu .ge-item-main .s6-dot { margin-left: var(--ui-size-space-xs); }
-.s6-probhead { padding: var(--ui-size-space-md) var(--ui-size-control-pad-x) var(--ui-size-space-lg); border-bottom: 1px solid var(--ui-color-border-subtle); color: var(--ui-color-text-secondary); font-size: 12px; line-height: 1.4; }
-.s6-probhead b { display: block; color: var(--ui-color-text-default); font-size: 13px; font-weight: 600; }
 .ge-prob:focus-visible { outline: none; background: var(--ui-color-popup-bg-hover); }
 /* Ping (owner, 2026-11-12): a refused Save and apply gives the chip the problem node's border (.gn.bad) and pulses it twice,
    alone (one ping, one target). Reduced motion keeps the border for the same time without the pulse. */
@@ -530,3 +528,6 @@ body.board-on .ge, body.board-on .ge-toast { display: none; }
 }
 /* Focus moved to the chip after a mouse or touch choice: no ring, as React Aria would not set data-focus-visible. */
 .ui-button.s6-quiet:focus-visible { outline: none; }
+/* Open path: titles cut off at 30ch like the editor's .editor-menu-title; the tooltip shows only when one is cut off. */
+.ge-item .s6-trunc { display: block; max-width: 30ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ui-tooltip.s6-tip { position: fixed; z-index: 35; }
