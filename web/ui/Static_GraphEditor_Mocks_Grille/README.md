@@ -1,6 +1,6 @@
 # Graph editor mock on Grille
 
-Copy of `../Static_GraphEditor_Mocks` (`Aurora-bova`) built on Grille `0.1.0-dev.9` for `Aurora-daaa.31`,
+Copy of `../Static_GraphEditor_Mocks` (`Aurora-bova`) built on Grille `0.1.0-dev.11` (grille/ refreshed from node_modules, Aurora-u68h.1) for `Aurora-daaa.31`,
 so the layout can be judged with real Grille styling before the editor changes. The original mock is untouched.
 Open `index.html` directly. Frames work as in the original (`#rest`, `#problems`, `#testing`, `#changed`, `#reconnect`, ...).
 
@@ -47,3 +47,7 @@ Tried here before the editor builds them (`Aurora-d0hv`, `Aurora-jsjj`, `Aurora-
 - **Converters**: `angle.fromFloat` and `angle.toFloat` (param `scale`, default 360) are mock-only entries pushed onto the catalog in `mock.js`; `catalog.js` is not edited. They sit in the **Numbers** group next to `angle.add`: they are pure number-to-number maths like the rest of that group, while Motion holds nodes that keep state over time. Drop the mock-only entries when `gen.py` is next run after `Aurora-jsjj` lands.
 - **Refused wire**: the existing Image to Frame frame is unchanged; a new **Refused: Float to Angle** frame names the converter in its toast.
 - **Auto-insert** (**Auto-insert converter** frame): a Float wire dropped on an Angle input leaves `angle.fromFloat` as a visible node (outlined as new), wired on both sides and placed between the two nodes, clear of both. Undo would treat the drop as one step: the node and both wires go together and the original Float wire is not needed back, since it was never made.
+
+## Stage 6 board (`Aurora-u68h.1`)
+
+Frames **Stage 6** in the strip (`#s6` all four, `#s6-shell`, `#s6-test`, `#s6-open`, `#s6-prompt`): a static board, not the editor, showing where each editor message lives once the banner under the bar is retired. Shell rows (6a, shell.css look), the Test button outcome mark (6c), the title menu with Open groups, dots and description lines (6d), and the changed-saved-effect Modal in two wordings (6b). Open menu description lines are drawn in mock CSS: Grille dev.11 hides MenuItem descriptions (visible line pending Grille-cou). Owner review recorded on the bead.
