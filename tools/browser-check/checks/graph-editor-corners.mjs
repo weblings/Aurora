@@ -51,7 +51,7 @@ await withEditorStack(async ({ editorUrl }) => {
       await shot(`${tag}-rest`)
       step(`${tag}: corners at rest`)
 
-      // Minimap on: stacked directly above the zoom button; the menu opens above it.
+      // Minimap on: stacked directly above the zoom button; the menu opens over it (Aurora-w6zq.3).
       await page.getByRole('button', { name: 'View menu' }).click()
       await page.getByRole('menuitem', { name: 'Show minimap', exact: true }).click()
       await page.locator('.react-flow__minimap').waitFor()
@@ -60,11 +60,11 @@ await withEditorStack(async ({ editorUrl }) => {
       assert.ok(m.bottom <= v2.top && v2.top - m.bottom < 16, `${tag}: minimap ${m.bottom} directly above zoom button ${v2.top}`)
       assert.ok(Math.abs(m.left - v2.left) < 2, `${tag}: minimap left-aligned with the zoom button`)
       await page.getByRole('button', { name: 'View menu' }).click()
-      const menu = await rect('.ui-popover [role=menu]')
-      assert.ok(menu.bottom <= m.top + 1, `${tag}: View menu bottom ${menu.bottom} above the minimap top ${m.top}`)
+      const menu = await rect('.ui-popover:has([role=menu])')
+      assert.ok(menu.top <= m.top + 1 && menu.bottom >= m.bottom - 1 && Math.abs(menu.left - m.left) < 2, `${tag}: View menu ${JSON.stringify(menu)} covers the minimap ${JSON.stringify(m)}`)
       await shot(`${tag}-minimap`)
       await page.keyboard.press('Escape')
-      step(`${tag}: minimap above zoom, View menu above the minimap`)
+      step(`${tag}: minimap above zoom, View menu over the minimap`)
 
       // Drawer open.
       await controlsButton(page).click()
@@ -78,7 +78,19 @@ await withEditorStack(async ({ editorUrl }) => {
       if (side === 'right') {
         assert.ok(d3.right <= dr.left, `${tag}: Dashboard controls ${d3.right} left of the drawer ${dr.left}`)
         assert.ok(v3.left < mid, `${tag}: zoom stays bottom-left`)
-        step(`${tag}: side drawer, Dashboard controls steps left of it`)
+        // Aurora-w6zq.1: where the button and the credit overlap, the button is what a click hits.
+        const hit = await page.evaluate(() => {
+          const b = document.querySelector('.react-flow__panel.bottom.right button').getBoundingClientRect()
+          const k = document.querySelector('.react-flow__attribution').getBoundingClientRect()
+          const ox = [Math.max(b.left, k.left), Math.min(b.right, k.right)]
+          const oy = [Math.max(b.top, k.top), Math.min(b.bottom, k.bottom)]
+          const overlaps = ox[0] < ox[1] && oy[0] < oy[1]
+          const pts = overlaps ? [[(ox[0] + ox[1]) / 2, (oy[0] + oy[1]) / 2]] : []
+          pts.push([(b.left + b.right) / 2, (b.top + b.bottom) / 2])
+          return { overlaps, ok: pts.every(([x, y]) => document.elementFromPoint(x, y)?.closest('.react-flow__panel.bottom.right button')) }
+        })
+        assert.ok(hit.ok, `${tag}: Dashboard controls is under another element (overlaps the credit: ${hit.overlaps})`)
+        step(`${tag}: side drawer, Dashboard controls steps left of it${hit.overlaps ? ' and draws over the credit' : ''}`)
       } else {
         for (const [name, r] of [['Dashboard controls', d3], ['View menu', v3], ['minimap', m3]]) assert.ok(r.bottom <= dr.top + 1, `${tag}: ${name} bottom ${r.bottom} above the dock ${dr.top}`)
         const kc = await credit()

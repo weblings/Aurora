@@ -335,5 +335,13 @@ describe('Dashboard marks and drawers (Aurora-daaa.27.3)', () => {
     const list = renderToStaticMarkup(<ControlsDrawer isOpen onClose={() => {}} top={0} side="right" doc={doc} catalog={catalog} edit={() => {}} />)
     expect(list).toContain('Dashboard controls (1)')
     expect(list).toContain('Remove gain from the Dashboard')
+    expect(list).toContain('Shown in this order.')
+    expect(list).not.toContain('None yet.')
+    const empty = renderToStaticMarkup(
+      <ControlsDrawer isOpen onClose={() => {}} top={0} side="right" doc={{ ...doc, controls: [] }} catalog={catalog} edit={() => {}} />,
+    )
+    expect(empty).toContain('Dashboard controls')
+    expect(empty).not.toContain('Dashboard controls (')
+    expect(empty).toContain('None yet.')
   })
 })

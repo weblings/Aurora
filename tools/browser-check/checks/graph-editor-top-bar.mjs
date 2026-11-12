@@ -107,6 +107,18 @@ await withEditorStack(async ({ editorUrl }) => {
     await view.click()
     await page.getByRole('menuitem', { name: 'Show minimap', exact: true }).click()
     await page.locator('.react-flow__minimap').waitFor()
+    // Aurora-w6zq.3: the open menu covers the minimap and shares its left edge and width.
+    await view.click()
+    const popup = page.locator('.ui-popover').filter({ has: page.getByRole('menu') })
+    await popup.waitFor()
+    await page.waitForTimeout(150)
+    const mm = await page.locator('.react-flow__minimap').boundingBox()
+    const pb = await popup.boundingBox()
+    assert.ok(Math.abs(pb.x - mm.x) <= 1, `menu left ${pb.x} vs minimap ${mm.x}`)
+    assert.ok(Math.abs(pb.width - mm.width) <= 1, `menu width ${pb.width} vs minimap ${mm.width}`)
+    assert.ok(pb.y <= mm.y + 1 && pb.y + pb.height >= mm.y + mm.height - 1, `menu covers the minimap: menu ${pb.y}+${pb.height}, map ${mm.y}+${mm.height}`)
+    await page.screenshot({ path: process.env.VIEW_SHOT ?? '/tmp/view-menu.png' })
+    await page.keyboard.press('Escape')
     await view.click()
     await page.getByRole('menuitem', { name: 'Hide minimap', exact: true }).click()
     await page.locator('.react-flow__minimap').waitFor({ state: 'detached' })
@@ -173,11 +185,14 @@ await withEditorStack(async ({ editorUrl }) => {
     step('Edited since the test shows in the bar and the title menu; Stop is the only way out')
 
     // The Test split button (Aurora-qjqy.3): Test at rest, the caret picks Once or Live
-    // and starts it, Stop (no countdown) is the Live label, and the last pick is the default.
+    // and starts it, Stop (no countdown) is the Live label, and the current mode is the checked item.
     await live()
-    assert.equal(await page.locator('.editor-split-main').innerText(), 'Test')
+    assert.equal(await page.locator('.editor-split-main').innerText(), 'Test (15s)')
     await button('Test mode').click()
-    await page.getByRole('menuitem', { name: 'Live (until stopped)' }).click()
+    // At rest the current mode is the checked item, not a ', default' suffix (Aurora-w6zq.7).
+    await page.getByRole('menuitemradio', { name: 'Once (15 s)', checked: true }).waitFor()
+    assert.equal(await page.getByRole('menuitemradio', { name: 'Live (until stopped)' }).getAttribute('aria-checked'), 'false')
+    await page.getByRole('menuitemradio', { name: 'Live (until stopped)' }).click()
     await button('Stop the test').waitFor()
     assert.equal(await button('Stop the test').innerText(), 'Stop')
     assert.equal(await button('Test mode').isDisabled(), true, 'the mode menu is shut while a test runs')
@@ -185,11 +200,11 @@ await withEditorStack(async ({ editorUrl }) => {
     assert.equal(await button('Stop the test').innerText(), 'Stop', 'Live has no countdown')
     await button('Stop the test').click()
     await waitToast(page, 'Reverted')
-    assert.equal(await page.locator('.editor-split-main').innerText(), 'Test')
+    assert.equal(await page.locator('.editor-split-main').innerText(), 'Test (Live)')
     await button('Test mode').click()
-    await page.getByRole('menuitem', { name: 'Live (until stopped), default' }).waitFor()
+    await page.getByRole('menuitemradio', { name: 'Live (until stopped)', checked: true }).waitFor()
     await page.keyboard.press('Escape')
-    step('the split button: Live from the menu runs untimed under a bare Stop; the last pick is the default')
+    step('the split button: Live from the menu runs untimed under a bare Stop; the current mode is the checked item')
 
     // Rank 1: the effect cannot be opened. Banner with Retry, status says so, Test is off.
     await page.route('**/api/effects/builtin.audio', (route) => route.abort())
@@ -199,7 +214,9 @@ await withEditorStack(async ({ editorUrl }) => {
     assert.match(await alert.innerText(), /Cannot open 'builtin.audio'/)
     assert.equal(await status().getAttribute('data-preview'), 'Cannot reach Aurora')
     assert.equal(await button('Test on lights').isDisabled(), true)
-    assert.equal(await page.locator('.editor-split').getAttribute('title'), 'Cannot reach Aurora')
+    await page.mouse.move(700, 400)
+    await page.locator('.editor-split').hover({ force: true })
+    assert.equal(await page.locator('.ui-tooltip').first().innerText(), 'Cannot reach Aurora')
     await page.unroute('**/api/effects/builtin.audio')
     await alert.getByRole('button', { name: 'Retry' }).click()
     await page.waitForSelector('.aurora-node')

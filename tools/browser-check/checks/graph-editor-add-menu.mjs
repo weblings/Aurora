@@ -57,6 +57,17 @@ await withEditorStack(async ({ editorUrl }) => {
     const headings = await dialog.locator('.ui-section-header').allInnerTexts()
     assert.equal(headings[0], 'Name matches')
     const rows = await dialog.getByRole('option').allInnerTexts()
+    // Aurora-w6zq.5: rows are name + summary only (no In/Out dots), and no hover
+    // carries agent text (purpose / useWhen).
+    assert.equal(await dialog.locator('.add-sockets').count(), 0, 'Add node rows have no socket dots')
+    const agentText = await page.evaluate(async () => {
+      const nodes = await (await fetch('/api/nodes')).json()
+      return (Array.isArray(nodes) ? nodes : nodes.nodes).flatMap((n) => [n.purpose, n.useWhen]).filter(Boolean)
+    })
+    const titles = await page.locator('[title]').evaluateAll((els) => els.map((e) => e.getAttribute('title')))
+    for (const t of agentText) assert.ok(!titles.includes(t), `agent text in a title: ${t}`)
+    step('Add node rows show name and summary only; no agent text in titles')
+
     const first = rows[0].toLowerCase()
     assert.ok(first.includes('gain'), `first row is a name match: ${first}`)
     if (headings.length > 1) assert.equal(headings[1], 'Description matches')

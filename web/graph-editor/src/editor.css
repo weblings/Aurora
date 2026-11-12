@@ -618,25 +618,6 @@ button.editor-problem-row:hover {
   white-space: normal;
 }
 
-.add-sockets {
-  display: inline-flex;
-  align-items: center;
-  gap: 3px;
-  font-size: 11px;
-  color: var(--ui-color-text-secondary, #aaa);
-}
-
-.add-sockets-side {
-  margin-right: 1px;
-}
-
-.add-socket {
-  width: 8px;
-  height: 8px;
-  background: var(--port-color);
-  border-radius: 50%;
-}
-
 /* The node's menu button: faded until hover or selection, but always rendered and
    never aria-hidden, so VoiceOver finds it (kep27-voiceover-tree-check). */
 .aurora-node-more {
@@ -752,17 +733,32 @@ button.editor-problem-row:hover {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  gap: var(--aurora-space-2);
+  /* The popover's default 8px offset from its trigger: the open View menu's
+     bottom edge then lands on the minimap's (Aurora-w6zq.3). */
+  gap: 8px;
 }
 
 /* Inside the island the map is a normal flex child, not its own corner panel. */
 .react-flow__panel.editor-view-island .react-flow__minimap {
   position: static;
   margin: 0;
-  width: 180px;
+  box-sizing: border-box;
+  width: var(--editor-view-width);
   height: 120px;
-  border-radius: var(--aurora-radius-control);
+  border: 1px solid var(--ui-color-popup-border);
+  border-radius: var(--ui-size-radius-sm);
   overflow: hidden;
+}
+
+/* The View menu opens over the minimap as one surface: same left edge and outer
+   width (on :root: the popover portals out of the island). Popover width = box + its padding and 1px border either side. */
+:root {
+  --editor-view-width: 180px;
+}
+
+.editor-view-popup {
+  box-sizing: border-box;
+  width: calc(var(--editor-view-width) - 2px - 2 * var(--ui-size-popup-pad));
 }
 
 .react-flow__attribution {
@@ -773,6 +769,13 @@ button.editor-problem-row:hover {
    it so it can still close the drawer. */
 body:has(.ui-drawer[data-side='right']) .react-flow__panel.bottom.right {
   margin-right: calc(var(--ui-size-drawer-width) + 15px);
+}
+
+/* At the narrowest width that step lands on the bottom-centre credit. Both are
+   z-index 5 panels and the credit is later in the DOM, so it would draw over the
+   button; the button's panel sits one above (Aurora-w6zq.1). */
+.react-flow__panel.bottom.right {
+  z-index: 6;
 }
 
 /* The Zones island (top-right of the canvas) steps left of a side drawer by the
@@ -802,3 +805,10 @@ body:has(.ui-drawer[data-side='bottom'][data-expanded]) .react-flow__attribution
   margin: 0 0 var(--aurora-space-2);
   transform: translateX(-50%);
 }
+
+/* Tooltip lists (Hint.tsx): several lines become a short list. */
+.hint-list { margin: 0; padding-left: 1.1em; }
+
+/* A disabled button sends no pointer events, so the group takes them and its
+   tooltip (the reason Test is off) still shows. */
+.editor-split[data-off] button { pointer-events: none; }

@@ -1,30 +1,16 @@
 import { useState, type RefObject } from 'react'
 import { Autocomplete, Dialog, ListBox, ListBoxItem, Menu, MenuItem, Section, SubmenuItem } from '@weblings/grille'
 import { EditorPopup } from './EditorPopup'
-import { addGroups, searchNodes, summaryOf, tipOf } from './graph/addMenu'
-import { portMeaning, portStyle } from './graph/portStyle'
-import type { Catalog, NodeTypeInfo, PortInfo } from './graph/types'
+import { addGroups, searchNodes, summaryOf } from './graph/addMenu'
+import type { Catalog, NodeTypeInfo } from './graph/types'
 
-function Sockets({ ports, side }: { ports: PortInfo[]; side: 'in' | 'out' }) {
-  if (ports.length === 0) return null
-  return (
-    <span className="add-sockets" data-side={side} title={ports.map((p) => `${p.name}: ${p.type}${portMeaning(p.type) ? ` (${portMeaning(p.type)})` : ''}`).join('\n')}>
-      <span className="add-sockets-side">{side === 'in' ? 'In' : 'Out'}</span>
-      {ports.map((p) => (
-        <span key={p.name} className="add-socket" style={{ ['--port-color' as string]: portStyle(p.type).color }} />
-      ))}
-    </span>
-  )
-}
-
-// A node row: name, sockets, summary. The tip rides as the hover title.
+// A node row: name and summary. Menu rows cannot host a tooltip (React Aria needs
+// a focusable trigger), so the summary is the row's help; the tip shows on the node.
 export function Row({ info }: { info: NodeTypeInfo }) {
   return (
-    <span className="add-row" title={tipOf(info) || undefined}>
+    <span className="add-row">
       <span className="add-row-head">
         <span className="add-row-name">{info.title || info.type}</span>
-        <Sockets ports={info.inputs} side="in" />
-        <Sockets ports={info.outputs} side="out" />
       </span>
       <span className="add-row-summary">{summaryOf(info)}</span>
     </span>

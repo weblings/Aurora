@@ -62,7 +62,7 @@ export function DetailsDrawer({ isOpen, onClose, top, side, doc, catalog, select
                 const control = at >= 0 ? controls[at] : undefined
                 return (
                   <div key={param.name}>
-                    <label className="drawer-check" title={param.description}>
+                    <label className="drawer-check">
                       <input
                         type="checkbox"
                         checked={at >= 0}

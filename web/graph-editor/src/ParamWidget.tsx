@@ -1,3 +1,4 @@
+import { Hint } from './Hint'
 import type { CSSProperties } from 'react'
 import { Icon, minusIcon, warningIcon } from '@weblings/grille'
 import type { GradientStop, ParamInfo, ParamValue } from './graph/types'
@@ -24,7 +25,6 @@ export function ParamWidget({ info, value, onChange, onCommit, problems }: Props
   return (
     <div
       className={`param nodrag nowheel${problems ? ' param-problem' : ''}`}
-      title={info.description}
       onPointerUp={onCommit}
       // A typed value is one gesture until the box loses focus; a slider
       // moved by arrow keys has no pointer-up, so key-up ends its step.
@@ -35,10 +35,12 @@ export function ParamWidget({ info, value, onChange, onCommit, problems }: Props
       }}
       onBlur={onCommit}
     >
-      <span className="param-label">
-        {label}
-        {info.unit ? <small> {info.unit}</small> : null}
-      </span>
+      <Hint text={info.description}>
+        <span className="param-label">
+          {label}
+          {info.unit ? <small> {info.unit}</small> : null}
+        </span>
+      </Hint>
       {renderInput(info, current, onChange, () => onCommit())}
       {problems?.map((m) => (
         <span className="problem-text" key={m}>

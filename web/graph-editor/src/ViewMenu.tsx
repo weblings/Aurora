@@ -1,10 +1,12 @@
 import { useRef, useState } from 'react'
 import { MiniMap, Panel, useReactFlow, useStore } from '@xyflow/react'
-import { Dialog, Icon, Menu, MenuItem, chevronDownIcon, chevronUpIcon } from '@weblings/grille'
+import { Dialog, Icon, Menu, MenuItem, chevronDownIcon } from '@weblings/grille'
 import { EditorPopup } from './EditorPopup'
 
 // Zoom, fit and the minimap, in one menu in place of React Flow's controls.
 // Rendered inside <ReactFlow>, so it can reach the view.
+// The menu anchors to the View button and opens upward over the minimap, which
+// shares its left edge, width, border and radius (Aurora-w6zq.3).
 // Fit view never zooms out below readable node text: a long chain overflows the
 // canvas and is panned, not shrunk to a thin strip (Aurora-daaa.18).
 export const FIT_OPTIONS = { minZoom: 0.6, maxZoom: 1 }
@@ -29,9 +31,9 @@ export function ViewMenu({ minimap, onMinimap }: { minimap: boolean; onMinimap: 
         onClick={() => setOpen((o) => !o)}
       >
         View {Math.round(zoom * 100)}%
-        <Icon icon={open ? chevronUpIcon : chevronDownIcon} size="sm" />
+        <Icon icon={chevronDownIcon} size="sm" />
       </button>
-      <EditorPopup isOpen={open} onClose={close} label="View menu" triggerRef={island} placement="top start">
+      <EditorPopup isOpen={open} onClose={close} label="View menu" triggerRef={trigger} placement="top start" className="editor-view-popup">
         <Dialog aria-label="View menu">
           <Menu
             aria-label="View actions"

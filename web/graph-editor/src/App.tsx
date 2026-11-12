@@ -1,3 +1,4 @@
+import { Hint } from './Hint'
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react'
 import {
   ReactFlow,
@@ -25,7 +26,7 @@ import { ProblemsContext } from './ProblemsContext'
 import { ProblemsChip } from './ProblemsChip'
 import { Toast, useToast } from './Toast'
 import { NameDialog } from './NameDialog'
-import { Icon, addIcon, arrowLeftIcon, chevronDownIcon, chevronUpIcon, redoIcon, undoIcon } from '@weblings/grille'
+import { Icon, addIcon, arrowLeftIcon, chevronDownIcon, redoIcon, undoIcon } from '@weblings/grille'
 import { DesktopNote } from './DesktopNote'
 import { COMPACT_BAR, DOCK_BOTTOM, TIGHT_BAR, useMedia } from './useMedia'
 import { TitleMenu, type TitleMenuAction } from './TitleMenu'
@@ -600,7 +601,7 @@ export function App() {
         >
           {dirty && compactBar ? <span className="editor-dirty-mark" aria-hidden="true" /> : null}
           <span className="editor-title-label">{shownTitle || (effectId === BLANK_ID ? 'New empty effect' : effectId)}</span>
-          <Icon icon={titleMenuOpen ? chevronUpIcon : chevronDownIcon} size="sm" />
+          <Icon icon={chevronDownIcon} size="sm" />
         </button>
         {dirty && !compactBar ? <span className="editor-dirty">Unsaved</span> : null}
         {catalog ? (
@@ -653,24 +654,26 @@ export function App() {
           onSelectNode={selectNode}
           onAddNode={() => setAddMenuOpen(true)}
         />
-        <button
-          type="button" className="ui-button" data-size="sm"
-          onClick={undo}
-          disabled={past.length === 0}
-          aria-label="Undo"
-          title="Undo (Ctrl/Cmd+Z)"
-        >
-          <Icon icon={undoIcon} size="sm" />
-        </button>
-        <button
-          type="button" className="ui-button" data-size="sm"
-          onClick={redo}
-          disabled={future.length === 0}
-          aria-label="Redo"
-          title="Redo (Shift+Ctrl/Cmd+Z)"
-        >
-          <Icon icon={redoIcon} size="sm" />
-        </button>
+        <Hint text="Undo (Ctrl/Cmd+Z)" placement="bottom">
+          <button
+            type="button" className="ui-button" data-size="sm"
+            onClick={undo}
+            disabled={past.length === 0}
+            aria-label="Undo"
+          >
+            <Icon icon={undoIcon} size="sm" />
+          </button>
+        </Hint>
+        <Hint text="Redo (Shift+Ctrl/Cmd+Z)" placement="bottom">
+          <button
+            type="button" className="ui-button" data-size="sm"
+            onClick={redo}
+            disabled={future.length === 0}
+            aria-label="Redo"
+          >
+            <Icon icon={redoIcon} size="sm" />
+          </button>
+        </Hint>
         {editedSinceTest ? <span className="editor-edited">Edited since the test</span> : null}
         <span className="editor-sep" aria-hidden="true" />
         <SplitTestButton
@@ -774,19 +777,20 @@ export function App() {
           >
             <Background variant={BackgroundVariant.Dots} />
             <Panel position="top-left">
-              <button
-                ref={addMenuTrigger}
-                type="button"
-                className="ui-button editor-add-node" data-size="sm"
-                aria-label="Add node"
-                aria-haspopup="dialog"
-                aria-expanded={addMenuOpen}
-                title="Add node (Shift+A)"
-                disabled={!doc || !catalog}
-                onClick={() => setAddMenuOpen((open) => !open)}
-              >
-                <Icon icon={addIcon} size="sm" /> Add node
-              </button>
+              <Hint text="Add node (Shift+A)" placement="bottom">
+                <button
+                  ref={addMenuTrigger}
+                  type="button"
+                  className="ui-button editor-add-node" data-size="sm"
+                  aria-label="Add node"
+                  aria-haspopup="dialog"
+                  aria-expanded={addMenuOpen}
+                  disabled={!doc || !catalog}
+                  onClick={() => setAddMenuOpen((open) => !open)}
+                >
+                  <Icon icon={addIcon} size="sm" /> Add node
+                </button>
+              </Hint>
             </Panel>
             <Panel position="bottom-right">
               <button
