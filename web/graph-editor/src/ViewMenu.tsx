@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react'
 import { MiniMap, Panel, useReactFlow, useStore } from '@xyflow/react'
-import { Dialog, Icon, Menu, MenuItem, chevronDownIcon, chevronUpIcon } from '@weblings/grille'
+import { Dialog, Icon, Menu, MenuItem, chevronDownIcon } from '@weblings/grille'
 import { EditorPopup } from './EditorPopup'
 
 // Zoom, fit and the minimap, in one menu in place of React Flow's controls.
@@ -31,7 +31,7 @@ export function ViewMenu({ minimap, onMinimap }: { minimap: boolean; onMinimap: 
         onClick={() => setOpen((o) => !o)}
       >
         View {Math.round(zoom * 100)}%
-        <Icon icon={open ? chevronUpIcon : chevronDownIcon} size="sm" />
+        <Icon icon={chevronDownIcon} size="sm" />
       </button>
       <EditorPopup isOpen={open} onClose={close} label="View menu" triggerRef={trigger} placement="top start" className="editor-view-popup">
         <Dialog aria-label="View menu">

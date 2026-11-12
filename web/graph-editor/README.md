@@ -79,12 +79,12 @@ pane drag, Esc, focus return). Use it for any new menu.
 
 ## Icons (`Aurora-s1t7.5`)
 
-Every icon in the editor is Grille's (`Icon` plus the `*Icon` data exports from `@weblings/grille`, `0.1.0-dev.9`), at `size="sm"`; nothing imports `web/ui/icons` or draws a Unicode glyph. This replaces the `Aurora-daaa.33` audit (2026-11-10/11), whose findings are all closed.
+Every icon in the editor is Grille's (`Icon` plus the `*Icon` data exports from `@weblings/grille`, `0.1.0-dev.10`), at `size="sm"`; nothing imports `web/ui/icons` or draws a Unicode glyph. This replaces the `Aurora-daaa.33` audit (2026-11-10/11), whose findings are all closed.
 
 | Icon | Where |
 | --- | --- |
 | `arrowLeftIcon` | Back link |
-| `chevronDownIcon` / `chevronUpIcon` | Title menu, View menu, Zones header, Test split caret |
+| `chevronDownIcon` (Grille flips it while `aria-expanded`) | Title menu, View menu, Zones header, Test split caret |
 | `playIcon` / `stopIcon` | Test split button (Test/Take over, Stop) |
 | `undoIcon` / `redoIcon` | Top bar: icon buttons at every width, named by `aria-label`, so there is no More menu any more |
 | `addIcon` | Add node button |

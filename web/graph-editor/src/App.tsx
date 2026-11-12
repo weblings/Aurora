@@ -25,7 +25,7 @@ import { ProblemsContext } from './ProblemsContext'
 import { ProblemsChip } from './ProblemsChip'
 import { Toast, useToast } from './Toast'
 import { NameDialog } from './NameDialog'
-import { Icon, addIcon, arrowLeftIcon, chevronDownIcon, chevronUpIcon, redoIcon, undoIcon } from '@weblings/grille'
+import { Icon, addIcon, arrowLeftIcon, chevronDownIcon, redoIcon, undoIcon } from '@weblings/grille'
 import { DesktopNote } from './DesktopNote'
 import { COMPACT_BAR, DOCK_BOTTOM, TIGHT_BAR, useMedia } from './useMedia'
 import { TitleMenu, type TitleMenuAction } from './TitleMenu'
@@ -600,7 +600,7 @@ export function App() {
         >
           {dirty && compactBar ? <span className="editor-dirty-mark" aria-hidden="true" /> : null}
           <span className="editor-title-label">{shownTitle || (effectId === BLANK_ID ? 'New empty effect' : effectId)}</span>
-          <Icon icon={titleMenuOpen ? chevronUpIcon : chevronDownIcon} size="sm" />
+          <Icon icon={chevronDownIcon} size="sm" />
         </button>
         {dirty && !compactBar ? <span className="editor-dirty">Unsaved</span> : null}
         {catalog ? (
