@@ -46,39 +46,59 @@ await withEditorStack(async ({ editorUrl }) => {
     assert.equal(await page.locator('.editor-header > .editor-sep').count(), 2)
     step('bar controls are Grille ui-buttons, 32 px tall, with two dividers')
 
-    // Title menu: file actions and the effect list; no Name field.
+    // Title menu: file actions, then New and Open submenus; no Name field, no second menu.
     await openTitleMenu(page)
     assert.equal(await page.getByLabel('Name', { exact: true }).count(), 0)
-    const list = page.getByRole('menu', { name: 'Open another effect' })
+    assert.equal(await page.getByRole('menu', { name: 'Open', exact: true }).count(), 0, 'the Open list is closed until asked for')
+    const menuWidth = (await titleMenu(page).boundingBox()).width
+    assert.ok(menuWidth < 280, `menu is narrower than the old 280 px (${menuWidth})`)
+    const open = page.getByRole('menuitem', { name: 'Open', exact: true })
+    await open.hover()
+    const list = page.getByRole('menu', { name: 'Open', exact: true })
+    await list.waitFor()
     assert.ok((await list.getByRole('menuitem').count()) > 0, 'other effects listed')
     assert.equal(await list.getByRole('menuitem', { name: 'Screen colors', exact: true }).count(), 0, 'the open effect is not listed')
-    step('the title menu holds Name, the file actions and the other effects')
+    const headings = await list.locator('.ui-menu-section-header').evaluateAll((els) => els.map((e) => e.textContent))
+    assert.deepEqual(headings.filter((h) => h === 'Custom' || h === 'Built-in').slice(-1), ['Built-in'], 'Built-in group comes last')
+    if (headings.includes('Custom')) assert.ok(headings.indexOf('Custom') < headings.indexOf('Built-in'), 'Custom before Built-in')
+    step('the title menu holds the file actions, New and Open submenus; Open groups Custom then Built-in')
 
     // Arrow keys move focus in the list; they open nothing.
     await list.getByRole('menuitem').first().focus()
     await page.keyboard.press('ArrowDown')
     await page.keyboard.press('ArrowUp')
     assert.equal(await currentEffect(page), 'builtin.video')
+    await page.keyboard.press('Escape') // closes the submenu level
     await page.keyboard.press('Escape')
     await closed()
     step('arrow keys in the effect list do not switch effects')
 
-    // Enter opens the focused one.
+    // Right arrow opens Open from the keyboard; Enter opens the focused one.
     await openTitleMenu(page)
-    const target = page.getByRole('menu', { name: 'Open another effect' }).getByRole('menuitem').first()
+    await page.getByRole('menuitem', { name: 'Open', exact: true }).focus()
+    await page.keyboard.press('ArrowRight')
+    const target = page.getByRole('menu', { name: 'Open', exact: true }).getByRole('menuitem').first()
+    await target.waitFor()
     await target.focus()
     await page.keyboard.press('Enter')
     await page.waitForFunction(() => document.querySelector('[data-effect]')?.dataset.effect !== 'builtin.video')
     await page.waitForSelector('.aurora-node')
     const other = await currentEffect(page)
     assert.notEqual(other, 'builtin.video')
-    step('Enter on an effect opens it')
+    step('Right arrow opens the Open submenu and Enter on an effect opens it')
 
-    // New empty effect.
+    // New: Start from, then Empty and the built-ins; Empty is a blank graph.
     await openTitleMenu(page)
-    await page.getByRole('menuitem', { name: 'New empty effect', exact: true }).click()
+    await page.getByRole('menuitem', { name: 'New', exact: true }).hover()
+    const starts = page.getByRole('menu', { name: 'New', exact: true })
+    await starts.waitFor()
+    assert.deepEqual(await starts.locator('.ui-menu-section-header').evaluateAll((els) => els.map((e) => e.textContent)), ['Start from'])
+    const startNames = await starts.getByRole('menuitem').allInnerTexts()
+    assert.equal(startNames[0], 'Empty')
+    assert.ok(startNames.includes('Screen colors'), 'built-ins follow Empty')
+    await starts.getByRole('menuitem', { name: 'Empty', exact: true }).click()
     await waitEffect(page, '@empty')
-    step('New empty effect opens a blank graph')
+    step('New offers Start from, Empty then the built-ins; Empty opens a blank graph')
 
     // View menu.
     await page.goto(`${editorUrl}?effect=builtin.video`)
@@ -144,7 +164,7 @@ await withEditorStack(async ({ editorUrl }) => {
     }
     assert.equal(await effectCount(), before, 'a cancelled dialog writes nothing')
     await openTitleMenu(page)
-    assert.equal(await page.getByRole('menuitem', { name: 'Rename…' }).count(), 0, 'no Rename on a built-in')
+    assert.equal(await page.getByRole('menuitem', { name: 'Rename' }).count(), 0, 'no Rename on a built-in')
     await page.keyboard.press('Escape')
     step('Save on a built-in opens a naming dialog; Cancel, Escape and a scrim click write nothing')
 

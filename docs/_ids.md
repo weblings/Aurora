@@ -179,6 +179,7 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `implementation-plan-directory-layout` | [archive/ImplementationPlan_DirectoryLayout.md](archive/ImplementationPlan_DirectoryLayout.md) | Implementation plan: proposed directory layout (superseded) |
 | `implementation-plan-early-phases` | [archive/ImplementationPlan_EarlyPhases.md](archive/ImplementationPlan_EarlyPhases.md) | Implementation plan: phases 1, 2, 2.5 (native build) |
 | `implementation-plan-phase-3` | [archive/ImplementationPlan_Phase3.md](archive/ImplementationPlan_Phase3.md) | Implementation plan: Phase 3 — Three.js browser demo, then the native WebUI milestone |
+| `iryq-title-menu-new-open` | [log/2026-11-12-iryq-title-menu-new-open.md](log/2026-11-12-iryq-title-menu-new-open.md) | Title menu: New and Open submenus |
 | `ja76-hold-running-reload-error` | [log/2026-10-06-ja76-hold-running-reload-error.md](log/2026-10-06-ja76-hold-running-reload-error.md) | Aurora-ja76: hold a failed reload on a running host (closed) |
 | `jk4p-mac-tray-tip-gif-copy` | [log/2026-10-08-jk4p-mac-tray-tip-gif-copy.md](log/2026-10-08-jk4p-mac-tray-tip-gif-copy.md) | Aurora-jk4p: Mac menu-bar tip gets a new GIF and Pause / Resume copy (closed) |
 | `jsjj-angle-converters` | [log/2026-11-11-jsjj-angle-converters.md](log/2026-11-11-jsjj-angle-converters.md) | angle.fromFloat and angle.toFloat |

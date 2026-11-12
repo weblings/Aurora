@@ -51,7 +51,7 @@ export async function setName(page, name) {
     return
   }
   await openTitleMenu(page)
-  await page.getByRole('menuitem', { name: 'Rename…', exact: true }).click()
+  await page.getByRole('menuitem', { name: 'Rename', exact: true }).click()
   const dialog = nameDialog(page)
   await dialog.getByLabel('Name', { exact: true }).fill(name)
   await dialog.getByRole('button', { name: 'Rename', exact: true }).click()

@@ -274,7 +274,8 @@ select {
   display: flex;
   flex-direction: column;
   gap: var(--aurora-space-2);
-  width: 280px;
+  /* Sized by the actions; the note below wraps at its own max-width. */
+  width: max-content;
 }
 
 .editor-title-dialog input {
@@ -282,20 +283,18 @@ select {
   box-sizing: border-box;
 }
 
-.editor-title-heading {
-  margin: var(--aurora-space-3) 0 0;
-  font-size: 11px;
-  text-transform: uppercase;
-  color: var(--aurora-text-secondary);
-}
-
-.editor-effect-list {
-  max-height: 240px;
-  overflow-y: auto;
+/* A long effect title in the Open submenu cuts off with an ellipsis; its Hint holds the whole title. */
+.editor-menu-title {
+  display: block;
+  max-width: 30ch;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .editor-name-note {
   margin: 0;
+  max-width: 32ch;
   font-size: 12px;
   color: var(--aurora-text-primary);
 }

@@ -14,7 +14,7 @@ import {
   type NodeChange,
   type ReactFlowInstance,
 } from '@xyflow/react'
-import { applyGraph, fetchCatalog, fetchEffectGraph, fetchEffects, putDraft, saveGraph, type WriteResult } from './api'
+import { applyGraph, fetchCatalog, fetchEffectGraph, fetchEffects, fetchHasAudio, putDraft, saveGraph, type WriteResult } from './api'
 import { EditorContext, type EditorActions } from './EditorContext'
 import { GenericNode } from './GenericNode'
 import { DetailsDrawer } from './DetailsDrawer'
@@ -60,6 +60,8 @@ function initialEffectId(): string {
 export function App() {
   const [catalog, setCatalog] = useState<Catalog | null>(null)
   const [effects, setEffects] = useState<EffectListEntry[]>([])
+  // Whether an audio input exists; New offers Music pulse only then, as the dashboard's Start from does.
+  const [hasAudio, setHasAudio] = useState(false)
   const [effectId, setEffectId] = useState(initialEffectId)
   // The whole graph, replaced by every edit, with its undo history.
   const [{ doc, past, future }, dispatch] = useReducer(editorReducer, emptyEditor)
@@ -100,6 +102,7 @@ export function App() {
   const canvas = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
+    fetchHasAudio().then(setHasAudio)
     Promise.all([fetchCatalog(), fetchEffects()])
       .then(([c, e]) => {
         setCatalog(c)
@@ -578,7 +581,10 @@ export function App() {
   }
   // A built-in has no title of its own in the graph; the effect list names it.
   const shownTitle = title || effects.find((e) => e.id === effectId)?.title || ''
-  const otherEffects = effects.filter((e) => e.id !== effectId)
+  // New and Open both come through here. `where` is the seam for opening in a new tab if the editor gets tabs.
+  const openEffect = (id: string, where: 'here') => {
+    if (where === 'here') setEffectId(id)
+  }
 
   return (
     <div className="editor">
@@ -621,15 +627,16 @@ export function App() {
           busy={writing}
           blocked={blocked}
           editedSinceTest={editedSinceTest}
-          otherEffects={otherEffects}
+          effects={effects}
+          currentId={effectId}
+          hasAudio={hasAudio}
           onAction={(action: TitleMenuAction) => {
             if (action === 'save') void write('save')
             else if (action === 'save-as-new') void write('save', true)
             else if (action === 'save-and-apply') void write('apply')
-            else if (action === 'rename') setNaming({ kind: 'rename', initial: title })
-            else setEffectId(BLANK_ID)
+            else setNaming({ kind: 'rename', initial: title })
           }}
-          onOpenEffect={setEffectId}
+          onOpenEffect={(id) => openEffect(id, 'here')}
         />
         {naming ? (
           <NameDialog

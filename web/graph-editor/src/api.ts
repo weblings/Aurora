@@ -21,6 +21,15 @@ export async function fetchEffects(): Promise<EffectListEntry[]> {
   return (await getJson<{ effects: EffectListEntry[] }>('/api/effects')).effects
 }
 
+// The dashboard reads the same field: any audio input means Music pulse can run.
+export async function fetchHasAudio(): Promise<boolean> {
+  try {
+    return ((await getJson<{ audioInputs?: unknown[] }>('/api/capabilities')).audioInputs ?? []).length > 0
+  } catch {
+    return false
+  }
+}
+
 export async function fetchEffectGraph(id: string): Promise<GraphDoc> {
   return (await getJson<{ graph: GraphDoc }>(`/api/effects/${encodeURIComponent(id)}`)).graph
 }

@@ -75,12 +75,19 @@ custom effect is saved over its own id. A test shows Stop only; Save and apply
 during one applies, then reverts, because apply alone leaves the test running
 (the revert rebuilds the just-applied effect from disk).
 
+The title menu is one `Menu`: Save, Save as new, Save and apply, Rename, then
+New and Open submenus (`TitleMenu.tsx`). New lists the dashboard's Start from
+choices; `graph/titleMenu.ts` `startPoints()` copies the rule of `startPoints()` in
+`web/ui/EffectPanelModel.js` (keep in sync). Open lists the other effects, Custom
+then Built-in, in Grille `MenuSection`s inside a scrolling `SubmenuItem`. Both go
+through `openEffect(id, where)` in `App.tsx`.
+
 Menus go through `EditorPopup.tsx`, which holds the React Flow workarounds (keys,
 pane drag, Esc, focus return). Use it for any new menu.
 
 ## Icons (`Aurora-s1t7.5`)
 
-Every icon in the editor is Grille's (`Icon` plus the `*Icon` data exports from `@weblings/grille`, `0.1.0-dev.10`), at `size="sm"`; nothing imports `web/ui/icons` or draws a Unicode glyph. This replaces the `Aurora-daaa.33` audit (2026-11-10/11), whose findings are all closed.
+Every icon in the editor is Grille's (`Icon` plus the `*Icon` data exports from `@weblings/grille`, `0.1.0-dev.11`), at `size="sm"`; nothing imports `web/ui/icons` or draws a Unicode glyph. This replaces the `Aurora-daaa.33` audit (2026-11-10/11), whose findings are all closed.
 
 | Icon | Where |
 | --- | --- |
