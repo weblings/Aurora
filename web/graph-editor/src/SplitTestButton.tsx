@@ -40,7 +40,7 @@ export function SplitTestButton({
     if (action === 'reconnect') return { label: 'Reconnect', icon: null, onPress: onReconnect, off: false, title: 'Another view of this session took over the preview', name: 'Reconnect' }
     const takeOver = action === 'take-over'
     return {
-      label: takeOver ? 'Take over' : 'Test',
+      label: takeOver ? 'Take over' : mode === 'once' ? 'Test (15s)' : 'Test (Live)',
       icon: playIcon,
       onPress: () => onStart(mode),
       off: off || busy,

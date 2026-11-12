@@ -173,7 +173,7 @@ await withEditorStack(async ({ editorUrl }) => {
       assert.ok(g.chipRight <= g.nextLeft + 1 && Math.abs(g.chipTop - g.nextTop) < 20, `${width} px: chip is not just before Undo: ${JSON.stringify(g)}`)
       assert.ok(g.splitLeft >= g.nextLeft && g.splitRight <= g.vw + 1, `${width} px: Test split button is not after Undo and inside the window: ${JSON.stringify(g)}`)
       const test = await page.locator('.editor-split-main').innerText()
-      assert.equal(test, 'Test', `${width} px: the split button reads ${test}, not Test`)
+      assert.equal(test, 'Test (15s)', `${width} px: the split button reads ${test}, not Test (15s)`)
       assert.equal(await page.locator('.editor-split-main').isDisabled(), true, `${width} px: Test is not disabled with problems`)
       await page.mouse.move(700, 400)
     await page.locator('.editor-split').hover({ force: true })

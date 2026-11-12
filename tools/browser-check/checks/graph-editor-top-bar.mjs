@@ -187,7 +187,7 @@ await withEditorStack(async ({ editorUrl }) => {
     // The Test split button (Aurora-qjqy.3): Test at rest, the caret picks Once or Live
     // and starts it, Stop (no countdown) is the Live label, and the current mode is the checked item.
     await live()
-    assert.equal(await page.locator('.editor-split-main').innerText(), 'Test')
+    assert.equal(await page.locator('.editor-split-main').innerText(), 'Test (15s)')
     await button('Test mode').click()
     // At rest the current mode is the checked item, not a ', default' suffix (Aurora-w6zq.7).
     await page.getByRole('menuitemradio', { name: 'Once (15 s)', checked: true }).waitFor()
@@ -200,7 +200,7 @@ await withEditorStack(async ({ editorUrl }) => {
     assert.equal(await button('Stop the test').innerText(), 'Stop', 'Live has no countdown')
     await button('Stop the test').click()
     await waitToast(page, 'Reverted')
-    assert.equal(await page.locator('.editor-split-main').innerText(), 'Test')
+    assert.equal(await page.locator('.editor-split-main').innerText(), 'Test (Live)')
     await button('Test mode').click()
     await page.getByRole('menuitemradio', { name: 'Live (until stopped)', checked: true }).waitFor()
     await page.keyboard.press('Escape')
