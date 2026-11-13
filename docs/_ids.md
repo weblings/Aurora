@@ -354,6 +354,9 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `u68h6-undo-toasts` | [log/2026-11-13-u68h6-undo-toasts.md](log/2026-11-13-u68h6-undo-toasts.md) | Graph editor stage 6g: toast audit, announce-only messages, Undo on lossy toasts |
 | `u68h7-close-out` | [log/2026-11-13-u68h7-close-out.md](log/2026-11-13-u68h7-close-out.md) | Graph editor stage 6f: a failed Save is a shell row, the banner is gone, the priority rule is rewritten |
 | `u68h9-open-failure-row` | [log/2026-11-13-u68h9-open-failure-row.md](log/2026-11-13-u68h9-open-failure-row.md) | Graph editor stage 6h: a failed effect or catalog load is an error-shell row without Retry |
+| `u8jx41-callout-clear-of-title` | [log/2026-11-13-u8jx41-callout-clear-of-title.md](log/2026-11-13-u8jx41-callout-clear-of-title.md) | Graph editor: the refused-save callout stays clear of the title and Add node |
+| `u8jx42-test-ended-toast` | [log/2026-11-13-u8jx42-test-ended-toast.md](log/2026-11-13-u8jx42-test-ended-toast.md) | Graph editor: test-ended outcomes are announced, only a lost heartbeat is a toast |
+| `u8jx44-number-field-spinners` | [log/2026-11-13-u8jx44-number-field-spinners.md](log/2026-11-13-u8jx44-number-field-spinners.md) | Graph editor: node param number fields drop the native spin buttons |
 | `upstream-findings` | [planning/UpstreamFindings.md](planning/UpstreamFindings.md) | Findings worth upstreaming to huenicorn |
 | `v1-core-refactor` | [log/2026-10-26-v1-core-refactor.md](log/2026-10-26-v1-core-refactor.md) | 5ipy.39: core refactor for v1 (Aurora-5ipy.39) |
 | `v1-freeze` | [log/2026-10-26-v1-freeze.md](log/2026-10-26-v1-freeze.md) | Aurora-5ipy.9: /api/v1 frozen at 1.0.0 (plan B6) |

@@ -38,13 +38,16 @@ export function stopAnnounced(ended: TestState['ended']): boolean {
   return ended?.reason === 'reverted'
 }
 
-/** The toast for a test that ended by itself or by Stop, else null. */
+/** The toast for a test that ended by itself or by Stop, else null. A heartbeat lost is the one end
+ *  nobody caused and nothing else shows; the lights return by themselves, so it has no steps. */
 export function quietEndToast(test: TestState): string | null {
   switch (test.ended?.reason) {
     case 'reverted':
       return 'Reverted'
     case 'confirm_timeout':
       return 'Test finished: the lights are back'
+    case 'heartbeat_lost':
+      return describeTest({ ...initialTest, ended: test.ended })
     default:
       return null
   }
@@ -55,8 +58,8 @@ export function lightsInUse(test: TestState, otherHolder: Holder | null): string
   return test.phase === 'idle' && otherHolder ? lightsInUseText(otherHolder) : null
 }
 
-// Why a test ended for a reason the user did not cause, else null. Announced and kept as
-// the first line of the Test caret menu; it never draws on the button and is not a status.
+// Why a test ended for a reason the user did not cause, else null. Announced only (a heartbeat
+// lost is also a toast, quietEndToast); it never draws on the button and is not a status.
 // Kept, Reverted and the end of a Once test are the user's own and are toasts; unreachable
 // is the "Aurora has stopped" takeover; a null reason is a Stop that found the test over.
 export function testOutcome(test: TestState): string | null {
@@ -108,7 +111,7 @@ export function pickStatus({ openError, unreachable, loop, test, otherHolder }: 
   const use = lightsInUse(test, otherHolder)
   if (use) return at(5, 'button', 'Take over', use, 'take-over')
   // There is no rank 6: a failed Save is an error-shell row (graph/hostState.ts failedSaveNote), test
-  // outcomes are the live region and the Test menu (testOutcome), and a failed start is a toast.
+  // outcomes are the live region (testOutcome) and a toast for a lost heartbeat, and a failed start is a toast.
   // Preview state (Preview paused, Connecting, Live) is no longer text: problems
   // are the chip's job and the zones island tints when stale.
   if (loop.valid === false) return at(7, 'none', 'Preview paused', 'Fix the problems to update the preview.')

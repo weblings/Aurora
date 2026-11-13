@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react'
-import { Dialog, Icon, Menu, MenuItem, MenuSeparator, chevronDownIcon, playIcon, stopIcon } from '@weblings/grille'
+import { Dialog, Icon, Menu, MenuItem, chevronDownIcon, playIcon, stopIcon } from '@weblings/grille'
 import { Hint } from './Hint'
 import { EditorPopup } from './EditorPopup'
 import type { TestMode } from './graph/lightTest'
@@ -15,7 +15,6 @@ export function SplitTestButton({
   action,
   disabledReason,
   busy,
-  outcome,
   onStart,
   onStop,
   onReconnect,
@@ -28,8 +27,6 @@ export function SplitTestButton({
   disabledReason: string | null
   // A start, stop or write is in flight.
   busy: boolean
-  // Why the last test ended without the user ending it; the first line of the menu.
-  outcome: string | null
   onStart: (mode: TestMode) => void
   onStop: () => void
   onReconnect: () => void
@@ -95,8 +92,6 @@ export function SplitTestButton({
               onStart(id === 'live' ? 'live' : 'once')
             }}
           >
-            {outcome ? <MenuItem id="outcome" isDisabled>{outcome}</MenuItem> : null}
-            {outcome ? <MenuSeparator /> : null}
             <MenuItem id="once">Once (15 s)</MenuItem>
             <MenuItem id="live">Live (until stopped)</MenuItem>
           </Menu>

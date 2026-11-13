@@ -66,7 +66,17 @@ describe('status priority', () => {
     }
     expect(quietEndToast(withTest({ ended: { reason: 'reverted', holder: null } }).test)).toBe('Reverted')
     expect(quietEndToast(withTest({ ended: { reason: 'confirm_timeout', holder: null } }).test)).toMatch(/lights are back/)
-    expect(quietEndToast(withTest({ ended: { reason: 'heartbeat_lost', holder: null } }).test)).toBeNull()
+    for (const reason of ['replaced', 'stopped', 'superseded', 'pipeline_gone', 'kept', 'unreachable']) {
+      expect(quietEndToast(withTest({ ended: { reason, holder: null } }).test)).toBeNull()
+    }
+  })
+  it('a lost heartbeat is the one outcome that is also a toast, in the owner\'s words, with no steps', () => {
+    expect(quietEndToast(withTest({ ended: { reason: 'heartbeat_lost', holder: null } }).test)).toBe(
+      'Test ended: Aurora stopped hearing from this tab. The lights are back',
+    )
+    expect(testOutcome(withTest({ ended: { reason: 'heartbeat_lost', holder: null } }).test)).toBe(
+      'Test ended: Aurora stopped hearing from this tab. The lights are back',
+    )
   })
   it('Stop is announced, not drawn; a Once test that ran out is drawn', () => {
     expect(stopAnnounced({ reason: 'reverted', holder: null })).toBe(true)

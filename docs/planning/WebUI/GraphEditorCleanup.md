@@ -206,8 +206,8 @@ Frames for the states above are in the mock's `Gaps` group (`Aurora-daaa.6`): `#
 
 - **The error shell** (React, first element of the page; `ErrorShell.tsx`, markup held equal to the Dashboard's `shell.js`): what Aurora is not doing, plus the editor's own refusals. Rows: host rows from `GET /api/state` (Lost contact, Reload, permissions; Retry or dismiss as the host sends them), the light-test row (another session's test), draft rows (Draft not sent: too many editors; Couldn't check your last edit), the open-failure row (`<title> no longer exists.`, `<title>'s file can't be read.`, `Couldn't open the editor.`), the failed-save row (`Couldn't save <title>: <reason>`), and the takeover (`Aurora has stopped`, a full overlay). The editor-supplied rows have no Retry, no action and no dismiss.
 - **The problems chip and its popover**, with the refused-save callout and ping: problems with the graph, including `Whole graph` rows (Draft would not load, a draft too large), and a Save that was refused for problems.
-- **The Test split button**: its label and tooltip (`Test (15s)`, `Test (Live)`, `Stop 0:12`, `Stop`, `Take over`, `Reconnect`; disabled with `Cannot reach Aurora`, `No effect is open` or `Fix the problems before testing` as the tooltip), and the first line of its caret menu for a test outcome the user did not cause.
-- **The live region** (`Announcer.tsx`, `role="status"`, nothing drawn): messages the screen already shows or states that are not drawn: a test outcome the user did not cause, Stop's `Reverted`, `Added <type>`.
+- **The Test split button**: its label and tooltip (`Test (15s)`, `Test (Live)`, `Stop 0:12`, `Stop`, `Take over`, `Reconnect`; disabled with `Cannot reach Aurora`, `No effect is open` or `Fix the problems before testing` as the tooltip). Its caret menu is Once and Live only; it carries no outcome line (removed 2026-11-13, `Aurora-u8jx.4.2`).
+- **The live region** (`Announcer.tsx`, `role="status"`, nothing drawn): messages the screen already shows or states that are not drawn: every test outcome the user did not cause, Stop's `Reverted`, `Added <type>`.
 - **Toasts** (bottom centre, editor-local): an event the user caused a moment ago that needs nothing further, plain (3 s) or with Undo (8 s). A toast never carries the only copy of an error.
 - **The naming dialog**: Save as new, and Save or Save and apply on a built-in or an unsaved new effect.
 - **The newer-saved-version prompt** (a Modal): the one question the editor still asks, when the saved effect changed since a kept copy was made.
@@ -225,7 +225,7 @@ Fixed spots keep state out of the contest and show alongside everything else: th
 | - | (was 3) Draft would not load | A `Whole graph` row in the problems popover | The draft loads |
 | 4 | Preview taken over | The button reads `Reconnect` | Reconnect, or the stream returns |
 | 5 | Lights in use by another session | The button reads `Take over`, tooltip names the holder; the shell shows the light-test row for the same test | The holder finishes, or the user takes over |
-| - | (was 6) A test ended for a reason the user did not cause (heartbeat lost, another effect chosen, lights paused, a taker) | Live region, and the first line of the Test caret menu. Nothing on the button | The next test, an edit, or a Save |
+| - | (was 6) A test ended for a reason the user did not cause (heartbeat lost, another effect chosen, lights paused, a taker) | Live region only, nothing on the button or in the Test menu. Exception: heartbeat lost is also a toast, `Test ended: Aurora stopped hearing from this tab. The lights are back`, no steps and no action (the lights return by themselves). Replaced is the shell's light-test row, stopped and superseded are user-caused, pipeline gone shows on the Dashboard | Announced once; the toast 3 s |
 | - | (was 6) A test refused at start | Toast, in the server's words | 3 s |
 | - | (was 6) A Save, Save as new or Save and apply Aurora refused or could not write | Shell row `Couldn't save <title>: <reason>`, no Retry, no action. A network failure is the takeover only, no row | The next Save or edit |
 | - | (was 6) Save refused for problems | The problems chip's callout and ping, nothing written | About 4 s; the chip keeps the problems |
@@ -255,7 +255,7 @@ Rules that follow:
 5. **Keep disappears, and so does its disabled state.** While a test runs and the graph has
    changed, the bar says `Edited since the test`, and the title menu warns that Save and apply
    puts the edited graph live and ends the test (`#changed`).
-6. **Stop never hides.** While a test runs the button is Stop (with the Once countdown); an outcome the user did not cause shows only after the test has ended.
+6. **Stop never hides.** While a test runs the button is Stop (with the Once countdown); an outcome the user did not cause is announced only after the test has ended.
 
 How the old nine slots map (the first column is what the editor had before stage 6):
 
