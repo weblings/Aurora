@@ -145,6 +145,10 @@ await withEditorStack(async ({ editorUrl }) => {
     // The callout stays inside the window at every width (Aurora-h55g): on the chip's left when there is
     // room, else below the chip, wrapped. Full sentence at each, 16 px gutters, never over the chip.
     const chipLeftNow = async () => (await chip.boundingBox()).x
+    // Nor over the title button or the canvas's Add node button (Aurora-u8jx.4.1).
+    const overlaps = (a, b) => a.x < b.x + b.width && b.x < a.x + a.width && a.y < b.y + b.height && b.y < a.y + a.height
+    const title = page.locator('.editor-header .editor-title-menu')
+    const addNode = page.locator('.editor-add-node')
     for (const width of [1470, 900, 700, 520, 400]) {
       await page.setViewportSize({ width, height: width < 700 ? 800 : 900 })
       await page.waitForTimeout(200)
@@ -171,20 +175,40 @@ await withEditorStack(async ({ editorUrl }) => {
         assert.ok(box.x + box.width <= cb.x, `${width}: left of the chip`)
         assert.ok(box.height < 40, `${width}: one line`)
       }
+      const tb = await title.boundingBox()
+      const ab = await addNode.boundingBox()
+      assert.ok(tb.width > 40, `${width}: the title button is measurable`)
+      assert.ok(!overlaps(box, tb), `${width}: clear of the title (box ${JSON.stringify(box)}, title ${JSON.stringify(tb)})`)
+      if (side === 'left') assert.ok(box.x >= tb.x + tb.width + 9.5, `${width}: left placement keeps a gap from the title`)
+      assert.ok(!overlaps(box, ab), `${width}: clear of Add node (box ${JSON.stringify(box)}, Add node ${JSON.stringify(ab)})`)
       console.log(`    ${width}px: ${side}, box ${Math.round(box.x)},${Math.round(box.y)} ${Math.round(box.width)}x${Math.round(box.height)}, chip x=${Math.round(await chipLeftNow())}`)
-      await shot(`h55g-${width}`)
+      await shot(`u8jx41-${width}`)
       await page.keyboard.press('Escape')
       await page.waitForFunction(() => !document.querySelector('[data-refused]'))
     }
     // The first refusal after a fresh load at 400 px: the chip can appear after the refusal (the server's
     // verdict arrives later), and the callout must still be placed.
     await page.setViewportSize({ width: 400, height: 800 })
+    // The Save's own draft PUT (the first) answers at once and the draft loop's (the second) is held 2.5 s,
+    // so the refusal comes before the chip exists and the chip mounts under a callout that is already showing.
+    let held = false
+    let puts = 0
+    await page.route('**/api/graph/drafts/**', async (route) => {
+      if (route.request().method() === 'PUT' && ++puts === 2) {
+        held = true
+        await new Promise((r) => setTimeout(r, 2500))
+      }
+      await route.continue()
+    })
     await open('refused-save-a')
-    await chip.waitFor()
+    assert.equal(await chip.count(), 0, 'fresh 400: the chip is not mounted when Save is chosen')
     await openTitleMenu(page)
     await page.getByRole('menuitem', { name: 'Save', exact: true }).click()
     await callout.waitFor()
+    await chip.waitFor() // the held verdict arrives while the callout is still up (4.2 s)
     await page.waitForTimeout(150)
+    assert.ok(await callout.count(), 'fresh 400: the callout is still up when the chip appears')
+    await page.unroute('**/api/graph/drafts/**')
     const fresh400 = await callout.boundingBox()
     assert.equal(await callout.getAttribute('data-refused'), 'below', 'fresh 400: below the chip')
     assert.ok(fresh400.x >= 15.5 && fresh400.x + fresh400.width <= 384.5, `fresh 400: inside the gutters (${fresh400.x}, ${fresh400.width})`)

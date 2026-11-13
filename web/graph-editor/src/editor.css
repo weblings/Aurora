@@ -889,7 +889,7 @@ body:has(.ui-drawer[data-side='bottom'][data-expanded]) .react-flow__attribution
 .editor-refused-status[data-place='below'] {
   position: fixed;
   top: var(--refused-top);
-  left: 16px;
+  left: var(--refused-left, 16px);
   right: 16px;
   translate: none;
   margin: 0;
@@ -912,6 +912,11 @@ body:has(.ui-drawer[data-side='bottom'][data-expanded]) .react-flow__attribution
   border: 0;
   border-left: 1px dashed var(--aurora-text-primary);
   border-top: 1px dashed var(--aurora-text-primary);
+}
+
+/* Dropped under the Add node button, away from the chip: no pointer (Aurora-u8jx.4.1). */
+.editor-refused-status[data-detached='true'] .editor-refused::before {
+  display: none;
 }
 
 /* The pointer toward the chip. */
