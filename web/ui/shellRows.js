@@ -34,9 +34,15 @@ export function errorSentence(error, hostState) {
     : (SOURCE_PREFIX[error.source] ?? '') + message;
 }
 
-// The collapsed summary's count, singular and plural.
-export function collapsedLabel(count) {
-  return count === 1 ? '1 problem' : `${count} problems`;
+// One count part: '1 notice', '2 notices', '1 error', '2 errors'.
+function countPart(n, word) {
+  return `${n} ${word}${n === 1 ? '' : 's'}`;
+}
+
+// The collapsed bar's label as plain text: notices first, then errors, each part left out at zero
+// ('1 notice 2 errors', '3 errors', '1 notice'). The bar draws each part with its own mark.
+export function collapsedLabel(notices, errors) {
+  return [notices > 0 ? countPart(notices, 'notice') : '', errors > 0 ? countPart(errors, 'error') : ''].filter(Boolean).join(' ');
 }
 
 // m:ss left on a light test.
@@ -84,25 +90,70 @@ export function orderRows({ conditions = [], errors = [], notes = [], lightTest 
   return uniqueKeys(rows);
 }
 
-// Conditions, errors and notes are 'problems'; the light test and pairing requests are not.
-const isProblem = (row) => row.kind === 'condition' || row.kind === 'error' || row.kind === 'note';
+// What the collapse covers (Aurora-u8jx.5). Pairing requests stay above the shell and outside it
+// (each waits on a click) until Aurora-9hqa.4. Everything else folds as one: the light test is a
+// notice; conditions, host errors and the page's own notes are errors.
+const isCollapsible = (row) => row.kind !== 'pairing';
+const isNotice = (row) => row.kind === 'light-test';
 
-// The collapse rule (unchanged by 9hqa.1): two or more problems collapse to one summary row the
-// user expands, and expanded they gain a Show less row. A single problem always shows in full.
+// The keys of the rows the collapse covers, in drawn order.
+export function collapsibleKeys(rows) {
+  return rows.filter(isCollapsible).map((row) => row.key);
+}
+
+function sameKeys(a, b) {
+  if (a.length !== b.length) return false;
+  const set = new Set(a);
+  return b.every((key) => set.has(key));
+}
+
+// Collapsed state is a stored snapshot of the row keys taken when the shell collapsed, or null for
+// open. The shell shows collapsed only while the current keys equal it, so a new row or a changed
+// message (a new key) opens it, and the light-test countdown (not part of a key) never does.
+export function isCollapsed(rows, snapshot) {
+  return Array.isArray(snapshot) && snapshot.length > 0 && sameKeys(collapsibleKeys(rows), snapshot);
+}
+
+// The snapshot to keep after a draw: dropped once the rows no longer match it (the shell opened,
+// so it stays open) or when they clear (reset), else unchanged.
+export function reconcileSnapshot(rows, snapshot) {
+  return isCollapsed(rows, snapshot) ? snapshot : null;
+}
+
+// The baseline, taken from the first /api/state reply and again on recovery from the takeover:
+// two or more rows start collapsed, a lone row starts open.
+export function baselineSnapshot(rows) {
+  const keys = collapsibleKeys(rows);
+  return keys.length >= 2 ? keys : null;
+}
+
+// The rows as drawn: pairing requests, then either the collapsed bar alone or every row plus the
+// same toggle (label swapped to Show less). A lone row can collapse too, so any collapsible row
+// brings the toggle.
 /**
  * @param {Array<Record<string, any>>} rows
- * @param {boolean} expanded
+ * @param {string[] | null} snapshot
  * @returns {Array<Record<string, any>>}
  */
-export function layoutRows(rows, expanded) {
-  const problems = rows.filter(isProblem);
-  const collapsible = problems.length > 1;
-  if (!collapsible) return rows;
-  if (!expanded) {
-    const at = rows.findIndex(isProblem);
-    return [...rows.slice(0, at), { kind: 'summary', key: 'summary', count: problems.length }];
-  }
-  return [...rows, { kind: 'less', key: 'less' }];
+export function layoutRows(rows, snapshot) {
+  const covered = rows.filter(isCollapsible);
+  const pairings = rows.filter((row) => !isCollapsible(row));
+  if (covered.length === 0) return pairings;
+  const collapsed = isCollapsed(rows, snapshot);
+  const notices = covered.filter(isNotice).length;
+  const toggle = { kind: 'toggle', key: 'toggle', collapsed, notices, errors: covered.length - notices };
+  return collapsed ? [...pairings, toggle] : [...pairings, ...covered, toggle];
+}
+
+// The marks: Grille's circled-exclamation (errors, error red) and circled-info (notices, default
+// colour) as CSS-mask spans, the way .warn-glyph is drawn (styles/shell.css).
+const ERROR_MARK = '<span class="shell-mark shell-mark-error" aria-hidden="true"></span>';
+const INFO_MARK = '<span class="shell-mark shell-mark-info" aria-hidden="true"></span>';
+
+// An error row's html from a shared string (the permission and local-network rows) carries the old
+// warning triangle; the shell's error rows draw the circled-exclamation instead.
+export function markErrors(html) {
+  return html.replaceAll('<span class="warn-glyph" aria-hidden="true"></span>', ERROR_MARK);
 }
 
 export function escapeHtml(s) {
@@ -118,7 +169,7 @@ export function permissionRowHtml(error, platform, key) {
     : platform === 'mac' && parseMacPermissionError(error.message)
       ? renderReloadError(error.message, platform, { retryId })
       : null;
-  return html === null ? null : html.replace(`id="${retryId}"`, `id="${retryId}" data-action="retry" data-key="${escapeHtml(key)}"`);
+  return html === null ? null : markErrors(html.replace(`id="${retryId}"`, `id="${retryId}" data-action="retry" data-key="${escapeHtml(key)}"`));
 }
 
 // A pairing request's access line: browsers ask for admin and read as before; below admin is an
@@ -142,7 +193,7 @@ export function renderRow(row, { hostState = null, platform = '', nowMs = Date.n
       // No Keep here: that stays with the agent (confirm needs an effect id the user has not chosen).
       const clock = row.endsAtMs === null ? '' : ` Will revert in: <span id="shell-light-test-time">${clockText(row.endsAtMs, nowMs)}</span>`;
       return `<div class="shell-banner-row" data-key="${key}"><div class="shell-banner-content">
-      <p class="status-text shell-pairing-title">${lightTesterSentence(row.holder)}${clock}</p>
+      <p class="status-text shell-pairing-title">${INFO_MARK} ${lightTesterSentence(row.holder)}${clock}</p>
       <div class="shell-banner-actions">
         <button type="button" class="btn btn-secondary" id="shell-light-test-stop" ${act('stop-test')}>Stop test</button>
       </div>
@@ -170,15 +221,15 @@ export function renderRow(row, { hostState = null, platform = '', nowMs = Date.n
       // Standing facts, not failures: no Retry (the daemon re-checks and clears them itself) and no X.
       // A new known source adds an entry here, not a branch in the shell.
       const inner = row.condition.source === 'local_network'
-        ? renderLocalNetworkBanner()
-        : `<p class="status-text status-text-error"><span class="warn-glyph" aria-hidden="true"></span> ${escapeHtml(row.condition.message ?? '')}</p>`;
+        ? markErrors(renderLocalNetworkBanner())
+        : `<p class="status-text status-text-error">${ERROR_MARK} ${escapeHtml(row.condition.message ?? '')}</p>`;
       return `<div class="shell-banner-row" data-key="${key}"><div class="shell-banner-content">${inner}</div></div>`;
     }
     case 'error': {
       const error = row.error;
       const retryId = `shell-banner-retry-${escapeHtml(error.source)}`;
       const inner = permissionRowHtml(error, platform, row.key)
-        ?? `<p class="status-text status-text-error"><span class="warn-glyph" aria-hidden="true"></span> ${escapeHtml(errorSentence(error, hostState))}</p>
+        ?? `<p class="status-text status-text-error">${ERROR_MARK} ${escapeHtml(errorSentence(error, hostState))}</p>
          ${error.retry === false ? '' : `<button type="button" class="btn btn-secondary" id="${retryId}" ${act('retry')} style="margin-top: var(--aurora-space-3);">Retry</button>`}`;
       // X only while the old setup still works (ErrorOverlay.md, 'Dismiss'): a paused or failed
       // host's row is the reason there are no lights.
@@ -189,12 +240,15 @@ export function renderRow(row, { hostState = null, platform = '', nowMs = Date.n
       return `<div class="shell-banner-row" data-key="${key}"><div class="shell-banner-content">${inner}</div>${dismiss}</div>`;
     }
     case 'note':
-      return `<div class="shell-banner-row" data-key="${key}"><div class="shell-banner-content"><p class="status-text status-text-error"><span class="warn-glyph" aria-hidden="true"></span> ${escapeHtml(row.text)}</p></div></div>`;
-    case 'summary':
-      // Same chevron-down.svg the accordions use (dashboard.css's .accordion-chevron).
-      return `<button type="button" class="shell-banner-summary" id="shell-banner-expand" ${act('expand')}><span class="warn-glyph" aria-hidden="true"></span> ${collapsedLabel(row.count)} <span class="accordion-chevron" aria-hidden="true"></span></button>`;
-    case 'less':
-      return `<button type="button" class="shell-banner-summary shell-banner-collapse" id="shell-banner-collapse" ${act('collapse')}>Show less <span class="accordion-chevron shell-banner-chevron-up" aria-hidden="true"></span></button>`;
+      return `<div class="shell-banner-row" data-key="${key}"><div class="shell-banner-content"><p class="status-text status-text-error">${ERROR_MARK} ${escapeHtml(row.text)}</p></div></div>`;
+    case 'toggle': {
+      // One button for both states, so it is the same node across a toggle and keeps focus.
+      if (!row.collapsed) {
+        return `<button type="button" class="shell-banner-summary shell-banner-collapse shell-banner-quiet" id="shell-banner-toggle" aria-expanded="true" ${act('toggle')}>Show less <span class="accordion-chevron shell-banner-chevron-up" aria-hidden="true"></span></button>`;
+      }
+      const part = (n, word, mark, tone) => (n > 0 ? `<span class="shell-count${tone}">${mark} ${countPart(n, word)}</span>` : '');
+      return `<button type="button" class="shell-banner-summary" id="shell-banner-toggle" aria-expanded="false" ${act('toggle')}>${part(row.notices, 'notice', INFO_MARK, '')}${part(row.errors, 'error', ERROR_MARK, ' shell-count-error')} <span class="accordion-chevron" aria-hidden="true"></span></button>`;
+    }
     default:
       return '';
   }
@@ -203,11 +257,11 @@ export function renderRow(row, { hostState = null, platform = '', nowMs = Date.n
 // The laid-out rows with their html and a patch signature. The signature is what decides keep or
 // replace for a row whose key is unchanged: the html, except that the light-test countdown is left
 // out (its own timer ticks it, so a poll must not replace the row and drop focus on Stop test).
-export function bannerRows(input, { expanded = false, hostState = null, platform = '', nowMs = Date.now() } = {}) {
-  return layoutRows(orderRows(input), expanded).map((row) => {
+export function bannerRows(input, { snapshot = null, hostState = null, platform = '', nowMs = Date.now() } = {}) {
+  return layoutRows(orderRows(input), snapshot).map((row) => {
     const html = renderRow(row, { hostState, platform, nowMs });
     const sig = row.kind === 'light-test' ? html.replace(/(<span id="shell-light-test-time">)[^<]*/, '$1') : html;
-    return { ...row, html, sig };
+    return { ...row, html, sig, inPlace: row.kind === 'toggle' };
   });
 }
 

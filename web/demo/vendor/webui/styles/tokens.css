@@ -47,6 +47,8 @@
   --aurora-text-primary: #ffffff;
   --aurora-text-secondary: #c8c8c8;
   --aurora-text-on-light: #111111;
+  /* The error tone (Grille's --ui-color-text-error), used for the error mark and count in the shell. */
+  --aurora-text-error: #ff6b6b;
 
   /* --- Overlay/scrim --- */
   --aurora-scrim: rgba(0, 0, 0, 0.6);

@@ -7,6 +7,9 @@ const ABORT_MS = 2500
 
 export type HostStateApi = {
   host: HostSnapshot
+  // False until the first /api/state reply, and again once the takeover is up: the error shell draws
+  // nothing without it, and its collapse baseline is taken when it turns true.
+  hasReplied: boolean
   // The one verdict on whether Aurora can be reached: the shell's takeover and the Test
   // button both read it. False only after two failed polls in a row.
   reachable: boolean
@@ -31,6 +34,7 @@ async function fetchState(signal: AbortSignal): Promise<unknown> {
 // Reads GET /api/state at once and then every POLL_MS, single-flight, like shell.js's beat.
 export function useHostState(): HostStateApi {
   const [host, setHost] = useState<HostSnapshot>(emptyHost)
+  const [hasReplied, setHasReplied] = useState(false)
   const [reach, setReach] = useState<Reach>(reachable)
   const [recoveries, setRecoveries] = useState(0)
   const [testEndsAtMs, setTestEndsAtMs] = useState<number | null>(null)
@@ -48,6 +52,7 @@ export function useHostState(): HostStateApi {
         reachRef.current = reachAfter(reachRef.current, true)
         setReach(reachRef.current)
         setHost(snapshot)
+        setHasReplied(true)
         setTestEndsAtMs(snapshot.test.remainingMs === null ? null : Date.now() + snapshot.test.remainingMs)
         if (wasDown) setRecoveries((n) => n + 1)
         return true
@@ -56,7 +61,10 @@ export function useHostState(): HostStateApi {
         reachRef.current = reachAfter(before, false)
         setReach(reachRef.current)
         // The takeover replaces every row: they are stale the moment Aurora is gone.
-        if (reachRef.current.down) setHost(emptyHost)
+        if (reachRef.current.down) {
+          setHost(emptyHost)
+          setHasReplied(false)
+        }
         return false
       } finally {
         window.clearTimeout(timer)
@@ -117,5 +125,5 @@ export function useHostState(): HostStateApi {
     await poll()
   }, [poll])
 
-  return { host, reachable: !reach.down, testEndsAtMs, recoveries, checkNow: poll, dismiss, retry, stopTest }
+  return { host, hasReplied, reachable: !reach.down, testEndsAtMs, recoveries, checkNow: poll, dismiss, retry, stopTest }
 }

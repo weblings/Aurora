@@ -184,15 +184,30 @@ One sticky element mounted by the app shell, not by any screen:
 - **Rows**: one generic row template for every error (message plus
   whatever `action` it carries, Retry, Open Settings, or none, never
   per-source markup). One row model draws both pages (`web/ui/shellRows.js`,
-  `Aurora-9hqa.1`, [[9hqa1-shell-row-model]]): order is notices (the light
-  test, then pairing requests), conditions as sent, host errors newest `id`
+  `Aurora-9hqa.1`, [[9hqa1-shell-row-model]]): order is pairing requests
+  (above the shell, outside the collapse until `Aurora-9hqa.4`), the light
+  test, conditions as sent, host errors newest `id`
   first, then the page's own notes; a row's key is source + message (light
   test: holder + Live/Once; pairing: ref). The Dashboard patches rows by key
   each poll (`shellPatch.js`), so keyboard focus on Retry, Dismiss and Stop
   test survives; the editor keys its React rows the same way. The whole shell (errors and notices) collapses as
   one control to a bar of counts ("1 notice 2 errors", each with its
   circled mark, notices first), and the user
-  can collapse a lone row too (`Aurora-u8jx.5`). How rows start
+  can collapse a lone row too (`Aurora-u8jx.5`, [[u8jx5-shell-collapse]]).
+  It is one toggle button with one id (`shell-banner-toggle`, `aria-expanded`)
+  whose label swaps between the counts and "Show less" (secondary colour,
+  below the rows), the same DOM node on the Dashboard and the same React
+  node in the editor, so focus survives a toggle. Collapsed state is a stored
+  snapshot of the row keys taken when the user collapsed (memory only): the
+  shell is collapsed only while the current keys equal it, so a new row or
+  changed message (a new key) re-opens it, and the light-test countdown (not
+  part of the key) never does. A snapshot the rows no longer match is
+  dropped, so once re-opened it stays open even if the new row leaves; when
+  the rows clear the state resets. Conditions, host errors and the page's own
+  notes count as errors (red circled-exclamation); the light-test row counts
+  as a notice (default-colour circled-info), and open rows carry the same
+  marks. The marks are CSS-mask SVGs (`web/ui/icons/circled-*.svg`, Grille's
+  paths). How rows start
   (`Aurora-u8jx.12`, option B, decided 2026-11-13): on page load, meaning
   the first `/api/state` reply (recovery from the "Aurora has stopped"
   takeover counts as a load too), two or more rows start collapsed so
@@ -485,11 +500,10 @@ needs re-grepping.
 - **Daemon unreachable (takeover):** `shell.js`'s `_showTakeover` — one
   hardcoded heading, no body copy (Aurora-yzp4).
 - **Shell banner (host-state errors, held by the daemon):**
-  - `shell.js`'s `SOURCE_PREFIX` — the `startup`/`resume`/`reload` row
-    prefixes.
-  - `shell.js`'s `_renderBannerRow` — the saved-not-applied sentence for a
-    `reload` error on a running host, and the generic fallback row.
-  - `shell.js`'s collapsed-summary string ("N problems").
+  - `shellRows.js`'s `SOURCE_PREFIX` and `errorSentence` — the
+    `startup`/`resume`/`reload` row prefixes, the saved-not-applied sentence
+    for a `reload` error on a running host, and the generic fallback row.
+  - `shellRows.js`'s `collapsedLabel` ("N notices N errors").
   - `MacPermissionRecovery.js`'s `renderReloadError` (Screen Recording,
     both the banner-row and NUX-inline variants) and
     `renderAudioPermissionBanner` (the `audio_permission` row).

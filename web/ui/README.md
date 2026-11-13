@@ -26,7 +26,10 @@ banner fed by `GET /api/state`. Screens keep only inline per-control errors.
 Design and copy rules: [[error-overlay]]. The banner's rows (kinds, order,
 keys, words, html) are `shellRows.js`, shared with the graph editor's
 `ErrorShell.tsx`; `shellPatch.js` plans and applies a keyed patch each poll so
-focus survives ([[9hqa1-shell-row-model]]). Neither is vendored into the demo.
+focus survives ([[9hqa1-shell-row-model]]). The whole shell collapses as one
+(`shellRows.js`: baseline, snapshot, toggle, counts; [[u8jx5-shell-collapse]]),
+and its circled marks are `icons/circled-exclamation.svg` and `circled-info.svg`
+(those two icons are vendored into the demo; the shell modules are not).
 
 Tests are plain node scripts with no framework (`node styles/welcome.test.mjs`,
 `node DeviceField.test.mjs`, ...).

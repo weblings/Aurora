@@ -364,6 +364,7 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `u8jx43-bar-menu-motion-padding` | [log/2026-11-13-u8jx43-bar-menu-motion-padding.md](log/2026-11-13-u8jx43-bar-menu-motion-padding.md) | Graph editor: the Test menu opens like the other bar menus, and menu items pad like the bar |
 | `u8jx44-number-field-spinners` | [log/2026-11-13-u8jx44-number-field-spinners.md](log/2026-11-13-u8jx44-number-field-spinners.md) | Graph editor: node param number fields drop the native spin buttons |
 | `u8jx45-status-detail-reload-coverage` | [log/2026-11-13-u8jx45-status-detail-reload-coverage.md](log/2026-11-13-u8jx45-status-detail-reload-coverage.md) | Graph editor: the dead open-failure status detail is gone, the reload row's coverage is checked |
+| `u8jx5-shell-collapse` | [log/2026-11-13-u8jx5-shell-collapse.md](log/2026-11-13-u8jx5-shell-collapse.md) | Error shell collapses as one: baseline, snapshot, one toggle |
 | `uds2-status-undrawn-fields` | [log/2026-11-13-uds2-status-undrawn-fields.md](log/2026-11-13-uds2-status-undrawn-fields.md) | Graph editor: Status no longer carries the undrawn detail and where fields, and Take over's tooltip is drawn |
 | `upstream-findings` | [planning/UpstreamFindings.md](planning/UpstreamFindings.md) | Findings worth upstreaming to huenicorn |
 | `v1-core-refactor` | [log/2026-10-26-v1-core-refactor.md](log/2026-10-26-v1-core-refactor.md) | 5ipy.39: core refactor for v1 (Aurora-5ipy.39) |

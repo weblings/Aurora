@@ -1,7 +1,7 @@
 // The error shell's row model (Aurora-9hqa.1): order, keys, the collapse layout, the collapsed
 // label, and the html per row. No DOM. Run with `node shellRows.test.mjs`.
 import assert from 'node:assert/strict';
-import { SOURCE_PREFIX, bannerHtml, bannerRows, clockText, collapsedLabel, errorSentence, layoutRows, orderRows, renderRow } from './shellRows.js';
+import { SOURCE_PREFIX, bannerHtml, bannerRows, baselineSnapshot, clockText, collapsedLabel, collapsibleKeys, errorSentence, isCollapsed, layoutRows, markErrors, orderRows, reconcileSnapshot, renderRow } from './shellRows.js';
 
 // Words.
 assert.equal(SOURCE_PREFIX.startup, "Couldn't start: ");
@@ -10,8 +10,14 @@ assert.equal(errorSentence({ source: 'effect', message: 'Fire busy' }, 'running'
 assert.equal(errorSentence({ source: 'mystery', message: 'x' }, 'running'), 'x', 'unknown source: bare');
 assert.equal(errorSentence({ source: 'reload', message: 'boom' }, 'paused'), "Couldn't apply settings: boom");
 assert.ok(errorSentence({ source: 'reload', message: 'boom' }, 'running').startsWith("Saved, but couldn't apply: boom."));
-assert.equal(collapsedLabel(1), '1 problem');
-assert.equal(collapsedLabel(2), '2 problems');
+// Collapsed label: notices first, then errors, singular and plural, a part omitted at zero.
+assert.equal(collapsedLabel(0, 1), '1 error');
+assert.equal(collapsedLabel(0, 3), '3 errors');
+assert.equal(collapsedLabel(1, 0), '1 notice');
+assert.equal(collapsedLabel(2, 0), '2 notices');
+assert.equal(collapsedLabel(1, 1), '1 notice 1 error');
+assert.equal(collapsedLabel(2, 3), '2 notices 3 errors');
+assert.equal(collapsedLabel(0, 0), '');
 assert.equal(clockText(100_000, 0), '1:40');
 assert.equal(clockText(0, 5), '0:00');
 
@@ -37,14 +43,49 @@ const changed = (message) => orderRows({ errors: [{ source: 'reload', message }]
 assert.notEqual(changed('a'), changed('b'), 'a changed message is a new row');
 assert.deepEqual(orderRows({ errors: [{ source: 's', message: 'm' }, { source: 's', message: 'm' }] }).map((row) => row.key), ['error:s:m', 'error:s:m#2'], 'duplicates stay distinct');
 
-// Collapse layout (rules unchanged): one problem open; two or more fold to a summary, notices stay.
+// Collapse (Aurora-u8jx.5). The state is a snapshot of the row keys, or null for open.
 const problems = (n) => orderRows({ errors: Array.from({ length: n }, (_, i) => ({ source: `s${i}`, message: 'm' })) });
-assert.deepEqual(layoutRows(problems(1), false).map((row) => row.kind), ['error']);
-assert.deepEqual(layoutRows(problems(2), false).map((row) => [row.kind, row.count]), [['summary', 2]]);
-assert.deepEqual(layoutRows(problems(2), true).map((row) => row.kind), ['error', 'error', 'less']);
-const withTest = orderRows({ lightTest: { holder: null, endsAtMs: null }, errors: [{ source: 'a', message: '1' }, { source: 'b', message: '2' }] });
-assert.deepEqual(layoutRows(withTest, false).map((row) => row.kind), ['light-test', 'summary'], 'a light test is not a problem');
-assert.deepEqual(layoutRows(orderRows({ lightTest: { holder: null, endsAtMs: null }, pairings: [{ ref: 'r' }] }), false).map((row) => row.kind), ['light-test', 'pairing']);
+const kinds = (list, snapshot) => layoutRows(list, snapshot).map((row) => row.kind);
+// Baseline: 2+ rows start collapsed, a lone row open, none is null.
+assert.equal(baselineSnapshot(problems(0)), null);
+assert.equal(baselineSnapshot(problems(1)), null, 'a lone row starts open');
+assert.deepEqual(baselineSnapshot(problems(2)), ['error:s0:m', 'error:s1:m']);
+assert.equal(baselineSnapshot(orderRows({ lightTest: { holder: null, endsAtMs: null }, errors: [{ source: 'a', message: '1' }] })).length, 2, 'the light test counts toward 2+');
+assert.equal(baselineSnapshot(orderRows({ pairings: [{ ref: 'r' }, { ref: 'q' }], errors: [{ source: 'a', message: '1' }] })), null, 'pairings are outside the collapse');
+// Open: every row, then the one toggle (a lone row too). Collapsed: the toggle alone.
+assert.deepEqual(kinds(problems(1), null), ['error', 'toggle'], 'a lone row can collapse: it has the toggle');
+assert.deepEqual(kinds(problems(2), null), ['error', 'error', 'toggle']);
+assert.deepEqual(kinds(problems(2), baselineSnapshot(problems(2))), ['toggle']);
+assert.deepEqual(kinds(problems(1), collapsibleKeys(problems(1))), ['toggle'], 'a lone row, collapsed by the user');
+assert.deepEqual(kinds(problems(0), null), [], 'no rows, no toggle');
+const toggleOf = (list, snapshot) => layoutRows(list, snapshot).find((row) => row.kind === 'toggle');
+// Counts: the light test is a notice; conditions, errors and notes are errors.
+const mixed = orderRows({ lightTest: { holder: null, endsAtMs: null }, errors: [{ source: 'a', message: '1' }], conditions: [{ source: 'c', message: 'x' }], notes: ['n'] });
+assert.deepEqual([toggleOf(mixed, null).notices, toggleOf(mixed, null).errors], [1, 3]);
+// Snapshot equality: collapsed only while the keys equal it, in any order.
+const snap = collapsibleKeys(problems(2));
+assert.equal(isCollapsed(problems(2), snap), true);
+assert.equal(isCollapsed(problems(2), [...snap].reverse()), true, 'order is not part of it');
+assert.equal(isCollapsed(problems(2), null), false);
+assert.equal(isCollapsed(problems(3), snap), false, 'a new row re-opens');
+assert.equal(isCollapsed(problems(1), snap), false);
+const withMessage = (message) => orderRows({ errors: [{ source: 's0', message: 'm' }, { source: 's1', message }] });
+assert.equal(isCollapsed(withMessage('m'), snap), true);
+assert.equal(isCollapsed(withMessage('changed'), snap), false, 'a changed message re-opens');
+// The light-test countdown is not part of the key.
+const testRows = (ms) => orderRows({ lightTest: { holder: { session: 'x' }, endsAtMs: ms }, errors: [{ source: 'a', message: '1' }] });
+const testSnap = collapsibleKeys(testRows(60_000));
+assert.equal(isCollapsed(testRows(59_000), testSnap), true, 'a ticking countdown never re-opens');
+assert.equal(isCollapsed(orderRows({ lightTest: { holder: { session: 'x' }, endsAtMs: null }, errors: [{ source: 'a', message: '1' }] }), testSnap), false, 'Once to Live is a different row');
+// reconcile: kept while matching, dropped when it stops matching or the rows clear (reset).
+assert.equal(reconcileSnapshot(problems(2), snap), snap);
+assert.equal(reconcileSnapshot(problems(3), snap), null, 'once re-opened it stays open');
+assert.equal(reconcileSnapshot(problems(0), snap), null, 'rows clearing resets');
+assert.equal(reconcileSnapshot(problems(2), null), null);
+// Pairing requests stay above, outside the collapse.
+const paired = orderRows({ lightTest: { holder: null, endsAtMs: null }, pairings: [{ ref: 'r' }], errors: [{ source: 'a', message: '1' }] });
+assert.deepEqual(kinds(paired, baselineSnapshot(paired)), ['pairing', 'toggle']);
+assert.deepEqual(kinds(paired, null), ['pairing', 'light-test', 'error', 'toggle']);
 
 // Html per row: root carries data-key, buttons carry data-action and data-key.
 const ctx = { hostState: 'running', platform: '', nowMs: 0 };
@@ -73,9 +114,18 @@ const pairing = renderRow(orderRows({ pairings: [{ ref: 'r<1', name: 'Phone', sc
 assert.ok(pairing.includes('data-action="approve"') && pairing.includes('data-action="deny"'));
 assert.ok(pairing.includes('Access:</span> Apply.') && pairing.includes('From:</span> 10.0.0.2'));
 assert.ok(pairing.includes('id="shell-pairing-approve-r&lt;1"'));
-const two = layoutRows(problems(2), false);
-assert.equal(renderRow(two[0], ctx), '<button type="button" class="shell-banner-summary" id="shell-banner-expand" data-action="expand" data-key="summary"><span class="warn-glyph" aria-hidden="true"></span> 2 problems <span class="accordion-chevron" aria-hidden="true"></span></button>');
-assert.ok(renderRow({ kind: 'less', key: 'less' }, ctx).includes('data-action="collapse" data-key="less"'));
+// The toggle: one id, aria-expanded, label swaps; marks and tones per part.
+const closedBar = renderRow(toggleOf(mixed, collapsibleKeys(mixed)), ctx);
+assert.ok(closedBar.startsWith('<button type="button" class="shell-banner-summary" id="shell-banner-toggle" aria-expanded="false" data-action="toggle" data-key="toggle">'));
+assert.ok(closedBar.includes('<span class="shell-count"><span class="shell-mark shell-mark-info" aria-hidden="true"></span> 1 notice</span><span class="shell-count shell-count-error"><span class="shell-mark shell-mark-error" aria-hidden="true"></span> 3 errors</span>'));
+const openBar = renderRow(toggleOf(mixed, null), ctx);
+assert.ok(openBar.includes('id="shell-banner-toggle" aria-expanded="true"') && openBar.includes('shell-banner-quiet') && openBar.includes('Show less'));
+assert.ok(!renderRow(toggleOf(problems(1), collapsibleKeys(problems(1))), ctx).includes('notice'), 'a zero part is omitted');
+// Open rows carry the marks: error rows the circled-exclamation, the light test the circled-info.
+assert.ok(renderRow(mixed.find((row) => row.kind === 'error'), ctx).includes('shell-mark-error') && !renderRow(mixed.find((row) => row.kind === 'error'), ctx).includes('warn-glyph'));
+assert.ok(renderRow(mixed.find((row) => row.kind === 'light-test'), ctx).includes('shell-mark-info'));
+assert.ok(renderRow(mixed.find((row) => row.kind === 'note'), ctx).includes('shell-mark-error'));
+assert.equal(markErrors('<span class="warn-glyph" aria-hidden="true"></span> x'), '<span class="shell-mark shell-mark-error" aria-hidden="true"></span> x');
 
 // bannerRows and bannerHtml: signatures leave the countdown out; no rows is ''.
 const at = (nowMs) => bannerRows({ lightTest: { holder: { session: 'x' }, endsAtMs: 100_000 } }, { nowMs })[0];

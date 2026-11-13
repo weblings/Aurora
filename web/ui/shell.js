@@ -1,4 +1,4 @@
-import { bannerHtml, bannerRows, clockText } from './shellRows.js';
+import { baselineSnapshot, bannerHtml, bannerRows, clockText, collapsibleKeys, orderRows, reconcileSnapshot } from './shellRows.js';
 import { applyPatch } from './shellPatch.js';
 
 // App shell: owns the one #screen-container mount point. Same navigate()
@@ -122,7 +122,11 @@ export class App {
     this.hostState = null; // idle | running | paused | failed, from the last reachable poll
     this.hostErrors = []; // [{source, message}], from the last reachable poll
     this.hostConditions = []; // [{source, message}], standing facts (Aurora-rbp3)
-    this._bannerExpanded = false;
+    // Collapse state (Aurora-u8jx.5): the row keys the user collapsed over, or null for open. Memory
+    // only. _hasReplied is false until the first /api/state reply and again after the takeover, so
+    // the baseline is taken once per page load and once per recovery.
+    this._collapsed = null;
+    this._hasReplied = false;
     this.lightTestLive = false; // a running light test with no deadline
     this.lightTestEndsAt = null; // ms epoch the running MCP light test must be confirmed by, else null
     this.lightTestHolder = null; // {session, client} of the running light test, from /api/state test.holder
@@ -267,6 +271,12 @@ export class App {
     this.lightTestHolder = testing && result.test.holder && typeof result.test.holder === 'object' ? result.test.holder : null;
     const remainingMs = testing && !this.lightTestLive ? Number(result.test.confirmRemainingMs) : NaN;
     this.lightTestEndsAt = Number.isFinite(remainingMs) ? Date.now() + remainingMs : null;
+    // The first reply (and the first after the takeover) is the baseline: two or more rows start
+    // collapsed, a lone row open.
+    if (!this._hasReplied) {
+      this._hasReplied = true;
+      this._collapsed = baselineSnapshot(orderRows(this._bannerInput()));
+    }
     this._renderBanner();
     if (this.onStateUpdate) this.onStateUpdate({ state, errors, paused, ...flags });
   }
@@ -302,6 +312,8 @@ export class App {
     this.lightTestEndsAt = null;
     this.lightTestLive = false;
     this.lightTestHolder = null;
+    this._collapsed = null;
+    this._hasReplied = false;
     this._stopLightTestTimer();
     if (!this.overlaySlot) return;
     this._takeover = kind;
@@ -337,15 +349,23 @@ export class App {
   }
 
   // The shell's rows as the model lays them out for the current state (shellRows.js).
-  _bannerRowList() {
+  _bannerInput() {
     const testing = this.lightTestEndsAt !== null || this.lightTestLive;
-    return bannerRows({
+    return {
       conditions: this.hostConditions,
       errors: this._visibleErrors(),
-      // Pairing requests wait on a click, so they never fold into the problems count.
+      // Pairing requests wait on a click, so they stay above the shell, outside the collapse.
       pairings: this.pendingPairings,
       lightTest: testing ? { holder: this.lightTestHolder, endsAtMs: this.lightTestLive ? null : this.lightTestEndsAt } : null,
-    }, { expanded: this._bannerExpanded, hostState: this.hostState, platform: this.platform });
+    };
+  }
+
+  _bannerRowList() {
+    const input = this._bannerInput();
+    // Nothing is drawn before the first reply; after it, a snapshot the rows no longer match is dropped.
+    if (!this._hasReplied) return [];
+    this._collapsed = reconcileSnapshot(orderRows(input), this._collapsed);
+    return bannerRows(input, { snapshot: this._collapsed, hostState: this.hostState, platform: this.platform });
   }
 
   // The banner's whole markup ('' when there is nothing to say). The page draws it with a keyed
@@ -360,7 +380,6 @@ export class App {
     if (!testing) this._stopLightTestTimer();
     const rows = this._bannerRowList();
     this._rows = rows;
-    if (rows.length === 0) this._bannerExpanded = false;
     // Only rows whose key or content changed are touched, so focus survives a poll.
     applyPatch(this.bannerSlot, rows);
     if (testing) this._startLightTestTimer();
@@ -371,9 +390,9 @@ export class App {
     const row = this._rows.find((candidate) => candidate.key === key);
     if (!row) return;
     switch (action) {
-      case 'expand':
-      case 'collapse':
-        this._bannerExpanded = action === 'expand';
+      case 'toggle':
+        // Collapsing stores the keys on screen; opening drops them.
+        this._collapsed = row.collapsed ? null : collapsibleKeys(orderRows(this._bannerInput()));
         this._renderBanner();
         return;
       case 'retry': return this._retry(row.source);

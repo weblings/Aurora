@@ -68,6 +68,17 @@ export function applyPatch(slot, rows) {
     }
     if (op === 'replace') {
       const old = nodes.get(key);
+      // A row flagged inPlace (the shell's toggle button) is rewritten where it stands, so the same
+      // node swaps its label and keeps keyboard focus; any other changed row is replaced.
+      if (byKey.get(key).inPlace) {
+        const fresh = build(byKey.get(key));
+        for (const name of old.getAttributeNames()) if (!fresh.hasAttribute(name)) old.removeAttribute(name);
+        for (const name of fresh.getAttributeNames()) old.setAttribute(name, fresh.getAttribute(name));
+        old.innerHTML = fresh.innerHTML;
+        if (old === cursor) cursor = cursor.nextElementSibling;
+        else inner.insertBefore(old, cursor);
+        continue;
+      }
       if (old === cursor) cursor = cursor.nextElementSibling;
       old.remove();
     }

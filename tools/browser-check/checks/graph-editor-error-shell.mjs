@@ -1,8 +1,10 @@
 // Aurora-s1t7.9: the editor's error shell is the Dashboard's. Rows from GET /api/state (a dev
-// error), the collapsed "N problems" summary and Show less, dismiss through POST /api/state/dismiss,
-// the "Aurora has stopped" takeover (and the Test button off with it), the light-test row naming who
-// tests and hidden for this tab's own, and the editor-supplied draft rows by the PUT's error code.
-// `SHOTS=<dir>` saves screenshots of the set.
+// error), dismiss through POST /api/state/dismiss, the "Aurora has stopped" takeover (and the Test
+// button off with it), the light-test row naming who tests and hidden for this tab's own, and the
+// editor-supplied draft rows by the PUT's error code. Aurora-u8jx.5: the shell collapses as one
+// (one toggle button, counts or Show less): 2+ rows at load start collapsed, a lone row open and
+// collapsible, an arrival or a changed message re-opens, the light-test countdown does not, and the
+// takeover's recovery is a new baseline. `SHOTS=<dir>` saves screenshots of the set (also at 400 wide).
 import assert from 'node:assert/strict'
 import { launch } from '../lib/browser.mjs'
 import { withEditorStack } from '../lib/stack.mjs'
@@ -23,6 +25,20 @@ await withEditorStack(async ({ editorUrl, aurora }) => {
   }
   const slot = page.locator('#shell-banner-slot')
   const rows = slot.locator('.shell-banner-row')
+  const toggle = () => slot.locator('#shell-banner-toggle')
+  const toggleText = async () => (await toggle().innerText()).replace(/\s+/g, ' ').trim()
+  const expectCollapsed = async (label) => {
+    await page.waitForFunction((l) => { const t = document.querySelector('#shell-banner-toggle'); return t?.getAttribute('aria-expanded') === 'false' && t.innerText.replace(/\s+/g, ' ').trim() === l }, label, { timeout: 8000 }).catch(async () => assert.fail(`wanted the collapsed bar "${label}", got "${await slot.innerText().catch(() => '')}"`))
+  }
+  const expectOpen = async () => {
+    await page.waitForFunction(() => document.querySelector('#shell-banner-toggle')?.getAttribute('aria-expanded') === 'true', null, { timeout: 8000 })
+    assert.equal(await toggleText(), 'Show less')
+  }
+  const colorOf = (loc) => loc.evaluate((el) => getComputedStyle(el).color)
+  const markColor = colorOf
+  const toggleColor = () => colorOf(toggle().locator('.shell-count-error'))
+  const RED = 'rgb(255, 107, 107)'
+  const WHITE = 'rgb(255, 255, 255)'
   const header = () => page.locator('.editor-header')
   const testButton = () => page.getByRole('button', { name: 'Test on lights' })
   const session = () => page.evaluate(() => sessionStorage.getItem('aurora.graphEditor.session'))
@@ -33,33 +49,84 @@ await withEditorStack(async ({ editorUrl, aurora }) => {
     await page.goto(`${editorUrl}?effect=builtin.video`)
     await page.waitForSelector('.aurora-node')
     assert.equal(await rows.count(), 0, 'no rows when nothing is wrong')
+    assert.equal(await toggle().count(), 0, 'no toggle either')
 
-    // One host-state row, read at once. The shell is the first element of the page, above the bar.
+    // One host-state row, read at once. A lone row starts open, with the toggle (Show less) below it.
+    // The shell is the first element of the page, above the bar.
     assert.equal((await api('POST', '/api/dev/errors', { source: 'dev-1', message: 'simulated error one' })).status, 200, 'dev error route (needs a dev build)')
     await rows.first().waitFor({ timeout: 8000 })
     assert.match(await rows.first().innerText(), /simulated error one/)
     assert.equal(await slot.evaluate((el) => el.nextElementSibling?.className.includes('editor-header') || el.parentElement.firstElementChild === el), true, 'the slot is the first element of the page')
     assert.ok((await slot.boundingBox()).y === 0 && (await slot.boundingBox()).y < (await header().boundingBox()).y, 'above the bar, at the top')
     assert.equal(await slot.evaluate((el) => getComputedStyle(el).position), 'sticky')
-    assert.equal(await slot.locator('.shell-banner-summary').count(), 0, 'one row shows in full')
+    assert.equal(await toggle().getAttribute('aria-expanded'), 'true')
+    assert.equal(await toggleText(), 'Show less', 'a lone row is open and can collapse')
+    assert.equal(await markColor(rows.first().locator('.shell-mark-error')), RED, 'the open error row carries the red circled-exclamation')
     await shot('a-one-row')
-    step('a host-state error shows as one full row above the bar')
+    step('a host-state error shows as one open row above the bar, with the red mark and Show less')
 
-    // Two: collapsed summary, expand, Show less.
+    // A lone row collapses by hand: the bar reads '1 error'.
+    await toggle().click()
+    await expectCollapsed('1 error')
+    assert.equal(await toggle().getAttribute('aria-expanded'), 'false')
+    await shot('a-one-collapsed')
+    await toggle().click()
+    await rows.first().waitFor()
+    await expectOpen()
+    step('a lone row can be collapsed to "1 error" and opened again')
+
+    // A second row arrives while open: stays open (no snapshot), then Show less folds both.
     assert.equal((await api('POST', '/api/dev/errors', { source: 'dev-2', message: 'simulated error two' })).status, 200)
-    await slot.getByRole('button', { name: /2 problems/ }).waitFor({ timeout: 8000 })
-    assert.equal(await rows.count(), 0, 'collapsed: only the summary')
-    await shot('b-two-collapsed')
-    await slot.getByRole('button', { name: /2 problems/ }).click()
-    await rows.nth(1).waitFor()
-    await slot.getByRole('button', { name: /Show less/ }).waitFor()
+    await rows.nth(1).waitFor({ timeout: 8000 })
+    await expectOpen()
     await shot('b-two-expanded')
-    await slot.getByRole('button', { name: /Show less/ }).click()
-    await slot.getByRole('button', { name: /2 problems/ }).waitFor()
-    step('two errors collapse to "2 problems"; the summary expands and Show less folds it back')
+    await toggle().click()
+    await expectCollapsed('2 errors')
+    assert.equal(await rows.count(), 0, 'collapsed: only the bar')
+    assert.equal(await markColor(toggle().locator('.shell-mark-error')), RED, 'the bar carries the red mark')
+    assert.equal(await toggleColor(), RED, 'and the error count reads in the error tone')
+    await shot('b-two-collapsed')
+    // Polls leave it collapsed.
+    await page.waitForTimeout(3500)
+    await expectCollapsed('2 errors')
+    step('two errors collapse to "2 errors" and stay collapsed across polls')
+
+    // An arrival re-opens; a changed message re-opens; clearing a row (rows differ) leaves it open.
+    assert.equal((await api('POST', '/api/dev/errors', { source: 'dev-3', message: 'simulated error three' })).status, 200)
+    await rows.nth(2).waitFor({ timeout: 8000 })
+    await expectOpen()
+    await toggle().click()
+    await expectCollapsed('3 errors')
+    assert.equal((await api('POST', '/api/dev/errors', { source: 'dev-3', message: 'simulated error three, changed' })).status, 200)
+    await rows.nth(2).waitFor({ timeout: 8000 })
+    await expectOpen()
+    assert.match(await slot.innerText(), /three, changed/)
+    await api('POST', '/api/dev/errors/remove', { source: 'dev-3' })
+    await page.waitForFunction(() => document.querySelectorAll('#shell-banner-slot .shell-banner-row').length === 2, null, { timeout: 8000 })
+    await expectOpen()
+    step('a new row and a changed message each re-open the collapsed shell')
+
+    // Load with 2 errors: starts collapsed (the first /api/state reply is the baseline).
+    await page.reload()
+    await page.waitForSelector('.aurora-node')
+    await expectCollapsed('2 errors')
+    assert.equal(await rows.count(), 0)
+    // Load with 1: open.
+    await api('POST', '/api/dev/errors/remove', { source: 'dev-2' })
+    await page.reload()
+    await page.waitForSelector('.aurora-node')
+    await rows.first().waitFor({ timeout: 8000 })
+    await expectOpen()
+    assert.equal(await rows.count(), 1)
+    await api('POST', '/api/dev/errors', { source: 'dev-2', message: 'simulated error two' })
+    await rows.nth(1).waitFor({ timeout: 8000 })
+    await page.reload()
+    await page.waitForSelector('.aurora-node')
+    await expectCollapsed('2 errors')
+    step('a load with two errors starts collapsed, a load with one starts open')
 
     // Dismiss goes through the daemon: it clears the row everywhere.
-    await slot.getByRole('button', { name: /2 problems/ }).click()
+    await toggle().click()
     await slot.locator('#shell-banner-dismiss-dev-1').click()
     await page.waitForFunction(() => !document.querySelector('#shell-banner-dismiss-dev-1'), null, { timeout: 8000 })
     assert.deepEqual((await errors()).map((e) => e.source), ['dev-2'], 'dismissed on the daemon')
@@ -71,7 +138,44 @@ await withEditorStack(async ({ editorUrl, aurora }) => {
     await api('POST', '/api/dev/errors/remove', { source: 'dev-2' })
     await api('POST', '/api/dev/errors/remove', { source: 'dev-1' })
     await rows.first().waitFor({ state: 'detached', timeout: 8000 })
+    assert.equal(await toggle().count(), 0, 'no rows, no toggle: the state resets')
     step('dismiss posts /api/state/dismiss and the Dashboard shows the same remaining row')
+
+    // The countdown is not a change: a Once light test and one error, collapsed, stay collapsed across ticks.
+    const graph0 = (await api('GET', '/api/effects/builtin.video')).json.graph
+    await api('PUT', '/api/graph/drafts/agent-1', { graph: graph0 })
+    await api('POST', '/api/dev/errors', { source: 'dev-1', message: 'simulated error one' })
+    assert.equal((await api('POST', '/api/graph/test', { session: 'agent-1' }, { 'X-Aurora-Client': 'mcp' })).status, 200, 'a Once test')
+    const keepAgent = setInterval(() => void api('POST', '/api/graph/test/heartbeat', { session: 'agent-1' }).catch(() => {}), 1000)
+    await page.locator('#shell-light-test-time').waitFor({ timeout: 8000 })
+    await expectOpen()
+    assert.equal(await markColor(rows.first().locator('.shell-mark-info')), WHITE, 'the light-test row carries the default-colour circled-info')
+    await shot('e-notice-and-error-open')
+    await toggle().click()
+    await expectCollapsed('1 notice 1 error')
+    assert.equal(await markColor(toggle().locator('.shell-mark-info')), WHITE, 'the notice mark is the default colour')
+    await shot('e-notice-and-error-collapsed')
+    // At 400 wide nothing clips or overflows, collapsed or open.
+    await page.setViewportSize({ width: 400, height: 800 })
+    const overflow = () => slot.evaluate((el) => el.scrollWidth - el.clientWidth)
+    assert.ok((await overflow()) <= 0, 'the collapsed bar fits at 400 wide')
+    await shot('e-collapsed-400')
+    await toggle().click()
+    await expectOpen()
+    assert.ok((await overflow()) <= 0, 'the open rows fit at 400 wide')
+    await shot('e-open-400')
+    await toggle().click()
+    await expectCollapsed('1 notice 1 error')
+    await page.setViewportSize({ width: 1470, height: 900 })
+    await page.waitForTimeout(5000)
+    await expectCollapsed('1 notice 1 error')
+    assert.equal((await api('GET', '/api/state')).json.test.active, true, 'the Once test was still counting down')
+    clearInterval(keepAgent)
+    await api('POST', '/api/graph/test/revert', { session: 'agent-1' })
+    await api('DELETE', '/api/graph/drafts/agent-1')
+    await api('POST', '/api/dev/errors/remove', { source: 'dev-1' })
+    await rows.first().waitFor({ state: 'detached', timeout: 8000 })
+    step('a Once light test joins the collapse as a notice, and its countdown ticking never re-opens it')
 
     // The light-test row: another session's test is named and offers Stop test; this tab's own is hidden.
     const graph = (await api('GET', '/api/effects/builtin.video')).json.graph
@@ -85,7 +189,7 @@ await withEditorStack(async ({ editorUrl, aurora }) => {
     assert.equal((await api('POST', '/api/graph/test', { session: 'agent-1', mode: 'live' }, { 'X-Aurora-Client': 'mcp' })).status, 200)
     const releaseAgent = holdLights('agent-1')
     await rows.first().waitFor({ timeout: 8000 })
-    assert.match(await rows.first().innerText(), /^An agent is testing an effect on the lights\./)
+    assert.match((await rows.first().innerText()).trim(), /^An agent is testing an effect on the lights\./)
     // One source for who holds the lights (useHostState): the Test button says Take over with the row, not up to 3 s apart.
     assert.equal(await page.getByRole('button', { name: 'Take over the lights' }).count(), 1, 'Take over appears with the shell row')
     // The button's tooltip names the holder (lightsInUseText), not the generic Test line.
@@ -107,7 +211,7 @@ await withEditorStack(async ({ editorUrl, aurora }) => {
     assert.equal((await api('POST', '/api/graph/test', { session: 'tab-2', mode: 'live' })).status, 200)
     const releaseTab = holdLights('tab-2')
     await rows.first().waitFor({ timeout: 8000 })
-    assert.match(await rows.first().innerText(), /^Another editor tab or window is testing an effect on the lights\./)
+    assert.match((await rows.first().innerText()).trim(), /^Another editor tab or window is testing an effect on the lights\./)
     await rows.first().getByRole('button', { name: 'Stop test' }).click()
     releaseTab()
     await rows.first().waitFor({ state: 'detached', timeout: 8000 })
@@ -139,7 +243,7 @@ await withEditorStack(async ({ editorUrl, aurora }) => {
     await refuse(400, 'invalid_session')
     await nudge()
     await rows.first().waitFor({ timeout: 8000 })
-    await page.waitForFunction(() => document.querySelector('#shell-banner-slot')?.innerText.trim() === "Couldn't check your last edit.", null, { timeout: 8000 }).catch(async () => assert.fail(`row text: ${await slot.innerText()}`))
+    await page.waitForFunction(() => document.querySelector('#shell-banner-slot .shell-banner-row')?.innerText.trim() === "Couldn't check your last edit.", null, { timeout: 8000 }).catch(async () => assert.fail(`row text: ${await slot.innerText()}`))
     assert.equal(await rows.count(), 1, 'the row changed with the code')
     await clear()
     await refuse(413, 'draft_too_large')
@@ -153,21 +257,37 @@ await withEditorStack(async ({ editorUrl, aurora }) => {
     await page.locator('.editor-problems-chip').waitFor({ state: 'detached', timeout: 8000 })
     step('429 and 400 are editor-only shell rows, 413 is a Whole graph problem on the chip, and a later send clears them')
 
-    // Network failure: the takeover, and the Test button off with it; the rows are gone.
+    // Network failure: the takeover, and the Test button off with it; the rows are gone. Recovery is a
+    // new baseline: two rows (open before the takeover) come back collapsed, one row comes back open.
     await api('POST', '/api/dev/errors', { source: 'dev-3', message: 'simulated error three' })
-    await rows.first().waitFor({ timeout: 8000 })
+    await api('POST', '/api/dev/errors', { source: 'dev-4', message: 'simulated error four' })
+    await rows.nth(1).waitFor({ timeout: 8000 })
+    await expectOpen()
     await page.route('**/api/state', (route) => route.abort())
     await page.getByRole('heading', { name: 'Aurora has stopped' }).waitFor({ timeout: 12_000 })
     assert.equal(await page.locator('#shell-overlay-slot .overlay-panel button').count(), 0, 'heading only, no Retry')
     assert.equal(await rows.count(), 0, 'the takeover replaces the rows')
+    assert.equal(await toggle().count(), 0, 'and the toggle')
     assert.equal(await header().getAttribute('data-preview'), 'Cannot reach Aurora', 'the Test button reads the same verdict')
     assert.equal(await testButton().isDisabled(), true)
     await shot('c-takeover')
     await page.unroute('**/api/state')
     await page.getByRole('heading', { name: 'Aurora has stopped' }).waitFor({ state: 'detached', timeout: 8000 })
+    await expectCollapsed('2 errors')
+    assert.equal(await rows.count(), 0, 'recovery with two rows is a new baseline: collapsed')
+    // Again, with one row left when Aurora answers.
+    await toggle().click()
+    await expectOpen()
+    await page.route('**/api/state', (route) => route.abort())
+    await page.getByRole('heading', { name: 'Aurora has stopped' }).waitFor({ timeout: 12_000 })
+    await api('POST', '/api/dev/errors/remove', { source: 'dev-4' })
+    await page.unroute('**/api/state')
+    await page.getByRole('heading', { name: 'Aurora has stopped' }).waitFor({ state: 'detached', timeout: 8000 })
     await rows.first().waitFor({ timeout: 8000 })
+    await expectOpen()
+    assert.equal(await rows.count(), 1, 'recovery with one row: open')
     await api('POST', '/api/dev/errors/remove', { source: 'dev-3' })
-    step('an unreachable Aurora raises the takeover, turns the Test button off, and clears when /api/state answers')
+    step('an unreachable Aurora raises the takeover, turns the Test button off, and clears when /api/state answers, re-baselining the collapse')
 
     // A load that fails while Aurora is gone runs again on recovery.
     await page.route('**/api/state', (route) => route.abort())
@@ -182,7 +302,7 @@ await withEditorStack(async ({ editorUrl, aurora }) => {
     await api('POST', '/api/graph/test/revert', { session: 'agent-1' }).catch(() => {})
     await api('POST', '/api/graph/test/revert', { session: 'tab-2' }).catch(() => {})
     for (const s of ['agent-1', 'tab-2']) await api('DELETE', `/api/graph/drafts/${s}`).catch(() => {})
-    for (const s of ['dev-1', 'dev-2', 'dev-3']) await api('POST', '/api/dev/errors/remove', { source: s }).catch(() => {})
+    for (const s of ['dev-1', 'dev-2', 'dev-3', 'dev-4']) await api('POST', '/api/dev/errors/remove', { source: s }).catch(() => {})
     await api('PUT', '/api/config', { activeEffectId: original }).catch(() => {})
     await page.evaluate(() => localStorage.clear()).catch(() => {})
     await browser.close()

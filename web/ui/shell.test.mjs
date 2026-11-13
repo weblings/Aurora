@@ -290,7 +290,8 @@ const stateOk = (extra = {}) => async () => ({ reachable: true, state: 'running'
   await app._pollOnce();
   assert.ok(banner().includes("Couldn't start: No outputs available"), 'startup rows carry their source prefix');
   assert.ok(banner().includes('id="shell-banner-retry-startup"'));
-  assert.ok(!banner().includes('problems'), 'a single error never collapses');
+  assert.ok(!banner().includes('1 error'), 'a lone error starts open');
+  assert.ok(banner().includes('aria-expanded="true"') && banner().includes('Show less'), 'with the toggle, so it can collapse');
   uninstallDom();
 }
 
@@ -312,7 +313,7 @@ const stateOk = (extra = {}) => async () => ({ reachable: true, state: 'running'
   uninstallDom();
 }
 
-// Two or more collapse to a summary line; expanding shows every row, each
+// Two or more start collapsed (the first reply is the baseline); expanding shows every row, each
 // with its own source-keyed Retry button.
 {
   const errors = [
@@ -321,9 +322,10 @@ const stateOk = (extra = {}) => async () => ({ reachable: true, state: 'running'
   ];
   const { app, banner, slots } = makeApp(stateOk({ state: 'failed', errors }));
   await app._pollOnce();
-  assert.ok(banner().includes('2 problems'), 'collapsed summary');
+  assert.ok(banner().includes('2 errors'), 'collapsed bar');
+  assert.ok(banner().includes('aria-expanded="false"'));
   assert.ok(!banner().includes('No outputs available'), 'rows hidden while collapsed');
-  press(app, 'expand', 'shell-banner-expand');
+  press(app, 'toggle', 'shell-banner-toggle');
   assert.ok(banner().includes('No outputs available'));
   assert.ok(banner().includes("Couldn't resume: bridge unreachable"));
   assert.ok(banner().includes('id="shell-banner-retry-startup"'));
@@ -605,17 +607,17 @@ const HELD = { source: 'reload', message: 'bridge unreachable', id: 7 };
   uninstallDom();
 }
 
-// A condition plus an error collapse together as "2 problems"; the
+// A condition plus an error collapse together as "2 errors"; the
 // condition clears from the banner once the daemon drops it.
 {
   let conditions = [{ source: 'local_network', message: 'blocked' }];
   const { app, banner } = makeApp(async () => ({ reachable: true, state: 'running', paused: false, errors: [{ source: 'reload', message: 'boom', id: 1 }], conditions }));
   app.navigate(blankScreen(), 'dashboard');
   await app._pollOnce();
-  assert.ok(banner().includes('2 problems'), 'counts conditions and errors together');
+  assert.ok(banner().includes('2 errors'), 'counts conditions and errors together');
   conditions = [];
   await app._pollOnce();
-  assert.ok(!banner().includes('problems'), 'one row left, no summary');
+  assert.ok(!banner().includes('2 errors') && !banner().includes('1 error'), 'one row left: open, not the count bar');
   assert.ok(!banner().includes('reach devices'), 'condition row gone');
   uninstallDom();
 }
@@ -646,7 +648,8 @@ const HELD = { source: 'reload', message: 'bridge unreachable', id: 7 };
   assert.ok(banner().includes('&lt;Phone&gt;'), 'name escaped');
   assert.ok(banner().includes('K7Q2X'), 'code shown');
   assert.ok(banner().includes('shell-pairing-approve-r1') && banner().includes('shell-pairing-deny-r1'), 'approve and deny');
-  assert.ok(banner().includes('2 problems'), 'problems still collapse beside the request');
+  assert.ok(banner().includes('2 errors'), 'problems still collapse beside the request');
+  assert.ok(banner().indexOf('K7Q2X') < banner().indexOf('shell-banner-toggle'), 'the request stays above the shell');
   assert.ok(!banner().includes('Access:'), 'a browser (admin) request has no access line');
   assert.ok(banner().includes('Device:</span> &lt;Phone&gt;') && !banner().includes('From:'), 'no From line without an address');
   uninstallDom();
@@ -696,7 +699,7 @@ const HELD = { source: 'reload', message: 'bridge unreachable', id: 7 };
   uninstallDom();
 }
 
-// Rows run notices first (light test, then pairing requests), then conditions as sent, then
+// Rows run pairing requests (above the shell), the light test, then conditions as sent, then
 // errors newest id first; every button names its action and its row's key (Aurora-9hqa.1).
 {
   const { app, banner } = makeApp(stateOk({
@@ -706,10 +709,10 @@ const HELD = { source: 'reload', message: 'bridge unreachable', id: 7 };
   }), { fetchPending: async () => [{ ref: 'r1', name: 'Phone', code: 'K7Q2X' }] });
   app.canApprove = true;
   app.currentRouteId = 'dashboard';
-  app._bannerExpanded = true;
+  app._hasReplied = true; // skip the baseline: start open
   await app._pollOnce();
   await sleep(0);
-  assert.deepEqual(app._rows.map((row) => row.kind), ['light-test', 'pairing', 'condition', 'error', 'error', 'less']);
+  assert.deepEqual(app._rows.map((row) => row.kind), ['pairing', 'light-test', 'condition', 'error', 'error', 'toggle']);
   assert.deepEqual(app._rows.filter((row) => row.kind === 'error').map((row) => row.error.message), ['new', 'old']);
   assert.ok(/data-action="stop-test" data-key="test:s:live"/.test(banner()), 'buttons carry data-action and data-key');
   assert.ok(banner().includes('data-action="approve" data-key="pairing:r1"'));
@@ -741,10 +744,11 @@ const HELD = { source: 'reload', message: 'bridge unreachable', id: 7 };
   const { app, slots, banner } = makeApp(async () => ({ reachable: true, state: 'running', errors: [{ source: 'reload', message: 'a', id: 1 }], test }));
   app.navigate(blankScreen(), 'dashboard');
   await app._pollOnce();
+  press(app, 'toggle', 'shell-banner-toggle'); // two rows start collapsed
   assert.ok(banner().includes('An agent is testing an effect on the lights. Will revert in:'), 'row shown, names the agent');
   assert.ok(banner().includes('1:40'), 'clock from confirmRemainingMs');
   assert.ok(banner().indexOf('shell-light-test-stop') < banner().indexOf('shell-banner-retry-reload'), 'above problems');
-  assert.ok(!banner().includes('1 problems') && !/Keep/.test(banner()), 'not a problem, no Keep');
+  assert.ok(!/Keep/.test(banner()), 'no Keep');
   app.lightTestEndsAt -= 61000;
   assert.equal(app._lightTestClock(), '0:39', 'counts down between polls');
   const posts = [];
@@ -789,6 +793,86 @@ const HELD = { source: 'reload', message: 'bridge unreachable', id: 7 };
   await app._pollOnce();
   assert.equal(banner(), '');
   assert.equal(app.lightTestEndsAt, null);
+  uninstallDom();
+}
+
+// Collapse state (Aurora-u8jx.5): a snapshot of the row keys, memory only.
+{
+  const err = (source, message, id) => ({ source, message, id });
+  let errors = [err('reload', 'a', 1), err('startup', 'b', 2)];
+  let test = { active: false };
+  const { app, banner } = makeApp(async () => ({ reachable: true, state: 'running', paused: false, errors, test }));
+  app.navigate(blankScreen(), 'dashboard');
+  assert.equal(banner(), '', 'nothing before the first reply');
+  await app._pollOnce();
+  assert.ok(banner().includes('2 errors') && !banner().includes('shell-banner-retry'), 'baseline: 2 rows start collapsed');
+  // A poll with the same rows leaves it collapsed.
+  await app._pollOnce();
+  assert.ok(banner().includes('2 errors'));
+  // An arrival re-opens, and it stays open when the arrival leaves.
+  errors = [...errors, err('resume', 'c', 3)];
+  await app._pollOnce();
+  assert.ok(banner().includes('shell-banner-retry-resume') && banner().includes('Show less'), 'a new row re-opens');
+  errors = errors.slice(0, 2);
+  await app._pollOnce();
+  assert.ok(banner().includes('Show less'), 'stays open once re-opened');
+  // The user collapses: the snapshot is the keys on screen. A changed message re-opens.
+  press(app, 'toggle', 'shell-banner-toggle');
+  assert.ok(banner().includes('2 errors'));
+  errors = [err('reload', 'a changed', 1), errors[1]];
+  await app._pollOnce();
+  assert.ok(banner().includes('a changed') && banner().includes('Show less'), 'a changed message re-opens');
+  // A light test joins the collapse and counts as a notice; its countdown never re-opens.
+  press(app, 'toggle', 'shell-banner-toggle');
+  test = { active: true, confirmRemainingMs: 90000, holder: { session: 'a', client: 'mcp' } };
+  await app._pollOnce();
+  assert.ok(banner().includes('Show less') && banner().includes('shell-light-test-stop'), 'the test row arrives open');
+  press(app, 'toggle', 'shell-banner-toggle');
+  assert.ok(banner().includes('1 notice') && banner().includes('2 errors') && !banner().includes('shell-light-test-stop'));
+  test = { active: true, confirmRemainingMs: 60000, holder: { session: 'a', client: 'mcp' } };
+  await app._pollOnce();
+  assert.ok(banner().includes('1 notice'), 'a ticking countdown stays collapsed');
+  // Rows clearing reset: a lone row afterwards is open, and can be collapsed.
+  errors = [];
+  test = { active: false };
+  await app._pollOnce();
+  assert.equal(banner(), '');
+  errors = [err('reload', 'a', 1), err('startup', 'b', 2)];
+  await app._pollOnce();
+  assert.ok(banner().includes('Show less'), 'after clearing, new rows arrive open (the baseline is only the first reply)');
+  errors = [errors[0]];
+  await app._pollOnce();
+  press(app, 'toggle', 'shell-banner-toggle');
+  assert.ok(banner().includes('1 error') && !banner().includes('shell-banner-retry'), 'a lone row can collapse');
+  press(app, 'toggle', 'shell-banner-toggle');
+  assert.ok(banner().includes('shell-banner-retry-reload'));
+  app._stopLightTestTimer();
+  uninstallDom();
+}
+
+// Recovery from the takeover is a new baseline: 2+ rows start collapsed, a lone row open.
+{
+  let fail = false;
+  let errors = [{ source: 'reload', message: 'a', id: 1 }, { source: 'startup', message: 'b', id: 2 }];
+  const { app, banner } = makeApp(async () => { if (fail) throw new Error('down'); return { reachable: true, state: 'running', errors }; });
+  app.navigate(blankScreen(), 'dashboard');
+  await app._pollOnce();
+  press(app, 'toggle', 'shell-banner-toggle');
+  assert.ok(banner().includes('Show less'));
+  fail = true;
+  await app._pollOnce();
+  await app._pollOnce();
+  assert.equal(banner(), '');
+  fail = false;
+  await app._pollOnce();
+  assert.ok(banner().includes('2 errors') && !banner().includes('Show less'), 'recovery re-baselines: collapsed again');
+  fail = true;
+  await app._pollOnce();
+  await app._pollOnce();
+  fail = false;
+  errors = [errors[0]];
+  await app._pollOnce();
+  assert.ok(banner().includes('Show less') && banner().includes('shell-banner-retry-reload'), 'a lone row after recovery is open');
   uninstallDom();
 }
 

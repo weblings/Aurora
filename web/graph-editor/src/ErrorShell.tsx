@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { clockText, collapsedLabel, errorSentence, layoutRows, lightTesterSentence, orderRows, permissionRowHtml } from '../../ui/shellRows.js'
+import { baselineSnapshot, clockText, collapsibleKeys, errorSentence, layoutRows, lightTesterSentence, markErrors, orderRows, permissionRowHtml, reconcileSnapshot } from '../../ui/shellRows.js'
 import { renderLocalNetworkBanner } from '../../ui/MacPermissionRecovery.js'
 import type { HostCondition, HostError } from './graph/hostState'
 import type { Holder } from './graph/lightTest'
@@ -23,8 +23,9 @@ export type ShellBannerProps = {
   notes?: string[]
   // Another session's running light test, or null.
   lightTest: ShellLightTest | null
-  expanded: boolean
-  onExpandedChange: (expanded: boolean) => void
+  // The row keys the user collapsed over, or null for open (shellRows.js isCollapsed).
+  snapshot: string[] | null
+  onSnapshotChange: (snapshot: string[] | null) => void
   onRetry: (source: string) => void
   onDismiss: (error: HostError) => void
   onStopTest: () => void
@@ -43,7 +44,7 @@ function Clock({ endsAtMs }: { endsAtMs: number }) {
 function Warning({ text }: { text: string }) {
   return (
     <p className="status-text status-text-error">
-      <span className="warn-glyph" aria-hidden="true"></span> {text}
+      <span className="shell-mark shell-mark-error" aria-hidden="true"></span> {text}
     </p>
   )
 }
@@ -54,7 +55,7 @@ function ConditionRow({ rowKey, condition }: { rowKey: string; condition: HostCo
   // local_network is the one known condition row (shellRows.js renderRow); any other shows its message.
   const content =
     condition.source === 'local_network' ? (
-      <div className="shell-banner-content" dangerouslySetInnerHTML={{ __html: renderLocalNetworkBanner() }} />
+      <div className="shell-banner-content" dangerouslySetInnerHTML={{ __html: markErrors(renderLocalNetworkBanner()) }} />
     ) : (
       <div className="shell-banner-content">
         <Warning text={condition.message ?? ''} />
@@ -109,7 +110,7 @@ function LightTestRow({ rowKey, lightTest, onStopTest }: { rowKey: string; light
     <div className="shell-banner-row" data-key={rowKey}>
       <div className="shell-banner-content">
         <p className="status-text shell-pairing-title">
-          {lightTesterSentence(lightTest.holder)}
+          <span className="shell-mark shell-mark-info" aria-hidden="true"></span> {lightTesterSentence(lightTest.holder)}
           {lightTest.endsAtMs === null ? null : (
             <>
               {' Will revert in: '}
@@ -127,11 +128,12 @@ function LightTestRow({ rowKey, lightTest, onStopTest }: { rowKey: string; light
   )
 }
 
-// The rows, or nothing when there is nothing to say. Order, keys and the collapse rule (two or more
-// problems fold to a summary line the user expands; one always shows in full) are shellRows.js's.
+// The rows, or nothing when there is nothing to say. Order, keys and the collapse (one toggle button for
+// the whole shell, collapsed while the keys match the stored snapshot) are shellRows.js's.
 export function ShellBanner(props: ShellBannerProps) {
-  const { conditions, errors, notes = [], lightTest, expanded, onExpandedChange } = props
-  const rows: Row[] = layoutRows(orderRows({ conditions, errors, notes, lightTest }), expanded)
+  const { conditions, errors, notes = [], lightTest, snapshot, onSnapshotChange } = props
+  const ordered = orderRows({ conditions, errors, notes, lightTest })
+  const rows: Row[] = layoutRows(ordered, snapshot)
   if (rows.length === 0) return null
   return (
     <div className="shell-banner">
@@ -152,18 +154,34 @@ export function ShellBanner(props: ShellBannerProps) {
                   </div>
                 </div>
               )
-            case 'summary':
+            case 'toggle': {
+              // The same button in both states: React keeps the node, so focus survives a toggle.
+              const notices = row.notices as number
+              const errorCount = row.errors as number
+              const onClick = () => onSnapshotChange(row.collapsed ? null : collapsibleKeys(ordered))
+              if (!row.collapsed) {
+                return (
+                  <button type="button" className="shell-banner-summary shell-banner-collapse shell-banner-quiet" id="shell-banner-toggle" aria-expanded="true" data-action="toggle" data-key={row.key} key={row.key} onClick={onClick}>
+                    Show less <span className="accordion-chevron shell-banner-chevron-up" aria-hidden="true"></span>
+                  </button>
+                )
+              }
               return (
-                <button type="button" className="shell-banner-summary" id="shell-banner-expand" data-action="expand" data-key={row.key} key={row.key} onClick={() => onExpandedChange(true)}>
-                  <span className="warn-glyph" aria-hidden="true"></span> {collapsedLabel(row.count as number)} <span className="accordion-chevron" aria-hidden="true"></span>
+                <button type="button" className="shell-banner-summary" id="shell-banner-toggle" aria-expanded="false" data-action="toggle" data-key={row.key} key={row.key} onClick={onClick}>
+                  {notices > 0 ? (
+                    <span className="shell-count">
+                      <span className="shell-mark shell-mark-info" aria-hidden="true"></span> {`${notices} ${notices === 1 ? 'notice' : 'notices'}`}
+                    </span>
+                  ) : null}
+                  {errorCount > 0 ? (
+                    <span className="shell-count shell-count-error">
+                      <span className="shell-mark shell-mark-error" aria-hidden="true"></span> {`${errorCount} ${errorCount === 1 ? 'error' : 'errors'}`}
+                    </span>
+                  ) : null}{' '}
+                  <span className="accordion-chevron" aria-hidden="true"></span>
                 </button>
               )
-            case 'less':
-              return (
-                <button type="button" className="shell-banner-summary shell-banner-collapse" id="shell-banner-collapse" data-action="collapse" data-key={row.key} key={row.key} onClick={() => onExpandedChange(false)}>
-                  Show less <span className="accordion-chevron shell-banner-chevron-up" aria-hidden="true"></span>
-                </button>
-              )
+            }
             default:
               return null
           }
@@ -173,22 +191,33 @@ export function ShellBanner(props: ShellBannerProps) {
   )
 }
 
-export type ErrorShellProps = Omit<ShellBannerProps, 'expanded' | 'onExpandedChange'> & {
+export type ErrorShellProps = Omit<ShellBannerProps, 'snapshot' | 'onSnapshotChange'> & {
   // Aurora cannot be reached: the full-screen takeover replaces every row.
   unreachable: boolean
+  // False until the first GET /api/state reply, and again while the takeover is up. The shell draws
+  // nothing before it; the first reply (and the first after the takeover) sets the baseline.
+  hasReplied: boolean
 }
 
 // The first element of the page (#shell-banner-slot, sticky at the top, full width), then the
-// takeover (#shell-overlay-slot). The expanded state falls back to collapsed once the rows go.
-export function ErrorShell({ unreachable, ...props }: ErrorShellProps) {
-  const [expanded, setExpanded] = useState(false)
-  const rowCount = props.conditions.length + props.errors.length + (props.notes?.length ?? 0)
-  useEffect(() => {
-    if (rowCount === 0) setExpanded(false)
-  }, [rowCount])
+// takeover (#shell-overlay-slot). The collapse snapshot is seeded when hasReplied turns true (two or
+// more rows start collapsed, a lone row open), dropped once the rows no longer match it, and never stored.
+export function ErrorShell({ unreachable, hasReplied, ...props }: ErrorShellProps) {
+  const [snapshot, setSnapshot] = useState<string[] | null>(null)
+  const [seeded, setSeeded] = useState(false)
+  const rows = orderRows({ conditions: props.conditions, errors: props.errors, notes: props.notes ?? [], lightTest: props.lightTest })
+  // Adjusting state during render, the way React documents for state derived from props.
+  if (hasReplied !== seeded) {
+    setSeeded(hasReplied)
+    setSnapshot(hasReplied ? baselineSnapshot(rows) : null)
+  } else if (hasReplied) {
+    const kept = reconcileSnapshot(rows, snapshot)
+    if (kept !== snapshot) setSnapshot(kept)
+  }
+  const show = hasReplied && seeded && !unreachable
   return (
     <>
-      <div id="shell-banner-slot">{unreachable ? null : <ShellBanner {...props} expanded={expanded} onExpandedChange={setExpanded} />}</div>
+      <div id="shell-banner-slot">{show ? <ShellBanner {...props} snapshot={snapshot} onSnapshotChange={setSnapshot} /> : null}</div>
       <div id="shell-overlay-slot">
         {unreachable ? (
           <div className="overlay">

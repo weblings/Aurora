@@ -228,12 +228,56 @@
   cursor: pointer;
 }
 
-/* Sits below the expanded rows, re-collapsing the banner (shell.js) --
-   same chevron asset as the summary button above, just pointed the other
-   way, so expand/collapse reads as one reversible control. */
+/* The shell's one toggle (Aurora-u8jx.5): collapsed it reads the counts, open it sits below the
+   rows as Show less in the secondary colour, re-collapsing the banner (shell.js) -- same chevron
+   asset, pointed the other way, so expand/collapse reads as one reversible control. */
 .shell-banner-collapse {
   justify-content: center;
   margin-top: var(--aurora-space-4);
+}
+
+.shell-banner-quiet {
+  color: var(--aurora-text-secondary);
+}
+
+/* Circled marks (Grille's circledInfoIcon and circledExclamationIcon, icons/circled-*.svg), masked
+   like .warn-glyph (forms.css) so they take currentColor. Error marks are the error red wherever
+   they sit; the info mark keeps the text colour. */
+.shell-mark {
+  display: inline-block;
+  flex-shrink: 0;
+  width: 14px;
+  height: 14px;
+  vertical-align: -2px;
+  background-color: currentColor;
+  -webkit-mask-size: contain;
+  mask-size: contain;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  -webkit-mask-position: center;
+  mask-position: center;
+}
+
+.shell-mark-info {
+  -webkit-mask-image: url('../icons/circled-info.svg');
+  mask-image: url('../icons/circled-info.svg');
+}
+
+.shell-mark-error {
+  color: var(--aurora-text-error);
+  -webkit-mask-image: url('../icons/circled-exclamation.svg');
+  mask-image: url('../icons/circled-exclamation.svg');
+}
+
+/* One part of the collapsed bar: mark and count. */
+.shell-count {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--aurora-space-1);
+}
+
+.shell-count-error {
+  color: var(--aurora-text-error);
 }
 
 .shell-banner-chevron-up {

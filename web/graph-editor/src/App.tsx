@@ -731,6 +731,7 @@ export function App() {
     <div className="editor">
       <ErrorShell
         unreachable={!host.reachable}
+        hasReplied={host.hasReplied}
         hostState={host.host.state}
         platform={platform}
         conditions={host.host.conditions}

@@ -257,7 +257,7 @@ await withEditorStack(async ({ editorUrl }) => {
     // The title is the effects list's, which arrives with the catalog: the row words itself again when it does.
     await row.filter({ hasText: `${audio} no longer exists.` }).waitFor()
     assert.equal(await row.count(), 1)
-    assert.equal(await page.locator('#shell-banner-slot').getByRole('button').count(), 0, 'no Retry, no action on the row')
+    assert.equal(await page.locator('#shell-banner-slot .shell-banner-row').getByRole('button').count(), 0, 'no Retry, no action on the row')
     assert.equal(await status().getAttribute('data-preview'), 'No effect is open')
     assert.equal(await button('Test on lights').isDisabled(), true)
     assert.equal(await (await testTip()).innerText(), 'No effect is open')
@@ -272,7 +272,7 @@ await withEditorStack(async ({ editorUrl }) => {
     await page.goto(`${editorUrl}?effect=builtin.audio`)
     await row.first().waitFor()
     await row.filter({ hasText: `${audio}'s file can't be read.` }).waitFor()
-    assert.equal(await page.locator('#shell-banner-slot').getByRole('button').count(), 0)
+    assert.equal(await page.locator('#shell-banner-slot .shell-banner-row').getByRole('button').count(), 0)
     assert.equal(await button('Test on lights').isDisabled(), true)
     if (shots) await page.screenshot({ path: `${shots}/422-row.png` })
     await page.unroute('**/api/effects/builtin.audio')

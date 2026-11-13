@@ -49,7 +49,7 @@ await withEditorStack(async ({ editorUrl, aurora }) => {
     await rows.filter({ hasText: want }).waitFor()
     assert.equal((await rows.first().innerText()).trim(), want)
     assert.equal(await rows.count(), 1)
-    assert.equal(await slot.getByRole('button').count(), 0, 'no Retry, no action, no dismiss')
+    assert.equal(await slot.locator('.shell-banner-row').getByRole('button').count(), 0, 'no Retry, no action, no dismiss')
     assert.equal(await page.locator('.editor-toast[data-shown="true"]').count(), 0, 'no toast')
     // The Test button is not disabled by it.
     assert.equal(await page.getByRole('button', { name: 'Test on lights' }).isDisabled(), false, 'Test stays on')
