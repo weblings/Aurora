@@ -25,6 +25,7 @@ import { ContextMenu, type MenuAction, type MenuTarget } from './ContextMenu'
 import { ProblemsContext } from './ProblemsContext'
 import { ProblemsChip } from './ProblemsChip'
 import { Toast, useToast } from './Toast'
+import { Announcer, useAnnouncer } from './Announcer'
 import { NameDialog } from './NameDialog'
 import { Icon, addIcon, arrowLeftIcon, chevronDownIcon, redoIcon, undoIcon } from '@weblings/grille'
 import { COMPACT_BAR, DOCK_BOTTOM, TIGHT_BAR, useMedia } from './useMedia'
@@ -42,7 +43,7 @@ import { converterFor, insertConverter, refuseConnection } from './graph/connect
 import { controlsOf } from './graph/controls'
 import { addEdge, addNode, joinEndpoint, moveNodes, removeEdge, removeNodes, setParam } from './graph/doc'
 import { editorReducer, emptyEditor, sameDoc } from './graph/history'
-import { changeIsEdit, pickBanner, pickStatus, quietEndToast, stopLabel } from './graph/status'
+import { changeIsEdit, pickBanner, pickStatus, quietEndToast, stopLabel, testFailureToast, testOutcome } from './graph/status'
 import { SplitTestButton } from './SplitTestButton'
 import { initialTest, type TestMode } from './graph/lightTest'
 import { BLANK_ID, blankDoc, forWrite, freshEffectId, isDraftId, newEffectId, setTitle, titleOf } from './graph/save'
@@ -90,6 +91,7 @@ export function App() {
   // A Save or Save and apply that failed; cleared by the next edit or write.
   const [writeTrouble, setWriteTrouble] = useState<string | null>(null)
   const { text: toastText, show: showToast } = useToast()
+  const { text: announced, announce } = useAnnouncer()
   // GET /api/state: the error shell's rows, and the one verdict on whether Aurora is reachable.
   const host = useHostState()
   const [platform, setPlatform] = useState('')
@@ -292,11 +294,31 @@ export function App() {
     const text = quietEndToast({ ...initialTest, ended })
     if (text) showToast(text)
   }, [ended, showToast])
+  // A test that ended for a reason the user did not cause: announced once, and the first line of
+  // the Test menu until the next test, Save or edit. Nothing is drawn on the button.
+  const outcome = testOutcomeCleared ? null : testOutcome(lights.state)
+  useEffect(() => {
+    const text = testOutcome({ ...initialTest, ended })
+    if (text) announce(text)
+  }, [ended, announce])
+  // The user pressed Test and the server refused: a toast with the server's own words.
+  const failure = lights.state.failure
+  useEffect(() => {
+    const text = testFailureToast({ ...initialTest, failure })
+    if (text) showToast(text)
+  }, [failure, showToast])
+  // The shell row and the Test button's Take over both read the host poll; look at once when this
+  // tab's own test starts or ends so neither lags.
+  const testPhase = lights.state.phase
+  const { checkNow } = host
+  useEffect(() => {
+    void checkNow()
+  }, [testPhase, checkNow])
   const editedSinceTest = testing && testedDoc !== null && doc !== null && !sameDoc(testedDoc, doc)
   // The shell's light-test row is another session's test: this tab's own shows as Stop on the Test button.
   const otherHeld = otherTest(host.host.test, session)
   const otherLightTest = otherHeld ? { holder: otherHeld.holder, endsAtMs: host.testEndsAtMs } : null
-  const status = pickStatus({ openError, unreachable: !host.reachable, loop: loop.state, test: lights.state, writeTrouble, testOutcomeCleared })
+  const status = pickStatus({ openError, unreachable: !host.reachable, loop: loop.state, test: lights.state, otherHolder: otherHeld?.holder ?? null, writeTrouble })
   const banner = pickBanner(openError, false, status)
   // Without Aurora nothing can be tested or saved.
   const blocked = status.rank === 1
@@ -769,11 +791,12 @@ export function App() {
           mode={testMode}
           running={testing}
           stopText={stopLabel(lights.state)}
-          action={status.action ?? (lights.state.other && lights.state.phase === 'idle' ? 'take-over' : null)}
+          action={status.action}
           disabledReason={
             blocked ? 'Cannot reach Aurora' : loop.state.valid === false ? 'Fix the problems before testing' : null
           }
           busy={!doc || writing || (lights.state.phase !== 'idle' && lights.state.phase !== 'running')}
+          outcome={outcome}
           onStart={startTest}
           onStop={() => void lights.revert()}
           onReconnect={loop.reconnect}
@@ -912,6 +935,7 @@ export function App() {
         />
       ) : null}
       <Toast text={toastText} />
+      <Announcer text={announced} />
     </div>
   )
 }

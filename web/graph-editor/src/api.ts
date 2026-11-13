@@ -121,13 +121,6 @@ function holderOf(raw: unknown): Holder | null {
   return typeof session === 'string' ? { session, client: typeof client === 'string' ? client : null } : null
 }
 
-export type TestInfo = { holder: Holder | null }
-
-export async function fetchTestInfo(): Promise<TestInfo> {
-  const body = await getJson<{ active?: boolean; holder?: unknown }>('/api/graph/test')
-  return { holder: body.active ? holderOf(body.holder) : null }
-}
-
 export type TestStart = { ok: true; remainingMs: number; heartbeatMs: number } | { ok: false; reason: string }
 
 export async function startTest(session: string, mode: 'once' | 'live' = 'once'): Promise<TestStart> {

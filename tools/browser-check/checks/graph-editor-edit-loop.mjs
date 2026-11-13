@@ -5,7 +5,7 @@
 import assert from 'node:assert/strict'
 import { launch } from '../lib/browser.mjs'
 import { withEditorStack } from '../lib/stack.mjs'
-import { detailsChecks, fileAction, pickAction, setName, tickFirst, waitControlCount, waitToast } from '../lib/editorMenu.mjs'
+import { announced, detailsChecks, fileAction, waitAnnounced, pickAction, setName, tickFirst, waitControlCount, waitToast } from '../lib/editorMenu.mjs'
 
 const created = []
 
@@ -28,7 +28,6 @@ await withEditorStack(async ({ editorUrl, aurora }) => {
       [method, path, body, headers],
     )
   const active = async () => (await api('GET', '/api/config')).json.activeEffectId
-  const testNote = () => page.locator('.editor-header').getAttribute('data-preview')
   const countdown = () => button('Stop the test').innerText()
   const button = (name) => page.getByRole('button', { name, exact: true })
   const step = (label) => console.log(`ok  ${label}`)
@@ -57,9 +56,11 @@ await withEditorStack(async ({ editorUrl, aurora }) => {
     const graph = (await api('GET', '/api/effects/builtin.video')).json.graph
     await api('PUT', '/api/graph/drafts/agent-1', { graph })
     assert.equal((await api('POST', '/api/graph/test', { session: 'agent-1' }, { 'X-Aurora-Client': 'mcp' })).status, 200)
-    await page.waitForFunction(() => document.querySelector('.editor-header')?.dataset.preview.includes('took the lights'), null, { timeout: 8000 })
-    assert.match(await testNote(), /an agent took the lights/)
+    const keepAgent = setInterval(() => void api('POST', '/api/graph/test/heartbeat', { session: 'agent-1' }).catch(() => {}), 1000)
+    await waitAnnounced(page, 'took the lights', 8000)
+    assert.match(await announced(page), /Test ended: an agent took the lights/)
     assert.match(await button('Take over the lights').innerText(), /Take over/)
+    clearInterval(keepAgent)
     await api('POST', '/api/graph/test/revert', { session: 'agent-1' })
     step('a takeover by an agent is reported, with the holder')
 
@@ -67,11 +68,15 @@ await withEditorStack(async ({ editorUrl, aurora }) => {
     await button('Take over the lights').or(button('Test on lights')).click()
     await button('Stop the test').waitFor()
     await page.route('**/api/graph/test/heartbeat', (route) => route.abort())
-    await page.waitForFunction(() => document.querySelector('.editor-header')?.dataset.preview.includes('Lost contact'), null, { timeout: 15_000 })
+    // Three failed heartbeats: the tab gives up and the button is at rest. Lost contact is the
+    // "Aurora has stopped" takeover (needs /api/state down as well), never a message of its own.
+    await button('Test on lights').waitFor({ timeout: 15_000 })
+    assert.equal(await page.locator('.editor-banner').count(), 0)
+    assert.doesNotMatch(await announced(page), /Lost contact/)
     await page.unroute('**/api/graph/test/heartbeat')
     await page.waitForTimeout(7000)
     assert.equal((await api('GET', '/api/graph/test')).json.active, false)
-    step('lost heartbeats are reported and the server reverts by itself')
+    step('lost heartbeats return the button to rest, with no message of their own, and the server reverts by itself')
 
     // A test shows Stop only: Keep is gone, the title menu commits.
     await button('Test on lights').click()

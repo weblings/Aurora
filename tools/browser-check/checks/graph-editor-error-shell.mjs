@@ -86,6 +86,8 @@ await withEditorStack(async ({ editorUrl, aurora }) => {
     const releaseAgent = holdLights('agent-1')
     await rows.first().waitFor({ timeout: 8000 })
     assert.match(await rows.first().innerText(), /^An agent is testing an effect on the lights\./)
+    // One source for who holds the lights (useHostState): the Test button says Take over with the row, not up to 3 s apart.
+    assert.equal(await page.getByRole('button', { name: 'Take over the lights' }).count(), 1, 'Take over appears with the shell row')
     await shot('d-editor-light-test-agent')
     const dash2 = await browser.newPage({ viewport: { width: 900, height: 500 } })
     await dash2.goto(`${aurora}/`)
@@ -95,6 +97,7 @@ await withEditorStack(async ({ editorUrl, aurora }) => {
     releaseAgent()
     await api('POST', '/api/graph/test/revert', { session: 'agent-1' })
     await rows.first().waitFor({ state: 'detached', timeout: 8000 })
+    assert.equal(await page.getByRole('button', { name: 'Take over the lights' }).count(), 0, 'Take over goes with the row')
     await api('PUT', '/api/graph/drafts/tab-2', { graph })
     assert.equal((await api('POST', '/api/graph/test', { session: 'tab-2', mode: 'live' })).status, 200)
     const releaseTab = holdLights('tab-2')

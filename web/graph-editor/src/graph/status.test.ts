@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import { initialLoop, type LoopState } from './loop'
 import { initialTest, testReducer, type TestState } from './lightTest'
-import { changeIsEdit, pickBanner, pickStatus, quietEndToast, stopLabel, type StatusInput } from './status'
+import { changeIsEdit, pickBanner, pickStatus, quietEndToast, stopLabel, testFailureToast, testOutcome, type StatusInput } from './status'
 
-const base: StatusInput = { openError: null, unreachable: false, loop: { ...initialLoop, valid: true, stream: 'live' }, test: initialTest, writeTrouble: null, testOutcomeCleared: false }
+const base: StatusInput = { openError: null, unreachable: false, loop: { ...initialLoop, valid: true, stream: 'live' }, test: initialTest, otherHolder: null, writeTrouble: null }
 const withLoop = (l: Partial<LoopState>): StatusInput => ({ ...base, loop: { ...base.loop, ...l } })
 const withTest = (t: Partial<TestState>): StatusInput => ({ ...base, test: { ...initialTest, ...t } })
 
@@ -35,18 +35,31 @@ describe('status priority', () => {
   it('rank 4: preview taken over carries Reconnect', () => {
     expect(pickStatus(withLoop({ stream: 'replaced' }))).toMatchObject({ rank: 4, where: 'button', label: 'Reconnect', action: 'reconnect' })
   })
-  it('rank 5: lights in use by another session', () => {
-    expect(pickStatus(withTest({ other: { session: 's', client: 'mcp' } }))).toMatchObject({ rank: 5, where: 'button', action: 'take-over', label: 'Take over', detail: 'Lights in use: an agent is testing' })
+  it('rank 5: lights in use by another session, from the host poll', () => {
+    expect(pickStatus({ ...base, otherHolder: { session: 's', client: 'mcp' } })).toMatchObject({ rank: 5, where: 'button', action: 'take-over', label: 'Take over', detail: 'Lights in use: an agent is testing' })
+    // Not while this tab is testing: that is Stop.
+    expect(pickStatus({ ...withTest({ phase: 'running' }), otherHolder: { session: 's', client: null } }).rank).toBe(7)
   })
-  it('rank 6: test and write failures; a write failure wins over a cleared test outcome', () => {
-    expect(pickStatus(withTest({ failure: 'no' }))).toMatchObject({ rank: 6, where: 'banner', label: 'no' })
-    expect(pickStatus(withTest({ ended: { reason: 'heartbeat_lost', holder: null } })).rank).toBe(6)
-    expect(pickStatus({ ...withTest({ ended: { reason: 'heartbeat_lost', holder: null } }), testOutcomeCleared: true }).rank).toBe(7)
+  it('rank 6 is a failed Save only: test outcomes and failures are not a banner', () => {
+    expect(pickStatus(withTest({ failure: 'no' })).where).toBe('none')
+    for (const reason of ['heartbeat_lost', 'replaced', 'stopped', 'superseded', 'pipeline_gone', 'unreachable']) {
+      expect(pickStatus(withTest({ ended: { reason, holder: null } })).where).toBe('none')
+    }
     expect(pickStatus({ ...base, writeTrouble: 'Fix the 2 problems before saving' })).toMatchObject({ rank: 6, label: 'Fix the 2 problems before saving' })
   })
-  it('a taken test is rank 6, not rank 5', () => {
-    const t = withTest({ other: { session: 's', client: null }, ended: { reason: 'replaced', holder: { session: 's', client: null } } })
-    expect(pickStatus(t)).toMatchObject({ rank: 6, label: 'Test ended: another editor tab or window took the lights' })
+  it('testOutcome words each end the user did not cause, and only those', () => {
+    const say = (reason: string | null, holder = null as { session: string; client: string | null } | null) => testOutcome(withTest({ ended: { reason, holder } }).test)
+    expect(say('replaced', { session: 's', client: 'mcp' })).toBe('Test ended: an agent took the lights')
+    expect(say('heartbeat_lost')).toContain('stopped hearing')
+    expect(say('stopped')).toContain('Dashboard')
+    expect(say('superseded')).toContain('another effect')
+    expect(say('pipeline_gone')).toContain('paused or restarted')
+    for (const quiet of ['kept', 'reverted', 'confirmed', 'confirm_timeout', 'unreachable', null]) expect(say(quiet)).toBeNull()
+    expect(testOutcome(withTest({ phase: 'running', ended: { reason: 'stopped', holder: null } }).test)).toBeNull()
+  })
+  it('a start the server refused is a toast with its own words', () => {
+    expect(testFailureToast(withTest({ failure: 'Lights are paused' }).test)).toBe('Lights are paused')
+    expect(testFailureToast(initialTest)).toBeNull()
   })
   it('Reverted, Kept and the end of a Once test are toasts, not status', () => {
     for (const reason of ['reverted', 'kept', 'confirm_timeout']) {

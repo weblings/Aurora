@@ -8,7 +8,7 @@
 import assert from 'node:assert/strict'
 import { launch } from '../lib/browser.mjs'
 import { withEditorStack } from '../lib/stack.mjs'
-import { addNodeByName, fileAction, openTitleMenu, setName } from '../lib/editorMenu.mjs'
+import { addNodeByName, fileAction, openTitleMenu, setName, waitAnnounced } from '../lib/editorMenu.mjs'
 
 const created = []
 
@@ -144,7 +144,7 @@ await withEditorStack(async ({ editorUrl, restart }) => {
     const graph = (await api('GET', '/api/effects/builtin.video')).json.graph
     await api('PUT', '/api/graph/drafts/agent-1', { graph })
     assert.equal((await api('POST', '/api/graph/test', { session: 'agent-1' }, { 'X-Aurora-Client': 'mcp' })).status, 200)
-    await page.waitForFunction(() => document.querySelector('.editor-header')?.dataset.preview.includes('took the lights'), null, { timeout: 8000 })
+    await waitAnnounced(page, 'took the lights', 8000)
     await api('POST', '/api/graph/test/revert', { session: 'agent-1' })
     step('test on lights, then a second session takes it and the editor says so')
 

@@ -1,9 +1,8 @@
 import { useCallback, useEffect, useReducer, useRef } from 'react'
-import { fetchTestInfo, heartbeat, revertTest, startTest } from './api'
+import { heartbeat, revertTest, startTest } from './api'
 import { initialTest, testReducer, type TestMode, type TestState } from './graph/lightTest'
 import type { DraftVerdict } from './api'
 
-const IDLE_POLL_MS = 3000
 const TICK_MS = 1000
 // Heartbeats that failed in a row before the tab gives up on the test. The
 // server reverts by itself after 6 s of silence, so this only changes the label.
@@ -20,8 +19,7 @@ export type LightTest = {
 }
 
 // Runs one test on the lights for this tab: heartbeats while it lasts, a
-// countdown between them, and a slow look at the server while idle so a test
-// someone else holds can be shown. `sendDraft` must leave the server's draft
+// countdown between them. Who else holds the lights is useHostState's to say. `sendDraft` must leave the server's draft
 // equal to the document being tested.
 export function useLightTest(session: string, sendDraft: () => Promise<DraftVerdict>): LightTest {
   const [state, dispatch] = useReducer(testReducer, initialTest)
@@ -58,25 +56,6 @@ export function useLightTest(session: string, sendDraft: () => Promise<DraftVerd
       window.clearInterval(beat)
     }
   }, [running, session])
-
-  // While idle: who holds the lights, if anyone else.
-  const idle = state.phase === 'idle'
-  useEffect(() => {
-    if (!idle) return
-    let stopped = false
-    const look = () => {
-      if (document.hidden) return
-      fetchTestInfo()
-        .then(({ holder }) => !stopped && dispatch({ type: 'seen', holder: holder && holder.session !== session ? holder : null }))
-        .catch(() => {})
-    }
-    look()
-    const timer = window.setInterval(look, IDLE_POLL_MS)
-    return () => {
-      stopped = true
-      window.clearInterval(timer)
-    }
-  }, [idle, session])
 
   // Leaving the page puts the lights back at once instead of after the lapse.
   useEffect(() => {

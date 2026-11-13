@@ -110,3 +110,9 @@ export async function addNodeByName(page, name) {
   await page.getByRole('dialog', { name: 'Add node' }).getByRole('option', { name }).first().click()
   await page.getByRole('dialog', { name: 'Add node' }).waitFor({ state: 'detached' })
 }
+
+// The editor's announce-only live region (web/graph-editor/src/Announcer.tsx): what a screen
+// reader was last told. Outcomes of a test the user did not cause go here, not on the button.
+export const announced = (page) => page.locator('[data-announcer]').innerText()
+export const waitAnnounced = (page, text, timeout = 15_000) =>
+  page.waitForFunction((t) => document.querySelector('[data-announcer]')?.textContent.includes(t), text, { timeout })
