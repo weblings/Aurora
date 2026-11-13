@@ -76,7 +76,14 @@ await withEditorStack(async ({ editorUrl, aurora }) => {
     // The light-test row: another session's test is named and offers Stop test; this tab's own is hidden.
     const graph = (await api('GET', '/api/effects/builtin.video')).json.graph
     await api('PUT', '/api/graph/drafts/agent-1', { graph })
+    // A test whose holder stops sending heartbeats ends after a few seconds (heartbeat_lost), so the
+    // stand-in agent and tab keep theirs going, as a real client does, while their rows are checked.
+    const holdLights = (session) => {
+      const timer = setInterval(() => void api('POST', '/api/graph/test/heartbeat', { session }).catch(() => {}), 1000)
+      return () => clearInterval(timer)
+    }
     assert.equal((await api('POST', '/api/graph/test', { session: 'agent-1', mode: 'live' }, { 'X-Aurora-Client': 'mcp' })).status, 200)
+    const releaseAgent = holdLights('agent-1')
     await rows.first().waitFor({ timeout: 8000 })
     assert.match(await rows.first().innerText(), /^An agent is testing an effect on the lights\./)
     await shot('d-editor-light-test-agent')
@@ -85,13 +92,16 @@ await withEditorStack(async ({ editorUrl, aurora }) => {
     await dash2.locator('.shell-banner-row', { hasText: 'An agent is testing an effect on the lights.' }).waitFor({ timeout: 8000 })
     if (process.env.SHOTS) await dash2.screenshot({ path: `${process.env.SHOTS}/d-dashboard-light-test-agent.png` })
     await dash2.close()
+    releaseAgent()
     await api('POST', '/api/graph/test/revert', { session: 'agent-1' })
     await rows.first().waitFor({ state: 'detached', timeout: 8000 })
     await api('PUT', '/api/graph/drafts/tab-2', { graph })
     assert.equal((await api('POST', '/api/graph/test', { session: 'tab-2', mode: 'live' })).status, 200)
+    const releaseTab = holdLights('tab-2')
     await rows.first().waitFor({ timeout: 8000 })
     assert.match(await rows.first().innerText(), /^Another editor tab or window is testing an effect on the lights\./)
     await rows.first().getByRole('button', { name: 'Stop test' }).click()
+    releaseTab()
     await rows.first().waitFor({ state: 'detached', timeout: 8000 })
     assert.equal((await api('GET', '/api/state')).json.test.active, false, 'Stop test ended it')
     // This tab's own test: Stop on the Test button, no shell row.
