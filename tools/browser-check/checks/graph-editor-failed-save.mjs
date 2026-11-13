@@ -94,7 +94,8 @@ await withEditorStack(async ({ editorUrl, aurora }) => {
     await page.getByRole('menuitem', { name: 'Save and apply', exact: true }).click()
     await rows.first().waitFor({ timeout: 15_000 })
     // Aurora words it: for an input it cannot open the row is the effect failure's (with Retry and Open
-    // Settings); a same-effect build error would read "Couldn't apply settings: <reason>". Either way it
+    // Settings); a same-effect build error would read "Couldn't apply settings: <reason>" (this stack cannot
+    // cause that one; ErrorShell.test.tsx and web/ui/shell.test.mjs are its coverage). Either way it
     // is Aurora's row, not the editor's "Couldn't save".
     const reloadText = (await rows.first().innerText()).trim().split('\n')[0]
     assert.ok(reloadText.length > 10 && !/^Couldn't save/.test(reloadText), `Aurora's own row, got: ${reloadText}`)

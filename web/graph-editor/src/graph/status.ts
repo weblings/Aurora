@@ -10,7 +10,8 @@ export type StatusRank = 1 | 4 | 5 | 7
 export type Status = {
   rank: StatusRank
   label: string
-  // The tooltip.
+  // Extra text for a state; null when the label says it all (rank 1 open failure: the error shell row says why).
+  // No component draws it today (the Test button's tooltip is the label); the loop summary and rank 4/5 set it.
   detail: string | null
   // Where it shows now that the bar has no status text: the Test button's
   // label or tooltip, or nowhere (the problems chip and the zones' stale tint
@@ -101,7 +102,7 @@ export function pickStatus({ openError, unreachable, loop, test, otherHolder }: 
   // is disabled with this as its tooltip, and nothing is open to save. A lost preview stream alone is not this: it only
   // asks the host poll to look (useDraftLoop), which owns the verdict.
   if (unreachable) return at(1, 'button', 'Cannot reach Aurora', 'Retrying.')
-  if (openError) return at(1, 'button', 'No effect is open', 'The error above says why.')
+  if (openError) return at(1, 'button', 'No effect is open')
   // Draft not sent is split by the server's error code: the error shell shows the editor-supplied
   // rows (graph/hostState.ts draftShellNote), and a too-large draft is a Whole graph problem.
   // Draft would not load is a problem with the graph: it is a Whole graph row in

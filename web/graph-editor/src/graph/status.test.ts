@@ -13,7 +13,7 @@ describe('status priority', () => {
   })
   it('rank 1: unreachable and cannot open beat everything', () => {
     const all = { ...withLoop({ putError: 'x', stream: 'replaced' }), openError: true }
-    expect(pickStatus(all)).toMatchObject({ rank: 1, where: 'button', label: 'No effect is open' })
+    expect(pickStatus(all)).toMatchObject({ rank: 1, where: 'button', label: 'No effect is open', detail: null })
     expect(pickStatus({ ...all, unreachable: true })).toMatchObject({ rank: 1, label: 'Cannot reach Aurora' })
     expect(pickStatus({ ...base, unreachable: true })).toMatchObject({ rank: 1, where: 'button', label: 'Cannot reach Aurora', detail: 'Retrying.' })
   })
