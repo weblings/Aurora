@@ -1,7 +1,9 @@
 // Aurora-u68h.7 (stage 6f): a Save, Save as new or Save and apply that Aurora refused or could not
 // write is an error-shell row, "Couldn't save <title>: <Aurora's reason>", with no Retry, no action and
 // no dismiss, cleared by the next Save or edit. A network failure sets no row (the "Aurora has stopped"
-// takeover owns it). `SHOTS=<dir>` saves the row.
+// takeover owns it). Aurora-f8yk: a Save and apply that saves but cannot run (a server draft needing an
+// unopened input) shows Aurora's own row in the editor and on the Dashboard, and applying a working graph
+// clears it. `SHOTS=<dir>` saves the rows.
 import assert from 'node:assert/strict'
 import { launch } from '../lib/browser.mjs'
 import { withEditorStack } from '../lib/stack.mjs'
@@ -10,7 +12,7 @@ import { fileAction, makeEdit, openTitleMenu, setName, tickFirst, waitEffect, wa
 const created = []
 const shots = process.env.SHOTS
 
-await withEditorStack(async ({ editorUrl }) => {
+await withEditorStack(async ({ editorUrl, aurora }) => {
   const browser = await launch()
   const page = await browser.newPage({ viewport: { width: 1470, height: 900 } })
   page.on('pageerror', (e) => assert.fail(`page error: ${e.message}`))
@@ -71,6 +73,52 @@ await withEditorStack(async ({ editorUrl }) => {
     await waitToast(page, 'Saved as Failed save a')
     assert.equal(await rows.count(), 0, 'a successful Save clears the row')
     step('Save and apply refused shows the row; the next Save clears it')
+
+    // Aurora-f8yk: a Save and apply the server accepts but cannot run. The effect is running first (a
+    // working Save and apply); then the draft the server holds is swapped for one needing an input
+    // Aurora has not opened, so the reload fails and Aurora records it. Nothing editor-side sets the row.
+    await makeEdit(page)
+    await openTitleMenu(page)
+    await page.getByRole('menuitem', { name: 'Save and apply', exact: true }).click()
+    await page.waitForFunction(async () => (await (await fetch('/api/config')).json()).activeEffectId === 'failed-save-a', null, { timeout: 10_000 })
+    const audio = (await api('GET', '/api/effects/builtin.audio')).json.graph
+    const sessionId = await page.evaluate(() => sessionStorage.getItem('aurora.graphEditor.session'))
+    await makeEdit(page)
+    await page.route('**/api/graph/apply', async (route) => {
+      await fetch(`${new URL(route.request().url()).origin}/api/graph/drafts/${sessionId}`, {
+        method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ graph: audio }),
+      })
+      await route.continue()
+    })
+    await openTitleMenu(page)
+    await page.getByRole('menuitem', { name: 'Save and apply', exact: true }).click()
+    await rows.first().waitFor({ timeout: 15_000 })
+    // Aurora words it: for an input it cannot open the row is the effect failure's (with Retry and Open
+    // Settings); a same-effect build error would read "Couldn't apply settings: <reason>". Either way it
+    // is Aurora's row, not the editor's "Couldn't save".
+    const reloadText = (await rows.first().innerText()).trim().split('\n')[0]
+    assert.ok(reloadText.length > 10 && !/^Couldn't save/.test(reloadText), `Aurora's own row, got: ${reloadText}`)
+    // The editor reloads what Aurora applied, so it now holds the audio graph and its own preview says
+    // "Draft would not load" with Test off. That is the editor's verdict on that graph, not the row's, so
+    // Test-stays-on is only asserted for the refused Saves above.
+    // The Dashboard shows the same row.
+    const dash = await browser.newPage()
+    await dash.goto(`${aurora}/`)
+    await dash.locator('.shell-banner-row', { hasText: reloadText }).waitFor({ timeout: 8000 })
+    await dash.close()
+    if (shots) await page.screenshot({ path: `${shots}/failed-reload-row.png` })
+    step('a Save and apply whose reload fails shows Aurora\'s own row in the editor and on the Dashboard')
+
+    // A working graph applied clears it.
+    await page.unroute('**/api/graph/apply')
+    await page.goto(`${editorUrl}?effect=builtin.video`)
+    await page.waitForSelector('.aurora-node')
+    await setName(page, 'Failed save b')
+    await fileAction(page, 'Save and apply')
+    await waitEffect(page, 'failed-save-b')
+    created.push('failed-save-b')
+    await rows.first().waitFor({ state: 'detached', timeout: 15_000 })
+    step('applying a working graph clears the row')
 
     // A network failure sets no row.
     await makeEdit(page)
