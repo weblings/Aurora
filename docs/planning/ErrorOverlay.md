@@ -183,9 +183,22 @@ One sticky element mounted by the app shell, not by any screen:
   scrolls away).
 - **Rows**: one generic row template for every error (message plus
   whatever `action` it carries, Retry, Open Settings, or none, never
-  per-source markup). One error shows as one row; two or more collapse to
-  a summary line ("⚠ 2 problems ▾") that expands, so several errors can't
-  eat the window.
+  per-source markup). The whole shell (errors and notices) collapses as
+  one control to a bar of counts ("1 notice 2 errors", each with its
+  circled mark, notices first), and the user
+  can collapse a lone row too (`Aurora-u8jx.5`). How rows start
+  (`Aurora-u8jx.12`, option B, decided 2026-11-13): on page load, meaning
+  the first `/api/state` reply (recovery from the "Aurora has stopped"
+  takeover counts as a load too), two or more rows start collapsed so
+  several can't eat a narrow window (at 400×650, about 37 px collapsed vs
+  295 px open), and a lone row starts open. After load, any new row or
+  changed message re-opens the shell and the new row gets one pulse
+  (`Aurora-u8jx.14`), so rows that arrive later are never hidden. The
+  first reply is the baseline, not an arrival: no pulse, and nothing
+  renders before it, so there is no open-then-collapse flash. Collapse
+  state is memory only, so a reload or Dashboard→editor counts as a new
+  load. No scroll view in normal use; a `60vh` safety cap only for the
+  rare 5–6 row case.
 - **Fed by the shell's heartbeat**, which polls `GET /api/state` instead of
   `/api/capabilities` (also lock-free, `PipelineRoutes.cpp:83-99`): one
   request gives reachability, host state and the error object, and gives
