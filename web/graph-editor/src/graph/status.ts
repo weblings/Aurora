@@ -5,7 +5,7 @@
 import { summarize, type LoopState } from './loop'
 import { describeTest, type TestState } from './lightTest'
 
-export type StatusRank = 1 | 3 | 4 | 5 | 6 | 7
+export type StatusRank = 1 | 4 | 5 | 6 | 7
 
 export type Status = {
   rank: StatusRank
@@ -21,8 +21,11 @@ export type Status = {
 }
 
 export type StatusInput = {
-  // Cannot reach Aurora, or cannot open the effect (rank 1, also a banner).
+  // The effect or catalog would not load although Aurora answers (rank 1, a banner with Retry).
   openError: string | null
+  // Aurora cannot be reached: the one verdict, from the host-state poll that also raises
+  // the shell's takeover (rank 1; the Test button is off with it).
+  unreachable: boolean
   loop: LoopState
   test: TestState
   // A Save or Save and apply that failed (rank 6).
@@ -80,11 +83,13 @@ export function stopLabel(test: TestState): string {
 
 const at = (rank: StatusRank, where: Status['where'], label: string, detail: string | null = null, action: Status['action'] = null): Status => ({ rank, where, label, detail, action })
 
-export function pickStatus({ openError, loop, test, writeTrouble, testOutcomeCleared }: StatusInput): Status {
-  // Rank 1: the banner says it; the button is disabled with this as its tooltip.
-  if (openError || loop.stream === 'unreachable') return at(1, 'button', 'Cannot reach Aurora', openError ?? 'Retrying.')
-  // Ranks 3 (Draft not sent) and 6 persist and need a look: the banner.
-  if (loop.putError) return at(3, 'banner', 'Draft not sent', loop.putError)
+export function pickStatus({ openError, unreachable, loop, test, writeTrouble, testOutcomeCleared }: StatusInput): Status {
+  // Rank 1: the takeover (or the banner for an effect that would not open) says it; the button
+  // is disabled with this as its tooltip. A lost preview stream alone is not this: it only
+  // asks the host poll to look (useDraftLoop), which owns the verdict.
+  if (unreachable || openError) return at(1, 'button', 'Cannot reach Aurora', openError ?? 'Retrying.')
+  // Draft not sent is split by the server's error code: the error shell shows the editor-supplied
+  // rows (graph/hostState.ts draftShellNote), and a too-large draft is a Whole graph problem.
   // Draft would not load is a problem with the graph: it is a Whole graph row in
   // the problems popover (graph/problems.ts draftIssues), not a banner.
   // Rank 4 and 5 are the button's own labels.

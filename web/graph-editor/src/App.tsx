@@ -14,7 +14,7 @@ import {
   type NodeChange,
   type ReactFlowInstance,
 } from '@xyflow/react'
-import { applyGraph, fetchCatalog, fetchEffectGraph, fetchEffects, fetchHasAudio, putDraft, saveGraph, type WriteResult } from './api'
+import { applyGraph, fetchCatalog, fetchEffectGraph, fetchEffects, fetchCapabilities, putDraft, saveGraph, type WriteResult } from './api'
 import { EditorContext, type EditorActions } from './EditorContext'
 import { GenericNode } from './GenericNode'
 import { DetailsDrawer } from './DetailsDrawer'
@@ -31,6 +31,9 @@ import { COMPACT_BAR, DOCK_BOTTOM, TIGHT_BAR, useMedia } from './useMedia'
 import { TitleMenu, type TitleMenuAction } from './TitleMenu'
 import { FIT_OPTIONS, ViewMenu } from './ViewMenu'
 import { ZonesIsland } from './ZonesIsland'
+import { ErrorShell } from './ErrorShell'
+import { useHostState } from './useHostState'
+import { draftShellNote, otherTest } from './graph/hostState'
 import { tabSession, useDraftLoop } from './useDraftLoop'
 import { useLightTest } from './useLightTest'
 import { restorable, clearUnsaved, syncUnsaved } from './graph/autosave'
@@ -68,12 +71,22 @@ export function App() {
   const [baseline, setBaseline] = useState<{ id: string; doc: GraphDoc } | null>(null)
   // A browser-stored copy of unsaved edits from an earlier visit, awaiting a choice.
   const [offer, setOffer] = useState<GraphDoc | null>(null)
-  // Cannot reach Aurora, or cannot open the effect: a banner with Retry.
+  // The effect or the catalog would not load although Aurora answered: a banner with Retry.
+  // (When Aurora does not answer, the error shell's takeover says so and nothing is set here.)
   const [openError, setOpenError] = useState<string | null>(null)
   const [attempt, setAttempt] = useState(0)
   // A Save or Save and apply that failed; cleared by the next edit or write.
   const [writeTrouble, setWriteTrouble] = useState<string | null>(null)
   const { text: toastText, show: showToast } = useToast()
+  // GET /api/state: the error shell's rows, and the one verdict on whether Aurora is reachable.
+  const host = useHostState()
+  const [platform, setPlatform] = useState('')
+  // A load that failed for want of Aurora runs again once it answers.
+  const retryOnRecovery = useRef(false)
+  const loadFailed = (message: string) => {
+    retryOnRecovery.current = true
+    void host.checkNow().then((answered) => answered && setOpenError(message))
+  }
   const [writing, setWriting] = useState(false)
   const [titleMenuOpen, setTitleMenuOpen] = useState(false)
   const compactBar = useMedia(COMPACT_BAR)
@@ -101,13 +114,16 @@ export function App() {
   const canvas = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
-    fetchHasAudio().then(setHasAudio)
+    fetchCapabilities().then(({ hasAudio: audio, platform: p }) => {
+      setHasAudio(audio)
+      setPlatform(p)
+    })
     Promise.all([fetchCatalog(), fetchEffects()])
       .then(([c, e]) => {
         setCatalog(c)
         setEffects(e)
       })
-      .catch((e: Error) => setOpenError(`Cannot reach Aurora: ${e.message}`))
+      .catch((e: Error) => loadFailed(`Cannot reach Aurora: ${e.message}`))
   }, [attempt])
 
   useEffect(() => {
@@ -126,7 +142,7 @@ export function App() {
         setOffer(restorable(effectId, graph))
         setOpenError(null)
       })
-      .catch((e: Error) => !stale && setOpenError(`Cannot open '${effectId}': ${e.message}`))
+      .catch((e: Error) => !stale && loadFailed(`Cannot open '${effectId}': ${e.message}`))
     return () => {
       stale = true
     }
@@ -138,7 +154,14 @@ export function App() {
     if (doc && baseline && !offer) syncUnsaved(baseline.id, baseline.doc, doc)
   }, [doc, baseline, offer])
 
-  const loop = useDraftLoop(doc)
+  // Aurora came back after the takeover: load again what could not load.
+  useEffect(() => {
+    if (host.recoveries === 0 || !retryOnRecovery.current) return
+    retryOnRecovery.current = false
+    setAttempt((n) => n + 1)
+  }, [host.recoveries])
+
+  const loop = useDraftLoop(doc, () => void host.checkNow())
   const session = useMemo(tabSession, [])
   const docRef = useRef(doc)
   docRef.current = doc
@@ -202,8 +225,7 @@ export function App() {
       if (kind === 'apply' && testing) await lights.finishAfterApply()
       const live = kind !== 'save'
       dismissTest()
-      // A reload error needs a look, so it stays in the status spot.
-      if (result.reloadError) setWriteTrouble(`Reload: ${result.reloadError}`)
+      // A failed reload is in /api/state errors, which the error shell shows (Aurora-s1t7.9).
       showToast(`${live ? 'Saved and live' : 'Saved'} as ${titleOf(sent) || id}`)
       fetchEffects().then(setEffects).catch(() => {})
       if (id !== baseline.id) {
@@ -251,7 +273,10 @@ export function App() {
     if (text) showToast(text)
   }, [ended, showToast])
   const editedSinceTest = testing && testedDoc !== null && doc !== null && !sameDoc(testedDoc, doc)
-  const status = pickStatus({ openError, loop: loop.state, test: lights.state, writeTrouble, testOutcomeCleared })
+  // The shell's light-test row is another session's test: this tab's own shows as Stop on the Test button.
+  const otherHeld = otherTest(host.host.test, session)
+  const otherLightTest = otherHeld ? { holder: otherHeld.holder, endsAtMs: host.testEndsAtMs } : null
+  const status = pickStatus({ openError, unreachable: !host.reachable, loop: loop.state, test: lights.state, writeTrouble, testOutcomeCleared })
   const banner = pickBanner(openError, offer !== null && baseline !== null, status)
   // Without Aurora nothing can be tested or saved.
   const blocked = status.rank === 1
@@ -587,6 +612,18 @@ export function App() {
 
   return (
     <div className="editor">
+      <ErrorShell
+        unreachable={!host.reachable}
+        hostState={host.host.state}
+        platform={platform}
+        conditions={host.host.conditions}
+        errors={host.host.errors}
+        notes={[draftShellNote(loop.state.putError)].filter((n): n is string => n !== null)}
+        lightTest={otherLightTest}
+        onRetry={(source) => void host.retry(source)}
+        onDismiss={(error) => void host.dismiss(error)}
+        onStopTest={() => void host.stopTest()}
+      />
       <header className="editor-header" data-preview={status.label} data-status-rank={status.rank}>
         <a className="ui-button editor-back" data-size="sm" href="/" aria-label={tightBar ? 'Dashboard' : undefined}>
           <Icon icon={arrowLeftIcon} size="sm" />

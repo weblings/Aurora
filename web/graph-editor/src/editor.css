@@ -21,6 +21,27 @@ body {
   flex-direction: column;
 }
 
+/* The error shell (ErrorShell.tsx) is the Dashboard's, styled by ui/styles/shell.css: the first
+   element of the page, sticky, full width. It keeps its height in the column. */
+.editor > #shell-banner-slot {
+  flex: none;
+}
+
+/* The shell's chevron and Show less use the Dashboard's .accordion-chevron (dashboard.css, which the
+   editor does not load): same asset and size. */
+.shell-banner .accordion-chevron {
+  flex-shrink: 0;
+  width: 10px;
+  height: 10px;
+  background-color: var(--aurora-text-secondary);
+  -webkit-mask-image: url('../../ui/icons/chevron-down.svg');
+  mask-image: url('../../ui/icons/chevron-down.svg');
+  -webkit-mask-size: contain;
+  mask-size: contain;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+}
+
 .editor-header {
   display: flex;
   gap: var(--aurora-space-3);

@@ -324,6 +324,7 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `s1t75-grille-icons` | [log/2026-11-11-s1t75-grille-icons.md](log/2026-11-11-s1t75-grille-icons.md) | Graph editor adopts Grille icons |
 | `s1t76-mock-switches-decided` | [log/2026-11-10-s1t76-mock-switches-decided.md](log/2026-11-10-s1t76-mock-switches-decided.md) | Graph editor stage 5: Grille mock switches decided |
 | `s1t78-stage5-close-out` | [log/2026-11-11-s1t78-stage5-close-out.md](log/2026-11-11-s1t78-stage5-close-out.md) | Stage 5 close-out |
+| `s1t79-error-shell` | [log/2026-11-13-s1t79-error-shell.md](log/2026-11-13-s1t79-error-shell.md) | Graph editor stage 6a: the Dashboard's error shell in the editor |
 | `scig-capture-source-banner` | [log/2026-10-08-scig-capture-source-banner.md](log/2026-10-08-scig-capture-source-banner.md) | Aurora-scig: Capture Source (NUX) errors move to the shell banner (closed) |
 | `sequence-b-planning` | [log/2026-10-15-sequence-b-planning.md](log/2026-10-15-sequence-b-planning.md) | Sequence B planning: decisions recorded, epic filed |
 | `sequence-c-planning` | [log/2026-10-20-sequence-c-planning.md](log/2026-10-20-sequence-c-planning.md) | Sequence C planning: decisions recorded, epic filed |

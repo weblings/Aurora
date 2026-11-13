@@ -1,3 +1,5 @@
+import { testerName } from '../../../ui/testHolder.js'
+
 // State of a test on the real lights, as a pure reducer like loop.ts. The hook
 // in `useLightTest.ts` turns server answers and timers into these events.
 
@@ -68,10 +70,8 @@ export function testReducer(state: TestState, event: TestEvent): TestState {
   }
 }
 
-function who(holder: Holder | null): string {
-  if (!holder) return 'another session'
-  return holder.client === 'mcp' ? 'an agent' : 'another editor tab or window'
-}
+// The words are the Dashboard shell's too (web/ui/testHolder.js).
+const who = testerName
 
 // One sentence for the toolbar, or null when there is nothing to say.
 export function describeTest(state: TestState): string | null {

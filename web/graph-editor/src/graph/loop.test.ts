@@ -23,6 +23,18 @@ describe('draftIssues', () => {
     const state = { ...run([{ type: 'put', valid: false, issues }]), reloadError: 'bad' }
     expect(draftIssues(state)).toEqual(issues)
   })
+  it('a draft refused as too large is a Whole graph problem on the chip, and the next send clears it', () => {
+    const refused = run([{ type: 'put-failed', reason: 'draft_too_large' }])
+    const p = groupProblems(draftIssues(refused), [], ids)
+    expect(p.graph).toEqual(["Couldn't check your last edit: the graph is too large (over 256 KB)."])
+    expect(problemCount(p)).toBe(1)
+    expect(draftIssues(loopReducer(refused, { type: 'put', valid: true, issues: [] }))).toEqual([])
+  })
+  it('the other refusals are not graph problems', () => {
+    for (const reason of ['too_many_drafts', 'invalid_session', 'invalid_body']) {
+      expect(draftIssues(run([{ type: 'put-failed', reason }]))).toEqual([])
+    }
+  })
 })
 
 describe('groupProblems', () => {
@@ -132,11 +144,14 @@ describe('draft loop states', () => {
     expect(reopenDelay(run([{ type: 'put', valid: false, issues: [issue] }]))).toBeNull()
   })
 
-  it('reports a refused draft and an unreachable server', () => {
-    expect(summarize(loopReducer(initialLoop, { type: 'put-failed', reason: 'too_many_drafts' }))).toEqual({
-      label: 'Draft not sent',
-      detail: 'too_many_drafts',
-    })
+  it('holds the code of a refused draft until a later send succeeds; the preview line does not name it', () => {
+    const refused = loopReducer(initialLoop, { type: 'put-failed', reason: 'too_many_drafts' })
+    expect(refused.putError).toBe('too_many_drafts')
+    expect(summarize(refused).label).toBe('Connecting')
+    expect(loopReducer(refused, { type: 'put', valid: true, issues: [] }).putError).toBeNull()
+  })
+
+  it('reports an unreachable server', () => {
     const lost = run([{ type: 'put', valid: true, issues: [] }, { type: 'opening' }, { type: 'lost' }])
     expect(summarize(lost).label).toBe('Aurora unreachable')
     expect(reopenDelay(lost)).toBe(3000)

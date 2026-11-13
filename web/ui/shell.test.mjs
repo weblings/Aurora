@@ -705,11 +705,11 @@ const HELD = { source: 'reload', message: 'bridge unreachable', id: 7 };
 // Light test row (Aurora-exbp): from the poll's test field, above problems,
 // counts down locally, Stop test POSTs, no Keep.
 {
-  let test = { active: true, confirmRemainingMs: 100000 };
+  let test = { active: true, confirmRemainingMs: 100000, holder: { session: 'agent-1', client: 'mcp' } };
   const { app, slots, banner } = makeApp(async () => ({ reachable: true, state: 'running', errors: [{ source: 'reload', message: 'a', id: 1 }], test }));
   app.navigate(blankScreen(), 'dashboard');
   await app._pollOnce();
-  assert.ok(banner().includes('An MCP client is testing an effect on the lights. Will revert in:'), 'row shown');
+  assert.ok(banner().includes('An agent is testing an effect on the lights. Will revert in:'), 'row shown, names the agent');
   assert.ok(banner().includes('1:40'), 'clock from confirmRemainingMs');
   assert.ok(banner().indexOf('shell-light-test-stop') < banner().indexOf('shell-banner-retry-reload'), 'above problems');
   assert.ok(!banner().includes('1 problems') && !/Keep/.test(banner()), 'not a problem, no Keep');
@@ -729,12 +729,20 @@ const HELD = { source: 'reload', message: 'bridge unreachable', id: 7 };
 
 // A live test (confirmRemainingMs null) shows the row without a countdown.
 {
-  const { app, banner } = makeApp(async () => ({ reachable: true, test: { active: true, mode: 'live', confirmRemainingMs: null } }));
+  const { app, banner } = makeApp(async () => ({ reachable: true, test: { active: true, mode: 'live', confirmRemainingMs: null, holder: { session: 'editor-1', client: null } } }));
   await app._pollOnce();
-  assert.ok(banner().includes('An MCP client is testing an effect on the lights.'), 'row shown');
+  assert.ok(banner().includes('Another editor tab or window is testing an effect on the lights.'), 'row shown, names the editor tab');
   assert.ok(banner().includes('shell-light-test-stop'), 'Stop test offered');
   assert.ok(!banner().includes('Will revert in') && !banner().includes('shell-light-test-time'), 'no countdown');
   assert.equal(app.lightTestEndsAt, null);
+  uninstallDom();
+}
+
+// No holder in the answer still reads as a sentence.
+{
+  const { app, banner } = makeApp(async () => ({ reachable: true, test: { active: true, confirmRemainingMs: 5000 } }));
+  await app._pollOnce();
+  assert.ok(banner().includes('Another session is testing an effect on the lights.'), 'unknown holder');
   uninstallDom();
 }
 

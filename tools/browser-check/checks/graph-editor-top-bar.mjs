@@ -4,13 +4,13 @@
 // Status cases (docs/planning/WebUI/GraphEditorCleanup.md, Status priority rule):
 //   checked here:       rank 1 + Retry banner, rank 2 Restore/Discard banner,
 //                       rank 7 default, Edited since the test, Stop-only bar
-//   checked elsewhere:  rank 3 too_many_drafts (gate), rank 4 Reconnect (gate),
+//   checked elsewhere:  draft refusals and the takeover (error-shell), rank 4 Reconnect (gate),
 //                       rank 5/6 test outcomes (graph-editor edit loop), problems
 //                       chip and Preview paused (gate), draft would not load
 //                       as a Whole graph row (gate), Saved toast (edit loop)
 //   unit tests:         every rank and the priority order (graph/status.test.ts)
-//   manual:             `Whole graph` row in the problems popover, rank 6
-//                       `Reload:` after a Save, the Wire refused toast
+//   manual:             `Whole graph` row in the problems popover, the Wire refused toast
+//                       (a failed reload after a Save is the error shell's: /api/state)
 import assert from 'node:assert/strict'
 import { launch } from '../lib/browser.mjs'
 import { withEditorStack } from '../lib/stack.mjs'

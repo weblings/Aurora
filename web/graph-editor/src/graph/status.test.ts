@@ -3,7 +3,7 @@ import { initialLoop, type LoopState } from './loop'
 import { initialTest, testReducer, type TestState } from './lightTest'
 import { changeIsEdit, pickBanner, pickStatus, quietEndToast, stopLabel, type StatusInput } from './status'
 
-const base: StatusInput = { openError: null, loop: { ...initialLoop, valid: true, stream: 'live' }, test: initialTest, writeTrouble: null, testOutcomeCleared: false }
+const base: StatusInput = { openError: null, unreachable: false, loop: { ...initialLoop, valid: true, stream: 'live' }, test: initialTest, writeTrouble: null, testOutcomeCleared: false }
 const withLoop = (l: Partial<LoopState>): StatusInput => ({ ...base, loop: { ...base.loop, ...l } })
 const withTest = (t: Partial<TestState>): StatusInput => ({ ...base, test: { ...initialTest, ...t } })
 
@@ -11,13 +11,18 @@ describe('status priority', () => {
   it('rank 7: Live preview is the quiet default', () => {
     expect(pickStatus(base)).toMatchObject({ rank: 7, label: 'Live preview' })
   })
-  it('rank 1: cannot open, and an unreachable stream, beat everything', () => {
+  it('rank 1: unreachable and cannot open beat everything', () => {
     const all = { ...withLoop({ putError: 'x', stream: 'replaced' }), openError: "Cannot open 'x'", writeTrouble: 'w' }
     expect(pickStatus(all)).toMatchObject({ rank: 1, where: 'button', label: 'Cannot reach Aurora', detail: "Cannot open 'x'" })
-    expect(pickStatus(withLoop({ stream: 'unreachable' })).rank).toBe(1)
+    expect(pickStatus({ ...base, unreachable: true })).toMatchObject({ rank: 1, where: 'button', label: 'Cannot reach Aurora', detail: 'Retrying.' })
   })
-  it('rank 3: draft not sent is a banner', () => {
-    expect(pickStatus(withLoop({ putError: 'too_many_drafts' }))).toMatchObject({ rank: 3, where: 'banner', label: 'Draft not sent', detail: 'too_many_drafts' })
+  it('a lost preview stream alone is not rank 1: the host poll owns reachable', () => {
+    expect(pickStatus(withLoop({ stream: 'unreachable' })).rank).toBe(7)
+  })
+  it('a refused draft is not a status: the error shell and the chip say it', () => {
+    for (const putError of ['too_many_drafts', 'invalid_session', 'invalid_body', 'draft_too_large']) {
+      expect(pickStatus(withLoop({ putError })).where).not.toBe('banner')
+    }
   })
   it('draft would not load is a Whole graph problem, not a banner', () => {
     const loop = { reloadError: 'bad' }
@@ -72,9 +77,9 @@ describe('Stop label and banner', () => {
     expect(stopLabel({ ...initialTest, phase: 'running', remainingMs: 11100 })).toBe('Stop 0:12')
     expect(stopLabel({ ...initialTest, mode: 'live', phase: 'running' })).toBe('Stop')
   })
-  it('banner: persistent errors (ranks 3 and 6) show under the bar', () => {
-    const s = pickStatus(withLoop({ putError: 'too_many_drafts' }))
-    expect(pickBanner(null, false, s)).toEqual({ kind: 'notice', message: 'Draft not sent', detail: 'too_many_drafts' })
+  it('banner: persistent errors (rank 6) show under the bar', () => {
+    const s = pickStatus({ ...base, writeTrouble: 'Fix the 2 problems before saving' })
+    expect(pickBanner(null, false, s)).toEqual({ kind: 'notice', message: 'Fix the 2 problems before saving', detail: null })
     expect(pickBanner(null, false, pickStatus(base))).toBeNull()
   })
   it('banner: unreachable beats restore; nothing otherwise', () => {

@@ -6,6 +6,7 @@ import '../../ui/styles/tokens.css'
 import '@weblings/grille/tokens.css'
 import '@weblings/grille/ui.css'
 import '../../ui/styles/forms.css'
+import '../../ui/styles/shell.css'
 import './editor.css'
 
 createRoot(document.getElementById('root')!).render(

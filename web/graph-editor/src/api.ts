@@ -21,12 +21,14 @@ export async function fetchEffects(): Promise<EffectListEntry[]> {
   return (await getJson<{ effects: EffectListEntry[] }>('/api/effects')).effects
 }
 
-// The dashboard reads the same field: any audio input means Music pulse can run.
-export async function fetchHasAudio(): Promise<boolean> {
+// The dashboard reads the same fields: any audio input means Music pulse can run,
+// and the platform decides how the error shell words a macOS permission row.
+export async function fetchCapabilities(): Promise<{ hasAudio: boolean; platform: string }> {
   try {
-    return ((await getJson<{ audioInputs?: unknown[] }>('/api/capabilities')).audioInputs ?? []).length > 0
+    const body = await getJson<{ audioInputs?: unknown[]; platform?: unknown }>('/api/capabilities')
+    return { hasAudio: (body.audioInputs ?? []).length > 0, platform: typeof body.platform === 'string' ? body.platform : '' }
   } catch {
-    return false
+    return { hasAudio: false, platform: '' }
   }
 }
 
@@ -41,9 +43,19 @@ export async function fetchZoneRegions(): Promise<ZoneRegions | null> {
 
 export type DraftVerdict = { valid: boolean; errors: ServerIssue[] }
 
+// The server answered the draft PUT with an error: `code` is its error code
+// (too_many_drafts, draft_too_large, invalid_session, invalid_body), else http_<status>.
+// A network failure is not this: fetch's own error passes through.
+export class DraftRefused extends Error {
+  readonly code: string
+  constructor(code: string) {
+    super(code)
+    this.code = code
+  }
+}
+
 // Sends the whole document as this tab's draft. The server saves it even when
-// invalid and answers with its validation; any other failure throws a short
-// reason (too_many_drafts, draft_too_large, ...).
+// invalid and answers with its validation; any other answer throws DraftRefused.
 export async function putDraft(session: string, graph: GraphDoc, signal?: AbortSignal): Promise<DraftVerdict> {
   const res = await fetch(`/api/graph/drafts/${encodeURIComponent(session)}`, {
     method: 'PUT',
@@ -52,7 +64,7 @@ export async function putDraft(session: string, graph: GraphDoc, signal?: AbortS
     signal,
   })
   const body = (await res.json().catch(() => ({}))) as { valid?: boolean; errors?: ServerIssue[]; error?: string }
-  if (!res.ok) throw new Error(body.error ?? `HTTP ${res.status}`)
+  if (!res.ok) throw new DraftRefused(body.error ?? `http_${res.status}`)
   return { valid: body.valid === true, errors: body.errors ?? [] }
 }
 
@@ -85,12 +97,12 @@ function refusal(reply: Reply): string {
   return message || error || `HTTP ${reply.status}`
 }
 
-export type WriteResult = { ok: true; reloadError: string | null } | { ok: false; reason: string }
+// A failed reload after a write is not reported here: Aurora records it in
+// /api/state errors and the error shell shows it, as on the Dashboard.
+export type WriteResult = { ok: true } | { ok: false; reason: string }
 
 function written(reply: Reply): WriteResult {
-  if (!reply.ok) return { ok: false, reason: refusal(reply) }
-  const reload = reply.body.reloadError
-  return { ok: true, reloadError: typeof reload === 'string' && reload ? reload : null }
+  return reply.ok ? { ok: true } : { ok: false, reason: refusal(reply) }
 }
 
 // Writes the session's draft as a custom effect; the live effect stays as it is.
