@@ -183,7 +183,13 @@ One sticky element mounted by the app shell, not by any screen:
   scrolls away).
 - **Rows**: one generic row template for every error (message plus
   whatever `action` it carries, Retry, Open Settings, or none, never
-  per-source markup). The whole shell (errors and notices) collapses as
+  per-source markup). One row model draws both pages (`web/ui/shellRows.js`,
+  `Aurora-9hqa.1`, [[9hqa1-shell-row-model]]): order is notices (the light
+  test, then pairing requests), conditions as sent, host errors newest `id`
+  first, then the page's own notes; a row's key is source + message (light
+  test: holder + Live/Once; pairing: ref). The Dashboard patches rows by key
+  each poll (`shellPatch.js`), so keyboard focus on Retry, Dismiss and Stop
+  test survives; the editor keys its React rows the same way. The whole shell (errors and notices) collapses as
   one control to a bar of counts ("1 notice 2 errors", each with its
   circled mark, notices first), and the user
   can collapse a lone row too (`Aurora-u8jx.5`). How rows start

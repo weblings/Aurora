@@ -44,6 +44,19 @@ function restart() {
   if (r.status !== 0) throw new Error(`devstack restart failed:\n${r.stdout}\n${r.stderr}`)
 }
 
+// The same fake-Hue stack with no editor dev server, for checks of the Dashboard the app serves
+// itself: runs `body({ aurora, restart })` and tears the stack down whatever happens.
+export async function withAuroraStack(body, { input = 'dummy' } = {}) {
+  const up = spawnSync(python, [devstack, 'up', '--input', input, ...(process.env.AURORA_VIZ_PORT ? ['--viz-port', process.env.AURORA_VIZ_PORT] : [])], { encoding: 'utf8', timeout: 170_000 })
+  const port = /WebUI http:\/\/127\.0\.0\.1:(\d+)/.exec(up.stdout ?? '')?.[1]
+  try {
+    if (!port) throw new Error(`devstack up failed:\n${up.stdout}\n${up.stderr}`)
+    await body({ aurora: `http://127.0.0.1:${port}`, restart })
+  } finally {
+    spawnSync(python, [devstack, 'down'], { encoding: 'utf8' })
+  }
+}
+
 export async function withEditorStack(body, { input = 'dummy' } = {}) {
   const up = spawnSync(python, [devstack, 'up', '--input', input, ...(process.env.AURORA_VIZ_PORT ? ['--viz-port', process.env.AURORA_VIZ_PORT] : [])], { encoding: 'utf8', timeout: 170_000 })
   const port = /WebUI http:\/\/127\.0\.0\.1:(\d+)/.exec(up.stdout ?? '')?.[1]

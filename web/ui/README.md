@@ -23,7 +23,10 @@ testing gotchas: `docs/lessons/` (`web-ui-lessons` skill).
 `shell.js` owns app-wide state above the screens: the connection watcher
 ("Aurora has stopped" takeover, reconnects on its own) and the system-error
 banner fed by `GET /api/state`. Screens keep only inline per-control errors.
-Design and copy rules: [[error-overlay]].
+Design and copy rules: [[error-overlay]]. The banner's rows (kinds, order,
+keys, words, html) are `shellRows.js`, shared with the graph editor's
+`ErrorShell.tsx`; `shellPatch.js` plans and applies a keyed patch each poll so
+focus survives ([[9hqa1-shell-row-model]]). Neither is vendored into the demo.
 
 Tests are plain node scripts with no framework (`node styles/welcome.test.mjs`,
 `node DeviceField.test.mjs`, ...).

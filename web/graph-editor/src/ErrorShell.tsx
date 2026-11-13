@@ -1,31 +1,15 @@
 import { useEffect, useState } from 'react'
-import { friendlyReloadError } from '../../ui/messages.js'
-import { parseMacPermissionError, renderAudioPermissionBanner, renderLocalNetworkBanner, renderReloadError } from '../../ui/MacPermissionRecovery.js'
-import { testerName } from '../../ui/testHolder.js'
+import { clockText, collapsedLabel, errorSentence, layoutRows, lightTesterSentence, orderRows, permissionRowHtml } from '../../ui/shellRows.js'
+import { renderLocalNetworkBanner } from '../../ui/MacPermissionRecovery.js'
 import type { HostCondition, HostError } from './graph/hostState'
 import type { Holder } from './graph/lightTest'
 
 // The Dashboard's error shell as a React component (Aurora-s1t7.9): the markup and classes of
 // web/ui/shell.js and styles/shell.css, so the two pages read as one. It fetches nothing: rows
 // come in as props (the editor feeds it from GET /api/state and its own draft state), and the
-// buttons call back. ErrorShell.test.tsx holds its markup equal to shell.js's.
-
-// Row prefix per error source, so the raw server reason reads as a sentence (shell.js SOURCE_PREFIX).
-const SOURCE_PREFIX: Record<string, string> = {
-  startup: "Couldn't start: ",
-  resume: "Couldn't resume: ",
-  reload: "Couldn't apply settings: ",
-  effect: '',
-}
-
-// The row's sentence (shell.js _renderBannerRow). A reload error on a running host means the old
-// setup still drives the lights.
-export function errorText(error: HostError, hostState: string | null): string {
-  const message = friendlyReloadError(error.message)
-  return hostState === 'running' && error.source === 'reload'
-    ? `Saved, but couldn't apply: ${message}. Aurora is still running your previous setup and will try the new one next time it starts.`
-    : (SOURCE_PREFIX[error.source] ?? '') + message
-}
+// buttons call back. ErrorShell.test.tsx holds its markup equal to shell.js's. The rows, their order,
+// keys and words come from web/ui/shellRows.js, the same model the Dashboard draws (Aurora-9hqa.1);
+// each React row is keyed by its row key, so a changed message remounts only that row.
 
 export type ShellLightTest = { holder: Holder | null; endsAtMs: number | null }
 
@@ -46,11 +30,6 @@ export type ShellBannerProps = {
   onStopTest: () => void
 }
 
-function clock(endsAtMs: number): string {
-  const seconds = Math.max(0, Math.ceil((endsAtMs - Date.now()) / 1000))
-  return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`
-}
-
 // Ticks only its own text, once a second, like shell.js's timer.
 function Clock({ endsAtMs }: { endsAtMs: number }) {
   const [, tick] = useState(0)
@@ -58,7 +37,7 @@ function Clock({ endsAtMs }: { endsAtMs: number }) {
     const timer = window.setInterval(() => tick((n) => n + 1), 1000)
     return () => window.clearInterval(timer)
   }, [])
-  return <span id="shell-light-test-time">{clock(endsAtMs)}</span>
+  return <span id="shell-light-test-time">{clockText(endsAtMs)}</span>
 }
 
 function Warning({ text }: { text: string }) {
@@ -69,8 +48,10 @@ function Warning({ text }: { text: string }) {
   )
 }
 
-function ConditionRow({ condition }: { condition: HostCondition }) {
-  // local_network is the one known condition row (shell.js CONDITION_ROWS); any other shows its message.
+type Row = ReturnType<typeof orderRows>[number] & { count?: number }
+
+function ConditionRow({ rowKey, condition }: { rowKey: string; condition: HostCondition }) {
+  // local_network is the one known condition row (shellRows.js renderRow); any other shows its message.
   const content =
     condition.source === 'local_network' ? (
       <div className="shell-banner-content" dangerouslySetInnerHTML={{ __html: renderLocalNetworkBanner() }} />
@@ -79,24 +60,27 @@ function ConditionRow({ condition }: { condition: HostCondition }) {
         <Warning text={condition.message ?? ''} />
       </div>
     )
-  return <div className="shell-banner-row">{content}</div>
+  return (
+    <div className="shell-banner-row" data-key={rowKey}>
+      {content}
+    </div>
+  )
 }
 
-function ErrorRow({ error, props }: { error: HostError; props: ShellBannerProps }) {
+function ErrorRow({ rowKey, error, props }: { rowKey: string; error: HostError; props: ShellBannerProps }) {
   const { hostState, platform, onRetry, onDismiss } = props
   const retryId = `shell-banner-retry-${error.source}`
-  const parsed = platform === 'mac' ? parseMacPermissionError(error.message) : null
   // X only while the old setup still works: a paused or failed host's row is the reason there are no lights.
   const dismiss =
     hostState === 'running' && Number.isInteger(error.id) ? (
-      <button type="button" className="shell-banner-dismiss" id={`shell-banner-dismiss-${error.source}`} aria-label="Dismiss" onClick={() => onDismiss(error)}>
+      <button type="button" className="shell-banner-dismiss" id={`shell-banner-dismiss-${error.source}`} data-action="dismiss" data-key={rowKey} aria-label="Dismiss" onClick={() => onDismiss(error)}>
         ×
       </button>
     ) : null
   // The permission rows are shared with the Dashboard as HTML strings; their Retry is found by id.
-  const html = error.source === 'audio_permission' ? renderAudioPermissionBanner({ retryId }) : parsed ? renderReloadError(error.message, platform, { retryId }) : null
+  const html = permissionRowHtml(error, platform, rowKey)
   return (
-    <div className="shell-banner-row">
+    <div className="shell-banner-row" data-key={rowKey}>
       {html !== null ? (
         <div
           className="shell-banner-content"
@@ -107,9 +91,9 @@ function ErrorRow({ error, props }: { error: HostError; props: ShellBannerProps 
         />
       ) : (
         <div className="shell-banner-content">
-          <Warning text={errorText(error, hostState)} />
+          <Warning text={errorSentence(error, hostState)} />
           {error.retry === false ? null : (
-            <button type="button" className="btn btn-secondary" id={retryId} style={{ marginTop: 'var(--aurora-space-3)' }} onClick={() => onRetry(error.source)}>
+            <button type="button" className="btn btn-secondary" id={retryId} data-action="retry" data-key={rowKey} style={{ marginTop: 'var(--aurora-space-3)' }} onClick={() => onRetry(error.source)}>
               Retry
             </button>
           )}
@@ -120,13 +104,12 @@ function ErrorRow({ error, props }: { error: HostError; props: ShellBannerProps 
   )
 }
 
-function LightTestRow({ lightTest, onStopTest }: { lightTest: ShellLightTest; onStopTest: () => void }) {
-  const who = testerName(lightTest.holder)
+function LightTestRow({ rowKey, lightTest, onStopTest }: { rowKey: string; lightTest: ShellLightTest; onStopTest: () => void }) {
   return (
-    <div className="shell-banner-row">
+    <div className="shell-banner-row" data-key={rowKey}>
       <div className="shell-banner-content">
         <p className="status-text shell-pairing-title">
-          {`${who[0].toUpperCase()}${who.slice(1)} is testing an effect on the lights.`}
+          {lightTesterSentence(lightTest.holder)}
           {lightTest.endsAtMs === null ? null : (
             <>
               {' Will revert in: '}
@@ -135,7 +118,7 @@ function LightTestRow({ lightTest, onStopTest }: { lightTest: ShellLightTest; on
           )}
         </p>
         <div className="shell-banner-actions">
-          <button type="button" className="btn btn-secondary" id="shell-light-test-stop" onClick={onStopTest}>
+          <button type="button" className="btn btn-secondary" id="shell-light-test-stop" data-action="stop-test" data-key={rowKey} onClick={onStopTest}>
             Stop test
           </button>
         </div>
@@ -144,44 +127,47 @@ function LightTestRow({ lightTest, onStopTest }: { lightTest: ShellLightTest; on
   )
 }
 
-// The rows, or nothing when there is nothing to say. Two or more problems collapse to a summary
-// line the user expands; a single one always shows in full (shell.js _renderBanner).
+// The rows, or nothing when there is nothing to say. Order, keys and the collapse rule (two or more
+// problems fold to a summary line the user expands; one always shows in full) are shellRows.js's.
 export function ShellBanner(props: ShellBannerProps) {
   const { conditions, errors, notes = [], lightTest, expanded, onExpandedChange } = props
-  const rowCount = conditions.length + errors.length + notes.length
-  if (rowCount === 0 && !lightTest) return null
-  const collapsible = rowCount > 1
-  const collapsed = collapsible && !expanded
+  const rows: Row[] = layoutRows(orderRows({ conditions, errors, notes, lightTest }), expanded)
+  if (rows.length === 0) return null
   return (
     <div className="shell-banner">
       <div className="shell-banner-inner">
-        {lightTest ? <LightTestRow lightTest={lightTest} onStopTest={props.onStopTest} /> : null}
-        {rowCount === 0 ? null : collapsed ? (
-          <button type="button" className="shell-banner-summary" id="shell-banner-expand" onClick={() => onExpandedChange(true)}>
-            <span className="warn-glyph" aria-hidden="true"></span> {`${rowCount} problems`} <span className="accordion-chevron" aria-hidden="true"></span>
-          </button>
-        ) : (
-          <>
-            {conditions.map((c) => (
-              <ConditionRow key={`c-${c.source}`} condition={c} />
-            ))}
-            {errors.map((e) => (
-              <ErrorRow key={`e-${e.source}`} error={e} props={props} />
-            ))}
-            {notes.map((text) => (
-              <div className="shell-banner-row" key={`n-${text}`}>
-                <div className="shell-banner-content">
-                  <Warning text={text} />
+        {rows.map((row) => {
+          switch (row.kind) {
+            case 'light-test':
+              return <LightTestRow key={row.key} rowKey={row.key} lightTest={lightTest as ShellLightTest} onStopTest={props.onStopTest} />
+            case 'condition':
+              return <ConditionRow key={row.key} rowKey={row.key} condition={row.condition as HostCondition} />
+            case 'error':
+              return <ErrorRow key={row.key} rowKey={row.key} error={row.error as HostError} props={props} />
+            case 'note':
+              return (
+                <div className="shell-banner-row" key={row.key} data-key={row.key}>
+                  <div className="shell-banner-content">
+                    <Warning text={row.text as string} />
+                  </div>
                 </div>
-              </div>
-            ))}
-            {collapsible ? (
-              <button type="button" className="shell-banner-summary shell-banner-collapse" id="shell-banner-collapse" onClick={() => onExpandedChange(false)}>
-                Show less <span className="accordion-chevron shell-banner-chevron-up" aria-hidden="true"></span>
-              </button>
-            ) : null}
-          </>
-        )}
+              )
+            case 'summary':
+              return (
+                <button type="button" className="shell-banner-summary" id="shell-banner-expand" data-action="expand" data-key={row.key} key={row.key} onClick={() => onExpandedChange(true)}>
+                  <span className="warn-glyph" aria-hidden="true"></span> {collapsedLabel(row.count as number)} <span className="accordion-chevron" aria-hidden="true"></span>
+                </button>
+              )
+            case 'less':
+              return (
+                <button type="button" className="shell-banner-summary shell-banner-collapse" id="shell-banner-collapse" data-action="collapse" data-key={row.key} key={row.key} onClick={() => onExpandedChange(false)}>
+                  Show less <span className="accordion-chevron shell-banner-chevron-up" aria-hidden="true"></span>
+                </button>
+              )
+            default:
+              return null
+          }
+        })}
       </div>
     </div>
   )

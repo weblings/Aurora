@@ -60,8 +60,16 @@ function makeApp(fetchStatus, opts = {}) {
   });
   app.onRecovered = (id) => recovered.push(id);
   const overlay = () => slots.get('shell-overlay-slot').innerHTML;
-  const banner = () => slots.get('shell-banner-slot').innerHTML;
+  const banner = () => app._bannerHtml();
   return { app, slots, recovered, overlay, banner };
+}
+
+// Presses the banner button with this id the way the page's delegated handler does:
+// _act(data-action, data-key), the key read off the drawn row that holds the button.
+function press(app, action, id) {
+  const row = app._rows.find((candidate) => candidate.html.includes(`id="${id}"`));
+  assert.ok(row, `a drawn row holds #${id}`);
+  return app._act(action, row.key);
 }
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -315,7 +323,7 @@ const stateOk = (extra = {}) => async () => ({ reachable: true, state: 'running'
   await app._pollOnce();
   assert.ok(banner().includes('2 problems'), 'collapsed summary');
   assert.ok(!banner().includes('No outputs available'), 'rows hidden while collapsed');
-  slots.get('shell-banner-slot').querySelector('#shell-banner-expand').click();
+  press(app, 'expand', 'shell-banner-expand');
   assert.ok(banner().includes('No outputs available'));
   assert.ok(banner().includes("Couldn't resume: bridge unreachable"));
   assert.ok(banner().includes('id="shell-banner-retry-startup"'));
@@ -379,7 +387,7 @@ const stateOk = (extra = {}) => async () => ({ reachable: true, state: 'running'
   try {
     const { app, slots } = makeApp(stateOk({ state: 'failed', errors: [{ source: 'startup', message: 'boom' }] }));
     await app._pollOnce();
-    slots.get('shell-banner-slot').querySelector('#shell-banner-retry-startup').click();
+    press(app, 'retry', 'shell-banner-retry-startup');
     await Promise.resolve(); // let the retry's own await chain settle
     await Promise.resolve();
     assert.equal(retryCalls[0].url, '/api/reload');
@@ -399,7 +407,7 @@ const stateOk = (extra = {}) => async () => ({ reachable: true, state: 'running'
   try {
     const { app, slots } = makeApp(stateOk({ state: 'paused', errors: [{ source: 'resume', message: 'bridge unreachable' }] }));
     await app._pollOnce();
-    slots.get('shell-banner-slot').querySelector('#shell-banner-retry-resume').click();
+    press(app, 'retry', 'shell-banner-retry-resume');
     await Promise.resolve();
     await Promise.resolve();
     assert.equal(retryCalls[0].url, '/api/state');
@@ -450,8 +458,10 @@ const stateOk = (extra = {}) => async () => ({ reachable: true, state: 'running'
   app.navigate(blankScreen(), 'dashboard');
   await app._pollOnce();
   assert.ok(banner().includes("Saved, but couldn't apply: Screen sharing was declined. Aurora is still"));
-  assert.ok(!banner().includes('cancelled by the user'));
-  assert.ok(!banner().includes('screen_share_declined'));
+  // The row's key holds the raw message (data-key); only the shown text is reworded.
+  const shown = banner().replace(/ data-key="[^"]*"/g, '');
+  assert.ok(!shown.includes('cancelled by the user'));
+  assert.ok(!shown.includes('screen_share_declined'));
 }
 
 const HELD = { source: 'reload', message: 'bridge unreachable', id: 7 };
@@ -468,7 +478,7 @@ const HELD = { source: 'reload', message: 'bridge unreachable', id: 7 };
   const calls = [];
   globalThis.fetch = async (url, options) => { calls.push({ url, options }); return { json: async () => ({}) }; };
   try {
-    slots.get('shell-banner-slot').querySelector('#shell-banner-retry-reload').click();
+    press(app, 'retry', 'shell-banner-retry-reload');
     await sleep(5);
   } finally { delete globalThis.fetch; }
   assert.equal(calls[0].url, '/api/reload');
@@ -489,7 +499,7 @@ const HELD = { source: 'reload', message: 'bridge unreachable', id: 7 };
     return { json: async () => ({ succeeded: true, dismissed: true }) };
   };
   try {
-    slots.get('shell-banner-slot').querySelector('#shell-banner-dismiss-reload').click();
+    press(app, 'dismiss', 'shell-banner-dismiss-reload');
     await sleep(5);
     assert.equal(calls[0].url, '/api/state/dismiss');
     assert.equal(calls[0].options.method, 'POST');
@@ -667,7 +677,7 @@ const HELD = { source: 'reload', message: 'bridge unreachable', id: 7 };
   await sleep(0);
   const posts = [];
   globalThis.fetch = async (url, init) => { posts.push([url, init?.method]); pending = []; return { ok: true, status: 200 }; };
-  slots.get('shell-banner-slot').querySelector('#shell-pairing-approve-r1').click();
+  press(app, 'approve', 'shell-pairing-approve-r1');
   await sleep(0);
   await sleep(0);
   assert.deepEqual(posts, [['/api/pairing/pending/r1/approve', 'POST']]);
@@ -677,12 +687,34 @@ const HELD = { source: 'reload', message: 'bridge unreachable', id: 7 };
   pending = [{ ref: 'r2', name: 'Tablet', scope: 'admin', code: 'ABCDE' }];
   await app._pollOnce();
   await sleep(0);
-  slots.get('shell-banner-slot').querySelector('#shell-pairing-deny-r2').click();
+  press(app, 'deny', 'shell-pairing-deny-r2');
   await sleep(0);
   await sleep(0);
   assert.deepEqual(posts.at(-1), ['/api/pairing/pending/r2/deny', 'POST']);
   assert.equal(changed, 1, 'deny adds no device');
   globalThis.fetch = realFetchForPairing;
+  uninstallDom();
+}
+
+// Rows run notices first (light test, then pairing requests), then conditions as sent, then
+// errors newest id first; every button names its action and its row's key (Aurora-9hqa.1).
+{
+  const { app, banner } = makeApp(stateOk({
+    errors: [{ source: 'startup', message: 'old', id: 2 }, { source: 'reload', message: 'new', id: 9 }],
+    conditions: [{ source: 'other', message: 'cond' }],
+    test: { active: true, confirmRemainingMs: null, holder: { session: 's', client: null } },
+  }), { fetchPending: async () => [{ ref: 'r1', name: 'Phone', code: 'K7Q2X' }] });
+  app.canApprove = true;
+  app.currentRouteId = 'dashboard';
+  app._bannerExpanded = true;
+  await app._pollOnce();
+  await sleep(0);
+  assert.deepEqual(app._rows.map((row) => row.kind), ['light-test', 'pairing', 'condition', 'error', 'error', 'less']);
+  assert.deepEqual(app._rows.filter((row) => row.kind === 'error').map((row) => row.error.message), ['new', 'old']);
+  assert.ok(/data-action="stop-test" data-key="test:s:live"/.test(banner()), 'buttons carry data-action and data-key');
+  assert.ok(banner().includes('data-action="approve" data-key="pairing:r1"'));
+  assert.equal(await app._act('retry', 'no-such-key'), undefined, 'an unknown key does nothing');
+  app._stopLightTestTimer();
   uninstallDom();
 }
 
@@ -717,7 +749,7 @@ const HELD = { source: 'reload', message: 'bridge unreachable', id: 7 };
   assert.equal(app._lightTestClock(), '0:39', 'counts down between polls');
   const posts = [];
   globalThis.fetch = async (url, init) => { posts.push([url, init?.method]); test = { active: false, confirmRemainingMs: 0 }; return { ok: true, status: 200 }; };
-  slots.get('shell-banner-slot').querySelector('#shell-light-test-stop').click();
+  press(app, 'stop-test', 'shell-light-test-stop');
   await sleep(0);
   await sleep(0);
   assert.deepEqual(posts, [['/api/graph/test/stop', 'POST']]);

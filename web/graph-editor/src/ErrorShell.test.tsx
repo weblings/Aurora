@@ -15,6 +15,7 @@ type ShellApp = {
   lightTestHolder: unknown
   _bannerExpanded: boolean
   _updateHostState: (result: object) => void
+  _bannerHtml: () => string
   _stopLightTestTimer: () => void
 }
 
@@ -28,7 +29,8 @@ type Case = {
   expanded?: boolean
 }
 
-// The shell's markup, as the page would hold it in #shell-banner-slot.
+// The shell's markup, as the page would hold it in #shell-banner-slot (the page draws _bannerHtml()
+// with a keyed patch; the string is the same).
 function dashboardMarkup(c: Case): string {
   const slot = { innerHTML: '', querySelector: () => null }
   const real = globalThis.document
@@ -40,10 +42,10 @@ function dashboardMarkup(c: Case): string {
     app._bannerExpanded = c.expanded ?? false
     app._updateHostState({ state: c.hostState ?? 'running', errors: c.errors ?? [], conditions: c.conditions ?? [], test: c.test ?? { active: false } })
     app._stopLightTestTimer()
+    return app._bannerHtml()
   } finally {
     ;(globalThis as { document: unknown }).document = real
   }
-  return slot.innerHTML
 }
 
 function editorMarkup(c: Case): string {
@@ -81,6 +83,7 @@ const cases: Case[] = [
   { name: 'an error with retry false has no Retry', errors: [effect] },
   { name: 'a declined screen share is worded plainly', errors: [{ source: 'reload', message: 'screen_share_declined: portal said no', id: 1 }] },
   { name: 'two problems collapse to the summary', errors: [reload, effect] },
+  { name: 'errors are drawn newest id first, whatever order they arrive in', errors: [effect, reload], expanded: true },
   { name: 'two problems expanded: rows and Show less', errors: [reload, effect], expanded: true },
   { name: 'a condition and an error', errors: [reload], conditions: [{ source: 'local_network', message: 'x' }], expanded: true },
   { name: 'an unknown condition shows its message', conditions: [{ source: 'other', message: 'Something <b>is</b> off' }] },
@@ -125,7 +128,7 @@ describe('ErrorShell page parts', () => {
     const note = "Couldn't check your last edit."
     const html = normal(renderToStaticMarkup(<ErrorShell {...props} unreachable={false} notes={[note]} />))
     expect(html).toContain('<div id="shell-banner-slot"><div class="shell-banner"><div class="shell-banner-inner">')
-    expect(html).toContain(`<div class="shell-banner-row"><div class="shell-banner-content"><p class="status-text status-text-error"><span class="warn-glyph" aria-hidden="true"></span> ${note}</p></div></div>`)
+    expect(html).toContain(`<div class="shell-banner-row" data-key="note:${note}"><div class="shell-banner-content"><p class="status-text status-text-error"><span class="warn-glyph" aria-hidden="true"></span> ${note}</p></div></div>`)
     expect(html).not.toContain('Retry')
     expect(html).not.toContain('shell-banner-dismiss')
   })
