@@ -14,6 +14,7 @@ export function SplitTestButton({
   stopText,
   action,
   disabledReason,
+  takeOverHint,
   busy,
   onStart,
   onStop,
@@ -25,6 +26,8 @@ export function SplitTestButton({
   action: 'reconnect' | 'take-over' | null
   // Why the button cannot be used (Problems, Cannot reach Aurora), else null.
   disabledReason: string | null
+  // Who holds the lights, as the Take over button's tooltip (lightsInUse in graph/status.ts), else null.
+  takeOverHint: string | null
   // A start, stop or write is in flight.
   busy: boolean
   onStart: (mode: TestMode) => void
@@ -44,7 +47,7 @@ export function SplitTestButton({
       icon: playIcon,
       onPress: () => onStart(mode),
       off: off || busy,
-      title: disabledReason ?? (mode === 'once' ? 'Show this graph on the real lights for 15 seconds' : 'Show this graph on the real lights until you stop'),
+      title: disabledReason ?? (takeOver ? takeOverHint : null) ?? (mode === 'once' ? 'Show this graph on the real lights for 15 seconds' : 'Show this graph on the real lights until you stop'),
       name: takeOver ? 'Take over the lights' : 'Test on lights',
     }
   })()

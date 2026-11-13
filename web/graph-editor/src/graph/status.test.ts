@@ -13,37 +13,37 @@ describe('status priority', () => {
   })
   it('rank 1: unreachable and cannot open beat everything', () => {
     const all = { ...withLoop({ putError: 'x', stream: 'replaced' }), openError: true }
-    expect(pickStatus(all)).toMatchObject({ rank: 1, where: 'button', label: 'No effect is open', detail: null })
+    expect(pickStatus(all)).toMatchObject({ rank: 1, label: 'No effect is open', action: null })
     expect(pickStatus({ ...all, unreachable: true })).toMatchObject({ rank: 1, label: 'Cannot reach Aurora' })
-    expect(pickStatus({ ...base, unreachable: true })).toMatchObject({ rank: 1, where: 'button', label: 'Cannot reach Aurora', detail: 'Retrying.' })
+    expect(pickStatus({ ...base, unreachable: true })).toMatchObject({ rank: 1, label: 'Cannot reach Aurora', action: null })
   })
   it('a lost preview stream alone is not rank 1: the host poll owns reachable', () => {
     expect(pickStatus(withLoop({ stream: 'unreachable' })).rank).toBe(7)
   })
   it('a refused draft is not a status: the error shell and the chip say it', () => {
     for (const putError of ['too_many_drafts', 'invalid_session', 'invalid_body', 'draft_too_large']) {
-      expect(pickStatus(withLoop({ putError })).where).toBe('none')
+      expect(pickStatus(withLoop({ putError })).rank).toBe(7)
     }
   })
   it('draft would not load is a Whole graph problem, not a status', () => {
     const loop = { reloadError: 'bad' }
-    expect(pickStatus(withLoop(loop))).toMatchObject({ rank: 7, where: 'none' })
+    expect(pickStatus(withLoop(loop))).toMatchObject({ rank: 7 })
   })
   it('a reload error alongside problems reads Preview paused', () => {
     expect(pickStatus(withLoop({ valid: false, reloadError: 'bad', issues: [{ node: null, message: 'm' }] }))).toMatchObject({ rank: 7, label: 'Preview paused' })
   })
   it('rank 4: preview taken over carries Reconnect', () => {
-    expect(pickStatus(withLoop({ stream: 'replaced' }))).toMatchObject({ rank: 4, where: 'button', label: 'Reconnect', action: 'reconnect' })
+    expect(pickStatus(withLoop({ stream: 'replaced' }))).toMatchObject({ rank: 4, label: 'Reconnect', action: 'reconnect' })
   })
   it('rank 5: lights in use by another session, from the host poll', () => {
-    expect(pickStatus({ ...base, otherHolder: { session: 's', client: 'mcp' } })).toMatchObject({ rank: 5, where: 'button', action: 'take-over', label: 'Take over', detail: 'Lights in use: an agent is testing' })
+    expect(pickStatus({ ...base, otherHolder: { session: 's', client: 'mcp' } })).toMatchObject({ rank: 5, action: 'take-over', label: 'Take over' })
     // Not while this tab is testing: that is Stop.
     expect(pickStatus({ ...withTest({ phase: 'running' }), otherHolder: { session: 's', client: null } }).rank).toBe(7)
   })
   it('there is no rank 6: test outcomes and failures are not a status', () => {
-    expect(pickStatus(withTest({ failure: 'no' })).where).toBe('none')
+    expect(pickStatus(withTest({ failure: 'no' })).rank).toBe(7)
     for (const reason of ['heartbeat_lost', 'replaced', 'stopped', 'superseded', 'pipeline_gone', 'unreachable']) {
-      expect(pickStatus(withTest({ ended: { reason, holder: null } })).where).toBe('none')
+      expect(pickStatus(withTest({ ended: { reason, holder: null } })).rank).toBe(7)
     }
   })
   it('testOutcome words each end the user did not cause, and only those', () => {
@@ -62,7 +62,7 @@ describe('status priority', () => {
   })
   it('Reverted, Kept and the end of a Once test are toasts, not status', () => {
     for (const reason of ['reverted', 'kept', 'confirm_timeout']) {
-      expect(pickStatus(withTest({ ended: { reason, holder: null } }))).toMatchObject({ rank: 7, where: 'none' })
+      expect(pickStatus(withTest({ ended: { reason, holder: null } }))).toMatchObject({ rank: 7 })
     }
     expect(quietEndToast(withTest({ ended: { reason: 'reverted', holder: null } }).test)).toBe('Reverted')
     expect(quietEndToast(withTest({ ended: { reason: 'confirm_timeout', holder: null } }).test)).toMatch(/lights are back/)

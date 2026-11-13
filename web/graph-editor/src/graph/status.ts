@@ -10,13 +10,6 @@ export type StatusRank = 1 | 4 | 5 | 7
 export type Status = {
   rank: StatusRank
   label: string
-  // Extra text for a state; null when the label says it all (rank 1 open failure: the error shell row says why).
-  // No component draws it today (the Test button's tooltip is the label); the loop summary and rank 4/5 set it.
-  detail: string | null
-  // Where it shows now that the bar has no status text: the Test button's
-  // label or tooltip, or nowhere (the problems chip and the zones' stale tint
-  // already say it).
-  where: 'button' | 'none'
   // The Test button's own label for this state.
   action: 'reconnect' | 'take-over' | null
 }
@@ -95,27 +88,27 @@ export function stopLabel(test: TestState): string {
   return `Stop ${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`
 }
 
-const at = (rank: StatusRank, where: Status['where'], label: string, detail: string | null = null, action: Status['action'] = null): Status => ({ rank, where, label, detail, action })
+const at = (rank: StatusRank, label: string, action: Status['action'] = null): Status => ({ rank, label, action })
 
 export function pickStatus({ openError, unreachable, loop, test, otherHolder }: StatusInput): Status {
   // Rank 1: the takeover (or the shell row for an effect that would not open) says it; the button
   // is disabled with this as its tooltip, and nothing is open to save. A lost preview stream alone is not this: it only
   // asks the host poll to look (useDraftLoop), which owns the verdict.
-  if (unreachable) return at(1, 'button', 'Cannot reach Aurora', 'Retrying.')
-  if (openError) return at(1, 'button', 'No effect is open')
+  if (unreachable) return at(1, 'Cannot reach Aurora')
+  if (openError) return at(1, 'No effect is open')
   // Draft not sent is split by the server's error code: the error shell shows the editor-supplied
   // rows (graph/hostState.ts draftShellNote), and a too-large draft is a Whole graph problem.
   // Draft would not load is a problem with the graph: it is a Whole graph row in
   // the problems popover (graph/problems.ts draftIssues), not a banner.
   // Rank 4 and 5 are the button's own labels.
-  if (loop.stream === 'replaced') return at(4, 'button', 'Reconnect', 'Another view of this session opened the preview.', 'reconnect')
+  if (loop.stream === 'replaced') return at(4, 'Reconnect', 'reconnect')
   const use = lightsInUse(test, otherHolder)
-  if (use) return at(5, 'button', 'Take over', use, 'take-over')
+  if (use) return at(5, 'Take over', 'take-over')
   // There is no rank 6: a failed Save is an error-shell row (graph/hostState.ts failedSaveNote), test
   // outcomes are the live region (testOutcome) and a toast for a lost heartbeat, and a failed start is a toast.
   // Preview state (Preview paused, Connecting, Live) is no longer text: problems
   // are the chip's job and the zones island tints when stale.
-  if (loop.valid === false) return at(7, 'none', 'Preview paused', 'Fix the problems to update the preview.')
+  if (loop.valid === false) return at(7, 'Preview paused')
   const line = summarize(loop)
-  return at(7, 'none', line.label, line.detail)
+  return at(7, line.label)
 }

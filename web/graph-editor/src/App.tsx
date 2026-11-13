@@ -44,7 +44,7 @@ import { converterFor, insertConverter, refuseConnection } from './graph/connect
 import { controlsOf } from './graph/controls'
 import { addEdge, addNode, joinEndpoint, moveNodes, removeEdge, removeNodes, setParam } from './graph/doc'
 import { editorReducer, emptyEditor, sameDoc } from './graph/history'
-import { changeIsEdit, pickStatus, quietEndToast, stopAnnounced, stopLabel, testFailureToast, testOutcome } from './graph/status'
+import { changeIsEdit, lightsInUse, pickStatus, quietEndToast, stopAnnounced, stopLabel, testFailureToast, testOutcome } from './graph/status'
 import { SplitTestButton } from './SplitTestButton'
 import { initialTest, type TestMode } from './graph/lightTest'
 import { BLANK_ID, blankDoc, forWrite, freshEffectId, isDraftId, newEffectId, setTitle, titleOf } from './graph/save'
@@ -852,6 +852,7 @@ export function App() {
           disabledReason={
             blocked ? status.label : loop.state.valid === false || draftIssues(loop.state).length > 0 ? 'Fix the problems before testing' : null
           }
+          takeOverHint={lightsInUse(lights.state, otherHeld?.holder ?? null)}
           busy={!doc || writing || (lights.state.phase !== 'idle' && lights.state.phase !== 'running')}
           onStart={startTest}
           onStop={() => void lights.revert()}

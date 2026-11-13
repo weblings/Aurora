@@ -88,6 +88,11 @@ await withEditorStack(async ({ editorUrl, aurora }) => {
     assert.match(await rows.first().innerText(), /^An agent is testing an effect on the lights\./)
     // One source for who holds the lights (useHostState): the Test button says Take over with the row, not up to 3 s apart.
     assert.equal(await page.getByRole('button', { name: 'Take over the lights' }).count(), 1, 'Take over appears with the shell row')
+    // The button's tooltip names the holder (lightsInUseText), not the generic Test line.
+    await page.getByRole('button', { name: 'Take over the lights' }).hover()
+    const tip = page.getByRole('tooltip')
+    await tip.waitFor({ timeout: 4000 })
+    assert.equal((await tip.innerText()).trim(), 'Lights in use: an agent is testing', 'Take over tooltip names the holder')
     await shot('d-editor-light-test-agent')
     const dash2 = await browser.newPage({ viewport: { width: 900, height: 500 } })
     await dash2.goto(`${aurora}/`)
