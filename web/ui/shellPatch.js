@@ -47,6 +47,8 @@ export function applyPatch(slot, rows) {
     template.innerHTML = row.html.trim();
     const node = template.content.firstElementChild;
     node.setAttribute('data-sig', row.sig);
+    // A row new this render starts its one pulse (Aurora-9hqa.2); the page clears it on animationend.
+    if (row.isNew) node.setAttribute('data-new', '');
     return node;
   };
   let cursor = null;

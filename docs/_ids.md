@@ -61,6 +61,7 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `98pr-webui-banner-x` | [log/2026-10-06-98pr-webui-banner-x.md](log/2026-10-06-98pr-webui-banner-x.md) | Aurora-98pr: saved-not-applied errors move to the banner; banner X (closed) |
 | `9ca-fromhsv-nan-guard` | [log/2026-10-01-9ca-fromhsv-nan-guard.md](log/2026-10-01-9ca-fromhsv-nan-guard.md) | Aurora-9ca: NaN/Inf into Color::fromHSV's uint8_t cast — fixed |
 | `9hqa1-shell-row-model` | [log/2026-11-13-9hqa1-shell-row-model.md](log/2026-11-13-9hqa1-shell-row-model.md) | Error shell: one row model for both pages, the Dashboard patches rows by key |
+| `9hqa2-shell-spotlight` | [log/2026-11-13-9hqa2-shell-spotlight.md](log/2026-11-13-9hqa2-shell-spotlight.md) | Error shell arrival spotlight: one pulse and a polite announcement |
 | `9hqa4-shell-pairing` | [log/2026-11-13-9hqa4-shell-pairing.md](log/2026-11-13-9hqa4-shell-pairing.md) | Pairing requests in the error shell: collapse, editor, baseline wait |
 | `9ig-pipeline-to-core` | [log/2026-10-01-9ig-pipeline-to-core.md](log/2026-10-01-9ig-pipeline-to-core.md) | Aurora-9ig: Pipeline, PipelineHost and Registry moved into core |
 | `api-v1-adapters` | [api/README.md](api/README.md) | Aurora control API (`/api/v1`) |

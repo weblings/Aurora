@@ -34,6 +34,8 @@ type Case = {
   open?: boolean
   // Start collapsed with this snapshot of the rows' keys even for a lone row.
   userCollapsed?: boolean
+  // Row keys mid-pulse (Aurora-9hqa.2): the editor draws data-new on them.
+  pulsing?: string[]
 }
 
 // The shell's markup, as the page would hold it in #shell-banner-slot (the page draws _bannerHtml()
@@ -80,6 +82,7 @@ function editorMarkup(c: Case): string {
     onRetry: () => {},
     onDismiss: () => {},
     onStopTest: () => {},
+    pulsing: c.pulsing,
   }
   return renderToStaticMarkup(<ShellBanner {...props} />)
 }
@@ -141,6 +144,36 @@ describe('ErrorShell markup matches web/ui/shell.js', () => {
       expect(normal(editorMarkup(c))).toBe(reference)
     })
   }
+
+  // data-new is state (the pulse), not markup: it is on no row at the baseline, it is never in the
+  // Dashboard's html or its patch signature, and with it taken away the two pages are still equal.
+  it('data-new is on the rows that pulse and nowhere else; without it the markup is unchanged', () => {
+    for (const c of cases) {
+      const rows = orderRows(rowsInput(c))
+      const reference = normal(dashboardMarkup(c))
+      expect(reference).not.toContain('data-new')
+      expect(normal(editorMarkup(c))).not.toContain('data-new')
+      const all = normal(editorMarkup({ ...c, pulsing: [...rows.map((row) => row.key), 'toggle'] }))
+      expect(all.replaceAll(' data-new=""', '')).toBe(reference)
+      // Every drawn row carries it; the toggle never does.
+      expect((all.match(/data-new=""/g) ?? []).length).toBe(reference.includes('aria-expanded="false"') ? 0 : rows.length)
+      expect(all).not.toMatch(/<button[^>]*data-new/)
+    }
+  })
+
+  it('only the named row pulses', () => {
+    const c: Case = { name: 'two open', errors: [reload, effect], open: true, pulsing: ['error:effect:' + effect.message] }
+    const out = normal(editorMarkup(c))
+    expect((out.match(/data-new=""/g) ?? []).length).toBe(1)
+    expect(out).toMatch(/<div class="shell-banner-row" data-key="error:effect:[^"]*" data-new="">/)
+  })
+
+  it('the ErrorShell draws no pulse on its first render (the baseline)', () => {
+    const noop = () => {}
+    const out = renderToStaticMarkup(<ErrorShell hostState="running" platform="" conditions={[]} errors={[reload]} lightTest={null} hasReplied unreachable={false} onRetry={noop} onDismiss={noop} onStopTest={noop} />)
+    expect(out).toContain('shell-banner-row')
+    expect(out).not.toContain('data-new')
+  })
 
   it('shows nothing when there is nothing to say', () => {
     expect(editorMarkup({ name: 'none' })).toBe('')

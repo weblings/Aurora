@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react'
-import { baselineSnapshot, clockText, collapsibleKeys, errorSentence, layoutRows, lightTesterSentence, markErrors, orderRows, pairingAccessText, permissionRowHtml, reconcileSnapshot } from '../../ui/shellRows.js'
+import { useEffect, useState, type AnimationEventHandler } from 'react'
+import { arrivalAnnouncement, arrivedKeys, baselineSnapshot, clockText, collapsibleKeys, errorSentence, layoutRows, lightTesterSentence, markErrors, orderRows, pairingAccessText, permissionRowHtml, reconcileSnapshot } from '../../ui/shellRows.js'
 import { renderLocalNetworkBanner } from '../../ui/MacPermissionRecovery.js'
 import type { HostCondition, HostError } from './graph/hostState'
 import type { Holder } from './graph/lightTest'
@@ -33,7 +33,14 @@ export type ShellBannerProps = {
   onRetry: (source: string) => void
   onDismiss: (error: HostError) => void
   onStopTest: () => void
+  // Arrival pulse (Aurora-9hqa.2): the keys of rows that are mid-pulse (data-new) and the call that
+  // ends one on animationend. The shell works out arrivals; with neither given, no row pulses.
+  pulsing?: string[]
+  onPulseEnd?: (key: string) => void
 }
+
+// What a row's root element gets for its pulse; data-new is state, not part of the markup parity.
+type Pulse = { 'data-new'?: string; onAnimationEnd: AnimationEventHandler<HTMLDivElement> }
 
 // Ticks only its own text, once a second, like shell.js's timer.
 function Clock({ endsAtMs }: { endsAtMs: number }) {
@@ -55,7 +62,7 @@ function Warning({ text }: { text: string }) {
 
 type Row = ReturnType<typeof orderRows>[number] & { count?: number }
 
-function ConditionRow({ rowKey, condition }: { rowKey: string; condition: HostCondition }) {
+function ConditionRow({ rowKey, condition, pulse }: { rowKey: string; condition: HostCondition; pulse: Pulse }) {
   // local_network is the one known condition row (shellRows.js renderRow); any other shows its message.
   const content =
     condition.source === 'local_network' ? (
@@ -66,13 +73,13 @@ function ConditionRow({ rowKey, condition }: { rowKey: string; condition: HostCo
       </div>
     )
   return (
-    <div className="shell-banner-row" data-key={rowKey}>
+    <div className="shell-banner-row" data-key={rowKey} {...pulse}>
       {content}
     </div>
   )
 }
 
-function ErrorRow({ rowKey, error, props }: { rowKey: string; error: HostError; props: ShellBannerProps }) {
+function ErrorRow({ rowKey, error, props, pulse }: { rowKey: string; error: HostError; props: ShellBannerProps; pulse: Pulse }) {
   const { hostState, platform, onRetry, onDismiss } = props
   const retryId = `shell-banner-retry-${error.source}`
   // X only while the old setup still works: a paused or failed host's row is the reason there are no lights.
@@ -85,7 +92,7 @@ function ErrorRow({ rowKey, error, props }: { rowKey: string; error: HostError; 
   // The permission rows are shared with the Dashboard as HTML strings; their Retry is found by id.
   const html = permissionRowHtml(error, platform, rowKey)
   return (
-    <div className="shell-banner-row" data-key={rowKey}>
+    <div className="shell-banner-row" data-key={rowKey} {...pulse}>
       {html !== null ? (
         <div
           className="shell-banner-content"
@@ -109,9 +116,9 @@ function ErrorRow({ rowKey, error, props }: { rowKey: string; error: HostError; 
   )
 }
 
-function LightTestRow({ rowKey, lightTest, onStopTest }: { rowKey: string; lightTest: ShellLightTest; onStopTest: () => void }) {
+function LightTestRow({ rowKey, lightTest, onStopTest, pulse }: { rowKey: string; lightTest: ShellLightTest; onStopTest: () => void; pulse: Pulse }) {
   return (
-    <div className="shell-banner-row" data-key={rowKey}>
+    <div className="shell-banner-row" data-key={rowKey} {...pulse}>
       <div className="shell-banner-content">
         <p className="status-text shell-pairing-title">
           <span className="shell-mark shell-mark-info" aria-hidden="true"></span> {lightTesterSentence(lightTest.holder)}
@@ -132,10 +139,10 @@ function LightTestRow({ rowKey, lightTest, onStopTest }: { rowKey: string; light
   )
 }
 
-function PairingRowView({ rowKey, request, onDecide }: { rowKey: string; request: PairingRequest; onDecide: (ref: string, decision: 'approve' | 'deny') => void }) {
+function PairingRowView({ rowKey, request, onDecide, pulse }: { rowKey: string; request: PairingRequest; onDecide: (ref: string, decision: 'approve' | 'deny') => void; pulse: Pulse }) {
   const access = pairingAccessText(request.scope ?? '')
   return (
-    <div className="shell-banner-row" data-key={rowKey}>
+    <div className="shell-banner-row" data-key={rowKey} {...pulse}>
       <div className="shell-banner-content">
         <p className="status-text shell-pairing-title">
           <span className="shell-mark shell-mark-info" aria-hidden="true"></span> Pair a device with Aurora?
@@ -174,7 +181,13 @@ function PairingRowView({ rowKey, request, onDecide }: { rowKey: string; request
 // The rows, or nothing when there is nothing to say. Order, keys and the collapse (one toggle button for
 // the whole shell, collapsed while the keys match the stored snapshot) are shellRows.js's.
 export function ShellBanner(props: ShellBannerProps) {
-  const { conditions, errors, notes = [], lightTest, pairings = [], snapshot, onSnapshotChange } = props
+  const { conditions, errors, notes = [], lightTest, pairings = [], snapshot, onSnapshotChange, pulsing = [], onPulseEnd } = props
+  const pulse = (key: string): Pulse => ({
+    'data-new': pulsing.includes(key) ? '' : undefined,
+    onAnimationEnd: (e) => {
+      if (e.target === e.currentTarget) onPulseEnd?.(key)
+    },
+  })
   const ordered = orderRows({ conditions, errors, notes, lightTest, pairings })
   const rows: Row[] = layoutRows(ordered, snapshot)
   if (rows.length === 0) return null
@@ -184,16 +197,16 @@ export function ShellBanner(props: ShellBannerProps) {
         {rows.map((row) => {
           switch (row.kind) {
             case 'light-test':
-              return <LightTestRow key={row.key} rowKey={row.key} lightTest={lightTest as ShellLightTest} onStopTest={props.onStopTest} />
+              return <LightTestRow key={row.key} rowKey={row.key} lightTest={lightTest as ShellLightTest} onStopTest={props.onStopTest} pulse={pulse(row.key)} />
             case 'pairing':
-              return <PairingRowView key={row.key} rowKey={row.key} request={row.request as PairingRequest} onDecide={props.onDecidePairing ?? (() => {})} />
+              return <PairingRowView key={row.key} rowKey={row.key} request={row.request as PairingRequest} onDecide={props.onDecidePairing ?? (() => {})} pulse={pulse(row.key)} />
             case 'condition':
-              return <ConditionRow key={row.key} rowKey={row.key} condition={row.condition as HostCondition} />
+              return <ConditionRow key={row.key} rowKey={row.key} condition={row.condition as HostCondition} pulse={pulse(row.key)} />
             case 'error':
-              return <ErrorRow key={row.key} rowKey={row.key} error={row.error as HostError} props={props} />
+              return <ErrorRow key={row.key} rowKey={row.key} error={row.error as HostError} props={props} pulse={pulse(row.key)} />
             case 'note':
               return (
-                <div className="shell-banner-row" key={row.key} data-key={row.key}>
+                <div className="shell-banner-row" key={row.key} data-key={row.key} {...pulse(row.key)}>
                   <div className="shell-banner-content">
                     <Warning text={row.text as string} />
                   </div>
@@ -236,7 +249,9 @@ export function ShellBanner(props: ShellBannerProps) {
   )
 }
 
-export type ErrorShellProps = Omit<ShellBannerProps, 'snapshot' | 'onSnapshotChange'> & {
+export type ErrorShellProps = Omit<ShellBannerProps, 'snapshot' | 'onSnapshotChange' | 'pulsing' | 'onPulseEnd'> & {
+  // The page's one polite live region (useAnnouncer): the sentences of rows that arrive, one call per render.
+  onAnnounce?: (text: string) => void
   // Aurora cannot be reached: the full-screen takeover replaces every row.
   unreachable: boolean
   // False until the first GET /api/state reply, the canApprove answer and the first pending-pairing
@@ -248,22 +263,48 @@ export type ErrorShellProps = Omit<ShellBannerProps, 'snapshot' | 'onSnapshotCha
 // The first element of the page (#shell-banner-slot, sticky at the top, full width), then the
 // takeover (#shell-overlay-slot). The collapse snapshot is seeded when hasReplied turns true (two or
 // more rows start collapsed, a lone row open), dropped once the rows no longer match it, and never stored.
-export function ErrorShell({ unreachable, hasReplied, ...props }: ErrorShellProps) {
+export function ErrorShell({ unreachable, hasReplied, onAnnounce, ...props }: ErrorShellProps) {
   const [snapshot, setSnapshot] = useState<string[] | null>(null)
   const [seeded, setSeeded] = useState(false)
+  // Arrivals (Aurora-9hqa.2): every key the last render held (null before the baseline), the keys
+  // mid-pulse, and the words to say for the latest arrival.
+  const [known, setKnown] = useState<string[] | null>(null)
+  const [pulsing, setPulsing] = useState<string[]>([])
+  const [spoken, setSpoken] = useState<{ text: string } | null>(null)
   const rows = orderRows({ conditions: props.conditions, errors: props.errors, notes: props.notes ?? [], lightTest: props.lightTest, pairings: props.pairings ?? [] })
   // Adjusting state during render, the way React documents for state derived from props.
   if (hasReplied !== seeded) {
     setSeeded(hasReplied)
     setSnapshot(hasReplied ? baselineSnapshot(rows) : null)
+    // What is there at the baseline (the first ready render, and the first after the takeover) is not an arrival.
+    setKnown(hasReplied ? rows.map((row) => row.key) : null)
+    setPulsing([])
   } else if (hasReplied) {
     const kept = reconcileSnapshot(rows, snapshot)
     if (kept !== snapshot) setSnapshot(kept)
+    // A new key both opens the shell (reconcileSnapshot above) and starts its pulse, in this one render;
+    // rows that were already there, folded or not, do not pulse.
+    const keys = rows.map((row) => row.key)
+    const fresh = arrivedKeys(rows, known)
+    if (fresh.length > 0) {
+      setPulsing((current) => [...current, ...fresh])
+      setSpoken({ text: arrivalAnnouncement(rows, fresh, { hostState: props.hostState, platform: props.platform }) })
+    }
+    if (known !== null && (keys.length !== known.length || keys.some((key) => !known.includes(key)))) setKnown(keys)
   }
+  useEffect(() => {
+    if (spoken?.text) onAnnounce?.(spoken.text)
+  }, [spoken, onAnnounce])
+  // animationend ends a pulse; this covers an animation that never runs (a hidden tab).
+  useEffect(() => {
+    if (pulsing.length === 0) return
+    const timer = window.setTimeout(() => setPulsing([]), 2000)
+    return () => window.clearTimeout(timer)
+  }, [pulsing])
   const show = hasReplied && seeded && !unreachable
   return (
     <>
-      <div id="shell-banner-slot">{show ? <ShellBanner {...props} snapshot={snapshot} onSnapshotChange={setSnapshot} /> : null}</div>
+      <div id="shell-banner-slot">{show ? <ShellBanner {...props} snapshot={snapshot} onSnapshotChange={setSnapshot} pulsing={pulsing} onPulseEnd={(key) => setPulsing((current) => current.filter((k) => k !== key))} /> : null}</div>
       <div id="shell-overlay-slot">
         {unreachable ? (
           <div className="overlay">

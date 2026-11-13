@@ -308,3 +308,43 @@
   letter-spacing: 0.15em;
   color: var(--aurora-text-primary);
 }
+
+/* Visually hidden, still read by assistive tech: the Dashboard's and the editor's polite live regions
+   (Aurora-9hqa.2). The editor's Announcer used to define this in editor.css. */
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* The ping (Aurora-9hqa.2): a ring grows from the element's edge to 8px and fades. The Problems chip
+   uses it twice (editor.css); a shell row that arrives uses it once. --shell-ping-tint colours it
+   (default text colour, so notices and the chip are unchanged). */
+@keyframes shell-ping {
+  0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--shell-ping-tint, var(--aurora-text-primary)) 60%, transparent); }
+  100% { box-shadow: 0 0 0 8px transparent; }
+}
+
+/* Reduced motion: the same time with no growth, a 2px ring held and then cleared. */
+@keyframes shell-ping-hold {
+  0%, 100% { box-shadow: 0 0 0 2px color-mix(in srgb, var(--shell-ping-tint, var(--aurora-text-primary)) 60%, transparent); }
+}
+
+/* A row that has just arrived (data-new, set by shell.js / ErrorShell.tsx, cleared on animationend).
+   An error's mark is error red, so its ring is. The toggle never has data-new. */
+.shell-banner-row[data-new] {
+  animation: shell-ping 1375ms ease-out 1;
+}
+
+.shell-banner-row[data-new]:has(.shell-mark-error) {
+  --shell-ping-tint: var(--aurora-text-error);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .shell-banner-row[data-new] {
+    animation: shell-ping-hold 1375ms linear 1;
+  }
+}

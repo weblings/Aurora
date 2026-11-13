@@ -931,4 +931,104 @@ const HELD = { source: 'reload', message: 'bridge unreachable', id: 7 };
   uninstallDom();
 }
 
+// ---- Arrival spotlight (Aurora-9hqa.2) ----
+// The rows that are new this render (isNew, which the page draws as data-new) and the one polite
+// announcement. Nothing at the baseline, on a poll that changes nothing or only the countdown, or on
+// the first reply after the takeover; an arrival, a changed message and a pairing request do.
+{
+  let errors = [{ source: 'reload', message: 'a', id: 1 }];
+  let test = { active: false };
+  const { app, slots } = makeApp(async () => ({ reachable: true, state: 'running', errors, test }));
+  const fresh = () => app._rows.filter((row) => row.isNew).map((row) => row.key);
+  const said = async () => { await sleep(120); return slots.get('shell-announcer').textContent; };
+  app.navigate(blankScreen(), 'dashboard');
+  await app._pollOnce();
+  assert.deepEqual(fresh(), [], 'the baseline: nothing is new');
+  assert.equal(await said(), undefined, 'and nothing is announced');
+  await app._pollOnce();
+  assert.deepEqual(fresh(), [], 'a poll that changes nothing');
+  // An arrival: the folded-or-open state is irrelevant, only the new key pulses; one announcement.
+  errors = [{ source: 'reload', message: 'a', id: 1 }, { source: 'startup', message: 'b', id: 2 }];
+  await app._pollOnce();
+  assert.deepEqual(fresh(), ['error:startup:b'], 'only the new row pulses; the row already there does not');
+  assert.equal(await said(), "Couldn't start: b");
+  assert.ok(app._rows.some((row) => row.kind === 'toggle' && !row.collapsed) && !fresh().includes('toggle'), 'open, and the toggle never pulses');
+  // Re-opening from the collapse: the arrival opens it in the same render and rows already there stay still.
+  press(app, 'toggle', 'shell-banner-toggle');
+  assert.ok(app._rows.length === 1 && app._rows[0].collapsed, 'collapsed');
+  await app._pollOnce();
+  assert.deepEqual(fresh(), [], 'a poll while collapsed with nothing new does not pulse');
+  errors = [...errors, { source: 'resume', message: 'c', id: 3 }];
+  await app._pollOnce();
+  assert.ok(app._rows.length === 4 && !app._rows.at(-1).collapsed, 'the arrival re-opened the shell');
+  assert.deepEqual(fresh(), ['error:resume:c'], 'in that render only the arrival pulses');
+  assert.equal(await said(), "Couldn't resume: c");
+  // A changed message is a new key.
+  errors = errors.map((e) => (e.source === 'resume' ? { ...e, message: 'd' } : e));
+  await app._pollOnce();
+  assert.deepEqual(fresh(), ['error:resume:d']);
+  assert.equal(await said(), "Couldn't resume: d");
+  // The light test: announced once when its key arrives, never for the countdown.
+  test = { active: true, confirmRemainingMs: 90_000, holder: { session: 'x', client: 'mcp' } };
+  await app._pollOnce();
+  assert.deepEqual(fresh(), ['test:x:once']);
+  assert.equal(await said(), 'An agent is testing an effect on the lights.');
+  slots.get('shell-announcer').textContent = 'cleared';
+  test = { active: true, confirmRemainingMs: 60_000, holder: { session: 'x', client: 'mcp' } };
+  await app._pollOnce();
+  assert.deepEqual(fresh(), [], 'the countdown is not an arrival');
+  assert.equal(await said(), 'cleared', 'and says nothing');
+  app._stopLightTestTimer();
+  uninstallDom();
+}
+
+// Two arrivals in one poll are one announcement, in drawn order.
+{
+  let errors = [];
+  const { app, slots } = makeApp(async () => ({ reachable: true, state: 'running', errors }));
+  app.navigate(blankScreen(), 'dashboard');
+  await app._pollOnce();
+  errors = [{ source: 'startup', message: 'one', id: 1 }, { source: 'resume', message: 'two', id: 2 }];
+  await app._pollOnce();
+  await sleep(120);
+  assert.equal(slots.get('shell-announcer').textContent, "Couldn't resume: two Couldn't start: one", 'newest first, joined');
+  uninstallDom();
+}
+
+// A request already pending at load is baseline; one that arrives later pulses and is announced.
+{
+  let pending = [{ ref: 'r1', name: 'Old phone', scope: 'read', code: 'AAAAA' }];
+  const { app, slots } = makeApp(ok(), { fetchPending: async () => pending });
+  app.setCanApprove(true);
+  app.navigate(blankScreen(), 'dashboard');
+  await app._pollOnce();
+  await sleep(20);
+  assert.deepEqual(app._rows.filter((row) => row.isNew), [], 'pending at load: baseline');
+  assert.equal(slots.get('shell-announcer').textContent, undefined);
+  pending = [...pending, { ref: 'r2', name: 'New tablet', scope: 'read', code: 'BBBBB' }];
+  await app._refreshPending();
+  assert.deepEqual(app._rows.filter((row) => row.isNew).map((row) => row.key), ['pairing:r2']);
+  await sleep(120);
+  assert.equal(slots.get('shell-announcer').textContent, 'Pair a device with Aurora? New tablet.');
+  uninstallDom();
+}
+
+// Recovery from the takeover is a new baseline: what is there then is not an arrival.
+{
+  let fail = false;
+  const errors = [{ source: 'reload', message: 'a', id: 1 }];
+  const { app, slots } = makeApp(async () => { if (fail) throw new Error('down'); return { reachable: true, state: 'running', errors }; });
+  app.navigate(blankScreen(), 'dashboard');
+  await app._pollOnce();
+  fail = true;
+  await app._pollOnce();
+  await app._pollOnce();
+  fail = false;
+  await app._pollOnce();
+  await sleep(120);
+  assert.deepEqual(app._rows.filter((row) => row.isNew), []);
+  assert.equal(slots.get('shell-announcer').textContent, undefined);
+  uninstallDom();
+}
+
 console.log('shell checks passed.');

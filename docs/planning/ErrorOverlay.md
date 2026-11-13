@@ -222,7 +222,17 @@ One sticky element mounted by the app shell, not by any screen:
   changed message re-opens the shell and the new row gets one pulse
   (`Aurora-u8jx.14`), so rows that arrive later are never hidden. The
   first reply is the baseline, not an arrival: no pulse, and nothing
-  renders before it, so there is no open-then-collapse flash. Collapse
+  renders before it, so there is no open-then-collapse flash. The spotlight is
+  built (`Aurora-9hqa.2`, [[9hqa2-shell-spotlight]]): the page keeps every row
+  key of the previous render (folded or not), a row whose key is new gets
+  `data-new` and one 1375 ms `shell-ping` ring (0 to 8 px, tinted error red
+  on error rows, default on notices; a held 2 px ring under reduced motion),
+  cleared on `animationend`, in the same render that re-opens the shell; none at
+  the baseline, none for the light-test countdown, never on the toggle. Each
+  arrival is also said once in a polite live region (WCAG 4.1.3): the
+  Dashboard's `#shell-announcer` beside the banner slot, the editor's own
+  `Announcer`. The text is the new rows' sentences joined, one announcement per
+  render, and a pairing request says `Pair a device with Aurora? <device>.` Collapse
   state is memory only, so a reload or Dashboard→editor counts as a new
   load. No scroll view in normal use; a `60vh` safety cap only for the
   rare 5–6 row case.

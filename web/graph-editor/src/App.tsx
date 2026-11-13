@@ -737,6 +737,7 @@ export function App() {
         conditions={host.host.conditions}
         errors={host.host.errors}
         notes={shellNotes}
+        onAnnounce={announce}
         lightTest={otherLightTest}
         pairings={host.pairings}
         onDecidePairing={(ref, decision) => void host.decidePairing(ref, decision)}

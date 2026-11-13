@@ -136,6 +136,47 @@ export function baselineSnapshot(rows) {
   return keys.length >= 2 ? keys : null;
 }
 
+// Arrivals (Aurora-9hqa.2). `known` is the keys of every row the previous render held (collapsed or
+// not), or null before the baseline (the first /api/state reply, the first after the takeover, once
+// baselineReady): then nothing is new, so a page load never pulses or speaks. A key not in `known` is
+// an arrival; a changed message is a new key, so it counts. The toggle is never a row of `rows`
+// (orderRows), and the light-test countdown is not part of its key, so neither is ever new.
+export function arrivedKeys(rows, known) {
+  if (known === null || known === undefined) return [];
+  const seen = known instanceof Set ? known : new Set(known);
+  return rows.filter((row) => row.kind !== 'toggle' && !seen.has(row.key)).map((row) => row.key);
+}
+
+// Plain text of the first paragraph of a shared row's html (the permission and local-network rows),
+// so what is spoken is what is drawn.
+function firstParagraphText(html) {
+  const inner = /<p[^>]*>([\s\S]*?)<\/p>/.exec(html)?.[1] ?? '';
+  return inner.replace(/<[^>]*>/g, '').replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/\s+/g, ' ').trim();
+}
+
+// What a screen reader hears for one row: its own sentence, without buttons or the countdown. A
+// pairing request says what it is and which device; the code stays on screen to be compared there.
+//   ctx: { hostState, platform }
+export function rowSpeech(row, { hostState = null, platform = '' } = {}) {
+  switch (row.kind) {
+    case 'light-test': return lightTesterSentence(row.holder);
+    case 'pairing': return row.request.name ? `Pair a device with Aurora? ${row.request.name}.` : 'Pair a device with Aurora?';
+    case 'condition': return row.condition.source === 'local_network' ? firstParagraphText(renderLocalNetworkBanner()) : (row.condition.message ?? '');
+    case 'error': {
+      const shared = permissionRowHtml(row.error, platform, row.key);
+      return shared === null ? errorSentence(row.error, hostState) : firstParagraphText(shared);
+    }
+    case 'note': return row.text;
+    default: return '';
+  }
+}
+
+// One announcement for a render: the sentences of the arrived rows, in drawn order, joined.
+export function arrivalAnnouncement(rows, arrived, ctx = {}) {
+  const set = new Set(arrived);
+  return rows.filter((row) => set.has(row.key)).map((row) => rowSpeech(row, ctx)).filter(Boolean).join(' ');
+}
+
 // The rows as drawn: either the collapsed bar alone or every row plus the same toggle (label
 // swapped to Show less). A lone row can collapse too, so any row brings the toggle.
 /**
@@ -267,13 +308,15 @@ export function renderRow(row, { hostState = null, platform = '', nowMs = Date.n
 }
 
 // The laid-out rows with their html and a patch signature. The signature is what decides keep or
-// replace for a row whose key is unchanged: the html, except that the light-test countdown is left
+// replace for a row whose key is unchanged: the html (data-new is never in it), except that the light-test countdown is left
 // out (its own timer ticks it, so a poll must not replace the row and drop focus on Stop test).
-export function bannerRows(input, { snapshot = null, hostState = null, platform = '', nowMs = Date.now() } = {}) {
+export function bannerRows(input, { snapshot = null, hostState = null, platform = '', nowMs = Date.now(), fresh = [] } = {}) {
+  const arrived = new Set(fresh);
   return layoutRows(orderRows(input), snapshot).map((row) => {
     const html = renderRow(row, { hostState, platform, nowMs });
     const sig = row.kind === 'light-test' ? html.replace(/(<span id="shell-light-test-time">)[^<]*/, '$1') : html;
-    return { ...row, html, sig, inPlace: row.kind === 'toggle' };
+    // isNew is state for the page's pulse (Aurora-9hqa.2), not part of the html or the sig.
+    return { ...row, html, sig, inPlace: row.kind === 'toggle', isNew: arrived.has(row.key) };
   });
 }
 

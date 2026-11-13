@@ -1,4 +1,4 @@
-import { baselineReady, baselineSnapshot, bannerHtml, bannerRows, clockText, collapsibleKeys, orderRows, reconcileSnapshot } from './shellRows.js';
+import { arrivalAnnouncement, arrivedKeys, baselineReady, baselineSnapshot, bannerHtml, bannerRows, clockText, collapsibleKeys, orderRows, reconcileSnapshot } from './shellRows.js';
 import { applyPatch } from './shellPatch.js';
 
 // App shell: owns the one #screen-container mount point. Same navigate()
@@ -42,6 +42,11 @@ import { applyPatch } from './shellPatch.js';
 // answers (a stale error is worse than none, so the takeover clears it).
 const DEFAULT_POLL_INTERVAL_MS = 3000;
 const DEFAULT_ABORT_TIMEOUT_MS = 2500;
+// The arrival pulse is 1375 ms (styles/shell.css); this clears data-new if animationend never comes
+// (an animation turned off, a hidden tab), and the announcement's two timers (shellRows.js arrivals).
+const PULSE_FALLBACK_MS = 2000;
+const ANNOUNCE_DELAY_MS = 50;
+const ANNOUNCE_CLEAR_MS = 10_000;
 const DEFAULT_FAILURE_THRESHOLD = 2;
 // Routes where a 'reload' error is real (an output is paired); see
 // _visibleErrors. Capture Source is one: a denied capture permission lands here.
@@ -84,6 +89,16 @@ export class App {
     // One delegated click handler for every button in the banner: data-action and data-key name
     // what was pressed (shellRows.js), _act does it. The patch keeps the buttons alive across polls.
     this._rows = []; // the rows last drawn, laid out
+    // Arrivals (Aurora-9hqa.2): every row key the last render held (null until the baseline), the one
+    // polite live region (#shell-announcer, outside the slot so the patch never touches it) and its timers.
+    this._knownKeys = null;
+    this.announcer = document.getElementById('shell-announcer');
+    this._announceParts = [];
+    this._announceTimer = null;
+    this._announceClearTimer = null;
+    this.bannerSlot?.addEventListener?.('animationend', (event) => {
+      if (event.target?.hasAttribute?.('data-new')) event.target.removeAttribute('data-new');
+    });
     this.bannerSlot?.addEventListener?.('click', (event) => {
       const button = event.target?.closest?.('[data-action]');
       if (button) void this._act(button.getAttribute('data-action'), button.getAttribute('data-key'));
@@ -294,7 +309,9 @@ export class App {
     if (this._baselined) return;
     if (!baselineReady({ stateReplied: this._stateReplied, canApprove: this.canApprove, pendingLoaded: this._pendingLoaded })) return;
     this._baselined = true;
-    this._collapsed = baselineSnapshot(orderRows(this._bannerInput()));
+    const ordered = orderRows(this._bannerInput());
+    this._collapsed = baselineSnapshot(ordered);
+    this._knownKeys = new Set(ordered.map((row) => row.key)); // what is there at the baseline is not an arrival
   }
 
   // app.js calls this after reading /api/pairing/status, which may land after the first poll.
@@ -342,6 +359,7 @@ export class App {
     this._collapsed = null;
     this._stateReplied = false;
     this._baselined = false;
+    this._knownKeys = null;
     this._stopLightTestTimer();
     if (!this.overlaySlot) return;
     this._takeover = kind;
@@ -387,12 +405,13 @@ export class App {
     };
   }
 
-  _bannerRowList() {
+  // `fresh`: the keys of rows that arrived this render (they pulse); the caller works them out.
+  _bannerRowList(fresh = []) {
     const input = this._bannerInput();
     // Nothing is drawn before the baseline; after it, a snapshot the rows no longer match is dropped.
     if (!this._baselined) return [];
     this._collapsed = reconcileSnapshot(orderRows(input), this._collapsed);
-    return bannerRows(input, { snapshot: this._collapsed, hostState: this.hostState, platform: this.platform });
+    return bannerRows(input, { snapshot: this._collapsed, hostState: this.hostState, platform: this.platform, fresh });
   }
 
   // The banner's whole markup ('' when there is nothing to say). The page draws it with a keyed
@@ -405,11 +424,43 @@ export class App {
     if (!this.bannerSlot) return;
     const testing = this.lightTestEndsAt !== null || this.lightTestLive;
     if (!testing) this._stopLightTestTimer();
-    const rows = this._bannerRowList();
+    // Arrivals are judged against every key the last render held, drawn or folded, so a row folded
+    // into the collapse is not new when the shell opens; a new key opens the shell in this same render
+    // (bannerRowList reconciles the snapshot), and the rows that were already there do not pulse.
+    const ordered = orderRows(this._bannerInput());
+    const fresh = arrivedKeys(ordered, this._knownKeys);
+    if (this._baselined) this._knownKeys = new Set(ordered.map((row) => row.key));
+    const rows = this._bannerRowList(fresh);
     this._rows = rows;
     // Only rows whose key or content changed are touched, so focus survives a poll.
     applyPatch(this.bannerSlot, rows);
+    if (fresh.length > 0) {
+      this._announce(arrivalAnnouncement(ordered, fresh, { hostState: this.hostState, platform: this.platform }));
+      const timer = setTimeout(() => {
+        for (const node of this.bannerSlot.querySelectorAll?.('[data-new]') ?? []) node.removeAttribute('data-new');
+      }, PULSE_FALLBACK_MS);
+      timer.unref?.();
+    }
     if (testing) this._startLightTestTimer();
+  }
+
+  // Says `text` in the polite live region. Parts raised within the short delay (one poll can render
+  // twice: state, then pending pairings) go out as one announcement. Empty first so the same words
+  // twice in a row are still a change; cleared after a while.
+  _announce(text) {
+    if (!this.announcer || !text) return;
+    this._announceParts.push(text);
+    if (this._announceTimer !== null) return;
+    clearTimeout(this._announceClearTimer);
+    this.announcer.textContent = '';
+    this._announceTimer = setTimeout(() => {
+      this._announceTimer = null;
+      this.announcer.textContent = this._announceParts.join(' ');
+      this._announceParts = [];
+      this._announceClearTimer = setTimeout(() => { this.announcer.textContent = ''; }, ANNOUNCE_CLEAR_MS);
+      this._announceClearTimer.unref?.();
+    }, ANNOUNCE_DELAY_MS);
+    this._announceTimer.unref?.();
   }
 
   // A banner button was pressed: `action` and `key` come from its data-action and data-key.

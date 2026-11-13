@@ -7,7 +7,8 @@
 // collapses, an arrival or a changed message re-opens, a Once light test's countdown does not, and
 // recovery from the takeover re-baselines. Aurora-9hqa.4: LAN pairing requests (real ones, raised
 // with POST /api/pairing/request) are notices inside the collapse: one already pending at load is
-// baseline (2+ rows start collapsed, a lone one open), one arriving re-opens, Deny reaches the server. `SHOTS=<dir>` saves screenshots (also at 400 wide).
+// baseline (2+ rows start collapsed, a lone one open), one arriving re-opens, Deny reaches the server.
+// Aurora-9hqa.2: arrivals pulse once and are announced (see the last block). `SHOTS=<dir>` saves screenshots (also at 400 wide).
 import assert from 'node:assert/strict'
 import { launch } from '../lib/browser.mjs'
 import { withAuroraStack } from '../lib/stack.mjs'
@@ -234,6 +235,169 @@ await withAuroraStack(async ({ aurora }) => {
       await reqRow(lone).waitFor({ timeout: 10_000 })
       await expectOpen()
       step('Deny reaches the server and the row goes; a lone request at load starts open')
+
+      // Arrival spotlight (Aurora-9hqa.2). A page-side observer logs every data-new that appears or
+      // ends (with the computed animation, tint and shadow at that moment) and every text the polite
+      // live region gets, so a pulse that lasts 1.4 s cannot be missed by polling.
+      await page.addInitScript(() => {
+        window.__pulses = []
+        window.__said = []
+        const note = (el) => {
+          const cs = getComputedStyle(el)
+          window.__pulses.push({ kind: 'add', key: el.getAttribute('data-key'), t: performance.now(), anim: cs.animationName, tint: cs.getPropertyValue('--shell-ping-tint').trim(), shadow: cs.boxShadow })
+        }
+        new MutationObserver((list) => {
+          const region = document.getElementById('shell-announcer')
+          if (region && list.some((m) => m.target === region || region.contains(m.target)) && region.textContent) window.__said.push({ text: region.textContent, t: performance.now() })
+          for (const m of list) {
+            if (m.type === 'attributes' && m.attributeName === 'data-new') {
+              if (m.target.hasAttribute('data-new')) note(m.target)
+              else window.__pulses.push({ kind: 'end', key: m.target.getAttribute('data-key'), t: performance.now() })
+            } else if (m.type === 'childList') {
+              for (const n of m.addedNodes) {
+                if (n.nodeType !== 1) continue
+                for (const el of [n, ...n.querySelectorAll('[data-new]')]) if (el.hasAttribute('data-new')) note(el)
+              }
+            }
+          }
+        }).observe(document, { subtree: true, childList: true, characterData: true, attributes: true, attributeFilter: ['data-new'] })
+      })
+      const spot = async () => page.evaluate(() => ({ pulses: window.__pulses.slice(), said: window.__said.map((x) => x.text) }))
+      const adds = async () => (await spot()).pulses.filter((p) => p.kind === 'add')
+      const waitFor = (kind, n) => page.waitForFunction(([k, count]) => window.__pulses.filter((p) => p.kind === k).length >= count, [kind, n], { timeout: 10_000 })
+      const waitSaid = (n) => page.waitForFunction((count) => window.__said.length >= count, n, { timeout: 10_000 })
+      // Freezes the pulse at ~20% and screenshots it, then lets it end: only when SHOTS is set.
+      const freeze = async (selector) => page.evaluate((sel) => { const el = document.querySelector(sel); el.style.animationPlayState = 'paused'; el.style.animationDelay = '-300ms' }, selector)
+      const thaw = async (selector) => page.evaluate((sel) => { const el = document.querySelector(sel); el.style.cssText = ''; el.removeAttribute('data-new') }, selector)
+
+      await pairing.cleanup()
+      const pre = await pairing.raise('pre')
+      await page.reload()
+      await page.locator(`#shell-pairing-approve-${pre.ref}`).waitFor({ timeout: 10_000 })
+      await polls(3)
+      let seen = await spot()
+      assert.deepEqual(seen.pulses, [], 'a request pending at load does not pulse')
+      assert.deepEqual(seen.said, [], 'and is not announced')
+      assert.equal(await page.locator('#shell-announcer').getAttribute('role'), 'status')
+      assert.equal(await page.locator('#shell-announcer').getAttribute('aria-live'), 'polite')
+      assert.equal(await page.locator('#shell-banner-slot #shell-announcer').count(), 0, 'the live region is outside the slot the patch rewrites')
+      step('load: a request already pending does not pulse and is not announced; the live region is in the page')
+
+      // An error arrives: one pulse on that row only, error red, announced, cleared after ~1.4 s.
+      assert.equal((await api('POST', '/api/dev/errors', { source: 'dev-spot', message: 'spot one' })).status, 200)
+      await waitFor('add', 1)
+      await waitFor('end', 1)
+      seen = await spot()
+      assert.equal(seen.pulses.length, 2, 'one pulse: one add and one end')
+      const [added, ended] = seen.pulses
+      assert.equal(added.key, 'error:dev-spot:spot one', 'only the arriving row pulses (the request already there does not)')
+      assert.equal(added.anim, 'shell-ping', 'the row runs the shared keyframes')
+      assert.equal(added.tint, '#ff6b6b', 'an error row is tinted error red')
+      assert.ok(ended.t - added.t > 1200 && ended.t - added.t < 1900, `data-new clears after the 1375 ms pulse (was ${Math.round(ended.t - added.t)} ms)`)
+      assert.equal(await page.locator('#shell-banner-slot [data-new]').count(), 0)
+      await waitSaid(1)
+      assert.deepEqual((await spot()).said, ['spot one'], 'announced once, in words')
+      await polls(2)
+      assert.equal((await adds()).length, 1, 'later polls do not pulse it again')
+      assert.deepEqual((await spot()).said, ['spot one'], 'or announce it again')
+      step('an arriving error pulses once (error red, ~1.4 s), only that row, and is announced once')
+
+      // A changed message is a new row: it pulses and is announced.
+      assert.equal((await api('POST', '/api/dev/errors', { source: 'dev-spot', message: 'spot two' })).status, 200)
+      await waitFor('add', 2)
+      await waitFor('end', 2)
+      assert.equal((await adds())[1].key, 'error:dev-spot:spot two')
+      await waitSaid(2)
+      assert.deepEqual((await spot()).said, ['spot one', 'spot two'])
+      step('a changed message pulses and is announced')
+
+      // A real pairing request arrives: a notice, so a default ring; announced with the device name.
+      const spotReq = await pairing.raise('spot')
+      await waitFor('add', 3)
+      const reqAdd = (await adds())[2]
+      assert.equal(reqAdd.key, `pairing:${spotReq.ref}`)
+      assert.equal(reqAdd.anim, 'shell-ping')
+      assert.equal(reqAdd.tint, '', 'a notice keeps the default ring colour')
+      await waitSaid(3)
+      assert.equal((await spot()).said[2], `Pair a device with Aurora? ${spotReq.name}.`)
+      await waitFor('end', 3)
+      step('a real pairing request pulses once with the default ring and is announced with its device name')
+
+      // Collapsed, an arrival re-opens the shell in the same render: it pulses, the rows already there do not.
+      await expectOpen()
+      await toggle.click()
+      await expectCollapsed('2 notices 1 error')
+      const before = (await adds()).length
+      assert.equal((await api('POST', '/api/dev/errors', { source: 'dev-spot-b', message: 'spot three' })).status, 200)
+      await waitFor('add', before + 1)
+      await expectOpen()
+      assert.equal((await adds()).length, before + 1, 'one pulse')
+      assert.equal((await adds()).at(-1).key, 'error:dev-spot-b:spot three')
+      assert.ok((await rows.count()) >= 3, 'the collapsed rows are drawn again')
+      await waitFor('end', before + 1)
+      assert.equal((await adds()).length, before + 1, 'the rows that came back with the re-open never pulsed')
+      step('an arrival while collapsed re-opens the shell with one pulse: the rows already there stay still')
+
+      // The Once light test: pulses and is announced when its key arrives; the countdown never does.
+      const saidBefore = (await spot()).said.length
+      const addsBefore = (await adds()).length
+      assert.equal((await api('POST', '/api/graph/test', { session: 'agent-1' }, { 'X-Aurora-Client': 'mcp' })).status, 200)
+      const keepTest = setInterval(() => void api('POST', '/api/graph/test/heartbeat', { session: 'agent-1' }).catch(() => {}), 1000)
+      try {
+        await page.locator('#shell-light-test-time').waitFor({ timeout: 10_000 })
+        await waitFor('add', addsBefore + 1)
+        assert.equal((await adds()).at(-1).key, 'test:agent-1:once')
+        await waitSaid(saidBefore + 1)
+        assert.equal((await spot()).said.at(-1), 'An agent is testing an effect on the lights.')
+        await page.waitForTimeout(5000)
+        assert.equal((await adds()).length, addsBefore + 1, 'the ticking countdown never pulses')
+        assert.equal((await spot()).said.length, saidBefore + 1, 'and is never announced')
+        step('a light test pulses and is announced once when it arrives, not on its countdown')
+
+        // Recovery from the takeover is a new baseline: what is there when it comes back is not an arrival.
+        const addsAtDown = (await adds()).length
+        const saidAtDown = (await spot()).said.length
+        await page.route('**/api/state', (route) => route.abort())
+        await page.getByRole('heading', { name: 'Aurora has stopped' }).waitFor({ timeout: 15_000 })
+        await page.unroute('**/api/state')
+        await page.getByRole('heading', { name: 'Aurora has stopped' }).waitFor({ state: 'detached', timeout: 10_000 })
+        await toggle.waitFor({ timeout: 10_000 })
+        await polls(2)
+        assert.equal((await adds()).length, addsAtDown, 'recovery: nothing pulses')
+        assert.equal((await spot()).said.length, saidAtDown, 'recovery: nothing is announced')
+        step('recovery from the takeover does not pulse or announce')
+      } finally {
+        clearInterval(keepTest)
+        await api('POST', '/api/graph/test/revert', { session: 'agent-1' }).catch(() => {})
+      }
+
+      // Reduced motion: no growing ring; a 2px ring held for the same time, then cleared.
+      await page.emulateMedia({ reducedMotion: 'reduce' })
+      const rmBefore = (await adds()).length
+      assert.equal((await api('POST', '/api/dev/errors', { source: 'dev-spot', message: 'spot reduced' })).status, 200)
+      await waitFor('add', rmBefore + 1)
+      const held = (await adds()).at(-1)
+      assert.equal(held.anim, 'shell-ping-hold', 'reduced motion: the held ring, not the pulse')
+      assert.ok(held.shadow.includes('2px'), `a 2px ring (${held.shadow})`)
+      await waitFor('end', (await spot()).pulses.filter((p) => p.kind === 'end').length + 1)
+      assert.equal(await page.locator('#shell-banner-slot [data-new]').count(), 0, 'cleared after the hold')
+      await page.emulateMedia({ reducedMotion: 'no-preference' })
+      step('reduced motion: a held 2px ring, not the pulse, cleared after the same time')
+
+      // Frames for the record: the ring mid-pulse on an error row and on a notice row.
+      if (process.env.SHOTS) {
+        await api('POST', '/api/dev/errors', { source: 'dev-spot', message: 'spot shot' })
+        const errSel = '.shell-banner-row[data-new]'
+        await page.waitForSelector(errSel, { timeout: 10_000 })
+        await freeze(errSel)
+        await shot('dashboard-pulse-error')
+        await thaw(errSel)
+        await pairing.raise('shot')
+        await page.waitForSelector(errSel, { timeout: 10_000 })
+        await freeze(errSel)
+        await shot('dashboard-pulse-notice')
+        await thaw(errSel)
+      }
     } finally {
       clearInterval(keepAgent)
     }
@@ -242,6 +406,8 @@ await withAuroraStack(async ({ aurora }) => {
     await api('POST', '/api/graph/test/revert', { session: 'agent-1' }).catch(() => {})
     await api('DELETE', '/api/graph/drafts/agent-1').catch(() => {})
     await api('POST', '/api/dev/errors/remove', { source: 'dev-1' }).catch(() => {})
+    await api('POST', '/api/dev/errors/remove', { source: 'dev-spot' }).catch(() => {})
+    await api('POST', '/api/dev/errors/remove', { source: 'dev-spot-b' }).catch(() => {})
     await pairing.cleanup().catch(() => {})
     await api('PUT', '/api/config', { activeEffectId: original }).catch(() => {})
     await browser.close()

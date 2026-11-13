@@ -703,15 +703,6 @@ button.editor-problem-row:hover {
   color: var(--aurora-text-secondary);
 }
 
-.visually-hidden {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  overflow: hidden;
-  clip-path: inset(50%);
-  white-space: nowrap;
-}
-
 /* Narrow top bar (Aurora-daaa.29.1): shrinks by priority, never wraps. The title gives up
    width first; the status and chips follow; the buttons keep their size. */
 .editor-header {
@@ -956,13 +947,10 @@ body:has(.ui-drawer[data-side='bottom'][data-expanded]) .react-flow__attribution
   border-radius: inherit;
   border: 1px dashed var(--aurora-text-primary);
   pointer-events: none;
-  animation: editor-ping 1375ms ease-out 2;
+  animation: shell-ping 1375ms ease-out 2;
 }
 
-@keyframes editor-ping {
-  0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--aurora-text-primary) 60%, transparent); }
-  100% { box-shadow: 0 0 0 8px transparent; }
-}
+/* The keyframes are shell.css's shell-ping (Aurora-9hqa.2), shared with the shell rows. */
 
 /* Reduced motion: the border holds for the same time without the pulse. */
 @media (prefers-reduced-motion: reduce) {

@@ -33,6 +33,11 @@ and its circled marks are `icons/circled-exclamation.svg` and `circled-info.svg`
 Pairing requests are notices inside that collapse on both pages; the baseline
 waits for the first pending result (`shellRows.js` `baselineReady`, `app.js`
 starts `canApprove` at `null` and calls `setCanApprove`; [[9hqa4-shell-pairing]]).
+A row whose key is new gets `data-new` (one ring pulse from `styles/shell.css`,
+which the Problems chip's ping shares) and is announced once in the visually
+hidden `#shell-announcer` in `index.html`, outside the slot the patch rewrites
+(`shellRows.js` `arrivedKeys`, `rowSpeech`, `arrivalAnnouncement`;
+[[9hqa2-shell-spotlight]]).
 
 Tests are plain node scripts with no framework (`node styles/welcome.test.mjs`,
 `node DeviceField.test.mjs`, ...).
