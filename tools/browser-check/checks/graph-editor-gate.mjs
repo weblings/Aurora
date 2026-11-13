@@ -243,7 +243,6 @@ await withEditorStack(async ({ editorUrl, restart }) => {
     const wholeRow = page.locator('.editor-problem-list li', { hasText: 'Whole graph' })
     await wholeRow.waitFor()
     assert.ok((await wholeRow.innerText()).replace(/\s+/g, ' ').length > 'Whole graph Add node…'.length, 'Whole graph row has no server text')
-    assert.equal(await page.locator('.editor-banner').count(), 0, 'Draft would not load still shows a banner')
     await page.keyboard.press('Escape')
     await button('Redo').click()
     await waitStatus(/Live/)

@@ -5,7 +5,7 @@
 import { summarize, type LoopState } from './loop'
 import { describeTest, initialTest, lightsInUseText, type Holder, type TestState } from './lightTest'
 
-export type StatusRank = 1 | 4 | 5 | 6 | 7
+export type StatusRank = 1 | 4 | 5 | 7
 
 export type Status = {
   rank: StatusRank
@@ -13,9 +13,9 @@ export type Status = {
   // The tooltip.
   detail: string | null
   // Where it shows now that the bar has no status text: the Test button's
-  // label or tooltip, the banner under the bar, or nowhere (the problems chip
-  // and the zones' stale tint already say it).
-  where: 'button' | 'banner' | 'none'
+  // label or tooltip, or nowhere (the problems chip and the zones' stale tint
+  // already say it).
+  where: 'button' | 'none'
   // The Test button's own label for this state.
   action: 'reconnect' | 'take-over' | null
 }
@@ -31,8 +31,6 @@ export type StatusInput = {
   // Another session's test, from the host-state poll (the same source as the shell's
   // light-test row), or null. Rank 5.
   otherHolder: Holder | null
-  // A Save or Save and apply that failed (rank 6).
-  writeTrouble: string | null
 }
 
 /** Stop was pressed and the lights are back: the user's own act, announced and not drawn (Aurora-u68h.6). */
@@ -80,7 +78,7 @@ export function testFailureToast(test: TestState): string | null {
   return test.phase === 'idle' || test.phase === 'running' ? test.failure : null
 }
 
-/** A document change that dismisses a test outcome and a write trouble: any
+/** A document change that dismisses a test outcome and a failed-save row: any
  *  change after an effect is open, but not the open itself (from no document). */
 export function changeIsEdit(before: unknown, after: unknown): boolean {
   return before !== null && after !== null && before !== after
@@ -95,7 +93,7 @@ export function stopLabel(test: TestState): string {
 
 const at = (rank: StatusRank, where: Status['where'], label: string, detail: string | null = null, action: Status['action'] = null): Status => ({ rank, where, label, detail, action })
 
-export function pickStatus({ openError, unreachable, loop, test, otherHolder, writeTrouble }: StatusInput): Status {
+export function pickStatus({ openError, unreachable, loop, test, otherHolder }: StatusInput): Status {
   // Rank 1: the takeover (or the shell row for an effect that would not open) says it; the button
   // is disabled with this as its tooltip, and nothing is open to save. A lost preview stream alone is not this: it only
   // asks the host poll to look (useDraftLoop), which owns the verdict.
@@ -109,21 +107,11 @@ export function pickStatus({ openError, unreachable, loop, test, otherHolder, wr
   if (loop.stream === 'replaced') return at(4, 'button', 'Reconnect', 'Another view of this session opened the preview.', 'reconnect')
   const use = lightsInUse(test, otherHolder)
   if (use) return at(5, 'button', 'Take over', use, 'take-over')
-  // Rank 6 is a failed Save for now; test outcomes moved to the live region and the Test menu
-  // (testOutcome), and a failed start is a toast (6c). 6f removes the banner path.
-  if (writeTrouble) return at(6, 'banner', writeTrouble)
+  // There is no rank 6: a failed Save is an error-shell row (graph/hostState.ts failedSaveNote), test
+  // outcomes are the live region and the Test menu (testOutcome), and a failed start is a toast.
   // Preview state (Preview paused, Connecting, Live) is no longer text: problems
   // are the chip's job and the zones island tints when stale.
   if (loop.valid === false) return at(7, 'none', 'Preview paused', 'Fix the problems to update the preview.')
   const line = summarize(loop)
   return at(7, 'none', line.label, line.detail)
-}
-
-// The banner under the bar: only what blocks work or waits for an answer.
-export type Banner = { kind: 'restore' } | { kind: 'notice'; message: string; detail: string | null }
-
-export function pickBanner(hasOffer: boolean, status?: Status): Banner | null {
-  if (hasOffer) return { kind: 'restore' }
-  if (status?.where === 'banner') return { kind: 'notice', message: status.label, detail: status.detail }
-  return null
 }

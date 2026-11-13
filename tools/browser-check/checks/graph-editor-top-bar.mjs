@@ -1,11 +1,11 @@
 // Aurora-daaa.11: the top bar, the title menu's Name and effect list, the view
-// menu, and the status rule's places (the Test button, the banner and the toast; the bar has no status text).
+// menu, and the status rule's places (the Test button, the shell's rows and the toast; the bar has no status text).
 //
 // Status cases (docs/planning/WebUI/GraphEditorCleanup.md, Status priority rule):
-//   checked here:       rank 1 shell rows (404, 422, 500; no Retry), kept copy restores silently (no banner; kept-copy check has the rest),
+//   checked here:       rank 1 shell rows (404, 422, 500; no Retry), kept copy restores silently (kept-copy check has the rest),
 //                       rank 7 default, Edited since the test, Stop-only bar
 //   checked elsewhere:  draft refusals and the takeover (error-shell), rank 4 Reconnect (gate),
-//                       rank 5/6 test outcomes (graph-editor edit loop), problems
+//                       rank 5 Take over and test outcomes (test-outcome), failed Save row (failed-save), problems
 //                       chip and Preview paused (gate), draft would not load
 //                       as a Whole graph row (gate), Saved toast (edit loop)
 //   unit tests:         every rank and the priority order (graph/status.test.ts)
@@ -174,7 +174,6 @@ await withEditorStack(async ({ editorUrl }) => {
     await page.reload()
     await page.waitForSelector('.aurora-node')
     await page.locator('.editor-title-menu[data-unsaved="true"]').waitFor()
-    assert.equal(await page.locator('.editor-banner').count(), 0, 'no banner for a kept copy')
     assert.equal(await button('Restore').count() + (await button('Discard').count()), 0, 'no Restore or Discard')
     await openTitleMenu(page)
     await page.getByRole('menuitem', { name: 'Revert to saved', exact: true }).click()
@@ -255,7 +254,6 @@ await withEditorStack(async ({ editorUrl }) => {
     await row.filter({ hasText: `${audio} no longer exists.` }).waitFor()
     assert.equal(await row.count(), 1)
     assert.equal(await page.locator('#shell-banner-slot').getByRole('button').count(), 0, 'no Retry, no action on the row')
-    assert.equal(await page.locator('.editor-banner').count(), 0, 'the old banner is gone')
     assert.equal(await status().getAttribute('data-preview'), 'No effect is open')
     assert.equal(await button('Test on lights').isDisabled(), true)
     assert.equal(await (await testTip()).innerText(), 'No effect is open')

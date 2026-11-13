@@ -5,7 +5,7 @@ React Flow editor for node graphs, served by Aurora's HTTP server at
 binary when `AURORA_ENABLE_GRAPH_EDITOR` is ON (the app presets set it; needs
 Node >= 22.12; see `cmake/GraphEditor.cmake`). The Dashboard's "Edit graph"
 link (`web/ui`, `graphEditorHref`) opens it with `?effect=<running effect>`. Plan and decisions: [[sequence-e-planning]],
-[[node-graph-pipeline]].
+[[node-graph-pipeline]], [[graph-editor-cleanup]].
 
 ## Scope
 
@@ -13,7 +13,7 @@ Desktop only for the cleanup pass (`Aurora-daaa`, decision 5): the top bar, menu
 and right-click menus are designed for a pointer and keyboard. The editor has never been
 tested on a phone, and touch is not a goal of this pass. Narrow desktop windows
 (~700 px) and a phone fallback that does not break are in scope (`Aurora-daaa.29`;
-Decisions, narrow windows, in `docs/planning/WebUI/GraphEditorCleanup.md`).
+Decisions, narrow windows, in [[graph-editor-cleanup]]).
 
 ## Layout
 
@@ -36,7 +36,7 @@ Decisions, narrow windows, in `docs/planning/WebUI/GraphEditorCleanup.md`).
   of the single active output (the one `/api/zones` names), 8 per row, no screen
   mapping and no resize. Colours are written to the cells from a ref on
   animation frames, not through state.
-- `src/TitleMenu.tsx`, `ViewMenu.tsx`, `ProblemsChip.tsx`, `Toast.tsx` -- the top bar's popups and the toast, all on `EditorPopup` (`Toast` is editor-local: `useToast().show(text, { doc, run })` adds a Grille Undo button, 8 s instead of 3, the timer held while hovered or focused; any change of the document other than `doc` spends it; `Aurora-u68h.6`) (its `focusAfter` names where focus goes when a choice closes the popup: the chip after a refused Save, a problem's node after a row pick). `ProblemsChip` also hosts the refused-save callout and ping (`Aurora-u68h.4`). `graph/status.ts` places each state (the Test button's label, the banner, or a toast) from the priority rule in [[graph-editor-cleanup]]; the bar has no status text. `SplitTestButton.tsx` is the Test split button (`Aurora-qjqy.3`): `Test (15s)`/`Test (Live)`/`Stop 0:12`/`Stop`/`Take over`/`Reconnect`, the caret menu picks Once (15 s) or Live and starts it, the current mode is marked with Grille's single-selection look (`menuitemradio`). `header[data-preview]` carries the state label for the browser checks.
+- `src/TitleMenu.tsx`, `ViewMenu.tsx`, `ProblemsChip.tsx`, `Toast.tsx` -- the top bar's popups and the toast, all on `EditorPopup` (`Toast` is editor-local: `useToast().show(text, { doc, run })` adds a Grille Undo button, 8 s instead of 3, the timer held while hovered or focused; any change of the document other than `doc` spends it; `Aurora-u68h.6`) (its `focusAfter` names where focus goes when a choice closes the popup: the chip after a refused Save, a problem's node after a row pick). `ProblemsChip` also hosts the refused-save callout and ping (`Aurora-u68h.4`). `graph/status.ts` `pickStatus` picks the Test button's own state (its label or tooltip) from the priority rule in [[graph-editor-cleanup]]; every other message has its own home listed there, and the bar has no status text. There is no banner under the bar. `SplitTestButton.tsx` is the Test split button (`Aurora-qjqy.3`): `Test (15s)`/`Test (Live)`/`Stop 0:12`/`Stop`/`Take over`/`Reconnect`, the caret menu picks Once (15 s) or Live and starts it, the current mode is marked with Grille's single-selection look (`menuitemradio`). `header[data-preview]` carries the state label for the browser checks.
 - `src/ContextMenu.tsx` -- right-click menus for the canvas, a node and a wire, anchored at a point; the node menu also opens from each node's `⋯` button and Shift+F10 (`Aurora-daaa.27.1`).
 - `src/Hint.tsx` -- hover help (`Aurora-w6zq.8`): Grille's `Tooltip` around any element (React Aria's `Focusable` makes it a tab stop; several lines render as a list). No `title=` on nodes, ports, params or toolbar buttons; menu rows carry help as their summary line, not a tooltip (React Aria needs a focusable trigger). The Test group takes the tooltip when Test is off, since a disabled button sends no pointer events.
 - `src/EditorPopup.tsx` -- the shared popup layer over Grille's `Popover`.
@@ -45,7 +45,7 @@ Decisions, narrow windows, in `docs/planning/WebUI/GraphEditorCleanup.md`).
   `DetailsDrawer.tsx` and `ControlsDrawer.tsx` -- the node details and the Dashboard controls list, in Grille drawers (the Inspector is gone, `Aurora-daaa.27.4`).
 - `src/useMedia.ts` -- the top bar shrinks by priority, never wraps (`Aurora-daaa.29.1`). Undo and Redo are icon buttons at every width; unsaved changes are a dot on the title at every width; below 520 px the back link is its arrow (the Test split button is `Test (15s)`/`Test (Live)` at every width; its accessible name stays Test on lights). `tools/browser-check`'s `graph-editor:narrow` asserts it at 1100, 900, 700, 520 and 400 px.
 - `src/graph/clear.ts` -- the pan rule that keeps the selected node clear of the Details drawer (one axis, so the bottom dock can reuse it); `App` runs it on open, on a new selection and on canvas resize. `editor.css` sets the drawer width to `clamp(280px, 40vw, 350px)` (`Aurora-daaa.29.2`). Below 650 px wide or portrait (aspect under 0.75, `DOCK_BOTTOM` in `useMedia.ts`) both drawers dock at the bottom at half height with Grille's half/full toggle, and the pan rule runs against the dock's top edge; otherwise they stay on the right (`Aurora-daaa.29.4`).
-- `src/ErrorShell.tsx`, `useHostState.ts`, `graph/hostState.ts` -- the Dashboard's error shell (`Aurora-s1t7.9`): first element of the page, rows from `GET /api/state` (read at once, then every 3 s), `shell.css` markup held equal to `web/ui/shell.js` by `ErrorShell.test.tsx`, and the "Aurora has stopped" takeover. `useHostState`'s `reachable` is the one verdict the takeover and the Test button share. Editor-supplied rows (a refused draft PUT: 429 and 400) ride beside the host rows; a 413 is a Whole graph problem. Keep the markup in step with `shell.js`; the light-test wording is `web/ui/testHolder.js`, shared.
+- `src/ErrorShell.tsx`, `useHostState.ts`, `graph/hostState.ts` -- the Dashboard's error shell (`Aurora-s1t7.9`): first element of the page, rows from `GET /api/state` (read at once, then every 3 s), `shell.css` markup held equal to `web/ui/shell.js` by `ErrorShell.test.tsx`, and the "Aurora has stopped" takeover. `useHostState`'s `reachable` is the one verdict the takeover and the Test button share. Editor-supplied rows (a refused draft PUT: 429 and 400; an effect that would not open, `openFailedNote`; a failed Save, Save as new or Save and apply, `failedSaveNote`: no Retry, cleared by the next Save or edit, and a network failure is the takeover only, `writeFailureReason`) ride beside the host rows; a 413 is a Whole graph problem. Keep the markup in step with `shell.js`; the light-test wording is `web/ui/testHolder.js`, shared.
 - `src/api.ts` -- the only server calls (`/api/nodes`, `/api/effects`,
   `/api/effects/:id`, drafts, preview URL, test, save, apply). Paths are root-absolute on purpose (Aurora's API ignores
   the editor's base); asset URLs are built from `import.meta.env.BASE_URL`.

@@ -35,7 +35,6 @@ await withEditorStack(async ({ editorUrl }) => {
       name: document.querySelector('.editor-split-main')?.getAttribute('aria-label'),
       mainHtml: document.querySelector('.editor-split')?.outerHTML,
       preview: document.querySelector('.editor-header')?.dataset.preview,
-      banners: document.querySelectorAll('.editor-banner').length,
       toast: document.querySelector('.editor-toast')?.textContent ?? '',
     }))
   const menuLines = async () => {
@@ -72,7 +71,6 @@ await withEditorStack(async ({ editorUrl }) => {
     assert.equal(after.mainHtml, before.mainHtml, 'the Test button is drawn exactly as at rest')
     assert.equal(after.label, 'Test (15s)')
     assert.equal(after.preview, before.preview, 'the header state is unchanged')
-    assert.equal(after.banners, 0, 'no banner')
     assert.equal(after.toast, '', 'no toast')
     assert.equal(await page.locator('[data-announcer]').getAttribute('aria-live'), 'polite')
     assert.equal(await page.locator('[data-announcer]').getAttribute('role'), 'status')
@@ -137,7 +135,6 @@ await withEditorStack(async ({ editorUrl }) => {
     await button('Test on lights').click()
     await waitToast(page, 'The lights are paused')
     await shot('c-failed-to-start-toast')
-    assert.equal((await resting()).banners, 0)
     assert.equal((await menuLines()).length, 2, 'a refused start is a toast, not a menu line')
     await closeMenu()
     await page.unroute('**/api/graph/test')

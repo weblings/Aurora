@@ -148,7 +148,6 @@ await withEditorStack(async ({ editorUrl }) => {
       assert.equal(await page.getByRole('menuitem', { name, exact: true }).isDisabled(), false, `${name} is never disabled`)
     }
     await page.keyboard.press('Escape')
-    assert.equal(await page.locator('.editor-banner').count(), 0)
     await page.waitForFunction(() => !document.querySelector('[data-refused]'))
 
     // Reduced motion holds the border without the pulse.

@@ -319,16 +319,6 @@ select {
   color: var(--aurora-text-primary);
 }
 
-.editor-banner {
-  display: flex;
-  gap: var(--aurora-space-3);
-  align-items: center;
-  padding: var(--aurora-space-2) var(--aurora-space-5);
-  background: var(--aurora-surface);
-  border-bottom: 1px solid var(--aurora-border);
-  color: var(--aurora-text-primary);
-}
-
 .editor-problem-list {
   margin: 0;
   padding: 0;

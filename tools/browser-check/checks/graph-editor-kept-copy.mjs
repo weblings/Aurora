@@ -44,7 +44,6 @@ await withEditorStack(async ({ editorUrl }) => {
     await page.reload()
     await page.waitForSelector('.aurora-node')
     assert.equal(await unsaved(), true, 'the kept copy came back marked unsaved')
-    assert.equal(await page.locator('.editor-banner').count(), 0)
     assert.equal(await prompt().count(), 0)
     step('reopening an edited effect restores the kept copy without asking, data-unsaved true')
 

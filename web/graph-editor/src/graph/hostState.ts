@@ -89,3 +89,18 @@ export function openFailedNote(cause: OpenFailure, title: string): string {
       return "Couldn't open the editor."
   }
 }
+
+// A failed Save, Save as new or Save and apply (Aurora-u68h.7): a shell row, no Retry, no action,
+// cleared by the next Save or edit. Refused saves for problems are the problems chip's callout, not this.
+export function failedSaveNote(title: string, reason: string): string {
+  return `Couldn't save ${title}: ${reason}`
+}
+
+/** Aurora's reason a write failed, from what the write threw. A network failure (fetch's TypeError)
+ *  is null: the "Aurora has stopped" takeover says it, with no row. A refused draft PUT carries `code`. */
+export function writeFailureReason(e: unknown): string | null {
+  if (e instanceof TypeError) return null
+  const code = typeof e === 'object' && e !== null ? (e as { code?: unknown }).code : undefined
+  if (typeof code === 'string') return code === 'too_many_drafts' ? 'too many editors are open' : 'Aurora would not take the draft'
+  return e instanceof Error && e.message ? e.message : 'Aurora did not answer'
+}

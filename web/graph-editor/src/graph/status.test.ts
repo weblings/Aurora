@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import { initialLoop, type LoopState } from './loop'
 import { initialTest, testReducer, type TestState } from './lightTest'
-import { changeIsEdit, pickBanner, pickStatus, quietEndToast, stopAnnounced, stopLabel, testFailureToast, testOutcome, type StatusInput } from './status'
+import { changeIsEdit, pickStatus, quietEndToast, stopAnnounced, stopLabel, testFailureToast, testOutcome, type StatusInput } from './status'
 
-const base: StatusInput = { openError: false, unreachable: false, loop: { ...initialLoop, valid: true, stream: 'live' }, test: initialTest, otherHolder: null, writeTrouble: null }
+const base: StatusInput = { openError: false, unreachable: false, loop: { ...initialLoop, valid: true, stream: 'live' }, test: initialTest, otherHolder: null }
 const withLoop = (l: Partial<LoopState>): StatusInput => ({ ...base, loop: { ...base.loop, ...l } })
 const withTest = (t: Partial<TestState>): StatusInput => ({ ...base, test: { ...initialTest, ...t } })
 
@@ -12,7 +12,7 @@ describe('status priority', () => {
     expect(pickStatus(base)).toMatchObject({ rank: 7, label: 'Live preview' })
   })
   it('rank 1: unreachable and cannot open beat everything', () => {
-    const all = { ...withLoop({ putError: 'x', stream: 'replaced' }), openError: true, writeTrouble: 'w' }
+    const all = { ...withLoop({ putError: 'x', stream: 'replaced' }), openError: true }
     expect(pickStatus(all)).toMatchObject({ rank: 1, where: 'button', label: 'No effect is open' })
     expect(pickStatus({ ...all, unreachable: true })).toMatchObject({ rank: 1, label: 'Cannot reach Aurora' })
     expect(pickStatus({ ...base, unreachable: true })).toMatchObject({ rank: 1, where: 'button', label: 'Cannot reach Aurora', detail: 'Retrying.' })
@@ -22,13 +22,12 @@ describe('status priority', () => {
   })
   it('a refused draft is not a status: the error shell and the chip say it', () => {
     for (const putError of ['too_many_drafts', 'invalid_session', 'invalid_body', 'draft_too_large']) {
-      expect(pickStatus(withLoop({ putError })).where).not.toBe('banner')
+      expect(pickStatus(withLoop({ putError })).where).toBe('none')
     }
   })
-  it('draft would not load is a Whole graph problem, not a banner', () => {
+  it('draft would not load is a Whole graph problem, not a status', () => {
     const loop = { reloadError: 'bad' }
     expect(pickStatus(withLoop(loop))).toMatchObject({ rank: 7, where: 'none' })
-    expect(pickBanner(false, pickStatus(withLoop(loop)))).toBeNull()
   })
   it('a reload error alongside problems reads Preview paused', () => {
     expect(pickStatus(withLoop({ valid: false, reloadError: 'bad', issues: [{ node: null, message: 'm' }] }))).toMatchObject({ rank: 7, label: 'Preview paused' })
@@ -41,12 +40,11 @@ describe('status priority', () => {
     // Not while this tab is testing: that is Stop.
     expect(pickStatus({ ...withTest({ phase: 'running' }), otherHolder: { session: 's', client: null } }).rank).toBe(7)
   })
-  it('rank 6 is a failed Save only: test outcomes and failures are not a banner', () => {
+  it('there is no rank 6: test outcomes and failures are not a status', () => {
     expect(pickStatus(withTest({ failure: 'no' })).where).toBe('none')
     for (const reason of ['heartbeat_lost', 'replaced', 'stopped', 'superseded', 'pipeline_gone', 'unreachable']) {
       expect(pickStatus(withTest({ ended: { reason, holder: null } })).where).toBe('none')
     }
-    expect(pickStatus({ ...base, writeTrouble: 'Fix the 2 problems before saving' })).toMatchObject({ rank: 6, label: 'Fix the 2 problems before saving' })
   })
   it('testOutcome words each end the user did not cause, and only those', () => {
     const say = (reason: string | null, holder = null as { session: string; client: string | null } | null) => testOutcome(withTest({ ended: { reason, holder } }).test)
@@ -90,20 +88,11 @@ describe('status priority', () => {
   })
 })
 
-describe('Stop label and banner', () => {
+describe('Stop label', () => {
   it('Stop counts down in Once and is bare in Live', () => {
     expect(stopLabel({ ...initialTest, phase: 'running', remainingMs: 12000 })).toBe('Stop 0:12')
     expect(stopLabel({ ...initialTest, phase: 'running', remainingMs: 11100 })).toBe('Stop 0:12')
     expect(stopLabel({ ...initialTest, mode: 'live', phase: 'running' })).toBe('Stop')
-  })
-  it('banner: persistent errors (rank 6) show under the bar', () => {
-    const s = pickStatus({ ...base, writeTrouble: 'Fix the 2 problems before saving' })
-    expect(pickBanner(false, s)).toEqual({ kind: 'notice', message: 'Fix the 2 problems before saving', detail: null })
-    expect(pickBanner(false, pickStatus(base))).toBeNull()
-  })
-  it('banner: restore, else nothing', () => {
-    expect(pickBanner(true)).toEqual({ kind: 'restore' })
-    expect(pickBanner(false)).toBeNull()
   })
 })
 

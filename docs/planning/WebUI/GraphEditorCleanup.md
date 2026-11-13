@@ -2,7 +2,7 @@
 
 Id: graph-editor-cleanup
 
-Status: stage 1 built (back link, Aurora component styles); stage 2 built (top bar, title and view menus, status spot, `Aurora-daaa.11`); stage 3 built (catalog `group`, node copy, cascade Add node menu, palette removed; `Aurora-daaa.24.1`-`.24.4`, Grille `v0.1.0-dev.6`); stage 4 built (right-click and ⋯ menus, Delete key, Details and Dashboard controls drawers, Inspector removed, Esc closes a drawer from anywhere; `Aurora-daaa.27.1`-`.27.5`, Grille `v0.1.0-dev.8`). Control count 9 on Screen colors and `builtin.audio`, under the mock's 11. Narrow windows built: top bar shrink (`Aurora-daaa.29.1`), drawer width and node-clear pan (`Aurora-daaa.29.2`), bottom dock (`Aurora-daaa.29.4`), 1100 px no-pan check and drawer-body container queries skipped (`Aurora-daaa.29.5`). Full graph-editor browser-check suite passes on the stage 4 head (`Aurora-daaa.30`). Stage 5 built (`Aurora-s1t7`, editor to the Grille mock: Grille buttons and 32 px bar `.1`, problems chip before Undo `.2`, canvas corners and minimap `.3`, Zones island `.4`, side-drawer fix `Aurora-daaa.35`, Grille icons `.5`, Decisions `.6`/`.7`). Light test modes built (`Aurora-qjqy`: Once (15 s) and Live in core `.1`, MCP `try_on_lights` defaults to Once `.2`, Test split button `.3`). Stage 6 (`Aurora-u68h`, each message in its own place) and stage 7 (`Aurora-u8jx`, problems in people's words) are filed: see Stages 5 and 6, and Decisions (owner, stage 6 scope, 2026-11-12). Grille `v0.1.0` (`Aurora-daaa.16`, `Grille-0up`) stays the end of the whole process, after the UX refinement, outside stages 5 and 6.
+Status: stage 1 built (back link, Aurora component styles); stage 2 built (top bar, title and view menus, status spot, `Aurora-daaa.11`); stage 3 built (catalog `group`, node copy, cascade Add node menu, palette removed; `Aurora-daaa.24.1`-`.24.4`, Grille `v0.1.0-dev.6`); stage 4 built (right-click and ⋯ menus, Delete key, Details and Dashboard controls drawers, Inspector removed, Esc closes a drawer from anywhere; `Aurora-daaa.27.1`-`.27.5`, Grille `v0.1.0-dev.8`). Control count 9 on Screen colors and `builtin.audio`, under the mock's 11. Narrow windows built: top bar shrink (`Aurora-daaa.29.1`), drawer width and node-clear pan (`Aurora-daaa.29.2`), bottom dock (`Aurora-daaa.29.4`), 1100 px no-pan check and drawer-body container queries skipped (`Aurora-daaa.29.5`). Full graph-editor browser-check suite passes on the stage 4 head (`Aurora-daaa.30`). Stage 5 built (`Aurora-s1t7`, editor to the Grille mock: Grille buttons and 32 px bar `.1`, problems chip before Undo `.2`, canvas corners and minimap `.3`, Zones island `.4`, side-drawer fix `Aurora-daaa.35`, Grille icons `.5`, Decisions `.6`/`.7`). Light test modes built (`Aurora-qjqy`: Once (15 s) and Live in core `.1`, MCP `try_on_lights` defaults to Once `.2`, Test split button `.3`). Stage 6 built (`Aurora-u68h`, each message in its own place: the banner under the bar is gone; see Decisions (owner, stage 6 scope, 2026-11-12) and [[u68h7-close-out]]). Stage 7 (`Aurora-u8jx`, problems in people's words) is filed and still open. Grille `v0.1.0` (`Aurora-daaa.16`, `Grille-0up`) stays the end of the whole process, after the UX refinement, outside stages 5 and 6.
 Written 2026-11-06 under `Aurora-bova`. The owner reviewed the working mock and likes
 the direction. Decisions 1-7 are recorded under Decisions (2026-11-08). Stages 1-2 are
 built; stages 3-4 are still a proposal and follow those decisions.
@@ -200,44 +200,50 @@ Frames for the states above are in the mock's `Gaps` group (`Aurora-daaa.6`): `#
 
 ### Status priority rule
 
-*Rewritten 2026-11-11 (`Aurora-qjqy.3`); was: one status line in the bar. The bar has no status text now: the
-Test split button, the banner and the toast carry what the pill said.*
+*Rewritten 2026-11-11 (`Aurora-qjqy.3`); was: one status line in the bar. Rewritten again 2026-11-13 (`Aurora-u68h.7`, stage 6f) when the banner under the bar was removed: each message now lives in the place listed below. The bar has no status text.*
 
-*Stage 6 (2026-11-12) retires the banner and moves its rows elsewhere; see Decisions (owner, stage 6 scope, 2026-11-12). This table is rewritten when stage 6 closes (`Aurora-u68h.7`).*
+**Seven places, one per kind of message, so nothing shares a spot it cannot afford to lose.**
 
-**Three places, so nothing shares a spot it cannot afford to lose.**
+- **The error shell** (React, first element of the page; `ErrorShell.tsx`, markup held equal to the Dashboard's `shell.js`): what Aurora is not doing, plus the editor's own refusals. Rows: host rows from `GET /api/state` (Lost contact, Reload, permissions; Retry or dismiss as the host sends them), the light-test row (another session's test), draft rows (Draft not sent: too many editors; Couldn't check your last edit), the open-failure row (`<title> no longer exists.`, `<title>'s file can't be read.`, `Couldn't open the editor.`), the failed-save row (`Couldn't save <title>: <reason>`), and the takeover (`Aurora has stopped`, a full overlay). The editor-supplied rows have no Retry, no action and no dismiss.
+- **The problems chip and its popover**, with the refused-save callout and ping: problems with the graph, including `Whole graph` rows (Draft would not load, a draft too large), and a Save that was refused for problems.
+- **The Test split button**: its label and tooltip (`Test (15s)`, `Test (Live)`, `Stop 0:12`, `Stop`, `Take over`, `Reconnect`; disabled with `Cannot reach Aurora`, `No effect is open` or `Fix the problems before testing` as the tooltip), and the first line of its caret menu for a test outcome the user did not cause.
+- **The live region** (`Announcer.tsx`, `role="status"`, nothing drawn): messages the screen already shows or states that are not drawn: a test outcome the user did not cause, Stop's `Reverted`, `Added <type>`.
+- **Toasts** (bottom centre, editor-local): an event the user caused a moment ago that needs nothing further, plain (3 s) or with Undo (8 s). A toast never carries the only copy of an error.
+- **The naming dialog**: Save as new, and Save or Save and apply on a built-in or an unsaved new effect.
+- **The newer-saved-version prompt** (a Modal): the one question the editor still asks, when the saved effect changed since a kept copy was made.
 
-- **Test split button** (in the bar): its label and tooltip are the state of the lights and the preview connection.
-  `Test` at rest, `Stop 0:12` during Once, `Stop` during Live, `Take over` when another session holds the lights,
-  `Reconnect` when another view took the preview. Problems and Cannot reach Aurora disable it, with the reason as the tooltip.
-- **Banner** (one line under the bar): what blocks work, waits for an answer, or failed and needs a look.
-  At most one at a time, in rank order.
-- **Toast** (3 s, bottom center): only for a success or a minor refusal that the user caused
-  a moment ago and that needs nothing further. A toast never carries the only copy of an error.
+Fixed spots keep state out of the contest and show alongside everything else: the dot on the title and on Open items (unsaved changes), the problems chip, `Edited since the test` beside the Test button, and the Zones island's stale tint.
 
-Fixed spots keep state out of the contest: `Unsaved` beside the title, the problems chip, `Edited since the test`,
-and the Zones island's stale tint. They show alongside everything else.
-
-Rank, highest first. `graph/status.ts` `pickStatus` returns the first active row and where it shows.
+`graph/status.ts` `pickStatus` returns the first active row of the Test button's own states, highest first. The ranks keep their old numbers; there is no rank 2, 3 or 6 now.
 
 | Rank | State | Where | Persists until |
 |---|---|---|---|
-| 1 | Cannot reach Aurora, or cannot open the effect | Banner with Retry. Test button disabled, tooltip `Cannot reach Aurora` | Aurora answers |
-| 2 | Restore or Discard an earlier copy | Banner with both buttons. Backup is held until answered | The user picks one |
-| 3 | Draft not sent, draft would not load | Banner, reason after the colon | The next draft goes through |
+| 1 | Cannot reach Aurora | The takeover (`Aurora has stopped`; no shell rows with it). Test button disabled, tooltip `Cannot reach Aurora` | Aurora answers. One verdict from the host poll, shared by the takeover and the button |
+| 1 | The effect or catalog would not load although Aurora answers | Shell row worded by cause, no Retry. Test button disabled, tooltip `No effect is open`; Save items off, Open and New stay on | The user opens another effect |
+| - | (was 2) Restore or Discard a kept copy | Gone. A kept copy restores silently, marked by the dot, with Revert to saved in the title menu | |
+| - | (was 3) Draft not sent | Shell row (too many editors; Couldn't check your last edit), no Retry. A draft too large is a `Whole graph` problem | The next draft goes through |
+| - | (was 3) Draft would not load | A `Whole graph` row in the problems popover | The draft loads |
 | 4 | Preview taken over | The button reads `Reconnect` | Reconnect, or the stream returns |
-| 5 | Lights in use by another session | The button reads `Take over`, tooltip names the holder | The holder finishes, or the user takes over |
-| 6 | A test or write that failed or ended unexpectedly (heartbeat lost, another effect chosen, lights paused, a taker, start or Save failure, reload error) | Banner, plain words, latest wins | The next test, Save, or edit |
+| 5 | Lights in use by another session | The button reads `Take over`, tooltip names the holder; the shell shows the light-test row for the same test | The holder finishes, or the user takes over |
+| - | (was 6) A test ended for a reason the user did not cause (heartbeat lost, another effect chosen, lights paused, a taker) | Live region, and the first line of the Test caret menu. Nothing on the button | The next test, an edit, or a Save |
+| - | (was 6) A test refused at start | Toast, in the server's words | 3 s |
+| - | (was 6) A Save, Save as new or Save and apply Aurora refused or could not write | Shell row `Couldn't save <title>: <reason>`, no Retry, no action. A network failure is the takeover only, no row | The next Save or edit |
+| - | (was 6) Save refused for problems | The problems chip's callout and ping, nothing written | About 4 s; the chip keeps the problems |
+| - | (was 6) Reload error after a Save | Shell row from `/api/state` errors (host row) | The host clears it, or the user dismisses it |
 | 7 | Preview state: connecting, paused, closed, live | Nowhere. The chip says problems, the Zones island tints when stale | It changes |
-| - | A Once test reached 15 s, Stop, Reverted | Toast (`Test finished: the lights are back`, `Reverted`) | 3 s |
+| - | A Once test reached 15 s | Toast `Test finished: the lights are back` | 3 s |
+| - | Stop, Reverted | Live region only | |
+| - | Added a node | Live region only | |
 | - | Wire refused (`Those ports do not match`) | Toast | 3 s. It names its own cause, and the wire simply did not land |
-| - | Saved, Saved and live, Restored, Discarded, Added node | Toast | 3 s. The bar's `Unsaved` and the title already show the new state |
+| - | Saved, Saved and live, Inserted a converter | Toast | 3 s. The title's dot already shows the new state |
+| - | Removed N Dashboard controls, Reverted to the saved version, Loaded the saved version | Toast with Undo | 8 s, held while hovered or focused; spent by the next edit |
+| - | Name the new effect | The naming dialog | Confirm or Cancel |
+| - | The saved effect changed since a kept copy was made | The newer-saved-version prompt: Load saved or Keep my edits | The user picks one |
 
 Rules that follow:
 
-1. **Errors and outcomes that need action never go to a toast.** Ranks 1-6 persist.
-2. **A new item of equal rank replaces the old one**, since both are the same kind of news.
-   A higher rank shown over a lower one does not erase it: the lower returns when the higher resolves.
+1. **Errors and outcomes that need action never go to a toast.** They are shell rows, the chip, or the button; a toast never carries the only copy.
+2. **A new row replaces an old one of its own kind.** A second failed Save words the same row again; the shell shows its rows together (a summary line with Show more past one).
 3. **Problems with the graph are a chip, not a status.** The chip counts every problem,
    node-level and graph-wide. Its popover lists them; a node-level row selects the node, and a
    graph-wide row (`Whole graph`) has no node to point at, so it carries its own action instead
@@ -249,20 +255,20 @@ Rules that follow:
 5. **Keep disappears, and so does its disabled state.** While a test runs and the graph has
    changed, the bar says `Edited since the test`, and the title menu warns that Save and apply
    puts the edited graph live and ends the test (`#changed`).
-6. **Stop never hides.** While a test runs the button is Stop (with the Once countdown); an outcome at rank 6 shows only after the test has ended.
+6. **Stop never hides.** While a test runs the button is Stop (with the Once countdown); an outcome the user did not cause shows only after the test has ended.
 
-How today's nine slots map:
+How the old nine slots map (the first column is what the editor had before stage 6):
 
-| # | Today | Becomes |
+| # | Was | Is now |
 |---|---|---|
-| 1 | `editor-restore` (Restore, Discard) | Rank 2 banner |
-| 2 | `editor-status` (`summarize`) | Ranks 3, 4, 7 in the status spot, and the problems chip when it reports problems |
-| 3 | Reconnect button | Rank 4, inside the status spot |
-| 4 | `editor-refusal` | Toast |
-| 5 | `editor-error` (`Cannot reach Aurora`, `Cannot open`) | Rank 1 banner, with Retry |
-| 6 | `editor-dirty` (`Unsaved changes`) | `Unsaved` beside the title |
-| 7 | `editor-test-note` (`describeTest`) | Countdown beside Revert while running. Rank 5 and 6 in the status spot otherwise. `Kept` no longer exists. `Reverted` is a toast |
-| 8 | `editor-notice` (`write` results) | Success: toast. Failure, `Fix the n problems before saving`, `Reload: ...`: rank 6. `Name the new effect first`: inside the naming dialog |
+| 1 | `editor-restore` (Restore, Discard) | Silent restore, the dot, Revert to saved; the newer-saved-version prompt when the saved effect changed |
+| 2 | `editor-status` (`summarize`) | Test button labels (ranks 4, 5), nowhere for rank 7, the problems chip when it reports problems |
+| 3 | Reconnect button | Rank 4, the Test button's `Reconnect` |
+| 4 | `editor-refusal` | Toast (a wire or a test start), or the chip's callout (a Save with problems) |
+| 5 | `editor-error` (`Cannot reach Aurora`, `Cannot open`) | The takeover; the open-failure shell row |
+| 6 | `editor-dirty` (`Unsaved changes`) | The dot on the title and on Open items |
+| 7 | `editor-test-note` (`describeTest`) | Live region and the first line of the Test caret menu. `Kept` no longer exists. `Reverted` is announced only |
+| 8 | `editor-notice` (`write` results) | Success: toast. A Save with problems: the chip's callout. A failed write: the shell's `Couldn't save <title>: <reason>` row. `Reload: ...`: a host row. `Name the new effect first`: inside the naming dialog |
 | 9 | `editor-graph-problems` list over the canvas | The problems chip, with `Whole graph` rows in its popover |
 
 Not covered by the nine: the per-node problem marks on node bodies stay where they are.
@@ -663,12 +669,13 @@ Grille `v0.1.0` (`Aurora-daaa.16` here, `Grille-0up` in GrilleDS) is the end of 
 
 ## Decisions (owner, stage 6 scope, 2026-11-12)
 
-Status: decided; 6a (the error shell, `Aurora-s1t7.9`) built 2026-11-13, see [[s1t79-error-shell]]; 6b (silent restore, Revert to saved, the newer-saved-version prompt, `@new-` ids, `Aurora-u68h.2`) built 2026-11-13, see [[u68h2-kept-copies]], its Unsaved dot waits for 6d; 6c (test outcomes the user did not cause, the live region, one source for Take over, `Aurora-u68h.3`) built 2026-11-13, see [[u68h3-test-outcomes]]; 6d (refused saves point at the problems chip, unsaved dots with Grille's `dotIcon`, Grille `dev.12`, `Aurora-u68h.4` and `.8`) built 2026-11-13, see [[u68h4-refused-saves]]; 6h (an effect or catalog that would not load is an error-shell row without Retry, `Aurora-u68h.9`) built 2026-11-13, see [[u68h9-open-failure-row]]; 6g (toast audit: Stop's `Reverted` and `Added <type>` are announced only; Undo on `Removed N Dashboard controls`, `Reverted to the saved version` and `Loaded the saved version`, `Aurora-u68h.6`) built 2026-11-13, see [[u68h6-undo-toasts]]; the rest not built. Replaces the stage 6 notes of 2026-11-11 and 2026-11-12, which asked whether the problems UI and the toast belong in the error shell.
+Status: decided; 6a (the error shell, `Aurora-s1t7.9`) built 2026-11-13, see [[s1t79-error-shell]]; 6b (silent restore, Revert to saved, the newer-saved-version prompt, `@new-` ids, `Aurora-u68h.2`) built 2026-11-13, see [[u68h2-kept-copies]], its Unsaved dot waits for 6d; 6c (test outcomes the user did not cause, the live region, one source for Take over, `Aurora-u68h.3`) built 2026-11-13, see [[u68h3-test-outcomes]]; 6d (refused saves point at the problems chip, unsaved dots with Grille's `dotIcon`, Grille `dev.12`, `Aurora-u68h.4` and `.8`) built 2026-11-13, see [[u68h4-refused-saves]]; 6h (an effect or catalog that would not load is an error-shell row without Retry, `Aurora-u68h.9`) built 2026-11-13, see [[u68h9-open-failure-row]]; 6g (toast audit: Stop's `Reverted` and `Added <type>` are announced only; Undo on `Removed N Dashboard controls`, `Reverted to the saved version` and `Loaded the saved version`, `Aurora-u68h.6`) built 2026-11-13, see [[u68h6-undo-toasts]]; 6f (close-out: a failed Save is a shell row, the banner and `pickBanner` removed, this priority rule rewritten, `Aurora-u68h.7`) built 2026-11-13, see [[u68h7-close-out]]. Stage 6 is done: `Aurora-u68h` (6a `Aurora-s1t7.9`, 6b `.2`, 6c `.3`, 6d `.4` and `.8`, 6e `.5`, 6g `.6`, 6h `.9`, 6f `.7`, mock `.1`). Replaces the stage 6 notes of 2026-11-11 and 2026-11-12, which asked whether the problems UI and the toast belong in the error shell.
 
 The editor's banner under the bar held five kinds of message: Aurora unreachable, a question (Restore or Discard), refused Save clicks, test outcomes the user did not cause, and advice (the window-size note). It was a catch-all, not a pattern, so stage 6 retires it and gives each kind its own home.
 
+- **A failed Save is an editor-supplied shell row** (owner, 2026-11-13; built as 6f, `Aurora-u68h.7`). A Save, Save as new or Save and apply that Aurora refused or could not write reads `Couldn't save <title>: <Aurora's reason>`, with no Retry and no action, and clears on the next Save or edit. A network failure is the `Aurora has stopped` takeover only, with no row. A Save refused for problems stays the chip's callout. No status rank: the row is not a Test state, so Test stays on.
 - **The error shell carries only connection and host-state errors** (Cannot reach Aurora, Draft not sent, Lost contact, Reload: …). That matches [[error-overlay]]'s by-cause rule: the shell shows what Aurora is not doing, and refused clicks stay at their control.
-- **A failed effect or catalog load is an editor-supplied shell row, worded by cause, with no Retry and no action** (owner, 2026-11-12; built as 6h, `Aurora-u68h.9`). It was the banner's `unreachable` kind. Aurora answered, so this is not "Cannot reach Aurora" (the takeover, which stays rank 1 with its own label). Causes: 404 `unknown_effect` "`<title>` no longer exists."; 422 `unreadable_effect` "`<title>`'s file can't be read."; anything else "Couldn't open the editor." Still status rank 1 with the label `No effect is open`: Test is off with that tooltip, Save items are off (nothing to save), Open and New stay enabled (the title button is enabled with no document, so the user can leave through Open). 6f's priority-rule rewrite has no banner row for this message.
+- **A failed effect or catalog load is an editor-supplied shell row, worded by cause, with no Retry and no action** (owner, 2026-11-12; built as 6h, `Aurora-u68h.9`). It was the banner's `unreachable` kind. Aurora answered, so this is not "Cannot reach Aurora" (the takeover, which stays rank 1 with its own label). Causes: 404 `unknown_effect` "`<title>` no longer exists."; 422 `unreadable_effect` "`<title>`'s file can't be read."; anything else "Couldn't open the editor." Still status rank 1 with the label `No effect is open`: Test is off with that tooltip, Save items are off (nothing to save), Open and New stay enabled (the title button is enabled with no document, so the user can leave through Open). 6f's priority rule lists it under the error shell.
 - **The problems chip stays separate from the shell.** The shell is app-level; problems belong to one document and point into the canvas. Mixing them would make one `N problems` count mean both "Aurora is down" and "an input is unwired", and make ordinary editing look like an alarm.
 - **The toast stays editor-local** and keeps its job (status priority rule). Messages the screen already shows become screen-reader announcements only, and toasts that report a loss get Undo (`Aurora-u68h.6`).
 - **No error/warning severity tiers**, in the problems popover or the shell. Today every validation issue blocks; only runtime preview errors do not, and they are rare. Tone would mean "does this block you" (as in RockyRoadImport's status tones) if tiers are ever added, for example with checks that do not block such as "nothing reaches the lights".

@@ -74,7 +74,6 @@ await withEditorStack(async ({ editorUrl, aurora }) => {
     // Three failed heartbeats: the tab gives up and the button is at rest. Lost contact is the
     // "Aurora has stopped" takeover (needs /api/state down as well), never a message of its own.
     await button('Test on lights').waitFor({ timeout: 15_000 })
-    assert.equal(await page.locator('.editor-banner').count(), 0)
     assert.doesNotMatch(await announced(page), /Lost contact/)
     await page.unroute('**/api/graph/test/heartbeat')
     await page.waitForTimeout(7000)

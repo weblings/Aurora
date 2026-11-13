@@ -35,7 +35,7 @@ import { FIT_OPTIONS, ViewMenu } from './ViewMenu'
 import { ZonesIsland } from './ZonesIsland'
 import { ErrorShell } from './ErrorShell'
 import { useHostState } from './useHostState'
-import { draftShellNote, openFailedNote, openFailureCause, otherTest, type OpenFailure } from './graph/hostState'
+import { draftShellNote, failedSaveNote, openFailedNote, openFailureCause, otherTest, writeFailureReason, type OpenFailure } from './graph/hostState'
 import { tabSession, useDraftLoop } from './useDraftLoop'
 import { useLightTest } from './useLightTest'
 import { clearUnsaved, fingerprint, isUnsaved, migrateLegacyBlank, openKept, saveUnsaved, syncUnsaved } from './graph/autosave'
@@ -44,7 +44,7 @@ import { converterFor, insertConverter, refuseConnection } from './graph/connect
 import { controlsOf } from './graph/controls'
 import { addEdge, addNode, joinEndpoint, moveNodes, removeEdge, removeNodes, setParam } from './graph/doc'
 import { editorReducer, emptyEditor, sameDoc } from './graph/history'
-import { changeIsEdit, pickBanner, pickStatus, quietEndToast, stopAnnounced, stopLabel, testFailureToast, testOutcome } from './graph/status'
+import { changeIsEdit, pickStatus, quietEndToast, stopAnnounced, stopLabel, testFailureToast, testOutcome } from './graph/status'
 import { SplitTestButton } from './SplitTestButton'
 import { initialTest, type TestMode } from './graph/lightTest'
 import { BLANK_ID, blankDoc, forWrite, freshEffectId, isDraftId, newEffectId, setTitle, titleOf } from './graph/save'
@@ -89,6 +89,7 @@ export function App() {
   const [openError, setOpenError] = useState<{ cause: OpenFailure; id: string | null } | null>(null)
   const [attempt, setAttempt] = useState(0)
   // A Save or Save and apply that failed; cleared by the next edit or write.
+  // A failed write's shell row (graph/hostState.ts failedSaveNote), cleared by the next Save or edit.
   const [writeTrouble, setWriteTrouble] = useState<string | null>(null)
   const { text: toastText, undo: toastUndo, show: showToast, dismiss: dismissToast, hold: holdToast } = useToast()
   const { text: announced, announce } = useAnnouncer()
@@ -210,7 +211,6 @@ export function App() {
 
   const startTest = (mode: TestMode) => {
     setTestMode(mode)
-    setWriteTrouble(null)
     setTestedDoc(docRef.current)
     void lights.start(mode)
   }
@@ -254,7 +254,7 @@ export function App() {
       }
       const result: WriteResult = kind === 'save' ? await saveGraph(session, id) : await applyGraph(session, id)
       if (!result.ok) {
-        setWriteTrouble(result.reason)
+        setWriteTrouble(failedSaveNote(titleOf(sent) || barTitle(), result.reason))
         return
       }
       // Apply does not end a running test. The lights then go back to the
@@ -277,7 +277,9 @@ export function App() {
         setBaseline({ id, doc: sent })
       }
     } catch (e) {
-      setWriteTrouble((e as Error).message)
+      // A network failure sets no row: the takeover says it.
+      const reason = writeFailureReason(e)
+      setWriteTrouble(reason === null ? null : failedSaveNote(titleOf(sent) || barTitle(), reason))
     } finally {
       setWriting(false)
     }
@@ -341,14 +343,13 @@ export function App() {
   // The shell's light-test row is another session's test: this tab's own shows as Stop on the Test button.
   const otherHeld = otherTest(host.host.test, session)
   const otherLightTest = otherHeld ? { holder: otherHeld.holder, endsAtMs: host.testEndsAtMs } : null
-  const status = pickStatus({ openError: openError !== null, unreachable: !host.reachable, loop: loop.state, test: lights.state, otherHolder: otherHeld?.holder ?? null, writeTrouble })
-  const banner = pickBanner(false, status)
+  const status = pickStatus({ openError: openError !== null, unreachable: !host.reachable, loop: loop.state, test: lights.state, otherHolder: otherHeld?.holder ?? null })
   // Without Aurora nothing can be tested or saved.
   const blocked = status.rank === 1
   // The error shell's editor-supplied rows: a refused draft PUT, and an effect or catalog that would not open.
   // <title> is the effects-list title for the id when known, else the id (as the title label).
   const failedTitle = openError?.id ? effects.find((e) => e.id === openError.id)?.title || openError.id : ''
-  const shellNotes = [draftShellNote(loop.state.putError), openError ? openFailedNote(openError.cause, failedTitle) : null].filter(
+  const shellNotes = [draftShellNote(loop.state.putError), openError ? openFailedNote(openError.cause, failedTitle) : null, writeTrouble].filter(
     (n): n is string => n !== null,
   )
 
@@ -689,6 +690,8 @@ export function App() {
   }
   // A built-in has no title of its own in the graph; the effect list names it.
   const shownTitle = title || effects.find((e) => e.id === effectId)?.title || ''
+  // What the title button shows (also the <title> of a failed-save row).
+  const barTitle = () => shownTitle || (isDraftId(effectId) ? NEW_EFFECT_TITLE : effectId)
   // New and Open both come through here. `where` is the seam for opening in a new tab if the editor gets tabs.
   // A New ▸ Empty gets its own id, so two new effects never share one kept copy.
   const openEffect = (id: string, where: 'here') => {
@@ -763,7 +766,7 @@ export function App() {
           disabled={!doc && !openError}
           onClick={() => setTitleMenuOpen((open) => !open)}
         >
-          <span className="editor-title-label">{shownTitle || (isDraftId(effectId) ? NEW_EFFECT_TITLE : effectId)}</span>
+          <span className="editor-title-label">{barTitle()}</span>
           {dirty ? <Icon icon={dotIcon} size="sm" /> : null}
           <Icon icon={chevronDownIcon} size="sm" />
         </button>
@@ -862,14 +865,6 @@ export function App() {
           onReconnect={loop.reconnect}
         />
       </header>
-      {banner?.kind === 'notice' ? (
-        <div className="editor-banner" role="alert" data-rank={status.rank}>
-          <span>
-            {banner.message}
-            {banner.detail ? `: ${banner.detail}` : ''}
-          </span>
-        </div>
-      ) : null}
       {outdated && baseline ? (
         <NewerSavedPrompt effectTitle={shownTitle || baseline.id} onLoadSaved={loadSaved} onKeepEdits={keepMyEdits} />
       ) : null}

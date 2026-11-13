@@ -22,6 +22,7 @@
     "graph-editor:top-bar": "node checks/graph-editor-top-bar.mjs",
     "graph-editor:kept-copy": "node checks/graph-editor-kept-copy.mjs",
     "graph-editor:refused-save": "node checks/graph-editor-refused-save.mjs",
+    "graph-editor:failed-save": "node checks/graph-editor-failed-save.mjs",
     "graph-editor:error-shell": "node checks/graph-editor-error-shell.mjs",
     "graph-editor:test-outcome": "node checks/graph-editor-test-outcome.mjs",
     "graph-editor:back-link": "node checks/graph-editor-back-link.mjs",

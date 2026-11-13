@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { FAILURE_THRESHOLD, TOO_MANY_DRAFTS_MESSAGE, CHECK_FAILED_MESSAGE, draftShellNote, openFailedNote, openFailureCause, otherTest, parseHostState, reachAfter, reachable } from './hostState'
+import { FAILURE_THRESHOLD, TOO_MANY_DRAFTS_MESSAGE, CHECK_FAILED_MESSAGE, draftShellNote, failedSaveNote, openFailedNote, openFailureCause, otherTest, parseHostState, reachAfter, reachable, writeFailureReason } from './hostState'
 
 describe('parseHostState', () => {
   it('reads the fields the shell uses and never throws on a bad body', () => {
@@ -65,5 +65,28 @@ describe('openFailedNote', () => {
     expect(openFailureCause(404, 'unknown_effect')).toBe('not_found')
     expect(openFailureCause(422, 'unreadable_effect')).toBe('unreadable')
     for (const [s, c] of [[404, ''], [404, 'other'], [500, 'unreadable_effect'], [503, ''], [null, null]] as const) expect(openFailureCause(s, c)).toBe('other')
+  })
+})
+
+describe('failedSaveNote', () => {
+  it("words the row from the title and Aurora's reason", () => {
+    expect(failedSaveNote('Rainbow', 'HTTP 500')).toBe("Couldn't save Rainbow: HTTP 500")
+    expect(failedSaveNote('New effect', 'The lights cannot take this graph in place. Use Save and apply')).toBe(
+      "Couldn't save New effect: The lights cannot take this graph in place. Use Save and apply",
+    )
+  })
+})
+
+describe('writeFailureReason', () => {
+  it('a network failure (fetch TypeError) is no row: the takeover says it', () => {
+    expect(writeFailureReason(new TypeError('Failed to fetch'))).toBeNull()
+  })
+  it('a refused draft PUT is worded by its code', () => {
+    expect(writeFailureReason(Object.assign(new Error('too_many_drafts'), { code: 'too_many_drafts' }))).toBe('too many editors are open')
+    expect(writeFailureReason(Object.assign(new Error('http_500'), { code: 'http_500' }))).toBe('Aurora would not take the draft')
+  })
+  it('any other error uses its message', () => {
+    expect(writeFailureReason(new Error('boom'))).toBe('boom')
+    expect(writeFailureReason('x')).toBe('Aurora did not answer')
   })
 })
