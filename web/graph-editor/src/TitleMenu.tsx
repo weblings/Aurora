@@ -121,17 +121,14 @@ export function TitleMenu({
   )
 }
 
-// "Not saved yet" ends with the dot, with the same screen-reader text as an item's. Grille types a
-// MenuSection title as a string but draws it as the Header's children, so a node works (reported on
-// the bead for Grille to type as ReactNode).
-function headingOf(name: string, unsaved: boolean): string {
+// "Not saved yet" ends with the dot, with the same screen-reader text as an item's.
+function headingOf(name: string, unsaved: boolean): ReactNode {
   if (!unsaved) return name
-  const node: ReactNode = (
+  return (
     <span className="editor-heading-dot">
       {name}
       <Icon icon={dotIcon} size="sm" />
       <span className="visually-hidden">, {UNSAVED_TEXT}</span>
     </span>
   )
-  return node as unknown as string
 }

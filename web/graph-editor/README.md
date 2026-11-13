@@ -93,7 +93,7 @@ pane drag, Esc, focus return). Use it for any new menu.
 
 ## Icons (`Aurora-s1t7.5`)
 
-Every icon in the editor is Grille's (`Icon` plus the `*Icon` data exports from `@weblings/grille`, `0.1.0-dev.12`), at `size="sm"`; nothing imports `web/ui/icons` or draws a Unicode glyph. This replaces the `Aurora-daaa.33` audit (2026-11-10/11), whose findings are all closed.
+Every icon in the editor is Grille's (`Icon` plus the `*Icon` data exports from `@weblings/grille`, `0.1.0-dev.13`), at `size="sm"`; nothing imports `web/ui/icons` or draws a Unicode glyph. This replaces the `Aurora-daaa.33` audit (2026-11-10/11), whose findings are all closed.
 
 | Icon | Where |
 | --- | --- |
