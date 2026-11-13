@@ -574,7 +574,7 @@ Decided:
 
 - **Top bar shrinks by priority, never wraps.** Test on lights, the title and the back
   link always stay. Below about 650 px, Undo and Redo become icon buttons and `Unsaved`
-  becomes a mark on the title. Below about 520 px, the back link shows only its arrow and
+  becomes a mark on the title (from 6d the mark is the title's dot at every width). Below about 520 px, the back link shows only its arrow and
   Undo and Redo move into a More (`⋯`) menu on `EditorPopup`. At the floor, Test on lights
   reads `Test`, keeping the full name as its tooltip and accessible name. (The below-600 px
   desktop-window line was dropped, `Aurora-u68h.5`.) A finer pass on what each
@@ -672,12 +672,28 @@ The editor's banner under the bar held five kinds of message: Aurora unreachable
 - **The toast stays editor-local** and keeps its job (status priority rule). Messages the screen already shows become screen-reader announcements only, and toasts that report a loss get Undo (`Aurora-u68h.6`).
 - **No error/warning severity tiers**, in the problems popover or the shell. Today every validation issue blocks; only runtime preview errors do not, and they are rare. Tone would mean "does this block you" (as in RockyRoadImport's status tones) if tiers are ever added, for example with checks that do not block such as "nothing reaches the lights".
 - **The React shell is the one we keep.** Stage 6 builds it in the editor (`Aurora-s1t7.9`), with rows fed in from outside and `shell.css` markup. The Dashboard keeps `web/ui/shell.js` until it moves to React (`Aurora-4nqt`), then adopts the component and Grille styling. Mounting a React island in the vanilla Dashboard now was rejected: it adds a build step to `web/ui` and the demo mirror for one component.
-- **A saved effect is always runnable.** A graph with problems is never written to the effect file. Save with problems keeps the work as the kept copy and says so; Save and apply stays off with its reason.
-- **Two effect states: Saved, and Unsaved changes.** A kept copy restores silently when the effect opens, marked `Unsaved`, with Revert to saved in the title menu (as VS Code's hot exit does). The editor only asks when the saved effect changed since the copy was made. Revises Open direction 6 (Restore offered on return). Each new effect gets its own id when created. Open ▸ marks effects with unsaved changes.
+- **A saved effect is always runnable.** A graph with problems is never written to the effect file. Save, Save as new and Save and apply stay enabled and refuse with problems, pointing at the problems chip; see Decisions (owner, refused saves and unsaved marks, 2026-11-12), which revises the first version of this line (Save and apply off, with its reason).
+- **Two effect states: Saved, and Unsaved changes.** A kept copy restores silently when the effect opens, marked by a dot on the title (revised 2026-11-12, was the word `Unsaved`), with Revert to saved in the title menu (as VS Code's hot exit does). The editor only asks when the saved effect changed since the copy was made. Revises Open direction 6 (Restore offered on return). Each new effect gets its own id when created. Open ▸ marks effects with unsaved changes with the same dot.
 - **Graph problems get user-facing copy** keyed by issue code; the server's messages stay as they are for agents and MCP. This follows Open direction 3 (two texts).
 - **Room for editor tabs** (`Aurora-yrhp`, not committed): unique ids, one kept copy per effect, and one `openEffect(id, where)` route keep tabs possible later. The draft, preview and light test are per browser tab today, so tabs would need a rule for the inactive ones.
 
 Outside the stages: kept copies stored in Aurora instead of the browser (`Aurora-n0jm`), and two browser tabs on one effect overwriting each other's copy (`Aurora-ofzv`).
+
+## Decisions (owner, refused saves and unsaved marks, 2026-11-12)
+
+Status: decided, not built (`Aurora-u68h.4`). Tried in the Grille mock first (`#s6-apply`, `#s6-menu`, `#s6-openpath`, `Aurora-u68h.1`). Replaces the stage 6 plan to put reasons and states in the title menu as visible description lines, which was filed on Grille as `Grille-cou`.
+
+Why it changed: the user needs to learn why a save did not happen, which effects have unsaved changes, and how to fix the problems. The first plan asked Grille for a visual (a second line under a menu row) instead. Building it showed four things. The owner found the two-line rows cramped. Research found no support for status or error text inside menu rows; blocking problems usually sit in a toolbar count with a popover, which the editor already has. React Aria's Menu skips disabled items on arrow keys and has no `disabledBehavior` option (react-aria-components 1.22.1), so the reason on a disabled Save and apply would never reach a keyboard or screen-reader user. And a tooltip on the Open row clashes with its flyout, which opens on hover.
+
+- **Problems live only in the chip and its popover.** The title menu shows no reasons and no problem counts.
+- **Saves are never disabled for problems.** Save, Save as new and Save and apply stay enabled. Chosen with problems, they write nothing, close the menu, and point at the chip in order: a tooltip-style callout on the chip's left with the problem node's warning border (`Couldn't save. Fix 2 problems first.`; plain Save adds `Your changes are kept in this browser.`), `role="status"`, about 4 s; then, after a beat of about 1.5 s, the chip alone pings with the same border, ending as the callout closes. One ping, on one target. The popover stays closed, and focus moves to the chip so Enter opens it. The focus ring shows only after keyboard use. Reduced motion holds the border without the pulse. Mock timings: `PING_BEAT_MS` 1450, callout 4200.
+- **Picking a problem goes to its node.** A popover row already selects the node and fits the view to it. 6d also moves keyboard focus to the node: today focus returns to the chip (browser check, 2026-11-12).
+- **Unsaved changes are a dot.** It sits next to the name on the title (replacing the word `Unsaved`) and on items inside Open ▸, never on the Open row itself, with the screen-reader text `unsaved changes` (Grille MenuItem `description`). No problem count in Open: a kept copy's problems show on the chip once it is open. Every Open entry still runs as saved, so there is no error state to show there.
+- **Opening an effect is silent.** Its kept copy restores with the dot and the chip; no toast and no ping, since nothing was refused.
+- **Long titles in Open ▸** cut off at 30ch and show the whole title as a row tooltip on hover or arrow-key focus, only when cut off (Grille-cou's `tooltip` and `tooltipOnlyWhenTruncated`). Aurora's `Hint` and its 24-character guess stay until that Grille release.
+- **What Aurora needs from Grille's menu:** only the row `tooltip` and `tooltipOnlyWhenTruncated`. Not the visible description line, `warning`, warnings on submenu rows, or a focusable blocked item.
+
+Open: whether "Not saved yet" items show the dot, since every one is unsaved by definition (mock switch **Dots in Not saved yet**).
 
 ## Known follow-ups (filed under `Aurora-daaa`)
 
