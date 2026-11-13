@@ -478,10 +478,10 @@ body.board-on .ge, body.board-on .ge-toast { display: none; }
 
 /* Test button mark */
 .s6-testwrap { position: relative; }
-/* Option A: the problem node's border (.gn.bad, first rule: dashed, text colour). The 1px dashed line sits outside the split, so the radius follows it. */
-.s6-outlined { outline: 1px dashed var(--ui-color-text-default); outline-offset: 2px; border-radius: var(--ui-size-radius-md); }
-.s6-option + .s6-option { margin-top: var(--ui-size-space-3xl, 32px); }
-.s6-option-name { margin: 0 0 var(--ui-size-space-sm); font-size: 14px; font-weight: 600; }
+.s6-static-toast { display: inline-block; padding: var(--ui-size-space-md) var(--ui-size-space-xl); background: var(--ui-color-surface-raised); border: 1px solid var(--ui-color-border-default); border-radius: var(--ui-size-radius-sm); box-shadow: var(--ui-shadow-popup); color: var(--ui-color-text-default); font-size: 13px; } /* the live .ge-toast, drawn in place */
+.s6-chipwrap { display: inline-flex; align-items: center; gap: var(--ui-size-space-md); }
+.s6-probdemo { margin-top: var(--ui-size-space-md); }
+.s6-headdot { display: inline-block; vertical-align: middle; }
 .s6-grid { grid-template-columns: repeat(auto-fill, minmax(560px, 1fr)); }
 .s6-testrow { display: flex; flex-wrap: wrap; gap: var(--ui-size-space-3xl, 32px); padding: var(--ui-size-space-xl) 0 0; align-items: flex-start; }
 .s6-panel > .ge-bar + .s6-testrow { padding-top: var(--ui-size-space-2xl); }
@@ -500,7 +500,7 @@ body.board-on .ge, body.board-on .ge-toast { display: none; }
 .s6-overlay.ui-modal-overlay { position: relative; inset: auto; z-index: 0; height: 240px; border-radius: var(--ui-size-radius-md); }
 .s6-modal-title { margin: 0; font-size: var(--ui-size-font-lg, 16px); font-weight: 600; }
 .s6-modal-body { margin: 0; font-size: var(--ui-size-font-sm); color: var(--ui-color-text-secondary); }
-.s6-modal-actions { display: flex; justify-content: flex-end; gap: var(--ui-size-space-md); }
+.s6-modal-actions { display: flex; justify-content: center; gap: var(--ui-size-space-md); }
 .s6-focus { outline: 2px solid var(--ui-color-focus-ring, #5b9dff); outline-offset: 2px; }
 
 /* Stage 6 proposal, live frames (#s6-apply, #s6-menu): Save and apply stays enabled and opens the problems popover. */
