@@ -945,90 +945,81 @@ function s6bar({ title = 'Screen colors', unsaved = false, right }) {
     s6('span', 'ge-sep'), right ?? null)
 }
 
-// The Test split button at rest, optionally with the 6c outcome mark.
-function s6test({ mark = false, hot = false } = {}) {
+// The Test split button as SplitTestButton.tsx labels it (the label is always the next move), with the 6c options:
+// `outline` is option A (the problem node's dashed border), `label` is option B (what happened / what's next).
+function s6test({ label = 'Test (15s)', outline = false, hot = false } = {}) {
   const cls = `ui-button ge-split-part${hot ? ' s6-hot' : ''}`
-  return s6('span', 'ge-split s6-testwrap',
-    btn([vsicon(VS.play), 'Test'], { class: cls }),
-    btn(chevron('cc-chev'), { class: `${cls} ge-split-caret`, icon: true, 'aria-label': 'Test mode', 'aria-haspopup': 'menu' }),
-    mark ? s6('span', 's6-mark', warnSvg()) : null)
+  return s6('span', `ge-split s6-testwrap${outline ? ' s6-outlined' : ''}`,
+    btn([vsicon(VS.play), label], { class: cls }),
+    btn(chevron('cc-chev'), { class: `${cls} ge-split-caret`, icon: true, 'aria-label': 'Test mode', 'aria-haspopup': 'menu' }))
 }
 
 // ---- 6a: shell rows -------------------------------------------------------------------------------------------
+// Row markup and look are web/ui/shell.js _renderBannerRow and shell.css, on Grille tokens: a 2px bordered panel, glyph
+// (currentColor, as .warn-glyph) + text, a secondary Retry unless the row says otherwise, a dismiss X while the old setup runs.
 const ROWS = {
-  unreachable: { text: 'Cannot reach Aurora. Your edits stay in this browser.', action: 'Retry' },
-  draft: { text: 'Draft not sent. Aurora did not take your last edit, so the preview is behind.' },
-  lost: { text: 'Lost contact with Aurora. It puts the lights back by itself.' },
-  reload: { text: "Saved, but couldn't apply: no output is paired. Aurora is still running the previous effect.", dismiss: true },
+  reload: { text: "Couldn't apply settings: no output is paired.", action: 'Retry', dismiss: true },
+  draft: { text: "Draft not sent. The preview isn't showing your last edit." },
 }
-// The row markup of web/ui/shell.js (_renderBannerRow), on Grille tokens: a 2px bordered panel, warning glyph + text, a secondary Retry.
 const shellRow = ({ text, action, dismiss }) => s6('div', 's6-row',
   s6('div', 's6-row-content', s6('p', 's6-row-text', warnSvg(), ' ', text), action ? s6('div', 's6-row-actions', btn(action, { variant: 'secondary' })) : null),
   dismiss ? s6('button', 's6-row-x', { type: 'button', 'aria-label': 'Dismiss' }, '×') : null)
+// #shell-banner-slot: the first thing on the page, full width, above the bar; the rows' column is 640px, centred.
 const shellBand = (...kids) => s6('div', 's6-band', s6('div', 's6-band-inner', ...kids))
 const summary = (n, open) => s6('button', `s6-summary${open ? ' s6-summary-up' : ''}`, { type: 'button' }, open ? 'Show less ' : [warnSvg(), ` ${n} problems `], chevron('cc-chev', open))
 
 function shellSection() {
-  const under = (band, tail = 'The graph canvas') => [s6bar({ right: s6test() }), band, s6('div', 's6-canvas', tail)]
-  return s6section('s6-shell', 'Aurora-s1t7.9 (6a)', 'Error shell rows under the editor bar',
-    "Connection and host-state errors only. Same row look as the Dashboard's shell (web/ui/shell.js, shell.css), one row in full or two or more folded into a count the user opens. Nothing here is a banner for the editor's own state.",
+  const page = (band, tail = 'The graph canvas') => [band, s6bar({ right: s6test() }), s6('div', 's6-canvas', tail)]
+  const takeover = s6('div', 's6-stage',
+    s6bar({ right: s6test() }), s6('div', 's6-canvas s6-canvas-tall', 'The graph canvas'),
+    s6('div', 's6-takeover', s6('div', 's6-takeover-scrim'), s6('div', 's6-takeover-panel', s6('h2', '', 'Aurora has stopped'))))
+  return s6section('s6-shell', 'Aurora-s1t7.9 (6a)', 'Error shell, as on the Dashboard',
+    "The editor reuses the Dashboard's shell exactly: the same slot, rows and copy. The slot is the first thing on the page, above the bar, full width and sticky, with the rows in a 640 px column.",
     s6('div', 's6-grid',
-      s6panel('One row: cannot reach Aurora, with Retry', ...under(shellBand(shellRow(ROWS.unreachable)))),
-      s6panel('One row: draft not sent', ...under(shellBand(shellRow(ROWS.draft)))),
-      s6panel('One row: lost contact', ...under(shellBand(shellRow(ROWS.lost)))),
-      s6panel('One row: reload failed after Save (dismissible)', ...under(shellBand(shellRow(ROWS.reload)))),
-      s6panel('Two or more rows, collapsed (shell.js default)', ...under(shellBand(summary(2, false)))),
-      s6panel('Same, expanded with Show less', ...under(shellBand(shellRow(ROWS.draft), shellRow(ROWS.reload), summary(2, true))))),
-    s6note('Drafted: the four row sentences. Cannot reach Aurora today reads "Cannot reach Aurora: <fetch error>", Reload "Reload: <reason>". The summary and Show less are shell.js wording unchanged. In the editor the rows would sit full width under the bar; the 640 px column here follows shell.css.'))
+      s6panel('One row: reload failed (shell.js wording; replaces the editor\'s own "Reload: ...")', ...page(shellBand(shellRow(ROWS.reload)))),
+      s6panel('One row: Draft not sent (editor-supplied, same markup; draft copy)', ...page(shellBand(shellRow(ROWS.draft)))),
+      s6panel('Two rows, collapsed (shell.js default)', ...page(shellBand(summary(2, false)))),
+      s6panel('Same, expanded with Show less', ...page(shellBand(shellRow(ROWS.reload), shellRow(ROWS.draft), summary(2, true)))),
+      s6panel('Aurora unreachable: the Dashboard takeover over the editor (heading only, no button; replaces the old Cannot reach and Lost contact rows)', takeover)),
+    s6note('Same component, slot and rows as the Dashboard. Host-state rows show on both pages and dismiss clears both (POST /api/state/dismiss). Draft not sent is editor-only and clears when a later send succeeds. Draft copy: "Draft not sent. The preview isn\'t showing your last edit." Everything else is shell.js wording unchanged.'))
 }
 
-// ---- 6c: Test button outcome mark ----------------------------------------------------------------------------
-function testCase({ title, reason, fullBar = false }) {
+// ---- 6c: Test button outcome, options A, B and A + B ---------------------------------------------------------
+// The reason is the tooltip and the caret menu's first line in every option. Wording is describeTest (graph/lightTest.ts).
+function testCase({ title, reason, label, outline }) {
   const tip = s6('div', 'ui-tooltip s6-static', reason)
   const pop = s6('div', 'ui-popover s6-static s6-testmenu',
-    s6('div', 'ui-menu', s6('div', 's6-menu-note', warnSvg(), s6('span', '', reason)), s6('div', 'ui-menu-separator'),
+    s6('div', 'ui-menu', s6('div', 's6-menu-note', reason), s6('div', 'ui-menu-separator'),
       s6('div', 'ui-menu-item', s6('span', 'ui-menu-check', '✓'), 'Once (15 s)'), s6('div', 'ui-menu-item', s6('span', 'ui-menu-check'), 'Live (until stopped)')))
   return s6panel(title,
-    fullBar ? s6bar({ right: s6test({ mark: true }) }) : null,
+    s6bar({ right: s6test({ label, outline }) }),
     s6('div', 's6-testrow',
       s6('div', 's6-testcol', s6('small', '', 'At rest'), s6test()),
-      s6('div', 's6-testcol', s6('small', '', 'Outcome mark'), s6test({ mark: true })),
-      s6('div', 's6-testcol', s6('small', '', 'Tooltip (hover or focus)'), s6test({ mark: true }), tip),
-      s6('div', 's6-testcol', s6('small', '', 'Caret menu open'), s6test({ mark: true }), pop)))
+      s6('div', 's6-testcol', s6('small', '', 'Tooltip (hover or focus)'), s6test({ label, outline }), tip),
+      s6('div', 's6-testcol', s6('small', '', 'Caret menu open'), s6test({ label, outline }), pop)))
+}
+
+const TAKEN = 'Test ended: an agent took the lights'
+const STOPPED = 'Test stopped from the Dashboard. The lights are back'
+
+function testOption(name, lead, taken, ended) {
+  return s6('div', 's6-option',
+    s6('h3', 's6-option-name', name), s6('p', 's6-lead', lead),
+    s6('div', 's6-grid',
+      testCase({ title: 'Another session took the lights', reason: TAKEN, ...taken }),
+      testCase({ title: 'Test just ended: stopped from the Dashboard', reason: STOPPED, ...ended })))
 }
 
 function testSection() {
-  return s6section('s6-test', 'Aurora-u68h.3 (6c)', 'Test button outcome mark',
-    'A test outcome the user did not cause leaves a warning mark on the Test split button. The reason is its tooltip and the first line of the caret menu. It clears on the next test, Save or edit. No banner, no toast.',
-    testCase({ title: 'Another session took the lights (the case to judge)', reason: 'Test ended: an agent took the lights', fullBar: true }),
-    testCase({ title: 'Stopped from the Dashboard', reason: 'Test stopped from the Dashboard. The lights are back' }),
-    testCase({ title: 'Another effect chosen', reason: 'Test ended: another effect was chosen' }),
-    s6note('Wording is describeTest (graph/lightTest.ts) unchanged; it says "another editor tab or window" when a tab took the lights. Drafted: only the mark itself (amber warning badge on the corner of the Test part) and the caret menu note row. Judge whether the badge is noticeable enough for the first case, since a banner was hard to miss and this is not.'))
-}
-
-// ---- 6d: title menu and Open submenu --------------------------------------------------------------------------
-const mi = (label, { desc, dot, disabled, check, sub, focused } = {}) => s6('div', `ui-menu-item${sub ? ' ui-menu-item-submenu' : ''}${disabled ? ' s6-disabled' : ''}${focused ? ' s6-focused' : ''}`,
-  s6('span', 'ui-menu-item-body',
-    s6('span', 's6-title-line', check ? s6('span', 'ui-menu-check', '✓') : null, label, dot ? s6('i', 's6-dot', { title: 'Has unsaved changes' }) : null),
-    desc ? s6('span', 's6-desc', desc) : null),
-  sub ? s6('span', 'ui-menu-chevron', chevron('cc-chev')) : null)
-const group = (name, ...items) => s6('div', 'ui-menu-section', s6('div', 'ui-menu-section-header', name), ...items)
-
-function openSection() {
-  // Proposal (2026-11-12, replaces the description-line version): no visible second line anywhere in the menu. Save and
-  // apply is enabled and opens the problems popover when there are problems (live frame #s6-apply). Open marks a kept copy
-  // with a dot only; its screen-reader description says "unsaved changes". No problem count in Open.
-  const main = s6('div', 'ui-popover s6-static s6-mainmenu', s6('div', 'ui-menu',
-    mi('Save'), mi('Save as new'), mi('Save and apply'), mi('Rename'),
-    s6('div', 'ui-menu-separator'), mi('New', { sub: true }), mi('Open', { sub: true, focused: true })))
-  const open = s6('div', 'ui-popover s6-static s6-openmenu', { 'data-submenu': '' }, s6('div', 'ui-menu',
-    group('Not saved yet', mi('Slow rainbow', { dot: true }), mi('New effect', { dot: true })),
-    group('Custom', mi('Sunset', { dot: true }), mi('Candle corner'), mi('Warm desk lamp', { dot: true })),
-    group('Built-in', mi('Screen colors', { check: false }), mi('Music pulse'), mi('Candle'))))
-  return s6section('s6-open', 'Aurora-u68h.4 (6d), Aurora-u68h.2 (6b)', 'Title menu and Open submenu',
-    'Open groups effects: Not saved yet (new effects only kept in this browser), Custom, Built-in. Group headings stay at the top while the list scrolls. An effect with a kept copy has a dot; screen readers hear "unsaved changes". Save and apply is never disabled for problems: chosen with problems, it opens the problems popover (try #s6-apply).',
-    s6('div', 's6-menus', s6panel('Title menu, Open focused', main), s6panel('Open submenu', open)),
-    s6note('Changed from the first version of this frame: no "Fix N problems first" line and no "Unsaved changes, N problems" lines. Problems show only in the chip and its popover. Sample names are placeholders. The dot is neutral.'))
+  return s6section('s6-test', 'Aurora-u68h.3 (6c)', 'Test button: a test outcome the user did not cause',
+    'Three options for the owner to pick from. No banner, no toast, no amber, no corner glyph. In each, the reason is the button\'s tooltip and the first line of the caret menu; the full editor bar and the button at rest are shown for comparison.',
+    testOption('A. Outline', 'The Test split button gets the same dashed outline a problem node has (monochrome). The label does not change. Clears on the next test, Save or edit.',
+      { outline: true }, { outline: true }),
+    testOption('B. Label', 'The label says what happened or what is next. While another session holds the lights it reads Take over (the existing state); when a test just ended it reads Test ended (draft) until the next action. No outline.',
+      { label: 'Take over' }, { label: 'Test ended' }),
+    testOption('A + B', 'Take over while another session holds the lights; the dashed outline (A) for a test that just ended, with the label back at Test (15s).',
+      { label: 'Take over' }, { outline: true }),
+    s6note('Wording is describeTest (graph/lightTest.ts) unchanged; it says "another editor tab or window" when a tab took the lights. Drafted: the dashed outline, and the Test ended label. The outline is .gn.bad\'s first rule (1px dashed, text colour), as web/graph-editor editor.css .aurora-node-problem.'))
 }
 
 // ---- 6b: changed-saved-effect prompt ---------------------------------------------------------------------------
@@ -1042,16 +1033,16 @@ function promptSection() {
   return s6section('s6-prompt', 'Aurora-u68h.2 (6b)', 'Prompt when the saved effect changed',
     'Shown as a Grille Modal when the effect opens, only when the saved effect changed since the kept copy was made (an MCP apply, a Save in another tab). Nothing loads until the user picks. Keep my edits has default focus and Escape; Load saved discards the kept copy with an Undo toast (6g).',
     s6('div', 's6-grid',
-      promptModal({ label: 'A: Owner draft, title and one line', title: 'Sunset has a newer saved version', body: 'Your unsaved edits are out of date.' }),
-      promptModal({ label: 'B: Owner alternative, title only', title: 'Newer version saved' })),
-    s6note('The ring on Keep my edits is the default focus. Pick A or B; B drops the effect name and the explanation.'))
+      promptModal({ label: 'A: Chosen by the owner, title and one line', title: 'Sunset has a newer saved version', body: 'Your unsaved edits are out of date.' }),
+      promptModal({ label: 'B: Not chosen, title only', title: 'Newer version saved' })),
+    s6note('The ring on Keep my edits is the default focus. The owner picked A; B (not chosen) drops the effect name and the explanation. Button alignment is still an open owner question and is not changed here.'))
 }
 
 function drawBoard(which) {
-  const sections = { shell: shellSection, test: testSection, open: openSection, prompt: promptSection }
+  const sections = { shell: shellSection, test: testSection, prompt: promptSection }
   const keys = which === 'all' ? Object.keys(sections) : [which]
   $('board').replaceChildren(
-    s6('header', 's6-head', s6('h1', '', 'Stage 6: where each editor message lives'), s6('p', '', 'Frame for Aurora-u68h.1. The banner under the bar is gone in every state below. The problems chip and the toast are unchanged and not drawn. Static: nothing here is wired.')),
+    s6('header', 's6-head', s6('h1', '', 'Stage 6: where each editor message lives'), s6('p', '', 'Frame for Aurora-u68h.1. The banner under the bar is gone in every state below. The title menu and Open path are the live frames #s6-menu, #s6-openpath and #s6-apply. The problems chip and the toast are unchanged and not drawn. Static: nothing here is wired.')),
     ...keys.map((k) => sections[k]()))
 }
 
@@ -1079,7 +1070,7 @@ const FRAMES = [
     ['offline', 'Cannot reach Aurora', () => { state.status = { text: 'Aurora unreachable', strong: true }; state.banner = { blocking: true, text: 'Cannot reach Aurora.', detail: 'Retrying every few seconds. Edits stay in this browser.', actions: [['Retry now', 'retry']] }; drawBar(); drawBanner() }],
     ['wholegraph', 'Graph-wide problem', () => { state.problems = true; state.wholeGraph = true; drawBar(); drawIslands(); openProblems() }],
   ]],
-  ['Stage 6', [['s6', 'All four', () => drawBoard('all')], ['s6-shell', 'Shell rows', () => drawBoard('shell')], ['s6-test', 'Test mark', () => drawBoard('test')], ['s6-open', 'Open menu', () => drawBoard('open')], ['s6-prompt', 'Newer saved version', () => drawBoard('prompt')],
+  ['Stage 6', [['s6', 'All three', () => drawBoard('all')], ['s6-shell', 'Shell rows', () => drawBoard('shell')], ['s6-test', 'Test button options', () => drawBoard('test')], ['s6-prompt', 'Newer saved version', () => drawBoard('prompt')],
     ['s6-apply', 'Save and apply, problems', () => { Object.assign(state, { s6: true, problems: true, unsaved: true }); drawBar(); drawIslands(); drawNodes(); openTitleS6({ focus: 'Save and apply' }) }],
     ['s6-menu', 'Title menu, no problems', () => { Object.assign(state, { s6: true, unsaved: true }); drawBar(); openTitleS6() }],
     ['s6-openpath', 'Open path', () => { Object.assign(state, { s6: true, unsaved: true }); drawBar(); openTitleS6({ openSub: true }) }]]],
@@ -1111,7 +1102,7 @@ function showFrame() {
   effects6 = freshEffects()
   layoutGraph(); state.edges = GRAPH.edges.map(([from, to]) => ({ from, to }))
   drawNodes(); drawBar(); drawBanner(); drawIslands(); fit(); drawFrames(id)
-  const board = ['s6', 's6-shell', 's6-test', 's6-open', 's6-prompt'].includes(id)
+  const board = ['s6', 's6-shell', 's6-test', 's6-prompt'].includes(id)
   document.body.classList.toggle('board-on', board)
   $('board').hidden = !board
   FRAMES.flatMap(([, frames]) => frames).find(([key]) => key === id)?.[2]()
