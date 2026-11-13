@@ -548,8 +548,8 @@ the menu.
   is for order, removal and review. The node menu's Show on the Dashboard opens Details at
   the checkboxes.
 - **Deleting a node that has controls says so.** The toast reads, for example, `Removed 1
-  Dashboard control with Hue shift`. Undo brings it back, so there is no confirm and no
-  Undo button in a toast that lasts 3 s. Prior art (Unity's unused properties, Houdini's bad
+  Dashboard control with Hue shift`. Undo brings it back, so there is no confirm.
+  (Superseded 2026-11-13, `Aurora-u68h.6`: the toast has an Undo button and lasts 8 s.) Prior art (Unity's unused properties, Houdini's bad
   reference warnings, TouchDesigner's broken binds) never drops an exposed param silently.
 - **Delete:** the Delete key joins Backspace. Menu Delete acts on the whole selection and
   says how many (`Delete 3 nodes`). Right-click Add node places the node at the pointer.
@@ -663,7 +663,7 @@ Grille `v0.1.0` (`Aurora-daaa.16` here, `Grille-0up` in GrilleDS) is the end of 
 
 ## Decisions (owner, stage 6 scope, 2026-11-12)
 
-Status: decided; 6a (the error shell, `Aurora-s1t7.9`) built 2026-11-13, see [[s1t79-error-shell]]; 6b (silent restore, Revert to saved, the newer-saved-version prompt, `@new-` ids, `Aurora-u68h.2`) built 2026-11-13, see [[u68h2-kept-copies]], its Unsaved dot waits for 6d; 6c (test outcomes the user did not cause, the live region, one source for Take over, `Aurora-u68h.3`) built 2026-11-13, see [[u68h3-test-outcomes]]; 6d (refused saves point at the problems chip, unsaved dots with Grille's `dotIcon`, Grille `dev.12`, `Aurora-u68h.4` and `.8`) built 2026-11-13, see [[u68h4-refused-saves]]; 6h (an effect or catalog that would not load is an error-shell row without Retry, `Aurora-u68h.9`) built 2026-11-13, see [[u68h9-open-failure-row]]; the rest not built. Replaces the stage 6 notes of 2026-11-11 and 2026-11-12, which asked whether the problems UI and the toast belong in the error shell.
+Status: decided; 6a (the error shell, `Aurora-s1t7.9`) built 2026-11-13, see [[s1t79-error-shell]]; 6b (silent restore, Revert to saved, the newer-saved-version prompt, `@new-` ids, `Aurora-u68h.2`) built 2026-11-13, see [[u68h2-kept-copies]], its Unsaved dot waits for 6d; 6c (test outcomes the user did not cause, the live region, one source for Take over, `Aurora-u68h.3`) built 2026-11-13, see [[u68h3-test-outcomes]]; 6d (refused saves point at the problems chip, unsaved dots with Grille's `dotIcon`, Grille `dev.12`, `Aurora-u68h.4` and `.8`) built 2026-11-13, see [[u68h4-refused-saves]]; 6h (an effect or catalog that would not load is an error-shell row without Retry, `Aurora-u68h.9`) built 2026-11-13, see [[u68h9-open-failure-row]]; 6g (toast audit: Stop's `Reverted` and `Added <type>` are announced only; Undo on `Removed N Dashboard controls`, `Reverted to the saved version` and `Loaded the saved version`, `Aurora-u68h.6`) built 2026-11-13, see [[u68h6-undo-toasts]]; the rest not built. Replaces the stage 6 notes of 2026-11-11 and 2026-11-12, which asked whether the problems UI and the toast belong in the error shell.
 
 The editor's banner under the bar held five kinds of message: Aurora unreachable, a question (Restore or Discard), refused Save clicks, test outcomes the user did not cause, and advice (the window-size note). It was a catch-all, not a pattern, so stage 6 retires it and gives each kind its own home.
 

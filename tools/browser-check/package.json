@@ -26,6 +26,7 @@
     "graph-editor:test-outcome": "node checks/graph-editor-test-outcome.mjs",
     "graph-editor:back-link": "node checks/graph-editor-back-link.mjs",
     "graph-editor:control-count": "node checks/graph-editor-control-count.mjs",
+    "graph-editor:undo-toast": "node checks/graph-editor-undo-toast.mjs",
     "graph-editor:gate": "node checks/graph-editor-gate.mjs",
     "effect-panel": "node checks/effect-panel.mjs",
     "graph-editor:slow": "SLOW=1 node checks/graph-editor-edit-loop.mjs"

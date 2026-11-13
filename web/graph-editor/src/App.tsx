@@ -44,7 +44,7 @@ import { converterFor, insertConverter, refuseConnection } from './graph/connect
 import { controlsOf } from './graph/controls'
 import { addEdge, addNode, joinEndpoint, moveNodes, removeEdge, removeNodes, setParam } from './graph/doc'
 import { editorReducer, emptyEditor, sameDoc } from './graph/history'
-import { changeIsEdit, pickBanner, pickStatus, quietEndToast, stopLabel, testFailureToast, testOutcome } from './graph/status'
+import { changeIsEdit, pickBanner, pickStatus, quietEndToast, stopAnnounced, stopLabel, testFailureToast, testOutcome } from './graph/status'
 import { SplitTestButton } from './SplitTestButton'
 import { initialTest, type TestMode } from './graph/lightTest'
 import { BLANK_ID, blankDoc, forWrite, freshEffectId, isDraftId, newEffectId, setTitle, titleOf } from './graph/save'
@@ -83,8 +83,6 @@ export function App() {
   const [baseline, setBaseline] = useState<{ id: string; doc: GraphDoc } | null>(null)
   // The kept copy of an earlier visit's edits when the saved effect has changed since: awaiting a choice.
   const [outdated, setOutdated] = useState<GraphDoc | null>(null)
-  // What the last Revert to saved or Load saved threw away; 6g's Undo toast puts it back.
-  const discarded = useRef<{ id: string; doc: GraphDoc } | null>(null)
   // The effect or the catalog would not load although Aurora answered: a row in the error shell,
   // worded by cause, with no Retry (Aurora-u68h.9). When Aurora does not answer, the shell's takeover
   // says so and nothing is set here. `id` is the effect that failed; null for the catalog.
@@ -92,7 +90,7 @@ export function App() {
   const [attempt, setAttempt] = useState(0)
   // A Save or Save and apply that failed; cleared by the next edit or write.
   const [writeTrouble, setWriteTrouble] = useState<string | null>(null)
-  const { text: toastText, show: showToast } = useToast()
+  const { text: toastText, undo: toastUndo, show: showToast, dismiss: dismissToast, hold: holdToast } = useToast()
   const { text: announced, announce } = useAnnouncer()
   // GET /api/state: the error shell's rows, and the one verdict on whether Aurora is reachable.
   const host = useHostState()
@@ -313,8 +311,12 @@ export function App() {
   const ended = lights.state.ended
   useEffect(() => {
     const text = quietEndToast({ ...initialTest, ended })
-    if (text) showToast(text)
-  }, [ended, showToast])
+    if (!text) return
+    // Stop's own "Reverted" is announced, not drawn: the lights and the button already show it. The end
+    // of a Once test is still a toast.
+    if (stopAnnounced(ended)) announce(text)
+    else showToast(text)
+  }, [ended, showToast, announce])
   // A test that ended for a reason the user did not cause: announced once, and the first line of
   // the Test menu until the next test, Save or edit. Nothing is drawn on the button.
   const outcome = testOutcomeCleared ? null : testOutcome(lights.state)
@@ -350,6 +352,12 @@ export function App() {
     (n): n is string => n !== null,
   )
 
+  // An Undo toast is spent by any change of the document other than the one it offered (another edit, an
+  // undo, Ctrl+Z, another effect), so Undo never acts on a graph the user has moved on from.
+  useEffect(() => {
+    if (toastUndo && doc !== toastUndo.doc) dismissToast()
+  }, [doc, toastUndo, dismissToast])
+
   const edit = useCallback((change: (d: GraphDoc) => GraphDoc) => dispatch({ type: 'edit', change }), [])
 
   // One path for key Delete, Backspace and the menu: deleting a node drops its
@@ -358,7 +366,8 @@ export function App() {
     (ids: ReadonlySet<string>) => {
       const current = docRef.current
       const dropped = current ? controlsOf(current).filter((c) => ids.has(c.node)) : []
-      edit((d) => removeNodes(d, ids))
+      const next = current ? removeNodes(current, ids) : null
+      edit((d) => (next && d === current ? next : removeNodes(d, ids)))
       if (dropped.length > 0) {
         const n = dropped.length
         // A control without a label reads as '<node title> <param>'.
@@ -371,7 +380,11 @@ export function App() {
         const names = [...new Set(dropped.map(nameOf))]
         const shown = names.length > 3 ? [...names.slice(0, 3), `${names.length - 3} more`] : names
         const list = shown.length > 1 ? `${shown.slice(0, -1).join(', ')} and ${shown[shown.length - 1]}` : shown[0]
-        showToast(`Removed ${n} Dashboard control${n === 1 ? '' : 's'} with ${list}`)
+        // The delete is one history entry, so Undo is the history's own.
+        showToast(`Removed ${n} Dashboard control${n === 1 ? '' : 's'} with ${list}`, {
+          doc: next,
+          run: () => dispatch({ type: 'undo' }),
+        })
       }
     },
     [edit, showToast, catalog],
@@ -571,9 +584,9 @@ export function App() {
       const point = pointer ?? { x: (box?.left ?? 0) + (box?.width ?? 0) / 2, y: (box?.top ?? 0) + (box?.height ?? 0) / 2 }
       const at = view.screenToFlowPosition(point)
       edit((d) => addNode(d, info, at))
-      showToast(`Added ${info.type}`)
+      announce(`Added ${info.type}`)
     },
-    [catalog, edit, showToast],
+    [catalog, edit, announce],
   )
 
   const onMenuAction = (a: MenuAction) => {
@@ -683,20 +696,33 @@ export function App() {
   }
 
   // Revert to saved: the saved graph goes back in as one edit (Undo reaches the edits),
-  // the kept copy goes with it, and the edits are held for 6g's Undo toast.
+  // the kept copy goes with it.
   const revertToSaved = () => {
     if (!baseline || !doc || !dirty) return
-    discarded.current = { id: baseline.id, doc }
     clearUnsaved(baseline.id)
     dispatch({ type: 'edit', change: () => baseline.doc })
-    showToast('Reverted to the saved version')
+    // One history entry, so Undo is the history's own; the sync effect writes the kept copy again
+    // once the edits are back, so the copy this dropped returns with them.
+    showToast('Reverted to the saved version', {
+      doc: baseline.doc,
+      run: () => {
+        dispatch({ type: 'undo' })
+      },
+    })
   }
   const loadSaved = () => {
     if (!baseline || !outdated) return
-    discarded.current = { id: baseline.id, doc: outdated }
     clearUnsaved(baseline.id)
     setOutdated(null)
-    showToast('Loaded the saved version')
+    // Not a history entry (the graph on screen did not change), so Undo puts the kept edits back as
+    // an edit, as Keep my edits does; the sync effect then writes the kept copy again.
+    const lost = outdated
+    showToast('Loaded the saved version', {
+      doc,
+      run: () => {
+        dispatch({ type: 'edit', change: () => lost })
+      },
+    })
   }
   const keepMyEdits = () => {
     if (!outdated) return
@@ -960,7 +986,16 @@ export function App() {
           onAction={onMenuAction}
         />
       ) : null}
-      <Toast text={toastText} />
+      <Toast
+        text={toastText}
+        undo={toastUndo}
+        onUndo={() => {
+          const offer = toastUndo
+          dismissToast()
+          if (offer && docRef.current === offer.doc) offer.run()
+        }}
+        onHold={holdToast}
+      />
       <Announcer text={announced} />
     </div>
   )

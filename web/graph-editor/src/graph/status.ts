@@ -35,6 +35,11 @@ export type StatusInput = {
   writeTrouble: string | null
 }
 
+/** Stop was pressed and the lights are back: the user's own act, announced and not drawn (Aurora-u68h.6). */
+export function stopAnnounced(ended: TestState['ended']): boolean {
+  return ended?.reason === 'reverted'
+}
+
 /** The toast for a test that ended by itself or by Stop, else null. */
 export function quietEndToast(test: TestState): string | null {
   switch (test.ended?.reason) {

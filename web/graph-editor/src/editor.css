@@ -390,7 +390,15 @@ button.editor-problem-row:hover {
   border-radius: var(--aurora-radius-control);
   box-shadow: var(--aurora-shadow-popup);
   color: var(--aurora-text-primary);
+  display: flex;
+  align-items: center;
+  gap: var(--aurora-space-4);
   pointer-events: none;
+}
+
+/* A toast with Undo takes the pointer (and so hover) so its button can be pressed. */
+.editor-toast[data-undo='true'] {
+  pointer-events: auto;
 }
 
 .editor-toast[data-shown='false'] {

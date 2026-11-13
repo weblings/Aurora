@@ -46,7 +46,10 @@ await withEditorStack(async ({ editorUrl, aurora }) => {
     await page.waitForTimeout(2500)
     assert.match(await countdown(), /Stop 0:1[0-3]/)
     await button('Stop the test').click()
-    await page.waitForFunction(() => document.querySelector('.editor-toast')?.textContent.startsWith('Reverted'))
+    // Stop is the user's own act and the lights show it: announced, never drawn (Aurora-u68h.6).
+    await waitAnnounced(page, 'Reverted')
+    assert.equal(await page.locator('.editor-toast').getAttribute('data-shown'), 'false', 'Stop draws no toast')
+    assert.equal((await page.locator('.editor-toast').innerText()).trim(), '', 'Stop draws no toast text')
     assert.equal((await api('GET', '/api/graph/test')).json.active, false)
     step('test counts down on Stop; Stop puts the lights back')
 

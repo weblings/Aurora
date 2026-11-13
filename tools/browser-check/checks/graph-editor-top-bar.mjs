@@ -14,7 +14,7 @@
 import assert from 'node:assert/strict'
 import { launch } from '../lib/browser.mjs'
 import { withEditorStack } from '../lib/stack.mjs'
-import { currentEffect, makeEdit, nameDialog, openTitleMenu, titleMenu, waitEffect, waitToast } from '../lib/editorMenu.mjs'
+import { currentEffect, makeEdit, nameDialog, openTitleMenu, titleMenu, waitAnnounced, waitEffect, waitToast } from '../lib/editorMenu.mjs'
 
 await withEditorStack(async ({ editorUrl }) => {
   const browser = await launch()
@@ -196,7 +196,8 @@ await withEditorStack(async ({ editorUrl }) => {
     await page.keyboard.press('Escape')
     await closed()
     await button('Stop the test').click()
-    await waitToast(page, 'Reverted')
+    await waitAnnounced(page, 'Reverted')
+    assert.equal(await page.locator('.editor-toast').getAttribute('data-shown'), 'false', 'Stop draws no toast')
     await page.locator('.editor-edited').waitFor({ state: 'detached' })
     step('Edited since the test shows in the bar and the title menu; Stop is the only way out')
 
@@ -215,7 +216,8 @@ await withEditorStack(async ({ editorUrl }) => {
     await page.waitForTimeout(3000)
     assert.equal(await button('Stop the test').innerText(), 'Stop', 'Live has no countdown')
     await button('Stop the test').click()
-    await waitToast(page, 'Reverted')
+    await waitAnnounced(page, 'Reverted')
+    assert.equal(await page.locator('.editor-toast').getAttribute('data-shown'), 'false', 'Stop draws no toast')
     assert.equal(await page.locator('.editor-split-main').innerText(), 'Test (Live)')
     await button('Test mode').click()
     await page.getByRole('menuitemradio', { name: 'Live (until stopped)', checked: true }).waitFor()

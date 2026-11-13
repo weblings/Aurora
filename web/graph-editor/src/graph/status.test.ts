@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { initialLoop, type LoopState } from './loop'
 import { initialTest, testReducer, type TestState } from './lightTest'
-import { changeIsEdit, pickBanner, pickStatus, quietEndToast, stopLabel, testFailureToast, testOutcome, type StatusInput } from './status'
+import { changeIsEdit, pickBanner, pickStatus, quietEndToast, stopAnnounced, stopLabel, testFailureToast, testOutcome, type StatusInput } from './status'
 
 const base: StatusInput = { openError: false, unreachable: false, loop: { ...initialLoop, valid: true, stream: 'live' }, test: initialTest, otherHolder: null, writeTrouble: null }
 const withLoop = (l: Partial<LoopState>): StatusInput => ({ ...base, loop: { ...base.loop, ...l } })
@@ -69,6 +69,11 @@ describe('status priority', () => {
     expect(quietEndToast(withTest({ ended: { reason: 'reverted', holder: null } }).test)).toBe('Reverted')
     expect(quietEndToast(withTest({ ended: { reason: 'confirm_timeout', holder: null } }).test)).toMatch(/lights are back/)
     expect(quietEndToast(withTest({ ended: { reason: 'heartbeat_lost', holder: null } }).test)).toBeNull()
+  })
+  it('Stop is announced, not drawn; a Once test that ran out is drawn', () => {
+    expect(stopAnnounced({ reason: 'reverted', holder: null })).toBe(true)
+    expect(stopAnnounced({ reason: 'confirm_timeout', holder: null })).toBe(false)
+    expect(stopAnnounced(null)).toBe(false)
   })
   it('problems read Preview paused; the chip carries the count', () => {
     expect(pickStatus(withLoop({ valid: false, issues: [{ node: null, message: 'm' }] }))).toMatchObject({ rank: 7, label: 'Preview paused' })
