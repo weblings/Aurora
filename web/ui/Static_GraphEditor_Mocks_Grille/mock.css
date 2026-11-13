@@ -543,8 +543,13 @@ body.board-on .ge, body.board-on .ge-toast { display: none; }
 .s7-compact .ge-title { min-width: 9ch; flex: 0 1 auto; }
 .s7-cnt { display: inline-flex; align-items: center; gap: 4px; }
 .s7-cnt-err { color: var(--ui-color-text-error); }
-.s7-dot { color: var(--ui-color-text-muted); margin: 0 2px; }
 .ge-title { min-width: 0; }
 .ge-title-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
 .s7-compact .ge-bar { overflow: hidden; }
 .s7-compact .ge-spacer { min-width: 0; }
+
+.s6-warn-err { color: var(--ui-color-text-error); }
+.s6-row-text.ui-status-message { margin-top: 0; color: var(--ui-color-text-default); flex: none; }
+.s6-ricon { flex: none; }
+.s6-ricon-error { color: var(--ui-color-text-error); }
+.s6-ricon-info { color: var(--ui-color-text-default); }

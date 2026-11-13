@@ -91,7 +91,7 @@ const ZEST = {
 }
 // Grille's circled-exclamation icon (circled-exclamation.svg, 24 grid): the error mark, as the triangle is the warning mark.
 ZEST.info = '<path d="M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM1 12C1 5.925 5.925 1 12 1s11 4.925 11 11-4.925 11-11 11S1 18.075 1 12zm12.25-4.75a1.25 1.25 0 1 1-2.5 0 1.25 1.25 0 0 1 2.5 0zM11 10a1 1 0 1 0 0 2v5a1 1 0 1 0 2 0v-6a1 1 0 0 0-1-1h-1z" fill-rule="evenodd"/>' // Zest circled-info; Grille circledInfoIcon (GrilleDS working tree)
-ZEST.error = '<path d="M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM1 12C1 5.925 5.925 1 12 1s11 4.925 11 11-4.925 11-11 11S1 18.075 1 12zm11-4a1 1 0 0 1 1 1v5a1 1 0 0 1-2 0V9a1 1 0 0 1 1-1zm1.25 9.75a1.25 1.25 0 1 1-2.5 0 1.25 1.25 0 0 1 2.5 0z" fill-rule="evenodd"/>'
+ZEST.error = '<path d="M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM1 12C1 5.925 5.925 1 12 1s11 4.925 11 11-4.925 11-11 11S1 18.075 1 12zm11-5.5a1 1 0 0 1 1 1v5a1 1 0 0 1-2 0V7.5a1 1 0 0 1 1-1zm1.25 9.75a1.25 1.25 0 1 1-2.5 0 1.25 1.25 0 0 1 2.5 0z" fill-rule="evenodd"/>'
 const chevron = (cls = '', up = false) => el('span', { class: `ge-chev ${cls}`, 'aria-hidden': 'true', html: `<svg viewBox="0 0 32 32" class="ge-icon ge-vs">${up ? VS.chevUp : VS.chevDown}</svg>` })
 // Grille's warning icon (24 grid, currentColor).
 const warnIcon = () => el('span', { class: 'ge-warn', 'aria-hidden': 'true', html: `<svg viewBox="0 0 24 24" class="ge-icon ge-vs">${ZEST.warning}</svg>` })
@@ -927,9 +927,9 @@ function autoInsert() {
 // --- Stage 6 board (Aurora-u68h.1) ------------------------------------------------------------------------------
 // A static board, not the editor: where each message lives once the banner under the bar is retired. Each section
 // names the bead that builds it. Wording marked "drafted" is new in this frame, for the owner to confirm.
-const W = (paths) => el('span', { class: 's6-warn', 'aria-hidden': 'true', html: `<svg viewBox="0 0 24 24" class="ge-icon ge-vs">${paths}</svg>` })
+const W = (paths, cls = '') => el('span', { class: `s6-warn ${cls}`.trim(), 'aria-hidden': 'true', html: `<svg viewBox="0 0 24 24" class="ge-icon ge-vs">${paths}</svg>` })
 const warnSvg = () => W(ZEST.warning)
-const errSvg = () => W(ZEST.error)
+const errSvg = () => W(ZEST.error, 's6-warn-err')
 const infoSvg = () => W(ZEST.info)
 // el() with a class and an optional attrs object first among the kids.
 const s6 = (tag, cls, ...kids) => {
@@ -968,8 +968,15 @@ const ROWS = {
   agentTest: { text: 'An agent is testing an effect on the lights.', action: 'Stop test', notice: true },
   tabTest: { text: 'Another editor tab is testing an effect on the lights.', action: 'Stop test', notice: true },
 }
+// Grille's inline-icon approach (.ui-status-message, as Callout's title): a flex row, baseline-aligned, the icon its own item, so
+// wrapped text stays in its column and never runs back under the icon. Only the icon takes the tone; the text stays default.
+const rowIcon = (kind) => { // a direct child of the row: Grille's rule sizes and baseline-aligns only `.ui-status-message > .ui-icon`
+  const t = document.createElement('template')
+  t.innerHTML = `<svg class="ui-icon s6-ricon s6-ricon-${kind}" viewBox="0 0 24 24" fill="currentColor" focusable="false" aria-hidden="true">${{ error: ZEST.error, info: ZEST.info, warning: ZEST.warning }[kind]}</svg>`
+  return t.content.firstChild
+}
 const shellRow = ({ text, action, dismiss, err, notice }) => s6('div', 's6-row',
-  s6('div', 's6-row-content', s6('p', 's6-row-text', notice ? null : err ? errSvg() : warnSvg(), notice ? null : ' ', text), action ? s6('div', 's6-row-actions', btn(action, { variant: 'secondary' })) : null),
+  s6('div', 's6-row-content', s6('p', 's6-row-text ui-status-message', rowIcon(notice ? 'info' : err ? 'error' : 'warning'), el('span', {}, text)), action ? s6('div', 's6-row-actions', btn(action, { variant: 'secondary' })) : null),
   dismiss ? s6('button', 's6-row-x', { type: 'button', 'aria-label': 'Dismiss' }, '×') : null)
 // #shell-banner-slot: the first thing on the page, full width, above the bar; the rows' column is 640px, centred.
 const shellBand = (...kids) => s6('div', 's6-band', s6('div', 's6-band-inner', ...kids))
@@ -1049,7 +1056,7 @@ const plural = (n, w) => `${n} ${w}${n === 1 ? '' : 's'}`
 const count = (n, w, kind) => s6('span', `s7-cnt${kind === 'err' ? ' s7-cnt-err' : ''}`, kind === 'err' ? errSvg() : infoSvg(), ` ${plural(n, w)}`)
 // The collapsed bar: one control, errors first, each class in its own mark and tone.
 const collapsedBar = (errors, notices) => s6('button', 's6-summary', { type: 'button', 'aria-expanded': 'false' },
-  errors ? count(errors, 'error', 'err') : null, errors && notices ? s6('span', 's7-dot', '·') : null, notices ? count(notices, 'notice') : null, chevron('cc-chev'))
+  errors ? count(errors, 'error', 'err') : null, notices ? count(notices, 'notice') : null, chevron('cc-chev'))
 const showLess = () => s6('button', 's6-summary s6-summary-up s6-summary-quiet', { type: 'button', 'aria-expanded': 'true' }, 'Show less ', chevron('cc-chev', true))
 const today = (label) => s6('button', 's6-summary', { type: 'button' }, [warnSvg(), ` ${label} `], chevron('cc-chev'))
 const gChev = () => el('span', { 'aria-hidden': 'true', html: `<svg class="ui-icon" data-size="sm" data-chevron viewBox="0 0 32 32" fill="currentColor" focusable="false" aria-hidden="true"><path d="M15.905 17.4809C15.9571 17.533 16.0415 17.533 16.0936 17.4809L22.4111 11.1635C22.6714 10.9031 23.0935 10.9031 23.3539 11.1635L24.9567 12.7662C25.217 13.0266 25.217 13.4487 24.9567 13.709L18.1028 20.5629C18.0937 20.5732 18.0842 20.5833 18.0744 20.5931L16.4716 22.1959C16.2113 22.4562 15.7892 22.4562 15.5288 22.1959L7.04353 13.7106C6.78318 13.4503 6.78318 13.0281 7.04353 12.7678L8.6463 11.165C8.90665 10.9047 9.32876 10.9047 9.58911 11.165L15.905 17.4809Z"/></svg>` })
@@ -1094,10 +1101,10 @@ function collapseSection() {
 }
 
 function drawBoard(which) {
-  const sections = { shell: shellSection, test: testSection, prompt: promptSection, collapse: collapseSection, buttons: () => bsSection(s6section, s6note), sizes: () => szSection(s6section, s6note) }
+  const sections = { shell: shellSection, test: testSection, prompt: promptSection, collapse: collapseSection, start: () => ssSection(s6section, s6note), sim: () => simBoard(s6section, s6note), spot: () => spotSection(s6section, s6note), buttons: () => bsSection(s6section, s6note), sizes: () => szSection(s6section, s6note) }
   const keys = which === 'all' ? ['shell', 'test', 'prompt'] : [which]
   $('board').replaceChildren(
-    which === 'sizes' ? s6('header', 's6-head', s6('h1', '', 'Stage 7.0i: button sizes on Grille dev.15'), s6('p', '', 'Frame for Aurora-u8jx.11. Static. Heights are measured live.')) : which === 'buttons' ? s6('header', 's6-head', s6('h1', '', 'Stage 7.0h: button styling A / B / C'), s6('p', '', 'Frame for Aurora-u8jx.7. Static: only forced states, hover works live. No editor code changed.')) : which === 'collapse' ? s6('header', 's6-head', s6('h1', '', 'Stage 7.0f: the shell collapses as one'), s6('p', '', 'Frame for Aurora-u8jx.5. Static: nothing here is wired. Drafted wording is new in this frame.')) : s6('header', 's6-head', s6('h1', '', 'Stage 6: where each editor message lives'), s6('p', '', 'Frame for Aurora-u68h.1. The banner under the bar is gone in every state below. The title menu and Open path are the live frames #s6-menu, #s6-openpath and #s6-apply. The problems chip and the toast are unchanged and not drawn. Static: nothing here is wired.')),
+    which === 'spot' ? s6('header', 's6-head', s6('h1', '', 'Stage 7.0l: the shell without a scroll view'), s6('p', '', 'Frame for Aurora-u8jx.14. Live: press the events. Frozen frames stop the same pulse for comparison.')) : which === 'sim' ? s6('header', 's6-head', s6('h1', '', 'Stage 7.0k: shell sequences, A against B'), s6('p', '', 'Frame for Aurora-u8jx.12. Live: press the steps, or inject events yourself.')) : which === 'start' ? s6('header', 's6-head', s6('h1', '', 'Stage 7.0j: how a shell with 2+ rows starts'), s6('p', '', 'Frame for Aurora-u8jx.12. Static, but the C region scrolls. Pick A, B or C (or a mix).')) : which === 'sizes' ? s6('header', 's6-head', s6('h1', '', 'Stage 7.0i: button sizes on Grille dev.15'), s6('p', '', 'Frame for Aurora-u8jx.11. Static. Heights are measured live.')) : which === 'buttons' ? s6('header', 's6-head', s6('h1', '', 'Stage 7.0h: button styling A / B / C'), s6('p', '', 'Frame for Aurora-u8jx.7. Static: only forced states, hover works live. No editor code changed.')) : which === 'collapse' ? s6('header', 's6-head', s6('h1', '', 'Stage 7.0f: the shell collapses as one'), s6('p', '', 'Frame for Aurora-u8jx.5. Static: nothing here is wired. Drafted wording is new in this frame.')) : s6('header', 's6-head', s6('h1', '', 'Stage 6: where each editor message lives'), s6('p', '', 'Frame for Aurora-u68h.1. The banner under the bar is gone in every state below. The title menu and Open path are the live frames #s6-menu, #s6-openpath and #s6-apply. The problems chip and the toast are unchanged and not drawn. Static: nothing here is wired.')),
     ...keys.map((k) => sections[k]()))
 }
 
@@ -1129,7 +1136,7 @@ const FRAMES = [
     ['s6-apply', 'Save and apply, problems', () => { Object.assign(state, { s6: true, problems: true, unsaved: true }); drawBar(); drawIslands(); drawNodes(); openTitleS6({ focus: 'Save and apply' }) }],
     ['s6-menu', 'Title menu, no problems', () => { Object.assign(state, { s6: true, unsaved: true }); drawBar(); openTitleS6() }],
     ['s6-openpath', 'Open path', () => { Object.assign(state, { s6: true, unsaved: true }); drawBar(); openTitleS6({ openSub: true }) }]]],
-  ['Stage 7', [['s7-collapse', 'Lone row collapses', () => drawBoard('collapse')], ['s7-buttons', 'Button styling A/B/C', () => drawBoard('buttons')], ['s7-sizes', 'Button sizes (dev.15)', () => drawBoard('sizes')]]],
+  ['Stage 7', [['s7-collapse', 'Lone row collapses', () => drawBoard('collapse')], ['s7-start', 'How 2+ rows start', () => drawBoard('start')], ['s7-sim', 'Shell sequences A/B', () => drawBoard('sim')], ['s7-spot', 'Shell spotlight', () => drawBoard('spot')], ['s7-buttons', 'Button styling A/B/C', () => drawBoard('buttons')], ['s7-sizes', 'Button sizes (dev.15)', () => drawBoard('sizes')]]],
   ['States', [['testing', 'Testing', () => { state.unsaved = true; startTest('once', 12, false) }], ['testing-live', 'Testing live', () => { state.unsaved = true; startTest('live') }], ['problems', 'Problems', () => { state.problems = true; drawBar(); drawIslands(); drawNodes(); openProblems() }], ['refused', 'Refused wire', () => toast('Those ports do not match: an Image cannot connect to a Frame')], ['refused-float', 'Refused: Float to Angle', () => toast('A Float cannot connect to an Angle. Add a Float to Angle node between them.')], ['autoinsert', 'Auto-insert converter', autoInsert]]],
 ]
 
@@ -1157,7 +1164,7 @@ function showFrame() {
   effects6 = freshEffects()
   layoutGraph(); state.edges = GRAPH.edges.map(([from, to]) => ({ from, to }))
   drawNodes(); drawBar(); drawBanner(); drawIslands(); fit(); drawFrames(id)
-  const board = ['s6', 's6-shell', 's6-test', 's6-prompt', 's7-collapse', 's7-buttons', 's7-sizes'].includes(id)
+  const board = ['s6', 's6-shell', 's6-test', 's6-prompt', 's7-collapse', 's7-start', 's7-sim', 's7-spot', 's7-buttons', 's7-sizes'].includes(id)
   document.body.classList.toggle('board-on', board)
   $('board').hidden = !board
   FRAMES.flatMap(([, frames]) => frames).find(([key]) => key === id)?.[2]()

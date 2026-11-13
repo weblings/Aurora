@@ -1,0 +1,109 @@
+/* Aurora-u8jx.12: shell start mock. Local to the mock. */
+.ss-h3 { margin: 32px 0 var(--ui-size-space-sm); font-size: 14px; font-weight: 600; }
+.ss-h4 { margin: var(--ui-size-space-xl) 0 var(--ui-size-space-md); font-size: 12px; font-weight: 600; color: var(--ui-color-text-muted); }
+.ss-strip { display: flex; flex-wrap: wrap; gap: var(--ui-size-space-2xl); align-items: flex-start; }
+.ss-fig { max-width: 100%; overflow-x: auto; }
+.ss-fig > figcaption { max-width: 60ch; }
+.ss-win { flex: none; display: flex; flex-direction: column; background: var(--ui-color-surface-page); }
+.ss-win > * { flex: none; }
+.ss-win > .ss-canvas { flex: 1; height: auto; min-height: 0; flex-direction: column; gap: 6px; }
+.ss-canvas { display: flex !important; align-items: center; justify-content: center; }
+.ss-left { color: var(--ui-color-text-secondary); font-size: 11px; text-align: center; padding: 0 8px; }
+/* C: the scrolling region. max-height is a share of the window height, drawn through --ss-vh. */
+.ss-region { box-sizing: border-box; max-height: min(calc(var(--ss-vh, 650px) * .35), 220px); overflow-y: auto; overscroll-behavior: contain; position: relative; scrollbar-width: thin; padding: 2px; margin: -2px; }
+.ss-region::-webkit-scrollbar { width: 8px; }
+.ss-region::-webkit-scrollbar-thumb { background: var(--ui-color-text-muted); border-radius: 4px; }
+.ss-region::-webkit-scrollbar-track { background: var(--ui-color-border-subtle); border-radius: 4px; }
+.ss-region.ss-over { padding-right: 10px; }
+.ss-region.ss-over { --ss-top: 0px; --ss-bot: 0px; -webkit-mask-image: linear-gradient(to bottom, transparent, #000 var(--ss-top), #000 calc(100% - var(--ss-bot)), transparent); mask-image: linear-gradient(to bottom, transparent, #000 var(--ss-top), #000 calc(100% - var(--ss-bot)), transparent); }
+.ss-region.ss-more { --ss-bot: 28px; }
+.ss-region.ss-less { --ss-top: 28px; }
+.ss-region:focus-visible, .ss-region.s6-focus { outline: 2px solid var(--ui-color-focus-ring, #5b9dff); outline-offset: 2px; }
+.ss-region + .s6-summary { margin-top: 12px; }
+/* Dashboard styled: Aurora tokens (web/ui/styles/tokens.css) in place of Grille's, a bar like the Dashboard's header. */
+.ss-dash { --ui-color-surface-raised: #1a1a1a; --ui-color-border-default: #333; --ui-color-border-subtle: #1e1e1e; --ui-color-surface-page: #0a0a0a; }
+.ss-dashbar { display: flex; align-items: center; gap: 8px; padding: 12px 16px; border-bottom: 1px solid #333; }
+
+/* Sequences (shellsim.js) */
+.ss-ctl { display: flex; flex-direction: column; gap: var(--ui-size-space-md); margin-bottom: var(--ui-size-space-2xl); padding: var(--ui-size-space-xl); border: 1px dashed var(--ui-color-text-muted); border-radius: var(--ui-size-radius-md); }
+.ss-ctl-row { display: flex; flex-wrap: wrap; align-items: center; gap: var(--ui-size-space-md); }
+.ss-ctl-row > b { min-width: 7em; font-size: 12px; color: var(--ui-color-text-muted); }
+.ss-pick { display: inline-flex; align-items: center; gap: var(--ui-size-space-md); }
+.ss-pick > b { font-size: 12px; font-weight: 400; color: var(--ui-color-text-secondary); }
+.ui-button.ss-on { background: var(--ui-color-control-bg-hover); outline: 1px solid var(--ui-color-text-secondary); }
+.ss-step { font-size: 12px; color: var(--ui-color-text-muted); }
+.ss-step.ss-next { color: var(--ui-color-text-default); font-weight: 600; }
+.ss-step.ss-done { text-decoration: line-through; }
+.ss-sim-strip { align-items: flex-start; }
+.ss-sim-win { width: 520px; height: 520px; }
+.ss-state { font-weight: 400; color: var(--ui-color-text-muted); }
+.ss-log { margin: var(--ui-size-space-md) 0 0; padding-left: 18px; font-size: 12px; color: var(--ui-color-text-muted); min-height: 8.5em; }
+.ss-log .ss-new { color: var(--ui-color-text-default); font-weight: 600; }
+@keyframes ss-flash { from { outline: 2px solid var(--ui-color-text-warning); outline-offset: -2px; } to { outline: 2px solid transparent; outline-offset: -2px; } }
+.ss-flash > .s6-band { animation: ss-flash 1.4s ease-out; }
+@media (prefers-reduced-motion: reduce) { .ss-flash > .s6-band { animation: none; outline: 2px solid var(--ui-color-text-warning); outline-offset: -2px; } }
+
+/* Storyboard (shellsim.js) */
+.ss-sel { display: inline-flex; align-items: center; gap: var(--ui-size-space-md); }
+.ss-sel > b { font-size: 12px; color: var(--ui-color-text-muted); }
+.ss-sel select { background: var(--ui-color-control-bg, var(--ui-color-surface-raised)); color: var(--ui-color-text-default); border: 1px solid var(--ui-color-border-default); border-radius: var(--ui-size-radius-sm); padding: 6px 8px; font: inherit; font-size: 13px; }
+.ss-ctl { flex-direction: row; flex-wrap: wrap; align-items: center; justify-content: space-between; }
+.ss-pick > b { color: var(--ui-color-text-muted); }
+.ss-stage-head { display: flex; flex-wrap: wrap; align-items: flex-end; gap: var(--ui-size-space-xl); margin-bottom: var(--ui-size-space-xl); }
+.ss-stage-head > div:first-child { flex: 1 1 320px; }
+.ss-stepno { font-size: 12px; color: var(--ui-color-text-muted); }
+.ss-event { margin: 2px 0 0; font-size: 16px; font-weight: 600; }
+.ss-nav { display: flex; gap: var(--ui-size-space-md); }
+.ss-verdict { font-size: 12px; font-weight: 600; padding: 4px 10px; border-radius: 999px; border: 1px solid var(--ui-color-border-default); }
+.ss-verdict.ss-same { color: var(--ui-color-text-muted); }
+.ss-verdict.ss-differ { color: var(--ui-color-text-warning); border-color: var(--ui-color-text-warning); }
+.ss-did { margin: var(--ui-size-space-md) 0 0; font-size: 13px; color: var(--ui-color-text-default); min-height: 2.6em; max-width: 520px; }
+.ss-sim-win { height: 440px; }
+.ss-story { width: 100%; max-width: 1100px; margin-top: var(--ui-size-space-2xl); border-collapse: collapse; font-size: 12px; }
+.ss-story th, .ss-story td { text-align: left; padding: 6px 10px; border-bottom: 1px solid var(--ui-color-border-subtle); vertical-align: top; color: var(--ui-color-text-secondary); }
+.ss-story tbody tr { cursor: pointer; }
+.ss-story tr.ss-diff td:not(:first-child) { color: var(--ui-color-text-warning); }
+.ss-story tr.ss-cur td { background: var(--ui-color-surface-raised); color: var(--ui-color-text-default); font-weight: 600; }
+
+/* Spotlight (shellspot.js, Aurora-u8jx.14). Keyframes would live in ui/styles/shell.css, shared with the Problems chip. */
+.ss-sp-region { box-sizing: border-box; padding: 8px; margin: -8px; position: relative; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; }
+.ss-sp-win:not(.ss-nocap) .ss-sp-region { max-height: calc(var(--ss-vh, 650px) * .6); }
+.ss-sp-region.ss-over { padding-right: 14px; }
+.ss-sp-region:focus-visible { outline: 2px solid var(--ui-color-focus-ring, #5b9dff); outline-offset: -2px; }
+.ss-sp-region .s6-row + .s6-row { margin-top: var(--ss-gap, 12px); }
+.ss-sp-region .s6-row { position: relative; }
+.ss-sp-foot { display: flex; justify-content: center; gap: 16px; }
+.ss-sp-foot .s6-summary { width: auto; }
+.ss-sp-bar { display: flex; justify-content: center; gap: 24px; }
+.ss-sp-bar .s6-summary { width: auto; }
+.ss-sp-count.s7-cnt-err { color: var(--ui-color-text-error); }
+.ss-ring-neutral { --ss-ring: var(--ui-color-border-default); }
+.ss-ring-tinted { --ss-ring: var(--ui-color-text-default); }
+.ss-ring-tinted .s6-row[data-kind="error"] { --ss-ring: var(--ui-color-text-error); }
+.ss-sp-region .s6-row[data-new]::after { content: ''; position: absolute; inset: -2px; border-radius: inherit; pointer-events: none; animation: ss-spot 1375ms ease-out 1 both; }
+@keyframes ss-spot {
+  0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--ss-ring) 70%, transparent); }
+  100% { box-shadow: 0 0 0 8px transparent; }
+}
+/* above the cap: held at its first (invisible) frame until the row is on screen */
+.ss-sp-region .s6-row[data-new][data-wait]::after { animation-play-state: paused; }
+/* frozen frames: stopped part-way through */
+.ss-sp-region .s6-row.ss-freeze[data-new]::after { animation-play-state: paused; animation-delay: var(--ss-t, 0ms); }
+/* reduced motion: a static ring held for the same time */
+@keyframes ss-hold { 0%, 99% { box-shadow: 0 0 0 2px color-mix(in srgb, var(--ss-ring) 70%, transparent); } 100% { box-shadow: 0 0 0 2px transparent; } }
+.ss-rm .s6-row[data-new]::after { animation: ss-hold 1375ms linear 1 both !important; }
+.ss-rm .s6-row[data-new][data-wait]::after { animation-play-state: paused !important; }
+@media (prefers-reduced-motion: reduce) { .ss-sp-region .s6-row[data-new]::after { animation: ss-hold 1375ms linear 1 both; } }
+.ss-sp-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+.ss-sp-evs { display: flex; flex-wrap: wrap; gap: var(--ui-size-space-md); margin-bottom: var(--ui-size-space-xl); }
+.ss-sp-live { position: relative; max-width: 100%; overflow-x: auto; }
+.ss-sp-said { font-size: 12px; color: var(--ui-color-text-muted); margin: var(--ui-size-space-md) 0 0; }
+.ss-sp-log { margin: var(--ui-size-space-md) 0 var(--ui-size-space-xl); padding-left: 18px; font-size: 12px; color: var(--ui-color-text-muted); min-height: 6.5em; }
+.ss-sp-log li:first-child { color: var(--ui-color-text-default); }
+.ss-sp-play, .ss-sp-story { margin-bottom: var(--ui-size-space-xl); }
+.ss-sp-story .ss-nav { margin-left: auto; }
+
+/* the same scroll fade as the #s7-start region, on the spotlight region */
+.ss-sp-region.ss-over { --ss-top: 0px; --ss-bot: 0px; -webkit-mask-image: linear-gradient(to bottom, transparent, #000 var(--ss-top), #000 calc(100% - var(--ss-bot)), transparent); mask-image: linear-gradient(to bottom, transparent, #000 var(--ss-top), #000 calc(100% - var(--ss-bot)), transparent); }
+.ss-sp-region.ss-more { --ss-bot: 28px; }
+.ss-sp-region.ss-less { --ss-top: 28px; }
