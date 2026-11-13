@@ -1,3 +1,4 @@
+import { bannerHtml } from './shellRows.js';
 // The error shell's keyed patch (Aurora-9hqa.1). A poll used to rewrite the banner's innerHTML, which
 // dropped keyboard focus on Retry, Dismiss and Stop test every 3 s. Now each poll plans against the
 // rows already drawn and touches only what changed. planPatch is pure (shellPatch.test.mjs);
@@ -18,10 +19,12 @@ export function planPatch(prev, next) {
   return ops;
 }
 
-const WRAPPER = '<div class="shell-banner"><div class="shell-banner-inner"></div></div>';
+const WRAPPER = '<div class="shell-banner"><div class="shell-banner-inner"><div class="shell-banner-rows"></div></div></div>';
 
 // Draws `rows` (from shellRows.bannerRows) into `slot`. Each row's node is its html's one root
 // element; its signature is kept on the node (data-sig) so the next poll can plan against the DOM.
+// The rows go in the capped region (.shell-banner-rows), the toggle after it in .shell-banner-inner,
+// each list patched on its own so a scrolled region keeps its scrollTop and the toggle keeps focus.
 export function applyPatch(slot, rows) {
   if (rows.length === 0) {
     slot.innerHTML = '';
@@ -30,7 +33,7 @@ export function applyPatch(slot, rows) {
   const doc = slot.ownerDocument;
   // No real DOM (a unit-test double): write the whole banner.
   if (!doc || typeof doc.createElement !== 'function') {
-    slot.innerHTML = `<div class="shell-banner"><div class="shell-banner-inner">${rows.map((row) => row.html).join('')}</div></div>`;
+    slot.innerHTML = bannerHtml(rows);
     return;
   }
   let inner = slot.querySelector('.shell-banner-inner');
@@ -38,9 +41,16 @@ export function applyPatch(slot, rows) {
     slot.innerHTML = WRAPPER;
     inner = slot.querySelector('.shell-banner-inner');
   }
-  const nodes = new Map();
-  for (const node of inner.children) nodes.set(node.getAttribute('data-key'), node);
-  const prev = [...inner.children].map((node) => ({ key: node.getAttribute('data-key'), sig: node.getAttribute('data-sig') }));
+  patchList(doc, inner.querySelector('.shell-banner-rows'), rows.filter((row) => row.kind !== 'toggle'));
+  patchList(doc, inner, rows.filter((row) => row.kind === 'toggle'));
+}
+
+// Patches the keyed children of `container` to `rows`; a child without data-key (the region inside
+// .shell-banner-inner) is left alone.
+function patchList(doc, container, rows) {
+  const children = [...container.children].filter((node) => node.hasAttribute('data-key'));
+  const nodes = new Map(children.map((node) => [node.getAttribute('data-key'), node]));
+  const prev = children.map((node) => ({ key: node.getAttribute('data-key'), sig: node.getAttribute('data-sig') }));
   const byKey = new Map(rows.map((row) => [row.key, row]));
   const template = doc.createElement('template');
   const build = (row) => {
@@ -51,7 +61,6 @@ export function applyPatch(slot, rows) {
     if (row.isNew) node.setAttribute('data-new', '');
     return node;
   };
-  let cursor = null;
   const ops = planPatch(prev, rows);
   for (const { op, key } of ops) {
     if (op === 'remove') {
@@ -59,13 +68,13 @@ export function applyPatch(slot, rows) {
       nodes.delete(key);
     }
   }
-  cursor = inner.firstElementChild;
+  let cursor = [...container.children].find((node) => node.hasAttribute('data-key')) ?? null;
   for (const { op, key } of ops) {
     if (op === 'remove') continue;
     if (op === 'keep') {
       const node = nodes.get(key);
       if (node === cursor) cursor = cursor.nextElementSibling;
-      else inner.insertBefore(node, cursor);
+      else container.insertBefore(node, cursor);
       continue;
     }
     if (op === 'replace') {
@@ -78,12 +87,12 @@ export function applyPatch(slot, rows) {
         for (const name of fresh.getAttributeNames()) old.setAttribute(name, fresh.getAttribute(name));
         old.innerHTML = fresh.innerHTML;
         if (old === cursor) cursor = cursor.nextElementSibling;
-        else inner.insertBefore(old, cursor);
+        else container.insertBefore(old, cursor);
         continue;
       }
       if (old === cursor) cursor = cursor.nextElementSibling;
       old.remove();
     }
-    inner.insertBefore(build(byKey.get(key)), cursor);
+    container.insertBefore(build(byKey.get(key)), cursor);
   }
 }

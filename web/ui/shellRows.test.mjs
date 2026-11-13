@@ -145,7 +145,16 @@ const at = (nowMs) => bannerRows({ lightTest: { holder: { session: 'x' }, endsAt
 assert.notEqual(at(0).html, at(10_000).html);
 assert.equal(at(0).sig, at(10_000).sig, 'a ticking clock is not a change');
 assert.equal(bannerHtml([]), '');
-assert.equal(bannerHtml(bannerRows({ notes: ['n'] })).startsWith('<div class="shell-banner"><div class="shell-banner-inner"><div class="shell-banner-row"'), true);
+assert.equal(bannerHtml(bannerRows({ notes: ['n'] })).startsWith('<div class="shell-banner"><div class="shell-banner-inner"><div class="shell-banner-rows"><div class="shell-banner-row"'), true);
+// The toggle sits after the capped rows region, never inside it (Aurora-9hqa.3).
+{
+  const html = bannerHtml(bannerRows({ notes: ['n'] }));
+  assert.ok(html.indexOf('</div><button') > html.indexOf('shell-banner-rows'), 'toggle follows the region');
+  assert.equal(html.slice(html.indexOf('shell-banner-rows'), html.indexOf('<button')).includes('shell-banner-toggle'), false);
+  // Collapsed: an empty region, then the toggle.
+  const collapsed = bannerHtml(bannerRows({ notes: ['a', 'b'] }, { snapshot: ['note:a', 'note:b'] }));
+  assert.ok(collapsed.includes('<div class="shell-banner-rows"></div><button'));
+}
 assert.notEqual(bannerRows({ errors: [{ source: 'reload', message: 'm', id: 1 }] }, { hostState: 'running' })[0].sig, bannerRows({ errors: [{ source: 'reload', message: 'm', id: 1 }] }, { hostState: 'paused' })[0].sig, 'same key, new content: replaced');
 
 // Arrivals (Aurora-9hqa.2): a key the previous render did not hold is new; nothing before the baseline.

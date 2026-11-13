@@ -38,6 +38,11 @@ which the Problems chip's ping shares) and is announced once in the visually
 hidden `#shell-announcer` in `index.html`, outside the slot the patch rewrites
 (`shellRows.js` `arrivedKeys`, `rowSpeech`, `arrivalAnnouncement`;
 [[9hqa2-shell-spotlight]]).
+The rows sit in `.shell-banner-rows`, capped at 60vh with edge fades, the toggle
+outside it; `shellPatch.js` patches the region's rows and the toggle as two
+keyed lists, and `shellCap.js` (shared with `ErrorShell.tsx`) keeps the region's
+tab stop and fades true, scrolls to the first new row and starts each pulse once
+its row is seen ([[9hqa3-shell-cap]]; browser check `shell-cap`).
 
 Tests are plain node scripts with no framework (`node styles/welcome.test.mjs`,
 `node DeviceField.test.mjs`, ...).

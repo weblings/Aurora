@@ -62,6 +62,7 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `9ca-fromhsv-nan-guard` | [log/2026-10-01-9ca-fromhsv-nan-guard.md](log/2026-10-01-9ca-fromhsv-nan-guard.md) | Aurora-9ca: NaN/Inf into Color::fromHSV's uint8_t cast — fixed |
 | `9hqa1-shell-row-model` | [log/2026-11-13-9hqa1-shell-row-model.md](log/2026-11-13-9hqa1-shell-row-model.md) | Error shell: one row model for both pages, the Dashboard patches rows by key |
 | `9hqa2-shell-spotlight` | [log/2026-11-13-9hqa2-shell-spotlight.md](log/2026-11-13-9hqa2-shell-spotlight.md) | Error shell arrival spotlight: one pulse and a polite announcement |
+| `9hqa3-shell-cap` | [log/2026-11-13-9hqa3-shell-cap.md](log/2026-11-13-9hqa3-shell-cap.md) | Error shell 60vh safety cap: fades, scroll to the new row, pulses that wait to be seen |
 | `9hqa4-shell-pairing` | [log/2026-11-13-9hqa4-shell-pairing.md](log/2026-11-13-9hqa4-shell-pairing.md) | Pairing requests in the error shell: collapse, editor, baseline wait |
 | `9ig-pipeline-to-core` | [log/2026-10-01-9ig-pipeline-to-core.md](log/2026-10-01-9ig-pipeline-to-core.md) | Aurora-9ig: Pipeline, PipelineHost and Registry moved into core |
 | `api-v1-adapters` | [api/README.md](api/README.md) | Aurora control API (`/api/v1`) |

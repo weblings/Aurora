@@ -235,7 +235,16 @@ One sticky element mounted by the app shell, not by any screen:
   render, and a pairing request says `Pair a device with Aurora? <device>.` Collapse
   state is memory only, so a reload or Dashboard→editor counts as a new
   load. No scroll view in normal use; a `60vh` safety cap only for the
-  rare 5–6 row case.
+  rare 5–6 row case (`Aurora-9hqa.3`, [[9hqa3-shell-cap]]): the rows sit in
+  their own region (`.shell-banner-rows`, `max-height: 60vh`, 8 px inner
+  padding so the pulse ring is not clipped) and the toggle stays outside it,
+  so Show less is always reachable. A 28 px fade shows at each edge that has
+  more rows past it. The region is focusable (`tabindex=0`, an `aria-label`)
+  only while it overflows. Over the cap the first new row scrolls into view
+  (never an older still-waiting one, and an ordinary poll never resets the
+  scroll), and each new row's pulse is held until an `IntersectionObserver`
+  sees the row, with the 2 s fallback starting then. A second new row of the
+  same poll that is off screen pulses when the user scrolls to it.
 - **Fed by the shell's heartbeat**, which polls `GET /api/state` instead of
   `/api/capabilities` (also lock-free, `PipelineRoutes.cpp:83-99`): one
   request gives reachability, host state and the error object, and gives

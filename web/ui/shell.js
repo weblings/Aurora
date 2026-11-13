@@ -1,5 +1,6 @@
 import { arrivalAnnouncement, arrivedKeys, baselineReady, baselineSnapshot, bannerHtml, bannerRows, clockText, collapsibleKeys, orderRows, reconcileSnapshot } from './shellRows.js';
 import { applyPatch } from './shellPatch.js';
+import { createShellCap } from './shellCap.js';
 
 // App shell: owns the one #screen-container mount point. Same navigate()
 // pattern as RockyRoad's own App.ts, trimmed to what Aurora actually needs
@@ -42,9 +43,9 @@ import { applyPatch } from './shellPatch.js';
 // answers (a stale error is worse than none, so the takeover clears it).
 const DEFAULT_POLL_INTERVAL_MS = 3000;
 const DEFAULT_ABORT_TIMEOUT_MS = 2500;
-// The arrival pulse is 1375 ms (styles/shell.css); this clears data-new if animationend never comes
-// (an animation turned off, a hidden tab), and the announcement's two timers (shellRows.js arrivals).
-const PULSE_FALLBACK_MS = 2000;
+// The arrival pulse is 1375 ms (styles/shell.css); shellCap.js clears data-new if animationend never
+// comes (an animation turned off, a hidden tab), from the moment the pulse starts. These are the
+// announcement's two timers (shellRows.js arrivals).
 const ANNOUNCE_DELAY_MS = 50;
 const ANNOUNCE_CLEAR_MS = 10_000;
 const DEFAULT_FAILURE_THRESHOLD = 2;
@@ -96,6 +97,8 @@ export class App {
     this._announceParts = [];
     this._announceTimer = null;
     this._announceClearTimer = null;
+    // The 60vh cap on the rows region (Aurora-9hqa.3): scroll to a new row, pulses start when seen.
+    this._cap = createShellCap({ onPulseDone: (node) => node.removeAttribute('data-new') });
     this.bannerSlot?.addEventListener?.('animationend', (event) => {
       if (event.target?.hasAttribute?.('data-new')) event.target.removeAttribute('data-new');
     });
@@ -436,11 +439,8 @@ export class App {
     applyPatch(this.bannerSlot, rows);
     if (fresh.length > 0) {
       this._announce(arrivalAnnouncement(ordered, fresh, { hostState: this.hostState, platform: this.platform }));
-      const timer = setTimeout(() => {
-        for (const node of this.bannerSlot.querySelectorAll?.('[data-new]') ?? []) node.removeAttribute('data-new');
-      }, PULSE_FALLBACK_MS);
-      timer.unref?.();
     }
+    this._cap.render(this.bannerSlot);
     if (testing) this._startLightTestTimer();
   }
 

@@ -231,7 +231,7 @@ describe('ErrorShell baseline', () => {
     const out = html({ errors: [reload, effect] })
     expect(out).toContain('id="shell-banner-toggle" aria-expanded="false"')
     expect(out).toContain('2 errors')
-    expect(out).not.toContain('shell-banner-row')
+    expect(out).not.toContain('class="shell-banner-row"')
   })
 
   it('a lone row starts open, with the toggle after it', () => {

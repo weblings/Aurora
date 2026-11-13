@@ -151,6 +151,48 @@
   padding: var(--aurora-space-4) var(--aurora-space-6);
 }
 
+/* The rows region (Aurora-9hqa.3): a safety cap, not a scroll view. In normal use every row fits and
+   nothing scrolls; in the rare 5-6 row case the region stops at 60vh and scrolls, and the toggle
+   (after it, not inside it) stays reachable. 8px of inner padding keeps the 8px pulse ring from being
+   clipped by the region's overflow, and the negative margin gives it back so rows sit where they
+   always did. shellCap.js adds .shell-over, .shell-less and .shell-more and, only while it overflows,
+   tabindex, role and aria-label. */
+.shell-banner-rows {
+  box-sizing: border-box;
+  position: relative;
+  max-height: 60vh;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  padding: 8px;
+  margin: -8px;
+}
+
+.shell-banner-rows:empty {
+  display: none;
+}
+
+.shell-banner-rows:focus-visible {
+  /* Inset like the other clipping containers (tokens.css): an outer ring would be cut off. */
+  outline-offset: calc(-1 * var(--aurora-focus-ring-width));
+}
+
+/* A fade at each edge that has more rows past it, so a clipped row reads as continuing. */
+.shell-banner-rows.shell-over {
+  --shell-fade-top: 0px;
+  --shell-fade-bottom: 0px;
+  -webkit-mask-image: linear-gradient(to bottom, transparent, #000 var(--shell-fade-top), #000 calc(100% - var(--shell-fade-bottom)), transparent);
+  mask-image: linear-gradient(to bottom, transparent, #000 var(--shell-fade-top), #000 calc(100% - var(--shell-fade-bottom)), transparent);
+}
+
+.shell-banner-rows.shell-less {
+  --shell-fade-top: 28px;
+}
+
+.shell-banner-rows.shell-more {
+  --shell-fade-bottom: 28px;
+}
+
 .shell-banner-row {
   display: flex;
   align-items: flex-start;
@@ -341,6 +383,12 @@
 
 .shell-banner-row[data-new]:has(.shell-mark-error) {
   --shell-ping-tint: var(--aurora-text-error);
+}
+
+/* Over the cap a new row's pulse is held at its first (invisible) frame until its row is in view
+   (shellCap.js), so a ring is never spent on a row nobody can see. */
+.shell-banner-row[data-new][data-wait] {
+  animation-play-state: paused;
 }
 
 @media (prefers-reduced-motion: reduce) {

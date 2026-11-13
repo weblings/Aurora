@@ -1,5 +1,6 @@
-import { useEffect, useState, type AnimationEventHandler } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState, type AnimationEventHandler } from 'react'
 import { arrivalAnnouncement, arrivedKeys, baselineSnapshot, clockText, collapsibleKeys, errorSentence, layoutRows, lightTesterSentence, markErrors, orderRows, pairingAccessText, permissionRowHtml, reconcileSnapshot } from '../../ui/shellRows.js'
+import { createShellCap } from '../../ui/shellCap.js'
 import { renderLocalNetworkBanner } from '../../ui/MacPermissionRecovery.js'
 import type { HostCondition, HostError } from './graph/hostState'
 import type { Holder } from './graph/lightTest'
@@ -191,59 +192,61 @@ export function ShellBanner(props: ShellBannerProps) {
   const ordered = orderRows({ conditions, errors, notes, lightTest, pairings })
   const rows: Row[] = layoutRows(ordered, snapshot)
   if (rows.length === 0) return null
+  const drawRow = (row: Row) => {
+    switch (row.kind) {
+      case 'light-test':
+        return <LightTestRow key={row.key} rowKey={row.key} lightTest={lightTest as ShellLightTest} onStopTest={props.onStopTest} pulse={pulse(row.key)} />
+      case 'pairing':
+        return <PairingRowView key={row.key} rowKey={row.key} request={row.request as PairingRequest} onDecide={props.onDecidePairing ?? (() => {})} pulse={pulse(row.key)} />
+      case 'condition':
+        return <ConditionRow key={row.key} rowKey={row.key} condition={row.condition as HostCondition} pulse={pulse(row.key)} />
+      case 'error':
+        return <ErrorRow key={row.key} rowKey={row.key} error={row.error as HostError} props={props} pulse={pulse(row.key)} />
+      case 'note':
+        return (
+          <div className="shell-banner-row" key={row.key} data-key={row.key} {...pulse(row.key)}>
+            <div className="shell-banner-content">
+              <Warning text={row.text as string} />
+            </div>
+          </div>
+        )
+      case 'toggle': {
+        // The same button in both states: React keeps the node, so focus survives a toggle.
+        const notices = row.notices as number
+        const errorCount = row.errors as number
+        const onClick = () => onSnapshotChange(row.collapsed ? null : collapsibleKeys(ordered))
+        if (!row.collapsed) {
+          return (
+            <button type="button" className="shell-banner-summary shell-banner-collapse shell-banner-quiet" id="shell-banner-toggle" aria-expanded="true" data-action="toggle" data-key={row.key} key={row.key} onClick={onClick}>
+              Show less <span className="accordion-chevron shell-banner-chevron-up" aria-hidden="true"></span>
+            </button>
+          )
+        }
+        return (
+          <button type="button" className="shell-banner-summary" id="shell-banner-toggle" aria-expanded="false" data-action="toggle" data-key={row.key} key={row.key} onClick={onClick}>
+            {notices > 0 ? (
+              <span className="shell-count">
+                <span className="shell-mark shell-mark-info" aria-hidden="true"></span> {`${notices} ${notices === 1 ? 'notice' : 'notices'}`}
+              </span>
+            ) : null}
+            {errorCount > 0 ? (
+              <span className="shell-count shell-count-error">
+                <span className="shell-mark shell-mark-error" aria-hidden="true"></span> {`${errorCount} ${errorCount === 1 ? 'error' : 'errors'}`}
+              </span>
+            ) : null}{' '}
+            <span className="accordion-chevron" aria-hidden="true"></span>
+          </button>
+        )
+      }
+      default:
+        return null
+    }
+  }
   return (
     <div className="shell-banner">
       <div className="shell-banner-inner">
-        {rows.map((row) => {
-          switch (row.kind) {
-            case 'light-test':
-              return <LightTestRow key={row.key} rowKey={row.key} lightTest={lightTest as ShellLightTest} onStopTest={props.onStopTest} pulse={pulse(row.key)} />
-            case 'pairing':
-              return <PairingRowView key={row.key} rowKey={row.key} request={row.request as PairingRequest} onDecide={props.onDecidePairing ?? (() => {})} pulse={pulse(row.key)} />
-            case 'condition':
-              return <ConditionRow key={row.key} rowKey={row.key} condition={row.condition as HostCondition} pulse={pulse(row.key)} />
-            case 'error':
-              return <ErrorRow key={row.key} rowKey={row.key} error={row.error as HostError} props={props} pulse={pulse(row.key)} />
-            case 'note':
-              return (
-                <div className="shell-banner-row" key={row.key} data-key={row.key} {...pulse(row.key)}>
-                  <div className="shell-banner-content">
-                    <Warning text={row.text as string} />
-                  </div>
-                </div>
-              )
-            case 'toggle': {
-              // The same button in both states: React keeps the node, so focus survives a toggle.
-              const notices = row.notices as number
-              const errorCount = row.errors as number
-              const onClick = () => onSnapshotChange(row.collapsed ? null : collapsibleKeys(ordered))
-              if (!row.collapsed) {
-                return (
-                  <button type="button" className="shell-banner-summary shell-banner-collapse shell-banner-quiet" id="shell-banner-toggle" aria-expanded="true" data-action="toggle" data-key={row.key} key={row.key} onClick={onClick}>
-                    Show less <span className="accordion-chevron shell-banner-chevron-up" aria-hidden="true"></span>
-                  </button>
-                )
-              }
-              return (
-                <button type="button" className="shell-banner-summary" id="shell-banner-toggle" aria-expanded="false" data-action="toggle" data-key={row.key} key={row.key} onClick={onClick}>
-                  {notices > 0 ? (
-                    <span className="shell-count">
-                      <span className="shell-mark shell-mark-info" aria-hidden="true"></span> {`${notices} ${notices === 1 ? 'notice' : 'notices'}`}
-                    </span>
-                  ) : null}
-                  {errorCount > 0 ? (
-                    <span className="shell-count shell-count-error">
-                      <span className="shell-mark shell-mark-error" aria-hidden="true"></span> {`${errorCount} ${errorCount === 1 ? 'error' : 'errors'}`}
-                    </span>
-                  ) : null}{' '}
-                  <span className="accordion-chevron" aria-hidden="true"></span>
-                </button>
-              )
-            }
-            default:
-              return null
-          }
-        })}
+        <div className="shell-banner-rows">{rows.filter((row) => row.kind !== 'toggle').map(drawRow)}</div>
+        {rows.filter((row) => row.kind === 'toggle').map(drawRow)}
       </div>
     </div>
   )
@@ -295,16 +298,27 @@ export function ErrorShell({ unreachable, hasReplied, onAnnounce, ...props }: Er
   useEffect(() => {
     if (spoken?.text) onAnnounce?.(spoken.text)
   }, [spoken, onAnnounce])
-  // animationend ends a pulse; this covers an animation that never runs (a hidden tab).
-  useEffect(() => {
-    if (pulsing.length === 0) return
-    const timer = window.setTimeout(() => setPulsing([]), 2000)
-    return () => window.clearTimeout(timer)
-  }, [pulsing])
+  // The 60vh cap on the rows region (Aurora-9hqa.3, ui/shellCap.js): after each commit it keeps the
+  // region's focus and fades true, scrolls to a new row, and starts each pulse once the row is seen.
+  // animationend ends a pulse; the cap's fallback timer (started when the pulse starts) covers an
+  // animation that never runs (a hidden tab).
+  const slotRef = useRef<HTMLDivElement>(null)
+  const capRef = useRef<ReturnType<typeof createShellCap> | null>(null)
+  useLayoutEffect(() => {
+    const cap = createShellCap({ onPulseDone: (node: Element) => setPulsing((current) => current.filter((k) => k !== node.getAttribute('data-key'))) })
+    capRef.current = cap
+    return () => {
+      cap.dispose()
+      capRef.current = null
+    }
+  }, [])
+  useLayoutEffect(() => {
+    capRef.current?.render(slotRef.current)
+  })
   const show = hasReplied && seeded && !unreachable
   return (
     <>
-      <div id="shell-banner-slot">{show ? <ShellBanner {...props} snapshot={snapshot} onSnapshotChange={setSnapshot} pulsing={pulsing} onPulseEnd={(key) => setPulsing((current) => current.filter((k) => k !== key))} /> : null}</div>
+      <div id="shell-banner-slot" ref={slotRef}>{show ? <ShellBanner {...props} snapshot={snapshot} onSnapshotChange={setSnapshot} pulsing={pulsing} onPulseEnd={(key) => setPulsing((current) => current.filter((k) => k !== key))} /> : null}</div>
       <div id="shell-overlay-slot">
         {unreachable ? (
           <div className="overlay">

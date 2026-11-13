@@ -321,8 +321,10 @@ export function bannerRows(input, { snapshot = null, hostState = null, platform 
 }
 
 // The whole banner as the slot holds it, or '' for no rows.
+// The rows sit in their own region (the 60vh cap, Aurora-9hqa.3); the toggle stays outside it, so
+// it is always reachable. The region is drawn even when empty (collapsed), so the markup is one shape.
 export function bannerHtml(rows) {
-  return rows.length === 0
-    ? ''
-    : `<div class="shell-banner"><div class="shell-banner-inner">${rows.map((row) => row.html).join('')}</div></div>`;
+  if (rows.length === 0) return '';
+  const html = (list) => list.map((row) => row.html).join('');
+  return `<div class="shell-banner"><div class="shell-banner-inner"><div class="shell-banner-rows">${html(rows.filter((row) => row.kind !== 'toggle'))}</div>${html(rows.filter((row) => row.kind === 'toggle'))}</div></div>`;
 }
