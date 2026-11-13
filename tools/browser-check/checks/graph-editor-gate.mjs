@@ -16,6 +16,7 @@ await withEditorStack(async ({ editorUrl, restart }) => {
   const browser = await launch()
   const page = await browser.newPage({ viewport: { width: 1470, height: 1000 } })
   page.on('pageerror', (e) => assert.fail(`page error: ${e.message}`))
+  page.on('framenavigated', (f) => f === page.mainFrame() && console.log(`nav ${f.url()}`))
 
   const api = (method, path, body, headers = {}) =>
     page.evaluate(
@@ -236,10 +237,21 @@ await withEditorStack(async ({ editorUrl, restart }) => {
 
     // A draft that needs an input the preview did not open: draft_invalid.
     const audio = (await api('GET', '/api/effects/builtin.audio')).json.graph
-    assert.equal((await api('PUT', `/api/graph/drafts/${mine}`, { graph: audio })).status, 200)
-    await waitStatus(/would not load/)
+    // Aurora-gujj: the editor's own debounced draft PUT (from the Undo above) can land after this one;
+    // its verdict clears the problem and the chip unmounts. Let it settle, then put again until the
+    // chip has stayed for a moment.
+    await settle()
+    const chip = page.locator('.editor-problems-chip', { hasText: /1 problem/ })
+    for (let tries = 0; ; tries++) {
+      assert.equal((await api('PUT', `/api/graph/drafts/${mine}`, { graph: audio })).status, 200)
+      await waitStatus(/would not load/)
+      await chip.waitFor({ timeout: 5_000 }).catch(() => {})
+      await page.waitForTimeout(700)
+      if (await chip.isVisible()) break
+      assert.ok(tries < 4, 'the problems chip never stayed after the audio draft')
+    }
     // Aurora-u68h.5: it is a Whole graph problem in the chip's popover, not a banner.
-    await page.locator('.editor-problems-chip', { hasText: /1 problem/ }).click()
+    await chip.click()
     const wholeRow = page.locator('.editor-problem-list li', { hasText: 'Whole graph' })
     await wholeRow.waitFor()
     assert.ok((await wholeRow.innerText()).replace(/\s+/g, ' ').length > 'Whole graph Add node…'.length, 'Whole graph row has no server text')
